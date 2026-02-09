@@ -22,7 +22,11 @@ export function getPagePathnamesFromSitemap(options: LinkCheckerOptions) {
 		paths.forEach((path) => uniquePagePaths.add(path));
 	}
 
-	return Array.from(uniquePagePaths);
+	const paths = Array.from(uniquePagePaths);
+	if (options.excludePagePatterns?.length) {
+		return paths.filter((p) => !options.excludePagePatterns!.some((re) => re.test(p)));
+	}
+	return paths;
 }
 
 /**

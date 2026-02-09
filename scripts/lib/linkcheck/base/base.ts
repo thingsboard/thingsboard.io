@@ -6,6 +6,7 @@ export interface LinkCheckerOptions {
 	pageSourceDir: string;
 	checks: CheckBase[];
 	autofix?: boolean;
+	excludePagePatterns?: RegExp[];
 }
 
 export class LinkCheckerState {

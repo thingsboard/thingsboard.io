@@ -1,7 +1,7 @@
 import type { TutorialEntry } from '~/content.config';
 
 /** Get a sorted list of tutorial pages. */
-export function getTutorialPages(allPages: TutorialEntry[], _lang?: string | undefined) {
+export function getTutorialPages(allPages: TutorialEntry[]) {
 	return [...allPages].sort((a, b) => (a.id > b.id ? 1 : a.id < b.id ? -1 : 0));
 }
 
