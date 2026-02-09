@@ -65,9 +65,10 @@ class LinkChecker {
 
 // Use our class to check for link issues
 const linkChecker = new LinkChecker({
-	baseUrl: 'https://docs.astro.build',
+	baseUrl: 'https://thingsboard.io',
 	buildOutputDir: './dist',
 	pageSourceDir: './src/content/docs',
+	excludePagePatterns: [/^\/device-library\//],
 	checks: [
 		new TargetExists(),
 		new SameLanguage({

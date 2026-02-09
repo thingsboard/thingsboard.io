@@ -1,27 +1,39 @@
 import glob from 'fast-glob';
 import kleur from 'kleur';
 
-/** Makes sure that all translations’ slugs match the English slugs. */
+/**
+ * Non-root locale codes.
+ * Root locale (English) content lives directly in `src/content/docs/`
+ * without a locale prefix. Non-root locales use a prefix directory (e.g. `uk/`).
+ */
+const NON_ROOT_LOCALES = ['uk'];
+
+/** Makes sure that all translations' slugs match the root (English) slugs. */
 class SlugChecker {
 	async run() {
 		const errors = await this.#findMismatchedSlugs();
 		this.#outputResult(errors);
 	}
 
-	/** Load all Markdown pages and check non-English pages have counterparts in `pages/en/`. */
+	/** Load all Markdown pages and check non-root locale pages have counterparts in root locale. */
 	async #findMismatchedSlugs() {
-		const enSlugs = new Set();
+		const rootSlugs = new Set();
 		/** @type {Record<string, string[]>} */
 		const errorMap = {};
 		(await glob('./src/content/docs/**/*.{md,mdx}'))
 			.filter((file) => !file.endsWith('404.mdx'))
 			.map((file) => {
-				const [, lang, slug] = file.replace('./src/content/docs/', '').match(/^([^/]+)\/(.+)$/);
-				if (lang === 'en') enSlugs.add(slug);
-				return [lang, slug];
+				const relativePath = file.replace('./src/content/docs/', '');
+				const locale = NON_ROOT_LOCALES.find((l) => relativePath.startsWith(l + '/'));
+				if (locale) {
+					return [locale, relativePath.substring(locale.length + 1)];
+				}
+				rootSlugs.add(relativePath);
+				return ['root', relativePath];
 			})
 			.forEach(([lang, slug]) => {
-				if (enSlugs.has(slug)) return;
+				if (lang === 'root') return;
+				if (rootSlugs.has(slug)) return;
 				if (!errorMap[lang]) errorMap[lang] = [];
 				errorMap[lang].push(slug);
 			});

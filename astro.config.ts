@@ -12,7 +12,7 @@ import { rehypeTasklistEnhancer } from './config/plugins/rehype-tasklist-enhance
 /* https://docs.netlify.com/configure-builds/environment-variables/#read-only-variables */
 const NETLIFY_PREVIEW_SITE = process.env.CONTEXT !== 'production' && process.env.DEPLOY_PRIME_URL;
 
-const site = NETLIFY_PREVIEW_SITE || 'https://docs.astro.build/';
+const site = NETLIFY_PREVIEW_SITE || 'https://thingsboard.io/';
 
 // https://astro.build/config
 export default defineConfig({

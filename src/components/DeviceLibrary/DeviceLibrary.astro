@@ -1,6 +1,9 @@
 ---
 import DeviceCard from './DeviceCard.astro';
 import FilterSidebar from './FilterSidebar.astro';
+import SearchBar from './SearchBar.astro';
+import Pagination from './Pagination.astro';
+import { DEFAULT_LOCALE } from '~/util/language-router';
 
 interface Device {
 	id: string;
@@ -20,6 +23,8 @@ interface Props {
 
 const { devices, lang } = Astro.props;
 
+const PAGE_SIZE = 12;
+
 const translations = {
 	en: {
 		filters: 'Filters',
@@ -30,6 +35,11 @@ const translations = {
 		useCase: 'Use Case',
 		noResults: 'No devices match your filters.',
 		devicesFound: 'devices found',
+		searchPlaceholder: 'Search devices...',
+		previous: 'Previous',
+		next: 'Next',
+		page: 'Page',
+		of: 'of',
 	},
 	uk: {
 		filters: 'Фільтри',
@@ -40,10 +50,15 @@ const translations = {
 		useCase: 'Сфера застосування',
 		noResults: 'Жоден пристрій не відповідає вашим фільтрам.',
 		devicesFound: 'пристроїв знайдено',
+		searchPlaceholder: 'Пошук пристроїв...',
+		previous: 'Попередня',
+		next: 'Наступна',
+		page: 'Сторінка',
+		of: 'з',
 	},
 };
 
-const t = translations[lang] || translations.en;
+const t = translations[lang || DEFAULT_LOCALE];
 
 // Extract unique filter values with counts
 function getFilterValues(key: keyof Device): { value: string; count: number }[] {
@@ -70,25 +85,41 @@ const filterGroups = [
 
 // Generate href for each device
 function getDeviceHref(deviceId: string): string {
-	// deviceId format: "en/eg8200-gateway" or "uk/eg8200-gateway"
 	const [deviceLang, ...slugParts] = deviceId.split('/');
 	const slug = slugParts.join('/');
 	const basePath = deviceLang === 'en' ? '/device-library' : `/${deviceLang}/device-library`;
 	return `${basePath}/${slug}/`;
 }
+
+// Prepare device data with href for client-side rendering
+const devicesWithHref = devices.map((device) => ({
+	...device,
+	href: getDeviceHref(device.id),
+}));
+
+const initialDevices = devicesWithHref.slice(0, PAGE_SIZE);
 ---
 
-<div class="device-library" data-no-results={t.noResults} data-devices-found={t.devicesFound}>
+<div
+	class="device-library"
+	data-no-results={t.noResults}
+	data-devices-found={t.devicesFound}
+	data-page-size={PAGE_SIZE}
+>
 	<FilterSidebar filters={filterGroups} translations={{ filters: t.filters, clearAll: t.clearAll }} />
 
 	<div class="device-library-main">
-		<div class="device-count">
-			<span id="device-count">{devices.length}</span>
-			{t.devicesFound}
+		<div class="device-library-header">
+			<SearchBar placeholder={t.searchPlaceholder} />
+			<div class="device-count">
+				<span id="device-count">{devices.length}</span>
+				{t.devicesFound}
+			</div>
 		</div>
+
 		<div class="device-grid" id="device-grid">
 			{
-				devices.map((device) => (
+				initialDevices.map((device) => (
 					<DeviceCard
 						id={device.id}
 						title={device.title}
@@ -98,33 +129,138 @@ function getDeviceHref(deviceId: string): string {
 						connectivity={device.connectivity}
 						industry={device.industry}
 						useCase={device.useCase}
-						href={getDeviceHref(device.id)}
+						href={device.href}
 					/>
 				))
 			}
 		</div>
+
 		<div class="no-results" id="no-results" hidden>
 			{t.noResults}
 		</div>
+
+		<Pagination translations={{ previous: t.previous, next: t.next, page: t.page, of: t.of }} />
 	</div>
 </div>
 
+<!-- Store all devices data for client-side API emulation -->
+<script is:inline define:vars={{ devicesWithHref }}>
+	window.__DEVICE_LIBRARY_DATA__ = devicesWithHref;
+</script>
+
 <script>
+	interface Device {
+		id: string;
+		title: string;
+		vendor?: string;
+		imageSrc: string;
+		hardwareType: string;
+		connectivity: string[];
+		industry: string[];
+		useCase: string[];
+		href: string;
+	}
+
+	interface SearchParams {
+		search: string;
+		filters: Record<string, string[]>;
+		page: number;
+		pageSize: number;
+	}
+
+	interface SearchResult {
+		devices: Device[];
+		total: number;
+		totalPages: number;
+		currentPage: number;
+	}
+
+	// Emulated API service
+	function createDeviceAPI(allDevices: Device[]) {
+		function matchesSearch(device: Device, query: string): boolean {
+			if (!query) return true;
+			const searchLower = query.toLowerCase();
+
+			const searchableFields = [
+				device.title,
+				device.vendor || '',
+				device.hardwareType,
+				...device.connectivity,
+				...device.industry,
+				...device.useCase,
+			];
+
+			return searchableFields.some((field) => field.toLowerCase().includes(searchLower));
+		}
+
+		function matchesFilters(device: Device, filters: Record<string, string[]>): boolean {
+			for (const [key, values] of Object.entries(filters)) {
+				if (values.length === 0) continue;
+
+				let deviceValues: string[];
+				if (key === 'hardwareType') {
+					deviceValues = [device.hardwareType];
+				} else {
+					deviceValues = device[key as 'connectivity' | 'industry' | 'useCase'] || [];
+				}
+
+				const hasMatch = values.some((v) => deviceValues.includes(v));
+				if (!hasMatch) return false;
+			}
+			return true;
+		}
+
+		return {
+			search(params: SearchParams): SearchResult {
+				// Filter by search query and checkbox filters
+				const filtered = allDevices.filter(
+					(device) => matchesSearch(device, params.search) && matchesFilters(device, params.filters)
+				);
+
+				// Calculate pagination
+				const total = filtered.length;
+				const totalPages = Math.ceil(total / params.pageSize) || 1;
+				const currentPage = Math.min(Math.max(1, params.page), totalPages);
+				const startIndex = (currentPage - 1) * params.pageSize;
+				const devices = filtered.slice(startIndex, startIndex + params.pageSize);
+
+				return { devices, total, totalPages, currentPage };
+			},
+		};
+	}
+
 	function initDeviceLibrary() {
 		const container = document.querySelector('.device-library');
 		if (!container) return;
 
-		const deviceGrid = container.querySelector('#device-grid');
-		const deviceCountEl = container.querySelector('#device-count');
-		const noResultsEl = container.querySelector('#no-results');
+		const allDevices = (window as any).__DEVICE_LIBRARY_DATA__ as Device[];
+		if (!allDevices) return;
+
+		const api = createDeviceAPI(allDevices);
+
+		// Elements
+		const deviceGrid = container.querySelector('#device-grid') as HTMLElement;
+		const deviceCountEl = container.querySelector('#device-count') as HTMLElement;
+		const noResultsEl = container.querySelector('#no-results') as HTMLElement;
 		const clearFiltersBtn = container.querySelector('#clear-filters');
 		const filterCheckboxes = container.querySelectorAll<HTMLInputElement>(
 			'.filter-sidebar input[type="checkbox"]'
 		);
+		const searchInput = container.querySelector('#device-search') as HTMLInputElement;
+		const searchClearBtn = container.querySelector('#search-clear') as HTMLButtonElement;
+		const pagination = container.querySelector('#pagination') as HTMLElement;
+		const paginationPages = container.querySelector('#pagination-pages') as HTMLElement;
+		const paginationPrev = container.querySelector('#pagination-prev') as HTMLButtonElement;
+		const paginationNext = container.querySelector('#pagination-next') as HTMLButtonElement;
+		const paginationInfo = container.querySelector('#pagination-info') as HTMLElement;
+		const paginationCurrent = container.querySelector('#pagination-current') as HTMLElement;
+		const paginationTotal = container.querySelector('#pagination-total') as HTMLElement;
 
-		if (!deviceGrid || !deviceCountEl || !noResultsEl) return;
+		if (!deviceGrid || !deviceCountEl || !searchInput) return;
 
-		const devices = deviceGrid.querySelectorAll<HTMLElement>('.device-card');
+		const pageSize = parseInt(container.getAttribute('data-page-size') || '12', 10);
+		let currentPage = 1;
+		let debounceTimer: ReturnType<typeof setTimeout>;
 
 		function getActiveFilters(): Record<string, string[]> {
 			const filters: Record<string, string[]> = {};
@@ -138,52 +274,179 @@ function getDeviceHref(deviceId: string): string {
 			return filters;
 		}
 
-		function matchesFilter(device: HTMLElement, filters: Record<string, string[]>): boolean {
-			for (const [key, values] of Object.entries(filters)) {
-				if (values.length === 0) continue;
+		function renderDeviceCard(device: Device): string {
+			const connectivityJson = JSON.stringify(device.connectivity);
+			const industryJson = JSON.stringify(device.industry);
+			const useCaseJson = JSON.stringify(device.useCase);
 
-				let deviceValues: string[];
-				if (key === 'hardwareType') {
-					deviceValues = [device.dataset.hardwareType || ''];
-				} else {
-					const dataAttr = device.dataset[key as 'connectivity' | 'industry' | 'useCase'];
-					try {
-						deviceValues = dataAttr ? JSON.parse(dataAttr) : [];
-					} catch {
-						deviceValues = [];
-					}
+			const industryChips = device.industry
+				.slice(0, 3)
+				.map((ind) => `<span class="filter-chip">${ind}</span>`)
+				.join('');
+			const moreChip =
+				device.industry.length > 3
+					? `<span class="filter-chip">+${device.industry.length - 3}</span>`
+					: '';
+
+			return `
+				<a href="${device.href}" class="device-card"
+					data-device-id="${device.id}"
+					data-hardware-type="${device.hardwareType}"
+					data-connectivity='${connectivityJson}'
+					data-industry='${industryJson}'
+					data-use-case='${useCaseJson}'>
+					<div class="device-image">
+						<img src="${device.imageSrc}" alt="${device.title}" loading="lazy" />
+					</div>
+					<div class="device-content">
+						<h3 class="device-title">${device.title}</h3>
+						${device.vendor ? `<p class="device-vendor">${device.vendor}</p>` : ''}
+						<div class="device-chips">
+							${industryChips}${moreChip}
+						</div>
+					</div>
+				</a>
+			`;
+		}
+
+		function renderPagination(currentPage: number, totalPages: number) {
+			if (totalPages <= 1) {
+				pagination.hidden = true;
+				paginationInfo.hidden = true;
+				return;
+			}
+
+			pagination.hidden = false;
+			paginationInfo.hidden = false;
+
+			paginationPrev.disabled = currentPage <= 1;
+			paginationNext.disabled = currentPage >= totalPages;
+
+			paginationCurrent.textContent = String(currentPage);
+			paginationTotal.textContent = String(totalPages);
+
+			// Generate page buttons
+			const pages: (number | string)[] = [];
+			const maxVisible = 5;
+
+			if (totalPages <= maxVisible) {
+				for (let i = 1; i <= totalPages; i++) pages.push(i);
+			} else {
+				pages.push(1);
+
+				if (currentPage > 3) {
+					pages.push('...');
 				}
 
-				const hasMatch = values.some((v) => deviceValues.includes(v));
-				if (!hasMatch) return false;
+				const start = Math.max(2, currentPage - 1);
+				const end = Math.min(totalPages - 1, currentPage + 1);
+
+				for (let i = start; i <= end; i++) {
+					if (!pages.includes(i)) pages.push(i);
+				}
+
+				if (currentPage < totalPages - 2) {
+					pages.push('...');
+				}
+
+				if (!pages.includes(totalPages)) pages.push(totalPages);
 			}
-			return true;
+
+			paginationPages.innerHTML = pages
+				.map((p) =>
+					typeof p === 'number'
+						? `<button type="button" class="page-btn${p === currentPage ? ' active' : ''}" data-page="${p}">${p}</button>`
+						: `<span class="page-ellipsis">${p}</span>`
+				)
+				.join('');
 		}
 
-		function applyFilters() {
-			const filters = getActiveFilters();
-			let visibleCount = 0;
-
-			devices.forEach((device) => {
-				const isVisible = matchesFilter(device, filters);
-				device.hidden = !isVisible;
-				if (isVisible) visibleCount++;
+		function updateDisplay() {
+			const result = api.search({
+				search: searchInput.value.trim(),
+				filters: getActiveFilters(),
+				page: currentPage,
+				pageSize,
 			});
 
-			deviceCountEl!.textContent = String(visibleCount);
-			(noResultsEl as HTMLElement).hidden = visibleCount > 0;
+			// Update device count
+			deviceCountEl.textContent = String(result.total);
+
+			// Render devices
+			if (result.devices.length > 0) {
+				deviceGrid.innerHTML = result.devices.map(renderDeviceCard).join('');
+				noResultsEl.hidden = true;
+			} else {
+				deviceGrid.innerHTML = '';
+				noResultsEl.hidden = false;
+			}
+
+			// Update pagination
+			currentPage = result.currentPage;
+			renderPagination(result.currentPage, result.totalPages);
+
+			// Update search clear button
+			searchClearBtn.hidden = !searchInput.value;
 		}
 
+		function resetAndUpdate() {
+			currentPage = 1;
+			updateDisplay();
+		}
+
+		// Event listeners
 		filterCheckboxes.forEach((checkbox) => {
-			checkbox.addEventListener('change', applyFilters);
+			checkbox.addEventListener('change', resetAndUpdate);
 		});
 
 		clearFiltersBtn?.addEventListener('click', () => {
 			filterCheckboxes.forEach((checkbox) => {
 				checkbox.checked = false;
 			});
-			applyFilters();
+			resetAndUpdate();
 		});
+
+		searchInput.addEventListener('input', () => {
+			clearTimeout(debounceTimer);
+			debounceTimer = setTimeout(resetAndUpdate, 300);
+		});
+
+		searchClearBtn?.addEventListener('click', () => {
+			searchInput.value = '';
+			resetAndUpdate();
+			searchInput.focus();
+		});
+
+		paginationPrev?.addEventListener('click', () => {
+			if (currentPage > 1) {
+				currentPage--;
+				updateDisplay();
+				deviceGrid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+			}
+		});
+
+		paginationNext?.addEventListener('click', () => {
+			currentPage++;
+			updateDisplay();
+			deviceGrid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		});
+
+		paginationPages?.addEventListener('click', (e) => {
+			const target = e.target as HTMLElement;
+			if (target.classList.contains('page-btn')) {
+				const page = parseInt(target.dataset.page || '1', 10);
+				if (page !== currentPage) {
+					currentPage = page;
+					updateDisplay();
+					deviceGrid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+				}
+			}
+		});
+
+		// Initial render is already done by Astro, just set up pagination
+		const initialTotal = allDevices.length;
+		const initialTotalPages = Math.ceil(initialTotal / pageSize);
+		renderPagination(1, initialTotalPages);
 	}
 
 	// Run on page load
@@ -203,10 +466,19 @@ function getDeviceHref(deviceId: string): string {
 	.device-library-main {
 		flex: 1;
 		min-width: 0;
+		--sl-content-gap-y: 0;
+	}
+
+	.device-library-header {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		margin-bottom: 1rem;
 	}
 
 	.device-count {
-		margin-bottom: 1rem;
 		font-size: 0.875rem;
 		color: var(--sl-color-gray-2);
 	}
@@ -234,8 +506,88 @@ function getDeviceHref(deviceId: string): string {
 			flex-direction: column;
 		}
 
+		.device-library-header {
+			flex-direction: column;
+			align-items: stretch;
+		}
+
 		.device-grid {
 			grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
 		}
+	}
+</style>
+
+<style is:global>
+	/* Styles for dynamically rendered cards */
+	.device-grid .device-card {
+		background: var(--sl-color-bg-nav);
+		border: 1px solid var(--sl-color-gray-5);
+		border-radius: 0.5rem;
+		overflow: hidden;
+		transition:
+			transform 0.2s,
+			box-shadow 0.2s;
+		display: flex;
+		flex-direction: column;
+		text-decoration: none;
+		color: inherit;
+	}
+
+	.device-grid .device-card:hover {
+		transform: translateY(-2px);
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+	}
+
+	.device-grid .device-image {
+		width: 100%;
+		aspect-ratio: 4 / 3;
+		background: var(--sl-color-gray-6);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		overflow: hidden;
+	}
+
+	.device-grid .device-image img {
+		max-width: 100%;
+		max-height: 100%;
+		object-fit: contain;
+	}
+
+	.device-grid .device-content {
+		padding: 1rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		flex: 1;
+	}
+
+	.device-grid .device-title {
+		font-size: 1rem;
+		font-weight: 600;
+		margin: 0;
+		color: var(--sl-color-text);
+	}
+
+	.device-grid .device-vendor {
+		font-size: 0.875rem;
+		color: var(--sl-color-gray-2);
+		margin: 0;
+	}
+
+	.device-grid .device-chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.25rem;
+		margin-top: auto;
+	}
+
+	.device-grid .filter-chip {
+		font-size: 0.6875rem;
+		padding: 0.125rem 0.5rem;
+		background: var(--sl-color-gray-6);
+		border-radius: 1rem;
+		color: var(--sl-color-gray-2);
+		white-space: nowrap;
 	}
 </style>
