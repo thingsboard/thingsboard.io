@@ -1,0 +1,116 @@
+---
+interface Props {
+	srcMp4: string;
+	srcWebm?: string; // Опціонально, але бажано для Chrome
+	poster?: string; // Картинка-заставка
+	width?: string | number;
+	height?: string | number;
+	threshold?: number; // Коли запускати (0.1 - 10%, 0.5 - 50%)
+	className?: string; // Додаткові CSS класи
+}
+
+const {
+	srcMp4,
+	srcWebm,
+	poster,
+	width = '100%',
+	height = 'auto',
+	threshold = 0.5,
+	className = '',
+} = Astro.props;
+---
+
+<video
+	class:list={['lazy-gif-video', className]}
+	width={width}
+	height={height}
+	poster={poster}
+	loop
+	muted
+	playsinline
+	data-threshold={threshold}
+	style="display: block; object-fit: cover;"
+>
+	{/* WebM йде першим, бо він легший (пріоритет для Chrome/Android) */}
+	{srcWebm && <source data-src={srcWebm} type="video/webm" />}
+
+	{/* MP4 як фоллбек для Safari/iOS */}
+	<source data-src={srcMp4} type="video/mp4" />
+</video>
+
+<script>
+	// Функція ініціалізації, щоб працювало і при першому вході, і при навігації
+	const initLazyGifs = () => {
+		// Перевіряємо підтримку API
+		if (!('IntersectionObserver' in window)) return;
+
+		const videos = document.querySelectorAll<HTMLVideoElement>('.lazy-gif-video');
+
+		const observerMap = new Map(); // Щоб зберігати observer для кожного трешхолду
+
+		videos.forEach((video) => {
+			// Якщо відео вже обробляється - пропускаємо
+			if (video.classList.contains('js-initialized')) return;
+			video.classList.add('js-initialized');
+
+			// Отримуємо поріг спрацювання з атрибута (або дефолт 0.5)
+			const threshold = parseFloat(video.dataset.threshold || '0.5');
+
+			// Створюємо або беремо існуючий observer для цього порогу
+			let observer = observerMap.get(threshold);
+
+			if (!observer) {
+				observer = new IntersectionObserver(
+					(entries) => {
+						entries.forEach((entry) => {
+							const vid = entry.target as HTMLVideoElement;
+
+							if (entry.isIntersecting) {
+								// 1. ВІДЕО ЗАЙШЛО В КАДР
+
+								// Завантажуємо сорси, якщо це перший раз
+								const sources = vid.querySelectorAll('source');
+								let sourceChanged = false;
+								sources.forEach((source) => {
+									if (source.dataset.src) {
+										source.src = source.dataset.src;
+										delete source.dataset.src;
+										sourceChanged = true;
+									}
+								});
+
+								if (sourceChanged) {
+									vid.load();
+								}
+
+								// Запускаємо
+								const playPromise = vid.play();
+								if (playPromise !== undefined) {
+									playPromise.catch((error) => {
+										console.log('Auto-play was prevented:', error);
+									});
+								}
+							} else {
+								// 2. ВІДЕО ВИЙШЛО З КАДРУ -> ПАУЗА
+								if (!vid.paused) {
+									vid.pause();
+								}
+							}
+						});
+					},
+					{ threshold: threshold }
+				);
+
+				observerMap.set(threshold, observer);
+			}
+
+			observer.observe(video);
+		});
+	};
+
+	// Запуск для звичайного завантаження
+	document.addEventListener('DOMContentLoaded', initLazyGifs);
+
+	// Запуск для Astro View Transitions (навігація між сторінками)
+	document.addEventListener('astro:page-load', initLazyGifs);
+</script>
