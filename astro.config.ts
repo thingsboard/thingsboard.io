@@ -9,6 +9,10 @@ import { sitemap } from './config/integrations/sitemap';
 import { starlightPluginLlmsTxt } from './config/plugins/llms-txt';
 import { rehypeTasklistEnhancer } from './config/plugins/rehype-tasklist-enhancer';
 
+import icon from 'astro-icon';
+import tailwind from '@astrojs/tailwind';
+import svgo from 'vite-plugin-svgo';
+
 /* https://docs.netlify.com/configure-builds/environment-variables/#read-only-variables */
 const NETLIFY_PREVIEW_SITE = process.env.CONTEXT !== 'production' && process.env.DEPLOY_PRIME_URL;
 
@@ -18,7 +22,38 @@ const site = NETLIFY_PREVIEW_SITE || 'https://docs.astro.build/';
 export default defineConfig({
 	site,
 	base: '/',
+	vite: {
+		css: {
+			preprocessorOptions: {
+				scss: {
+					api: 'modern-compiler',
+				},
+			},
+		},
+		plugins: [
+			svgo({
+				plugins: [
+					{
+						name: 'preset-default',
+						params: {
+							overrides: {
+								// Вимикаємо видалення viewBox (щоб не зламати aspect-ratio)
+								removeViewBox: false,
+								// Вимикаємо очистку ID (щоб не зламати анімації)
+								cleanupIds: false,
+							},
+						},
+					},
+					// Додаткові плагіни, які ми хочемо увімкнути:
+					'removeXMLNS',
+					'prefixIds', // Допомагає уникнути конфліктів ID між різними SVG
+				],
+			}),
+		],
+	},
 	integrations: [
+		icon(),
+		tailwind(),
 		devServerFileWatcher([
 			'./config/**', // Custom plugins and integrations
 			'./astro.sidebar.ts', // Sidebar configuration file
@@ -82,10 +117,7 @@ export default defineConfig({
 			// @ts-expect-error — `remark-smartypants` type is not matching Astro's for some reason even though they both use unified's `Plugin` type
 			[remarkSmartypants, { dashes: false }],
 		],
-		rehypePlugins: [
-			rehypeSlug,
-			rehypeTasklistEnhancer(),
-		],
+		rehypePlugins: [rehypeSlug, rehypeTasklistEnhancer()],
 	},
 	image: {
 		domains: ['avatars.githubusercontent.com'],
