@@ -201,9 +201,7 @@ export const collections = {
 				'install.autoTab': z.string().default('Automatic CLI'),
 				'install.manualTab': z.string().default('Manual Setup'),
 				'starlight.title': z.string().default('Wanna build docs?'),
-				'starlight.description': z
-					.string()
-					.default('Grab our Starlight template to get started.'),
+				'starlight.description': z.string().default('Grab our Starlight template to get started.'),
 				'upgrade.implementationPR': z.string().default('Implementation PR: '),
 				'leftSidebar.sponsoredBy': z.string().default('Sponsored by'),
 				'recipesLink.singular': z.string().default('Related recipe:'),

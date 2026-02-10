@@ -142,24 +142,24 @@ export const LocaleDetails = (
 			</summary>
 			${outdatedFiles.length > 0 ? OutdatedFiles(outdatedFiles, lang, lunaria) : ''}
 			${missingFiles.length > 0
-		? html`<h3 class="capitalize">Missing</h3>
+				? html`<h3 class="capitalize">Missing</h3>
 						<ul>
 							${missingFiles.map((file) => {
-			const localization = file.localizations.find(
-				(localization) => localization.lang === lang
-			)!;
-			return html`
+								const localization = file.localizations.find(
+									(localization) => localization.lang === lang
+								)!;
+								return html`
 									<li>
 										${Link(links.source(file.source.path), collapsePath(file.source.path))}
 										${CreateFileLink(links.create(localization.path), 'Create file')}
 									</li>
 								`;
-		})}
+							})}
 						</ul>`
-		: ''}
+				: ''}
 			${missingFiles.length == 0 && outdatedFiles.length == 0
-		? html`<p>This translation is complete, amazing job! 🎉</p>`
-		: ''}
+				? html`<p>This translation is complete, amazing job! 🎉</p>`
+				: ''}
 		</details>
 	`;
 };
@@ -173,17 +173,17 @@ export const OutdatedFiles = (
 		<h3 class="capitalize">Outdated</h3>
 		<ul>
 			${outdatedFiles.map((file) => {
-		const localization = file.localizations.find((localization) => localization.lang === lang)!;
+				const localization = file.localizations.find((localization) => localization.lang === lang)!;
 
-		const isMissingKeys =
-			localization.status !== 'missing' &&
-			'missingKeys' in localization &&
-			localization.missingKeys.length > 0;
+				const isMissingKeys =
+					localization.status !== 'missing' &&
+					'missingKeys' in localization &&
+					localization.missingKeys.length > 0;
 
-		return html`
+				return html`
 					<li>
 						${isMissingKeys
-			? html`
+							? html`
 									<details>
 										<summary>${ContentDetailsLinks(file, lang, lunaria)}</summary>
 										<h4>Missing keys</h4>
@@ -192,10 +192,10 @@ export const OutdatedFiles = (
 										</ul>
 									</details>
 								`
-			: html` ${ContentDetailsLinks(file, lang, lunaria)} `}
+							: html` ${ContentDetailsLinks(file, lang, lunaria)} `}
 					</li>
 				`;
-	})}
+			})}
 		</ul>
 	`;
 };
@@ -232,16 +232,16 @@ export const TableBody = (
 	return html`
 		<tbody>
 			${status.map(
-		(file) =>
-			html`
+				(file) =>
+					html`
 				<tr>
 					<td>${Link(links.source(file.source.path), collapsePath(file.source.path))}</td>
 						${locales.map(({ lang }) => {
-				return TableContentStatus(file.localizations, lang, lunaria);
-			})}
+							return TableContentStatus(file.localizations, lang, lunaria);
+						})}
 					</td>
 				</tr>`
-	)}
+			)}
 		</tbody>
 	`;
 };
@@ -276,18 +276,18 @@ export const ContentDetailsLinks = (
 	return html`
 		${Link(links.source(fileStatus.source.path), collapsePath(fileStatus.source.path))}
 		(${Link(
-		links.source(localization.path),
-		isMissingKeys ? 'incomplete translation' : 'outdated translation'
-	)},
+			links.source(localization.path),
+			isMissingKeys ? 'incomplete translation' : 'outdated translation'
+		)},
 		${Link(
-		links.history(
-			fileStatus.source.path,
-			'git' in localization
-				? new Date(localization.git.latestTrackedCommit.date).toISOString()
-				: undefined
-		),
-		'source change history'
-	)})
+			links.history(
+				fileStatus.source.path,
+				'git' in localization
+					? new Date(localization.git.latestTrackedCommit.date).toISOString()
+					: undefined
+			),
+			'source change history'
+		)})
 	`;
 };
 
@@ -376,14 +376,14 @@ export const SvgSummary = (config: LunariaConfig, status: LunariaStatus): string
 		font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'"
 	>
 		${config.locales
-		.map((locale) => SvgLocaleSummary(status, locale))
-		.sort((a, b) => b.progress - a.progress)
-		.map(
-			({ svg }, index) =>
-				html`<g transform="translate(${(index % 2) * 215} ${Math.floor(index / 2) * 56})"
+			.map((locale) => SvgLocaleSummary(status, locale))
+			.sort((a, b) => b.progress - a.progress)
+			.map(
+				({ svg }, index) =>
+					html`<g transform="translate(${(index % 2) * 215} ${Math.floor(index / 2) * 56})"
 						>${svg}</g
 					>`
-		)}
+			)}
 	</svg>`;
 };
 
@@ -423,8 +423,8 @@ function SvgLocaleSummary(
 			>
 			<text x="0" y="26" font-size="9" fill="#999">
 				${missingFiles.length == 0 && outdatedFiles.length == 0
-			? '100% complete, amazing job! 🎉'
-			: html`${doneLength} done, ${outdatedFiles.length} outdated, ${missingFiles.length}
+					? '100% complete, amazing job! 🎉'
+					: html`${doneLength} done, ${outdatedFiles.length} outdated, ${missingFiles.length}
 						missing`}
 			</text>
 			<rect x="0" y="34" width="${barWidth}" height="8" fill="#999" opacity="0.25"></rect>

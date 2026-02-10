@@ -21,7 +21,11 @@ export const opensourceSidebar: SidebarConfig = [
 			{
 				label: 'New Project',
 				translations: { uk: 'Новий проект' },
-				items: ['docs/install-and-setup', 'docs/basics/project-structure', 'docs/develop-and-build'],
+				items: [
+					'docs/install-and-setup',
+					'docs/basics/project-structure',
+					'docs/develop-and-build',
+				],
 			},
 			{
 				label: 'Configuration',
@@ -127,8 +131,4 @@ export const paasSidebar: SidebarConfig = [
  * Route middleware in routeData.ts filters this to show only
  * the relevant version's sidebar items.
  */
-export const sidebar: SidebarConfig = [
-	...opensourceSidebar,
-	...peSidebar,
-	...paasSidebar,
-];
+export const sidebar: SidebarConfig = [...opensourceSidebar, ...peSidebar, ...paasSidebar];
