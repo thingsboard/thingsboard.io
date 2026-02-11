@@ -53,7 +53,7 @@ export default defineConfig({
 	},
 	integrations: [
 		icon(),
-		tailwind(),
+		tailwind({ applyBaseStyles: false }),
 		devServerFileWatcher([
 			'./config/**', // Custom plugins and integrations
 			'./astro.sidebar.ts', // Sidebar configuration file
