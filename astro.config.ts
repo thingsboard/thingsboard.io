@@ -7,6 +7,7 @@ import { sidebar } from './astro.sidebar';
 import { devServerFileWatcher } from './config/integrations/dev-server-file-watcher';
 import { sitemap } from './config/integrations/sitemap';
 import { starlightPluginLlmsTxt } from './config/plugins/llms-txt';
+import { rehypeMdxIncludeHeadings } from './config/plugins/rehype-mdx-include-headings';
 import { rehypeTasklistEnhancer } from './config/plugins/rehype-tasklist-enhancer';
 
 import icon from 'astro-icon';
@@ -22,6 +23,11 @@ const site = NETLIFY_PREVIEW_SITE || 'https://thingsboard.io/';
 export default defineConfig({
 	site,
 	base: '/',
+	redirects: {
+		// Add redirects here. They work in both dev and production.
+		// Example: '/old-path/': '/new-path/',
+		// Example with params: '/docs/[...slug]': '/new-docs/[...slug]',
+	},
 	vite: {
 		css: {
 			preprocessorOptions: {
@@ -117,7 +123,7 @@ export default defineConfig({
 			// @ts-expect-error — `remark-smartypants` type is not matching Astro's for some reason even though they both use unified's `Plugin` type
 			[remarkSmartypants, { dashes: false }],
 		],
-		rehypePlugins: [rehypeSlug, rehypeTasklistEnhancer()],
+		rehypePlugins: [rehypeSlug, rehypeTasklistEnhancer(), rehypeMdxIncludeHeadings()],
 	},
 	image: {
 		domains: ['avatars.githubusercontent.com'],
