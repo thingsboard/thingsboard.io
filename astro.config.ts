@@ -3,6 +3,7 @@ import { pluginCollapsibleSections } from '@expressive-code/plugin-collapsible-s
 import { defineConfig, sharpImageService } from 'astro/config';
 import rehypeSlug from 'rehype-slug';
 import remarkSmartypants from 'remark-smartypants';
+import { redirects } from './astro.redirects';
 import { sidebar } from './astro.sidebar';
 import { devServerFileWatcher } from './config/integrations/dev-server-file-watcher';
 import { sitemap } from './config/integrations/sitemap';
@@ -23,11 +24,7 @@ const site = NETLIFY_PREVIEW_SITE || 'https://thingsboard.io/';
 export default defineConfig({
 	site,
 	base: '/',
-	redirects: {
-		// Add redirects here. They work in both dev and production.
-		// Example: '/old-path/': '/new-path/',
-		// Example with params: '/docs/[...slug]': '/new-docs/[...slug]',
-	},
+	redirects,
 	vite: {
 		css: {
 			preprocessorOptions: {
