@@ -7,38 +7,39 @@ export const opensourceSidebar: SidebarConfig = [
 		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
 		items: [
-			'docs/getting-started',
+			'docs/introduction',
 			{
-				label: 'Welcome',
-				translations: { uk: 'Ласкаво просимо' },
-				items: [
-					'docs/concepts/why-astro',
-					'docs/concepts/islands',
-					'docs/tutorial/0-introduction',
-					'docs/astro-courses',
-				],
-			},
-			{
-				label: 'New Project',
+				label: 'Welcome to IoT!',
 				translations: { uk: 'Новий проект' },
 				items: [
-					'docs/install-and-setup',
-					'docs/basics/project-structure',
-					'docs/develop-and-build',
+					'docs/why-thingsboard',
+					'docs/tutorial/0-introduction'
 				],
 			},
 			{
-				label: 'Configuration',
-				translations: { uk: 'Конфігурація' },
+				label: 'Key concepts',
+				translations: { uk: 'Новий проект' },
 				items: [
-					'docs/guides/configuring-astro',
-					'docs/editor-setup',
-					'docs/guides/typescript',
-					'docs/guides/environment-variables',
-					'docs/guides/build-with-ai',
-					'docs/guides/dev-toolbar',
+					'docs/concepts/multi-tenancy',
+					'docs/concepts/digital-twin-model',
+					'docs/concepts/data-processing',
+					'docs/concepts/alerts-and-notifications',
+					'docs/concepts/data-visualization'
 				],
-			},
+			}
+			// ,
+			// {
+			// 	label: 'Configuration',
+			// 	translations: { uk: 'Конфігурація' },
+			// 	items: [
+			// 		'docs/guides/configuring-astro',
+			// 		'docs/editor-setup',
+			// 		'docs/guides/typescript',
+			// 		'docs/guides/environment-variables',
+			// 		'docs/guides/build-with-ai',
+			// 		'docs/guides/dev-toolbar',
+			// 	],
+			// }
 		],
 	},
 	{
@@ -103,7 +104,20 @@ export const peSidebar: SidebarConfig = [
 	{
 		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
-		items: ['docs/pe/getting-started'],
+		items: [
+			'docs/pe/getting-started',
+			{
+				label: 'Key concepts',
+				translations: { uk: 'Новий проект' },
+				items: [
+					'docs/pe/concepts/multi-tenancy',
+					'docs/pe/concepts/digital-twin-model',
+					'docs/pe/concepts/data-processing',
+					'docs/pe/concepts/alerts-and-notifications',
+					'docs/pe/concepts/data-visualization'
+				],
+		  }
+		],
 	},
 	{
 		label: 'PE Features',

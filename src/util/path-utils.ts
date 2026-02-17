@@ -81,7 +81,7 @@ export function getVersionPrefix(version: ProductVersion): string {
 export function getVersionBaseURL(version: ProductVersion, lang: SupportedLanguage = 'en'): string {
 	const langPrefix = getLanguagePrefix(lang);
 	const versionPrefix = getVersionPrefix(version);
-	return `/${langPrefix}docs/${versionPrefix}getting-started/`;
+	return `/${langPrefix}docs/${versionPrefix}introduction/`;
 }
 
 /**

@@ -15,7 +15,7 @@ export enum Products {
 }
 
 /** Maps each product to its docs URL prefix (the segment after /docs/). */
-const productDocsPrefix: Record<Products, string> = {
+export const productDocsPrefix: Record<Products, string> = {
 	[Products.CE]: '',
 	[Products.PE]: 'pe/',
 	[Products.PASS]: 'paas/',
@@ -39,4 +39,9 @@ export function getDocsPrefix(product: Products): string {
 /** Builds a full docs link: /docs/{prefix}{path} */
 export function docsLink(product: Products, path: string): string {
 	return `/docs/${productDocsPrefix[product]}${path}`;
+}
+
+/** Builds a full docs link: /docs/{prefix}{path} */
+export function docLink(title: string, product: Products, path: string): string {
+	return `<a href="/docs/${productDocsPrefix[product]}${path}">${title}</a>`;
 }
