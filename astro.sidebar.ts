@@ -13,7 +13,7 @@ export const opensourceSidebar: SidebarConfig = [
 				translations: { uk: 'Новий проект' },
 				items: [
 					'docs/why-thingsboard',
-					'docs/tutorial/0-introduction'
+					'docs/tutorial/getting-started'
 				],
 			},
 			{
