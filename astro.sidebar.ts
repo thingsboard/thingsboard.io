@@ -7,13 +7,13 @@ export const opensourceSidebar: SidebarConfig = [
 		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
 		items: [
-			'docs/introduction',
+			'docs',
 			{
 				label: 'Welcome to IoT!',
 				translations: { uk: 'Новий проект' },
 				items: [
 					'docs/why-thingsboard',
-					'docs/tutorial/0-introduction'
+					'docs/tutorial/getting-started'
 				],
 			},
 			{
@@ -47,16 +47,12 @@ export const opensourceSidebar: SidebarConfig = [
 		translations: { uk: 'Посібники' },
 		items: [
 			{
-				label: 'Routing',
-				translations: { uk: 'Маршрутизація' },
+				label: 'Digital Twins',
 				items: [
-					'docs/basics/astro-pages',
-					'docs/guides/routing',
-					'docs/guides/endpoints',
-					'docs/guides/middleware',
-					'docs/guides/internationalization',
-					'docs/guides/prefetch',
-					'docs/guides/view-transitions',
+					'docs/user-guide/digital-twins/entities',
+					'docs/user-guide/digital-twins/relations',
+					'docs/user-guide/digital-twins/attributes',
+					'docs/user-guide/digital-twins/time-series-data',
 				],
 			},
 			{
@@ -105,7 +101,15 @@ export const peSidebar: SidebarConfig = [
 		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
 		items: [
-			'docs/pe/getting-started',
+			'docs/pe',
+			{
+				label: 'Welcome to IoT!',
+				translations: { uk: 'Новий проект' },
+				items: [
+					'docs/pe/why-thingsboard',
+					'docs/pe/tutorial/getting-started',
+				],
+			},			
 			{
 				label: 'Key concepts',
 				translations: { uk: 'Новий проект' },
@@ -117,6 +121,21 @@ export const peSidebar: SidebarConfig = [
 					'docs/pe/concepts/data-visualization'
 				],
 		  }
+		],
+	},
+	{
+		label: 'Guides',
+		translations: { uk: 'Посібники' },
+		items: [
+			{
+				label: 'Digital Twins',
+				items: [
+					'docs/pe/user-guide/digital-twins/entities',
+					'docs/pe/user-guide/digital-twins/relations',
+					'docs/pe/user-guide/digital-twins/attributes',
+					'docs/pe/user-guide/digital-twins/time-series-data',
+				],
+			},
 		],
 	},
 	{

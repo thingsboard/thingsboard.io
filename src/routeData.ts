@@ -98,7 +98,10 @@ function updateTutorialPagination(starlightRoute: StarlightRouteData) {
 
 	if (!isTutorialEntry(entry)) return;
 
-	const tutorialPages = getTutorialPages(pages);
+	const version = getVersionFromSlug(entry.id);
+	const tutorialPages = getTutorialPages(pages).filter(
+		(p) => getVersionFromSlug(p.id) === version
+	);
 	const i = tutorialPages.findIndex((p) => p.id === entry.id);
 
 	const lang = getLanguageFromSlug(entry.id);
@@ -133,5 +136,5 @@ function updateTutorialPagination(starlightRoute: StarlightRouteData) {
 
 function isTutorialEntry(entry: StarlightRouteData['entry']) {
 	const slug = stripLanguagePrefix(entry.id);
-	return slug.startsWith('docs/tutorial/');
+	return slug.startsWith('docs/tutorial/') || slug.startsWith('docs/pe/tutorial/');
 }

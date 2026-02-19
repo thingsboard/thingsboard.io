@@ -357,7 +357,7 @@ export const docsSubmenu: SubMenu = {
 		{
 			items: [
 				{
-					href: '/docs/introduction/',
+					href: '/docs/',
 					heading: 'Community Edition',
 					description: 'Open-source platform',
 					linkClass: 'com-lnk',
