@@ -1,4 +1,6 @@
 // Language system
+import { Products } from '@models/site.models.ts';
+
 export type SupportedLanguage = 'en' | 'uk';
 
 /** Language configuration */
@@ -7,15 +9,66 @@ export const supportedLanguages: Record<SupportedLanguage, { label: string; pref
 	uk: { label: 'Українська', prefix: 'uk/' },
 };
 
-// Product version system
-export type ProductVersion = 'opensource' | 'pe' | 'paas';
-
-/** Product version configuration */
-export const productVersions: Record<ProductVersion, { label: string; prefix: string }> = {
-	opensource: { label: 'OpenSource', prefix: '' },
-	pe: { label: 'Professional', prefix: 'pe/' },
-	paas: { label: 'Cloud', prefix: 'paas/' },
+/** Product version configuration (all products including variants) */
+export const productVersions: Partial<Record<Products, { label: string; prefix: string }>> = {
+	[Products.CE]: { label: 'Community Edition', prefix: '' },
+	[Products.PE]: { label: 'Professional Edition', prefix: 'pe/' },
+	[Products.PASS]: { label: 'Cloud', prefix: 'paas/' },
+	[Products.PASS_EU]: { label: 'Cloud (EU)', prefix: 'paas/eu/' },
+	[Products.EDGE]: { label: 'Edge', prefix: 'edge/' },
+	[Products.EDGE_PE]: { label: 'Edge Professional', prefix: 'edge/pe/' },
+	[Products.TRENDZ]: { label: 'Trendz Analytics', prefix: 'trendz/' },
+	[Products.GW]: { label: 'IoT Gateway', prefix: 'iot-gateway/' },
+	[Products.TBMQ]: { label: 'TBMQ Broker', prefix: 'mqtt-broker/' },
+	[Products.TBMQ_PE]: { label: 'TBMQ PE Broker', prefix: 'mqtt-broker/pe/' },
+	[Products.MOBILE]: { label: 'Mobile Application', prefix: 'mobile/' },
+	[Products.MOBILE_PE]: { label: 'Mobile PE', prefix: 'mobile/pe/' },
+	[Products.LICENSE]: { label: 'License Server', prefix: 'license-server/' },
 };
+
+/** Products shown in the main version switcher dropdown (excludes variants like PASS_EU, EDGE_PE) */
+export const mainProductList: Products[] = [
+	Products.CE,
+	Products.PE,
+	Products.PASS,
+	Products.EDGE,
+	Products.TRENDZ,
+	Products.GW,
+	Products.TBMQ,
+	Products.MOBILE,
+	Products.LICENSE,
+];
+
+/** Sub-version groups for products that have a secondary variant selector */
+export const subVersionGroups: Partial<
+	Record<Products, Array<{ product: Products; label: string; subtitle?: string }>>
+> = {
+	[Products.PASS]: [
+		{ product: Products.PASS, label: 'North America', subtitle: 'N. Virginia' },
+		{ product: Products.PASS_EU, label: 'Europe', subtitle: 'Frankfurt' },
+	],
+	[Products.EDGE]: [
+		{ product: Products.EDGE, label: 'Community' },
+		{ product: Products.EDGE_PE, label: 'Professional' },
+	],
+	[Products.MOBILE]: [
+		{ product: Products.MOBILE, label: 'Community' },
+		{ product: Products.MOBILE_PE, label: 'Professional' },
+	],
+	[Products.TBMQ]: [
+		{ product: Products.TBMQ, label: 'Community' },
+		{ product: Products.TBMQ_PE, label: 'Professional' },
+	],
+};
+
+/** Get the main/parent product for a variant (PASS_EU → PASS, EDGE_PE → EDGE, others unchanged) */
+export function getMainVersion(version: Products): Products {
+	if (version === Products.PASS_EU) return Products.PASS;
+	if (version === Products.EDGE_PE) return Products.EDGE;
+	if (version === Products.MOBILE_PE) return Products.MOBILE;
+	if (version === Products.TBMQ_PE) return Products.TBMQ;
+	return version;
+}
 
 /** Detect language from a URL pathname. */
 export function getLanguageFromURL(pathname: string): SupportedLanguage {
@@ -44,44 +97,68 @@ export function stripLanguagePrefix(path: string): string {
  * Detect product version from a URL pathname.
  * URL structure: /docs/pe/... or /uk/docs/pe/...
  */
-export function getVersionFromURL(pathname: string): ProductVersion {
+export function getVersionFromURL(pathname: string): Products {
 	let path = pathname;
 	// Remove language prefix if present
 	if (path.startsWith('/uk/')) path = path.slice(3);
 	// Remove /docs/ prefix
 	path = path.replace(/^\/docs\/?/, '');
+	// Normalize: ensure trailing slash so "paas/eu" matches "paas/eu/" prefix
+	const p = path.endsWith('/') ? path : path + '/';
 
-	if (path.startsWith('pe/')) return 'pe';
-	if (path.startsWith('paas/')) return 'paas';
-	return 'opensource';
+	if (p.startsWith('pe/')) return Products.PE;
+	if (p.startsWith('paas/eu/')) return Products.PASS_EU;
+	if (p.startsWith('paas/')) return Products.PASS;
+	if (p.startsWith('edge/pe/')) return Products.EDGE_PE;
+	if (p.startsWith('edge/')) return Products.EDGE;
+	if (p.startsWith('trendz/')) return Products.TRENDZ;
+	if (p.startsWith('iot-gateway/')) return Products.GW;
+	if (p.startsWith('mqtt-broker/pe/')) return Products.TBMQ_PE;
+	if (p.startsWith('mqtt-broker/')) return Products.TBMQ;
+	if (p.startsWith('mobile/pe/')) return Products.MOBILE_PE;
+	if (p.startsWith('mobile/')) return Products.MOBILE;
+	if (p.startsWith('license-server/')) return Products.LICENSE;
+	return Products.CE;
 }
 
 /**
  * Detect product version from a content entry slug.
  * Slug structure: docs/pe/... or uk/docs/pe/...
  */
-export function getVersionFromSlug(slug: string): ProductVersion {
+export function getVersionFromSlug(slug: string): Products {
 	let path = slug;
 	// Remove language prefix
 	path = stripLanguagePrefix(path);
 	// Remove docs/ prefix
 	if (path.startsWith('docs/')) path = path.slice(5);
+	// Normalize: ensure trailing slash so index slugs like "paas/eu" match "paas/eu/" prefix
+	const p = path.endsWith('/') ? path : path + '/';
 
-	if (path.startsWith('pe/')) return 'pe';
-	if (path.startsWith('paas/')) return 'paas';
-	return 'opensource';
+	if (p.startsWith('pe/')) return Products.PE;
+	if (p.startsWith('paas/eu/')) return Products.PASS_EU;
+	if (p.startsWith('paas/')) return Products.PASS;
+	if (p.startsWith('edge/pe/')) return Products.EDGE_PE;
+	if (p.startsWith('edge/')) return Products.EDGE;
+	if (p.startsWith('trendz/')) return Products.TRENDZ;
+	if (p.startsWith('iot-gateway/')) return Products.GW;
+	if (p.startsWith('mqtt-broker/pe/')) return Products.TBMQ_PE;
+	if (p.startsWith('mqtt-broker/')) return Products.TBMQ;
+	if (p.startsWith('mobile/pe/')) return Products.MOBILE_PE;
+	if (p.startsWith('mobile/')) return Products.MOBILE;
+	if (p.startsWith('license-server/')) return Products.LICENSE;
+	return Products.CE;
 }
 
 /** Get the URL prefix for a product version. */
-export function getVersionPrefix(version: ProductVersion): string {
-	return productVersions[version].prefix;
+export function getVersionPrefix(version: Products): string {
+	return productVersions[version]?.prefix ?? '';
 }
 
 /** Get the base/landing URL for a product version (in English). */
-export function getVersionBaseURL(version: ProductVersion, lang: SupportedLanguage = 'en'): string {
+export function getVersionBaseURL(version: Products, lang: SupportedLanguage = 'en'): string {
 	const langPrefix = getLanguagePrefix(lang);
 	const versionPrefix = getVersionPrefix(version);
-	return `/${langPrefix}docs/${versionPrefix}introduction/`;
+	return `/${langPrefix}docs/${versionPrefix}`;
 }
 
 /**
@@ -94,9 +171,27 @@ export function getPageSlugFromURL(pathname: string): string {
 	if (path.startsWith('/uk/')) path = path.slice(3);
 	// Remove /docs/ prefix
 	path = path.replace(/^\/docs\/?/, '');
-	// Remove version prefix
-	if (path.startsWith('pe/')) path = path.slice(3);
-	else if (path.startsWith('paas/')) path = path.slice(5);
+	// Strip version prefix (order matters: more specific first)
+	const prefixes = [
+		'pe/',
+		'paas/eu/',
+		'paas/',
+		'edge/pe/',
+		'edge/',
+		'trendz/',
+		'iot-gateway/',
+		'mqtt-broker/pe/',
+		'mqtt-broker/',
+		'mobile/pe/',
+		'mobile/',
+		'license-server/',
+	];
+	for (const prefix of prefixes) {
+		if (path.startsWith(prefix)) {
+			path = path.slice(prefix.length);
+			break;
+		}
+	}
 	return path.replace(/^\/|\/$/g, '');
 }
 
@@ -104,7 +199,7 @@ export function getPageSlugFromURL(pathname: string): string {
  * Switch the current path to a different product version, preserving language.
  * E.g. switchVersion('/uk/docs/getting-started/', 'pe') => '/uk/docs/pe/getting-started/'
  */
-export function switchVersion(pathname: string, targetVersion: ProductVersion): string {
+export function switchVersion(pathname: string, targetVersion: Products): string {
 	const lang = getLanguageFromURL(pathname);
 	const pageSlug = getPageSlugFromURL(pathname);
 	const langPrefix = getLanguagePrefix(lang);
@@ -133,7 +228,7 @@ export function switchLanguage(pathname: string, targetLang: SupportedLanguage):
  */
 export function switchVersionWithFallback(
 	pathname: string,
-	targetVersion: ProductVersion,
+	targetVersion: Products,
 	existingPageIds: Set<string>
 ): string {
 	const lang = getLanguageFromURL(pathname);

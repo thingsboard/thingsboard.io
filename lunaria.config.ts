@@ -1,11 +1,9 @@
-import { defineConfig } from '@lunariajs/core/config';
-
-export default defineConfig({
+export default {
 	repository: {
 		name: 'thingsboard/thingsboard.io',
 		branch: 'main',
 	},
-	sourceLocale: {
+	defaultLocale: {
 		label: 'English',
 		lang: 'en',
 	},
@@ -36,4 +34,4 @@ export default defineConfig({
 			'i18nIgnore',
 		],
 	},
-});
+};

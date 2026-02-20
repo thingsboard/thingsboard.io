@@ -19,7 +19,7 @@ export const productDocsPrefix: Record<Products, string> = {
 	[Products.CE]: '',
 	[Products.PE]: 'pe/',
 	[Products.PASS]: 'paas/',
-	[Products.PASS_EU]: 'paas/',
+	[Products.PASS_EU]: 'paas/eu/',
 	[Products.EDGE]: 'edge/',
 	[Products.EDGE_PE]: 'edge/pe/',
 	[Products.GW]: 'iot-gateway/',

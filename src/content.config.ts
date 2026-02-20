@@ -234,18 +234,26 @@ export const collections = {
 				'@astrojs/vue',
 				'astro',
 			];
-			const url = `https://npm.antfu.dev/${packages.join('+')}`;
-			const data = await fetch(url).then((res) => res.json());
-			return data.map((pkg: any) => ({ id: pkg.name, version: pkg.version }));
+			try {
+				const url = `https://npm.antfu.dev/${packages.join('+')}`;
+				const data = await fetch(url).then((res) => res.json());
+				return data.map((pkg: any) => ({ id: pkg.name, version: pkg.version }));
+			} catch {
+				return packages.map((name) => ({ id: name, version: '0.0.0' }));
+			}
 		},
 		schema: z.object({ version: z.string() }),
 	}),
 	astroContributors: defineCollection({
 		loader: async () => {
-			const { data } = await fetch('https://astro.badg.es/api/v1/top-contributors.json').then(
-				(res) => res.json()
-			);
-			return data.map((contributor: any) => ({ id: contributor.username, ...contributor }));
+			try {
+				const result = await fetch('https://astro.badg.es/api/v1/top-contributors.json').then(
+					(res) => res.json()
+				);
+				return result.data.map((contributor: any) => ({ id: contributor.username, ...contributor }));
+			} catch {
+				return [];
+			}
 		},
 		schema: z.object({ avatar_url: z.string() }),
 	}),

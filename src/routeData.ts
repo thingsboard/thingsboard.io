@@ -1,11 +1,11 @@
 import type { APIContext } from 'astro';
 import { defineRouteMiddleware, type StarlightRouteData } from '@astrojs/starlight/route-data';
 import { tutorialPages as pages } from '~/content';
+import { Products } from '@models/site.models.ts';
 import {
 	getVersionFromSlug,
 	getLanguageFromSlug,
 	stripLanguagePrefix,
-	type ProductVersion,
 	type SupportedLanguage,
 } from '~/util/path-utils';
 import { getOgImageUrl } from '~/util/getOgImageUrl';
@@ -14,6 +14,7 @@ import { getTutorialPages } from '~/util/getTutorialPages';
 export const onRequest = defineRouteMiddleware((context) => {
 	updateHead(context);
 	filterSidebarByVersionAndLanguage(context.locals.starlightRoute);
+	filterPaginationByVersion(context.locals.starlightRoute);
 	updateTutorialPagination(context.locals.starlightRoute);
 });
 
@@ -31,7 +32,7 @@ function filterSidebarByVersionAndLanguage(starlightRoute: StarlightRouteData) {
 
 function sidebarEntryMatchesVersionAndLanguage(
 	entry: StarlightRouteData['sidebar'][number],
-	version: ProductVersion,
+	version: Products,
 	lang: SupportedLanguage
 ): boolean {
 	if (entry.type === 'link') {
@@ -46,14 +47,51 @@ function sidebarEntryMatchesVersionAndLanguage(
 	return true;
 }
 
-function linkMatchesVersion(href: string, version: ProductVersion): boolean {
+function linkMatchesVersion(href: string, version: Products): boolean {
 	let path = href;
 	if (path.startsWith('/uk/')) path = path.slice(4);
 	path = path.replace(/^\/docs\/?/, '');
 
-	if (version === 'pe') return path.startsWith('pe/');
-	if (version === 'paas') return path.startsWith('paas/');
-	return !path.startsWith('pe/') && !path.startsWith('paas/');
+	if (version === Products.PE) return path.startsWith('pe/');
+	if (version === Products.PASS) return path.startsWith('paas/') && !path.startsWith('paas/eu/');
+	if (version === Products.PASS_EU) return path.startsWith('paas/eu/');
+	if (version === Products.EDGE_PE) return path.startsWith('edge/pe/');
+	if (version === Products.EDGE) return path.startsWith('edge/') && !path.startsWith('edge/pe/');
+	if (version === Products.TRENDZ) return path.startsWith('trendz/');
+	if (version === Products.GW) return path.startsWith('iot-gateway/');
+	if (version === Products.TBMQ_PE) return path.startsWith('mqtt-broker/pe/');
+	if (version === Products.TBMQ) return path.startsWith('mqtt-broker/') && !path.startsWith('mqtt-broker/pe/');
+	if (version === Products.MOBILE_PE) return path.startsWith('mobile/pe/');
+	if (version === Products.MOBILE) return path.startsWith('mobile/') && !path.startsWith('mobile/pe/');
+	if (version === Products.LICENSE) return path.startsWith('license-server/');
+	// CE: everything that doesn't belong to other products
+	return (
+		!path.startsWith('pe/') &&
+		!path.startsWith('paas/') &&
+		!path.startsWith('edge/') &&
+		!path.startsWith('trendz/') &&
+		!path.startsWith('iot-gateway/') &&
+		!path.startsWith('mqtt-broker/') &&
+		!path.startsWith('mobile/') &&
+		!path.startsWith('license-server/')
+	);
+}
+
+/**
+ * Clear pagination links that cross product version boundaries.
+ * Starlight builds prev/next from the combined sidebar, so without this
+ * the last CE page would link to the first PE page, etc.
+ */
+function filterPaginationByVersion(starlightRoute: StarlightRouteData) {
+	const version = getVersionFromSlug(starlightRoute.id);
+	const { pagination } = starlightRoute;
+
+	if (pagination.prev && !linkMatchesVersion(pagination.prev.href, version)) {
+		pagination.prev = undefined;
+	}
+	if (pagination.next && !linkMatchesVersion(pagination.next.href, version)) {
+		pagination.next = undefined;
+	}
 }
 
 function linkMatchesLanguage(href: string, lang: SupportedLanguage): boolean {

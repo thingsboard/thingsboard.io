@@ -1,10 +1,5 @@
-import {
-	createLunaria,
-	type Locale,
-	type LunariaConfig,
-	type LunariaStatus,
-	type StatusEntry,
-} from '@lunariajs/core';
+import { type LocalizationStatus } from '@lunariajs/core';
+import type { Locale, LunariaConfig } from '@lunariajs/core/config';
 import { BaseStyles, CustomStyles } from './styles.ts';
 
 export function html(
@@ -16,7 +11,13 @@ export function html(
 	return String.raw({ raw: strings }, ...treatedValues);
 }
 
-type LunariaInstance = Awaited<ReturnType<typeof createLunaria>>;
+type Localization = LocalizationStatus['localizations'][string];
+type PresentLocalization = Extract<Localization, { isMissing: false }>;
+
+/** Type predicate: narrows a localization to the non-missing variant. */
+function present(loc: Localization): loc is PresentLocalization {
+	return !loc.isMissing;
+}
 
 function collapsePath(path: string) {
 	const basesToHide = ['src/content/docs/en/', 'src/i18n/en/', 'src/content/docs/', 'src/content/'];
@@ -31,11 +32,7 @@ function collapsePath(path: string) {
 	return path;
 }
 
-export const Page = (
-	config: LunariaConfig,
-	status: LunariaStatus,
-	lunaria: LunariaInstance
-): string => {
+export const Page = (config: LunariaConfig, status: LocalizationStatus[]): string => {
 	return html`
 		<!doctype html>
 		<html dir="ltr" lang="en">
@@ -43,7 +40,7 @@ export const Page = (
 				${Meta} ${BaseStyles} ${CustomStyles}
 			</head>
 			<body>
-				${Body(config, status, lunaria)}
+				${Body(config, status)}
 			</body>
 		</html>
 	`;
@@ -70,63 +67,44 @@ export const Meta = html`
 	<link rel="icon" href="https://docs.astro.build/favicon.svg" type="image/svg+xml" />
 `;
 
-export const Body = (
-	config: LunariaConfig,
-	status: LunariaStatus,
-	lunaria: LunariaInstance
-): string => {
+export const Body = (config: LunariaConfig, status: LocalizationStatus[]): string => {
 	return html`
 		<main>
 			<div class="limit-to-viewport">
 				<h1>Astro Docs Translation Status</h1>
-				${TitleParagraph} ${StatusByLocale(config, status, lunaria)}
+				${TitleParagraph} ${StatusByLocale(config, status)}
 			</div>
-			${StatusByFile(config, status, lunaria)}
+			${StatusByFile(config, status)}
 		</main>
 	`;
 };
 
-export const StatusByLocale = (
-	config: LunariaConfig,
-	status: LunariaStatus,
-	lunaria: LunariaInstance
-): string => {
+export const StatusByLocale = (config: LunariaConfig, status: LocalizationStatus[]): string => {
 	const { locales } = config;
 	return html`
 		<h2 id="by-locale">
 			<a href="#by-locale">Translation progress by locale</a>
 		</h2>
-		${locales.map((locale) => LocaleDetails(status, locale, lunaria))}
+		${locales.map((locale: Locale) => LocaleDetails(status, locale))}
 	`;
 };
 
-export const LocaleDetails = (
-	status: LunariaStatus,
-	locale: Locale,
-	lunaria: LunariaInstance
-): string => {
+export const LocaleDetails = (status: LocalizationStatus[], locale: Locale): string => {
 	const { label, lang } = locale;
 
 	const missingFiles = status.filter(
-		(file) =>
-			file.localizations.find((localization) => localization.lang === lang)?.status === 'missing'
+		(file: LocalizationStatus) => file.localizations[lang]?.isMissing
 	);
-	const outdatedFiles = status.filter((file) => {
-		const localization = file.localizations.find((localization) => localization.lang === lang);
+	const outdatedFiles = status.filter((file: LocalizationStatus) => {
+		const loc = file.localizations[lang];
 
-		if (!localization || localization.status === 'missing') return false;
-		if (file.type === 'dictionary')
-			return 'missingKeys' in localization ? localization.missingKeys.length > 0 : false;
+		if (!loc || !present(loc)) return false;
+		if (loc.meta.type === 'dictionary') return loc.meta.missingKeys.length > 0;
 
-		return (
-			localization.status === 'outdated' ||
-			('missingKeys' in localization && localization.missingKeys.length > 0)
-		);
+		return loc.isOutdated;
 	});
 
 	const doneLength = status.length - outdatedFiles.length - missingFiles.length;
-
-	const links = lunaria.gitHostingLinks();
 
 	return html`
 		<details class="progress-details">
@@ -140,18 +118,16 @@ export const LocaleDetails = (
 				<br />
 				${ProgressBar(status.length, outdatedFiles.length, missingFiles.length)}
 			</summary>
-			${outdatedFiles.length > 0 ? OutdatedFiles(outdatedFiles, lang, lunaria) : ''}
+			${outdatedFiles.length > 0 ? OutdatedFiles(outdatedFiles, lang) : ''}
 			${missingFiles.length > 0
 				? html`<h3 class="capitalize">Missing</h3>
 						<ul>
-							${missingFiles.map((file) => {
-								const localization = file.localizations.find(
-									(localization) => localization.lang === lang
-								)!;
+							${missingFiles.map((file: LocalizationStatus) => {
+								const localization = file.localizations[lang]!;
 								return html`
 									<li>
-										${Link(links.source(file.source.path), collapsePath(file.source.path))}
-										${CreateFileLink(links.create(localization.path), 'Create file')}
+										${Link(file.sourceFile.gitHostingFileURL, collapsePath(file.sourceFile.path))}
+										${CreateFileLink(localization.gitHostingFileURL, 'Create file')}
 									</li>
 								`;
 							})}
@@ -164,35 +140,33 @@ export const LocaleDetails = (
 	`;
 };
 
-export const OutdatedFiles = (
-	outdatedFiles: LunariaStatus,
-	lang: string,
-	lunaria: LunariaInstance
-): string => {
+export const OutdatedFiles = (outdatedFiles: LocalizationStatus[], lang: string): string => {
 	return html`
 		<h3 class="capitalize">Outdated</h3>
 		<ul>
-			${outdatedFiles.map((file) => {
-				const localization = file.localizations.find((localization) => localization.lang === lang)!;
+			${outdatedFiles.map((file: LocalizationStatus) => {
+				const localization = file.localizations[lang]!;
 
 				const isMissingKeys =
-					localization.status !== 'missing' &&
-					'missingKeys' in localization &&
-					localization.missingKeys.length > 0;
+					present(localization) &&
+					localization.meta.type === 'dictionary' &&
+					localization.meta.missingKeys.length > 0;
 
 				return html`
 					<li>
 						${isMissingKeys
 							? html`
 									<details>
-										<summary>${ContentDetailsLinks(file, lang, lunaria)}</summary>
+										<summary>${ContentDetailsLinks(file, lang)}</summary>
 										<h4>Missing keys</h4>
 										<ul>
-											${localization.missingKeys.map((key) => html`<li>${key}</li>`)}
+											${present(localization) && localization.meta.type === 'dictionary'
+												? localization.meta.missingKeys.map((key: string) => html`<li>${key}</li>`)
+												: ''}
 										</ul>
 									</details>
 								`
-							: html` ${ContentDetailsLinks(file, lang, lunaria)} `}
+							: html` ${ContentDetailsLinks(file, lang)} `}
 					</li>
 				`;
 			})}
@@ -200,11 +174,7 @@ export const OutdatedFiles = (
 	`;
 };
 
-export const StatusByFile = (
-	config: LunariaConfig,
-	status: LunariaStatus,
-	lunaria: LunariaInstance
-): string => {
+export const StatusByFile = (config: LunariaConfig, status: LocalizationStatus[]): string => {
 	const { locales } = config;
 	return html`
 		<h2 id="by-file">
@@ -213,31 +183,25 @@ export const StatusByFile = (
 		<table class="status-by-file">
 			<thead>
 				<tr>
-					${['File', ...locales.map(({ lang }) => lang)].map((col) => html`<th>${col}</th>`)}
+					${['File', ...locales.map(({ lang }: Locale) => lang)].map((col) => html`<th>${col}</th>`)}
 				</tr>
 			</thead>
-			${TableBody(status, locales, lunaria)}
+			${TableBody(status, locales)}
 		</table>
 		<sup class="capitalize">❌ missing &nbsp; 🔄 outdated &nbsp; ✔ done </sup>
 	`;
 };
 
-export const TableBody = (
-	status: LunariaStatus,
-	locales: Locale[],
-	lunaria: LunariaInstance
-): string => {
-	const links = lunaria.gitHostingLinks();
-
+export const TableBody = (status: LocalizationStatus[], locales: Locale[]): string => {
 	return html`
 		<tbody>
 			${status.map(
-				(file) =>
+				(file: LocalizationStatus) =>
 					html`
 				<tr>
-					<td>${Link(links.source(file.source.path), collapsePath(file.source.path))}</td>
-						${locales.map(({ lang }) => {
-							return TableContentStatus(file.localizations, lang, lunaria);
+					<td>${Link(file.sourceFile.gitHostingFileURL, collapsePath(file.sourceFile.path))}</td>
+						${locales.map(({ lang }: Locale) => {
+							return TableContentStatus(file.localizations, lang);
 						})}
 					</td>
 				</tr>`
@@ -247,47 +211,38 @@ export const TableBody = (
 };
 
 export const TableContentStatus = (
-	localizations: StatusEntry['localizations'],
-	lang: string,
-	lunaria: LunariaInstance
+	localizations: LocalizationStatus['localizations'],
+	lang: string
 ): string => {
-	const localization = localizations.find((localization) => localization.lang === lang)!;
-	const isMissingKeys = 'missingKeys' in localization && localization.missingKeys.length > 0;
-	const status = isMissingKeys ? 'outdated' : localization.status;
-	const links = lunaria.gitHostingLinks();
-	const link =
-		status === 'missing' ? links.create(localization.path) : links.source(localization.path);
-	return html`<td>${EmojiFileLink(link, status)}</td>`;
+	const localization = localizations[lang]!;
+	const isMissingKeys =
+		present(localization) &&
+		localization.meta.type === 'dictionary' &&
+		localization.meta.missingKeys.length > 0;
+	const status = localization.isMissing
+		? 'missing'
+		: (present(localization) && localization.isOutdated) || isMissingKeys
+			? 'outdated'
+			: 'up-to-date';
+	return html`<td>${EmojiFileLink(localization.gitHostingFileURL, status)}</td>`;
 };
 
-export const ContentDetailsLinks = (
-	fileStatus: StatusEntry,
-	lang: string,
-	lunaria: LunariaInstance
-): string => {
-	const localization = fileStatus.localizations.find((localization) => localization.lang === lang)!;
+export const ContentDetailsLinks = (fileStatus: LocalizationStatus, lang: string): string => {
+	const localization = fileStatus.localizations[lang]!;
 	const isMissingKeys =
-		localization.status !== 'missing' &&
-		'missingKeys' in localization &&
-		localization.missingKeys.length > 0;
-
-	const links = lunaria.gitHostingLinks();
+		present(localization) &&
+		localization.meta.type === 'dictionary' &&
+		localization.meta.missingKeys.length > 0;
 
 	return html`
-		${Link(links.source(fileStatus.source.path), collapsePath(fileStatus.source.path))}
+		${Link(fileStatus.sourceFile.gitHostingFileURL, collapsePath(fileStatus.sourceFile.path))}
 		(${Link(
-			links.source(localization.path),
+			localization.gitHostingFileURL,
 			isMissingKeys ? 'incomplete translation' : 'outdated translation'
 		)},
-		${Link(
-			links.history(
-				fileStatus.source.path,
-				'git' in localization
-					? new Date(localization.git.latestTrackedCommit.date).toISOString()
-					: undefined
-			),
-			'source change history'
-		)})
+		${localization.gitHostingHistoryURL
+			? Link(localization.gitHostingHistoryURL, 'source change history')
+			: 'source change history'})
 	`;
 };
 
@@ -365,10 +320,10 @@ export const TitleParagraph = html`
 `;
 
 /**
- * Build an SVG file showing a summary of each language’s translation progress.
+ * Build an SVG file showing a summary of each language's translation progress.
  */
-export const SvgSummary = (config: LunariaConfig, status: LunariaStatus): string => {
-	const localeHeight = 56; // Each locale’s summary is 56px high.
+export const SvgSummary = (config: LunariaConfig, status: LocalizationStatus[]): string => {
+	const localeHeight = 56; // Each locale's summary is 56px high.
 	const svgHeight = localeHeight * Math.ceil(config.locales.length / 2);
 	return html`<svg
 		xmlns="http://www.w3.org/2000/svg"
@@ -376,10 +331,10 @@ export const SvgSummary = (config: LunariaConfig, status: LunariaStatus): string
 		font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'"
 	>
 		${config.locales
-			.map((locale) => SvgLocaleSummary(status, locale))
-			.sort((a, b) => b.progress - a.progress)
+			.map((locale: Locale) => SvgLocaleSummary(status, locale))
+			.sort((a: { svg: string; progress: number }, b: { svg: string; progress: number }) => b.progress - a.progress)
 			.map(
-				({ svg }, index) =>
+				({ svg }: { svg: string; progress: number }, index: number) =>
 					html`<g transform="translate(${(index % 2) * 215} ${Math.floor(index / 2) * 56})"
 						>${svg}</g
 					>`
@@ -388,25 +343,19 @@ export const SvgSummary = (config: LunariaConfig, status: LunariaStatus): string
 };
 
 function SvgLocaleSummary(
-	status: LunariaStatus,
+	status: LocalizationStatus[],
 	{ label, lang }: Locale
 ): { svg: string; progress: number } {
 	const missingFiles = status.filter(
-		(file) =>
-			file.localizations.find((localization) => localization.lang === lang)?.status === 'missing'
+		(file: LocalizationStatus) => file.localizations[lang]?.isMissing
 	);
-	const outdatedFiles = status.filter((file) => {
-		const localization = file.localizations.find((localization) => localization.lang === lang);
-		if (!localization || localization.status === 'missing') {
-			return false;
-		} else if (file.type === 'dictionary') {
-			return 'missingKeys' in localization ? localization.missingKeys.length > 0 : false;
-		} else {
-			return (
-				localization.status === 'outdated' ||
-				('missingKeys' in localization && localization.missingKeys.length > 0)
-			);
-		}
+	const outdatedFiles = status.filter((file: LocalizationStatus) => {
+		const loc = file.localizations[lang];
+
+		if (!loc || !present(loc)) return false;
+		if (loc.meta.type === 'dictionary') return loc.meta.missingKeys.length > 0;
+
+		return loc.isOutdated;
 	});
 
 	const doneLength = status.length - outdatedFiles.length - missingFiles.length;
@@ -425,7 +374,7 @@ function SvgLocaleSummary(
 				${missingFiles.length == 0 && outdatedFiles.length == 0
 					? '100% complete, amazing job! 🎉'
 					: html`${doneLength} done, ${outdatedFiles.length} outdated, ${missingFiles.length}
-						missing`}
+					missing`}
 			</text>
 			<rect x="0" y="34" width="${barWidth}" height="8" fill="#999" opacity="0.25"></rect>
 			<rect x="0" y="34" width="${outdatedWidth}" height="8" fill="#fb923c"></rect>

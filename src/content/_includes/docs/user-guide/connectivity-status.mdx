@@ -1,0 +1,92 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+The **Device State service** tracks whether each device is active or inactive, updates a set of server-side attributes (or time-series) with connection timestamps, and emits connectivity events into the <DocLink product={props.product} path='TODO'>Rule Engine</DocLink>. This lets you build automations — notifications, alarms, dashboard indicators — that react to devices going offline or coming back online.
+
+## Device State Data
+
+When a device connects, disconnects, or becomes inactive, ThingsBoard updates the following values:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `active` | Boolean | `true` if the device is currently active |
+| `lastConnectTime` | ms since epoch | When the device last connected |
+| `lastDisconnectTime` | ms since epoch | When the device last disconnected |
+| `lastActivityTime` | ms since epoch | When the device last sent telemetry, attributes, or an RPC command |
+| `inactivityAlarmTime` | ms since epoch | When the last inactivity event was fired |
+
+By default these are stored as **server-side attributes**. Set `PERSIST_STATE_TO_TELEMETRY=true` to store them as **time-series data** instead — useful when you need historical state graphs in dashboards. When stored as time-series, `STATE_TELEMETRY_TTL` controls the retention period (0 = unlimited).
+
+<Aside type="note">
+  The `inactivityTimeout` server-side attribute on an individual device (in milliseconds) overrides `DEFAULT_INACTIVITY_TIMEOUT` for that device only.
+</Aside>
+
+## Connectivity Events
+
+The Device State service fires four event types into the Rule Engine. You can configure reactions to each using custom <DocLink product={props.product} path='TODO'>rule chains</DocLink>.
+
+| Event | When it fires |
+|-------|--------------|
+| <DocLink product={props.product} path='TODO'>**Connect**</DocLink> | Device establishes a session (MQTT) or sends any request (HTTP/CoAP) |
+| <DocLink product={props.product} path='TODO'>**Disconnect**</DocLink> | Session closes (MQTT) or request completes (HTTP/CoAP) |
+| <DocLink product={props.product} path='TODO'>**Activity**</DocLink> | An inactive device sends telemetry, updates attributes, or sends an RPC command |
+| <DocLink product={props.product} path='TODO'>**Inactivity**</DocLink> | No activity received within `DEFAULT_INACTIVITY_TIMEOUT` seconds |
+
+<Aside type="tip">
+  HTTP and CoAP devices fire Connect and Disconnect on every request — use the **Activity** and **Inactivity** events instead for meaningful state tracking with these transports.
+</Aside>
+
+## Inactivity Detection
+
+A device is marked **inactive** when no activity is received for `DEFAULT_INACTIVITY_TIMEOUT` seconds (default: 600 s / 10 minutes). ThingsBoard checks all devices on a schedule controlled by `DEFAULT_STATE_CHECK_INTERVAL` (default: 60 s).
+
+**Transport session vs device inactivity** — these are separate timeouts:
+- `DEFAULT_INACTIVITY_TIMEOUT` — when the Device State service marks a device inactive
+- `TB_TRANSPORT_SESSIONS_INACTIVITY_TIMEOUT` — when an open MQTT session is closed server-side
+
+Keep the transport session timeout ≥ the device inactivity timeout to avoid a device being marked inactive while its session is still open.
+
+## Activity Reporting Strategy
+
+For high-frequency devices, reporting every message to the Device State service can add load. The `TB_TRANSPORT_ACTIVITY_REPORTING_STRATEGY` setting (default: `LAST`) controls how often activity is forwarded.
+
+Time is divided into consecutive **reporting periods** of fixed length (controlled by `TB_TRANSPORT_SESSIONS_REPORT_TIMEOUT`, default: 3000 ms).
+
+| Strategy | What is reported |
+|----------|-----------------|
+| `ALL` | Every activity, immediately — most accurate, highest load |
+| `FIRST` | First activity of each period immediately; last activity if no activity in the next period |
+| `LAST` | Only the last activity, when the period ends — lowest load, slight delay |
+| `FIRST_AND_LAST` | First activity immediately + last activity at period end |
+
+**Example — 10 000 devices sending telemetry every second with `TB_TRANSPORT_SESSIONS_REPORT_TIMEOUT=3000` ms:**
+
+| Strategy | Messages / sec to Device State service |
+|----------|----------------------------------------|
+| `ALL` | 10 000 (every message forwarded) |
+| `FIRST_AND_LAST` | ≤ 6 667 (first + last per 3 s period) |
+| `FIRST` | ≤ 3 334 (first per period; last only if quiet in next period) |
+| `LAST` | ≤ 3 334 (one per period, at period end) |
+
+`LAST` cuts Device State service load by up to **3×** compared to `ALL`, at the cost of up to one reporting-period delay before `lastActivityTime` is updated.
+
+<Aside type="caution">
+  **`DEFAULT_INACTIVITY_TIMEOUT` must be greater than `TB_TRANSPORT_SESSIONS_REPORT_TIMEOUT`.**
+  With `LAST` or `FIRST_AND_LAST`, the final activity of a period is only reported when the period ends. If the inactivity timeout expires before the period does, ThingsBoard will fire a false Inactivity event for an actively reporting device.
+
+  For example: `DEFAULT_INACTIVITY_TIMEOUT=1` s and `TB_TRANSPORT_SESSIONS_REPORT_TIMEOUT=3000` ms — a device sending data every second will be incorrectly marked inactive because its activity isn't reported for up to 3 s.
+
+  **Rule of thumb:** set `DEFAULT_INACTIVITY_TIMEOUT` (seconds) to at least `TB_TRANSPORT_SESSIONS_REPORT_TIMEOUT` (ms) ÷ 1000, with enough margin for realistic gaps between messages.
+</Aside>
+
+## Configuration Reference
+
+| Environment Variable | Default | Description |
+|----------------------|---------|-------------|
+| `DEFAULT_INACTIVITY_TIMEOUT` | `600` | Seconds without activity before a device is marked inactive |
+| `DEFAULT_STATE_CHECK_INTERVAL` | `60` | How often (seconds) ThingsBoard checks for inactive devices |
+| `PERSIST_STATE_TO_TELEMETRY` | `false` | Store state fields as time-series instead of server-side attributes |
+| `STATE_TELEMETRY_TTL` | `0` | TTL (seconds) for state time-series data; `0` = unlimited |
+| `TB_TRANSPORT_ACTIVITY_REPORTING_STRATEGY` | `LAST` | Activity reporting strategy: `ALL`, `FIRST`, `LAST`, or `FIRST_AND_LAST` |
+| `TB_TRANSPORT_SESSIONS_REPORT_TIMEOUT` | `3000` | Reporting period duration in milliseconds |
+| `TB_TRANSPORT_SESSIONS_INACTIVITY_TIMEOUT` | `300000` | Milliseconds before an idle transport session is closed |

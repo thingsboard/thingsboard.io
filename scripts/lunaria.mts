@@ -1,12 +1,15 @@
-import { createLunaria } from '@lunariajs/core';
+import { lunaria } from '@lunariajs/core';
+import { validateConfig, type LunariaUserConfig } from '@lunariajs/core/config';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { Page, SvgSummary } from './lunaria/components.ts';
+import rawConfig from '../lunaria.config.ts';
 
-const lunaria = await createLunaria();
-const status = await lunaria.getFullStatus();
+const userConfig = rawConfig as unknown as LunariaUserConfig;
+const config = validateConfig(userConfig);
+const status = await lunaria(userConfig);
 
-const html = Page(lunaria.config, status, lunaria);
-const svg = SvgSummary(lunaria.config, status);
+const html = Page(config, status);
+const svg = SvgSummary(config, status);
 
 mkdirSync('dist/lunaria', { recursive: true });
 writeFileSync('dist/lunaria/index.html', html);
