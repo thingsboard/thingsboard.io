@@ -152,7 +152,7 @@ export const opensourceSidebar: SidebarConfig = [
 					'docs/concepts/multi-tenancy',
 					'docs/concepts/digital-twin-model',
 					'docs/concepts/data-processing',
-					'docs/concepts/alerts-and-notifications',
+					'docs/concepts/alarms-and-notifications',
 					'docs/concepts/data-visualization'
 				],
 			}
@@ -197,7 +197,7 @@ export const peSidebar: SidebarConfig = [
 					'docs/pe/concepts/multi-tenancy',
 					'docs/pe/concepts/digital-twin-model',
 					'docs/pe/concepts/data-processing',
-					'docs/pe/concepts/alerts-and-notifications',
+					'docs/pe/concepts/alarms-and-notifications',
 					'docs/pe/concepts/data-visualization'
 				],
 			}
