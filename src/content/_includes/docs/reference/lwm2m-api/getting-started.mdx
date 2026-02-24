@@ -1,0 +1,145 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+[LwM2M (Lightweight M2M)](https://en.wikipedia.org/wiki/OMA_LWM2M) is a device management protocol designed for constrained devices. Unlike HTTP or MQTT, LwM2M defines a rich [Object and Resource Registry](https://github.com/OpenMobileAlliance/lwm2m-registry) — a standardized library of data structures for telemetry, configuration, and OTA updates. ThingsBoard acts as a full LwM2M Server and Bootstrap Server over plain UDP and DTLS.
+
+## Connection Ports
+
+| Port | Transport | Purpose |
+|------|-----------|---------|
+| `5685` | UDP (plain) | LwM2M Server |
+| `5686` | DTLS | LwM2M Server (secure) |
+| `5687` | UDP (plain) | Bootstrap Server |
+| `5688` | DTLS | Bootstrap Server (secure) |
+
+## Object and Resource Model
+
+Every piece of data on an LwM2M device is identified by a path: `/{ObjectId}/{ObjectInstance}/{ResourceId}`.
+
+| Segment | Example | Description |
+|---------|---------|-------------|
+| `ObjectId` | `3` | Object type (e.g., Device object) |
+| `ObjectInstance` | `0` | Instance of that object |
+| `ResourceId` | `9` | Specific resource (e.g., Battery Level) |
+
+For example, `/3/0/9` always means **Device Object → Instance 0 → Battery Level**.
+
+Object versions are tracked separately. Use `/{ObjectId}_{version}/{instance}/{resource}` syntax when a specific version is required — e.g., `/3_1.2/0/9` targets Object 3 at version 1.2.
+
+<Aside type="note">
+  The version used in device profile configuration must match the version advertised by the LwM2M client at registration. If they differ, all initialization operations for that object are rejected.
+</Aside>
+
+## Getting Started
+
+### Step 1 — Upload LwM2M Models
+
+<Steps>
+1. Log in as a System or Tenant administrator.
+2. Go to **Resources → Resource library** and click **+**.
+3. Upload one or more LwM2M model XML files.
+</Steps>
+
+Download the latest models from the [official OMA registry on GitHub](https://github.com/OpenMobileAlliance/lwm2m-registry). Upload all models whose versions match the objects your devices will use.
+
+### Step 2 — Create a Device Profile
+
+<Steps>
+1. Go to **Profiles → Device profiles** and click **+**.
+2. Enter a profile name and go to the **Transport configuration** tab.
+3. Select **LwM2M** as the transport type.
+4. Add the LwM2M objects your devices support (e.g., Device #3, Connectivity #4, Firmware Update #5, Location #6).
+5. For each object resource, check **Attribute** to store it as a ThingsBoard attribute, or **Telemetry** + **Observe** to stream it as time-series data.
+6. Save the profile.
+</Steps>
+
+For each resource marked as **Attribute** or **Telemetry**, you can customize the key name used in ThingsBoard. ThingsBoard reads attribute values at device registration and observes telemetry resources for ongoing updates.
+
+### Step 3 — Create a Device and Configure Credentials
+
+<Steps>
+1. Go to **Entities → Devices** and click **+**.
+2. Name the device and select the LwM2M profile created above.
+3. Go to the **Credentials** tab and choose a credential type (see below).
+4. Save.
+</Steps>
+
+#### Credential Types
+
+| Type | Security | Required fields |
+|------|----------|----------------|
+| **No Security** | None | Endpoint Client Name |
+| **Pre-Shared Key (PSK)** | DTLS symmetric | Endpoint Name, PSK Identity, PSK Key (hex, 32–128 chars) |
+| **Raw Public Key (RPK)** | DTLS asymmetric | Client Public Key (DER, base64-encoded) |
+| **X.509 Certificate** | DTLS mutual TLS | Client certificate (PEM) |
+
+**No Security** connects over plain UDP on port 5685 — suitable for development and trusted networks only.
+
+**PSK** is the most resource-efficient DTLS mode for constrained devices. Configure three values:
+
+```
+Endpoint Client Name:  MyClientPsk
+PSK Identity:          myIdentity
+PSK Key (hex):         01020304050607080A0B0C0D0F010203
+```
+
+**X.509** uses mutual DTLS. Generate a self-signed EC certificate:
+
+```bash
+openssl ecparam -out key.pem -name secp256r1 -genkey
+openssl req -new -key key.pem -x509 -nodes -days 365 -out cert.pem
+```
+
+Paste the contents of `cert.pem` into the **Client certificate** field in **Manage credentials**.
+
+### Step 4 — Connect the Device
+
+Use the [ThingsBoard LwM2M Demo Client](https://github.com/thingsboard/thingsboard.lwm2m.demo.client) to test connectivity:
+
+**No Security (plain UDP):**
+
+```bash
+java -jar thingsboard-lwm2m-demo-client-{version}.jar -u coap://$THINGSBOARD_HOST:5685 -n $ENDPOINT_NAME
+```
+
+**Docker:**
+
+```bash
+docker run --rm -it thingsboard/tb-lwm2m-demo-client:latest -u coap://$THINGSBOARD_HOST:5685 -n $ENDPOINT_NAME
+```
+
+**PSK (DTLS port 5686):**
+
+```bash
+java -jar thingsboard-lwm2m-demo-client-{version}.jar -u coaps://$THINGSBOARD_HOST:5686 -n MyClientPsk --psk-identity myIdentity --psk-key 01020304050607080A0B0C0D0F010203
+```
+
+Once connected, the device registers with ThingsBoard and begins sending telemetry. Communication logs appear under the `transportLog` key in **Latest telemetry**.
+
+## DTLS Server Configuration
+
+To enable DTLS on the ThingsBoard server, set these environment variables:
+
+```bash
+LWM2M_SERVER_CREDENTIALS_ENABLED=true
+LWM2M_SERVER_CREDENTIALS_TYPE=PEM
+LWM2M_SERVER_PEM_CERT=server.pem
+LWM2M_SERVER_PEM_KEY=server_key.pem
+LWM2M_SERVER_PEM_KEY_PASSWORD=secret
+```
+
+To also enable the Bootstrap Server over DTLS:
+
+```bash
+LWM2M_ENABLED_BS=true
+LWM2M_BS_CREDENTIALS_ENABLED=true
+LWM2M_BS_CREDENTIALS_TYPE=PEM
+LWM2M_BS_PEM_CERT=server.pem
+LWM2M_BS_PEM_KEY=server_key.pem
+LWM2M_BS_PEM_KEY_PASSWORD=secret
+```
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LWM2M_SECURITY_BIND_PORT` | `5686` | DTLS LwM2M Server port |
+| `LWM2M_BS_SECURITY_BIND_PORT` | `5688` | DTLS Bootstrap Server port |

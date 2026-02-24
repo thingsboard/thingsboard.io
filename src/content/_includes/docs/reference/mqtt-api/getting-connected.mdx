@@ -1,0 +1,144 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+ThingsBoard acts as a standard MQTT broker. Any MQTT v3.1, v3.1.1, or v5.0 client can connect — firmware libraries (Paho, MQTT.js, arduino-mqtt), integration tools, or the **mosquitto** command-line client used in examples throughout this section.
+
+## Connection Parameters
+
+| Parameter | Value |
+|-----------|-------|
+| Host | Your ThingsBoard hostname |
+| Port | `1883` (plain) · `8883` (TLS) |
+| Protocol | MQTT v3.1, v3.1.1, **v5.0** |
+| QoS | 0 (at most once) · 1 (at least once) |
+
+## Command-Line Tools
+
+Examples in this section use **mosquitto_pub** and **mosquitto_sub**. Install the mosquitto client package for your OS from [mosquitto.org/download](https://mosquitto.org/download/) or your system package manager, then verify with `mosquitto_pub --version`.
+
+## Credential Types
+
+Choose the credential type that fits your device's security requirements. Configure it per device under **Manage credentials** — see <DocLink product={props.product} path='user-guide/devices'>Devices</DocLink>.
+
+| Type | MQTT Username | MQTT Password | MQTT Client ID |
+|------|--------------|---------------|----------------|
+| **Access Token** | Device access token | *(empty)* | *(any)* |
+| **MQTT Basic** | Custom username *(optional)* | Custom password *(optional)* | Custom client ID *(optional)* |
+| **X.509 Certificate** | *(empty)* | *(empty)* | *(any)* — mutual TLS only |
+
+---
+
+### Access Token
+
+The simplest credential type. The token acts as the MQTT username; no password is required.
+
+**Plain MQTT (port 1883):**
+
+```bash
+mosquitto_pub -d -q 1 -h "$THINGSBOARD_HOST" -p 1883 -t "v1/devices/me/telemetry" -u "$ACCESS_TOKEN" -m '{"temperature": 25}'
+```
+
+**MQTT over TLS (port 8883) — one-way SSL:**
+
+The client verifies the server's identity using a CA root certificate. Download `ca-root.pem` from the **Check connectivity** dialog on the device page.
+
+```bash
+mosquitto_pub -d -q 1 --cafile ca-root.pem -h "$THINGSBOARD_HOST" -p 8883 -t "v1/devices/me/telemetry" -u "$ACCESS_TOKEN" -m '{"temperature": 25}'
+```
+
+---
+
+### MQTT Basic
+
+Replaces the access token with a custom `clientId`, `username`, and `password`. All three fields are optional — use whichever combination your firmware supports.
+
+<Aside type="note">
+  The combination of `clientId`, `username`, and `password` must be unique across the entire ThingsBoard installation. ThingsBoard uses these values to identify which device is connecting.
+</Aside>
+
+| Authentication scheme | Required fields |
+|-----------------------|----------------|
+| Client ID only | `clientId` |
+| Username + Password | `username`, `password` |
+| All three combined | `clientId`, `username`, `password` |
+
+**Plain MQTT (port 1883):**
+
+```bash
+mosquitto_pub -d -q 1 -h "$THINGSBOARD_HOST" -p 1883 -t "v1/devices/me/telemetry" -i "$CLIENT_ID" -u "$USERNAME" -P "$PASSWORD" -m '{"temperature": 25}'
+```
+
+**MQTT over TLS (port 8883) — one-way SSL:**
+
+```bash
+mosquitto_pub -d -q 1 --cafile ca-root.pem -h "$THINGSBOARD_HOST" -p 8883 -t "v1/devices/me/telemetry" -i "$CLIENT_ID" -u "$USERNAME" -P "$PASSWORD" -m '{"temperature": 25}'
+```
+
+---
+
+### X.509 Certificate
+
+Mutual TLS: both the server and the device authenticate each other with certificates. Always uses port 8883. Two strategies are available.
+
+#### Individual Certificate
+
+Each device has its own certificate registered directly on the device record.
+
+<Steps>
+1. Generate a certificate and private key:
+   ```bash
+   # RSA
+   openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -sha256 -days 365 -nodes
+   # or EC (smaller, faster)
+   openssl ecparam -out key.pem -name prime256v1 -genkey
+   openssl req -new -key key.pem -x509 -nodes -days 365 -out cert.pem
+   ```
+2. Register the certificate in ThingsBoard: **Entities → Devices → \[device\] → Manage credentials → X.509 Certificate**, paste `cert.pem`, save.
+3. Connect using the certificate and key:
+   ```bash
+   mosquitto_pub --cafile ca-root.pem -d -q 1 -h "$THINGSBOARD_HOST" -p 8883 -t "v1/devices/me/telemetry" --key key.pem --cert cert.pem -m '{"temperature": 25}'
+   ```
+</Steps>
+
+#### Certificate Chain (Recommended for fleets)
+
+Register one intermediate CA certificate in the device profile instead of one certificate per device. ThingsBoard extracts the device name from the certificate's Common Name using a configurable regex and can auto-provision new devices when their certificate is first seen.
+
+<Steps>
+1. Generate the certificate hierarchy (root → intermediate → device):
+   ```bash
+   # Root CA
+   openssl req -x509 -newkey rsa:4096 -keyout rootKey.pem -out rootCert.pem -sha256 -days 365 -nodes
+
+   # Intermediate CA
+   openssl req -new -newkey rsa:4096 -keyout intermediateKey.pem -out intermediate.csr -sha256 -nodes
+   echo basicConstraints=CA:TRUE > ca-ext.txt
+   openssl x509 -req -in intermediate.csr -out intermediateCert.pem -CA rootCert.pem -CAkey rootKey.pem -days 365 -sha256 -CAcreateserial -extfile ca-ext.txt
+
+   # Device certificate
+   openssl req -new -newkey rsa:4096 -keyout deviceKey.pem -out device.csr -sha256 -nodes
+   openssl x509 -req -in device.csr -out deviceCert.pem -CA intermediateCert.pem -CAkey intermediateKey.pem -days 365 -sha256 -CAcreateserial
+
+   # Build the chain sent by the device
+   cat deviceCert.pem intermediateCert.pem rootCert.pem > chain.pem
+   ```
+2. Register the intermediate certificate in ThingsBoard: **Profiles → Device profiles → \[profile\] → Device Provisioning → X.509 Certificate Chain**. Paste `intermediateCert.pem`, configure the CN regex for device name extraction, and optionally enable auto-provisioning.
+3. Connect using the chain and device key:
+   ```bash
+   mosquitto_pub --cafile ca-root.pem -d -q 1 -h "$THINGSBOARD_HOST" -p 8883 -t "v1/devices/me/telemetry" --key deviceKey.pem --cert chain.pem -m '{"temperature": 25}'
+   ```
+</Steps>
+
+<Aside type="tip">
+  Use `--insecure` in mosquitto commands only during development when the server uses a self-signed certificate. Never use it in production.
+</Aside>
+
+---
+
+## Connection Response Codes
+
+| Code | Meaning |
+|------|---------|
+| `0x00` | Connected successfully |
+| `0x04` | Bad username or password — access token missing or malformed |
+| `0x05` | Not authorized — access token invalid or device disabled |

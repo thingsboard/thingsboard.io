@@ -1,1 +1,125 @@
-{/* TODO: Add content */}
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+ThingsBoard RPC (Remote Procedure Call) enables bidirectional command exchange between the platform and devices. Commands can flow in either direction: the platform sends instructions to a device (**server-side RPC**), or a device asks the platform for data (**client-side RPC**).
+
+## Server-Side RPC
+
+The platform sends a command to a device — turn a relay on, change a setpoint, trigger a reboot. Commands can be sent from a <DocLink product={props.product} path='user-guide/dashboards'>dashboard widget</DocLink>, the <DocLink product={props.product} path='user-guide/rule-engine'>Rule Engine</DocLink>, or directly via REST API.
+
+### One-Way vs. Two-Way
+
+| | One-Way | Two-Way |
+|-|---------|---------|
+| **Device reply** | Not expected | Required within timeout |
+| **Use case** | Fire-and-forget commands (turn on LED) | Commands that need confirmation or a result |
+| **REST response** | `200 OK` when ThingsBoard sent the command to the device — no visibility into whether the device processed it or succeeded | Device's reply payload |
+
+### Lightweight vs. Persistent
+
+**Lightweight RPC** is short-lived and memory-resident. If the device is offline when the command is sent, the command is lost. Good for real-time control of always-connected devices.
+
+**Persistent RPC** is stored in the database with a configurable TTL. If the device is offline, the command waits until the device reconnects. Good for devices with intermittent connectivity or power-saving modes.
+
+### How It Works
+
+```
+  Dashboard / Rule Engine / REST API
+               │
+               │  POST /api/plugins/rpc/{oneway|twoway}/{deviceId}
+               │  {method, params, timeout, persistent}
+               ▼
+         ThingsBoard
+               │
+               ├─ [device online]  ──── command ───────────────▶ Device
+               │                                                     │
+               │  [two-way]  ◀─── response ────────────────────────┤
+               │
+               └─ [device offline + persistent]
+                    command saved, state: QUEUED
+                    delivered on next reconnect
+```
+
+### Request Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `method` | Yes | Command name, e.g. `setTemperature` |
+| `params` | Yes | JSON parameters. Use `{}` if none. |
+| `timeout` | No | Milliseconds to wait for delivery (default: 10 000, min: 5 000) |
+| `expirationTime` | No | Epoch ms timestamp — overrides `timeout` |
+| `persistent` | No | `true` to store in DB and survive device offline (default: `false`) |
+| `retries` | No | Retry attempts for persistent RPC on timeout |
+| `additionalInfo` | No | Metadata attached to persistent RPC Rule Engine events |
+
+### Persistent RPC States
+
+Persistent commands move through a state machine. Each transition fires a Rule Engine event you can use to track commands in external systems.
+
+| State | Meaning |
+|-------|---------|
+| `QUEUED` | Saved; awaiting delivery |
+| `SENT` | Platform sent to device |
+| `DELIVERED` | Device acknowledged (terminal for one-way) |
+| `SUCCESSFUL` | Device replied (terminal for two-way) |
+| `TIMEOUT` | Delivery timed out; retrying if retries remain |
+| `EXPIRED` | TTL elapsed before delivery |
+| `FAILED` | All retries exhausted |
+
+<Aside type="caution">
+  Enabling `ACTORS_RPC_SEQUENTIAL=true` delivers commands to a device one at a time. Combined with high retry counts and long expiration times, a stuck two-way RPC can block all subsequent commands to that device.
+</Aside>
+
+## Client-Side RPC
+
+A device initiates a request to the platform — for example to fetch the current time, get a weather forecast, or query an access control decision. The platform processes it through the <DocLink product={props.product} path='user-guide/rule-engine'>Rule Engine</DocLink> and replies.
+
+### How It Works
+
+```
+  Device
+    │
+    │  {method: "getCurrentTime", params: {}}
+    ▼
+  ThingsBoard  →  Rule Engine  →  TO_SERVER_RPC_REQUEST message
+                                        │
+                                  custom Rule Chain
+                                  (enrich, transform,
+                                   call external API)
+                                        │
+                                  RPC Call Reply node
+                                        │
+    ◀───────────────────────────────────┘
+  Device receives response
+```
+
+Each request carries a `method` string and a `params` JSON object. The Rule Engine message includes a `requestId` UUID in metadata, which the RPC Call Reply node uses to route the response back to the correct device.
+
+<Aside type="note">
+  Client-side RPC is supported over MQTT, CoAP, and HTTP. LwM2M and SNMP do not support it.
+</Aside>
+
+## Sending Commands from Dashboards
+
+<DocLink product={props.product} path='TODO'>Control widgets</DocLink> (RPC Button, Round Switch, Knob Control, etc.) send server-side RPC commands using the same REST API under the hood. You configure the method name and parameters directly in the widget settings — no code required.
+
+## Configuration Reference
+
+| Environment Variable | Default | Description |
+|----------------------|---------|-------------|
+| `ACTORS_RPC_MAX_RETRIES` | `5` | Max delivery retries for persistent RPC |
+| `ACTORS_RPC_SEQUENTIAL` | `false` | Deliver commands to each device one at a time |
+| `MQTT_TIMEOUT` | `10000` | MQTT delivery timeout (ms) |
+| `COAP_TIMEOUT` | `10000` | CoAP delivery timeout (ms) |
+| `LWM2M_TIMEOUT` | `120000` | LwM2M delivery timeout (ms) |
+| `SQL_TTL_RPC_ENABLED` | `true` | Enable automatic cleanup of expired persistent RPCs |
+| `SQL_RPC_TTL_CHECKING_INTERVAL` | `7200000` | How often expired RPCs are cleaned up (ms) |
+
+## Protocol References
+
+See the transport-specific guides for exact topics, subscribe paths, and request/response examples:
+
+- <DocLink product={props.product} path='reference/mqtt-api/rpc'>MQTT RPC API</DocLink>
+- <DocLink product={props.product} path='TODO'>HTTP RPC API</DocLink>
+- <DocLink product={props.product} path='TODO'>CoAP RPC API</DocLink>
+- <DocLink product={props.product} path='TODO'>LwM2M RPC</DocLink> — server-side only

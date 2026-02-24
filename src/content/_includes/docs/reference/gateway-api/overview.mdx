@@ -1,0 +1,97 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+A ThingsBoard Gateway is a device that maintains a single MQTT connection to ThingsBoard while proxying data for multiple physical devices connected behind it. All gateway topics use the `v1/gateway/` prefix and all payloads include the downstream device name.
+
+The gateway authenticates with its own credentials — see <DocLink product={props.product} path='reference/mqtt-api/getting-connected'>MQTT Getting Connected</DocLink> for connection and authentication details.
+
+The gateway can also use the standard MQTT Device API to publish its own telemetry and attributes and to receive RPC commands for itself.
+
+<Aside type="tip">
+  ThingsBoard's open-source <DocLink product={props.product} path='iot-gateway/'>IoT Gateway</DocLink> is built on top of this API and is a good reference implementation for building custom gateways.
+</Aside>
+
+## Enabling Gateway Mode
+
+Before a device can use the gateway topic namespace, it must have **Is gateway** enabled in ThingsBoard. Toggle this flag when creating the device or in the device edit form — see <DocLink product={props.product} path='user-guide/devices'>Devices</DocLink> for details.
+
+When **Overwrite activity time** is also enabled, the gateway's own connection activity keeps all connected downstream devices in **Active** state — even when those devices are not sending telemetry. This ensures RPC commands and shared attribute updates can be delivered to downstream devices as long as the gateway is connected.
+
+## Topic Overview
+
+| Topic | Direction | Purpose |
+|-------|-----------|---------|
+| `v1/gateway/connect` | Publish | Announce a downstream device connection |
+| `v1/gateway/disconnect` | Publish | Announce a downstream device disconnection |
+| `v1/gateway/telemetry` | Publish | Upload telemetry for one or more devices |
+| `v1/gateway/attributes` | Publish | Upload client-side attributes for devices |
+| `v1/gateway/attributes` | Subscribe | Receive shared attribute updates for devices |
+| `v1/gateway/attributes/request` | Publish | Request client/shared attribute values |
+| `v1/gateway/attributes/response` | Subscribe | Receive attribute request responses |
+| `v1/gateway/rpc` | Subscribe | Receive server-side RPC commands for devices |
+| `v1/gateway/rpc` | Publish | Send RPC command responses |
+| `v1/gateway/claim` | Publish | Initiate device claiming |
+
+## Device Connect
+
+Inform ThingsBoard that a downstream device is now connected. ThingsBoard begins routing shared attribute updates and RPC commands for that device through the gateway.
+
+**Topic:** `v1/gateway/connect`
+
+```json
+{"device": "Device A", "type": "Sensor A"}
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `device` | Yes | Device name in ThingsBoard |
+| `type` | No | Device profile name. Defaults to `default` if omitted. |
+
+If the device does not exist, ThingsBoard creates it automatically. If the profile does not exist, it is also created automatically.
+
+```bash
+mosquitto_pub -h "$THINGSBOARD_HOST" -t "v1/gateway/connect" -u "$ACCESS_TOKEN" -m '{"device":"Device A"}'
+```
+
+Connect with a specific device profile:
+
+```bash
+mosquitto_pub -h "$THINGSBOARD_HOST" -t "v1/gateway/connect" -u "$ACCESS_TOKEN" -m '{"device":"Device A","type":"Sensor A"}'
+```
+
+<Aside type="note">
+  ThingsBoard acknowledges the connect message with a PUBACK. Wait for the PUBACK before sending data — it confirms the connection was accepted. With MQTT v5, a non-zero PUBACK reason code indicates an error (e.g., device limit exceeded).
+</Aside>
+
+### MQTT v5 Error Codes
+
+| Code | Name | Packets | Description |
+|------|------|---------|-------------|
+| 128 | Unspecified error | CONNACK, PUBACK, PUBREC, SUBACK, UNSUBACK, DISCONNECT | An unspecified error occurred. |
+| 129 | Malformed Packet | CONNACK, DISCONNECT | The received packet cannot be correctly parsed according to the protocol specification. |
+| 130 | Protocol Error | CONNACK, DISCONNECT | Data that the protocol does not allow or behavior that does not conform to protocol requirements. |
+| 131 | Implementation specific error | CONNACK, PUBACK, PUBREC, SUBACK, UNSUBACK, DISCONNECT | The packet is valid but not accepted by the current receiver's implementation. |
+| 132 | Unsupported Protocol Version | CONNACK | The requested protocol version is not supported by the server. |
+| 133 | Client Identifier not valid | CONNACK | The Client ID is valid but not accepted by the server (e.g., exceeds maximum length). |
+| 134 | Bad User Name or Password | CONNACK | The client was refused because it used an incorrect username or password. |
+| 135 | Not authorized | CONNACK, PUBACK, PUBREC, SUBACK, UNSUBACK, DISCONNECT | The operation is not authorized (e.g., no permission to publish to this topic). |
+| 136 | Server unavailable | CONNACK | The server is currently unavailable. |
+| 143 | Topic Filter invalid | PUBACK, PUBREC, DISCONNECT | The Topic Filter format is correct but not accepted by the server. |
+| 144 | Topic Name invalid | PUBACK, PUBREC, DISCONNECT | The Topic Name format is correct but not accepted by the client or server. |
+| 149 | Packet too large | CONNACK, DISCONNECT | The packet exceeds the maximum size agreed upon at connection time. |
+| 151 | Quota exceeded | CONNACK, PUBACK, PUBREC, SUBACK, DISCONNECT | An administratively imposed limit has been exceeded. |
+| 153 | Payload format invalid | PUBACK, PUBREC, DISCONNECT | The payload format does not match the Payload Format Indicator property. |
+
+## Device Disconnect
+
+Inform ThingsBoard that a downstream device is no longer active. ThingsBoard stops sending attribute updates and RPC commands for that device to the gateway.
+
+**Topic:** `v1/gateway/disconnect`
+
+```json
+{"device": "Device A"}
+```
+
+```bash
+mosquitto_pub -h "$THINGSBOARD_HOST" -t "v1/gateway/disconnect" -u "$ACCESS_TOKEN" -m '{"device":"Device A"}'
+```
