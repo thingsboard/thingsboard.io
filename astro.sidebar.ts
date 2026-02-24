@@ -5,6 +5,7 @@ type SidebarConfig = NonNullable<StarlightUserConfig['sidebar']>;
 const guideItems = (prefix: string) => [
 	{
 		label: 'Digital Twins',
+		collapsed: true,
 		items: [
 			`${prefix}/digital-twins/entities`,
 			`${prefix}/digital-twins/relations`,
@@ -14,6 +15,7 @@ const guideItems = (prefix: string) => [
 	},
 	{
 		label: 'Devices',
+		collapsed: true,
 		items: [
 			`${prefix}/devices`,
 			`${prefix}/device-profiles`,
@@ -27,6 +29,7 @@ const guideItems = (prefix: string) => [
 	},
 	{
 		label: 'Dashboards',
+		collapsed: true,
 		items: [
 			`${prefix}/dashboards`,
 			`${prefix}/widgets`,
@@ -40,6 +43,7 @@ const guideItems = (prefix: string) => [
 	},
 	{
 		label: 'Customers & Users',
+		collapsed: true,
 		items: [
 			`${prefix}/multi-tenancy`,
 			`${prefix}/customers`,
@@ -49,6 +53,7 @@ const guideItems = (prefix: string) => [
 	},
 	{
 		label: 'Alarms & Notifications',
+		collapsed: true,
 		items: [
 			`${prefix}/alarms`,
 			`${prefix}/alarm-rules`,
@@ -57,20 +62,35 @@ const guideItems = (prefix: string) => [
 	},
 	{
 		label: 'Data Processing',
+		collapsed: true,
 		items: [
-			`${prefix}/calculated-fields`,
+			{
+				label: 'Calculated Fields',
+				collapsed: true,
+				items: [
+					{ label: 'Overview', slug: `${prefix}/calculated-fields` },
+					{ label: 'Simple', slug: `${prefix}/calculated-fields/simple` },
+					{ label: 'Script', slug: `${prefix}/calculated-fields/script` },
+					{ label: 'Propagation', slug: `${prefix}/calculated-fields/propagation` },
+					{ label: 'Geofencing', slug: `${prefix}/calculated-fields/geofencing` },
+					{ label: 'Entities Aggregation', slug: `${prefix}/calculated-fields/related-entities-aggregation` },
+					{ label: 'Time Series Aggregation', slug: `${prefix}/calculated-fields/time-series-data-aggregation` },
+				],
+			},
 			`${prefix}/rule-engine`,
 			`${prefix}/rule-nodes`,
 		],
 	},
 	{
 		label: 'Reporting',
+		collapsed: true,
 		items: [
 			`${prefix}/reporting`,
 		],
 	},
 	{
 		label: 'AI',
+		collapsed: true,
 		items: [
 			`${prefix}/ai-models`,
 			`${prefix}/mcp-server`,
@@ -80,6 +100,7 @@ const guideItems = (prefix: string) => [
 	},
 	{
 		label: 'Integrations',
+		collapsed: true,
 		items: [
 			`${prefix}/integrations`,
 			`${prefix}/integrations-comparison`,
@@ -87,6 +108,7 @@ const guideItems = (prefix: string) => [
 	},
 	{
 		label: 'White-labeling',
+		collapsed: true,
 		items: [
 			`${prefix}/white-labeling-general`,
 			`${prefix}/white-labeling-login`,
@@ -97,12 +119,14 @@ const guideItems = (prefix: string) => [
 	},
 	{
 		label: 'Mobile App Center',
+		collapsed: true,
 		items: [
 			`${prefix}/mobile-app-center`,
 		],
 	},
 	{
 		label: 'Other Features',
+		collapsed: true,
 		items: [
 			`${prefix}/add-ons`,
 			`${prefix}/edge-computing`,
@@ -111,12 +135,14 @@ const guideItems = (prefix: string) => [
 	},
 	{
 		label: 'Security',
+		collapsed: true,
 		items: [
 			`${prefix}/security`,
 		],
 	},
 	{
 		label: 'Contribution',
+		collapsed: true,
 		items: [
 			`${prefix}/contribution`,
 			`${prefix}/scada-symbol-dev`,
@@ -124,6 +150,7 @@ const guideItems = (prefix: string) => [
 	},
 	{
 		label: 'Versions & Support',
+		collapsed: true,
 		items: [
 			`${prefix}/versions-and-support`,
 		],
@@ -133,12 +160,14 @@ const guideItems = (prefix: string) => [
 const recipeItems = (prefix: string) => [
 	{
 		label: 'Sending Data',
+		collapsed: true,
 		items: [
 			`${prefix}/python-telemetry`,
 		],
 	},
 	{
 		label: 'Storage & Retention',
+		collapsed: true,
 		items: [
 			`${prefix}/configure-telemetry-ttl`,
 		],
@@ -149,9 +178,11 @@ const referenceItems = (prefix: string) => [
 	`${prefix}/configuration-reference`,
 	{
 		label: 'Device API',
+		collapsed: true,
 		items: [
 			{
 				label: 'HTTP API',
+				collapsed: true,
 				items: [
 					`${prefix}/http-api/getting-connected`,
 					`${prefix}/http-api/telemetry`,
@@ -163,6 +194,7 @@ const referenceItems = (prefix: string) => [
 			},
 			{
 				label: 'CoAP API',
+				collapsed: true,
 				items: [
 					`${prefix}/coap-api/getting-connected`,
 					`${prefix}/coap-api/telemetry`,
@@ -174,6 +206,7 @@ const referenceItems = (prefix: string) => [
 			},
 			{
 				label: 'MQTT API',
+				collapsed: true,
 				items: [
 					`${prefix}/mqtt-api/getting-connected`,
 					`${prefix}/mqtt-api/telemetry`,
@@ -186,17 +219,19 @@ const referenceItems = (prefix: string) => [
 			},
 			{
 				label: 'LwM2M API',
-			items: [
-				`${prefix}/lwm2m-api/getting-started`,
-				`${prefix}/lwm2m-api/data-model`,
-				`${prefix}/lwm2m-api/rpc-commands`,
-				`${prefix}/lwm2m-api/ota-updates`,
-			],
-		},
+				collapsed: true,
+				items: [
+					`${prefix}/lwm2m-api/getting-started`,
+					`${prefix}/lwm2m-api/data-model`,
+					`${prefix}/lwm2m-api/rpc-commands`,
+					`${prefix}/lwm2m-api/ota-updates`,
+				],
+			},
 		],
 	},
 	{
 		label: 'Gateway API',
+		collapsed: true,
 		items: [
 			`${prefix}/gateway-api/overview`,
 			`${prefix}/gateway-api/telemetry`,
@@ -219,7 +254,7 @@ export const opensourceSidebar: SidebarConfig = [
 				items: [
 					'docs/why-thingsboard',
 					'docs/tutorial/getting-started'
-				],
+				]
 			},
 			{
 				label: 'Key concepts',
@@ -230,25 +265,28 @@ export const opensourceSidebar: SidebarConfig = [
 					'docs/concepts/data-processing',
 					'docs/concepts/alerts-and-notifications',
 					'docs/concepts/data-visualization'
-				],
+				]
 			}
 		],
 	},
 	{
 		label: 'Guides',
+		collapsed: true,
 		translations: { uk: 'Посібники' },
-		items: guideItems('docs/user-guide'),
+		items: guideItems('docs/user-guide')
 	},
 	{
 		label: 'Recipes',
+		collapsed: true,
 		translations: { uk: 'Рецепти' },
-		items: recipeItems('docs/recipes'),
+		items: recipeItems('docs/recipes')
 	},
 	{
 		label: 'Reference',
+		collapsed: true,
 		translations: { uk: 'Довідник' },
-		items: referenceItems('docs/reference'),
-	},
+		items: referenceItems('docs/reference')
+	}
 ];
 
 /** Professional Edition documentation sidebar (pages at /docs/pe/) */
@@ -281,16 +319,19 @@ export const peSidebar: SidebarConfig = [
 	},
 	{
 		label: 'Guides',
+		collapsed: true,
 		translations: { uk: 'Посібники' },
 		items: guideItems('docs/pe/user-guide'),
 	},
 	{
 		label: 'Recipes',
+		collapsed: true,
 		translations: { uk: 'Рецепти' },
 		items: recipeItems('docs/pe/recipes'),
 	},
 	{
 		label: 'Reference',
+		collapsed: true,
 		translations: { uk: 'Довідник' },
 		items: referenceItems('docs/pe/reference'),
 	},

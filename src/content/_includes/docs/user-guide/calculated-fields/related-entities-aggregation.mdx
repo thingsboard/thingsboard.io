@@ -1,0 +1,142 @@
+import DocLink from '@components/DocLink.astro';
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+Related entities aggregation collects the **latest telemetry** or **attribute** values from
+multiple entities related to the target entity, applies aggregation functions, and stores the
+result on the target entity. For example, a **Building A** asset can compute `avgTemperature`
+and `maxTemperature` from all child sensor devices automatically.
+
+```plaintext
+  ┌────────────────────────────────────────────────────────┐
+  │  Building A  (CF applied here)                         │
+  │  ┌──────────────────────────────────┐                  │
+  │  │ avgTemperature: 22.7             │ ◀── computed     │
+  │  │ maxTemperature: 25.1             │                  │
+  │  └──────────────────────────────────┘                  │
+  └─────────────────────┬──────────────────────────────────┘
+                        │ Manages — Down to child
+            ┌───────────┼───────────┐
+            ▼           ▼           ▼
+  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+  │  Sensor 1   │ │  Sensor 2   │ │  Sensor 3   │
+  │  temp: 21.3 │ │  temp: 22.8 │ │  temp: 24.0 │
+  └─────────────┘ └─────────────┘ └─────────────┘
+```
+
+Use Related entities aggregation when you need:
+
+- Fleet or building dashboards — average temperature, total power, max vibration across devices
+- Operational KPIs — count of active devices, count of alarms, percentage online
+- Occupancy tracking — count devices in a specific state
+- Quality monitoring — min/max readings across a group
+- Filtered aggregation — aggregate only a subset (e.g., only devices with `status = "active"`)
+
+## Configuration
+
+<Steps>
+1. Open the **Calculated fields** tab on the asset or profile.
+2. Click **+** → **Create new calculated field**. Enter a title and select type **Related entities aggregation**.
+3. Configure the [Aggregation path](#aggregation-path), [Arguments](#arguments), [Metrics](#metrics), and [Output](#output).
+4. Click **Add** to save.
+</Steps>
+
+### Aggregation Path
+
+Defines which related entities contribute data:
+
+| Setting | Options |
+|---------|---------|
+| **Relation direction** | **Down to child** or **Up to parent** |
+| **Relation type** | The relation type between the target entity and related entities (e.g., `Manages`, `Contains`) |
+
+<Aside type="note">
+  Aggregation works only with direct (single-level) relationships — no recursion or multi-level traversal.
+</Aside>
+
+### Arguments
+
+Arguments define what data is read from each related entity.
+
+Click **Add argument** and fill in:
+
+| Field | Description |
+|-------|-------------|
+| **Argument type** | Latest telemetry or Attribute |
+| **Time series key / Attribute key** | The key to read from each entity |
+| **Argument name** | Variable name used in metrics |
+| **Default value** | Fallback if data is missing on an entity |
+
+### Metrics
+
+Each metric produces one output key by applying one aggregation function to one argument.
+
+Click **Add metric** and configure:
+
+| Field | Description |
+|-------|-------------|
+| **Metric name** | Output key stored on the target entity (e.g., `avgTemperature`) |
+| **Aggregation** | Average, Min, Max, Sum, Count, or Count unique |
+| **Filter** (optional) | A TBEL function returning `true/false` to include/exclude entities |
+| **Value source** | **Key** (direct argument value) or **Function** (computed value) |
+| **Argument name** | The argument whose data is aggregated |
+
+**Filter example** — include only active devices above a threshold:
+
+```js
+return temperature > 10 && status == "active";
+```
+
+**Deduplication interval:** limits how often aggregation runs when many entities send frequent
+updates. The first update triggers aggregation; subsequent updates within the interval are
+ignored. After the interval ends, aggregation runs again with the latest data.
+Minimum interval: 10 seconds.
+
+### Output
+
+Results are stored as time series or attributes on the target entity. Optionally set **Decimals**
+to round values. For time series output, enable **Use latest timestamp** to align with source data.
+
+For output strategy options, see
+<DocLink product={props.product} path="user-guide/calculated-fields">Calculated Fields — Output Strategy</DocLink>.
+
+---
+
+## Example: Aggregate Temperature from Child Devices
+
+Multiple temperature sensors are installed in **Building A** and publish `temperature` as telemetry.
+Goal: compute `avgTemperature` and `maxTemperature` across all sensors and store them on Building A.
+
+**Setup:** Create `Manages` relations from each sensor device to Building A (direction: From).
+
+<Steps>
+1. Open the **Calculated fields** tab on the **Building A** asset.
+2. Click **+** → **Create new calculated field**. Title: **Temperature Aggregation**, type: **Related entities aggregation**.
+3. Aggregation path:
+   - Relation direction: **Down to child**
+   - Relation type: **Manages**
+4. Add argument:
+   - Argument type: **Latest telemetry**
+   - Time series key: `temperature`
+   - Argument name: `temperature`
+   - Default value: `0`
+5. Add metric 1:
+   - Metric name: `avgTemperature`
+   - Aggregation: **Average**
+   - Value source: **Key**
+   - Argument name: `temperature`
+6. Add metric 2:
+   - Metric name: `maxTemperature`
+   - Aggregation: **Max**
+   - Value source: **Key**
+   - Argument name: `temperature`
+7. Set Deduplication interval: **10 seconds**.
+8. Output type: **Time series**. Click **Add**.
+</Steps>
+
+**Result:** Building A stores aggregated telemetry:
+
+```json
+{ "avgTemperature": 22.7, "maxTemperature": 25.1 }
+```
+
+These values update whenever any child sensor reports new temperature data.
