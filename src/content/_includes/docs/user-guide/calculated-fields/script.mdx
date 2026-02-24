@@ -1,0 +1,304 @@
+import DocLink from '@components/DocLink.astro';
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+Script calculated fields use <DocLink product={props.product} path="user-guide/tbel">TBEL</DocLink>
+(ThingsBoard Expression Language) to perform advanced, real-time computations on telemetry and
+attributes. Unlike Simple fields, Script fields support conditional logic, iteration over rolling
+time-series windows, and returning multiple results in a single execution.
+
+Use Script when you need:
+
+- Multi-step calculations (e.g., dew point, air density, efficiency metrics)
+- Conditional rules (e.g., generate status flags based on multiple inputs)
+- Multiple output keys computed in a single pass
+- Event-like telemetry with explicit timestamps
+- Rolling analytics (rolling average, trend detection, anomaly detection)
+
+## Configuration
+
+<Steps>
+1. Open the **Calculated fields** tab on the device, asset, or profile.
+2. Click **+** → **Create new calculated field**. Enter a title and select type **Script**.
+3. Add [Arguments](#arguments), write the [Script function](#script-function), and configure [Output](#output).
+4. Click **Add** to save.
+</Steps>
+
+### Arguments
+
+Script fields support three argument types. The data source can be the current entity, another
+Device/Asset, the Customer, the Current tenant, or the Current owner.
+
+- **Attribute** — a single attribute value (Server, Client, or Shared scope) with an optional default fallback.
+- **Latest telemetry** — the most recent value of a telemetry key, with an optional default fallback.
+- **Time series rolling** — a sliding historical window of telemetry values. Exposes aggregation methods
+  and merge utilities — see [Rolling Argument API](#rolling-argument-api) below.
+
+### Script Function
+
+The script must implement:
+
+```js
+function calculate(ctx, arg1, arg2, ...): object | object[]
+```
+
+The function returns a single JSON object (multiple output keys at server time) or an array of
+JSON objects (multiple time series records with explicit timestamps).
+
+**Context object (`ctx`):**
+
+| Property | Description |
+|----------|-------------|
+| `ctx.latestTs` | Most recent timestamp (ms) from telemetry-based arguments |
+| `ctx.args.<arg>.ts` | Timestamp of a single-value argument |
+| `ctx.args.<arg>.value` | Value of a single-value argument |
+| `ctx.args.<arg>.timeWindow` | `{ startTs, endTs }` of a rolling argument |
+| `ctx.args.<arg>.values` | Array of `{ ts, value }` for a rolling argument |
+| `ctx.args.<arg>.<method>()` | Built-in methods: `mean()`, `sum()`, `min()`, `max()`, `first()`, `last()`, etc. |
+
+Arguments are also passed as direct function parameters, so you can use `temperature` directly
+instead of `ctx.args.temperature.value`.
+
+**Example — dew point:**
+
+```js
+function calculate(ctx, temperature, humidity) {
+  var a = 17.625;
+  var b = 243.04;
+  var alpha = ((a * temperature) / (b + temperature)) + Math.log(humidity / 100.0);
+  var dewPoint = toFixed((b * alpha) / (a - alpha), 1);
+  return { "dewPoint": dewPoint };
+}
+```
+
+**Example — time series with explicit timestamp:**
+
+```js
+function calculate(ctx, temperatureF) {
+  var temperatureC = (temperatureF - 32) / 1.8;
+  return {
+    "ts": ctx.latestTs,
+    "values": { "temperatureC": toFixed(temperatureC, 2) }
+  };
+}
+```
+
+**Example — array output (one record per time window entry):**
+
+```js
+function calculate(ctx, temperature, defrost) {
+  var merged = temperature.merge(defrost);
+  var result = [];
+  foreach(item: merged) {
+    if (item.v1 > -5.0 && item.v2 == 0) {
+      result.add({ ts: item.ts, values: { issue: { temperature: item.v1, defrostState: false } } });
+    }
+  }
+  return result;
+}
+```
+
+### Output
+
+Stores results as time series or attributes. For array returns, each element becomes a separate
+time series record.
+
+For output strategy options, see
+<DocLink product={props.product} path="user-guide/calculated-fields">Calculated Fields — Output Strategy</DocLink>.
+
+## Rolling Argument API
+
+When an argument uses the **Time series rolling** type, it exposes a rich API for aggregating and
+aligning historical telemetry. The argument is passed directly as a function parameter (e.g., `temperature`)
+and provides:
+
+- `.timeWindow` — `{ startTs, endTs }` of the configured window
+- `.values` — array of `{ ts, value }` records within the window
+- Aggregation methods and merge utilities described below
+
+```plaintext
+  time ──────────────────────────────────────────────────────────────▶
+
+  data     72.3    72.9    73.6     NaN    74.1    73.8
+            ●───────●───────●───────●───────●───────●
+
+  window 1 ╔══════════════════════╗
+  (15 min) ║  72.3   72.9   73.6  ║  .mean() → 72.93
+           ╚══════════════════════╝
+
+  window 2          ╔══════════════════════╗
+  (slides)          ║  72.9   73.6   NaN   ║  .mean() → 73.25  (NaN ignored)
+                    ╚══════════════════════╝
+```
+
+### Aggregation Methods
+
+All methods accept an optional `ignoreNaN` boolean (default `true`):
+
+| Method | `ignoreNaN = true` (default) | `ignoreNaN = false` |
+|--------|------------------------------|---------------------|
+| `max()` | Highest value, ignoring NaN | NaN if any NaN exists |
+| `min()` | Lowest value, ignoring NaN | NaN if any NaN exists |
+| `mean()`, `avg()` | Average, ignoring NaN | NaN if any NaN exists |
+| `std()` | Standard deviation, ignoring NaN | NaN if any NaN exists |
+| `median()` | Median, ignoring NaN | NaN if any NaN exists |
+| `count()` | Count of values, ignoring NaN | Count including NaN |
+| `last()` | Most recent non-NaN value | Last value even if NaN |
+| `first()` | Oldest non-NaN value | First value even if NaN |
+| `sum()` | Total sum, ignoring NaN | NaN if any NaN exists |
+
+**Given this rolling argument:**
+
+```json
+{
+  "temperature": {
+    "timeWindow": { "startTs": 1740643762896, "endTs": 1740644662896 },
+    "values": [
+      { "ts": 1740644350000, "value": 72.32 },
+      { "ts": 1740644360000, "value": 72.86 },
+      { "ts": 1740644370000, "value": 73.58 },
+      { "ts": 1740644380000, "value": "NaN" }
+    ]
+  }
+}
+```
+
+```js
+var avgTemp = temperature.mean();        // 72.92
+var tempMax = temperature.max();         // 73.58
+var valueCount = temperature.count();    // 3
+
+var avgTempNaN = temperature.mean(false);     // NaN
+var tempMaxNaN = temperature.max(false);      // NaN
+var valueCountNaN = temperature.count(false); // 4
+```
+
+### Merging Rolling Arguments
+
+Use `merge` and `mergeAll` to align timestamps across multiple telemetry streams.
+Missing values at a given timestamp are filled with the most recent known value;
+if no previous value exists, `NaN` is used.
+
+| Method | Description |
+|--------|-------------|
+| `merge(other, settings?)` | Merge with one other rolling argument |
+| `mergeAll(others, settings?)` | Merge with an array of rolling arguments |
+
+`settings` (optional): `{ ignoreNaN: boolean, timeWindow: { startTs, endTs } }`
+
+Each merged record has the shape `{ ts, v1, v2, ... }` where `v1` is the value from the calling
+argument and `v2`, `v3`, ... are values from the merged arguments. Missing values at a timestamp
+are forward-filled from the most recent known reading.
+
+```plaintext
+  temperature   ●──────────────●──────────────●
+                72.3           73.6           74.1
+                ts1            ts3            ts5
+
+  humidity      ──────●──────────────────●────
+                      65                 68
+                      ts2                ts4
+
+  merged        ●──────●────────●─────────●────●
+                ts1    ts2     ts3        ts4   ts5
+
+  merged[ts3] = { ts: ts3, v1: 73.6, v2: 65 }
+                                        ↑ forward-filled from ts2
+```
+
+**Merge two arguments:**
+
+```js
+var merged = temperature.merge(humidity, { ignoreNaN: false });
+// merged.values[i] = { ts, v1: tempValue, v2: humidityValue }
+```
+
+**Merge three or more arguments:**
+
+```js
+var merged = temperature.mergeAll([humidity, pressure], { ignoreNaN: true });
+// merged.values[i] = { ts, v1: tempValue, v2: humidityValue, v3: pressureValue }
+```
+
+**Common use cases:** sensor data synchronization, anomaly detection across multiple streams,
+predictive maintenance combining vibration, temperature, and operational status.
+
+## Example 1: Fahrenheit to Celsius
+
+A device reports `temperatureF` as telemetry. Goal: convert to Celsius, round to two decimal places,
+and store as `temperatureC` using the same timestamp.
+
+<Steps>
+1. Open the **Calculated fields** tab on the device profile.
+2. Click **+** → **Create new calculated field**. Title: **F to C**, type: **Script**.
+3. Add argument:
+   - Argument type: **Latest telemetry**
+   - Time series key: `temperatureF`
+   - Argument name: `temperatureF`
+4. Write the script:
+   ```js
+   function calculate(ctx, temperatureF) {
+     var temperatureC = (temperatureF - 32) / 1.8;
+     return { "ts": ctx.latestTs, "values": { "temperatureC": toFixed(temperatureC, 2) } };
+   }
+   ```
+5. Output type: **Time series**. Click **Add**.
+</Steps>
+
+**Result:** `temperatureC` appears on the device's Latest telemetry tab whenever `temperatureF` updates.
+
+## Example 2: Air Density from Cross-Entity Data
+
+The **Building A** asset has two related devices:
+- **Smart Device** — publishes `temperature` (°F) as telemetry
+- **Altimeter** — provides `altitude` as a server attribute
+
+Goal: compute air density and store it as `airDensity` telemetry on the Building A asset.
+
+<Steps>
+1. Apply the calculated field to the **building** asset profile.
+2. Add two arguments:
+   - Argument 1: Entity = **Altimeter**, type: **Attribute** (Server), key: `altitude`, name: `altitude`
+   - Argument 2: Entity = **Smart Device**, type: **Time series rolling**, key: `temperature`, name: `temperature`, time window: **15 minutes**
+3. Write the script:
+   ```js
+   function calculate(ctx, altitude, temperature) {
+     var avgTemperature = temperature.mean();
+     var temperatureK = (avgTemperature - 32) * (5 / 9) + 273.15;
+     var pressure = 101325 * Math.pow((1 - 2.25577e-5 * altitude), 5.25588);
+     var airDensity = pressure / (287.05 * temperatureK);
+     return { "airDensity": toFixed(airDensity, 2) };
+   }
+   ```
+4. Output type: **Time series**. Click **Add**.
+</Steps>
+
+**Result:** `airDensity` appears on Building A's Latest telemetry tab.
+
+## Example 3: Freezer Anomaly Detection
+
+A freezer device publishes `temperature` (°C) and `defrost` (0 = OFF, 1 = ON).
+Goal: generate an `issue` telemetry record whenever `defrost = 0` and `temperature > -5°C`.
+
+<Steps>
+1. Apply the calculated field to the freezer device profile.
+2. Add two rolling arguments (15-minute window each):
+   - `defrost` — time series rolling
+   - `temperature` — time series rolling
+3. Write the script:
+   ```js
+   function calculate(ctx, temperature, defrost) {
+     var merged = temperature.merge(defrost);
+     var result = [];
+     foreach(item: merged) {
+       if (item.v1 > -5.0 && item.v2 == 0) {
+         result.add({ ts: item.ts, values: { issue: { temperature: item.v1, defrostState: false } } });
+       }
+     }
+     return result;
+   }
+   ```
+4. Output type: **Time series**. Click **Add**.
+</Steps>
+
+**Result:** When the condition is met, `issue` appears on the device with value
+`{ "temperature": 0.8, "defrostState": false }` — indicating a potentially critical state.

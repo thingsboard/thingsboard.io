@@ -1,0 +1,253 @@
+import DocLink from '@components/DocLink.astro';
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+The Geofencing calculated field monitors entity movement in real time by evaluating incoming GPS
+coordinates against configured geofence zones. It generates two output keys per zone group:
+
+- `<groupName>Status` — `INSIDE` or `OUTSIDE`
+- `<groupName>Event` — `ENTERED` or `LEFT`
+
+For example, a truck tracker with a `warehouseArea` zone group produces `warehouseAreaStatus` and
+`warehouseAreaEvent` telemetry automatically as the truck moves.
+
+Use Geofencing when you need to:
+
+- Track presence in operational zones (is the truck inside the warehouse perimeter?)
+- Detect entry/exit transitions for alarms and notifications
+- Monitor multiple independent zones simultaneously (service area + restricted area)
+- Handle dynamic zone assignment — zones can be added or removed via relations without
+  per-device reconfiguration
+- Avoid false transitions when a logical area spans multiple adjacent polygons
+
+**Zone groups** — the key concept — bundle one or more physical polygons/circles into a single
+logical evaluation. An entity is `INSIDE` if it is inside **at least one** zone in the group.
+This prevents false `ENTERED/LEFT` events when an entity moves between adjacent zones within the
+same group.
+
+```plaintext
+  Without zone groups — crossing between adjacent polygons fires false events:
+
+     ┌──────────┐     ┌──────────┐     ┌──────────┐
+     │  Zone A  │     │  Zone B  │     │  Zone C  │
+     └──────────┘     └──────────┘     └──────────┘
+     truck A→B: LEFT Zone A + ENTERED Zone B  ← unwanted
+
+  ─────────────────────────────────────────────────────────────────────
+
+  With zone group "warehouseArea" — all three treated as one logical area:
+
+     ┌──────────────────────────────────────────────────────────────┐
+     │                      warehouseArea                           │
+     │   ┌──────────┐     ┌──────────┐     ┌──────────┐            │
+     │   │  Zone A  │     │  Zone B  │     │  Zone C  │            │
+     │   └──────────┘     └──────────┘     └──────────┘            │
+     └──────────────────────────────────────────────────────────────┘
+     truck A→B: warehouseAreaStatus = INSIDE         ← no event
+     truck exits all: warehouseAreaStatus = OUTSIDE + warehouseAreaEvent = LEFT
+```
+
+## Configuration
+
+<Steps>
+1. Open the **Calculated fields** tab on the device, asset, or profile.
+2. Click **+** → **Create new calculated field**. Enter a title and select type **Geofencing**.
+3. Map **Entity coordinates** (latitude/longitude telemetry keys).
+4. Add one or more **Zone groups**.
+5. Configure **Output**.
+6. Click **Add** to save.
+</Steps>
+
+### Entity Coordinates
+
+Map the telemetry keys that carry the entity's GPS position:
+
+| Field | Example |
+|-------|---------|
+| **Latitude time series key** | `latitude` or `lat` |
+| **Longitude time series key** | `longitude` or `lng` |
+
+Values must be numeric. If either coordinate is missing or invalid, the execution is skipped.
+
+### Geofencing Zone Groups
+
+Click **Add zone group** to configure a new group. Each group has independent state tracking.
+
+#### Name
+
+Used as the prefix for output telemetry keys. Use camelCase for consistent key names:
+
+```
+restrictedArea  →  restrictedAreaStatus + restrictedAreaEvent
+safeZone        →  safeZoneStatus + safeZoneEvent
+```
+
+#### Entity Type (Zone Source)
+
+Specifies where the zone geometry (polygon or circle) is stored:
+
+| Entity type | When to use |
+|------------|-------------|
+| **Current entity** | Each tracked entity has its own unique zone (e.g., a dog's personal home zone) |
+| **Device / Asset** | Zone geometry is stored on a specific shared entity |
+| **Customer / Current tenant / Current owner** | Organization-level zone inherited by all entities |
+| **Related entities** | Zones discovered dynamically via relation traversal — best for scalable, dynamic zone management |
+
+**Choosing the right source:**
+
+- **Self-geofencing** — each entity has its own zone (e.g., a per-pet safe area): use **Current entity**.
+- **Dynamic zones** — zones change over time or multiple zones are grouped logically: use **Related entities** and configure a [Path from entity to zones](#path-from-entity-to-zones).
+- **Organization zones** — a single zone applies to all devices under a tenant or customer: use **Current tenant** or **Current owner**.
+
+#### Path from Entity to Zones
+
+*Only for Related entities entity type.*
+
+Defines the multi-step relation path from the source entity to the zone assets:
+
+| Field | Description |
+|-------|-------------|
+| **Level** | Sequence number (starting at 1) |
+| **Direction** | **Up** (to parent) or **Down** (to child) |
+| **Relation type** | The named relation to follow at this step |
+
+**Example** — vehicle in a fleet with separate zone types:
+
+| Level | Direction | Relation type |
+|-------|-----------|---------------|
+| 1 | Up | `Contains` (Vehicle → Fleet) |
+| 2 | Down | `FleetToRestrictedZone` (Fleet → Zone) |
+
+#### Perimeter Attribute Key
+
+The server-side attribute key on zone entities that stores the geometry.
+Supports polygons and circles as defined in the map widget format.
+
+#### Report Strategy
+
+Controls which telemetry keys are generated for the zone group:
+
+| Strategy | Generated keys | Use when |
+|----------|----------------|----------|
+| **Transition events only** | `<name>Event` (ENTERED / LEFT) | You only need boundary-crossing events |
+| **Presence status only** | `<name>Status` (INSIDE / OUTSIDE) | You only need current state |
+| **Presence status and transition events** | Both | Full monitoring — dashboards and alarms |
+
+```plaintext
+                        enters ANY zone in group
+     ┌──────────┐  ──────────────────────────────▶  ┌──────────┐
+     │ OUTSIDE  │                                    │  INSIDE  │
+     └──────────┘  ◀──────────────────────────────  └──────────┘
+                        leaves ALL zones in group
+
+     OUTSIDE → INSIDE : Event = ENTERED
+     INSIDE  → OUTSIDE: Event = LEFT
+     Status is updated on every incoming GPS coordinate pair
+```
+
+#### Create Relations with Matched Zones
+
+*Only for Related entities entity type.*
+
+When enabled, ThingsBoard automatically creates and removes relations between the tracked entity
+and the zones it is currently inside:
+
+- **On enter:** relation is created
+- **On leave:** relation is removed
+
+Configure:
+- **Relation direction**: From zone to entity or From entity to zone
+- **Relation type**: The relation type name (e.g., `currentlyInside`)
+
+#### Zone Groups Refresh Interval
+
+*Available when at least one group uses Related entities.*
+
+Controls how often the cached list of discovered zones is refreshed:
+
+| Setting | Behavior |
+|---------|----------|
+| Disabled | Zones fetched once, never refreshed (use only for static infrastructure) |
+| Enabled (e.g., 60s) | Zones refreshed periodically — lower interval for frequently changing relations |
+
+### Output
+
+Map zone group variables to output telemetry keys and configure storage as time series
+(recommended) or attributes.
+
+<Aside type="tip">
+  Store output as telemetry — it provides the most flexibility for dashboards, analytics, and alarms.
+</Aside>
+
+---
+
+## Example 1: Pet Tracker (Self-Geofencing)
+
+Each dog collar tracker publishes `latitude`/`longitude` as telemetry and has its own `safeZone`
+circle stored as a server-side attribute (each dog has a unique home zone).
+
+Goal: detect when the dog enters/leaves its safe zone and generate `safeZoneStatus` and `safeZoneEvent`.
+
+<Steps>
+1. Apply the calculated field to the **pet-tracking** device profile.
+2. Entity coordinates: `latitude`, `longitude`.
+3. Add zone group **safeZone**:
+   - Entity type: **Current entity**
+   - Perimeter attribute key: `safeZone`
+   - Report strategy: **Presence status and transition events**
+4. Output: save as time series. Click **Add**.
+</Steps>
+
+**Result:** Each tracker independently evaluates its own `safeZone`. Moving the device outside
+the home zone sets `safeZoneStatus = OUTSIDE` and generates a `safeZoneEvent = LEFT`.
+
+## Example 2: Warehouse Equipment (Direct Association)
+
+Two forklifts publish GPS telemetry. The **Warehouse A** asset stores a `perimeter` polygon attribute.
+Each forklift is linked to Warehouse A via a `Contains` relation.
+
+Goal: detect when a forklift leaves the warehouse perimeter.
+
+<Steps>
+1. Apply the calculated field to the **forklift** device profile.
+2. Entity coordinates: `latitude`, `longitude`.
+3. Add zone group **warehouseArea**:
+   - Entity type: **Related entities**
+   - Path: Level 1, Direction **Up**, Relation type **Contains**
+   - Perimeter attribute key: `perimeter`
+   - Report strategy: **Presence status and transition events**
+4. Output: save as time series. Click **Add**.
+</Steps>
+
+**Result:** Both forklifts share the same zone logic via their relation to Warehouse A.
+Moving a forklift outside the perimeter generates `warehouseAreaStatus = OUTSIDE` and
+`warehouseAreaEvent = LEFT`.
+
+## Example 3: Fleet Management (Multiple Zone Types)
+
+A fleet of trucks must be monitored against two zone categories simultaneously:
+- **Service area** — allowed operational zone
+- **Restricted area** — no-go zone
+
+Two zone groups with different relation types separate the logic:
+
+| Zone group | Relation path | Relation to zone |
+|-----------|--------------|-----------------|
+| `serviceArea` | UP via Contains | DOWN via FleetToAllowedZone |
+| `restrictedArea` | UP via Contains | DOWN via FleetToRestrictedZone |
+
+<Steps>
+1. Apply the calculated field to the **truck** device profile.
+2. Entity coordinates: `latitude`, `longitude`.
+3. Add zone group **serviceArea**:
+   - Entity type: **Related entities**
+   - Path: Level 1 UP Contains, Level 2 DOWN FleetToAllowedZone
+   - Report strategy: **Presence status only**
+4. Add zone group **restrictedArea**:
+   - Entity type: **Related entities**
+   - Path: Level 1 UP Contains, Level 2 DOWN FleetToRestrictedZone
+   - Report strategy: **Transition events only**
+5. Output: save as time series. Click **Add**.
+</Steps>
+
+**Result:** `serviceAreaStatus` tracks current presence; `restrictedAreaEvent` fires on boundary
+crossings — both tracked independently for the same truck with no state conflicts.

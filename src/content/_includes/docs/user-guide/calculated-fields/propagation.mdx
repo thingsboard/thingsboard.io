@@ -1,0 +1,165 @@
+import DocLink from '@components/DocLink.astro';
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+Propagation automatically transfers data from the current entity to one or more **related entities**
+resolved through entity relations. It can copy values as-is or compute a new value before sending —
+ideal for synchronizing telemetry and attributes across entity hierarchies.
+
+Use Propagation when you need to:
+
+- Mirror device telemetry to a parent asset (battery level, signal quality, last status)
+- Push configuration attributes from an asset to child devices (HVAC mode, setpoints)
+- Compute a derived value on a device and store it on the related asset (e.g., dew point → greenhouse)
+- Propagate to multiple entities at once (all devices under a building or fleet)
+
+## Configuration
+
+<Steps>
+1. Open the **Calculated fields** tab on the device, asset, or profile.
+2. Click **+** → **Create new calculated field**. Enter a title and select type **Propagation**.
+3. Configure the [Propagation path](#propagation-path), [Data to propagate](#data-to-propagate), and [Output](#output).
+4. Click **Add** to save.
+</Steps>
+
+### Propagation Path
+
+Defines the path from the current entity to the target entity.
+
+| Setting | Options |
+|---------|---------|
+| **Relation direction** | **Up to parent** — propagate to the parent entity; **Down to child** — propagate to child entities |
+| **Relation type** | The relation type between entities (e.g., `Contains`, `Manages`) |
+
+```plaintext
+  Up to parent — CF runs on the child, writes to its parent
+
+     Smart Device ──Contains──▶ Building A
+     (CF applied here)          (result written here)
+
+
+  Down to child — CF runs on the parent, writes to all matching children
+
+     Building A ──Manages──▶ HVAC Device 1
+     (CF applied  ──Manages──▶ HVAC Device 2  (result written to each)
+      here)        ──Manages──▶ HVAC Device 3
+```
+
+<Aside type="note">
+  Propagation works only with direct (single-level) relationships — without recursion or multi-level traversal.
+  If multiple entities match, data is propagated to each.
+</Aside>
+
+### Data to Propagate
+
+Two modes are available:
+
+**Arguments only** — direct copy. Reads attribute or latest telemetry from the *current entity*
+and writes it to the related entity. Optionally rename the key before storing (via **Output key**).
+
+**Calculation result** — compute and propagate. Reads data from multiple entities (current entity,
+devices, assets, customer, tenant), applies a
+<DocLink product={props.product} path="user-guide/tbel">TBEL</DocLink> script, then propagates
+the computed result to the related entity.
+
+<Aside type="note">
+  In Calculation result mode, define the output variable name directly in the function body.
+</Aside>
+
+**Script function (Calculation result mode):**
+
+```js
+function calculate(ctx, arg1, arg2, ...) {
+  var result = arg1 + arg2;   // variable name becomes the output key
+  return result;
+}
+```
+
+For the `ctx` object and rolling argument methods, see
+<DocLink product={props.product} path="user-guide/calculated-fields/script">Script — Script Function</DocLink>.
+
+### Output
+
+Data is stored on each related entity as either time series or attributes.
+
+For output strategy options, see
+<DocLink product={props.product} path="user-guide/calculated-fields">Calculated Fields — Output Strategy</DocLink>.
+
+## Troubleshooting
+
+### Propagation Path Not Updating After Edit
+
+**Problem:** After editing Relation direction or Relation type, the field continues using the
+original path.
+
+**Cause:** The propagation path is cached at creation. Updating only the relation settings does
+not trigger re-initialization.
+
+**Solution:** Modify any argument (e.g., change the Default value) to force re-initialization.
+If arguments must remain unchanged, delete and recreate the field.
+
+---
+
+## Example 1: Battery Level to Parent Asset
+
+A **Tracker A** device sends `batteryLevel` as telemetry.
+Goal: propagate `batteryLevel` to the related **Truck 1** asset as a server-side attribute `deviceBatteryLevel`.
+
+**Setup:** Create a `Contains` relation from **Truck 1** to **Tracker A** (direction: From).
+
+<Steps>
+1. Apply the calculated field to the **tracker** device profile.
+2. Select propagation path: **Up to parent**, relation type: **Contains**.
+3. Mode: **Arguments only**. Add argument:
+   - Entity type: **Current entity**
+   - Argument type: **Latest telemetry**
+   - Time series key: `batteryLevel`
+   - Output key: `deviceBatteryLevel`
+4. Output type: **Attribute** (Server). Click **Add**.
+</Steps>
+
+**Result:** `deviceBatteryLevel` is stored on the Truck 1 asset as a server-side attribute.
+
+## Example 2: Dew Point Propagated to Parent Asset
+
+A **Smart Device** sends `temperature` and `humidity`. It is linked to **Greenhouse A** via `Contains`.
+Goal: compute dew point and store it as `dewPoint` telemetry on the greenhouse asset.
+
+<Steps>
+1. Apply the calculated field to the **smart-device** device profile.
+2. Propagation path: **Up to parent**, relation type: **Contains**.
+3. Mode: **Calculation result**. Add two arguments:
+   - `humidity` — Latest telemetry from current entity
+   - `temperature` — Latest telemetry from current entity
+4. Write the script:
+   ```js
+   function calculate(ctx, temperature, humidity) {
+     var a = 17.625;
+     var b = 243.04;
+     var alpha = ((a * temperature) / (b + temperature)) + Math.log(humidity / 100.0);
+     var dewPoint = toFixed((b * alpha) / (a - alpha), 1);
+     return { "dewPoint": dewPoint };
+   }
+   ```
+5. Output type: **Time series**. Click **Add**.
+</Steps>
+
+**Result:** `dewPoint` is stored as telemetry on Greenhouse A.
+
+## Example 3: HVAC Mode to Multiple Child Devices
+
+**Building A** asset manages multiple HVAC devices via a `Manages` relation.
+The asset has `hvacMode` as a server-side attribute.
+Goal: propagate `hvacMode` from Building A down to all managed HVAC devices.
+
+<Steps>
+1. Apply the calculated field to the **building** asset profile.
+2. Propagation path: **Down to child**, relation type: **Manages**.
+3. Mode: **Arguments only**. Add argument:
+   - Entity type: **Current entity**
+   - Argument type: **Attribute** (Server)
+   - Attribute key: `hvacMode`
+   - Output key: `hvacMode`
+4. Output type: **Attribute** (Server). Click **Add**.
+</Steps>
+
+**Result:** Each HVAC device receives the `hvacMode` attribute with the current value (e.g., `cooling`).
