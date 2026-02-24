@@ -1,1 +1,104 @@
-{/* TODO: Add content */}
+import DocLink from '@components/DocLink.astro';
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+**Provisioning** is how devices get registered in ThingsBoard with credentials before they start sending data. There are two types: an admin imports devices in bulk upfront, or devices register themselves automatically on first boot. Both result in the device existing in ThingsBoard with credentials ready to use.
+
+This is distinct from <DocLink product={props.product} path='user-guide/claiming'>Claiming</DocLink>: provisioning creates the device and gives it credentials; claiming transfers an already-provisioned device to a specific customer.
+
+## Bulk Provisioning
+
+The simplest approach — a tenant admin imports a CSV file containing device names, types, attributes, and credentials in one operation. No firmware changes needed. Good for known device lists, factory pre-loading, or seeding ThingsBoard before deployment.
+
+| Column type | Description |
+|-------------|-------------|
+| **Name** | Entity name (required) |
+| **Type** | Device or Asset type |
+| **Label** | Optional display label |
+| **Server attribute** | Any key — stored as a server-side attribute |
+| **Shared attribute** | Any key — stored as a shared attribute (devices can read) |
+| **Telemetry** | Any key — stored as a time-series data point |
+| **Access Token** | Device credential — the token the device will use to connect |
+
+<Aside type="note">
+  Name, Type, and Access Token can each be mapped to only one column per import.
+</Aside>
+
+<Steps>
+1. Navigate to **Entities → Devices** (or **Assets**) and click the **Import** icon.
+2. Upload your CSV file. Set the delimiter and toggle **First line contains column names** if applicable.
+3. Enable **Update attributes/telemetry** if you want matching existing entities to be updated rather than flagged as errors.
+4. Map each CSV column to a ThingsBoard field type (Name, Type, attribute, telemetry, Access Token, etc.).
+5. Review the results — the summary shows how many entities were created, updated, or failed.
+</Steps>
+
+The file must have at minimum a name column and a type column. All other columns are optional — empty cells are skipped.
+
+```csv
+name,type,label,serialNumber,accessToken
+Sensor-001,Temperature Sensor,Warehouse A,SN-4A21F,tok-a1b2c3d4
+Sensor-002,Temperature Sensor,Warehouse B,SN-4A22F,tok-e5f6g7h8
+Gateway-001,IoT Gateway,Main Hub,GW-0010A,tok-i9j0k1l2
+```
+
+<Aside type="tip">
+  See <DocLink product={props.product} path='TODO'>CSV template and examples</DocLink> for a ready-to-use file. For automated pipelines (CI/CD, ERP, manufacturing systems) the same import is available via the <DocLink product={props.product} path='TODO'>Bulk Import REST API</DocLink>.
+</Aside>
+
+## Auto Provisioning
+
+Devices self-register on first boot by sending a provisioning request with a key and secret embedded in firmware. ThingsBoard validates it, creates or finds the device, and returns the credentials the device will use for all subsequent communication. No admin action needed per device.
+
+```
+  Device                       ThingsBoard
+    │                               │
+    ├─ [first boot]                 │
+    │  reads deviceName,            │
+    │  provisionKey, provisionSecret│
+    │  from firmware                │
+    │                               │
+    │──── Provision Request ───────▶│
+    │     {deviceName,              │ validates key + secret
+    │      provisionDeviceKey,      │ applies strategy
+    │      provisionDeviceSecret}   │ creates or finds device
+    │                               │
+    │◀─── Provision Response ───────│
+    │     {status: SUCCESS,         │ sets provisionState
+    │      credentialsType,         │   = "provisioned"
+    │      credentialsValue}        │
+    │                               │
+    │──── Normal Operations ───────▶│
+    │     (using returned           │
+    │      credentials)             │
+```
+
+Once provisioned, the device's `provisionState` server-side attribute is set to `provisioned`. Re-sending a provisioning request returns the existing credentials without creating a duplicate.
+
+### Strategies
+
+**Allow creating new devices** — ThingsBoard creates the device on first request. Use this when device names (e.g. MAC addresses) aren't known at manufacturing time but are readable by firmware at runtime.
+
+**Check pre-provisioned devices** — ThingsBoard only accepts devices already present in the system and rejects all others. Use bulk provisioning to load the approved list first. Good for regulated or high-security deployments where unknown devices must be blocked.
+
+### Credential Types
+
+| Type | How it works | Best for |
+|------|-------------|----------|
+| **Access Token** | ThingsBoard generates a unique token | Simplest setup, most protocols |
+| **MQTT Basic** | Device supplies username, password, and client ID | MQTT devices that manage their own identity |
+| **X.509 Certificate** | Device provides a certificate; ThingsBoard returns credentials ID | Highest security; requires MQTT over SSL |
+
+### Configure in Device Profile
+
+<DocLink product={props.product} path='user-guide/device-profiles'>Open the device profile</DocLink>, go to the **Device Provisioning** tab, select a strategy, and copy the generated **Provision device key** and **Provision device secret** — these go into the device firmware.
+
+<Aside type="note">
+  Each device profile has its own key/secret pair. All devices using the same profile share the same provisioning credentials but receive unique device credentials in return.
+</Aside>
+
+### Protocol References
+
+Provisioning requests can be sent over MQTT, HTTP, and CoAP. See the transport-specific guides for exact topics, endpoints, and complete request/response examples:
+
+- <DocLink product={props.product} path='reference/mqtt-api/provisioning'>MQTT Provisioning API</DocLink> — also supports X.509 certificate chain provisioning (v3.5+)
+- <DocLink product={props.product} path='TODO'>HTTP Provisioning API</DocLink> — supports Access Token and MQTT Basic
+- <DocLink product={props.product} path='TODO'>CoAP Provisioning API</DocLink> — supports Access Token

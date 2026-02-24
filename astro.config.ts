@@ -1,5 +1,6 @@
 import starlight from '@astrojs/starlight';
 import { pluginCollapsibleSections } from '@expressive-code/plugin-collapsible-sections';
+import { pluginMaxLines } from './config/plugins/expressive-code-max-lines';
 import { defineConfig, sharpImageService } from 'astro/config';
 import rehypeSlug from 'rehype-slug';
 import remarkSmartypants from 'remark-smartypants';
@@ -64,8 +65,12 @@ export default defineConfig({
 		starlight({
 			title: 'Docs',
 			expressiveCode: {
-				plugins: [pluginCollapsibleSections()],
+				plugins: [pluginCollapsibleSections(), pluginMaxLines()],
 			},
+			markdown: {
+				processedDirs: ['./src/content/_includes'],
+			},
+			tableOfContents: { minHeadingLevel: 2, maxHeadingLevel: 4 },
 			components: {
 				EditLink: './src/components/starlight/EditLink.astro',
 				Hero: './src/components/starlight/Hero.astro',
@@ -83,7 +88,7 @@ export default defineConfig({
 			},
 			routeMiddleware: './src/routeData.ts',
 			editLink: {
-				baseUrl: 'https://github.com/withastro/docs/edit/main',
+				baseUrl: 'https://github.com/thingsboard/thingsboard.io/edit/main',
 			},
 			defaultLocale: 'root',
 			locales: {
@@ -91,10 +96,6 @@ export default defineConfig({
 				uk: { label: 'Українська', lang: 'uk' },
 			},
 			sidebar,
-			social: [
-				{ icon: 'github', label: 'GitHub', href: 'https://github.com/withastro/astro' },
-				{ icon: 'discord', label: 'Discord', href: 'https://astro.build/chat' },
-			],
 			pagefind: false,
 			head: [
 				{

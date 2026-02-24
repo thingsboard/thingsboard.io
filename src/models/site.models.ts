@@ -36,12 +36,14 @@ export function getDocsPrefix(product: Products): string {
 	return productDocsPrefix[product];
 }
 
-/** Builds a full docs link: /docs/{prefix}{path} */
+/** Builds a full docs link: /docs/{prefix}{path}/ */
 export function docsLink(product: Products, path: string): string {
-	return `/docs/${productDocsPrefix[product]}${path}`;
+	const normalizedPath = path.endsWith('/') ? path : path + '/';
+	return `/docs/${productDocsPrefix[product]}${normalizedPath}`;
 }
 
-/** Builds a full docs link: /docs/{prefix}{path} */
+/** Builds a full docs link: /docs/{prefix}{path}/ */
 export function docLink(title: string, product: Products, path: string): string {
-	return `<a href="/docs/${productDocsPrefix[product]}${path}">${title}</a>`;
+	const normalizedPath = path.endsWith('/') ? path : path + '/';
+	return `<a href="/docs/${productDocsPrefix[product]}${normalizedPath}">${title}</a>`;
 }

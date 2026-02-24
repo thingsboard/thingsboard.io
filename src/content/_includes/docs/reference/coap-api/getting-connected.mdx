@@ -1,0 +1,106 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+[CoAP](https://tools.ietf.org/html/rfc7252) is a lightweight, UDP-based protocol designed for constrained IoT devices. ThingsBoard acts as a CoAP server supporting both regular request-response and the CoAP [Observe](https://tools.ietf.org/html/rfc7641) option for push-style subscriptions.
+
+## Connection Parameters
+
+| Parameter | Value |
+|-----------|-------|
+| Host | Your ThingsBoard hostname or IP |
+| Port | `5683` (plain CoAP) · `5684` (CoAP over DTLS) |
+| Protocol | CoAP / CoAP over DTLS |
+| URL scheme | `coap://` · `coaps://` |
+
+## Command-Line Tools
+
+Examples in this section use **coap-client** (from the `libcoap` package), which supports query parameters and DTLS. Install it on Ubuntu:
+
+```bash
+sudo apt install libcoap2-bin
+```
+
+For DTLS examples, `coap-client-openssl` is required — a build of coap-client with OpenSSL support. See the [Californium cf-client](https://github.com/eclipse-californium/californium) or build from source.
+
+<Aside type="note">
+  The `coap-cli` npm package is simpler to install but does **not** support query parameters — use `coap-client` when query params are needed (attributes request, firmware).
+</Aside>
+
+## Credential Types
+
+CoAP supports two credential types. Configure them per device under **Manage credentials** — see <DocLink product={props.product} path='user-guide/devices'>Devices</DocLink>.
+
+| Type | URL | Authentication |
+|------|-----|---------------|
+| **Access Token** | `coap(s)://HOST/api/v1/$ACCESS_TOKEN/{resource}` | Token in the URL path |
+| **X.509 Certificate** | `coaps://HOST/api/v1/{resource}` | Mutual DTLS — no token in URL |
+
+---
+
+### Access Token
+
+Include the device access token as a path segment in the URL. Copy it from **Entities → Devices → [device] → Copy Access Token**.
+
+**Plain CoAP (port 5683):**
+
+```bash
+coap-client -v 6 -m POST -t "application/json" -e '{"temperature":25}' "coap://$THINGSBOARD_HOST:5683/api/v1/$ACCESS_TOKEN/telemetry"
+```
+
+**CoAP over DTLS — One-way TLS (port 5684):**
+
+The client verifies the server certificate using a CA root certificate. Download `ca-root.pem` from the **Check connectivity** dialog on the device page.
+
+```bash
+coap-client-openssl -v 6 -m POST -R ca-root.pem -t "application/json" -e '{"temperature":25}' "coaps://$THINGSBOARD_HOST/api/v1/$ACCESS_TOKEN/telemetry"
+```
+
+---
+
+### X.509 Certificate
+
+Mutual DTLS authentication — both client and server verify each other's certificates. No token is included in the URL.
+
+<Steps>
+1. Generate a self-signed EC private key and certificate:
+   ```bash
+   openssl ecparam -out key.pem -name secp256r1 -genkey
+   openssl req -new -key key.pem -x509 -nodes -days 365 -out cert.pem
+   ```
+
+2. Go to **Entities → Devices → [device] → Manage credentials**, select **X.509 Certificate**, and paste the contents of `cert.pem`.
+
+3. Connect using the certificate and key:
+   ```bash
+   coap-client-openssl -v 6 -c cert.pem -j key.pem -m POST -t "application/json" -e '{"temperature":25}' "coaps://$THINGSBOARD_HOST/api/v1/telemetry"
+   ```
+</Steps>
+
+## CoAP over DTLS — Server Configuration
+
+To enable DTLS on the ThingsBoard server, set these environment variables:
+
+```bash
+COAP_DTLS_ENABLED=true
+COAP_DTLS_CREDENTIALS_TYPE=PEM
+COAP_DTLS_PEM_CERT=server.pem
+COAP_DTLS_PEM_KEY=server_key.pem
+COAP_DTLS_PEM_KEY_PASSWORD=secret
+```
+
+Additional DTLS settings:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `COAP_DTLS_BIND_ADDRESS` | `0.0.0.0` | Bind address for the secure CoAP server |
+| `COAP_DTLS_BIND_PORT` | `5684` | Bind port for the secure CoAP server |
+| `TB_COAP_X509_DTLS_SESSION_INACTIVITY_TIMEOUT` | `86400000` | DTLS session inactivity timeout in ms (default: 1 day) |
+| `TB_COAP_X509_DTLS_SESSION_REPORT_TIMEOUT` | `1800000` | Frequency of inactive session cleanup in ms (default: 30 min) |
+
+## Error Codes
+
+| Code | Meaning |
+|------|---------|
+| `4.00 Bad Request` | Invalid URL, parameters, or payload |
+| `4.01 Unauthorized` | Invalid or missing access token |
+| `4.04 Not Found` | Requested resource does not exist |

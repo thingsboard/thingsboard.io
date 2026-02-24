@@ -1,0 +1,111 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+LwM2M supports over-the-air (OTA) firmware and software updates using standardized objects. Before proceeding, read the <DocLink product={props.product} path='user-guide/ota-updates'>OTA Updates</DocLink> guide to understand how to upload and manage packages in ThingsBoard.
+
+## Firmware Updates (Object 5)
+
+LwM2M **Object 5 (Firmware Update)** handles firmware delivery and installation.
+
+### Required Observations
+
+Configure these resource observations in the device profile to track update progress:
+
+| Resource | Key | Description |
+|----------|-----|-------------|
+| `/3/0/3` | `firmwareVersion` | Current firmware version |
+| `/5/0/3` | `state` | Firmware update state |
+| `/5/0/5` | `updateResult` | Result of the last update attempt |
+| `/5/0/7` | `pkgVersion` | Target firmware package version |
+
+### Firmware Update Strategies
+
+Select the strategy in **Device profile → Transport configuration → Other settings**:
+
+| Strategy | How it works |
+|----------|-------------|
+| **Push via Object 5 / Resource 0 (Package)** | ThingsBoard pushes the binary directly to the device via block-wise CoAP transfer |
+| **Pull via Object 5 / Resource 1 (Package URI)** | ThingsBoard generates a CoAP URL; the device downloads the firmware from that URL |
+| **Push via Object 19 / Resource 0 (Data)** | Alternative binary push using Object 19 |
+
+After the package is delivered, trigger installation using the **Execute** RPC:
+
+```json
+{"method": "Execute", "params": {"id": "/5/0/2"}}
+```
+
+## Software Updates (Object 9)
+
+LwM2M **Object 9 (Software Management)** handles software delivery, installation, and activation as two separate phases.
+
+### Required Observations
+
+| Resource | Key | Description |
+|----------|-----|-------------|
+| `/3/0/19` | `softwareVersion` | Current software version |
+| `/9/0/0` | `pkgName` | Software package name |
+| `/9/0/1` | `pkgVersion` | Software package version |
+| `/9/0/7` | `updateState` | Software update state |
+| `/9/0/9` | `updateResult` | Result of the last software update |
+
+### Software Update State Transitions
+
+| Step | State | Result | Description |
+|------|-------|--------|-------------|
+| 1 | `INITIAL (0)` | `INITIAL (0)` | Before any download |
+| 2 | `DOWNLOAD_STARTED (1)` | `DOWNLOADING (1)` | Download in progress |
+| 3 | `DOWNLOADED (2)` | `DOWNLOADING (1)` | Package downloaded and verified |
+| 4 | `DELIVERED (3)` | `SUCCESSFULLY_DOWNLOADED_VERIFIED (3)` | Ready to install |
+| 5 | `INSTALLED (4)` | `SOFTWARE_SUCCESSFULLY_INSTALLED (2)` | Installation complete |
+| 6 | `INITIAL (0)` | `INITIAL (0)` | Returned to initial after uninstall |
+
+### Software Update Strategies
+
+| Strategy | How it works |
+|----------|-------------|
+| **Push via Object 9 / Resource 2 (Package)** | Binary pushed directly to the device |
+| **Pull via Object 9 / Resource 3 (Package URI)** | ThingsBoard generates a CoAP URL; device downloads the software package |
+
+## Object 19 — OTA Metadata (Optional)
+
+ThingsBoard optionally uses **Object 19** to deliver OTA metadata before the actual package transfer. Enable it in **Device profile → Transport configuration → Other settings → Use Object 19 for OTA file metadata**.
+
+When enabled:
+- ThingsBoard checks whether Object 19 is supported at device registration.
+- Creates an Object 19 instance (InstanceId `65534` for firmware, `65535` for software).
+- Writes a Base64-encoded JSON metadata payload to that instance.
+
+Metadata structure:
+
+```json
+{
+  "Checksum": "SHA256 hash of the file",
+  "Title": "OTA package name",
+  "Version": "Target version string",
+  "File Name": "Filename for device storage",
+  "File Size": "Size in bytes"
+}
+```
+
+<Aside type="note">
+  Object 19 delivers metadata only. The actual binary transfer follows the strategy configured in the device profile.
+</Aside>
+
+## Testing OTA with the Demo Client
+
+The [ThingsBoard LwM2M Demo Client](https://github.com/thingsboard/thingsboard.lwm2m.demo.client) simulates Object 5, Object 9, and Object 19 for OTA testing.
+
+<Steps>
+1. Clone and build:
+   ```bash
+   git clone https://github.com/thingsboard/thingsboard.lwm2m.demo.client
+   mvn clean install
+   ```
+
+2. Run with OTA support enabled (`-tota` flag):
+   ```bash
+   java -jar thingsboard-lwm2m-demo-client-{version}.jar -u coap://$THINGSBOARD_HOST:5685 -n MyClientNoSec -tota
+   ```
+</Steps>
+
+The demo client logs all state transitions — use it to validate the firmware update strategy and Object 19 metadata delivery configured in the device profile.
