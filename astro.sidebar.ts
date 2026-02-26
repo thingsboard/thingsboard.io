@@ -493,6 +493,16 @@ export const opensourceSidebar: SidebarConfig = mainSidebarItems('docs');
 /** Professional Edition documentation sidebar (pages at /docs/pe/) */
 export const peSidebar: SidebarConfig = mainSidebarItems('docs/pe', [
 	{
+				label: 'Reporting',
+				collapsed: true,
+				items: [
+					'docs/pe/recipes/reporting-embed-dashboard',
+					'docs/pe/recipes/reporting-line-chart-temperature',
+					'docs/pe/recipes/reporting-subreport-daily-alarms',
+				'docs/pe/recipes/reporting-alarm-notification',
+				],
+			},
+			{
 		label: 'Access Control',
 		collapsed: true,
 		items: [
