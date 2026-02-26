@@ -1,0 +1,106 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to remove stale or superseded attributes from the message originator — for example, deleting a `firmware_version` server attribute after an OTA upgrade is confirmed, or removing shared attributes that are no longer relevant. Key patterns support <DocLink product={props.product} path="reference/rule-engine/templatization">templatization</DocLink> so the keys to delete can come from the message itself.
+
+## Configuration
+
+- **Attributes scope** — required. Which scope to delete from:
+  - `Server attributes` (`SERVER_SCOPE`)
+  - `Shared attributes` (`SHARED_SCOPE`)
+  - `Client attributes` (`CLIENT_SCOPE`)
+
+  The scope can be dynamically overridden by setting the `scope` property in message metadata to one of `SERVER_SCOPE`, `SHARED_SCOPE`, or `CLIENT_SCOPE`.
+
+- **Attributes keys** — a set of attribute keys to delete. Supports <DocLink product={props.product} path="reference/rule-engine/templatization">templatization</DocLink> — use `${metadataKey}` and `$[dataKey]` to resolve keys dynamically.
+
+### Advanced settings
+
+- **Send attributes deleted notification** — when enabled, publishes an `ATTRIBUTES_DELETED` lifecycle event to the originator's root rule chain. The event data contains the deleted key names: `{ "attributes": ["key1", "key2"] }`. Metadata includes the `ruleNodeId` and `scope`.
+
+- **Force notification to the device** — when enabled and scope is `SHARED_SCOPE`, sends a deletion notification to the device with `{ "deleted": ["key1", "key2"] }`. Also triggered when the incoming message metadata has `notifyDevice: "true"`.
+
+## Message processing algorithm
+
+1. Resolve key patterns using message data and metadata. Remove duplicates and empty/blank keys.
+2. Determine the scope: use the `scope` metadata value if present; otherwise use the configured default.
+3. If no valid keys remain after processing, route via `Success` (no-op).
+4. Delete the specified attributes from the originator.
+5. Apply notifications:
+   - For `SHARED_SCOPE`: notify the device if **Force notification** is enabled or `notifyDevice` metadata is `"true"`.
+   - Send `ATTRIBUTES_DELETED` event to the root rule chain if **Send attributes deleted notification** is enabled.
+6. Route via `Success` on completion, or `Failure` on error.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Attributes deleted successfully (or no keys to delete). Notifications sent if configured. |
+| `Failure` | An unexpected error occurred during processing. |
+
+## Examples
+
+### Example 1 — Delete specific server attributes
+
+```json maxLines=20 collapsible
+{
+  "scope": "SERVER_SCOPE",
+  "keys": ["attribute1", "attribute2"],
+  "sendAttributesDeletedNotification": false,
+  "notifyDevice": false
+}
+```
+
+**State**: originator has server attributes `attribute1`, `attribute2`, `attribute3`.
+
+**Result**: `attribute1` and `attribute2` deleted. `attribute3` preserved. No notifications.
+
+---
+
+### Example 2 — Dynamic keys from message data and metadata
+
+**Data**: `{ "attributeFromData": "attribute1" }` | **Metadata**: `{ "attributeFromMetadata": "attribute2" }`
+
+```json maxLines=20 collapsible
+{
+  "scope": "SERVER_SCOPE",
+  "keys": ["$[attributeFromData]", "${attributeFromMetadata}", "attribute3"],
+  "sendAttributesDeletedNotification": false,
+  "notifyDevice": false
+}
+```
+
+Keys resolved to `attribute1`, `attribute2`, `attribute3` — all deleted from server scope.
+
+---
+
+### Example 3 — Scope override and device notification
+
+**Metadata**: `{ "scope": "SHARED_SCOPE" }` | Configured scope: `SERVER_SCOPE`
+
+```json maxLines=20 collapsible
+{
+  "scope": "SERVER_SCOPE",
+  "keys": ["sharedAttribute"],
+  "sendAttributesDeletedNotification": false,
+  "notifyDevice": true
+}
+```
+
+Metadata `scope` overrides configured scope → deletes from `SHARED_SCOPE`. Device notified of the deletion.
+
+## JSON schema
+
+```json maxLines=25 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbMsgDeleteAttributesNodeConfiguration",
+  "type": "object",
+  "properties": {
+    "scope": { "type": "string", "enum": ["SERVER_SCOPE", "SHARED_SCOPE", "CLIENT_SCOPE"] },
+    "keys": { "type": "array", "items": { "type": "string" } },
+    "sendAttributesDeletedNotification": { "type": "boolean" },
+    "notifyDevice": { "type": "boolean" }
+  }
+}
+```

@@ -1,0 +1,92 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to transfer ownership of the message originator to a different tenant or customer — for example, moving a device from the tenant back to a specific customer when it reconnects, or reassigning an asset to a sub-customer based on routing data in the message. The customer title supports <DocLink product={props.product} path="reference/rule-engine/templatization">templatization</DocLink>.
+
+## Configuration
+
+- **Owner type** — required. The type of the new owner: `Tenant` or `Customer`.
+
+**When Owner type is `Customer`:**
+- **Customer title** — required. Name of the target customer. Supports <DocLink product={props.product} path="reference/rule-engine/templatization">templatization</DocLink>.
+- **Create new customer if it doesn't exist** — when enabled, creates a new customer if no match is found.
+- **Create new customer on the same level as message originator** — when enabled together with the create option, creates the new customer as a sub-customer of the originator's current owner. When disabled, creates at the tenant level.
+
+## Message processing algorithm
+
+1. Identify the originator entity.
+2. Based on **Owner type**:
+   - `Tenant`: change owner to the tenant directly.
+   - `Customer`:
+     - Resolve the customer title from templates.
+     - Search for an existing customer. If not found and creation is enabled: create the customer (at originator's owner level if `createOwnerOnOriginatorLevel`, otherwise at tenant level) and emit `ENTITY_CREATED`.
+     - If not found and creation is disabled: route via `Failure`.
+3. Transfer ownership. If already owned by the target, no change but still `Success`.
+4. Route via `Success`.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Ownership transferred (or entity already belongs to target). |
+| `Failure` | Target customer not found and creation disabled, or unexpected error. |
+
+## Examples
+
+### Example 1 — Move device to tenant
+
+```json maxLines=15 collapsible
+{ "ownerType": "TENANT" }
+```
+
+**State**: device owned by `My Customer`. **Result**: ownership transferred to the tenant.
+
+---
+
+### Example 2 — Move device to existing customer
+
+```json maxLines=20 collapsible
+{ "ownerType": "CUSTOMER", "ownerNamePattern": "My Customer", "createOwnerIfNotExists": false, "createOwnerOnOriginatorLevel": false }
+```
+
+**State**: device owned by tenant; `My Customer` exists. **Result**: device transferred to `My Customer`.
+
+---
+
+### Example 3 — Create sub-customer on originator level
+
+```json maxLines=20 collapsible
+{ "ownerType": "CUSTOMER", "ownerNamePattern": "Sub Customer", "createOwnerIfNotExists": true, "createOwnerOnOriginatorLevel": true }
+```
+
+**State**: device owned by `Parent Customer`; `Sub Customer` doesn't exist. **Result**: `Sub Customer` created as sub-customer of `Parent Customer`; device ownership transferred.
+
+---
+
+### Example 4 — Dynamic customer name from metadata and data
+
+**Metadata**: `{ "customerType": "Premium" }` | **Data**: `{ "region": "North" }`
+
+```json maxLines=20 collapsible
+{ "ownerType": "CUSTOMER", "ownerNamePattern": "${customerType} - $[region] Region", "createOwnerIfNotExists": false, "createOwnerOnOriginatorLevel": false }
+```
+
+**Result**: pattern resolves to `Premium - North Region`; ownership transferred to that customer.
+
+## JSON schema
+
+```json maxLines=25 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbChangeOwnerNodeConfiguration",
+  "type": "object",
+  "required": ["ownerType"],
+  "additionalProperties": false,
+  "properties": {
+    "ownerType": { "type": "string", "enum": ["TENANT", "CUSTOMER"] },
+    "ownerNamePattern": { "type": "string" },
+    "createOwnerIfNotExists": { "type": "boolean" },
+    "createOwnerOnOriginatorLevel": { "type": "boolean" }
+  }
+}
+```

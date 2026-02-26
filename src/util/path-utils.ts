@@ -13,8 +13,8 @@ export const supportedLanguages: Record<SupportedLanguage, { label: string; pref
 export const productVersions: Partial<Record<Products, { label: string; prefix: string }>> = {
 	[Products.CE]: { label: 'Community Edition', prefix: '' },
 	[Products.PE]: { label: 'Professional Edition', prefix: 'pe/' },
-	[Products.PASS]: { label: 'Cloud', prefix: 'paas/' },
-	[Products.PASS_EU]: { label: 'Cloud (EU)', prefix: 'paas/eu/' },
+	[Products.PAAS]: { label: 'Cloud', prefix: 'paas/' },
+	[Products.PAAS_EU]: { label: 'Cloud (EU)', prefix: 'paas/eu/' },
 	[Products.EDGE]: { label: 'Edge', prefix: 'edge/' },
 	[Products.EDGE_PE]: { label: 'Edge Professional', prefix: 'edge/pe/' },
 	[Products.TRENDZ]: { label: 'Trendz Analytics', prefix: 'trendz/' },
@@ -26,11 +26,11 @@ export const productVersions: Partial<Record<Products, { label: string; prefix: 
 	[Products.LICENSE]: { label: 'License Server', prefix: 'license-server/' },
 };
 
-/** Products shown in the main version switcher dropdown (excludes variants like PASS_EU, EDGE_PE) */
+/** Products shown in the main version switcher dropdown (excludes variants like PAAS_EU, EDGE_PE) */
 export const mainProductList: Products[] = [
 	Products.CE,
 	Products.PE,
-	Products.PASS,
+	Products.PAAS,
 	Products.EDGE,
 	Products.TRENDZ,
 	Products.GW,
@@ -43,9 +43,9 @@ export const mainProductList: Products[] = [
 export const subVersionGroups: Partial<
 	Record<Products, Array<{ product: Products; label: string; subtitle?: string }>>
 > = {
-	[Products.PASS]: [
-		{ product: Products.PASS, label: 'North America', subtitle: 'N. Virginia' },
-		{ product: Products.PASS_EU, label: 'Europe', subtitle: 'Frankfurt' },
+	[Products.PAAS]: [
+		{ product: Products.PAAS, label: 'North America', subtitle: 'N. Virginia' },
+		{ product: Products.PAAS_EU, label: 'Europe', subtitle: 'Frankfurt' },
 	],
 	[Products.EDGE]: [
 		{ product: Products.EDGE, label: 'Community' },
@@ -61,9 +61,9 @@ export const subVersionGroups: Partial<
 	],
 };
 
-/** Get the main/parent product for a variant (PASS_EU → PASS, EDGE_PE → EDGE, others unchanged) */
+/** Get the main/parent product for a variant (PAAS_EU → PAAS, EDGE_PE → EDGE, others unchanged) */
 export function getMainVersion(version: Products): Products {
-	if (version === Products.PASS_EU) return Products.PASS;
+	if (version === Products.PAAS_EU) return Products.PAAS;
 	if (version === Products.EDGE_PE) return Products.EDGE;
 	if (version === Products.MOBILE_PE) return Products.MOBILE;
 	if (version === Products.TBMQ_PE) return Products.TBMQ;
@@ -107,8 +107,8 @@ export function getVersionFromURL(pathname: string): Products {
 	const p = path.endsWith('/') ? path : path + '/';
 
 	if (p.startsWith('pe/')) return Products.PE;
-	if (p.startsWith('paas/eu/')) return Products.PASS_EU;
-	if (p.startsWith('paas/')) return Products.PASS;
+	if (p.startsWith('paas/eu/')) return Products.PAAS_EU;
+	if (p.startsWith('paas/')) return Products.PAAS;
 	if (p.startsWith('edge/pe/')) return Products.EDGE_PE;
 	if (p.startsWith('edge/')) return Products.EDGE;
 	if (p.startsWith('trendz/')) return Products.TRENDZ;
@@ -135,8 +135,8 @@ export function getVersionFromSlug(slug: string): Products {
 	const p = path.endsWith('/') ? path : path + '/';
 
 	if (p.startsWith('pe/')) return Products.PE;
-	if (p.startsWith('paas/eu/')) return Products.PASS_EU;
-	if (p.startsWith('paas/')) return Products.PASS;
+	if (p.startsWith('paas/eu/')) return Products.PAAS_EU;
+	if (p.startsWith('paas/')) return Products.PAAS;
 	if (p.startsWith('edge/pe/')) return Products.EDGE_PE;
 	if (p.startsWith('edge/')) return Products.EDGE;
 	if (p.startsWith('trendz/')) return Products.TRENDZ;

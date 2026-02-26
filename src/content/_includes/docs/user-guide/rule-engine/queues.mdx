@@ -1,0 +1,179 @@
+import DocLink from '@components/DocLink.astro';
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+Rule Engine uses message queues to guarantee delivery under load, handle traffic spikes, and
+control the order in which messages are submitted to rule chains. The Rule Engine continuously
+polls its assigned queues and processes messages in batches.
+
+ThingsBoard supports two queue backends:
+
+- **Kafka** — distributed, durable, and production-ready. Messages survive service restarts.
+  Can be used in monolith deployments; **required** in cluster deployments.
+- **In-Memory** — lightweight and fast. Messages are lost on restart. Available in
+  **monolith deployments only** — not supported in cluster mode. Suitable for development
+  or small-scale single-node environments.
+
+```plaintext
+  ┌──────────────┐   poll    ┌──────────────────┐   submit   ┌──────────────────┐
+  │    Queue     │──────────▶│   Rule Engine    │───────────▶│   Rule Chain     │
+  │    (Main)    │           │   (consumer)     │            └──────────────────┘
+  └──────────────┘           └──────────────────┘
+        ▲
+        │ Checkpoint node moves message to a different queue
+  ┌──────────────────────┐
+  │  HighPriority /      │
+  │  SequentialByOrig.   │
+  └──────────────────────┘
+```
+
+<Aside type="note">
+  Only **System Administrators** can configure queues. Changes take effect immediately.
+</Aside>
+
+## Queue Settings
+
+Each queue is defined by the following settings:
+
+| Setting | Description |
+|---------|-------------|
+| **Name** | Used for statistics, logging, and the Checkpoint node |
+| **Submit settings** | Controls how messages from a polled batch are delivered to rule chains |
+| **Retries processing settings** | Controls how failed or timed-out messages are re-processed |
+| **Polling settings** | Poll interval, partitions, and processing timeout |
+| **Custom properties** | Provider-specific topic/queue properties applied at queue creation |
+
+## Submit Strategies
+
+The submit strategy controls how messages from a polled batch are submitted to rule chains:
+
+| Strategy | Behavior |
+|----------|----------|
+| **Burst** | All messages submitted immediately in arrival order |
+| **Batch** | Messages grouped into fixed-size batches; next batch waits for the previous to be acknowledged |
+| **Sequential by originator** | One message per entity at a time; next message for the same entity waits for acknowledgement |
+| **Sequential by tenant** | One message per tenant at a time; next message for the same tenant waits |
+| **Sequential** | One message at a time across all entities — slowest, but guarantees strict ordering |
+
+```plaintext
+  Sequential by originator:
+
+  Device A: msg1 ──▶ [processing] ──▶ ack ──▶ msg2 ──▶ [processing]
+  Device B: msg1 ──▶ [processing] ──▶ ack ──▶ msg2   (independent of Device A)
+
+  Burst:
+
+  Device A: msg1 ──▶ [processing]
+  Device A: msg2 ──▶ [processing]   ← submitted before msg1 is ack'd
+  Device B: msg1 ──▶ [processing]
+```
+
+<Aside type="caution">
+  **Burst** and **Batch** do not guarantee message order within a single originator.
+  Many rule nodes perform async writes — for example, **Save Time Series** dispatches
+  multiple commands to the Cassandra driver concurrently and the write confirmations can
+  arrive out of submission order. If two messages from the same device arrive within
+  milliseconds of each other, the later value may be stored before the earlier one.
+
+  Use a sequential strategy whenever preserved ordering matters:
+
+  | Strategy | Ordering scope | Speed |
+  |----------|---------------|-------|
+  | **Sequential by originator** | Per entity — entities still process in parallel | Fast |
+  | **Sequential by tenant** | Per tenant — all entities for a tenant serialized | Slow |
+  | **Sequential** | Global — one message at a time across all entities | Very slow — rarely used |
+</Aside>
+
+## Retry (Processing) Strategies
+
+The retry strategy controls what happens when messages fail or time out:
+
+| Strategy | On failure | On timeout |
+|----------|-----------|-----------|
+| **Skip all failures** | Acknowledge and discard | Still processed (not cancelled) |
+| **Skip all failures and timeouts** | Acknowledge and discard | Cancel and discard |
+| **Retry failed** | Retry failed messages only | Ignore timeouts |
+| **Retry timeout** | Ignore failures | Retry timed-out messages only |
+| **Retry failed and timeout** | Retry both | Retry both |
+| **Retry all** | Retry entire pack even if only one message failed | Retry entire pack |
+
+<Aside type="caution">
+  With **Retry all**, if one message in a batch of 100 fails, all 100 are resubmitted. Each
+  resubmission cancels the previous batch — rule nodes that already started processing a
+  cancelled message are not interrupted, but new processing of that message will not start.
+</Aside>
+
+All retry strategies share these parameters:
+
+| Parameter | Description |
+|-----------|-------------|
+| **Number of retries** | Maximum retry iterations; `0` = unlimited |
+| **Percentage of failures for skipping retries** | Skip retry if the failure percentage is below this threshold |
+| **Retry within** | Seconds to wait before the first retry |
+| **Additional retry within** | Seconds to wait for the second and subsequent retry attempts |
+
+## Polling Settings
+
+| Setting | Description |
+|---------|-------------|
+| **Poll interval** | Milliseconds between polls when no new messages arrive |
+| **Partitions** | Number of partitions; higher values allow more parallel processing |
+| **Send message poll for each consumer** | When enabled, each partition gets its own consumer thread |
+| **Processing within** | Milliseconds allowed to process a polled message pack before timeout |
+
+## Default Queues
+
+Three queues are pre-configured out of the box:
+
+| Queue | Submit strategy | Retry strategy | Purpose |
+|-------|----------------|----------------|---------|
+| **Main** | Burst | Skip all failures | Default entry point for all messages; backward-compatible |
+| **HighPriority** | Burst | Retry failed and timeout | Alarms, notifications, and critical steps — retries until success |
+| **SequentialByOriginator** | Sequential by originator | Skip all failures | Guaranteed per-entity message ordering |
+
+```plaintext
+  Incoming message
+        │
+        ▼
+  ┌──────────────┐   (default path)
+  │     Main     │──────────────────────────▶ Rule Chain
+  └──────────────┘
+        │
+        │ Checkpoint node (explicit routing)
+        ├──────────────────────────────────▶ ┌─────────────────┐
+        │                                    │  HighPriority   │──▶ Rule Chain (retried on fail)
+        │                                    └─────────────────┘
+        └──────────────────────────────────▶ ┌──────────────────────────┐
+                                             │ SequentialByOriginator   │──▶ Rule Chain (ordered)
+                                             └──────────────────────────┘
+```
+
+<Aside type="note">
+  The **Main** queue settings can be adjusted, but it cannot be renamed or deleted.
+</Aside>
+
+<Aside type="caution">
+  **HighPriority** retries failed and timed-out messages indefinitely (default configuration).
+  If a rule chain routed to this queue contains a logical error that causes every message to
+  fail, processing of that rule chain will stall completely — new messages queue up but are
+  never acknowledged.
+
+  To detect this, monitor the
+  <DocLink product={props.product} path="user-guide/rule-engine/monitoring#statistics">Rule Engine Statistics</DocLink>
+  dashboard (rising permanent-failure count or flat success line) or watch the Kafka topic
+  lag for the HighPriority queue. Once detected, fix the logical error in the rule chain and
+  save it — the updated chain will be applied to the next retry attempt, unblocking
+  processing.
+</Aside>
+
+## Create a Queue
+
+<Steps>
+1. Log in as **System Administrator**.
+2. Go to **Settings → Queues**.
+3. Click **+** to open the new queue form.
+4. Enter the queue **Name**, select **Submit** and **Retry** strategies, and configure polling settings.
+5. Click **Add**.
+</Steps>
+
+For queue configuration specific to isolated tenants, see
+<DocLink product={props.product} path="TODO">Tenant Profiles — Isolated Rule Engine</DocLink>.

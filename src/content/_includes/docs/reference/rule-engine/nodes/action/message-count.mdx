@@ -1,0 +1,80 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to count how many messages pass through a rule chain over a fixed time interval — for example, tracking the throughput of telemetry messages per minute or auditing how many RPC calls arrive per hour. The count result is emitted as a `POST_TELEMETRY_REQUEST` message at the end of each interval.
+
+## Configuration
+
+- **Interval in seconds** — required. Duration of each counting window. At the end of each interval, the accumulated count is output and the counter resets.
+- **Output time series key prefix** — required. Prefix for the telemetry key in the output message. The full key name is `{prefix}_{serviceId}`, where `serviceId` is the unique identifier of the rule engine service instance (e.g., `tb-rule-engine1`). This suffix enables distinguishing counts from different nodes in a clustered deployment.
+
+## Message processing algorithm
+
+1. On node startup, a counter is initialised to `0` and the first interval tick is scheduled.
+2. For each incoming **regular message**: increment the counter by 1 and acknowledge the message immediately (the message does not continue down the rule chain).
+3. On each **interval tick**:
+   - Build a `POST_TELEMETRY_REQUEST` message with the current tenant as originator.
+   - Set the message data to `{ "{prefix}_{serviceId}": <count> }`.
+   - Add metadata key `delta` containing the actual elapsed milliseconds since the last tick.
+   - Reset the counter to `0`.
+   - Forward the generated message via `Success`.
+   - Schedule the next tick.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Interval tick fired; generated telemetry message with the count forwarded. |
+
+## Examples
+
+### Example 1 — Count messages every 5 seconds
+
+**State**: service ID is `tb-rule-engine1`. Three messages arrive between `t = 0` and `t = 5 s`.
+
+```json maxLines=15 collapsible
+{
+  "interval": 5,
+  "telemetryPrefix": "msgCount"
+}
+```
+
+**Output at `t = 5 s`** — type: `POST_TELEMETRY_REQUEST`, originator: tenant.
+
+Data:
+```json maxLines=10 collapsible
+{
+  "msgCount_tb-rule-engine1": 3
+}
+```
+
+Metadata:
+```json maxLines=10 collapsible
+{
+  "delta": "5000"
+}
+```
+
+**Result**: three messages were counted in the 5-second window; the counter resets for the next interval.
+
+## JSON schema
+
+```json maxLines=20 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbMsgCountNodeConfiguration",
+  "type": "object",
+  "required": ["interval", "telemetryPrefix"],
+  "additionalProperties": false,
+  "properties": {
+    "interval": {
+      "type": "integer",
+      "description": "Time interval in seconds for counting messages."
+    },
+    "telemetryPrefix": {
+      "type": "string",
+      "description": "Prefix for the output telemetry key."
+    }
+  }
+}
+```

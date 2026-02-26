@@ -3,6 +3,7 @@ import { docsSchema, i18nSchema } from '@astrojs/starlight/schema';
 import { defineCollection, z, type CollectionEntry } from 'astro:content';
 import { file } from 'astro/loaders';
 import { logoKeys } from './data/logos';
+import { Products } from './models/site.models';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -12,11 +13,21 @@ export const baseSchema = z.object({
 	hasREADME: z.boolean().optional(),
 	hero: z
 		.object({
-			facepile: z.object({
-				tagline: z.string(),
-				linkText: z.string(),
-				link: z.string(),
-			}),
+			gridVariant: z.enum(['lines', 'dots']).optional().default('lines'),
+			activity: z
+				.discriminatedUnion('type', [
+					z.object({
+						type: z.literal('contributors'),
+						tagline: z.string(),
+						linkText: z.string(),
+						link: z.string(),
+					}),
+					z.object({
+						type: z.literal('dashboard'),
+						product: z.nativeEnum(Products),
+					}),
+				])
+				.optional(),
 		})
 		.optional(),
 });

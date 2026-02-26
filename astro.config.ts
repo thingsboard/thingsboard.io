@@ -93,7 +93,7 @@ export default defineConfig({
 			defaultLocale: 'root',
 			locales: {
 				root: { label: 'English', lang: 'en' },
-				uk: { label: 'Українська', lang: 'uk' },
+				// uk: { label: 'Українська', lang: 'uk' }, // temporarily disabled — no translations yet
 			},
 			sidebar,
 			pagefind: false,

@@ -1,0 +1,118 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to clean up entity graph edges at runtime — for example, removing a device's `LocatedIn` relation when it is moved to a new location, or clearing all `ConnectedTo` relations from a gateway that goes offline. The relation type and target entity identifier support <DocLink product={props.product} path="reference/rule-engine/templatization">templatization</DocLink>.
+
+## Configuration
+
+- **Direction** — required. The direction of relations to delete relative to the message originator:
+  - `From originator` — relations where the originator is the `from` entity.
+  - `To originator` — relations where the originator is the `to` entity.
+- **Relation type** — required. The type of relation(s) to delete. Supports <DocLink product={props.product} path="reference/rule-engine/templatization">templatization</DocLink>.
+- **Delete relation with specific entity** — toggle:
+  - **Enabled** — delete only the relation between the originator and a specific target entity (configured below).
+  - **Disabled** — delete **all** relations of the specified type and direction involving the originator.
+
+**When targeting a specific entity:**
+- **Type** — entity type of the target. Supported: `TENANT`, `DEVICE`, `ASSET`, `CUSTOMER`, `ENTITY_VIEW`, `DASHBOARD`, `USER`, `EDGE`, `CONVERTER`, `ROLE`.
+- **Entity identifier** — name, title, or email of the target entity (depends on type). Supports templatization. `TENANT` requires no identifier.
+
+## Message processing algorithm
+
+1. Resolve the relation type by substituting patterns from message data and metadata.
+2. If **Delete relation with specific entity** is enabled:
+   - Resolve the target entity identifier.
+   - Look up the target entity. If not found, route via `Failure`.
+   - Delete the specific relation between the originator and the target.
+3. If **Delete relation with specific entity** is disabled:
+   - Delete all relations of the specified type and direction involving the originator.
+4. Route via `Success` on completion, or `Failure` on error.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Relation(s) deleted successfully. |
+| `Failure` | Target entity not found, or an unexpected error occurred. |
+
+## Examples
+
+### Example 1 — Delete all relations of a type
+
+```json maxLines=15 collapsible
+{
+  "direction": "FROM",
+  "relationType": "Contains",
+  "deleteForSingleEntity": false
+}
+```
+
+**State**: originator has `Contains` relations to devices A, B, and C; also a `Uses` relation to asset D.
+
+**Result**: all `Contains` relations deleted. `Uses` relation preserved.
+
+---
+
+### Example 2 — Delete specific relation using patterns
+
+**Incoming data**: `{ "targetAssetName": "Building" }` | **Metadata**: `{ "relationType": "LocatedIn" }`
+
+```json maxLines=20 collapsible
+{
+  "direction": "FROM",
+  "relationType": "${relationType}",
+  "deleteForSingleEntity": true,
+  "entityType": "ASSET",
+  "entityNamePattern": "$[targetAssetName]"
+}
+```
+
+**Result**: only the `LocatedIn` relation between the originator device and asset `Building` is deleted.
+
+---
+
+### Example 3 — Delete relation with current tenant
+
+```json maxLines=15 collapsible
+{
+  "direction": "TO",
+  "relationType": "Owns",
+  "deleteForSingleEntity": true,
+  "entityType": "TENANT"
+}
+```
+
+**Result**: the `Owns` relation from the tenant to the originator is deleted. No entity identifier is needed.
+
+---
+
+### Example 4 — Target entity not found → `Failure`
+
+```json maxLines=15 collapsible
+{
+  "direction": "FROM",
+  "relationType": "Contains",
+  "deleteForSingleEntity": true,
+  "entityType": "ASSET",
+  "entityNamePattern": "nonexistent_asset"
+}
+```
+
+**Result**: no asset named `nonexistent_asset` — routes via **`Failure`**. No relations modified.
+
+## JSON schema
+
+```json maxLines=25 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbDeleteRelationNodeConfiguration",
+  "type": "object",
+  "properties": {
+    "direction": { "type": "string", "enum": ["FROM", "TO"] },
+    "relationType": { "type": "string" },
+    "deleteForSingleEntity": { "type": "boolean" },
+    "entityType": { "type": "string", "enum": ["TENANT", "DEVICE", "ASSET", "CUSTOMER", "ENTITY_VIEW", "DASHBOARD", "USER", "EDGE", "CONVERTER", "ROLE"] },
+    "entityNamePattern": { "type": "string" }
+  }
+}
+```

@@ -1,0 +1,118 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to normalize key names — for example, rename `temperatureCelsius` to `temperature` before saving to time series, or align metadata key names with downstream integration expectations. Keys not present in the source are silently skipped. If the new name already exists, its value is overwritten.
+
+## Configuration
+
+- **Rename keys in** — required. Where to apply renames:
+  - `Message` — renames keys in message data.
+  - `Message metadata` — renames keys in message metadata.
+- **Message keys mapping** — a set of old name → new name pairs. If the old key does not exist in the source, the entry is skipped.
+
+## Message processing algorithm
+
+1. Determine the rename target (message data or metadata).
+2. For each configured mapping:
+   - If the old key exists: copy its value to the new key and remove the old key.
+   - If the old key does not exist: skip silently.
+3. If at least one key was renamed, forward the updated message via `Success`. Otherwise forward unchanged.
+4. On unexpected error, route via `Failure`.
+
+<Aside type="caution">
+  If the new key name already exists in the destination, its value is **overwritten** by the renamed value. This is not treated as an error.
+</Aside>
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Processing completed (including when no keys were renamed). |
+| `Failure` | An unexpected error occurred. |
+
+## Examples
+
+### Example 1 — Rename a data key
+
+```json maxLines=15 collapsible
+{ "renameIn": "DATA", "renameKeysMapping": { "temperatureCelsius": "temperature" } }
+```
+
+**Incoming data**: `{ "temperatureCelsius": 22.5 }`
+
+**Outgoing data**: `{ "temperature": 22.5 }`
+
+---
+
+### Example 2 — Rename a metadata key
+
+```json maxLines=15 collapsible
+{ "renameIn": "METADATA", "renameKeysMapping": { "deviceModel": "model" } }
+```
+
+**Incoming metadata**: `{ "deviceModel": "BME250" }`
+
+**Outgoing metadata**: `{ "model": "BME250" }`
+
+---
+
+### Example 3 — Key not present — no change
+
+```json maxLines=10 collapsible
+{ "renameIn": "DATA", "renameKeysMapping": { "temperatureCelsius": "temperature" } }
+```
+
+**Incoming data**: `{ "humidity": 55 }` — `temperatureCelsius` doesn't exist.
+
+**Outgoing data**: `{ "humidity": 55 }` — unchanged.
+
+---
+
+### Example 4 — New name already exists — overwritten
+
+**Incoming data**: `{ "temperatureCelsius": 21.5, "temperature": 99 }`
+
+```json maxLines=10 collapsible
+{ "renameIn": "DATA", "renameKeysMapping": { "temperatureCelsius": "temperature" } }
+```
+
+**Outgoing data**: `{ "temperature": 21.5 }` — `temperature: 99` is overwritten.
+
+---
+
+### Example 5 — Rename multiple keys (one missing — skipped)
+
+```json maxLines=15 collapsible
+{
+  "renameIn": "METADATA",
+  "renameKeysMapping": { "deviceName": "name", "deviceType": "type", "firmwareVersion": "fw" }
+}
+```
+
+**Incoming metadata**: `{ "deviceName": "Boiler-21", "deviceType": "Heater" }`
+
+**Outgoing metadata**: `{ "name": "Boiler-21", "type": "Heater" }` — `firmwareVersion` skipped.
+
+## JSON schema
+
+```json maxLines=20 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbRenameKeysNodeConfiguration",
+  "type": "object",
+  "required": ["renameIn", "renameKeysMapping"],
+  "additionalProperties": false,
+  "properties": {
+    "renameIn": {
+      "type": "string",
+      "enum": ["DATA", "METADATA"],
+      "description": "Where to rename: DATA = message data, METADATA = message metadata."
+    },
+    "renameKeysMapping": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Map of old key name to new key name."
+    }
+  }
+}
+```

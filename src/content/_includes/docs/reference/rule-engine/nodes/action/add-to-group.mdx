@@ -1,0 +1,113 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="note">
+  This node requires **ThingsBoard PE** or **ThingsBoard Cloud**.
+</Aside>
+
+Use this node to add the message originator to an entity group — for example, automatically placing a device into the `Warehouse devices` group when it reports a `location` field in its payload, or consolidating assets into a single group while removing them from all previous groups. The group name supports <DocLink product={props.product} path="reference/rule-engine/templatization">templatization</DocLink>.
+
+## Configuration
+
+- **Group name pattern** — required. Name of the target entity group. Supports <DocLink product={props.product} path="reference/rule-engine/templatization">templatization</DocLink> — use `${metadataKey}` and `$[dataKey]` to resolve dynamically.
+- **Create new group if not exists** — when enabled, creates a new entity group at the owner's level if no group with the resolved name is found. When disabled, a missing group causes `Failure`.
+- **Remove from current groups** — when enabled, removes the originator from all its current groups (except the special `All` group) before adding it to the target group. Ensures the entity belongs to exactly one group plus `All`.
+- **Groups cache expiration time (sec)** — how long group lookups are cached. `0` = never expire. Caching reduces database calls for high-throughput flows.
+
+## Message processing algorithm
+
+1. Identify the owner of the message originator (tenant or customer).
+2. Resolve the group name pattern from message data and metadata.
+3. Search for an existing entity group with the resolved name and same owner.
+4. If **Remove from current groups** is enabled: remove the originator from all current groups except `All`.
+5. If the group exists: add originator to it.
+6. If the group does not exist and **Create new group** is enabled: create the group, then add originator.
+7. If the group does not exist and creation is disabled: route via `Failure`.
+8. Route via `Success`.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Originator added to the target group. |
+| `Failure` | Group not found and creation disabled, unsupported originator entity type, or unexpected error. |
+
+## Examples
+
+### Example 1 — Add device to named group
+
+```json maxLines=20 collapsible
+{
+  "groupNamePattern": "My device group",
+  "createGroupIfNotExists": false,
+  "removeFromCurrentGroups": false,
+  "groupCacheExpiration": 300
+}
+```
+
+**State**: `My device group` exists under the tenant. **Result**: originator added to the group.
+
+---
+
+### Example 2 — Dynamic group name from message data
+
+**Data**: `{ "location": "Warehouse" }`
+
+```json maxLines=20 collapsible
+{
+  "groupNamePattern": "$[location] devices",
+  "createGroupIfNotExists": false,
+  "removeFromCurrentGroups": false,
+  "groupCacheExpiration": 300
+}
+```
+
+**Result**: pattern resolves to `Warehouse devices`; originator added.
+
+---
+
+### Example 3 — Create group if it doesn't exist
+
+```json maxLines=20 collapsible
+{
+  "groupNamePattern": "My device group",
+  "createGroupIfNotExists": true,
+  "removeFromCurrentGroups": false,
+  "groupCacheExpiration": 300
+}
+```
+
+**State**: group does not exist. **Result**: group created at tenant level; originator added.
+
+---
+
+### Example 4 — Move device to single group (remove from others)
+
+```json maxLines=20 collapsible
+{
+  "groupNamePattern": "Group A",
+  "createGroupIfNotExists": false,
+  "removeFromCurrentGroups": true,
+  "groupCacheExpiration": 300
+}
+```
+
+**State**: originator is currently in `Group B` and `Group C`. **Result**: removed from `Group B` and `Group C`; added to `Group A`. Still a member of `All`.
+
+## JSON schema
+
+```json maxLines=25 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbAddToGroupConfiguration",
+  "type": "object",
+  "required": ["groupNamePattern", "createGroupIfNotExists", "removeFromCurrentGroups", "groupCacheExpiration"],
+  "additionalProperties": false,
+  "properties": {
+    "groupNamePattern": { "type": "string" },
+    "createGroupIfNotExists": { "type": "boolean" },
+    "removeFromCurrentGroups": { "type": "boolean" },
+    "groupCacheExpiration": { "type": "integer" }
+  }
+}
+```

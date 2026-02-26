@@ -1,0 +1,95 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to pull configuration or policy data from the customer who owns the message originator and inject it into the message. For example, you can fetch the customer's `alarmThreshold` server attribute and add it to the message data so that the next node can compare the device reading against the customer-specific threshold — without hardcoding the value in the rule chain.
+
+## Configuration
+
+- **Mapping type** — what to fetch from the customer:
+  - `Attributes` — fetches server-side attributes.
+  - `Latest telemetry` — fetches the latest time series value.
+- **Attributes/Latest telemetry mapping** — a list of source → target key pairs:
+  - **Source key** — the attribute or telemetry key on the Customer entity. Supports <DocLink product={props.product} path="reference/rule-engine/templatization">templatization</DocLink> — use `${metadataKey}` or `$[dataKey]`.
+  - **Target key** — the key to write the value under in the outgoing message. Also supports templatization.
+- **Add mapped data to** — destination for the fetched values:
+  - `Message` — adds to message data. Fails if message data is not a valid JSON object.
+  - `Metadata` — adds to message metadata.
+- **Fetch originator's attributes if originator is customer** — when enabled, and the message originator is a Customer entity itself, the node fetches data from that Customer directly. When disabled, the node tries to find the parent customer of the Customer originator and fails since a customer has no parent customer.
+
+<Aside type="note">
+  If any requested key is not found on the customer, it is silently ignored. Processing continues with whatever was found.
+</Aside>
+
+## Message processing algorithm
+
+1. Identify the Customer associated with the message originator. If no customer is found (and originator is not a Customer with the self-fetch flag enabled), route via `Failure`.
+2. Resolve templates in source and target key names using message data and metadata.
+3. Fetch the specified attributes or latest telemetry values from the Customer entity asynchronously.
+4. Add the fetched key–value pairs to message data or metadata per the destination setting.
+5. Forward via `Success`. Route via `Failure` on error (e.g., data destination is `Message` but payload is not a JSON object).
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Message enriched successfully. |
+| `Failure` | No customer found for the originator, or an error occurred during processing. |
+
+## Examples
+
+### Example 1 — Customer attribute to metadata
+
+Device `Thermostat-A7` belongs to a customer with a server attribute `exampleSourceKey = "exampleValue"`.
+
+```json maxLines=15 collapsible
+{
+  "dataToFetch": "ATTRIBUTES",
+  "fetchTo": "METADATA",
+  "dataMapping": { "exampleSourceKey": "exampleTargetKey" },
+  "preserveOriginatorIfCustomer": false
+}
+```
+
+**Outgoing metadata** gains `"exampleTargetKey": "exampleValue"`.
+
+---
+
+### Example 2 — Customer attribute to message data (dynamic source key)
+
+Device `Boiler-B2` (type: `boiler`). The customer has a server attribute `boilerAlarmThreshold = 120`.
+
+```json maxLines=15 collapsible
+{
+  "dataToFetch": "ATTRIBUTES",
+  "fetchTo": "DATA",
+  "dataMapping": { "${deviceType}AlarmThreshold": "alarmThreshold" },
+  "preserveOriginatorIfCustomer": false
+}
+```
+
+`${deviceType}` resolves to `boiler` → fetches `boilerAlarmThreshold` → adds `"alarmThreshold": 120` to message data.
+
+## JSON schema
+
+```json maxLines=25 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbGetCustomerAttributeNodeConfiguration",
+  "type": "object",
+  "required": ["dataToFetch", "fetchTo", "dataMapping", "preserveOriginatorIfCustomer"],
+  "additionalProperties": false,
+  "properties": {
+    "dataToFetch": { "type": "string", "enum": ["ATTRIBUTES", "LATEST_TELEMETRY"] },
+    "fetchTo": { "type": "string", "enum": ["DATA", "METADATA"] },
+    "dataMapping": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Map of source key on the customer to target key in the message."
+    },
+    "preserveOriginatorIfCustomer": {
+      "type": "boolean",
+      "description": "If originator is a Customer, fetch from that Customer directly."
+    }
+  }
+}
+```

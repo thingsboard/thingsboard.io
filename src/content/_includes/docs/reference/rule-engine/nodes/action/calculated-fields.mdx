@@ -1,0 +1,75 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to trigger <DocLink product={props.product} path="user-guide/calculated-fields">calculated field</DocLink> evaluation against incoming telemetry or attribute data **without persisting that data to the database** — for example, computing a derived metric such as a heat index from incoming temperature and humidity values and publishing the result to the rule chain, while keeping the raw values out of the time-series storage.
+
+<Aside type="note">
+  This node evaluates calculated fields but does **not** persist the incoming telemetry or attributes. If you also want to store the raw data, add a **Save Timeseries** or **Save Attributes** node in parallel.
+</Aside>
+
+## Configuration
+
+This node has no configuration options.
+
+## Message processing algorithm
+
+1. Check that the incoming message type is `POST_TELEMETRY_REQUEST` or `POST_ATTRIBUTES_REQUEST`. Any other type routes via `Failure`.
+2. Parse the time-series or attribute data from the message body (including attribute scope from metadata `scope` key when applicable).
+3. Trigger evaluation of all calculated fields configured for the message originator that reference the incoming data keys. The raw data is **not** written to the database.
+4. For each calculated field whose state is updated, generate a new message with the originator and push it to the originator's root rule chain.
+5. Forward the original message unchanged via `Success`.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Calculated field processing triggered (or data was empty — no processing required). |
+| `Failure` | Unsupported message type, message data cannot be parsed, or unexpected error. |
+
+## Examples
+
+### Example 1 — Compute heat index from telemetry
+
+**Type**: `POST_TELEMETRY_REQUEST` | **Originator**: `DEVICE` with calculated field `heatIndex = temperature + 0.5 * humidity`.
+
+```json maxLines=10 collapsible
+{
+  "temperature": 25.5,
+  "humidity": 60
+}
+```
+
+**Result**: `heatIndex` is evaluated (25.5 + 0.5 × 60 = 55.5). A new message containing the calculated value is pushed to the root rule chain. The original `temperature` and `humidity` values are **not** stored. Routes via `Success`.
+
+---
+
+### Example 2 — Process attribute data
+
+**Type**: `POST_ATTRIBUTES_REQUEST` | **Metadata**: `{ "scope": "SERVER_SCOPE" }` | Calculated field: `speedPercentage = (currentSpeed / maxSpeed) * 100`.
+
+```json maxLines=10 collapsible
+{
+  "maxSpeed": 100,
+  "currentSpeed": 75
+}
+```
+
+**Result**: `speedPercentage` = 75%. New message pushed to root rule chain; attributes not persisted. Routes via `Success`.
+
+---
+
+### Example 3 — Unsupported type → `Failure`
+
+**Type**: `ENTITY_CREATED` → routes via **`Failure`**. Only `POST_TELEMETRY_REQUEST` and `POST_ATTRIBUTES_REQUEST` are supported.
+
+## JSON schema
+
+```json maxLines=15 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EmptyNodeConfiguration",
+  "type": "object",
+  "properties": {},
+  "additionalProperties": false
+}
+```

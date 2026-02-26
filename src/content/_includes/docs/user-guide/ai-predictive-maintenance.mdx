@@ -1,0 +1,243 @@
+import DocLink from '@components/DocLink.astro';
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Products } from '~/models/site.models';
+import MultiProductImageGallery from '~/components/MultiProductImageGallery.astro';
+import DocImage from '~/components/DocImage.astro';
+
+This guide builds an end-to-end IoT anomaly detection pipeline: devices send vibration, temperature, and acoustic data → <DocLink product={props.product} path="user-guide/calculated-fields">Calculated Fields</DocLink> maintain a rolling window → an <DocLink product={props.product} path="reference/rule-engine/nodes/external/ai-request">AI request</DocLink> rule node classifies anomalies → ThingsBoard creates alarms and sends notifications.
+
+## Architecture
+
+```plaintext
+  ┌──────────────┐   telemetry    ┌──────────────────────────────────────────┐
+  │   Device     │───────────────▶│  ThingsBoard                             │
+  │              │  vibration,    │                                          │
+  │  Equipment   │  temperature,  │  ┌──────────────────┐   rolling window  │
+  │  Sensor      │  acousticDev   │  │ Calculated Field │──────────────────┐│
+  └──────────────┘                │  │ (last 100 values │                  ││
+                                  │  │  or last 1 day)  │                  ││
+                                  │  └──────────────────┘                  ││
+                                  │                                        ▼│
+                                  │  ┌──────────────┐    ┌───────────────┐ │
+                                  │  │ Deduplication│───▶│  AI Request   │ │
+                                  │  │ (5 sec)      │    │  Rule Node    │ │
+                                  │  └──────────────┘    └───────┬───────┘ │
+                                  │                              │         │
+                                  │                    ┌─────────▼───────┐ │
+                                  │                    │  Create Alarm   │ │
+                                  │                    │  + Notification │ │
+                                  │                    └─────────────────┘ │
+                                  └──────────────────────────────────────────┘
+```
+
+<DocImage src="/src/assets/images/user-guide/ai-predictive-maintenance/iot-anomaly-detection-diagram.svg" alt="IoT anomaly detection architecture diagram" />
+
+## Prerequisites
+
+- ThingsBoard version **4.2+**.
+- Device(s) capable of sending the required telemetry values (this guide emulates them with `curl`).
+- LLM provider credentials (OpenAI, Azure OpenAI, etc.) — see <DocLink product={props.product} path="user-guide/ai-models">AI models</DocLink>.
+
+## Telemetry input and output
+
+**Expected telemetry keys (per device):**
+
+| Key | Type | Description |
+|---|---|---|
+| `vibration` | float | Vibration level in mm/s |
+| `temperature` | float | Temperature in °C |
+| `acousticDev` | float | Acoustic deviation from baseline in % |
+
+**AI output (JSON):**
+
+```json
+{
+  "anomaly": "Bearing Wear",
+  "summary": "Vibration has reached 7.4 mm/s and temperature is at 86 °C accompanied by irregular acoustic patterns, indicating bearing wear. Recommend immediate bearing inspection and replacement to avoid catastrophic failure."
+}
+```
+
+## Calculated field configuration
+
+The calculated field maintains a rolling window of the last 100 readings (configurable, maximum 1000) and forwards them to the rule engine as a single message.
+
+<Steps>
+1. <a href="/resources/samples/analytics/equipment_sensor.json" download="equipment_sensor.json">**Download**</a> and import the **EquipmentSensor** device profile into your ThingsBoard instance.
+
+   <MultiProductImageGallery product={props.product} images={[
+     { src: '/src/assets/images/user-guide/ai-predictive-maintenance/import-equipment-sensor-device-profile-1.png', alt: 'Navigate to device profiles', caption: 'Go to Device profiles and click the import button.' },
+     { src: '/src/assets/images/user-guide/ai-predictive-maintenance/import-equipment-sensor-device-profile-2.png', alt: 'Select the JSON file', caption: 'Select the downloaded equipment_sensor.json file.' },
+     { src: '/src/assets/images/user-guide/ai-predictive-maintenance/import-equipment-sensor-device-profile-3.png', alt: 'Device profile imported', caption: 'The EquipmentSensor profile is now available.' },
+   ]} />
+
+2. <a href="/resources/samples/analytics/rolling-window-records.json" download="rolling-window-records.json">**Download**</a> and import the calculated field into the **EquipmentSensor** device profile.
+
+   <MultiProductImageGallery product={props.product} images={[
+     { src: '/src/assets/images/user-guide/ai-predictive-maintenance/import-calculated-field-into-profile-1.png', alt: 'Open calculated fields tab', caption: 'Open the EquipmentSensor profile and navigate to the Calculated fields tab.' },
+     { src: '/src/assets/images/user-guide/ai-predictive-maintenance/import-calculated-field-into-profile-2.png', alt: 'Import calculated field', caption: 'Click Import and select the rolling-window-records.json file.' },
+     { src: '/src/assets/images/user-guide/ai-predictive-maintenance/import-calculated-field-into-profile-3.png', alt: 'Review calculated field configuration', caption: 'Review the rolling window configuration.' },
+     { src: '/src/assets/images/user-guide/ai-predictive-maintenance/import-calculated-field-into-profile-4.png', alt: 'Calculated field imported', caption: 'The calculated field is now configured on the profile.' },
+   ]} />
+</Steps>
+
+**Key notes:**
+
+- Rolling window time range is set to **1 day**.
+- The number of stored values is set to **100**. The default maximum is 1000, configurable in system settings.
+- The TBEL script outputs the rolling values in a single message to the rule engine:
+
+```javascript
+// Output raw values of the rolling arguments
+return {
+    "acousticDevRecords": acousticDevRecords,
+    "temperatureRecords": temperatureRecords,
+    "vibrationRecords": vibrationRecords
+};
+```
+
+## Rule chain configuration
+
+The rule chain analyzes the rolling window data, classifies anomalies, and generates a plain-language summary. It works with OpenAI or any other configured LLM provider.
+
+<Steps>
+1. <a href="/resources/samples/analytics/equipment_health_analysis.json" download="equipment_health_analysis.json">**Download**</a> the **Equipment Health Analysis** rule chain JSON file.
+
+2. Import the rule chain and review its nodes.
+
+   <MultiProductImageGallery product={props.product} images={[
+     { src: '/src/assets/images/user-guide/ai-predictive-maintenance/import-equipment-health-analysis-rule-chain-1.png', alt: 'Import rule chain', caption: 'Go to Rule chains, click Import, and select the downloaded file.' },
+     { src: '/src/assets/images/user-guide/ai-predictive-maintenance/import-equipment-health-analysis-rule-chain-2.png', alt: 'Rule chain overview', caption: 'The Equipment Health Analysis rule chain.' },
+     { src: '/src/assets/images/user-guide/ai-predictive-maintenance/import-equipment-health-analysis-rule-chain-3.png', alt: 'Deduplication node', caption: 'Deduplication node with a 5-second interval reduces AI token usage.' },
+     { src: '/src/assets/images/user-guide/ai-predictive-maintenance/import-equipment-health-analysis-rule-chain-4.png', alt: 'AI request node system prompt', caption: 'AI request node — system prompt with instructions for the LLM.' },
+     { src: '/src/assets/images/user-guide/ai-predictive-maintenance/import-equipment-health-analysis-rule-chain-5.png', alt: 'AI request node user prompt', caption: 'AI request node — user prompt references message data via templatization.' },
+     { src: '/src/assets/images/user-guide/ai-predictive-maintenance/import-equipment-health-analysis-rule-chain-6.png', alt: 'AI request node response format', caption: 'AI request node — JSON Schema response format for structured output.' },
+     { src: '/src/assets/images/user-guide/ai-predictive-maintenance/import-equipment-health-analysis-rule-chain-7.png', alt: 'Create alarm node', caption: 'Create alarm node generates a ThingsBoard alarm from the AI response.' },
+   ]} />
+
+3. Update the **EquipmentSensor** profile to reference the **Equipment Health Analysis** rule chain.
+
+   <MultiProductImageGallery product={props.product} images={[
+     { src: '/src/assets/images/user-guide/ai-predictive-maintenance/update-equipment-sensor-profile-1.png', alt: 'Open device profile', caption: 'Open the EquipmentSensor device profile.' },
+     { src: '/src/assets/images/user-guide/ai-predictive-maintenance/update-equipment-sensor-profile-2.png', alt: 'Set rule chain', caption: 'Set the rule chain to Equipment Health Analysis.' },
+     { src: '/src/assets/images/user-guide/ai-predictive-maintenance/update-equipment-sensor-profile-3.png', alt: 'Profile updated', caption: 'Save the profile with the new rule chain.' },
+   ]} />
+</Steps>
+
+**Important details:**
+
+- System and user prompts can reference incoming message data using <DocLink product={props.product} path="reference/rule-engine/templatization">templatization</DocLink>:
+  - `$[*]` — entire message body
+  - `${'{*}'}` — entire message metadata
+  - `$[key]` — a specific message body field
+  - `${'{key}'}` — a specific metadata value
+- Supported response formats: **TEXT**, **JSON**, and **JSON Schema** (this guide uses JSON Schema).
+- A <DocLink product={props.product} path="reference/rule-engine/nodes/transformation/deduplication">deduplication</DocLink> node with a 5-second interval is used to reduce AI token usage.
+
+## Testing
+
+<Steps>
+1. Create a test device **Equipment Sensor 1** with the **EquipmentSensor** profile.
+
+   <MultiProductImageGallery product={props.product} images={[
+     { src: '/src/assets/images/user-guide/ai-predictive-maintenance/create-test-device-1.png', alt: 'Create device', caption: 'Create a new device with the EquipmentSensor profile.' },
+     { src: '/src/assets/images/user-guide/ai-predictive-maintenance/create-test-device-2.png', alt: 'Device created', caption: 'The Equipment Sensor 1 device is ready.' },
+   ]} />
+
+2. Copy the **Check connectivity** command from the device details.
+
+   <MultiProductImageGallery product={props.product} images={[
+     { src: '/src/assets/images/user-guide/ai-predictive-maintenance/create-test-device-3.png', alt: 'Check connectivity command', caption: 'Copy the curl command from the device Check connectivity tab.' },
+   ]} />
+
+   Your command will look something like this:
+
+   ```bash
+   curl -v -X POST http://$THINGSBOARD_HOST_NAME/api/v1/$YOUR_DEVICE_ACCESS_TOKEN/telemetry \
+   --header Content-Type:application/json \
+   --data "{temperature:25}"
+   ```
+
+   Replace `$THINGSBOARD_HOST_NAME` with the host of your ThingsBoard instance, and `$YOUR_DEVICE_ACCESS_TOKEN` with your device's access token.
+
+   <MultiProductImageGallery product={props.product} images={[
+     { src: '/src/assets/images/user-guide/ai-predictive-maintenance/check-connectivity-command-from-device-1.png', alt: 'Connectivity command details', caption: 'The command includes the device access token and host.' },
+   ]} />
+
+3. **No alarm case** — send normal readings.
+
+   ```bash
+   curl -v -X POST http://$THINGSBOARD_HOST_NAME/api/v1/$YOUR_DEVICE_ACCESS_TOKEN/telemetry \
+   --header Content-Type:application/json \
+   --data '{"vibration":4.2,"temperature":70,"acousticDev":5}'
+   ```
+
+   No alarm is created because the values are within normal ranges.
+
+   <MultiProductImageGallery product={props.product} images={[
+     { src: '/src/assets/images/user-guide/ai-predictive-maintenance/send-test-data-no-alarm-case-1.png', alt: 'No alarm created', caption: 'Normal telemetry values — no alarm triggered.' },
+   ]} />
+
+4. **Bearing wear detection** — send anomalous readings.
+
+   ```bash
+   curl -v -X POST http://$THINGSBOARD_HOST_NAME/api/v1/$YOUR_DEVICE_ACCESS_TOKEN/telemetry \
+   --header Content-Type:application/json \
+   --data '{"vibration":8.2,"temperature":88,"acousticDev":5}'
+   ```
+
+   An alarm is created. Example AI output:
+
+   ```json
+   {
+     "anomaly": "Bearing Wear",
+     "summary": "Vibration has reached 7.4 mm/s and temperature is at 86 °C accompanied by irregular acoustic patterns, indicating bearing wear. Recommend immediate bearing inspection and replacement to avoid catastrophic failure."
+   }
+   ```
+
+   <MultiProductImageGallery product={props.product} images={[
+     { src: '/src/assets/images/user-guide/ai-predictive-maintenance/alarm-created-1.png', alt: 'Bearing wear alarm', caption: 'AI detected bearing wear and created an alarm.' },
+   ]} />
+
+5. **Misalignment detection** — send a different anomaly pattern.
+
+   ```bash
+   curl -v -X POST http://$THINGSBOARD_HOST_NAME/api/v1/$YOUR_DEVICE_ACCESS_TOKEN/telemetry \
+   --header Content-Type:application/json \
+   --data '{"vibration":32.2,"temperature":38,"acousticDev":5}'
+   ```
+
+   An alarm is created. Example AI output:
+
+   ```json
+   {
+     "anomaly": "Misalignment",
+     "summary": "A sudden vibration spike to 32.2 mm/s without a corresponding temperature rise or acoustic deviation indicates likely misalignment in the drive train. Please perform an immediate shaft-and-coupling alignment check to prevent further mechanical damage."
+   }
+   ```
+
+   <MultiProductImageGallery product={props.product} images={[
+     { src: '/src/assets/images/user-guide/ai-predictive-maintenance/alarm-created-2.png', alt: 'Misalignment alarm', caption: 'AI detected misalignment and created an alarm.' },
+   ]} />
+</Steps>
+
+## Performance and cost controls
+
+API costs are controlled by the provider's API key and billing — ThingsBoard does not track usage or enforce limits internally. To manage costs effectively:
+
+- **Deduplication** — use the <DocLink product={props.product} path="reference/rule-engine/nodes/transformation/deduplication">deduplication</DocLink> node to batch incoming messages (e.g., 5-second window) so the AI is called once per batch, not per telemetry message.
+- **Early filters** — skip the AI call entirely if all metrics are within normal bands. Add a <DocLink product={props.product} path="reference/rule-engine/nodes/filter/script">script filter</DocLink> node before the AI request node.
+- **Payload compacting** — send statistics (min, mean, max, standard deviation, trend) instead of full arrays if the prompt allows.
+- **Model selection** — smaller models (e.g., `gpt-4o-mini`) are significantly cheaper per token than large models while still providing good anomaly classification.
+
+## Troubleshooting
+
+| Problem | Steps |
+|---|---|
+| **No alarms created** | 1. Verify raw device data appears in the **Latest telemetry** tab. 2. Enable and review <DocLink product={props.product} path="user-guide/calculated-fields">calculated field</DocLink> debug events. 3. Enable and review the corresponding rule node debug events. |
+| **High costs** | Increase the deduplication period, tune the prompt to use fewer tokens, or switch to a cheaper AI model. |
+
+## Next steps
+
+- Configure additional <DocLink product={props.product} path="user-guide/ai-models">AI models</DocLink> to compare different providers.
+- Add <DocLink product={props.product} path="TODO">notifications</DocLink> to alert operators when alarms are created.
+- Experiment with AI prompts and share your feedback with the community.

@@ -1,0 +1,246 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node whenever a rule chain needs to reach outside ThingsBoard — send a command to a third-party device management system, call a webhook, fetch data from an external API, or trigger a cloud function. It supports GET, POST, PUT, PATCH, and DELETE with configurable authentication, proxy, and concurrency controls.
+
+---
+
+## Configuration
+
+### Endpoint URL pattern
+
+The full URL of the external endpoint. Supports <DocLink product={props.product} path="reference/rule-engine/templatization">templatization</DocLink> — use `${metadata.key}` and `${data.key}` to build dynamic URLs, for example:
+
+```
+https://api.example.com/v1/devices/${metadata.deviceId}/commands
+```
+
+### Request method
+
+`GET`, `POST`, `PUT`, `PATCH`, or `DELETE`.
+
+### Headers
+
+Key-value pairs of HTTP headers to include in the request. Both keys and values support <DocLink product={props.product} path="reference/rule-engine/templatization">templatization</DocLink>.
+
+### Message settings
+
+#### Parse to plain text
+
+Controls how message data is processed before sending:
+
+- **Disabled** (default) — message data is sent as-is.
+- **Enabled** — if the message data is a JSON-encoded string (wrapped in double quotes), the outer JSON encoding is removed before sending.
+
+<Aside type="note">
+  This setting only affects JSON-encoded strings. Regular JSON objects like `{"temperature":25.5}` are sent unchanged regardless of this setting.
+</Aside>
+
+#### Without request body
+
+- **Disabled** (default) — the request body contains the message data for POST, PUT, PATCH, and DELETE methods.
+- **Enabled** — no request body is sent, even for methods that typically include one.
+
+<Aside type="note">
+  When the request body is enabled and the message metadata contains an `attachments` field with blob entity IDs, the content of the first blob entity is used as the request body instead of the message data.
+</Aside>
+
+### Connection settings
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| **Read timeout (ms)** | 0 (infinite) | Maximum time to wait for a response. Set `0` to wait indefinitely. |
+| **Max number of parallel requests** | 0 (unlimited) | Maximum concurrent in-flight requests. When the limit is reached, new messages wait for an available slot. If no slot becomes available within the read timeout, the message fails. |
+| **Max response size (KB)** | 256 KB | Maximum response body size that can be buffered in memory. The system enforces an upper limit via the `tb.http.maxInMemoryBufferSizeInKb` property (default: 25000 KB). |
+
+### Proxy settings
+
+Enable proxy routing when the ThingsBoard server cannot reach the endpoint directly.
+
+| Option | Description |
+|--------|-------------|
+| **Enable proxy** | Routes requests through a proxy server. |
+| **Use system proxy properties** | When enabled, reads proxy configuration from JVM system properties instead of manual settings. |
+
+**System properties** (at least one set must be configured when using system proxy):
+
+| Property | Description |
+|----------|-------------|
+| `http.proxyHost` / `http.proxyPort` | HTTP proxy |
+| `https.proxyHost` / `https.proxyPort` | HTTPS proxy |
+| `socksProxyHost` / `socksProxyPort` / `socksProxyVersion` | SOCKS proxy (version 4 or 5) |
+| `tb.proxy.user` / `tb.proxy.password` | Proxy authentication |
+
+**Manual proxy configuration** (when system proxy is disabled):
+
+| Field | Description |
+|-------|-------------|
+| **Proxy host** | Hostname or IP of the proxy server |
+| **Proxy port** | Port number (1–65535) |
+| **Proxy user / password** | Proxy authentication credentials |
+
+### Credentials
+
+| Type | Description |
+|------|-------------|
+| **Anonymous** | No authentication. Use when the endpoint allows anonymous access or authentication is handled via headers. |
+| **Basic** | HTTP Basic authentication — username and password encoded in the `Authorization` header. |
+| **PEM Certificate** | Mutual TLS authentication. Requires a Server CA certificate file, a Client certificate file, and a Client private key file (plus optional private key password). Certificate files can be uploaded directly or referenced from Secrets storage. |
+
+### Advanced settings — Force acknowledgement
+
+Controlled by the `ACTORS_RULE_EXTERNAL_NODE_FORCE_ACK` environment variable (applies to all external nodes).
+
+- **Disabled** (default) — the original incoming message is held until the HTTP request completes, then transformed with the response data and passed to the next node.
+- **Enabled** — the incoming message is acknowledged immediately; once the request completes, a **new** message is created with the response data and added to the queue. This prevents processing timeouts for slow endpoints.
+
+---
+
+## Message processing
+
+For each incoming message, the node:
+
+1. If **Force acknowledgement** is enabled, acknowledges the incoming message immediately.
+2. If **Max parallel requests** is configured, waits for an available slot (failing with a timeout error if none becomes available within the read timeout).
+3. Resolves the **Endpoint URL pattern** by substituting `${metadata.key}` and `${data.key}` templates.
+4. Prepares HTTP headers — configured headers are processed for templates; Basic credentials are encoded and added as the `Authorization` header.
+5. Prepares the request body:
+   - If **Without request body** is enabled, no body is sent.
+   - Otherwise, for POST/PUT/PATCH/DELETE: if `attachments` is in metadata (blob entity IDs), the first blob's content is used; otherwise, the message data is used. If **Parse to plain text** is enabled, JSON-encoded strings are unwrapped.
+6. Sends the HTTP request to the endpoint.
+7. On response:
+   - **2xx status:** response information is added to the message, forwarded via `Success`.
+   - **Non-2xx or error:** error information is added to the message, forwarded via `Failure`.
+8. If **Max parallel requests** is configured, releases the slot.
+
+---
+
+## Outgoing message format
+
+### On success (2xx response)
+
+Message data is replaced with the response body (`{}` if empty). The following keys are added to metadata:
+
+| Key | Value |
+|-----|-------|
+| `status` | HTTP status name (e.g., `OK`, `CREATED`) |
+| `statusCode` | HTTP status code (e.g., `200`, `201`) |
+| `statusReason` | HTTP status reason phrase |
+| *(response headers)* | Each response header added as a metadata key; multi-value headers are stored as JSON array strings |
+
+### On failure (non-2xx or exception)
+
+Message data remains unchanged. The following keys are added to metadata:
+
+| Key | Value |
+|-----|-------|
+| `error` | Error description: `ExceptionClass: error message` |
+| `status` | HTTP status name (if available) |
+| `statusCode` | HTTP status code (if available) |
+| `statusReason` | HTTP status reason phrase (if available) |
+| `error_body` | Response body from the failed request (if available) |
+| *(response headers)* | Response headers, if available |
+
+---
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | HTTP request completed with a 2xx status code |
+| `Failure` | Non-2xx response, network error, timeout, connection error, or unexpected exception |
+
+---
+
+## Example — Sending a command to a smart lock
+
+A smart lock device needs to send an unlock command to an external device management system and receive the execution result. The endpoint requires Basic authentication.
+
+**Incoming message** (originator: Smart Lock device):
+
+Data:
+
+```json maxLines=15 collapsible
+{
+  "command":  "unlock",
+  "duration": 30,
+  "reason":   "owner_request"
+}
+```
+
+Metadata:
+
+```json maxLines=15 collapsible
+{
+  "deviceId":   "lock-bedroom-01",
+  "deviceType": "smartLock"
+}
+```
+
+**Node configuration:**
+
+```json maxLines=20 collapsible
+{
+  "restEndpointUrlPattern":   "https://api.smart-home.com/v1/devices/${metadata.deviceId}/commands",
+  "requestMethod":            "POST",
+  "headers":                  { "Content-Type": "application/json" },
+  "readTimeoutMs":            5000,
+  "maxParallelRequestsCount": 10,
+  "credentials": {
+    "type":     "basic",
+    "username": "api-client",
+    "password": "secure-password"
+  }
+}
+```
+
+The node resolves the URL to `https://api.smart-home.com/v1/devices/lock-bedroom-01/commands` and adds `Authorization: Basic YXBpLWNsaWVudDpzZWN1cmUtcGFzc3dvcmQ=`.
+
+**Outgoing message** (routed via `Success`):
+
+Data:
+
+```json maxLines=15 collapsible
+{
+  "commandId":   "cmd-98765",
+  "status":      "executed",
+  "executedAt":  "2023-01-01T10:30:00Z",
+  "result": {
+    "success":    true,
+    "lockState":  "unlocked",
+    "autoLockIn": 30
+  }
+}
+```
+
+Metadata includes original fields plus `statusCode: "200"`, `status: "OK"`, `statusReason: "OK"`, and any response headers such as `Content-Type` and `X-Request-Id`.
+
+---
+
+## JSON schema
+
+```json maxLines=25 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbRestApiCallNodeConfiguration",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "restEndpointUrlPattern":   { "type": "string", "minLength": 1 },
+    "requestMethod":            { "type": "string", "enum": ["GET","POST","PUT","PATCH","DELETE"] },
+    "headers":                  { "type": "object", "additionalProperties": { "type": "string" } },
+    "readTimeoutMs":            { "type": "integer", "minimum": 0 },
+    "maxParallelRequestsCount": { "type": "integer", "minimum": 0 },
+    "parseToPlainText":         { "type": "boolean" },
+    "enableProxy":              { "type": "boolean" },
+    "useSystemProxyProperties": { "type": "boolean" },
+    "proxyHost":                { "type": "string" },
+    "proxyPort":                { "type": "integer", "minimum": 1, "maximum": 65535 },
+    "proxyUser":                { "type": "string" },
+    "proxyPassword":            { "type": "string" },
+    "credentials":              { "type": "object" },
+    "ignoreRequestBody":        { "type": "boolean" },
+    "maxInMemoryBufferSizeInKb":{ "type": "integer", "minimum": 1 }
+  }
+}
+```

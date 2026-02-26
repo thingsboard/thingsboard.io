@@ -1,0 +1,151 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to guard downstream processing against messages that are missing required fields. For example, before saving attributes you can verify that both `firmware_version` and `serial_number` are present in the payload, or that a `token` metadata key exists before making an authenticated API call.
+
+<Aside type="note">
+  Only **top-level** keys are checked — nested paths like `sensor.temperature` are not supported. A key is considered present if it exists, regardless of its value (including `null` or empty string). The incoming message data must be a JSON object; other types route to `Failure`.
+</Aside>
+
+## Configuration
+
+- **Message field names** — optional. A set of top-level JSON field names to check in the message data.
+- **Metadata field names** — optional. A set of metadata key names to check in the message metadata.
+
+At least one of the two lists must contain at least one entry.
+
+- **Check that all specified fields are present** — toggle (default: enabled).
+  - **Enabled**: route `True` only if **all** listed fields are present in both data and metadata.
+  - **Disabled**: route `True` if **at least one** listed field exists anywhere in data or metadata.
+
+## Message processing algorithm
+
+1. Extract message data as a JSON object and metadata as key–value pairs.
+2. Evaluate presence based on the toggle:
+   - **All fields required**: route `True` if every field in `messageNames` exists in data **and** every field in `metadataNames` exists in metadata.
+   - **Any field sufficient**: route `True` if any listed field exists in data **or** metadata.
+3. If the condition is not satisfied, route `False`.
+4. If the payload is not a JSON object or another error occurs, route `Failure`.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `True` | The configured presence condition is satisfied. |
+| `False` | The configured presence condition is not satisfied. |
+| `Failure` | The message data cannot be parsed as a JSON object, or an unexpected error occurred. |
+
+## Examples
+
+### Example 1 — All required data fields present → `True`
+
+```json maxLines=15 collapsible
+{
+  "messageNames": ["temp", "humidity"],
+  "metadataNames": [],
+  "checkAllKeys": true
+}
+```
+
+**Incoming data**: `{ "temp": 22.5, "humidity": 55 }`
+
+**Result**: **`True`** — both `temp` and `humidity` exist.
+
+---
+
+### Example 2 — Missing one required field → `False`
+
+```json maxLines=15 collapsible
+{
+  "messageNames": ["temp", "humidity"],
+  "metadataNames": [],
+  "checkAllKeys": true
+}
+```
+
+**Incoming data**: `{ "temp": 22.5 }`
+
+**Result**: **`False`** — `humidity` is absent.
+
+---
+
+### Example 3 — At least one metadata field → `True`
+
+```json maxLines=15 collapsible
+{
+  "messageNames": [],
+  "metadataNames": ["token", "tenantId"],
+  "checkAllKeys": false
+}
+```
+
+**Incoming metadata**: `{ "deviceName": "Pump-42", "token": "abc123" }`
+
+**Result**: **`True`** — `token` is present.
+
+---
+
+### Example 4 — Mixed check, data field present → `True`
+
+```json maxLines=15 collapsible
+{
+  "messageNames": ["temperature"],
+  "metadataNames": ["token", "tenantId"],
+  "checkAllKeys": false
+}
+```
+
+**Incoming data**: `{ "temperature": 123, "humidity": 42 }`
+**Incoming metadata**: `{ "deviceName": "Sensor-1" }`
+
+**Result**: **`True`** — `temperature` is found in data.
+
+---
+
+### Example 5 — Non-object payload → `Failure`
+
+```json maxLines=15 collapsible
+{
+  "messageNames": ["temp"],
+  "metadataNames": [],
+  "checkAllKeys": true
+}
+```
+
+**Incoming data**: `"not a JSON object"`
+
+**Result**: **`Failure`** — data cannot be parsed as a JSON object.
+
+## JSON schema
+
+```json maxLines=30 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbCheckMessageNodeConfiguration",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "messageNames": {
+      "description": "Field names to check in the message data.",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "metadataNames": {
+      "description": "Field names to check in the message metadata.",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "checkAllKeys": {
+      "description": "If true, require all listed fields. If false, require at least one.",
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "anyOf": [
+    { "properties": { "messageNames": { "minItems": 1 } } },
+    { "properties": { "metadataNames": { "minItems": 1 } } }
+  ]
+}
+```

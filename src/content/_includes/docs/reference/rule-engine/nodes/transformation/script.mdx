@@ -1,0 +1,236 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+The most flexible transformation node in the rule engine. Write any TBEL or JavaScript function to reshape the message payload, change its type, rewrite metadata, or split one incoming message into multiple outgoing ones (fan-out). If the pre-built transformation nodes don't cover your use case, this one will.
+
+---
+
+## Script function
+
+The code entered in the script editor is the body of a transformation function. Three variables are available:
+
+- `msg` — the data of the incoming message, as a parsed JSON object.
+- `metadata` — the metadata of the incoming message, as a key-value object where all values are strings.
+- `msgType` — the type of the incoming message, as a string.
+
+The function must **return** either a single object (one output message) or an array of objects (multiple output messages). Each object must contain:
+
+- `msg` — data for the new outgoing message.
+- `metadata` — metadata for the new message.
+- `msgType` — type for the new message.
+
+```js
+// Single output
+return { msg: msg, metadata: metadata, msgType: msgType };
+
+// Fan-out (multiple outputs)
+return [
+  { msg: msg1, metadata: metadata1, msgType: 'TYPE_A' },
+  { msg: msg2, metadata: metadata2, msgType: 'TYPE_B' },
+];
+```
+
+<Aside type="caution">
+  If the function throws an exception, the message is routed via `Failure`. Always validate input fields before accessing them.
+</Aside>
+
+<Aside type="note">
+  Scripts run in a sandboxed environment. Importing or calling external libraries is not supported — all logic must be self-contained within the script body.
+</Aside>
+
+---
+
+## Configuration
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| **Language** | Yes | `TBEL` (recommended) or `JavaScript` |
+| **Script body** | Yes | The transformation function body |
+
+---
+
+## Message processing algorithm
+
+1. The node executes the user-defined script, passing the incoming message's `msg`, `metadata`, and `msgType` as arguments.
+2. The script's return value determines the output:
+   - If it returns a **single object**, one new message is prepared.
+   - If it returns an **array of objects**, one new message is prepared for each object in the array.
+3. For each new message, the node constructs its content using the `msg`, `metadata`, and `msgType` values returned by the script. The message originator is preserved from the original.
+4. All newly created messages are sent out via the `Success` connection. The original message is acknowledged after all new messages have been successfully enqueued.
+5. If the script encounters an error, the original message is routed to the `Failure` connection.
+
+---
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | One or more transformed messages sent through this connection |
+| `Failure` | Script execution failed with an error |
+
+---
+
+## Examples
+
+### Example 1 — Fan-out: generating multiple REST API requests
+
+**Scenario:** an incoming message specifies a list of metrics to fetch from an external API. The script generates a separate JSON-RPC request message for each metric, which can then be individually processed by a **REST API call** node.
+
+**Incoming message data:**
+
+```json maxLines=15 collapsible
+{
+  "metrics": ["voltage", "pressure", "signalStrength"],
+  "startTime": 1756289924769,
+  "endTime":   1756389984769
+}
+```
+
+**Incoming message metadata:**
+
+```json maxLines=15 collapsible
+{
+  "apiKey":   "abc-123-def-456",
+  "serialId": "19092601"
+}
+```
+
+**Script (TBEL):**
+
+```js maxLines=20 collapsible
+var outgoingMessages = [];
+var apiKey   = metadata.apiKey;
+var serialId = metadata.serialId;
+var startTime = msg.startTime;
+var endTime   = msg.endTime;
+
+foreach(metric: msg.metrics) {
+    var rpcRequestBody = {
+        jsonrpc: "2.0",
+        method:  "getData",
+        version: "v10.1",
+        id: 1,
+        params: {
+            apiToken:  apiKey,
+            serialId:  serialId,
+            metric:    metric,
+            startTime: startTime,
+            endTime:   endTime
+        }
+    };
+    outgoingMessages.push({
+        msg:      rpcRequestBody,
+        metadata: metadata,
+        msgType:  'API_REQUEST'
+    });
+}
+return outgoingMessages;
+```
+
+**Result:** three `API_REQUEST` messages emitted via `Success` — one for each metric. Message 1 (for `voltage`):
+
+```json maxLines=15 collapsible
+{
+  "jsonrpc": "2.0",
+  "method":  "getData",
+  "version": "v10.1",
+  "id": 1,
+  "params": {
+    "apiToken":  "abc-123-def-456",
+    "serialId":  "19092601",
+    "metric":    "voltage",
+    "startTime": 1756389924769,
+    "endTime":   1756389984769
+  }
+}
+```
+
+Messages 2 and 3 are identical except `metric` is `pressure` and `signalStrength` respectively.
+
+---
+
+### Example 2 — Parsing a REST API response into telemetry format
+
+**Scenario:** a **REST API call** node fetches data from an external sensor API. The response contains observations in a non-standard format. The script reformats it into the ThingsBoard time series format so it can be passed directly to a **Save time series** node.
+
+**Incoming message data:**
+
+```json maxLines=20 collapsible
+{
+  "eventUuid": "68b03dde7eb1ad4ff09cadfe",
+  "serialId":  "19092601",
+  "metric":    "pressure",
+  "unit":      "kPa",
+  "observations": [
+    { "time": "2025-08-28T11:30:00Z", "value": 101.3 },
+    { "time": "2025-08-28T11:31:00Z", "value": 101.2 },
+    { "time": "2025-08-28T11:32:00Z", "value": 101.4 },
+    { "time": "2025-08-28T11:33:00Z", "value": 101.5 },
+    { "time": "2025-08-28T11:34:00Z", "value": 101.3 }
+  ]
+}
+```
+
+**Script (TBEL):**
+
+```js maxLines=20 collapsible
+var parsedTelemetry = [];
+foreach(observation: msg.observations) {
+    var values = {};
+    values.put(msg.metric, observation.value);
+    parsedTelemetry.add({
+        ts:     new Date(observation.time).getTime(),
+        values: values
+    });
+}
+return {
+    msg:      parsedTelemetry,
+    metadata: metadata,
+    msgType:  "POST_TELEMETRY_REQUEST"
+};
+```
+
+**Outgoing message data:**
+
+```json maxLines=20 collapsible
+[
+  { "ts": 1756380600000, "values": { "pressure": 101.3 } },
+  { "ts": 1756380660000, "values": { "pressure": 101.2 } },
+  { "ts": 1756380720000, "values": { "pressure": 101.4 } },
+  { "ts": 1756380780000, "values": { "pressure": 101.5 } },
+  { "ts": 1756380840000, "values": { "pressure": 101.3 } }
+]
+```
+
+**Message type:** `POST_TELEMETRY_REQUEST`
+
+The script iterated over the observations array and converted each entry into ThingsBoard's `[{ts, values}]` time series format, using the top-level `metric` field as the dynamic key name.
+
+---
+
+## JSON schema
+
+```json maxLines=15 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbTransformMsgNodeConfiguration",
+  "type": "object",
+  "required": ["scriptLang"],
+  "additionalProperties": false,
+  "properties": {
+    "scriptLang": {
+      "type": "string",
+      "enum": ["JS", "TBEL"],
+      "description": "The scripting language to use."
+    },
+    "jsScript": {
+      "type": "string",
+      "description": "The JavaScript transformation function body."
+    },
+    "tbelScript": {
+      "type": "string",
+      "description": "The TBEL transformation function body."
+    }
+  }
+}
+```

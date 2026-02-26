@@ -1,0 +1,89 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="note">
+  This node requires **ThingsBoard PE** or **ThingsBoard Cloud**.
+</Aside>
+
+Use this node to periodically aggregate attribute or time-series values from child entities and store the results as telemetry on the parent entities — for example, computing the average temperature across all sensors in a building and posting it to the building asset every minute, or counting active devices in a fleet and writing the count to a fleet asset.
+
+## Configuration
+
+- **Execution period value / time unit** — required. How often to run the aggregation task.
+
+### Entities
+
+Specifies which parent entities receive the aggregation results:
+
+- **Single entity** — one specific entity.
+- **Group of entities** — all members of a specific entity group.
+- **Relations query** — entities found by a relations query starting from a root entity.
+
+### Child entities
+
+Specifies which child entities to aggregate values from:
+
+- For **Single entity** and **Relations query**: configure a **Relations query** to find children starting from each parent entity.
+- For **Group of entities**: child entities are the group members themselves.
+
+### Aggregate latest mappings
+
+A table of mapping configurations, each defining one aggregation:
+
+| Field | Description |
+|---|---|
+| **Latest telemetry** | When checked, aggregate the latest time-series value; when unchecked, aggregate an attribute |
+| **Source telemetry/attribute** | Key name of the child value to aggregate |
+| **Attribute scope** | Attribute scope (`CLIENT_SCOPE`, `SHARED_SCOPE`, `SERVER_SCOPE`) — only when aggregating attributes |
+| **Default value** | Numeric value used when the source is absent for a child entity |
+| **Aggregation function** | `Minimum`, `Maximum`, `Sum`, `Average`, `Count`, `Count unique` |
+| **Target telemetry** | Key name on the parent entity where the result is stored |
+| **Filter entities** | When enabled, apply a JavaScript filter to child entities before aggregation |
+| **Entity filter** | List of attribute/telemetry keys to fetch + a JS function returning `true`/`false`; fetched values use scope prefixes: `shared_`, `cs_`, `ss_` (telemetry: no prefix) |
+
+## Message processing algorithm
+
+1. At each execution interval, collect the set of parent entities per the **Entities** configuration.
+2. For each parent entity, resolve child entities via the **Relations query** (or group members).
+3. Apply the entity filter if configured.
+4. For each mapping row: fetch the source key from each child entity, apply the aggregation function across all children (using the default value for absent keys), and write the result as a `POST_TELEMETRY_REQUEST` to the parent entity.
+5. Route the generated message via `Success` for each parent entity. If any aggregation fails, route a failure message via `Failure` with the failure reason.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Generated `POST_TELEMETRY_REQUEST` message for each parent entity with the aggregated value. |
+| `Failure` | Aggregation failed for a parent entity; failure message contains the reason. |
+
+## JSON schema
+
+```json maxLines=25 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbAggregateLatestNodeConfiguration",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "period": { "type": "integer", "description": "Execution period value." },
+    "periodTimeUnit": { "type": "string", "description": "Time unit for the execution period." },
+    "entitiesType": { "type": "string", "enum": ["SINGLE", "GROUP", "RELATIONS_QUERY"] },
+    "childEntitiesRelationsQuery": { "type": "object", "description": "Relations query to find child entities." },
+    "mappings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "latestTelemetry": { "type": "boolean" },
+          "sourceKey": { "type": "string" },
+          "attributeScope": { "type": "string" },
+          "defaultValue": { "type": "number" },
+          "aggregation": { "type": "string", "enum": ["MIN", "MAX", "SUM", "AVG", "COUNT", "COUNT_UNIQUE"] },
+          "targetKey": { "type": "string" },
+          "filterEntities": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}
+```

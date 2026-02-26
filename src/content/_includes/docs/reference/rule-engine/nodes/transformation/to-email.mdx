@@ -1,0 +1,115 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to transform an incoming message into an email-ready `SEND_EMAIL` message — for example, converting a high-temperature alarm into a formatted notification email with device name and reading values substituted from message metadata and data. This node constructs the email parameters; the actual dispatch is handled by a downstream <DocLink product={props.product} path="reference/rule-engine/nodes/external/send-email">Send Email</DocLink> node.
+
+## Configuration
+
+All fields support <DocLink product={props.product} path="reference/rule-engine/templatization">templatization</DocLink> — use `${metadataKey}` and `$[dataKey]` to substitute values dynamically.
+
+### Sender
+
+- **From** — sender email address (e.g., `alarms@yourcompany.com`).
+
+### Recipients
+
+- **To** — comma-separated list of primary recipient addresses.
+- **Cc** — comma-separated list of CC recipients (optional).
+- **Bcc** — comma-separated list of BCC recipients (optional).
+
+### Subject and body
+
+- **Subject** — email subject line. Supports templatization and date formatting (see below).
+- **Mail body type** — how the body is rendered:
+  - `Plain text` — body sent as-is unformatted text.
+  - `HTML` — body rendered as HTML.
+  - `Use body type template` — body type determined at runtime from **Body type template** (resolves to `"true"` for HTML or `"false"` for plain text).
+- **Body** — main email content. Supports templatization and date formatting.
+
+### Date formatting in subject and body
+
+Use `%d{<pattern>}` to insert the message processing timestamp as a formatted date string, where `<pattern>` is a Java `SimpleDateFormat` pattern:
+- `Device Alert at %d{yyyy-MM-dd HH:mm:ss}` → `Device Alert at 2024-03-15 10:30:00`
+
+If the incoming message metadata contains `emailTimezone` with a valid timezone ID (e.g., `Europe/Kyiv`), that timezone is applied to the date formatting. Otherwise the server's default timezone is used.
+
+### Attachments and embedded images (via metadata)
+
+The node reads these optional metadata keys from the incoming message:
+- `attachments` — comma-separated Blob Entity UUIDs to attach.
+- `reports` — comma-separated report UUIDs to attach.
+- `images` — JSON map of Content-IDs to data URLs, for embedding images in HTML: `{"logo": "data:image/png;base64,..."}`; reference in body as `<img src="cid:logo">`.
+
+## Message processing algorithm
+
+1. Receive the incoming message.
+2. Substitute all template patterns in `From`, `To`, `Cc`, `Bcc`, `Subject`, `Body`, and `Body type template`.
+3. Process `%d{...}` date-format patterns in `Subject` and `Body` using the message processing timestamp and `emailTimezone` metadata if present.
+4. Check metadata for `attachments`, `reports`, and `images` keys and include in the output.
+5. Determine the final body type (`html: true/false`).
+6. Construct a new message of type `SEND_EMAIL` whose data is a JSON object containing all email fields; route via `Success`.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | A `SEND_EMAIL` message with fully resolved email parameters. |
+| `Failure` | An error occurred during transformation. |
+
+## Examples
+
+### Example 1 — Alarm email with dynamic subject and body
+
+**Incoming metadata**: `{ "deviceName": "TempSensor-A1", "deviceType": "Temperature Sensor" }`
+
+**Incoming data** (alarm object, excerpt): `{ "details": { "temperatureValue": 95.5, "temperatureThreshold": 90 } }`
+
+```json maxLines=20 collapsible
+{
+  "fromTemplate": "alarms@yourcompany.com",
+  "toTemplate": "example@yourcompany.com",
+  "ccTemplate": null,
+  "bccTemplate": null,
+  "subjectTemplate": "${deviceType} - ${deviceName}: High temperature alarm",
+  "mailBodyType": "false",
+  "bodyTemplate": "A temperature of $[details.temperatureValue] exceeds the threshold of $[details.temperatureThreshold]."
+}
+```
+
+**Outgoing `SEND_EMAIL` data**:
+
+```json maxLines=20 collapsible
+{
+  "from": "alarms@yourcompany.com",
+  "to": "example@yourcompany.com",
+  "cc": null,
+  "bcc": null,
+  "subject": "Temperature Sensor - TempSensor-A1: High temperature alarm",
+  "body": "A temperature of 95.5 exceeds the threshold of 90.",
+  "html": false
+}
+```
+
+Subject substituted `${deviceType}` and `${deviceName}` from metadata; body substituted `$[details.temperatureValue]` and `$[details.temperatureThreshold]` from data.
+
+## JSON schema
+
+```json maxLines=30 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbMsgToEmailNodeConfiguration",
+  "type": "object",
+  "required": ["fromTemplate", "toTemplate", "subjectTemplate", "bodyTemplate", "mailBodyType"],
+  "additionalProperties": false,
+  "properties": {
+    "fromTemplate": { "type": "string" },
+    "toTemplate": { "type": "string" },
+    "ccTemplate": { "type": "string" },
+    "bccTemplate": { "type": "string" },
+    "subjectTemplate": { "type": "string" },
+    "bodyTemplate": { "type": "string" },
+    "mailBodyType": { "type": "string", "enum": ["false", "true", "dynamic"] },
+    "isHtmlTemplate": { "type": "string", "description": "Template for dynamic body type; resolves to 'true' or 'false'." }
+  }
+}
+```

@@ -1,1 +1,253 @@
-{/* TODO: Add content */}
+import DocLink from '@components/DocLink.astro';
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+export const PEOnly = () => (
+  <span style="display:inline-block;background:#3b82f6;color:white;padding:2px 10px;border-radius:999px;font-size:0.75em;font-weight:600;white-space:nowrap">PE / Cloud only</span>
+);
+
+The Rule Engine is the data processing backbone of ThingsBoard. Every incoming telemetry reading,
+attribute update, device lifecycle event, or RPC call becomes a **Message** that flows through a
+**Rule Chain** — a visual pipeline of **Rule Nodes** that filter, enrich, transform, or act on it.
+
+```plaintext
+  Device / API / Lifecycle event
+          │
+          ▼
+  ┌───────────────┐       ┌────────────────────────────────────────────────────┐
+  │    Message    │──────▶│                  Root Rule Chain                   │
+  │               │       │                                                    │
+  │  • type       │       │  ┌──────────────┐  True   ┌──────────────────┐    │
+  │  • payload    │       │  │  Filter node │────────▶│  Save Telemetry  │    │
+  │  • metadata   │       │  └──────────────┘         └──────────────────┘    │
+  └───────────────┘       │        │ False                                     │
+                          │        ▼                                           │
+                          │  ┌──────────────┐                                 │
+                          │  │   Log node   │                                 │
+                          │  └──────────────┘                                 │
+                          └────────────────────────────────────────────────────┘
+```
+
+## Message
+
+A Rule Engine Message is an immutable, serializable data structure representing a single event:
+
+| Field | Description |
+|-------|-------------|
+| **Message ID** | Time-based universally unique identifier |
+| **Originator** | The entity that generated the message (Device, Asset, etc.) |
+| **Type** | What triggered the message — e.g. `POST_TELEMETRY_REQUEST`, `INACTIVITY_EVENT` |
+| **Payload** | JSON body with the event data |
+| **Metadata** | Key-value pairs with contextual data (device name, type, custom fields added by nodes) |
+
+For the full list of built-in type strings, originators, metadata fields, and payload shapes, see
+<DocLink product={props.product} path="reference/rule-engine/message-types">Rule Engine Message Types</DocLink>.
+
+## Rule Node
+
+A Rule Node processes one incoming message at a time and produces one or more outgoing messages.
+Nodes are the building blocks of Rule Chains and fall into seven categories — see
+<DocLink product={props.product} path="user-guide/rule-nodes">Rule Nodes</DocLink> for the full reference.
+
+## Rule Chain
+
+A Rule Chain is a directed graph of Rule Nodes connected by **relations**. When a node produces
+an outgoing message, the relation type (e.g. `Success`, `Failure`, `True`, `False`, or a custom
+name) determines which connected nodes receive it next.
+
+```plaintext
+  ┌─────────────────────┐  Post Telemetry  ┌─────────────────────┐
+  │  Message Type       │─────────────────▶│  Script Filter      │──▶ True ──▶ Save Telemetry
+  │  Switch             │                  └─────────────────────┘
+  └─────────────────────┘                         │ False
+                                                  ▼
+                                           ┌─────────────┐
+                                           │  Log Other  │
+                                           └─────────────┘
+```
+
+The **Root Rule Chain** is the default entry point for all incoming messages. There is exactly
+one Root Rule Chain per tenant at any given time. A tenant administrator can define any number
+of additional chains; both the root and additional chains can forward messages to each other
+using the **Rule Chain** flow node.
+
+**Device profile routing** — a
+<DocLink product={props.product} path="user-guide/device-profiles">Device Profile</DocLink>
+can override routing for all its devices with two settings:
+
+| Setting | Effect |
+|---------|--------|
+| **Default rule chain** | Messages from devices of this profile are routed to the specified chain instead of the Root Rule Chain |
+| **Queue** | Messages from devices of this profile are placed in the specified queue instead of the default **Main** queue |
+
+This lets you isolate processing logic and queue priorities per device type without touching
+the root chain.
+
+<Aside type="note">
+  Root Rule Chain and additional Rule Chains can be created and managed only by **Tenant Administrators**.
+</Aside>
+
+## Message Processing Results
+
+Every message processing attempt ends as **Success**, **Failure**, or **Timeout**:
+
+| Result | When it occurs |
+|--------|----------------|
+| **Success** | The last node in the processing path completes successfully |
+| **Failure** | A node produces a Failure output and no downstream node handles it |
+| **Timeout** | Overall processing time exceeds the configured threshold |
+
+A message is only marked as **Failure** if the failure output is **unhandled**. Connecting a node
+to the Failure relation (e.g. a log or fallback write) means the failure is handled and the
+message can still end as Success:
+
+```plaintext
+  ┌──────────────┐  Success  ┌───────────────────┐
+  │  Transform   │──────────▶│  External System  │──▶ Success (replied within timeout)
+  │  (script)    │           │  (REST API call)  │    Timeout  (no reply before threshold)
+  └──────────────┘           └───────────────────┘
+        │ Failure
+        ▼
+  ┌──────────────┐
+  │  Save to DB  │──▶ Success   ← Transform failure is handled; overall result = Success
+  └──────────────┘
+```
+
+To track success, failure, and timeout counts across all rule chains, use the
+<DocLink product={props.product} path="user-guide/rule-engine/monitoring#statistics">statistics dashboard</DocLink>.
+To investigate why a specific node failed, enable
+<DocLink product={props.product} path="user-guide/rule-engine/monitoring#debug">debug mode</DocLink>
+on that node.
+
+## Managing Rule Chains
+
+### Create a Rule Chain
+
+<Steps>
+1. Go to **Rule Chains** in the left sidebar.
+2. Click the **+** button in the top-right corner.
+3. Enter a name and click **Add**.
+4. Click the rule chain row to open the editor and configure nodes.
+</Steps>
+
+### Export a Rule Chain
+
+<Steps>
+1. Go to **Rule Chains**.
+2. Click the **Export rule chain** icon in the desired row.
+</Steps>
+
+A JSON file is saved to your computer.
+
+### Import a Rule Chain
+
+<Steps>
+1. Go to **Rule Chains**.
+2. Click **+** → **Import rule chain**.
+3. Upload the JSON file and click **Import**.
+</Steps>
+
+<Aside type="note">
+  Imported rule chains are **not** set as Root. If the chain contains **Rule Chain** nodes that
+  reference other chains, update those references before saving.
+</Aside>
+
+### Set a Rule Chain as Root
+
+<Steps>
+1. Go to **Rule Chains**.
+2. Click the flag icon in the desired row and confirm.
+</Steps>
+
+### Delete a Rule Chain
+
+<Steps>
+1. Go to **Rule Chains**.
+2. Click the **Delete** icon in the desired row — or select multiple rows and use **Delete selected**.
+</Steps>
+
+## Configuration
+
+To configure a rule node, double-click it in the Rule Chain editor. The configuration window is
+specific to each node type.
+
+Nodes with TBEL/JS scripts provide a **Test** button. Use it to verify the script with custom
+inputs before deploying:
+
+| Panel | Content |
+|-------|---------|
+| **Top-left** | Message type |
+| **Left** | Message payload |
+| **Right** | Metadata |
+| **Script area** | The TBEL/JS function |
+| **Output** | Execution result |
+
+## Monitoring
+
+ThingsBoard provides a **Statistics** dashboard for tracking throughput, failures, and
+exceptions across all queues, and **Debug** mode for per-node message tracing. See
+<DocLink product={props.product} path="user-guide/rule-engine/monitoring">Rule Engine Monitoring</DocLink>
+for the full reference, including the debug event columns, the two debug modes, and the
+step-by-step troubleshooting workflow.
+
+## Queues
+
+Rule Engine uses message queues to guarantee delivery under load, handle traffic spikes, and
+control the order in which messages are processed. See
+<DocLink product={props.product} path="user-guide/rule-engine/queues">Queues</DocLink> for
+configuration details, submit and retry strategies, and the three built-in queues.
+
+## Custom REST API Calls
+
+<Aside type="note">
+  This feature is available in **ThingsBoard PE** and **ThingsBoard Cloud** only.
+</Aside>
+
+ThingsBoard provides an HTTP API to send custom requests directly to the Rule Engine and return
+the processing result in the response body. Useful for extending the platform API, enriching
+calls with device/asset attributes, or powering custom widgets.
+
+Use the `rule-engine-controller` endpoints from the
+<DocLink product={props.product} path="TODO">REST API reference</DocLink>.
+The entity ID in the request becomes the message originator. If omitted, the calling user entity is used.
+
+## Quick Start: Temperature Validation
+
+A DHT22 sensor reports temperatures between −40 °C and +80 °C. Any reading outside that range
+should be discarded and logged instead of saved.
+
+<Steps>
+1. Go to **Rule Chains** and open the **Root Rule Chain**.
+2. Drag a **Script Filter** node onto the canvas. Enter title **Temperature Validation** and
+   write the script:
+   ```js
+   return typeof temperature === 'undefined' || (temperature >= -40 && temperature <= 80);
+   ```
+   Click **Add**.
+3. Delete the **Post Telemetry** relation between **Message Type Switch** and **Save Timeseries**
+   (hover the connection arrow and click ✕).
+4. Draw a **Post Telemetry** relation from **Message Type Switch** to **Temperature Validation**.
+5. Draw a **True** relation from **Temperature Validation** to **Save Timeseries**.
+6. Draw a **False** relation from **Temperature Validation** to **Log Other**.
+7. Click **Apply changes**.
+</Steps>
+
+**Test — out-of-range value (99 °C):**
+
+```bash
+curl -X POST -d '{"temperature":99}' \
+  http://localhost:8080/api/v1/$ACCESS_TOKEN/telemetry \
+  -H "Content-Type:application/json"
+```
+
+The value does **not** appear in Latest Telemetry — filtered and logged.
+
+**Test — valid value (24 °C):**
+
+```bash
+curl -X POST -d '{"temperature":24}' \
+  http://localhost:8080/api/v1/$ACCESS_TOKEN/telemetry \
+  -H "Content-Type:application/json"
+```
+
+The value appears in Latest Telemetry — saved successfully.
+

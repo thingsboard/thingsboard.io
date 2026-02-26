@@ -77,7 +77,15 @@ const guideItems = (prefix: string) => [
 					{ label: 'Time Series Aggregation', slug: `${prefix}/calculated-fields/time-series-data-aggregation` },
 				],
 			},
-			`${prefix}/rule-engine`,
+			{
+				label: 'Rule Engine',
+				collapsed: true,
+				items: [
+					{ label: 'Overview', slug: `${prefix}/rule-engine` },
+					{ label: 'Queues', slug: `${prefix}/rule-engine/queues` },
+					{ label: 'Monitoring', slug: `${prefix}/rule-engine/monitoring` },
+				],
+			},
 			`${prefix}/rule-nodes`,
 		],
 	},
@@ -86,6 +94,12 @@ const guideItems = (prefix: string) => [
 		collapsed: true,
 		items: [
 			`${prefix}/reporting`,
+			`${prefix}/reporting/getting-started`,
+			`${prefix}/reporting/scheduling`,
+			`${prefix}/reporting/notifications`,
+			`${prefix}/reporting/charts`,
+			`${prefix}/reporting/dashboards`,
+			`${prefix}/reporting/subreports`,
 		],
 	},
 	{
@@ -93,8 +107,9 @@ const guideItems = (prefix: string) => [
 		collapsed: true,
 		items: [
 			`${prefix}/ai-models`,
-			`${prefix}/mcp-server`,
+			`${prefix}/ai-predictive-maintenance`,
 			`${prefix}/local-ai-ollama`,
+			`${prefix}/mcp-server`,
 			`${prefix}/n8n-node`,
 		],
 	},
@@ -121,7 +136,9 @@ const guideItems = (prefix: string) => [
 		label: 'Mobile App Center',
 		collapsed: true,
 		items: [
-			`${prefix}/mobile-app-center`,
+			{ label: 'Overview', slug: `${prefix}/mobile-app-center` },
+			{ label: 'Applications', slug: `${prefix}/mobile-app-center/applications` },
+			{ label: 'QR Code Widget', slug: `${prefix}/mobile-app-center/qr-code-widget` },
 		],
 	},
 	{
@@ -138,6 +155,7 @@ const guideItems = (prefix: string) => [
 		collapsed: true,
 		items: [
 			`${prefix}/security`,
+			`${prefix}/security/api-keys`
 		],
 	},
 	{
@@ -176,6 +194,16 @@ const recipeItems = (prefix: string) => [
 
 const referenceItems = (prefix: string) => [
 	`${prefix}/configuration-reference`,
+	{
+		label: 'Widgets',
+		collapsed: true,
+		items: [
+			`${prefix}/widgets/chart-widget`,
+			`${prefix}/widgets/map-widgets`,
+			`${prefix}/widgets/entity-table-widget`,
+			`${prefix}/widgets/markdown-html-card`,
+		],
+	},
 	{
 		label: 'Device API',
 		collapsed: true,
@@ -240,6 +268,151 @@ const referenceItems = (prefix: string) => [
 			`${prefix}/gateway-api/claiming`,
 		],
 	},
+	{
+		label: 'Rule Engine',
+		collapsed: true,
+		items: [
+			`${prefix}/rule-engine/message-types`,
+			`${prefix}/rule-engine/templatization`,
+			{
+				label: 'Rule Nodes',
+				collapsed: true,
+				items: [
+					{
+						label: 'Filter',
+						collapsed: true,
+						items: [
+							`${prefix}/rule-engine/nodes/filter/alarm-status-filter`,
+							`${prefix}/rule-engine/nodes/filter/asset-profile-switch`,
+							`${prefix}/rule-engine/nodes/filter/check-fields-presence`,
+							`${prefix}/rule-engine/nodes/filter/check-relation-presence`,
+							`${prefix}/rule-engine/nodes/filter/device-profile-switch`,
+							`${prefix}/rule-engine/nodes/filter/entity-type-filter`,
+							`${prefix}/rule-engine/nodes/filter/entity-type-switch`,
+							`${prefix}/rule-engine/nodes/filter/gps-geofencing-filter`,
+							`${prefix}/rule-engine/nodes/filter/message-type-filter`,
+							`${prefix}/rule-engine/nodes/filter/message-type-switch`,
+							`${prefix}/rule-engine/nodes/filter/script`,
+							`${prefix}/rule-engine/nodes/filter/switch`,
+						],
+					},
+					{
+						label: 'Enrichment',
+						collapsed: true,
+						items: [
+							`${prefix}/rule-engine/nodes/enrichment/calculate-delta`,
+							`${prefix}/rule-engine/nodes/enrichment/customer-attributes`,
+							`${prefix}/rule-engine/nodes/enrichment/customer-details`,
+							`${prefix}/rule-engine/nodes/enrichment/fetch-device-credentials`,
+							`${prefix}/rule-engine/nodes/enrichment/originator-attributes`,
+							`${prefix}/rule-engine/nodes/enrichment/originator-fields`,
+							`${prefix}/rule-engine/nodes/enrichment/originator-telemetry`,
+							`${prefix}/rule-engine/nodes/enrichment/related-device-attributes`,
+							`${prefix}/rule-engine/nodes/enrichment/related-entity-data`,
+							`${prefix}/rule-engine/nodes/enrichment/tenant-attributes`,
+							`${prefix}/rule-engine/nodes/enrichment/tenant-details`,
+						],
+					},
+					{
+						label: 'Transformation',
+						collapsed: true,
+						items: [
+							`${prefix}/rule-engine/nodes/transformation/change-originator`,
+							`${prefix}/rule-engine/nodes/transformation/copy-key-value-pairs`,
+							`${prefix}/rule-engine/nodes/transformation/deduplication`,
+							`${prefix}/rule-engine/nodes/transformation/delete-key-value-pairs`,
+							`${prefix}/rule-engine/nodes/transformation/duplicate-to-group`,
+							`${prefix}/rule-engine/nodes/transformation/duplicate-to-group-by-name`,
+							`${prefix}/rule-engine/nodes/transformation/duplicate-to-related`,
+							`${prefix}/rule-engine/nodes/transformation/json-path`,
+							`${prefix}/rule-engine/nodes/transformation/rename-keys`,
+							`${prefix}/rule-engine/nodes/transformation/script`,
+							`${prefix}/rule-engine/nodes/transformation/split-array-msg`,
+							`${prefix}/rule-engine/nodes/transformation/to-email`,
+						],
+					},
+					{
+						label: 'Action',
+						collapsed: true,
+						items: [
+							`${prefix}/rule-engine/nodes/action/add-to-group`,
+							`${prefix}/rule-engine/nodes/action/assign-to-customer`,
+							`${prefix}/rule-engine/nodes/action/calculated-fields`,
+							`${prefix}/rule-engine/nodes/action/change-owner`,
+							`${prefix}/rule-engine/nodes/action/clear-alarm`,
+							`${prefix}/rule-engine/nodes/action/copy-to-view`,
+							`${prefix}/rule-engine/nodes/action/create-alarm`,
+							`${prefix}/rule-engine/nodes/action/create-relation`,
+							`${prefix}/rule-engine/nodes/action/delay`,
+							`${prefix}/rule-engine/nodes/action/delete-attributes`,
+							`${prefix}/rule-engine/nodes/action/delete-relation`,
+							`${prefix}/rule-engine/nodes/action/device-profile`,
+							`${prefix}/rule-engine/nodes/action/device-state`,
+							`${prefix}/rule-engine/nodes/action/generate-dashboard-report`,
+							`${prefix}/rule-engine/nodes/action/generate-report`,
+							`${prefix}/rule-engine/nodes/action/generator`,
+							`${prefix}/rule-engine/nodes/action/gps-geofencing-events`,
+							`${prefix}/rule-engine/nodes/action/integration-downlink`,
+							`${prefix}/rule-engine/nodes/action/log`,
+							`${prefix}/rule-engine/nodes/action/math-function`,
+							`${prefix}/rule-engine/nodes/action/message-count`,
+							`${prefix}/rule-engine/nodes/action/push-to-cloud`,
+							`${prefix}/rule-engine/nodes/action/push-to-edge`,
+							`${prefix}/rule-engine/nodes/action/remove-from-group`,
+							`${prefix}/rule-engine/nodes/action/rest-call-reply`,
+							`${prefix}/rule-engine/nodes/action/rpc-call-reply`,
+							`${prefix}/rule-engine/nodes/action/rpc-call-request`,
+							`${prefix}/rule-engine/nodes/action/save-attributes`,
+							`${prefix}/rule-engine/nodes/action/save-timeseries`,
+							`${prefix}/rule-engine/nodes/action/save-to-custom-table`,
+							`${prefix}/rule-engine/nodes/action/unassign-from-customer`,
+						],
+					},
+					{
+						label: 'External',
+						collapsed: true,
+						items: [
+							`${prefix}/rule-engine/nodes/external/ai-request`,
+							`${prefix}/rule-engine/nodes/external/aws-lambda`,
+							`${prefix}/rule-engine/nodes/external/aws-sns`,
+							`${prefix}/rule-engine/nodes/external/aws-sqs`,
+							`${prefix}/rule-engine/nodes/external/azure-iot-hub`,
+							`${prefix}/rule-engine/nodes/external/gcp-pubsub`,
+							`${prefix}/rule-engine/nodes/external/kafka`,
+							`${prefix}/rule-engine/nodes/external/mqtt`,
+							`${prefix}/rule-engine/nodes/external/rabbitmq`,
+							`${prefix}/rule-engine/nodes/external/rest-api-call`,
+							`${prefix}/rule-engine/nodes/external/send-email`,
+							`${prefix}/rule-engine/nodes/external/send-notification`,
+							`${prefix}/rule-engine/nodes/external/send-sms`,
+							`${prefix}/rule-engine/nodes/external/send-to-slack`,
+							`${prefix}/rule-engine/nodes/external/twilio-sms`,
+							`${prefix}/rule-engine/nodes/external/twilio-voice`,
+						],
+					},
+					{
+						label: 'Flow',
+						collapsed: true,
+						items: [
+							`${prefix}/rule-engine/nodes/flow/acknowledge`,
+							`${prefix}/rule-engine/nodes/flow/checkpoint`,
+							`${prefix}/rule-engine/nodes/flow/output`,
+							`${prefix}/rule-engine/nodes/flow/rule-chain`,
+						],
+					},
+					{
+						label: 'Analytics',
+						collapsed: true,
+						items: [
+							`${prefix}/rule-engine/nodes/analytics/aggregate-latest`,
+							`${prefix}/rule-engine/nodes/analytics/aggregate-stream`,
+							`${prefix}/rule-engine/nodes/analytics/alarms-count`,
+						],
+					},
+				],
+			},
+		],
+	},
 ];
 
 export const opensourceSidebar: SidebarConfig = [
@@ -263,7 +436,7 @@ export const opensourceSidebar: SidebarConfig = [
 					'docs/concepts/multi-tenancy',
 					'docs/concepts/digital-twin-model',
 					'docs/concepts/data-processing',
-					'docs/concepts/alerts-and-notifications',
+					'docs/concepts/alarms-and-notifications',
 					'docs/concepts/data-visualization'
 				]
 			}
@@ -311,7 +484,7 @@ export const peSidebar: SidebarConfig = [
 					'docs/pe/concepts/multi-tenancy',
 					'docs/pe/concepts/digital-twin-model',
 					'docs/pe/concepts/data-processing',
-					'docs/pe/concepts/alerts-and-notifications',
+					'docs/pe/concepts/alarms-and-notifications',
 					'docs/pe/concepts/data-visualization'
 				],
 			}
@@ -327,7 +500,20 @@ export const peSidebar: SidebarConfig = [
 		label: 'Recipes',
 		collapsed: true,
 		translations: { uk: 'Рецепти' },
-		items: recipeItems('docs/pe/recipes'),
+		items: [
+			...recipeItems('docs/pe/recipes'),
+			{
+				label: 'Access Control',
+				collapsed: true,
+				items: [
+					'docs/pe/recipes/rbac-read-only-analyst',
+					'docs/pe/recipes/rbac-customer-scoped-access',
+					'docs/pe/recipes/rbac-generic-role-scope',
+					'docs/pe/recipes/rbac-isolated-device-groups',
+					'docs/pe/recipes/rbac-smart-buildings',
+				],
+			},
+		],
 	},
 	{
 		label: 'Reference',

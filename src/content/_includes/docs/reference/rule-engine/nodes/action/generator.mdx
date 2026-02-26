@@ -1,0 +1,126 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to produce messages on a configurable schedule — for example, periodically polling a device's current state, injecting synthetic test messages into a rule chain for load testing, or triggering a scheduled report by generating a message at a fixed interval.
+
+## Configuration
+
+- **Generated messages limit** — number of messages to generate before the node stops. `0` = unlimited.
+- **Generation frequency in seconds** — interval between successive message generations.
+- **Originator** — the entity that will appear as the originator of each generated message. The available types are: `Device`, `Asset`, `Entity View`, `Current Tenant`, `Customer`, `User`, `Dashboard`, `Edge`, `Current Rule Node`, `Converter`, `Integration`, `Scheduler Event`, `Blob Entity`, `Role`, `Entity Group`. For `Current Tenant` and `Current Rule Node`, no further selection is required. For `Entity Group`, a group owner, entity type, and group must be selected. For all other types, a specific entity must be chosen.
+- **Queue** — queue in which generated messages are placed. Default: `Main`.
+
+### Generator script
+
+The generator script runs before each message is created. It receives three implicit arguments:
+
+| Argument | Description |
+|---|---|
+| `prevMsg` | Data of the previously generated message (`{}` on first run) |
+| `prevMetadata` | Metadata of the previously generated message (`{}` on first run) |
+| `prevMsgType` | Type of the previously generated message (`""` on first run) |
+
+The script must return an object with exactly these keys:
+
+```js maxLines=10 collapsible
+{
+  msg:      { /* JSON object — message data */ },
+  metadata: { /* key-value pairs — message metadata */ },
+  msgType:  "POST_TELEMETRY_REQUEST" /* message type string */
+}
+```
+
+<Aside type="note">
+  Scripts run in a sandboxed environment. Importing or calling external libraries is not supported — all logic must be self-contained within the script body.
+</Aside>
+
+## Message processing algorithm
+
+1. On the configured schedule, a `GENERATOR_NODE_SELF_MSG` internal tick arrives.
+2. Execute the generator script, passing the previous message's data, metadata, and type.
+3. Build a new message with the configured originator and the values returned by the script.
+4. Place the new message in the configured queue and route via `Success`.
+5. Schedule the next tick. If the message limit has been reached, stop scheduling.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Message generated and forwarded. |
+| `Failure` | Generator script throws an exception or returns an invalid value. |
+
+## Examples
+
+### Example 1 — Fixed periodic telemetry
+
+Generates a simulated temperature reading every 10 seconds, indefinitely.
+
+```js maxLines=20 collapsible
+var msg = { temperature: 22.5, humidity: 60 };
+var metadata = { source: "simulator" };
+var msgType = "POST_TELEMETRY_REQUEST";
+return { msg: msg, metadata: metadata, msgType: msgType };
+```
+
+```json maxLines=15 collapsible
+{
+  "msgCount": 0,
+  "periodInSeconds": 10,
+  "originatorType": "DEVICE",
+  "scriptLang": "TBEL"
+}
+```
+
+**Result**: every 10 seconds a `POST_TELEMETRY_REQUEST` message with `{ "temperature": 22.5, "humidity": 60 }` is forwarded via `Success`.
+
+---
+
+### Example 2 — Incrementing counter
+
+```js maxLines=20 collapsible
+var counter = prevMsg.counter !== undefined ? prevMsg.counter + 1 : 1;
+var msg = { counter: counter };
+var metadata = {};
+var msgType = "POST_TELEMETRY_REQUEST";
+return { msg: msg, metadata: metadata, msgType: msgType };
+```
+
+**Result**: each generated message contains a counter that increments from the previous value, producing a sequence `1, 2, 3, …`.
+
+---
+
+### Example 3 — Generate exactly 5 messages
+
+```json maxLines=15 collapsible
+{
+  "msgCount": 5,
+  "periodInSeconds": 2,
+  "originatorType": "DEVICE",
+  "scriptLang": "TBEL"
+}
+```
+
+**Result**: five messages generated at 2-second intervals; node stops after the fifth.
+
+## JSON schema
+
+```json maxLines=25 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbMsgGeneratorNodeConfiguration",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "msgCount": { "type": "integer", "description": "Max messages to generate; 0 = unlimited." },
+    "periodInSeconds": { "type": "integer", "description": "Interval between messages (seconds)." },
+    "originatorId": { "type": "string", "description": "UUID of the originator entity." },
+    "originatorType": {
+      "type": "string",
+      "enum": ["DEVICE","ASSET","ENTITY_VIEW","TENANT","CUSTOMER","USER","DASHBOARD","EDGE","RULE_NODE","CONVERTER","INTEGRATION","SCHEDULER_EVENT","BLOB_ENTITY","ROLE","ENTITY_GROUP"]
+    },
+    "scriptLang": { "type": "string", "enum": ["TBEL","JS"] },
+    "jsScript": { "type": "string" },
+    "tbelScript": { "type": "string" }
+  }
+}
+```

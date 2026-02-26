@@ -1,0 +1,127 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to pull attributes, latest telemetry, or entity fields from a related entity and add them to the message — for example, adding the `location` attribute of a parent building asset to a device telemetry message, or adding the latest `batteryLevel` reading from a managed sensor to a gateway health check message. The source-to-target key mapping supports <DocLink product={props.product} path="reference/rule-engine/templatization">templatization</DocLink>.
+
+## Configuration
+
+### Relations query
+
+Defines how to find the related entity starting from the message originator:
+
+- **Direction** — `From originator` or `To originator`.
+- **Max relation level** — maximum depth to traverse (e.g., `1` for directly related entities only).
+- **Relation filters** — a list of criteria, each with:
+  - **Relation type** — type of relation to match (e.g., `Contains`).
+  - **Entity types** — entity types to accept (e.g., `ASSET`, `DEVICE`). Empty = any type.
+
+If multiple entities match the query, only the **first** result is used.
+
+### Data to fetch
+
+- `ATTRIBUTES` — fetches server-side attributes.
+- `LATEST_TELEMETRY` — fetches the latest time-series values.
+- `FIELDS` — fetches entity object fields (`Name`, `Profile name`, `Label`, `Created time`).
+
+### Data mapping
+
+A key→value map where:
+- **Key** — the source attribute key, telemetry key, or field name on the related entity. Supports `${metadata.key}` and `${data.key}` templatization.
+- **Value** — the target key name to add to the message. Also supports templatization.
+
+Missing source keys are silently ignored.
+
+### Add mapped data to
+
+- `Message` — adds to message data payload (must be a valid JSON object).
+- `Metadata` — adds to message metadata.
+
+## Message processing algorithm
+
+1. Execute the Relations query starting from the originator.
+2. If no related entity is found, route via `Failure`.
+3. If multiple entities are found, use only the first result.
+4. Asynchronously fetch the data specified by the mapping using the configured `dataToFetch` mode.
+5. Apply source-to-target key mapping, resolving any templates.
+6. Missing source keys are silently skipped.
+7. Add the resulting key-value pairs to message data or metadata.
+8. Route via `Success`.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Message enriched with data from the related entity. |
+| `Failure` | No related entity found, or an unexpected error occurred. |
+
+## Examples
+
+### Example 1 — Add building location to device telemetry metadata
+
+**Originator**: device `Thermostat-A7`
+
+```json maxLines=25 collapsible
+{
+  "relationsQuery": {
+    "direction": "TO",
+    "maxLevel": 1,
+    "filters": [{ "relationType": "Contains", "entityTypes": ["ASSET"] }]
+  },
+  "fetchTo": "METADATA",
+  "dataToFetch": "ATTRIBUTES",
+  "dataMapping": { "location": "buildingLocation" }
+}
+```
+
+**State**: asset `Building-1` has a `Contains` relation to `Thermostat-A7` and a server attribute `location` = `{"city": "Kyiv"}`.
+
+**Outgoing metadata** (added): `{ "buildingLocation": "{\"city\": \"Kyiv\"}" }`
+
+---
+
+### Example 2 — Add sensor telemetry to gateway health check data
+
+**Originator**: device `Main-Gateway`
+
+```json maxLines=25 collapsible
+{
+  "relationsQuery": {
+    "direction": "FROM",
+    "maxLevel": 1,
+    "filters": [{ "relationType": "Manages", "entityTypes": ["DEVICE"] }]
+  },
+  "fetchTo": "DATA",
+  "dataToFetch": "LATEST_TELEMETRY",
+  "dataMapping": { "batteryLevel": "sensor_battery" }
+}
+```
+
+**State**: `Main-Gateway` manages `Battery-Sensor-1`, which has latest telemetry `batteryLevel = 87`.
+
+**Outgoing data** (merged): `{ "status": "OK", "uptime": 7200, "sensor_battery": 87 }`
+
+## JSON schema
+
+```json maxLines=30 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbGetRelatedDataNodeConfiguration",
+  "type": "object",
+  "required": ["relationsQuery", "dataToFetch", "dataMapping", "fetchTo"],
+  "additionalProperties": false,
+  "properties": {
+    "relationsQuery": { "type": "object", "description": "Configuration for finding a related entity." },
+    "dataToFetch": {
+      "type": "string",
+      "enum": ["ATTRIBUTES", "LATEST_TELEMETRY", "FIELDS"],
+      "description": "The type of data to fetch from the related entity."
+    },
+    "dataMapping": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Map of source key on related entity to target key in message."
+    },
+    "fetchTo": { "type": "string", "enum": ["DATA", "METADATA"] }
+  }
+}
+```

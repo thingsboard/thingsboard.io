@@ -1,0 +1,141 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to branch alarm-processing logic based on the current alarm status. For example, after an alarm event arrives you can check whether the alarm is still active and unacknowledged before sending a notification, or skip cleared alarms from triggering further actions.
+
+<Aside type="note">
+  The node always fetches the **current** alarm status from the database — the `status` field in the incoming message payload is ignored for routing. This prevents stale status values from causing incorrect routing.
+</Aside>
+
+## Configuration
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| **Alarm status** | Yes | One or more alarm statuses to match against. If the fetched alarm's status matches any, route via `True`; otherwise via `False`. |
+
+Available statuses:
+
+| Value | Label |
+|-------|-------|
+| `ACTIVE_UNACK` | Active Unacknowledged |
+| `ACTIVE_ACK` | Active Acknowledged |
+| `CLEARED_UNACK` | Cleared Unacknowledged |
+| `CLEARED_ACK` | Cleared Acknowledged |
+
+## Message processing algorithm
+
+1. Parse the incoming message data as a ThingsBoard alarm object and extract the alarm ID. The object must contain an `id.id` field with a valid alarm UUID.
+2. Fetch the alarm from the database by ID to get the current status.
+   - If no alarm with that ID exists, route via `Failure`.
+3. Compare the fetched status against the configured set:
+   - Matches → route via `True`.
+   - Does not match → route via `False`.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `True` | Alarm found and its **fetched** status matches the configured set. |
+| `False` | Alarm found but its **fetched** status does not match. |
+| `Failure` | Message data cannot be parsed as an alarm, the alarm ID is missing, the alarm was not found, or an unexpected error occurred. |
+
+## Examples
+
+### Example 1 — Status matches → `True`
+
+**Incoming data**: `{ "id": { "entityType": "ALARM", "id": "c0d5c904-..." } }`
+
+```json maxLines=10 collapsible
+{ "alarmStatusList": ["ACTIVE_UNACK"] }
+```
+
+**State**: alarm exists with status `ACTIVE_UNACK`.
+
+**Result**: **`True`**.
+
+---
+
+### Example 2 — Status does not match → `False`
+
+```json maxLines=10 collapsible
+{ "alarmStatusList": ["ACTIVE_ACK"] }
+```
+
+**State**: alarm exists with status `ACTIVE_UNACK`.
+
+**Result**: **`False`** — `ACTIVE_UNACK` is not in the configured set.
+
+---
+
+### Example 3 — Cleared Acknowledged allowed → `True`
+
+```json maxLines=10 collapsible
+{ "alarmStatusList": ["CLEARED_ACK"] }
+```
+
+**State**: alarm exists with status `CLEARED_ACK`.
+
+**Result**: **`True`**.
+
+---
+
+### Example 4 — Alarm not found → `Failure`
+
+**State**: no alarm with the given ID exists.
+
+**Result**: **`Failure`**.
+
+---
+
+### Example 5 — Missing alarm ID → `Failure`
+
+**Incoming data**: `{ "type": "Overheating" }` (no `id` field)
+
+**Result**: **`Failure`** — alarm ID is required.
+
+---
+
+### Example 6 — Non-alarm payload → `Failure`
+
+**Incoming data**: `{ "notAnAlarm": true }`
+
+**Result**: **`Failure`** — cannot be parsed as an alarm.
+
+---
+
+### Example 7 — Incoming `status` field differs from database (database wins) → `False`
+
+**Incoming data**: `{ "id": { ... }, "status": "ACTIVE_ACK" }`
+
+```json maxLines=10 collapsible
+{ "alarmStatusList": ["ACTIVE_ACK"] }
+```
+
+**State**: alarm exists with status `CLEARED_UNACK`.
+
+**Result**: **`False`** — routing uses the **fetched** status (`CLEARED_UNACK`), not the field in the payload.
+
+## JSON schema
+
+```json maxLines=25 collapsible
+{
+  "$schema": "https://json-schema.org/2020-12/schema",
+  "title": "TbCheckAlarmStatusNodeConfig",
+  "type": "object",
+  "required": ["alarmStatusList"],
+  "additionalProperties": false,
+  "properties": {
+    "alarmStatusList": {
+      "type": "array",
+      "description": "Non-empty set of unique alarm statuses to check against.",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": ["ACTIVE_UNACK", "ACTIVE_ACK", "CLEARED_UNACK", "CLEARED_ACK"]
+      },
+      "default": ["ACTIVE_ACK", "ACTIVE_UNACK"]
+    }
+  }
+}
+```

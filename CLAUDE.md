@@ -119,6 +119,54 @@ import ImageGallery from '~/components/ImageGallery.astro';
 )}
 ```
 
+### MultiProductImageGallery Component
+
+`src/components/MultiProductImageGallery.astro` — thin wrapper around `ImageGallery` that automatically appends a product suffix (`-ce`, `-pe`, `-paas`, etc.) to each image `src` before the file extension.
+
+**When to use:** Any time the same screenshot set exists for multiple products with identical alt text and captions, differing only by a `-ce`/`-pe`/`-paas` filename suffix. Replaces duplicated `{props.product === Products.CE && (...)}` / `{props.product === Products.PE && (...)}` blocks.
+
+**Props:**
+
+```ts
+interface ImageItem {
+  src: string;           // Base path WITHOUT product suffix, e.g. /src/assets/images/guide/step-1.png
+  alt: string;           // Required alt text
+  caption?: string;      // Optional caption
+  products?: Products[]; // If set, include this image only for the listed products
+}
+
+interface Props {
+  images: ImageItem[];
+  product: Products;     // Current product — determines the suffix
+}
+```
+
+**Suffix mapping:** CE → `-ce`, PE → `-pe`, PASS → `-paas`, PASS_EU → `-paas-eu`, EDGE → `-edge`, EDGE_PE → `-edge-pe`, GW → `-gw`, TRENDZ → `-trendz`, MOBILE → `-mobile`, MOBILE_PE → `-mobile-pe`, TBMQ → `-tbmq`, TBMQ_PE → `-tbmq-pe`, LICENSE → `-license`.
+
+**Example:** `src="/src/assets/images/guide/step-1.png"` with `product=PE` resolves to `/src/assets/images/guide/step-1-pe.png`.
+
+**Usage in MDX (include files):**
+
+```mdx
+import MultiProductImageGallery from '~/components/MultiProductImageGallery.astro';
+import { Products } from '~/models/site.models';
+
+{/* All images shared across products — same alt/caption, auto-suffixed src */}
+<MultiProductImageGallery product={props.product} images={[
+  { src: '/src/assets/images/guide/step-1.png', alt: 'Step 1', caption: 'First step.' },
+  { src: '/src/assets/images/guide/step-2.png', alt: 'Step 2', caption: 'Second step.' },
+]} />
+
+{/* Mixed: shared images + product-specific images */}
+<MultiProductImageGallery product={props.product} images={[
+  { src: '/src/assets/images/guide/step-1.png', alt: 'Step 1', caption: 'Shared step.' },
+  { src: '/src/assets/images/guide/step-2-ce-only.png', alt: 'CE result', caption: 'CE only.', products: [Products.CE] },
+  { src: '/src/assets/images/guide/step-2-pe-only.png', alt: 'PE result', caption: 'PE only.', products: [Products.PE] },
+]} />
+```
+
+**Important:** The actual image files on disk must include the product suffix (e.g., `step-1-ce.png`, `step-1-pe.png`). The `src` prop in MDX is the base name without the suffix.
+
 ### DocImage Component
 
 `src/components/DocImage.astro` — single optimized image with optional width and alignment.
@@ -173,6 +221,72 @@ import DocImage from '~/components/DocImage.astro';
 ```
 
 Images inside `.doc-image-row` share equal width (`flex: 1`) and stack vertically on screens ≤640px. The `.doc-image-row` styles are defined inside `DocImage.astro` via `:global()` and are available on any page that renders a `DocImage`.
+
+### Badge Component & tb-badge
+
+`src/components/Badge.astro` — thin wrapper around Starlight's `<Badge>` with custom styles.
+
+#### tb-badge
+
+A text-only accent badge: no border, no background, `--sl-color-text-accent` color, `font-weight: 600`, `vertical-align: top`.
+
+**Styles defined in** `src/components/Badge.astro` via `<style is:global>`:
+
+| Class | Size |
+|-------|------|
+| `.tb-badge` (default, `size="small"`) | 0.75rem (12px) |
+| `.tb-badge` + `size="medium"` | 0.875rem (14px) |
+
+**Usage in MDX:**
+
+```mdx
+import Badge from '~/components/Badge.astro';
+
+{/* 12px — default */}
+<Badge text="NEW" class="tb-badge" />
+
+{/* 14px */}
+<Badge text="NEW" class="tb-badge" size="medium" />
+```
+
+**Active sidebar item** — when the parent link has `aria-current="page"`, `.tb-badge` inherits the link's text color (avoids invisible badge on accent background).
+
+#### Where to configure the badge
+
+| Goal | Where to configure |
+|------|--------------------|
+| Badge **only in sidebar** (link or group) | `astro.sidebar.ts` only |
+| Badge **on page title AND sidebar** | page frontmatter `sidebar.badge` only |
+
+**Sidebar only** — configure in `astro.sidebar.ts`, do NOT add `sidebar.badge` to the page frontmatter:
+
+```ts
+// single page link
+{ slug: 'docs/concepts/data-visualization', badge: { text: 'NEW', class: 'tb-badge' } }
+
+// group label
+{
+  label: 'Key concepts',
+  badge: { text: 'NEW', class: 'tb-badge' },
+  items: [...],
+}
+```
+
+**Page title + sidebar** — add `sidebar.badge` to the page frontmatter. The custom `PageTitle.astro` reads this field and renders the badge next to `<h1>` at `size="medium"`. No changes to `astro.sidebar.ts` needed — Starlight automatically picks up `sidebar.badge` from frontmatter and shows it on the sidebar link too:
+
+```yaml
+---
+title: My Page
+sidebar:
+  badge:
+    text: NEW
+    class: tb-badge
+---
+```
+
+- `text` — badge label (required)
+- `variant` — `default` | `note` | `tip` | `caution` | `danger` | `success` (optional, default: `default`)
+- `class` — CSS class, use `tb-badge` for the text-only style
 
 ### YouTubeVideo Component
 
@@ -354,8 +468,8 @@ All product identifiers live in `src/models/site.models.ts` as the `Products` en
 |---------------|------------------------|----------------------|-------------------------------|
 | `CE`          | Community Edition      | *(empty)*            | Default/root product          |
 | `PE`          | Professional Edition   | `pe/`                | Main product list             |
-| `PASS`        | Cloud                  | `paas/`              | Has sub-variant PASS_EU       |
-| `PASS_EU`     | Cloud (EU)             | `paas/eu/`           | Sub-variant of PASS           |
+| `PAAS`        | Cloud                  | `paas/`              | Has sub-variant PAAS_EU       |
+| `PAAS_EU`     | Cloud (EU)             | `paas/eu/`           | Sub-variant of PAAS           |
 | `EDGE`        | Edge                   | `edge/`              | Has sub-variant EDGE_PE       |
 | `EDGE_PE`     | Edge Professional      | `edge/pe/`           | Sub-variant of EDGE           |
 | `TRENDZ`      | Trendz Analytics       | `trendz/`            | Main product list             |
@@ -366,9 +480,9 @@ All product identifiers live in `src/models/site.models.ts` as the `Products` en
 | `MOBILE_PE`   | Mobile PE              | `mobile/pe/`         | Sub-variant of MOBILE         |
 | `LICENSE`     | License Server         | `license-server/`    | Main product list             |
 
-**Main product list** (shown in the primary switcher dropdown): CE, PE, PASS, EDGE, TRENDZ, GW, TBMQ, MOBILE, LICENSE.
+**Main product list** (shown in the primary switcher dropdown): CE, PE, PAAS, EDGE, TRENDZ, GW, TBMQ, MOBILE, LICENSE.
 
-**Sub-variants** (shown in a secondary dropdown when a parent is selected): PASS_EU, EDGE_PE, MOBILE_PE, TBMQ_PE.
+**Sub-variants** (shown in a secondary dropdown when a parent is selected): PAAS_EU, EDGE_PE, MOBILE_PE, TBMQ_PE.
 
 #### URL Structure
 
@@ -432,6 +546,16 @@ The CE page would be identical but pass `product={Products.CE}`.
 
 **Rules for _includes:**
 - Never use markdown tables inside `{...}` JSX expressions — use HTML `<table>` instead (MDX parses markdown only inside JSX angle-bracket tags, not curly braces)
+- Never use `<Steps>` with a markdown numbered list inside `{...}` JSX expressions (e.g. `{condition && (<>...<Steps>1. item</Steps>...</>)}`). Inside `{...}`, markdown lists are not compiled to `<ol>` and `<Steps>` receives no child elements, causing a build error. Use explicit `<ol>/<li>` HTML instead:
+  ```mdx
+  <Steps>
+    <ol>
+      <li>First step.</li>
+      <li>Second step.</li>
+    </ol>
+  </Steps>
+  ```
+  Outside of `{...}` JSX expressions (top-level or inside `<ComponentTag>` children), `<Steps>` with a markdown numbered list works normally.
 - Use `props.product` (not `Astro.props`) inside include files since they receive props as a component
 - Conditional blocks: `{props.product === Products.PE && (<>...</>)}` or ternary `{props.product === Products.CE ? <A/> : <B/>}`
 

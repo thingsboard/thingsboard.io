@@ -1,0 +1,101 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="note">
+  This node requires **ThingsBoard PE** or **ThingsBoard Cloud**.
+</Aside>
+
+Use this node to remove the message originator from an entity group — for example, removing a device from the `Active devices` group when it goes offline, or revoking access by removing a user from a group that governs dashboard visibility.
+
+## Configuration
+
+- **Group name pattern** — required. Name of the target entity group. Supports <DocLink product={props.product} path="reference/rule-engine/templatization">templatization</DocLink> — use `${metadataKey}` and `$[dataKey]` to resolve dynamically.
+- **Groups cache expiration time (sec)** — how long group lookups are cached. `0` = never expire. Caching reduces database calls for high-throughput flows.
+
+## Message processing algorithm
+
+1. Identify the owner of the message originator (tenant or customer).
+2. Resolve the group name pattern from message data and metadata.
+3. Search for an entity group matching the resolved name, entity type, and owner.
+4. If the group is not found, route via `Failure`.
+5. If the originator is a member of the group, remove it (the special `All` group is never modified).
+6. If the originator is not a member, treat this as success (idempotent).
+7. Route via `Success`.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Entity removed from the group (or was already not a member). |
+| `Failure` | Group not found, unsupported entity type, ownership mismatch, or unexpected error. |
+
+## Examples
+
+### Example 1 — Remove device from a named group
+
+**State**: device is a member of `My device group` (tenant-owned).
+
+```json maxLines=10 collapsible
+{
+  "groupNamePattern": "My device group",
+  "groupCacheExpiration": 300
+}
+```
+
+**Result**: device removed from `My device group`. Routes via `Success`.
+
+---
+
+### Example 2 — Dynamic group name from message data
+
+**Data**: `{ "location": "Warehouse" }` | **State**: group `Warehouse devices` exists under the tenant.
+
+```json maxLines=10 collapsible
+{
+  "groupNamePattern": "$[location] devices",
+  "groupCacheExpiration": 300
+}
+```
+
+**Result**: pattern resolves to `Warehouse devices`; device removed. Routes via `Success`.
+
+---
+
+### Example 3 — Device not in the group → `Success` (idempotent)
+
+Device is not a member of `Target Group`. **Result**: removal succeeds with no-op. Routes via `Success`.
+
+---
+
+### Example 4 — Group does not exist → `Failure`
+
+```json maxLines=10 collapsible
+{
+  "groupNamePattern": "Non-existent group",
+  "groupCacheExpiration": 300
+}
+```
+
+**Result**: group not found. Routes via **`Failure`**.
+
+---
+
+### Example 5 — Ownership hierarchy mismatch → `Failure`
+
+**State**: group `Customer Group` is owned by a customer, but the device belongs to the tenant. **Result**: lookup finds no matching group at the tenant level. Routes via **`Failure`**.
+
+## JSON schema
+
+```json maxLines=20 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbRemoveFromGroupConfiguration",
+  "type": "object",
+  "required": ["groupNamePattern", "groupCacheExpiration"],
+  "additionalProperties": false,
+  "properties": {
+    "groupNamePattern": { "type": "string" },
+    "groupCacheExpiration": { "type": "integer" }
+  }
+}
+```

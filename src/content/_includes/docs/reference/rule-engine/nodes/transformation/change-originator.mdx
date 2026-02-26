@@ -1,0 +1,136 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node when you need to re-attribute a message to a different entity before saving data or creating alarms. For example, when a gateway posts telemetry on behalf of downstream devices, you can change the originator from the gateway to the specific device so that time series and attributes are stored on the correct entity.
+
+## Configuration
+
+- **New originator** — required. Specifies which entity becomes the new originator. One of:
+  - `Customer` — the customer assigned to the current originator.
+  - `Tenant` — the tenant that owns the current originator.
+  - `Related entity` — an entity related to the current originator, resolved via a **Relations query** (see below).
+  - `Alarm originator` — the entity that triggered the alarm. Available only when the current originator is an `ALARM`.
+  - `Entity by name pattern` — an entity looked up by **Type** and **Name pattern**. The pattern supports <DocLink product={props.product} path="reference/rule-engine/templatization">templatization</DocLink> — use `${metadataKey}` to resolve names dynamically.
+
+**When `Related entity` is selected**, configure the **Relations query**:
+- **Direction** — `From originator` or `To originator`.
+- **Max relation level** — maximum nesting depth to follow (leave empty for unlimited).
+- **Fetch last level relation only** — when enabled, only entities at the deepest configured level are considered (shown only when Max relation level > 1).
+- **Relation filters** — list of filters each matching relation must satisfy:
+  - **Relation type** — e.g., `Contains`, `Manages`.
+  - **Entity type** — allowed entity types for the related entity.
+
+**When `Entity by name pattern` is selected**:
+- **Type** — entity type to look up: `Device`, `Asset`, `Entity View`, `User`, or `Edge`.
+- **Name pattern** — name to match, supports templatization (e.g., `${sensorName}`).
+
+## Message processing algorithm
+
+1. Resolve the new originator based on the configuration.
+2. If found, change the message originator to the resolved entity and route via `Success`.
+3. If not found, route via `Failure`.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | New originator was found and set. |
+| `Failure` | New originator could not be found, or an unexpected error occurred. |
+
+## Examples
+
+### Example 1 — Change to customer
+
+Originator is an asset assigned to customer ID `781a4826-...`.
+
+```json maxLines=10 collapsible
+{ "originatorSource": "CUSTOMER" }
+```
+
+**Result**: originator changed to that `CUSTOMER`. Routed via `Success`.
+
+---
+
+### Example 2 — Change to tenant
+
+```json maxLines=10 collapsible
+{ "originatorSource": "TENANT" }
+```
+
+**Result**: originator changed to the owning `TENANT`. Always succeeds.
+
+---
+
+### Example 3 — Change to related entity (max level 1)
+
+Originator is `Parent Asset`, which has a `Contains` relation to `Child Device`.
+
+```json maxLines=20 collapsible
+{
+  "originatorSource": "RELATED",
+  "relationsQuery": {
+    "direction": "FROM",
+    "maxLevel": 1,
+    "filters": [{ "relationType": "Contains", "entityTypes": [] }]
+  }
+}
+```
+
+**Result**: originator changed to `Child Device`. Grandchildren at level 2 are ignored.
+
+---
+
+### Example 4 — Change to alarm originator
+
+Originator is an `ALARM` whose triggering device has ID `c4d81246-...`.
+
+```json maxLines=10 collapsible
+{ "originatorSource": "ALARM_ORIGINATOR" }
+```
+
+**Result**: originator changed to that `DEVICE`.
+
+---
+
+### Example 5 — Change to entity by name pattern
+
+Metadata contains `{ "sensorName": "Sensor-T1000" }`. Device `Sensor-T1000` exists.
+
+```json maxLines=15 collapsible
+{
+  "originatorSource": "ENTITY",
+  "entityType": "DEVICE",
+  "entityNamePattern": "${sensorName}"
+}
+```
+
+**Result**: originator changed to device `Sensor-T1000`.
+
+## JSON schema
+
+```json maxLines=25 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbChangeOriginatorNodeConfiguration",
+  "type": "object",
+  "required": ["originatorSource"],
+  "properties": {
+    "originatorSource": {
+      "type": "string",
+      "enum": ["CUSTOMER", "TENANT", "RELATED", "ALARM_ORIGINATOR", "ENTITY"]
+    },
+    "relationsQuery": {
+      "type": "object",
+      "description": "Relations query to resolve new originator. Used when originatorSource is RELATED."
+    },
+    "entityType": {
+      "type": "string",
+      "description": "Entity type to look up. Used when originatorSource is ENTITY."
+    },
+    "entityNamePattern": {
+      "type": "string",
+      "description": "Name pattern for entity lookup (supports templatization). Used when originatorSource is ENTITY."
+    }
+  }
+}
+```

@@ -1,0 +1,97 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="note">
+  This node requires **ThingsBoard PE** or **ThingsBoard Cloud**.
+</Aside>
+
+Use this node to broadcast a message to every member of a specific entity group — for example, sending a `setTargetTemperature` command to all devices in the `Thermostats Floor 1` group, or propagating a reboot command to all sensors in a group when the message originator is itself an entity group.
+
+## Configuration
+
+The node operates in two modes:
+
+### Mode 1 — Specific entity group (default)
+
+**Entity group is message originator** is disabled. Configure:
+- **Owner** — the tenant or customer that owns the target group.
+- **Type** — the entity type of entities in the group (e.g., `Device`, `Asset`).
+- **Select entity group** — the specific group to broadcast to (referenced by UUID).
+
+### Mode 2 — Originator is the entity group
+
+**Entity group is message originator** is enabled. The incoming message originator must be an `ENTITY_GROUP`. If it is any other entity type, the message routes via `Failure`.
+
+## Message processing algorithm
+
+1. Determine the target entity group:
+   - Mode 1: use the configured group.
+   - Mode 2: check that the originator is an `ENTITY_GROUP`; if not, route via `Failure`.
+2. Fetch all member entities of the target group.
+3. If the group is empty or not found, route via `Failure`.
+4. For each member entity, create a copy of the original message with the member as the new originator.
+5. Enqueue all created messages via `Success`. Acknowledge the original message once all are enqueued.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | One message per group member emitted. |
+| `Failure` | Group is empty or not found; originator is not an `ENTITY_GROUP` in mode 2; or unexpected error. |
+
+## Examples
+
+### Example 1 — Broadcast to a specific device group
+
+**Incoming data**: `{ "targetTemperature": 100 }`
+
+```json maxLines=20 collapsible
+{
+  "entityGroupIsMessageOriginator": false,
+  "entityGroupId": {
+    "entityType": "ENTITY_GROUP",
+    "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef"
+  }
+}
+```
+
+**State**: group `Thermostats Floor 1` contains `Thermostat A` and `Thermostat B`.
+
+**Result**: two output messages — one originating from `Thermostat A`, one from `Thermostat B`, both with `{ "targetTemperature": 100 }`.
+
+---
+
+### Example 2 — Originator is the entity group
+
+**Originator**: entity group `All sensors` | **Data**: `{ "command": "reboot" }`
+
+```json maxLines=15 collapsible
+{ "entityGroupIsMessageOriginator": true }
+```
+
+**State**: group contains `Sensor A` and `Sensor B`.
+
+**Result**: two output messages — one originating from `Sensor A`, one from `Sensor B`.
+
+## JSON schema
+
+```json maxLines=25 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbDuplicateMsgToGroupNodeConfiguration",
+  "type": "object",
+  "required": ["entityGroupIsMessageOriginator"],
+  "additionalProperties": false,
+  "properties": {
+    "entityGroupIsMessageOriginator": { "type": "boolean" },
+    "entityGroupId": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "entityType": { "const": "ENTITY_GROUP" },
+        "id": { "type": "string", "format": "uuid" }
+      }
+    }
+  }
+}
+```

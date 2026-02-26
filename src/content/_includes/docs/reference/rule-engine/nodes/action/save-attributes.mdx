@@ -1,0 +1,230 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to persist attribute data from a `POST_ATTRIBUTES_REQUEST` message into the ThingsBoard database. You control the attribute scope (client, shared, or server), when to skip duplicate writes with deduplication, and whether to notify connected devices and WebSocket subscribers on update.
+
+## Configuration
+
+### Processing strategies
+
+The node supports four processing strategy modes, configured either via **Basic** or **Advanced** settings.
+
+**Basic settings** apply the same strategy to all three internal actions (database write, WebSocket notification, and calculated fields notification):
+
+| Mode | Behavior |
+|------|----------|
+| **On every message** | All three actions execute for every message. |
+| **Deduplicate** | All three actions are deduplicated within the configured interval (1 s – 86400 s). |
+| **WebSockets only** | Database write and calculated fields are skipped; WebSocket notifications fire on every message. Data is available in real-time only, not persisted. |
+
+**Advanced settings** let you configure each action independently:
+
+| Action | Available strategies |
+|--------|----------------------|
+| Attributes (database write) | `ON_EVERY_MESSAGE`, `DEDUPLICATE`, `SKIP` |
+| WebSockets | `ON_EVERY_MESSAGE`, `DEDUPLICATE`, `SKIP` |
+| Calculated fields | `ON_EVERY_MESSAGE`, `DEDUPLICATE`, `SKIP` |
+
+<Aside type="caution">
+  Use independent deduplication intervals for different actions carefully — they are a performance optimization, not a strict processing guarantee. Mismatched intervals can result in WebSocket subscribers or calculated fields seeing data that was not persisted, or vice versa.
+</Aside>
+
+### Scope
+
+The attribute scope determines where attributes are stored. The node uses the following priority:
+
+1. `scope` property in message metadata (if present and valid: `CLIENT_SCOPE`, `SHARED_SCOPE`, `SERVER_SCOPE`).
+2. The node's configured default scope.
+
+If the metadata `scope` value is present but invalid (e.g., `INVALID_SCOPE`), processing fails.
+
+### Advanced settings
+
+- **Save attributes only if the value changes** — when enabled, the node fetches the current stored values and skips attributes whose value and type have not changed. Changed, new, or type-changed attributes are saved; unchanged ones are not. The attribute's last-updated timestamp is not updated for skipped attributes.
+
+  <Aside type="note">
+    Avoid concurrent writes of the same attribute key when this option is enabled — change detection is not transactional and may produce unexpected results.
+  </Aside>
+
+- **Send attributes updated notification** — when enabled, the node publishes an `ATTRIBUTES_UPDATED` lifecycle event to the originator's root rule chain for `SHARED_SCOPE` and `SERVER_SCOPE` attributes.
+
+- **Force notification to the device** — when enabled, the node always sends attribute update notifications to devices with active subscriptions. When disabled, the `notifyDevice` metadata property controls this (defaults to `true` when absent).
+
+## Message processing algorithm
+
+1. Verify the message type is `POST_ATTRIBUTES_REQUEST`. If not, route via `Failure`.
+2. Parse the message data into attribute key–value pairs. If data is empty, route via `Success` (no-op).
+3. Determine the attribute scope from metadata `scope` property or the configured default. Invalid scope value → `Failure`.
+4. If **Save only on change** is enabled: fetch current stored values, filter to only new or changed attributes. If nothing changed, route via `Success`.
+5. Determine device notification setting: **Force notification** config → always notify; otherwise use `notifyDevice` metadata property (default: notify).
+6. Save attributes per the configured processing strategy.
+7. If **Send attributes updated notification** is enabled and scope is `SHARED_SCOPE` or `SERVER_SCOPE`, publish an `ATTRIBUTES_UPDATED` event.
+8. Route via `Success` on completion, or `Failure` on error.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Message was successfully processed (including no-ops like empty data or no changed attributes). |
+| `Failure` | Message type is not `POST_ATTRIBUTES_REQUEST`, data cannot be parsed, metadata `scope` is invalid, or an unexpected error occurred. |
+
+## Examples
+
+### Example 1 — On every message, server scope
+
+Type: `POST_ATTRIBUTES_REQUEST` | Data: `{ "firmware_version": "1.0.1", "serial_number": "SN-001", "last_maintenance": "2025-01-15" }`
+
+```json maxLines=20 collapsible
+{
+  "scope": "SERVER_SCOPE",
+  "notifyDevice": false,
+  "sendAttributesUpdatedNotification": true,
+  "updateAttributesOnlyOnValueChange": false,
+  "processingSettings": { "type": "ON_EVERY_MESSAGE" }
+}
+```
+
+Three server attributes are saved. An `ATTRIBUTES_UPDATED` event is sent to the originator's rule chain. WebSocket subscriptions and calculated fields are notified.
+
+---
+
+### Example 2 — Deduplicate (within interval)
+
+Data: `{ "battery_level": 85, "signal_strength": -65, "location": "Building A" }`
+
+```json maxLines=20 collapsible
+{
+  "scope": "CLIENT_SCOPE",
+  "notifyDevice": true,
+  "sendAttributesUpdatedNotification": false,
+  "updateAttributesOnlyOnValueChange": false,
+  "processingSettings": { "type": "DEDUPLICATE", "deduplicationIntervalSecs": 120 }
+}
+```
+
+**State**: this device's message was already processed within the current 120-second interval.
+
+Attributes are **not** saved. WebSocket and calculated fields notifications are also suppressed. Message routed via `Success`.
+
+---
+
+### Example 3 — Advanced: DB deduplicates, WebSockets always, calculated fields skipped
+
+```json maxLines=30 collapsible
+{
+  "scope": "SHARED_SCOPE",
+  "notifyDevice": false,
+  "sendAttributesUpdatedNotification": true,
+  "updateAttributesOnlyOnValueChange": false,
+  "processingSettings": {
+    "type": "ADVANCED",
+    "attributes": { "type": "DEDUPLICATE", "deduplicationIntervalSecs": 300 },
+    "webSockets": { "type": "ON_EVERY_MESSAGE" },
+    "calculatedFields": { "type": "SKIP" }
+  }
+}
+```
+
+Within a 300-second interval, attributes are NOT saved to the database. WebSocket subscriptions ARE notified. Calculated fields are NOT triggered. `ATTRIBUTES_UPDATED` is NOT sent since attributes weren't saved.
+
+---
+
+### Example 4 — Save only on value change
+
+Current stored attributes: `temperature_threshold: 25.0`, `humidity_threshold: 65.0`.
+
+Incoming data: `{ "temperature_threshold": 25.0, "humidity_threshold": 70.0, "maintenance_scheduled": true }`
+
+```json maxLines=20 collapsible
+{
+  "scope": "SERVER_SCOPE",
+  "notifyDevice": false,
+  "sendAttributesUpdatedNotification": true,
+  "updateAttributesOnlyOnValueChange": true,
+  "processingSettings": { "type": "ON_EVERY_MESSAGE" }
+}
+```
+
+Only `humidity_threshold` (changed from 65.0 to 70.0) and `maintenance_scheduled` (new) are saved. `temperature_threshold` is skipped — value unchanged.
+
+---
+
+### Example 5 — Scope override from metadata
+
+Configured scope: `SERVER_SCOPE`. Metadata: `{ "scope": "CLIENT_SCOPE" }`.
+
+The metadata scope takes priority. Attributes are saved as `CLIENT_SCOPE`. No `ATTRIBUTES_UPDATED` event (client scope does not trigger this notification).
+
+## JSON schema
+
+```json maxLines=60 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbMsgAttributesNodeConfiguration",
+  "type": "object",
+  "required": ["scope", "notifyDevice", "sendAttributesUpdatedNotification", "updateAttributesOnlyOnValueChange", "processingSettings"],
+  "additionalProperties": false,
+  "properties": {
+    "scope": {
+      "type": "string",
+      "description": "Default attribute scope: SERVER_SCOPE, CLIENT_SCOPE, or SHARED_SCOPE."
+    },
+    "notifyDevice": {
+      "type": "boolean",
+      "description": "Force attribute update notifications to connected devices."
+    },
+    "sendAttributesUpdatedNotification": {
+      "type": "boolean",
+      "description": "Send ATTRIBUTES_UPDATED event to the originator's root rule chain (SHARED_SCOPE and SERVER_SCOPE only)."
+    },
+    "updateAttributesOnlyOnValueChange": {
+      "type": "boolean",
+      "description": "Skip saving attributes whose value and type have not changed."
+    },
+    "processingSettings": {
+      "description": "Processing strategy controlling when database writes, WebSocket notifications, and calculated fields are triggered.",
+      "oneOf": [
+        { "type": "object", "properties": { "type": { "const": "ON_EVERY_MESSAGE" } }, "required": ["type"], "additionalProperties": false },
+        { "type": "object", "properties": { "type": { "const": "WEBSOCKETS_ONLY" } }, "required": ["type"], "additionalProperties": false },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "DEDUPLICATE" },
+            "deduplicationIntervalSecs": { "type": "integer", "minimum": 1, "maximum": 86400 }
+          },
+          "required": ["type", "deduplicationIntervalSecs"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "ADVANCED" },
+            "attributes": { "$ref": "#/$defs/ProcessingStrategy" },
+            "webSockets": { "$ref": "#/$defs/ProcessingStrategy" },
+            "calculatedFields": { "$ref": "#/$defs/ProcessingStrategy" }
+          },
+          "required": ["type", "attributes", "webSockets", "calculatedFields"],
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "ProcessingStrategy": {
+      "oneOf": [
+        { "type": "object", "properties": { "type": { "const": "ON_EVERY_MESSAGE" } }, "required": ["type"], "additionalProperties": false },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "DEDUPLICATE" },
+            "deduplicationIntervalSecs": { "type": "integer", "minimum": 1, "maximum": 86400 }
+          },
+          "required": ["type", "deduplicationIntervalSecs"],
+          "additionalProperties": false
+        },
+        { "type": "object", "properties": { "type": { "const": "SKIP" } }, "required": ["type"], "additionalProperties": false }
+      ]
+    }
+  }
+}
+```

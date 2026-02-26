@@ -1,0 +1,113 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="note">
+  This node requires **ThingsBoard PE** or **ThingsBoard Cloud**.
+</Aside>
+
+Use this node to broadcast a message to all members of a dynamically named entity group — for example, routing a firmware update command to the `$[location] devices` group resolved from the message data, or propagating a status update to the tenant-level group `Building Monitors`. The group name supports <DocLink product={props.product} path="reference/rule-engine/templatization">templatization</DocLink>.
+
+## Configuration
+
+- **Type** — required. Entity type of members in the target group (e.g., `DEVICE`, `ASSET`).
+- **Entity group name** — required. Name of the group to find. Supports <DocLink product={props.product} path="reference/rule-engine/templatization">templatization</DocLink> (e.g., `${metadataKey}`, `$[dataKey]`).
+- **Search entity group on Tenant level only** — when enabled, the search is restricted to groups owned by the Tenant only.
+- **Consider originator as a group owner** — when enabled and the originator is a Tenant or Customer, the search starts from the originator itself. When disabled, the search starts from the originator's direct owner (e.g., the customer that owns the device).
+
+## Message processing algorithm
+
+1. Resolve the group name by substituting patterns from message data and metadata.
+2. Determine the starting point for the group search:
+   - If **Search on Tenant level only** is enabled: search only the Tenant's groups.
+   - If **Consider originator as group owner** is enabled and originator is a Tenant or Customer: start from the originator.
+   - Otherwise: start from the originator's direct owner.
+3. Search for an entity group matching the resolved name. If not found at the current level, move up the ownership hierarchy (Customer → Tenant).
+4. If no matching group is found anywhere in the hierarchy, route via `Failure`.
+5. Fetch all member entities of the found group. If empty, route via `Failure`.
+6. For each member entity, create a copy of the original message with the member as the new originator.
+7. Enqueue all created messages via `Success`. Acknowledge the original message once all are enqueued.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | One message per group member emitted. |
+| `Failure` | No matching group found, group is empty, or unexpected error. |
+
+## Examples
+
+### Example 1 — Search from originator's owner
+
+**Originator**: `Device A` (owned by `Customer A`) | **Data**: `{ "command": "update_firmware" }`
+
+```json maxLines=20 collapsible
+{
+  "groupType": "DEVICE",
+  "groupName": "Factory A Devices",
+  "searchEntityGroupForTenantOnly": false,
+  "considerMessageOriginatorAsAGroupOwner": false
+}
+```
+
+**State**: `Customer A` owns group `Factory A Devices` containing `Device B` and `Device C`.
+
+**Result**: two messages — originators `Device B` and `Device C`, both with `{ "command": "update_firmware" }`.
+
+---
+
+### Example 2 — Hierarchical search (customer → tenant)
+
+**Originator**: `Asset X` (owned by `Customer B`) | **Data**: `{ "status": "maintenance_required" }`
+
+```json maxLines=20 collapsible
+{
+  "groupType": "ASSET",
+  "groupName": "All Factory Assets",
+  "searchEntityGroupForTenantOnly": false,
+  "considerMessageOriginatorAsAGroupOwner": false
+}
+```
+
+**State**: `Customer B` has no group `All Factory Assets`; the Tenant has this group with `Asset Y` and `Asset Z`.
+
+**Result**: two messages — originators `Asset Y` and `Asset Z`. Search moved up the hierarchy to Tenant.
+
+---
+
+### Example 3 — Search restricted to Tenant level
+
+**Originator**: `Device A` (owned by `Customer A`) | **Data**: `{ "command": "check_status" }`
+
+```json maxLines=20 collapsible
+{
+  "groupType": "DEVICE",
+  "groupName": "Building Monitors",
+  "searchEntityGroupForTenantOnly": true,
+  "considerMessageOriginatorAsAGroupOwner": false
+}
+```
+
+**State**: `Customer A` has `Building Monitors` with `Device B`; Tenant has `Building Monitors` with `Device C` and `Device D`.
+
+**Result**: two messages — originators `Device C` and `Device D`. Customer-level group ignored due to `searchEntityGroupForTenantOnly: true`.
+
+## JSON schema
+
+```json maxLines=25 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbDuplicateMsgToGroupByNameNodeConfiguration",
+  "type": "object",
+  "required": ["groupType", "groupName", "searchEntityGroupForTenantOnly", "considerMessageOriginatorAsAGroupOwner"],
+  "additionalProperties": false,
+  "properties": {
+    "groupType": {
+      "type": "string",
+      "enum": ["DEVICE", "ASSET", "ENTITY_VIEW", "CUSTOMER", "USER", "DASHBOARD", "EDGE"]
+    },
+    "groupName": { "type": "string" },
+    "searchEntityGroupForTenantOnly": { "type": "boolean" },
+    "considerMessageOriginatorAsAGroupOwner": { "type": "boolean" }
+  }
+}
+```

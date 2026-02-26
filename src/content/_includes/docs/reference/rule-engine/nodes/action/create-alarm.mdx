@@ -1,0 +1,188 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+The standard node for raising alarms in the rule engine. Connect it after a filter or script that detects a bad condition — high temperature, loss of connectivity, a failed device self-test — and it will either create a new alarm or update the existing one if the condition persists.
+
+The node is idempotent by design: if an active alarm of the same type already exists on the originator, it refreshes the alarm's end timestamp and reruns the details script rather than creating a duplicate.
+
+---
+
+## Configuration
+
+### Basic settings
+
+- **Use message alarm data** — When enabled, the message data is parsed as a ThingsBoard Alarm object and all alarm fields are read from the payload instead of using the node configuration. If parsing fails, the message is routed via `Failure`.
+- **Overwrite alarm details** — When enabled together with **Use message alarm data**, the details script is still executed to generate the alarm's `details` field, overriding whatever `details` came from the message.
+
+### Alarm configuration
+
+- **Alarm type** — String that identifies the alarm class (e.g., `"High Temperature"`). Supports <DocLink product={props.product} path="reference/rule-engine/templatization">templatization</DocLink> — use `${metadata.key}` or `${data.key}` to make the alarm type dynamic.
+- **Use alarm severity pattern** — Enables dynamic severity resolved from the message rather than a fixed value.
+  - When **enabled**: **Alarm severity pattern** — a <DocLink product={props.product} path="reference/rule-engine/templatization">templatized</DocLink> expression that must resolve to one of `CRITICAL`, `MAJOR`, `MINOR`, `WARNING`, or `INDETERMINATE`. Any other value (including an empty string) routes the message to `Failure`.
+  - When **disabled**: **Alarm severity** — fixed value: `CRITICAL`, `MAJOR`, `MINOR`, `WARNING`, or `INDETERMINATE`.
+
+### Alarm details script
+
+A TBEL or JavaScript script that generates the content for the alarm's `details` field. The script must return a valid JSON value (primitive, array, or object).
+
+Available variables:
+
+| Variable | Description |
+|----------|-------------|
+| `msg` | The message data |
+| `metadata` | The message metadata |
+| `msgType` | The message type |
+| `metadata.prevAlarmDetails` | The previous alarm details as a JSON string (set on updates) |
+
+### Propagation settings
+
+- **Propagate alarm to related entities** — Propagates alarms to parent entities through configured relations. When enabled, a **Relation types to propagate** field appears; leave empty to propagate through all relations.
+- **Propagate alarm to entity owner (Customer or Tenant)** — Propagates to the entity's direct owner.
+- **Propagate alarm to entity owners hierarchy** — Propagates up through all levels of the ownership chain.
+- **Propagate alarm to Tenant** — Propagates directly to tenant level, regardless of intermediate ownership.
+
+---
+
+## Message processing algorithm
+
+### When using node configuration (`Use message alarm data` = disabled)
+
+1. **Determine alarm type** — resolve any `${metadata.key}` placeholders in the configured alarm type.
+2. **Search for existing alarm** — query for an active (uncleared) alarm with the same originator and type.
+3. **Create or update alarm:**
+   - **No active alarm found (new alarm):**
+     - Creates alarm with status `ACTIVE_UNACK`.
+     - Sets severity from node configuration (or pattern if dynamic severity is enabled).
+     - Applies propagation settings from node configuration.
+     - Executes the details script to generate the `details` field.
+     - Sets alarm `startTs` and `endTs` to the value of `ts` from message metadata, or the message creation timestamp if absent.
+     - Routes to `Created` connection with `isNewAlarm: true` in metadata.
+     - Sends `ENTITY_CREATED` lifecycle event to the originator's root rule chain.
+   - **Active alarm exists (update):**
+     - Keeps existing alarm status unchanged.
+     - Updates severity and propagation settings from node configuration.
+     - Reruns the details script (with `prevAlarmDetails` available via `metadata.prevAlarmDetails`).
+     - Updates alarm `endTs` to current server time.
+     - Routes to `Updated` connection with `isExistingAlarm: true` in metadata.
+     - Sends `ENTITY_UPDATED` lifecycle event to the originator's root rule chain.
+
+### When using message alarm data (`Use message alarm data` = enabled)
+
+1. **Parse message as alarm** — deserialize message data as a ThingsBoard Alarm object. Routes to `Failure` if parsing fails. The `tenantId` is always overwritten with the current tenant. If `originator` is null, defaults to the message originator.
+2. **Extract alarm type** — uses the `type` field from the parsed alarm.
+3. **Search for existing alarm** — same as above.
+4. **Create or update alarm:**
+   - **No active alarm found:** uses all fields from the parsed alarm. `details` handling depends on **Overwrite alarm details**: if enabled, the details script runs; if disabled, `details` from the parsed alarm is used as-is. Routes to `Created`.
+   - **Active alarm exists:** updates `severity`, `propagate`, `propagateToOwner`, `propagateToOwnerHierarchy`, `propagateToTenant`, and `propagateRelationTypes` from the parsed alarm. `details` is either recomputed by the script (if **Overwrite** enabled) or replaced with the parsed alarm's `details`. Routes to `Updated`.
+
+---
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Created` | New alarm was created. Message data is replaced with the alarm object. `isNewAlarm: true` added to metadata. Message type set to `ALARM`. |
+| `Updated` | Existing alarm was updated. Message data is replaced with the alarm object. `isExistingAlarm: true` added to metadata. Message type set to `ALARM`. |
+| `Failure` | Alarm severity pattern resolved to an empty or invalid value (anything other than `CRITICAL`, `MAJOR`, `MINOR`, `WARNING`, or `INDETERMINATE`), script execution error, or message parsing error (when using message alarm data) |
+
+---
+
+## Examples
+
+### Example 1 — Creating a new alarm
+
+**Incoming message:** type `POST_TELEMETRY_REQUEST`, no active `High Temperature` alarm on the device.
+
+Data:
+
+```json maxLines=15 collapsible
+{ "temperature": 45.5 }
+```
+
+**Node configuration:**
+
+```json maxLines=15 collapsible
+{
+  "scriptLang": "TBEL",
+  "alarmDetailsBuildTbel": "return { temperature: msg.temperature };",
+  "alarmType": "High Temperature",
+  "severity": "CRITICAL"
+}
+```
+
+**Outgoing message** (routed via `Created`):
+
+```json maxLines=25 collapsible
+{
+  "id": { "entityType": "ALARM", "id": "f66e9b38-6f0e-4dc7-ad57-1cb4e014b6fc" },
+  "type": "High Temperature",
+  "originator": { "entityType": "DEVICE", "id": "3bc2eb60-8d77-11f0-8a6c-59050cd4204f" },
+  "severity": "CRITICAL",
+  "acknowledged": false,
+  "cleared": false,
+  "startTs": 1757429087063,
+  "endTs": 1757429087063,
+  "status": "ACTIVE_UNACK",
+  "details": { "temperature": 45.5 }
+}
+```
+
+**Outgoing metadata:** `{ "isNewAlarm": "true" }`
+
+A new `ACTIVE_UNACK` alarm is created with severity `CRITICAL`. The details script stores the current temperature in the `details` field. An `ENTITY_CREATED` lifecycle event is sent to the device's root rule chain.
+
+---
+
+### Example 2 — Updating an existing alarm
+
+Same configuration. An active `High Temperature` alarm already exists (from Example 1).
+
+**Incoming message data:** `{ "temperature": 47.2 }`
+
+**Outgoing message** (routed via `Updated`):
+
+```json maxLines=25 collapsible
+{
+  "id": { "entityType": "ALARM", "id": "f66e9b38-6f0e-4dc7-ad57-1cb4e014b6fc" },
+  "type": "High Temperature",
+  "originator": { "entityType": "DEVICE", "id": "3bc2eb60-8d77-11f0-8a6c-59050cd4204f" },
+  "severity": "CRITICAL",
+  "acknowledged": false,
+  "cleared": false,
+  "startTs": 1757429087063,
+  "endTs": 1757429195123,
+  "status": "ACTIVE_UNACK",
+  "details": { "temperature": 47.2 }
+}
+```
+
+**Outgoing metadata:** `{ "isExistingAlarm": "true" }`
+
+The existing alarm is updated: `endTs` is refreshed to the current time, and the details script reruns with `prevAlarmDetails = '{"temperature":45.5}'` available, updating the stored temperature to `47.2`. An `ENTITY_UPDATED` lifecycle event is sent to the device's root rule chain.
+
+---
+
+## JSON schema
+
+```json maxLines=20 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbCreateAlarmNodeConfiguration",
+  "type": "object",
+  "properties": {
+    "alarmType":                 { "type": "string" },
+    "scriptLang":                { "type": "string", "enum": ["TBEL", "JS"] },
+    "alarmDetailsBuildJs":       { "type": "string" },
+    "alarmDetailsBuildTbel":     { "type": "string" },
+    "severity":                  { "type": "string", "enum": ["CRITICAL","MAJOR","MINOR","WARNING","INDETERMINATE"] },
+    "propagate":                 { "type": "boolean" },
+    "propagateToOwner":          { "type": "boolean" },
+    "propagateToOwnerHierarchy": { "type": "boolean" },
+    "propagateToTenant":         { "type": "boolean" },
+    "useMessageAlarmData":       { "type": "boolean" },
+    "overwriteAlarmDetails":     { "type": "boolean" },
+    "dynamicSeverity":           { "type": "boolean" },
+    "relationTypes":             { "type": "array", "items": { "type": "string" } }
+  }
+}
+```

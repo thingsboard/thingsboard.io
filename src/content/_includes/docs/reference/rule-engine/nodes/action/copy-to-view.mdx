@@ -1,0 +1,87 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to replicate attribute changes from a device or asset to its associated entity views — for example, keeping `CLIENT_SCOPE` attributes in sync across all entity views when a device posts new attributes, or propagating attribute deletions to every view. One output message is created per entity view with the view as the new originator.
+
+## Configuration
+
+This node has no configuration options. The attribute scope and keys to replicate are determined by the message type and the entity view's own attribute filter configuration.
+
+## Message processing algorithm
+
+1. Validate that the incoming message type is one of: `ATTRIBUTES_UPDATED`, `ATTRIBUTES_DELETED`, `ACTIVITY_EVENT`, `INACTIVITY_EVENT`, or `POST_ATTRIBUTES_REQUEST`. Other types route via `Failure`.
+2. Verify that message metadata is not empty. Empty metadata routes via `Failure`.
+3. Determine the attribute scope:
+   - `POST_ATTRIBUTES_REQUEST` → `CLIENT_SCOPE`
+   - Other types → read from metadata `scope` key
+4. Retrieve all entity views associated with the message originator.
+5. For each entity view:
+   - Skip if the current time is outside the entity view's valid time range.
+   - Determine which attribute keys to replicate based on the entity view's attribute key filter.
+   - For `ATTRIBUTES_DELETED`: delete the matched keys from the entity view.
+   - For all other types: save/update the matched keys on the entity view.
+   - Create a copy of the original message with the entity view as the new originator and route via `Success`.
+6. The original message is acknowledged and does not continue down the rule chain.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | One message per processed entity view (originator changed to that view). |
+| `Failure` | Unsupported message type, empty metadata, or unexpected error. |
+
+## Examples
+
+### Example 1 — Copy attributes to single entity view
+
+**Type**: `POST_ATTRIBUTES_REQUEST` | **Data**: `{ "key1": "value1", "key2": "value2", "key3": "value3" }` | **Originator**: `Device`
+
+**State**: entity view `deviceView` is configured to copy client attributes `["key1", "key2"]`.
+
+**Result**: `key1` and `key2` copied to `deviceView`; `key3` skipped (not in filter). One output message with originator `deviceView`.
+
+---
+
+### Example 2 — Multiple entity views
+
+**Type**: `ATTRIBUTES_UPDATED` | **Metadata**: `{ "scope": "SERVER_SCOPE" }` | **Data**: `{ "key1": "value1", "key2": "value2" }`
+
+**State**: device has two views: `deviceView1` (filter: `["key1"]`) and `deviceView2` (filter: `["key2"]`).
+
+**Result**: two output messages — `deviceView1` gets `key1`, `deviceView2` gets `key2`.
+
+---
+
+### Example 3 — Delete attributes from entity view
+
+**Type**: `ATTRIBUTES_DELETED` | **Data**: `{ "attributes": ["key1", "key2", "key3"] }` | **Metadata**: `{ "scope": "SERVER_SCOPE" }`
+
+**State**: view is configured to copy `["key1", "key2"]`.
+
+**Result**: `key1` and `key2` deleted from the view; `key3` ignored.
+
+---
+
+### Example 4 — Entity view outside time range — skipped
+
+**State**: entity view's valid end time has passed.
+
+**Result**: entity view is skipped; no output message for it.
+
+---
+
+### Example 5 — Unsupported message type → `Failure`
+
+**Type**: `POST_TELEMETRY_REQUEST` → routes via **`Failure`**.
+
+## JSON schema
+
+```json maxLines=15 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EmptyNodeConfiguration",
+  "type": "object",
+  "properties": {},
+  "additionalProperties": false
+}
+```

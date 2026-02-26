@@ -1,0 +1,156 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to enrich a message with historical time series values from the same originator — for example, to retrieve the temperature reading from 60 minutes ago so that downstream nodes can compute a trend, or to pull the last known humidity reading to use as a baseline in a calculation. All fetched values are added to the message metadata as strings.
+
+## Configuration
+
+- **Time series keys** — one or more keys to fetch from the originator. Each key can use substitution patterns: `$[dataKey]` to resolve from message data, `${metadataKey}` from metadata.
+
+- **Fetch interval** — the time window for the query. Two modes:
+  - **Relative time window** (default) — specify **Interval start** (how far back from now) and **Interval end** (how close to now). For example, start = 2 min, end = 1 min fetches data from the window 2 min–1 min ago.
+  - **Dynamic interval** — when enabled, the interval boundaries come from message data or metadata using substitution patterns (Unix ms timestamps). Fields: **Interval start pattern** and **Interval end pattern**.
+
+- **Fetch strategy** — how data points are selected from the interval:
+  - `First` — single data point with the earliest timestamp.
+  - `Last` — single data point with the latest timestamp.
+  - `All` — set of data points. Additional options:
+    - **Data aggregation function** — `None`, `Min`, `Max`, `Avg`, `Sum`, `Count`. When aggregation is used, a single aggregated point is returned.
+    - **Order by timestamp** — `Ascending` or `Descending` (only when aggregation is `None`).
+    - **Limit** — maximum number of points returned (2–1000, only when aggregation is `None`).
+
+<Aside type="note">
+  All fetched values are added to message **metadata** as strings. For `First`/`Last`, the value is the raw reading as a string (e.g., `"22.4"`). For `All`, the value is a stringified JSON array of `{"ts": ..., "value": ...}` objects. The `ts` field in aggregated results corresponds to the **start** of the aggregation interval.
+</Aside>
+
+## Message processing algorithm
+
+1. Identify the originator of the incoming message.
+2. Determine the query interval `[startTs, endTs]`:
+   - Relative mode: calculate timestamps from the current time and the configured interval values.
+   - Dynamic mode: resolve substitution patterns to get timestamps from message data/metadata.
+3. Query the database for the specified keys within the interval using the configured fetch strategy.
+4. Add the fetched values to message metadata. Missing keys are silently ignored.
+5. Forward the enriched message via `Success`. If the interval is invalid (e.g., `startTs > endTs`) or another error occurs, route via `Failure`.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Message successfully enriched with fetched time series values. |
+| `Failure` | Invalid time interval (start > end), database error, or other processing failure. |
+
+## Examples
+
+### Example 1 — Fetch first value in a 1-hour window
+
+```json maxLines=20 collapsible
+{
+  "latestTsKeyNames": ["temperature"],
+  "useMetadataIntervalPatterns": false,
+  "startInterval": 60,
+  "startIntervalTimeUnit": "MINUTES",
+  "endInterval": 1,
+  "endIntervalTimeUnit": "MILLISECONDS",
+  "fetchMode": "FIRST"
+}
+```
+
+**State**: `Thermostat-A7` has readings in the last hour; the earliest is `22.4`.
+
+**Outgoing metadata** gains: `"temperature": "22.4"`
+
+---
+
+### Example 2 — Fetch all values with limit
+
+```json maxLines=20 collapsible
+{
+  "latestTsKeyNames": ["humidity"],
+  "useMetadataIntervalPatterns": false,
+  "startInterval": 5,
+  "startIntervalTimeUnit": "MINUTES",
+  "endInterval": 1,
+  "endIntervalTimeUnit": "MILLISECONDS",
+  "fetchMode": "ALL",
+  "orderBy": "ASC",
+  "aggregation": "NONE",
+  "limit": 3
+}
+```
+
+**Outgoing metadata** gains:
+```
+"humidity": "[{\"ts\":1756479300000,\"value\":45.2},{\"ts\":1756479360000,\"value\":45.8},{\"ts\":1756479420000,\"value\":46.1}]"
+```
+
+---
+
+### Example 3 — Average over 10 minutes
+
+```json maxLines=20 collapsible
+{
+  "latestTsKeyNames": ["temperature"],
+  "useMetadataIntervalPatterns": false,
+  "startInterval": 10,
+  "startIntervalTimeUnit": "MINUTES",
+  "endInterval": 1,
+  "endIntervalTimeUnit": "MILLISECONDS",
+  "fetchMode": "ALL",
+  "orderBy": "ASC",
+  "aggregation": "AVG",
+  "limit": 1000
+}
+```
+
+**Outgoing metadata** gains:
+```
+"temperature": "[{\"ts\":1756479000000,\"value\":24.75}]"
+```
+
+---
+
+### Example 4 — Dynamic interval from message data
+
+**Incoming data**: `{ "start": 1756470000000, "end": 1756473600000 }`
+
+```json maxLines=20 collapsible
+{
+  "latestTsKeyNames": ["vibration"],
+  "useMetadataIntervalPatterns": true,
+  "startIntervalPattern": "${start}",
+  "endIntervalPattern": "${end}",
+  "fetchMode": "ALL",
+  "orderBy": "DESC",
+  "aggregation": "NONE",
+  "limit": 50
+}
+```
+
+The node resolves `start` and `end` from message data and queries the database for `vibration` within that window.
+
+## JSON schema
+
+```json maxLines=35 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbGetTelemetryNodeConfiguration",
+  "type": "object",
+  "required": ["latestTsKeyNames", "fetchMode"],
+  "additionalProperties": false,
+  "properties": {
+    "latestTsKeyNames": { "type": "array", "items": { "type": "string" } },
+    "useMetadataIntervalPatterns": { "type": "boolean" },
+    "startInterval": { "type": "integer" },
+    "startIntervalTimeUnit": { "type": "string", "enum": ["MILLISECONDS", "SECONDS", "MINUTES", "HOURS", "DAYS"] },
+    "endInterval": { "type": "integer" },
+    "endIntervalTimeUnit": { "type": "string", "enum": ["MILLISECONDS", "SECONDS", "MINUTES", "HOURS", "DAYS"] },
+    "startIntervalPattern": { "type": "string" },
+    "endIntervalPattern": { "type": "string" },
+    "fetchMode": { "type": "string", "enum": ["FIRST", "LAST", "ALL"] },
+    "orderBy": { "type": "object" },
+    "aggregation": { "type": "string", "enum": ["MIN", "MAX", "AVG", "SUM", "COUNT", "NONE"] },
+    "limit": { "type": "integer", "minimum": 2, "maximum": 1000 }
+  }
+}
+```

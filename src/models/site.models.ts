@@ -1,8 +1,8 @@
 export enum Products {
 	CE = 'CE',
 	PE = 'PE',
-	PASS = 'PASS',
-	PASS_EU = 'PASS_EU',
+	PAAS = 'PAAS',
+	PAAS_EU = 'PAAS_EU',
 	EDGE = 'EDGE',
 	EDGE_PE = 'EDGE_PE',
 	GW = 'GW',
@@ -18,8 +18,8 @@ export enum Products {
 export const productDocsPrefix: Record<Products, string> = {
 	[Products.CE]: '',
 	[Products.PE]: 'pe/',
-	[Products.PASS]: 'paas/',
-	[Products.PASS_EU]: 'paas/eu/',
+	[Products.PAAS]: 'paas/',
+	[Products.PAAS_EU]: 'paas/eu/',
 	[Products.EDGE]: 'edge/',
 	[Products.EDGE_PE]: 'edge/pe/',
 	[Products.GW]: 'iot-gateway/',

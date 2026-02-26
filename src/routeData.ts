@@ -53,8 +53,8 @@ function linkMatchesVersion(href: string, version: Products): boolean {
 	path = path.replace(/^\/docs\/?/, '');
 
 	if (version === Products.PE) return path.startsWith('pe/');
-	if (version === Products.PASS) return path.startsWith('paas/') && !path.startsWith('paas/eu/');
-	if (version === Products.PASS_EU) return path.startsWith('paas/eu/');
+	if (version === Products.PAAS) return path.startsWith('paas/') && !path.startsWith('paas/eu/');
+	if (version === Products.PAAS_EU) return path.startsWith('paas/eu/');
 	if (version === Products.EDGE_PE) return path.startsWith('edge/pe/');
 	if (version === Products.EDGE) return path.startsWith('edge/') && !path.startsWith('edge/pe/');
 	if (version === Products.TRENDZ) return path.startsWith('trendz/');

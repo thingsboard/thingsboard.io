@@ -1,0 +1,201 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to compute a mathematical result from message data, metadata, or entity attributes and save it back to the message or directly to the database — for example, converting raw ADC readings to engineering units, accumulating a running total in a server attribute, or computing a heat index from temperature and humidity without writing a script node.
+
+<Aside type="note">
+  This node is optimised for numeric calculations and performs better than script nodes by avoiding script compilation overhead. Use it whenever pure math operations are sufficient.
+</Aside>
+
+## Configuration
+
+### Operation
+
+Select one of the built-in operations or `CUSTOM` for arbitrary expressions:
+
+| Operation | Args | Description |
+|-----------|------|-------------|
+| `ADD` | 2 | x + y |
+| `SUB` | 2 | x − y |
+| `MULT` | 2 | x × y |
+| `DIV` | 2 | x / y |
+| `SIN` / `SINH` | 1 | Sine / hyperbolic sine |
+| `COS` / `COSH` | 1 | Cosine / hyperbolic cosine |
+| `TAN` / `TANH` | 1 | Tangent / hyperbolic tangent |
+| `ACOS` / `ASIN` / `ATAN` | 1 | Inverse trig functions |
+| `ATAN2` | 2 | atan2(y, x) — polar angle |
+| `EXP` / `EXPM1` | 1 | eˣ / eˣ−1 |
+| `SQRT` / `CBRT` | 1 | Square root / cube root |
+| `LOG` / `LOG10` / `LOG1P` | 1 | Natural log / log₁₀ / log(1+x) |
+| `CEIL` / `FLOOR` | 1 | Ceiling / floor |
+| `FLOOR_DIV` / `FLOOR_MOD` | 2 | Floor division / floor modulo |
+| `ABS` | 1 | Absolute value |
+| `MIN` / `MAX` | 2 | Minimum / maximum |
+| `POW` | 2 | x ^ y |
+| `SIGNUM` | 1 | Sign: −1, 0, or 1 |
+| `RAD` / `DEG` | 1 | Degrees ↔ radians conversion |
+| `GET_EXP` | 1 | Unbiased IEEE 754 exponent |
+| `HYPOT` | 2 | √(x² + y²) |
+| `CUSTOM` | 0–16 | Custom expression via [exp4j](https://www.objecthunter.net/exp4j) |
+
+#### CUSTOM operation
+
+Write any mathematical expression using the predefined argument variable names shown in the configuration form. Available built-in constants: `pi`/`π` (3.14159…), `e` (2.71828…), `φ` (1.61803…). Available functions: all standard trig/log/sqrt/abs functions plus `ln(x)`, `lg(x)` (log₁₀), `logab(a, b)` (logₐ b).
+
+**Expression examples:**
+
+| Use case | Expression |
+|---|---|
+| Fahrenheit → Celsius | `(x - 32) / 1.8` |
+| Pythagorean theorem | `sqrt(x^2 + y^2)` |
+| Circle area | `pi * r^2` |
+
+### Arguments
+
+Each argument specifies where to read its value from:
+
+| Source | Description |
+|--------|-------------|
+| `CONSTANT` | Fixed numeric value |
+| `MESSAGE_BODY` | Field from message data |
+| `MESSAGE_METADATA` | Field from message metadata |
+| `ATTRIBUTE` | Originator attribute (with scope) |
+| `TIME_SERIES` | Latest time-series value for the originator |
+
+Argument keys support <DocLink product={props.product} path="reference/rule-engine/templatization">templatization</DocLink> — use `${metadataKey}` and `$[dataKey]` to build key names dynamically.
+
+Each argument can have a **default value** used when the source is missing or invalid.
+
+<Aside type="note">
+  All argument values must be numeric or strings parseable as numbers. Arrays, objects, and non-numeric strings cause `Failure` unless a default value is provided.
+</Aside>
+
+### Result
+
+The computation result can be written to one or more destinations:
+
+| Destination | Description |
+|-------------|-------------|
+| `MESSAGE_BODY` | Key in the message data |
+| `MESSAGE_METADATA` | Key in the message metadata |
+| `ATTRIBUTE` | Originator attribute (Server or Shared scope) |
+| `TIME_SERIES` | Time-series data point (current timestamp) |
+
+For `ATTRIBUTE` and `TIME_SERIES` destinations, you can optionally also write the result to the message body and/or metadata for downstream nodes.
+
+Set **Result value precision** to the number of decimal places (half-up rounding). `0` gives an integer.
+
+<Aside type="note">
+  Processing for a given originator is serialised within a server node to prevent race conditions when reading from and writing to the database.
+</Aside>
+
+## Message processing algorithm
+
+1. For each argument, retrieve the value from its configured source. If a value is missing and no default is set, route via `Failure`.
+2. Convert all values to `double`. If conversion fails, route via `Failure`.
+3. Perform the mathematical calculation.
+4. Round the result to the configured precision.
+5. Write the result to all configured destinations.
+6. Route the message via `Success`.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Calculation completed and result saved. |
+| `Failure` | Missing argument without default, non-numeric value, division by zero, invalid operation, or unexpected error. |
+
+## Examples
+
+### Example 1 — Accumulate water consumption
+
+**State**: originator has server attribute `totalConsumption = 12543.8`. **Data**: `{ "deltaConsumption": 15.7 }`.
+
+```json maxLines=25 collapsible
+{
+  "operation": "ADD",
+  "arguments": [
+    { "name": "x", "type": "ATTRIBUTE", "key": "totalConsumption", "attributeScope": "SERVER_SCOPE", "defaultValue": 0 },
+    { "name": "y", "type": "MESSAGE_BODY", "key": "deltaConsumption" }
+  ],
+  "result": {
+    "type": "ATTRIBUTE",
+    "key": "totalConsumption",
+    "attributeScope": "SERVER_SCOPE",
+    "resultValuePrecision": 2,
+    "addToBody": true,
+    "addToMetadata": false
+  }
+}
+```
+
+**Outgoing data**: `{ "deltaConsumption": 15.7, "totalConsumption": 12559.5 }`. Attribute updated to `12559.5`. Routes via `Success`.
+
+---
+
+### Example 2 — Custom formula: signal quality
+
+**Data**: `{ "distance": 250, "frequency": 2400, "signalStrength": -45 }`.
+
+```json maxLines=25 collapsible
+{
+  "operation": "CUSTOM",
+  "customFunction": "100 * e^(-x / 1000) * (1 + 0.5 * sin(2 * pi * y / 1000)) * sqrt(abs(z))",
+  "arguments": [
+    { "name": "x", "type": "MESSAGE_BODY", "key": "distance" },
+    { "name": "y", "type": "MESSAGE_BODY", "key": "frequency" },
+    { "name": "z", "type": "MESSAGE_BODY", "key": "signalStrength" }
+  ],
+  "result": {
+    "type": "MESSAGE_BODY",
+    "key": "signalQuality",
+    "resultValuePrecision": 2,
+    "addToBody": true,
+    "addToMetadata": false
+  }
+}
+```
+
+**Outgoing data includes**: `"signalQuality": 675.98`. Routes via `Success`.
+
+## JSON schema
+
+```json maxLines=30 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbMathNodeConfiguration",
+  "type": "object",
+  "required": ["operation", "arguments", "result"],
+  "additionalProperties": false,
+  "properties": {
+    "operation": { "type": "string" },
+    "customFunction": { "type": "string" },
+    "arguments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "type", "key"],
+        "properties": {
+          "name": { "type": "string" },
+          "type": { "type": "string", "enum": ["CONSTANT","MESSAGE_BODY","MESSAGE_METADATA","ATTRIBUTE","TIME_SERIES"] },
+          "key": { "type": "string" },
+          "attributeScope": { "type": "string" },
+          "defaultValue": { "type": "number" }
+        }
+      }
+    },
+    "result": {
+      "type": "object",
+      "required": ["type", "key"],
+      "properties": {
+        "type": { "type": "string", "enum": ["MESSAGE_BODY","MESSAGE_METADATA","ATTRIBUTE","TIME_SERIES"] },
+        "key": { "type": "string" },
+        "attributeScope": { "type": "string" },
+        "resultValuePrecision": { "type": "integer" },
+        "addToBody": { "type": "boolean" },
+        "addToMetadata": { "type": "boolean" }
+      }
+    }
+  }
+}
+```

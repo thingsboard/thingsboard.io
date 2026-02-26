@@ -1,1 +1,486 @@
-{/* TODO: Add content */}
+import DocLink from '@components/DocLink.astro';
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Products } from '~/models/site.models';
+
+[Ollama](https://ollama.com/) is an open-source tool that runs Large Language Models (LLMs) locally on your own infrastructure — models like Llama 3, Mistral, or Gemma run directly on your servers instead of external cloud services.
+
+Unlike cloud AI providers (OpenAI, Anthropic, Google Gemini), Ollama runs entirely within your environment, offering:
+
+- **Cost reduction** — no per-token charges. Once you have GPU hardware, costs are predictable regardless of usage volume.
+- **Data privacy** — all processing happens within your infrastructure. Telemetry data and AI analysis never leave your network, helping maintain compliance with GDPR, HIPAA, or industry-specific regulations.
+- **Network independence** — no dependency on internet connectivity or third-party availability, suitable for air-gapped facilities or critical infrastructure.
+
+## Deployment options
+
+```plaintext
+  ┌────────────────────────────────────────────────────────┐
+  │           Ollama deployment options                    │
+  ├──────────────┬──────────────┬──────────────┬───────────┤
+  │  Monolithic  │ Docker       │ Kubernetes   │  Remote   │
+  │  (same host) │ Compose      │ (GPU pool)   │  (HTTP/S) │
+  │              │              │              │           │
+  │  localhost   │ Container or │ Separate     │ Dedicated │
+  │  connection  │ system svc   │ GPU nodes    │ GPU       │
+  │              │              │              │ servers   │
+  └──────────────┴──────────────┴──────────────┴───────────┘
+```
+
+### Single server (monolithic)
+
+If ThingsBoard runs as a single service on one server, deploy Ollama on the same machine as an additional service. This works well when:
+
+- The server has GPU capabilities (recommended for acceptable performance).
+- Sufficient memory and CPU resources exist for both services.
+- AI workload is moderate.
+
+Communication happens through `localhost`, keeping everything simple.
+
+### Single server (Docker Compose)
+
+For Docker Compose deployments, you have two options:
+
+| Option | Pros | Cons |
+|---|---|---|
+| **Docker container** | Part of your existing stack. | May require extra config for GPU passthrough. |
+| **System service** | GPU support often configured automatically during install. | Lives outside your container stack. |
+
+Both approaches work well. System service installation typically provides easier GPU access.
+
+### Kubernetes cluster
+
+In Kubernetes environments, run Ollama on a **separate node pool with GPU support**:
+
+- **Scalability** — add GPU-enabled nodes as AI workload grows; Kubernetes distributes pods automatically.
+- **Security** — network policies, pod security standards, and ingress controllers provide fine-grained access control.
+- **Complexity** — requires Nvidia GPU operator, node selectors / taints, resource quotas, and solid Kubernetes expertise.
+
+### Remote deployment
+
+Run Ollama on completely separate infrastructure — dedicated GPU-enabled servers optimized for AI workloads. ThingsBoard makes HTTP/HTTPS requests to the remote Ollama instance. This allows independent scaling and optimization of AI and IoT workloads.
+
+## Authentication
+
+Ollama does not include built-in authentication. Without additional security layers, anyone who can reach the endpoint can use it.
+
+**Authentication is critical when:**
+- Ollama is exposed to untrusted networks or the internet.
+- Multiple teams or projects share the same instance.
+- Compliance requirements mandate access controls.
+
+**Authentication may be less critical when:**
+- Ollama runs within a fully trusted, isolated network.
+- Only ThingsBoard has network access to the endpoint.
+- Infrastructure already provides network-level security.
+
+ThingsBoard supports three authentication methods when connecting to Ollama:
+
+| Method | Description | When to use |
+|---|---|---|
+| **None** | Unauthenticated requests. | Ollama on same server (localhost), or within an isolated network. |
+| **Basic** | HTTP Basic (username + password in `Authorization: Basic <encoded>` header). | Small teams, minimal user management, HTTPS configured. |
+| **Token** | Bearer Token (`Authorization: Bearer <token>` header). | Multiple teams, credential rotation, audit trails, industry standard. |
+
+<Aside type="caution">
+  Always use HTTPS when using Basic or Token authentication. Plain HTTP transmits credentials in clear text.
+</Aside>
+
+For most production deployments (especially remote Ollama), **Token authentication** offers the best balance of security and usability.
+
+## Securing Ollama with Nginx reverse proxy
+
+This section demonstrates how to deploy Ollama with [Nginx](https://nginx.org/) as a reverse proxy to add authentication. Both services run as Docker containers via Docker Compose.
+
+<Aside type="caution">
+  After completing this setup, **secure your Nginx proxy with HTTPS** using the [Nginx HTTPS guide](https://nginx.org/en/docs/http/configuring_https_servers.html) to ensure credentials are encrypted in transit.
+</Aside>
+
+### Prerequisites
+
+Install [Docker Desktop](https://docs.docker.com/desktop/) (includes Docker and Docker Compose) and ensure it is running.
+
+### Project directory
+
+Create the directory structure:
+
+```plaintext
+ollama-nginx-auth/
+└── nginx/
+```
+
+All files below are created inside `ollama-nginx-auth/`.
+
+### Approach 1: HTTP Basic Authentication
+
+This method protects the endpoint with a username and password. Nginx checks credentials against an encrypted `.htpasswd` file.
+
+#### Step 1: Create the credential file
+
+From the `ollama-nginx-auth/` directory, create the `.htpasswd` file inside `nginx/`:
+
+<Tabs>
+<TabItem label="Linux / macOS">
+```bash
+docker run --rm -it httpd:alpine htpasswd -nb myuser mypassword > ./nginx/.htpasswd
+```
+</TabItem>
+<TabItem label="Windows (PowerShell)">
+```powershell
+docker run --rm -it httpd:alpine htpasswd -nb myuser mypassword | Out-File -FilePath ./nginx/.htpasswd -Encoding ascii
+```
+</TabItem>
+</Tabs>
+
+#### Step 2: Create the Nginx configuration
+
+Create `nginx/basic_auth.conf`:
+
+```text maxLines=20 collapsible
+events {}
+
+http {
+    server {
+        listen 80;
+
+        location / {
+            auth_basic "Restricted Access";
+            auth_basic_user_file /etc/nginx/.htpasswd;
+
+            proxy_pass http://ollama:11434;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+            proxy_connect_timeout 300s;
+            proxy_send_timeout 300s;
+            proxy_read_timeout 300s;
+        }
+    }
+}
+```
+
+Key settings:
+- `auth_basic` enables HTTP Basic Authentication.
+- `auth_basic_user_file` points to the password file inside the container.
+- `proxy_pass` forwards authenticated requests to the Ollama service.
+- Timeouts are increased to 300s to accommodate slow model responses.
+
+#### Step 3: Create the Docker Compose file
+
+Create `docker-compose.basic.yml`:
+
+```yaml maxLines=20 collapsible
+services:
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx_proxy
+    ports:
+      - "8880:80"
+    volumes:
+      - ./nginx/basic_auth.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/.htpasswd:/etc/nginx/.htpasswd:ro
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
+```
+
+#### Step 4: Run and test
+
+Start the services:
+
+```bash
+docker compose -f docker-compose.basic.yml up -d
+```
+
+Pull a model (this may take some time):
+
+```bash
+docker exec -it ollama ollama pull gemma3:1b
+```
+
+Test with valid credentials:
+
+<Tabs>
+<TabItem label="Linux / macOS">
+```bash
+curl http://localhost:8880/api/generate \
+  -u myuser:mypassword \
+  -d '{"model": "gemma3:1b", "prompt": "Why is the sky blue?", "stream": false}'
+```
+</TabItem>
+<TabItem label="Windows (PowerShell)">
+```powershell
+$headers = @{
+    "Authorization" = "Basic " + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("myuser:mypassword"))
+}
+$body = '{"model": "gemma3:1b", "prompt": "Why is the sky blue?", "stream": false}'
+Invoke-RestMethod -Uri http://localhost:8880/api/generate -Method Post -Headers $headers -Body $body -ContentType "application/json"
+```
+</TabItem>
+</Tabs>
+
+Test with incorrect credentials (should return `401 Unauthorized`):
+
+<Tabs>
+<TabItem label="Linux / macOS">
+```bash
+curl http://localhost:8880/api/generate \
+  -u wronguser:wrongpassword \
+  -d '{"model": "gemma3:1b", "prompt": "This will fail", "stream": false}'
+```
+</TabItem>
+<TabItem label="Windows (PowerShell)">
+```powershell
+$headers = @{
+    "Authorization" = "Basic " + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("wronguser:wrongpassword"))
+}
+$body = '{"model": "gemma3:1b", "prompt": "This will fail", "stream": false}'
+Invoke-RestMethod -Uri http://localhost:8880/api/generate -Method Post -Headers $headers -Body $body -ContentType "application/json"
+```
+</TabItem>
+</Tabs>
+
+#### Managing users
+
+Add a new user:
+
+<Tabs>
+<TabItem label="Linux / macOS">
+```bash
+docker run --rm -it httpd:alpine htpasswd -nb anotheruser anotherpassword >> ./nginx/.htpasswd
+```
+</TabItem>
+<TabItem label="Windows (PowerShell)">
+```powershell
+docker run --rm -it httpd:alpine htpasswd -nb anotheruser anotherpassword | Out-File -FilePath ./nginx/.htpasswd -Encoding ascii -Append
+```
+</TabItem>
+</Tabs>
+
+To remove a user, open `./nginx/.htpasswd` and delete the corresponding line. Changes take effect immediately without restarting Nginx.
+
+<Aside type="note">
+  Always use the `htpasswd` command to add users. Manually adding plain-text passwords will not work — the password must be hashed.
+</Aside>
+
+---
+
+### Approach 2: Bearer Token (API Key) Authentication
+
+This method uses secret tokens stored in a text file. Nginx validates tokens via a Lua script.
+
+#### Step 1: Create the API keys file
+
+Create `nginx/api_keys.txt`:
+
+```text
+my-secret-api-key-1
+admin-key-abcdef
+```
+
+#### Step 2: Create the Nginx configuration
+
+Create `nginx/bearer_token.conf`:
+
+```text maxLines=40 collapsible
+events {}
+
+http {
+    server {
+        listen 80;
+
+        location / {
+            access_by_lua_block {
+                local function trim(s)
+                    return (s:gsub("^%s*(.-)%s*$", "%1"))
+                end
+
+                local function get_keys_from_file(path)
+                    local keys = {}
+                    local file = io.open(path, "r")
+                    if not file then
+                        ngx.log(ngx.ERR, "cannot open api keys file: ", path)
+                        return keys
+                    end
+                    for line in file:lines() do
+                        line = trim(line)
+                        if line ~= "" then
+                            keys[line] = true
+                        end
+                    end
+                    file:close()
+                    return keys
+                end
+
+                local api_keys_file = "/etc/nginx/api_keys.txt"
+                local valid_keys = get_keys_from_file(api_keys_file)
+
+                local auth_header = ngx.var.http_authorization or ""
+                local _, _, token = string.find(auth_header, "Bearer%s+(.+)")
+
+                if not token or not valid_keys[token] then
+                    return ngx.exit(ngx.HTTP_UNAUTHORIZED)
+                end
+            }
+
+            proxy_pass http://ollama:11434;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+            proxy_connect_timeout 300s;
+            proxy_send_timeout 300s;
+            proxy_read_timeout 300s;
+        }
+    }
+}
+```
+
+The `access_by_lua_block` reads valid keys from the file on every request, extracts the token from the `Authorization: Bearer <token>` header, and returns `401 Unauthorized` if the token is missing or invalid.
+
+#### Step 3: Create the Docker Compose file
+
+Create `docker-compose.bearer.yml`. This uses the [OpenResty](https://openresty.org/) image which includes the Nginx Lua module:
+
+```yaml maxLines=25 collapsible
+services:
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
+  nginx:
+    image: openresty/openresty:latest
+    container_name: nginx_proxy
+    ports:
+      - "8880:80"
+    volumes:
+      - ./nginx/bearer_token.conf:/usr/local/openresty/nginx/conf/nginx.conf:ro
+      - ./nginx/api_keys.txt:/etc/nginx/api_keys.txt:ro
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
+```
+
+#### Step 4: Run and test
+
+Start the services:
+
+```bash
+docker compose -f docker-compose.bearer.yml up -d
+```
+
+Pull a model:
+
+```bash
+docker exec -it ollama ollama pull gemma3:1b
+```
+
+Test with a valid API key:
+
+<Tabs>
+<TabItem label="Linux / macOS">
+```bash
+curl http://localhost:8880/api/generate \
+  -H "Authorization: Bearer my-secret-api-key-1" \
+  -d '{"model": "gemma3:1b", "prompt": "Explain black holes to a 5-year-old", "stream": false}'
+```
+</TabItem>
+<TabItem label="Windows (PowerShell)">
+```powershell
+$headers = @{
+    "Authorization" = "Bearer my-secret-api-key-1"
+}
+$body = '{"model": "gemma3:1b", "prompt": "Explain black holes to a 5-year-old", "stream": false}'
+Invoke-RestMethod -Uri http://localhost:8880/api/generate -Method Post -Headers $headers -Body $body -ContentType "application/json"
+```
+</TabItem>
+</Tabs>
+
+Test with an invalid key (should return `401 Unauthorized`):
+
+<Tabs>
+<TabItem label="Linux / macOS">
+```bash
+curl http://localhost:8880/api/generate -v \
+  -H "Authorization: Bearer invalid-key" \
+  -d '{"model": "gemma3:1b", "prompt": "This will fail", "stream": false}'
+```
+</TabItem>
+<TabItem label="Windows (PowerShell)">
+```powershell
+$headers = @{
+    "Authorization" = "Bearer invalid-key"
+}
+$body = '{"model": "gemma3:1b", "prompt": "This will fail", "stream": false}'
+Invoke-RestMethod -Uri http://localhost:8880/api/generate -Method Post -Headers $headers -Body $body -ContentType "application/json"
+```
+</TabItem>
+</Tabs>
+
+#### Managing API keys
+
+Edit `nginx/api_keys.txt` — add, change, or remove keys (one per line). Changes take effect immediately on the next request because the Lua script reads the file on every request.
+
+---
+
+### Service management
+
+To start or stop the services:
+
+```bash
+# Start
+docker compose -f <compose-file-name> up -d
+
+# Stop
+docker compose -f <compose-file-name> down
+```
+
+Replace `<compose-file-name>` with `docker-compose.basic.yml` or `docker-compose.bearer.yml`.
+
+## Configuring Ollama in ThingsBoard
+
+Once Ollama is deployed, connect it to ThingsBoard through the <DocLink product={props.product} path="user-guide/ai-models">AI models</DocLink> configuration page.
+
+### Configuration parameters
+
+| Parameter | Description |
+|---|---|
+| **Provider** | Select **Ollama** from the dropdown. |
+| **Base URL** | HTTP/HTTPS endpoint of your Ollama instance (e.g., `http://localhost:11434`, `http://192.168.1.100:8880`, `https://ollama.yourdomain.com`). |
+| **Authentication** | Choose **None**, **Basic** (username + password), or **Token** (API key). |
+| **Model ID** | The Ollama model to use (e.g., `llama3:8b`, `mistral:7b`, `gemma3:1b`). Must match a model you have pulled. |
+| **Temperature, Top P, Top K, Max tokens** | Control the model's response behavior. Configure according to your use case. |
+| **Context length** | Total tokens the model can process per request (input + output). |
+
+### Context length considerations
+
+Context length significantly impacts GPU memory usage. Unlike cloud services that scale automatically, with Ollama you manage fixed hardware resources.
+
+Start with a reasonable estimate based on your typical input size plus expected output length, then adjust:
+
+- If requests are being truncated, increase context length.
+- If memory usage is too high or performance suffers, reduce it or use a smaller model.
+
+### Testing your configuration
+
+Click **Check connectivity** at the bottom of the form. A green checkmark confirms that ThingsBoard can communicate with your Ollama endpoint and the specified model is available.
+
+## Next steps
+
+- **Enable HTTPS** — [Nginx HTTPS configuration guide](https://nginx.org/en/docs/http/configuring_https_servers.html).
+- **Add GPU support** — [Ollama Docker GPU setup](https://github.com/ollama/ollama/blob/main/docs/docker.md).

@@ -1,0 +1,94 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to dispatch notifications to users or groups via the <DocLink product={props.product} path="user-guide/notifications">notification center</DocLink> — for example, sending a web notification to on-call engineers when a critical alarm is created, or emailing a tenant administrator when a device goes offline.
+
+## Configuration
+
+- **Template** — required. A **Rule node** type notification template that defines the content, format, and delivery channels (Web, Email, SMS, Slack, etc.). Select from existing templates in your ThingsBoard instance.
+- **Recipients** — required. One or more recipient groups that will receive the notification. The notification system automatically deduplicates recipients across groups.
+
+<Aside type="note">
+  Use `${key}` syntax in notification templates to reference message data fields, metadata values, and originator properties — even for data fields that normally use `$[key]` syntax in rule nodes.
+</Aside>
+
+## Outgoing message format
+
+On success, the following field is added to the **message metadata**:
+
+- `notificationRequestResult` — JSON string with delivery statistics:
+  - `sent` — map of delivery channel → number of notifications sent
+  - `errors` — map of delivery channel → number of failures
+  - `totalSent` / `totalErrors` — aggregate counts
+  - `error` — top-level error message (null on success)
+
+**Example metadata after successful notification:**
+```json maxLines=15 collapsible
+{
+  "deviceName": "Weather Station 01",
+  "notificationRequestResult": "{\"sent\":{\"WEB\":1},\"errors\":{},\"totalErrors\":0,\"error\":null,\"totalSent\":1}"
+}
+```
+
+Message data is **not** modified.
+
+## Message processing algorithm
+
+1. Create a notification request from the incoming message data, metadata, originator, and the configured template and recipients.
+2. Submit the request asynchronously to the notification center.
+3. On completion, add `notificationRequestResult` to the message metadata and route via `Success`.
+4. On unexpected error, route via `Failure`.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Notification processed and sent; `notificationRequestResult` added to metadata. |
+| `Failure` | Unexpected error during notification processing. |
+
+## Examples
+
+### Example 1 — Notify on-call team of telemetry values
+
+**Data**: `{ "temperature": 23.5, "humidity": 65.2 }` | **Metadata**: `{ "deviceName": "Weather Station 01" }`.
+
+```json maxLines=15 collapsible
+{
+  "templateId": {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "entityType": "NOTIFICATION_TEMPLATE"
+  },
+  "targets": ["784f394c-42b6-435a-983c-b7beff2784f9"]
+}
+```
+
+**Template body**: `Weather Update from ${deviceName}: Temp ${temperature}°C, Humidity ${humidity}%`
+
+**Result**: notification sent via Web channel. `notificationRequestResult` added to metadata. Routes via `Success`.
+
+## JSON schema
+
+```json maxLines=25 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbNotificationNodeConfiguration",
+  "type": "object",
+  "required": ["templateId", "targets"],
+  "additionalProperties": false,
+  "properties": {
+    "templateId": {
+      "type": "object",
+      "required": ["id", "entityType"],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "entityType": { "type": "string", "enum": ["NOTIFICATION_TEMPLATE"] }
+      }
+    },
+    "targets": {
+      "type": "array",
+      "items": { "type": "string", "format": "uuid" },
+      "minItems": 1
+    }
+  }
+}
+```

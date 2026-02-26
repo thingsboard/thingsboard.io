@@ -1,0 +1,121 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to publish incoming message data to an external MQTT broker — for example, forwarding device telemetry to a cloud IoT platform, delivering commands to field devices through a dedicated broker, or bridging ThingsBoard data to a third-party MQTT-based service.
+
+## Configuration
+
+### Topic
+
+- **Topic pattern** — required. MQTT topic where messages will be published. Supports <DocLink product={props.product} path="reference/rule-engine/templatization">templatization</DocLink>.
+
+### Connection
+
+- **Host** — required. MQTT broker hostname or IP.
+- **Port** — required. MQTT broker port.
+- **Connection timeout (sec)** — required. Maximum time to wait when establishing the connection.
+
+### Client ID
+
+Optional. Leave empty for auto-generated `netty-mqtt/XXXXXXXX`. In clustered deployments:
+
+- **Singleton mode** (default) — one rule node instance per cluster, one connection.
+- **Disabled singleton** + **Add Service ID as suffix** — one connection per rule engine instance, each with a unique client ID.
+
+### Message settings
+
+- **Parse to plain text** — when enabled, removes outer JSON string encoding from message data before publishing (useful for string payloads). Regular JSON objects are unaffected.
+- **QoS** — fixed at **QoS 1 (at-least-once)**.
+- **Retained** — when enabled, the broker stores and delivers the message to future subscribers.
+
+### Protocol version
+
+`MQTT 3.1`, `MQTT 3.1.1` (default), or `MQTT 5`.
+
+### Session
+
+- **Clean session** — enabled by default; broker does not store session state between connections.
+
+### Security
+
+- **Enable SSL** — use TLS encryption.
+- **Credentials** — `Anonymous`, `Basic` (username/password), or `PEM Certificate` (CA cert, client cert, private key).
+
+### MQTT retransmission
+
+For unacknowledged QoS 1 messages, the client uses exponential backoff with jitter. Configure globally via environment variables:
+
+| Variable | Default |
+|---|---|
+| `TB_MQTT_CLIENT_RETRANSMISSION_MAX_ATTEMPTS` | `3` |
+| `TB_MQTT_CLIENT_RETRANSMISSION_INITIAL_DELAY_MILLIS` | `5000` |
+| `TB_MQTT_CLIENT_RETRANSMISSION_JITTER_FACTOR` | `0.15` |
+
+### Force acknowledgement
+
+Controlled by the `ACTORS_RULE_EXTERNAL_NODE_FORCE_ACK` environment variable. When `true`, the incoming message is acknowledged immediately and the publish operation runs asynchronously.
+
+## Message processing algorithm
+
+1. Establish a persistent connection to the broker on node startup.
+2. For each incoming message: resolve the topic pattern; optionally strip JSON string encoding; publish with QoS 1.
+3. On success: route via `Success`. On failure: add `error` to metadata and route via `Failure`.
+4. On node shutdown (config update or deletion): disconnect gracefully and release resources.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Message published and acknowledged by broker. |
+| `Failure` | Publish failed, retransmission exhausted, or unexpected error. Error details in metadata `error` key. |
+
+## Examples
+
+### Example 1 — Forward telemetry to cloud broker
+
+**Metadata**: `{ "deviceType": "temperature", "deviceName": "sensor-warehouse-01" }` | **Data**: `{ "temperature": 22.5, "humidity": 65 }`.
+
+```json maxLines=25 collapsible
+{
+  "topicPattern": "factory/sensors/${deviceType}/${deviceName}",
+  "host": "mqtt.cloud-provider.com",
+  "port": 8883,
+  "connectTimeoutSec": 10,
+  "clientId": "thingsboard-publisher",
+  "appendClientIdSuffix": true,
+  "retainedMessage": false,
+  "cleanSession": true,
+  "ssl": true,
+  "parseToPlainText": false,
+  "protocolVersion": "MQTT_3_1_1",
+  "credentials": { "type": "basic", "username": "factory-user", "password": "secure-password" }
+}
+```
+
+**Result**: message published to `factory/sensors/temperature/sensor-warehouse-01` over TLS. Routes via `Success`.
+
+## JSON schema
+
+```json maxLines=30 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbMqttNodeConfiguration",
+  "type": "object",
+  "required": ["topicPattern", "host", "port", "connectTimeoutSec", "cleanSession", "ssl", "retainedMessage", "parseToPlainText", "protocolVersion", "credentials"],
+  "additionalProperties": false,
+  "properties": {
+    "topicPattern": { "type": "string" },
+    "host": { "type": "string" },
+    "port": { "type": "integer" },
+    "connectTimeoutSec": { "type": "integer" },
+    "clientId": { "type": "string" },
+    "appendClientIdSuffix": { "type": "boolean" },
+    "retainedMessage": { "type": "boolean" },
+    "cleanSession": { "type": "boolean" },
+    "ssl": { "type": "boolean" },
+    "parseToPlainText": { "type": "boolean" },
+    "protocolVersion": { "type": "string", "enum": ["MQTT_3_1", "MQTT_3_1_1", "MQTT_5"] },
+    "credentials": { "type": "object" }
+  }
+}
+```

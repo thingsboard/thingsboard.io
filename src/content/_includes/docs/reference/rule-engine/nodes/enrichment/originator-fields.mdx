@@ -1,0 +1,120 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to attach entity metadata — like the device name, profile, label, or creation time — directly to the message data or metadata. This is useful when downstream nodes or external systems need these fields without making additional database queries, for example to stamp messages with the sending device's name before saving them to a custom table.
+
+## Configuration
+
+- **Originator fields mapping** — required. Defines which entity fields to read and what keys to write them under. Each entry has:
+  - **Source field** — the field to read from the originator entity (e.g., `Name`, `Profile name`, `Label`, `Created time`).
+  - **Target key** — the key to write the value under in the outgoing message. Supports <DocLink product={props.product} path="reference/rule-engine/templatization">templatization</DocLink> — use `${metadata.key}` and `$[data.key]` to build dynamic key names.
+- **Add mapped originator fields to** — where to write the fetched fields:
+  - `Message` — adds to message data. Fails if message data is not a valid JSON object.
+  - `Metadata` — adds to message metadata.
+- **Skip empty fields** — if enabled, fields on the originator that are `null` or empty are silently ignored rather than written.
+
+## Message processing algorithm
+
+1. Identify the originator of the incoming message.
+2. For each mapping entry, resolve any templates in the **Target key** using the incoming message data and metadata.
+3. Fetch the specified **Source fields** from the originator entity asynchronously.
+4. If a source field does not exist or (when **Skip empty fields** is enabled) is empty/null, skip it.
+5. Write the resulting key–value pairs to message data or metadata per the **Add mapped originator fields to** setting.
+6. Forward the enriched message via `Success`. If an error occurs (e.g., message data is not a JSON object when writing to `Message`), route via `Failure`.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Message enriched successfully. |
+| `Failure` | Error during processing — for example, `Message` destination selected but message data is not a valid JSON object. |
+
+## Examples
+
+### Example 1 — Device name and profile to metadata
+
+A thermostat sends a temperature reading. Downstream nodes need to know the device name and profile name, so they are added to metadata.
+
+**Incoming metadata**: `{ "ts": "1756479659000" }`
+
+Originator: device **Thermostat-HVAC-1**, profile **HVAC Thermostat**
+
+**Node configuration**
+
+```json maxLines=15 collapsible
+{
+  "dataMapping": {
+    "name": "originatorName",
+    "type": "originatorProfileName"
+  },
+  "fetchTo": "METADATA",
+  "ignoreNullStrings": false
+}
+```
+
+**Outgoing metadata**
+
+```json maxLines=15 collapsible
+{
+  "ts": "1756479659000",
+  "originatorName": "Thermostat-HVAC-1",
+  "originatorProfileName": "HVAC Thermostat"
+}
+```
+
+---
+
+### Example 2 — Device creation time to message data
+
+Add the device's creation timestamp to the message data for auditing purposes.
+
+**Incoming data**: `{ "humidity": 58.2 }`
+
+**Node configuration**
+
+```json maxLines=15 collapsible
+{
+  "dataMapping": {
+    "createdTime": "deviceCreatedTime"
+  },
+  "fetchTo": "DATA",
+  "ignoreNullStrings": false
+}
+```
+
+**Outgoing data**
+
+```json maxLines=15 collapsible
+{
+  "humidity": 58.2,
+  "deviceCreatedTime": "1672531200000"
+}
+```
+
+## JSON schema
+
+```json maxLines=25 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbGetOriginatorFieldsNodeConfiguration",
+  "type": "object",
+  "required": ["dataMapping", "fetchTo"],
+  "additionalProperties": false,
+  "properties": {
+    "fetchTo": {
+      "type": "string",
+      "enum": ["DATA", "METADATA"],
+      "description": "Destination for the fetched fields."
+    },
+    "dataMapping": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Map of source entity field names to target key names."
+    },
+    "ignoreNullStrings": {
+      "type": "boolean",
+      "description": "If true, fields with empty or null values are skipped."
+    }
+  }
+}
+```

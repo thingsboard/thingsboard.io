@@ -1,0 +1,93 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to send the current message data as an HTTP response to an incoming REST API request submitted to the rule engine — for example, completing a synchronous REST call that triggered rule chain processing by returning a computed result back to the caller.
+
+## Configuration
+
+- **Service Id** — metadata key that holds the service identifier. Default: `serviceId`.
+- **Request Id** — metadata key that holds the request UUID. Default: `requestUUID`.
+
+<Aside type="note">
+  The default values match what ThingsBoard automatically injects into message metadata when a REST API request arrives at the rule engine. Only change these if your processing chain renames those keys.
+</Aside>
+
+## Usage
+
+To trigger this flow, submit a message to the rule engine via one of these REST endpoints:
+
+| Endpoint | Originator |
+|----------|-----------|
+| `POST /api/rule-engine/` | The authenticated user |
+| `POST /api/rule-engine/{entityType}/{entityId}` | The specified entity |
+| `POST /api/rule-engine/{entityType}/{entityId}/{timeout}` | The specified entity, custom timeout (ms) |
+| `POST /api/rule-engine/{entityType}/{entityId}/{queueName}/{timeout}` | The specified entity, custom queue and timeout |
+
+ThingsBoard automatically injects `serviceId` and `requestUUID` into the message metadata. **These values must be preserved** throughout the processing chain. If they are overwritten or removed, the reply cannot be routed and the original REST call will time out.
+
+## Message processing algorithm
+
+1. Extract `serviceId` from message metadata using the configured key. If missing, route via `Failure`.
+2. Extract `requestId` from message metadata using the configured key. If missing or not a valid UUID, route via `Failure`.
+3. Verify that message data is not empty. If empty, route via `Failure`.
+4. Send the message data as the HTTP response body to the originating REST API call.
+5. Route the original message via `Success`.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Reply sent successfully. Outgoing message is unchanged. |
+| `Failure` | Missing `serviceId`, missing or invalid `requestId`, empty message data, or unexpected error. |
+
+## Examples
+
+### Example 1 — Reply with processing result
+
+**Originator**: `DEVICE` | **Metadata** (injected by ThingsBoard):
+```json maxLines=10 collapsible
+{
+  "serviceId": "monolith",
+  "requestUUID": "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6"
+}
+```
+
+**Data** (prepared by earlier rule nodes):
+```json maxLines=15 collapsible
+{
+  "status": "completed",
+  "fileName": "sensor_data_2024_10_02.csv",
+  "recordsProcessed": 1250
+}
+```
+
+```json maxLines=10 collapsible
+{
+  "serviceIdMetaDataAttribute": "serviceId",
+  "requestIdMetaDataAttribute": "requestUUID"
+}
+```
+
+**Result**: message data returned as HTTP response to the waiting REST caller. Routes via `Success`.
+
+## JSON schema
+
+```json maxLines=20 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbSendRestApiCallReplyNodeConfiguration",
+  "type": "object",
+  "required": ["serviceIdMetaDataAttribute", "requestIdMetaDataAttribute"],
+  "additionalProperties": false,
+  "properties": {
+    "serviceIdMetaDataAttribute": {
+      "type": "string",
+      "description": "Metadata key for the service identifier."
+    },
+    "requestIdMetaDataAttribute": {
+      "type": "string",
+      "description": "Metadata key for the request UUID."
+    }
+  }
+}
+```

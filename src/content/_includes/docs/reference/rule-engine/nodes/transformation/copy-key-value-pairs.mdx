@@ -1,0 +1,120 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to bridge data between message data and metadata. For example, copy a device reading from the message payload into metadata so downstream nodes can reference it via `${key}` patterns — or pull metadata keys into the payload for storage. Java regular expressions are supported in key patterns, making it easy to copy groups of related keys at once.
+
+<Aside type="note">
+  When copying from message **data** to metadata, non-string values (numbers, booleans, objects, arrays) are converted to their string representation. If the message data is not a JSON object, the message is passed through unchanged.
+</Aside>
+
+## Configuration
+
+- **Copy key-values from** — required. Direction of the copy:
+  - `Message to metadata` — copies from message data to metadata.
+  - `Metadata to message` — copies from metadata to message data.
+- **Keys** — a set of key names or Java regular expression patterns to copy. Keys that don't match any existing key in the source are silently ignored. If a key already exists in the destination, its value is **overwritten**.
+
+## Message processing algorithm
+
+1. Determine the copy direction from the configuration.
+2. Iterate through all keys in the source (data or metadata).
+3. For each source key, check whether it matches any configured key pattern (literal or regex).
+4. Copy matching key–value pairs to the destination. Non-string values are stringified when copying to metadata.
+5. If at least one pair was copied, forward the updated message via `Success`. If nothing matched, forward the original message unchanged via `Success`.
+6. On unexpected error, route via `Failure`.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Processing completed (including when no keys were copied). |
+| `Failure` | An unexpected error occurred. |
+
+## Examples
+
+### Example 1 — Copy data fields to metadata
+
+```json maxLines=15 collapsible
+{ "copyFrom": "DATA", "keys": ["temperature", "humidity"] }
+```
+
+**Incoming data**: `{ "temperature": 25.4, "humidity": 62, "deviceName": "Sensor-A1" }`
+
+**Outgoing metadata** gains:
+```json maxLines=10 collapsible
+{ "temperature": "25.4", "humidity": "62" }
+```
+
+Values are stringified. `deviceName` is not copied (not in the keys list).
+
+---
+
+### Example 2 — Copy metadata to data
+
+```json maxLines=15 collapsible
+{ "copyFrom": "METADATA", "keys": ["deviceType", "location"] }
+```
+
+**Incoming metadata**: `{ "deviceType": "Thermostat", "location": "Floor 1" }`
+
+**Outgoing data** gains: `"deviceType": "Thermostat", "location": "Floor 1"` (string types preserved).
+
+---
+
+### Example 3 — Regex pattern copies multiple keys
+
+```json maxLines=15 collapsible
+{ "copyFrom": "DATA", "keys": ["sensor_.*"] }
+```
+
+**Incoming data**: `{ "sensor_temp": 33.1, "sensor_humidity": 45, "battery_level": 98, "sensor_pressure": 1012 }`
+
+**Outgoing metadata** gains `sensor_temp`, `sensor_humidity`, and `sensor_pressure` (all match `sensor_.*`). `battery_level` is not copied.
+
+---
+
+### Example 4 — Existing destination key overwritten
+
+**Incoming data**: `{ "temperature": 22.5 }` | **Incoming metadata**: `{ "temperature": "18.0" }`
+
+```json maxLines=10 collapsible
+{ "copyFrom": "DATA", "keys": ["temperature"] }
+```
+
+**Outgoing metadata**: `"temperature": "22.5"` — the old value `"18.0"` is overwritten.
+
+---
+
+### Example 5 — Object value stringified
+
+**Incoming data**: `{ "location": { "lat": 40.7128, "lon": -74.0060 } }`
+
+```json maxLines=10 collapsible
+{ "copyFrom": "DATA", "keys": ["location"] }
+```
+
+**Outgoing metadata**: `"location": "{\"lat\":40.7128,\"lon\":-74.0060}"` — the nested object is JSON-stringified.
+
+## JSON schema
+
+```json maxLines=20 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbCopyKeysNodeConfiguration",
+  "type": "object",
+  "required": ["copyFrom", "keys"],
+  "additionalProperties": false,
+  "properties": {
+    "copyFrom": {
+      "type": "string",
+      "enum": ["DATA", "METADATA"],
+      "description": "Source: DATA = message data, METADATA = message metadata."
+    },
+    "keys": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Key names or Java regex patterns to copy."
+    }
+  }
+}
+```

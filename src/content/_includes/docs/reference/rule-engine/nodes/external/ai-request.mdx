@@ -1,0 +1,69 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to send message data to a large language model and receive an AI-generated response as the outgoing message — for example, analysing device anomaly descriptions with a natural-language model, classifying incoming telemetry against predefined categories, or generating a human-readable alarm summary from raw sensor values.
+
+## Configuration
+
+- **Model** — required. Reference to a configured AI model entity in ThingsBoard.
+- **System prompt** — optional. System-level instruction for the LLM (up to 500,000 characters). Supports <DocLink product={props.product} path="reference/rule-engine/templatization">templatization</DocLink>. Use `${*}` for all metadata or `${key}` for a specific field; `$[*]` for all message data or `$[key]` for a specific field.
+- **User prompt** — required. User-level message sent to the LLM (up to 500,000 characters). Supports templatization with the same `$[...]` / `${...}` syntax.
+- **AI resources** — optional file attachments included with the request (text/*, application/pdf, image/*).
+- **Response format** — `TEXT`, `JSON`, or `JSON_SCHEMA`. Note: `JSON` and `JSON_SCHEMA` are not supported on Amazon Bedrock, Anthropic, or GitHub Models.
+- **Timeout** — request timeout in seconds (1–600).
+- **Force acknowledgement** — controlled by the `ACTORS_RULE_EXTERNAL_NODE_FORCE_ACK` environment variable.
+
+## Message processing algorithm
+
+1. If force acknowledgement is enabled, acknowledge the incoming message immediately.
+2. Render the system and user prompts using templatization.
+3. Load and convert any configured resources (UTF-8 for text, Base64 for binary).
+4. Send the chat request to the configured AI model.
+5. Validate the response:
+   - For `JSON` / `JSON_SCHEMA` responses: parse as JSON and wrap in `{"response": ...}` if the top-level value is not an object.
+   - For `TEXT` responses: use as-is.
+6. Replace the incoming message data with the AI response; route via `Success`.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | AI responded successfully. Outgoing message data = AI response. |
+| `Failure` | Request timeout, model or resource not found, provider error, or unexpected error. |
+
+## Examples
+
+### Example 1 — Classify telemetry anomaly
+
+**Data**: `{ "temperature": 97.3, "deviceId": "sensor-5" }`.
+
+```json maxLines=20 collapsible
+{
+  "systemPrompt": "You are an IoT anomaly classifier. Respond with JSON only.",
+  "userPrompt": "Device $[deviceId] reports temperature $[temperature]. Is this a critical anomaly? Respond: {\"anomaly\": true/false, \"reason\": \"...\"}",
+  "responseFormat": "JSON",
+  "timeoutSec": 30
+}
+```
+
+**Outgoing data** (example): `{ "anomaly": true, "reason": "Temperature 97.3°C exceeds safe threshold of 80°C." }`. Routes via `Success`.
+
+## JSON schema
+
+```json maxLines=25 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbAiRequestNodeConfiguration",
+  "type": "object",
+  "required": ["userPrompt", "responseFormat", "timeoutSec"],
+  "additionalProperties": false,
+  "properties": {
+    "modelId": { "type": "object", "description": "Reference to the AI model entity." },
+    "systemPrompt": { "type": "string" },
+    "userPrompt": { "type": "string" },
+    "resources": { "type": "array" },
+    "responseFormat": { "type": "string", "enum": ["TEXT", "JSON", "JSON_SCHEMA"] },
+    "timeoutSec": { "type": "integer", "minimum": 1, "maximum": 600 }
+  }
+}
+```

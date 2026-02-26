@@ -1,0 +1,108 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to convert a cumulative (ever-increasing) counter into a consumption value — for example, turning a water meter's total pulse counter into liters consumed since the last report, or converting total energy in kWh into the energy used in the last interval. The node subtracts the previous reading from the current one and adds the result to the message data.
+
+## Configuration
+
+- **Input value key** — required. The key in the incoming message data that holds the cumulative counter (e.g., `pulseCounter`). Must be numeric or parseable as a number.
+- **Output value key** — required. The key under which the calculated delta is added to the message data (e.g., `waterConsumption`).
+- **Number of digits after floating point** — optional. Rounds the delta to the specified number of decimal places.
+- **Tell Failure if delta is negative** — when enabled, a negative delta (e.g., after a meter reset) routes the message to `Failure` instead of `Success`.
+- **Use caching** — when enabled, the node keeps the last known value per originator in memory for faster processing without a database query. The cache is local and cleared on node restart.
+- **Add the time difference between readings** — when enabled, also calculates the elapsed time (in milliseconds) between the current and previous messages and adds it to the message data.
+- **Period value key** — the key for the time difference value (required if the above is enabled).
+- **Exclude zero deltas from outbound message** — when enabled, messages that result in a delta of exactly zero are forwarded unchanged via `Success` without adding the output key to message data.
+
+## Message processing algorithm
+
+1. Check that the message type is `POST_TELEMETRY_REQUEST` and the **Input value key** exists in message data. If not, route via `Other`.
+2. Retrieve the previous value for this originator from cache (if enabled) or from the database. If no previous value exists, use `0`.
+3. Calculate delta: `delta = currentValue - previousValue`.
+4. If **Tell Failure if delta is negative** is enabled and delta < 0, route via `Failure`.
+5. If **Exclude zero deltas** is enabled and delta = 0, route via `Success` without modifying the message.
+6. Round the delta if **Number of digits** is configured.
+7. Add the delta under **Output value key** to message data.
+8. If **Add the time difference between readings** is enabled, calculate elapsed time since the previous message and add it under **Period value key**.
+9. Route via `Success`.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Delta calculated and added to message data (or zero delta excluded). |
+| `Failure` | Delta is negative and **Tell Failure if delta is negative** is enabled. |
+| `Other` | Message type is not `POST_TELEMETRY_REQUEST`, or the **Input value key** is not present in message data. |
+
+## Examples
+
+### Example 1 — Basic consumption calculation
+
+A water meter reports total pulses. We want consumption since the last report.
+
+**Incoming data**: `{ "pulseCounter": 1500 }` | Previous stored value: `1450`
+
+```json maxLines=20 collapsible
+{
+  "inputValueKey": "pulseCounter",
+  "outputValueKey": "waterConsumption",
+  "useCache": true,
+  "addPeriodBetweenMsgs": false,
+  "tellFailureIfDeltaIsNegative": false,
+  "excludeZeroDeltas": false
+}
+```
+
+**Outgoing data**
+
+```json maxLines=10 collapsible
+{
+  "pulseCounter": 1500,
+  "waterConsumption": 50
+}
+```
+
+Delta: `1500 - 1450 = 50`.
+
+---
+
+### Example 2 — Meter reset detection → `Failure`
+
+The meter counter reset from 1680 back to 10.
+
+**Incoming data**: `{ "pulseCounter": 10 }` | Previous value: `1680`
+
+```json maxLines=20 collapsible
+{
+  "inputValueKey": "pulseCounter",
+  "outputValueKey": "waterConsumption",
+  "useCache": true,
+  "addPeriodBetweenMsgs": false,
+  "tellFailureIfDeltaIsNegative": true,
+  "excludeZeroDeltas": false
+}
+```
+
+**Result**: routed via **`Failure`** — delta is `10 - 1680 = -1670`.
+
+## JSON schema
+
+```json maxLines=25 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CalculateDeltaNodeConfiguration",
+  "type": "object",
+  "required": ["inputValueKey", "outputValueKey"],
+  "additionalProperties": false,
+  "properties": {
+    "inputValueKey": { "type": "string", "description": "The cumulative counter key in message data." },
+    "outputValueKey": { "type": "string", "description": "The key for the calculated delta in message data." },
+    "useCache": { "type": "boolean", "description": "Cache last value per originator in memory." },
+    "addPeriodBetweenMsgs": { "type": "boolean", "description": "Also compute and add elapsed time between readings." },
+    "periodValueKey": { "type": "string", "description": "Key for elapsed time in milliseconds. Required if addPeriodBetweenMsgs is true." },
+    "round": { "type": "integer", "description": "Decimal places to round the delta to." },
+    "tellFailureIfDeltaIsNegative": { "type": "boolean", "description": "Route to Failure if delta is negative." },
+    "excludeZeroDeltas": { "type": "boolean", "description": "Pass through unchanged if delta is zero." }
+  }
+}
+```

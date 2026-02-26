@@ -1,0 +1,133 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to clear an active alarm when the triggering condition resolves — for example, when temperature drops back below the threshold that created a "High Temperature" alarm. The node finds the active alarm by type and originator (or directly by alarm ID), clears it, updates its `details` field via a script, and emits the cleared alarm object downstream.
+
+## Configuration
+
+- **Alarm type** — required. The type of alarm to clear (e.g., `High Temperature`). Supports <DocLink product={props.product} path="reference/rule-engine/templatization">templatization</DocLink> — use `${metadata.key}` and `${data.key}` to build dynamic values.
+
+- **Alarm details script** — a TBEL or JavaScript function that generates the content for the alarm's `details` field when clearing. The function must return a valid JSON value (primitive, array, or object) and has access to:
+  - `msg` — message data
+  - `metadata` — message metadata
+  - `msgType` — message type
+  - `metadata.prevAlarmDetails` — the previous alarm details as a JSON string
+
+<Aside type="note">
+  Scripts run in a sandboxed environment. Importing or calling external libraries is not supported — all logic must be self-contained within the script body.
+</Aside>
+
+## Message processing algorithm
+
+1. **Resolve alarm type**: expand the configured alarm type pattern using the message data and metadata.
+
+2. **Find the alarm to clear**:
+   - If the message originator is an `ALARM` entity: fetch that alarm directly by ID (the configured alarm type is ignored).
+   - Otherwise: query the database for the latest active alarm with the resolved alarm type and the same originator as the message.
+
+3. **Clear the alarm**:
+   - **If an active (non-cleared) alarm exists**:
+     1. Set `cleared = true` and `clearTs` to the current system time.
+     2. Execute the details builder script (with `metadata.prevAlarmDetails` containing the previous details JSON).
+     3. Update the alarm's `details` field with the script result.
+     4. Set metadata `isClearedAlarm: true`.
+     5. Replace the message data with the cleared alarm object and change the message type to `ALARM`.
+     6. Route via `Cleared`.
+     7. Emit an `ALARM_CLEAR` lifecycle event to the originator's root rule chain.
+   - **If no active alarm exists, or the alarm is already cleared**:
+     - Forward the original message unchanged via `False`. No database changes occur.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Cleared` | An active alarm was found and successfully cleared. Message data is replaced with the cleared alarm object; metadata includes `isClearedAlarm: true`; message type is `ALARM`. |
+| `False` | No active alarm exists for the specified type and originator, or the alarm was already cleared. |
+
+## Examples
+
+### Example 1 — Clearing an active alarm
+
+**Incoming message**
+
+Data: `{ "temperature": 25.0 }` | Originator: `DEVICE`
+
+**Node configuration**
+
+```json maxLines=15 collapsible
+{
+  "scriptLang": "TBEL",
+  "alarmDetailsBuildTbel": "return { clearedAt: msg.temperature };",
+  "alarmType": "High Temperature"
+}
+```
+
+**State**: an active `High Temperature` alarm exists for the originator with status `ACTIVE_UNACK`.
+
+**Outgoing message**
+
+Data:
+```json maxLines=30 collapsible
+{
+  "id": { "entityType": "ALARM", "id": "f66e9b38-6f0e-4dc7-ad57-1cb4e014b6fc" },
+  "type": "High Temperature",
+  "originator": { "entityType": "DEVICE", "id": "3bc2eb60-8d77-11f0-8a6c-59050cd4204f" },
+  "severity": "CRITICAL",
+  "acknowledged": false,
+  "cleared": true,
+  "startTs": 1757429087063,
+  "endTs": 1757429195123,
+  "clearTs": 1757429287456,
+  "status": "CLEARED_UNACK",
+  "details": { "clearedAt": 25.0 }
+}
+```
+
+Metadata: `{ "isClearedAlarm": "true" }` | Message type: `ALARM` | Connection: `Cleared`
+
+The alarm status changes from `ACTIVE_UNACK` to `CLEARED_UNACK`, the details script runs with access to `metadata.prevAlarmDetails`, and an `ALARM_CLEAR` lifecycle event is sent to the device's root rule chain.
+
+---
+
+### Example 2 — No active alarm to clear
+
+**State**: no active `High Temperature` alarm exists for the originator.
+
+**Result**: original message forwarded unchanged via **`False`**. No alarm modifications; no lifecycle events.
+
+---
+
+### Example 3 — Clearing by alarm ID directly
+
+**Originator**: `ALARM` with ID `f66e9b38-6f0e-4dc7-ad57-1cb4e014b6fc`
+
+When the message originator is an `ALARM` entity, the node fetches and clears that specific alarm by ID — the configured alarm type is ignored. The alarm status changes from `ACTIVE_ACK` to `CLEARED_ACK`.
+
+## JSON schema
+
+```json maxLines=25 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbClearAlarmNodeConfiguration",
+  "type": "object",
+  "properties": {
+    "alarmType": {
+      "type": "string",
+      "description": "Alarm type (supports templatization)."
+    },
+    "scriptLang": {
+      "type": "string",
+      "enum": ["TBEL", "JS"],
+      "description": "Script language for the details builder function."
+    },
+    "alarmDetailsBuildJs": {
+      "type": "string",
+      "description": "JavaScript details builder function body."
+    },
+    "alarmDetailsBuildTbel": {
+      "type": "string",
+      "description": "TBEL details builder function body."
+    }
+  }
+}
+```

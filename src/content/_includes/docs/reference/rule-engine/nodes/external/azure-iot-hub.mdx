@@ -1,0 +1,84 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to publish messages to Azure IoT Hub via MQTT — for example, forwarding device telemetry collected in ThingsBoard to an Azure IoT Hub for processing by Azure Stream Analytics, or sending device-to-cloud messages to trigger Azure Functions.
+
+<Aside type="note">
+  This node always uses MQTT 3.1.1 over TLS (port 8883) with QoS 1. SSL is fixed as enabled; clean session and no retained messages are enforced. Singleton mode is always active — one connection per cluster.
+</Aside>
+
+## Configuration
+
+- **Topic pattern** — MQTT topic. Default: `devices/{clientId}/messages/events/`. Supports <DocLink product={props.product} path="reference/rule-engine/templatization">templatization</DocLink>.
+- **Host** — Azure IoT Hub hostname: `{iot-hub-name}.azure-devices.net`.
+- **Client ID** — the device ID as registered in Azure IoT Hub.
+
+### Credentials
+
+| Type | Required fields |
+|---|---|
+| **SAS Token** | `sasKey` (primary or secondary key); optional `caCert` |
+| **PEM Certificate** | Client `cert` + `privateKey`; optional `caCert` and key `password` |
+
+### MQTT retransmission
+
+Exponential backoff with jitter for unacknowledged QoS 1 messages:
+
+| Variable | Default |
+|---|---|
+| `TB_MQTT_CLIENT_RETRANSMISSION_MAX_ATTEMPTS` | `3` |
+| `TB_MQTT_CLIENT_RETRANSMISSION_INITIAL_DELAY_MILLIS` | `5000` |
+| `TB_MQTT_CLIENT_RETRANSMISSION_JITTER_FACTOR` | `0.15` |
+
+## Message processing algorithm
+
+1. Resolve the topic pattern from message data and metadata.
+2. Publish the message data to IoT Hub via MQTT with QoS 1.
+3. On acknowledgment: route via `Success`.
+4. On error: add `error` to metadata; route via `Failure`.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Message published and acknowledged by IoT Hub. |
+| `Failure` | Authentication failure, retransmission exhausted, or unexpected error. Error details in metadata `error` key. |
+
+## Examples
+
+### Example 1 — Forward telemetry to IoT Hub
+
+**Data**: `{ "temperature": 22.5, "humidity": 65 }`.
+
+```json maxLines=20 collapsible
+{
+  "topicPattern": "devices/sensor-001/messages/events/",
+  "host": "my-hub.azure-devices.net",
+  "clientId": "sensor-001",
+  "credentials": {
+    "type": "sas",
+    "sasKey": "base64encodedKey=="
+  }
+}
+```
+
+**Result**: message published to IoT Hub. Routes via `Success`.
+
+## JSON schema
+
+```json maxLines=25 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbAzureIotHubNodeConfiguration",
+  "type": "object",
+  "required": ["topicPattern", "host", "clientId", "credentials"],
+  "additionalProperties": false,
+  "properties": {
+    "topicPattern": { "type": "string" },
+    "host": { "type": "string" },
+    "clientId": { "type": "string" },
+    "connectTimeoutSec": { "type": "integer" },
+    "credentials": { "type": "object" }
+  }
+}
+```

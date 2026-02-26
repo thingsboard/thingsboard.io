@@ -1,0 +1,130 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to dynamically build the entity graph at runtime — for example, automatically creating a `LocatedIn` relation between a newly provisioned device and the building asset specified in its provisioning payload, or re-wiring a device to a new gateway when it reconnects. The target entity name supports <DocLink product={props.product} path="reference/rule-engine/templatization">templatization</DocLink> so relations can be created based on message content.
+
+## Configuration
+
+### Relation parameters
+
+- **Direction** — required. The relation direction from the message originator's perspective:
+  - `From originator to target entity` — originator is the `from` side.
+  - `From target entity to originator` — target is the `from` side.
+- **Relation type** — required. The type of relation to create (e.g., `Contains`, `Manages`). Supports <DocLink product={props.product} path="reference/rule-engine/templatization">templatization</DocLink>.
+
+### Target entity
+
+- **Type** — required. Supported types and their identifiers:
+
+| Type | Identifier field |
+|------|-----------------|
+| Device | Device name |
+| Asset | Asset name |
+| Entity View | Entity view name |
+| Tenant | *(none — uses current tenant)* |
+| Customer | Customer title |
+| Dashboard | Dashboard title |
+| User | User email |
+| Edge | Edge name |
+
+- **Entity name/title/email pattern** — how to identify the target entity. Supports templatization (e.g., `$[targetAssetName]`, `${metadataKey}`).
+- **Profile name** — required when creating a new `Device` or `Asset` entity if it doesn't exist.
+- **Create new entity if it doesn't exist** — when enabled, creates the target entity if not found (available for `Device`, `Asset`, and `Customer`).
+
+### Advanced settings
+
+- **Remove current relations** — when enabled, deletes all existing relations of the same type and direction from the originator before creating the new one. Useful for updating a device's single connection.
+- **Change originator to related entity** — when enabled, changes the message originator to the target entity after creating the relation.
+
+## Message processing algorithm
+
+1. Resolve the target entity identifier by substituting patterns from message data and metadata.
+2. Find the target entity. If not found and **Create new entity** is disabled, route via `Failure`.
+3. If **Create new entity** is enabled and the entity doesn't exist, create it with the configured profile.
+4. If **Remove current relations** is enabled, delete all existing relations of the same type and direction from the originator.
+5. Create the relation between originator and target (skipped if the relation already exists).
+6. If **Change originator to related entity** is enabled, change the message originator to the target entity.
+7. Route via `Success`.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Relation created (or already existed); originator optionally changed. |
+| `Failure` | Target entity not found and creation is disabled, or an unexpected error occurred. |
+
+## Examples
+
+### Example 1 — Create relation to existing asset
+
+```json maxLines=20 collapsible
+{
+  "direction": "FROM",
+  "relationType": "Contains",
+  "entityType": "ASSET",
+  "entityNamePattern": "My Asset",
+  "createEntityIfNotExists": false,
+  "removeCurrentRelations": false,
+  "changeOriginatorToRelatedEntity": false
+}
+```
+
+**State**: asset `My Asset` exists. A `Contains` relation is created from the originator device to `My Asset`.
+
+---
+
+### Example 2 — Update connection (remove old, create new)
+
+**Incoming data**: `{ "targetEntity": "Asset 1" }`
+
+```json maxLines=20 collapsible
+{
+  "direction": "FROM",
+  "relationType": "ConnectedTo",
+  "entityType": "ASSET",
+  "entityNamePattern": "$[targetEntity]",
+  "createEntityIfNotExists": false,
+  "removeCurrentRelations": true,
+  "changeOriginatorToRelatedEntity": false
+}
+```
+
+**State**: originator has a `ConnectedTo` relation to `Asset 2`. After processing: `ConnectedTo Asset 2` is deleted; `ConnectedTo Asset 1` is created.
+
+---
+
+### Example 3 — Create relation and change originator
+
+```json maxLines=20 collapsible
+{
+  "direction": "TO",
+  "relationType": "LocatedIn",
+  "entityType": "ASSET",
+  "entityNamePattern": "My Asset",
+  "createEntityIfNotExists": false,
+  "removeCurrentRelations": false,
+  "changeOriginatorToRelatedEntity": true
+}
+```
+
+After processing, the message originator is changed to `My Asset`.
+
+## JSON schema
+
+```json maxLines=25 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbCreateRelationNodeConfiguration",
+  "type": "object",
+  "properties": {
+    "direction": { "type": "string", "enum": ["FROM", "TO"] },
+    "relationType": { "type": "string" },
+    "entityType": { "type": "string", "enum": ["TENANT", "DEVICE", "ASSET", "CUSTOMER", "ENTITY_VIEW", "DASHBOARD", "USER", "EDGE"] },
+    "entityNamePattern": { "type": "string" },
+    "entityTypePattern": { "type": "string", "description": "Profile pattern for new entity creation." },
+    "createEntityIfNotExists": { "type": "boolean" },
+    "removeCurrentRelations": { "type": "boolean" },
+    "changeOriginatorToRelatedEntity": { "type": "boolean" }
+  }
+}
+```

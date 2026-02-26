@@ -1,0 +1,107 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to send a Remote Procedure Call (RPC) from the server to a device and receive its response as the outgoing message — for example, reading a sensor value on demand, toggling a GPIO pin, or triggering a firmware check on a device that is currently connected.
+
+## Configuration
+
+- **Timeout in seconds** — required. Maximum time to wait for the device response before failing. Default: `60`. Used when no explicit expiration time is present in the message metadata.
+
+## Message processing
+
+The message data must contain two required fields:
+
+- `method` — the RPC method name to call on the device.
+- `params` — the parameters to pass to the method (any JSON value).
+
+Optional fields can be provided in the **message metadata**:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `oneway` | boolean | If `true`, no response is expected (fire-and-forget). Default: `false`. |
+| `persistent` | boolean | If `true`, the request is persisted. Default: `false`. |
+| `requestUUID` | string | Unique request identifier for tracking. Auto-generated if absent. |
+| `originServiceId` | string | Originating service for routing the response. |
+| `expirationTime` | long | Expiration timestamp (ms). Calculated from timeout if absent. |
+| `retries` | integer | Number of retry attempts. |
+
+Optional fields in **message data**:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `requestId` | integer | Request identifier for matching the response. Random if absent. |
+| `additionalInfo` | JSON | Extra metadata attached to the request. |
+
+## Message processing algorithm
+
+1. Validate that the originator is a `DEVICE`. If not, route via `Failure`.
+2. Validate that message data contains `method` and `params`. If either is missing, route via `Failure`.
+3. Collect optional parameters from message data and metadata and build the RPC request.
+4. Send the RPC to the device and acknowledge the original message immediately.
+5. On device response:
+   - **Success**: replace message data with the device response; route via `Success`.
+   - **Failure**: route via `Failure` with an error description.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Device responded successfully. Outgoing message data contains the device response. |
+| `Failure` | Originator is not a `DEVICE`, missing `method` or `params`, device timeout, or device returned an error. |
+
+## Examples
+
+### Example 1 — Two-way RPC: set GPIO pin
+
+**Originator**: `DEVICE`.
+
+```json maxLines=15 collapsible
+{
+  "method": "setGpio",
+  "params": {
+    "pin": 7,
+    "value": 1
+  }
+}
+```
+
+```json maxLines=10 collapsible
+{
+  "timeoutInSeconds": 30
+}
+```
+
+**Response from device** (outgoing message data):
+```json maxLines=10 collapsible
+{
+  "success": true
+}
+```
+
+Routes via `Success`.
+
+---
+
+### Example 2 — One-way RPC: reboot device
+
+**Metadata**: `{ "oneway": "true" }` | **Data**: `{ "method": "reboot", "params": {} }` | **Config**: `{ "timeoutInSeconds": 60 }`.
+
+**Outgoing message data**: `{}` (no response expected). Routes via `Success`.
+
+## JSON schema
+
+```json maxLines=15 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbSendRpcRequestNodeConfiguration",
+  "type": "object",
+  "required": ["timeoutInSeconds"],
+  "additionalProperties": false,
+  "properties": {
+    "timeoutInSeconds": {
+      "type": "integer",
+      "description": "Maximum time to wait for device response in seconds."
+    }
+  }
+}
+```

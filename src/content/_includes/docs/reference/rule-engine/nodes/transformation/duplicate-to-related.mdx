@@ -1,0 +1,108 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to broadcast a message to all entities related to the originator — for example, forwarding a `setFanSpeed` command to all HVAC devices contained in a building asset, or propagating a battery-low alert up to the customer that manages the device. One output message is created for each matching related entity, with its originator changed to that entity.
+
+## Configuration
+
+### Relations query
+
+- **Direction** — required. `From originator` (originator is the `from` side) or `To originator` (originator is the `to` side).
+- **Max relation level** — maximum depth for traversing nested relations (e.g., `2` follows relations of relations).
+- **Fetch last level relation only** — when enabled and max level > 1, only entities at the deepest level are returned.
+- **Relation filters** — a list of filter criteria. Each filter specifies:
+  - **Relation type** — type of relation to match (e.g., `Contains`, `Manages`).
+  - **Entity types** — acceptable entity types for the related entity (e.g., `DEVICE`, `ASSET`). Empty list matches any type.
+
+## Message processing algorithm
+
+1. Identify the originator of the incoming message.
+2. Execute the configured Relations query starting from the originator.
+3. If no matching related entities are found, route via `Failure`.
+4. For each found related entity, create a copy of the original message with the related entity as its new originator.
+5. Enqueue all created messages and route them via `Success`. Acknowledge the original message once all are enqueued.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | One message per found related entity, each with that entity as originator. |
+| `Failure` | No matching related entities found, or an unexpected error occurred. |
+
+## Examples
+
+### Example 1 — Duplicate to related devices
+
+**Originator**: asset `Building A` | **Data**: `{ "command": "setFanSpeed", "value": "HIGH" }`
+
+```json maxLines=20 collapsible
+{
+  "relationsQuery": {
+    "direction": "FROM",
+    "maxLevel": 1,
+    "filters": [
+      { "relationType": "Contains", "entityTypes": ["DEVICE"] }
+    ]
+  }
+}
+```
+
+**State**: `Building A` has `Contains` relations to `Device HVAC-1` and `Device HVAC-2`.
+
+**Result**: two output messages — one originating from `HVAC-1`, one from `HVAC-2`, both with `{ "command": "setFanSpeed", "value": "HIGH" }`.
+
+---
+
+### Example 2 — Propagate alert to managing customer
+
+**Originator**: device `Thermostat-Z1` | **Data**: `{ "alert": "battery_low" }`
+
+```json maxLines=20 collapsible
+{
+  "relationsQuery": {
+    "direction": "TO",
+    "maxLevel": 1,
+    "filters": [
+      { "relationType": "Manages", "entityTypes": ["CUSTOMER"] }
+    ]
+  }
+}
+```
+
+**State**: `Customer B` has a `Manages` relation to `Thermostat-Z1`.
+
+**Result**: one output message with originator `Customer B` and data `{ "alert": "battery_low" }`.
+
+## JSON schema
+
+```json maxLines=30 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbDuplicateMsgToRelatedNodeConfiguration",
+  "type": "object",
+  "required": ["relationsQuery"],
+  "additionalProperties": false,
+  "properties": {
+    "relationsQuery": {
+      "type": "object",
+      "required": ["direction", "filters"],
+      "properties": {
+        "direction": { "type": "string", "enum": ["FROM", "TO"] },
+        "maxLevel": { "type": "integer" },
+        "fetchLastLevelOnly": { "type": "boolean" },
+        "filters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["relationType", "entityTypes"],
+            "properties": {
+              "relationType": { "type": "string" },
+              "entityTypes": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```

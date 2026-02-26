@@ -1,0 +1,106 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="note">
+  This node requires **ThingsBoard PE** or **ThingsBoard Cloud**.
+</Aside>
+
+Use this node to persist incoming message data into a custom Cassandra table — for example, archiving raw sensor readings into a dedicated table for compliance reporting, or writing aggregated metrics to a purpose-built schema for fast querying by an external analytics service.
+
+## Configuration
+
+- **Custom table name** — required. Name of the target table **without** the `cs_tb_` prefix. The actual Cassandra table name is `cs_tb_{tableName}`. The table must already exist in the Cassandra cluster.
+- **Fields mapping** — required. Maps message field keys to table column names. Each entry defines a source key in the message data and the corresponding column name in the table. Use the special key `$entityId` to map the message originator's UUID to a column.
+- **Default TTL** — required. Time-to-live in seconds for inserted records. `0` disables TTL (records do not expire). Positive values cause records to be automatically deleted after the specified duration.
+
+## Message processing algorithm
+
+1. Parse the incoming message data as a JSON object. If not an object, route via `Failure`.
+2. For each field mapping entry:
+   - If key is `$entityId`: use the originator's UUID string as the value.
+   - Otherwise: look up the key in message data. If the field is missing, route via `Failure`.
+   - Map JSON types to Cassandra types: decimal number → `Double`; integer number → `Long`; boolean → `Boolean`; string → `String`; JSON object → `String` (serialised).
+   - Non-primitive, non-object values (e.g., arrays) cause `Failure`.
+3. Construct and execute an `INSERT` into `cs_tb_{tableName}` with the mapped values.
+4. If TTL > 0, apply the TTL to the inserted record.
+5. Route the original message via `Success`.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Record inserted successfully. Outgoing message is unchanged. |
+| `Failure` | Table does not exist, data is not a JSON object, required field missing, unsupported value type, database error, or unexpected error. |
+
+## Examples
+
+### Example 1 — Insert sensor readings
+
+**Data**: `{ "temperature": 23.5, "humidity": 60, "location": "Room A", "active": true }`
+
+**State**: table `cs_tb_sensor_data` exists with columns `temp_value`, `humidity_level`, `room_name`, `is_active`.
+
+```json maxLines=20 collapsible
+{
+  "tableName": "sensor_data",
+  "fieldsMapping": {
+    "temperature": "temp_value",
+    "humidity": "humidity_level",
+    "location": "room_name",
+    "active": "is_active"
+  },
+  "defaultTtl": 0
+}
+```
+
+**Result**: inserts `(23.5 Double, 60 Long, "Room A" String, true Boolean)` into `cs_tb_sensor_data`. Routes via `Success`.
+
+---
+
+### Example 2 — Map originator UUID and apply TTL
+
+**Originator**: `DEVICE` with ID `a1b2c3d4-...` | **Data**: `{ "reading": 150.7, "timestamp": 1640995200 }`.
+
+**State**: table `cs_tb_device_readings` with columns `device_id`, `sensor_value`, `read_time`.
+
+```json maxLines=20 collapsible
+{
+  "tableName": "device_readings",
+  "fieldsMapping": {
+    "$entityId": "device_id",
+    "reading": "sensor_value",
+    "timestamp": "read_time"
+  },
+  "defaultTtl": 3600
+}
+```
+
+**Result**: inserts with `device_id = "a1b2c3d4-..."`, `sensor_value = 150.7 Double`, `read_time = 1640995200 Long`; record expires after 1 hour. Routes via `Success`.
+
+## JSON schema
+
+```json maxLines=25 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbSaveToCustomCassandraTableNodeConfiguration",
+  "type": "object",
+  "required": ["tableName", "fieldsMapping", "defaultTtl"],
+  "additionalProperties": false,
+  "properties": {
+    "tableName": {
+      "type": "string",
+      "description": "Custom table name without 'cs_tb_' prefix."
+    },
+    "fieldsMapping": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Mapping from message field names to table column names."
+    },
+    "defaultTtl": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "TTL in seconds; 0 = no expiry."
+    }
+  }
+}
+```

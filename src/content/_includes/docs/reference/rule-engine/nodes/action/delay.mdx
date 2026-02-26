@@ -1,0 +1,93 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="caution">
+  This node is **deprecated** due to potential data loss. It acknowledges incoming messages immediately (removing them from the persistent queue) but stores them only in memory. Messages are permanently lost on server restart or crash. For reliable delayed processing, consider using scheduled rule chains or external queuing solutions.
+</Aside>
+
+Use this node to hold messages in memory for a configurable period before forwarding them — for example, debouncing a rapid sequence of state changes by delaying the first message until a quiet period has elapsed. The delay period can be fixed or resolved dynamically from message metadata or data.
+
+## Configuration
+
+- **Use period in seconds pattern** — when enabled, extracts the delay period from the message using a template pattern. When disabled, uses the fixed **Period in seconds** value.
+  - **Period in seconds** — fixed delay duration (integer).
+  - **Period in seconds pattern** — supports `${metadataKey}` and `$[dataKey]` to extract the delay from the message.
+- **Maximum pending messages** — maximum number of messages that can be held in memory simultaneously. If exceeded, the incoming message is routed via `Failure`.
+
+## Message processing algorithm
+
+1. Check that the number of currently pending messages is below the configured maximum. If exceeded, route via `Failure`.
+2. Determine the delay period:
+   - Pattern mode: extract from message using the configured pattern. If extraction fails or value is not parseable as an integer, route via `Failure`.
+   - Fixed mode: use the configured **Period in seconds** value.
+3. Acknowledge the original message (removes it from the persistent queue).
+4. Store the message in memory for the delay duration.
+5. After the delay expires, forward the message via `Success`.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Delay expired; message forwarded. |
+| `Failure` | Maximum pending messages exceeded, delay period pattern unresolvable, or unexpected error. |
+
+## Examples
+
+### Example 1 — Fixed 5-second delay
+
+```json maxLines=15 collapsible
+{ "periodInSeconds": 5, "useMetadataPeriodInSecondsPatterns": false, "maxPendingMsgs": 1000 }
+```
+
+**Result**: message held 5 seconds then forwarded via `Success`.
+
+---
+
+### Example 2 — Dynamic delay from metadata
+
+**Metadata**: `{ "delaySeconds": "10" }`
+
+```json maxLines=15 collapsible
+{ "useMetadataPeriodInSecondsPatterns": true, "periodInSecondsPattern": "${delaySeconds}", "maxPendingMsgs": 1000 }
+```
+
+**Result**: delay of 10 seconds extracted from metadata.
+
+---
+
+### Example 3 — Dynamic delay from message data
+
+**Data**: `{ "waitTime": "3" }`
+
+```json maxLines=15 collapsible
+{ "useMetadataPeriodInSecondsPatterns": true, "periodInSecondsPattern": "$[waitTime]", "maxPendingMsgs": 1000 }
+```
+
+**Result**: delay of 3 seconds extracted from data.
+
+---
+
+### Example 4 — Max pending messages exceeded → `Failure`
+
+```json maxLines=15 collapsible
+{ "periodInSeconds": 60, "useMetadataPeriodInSecondsPatterns": false, "maxPendingMsgs": 5 }
+```
+
+**State**: 5 messages already pending. **Result**: routes via **`Failure`** — limit exceeded.
+
+## JSON schema
+
+```json maxLines=25 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbMsgDelayNodeConfiguration",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "periodInSeconds": { "type": "integer" },
+    "useMetadataPeriodInSecondsPatterns": { "type": "boolean" },
+    "periodInSecondsPattern": { "type": "string" },
+    "maxPendingMsgs": { "type": "integer" }
+  }
+}
+```

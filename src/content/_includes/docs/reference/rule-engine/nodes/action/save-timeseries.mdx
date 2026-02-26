@@ -1,0 +1,211 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to persist telemetry data from a `POST_TELEMETRY_REQUEST` message into the ThingsBoard time series database. You control how long data is retained (TTL), how timestamps are determined, and when writes can be deduplicated or skipped to reduce database load.
+
+## Configuration
+
+### Message data formats
+
+The node accepts three payload formats:
+
+1. **Key–value pairs** (no timestamp — server time or metadata `ts` is used):
+   ```json
+   { "temperature": 42.2, "humidity": 70 }
+   ```
+
+2. **Timestamped key–value pairs**:
+   ```json
+   { "ts": 1737963587742, "values": { "temperature": 42.2, "humidity": 70 } }
+   ```
+
+3. **Array of timestamped batches**:
+   ```json
+   [
+     { "ts": 1737963595638, "values": { "temperature": 22.1 } },
+     { "ts": 1737963601607, "values": { "pressure": 2.56 } }
+   ]
+   ```
+
+### Processing strategies
+
+The node controls four internal actions independently via **processing strategies**:
+
+| Action | Description |
+|--------|-------------|
+| **Time series** | Saves to `ts_kv` (historical) table |
+| **Latest values** | Updates `ts_kv_latest` (current snapshot) |
+| **WebSockets** | Notifies active subscriptions |
+| **Calculated fields** | Triggers calculated field re-evaluation |
+
+**Basic settings** — apply the same strategy to all four actions:
+
+| Mode | Behavior |
+|------|----------|
+| On every message | All actions execute on every message |
+| Deduplicate | All actions are deduplicated within the configured interval (1 s – 86400 s) |
+| WebSockets only | Time series and latest values are skipped; WebSockets fire on every message |
+
+**Advanced settings** — configure each action independently with `ON_EVERY_MESSAGE`, `DEDUPLICATE`, or `SKIP`.
+
+<Aside type="caution">
+  Independent deduplication intervals are a performance optimization — not a strict guarantee. Mismatched intervals can cause WebSocket subscribers or calculated fields to see data not yet persisted.
+</Aside>
+
+### Advanced settings
+
+- **Use server timestamp** — when enabled, uses the current server time for messages without an explicit timestamp (format 1). Recommended for sequential processing where messages may arrive out of order.
+- **Default TTL** — data retention in seconds. `0` means data never expires. Can be overridden per message via the `TTL` metadata property (in seconds).
+
+## Message processing algorithm
+
+1. Verify message type is `POST_TELEMETRY_REQUEST`. If not, route via `Failure`.
+2. Determine timestamp for format-1 messages:
+   - Use server time if **Use server timestamp** is enabled.
+   - Otherwise use `ts` from metadata (Unix ms), or fall back to message creation time.
+3. Determine TTL:
+   - Use `TTL` metadata property if present.
+   - Use **Default TTL** if non-zero.
+   - Fall back to the tenant profile's default storage TTL.
+4. Save time series per the configured processing strategy.
+5. Route via `Success` on completion, or `Failure` on error.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Message successfully processed (including deduplicated no-ops). |
+| `Failure` | Message type is not `POST_TELEMETRY_REQUEST`, data is empty, or an unexpected error occurred. |
+
+## Examples
+
+### Example 1 — On every message, server timestamp, 24-hour TTL
+
+Data: `{ "temperature": 23.5, "humidity": 65.2, "pressure": 1013.25 }`
+
+```json maxLines=20 collapsible
+{
+  "defaultTTL": 86400,
+  "useServerTs": true,
+  "processingSettings": { "type": "ON_EVERY_MESSAGE" }
+}
+```
+
+Three time series values saved with server timestamp; expire after 24 hours. Both `ts_kv` and `ts_kv_latest` updated. WebSocket and calculated fields notified.
+
+---
+
+### Example 2 — Timestamped data, deduplicate within 60 s
+
+Data: `{ "ts": 1737963587742, "values": { "batteryLevel": 85, "signalStrength": -65 } }`
+
+```json maxLines=20 collapsible
+{
+  "defaultTTL": 0,
+  "useServerTs": false,
+  "processingSettings": { "type": "DEDUPLICATE", "deduplicationIntervalSecs": 60 }
+}
+```
+
+**State**: same device already processed within the interval. No database writes; WebSocket and calculated fields suppressed. Routes via `Success`.
+
+---
+
+### Example 3 — Batched timestamped array
+
+```json maxLines=25 collapsible
+[
+  { "ts": 1737963595638, "values": { "temperature": 22.1, "humidity": 60 } },
+  { "ts": 1737963601607, "values": { "temperature": 22.3, "humidity": 61 } },
+  { "ts": 1737963607542, "values": { "temperature": 22.5, "humidity": 62 } }
+]
+```
+
+Config: `defaultTTL: 604800, useServerTs: false, processingSettings: { type: ON_EVERY_MESSAGE }`
+
+Six time series entries saved at three distinct timestamps. All expire after 7 days.
+
+---
+
+### Example 4 — Advanced: DB deduplicated, WebSockets + latest always, calculated fields skipped
+
+```json maxLines=30 collapsible
+{
+  "defaultTTL": 2592000,
+  "useServerTs": true,
+  "processingSettings": {
+    "type": "ADVANCED",
+    "timeseries": { "type": "DEDUPLICATE", "deduplicationIntervalSecs": 300 },
+    "latest": { "type": "ON_EVERY_MESSAGE" },
+    "webSockets": { "type": "ON_EVERY_MESSAGE" },
+    "calculatedFields": { "type": "SKIP" }
+  }
+}
+```
+
+Within 300-second interval: historical data not written; latest snapshot updated; WebSockets notified; calculated fields skipped. TTL = 30 days.
+
+---
+
+### Example 5 — TTL override from metadata
+
+Metadata: `{ "TTL": "3600" }` | Config default TTL: `86400`
+
+Metadata takes priority: data stored with 1-hour TTL instead of 24 hours.
+
+## JSON schema
+
+```json maxLines=60 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbMsgTimeseriesNodeConfiguration",
+  "type": "object",
+  "required": ["defaultTTL", "useServerTs", "processingSettings"],
+  "additionalProperties": false,
+  "properties": {
+    "defaultTTL": { "type": "integer", "description": "Default TTL in seconds. 0 = never expire." },
+    "useServerTs": { "type": "boolean", "description": "Use server time for messages without explicit timestamp." },
+    "processingSettings": {
+      "oneOf": [
+        { "type": "object", "properties": { "type": { "const": "ON_EVERY_MESSAGE" } }, "required": ["type"], "additionalProperties": false },
+        { "type": "object", "properties": { "type": { "const": "WEBSOCKETS_ONLY" } }, "required": ["type"], "additionalProperties": false },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "DEDUPLICATE" },
+            "deduplicationIntervalSecs": { "type": "integer", "minimum": 1, "maximum": 86400 }
+          },
+          "required": ["type", "deduplicationIntervalSecs"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "ADVANCED" },
+            "timeseries": { "$ref": "#/$defs/Strategy" },
+            "latest": { "$ref": "#/$defs/Strategy" },
+            "webSockets": { "$ref": "#/$defs/Strategy" },
+            "calculatedFields": { "$ref": "#/$defs/Strategy" }
+          },
+          "required": ["type", "timeseries", "latest", "webSockets", "calculatedFields"],
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "Strategy": {
+      "oneOf": [
+        { "type": "object", "properties": { "type": { "const": "ON_EVERY_MESSAGE" } }, "required": ["type"], "additionalProperties": false },
+        {
+          "type": "object",
+          "properties": { "type": { "const": "DEDUPLICATE" }, "deduplicationIntervalSecs": { "type": "integer", "minimum": 1, "maximum": 86400 } },
+          "required": ["type", "deduplicationIntervalSecs"],
+          "additionalProperties": false
+        },
+        { "type": "object", "properties": { "type": { "const": "SKIP" } }, "required": ["type"], "additionalProperties": false }
+      ]
+    }
+  }
+}
+```

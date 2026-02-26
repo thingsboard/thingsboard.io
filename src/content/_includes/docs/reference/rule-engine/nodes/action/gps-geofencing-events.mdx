@@ -1,0 +1,167 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to monitor whether a moving entity is inside or outside a defined geographic area and emit distinct events when it crosses the boundary or dwells within a zone — for example, triggering an alert when a vehicle enters a restricted area, tracking dwell time inside a delivery zone, or detecting when a tracked asset leaves a permitted perimeter.
+
+## Configuration
+
+### Coordinate field names
+
+- **Latitude field name** — name of the key that contains the latitude. Looked up first in message data, then metadata.
+- **Longitude field name** — name of the key that contains the longitude. Looked up first in message data, then metadata.
+
+### Geofence type and definition
+
+Set **Perimeter type** to `Polygon` or `Circle`.
+
+Enable **Fetch perimeter information from metadata** to load the geofence from each message's metadata (dynamic mode, identified by **Perimeter key name**). Disable it to use a static geofence defined once in the node configuration.
+
+#### Polygon formats
+
+Polygon definitions are JSON arrays of `[latitude, longitude]` pairs:
+
+**Single polygon** (minimum 3 points; last point auto-connects to first):
+```json maxLines=5 collapsible
+[[48.195, 24.645], [48.200, 24.655], [48.205, 24.645]]
+```
+
+**Rectangle shorthand** (two opposite corners; remaining corners computed automatically):
+```json maxLines=5 collapsible
+[[48.195, 24.645], [48.205, 24.655]]
+```
+
+**Multiple zones** (nested arrays; point inside any polygon = inside):
+```json maxLines=10 collapsible
+[
+  [[48.195, 24.645], [48.200, 24.655], [48.205, 24.645]],
+  [[48.210, 24.650], [48.215, 24.660], [48.220, 24.650]]
+]
+```
+
+**Exclusion holes** (smaller polygon fully inside a larger one becomes a hole):
+```json maxLines=10 collapsible
+[
+  [[48.190, 24.640], [48.210, 24.640], [48.210, 24.660], [48.190, 24.660]],
+  [[48.197, 24.647], [48.203, 24.647], [48.203, 24.653], [48.197, 24.653]]
+]
+```
+
+When storing polygons in metadata, stringify the entire JSON array.
+
+#### Circle format
+
+```json maxLines=10 collapsible
+{
+  "latitude": 48.1986,
+  "longitude": 24.6532,
+  "radius": 100.0,
+  "radiusUnit": "METER"
+}
+```
+
+`radiusUnit` values: `METER` (default), `KILOMETER`, `FOOT`, `MILE`, `NAUTICAL_MILE`. When stored in metadata, stringify this JSON object.
+
+### Presence monitoring strategy
+
+Controls how `Inside` and `Outside` events are generated after a state transition:
+
+- **On each message** — every message while inside or outside is routed via `Inside` or `Outside` respectively, with no duration requirement.
+- **On first message** — `Inside` or `Outside` is emitted only for the **first** message that arrives after the configured minimum duration threshold is met. Subsequent messages route via `Success` until the boundary is crossed again.
+
+#### Duration thresholds (apply to `Inside` / `Outside` only)
+
+- **Minimum inside duration** — how long the entity must remain inside before routing `Inside`. Time unit: milliseconds, seconds, minutes, hours, or days.
+- **Minimum outside duration** — how long the entity must remain outside before routing `Outside`.
+
+<Aside type="note">
+  Duration thresholds apply only to `Inside` and `Outside`. The `Entered` and `Left` events fire immediately on boundary crossing regardless of duration settings.
+</Aside>
+
+## Message processing algorithm
+
+1. Extract latitude and longitude from message data (fallback: metadata). If either is missing or non-numeric, route via `Failure`.
+2. Load the geofence: static configuration or the perimeter value from the metadata key. If the metadata key is missing or invalid, route via `Failure`.
+3. Check whether the coordinates are inside the geofence (geodesic distance for circles; point-in-polygon for polygons; holes are excluded).
+4. Load the entity's last geofencing state from server-scope attributes (`inside`, `stateSwitchTime`, `stayed`). Initialise to `inside=false` if no state exists.
+5. If the state changes (entity crossed the boundary):
+   - Route immediately via `Entered` (was outside → now inside) or `Left` (was inside → now outside).
+   - Persist the new state to server-scope attributes.
+6. If the state does not change:
+   - **"On each message"**: route via `Inside` (if inside) or `Outside` (if outside).
+   - **"On first message"**: if the minimum duration has elapsed and the threshold has not yet been marked as met, route via `Inside` or `Outside` and mark it met. Otherwise route via `Success`.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Entered` | Entity just crossed from outside to inside the geofence. |
+| `Left` | Entity just crossed from inside to outside the geofence. |
+| `Inside` | Entity is inside and presence condition is met (see strategy). |
+| `Outside` | Entity is outside and absence condition is met (see strategy). |
+| `Success` | "On first message" strategy: duration threshold already met in a prior message; no new event needed. |
+| `Failure` | Missing/non-numeric coordinates, invalid perimeter definition, or unexpected error. |
+
+## Examples
+
+### Example 1 — "On each message" strategy
+
+**State**: entity has been inside the geofence for 3 minutes. **Incoming**: `{ "latitude": 48.199, "longitude": 24.653 }`.
+
+```json maxLines=25 collapsible
+{
+  "latitudeKeyName": "latitude",
+  "longitudeKeyName": "longitude",
+  "fetchPerimeterInfoFromMessageMetadata": false,
+  "perimeterType": "CIRCLE",
+  "centerLatitude": 48.1986,
+  "centerLongitude": 24.6532,
+  "range": 150.0,
+  "rangeUnit": "METER",
+  "minInsideDuration": 5,
+  "minInsideDurationTimeUnit": "MINUTES",
+  "minOutsideDuration": 5,
+  "minOutsideDurationTimeUnit": "MINUTES",
+  "reportPresenceStatusOnEachMessage": true
+}
+```
+
+**Result**: routes via **`Inside`** — every message while inside routes via `Inside`, regardless of duration.
+
+---
+
+### Example 2 — "On first message" strategy, threshold met
+
+**State**: entity has been inside for 6 minutes (threshold: 5 minutes, not yet marked as met).
+
+Same config as Example 1 but `reportPresenceStatusOnEachMessage: false`.
+
+**Result**: routes via **`Inside`** and marks the threshold as met. The next message (unchanged state) will route via `Success`.
+
+## JSON schema
+
+```json maxLines=35 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbGpsGeofencingActionNodeConfiguration",
+  "type": "object",
+  "required": ["latitudeKeyName", "longitudeKeyName", "perimeterType", "fetchPerimeterInfoFromMessageMetadata", "minInsideDuration", "minOutsideDuration", "minInsideDurationTimeUnit", "minOutsideDurationTimeUnit", "reportPresenceStatusOnEachMessage"],
+  "additionalProperties": false,
+  "properties": {
+    "latitudeKeyName": { "type": "string" },
+    "longitudeKeyName": { "type": "string" },
+    "perimeterType": { "type": "string", "enum": ["CIRCLE", "POLYGON"] },
+    "fetchPerimeterInfoFromMessageMetadata": { "type": "boolean" },
+    "perimeterKeyName": { "type": "string" },
+    "polygonsDefinition": { "type": "string" },
+    "centerLatitude": { "type": "number" },
+    "centerLongitude": { "type": "number" },
+    "range": { "type": "number" },
+    "rangeUnit": { "type": "string", "enum": ["METER", "KILOMETER", "FOOT", "MILE", "NAUTICAL_MILE"] },
+    "minInsideDuration": { "type": "integer" },
+    "minOutsideDuration": { "type": "integer" },
+    "minInsideDurationTimeUnit": { "type": "string", "enum": ["MILLISECONDS", "SECONDS", "MINUTES", "HOURS", "DAYS"] },
+    "minOutsideDurationTimeUnit": { "type": "string", "enum": ["MILLISECONDS", "SECONDS", "MINUTES", "HOURS", "DAYS"] },
+    "reportPresenceStatusOnEachMessage": { "type": "boolean" }
+  }
+}
+```

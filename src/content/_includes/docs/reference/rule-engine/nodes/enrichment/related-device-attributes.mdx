@@ -1,0 +1,139 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to enrich messages with attributes or telemetry from a related device — for example, adding the `buildingId` server attribute of a parent HVAC controller to a gateway status message, or appending the latest `pressure` reading from a sensor contained by a pump controller. Fetched attribute keys are automatically prefixed by scope (`cs_`, `shared_`, `ss_`); telemetry keys are not prefixed.
+
+## Configuration
+
+### Device relations query
+
+Defines how to find the related device starting from the message originator:
+
+- **Direction** — `From originator` or `To originator`.
+- **Max relation level** — maximum depth to traverse.
+- **Fetch last level relation only** — when enabled and max level > 1, only devices at the deepest level are used.
+- **Relation type** — type of relation to match (e.g., `Contains`, `Manages`).
+- **Device profiles** — filter by device profile. Only devices matching one of these profiles are considered. Empty = any profile.
+
+If multiple devices match, only the **first** result is used.
+
+### Related device attributes
+
+Specifies which data to fetch from the found device:
+
+- **Client attributes** — client-side attribute keys to fetch. Added with `cs_` prefix.
+- **Shared attributes** — shared attribute keys to fetch. Added with `shared_` prefix.
+- **Server attributes** — server-side attribute keys to fetch. Added with `ss_` prefix.
+- **Latest telemetry** — latest time-series keys to fetch. Added without prefix.
+- **Fetch latest telemetry with timestamp** — when enabled, telemetry values are JSON objects `{ "ts": <ms>, "value": <v> }` instead of plain values.
+- **Add selected attributes to** — `Message` (message data) or `Metadata`.
+- **Tell failure if any of the attributes are missing** — when enabled, missing keys cause `Failure`; when disabled, missing keys are silently skipped.
+
+## Message processing algorithm
+
+1. Execute the Device relations query starting from the originator.
+2. If no related device is found, route via `Failure`.
+3. If multiple devices are found, use only the first result.
+4. Asynchronously fetch the specified attributes and telemetry from the found device.
+5. If **Tell failure if any of the attributes are missing** is enabled and any key is absent, route via `Failure`.
+6. Apply scope prefixes:
+   - Client attributes: `cs_<key>`
+   - Shared attributes: `shared_<key>`
+   - Server attributes: `ss_<key>`
+   - Latest telemetry: `<key>` (no prefix)
+7. Add key-value pairs to message data or metadata based on configuration.
+8. Route via `Success`.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Message enriched with data from the related device. |
+| `Failure` | No related device found, required attributes missing (if configured), or an unexpected error occurred. |
+
+## Examples
+
+### Example 1 — Add server attribute from HVAC controller to gateway metadata
+
+**Originator**: device `Main Gateway`
+
+```json maxLines=30 collapsible
+{
+  "deviceRelationsQuery": {
+    "fetchLastLevelOnly": false,
+    "direction": "TO",
+    "maxLevel": 1,
+    "relationType": "Manages",
+    "deviceTypes": ["hvac-controller"]
+  },
+  "tellFailureIfAbsent": true,
+  "fetchTo": "METADATA",
+  "clientAttributeNames": [],
+  "sharedAttributeNames": [],
+  "serverAttributeNames": ["buildingId"],
+  "latestTsKeyNames": [],
+  "getLatestValueWithTs": false
+}
+```
+
+**State**: `HVAC-Controller-01` (profile `hvac-controller`) has server attribute `buildingId = "BLD-123"` and a `Manages` relation to `Main Gateway`.
+
+**Outgoing metadata** (added): `{ "ss_buildingId": "BLD-123" }`
+
+---
+
+### Example 2 — Add sensor telemetry with timestamp to pump controller data
+
+**Originator**: device `Pump-Controller-A`
+
+```json maxLines=30 collapsible
+{
+  "deviceRelationsQuery": {
+    "fetchLastLevelOnly": false,
+    "direction": "FROM",
+    "maxLevel": 1,
+    "relationType": "Contains",
+    "deviceTypes": ["pressure-sensor"]
+  },
+  "tellFailureIfAbsent": true,
+  "fetchTo": "DATA",
+  "clientAttributeNames": [],
+  "sharedAttributeNames": [],
+  "serverAttributeNames": [],
+  "latestTsKeyNames": ["pressure"],
+  "getLatestValueWithTs": true
+}
+```
+
+**State**: `Pump-Controller-A` contains `Pressure-Sensor-X1`, which has latest telemetry `pressure = 120.5` at timestamp `1725282600000`.
+
+**Outgoing data** (merged): `{ "command": "START", "status": "CONFIRMED", "pressure": { "ts": 1725282600000, "value": 120.5 } }`
+
+## JSON schema
+
+```json maxLines=35 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbGetRelatedDeviceAttributeNodeConfiguration",
+  "type": "object",
+  "properties": {
+    "deviceRelationsQuery": {
+      "type": "object",
+      "properties": {
+        "direction": { "type": "string", "enum": ["FROM", "TO"] },
+        "maxLevel": { "type": "integer" },
+        "fetchLastLevelOnly": { "type": "boolean" },
+        "relationType": { "type": "string" },
+        "deviceTypes": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "clientAttributeNames": { "type": "array", "items": { "type": "string" } },
+    "sharedAttributeNames": { "type": "array", "items": { "type": "string" } },
+    "serverAttributeNames": { "type": "array", "items": { "type": "string" } },
+    "latestTsKeyNames": { "type": "array", "items": { "type": "string" } },
+    "getLatestValueWithTs": { "type": "boolean" },
+    "fetchTo": { "type": "string", "enum": ["DATA", "METADATA"] },
+    "tellFailureIfAbsent": { "type": "boolean" }
+  }
+}
+```

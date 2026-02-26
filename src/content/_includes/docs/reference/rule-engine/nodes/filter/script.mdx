@@ -1,0 +1,164 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to evaluate a custom boolean condition against an incoming message. It is the most flexible filter in the rule engine: you write a TBEL or JavaScript function that inspects the message data, metadata, and type, then returns `true` or `false` to route the message accordingly.
+
+## Configuration
+
+- **Script language** — required. Choose `TBEL` or `JavaScript`.
+- **Script body** — required. A function that receives three arguments and must return a boolean:
+  - `msg` — the message data (object or array).
+  - `metadata` — the message metadata. In JavaScript, an object where all values are strings; in TBEL, a `java.util.Map<String, String>`.
+  - `msgType` — the message type as a string.
+
+<Aside type="note">
+  Scripts run in a sandboxed environment. Importing or calling external libraries is not supported — all logic must be self-contained within the script body.
+</Aside>
+
+## Message processing algorithm
+
+1. Select the script to execute based on the configured **Script language**.
+2. Execute the script function.
+3. Route the message:
+   - Returns `true` → `True` connection.
+   - Returns `false` → `False` connection.
+   - Throws an exception or returns a non-boolean → `Failure` connection.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `True` | The script returned `true`. |
+| `False` | The script returned `false`. |
+| `Failure` | The script returned a non-boolean value, or threw an exception. |
+
+## Examples
+
+### Example 1 — JS threshold check → `True`
+
+Any numeric telemetry value exceeds its corresponding threshold from metadata.
+
+**Incoming message**
+
+Data:
+```json maxLines=10 collapsible
+{
+  "temperature": 45.2,
+  "humidity": 80,
+  "pressure": 1010
+}
+```
+
+Metadata:
+```json maxLines=10 collapsible
+{
+  "temperatureThreshold": "45.0",
+  "humidityThreshold": "85"
+}
+```
+
+Message type: `POST_TELEMETRY_REQUEST`
+
+**Node configuration**
+
+```json maxLines=20 collapsible
+{
+  "scriptLang": "JS",
+  "jsScript": "if (msgType !== 'POST_TELEMETRY_REQUEST') {\n    return false;\n}\n\nfor (var key in msg) {\n    var thresholdKey = key + 'Threshold';\n    if (typeof msg[key] === 'number' && metadata[thresholdKey] && !isNaN(metadata[thresholdKey])) {\n        if (msg[key] > Number(metadata[thresholdKey])) {\n            return true;\n        }\n    }\n}\n\nreturn false;"
+}
+```
+
+**Result**: routed via **`True`** — `temperature` (45.2) exceeds its threshold (45.0).
+
+---
+
+### Example 2 — TBEL threshold check → `True`
+
+Same logic in TBEL; `humidity` (88) exceeds its threshold (85).
+
+**Incoming message**
+
+Data:
+```json maxLines=10 collapsible
+{
+  "temperature": 42.1,
+  "humidity": 88,
+  "pressure": 1010
+}
+```
+
+Metadata:
+```json maxLines=10 collapsible
+{
+  "temperatureThreshold": "45.0",
+  "humidityThreshold": "85"
+}
+```
+
+**Node configuration**
+
+```json maxLines=20 collapsible
+{
+  "scriptLang": "TBEL",
+  "tbelScript": "if (msgType != 'POST_TELEMETRY_REQUEST') {\n    return false;\n}\n\nforeach (key: msg.keySet()) {\n    var thresholdKey = key + 'Threshold';\n    if (metadata.containsKey(thresholdKey)) {\n        var value = msg[key];\n        var threshold = parseDouble(metadata[thresholdKey]);\n        if (value > threshold) {\n            return true;\n        }\n    }\n}\n\nreturn false;"
+}
+```
+
+**Result**: routed via **`True`**.
+
+---
+
+### Example 3 — JS runtime error → `Failure`
+
+The script expects `msg.data.temperature` but `msg.data` is undefined.
+
+```json maxLines=10 collapsible
+{
+  "scriptLang": "JS",
+  "jsScript": "return msg.data.temperature > 20;"
+}
+```
+
+**Result**: routed via **`Failure`** — runtime error accessing `undefined.temperature`.
+
+---
+
+### Example 4 — TBEL runtime error → `Failure`
+
+Same — `msg.data` is `null` in TBEL.
+
+```json maxLines=10 collapsible
+{
+  "scriptLang": "TBEL",
+  "tbelScript": "return msg.data.temperature > 20;"
+}
+```
+
+**Result**: routed via **`Failure`**.
+
+## JSON schema
+
+```json maxLines=25 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbJsFilterNodeConfiguration",
+  "type": "object",
+  "required": ["scriptLang"],
+  "properties": {
+    "scriptLang": {
+      "type": "string",
+      "description": "Scripting language used to execute the function.",
+      "enum": ["TBEL", "JS"]
+    },
+    "jsScript": {
+      "type": "string",
+      "description": "JavaScript function body that must return a boolean. Used when 'scriptLang' is 'JS'."
+    },
+    "tbelScript": {
+      "type": "string",
+      "description": "TBEL function body that must return a boolean. Used when 'scriptLang' is 'TBEL'."
+    }
+  },
+  "additionalProperties": false
+}
+```

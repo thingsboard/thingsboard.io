@@ -1,0 +1,200 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to check whether a geographic point in a message falls inside a configured geofence — for example, triggering an alert when a vehicle enters a restricted zone or a sensor reports a location inside a building perimeter. Supports both polygon and circle perimeters, with optional metadata-based perimeter loading for per-device zones.
+
+## Configuration
+
+- **Latitude field name** — required. Name of the key that holds the latitude of the point to check.
+- **Longitude field name** — required. Name of the key that holds the longitude of the point to check.
+- **Perimeter type** — required. Shape of the geofence: `Polygon` or `Circle`.
+- **Fetch perimeter information from metadata** — when enabled, the geofence definition is read from a message metadata key at runtime instead of using static configuration.
+  - **Perimeter key name** — metadata key containing the perimeter definition (required when fetch from metadata is enabled).
+
+**When perimeter type is `Polygon` and fetch from metadata is disabled:**
+- **Polygon definition** — a JSON array string of coordinates defining the polygon.
+
+**When perimeter type is `Circle` and fetch from metadata is disabled:**
+- **Center latitude** — latitude of the circle center.
+- **Center longitude** — longitude of the circle center.
+- **Range** — radius (must be positive).
+- **Range units** — `Meter`, `Kilometer`, `Foot`, `Mile`, or `Nautical mile`.
+
+### Polygon definition formats
+
+Polygon definitions are strings containing a JSON array of `[latitude, longitude]` pairs:
+
+**Single polygon** (≥ 3 points, last point auto-closed):
+```json
+[[48.195,24.645],[48.200,24.655],[48.205,24.645]]
+```
+
+**Rectangle** (two diagonally opposite corners — node computes the other two):
+```json
+[[48.195,24.645],[48.205,24.655]]
+```
+
+**Multi-polygon** (point inside any polygon counts as inside):
+```json
+[[[48.195,24.645],[48.200,24.655],[48.205,24.645]],[[48.210,24.650],[48.215,24.660],[48.220,24.650]]]
+```
+
+**Polygon with hole** (inner polygon fully inside outer = excluded area):
+```json
+[[[48.190,24.640],[48.210,24.640],[48.210,24.660],[48.190,24.660]],[[48.197,24.647],[48.203,24.647],[48.203,24.653],[48.197,24.653]]]
+```
+
+<Aside type="note">
+  When storing polygon definitions in metadata, the value must be a **string**, even though the content is a JSON array.
+</Aside>
+
+### Circle definition format
+
+```json
+{ "latitude": 48.1986, "longitude": 24.6532, "radius": 100.0, "radiusUnit": "METER" }
+```
+
+`radiusUnit` is optional and defaults to `METER`. Accepted values: `METER`, `KILOMETER`, `FOOT`, `MILE`, `NAUTICAL_MILE`.
+
+<Aside type="note">
+  When storing circle definitions in metadata, serialize the entire object as a string: `"{\"latitude\":48.1986,\"longitude\":24.6532,\"radius\":100.0,\"radiusUnit\":\"METER\"}"`.
+</Aside>
+
+## Message processing algorithm
+
+1. Parse the message data — must be a valid JSON object. If not, route via `Failure`.
+2. Extract latitude and longitude using configured keys. Look in message data first, then fall back to metadata. Both values must be present and parseable as decimal numbers. If not, route via `Failure`.
+3. Resolve the geofence:
+   - If **Fetch perimeter from metadata** is disabled: use static configuration.
+   - If enabled: read from the configured metadata key. Missing or invalid value → `Failure`.
+4. For **circle**: calculate geodesic distance from point to center. Inside if distance < range.
+5. For **polygon**: check if point is within any defined polygon (holes excluded).
+6. Route via `True` if inside, `False` if outside.
+
+<Aside type="note">
+  Longitudes are normalized internally, supporting polygons that cross the ±180° meridian.
+</Aside>
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `True` | Point lies inside the geofence. |
+| `False` | Point lies outside the geofence (or exactly on a circle boundary). |
+| `Failure` | Invalid message data, missing/non-numeric coordinates, invalid perimeter definition, or unexpected error. |
+
+## Examples
+
+### Example 1 — Point inside static circle
+
+**Data**: `{ "latitude": 48.199, "longitude": 24.653 }`
+
+```json maxLines=15 collapsible
+{
+  "latitudeKeyName": "latitude",
+  "longitudeKeyName": "longitude",
+  "fetchPerimeterInfoFromMessageMetadata": false,
+  "perimeterType": "CIRCLE",
+  "centerLatitude": 48.1986,
+  "centerLongitude": 24.6532,
+  "range": 150.0,
+  "rangeUnit": "METER"
+}
+```
+
+**Result**: point is within 150 m of center → routes via **`True`**.
+
+---
+
+### Example 2 — Point outside static circle
+
+**Data**: `{ "latitude": 48.205, "longitude": 24.660 }`
+
+Same config as above with `range: 100.0`. Point is >100 m from center → routes via **`False`**.
+
+---
+
+### Example 3 — Point inside static polygon
+
+**Data**: `{ "latitude": 48.200, "longitude": 24.650 }`
+
+```json maxLines=15 collapsible
+{
+  "latitudeKeyName": "latitude",
+  "longitudeKeyName": "longitude",
+  "fetchPerimeterInfoFromMessageMetadata": false,
+  "perimeterType": "POLYGON",
+  "polygonsDefinition": "[[48.195,24.645],[48.205,24.645],[48.205,24.655],[48.195,24.655]]"
+}
+```
+
+**Result**: point inside the rectangle → routes via **`True`**.
+
+---
+
+### Example 4 — Point inside polygon hole → `False`
+
+**Data**: `{ "latitude": 48.200, "longitude": 24.650 }` (center of inner hole)
+
+```json maxLines=20 collapsible
+{
+  "latitudeKeyName": "latitude",
+  "longitudeKeyName": "longitude",
+  "fetchPerimeterInfoFromMessageMetadata": false,
+  "perimeterType": "POLYGON",
+  "polygonsDefinition": "[[[48.190,24.640],[48.210,24.640],[48.210,24.660],[48.190,24.660]],[[48.197,24.647],[48.203,24.647],[48.203,24.653],[48.197,24.653]]]"
+}
+```
+
+**Result**: point is in the inner hole → routes via **`False`**.
+
+---
+
+### Example 5 — Perimeter loaded from metadata
+
+**Data**: `{ "latitude": 48.1988, "longitude": 24.6531 }`
+**Metadata**: `{ "geofence": "{\"latitude\":48.1986,\"longitude\":24.6532,\"radius\":100.0,\"radiusUnit\":\"METER\"}" }`
+
+```json maxLines=15 collapsible
+{
+  "latitudeKeyName": "latitude",
+  "longitudeKeyName": "longitude",
+  "fetchPerimeterInfoFromMessageMetadata": true,
+  "perimeterKeyName": "geofence",
+  "perimeterType": "CIRCLE"
+}
+```
+
+**Result**: perimeter loaded from metadata, point is inside → **`True`**.
+
+---
+
+### Example 6 — Missing coordinates → `Failure`
+
+**Data**: `{ "type": "heartbeat" }` | **Metadata**: `{}`
+
+No `latitude` or `longitude` in either data or metadata → routes via **`Failure`**.
+
+## JSON schema
+
+```json maxLines=30 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbGpsGeofencingFilterNodeConfiguration",
+  "type": "object",
+  "required": ["latitudeKeyName", "longitudeKeyName", "perimeterType", "fetchPerimeterInfoFromMessageMetadata"],
+  "additionalProperties": false,
+  "properties": {
+    "latitudeKeyName": { "type": "string" },
+    "longitudeKeyName": { "type": "string" },
+    "perimeterType": { "type": "string", "enum": ["CIRCLE", "POLYGON"] },
+    "fetchPerimeterInfoFromMessageMetadata": { "type": "boolean" },
+    "perimeterKeyName": { "type": "string" },
+    "polygonsDefinition": { "type": "string" },
+    "centerLatitude": { "type": "number" },
+    "centerLongitude": { "type": "number" },
+    "range": { "type": "number" },
+    "rangeUnit": { "type": "string", "enum": ["METER", "KILOMETER", "FOOT", "MILE", "NAUTICAL_MILE"] }
+  }
+}
+```

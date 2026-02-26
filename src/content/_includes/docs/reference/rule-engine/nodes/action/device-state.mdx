@@ -1,0 +1,64 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Use this node to programmatically trigger device connectivity events for the message originator — for example, recording a connect event when a custom integration reports that a device has come online, or triggering an inactivity event to mark a device offline after a watchdog timeout. Rate limiting prevents event flooding per device.
+
+## Configuration
+
+- **Device connectivity event** — required. The type of event to trigger:
+
+| Event | Key Updated | Message Type Sent | Activity Status |
+|-------|-------------|-------------------|-----------------|
+| `Connect Event` | `lastConnectTime` | `CONNECT_EVENT` to default rule chain | No change |
+| `Activity Event` | `lastActivityTime` | `ACTIVITY_EVENT` (only if status changes false→true) | Set to `true` |
+| `Disconnect Event` | `lastDisconnectTime` | `DISCONNECT_EVENT` to default rule chain | No change |
+| `Inactivity Event` | `lastInactivityAlarmTime` | `INACTIVITY_EVENT` to default rule chain | Set to `false` |
+
+Rate limiting per device is controlled by the `DEVICE_STATE_NODE_RATE_LIMIT_CONFIGURATION` environment variable (default: `1:1,30:60,60:3600` — 1 event/second, 30 events/minute, 60 events/hour).
+
+If the incoming message metadata contains a `ts` key, that timestamp is used as the event timestamp; otherwise the message timestamp is used.
+
+## Message processing algorithm
+
+1. Verify that the originator is a `DEVICE`. If not, route via `Failure`.
+2. Apply rate limiting per device. If the limit is exceeded, route via `Rate limited`.
+3. Determine the event timestamp from metadata `ts` key or message timestamp.
+4. Trigger the configured connectivity event, updating the appropriate timestamp key and sending a lifecycle message to the device's default rule chain.
+5. Route the original message via `Success`.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Event triggered successfully. |
+| `Failure` | Originator is not a `DEVICE`, or unexpected error. |
+| `Rate limited` | Per-device rate limit exceeded. |
+
+## Examples
+
+### Example 1 — Trigger activity event
+
+**Originator**: device (currently inactive) | **Metadata**: `{ "ts": "1694887200000" }`
+
+```json maxLines=15 collapsible
+{ "event": "ACTIVITY_EVENT" }
+```
+
+**Result**: `lastActivityTime` updated to `1694887200000`, activity status changes `false` → `true`, `ACTIVITY_EVENT` message sent to device's default rule chain. Original message routes via `Success`.
+
+## JSON schema
+
+```json maxLines=20 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbDeviceStateNodeConfiguration",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "event": {
+      "type": "string",
+      "enum": ["CONNECT_EVENT", "ACTIVITY_EVENT", "DISCONNECT_EVENT", "INACTIVITY_EVENT"]
+    }
+  }
+}
+```
