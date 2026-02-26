@@ -49,20 +49,29 @@ Add `Steps` only if the page has numbered procedures. Add `Aside` only if the pa
 - Path: no leading slash, no trailing slash
 - Never use bare markdown `[text](url)` for internal pages
 - For not-yet-created pages use `path='TODO'`
+- Same-page anchor links (`[text](#anchor)`) are fine in markdown
 
 ### Aside types
 | Type | When to use |
 |------|-------------|
-| `tip` | Helpful but optional guidance |
-| `note` | Neutral informational context |
-| `caution` | Risk of data loss or misconfiguration |
+| `tip` | Helpful advice or shortcuts |
+| `note` | Additional, non-critical information |
+| `caution` | Must know before continuing — risk of data loss or misconfiguration |
 | `danger` | Destructive, irreversible action |
 
 ### Steps
-Each `<Steps>` item does exactly one action. Do not combine multiple actions in a single step.
+- Each `<Steps>` item starts with an **imperative verb**: Click, Enter, Select, Go to, Set.
+- **Combine two-part UI interactions** into one step:
+  - ✅ `Enter the device name and click **Save**.`
+  - ✅ `Set the trigger filter and click **Add**.`
+  - ❌ Two independent actions in one step: `Configure the profile and restart the service.`
+- **Show results** when an action produces a visible change: `Click **Save**. The device appears in the list.`
+- Use "To + infinitive" only when context is non-obvious:
+  - ✅ `To add a new device, go to **Entities > Devices**.`
+  - ❌ `To save your changes, click **Save**.` (obvious — omit the context)
 
 ### Tables
-Use tables for: credential types, transport options, topic overviews, field descriptions, protocol comparisons. Tables are preferred over bullet lists for structured data.
+Use tables for: credential types, transport options, field descriptions, protocol comparisons, parameter references. Tables are preferred over bullet lists for structured data.
 
 ### Configuration parameters
 Always use ENV variable names, never `thingsboard.yml` property names.
@@ -70,12 +79,6 @@ Always use ENV variable names, never `thingsboard.yml` property names.
 - Right: `SECURITY_CLAIM_ALLOW_CLAIMING_BY_DEFAULT`
 
 Look up mappings at https://thingsboard.io/docs/user-guide/install/config/ or check `MEMORY.md` for known mappings.
-
-### Writing style
-- Lead with the key concept and a concrete example — no "Why use X?" sections
-- Fold motivation into the intro or first example
-- Simplify JSON examples — drop internal/generated fields
-- API and reference tables go at the end of sections, not at the top
 
 ### Diagrams
 Add an ASCII or Mermaid diagram when the topic involves a non-obvious flow: connection lifecycle, message routing, state machine, data pipeline, entity hierarchy. A diagram replaces several paragraphs of prose for these cases.
@@ -89,6 +92,155 @@ sequenceDiagram
     Gateway->>ThingsBoard: PUBLISH v1/gateway/telemetry
 ```
 ```
+
+---
+
+## ThingsBoard Style Guide
+
+### Core principles
+
+Documentation must be:
+- **Concise** — every word earns its place
+- **Factual** — no marketing language, no hyperbole
+- **Useful** — readers come to solve problems
+- **Scannable** — structure matters as much as content
+
+### Banned words and phrases
+
+**Marketing buzzwords** — never use: powerful, robust, seamless, cutting-edge, comprehensive, out-of-the-box, next-generation
+
+**False simplicity** — never use: easy, simple, just, straightforward
+
+**Corporate speak** — never use: solution, leverage, enable you to, utilize
+
+**Empty phrases** — replace with shorter alternatives:
+- "in order to" → "to"
+- "for example" → "like"
+- "e.g." → "like"
+- "such as" → "like"
+- "and more" → "etc."
+
+### Factual accuracy
+
+Never invent: feature names, API endpoints, configuration parameters, version numbers, code syntax, or performance statistics. If you cannot verify a technical detail:
+- Flag it explicitly: *"I cannot verify this claim about [X]. Please confirm."*
+- Do not fill gaps with plausible-sounding information.
+
+### Headings
+
+**Format:** Sentence case — first word capitalized, rest lowercase except proper nouns. No period at the end.
+- ✅ `Open-source IoT platform`
+- ❌ `Open-Source IoT Platform`
+
+**Length:** 5–8 words maximum.
+
+**Depth:** H1 (one per page) → H2 (major sections) → H3 (subsections). **No H4 or deeper.**
+
+**Introductory paragraph:** No "Overview" heading before it. Answer: what is this, what will the reader learn. No marketing language.
+
+### Voice and tone
+
+**Active voice by default:**
+- ✅ `ThingsBoard Edge processes data locally.`
+- ❌ `Data is processed locally by ThingsBoard Edge.`
+
+Use passive voice only when the actor is unknown/irrelevant, the object matters more than the subject, or describing automatic system behavior:
+- ✅ `The data is encrypted in transit.`
+- ✅ `If connection is lost, messages are queued automatically.`
+
+**Second person:** Use "you", not "the user".
+- ✅ `You can configure the device profile in three steps.`
+- ❌ `The user can configure the device profile in three steps.`
+
+**No first-person plural:** Never "we recommend" or "our goal is". Use "ThingsBoard supports…" instead.
+
+**Present tense:**
+- ✅ `The device sends telemetry to the cloud.`
+- ❌ `The device will send telemetry to the cloud.`
+
+### Punctuation
+
+**Oxford comma always:** Filter, Enrichment, and Transformation
+
+**No em dash** — rewrite using commas, colons, or new sentences:
+- ❌ `The Notification Center — accessible from the sidebar — provides tabs for…`
+- ✅ `The Notification Center, accessible from the sidebar, provides tabs for…`
+
+**Colons:** Only after a complete sentence introducing a list:
+- ✅ `ThingsBoard supports three protocols: MQTT, HTTP, and CoAP.`
+- ❌ `The supported protocols are: MQTT, HTTP, and CoAP.`
+
+**Parentheses:** Only for abbreviations on first use or essential inline clarification. Not for examples.
+- ✅ `Role-Based Access Control (RBAC) restricts access…`
+- ❌ `The rule chain (which processes data) supports…`
+
+### Lists
+
+**Bulleted lists:** For unrelated items, three or more points.
+
+**Numbered lists:** For procedures or priority order only.
+
+**Simple enumeration (bold term + colon):**
+- Capitalize items, no period at end.
+- ✅ `**Delete:** Remove the Edge instance and all related data.`
+
+**Consistency rules:**
+- Parallel grammatical structure across all items.
+- Maximum two levels of nesting.
+- Start each item with a capital letter.
+- End with a period only if the item is a complete sentence.
+
+### Capitalization
+
+**Always capitalize:**
+- Product names: ThingsBoard Edge, Community Edition, Professional Edition
+- Industry proper nouns: Docker, Java, MQTT, Kafka
+- ThingsBoard **roles** when used as proper names: Tenant Administrator, Customer User, System Administrator
+- ThingsBoard **entities** when used as proper names: Device, Asset, Rule Chain, Dashboard, Entity View
+
+**Role/entity capitalization rule:**
+- ✅ `The Tenant Administrator can manage all resources.` (naming the role)
+- ✅ `Create a new Device in the system.` (naming the entity)
+- ✅ `A tenant administrator manages resources for their organization.` (describing function, not naming)
+- ✅ `Add a new device to your tenant.` (generic reference)
+
+First instance in a sentence = UI reference or proper name (capitalize). Generic/functional reference = lowercase.
+
+**UI elements:** Bold and capitalize when referencing directly.
+- ✅ `Click **Add**.`
+- ✅ `Go to **Entities > Devices**.`
+
+**Icon-only buttons:** Use tooltip name with optional symbol.
+- ✅ `Click **Add** (+).`
+- ❌ `Click the "+" button.`
+
+### Numbers
+
+- Spell out zero through nine: `The system supports three protocols.`
+- Use numerals for 10 and above: `The dashboard displays 15 sensors.`
+- When different types appear together, use numerals for both: `2 gateways and 15 sensors`
+- Units: space between number and unit (`100 ms`, `256 MB`), no space for percent (`50%`) or currency (`$10`)
+
+### Examples and enumerations
+
+Use exactly one of these three patterns:
+
+1. **"like" + examples:** `Send commands like temperature setpoints or reboot signals.`
+2. **Enumeration + "etc.":** `Supports email, SMS, Slack, Teams, etc.`
+3. **Arrow chain for hierarchies:** `Building (Asset) → Floor (Asset) → Thermostat (Device)`
+
+Never use: "for example", "e.g.", "such as", "and more", or parentheses for examples.
+
+### Definition list format
+
+For term/description pairs in bullet lists:
+
+```
+- **Term:** Description as a complete sentence with period.
+```
+
+- ✅ `- **Delete:** Remove the Edge instance and all related data.`
+- ❌ `- **Delete** — removes the Edge instance`
 
 ---
 
@@ -146,3 +298,8 @@ Always read the file first to get the exact indentation, and verify with `Read` 
 | DocLink path broken | Leading or trailing slash in path | Use `path='reference/foo/bar'` not `path='/reference/foo/bar/'` |
 | Config param not found in docs | Used `thingsboard.yml` key | Look up ENV name at the config reference page |
 | PE page missing | Forgot to create `pe/` mirror stub | Always create CE + PE stubs together |
+| Markdown table inside JSX expression | MDX parses markdown only in angle-bracket tags | Use HTML `<table>` inside `{...}` curly-brace expressions |
+| H4 heading in content | Violates "no H4 or deeper" rule | Restructure: flatten to H3 or convert to a table/list |
+| Em dash in prose | Banned punctuation | Rewrite using a comma, colon, or new sentence |
+| "e.g." or "for example" in text | Banned phrasing | Replace with "like" |
+| Role name lowercase when naming role | Capitalization rule | "Tenant Administrator", "System Administrator" when used as proper names |

@@ -1,0 +1,240 @@
+import DocLink from '@components/DocLink.astro';
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+These tutorials walk through common alarm rule configurations using a Thermometer device that sends `temperature` telemetry. Each example builds on the previous one. For the full configuration reference, see <DocLink product={props.product} path="user-guide/alarm-rules">Alarm rules</DocLink>.
+
+<Aside type="note">
+  These examples apply to ThingsBoard **4.3**.
+</Aside>
+
+## Before you begin
+
+Download the setup file and <DocLink product={props.product} path="user-guide/bulk-provisioning">import</DocLink> it before running the examples:
+
+<a href="/resources/alarm-rules/thermometer-device-data.csv" download="thermometer-device-data.csv">thermometer-device-data.csv</a>
+
+Set the `temperature` column type to **Time series** during import.
+
+<Aside type="tip">
+  If the same rule applies to multiple devices, create it at the **Device Profile** level to centralize alarm logic and reduce duplication.
+</Aside>
+
+## Example 1. Temperature threshold
+
+**Goal:** Create a Critical alarm when `temperature > 10`.
+
+<Steps>
+1. Go to **Alarms → Alarm rules** and click **+**, then select **Create new alarm rule**.
+2. In **General**, set **Alarm type** to *High Temperature*, **Entity type** to *Device*, and select the *Thermometer* device.
+3. In **Arguments**, click **Add argument** and set:
+   - **Entity type:** *Current entity* · **Argument type:** *Latest telemetry* · **Time series key:** `temperature` · **Argument name:** `temperature`
+
+   Click **Add**.
+4. In **Trigger condition**, click **Add trigger condition** and set **Severity** to *Critical*.
+5. Next, click **Add condition**, then click **Add argument filter** and set:
+   - **Argument:** `temperature` · **Value type:** *Numeric* 
+   - In **Filters**, click **Add** and set **Operation:** *greater than* · **Value:** `10`
+
+   Click **Add**. Set **Type** to *Simple* and click **Save**.
+6. Click **Add** to save the rule.
+</Steps>
+
+ThingsBoard creates a Critical alarm whenever `temperature > 10`.
+
+**Test:** Send a telemetry value above the threshold using the device access token:
+
+```bash
+curl -v -X POST http://$THINGSBOARD_HOST_NAME/api/v1/$ACCESS_TOKEN/telemetry \
+  --header "Content-Type: application/json" \
+  --data '{"temperature": 25}'
+```
+
+Replace `$THINGSBOARD_HOST_NAME` with your host (e.g. `localhost:8080`) and `$ACCESS_TOKEN` with the Thermometer device access token. After a few seconds, a Critical alarm should appear on the device's **Alarms** tab.
+
+---
+
+## Example 2. Clear condition
+
+**Continuation of [Example 1](#example-1-simple-condition-temperature-threshold).**
+
+**Goal:** Automatically clear the *High Temperature* alarm when `temperature ≤ 4`.
+
+<Steps>
+1. Go to **Alarms → Alarm rules** and click the **High Temperature** rule, then click **Edit** (pencil).
+2. Scroll to **Clear condition** and click **Add clear condition**.
+3. Click **Add condition**, then click **Add argument filter** and set:
+   - **Argument:** `temperature` · **Value type:** *Numeric* 
+   - In **Filters**, click **Add** and set **Operation:** *less or equal* · **Value:** `4`
+
+   Click **Add**. Set **Type** to *Simple* and click **Save**.
+4. Click **Apply**.
+</Steps>
+
+The alarm is created when `temperature > 10` and cleared when `temperature ≤ 4`.
+
+**Test:** Send a value below the threshold to resolve the alarm:
+
+```bash
+curl -v -X POST http://$THINGSBOARD_HOST_NAME/api/v1/$ACCESS_TOKEN/telemetry \
+  --header "Content-Type: application/json" \
+  --data '{"temperature": 2}'
+```
+
+The first request creates a Critical alarm. The second clears it. Check the device's **Alarms** tab to confirm the status changes from *Active* to *Cleared*.
+
+---
+
+## Example 3. Duration condition
+
+**Continuation of [Example 1](#example-1-simple-condition-temperature-threshold).**
+
+**Goal:** Trigger the alarm only when the threshold is exceeded continuously for 1 minute to filter out short spikes.
+
+<Steps>
+1. Go to **Alarms → Alarm rules** and click the **High Temperature** rule, then click **Edit** (pencil).
+2. In **Trigger condition**, click the condition to edit it.
+3. Change **Condition type** from *Simple* to *Duration*. Set **Duration value** to `1` and **Time unit** to *Minutes*.
+4. Click **Save** inside the condition block, then click **Apply**.
+</Steps>
+
+**Test:** Send a value above the threshold and keep sending it for over a minute. The alarm should not appear immediately — it fires only after the condition holds continuously for 1 minute.
+
+```bash
+curl -v -X POST http://$THINGSBOARD_HOST_NAME/api/v1/$ACCESS_TOKEN/telemetry \
+  --header "Content-Type: application/json" \
+  --data '{"temperature": 25}'
+```
+
+Repeat every 10–15 seconds for at least 60 seconds. Check the device's **Alarms** tab — the alarm should appear roughly 1 minute after the first reading above the threshold.
+
+---
+
+## Example 4. Dynamic duration from an attribute
+
+**Continuation of [Example 3](#example-3-duration-condition).**
+
+**Goal:** Drive the duration threshold from a device attribute so it can be changed per device without editing the rule.
+
+**Preparation:** Add a <DocLink product={props.product} path="user-guide/digital-twins/attributes/#server-side-attributes">server attribute</DocLink> to *Thermometer*:
+- **Key:** `highTemperatureDurationThreshold` · **Type:** *Integer* · **Value:** `2`
+
+<Steps>
+1. Go to **Alarms → Alarm rules** and click the **High Temperature** rule, then click **Edit** (pencil).
+2. In **Arguments**, click **Add argument** and set:
+   - **Entity type:** *Current entity* · **Argument type:** *Attribute* · **Attribute scope:** *Server attributes*
+   - **Attribute key:** `highTemperatureDurationThreshold` · **Argument name:** `highTemperatureDurationThreshold`
+
+   Click **Add**.
+3. In **Trigger condition**, click the condition to edit it. Scroll down and set:
+   - **Type:** *Duration* · **Value type:** *Dynamic* · **Value:** `highTemperatureDurationThreshold` · **Unit:** *Minutes*
+4. Click **Save**, then click **Apply**.
+</Steps>
+
+The alarm fires only when `temperature > 10` stays true for the number of minutes stored in `highTemperatureDurationThreshold`. Update the attribute to change the duration without modifying the rule.
+
+**Test:** If you ran Example 3's test, clear or acknowledge the existing *High Temperature* alarm on the device before proceeding — ThingsBoard will not create a new alarm while one of the same type is already active.
+
+Send a value above the threshold repeatedly:
+
+```bash
+curl -v -X POST http://$THINGSBOARD_HOST_NAME/api/v1/$ACCESS_TOKEN/telemetry \
+  --header "Content-Type: application/json" \
+  --data '{"temperature": 25}'
+```
+
+Repeat every 10–15 seconds for **more than 2 minutes** (e.g. 2 minutes 30 seconds). The alarm fires when a telemetry reading arrives *after* the full duration has elapsed — stopping exactly at the 2-minute mark may miss the trigger. Check the device's **Alarms** tab after the last send.
+
+To verify the dynamic behavior, update `highTemperatureDurationThreshold` to a different value and repeat — the new duration takes effect without editing the rule.
+
+---
+
+## Example 5. Repeating condition
+
+**Continuation of [Example 1](#example-1-simple-condition-temperature-threshold).**
+
+**Goal:** Trigger the alarm only after the condition occurs three times in a row to filter out random spikes.
+
+<Steps>
+1. Go to **Alarms → Alarm rules** and click the **High Temperature** rule, then click **Edit** (pencil).
+2. In **Trigger condition**, click the condition to edit it.
+3. Change **Condition type** to *Repeating*. Set **Count of events** to `3`. Leave **Value type** as *Static* — the count can also be driven from an attribute (as shown in [Example 4](#example-4-dynamic-duration-from-an-attribute)), but here we keep it fixed.
+4. Click **Save**, then click **Apply**.
+</Steps>
+
+**Test:** Send a value above the threshold three times in a row. The alarm should appear only after the third reading.
+
+```bash
+curl -v -X POST http://$THINGSBOARD_HOST_NAME/api/v1/$ACCESS_TOKEN/telemetry \
+  --header "Content-Type: application/json" \
+  --data '{"temperature": 25}'
+```
+
+Run the command three times. Check the device's **Alarms** tab — no alarm after the first or second request, but a Critical alarm after the third.
+
+---
+
+## Example 6. Schedule
+
+**Continuation of [Example 1](#example-1-simple-condition-temperature-threshold).**
+
+**Goal:** Restrict the alarm to weekdays 10:00–19:00.
+
+<Steps>
+1. Go to **Alarms → Alarm rules** and click the **High Temperature** rule, then click **Edit** (pencil).
+2. In **Trigger condition**, open **Schedule** settings.
+3. Select **Active at a specific time** and set:
+   - **Timezone:** *Europe/Kiev (UTC+02:00)* · **Days:** Monday–Friday · **From:** `10:00` · **To:** `19:00`
+4. Click **Save**, then click **Apply**.
+</Steps>
+
+Threshold violations outside this window do not create alarms.
+
+**Test:** Send a value above the threshold twice — once during the active window and once outside it.
+
+```bash
+curl -v -X POST http://$THINGSBOARD_HOST_NAME/api/v1/$ACCESS_TOKEN/telemetry \
+  --header "Content-Type: application/json" \
+  --data '{"temperature": 25}'
+```
+
+Run the command between 10:00 and 19:00 on a weekday (Europe/Kiev time) — a Critical alarm should appear. Run it outside that window — no alarm should be created.
+
+---
+
+## Example 7. Boolean flag to enable or disable an alarm
+
+**Continuation of [Example 1](#example-1-simple-condition-temperature-threshold).**
+
+**Goal:** Allow the alarm to be toggled per device using a server attribute, without editing the rule.
+
+The alarm triggers only when both conditions are true: `temperatureAlarmFlag == true` **and** `temperature > 10`.
+
+**Preparation:** Add a server attribute to *Thermometer*:
+- **Key:** `temperatureAlarmFlag` · **Type:** *Boolean* · **Value:** `true`
+
+<Steps>
+1. Go to **Alarms → Alarm rules** and click the **High Temperature** rule, then click **Edit** (pencil).
+2. In **Arguments**, click **Add argument** and set:
+   - **Entity type:** *Current entity* · **Argument type:** *Attribute* · **Attribute scope:** *Server attributes*
+   - **Attribute key:** `temperatureAlarmFlag` · **Argument name:** `temperatureAlarmFlag`
+
+   Click **Add**.
+3. In **Trigger condition**, click the condition to edit it. Click **Add argument filter** and set:
+   - **Argument:** `temperatureAlarmFlag` · **Value type:** *Boolean* · **Operation:** *equal* · **Value:** `true`
+
+   Click **Add**.
+4. Click **Apply**.
+</Steps>
+
+Setting `temperatureAlarmFlag` to `false` on a device suppresses the alarm for that device without modifying the rule. For large fleets where alerting policies vary by device, operators can toggle the flag from a dashboard switch widget.
+
+**Test:** With `temperatureAlarmFlag` set to `true`, send a value above the threshold — a Critical alarm should appear:
+
+```bash
+curl -v -X POST http://$THINGSBOARD_HOST_NAME/api/v1/$ACCESS_TOKEN/telemetry \
+  --header "Content-Type: application/json" \
+  --data '{"temperature": 25}'
+```
+
+Then set `temperatureAlarmFlag` to `false` on the *Thermometer* device and send the same request again — no new alarm should be created.
+

@@ -288,6 +288,59 @@ sidebar:
 - `variant` — `default` | `note` | `tip` | `caution` | `danger` | `success` (optional, default: `default`)
 - `class` — CSS class, use `tb-badge` for the text-only style
 
+### RuleNodeCardGrid Component
+
+`src/components/RuleNodeCardGrid.astro` — responsive card grid for rule node category overviews.
+
+**Features:**
+- 3-column grid (2 on tablet ≤900px, 1 on mobile ≤480px)
+- Each card links to an anchor section on the page
+- Image area (16:9): shows an optimised raster screenshot, or a grid-background placeholder with a centered SVG icon
+- SVG icon scales to 1.2× on card hover
+- Optional Starlight `<Badge>` in the top-right corner of the image area
+- Raster images processed at build time → WebP 480px/85q via `astro:assets`
+- SVGs resolved via a separate `import.meta.glob` (not processed, served as-is)
+
+**Props (`CardItem`):**
+
+```ts
+interface CardItem {
+  title: string;
+  href: string;
+  description: string;
+  image?: string;       // Raster image path inside /src/assets/ (png/jpg/webp/gif)
+  icon?: string;        // SVG path inside /src/assets/ — shown in placeholder when no image
+  alt?: string;         // Alt text for image; falls back to title
+  badge?: string;       // Badge label in top-right corner of image area
+  badgeVariant?: 'default' | 'note' | 'tip' | 'caution' | 'danger' | 'success';
+}
+```
+
+**Important:** Both `image` and `icon` paths must be inside `/src/assets/` — the component uses `import.meta.glob` over that directory only.
+
+**Usage in MDX:**
+
+```mdx
+import RuleNodeCardGrid from '~/components/RuleNodeCardGrid.astro';
+
+<RuleNodeCardGrid items={[
+  {
+    href: '#filter-nodes',
+    title: 'Filter',
+    description: 'Route messages based on conditions — no data modification',
+    icon: '/src/assets/images/user-guide/rule-nodes/node-filter.svg',
+  },
+  {
+    href: '#analytics-nodes',
+    title: 'Analytics',
+    description: 'Aggregate data streams and compute statistics',
+    icon: '/src/assets/images/user-guide/rule-nodes/node-analytics.svg',
+    badge: 'PE only',
+    badgeVariant: 'success',
+  },
+]} />
+```
+
 ### YouTubeVideo Component
 
 `src/components/YouTubeVideo.astro` — responsive YouTube video embed that fills the full content width.
