@@ -351,6 +351,16 @@ export const peSidebar: SidebarConfig = [
 		items: [
 			...recipeItems('docs/pe/recipes'),
 			{
+				label: 'Reporting',
+				collapsed: true,
+				items: [
+					'docs/pe/recipes/reporting-embed-dashboard',
+					'docs/pe/recipes/reporting-line-chart-temperature',
+					'docs/pe/recipes/reporting-subreport-daily-alarms',
+				'docs/pe/recipes/reporting-alarm-notification',
+				],
+			},
+			{
 				label: 'Access Control',
 				collapsed: true,
 				items: [
