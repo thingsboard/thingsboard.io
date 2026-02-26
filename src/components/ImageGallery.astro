@@ -1,20 +1,43 @@
 ---
 import { getImage } from 'astro:assets';
 import type { ImageMetadata } from 'astro';
+import { Products } from '~/models/site.models';
 
 interface ImageItem {
-	// Path relative to project root, e.g. /src/assets/images/screenshot.png
+	// Base path from project root, e.g. /src/assets/images/screenshot.png
+	// When product/theme resolution is active, this is the base name without suffixes.
 	src: string;
 	alt: string;
 	caption?: string;
+	/** If set, this image is only included when the current product is in the list. */
+	products?: Products[];
 }
 
 interface Props {
 	images: ImageItem[];
+	/** If set, enables product suffix resolution (e.g. -pe, -paas). */
+	product?: Products;
 }
 
-const { images } = Astro.props;
+const { images, product } = Astro.props;
 const galleryId = `ig-${Math.random().toString(36).slice(2, 9)}`;
+
+// Maps each product to the filename suffix inserted before the extension.
+const productSuffix: Record<Products, string> = {
+	[Products.CE]: 'ce',
+	[Products.PE]: 'pe',
+	[Products.PAAS]: 'paas',
+	[Products.PAAS_EU]: 'paas-eu',
+	[Products.EDGE]: 'edge',
+	[Products.EDGE_PE]: 'edge-pe',
+	[Products.GW]: 'gw',
+	[Products.LICENSE]: 'license',
+	[Products.TRENDZ]: 'trendz',
+	[Products.MOBILE]: 'mobile',
+	[Products.MOBILE_PE]: 'mobile-pe',
+	[Products.TBMQ]: 'tbmq',
+	[Products.TBMQ_PE]: 'tbmq-pe',
+};
 
 // Load all images from assets using glob (eager = synchronous at build time)
 // Key — absolute path from project root (/src/assets/...)
@@ -23,22 +46,114 @@ const assetModules = import.meta.glob<{ default: ImageMetadata }>(
 	{ eager: true },
 );
 
+/**
+ * Splits a src path into base (before extension) and ext (including dot).
+ * e.g. "/src/assets/schemas/foo.svg" → ["/src/assets/schemas/foo", ".svg"]
+ */
+function splitExt(src: string): [string, string] {
+	const dot = src.lastIndexOf('.');
+	if (dot === -1) throw new Error(`ImageGallery: src has no extension: "${src}"`);
+	return [src.slice(0, dot), src.slice(dot)];
+}
+
+/**
+ * Resolve the actual asset path for a given base src, considering product and theme.
+ * Fallback chain (most specific → least specific):
+ *   1. {base}-{product}-dark{ext}  (product + dark)
+ *   2. {base}-dark{ext}            (generic dark)
+ *   3. {base}-{product}{ext}       (product + light)
+ *   4. {base}{ext}                 (base — always exists)
+ * For light theme, skip steps 1-2.
+ * CE is the default product — no suffix needed (the base file IS the CE file).
+ */
+function resolvePaths(src: string): { lightPath: string; darkPath: string } {
+	const [base, ext] = splitExt(src);
+	const suffix = product ? productSuffix[product] : null;
+
+	// Resolve light path: try product-specific first, then base
+	let lightPath: string;
+	if (suffix && assetModules[`${base}-${suffix}${ext}`]) {
+		lightPath = `${base}-${suffix}${ext}`;
+	} else {
+		lightPath = src; // base file
+	}
+
+	// Resolve dark path: try product+dark, then generic dark, then fall back to light
+	let darkPath: string;
+	if (suffix && assetModules[`${base}-${suffix}-dark${ext}`]) {
+		darkPath = `${base}-${suffix}-dark${ext}`;
+	} else if (assetModules[`${base}-dark${ext}`]) {
+		darkPath = `${base}-dark${ext}`;
+	} else {
+		darkPath = lightPath; // no dark variant — reuse light
+	}
+
+	return { lightPath, darkPath };
+}
+
+// Filter by product if specified, then resolve paths and process images
+const filteredImages = product
+	? images.filter(({ products: p }) => !p || p.includes(product))
+	: images;
+
+// Whether any image actually has a distinct dark variant
+let hasThemeVariants = false;
+
 // thumb — compressed WebP 800px for the grid (fast loading)
 // full  — WebP at original size, quality 90 for the lightbox
 const processed = await Promise.all(
-	images.map(async ({ src, alt, caption }) => {
-		const mod = assetModules[src];
-		if (!mod) throw new Error(`ImageGallery: image not found "${src}". Check the path.`);
+	filteredImages.map(async ({ src, alt, caption }) => {
+		const { lightPath, darkPath } = resolvePaths(src);
+		const hasDark = darkPath !== lightPath;
+		if (hasDark) hasThemeVariants = true;
 
-		const thumb = await getImage({ src: mod.default, width: 800, format: 'webp', quality: 80 });
-		const full = await getImage({ src: mod.default, format: 'webp', quality: 90 });
+		const lightMod = assetModules[lightPath];
+		if (!lightMod) throw new Error(`ImageGallery: image not found "${lightPath}". Check the path.`);
+
+		const isSvg = lightPath.endsWith('.svg');
+
+		// SVGs don't need processing — use raw src directly
+		if (isSvg) {
+			const lightSrc = lightMod.default.src;
+			const darkMod = hasDark ? assetModules[darkPath] : null;
+			const darkSrc = darkMod ? darkMod.default.src : lightSrc;
+			return {
+				alt,
+				caption: caption ?? '',
+				thumbSrc: lightSrc,
+				fullSrc: lightSrc,
+				darkThumbSrc: darkSrc,
+				darkFullSrc: darkSrc,
+				fullWidth: lightMod.default.width,
+				fullHeight: lightMod.default.height,
+				hasDark,
+			};
+		}
+
+		const thumb = await getImage({ src: lightMod.default, width: 800, format: 'webp', quality: 80 });
+		const full = await getImage({ src: lightMod.default, format: 'webp', quality: 90 });
+
+		let darkThumbSrc = thumb.src;
+		let darkFullSrc = full.src;
+
+		if (hasDark) {
+			const darkMod = assetModules[darkPath]!;
+			const darkThumb = await getImage({ src: darkMod.default, width: 800, format: 'webp', quality: 80 });
+			const darkFull = await getImage({ src: darkMod.default, format: 'webp', quality: 90 });
+			darkThumbSrc = darkThumb.src;
+			darkFullSrc = darkFull.src;
+		}
+
 		return {
 			alt,
 			caption: caption ?? '',
 			thumbSrc: thumb.src,
 			fullSrc: full.src,
+			darkThumbSrc,
+			darkFullSrc,
 			fullWidth: full.attributes.width as number | undefined,
 			fullHeight: full.attributes.height as number | undefined,
+			hasDark,
 		};
 	}),
 );
@@ -46,7 +161,7 @@ const processed = await Promise.all(
 const isSingle = processed.length === 1;
 ---
 
-<div class="image-gallery" id={galleryId}>
+<div class:list={['image-gallery', { 'has-theme-variants': hasThemeVariants }]} id={galleryId}>
 	{isSingle ? (
 		/* Single image — displayed like DocImage but clickable */
 		<figure class="single-image">
@@ -55,11 +170,13 @@ const isSingle = processed.length === 1;
 				type="button"
 				data-index={0}
 				data-full-src={processed[0].fullSrc}
+				data-full-src-dark={processed[0].darkFullSrc}
 				data-alt={processed[0].alt}
 				data-caption={processed[0].caption}
 				aria-label={`View: ${processed[0].alt}`}
 			>
 				<img
+					class:list={[{ 'light-only': processed[0].hasDark }]}
 					src={processed[0].fullSrc}
 					alt={processed[0].alt}
 					width={processed[0].fullWidth}
@@ -67,6 +184,17 @@ const isSingle = processed.length === 1;
 					loading="lazy"
 					decoding="async"
 				/>
+				{processed[0].hasDark && (
+					<img
+						class="dark-only"
+						src={processed[0].darkFullSrc}
+						alt={processed[0].alt}
+						width={processed[0].fullWidth}
+						height={processed[0].fullHeight}
+						loading="lazy"
+						decoding="async"
+					/>
+				)}
 			</button>
 		</figure>
 	) : (
@@ -79,12 +207,16 @@ const isSingle = processed.length === 1;
 						type="button"
 						data-index={index}
 						data-full-src={img.fullSrc}
+						data-full-src-dark={img.darkFullSrc}
 						data-alt={img.alt}
 						data-caption={img.caption}
 						aria-label={`View: ${img.alt}`}
 					>
 						<span class="thumb-img">
-							<img src={img.thumbSrc} alt={img.alt} loading="lazy" decoding="async" />
+							<img class:list={[{ 'light-only': img.hasDark }]} src={img.thumbSrc} alt={img.alt} loading="lazy" decoding="async" />
+							{img.hasDark && (
+								<img class="dark-only" src={img.darkThumbSrc} alt={img.alt} loading="lazy" decoding="async" />
+							)}
 						</span>
 						{img.caption && (
 							<span class="thumb-tooltip" aria-hidden="true" set:html={img.caption} />
@@ -108,7 +240,8 @@ const isSingle = processed.length === 1;
 
 		<!-- Image wrapper (absolute, full viewport — needed for transform-origin) -->
 		<div class="lb-img-wrapper">
-			<img class="lb-img" src="" alt="" />
+			<img class="lb-img lb-img-light" src="" alt="" />
+			<img class="lb-img lb-img-dark" src="" alt="" />
 			<!-- Caption placed below the image in flow to avoid overlapping it -->
 			<div class="lb-footer">
 				<span class="lb-caption"></span>
@@ -481,6 +614,30 @@ const isSingle = processed.length === 1;
 		font-size: 0.75rem;
 	}
 
+	/* ── Theme switching (light/dark image variants) ──── */
+	/* !important needed to override .single-thumb img / .thumb-img img display rules */
+
+	.dark-only {
+		display: none !important;
+	}
+	:global([data-theme='dark']) .light-only {
+		display: none !important;
+	}
+	:global([data-theme='dark']) .dark-only {
+		display: block !important;
+	}
+
+	/* Lightbox: show correct themed image */
+	.lb-img-dark {
+		display: none !important;
+	}
+	:global([data-theme='dark']) .lb-img-light {
+		display: none !important;
+	}
+	:global([data-theme='dark']) .lb-img-dark {
+		display: block !important;
+	}
+
 	/* ── Reduced motion ────────────────────────────── */
 
 	@media (prefers-reduced-motion: reduce) {
@@ -503,7 +660,8 @@ const isSingle = processed.length === 1;
 
 	const lightbox = gallery.querySelector('.gallery-lightbox');
 	const imgWrapper = gallery.querySelector('.lb-img-wrapper');
-	const lbImg = gallery.querySelector('.lb-img');
+	const lbImgLight = gallery.querySelector('.lb-img-light');
+	const lbImgDark = gallery.querySelector('.lb-img-dark');
 	const caption = gallery.querySelector('.lb-caption');
 	const counter = gallery.querySelector('.lb-counter');
 	const closeBtn = gallery.querySelector('.lb-close');
@@ -527,8 +685,12 @@ const isSingle = processed.length === 1;
 	// Updates image and counter/caption
 	function updateContent() {
 		const btn = thumbs[currentIndex];
-		lbImg.src = btn.dataset.fullSrc;
-		lbImg.alt = btn.dataset.alt;
+		const lightSrc = btn.dataset.fullSrc;
+		const darkSrc = btn.dataset.fullSrcDark || lightSrc;
+		lbImgLight.src = lightSrc;
+		lbImgLight.alt = btn.dataset.alt;
+		lbImgDark.src = darkSrc;
+		lbImgDark.alt = btn.dataset.alt;
 		caption.innerHTML = btn.dataset.caption ?? '';
 
 		const single = thumbs.length <= 1;
