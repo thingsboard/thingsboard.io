@@ -545,7 +545,13 @@ export const edgeSidebar: SidebarConfig = [
 	{
 		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
-		items: ['docs/edge'],
+		items: [
+			'docs/edge',
+			{
+				label: 'Welcome to IoT!',
+				items: ['docs/edge/why-thingsboard-edge'],
+			},
+		],
 	},
 ];
 
@@ -554,7 +560,13 @@ export const edgePeSidebar: SidebarConfig = [
 	{
 		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
-		items: ['docs/edge/pe'],
+		items: [
+			'docs/edge/pe',
+			{
+				label: 'Welcome to IoT!',
+				items: ['docs/edge/pe/why-thingsboard-edge'],
+			},
+		],
 	},
 ];
 
