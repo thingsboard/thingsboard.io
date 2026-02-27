@@ -93,13 +93,13 @@ const guideItems = (prefix: string) => [
 		label: 'Reporting',
 		collapsed: true,
 		items: [
-			`${prefix}/reporting`,
 			`${prefix}/reporting/getting-started`,
+			`${prefix}/reporting/report-templates`,
+			`${prefix}/reporting/subreports`,
 			`${prefix}/reporting/scheduling`,
 			`${prefix}/reporting/notifications`,
 			`${prefix}/reporting/charts`,
 			`${prefix}/reporting/dashboards`,
-			`${prefix}/reporting/subreports`,
 		],
 	},
 	{
