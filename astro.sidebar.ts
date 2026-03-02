@@ -34,6 +34,7 @@ const guideItems = (prefix: string) => [
 			{ label: 'Key concepts', slug: `${prefix}/data-visualization` },
 			`${prefix}/dashboards`,
 			`${prefix}/widgets`,
+			`${prefix}/time-window`,
 			`${prefix}/aliases`,
 			`${prefix}/layouts`,
 			`${prefix}/actions`,
