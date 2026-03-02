@@ -141,7 +141,7 @@ interface Props {
 }
 ```
 
-**Suffix mapping:** CE → `-ce`, PE → `-pe`, PASS → `-paas`, PASS_EU → `-paas-eu`, EDGE → `-edge`, EDGE_PE → `-edge-pe`, GW → `-gw`, TRENDZ → `-trendz`, MOBILE → `-mobile`, MOBILE_PE → `-mobile-pe`, TBMQ → `-tbmq`, TBMQ_PE → `-tbmq-pe`, LICENSE → `-license`.
+**Suffix mapping:** CE → `-ce`, PE → `-pe`, PAAS → `-paas`, PAAS_EU → `-paas-eu`, EDGE → `-edge`, EDGE_PE → `-edge-pe`, GW → `-gw`, TRENDZ → `-trendz`, MOBILE → `-mobile`, MOBILE_PE → `-mobile-pe`, TBMQ → `-tbmq`, TBMQ_PE → `-tbmq-pe`, LICENSE → `-license`.
 
 **Example:** `src="/src/assets/images/guide/step-1.png"` with `product=PE` resolves to `/src/assets/images/guide/step-1-pe.png`.
 
@@ -287,6 +287,87 @@ sidebar:
 - `text` — badge label (required)
 - `variant` — `default` | `note` | `tip` | `caution` | `danger` | `success` (optional, default: `default`)
 - `class` — CSS class, use `tb-badge` for the text-only style
+
+### Product Color CSS Variables
+
+Defined in `src/styles/_variables.scss`. Available globally in all components and pages.
+
+| Variable | Light | Dark |
+|---|---|---|
+| `--color-product-ce` | `#305680` | `#78b4f5` |
+| `--color-product-pe` | `#00695c` | `#3fd9d1` |
+| `--color-product-cloud` | `#3d50f5` | `#b3c7ff` |
+| `--color-product-trendz` | `#2696f3` | `#4caeff` |
+
+Light values are set in `:root`, dark overrides in `[data-theme='dark']` (Starlight applies this attribute to `<html>`).
+
+**Usage:**
+
+```css
+color: var(--color-product-ce);
+border-color: var(--color-product-pe);
+background: var(--color-product-cloud);
+```
+
+### InstallationCardGrid Component
+
+`src/components/InstallationCardGrid.astro` — responsive card grid for installation option pages.
+
+**Features:**
+- 3-column grid (2 on tablet ≤900px, 1 on mobile ≤480px)
+- When exactly **2 cards** are passed, the grid switches to 2 columns so both cards fill the full width
+- SVGs loaded as raw inline HTML (`?raw`) so CSS custom properties (e.g. `fill="var(--sl-color-white)"`) work correctly
+- Three `path` modes: relative doc path, absolute URL, or omitted (→ "Coming soon")
+- "Coming soon" cards render as a non-clickable `<div>`, `opacity: 0.5`, no hover, auto badge "Coming soon"
+- Optional Starlight `<Badge>` positioned absolutely in the top-right corner (`top/right: 1.5rem`) inside the link
+- Accent glow blob in the top-right corner via `--landing-card-accent`
+
+**Props (`CardItem`):**
+
+```ts
+interface CardItem {
+  path?: string;        // Relative: 'installation/docker' → /docs/{prefix}installation/docker/
+                        // Absolute: 'https://...' → used as-is
+                        // Omitted  → Coming soon (non-clickable card)
+  title: string;
+  icon: string;         // SVG path inside /src/assets/, e.g. '/src/assets/images/installation/ubuntu.svg'
+  accent?: string;      // CSS color for the glow blob, e.g. '#e63946'
+  target?: string;      // e.g. '_blank'
+  badge?: string;       // Badge label, e.g. 'NEW'
+  badgeVariant?: 'default' | 'note' | 'tip' | 'caution' | 'danger' | 'success';
+}
+```
+
+**Important:** `icon` paths must be inside `/src/assets/` — the component uses `import.meta.glob` with `?raw` over that directory only.
+
+**Usage in MDX:**
+
+```mdx
+import InstallationCardGrid from '~/components/InstallationCardGrid.astro';
+import { Products } from '~/models/site.models';
+
+<InstallationCardGrid product={props.product} items={[
+  {
+    path: 'installation/ubuntu',
+    title: 'Ubuntu',
+    icon: '/src/assets/images/installation/ubuntu.svg',
+    accent: '#e95420',
+  },
+  {
+    path: 'https://thingsboard.cloud/signup',
+    title: 'ThingsBoard Cloud',
+    icon: '/src/assets/images/installation/trendz-cloud.svg',
+    target: '_blank',
+    badge: 'FREE',
+    badgeVariant: 'tip',
+  },
+  {
+    title: 'OpenShift',
+    icon: '/src/assets/images/installation/open-shift.svg',
+    // no path → Coming soon
+  },
+]} />
+```
 
 ### RuleNodeCardGrid Component
 
@@ -599,6 +680,7 @@ The CE page would be identical but pass `product={Products.CE}`.
 
 **Rules for _includes:**
 - Never use markdown tables inside `{...}` JSX expressions — use HTML `<table>` instead (MDX parses markdown only inside JSX angle-bracket tags, not curly braces)
+- Never use fenced code blocks (`` ``` ``) inside `{...}` JSX expressions — `${...}` inside the block is parsed as a JSX expression and the build fails. Use `<pre><code>{'content with ${literal} dollar braces'}</code></pre>` instead, where the content is a JS string literal so `${...}` is treated as plain text
 - Never use `<Steps>` with a markdown numbered list inside `{...}` JSX expressions (e.g. `{condition && (<>...<Steps>1. item</Steps>...</>)}`). Inside `{...}`, markdown lists are not compiled to `<ol>` and `<Steps>` receives no child elements, causing a build error. Use explicit `<ol>/<li>` HTML instead:
   ```mdx
   <Steps>
@@ -626,10 +708,61 @@ Renders as `<a href="/docs/pe/user-guide/devices/"><b>Devices</b></a>` for PE, `
 
 Props: `product` (required), `path` (required, without trailing slash), `bold` (default `true`), `target`.
 
+#### ConditionalHeading Component
+
+`src/components/ConditionalHeading.astro` — renders a heading with the full Starlight anchor-link structure (`sl-heading-wrapper` + `sl-anchor-link`) for use inside JSX conditional expressions in `_includes` files.
+
+**The problem it solves:** Headings inside `{...}` JSX expressions (`{condition && (<><h3>...</h3></>)}`) are invisible to Starlight's TOC and don't get anchor icons. A markdown `### heading` inside `{...}` renders as plain text. `ConditionalHeading` provides a heading that:
+- Renders the correct HTML structure (identical to what Starlight generates for markdown headings)
+- Gets picked up by `rehype-mdx-include-headings` plugin and injected into the TOC **only for matching products**
+- Has a working anchor link (explicit `id` prop)
+
+**Props:**
+
+```ts
+interface Props {
+  level?: 2 | 3 | 4 | 5 | 6;  // heading level, default 3
+  id: string;                   // anchor id, e.g. "export-dashboard" (required)
+  exclude?: string;             // comma-separated product ids to EXCLUDE (plugin only)
+  showFor?: string;             // comma-separated product ids to INCLUDE (plugin only)
+}
+```
+
+`exclude` and `showFor` are parsed by the `rehype-mdx-include-headings` plugin from raw MDX source — they are not used in rendering.
+
+**Product ids** (for `exclude`/`showFor`): `ce`, `pe`, `paas`, `paas-eu`, `edge`, `edge-pe`, `trendz`, `iot-gateway`, `mqtt-broker`, `mqtt-broker-pe`, `mobile`, `mobile-pe`, `license-server`.
+
+**Usage in MDX `_includes`:**
+
+```mdx
+import ConditionalHeading from '~/components/ConditionalHeading.astro';
+
+{props.product !== Products.CE && (
+  <>
+    <ConditionalHeading level={3} id="export-dashboard" exclude="ce">Export dashboard</ConditionalHeading>
+
+    Content visible only for non-CE products...
+  </>
+)}
+```
+
+**TOC level rules** — the `level` value determines where the heading appears in the right sidebar:
+- `level={2}` → same indentation as `##` headings (top level)
+- `level={3}` → nested under the previous `##` heading (same visual level as `####` siblings due to `injectChild` algorithm — use `level={2}` for top-level placement)
+- `level={4}` → nested one level deeper
+
+**How it works:** The `rehype-mdx-include-headings` plugin (`config/plugins/rehype-mdx-include-headings.ts`):
+1. Determines the current page's product from its file path (`src/content/docs/docs/pe/...` → `pe`)
+2. Skips `### markdown` headings inside `{...}` JSX blocks (they render as plain text anyway)
+3. Parses `<ConditionalHeading>` tags and injects the heading into the TOC only when the page product matches `exclude`/`showFor`
+
+**Important:** If the dev server doesn't pick up a change to `level` or `id` inside an include file, restart it (`pnpm dev`) — hot-reload may miss include file changes when only the include (not the page file) is modified.
+
 ### Custom Plugins
 
 - `config/plugins/remark-fallback-lang.ts` — marks untranslated content
 - `config/plugins/rehype-tasklist-enhancer.ts` — enhanced task lists
+- `config/plugins/rehype-mdx-include-headings.ts` — extracts headings from `_includes` MDX files and injects them into the page TOC; supports `<ConditionalHeading>` for product-conditional headings
 - `config/plugins/llms-txt.ts` — generates llms.txt
 - `config/plugins/smoke-test.ts` — build validation
 

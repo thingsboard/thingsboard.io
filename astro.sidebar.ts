@@ -45,21 +45,12 @@ const guideItems = (prefix: string) => [
 	{
 		label: 'Customers & Users',
 		collapsed: true,
-		items: [
-			`${prefix}/multi-tenancy`,
-			`${prefix}/customers`,
-			`${prefix}/users`,
-			`${prefix}/roles`,
-		],
+		items: [`${prefix}/multi-tenancy`, `${prefix}/customers`, `${prefix}/users`, `${prefix}/roles`],
 	},
 	{
 		label: 'Alarms & Notifications',
 		collapsed: true,
-		items: [
-			`${prefix}/alarms`,
-			`${prefix}/alarm-rules`,
-			`${prefix}/notifications`,
-		],
+		items: [`${prefix}/alarms`, `${prefix}/alarm-rules`, `${prefix}/notifications`],
 	},
 	{
 		label: 'Data Processing',
@@ -74,8 +65,14 @@ const guideItems = (prefix: string) => [
 					{ label: 'Script', slug: `${prefix}/calculated-fields/script` },
 					{ label: 'Propagation', slug: `${prefix}/calculated-fields/propagation` },
 					{ label: 'Geofencing', slug: `${prefix}/calculated-fields/geofencing` },
-					{ label: 'Entities Aggregation', slug: `${prefix}/calculated-fields/related-entities-aggregation` },
-					{ label: 'Time Series Aggregation', slug: `${prefix}/calculated-fields/time-series-data-aggregation` },
+					{
+						label: 'Entities Aggregation',
+						slug: `${prefix}/calculated-fields/related-entities-aggregation`,
+					},
+					{
+						label: 'Time Series Aggregation',
+						slug: `${prefix}/calculated-fields/time-series-data-aggregation`,
+					},
 				],
 			},
 			{
@@ -117,10 +114,7 @@ const guideItems = (prefix: string) => [
 	{
 		label: 'Integrations',
 		collapsed: true,
-		items: [
-			`${prefix}/integrations`,
-			`${prefix}/integrations-comparison`,
-		],
+		items: [`${prefix}/integrations`, `${prefix}/integrations-comparison`],
 	},
 	{
 		label: 'White-labeling',
@@ -145,58 +139,44 @@ const guideItems = (prefix: string) => [
 	{
 		label: 'Other Features',
 		collapsed: true,
-		items: [
-			`${prefix}/add-ons`,
-			`${prefix}/edge-computing`,
-			`${prefix}/trendz-analytics`,
-		],
+		items: [`${prefix}/add-ons`, `${prefix}/edge-computing`, `${prefix}/trendz-analytics`],
 	},
 	{
 		label: 'Security',
 		collapsed: true,
-		items: [
-			`${prefix}/security`,
-			`${prefix}/security/api-keys`
-		],
+		items: [`${prefix}/security`, `${prefix}/security/api-keys`],
 	},
 	{
 		label: 'Contribution',
 		collapsed: true,
-		items: [
-			`${prefix}/contribution`,
-			`${prefix}/scada-symbol-dev`,
-		],
+		items: [`${prefix}/contribution`, `${prefix}/scada-symbol-dev`],
 	},
 	{
 		label: 'Versions & Support',
 		collapsed: true,
-		items: [
-			`${prefix}/versions-and-support`,
-		],
+		items: [`${prefix}/versions-and-support`],
 	},
+];
+
+const installationItems = (prefix: string) => [
+	{ label: 'Installation options', slug: `${prefix}/installation` },
 ];
 
 const recipeItems = (prefix: string) => [
 	{
 		label: 'Sending Data',
 		collapsed: true,
-		items: [
-			`${prefix}/python-telemetry`,
-		],
+		items: [`${prefix}/python-telemetry`],
 	},
 	{
 		label: 'Storage & Retention',
 		collapsed: true,
-		items: [
-			`${prefix}/configure-telemetry-ttl`,
-		],
+		items: [`${prefix}/configure-telemetry-ttl`],
 	},
 	{
 		label: 'Alarms',
 		collapsed: true,
-		items: [
-			`${prefix}/alarm-rule-tutorials`,
-		],
+		items: [`${prefix}/alarm-rule-tutorials`],
 	},
 ];
 
@@ -439,10 +419,7 @@ const referenceItems = (prefix: string) => [
 	},
 ];
 
-const mainSidebarItems = (
-	prefix: string,
-	extraRecipeItems: SidebarConfig = [],
-): SidebarConfig => [
+const mainSidebarItems = (prefix: string, extraRecipeItems: SidebarConfig = []): SidebarConfig => [
 	{
 		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
@@ -451,10 +428,7 @@ const mainSidebarItems = (
 			{
 				label: 'Welcome to IoT!',
 				translations: { uk: 'Новий проект' },
-				items: [
-					`${prefix}/why-thingsboard`,
-					`${prefix}/tutorial/getting-started`,
-				],
+				items: [`${prefix}/why-thingsboard`, `${prefix}/tutorial/getting-started`],
 			},
 			{
 				label: 'Key concepts',
@@ -476,6 +450,11 @@ const mainSidebarItems = (
 		items: guideItems(`${prefix}/user-guide`),
 	},
 	{
+		label: 'Installation',
+		collapsed: true,
+		items: installationItems(prefix),
+	},
+	{
 		label: 'Recipes',
 		collapsed: true,
 		translations: { uk: 'Рецепти' },
@@ -494,16 +473,16 @@ export const opensourceSidebar: SidebarConfig = mainSidebarItems('docs');
 /** Professional Edition documentation sidebar (pages at /docs/pe/) */
 export const peSidebar: SidebarConfig = mainSidebarItems('docs/pe', [
 	{
-				label: 'Reporting',
-				collapsed: true,
-				items: [
-					'docs/pe/recipes/reporting-embed-dashboard',
-					'docs/pe/recipes/reporting-line-chart-temperature',
-					'docs/pe/recipes/reporting-subreport-daily-alarms',
-				'docs/pe/recipes/reporting-alarm-notification',
-				],
-			},
-			{
+		label: 'Reporting',
+		collapsed: true,
+		items: [
+			'docs/pe/recipes/reporting-embed-dashboard',
+			'docs/pe/recipes/reporting-line-chart-temperature',
+			'docs/pe/recipes/reporting-subreport-daily-alarms',
+			'docs/pe/recipes/reporting-alarm-notification',
+		],
+	},
+	{
 		label: 'Access Control',
 		collapsed: true,
 		items: [

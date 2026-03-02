@@ -60,9 +60,11 @@ function linkMatchesVersion(href: string, version: Products): boolean {
 	if (version === Products.TRENDZ) return path.startsWith('trendz/');
 	if (version === Products.GW) return path.startsWith('iot-gateway/');
 	if (version === Products.TBMQ_PE) return path.startsWith('mqtt-broker/pe/');
-	if (version === Products.TBMQ) return path.startsWith('mqtt-broker/') && !path.startsWith('mqtt-broker/pe/');
+	if (version === Products.TBMQ)
+		return path.startsWith('mqtt-broker/') && !path.startsWith('mqtt-broker/pe/');
 	if (version === Products.MOBILE_PE) return path.startsWith('mobile/pe/');
-	if (version === Products.MOBILE) return path.startsWith('mobile/') && !path.startsWith('mobile/pe/');
+	if (version === Products.MOBILE)
+		return path.startsWith('mobile/') && !path.startsWith('mobile/pe/');
 	if (version === Products.LICENSE) return path.startsWith('license-server/');
 	// CE: everything that doesn't belong to other products
 	return (
@@ -137,9 +139,7 @@ function updateTutorialPagination(starlightRoute: StarlightRouteData) {
 	if (!isTutorialEntry(entry)) return;
 
 	const version = getVersionFromSlug(entry.id);
-	const tutorialPages = getTutorialPages(pages).filter(
-		(p) => getVersionFromSlug(p.id) === version
-	);
+	const tutorialPages = getTutorialPages(pages).filter((p) => getVersionFromSlug(p.id) === version);
 	const i = tutorialPages.findIndex((p) => p.id === entry.id);
 
 	const lang = getLanguageFromSlug(entry.id);

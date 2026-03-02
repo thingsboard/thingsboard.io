@@ -15,6 +15,7 @@ import { rehypeTasklistEnhancer } from './config/plugins/rehype-tasklist-enhance
 import icon from 'astro-icon';
 import tailwind from '@astrojs/tailwind';
 import svgo from 'vite-plugin-svgo';
+import { fileURLToPath } from 'node:url';
 
 /* https://docs.netlify.com/configure-builds/environment-variables/#read-only-variables */
 const NETLIFY_PREVIEW_SITE = process.env.CONTEXT !== 'production' && process.env.DEPLOY_PRIME_URL;
@@ -27,6 +28,19 @@ export default defineConfig({
 	base: '/',
 	redirects,
 	vite: {
+		resolve: {
+			alias: {
+				'@starlight/icons': fileURLToPath(
+					new URL('./node_modules/@astrojs/starlight/components/Icons.ts', import.meta.url)
+				),
+				'@starlight/rehype-tabs': fileURLToPath(
+					new URL(
+						'./node_modules/@astrojs/starlight/user-components/rehype-tabs.ts',
+						import.meta.url
+					)
+				),
+			},
+		},
 		css: {
 			preprocessorOptions: {
 				scss: {
@@ -35,6 +49,20 @@ export default defineConfig({
 			},
 		},
 		plugins: [
+			{
+				name: 'starlight-icon-override',
+				enforce: 'pre',
+				resolveId(id, importer) {
+					if (
+						id === './Icon.astro' &&
+						importer?.includes('@astrojs/starlight/user-components')
+					) {
+						return fileURLToPath(
+							new URL('./src/components/starlight/Icon.astro', import.meta.url)
+						);
+					}
+				},
+			},
 			svgo({
 				plugins: [
 					{
