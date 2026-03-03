@@ -101,7 +101,6 @@ export function pluginMaxLines(): EcPlugin {
 			function initMaxLines() {
 				document.querySelectorAll('.ec-max-lines[data-max-lines]').forEach((el) => {
 					if (el.dataset.mlInit) return;
-					el.dataset.mlInit = '1';
 
 					const maxLines = parseInt(el.dataset.maxLines, 10);
 					const pre = el.querySelector('pre');
@@ -111,8 +110,10 @@ export function pluginMaxLines(): EcPlugin {
 					const lineH = firstLine ? firstLine.getBoundingClientRect().height : 20;
 					const maxH = Math.round(maxLines * lineH);
 
+					// Hidden tab panels report scrollHeight as 0 — skip and retry when visible
 					if (pre.scrollHeight <= maxH + lineH) return;
 
+					el.dataset.mlInit = '1';
 					pre.style.maxHeight = maxH + 'px';
 
 					// Expand/Collapse button — only when the collapsible attribute is set
@@ -143,6 +144,13 @@ export function pluginMaxLines(): EcPlugin {
 
 			initMaxLines();
 			document.addEventListener('astro:page-load', initMaxLines);
+
+			// Re-run when a tab becomes visible — hidden panels have scrollHeight 0
+			document.addEventListener('click', (e) => {
+				if (e.target && e.target.closest('[role="tab"]')) {
+					requestAnimationFrame(initMaxLines);
+				}
+			});
 			`,
 		],
 

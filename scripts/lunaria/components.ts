@@ -183,7 +183,9 @@ export const StatusByFile = (config: LunariaConfig, status: LocalizationStatus[]
 		<table class="status-by-file">
 			<thead>
 				<tr>
-					${['File', ...locales.map(({ lang }: Locale) => lang)].map((col) => html`<th>${col}</th>`)}
+					${['File', ...locales.map(({ lang }: Locale) => lang)].map(
+						(col) => html`<th>${col}</th>`
+					)}
 				</tr>
 			</thead>
 			${TableBody(status, locales)}
@@ -332,7 +334,10 @@ export const SvgSummary = (config: LunariaConfig, status: LocalizationStatus[]):
 	>
 		${config.locales
 			.map((locale: Locale) => SvgLocaleSummary(status, locale))
-			.sort((a: { svg: string; progress: number }, b: { svg: string; progress: number }) => b.progress - a.progress)
+			.sort(
+				(a: { svg: string; progress: number }, b: { svg: string; progress: number }) =>
+					b.progress - a.progress
+			)
 			.map(
 				({ svg }: { svg: string; progress: number }, index: number) =>
 					html`<g transform="translate(${(index % 2) * 215} ${Math.floor(index / 2) * 56})"
@@ -374,7 +379,7 @@ function SvgLocaleSummary(
 				${missingFiles.length == 0 && outdatedFiles.length == 0
 					? '100% complete, amazing job! 🎉'
 					: html`${doneLength} done, ${outdatedFiles.length} outdated, ${missingFiles.length}
-					missing`}
+						missing`}
 			</text>
 			<rect x="0" y="34" width="${barWidth}" height="8" fill="#999" opacity="0.25"></rect>
 			<rect x="0" y="34" width="${outdatedWidth}" height="8" fill="#fb923c"></rect>

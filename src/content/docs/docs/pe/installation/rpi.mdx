@@ -1,0 +1,324 @@
+---
+title: "Installing ThingsBoard PE on Raspberry Pi"
+description: "Install and run ThingsBoard Professional Edition on Raspberry Pi."
+sidebar:
+  label: "Raspberry Pi"
+---
+import DocLink from '@components/DocLink.astro';
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Code } from '@astrojs/starlight/components';
+import { PE_FULL_VER } from '~/data/versions';
+import { Products } from '~/models/site.models';
+
+export const downloadDeb = `wget https://dist.thingsboard.io/thingsboard-${PE_FULL_VER}.deb`;
+export const installDeb = `sudo dpkg -i thingsboard-${PE_FULL_VER}.deb`;
+export const downloadWebReport = `wget https://dist.thingsboard.io/tb-web-report-${PE_FULL_VER}.deb`;
+
+export const webReportYaml = `version: '3.0'
+services:
+  tb-web-report:
+    container_name: tb-web-report
+    restart: always
+    image: "thingsboard/tb-pe-web-report:${PE_FULL_VER}"
+    ports:
+      - "8383:8383"
+    env_file:
+      - ./tb-web-report.env`;
+
+This guide walks you through installing ThingsBoard Professional Edition on a Raspberry Pi.
+
+## Prerequisites
+
+- Raspberry Pi with at least **4 GB of RAM**
+- Raspberry Pi OS (64-bit recommended)
+
+## Step 1. Install Java 17 (OpenJDK)
+
+```bash
+sudo apt update
+sudo apt install -y openjdk-17-jdk
+```
+
+Set Java 17 as the default version:
+
+```bash
+sudo update-alternatives --config java
+```
+
+Verify the installation:
+
+```bash
+java -version
+```
+
+## Step 2. Install ThingsBoard package
+
+Download the installation package:
+
+<Code code={downloadDeb} lang="bash" />
+
+Install ThingsBoard as a service:
+
+<Code code={installDeb} lang="bash" />
+
+## Step 3. Obtain and configure license key
+
+We assume you have already chosen your subscription plan or decided to purchase a perpetual license. If not, navigate to the <a href="https://thingsboard.io/pricing/" target="_blank">pricing page</a> to select the best license option for your case. See <a href="https://www.youtube.com/watch?v=dK-QDFGxWek" target="_blank">How to get a pay-as-you-go subscription</a> or <a href="https://www.youtube.com/watch?v=GPe0lHolWek" target="_blank">How to get a perpetual license</a> for details.
+
+Once you have the license secret, add it to the ThingsBoard configuration file:
+
+```bash
+sudo nano /etc/thingsboard/conf/thingsboard.conf
+```
+
+Locate the following block:
+
+```bash
+# License secret obtained from ThingsBoard License Portal (https://license.thingsboard.io)
+# UNCOMMENT NEXT LINE AND PUT YOUR LICENSE SECRET:
+# export TB_LICENSE_SECRET=
+```
+
+Uncomment the export statement and add your license secret:
+
+```bash
+export TB_LICENSE_SECRET=YOUR_LICENSE_SECRET_HERE
+```
+
+## Step 4. Configure database
+
+Install PostgreSQL 16:
+
+```bash
+sudo apt install -y postgresql-common
+sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh
+sudo apt update
+sudo apt -y install postgresql-16
+sudo service postgresql start
+```
+
+Set a password for the `postgres` user:
+
+```bash
+sudo -u postgres psql -c "\password"
+```
+
+Enter and confirm the password when prompted. Connect to PostgreSQL and create the ThingsBoard database:
+
+```bash
+psql -U postgres -d postgres -h 127.0.0.1 -W
+```
+
+```sql
+CREATE DATABASE thingsboard;
+```
+
+Press `Ctrl+D` twice to exit.
+
+Configure ThingsBoard to use PostgreSQL. Edit the configuration file:
+
+```bash
+sudo nano /etc/thingsboard/conf/thingsboard.conf
+```
+
+Add the following lines. Replace `PUT_YOUR_POSTGRESQL_PASSWORD_HERE` with your actual postgres password:
+
+```bash
+# DB Configuration
+export DATABASE_TS_TYPE=sql
+export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/thingsboard
+export SPRING_DATASOURCE_USERNAME=postgres
+export SPRING_DATASOURCE_PASSWORD=PUT_YOUR_POSTGRESQL_PASSWORD_HERE
+```
+
+## Step 5. Choose queue service
+
+ThingsBoard uses a message broker for internal communication between services. Choose one of the options below:
+
+- **In Memory** — built-in, default. Suitable for development and PoC environments. Not recommended for production or cluster deployments.
+- **Confluent Cloud** — fully managed streaming platform based on Kafka. Useful for cloud-agnostic deployments.
+
+<Tabs>
+<TabItem label="In Memory (default)">
+
+In Memory queue is built-in and enabled by default. No configuration needed.
+
+</TabItem>
+<TabItem label="Confluent Cloud">
+
+To use <a href="https://confluent.cloud/login" target="_blank">Confluent Cloud</a>, first create an account, then create a <a href="https://docs.confluent.io/current/quickstart/cloud-quickstart/index.html#step-1-create-a-ak-cluster-in-ccloud" target="_blank">Kafka cluster</a> and obtain your <a href="https://docs.confluent.io/current/quickstart/cloud-quickstart/index.html#step-4-create-an-api-key" target="_blank">API Key</a>.
+
+Edit the ThingsBoard configuration file:
+
+```bash
+sudo nano /etc/thingsboard/conf/thingsboard.conf
+```
+
+Add the following lines. Replace `CLUSTER_API_KEY`, `CLUSTER_API_SECRET`, and `localhost:9092` with your Confluent Cloud values:
+
+```bash
+export TB_QUEUE_TYPE=kafka
+export TB_QUEUE_KAFKA_USE_CONFLUENT_CLOUD=true
+export TB_KAFKA_SERVERS=localhost:9092
+export TB_QUEUE_KAFKA_REPLICATION_FACTOR=3
+export TB_QUEUE_KAFKA_CONFLUENT_SASL_JAAS_CONFIG='org.apache.kafka.common.security.plain.PlainLoginModule required username="CLUSTER_API_KEY" password="CLUSTER_API_SECRET";'
+export TB_QUEUE_CORE_POLL_INTERVAL_MS=1000
+export TB_QUEUE_CORE_PARTITIONS=2
+export TB_QUEUE_RULE_ENGINE_POLL_INTERVAL_MS=1000
+export TB_QUEUE_TRANSPORT_REQUEST_POLL_INTERVAL_MS=1000
+export TB_QUEUE_TRANSPORT_RESPONSE_POLL_INTERVAL_MS=1000
+export TB_QUEUE_TRANSPORT_NOTIFICATIONS_POLL_INTERVAL_MS=1000
+export TB_QUEUE_VC_INTERVAL_MS=1000
+export TB_QUEUE_VC_PARTITIONS=1
+```
+
+You can update the default Rule Engine queue configuration using the UI. See <DocLink product={Products.PE} path="TODO">Rule Engine Queues</DocLink> for details.
+
+</TabItem>
+</Tabs>
+
+## Step 6. Memory configuration
+
+Raspberry Pi devices typically have limited RAM. Edit the ThingsBoard configuration file:
+
+```bash
+sudo nano /etc/thingsboard/conf/thingsboard.conf
+```
+
+Add or update the following environment variable. Set the value to half of your total RAM (e.g. `2G` for a 4 GB Raspberry Pi):
+
+```bash
+export JAVA_OPTS="$JAVA_OPTS -Xms2G -Xmx2G"
+```
+
+## Step 7. Run installation script
+
+```bash
+sudo /usr/share/thingsboard/bin/install/install.sh --loadDemo
+```
+
+## Step 8. Start ThingsBoard
+
+```bash
+sudo service thingsboard start
+```
+
+<Aside type="note">
+Please allow up to 90 seconds for the Web UI to start. On Raspberry Pi, the initial startup may take longer.
+</Aside>
+
+Once started, open `http://localhost:8080` in your browser. You should see the ThingsBoard login page. Use the following default credentials:
+
+- **System Administrator**: sysadmin@thingsboard.org / sysadmin
+- **Tenant Administrator**: tenant@thingsboard.org / tenant
+- **Customer User**: customer@thingsboard.org / customer
+
+You can change passwords for each account in the account profile page.
+
+See <DocLink product={Products.PE} path="tutorial/getting-started">Getting Started</DocLink> for your next steps after login.
+
+## Step 9. Install ThingsBoard WebReport component
+
+The WebReport service generates PDF and PNG reports from dashboards. Choose one of the installation methods below:
+
+<Tabs>
+<TabItem label="Docker (recommended)">
+
+Install Docker:
+
+```bash
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+```
+
+<Aside type="caution">
+Add your user to the `docker` group so you can run commands without `sudo`.
+See <a href="https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user" target="_blank">Manage Docker as a non-root user</a>.
+</Aside>
+
+Create the Docker Compose file:
+
+```bash
+nano tb-web-report.yml
+```
+
+Add the following content:
+
+<Code code={webReportYaml} lang="yml" />
+
+Create the environment file:
+
+```bash
+nano tb-web-report.env
+```
+
+Add the following content:
+
+```properties
+HTTP_BIND_ADDRESS=0.0.0.0
+HTTP_BIND_PORT=8383
+LOGGER_LEVEL=info
+LOG_FOLDER=logs
+LOGGER_FILENAME=tb-web-report-%DATE%.log
+DOCKER_MODE=true
+DEFAULT_PAGE_NAVIGATION_TIMEOUT=120000
+DASHBOARD_LOAD_WAIT_TIME=3000
+USE_NEW_PAGE_FOR_REPORT=true
+```
+
+Start the WebReport service:
+
+```bash
+docker compose -f tb-web-report.yml up -d
+```
+
+Check the container logs:
+
+```bash
+docker logs -f tb-web-report
+```
+
+</TabItem>
+<TabItem label="Service (manual)">
+
+Download the WebReport installation package:
+
+<Code code={downloadWebReport} lang="bash" />
+
+Install required libraries:
+
+```bash
+sudo apt install -yq libatk1.0-0 libc6 libcairo2 libcups2 libdbus-1-3 \
+     libexpat1 libfontconfig1 libgcc1 libgdk-pixbuf2.0-0 libglib2.0-0 libgtk-3-0 libnspr4 \
+     libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 libx11-xcb1 libxcb1 libxcomposite1 \
+     libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 libxss1 libxtst6 \
+     ca-certificates fonts-liberation libnss3 lsb-release xdg-utils unzip wget libgbm-dev
+```
+
+Install Roboto fonts:
+
+```bash
+sudo apt install -y fonts-roboto
+```
+
+Install and start the WebReport service:
+
+<Code code={`sudo dpkg -i tb-web-report-${PE_FULL_VER}.deb
+sudo service tb-web-report start`} lang="bash" />
+
+</TabItem>
+</Tabs>
+
+## Upgrading
+
+The upgrade procedure for Raspberry Pi is identical to the Ubuntu instructions.
+
+See the <DocLink product={Products.PE} path="TODO">Upgrade Instructions</DocLink> for detailed steps.
+
+## Troubleshooting
+
+ThingsBoard logs are stored in `/var/log/thingsboard`. Check for errors with:
+
+```bash
+cat /var/log/thingsboard/thingsboard.log | grep ERROR
+```

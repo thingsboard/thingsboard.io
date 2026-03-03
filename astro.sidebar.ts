@@ -34,6 +34,7 @@ const guideItems = (prefix: string) => [
 			{ label: 'Key concepts', slug: `${prefix}/data-visualization` },
 			`${prefix}/dashboards`,
 			`${prefix}/widgets`,
+			`${prefix}/time-window`,
 			`${prefix}/aliases`,
 			`${prefix}/layouts`,
 			`${prefix}/actions`,
@@ -44,22 +45,12 @@ const guideItems = (prefix: string) => [
 	{
 		label: 'Customers & Users',
 		collapsed: true,
-		items: [
-			`${prefix}/multi-tenancy`,
-			`${prefix}/customers`,
-			`${prefix}/users`,
-			`${prefix}/roles`,
-		],
+		items: [`${prefix}/multi-tenancy`, `${prefix}/customers`, `${prefix}/users`, `${prefix}/roles`],
 	},
 	{
 		label: 'Alarms & Notifications',
 		collapsed: true,
-		items: [
-			`${prefix}/alarms`,
-			`${prefix}/alarm-rules`,
-			`${prefix}/notifications`,
-			`${prefix}/notification-template-parameters`,
-		],
+		items: [`${prefix}/alarms`, `${prefix}/alarm-rules`, `${prefix}/notifications`],
 	},
 	{
 		label: 'Data Processing',
@@ -74,8 +65,14 @@ const guideItems = (prefix: string) => [
 					{ label: 'Script', slug: `${prefix}/calculated-fields/script` },
 					{ label: 'Propagation', slug: `${prefix}/calculated-fields/propagation` },
 					{ label: 'Geofencing', slug: `${prefix}/calculated-fields/geofencing` },
-					{ label: 'Entities Aggregation', slug: `${prefix}/calculated-fields/related-entities-aggregation` },
-					{ label: 'Time Series Aggregation', slug: `${prefix}/calculated-fields/time-series-data-aggregation` },
+					{
+						label: 'Entities Aggregation',
+						slug: `${prefix}/calculated-fields/related-entities-aggregation`,
+					},
+					{
+						label: 'Time Series Aggregation',
+						slug: `${prefix}/calculated-fields/time-series-data-aggregation`,
+					},
 				],
 			},
 			{
@@ -94,13 +91,13 @@ const guideItems = (prefix: string) => [
 		label: 'Reporting',
 		collapsed: true,
 		items: [
-			`${prefix}/reporting`,
 			`${prefix}/reporting/getting-started`,
+			`${prefix}/reporting/report-templates`,
+			`${prefix}/reporting/subreports`,
 			`${prefix}/reporting/scheduling`,
 			`${prefix}/reporting/notifications`,
 			`${prefix}/reporting/charts`,
 			`${prefix}/reporting/dashboards`,
-			`${prefix}/reporting/subreports`,
 		],
 	},
 	{
@@ -119,7 +116,9 @@ const guideItems = (prefix: string) => [
 		collapsed: true,
 		items: [
 			`${prefix}/integrations`,
-			`${prefix}/integrations-comparison`,
+			`${prefix}/integrations/http`,
+			`${prefix}/integrations/chirpstack`,
+			`${prefix}/integrations/aws-iot`,
 		],
 	},
 	{
@@ -145,58 +144,49 @@ const guideItems = (prefix: string) => [
 	{
 		label: 'Other Features',
 		collapsed: true,
-		items: [
-			`${prefix}/add-ons`,
-			`${prefix}/edge-computing`,
-			`${prefix}/trendz-analytics`,
-		],
+		items: [`${prefix}/add-ons`, `${prefix}/edge-computing`, `${prefix}/trendz-analytics`],
 	},
 	{
 		label: 'Security',
 		collapsed: true,
-		items: [
-			`${prefix}/security`,
-			`${prefix}/security/api-keys`
-		],
+		items: [`${prefix}/security`, `${prefix}/security/api-keys`],
 	},
 	{
 		label: 'Contribution',
 		collapsed: true,
-		items: [
-			`${prefix}/contribution`,
-			`${prefix}/scada-symbol-dev`,
-		],
+		items: [`${prefix}/contribution`, `${prefix}/scada-symbol-dev`],
 	},
 	{
 		label: 'Versions & Support',
 		collapsed: true,
-		items: [
-			`${prefix}/versions-and-support`,
-		],
+		items: [`${prefix}/versions-and-support`],
 	},
+];
+
+const installationItems = (prefix: string) => [
+	{ label: 'Installation options', slug: `${prefix}/installation` },
+	`${prefix}/installation/docker`,
+	`${prefix}/installation/docker-windows`,
+	`${prefix}/installation/ubuntu`,
+	`${prefix}/installation/rhel`,
+	`${prefix}/installation/rpi`,
 ];
 
 const recipeItems = (prefix: string) => [
 	{
 		label: 'Sending Data',
 		collapsed: true,
-		items: [
-			`${prefix}/python-telemetry`,
-		],
+		items: [`${prefix}/python-telemetry`],
 	},
 	{
 		label: 'Storage & Retention',
 		collapsed: true,
-		items: [
-			`${prefix}/configure-telemetry-ttl`,
-		],
+		items: [`${prefix}/configure-telemetry-ttl`],
 	},
 	{
 		label: 'Alarms',
 		collapsed: true,
-		items: [
-			`${prefix}/alarm-rule-tutorials`,
-		],
+		items: [`${prefix}/alarm-rule-tutorials`],
 	},
 ];
 
@@ -211,6 +201,14 @@ const referenceItems = (prefix: string) => [
 			`${prefix}/widgets/map-widgets`,
 			`${prefix}/widgets/entity-table-widget`,
 			`${prefix}/widgets/markdown-html-card`,
+		],
+	},
+	{
+		label: 'Notification System',
+		collapsed: true,
+		items: [
+			`${prefix}/notification-system/template-parameters`,
+			`${prefix}/notification-system/rule-triggers`,
 		],
 	},
 	{
@@ -291,6 +289,7 @@ const referenceItems = (prefix: string) => [
 						label: 'Filter',
 						collapsed: true,
 						items: [
+							{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/filter` },
 							`${prefix}/rule-engine/nodes/filter/alarm-status-filter`,
 							`${prefix}/rule-engine/nodes/filter/asset-profile-switch`,
 							`${prefix}/rule-engine/nodes/filter/check-fields-presence`,
@@ -309,6 +308,7 @@ const referenceItems = (prefix: string) => [
 						label: 'Enrichment',
 						collapsed: true,
 						items: [
+							{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/enrichment` },
 							`${prefix}/rule-engine/nodes/enrichment/calculate-delta`,
 							`${prefix}/rule-engine/nodes/enrichment/customer-attributes`,
 							`${prefix}/rule-engine/nodes/enrichment/customer-details`,
@@ -326,6 +326,7 @@ const referenceItems = (prefix: string) => [
 						label: 'Transformation',
 						collapsed: true,
 						items: [
+							{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/transformation` },
 							`${prefix}/rule-engine/nodes/transformation/change-originator`,
 							`${prefix}/rule-engine/nodes/transformation/copy-key-value-pairs`,
 							`${prefix}/rule-engine/nodes/transformation/deduplication`,
@@ -344,6 +345,7 @@ const referenceItems = (prefix: string) => [
 						label: 'Action',
 						collapsed: true,
 						items: [
+							{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/action` },
 							`${prefix}/rule-engine/nodes/action/add-to-group`,
 							`${prefix}/rule-engine/nodes/action/assign-to-customer`,
 							`${prefix}/rule-engine/nodes/action/calculated-fields`,
@@ -381,6 +383,7 @@ const referenceItems = (prefix: string) => [
 						label: 'External',
 						collapsed: true,
 						items: [
+							{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/external` },
 							`${prefix}/rule-engine/nodes/external/ai-request`,
 							`${prefix}/rule-engine/nodes/external/aws-lambda`,
 							`${prefix}/rule-engine/nodes/external/aws-sns`,
@@ -403,6 +406,7 @@ const referenceItems = (prefix: string) => [
 						label: 'Flow',
 						collapsed: true,
 						items: [
+							{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/flow` },
 							`${prefix}/rule-engine/nodes/flow/acknowledge`,
 							`${prefix}/rule-engine/nodes/flow/checkpoint`,
 							`${prefix}/rule-engine/nodes/flow/output`,
@@ -413,6 +417,7 @@ const referenceItems = (prefix: string) => [
 						label: 'Analytics',
 						collapsed: true,
 						items: [
+							{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/analytics` },
 							`${prefix}/rule-engine/nodes/analytics/aggregate-latest`,
 							`${prefix}/rule-engine/nodes/analytics/aggregate-stream`,
 							`${prefix}/rule-engine/nodes/analytics/alarms-count`,
@@ -424,10 +429,7 @@ const referenceItems = (prefix: string) => [
 	},
 ];
 
-const mainSidebarItems = (
-	prefix: string,
-	extraRecipeItems: SidebarConfig = [],
-): SidebarConfig => [
+const mainSidebarItems = (prefix: string, extraRecipeItems: SidebarConfig = []): SidebarConfig => [
 	{
 		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
@@ -436,10 +438,7 @@ const mainSidebarItems = (
 			{
 				label: 'Welcome to IoT!',
 				translations: { uk: 'Новий проект' },
-				items: [
-					`${prefix}/why-thingsboard`,
-					`${prefix}/tutorial/getting-started`,
-				],
+				items: [`${prefix}/why-thingsboard`, `${prefix}/tutorial/getting-started`],
 			},
 			{
 				label: 'Key concepts',
@@ -467,6 +466,11 @@ const mainSidebarItems = (
 		items: [...recipeItems(`${prefix}/recipes`), ...extraRecipeItems],
 	},
 	{
+		label: 'Installation',
+		collapsed: true,
+		items: installationItems(prefix),
+	},
+	{
 		label: 'Reference',
 		collapsed: true,
 		translations: { uk: 'Довідник' },
@@ -478,6 +482,16 @@ export const opensourceSidebar: SidebarConfig = mainSidebarItems('docs');
 
 /** Professional Edition documentation sidebar (pages at /docs/pe/) */
 export const peSidebar: SidebarConfig = mainSidebarItems('docs/pe', [
+	{
+		label: 'Reporting',
+		collapsed: true,
+		items: [
+			'docs/pe/recipes/reporting-embed-dashboard',
+			'docs/pe/recipes/reporting-line-chart-temperature',
+			'docs/pe/recipes/reporting-subreport-daily-alarms',
+			'docs/pe/recipes/reporting-alarm-notification',
+		],
+	},
 	{
 		label: 'Access Control',
 		collapsed: true,
@@ -588,7 +602,13 @@ export const trendzSidebar: SidebarConfig = [
 	{
 		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
-		items: ['docs/trendz'],
+		items: [
+			'docs/trendz',
+			{
+				label: 'Key concepts',
+				items: ['docs/trendz/concepts/business-entities'],
+			},
+		],
 	},
 ];
 
