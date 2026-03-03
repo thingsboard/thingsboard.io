@@ -536,6 +536,43 @@ export const gwSidebar: SidebarConfig = [
 		translations: { uk: 'Початок роботи' },
 		items: ['docs/iot-gateway'],
 	},
+	{
+		label: 'Installation',
+		translations: { uk: 'Встановлення' },
+		items: ['docs/iot-gateway/installation', 'docs/iot-gateway/install/upgrade-instructions'],
+	},
+	{
+		label: 'Features',
+		translations: { uk: 'Функції' },
+		items: [
+			'docs/iot-gateway/features/remote-configuration',
+			'docs/iot-gateway/features/remote-shell',
+			'docs/iot-gateway/features/report-strategy',
+			'docs/iot-gateway/features/reserved-rpc',
+			'docs/iot-gateway/features/service-rpc-methods',
+			'docs/iot-gateway/features/device-renaming',
+			'docs/iot-gateway/features/provisioning',
+		],
+	},
+	{
+		label: 'Customization',
+		translations: { uk: 'Налаштування' },
+		items: [
+			'docs/iot-gateway/custom',
+			'docs/iot-gateway/custom/methods-and-datatypes',
+			'docs/iot-gateway/custom/serial-connector',
+		],
+	},
+	{
+		label: 'Roadmap',
+		translations: { uk: 'Дорожня карта' },
+		items: [{ slug: 'docs/iot-gateway/roadmap' }],
+	},
+	{
+		label: 'Need help?',
+		translations: { uk: 'Допомога' },
+		items: ['docs/iot-gateway/help'],
+	},
 ];
 
 /** TBMQ Community Broker sidebar (pages at /docs/mqtt-broker/) */
