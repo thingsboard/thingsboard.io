@@ -533,6 +533,12 @@ export const edgeSidebar: SidebarConfig = [
 				label: 'Welcome to IoT!',
 				items: ['docs/edge/why-thingsboard-edge'],
 			},
+			{
+				label: 'Key concepts',
+				items: [
+					'docs/edge/key-concepts/edge-management',
+				],
+			},
 		],
 	},
 ];
@@ -547,6 +553,12 @@ export const edgePeSidebar: SidebarConfig = [
 			{
 				label: 'Welcome to IoT!',
 				items: ['docs/edge/pe/why-thingsboard-edge'],
+			},
+			{
+				label: 'Key concepts',
+				items: [
+					'docs/edge/pe/key-concepts/edge-management',
+				],
 			},
 		],
 	},
