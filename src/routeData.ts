@@ -14,6 +14,7 @@ import { getTutorialPages } from '~/util/getTutorialPages';
 export const onRequest = defineRouteMiddleware((context) => {
 	updateHead(context);
 	filterSidebarByVersionAndLanguage(context.locals.starlightRoute);
+	markParentSidebarItemAsCurrent(context.locals.starlightRoute, context.url.pathname);
 	filterPaginationByVersion(context.locals.starlightRoute);
 	updateTutorialPagination(context.locals.starlightRoute);
 });
@@ -77,6 +78,44 @@ function linkMatchesVersion(href: string, version: Products): boolean {
 		!path.startsWith('mobile/') &&
 		!path.startsWith('license-server/')
 	);
+}
+
+/**
+ * When the current page is not a sidebar link (e.g. a dynamic sub-page like
+ * /docs/pe/user-guide/releases-table/v4-3-x/), mark the closest ancestor
+ * sidebar link as current so that collapsed groups containing it render open.
+ */
+function markParentSidebarItemAsCurrent(starlightRoute: StarlightRouteData, pathname: string) {
+	// If any entry is already current, nothing to do
+	if (hasCurrent(starlightRoute.sidebar)) return;
+
+	// Find the sidebar link with the longest href that is a prefix of pathname
+	let bestEntry: { isCurrent: boolean } | null = null;
+	let bestLen = 0;
+
+	function walk(entries: StarlightRouteData['sidebar']) {
+		for (const entry of entries) {
+			if (entry.type === 'link') {
+				if (pathname.startsWith(entry.href) && entry.href.length > bestLen) {
+					bestLen = entry.href.length;
+					bestEntry = entry;
+				}
+			} else if (entry.type === 'group') {
+				walk(entry.entries);
+			}
+		}
+	}
+
+	walk(starlightRoute.sidebar);
+	if (bestEntry) (bestEntry as { isCurrent: boolean }).isCurrent = true;
+}
+
+function hasCurrent(entries: StarlightRouteData['sidebar']): boolean {
+	for (const entry of entries) {
+		if (entry.type === 'link' && entry.isCurrent) return true;
+		if (entry.type === 'group' && hasCurrent(entry.entries)) return true;
+	}
+	return false;
 }
 
 /**

@@ -159,12 +159,16 @@ const guideItems = (prefix: string) => [
 	{
 		label: 'Versions & Support',
 		collapsed: true,
-		items: [`${prefix}/versions-and-support`],
+		items: [
+			`${prefix}/versions-and-support`,
+			`${prefix}/releases-table`,
+		],
 	},
 ];
 
 const installationItems = (prefix: string) => [
 	{ label: 'Installation options', slug: `${prefix}/installation` },
+	{ label: 'Upgrade instructions', slug: `${prefix}/installation/upgrade-instructions` },
 	`${prefix}/installation/docker`,
 	`${prefix}/installation/docker-windows`,
 	`${prefix}/installation/ubuntu`,

@@ -1,0 +1,387 @@
+---
+import type { Products } from '~/models/site.models';
+import {
+	RELEASE_FAMILIES,
+	EOL_MONTHS_LTS,
+	EOL_MONTHS_STANDARD,
+	familySlug as getFamilySlug,
+} from '~/models/releases-table';
+
+interface Props {
+	product: Products;
+}
+
+const { product } = Astro.props;
+
+const isPE = product === 'PE';
+const docsPrefix = isPE ? 'pe/' : '';
+const upgradeBase = `/docs/${docsPrefix}installation/upgrade-instructions`;
+const releasesBase = `/docs/${docsPrefix}user-guide/releases-table`;
+
+type Status = 'active-lts' | 'maintenance-lts' | 'standard' | 'eol';
+
+function addMonths(dateStr: string, months: number): Date {
+	const d = new Date(dateStr);
+	d.setMonth(d.getMonth() + months);
+	return d;
+}
+
+function formatDate(dateStr: string): string {
+	try {
+		const d = new Date(dateStr);
+		if (isNaN(d.getTime())) return dateStr;
+		return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+	} catch {
+		return dateStr;
+	}
+}
+
+function formatPatchDate(dateStr: string): string {
+	try {
+		const d = new Date(dateStr);
+		if (isNaN(d.getTime())) return dateStr;
+		const month = d.toLocaleDateString('en-US', { month: 'short' });
+		return `${month} ${d.getDate()} ${d.getFullYear()}`;
+	} catch {
+		return dateStr;
+	}
+}
+
+function formatDateShort(d: Date): string {
+	return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function toIsoDate(d: Date): string {
+	return d.toISOString().split('T')[0];
+}
+
+
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+
+// Compute enriched rows
+const rows = RELEASE_FAMILIES.map((f) => {
+	const eolMonths = f.lts ? EOL_MONTHS_LTS : EOL_MONTHS_STANDARD;
+	const eolDate = addMonths(f.releaseDate, eolMonths);
+	const isEol = eolDate < today;
+	const highlights = isPE && f.highlightsPe ? f.highlightsPe : f.highlightsCe;
+	const patchDate = isPE && f.latestPatchDatePe ? f.latestPatchDatePe : f.latestPatchDate;
+	return { f, eolDate, isEol, highlights, patchDate };
+});
+
+// Determine statuses: first non-EOL LTS → active-lts, rest non-EOL LTS → maintenance-lts
+let foundActiveLts = false;
+const statuses: Status[] = rows.map(({ f, isEol }) => {
+	if (isEol) return 'eol';
+	if (!f.lts) return 'standard';
+	if (!foundActiveLts) {
+		foundActiveLts = true;
+		return 'active-lts';
+	}
+	return 'maintenance-lts';
+});
+
+const STATUS_LABEL: Record<Status, string> = {
+	'active-lts': 'Active LTS',
+	'maintenance-lts': 'Maintenance LTS',
+	standard: 'Standard',
+	eol: 'End of Life',
+};
+---
+
+<script is:inline>
+	if (new URLSearchParams(location.search).has('version')) {
+		document.documentElement.classList.add('releases-filtering');
+	}
+</script>
+
+<div class="releases-filter-banner" hidden>
+	Showing release notes for version <strong class="releases-filter-version"></strong>.
+	<a class="releases-filter-clear" href="">Show all versions</a>
+</div>
+
+<div class="releases-table-wrapper not-content">
+	<table class="releases-table">
+		<thead>
+			<tr>
+				<th>Version</th>
+				<th>First Released</th>
+				<th>Current Patch</th>
+				<th>Support</th>
+				<th>End of Life</th>
+				<th>Release Notes &amp; Highlights</th>
+				<th>Instructions</th>
+			</tr>
+		</thead>
+		<tbody>
+			{rows.map(({ f, eolDate, isEol, highlights, patchDate }, i) => {
+				const status = statuses[i];
+				return (
+					<tr class:list={['release-row', { 'row-eol': isEol }]} data-family={getFamilySlug(f.family)}>
+						<td class="version-col">{f.family}.x</td>
+						<td class="date-col">
+							<time datetime={toIsoDate(new Date(f.releaseDate))}>
+								{formatDate(f.releaseDate)}
+							</time>
+						</td>
+						<td class="patch-col">
+							{f.latestPatch} ({formatPatchDate(patchDate)})
+						</td>
+						<td class="status-col">
+							<span class:list={['status-badge', `status-${status}`]}>
+								{STATUS_LABEL[status]}
+							</span>
+						</td>
+						<td class:list={['eol-col', { 'eol-past': isEol }]}>
+							<time datetime={toIsoDate(eolDate)}>{formatDateShort(eolDate)}</time>
+						</td>
+						<td class="highlights-col">
+							<a
+								href={`${releasesBase}/${getFamilySlug(f.family)}/`}
+								class="highlights-link"
+							>
+								<span>{highlights}</span>
+								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+									<path stroke="none" d="M0 0h24v24H0z" fill="none" />
+									<path d="M17 7l-10 10" />
+									<path d="M8 7l9 0l0 9" />
+								</svg>
+							</a>
+						</td>
+						<td class="upgrade-col">
+							<a
+								href={`${upgradeBase}/?version=${getFamilySlug(f.family)}`}
+								class="upgrade-btn"
+							>
+								Upgrade
+							</a>
+						</td>
+					</tr>
+				);
+			})}
+		</tbody>
+	</table>
+</div>
+
+<div class="releases-legend not-content">
+	<p class="legend-title">Support Status</p>
+	<ul class="legend-list">
+		<li>
+			<span class="status-badge status-active-lts">Active LTS</span>
+			— Actively maintained; receives security fixes and critical bug fixes.
+			Supported for 18 months from first release.
+		</li>
+		<li>
+			<span class="status-badge status-maintenance-lts">Maintenance LTS</span>
+			— Critical security fixes only. Supported for 18 months from first release.
+		</li>
+		<li>
+			<span class="status-badge status-standard">Standard</span>
+			— Non-LTS release. Supported for 6 months from first release.
+		</li>
+		<li>
+			<span class="status-badge status-eol">End of Life</span>
+			— No longer supported. Upgrade to an Active LTS or Maintenance LTS release is strongly recommended.
+		</li>
+	</ul>
+</div>
+
+<script>
+	const filter = new URLSearchParams(window.location.search).get('version');
+	if (filter) {
+		const rows = document.querySelectorAll<HTMLTableRowElement>(
+			'.releases-table tbody tr[data-family]',
+		);
+		rows.forEach((row) => {
+			row.hidden = row.dataset.family !== filter;
+		});
+
+		document.documentElement.classList.remove('releases-filtering');
+
+		const banner = document.querySelector<HTMLElement>('.releases-filter-banner');
+		if (banner) {
+			const versionEl = banner.querySelector('.releases-filter-version');
+			if (versionEl) versionEl.textContent = filter;
+			const clearLink = banner.querySelector<HTMLAnchorElement>('.releases-filter-clear');
+			if (clearLink) clearLink.href = window.location.pathname;
+			banner.hidden = false;
+		}
+	}
+</script>
+
+<style>
+	:global(.sl-container:has(.releases-table-wrapper)) {
+		max-width: 100%;
+	}
+
+	:global(.releases-filtering) .releases-table tbody tr {
+		display: none;
+	}
+
+	.releases-filter-banner[hidden] {
+		display: none;
+	}
+
+	.releases-filter-banner {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.6rem 1rem;
+		margin-block-end: 1rem;
+		border-inline-start: 0.25rem solid var(--sl-color-blue);
+		background: var(--sl-color-blue-low);
+		border-radius: 0 4px 4px 0;
+		font-size: 0.9rem;
+	}
+
+	.releases-filter-clear {
+		margin-inline-start: auto;
+		font-size: 0.85rem;
+		white-space: nowrap;
+	}
+
+	.releases-table-wrapper {
+		overflow-x: auto;
+		margin-block: 1.5rem;
+	}
+
+	.releases-table {
+		width: 100%;
+		border-collapse: collapse;
+		font-size: 0.9rem;
+	}
+
+	.releases-table th,
+	.releases-table td {
+		padding: 0.5rem 0.75rem;
+		border: 1px solid var(--sl-color-gray-5);
+		text-align: left;
+		vertical-align: middle;
+		white-space: nowrap;
+	}
+
+	.releases-table th {
+		background: var(--sl-color-gray-6);
+		font-weight: 600;
+	}
+
+	.releases-table tbody tr:hover {
+		background: var(--sl-color-gray-7);
+	}
+
+
+	.version-col {
+		font-weight: 700;
+	}
+
+	.patch-col {
+		display: table-cell;
+	}
+
+
+/* Status badges */
+	.status-badge {
+		display: inline-block;
+		padding: 0.2em 0.55em;
+		border-radius: 4px;
+		font-size: 0.8rem;
+		font-weight: 600;
+		white-space: nowrap;
+	}
+
+	.status-active-lts {
+		background: color-mix(in srgb, var(--sl-color-green) 15%, transparent);
+		color: var(--sl-color-green);
+	}
+
+	.status-maintenance-lts {
+		background: color-mix(in srgb, var(--sl-color-blue) 15%, transparent);
+		color: var(--sl-color-blue);
+	}
+
+	.status-standard {
+		background: color-mix(in srgb, var(--sl-color-gray-3) 15%, transparent);
+		color: var(--sl-color-gray-3);
+	}
+
+	.status-eol {
+		background: color-mix(in srgb, var(--sl-color-gray-4) 15%, transparent);
+		color: var(--sl-color-gray-4);
+		opacity: 0.55;
+	}
+
+	.eol-past {
+		color: var(--sl-color-gray-3);
+	}
+
+	.highlights-col {
+		white-space: normal;
+		min-width: 16rem;
+	}
+
+	.highlights-link {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
+		color: var(--sl-color-text-accent);
+		text-decoration: none;
+	}
+
+	.highlights-link:hover {
+		text-decoration: underline;
+	}
+
+	.upgrade-col {
+		width: 1px;
+		white-space: nowrap;
+	}
+
+	.upgrade-btn {
+		display: inline-block;
+		padding: 0.25em 0.75em;
+		border: 1px solid var(--sl-color-text-accent);
+		border-radius: 4px;
+		color: var(--sl-color-text-accent);
+		font-size: 0.8rem;
+		font-weight: 600;
+		text-decoration: none;
+		transition:
+			background 0.15s,
+			color 0.15s;
+	}
+
+	.upgrade-btn:hover {
+		background: var(--sl-color-text-accent);
+		color: var(--sl-color-white);
+	}
+
+	/* Legend */
+	.releases-legend {
+		margin-block-start: 1.25rem;
+		padding: 0.75rem 1rem;
+		border: 1px solid var(--sl-color-gray-5);
+		border-radius: 6px;
+		font-size: 0.85rem;
+	}
+
+	.legend-title {
+		font-weight: 600;
+		margin-block-end: 0.5rem;
+	}
+
+	.legend-list {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+	}
+
+	.legend-list li {
+		display: flex;
+		align-items: baseline;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+	}
+</style>

@@ -24,34 +24,9 @@
  *   → pluginCollapsibleSections → pluginMaxLines  ← our hook sees the final <figure>
  */
 
-type HastElement = {
-	type: 'element';
-	tagName: string;
-	properties: Record<string, unknown>;
-	children: unknown[];
-};
-
-type EcPlugin = {
-	name: string;
-	baseStyles?: string;
-	jsModules?: string[];
-	hooks?: {
-		postprocessRenderedBlock?: (ctx: {
-			codeBlock: {
-				code: string;
-				metaOptions: {
-					getInteger(key: string): number | undefined;
-					getBoolean(key: string): boolean | undefined;
-				};
-			};
-			renderData: { blockAst: HastElement };
-		}) => void;
-	};
-};
-
-function appendClassName(node: HastElement, name: string): void {
+function appendClassName(node, name) {
 	const existing = node.properties.className;
-	const list: string[] = Array.isArray(existing)
+	const list = Array.isArray(existing)
 		? existing.map(String)
 		: existing
 			? [String(existing)]
@@ -60,7 +35,7 @@ function appendClassName(node: HastElement, name: string): void {
 	node.properties.className = list;
 }
 
-export function pluginMaxLines(): EcPlugin {
+export function pluginMaxLines() {
 	return {
 		name: 'Max Lines',
 
@@ -175,7 +150,7 @@ export function pluginMaxLines(): EcPlugin {
 	};
 }
 
-export function pluginWrap(): EcPlugin {
+export function pluginWrap() {
 	return {
 		name: 'Wrap',
 
