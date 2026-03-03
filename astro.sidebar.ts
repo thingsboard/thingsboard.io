@@ -190,8 +190,22 @@ const recipeItems = (prefix: string) => [
 	},
 ];
 
-const referenceItems = (prefix: string) => [
-	`${prefix}/configuration-reference`,
+const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) => [
+	{
+		label: 'Configuration',
+		collapsed: true,
+		items: [
+			`${prefix}/configuration/how-to-change-config`,
+			`${prefix}/configuration/core-rule-engine-config`,
+			`${prefix}/configuration/http-transport-config`,
+			`${prefix}/configuration/mqtt-transport-config`,
+			`${prefix}/configuration/coap-transport-config`,
+			`${prefix}/configuration/lwm2m-transport-config`,
+			`${prefix}/configuration/snmp-transport-config`,
+			`${prefix}/configuration/vc-executor-config`,
+			...extraConfigItems,
+		],
+	},
 	{
 		label: 'Widgets',
 		collapsed: true,
@@ -429,7 +443,7 @@ const referenceItems = (prefix: string) => [
 	},
 ];
 
-const mainSidebarItems = (prefix: string, extraRecipeItems: SidebarConfig = []): SidebarConfig => [
+const mainSidebarItems = (prefix: string, extraRecipeItems: SidebarConfig = [], referenceConfigItems: SidebarConfig = []): SidebarConfig => [
 	{
 		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
@@ -474,11 +488,11 @@ const mainSidebarItems = (prefix: string, extraRecipeItems: SidebarConfig = []):
 		label: 'Reference',
 		collapsed: true,
 		translations: { uk: 'Довідник' },
-		items: referenceItems(`${prefix}/reference`),
+		items: referenceItems(`${prefix}/reference`, referenceConfigItems),
 	},
 ];
 
-export const opensourceSidebar: SidebarConfig = mainSidebarItems('docs');
+export const opensourceSidebar: SidebarConfig = mainSidebarItems('docs', [], []);
 
 /** Professional Edition documentation sidebar (pages at /docs/pe/) */
 export const peSidebar: SidebarConfig = mainSidebarItems('docs/pe', [
@@ -503,6 +517,9 @@ export const peSidebar: SidebarConfig = mainSidebarItems('docs/pe', [
 			'docs/pe/recipes/rbac-smart-buildings',
 		],
 	},
+], [
+	'docs/pe/reference/configuration/ie-executor-config',
+	'docs/pe/reference/configuration/report-service-config',
 ]);
 
 /** Cloud (PaaS) documentation sidebar (pages at /docs/paas/) */
