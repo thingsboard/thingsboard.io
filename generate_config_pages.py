@@ -97,6 +97,8 @@ def generate_section(table_name, rows):
     html += '<div class="config-def-list">\n'
     for row in rows:
         _, env_var, default_val, description = [escape_cell(c) for c in row[:4]]
+        if not env_var:
+            continue
         html += '  <div class="config-def-item">\n'
         meta_parts = []
         if env_var:
@@ -126,7 +128,7 @@ def group_properties_by_table(data):
     return property_groups
 
 
-def update_page(input_file, output_file, title):
+def update_page(input_file, output_file, sidebar_label):
     properties = extract_properties_with_comments(input_file)
     property_info = extract_property_info(properties)
     property_groups = group_properties_by_table(property_info)
@@ -137,7 +139,7 @@ def update_page(input_file, output_file, title):
 
     os.makedirs(os.path.dirname(os.path.abspath(output_file)), exist_ok=True)
     with open(output_file, 'w') as f:
-        f.write(f'---\ntitle: {title}\n---\n\n')
+        f.write(f'---\ntitle: {sidebar_label} Configuration\nsidebar:\n  label: {sidebar_label}\n---\n\n')
         f.write(content)
 
     print(f"Generated {output_file} from {input_file}")
