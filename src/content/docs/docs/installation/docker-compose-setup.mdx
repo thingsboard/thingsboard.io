@@ -1,0 +1,294 @@
+---
+title: "Cluster setup using Docker Compose"
+sidebar:
+  label: "Docker Compose"
+description: "Set up ThingsBoard Community Edition in cluster mode using Docker Compose."
+---
+import DocLink from '@components/DocLink.astro';
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Code } from '@astrojs/starlight/components';
+import { CE_FULL_VER, CE_BRANCH } from '~/data/versions';
+import { Products } from '~/models/site.models';
+
+export const pullImages = `docker pull thingsboard/tb-node:${CE_FULL_VER}
+docker pull thingsboard/tb-web-ui:${CE_FULL_VER}
+docker pull thingsboard/tb-js-executor:${CE_FULL_VER}
+docker pull thingsboard/tb-http-transport:${CE_FULL_VER}
+docker pull thingsboard/tb-mqtt-transport:${CE_FULL_VER}
+docker pull thingsboard/tb-coap-transport:${CE_FULL_VER}
+docker pull thingsboard/tb-lwm2m-transport:${CE_FULL_VER}
+docker pull thingsboard/tb-snmp-transport:${CE_FULL_VER}`;
+
+export const cloneRepo = `git clone -b ${CE_BRANCH} https://github.com/thingsboard/thingsboard.git --depth 1
+cd thingsboard/docker`;
+
+This guide walks you through setting up ThingsBoard Community Edition in cluster mode using Docker Compose with microservices architecture.
+
+For a simpler single-node installation, see <DocLink product={Products.CE} path="installation/docker">Docker (Linux, macOS)</DocLink>.
+
+## Prerequisites
+
+Install Docker:
+- <a href="https://docs.docker.com/engine/install/ubuntu/" target="_blank">Docker for Ubuntu</a>
+- <a href="https://docs.docker.com/engine/install/centos/" target="_blank">Docker for CentOS</a>
+- <a href="https://docs.docker.com/desktop/setup/install/mac-install/" target="_blank">Docker Desktop for macOS</a>
+
+A server with at least **8 GB of RAM** (16 GB recommended for production cluster deployments).
+
+<Aside type="caution">
+On Linux, add your user to the `docker` group so you can run commands without `sudo`.
+See <a href="https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user" target="_blank">Manage Docker as a non-root user</a>.
+</Aside>
+
+## Step 1. Pull ThingsBoard CE images
+
+Make sure you have <a href="https://docs.docker.com/engine/reference/commandline/login/" target="_blank">logged in</a> to Docker Hub using the command line.
+
+<Code code={pullImages} lang="bash" />
+
+## Step 2. Clone ThingsBoard CE repository
+
+<Code code={cloneRepo} lang="bash" />
+
+## Step 3. Configure database
+
+Edit the `.env` file to set the database type:
+
+```bash
+nano .env
+```
+
+Set the `DATABASE` variable to one of:
+
+| Value | Description |
+|---|---|
+| `postgres` | Use PostgreSQL for all data |
+| `hybrid` | Use PostgreSQL for entities and Cassandra for time-series data |
+
+<Aside type="note">
+The corresponding Docker services are defined in `docker-compose.postgres.yml` and `docker-compose.hybrid.yml`.
+</Aside>
+
+## Step 4. Choose queue service
+
+ThingsBoard cluster deployments require an external message broker. In Memory queue is **not** suitable for cluster mode.
+
+- **Kafka** — recommended for production. Used on most ThingsBoard production environments. Works for on-prem and private cloud deployments.
+- **Confluent Cloud** — fully managed streaming platform based on Kafka. Useful for cloud-agnostic deployments.
+
+<Tabs>
+<TabItem label="Kafka (recommended)">
+
+<a href="https://kafka.apache.org/" target="_blank">Apache Kafka</a> is an open-source stream-processing platform.
+
+Edit the `.env` file:
+
+```bash
+nano .env
+```
+
+Verify the following line:
+
+```bash
+TB_QUEUE_TYPE=kafka
+```
+
+</TabItem>
+<TabItem label="Confluent Cloud">
+
+To use <a href="https://confluent.cloud/login" target="_blank">Confluent Cloud</a>, first create an account, then create a <a href="https://docs.confluent.io/current/quickstart/cloud-quickstart/index.html#step-1-create-a-ak-cluster-in-ccloud" target="_blank">Kafka cluster</a> and obtain your <a href="https://docs.confluent.io/current/quickstart/cloud-quickstart/index.html#step-4-create-an-api-key" target="_blank">API Key</a>.
+
+Edit the `.env` file:
+
+```bash
+nano .env
+```
+
+Set the queue type:
+
+```bash
+TB_QUEUE_TYPE=confluent
+```
+
+Configure the Confluent Cloud environment file. Replace `CLUSTER_API_KEY`, `CLUSTER_API_SECRET`, and `confluent.cloud:9092` with your actual values:
+
+```bash
+nano queue-confluent-cloud.env
+```
+
+```bash maxLines=15 collapsible
+TB_QUEUE_TYPE=kafka
+
+TB_KAFKA_SERVERS=confluent.cloud:9092
+TB_QUEUE_KAFKA_REPLICATION_FACTOR=3
+
+TB_QUEUE_KAFKA_USE_CONFLUENT_CLOUD=true
+TB_QUEUE_KAFKA_CONFLUENT_SSL_ALGORITHM=https
+TB_QUEUE_KAFKA_CONFLUENT_SASL_MECHANISM=PLAIN
+TB_QUEUE_KAFKA_CONFLUENT_SASL_JAAS_CONFIG='org.apache.kafka.common.security.plain.PlainLoginModule required username="CLUSTER_API_KEY" password="CLUSTER_API_SECRET";'
+TB_QUEUE_KAFKA_CONFLUENT_SECURITY_PROTOCOL=SASL_SSL
+TB_QUEUE_KAFKA_CONFLUENT_USERNAME=CLUSTER_API_KEY
+TB_QUEUE_KAFKA_CONFLUENT_PASSWORD=CLUSTER_API_SECRET
+
+TB_QUEUE_KAFKA_RE_TOPIC_PROPERTIES=retention.ms:604800000;segment.bytes:52428800;retention.bytes:1048576000
+TB_QUEUE_KAFKA_CORE_TOPIC_PROPERTIES=retention.ms:604800000;segment.bytes:52428800;retention.bytes:1048576000
+TB_QUEUE_KAFKA_TA_TOPIC_PROPERTIES=retention.ms:604800000;segment.bytes:52428800;retention.bytes:1048576000
+TB_QUEUE_KAFKA_NOTIFICATIONS_TOPIC_PROPERTIES=retention.ms:604800000;segment.bytes:52428800;retention.bytes:1048576000
+TB_QUEUE_KAFKA_JE_TOPIC_PROPERTIES=retention.ms:604800000;segment.bytes:52428800;retention.bytes:104857600
+
+TB_QUEUE_CORE_POLL_INTERVAL_MS=1000
+TB_QUEUE_CORE_PARTITIONS=2
+TB_QUEUE_RULE_ENGINE_POLL_INTERVAL_MS=1000
+TB_QUEUE_TRANSPORT_REQUEST_POLL_INTERVAL_MS=1000
+TB_QUEUE_TRANSPORT_RESPONSE_POLL_INTERVAL_MS=1000
+TB_QUEUE_TRANSPORT_NOTIFICATIONS_POLL_INTERVAL_MS=1000
+TB_QUEUE_VC_INTERVAL_MS=1000
+TB_QUEUE_VC_PARTITIONS=1
+```
+
+You can update the default Rule Engine queue configuration using the UI. See <DocLink product={Products.CE} path="TODO">Rule Engine Queues</DocLink> for details.
+
+</TabItem>
+</Tabs>
+
+## Step 5. Enable monitoring (optional)
+
+Edit the `.env` file:
+
+```bash
+nano .env
+```
+
+Set `MONITORING_ENABLED` to `true`:
+
+```bash
+MONITORING_ENABLED=true
+```
+
+After deployment, Prometheus will be available at `http://localhost:9090` and Grafana at `http://localhost:3000` (default login: `admin` / `foobar`).
+
+## Step 6. Install and start ThingsBoard
+
+### Create host volumes
+
+Create log folders for the services. The script requires `sudo` permissions to change ownership:
+
+```bash
+./docker-create-log-folders.sh
+```
+
+Verify that all required volume folders are available and have correct ownership:
+
+```bash
+./docker-check-log-folders.sh
+```
+
+<Aside type="caution" title="Docker Desktop on macOS">
+If you use Docker Desktop on macOS with <a href="https://docs.docker.com/desktop/features/synchronized-file-sharing/" target="_blank">Synchronized file shares</a> (enabled by default for `/Users` subdirectories), skip the ownership change:
+
+```bash
+./docker-create-log-folders.sh --skipChown
+./docker-check-log-folders.sh --skipChown
+```
+</Aside>
+
+### Run installation
+
+```bash
+./docker-install-tb.sh --loadDemo
+```
+
+The `--loadDemo` flag loads sample tenant account, dashboards, and devices for evaluation and testing.
+
+### Start services
+
+```bash
+./docker-start-services.sh
+```
+
+After a while when all services are started, open `http://localhost` in your browser. You should see the ThingsBoard login page. Use the following default credentials:
+
+- **System Administrator**: sysadmin@thingsboard.org / sysadmin
+- **Tenant Administrator**: tenant@thingsboard.org / tenant
+- **Customer User**: customer@thingsboard.org / customer
+
+You can change passwords for each account in the account profile page.
+
+See <DocLink product={Products.CE} path="tutorial/getting-started">Getting Started</DocLink> for your next steps after login.
+
+## Inspect logs and control containers
+
+Stream ThingsBoard node logs:
+
+```bash
+docker compose logs -f tb-core1 tb-rule-engine1
+```
+
+View the state of all containers:
+
+```bash
+docker compose ps
+```
+
+Stream logs of all services:
+
+```bash
+docker compose logs -f
+```
+
+Stop all services:
+
+```bash
+./docker-stop-services.sh
+```
+
+Remove all deployed containers:
+
+```bash
+./docker-remove-services.sh
+```
+
+Update specific services (pull newer image and rebuild container):
+
+```bash
+./docker-update-service.sh [SERVICE...]
+```
+
+If `[SERVICE...]` is omitted, all services are updated.
+
+## Post-installation
+
+### Generate HTTPS certificate
+
+The deployment uses HAProxy for proxying traffic to containers. By default ports 80 and 443 are used. To use HTTPS with a valid certificate:
+
+```bash
+docker exec haproxy-certbot certbot-certonly --domain your_domain --email your_email
+docker exec haproxy-certbot haproxy-refresh
+```
+
+<Aside type="note">
+A valid certificate is used only when you access the Web UI by domain name. If you use an IP address, a self-signed certificate is used.
+</Aside>
+
+## Upgrading
+
+When a new ThingsBoard release becomes available, update your installation to benefit from the latest features and security patches.
+
+<Aside type="note">
+To maintain database integrity and system stability, perform upgrades sequentially (e.g. v4.0.2 → v4.1.0 → v4.2.0).
+</Aside>
+
+See the <DocLink product={Products.CE} path="TODO">Upgrade Instructions</DocLink> for detailed steps.
+
+## Troubleshooting
+
+### DNS issues
+
+If you observe errors related to DNS issues, for example:
+
+```bash
+127.0.1.1:53: cannot unmarshal DNS message
+```
+
+Configure your system to use Google public DNS servers. See <a href="https://developers.google.com/speed/public-dns/docs/using#linux" target="_blank">Linux</a> and <a href="https://developers.google.com/speed/public-dns/docs/using#mac_os" target="_blank">macOS</a> instructions.

@@ -7,6 +7,8 @@ import { getPageCategory } from './getPageCategory';
 const categoryParents: Partial<Record<ReturnType<typeof getPageCategory>, string>> = {
 	'Error Reference': 'docs/reference/error-reference',
 	Tutorials: 'docs/tutorial/0-introduction',
+	'CE Upgrade Instruction Subpage': 'docs/installation/upgrade-instructions',
+	'PE Upgrade Instruction Subpage': 'docs/pe/installation/upgrade-instructions',
 };
 
 /**
@@ -17,5 +19,7 @@ const categoryParents: Partial<Record<ReturnType<typeof getPageCategory>, string
 export function isSubPage(currentPage: string, parentSlug: string): boolean {
 	// Test: is there a known parent page for this page category?
 	const category = getPageCategory({ pathname: '/' + currentPage + '/' });
-	return categoryParents[category] === parentSlug;
+	if (categoryParents[category] === parentSlug) return true;
+
+	return false;
 }

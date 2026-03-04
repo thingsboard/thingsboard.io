@@ -1,0 +1,386 @@
+---
+title: "GKE Monolith Setup"
+sidebar:
+  label: "GKE (Monolith)"
+description: "Deploy ThingsBoard CE in monolith mode on Google Kubernetes Engine with Cloud SQL."
+---
+import DocLink from '@components/DocLink.astro';
+import { Steps, Aside } from '@astrojs/starlight/components';
+import { Code } from '@astrojs/starlight/components';
+import { Products } from '~/models/site.models';
+import { CE_BRANCH } from '~/data/versions';
+
+export const cloneCmd = `git clone -b ${CE_BRANCH} https://github.com/thingsboard/thingsboard-ce-k8s.git
+cd thingsboard-ce-k8s/gcp/monolith`;
+
+This guide walks you through deploying ThingsBoard CE in monolith mode on <a href="https://cloud.google.com/kubernetes-engine" target="_blank">Google Kubernetes Engine</a>. We use Google Cloud SQL for managed PostgreSQL.
+
+## Prerequisites
+
+### Install and configure tools
+
+Install <a href="https://kubernetes.io/docs/tasks/tools/" target="_blank">kubectl</a> and <a href="https://cloud.google.com/sdk/downloads" target="_blank">gcloud</a>. See <a href="https://cloud.google.com/kubernetes-engine/docs/how-to/creating-a-zonal-cluster#before_you_begin" target="_blank">before you begin</a> for more info.
+
+Create a new GCP project (recommended) or choose an existing one:
+
+```bash
+gcloud init
+```
+
+### Enable GCP services
+
+```bash
+gcloud services enable container.googleapis.com sql-component.googleapis.com sqladmin.googleapis.com
+```
+
+## Step 1. Clone ThingsBoard CE K8S scripts repository
+
+<Code code={cloneCmd} lang="bash" />
+
+## Step 2. Define environment variables
+
+```bash
+export GCP_PROJECT=$(gcloud config get-value project)
+export GCP_REGION=us-central1
+export GCP_ZONE=us-central1-a
+export GCP_NETWORK=default
+export TB_CLUSTER_NAME=tb-ce
+export TB_DATABASE_NAME=tb-db
+echo "Project: $GCP_PROJECT, region: $GCP_REGION, zone: $GCP_ZONE, network: $GCP_NETWORK, cluster: $TB_CLUSTER_NAME, database: $TB_DATABASE_NAME"
+```
+
+| Variable | Default | Description |
+|---|---|---|
+| `GCP_PROJECT` | *(auto-detected)* | Your GCP project ID |
+| `GCP_REGION` | `us-central1` | Compute <a href="https://cloud.google.com/compute/docs/regions-zones#available" target="_blank">region</a> |
+| `GCP_ZONE` | `us-central1-a` | Compute <a href="https://cloud.google.com/compute/docs/regions-zones#available" target="_blank">zone</a> (must match region) |
+| `GCP_NETWORK` | `default` | GCP network name |
+| `TB_CLUSTER_NAME` | `tb-ce` | GKE cluster name |
+| `TB_DATABASE_NAME` | `tb-db` | Cloud SQL instance name |
+
+## Step 3. Configure and create GKE cluster
+
+Create a zonal cluster with **1** node of **e2-standard-4** machine type:
+
+```bash
+gcloud container clusters create $TB_CLUSTER_NAME \
+  --release-channel stable \
+  --zone $GCP_ZONE \
+  --node-locations $GCP_ZONE \
+  --network=$GCP_NETWORK \
+  --enable-ip-alias \
+  --num-nodes=1 \
+  --node-labels=role=main \
+  --machine-type=e2-standard-4
+```
+
+Alternatively, see the <a href="https://cloud.google.com/kubernetes-engine/docs/how-to/creating-a-zonal-cluster" target="_blank">custom cluster setup</a> guide.
+
+## Step 4. Update the context of kubectl
+
+```bash
+gcloud container clusters get-credentials $TB_CLUSTER_NAME --zone $GCP_ZONE
+```
+
+## Step 5. Provision databases
+
+### 5.1 Google Cloud SQL (PostgreSQL) instance
+
+#### Prerequisites
+
+Enable service networking:
+
+```bash
+gcloud services enable servicenetworking.googleapis.com --project=$GCP_PROJECT
+
+gcloud compute addresses create google-managed-services-$GCP_NETWORK \
+  --global \
+  --purpose=VPC_PEERING \
+  --prefix-length=16 \
+  --network=projects/$GCP_PROJECT/global/networks/$GCP_NETWORK
+
+gcloud services vpc-peerings connect \
+  --service=servicenetworking.googleapis.com \
+  --ranges=google-managed-services-$GCP_NETWORK \
+  --network=$GCP_NETWORK \
+  --project=$GCP_PROJECT
+```
+
+#### Create database server instance
+
+Create a PostgreSQL 16 instance. Recommendations:
+
+- Use the same region and VPC network as your GKE cluster
+- Use private IP address and disable public IP
+- Use highly available instance for production, single zone for development
+- At least 2 vCPUs and 7.5 GB RAM
+
+```bash
+gcloud beta sql instances create $TB_DATABASE_NAME \
+  --database-version=POSTGRES_16 \
+  --region=$GCP_REGION --availability-type=regional \
+  --no-assign-ip --network=projects/$GCP_PROJECT/global/networks/$GCP_NETWORK \
+  --cpu=2 --memory=7680MB
+```
+
+Note the IP address (**YOUR_DB_IP_ADDRESS**) from the command output.
+
+#### Set database password
+
+```bash
+gcloud sql users set-password postgres \
+  --instance=$TB_DATABASE_NAME \
+  --password=secret
+```
+
+<Aside type="caution">
+Replace `secret` with a strong password. We will refer to it as **YOUR_DB_PASSWORD**.
+</Aside>
+
+#### Create database
+
+```bash
+gcloud sql databases create thingsboard --instance=$TB_DATABASE_NAME
+```
+
+### 5.2 Cassandra (optional)
+
+Using Cassandra is optional. We recommend it if you plan to insert more than 5K data points per second or want to optimize storage space.
+
+#### Provision additional node groups
+
+Create **3** separate node pools with **1** node per zone. At least 4 vCPUs and 16 GB of RAM is recommended.
+
+```bash
+gcloud container node-pools create cassandra1 --cluster=$TB_CLUSTER_NAME --zone=$GCP_ZONE --node-locations=$GCP_ZONE1 \
+  --node-labels=role=cassandra --num-nodes=1 --min-nodes=1 --max-nodes=1 --machine-type=e2-standard-4
+gcloud container node-pools create cassandra2 --cluster=$TB_CLUSTER_NAME --zone=$GCP_ZONE --node-locations=$GCP_ZONE2 \
+  --node-labels=role=cassandra --num-nodes=1 --min-nodes=1 --max-nodes=1 --machine-type=e2-standard-4
+gcloud container node-pools create cassandra3 --cluster=$TB_CLUSTER_NAME --zone=$GCP_ZONE --node-locations=$GCP_ZONE3 \
+  --node-labels=role=cassandra --num-nodes=1 --min-nodes=1 --max-nodes=1 --machine-type=e2-standard-4
+```
+
+#### Deploy Cassandra stateful set
+
+```bash
+kubectl apply -f tb-namespace.yml
+kubectl config set-context $(kubectl config current-context) --namespace=thingsboard
+kubectl apply -f receipts/cassandra.yml
+```
+
+#### Update DB settings
+
+```bash
+echo "  DATABASE_TS_TYPE: cassandra" >> tb-node-db-configmap.yml
+echo "  CASSANDRA_URL: cassandra:9042" >> tb-node-db-configmap.yml
+echo "  CASSANDRA_LOCAL_DATACENTER: $GCP_REGION" >> tb-node-db-configmap.yml
+```
+
+#### Create keyspace
+
+```bash
+kubectl exec -it cassandra-0 -- bash -c "cqlsh -e \
+    \"CREATE KEYSPACE IF NOT EXISTS thingsboard \
+    WITH replication = { \
+        'class' : 'NetworkTopologyStrategy', \
+        'us-central1' : '3' \
+    };\""
+```
+
+## Step 6. Installation
+
+Edit `tb-node-db-configmap.yml` and replace **YOUR_DB_IP_ADDRESS** and **YOUR_DB_PASSWORD**:
+
+```bash
+nano tb-node-db-configmap.yml
+```
+
+Run the installation:
+
+```bash
+./k8s-install-tb.sh --loadDemo
+```
+
+Where `--loadDemo` is an optional argument to load additional demo data.
+
+After this command finishes you should see:
+
+```text
+Installation finished successfully!
+```
+
+## Step 7. Starting
+
+```bash
+./k8s-deploy-resources.sh
+```
+
+After a few minutes, call `kubectl get pods`. If everything went fine, you should see `tb-node-0` pod in the `READY` state.
+
+## Step 8. Configure load balancers
+
+### 8.1 Configure HTTP(S) load balancer
+
+You have 3 options:
+
+- **HTTP** — recommended **for development**. Simple configuration and minimum costs.
+- **HTTPS** — recommended **for production**. Uses Google-managed SSL certificate with automatic HTTP to HTTPS redirect.
+- **Transparent** — forwards traffic to ThingsBoard HTTP/HTTPS ports. Requires you to provision your own SSL certificate.
+
+#### HTTP load balancer
+
+```bash
+kubectl apply -f receipts/http-load-balancer.yml
+```
+
+Check the status:
+
+```bash
+kubectl get ingress
+```
+
+Use the address to access the web UI (port 80) and connect devices via <DocLink product={Products.CE} path="reference/http-api">HTTP API</DocLink>.
+
+Default credentials:
+- **System Administrator**: sysadmin@thingsboard.org / sysadmin
+- **Tenant Administrator**: tenant@thingsboard.org / tenant (if demo data loaded)
+- **Customer User**: customer@thingsboard.org / customer (if demo data loaded)
+
+#### HTTPS load balancer
+
+The process of configuring the load balancer with Google-managed SSL certificates is described in the <a href="https://cloud.google.com/kubernetes-engine/docs/how-to/managed-certs" target="_blank">official documentation</a>. Make sure you read the <a href="https://cloud.google.com/kubernetes-engine/docs/how-to/managed-certs#prerequisites" target="_blank">prerequisites</a>.
+
+Reserve a static IP address:
+
+```bash
+gcloud compute addresses create thingsboard-http-lb-address --global
+```
+
+Edit `receipts/https-load-balancer.yml` and replace **PUT_YOUR_DOMAIN_HERE** with your domain name:
+
+```bash
+nano receipts/https-load-balancer.yml
+```
+
+Deploy:
+
+```bash
+kubectl apply -f receipts/https-load-balancer.yml
+```
+
+Check the status:
+
+```bash
+kubectl get ingress
+```
+
+Assign the domain name to the load balancer IP address. Then wait for the Google-managed certificate to finish provisioning (up to 60 minutes):
+
+```bash
+kubectl describe managedcertificate managed-cert
+```
+
+<Aside type="caution">
+The HTTPS load balancer redirects all HTTP traffic to HTTPS. Devices that do not support HTTPS will not be able to connect. To support such devices, deploy a separate HTTP transport load balancer or disable the redirect in `https-load-balancer.yml`.
+</Aside>
+
+#### Transparent load balancer
+
+Follow the <DocLink product={Products.CE} path="user-guide/ssl/http-over-ssl">HTTP over SSL</DocLink> guide to configure SSL in `tb-node.yml`. Then deploy:
+
+```bash
+kubectl apply -f receipts/transparent-http-load-balancer.yml
+```
+
+<Aside type="note">
+This setup does not support automatic redirect from HTTP port 80 to HTTPS port 443.
+</Aside>
+
+### 8.2 Configure MQTT load balancer (optional)
+
+```bash
+kubectl apply -f receipts/mqtt-load-balancer.yml
+```
+
+The load balancer forwards all TCP traffic for ports 1883 and 8883.
+
+For MQTT over SSL, follow the <DocLink product={Products.CE} path="user-guide/mqtt-over-ssl">MQTT over SSL</DocLink> guide to configure the required environment variables in `tb-node.yml`.
+
+### 8.3 Configure UDP load balancer (optional)
+
+```bash
+kubectl apply -f receipts/udp-load-balancer.yml
+```
+
+The load balancer forwards all UDP traffic for ports:
+
+| Port | Protocol |
+|---|---|
+| 5683 | CoAP non-secure |
+| 5684 | CoAP secure DTLS |
+| 5685 | LwM2M non-secure |
+| 5686 | LwM2M secure DTLS |
+| 5687 | LwM2M bootstrap DTLS |
+| 5688 | LwM2M bootstrap secure DTLS |
+
+For CoAP over DTLS, follow the <DocLink product={Products.CE} path="user-guide/coap-over-dtls">CoAP over DTLS</DocLink> guide. For LwM2M over DTLS, follow the <DocLink product={Products.CE} path="user-guide/ssl/lwm2m-over-dtls">LwM2M over DTLS</DocLink> guide.
+
+### 8.4 Configure Edge load balancer (optional)
+
+```bash
+kubectl apply -f receipts/edge-load-balancer.yml
+```
+
+The load balancer forwards all TCP traffic on port 7070. Use the external IP as **CLOUD_RPC_HOST** in Edge connection parameters.
+
+## Step 9. Validate the setup
+
+### Validate Web UI access
+
+```bash
+kubectl get ingress
+```
+
+### Validate MQTT/CoAP access
+
+```bash
+kubectl get service
+```
+
+Two load balancers are available:
+- `tb-mqtt-loadbalancer` — for MQTT protocol
+- `tb-udp-loadbalancer` — for CoAP/LwM2M protocols
+
+### Troubleshooting
+
+```bash
+kubectl logs -f tb-node-0
+```
+
+See the <a href="https://kubernetes.io/docs/reference/kubectl/cheatsheet/" target="_blank">kubectl Cheat Sheet</a> for more details.
+
+## Upgrading
+
+If a database upgrade is needed:
+
+```bash
+./k8s-delete-resources.sh
+./k8s-upgrade-tb.sh --fromVersion=[FROM_VERSION]
+./k8s-deploy-resources.sh
+```
+
+Where `FROM_VERSION` is the starting version. See <DocLink product={Products.CE} path="TODO">Upgrade Instructions</DocLink> for valid values. Upgrade versions one by one.
+
+## Cluster deletion
+
+Delete ThingsBoard pods and load balancers:
+
+```bash
+./k8s-delete-resources.sh
+```
+
+Delete all data including database:
+
+```bash
+./k8s-delete-all.sh
+```

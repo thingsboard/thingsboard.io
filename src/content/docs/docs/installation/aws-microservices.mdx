@@ -1,0 +1,366 @@
+---
+title: "AWS EKS Microservices Setup"
+sidebar:
+  label: "EKS (Microservices)"
+description: "Deploy ThingsBoard CE in microservices mode on AWS EKS with managed PostgreSQL, MSK, and ElastiCache."
+---
+import DocLink from '@components/DocLink.astro';
+import { Steps, Aside } from '@astrojs/starlight/components';
+import { Code } from '@astrojs/starlight/components';
+import ImageGallery from '~/components/ImageGallery.astro';
+import { Products } from '~/models/site.models';
+import { CE_BRANCH } from '~/data/versions';
+
+export const cloneCmd = `git clone -b ${CE_BRANCH} https://github.com/thingsboard/thingsboard-ce-k8s.git
+cd thingsboard-ce-k8s/aws/microservices`;
+
+This guide walks you through deploying ThingsBoard CE in microservices mode on AWS EKS. We use Amazon RDS for managed PostgreSQL, Amazon MSK for managed Kafka, and Amazon ElastiCache for managed Redis.
+
+## Prerequisites
+
+### Install and configure tools
+
+Install <a href="https://kubernetes.io/docs/tasks/tools/" target="_blank">kubectl</a>, <a href="https://docs.aws.amazon.com/eks/latest/userguide/eksctl.html" target="_blank">eksctl</a>, and <a href="https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html" target="_blank">AWS CLI</a>.
+
+Configure your AWS credentials. To get Access and Secret keys, follow <a href="https://docs.aws.amazon.com/general/latest/gr/aws-sec-cred-types.html" target="_blank">this guide</a>. The default region should be the ID of the region where you want to deploy the cluster.
+
+```bash
+aws configure
+```
+
+## Step 1. Clone ThingsBoard CE K8S scripts repository
+
+<Code code={cloneCmd} lang="bash" />
+
+## Step 2. Configure and create EKS cluster
+
+In the `cluster.yml` file you can find the suggested cluster configuration. Key fields you can change:
+
+| Field | Default | Description |
+|---|---|---|
+| `region` | `us-east-1` | AWS region for the cluster |
+| `availabilityZones` | `[us-east-1a, us-east-1b, us-east-1c]` | Region availability zones |
+| `instanceType` | `m5.xlarge` | EC2 instance type for nodes |
+
+<Aside type="note">
+If you don't change `instanceType` and `desiredCapacity`, EKS will deploy **3** nodes of type **m5.xlarge**.
+</Aside>
+
+<Aside type="note">
+The following command creates a new VPC for your ThingsBoard cluster. You can also use an existing VPC and subnets. See <a href="https://eksctl.io/usage/vpc-networking/" target="_blank">eksctl VPC networking</a> for details.
+</Aside>
+
+Create the cluster:
+
+```bash
+eksctl create cluster -f cluster.yml
+```
+
+## Step 3. Create AWS load-balancer controller
+
+Once the cluster is ready, create the AWS load-balancer controller by following <a href="https://docs.aws.amazon.com/eks/latest/userguide/aws-load-balancer-controller.html" target="_blank">this guide</a>.
+
+The cluster provisioning scripts create several load balancers:
+
+| Load Balancer | Type | Purpose |
+|---|---|---|
+| `tb-http-loadbalancer` | ALB | Web UI, REST API, HTTP transport |
+| `tb-mqtt-loadbalancer` | NLB | MQTT transport |
+| `tb-coap-loadbalancer` | NLB | CoAP transport |
+| `tb-edge-loadbalancer` | NLB | Edge instances connectivity |
+
+<Aside type="caution">
+Provisioning the AWS load-balancer <a href="https://docs.aws.amazon.com/eks/latest/userguide/aws-load-balancer-controller.html" target="_blank">controller</a> is a **critical step** required for the load balancers to work properly.
+</Aside>
+
+## Step 4. Provision databases
+
+### 4.1 Amazon PostgreSQL DB configuration
+
+Set up PostgreSQL on Amazon RDS. Follow <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_GettingStarted.CreatingConnecting.PostgreSQL.html" target="_blank">this guide</a>, but take into account the following requirements:
+
+- Keep your PostgreSQL password in a safe place. We will refer to it later as **YOUR_RDS_PASSWORD**.
+- Make sure your PostgreSQL version is latest **16.x**.
+- Deploy the RDS instance in the same VPC and use the `eksctl-thingsboard-cluster-ClusterSharedNodeSecurityGroup-*` security group.
+- Use **"thingsboard"** as the initial database name.
+
+<ImageGallery images={[
+  { src: '/src/assets/images/docs/installation/cloud/aws/rds-1.png', alt: 'RDS PostgreSQL version', caption: 'Make sure your PostgreSQL version is latest 16.x.' },
+  { src: '/src/assets/images/docs/installation/cloud/aws/rds-2.png', alt: 'RDS master password', caption: 'Keep your PostgreSQL master password in a safe place.' },
+  { src: '/src/assets/images/docs/installation/cloud/aws/rds-3.png', alt: 'RDS provisioned IOPS', caption: 'Use "Provisioned IOPS" for better performance.' },
+  { src: '/src/assets/images/docs/installation/cloud/aws/rds-4.png', alt: 'RDS security group', caption: 'Deploy the RDS instance in the same VPC and use the cluster shared security group.' },
+  { src: '/src/assets/images/docs/installation/cloud/aws/rds-5.png', alt: 'RDS initial database', caption: 'Use "thingsboard" as initial database name.' },
+  { src: '/src/assets/images/docs/installation/cloud/aws/rds-6.png', alt: 'RDS auto update', caption: 'Disable "auto minor version update".' },
+]} />
+
+Once the database switches to the **Available** state, navigate to **Connectivity and Security** and copy the endpoint value (**YOUR_RDS_ENDPOINT_URL**).
+
+<ImageGallery images={[
+  { src: '/src/assets/images/docs/installation/cloud/aws/rds-endpoint-url.png', alt: 'RDS endpoint URL', caption: 'Copy the endpoint value from the Connectivity and Security section.' },
+]} />
+
+### 4.2 Cassandra (optional)
+
+Using Cassandra is optional. We recommend it if you plan to insert more than 5K data points per second or want to optimize storage space.
+
+Create **3** separate node pools with **1** node per zone:
+
+```bash
+eksctl create nodegroup --config-file=<path> --include='cassandra-*'
+```
+
+Deploy Cassandra:
+
+```bash
+kubectl apply -f tb-namespace.yml
+kubectl config set-context $(kubectl config current-context) --namespace=thingsboard
+kubectl apply -f receipts/cassandra.yml
+```
+
+Update DB settings (replace **YOUR_AWS_REGION**):
+
+```bash
+echo "  DATABASE_TS_TYPE: cassandra" >> tb-node-db-configmap.yml
+echo "  CASSANDRA_URL: cassandra:9042" >> tb-node-db-configmap.yml
+echo "  CASSANDRA_LOCAL_DATACENTER: YOUR_AWS_REGION"  >> tb-node-db-configmap.yml
+```
+
+Create keyspace:
+
+```bash
+kubectl exec -it cassandra-0 -- bash -c "cqlsh -e \
+    \"CREATE KEYSPACE IF NOT EXISTS thingsboard \
+    WITH replication = { \
+        'class' : 'NetworkTopologyStrategy', \
+        'us-east' : '3' \
+    };\""
+```
+
+## Step 5. Amazon MSK configuration (optional)
+
+ThingsBoard uses **Kafka as an external queue** for exchanging data between microservices. By default, the deployment uses **local Kafka**, but ThingsBoard is also compatible with **Amazon MSK**.
+
+Steps to create a basic Kafka MSK cluster:
+
+- Open the **AWS console**, go to <a href="https://console.aws.amazon.com/msk" target="_blank">MSK</a> and click **Create Cluster**.
+- Select **Custom creation** method.
+- Specify a **name** and select **Cluster type** → **Provisioned**.
+- Select **Apache Kafka version 3.8.x** (Express brokers) or **4.0.x** (Standard brokers).
+- Choose **kafka.m7.large** or similar instance types.
+- Deploy the MSK instance in the **same VPC** as the ThingsBoard cluster.
+- Use the **default security settings** with **Plaintext mode** enabled.
+
+<ImageGallery images={[
+  { src: '/src/assets/images/docs/installation/cloud/aws/msk-1.png', alt: 'MSK cluster creation', caption: 'Select Custom creation, Provisioned cluster type, and Apache Kafka version.' },
+  { src: '/src/assets/images/docs/installation/cloud/aws/msk-2.png', alt: 'MSK instance type', caption: 'Choose kafka.m7.large or similar instance types.' },
+  { src: '/src/assets/images/docs/installation/cloud/aws/msk-3.png', alt: 'MSK storage', caption: 'Select the storage size for the broker.' },
+  { src: '/src/assets/images/docs/installation/cloud/aws/msk-4.png', alt: 'MSK VPC', caption: 'Deploy the MSK instance in the same VPC as the ThingsBoard cluster.' },
+  { src: '/src/assets/images/docs/installation/cloud/aws/msk-5.png', alt: 'MSK security', caption: 'Use default security settings. Make sure Plaintext mode is enabled.' },
+  { src: '/src/assets/images/docs/installation/cloud/aws/msk-6.png', alt: 'MSK monitoring', caption: 'Use Basic monitoring or Enhanced topic-level monitoring.' },
+]} />
+
+Once the MSK cluster switches to the **Active** state, navigate to **Details** and click **View client information**. Copy the bootstrap server information in plaintext.
+
+<ImageGallery images={[
+  { src: '/src/assets/images/docs/installation/cloud/aws/msk-connection-params-1.png', alt: 'MSK client information', caption: 'Click "View client information" from the Details tab.' },
+  { src: '/src/assets/images/docs/installation/cloud/aws/msk-connection-params-2.png', alt: 'MSK bootstrap servers', caption: 'Copy the bootstrap server information in plaintext.' },
+]} />
+
+Edit `tb-kafka.yml`, find the StatefulSet `tb-kafka`, and set `spec.replicas` to **0**. Edit `tb-kafka-configmap.yml` and replace **TB_KAFKA_SERVERS** with your MSK endpoint.
+
+## Step 6. Amazon ElastiCache configuration (optional)
+
+ThingsBoard uses **cache** to improve performance. By default, the deployment uses a **local Valkey cache**, but ThingsBoard is also compatible with **Amazon ElastiCache**.
+
+- Navigate to <a href="https://console.aws.amazon.com/elasticache#/valkey" target="_blank">ElastiCache Valkey caches</a> and click **Create**.
+- Specify **Valkey Engine version 8.x** and a node type with at least 1 GB of RAM.
+- Deploy in the **same VPC** as the ThingsBoard cluster.
+- Disable **Enable automatic backups**.
+
+<ImageGallery images={[
+  { src: '/src/assets/images/docs/installation/cloud/aws/valkey-1.png', alt: 'Valkey engine version', caption: 'Specify Valkey Engine version 8.x and node type with at least 1 GB of RAM.' },
+  { src: '/src/assets/images/docs/installation/cloud/aws/valkey-3.png', alt: 'Valkey VPC', caption: 'Deploy the Valkey cluster in the same VPC.' },
+  { src: '/src/assets/images/docs/installation/cloud/aws/valkey-2.png', alt: 'Valkey backups', caption: 'Disable the "Enable automatic backups" option.' },
+]} />
+
+Once the Valkey cluster switches to **Available**, copy the **Endpoint** field **without the ":6379" port suffix**.
+
+<ImageGallery images={[
+  { src: '/src/assets/images/docs/installation/cloud/aws/valkey-4.png', alt: 'Valkey endpoint', caption: 'Copy the Endpoint field without the ":6379" port suffix.' },
+]} />
+
+Edit `tb-valkey.yml` and set `spec.replicas` to **0**. Edit `tb-cache-configmap.yml` and replace **REDIS_HOST** with your Valkey endpoint.
+
+## Step 7. CPU and memory resources allocation
+
+The scripts have preconfigured values of resources for each service. You can change them in `.yml` files under the `resources` section.
+
+| Service | CPU | Memory |
+|---|---|---|
+| TB Node | 1.0 | 2Gi |
+| TB HTTP Transport | 0.5 | 0.5Gi |
+| TB MQTT Transport | 0.5 | 0.5Gi |
+| TB CoAP Transport | 0.5 | 0.5Gi |
+| TB Web UI | 0.1 | 100Mi |
+| JS Executor | 0.1 | 100Mi |
+| Zookeeper | 0.1 | 0.5Gi |
+
+## Step 8. Installation
+
+```bash
+./k8s-install-tb.sh --loadDemo
+```
+
+Where `--loadDemo` is an optional argument to load additional demo data.
+
+After this command finishes you should see:
+
+```text
+Installation finished successfully!
+```
+
+<Aside type="note">
+If the installation fails, check that the PostgreSQL URL and password in `tb-node-db-configmap.yml` are correct.
+</Aside>
+
+## Step 9. Starting
+
+Deploy ThingsBoard services:
+
+```bash
+./k8s-deploy-resources.sh
+```
+
+After a few minutes, call `kubectl get pods`. You should see:
+
+- 5x `tb-pe-js-executor`
+- 2x `tb-pe-web-ui`
+- 1x `tb-pe-node`
+- 1x `tb-pe-web-report`
+- 3x `zookeeper`
+
+Every pod should be in the `READY` state.
+
+### Deploy transport microservices
+
+Deploy the transport microservices you need:
+
+```bash
+# HTTP Transport (optional)
+kubectl apply -f transports/tb-http-transport.yml
+
+# MQTT Transport (optional)
+kubectl apply -f transports/tb-mqtt-transport.yml
+
+# CoAP Transport (optional)
+kubectl apply -f transports/tb-coap-transport.yml
+
+# LwM2M Transport (optional)
+kubectl apply -f transports/tb-lwm2m-transport.yml
+
+# SNMP Transport (optional)
+kubectl apply -f transports/tb-snmp-transport.yml
+```
+
+## Step 10. Configure load balancers
+
+### 10.1 Configure HTTP(S) load balancer
+
+#### HTTP load balancer
+
+```bash
+kubectl apply -f receipts/http-load-balancer.yml
+```
+
+Check the status:
+
+```bash
+kubectl get ingress
+```
+
+Use the address to access the HTTP web UI (port 80) and connect devices via <DocLink product={Products.CE} path="reference/http-api">HTTP API</DocLink>.
+
+Default credentials:
+- **System Administrator**: sysadmin@thingsboard.org / sysadmin
+- **Tenant Administrator**: tenant@thingsboard.org / tenant (if demo data loaded)
+- **Customer User**: customer@thingsboard.org / customer (if demo data loaded)
+
+#### HTTPS load balancer
+
+Use <a href="https://aws.amazon.com/certificate-manager/" target="_blank">AWS Certificate Manager</a> to create or import an SSL certificate. Replace **YOUR_HTTPS_CERTIFICATE_ARN** in `receipts/https-load-balancer.yml`, then deploy:
+
+```bash
+kubectl apply -f receipts/https-load-balancer.yml
+```
+
+### 10.2 Configure MQTT load balancer (optional)
+
+```bash
+kubectl apply -f receipts/mqtt-load-balancer.yml
+```
+
+The load balancer forwards all TCP traffic for ports 1883 and 8883.
+
+For one-way TLS, use AWS Certificate Manager and edit `receipts/mqtts-load-balancer.yml`. For two-way TLS, follow the <DocLink product={Products.CE} path="user-guide/mqtt-over-ssl">MQTT over SSL</DocLink> guide.
+
+### 10.3 Configure UDP load balancer (optional)
+
+```bash
+kubectl apply -f receipts/udp-load-balancer.yml
+```
+
+The load balancer forwards UDP traffic for ports 5683–5688 (CoAP and LwM2M protocols).
+
+### 10.4 Configure Edge load balancer (optional)
+
+```bash
+kubectl apply -f receipts/edge-load-balancer.yml
+```
+
+The load balancer forwards all TCP traffic on port 7070.
+
+## Step 11. Validate the setup
+
+### Validate Web UI access
+
+```bash
+kubectl get ingress
+```
+
+### Validate MQTT/CoAP access
+
+```bash
+kubectl get service
+```
+
+### Troubleshooting
+
+```bash
+kubectl logs -f tb-node-0
+```
+
+See the <a href="https://kubernetes.io/docs/reference/kubectl/cheatsheet/" target="_blank">kubectl Cheat Sheet</a> for more details.
+
+## Upgrading
+
+Merge your local changes with the latest release branch. If a database upgrade is needed:
+
+```bash
+./k8s-upgrade-tb.sh --fromVersion=[FROM_VERSION]
+```
+
+See <DocLink product={Products.CE} path="TODO">Upgrade Instructions</DocLink> for valid `fromVersion` values. Upgrade versions one by one.
+
+Once completed, re-deploy resources:
+
+```bash
+./k8s-deploy-resources.sh
+```
+
+## Cluster deletion
+
+```bash
+./k8s-delete-resources.sh
+./k8s-delete-all.sh
+eksctl delete cluster -r us-east-1 -n thingsboard -w
+```

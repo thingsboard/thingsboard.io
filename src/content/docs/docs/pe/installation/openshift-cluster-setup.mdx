@@ -1,0 +1,255 @@
+---
+title: "Cluster setup using OpenShift"
+sidebar:
+  label: "OpenShift"
+description: "Set up ThingsBoard Professional Edition in cluster mode using Kubernetes and OpenShift."
+---
+import DocLink from '@components/DocLink.astro';
+import { Steps, Aside } from '@astrojs/starlight/components';
+import { Code } from '@astrojs/starlight/components';
+import { PE_FULL_VER, CE_FULL_VER, TRENDZ_VER } from '~/data/versions';
+import { Products } from '~/models/site.models';
+
+export const pullImages = `docker pull thingsboard/tb-pe-node:${PE_FULL_VER}
+docker pull thingsboard/tb-pe-web-report:${PE_FULL_VER}
+docker pull thingsboard/tb-pe-web-ui:${PE_FULL_VER}
+docker pull thingsboard/tb-pe-js-executor:${PE_FULL_VER}
+docker pull thingsboard/tb-pe-http-transport:${PE_FULL_VER}
+docker pull thingsboard/tb-pe-mqtt-transport:${PE_FULL_VER}
+docker pull thingsboard/tb-pe-coap-transport:${PE_FULL_VER}
+docker pull thingsboard/tb-pe-lwm2m-transport:${PE_FULL_VER}
+docker pull thingsboard/tb-pe-snmp-transport:${PE_FULL_VER}`;
+
+export const pullTrendz = `docker pull thingsboard/trendz:${TRENDZ_VER}
+docker pull thingsboard/trendz-python-executor:${TRENDZ_VER}`;
+
+export const cloneRepo = `git clone -b release-${CE_FULL_VER} https://github.com/thingsboard/thingsboard-pe-k8s.git --depth 1
+cd thingsboard-pe-k8s/openshift`;
+
+This guide walks you through setting up ThingsBoard Professional Edition in cluster mode using OpenShift with microservices architecture. Docker container images are available on <a href="https://hub.docker.com/search?q=thingsboard&type=image&image_filter=store" target="_blank">Docker Hub</a>.
+
+For a simpler single-node installation, see <DocLink product={Products.PE} path="installation/docker">Docker (Linux, macOS)</DocLink>.
+
+## Prerequisites
+
+ThingsBoard microservices run on a Kubernetes cluster. To deploy an OpenShift cluster locally you need Docker CE and OpenShift Origin. Follow <a href="https://www.techrepublic.com/article/how-to-install-openshift-origin-on-ubuntu-18-04/" target="_blank">these instructions</a> to install all required software.
+
+### Log in to OpenShift cluster
+
+By default, you can log in as the `developer` user:
+
+```bash
+oc login -u developer -p developer
+```
+
+### Create project
+
+On first start-up, create the `thingsboard` project:
+
+```bash
+oc new-project thingsboard
+```
+
+### Pull ThingsBoard PE images
+
+Verify that you can pull the images from Docker Hub:
+
+<Code code={pullImages} lang="bash" />
+
+## Step 1. Clone ThingsBoard PE Kubernetes scripts
+
+<Code code={cloneRepo} lang="bash" />
+
+## Step 2. Obtain and configure the license key
+
+We assume you have already chosen your subscription plan or decided to purchase a perpetual license. If not, navigate to the <a href="https://thingsboard.io/pricing/" target="_blank">pricing page</a> to select the best license option for your case. See <a href="https://www.youtube.com/watch?v=dK-QDFGxWek" target="_blank">How to get a pay-as-you-go subscription</a> or <a href="https://www.youtube.com/watch?v=GPe0lHolWek" target="_blank">How to get a perpetual license</a> for details.
+
+Edit the ThingsBoard node configuration:
+
+```bash
+nano tb-node.yml
+```
+
+Find the `TB_LICENSE_SECRET` environment variable and replace `PUT_YOUR_LICENSE_SECRET_HERE` with your actual license secret:
+
+```yaml
+- name: TB_LICENSE_SECRET
+  value: "PUT_YOUR_LICENSE_SECRET_HERE"
+```
+
+## Step 3. Configure database
+
+Edit the `.env` file to set the database type:
+
+```bash
+nano .env
+```
+
+Set the `DATABASE` variable to one of:
+
+| Value | Description |
+|---|---|
+| `postgres` | Use PostgreSQL for all data |
+| `hybrid` | Use PostgreSQL for entities and Cassandra for time-series data |
+
+<Aside type="note">
+The corresponding Kubernetes resources are defined in `postgres.yml` and `cassandra.yml`.
+</Aside>
+
+## Step 4. Configure Trendz Analytics (optional)
+
+You may optionally install <DocLink product={Products.PE} path="TODO">Trendz Analytics</DocLink>.
+
+### Pull Trendz images
+
+<Code code={pullTrendz} lang="bash" />
+
+### Create Trendz database
+
+Edit `trendz/trendz-secret.yml` and replace `YOUR_RDS_ENDPOINT_URL` and `YOUR_RDS_PASSWORD`, then apply:
+
+```bash
+kubectl apply -f ./trendz/trendz-secret.yml
+kubectl apply -f ./trendz/trendz-create-db.yml
+```
+
+Check the logs:
+
+```bash
+kubectl logs job/trendz-create-db -n thingsboard
+```
+
+### Deploy Trendz
+
+```bash
+./k8s-deploy-trendz.sh
+```
+
+You should see `Trendz installed successfully!` in the console output.
+
+<Aside type="note">
+If installation fails, verify the PostgreSQL URL and password in `trendz-secret.yml`.
+</Aside>
+
+## Step 5. Install and start ThingsBoard
+
+<Steps>
+1. Run the installation script:
+
+   ```bash
+   ./k8s-install-tb.sh --loadDemo
+   ```
+
+   The `--loadDemo` flag loads sample tenant account, dashboards, and devices for evaluation and testing.
+
+2. Deploy third-party resources:
+
+   ```bash
+   ./k8s-deploy-thirdparty.sh
+   ```
+
+   Type **yes** when prompted if you are running ThingsBoard in `high-availability` deployment type for the first time or don't have a configured Redis cluster.
+
+3. Deploy ThingsBoard resources:
+
+   ```bash
+   ./k8s-deploy-resources.sh
+   ```
+</Steps>
+
+To find your ThingsBoard application URL, log in as the **developer** user (default password: **developer**), open the `thingsboard` project, then navigate to **Application → Routes**. The root route should look like `https://tb-route-node-root-thingsboard.127.0.0.1.nip.io/`.
+
+You should see the ThingsBoard login page. Use the following default credentials:
+
+- **System Administrator**: sysadmin@thingsboard.org / sysadmin
+- **Tenant Administrator**: tenant@thingsboard.org / tenant
+- **Customer User**: customer@thingsboard.org / customer
+
+You can change passwords for each account in the account profile page.
+
+See <DocLink product={Products.PE} path="tutorial/getting-started">Getting Started</DocLink> for your next steps after login.
+
+## Inspect logs and manage resources
+
+List running ThingsBoard node pods:
+
+```bash
+oc get pods -l app=tb-node
+```
+
+Stream logs of a specific pod:
+
+```bash
+oc logs -f TB_NODE_POD_NAME
+```
+
+Replace `TB_NODE_POD_NAME` with the pod name from the list above.
+
+Other useful commands:
+
+| Command | Description |
+|---|---|
+| `oc get pods` | List all pods |
+| `oc get services` | List all services |
+| `oc get deployments` | List all deployments |
+
+See the <a href="https://design.jboss.org/redhatdeveloper/marketing/openshift_cheatsheet/cheatsheet/images/openshift_cheat_sheet_r1v1.pdf" target="_blank">oc Cheat Sheet</a> for more commands.
+
+### Cleanup
+
+Delete ThingsBoard microservices:
+
+```bash
+./k8s-delete-resources.sh
+```
+
+Delete third-party services:
+
+```bash
+./k8s-delete-thirdparty.sh
+```
+
+Delete all resources including database:
+
+```bash
+./k8s-delete-all.sh
+```
+
+## Upgrading
+
+### Upgrading ThingsBoard
+
+Pull the latest changes from the repository:
+
+```bash
+git pull origin master
+```
+
+Then run the upgrade:
+
+```bash
+./k8s-delete-resources.sh
+./k8s-upgrade-tb.sh
+./k8s-deploy-resources.sh
+```
+
+<Aside type="note">
+Perform upgrades sequentially (e.g. v4.0.0 → v4.0.1 → v4.1.0).
+</Aside>
+
+<Aside type="note">
+The `--fromVersion` flag is required for upgrades prior to v3.9.1. For example: `./k8s-upgrade-tb.sh --fromVersion=3.8.1`. See <DocLink product={Products.PE} path="TODO">Upgrade Instructions</DocLink> for valid `fromVersion` values.
+</Aside>
+
+### Upgrading Trendz
+
+Pull the latest changes and run the upgrade:
+
+```bash
+git pull origin master
+./k8s-upgrade-trendz.sh
+```
+
+<Aside type="note">
+You can upgrade Trendz from any version directly to the latest.
+</Aside>

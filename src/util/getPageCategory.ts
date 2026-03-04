@@ -16,6 +16,9 @@ const categories = [
 	['reference/', 'Reference'],
 	['tutorial/', 'Tutorials'],
 	['tutorials/', 'Tutorials'],
+	// Upgrade instruction sub-pages (platform + version-family pages not listed in the sidebar)
+	['pe/installation/upgrade-instructions/', 'PE Upgrade Instruction Subpage'],
+	['installation/upgrade-instructions/', 'CE Upgrade Instruction Subpage'],
 ] as const;
 
 /**
