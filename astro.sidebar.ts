@@ -542,6 +542,32 @@ export const gwSidebar: SidebarConfig = [
 		items: ['docs/iot-gateway/installation', 'docs/iot-gateway/install/upgrade-instructions'],
 	},
 	{
+		label: 'Configuration',
+		translations: { uk: 'Конфігурація' },
+		items: ['docs/iot-gateway/config/general'],
+	},
+	{
+		label: 'Connectors',
+		translations: { uk: 'Конектори' },
+		items: [
+			'docs/iot-gateway/config/mqtt',
+			'docs/iot-gateway/config/modbus',
+			'docs/iot-gateway/config/opc-ua',
+			'docs/iot-gateway/config/bacnet',
+			'docs/iot-gateway/config/rest',
+			'docs/iot-gateway/config/request',
+			'docs/iot-gateway/config/ble',
+			'docs/iot-gateway/config/can',
+			'docs/iot-gateway/config/ftp',
+			'docs/iot-gateway/config/knx',
+			'docs/iot-gateway/config/odbc',
+			'docs/iot-gateway/config/ocpp',
+			'docs/iot-gateway/config/snmp',
+			'docs/iot-gateway/config/socket',
+			'docs/iot-gateway/config/xmpp',
+		],
+	},
+	{
 		label: 'Features',
 		translations: { uk: 'Функції' },
 		items: [

@@ -1,0 +1,289 @@
+import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+import DocLink from '@components/DocLink.astro';
+
+The BLE Connector scans for Bluetooth Low Energy devices, reads data from their GATT
+characteristics, and forwards it to ThingsBoard as device attributes and telemetry. It can
+also write values to characteristics in response to shared attribute updates and RPC commands
+from ThingsBoard.
+
+To enable this connector, add it to the `connectors` list in `tb_gateway.json` — see the
+<DocLink product={props.product} path="iot-gateway/config/general">General Configuration</DocLink> reference.
+
+## Prerequisites
+
+The BLE Connector requires system Bluetooth libraries and the `bleak` Python package.
+
+<Tabs>
+<TabItem label="APT-GET (Debian/Ubuntu)">
+
+Install the required system libraries:
+
+```bash
+sudo apt-get install -y libglib2.0-dev zlib1g-dev
+```
+
+Install the `bleak` Python library:
+
+```bash
+sudo pip3 install bleak
+```
+
+</TabItem>
+<TabItem label="YUM (RHEL/CentOS)">
+
+Install the required development tools:
+
+```bash
+sudo yum groupinstall -y "development tools"
+```
+
+Install the `bleak` Python library:
+
+```bash
+sudo pip3 install bleak
+```
+
+</TabItem>
+</Tabs>
+
+## Connector configuration: ble.json
+
+The connector reads its settings from a JSON file. Below is a full example for a Xiaomi
+temperature and humidity sensor:
+
+```json maxLines=20 collapsible
+{
+  "name": "BLE Connector",
+  "passiveScanMode": true,
+  "showMap": false,
+  "scanner": {
+    "timeout": 10000,
+    "deviceName": "STH11"
+  },
+  "devices": [
+    {
+      "name": "Temperature and humidity sensor",
+      "MACAddress": "4C:65:A8:DF:85:C0",
+      "pollPeriod": 5000,
+      "showMap": false,
+      "timeout": 10000,
+      "telemetry": [
+        {
+          "key": "temperature",
+          "method": "notify",
+          "characteristicUUID": "226CAA55-6476-4566-7562-66734470666D",
+          "valueExpression": "[2]"
+        },
+        {
+          "key": "humidity",
+          "method": "notify",
+          "characteristicUUID": "226CAA55-6476-4566-7562-66734470666D",
+          "valueExpression": "[:]"
+        }
+      ],
+      "attributes": [
+        {
+          "key": "name",
+          "characteristicUUID": "00002A00-0000-1000-8000-00805F9B34FB",
+          "method": "read",
+          "valueExpression": "[0:2]"
+        }
+      ],
+      "attributeUpdates": [
+        {
+          "attributeOnThingsBoard": "sharedName",
+          "characteristicUUID": "00002A00-0000-1000-8000-00805F9B34FB"
+        }
+      ],
+      "serverSideRpc": [
+        {
+          "methodRPC": "sharedName",
+          "withResponse": true,
+          "characteristicUUID": "00002A00-0000-1000-8000-00805F9B34FB",
+          "methodProcessing": "write"
+        }
+      ]
+    }
+  ]
+}
+```
+
+## Root section
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `name` | `BLE Connector` | Connector name, used in logs and when saving to persistent storage |
+| `passiveScanMode` | `true` | Use passive scanning mode |
+| `showMap` | `false` | Log all discovered MAC addresses; set to `true` to find device addresses — see below |
+| `scanner` | | *(Optional)* Filters the scan to a specific device name — see below |
+| `devices` | | Array of device configurations |
+
+### Section "scanner"
+
+Optional. When omitted, the connector discovers **all** available BLE devices in range. When
+set, only devices whose advertised name matches `deviceName` are reported.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `timeout` | `1000` | Scan duration in milliseconds |
+| `deviceName` | `NH11` | Advertised device name to filter by |
+
+```json
+"scanner": {
+  "timeout": 10000,
+  "deviceName": "NH11"
+}
+```
+
+**Finding a device's MAC address:**
+
+If you do not know a device's MAC address, use `showMap` to discover it. Two scenarios:
+
+**Scenario 1 — you don't know the name or MAC address.** Set `showMap: true` with no
+`scanner`. The gateway logs all visible devices:
+
+```json
+{ "showMap": true }
+```
+
+Example gateway output:
+
+```
+24:71:89:cc:09:05 - NH11
+54:bb:12:ff:09:01 - Unknown
+23:cc:34:23:bb:56 - XYZ123
+```
+
+**Scenario 2 — you know the name but not the MAC address.** Set `showMap: true` and add
+`scanner.deviceName` to filter the output:
+
+```json
+{
+  "showMap": true,
+  "scanner": {
+    "timeout": 10000,
+    "deviceName": "NH11"
+  }
+}
+```
+
+Example gateway output:
+
+```
+24:71:89:cc:09:05 - NH11
+```
+
+Once you have the MAC address, set `showMap: false` and add the device to `devices`.
+
+### Section "devices"
+
+An array of device configurations. Each entry represents one BLE peripheral.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `name` | | Device name in ThingsBoard |
+| `MACAddress` | | Bluetooth MAC address of the device |
+| `deviceType` | `BLEDevice` | Device type in ThingsBoard |
+| `pollPeriod` | `5000` | Polling interval in milliseconds |
+| `showMap` | `false` | Log all GATT objects (services, characteristics) found on the device |
+| `timeout` | `10000` | Connection timeout in milliseconds |
+| `telemetry` | | Array of telemetry read configurations |
+| `attributes` | | Array of attribute read configurations |
+| `attributeUpdates` | | Array of shared attribute write configurations |
+| `serverSideRpc` | | Array of RPC command configurations |
+
+#### Subsections "telemetry" and "attributes"
+
+Both sections use the same field structure. `telemetry` entries are forwarded to ThingsBoard
+as time-series data; `attributes` entries are forwarded as device attributes.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `key` | | Key name in ThingsBoard |
+| `method` | `notify` / `read` | GATT operation: `notify` (subscribe to notifications) or `read` (poll the characteristic) |
+| `characteristicUUID` | | UUID of the GATT characteristic to read |
+| `valueExpression` | `[0:1]` | Python slice expression applied to the raw byte array — see below |
+
+```json
+[
+  {
+    "key": "temperature",
+    "method": "notify",
+    "characteristicUUID": "226CAA55-6476-4566-7562-66734470666D",
+    "valueExpression": "[2]"
+  },
+  {
+    "key": "name",
+    "characteristicUUID": "00002A00-0000-1000-8000-00805F9B34FB",
+    "method": "read",
+    "valueExpression": "[0:2]"
+  }
+]
+```
+
+<Aside type="note">
+  GATT services and characteristics from the
+  [Bluetooth GATT specification](https://www.bluetooth.com/specifications/gatt/services/) are
+  automatically loaded and sent to ThingsBoard as device attributes.
+</Aside>
+
+##### valueExpression
+
+The raw payload from a BLE characteristic is a byte array. `valueExpression` is a Python
+slice pattern applied to that array to extract the value sent to ThingsBoard.
+
+**Example payload:** device reports temperature and humidity as `b'\x08\x22\x08\x00'`,
+which in integer form is `[8, 34, 8, 0]` (8 °C, 34 % RH).
+
+| Expression | Result | Description |
+|------------|--------|-------------|
+| `[0]` | `8` | First byte only (temperature) |
+| `[1]` | `34` | Second byte only (humidity) |
+| `[:]` or `[0:2]` | `834` | All bytes concatenated |
+| `[0]°C [1]%` | `8°C 34%` | Formatted string with units |
+
+Index positions in `valueExpression` follow standard Python slice rules:
+- `[n]` — single element at position `n`
+- `[a:b]` — elements from `a` (inclusive) to `b` (exclusive)
+- `[:]` — all elements
+
+#### Subsection "attributeUpdates"
+
+When a ThingsBoard shared attribute changes, the gateway writes its value to the specified
+GATT characteristic.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `attributeOnThingsBoard` | `sharedName` | Shared attribute name to subscribe to |
+| `characteristicUUID` | | UUID of the GATT characteristic to write to |
+
+```json
+{
+  "attributeOnThingsBoard": "sharedName",
+  "characteristicUUID": "00002A00-0000-1000-8000-00805F9B34FB"
+}
+```
+
+<Aside type="note">
+  The target characteristic must support the **WRITE** operation.
+</Aside>
+
+#### Subsection "serverSideRpc"
+
+Maps ThingsBoard RPC commands to GATT read, write, or notify operations on the device.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `methodRPC` | `rpcMethod1` | RPC method name to bind |
+| `withResponse` | `true` | Forward the characteristic response back to ThingsBoard |
+| `characteristicUUID` | | UUID of the GATT characteristic to operate on |
+| `methodProcessing` | `read` | GATT operation: `read`, `write`, or `notify` |
+
+```json
+{
+  "methodRPC": "rpcMethod1",
+  "withResponse": true,
+  "characteristicUUID": "00002A00-0000-1000-8000-00805F9B34FB",
+  "methodProcessing": "read"
+}
+```

@@ -1,0 +1,377 @@
+import { Steps, Aside } from '@astrojs/starlight/components';
+import DocLink from '@components/DocLink.astro';
+
+The ODBC Connector periodically queries an ODBC-compatible database for new data and forwards
+the results to ThingsBoard as device attributes and telemetry. It can also call SQL stored
+procedures and functions in response to RPC commands from ThingsBoard.
+
+To enable this connector, add it to the `connectors` list in `tb_gateway.json` — see the
+<DocLink product={props.product} path="iot-gateway/config/general">General Configuration</DocLink> reference.
+
+## Connector configuration: odbc.json
+
+The connector reads its settings from a JSON file. Below is a full example:
+
+```json maxLines=20 collapsible
+{
+  "connection": {
+    "str": "Driver={PostgreSQL};Server=localhost;Port=5432;Database=thingsboard;Uid=postgres;Pwd=postgres;",
+    "attributes": {
+      "autocommit": true,
+      "timeout": 0
+    },
+    "encoding": "utf-8",
+    "decoding": {
+      "char": "utf-8",
+      "wchar": "utf-8",
+      "metadata": "utf-16le"
+    },
+    "reconnect": true,
+    "reconnectPeriod": 60
+  },
+  "pyodbc": {
+    "pooling": false
+  },
+  "polling": {
+    "query": "SELECT bool_v, str_v, dbl_v, long_v, entity_id, ts FROM ts_kv WHERE ts > ? ORDER BY ts ASC LIMIT 10",
+    "period": 5,
+    "iterator": {
+      "column": "ts",
+      "query": "SELECT MIN(ts) - 1 FROM ts_kv",
+      "save": false
+    }
+  },
+  "mapping": {
+    "device": {
+      "type": "postgres",
+      "name": "'ODBC ' + entity_id"
+    },
+    "sendDataOnlyOnChange": false,
+    "attributes": "*",
+    "timeseries": [
+      "ts",
+      {
+        "name": "value",
+        "value": "[i for i in [str_v, long_v, dbl_v, bool_v] if i is not None][0]"
+      }
+    ]
+  },
+  "serverSideRpc": {
+    "enableUnknownRpc": true,
+    "methods": [
+      "procedureOne",
+      {
+        "name": "procedureTwo",
+        "args": [ "One", 2, 3.0 ]
+      }
+    ]
+  }
+}
+```
+
+## Prerequisites
+
+Before using the ODBC Connector, complete the following installation steps:
+
+<Steps>
+1. Install the ODBC runtime:
+   - **Windows** — install the [Visual C++ Redistributable package](https://github.com/mkleehammer/pyodbc/wiki/Install#installing-on-windows).
+   - **Linux** — install the [unixODBC package](https://github.com/mkleehammer/pyodbc/wiki/Install#installing-on-linux).
+
+2. Install the ODBC driver for the specific database (PostgreSQL, MySQL, etc.) the gateway needs to connect to.
+
+3. Register the driver:
+   - **Windows** — add a data source in [ODBC Data Source Administrator](https://docs.microsoft.com/en-us/sql/database-engine/configure-windows/open-the-odbc-data-source-administrator).
+   - **Linux/Unix** — add the driver name, library path, and other details to the [`odbcinst.ini`](https://github.com/mkleehammer/pyodbc/wiki/Drivers-and-Driver-Managers#odbc-configuration-files-unix-only) configuration file.
+</Steps>
+
+## Section "connection"
+
+Required. Configures how to connect to the ODBC database and how to handle reconnections.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `str` | | [ODBC connection string](https://www.connectionstrings.com) |
+| `attributes` | | *(Optional)* Connection [attributes](https://github.com/mkleehammer/pyodbc/wiki/Connection#connection-attributes) |
+| `encoding` | `utf-16` | Encoding used when writing string data to the database |
+| `decoding` | | *(Optional)* Encoding used when reading string data from the database — see below |
+| `reconnect` | `true` | Reconnect after a database error |
+| `reconnectPeriod` | `60.0` | Seconds between reconnect attempts (floating-point for sub-second precision) |
+
+<Aside type="note">
+  For more information about encoding and decoding, see the [pyodbc Unicode documentation](https://github.com/mkleehammer/pyodbc/wiki/Unicode).
+</Aside>
+
+### Subsection "attributes"
+
+Optional. Tunes low-level connection behaviour via
+[pyodbc connection attributes](https://github.com/mkleehammer/pyodbc/wiki/Connection#connection-attributes)
+(for example, `autocommit` or `timeout`).
+
+### Subsection "decoding"
+
+Optional. Controls how string data and metadata read from the database are decoded.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `char` | `utf-16` | Encoding for regular string (CHAR/VARCHAR) columns |
+| `wchar` | `utf-16` | Encoding for Unicode string (NCHAR/NVARCHAR) columns |
+| `metadata` | `utf-16` | Encoding for column names and other metadata |
+
+## Section "pyodbc"
+
+Optional. Exposes [pyodbc module-level attributes](https://github.com/mkleehammer/pyodbc/wiki/The-pyodbc-Module#pyodbc-attributes)
+that control the underlying Python ODBC library.
+
+```json
+"pyodbc": {
+  "pooling": false,
+  "native_uuid": true
+}
+```
+
+## Property "converter"
+
+Optional. Specifies a custom uplink data converter class name. When omitted, the built-in converter is used.
+
+```json
+"converter": "CustomOdbcUplinkConverter"
+```
+
+## Section "polling"
+
+Required. Controls how often the database is queried, what SQL statement to run, and which
+column is used to advance through the result set between polling iterations.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `query` | | SQL `SELECT` statement to fetch data — see requirements below |
+| `period` | `60.0` | Polling interval in seconds (floating-point for sub-second precision) |
+| `iterator` | | Iterator configuration — see below |
+
+**Requirements for the `query` statement:**
+
+1. Must be a valid SQL `SELECT` statement compatible with the target database dialect.
+2. Must include the [device](#subsection-device) column in the `SELECT` list.
+3. Must include the [iterator](#subsection-iterator) column in the `SELECT` list.
+4. Must include all `attributes` and/or `timeseries` columns in the `SELECT` list.
+5. The `WHERE` clause must filter rows using the iterator column (the `?` placeholder receives the current iterator value).
+6. The `ORDER BY` clause must sort by the iterator column.
+7. A `LIMIT` clause is recommended to bound memory usage per iteration.
+
+**Example** — reads 10 rows per iteration, sorted by `ts` (the iterator column):
+
+```sql
+SELECT bool_v, str_v, dbl_v, long_v, entity_id, ts
+FROM ts_kv
+WHERE ts > ?
+ORDER BY ts ASC
+LIMIT 10
+```
+
+After each iteration the connector records the `ts` value of the last row and uses it as
+the `?` placeholder in the next `WHERE ts > ?` call.
+
+### Subsection "iterator"
+
+Required. Defines which column drives iteration, what its initial value is, and whether
+to persist the iterator position between gateway restarts.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `column` | | Database column used to iterate through the result set |
+| `value` | | Initial value of the iterator (mutually exclusive with `query`) |
+| `query` | | SQL query that evaluates the initial iterator value (mutually exclusive with `value`) |
+| `save` | `false` | Persist the iterator position between gateway restarts |
+
+<Aside type="note">
+  `value` and `query` are mutually exclusive. If both are set, `value` takes precedence.
+</Aside>
+
+**How persistence works:**
+
+When `save` is `true`, the connector saves the iterator state to a file in `config/odbc/`
+after each polling iteration. The file name is derived from a hash of:
+
+- ODBC driver name
+- Database server name
+- Database name
+- Iterator column name
+
+On startup the connector looks for this file. If found, it restores the saved position;
+otherwise it uses `value` or `query` from the configuration file.
+
+<Aside type="caution">
+  If the database schema changes but the iterator column name stays the same, the connector
+  may load the wrong saved position. To avoid this:
+  - Use a unique iterator column name per table set.
+  - Enable `save` only after the `attributes` and `timeseries` mapping is fully debugged and stable.
+</Aside>
+
+## Section "mapping"
+
+Required. Defines how columns from the query result set are mapped to ThingsBoard device
+names, attributes, and time-series values.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `device` | | Device identification — see below |
+| `sendDataOnlyOnChange` | `false` | Send data only when its value has changed since the last poll |
+| `attributes` | | List of attribute columns or `"*"` for all columns |
+| `timeseries` | | List of time-series columns or `"*"` for all columns |
+
+### Subsection "device"
+
+Required. Maps each result-set row to a unique ThingsBoard device name.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `name` | | Python `eval()` expression that produces a unique device name |
+| `type` | `odbc` | ThingsBoard device type |
+
+All columns listed in the `SELECT` clause are available by their column name inside the
+`eval()` expression. For example:
+
+```json
+"device": {
+  "name": "'ODBC ' + entity_id"
+}
+```
+
+This concatenates the string `ODBC ` with the value of the `entity_id` column to form the
+device name (e.g. `ODBC 1a2b3c`).
+
+### Subsections "attributes" and "timeseries"
+
+Both subsections support four configuration modes that can be mixed in a single array (combining mode).
+
+**Column name list** — treat the listed column values directly as attribute/telemetry values:
+
+```json
+"timeseries": [ "str_v", "ts" ]
+```
+
+**Configuration list** — rename columns and/or compute values with Python `eval()` expressions:
+
+```json
+"timeseries": [
+  {
+    "name": "boolValue",
+    "column": "bool_v"
+  },
+  {
+    "nameExpression": "key_name",
+    "value": "[i for i in [str_v, long_v, dbl_v, bool_v] if i is not None][0]"
+  },
+  {
+    "name": "value",
+    "value": "[i for i in [str_v, long_v, dbl_v, bool_v] if i is not None][0]"
+  }
+]
+```
+
+| Parameter | Description |
+|-----------|-------------|
+| `name` | Fixed alias name for the key in ThingsBoard |
+| `nameExpression` | Python `eval()` expression that produces the key name dynamically |
+| `column` | Source column name (when key name differs from column name) |
+| `value` | Python `eval()` expression that computes the value |
+
+All `SELECT` columns are available by name in `eval()` expressions.
+
+**Combining mode** — mix plain column names and configuration objects in the same array:
+
+```json
+"timeseries": [
+  "ts",
+  {
+    "name": "value",
+    "value": "[i for i in [str_v, long_v, dbl_v, bool_v] if i is not None][0]"
+  }
+]
+```
+
+**Globbing** — treat every column in the result set as a telemetry or attribute key:
+
+```json
+"timeseries": "*"
+```
+
+## Section "serverSideRpc"
+
+The connector can call SQL stored procedures or functions when an RPC command is received
+from ThingsBoard. Parameters are taken from the connector configuration or from the RPC
+request payload.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `enableUnknownRpc` | `false` | Process RPC commands that are not listed in `methods` |
+| `overrideRpcConfig` | `false` | Allow the RPC payload to override procedure parameters defined in `methods` |
+| `methods` | | List of RPC method configurations |
+
+The `methods` list supports three configuration modes:
+
+**Name-only list** — calls procedures by name with no static arguments:
+
+```json
+"methods": [ "procedureOne", "procedureTwo" ]
+```
+
+**Configuration list** — each entry specifies the RPC method name, optional static
+arguments, and an optional custom SQL query:
+
+```json
+"methods": [
+  {
+    "name": "rpcProcOne",
+    "args": [ "One", 2, 3.0 ],
+    "query": "CALL procedureOne(?,?,?)"
+  },
+  {
+    "name": "functionOne",
+    "args": [ false ]
+  }
+]
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `name` | | RPC method name (also used as the SQL procedure/function name if `query` is omitted) |
+| `query` | | Custom SQL statement to call the procedure/function |
+| `args` | | Static arguments passed to the procedure/function |
+| `result` | `false` | **SQL functions only.** When `true`, the connector forwards the function return value to ThingsBoard; otherwise it returns `success` or `failure` |
+
+<Aside type="note">
+  **Argument order matters.** Arguments in `args` must match the parameter order of the
+  SQL procedure or function.
+</Aside>
+
+**Combining mode** — mix plain names and configuration objects:
+
+```json
+"methods": [
+  "procedureOne",
+  {
+    "name": "procedureTwo",
+    "args": [ "One", 2, 3.0 ]
+  }
+]
+```
+
+**Dynamic RPC parameters:**
+
+When `enableUnknownRpc` is `true`, the RPC payload **must** include all required procedure
+parameters. When `overrideRpcConfig` is `true`, the payload **may** include any subset of
+parameters to override those in the configuration file. Example RPC payload:
+
+```json
+{
+  "device": "ODBC Device 1",
+  "data": {
+    "method": "procedureOne",
+    "params": {
+      "args": [ "OverridedValue", 123, 3.14 ]
+    }
+  }
+}
+```
