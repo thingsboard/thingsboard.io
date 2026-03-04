@@ -77,19 +77,32 @@ def extract_property_info(properties):
     return rows
 
 
+_HTML_TAG_RE = re.compile(
+    r'(</?(?:ul|ol|li|br|p|b|strong|em|i)(?:\s[^>]*)?>)',
+    re.IGNORECASE,
+)
+
+
 def escape_cell(text):
-    return (
-        str(text)
-        .replace('&', '&amp;')
-        .replace('<', '&lt;')
-        .replace('>', '&gt;')
-        .replace('{', '&#123;')
-        .replace('}', '&#125;')
-        .replace('_', '&#95;')
-        .replace('*', '&#42;')
-        .replace('\n', ' ')
-        .strip()
-    )
+    text = str(text).replace('\n', ' ').strip()
+    text = re.sub(r'<br\s*/?>', '<br />', text, flags=re.IGNORECASE)
+    parts = _HTML_TAG_RE.split(text)
+    result = []
+    for i, part in enumerate(parts):
+        if i % 2 == 1:  # captured HTML tag — preserve as-is
+            result.append(part)
+        else:            # plain text — escape MDX-special characters
+            result.append(
+                part
+                .replace('&', '&amp;')
+                .replace('<', '&lt;')
+                .replace('>', '&gt;')
+                .replace('{', '&#123;')
+                .replace('}', '&#125;')
+                .replace('_', '&#95;')
+                .replace('*', '&#42;')
+            )
+    return ''.join(result)
 
 
 def generate_section(table_name, rows):
