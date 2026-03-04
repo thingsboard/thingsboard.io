@@ -67,10 +67,13 @@ Landing page components are in `src/components/Landing/` (Card, ListCard, SplitC
 - **Single image mode**: 1 image renders as a centered clickable figure (zoom-in cursor, opens lightbox) — no grid
 - **Multi image mode**: thumbnail grid (3 columns desktop, 2 on mobile)
 - Lightbox with zoom-from-thumbnail open/close animation
-- Navigation by clicking, keyboard arrows, and Prev/Next buttons
-- Caption tooltip on thumbnail hover; caption + counter shown in lightbox footer
+- Click anywhere to close lightbox (backdrop, image, or X button); also Escape key
+- Navigation: Prev/Next buttons and Left/Right arrow keys
+- Caption shown as tooltip on thumbnail hover; in lightbox as a fixed pill at viewport bottom (18px, blurred background)
+- Counter (`1 / 5`) shown below caption in multi-image mode
 - Respects `prefers-reduced-motion`
 - Images processed at build time via `astro:assets` → optimized WebP (thumb: 800px/80q, full: 90q)
+- **SVGs bypass processing** — served as raw src, no WebP conversion. In lightbox, SVGs scale up to fill `90vw × 78vh` (vector = no quality loss), no box-shadow
 - Supports `.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, `.svg`
 - Lightbox teleported to `document.body` to escape any stacking context
 
@@ -78,19 +81,39 @@ Landing page components are in `src/components/Landing/` (Card, ListCard, SplitC
 
 ```ts
 interface ImageItem {
-  src: string;      // Absolute path from project root, e.g. /src/assets/images/foo.png
-  alt: string;      // Required alt text
-  caption?: string; // Optional caption (HTML allowed); shown as tooltip and in lightbox footer
+  src: string;           // Absolute path from project root, e.g. /src/assets/images/foo.png
+  alt: string;           // Required alt text
+  caption?: string;      // Optional caption (HTML allowed); shown as tooltip and in lightbox
+  products?: Products[]; // If set, include this image only when current product is in the list
 }
 
 interface Props {
   images: ImageItem[];
+  product?: Products;    // Enables product suffix resolution and per-image product filtering
 }
 ```
 
 **Important:** Images must live inside `/src/assets/` — the component uses `import.meta.glob` over that directory only.
 
-**Usage in MDX:**
+#### Product suffix resolution
+
+When `product` is passed, the component automatically resolves product-specific image files. For a given `src`, it tries `{base}-{suffix}{ext}` first, then falls back to the base file. CE is the default product — no suffix (the base file IS the CE file).
+
+**Suffix mapping:** CE → `ce`, PE → `pe`, PAAS → `paas`, PAAS_EU → `paas-eu`, EDGE → `edge`, EDGE_PE → `edge-pe`, GW → `gw`, TRENDZ → `trendz`, MOBILE → `mobile`, MOBILE_PE → `mobile-pe`, TBMQ → `tbmq`, TBMQ_PE → `tbmq-pe`, LICENSE → `license`.
+
+#### Dark theme variant resolution
+
+The component automatically detects and uses dark-mode image variants. For each image, it checks (most specific → least specific):
+
+1. `{base}-{product}-dark{ext}` — product + dark
+2. `{base}-dark{ext}` — generic dark
+3. Falls back to the light variant
+
+If any image has a dark variant, the component renders both `<img>` elements and toggles visibility via CSS `[data-theme='dark']`. No extra props needed — just place a `-dark` suffixed file alongside the light version.
+
+**Example:** `schema.svg` + `schema-dark.svg` → light/dark switching is automatic.
+
+#### Usage in MDX
 
 ```mdx
 import ImageGallery from '~/components/ImageGallery.astro';
@@ -106,6 +129,15 @@ import ImageGallery from '~/components/ImageGallery.astro';
     alt: 'Device list',
     caption: 'Filtered device list view',
   },
+]} />
+```
+
+**With product resolution (in `_includes` files):**
+
+```mdx
+<ImageGallery product={props.product} images={[
+  { src: '/src/assets/images/guide/step-1.png', alt: 'Step 1' },
+  { src: '/src/assets/images/guide/step-2.png', alt: 'Step 2', products: [Products.PE] },
 ]} />
 ```
 
