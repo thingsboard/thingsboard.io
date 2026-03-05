@@ -253,6 +253,24 @@ import PEFeatureBanner from '~/components/PEFeatureBanner.astro';
 
 **When to use:** At the top of any include file for a feature that is only available in PE and Cloud editions. Do NOT use the old `<Aside type="note" title="... available in PE ...">` pattern or inline `PEOnly` badge spans for page-level banners.
 
+### InfoBanner Component
+
+`src/components/InfoBanner.astro` — reusable informational banner displayed for **all** product editions (no product condition). Visually mirrors `PEFeatureBanner` but uses the blue (`--color-product-cloud`) accent instead of the PE green.
+
+Use for feature-scope or widget-scope notes that apply regardless of the product variant (e.g. "available for Map widgets only").
+
+**No props** — content is passed as a slot and can include components such as `<DocLink>`, `<strong>`, plain text, etc.
+
+**Usage in MDX `_includes`:**
+
+```mdx
+import InfoBanner from '~/components/InfoBanner.astro';
+
+<InfoBanner>This action type is available for <DocLink product={props.product} path="user-guide/widgets/map-widgets">Map widgets</DocLink> only.</InfoBanner>
+```
+
+**When to use:** For any inline note that highlights a scope restriction or availability constraint that applies to all product editions. Do NOT use `<Aside type="note">` for this purpose.
+
 ### Badge Component & tb-badge
 
 `src/components/Badge.astro` — thin wrapper around Starlight's `<Badge>` with custom styles.
