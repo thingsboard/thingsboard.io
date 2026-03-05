@@ -1,0 +1,423 @@
+import { Tabs, TabItem, Steps, Aside } from '@astrojs/starlight/components';
+import ImageGallery from '@components/ImageGallery.astro';
+import DocLink from '@components/DocLink.astro';
+
+The FTP Connector connects to an external FTP server, reads data from files at configured paths, and
+pushes it to ThingsBoard. It can also write data back to FTP files in response to attribute updates
+or RPC commands.
+
+To enable this connector, add it to the `connectors` list in `tb_gateway.json` — see the
+<DocLink product={props.product} path="iot-gateway/config/general">General Configuration</DocLink> reference.
+
+## Connector configuration: ftp.json
+
+The connector reads its settings from a JSON file. Below is a full example:
+
+```json maxLines=20 collapsible
+{
+  "host": "0.0.0.0",
+  "port": 21,
+  "TLSSupport": false,
+  "security": {
+    "type": "basic",
+    "username": "admin",
+    "password": "admin"
+  },
+  "paths": [
+    {
+      "devicePatternName": "asd",
+      "devicePatternType": "Device",
+      "delimiter": ",",
+      "path": "fol/*_hello*.txt",
+      "readMode": "FULL",
+      "maxFileSize": 5,
+      "pollPeriod": 5,
+      "txtFileDataView": "SLICED",
+      "withSortingFiles": true,
+      "attributes": [
+        { "key": "temp", "value": "[1:]"  },
+        { "key": "tmp",  "value": "[0:1]" }
+      ],
+      "timeseries": [
+        { "type": "int", "key": "[0:1]", "value": "[0:1]" },
+        { "type": "int", "key": "temp",  "value": "[1:]"  }
+      ]
+    }
+  ],
+  "attributeUpdates": [
+    {
+      "path": "fol/hello.json",
+      "deviceNameFilter": ".*",
+      "writingMode": "WRITE",
+      "valueExpression": "{'${attributeKey}':'${attributeValue}'}"
+    }
+  ],
+  "serverSideRpc": [
+    {
+      "deviceNameFilter": ".*",
+      "methodFilter": "read",
+      "valueExpression": "${params}"
+    },
+    {
+      "deviceNameFilter": ".*",
+      "methodFilter": "write",
+      "valueExpression": "${params}"
+    }
+  ]
+}
+```
+
+## Section "General"
+
+Top-level connection parameters for the FTP server.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `host` | `localhost` | FTP server hostname or IP address |
+| `port` | `21` | FTP server port |
+| `TLSSupport` | `true` | Verify that TLS is available on the server |
+
+### Subsection "security"
+
+Configures how the connector authenticates with the FTP server.
+
+<Tabs>
+<TabItem label="Basic">
+
+Username and password authentication.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `type` | `basic` | Authorization type |
+| `username` | | Username |
+| `password` | | Password |
+
+```json
+"security": {
+  "type": "basic",
+  "username": "admin",
+  "password": "admin"
+}
+```
+
+</TabItem>
+<TabItem label="Anonymous">
+
+Anonymous access — useful for public FTP servers or during testing.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `type` | `anonymous` | Authorization type |
+
+```json
+"security": {
+  "type": "anonymous"
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Section "paths"
+
+An array of path configurations. Each entry tells the connector which files to read, how often, and
+how to map the file contents to ThingsBoard device attributes and telemetry.
+
+<Aside type="note">
+  Supported file extensions: `.txt`, `.json`, `.csv`.
+</Aside>
+
+### Path parameters
+
+| Parameter | Description |
+|-----------|-------------|
+| `path` | Path to the file(s) on the FTP server. Supports `*` wildcards |
+| `devicePatternName` | Expression to build the ThingsBoard device name |
+| `devicePatternType` | Expression to determine the device type |
+| `delimiter` | Character used to split values within a file line |
+| `readMode` | `FULL` — read the entire file each poll; `PARTIAL` — read only new lines since the last poll |
+| `maxFileSize` | Maximum file size in MB to read; larger files are skipped |
+| `pollPeriod` | How often to poll the path, in seconds |
+| `txtFileDataView` | `TABLE` — first line is a header; `SLICED` — no header, values extracted by index. Only applies to `.txt` files |
+| `withSortingFiles` | Whether to sort matched files before processing |
+| `attributes` | Mappings from file values to ThingsBoard device attributes |
+| `timeseries` | Mappings from file values to ThingsBoard time-series telemetry |
+
+**Path wildcard examples** — for files in an FTP directory tree:
+
+| Path | Matches |
+|------|---------|
+| `data/log.txt` | One specific file |
+| `data/*/log.txt` | `log.txt` in any immediate subdirectory of `data/` |
+| `data/*/_log.txt` | Files ending in `_log.txt` in any immediate subdirectory of `data/` |
+| `data/*.*` | All files with supported extensions in `data/` |
+
+### Path examples by file format
+
+<Tabs>
+<TabItem label=".txt (TABLE) / .csv">
+
+The first line is treated as a header. Key names and value expressions reference column header names.
+
+```json
+"paths": [
+  {
+    "devicePatternName": "${temp}",
+    "devicePatternType": "Device",
+    "delimiter": ",",
+    "path": "fol/*.*",
+    "readMode": "FULL",
+    "maxFileSize": 5,
+    "pollPeriod": 60,
+    "txtFileDataView": "TABLE",
+    "withSortingFiles": true,
+    "attributes": [
+      { "type": "int", "key": "key", "value": "${temp}" }
+    ],
+    "timeseries": [
+      { "type": "int", "key": "${hum}",  "value": "${temp}" },
+      { "type": "int", "key": "temp",    "value": "${hum}"  }
+    ]
+  }
+]
+```
+
+Expected file structure:
+
+```txt
+temp,hum
+1,2
+23,34
+```
+
+</TabItem>
+<TabItem label=".txt (SLICED)">
+
+No header. Values are extracted by byte/character slice positions (`[from:to]`).
+
+```json
+"paths": [
+  {
+    "devicePatternName": "DeviceName",
+    "devicePatternType": "[0:1]",
+    "delimiter": ",",
+    "path": "fol/table.txt",
+    "readMode": "FULL",
+    "maxFileSize": 5,
+    "pollPeriod": 60,
+    "txtFileDataView": "SLICED",
+    "withSortingFiles": true,
+    "attributes": [
+      { "key": "temp", "value": "[1:]"  },
+      { "key": "tmp",  "value": "[0:1]" }
+    ],
+    "timeseries": [
+      { "type": "int", "key": "[0:1]", "value": "[0:1]" },
+      { "type": "int", "key": "temp",  "value": "[1:]"  }
+    ]
+  }
+]
+```
+
+Expected file structure:
+
+```txt
+1,2
+23,34
+```
+
+</TabItem>
+<TabItem label=".json">
+
+Key and value expressions reference JSON field names using `${fieldName}` syntax.
+
+```json
+"paths": [
+  {
+    "devicePatternName": "${temp}",
+    "devicePatternType": "Device",
+    "delimiter": ",",
+    "path": "fol/*.json",
+    "readMode": "FULL",
+    "maxFileSize": 5,
+    "pollPeriod": 60,
+    "withSortingFiles": true,
+    "attributes": [
+      { "type": "int", "key": "key", "value": "${temp}" }
+    ],
+    "timeseries": [
+      { "type": "int", "key": "key",  "value": "${temp}" },
+      { "type": "int", "key": "temp", "value": "${tmp}"  }
+    ]
+  }
+]
+```
+
+</TabItem>
+<TabItem label=".json (combined)">
+
+Attributes, telemetry, and a combined string value from the same JSON file.
+
+```json
+"paths": [
+  {
+    "devicePatternName": "${temp}",
+    "devicePatternType": "Device",
+    "delimiter": ",",
+    "path": "fol/*.json",
+    "readMode": "FULL",
+    "maxFileSize": 5,
+    "pollPeriod": 60,
+    "withSortingFiles": true,
+    "attributes": [],
+    "timeseries": [
+      { "type": "int",    "key": "hum",     "value": "${hum}"          },
+      { "type": "int",    "key": "temp",    "value": "${tmp}"          },
+      { "type": "string", "key": "combine", "value": "${tmp}::${hum}"  }
+    ]
+  }
+]
+```
+
+</TabItem>
+</Tabs>
+
+### Subsection "converter" (optional)
+
+Use a custom converter when the file format is not natively supported (e.g. CSV without headers,
+or CSV with fixed column positions).
+
+```json
+{
+  "converter": {
+    "type": "custom",
+    "extension": "CustomFTPtUplinkConverter",
+    "extension-config": {
+      "devicePatternName": 0,
+      "devicePatternType": 1,
+      "attributes": [
+        { "key": "meterAddress",  "column": 0, "type": "string" }
+      ],
+      "timeseries": [
+        { "key": "meterReading",  "column": 2, "type": "double" },
+        { "key": "batteryAlert",  "column": 3, "type": "int"    }
+      ]
+    }
+  }
+}
+```
+
+| Parameter | Description |
+|-----------|-------------|
+| `type` | Must be `custom` |
+| `extension` | Name of the Python class implementing the custom converter |
+| `extension-config.devicePatternName` | Zero-based column index for the device name |
+| `extension-config.devicePatternType` | Zero-based column index (or literal) for the device type |
+| `extension-config.attributes[].key` | ThingsBoard attribute key name |
+| `extension-config.attributes[].column` | Zero-based column index to read the attribute value from |
+| `extension-config.attributes[].type` | Value type: `string`, `int`, or `double` |
+| `extension-config.timeseries[].key` | ThingsBoard telemetry key name |
+| `extension-config.timeseries[].column` | Zero-based column index to read the telemetry value from |
+| `extension-config.timeseries[].type` | Value type: `string`, `int`, or `double` |
+
+<Aside type="note">
+  The mapping values (`devicePatternName`, `devicePatternType`, `attributes`, `timeseries`) should be
+  adjusted to match your file format. The parameter names and structure must match what your
+  `CustomFTPtUplinkConverter` implementation expects.
+</Aside>
+
+## Section "attributeUpdates"
+
+Optional. Writes ThingsBoard shared attribute updates to files on the FTP server.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `path` | | Path to the target file on the FTP server. Supports `${attributeKey}` and `${attributeValue}` expressions |
+| `deviceNameFilter` | `.*` | Regex filter to match device names |
+| `writingMode` | | `OVERRIDE` — overwrite the file; `WRITE` — append to the end of the file |
+| `valueExpression` | | Expression used to build the content written to the file |
+
+```json
+"attributeUpdates": [
+  {
+    "path": "fol/${attributeKey}/${attributeValue}.txt",
+    "deviceNameFilter": ".*",
+    "writingMode": "OVERRIDE",
+    "valueExpression": ",,,,${attributeKey},,,${attributeValue}"
+  }
+]
+```
+
+## Section "serverSideRpc"
+
+Optional. Maps ThingsBoard RPC method calls to read or write operations on FTP server files.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `deviceNameFilter` | `.*` | Regex filter to match device names |
+| `methodFilter` | | `read` — read from a file; `write` — write to a file |
+| `valueExpression` | | Expression used to build the content to write (ignored for `read` operations) |
+
+```json
+"serverSideRpc": [
+  {
+    "deviceNameFilter": ".*",
+    "methodFilter": "read",
+    "valueExpression": "${params}"
+  },
+  {
+    "deviceNameFilter": ".*",
+    "methodFilter": "write",
+    "valueExpression": "${params}"
+  }
+]
+```
+
+### Read example
+
+Suppose you want to read data from the file on connected FTP server. Go to enabled FTP connector RPC page and fill in fields with the following configuration and click on “**Send**” button. After that, response will be shown in the “**Response**” field:
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/gateway/ftp-rpc-request-read-1.png',
+    alt: 'RPC terminal with read request parameters filled in',
+    caption: 'Fill in the read request and click Send.',
+  },
+  {
+    src: '/src/assets/images/gateway/ftp-rpc-response-read-1.png',
+    alt: 'RPC response showing the file contents',
+    caption: 'The file contents appear in the Response field.',
+  },
+]} />
+
+### Write example
+
+<Aside type="caution">
+  The target file must have write permissions on the FTP server; otherwise the operation fails with a
+  550 Permission denied error.
+</Aside>
+
+Suppose you want to write some data to the file on connected FTP server. Go to enabled FTP connector RPC page and fill in fields with the following configuration and click on “**Send**” button. After that, response will be shown in the “**Response**” field:
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/gateway/ftp-rpc-request-write-1.png',
+    alt: 'RPC terminal with write request parameters filled in',
+    caption: 'Fill in the write request and click Send.',
+  },
+  {
+    src: '/src/assets/images/gateway/ftp-rpc-response-write-1.png',
+    alt: 'RPC response confirming the write succeeded',
+    caption: 'Confirmation that the write was successful.',
+  },
+  {
+    src: '/src/assets/images/gateway/ftp-rpc-request-read-2.png',
+    alt: 'RPC terminal with a read request to verify the written data',
+    caption: 'Use a read request to verify what was written.',
+  },
+  {
+    src: '/src/assets/images/gateway/ftp-rpc-response-read-2.png',
+    alt: 'RPC response showing the previously written data',
+    caption: 'The response contains the data written in the previous step.',
+  },
+]} />

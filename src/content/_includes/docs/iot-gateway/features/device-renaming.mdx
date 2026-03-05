@@ -1,0 +1,77 @@
+import { Aside } from '@astrojs/starlight/components';
+
+When a device provisioned through the gateway API is renamed or deleted in the ThingsBoard UI,
+the platform sends a Persistent RPC notification to the gateway so it can update its internal state
+immediately — preventing data loss and duplicate entity creation.
+
+<Aside type="note">
+  This feature requires ThingsBoard 3.3.3 or later.
+</Aside>
+
+## How It Works
+
+```plaintext
+  ┌──────────────────────────────────────────────┐
+  │  Admin renames or deletes a device in the    │
+  │  ThingsBoard UI                              │
+  └─────────────────────────┬────────────────────┘
+                            │
+                            ▼
+  ┌──────────────────────────────────────────────┐
+  │  ThingsBoard sends a Persistent RPC          │
+  │  to the gateway device (TTL: 1 day)          │
+  │  Survives gateway restarts and reconnects    │
+  └─────────────────────────┬────────────────────┘
+                            │
+              ┌─────────────┴──────────────┐
+              │ Rename                     │ Delete
+              ▼                            ▼
+  ┌────────────────────┐      ┌────────────────────────┐
+  │ Gateway updates    │      │ Gateway sends a new    │
+  │ its internal name  │      │ connect message on     │
+  │ record for the     │      │ behalf of the physical │
+  │ physical device    │      │ device — re-provisions │
+  └────────────────────┘      └────────────────────────┘
+```
+
+## Device Renaming
+
+The gateway uses the ThingsBoard entity name to report telemetry for each connected physical device.
+Before this feature existed, renaming the entity in the UI caused the gateway to keep reporting under
+the old name, which ThingsBoard would re-create as a new entity — resulting in duplicate devices.
+
+When the platform sends a `gateway_device_renamed` RPC, the gateway updates its internal record so
+all subsequent telemetry is reported under the new name without interruption.
+
+**RPC payload:**
+
+```json
+{
+  "method": "gateway_device_renamed",
+  "params": {"Old device name": "New device name"}
+}
+```
+
+## Device Removal
+
+Deleting a device entity in the ThingsBoard UI previously caused data loss: the gateway had no way to
+know the entity was gone and continued sending data to a non-existent endpoint.
+
+When the platform sends a `gateway_device_deleted` RPC, the gateway initiates a new connect message
+on behalf of the physical device, which causes ThingsBoard to re-provision it. Data flow resumes
+without loss.
+
+**RPC payload:**
+
+```json
+{
+  "method": "gateway_device_deleted",
+  "params": "Removed device name"
+}
+```
+
+## RPC Timeout
+
+ThingsBoard sets a **1-day TTL** on these notifications. If the gateway is offline when the rename
+or deletion happens, it will receive the RPC as soon as it reconnects — as long as the reconnection
+occurs within 24 hours of the original action.

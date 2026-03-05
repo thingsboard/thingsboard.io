@@ -1,0 +1,539 @@
+import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+
+The gateway is configured through `tb_gateway.json` and per-connector JSON files located in the config
+directory. Connection parameters can also be overridden with environment variables.
+
+## Directory Structure
+
+Default layout for a daemon installation:
+
+```plaintext
+/etc/thingsboard-gateway/config/
+  tb_gateway.json                           Main gateway configuration file
+  logs.json                                 Logging configuration
+  mqtt.json                                 MQTT connector configuration
+  modbus.json                               Modbus connector configuration
+  opcua.json                                OPC-UA connector configuration
+  request.json                              Request connector configuration
+  ble.json                                  BLE connector configuration
+  can.json                                  CAN connector configuration
+  ...
+
+/var/lib/thingsboard_gateway/extensions/    Folder for custom connectors/converters
+  mqtt/                                     Folder for MQTT custom connectors/converters
+    __init__.py                             Default Python package file, needed for correct imports
+    custom_uplink_mqtt_converter.py         Custom MQTT converter example
+  modbus/                                   Folder for Modbus custom connectors/converters
+  opcua/                                    Folder for OPC-UA custom connectors/converters
+  ble/                                      Folder for BLE custom connectors/converters
+  request/                                  Folder for Request custom connectors/converters
+  can/                                      Folder for CAN custom connectors/converters
+  ...
+
+/var/log/thingsboard-gateway/
+  service.log                               Main gateway service logs
+  connector.log                             Connector logs
+  storage.log                               Storage logs
+  tb_connection.log                         ThingsBoard connection logs
+```
+
+## Environment Variables
+
+<Aside type="note">
+  Environment variable values take **higher priority** than values in the configuration file. When
+  an environment variable is set, the gateway uses it instead of the corresponding field in
+  `tb_gateway.json`.
+</Aside>
+
+Environment variables are useful for Docker deployments — set them in `docker-compose.yml` to avoid
+hard-coding credentials in the config file:
+
+```yaml
+services:
+  tb-gateway:
+    image: thingsboard/tb-gateway
+    container_name: tb-gateway
+    environment:
+      - TB_GW_HOST=host.docker.internal
+      - TB_GW_PORT=1883
+      - TB_GW_ACCESS_TOKEN=YOUR_ACCESS_TOKEN
+```
+
+Full list of supported variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `TB_GW_HOST` | `host.docker.internal` | Hostname or IP address of ThingsBoard server |
+| `TB_GW_PORT` | `1883` | MQTT service port on ThingsBoard server |
+| `TB_GW_ACCESS_TOKEN` | — | Access token for the gateway |
+| `TB_GW_CA_CERT` | — | Path to CA certificate file |
+| `TB_GW_PRIVATE_KEY` | — | Path to private key file |
+| `TB_GW_CERT` | — | Path to certificate file |
+| `TB_GW_CLIENT_ID` | — | MQTT client ID |
+| `TB_GW_USERNAME` | — | MQTT username |
+| `TB_GW_PASSWORD` | — | MQTT password |
+| `TB_GW_RATE_LIMITS` | `15:1,300:60,` | Message rate limit in `COUNT:SECONDS,` format |
+| `TB_GW_DP_RATE_LIMITS` | `15:1,300:60,` | Data point rate limit in `COUNT:SECONDS,` format |
+| `TB_GW_LOGS_PATH` | `/thingsboard_gateway/logs` | Path to the logs folder |
+
+## General Configuration File
+
+The main `tb_gateway.json` file controls the platform connection, security, storage backend,
+and the list of active connectors. Below is a full example connecting to `thingsboard.cloud` with
+memory storage and four connectors:
+
+```json maxLines=30 collapsible
+{
+  "thingsboard": {
+    "host": "thingsboard.cloud",
+    "port": 1883,
+    "remoteShell": false,
+    "remoteConfiguration": true,
+    "statistics": {
+      "enable": true,
+      "statsSendPeriodInSeconds": 60
+    },
+    "deviceFiltering": {
+      "enable": false,
+      "filterFile": "list.json"
+    },
+    "maxPayloadSizeBytes": 1024,
+    "minPackSendDelayMS": 60,
+    "minPackSizeToSend": 500,
+    "checkConnectorsConfigurationInSeconds": 10,
+    "handleDeviceRenaming": true,
+    "security": {
+      "type": "accessToken",
+      "accessToken": "YOUR_ACCESS_TOKEN"
+    },
+    "qos": 1,
+    "checkingDeviceActivity": {
+      "checkDeviceInactivity": false,
+      "inactivityTimeoutSeconds": 200,
+      "inactivityCheckPeriodSeconds": 500
+    }
+  },
+  "storage": {
+    "type": "memory",
+    "read_records_count": 100,
+    "max_records_count": 10000
+  },
+  "grpc": {
+    "enabled": false,
+    "serverPort": 9595,
+    "keepaliveTimeMs": 10000,
+    "keepaliveTimeoutMs": 5000,
+    "keepalivePermitWithoutCalls": true,
+    "maxPingsWithoutData": 0,
+    "minTimeBetweenPingsMs": 10000,
+    "minPingIntervalWithoutDataMs": 5000
+  },
+  "connectors": [
+    {
+      "type": "mqtt",
+      "name": "MQTT Broker Connector",
+      "configuration": "mqtt.json"
+    },
+    {
+      "type": "modbus",
+      "name": "Modbus Connector",
+      "configuration": "modbus.json"
+    },
+    {
+      "type": "modbus",
+      "name": "Modbus Serial Connector",
+      "configuration": "modbus_serial.json"
+    },
+    {
+      "type": "opcua",
+      "name": "OPC-UA Connector",
+      "configuration": "opcua.json"
+    }
+  ]
+}
+```
+
+The file has three top-level sections:
+
+| Section | Description |
+|---------|-------------|
+| `thingsboard` | Platform connection, security, and gateway behaviour |
+| `storage` | Local buffer for incoming data before sending to the platform |
+| `connectors` | Array of active connectors and their config files |
+
+## Connection Parameters
+
+Parameters inside the `thingsboard` object:
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `host` | `thingsboard.cloud` | Hostname or IP address of the ThingsBoard server |
+| `port` | `1883` | MQTT service port |
+| `qos` | `1` | MQTT QoS: `0` (at most once) or `1` (at least once) |
+| `minPackSendDelayMS` | `200` | Delay between outgoing packets (lower value → higher CPU usage) |
+| `minPackSizeToSend` | `500` | Minimum packet size before sending |
+| `maxPayloadSizeBytes` | `1024` | Maximum message payload size in bytes |
+| `checkConnectorsConfigurationInSeconds` | `10` | How often connector configs are checked for changes |
+| `handleDeviceRenaming` | `true` | Enable device rename/delete notifications from the platform |
+
+### statistics
+
+Configures collection and reporting of gateway statistics as device attributes.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `enable` | `true` | Enable statistics collection |
+| `statsSendPeriodInSeconds` | `3600` | How often statistics are sent to ThingsBoard |
+| `configuration` | `statistics.json` | Optional: path to a custom statistics commands file |
+
+The optional `statistics.json` file lets you collect arbitrary system metrics via shell commands:
+
+```json
+[
+  {
+    "timeout": 100,
+    "command": ["/bin/sh", "-c", "ps -A -o cpu,%mem | awk '{cpu += $1}END{print cpu}'"],
+    "attributeOnGateway": "CPU"
+  },
+  {
+    "timeout": 100,
+    "command": ["/bin/sh", "-c", "ps -A -o %cpu,%mem | awk '{mem += $2}END{print mem}'"],
+    "attributeOnGateway": "Memory"
+  },
+  {
+    "timeout": 100,
+    "command": ["/bin/sh", "-c", "ipconfig getifaddr en0"],
+    "attributeOnGateway": "IP address"
+  }
+]
+```
+
+Example files for Linux, macOS, and Windows are included in the `config/statistics/` folder.
+
+### deviceFiltering
+
+Optional. Restricts which devices are allowed to send data to ThingsBoard based on connector and
+device name rules.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `enable` | `false` | Enable device filtering |
+| `filterFile` | `list.json` | Name of the filter rules file in the config folder |
+
+The filter file supports `deny` and `allow` rules per connector. Device names may be exact strings
+or regular expressions:
+
+```json
+{
+  "deny": {
+    "MQTT Broker Connector": [
+      "Temperature Device",
+      "(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+$)"
+    ],
+    "Modbus Connector": [
+      "My Modbus Device"
+    ]
+  },
+  "allow": {
+    "MQTT Broker Connector": [
+      "My Temperature Sensor"
+    ]
+  }
+}
+```
+
+- **`deny`** — devices matching these names (or patterns) are blocked from reporting through the
+  specified connector.
+- **`allow`** — devices explicitly permitted regardless of deny rules.
+
+In the above example, the following rules are defined:
+
+- The device named “Temperature Device” and any device with an email address format are denied access to the “MQTT Broker Connector”.
+- The device named “My Modbus Device” is denied access to the “Modbus Connector”.
+- The device named “My Temperature Sensor” is allowed access to the “MQTT Broker Connector”.
+
+
+### checkingDeviceActivity
+
+Optional. Disconnects devices that have been inactive for longer than the configured timeout.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `checkDeviceInactivity` | `false` | Enable inactivity monitoring |
+| `inactivityTimeoutSeconds` | `120` | Seconds of inactivity before the device is disconnected |
+| `inactivityCheckPeriodSeconds` | `10` | How often device activity is checked |
+
+### security
+
+Choose one of four security modes:
+
+<Tabs>
+  <TabItem label="Access Token">
+    Simple token-based authentication. Create a gateway device in ThingsBoard and copy its access
+    token.
+
+    | Parameter | Description |
+    |-----------|-------------|
+    | `accessToken` | Access token from the ThingsBoard device credentials |
+
+    ```json
+    "security": {
+      "accessToken": "YOUR_ACCESS_TOKEN"
+    }
+    ```
+  </TabItem>
+  <TabItem label="Username and Password">
+    MQTT Basic credentials. Create a gateway device in ThingsBoard, add **MQTT Basic** credentials,
+    and copy the values.
+
+    | Parameter | Default | Description |
+    |-----------|---------|-------------|
+    | `clientId` | `clientId` | MQTT client ID |
+    | `username` | `admin` | MQTT username |
+    | `password` | `admin` | MQTT password |
+
+    ```json
+    "security": {
+      "clientId": "YOUR_CLIENT_ID",
+      "username": "YOUR_USERNAME",
+      "password": "YOUR_PASSWORD"
+    }
+    ```
+  </TabItem>
+  <TabItem label="TLS + Access Token">
+    TLS-encrypted connection authenticated with an access token.
+
+    | Parameter | Default | Description |
+    |-----------|---------|-------------|
+    | `accessToken` | — | Access token from the ThingsBoard device |
+    | `caCert` | `/etc/thingsboard-gateway/mqttserver.pub.pem` | Path to the CA certificate file |
+
+    ```json
+    "security": {
+      "accessToken": "YOUR_ACCESS_TOKEN",
+      "caCert": "/etc/thingsboard-gateway/mqttserver.pub.pem"
+    }
+    ```
+  </TabItem>
+  <TabItem label="TLS + Private Key">
+    Mutual TLS authentication using a client certificate and private key.
+
+    | Parameter | Default | Description |
+    |-----------|---------|-------------|
+    | `caCert` | `/etc/thingsboard-gateway/ca.pem` | Path to the CA certificate |
+    | `privateKey` | `/etc/thingsboard-gateway/privateKey.pem` | Path to the private key |
+    | `cert` | `/etc/thingsboard-gateway/certificate.pem` | Path to the client certificate |
+    | `checkCertPeriod` | `86400` | Interval (seconds) to check certificate validity |
+    | `certificateDaysLeft` | `3` | Days before expiry at which a new certificate is generated |
+
+    ```json
+    "security": {
+      "caCert": "/etc/thingsboard-gateway/ca.pem",
+      "privateKey": "/etc/thingsboard-gateway/privateKey.pem",
+      "cert": "/etc/thingsboard-gateway/certificate.pem",
+      "checkCertPeriod": 86400,
+      "certificateDaysLeft": 3
+    }
+    ```
+  </TabItem>
+</Tabs>
+
+### provisioning
+
+Optional. When set, the gateway auto-registers on the platform using the specified strategy instead
+of using pre-configured credentials. See [Device Provisioning](/docs/iot-gateway/features/provisioning/)
+for the full workflow.
+
+<Tabs>
+  <TabItem label="Auto">
+    The platform generates and assigns an access token automatically.
+
+    | Parameter | Description |
+    |-----------|-------------|
+    | `type` | `AUTO` |
+    | `provisionDeviceKey` | Provisioning key from the device profile |
+    | `provisionDeviceSecret` | Provisioning secret from the device profile |
+
+    ```json
+    "provisioning": {
+      "type": "AUTO",
+      "provisionDeviceKey": "YOUR_PROVISION_KEY",
+      "provisionDeviceSecret": "YOUR_PROVISION_SECRET"
+    }
+    ```
+  </TabItem>
+  <TabItem label="Access Token">
+    The gateway requests a specific pre-defined access token.
+
+    | Parameter | Description |
+    |-----------|-------------|
+    | `type` | `ACCESS_TOKEN` |
+    | `provisionDeviceKey` | Provisioning key from the device profile |
+    | `provisionDeviceSecret` | Provisioning secret from the device profile |
+
+    ```json
+    "provisioning": {
+      "type": "ACCESS_TOKEN",
+      "provisionDeviceKey": "YOUR_PROVISION_KEY",
+      "provisionDeviceSecret": "YOUR_PROVISION_SECRET"
+    }
+    ```
+  </TabItem>
+  <TabItem label="MQTT Basic">
+    The gateway requests MQTT Basic credentials (client ID, username, password).
+
+    | Parameter | Description |
+    |-----------|-------------|
+    | `type` | `MQTT_BASIC` |
+    | `provisionDeviceKey` | Provisioning key from the device profile |
+    | `provisionDeviceSecret` | Provisioning secret from the device profile |
+
+    ```json
+    "provisioning": {
+      "type": "MQTT_BASIC",
+      "provisionDeviceKey": "YOUR_PROVISION_KEY",
+      "provisionDeviceSecret": "YOUR_PROVISION_SECRET"
+    }
+    ```
+  </TabItem>
+  <TabItem label="X.509 Certificate">
+    The gateway generates a client certificate and uses X.509 authentication.
+
+    | Parameter | Description |
+    |-----------|-------------|
+    | `type` | `X509_CERTIFICATE` |
+    | `provisionDeviceKey` | Provisioning key from the device profile |
+    | `provisionDeviceSecret` | Provisioning secret from the device profile |
+    | `caCert` | Path to the CA certificate file used for certificate generation |
+
+    ```json
+    "provisioning": {
+      "type": "X509_CERTIFICATE",
+      "provisionDeviceKey": "YOUR_PROVISION_KEY",
+      "provisionDeviceSecret": "YOUR_PROVISION_SECRET",
+      "caCert": "/etc/thingsboard-gateway/ca.pem"
+    }
+    ```
+  </TabItem>
+</Tabs>
+
+## Storage Configuration
+
+The `storage` section configures how the gateway buffers incoming device data before forwarding it
+to ThingsBoard. Choose one of three backends:
+
+<Tabs>
+  <TabItem label="SQLite (recommended)">
+    Persists data to `.db` files on disk. Recommended for most production setups.
+
+    | Parameter | Default | Description |
+    |-----------|---------|-------------|
+    | `type` | `sqlite` | Storage type |
+    | `data_file_path` | `./data/` | Directory for database files (trailing separator required) |
+    | `max_read_records_count` | `1000` | Max messages read from storage per batch and sent to ThingsBoard |
+    | `size_limit` | `1024` | Max size (MB) of each SQLite file before rotation to a new file |
+    | `max_db_amount` | `10` | Max number of rotated DB files to keep; writes are dropped when exceeded |
+    | `oversize_check_period` | `1` | Frequency (minutes) to check whether the current DB exceeds `size_limit` |
+    | `writing_batch_size` | `1000` | Max messages batched before a single write to the DB |
+    | `messages_ttl_check_in_hours` | `1` | How often to check for expired messages |
+    | `messages_ttl_in_days` | `7` | Days to retain messages before automatic deletion |
+
+    <Aside type="caution">
+      If `max_db_amount` is reached and the last database exceeds `size_limit`, new data is dropped
+      until existing data is delivered to the platform and files are cleaned up.
+    </Aside>
+
+    ```json
+    "storage": {
+      "type": "sqlite",
+      "data_file_path": "./data/",
+      "max_read_records_count": 1000,
+      "size_limit": 1024,
+      "max_db_amount": 10,
+      "oversize_check_period": 1,
+      "writing_batch_size": 1000,
+      "messages_ttl_check_in_hours": 1,
+      "messages_ttl_in_days": 7
+    }
+    ```
+  </TabItem>
+  <TabItem label="Memory">
+    Stores data in RAM. Fast but not persistent — data is lost on restart. Suitable for development
+    or low-volume workloads where disk space is limited.
+
+    | Parameter | Default | Description |
+    |-----------|---------|-------------|
+    | `type` | `memory` | Storage type |
+    | `read_records_count` | `10` | Messages read per batch and sent to ThingsBoard |
+    | `max_records_count` | `100` | Maximum records held in memory; new data is dropped when full |
+
+    ```json
+    "storage": {
+      "type": "memory",
+      "read_records_count": 10,
+      "max_records_count": 100
+    }
+    ```
+  </TabItem>
+  <TabItem label="File (legacy)">
+    Persists data to plain files on disk. Good for small/medium workloads. Superseded by SQLite
+    for new deployments.
+
+    | Parameter | Default | Description |
+    |-----------|---------|-------------|
+    | `type` | `file` | Storage type |
+    | `data_folder_path` | `./data/` | Path to the data folder |
+    | `max_read_records_count` | `6` | Messages read per batch and sent to ThingsBoard |
+    | `max_file_count` | `5` | Maximum number of data files; new data is dropped when full |
+    | `max_records_per_file` | `14` | Maximum records per file |
+
+    ```json
+    "storage": {
+      "type": "file",
+      "data_folder_path": "./data/",
+      "max_file_count": 5,
+      "max_read_records_count": 6,
+      "max_records_per_file": 14
+    }
+    ```
+  </TabItem>
+</Tabs>
+
+## Connectors Configuration
+
+The `connectors` array lists all active connectors. Each entry requires:
+
+| Parameter | Example | Description |
+|-----------|---------|-------------|
+| `type` | `mqtt` | Connector type — must match the folder name containing the connector implementation |
+| `name` | `MQTT Broker Connector` | Display name for the connector |
+| `configuration` | `mqtt.json` | Filename of the connector config file in the config directory |
+| `useGRPC` | `true` | Optional. Enable/disable gRPC transport for the connector |
+
+```json
+"connectors": [
+  {
+    "type": "mqtt",
+    "name": "MQTT Broker Connector",
+    "configuration": "mqtt.json"
+  },
+  {
+    "type": "modbus",
+    "name": "Modbus Connector",
+    "configuration": "modbus.json"
+  },
+  {
+    "type": "modbus",
+    "name": "Modbus Serial Connector",
+    "configuration": "modbus_serial.json"
+  },
+  {
+    "type": "opcua",
+    "name": "OPC-UA Connector",
+    "configuration": "opcua.json"
+  }
+]
+```
+
+Multiple connectors of the same type are supported — give each a unique `name` and `configuration`
+file. For custom connector types, see the [Customization guide](/docs/iot-gateway/custom/).
