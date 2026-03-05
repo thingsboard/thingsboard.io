@@ -534,7 +534,17 @@ export const gwSidebar: SidebarConfig = [
 	{
 		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
-		items: ['docs/iot-gateway'],
+		items: [
+			'docs/iot-gateway',
+			{
+				label: 'What is ThingsBoard IoT Gateway?',
+				items: [
+					'docs/iot-gateway/architecture',
+					'docs/iot-gateway/features-overview',
+					'docs/iot-gateway/getting-started',
+				],
+			},
+		],
 	},
 	{
 		label: 'Installation',
