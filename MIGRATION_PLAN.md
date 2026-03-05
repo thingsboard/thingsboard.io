@@ -169,25 +169,25 @@ Must be completed before most marketing pages can be built.
 All pages share the same structure: hero, scenario description, architecture diagram, dashboard screenshots, live demo link, docs link. Build one `UseCasePage` template, then populate each.
 
 | # | Page | URL | Complexity | Dev (h) | Test (h) | Status |
-|---|------|-----|------------|---------|----------|--------|
-| 4.0 | `UseCasePage` template | *(reused by all below)* | H | 10–14 | 2 | [ ] |
-| 4.1 | Smart Energy | `/use-cases/smart-energy/` | M | 3–5 | 0.5 | [ ] |
-| 4.2 | Smart Farming | `/use-cases/smart-farming/` | M | 3–5 | 0.5 | [ ] |
-| 4.3 | Smart Metering | `/use-cases/smart-metering/` | M | 3–5 | 0.5 | [ ] |
-| 4.4 | Smart Irrigation | `/use-cases/smart-irrigation/` | M | 3–5 | 0.5 | [ ] |
-| 4.5 | Smart Office | `/use-cases/smart-office/` | M | 3–5 | 0.5 | [ ] |
-| 4.6 | Smart Retail | `/use-cases/smart-retail/` | M | 3–5 | 0.5 | [ ] |
-| 4.7 | Fleet Tracking | `/use-cases/fleet-tracking/` | M | 3–5 | 0.5 | [ ] |
-| 4.8 | Site Fleet Tracking | `/use-cases/site-fleet-tracking/` | M | 3–5 | 0.5 | [ ] |
-| 4.9 | SCADA | `/use-cases/scada/` | H | 5–8 | 1 | [ ] |
-| 4.10 | SCADA Energy Management | `/use-cases/scada-energy-management/` | H | 5–8 | 1 | [ ] |
-| 4.11 | SCADA Oil & Gas | `/use-cases/scada-oil-and-gas-drilling-system/` | H | 5–8 | 1 | [ ] |
-| 4.12 | Environment Monitoring | `/use-cases/environment-monitoring/` | M | 3–5 | 0.5 | [ ] |
-| 4.13 | Air Quality Monitoring | `/use-cases/air-quality-monitoring/` | M | 3–5 | 0.5 | [ ] |
-| 4.14 | Healthcare | `/use-cases/health-care/` | M | 3–5 | 0.5 | [ ] |
-| 4.15 | Tank Level Monitoring | `/use-cases/tank-level-monitoring/` | M | 3–5 | 0.5 | [ ] |
-| 4.16 | Water Metering | `/use-cases/water-metering/` | M | 3–5 | 0.5 | [ ] |
-| 4.17 | Waste Management | `/use-cases/waste-management/` | M | 3–5 | 0.5 | [ ] |
+|---|------|-----|------------|---------|----------|-------|
+| 4.0 | `UseCasePage` template | *(reused by all below)* | H | 10–14 | 2 | [x] |
+| 4.1 | Smart Energy | `/use-cases/smart-energy/` | M | 3–5 | 0.5 | [x] |
+| 4.2 | Smart Farming | `/use-cases/smart-farming/` | M | 3–5 | 0.5 | [x] |
+| 4.3 | Smart Metering | `/use-cases/smart-metering/` | M | 3–5 | 0.5 | [x] |
+| 4.4 | Smart Irrigation | `/use-cases/smart-irrigation/` | M | 3–5 | 0.5 | [x] |
+| 4.5 | Smart Office | `/use-cases/smart-office/` | M | 3–5 | 0.5 | [x] |
+| 4.6 | Smart Retail | `/use-cases/smart-retail/` | M | 3–5 | 0.5 | [x] |
+| 4.7 | Fleet Tracking | `/use-cases/fleet-tracking/` | M | 3–5 | 0.5 | [x] |
+| 4.8 | Site Fleet Tracking | `/use-cases/site-fleet-tracking/` | M | 3–5 | 0.5 | [x] |
+| 4.9 | SCADA | `/use-cases/scada/` | H | 5–8 | 1 | [x] |
+| 4.10 | SCADA Energy Management | `/use-cases/scada-energy-management/` | H | 5–8 | 1 | [x] |
+| 4.11 | SCADA Oil & Gas | `/use-cases/scada-oil-and-gas-drilling-system/` | H | 5–8 | 1 | [x] |
+| 4.12 | Environment Monitoring | `/use-cases/environment-monitoring/` | M | 3–5 | 0.5 | [x] |
+| 4.13 | Air Quality Monitoring | `/use-cases/air-quality-monitoring/` | M | 3–5 | 0.5 | [x] |
+| 4.14 | Healthcare | `/use-cases/health-care/` | M | 3–5 | 0.5 | [x] |
+| 4.15 | Tank Level Monitoring | `/use-cases/tank-level-monitoring/` | M | 3–5 | 0.5 | [x] |
+| 4.16 | Water Metering | `/use-cases/water-metering/` | M | 3–5 | 0.5 | [x] |
+| 4.17 | Waste Management | `/use-cases/waste-management/` | M | 3–5 | 0.5 | [x] |
 
 **Notes:**
 - SCADA pages are more complex (P&ID diagrams, process schematics)
