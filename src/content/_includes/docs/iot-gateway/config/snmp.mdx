@@ -1,0 +1,374 @@
+import { Aside } from '@astrojs/starlight/components';
+import DocLink from '@components/DocLink.astro';
+
+The SNMP Connector reads data from SNMP manager objects and writes data back to them, forwarding the
+results to ThingsBoard as device attributes and telemetry.
+
+To enable this connector, add it to the `connectors` list in `tb_gateway.json` — see the
+<DocLink product={props.product} path="iot-gateway/config/general">General Configuration</DocLink> reference.
+
+## Connector configuration: snmp.json
+
+The connector reads its settings from a JSON file. Below is a full example with two device entries —
+the first using built-in converters, the second using a custom converter class:
+
+```json maxLines=30 collapsible
+{
+  "devices": [
+    {
+      "deviceName": "SNMP router",
+      "deviceType": "snmp",
+      "ip": "snmp.live.gambitcommunications.com",
+      "port": 161,
+      "pollPeriod": 5000,
+      "community": "public",
+      "attributes": [
+        { "key": "ReceivedFromGet",       "method": "get",       "oid": "1.3.6.1.2.1.1.1.0", "timeout": 6 },
+        { "key": "ReceivedFromMultiGet",  "method": "multiget",  "oid": ["1.3.6.1.2.1.1.1.0","1.3.6.1.2.1.1.2.0"], "timeout": 6 },
+        { "key": "ReceivedFromGetNext",   "method": "getnext",   "oid": "1.3.6.1.2.1.1.1.0", "timeout": 6 },
+        { "key": "ReceivedFromMultiWalk", "method": "multiwalk", "oid": ["1.3.6.1.2.1.1.1.0","1.3.6.0.1.2.1"] },
+        { "key": "ReceivedFromBulkWalk",  "method": "bulkwalk",  "oid": ["1.3.6.1.2.1.1.1.0","1.3.6.1.2.1.1.2.0"] },
+        {
+          "key": "ReceivedFromBulkGet",
+          "method": "bulkget",
+          "scalarOid":    ["1.3.6.1.2.1.1.1.0","1.3.6.1.2.1.1.2.0"],
+          "repeatingOid": ["1.3.6.1.2.1.1.1.0","1.3.6.1.2.1.1.2.0"],
+          "maxListSize": 10
+        }
+      ],
+      "telemetry": [
+        { "key": "ReceivedFromWalk",  "community": "private", "method": "walk",  "oid": "1.3.6.1.2.1.1.1.0" },
+        { "key": "ReceivedFromTable", "method": "table", "oid": "1.3.6.1.2.1.1" }
+      ],
+      "attributeUpdateRequests": [
+        { "attributeFilter": "dataToSet",      "method": "set",      "oid": "1.3.6.1.2.1.1.1.0" },
+        { "attributeFilter": "dataToMultiSet", "method": "multiset", "mappings": { "1.2.3": "10", "2.3.4": "${attribute}" } }
+      ],
+      "serverSideRpcRequests": [
+        { "requestFilter": "setData",      "method": "set",      "oid": "1.3.6.1.2.1.1.1.0" },
+        { "requestFilter": "multiSetData", "method": "multiset" },
+        { "requestFilter": "getData",      "method": "get",      "oid": "1.3.6.1.2.1.1.1.0" },
+        { "requestFilter": "runBulkWalk",  "method": "bulkwalk", "oid": ["1.3.6.1.2.1.1.1.0","1.3.6.1.2.1.1.2.0"] }
+      ]
+    },
+    {
+      "deviceName": "SNMP router",
+      "deviceType": "snmp",
+      "ip": "127.0.0.1",
+      "pollPeriod": 5000,
+      "community": "public",
+      "converter": "CustomSNMPConverter",
+      "attributes": [
+        { "key": "ReceivedFromGetWithCustomConverter", "method": "get", "oid": "1.3.6.1.2.1.1.1.0" }
+      ],
+      "telemetry": [
+        { "key": "ReceivedFromTableWithCustomConverter", "method": "table", "oid": "1.3.6.1.2.1.1.1.0" }
+      ]
+    }
+  ]
+}
+```
+
+## Section "devices"
+
+An array of device configurations. Each entry represents one SNMP manager device.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `deviceName` | `SNMP router` | Device name in ThingsBoard |
+| `deviceType` | `snmp` | Device type in ThingsBoard |
+| `ip` | | IP address or hostname of the SNMP manager |
+| `port` | `161` | SNMP port |
+| `pollPeriod` | `5000` | Polling interval in milliseconds |
+| `community` | `public` | Default SNMP community string (`public` or `private`) |
+| `converter` | | *(Optional)* Custom converter class name; omit to use the built-in converter |
+| `attributes` | | Array of attribute mappings — see below |
+| `telemetry` | | Array of telemetry mappings — see below |
+| `attributeUpdateRequests` | | *(Optional)* Array of attribute-write configurations |
+| `serverSideRpcRequests` | | *(Optional)* Array of RPC-triggered SNMP operation configurations |
+
+### Sections "attributes" and "telemetry"
+
+Both sections share the same field structure. `attributes` entries are sent to ThingsBoard as device
+attributes; `telemetry` entries are sent as time-series telemetry.
+
+| Parameter | Description |
+|-----------|-------------|
+| `key` | ThingsBoard attribute or telemetry key name |
+| `method` | SNMP operation to use — see [Supported methods](#supported-methods) |
+| `oid` | Manager object identifier (string or array, depending on the method) |
+
+Method-specific parameters (e.g. `timeout`, `community`, `scalarOid`) are described in
+[Supported methods](#supported-methods).
+
+### Section "attributeUpdateRequests"
+
+Configurations in this section are optional.
+ThingsBoard allows the provision of device attributes and fetches some of them from the device application. You can treat this as a remote configuration for devices. Your devices are able to request shared attributes from ThingsBoard. See user guide for more details.
+
+The “attributeUpdateRequests” configuration allows configuring the format of the corresponding attribute request and response messages.
+
+| Parameter | Description |
+|-----------|-------------|
+| `attributeFilter` | Shared attribute name to subscribe to |
+| `method` | SNMP write method: `set` or `multiset` |
+| `oid` | Object identifier to write to (used with `set`) |
+| `mappings` | OID-to-value map (used with `multiset`); values may reference `${attribute}` |
+
+```json
+"attributeUpdateRequests": [
+  {
+    "attributeFilter": "dataToSet",
+    "method": "set",
+    "oid": "1.3.6.1.2.1.1.1.0"
+  },
+  {
+    "attributeFilter": "dataToMultiSet",
+    "method": "multiset",
+    "mappings": {
+      "1.2.3": "10",
+      "2.3.4": "${attribute}"
+    }
+  }
+]
+```
+
+<Aside type="note">
+  In `mappings` values, `${attribute}` is replaced at runtime with the incoming shared attribute value.
+</Aside>
+
+### Section "serverSideRpcRequests"
+
+ThingsBoard allows sending RPC commands to the device connected to ThingsBoard directly or via Gateway.
+
+Configuration, provided in this section is used for sending RPC requests from ThingsBoard to the device through the gateway.
+
+<Aside type="note">
+  Two modes are supported:
+  - **With reply** — the gateway waits for an SNMP response and forwards it to ThingsBoard.
+  - **Without reply** — the gateway sends the SNMP request and does not wait for a response.
+</Aside>
+
+| Parameter | Description |
+|-----------|-------------|
+| `requestFilter` | RPC method name to bind |
+| `method` | SNMP operation to perform — see [Supported methods](#supported-methods) |
+| `oid` | Object identifier (string or array, depending on the method) |
+
+```json
+"serverSideRpcRequests": [
+  { "requestFilter": "setData",      "method": "set",      "oid": "1.3.6.1.2.1.1.1.0" },
+  { "requestFilter": "multiSetData", "method": "multiset" },
+  { "requestFilter": "getData",      "method": "get",      "oid": "1.3.6.1.2.1.1.1.0" },
+  {
+    "requestFilter": "runBulkWalk",
+    "method": "bulkwalk",
+    "oid": ["1.3.6.1.2.1.1.1.0","1.3.6.1.2.1.1.2.0"]
+  }
+]
+```
+
+## Supported methods
+
+| Method | Operation | Accepts array OID | Extra parameters |
+|--------|-----------|:-----------------:|------------------|
+| `get` | Read a single object | No | `timeout` |
+| `multiget` | Read multiple objects in one request | Yes | `timeout` |
+| `getnext` | Read the next object after the given OID | No | `timeout` |
+| `walk` | Walk the subtree rooted at OID | No | `community` |
+| `multiwalk` | Walk multiple subtrees | Yes | — |
+| `bulkwalk` | Walk multiple subtrees using BULK requests | Yes | — |
+| `table` | Read an SNMP table | No | — |
+| `bulkget` | Read scalars and repeating objects in one BULK request | — | `scalarOid`, `repeatingOid`, `maxListSize` |
+| `set` | Write a value to a single object | No | — |
+| `multiset` | Write values to multiple objects | — | `mappings` |
+
+### get
+
+Reads a single SNMP object.
+
+| Parameter | Description |
+|-----------|-------------|
+| `oid` | Object identifier to read |
+| `timeout` | Request timeout in seconds |
+
+```json
+{
+  "key": "ReceivedFromGet",
+  "method": "get",
+  "oid": "1.3.6.1.2.1.1.1.0",
+  "timeout": 6
+}
+```
+
+### multiget
+
+Reads multiple SNMP objects in a single request.
+
+| Parameter | Description |
+|-----------|-------------|
+| `oid` | Array of object identifiers to read |
+| `timeout` | Request timeout in seconds |
+
+```json
+{
+  "key": "ReceivedFromMultiGet",
+  "method": "multiget",
+  "oid": [
+    "1.3.6.1.2.1.1.1.0",
+    "1.3.6.1.2.1.1.2.0"
+  ],
+  "timeout": 6
+}
+```
+
+### getnext
+
+Reads the next object in the MIB tree after the given OID.
+
+| Parameter | Description |
+|-----------|-------------|
+| `oid` | Starting OID |
+| `timeout` | Request timeout in seconds |
+
+```json
+{
+  "key": "ReceivedFromGetNext",
+  "method": "getnext",
+  "oid": "1.3.6.1.2.1.1.1.0",
+  "timeout": 6
+}
+```
+
+### walk
+
+Traverses the subtree rooted at the given OID. Accepts an optional `community` override.
+
+| Parameter | Description |
+|-----------|-------------|
+| `oid` | Root OID for the walk |
+| `community` | *(Optional)* Community string override for this operation |
+
+```json
+{
+  "key": "ReceivedFromWalk",
+  "community": "private",
+  "method": "walk",
+  "oid": "1.3.6.1.2.1.1.1.0"
+}
+```
+
+### multiwalk
+
+Traverses multiple subtrees in a single operation.
+
+| Parameter | Description |
+|-----------|-------------|
+| `oid` | Array of root OIDs to walk |
+
+```json
+{
+  "key": "ReceivedFromMultiWalk",
+  "method": "multiwalk",
+  "oid": [
+    "1.3.6.1.2.1.1.1.0",
+    "1.3.6.0.1.2.1"
+  ]
+}
+```
+
+### bulkwalk
+
+Walks multiple subtrees using SNMP BULK requests (more efficient than `multiwalk` for large trees).
+
+| Parameter | Description |
+|-----------|-------------|
+| `oid` | Array of root OIDs to walk |
+
+```json
+{
+  "key": "ReceivedFromBulkWalk",
+  "method": "bulkwalk",
+  "oid": [
+    "1.3.6.1.2.1.1.1.0",
+    "1.3.6.1.2.1.1.2.0"
+  ]
+}
+```
+
+### table
+
+Reads a full SNMP table.
+
+| Parameter | Description |
+|-----------|-------------|
+| `oid` | OID of the table root |
+
+```json
+{
+  "key": "ReceivedFromTable",
+  "method": "table",
+  "oid": "1.3.6.1.2.1.1"
+}
+```
+
+### bulkget
+
+Reads scalar and repeating objects in a single SNMP BULK request.
+
+| Parameter | Description |
+|-----------|-------------|
+| `scalarOid` | Array of non-repeating (scalar) OIDs |
+| `repeatingOid` | Array of repeating OIDs |
+| `maxListSize` | Maximum number of repetitions to return |
+
+```json
+{
+  "key": "ReceivedFromBulkGet",
+  "method": "bulkget",
+  "scalarOid": [
+    "1.3.6.1.2.1.1.1.0",
+    "1.3.6.1.2.1.1.2.0"
+  ],
+  "repeatingOid": [
+    "1.3.6.1.2.1.1.1.0",
+    "1.3.6.1.2.1.1.2.0"
+  ],
+  "maxListSize": 10
+}
+```
+
+### set
+
+Writes a value to a single SNMP object. Used in `attributeUpdateRequests` and `serverSideRpcRequests`.
+
+| Parameter | Description |
+|-----------|-------------|
+| `oid` | Object identifier to write to |
+
+```json
+{
+  "attributeFilter": "dataToSet",
+  "method": "set",
+  "oid": "1.3.6.1.2.1.1.1.0"
+}
+```
+
+### multiset
+
+Writes values to multiple SNMP objects in a single operation.
+
+| Parameter | Description |
+|-----------|-------------|
+| `mappings` | Object mapping OIDs to values; values may use `${attribute}` to reference the incoming attribute value |
+
+```json
+{
+  "attributeFilter": "dataToMultiSet",
+  "method": "multiset",
+  "mappings": {
+    "1.2.3": "10",
+    "2.3.4": "${attribute}"
+  }
+}
+```

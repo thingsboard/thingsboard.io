@@ -1,0 +1,442 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+This page is a reference for the Python APIs available to custom connectors and converters.
+
+## Methods
+
+### Core methods — `TBGatewayService`
+
+Source file: `thingsboard_gateway/gateway/tb_gateway_service.py`
+
+The gateway instance (`gateway`) is passed to your connector's `__init__` constructor.
+
+#### `send_to_storage`
+
+Sends converted device data to the ThingsBoard instance.
+
+| Argument | Description |
+|----------|-------------|
+| **connector_name** | Name of the connector sending the data. |
+| **connector_id** | UUID of the connector sending the data. |
+| **data** | [`ConvertedData`](#converteddata) object with device data. |
+
+Returns `True` if the data was accepted into storage, `False` otherwise.
+
+#### `send_rpc_reply`
+
+Sends a response to an RPC request received from ThingsBoard.
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| **device** | — | Name of the device the RPC was addressed to. |
+| **req_id** | — | Integer request identifier from the RPC payload. |
+| **content** | — | Dictionary with the response data. |
+| **success_sent** | — | Whether the response was sent successfully. |
+| **wait_for_publish** | — | If `True`, the gateway waits for MQTT publish acknowledgement before processing the next message. |
+| **quality_of_service** | `0` | MQTT QoS level for the response message. |
+| **to_connector_rpc** | `False` | Set to `True` if the RPC was handled by the connector itself rather than forwarded to a device. |
+
+No return value.
+
+#### `add_device`
+
+Registers a device with the gateway and sends a `CONNECT` event to ThingsBoard.
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| **device_name** | — | Name of the device. |
+| **content** | — | Dictionary containing the key `"connector"` mapped to the connector instance. Used to set `connectorName` and `connectorType` for the device. |
+| **device_type** | `"default"` | Device profile name. |
+
+Returns `True` if the device was registered successfully, `False` otherwise.
+
+#### `del_device`
+
+Removes a device from the gateway and sends a `DISCONNECT` event to ThingsBoard.
+
+| Argument | Description |
+|----------|-------------|
+| **device_name** | Name of the device to remove. |
+
+No return value.
+
+---
+
+### Utility methods — `TBUtility`
+
+Source file: `thingsboard_gateway/tb_utility/tb_utility.py`
+
+Useful methods, that may be helpful for custom connector implementation, from the utility class.
+
+#### `install_package`
+
+Installs a PyPI package at runtime and loads it into the current Python context.
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| **package** | — | PyPI package name. |
+| **version** | `"upgrade"` | Package version. `"upgrade"` installs the latest available version. |
+| **force_install** | `False` | Re-install even if the package is already present. |
+
+Returns the result of `subprocess.check_call`.
+
+Usage example — install `pyserial` on first import:
+
+```python
+from thingsboard_gateway.tb_utility.tb_utility import TBUtility
+
+try:
+    import serial
+except ImportError:
+    TBUtility.install_package("pyserial")
+    import serial
+```
+
+#### `convert_key_to_datapoint_key`
+
+Converts a string key, an optional device report strategy, and a key configuration
+into a [`DatapointKey`](#datapointkey) object.
+
+| Argument | Description |
+|----------|-------------|
+| **key** | Final string representation of the key. |
+| **device_report_strategy** | [`ReportStrategyConfig`](#reportstrategyconfig) for the device. |
+| **key_config** | Key configuration dictionary; may contain a `reportStrategy` section. |
+| **logger** | Optional logger. A trace log is emitted when no report strategy is found for the key. |
+
+<Aside type="tip">
+  Use this method to create DatapointKey objects whenever possible. It enables hierarchical
+  report strategies, where a key-level strategy overrides the device-level strategy.
+</Aside>
+
+---
+
+## Data types
+
+This section contains explanation for objects, used in the gateway.
+
+### `ConvertedData`
+
+Holds the converted data for a single device before it is sent to ThingsBoard via
+[`send_to_storage`](#send_to_storage).
+
+**Fields:**
+
+| Field | Description |
+|-------|-------------|
+| **device_name** | Device name. |
+| **device_type** | Device profile name. |
+| **telemetry** | List of [`TelemetryEntry`](#telemetryentry) objects. |
+| **attributes** | [`Attributes`](#attributes) object. |
+
+**Constructor:**
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| **device_name** | — | Device name. |
+| **device_type** | `"default"` | Device profile name. |
+
+```python
+converted_data = ConvertedData("CustomSerialDevice", "CustomSerialDeviceType")
+```
+
+#### `add_to_telemetry`
+
+Adds telemetry data to the `ConvertedData` object. The method groups incoming entries
+by timestamp automatically.
+
+**Form 1 — DatapointKey + value** (recommended)
+
+| Argument | Description |
+|----------|-------------|
+| **key** | [`DatapointKey`](#datapointkey) for the telemetry key. |
+| **value** | Telemetry value. |
+
+```python
+humidity_datapoint_key = TBUtility.convert_key_to_datapoint_key(
+    "humidity", device_report_strategy, key_config
+)
+converted_data.add_to_telemetry(humidity_datapoint_key, 48)
+```
+
+**Form 2 — TelemetryEntry or list of TelemetryEntry**
+
+| Argument | Description |
+|----------|-------------|
+| **telemetry_entry** | [`TelemetryEntry`](#telemetryentry) or list of `TelemetryEntry` objects. |
+
+```python
+humidity_datapoint_key = DatapointKey("humidity")
+entry = TelemetryEntry({humidity_datapoint_key: 48})
+converted_data.add_to_telemetry(entry)
+```
+
+#### `add_to_attributes`
+
+Adds attribute data to the `ConvertedData` object.
+
+**Form 1 — DatapointKey + value** (recommended)
+
+| Argument | Description |
+|----------|-------------|
+| **key** | [`DatapointKey`](#datapointkey) for the attribute key. |
+| **value** | Attribute value. |
+
+```python
+sn_key = TBUtility.convert_key_to_datapoint_key(
+    "SerialNumber", device_report_strategy, key_config
+)
+converted_data.add_to_attributes(sn_key, "24BC94AA95")
+```
+
+**Form 2 — string key + value**
+
+```python
+converted_data.add_to_attributes("SerialNumber", "24BC94AA95")
+```
+
+**Form 3 — dictionary**
+
+```python
+converted_data.add_to_attributes({"SerialNumber": "24BC94AA95"})
+```
+
+**Form 4 — list of dictionaries**
+
+```python
+converted_data.add_to_attributes([
+    {"SerialNumber": "24BC94AA95"},
+    {"FirmwareVersion": "1.0.0"},
+])
+```
+
+#### Full `ConvertedData` example
+
+The example below creates a `ConvertedData` object with one telemetry value and one attribute,
+using `TBUtility.convert_key_to_datapoint_key` for both keys, and sends the data to ThingsBoard.
+The device-level report strategy is `ON_RECEIVED`, but each key overrides it:
+telemetry is sent on change or every 60 seconds; the attribute is sent on change only.
+
+```python
+from uuid import UUID
+from thingsboard_gateway.gateway.entities.converted_data import ConvertedData
+from thingsboard_gateway.gateway.entities.report_strategy_config import ReportStrategyConfig
+from thingsboard_gateway.tb_utility.tb_utility import TBUtility
+
+connector_name = "CustomSerialConnector"
+connector_id = UUID("10101010-1010-1010-1010-101010101010")
+
+device_report_strategy = ReportStrategyConfig({"reportStrategy": {"type": "ON_RECEIVED"}})
+
+telemetry_key_config = {
+    "key": "$[:8]",
+    "type": "string",
+    "fromByte": 8,
+    "toByte": 18,
+    "reportStrategy": {"type": "ON_CHANGE_OR_REPORT_PERIOD", "reportPeriod": "60000"},
+}
+attr_key_config = {
+    "key": "$[18:30]",
+    "type": "string",
+    "fromByte": 30,
+    "toByte": -1,
+    "reportStrategy": {"type": "ON_CHANGE"},
+}
+
+converted_data = ConvertedData("CustomSerialDevice", "CustomSerialDeviceType")
+
+telemetry_key = TBUtility.convert_key_to_datapoint_key("humidity", device_report_strategy, telemetry_key_config)
+attribute_key = TBUtility.convert_key_to_datapoint_key("SerialNumber", device_report_strategy, attr_key_config)
+
+converted_data.add_to_telemetry(telemetry_key, 48)
+converted_data.add_to_attributes(attribute_key, "24BC94AA95")
+
+# gateway is the TBGatewayService instance passed to the connector constructor
+gateway.send_to_storage(connector_name, connector_id, converted_data)
+```
+
+The result of the example above will be ConvertedData object with telemetry and attribute.
+Data, collected in telemetry and attribute, will be sent to the ThingsBoard instance due to the report strategy configuration.
+In the example, telemetry will be sent to the ThingsBoard instance on change or every 60 seconds, and attribute will be sent only on change.
+
+---
+
+### `Attributes`
+
+Internal container for device attributes inside a `ConvertedData` object.
+You do not need to create it directly — it is created automatically when you call
+`add_to_attributes`.
+
+| Field | Description |
+|-------|-------------|
+| **values** | Dictionary of [`DatapointKey`](#datapointkey) → value pairs. |
+
+---
+
+### `TelemetryEntry`
+
+Holds a set of telemetry key/value pairs with an optional timestamp.
+
+| Field | Description |
+|-------|-------------|
+| **values** | Dictionary of key → value pairs. |
+| **ts** | *Optional.* Timestamp in milliseconds. Defaults to the current time if not provided. |
+
+**Construction examples:**
+
+Using `TBUtility.convert_key_to_datapoint_key` (recommended):
+
+```python
+device_report_strategy = ReportStrategyConfig({"reportStrategy": {"type": "ON_RECEIVED"}})
+key_config = {
+    "key": "$[:8]",
+    "type": "string",
+    "fromByte": 8,
+    "toByte": -1,
+    "reportStrategy": {"type": "ON_CHANGE_OR_REPORT_PERIOD", "reportPeriod": "60000"},
+}
+humidity_key = TBUtility.convert_key_to_datapoint_key("humidity", device_report_strategy, key_config)
+entry = TelemetryEntry({humidity_key: 48}, ts=123456789000)
+```
+
+Using a plain `DatapointKey`:
+
+```python
+humidity_key = DatapointKey("humidity")
+entry = TelemetryEntry({humidity_key: 48}, ts=123456789000)
+```
+
+Using a string key (no report strategy):
+
+```python
+entry = TelemetryEntry({"humidity": 48})
+```
+
+---
+
+### `DatapointKey`
+
+Represents a telemetry or attribute key together with its report strategy configuration.
+
+| Field | Description |
+|-------|-------------|
+| **key** | String key name. |
+| **report_strategy** | [`ReportStrategyConfig`](#reportstrategyconfig) for this key. |
+
+**Construction examples:**
+
+Using `TBUtility.convert_key_to_datapoint_key` — picks up the report strategy from
+`key_config` or falls back to `device_report_strategy` (recommended):
+
+```python
+device_report_strategy = ReportStrategyConfig({"reportStrategy": {"type": "ON_RECEIVED"}})
+key_config = {
+    "key": "$[:8]",
+    "type": "string",
+    "fromByte": 8,
+    "toByte": -1,
+    "reportStrategy": {"type": "ON_CHANGE_OR_REPORT_PERIOD", "reportPeriod": "60000"},
+}
+humidity_key = TBUtility.convert_key_to_datapoint_key("humidity", device_report_strategy, key_config)
+```
+
+Using a `ReportStrategyConfig` directly:
+
+```python
+key_report_strategy = ReportStrategyConfig({"reportStrategy": {"type": "ON_RECEIVED"}})
+humidity_key = DatapointKey("humidity", key_report_strategy)
+```
+
+Without a report strategy:
+
+```python
+humidity_key = DatapointKey("humidity")
+```
+
+---
+
+### `ReportStrategyConfig`
+
+Represents a report strategy configuration at any level in the hierarchy.
+
+Report strategies are inherited from the broadest to the most specific scope —
+a narrower scope always overrides a broader one:
+
+```plaintext
+  Gateway level (tb_gateway.json)
+    └── Connector level (connector config)
+          └── Device level (device config)
+                └── Key level (key config)   ← highest priority
+```
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| **config** | — | Dictionary that may contain a `"reportStrategy"` key. |
+| **default_report_strategy_config** | `None` | Fallback dictionary used when `"reportStrategy"` is absent from `config`. |
+
+**Construction examples:**
+
+```python
+# From a config dict
+strategy = ReportStrategyConfig({"reportStrategy": {"type": "ON_RECEIVED"}})
+
+# With a fallback default
+default = {"reportStrategy": {"type": "ON_CHANGE"}}
+strategy = ReportStrategyConfig({"reportStrategy": {"type": "ON_RECEIVED"}}, default)
+```
+
+---
+
+## Interfaces
+
+### Connector interface
+
+Source file: `thingsboard_gateway/connectors/connector.py`
+
+Your custom connector class must inherit from `Connector` and implement all of the
+following methods:
+
+| Method | Description |
+|--------|-------------|
+| **`__init__(gateway, config, connector_type)`** | Constructor. The gateway passes the gateway service instance, the connector config dict (including a generated `"id"` field), and the connector type string. |
+| **`open()`** | Called by the gateway to start the connector. |
+| **`close()`** | Called by the gateway to stop the connector. |
+| **`get_id()`** | Returns the connector ID (stored in config under `"id"`). |
+| **`get_name()`** | Returns the connector name (stored in config under `"name"`). |
+| **`get_type()`** | Returns the connector type string passed to the constructor. |
+| **`get_config()`** | Returns the connector configuration dictionary. |
+| **`is_connected()`** | Returns `True` if the connector is connected to its devices. |
+| **`is_stopped()`** | Returns `True` if the connector has been stopped. |
+| **`on_attributes_update(content)`** | Called when ThingsBoard sends an attribute update to a device managed by this connector. |
+| **`server_side_rpc_handler(content)`** | Called when ThingsBoard sends an RPC request to a device managed by this connector. |
+
+---
+
+### Converter interface
+
+Source file: `thingsboard_gateway/connectors/converter.py`
+
+Your custom converter class must inherit from `Converter` and implement:
+
+| Method | Description |
+|--------|-------------|
+| **`__init__(config, logger)`** | Constructor. Receives the device configuration dict and a logger instance created by the connector. |
+| **`convert(config, data)`** | Converts data. Behavior depends on whether this is an uplink or downlink converter. |
+
+#### Uplink converter — `convert` method
+
+Converts raw device data into the format expected by ThingsBoard. Should return a
+[`ConvertedData`](#converteddata) object.
+
+`config` is `None` during normal telemetry/attribute collection. For RPC responses,
+`config` contains the response parsing configuration from the device config.
+`data` is the raw bytes received from the device.
+
+#### Downlink converter — `convert` method
+
+Converts a ThingsBoard RPC request or attribute update into the format the device expects
+(e.g. a `bytes` object for a serial connector).
+
+`config` is the RPC or attribute configuration from the device config.
+`data` is the dictionary payload from ThingsBoard.

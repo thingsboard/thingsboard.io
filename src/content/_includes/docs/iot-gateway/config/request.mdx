@@ -1,0 +1,435 @@
+import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+import DocLink from '@components/DocLink.astro';
+
+The Request Connector polls external HTTP(S) API endpoints on a configurable schedule, extracts
+device data from the responses, and forwards it to ThingsBoard as attributes and telemetry.
+It can also push data to external HTTP(S) APIs in response to shared attribute updates and
+RPC commands from ThingsBoard.
+
+To enable this connector, add it to the `connectors` list in `tb_gateway.json` — see the
+<DocLink product={props.product} path="iot-gateway/config/general">General Configuration</DocLink> reference.
+
+## Connector configuration: request.json
+
+The connector reads its settings from a JSON file. Below is a full example with two mapping
+entries — the first uses a JSON converter, the second uses a custom converter:
+
+```json maxLines=20 collapsible
+{
+  "host": "http://127.0.0.1:5000",
+  "SSLVerify": true,
+  "security": {
+    "type": "basic",
+    "username": "user",
+    "password": "password"
+  },
+  "mapping": [
+    {
+      "url": "getdata",
+      "httpMethod": "GET",
+      "httpHeaders": {
+        "ACCEPT": "application/json"
+      },
+      "allowRedirects": true,
+      "timeout": 0.5,
+      "scanPeriod": 5,
+      "converter": {
+        "type": "json",
+        "deviceNameJsonExpression": "SD8500",
+        "deviceTypeJsonExpression": "SD",
+        "attributes": [
+          {
+            "key": "serialNumber",
+            "type": "string",
+            "value": "${serial}"
+          }
+        ],
+        "telemetry": [
+          {
+            "key": "Maintainer",
+            "type": "string",
+            "value": "${Developer}"
+          },
+          {
+            "key": "Pressure",
+            "type": "integer",
+            "value": "${press}"
+          }
+        ]
+      }
+    },
+    {
+      "url": "get_info",
+      "httpMethod": "GET",
+      "httpHeaders": {
+        "ACCEPT": "application/json"
+      },
+      "allowRedirects": true,
+      "timeout": 0.5,
+      "scanPeriod": 100,
+      "converter": {
+        "type": "custom",
+        "deviceNameJsonExpression": "SD8500",
+        "deviceTypeJsonExpression": "SD",
+        "extension": "CustomRequestUplinkConverter",
+        "extension-config": [
+          {
+            "key": "Totaliser",
+            "type": "float",
+            "fromByte": 0,
+            "toByte": 4,
+            "byteorder": "big",
+            "signed": true,
+            "multiplier": 1
+          },
+          {
+            "key": "Flow",
+            "type": "int",
+            "fromByte": 4,
+            "toByte": 6,
+            "byteorder": "big",
+            "signed": true,
+            "multiplier": 0.01
+          }
+        ]
+      }
+    }
+  ],
+  "attributeUpdates": [
+    {
+      "httpMethod": "POST",
+      "httpHeaders": {
+        "CONTENT-TYPE": "application/json"
+      },
+      "timeout": 0.5,
+      "tries": 3,
+      "allowRedirects": true,
+      "deviceNameFilter": "SD.*",
+      "attributeFilter": "send_data",
+      "requestUrlExpression": "sensor/${deviceName}/${attributeKey}",
+      "valueExpression": "{\"${attributeKey}\":\"${attributeValue}\"}"
+    }
+  ],
+  "serverSideRpc": [
+    {
+      "deviceNameFilter": ".*",
+      "methodFilter": "echo",
+      "requestUrlExpression": "sensor/${deviceName}/request/${methodName}/${requestId}",
+      "responseTimeout": 1,
+      "httpMethod": "GET",
+      "valueExpression": "${params}",
+      "timeout": 0.5,
+      "tries": 3,
+      "httpHeaders": {
+        "Content-Type": "application/json"
+      }
+    },
+    {
+      "deviceNameFilter": ".*",
+      "methodFilter": "no-reply",
+      "requestUrlExpression": "sensor/${deviceName}/request/${methodName}/${requestId}",
+      "httpMethod": "POST",
+      "valueExpression": "${params.hum}",
+      "httpHeaders": {
+        "Content-Type": "application/json"
+      }
+    }
+  ]
+}
+```
+
+## Section "server"
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `host` | `http://127.0.0.1:5000` | Base URL of the external HTTP(S) server |
+| `SSLVerify` | `true` | Verify the server's SSL certificate |
+
+## Section "security"
+
+Global authorization credentials sent with every request to the external server. Can be
+overridden per-request in the `mapping` entries.
+
+<Tabs>
+<TabItem label="Basic">
+
+The connector sends an `Authorization: Basic <base64(username:password)>` header with every request.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `type` | `basic` | Authorization type |
+| `username` | `username` | Username |
+| `password` | `password` | Password |
+
+```json
+{
+  "security": {
+    "type": "basic",
+    "username": "username",
+    "password": "password"
+  }
+}
+```
+
+</TabItem>
+<TabItem label="Anonymous">
+
+No authorization header is sent. Useful for public APIs or testing.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `type` | `anonymous` | Authorization type |
+
+```json
+{
+  "security": {
+    "type": "anonymous"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Section "mapping"
+
+An array of endpoint configurations. Each entry defines a URL to poll, the HTTP method and
+headers, how often to poll, and how to convert the response into ThingsBoard device data.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `url` | `getdata` | URL path appended to `host` for the request |
+| `httpMethod` | `GET` | HTTP method (`GET`, `POST`, etc.) |
+| `httpHeaders` | `{"ACCEPT": "application/json"}` | Additional HTTP headers |
+| `allowRedirects` | `true` | Follow HTTP redirects |
+| `timeout` | `0.5` | Request timeout in seconds |
+| `scanPeriod` | `5` | Polling interval in seconds |
+
+<Aside type="note">
+  You can add multiple objects to the `mapping` array to poll as many endpoints as needed.
+</Aside>
+
+### Subsection "converter"
+
+Defines how the HTTP response body is converted into ThingsBoard device data.
+
+<Tabs>
+<TabItem label="json">
+
+The default converter. Parses a JSON response body and maps fields to a device name, type,
+attributes, and telemetry.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `type` | `json` | Converter type |
+| `deviceNameJsonExpression` | `SD8500` | JSON expression to extract the device name; a plain string is used as-is |
+| `deviceTypeJsonExpression` | `SD` | JSON expression to extract the device type; a plain string is used as-is |
+| `timeout` | `60000` | Milliseconds before a "Device Disconnected" event is triggered |
+| `attributes[].type` | `string` | Data type of the attribute value |
+| `attributes[].key` | `serialNumber` | Attribute key name in ThingsBoard |
+| `attributes[].value` | `${serial}` | JSON-path expression to extract the value from the response |
+| `telemetry[].type` | `string` / `integer` | Data type of the telemetry value |
+| `telemetry[].key` | `Maintainer` | Telemetry key name in ThingsBoard |
+| `telemetry[].value` | `${Developer}` | JSON-path expression to extract the value from the response |
+| `telemetry[].tsField` | | *(Optional)* JSON-path expression for a field carrying a datetime string used as the telemetry timestamp |
+| `telemetry[].dayfirst` | `false` | *(Optional)* Treat the first number in `tsField` as the day (`true`) or month (`false`) |
+| `telemetry[].yearfirst` | `false` | *(Optional)* Treat the first number in `tsField` as the year |
+
+<Aside type="note">
+  The `tsField` example below (for the `Pressure` key) illustrates how to supply a custom
+  timestamp. If `tsField` is omitted, the `ts` or `timestamp` field from the response is
+  used, or the current server time if neither is present.
+</Aside>
+
+**Full mapping example:**
+
+```json
+{
+  "url": "getdata",
+  "httpMethod": "GET",
+  "httpHeaders": {
+    "ACCEPT": "application/json"
+  },
+  "allowRedirects": true,
+  "timeout": 0.5,
+  "scanPeriod": 5,
+  "converter": {
+    "type": "json",
+    "deviceNameJsonExpression": "SD8500",
+    "deviceTypeJsonExpression": "SD",
+    "attributes": [
+      {
+        "key": "serialNumber",
+        "type": "string",
+        "value": "${serial}"
+      }
+    ],
+    "telemetry": [
+      {
+        "key": "Maintainer",
+        "type": "string",
+        "value": "${Developer}"
+      },
+      {
+        "key": "Pressure",
+        "type": "integer",
+        "value": "${press}",
+        "tsField": "${timestampField}",
+        "dayfirst": true
+      }
+    ]
+  }
+}
+```
+
+You can also combine multiple response fields into a single value using expressions:
+
+```json
+{ "key": "combine", "type": "string", "value": "${hum}:${temp}" }
+```
+
+</TabItem>
+<TabItem label="custom">
+
+Use a custom converter when the response payload has a non-standard structure or requires
+preprocessing. Pass any custom fields in `extension-config` — they are forwarded to the
+converter class at initialization.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `type` | `custom` | Converter type |
+| `deviceNameJsonExpression` | `SD8500` | Device name (used as-is when it is a plain string) |
+| `deviceTypeJsonExpression` | `SD` | Device type |
+| `extension` | `CustomRequestUplinkConverter` | Custom converter class name |
+| `extension-config` | | Configuration array passed to the converter; structure is defined by the converter |
+
+```json
+{
+  "url": "get_info",
+  "httpMethod": "GET",
+  "httpHeaders": {
+    "ACCEPT": "application/json"
+  },
+  "allowRedirects": true,
+  "timeout": 0.5,
+  "scanPeriod": 100,
+  "converter": {
+    "type": "custom",
+    "deviceNameJsonExpression": "SD8500",
+    "deviceTypeJsonExpression": "SD",
+    "extension": "CustomRequestUplinkConverter",
+    "extension-config": [
+      {
+        "key": "Totaliser",
+        "type": "float",
+        "fromByte": 0,
+        "toByte": 4,
+        "byteorder": "big",
+        "signed": true,
+        "multiplier": 1
+      },
+      {
+        "key": "Flow",
+        "type": "int",
+        "fromByte": 4,
+        "toByte": 6,
+        "byteorder": "big",
+        "signed": true,
+        "multiplier": 0.01
+      }
+    ]
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Section "attributeUpdates"
+
+Optional. When a ThingsBoard shared attribute changes, the gateway sends an HTTP request
+to an external URL on the device.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `httpMethod` | `GET` | HTTP method for the outgoing request |
+| `httpHeaders` | `{"CONTENT-TYPE": "application/json"}` | Additional HTTP headers |
+| `timeout` | `0.5` | Request timeout in seconds |
+| `tries` | `3` | Number of send retries |
+| `allowRedirects` | `true` | Follow HTTP redirects |
+| `deviceNameFilter` | `SD.*` | Regex filter on device name |
+| `attributeFilter` | `send_data` | Regex filter on attribute name |
+| `requestUrlExpression` | `sensor/${deviceName}/${attributeKey}` | Expression to build the target URL |
+| `valueExpression` | `{"${attributeKey}":"${attributeValue}"}` | Expression to build the request body |
+
+```json
+"attributeUpdates": [
+  {
+    "httpMethod": "POST",
+    "httpHeaders": {
+      "CONTENT-TYPE": "application/json"
+    },
+    "timeout": 0.5,
+    "tries": 3,
+    "allowRedirects": true,
+    "deviceNameFilter": "SD.*",
+    "attributeFilter": "send_data",
+    "requestUrlExpression": "sensor/${deviceName}/${attributeKey}",
+    "valueExpression": "{\"${attributeKey}\":\"${attributeValue}\"}"
+  }
+]
+```
+
+## Section "serverSideRpc"
+
+Optional. Maps ThingsBoard RPC commands to outgoing HTTP requests sent to the device.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `deviceNameFilter` | `SmartMeter.*` | Regex filter on device name |
+| `methodFilter` | `echo` | Regex filter on RPC method name |
+| `requestUrlExpression` | `sensor/${deviceName}/request/${methodName}/${requestId}` | Expression to build the target URL |
+| `responseTimeout` | `0.5` | Seconds to wait for a response |
+| `httpMethod` | `GET` | HTTP method for the outgoing request |
+| `valueExpression` | `${params}` | Expression to build the request body |
+| `timeout` | `0.5` | Request timeout in seconds |
+| `tries` | `3` | Number of send retries |
+| `httpHeaders` | `{"CONTENT-TYPE": "application/json"}` | Additional HTTP headers |
+
+<Aside type="note">
+  Two modes are supported:
+  - **With reply** — the gateway waits for the device's HTTP response and forwards it to ThingsBoard.
+  - **Without reply** — the gateway sends the request and does not wait for a response (omit `responseTimeout`).
+</Aside>
+
+```json
+"serverSideRpc": [
+  {
+    "deviceNameFilter": ".*",
+    "methodFilter": "echo",
+    "requestUrlExpression": "sensor/${deviceName}/request/${methodName}/${requestId}",
+    "responseTimeout": 1,
+    "httpMethod": "GET",
+    "valueExpression": "${params}",
+    "timeout": 0.5,
+    "tries": 3,
+    "httpHeaders": {
+      "Content-Type": "application/json"
+    }
+  },
+  {
+    "deviceNameFilter": ".*",
+    "methodFilter": "no-reply",
+    "requestUrlExpression": "sensor/${deviceName}/request/${methodName}/${requestId}",
+    "httpMethod": "POST",
+    "valueExpression": "${params.hum}",
+    "httpHeaders": {
+      "Content-Type": "application/json"
+    }
+  }
+]
+```
+
+Every telemetry and attribute key also has a built-in GET and SET RPC method available
+automatically. See the
+<DocLink product={props.product} path="iot-gateway/features/reserved-rpc">Reserved RPC methods</DocLink> guide for details.

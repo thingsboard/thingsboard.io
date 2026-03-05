@@ -1,0 +1,288 @@
+import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+
+The **Report Strategy** feature controls when the gateway sends data to the ThingsBoard platform.
+You can configure it at five independent levels - from a global default down to a single datapoint -
+and each level overrides the one above it.
+
+## Configuration Hierarchy
+
+```plaintext
+  ┌─────────────────────────────────────────────┐
+  │  Default                                    │
+  │  Strategy: ON_RECEIVED (built-in fallback)  │
+  └──────────────────────┬──────────────────────┘
+                         │ overridden by
+  ┌──────────────────────▼──────────────────────┐
+  │  General  (tb_gateway.json)                 │
+  │  Applies to all connectors/devices/points   │
+  └──────────────────────┬──────────────────────┘
+                         │ overridden by
+  ┌──────────────────────▼──────────────────────┐
+  │  Connector  (connector config file)         │
+  │  Applies to all devices/datapoints inside   │
+  └──────────────────────┬──────────────────────┘
+                         │ overridden by
+  ┌──────────────────────▼──────────────────────┐
+  │  Device  (device section in connector)      │
+  │  Applies to all datapoints of the device    │
+  └──────────────────────┬──────────────────────┘
+                         │ overridden by
+  ┌──────────────────────▼──────────────────────┐
+  │  Datapoint  (timeseries / attributes entry) │
+  │  Highest priority — overrides all levels    │
+  └─────────────────────────────────────────────┘
+```
+
+| Level | Configured in | Scope |
+|-------|---------------|-------|
+| Default | Built-in | All connectors, devices, and datapoints |
+| General | `tb_gateway.json` | All connectors, devices, and datapoints |
+| Connector | Connector config file | All devices and datapoints in that connector |
+| Device | Device section of connector config | All datapoints of that device |
+| Datapoint | `timeseries` / `attributes` entry | That single datapoint only |
+
+<Aside type="note">
+  Report Strategy is supported by all built-in connectors. For custom connectors, only the default,
+  general, and connector-level strategies apply automatically. Device- and datapoint-level support
+  requires custom implementation.
+</Aside>
+
+## Strategy Types
+
+<Tabs>
+  <TabItem label="ON_RECEIVED">
+    **Default strategy.** Data is sent to the platform immediately when received from the device.
+
+    Best for scenarios where real-time data visualization is required.
+
+    ```json
+    {
+      "reportStrategy": {
+        "type": "ON_RECEIVED"
+      }
+    }
+    ```
+  </TabItem>
+  <TabItem label="ON_CHANGE">
+    Data is sent only when its value changes. Identical consecutive values are suppressed.
+
+    Best for systems with many sensors where minimising transmission volume is important.
+
+    ```json
+    {
+      "reportStrategy": {
+        "type": "ON_CHANGE"
+      }
+    }
+    ```
+  </TabItem>
+  <TabItem label="ON_REPORT_PERIOD">
+    Data is sent at a fixed interval regardless of whether the value changed. If multiple values
+    arrive during the interval, only the most recent one is reported. If no new data arrives, the
+    last known value is still sent at the end of the interval.
+
+    `reportPeriod` is specified in milliseconds.
+
+    Best for avoiding overly frequent updates or maintaining connection activity at defined intervals.
+
+    ```json
+    {
+      "reportStrategy": {
+        "type": "ON_REPORT_PERIOD",
+        "reportPeriod": 60000
+      }
+    }
+    ```
+  </TabItem>
+  <TabItem label="ON_CHANGE_OR_REPORT_PERIOD">
+    Data is sent immediately when it changes **or** at the end of the interval — whichever comes
+    first. If no changes occur during the interval, the last known value is sent.
+
+    `reportPeriod` is specified in milliseconds.
+
+    Best for minimising transmission while still getting real-time updates for significant changes.
+
+    ```json
+    {
+      "reportStrategy": {
+        "type": "ON_CHANGE_OR_REPORT_PERIOD",
+        "reportPeriod": 60000
+      }
+    }
+    ```
+  </TabItem>
+</Tabs>
+
+## Usage Examples
+
+### Example 1: Connector-level strategy
+
+**Scenario:** Use `ON_CHANGE` globally, but report Modbus data every 60 seconds to reduce
+rate-limit usage. Other connectors keep the global strategy.
+
+**General Configuration** (`tb_gateway.json`):
+```json
+{
+  "reportStrategy": {
+    "type": "ON_CHANGE"
+  }
+}
+```
+
+**Modbus Connector Configuration:**
+```json
+{
+  "reportStrategy": {
+    "type": "ON_REPORT_PERIOD",
+    "reportPeriod": 60000
+  }
+}
+```
+
+<Aside type="note">
+  When configuring via the UI, set the connector-level report strategy in the **General** tab of
+  the connector configuration form.
+</Aside>
+
+**Result:**
+- Modbus data is reported every 60 seconds.
+- Data from other connectors (e.g. OPC-UA) is reported as soon as it changes.
+
+---
+
+### Example 2: Device-level strategy
+
+**Scenario:** Use `ON_CHANGE` globally, but for one specific MQTT device report data when it
+changes or every 60 seconds, whichever comes first.
+
+**General Configuration** (`tb_gateway.json`):
+```json
+{
+  "reportStrategy": {
+    "type": "ON_CHANGE"
+  }
+}
+```
+
+**MQTT Connector — device mapping entry:**
+```json
+{
+  "mapping": [
+    {
+      "topicFilter": "...",
+      "deviceInfo": "...",
+      "reportStrategy": {
+        "type": "ON_CHANGE_OR_REPORT_PERIOD",
+        "reportPeriod": 60000
+      },
+      "attributes": [],
+      "timeseries": []
+    }
+  ]
+}
+```
+
+**Result:**
+- The configured MQTT device reports on change or every 60 seconds if no changes occur.
+- All other devices in the MQTT connector report only when their value changes.
+
+---
+
+### Example 3: Datapoint-level strategy
+
+**Scenario:** Report all Modbus device data every 60 seconds, but report the `valveState`
+datapoint immediately whenever it changes.
+
+**Modbus Connector Configuration:**
+```json
+{
+  "reportStrategy": {
+    "type": "ON_REPORT_PERIOD",
+    "reportPeriod": 60000
+  },
+  "master": {
+    "slaves": [
+      {
+        "unitId": 1,
+        "attributes": [],
+        "timeseries": [
+          {
+            "tag": "valveState",
+            "type": "uint16",
+            "functionCode": 4,
+            "objectsCount": 1,
+            "address": 3,
+            "reportStrategy": {
+              "type": "ON_CHANGE"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Result:**
+- All Modbus datapoints are reported every 60 seconds.
+- `valveState` is reported immediately on every change, regardless of the connector-level interval.
+
+---
+
+### Example 4: Mixed strategies across connectors
+
+**Scenario:**
+- Default: `ON_RECEIVED` for everything.
+- Modbus connector: `ON_REPORT_PERIOD` every 30 seconds.
+- One specific MQTT device: `ON_CHANGE_OR_REPORT_PERIOD` every 15 seconds.
+
+**General Configuration:**
+```json
+{
+  "reportStrategy": {
+    "type": "ON_RECEIVED"
+  }
+}
+```
+
+**Modbus Connector Configuration:**
+```json
+{
+  "reportStrategy": {
+    "type": "ON_REPORT_PERIOD",
+    "reportPeriod": 30000
+  },
+  "master": {
+    "slaves": [
+      {
+        "unitId": 1,
+        "attributes": [],
+        "timeseries": []
+      }
+    ]
+  }
+}
+```
+
+**MQTT Connector — device mapping entry:**
+```json
+{
+  "mapping": [
+    {
+      "topicFilter": "...",
+      "deviceInfo": "...",
+      "reportStrategy": {
+        "type": "ON_CHANGE_OR_REPORT_PERIOD",
+        "reportPeriod": 15000
+      },
+      "attributes": [],
+      "timeseries": []
+    }
+  ]
+}
+```
+
+**Result:**
+- All other connectors report data immediately on receipt.
+- Modbus data is reported every 30 seconds.
+- The specific MQTT device reports on change or every 15 seconds.

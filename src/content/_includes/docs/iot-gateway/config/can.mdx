@@ -1,0 +1,434 @@
+import { Aside, Steps } from '@astrojs/starlight/components';
+import DocLink from '@components/DocLink.astro';
+
+The CAN Connector connects the gateway to a CAN bus, reads data from CAN nodes, and forwards
+it to ThingsBoard as device attributes and telemetry. It can also send data to CAN nodes in
+response to shared attribute updates and RPC commands from ThingsBoard.
+
+To enable this connector, add it to the `connectors` list in `tb_gateway.json` — see the
+<DocLink product={props.product} path="iot-gateway/config/general">General Configuration</DocLink> reference.
+
+## Connector configuration: can.json
+
+The connector reads its settings from a JSON file. Below is a full example:
+
+```json maxLines=20 collapsible
+{
+  "interface": "socketcan",
+  "channel": "vcan0",
+  "backend": {
+    "fd": true
+  },
+  "reconnectPeriod": 5,
+  "devices": [
+    {
+      "name": "Car",
+      "sendDataOnlyOnChange": false,
+      "enableUnknownRpc": true,
+      "strictEval": false,
+      "attributes": [
+        {
+          "key": "isDriverDoorOpened",
+          "nodeId": 41,
+          "command": "2:2:big:8717",
+          "value": "4:1:int",
+          "expression": "bool(value & 0b00000100)",
+          "polling": {
+            "type": "once",
+            "dataInHex": "AB CD AB CD"
+          }
+        }
+      ],
+      "timeseries": [
+        {
+          "key": "rpm",
+          "nodeId": 1918,
+          "isExtendedId": true,
+          "command": "2:2:big:48059",
+          "value": "4:2:big:int",
+          "expression": "value / 4",
+          "polling": {
+            "type": "always",
+            "period": 5,
+            "dataInHex": "aaaa bbbb aaaa bbbb"
+          }
+        },
+        {
+          "key": "mileage",
+          "nodeId": 1918,
+          "isExtendedId": true,
+          "value": "4:2:little:int",
+          "expression": "value * 10",
+          "polling": {
+            "type": "always",
+            "period": 30,
+            "dataInHex": "aa bb cc dd ee ff aa bb"
+          }
+        }
+      ],
+      "attributeUpdates": [
+        {
+          "attributeOnThingsBoard": "softwareVersion",
+          "nodeId": 64,
+          "isExtendedId": true,
+          "dataLength": 4,
+          "dataExpression": "value + 5",
+          "dataByteorder": "little"
+        }
+      ],
+      "serverSideRpc": [
+        {
+          "method": "sendSameData",
+          "nodeId": 4,
+          "isExtendedId": true,
+          "isFd": true,
+          "bitrateSwitch": true,
+          "dataInHex": "aa bb cc dd ee ff aa bb aa bb cc dd ee ff"
+        },
+        {
+          "method": "setLightLevel",
+          "nodeId": 5,
+          "dataLength": 2,
+          "dataByteorder": "little",
+          "dataBefore": "00AA"
+        },
+        {
+          "method": "setSpeed",
+          "nodeId": 16,
+          "dataAfter": "0102",
+          "dataExpression": "userSpeed if maxAllowedSpeed > userSpeed else maxAllowedSpeed"
+        }
+      ]
+    }
+  ]
+}
+```
+
+## Root section
+
+The root section configures the CAN interface connection and lists the devices.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `name` | `CAN Connector` | Connector name |
+| `interface` | `socketcan` | CAN interface type |
+| `channel` | `vcan0` | CAN interface channel name |
+| `backend` | | *(Optional)* Interface-specific configuration — see below |
+| `reconnect` | `true` | Reconnect after a bus error |
+| `reconnectPeriod` | `30.0` | Seconds between reconnect attempts (floating-point for sub-second precision) |
+| `reconnectCount` | | *(Optional)* Maximum reconnect attempts after a bus error; omit for unlimited |
+| `devices` | | Array of device configurations — see below |
+
+The full list of supported CAN interfaces is available in the
+[python-can interface documentation](https://python-can.readthedocs.io/en/stable/configuration.html#interface-names).
+
+### Section "backend"
+
+Optional. Passes interface-specific options to the underlying python-can library. Each
+option has a default value defined by the interface. See the
+[python-can interface documentation](https://python-can.readthedocs.io/en/stable/configuration.html#interface-names)
+for available options per interface.
+
+For example, the SocketCAN interface supports `receive_own_messages`, `fd`, and `can_filters`:
+
+```json
+"backend": {
+  "receive_own_messages": true,
+  "fd": true
+}
+```
+
+This enables receipt of transmitted messages and CAN-FD frame support (both disabled by default).
+
+### Section "devices"
+
+An array of device configurations. Each entry represents one logical device on the CAN bus.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `name` | | Device name in ThingsBoard |
+| `type` | `can` | Device type in ThingsBoard |
+| `sendDataOnlyOnChange` | `false` | Send data only when its value has changed; otherwise send on every received CAN message |
+| `strictEval` | `true` | Restrict Python `eval()` access to `__builtins__`; set to `false` to allow full built-in access |
+| `enableUnknownRpc` | `false` | Process RPC commands not listed in `serverSideRpc`; also forces `overrideRpcConfig` to `true` |
+| `overrideRpcConfig` | `false` | Allow the RPC payload to override parameters defined in `serverSideRpc` |
+| `converters` | | *(Optional)* Custom uplink/downlink converter classes |
+| `attributes` | | Array of attribute read configurations |
+| `timeseries` | | Array of time-series read configurations |
+| `attributeUpdates` | | Array of shared attribute write configurations |
+| `serverSideRpc` | | Array of RPC command configurations |
+
+<Aside type="note">
+  At least one of `attributes`, `timeseries`, `attributeUpdates`, or `serverSideRpc` must be
+  present in each device entry.
+</Aside>
+
+#### Subsection "converters"
+
+Optional. Specifies custom uplink and/or downlink converter classes. When omitted, the
+built-in converters are used.
+
+| Parameter | Description |
+|-----------|-------------|
+| `uplink` | Python class name for the custom uplink converter |
+| `downlink` | Python class name for the custom downlink converter |
+
+The **uplink converter** receives a CAN payload (byte array) and the `attributes`/`timeseries`
+configuration entries, and returns a dictionary with `attributes` and `telemetry` lists:
+
+```json
+{
+  "attributes": [{ "isDriverDoorOpened": "true" }],
+  "telemetry": [{ "rpm": 100 }, { "mileage": 300000 }]
+}
+```
+
+The **downlink converter** receives the value(s) to send and the `attributeUpdates` or
+`serverSideRpc` configuration, and returns a CAN payload (byte array).
+
+#### Subsections "attributes" and "timeseries"
+
+Both sections share the same field structure. Each entry describes which bytes to extract
+from an incoming CAN message and how to convert them to a ThingsBoard attribute or time-series value.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `key` | | Key name in ThingsBoard |
+| `nodeId` | | CAN node (arbitration) ID |
+| `value` | | Byte-extraction and type conversion — see below |
+| `expression` | | *(Optional)* Python `eval()` expression to post-process `value` |
+| `command` | | *(Optional)* Command filter — process this entry only when a specific command byte matches |
+| `polling` | | *(Optional)* Polling configuration — see below |
+| `isExtendedId` | `false` | Use extended (29-bit) CAN arbitration ID |
+| `isFd` | `false` | Use CAN FD mode |
+| `bitrateSwitch` | `false` | **CAN FD only.** Use higher bitrate for the data phase |
+
+##### Parameter "command"
+
+An optional filter. When set, the connector processes the entry only if a specific slice of
+the CAN payload matches the expected value. This allows a single CAN node to report different
+parameters using the same arbitration ID, distinguished by a leading command byte.
+
+**String format:**
+
+```
+"command": "<start>:<length>:[byteorder]:<value>"
+```
+
+**Object format:**
+
+```json
+"command": {
+  "start": 0,
+  "length": 2,
+  "byteorder": "big",
+  "value": 12345
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `start` | Start byte position (0–7 for CAN, 0–63 for CAN FD) |
+| `length` | Number of bytes to read for the command |
+| `byteorder` | Byte order: `big` (default) or `little` |
+| `value` | Expected integer value (decimal) that must match for processing to proceed |
+
+**Example** — process only when 2 bytes at position 0 (little-endian) equal 12345:
+
+```json
+"command": "0:2:little:12345"
+```
+
+##### Parameter "value"
+
+Describes how to extract bytes from the CAN payload and cast them to a primitive type.
+
+**String format:**
+
+```
+"value": "<start>:<length>:[byteorder]:<type>:[encoding|signed]"
+```
+
+**Object format:**
+
+```json
+"value": {
+  "start": 0,
+  "length": 2,
+  "byteorder": "big",
+  "type": "int",
+  "encoding": "ascii",
+  "signed": "unsigned"
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `start` | Start byte position (0–7 for CAN, 0–63 for CAN FD) |
+| `length` | Number of bytes to read |
+| `byteorder` | Byte order: `big` (default) or `little` |
+| `type` | Target type: `bool`/`boolean`, `int`/`long`, `float`, `double`, or `string`. `float` requires 4 bytes; `double` requires 8 bytes |
+| `encoding` | **String type only.** [Python encoding](https://docs.python.org/3/library/codecs.html#standard-encodings) (default `ascii`) |
+| `signed` | **int/long types only.** `signed` or `unsigned` (default `unsigned`) |
+
+**Examples:**
+
+```json
+// 1 byte at position 2, big-endian, unsigned int
+"value": "2:1:int"
+
+// 8 bytes at position 0, big-endian, double
+"value": "0:7:double"
+
+// 4 bytes at position 0, little-endian, float
+"value": "0:4:little:float"
+
+// 2 bytes at position 4, little-endian, signed int — then divided by 4
+"value": "4:2:little:int:signed",
+"expression": "value / 4"
+```
+
+##### Parameter "expression"
+
+An optional Python `eval()` expression applied to the extracted `value`. Two variables are
+available in the expression context:
+
+- `value` — the result of applying the `value` configuration to the CAN payload
+- `can_data` — the full CAN payload as a byte array
+
+```json
+"expression": "bool(value & 0b00000100)"
+```
+
+<Aside type="note">
+  By default (`strictEval: true`), `eval()` runs with `__builtins__` access denied. Set
+  `strictEval: false` on the device to enable the full Python built-in library.
+</Aside>
+
+##### Parameter "polling"
+
+Optional. When omitted, the connector only receives data that the CAN node sends spontaneously.
+When set, the connector sends a message to the CAN node to request data — either once on
+startup (`once`) or repeatedly on a fixed period (`always`).
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `type` | `always` | `always` — send periodically; `once` — send a single time |
+| `period` | `1.0` | Polling interval in seconds (floating-point for sub-second precision; only for `always`) |
+| `dataInHex` | | CAN message payload to send, as a hex string (e.g. `"AB CD EF"`) |
+
+#### Subsection "attributeUpdates"
+
+When a ThingsBoard shared attribute changes, the connector converts the new value to a CAN
+payload and sends it to the CAN node.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `attributeOnThingsBoard` | | Shared attribute name to subscribe to |
+| `nodeId` | | CAN node (arbitration) ID |
+| `isExtendedId` | `false` | Use extended (29-bit) CAN arbitration ID |
+| `isFd` | `false` | Use CAN FD mode |
+| `bitrateSwitch` | `false` | **CAN FD only.** Use higher bitrate for the data phase |
+| `dataLength` | `1` | **Integer values only.** Number of bytes to pack the integer value into |
+| `dataByteorder` | `big` | **Numeric values only.** Byte order when packing the value |
+| `dataSigned` | `false` | **int/long types only.** Pack as a signed integer |
+| `dataExpression` | | Python `eval()` expression to modify the attribute value before packing; `value` holds the incoming attribute value |
+| `dataEncoding` | `ascii` | **String values only.** Encoding for string packing |
+| `dataBefore` | | Hex string of bytes prepended to the packed value |
+| `dataAfter` | | Hex string of bytes appended to the packed value |
+
+**Processing steps:**
+
+<Steps>
+1. If `dataExpression` is set, evaluate it with `value` = the incoming attribute value. Otherwise use the value as-is.
+
+2. Pack the result from step 1 to a byte array based on its Python type (detected via `isinstance()`) and the `data*` configuration.
+
+3. If `dataBefore` or `dataAfter` are set, convert them to byte arrays and prepend/append them to the packed value bytes.
+
+4. Send the final byte array as the CAN message payload to the CAN node.
+</Steps>
+
+#### Subsection "serverSideRpc"
+
+Maps ThingsBoard RPC commands to outgoing CAN messages. Two RPC modes are supported:
+
+<Aside type="note">
+  - **Without parameters** — uses only `dataInHex`; the fixed hex payload is sent every time the command is called.
+  - **With parameters** — uses `data*` options (except `dataInHex`) following the same processing steps as `attributeUpdates`.
+</Aside>
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `method` | | RPC method name |
+| `response` | `false` | Send the result back to ThingsBoard |
+| `nodeId` | | CAN node (arbitration) ID |
+| `isExtendedId` | `false` | Use extended (29-bit) CAN arbitration ID |
+| `isFd` | `false` | Use CAN FD mode |
+| `bitrateSwitch` | `false` | **CAN FD only.** Use higher bitrate for the data phase |
+| `dataInHex` | | **Without-parameters mode only.** Fixed hex payload sent on every invocation |
+| `dataLength` | `1` | **Integer values only.** Number of bytes to pack the integer value into |
+| `dataByteorder` | `big` | **Numeric values only.** Byte order when packing the value |
+| `dataSigned` | `false` | **int/long types only.** Pack as a signed integer |
+| `dataExpression` | | Python `eval()` expression to build the value; all RPC params are available as variables |
+| `dataEncoding` | `ascii` | **String values only.** Encoding for string packing |
+| `dataBefore` | | Hex string of bytes prepended to the packed value |
+| `dataAfter` | | Hex string of bytes appended to the packed value |
+
+**Without-parameters example** — sends a fixed payload every time `sendSameData` is called:
+
+```json
+{
+  "method": "sendSameData",
+  "nodeId": 4,
+  "isExtendedId": true,
+  "isFd": true,
+  "bitrateSwitch": true,
+  "dataInHex": "aa bb cc dd ee ff aa bb aa bb cc dd ee ff"
+}
+```
+
+**With-parameters — value from RPC payload** — when `dataExpression` is not set, the RPC
+payload must contain a `value` property:
+
+```json
+{
+  "device": "Car",
+  "data": {
+    "method": "setLightLevel",
+    "params": { "value": 70 }
+  }
+}
+```
+
+**With-parameters — value from expression** — when `dataExpression` is set, all RPC params
+are available as variables. For example, to cap speed at a maximum allowed value:
+
+```json
+// RPC payload
+{
+  "device": "Car",
+  "data": {
+    "id": 1,
+    "method": "setSpeed",
+    "params": {
+      "userSpeed": 150,
+      "maxAllowedSpeed": 100
+    }
+  }
+}
+```
+
+```json
+// Connector configuration
+{
+  "method": "setSpeed",
+  "nodeId": 16,
+  "dataBefore": "09",
+  "dataAfter": "aabb",
+  "dataExpression": "userSpeed if maxAllowedSpeed > userSpeed else maxAllowedSpeed"
+}
+```
+
+The resulting CAN payload is `[ 0x09, 0x64, 0xAA, 0xBB ]` — the value `0x64` (100) is used
+because the requested speed (150) exceeded the allowed maximum (100).

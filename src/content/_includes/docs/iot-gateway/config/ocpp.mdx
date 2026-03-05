@@ -1,0 +1,320 @@
+import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+import DocLink from '@components/DocLink.astro';
+
+The OCPP Connector acts as a Central System, letting the gateway communicate with OCPP-compliant Charge Points
+and forward their data to ThingsBoard.
+
+To enable this connector, add it to the `connectors` list in `tb_gateway.json` — see the
+<DocLink product={props.product} path="iot-gateway/config/general">General Configuration</DocLink> reference.
+
+## Connector configuration: ocpp.json
+
+The connector reads its settings from a JSON file. Below is a full example:
+
+```json maxLines=20 collapsible
+{
+  "centralSystem": {
+    "name": "Central System",
+    "host": "127.0.0.1",
+    "port": 9000,
+    "connection": {
+      "type": "insecure"
+    },
+    "security": [
+      {
+        "type": "token",
+        "tokens": [
+          "Bearer ACCESS_TOKEN"
+        ]
+      },
+      {
+        "type": "basic",
+        "credentials": [
+          {
+            "username": "admin",
+            "password": "admin"
+          }
+        ]
+      }
+    ]
+  },
+  "chargePoints": [
+    {
+      "idRegexpPattern": "bidon/hello/CP_1",
+      "deviceNameExpression": "${Vendor} ${Model}",
+      "deviceTypeExpression": "default",
+      "attributes": [
+        {
+          "messageTypeFilter": "MeterValues,",
+          "key": "temp1",
+          "value": "${meter_value[:].sampled_value[:].value}"
+        },
+        {
+          "messageTypeFilter": "MeterValues,",
+          "key": "vendorId",
+          "value": "${connector_id}"
+        }
+      ],
+      "timeseries": [
+        {
+          "messageTypeFilter": "DataTransfer,",
+          "key": "temp",
+          "value": "${data.temp}"
+        }
+      ],
+      "attributeUpdates": [
+        {
+          "attributeOnThingsBoard": "shared",
+          "valueExpression": "{\"${attributeKey}\":\"${attributeValue}\"}"
+        }
+      ],
+      "serverSideRpc": [
+        {
+          "methodRPC": "rpc1",
+          "withResponse": true,
+          "valueExpression": "${params}"
+        }
+      ]
+    }
+  ]
+}
+```
+
+## Section "centralSystem"
+
+Configures the gateway as an OCPP Central System — it listens for incoming Charge Point connections on the
+specified host and port.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `name` | `Central System` | Display name for the Central System |
+| `host` | `127.0.0.1` | Hostname or IP address the Central System binds to |
+| `port` | `9000` | Port the Central System listens on |
+
+### Subsection "connection"
+
+Configures the transport security between the Central System and Charge Points.
+
+<Tabs>
+<TabItem label="Insecure">
+
+Plain WebSocket connection with no transport security. Suitable for testing, not recommended for production.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `type` | `insecure` | Connection type |
+
+```json
+"connection": {
+  "type": "insecure"
+}
+```
+
+</TabItem>
+<TabItem label="TLS">
+
+Encrypted WebSocket connection using TLS. Recommended for production.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `type` | `tls` | Connection type |
+| `key` | `/etc/thingsboard-gateway/privateKey.pem` | Path to the private key file |
+| `cert` | `/etc/thingsboard-gateway/certificate.pem` | Path to the certificate file |
+| `password` | | *(Optional)* Password to decrypt the private key |
+
+```json
+"connection": {
+  "type": "tls",
+  "key": "/etc/thingsboard-gateway/privateKey.pem",
+  "cert": "/etc/thingsboard-gateway/certificate.pem"
+}
+```
+
+</TabItem>
+</Tabs>
+
+### Subsection "security"
+
+Configures how Charge Points authenticate themselves when connecting to the Central System. An empty array
+disables authentication.
+
+<Tabs>
+<TabItem label="Anonymous">
+
+No authentication. Suitable for testing, not recommended for production.
+
+```json
+"security": []
+```
+
+</TabItem>
+<TabItem label="Basic">
+
+Authenticates Charge Points using a username and password.
+
+| Parameter | Description |
+|-----------|-------------|
+| `type` | Must be `basic` |
+| `credentials` | Array of allowed username/password pairs |
+
+```json
+"security": [
+  {
+    "type": "basic",
+    "credentials": [
+      {
+        "username": "admin",
+        "password": "admin"
+      }
+    ]
+  }
+]
+```
+
+</TabItem>
+<TabItem label="Token">
+
+Authenticates Charge Points using a bearer token.
+
+| Parameter | Description |
+|-----------|-------------|
+| `type` | Must be `token` |
+| `tokens` | Array of accepted token strings |
+
+```json
+"security": [
+  {
+    "type": "token",
+    "tokens": [
+      "Bearer ACCESS_TOKEN"
+    ]
+  }
+]
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="note">
+  Basic and Token security types can be combined in the same `security` array — the Central System accepts
+  Charge Points that match either:
+
+  ```json
+  "security": [
+    {
+      "type": "token",
+      "tokens": ["Bearer ACCESS_TOKEN"]
+    },
+    {
+      "type": "basic",
+      "credentials": [
+        { "username": "admin", "password": "admin" }
+      ]
+    }
+  ]
+  ```
+</Aside>
+
+## Section "chargePoints"
+
+An array of Charge Point configurations. Each entry matches incoming connections by `idRegexpPattern` and
+defines how to name the corresponding ThingsBoard device and map its data.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `idRegexpPattern` | | Regular expression matched against the Charge Point identifier |
+| `deviceNameExpression` | | Expression to extract the device name from the BootNotification message |
+| `deviceTypeExpression` | | Expression to extract the device type from the BootNotification message |
+| `attributes` | | Mappings from OCPP messages to ThingsBoard device attributes |
+| `timeseries` | | Mappings from OCPP messages to ThingsBoard time-series telemetry |
+| `attributeUpdates` | | Configuration for pushing shared attribute updates to the Charge Point |
+| `serverSideRpc` | | Configuration for forwarding ThingsBoard RPC calls to the Charge Point |
+
+```json
+"chargePoints": [
+  {
+    "idRegexpPattern": "charge_points/CP_1",
+    "deviceNameExpression": "${Vendor} ${Model}",
+    "deviceTypeExpression": "${Model}",
+    "attributes": [ ... ],
+    "timeseries": [ ... ],
+    "attributeUpdates": [ ... ],
+    "serverSideRpc": [ ... ]
+  }
+]
+```
+
+### Subsections "attributes" and "timeseries"
+
+Both sections use the same field structure. `attributes` values are stored as device attributes in ThingsBoard;
+`timeseries` values are stored as time-series telemetry.
+
+| Parameter | Description |
+|-----------|-------------|
+| `messageTypeFilter` | Comma-separated list of OCPP message types this mapping applies to |
+| `key` | ThingsBoard attribute or telemetry key name |
+| `value` | JSON-path expression to extract the value from the incoming message |
+
+```json
+"attributes": [
+  {
+    "messageTypeFilter": "MeterValues,",
+    "key": "temp1",
+    "value": "${meter_value[:].sampled_value[:].value}"
+  },
+  {
+    "messageTypeFilter": "MeterValues,",
+    "key": "vendorId",
+    "value": "${connector_id}"
+  }
+],
+"timeseries": [
+  {
+    "messageTypeFilter": "DataTransfer,",
+    "key": "temp",
+    "value": "${data.temp}"
+  }
+]
+```
+
+### Subsection "attributeUpdates"
+
+This configuration section is optional. ThingsBoard allows the provisioning of device attributes and fetches some of them from the device application. You can treat this as a remote configuration for devices, enabling them to request shared attributes from ThingsBoard. See user guide for more details.
+
+The “attributeUpdates” configuration allows you to configure the format of the corresponding attribute data that will be sent to the Charge Point.
+
+| Parameter | Description |
+|-----------|-------------|
+| `attributeOnThingsBoard` | Shared attribute name to subscribe to |
+| `valueExpression` | JSON-path expression used to build the message payload sent to the Charge Point |
+
+```json
+"attributeUpdates": [
+  {
+    "attributeOnThingsBoard": "shared",
+    "valueExpression": "{\"${attributeKey}\":\"${attributeValue}\"}"
+  }
+]
+```
+
+### Subsection "serverSideRpc"
+
+ThingsBoard allows sending RPC commands to the device connected to ThingsBoard directly or via Gateway.
+
+Configuration, provided in this section is used for sending RPC requests from ThingsBoard to Charge Point.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `methodRPC` | | RPC method name to bind |
+| `withResponse` | `true` | Send the Charge Point's response back to ThingsBoard |
+| `valueExpression` | | JSON-path expression used to build the message payload sent to the Charge Point |
+
+```json
+"serverSideRpc": [
+  {
+    "methodRPC": "rpc1",
+    "withResponse": true,
+    "valueExpression": "${params}"
+  }
+]
+```
