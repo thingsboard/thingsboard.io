@@ -619,7 +619,7 @@ export const edgeSidebar: SidebarConfig = [
 			'docs/edge',
 			{
 				label: 'Welcome to IoT!',
-				items: ['docs/edge/why-thingsboard-edge'],
+				items: ['docs/edge/why-thingsboard-edge', 'docs/edge/getting-started'],
 			},
 			{
 				label: 'Key concepts',
@@ -640,7 +640,7 @@ export const edgePeSidebar: SidebarConfig = [
 			'docs/edge/pe',
 			{
 				label: 'Welcome to IoT!',
-				items: ['docs/edge/pe/why-thingsboard-edge'],
+				items: ['docs/edge/pe/why-thingsboard-edge', 'docs/edge/pe/getting-started'],
 			},
 			{
 				label: 'Key concepts',
