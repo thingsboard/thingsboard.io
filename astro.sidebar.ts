@@ -802,6 +802,10 @@ export const trendzSidebar: SidebarConfig = [
 			},
 		],
 	},
+	{
+		label: 'Metric Explorer',
+		items: ['docs/trendz/metric/overview', 'docs/trendz/metric/generate-new-metric'],
+	},
 ];
 
 /** License Server sidebar (pages at /docs/license-server/) */
