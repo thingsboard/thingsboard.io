@@ -1,0 +1,76 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+In monolithic mode, all ThingsBoard services — transports, rule engine, core, and web UI — run inside a single Java process. This is the simplest deployment option, requiring as little as 256 MB of RAM for development or 512 MB–1 GB for production workloads.
+
+## Architecture
+
+```txt
+                        ┌──────────────────────────────────────────┐
+                        │           ThingsBoard Process            │
+  Devices ──────────────┤                                          │
+    MQTT / HTTP /       │  ┌───────────┐   ┌──────────────────┐   │
+    CoAP / LwM2M        │  │ Transport │──▶│   Rule Engine     │   │
+                        │  └───────────┘   └────────┬─────────┘   │
+                        │                           │              │
+                        │                  ┌────────▼─────────┐   │
+  Users ────────────────┤  ┌──────────┐   │      Core         │   │
+    REST / WebSocket    │  │  Web UI  │──▶│  (REST, WS, RPC)  │   │
+                        │  └──────────┘   └────────┬─────────┘   │
+                        │                           │              │
+                        │                  ┌────────▼─────────┐   │
+                        │                  │    Database(s)    │   │
+                        │                  └──────────────────┘   │
+                        └──────────────────────────────────────────┘
+```
+
+## Single Node vs Cluster
+
+Monolithic mode supports two configurations:
+
+**Single node** — one JVM process, no external dependencies beyond the database. Uses in-memory queue. The simplest possible setup for development, testing, and small production workloads.
+
+**Monolithic cluster** — multiple identical JVM instances behind a load balancer. Each node runs all services. Requires:
+- **Zookeeper** for service discovery and partition assignment
+- **Kafka** for inter-node message passing (replaces in-memory queue)
+- **Load balancer** (HAProxy / nginx) to distribute device connections and REST calls
+
+```txt
+                    ┌──────────────┐
+    Devices/Users──▶│ Load Balancer│
+                    └──────┬───────┘
+               ┌───────────┼───────────┐
+               ▼           ▼           ▼
+          ┌─────────┐ ┌─────────┐ ┌─────────┐
+          │ TB Node │ │ TB Node │ │ TB Node │
+          │  (all   │ │  (all   │ │  (all   │
+          │services)│ │services)│ │services)│
+          └────┬────┘ └────┬────┘ └────┬────┘
+               │           │           │
+          ┌────▼───────────▼───────────▼────┐
+          │   Kafka · Zookeeper · DB · Redis│
+          └─────────────────────────────────┘
+```
+
+The cluster uses the same internal components (Actor System, Consistent Hashing, gRPC) described in the <DocLink product={props.product} path="reference/architecture">Architecture Overview</DocLink>. The key limitation is that every node runs every service — you cannot scale transports independently from the rule engine.
+
+## When to Use
+
+| Advantages | Limitations |
+|-----------|------------|
+| Simple to deploy — single process, minimal dependencies | Cannot scale services independently |
+| Low resource footprint (256 MB–1 GB RAM) | All components compete for the same CPU and memory |
+| No message queue infrastructure required (single node) | In-memory queue loses messages on crash |
+| Cluster mode adds fault tolerance | Cluster still can't scale transports separately |
+
+**Choose monolithic when:**
+- You are developing, testing, or running demos
+- Your production workload fits on 1–3 nodes
+- You don't need to scale transports independently from the rule engine
+
+**Switch to microservices when:**
+- You need to scale MQTT transport independently (e.g., 100K+ concurrent connections but light rule engine load)
+- Your team requires zero-downtime rolling upgrades
+- You want to isolate failures — a transport crash shouldn't affect REST API availability
+
+For microservices deployment details, see <DocLink product={props.product} path="reference/architecture/microservices">Microservices Architecture</DocLink>.

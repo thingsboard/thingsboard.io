@@ -1,0 +1,147 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Choosing the right deployment architecture depends on your device count, message throughput, high-availability requirements, and operational complexity budget. This page walks through common scenarios with sizing guidance.
+
+## Estimating Requirements
+
+Start by characterizing your workload. Two representative examples:
+
+| Parameter | 20K GPS trackers | 100K smart meters |
+|-----------|-----------------|-------------------|
+| Devices | 20,000 | 100,000 |
+| Messages per device | 1 per 10 sec | 1 per 15 min |
+| Messages per second | 2,000 | ~111 |
+| Data points per message | 5 (lat, lon, speed, fuel, status) | 3 (energy, voltage, current) |
+| Data points per second | 10,000 | ~333 |
+| Daily writes | ~864M | ~28.8M |
+| Daily disk (PostgreSQL) | ~130 GB | ~4.3 GB |
+| Daily disk (Cassandra) | ~26 GB | ~0.9 GB |
+
+## Key Characteristics
+
+| Factor | What it affects | Scaling lever |
+|--------|---------------|---------------|
+| Messages per second | CPU, network | More Transport pods, more Rule Engine threads |
+| Concurrent connections | RAM | More Transport pods (each MQTT connection ≈65 KB) |
+| Rule engine complexity | CPU | More TB Node replicas |
+| Data points per second | Disk IOPS, CPU | Database scaling (Cassandra nodes, TimescaleDB partitions) |
+| Dashboard subscriptions | RAM, WebSocket connections | More TB Node replicas |
+
+<Aside type="note">
+  PostgreSQL handles approximately 5,000 data points per second on typical hardware. For higher throughput, switch to Hybrid mode with Cassandra or TimescaleDB.
+</Aside>
+
+## Scenario A: Standalone Monolith
+
+A single server running ThingsBoard in monolithic mode with PostgreSQL on the same machine.
+
+```txt
+┌─────────────────────────────────┐
+│           Single Server         │
+│                                 │
+│  ┌───────────┐  ┌────────────┐ │
+│  │ThingsBoard│  │ PostgreSQL │ │
+│  │ (monolith)│  │            │ │
+│  └───────────┘  └────────────┘ │
+│                                 │
+└─────────────────────────────────┘
+```
+
+| Attribute | Value |
+|-----------|-------|
+| Max devices | ~300,000 (depending on message rate) |
+| Max data points/sec | ~5,000 (PostgreSQL limit) |
+| High availability | No — single point of failure |
+| Recommended RAM | 4–16 GB |
+
+| Advantages | Limitations |
+|-----------|------------|
+| Simplest deployment — one machine, one process | No redundancy — downtime during maintenance or failure |
+| Lowest operational cost | PostgreSQL write throughput ceiling |
+| No Kafka, Redis, or Zookeeper required | Cannot scale individual components |
+
+Best for: development, testing, demos, and small production deployments with moderate message rates.
+
+## Scenario B: Standalone Monolith + External Database
+
+ThingsBoard on one server, database on a separate managed service (AWS RDS, Azure Database, Google Cloud SQL).
+
+```txt
+┌─────────────────┐       ┌─────────────────┐
+│    Server        │       │  Managed DB     │
+│                  │       │                 │
+│  ┌────────────┐ │       │  PostgreSQL     │
+│  │ThingsBoard │──────────│  (+ Cassandra   │
+│  │ (monolith) │ │       │   optional)     │
+│  └────────────┘ │       │                 │
+└─────────────────┘       └─────────────────┘
+```
+
+| Advantages | Limitations |
+|-----------|------------|
+| Automated database backups and failover | Still a single ThingsBoard process — no HA for the application |
+| Can use managed Cassandra for higher write throughput | Network latency between server and DB |
+| Easier to scale storage independently | More infrastructure to manage than Scenario A |
+
+Best for: production deployments that need reliable database operations but can tolerate brief ThingsBoard restarts.
+
+## Scenario C: Cluster (Microservices)
+
+ThingsBoard deployed as microservices on Kubernetes or Docker Swarm with separate transport, node, and database pods.
+
+```txt
+┌──────────────────────────────────────────────────────┐
+│                 Kubernetes Cluster                    │
+│                                                      │
+│  ┌──────────┐  ┌──────────┐  ┌──────────────────┐  │
+│  │ MQTT     │  │ HTTP     │  │  TB Node Pods    │  │
+│  │ Transport│  │ Transport│  │  (Core + Rule     │  │
+│  │ Pods     │  │ Pods     │  │   Engine)         │  │
+│  └────┬─────┘  └────┬─────┘  └────────┬─────────┘  │
+│       │              │                 │             │
+│       ▼              ▼                 ▼             │
+│  ┌──────────────────────────────────────────────┐   │
+│  │              Apache Kafka                     │   │
+│  └──────────────────────────────────────────────┘   │
+│                                                      │
+│  ┌──────────┐  ┌──────────┐  ┌──────────────────┐  │
+│  │ Redis    │  │Zookeeper │  │  PostgreSQL /     │  │
+│  │          │  │ Ensemble │  │  Cassandra        │  │
+│  └──────────┘  └──────────┘  └──────────────────┘  │
+└──────────────────────────────────────────────────────┘
+```
+
+### Cluster Sizing: 1M Smart Meters
+
+Smart meters reporting every 15 minutes — moderate message rate, large device count.
+
+| Component | Instances | Specs (per instance) |
+|-----------|-----------|---------------------|
+| MQTT Transport | 2 | 2 CPU, 4 GB RAM |
+| TB Node | 2 | 4 CPU, 8 GB RAM |
+| Zookeeper | 3 | 1 CPU, 1 GB RAM |
+| Redis | 1 | 2 CPU, 4 GB RAM |
+| Kafka | 3 | 2 CPU, 4 GB RAM |
+| PostgreSQL | 1 | 4 CPU, 16 GB RAM, SSD |
+
+### Cluster Sizing: 1M GPS Trackers
+
+GPS trackers reporting every 10 seconds — high message rate, high write throughput.
+
+| Component | Instances | Specs (per instance) |
+|-----------|-----------|---------------------|
+| MQTT Transport | 8 | 2 CPU, 4 GB RAM |
+| TB Node | 15 | 4 CPU, 8 GB RAM |
+| JS Executor | 20 | 1 CPU, 1 GB RAM |
+| Cassandra | 15 | 8 CPU, 16 GB RAM, NVMe SSD |
+| Zookeeper | 3 | 1 CPU, 1 GB RAM |
+| Redis | 3 (Sentinel) | 2 CPU, 4 GB RAM |
+| Kafka | 3 | 4 CPU, 8 GB RAM, SSD |
+| PostgreSQL | 1 | 4 CPU, 16 GB RAM, SSD |
+
+<Aside type="tip">
+  These are starting-point recommendations. Monitor CPU, RAM, and disk IOPS during the first weeks and adjust replica counts and instance sizes based on actual utilization.
+</Aside>
+
+For benchmark results that validate these sizing recommendations, see <DocLink product={props.product} path="reference/architecture/performance">Performance</DocLink>.

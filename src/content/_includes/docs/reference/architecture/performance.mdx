@@ -1,0 +1,56 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+ThingsBoard performance was benchmarked on AWS EC2 instances using MQTT smart-meter emulators. Each test ran for 24+ hours to capture steady-state behavior and long-term stability.
+
+## Benchmark Results
+
+All tests used a single ThingsBoard instance in monolithic mode with the specified database and queue configuration.
+
+| Scenario | Devices | msg/sec | dp/sec | Instance | Queue | Database | Avg CPU | Disk IOPS |
+|----------|---------|---------|--------|----------|-------|----------|---------|-----------|
+| A | 100K | 111 | 333 | c5.xlarge | In-Memory | PostgreSQL | 5% | 50 |
+| B | 100K | 1,111 | 3,333 | c5.xlarge | In-Memory | PostgreSQL | 20% | 350 |
+| C | 100K | 1,111 | 3,333 | c5.xlarge | Kafka | PostgreSQL | 25% | 400 |
+| D | 500K | 5,555 | 16,666 | c5.4xlarge | Kafka | Cassandra | 40% | 800 |
+| E | 1M | 11,111 | 33,333 | c5.9xlarge | Kafka | Cassandra | 55% | 1,200 |
+
+**Instance specs reference:**
+
+| Instance | vCPU | RAM | Network |
+|----------|------|-----|---------|
+| c5.xlarge | 4 | 8 GB | Up to 10 Gbps |
+| c5.4xlarge | 16 | 32 GB | Up to 10 Gbps |
+| c5.9xlarge | 36 | 72 GB | 10 Gbps |
+
+## Key Findings
+
+- **Cassandra is ~5× more disk-efficient** than PostgreSQL for time-series data at the same write rate — critical for high-throughput deployments.
+- **In-memory queue** works well up to ~3K dp/sec but becomes unreliable at 10× that rate due to back-pressure. Use Kafka for production loads above 5K dp/sec.
+- **100K concurrent MQTT connections** consume approximately 6.5 GB of RAM on the transport layer.
+- **Kafka overhead is minimal** — scenarios B (in-memory) and C (Kafka) show nearly identical CPU at the same message rate, with Kafka adding ~5% CPU and better reliability.
+- **CPU scales linearly** with message throughput. Doubling the data point rate roughly doubles CPU utilization.
+
+## Disk Usage
+
+Daily disk consumption at 3,333 data points per second:
+
+| Database | Daily disk | 30-day disk | Notes |
+|----------|-----------|-------------|-------|
+| PostgreSQL | ~4.8 GB | ~144 GB | Row-per-data-point, no built-in compression |
+| Cassandra | ~1.0 GB | ~30 GB | Columnar compression, configurable TTL |
+
+<Aside type="tip">
+  Cassandra supports automatic TTL-based data expiration. Set TTL policies to keep disk usage bounded for high-frequency telemetry.
+</Aside>
+
+## Recommendations
+
+| Use case | Recommended setup |
+|----------|------------------|
+| Development / testing | Monolith, PostgreSQL, in-memory queue |
+| ≤100K devices, ≤3K dp/sec | Monolith, PostgreSQL, in-memory or Kafka |
+| 100K–500K devices, ≤15K dp/sec | Monolith or small cluster, Cassandra, Kafka |
+| 500K+ devices, 15K+ dp/sec | Microservices cluster, Cassandra, Kafka |
+
+For deployment architecture options and cluster sizing, see <DocLink product={props.product} path="reference/architecture/deployment-scenarios">Deployment Scenarios</DocLink>.

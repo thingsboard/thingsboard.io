@@ -172,9 +172,11 @@ const installationItems = (prefix: string) => {
 		{ label: 'Installation options', slug: `${prefix}/installation` },
 		{
 			label: 'On-premises',
+			collapsed: true,
 			items: [
 				{
 					label: 'Standalone',
+					collapsed: true,
 					items: [
 						`${prefix}/installation/docker`,
 						`${prefix}/installation/docker-windows`,
@@ -185,6 +187,7 @@ const installationItems = (prefix: string) => {
 				},
 				{
 					label: 'Cluster',
+					collapsed: true,
 					items: [
 						`${prefix}/installation/docker-compose-setup`,
 						`${prefix}/installation/minikube-cluster-setup`,
@@ -195,9 +198,11 @@ const installationItems = (prefix: string) => {
 		},
 		{
 			label: 'Cloud',
+			collapsed: true,
 			items: [
 				{
 					label: 'AWS',
+					collapsed: true,
 					items: [
 						{ label: 'AWS Installation Options', slug: `${prefix}/installation/aws-index` },
 						`${prefix}/installation/aws${isPE ? '-ec2' : ''}`,
@@ -208,6 +213,7 @@ const installationItems = (prefix: string) => {
 				},
 				{
 					label: 'Google Cloud',
+					collapsed: true,
 					items: [
 						{ label: 'GCP Installation Options', slug: `${prefix}/installation/gcp-index` },
 						`${prefix}/installation/gcp${isPE ? '-vm' : ''}`,
@@ -218,6 +224,7 @@ const installationItems = (prefix: string) => {
 				},
 				{
 					label: 'Azure',
+					collapsed: true,
 					items: [
 						{ label: 'Azure Installation Options', slug: `${prefix}/installation/azure-index` },
 						...(isPE ? [`${prefix}/installation/azure`] : []),
@@ -233,6 +240,7 @@ const installationItems = (prefix: string) => {
 			? [
 					{
 						label: 'Upgrade',
+						collapsed: true,
 						items: [
 							`${prefix}/installation/upgrade-instructions`,
 							`${prefix}/installation/upgrade-from-ce`,
@@ -262,6 +270,17 @@ const recipeItems = (prefix: string) => [
 ];
 
 const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) => [
+	{
+		label: 'Architecture',
+		collapsed: true,
+		items: [
+			{ label: 'Overview', slug: `${prefix}/architecture` },
+			`${prefix}/architecture/monolithic`,
+			`${prefix}/architecture/microservices`,
+			`${prefix}/architecture/deployment-scenarios`,
+			`${prefix}/architecture/performance`,
+		],
+	},
 	{
 		label: 'Configuration',
 		collapsed: true,

@@ -1,0 +1,83 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+ThingsBoard is a multi-tenant IoT platform designed to distribute workload across identical server nodes. There is no single point of failure — any node can handle any request, and the system continues operating when individual nodes go down.
+
+## Multi-tenancy
+
+Tenant isolation is enforced at every layer of the platform. The entity hierarchy — **Tenant → Customer → Devices & Assets** — determines access boundaries. Each tenant has independent rule chains, dashboards, device profiles, and user roles. System resources (database partitions, message queue topics, cache entries) are partitioned per tenant, so one tenant's traffic spike cannot affect another.
+
+## Data Flow
+
+When a device sends data, it follows the same path regardless of deployment mode (monolithic or microservices):
+
+1. **Connect** — Device opens a connection to the Transport layer (MQTT, HTTP, CoAP, or LwM2M).
+2. **Resolve tenant** — Transport identifies the owning tenant from device credentials.
+3. **Authenticate** — Transport validates device credentials against the Core service. Invalid credentials are rejected immediately.
+4. **Push to Rule Engine** — Transport converts the protocol-specific payload into a unified message and forwards it to the Rule Engine.
+5. **Execute Rule Chains** — The Rule Engine processes the message through the tenant's configured rule chains — filtering, enriching, transforming, and triggering actions.
+6. **Persist** — Action nodes save telemetry, attributes, or alarms to the database.
+7. **Notify** — Core pushes real-time updates to WebSocket subscribers (dashboards).
+
+## Services
+
+ThingsBoard is split into four logical service groups:
+
+| Service | Responsibility | Protocols |
+|---------|---------------|-----------|
+| **Transports** | Accept device connections, convert protocol-specific payloads into a unified format, push messages to the rule engine | MQTT, HTTP, CoAP, LwM2M, SNMP |
+| **Core** | Handle REST API, WebSocket subscriptions, device connectivity state, and entity management | HTTP/REST, WebSocket |
+| **Rule Engine** | Process incoming messages through configurable rule chains — filter, enrich, transform, and act | Internal |
+| **Web UI** | Serve the Angular-based dashboard application | HTTP |
+
+Transport services are protocol-specific — each protocol runs in its own process (or pod in Kubernetes). See the individual API references for protocol details:
+<DocLink product={props.product} path="reference/mqtt-api/getting-connected">MQTT API</DocLink>,
+<DocLink product={props.product} path="reference/http-api/getting-connected">HTTP API</DocLink>,
+<DocLink product={props.product} path="reference/coap-api/getting-connected">CoAP API</DocLink>,
+<DocLink product={props.product} path="reference/lwm2m-api/getting-started">LwM2M API</DocLink>.
+
+## Internal Components
+
+These components work identically in both monolithic and microservices deployments:
+
+| Component | Purpose |
+|-----------|---------|
+| **Actor System** | Manages isolated per-entity state (device actors, rule chain actors, tenant actors). Each actor processes messages sequentially, eliminating concurrency issues. |
+| **Service Discovery** | In cluster mode, Zookeeper tracks which nodes are alive. Single-node deployments skip Zookeeper entirely. |
+| **Consistent Hashing** | Distributes entities across cluster nodes deterministically. When a node joins or leaves, only a fraction of entities re-balance. |
+| **gRPC** | Inter-node communication in cluster mode. Forwards messages to the node that owns the target entity. |
+
+## Inter-service Communication
+
+Services communicate through a message queue. Messages are partitioned by entity ID — all messages for a single device always land on the same partition, preserving order and enabling stateful processing.
+
+ThingsBoard supports two queue implementations:
+
+| Queue | Use case | Ordering | Persistence |
+|-------|----------|----------|-------------|
+| **Apache Kafka** | Production clusters | Per-partition | Disk-based, survives restarts |
+| **In-Memory** | Development and small single-node setups | Per-partition | Lost on restart |
+
+## Database Layer
+
+ThingsBoard stores entities and attributes in PostgreSQL. For time-series data, you can choose between two strategies:
+
+| Strategy | Time-series storage | Write throughput | Recommended for |
+|----------|-------------------|-----------------|----------------|
+| **SQL** | PostgreSQL | ≤5K data points/sec | Small deployments (≤100K devices at low reporting rates), simplicity |
+| **Hybrid** | Cassandra (or TimescaleDB) | ~1M data points/sec | High-throughput production |
+
+<Aside type="tip">
+  Start with PostgreSQL-only (SQL mode). Switch to Hybrid mode when write throughput exceeds 5K data points per second. Note that device count alone doesn't determine throughput — 300K devices reporting once per minute produce ~5K data points/sec, while 50K devices reporting every second produce 50K data points/sec.
+</Aside>
+
+## Deployment Modes
+
+ThingsBoard supports two deployment architectures:
+
+| Mode | Description | Best for |
+|------|-------------|----------|
+| <DocLink product={props.product} path="reference/architecture/monolithic">**Monolithic**</DocLink> | All services in a single Java process | Development, small-to-medium workloads |
+| <DocLink product={props.product} path="reference/architecture/microservices">**Microservices**</DocLink> | Each service runs as a separate container | Production, horizontal scaling, HA |
+
+Both modes can run as a single server or as a cluster. See <DocLink product={props.product} path="reference/architecture/deployment-scenarios">Deployment Scenarios</DocLink> for sizing guidance and <DocLink product={props.product} path="reference/architecture/performance">Performance</DocLink> for benchmark results.
