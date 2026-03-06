@@ -1,0 +1,476 @@
+import { Aside } from '@astrojs/starlight/components';
+import DocLink from '@components/DocLink.astro';
+
+The ThingsBoard WebSocket API provides real-time, bidirectional communication between client applications and the platform.
+Use it to subscribe to telemetry updates, entity data changes, alarm events, and notifications — all pushed instantly without polling.
+
+<Aside type="tip">
+The WebSocket API powers the ThingsBoard UI dashboards. Every real-time widget uses this API under the hood.
+</Aside>
+
+## Connection
+
+Connect to the WebSocket endpoint:
+
+```
+ws://THINGSBOARD_HOST:PORT/api/ws
+wss://THINGSBOARD_HOST:PORT/api/ws
+```
+
+Use `wss://` for HTTPS deployments.
+
+## Authentication
+
+After opening the connection, send an `authCmd` with a JWT token:
+
+```json
+{
+  "authCmd": {
+    "cmdId": 0,
+    "token": "YOUR_JWT_TOKEN"
+  }
+}
+```
+
+Obtain the JWT token from the <DocLink product={props.product} path='reference/rest-api'>REST API</DocLink> login endpoint.
+
+The connection times out after **90 seconds** of inactivity. The client should send periodic pings or commands to keep it alive.
+
+## Message format
+
+### Requests
+
+All commands are sent as JSON. You can batch multiple commands in a single message:
+
+```json
+{
+  "authCmd": { "cmdId": 0, "token": "JWT_TOKEN" },
+  "cmds": [
+    { "cmdId": 1, "type": "ENTITY_DATA", ... },
+    { "cmdId": 2, "type": "ALARM_COUNT", ... }
+  ]
+}
+```
+
+Each command has a unique `cmdId` (integer) chosen by the client. Responses reference this ID.
+
+### Responses
+
+```json
+{
+  "cmdId": 1,
+  "errorCode": 0,
+  "errorMsg": null,
+  "cmdUpdateType": "ENTITY_DATA",
+  ...
+}
+```
+
+### Error codes
+
+| Code | Name | Description |
+|------|------|-------------|
+| 0 | `NO_ERROR` | Success |
+| 1 | `INTERNAL_ERROR` | Internal server error |
+| 2 | `BAD_REQUEST` | Invalid command or parameters |
+| 3 | `UNAUTHORIZED` | Missing or invalid authentication |
+
+## Command types
+
+### Entity data subscription
+
+Subscribe to entity data with filtering, pagination, and real-time updates:
+
+```json maxLines=25 collapsible
+{
+  "cmds": [
+    {
+      "cmdId": 1,
+      "type": "ENTITY_DATA",
+      "query": {
+        "entityFilter": {
+          "type": "entityType",
+          "entityType": "DEVICE"
+        },
+        "pageLink": {
+          "pageSize": 10,
+          "page": 0,
+          "sortOrder": {
+            "key": { "type": "ENTITY_FIELD", "key": "createdTime" },
+            "direction": "DESC"
+          }
+        },
+        "entityFields": [
+          { "type": "ENTITY_FIELD", "key": "name" },
+          { "type": "ENTITY_FIELD", "key": "type" }
+        ],
+        "latestValues": [
+          { "type": "ATTRIBUTE", "key": "active" }
+        ],
+        "keyFilters": []
+      },
+      "latestCmd": {
+        "keys": [
+          { "type": "TIME_SERIES", "key": "temperature" }
+        ]
+      }
+    }
+  ]
+}
+```
+
+**Initial response** contains the full result set in `data`. Subsequent **real-time updates** arrive in the `update` field:
+
+```json
+{
+  "cmdId": 1,
+  "errorCode": 0,
+  "cmdUpdateType": "ENTITY_DATA",
+  "data": {
+    "data": [
+      {
+        "entityId": { "entityType": "DEVICE", "id": "device-uuid" },
+        "latest": {
+          "ATTRIBUTE": { "active": { "ts": 1704067200000, "value": "true" } },
+          "TIME_SERIES": { "temperature": { "ts": 1704067260000, "value": "42.5" } }
+        }
+      }
+    ],
+    "totalPages": 1,
+    "totalElements": 1,
+    "hasNext": false
+  }
+}
+```
+
+**Time series history** — add `historyCmd` or `tsCmd` to fetch historical data or subscribe to a rolling time window:
+
+```json
+{
+  "cmds": [
+    {
+      "cmdId": 2,
+      "type": "ENTITY_DATA",
+      "query": { ... },
+      "tsCmd": {
+        "keys": ["temperature", "humidity"],
+        "startTs": 1704067200000,
+        "timeWindow": 3600000
+      }
+    }
+  ]
+}
+```
+
+### Entity count
+
+Get a live count of entities matching a filter:
+
+```json
+{
+  "cmds": [
+    {
+      "cmdId": 3,
+      "type": "ENTITY_COUNT",
+      "query": {
+        "entityFilter": {
+          "type": "entityType",
+          "entityType": "DEVICE"
+        },
+        "keyFilters": []
+      }
+    }
+  ]
+}
+```
+
+Response:
+
+```json
+{
+  "cmdId": 3,
+  "errorCode": 0,
+  "cmdUpdateType": "COUNT_DATA",
+  "count": 42
+}
+```
+
+### Alarm data subscription
+
+Subscribe to alarms with filtering and real-time updates:
+
+```json maxLines=25 collapsible
+{
+  "cmds": [
+    {
+      "cmdId": 4,
+      "type": "ALARM_DATA",
+      "query": {
+        "entityFilter": {
+          "type": "entityType",
+          "entityType": "DEVICE"
+        },
+        "pageLink": {
+          "pageSize": 10,
+          "page": 0,
+          "sortOrder": {
+            "key": { "type": "ALARM_FIELD", "key": "createdTime" },
+            "direction": "DESC"
+          }
+        },
+        "alarmFields": [
+          { "type": "ALARM_FIELD", "key": "createdTime" },
+          { "type": "ALARM_FIELD", "key": "type" },
+          { "type": "ALARM_FIELD", "key": "severity" },
+          { "type": "ALARM_FIELD", "key": "status" }
+        ],
+        "keyFilters": []
+      }
+    }
+  ]
+}
+```
+
+### Alarm count
+
+```json
+{
+  "cmds": [
+    {
+      "cmdId": 5,
+      "type": "ALARM_COUNT",
+      "query": {
+        "entityFilter": {
+          "type": "entityType",
+          "entityType": "DEVICE"
+        },
+        "keyFilters": []
+      }
+    }
+  ]
+}
+```
+
+Response:
+
+```json
+{
+  "cmdId": 5,
+  "errorCode": 0,
+  "cmdUpdateType": "ALARM_COUNT_DATA",
+  "count": 15
+}
+```
+
+### Alarm status
+
+Monitor whether any active alarms match the given criteria for a specific entity:
+
+```json
+{
+  "cmds": [
+    {
+      "cmdId": 6,
+      "type": "ALARM_STATUS",
+      "originatorId": { "entityType": "DEVICE", "id": "device-uuid" },
+      "typeList": ["HIGH_TEMPERATURE"],
+      "severityList": ["CRITICAL", "MAJOR"]
+    }
+  ]
+}
+```
+
+Response:
+
+```json
+{
+  "cmdId": 6,
+  "errorCode": 0,
+  "cmdUpdateType": "ALARM_STATUS",
+  "active": true
+}
+```
+
+Pass `null` for `typeList` or `severityList` to match all alarm types or severities.
+
+### Notifications
+
+Subscribe to user notifications:
+
+```json
+{
+  "cmds": [
+    {
+      "cmdId": 7,
+      "type": "NOTIFICATIONS",
+      "limit": 10
+    }
+  ]
+}
+```
+
+Response:
+
+```json
+{
+  "cmdId": 7,
+  "errorCode": 0,
+  "cmdUpdateType": "NOTIFICATIONS",
+  "totalUnreadCount": 5,
+  "notifications": [
+    {
+      "id": "notification-uuid",
+      "createdTime": 1704067200000,
+      "type": "ALARM",
+      "text": "High temperature detected",
+      "read": false
+    }
+  ]
+}
+```
+
+**Get unread count only:**
+
+```json
+{ "cmds": [{ "cmdId": 8, "type": "NOTIFICATIONS_COUNT" }] }
+```
+
+**Mark as read:**
+
+```json
+{
+  "cmds": [
+    {
+      "cmdId": 9,
+      "type": "MARK_NOTIFICATIONS_AS_READ",
+      "notifications": ["notification-uuid-1", "notification-uuid-2"]
+    }
+  ]
+}
+```
+
+**Mark all as read:**
+
+```json
+{ "cmds": [{ "cmdId": 10, "type": "MARK_ALL_NOTIFICATIONS_AS_READ" }] }
+```
+
+### Legacy telemetry subscriptions
+
+These v1 commands subscribe to a single entity's telemetry or attributes directly (without the Entity Data Query):
+
+**Attributes:**
+
+```json
+{
+  "cmds": [
+    {
+      "cmdId": 11,
+      "type": "ATTRIBUTES",
+      "entityType": "DEVICE",
+      "entityId": "device-uuid",
+      "keys": "temperature,humidity",
+      "scope": "SERVER_SCOPE"
+    }
+  ]
+}
+```
+
+**Time series:**
+
+```json
+{
+  "cmds": [
+    {
+      "cmdId": 12,
+      "type": "TIMESERIES",
+      "entityType": "DEVICE",
+      "entityId": "device-uuid",
+      "keys": "temperature",
+      "startTs": 1704067200000,
+      "timeWindow": 3600000,
+      "interval": 60000,
+      "limit": 100,
+      "agg": "AVG"
+    }
+  ]
+}
+```
+
+**Time series history** (one-time fetch, no subscription):
+
+```json
+{
+  "cmds": [
+    {
+      "cmdId": 13,
+      "type": "TIMESERIES_HISTORY",
+      "entityType": "DEVICE",
+      "entityId": "device-uuid",
+      "keys": "temperature",
+      "startTs": 1704067200000,
+      "endTs": 1704153600000,
+      "interval": 3600000,
+      "limit": 100,
+      "agg": "AVG"
+    }
+  ]
+}
+```
+
+Aggregation types: `NONE`, `AVG`, `MIN`, `MAX`, `SUM`, `COUNT`.
+
+## Unsubscribing
+
+For v2 commands (Entity Data, Alarm Data, etc.), send an unsubscribe command with the same `cmdId`:
+
+```json
+{
+  "cmds": [
+    { "cmdId": 1, "type": "ENTITY_DATA_UNSUBSCRIBE" },
+    { "cmdId": 4, "type": "ALARM_DATA_UNSUBSCRIBE" }
+  ]
+}
+```
+
+**Unsubscribe types:** `ENTITY_DATA_UNSUBSCRIBE`, `ENTITY_COUNT_UNSUBSCRIBE`, `ALARM_DATA_UNSUBSCRIBE`, `ALARM_COUNT_UNSUBSCRIBE`, `ALARM_STATUS_UNSUBSCRIBE`, `NOTIFICATIONS_UNSUBSCRIBE`.
+
+For v1 commands (Attributes, Time Series), resend the original command with `"unsubscribe": true`.
+
+## Complete message flow
+
+A typical session:
+
+1. **Open** WebSocket connection to `wss://host/api/ws`
+2. **Authenticate** — send `authCmd` with JWT token
+3. **Subscribe** — send one or more commands in `cmds`
+4. **Receive initial data** — server responds with full result
+5. **Receive updates** — server pushes changes as they happen
+6. **Unsubscribe** — send unsubscribe command when done
+7. **Close** connection
+
+```json title="Full session example"
+// 1. Auth + subscribe in one message
+{
+  "authCmd": { "cmdId": 0, "token": "JWT_TOKEN" },
+  "cmds": [
+    {
+      "cmdId": 1,
+      "type": "ENTITY_COUNT",
+      "query": {
+        "entityFilter": { "type": "entityType", "entityType": "DEVICE" },
+        "keyFilters": []
+      }
+    }
+  ]
+}
+
+// 2. Server responds with count
+// { "cmdId": 1, "errorCode": 0, "cmdUpdateType": "COUNT_DATA", "count": 42 }
+
+// 3. Server pushes update when count changes
+// { "cmdId": 1, "errorCode": 0, "cmdUpdateType": "COUNT_DATA", "count": 43 }
+
+// 4. Unsubscribe
+{ "cmds": [{ "cmdId": 1, "type": "ENTITY_COUNT_UNSUBSCRIBE" }] }
+```
