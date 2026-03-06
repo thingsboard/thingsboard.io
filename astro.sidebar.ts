@@ -806,6 +806,13 @@ export const trendzSidebar: SidebarConfig = [
 		label: 'Documentation',
 		items: [
 			{
+				label: 'Visualizations',
+				collapsed: true,
+				items: [
+					'docs/trendz/visualizations-tables',
+				],
+			},
+			{
 				label: 'Metric Explorer',
 				collapsed: true,
 				items: [
