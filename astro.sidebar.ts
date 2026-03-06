@@ -819,6 +819,7 @@ export const trendzSidebar: SidebarConfig = [
 				collapsed: true,
 				items: [
 					'docs/trendz/calculations/overview',
+					'docs/trendz/calculations/native',
 				],
 			},
 			{
