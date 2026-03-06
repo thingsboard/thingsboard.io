@@ -819,6 +819,7 @@ export const trendzSidebar: SidebarConfig = [
 				collapsed: true,
 				items: [
 					'docs/trendz/ai-assistance-overview',
+					'docs/trendz/ai-assistance-widget',
 				],
 			},
 		],
