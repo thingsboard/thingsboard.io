@@ -815,6 +815,13 @@ export const trendzSidebar: SidebarConfig = [
 				],
 			},
 			{
+				label: 'Calculated Fields',
+				collapsed: true,
+				items: [
+					'docs/trendz/calculations/overview',
+				],
+			},
+			{
 				label: 'AI Assistant',
 				collapsed: true,
 				items: [
