@@ -822,6 +822,14 @@ export const trendzSidebar: SidebarConfig = [
 					'docs/trendz/ai-assistance-widget',
 				],
 			},
+			{
+				label: 'Prediction',
+				collapsed: true,
+				items: [
+					'docs/trendz/prediction',
+					'docs/trendz/prediction/custom-python-models',
+				],
+			},
 			'docs/trendz/mix-sql-datasource',
 		],
 	},
