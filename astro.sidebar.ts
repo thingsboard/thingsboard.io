@@ -822,6 +822,7 @@ export const trendzSidebar: SidebarConfig = [
 					'docs/trendz/ai-assistance-widget',
 				],
 			},
+			'docs/trendz/mix-sql-datasource',
 		],
 	},
 ];
