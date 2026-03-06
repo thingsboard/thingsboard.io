@@ -827,6 +827,7 @@ export const trendzSidebar: SidebarConfig = [
 				collapsed: true,
 				items: [
 					'docs/trendz/prediction',
+					'docs/trendz/prediction/save-to-thingsboard',
 					'docs/trendz/prediction/custom-python-models',
 				],
 			},
