@@ -803,8 +803,25 @@ export const trendzSidebar: SidebarConfig = [
 		],
 	},
 	{
-		label: 'Metric Explorer',
-		items: ['docs/trendz/metric/overview', 'docs/trendz/metric/generate-new-metric'],
+		label: 'Documentation',
+		items: [
+			{
+				label: 'Metric Explorer',
+				collapsed: true,
+				items: [
+					'docs/trendz/metric/overview',
+					'docs/trendz/metric/generate-new-metric',
+					'docs/trendz/metric/use-in-thingsboard',
+				],
+			},
+			{
+				label: 'AI Assistant',
+				collapsed: true,
+				items: [
+					'docs/trendz/ai-assistance-overview',
+				],
+			},
+		],
 	},
 ];
 
