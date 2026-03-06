@@ -169,13 +169,14 @@ const guideItems = (prefix: string) => [
 const edgeInstallationItems = (prefix: string) => [
 	{ label: 'Installation options', slug: `${prefix}/installation` },
 	{
-		label: 'Standalone',
+		label: 'Single node',
 		items: [
 			`${prefix}/installation/docker`,
 			`${prefix}/installation/docker-windows`,
 			`${prefix}/installation/ubuntu`,
 			`${prefix}/installation/rhel`,
 			`${prefix}/installation/rpi`,
+			`${prefix}/installation/windows`,
 		],
 	},
 	{

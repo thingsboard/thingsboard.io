@@ -21,8 +21,14 @@ export const TRENDZ_VER = '1.15.0.4';
 /** Edge */
 export const EDGE_VER = '4.3.0.1';
 
+/** Edge release branch (for git clone, X.Y format) */
+export const EDGE_BRANCH = 'release-4.3';
+
 /** Edge Professional Edition */
 export const EDGE_PE_VER = '4.3.0.1EDGEPE';
+
+/** Edge PE release branch (for git clone, X.Y.Z format) */
+export const EDGE_PE_BRANCH = 'release-4.3.0';
 
 /** TBMQ Broker */
 export const TBMQ_VER = '2.2.0';
