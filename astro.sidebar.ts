@@ -22,7 +22,7 @@ const guideItems = (prefix: string) => [
 			`${prefix}/connectivity-guide`,
 			`${prefix}/connectivity-status`,
 			`${prefix}/claiming`,
-			`${prefix}/provisioning`,
+			`${prefix}/device-provisioning`,
 			`${prefix}/ota-updates`,
 			`${prefix}/command-and-control`,
 		],

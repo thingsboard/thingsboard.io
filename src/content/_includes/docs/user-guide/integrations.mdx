@@ -18,25 +18,27 @@ export const PEOnly = () => (
   </Aside>
 )}
 
-ThingsBoard Platform Integrations connect devices that use vendor-specific protocols — LoRaWAN network servers, cloud IoT platforms, industrial OPC-UA servers — to ThingsBoard without changing device firmware.
-Two primary deployment scenarios:
+ThingsBoard Platform Integrations act as a secure API bridge between external platforms, network servers, or protocol gateways and ThingsBoard — translating incoming messages into the ThingsBoard data model (telemetry, attributes, RPC) without changing device firmware.
 
-- **Connect NB-IoT, LoRaWAN, SigFox, and other devices** with proprietary payloads directly to ThingsBoard.
-- **Stream data from existing IoT platforms** (AWS IoT, Azure IoT Hub, etc.) to enable real-time dashboards and processing.
+Use integrations when devices cannot connect directly to ThingsBoard, or when they already communicate with another IoT platform or protocol gateway.
 
-In both cases a server-side component sits between ThingsBoard and the device, exposing its own API.
-The integration bridges that API to ThingsBoard core features: telemetry collection, attributes, and RPC calls.
+Common scenarios:
+
+- Devices connected to external IoT platforms (AWS IoT, Azure IoT Hub, Google Cloud Pub/Sub)
+- LoRaWAN network servers (ChirpStack, The Things Stack, Loriot, ThingPark)
+- MQTT brokers, OPC-UA servers, and other protocol gateways
+- Industrial gateways and NB-IoT / SigFox network servers
+
+Once data is received through an integration, it is available to the full ThingsBoard feature set: device management, Rule Engine processing, telemetry storage, dashboards, and RPC commands.
 
 ## How integrations work
 
-ThingsBoard supports many integration protocols — HTTP, MQTT, OPC-UA, CoAP, TCP, UDP — and specific connectors for LoRaWAN network servers (ChirpStack, The Things Stack, Loriot), Sigfox, AWS IoT, Azure Event Hub, and more.
-
-<DocImage src="/src/assets/images/user-guide/integrations/overview/create-integration-1.png" alt="Create integration" />
+Integrations in ThingsBoard provide bidirectional communication between external platforms (devices, gateways, network servers) and the ThingsBoard platform. This communication is implemented through uplink and downlink message flows.
 
 ```plaintext
   ┌──────────────────────────────────┐
   │     ThingsBoard Rule Engine      │
-  │  (telemetry, attributes, RPC)   │
+  │  (telemetry, attributes, RPC)    │
   └──────────────────────────────────┘
      ▲                       │
      │                       ▼
@@ -54,77 +56,85 @@ ThingsBoard supports many integration protocols — HTTP, MQTT, OPC-UA, CoAP, TC
   External Platform / Device
 ```
 
-**Uplink flow:** An incoming message is validated, then the assigned **Uplink Data Converter** extracts meaningful fields (telemetry, attributes, device name) and passes them to the Rule Engine.
+<h4>1. Uplink Flow (Device &#8702; ThingsBoard)</h4>
 
-**Downlink flow:** The Rule Engine pushes a message (e.g. shared attribute update, RPC call) through the assigned **Downlink Data Converter**, which transforms it into the format expected by the external platform.
+The uplink flow describes how data from external systems enters the ThingsBoard platform.
 
-Common downlink use cases:
+**Step 1 — Message delivery to the Integration**  
+An external device, gateway, or network server sends a message to the configured **integration endpoint** using a supported protocol (e.g., HTTP, MQTT, or a platform-specific integration protocol).
 
-- Changing data upload frequency via a shared attribute update
-- Triggering a firmware update
-- Sending an RPC command to change device state
+**Step 2 — Payload decoding (Uplink Data Converter)**  
+The Integration forwards the message to the **Uplink Data Converter**, which transforms the raw payload into the ThingsBoard internal message format. The decoded message may contain: device or asset name, type, telemetry values, and attributes.
 
-<DocImage src="/src/assets/images/user-guide/integrations/integrations-overview.svg" alt="Integrations data flow" />
+**Step 3 — Device provisioning**  
+If the message references a device that does not yet exist in ThingsBoard, the platform can **automatically create the device** based on the data provided by the converter.
 
-```plaintext
-                                            ┌─── ThingsBoard ──────────────────┐
-                                            │                                  │
-  IoT Platforms          MQTT / AMQP        │  ┌────────────────────────────┐  │
-  ┌──────────────────┐ ──────────────────▶  │  │      Integrations         │  │
-  │ AWS IoT          │                      │  └─────────────┬──────────────┘  │
-  │ IBM Watson       │                      │                │                 │
-  │ Microsoft Azure  │  Sigfox              │  ┌─────────────┴──────────────┐  │
-  └──────┬───────────┘ ──────────────────▶  │  │       Converters          │  │
-  Devices┘ MQTT                             │  │  (JSON / Binary / Text)   │  │
-                                            │  └─────────────┬──────────────┘  │
-  LoRaWAN Network        MQTT / HTTP        │       Uplink ──┤── Downlink      │
-  ┌──────────────────┐ ──────────────────▶  │                ▼                 │
-  │ ThingPark        │                      │  ┌────────────────────────────┐  │
-  │ The Things Net.  │                      │  │       Rule Engine          │  │
-  │ TEKTELIC         │  OPC-UA              │  └─────────────┬──────────────┘  │
-  └──────┬───────────┘ ──────────────────▶  │                ▼                 │
-  Devices┘ LoRaWAN                          │  ┌────────────────────────────┐  │
-                                            │  │   Real-Time Dashboards    │  │
-  NB-IoT Network         TCP / UDP          │  └────────────────────────────┘  │
-  ┌──────────────────┐ ──────────────────▶  │                                  │
-  │ TCP / UDP        │                      └──────────────────────────────────┘
-  └──────┬───────────┘
-  Devices┘ TCP/UDP
-```
+<Aside type="note">
+  Auto-provisioning is **disabled by default** and must be configured in **Device profile &#8702; <DocLink product={props.product} path="user-guide/device-provisioning">Device provisioning</DocLink>**.
+</Aside>
+
+**Step 4 — Rule Engine processing**  
+After conversion, the message enters the **Rule Engine** for further processing: storing telemetry and attributes, data transformation, triggering alarms, forwarding data to external systems, and updating dashboards.
+
+<h4>2. Downlink Flow (ThingsBoard &#8702; Device)</h4>
+
+The downlink flow describes how messages generated in ThingsBoard are delivered to external platforms or devices.
+
+**Step 1 — Message generation in the Rule Engine**  
+A **Rule Engine** node generates a message intended for an external system. Common examples include:
+- shared attribute updates
+- **RPC (Remote Procedure Call)** commands
+
+**Step 2 — Message encoding (Downlink Data Converter)**  
+The **Downlink Data Converter** transforms the internal ThingsBoard message into the format required by the external system. This may include defining:
+- protocol-specific topics
+- payload structure
+- headers or metadata
+
+**Step 3 — Message delivery**  
+The Integration sends the encoded message to the target **external platform or device** using the configured protocol.
+
+<Aside type="note">
+  The downlink converter is optional. Integrations that only ingest data into ThingsBoard do not require a downlink converter.
+</Aside>
 
 ## Uplink data converter
 
-The uplink converter parses incoming device payloads and converts them into ThingsBoard's internal format.
+The uplink converter decodes raw payloads from external devices or network servers and maps them to ThingsBoard's internal format: device name, device type, telemetry values, and attributes.
 
 ### Generic uplink converter
 
 A generic converter works with any integration type. To create one:
 
-<Steps>
-1. Go to **Integration center** → **Data converters**, click **+**, then **Create new converter**.
-2. Ensure the type selector is set to **Uplink**. Select the integration type (MQTT, OPC-UA, etc.) or leave it as "All".
-3. Enter a name and optionally enable **Debug mode**.
-4. In **Main decoding configuration**, write or paste your decoder script.
-5. Configure **Advanced decoding parameters**: use the "Update only keys list" to skip unchanged values.
-6. Click **Add**.
-</Steps>
-
 <Aside type="tip">
-We recommend using <DocLink product={props.product} path="user-guide/tbel">TBEL</DocLink> (ThingsBoard Expression Language) for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
+Use <DocLink product={props.product} path="user-guide/tbel">TBEL</DocLink> (ThingsBoard Expression Language) for converter scripts — it executes significantly faster than JavaScript inside ThingsBoard.
 </Aside>
 
+<Steps>
+1. Go to **Integration center &#8702; Data converters**.
+2. Click **+ Add data converter &#8702; Create new converter**.
+3. The **Converter type** is set to **Uplink** by default. Select the **Integration type** from the dropdown (e.g. MQTT, HTTP, ChirpStack) or leave it as **All** to apply the converter across all integration types.
+4. Enter a **Name**. Optionally configure debug output via the **Failures** button.
+5. In **Main decoding configuration**, write or paste your decoder script. Use the **TBEL** / **JS** selector to switch languages.
+6. Click **Test decoder function** to validate the script against a sample payload before saving.
+7. Optionally expand **Advanced decoding parameters** and add keys to the **Update only keys list** — values for those keys are written to the database only when they change between messages.
+8. Click **Add**.
+</Steps>
+
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/overview/adding-uplink-converter-1.png', alt: 'Uplink converter creation — main settings', caption: 'Main decoding configuration with script editor' },
-  { src: '/src/assets/images/user-guide/integrations/overview/adding-uplink-converter-2.png', alt: 'Uplink converter creation — advanced settings', caption: 'Advanced decoding parameters and "Update only keys list"' },
+  { src: '/src/assets/images/user-guide/integrations/overview/add-new-converter-1.png', alt: 'Data converters page — numbered steps: 1) Data converters item in the sidebar, 2) + Add data converter button, 3) Create new converter option in the dropdown menu', caption: 'Navigate to Integration center → Data converters, then click + Add data converter → Create new converter' },
+  { src: '/src/assets/images/user-guide/integrations/overview/adding-uplink-converter-2.png', alt: 'Add data converter dialog — Converter type toggle set to Uplink (default), Integration type dropdown open listing MQTT, HTTP, The Things Stack Community, AWS IoT, TCP, SigFox, ChirpStack, and other integration types', caption: 'The Converter type is Uplink by default. Open the Integration type dropdown and select the target integration, or leave it as All to apply the converter across all integration types' },
+  { src: '/src/assets/images/user-guide/integrations/overview/adding-uplink-converter-3.png', alt: 'Add data converter dialog — MQTT selected as integration type; Uplink data converter section showing the converter name "MQTT Uplink Converter" and Failures debug button; Main decoding configuration section with TBEL decoder script', caption: 'Enter the converter name, configure debug output via the Failures button if needed, then write the decoder script in Main decoding configuration' },
+  { src: '/src/assets/images/user-guide/integrations/overview/adding-uplink-converter-4.png', alt: 'Add data converter dialog — decoder script visible, Test decoder function button below the script, Advanced decoding parameters section expanded with "manufacturer" key in the Update only keys list, and the Add button', caption: 'Click "Test decoder function" to validate the script, optionally add keys to the Update only keys list in Advanced decoding parameters, then click Add' },
 ]} />
 
 <Aside type="note">
-In a cluster setup, values for keys in the "Update only keys list" may be updated more than once if messages arrive at different integration executor nodes. The same applies after converter configuration changes.
+In a cluster deployment, keys in the "Update only keys list" may still be written more than once if uplink messages arrive at different executor nodes. The same applies immediately after a converter configuration change.
 </Aside>
 
 ### Typed uplink converter
 
-Starting from **ThingsBoard 4.0**, certain integrations support a simplified typed uplink converter where you map message fields to attributes or telemetry without writing a decoder function manually.
+Starting from **ThingsBoard 4.0**, certain integrations support a typed uplink converter — a structured alternative to writing a decoder script manually. Instead of coding the full payload parser, you select the entity type, define the name pattern, and specify which payload fields map to telemetry and which to attributes. A decoder function is auto-generated based on the integration type and can be reviewed or replaced.
 
 Supported integrations: <DocLink product={props.product} path="user-guide/integrations/chirpstack">ChirpStack</DocLink>, <DocLink product={props.product} path="TODO">Loriot</DocLink>, <DocLink product={props.product} path="TODO">The Things Stack Community</DocLink>, <DocLink product={props.product} path="TODO">The Things Stack Industries</DocLink>, ThingPark, and ThingPark Enterprise.
 
@@ -133,38 +143,54 @@ Supported integrations: <DocLink product={props.product} path="user-guide/integr
 To create a typed uplink converter:
 
 <Steps>
-1. In the converter creation dialog, select the **Integration type** (e.g. Loriot).
-2. Enter a converter name.
-3. In **Main decoding configuration**, select the entity type (**Device** or **Asset**) and specify the entity name pattern. Use `$` patterns (e.g. `$eui`) to dynamically populate values from the incoming message.
-4. Optionally set **Device profile**, **Device label**, **Customer name**, and **Device group name** (all support `$` patterns).
-5. In **Attributes** and **Telemetry** sections, specify which keys go where. Missing keys are ignored.
-6. Configure the "Update only keys list" if needed, then click **Add**.
+1. In the **Add data converter** dialog, select a supported **Integration type** (e.g. Loriot, ChirpStack). 
+2. The **Uplink data converter** section will show a **Create new** / **Library** tab selector — choose **Create new**.
+3. Enter a **Name**. Optionally configure debug output via the **Failures** button.
+4. In **Main decoding configuration**, select the **Entity type** (**Device** or **Asset**) and enter the entity name pattern. Use `$field` references to resolve values from the incoming message (e.g. `Device $eui`).
+5. The decoder function is pre-generated for the selected integration type — review it or replace it with a custom script. Click **Test payload decoder** to validate it against a sample payload.
+6. Expand **Advanced decoding parameters** to configure optional fields:
+   - **Device profile name**, **Device label**, **Customer name**, **Device group name** — all support `$field` patterns.
+   - **Telemetry** / **Attributes** — add the payload keys to extract into each category. Keys absent in the incoming message are silently ignored.
+   - **Update only keys list** — keys listed here are written to the database only when their value changes between messages.
+7. Click **Add**.
 </Steps>
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/overview/uplink-converter-20-1.png', alt: 'Typed uplink converter — main config', caption: 'Entity name with $eui pattern and decoding script' },
-  { src: '/src/assets/images/user-guide/integrations/overview/uplink-converter-20-2.png', alt: 'Typed uplink converter — advanced config', caption: 'Advanced settings with Attributes and Telemetry key mapping' },
+  { src: '/src/assets/images/user-guide/integrations/overview/add-new-converter-1.png', alt: 'Data converters page — numbered steps: 1) Data converters item in the sidebar, 2) + Add data converter button, 3) Create new converter option in the dropdown menu', caption: 'Navigate to Integration center → Data converters, then click + Add data converter → Create new converter' },
+  { src: '/src/assets/images/user-guide/integrations/overview/typed-uplink-converter-2.png', alt: 'Add data converter dialog — Converter type set to Uplink, Integration type dropdown open listing all available types including Loriot, Custom, Kafka, Pub/Sub, ThingPark, OceanConnect, RabbitMQ, and others', caption: 'Select Uplink as the converter type, then open the Integration type dropdown and select a supported type (e.g. Loriot, ChirpStack, ThingPark)' },
+  { src: '/src/assets/images/user-guide/integrations/overview/typed-uplink-converter-3.png', alt: 'Add data converter dialog — Loriot selected as integration type; Uplink data converter section showing Create new / Library tab selector with Create new active, converter name "Loriot Uplink Converter", Failures button; Main decoding configuration with Entity type = Device and Device name pattern "Device $eui"', caption: 'After selecting a supported type (Loriot shown), choose the Create new tab, enter a name, then set Entity type and the device name pattern using <code>$field</code> references (e.g. <code>Device $eui</code>)' },
+  { src: '/src/assets/images/user-guide/integrations/overview/typed-uplink-converter-4.png', alt: 'Add data converter dialog — Main decoding configuration section showing Entity type = Device, Device name = "Device $eui", auto-generated TBEL payloadDecoder function, and "Test payload decoder" button highlighted below the script', caption: 'The payloadDecoder function is auto-generated for the selected integration type — review or modify it, then click "Test payload decoder" to validate against a sample payload' },
+  { src: '/src/assets/images/user-guide/integrations/overview/typed-uplink-converter-5.png', alt: 'Add data converter dialog — Advanced decoding parameters section showing Telemetry keys (battery, fCnt, rssi, snr, data, decoded, encdata), Attributes keys (eui, fPort, frequency, dr), and Update only keys list (eui, fPort, frequency, dr), with the Add button', caption: 'Advanced decoding parameters: Telemetry and Attributes keys are pre-populated for the selected integration type; Update only keys list is also configured. Review and adjust as needed, then click Add' },
 ]} />
 
-### Test decoder function
+### Decoder function testing
 
-You can validate your decoder logic before saving. Click **Test payload decoder** to open the test window.
+Both generic and typed converters include a built-in test tool:
+- **Generic converter**: click **Test decoder function** below the script.
+- **Typed converter**: click **Test payload decoder** below the script.
+
+Both open the same test dialog to validate the decoder output before saving.
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/overview/test-payload-decoder-1.png', alt: 'Test payload decoder button', caption: 'Click "Test payload decoder" to open the test window' },
-  { src: '/src/assets/images/user-guide/integrations/overview/test-payload-decoder-2.png', alt: 'Test decoder window', caption: 'Test decoder function window with payload, metadata, and output' },
+  { src: '/src/assets/images/user-guide/integrations/overview/test-payload-decoder-1.png', alt: 'Add data converter dialog — typed uplink converter for Loriot showing the auto-generated payloadDecoder function and the "Test payload decoder" button highlighted below the script', caption: 'Click "Test payload decoder" (typed converter) or "Test decoder function" (generic converter) to open the test dialog' },
+  { src: '/src/assets/images/user-guide/integrations/overview/test-payload-decoder-2.png', alt: 'Test payload decoder (TBEL) dialog — top-left: payload content type set to Binary (Base64) with a sample payload value; bottom-left: payloadDecoder TBEL script; top-right: metadata key-value pairs (ack, battery, cmd, data); bottom-right: Decoder output tab showing decoded JSON with attributes.sn and telemetry values (battery, temperature, saturation)', caption: 'Set the payload content type (JSON, TEXT, or Binary Base64), enter a payload value, add metadata key-value pairs, click Test, and inspect the decoded output in the Decoder output and Converter output tabs' },
 ]} />
 
-**Payload** — the encoded input data from the device. Each integration type has a pre-filled sample. Supported formats:
+**Payload** — the input message from the device. Each integration type pre-fills a sample. Supported formats:
 - **JSON**
 - **TEXT**
-- **Binary (Base64)** — automatically decoded to a byte array; no manual decoding needed in the script.
+- **Binary (Base64)** — automatically decoded to a byte array in the script; no manual base64 decoding needed.
 
 Access the payload in your script using the `payload` keyword.
 
-**Metadata** — a key-value map of integration-specific fields, accessible via the `metadata` keyword. You can define custom metadata parameters in each integration's settings (e.g. `deviceType`).
+**Metadata** — a key-value map of integration-level fields, accessible via `metadata`. Custom metadata parameters can be defined per integration in its settings (e.g. `deviceType`).
 
-**Converter output** — the JSON result from your decoder. The only mandatory fields are `deviceName` and `deviceType` (or `assetName` and `assetType` for assets). Optional fields: `customerName`, `groupName` (auto-create customer/group and assign the entity).
+**Converter output** — the fully assembled message ThingsBoard produces from the decoder result. The top-level fields depend on the converter type:
+
+- **Generic converter**: the decoder function must return an object containing `deviceName` and `deviceType` (or `assetName` and `assetType` for assets). Optional: `customerName`, `groupName` — ThingsBoard auto-creates the customer or group and assigns the entity.
+- **Typed converter**: the decoder function returns only `{ attributes, telemetry }`. ThingsBoard adds `entityType`, `name`, and `profile` from the UI-configured entity type and name pattern.
+
+The **Converter output** tab in the test dialog shows the final assembled message with all fields combined.
 
 Example output:
 
@@ -208,14 +234,20 @@ The downlink converter transforms a Rule Engine message into the format expected
 To create a downlink converter:
 
 <Steps>
-1. Go to **Integration center** → **Data converters**, click **+**, then **Create new converter**.
-2. Switch the type selector to **Downlink**. Select the integration type or leave "All".
-3. Enter a name and optionally enable **Debug mode**.
-4. In **Main encoding configuration**, write your encoder script.
-5. Click **Add**.
+1. Go to **Integration center &#8702; Data converters**.
+2. Click **+ Add data converter &#8702; Create new converter**.
+3. Switch the **Converter type** toggle to **Downlink**.
+4. Select the **Integration type** or leave **All**.
+5. Enter a **Name** and optionally configure debug output via the **Failures** button.
+6. In **Main encoding configuration**, write your encoder script.
+7. Click **Add**.
 </Steps>
 
-<DocImage src="/src/assets/images/user-guide/integrations/overview/add-downlink-converter.png" alt="Add downlink converter" />
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/overview/add-new-converter-1.png', alt: 'Data converters page — numbered steps: 1) Data converters item in the sidebar, 2) + Add data converter button, 3) Create new converter option in the dropdown menu', caption: 'Navigate to Integration center → Data converters, then click + Add data converter → Create new converter' },
+  { src: '/src/assets/images/user-guide/integrations/overview/adding-downlink-converter-2.png', alt: 'Add data converter dialog — Converter type toggle switched to Downlink, Integration type dropdown open listing Azure Event Hub, Azure Service Bus, CoAP, OPC-UA, Apache Pulsar, AWS Kinesis, AWS SQS, Azure IoT Hub, and others', caption: 'Switch the Converter type to Downlink, then select the integration type from the dropdown (or leave as All)' },
+  { src: '/src/assets/images/user-guide/integrations/overview/adding-downlink-converter-3.png', alt: 'Add data converter dialog — OPC-UA selected as integration type; Downlink data converter section showing converter name "OPC-UA Downlink Converter" and Failures debug button; Main encoding configuration section with TBEL encoder function signature and script body; Add button', caption: 'Enter a converter name, optionally configure debug output via the Failures button, write the encoder script in Main encoding configuration, then click Add' },
+]} />
 
 The encoder function signature:
 
@@ -250,6 +282,10 @@ The encoder must return a JSON object:
 | `data` | Encoded data string matching the content type |
 | `metadata` | Key-value pairs — e.g. MQTT topic, HTTP headers |
 
+### Triggering a downlink
+
+To send a downlink from the Rule Engine, add an **Integration Downlink** action node to your rule chain and configure it to use the target integration. The node forwards any Rule Engine message to the integration's downlink converter.
+
 ### Synchronous vs asynchronous downlinks
 
 Most integrations (MQTT, AWS IoT, etc.) push downlinks asynchronously — each Rule Engine message is sent to the external broker immediately.
@@ -258,38 +294,55 @@ Some integrations (SigFox, generic HTTP) can only push downlinks **synchronously
 
 ## Converters library
 
-The Converters Library is a built-in collection of ready-to-use uplink decoder functions for over 100 devices, supporting six popular LoRaWAN network servers. It significantly simplifies integration setup.
+The Converters Library is a built-in collection of ready-to-use uplink decoder functions for over 100 devices across six popular LoRaWAN network servers. It eliminates the need to write a decoder manually for supported devices.
 
 Currently supported by: <DocLink product={props.product} path="user-guide/integrations/chirpstack">ChirpStack</DocLink>, <DocLink product={props.product} path="TODO">Loriot</DocLink>, <DocLink product={props.product} path="TODO">The Things Stack Community</DocLink>, <DocLink product={props.product} path="TODO">The Things Stack Industries</DocLink>, ThingPark, and ThingPark Enterprise.
 
 <Steps>
-1. Go to **Integration center** → **Integrations**, click **+** to create a new integration. Select a supported integration type and click **Next**.
-2. In the **Uplink data converter** tab, switch to the **Library** option. Choose the **device vendor**, then the specific **sensor model**. The decoder function loads automatically.
-3. Configure advanced decoding options if needed, then click **Next** to continue setup.
+1. Go to **Integration center &#8702; Data converters**.
+2. Click **+ Add data converter &#8702; Create new converter**.
+3. Select **Uplink or Downlink** converter.
+3. Select a supported **Integration type** (e.g. Loriot, ChirpStack, The Things Stack).
+4. In the **data converter** section, switch to the **Library** tab.
+5. Select the device **Vendor** from the dropdown.
+6. Select the device **Model** — the converter name, entity name pattern, and decoder function are auto-populated.
+7. Optionally expand **Advanced decoding parameters** to adjust attribute keys, telemetry keys, or the "Update only keys list".  
+  Note: **Telemetry** keys are typically left empty when using a library decoder — the script extracts and returns telemetry directly.
+8. Click **Add**.
 </Steps>
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/overview/converters-library-1.png', alt: 'Select integration type', caption: 'Select an integration that supports the converters library' },
-  { src: '/src/assets/images/user-guide/integrations/overview/converters-library-2.png', alt: 'Choose device vendor and model', caption: 'Switch to Library and select the device vendor and sensor model' },
-  { src: '/src/assets/images/user-guide/integrations/overview/converters-library-3.png', alt: 'Decoder loaded', caption: 'Decoder function auto-loaded; configure advanced options and continue' },
+  { src: '/src/assets/images/user-guide/integrations/overview/add-new-converter-1.png', alt: 'Data converters page — numbered steps: 1) Data converters item in the sidebar, 2) + Add data converter button, 3) Create new converter option in the dropdown menu', caption: 'Navigate to Integration center → Data converters, then click + Add data converter → Create new converter' },
+  { src: '/src/assets/images/user-guide/integrations/overview/uplink-converter-from-library-2.png', alt: 'Add data converter dialog — Loriot selected as integration type, Library tab active in the Uplink data converter section, Vendor dropdown open listing device manufacturers: Lansitec, MClimate, Milesight, NanoSensorics, Netvox', caption: 'Select a supported integration type (Loriot shown), switch to the Library tab, then open the Vendor dropdown and select the device manufacturer' },
+  { src: '/src/assets/images/user-guide/integrations/overview/uplink-converter-from-library-3.png', alt: 'Add data converter dialog — Vendor set to Milesight, Model dropdown open listing Milesight sensor models with descriptions: WS201 (Smart Fill Level Monitoring Sensor), WS202 (PIR & Light Sensor), WS301 (Magnetic Contact Switch), WS302 (Monitor Sound Level)', caption: 'Select the vendor (Milesight), then choose the device model from the dropdown — each model includes a brief description' },
+  { src: '/src/assets/images/user-guide/integrations/overview/uplink-converter-from-library-4.png', alt: 'Add data converter dialog — converter name auto-populated as "Loriot Uplink Converter for Milesight WS202"; Main decoding configuration showing Entity type = Device, Device name pattern "WS202 $eui", and the auto-loaded TBEL payloadDecoder function, with Test payload decoder button', caption: 'After selecting the model, the converter name, entity type, device name pattern, and decoder function are all auto-populated. Click "Test payload decoder" to validate before saving' },
+  { src: '/src/assets/images/user-guide/integrations/overview/uplink-converter-from-library-5.png', alt: 'Advanced decoding parameters — Telemetry field is empty; Attributes keys pre-populated: eui, fPort, frequency; Update only keys list pre-populated: eui, fPort, frequency, dr; Add button with Click Add label', caption: 'Advanced decoding parameters are pre-configured: Attributes (eui, fPort, frequency) and Update only keys list are populated automatically. Telemetry is left empty — the decoder script extracts telemetry values directly. Click Add' },
 ]} />
 
 The library is open-source and maintained on <a href="https://github.com/thingsboard/data-converters" target="_blank">GitHub</a>.
 
 {props.product === Products.PE && (
   <Aside type="tip" title="Custom converters repository">
-    You can configure ThingsBoard to use your own Git repository with personalized decoders.
-    Set two environment variables: <code>TB_INTEGRATIONS_CONVERTERS_LIBRARY_REPO_URL</code> (repository URL) and <code>TB_INTEGRATIONS_CONVERTERS_LIBRARY_REPO_BRANCH</code> (branch name).
+    You can point ThingsBoard to your own Git repository with custom decoders. Set the following parameters in <code>thingsboard.yml</code> (or via environment variables):
+    <ul>
+      <li><code>TB_INTEGRATIONS_CONVERTERS_LIBRARY_REPO_URL</code> — Git repository URL</li>
+      <li><code>TB_INTEGRATIONS_CONVERTERS_LIBRARY_REPO_BRANCH</code> — branch name</li>
+    </ul>
+    <ImageGallery images={[
+      { src: '/src/assets/images/user-guide/integrations/overview/terminal-custom-repo-converters-library.png', alt: 'thingsboard.yml — converters library repo URL and branch configuration', caption: '<code>thingsboard.yml</code>: set the custom converters repo URL and branch under <code>converters.library</code>' },
+    ]} />
   </Aside>
 )}
 
 ## Debug mode
 
-Debug mode is useful for development and troubleshooting. However, it increases disk usage since all debug data is stored in the database.
+Debug mode captures all raw input/output events for each integration and converter message, which is useful during development and troubleshooting. Because debug data is written to the database, it should be disabled in production.
 
-Starting from **ThingsBoard 3.9**, the platform stores the full set of debug events only during the first **15 minutes** after creation. After that, only failure events are retained. These settings can be combined or disabled entirely.
+Starting from **ThingsBoard 3.9**, debug events are stored for only the first **15 minutes** after a converter or integration is created or re-enabled. After that window, only failure events are retained. This behavior can be adjusted per integration and converter in its settings.
 
 ## Deployment options
+
+ThingsBoard Integration has two deployment options: embedded and remote. See details and architecture diagrams below.
 
 ### Embedded integrations
 
@@ -364,7 +417,7 @@ Learn more in the <DocLink product={props.product} path="TODO">Remote Integratio
 |---|---|---|
 | **Designed for** | Server-to-server communication | Local network deployments |
 | **Scale** | High throughput, cluster-ready | Up to ~1,000 devices |
-| **Custom decoders** | Modify converter scripts in real time via UI | Requires gateway recompilation and restart |
+| **Custom decoders** | Modify converter scripts in real time via UI | Requires connector configuration update and gateway restart |
 
 Both systems serve different use cases and complement each other.
 
