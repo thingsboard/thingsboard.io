@@ -419,6 +419,7 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 			`${prefix}/configuration/lwm2m-transport-config`,
 			`${prefix}/configuration/snmp-transport-config`,
 			`${prefix}/configuration/vc-executor-config`,
+			`${prefix}/configuration/js-executor-config`,
 			...extraConfigItems,
 		],
 	},
