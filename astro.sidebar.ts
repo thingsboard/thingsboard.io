@@ -839,6 +839,7 @@ export const trendzSidebar: SidebarConfig = [
 				],
 			},
 			'docs/trendz/mix-sql-datasource',
+			'docs/trendz/settings',
 		],
 	},
 ];
