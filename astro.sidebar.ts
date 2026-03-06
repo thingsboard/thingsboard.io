@@ -758,7 +758,7 @@ export const tbmqSidebar: SidebarConfig = [
 	{
 		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
-		items: ['docs/mqtt-broker'],
+		items: ['docs/mqtt-broker', 'docs/mqtt-broker/getting-started'],
 	},
 ];
 
