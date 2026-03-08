@@ -149,7 +149,7 @@ const guideItems = (prefix: string) => [
 	{
 		label: 'Security',
 		collapsed: true,
-		items: [`${prefix}/security`, `${prefix}/security/api-keys`],
+		items: [`${prefix}/security`, `${prefix}/security/two-factor-authentication`, `${prefix}/security/oauth-2-support`, `${prefix}/security/domains`, `${prefix}/security/http-over-ssl`, `${prefix}/security/audit-log`, `${prefix}/security/secrets-storage`, `${prefix}/security/api-keys`],
 	},
 	{
 		label: 'Contribution',
@@ -686,6 +686,17 @@ export const paasSidebar: SidebarConfig = [
 		translations: { uk: 'Початок роботи' },
 		items: ['docs/paas/getting-started'],
 	},
+	{
+		label: 'Guides',
+		collapsed: true,
+		items: [
+			{
+				label: 'Security',
+				collapsed: true,
+				items: ['docs/paas/user-guide/security/two-factor-authentication', 'docs/paas/user-guide/security/oauth-2-support', 'docs/paas/user-guide/security/domains', 'docs/paas/user-guide/security/audit-log', 'docs/paas/user-guide/security/secrets-storage', 'docs/paas/user-guide/security/api-keys'],
+			},
+		],
+	},
 ];
 
 export const paasEuSidebar: SidebarConfig = [
@@ -693,6 +704,17 @@ export const paasEuSidebar: SidebarConfig = [
 		label: 'Getting Started EU',
 		translations: { uk: 'Початок роботи' },
 		items: ['docs/paas/eu/getting-started'],
+	},
+	{
+		label: 'Guides',
+		collapsed: true,
+		items: [
+			{
+				label: 'Security',
+				collapsed: true,
+				items: ['docs/paas/eu/user-guide/security/two-factor-authentication', 'docs/paas/eu/user-guide/security/oauth-2-support', 'docs/paas/eu/user-guide/security/domains', 'docs/paas/eu/user-guide/security/audit-log', 'docs/paas/eu/user-guide/security/secrets-storage', 'docs/paas/eu/user-guide/security/api-keys'],
+			},
+		],
 	},
 ];
 
