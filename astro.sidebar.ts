@@ -810,6 +810,15 @@ export const trendzSidebar: SidebarConfig = [
 				collapsed: true,
 				items: [
 					'docs/trendz/visualizations-tables',
+					'docs/trendz/visualizations-line',
+					'docs/trendz/visualizations-bar',
+					'docs/trendz/visualizations-pie',
+					'docs/trendz/visualizations-scatter',
+					'docs/trendz/visualizations-heatmap',
+					'docs/trendz/visualizations-calendar',
+					'docs/trendz/visualizations-card',
+					'docs/trendz/visualizations-card-with-line',
+					'docs/trendz/visualizations-ai-card',
 				],
 			},
 			{
