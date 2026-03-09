@@ -753,12 +753,143 @@ export const gwSidebar: SidebarConfig = [
 	},
 ];
 
+const tbmqGuideItems = (prefix: string): SidebarConfig => {
+	const isPE = prefix.includes('/pe');
+	return [
+		{
+			label: 'MQTT protocol',
+			collapsed: true,
+			items: [
+				`${prefix}/user-guide/mqtt-protocol`,
+				`${prefix}/user-guide/topics`,
+				`${prefix}/user-guide/qos`,
+				`${prefix}/user-guide/retained-messages`,
+				`${prefix}/user-guide/shared-subscriptions`,
+				`${prefix}/user-guide/last-will`,
+				`${prefix}/user-guide/keep-alive`,
+				`${prefix}/user-guide/mqtt-client-type`,
+				`${prefix}/user-guide/backpressure`,
+			],
+		},
+		{
+			label: 'Client management',
+			collapsed: true,
+			items: [
+				`${prefix}/user-guide/ui/sessions`,
+				`${prefix}/user-guide/ui/subscriptions`,
+				`${prefix}/user-guide/ui/mqtt-client-credentials`,
+				`${prefix}/user-guide/ui/monitoring`,
+				`${prefix}/user-guide/ui/websocket-client`,
+			],
+		},
+		{
+			label: 'Security',
+			collapsed: true,
+			items: [
+				`${prefix}/security/overview`,
+				`${prefix}/security/authentication/basic`,
+				`${prefix}/security/authentication/x509`,
+				`${prefix}/security/authentication/jwt`,
+				`${prefix}/security/authentication/http`,
+				`${prefix}/security/authentication/scram`,
+				`${prefix}/security/mqtts`,
+				`${prefix}/security/listeners`,
+				...(isPE ? [`${prefix}/security/oauth-2-support`, `${prefix}/security/rbac`] : []),
+			],
+		},
+		{
+			label: 'Integrations',
+			collapsed: true,
+			items: [
+				`${prefix}/integrations/http`,
+				`${prefix}/integrations/mqtt`,
+				`${prefix}/integrations/kafka`,
+			],
+		},
+		...(isPE
+			? [{ label: 'Administration', collapsed: true, items: [`${prefix}/white-labeling`] }]
+			: []),
+	];
+};
+
+const tbmqInstallItems = (prefix: string): SidebarConfig => [
+	{ label: 'Installation options', slug: `${prefix}/install/installation-options` },
+	{
+		label: 'Standalone',
+		collapsed: true,
+		items: [
+			`${prefix}/install/docker`,
+			`${prefix}/install/docker-windows`,
+			`${prefix}/install/building-from-source`,
+		],
+	},
+	{
+		label: 'Cluster',
+		collapsed: true,
+		items: [
+			`${prefix}/install/cluster/docker-compose-setup`,
+			`${prefix}/install/cluster/aws-cluster-setup`,
+			`${prefix}/install/cluster/azure-cluster-setup`,
+			`${prefix}/install/cluster/gcp-cluster-setup`,
+			`${prefix}/install/cluster/minikube-cluster-setup`,
+			`${prefix}/install/cluster/helm-cluster-setup-options`,
+		],
+	},
+	`${prefix}/install/config`,
+	`${prefix}/install/upgrade-instructions`,
+];
+
+const tbmqReferenceItems = (prefix: string): SidebarConfig => [
+	`${prefix}/architecture`,
+	{
+		label: 'Performance tests',
+		collapsed: true,
+		items: [
+			{
+				label: 'Point-to-point: 1M msg/sec',
+				slug: `${prefix}/reference/1m-throughput-p2p-performance-test`,
+			},
+			{
+				label: 'Fan-out: 3M msg/sec',
+				slug: `${prefix}/reference/3m-throughput-single-node-performance-test`,
+			},
+			{
+				label: '100M connections',
+				slug: `${prefix}/reference/100m-connections-performance-test`,
+			},
+		],
+	},
+	`${prefix}/rest-api`,
+];
+
 /** TBMQ Community Broker sidebar (pages at /docs/mqtt-broker/) */
 export const tbmqSidebar: SidebarConfig = [
 	{
 		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
-		items: ['docs/mqtt-broker', 'docs/mqtt-broker/getting-started'],
+		items: [
+			'docs/mqtt-broker',
+			{
+				label: 'Welcome to MQTT!',
+				translations: { uk: 'Новий проєкт' },
+				items: ['docs/mqtt-broker/why-tbmq', 'docs/mqtt-broker/getting-started'],
+			},
+		],
+	},
+	{
+		label: 'Guides',
+		collapsed: true,
+		items: tbmqGuideItems('docs/mqtt-broker'),
+	},
+	{
+		label: 'Installation',
+		collapsed: true,
+		items: tbmqInstallItems('docs/mqtt-broker'),
+	},
+	{
+		label: 'Reference',
+		collapsed: true,
+		items: tbmqReferenceItems('docs/mqtt-broker'),
 	},
 ];
 
@@ -767,7 +898,29 @@ export const tbmqPeSidebar: SidebarConfig = [
 	{
 		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
-		items: ['docs/mqtt-broker/pe'],
+		items: [
+			'docs/mqtt-broker/pe',
+			{
+				label: 'Welcome to MQTT!',
+				translations: { uk: 'Новий проєкт' },
+				items: ['docs/mqtt-broker/pe/why-tbmq', 'docs/mqtt-broker/pe/getting-started'],
+			},
+		],
+	},
+	{
+		label: 'Guides',
+		collapsed: true,
+		items: tbmqGuideItems('docs/mqtt-broker/pe'),
+	},
+	{
+		label: 'Installation',
+		collapsed: true,
+		items: tbmqInstallItems('docs/mqtt-broker/pe'),
+	},
+	{
+		label: 'Reference',
+		collapsed: true,
+		items: tbmqReferenceItems('docs/mqtt-broker/pe'),
 	},
 ];
 
