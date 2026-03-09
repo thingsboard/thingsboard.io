@@ -851,20 +851,24 @@ export const trendzSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'AI Assistant',
-				collapsed: true,
-				items: [
-					'docs/trendz/ai-assistance-overview',
-					'docs/trendz/ai-assistance-widget',
-				],
-			},
-			{
 				label: 'Prediction',
 				collapsed: true,
 				items: [
 					'docs/trendz/prediction',
-					'docs/trendz/prediction/save-to-thingsboard',
 					'docs/trendz/prediction/custom-python-models',
+					'docs/trendz/prediction/predict-remaining-time',
+					'docs/trendz/prediction/save-to-thingsboard',
+				],
+			},
+			{
+				label: 'AI Features',
+				collapsed: true,
+				items: [
+					'docs/trendz/ai-assistance-overview',
+					'docs/trendz/ai-assistance-widget',
+					'docs/trendz/ai-widget-summary',
+					'docs/trendz/ai-assistance-prompts',
+					'docs/trendz/custom-ai-model-configuration',
 				],
 			},
 			'docs/trendz/mix-sql-datasource',
