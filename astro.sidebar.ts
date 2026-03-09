@@ -172,9 +172,11 @@ const installationItems = (prefix: string) => {
 		{ label: 'Installation options', slug: `${prefix}/installation` },
 		{
 			label: 'On-premises',
+			collapsed: true,
 			items: [
 				{
 					label: 'Standalone',
+					collapsed: true,
 					items: [
 						`${prefix}/installation/docker`,
 						`${prefix}/installation/docker-windows`,
@@ -185,6 +187,7 @@ const installationItems = (prefix: string) => {
 				},
 				{
 					label: 'Cluster',
+					collapsed: true,
 					items: [
 						`${prefix}/installation/docker-compose-setup`,
 						`${prefix}/installation/minikube-cluster-setup`,
@@ -195,9 +198,11 @@ const installationItems = (prefix: string) => {
 		},
 		{
 			label: 'Cloud',
+			collapsed: true,
 			items: [
 				{
 					label: 'AWS',
+					collapsed: true,
 					items: [
 						{ label: 'AWS Installation Options', slug: `${prefix}/installation/aws-index` },
 						`${prefix}/installation/aws${isPE ? '-ec2' : ''}`,
@@ -208,6 +213,7 @@ const installationItems = (prefix: string) => {
 				},
 				{
 					label: 'Google Cloud',
+					collapsed: true,
 					items: [
 						{ label: 'GCP Installation Options', slug: `${prefix}/installation/gcp-index` },
 						`${prefix}/installation/gcp${isPE ? '-vm' : ''}`,
@@ -218,6 +224,7 @@ const installationItems = (prefix: string) => {
 				},
 				{
 					label: 'Azure',
+					collapsed: true,
 					items: [
 						{ label: 'Azure Installation Options', slug: `${prefix}/installation/azure-index` },
 						...(isPE ? [`${prefix}/installation/azure`] : []),
@@ -233,6 +240,7 @@ const installationItems = (prefix: string) => {
 			? [
 					{
 						label: 'Upgrade',
+						collapsed: true,
 						items: [
 							`${prefix}/installation/upgrade-instructions`,
 							`${prefix}/installation/upgrade-from-ce`,
@@ -259,9 +267,146 @@ const recipeItems = (prefix: string) => [
 		collapsed: true,
 		items: [`${prefix}/alarm-rule-tutorials`],
 	},
+	{
+		label: 'Real-time Data',
+		collapsed: true,
+		items: [`${prefix}/websocket-live-telemetry`],
+	},
+];
+
+const apisAndSdksItems = (prefix: string) => [
+	{ label: 'APIs & SDKs', slug: `${prefix}/reference/apis-and-sdks` },
+	{
+		label: 'Device APIs',
+		collapsed: true,
+		items: [
+			{
+				label: 'MQTT API',
+				collapsed: true,
+				items: [
+					`${prefix}/reference/mqtt-api/getting-connected`,
+					`${prefix}/reference/mqtt-api/telemetry`,
+					`${prefix}/reference/mqtt-api/attributes`,
+					`${prefix}/reference/mqtt-api/rpc`,
+					`${prefix}/reference/mqtt-api/claiming`,
+					`${prefix}/reference/mqtt-api/provisioning`,
+				],
+			},
+			{
+				label: 'CoAP API',
+				collapsed: true,
+				items: [
+					`${prefix}/reference/coap-api/getting-connected`,
+					`${prefix}/reference/coap-api/telemetry`,
+					`${prefix}/reference/coap-api/attributes`,
+					`${prefix}/reference/coap-api/rpc`,
+					`${prefix}/reference/coap-api/claiming`,
+					`${prefix}/reference/coap-api/provisioning`,
+				],
+			},
+			{
+				label: 'HTTP API',
+				collapsed: true,
+				items: [
+					`${prefix}/reference/http-api/getting-connected`,
+					`${prefix}/reference/http-api/telemetry`,
+					`${prefix}/reference/http-api/attributes`,
+					`${prefix}/reference/http-api/rpc`,
+					`${prefix}/reference/http-api/claiming`,
+					`${prefix}/reference/http-api/provisioning`,
+				],
+			},
+			{
+				label: 'LwM2M API',
+				collapsed: true,
+				items: [
+					`${prefix}/reference/lwm2m-api/getting-started`,
+					`${prefix}/reference/lwm2m-api/data-model`,
+					`${prefix}/reference/lwm2m-api/rpc-commands`,
+					`${prefix}/reference/lwm2m-api/ota-updates`,
+				],
+			},
+			{
+				label: 'SNMP API',
+				collapsed: true,
+				items: [
+					`${prefix}/reference/snmp-api/getting-connected`,
+					`${prefix}/reference/snmp-api/telemetry`,
+					`${prefix}/reference/snmp-api/attributes`,
+					`${prefix}/reference/snmp-api/rpc`,
+				],
+			},
+		],
+	},
+	{
+		label: 'Device SDKs',
+		collapsed: true,
+		items: [
+			`${prefix}/reference/python-device-sdk`,
+			`${prefix}/reference/micropython-client-sdk`,
+			`${prefix}/reference/circuitpython-client-sdk`,
+			`${prefix}/reference/arduino-client-sdk`,
+		],
+	},
+	{
+		label: 'Gateway APIs',
+		collapsed: true,
+		items: [
+			`${prefix}/reference/gateway-api/overview`,
+			`${prefix}/reference/gateway-api/telemetry`,
+			`${prefix}/reference/gateway-api/attributes`,
+			`${prefix}/reference/gateway-api/rpc`,
+			`${prefix}/reference/gateway-api/claiming`,
+			`${prefix}/reference/sparkplug-api`,
+		],
+	},
+	{
+		label: 'Gateway SDKs',
+		collapsed: true,
+		items: [`${prefix}/reference/python-gateway-sdk`],
+	},
+	{
+		label: 'Server-side APIs',
+		collapsed: true,
+		items: [
+			`${prefix}/reference/rest-api`,
+			`${prefix}/reference/websocket-api`,
+		],
+	},
+	{
+		label: 'Server-side REST Clients',
+		collapsed: true,
+		items: [
+			`${prefix}/reference/java-rest-client`,
+			`${prefix}/reference/python-rest-client`,
+		],
+	},
+	{
+		label: 'Mobile',
+		collapsed: true,
+		items: [
+			`${prefix}/reference/dart-client`,
+			`${prefix}/reference/mobile-app`,
+		],
+	},
 ];
 
 const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) => [
+	{
+		label: 'Architecture',
+		collapsed: true,
+		items: [
+			{ label: 'Overview', slug: `${prefix}/architecture` },
+			`${prefix}/architecture/monolithic`,
+			`${prefix}/architecture/microservices`,
+			`${prefix}/architecture/queue`,
+			`${prefix}/architecture/actor-system`,
+			`${prefix}/architecture/caching`,
+			`${prefix}/architecture/database`,
+			`${prefix}/architecture/deployment-scenarios`,
+			`${prefix}/architecture/performance`,
+		],
+	},
 	{
 		label: 'Configuration',
 		collapsed: true,
@@ -294,70 +439,6 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 		items: [
 			`${prefix}/notification-system/template-parameters`,
 			`${prefix}/notification-system/rule-triggers`,
-		],
-	},
-	{
-		label: 'Device API',
-		collapsed: true,
-		items: [
-			{
-				label: 'HTTP API',
-				collapsed: true,
-				items: [
-					`${prefix}/http-api/getting-connected`,
-					`${prefix}/http-api/telemetry`,
-					`${prefix}/http-api/attributes`,
-					`${prefix}/http-api/rpc`,
-					`${prefix}/http-api/claiming`,
-					`${prefix}/http-api/provisioning`,
-				],
-			},
-			{
-				label: 'CoAP API',
-				collapsed: true,
-				items: [
-					`${prefix}/coap-api/getting-connected`,
-					`${prefix}/coap-api/telemetry`,
-					`${prefix}/coap-api/attributes`,
-					`${prefix}/coap-api/rpc`,
-					`${prefix}/coap-api/claiming`,
-					`${prefix}/coap-api/provisioning`,
-				],
-			},
-			{
-				label: 'MQTT API',
-				collapsed: true,
-				items: [
-					`${prefix}/mqtt-api/getting-connected`,
-					`${prefix}/mqtt-api/telemetry`,
-					`${prefix}/mqtt-api/attributes`,
-					`${prefix}/mqtt-api/rpc`,
-					`${prefix}/mqtt-api/claiming`,
-					`${prefix}/mqtt-api/provisioning`,
-					`${prefix}/sparkplug-api`,
-				],
-			},
-			{
-				label: 'LwM2M API',
-				collapsed: true,
-				items: [
-					`${prefix}/lwm2m-api/getting-started`,
-					`${prefix}/lwm2m-api/data-model`,
-					`${prefix}/lwm2m-api/rpc-commands`,
-					`${prefix}/lwm2m-api/ota-updates`,
-				],
-			},
-		],
-	},
-	{
-		label: 'Gateway API',
-		collapsed: true,
-		items: [
-			`${prefix}/gateway-api/overview`,
-			`${prefix}/gateway-api/telemetry`,
-			`${prefix}/gateway-api/attributes`,
-			`${prefix}/gateway-api/rpc`,
-			`${prefix}/gateway-api/claiming`,
 		],
 	},
 	{
@@ -556,6 +637,11 @@ const mainSidebarItems = (prefix: string, extraRecipeItems: SidebarConfig = [], 
 		items: installationItems(prefix),
 	},
 	{
+		label: 'APIs & SDKs',
+		collapsed: true,
+		items: apisAndSdksItems(prefix),
+	},
+	{
 		label: 'Reference',
 		collapsed: true,
 		translations: { uk: 'Довідник' },
@@ -619,7 +705,7 @@ export const edgeSidebar: SidebarConfig = [
 			'docs/edge',
 			{
 				label: 'Welcome to IoT!',
-				items: ['docs/edge/why-thingsboard-edge'],
+				items: ['docs/edge/why-thingsboard-edge', 'docs/edge/getting-started'],
 			},
 			{
 				label: 'Key concepts',
@@ -640,7 +726,7 @@ export const edgePeSidebar: SidebarConfig = [
 			'docs/edge/pe',
 			{
 				label: 'Welcome to IoT!',
-				items: ['docs/edge/pe/why-thingsboard-edge'],
+				items: ['docs/edge/pe/why-thingsboard-edge', 'docs/edge/pe/getting-started'],
 			},
 			{
 				label: 'Key concepts',

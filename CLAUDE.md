@@ -15,6 +15,9 @@ pnpm install
 # Development
 pnpm dev              # Start dev server
 pnpm build            # Production build
+pnpm build:fast       # Fast build (skips OG image generation) — use this for verification
+
+**Build policy:** Before running any build, always ask the user: "Run `pnpm build:fast` to verify, or skip?"
 pnpm preview          # Preview production build
 
 # Quality checks
@@ -254,36 +257,48 @@ import DocImage from '~/components/DocImage.astro';
 
 Images inside `.doc-image-row` share equal width (`flex: 1`) and stack vertically on screens ≤640px. The `.doc-image-row` styles are defined inside `DocImage.astro` via `:global()` and are available on any page that renders a `DocImage`.
 
-### PEFeatureBanner Component
+### Banner Component
 
-`src/components/PEFeatureBanner.astro` — reusable banner for PE/Cloud-only features. Only renders on CE pages.
+`src/components/Banner.astro` — unified banner component replacing the former `PEFeatureBanner` and `InfoBanner`.
 
-**Message:** "This feature is available in **ThingsBoard Professional** and **ThingsBoard Cloud** only." with `DocLink` links to the PE and PAAS versions of the same page.
+**Variants:**
+
+| `variant` | Color | Behavior |
+|-----------|-------|----------|
+| `peFeature` | `--color-product-pe` (green) | Renders **only on CE pages** (`product === Products.CE`). Shows standard text: "This feature is available in ThingsBoard Professional and ThingsBoard Cloud only." with links. Accepts optional extra slot content. |
+| `ce` | `--color-product-ce` (blue-gray) | Always renders; slot content only. |
+| `pe` | `--color-product-pe` (green) | Always renders; slot content only. |
+| `cloud` | `--color-product-cloud` (blue) | Always renders; slot content only. |
+| `trendz` | `--color-product-trendz` (light blue) | Always renders; slot content only. |
+
+Non-`peFeature` variants render as `inline-block` / `width: fit-content` (shrinks to content width).
 
 **Props:**
 
 ```ts
 interface Props {
-  product: Products;   // Current product — banner only shows when CE
-  path?: string;       // Path to corresponding docs page (e.g. "user-guide/reporting/getting-started")
-                       // Used to generate links to both PE and Cloud (PAAS) versions
-                       // When omitted, links to installation pages
+  variant: 'peFeature' | 'ce' | 'pe' | 'cloud' | 'trendz';
+  product?: Products;  // Required for variant='peFeature'
+  path?: string;       // For 'peFeature': path to docs page for PE/Cloud links (default: 'installation')
 }
 ```
 
 **Usage in MDX `_includes`:**
 
 ```mdx
-import PEFeatureBanner from '~/components/PEFeatureBanner.astro';
+import Banner from '~/components/Banner.astro';
 
-{/* Links to specific PE and Cloud pages */}
-<PEFeatureBanner product={props.product} path="user-guide/reporting/getting-started" />
+{/* PE/Cloud-only feature notice — renders only on CE */}
+<Banner variant="peFeature" product={props.product} path="user-guide/reporting/getting-started" />
 
-{/* Links to PE and Cloud installation pages (default) */}
-<PEFeatureBanner product={props.product} />
+{/* Informational note with cloud accent */}
+<Banner variant="cloud">This action type is available for <DocLink product={props.product} path="user-guide/widgets/map-widgets">Map widgets</DocLink> only.</Banner>
+
+{/* CE-colored note */}
+<Banner variant="ce">Some CE-specific note here.</Banner>
 ```
 
-**When to use:** At the top of any include file for a feature that is only available in PE and Cloud editions. Do NOT use the old `<Aside type="note" title="... available in PE ...">` pattern or inline `PEOnly` badge spans for page-level banners.
+**When to use:** Use `variant="peFeature"` at the top of any include file for a PE/Cloud-only feature. Use the other variants for informational scope notes that apply to all editions. Do NOT use `<Aside type="note">` for these purposes.
 
 ### Badge Component & tb-badge
 

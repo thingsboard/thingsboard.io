@@ -1,0 +1,129 @@
+import DocLink from '@components/DocLink.astro';
+import ConditionalHeading from '~/components/ConditionalHeading.astro';
+import { Aside } from '@astrojs/starlight/components';
+import { Products } from '~/models/site.models';
+
+In a monolithic cluster, every node runs every service — you can't scale MQTT transport without also scaling the rule engine, and upgrading any component requires restarting the entire process. Microservices architecture (available since version 2.2) splits services into independent containers so each can scale, upgrade, and fail independently.
+
+## Architecture
+
+```txt
+    Devices                                           Users
+    MQTT / HTTP / CoAP / LwM2M                     REST / WS
+        │                                              │
+        ▼                                              ▼
+  ┌───────────────────────────┐              ┌──────────────┐
+  │     Transport Pods        │              │   Web UI     │
+  │  ┌──────┐ ┌──────┐       │              │   Pods       │
+  │  │ MQTT │ │ HTTP │ ...   │              └──────┬───────┘
+  │  └──┬───┘ └──┬───┘       │                     │
+  └─────┼────────┼────────────┘                     │
+        │        │                                  │
+        ▼        ▼                                  ▼
+  ┌──────────────────────────────────────────────────────┐
+  │                    Apache Kafka                      │
+  │  tb_rule_engine · tb_core · tb_transport.api · ...   │
+  └──────────┬──────────────────────────┬────────────────┘
+             │                          │
+             ▼                          ▼
+  ┌─────────────────────────┐   ┌──────────────┐
+  │   ThingsBoard Node Pods │   │ JS Executor  │
+  │  ┌──────────────────┐   │   │    Pods      │
+  │  │ Core + Rule Eng. │   │   │  (20+ for    │
+  │  │ Actor System     │   │   │  production) │
+  │  │ REST API + WS    │   │   └──────────────┘
+  │  └────────┬─────────┘   │
+  └───────────┼──────────────┘
+              │
+   ┌──────────┼──────────────────────────┐
+   │          ▼          ▼          ▼    │
+   │    PostgreSQL    Redis     Zookeeper│
+   │                 /Valkey             │
+   │    (+ Cassandra for time-series)    │
+   └─────────────────────────────────────┘
+```
+
+## Services
+
+Every service is stateless — all persistent state lives in the database and cache. Scaling any service means adding more replicas.
+
+| Service | Container | Default port | Scales by | Notes |
+|---------|-----------|-------------|-----------|-------|
+| MQTT Transport | `tb-mqtt-transport` | 1883 | Adding replicas | — |
+| HTTP Transport | `tb-http-transport` | 8080 | Adding replicas | — |
+| CoAP Transport | `tb-coap-transport` | 5683 | Adding replicas | — |
+| LwM2M Transport | `tb-lwm2m-transport` | 5685 | Adding replicas | — |
+| SNMP Transport | `tb-snmp-transport` | — | Adding replicas | — |
+| ThingsBoard Node | `tb-node` | 8080 | Adding replicas + Zookeeper partition rebalance | Core, Rule Engine, REST API |
+| JS Executor | `tb-js-executor` | — | Adding instances | 20+ recommended for production |
+| Web UI | `tb-web-ui` | 8080 | Adding replicas | Node.js / Express.js, proxies REST/WS to TB Node |
+
+### Transports
+
+Each transport protocol runs as a separate container. This allows you to scale MQTT independently from HTTP or CoAP based on your device fleet composition. Transport containers authenticate devices via the Core service and push messages into Kafka.
+
+Key Kafka topics used by transports:
+
+| Topic | Direction | Purpose |
+|-------|-----------|---------|
+| `tb_transport.api.requests` | Transport → Core | Credential validation, attribute fetch |
+| `tb_transport.api.responses` | Core → Transport | Authentication results |
+| `tb_rule_engine` | Transport → Rule Engine | Telemetry, attributes, RPC, lifecycle events |
+| `tb_core` | Rule Engine → Core | Entity lifecycle events, connectivity updates |
+
+See <DocLink product={props.product} path="reference/architecture/queue">Message Queue</DocLink> for the full topic topology and tuning.
+
+### ThingsBoard Node
+
+The central service that runs REST API, WebSocket server, Rule Engine, and <DocLink product={props.product} path="reference/architecture/actor-system">Actor System</DocLink>. Instances are stateless in the traditional sense — all persistent state lives in the <DocLink product={props.product} path="reference/architecture/database">database</DocLink> and <DocLink product={props.product} path="reference/architecture/caching">cache</DocLink>. The Actor System creates ephemeral per-entity actors (device actors, rule chain actors, tenant actors), but these are rebuilt from stored state when a node restarts. Zookeeper assigns entity partitions across nodes automatically.
+
+### JavaScript Executor
+
+Rule engine script nodes (filters, transformations) execute user-defined JavaScript in isolated Node.js sandboxes. Each JS Executor processes scripts sequentially and communicates with ThingsBoard Node via Kafka:
+
+| Topic | Direction | Purpose |
+|-------|-----------|---------|
+| `js.eval.requests` | TB Node → JS Executor | Script evaluation request |
+| `js.eval.responses` | JS Executor → TB Node | Evaluation result |
+
+<Aside type="tip">
+  Deploy 20 or more JS Executor instances in production. Each instance processes scripts sequentially, so more instances means higher script throughput.
+</Aside>
+
+{props.product !== Products.CE && (
+  <>
+    <ConditionalHeading level={3} id="integration-executor" exclude="ce">Integration Executor</ConditionalHeading>
+
+    The Integration Executor is a separate microservice that runs platform integrations — pulling data from external systems (OPC-UA, SigFox, TheThingsNetwork, etc.) and pushing it into ThingsBoard via the rule engine. Each instance connects to Kafka and can run multiple integrations concurrently. Scaling is independent from the core ThingsBoard Node.
+
+    <Aside type="note">
+      Integration Executor is available in ThingsBoard Professional Edition and Cloud only.
+    </Aside>
+  </>
+)}
+
+## Failover and Partition Rebalancing
+
+When a ThingsBoard Node pod goes down:
+
+1. **Zookeeper detects** the node is unresponsive (heartbeat timeout).
+2. **Partitions reassign** — the entity partitions owned by the failed node are redistributed across surviving nodes.
+3. **Actors rebuild** — surviving nodes create new actors for the reassigned entities, loading state from the database.
+4. **Message processing resumes** — surviving TB Nodes pick up Kafka partitions from the failed node. Transports are unaffected — they continue producing to the same Kafka topics regardless of which TB Nodes are consuming.
+
+Message ordering is preserved throughout — since all messages for a given entity go to the same Kafka partition, they are processed in order regardless of which TB Node consumes them.
+
+## Third-party Services
+
+A microservices deployment requires several supporting services:
+
+| Service | Purpose | HA configuration |
+|---------|---------|-----------------|
+| **Apache Kafka** | <DocLink product={props.product} path="reference/architecture/queue">Message queue</DocLink> between all services | 3-node cluster minimum |
+| **Redis / Valkey** | <DocLink product={props.product} path="reference/architecture/caching">Cache</DocLink> for sessions, entity data, rate limits | Sentinel or Cluster mode |
+| **Zookeeper** | Service discovery and partition assignment | 3-node ensemble |
+| **HAProxy / nginx** | Load balancer for HTTP, MQTT, CoAP | Active-passive or active-active |
+| **PostgreSQL** | <DocLink product={props.product} path="reference/architecture/database">Entity storage</DocLink>, system data | Streaming replication or managed service |
+| **Cassandra** | <DocLink product={props.product} path="reference/architecture/database">Time-series storage</DocLink> (Hybrid mode) | 3+ node cluster with RF=3 |
+
+For full deployment instructions, see <DocLink product={props.product} path="installation">Installation</DocLink>.
