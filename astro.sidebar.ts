@@ -831,6 +831,16 @@ export const trendzSidebar: SidebarConfig = [
 				],
 			},
 			{
+				label: 'Share Views',
+				collapsed: true,
+				items: [
+					'docs/trendz/trendz-bundle',
+					'docs/trendz/embed-visuals',
+					'docs/trendz/widget-filter-by-alias',
+					'docs/trendz/widget-actions',
+				],
+			},
+			{
 				label: 'Metric Explorer',
 				collapsed: true,
 				items: [
