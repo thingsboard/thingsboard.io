@@ -844,7 +844,10 @@ export const trendzSidebar: SidebarConfig = [
 				collapsed: true,
 				items: [
 					'docs/trendz/calculations/overview',
+					'docs/trendz/calculations/batch',
 					'docs/trendz/calculations/native',
+					'docs/trendz/calculations/save-to-thingsboard',
+					'docs/trendz/calculations/time-to-value',
 				],
 			},
 			{
