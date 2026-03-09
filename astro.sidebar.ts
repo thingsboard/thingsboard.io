@@ -813,30 +813,37 @@ const tbmqGuideItems = (prefix: string): SidebarConfig => {
 };
 
 const tbmqInstallItems = (prefix: string): SidebarConfig => [
-	{ label: 'Installation options', slug: `${prefix}/install/installation-options` },
-	{
-		label: 'Standalone',
-		collapsed: true,
-		items: [
-			`${prefix}/install/docker`,
-			`${prefix}/install/docker-windows`,
-			`${prefix}/install/building-from-source`,
-		],
-	},
-	{
-		label: 'Cluster',
-		collapsed: true,
-		items: [
-			`${prefix}/install/cluster/docker-compose-setup`,
-			`${prefix}/install/cluster/aws-cluster-setup`,
-			`${prefix}/install/cluster/azure-cluster-setup`,
-			`${prefix}/install/cluster/gcp-cluster-setup`,
-			`${prefix}/install/cluster/minikube-cluster-setup`,
-			`${prefix}/install/cluster/helm-cluster-setup-options`,
-		],
-	},
-	`${prefix}/install/config`,
-	`${prefix}/install/upgrade-instructions`,
+		{ label: 'Installation options', slug: `${prefix}/install/installation-options` },
+		{
+			label: 'Standalone',
+			collapsed: true,
+			items: [
+				`${prefix}/install/docker`,
+				`${prefix}/install/docker-windows`,
+				`${prefix}/install/building-from-source`,
+			],
+		},
+		{
+			label: 'Cluster',
+			collapsed: true,
+			items: [
+				`${prefix}/install/cluster/docker-compose-setup`,
+				`${prefix}/install/cluster/aws-cluster-setup`,
+				`${prefix}/install/cluster/azure-cluster-setup`,
+				`${prefix}/install/cluster/gcp-cluster-setup`,
+				`${prefix}/install/cluster/minikube-cluster-setup`,
+				`${prefix}/install/cluster/helm-cluster-setup-options`,
+			],
+		},
+		{
+			label: 'Configuration',
+			collapsed: true,
+			items: [
+				{ label: 'TBMQ', slug: `${prefix}/install/config` },
+				{ label: 'TBMQ Integration Executor', slug: `${prefix}/install/ie-config` },
+			],
+		},
+		`${prefix}/install/upgrade-instructions`,
 ];
 
 const tbmqReferenceItems = (prefix: string): SidebarConfig => [
