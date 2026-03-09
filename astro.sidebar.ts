@@ -874,6 +874,17 @@ export const tbmqSidebar: SidebarConfig = [
 				translations: { uk: 'Новий проєкт' },
 				items: ['docs/mqtt-broker/why-tbmq', 'docs/mqtt-broker/getting-started'],
 			},
+			{
+				label: 'Core concepts',
+				items: [
+					'docs/mqtt-broker/concepts/client-types',
+					'docs/mqtt-broker/concepts/sessions',
+					'docs/mqtt-broker/concepts/topics',
+					{ label: 'Delivery guarantees', slug: 'docs/mqtt-broker/concepts/qos' },
+					'docs/mqtt-broker/concepts/security',
+					'docs/mqtt-broker/concepts/clustering',
+				],
+			},
 		],
 	},
 	{
@@ -904,6 +915,17 @@ export const tbmqPeSidebar: SidebarConfig = [
 				label: 'Welcome to MQTT!',
 				translations: { uk: 'Новий проєкт' },
 				items: ['docs/mqtt-broker/pe/why-tbmq', 'docs/mqtt-broker/pe/getting-started'],
+			},
+			{
+				label: 'Core concepts',
+				items: [
+					'docs/mqtt-broker/pe/concepts/client-types',
+					'docs/mqtt-broker/pe/concepts/sessions',
+					'docs/mqtt-broker/pe/concepts/topics',
+					{ label: 'Delivery guarantees', slug: 'docs/mqtt-broker/pe/concepts/qos' },
+					'docs/mqtt-broker/pe/concepts/security',
+					'docs/mqtt-broker/pe/concepts/clustering',
+				],
 			},
 		],
 	},
