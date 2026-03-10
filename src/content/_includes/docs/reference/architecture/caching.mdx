@@ -1,0 +1,116 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+ThingsBoard caches frequently accessed data — device credentials, entity profiles, attributes, sessions — to avoid hitting the database on every message. Since the platform validates device credentials on every incoming telemetry message, the cache is critical for throughput: without it, every MQTT publish or HTTP POST triggers a database query.
+
+## Choosing a Backend
+
+Set the cache backend with the `CACHE_TYPE` environment variable:
+
+| Backend | `CACHE_TYPE` | Storage | Best for |
+|---------|-------------|---------|----------|
+| **Caffeine** | `caffeine` | Local JVM heap, per-node | Single node, monolithic deployments |
+| **Redis** | `redis` | External shared store | Clusters, microservices, multi-node setups |
+
+<Aside type="tip">
+  Use Caffeine for single-node deployments — it's faster (no network hop) and requires no additional infrastructure. Switch to Redis when running multiple ThingsBoard nodes so all nodes share the same cache and invalidations propagate instantly.
+</Aside>
+
+With Caffeine, each node maintains its own independent cache. Cache invalidations are broadcast between cluster nodes via the <DocLink product={props.product} path="reference/architecture/queue">message queue</DocLink>, but there's a brief window where different nodes may serve stale data. Redis eliminates this issue — all nodes read from the same shared store.
+
+## What Gets Cached
+
+ThingsBoard maintains separate cache namespaces, each with its own TTL and size limit. The most performance-critical caches are listed first:
+
+| Cache Namespace | Default TTL (min) | Default Max Size | Why it matters |
+|----------------|-------------------|-----------------|---------------|
+| **Device Credentials** | 1440 (24h) | 10,000 | Checked on every incoming message — the hottest cache. See <DocLink product={props.product} path="user-guide/connectivity-guide">Connectivity Guide</DocLink>. |
+| **Sessions** | 1440 | 10,000 | Active device session lookups |
+| **<DocLink product={props.product} path="user-guide/device-profiles">Device Profiles</DocLink>** | 1440 | 10,000 | Alarm rules, transport config, provisioning settings |
+| **Tenant Profiles** | 1440 | 10,000 | Rate limits, feature flags per tenant |
+| **<DocLink product={props.product} path="user-guide/devices">Devices</DocLink>** | 1440 | 10,000 | Device metadata (name, type, label) |
+| **<DocLink product={props.product} path="user-guide/digital-twins/attributes">Attributes</DocLink>** | 1440 | 100,000 | Server/client/shared attributes |
+| **TS Latest** | 1440 | 100,000 | Latest <DocLink product={props.product} path="user-guide/digital-twins/time-series-data">time-series</DocLink> values for dashboard widgets |
+| **<DocLink product={props.product} path="user-guide/digital-twins/relations">Relations</DocLink>** | 1440 | 10,000 | Entity relations (parent-child, contains, manages) |
+| **Assets** | 1440 | 10,000 | Asset metadata |
+| **Customers** | 1440 | 10,000 | Customer metadata |
+| **Users** | 1440 | 10,000 | User accounts |
+| **Entity Views** | 1440 | 10,000 | Entity view definitions |
+| **Asset Profiles** | 1440 | 10,000 | Asset profile configurations |
+| **Security Settings** | 1440 | 10,000 | Platform security configuration |
+| **Rate Limits** | 120 (2h) | 200,000 | Per-tenant and per-device rate limit counters |
+| **Notification Settings** | 10 | 1,000 | Notification delivery configuration |
+
+The **Attributes** and **TS Latest** caches have the largest default size (100,000 entries) because dashboards and rule chains query these values constantly. Enable or disable them independently with `CACHE_ATTRIBUTES_ENABLED` and `CACHE_TS_LATEST_ENABLED` (both `true` by default).
+
+## TTL and Size Tuning
+
+Every cache namespace has two environment variables:
+
+- `CACHE_SPECS_{NAME}_TTL` — time-to-live in **minutes** (how long an entry stays in cache after being written)
+- `CACHE_SPECS_{NAME}_MAX_SIZE` — maximum number of entries (evicts least-recently-used when full)
+
+For example, to adjust the device credentials cache:
+
+```properties
+CACHE_SPECS_DEVICE_CREDENTIALS_TTL=2880
+CACHE_SPECS_DEVICE_CREDENTIALS_MAX_SIZE=50000
+```
+
+**Sizing rules of thumb:**
+
+- Set `MAX_SIZE` to at least the number of active entities of that type. For device credentials, this should be ≥ total device count.
+- TTL of 1440 minutes (24 hours) works for most deployments. Reduce TTL if you frequently update device credentials or profiles and need changes to take effect faster.
+- Monitor cache hit ratios in logs. Low hit ratios on the credentials or sessions cache mean the cache is too small and entities are being evicted before they're accessed again.
+
+## Redis Connection Modes
+
+When using `CACHE_TYPE=redis`, configure the Redis connection based on your deployment topology:
+
+### Standalone
+
+A single Redis instance. Suitable for development and small production setups.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `REDIS_HOST` | `localhost` | Redis server hostname |
+| `REDIS_PORT` | `6379` | Redis server port |
+
+### Sentinel
+
+Redis Sentinel provides automatic failover. ThingsBoard connects to the sentinel nodes, which direct it to the current master.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `REDIS_MASTER` | — | Name of the master node |
+| `REDIS_SENTINELS` | — | Comma-separated `host:port` pairs of sentinel nodes |
+| `REDIS_SENTINEL_PASSWORD` | — | Sentinel authentication password |
+
+### Cluster
+
+Redis Cluster shards data across multiple nodes. Use for large deployments where a single Redis instance cannot hold the entire cache.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `REDIS_NODES` | — | Comma-separated `host:port` pairs of cluster nodes |
+| `REDIS_MAX_REDIRECTS` | `12` | Maximum cluster redirects before failing a request |
+
+All modes support SSL/TLS via `TB_REDIS_SSL_ENABLED=true` and optional client certificate authentication.
+
+## Redis Connection Pool
+
+ThingsBoard uses a connection pool to manage Redis connections efficiently. The pool is configured per ThingsBoard node:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `REDIS_POOL_CONFIG_MAX_TOTAL` | `128` | Maximum total connections in the pool |
+| `REDIS_POOL_CONFIG_MAX_IDLE` | `128` | Maximum idle connections |
+| `REDIS_POOL_CONFIG_MIN_IDLE` | `16` | Minimum idle connections kept ready |
+| `REDIS_POOL_CONFIG_MAX_WAIT_MS` | `60000` | Maximum wait time (ms) when pool is exhausted |
+| `REDIS_POOL_CONFIG_TEST_WHILE_IDLE` | `true` | Validate idle connections with PING |
+
+<Aside type="tip">
+  If you see "Could not get a resource from the pool" errors, increase `REDIS_POOL_CONFIG_MAX_TOTAL`. Each ThingsBoard thread that accesses the cache needs its own Redis connection while the request is in flight.
+</Aside>
+
+For the complete list of cache and Redis environment variables, see <DocLink product={props.product} path="reference/configuration/core-rule-engine-config">Configuration Reference</DocLink>.

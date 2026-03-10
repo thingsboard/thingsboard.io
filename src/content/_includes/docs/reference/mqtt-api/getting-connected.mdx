@@ -35,7 +35,7 @@ The simplest credential type. The token acts as the MQTT username; no password i
 **Plain MQTT (port 1883):**
 
 ```bash
-mosquitto_pub -d -q 1 -h "$THINGSBOARD_HOST" -p 1883 -t "v1/devices/me/telemetry" -u "$ACCESS_TOKEN" -m '{"temperature": 25}'
+mosquitto_pub -d -q 1 -h "$THINGSBOARD_HOST" -p 1883 -t "v2/t" -u "$ACCESS_TOKEN" -m '{"temperature": 25}'
 ```
 
 **MQTT over TLS (port 8883) — one-way SSL:**
@@ -43,7 +43,7 @@ mosquitto_pub -d -q 1 -h "$THINGSBOARD_HOST" -p 1883 -t "v1/devices/me/telemetry
 The client verifies the server's identity using a CA root certificate. Download `ca-root.pem` from the **Check connectivity** dialog on the device page.
 
 ```bash
-mosquitto_pub -d -q 1 --cafile ca-root.pem -h "$THINGSBOARD_HOST" -p 8883 -t "v1/devices/me/telemetry" -u "$ACCESS_TOKEN" -m '{"temperature": 25}'
+mosquitto_pub -d -q 1 --cafile ca-root.pem -h "$THINGSBOARD_HOST" -p 8883 -t "v2/t" -u "$ACCESS_TOKEN" -m '{"temperature": 25}'
 ```
 
 ---
@@ -65,13 +65,13 @@ Replaces the access token with a custom `clientId`, `username`, and `password`. 
 **Plain MQTT (port 1883):**
 
 ```bash
-mosquitto_pub -d -q 1 -h "$THINGSBOARD_HOST" -p 1883 -t "v1/devices/me/telemetry" -i "$CLIENT_ID" -u "$USERNAME" -P "$PASSWORD" -m '{"temperature": 25}'
+mosquitto_pub -d -q 1 -h "$THINGSBOARD_HOST" -p 1883 -t "v2/t" -i "$CLIENT_ID" -u "$USERNAME" -P "$PASSWORD" -m '{"temperature": 25}'
 ```
 
 **MQTT over TLS (port 8883) — one-way SSL:**
 
 ```bash
-mosquitto_pub -d -q 1 --cafile ca-root.pem -h "$THINGSBOARD_HOST" -p 8883 -t "v1/devices/me/telemetry" -i "$CLIENT_ID" -u "$USERNAME" -P "$PASSWORD" -m '{"temperature": 25}'
+mosquitto_pub -d -q 1 --cafile ca-root.pem -h "$THINGSBOARD_HOST" -p 8883 -t "v2/t" -i "$CLIENT_ID" -u "$USERNAME" -P "$PASSWORD" -m '{"temperature": 25}'
 ```
 
 ---
@@ -96,7 +96,7 @@ Each device has its own certificate registered directly on the device record.
 2. Register the certificate in ThingsBoard: **Entities → Devices → \[device\] → Manage credentials → X.509 Certificate**, paste `cert.pem`, save.
 3. Connect using the certificate and key:
    ```bash
-   mosquitto_pub --cafile ca-root.pem -d -q 1 -h "$THINGSBOARD_HOST" -p 8883 -t "v1/devices/me/telemetry" --key key.pem --cert cert.pem -m '{"temperature": 25}'
+   mosquitto_pub --cafile ca-root.pem -d -q 1 -h "$THINGSBOARD_HOST" -p 8883 -t "v2/t" --key key.pem --cert cert.pem -m '{"temperature": 25}'
    ```
 </Steps>
 
@@ -125,7 +125,7 @@ Register one intermediate CA certificate in the device profile instead of one ce
 2. Register the intermediate certificate in ThingsBoard: **Profiles → Device profiles → \[profile\] → Device Provisioning → X.509 Certificate Chain**. Paste `intermediateCert.pem`, configure the CN regex for device name extraction, and optionally enable auto-provisioning.
 3. Connect using the chain and device key:
    ```bash
-   mosquitto_pub --cafile ca-root.pem -d -q 1 -h "$THINGSBOARD_HOST" -p 8883 -t "v1/devices/me/telemetry" --key deviceKey.pem --cert chain.pem -m '{"temperature": 25}'
+   mosquitto_pub --cafile ca-root.pem -d -q 1 -h "$THINGSBOARD_HOST" -p 8883 -t "v2/t" --key deviceKey.pem --cert chain.pem -m '{"temperature": 25}'
    ```
 </Steps>
 
@@ -134,6 +134,141 @@ Register one intermediate CA certificate in the device profile instead of one ce
 </Aside>
 
 ---
+
+## Topic Formats
+
+ThingsBoard supports two MQTT topic formats. Both are equivalent — they accept the same payloads and produce the same result.
+
+| Format | Prefix | Example (telemetry) |
+|--------|--------|---------------------|
+| **Short** | `v2/` | `v2/t` |
+| **Standard** | `v1/devices/me/` | `v1/devices/me/telemetry` |
+
+Short topics are available since ThingsBoard 3.5. They reduce bandwidth for constrained devices and support an optional serialization suffix: `/j` for JSON or `/p` for Protobuf. Without a suffix, the format configured in the device profile is used.
+
+**Complete topic mapping:**
+
+| Operation | Short | Standard |
+|-----------|-------|--------|
+| Publish telemetry | `v2/t` | `v1/devices/me/telemetry` |
+| Publish client attributes | `v2/a` | `v1/devices/me/attributes` |
+| Subscribe to shared attribute updates | `v2/a` | `v1/devices/me/attributes` |
+| Request attribute values | `v2/a/req/$id` | `v1/devices/me/attributes/request/$id` |
+| Receive attribute response | `v2/a/res/+` | `v1/devices/me/attributes/response/+` |
+| Subscribe to server-side RPC | `v2/r/req/+` | `v1/devices/me/rpc/request/+` |
+| Respond to server-side RPC | `v2/r/res/$id` | `v1/devices/me/rpc/response/$id` |
+| Send client-side RPC request | `v2/r/req/$id` | `v1/devices/me/rpc/request/$id` |
+| Receive client-side RPC response | `v2/r/res/+` | `v1/devices/me/rpc/response/+` |
+
+<Aside type="tip">
+To use Protobuf with the short format, append `/p` — e.g. `v2/t/p` for telemetry. To force JSON explicitly, append `/j` — e.g. `v2/t/j`.
+</Aside>
+
+## MQTT Transport Configuration
+
+When you set the transport type to **MQTT** in a <DocLink product={props.product} path='user-guide/device-profiles'>device profile</DocLink>, additional settings become available under **Transport configuration**. These settings apply to all devices using the profile.
+
+### Custom topic filters
+
+You can override the default topics that ThingsBoard listens on for telemetry and attributes:
+
+| Filter | Default | Description |
+|--------|---------|-------------|
+| Telemetry topic filter | `v1/devices/me/telemetry` | Topic the platform listens on for incoming telemetry |
+| Attributes publish topic filter | `v1/devices/me/attributes` | Topic for client-side attribute publishes |
+| Attributes subscribe topic filter | `v1/devices/me/attributes` | Topic for shared attribute update subscriptions |
+
+MQTT wildcards are supported:
+- `+` matches a single topic level — e.g. `v1/devices/+/telemetry` or `+/devices/+/attributes`
+- `#` matches the rest of the topic and must be the last character — e.g. `#` or `v1/devices/me/#`
+
+<Aside type="note">
+Short topics (`v2/t`, `v2/a`, etc.) are always handled by the platform regardless of these filter settings. Custom topic filters only apply to standard-format topics.
+</Aside>
+
+### Payload format
+
+Choose the serialization format for MQTT messages:
+
+| Format | Description |
+|--------|-------------|
+| **JSON** | Default. Devices send plain JSON payloads as shown in the telemetry, attributes, and RPC examples. |
+| **Protobuf** | Devices send binary Protocol Buffers messages. You define the `.proto` schemas per profile. |
+
+#### JSON options
+
+**Send PUBACK on PUBLISH message validation failure** — by default, ThingsBoard closes the MQTT session when it receives a message that fails validation (e.g. malformed JSON). Enable this option to send a PUBACK acknowledgment instead, so the device stays connected. Useful for devices that cannot handle unexpected disconnects gracefully.
+
+#### Protobuf configuration
+
+When Protobuf is selected, you define four `.proto` schemas in the device profile — one for each message type:
+
+**Telemetry proto schema:**
+
+```proto
+syntax = "proto3";
+package telemetry;
+
+message SensorDataReading {
+  optional double temperature = 1;
+  optional double humidity = 2;
+  InnerObject innerObject = 3;
+
+  message InnerObject {
+    optional string key1 = 1;
+    optional bool key2 = 2;
+    optional double key3 = 3;
+    optional int32 key4 = 4;
+    optional string key5 = 5;
+  }
+}
+```
+
+**Attributes proto schema:**
+
+```proto
+syntax = "proto3";
+package attributes;
+
+message SensorConfiguration {
+  optional string firmwareVersion = 1;
+  optional string serialNumber = 2;
+}
+```
+
+**RPC request proto schema** (server-side RPC commands sent to the device):
+
+```proto
+syntax = "proto3";
+package rpc;
+
+message RpcRequestMsg {
+  optional string method = 1;
+  optional int32 requestId = 2;
+  optional string params = 3;
+}
+```
+
+**RPC response proto schema** (device replies to two-way RPC):
+
+```proto
+syntax = "proto3";
+package rpc;
+
+message RpcResponseMsg {
+  optional string payload = 1;
+}
+```
+
+Customize these schemas to match your device's data model. Field names in the telemetry and attributes schemas become the ThingsBoard telemetry keys and attribute keys respectively.
+
+**Enable compatibility with other payload formats** — when enabled, the platform tries to parse messages as Protobuf first, then falls back to JSON if parsing fails. This is useful during firmware upgrades when older devices still send JSON while newer ones send Protobuf. The compatibility mode introduces slight performance overhead, so disable it once all devices are updated.
+
+**Send PUBACK on PUBLISH message validation failure** — same behavior as for JSON: sends a PUBACK instead of closing the session on validation failure.
+
+### MQTT Sparkplug B
+
+Check **MQTT Sparkplug B Edge of Network (EoN) node** to treat connected devices as Sparkplug B nodes. See the <DocLink product={props.product} path='reference/sparkplug-api'>Sparkplug API</DocLink> reference for details.
 
 ## Connection Response Codes
 

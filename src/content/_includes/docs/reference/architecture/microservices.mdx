@@ -8,29 +8,39 @@ In a monolithic cluster, every node runs every service — you can't scale MQTT 
 ## Architecture
 
 ```txt
-  Devices                          Users
-    │                                │
-    ▼                                ▼
-┌────────────────┐          ┌──────────────┐
-│   Transport    │          │   Web UI     │
-│  Pods (per     │          │   Pods       │
-│  protocol)     │          └──────┬───────┘
-└───────┬────────┘                 │
-        │                          │
-        ▼                          ▼
-┌──────────────────────────────────────────┐
-│              Apache Kafka                │
-└───────────────────┬──────────────────────┘
-                    │
-                    ▼
-┌──────────────────────────────────────────┐
-│          ThingsBoard Node Pods           │
-│   (Core + Rule Engine + REST API)        │
-└───────┬──────────┬───────────┬───────────┘
-        │          │           │
-        ▼          ▼           ▼
-   PostgreSQL   Cassandra   Redis/Valkey
-                             Zookeeper
+    Devices                                           Users
+    MQTT / HTTP / CoAP / LwM2M                     REST / WS
+        │                                              │
+        ▼                                              ▼
+  ┌───────────────────────────┐              ┌──────────────┐
+  │     Transport Pods        │              │   Web UI     │
+  │  ┌──────┐ ┌──────┐       │              │   Pods       │
+  │  │ MQTT │ │ HTTP │ ...   │              └──────┬───────┘
+  │  └──┬───┘ └──┬───┘       │                     │
+  └─────┼────────┼────────────┘                     │
+        │        │                                  │
+        ▼        ▼                                  ▼
+  ┌──────────────────────────────────────────────────────┐
+  │                    Apache Kafka                      │
+  │  tb_rule_engine · tb_core · tb_transport.api · ...   │
+  └──────────┬──────────────────────────┬────────────────┘
+             │                          │
+             ▼                          ▼
+  ┌─────────────────────────┐   ┌──────────────┐
+  │   ThingsBoard Node Pods │   │ JS Executor  │
+  │  ┌──────────────────┐   │   │    Pods      │
+  │  │ Core + Rule Eng. │   │   │  (20+ for    │
+  │  │ Actor System     │   │   │  production) │
+  │  │ REST API + WS    │   │   └──────────────┘
+  │  └────────┬─────────┘   │
+  └───────────┼──────────────┘
+              │
+   ┌──────────┼──────────────────────────┐
+   │          ▼          ▼          ▼    │
+   │    PostgreSQL    Redis     Zookeeper│
+   │                 /Valkey             │
+   │    (+ Cassandra for time-series)    │
+   └─────────────────────────────────────┘
 ```
 
 ## Services
@@ -61,9 +71,11 @@ Key Kafka topics used by transports:
 | `tb_rule_engine` | Transport → Rule Engine | Telemetry, attributes, RPC, lifecycle events |
 | `tb_core` | Rule Engine → Core | Entity lifecycle events, connectivity updates |
 
+See <DocLink product={props.product} path="reference/architecture/queue">Message Queue</DocLink> for the full topic topology and tuning.
+
 ### ThingsBoard Node
 
-The central service that runs REST API, WebSocket server, Rule Engine, and Actor System. Instances are stateless in the traditional sense — all persistent state lives in the database and cache. The Actor System creates ephemeral per-entity actors (device actors, rule chain actors, tenant actors), but these are rebuilt from stored state when a node restarts. Zookeeper assigns entity partitions across nodes automatically.
+The central service that runs REST API, WebSocket server, Rule Engine, and <DocLink product={props.product} path="reference/architecture/actor-system">Actor System</DocLink>. Instances are stateless in the traditional sense — all persistent state lives in the <DocLink product={props.product} path="reference/architecture/database">database</DocLink> and <DocLink product={props.product} path="reference/architecture/caching">cache</DocLink>. The Actor System creates ephemeral per-entity actors (device actors, rule chain actors, tenant actors), but these are rebuilt from stored state when a node restarts. Zookeeper assigns entity partitions across nodes automatically.
 
 ### JavaScript Executor
 
@@ -97,7 +109,7 @@ When a ThingsBoard Node pod goes down:
 1. **Zookeeper detects** the node is unresponsive (heartbeat timeout).
 2. **Partitions reassign** — the entity partitions owned by the failed node are redistributed across surviving nodes.
 3. **Actors rebuild** — surviving nodes create new actors for the reassigned entities, loading state from the database.
-4. **Transports reconnect** — transport containers that were routing messages to the failed node switch to healthy nodes automatically via Kafka partition rebalance.
+4. **Message processing resumes** — surviving TB Nodes pick up Kafka partitions from the failed node. Transports are unaffected — they continue producing to the same Kafka topics regardless of which TB Nodes are consuming.
 
 Message ordering is preserved throughout — since all messages for a given entity go to the same Kafka partition, they are processed in order regardless of which TB Node consumes them.
 
@@ -107,11 +119,11 @@ A microservices deployment requires several supporting services:
 
 | Service | Purpose | HA configuration |
 |---------|---------|-----------------|
-| **Apache Kafka** | Message queue between all services | 3-node cluster minimum |
-| **Redis / Valkey** | Cache for sessions, entity data, rate limits | Sentinel or Cluster mode |
+| **Apache Kafka** | <DocLink product={props.product} path="reference/architecture/queue">Message queue</DocLink> between all services | 3-node cluster minimum |
+| **Redis / Valkey** | <DocLink product={props.product} path="reference/architecture/caching">Cache</DocLink> for sessions, entity data, rate limits | Sentinel or Cluster mode |
 | **Zookeeper** | Service discovery and partition assignment | 3-node ensemble |
 | **HAProxy / nginx** | Load balancer for HTTP, MQTT, CoAP | Active-passive or active-active |
-| **PostgreSQL** | Entity storage, system data | Streaming replication or managed service |
-| **Cassandra** | Time-series storage (Hybrid mode) | 3+ node cluster with RF=3 |
+| **PostgreSQL** | <DocLink product={props.product} path="reference/architecture/database">Entity storage</DocLink>, system data | Streaming replication or managed service |
+| **Cassandra** | <DocLink product={props.product} path="reference/architecture/database">Time-series storage</DocLink> (Hybrid mode) | 3+ node cluster with RF=3 |
 
 For full deployment instructions, see <DocLink product={props.product} path="installation">Installation</DocLink>.

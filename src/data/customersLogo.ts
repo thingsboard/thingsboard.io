@@ -6,37 +6,37 @@ export interface CustomerLogo {
 
 export const defaultCustomersLogos: CustomerLogo[] = [
 	{
-		src: 'https://img.thingsboard.io/customers/clear/prosegur.svg',
+		src: '/src/assets/images/landings/customer-logo/prosegur.svg',
 		ariaLabel: 'Prosegur logo',
 		href: 'https://www.prosegur.com/',
 	},
 	{
-		src: 'https://img.thingsboard.io/customers/clear/engie.svg',
+		src: '/src/assets/images/landings/customer-logo/engie.svg',
 		ariaLabel: 'Engie logo',
 		href: 'https://www.engie.sk/en/kontakt',
 	},
 	{
-		src: 'https://img.thingsboard.io/customers/clear/t-mobile.svg',
+		src: '/src/assets/images/landings/customer-logo/t-mobile.svg',
 		ariaLabel: 'T-mobile logo',
 		href: '/industries/telecom/#tmobile',
 	},
 	{
-		src: 'https://img.thingsboard.io/customers/clear/intel.svg',
+		src: '/src/assets/images/landings/customer-logo/intel.svg',
 		ariaLabel: 'Intel logo',
 		href: 'https://www.intel.com/',
 	},
 	{
-		src: 'https://img.thingsboard.io/customers/clear/schwarz-gruppe.svg',
+		src: '/src/assets/images/landings/customer-logo/schwarz-gruppe.svg',
 		ariaLabel: 'Schwarz logo',
 		href: 'https://gruppe.schwarz/en',
 	},
 	{
-		src: 'https://img.thingsboard.io/customers/clear/bosch.svg',
+		src: '/src/assets/images/landings/customer-logo/bosch.svg',
 		ariaLabel: 'Bosch logo',
 		href: 'https://www.bosch.com/',
 	},
 	{
-		src: 'https://img.thingsboard.io/customers/clear/tektelic.svg',
+		src: '/src/assets/images/landings/customer-logo/tektelic.svg',
 		ariaLabel: 'Tektelic logo',
 		href: '/industries/telecom/#tektelic',
 	},

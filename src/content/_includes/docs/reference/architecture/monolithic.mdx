@@ -1,55 +1,70 @@
 import DocLink from '@components/DocLink.astro';
 import { Aside } from '@astrojs/starlight/components';
 
-In monolithic mode, all ThingsBoard services — transports, rule engine, core, and web UI — run inside a single Java process. This is the simplest deployment option, requiring as little as 256 MB of RAM for development or 512 MB–1 GB for production workloads.
+In monolithic mode, all ThingsBoard services — transports, rule engine, core, and web UI — run inside a single Java process. This is the simplest deployment option, requiring at least 1 GB of RAM (2–4 GB recommended) for production workloads of up to 50–100K devices at typical reporting rates.
 
 ## Architecture
 
 ```txt
-                        ┌──────────────────────────────────────────┐
-                        │           ThingsBoard Process            │
-  Devices ──────────────┤                                          │
-    MQTT / HTTP /       │  ┌───────────┐   ┌──────────────────┐   │
-    CoAP / LwM2M        │  │ Transport │──▶│   Rule Engine     │   │
-                        │  └───────────┘   └────────┬─────────┘   │
-                        │                           │              │
-                        │                  ┌────────▼─────────┐   │
-  Users ────────────────┤  ┌──────────┐   │      Core         │   │
-    REST / WebSocket    │  │  Web UI  │──▶│  (REST, WS, RPC)  │   │
-                        │  └──────────┘   └────────┬─────────┘   │
-                        │                           │              │
-                        │                  ┌────────▼─────────┐   │
-                        │                  │    Database(s)    │   │
-                        │                  └──────────────────┘   │
-                        └──────────────────────────────────────────┘
+                  ┌──────────────────────────────────────────────────┐
+                  │              ThingsBoard Process (JVM)            │
+                  │                                                   │
+  Devices ────────┤  ┌───────────┐   In-Memory    ┌──────────────┐  │
+  MQTT / HTTP /   │  │ Transport │──── Queue ─────▶│ Rule Engine  │  │
+  CoAP / LwM2M    │  └───────────┘                 └──────┬───────┘  │
+                  │                                        │          │
+                  │       ┌────────────────┐       ┌──────▼───────┐  │
+  Users ──────────┤       │   Actor System │◀──────│    Core      │  │
+  REST / WS       │       │  (per-entity   │       │  REST API    │  │
+                  │       │   state mgmt)  │       │  WebSocket   │  │
+                  │       └────────┬───────┘       └──────┬───────┘  │
+                  │                │                       │          │
+                  │       ┌────────▼───────────────────────▼───────┐  │
+                  │       │          Cache (Caffeine)              │  │
+                  │       └────────────────────┬──────────────────┘  │
+                  └────────────────────────────┼─────────────────────┘
+                                               │
+                                    ┌──────────▼──────────┐
+                                    │     PostgreSQL      │
+                                    │  (+ Cassandra for   │
+                                    │   time-series)      │
+                                    └─────────────────────┘
 ```
 
 ## Single Node vs Cluster
 
 Monolithic mode supports two configurations:
 
-**Single node** — one JVM process, no external dependencies beyond the database. Uses in-memory queue. The simplest possible setup for development, testing, and small production workloads.
+**Single node** — one JVM process, no external dependencies beyond the database. Uses in-memory queue (`TB_QUEUE_TYPE=in-memory`). The simplest possible setup for development, testing, and small production workloads.
 
 **Monolithic cluster** — multiple identical JVM instances behind a load balancer. Each node runs all services. Requires:
 - **Zookeeper** for service discovery and partition assignment
-- **Kafka** for inter-node message passing (replaces in-memory queue)
+- **<DocLink product={props.product} path="reference/architecture/queue">Kafka</DocLink>** for inter-node message passing (replaces in-memory queue)
 - **Load balancer** (HAProxy / nginx) to distribute device connections and REST calls
 
 ```txt
-                    ┌──────────────┐
-    Devices/Users──▶│ Load Balancer│
-                    └──────┬───────┘
-               ┌───────────┼───────────┐
-               ▼           ▼           ▼
-          ┌─────────┐ ┌─────────┐ ┌─────────┐
-          │ TB Node │ │ TB Node │ │ TB Node │
-          │  (all   │ │  (all   │ │  (all   │
-          │services)│ │services)│ │services)│
-          └────┬────┘ └────┬────┘ └────┬────┘
-               │           │           │
-          ┌────▼───────────▼───────────▼────┐
-          │   Kafka · Zookeeper · DB · Redis│
-          └─────────────────────────────────┘
+   Devices                              Users
+   MQTT / CoAP                       REST / WS
+       │                                 │
+       ▼                                 ▼
+  ┌──────────────────────────────────────────┐
+  │           Load Balancer (HAProxy)        │
+  └──────┬──────────────┬──────────────┬─────┘
+         │              │              │
+         ▼              ▼              ▼
+   ┌───────────┐  ┌───────────┐  ┌───────────┐
+   │  TB Node  │  │  TB Node  │  │  TB Node  │
+   │ Transport │  │ Transport │  │ Transport │
+   │ Rule Eng. │  │ Rule Eng. │  │ Rule Eng. │
+   │ Core, API │  │ Core, API │  │ Core, API │
+   └─────┬─────┘  └─────┬─────┘  └─────┬─────┘
+         │     gRPC      │              │
+         │◀─────────────▶│◀────────────▶│
+         │              │              │
+   ┌─────▼──────────────▼──────────────▼─────┐
+   │          Shared Infrastructure          │
+   │  Kafka · Zookeeper · Redis · PostgreSQL │
+   └─────────────────────────────────────────┘
 ```
 
 The cluster uses the same internal components (Actor System, Consistent Hashing, gRPC) described in the <DocLink product={props.product} path="reference/architecture">Architecture Overview</DocLink>. The key limitation is that every node runs every service — you cannot scale transports independently from the rule engine.
@@ -59,7 +74,7 @@ The cluster uses the same internal components (Actor System, Consistent Hashing,
 | Advantages | Limitations |
 |-----------|------------|
 | Simple to deploy — single process, minimal dependencies | Cannot scale services independently |
-| Low resource footprint (256 MB–1 GB RAM) | All components compete for the same CPU and memory |
+| Low resource footprint (1–4 GB RAM) | All components compete for the same CPU and memory |
 | No message queue infrastructure required (single node) | In-memory queue loses messages on crash |
 | Cluster mode adds fault tolerance | Cluster still can't scale transports separately |
 
@@ -73,4 +88,4 @@ The cluster uses the same internal components (Actor System, Consistent Hashing,
 - Your team requires zero-downtime rolling upgrades
 - You want to isolate failures — a transport crash shouldn't affect REST API availability
 
-For microservices deployment details, see <DocLink product={props.product} path="reference/architecture/microservices">Microservices Architecture</DocLink>.
+For installation instructions, see <DocLink product={props.product} path="installation">Installation</DocLink>. For microservices deployment details, see <DocLink product={props.product} path="reference/architecture/microservices">Microservices Architecture</DocLink>.

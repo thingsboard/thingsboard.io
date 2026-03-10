@@ -1,0 +1,550 @@
+import { Aside } from '@astrojs/starlight/components';
+import DocLink from '@components/DocLink.astro';
+
+ThingsBoard provides a REST API for managing platform entities, integrations, device provisioning, and building custom applications.
+The API is available on every ThingsBoard instance and documented interactively via Swagger UI.
+
+All examples on this page use `$TB_URL` for the ThingsBoard base URL (e.g. `https://thingsboard.cloud`) and `$AUTH` for the authorization header value (e.g. `ApiKey YOUR_KEY`).
+
+## Swagger UI
+
+Swagger UI lets you browse all available REST API endpoints, inspect request and response schemas, and test API calls directly in your browser.
+
+Access it at:
+
+```
+http://THINGSBOARD_HOST:PORT/swagger-ui.html
+```
+
+If you are already logged into the ThingsBoard UI, Swagger UI authenticates automatically using your session.
+
+## Authentication
+
+### API key (recommended)
+
+<Aside type="tip">
+Available since ThingsBoard 4.3. See the <DocLink product={props.product} path='user-guide/security/api-keys'>API Keys</DocLink> guide to create and manage keys.
+</Aside>
+
+Pass the API key in the `X-Authorization` header:
+
+```
+X-Authorization: ApiKey YOUR_API_KEY_VALUE
+```
+
+Example request:
+
+```bash
+curl -X GET -H 'X-Authorization: ApiKey YOUR_API_KEY_VALUE' \
+  '$TB_URL/api/auth/user'
+```
+
+API keys are long-lived, require no login, and can be revoked through the ThingsBoard UI.
+
+### JWT token (deprecated)
+
+Obtain an access token by sending credentials to the login endpoint:
+
+```bash
+curl -X POST -H 'Content-Type: application/json' \
+  -d '{"username":"[email protected]", "password":"tenant"}' \
+  '$TB_URL/api/auth/login'
+```
+
+Response:
+
+```json
+{"token":"YOUR_JWT_TOKEN", "refreshToken":"YOUR_JWT_REFRESH_TOKEN"}
+```
+
+Use the token in subsequent requests:
+
+```
+X-Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+Access tokens are valid for 2.5 hours; refresh tokens for 1 week.
+
+<Aside type="note">
+If both API key and JWT are provided, the JWT token takes priority.
+</Aside>
+
+## REST API clients
+
+ThingsBoard provides language-specific client libraries that simplify REST API usage:
+
+- <DocLink product={props.product} path='reference/java-rest-client'>Java REST Client</DocLink> — manage entities from Java applications
+- <DocLink product={props.product} path='reference/python-rest-client'>Python REST Client</DocLink> — manage entities from Python scripts
+
+## Finding entity IDs
+
+Most API calls require an entity ID (UUID). You can find it in the ThingsBoard UI (it appears in the URL when you open an entity), or fetch it via REST.
+
+**List devices** — returns paginated devices with their IDs:
+
+```bash
+curl -H 'X-Authorization: $AUTH' \
+  '$TB_URL/api/tenant/devices?pageSize=10&page=0'
+```
+
+Response (abbreviated):
+
+```json
+{
+  "data": [
+    {
+      "id": {"entityType": "DEVICE", "id": "784f394c-42b6-435a-983c-b7beff2784f9"},
+      "name": "Thermostat A1",
+      "type": "thermostat"
+    }
+  ],
+  "totalElements": 3
+}
+```
+
+Use the `id` value (`784f394c-...`) in the `{deviceId}` placeholder in all subsequent examples. The same pattern applies to other entity types — use `/api/tenant/assets`, `/api/customers`, etc.
+
+## Attributes API
+
+The Attributes API lets you create, read, and delete <DocLink product={props.product} path='user-guide/digital-twins/attributes'>attributes</DocLink> on any entity. Attributes are organized into scopes:
+
+| Scope | Description | Writable via REST |
+|-------|-------------|:-:|
+| `SERVER_SCOPE` | Set by server-side applications | Yes |
+| `SHARED_SCOPE` | Set by server, readable by devices | Yes |
+| `CLIENT_SCOPE` | Reported by devices | No (device-only) |
+
+### Save attributes
+
+Create or update attributes in a given scope. The request body is a JSON object with key-value pairs.
+
+```bash
+curl -X POST -H 'Content-Type: application/json' \
+  -H 'X-Authorization: $AUTH' \
+  -d '{"firmware":"1.2.3", "batchSize":100}' \
+  '$TB_URL/api/plugins/telemetry/DEVICE/{deviceId}/attributes/SERVER_SCOPE'
+```
+
+Works for any entity type — replace `DEVICE/{deviceId}` with `ASSET/{assetId}`, etc.
+
+### Read attributes
+
+**All scopes** — returns attributes from every scope merged together:
+
+```bash
+curl -H 'X-Authorization: $AUTH' \
+  '$TB_URL/api/plugins/telemetry/DEVICE/{deviceId}/values/attributes'
+```
+
+**Specific scope** with optional key filter:
+
+```bash
+curl -H 'X-Authorization: $AUTH' \
+  '$TB_URL/api/plugins/telemetry/DEVICE/{deviceId}/values/attributes/SERVER_SCOPE?keys=firmware,batchSize'
+```
+
+Response:
+
+```json
+[
+  {"lastUpdateTs": 1709912345000, "key": "firmware", "value": "1.2.3"},
+  {"lastUpdateTs": 1709912345000, "key": "batchSize", "value": 100}
+]
+```
+
+### List attribute keys
+
+```bash
+# All scopes
+curl -H 'X-Authorization: $AUTH' \
+  '$TB_URL/api/plugins/telemetry/DEVICE/{deviceId}/keys/attributes'
+
+# Specific scope
+curl -H 'X-Authorization: $AUTH' \
+  '$TB_URL/api/plugins/telemetry/DEVICE/{deviceId}/keys/attributes/SERVER_SCOPE'
+```
+
+Response: `["firmware", "batchSize"]`
+
+### Delete attributes
+
+```bash
+curl -X DELETE -H 'X-Authorization: $AUTH' \
+  '$TB_URL/api/plugins/telemetry/DEVICE/{deviceId}/SERVER_SCOPE?keys=firmware,batchSize'
+```
+
+## Time Series API
+
+The Time Series API lets you save, query, and delete <DocLink product={props.product} path='user-guide/digital-twins/time-series-data'>time series data</DocLink> for any entity.
+
+### Save time series
+
+**Simple format** — the server assigns the current timestamp:
+
+```bash
+curl -X POST -H 'Content-Type: application/json' \
+  -H 'X-Authorization: $AUTH' \
+  -d '{"temperature": 22.5, "humidity": 58}' \
+  '$TB_URL/api/plugins/telemetry/DEVICE/{deviceId}/timeseries/ANY'
+```
+
+**With explicit timestamp** (milliseconds since epoch):
+
+```bash
+curl -X POST -H 'Content-Type: application/json' \
+  -H 'X-Authorization: $AUTH' \
+  -d '{"ts": 1709912345000, "values": {"temperature": 22.5, "humidity": 58}}' \
+  '$TB_URL/api/plugins/telemetry/DEVICE/{deviceId}/timeseries/ANY'
+```
+
+**Multiple data points** with different timestamps:
+
+```bash
+curl -X POST -H 'Content-Type: application/json' \
+  -H 'X-Authorization: $AUTH' \
+  -d '[
+    {"ts": 1709912340000, "values": {"temperature": 22.3}},
+    {"ts": 1709912345000, "values": {"temperature": 22.5}}
+  ]' \
+  '$TB_URL/api/plugins/telemetry/DEVICE/{deviceId}/timeseries/ANY'
+```
+
+<Aside type="tip">
+The `scope` path parameter (e.g. `ANY`) is reserved for backward compatibility and not used — you can pass any value.
+</Aside>
+
+**With TTL** — data expires after the specified number of seconds:
+
+```bash
+curl -X POST -H 'Content-Type: application/json' \
+  -H 'X-Authorization: $AUTH' \
+  -d '{"temperature": 22.5}' \
+  '$TB_URL/api/plugins/telemetry/DEVICE/{deviceId}/timeseries/ANY/86400'
+```
+
+### Get latest values
+
+Returns the most recent value for each requested key:
+
+```bash
+curl -H 'X-Authorization: $AUTH' \
+  '$TB_URL/api/plugins/telemetry/DEVICE/{deviceId}/values/timeseries?keys=temperature,humidity'
+```
+
+Response:
+
+```json
+{
+  "temperature": [{"ts": 1709912345000, "value": "22.5"}],
+  "humidity": [{"ts": 1709912345000, "value": "58"}]
+}
+```
+
+### Get time series range
+
+Returns historical data points within a time window. Supports aggregation.
+
+```bash
+curl -H 'X-Authorization: $AUTH' \
+  '$TB_URL/api/plugins/telemetry/DEVICE/{deviceId}/values/timeseries?keys=temperature&startTs=1709900000000&endTs=1709999999999&limit=100&agg=NONE&orderBy=ASC'
+```
+
+**Parameters:**
+
+| Parameter | Required | Description |
+|-----------|:--------:|-------------|
+| `keys` | Yes | Comma-separated telemetry key names |
+| `startTs` | Yes | Start of time range (ms since epoch) |
+| `endTs` | Yes | End of time range (ms since epoch) |
+| `limit` | No | Max data points per key (default 100) |
+| `agg` | No | Aggregation: `NONE`, `AVG`, `MIN`, `MAX`, `SUM`, `COUNT` |
+| `interval` | No | Aggregation interval in ms (required when `agg` is not `NONE`) |
+| `orderBy` | No | `ASC` or `DESC` (default `DESC`) |
+
+**Aggregated example** — hourly averages:
+
+```bash
+curl -H 'X-Authorization: $AUTH' \
+  '$TB_URL/api/plugins/telemetry/DEVICE/{deviceId}/values/timeseries?keys=temperature&startTs=1709900000000&endTs=1709999999999&agg=AVG&interval=3600000'
+```
+
+### List time series keys
+
+```bash
+curl -H 'X-Authorization: $AUTH' \
+  '$TB_URL/api/plugins/telemetry/DEVICE/{deviceId}/keys/timeseries'
+```
+
+Response: `["temperature", "humidity", "speed"]`
+
+### Delete time series
+
+```bash
+curl -X DELETE -H 'X-Authorization: $AUTH' \
+  '$TB_URL/api/plugins/telemetry/DEVICE/{deviceId}/timeseries/delete?keys=temperature&deleteAllDataForKeys=true'
+```
+
+**Parameters:**
+
+| Parameter | Description |
+|-----------|-------------|
+| `keys` | Comma-separated key names to delete |
+| `deleteAllDataForKeys` | `true` to delete all data; `false` to use time range |
+| `startTs` / `endTs` | Time range (required when `deleteAllDataForKeys=false`) |
+| `deleteLatest` | `true` to also delete the latest value (default `false`) |
+| `rewriteLatestIfDeleted` | `true` to recalculate latest from remaining data |
+
+## RPC API
+
+The RPC API lets server-side applications send <DocLink product={props.product} path='user-guide/command-and-control'>commands</DocLink> to devices. The device must be online (or persistent RPC must be used).
+
+### One-way RPC
+
+Sends a command without waiting for a response from the device:
+
+```bash
+curl -X POST -H 'Content-Type: application/json' \
+  -H 'X-Authorization: $AUTH' \
+  -d '{"method": "setGpio", "params": {"pin": 4, "value": 1}}' \
+  '$TB_URL/api/rpc/oneway/{deviceId}'
+```
+
+Returns HTTP 200 with empty body on success.
+
+### Two-way RPC
+
+Sends a command and waits for the device to respond:
+
+```bash
+curl -X POST -H 'Content-Type: application/json' \
+  -H 'X-Authorization: $AUTH' \
+  -d '{"method": "getState", "params": {}}' \
+  '$TB_URL/api/rpc/twoway/{deviceId}'
+```
+
+Returns the device response as JSON. If the device does not respond within the timeout, returns HTTP 504.
+
+**Request body:**
+
+| Field | Required | Description |
+|-------|:--------:|-------------|
+| `method` | Yes | RPC method name — the device must handle this method |
+| `params` | Yes | Parameters passed to the device (any JSON) |
+| `timeout` | No | Timeout in ms (default: 10000) |
+| `persistent` | No | `true` to store the RPC and deliver when the device connects |
+| `retries` | No | Number of retries for persistent RPC |
+| `additionalInfo` | No | Arbitrary metadata stored with persistent RPC |
+
+### Persistent RPC
+
+When `"persistent": true`, the platform stores the RPC request and delivers it when the device comes online.
+
+**Query persistent RPCs for a device:**
+
+```bash
+curl -H 'X-Authorization: $AUTH' \
+  '$TB_URL/api/rpc/persistent/device/{deviceId}?pageSize=10&page=0&rpcStatus=QUEUED&sortProperty=createdTime&sortOrder=ASC'
+```
+
+**Get a specific RPC by ID:**
+
+```bash
+curl -H 'X-Authorization: $AUTH' \
+  '$TB_URL/api/rpc/persistent/{rpcId}'
+```
+
+**Delete a persistent RPC:**
+
+```bash
+curl -X DELETE -H 'X-Authorization: $AUTH' \
+  '$TB_URL/api/rpc/persistent/{rpcId}'
+```
+
+## API controllers reference
+
+The table below lists all REST API controller groups available in Swagger UI. Each controller groups related endpoints.
+
+### Core Entities
+
+| Controller | Description |
+|------------|-------------|
+| [`device-controller`](https://thingsboard.cloud/swagger-ui/index.html#/device-controller) | CRUD operations on devices, assign to customers/tenants, search |
+| [`asset-controller`](https://thingsboard.cloud/swagger-ui/index.html#/asset-controller) | CRUD operations on assets, assign to customers, search |
+| [`entity-view-controller`](https://thingsboard.cloud/swagger-ui/index.html#/entity-view-controller) | Create and manage entity views (filtered projections of devices/assets) |
+| [`entity-relation-controller`](https://thingsboard.cloud/swagger-ui/index.html#/entity-relation-controller) | Create, query, and delete relations between entities |
+| [`customer-controller`](https://thingsboard.cloud/swagger-ui/index.html#/customer-controller) | Create and manage customers, assign sub-entities |
+| [`user-controller`](https://thingsboard.cloud/swagger-ui/index.html#/user-controller) | Manage users, settings, activation links |
+| [`dashboard-controller`](https://thingsboard.cloud/swagger-ui/index.html#/dashboard-controller) | CRUD operations on dashboards, assign to customers, import/export |
+| [`device-profile-controller`](https://thingsboard.cloud/swagger-ui/index.html#/device-profile-controller) | Manage device profiles (transport, alarm rules, provisioning) |
+| [`asset-profile-controller`](https://thingsboard.cloud/swagger-ui/index.html#/asset-profile-controller) | Manage asset profiles |
+
+### Telemetry & Attributes
+
+| Controller | Description |
+|------------|-------------|
+| [`telemetry-controller`](https://thingsboard.cloud/swagger-ui/index.html#/telemetry-controller) | Save/read/delete attributes and time series for any entity |
+| [`entity-query-controller`](https://thingsboard.cloud/swagger-ui/index.html#/entity-query-controller) | Query entities with filters, pagination, and data aggregation — see <DocLink product={props.product} path='reference/data-query-api'>Entity Data Query API</DocLink> |
+
+### Alarms
+
+| Controller | Description |
+|------------|-------------|
+| [`alarm-controller`](https://thingsboard.cloud/swagger-ui/index.html#/alarm-controller) | Create, acknowledge, clear, assign, and query alarms |
+| [`alarm-query-controller`](https://thingsboard.cloud/swagger-ui/index.html#/alarm-query-controller) | Query alarms with entity filters, severity, status, and time range — see <DocLink product={props.product} path='reference/alarm-query-api'>Alarm Query API</DocLink> |
+| [`alarm-comment-controller`](https://thingsboard.cloud/swagger-ui/index.html#/alarm-comment-controller) | Add, update, and delete comments on alarms |
+
+### RPC
+
+| Controller | Description |
+|------------|-------------|
+| [`rpc-v-2-controller`](https://thingsboard.cloud/swagger-ui/index.html#/rpc-v-2-controller) | Send one-way/two-way RPC to devices, manage persistent RPCs |
+| [`rpc-v-1-controller`](https://thingsboard.cloud/swagger-ui/index.html#/rpc-v-1-controller) | Deprecated — use `rpc-v-2-controller` |
+
+### Rule Engine
+
+| Controller | Description |
+|------------|-------------|
+| [`rule-chain-controller`](https://thingsboard.cloud/swagger-ui/index.html#/rule-chain-controller) | CRUD for rule chains, import/export, set root chain |
+| [`rule-engine-controller`](https://thingsboard.cloud/swagger-ui/index.html#/rule-engine-controller) | Push messages to the rule engine for a specific entity |
+
+### Administration
+
+| Controller | Description |
+|------------|-------------|
+| [`admin-controller`](https://thingsboard.cloud/swagger-ui/index.html#/admin-controller) | System settings (mail, SMS, general), updates check |
+| [`tenant-controller`](https://thingsboard.cloud/swagger-ui/index.html#/tenant-controller) | Manage tenants |
+| [`tenant-profile-controller`](https://thingsboard.cloud/swagger-ui/index.html#/tenant-profile-controller) | Manage tenant profiles (rate limits, quotas) |
+| [`auth-controller`](https://thingsboard.cloud/swagger-ui/index.html#/auth-controller) | Password reset, change password, user activation |
+| [`login-endpoint`](https://thingsboard.cloud/swagger-ui/index.html#/login-endpoint) | Login (JWT), token refresh |
+| [`queue-controller`](https://thingsboard.cloud/swagger-ui/index.html#/queue-controller) | Manage processing queues |
+| [`queue-stats-controller`](https://thingsboard.cloud/swagger-ui/index.html#/queue-stats-controller) | View queue statistics |
+| [`audit-log-controller`](https://thingsboard.cloud/swagger-ui/index.html#/audit-log-controller) | Query audit logs (by user, entity, or tenant) |
+| [`usage-info-controller`](https://thingsboard.cloud/swagger-ui/index.html#/usage-info-controller) | Get tenant API usage info |
+
+### Security
+
+| Controller | Description |
+|------------|-------------|
+| [`api-key-controller`](https://thingsboard.cloud/swagger-ui/index.html#/api-key-controller) | Create, enable/disable, and delete API keys |
+| [`two-factor-auth-controller`](https://thingsboard.cloud/swagger-ui/index.html#/two-factor-auth-controller) | 2FA verification (send/check codes, login with 2FA) |
+| [`two-factor-auth-config-controller`](https://thingsboard.cloud/swagger-ui/index.html#/two-factor-auth-config-controller) | Configure 2FA providers and account settings |
+| [`o-auth-2-controller`](https://thingsboard.cloud/swagger-ui/index.html#/o-auth-2-controller) | Manage OAuth2 clients and login settings |
+| [`domain-controller`](https://thingsboard.cloud/swagger-ui/index.html#/domain-controller) | Manage custom domains and OAuth2 client assignments |
+| [`secret-controller`](https://thingsboard.cloud/swagger-ui/index.html#/secret-controller) | Store and manage secrets (passwords, tokens) |
+
+### Notifications
+
+| Controller | Description |
+|------------|-------------|
+| [`notification-controller`](https://thingsboard.cloud/swagger-ui/index.html#/notification-controller) | Send notifications, mark as read, get notification feed |
+| [`notification-rule-controller`](https://thingsboard.cloud/swagger-ui/index.html#/notification-rule-controller) | Manage notification rules (triggers) |
+| [`notification-target-controller`](https://thingsboard.cloud/swagger-ui/index.html#/notification-target-controller) | Manage notification targets (recipients) |
+| [`notification-template-controller`](https://thingsboard.cloud/swagger-ui/index.html#/notification-template-controller) | Manage notification templates |
+
+### Device Connectivity
+
+| Controller | Description |
+|------------|-------------|
+| [`device-connectivity-controller`](https://thingsboard.cloud/swagger-ui/index.html#/device-connectivity-controller) | Get connectivity commands and download certificates |
+| [`lwm-2m-controller`](https://thingsboard.cloud/swagger-ui/index.html#/lwm-2m-controller) | LwM2M bootstrap security info |
+
+### OTA Updates & Resources
+
+| Controller | Description |
+|------------|-------------|
+| [`ota-package-controller`](https://thingsboard.cloud/swagger-ui/index.html#/ota-package-controller) | Upload and manage firmware/software OTA packages |
+| [`tb-resource-controller`](https://thingsboard.cloud/swagger-ui/index.html#/tb-resource-controller) | Upload and manage platform resources (images, files, LwM2M models) |
+| [`image-controller`](https://thingsboard.cloud/swagger-ui/index.html#/image-controller) | Upload, update, and serve images |
+
+### Widgets & UI
+
+| Controller | Description |
+|------------|-------------|
+| [`widgets-bundle-controller`](https://thingsboard.cloud/swagger-ui/index.html#/widgets-bundle-controller) | Manage widget bundles |
+| [`widget-type-controller`](https://thingsboard.cloud/swagger-ui/index.html#/widget-type-controller) | Manage individual widget types |
+| [`ui-settings-controller`](https://thingsboard.cloud/swagger-ui/index.html#/ui-settings-controller) | Get UI configuration (help base URL) |
+
+### Version Control & Solutions
+
+| Controller | Description |
+|------------|-------------|
+| [`entities-version-control-controller`](https://thingsboard.cloud/swagger-ui/index.html#/entities-version-control-controller) | Save/load entity versions, compare, list branches |
+| [`solution-controller`](https://thingsboard.cloud/swagger-ui/index.html#/solution-controller) | Install and manage solution templates |
+
+### Edge
+
+| Controller | Description |
+|------------|-------------|
+| [`edge-controller`](https://thingsboard.cloud/swagger-ui/index.html#/edge-controller) | Manage edge instances, assign entities to edges |
+| [`edge-event-controller`](https://thingsboard.cloud/swagger-ui/index.html#/edge-event-controller) | Query edge sync events |
+
+### Integrations & Converters (PE)
+
+| Controller | Description | PE only |
+|------------|-------------|:-------:|
+| [`integration-controller`](https://thingsboard.cloud/swagger-ui/index.html#/integration-controller) | Manage platform integrations | Yes |
+| [`converter-controller`](https://thingsboard.cloud/swagger-ui/index.html#/converter-controller) | Manage uplink/downlink converters | Yes |
+| [`converter-library-controller`](https://thingsboard.cloud/swagger-ui/index.html#/converter-library-controller) | Browse converter library by vendor/model | Yes |
+
+### Groups & Permissions (PE)
+
+| Controller | Description | PE only |
+|------------|-------------|:-------:|
+| [`entity-group-controller`](https://thingsboard.cloud/swagger-ui/index.html#/entity-group-controller) | Create and manage entity groups, share with users | Yes |
+| [`group-permission-controller`](https://thingsboard.cloud/swagger-ui/index.html#/group-permission-controller) | Manage group-level permissions | Yes |
+| [`role-controller`](https://thingsboard.cloud/swagger-ui/index.html#/role-controller) | Manage roles (generic, group) | Yes |
+
+### Scheduling & Reporting (PE)
+
+| Controller | Description | PE only |
+|------------|-------------|:-------:|
+| [`scheduler-event-controller`](https://thingsboard.cloud/swagger-ui/index.html#/scheduler-event-controller) | Create and manage scheduled events | Yes |
+| [`report-controller`](https://thingsboard.cloud/swagger-ui/index.html#/report-controller) | Generate and download dashboard reports | Yes |
+| [`report-template-controller`](https://thingsboard.cloud/swagger-ui/index.html#/report-template-controller) | Manage report templates | Yes |
+| [`dashboard-report-controller`](https://thingsboard.cloud/swagger-ui/index.html#/dashboard-report-controller) | Download dashboard reports (legacy) | Yes |
+
+### White Labeling & Custom UI (PE)
+
+| Controller | Description | PE only |
+|------------|-------------|:-------:|
+| [`white-labeling-controller`](https://thingsboard.cloud/swagger-ui/index.html#/white-labeling-controller) | Customize branding (logo, colors, login page) | Yes |
+| [`custom-menu-controller`](https://thingsboard.cloud/swagger-ui/index.html#/custom-menu-controller) | Manage custom menu items | Yes |
+| [`custom-translation-controller`](https://thingsboard.cloud/swagger-ui/index.html#/custom-translation-controller) | Manage custom UI translations | Yes |
+
+### Calculated Fields
+
+| Controller | Description |
+|------------|-------------|
+| [`calculated-field-controller`](https://thingsboard.cloud/swagger-ui/index.html#/calculated-field-controller) | Create and manage calculated fields, test expressions |
+
+### Mobile
+
+| Controller | Description |
+|------------|-------------|
+| [`mobile-app-controller`](https://thingsboard.cloud/swagger-ui/index.html#/mobile-app-controller) | Manage mobile app configurations |
+| [`mobile-app-bundle-controller`](https://thingsboard.cloud/swagger-ui/index.html#/mobile-app-bundle-controller) | Manage mobile app bundles |
+| [`qr-code-settings-controller`](https://thingsboard.cloud/swagger-ui/index.html#/qr-code-settings-controller) | Manage QR code and mobile app settings |
+
+### AI (PE)
+
+| Controller | Description | PE only |
+|------------|-------------|:-------:|
+| [`ai-model-controller`](https://thingsboard.cloud/swagger-ui/index.html#/ai-model-controller) | Manage AI model configurations | Yes |
+| [`ai-chat-controller`](https://thingsboard.cloud/swagger-ui/index.html#/ai-chat-controller) | AI chat sessions | Yes |
+
+### Other
+
+| Controller | Description |
+|------------|-------------|
+| [`component-descriptor-controller`](https://thingsboard.cloud/swagger-ui/index.html#/component-descriptor-controller) | Browse available rule node components |
+| [`blob-entity-controller`](https://thingsboard.cloud/swagger-ui/index.html#/blob-entity-controller) | Upload and download binary entities |
+| [`event-controller`](https://thingsboard.cloud/swagger-ui/index.html#/event-controller) | Query rule engine events (errors, debug, lifecycle) |
+| [`owner-controller`](https://thingsboard.cloud/swagger-ui/index.html#/owner-controller) | Change entity ownership (tenant ↔ customer) |
+| [`self-registration-controller`](https://thingsboard.cloud/swagger-ui/index.html#/self-registration-controller) | Manage self-registration settings |
+
+## See also
+
+- <DocLink product={props.product} path='reference/data-query-api'>Entity Data Query API</DocLink> — advanced entity search with filters, used by `entity-query-controller` and WebSocket `ENTITY_DATA`
+- <DocLink product={props.product} path='reference/alarm-query-api'>Alarm Query API</DocLink> — alarm search with severity, status, and time filters, used by `alarm-query-controller` and WebSocket `ALARM_DATA`
+- <DocLink product={props.product} path='reference/websocket-api'>WebSocket API</DocLink> — real-time subscriptions for telemetry, alarms, and notifications
+- <DocLink product={props.product} path='reference/apis-and-sdks'>APIs & SDKs</DocLink> — all available APIs and client libraries

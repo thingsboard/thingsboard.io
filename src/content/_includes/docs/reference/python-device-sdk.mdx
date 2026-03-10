@@ -1,0 +1,149 @@
+import { Steps, Aside } from '@astrojs/starlight/components';
+import DocLink from '@components/DocLink.astro';
+
+The ThingsBoard Python Device SDK (`tb-mqtt-client`) lets Python applications connect to ThingsBoard as a **device** over MQTT.
+It wraps the Paho MQTT library and supports unencrypted and TLS v1.2 connections, QoS 0 and 1, and automatic reconnection.
+
+<Aside type="tip">
+The SDK implements all <DocLink product={props.product} path='reference/mqtt-api/getting-connected'>MQTT Device API</DocLink> features: telemetry upload, attribute subscriptions, server-side RPC, and device provisioning.
+</Aside>
+
+## Installation
+
+```bash
+pip3 install tb-mqtt-client
+```
+
+## Getting started
+
+Connect to ThingsBoard, send telemetry, and verify delivery:
+
+```python
+from tb_device_mqtt import TBDeviceMqttClient, TBPublishInfo
+
+telemetry = {"temperature": 41.9, "enabled": False, "currentFirmwareVersion": "v1.2.2"}
+client = TBDeviceMqttClient("127.0.0.1", username="A1_TEST_TOKEN")
+# Connect to ThingsBoard
+client.connect()
+# Sending telemetry without checking the delivery status
+client.send_telemetry(telemetry)
+# Sending telemetry and checking the delivery status (QoS = 1 by default)
+result = client.send_telemetry(telemetry)
+# get is a blocking call that awaits delivery status
+success = result.get() == TBPublishInfo.TB_ERR_SUCCESS
+# Disconnect from ThingsBoard
+client.disconnect()
+```
+
+## TLS connection
+
+Connect over MQTT SSL using certificates:
+
+```python
+from socket import gethostname
+from tb_device_mqtt import TBDeviceMqttClient
+
+client = TBDeviceMqttClient(gethostname())
+client.connect(tls=True,
+               ca_certs="mqttserver.pub.pem",
+               cert_file="mqttclient.nopass.pem")
+client.disconnect()
+```
+
+## Subscribe to attributes
+
+Receive shared attribute updates via callbacks:
+
+```python
+import time
+from tb_device_mqtt import TBDeviceMqttClient
+
+def on_attributes_change(result, *args):
+    print(result)
+
+client = TBDeviceMqttClient("127.0.0.1", username="A1_TEST_TOKEN")
+client.connect()
+client.subscribe_to_attribute("uploadFrequency", on_attributes_change)
+client.subscribe_to_all_attributes(on_attributes_change)
+
+while True:
+    time.sleep(1)
+```
+
+## Send telemetry in bulk
+
+Optimize throughput by sending multiple telemetry packets at once:
+
+```python
+from time import time
+from tb_device_mqtt import TBDeviceMqttClient, TBPublishInfo
+
+telemetry_with_ts = {"ts": int(round(time() * 1000)), "values": {"temperature": 42.1, "humidity": 70}}
+client = TBDeviceMqttClient("127.0.0.1", username="A1_TEST_TOKEN")
+# Increase max inflight messages for better throughput
+client.max_inflight_messages_set(100)
+client.connect()
+results = []
+result = True
+for i in range(0, 100):
+    results.append(client.send_telemetry(telemetry_with_ts))
+for tmp_result in results:
+    result &= tmp_result.get() == TBPublishInfo.TB_ERR_SUCCESS
+print("Result", str(result))
+client.disconnect()
+```
+
+## Request attributes from server
+
+Retrieve shared attributes asynchronously:
+
+```python
+from time import sleep
+from tb_device_mqtt import TBDeviceMqttClient
+
+def on_attributes_change(result, exception):
+    if exception is not None:
+        print("Exception:", str(exception))
+    else:
+        print(result)
+
+client = TBDeviceMqttClient("127.0.0.1", username="A1_TEST_TOKEN")
+client.connect()
+client.request_attributes(["configuration", "targetFirmwareVersion"], callback=on_attributes_change)
+
+while True:
+    sleep(1)
+```
+
+## Respond to server RPC calls
+
+Handle server-side RPC requests and send responses:
+
+```python
+import time
+from tb_device_mqtt import TBDeviceMqttClient
+
+try:
+    import psutil
+except ImportError:
+    print("Please install psutil using 'pip install psutil' command")
+    exit(1)
+
+def on_server_side_rpc_request(request_id, request_body):
+    print(request_id, request_body)
+    if request_body["method"] == "getCPULoad":
+        client.send_rpc_reply(request_id, {"CPU percent": psutil.cpu_percent()})
+    elif request_body["method"] == "getMemoryUsage":
+        client.send_rpc_reply(request_id, {"Memory": psutil.virtual_memory().percent})
+
+client = TBDeviceMqttClient("127.0.0.1", username="A1_TEST_TOKEN")
+client.set_server_side_rpc_request_handler(on_server_side_rpc_request)
+client.connect()
+
+while True:
+    time.sleep(1)
+```
+
+## More examples
+
+Additional examples are available in the [thingsboard-python-client-sdk](https://github.com/thingsboard/thingsboard-python-client-sdk/tree/master/examples) GitHub repository.

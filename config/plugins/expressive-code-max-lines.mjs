@@ -1,9 +1,10 @@
 /**
- * Expressive Code plugin with two independent meta options:
+ * Expressive Code plugin with independent meta options:
  *
- *   maxLines=N    — limits the visible height to N lines with a scrollbar
- *   collapsible   — adds an Expand / Collapse button (requires maxLines)
- *   wrap          — wraps long lines instead of horizontal scroll; copy is unaffected
+ *   maxLines=N          — limits the visible height to N lines with a scrollbar
+ *   collapsible         — adds an Expand / Collapse button (requires maxLines)
+ *   wrap                — wraps long lines instead of horizontal scroll; copy is unaffected
+ *   download='file.ext' — adds a download button (Tabler icon) next to the copy button
  *
  * Usage examples:
  *   ```js maxLines=15
@@ -14,6 +15,9 @@
  *
  *   ```bash wrap
  *   ```                          ← long lines wrap; copy copies original text unchanged
+ *
+ *   ```json download='config.json'
+ *   ```                          ← download button appears next to the copy button
  *
  * Notes on HAST conventions:
  *   - Classes → properties.className (array), NOT properties.class
@@ -145,6 +149,112 @@ export function pluginMaxLines() {
 				if (collapsible) {
 					appendClassName(renderData.blockAst, 'ec-collapsible');
 				}
+			},
+		},
+	};
+}
+
+export function pluginDownload() {
+	return {
+		name: 'Download',
+
+		baseStyles: `
+			/* download: button sits inside .copy alongside the EC copy button */
+			.ec-download-btn {
+				position: relative;
+				align-self: flex-end;
+				margin: 0;
+				padding: 0;
+				border: 0;
+				background: transparent;
+				color: inherit;
+				cursor: pointer;
+				/* size matches EC copy button */
+				width: 2rem;
+				height: 2rem;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+			}
+			/* EC uses button::after with mask-image for the copy icon —
+			   suppress it on the download button so only the SVG shows */
+			.ec-download-btn::after {
+				content: none !important;
+			}
+			.ec-download-btn svg {
+				position: absolute;
+				inset: 0;
+				width: 100%;
+				height: 100%;
+				padding: 0.4rem;
+				box-sizing: border-box;
+				pointer-events: none;
+			}
+			/* EC already reveals .copy button on frame hover via its own CSS */
+		`,
+
+		jsModules: [
+			`
+			const EC_DL_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><polyline points="7 11 12 16 17 11"/><line x1="12" y1="4" x2="12" y2="16"/></svg>';
+
+			function initDownload() {
+				document.querySelectorAll('figure[data-ec-download]').forEach((fig) => {
+					if (fig.dataset.dlInit) return;
+
+					const filename = fig.dataset.ecDownload;
+					if (!filename) return;
+
+					// EC copy button: button[data-code] inside div.copy inside the figure
+					const copyBtn = fig.querySelector('.copy button[data-code]');
+					if (!copyBtn) return;
+
+					fig.dataset.dlInit = '1';
+
+					const btn = document.createElement('button');
+					btn.className = 'ec-download-btn';
+					btn.setAttribute('type', 'button');
+					btn.setAttribute('aria-label', 'Download ' + filename);
+					btn.setAttribute('title', 'Download ' + filename);
+					// div is required for EC's hover background overlay (same as copy button)
+					btn.innerHTML = '<div></div>' + EC_DL_SVG;
+
+					// Insert before the copy button inside the same .copy container
+					copyBtn.parentElement.insertBefore(btn, copyBtn);
+
+					btn.addEventListener('click', () => {
+						// EC encodes newlines as \\x7F in data-code — decode them back
+						const raw = copyBtn.getAttribute('data-code') || '';
+						const code = raw.replace(/\\x7F/g, '\\n');
+						const blob = new Blob([code], { type: 'text/plain' });
+						const url = URL.createObjectURL(blob);
+						const a = document.createElement('a');
+						a.href = url;
+						a.download = filename;
+						document.body.appendChild(a);
+						a.click();
+						document.body.removeChild(a);
+						URL.revokeObjectURL(url);
+					});
+				});
+			}
+
+			initDownload();
+			document.addEventListener('astro:page-load', initDownload);
+
+			// Re-run when tabs become visible (hidden panels load after click)
+			document.addEventListener('click', (e) => {
+				if (e.target && e.target.closest('[role="tab"]')) {
+					requestAnimationFrame(initDownload);
+				}
+			});
+			`,
+		],
+
+		hooks: {
+			postprocessRenderedBlock: ({ codeBlock, renderData }) => {
+				const filename = codeBlock.metaOptions.getString('download');
+				if (!filename) return;
+				renderData.blockAst.properties['dataEcDownload'] = filename;
 			},
 		},
 	};
