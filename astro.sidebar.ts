@@ -949,7 +949,14 @@ export const trendzSidebar: SidebarConfig = [
 			'docs/trendz/cache-settings',
 			'docs/trendz/settings',
 			'docs/trendz/tasks-service',
-			'docs/trendz/releases/releases-table',
+			{
+				label: 'Versions & Support',
+				collapsed: true,
+				items: [
+					'docs/trendz/releases/release-policy',
+					'docs/trendz/releases/releases-table',
+				],
+			},
 		],
 	},
 ];
