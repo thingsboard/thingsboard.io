@@ -832,6 +832,7 @@ export const trendzSidebar: SidebarConfig = [
 				],
 			},
 			'docs/trendz/install/python-executor-configuration',
+			'docs/trendz/install/upgrade-instructions',
 		],
 	},
 	{
