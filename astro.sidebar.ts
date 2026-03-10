@@ -814,7 +814,16 @@ export const gwSidebar: SidebarConfig = [
 	{
 		label: 'Installation',
 		translations: { uk: 'Встановлення' },
-		items: ['docs/iot-gateway/installation', 'docs/iot-gateway/install/upgrade-instructions'],
+		items: [
+			'docs/iot-gateway/installation',
+			'docs/iot-gateway/installation/deb-installation',
+			'docs/iot-gateway/installation/docker-installation',
+			'docs/iot-gateway/installation/docker-windows',
+			'docs/iot-gateway/installation/rpm-installation',
+			'docs/iot-gateway/installation/pip-installation',
+			'docs/iot-gateway/installation/source-installation',
+			'docs/iot-gateway/installation/upgrade-instructions',
+		],
 	},
 	{
 		label: 'Configuration',
