@@ -808,6 +808,32 @@ export const trendzSidebar: SidebarConfig = [
 		],
 	},
 	{
+		label: 'Installation',
+		items: [
+			{ slug: 'docs/trendz/install/installation-options', label: 'Installation options' },
+			'docs/trendz/install/cloud',
+			{
+				label: 'On-premises',
+				collapsed: true,
+				items: [
+					'docs/trendz/install/docker',
+					'docs/trendz/install/docker-windows',
+					'docs/trendz/install/ubuntu',
+					'docs/trendz/install/rhel',
+					'docs/trendz/install/windows',
+				],
+			},
+			{
+				label: 'Cluster',
+				collapsed: true,
+				items: [
+					'docs/trendz/install/kubernetes',
+				],
+			},
+			'docs/trendz/install/python-executor-configuration',
+		],
+	},
+	{
 		label: 'Documentation',
 		items: [
 			{
