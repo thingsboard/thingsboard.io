@@ -51,6 +51,14 @@ Add `Steps` only if the page has numbered procedures. Add `Aside` only if the pa
 - For not-yet-created pages use `path='TODO'`
 - Same-page anchor links (`[text](#anchor)`) are fine in markdown
 
+### External links — always open in a new tab
+All links to external URLs must include `target="_blank"` and `rel="noopener noreferrer"`:
+```mdx
+<a href="https://example.com" target="_blank" rel="noopener noreferrer">Link text</a>
+```
+- Never use bare markdown `[text](https://...)` for external links — use `<a>` tags so `target="_blank"` can be set
+- This rule applies everywhere: prose, tables, asides, steps
+
 ### Aside types
 | Type | When to use |
 |------|-------------|
