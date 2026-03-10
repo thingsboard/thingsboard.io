@@ -797,8 +797,13 @@ export const trendzSidebar: SidebarConfig = [
 		items: [
 			'docs/trendz',
 			{
-				label: 'Key concepts',
-				items: ['docs/trendz/concepts/business-entities'],
+				label: 'Activation',
+				items: [
+					{ slug: 'docs/trendz/activation/how-to', label: 'Overview' },
+					{ slug: 'docs/trendz/activation/public-cloud', label: 'Cloud (US / EU)' },
+					{ slug: 'docs/trendz/activation/private-cloud', label: 'Private Cloud' },
+					{ slug: 'docs/trendz/activation/self-managed', label: 'Self-Managed' },
+				],
 			},
 		],
 	},
