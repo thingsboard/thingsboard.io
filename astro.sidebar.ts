@@ -828,7 +828,7 @@ export const gwSidebar: SidebarConfig = [
 	{
 		label: 'Configuration',
 		translations: { uk: 'Конфігурація' },
-		items: ['docs/iot-gateway/config/general'],
+		items: ['docs/iot-gateway/config/general', 'docs/iot-gateway/features/remote-configuration'],
 	},
 	{
 		label: 'Connectors',
@@ -855,7 +855,6 @@ export const gwSidebar: SidebarConfig = [
 		label: 'Features',
 		translations: { uk: 'Функції' },
 		items: [
-			'docs/iot-gateway/features/remote-configuration',
 			'docs/iot-gateway/features/remote-shell',
 			'docs/iot-gateway/features/report-strategy',
 			'docs/iot-gateway/features/reserved-rpc',
