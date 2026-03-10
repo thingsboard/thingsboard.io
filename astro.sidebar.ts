@@ -813,37 +813,58 @@ const tbmqGuideItems = (prefix: string): SidebarConfig => {
 };
 
 const tbmqInstallItems = (prefix: string): SidebarConfig => [
-		{ label: 'Installation options', slug: `${prefix}/install/installation-options` },
-		{
-			label: 'Standalone',
-			collapsed: true,
-			items: [
-				`${prefix}/install/docker`,
-				`${prefix}/install/docker-windows`,
-				`${prefix}/install/building-from-source`,
-			],
-		},
-		{
-			label: 'Cluster',
-			collapsed: true,
-			items: [
-				`${prefix}/install/cluster/docker-compose-setup`,
-				`${prefix}/install/cluster/aws-cluster-setup`,
-				`${prefix}/install/cluster/azure-cluster-setup`,
-				`${prefix}/install/cluster/gcp-cluster-setup`,
-				`${prefix}/install/cluster/minikube-cluster-setup`,
-				`${prefix}/install/cluster/helm-cluster-setup-options`,
-			],
-		},
-		{
-			label: 'Configuration',
-			collapsed: true,
-			items: [
-				{ label: 'TBMQ', slug: `${prefix}/install/config` },
-				{ label: 'TBMQ Integration Executor', slug: `${prefix}/install/ie-config` },
-			],
-		},
-		`${prefix}/install/upgrade-instructions`,
+	{ label: 'Installation options', slug: `${prefix}/install/installation-options` },
+	{
+		label: 'On-premises',
+		collapsed: true,
+		items: [
+			{
+				label: 'Standalone',
+				collapsed: true,
+				items: [
+					`${prefix}/install/docker`,
+					`${prefix}/install/docker-windows`,
+					`${prefix}/install/building-from-source`,
+				],
+			},
+			{
+				label: 'Cluster',
+				collapsed: true,
+				items: [
+					`${prefix}/install/cluster/docker-compose-setup`,
+					`${prefix}/install/cluster/minikube-cluster-setup`,
+				],
+			},
+		],
+	},
+	{
+		label: 'Cloud',
+		collapsed: true,
+		items: [
+			`${prefix}/install/cluster/aws-cluster-setup`,
+			`${prefix}/install/cluster/azure-cluster-setup`,
+			`${prefix}/install/cluster/gcp-cluster-setup`,
+		],
+	},
+	{
+		label: 'Helm',
+		collapsed: true,
+		items: [
+			`${prefix}/install/cluster/helm-cluster-setup-minikube`,
+			`${prefix}/install/cluster/helm-cluster-setup-aws`,
+			`${prefix}/install/cluster/helm-cluster-setup-azure`,
+			`${prefix}/install/cluster/helm-cluster-setup-gcp`,
+		],
+	},
+	{
+		label: 'Configuration',
+		collapsed: true,
+		items: [
+			{ label: 'MQTT Broker', slug: `${prefix}/install/config` },
+			{ label: 'Integration Executor', slug: `${prefix}/install/ie-config` },
+		],
+	},
+	`${prefix}/install/upgrade-instructions`,
 ];
 
 const tbmqReferenceItems = (prefix: string): SidebarConfig => [
