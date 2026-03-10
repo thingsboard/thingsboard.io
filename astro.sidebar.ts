@@ -948,6 +948,7 @@ export const trendzSidebar: SidebarConfig = [
 			'docs/trendz/cache-settings',
 			'docs/trendz/settings',
 			'docs/trendz/tasks-service',
+			'docs/trendz/releases/releases-table',
 		],
 	},
 ];
