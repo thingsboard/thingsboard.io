@@ -866,6 +866,18 @@ export const trendzSidebar: SidebarConfig = [
 				],
 			},
 			{
+				label: 'Anomaly Detection',
+				collapsed: true,
+				items: [
+					{ slug: 'docs/trendz/anomaly/overview', label: 'Overview' },
+					{ slug: 'docs/trendz/anomaly/build', label: 'Model Properties' },
+					{ slug: 'docs/trendz/anomaly/refresh-reprocess', label: 'Refresh & Reprocess' },
+					{ slug: 'docs/trendz/anomaly/save-to-tb', label: 'Save to ThingsBoard' },
+					{ slug: 'docs/trendz/anomaly/visualization', label: 'Visualization' },
+					{ slug: 'docs/trendz/anomaly/alarms', label: 'Alarms' },
+				],
+			},
+			{
 				label: 'Calculated Fields',
 				collapsed: true,
 				items: [
