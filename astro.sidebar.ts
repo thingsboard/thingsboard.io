@@ -909,6 +909,14 @@ export const trendzSidebar: SidebarConfig = [
 					'docs/trendz/custom-ai-model-configuration',
 				],
 			},
+			{
+				label: 'White Labeling',
+				collapsed: true,
+				items: [
+					{ slug: 'docs/trendz/white-labeling/overview', label: 'Overview' },
+					{ slug: 'docs/trendz/white-labeling/custom-translation', label: 'Custom Translation' },
+				],
+			},
 			'docs/trendz/mix-sql-datasource',
 			'docs/trendz/states',
 			'docs/trendz/cache-settings',
