@@ -811,6 +811,17 @@ export const trendzSidebar: SidebarConfig = [
 		label: 'Documentation',
 		items: [
 			{
+				label: 'Key Concepts',
+				collapsed: true,
+				items: [
+					'docs/trendz/concepts/business-entities',
+					'docs/trendz/concepts/telemetry-aggregation',
+					'docs/trendz/concepts/group-by-time',
+					'docs/trendz/concepts/group-by-category',
+					'docs/trendz/concepts/data-filtering',
+				],
+			},
+			{
 				label: 'Visualizations',
 				collapsed: true,
 				items: [
