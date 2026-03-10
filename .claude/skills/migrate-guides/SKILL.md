@@ -182,6 +182,25 @@ prose or a table.
 
 ---
 
+## Content to skip
+
+The following sections must **not** be migrated — omit them entirely:
+
+- `## Next Steps` / `{% include templates/edge/install/next-steps.md %}` — next steps are handled at the site level, not per-page.
+
+---
+
+## Version placeholders
+
+Replace Jekyll version placeholders as follows when encountered in source files:
+
+- `{{ site.release.edge_full_ver }}` → `${EDGE_VER}` (inside template literals); add `import { EDGE_VER } from '~/data/versions';`
+- `{{ site.release.pe_edge_full_ver }}` → `${EDGE_PE_VER}` (inside template literals); add `import { EDGE_PE_VER } from '~/data/versions';`
+- `{{ site.release.ce_full_ver }}` → `${CE_FULL_VER}` (inside template literals); add `import { CE_FULL_VER } from '~/data/versions';`
+- `{{ site.release.pe_full_ver }}` → `${PE_FULL_VER}` (inside template literals); add `import { PE_FULL_VER } from '~/data/versions';`
+
+---
+
 ## Step 5: Create the include file
 
 Path: `src/content/_includes/docs/user-guide/{page}.mdx`

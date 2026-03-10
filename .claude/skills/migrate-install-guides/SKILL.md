@@ -62,6 +62,7 @@ Import from `src/data/versions.ts`:
 ```mdx
 import { CE_FULL_VER } from '~/data/versions';        // CE guides
 import { PE_FULL_VER, TRENDZ_VER } from '~/data/versions';  // PE guides
+import { EDGE_VER, EDGE_PE_VER } from '~/data/versions';    // Edge guides
 ```
 
 Available constants:
@@ -69,6 +70,12 @@ Available constants:
 - `PE_FULL_VER` — Professional Edition (e.g. `4.3.0.1PE`)
 - `TRENDZ_VER` — Trendz Analytics (e.g. `1.15.0.4`)
 - `EDGE_VER`, `EDGE_PE_VER`, `TBMQ_VER`, `TBMQ_PE_VER` — other products
+
+**Jekyll version placeholders** — replace as follows when encountered in source files:
+- `{{ site.release.edge_full_ver }}` → `${EDGE_VER}` (inside template literals)
+- `{{ site.release.pe_edge_full_ver }}` → `${EDGE_PE_VER}` (inside template literals)
+- `{{ site.release.ce_full_ver }}` → `${CE_FULL_VER}` (inside template literals)
+- `{{ site.release.pe_full_ver }}` → `${PE_FULL_VER}` (inside template literals)
 
 To interpolate versions into code blocks, use the `<Code>` component with exported string constants:
 
@@ -185,6 +192,14 @@ const installationItems = (prefix: string) => [
   // ... add new entries here
 ];
 ```
+
+---
+
+## Content to skip
+
+The following sections must **not** be migrated — omit them entirely:
+
+- `## Next Steps` / `{% include templates/edge/install/next-steps.md %}` — next steps are handled at the site level, not per-page.
 
 ---
 

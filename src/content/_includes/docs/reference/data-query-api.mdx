@@ -1,0 +1,713 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+The Entity Data Query API is a powerful, flexible way to search, filter, and subscribe to entities in ThingsBoard. It is used by:
+
+- <DocLink product={props.product} path='reference/rest-api'>REST API</DocLink> — `POST /api/entitiesQuery/find` and `POST /api/entitiesQuery/count`
+- <DocLink product={props.product} path='reference/websocket-api'>WebSocket API</DocLink> — `ENTITY_DATA` and `ENTITY_COUNT` command types
+
+Both interfaces accept the same query structure, so everything on this page applies to both REST and WebSocket usage. The <DocLink product={props.product} path='reference/alarm-query-api'>Alarm Query API</DocLink> extends this format with alarm-specific fields.
+
+<Aside type="tip">
+  This is the same query engine that powers ThingsBoard dashboards. Every Entity Table widget, alarm widget, and device list uses this API under the hood.
+</Aside>
+
+## Query Structure
+
+An `EntityDataQuery` has five fields:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `entityFilter` | Yes | Selects which entities to include — by type, name, relation, profile, or explicit list |
+| `keyFilters` | No | Narrows results by attribute or telemetry values (e.g. `temperature > 50`) |
+| `pageLink` | Yes | Pagination, sorting, and text search |
+| `entityFields` | No | Entity fields to return (name, type, label, etc.) |
+| `latestValues` | No | Latest attribute or telemetry keys to return with each entity |
+
+```json title="Minimal query — all devices, sorted by creation time"
+{
+  "entityFilter": {
+    "type": "entityType",
+    "entityType": "DEVICE"
+  },
+  "pageLink": {
+    "pageSize": 10,
+    "page": 0,
+    "sortOrder": {
+      "key": { "type": "ENTITY_FIELD", "key": "createdTime" },
+      "direction": "DESC"
+    }
+  },
+  "entityFields": [
+    { "type": "ENTITY_FIELD", "key": "name" },
+    { "type": "ENTITY_FIELD", "key": "type" }
+  ],
+  "latestValues": [
+    { "type": "TIME_SERIES", "key": "temperature" },
+    { "type": "ATTRIBUTE", "key": "active" }
+  ],
+  "keyFilters": []
+}
+```
+
+### Response
+
+```json
+{
+  "data": [
+    {
+      "entityId": { "entityType": "DEVICE", "id": "784f394c-42b6-435a-983c-b7beff2784f9" },
+      "latest": {
+        "ENTITY_FIELD": {
+          "name": { "ts": 0, "value": "Thermostat A" },
+          "type": { "ts": 0, "value": "thermostat" }
+        },
+        "TIME_SERIES": {
+          "temperature": { "ts": 1704067260000, "value": "22.5" }
+        },
+        "ATTRIBUTE": {
+          "active": { "ts": 1704067200000, "value": "true" }
+        }
+      }
+    }
+  ],
+  "totalPages": 1,
+  "totalElements": 1,
+  "hasNext": false
+}
+```
+
+Each value is returned as a `{ ts, value }` pair where `ts` is the Unix timestamp in milliseconds and `value` is always a string.
+
+## Entity Filters
+
+The `entityFilter` field selects which entities to include in the query. Each filter has a `type` discriminator and type-specific fields.
+
+### entityType
+
+All entities of a given type.
+
+```json
+{ "type": "entityType", "entityType": "DEVICE" }
+```
+
+**Supported entity types:** `DEVICE`, `ASSET`, `ENTITY_VIEW`, `TENANT`, `CUSTOMER`, `USER`, `DASHBOARD`, `EDGE`, `RULE_CHAIN`, `RULE_NODE`.
+
+### singleEntity
+
+One specific entity by ID.
+
+```json
+{
+  "type": "singleEntity",
+  "singleEntity": { "entityType": "DEVICE", "id": "784f394c-42b6-435a-983c-b7beff2784f9" }
+}
+```
+
+### entityList
+
+A list of specific entities.
+
+```json
+{
+  "type": "entityList",
+  "entityType": "DEVICE",
+  "entityList": [
+    "784f394c-42b6-435a-983c-b7beff2784f9",
+    "5ab3c1e0-1234-5678-abcd-ef0123456789"
+  ]
+}
+```
+
+### entityName
+
+Entities whose name starts with the given string (case-insensitive prefix match).
+
+```json
+{
+  "type": "entityName",
+  "entityType": "DEVICE",
+  "entityNameFilter": "Thermostat"
+}
+```
+
+### deviceType
+
+Devices belonging to specific device profiles.
+
+```json
+{
+  "type": "deviceType",
+  "deviceTypes": ["thermostat", "sensor"],
+  "deviceNameFilter": ""
+}
+```
+
+Set `deviceNameFilter` to a pattern to narrow by name within those profiles, or leave empty for all.
+
+### assetType
+
+Assets belonging to specific asset profiles.
+
+```json
+{
+  "type": "assetType",
+  "assetTypes": ["building", "floor"],
+  "assetNameFilter": ""
+}
+```
+
+### edgeType
+
+Edge instances by edge type.
+
+```json
+{
+  "type": "edgeType",
+  "edgeTypes": ["factory-edge"],
+  "edgeNameFilter": ""
+}
+```
+
+### entityViewType
+
+Entity views by type.
+
+```json
+{
+  "type": "entityViewType",
+  "entityViewTypes": ["temperature-view"],
+  "entityViewNameFilter": ""
+}
+```
+
+### relationsQuery
+
+Entities related to a root entity via the relation graph. This is the most flexible filter — it traverses the relation tree to any depth.
+
+```json maxLines=15 collapsible
+{
+  "type": "relationsQuery",
+  "rootEntity": { "entityType": "ASSET", "id": "building-uuid" },
+  "direction": "FROM",
+  "maxLevel": 2,
+  "fetchLastLevelOnly": false,
+  "filters": [
+    {
+      "relationType": "Contains",
+      "entityTypes": ["DEVICE", "ASSET"]
+    }
+  ]
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `rootEntity` | Starting entity for the traversal |
+| `direction` | `FROM` — follow outgoing relations; `TO` — follow incoming relations |
+| `maxLevel` | Maximum traversal depth (0 = unlimited) |
+| `fetchLastLevelOnly` | When `true`, only return entities at the deepest level reached |
+| `filters` | Array of relation type + entity type pairs to follow |
+
+**Multi-root variant** — start from multiple entities of the same type:
+
+```json
+{
+  "type": "relationsQuery",
+  "isMultiRoot": true,
+  "multiRootEntitiesType": "ASSET",
+  "multiRootEntityIds": ["building-1-uuid", "building-2-uuid"],
+  "direction": "FROM",
+  "maxLevel": 1,
+  "filters": [{ "relationType": "Contains", "entityTypes": ["DEVICE"] }]
+}
+```
+
+### deviceSearchQuery
+
+Devices reachable via the relation graph from a root entity.
+
+```json
+{
+  "type": "deviceSearchQuery",
+  "rootEntity": { "entityType": "ASSET", "id": "building-uuid" },
+  "relationType": "Contains",
+  "direction": "FROM",
+  "maxLevel": 2,
+  "fetchLastLevelOnly": false,
+  "deviceTypes": ["thermostat"]
+}
+```
+
+### assetSearchQuery
+
+Same as `deviceSearchQuery` but for assets.
+
+```json
+{
+  "type": "assetSearchQuery",
+  "rootEntity": { "entityType": "TENANT", "id": "tenant-uuid" },
+  "relationType": "Contains",
+  "direction": "FROM",
+  "maxLevel": 1,
+  "fetchLastLevelOnly": false,
+  "assetTypes": ["building"]
+}
+```
+
+### edgeSearchQuery
+
+Same pattern for edges: `edgeTypes` field instead of `deviceTypes`.
+
+### entityViewSearchQuery
+
+Same pattern for entity views: `entityViewTypes` field.
+
+### apiUsageState
+
+Returns the API usage state entity. Used internally for monitoring.
+
+```json
+{ "type": "apiUsageState" }
+```
+
+## Key Filters
+
+Key filters narrow results based on attribute or telemetry **values**. For example, return only devices where `temperature > 50` or `active == true`.
+
+Each key filter has three parts:
+
+| Field | Description |
+|-------|-------------|
+| `key` | Which key to filter on (`EntityKey` with `type` and `key`) |
+| `valueType` | Data type: `STRING`, `NUMERIC`, `BOOLEAN`, or `DATE_TIME` |
+| `predicate` | Comparison operation and value |
+
+```json title="Filter: temperature > 50"
+{
+  "keyFilters": [
+    {
+      "key": { "type": "TIME_SERIES", "key": "temperature" },
+      "valueType": "NUMERIC",
+      "predicate": {
+        "type": "NUMERIC",
+        "operation": "GREATER",
+        "value": { "defaultValue": 50.0 }
+      }
+    }
+  ]
+}
+```
+
+### Key types
+
+| `type` | Description |
+|--------|-------------|
+| `ENTITY_FIELD` | Built-in entity fields: `name`, `type`, `label`, `createdTime`, etc. |
+| `ATTRIBUTE` | Any attribute (searches all scopes) |
+| `CLIENT_ATTRIBUTE` | Client-side attributes only |
+| `SHARED_ATTRIBUTE` | Shared attributes only |
+| `SERVER_ATTRIBUTE` | Server-side attributes only |
+| `TIME_SERIES` | Latest telemetry value |
+
+### String predicates
+
+| Operation | Description |
+|-----------|-------------|
+| `EQUAL` | Exact match |
+| `NOT_EQUAL` | Not equal |
+| `STARTS_WITH` | Prefix match |
+| `ENDS_WITH` | Suffix match |
+| `CONTAINS` | Substring match |
+| `NOT_CONTAINS` | Does not contain |
+| `IN` | Value is in a comma-separated list |
+| `NOT_IN` | Value is not in a comma-separated list |
+
+```json title="Filter: device name starts with 'Thermo'"
+{
+  "key": { "type": "ENTITY_FIELD", "key": "name" },
+  "valueType": "STRING",
+  "predicate": {
+    "type": "STRING",
+    "operation": "STARTS_WITH",
+    "value": { "defaultValue": "Thermo" },
+    "ignoreCase": true
+  }
+}
+```
+
+`ignoreCase` makes the comparison case-insensitive.
+
+### Numeric predicates
+
+| Operation | Description |
+|-----------|-------------|
+| `EQUAL` | Equal |
+| `NOT_EQUAL` | Not equal |
+| `GREATER` | Greater than |
+| `LESS` | Less than |
+| `GREATER_OR_EQUAL` | Greater than or equal |
+| `LESS_OR_EQUAL` | Less than or equal |
+
+```json title="Filter: battery level ≤ 20"
+{
+  "key": { "type": "TIME_SERIES", "key": "batteryLevel" },
+  "valueType": "NUMERIC",
+  "predicate": {
+    "type": "NUMERIC",
+    "operation": "LESS_OR_EQUAL",
+    "value": { "defaultValue": 20.0 }
+  }
+}
+```
+
+### Boolean predicates
+
+| Operation | Description |
+|-----------|-------------|
+| `EQUAL` | Equal |
+| `NOT_EQUAL` | Not equal |
+
+```json title="Filter: active == true"
+{
+  "key": { "type": "ATTRIBUTE", "key": "active" },
+  "valueType": "BOOLEAN",
+  "predicate": {
+    "type": "BOOLEAN",
+    "operation": "EQUAL",
+    "value": { "defaultValue": true }
+  }
+}
+```
+
+### Complex predicates (AND / OR)
+
+Combine multiple predicates with boolean logic:
+
+```json title="Filter: temperature > 50 AND humidity > 70"
+{
+  "key": { "type": "TIME_SERIES", "key": "temperature" },
+  "valueType": "NUMERIC",
+  "predicate": {
+    "type": "COMPLEX",
+    "operation": "AND",
+    "predicates": [
+      {
+        "type": "NUMERIC",
+        "operation": "GREATER",
+        "value": { "defaultValue": 50.0 }
+      },
+      {
+        "key": { "type": "TIME_SERIES", "key": "humidity" },
+        "valueType": "NUMERIC",
+        "type": "NUMERIC",
+        "operation": "GREATER",
+        "value": { "defaultValue": 70.0 }
+      }
+    ]
+  }
+}
+```
+
+### Dynamic values
+
+Instead of hardcoding filter values, you can resolve them from the current tenant, customer, or user attributes at query time. This is primarily used in dashboard widgets where the same widget serves different users.
+
+```json title="Filter: temperature > (threshold from tenant attribute)"
+{
+  "key": { "type": "TIME_SERIES", "key": "temperature" },
+  "valueType": "NUMERIC",
+  "predicate": {
+    "type": "NUMERIC",
+    "operation": "GREATER",
+    "value": {
+      "defaultValue": 50.0,
+      "dynamicValue": {
+        "sourceType": "CURRENT_TENANT",
+        "sourceAttribute": "temperatureThreshold"
+      }
+    }
+  }
+}
+```
+
+| `sourceType` | Resolves attribute from |
+|--------------|------------------------|
+| `CURRENT_TENANT` | Current tenant |
+| `CURRENT_CUSTOMER` | Current customer |
+| `CURRENT_USER` | Current user |
+| `CURRENT_DEVICE` | Current device (when context is available) |
+
+**Resolution priority:** If `dynamicValue` resolves successfully, it overrides `defaultValue`. If it fails (e.g. attribute not found), `defaultValue` is used as the fallback.
+
+## Page Link
+
+The `pageLink` controls pagination, sorting, and text search.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `pageSize` | int | — | Number of results per page (required) |
+| `page` | int | 0 | Zero-based page number |
+| `textSearch` | string | — | Free-text search across entity names |
+| `sortOrder` | object | — | Sort key and direction |
+| `dynamic` | boolean | false | When `true` (WebSocket only), the subscription re-evaluates the query on every update to keep pagination and filtering current |
+
+```json title="Sort by name ascending with text search"
+{
+  "pageSize": 20,
+  "page": 0,
+  "textSearch": "thermo",
+  "sortOrder": {
+    "key": { "type": "ENTITY_FIELD", "key": "name" },
+    "direction": "ASC"
+  }
+}
+```
+
+You can sort by any `EntityKey` — including attributes and telemetry:
+
+```json title="Sort by latest temperature value"
+{
+  "pageSize": 10,
+  "page": 0,
+  "sortOrder": {
+    "key": { "type": "TIME_SERIES", "key": "temperature" },
+    "direction": "DESC"
+  }
+}
+```
+
+## Entity Fields and Latest Values
+
+`entityFields` specifies built-in entity properties to return:
+
+| Key | Description |
+|-----|-------------|
+| `name` | Entity name |
+| `type` | Entity sub-type (device profile name, asset profile name) |
+| `label` | Entity label |
+| `createdTime` | Creation timestamp |
+| `additionalInfo` | Additional info JSON |
+
+`latestValues` specifies the latest attribute or telemetry values to include with each entity:
+
+```json
+"latestValues": [
+  { "type": "ATTRIBUTE", "key": "active" },
+  { "type": "SERVER_ATTRIBUTE", "key": "inactivityAlarmTime" },
+  { "type": "TIME_SERIES", "key": "temperature" }
+]
+```
+
+## REST API Usage
+
+### Find entities
+
+`POST /api/entitiesQuery/find`
+
+Send the full `EntityDataQuery` as the request body. Returns a paginated `PageData<EntityData>` response.
+
+```bash wrap
+curl -s -X POST "$TB_URL/api/entitiesQuery/find" \
+  -H "Content-Type: application/json" \
+  -H "X-Authorization: $AUTH" \
+  -d '{
+    "entityFilter": { "type": "deviceType", "deviceTypes": ["thermostat"], "deviceNameFilter": "" },
+    "pageLink": { "pageSize": 10, "page": 0, "sortOrder": { "key": { "type": "ENTITY_FIELD", "key": "name" }, "direction": "ASC" } },
+    "entityFields": [{ "type": "ENTITY_FIELD", "key": "name" }],
+    "latestValues": [{ "type": "TIME_SERIES", "key": "temperature" }],
+    "keyFilters": []
+  }'
+```
+
+### Count entities
+
+`POST /api/entitiesQuery/count`
+
+Send an `EntityCountQuery` (only `entityFilter` and `keyFilters` — no pagination or fields). Returns a number.
+
+```bash wrap
+curl -s -X POST "$TB_URL/api/entitiesQuery/count" \
+  -H "Content-Type: application/json" \
+  -H "X-Authorization: $AUTH" \
+  -d '{
+    "entityFilter": { "type": "deviceType", "deviceTypes": ["thermostat"], "deviceNameFilter": "" },
+    "keyFilters": []
+  }'
+```
+
+### Find available keys
+
+`POST /api/v2/entitiesQuery/find/keys`
+
+Returns the list of attribute and telemetry keys available for entities matching the query. Useful for building dynamic UIs.
+
+| Query parameter | Default | Description |
+|----------------|---------|-------------|
+| `includeTimeseries` | `true` | Include time-series keys |
+| `includeAttributes` | `true` | Include attribute keys |
+| `scopes` | all | Comma-separated attribute scopes: `SERVER_SCOPE`, `SHARED_SCOPE`, `CLIENT_SCOPE` |
+
+## WebSocket Usage
+
+Use the same query structure inside `ENTITY_DATA` and `ENTITY_COUNT` WebSocket commands. The WebSocket subscription provides real-time updates — the server pushes changes as they happen.
+
+```json title="WebSocket entity data subscription"
+{
+  "cmds": [
+    {
+      "cmdId": 1,
+      "type": "ENTITY_DATA",
+      "query": {
+        "entityFilter": { "type": "deviceType", "deviceTypes": ["thermostat"], "deviceNameFilter": "" },
+        "pageLink": { "pageSize": 10, "page": 0, "sortOrder": { "key": { "type": "ENTITY_FIELD", "key": "name" }, "direction": "ASC" } },
+        "entityFields": [{ "type": "ENTITY_FIELD", "key": "name" }],
+        "latestValues": [{ "type": "TIME_SERIES", "key": "temperature" }],
+        "keyFilters": []
+      }
+    }
+  ]
+}
+```
+
+**Additional WebSocket commands:**
+
+| Field | Description |
+|-------|-------------|
+| `latestCmd` | Subscribe to latest values for specific keys: `{ "keys": [{ "type": "TIME_SERIES", "key": "temperature" }] }` |
+| `tsCmd` | Subscribe to a rolling time window: `{ "keys": ["temperature"], "startTs": 1704067200000, "timeWindow": 3600000 }` |
+| `historyCmd` | One-time fetch of historical data: `{ "keys": ["temperature"], "startTs": 1704067200000, "endTs": 1704153600000, "interval": 60000, "limit": 100, "agg": "AVG" }` |
+
+See the <DocLink product={props.product} path='reference/websocket-api'>WebSocket API</DocLink> reference for connection, authentication, and the full message flow.
+
+## Examples
+
+### Devices with low battery
+
+Find all devices where the `batteryLevel` telemetry is below 20%:
+
+```json maxLines=25 collapsible
+{
+  "entityFilter": { "type": "entityType", "entityType": "DEVICE" },
+  "pageLink": {
+    "pageSize": 100,
+    "page": 0,
+    "sortOrder": {
+      "key": { "type": "TIME_SERIES", "key": "batteryLevel" },
+      "direction": "ASC"
+    }
+  },
+  "entityFields": [
+    { "type": "ENTITY_FIELD", "key": "name" },
+    { "type": "ENTITY_FIELD", "key": "type" }
+  ],
+  "latestValues": [
+    { "type": "TIME_SERIES", "key": "batteryLevel" }
+  ],
+  "keyFilters": [
+    {
+      "key": { "type": "TIME_SERIES", "key": "batteryLevel" },
+      "valueType": "NUMERIC",
+      "predicate": {
+        "type": "NUMERIC",
+        "operation": "LESS",
+        "value": { "defaultValue": 20.0 }
+      }
+    }
+  ]
+}
+```
+
+### Active thermostats with high temperature
+
+Find thermostats where `active` attribute is `true` and `temperature` exceeds 30:
+
+```json maxLines=30 collapsible
+{
+  "entityFilter": {
+    "type": "deviceType",
+    "deviceTypes": ["thermostat"],
+    "deviceNameFilter": ""
+  },
+  "pageLink": {
+    "pageSize": 50,
+    "page": 0,
+    "sortOrder": {
+      "key": { "type": "TIME_SERIES", "key": "temperature" },
+      "direction": "DESC"
+    }
+  },
+  "entityFields": [
+    { "type": "ENTITY_FIELD", "key": "name" }
+  ],
+  "latestValues": [
+    { "type": "TIME_SERIES", "key": "temperature" },
+    { "type": "ATTRIBUTE", "key": "active" }
+  ],
+  "keyFilters": [
+    {
+      "key": { "type": "ATTRIBUTE", "key": "active" },
+      "valueType": "BOOLEAN",
+      "predicate": {
+        "type": "BOOLEAN",
+        "operation": "EQUAL",
+        "value": { "defaultValue": true }
+      }
+    },
+    {
+      "key": { "type": "TIME_SERIES", "key": "temperature" },
+      "valueType": "NUMERIC",
+      "predicate": {
+        "type": "NUMERIC",
+        "operation": "GREATER",
+        "value": { "defaultValue": 30.0 }
+      }
+    }
+  ]
+}
+```
+
+<Aside type="note">
+  When multiple key filters are specified, they are combined with AND logic. Use a `COMPLEX` predicate with `OR` operation if you need OR logic within a single key.
+</Aside>
+
+### Devices related to a building
+
+Find all devices connected to a specific building asset via `Contains` relations, up to 3 levels deep:
+
+```json maxLines=25 collapsible
+{
+  "entityFilter": {
+    "type": "relationsQuery",
+    "rootEntity": { "entityType": "ASSET", "id": "building-uuid" },
+    "direction": "FROM",
+    "maxLevel": 3,
+    "fetchLastLevelOnly": false,
+    "filters": [
+      { "relationType": "Contains", "entityTypes": ["DEVICE"] }
+    ]
+  },
+  "pageLink": {
+    "pageSize": 100,
+    "page": 0,
+    "sortOrder": {
+      "key": { "type": "ENTITY_FIELD", "key": "name" },
+      "direction": "ASC"
+    }
+  },
+  "entityFields": [
+    { "type": "ENTITY_FIELD", "key": "name" },
+    { "type": "ENTITY_FIELD", "key": "type" }
+  ],
+  "latestValues": [
+    { "type": "TIME_SERIES", "key": "temperature" }
+  ],
+  "keyFilters": []
+}
+```
+
+## See also
+
+- <DocLink product={props.product} path='reference/alarm-query-api'>Alarm Query API</DocLink> — extends this query format with alarm-specific filters
+- <DocLink product={props.product} path='reference/websocket-api'>WebSocket API</DocLink> — real-time subscriptions using entity data queries
+- <DocLink product={props.product} path='reference/rest-api'>REST API</DocLink> — authentication and general API usage

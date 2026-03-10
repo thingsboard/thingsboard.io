@@ -149,7 +149,7 @@ const guideItems = (prefix: string) => [
 	{
 		label: 'Security',
 		collapsed: true,
-		items: [`${prefix}/security`, `${prefix}/security/api-keys`],
+		items: [`${prefix}/security`, `${prefix}/security/two-factor-authentication`, `${prefix}/security/oauth-2-support`, `${prefix}/security/domains`, `${prefix}/security/http-over-ssl`, `${prefix}/security/audit-log`, `${prefix}/security/secrets-storage`, `${prefix}/security/api-keys`],
 	},
 	{
 		label: 'Contribution',
@@ -164,6 +164,29 @@ const guideItems = (prefix: string) => [
 			`${prefix}/releases-table`,
 		],
 	},
+];
+
+const edgeInstallationItems = (prefix: string) => [
+	{ label: 'Installation options', slug: `${prefix}/installation` },
+	{
+		label: 'Single node',
+		items: [
+			`${prefix}/installation/docker`,
+			`${prefix}/installation/docker-windows`,
+			`${prefix}/installation/ubuntu`,
+			`${prefix}/installation/rhel`,
+			`${prefix}/installation/rpi`,
+			`${prefix}/installation/windows`,
+		],
+	},
+	{
+		label: 'Cluster',
+		items: [
+			`${prefix}/installation/docker-compose-setup`,
+		],
+	},
+	{ label: 'Building from Sources', slug: `${prefix}/installation/building-from-source` },
+	{ label: 'Upgrade instructions', slug: `${prefix}/installation/upgrade-instructions` },
 ];
 
 const installationItems = (prefix: string) => {
@@ -371,6 +394,8 @@ const apisAndSdksItems = (prefix: string) => [
 		items: [
 			`${prefix}/reference/rest-api`,
 			`${prefix}/reference/websocket-api`,
+			`${prefix}/reference/data-query-api`,
+			`${prefix}/reference/alarm-query-api`,
 		],
 	},
 	{
@@ -419,6 +444,7 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 			`${prefix}/configuration/lwm2m-transport-config`,
 			`${prefix}/configuration/snmp-transport-config`,
 			`${prefix}/configuration/vc-executor-config`,
+			`${prefix}/configuration/js-executor-config`,
 			...extraConfigItems,
 		],
 	},
@@ -686,6 +712,17 @@ export const paasSidebar: SidebarConfig = [
 		translations: { uk: 'Початок роботи' },
 		items: ['docs/paas/getting-started'],
 	},
+	{
+		label: 'Guides',
+		collapsed: true,
+		items: [
+			{
+				label: 'Security',
+				collapsed: true,
+				items: ['docs/paas/user-guide/security/two-factor-authentication', 'docs/paas/user-guide/security/oauth-2-support', 'docs/paas/user-guide/security/domains', 'docs/paas/user-guide/security/audit-log', 'docs/paas/user-guide/security/secrets-storage', 'docs/paas/user-guide/security/api-keys'],
+			},
+		],
+	},
 ];
 
 export const paasEuSidebar: SidebarConfig = [
@@ -693,6 +730,17 @@ export const paasEuSidebar: SidebarConfig = [
 		label: 'Getting Started EU',
 		translations: { uk: 'Початок роботи' },
 		items: ['docs/paas/eu/getting-started'],
+	},
+	{
+		label: 'Guides',
+		collapsed: true,
+		items: [
+			{
+				label: 'Security',
+				collapsed: true,
+				items: ['docs/paas/eu/user-guide/security/two-factor-authentication', 'docs/paas/eu/user-guide/security/oauth-2-support', 'docs/paas/eu/user-guide/security/domains', 'docs/paas/eu/user-guide/security/audit-log', 'docs/paas/eu/user-guide/security/secrets-storage', 'docs/paas/eu/user-guide/security/api-keys'],
+			},
+		],
 	},
 ];
 
@@ -715,6 +763,10 @@ export const edgeSidebar: SidebarConfig = [
 			},
 		],
 	},
+	{
+		label: 'Installation',
+		items: edgeInstallationItems('docs/edge'),
+	},
 ];
 
 /** Edge Professional Edition sidebar (pages at /docs/edge/pe/) */
@@ -735,6 +787,10 @@ export const edgePeSidebar: SidebarConfig = [
 				],
 			},
 		],
+	},
+	{
+		label: 'Installation',
+		items: edgeInstallationItems('docs/edge/pe'),
 	},
 ];
 
