@@ -880,57 +880,85 @@ const tbmqGuideItems = (prefix: string): SidebarConfig => {
 	const isPE = prefix.includes('/pe');
 	return [
 		{
-			label: 'MQTT protocol',
-			collapsed: true,
-			items: [
-				`${prefix}/user-guide/mqtt-protocol`,
-				`${prefix}/user-guide/topics`,
-				`${prefix}/user-guide/qos`,
-				`${prefix}/user-guide/retained-messages`,
-				`${prefix}/user-guide/shared-subscriptions`,
-				`${prefix}/user-guide/last-will`,
-				`${prefix}/user-guide/keep-alive`,
-				`${prefix}/user-guide/mqtt-client-type`,
-				`${prefix}/user-guide/backpressure`,
-			],
-		},
-		{
-			label: 'Client management',
-			collapsed: true,
-			items: [
-				`${prefix}/user-guide/ui/sessions`,
-				`${prefix}/user-guide/ui/subscriptions`,
-				`${prefix}/user-guide/ui/mqtt-client-credentials`,
-				`${prefix}/user-guide/ui/monitoring`,
-				`${prefix}/user-guide/ui/websocket-client`,
-			],
-		},
-		{
 			label: 'Security',
 			collapsed: true,
 			items: [
-				`${prefix}/security/overview`,
-				`${prefix}/security/authentication/basic`,
-				`${prefix}/security/authentication/x509`,
-				`${prefix}/security/authentication/jwt`,
-				`${prefix}/security/authentication/http`,
-				`${prefix}/security/authentication/scram`,
-				`${prefix}/security/mqtts`,
-				`${prefix}/security/listeners`,
-				...(isPE ? [`${prefix}/security/oauth-2-support`, `${prefix}/security/rbac`] : []),
+				{ label: 'Overview', slug: `${prefix}/security/overview` },
+				{ label: 'MQTTS', slug: `${prefix}/security/mqtts` },
+				{ label: 'HTTPS', slug: `${prefix}/security/enable-https` },
+				{ label: 'MQTT listeners', slug: `${prefix}/security/listeners` },
+				{
+					label: 'Authentication',
+					collapsed: true,
+					items: [
+						{ label: 'Basic', slug: `${prefix}/security/authentication/basic` },
+						{ label: 'X.509 Certificate Chain', slug: `${prefix}/security/authentication/x509` },
+						{ label: 'JWT', slug: `${prefix}/security/authentication/jwt` },
+						{ label: 'SCRAM', slug: `${prefix}/security/authentication/scram` },
+						{ label: 'HTTP', slug: `${prefix}/security/authentication/http` },
+						...(isPE ? [{ label: 'OAuth 2.0', slug: `${prefix}/security/oauth-2-support` }] : []),
+					],
+				},
+				...(isPE ? [{ label: 'Role-Based Access Control', slug: `${prefix}/security/rbac` }] : []),
+			],
+		},
+		{
+			label: 'MQTT essentials',
+			collapsed: true,
+			items: [
+				{ label: 'MQTT protocol', slug: `${prefix}/user-guide/mqtt-protocol` },
+				{ label: 'MQTT broker', slug: `${prefix}/user-guide/mqtt-broker` },
+				{ label: 'Topics and wildcards', slug: `${prefix}/user-guide/topics` },
+				{ label: 'Quality of service (QoS)', slug: `${prefix}/user-guide/qos` },
+				{ label: 'Non-persistent and persistent sessions', slug: `${prefix}/user-guide/clean-persistent-sessions` },
+				{ label: 'MQTT over WebSocket', slug: `${prefix}/user-guide/ui/websocket-client` },
+				{ label: 'Shared subscriptions', slug: `${prefix}/user-guide/shared-subscriptions` },
+				{ label: 'Retained messages', slug: `${prefix}/user-guide/retained-messages` },
+				{ label: 'Last will and testament', slug: `${prefix}/user-guide/last-will` },
+				{ label: 'Keep alive', slug: `${prefix}/user-guide/keep-alive` },
+			],
+		},
+		{ label: 'Integration with ThingsBoard', slug: `${prefix}/user-guide/integration-with-thingsboard` },
+		{
+			label: 'Other features',
+			collapsed: true,
+			items: [
+				{ label: 'TBMQ client type', slug: `${prefix}/user-guide/tbmq-client-type` },
+				{ label: 'Blocked clients', slug: `${prefix}/user-guide/blocked-clients` },
+				{ label: 'Backpressure', slug: `${prefix}/user-guide/backpressure` },
+				{ label: 'Msg delivery strategies', slug: `${prefix}/user-guide/msg-delivery-strategies` },
+				{ label: 'PROXY protocol', slug: `${prefix}/user-guide/proxy-protocol` },
+				{ label: 'Health API', slug: `${prefix}/user-guide/health-api` },
+				{ label: 'Bulk provisioning', slug: `${prefix}/user-guide/bulk-provisioning` },
 			],
 		},
 		{
 			label: 'Integrations',
 			collapsed: true,
 			items: [
-				`${prefix}/integrations/http`,
-				`${prefix}/integrations/mqtt`,
-				`${prefix}/integrations/kafka`,
+				{ label: 'Overview', slug: `${prefix}/integrations` },
+				{ label: 'HTTP', slug: `${prefix}/integrations/http` },
+				{ label: 'MQTT', slug: `${prefix}/integrations/mqtt` },
+				{ label: 'Kafka', slug: `${prefix}/integrations/kafka` },
+			],
+		},
+		{
+			label: 'Administration UI',
+			collapsed: true,
+			items: [
+				{ label: 'Monitoring', slug: `${prefix}/user-guide/ui/monitoring` },
+				{ label: 'Sessions', slug: `${prefix}/user-guide/ui/sessions` },
+				{ label: 'Subscriptions', slug: `${prefix}/user-guide/ui/subscriptions` },
+				{ label: 'MQTT client credentials', slug: `${prefix}/user-guide/ui/mqtt-client-credentials` },
+				{ label: 'Unauthorized clients', slug: `${prefix}/user-guide/ui/unauthorized-clients` },
+				{ label: 'WebSocket client', slug: `${prefix}/user-guide/ui/websocket-client` },
+				{ label: 'Application shared subscriptions', slug: `${prefix}/user-guide/ui/application-shared-subscriptions` },
+				{ label: 'Users', slug: `${prefix}/user-guide/ui/users` },
+				{ label: 'Settings', slug: `${prefix}/user-guide/ui/settings` },
 			],
 		},
 		...(isPE
-			? [{ label: 'Administration', collapsed: true, items: [`${prefix}/white-labeling`] }]
+			? [{ label: 'Administration', collapsed: true, items: [{ label: 'White labeling', slug: `${prefix}/white-labeling` }] }]
 			: []),
 	];
 };
@@ -945,17 +973,17 @@ const tbmqInstallItems = (prefix: string): SidebarConfig => [
 				label: 'Standalone',
 				collapsed: true,
 				items: [
-					`${prefix}/install/docker`,
-					`${prefix}/install/docker-windows`,
-					`${prefix}/install/building-from-source`,
+					{ label: 'Docker (Linux & macOS)', slug: `${prefix}/install/docker` },
+					{ label: 'Docker (Windows)', slug: `${prefix}/install/docker-windows` },
+					{ label: 'Building from source', slug: `${prefix}/install/building-from-source` },
 				],
 			},
 			{
 				label: 'Cluster',
 				collapsed: true,
 				items: [
-					`${prefix}/install/cluster/docker-compose-setup`,
-					`${prefix}/install/cluster/minikube-cluster-setup`,
+					{ label: 'Docker Compose', slug: `${prefix}/install/cluster/docker-compose-setup` },
+					{ label: 'Minikube', slug: `${prefix}/install/cluster/minikube-cluster-setup` },
 				],
 			},
 		],
@@ -964,34 +992,40 @@ const tbmqInstallItems = (prefix: string): SidebarConfig => [
 		label: 'Cloud',
 		collapsed: true,
 		items: [
-			`${prefix}/install/cluster/aws-cluster-setup`,
-			`${prefix}/install/cluster/azure-cluster-setup`,
-			`${prefix}/install/cluster/gcp-cluster-setup`,
+			{ label: 'AWS', slug: `${prefix}/install/cluster/aws-cluster-setup` },
+			{ label: 'Azure', slug: `${prefix}/install/cluster/azure-cluster-setup` },
+			{ label: 'GCP', slug: `${prefix}/install/cluster/gcp-cluster-setup` },
 		],
 	},
 	{
 		label: 'Helm',
 		collapsed: true,
 		items: [
-			`${prefix}/install/cluster/helm-cluster-setup-minikube`,
-			`${prefix}/install/cluster/helm-cluster-setup-aws`,
-			`${prefix}/install/cluster/helm-cluster-setup-azure`,
-			`${prefix}/install/cluster/helm-cluster-setup-gcp`,
+			{ label: 'Minikube', slug: `${prefix}/install/cluster/helm-cluster-setup-minikube` },
+			{ label: 'AWS EKS', slug: `${prefix}/install/cluster/helm-cluster-setup-aws` },
+			{ label: 'Azure AKS', slug: `${prefix}/install/cluster/helm-cluster-setup-azure` },
+			{ label: 'GCP GKE', slug: `${prefix}/install/cluster/helm-cluster-setup-gcp` },
 		],
 	},
-	{
-		label: 'Configuration',
-		collapsed: true,
-		items: [
-			{ label: 'MQTT Broker', slug: `${prefix}/install/config` },
-			{ label: 'Integration Executor', slug: `${prefix}/install/ie-config` },
-		],
-	},
-	`${prefix}/install/upgrade-instructions`,
+	{ label: 'Upgrade instructions', slug: `${prefix}/install/upgrade-instructions` },
 ];
 
 const tbmqReferenceItems = (prefix: string): SidebarConfig => [
-	`${prefix}/architecture`,
+	{
+		label: 'Architecture',
+		collapsed: true,
+		items: [
+			{ label: 'Overview', slug: `${prefix}/architecture` },
+			{
+				label: 'Details',
+				collapsed: true,
+				items: [
+					{ label: 'Persistent DEVICE client', slug: `${prefix}/reference/architecture/persistent-device-client` },
+					{ label: 'Persistent APPLICATION client', slug: `${prefix}/reference/architecture/persistent-application-client` },
+				],
+			},
+		],
+	},
 	{
 		label: 'Performance tests',
 		collapsed: true,
@@ -1010,7 +1044,16 @@ const tbmqReferenceItems = (prefix: string): SidebarConfig => [
 			},
 		],
 	},
-	`${prefix}/rest-api`,
+	{
+		label: 'REST APIs',
+		collapsed: true,
+		items: [
+			{ label: 'Administration REST API', slug: `${prefix}/rest-api` },
+			{ label: 'User management', slug: `${prefix}/reference/rest-api/user-management` },
+			{ label: 'MQTT client credentials management', slug: `${prefix}/reference/rest-api/mqtt-client-credentials-management` },
+			{ label: 'Application shared subscriptions management', slug: `${prefix}/reference/rest-api/application-shared-subscriptions-management` },
+		],
+	},
 ];
 
 /** TBMQ Community Broker sidebar (pages at /docs/mqtt-broker/) */
@@ -1019,21 +1062,24 @@ export const tbmqSidebar: SidebarConfig = [
 		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
 		items: [
-			'docs/mqtt-broker',
+			{ label: 'Introduction', slug: 'docs/mqtt-broker' },
 			{
 				label: 'Welcome to MQTT!',
 				translations: { uk: 'Новий проєкт' },
-				items: ['docs/mqtt-broker/why-tbmq', 'docs/mqtt-broker/getting-started'],
+				items: [
+					{ label: 'Why TBMQ?', slug: 'docs/mqtt-broker/why-tbmq' },
+					{ label: 'Getting started', slug: 'docs/mqtt-broker/getting-started' },
+				],
 			},
 			{
 				label: 'Core concepts',
 				items: [
-					'docs/mqtt-broker/concepts/client-types',
-					'docs/mqtt-broker/concepts/sessions',
-					'docs/mqtt-broker/concepts/topics',
+					{ label: 'Client types', slug: 'docs/mqtt-broker/concepts/client-types' },
+					{ label: 'Sessions', slug: 'docs/mqtt-broker/concepts/sessions' },
+					{ label: 'Topics and wildcards', slug: 'docs/mqtt-broker/concepts/topics' },
 					{ label: 'Delivery guarantees', slug: 'docs/mqtt-broker/concepts/qos' },
-					'docs/mqtt-broker/concepts/security',
-					'docs/mqtt-broker/concepts/clustering',
+					{ label: 'Security model', slug: 'docs/mqtt-broker/concepts/security' },
+					{ label: 'Clustering', slug: 'docs/mqtt-broker/concepts/clustering' },
 				],
 			},
 		],
@@ -1049,9 +1095,27 @@ export const tbmqSidebar: SidebarConfig = [
 		items: tbmqInstallItems('docs/mqtt-broker'),
 	},
 	{
+		label: 'Configuration',
+		items: [
+			{ label: 'MQTT broker', slug: 'docs/mqtt-broker/install/config' },
+			{ label: 'Integration Executor', slug: 'docs/mqtt-broker/install/ie-config' },
+		],
+	},
+	{
 		label: 'Reference',
 		collapsed: true,
 		items: tbmqReferenceItems('docs/mqtt-broker'),
+	},
+	{
+		label: "What's new",
+		items: [
+			{ label: 'Release notes', slug: 'docs/mqtt-broker/releases' },
+			{ label: 'Roadmap', slug: 'docs/mqtt-broker/roadmap' },
+		],
+	},
+	{
+		label: 'Need help?',
+		items: [{ label: 'Getting support', slug: 'docs/mqtt-broker/help' }],
 	},
 ];
 
@@ -1061,21 +1125,24 @@ export const tbmqPeSidebar: SidebarConfig = [
 		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
 		items: [
-			'docs/mqtt-broker/pe',
+			{ label: 'Introduction', slug: 'docs/mqtt-broker/pe' },
 			{
 				label: 'Welcome to MQTT!',
 				translations: { uk: 'Новий проєкт' },
-				items: ['docs/mqtt-broker/pe/why-tbmq', 'docs/mqtt-broker/pe/getting-started'],
+				items: [
+					{ label: 'Why TBMQ?', slug: 'docs/mqtt-broker/pe/why-tbmq' },
+					{ label: 'Getting started', slug: 'docs/mqtt-broker/pe/getting-started' },
+				],
 			},
 			{
 				label: 'Core concepts',
 				items: [
-					'docs/mqtt-broker/pe/concepts/client-types',
-					'docs/mqtt-broker/pe/concepts/sessions',
-					'docs/mqtt-broker/pe/concepts/topics',
+					{ label: 'Client types', slug: 'docs/mqtt-broker/pe/concepts/client-types' },
+					{ label: 'Sessions', slug: 'docs/mqtt-broker/pe/concepts/sessions' },
+					{ label: 'Topics and wildcards', slug: 'docs/mqtt-broker/pe/concepts/topics' },
 					{ label: 'Delivery guarantees', slug: 'docs/mqtt-broker/pe/concepts/qos' },
-					'docs/mqtt-broker/pe/concepts/security',
-					'docs/mqtt-broker/pe/concepts/clustering',
+					{ label: 'Security model', slug: 'docs/mqtt-broker/pe/concepts/security' },
+					{ label: 'Clustering', slug: 'docs/mqtt-broker/pe/concepts/clustering' },
 				],
 			},
 		],
@@ -1091,9 +1158,27 @@ export const tbmqPeSidebar: SidebarConfig = [
 		items: tbmqInstallItems('docs/mqtt-broker/pe'),
 	},
 	{
+		label: 'Configuration',
+		items: [
+			{ label: 'MQTT broker', slug: 'docs/mqtt-broker/pe/install/config' },
+			{ label: 'Integration Executor', slug: 'docs/mqtt-broker/pe/install/ie-config' },
+		],
+	},
+	{
 		label: 'Reference',
 		collapsed: true,
 		items: tbmqReferenceItems('docs/mqtt-broker/pe'),
+	},
+	{
+		label: "What's new",
+		items: [
+			{ label: 'Release notes', slug: 'docs/mqtt-broker/pe/releases' },
+			{ label: 'Roadmap', slug: 'docs/mqtt-broker/pe/roadmap' },
+		],
+	},
+	{
+		label: 'Need help?',
+		items: [{ label: 'Getting support', slug: 'docs/mqtt-broker/pe/help' }],
 	},
 ];
 
