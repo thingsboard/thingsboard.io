@@ -796,6 +796,7 @@ export const trendzSidebar: SidebarConfig = [
 		translations: { uk: 'Початок роботи' },
 		items: [
 			'docs/trendz',
+			{ slug: 'docs/trendz/getting-started', label: 'Tutorial' },
 			{
 				label: 'Activation',
 				items: [
