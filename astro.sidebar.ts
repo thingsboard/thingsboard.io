@@ -809,33 +809,6 @@ export const trendzSidebar: SidebarConfig = [
 		],
 	},
 	{
-		label: 'Installation',
-		items: [
-			{ slug: 'docs/trendz/install/installation-options', label: 'Installation options' },
-			'docs/trendz/install/cloud',
-			{
-				label: 'On-premises',
-				collapsed: true,
-				items: [
-					'docs/trendz/install/docker',
-					'docs/trendz/install/docker-windows',
-					'docs/trendz/install/ubuntu',
-					'docs/trendz/install/rhel',
-					'docs/trendz/install/windows',
-				],
-			},
-			{
-				label: 'Cluster',
-				collapsed: true,
-				items: [
-					'docs/trendz/install/kubernetes',
-				],
-			},
-			'docs/trendz/install/python-executor-configuration',
-			'docs/trendz/install/upgrade-instructions',
-		],
-	},
-	{
 		label: 'Documentation',
 		items: [
 			{
@@ -958,6 +931,43 @@ export const trendzSidebar: SidebarConfig = [
 					'docs/trendz/releases/releases-table',
 				],
 			},
+		],
+	},
+	{
+		label: 'Guides',
+		items: [
+			{ slug: 'docs/trendz/guide/detect-anomalies-in-heat-pumps', label: 'Anomaly Detection in Heat Pumps' },
+			{ slug: 'docs/trendz/guide/analyze-building-energy-usage-and-carbon-emissions', label: 'Building Energy Usage & Carbon Emissions' },
+			{ slug: 'docs/trendz/guide/predict-next-maintenance-date-of-equipment', label: 'Predict Remaining Time to Maintenance' },
+			{ slug: 'docs/trendz/guide/industrial-oee-score-monitoring', label: 'Industrial OEE Score Monitoring' },
+			{ slug: 'docs/trendz/guide/occupancy-analysis-of-the-building', label: 'Predictive Occupancy Monitoring' },
+		],
+	},
+	{
+		label: 'Installation',
+		items: [
+			{ slug: 'docs/trendz/install/installation-options', label: 'Installation options' },
+			'docs/trendz/install/cloud',
+			{
+				label: 'On-premises',
+				collapsed: true,
+				items: [
+					'docs/trendz/install/docker',
+					'docs/trendz/install/docker-windows',
+					'docs/trendz/install/ubuntu',
+					'docs/trendz/install/rhel',
+					'docs/trendz/install/windows',
+				],
+			},
+			{
+				label: 'Cluster',
+				collapsed: true,
+				items: [
+					'docs/trendz/install/kubernetes',
+				],
+			},
+			'docs/trendz/install/python-executor-configuration',
+			'docs/trendz/install/upgrade-instructions',
 		],
 	},
 ];
