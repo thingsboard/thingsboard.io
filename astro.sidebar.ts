@@ -978,7 +978,9 @@ const tbmqGuideItems = (prefix: string): SidebarConfig => {
 	];
 };
 
-const tbmqInstallItems = (prefix: string): SidebarConfig => [
+const tbmqInstallItems = (prefix: string): SidebarConfig => {
+	const isPE = prefix.includes('/pe');
+	return [
 	{ label: 'Installation options', slug: `${prefix}/install/installation-options` },
 	{
 		label: 'On-premises',
@@ -990,7 +992,7 @@ const tbmqInstallItems = (prefix: string): SidebarConfig => [
 				items: [
 					{ label: 'Docker (Linux & macOS)', slug: `${prefix}/install/docker` },
 					{ label: 'Docker (Windows)', slug: `${prefix}/install/docker-windows` },
-					{ label: 'Building from source', slug: `${prefix}/install/building-from-source` },
+					...(!isPE ? [{ label: 'Building from source', slug: `${prefix}/install/building-from-source` }] : []),
 				],
 			},
 			{
@@ -1023,7 +1025,8 @@ const tbmqInstallItems = (prefix: string): SidebarConfig => [
 		],
 	},
 	{ label: 'Upgrade instructions', slug: `${prefix}/install/upgrade-instructions` },
-];
+	];
+};
 
 const tbmqReferenceItems = (prefix: string): SidebarConfig => [
 	{
