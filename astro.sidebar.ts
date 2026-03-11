@@ -1107,7 +1107,7 @@ export const tbmqSidebar: SidebarConfig = [
 		items: tbmqReferenceItems('docs/mqtt-broker'),
 	},
 	{
-		label: "What's new",
+		label: "Releases",
 		items: [
 			{ label: 'Release notes', slug: 'docs/mqtt-broker/releases' },
 			{ label: 'Roadmap', slug: 'docs/mqtt-broker/roadmap' },
@@ -1170,7 +1170,7 @@ export const tbmqPeSidebar: SidebarConfig = [
 		items: tbmqReferenceItems('docs/mqtt-broker/pe'),
 	},
 	{
-		label: "What's new",
+		label: "Releases",
 		items: [
 			{ label: 'Release notes', slug: 'docs/mqtt-broker/pe/releases' },
 			{ label: 'Roadmap', slug: 'docs/mqtt-broker/pe/roadmap' },
