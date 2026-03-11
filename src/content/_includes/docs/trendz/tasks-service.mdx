@@ -1,67 +1,66 @@
 import { Aside } from '@astrojs/starlight/components';
 import ImageGallery from '~/components/ImageGallery.astro';
 
-The **Task Service** manages and runs background tasks related to data processing and calculations — scheduling,
-executing, and monitoring them so that data updates and calculations happen efficiently and on time.
-This service is essential for automating both real-time data handling and historical data reprocessing.
+The **Task Service** manages and runs background jobs for data processing — scheduling, executing, and monitoring them so that
+model training, telemetry saves, anomaly detection, and report generation happen efficiently without blocking the UI.
 
-Navigate to **Tasks** in the main menu to view and control all tasks.
+Navigate to **Tasks** in the main menu to view and control all jobs.
 
-## Task Types
+## Job Types
 
-Use the **Job Type** filter on the Tasks tab to narrow the list by task type.
+Jobs are grouped by domain. Most jobs are triggered by a user action; a few also support a recurring schedule configured in the relevant feature settings.
 
 #### System
 
-| Job Type | Description |
-|----------|-------------|
-| Execute task sequence | Runs a predefined sequence of tasks in order |
-| Import configuration | Imports a Trendz configuration from a file |
-| Topology discovery | Full scan — discovers all entity types, fields, and relations from ThingsBoard |
-| Lite topology discovery | Incremental scan — discovers only new entity types or refreshes existing ones |
-| Refresh cache | Clears and rebuilds cached data |
+| Job | Runs | Description |
+|-----|------|-------------|
+| Execute task sequence | On demand | Executes a predefined ordered sequence of tasks, useful for chaining multi-step operations |
+| Import configuration | On demand | Imports views, models, and other Trendz configuration objects from an exported file |
+| Topology discovery | On demand | Full scan of ThingsBoard — builds the complete list of entity types, telemetry fields, and relations available for analysis |
+| Lite topology discovery | Scheduled | Incremental scan triggered automatically when new device or asset types appear in ThingsBoard; uses a cooldown to avoid redundant runs |
+| Refresh cache | On demand or scheduled | Clears and rebuilds the data cache for a view; runs on a configurable periodic or calendar-based schedule when auto-refresh is enabled in view settings |
 
 #### Views
 
-| Job Type | Description |
-|----------|-------------|
-| Build view report | Generates a data report for a view |
-| Load view filter | Loads available filter values for a view |
-| Save telemetry to TB | Writes generated telemetry to ThingsBoard |
-| Build alarm report | Generates an alarm report for a view |
+| Job | Runs | Description |
+|-----|------|-------------|
+| Build view report | On demand | Loads and processes raw telemetry for a view so the chart or table can be rendered |
+| Load view filter | On demand | Fetches the set of available values for a view's filter fields (e.g., entity names or attribute values) |
+| Save telemetry to TB | On demand or scheduled | Computes aggregated telemetry from a view and writes the results back to ThingsBoard as device attributes or time-series; runs on a configurable schedule when enabled in view settings |
+| Build alarm report | On demand | Evaluates alarm conditions defined in a view and generates the corresponding alarm report |
 
 #### Anomaly Detection
 
-| Job Type | Description |
-|----------|-------------|
-| Build anomaly model | Trains an anomaly detection model on historical data |
-| Find anomalies | Re-runs anomaly detection over a specific historical time range and item set |
-| Anomaly autodiscovery | Scheduled — continuously scans recent data for new anomalies per item |
+| Job | Runs | Description |
+|-----|------|-------------|
+| Build anomaly model | On demand | Trains the anomaly detection model on historical telemetry data for the selected entities |
+| Find anomalies | On demand | Re-runs anomaly scoring over a specified historical time range and entity set without retraining the model |
+| Anomaly autodiscovery | Scheduled | Runs on a configurable periodic schedule to scan incoming data for new anomalies; disabled by default, enabled in anomaly model settings |
 
 #### Calculation Fields
 
-| Job Type | Description |
-|----------|-------------|
-| Test calculation | Validates a calculation field definition |
-| Save calculation result to TB | Saves calculation field output to ThingsBoard |
+| Job | Runs | Description |
+|-----|------|-------------|
+| Test calculation | On demand | Evaluates a calculation field definition against sample data to verify the formula before saving |
+| Save calculation result to TB | On demand or scheduled | Computes the calculation field values for a time range and writes the results to ThingsBoard; runs on a configurable schedule when auto-refresh is enabled in calculation field settings |
 
 #### Prediction
 
-| Job Type | Description |
-|----------|-------------|
-| Train prediction model | Trains a forecasting model on historical data |
-| Save prediction model result to TB | Extends forecasts using partial fit and re-prediction, then saves results to ThingsBoard |
-| Prediction model accuracy | Evaluates the accuracy of a trained prediction model |
+| Job | Runs | Description |
+|-----|------|-------------|
+| Train prediction model | On demand | Fits a forecasting model on the selected entities' historical telemetry |
+| Save prediction model result to TB | Scheduled | Extends the forecast using incremental training, then saves the predicted values to ThingsBoard; runs on a configurable schedule configured in prediction model settings |
+| Prediction model accuracy | On demand | Compares the model's predictions against actual telemetry to report accuracy metrics |
 
 #### AI & Metric Explorer
 
-| Job Type | Description |
-|----------|-------------|
-| AI Assistant response | Generates an AI Assistant answer for a view |
-| Run custom prompt | Executes a custom AI prompt |
-| Generate view summary | Creates an AI-generated summary for a view |
-| Find metric | Uses AI to generate metric definitions in the Metric Explorer |
-| Generate metric calculation | Uses AI to write the Python implementation of a metric definition |
+| Job | Runs | Description |
+|-----|------|-------------|
+| AI Assistant response | On demand | Sends the current view data to the AI model and returns a natural-language explanation or answer |
+| Run custom prompt | On demand | Executes a user-defined AI prompt against the view context |
+| Generate view summary | On demand | Produces an AI-generated summary of the key insights in a view |
+| Find metric | On demand | Uses AI to propose metric definitions based on available telemetry fields in the Metric Explorer |
+| Generate metric calculation | On demand | Uses AI to write the Python implementation for a metric definition |
 
 <ImageGallery images={[
   {
@@ -98,6 +97,25 @@ From the task detail panel you can also:
 
 ### Task Statuses
 
+```plaintext
+                      ┌──────────┐
+                      │ CREATED  │ ← scheduled, waiting to run
+                      └────┬─────┘
+                           │ picked up by scheduler
+                           ▼
+                      ┌──────────┐
+                      │ RUNNING  │ ← executing on a thread
+                      └────┬─────┘
+             ┌─────────────┼──────────────┐
+             ▼             ▼              ▼
+        ┌──────────┐ ┌──────────┐ ┌──────────┐
+        │ FINISHED │ │  FAILED  │ │ CANCELED │
+        └──────────┘ └──────────┘ └──────────┘
+
+  LOST ← execution interrupted by a server restart
+         (detected and marked automatically on next startup)
+```
+
 | Status | Meaning |
 |--------|---------|
 | Created | Scheduled but not yet started |
@@ -105,7 +123,7 @@ From the task detail panel you can also:
 | Finished | Completed successfully |
 | Failed | Terminated with an error |
 | Canceled | Stopped manually before completion |
-| Lost | Execution was interrupted unexpectedly |
+| Lost | Execution was interrupted unexpectedly (e.g., server restart) |
 | None | No status available |
 
 ### Bulk Actions
@@ -129,4 +147,20 @@ For each execution the tab shows: **Time Started**, **Duration**, **Time Finishe
 
 <Aside type="note">
 Execution records are retained for **3 days** by default. Use **Clear All Executions** to remove them earlier.
+</Aside>
+
+## Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `TASK_SERVICE_ENABLE` | `true` | Enable or disable the entire task service |
+| `TASK_SERVICE_BACKGROUND_ENABLE` | `true` | Enable or disable automatic background job scheduling |
+| `TASK_SERVICE_TASK_QUERY_SIZE` | `10` | Max jobs picked up per scheduling cycle |
+| `TASK_SERVICE_DEFAULT_TASK_TIMEOUT` | `86400000` (24 h) | Timeout in milliseconds; jobs running longer are canceled |
+| `TASK_SERVICE_TTL_TRACKING_ENABLE` | `true` | Automatically remove execution records older than 3 days |
+| `TASK_SERVICE_LOST_TRACKING_ENABLE` | `true` | Detect and mark executions interrupted by a restart |
+| `TASK_SERVICE_STATE_RECORD_TIMEOUT` | `5000` (5 s) | Interval in milliseconds for writing execution state to the database |
+
+<Aside type="caution">
+Setting `TASK_SERVICE_BACKGROUND_ENABLE=false` stops all scheduled and periodic jobs. Use this only in read-only or passive node configurations.
 </Aside>

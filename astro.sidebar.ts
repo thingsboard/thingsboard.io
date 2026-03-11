@@ -998,6 +998,7 @@ export const trendzSidebar: SidebarConfig = [
 					},
 					'docs/trendz/view-settings',
 					'docs/trendz/view-collections',
+					'docs/trendz/states',
 				],
 			},
 			{
@@ -1063,7 +1064,6 @@ export const trendzSidebar: SidebarConfig = [
 					'docs/trendz/ai-assistance-prompts',
 				],
 			},
-			'docs/trendz/states',
 			{
 				label: 'Settings',
 				collapsed: true,
@@ -1082,7 +1082,13 @@ export const trendzSidebar: SidebarConfig = [
 					{ slug: 'docs/trendz/custom-ai-model-configuration', label: 'AI Settings' },
 				],
 			},
-			'docs/trendz/tasks-service',
+			{
+				label: 'Other',
+				collapsed: true,
+				items: [
+					'docs/trendz/tasks-service',
+				],
+			},
 			{
 				label: 'Versions & Support',
 				collapsed: true,
