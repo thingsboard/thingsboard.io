@@ -783,6 +783,11 @@ export const edgeSidebar: SidebarConfig = [
 				label: 'Key concepts',
 				items: [
 					'docs/edge/key-concepts/edge-management',
+					'docs/edge/key-concepts/entities-and-relations',
+					'docs/edge/key-concepts/telemetry-synchronization',
+					'docs/edge/key-concepts/edge-attributes',
+					'docs/edge/key-concepts/data-processing',
+					'docs/edge/key-concepts/alarms-and-notifications',
 				],
 			},
 		],
@@ -808,6 +813,11 @@ export const edgePeSidebar: SidebarConfig = [
 				label: 'Key concepts',
 				items: [
 					'docs/edge/pe/key-concepts/edge-management',
+					'docs/edge/pe/key-concepts/entities-and-relations',
+					'docs/edge/pe/key-concepts/telemetry-synchronization',
+					'docs/edge/pe/key-concepts/edge-attributes',
+					'docs/edge/pe/key-concepts/data-processing',
+					'docs/edge/pe/key-concepts/alarms-and-notifications',
 				],
 			},
 		],
