@@ -2,8 +2,9 @@ import type { UseCaseData } from './types';
 
 export const scadaEnergyManagementData: UseCaseData = {
 	title: 'SCADA Energy management',
-	pageTitle: 'SCADA Energy management',
-	description: 'Energy management solution with ThingsBoard IoT platform',
+	pageTitle: 'SCADA Energy Management & Monitoring with ThingsBoard',
+	description:
+		'Optimize energy generation, distribution, and consumption with ThingsBoard SCADA. Unify data from solar, wind, batteries, and grid infrastructure into real-time dashboards with automated alerts.',
 	pageSlug: 'scada-energy-management',
 	about: {
 		shortText:

@@ -16,6 +16,7 @@ src/data/use-cases/
   ├── smart-energy.ts       ← UseCaseData export
   ├── smart-office.ts       ← UseCaseData export
   └── scada.ts              ← UseCaseData export (SCADA-specific fields)
+src/components/SectionBadge.astro    ← shared colored monospace badge
 src/components/UseCase/
   ├── AboutSection.astro
   ├── SolutionStructure.astro
@@ -55,10 +56,10 @@ interface UseCaseData {
     baseImage?: string; overlayImage?: string;  // for comparison
     carouselImages?: CarouselImage[];            // for carousel
   };
-  solutionStructure?: UseCaseSolutionStructure; // title + shortText + longText[] + schemeSrc/Alt/Caption
-  benefits?: UseCaseBenefits;             // title? + subtitle? + Benefit[] (title + description)
-  dashboardStructure?: UseCaseDashboardStructure; // tabbed panel viewer
-  applications?: UseCaseApplications;     // zigzag layout cards
+  solutionStructure?: UseCaseSolutionStructure; // title + shortText + longText[] + schemeSrc/Alt/Caption + badge?
+  benefits?: UseCaseBenefits;             // title? + subtitle? + Benefit[] (title + description) + badge?
+  dashboardStructure?: UseCaseDashboardStructure; // tabbed panel viewer + badge?
+  applications?: UseCaseApplications;     // zigzag layout cards + badge?
   summary?: UseCaseSummary;               // icon + title + text block
   // SCADA-specific sections
   scadaOverview?: { ... };
@@ -91,13 +92,13 @@ import { smartEnergyData as data } from '../../data/use-cases/smart-energy';
 </UseCaseLayout>
 ```
 
-Sections are rendered conditionally based on data presence. `AdvantagesSection` (from `Landing/`) appears on every use-case page.
+Sections are rendered conditionally based on data presence. `AdvantagesSection` (from `Landing/`) appears on every use-case page. Each section component has a default badge text that can be overridden via the data file's `badge` field (spread into the component as part of the data object).
 
 ## Layout (`src/layouts/UseCaseLayout.astro`)
 
 Wraps pages with `BaseLayout` (pageId=`"use-cases"`). Provides global styles:
 - `.usecase-title` — `page-title` mixin, 40px top margin
-- `.uc-section-padding` — 60px vertical padding (8px on md)
+- `.uc-section-padding` — `$spacing-16` vertical padding (8px on md)
 - `.uc-section-header` — flex column with h2 (`section-title`) + p (`text-m`)
 - `.uc-about-text` — split layout: `.uc-about-short` (flex: 1) + `.uc-about-long` (flex: 2), stacks on lg
 - `.uc-solution-text` — single-column paragraph block, max-width 928px, `text-m`
@@ -118,9 +119,11 @@ Wraps pages with `BaseLayout` (pageId=`"use-cases"`). Provides global styles:
 
 **`UseCaseCarousel`** — wraps `Landing/Carousel` with `variant="simple"`.
 
-**`ContactUsBanner`** — CTA section with heading, description, two buttons (Contact us + custom link), and email icon.
+**`ContactUsBanner`** — Unified CTA banner. Props: `title`, `subtitle`, `iconSrc`, `iconAlt` (all with defaults), `buttons[]` (array of `{label, href, variant?, target?}`), `variant` (`'surface'` | `'light'`). Default buttons: "Contact Us" + "Case studies". Also used by case study pages with custom presets (see `case-study-pages` skill).
 
 **`SummarySection`** — conclusion block with text + icon, white background with border and shadow.
+
+**`SectionBadge`** (shared, `src/components/SectionBadge.astro`) — colored monospace badge. Props: `text`, `color` (bg hex), `borderColor` (optional). Each section component has a hardcoded default badge with unique color. Global `.section-badge + h2 { margin-top: -20px }` in UseCaseLayout reduces gap in flex headers.
 
 **SCADA-specific:** `ScadaModeToggle` switches between High-Performance and Traditional modes (toggles `data-mode-content` visibility). `KeyFunctionsSection` and `ComparisonTable` use this toggle.
 
@@ -137,79 +140,6 @@ Card grid with filter tabs (All / General / SCADA). Uses `UseCaseCard` component
 
 ---
 
-# Typography System (All Non-Doc Pages)
+## Typography & Design System
 
-Defined as SCSS mixins in `src/styles/_variables.scss`. These are the **single source of truth** for all font sizes, weights, and line-heights across all non-documentation pages (landing pages, use-case pages, and any other standalone pages). Do not hardcode font values — use these mixins.
-
-**Scope:** All pages except Starlight doc pages (`src/content/docs/`). Doc pages use the separate `heading-1/2/3` and `body-text` base mixins via `_base.scss`.
-
-| Mixin | Desktop | Mobile (≤md) | Weight | Color |
-|-------|---------|-------------|--------|-------|
-| `page-title` | 60px / lh:72px | 42px (≤lg) → 32px (≤md) | semibold | — |
-| `section-title` | 40px / lh:48px | 32px | semibold | — |
-| `subsection-title` | 32px / lh:40px | 24px | semibold | — |
-| `card-title` | 24px / lh:1.2 | — | semibold | — |
-| `card-title-sm` | 20px / lh:24px | — | semibold | — |
-| `text-m` | 16px / lh:28px | — | normal | `$color-text-primary` |
-| `text-s` | 14px / lh:24px | — | normal | `$color-text-primary` |
-| `text-card` | 16px / lh:1.72 | — | normal | `$color-text-primary` |
-| `text-card-sm` | 14px / lh:1.72 | — | normal | `$color-text-primary` |
-| `action-link` | 18px | — | medium | — |
-
-**Usage in component SCSS:**
-
-```scss
-@use '../../styles/variables' as *;
-
-.my-section h2 {
-  @include section-title;
-  color: $color-text-primary;
-  margin: 0;
-}
-
-.my-section p {
-  @include body-text-lg;
-  margin: 0;
-}
-
-.my-card h3 {
-  @include card-title-sm;
-  color: $color-text-primary;
-  margin: 0 0 $spacing-3;
-}
-```
-
-**Mixin selection guide:**
-- **Page h1** → `page-title`
-- **Section h2** (main sections) → `section-title`
-- **Subsection h2** (banners, summaries) → `subsection-title`
-- **Card h3** (application cards, large cards) → `card-title`
-- **Card h3** (benefit cards, key functions) → `card-title-sm`
-- **Section descriptions, subtitles** → `text-m`
-- **Base text, paragraphs** → `text-s`
-- **Card descriptions** → `text-card`
-- **Small card descriptions** → `text-card-sm`
-- **Links (Read more, card links)** → `action-link`
-
-All text mixins include `color: $color-text-primary`. Title mixins do not set color — set it explicitly in the component.
-
-## Product Color CSS Variables
-
-Defined in `src/styles/_variables.scss`. Available globally in all components and pages.
-
-| Variable | Light | Dark |
-|---|---|---|
-| `--color-product-ce` | `#305680` | `#78b4f5` |
-| `--color-product-pe` | `#00695c` | `#3fd9d1` |
-| `--color-product-cloud` | `#3d50f5` | `#b3c7ff` |
-| `--color-product-trendz` | `#2696f3` | `#4caeff` |
-
-Light values are set in `:root`, dark overrides in `[data-theme='dark']` (Starlight applies this attribute to `<html>`).
-
-**Usage:**
-
-```css
-color: var(--color-product-ce);
-border-color: var(--color-product-pe);
-background: var(--color-product-cloud);
-```
+For fonts, spacing, breakpoints, color conventions, and dark theme rules, use the **`typography`** skill. It covers all non-doc pages including use-cases.

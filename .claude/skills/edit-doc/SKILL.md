@@ -288,6 +288,31 @@ The sidebar is configured in `astro.sidebar.ts`. Reference pages use `referenceI
 },
 ```
 
+### Tab navigation links
+
+Each sidebar tab (group) can optionally navigate to a URL when clicked. This is configured via `SidebarTabLinks` objects exported from `astro.sidebar.ts`, one per product. If a label has no entry, clicking the tab just switches panels (default behaviour).
+
+**To add/change a tab link** — edit the relevant `*SidebarTabLinks` export:
+
+```ts
+// astro.sidebar.ts
+export const opensourceSidebarTabLinks: SidebarTabLinks = {
+    'Getting Started': '/docs/',
+    'Installation': '/docs/installation/',
+    'APIs & SDKs': '/docs/reference/apis-and-sdks/',
+};
+export const peSidebarTabLinks: SidebarTabLinks = {
+    'Getting Started': '/docs/pe/',
+    'Installation': '/docs/pe/installation/',
+    'APIs & SDKs': '/docs/pe/reference/apis-and-sdks/',
+};
+// Other products (paas, edge, gw, tbmq, mobile, trendz, license) have empty objects — add entries as needed.
+```
+
+`Sidebar.astro` picks the right object via `sidebarTabLinksByPrefix` (ordered array of `[urlPrefix, tabLinks]` — most specific prefix first). Clicking a tab with a link triggers `window.location.href` navigation; middle-click opens in a new tab.
+
+**Why not put `url` directly in the sidebar group?** Starlight processes the sidebar config and strips unknown fields — `url` would not survive into `StarlightRouteData['sidebar']` that `Sidebar.astro` receives.
+
 ### ⚠ Edit tool often fails on this file
 
 The file mixes tab depths. Use a Python replacement script instead of the Edit tool:
@@ -581,7 +606,13 @@ import Banner from '~/components/Banner.astro';
 <Banner variant="ce">Some CE-specific note here.</Banner>
 ```
 
-**When to use:** Use `variant="peFeature"` at the top of any include file for a PE/Cloud-only feature. Use the other variants for informational scope notes that apply to all editions. Do NOT use `<Aside type="note">` for these purposes.
+**When to use:** Use `variant="peFeature"` at the top of any include file for a PE/Cloud-only feature. Use the other variants for informational scope notes that apply to all editions.
+
+**Wrong patterns — do NOT use:**
+- `<Banner type="peFeature" />` — wrong prop name (`type` vs `variant`) and missing required `product`/`path` props.
+- `<Aside type="caution">Platform Integrations is a <b>ThingsBoard Professional Edition</b> feature...</Aside>` — use Banner instead.
+- `<Aside type="note"><PEOnly /> ... requires ThingsBoard PE ...</Aside>` — use Banner for page-level PE notes.
+- The `PEOnly` inline badge is only for marking **individual features** inside mixed CE/PE pages (e.g., table cells, list items), never as a page-level banner.
 
 ### Badge & tb-badge
 

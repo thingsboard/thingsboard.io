@@ -143,14 +143,26 @@ Configuration reference and error docs are auto-generated from the Astro source 
 ### Pages vs Content
 
 - `src/content/docs/` — documentation pages rendered by Starlight
-- `src/pages/` — special routes: root redirect, language redirects, 404, OG image generation
+- `src/pages/` — special routes: root redirect, language redirects, 404, OG image generation, use-cases, case-studies
 - `src/pages/[lang]/` — dynamic per-language routes (index, install, tutorial redirects)
+
+### Typography & Design System
+
+All non-doc pages (landing, use-cases, case-studies, standalone pages) share a unified typography system defined as SCSS mixins in `src/styles/_variables.scss`. Use the `typography` skill for the full reference: semantic mixins (`page-title`, `section-title`, `text-m`, etc.), spacing scale, breakpoints, and dark-theme color conventions.
+
+Key rule: **Never hardcode font values** — use mixins. **Never use compile-time SCSS color variables** for theme-dependent colors — use CSS custom properties (`var(--color-*)`).
 
 ### Use-Case Pages
 
-Data-driven pages at `/use-cases/{slug}`. Use the `use-case-pages` skill for the full system docs including data types, page composition, layout, section components, and typography system.
+Data-driven pages at `/use-cases/{slug}`. Use the `use-case-pages` skill for data types, page composition, layout, and section components.
 
 Key dirs: `src/data/use-cases/`, `src/components/UseCase/`, `src/pages/use-cases/`.
+
+### Case-Study Pages
+
+Data-driven pages at `/case-studies/{slug}`. Use the `case-study-pages` skill for data types, page composition, layout, and section components.
+
+Key dirs: `src/data/case-studies/`, `src/components/CaseStudy/`, `src/pages/case-studies/`.
 
 ## Releasing a New Version
 

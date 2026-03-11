@@ -52,6 +52,7 @@ export interface UseCaseAbout {
 
 export interface UseCaseSolutionStructure {
 	title: string;
+	badge?: string;
 	shortText: string;
 	longText?: string[];
 	schemeSrc: string;
@@ -61,12 +62,14 @@ export interface UseCaseSolutionStructure {
 
 export interface UseCaseBenefits {
 	title?: string;
+	badge?: string;
 	subtitle?: string;
 	benefits: Benefit[];
 }
 
 export interface UseCaseDashboardStructure {
 	title: string;
+	badge?: string;
 	subtitle?: string;
 	panels: DashboardPanel[];
 	demoUrl: string;
@@ -76,6 +79,7 @@ export interface UseCaseDashboardStructure {
 
 export interface UseCaseApplications {
 	title: string;
+	badge?: string;
 	subtitle?: string;
 	applications: ApplicationItem[];
 }
