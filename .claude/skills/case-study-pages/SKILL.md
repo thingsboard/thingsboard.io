@@ -289,6 +289,7 @@ Wraps pages with `BaseLayout` (pageId=`"case-studies"`). Provides:
 **`QuoteSection`** -- two variants selected by `variant` prop:
 - `"simple"` (default): left border accent, quote-left icon, italic text, author line. Badge: "Client testimonial" (green).
 - `"authored"`: left border accent, company name heading, italic quote, author name + role, photo on the right side. Badge: "Partner spotlight" (teal). Triggered when `variant="authored"` and `photo` is provided.
+- **Feedback cross-reference**: Auto-detects case study slug from URL and looks up `caseStudyToFeedbackUrl` mapping. For truncated quotes (ending with `...`), appends an inline "Read full feedback" link right after the dots. For complete quotes, shows a "Clients feedback" pill chip below the author attribution.
 
 **`FullWidthImage`** -- bleeds past container padding with negative margins. Simple `<img>` with lazy loading and rounded corners.
 
@@ -307,7 +308,7 @@ Located at `src/pages/case-studies/index.astro`. Features:
 - **Category filter pills**: checkbox toggles built from `caseStudyCategories` array, with active state styling and "Clear all" button
 - **Card grid**: 3 columns (2 on xl, 1 on mobile), 340px height cards with dark overlay, white-filtered logos, category badges, and hover zoom + "Learn more" reveal
 - **Pagination**: 9 cards per page, numbered buttons with ellipsis, prev/next navigation, smooth scroll on page change
-- **State persistence**: filter/search/page state saved to `sessionStorage` as `cs-index-state` (JSON). Restored on page load. Detail pages read `cs-filter-state` to restore breadcrumb link
+- **State persistence**: filter/search/page state saved to `sessionStorage` as `cs-index-state` (JSON). Restored only when navigating back from a case study detail page (checks `document.referrer`); cleared otherwise. Detail pages read `cs-filter-state` to restore breadcrumb link
 - **No results**: message shown when filters yield zero matches
 - **Success CTA**: "Got a success story?" banner shown on the last page
 - **Client-side rendering**: all cards passed to `window.__CS_DATA__` and re-rendered via JS on filter/search/page changes
