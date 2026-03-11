@@ -1,0 +1,241 @@
+import DocLink from '@components/DocLink.astro';
+import ImageGallery from '@components/ImageGallery.astro';
+import { Products } from '~/models/site.models';
+
+Telemetry synchronization in ThingsBoard Edge is controlled by the <DocLink product={props.product === Products.EDGE_PE ? Products.PE : Products.CE} path="reference/rule-engine/nodes/action/push-to-cloud" target="_blank">push to cloud</DocLink> and <DocLink product={props.product === Products.EDGE_PE ? Products.PE : Products.CE} path="reference/rule-engine/nodes/action/push-to-edge" target="_blank">push to edge</DocLink> rule nodes, which determine what is synchronized and when. This gives you precise control: you can filter by device, entity type, or telemetry key, transform data before forwarding it, or keep certain data local entirely.
+
+All incoming data is always written to the Edge local database first, regardless of whether it is forwarded to the server. The push nodes only control what is also sent upstream — not what is stored locally.
+
+## Edge → Cloud synchronization
+
+The default Edge root rule chain already includes a **push to cloud** node connected to the **Post telemetry** and **Post attributes** message types. This means device telemetry and attributes are synchronized to the server out of the box for any device assigned to the Edge — no additional configuration is required unless you want to customize the sync behavior.
+
+When a telemetry or attribute message passes through the **push to cloud** rule node in an Edge rule chain, it is stored locally as a **Cloud Event** — in either the local PostgreSQL database or Kafka, depending on the queue type. The Cloud Manager then picks up the event and pushes it asynchronously to the server over gRPC. The Edge does not wait for a delivery confirmation before processing the next message. Once the event reaches the server, it is handled by the corresponding server-side rule chain.
+
+```plaintext
+  ┌─────────────────────────────────────┐
+  │  Edge rule chain                    │
+  │                                     │
+  │  Device message                     │
+  │       │                             │
+  │       ▼                             │
+  │  ┌─────────────────┐                │
+  │  │  push to cloud  │                │
+  │  └────────┬────────┘                │
+  │           │                         │
+  │           ▼                         │
+  │  Cloud Event (local queue)          │
+  └───────────┬─────────────────────────┘
+              │  async push
+              ▼
+  ┌─────────────────────────────────────┐
+  │  Server rule chain                  │
+  └─────────────────────────────────────┘
+```
+
+To propagate attribute changes, connect the **Attributes updated** and **Attributes deleted** output relations to the **push to cloud** node. This ensures both the key-value data and the attribute scope travel with the event. The attribute scope type — Server, Shared, or Client — is also configured within the **push to cloud** node.
+
+{props.product === Products.EDGE && (
+  <ImageGallery images={[
+    {
+      src: '/src/assets/images/docs/edge/user-guide/telemetry-sync/edge-rule-chain-ce.webp',
+      alt: 'Edge rule chain with push to cloud node configured — CE',
+    },
+    {
+      src: '/src/assets/images/docs/edge/user-guide/telemetry-sync/edge-rule-chain-ce-1.webp',
+      alt: 'Push to cloud node settings showing attribute scope selection — CE',
+    },
+  ]} />
+)}
+
+{props.product === Products.EDGE_PE && (
+  <ImageGallery images={[
+    {
+      src: '/src/assets/images/docs/edge/user-guide/telemetry-sync/edge-rule-chain.webp',
+      alt: 'Edge rule chain with push to cloud node configured — PE',
+    },
+    {
+      src: '/src/assets/images/docs/edge/user-guide/telemetry-sync/edge-rule-chain-1.webp',
+      alt: 'Push to cloud node settings showing attribute scope selection — PE',
+    },
+  ]} />
+)}
+
+### Data storage on the server
+
+The database tables updated on the server depend on the server-side rule chain configuration. Choose based on what the server needs:
+
+- **To store both the latest and historical telemetry:** Route telemetry to the **save timeseries** node and set **Latest values** to **On every message**. This writes to both the `timeseries` and `latest_values` tables. Use this when you need dashboards on the server to show the current device state alongside historical charts.
+
+{props.product === Products.EDGE && (
+  <ImageGallery images={[
+    {
+      src: '/src/assets/images/docs/edge/user-guide/telemetry-sync/update-both-tables-ce.webp',
+      alt: 'Save timeseries node configured to update both latest and historical tables — CE',
+    },
+  ]} />
+)}
+
+{props.product === Products.EDGE_PE && (
+  <ImageGallery images={[
+    {
+      src: '/src/assets/images/docs/edge/user-guide/telemetry-sync/update-both-tables.webp',
+      alt: 'Save timeseries node configured to update both latest and historical tables — PE',
+    },
+  ]} />
+)}
+
+- **To store only historical telemetry:** Route telemetry to the **save timeseries** node and set **Latest values** to **Skip**. This updates only the `timeseries` table. The `latest_values` table remains unchanged. Use this when the server is used only for historical analysis or reporting, and the current device state is monitored locally on Edge.
+
+{props.product === Products.EDGE && (
+  <ImageGallery images={[
+    {
+      src: '/src/assets/images/docs/edge/user-guide/telemetry-sync/update-only-timeseries-ce.webp',
+      alt: 'Save timeseries node configured to store only historical telemetry — CE',
+    },
+  ]} />
+)}
+
+{props.product === Products.EDGE_PE && (
+  <ImageGallery images={[
+    {
+      src: '/src/assets/images/docs/edge/user-guide/telemetry-sync/update-only-timeseries.webp',
+      alt: 'Save timeseries node configured to store only historical telemetry — PE',
+    },
+  ]} />
+)}
+
+## Cloud → Edge synchronization
+
+The server uses the **push to edge** rule node within a server-side rule chain to send data to an Edge instance. The node converts the message into an **Edge Event** and stores it in the Edge queue on the server — either in the local database or Kafka, depending on the queue type. The event is then pushed asynchronously to the target Edge instance, where it is handled by the corresponding Edge rule chain.
+
+```plaintext
+  ┌─────────────────────────────────────┐
+  │  Server rule chain                  │
+  │                                     │
+  │  Trigger (device update, rule, etc.)│
+  │       │                             │
+  │       ▼                             │
+  │  ┌─────────────────┐                │
+  │  │  push to edge   │                │
+  │  └────────┬────────┘                │
+  │           │                         │
+  │           ▼                         │
+  │  Edge Event (server-side queue)     │
+  └───────────┬─────────────────────────┘
+              │  async push
+              ▼
+  ┌─────────────────────────────────────┐
+  │  Edge rule chain                    │
+  └─────────────────────────────────────┘
+```
+
+To propagate attribute changes, connect the **Attributes updated** and **Attributes deleted** output relations to the **push to edge** node. This ensures both the key-value data and the attribute scope travel with the event. The attribute scope type — Server, Shared, or Client — is also configured within the **push to edge** node.
+
+{props.product === Products.EDGE && (
+  <ImageGallery images={[
+    {
+      src: '/src/assets/images/docs/edge/user-guide/telemetry-sync/cloud-rule-chain-ce.webp',
+      alt: 'Server rule chain with push to edge node configured — CE',
+    },
+    {
+      src: '/src/assets/images/docs/edge/user-guide/telemetry-sync/cloud-rule-chain-ce-1.webp',
+      alt: 'Push to edge node settings showing attribute scope selection — CE',
+    },
+  ]} />
+)}
+
+{props.product === Products.EDGE_PE && (
+  <ImageGallery images={[
+    {
+      src: '/src/assets/images/docs/edge/user-guide/telemetry-sync/cloud-rule-chain.webp',
+      alt: 'Server rule chain with push to edge node configured — PE',
+    },
+    {
+      src: '/src/assets/images/docs/edge/user-guide/telemetry-sync/cloud-rule-chain-1.webp',
+      alt: 'Push to edge node settings showing attribute scope selection — PE',
+    },
+  ]} />
+)}
+
+### Data storage on Edge
+
+Edge always keeps a local copy of the data it ingests or receives from the server. This enables offline operation and local data processing.
+
+**When a device sends data to Edge:** Edge writes telemetry to the local database first, then the rule chain decides whether to push it to the server.
+
+{props.product === Products.EDGE && (
+  <ImageGallery images={[
+    {
+      src: '/src/assets/images/docs/edge/user-guide/telemetry-sync/push-telemetry-to-cloud-ce.webp',
+      alt: 'Edge rule chain routing device telemetry to the push to cloud node — CE',
+    },
+  ]} />
+)}
+
+{props.product === Products.EDGE_PE && (
+  <ImageGallery images={[
+    {
+      src: '/src/assets/images/docs/edge/user-guide/telemetry-sync/push-telemetry-to-cloud.webp',
+      alt: 'Edge rule chain routing device telemetry to the push to cloud node — PE',
+    },
+  ]} />
+)}
+
+**When an Edge Event arrives from the server:** The Edge rule chain processes the incoming event and stores it according to the rule chain configuration.
+
+- **To store both the latest and historical telemetry:** Route telemetry to the **save timeseries** node and set **Latest values** to **On every message**. This writes to both the `timeseries` and `latest_values` tables. Use this when Edge dashboards need to display the current value alongside historical data.
+
+{props.product === Products.EDGE && (
+  <ImageGallery images={[
+    {
+      src: '/src/assets/images/docs/edge/user-guide/telemetry-sync/edge-update-both-tables-ce.webp',
+      alt: 'Edge save timeseries node configured to update both latest and historical tables — CE',
+    },
+  ]} />
+)}
+
+{props.product === Products.EDGE_PE && (
+  <ImageGallery images={[
+    {
+      src: '/src/assets/images/docs/edge/user-guide/telemetry-sync/edge-update-both-tables.webp',
+      alt: 'Edge save timeseries node configured to update both latest and historical tables — PE',
+    },
+  ]} />
+)}
+
+- **To store only historical telemetry:** Route telemetry to the **save timeseries** node and set **Latest values** to **Skip**. This updates only the `timeseries` table. The `latest_values` table remains unchanged. Use this for audit or logging scenarios where the current state is not needed locally.
+
+{props.product === Products.EDGE && (
+  <ImageGallery images={[
+    {
+      src: '/src/assets/images/docs/edge/user-guide/telemetry-sync/edge-update-only-timeseries-ce.webp',
+      alt: 'Edge save timeseries node configured to store only historical telemetry — CE',
+    },
+  ]} />
+)}
+
+{props.product === Products.EDGE_PE && (
+  <ImageGallery images={[
+    {
+      src: '/src/assets/images/docs/edge/user-guide/telemetry-sync/edge-update-only-timeseries.webp',
+      alt: 'Edge save timeseries node configured to store only historical telemetry — PE',
+    },
+  ]} />
+)}
+
+## Queue durability and offline behavior
+
+Cloud Events and Edge Events are persisted before they are pushed — either in the local PostgreSQL database or in Kafka, depending on the queue type configured on the server. The queue type is set at the server level and propagated automatically to each connected Edge instance.
+
+By default, Cloud Events are stored in the local **PostgreSQL database**. This is sufficient for most deployments and survives Edge process restarts. For high-throughput production environments, configure **Kafka** as the queue backend. Kafka handles larger event volumes and provides additional durability guarantees through topic retention policies. The in-memory queue option applies to the rule engine's internal message processing, not to cloud event persistence — cloud events are always written to a durable store.
+
+When the connection between Edge and the server is lost, events continue to accumulate in the local queue. Once the connection is restored, the Cloud Manager sends all queued events to the server in the order they were stored. The total number of events that can be queued is bounded by available local storage for the database queue, or by Kafka topic retention settings.
+
+Time-series data carries a timestamp and is stored independently on both Edge and the server — there is no conflict. Each side stores its own copy of the data as received. Attribute updates follow last-write-wins semantics: if both sides update the same attribute key while offline, whichever update arrives at the destination last takes effect.
+
+## Filtering what gets synchronized
+
+Only messages that pass through the **push to cloud** or **push to edge** node are synchronized. Data that does not reach these nodes stays on Edge and is never forwarded — it is not discarded. You can use filter nodes — like **message type filter**, **originator type filter**, or **script filter** — before the push node to limit synchronization to specific devices, entity types, or telemetry keys.
+
+For details on the Cloud Events queue and connectivity status, see <DocLink product={props.product === Products.EDGE_PE ? Products.EDGE_PE : Products.EDGE} path="key-concepts/edge-management" target="_blank">Edge management</DocLink>.
