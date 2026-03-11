@@ -146,7 +146,7 @@ const guideItems = (prefix: string) => [
 	{
 		label: 'Other Features',
 		collapsed: true,
-		items: [`${prefix}/add-ons`, `${prefix}/edge-computing`, `${prefix}/trendz-analytics`],
+		items: [`${prefix}/image-gallery`, `${prefix}/add-ons`, `${prefix}/edge-computing`, `${prefix}/trendz-analytics`],
 	},
 	{
 		label: 'Security',
@@ -159,11 +159,12 @@ const guideItems = (prefix: string) => [
 		items: [`${prefix}/contribution`, `${prefix}/scada-symbol-dev`],
 	},
 	{
-		label: 'Versions & Support',
+		label: 'Releases',
 		collapsed: true,
 		items: [
-			`${prefix}/versions-and-support`,
-			`${prefix}/releases-table`,
+			{ label: 'Release Policy', slug: `${prefix}/versions-and-support` },
+			{ label: 'Release Table', slug: `${prefix}/releases-table` },
+			`${prefix}/roadmap`,
 		],
 	},
 ];

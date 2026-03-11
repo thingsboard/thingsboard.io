@@ -11,9 +11,16 @@ Before doing anything else:
 1. **Derive paths** from the source argument provided by the user:
    - Old includes root: `{OLD_WEBSITE_PATH}/_includes/docs/user-guide/`
    - Old images root:   `{OLD_WEBSITE_PATH}/images/`
+   - **Known old website path:** `/home/ashvayka/git/website` — images live at `/home/ashvayka/git/website/images/`
+   - The CDN URL `img.thingsboard.io` serves files from this same images directory.
 
    Example: if the user provides `/home/ashvayka/git/website/_includes/docs/user-guide/calculated-fields`,
    then `OLD_WEBSITE_PATH = /home/ashvayka/git/website` and images live at `/home/ashvayka/git/website/images/`.
+
+   If the user provides a URL like `https://thingsboard.io/docs/pe/user-guide/image-gallery/`,
+   the source include is at `/home/ashvayka/git/website/_includes/docs/user-guide/image-gallery.md`
+   and images are at `/home/ashvayka/git/website/images/user-guide/image-gallery/`.
+   Also check the CE variant at `/docs/user-guide/image-gallery/` to determine CE/PE scope.
 
 2. **Ask clarifying questions** about scope and intent — do not assume. Examples:
    - Is this a single page or a group of related pages?
