@@ -69,7 +69,7 @@ Key patterns in old TBMQ Jekyll files:
 ```
 
 - **`since.md`**: version badges. Omit in the new site — content always reflects the current version.
-- **`pe-tbmq-feature-banner.md`**: PE-feature notice. Replace with `PEFeatureBanner` component if the page is CE-only.
+- **`pe-tbmq-feature-banner.md`**: PE-feature notice. Replace with `src/components/Banner.astro` component.
 - **`pe-tbmq-explore-banner.md`**: upgrade CTA. Omit in the new site.
 
 Identify:
@@ -87,7 +87,6 @@ Scan for patterns:
 ```
 ![image](/images/mqtt-broker/{topic}/screenshot.png)
 ![image](/images/pe/mqtt-broker/{topic}/screenshot.png)
-<img src="/images/mqtt-broker/{topic}/screenshot.png" />
 ```
 
 Old `*-preview.png` files are thumbnails used by the old Jekyll gallery — **do not copy these**. Only copy the full-size images (no `-preview` suffix).
@@ -101,7 +100,7 @@ cp /home/dlandiak/projects/thingsboard.github.io/images/mqtt-broker/{topic}/ \
 
 # PE-only images
 cp /home/dlandiak/projects/thingsboard.github.io/images/pe/mqtt-broker/{topic}/ \
-   src/assets/images/docs/mqtt-broker/{topic}/
+   src/assets/images/docs/mqtt-broker/pe/{topic}/
 ```
 
 Verify files exist before referencing them.
