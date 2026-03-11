@@ -216,6 +216,20 @@ Add `ImageGallery` import only if the page uses images:
 import ImageGallery from '@components/ImageGallery.astro';
 ```
 
+**PE-only pages:** If the old page starts with `{% assign feature = "..." %}{% include templates/pe-feature-banner.md %}`,
+add the `Banner` component at the top of the include file:
+```mdx
+import Banner from '~/components/Banner.astro';
+
+<Banner variant="peFeature" product={props.product} path="user-guide/{page}" />
+```
+- `variant="peFeature"` — renders only on CE pages, shows standard "This feature is available in ThingsBoard Professional and ThingsBoard Cloud only." with auto-generated links.
+- `product={props.product}` — required, passes the current product context.
+- `path="..."` — the docs page path (without leading/trailing slash) used to build PE/Cloud links.
+- **Do NOT** use `<Aside type="note">` or `<Aside type="caution">` with custom text for PE-only banners.
+- **Do NOT** use `type=` instead of `variant=`.
+- The `PEOnly` inline badge pattern is for marking **individual features** within a mixed CE/PE page (e.g., a table cell), not for page-level banners.
+
 Follow all rules in `/edit-doc` (DocLink, Aside types, Steps, ENV variable names, no bare markdown links).
 
 Place diagrams and images close to the section they explain — diagrams before the prose that
