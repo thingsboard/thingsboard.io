@@ -146,7 +146,7 @@ const guideItems = (prefix: string) => [
 	{
 		label: 'Other Features',
 		collapsed: true,
-		items: [`${prefix}/image-gallery`, `${prefix}/version-control`, `${prefix}/entity-views`],
+		items: [`${prefix}/image-gallery`, `${prefix}/version-control`, `${prefix}/entity-views`, `${prefix}/scheduler`],
 	},
 	{
 		label: 'Add-ons',
@@ -843,12 +843,21 @@ export const gwSidebar: SidebarConfig = [
 	{
 		label: 'Installation',
 		translations: { uk: 'Встановлення' },
-		items: ['docs/iot-gateway/installation', 'docs/iot-gateway/install/upgrade-instructions'],
+		items: [
+			'docs/iot-gateway/installation',
+			'docs/iot-gateway/installation/deb-installation',
+			'docs/iot-gateway/installation/docker-installation',
+			'docs/iot-gateway/installation/docker-windows',
+			'docs/iot-gateway/installation/rpm-installation',
+			'docs/iot-gateway/installation/pip-installation',
+			'docs/iot-gateway/installation/source-installation',
+			'docs/iot-gateway/installation/upgrade-instructions',
+		],
 	},
 	{
 		label: 'Configuration',
 		translations: { uk: 'Конфігурація' },
-		items: ['docs/iot-gateway/config/general'],
+		items: ['docs/iot-gateway/config/general', 'docs/iot-gateway/features/remote-configuration'],
 	},
 	{
 		label: 'Connectors',
@@ -875,7 +884,6 @@ export const gwSidebar: SidebarConfig = [
 		label: 'Features',
 		translations: { uk: 'Функції' },
 		items: [
-			'docs/iot-gateway/features/remote-configuration',
 			'docs/iot-gateway/features/remote-shell',
 			'docs/iot-gateway/features/report-strategy',
 			'docs/iot-gateway/features/reserved-rpc',
