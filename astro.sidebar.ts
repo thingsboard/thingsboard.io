@@ -896,10 +896,15 @@ const tbmqGuideItems = (prefix: string): SidebarConfig => {
 						{ label: 'JWT', slug: `${prefix}/security/authentication/jwt` },
 						{ label: 'SCRAM', slug: `${prefix}/security/authentication/scram` },
 						{ label: 'HTTP', slug: `${prefix}/security/authentication/http` },
-						...(isPE ? [{ label: 'OAuth 2.0', slug: `${prefix}/security/oauth-2-support` }] : []),
 					],
 				},
-				...(isPE ? [{ label: 'Role-Based Access Control', slug: `${prefix}/security/rbac` }] : []),
+				...(isPE
+					? [
+							{ label: 'OAuth 2.0', slug: `${prefix}/security/oauth-2-support` },
+							{ label: 'Domains', slug: `${prefix}/security/domains` },
+							{ label: 'Role-Based Access Control', slug: `${prefix}/security/rbac` },
+						]
+					: []),
 			],
 		},
 		{
@@ -958,7 +963,17 @@ const tbmqGuideItems = (prefix: string): SidebarConfig => {
 			],
 		},
 		...(isPE
-			? [{ label: 'Administration', collapsed: true, items: [{ label: 'White labeling', slug: `${prefix}/white-labeling` }] }]
+			? [
+					{
+						label: 'White Labeling',
+						collapsed: true,
+						items: [
+							{ label: 'Overview', slug: `${prefix}/white-labeling` },
+							{ label: 'Image gallery', slug: `${prefix}/white-labeling/image-gallery` },
+						],
+					},
+					{ label: 'Private Cloud subscription', slug: `${prefix}/user-guide/private-cloud-subscription` },
+				]
 			: []),
 	];
 };
