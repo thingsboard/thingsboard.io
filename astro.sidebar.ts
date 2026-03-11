@@ -782,12 +782,12 @@ export const edgeSidebar: SidebarConfig = [
 			{
 				label: 'Key concepts',
 				items: [
-					'docs/edge/key-concepts/edge-management',
-					'docs/edge/key-concepts/entities-and-relations',
+					'docs/edge/key-concepts/edge-instance',
+					'docs/edge/key-concepts/entities',
 					'docs/edge/key-concepts/telemetry-synchronization',
-					'docs/edge/key-concepts/edge-attributes',
+					'docs/edge/key-concepts/attributes',
 					'docs/edge/key-concepts/data-processing',
-					'docs/edge/key-concepts/alarms-and-notifications',
+					'docs/edge/key-concepts/alarms',
 				],
 			},
 		],
@@ -795,6 +795,83 @@ export const edgeSidebar: SidebarConfig = [
 	{
 		label: 'Installation',
 		items: edgeInstallationItems('docs/edge'),
+	},
+	{
+		label: 'Guides',
+		items: [
+			{
+				label: 'Edge configuration',
+				collapsed: true,
+				items: [
+					'docs/edge/user-guide/edge-management',
+					'docs/edge/user-guide/manage-alarms',
+					'docs/edge/user-guide/edge-proxy',
+				],
+			},
+			{
+				label: 'Devices & assets',
+				collapsed: true,
+				items: [
+					'docs/edge/user-guide/provision-device',
+					'docs/edge/user-guide/provision-asset',
+					'docs/edge/user-guide/ota-updates',
+					'docs/edge/user-guide/iot-gateway',
+				],
+			},
+			{
+				label: 'Customers & users',
+				collapsed: true,
+				items: [
+					'docs/edge/user-guide/provision-customer',
+					'docs/edge/user-guide/provision-user',
+				],
+			},
+			{
+				label: 'Data visualization',
+				collapsed: true,
+				items: [
+					'docs/edge/user-guide/dashboards',
+					'docs/edge/user-guide/provision-dashboard',
+					'docs/edge/user-guide/public-dashboard',
+					'docs/edge/user-guide/provision-entity-view',
+				],
+			},
+			{
+				label: 'Attributes & telemetry',
+				collapsed: true,
+				items: [
+					'docs/edge/user-guide/attributes',
+					'docs/edge/user-guide/telemetry-synchronization',
+					'docs/edge/user-guide/attribute-sync',
+				],
+			},
+			{
+				label: 'Data processing',
+				collapsed: true,
+				items: [
+					'docs/edge/user-guide/data-processing',
+					'docs/edge/user-guide/rule-chain-templates',
+					'docs/edge/user-guide/provision-rule-chains',
+					'docs/edge/user-guide/queues',
+				],
+			},
+			{
+				label: 'Security',
+				collapsed: true,
+				items: [
+					'docs/edge/user-guide/grpc-ssl',
+				],
+			},
+			{
+				label: 'Releases',
+				collapsed: true,
+				items: [
+					{ label: 'Releases table', slug: 'docs/edge/releases/releases-table' },
+					'docs/edge/releases/release-policy',
+					'docs/edge/releases/roadmap',
+				],
+			},
+		],
 	},
 ];
 
@@ -812,12 +889,12 @@ export const edgePeSidebar: SidebarConfig = [
 			{
 				label: 'Key concepts',
 				items: [
-					'docs/edge/pe/key-concepts/edge-management',
-					'docs/edge/pe/key-concepts/entities-and-relations',
+					'docs/edge/pe/key-concepts/edge-instance',
+					'docs/edge/pe/key-concepts/entities',
 					'docs/edge/pe/key-concepts/telemetry-synchronization',
-					'docs/edge/pe/key-concepts/edge-attributes',
+					'docs/edge/pe/key-concepts/attributes',
 					'docs/edge/pe/key-concepts/data-processing',
-					'docs/edge/pe/key-concepts/alarms-and-notifications',
+					'docs/edge/pe/key-concepts/alarms',
 				],
 			},
 		],
@@ -825,6 +902,83 @@ export const edgePeSidebar: SidebarConfig = [
 	{
 		label: 'Installation',
 		items: edgeInstallationItems('docs/edge/pe'),
+	},
+	{
+		label: 'Guides',
+		items: [
+			{
+				label: 'Edge configuration',
+				collapsed: true,
+				items: [
+					'docs/edge/pe/user-guide/edge-management',
+					'docs/edge/pe/user-guide/manage-alarms',
+					'docs/edge/pe/user-guide/edge-proxy',
+				],
+			},
+			{
+				label: 'Devices & assets',
+				collapsed: true,
+				items: [
+					'docs/edge/pe/user-guide/provision-device',
+					'docs/edge/pe/user-guide/provision-asset',
+					'docs/edge/pe/user-guide/ota-updates',
+					'docs/edge/pe/user-guide/iot-gateway',
+				],
+			},
+			{
+				label: 'Customers & users',
+				collapsed: true,
+				items: [
+					'docs/edge/pe/user-guide/provision-customer',
+					'docs/edge/pe/user-guide/provision-user',
+				],
+			},
+			{
+				label: 'Data visualization',
+				collapsed: true,
+				items: [
+					'docs/edge/pe/user-guide/dashboards',
+					'docs/edge/pe/user-guide/provision-dashboard',
+					'docs/edge/pe/user-guide/public-dashboard',
+					'docs/edge/pe/user-guide/provision-entity-view',
+				],
+			},
+			{
+				label: 'Attributes & telemetry',
+				collapsed: true,
+				items: [
+					'docs/edge/pe/user-guide/attributes',
+					'docs/edge/pe/user-guide/telemetry-synchronization',
+					'docs/edge/pe/user-guide/attribute-sync',
+				],
+			},
+			{
+				label: 'Data processing',
+				collapsed: true,
+				items: [
+					'docs/edge/pe/user-guide/data-processing',
+					'docs/edge/pe/user-guide/rule-chain-templates',
+					'docs/edge/pe/user-guide/provision-rule-chains',
+					'docs/edge/pe/user-guide/queues',
+				],
+			},
+			{
+				label: 'Security',
+				collapsed: true,
+				items: [
+					'docs/edge/pe/user-guide/grpc-ssl',
+				],
+			},
+			{
+				label: 'Releases',
+				collapsed: true,
+				items: [
+					{ label: 'Releases table', slug: 'docs/edge/pe/releases/releases-table' },
+					'docs/edge/pe/releases/release-policy',
+					'docs/edge/pe/releases/roadmap',
+				],
+			},
+		],
 	},
 ];
 
