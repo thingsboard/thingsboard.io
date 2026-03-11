@@ -108,7 +108,8 @@ Use the correct banner type:
 
 ### Links and references
 - Use "For details, see [page name]." for cross-references.
-- Configure cross-reference links to open in a new tab.
+- All external links **must** open in a new tab: use `<a href="..." target="_blank" rel="noopener noreferrer">text</a>` — never bare markdown `[text](https://...)` for external URLs.
+- Internal links use `<DocLink>` — no `target="_blank"` needed.
 
 ### UI interactions
 - Icon-only buttons: use the tooltip name as the label with the icon in parentheses — Click **Add** (+).

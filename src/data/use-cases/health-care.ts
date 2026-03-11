@@ -2,8 +2,9 @@ import type { UseCaseData } from './types';
 
 export const healthCareData: UseCaseData = {
 	title: 'Health care: smart assisted living solution',
-	pageTitle: 'Health Care',
-	description: 'Health monitoring',
+	pageTitle: 'IoT Healthcare Monitoring & Smart Assisted Living with ThingsBoard',
+	description:
+		'Build real-time healthcare monitoring and assisted living solutions with ThingsBoard IoT platform. Track patient vitals, environmental conditions, and equipment status through unified dashboards and configurable alarms.',
 	pageSlug: 'health-care',
 	about: {
 		shortText:

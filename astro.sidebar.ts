@@ -14,12 +14,14 @@ const guideItems = (prefix: string) => [
 		],
 	},
 	{
-		label: 'Devices',
+		label: 'Devices & Assets',
 		collapsed: true,
 		items: [
 			`${prefix}/devices`,
 			`${prefix}/device-profiles`,
 			`${prefix}/connectivity-guide`,
+			`${prefix}/assets`,
+			`${prefix}/asset-profiles`,
 			`${prefix}/connectivity-status`,
 			`${prefix}/claiming`,
 			`${prefix}/provisioning`,
@@ -125,11 +127,11 @@ const guideItems = (prefix: string) => [
 		label: 'White-labeling',
 		collapsed: true,
 		items: [
-			`${prefix}/white-labeling-general`,
-			`${prefix}/white-labeling-login`,
-			`${prefix}/white-labeling-mail`,
-			`${prefix}/white-labeling-translation`,
-			`${prefix}/white-labeling-menu`,
+			{ label: 'General', slug: `${prefix}/white-labeling-general` },
+			{ label: 'Login', slug: `${prefix}/white-labeling-login` },
+			{ label: 'Mail Templates', slug: `${prefix}/white-labeling-mail` },
+			{ label: 'Custom Translation', slug: `${prefix}/white-labeling-translation` },
+			{ label: 'Custom Menu', slug: `${prefix}/white-labeling-menu` },
 		],
 	},
 	{
@@ -144,12 +146,17 @@ const guideItems = (prefix: string) => [
 	{
 		label: 'Other Features',
 		collapsed: true,
+		items: [`${prefix}/image-gallery`, `${prefix}/version-control`, `${prefix}/entity-views`],
+	},
+	{
+		label: 'Add-ons',
+		collapsed: true,
 		items: [`${prefix}/add-ons`, `${prefix}/edge-computing`, `${prefix}/trendz-analytics`],
 	},
 	{
 		label: 'Security',
 		collapsed: true,
-		items: [`${prefix}/security`, `${prefix}/security/api-keys`],
+		items: [`${prefix}/security`, `${prefix}/security/two-factor-authentication`, `${prefix}/security/oauth-2-support`, `${prefix}/security/domains`, `${prefix}/security/self-registration`, `${prefix}/security/http-over-ssl`, `${prefix}/security/audit-log`, `${prefix}/security/secrets-storage`, `${prefix}/security/api-keys`],
 	},
 	{
 		label: 'Contribution',
@@ -157,13 +164,37 @@ const guideItems = (prefix: string) => [
 		items: [`${prefix}/contribution`, `${prefix}/scada-symbol-dev`],
 	},
 	{
-		label: 'Versions & Support',
+		label: 'Releases',
 		collapsed: true,
 		items: [
-			`${prefix}/versions-and-support`,
-			`${prefix}/releases-table`,
+			{ label: 'Release Policy', slug: `${prefix}/versions-and-support` },
+			{ label: 'Release Table', slug: `${prefix}/releases-table` },
+			`${prefix}/roadmap`,
 		],
 	},
+];
+
+const edgeInstallationItems = (prefix: string) => [
+	{ label: 'Installation options', slug: `${prefix}/installation` },
+	{
+		label: 'Single node',
+		items: [
+			`${prefix}/installation/docker`,
+			`${prefix}/installation/docker-windows`,
+			`${prefix}/installation/ubuntu`,
+			`${prefix}/installation/rhel`,
+			`${prefix}/installation/rpi`,
+			`${prefix}/installation/windows`,
+		],
+	},
+	{
+		label: 'Cluster',
+		items: [
+			`${prefix}/installation/docker-compose-setup`,
+		],
+	},
+	{ label: 'Building from Sources', slug: `${prefix}/installation/building-from-source` },
+	{ label: 'Upgrade instructions', slug: `${prefix}/installation/upgrade-instructions` },
 ];
 
 const installationItems = (prefix: string) => {
@@ -267,9 +298,135 @@ const recipeItems = (prefix: string) => [
 		collapsed: true,
 		items: [`${prefix}/alarm-rule-tutorials`],
 	},
+	{
+		label: 'Real-time Data',
+		collapsed: true,
+		items: [`${prefix}/websocket-live-telemetry`],
+	},
 ];
 
-const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) => [
+const apisAndSdksItems = (prefix: string) => [
+	{ label: 'APIs & SDKs', slug: `${prefix}/reference/apis-and-sdks` },
+	{
+		label: 'Device APIs',
+		collapsed: true,
+		items: [
+			{
+				label: 'MQTT API',
+				collapsed: true,
+				items: [
+					`${prefix}/reference/mqtt-api/getting-connected`,
+					`${prefix}/reference/mqtt-api/telemetry`,
+					`${prefix}/reference/mqtt-api/attributes`,
+					`${prefix}/reference/mqtt-api/rpc`,
+					`${prefix}/reference/mqtt-api/claiming`,
+					`${prefix}/reference/mqtt-api/provisioning`,
+				],
+			},
+			{
+				label: 'CoAP API',
+				collapsed: true,
+				items: [
+					`${prefix}/reference/coap-api/getting-connected`,
+					`${prefix}/reference/coap-api/telemetry`,
+					`${prefix}/reference/coap-api/attributes`,
+					`${prefix}/reference/coap-api/rpc`,
+					`${prefix}/reference/coap-api/claiming`,
+					`${prefix}/reference/coap-api/provisioning`,
+				],
+			},
+			{
+				label: 'HTTP API',
+				collapsed: true,
+				items: [
+					`${prefix}/reference/http-api/getting-connected`,
+					`${prefix}/reference/http-api/telemetry`,
+					`${prefix}/reference/http-api/attributes`,
+					`${prefix}/reference/http-api/rpc`,
+					`${prefix}/reference/http-api/claiming`,
+					`${prefix}/reference/http-api/provisioning`,
+				],
+			},
+			{
+				label: 'LwM2M API',
+				collapsed: true,
+				items: [
+					`${prefix}/reference/lwm2m-api/getting-started`,
+					`${prefix}/reference/lwm2m-api/data-model`,
+					`${prefix}/reference/lwm2m-api/rpc-commands`,
+					`${prefix}/reference/lwm2m-api/ota-updates`,
+				],
+			},
+			{
+				label: 'SNMP API',
+				collapsed: true,
+				items: [
+					`${prefix}/reference/snmp-api/getting-connected`,
+					`${prefix}/reference/snmp-api/telemetry`,
+					`${prefix}/reference/snmp-api/attributes`,
+					`${prefix}/reference/snmp-api/rpc`,
+				],
+			},
+		],
+	},
+	{
+		label: 'Device SDKs',
+		collapsed: true,
+		items: [
+			`${prefix}/reference/python-device-sdk`,
+			`${prefix}/reference/micropython-client-sdk`,
+			`${prefix}/reference/circuitpython-client-sdk`,
+			`${prefix}/reference/arduino-client-sdk`,
+		],
+	},
+	{
+		label: 'Gateway APIs',
+		collapsed: true,
+		items: [
+			`${prefix}/reference/gateway-api/overview`,
+			`${prefix}/reference/gateway-api/telemetry`,
+			`${prefix}/reference/gateway-api/attributes`,
+			`${prefix}/reference/gateway-api/rpc`,
+			`${prefix}/reference/gateway-api/claiming`,
+			`${prefix}/reference/sparkplug-api`,
+		],
+	},
+	{
+		label: 'Gateway SDKs',
+		collapsed: true,
+		items: [`${prefix}/reference/python-gateway-sdk`],
+	},
+	{
+		label: 'Server-side APIs',
+		collapsed: true,
+		items: [
+			`${prefix}/reference/rest-api`,
+			`${prefix}/reference/websocket-api`,
+			`${prefix}/reference/data-query-api`,
+			`${prefix}/reference/alarm-query-api`,
+		],
+	},
+	{
+		label: 'Server-side REST Clients',
+		collapsed: true,
+		items: [
+			`${prefix}/reference/java-rest-client`,
+			`${prefix}/reference/python-rest-client`,
+		],
+	},
+	{
+		label: 'Mobile',
+		collapsed: true,
+		items: [
+			`${prefix}/reference/dart-client`,
+			`${prefix}/reference/mobile-app`,
+		],
+	},
+];
+
+const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) => {
+	const basePrefix = prefix.replace('/reference', '');
+	return [
 	{
 		label: 'Architecture',
 		collapsed: true,
@@ -277,6 +434,10 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 			{ label: 'Overview', slug: `${prefix}/architecture` },
 			`${prefix}/architecture/monolithic`,
 			`${prefix}/architecture/microservices`,
+			`${prefix}/architecture/queue`,
+			`${prefix}/architecture/actor-system`,
+			`${prefix}/architecture/caching`,
+			`${prefix}/architecture/database`,
 			`${prefix}/architecture/deployment-scenarios`,
 			`${prefix}/architecture/performance`,
 		],
@@ -293,6 +454,7 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 			`${prefix}/configuration/lwm2m-transport-config`,
 			`${prefix}/configuration/snmp-transport-config`,
 			`${prefix}/configuration/vc-executor-config`,
+			`${prefix}/configuration/js-executor-config`,
 			...extraConfigItems,
 		],
 	},
@@ -316,67 +478,12 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 		],
 	},
 	{
-		label: 'Device API',
+		label: 'TBEL',
 		collapsed: true,
 		items: [
-			{
-				label: 'HTTP API',
-				collapsed: true,
-				items: [
-					`${prefix}/http-api/getting-connected`,
-					`${prefix}/http-api/telemetry`,
-					`${prefix}/http-api/attributes`,
-					`${prefix}/http-api/rpc`,
-					`${prefix}/http-api/claiming`,
-					`${prefix}/http-api/provisioning`,
-				],
-			},
-			{
-				label: 'CoAP API',
-				collapsed: true,
-				items: [
-					`${prefix}/coap-api/getting-connected`,
-					`${prefix}/coap-api/telemetry`,
-					`${prefix}/coap-api/attributes`,
-					`${prefix}/coap-api/rpc`,
-					`${prefix}/coap-api/claiming`,
-					`${prefix}/coap-api/provisioning`,
-				],
-			},
-			{
-				label: 'MQTT API',
-				collapsed: true,
-				items: [
-					`${prefix}/mqtt-api/getting-connected`,
-					`${prefix}/mqtt-api/telemetry`,
-					`${prefix}/mqtt-api/attributes`,
-					`${prefix}/mqtt-api/rpc`,
-					`${prefix}/mqtt-api/claiming`,
-					`${prefix}/mqtt-api/provisioning`,
-					`${prefix}/sparkplug-api`,
-				],
-			},
-			{
-				label: 'LwM2M API',
-				collapsed: true,
-				items: [
-					`${prefix}/lwm2m-api/getting-started`,
-					`${prefix}/lwm2m-api/data-model`,
-					`${prefix}/lwm2m-api/rpc-commands`,
-					`${prefix}/lwm2m-api/ota-updates`,
-				],
-			},
-		],
-	},
-	{
-		label: 'Gateway API',
-		collapsed: true,
-		items: [
-			`${prefix}/gateway-api/overview`,
-			`${prefix}/gateway-api/telemetry`,
-			`${prefix}/gateway-api/attributes`,
-			`${prefix}/gateway-api/rpc`,
-			`${prefix}/gateway-api/claiming`,
+			{ label: 'Overview', slug: `${basePrefix}/user-guide/tbel` },
+			`${basePrefix}/user-guide/tbel/language-guide`,
+			`${basePrefix}/user-guide/tbel/helper-functions`,
 		],
 	},
 	{
@@ -532,6 +639,7 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 		],
 	},
 ];
+};
 
 const mainSidebarItems = (prefix: string, extraRecipeItems: SidebarConfig = [], referenceConfigItems: SidebarConfig = []): SidebarConfig => [
 	{
@@ -575,6 +683,11 @@ const mainSidebarItems = (prefix: string, extraRecipeItems: SidebarConfig = [], 
 		items: installationItems(prefix),
 	},
 	{
+		label: 'APIs & SDKs',
+		collapsed: true,
+		items: apisAndSdksItems(prefix),
+	},
+	{
 		label: 'Reference',
 		collapsed: true,
 		translations: { uk: 'Довідник' },
@@ -607,6 +720,15 @@ export const peSidebar: SidebarConfig = mainSidebarItems('docs/pe', [
 			'docs/pe/recipes/rbac-smart-buildings',
 		],
 	},
+	{
+		label: 'White-labeling',
+		collapsed: true,
+		items: [
+			'docs/pe/recipes/white-labeling-translate-dashboard',
+			'docs/pe/recipes/white-labeling-html-value-card',
+			'docs/pe/recipes/white-labeling-post-processing',
+		],
+	},
 ], [
 	'docs/pe/reference/configuration/ie-executor-config',
 	'docs/pe/reference/configuration/report-service-config',
@@ -619,6 +741,17 @@ export const paasSidebar: SidebarConfig = [
 		translations: { uk: 'Початок роботи' },
 		items: ['docs/paas/getting-started'],
 	},
+	{
+		label: 'Guides',
+		collapsed: true,
+		items: [
+			{
+				label: 'Security',
+				collapsed: true,
+				items: ['docs/paas/user-guide/security/two-factor-authentication', 'docs/paas/user-guide/security/oauth-2-support', 'docs/paas/user-guide/security/domains', 'docs/paas/user-guide/security/audit-log', 'docs/paas/user-guide/security/secrets-storage', 'docs/paas/user-guide/security/api-keys'],
+			},
+		],
+	},
 ];
 
 export const paasEuSidebar: SidebarConfig = [
@@ -626,6 +759,17 @@ export const paasEuSidebar: SidebarConfig = [
 		label: 'Getting Started EU',
 		translations: { uk: 'Початок роботи' },
 		items: ['docs/paas/eu/getting-started'],
+	},
+	{
+		label: 'Guides',
+		collapsed: true,
+		items: [
+			{
+				label: 'Security',
+				collapsed: true,
+				items: ['docs/paas/eu/user-guide/security/two-factor-authentication', 'docs/paas/eu/user-guide/security/oauth-2-support', 'docs/paas/eu/user-guide/security/domains', 'docs/paas/eu/user-guide/security/audit-log', 'docs/paas/eu/user-guide/security/secrets-storage', 'docs/paas/eu/user-guide/security/api-keys'],
+			},
+		],
 	},
 ];
 
@@ -638,7 +782,7 @@ export const edgeSidebar: SidebarConfig = [
 			'docs/edge',
 			{
 				label: 'Welcome to IoT!',
-				items: ['docs/edge/why-thingsboard-edge'],
+				items: ['docs/edge/why-thingsboard-edge', 'docs/edge/getting-started'],
 			},
 			{
 				label: 'Key concepts',
@@ -647,6 +791,10 @@ export const edgeSidebar: SidebarConfig = [
 				],
 			},
 		],
+	},
+	{
+		label: 'Installation',
+		items: edgeInstallationItems('docs/edge'),
 	},
 ];
 
@@ -659,7 +807,7 @@ export const edgePeSidebar: SidebarConfig = [
 			'docs/edge/pe',
 			{
 				label: 'Welcome to IoT!',
-				items: ['docs/edge/pe/why-thingsboard-edge'],
+				items: ['docs/edge/pe/why-thingsboard-edge', 'docs/edge/pe/getting-started'],
 			},
 			{
 				label: 'Key concepts',
@@ -668,6 +816,10 @@ export const edgePeSidebar: SidebarConfig = [
 				],
 			},
 		],
+	},
+	{
+		label: 'Installation',
+		items: edgeInstallationItems('docs/edge/pe'),
 	},
 ];
 
@@ -979,6 +1131,51 @@ export const licenseSidebar: SidebarConfig = [
 		translations: { uk: 'Початок роботи' },
 		items: ['docs/license-server'],
 	},
+];
+
+/** Maps tab group label → URL to navigate when the tab is clicked (optional per-group). */
+export type SidebarTabLinks = Partial<Record<string, string>>;
+export const opensourceSidebarTabLinks: SidebarTabLinks = {
+	'Getting Started': '/docs/',
+	'Installation': '/docs/installation/',
+	'APIs & SDKs': '/docs/reference/apis-and-sdks/',
+};
+export const peSidebarTabLinks: SidebarTabLinks = {
+	'Getting Started': '/docs/pe/',
+	'Installation': '/docs/pe/installation/',
+	'APIs & SDKs': '/docs/pe/reference/apis-and-sdks/',
+};
+
+export const paasSidebarTabLinks: SidebarTabLinks = {};
+export const paasEuSidebarTabLinks: SidebarTabLinks = {};
+export const edgeSidebarTabLinks: SidebarTabLinks = {};
+export const edgePeSidebarTabLinks: SidebarTabLinks = {};
+export const gwSidebarTabLinks: SidebarTabLinks = {};
+export const tbmqSidebarTabLinks: SidebarTabLinks = {};
+export const tbmqPeSidebarTabLinks: SidebarTabLinks = {};
+export const mobileSidebarTabLinks: SidebarTabLinks = {};
+export const mobilePeSidebarTabLinks: SidebarTabLinks = {};
+export const trendzSidebarTabLinks: SidebarTabLinks = {};
+export const licenseSidebarTabLinks: SidebarTabLinks = {};
+
+/**
+ * Maps URL prefix → tab navigation links for that product's sidebar.
+ * Order matters: more specific prefixes must come before less specific ones.
+ */
+export const sidebarTabLinksByPrefix: ReadonlyArray<[string, SidebarTabLinks]> = [
+	['/docs/pe/', peSidebarTabLinks],
+	['/docs/paas/eu/', paasEuSidebarTabLinks],
+	['/docs/paas/', paasSidebarTabLinks],
+	['/docs/edge/pe/', edgePeSidebarTabLinks],
+	['/docs/edge/', edgeSidebarTabLinks],
+	['/docs/mqtt-broker/pe/', tbmqPeSidebarTabLinks],
+	['/docs/mqtt-broker/', tbmqSidebarTabLinks],
+	['/docs/mobile/pe/', mobilePeSidebarTabLinks],
+	['/docs/mobile/', mobileSidebarTabLinks],
+	['/docs/trendz/', trendzSidebarTabLinks],
+	['/docs/iot-gateway/', gwSidebarTabLinks],
+	['/docs/license-server/', licenseSidebarTabLinks],
+	['/docs/', opensourceSidebarTabLinks],
 ];
 
 /**

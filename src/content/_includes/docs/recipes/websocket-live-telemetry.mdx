@@ -1,0 +1,199 @@
+import DocLink from '@components/DocLink.astro';
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+Fetch all devices and subscribe to real-time **temperature** and **humidity** updates using the ThingsBoard <DocLink product={props.product} path='reference/websocket-api'>WebSocket API</DocLink> from a Node.js script. The script authenticates with username/password, opens a WebSocket connection, and prints live telemetry values as they arrive.
+
+## Prerequisites
+
+- Node.js 18+
+- A ThingsBoard instance with at least one device publishing `temperature` and `humidity` telemetry
+
+## Setup
+
+<Steps>
+1. Create a project folder and install the `ws` library:
+
+   ```bash
+   mkdir ws-telemetry && cd ws-telemetry
+   npm init -y
+   npm install ws
+   ```
+
+2. Know your tenant admin credentials (default: `[email protected]` / `tenant`).
+</Steps>
+
+## Script
+
+Create `live-telemetry.js`:
+
+```js maxLines=60 collapsible
+const WebSocket = require("ws");
+
+// ── Configuration ───────────────────────────────────────────
+const TB_URL = "https://thingsboard.cloud";   // ThingsBoard base URL
+const WS_URL = "wss://thingsboard.cloud";    // use ws:// for plain HTTP
+const USERNAME = "[email protected]";
+const PASSWORD = "tenant";
+
+// ── Step 1: Get JWT token via REST API ──────────────────────
+async function getToken() {
+  const res = await fetch(`${TB_URL}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username: USERNAME, password: PASSWORD }),
+  });
+  if (!res.ok) throw new Error(`Login failed: ${res.status}`);
+  const { token } = await res.json();
+  return token;
+}
+
+// ── Name cache (updates carry only entityId, not fields) ────
+const nameById = new Map();
+
+// ── Step 2: Open WebSocket and subscribe ────────────────────
+async function main() {
+  const token = await getToken();
+  console.log("Authenticated. Opening WebSocket...\n");
+
+  const ws = new WebSocket(`${WS_URL}/api/ws`);
+
+  ws.on("open", () => {
+    // Authenticate + subscribe in one message
+    const msg = {
+      authCmd: { cmdId: 0, token },
+      cmds: [
+        {
+          cmdId: 1,
+          type: "ENTITY_DATA",
+          query: {
+            entityFilter: {
+              type: "entityType",
+              entityType: "DEVICE",
+            },
+            pageLink: {
+              pageSize: 100,
+              page: 0,
+              sortOrder: {
+                key: { type: "ENTITY_FIELD", key: "name" },
+                direction: "ASC",
+              },
+            },
+            entityFields: [
+              { type: "ENTITY_FIELD", key: "name" },
+              { type: "ENTITY_FIELD", key: "type" },
+            ],
+            latestValues: [
+              { type: "TIME_SERIES", key: "temperature" },
+              { type: "TIME_SERIES", key: "humidity" },
+            ],
+            keyFilters: [],
+          },
+          // Subscribe to real-time latest value updates
+          latestCmd: {
+            keys: [
+              { type: "TIME_SERIES", key: "temperature" },
+              { type: "TIME_SERIES", key: "humidity" },
+            ],
+          },
+        },
+      ],
+    };
+    ws.send(JSON.stringify(msg));
+  });
+
+  ws.on("message", (raw) => {
+    const msg = JSON.parse(raw);
+
+    if (msg.errorCode && msg.errorCode !== 0) {
+      console.error("Error:", msg.errorMsg);
+      return;
+    }
+
+    // Initial data response
+    if (msg.data && msg.data.data) {
+      console.log("=== Devices with latest telemetry ===\n");
+      for (const entity of msg.data.data) {
+        printEntity(entity);
+      }
+      console.log("\nListening for real-time updates... (Ctrl+C to stop)\n");
+    }
+
+    // Real-time update
+    if (msg.update) {
+      for (const entity of msg.update) {
+        printEntity(entity);
+      }
+    }
+  });
+
+  ws.on("error", (err) => console.error("WebSocket error:", err.message));
+  ws.on("close", () => console.log("WebSocket closed."));
+}
+
+// ── Helper: print entity telemetry ──────────────────────────
+function printEntity(entity) {
+  const id = entity.entityId.id;
+  // Cache the name from the initial response; reuse on updates
+  const fieldName = entity.latest?.ENTITY_FIELD?.name?.value;
+  if (fieldName) nameById.set(id, fieldName);
+  const name = nameById.get(id) ?? id;
+
+  const temp = entity.latest?.TIME_SERIES?.temperature;
+  const hum = entity.latest?.TIME_SERIES?.humidity;
+  const parts = [`  ${name}:`];
+  if (temp) parts.push(`temperature=${temp.value}`);
+  if (hum) parts.push(`humidity=${hum.value}`);
+  if (!temp && !hum) parts.push("(no telemetry yet)");
+  console.log(parts.join(" "));
+}
+
+main().catch(console.error);
+```
+
+## Run
+
+```bash
+node live-telemetry.js
+```
+
+Expected output:
+
+```plaintext
+Authenticated. Opening WebSocket...
+
+=== Devices with latest telemetry ===
+
+  Thermostat A1: temperature=22.5 humidity=58.3
+  Sensor B2: temperature=19.8 humidity=71.0
+  Gateway C3: (no telemetry yet)
+
+Listening for real-time updates... (Ctrl+C to stop)
+
+  Thermostat A1: temperature=22.7 humidity=58.1
+```
+
+## How it works
+
+<Steps>
+1. **Authenticate** — the script calls `POST /api/auth/login` to get a JWT token.
+
+2. **Connect** — opens a WebSocket to `/api/ws`.
+
+3. **Subscribe** — sends a single message containing:
+   - `authCmd` with the JWT token
+   - An `ENTITY_DATA` command that queries all devices, requests `name` and `type` fields, and subscribes to `temperature` and `humidity` latest values via `latestCmd`
+
+4. **Receive initial data** — the server responds with all matching devices and their current telemetry in the `data` field.
+
+5. **Receive updates** — whenever a device publishes new telemetry, the server pushes an update in the `update` field with only the changed entities. Updates carry only telemetry (no entity fields), so the script caches device names from the initial response.
+</Steps>
+
+<Aside type="tip">
+To stop receiving updates, send an unsubscribe command:
+
+```json
+{ "cmds": [{ "cmdId": 1, "type": "ENTITY_DATA_UNSUBSCRIBE" }] }
+```
+
+See the <DocLink product={props.product} path='reference/websocket-api'>WebSocket API reference</DocLink> for all available command types.
+</Aside>

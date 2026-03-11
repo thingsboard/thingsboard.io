@@ -1,34 +1,198 @@
 import DocLink from '@components/DocLink.astro';
 import { Aside } from '@astrojs/starlight/components';
+import { Products } from '~/models/site.models';
 
-ThingsBoard is a multi-tenant IoT platform designed to distribute workload across identical server nodes. There is no single point of failure — any node can handle any request, and the system continues operating when individual nodes go down.
+ThingsBoard is a multi-tenant IoT platform designed to scale horizontally. Add more instances of any service to handle more load. There is no single point of failure — the system continues operating when individual instances go down.
 
-## Multi-tenancy
+## Technology Stack
+
+ThingsBoard relies on the following third-party components:
+
+| Component | Role | Required? |
+|-----------|------|-----------|
+| **PostgreSQL** | Entity storage (devices, users, dashboards, rule chains) | Always required |
+| **Apache Kafka** | <DocLink product={props.product} path="reference/architecture/queue">Message queue</DocLink> between services in cluster mode | Production clusters |
+| **Redis / Valkey** | <DocLink product={props.product} path="reference/architecture/caching">Shared cache</DocLink> for credentials, sessions, profiles | Multi-node deployments |
+| **Apache Cassandra** | <DocLink product={props.product} path="reference/architecture/database">Time-series storage</DocLink> (Hybrid mode) | High-throughput production |
+| **Zookeeper** | Service discovery, partition assignment | Cluster mode |
+| **HAProxy / nginx** | Load balancer for HTTP, MQTT, CoAP | Cluster mode |
+
+Single-node deployments require only PostgreSQL. All other components are added as you scale.
+
+## Database Layer
+
+ThingsBoard stores entities and attributes in PostgreSQL. For time-series data, you can choose between two strategies:
+
+| Strategy | Time-series storage | Write throughput | Recommended for |
+|----------|-------------------|-----------------|----------------|
+| **SQL** | PostgreSQL | ≤5–10K data points/sec | Small deployments, simplicity |
+| **Hybrid** | Cassandra | ~1M data points/sec | High-throughput production |
+
+<Aside type="tip">
+  Start with PostgreSQL-only (SQL mode). Switch to Hybrid mode when write throughput exceeds 5–10K data points per second. Note that device count alone doesn't determine throughput — 300K devices reporting once per minute produce ~5K data points/sec, while 50K devices reporting every second produce 50K data points/sec.
+</Aside>
+
+See <DocLink product={props.product} path="reference/architecture/database">Database Layer</DocLink> for write batching, partitioning strategies, Cassandra tuning, and storage efficiency comparison.
+
+## Deployment Modes
+
+ThingsBoard supports two deployment architectures:
+
+| Mode | Description | Best for |
+|------|-------------|----------|
+| <DocLink product={props.product} path="reference/architecture/monolithic">**Monolithic**</DocLink> | All services in a single Java process | Development, small-to-medium workloads |
+| <DocLink product={props.product} path="reference/architecture/microservices">**Microservices**</DocLink> | Each service runs as a separate container | Production, horizontal scaling, HA |
+
+Both modes can run as a single server or as a cluster. See <DocLink product={props.product} path="reference/architecture/deployment-scenarios">Deployment Scenarios</DocLink> for sizing guidance and <DocLink product={props.product} path="reference/architecture/performance">Performance</DocLink> for benchmark results.
+
+## Multi-tenancy and Tenant Isolation
 
 Tenant isolation is enforced at every layer of the platform. The entity hierarchy — **Tenant → Customer → Devices & Assets** — determines access boundaries. Each tenant has independent rule chains, dashboards, device profiles, and user roles. System resources (database partitions, message queue topics, cache entries) are partitioned per tenant, so one tenant's traffic spike cannot affect another.
+
+<DocLink product={props.product} path="user-guide/multi-tenancy/#tenant-profiles">Tenant profiles</DocLink> define per-tenant resource limits and quotas:
+
+| Category | What it controls |
+|----------|-----------------|
+| **Entity limits** | Maximum devices, assets, dashboards, users, and other entities per tenant |
+| **API limits** | Rule engine executions and transport messages per second |
+| **Rate limits** | Per-transport and per-device message rate limiting (see [Rate Limiting](#rate-limiting) below) |
+| **Data retention (TTL)** | Per-tenant time-to-live for telemetry, alarms, RPC, audit logs |
+| **WebSocket limits** | Maximum sessions and subscriptions per tenant and customer |
+| **Isolated queues** | Dedicated <DocLink product={props.product} path="user-guide/rule-engine/queues">Rule Engine Queues</DocLink> per tenant for performance isolation |
+| **Notifications** | Email/SMS quotas, alarm quotas |
+| **Calculated fields** | Maximum calculated fields per entity, arguments, rolling data points |
+
+<Aside type="tip">
+  In a multi-tenant deployment, configure tenant profiles before onboarding tenants. A single misconfigured tenant without rate limits can consume disproportionate resources and affect others.
+</Aside>
+
+## Authentication
+
+ThingsBoard uses different authentication mechanisms for devices and users.
+
+**Device authentication** happens on every incoming message. When a device connects via MQTT, HTTP, or CoAP, the Transport layer validates its credentials before accepting any data. Supported credential types:
+
+| Credential Type | Protocol | How it works |
+|----------------|----------|-------------|
+| **Access Token** | MQTT, HTTP, CoAP | String token sent as MQTT username or HTTP/CoAP query parameter |
+| **MQTT Basic** | MQTT | Client ID + username + password combination |
+| **X.509 Certificate** | MQTT (TLS) | Device presents a client certificate during TLS handshake |
+
+Credentials are <DocLink product={props.product} path="reference/architecture/caching">cached</DocLink> after the first lookup — subsequent messages from the same device are validated from cache without a database query. This is critical for throughput: at 100K messages/second, each credential lookup hitting the database would overwhelm PostgreSQL.
+
+**User authentication** uses JWT tokens for REST API and WebSocket connections. Users authenticate once via login endpoint, receive a JWT token pair (access + refresh), and include the access token in subsequent API requests. Token validation is stateless — the server verifies the JWT signature without a database lookup.
 
 ## Data Flow
 
 When a device sends data, it follows the same path regardless of deployment mode (monolithic or microservices):
 
+```txt
+ ┌────────┐    MQTT/HTTP/     ┌───────────┐     Message     ┌─────────────┐
+ │ Device │───  CoAP/LwM2M ──▶│ Transport │──── Queue ─────▶│ Rule Engine │
+ └────────┘                   └─────┬─────┘                  └──────┬──────┘
+                                    │                               │
+                              Authenticate                   Execute chains
+                              (credentials                   Filter, enrich,
+                               from cache)                   transform, act
+                                                                    │
+                                    ┌───────────────────────────────┘
+                                    │
+                                    ▼
+                 ┌──────────────────────────────────┐
+                 │            Core Service           │
+                 │  ┌──────────┐    ┌────────────┐  │
+                 │  │ Persist  │    │  Notify    │  │
+                 │  │ telemetry│    │  dashboards│  │
+                 │  │ attrs    │    │  via WS    │  │
+                 │  └────┬─────┘    └────────────┘  │
+                 └───────┼──────────────────────────┘
+                         │
+              ┌──────────▼──────────┐
+              │  PostgreSQL / Cache  │
+              │  (+ Cassandra for   │
+              │   time-series)      │
+              └─────────────────────┘
+```
+
 1. **Connect** — Device opens a connection to the Transport layer (MQTT, HTTP, CoAP, or LwM2M).
 2. **Resolve tenant** — Transport identifies the owning tenant from device credentials.
-3. **Authenticate** — Transport validates device credentials against the Core service. Invalid credentials are rejected immediately.
-4. **Push to Rule Engine** — Transport converts the protocol-specific payload into a unified message and forwards it to the Rule Engine.
-5. **Execute Rule Chains** — The Rule Engine processes the message through the tenant's configured rule chains — filtering, enriching, transforming, and triggering actions.
-6. **Persist** — Action nodes save telemetry, attributes, or alarms to the database.
-7. **Notify** — Core pushes real-time updates to WebSocket subscribers (dashboards).
+3. **Authenticate** — Transport validates device credentials against the Core service. Invalid credentials are rejected immediately. Credentials are <DocLink product={props.product} path="reference/architecture/caching">cached</DocLink> to avoid a database query on every message.
+4. **Push to Rule Engine** — Transport converts the protocol-specific payload into a unified message and forwards it to the Rule Engine via the <DocLink product={props.product} path="reference/architecture/queue">message queue</DocLink>.
+5. **Execute Rule Chains** — The <DocLink product={props.product} path="user-guide/rule-engine">Rule Engine</DocLink> processes the message through the tenant's configured rule chains — filtering, enriching, transforming, and triggering actions.
+6. **Persist** — Action nodes save <DocLink product={props.product} path="user-guide/digital-twins/time-series-data">telemetry</DocLink>, <DocLink product={props.product} path="user-guide/digital-twins/attributes">attributes</DocLink>, or alarms to the <DocLink product={props.product} path="reference/architecture/database">database</DocLink>.
+7. **Notify** — Core pushes real-time updates to WebSocket subscribers (<DocLink product={props.product} path="user-guide/dashboards">dashboards</DocLink>).
+
+## Server-side RPC
+
+The reverse data path — server to device — follows a different route. When a user or rule chain sends a command to a device:
+
+```txt
+ ┌──────────┐   REST API    ┌──────────────┐     Message     ┌───────────┐     Protocol    ┌────────┐
+ │ User /   │──────────────▶│  TB Node     │──── Queue ─────▶│ Transport │───  specific ──▶│ Device │
+ │ Rule     │   or Rule     │  (Core +     │                  │           │     command     └────────┘
+ │ Chain    │   Chain action│   Actors)    │                  └───────────┘
+ └──────────┘               └──────────────┘
+```
+
+1. **Initiate** — A REST API call or rule chain action node creates an RPC request for a specific device.
+2. **Route to owner** — The Core service identifies which ThingsBoard node owns the target device's actor (via consistent hashing). In a cluster, the request is forwarded via gRPC to the correct node.
+3. **Device actor** — The device's <DocLink product={props.product} path="reference/architecture/actor-system">actor</DocLink> receives the RPC request, checks whether the device has an active session, and forwards the command to the Transport layer via the message queue.
+4. **Deliver** — The Transport layer sends the command to the device over the device's active connection (MQTT publish, CoAP response, etc.).
+5. **Response** — The device responds (optional), and the response flows back through the same path in reverse.
+
+If the device is offline, the behavior depends on RPC type: **one-way** RPC is fire-and-forget, while **two-way** RPC waits for a response with a configurable timeout.
+
+## WebSocket Subscriptions
+
+Dashboards and the REST API use WebSocket connections for real-time updates. When a user opens a dashboard:
+
+```txt
+ ┌───────────┐     WS      ┌──────────────┐     Subscription     ┌──────────────┐
+ │ Dashboard │◀────────────▶│  TB Node     │◀────────────────────▶│  TB Node     │
+ │ (Browser) │   subscribe  │  (handles WS │    notifications     │  (processes  │
+ │           │   + updates   │   session)   │    via Kafka         │   telemetry) │
+ └───────────┘              └──────────────┘                      └──────────────┘
+```
+
+1. **Connect** — The browser opens a WebSocket connection to a ThingsBoard Node.
+2. **Subscribe** — The dashboard sends subscription commands for specific entity attributes or time-series keys (e.g., "subscribe to device ABC, key temperature").
+3. **Register** — The TB Node registers the subscription in the subscription manager. In a cluster, subscriptions are tracked per-node, and subscription notifications flow via the `tb_core.notifications` Kafka topic.
+4. **Update** — When new telemetry arrives (from a device, rule chain, or API), the node processing the telemetry detects matching subscriptions and pushes the update to the subscriber's WebSocket session.
+
+This means real-time updates work across cluster nodes — the device's telemetry may be processed by node A, while the dashboard is connected to node B. The notification flows through Kafka to ensure delivery.
+
+## Rate Limiting
+
+ThingsBoard enforces rate limits at multiple levels to protect against traffic spikes and ensure fair resource sharing:
+
+| Level | Where enforced | What it controls |
+|-------|---------------|-----------------|
+| **Transport** | Transport layer | Messages per second per device and per tenant (MQTT, HTTP, CoAP, LwM2M) |
+| **REST API** | Core service | API calls per second per tenant and per customer |
+| **Rule Engine** | Rule Engine | Rule engine messages per second per tenant |
+| **WebSocket** | Core service | Subscription updates per second per session |
+| **Notifications** | Core service | Email/SMS per hour per tenant |
+
+Rate limit configuration is set per <DocLink product={props.product} path="user-guide/multi-tenancy/#tenant-profiles">tenant profile</DocLink>. When a limit is exceeded, the platform rejects additional messages with an appropriate error (e.g., MQTT CONNACK with "rate limit" reason, HTTP 429 Too Many Requests). Rate limit counters are stored in the <DocLink product={props.product} path="reference/architecture/caching">cache</DocLink> (the `rateLimits` namespace) for fast, distributed enforcement across cluster nodes.
+
+<Aside type="note">
+  Rate limits are disabled by default. Enable them in the tenant profile when running multi-tenant deployments to prevent a single tenant from consuming all resources.
+</Aside>
 
 ## Services
 
-ThingsBoard is split into four logical service groups:
+ThingsBoard is split into the following service groups:
 
 | Service | Responsibility | Protocols |
 |---------|---------------|-----------|
-| **Transports** | Accept device connections, convert protocol-specific payloads into a unified format, push messages to the rule engine | MQTT, HTTP, CoAP, LwM2M, SNMP |
-| **Core** | Handle REST API, WebSocket subscriptions, device connectivity state, and entity management | HTTP/REST, WebSocket |
-| **Rule Engine** | Process incoming messages through configurable rule chains — filter, enrich, transform, and act | Internal |
-| **Web UI** | Serve the Angular-based dashboard application | HTTP |
+| **Transports** | Accept device connections, convert protocol-specific payloads into a unified format, push messages to the rule engine. Each protocol runs in its own process. | MQTT, HTTP, CoAP, LwM2M, SNMP |
+| **ThingsBoard Node** | Core service — REST API, WebSocket subscriptions, Rule Engine, <DocLink product={props.product} path="reference/architecture/actor-system">Actor System</DocLink>, device connectivity state, entity management | HTTP/REST, WebSocket |
+| **JS Executor** | Execute user-defined JavaScript from rule engine script nodes in isolated sandboxes. Deploy 20+ instances in production. | Internal (Kafka) |
+| **Web UI** | Serve the Angular-based dashboard application, proxy REST/WS to ThingsBoard Node | HTTP |
+
+{props.product !== Products.CE && (
+  <p><strong>Integration Executor</strong> — runs platform integrations (OPC-UA, SigFox, TheThingsNetwork, etc.), pulling data from external systems and pushing it into ThingsBoard via the rule engine. Available in Professional Edition and Cloud only.</p>
+)}
 
 Transport services are protocol-specific — each protocol runs in its own process (or pod in Kubernetes). See the individual API references for protocol details:
 <DocLink product={props.product} path="reference/mqtt-api/getting-connected">MQTT API</DocLink>,
@@ -42,7 +206,8 @@ These components work identically in both monolithic and microservices deploymen
 
 | Component | Purpose |
 |-----------|---------|
-| **Actor System** | Manages isolated per-entity state (device actors, rule chain actors, tenant actors). Each actor processes messages sequentially, eliminating concurrency issues. |
+| <DocLink product={props.product} path="reference/architecture/actor-system">**Actor System**</DocLink> | Manages isolated per-entity state (device actors, rule chain actors, tenant actors). Each actor processes messages sequentially, eliminating concurrency issues. |
+| <DocLink product={props.product} path="reference/architecture/caching">**Cache Layer**</DocLink> | Caches device credentials, entity profiles, attributes, and sessions to avoid database queries on every message. Supports Caffeine (local) and Redis (shared). |
 | **Service Discovery** | In cluster mode, Zookeeper tracks which nodes are alive. Single-node deployments skip Zookeeper entirely. |
 | **Consistent Hashing** | Distributes entities across cluster nodes deterministically. When a node joins or leaves, only a fraction of entities re-balance. |
 | **gRPC** | Inter-node communication in cluster mode. Forwards messages to the node that owns the target entity. |
@@ -51,33 +216,9 @@ These components work identically in both monolithic and microservices deploymen
 
 Services communicate through a message queue. Messages are partitioned by entity ID — all messages for a single device always land on the same partition, preserving order and enabling stateful processing.
 
-ThingsBoard supports two queue implementations:
+| Queue | Use case | Persistence |
+|-------|----------|-------------|
+| **Apache Kafka** | Production clusters | Disk-based, survives restarts |
+| **In-Memory** | Development, single-node setups | Lost on restart |
 
-| Queue | Use case | Ordering | Persistence |
-|-------|----------|----------|-------------|
-| **Apache Kafka** | Production clusters | Per-partition | Disk-based, survives restarts |
-| **In-Memory** | Development and small single-node setups | Per-partition | Lost on restart |
-
-## Database Layer
-
-ThingsBoard stores entities and attributes in PostgreSQL. For time-series data, you can choose between two strategies:
-
-| Strategy | Time-series storage | Write throughput | Recommended for |
-|----------|-------------------|-----------------|----------------|
-| **SQL** | PostgreSQL | ≤5K data points/sec | Small deployments (≤100K devices at low reporting rates), simplicity |
-| **Hybrid** | Cassandra (or TimescaleDB) | ~1M data points/sec | High-throughput production |
-
-<Aside type="tip">
-  Start with PostgreSQL-only (SQL mode). Switch to Hybrid mode when write throughput exceeds 5K data points per second. Note that device count alone doesn't determine throughput — 300K devices reporting once per minute produce ~5K data points/sec, while 50K devices reporting every second produce 50K data points/sec.
-</Aside>
-
-## Deployment Modes
-
-ThingsBoard supports two deployment architectures:
-
-| Mode | Description | Best for |
-|------|-------------|----------|
-| <DocLink product={props.product} path="reference/architecture/monolithic">**Monolithic**</DocLink> | All services in a single Java process | Development, small-to-medium workloads |
-| <DocLink product={props.product} path="reference/architecture/microservices">**Microservices**</DocLink> | Each service runs as a separate container | Production, horizontal scaling, HA |
-
-Both modes can run as a single server or as a cluster. See <DocLink product={props.product} path="reference/architecture/deployment-scenarios">Deployment Scenarios</DocLink> for sizing guidance and <DocLink product={props.product} path="reference/architecture/performance">Performance</DocLink> for benchmark results.
+See <DocLink product={props.product} path="reference/architecture/queue">Message Queue</DocLink> for the full topic topology, partitioning strategy, and producer/consumer tuning.
