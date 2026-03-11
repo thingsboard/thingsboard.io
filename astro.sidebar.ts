@@ -897,7 +897,16 @@ export const mobileSidebar: SidebarConfig = [
 	{
 		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
-		items: ['docs/mobile'],
+		items: ['docs/mobile', 'docs/mobile/getting-started'],
+	},
+	{
+		label: 'Customize mobile app',
+		collapsed: true,
+		items: ['docs/mobile/customize-dashboards', 'docs/mobile/customize-devices', 'docs/mobile/device-dashboard', 'docs/mobile/alarm-dashboard', 'docs/mobile/mobile-actions', 'docs/mobile/oauth2', 'docs/mobile/qr-code-settings', 'docs/mobile/app-icon-splash-screen', 'docs/mobile/localization'],
+	},
+	{
+		label: 'Build & release',
+		items: ['docs/mobile/release', 'docs/mobile/compatibility'],
 	},
 ];
 
@@ -906,7 +915,16 @@ export const mobilePeSidebar: SidebarConfig = [
 	{
 		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
-		items: ['docs/mobile/pe'],
+		items: ['docs/mobile/pe', 'docs/mobile/pe/getting-started'],
+	},
+	{
+		label: 'Customize mobile app',
+		collapsed: true,
+		items: ['docs/mobile/pe/customize-dashboards', 'docs/mobile/pe/customize-devices', 'docs/mobile/pe/device-dashboard', 'docs/mobile/pe/alarm-dashboard', 'docs/mobile/pe/mobile-actions', 'docs/mobile/pe/oauth2', 'docs/mobile/pe/qr-code-settings', 'docs/mobile/pe/app-icon-splash-screen', 'docs/mobile/pe/localization'],
+	},
+	{
+		label: 'Build & release',
+		items: ['docs/mobile/pe/release', 'docs/mobile/pe/compatibility'],
 	},
 ];
 
