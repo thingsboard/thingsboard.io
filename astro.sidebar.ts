@@ -1001,13 +1001,14 @@ export const trendzSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'Share Views',
+				label: 'Trendz on Dashboards',
 				collapsed: true,
 				items: [
-					'docs/trendz/trendz-bundle',
 					'docs/trendz/embed-visuals',
 					'docs/trendz/widget-filter-by-alias',
+					'docs/trendz/trendz-bundle',
 					'docs/trendz/widget-actions',
+					'docs/trendz/widget-settings',
 				],
 			},
 			{
