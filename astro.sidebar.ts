@@ -963,6 +963,7 @@ export const trendzSidebar: SidebarConfig = [
 	{
 		label: 'Documentation',
 		items: [
+			{ slug: 'docs/trendz/what-is-trendz', label: 'What is Trendz Analytics?' },
 			{
 				label: 'Key Concepts',
 				collapsed: true,
