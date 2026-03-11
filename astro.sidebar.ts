@@ -1088,13 +1088,20 @@ export const trendzSidebar: SidebarConfig = [
 	},
 	{
 		label: 'Guides',
+		collapsed: false,
 		items: [
 			{ slug: 'docs/trendz/guide', label: 'Overview' },
-			{ slug: 'docs/trendz/guide/detect-anomalies-in-heat-pumps', label: 'Anomaly Detection in Heat Pumps' },
-			{ slug: 'docs/trendz/guide/analyze-building-energy-usage-and-carbon-emissions', label: 'Building Energy Usage & Carbon Emissions' },
-			{ slug: 'docs/trendz/guide/predict-next-maintenance-date-of-equipment', label: 'Predict Remaining Time to Maintenance' },
-			{ slug: 'docs/trendz/guide/industrial-oee-score-monitoring', label: 'Industrial OEE Score Monitoring' },
-			{ slug: 'docs/trendz/guide/occupancy-analysis-of-the-building', label: 'Predictive Occupancy Monitoring' },
+			{
+				label: 'Scenarios',
+				collapsed: false,
+				items: [
+					{ slug: 'docs/trendz/guide/detect-anomalies-in-heat-pumps', label: 'Heat Pump Anomaly Detection' },
+					{ slug: 'docs/trendz/guide/analyze-building-energy-usage-and-carbon-emissions', label: 'Energy & Emissions Analysis' },
+					{ slug: 'docs/trendz/guide/predict-next-maintenance-date-of-equipment', label: 'Predictive Maintenance' },
+					{ slug: 'docs/trendz/guide/industrial-oee-score-monitoring', label: 'Industrial OEE Monitoring' },
+					{ slug: 'docs/trendz/guide/occupancy-analysis-of-the-building', label: 'Predictive Occupancy Monitoring' },
+				],
+			},
 		],
 	},
 	{
