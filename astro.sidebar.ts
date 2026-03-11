@@ -1086,6 +1086,7 @@ export const trendzSidebar: SidebarConfig = [
 				label: 'Other',
 				collapsed: true,
 				items: [
+					'docs/trendz/rest-api',
 					'docs/trendz/tasks-service',
 				],
 			},
