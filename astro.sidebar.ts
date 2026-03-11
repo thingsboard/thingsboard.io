@@ -1089,6 +1089,7 @@ export const trendzSidebar: SidebarConfig = [
 	{
 		label: 'Guides',
 		items: [
+			{ slug: 'docs/trendz/guide', label: 'Overview' },
 			{ slug: 'docs/trendz/guide/detect-anomalies-in-heat-pumps', label: 'Anomaly Detection in Heat Pumps' },
 			{ slug: 'docs/trendz/guide/analyze-building-energy-usage-and-carbon-emissions', label: 'Building Energy Usage & Carbon Emissions' },
 			{ slug: 'docs/trendz/guide/predict-next-maintenance-date-of-equipment', label: 'Predict Remaining Time to Maintenance' },
@@ -1156,7 +1157,12 @@ export const tbmqSidebarTabLinks: SidebarTabLinks = {};
 export const tbmqPeSidebarTabLinks: SidebarTabLinks = {};
 export const mobileSidebarTabLinks: SidebarTabLinks = {};
 export const mobilePeSidebarTabLinks: SidebarTabLinks = {};
-export const trendzSidebarTabLinks: SidebarTabLinks = {};
+export const trendzSidebarTabLinks: SidebarTabLinks = {
+	'Getting Started': '/docs/trendz/',
+	'Documentation': '/docs/trendz/what-is-trendz/',
+	'Guides': '/docs/trendz/guide/',
+	'Installation': '/docs/trendz/install/installation-options/',
+};
 export const licenseSidebarTabLinks: SidebarTabLinks = {};
 
 /**
