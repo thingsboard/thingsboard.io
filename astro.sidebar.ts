@@ -1011,6 +1011,7 @@ const tbmqInstallItems = (prefix: string): SidebarConfig => {
 	const isPE = prefix.includes('/pe');
 	return [
 	{ label: 'Installation options', slug: `${prefix}/install/installation-options` },
+	{ label: 'Live demo', slug: `${prefix}/install/live-demo` },
 	{
 		label: 'On-premises',
 		collapsed: true,
