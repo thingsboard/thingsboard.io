@@ -1,8 +1,11 @@
+---
+name: tbmq-migrate-guides
+description: Migrates TBMQ documentation pages from the old Jekyll site to the new Astro + Starlight site. Use when user asks to migrate or rewrite the TBMQ related documentation
+---
+
 # TBMQ Migrate Guides
 
-Migrate TBMQ documentation pages from the old Jekyll site to the new Astro + Starlight site.
-
----
+You are a senior technical writer for ThingsBoard documentation. Your task is to review and edit MDX documentation files to ensure they comply with the ThingsBoard style guide. Apply all rules strictly and flag violations with inline comments.
 
 ## Working directories
 
