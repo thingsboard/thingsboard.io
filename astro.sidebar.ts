@@ -939,13 +939,59 @@ export const mobileSidebar: SidebarConfig = [
 		items: ['docs/mobile', 'docs/mobile/getting-started'],
 	},
 	{
-		label: 'Customize mobile app',
+		label: 'Customize',
 		collapsed: true,
-		items: ['docs/mobile/customize-dashboards', 'docs/mobile/customize-devices', 'docs/mobile/device-dashboard', 'docs/mobile/alarm-dashboard', 'docs/mobile/mobile-actions', 'docs/mobile/oauth2', 'docs/mobile/qr-code-settings', 'docs/mobile/app-icon-splash-screen', 'docs/mobile/localization'],
+		items: [
+			{
+				label: 'Dashboards',
+				collapsed: true,
+				items: [
+					'docs/mobile/customize-dashboards',
+					'docs/mobile/customize-devices',
+					'docs/mobile/device-dashboard',
+					'docs/mobile/alarm-dashboard',
+				],
+			},
+			'docs/mobile/mobile-actions',
+			{
+				label: 'Advanced',
+				collapsed: true,
+				items: [
+					{
+						label: 'QR code settings',
+						collapsed: true,
+						items: [
+							{ label: 'v1.7+', slug: 'docs/mobile/qr-code-settings' },
+							{ label: 'Before v1.7', slug: 'docs/mobile/qr-code-settings-before-v1-7' },
+						],
+					},
+					{
+						label: 'App icon and splash screen',
+						collapsed: true,
+						items: [
+							{ label: 'v1.7+', slug: 'docs/mobile/app-icon-splash-screen' },
+							{ label: 'Before v1.7', slug: 'docs/mobile/app-icon-splash-screen-before-v1-7' },
+						],
+					},
+					'docs/mobile/oauth2',
+					'docs/mobile/localization',
+				],
+			},
+		],
 	},
 	{
-		label: 'Build & release',
-		items: ['docs/mobile/release', 'docs/mobile/compatibility'],
+		label: 'Publish',
+		items: [
+			'docs/mobile/compatibility',
+			{
+				label: 'Build and release mobile app',
+				collapsed: true,
+				items: [
+					{ label: 'v1.7+', slug: 'docs/mobile/release' },
+					{ label: 'Before v1.7', slug: 'docs/mobile/release-before-v1-7' },
+				],
+			},
+		],
 	},
 ];
 
@@ -957,13 +1003,59 @@ export const mobilePeSidebar: SidebarConfig = [
 		items: ['docs/mobile/pe', 'docs/mobile/pe/getting-started'],
 	},
 	{
-		label: 'Customize mobile app',
+		label: 'Customize',
 		collapsed: true,
-		items: ['docs/mobile/pe/customize-dashboards', 'docs/mobile/pe/customize-devices', 'docs/mobile/pe/device-dashboard', 'docs/mobile/pe/alarm-dashboard', 'docs/mobile/pe/mobile-actions', 'docs/mobile/pe/oauth2', 'docs/mobile/pe/qr-code-settings', 'docs/mobile/pe/app-icon-splash-screen', 'docs/mobile/pe/localization'],
+		items: [
+			{
+				label: 'Dashboards',
+				collapsed: true,
+				items: [
+					'docs/mobile/pe/customize-dashboards',
+					'docs/mobile/pe/customize-devices',
+					'docs/mobile/pe/device-dashboard',
+					'docs/mobile/pe/alarm-dashboard',
+				],
+			},
+			'docs/mobile/pe/mobile-actions',
+			{
+				label: 'Advanced',
+				collapsed: true,
+				items: [
+					{
+						label: 'QR code settings',
+						collapsed: true,
+						items: [
+							{ label: 'v1.7+', slug: 'docs/mobile/pe/qr-code-settings' },
+							{ label: 'Before v1.7', slug: 'docs/mobile/pe/qr-code-settings-before-v1-7' },
+						],
+					},
+					{
+						label: 'App icon and splash screen',
+						collapsed: true,
+						items: [
+							{ label: 'v1.7+', slug: 'docs/mobile/pe/app-icon-splash-screen' },
+							{ label: 'Before v1.7', slug: 'docs/mobile/pe/app-icon-splash-screen-before-v1-7' },
+						],
+					},
+					'docs/mobile/pe/oauth2',
+					'docs/mobile/pe/localization',
+				],
+			},
+		],
 	},
 	{
-		label: 'Build & release',
-		items: ['docs/mobile/pe/release', 'docs/mobile/pe/compatibility'],
+		label: 'Publish',
+		items: [
+			'docs/mobile/pe/compatibility',
+			{
+				label: 'Build and release mobile app',
+				collapsed: true,
+				items: [
+					{ label: 'v1.7+', slug: 'docs/mobile/pe/release' },
+					{ label: 'Before v1.7', slug: 'docs/mobile/pe/release-before-v1-7' },
+				],
+			},
+		],
 	},
 ];
 
