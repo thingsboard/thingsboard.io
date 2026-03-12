@@ -2,7 +2,7 @@ import type { StarlightUserConfig } from '@astrojs/starlight/types';
 
 type SidebarConfig = NonNullable<StarlightUserConfig['sidebar']>;
 
-const guideItems = (prefix: string) => [
+const guideItems = (prefix: string, { isPE = false } = {}) => [
 	{
 		label: 'Digital Twins',
 		collapsed: true,
@@ -47,7 +47,7 @@ const guideItems = (prefix: string) => [
 	{
 		label: 'Customers & Users',
 		collapsed: true,
-		items: [`${prefix}/multi-tenancy`, `${prefix}/customers`, `${prefix}/users`, `${prefix}/roles`],
+		items: [`${prefix}/multi-tenancy`, `${prefix}/customers`, `${prefix}/users`, `${prefix}/roles`, ...(isPE ? [`${prefix}/groups`] : [])],
 	},
 	{
 		label: 'Alarms & Notifications',
@@ -146,7 +146,12 @@ const guideItems = (prefix: string) => [
 	{
 		label: 'Other Features',
 		collapsed: true,
-		items: [`${prefix}/image-gallery`, `${prefix}/add-ons`, `${prefix}/edge-computing`, `${prefix}/trendz-analytics`],
+		items: [`${prefix}/image-gallery`, `${prefix}/version-control`, `${prefix}/entity-views`, `${prefix}/scheduler`],
+	},
+	{
+		label: 'Add-ons',
+		collapsed: true,
+		items: [`${prefix}/add-ons`, `${prefix}/edge-computing`, `${prefix}/trendz-analytics`],
 	},
 	{
 		label: 'Security',
@@ -195,7 +200,6 @@ const edgeInstallationItems = (prefix: string) => [
 const installationItems = (prefix: string) => {
 	const isPE = prefix.includes('/pe');
 	return [
-		{ label: 'Installation options', slug: `${prefix}/installation` },
 		{
 			label: 'On-premises',
 			collapsed: true,
@@ -301,7 +305,6 @@ const recipeItems = (prefix: string) => [
 ];
 
 const apisAndSdksItems = (prefix: string) => [
-	{ label: 'APIs & SDKs', slug: `${prefix}/reference/apis-and-sdks` },
 	{
 		label: 'Device APIs',
 		collapsed: true,
@@ -451,34 +454,6 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 			`${prefix}/configuration/vc-executor-config`,
 			`${prefix}/configuration/js-executor-config`,
 			...extraConfigItems,
-		],
-	},
-	{
-		label: 'Widgets',
-		collapsed: true,
-		items: [
-			`${prefix}/widgets/widget-library`,
-			`${prefix}/widgets/chart-widget`,
-			`${prefix}/widgets/map-widgets`,
-			`${prefix}/widgets/entity-table-widget`,
-			`${prefix}/widgets/markdown-html-card`,
-		],
-	},
-	{
-		label: 'Notification System',
-		collapsed: true,
-		items: [
-			`${prefix}/notification-system/template-parameters`,
-			`${prefix}/notification-system/rule-triggers`,
-		],
-	},
-	{
-		label: 'TBEL',
-		collapsed: true,
-		items: [
-			{ label: 'Overview', slug: `${basePrefix}/user-guide/tbel` },
-			`${basePrefix}/user-guide/tbel/language-guide`,
-			`${basePrefix}/user-guide/tbel/helper-functions`,
 		],
 	},
 	{
@@ -633,6 +608,38 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 			},
 		],
 	},
+	{
+		label: 'Notification System',
+		collapsed: true,
+		items: [
+			`${prefix}/notification-system/template-parameters`,
+			`${prefix}/notification-system/rule-triggers`,
+			`${basePrefix}/user-guide/ui/mail-settings`,
+			`${basePrefix}/user-guide/ui/sms-provider-settings`,
+			`${basePrefix}/user-guide/ui/slack-settings`,
+			`${basePrefix}/user-guide/ui/microsoft-teams-settings`,
+		],
+	},
+	{
+		label: 'TBEL',
+		collapsed: true,
+		items: [
+			{ label: 'Overview', slug: `${basePrefix}/user-guide/tbel` },
+			`${basePrefix}/user-guide/tbel/language-guide`,
+			`${basePrefix}/user-guide/tbel/helper-functions`,
+		],
+	},
+	{
+		label: 'Widgets',
+		collapsed: true,
+		items: [
+			`${prefix}/widgets/widget-library`,
+			`${prefix}/widgets/chart-widget`,
+			`${prefix}/widgets/map-widgets`,
+			`${prefix}/widgets/entity-table-widget`,
+			`${prefix}/widgets/markdown-html-card`,
+		],
+	},
 ];
 };
 
@@ -641,7 +648,6 @@ const mainSidebarItems = (prefix: string, extraRecipeItems: SidebarConfig = [], 
 		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
 		items: [
-			prefix,
 			{
 				label: 'Welcome to IoT!',
 				translations: { uk: 'Новий проект' },
@@ -664,7 +670,7 @@ const mainSidebarItems = (prefix: string, extraRecipeItems: SidebarConfig = [], 
 		label: 'Guides',
 		collapsed: true,
 		translations: { uk: 'Посібники' },
-		items: guideItems(`${prefix}/user-guide`),
+		items: guideItems(`${prefix}/user-guide`, { isPE: prefix.includes('/pe') }),
 	},
 	{
 		label: 'Recipes',
@@ -1002,12 +1008,21 @@ export const gwSidebar: SidebarConfig = [
 	{
 		label: 'Installation',
 		translations: { uk: 'Встановлення' },
-		items: ['docs/iot-gateway/installation', 'docs/iot-gateway/install/upgrade-instructions'],
+		items: [
+			'docs/iot-gateway/installation',
+			'docs/iot-gateway/installation/deb-installation',
+			'docs/iot-gateway/installation/docker-installation',
+			'docs/iot-gateway/installation/docker-windows',
+			'docs/iot-gateway/installation/rpm-installation',
+			'docs/iot-gateway/installation/pip-installation',
+			'docs/iot-gateway/installation/source-installation',
+			'docs/iot-gateway/installation/upgrade-instructions',
+		],
 	},
 	{
 		label: 'Configuration',
 		translations: { uk: 'Конфігурація' },
-		items: ['docs/iot-gateway/config/general'],
+		items: ['docs/iot-gateway/config/general', 'docs/iot-gateway/features/remote-configuration'],
 	},
 	{
 		label: 'Connectors',
@@ -1034,7 +1049,6 @@ export const gwSidebar: SidebarConfig = [
 		label: 'Features',
 		translations: { uk: 'Функції' },
 		items: [
-			'docs/iot-gateway/features/remote-configuration',
 			'docs/iot-gateway/features/remote-shell',
 			'docs/iot-gateway/features/report-strategy',
 			'docs/iot-gateway/features/reserved-rpc',
@@ -1128,13 +1142,19 @@ export const licenseSidebar: SidebarConfig = [
 export type SidebarTabLinks = Partial<Record<string, string>>;
 export const opensourceSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/',
+	'Guides': '/docs/user-guide/',
+	'Recipes': '/docs/recipes/',
 	'Installation': '/docs/installation/',
 	'APIs & SDKs': '/docs/reference/apis-and-sdks/',
+	'Reference': '/docs/reference/',
 };
 export const peSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/pe/',
+	'Guides': '/docs/pe/user-guide/',
+	'Recipes': '/docs/pe/recipes/',
 	'Installation': '/docs/pe/installation/',
 	'APIs & SDKs': '/docs/pe/reference/apis-and-sdks/',
+	'Reference': '/docs/pe/reference/',
 };
 
 export const paasSidebarTabLinks: SidebarTabLinks = {};
