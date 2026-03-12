@@ -27,8 +27,8 @@ export const productDocsPrefix: Record<Products, string> = {
 	[Products.TRENDZ]: 'trendz/',
 	[Products.MOBILE]: 'mobile/',
 	[Products.MOBILE_PE]: 'mobile/pe/',
-	[Products.TBMQ]: 'tbmq/',
-	[Products.TBMQ_PE]: 'tbmq/pe/',
+	[Products.TBMQ]: 'mqtt-broker/',
+	[Products.TBMQ_PE]: 'mqtt-broker/pe/',
 };
 
 /** Returns the docs prefix for the given product (e.g. 'pe/' for PE, '' for CE). */

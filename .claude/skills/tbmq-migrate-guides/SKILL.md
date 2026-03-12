@@ -1,6 +1,6 @@
 ---
 name: tbmq-migrate-guides
-description: Migrates TBMQ documentation pages from the old Jekyll site (thingsboard.github.io) to the new Astro + Starlight site (thingsboard.io). Use when the user asks to migrate, rewrite, or create TBMQ-related documentation pages.
+description: ALWAYS use for any TBMQ documentation task in this project — this includes migrating pages from the Jekyll site, writing new _includes MDX files, creating CE/PE stubs, updating the sidebar, copying images, or adding/rewriting any TBMQ guide (security, install, user-guide, reference, UI). Use even when the request seems straightforward, like "write the sessions page" or "create stubs for X" or "add the proxy protocol guide". Do not attempt TBMQ doc work without this skill — it defines the exact file structure, component conventions, and Jekyll-to-MDX conversion patterns required.
 ---
 
 # TBMQ migrate guides
@@ -280,6 +280,24 @@ For PE-specific links from a CE context, pass the target product explicitly:
 ```mdx
 <DocLink product={Products.TBMQ_PE} path="install/upgrade-instructions">TBMQ PE upgrade guide</DocLink>
 ```
+
+### TBMQ URL prefix — critical note
+
+`productDocsPrefix` in `src/models/site.models.ts` maps `Products.TBMQ` → `'mqtt-broker/'` and `Products.TBMQ_PE` → `'mqtt-broker/pe/'`. This means:
+
+- `DocLink` works correctly for TBMQ pages — always use it for internal links
+- CE pages live at `/docs/mqtt-broker/{path}/`
+- PE pages live at `/docs/mqtt-broker/pe/{path}/`
+
+When constructing hrefs manually (e.g. inside `LinkButton`), use `productDocsPrefix`:
+
+```mdx
+import { productDocsPrefix } from '~/models/site.models';
+
+<LinkButton href={`/docs/${productDocsPrefix[props.product]}getting-started/`}>Getting started</LinkButton>
+```
+
+**Never hardcode** `/docs/mqtt-broker/` or `/docs/mqtt-broker/pe/` — always derive from `productDocsPrefix[props.product]` so CE and PE links resolve correctly on both stub pages.
 
 ### PE license key section
 
