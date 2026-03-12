@@ -161,7 +161,10 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 	{
 		label: 'Contribution',
 		collapsed: true,
-		items: [`${prefix}/contribution`, `${prefix}/scada-symbol-dev`],
+		items: [
+			`${prefix}/contribution/rule-node-development`,
+			`${prefix}/scada-symbol-dev`,
+		],
 	},
 	{
 		label: 'Releases',
