@@ -164,6 +164,10 @@ Data-driven pages at `/case-studies/{slug}`. Use the `case-study-pages` skill fo
 
 Key dirs: `src/data/case-studies/`, `src/components/CaseStudy/`, `src/pages/case-studies/`.
 
+### Clients Feedback Page
+
+Data-driven page at `/clients-feedback/`. Key dirs: `src/data/clients-feedback/`, `src/components/Feedback/`, `src/pages/clients-feedback/`.
+
 ## Releasing a New Version
 
 Use the `release` skill for the full checklist. Key files:
