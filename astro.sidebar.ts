@@ -1010,7 +1010,6 @@ export const trendzSidebar: SidebarConfig = [
 					},
 					'docs/trendz/view-settings',
 					'docs/trendz/view-collections',
-					'docs/trendz/states',
 				],
 			},
 			{
@@ -1076,6 +1075,7 @@ export const trendzSidebar: SidebarConfig = [
 					'docs/trendz/ai-assistance-prompts',
 				],
 			},
+			'docs/trendz/states',
 			{
 				label: 'Settings',
 				collapsed: true,
