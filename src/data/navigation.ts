@@ -77,7 +77,7 @@ export const productsSubmenu: SubMenu = {
 					linkClass: 'edge-lnk',
 				},
 				{
-					href: '/docs/iot-gateway/what-is-iot-gateway/',
+					href: '/docs/iot-gateway/',
 					icon: '/src/assets/images/landings/nav/gateway-icon.svg',
 					heading: 'IoT Gateway',
 					description: 'Connect legacy protocols',

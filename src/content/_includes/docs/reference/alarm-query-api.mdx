@@ -1,0 +1,380 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+The Alarm Data Query API lets you search, filter, and subscribe to alarms in ThingsBoard. It extends the <DocLink product={props.product} path='reference/data-query-api'>Entity Data Query</DocLink> format with alarm-specific filters for severity, status, type, time range, and assignee.
+
+It is used by:
+
+- <DocLink product={props.product} path='reference/rest-api'>REST API</DocLink> — `POST /api/alarmsQuery/find` and `POST /api/alarmsQuery/count`
+- <DocLink product={props.product} path='reference/websocket-api'>WebSocket API</DocLink> — `ALARM_DATA`, `ALARM_COUNT`, and `ALARM_STATUS` command types
+
+## Query Structure
+
+An `AlarmDataQuery` has the same base fields as an entity data query plus alarm-specific filters:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `entityFilter` | Yes | Selects which entities to search alarms for — see <DocLink product={props.product} path='reference/data-query-api'>entity filters</DocLink> |
+| `keyFilters` | No | Filter by attribute or telemetry values of the alarm originator |
+| `pageLink` | Yes | Pagination, sorting, and alarm-specific filters (see below) |
+| `alarmFields` | No | Alarm fields to return |
+| `entityFields` | No | Entity fields of the alarm originator to return |
+| `latestValues` | No | Latest attribute or telemetry keys of the originator to return |
+
+```json title="Query — recent critical alarms for all devices" maxLines=30 collapsible
+{
+  "entityFilter": {
+    "type": "entityType",
+    "entityType": "DEVICE"
+  },
+  "pageLink": {
+    "pageSize": 10,
+    "page": 0,
+    "sortOrder": {
+      "key": { "type": "ALARM_FIELD", "key": "createdTime" },
+      "direction": "DESC"
+    },
+    "severityList": ["CRITICAL"],
+    "statusList": ["ACTIVE"]
+  },
+  "alarmFields": [
+    { "type": "ALARM_FIELD", "key": "createdTime" },
+    { "type": "ALARM_FIELD", "key": "type" },
+    { "type": "ALARM_FIELD", "key": "severity" },
+    { "type": "ALARM_FIELD", "key": "status" },
+    { "type": "ALARM_FIELD", "key": "assignee" }
+  ],
+  "entityFields": [
+    { "type": "ENTITY_FIELD", "key": "name" }
+  ],
+  "keyFilters": []
+}
+```
+
+### Response
+
+```json maxLines=25 collapsible
+{
+  "data": [
+    {
+      "entityId": { "entityType": "DEVICE", "id": "784f394c-42b6-435a-983c-b7beff2784f9" },
+      "latest": {
+        "ALARM_FIELD": {
+          "createdTime": { "ts": 1704067200000, "value": "1704067200000" },
+          "type": { "ts": 0, "value": "HIGH_TEMPERATURE" },
+          "severity": { "ts": 0, "value": "CRITICAL" },
+          "status": { "ts": 0, "value": "ACTIVE_UNACK" },
+          "assignee": { "ts": 0, "value": "john@example.com" }
+        },
+        "ENTITY_FIELD": {
+          "name": { "ts": 0, "value": "Thermostat A" }
+        }
+      },
+      "id": { "entityType": "ALARM", "id": "alarm-uuid" },
+      "createdTime": 1704067200000,
+      "type": "HIGH_TEMPERATURE",
+      "originator": { "entityType": "DEVICE", "id": "784f394c-42b6-435a-983c-b7beff2784f9" },
+      "severity": "CRITICAL",
+      "acknowledged": false,
+      "cleared": false
+    }
+  ],
+  "totalPages": 1,
+  "totalElements": 1,
+  "hasNext": false
+}
+```
+
+## Alarm Fields
+
+Use the `ALARM_FIELD` key type to include alarm-specific properties in the response:
+
+| Key | Description |
+|-----|-------------|
+| `createdTime` | When the alarm was created |
+| `type` | Alarm type string (e.g. `HIGH_TEMPERATURE`) |
+| `severity` | `CRITICAL`, `MAJOR`, `MINOR`, `WARNING`, or `INDETERMINATE` |
+| `status` | Combined status (e.g. `ACTIVE_UNACK`, `ACTIVE_ACK`, `CLEARED_UNACK`, `CLEARED_ACK`) |
+| `assignee` | Email of the assigned user |
+| `startTs` | Alarm start timestamp |
+| `endTs` | Alarm end timestamp |
+| `ackTs` | Acknowledgment timestamp |
+| `clearTs` | Clear timestamp |
+
+## Alarm Page Link
+
+The alarm query's `pageLink` extends the standard page link with alarm-specific filters:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `pageSize` | int | Results per page (required) |
+| `page` | int | Zero-based page number |
+| `sortOrder` | object | Sort by any `ALARM_FIELD`, `ENTITY_FIELD`, or telemetry key |
+| `textSearch` | string | Free-text search |
+| `severityList` | string[] | Filter by severity: `CRITICAL`, `MAJOR`, `MINOR`, `WARNING`, `INDETERMINATE` |
+| `statusList` | string[] | Filter by search status (see below) |
+| `typeList` | string[] | Filter by alarm type strings |
+| `searchPropagatedAlarms` | boolean | Include alarms propagated from related entities (default `true`) |
+| `assigneeId` | string | Filter by assignee user ID |
+| `startTs` | long | Start of time range (Unix ms) |
+| `endTs` | long | End of time range (Unix ms) |
+| `timeWindow` | long | Rolling time window in ms (alternative to startTs/endTs) |
+
+### Alarm search status values
+
+| Status | Matches |
+|--------|---------|
+| `ANY` | All alarms |
+| `ACTIVE` | Active alarms (not yet cleared) |
+| `CLEARED` | Cleared alarms |
+| `ACK` | Acknowledged alarms |
+| `UNACK` | Unacknowledged alarms |
+
+### Alarm severity values
+
+| Severity | Priority |
+|----------|----------|
+| `CRITICAL` | Highest |
+| `MAJOR` | High |
+| `MINOR` | Medium |
+| `WARNING` | Low |
+| `INDETERMINATE` | Lowest |
+
+## REST API Usage
+
+### Find alarms
+
+`POST /api/alarmsQuery/find`
+
+```bash wrap
+curl -s -X POST "$TB_URL/api/alarmsQuery/find" \
+  -H "Content-Type: application/json" \
+  -H "X-Authorization: $AUTH" \
+  -d '{
+    "entityFilter": { "type": "entityType", "entityType": "DEVICE" },
+    "pageLink": {
+      "pageSize": 10, "page": 0,
+      "sortOrder": { "key": { "type": "ALARM_FIELD", "key": "createdTime" }, "direction": "DESC" },
+      "severityList": ["CRITICAL", "MAJOR"],
+      "statusList": ["ACTIVE"]
+    },
+    "alarmFields": [
+      { "type": "ALARM_FIELD", "key": "createdTime" },
+      { "type": "ALARM_FIELD", "key": "type" },
+      { "type": "ALARM_FIELD", "key": "severity" },
+      { "type": "ALARM_FIELD", "key": "status" }
+    ],
+    "entityFields": [{ "type": "ENTITY_FIELD", "key": "name" }],
+    "keyFilters": []
+  }'
+```
+
+### Count alarms
+
+`POST /api/alarmsQuery/count`
+
+Send an `AlarmCountQuery` — same alarm-specific filters without pagination or field selection:
+
+```bash wrap
+curl -s -X POST "$TB_URL/api/alarmsQuery/count" \
+  -H "Content-Type: application/json" \
+  -H "X-Authorization: $AUTH" \
+  -d '{
+    "entityFilter": { "type": "entityType", "entityType": "DEVICE" },
+    "keyFilters": [],
+    "severityList": ["CRITICAL"],
+    "statusList": ["ACTIVE"]
+  }'
+```
+
+## WebSocket Usage
+
+Use the same query structure inside `ALARM_DATA`, `ALARM_COUNT`, and `ALARM_STATUS` WebSocket commands.
+
+### Alarm data subscription
+
+```json maxLines=25 collapsible
+{
+  "cmds": [
+    {
+      "cmdId": 1,
+      "type": "ALARM_DATA",
+      "query": {
+        "entityFilter": { "type": "entityType", "entityType": "DEVICE" },
+        "pageLink": {
+          "pageSize": 10, "page": 0,
+          "sortOrder": { "key": { "type": "ALARM_FIELD", "key": "createdTime" }, "direction": "DESC" },
+          "severityList": ["CRITICAL", "MAJOR"],
+          "statusList": ["ACTIVE"]
+        },
+        "alarmFields": [
+          { "type": "ALARM_FIELD", "key": "createdTime" },
+          { "type": "ALARM_FIELD", "key": "type" },
+          { "type": "ALARM_FIELD", "key": "severity" },
+          { "type": "ALARM_FIELD", "key": "status" }
+        ],
+        "entityFields": [{ "type": "ENTITY_FIELD", "key": "name" }],
+        "keyFilters": []
+      }
+    }
+  ]
+}
+```
+
+### Alarm count subscription
+
+```json
+{
+  "cmds": [
+    {
+      "cmdId": 2,
+      "type": "ALARM_COUNT",
+      "query": {
+        "entityFilter": { "type": "entityType", "entityType": "DEVICE" },
+        "keyFilters": [],
+        "severityList": ["CRITICAL"],
+        "statusList": ["ACTIVE"]
+      }
+    }
+  ]
+}
+```
+
+### Alarm status subscription
+
+Monitor whether **any** active alarm matches the criteria for a specific entity. Returns a boolean `active` field.
+
+```json
+{
+  "cmds": [
+    {
+      "cmdId": 3,
+      "type": "ALARM_STATUS",
+      "originatorId": { "entityType": "DEVICE", "id": "device-uuid" },
+      "typeList": ["HIGH_TEMPERATURE"],
+      "severityList": ["CRITICAL", "MAJOR"]
+    }
+  ]
+}
+```
+
+Pass `null` for `typeList` or `severityList` to match all alarm types or severities.
+
+See the <DocLink product={props.product} path='reference/websocket-api'>WebSocket API</DocLink> reference for connection, authentication, and the full message flow.
+
+## Examples
+
+### Unacknowledged alarms for a device type
+
+Find all unacknowledged alarms for thermostats, sorted by severity:
+
+```json maxLines=25 collapsible
+{
+  "entityFilter": {
+    "type": "deviceType",
+    "deviceTypes": ["thermostat"],
+    "deviceNameFilter": ""
+  },
+  "pageLink": {
+    "pageSize": 50,
+    "page": 0,
+    "sortOrder": {
+      "key": { "type": "ALARM_FIELD", "key": "severity" },
+      "direction": "ASC"
+    },
+    "statusList": ["UNACK"]
+  },
+  "alarmFields": [
+    { "type": "ALARM_FIELD", "key": "createdTime" },
+    { "type": "ALARM_FIELD", "key": "type" },
+    { "type": "ALARM_FIELD", "key": "severity" },
+    { "type": "ALARM_FIELD", "key": "status" },
+    { "type": "ALARM_FIELD", "key": "assignee" }
+  ],
+  "entityFields": [
+    { "type": "ENTITY_FIELD", "key": "name" }
+  ],
+  "keyFilters": []
+}
+```
+
+### Alarms in a time range with entity telemetry
+
+Find critical alarms from the last 24 hours, including the originator device's latest temperature:
+
+```json maxLines=30 collapsible
+{
+  "entityFilter": {
+    "type": "entityType",
+    "entityType": "DEVICE"
+  },
+  "pageLink": {
+    "pageSize": 20,
+    "page": 0,
+    "sortOrder": {
+      "key": { "type": "ALARM_FIELD", "key": "createdTime" },
+      "direction": "DESC"
+    },
+    "severityList": ["CRITICAL"],
+    "statusList": ["ACTIVE"],
+    "startTs": 1703980800000,
+    "endTs": 1704067200000
+  },
+  "alarmFields": [
+    { "type": "ALARM_FIELD", "key": "createdTime" },
+    { "type": "ALARM_FIELD", "key": "type" },
+    { "type": "ALARM_FIELD", "key": "severity" }
+  ],
+  "entityFields": [
+    { "type": "ENTITY_FIELD", "key": "name" }
+  ],
+  "latestValues": [
+    { "type": "TIME_SERIES", "key": "temperature" }
+  ],
+  "keyFilters": []
+}
+```
+
+### Alarms for related entities
+
+Find all active alarms for devices related to a building asset:
+
+```json maxLines=25 collapsible
+{
+  "entityFilter": {
+    "type": "relationsQuery",
+    "rootEntity": { "entityType": "ASSET", "id": "building-uuid" },
+    "direction": "FROM",
+    "maxLevel": 3,
+    "fetchLastLevelOnly": false,
+    "filters": [
+      { "relationType": "Contains", "entityTypes": ["DEVICE"] }
+    ]
+  },
+  "pageLink": {
+    "pageSize": 50,
+    "page": 0,
+    "sortOrder": {
+      "key": { "type": "ALARM_FIELD", "key": "severity" },
+      "direction": "ASC"
+    },
+    "statusList": ["ACTIVE"]
+  },
+  "alarmFields": [
+    { "type": "ALARM_FIELD", "key": "type" },
+    { "type": "ALARM_FIELD", "key": "severity" },
+    { "type": "ALARM_FIELD", "key": "status" }
+  ],
+  "entityFields": [
+    { "type": "ENTITY_FIELD", "key": "name" },
+    { "type": "ENTITY_FIELD", "key": "type" }
+  ],
+  "keyFilters": []
+}
+```
+
+## See also
+
+- <DocLink product={props.product} path='reference/data-query-api'>Entity Data Query API</DocLink> — entity filters, key filters, and pagination reference
+- <DocLink product={props.product} path='reference/websocket-api'>WebSocket API</DocLink> — real-time subscriptions using alarm data queries
+- <DocLink product={props.product} path='reference/rest-api'>REST API</DocLink> — authentication and general API usage

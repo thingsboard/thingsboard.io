@@ -11,9 +11,16 @@ Before doing anything else:
 1. **Derive paths** from the source argument provided by the user:
    - Old includes root: `{OLD_WEBSITE_PATH}/_includes/docs/user-guide/`
    - Old images root:   `{OLD_WEBSITE_PATH}/images/`
+   - **Known old website path:** `/home/ashvayka/git/website` — images live at `/home/ashvayka/git/website/images/`
+   - The CDN URL `img.thingsboard.io` serves files from this same images directory.
 
    Example: if the user provides `/home/ashvayka/git/website/_includes/docs/user-guide/calculated-fields`,
    then `OLD_WEBSITE_PATH = /home/ashvayka/git/website` and images live at `/home/ashvayka/git/website/images/`.
+
+   If the user provides a URL like `https://thingsboard.io/docs/pe/user-guide/image-gallery/`,
+   the source include is at `/home/ashvayka/git/website/_includes/docs/user-guide/image-gallery.md`
+   and images are at `/home/ashvayka/git/website/images/user-guide/image-gallery/`.
+   Also check the CE variant at `/docs/user-guide/image-gallery/` to determine CE/PE scope.
 
 2. **Ask clarifying questions** about scope and intent — do not assume. Examples:
    - Is this a single page or a group of related pages?
@@ -215,6 +222,20 @@ Add `ImageGallery` import only if the page uses images:
 ```mdx
 import ImageGallery from '@components/ImageGallery.astro';
 ```
+
+**PE-only pages:** If the old page starts with `{% assign feature = "..." %}{% include templates/pe-feature-banner.md %}`,
+add the `Banner` component at the top of the include file:
+```mdx
+import Banner from '~/components/Banner.astro';
+
+<Banner variant="peFeature" product={props.product} path="user-guide/{page}" />
+```
+- `variant="peFeature"` — renders only on CE pages, shows standard "This feature is available in ThingsBoard Professional and ThingsBoard Cloud only." with auto-generated links.
+- `product={props.product}` — required, passes the current product context.
+- `path="..."` — the docs page path (without leading/trailing slash) used to build PE/Cloud links.
+- **Do NOT** use `<Aside type="note">` or `<Aside type="caution">` with custom text for PE-only banners.
+- **Do NOT** use `type=` instead of `variant=`.
+- The `PEOnly` inline badge pattern is for marking **individual features** within a mixed CE/PE page (e.g., a table cell), not for page-level banners.
 
 Follow all rules in `/edit-doc` (DocLink, Aside types, Steps, ENV variable names, no bare markdown links).
 

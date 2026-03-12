@@ -14,12 +14,14 @@ const guideItems = (prefix: string) => [
 		],
 	},
 	{
-		label: 'Devices',
+		label: 'Devices & Assets',
 		collapsed: true,
 		items: [
 			`${prefix}/devices`,
 			`${prefix}/device-profiles`,
 			`${prefix}/connectivity-guide`,
+			`${prefix}/assets`,
+			`${prefix}/asset-profiles`,
 			`${prefix}/connectivity-status`,
 			`${prefix}/claiming`,
 			`${prefix}/provisioning`,
@@ -125,11 +127,11 @@ const guideItems = (prefix: string) => [
 		label: 'White-labeling',
 		collapsed: true,
 		items: [
-			`${prefix}/white-labeling-general`,
-			`${prefix}/white-labeling-login`,
-			`${prefix}/white-labeling-mail`,
-			`${prefix}/white-labeling-translation`,
-			`${prefix}/white-labeling-menu`,
+			{ label: 'General', slug: `${prefix}/white-labeling-general` },
+			{ label: 'Login', slug: `${prefix}/white-labeling-login` },
+			{ label: 'Mail Templates', slug: `${prefix}/white-labeling-mail` },
+			{ label: 'Custom Translation', slug: `${prefix}/white-labeling-translation` },
+			{ label: 'Custom Menu', slug: `${prefix}/white-labeling-menu` },
 		],
 	},
 	{
@@ -144,12 +146,17 @@ const guideItems = (prefix: string) => [
 	{
 		label: 'Other Features',
 		collapsed: true,
+		items: [`${prefix}/image-gallery`, `${prefix}/version-control`, `${prefix}/entity-views`, `${prefix}/scheduler`],
+	},
+	{
+		label: 'Add-ons',
+		collapsed: true,
 		items: [`${prefix}/add-ons`, `${prefix}/edge-computing`, `${prefix}/trendz-analytics`],
 	},
 	{
 		label: 'Security',
 		collapsed: true,
-		items: [`${prefix}/security`, `${prefix}/security/two-factor-authentication`, `${prefix}/security/oauth-2-support`, `${prefix}/security/domains`, `${prefix}/security/http-over-ssl`, `${prefix}/security/audit-log`, `${prefix}/security/secrets-storage`, `${prefix}/security/api-keys`],
+		items: [`${prefix}/security`, `${prefix}/security/two-factor-authentication`, `${prefix}/security/oauth-2-support`, `${prefix}/security/domains`, `${prefix}/security/self-registration`, `${prefix}/security/http-over-ssl`, `${prefix}/security/audit-log`, `${prefix}/security/secrets-storage`, `${prefix}/security/api-keys`],
 	},
 	{
 		label: 'Contribution',
@@ -157,11 +164,12 @@ const guideItems = (prefix: string) => [
 		items: [`${prefix}/contribution`, `${prefix}/scada-symbol-dev`],
 	},
 	{
-		label: 'Versions & Support',
+		label: 'Releases',
 		collapsed: true,
 		items: [
-			`${prefix}/versions-and-support`,
-			`${prefix}/releases-table`,
+			{ label: 'Release Policy', slug: `${prefix}/versions-and-support` },
+			{ label: 'Release Table', slug: `${prefix}/releases-table` },
+			`${prefix}/roadmap`,
 		],
 	},
 ];
@@ -394,6 +402,8 @@ const apisAndSdksItems = (prefix: string) => [
 		items: [
 			`${prefix}/reference/rest-api`,
 			`${prefix}/reference/websocket-api`,
+			`${prefix}/reference/data-query-api`,
+			`${prefix}/reference/alarm-query-api`,
 		],
 	},
 	{
@@ -414,7 +424,9 @@ const apisAndSdksItems = (prefix: string) => [
 	},
 ];
 
-const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) => [
+const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) => {
+	const basePrefix = prefix.replace('/reference', '');
+	return [
 	{
 		label: 'Architecture',
 		collapsed: true,
@@ -463,6 +475,15 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 		items: [
 			`${prefix}/notification-system/template-parameters`,
 			`${prefix}/notification-system/rule-triggers`,
+		],
+	},
+	{
+		label: 'TBEL',
+		collapsed: true,
+		items: [
+			{ label: 'Overview', slug: `${basePrefix}/user-guide/tbel` },
+			`${basePrefix}/user-guide/tbel/language-guide`,
+			`${basePrefix}/user-guide/tbel/helper-functions`,
 		],
 	},
 	{
@@ -618,6 +639,7 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 		],
 	},
 ];
+};
 
 const mainSidebarItems = (prefix: string, extraRecipeItems: SidebarConfig = [], referenceConfigItems: SidebarConfig = []): SidebarConfig => [
 	{
@@ -696,6 +718,15 @@ export const peSidebar: SidebarConfig = mainSidebarItems('docs/pe', [
 			'docs/pe/recipes/rbac-generic-role-scope',
 			'docs/pe/recipes/rbac-isolated-device-groups',
 			'docs/pe/recipes/rbac-smart-buildings',
+		],
+	},
+	{
+		label: 'White-labeling',
+		collapsed: true,
+		items: [
+			'docs/pe/recipes/white-labeling-translate-dashboard',
+			'docs/pe/recipes/white-labeling-html-value-card',
+			'docs/pe/recipes/white-labeling-post-processing',
 		],
 	},
 ], [
@@ -812,12 +843,21 @@ export const gwSidebar: SidebarConfig = [
 	{
 		label: 'Installation',
 		translations: { uk: 'Встановлення' },
-		items: ['docs/iot-gateway/installation', 'docs/iot-gateway/install/upgrade-instructions'],
+		items: [
+			'docs/iot-gateway/installation',
+			'docs/iot-gateway/installation/deb-installation',
+			'docs/iot-gateway/installation/docker-installation',
+			'docs/iot-gateway/installation/docker-windows',
+			'docs/iot-gateway/installation/rpm-installation',
+			'docs/iot-gateway/installation/pip-installation',
+			'docs/iot-gateway/installation/source-installation',
+			'docs/iot-gateway/installation/upgrade-instructions',
+		],
 	},
 	{
 		label: 'Configuration',
 		translations: { uk: 'Конфігурація' },
-		items: ['docs/iot-gateway/config/general'],
+		items: ['docs/iot-gateway/config/general', 'docs/iot-gateway/features/remote-configuration'],
 	},
 	{
 		label: 'Connectors',
@@ -844,7 +884,6 @@ export const gwSidebar: SidebarConfig = [
 		label: 'Features',
 		translations: { uk: 'Функції' },
 		items: [
-			'docs/iot-gateway/features/remote-configuration',
 			'docs/iot-gateway/features/remote-shell',
 			'docs/iot-gateway/features/report-strategy',
 			'docs/iot-gateway/features/reserved-rpc',
@@ -950,6 +989,51 @@ export const licenseSidebar: SidebarConfig = [
 		translations: { uk: 'Початок роботи' },
 		items: ['docs/license-server'],
 	},
+];
+
+/** Maps tab group label → URL to navigate when the tab is clicked (optional per-group). */
+export type SidebarTabLinks = Partial<Record<string, string>>;
+export const opensourceSidebarTabLinks: SidebarTabLinks = {
+	'Getting Started': '/docs/',
+	'Installation': '/docs/installation/',
+	'APIs & SDKs': '/docs/reference/apis-and-sdks/',
+};
+export const peSidebarTabLinks: SidebarTabLinks = {
+	'Getting Started': '/docs/pe/',
+	'Installation': '/docs/pe/installation/',
+	'APIs & SDKs': '/docs/pe/reference/apis-and-sdks/',
+};
+
+export const paasSidebarTabLinks: SidebarTabLinks = {};
+export const paasEuSidebarTabLinks: SidebarTabLinks = {};
+export const edgeSidebarTabLinks: SidebarTabLinks = {};
+export const edgePeSidebarTabLinks: SidebarTabLinks = {};
+export const gwSidebarTabLinks: SidebarTabLinks = {};
+export const tbmqSidebarTabLinks: SidebarTabLinks = {};
+export const tbmqPeSidebarTabLinks: SidebarTabLinks = {};
+export const mobileSidebarTabLinks: SidebarTabLinks = {};
+export const mobilePeSidebarTabLinks: SidebarTabLinks = {};
+export const trendzSidebarTabLinks: SidebarTabLinks = {};
+export const licenseSidebarTabLinks: SidebarTabLinks = {};
+
+/**
+ * Maps URL prefix → tab navigation links for that product's sidebar.
+ * Order matters: more specific prefixes must come before less specific ones.
+ */
+export const sidebarTabLinksByPrefix: ReadonlyArray<[string, SidebarTabLinks]> = [
+	['/docs/pe/', peSidebarTabLinks],
+	['/docs/paas/eu/', paasEuSidebarTabLinks],
+	['/docs/paas/', paasSidebarTabLinks],
+	['/docs/edge/pe/', edgePeSidebarTabLinks],
+	['/docs/edge/', edgeSidebarTabLinks],
+	['/docs/mqtt-broker/pe/', tbmqPeSidebarTabLinks],
+	['/docs/mqtt-broker/', tbmqSidebarTabLinks],
+	['/docs/mobile/pe/', mobilePeSidebarTabLinks],
+	['/docs/mobile/', mobileSidebarTabLinks],
+	['/docs/trendz/', trendzSidebarTabLinks],
+	['/docs/iot-gateway/', gwSidebarTabLinks],
+	['/docs/license-server/', licenseSidebarTabLinks],
+	['/docs/', opensourceSidebarTabLinks],
 ];
 
 /**
