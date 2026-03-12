@@ -2,7 +2,7 @@ import type { StarlightUserConfig } from '@astrojs/starlight/types';
 
 type SidebarConfig = NonNullable<StarlightUserConfig['sidebar']>;
 
-const guideItems = (prefix: string) => [
+const guideItems = (prefix: string, { isPE = false } = {}) => [
 	{
 		label: 'Digital Twins',
 		collapsed: true,
@@ -47,7 +47,7 @@ const guideItems = (prefix: string) => [
 	{
 		label: 'Customers & Users',
 		collapsed: true,
-		items: [`${prefix}/multi-tenancy`, `${prefix}/customers`, `${prefix}/users`, `${prefix}/roles`],
+		items: [`${prefix}/multi-tenancy`, `${prefix}/customers`, `${prefix}/users`, `${prefix}/roles`, ...(isPE ? [`${prefix}/groups`] : [])],
 	},
 	{
 		label: 'Alarms & Notifications',
@@ -146,7 +146,7 @@ const guideItems = (prefix: string) => [
 	{
 		label: 'Other Features',
 		collapsed: true,
-		items: [`${prefix}/image-gallery`, `${prefix}/version-control`, `${prefix}/entity-views`],
+		items: [`${prefix}/image-gallery`, `${prefix}/version-control`, `${prefix}/entity-views`, `${prefix}/scheduler`],
 	},
 	{
 		label: 'Add-ons',
@@ -156,12 +156,44 @@ const guideItems = (prefix: string) => [
 	{
 		label: 'Security',
 		collapsed: true,
-		items: [`${prefix}/security`, `${prefix}/security/two-factor-authentication`, `${prefix}/security/oauth-2-support`, `${prefix}/security/domains`, `${prefix}/security/self-registration`, `${prefix}/security/http-over-ssl`, `${prefix}/security/audit-log`, `${prefix}/security/secrets-storage`, `${prefix}/security/api-keys`],
+		items: [
+			{ label: 'Overview', slug: `${prefix}/security/overview` },
+			{
+				label: 'Authentication',
+				collapsed: true,
+				items: [
+					`${prefix}/security/two-factor-authentication`,
+					`${prefix}/security/oauth-2-support`,
+					`${prefix}/security/self-registration`,
+					`${prefix}/security/api-keys`,
+				],
+			},
+			{
+				label: 'Infrastructure',
+				collapsed: true,
+				items: [
+					`${prefix}/security/http-over-ssl`,
+					`${prefix}/security/domains`,
+				],
+			},
+			{
+				label: 'Administration',
+				collapsed: true,
+				items: [
+					{ label: 'Security settings', slug: `${prefix}/security` },
+					`${prefix}/security/audit-log`,
+					`${prefix}/security/secrets-storage`,
+				],
+			},
+		],
 	},
 	{
 		label: 'Contribution',
 		collapsed: true,
-		items: [`${prefix}/contribution`, `${prefix}/scada-symbol-dev`],
+		items: [
+			`${prefix}/contribution/rule-node-development`,
+			`${prefix}/scada-symbol-dev`,
+		],
 	},
 	{
 		label: 'Releases',
@@ -200,7 +232,6 @@ const edgeInstallationItems = (prefix: string) => [
 const installationItems = (prefix: string) => {
 	const isPE = prefix.includes('/pe');
 	return [
-		{ label: 'Installation options', slug: `${prefix}/installation` },
 		{
 			label: 'On-premises',
 			collapsed: true,
@@ -306,7 +337,6 @@ const recipeItems = (prefix: string) => [
 ];
 
 const apisAndSdksItems = (prefix: string) => [
-	{ label: 'APIs & SDKs', slug: `${prefix}/reference/apis-and-sdks` },
 	{
 		label: 'Device APIs',
 		collapsed: true,
@@ -456,34 +486,6 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 			`${prefix}/configuration/vc-executor-config`,
 			`${prefix}/configuration/js-executor-config`,
 			...extraConfigItems,
-		],
-	},
-	{
-		label: 'Widgets',
-		collapsed: true,
-		items: [
-			`${prefix}/widgets/widget-library`,
-			`${prefix}/widgets/chart-widget`,
-			`${prefix}/widgets/map-widgets`,
-			`${prefix}/widgets/entity-table-widget`,
-			`${prefix}/widgets/markdown-html-card`,
-		],
-	},
-	{
-		label: 'Notification System',
-		collapsed: true,
-		items: [
-			`${prefix}/notification-system/template-parameters`,
-			`${prefix}/notification-system/rule-triggers`,
-		],
-	},
-	{
-		label: 'TBEL',
-		collapsed: true,
-		items: [
-			{ label: 'Overview', slug: `${basePrefix}/user-guide/tbel` },
-			`${basePrefix}/user-guide/tbel/language-guide`,
-			`${basePrefix}/user-guide/tbel/helper-functions`,
 		],
 	},
 	{
@@ -638,6 +640,38 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 			},
 		],
 	},
+	{
+		label: 'Notification System',
+		collapsed: true,
+		items: [
+			`${prefix}/notification-system/template-parameters`,
+			`${prefix}/notification-system/rule-triggers`,
+			`${basePrefix}/user-guide/ui/mail-settings`,
+			`${basePrefix}/user-guide/ui/sms-provider-settings`,
+			`${basePrefix}/user-guide/ui/slack-settings`,
+			`${basePrefix}/user-guide/ui/microsoft-teams-settings`,
+		],
+	},
+	{
+		label: 'TBEL',
+		collapsed: true,
+		items: [
+			{ label: 'Overview', slug: `${basePrefix}/user-guide/tbel` },
+			`${basePrefix}/user-guide/tbel/language-guide`,
+			`${basePrefix}/user-guide/tbel/helper-functions`,
+		],
+	},
+	{
+		label: 'Widgets',
+		collapsed: true,
+		items: [
+			`${prefix}/widgets/widget-library`,
+			`${prefix}/widgets/chart-widget`,
+			`${prefix}/widgets/map-widgets`,
+			`${prefix}/widgets/entity-table-widget`,
+			`${prefix}/widgets/markdown-html-card`,
+		],
+	},
 ];
 };
 
@@ -646,7 +680,6 @@ const mainSidebarItems = (prefix: string, extraRecipeItems: SidebarConfig = [], 
 		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
 		items: [
-			prefix,
 			{
 				label: 'Welcome to IoT!',
 				translations: { uk: 'Новий проект' },
@@ -669,7 +702,7 @@ const mainSidebarItems = (prefix: string, extraRecipeItems: SidebarConfig = [], 
 		label: 'Guides',
 		collapsed: true,
 		translations: { uk: 'Посібники' },
-		items: guideItems(`${prefix}/user-guide`),
+		items: guideItems(`${prefix}/user-guide`, { isPE: prefix.includes('/pe') }),
 	},
 	{
 		label: 'Recipes',
@@ -737,9 +770,26 @@ export const peSidebar: SidebarConfig = mainSidebarItems('docs/pe', [
 /** Cloud (PaaS) documentation sidebar (pages at /docs/paas/) */
 export const paasSidebar: SidebarConfig = [
 	{
-		label: 'Getting Started NA',
+		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
-		items: ['docs/paas/getting-started'],
+		items: [
+			{
+				label: 'Welcome to IoT!',
+				translations: { uk: 'Новий проект' },
+				items: ['docs/paas/why-thingsboard', 'docs/paas/tutorial/getting-started'],
+			},
+			{
+				label: 'Key concepts',
+				translations: { uk: 'Новий проект' },
+				items: [
+					'docs/paas/concepts/multi-tenancy',
+					'docs/paas/concepts/digital-twin-model',
+					'docs/paas/concepts/data-processing',
+					'docs/paas/concepts/alarms-and-notifications',
+					'docs/paas/concepts/data-visualization',
+				],
+			},
+		],
 	},
 	{
 		label: 'Guides',
@@ -748,7 +798,28 @@ export const paasSidebar: SidebarConfig = [
 			{
 				label: 'Security',
 				collapsed: true,
-				items: ['docs/paas/user-guide/security/two-factor-authentication', 'docs/paas/user-guide/security/oauth-2-support', 'docs/paas/user-guide/security/domains', 'docs/paas/user-guide/security/audit-log', 'docs/paas/user-guide/security/secrets-storage', 'docs/paas/user-guide/security/api-keys'],
+				items: [
+					{ label: 'Overview', slug: 'docs/paas/user-guide/security/overview' },
+					{
+						label: 'Authentication',
+						collapsed: true,
+						items: [
+							'docs/paas/user-guide/security/two-factor-authentication',
+							'docs/paas/user-guide/security/oauth-2-support',
+							'docs/paas/user-guide/security/self-registration',
+							'docs/paas/user-guide/security/api-keys',
+						],
+					},
+					{
+						label: 'Administration',
+						collapsed: true,
+						items: [
+							'docs/paas/user-guide/security/domains',
+							'docs/paas/user-guide/security/audit-log',
+							'docs/paas/user-guide/security/secrets-storage',
+						],
+					},
+				],
 			},
 		],
 	},
@@ -756,9 +827,26 @@ export const paasSidebar: SidebarConfig = [
 
 export const paasEuSidebar: SidebarConfig = [
 	{
-		label: 'Getting Started EU',
+		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
-		items: ['docs/paas/eu/getting-started'],
+		items: [
+			{
+				label: 'Welcome to IoT!',
+				translations: { uk: 'Новий проект' },
+				items: ['docs/paas/eu/why-thingsboard', 'docs/paas/eu/tutorial/getting-started'],
+			},
+			{
+				label: 'Key concepts',
+				translations: { uk: 'Новий проект' },
+				items: [
+					'docs/paas/eu/concepts/multi-tenancy',
+					'docs/paas/eu/concepts/digital-twin-model',
+					'docs/paas/eu/concepts/data-processing',
+					'docs/paas/eu/concepts/alarms-and-notifications',
+					'docs/paas/eu/concepts/data-visualization',
+				],
+			},
+		],
 	},
 	{
 		label: 'Guides',
@@ -767,7 +855,28 @@ export const paasEuSidebar: SidebarConfig = [
 			{
 				label: 'Security',
 				collapsed: true,
-				items: ['docs/paas/eu/user-guide/security/two-factor-authentication', 'docs/paas/eu/user-guide/security/oauth-2-support', 'docs/paas/eu/user-guide/security/domains', 'docs/paas/eu/user-guide/security/audit-log', 'docs/paas/eu/user-guide/security/secrets-storage', 'docs/paas/eu/user-guide/security/api-keys'],
+				items: [
+					{ label: 'Overview', slug: 'docs/paas/eu/user-guide/security/overview' },
+					{
+						label: 'Authentication',
+						collapsed: true,
+						items: [
+							'docs/paas/eu/user-guide/security/two-factor-authentication',
+							'docs/paas/eu/user-guide/security/oauth-2-support',
+							'docs/paas/eu/user-guide/security/self-registration',
+							'docs/paas/eu/user-guide/security/api-keys',
+						],
+					},
+					{
+						label: 'Administration',
+						collapsed: true,
+						items: [
+							'docs/paas/eu/user-guide/security/domains',
+							'docs/paas/eu/user-guide/security/audit-log',
+							'docs/paas/eu/user-guide/security/secrets-storage',
+						],
+					},
+				],
 			},
 		],
 	},
@@ -843,12 +952,21 @@ export const gwSidebar: SidebarConfig = [
 	{
 		label: 'Installation',
 		translations: { uk: 'Встановлення' },
-		items: ['docs/iot-gateway/installation', 'docs/iot-gateway/install/upgrade-instructions'],
+		items: [
+			'docs/iot-gateway/installation',
+			'docs/iot-gateway/installation/deb-installation',
+			'docs/iot-gateway/installation/docker-installation',
+			'docs/iot-gateway/installation/docker-windows',
+			'docs/iot-gateway/installation/rpm-installation',
+			'docs/iot-gateway/installation/pip-installation',
+			'docs/iot-gateway/installation/source-installation',
+			'docs/iot-gateway/installation/upgrade-instructions',
+		],
 	},
 	{
 		label: 'Configuration',
 		translations: { uk: 'Конфігурація' },
-		items: ['docs/iot-gateway/config/general'],
+		items: ['docs/iot-gateway/config/general', 'docs/iot-gateway/features/remote-configuration'],
 	},
 	{
 		label: 'Connectors',
@@ -875,7 +993,6 @@ export const gwSidebar: SidebarConfig = [
 		label: 'Features',
 		translations: { uk: 'Функції' },
 		items: [
-			'docs/iot-gateway/features/remote-configuration',
 			'docs/iot-gateway/features/remote-shell',
 			'docs/iot-gateway/features/report-strategy',
 			'docs/iot-gateway/features/reserved-rpc',
@@ -1276,13 +1393,19 @@ export const licenseSidebar: SidebarConfig = [
 export type SidebarTabLinks = Partial<Record<string, string>>;
 export const opensourceSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/',
+	'Guides': '/docs/user-guide/',
+	'Recipes': '/docs/recipes/',
 	'Installation': '/docs/installation/',
 	'APIs & SDKs': '/docs/reference/apis-and-sdks/',
+	'Reference': '/docs/reference/',
 };
 export const peSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/pe/',
+	'Guides': '/docs/pe/user-guide/',
+	'Recipes': '/docs/pe/recipes/',
 	'Installation': '/docs/pe/installation/',
 	'APIs & SDKs': '/docs/pe/reference/apis-and-sdks/',
+	'Reference': '/docs/pe/reference/',
 };
 
 export const paasSidebarTabLinks: SidebarTabLinks = {};
