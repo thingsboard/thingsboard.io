@@ -314,10 +314,10 @@ PE stub path: `src/content/docs/docs/mqtt-broker/pe/{path}.mdx`
 title: Page title
 description: One-sentence description.
 ---
-import Content from '@includes/docs/mqtt-broker/{path}.mdx'
+import PageContent from '@includes/docs/mqtt-broker/{path}.mdx'
 import { Products } from '~/models/site.models'
 
-<Content product={Products.TBMQ}/>
+<PageContent product={Products.TBMQ}/>
 ```
 
 **PE stub template:**
@@ -327,15 +327,16 @@ import { Products } from '~/models/site.models'
 title: Page title
 description: One-sentence description.
 ---
-import Content from '@includes/docs/mqtt-broker/{path}.mdx'
+import PageContent from '@includes/docs/mqtt-broker/{path}.mdx'
 import { Products } from '~/models/site.models'
 
-<Content product={Products.TBMQ_PE}/>
+<PageContent product={Products.TBMQ_PE}/>
 ```
 
 Rules:
 - If the description contains a colon, wrap its value in double quotes
 - For PE-only pages: create only the PE stub, no CE stub
+- **Never use `Content` as the import alias** — it conflicts with MDX's auto-generated `Content` identifier and causes a build error (`Identifier "Content" has already been declared`). Use `PageContent` or a descriptive name derived from the page title (e.g., `Architecture`, `Sessions`, `Overview`).
 
 **PE-only pages** (PE stub only, no CE stub):
 - `security/oauth-2-support`
