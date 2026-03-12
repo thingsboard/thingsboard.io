@@ -945,7 +945,7 @@ const tbmqGuideItems = (prefix: string): SidebarConfig => {
 				{ label: 'Topics and wildcards', slug: `${prefix}/user-guide/topics` },
 				{ label: 'Quality of service (QoS)', slug: `${prefix}/user-guide/qos` },
 				{ label: 'Non-persistent and persistent sessions', slug: `${prefix}/user-guide/clean-persistent-sessions` },
-				{ label: 'MQTT over WebSocket', slug: `${prefix}/user-guide/ui/websocket-client` },
+				{ label: 'MQTT over WebSocket', slug: `${prefix}/user-guide/mqtt-over-ws` },
 				{ label: 'Shared subscriptions', slug: `${prefix}/user-guide/shared-subscriptions` },
 				{ label: 'Retained messages', slug: `${prefix}/user-guide/retained-messages` },
 				{ label: 'Last will and testament', slug: `${prefix}/user-guide/last-will` },

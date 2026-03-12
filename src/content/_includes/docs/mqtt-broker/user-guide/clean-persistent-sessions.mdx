@@ -1,1 +1,185 @@
-Content is coming soon.
+import { Aside } from '@astrojs/starlight/components';
+import ImageGallery from '~/components/ImageGallery.astro';
+import DocLink from '@components/DocLink.astro';
+
+An MQTT session is core to reliable communication between clients and the broker. Think of it like a hotel room: a persistent session is a booked room where your luggage (subscriptions and queued messages) waits for your return, while a non-persistent session is a walk-in stay — everything is forgotten the moment you leave.
+
+## Persistent Session
+
+A persistent session preserves state after a client disconnects. Requirements for reliable offline message delivery include a fixed Client ID and QoS 1 or QoS 2 subscriptions. The session state stored by the broker includes:
+
+- Session identity (Session + Client ID)
+- Subscriptions
+- Queued messages (QoS 1 and QoS 2)
+- In-flight messages
+- QoS 2 messages received but not yet acknowledged
+- Will Message and Will Delay Interval
+- Session Expiry Interval and expiration timestamp
+- Internal delivery state
+
+## Non-Persistent Session
+
+A non-persistent session always starts with a fresh state. No subscriptions or messages are preserved across connections. This minimizes broker overhead and is suitable for clients that do not require offline delivery.
+
+## How the Broker Indicates an Existing Session
+
+The broker communicates session state to the client via the **Session Present** flag in the CONNACK packet:
+
+- `true` — an existing session was resumed
+- `false` — a new session was created
+
+## Session Configuration in MQTT v3.x and MQTT v5.0
+
+MQTT v5.0 replaces the single Clean Session flag from v3.x with two separate controls: **Clean Start** and **Session Expiry Interval**. This gives clients finer-grained control over session lifecycle.
+
+<table>
+  <thead>
+    <tr>
+      <th>Session Type</th>
+      <th>MQTT v3.x</th>
+      <th>MQTT v5.0</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Non-persistent session</td>
+      <td>Clean Session = 1</td>
+      <td>Clean Start = 1, Session Expiry Interval = 0</td>
+    </tr>
+    <tr>
+      <td>Persistent session</td>
+      <td>Clean Session = 0</td>
+      <td>
+        Session Expiry Interval &gt; 0<br />
+        <em>or</em> Clean Start = 0 with Session Expiry Interval = 0
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+The maximum value for Session Expiry Interval is 4,294,967,295 seconds (approximately 136 years).
+
+If the Session Expiry Interval is not specified, it defaults to 0. Clean Start is a boolean flag that controls whether the broker discards any existing session state at the start of a new connection.
+
+For details on viewing and managing sessions in TBMQ, see the <DocLink product={props.product} path="user-guide/ui/sessions" />.
+
+## Session State Management in TBMQ
+
+TBMQ classifies clients into **DEVICE** and **APPLICATION** types and applies tailored session strategies for each.
+
+### Client Types and Session Behavior
+
+<table>
+  <thead>
+    <tr>
+      <th>Client Type</th>
+      <th>Session Type</th>
+      <th>Use Cases</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>DEVICE</td>
+      <td>Non-persistent</td>
+      <td>Simple monitoring, temperature sensor with QoS 0</td>
+      <td>No offline delivery</td>
+    </tr>
+    <tr>
+      <td>DEVICE</td>
+      <td>Persistent</td>
+      <td>Command delivery, firmware updates over unstable networks</td>
+      <td>Up to 65,535 queued messages; configurable TTL</td>
+    </tr>
+    <tr>
+      <td>APPLICATION</td>
+      <td>Non-persistent</td>
+      <td>Not recommended</td>
+      <td>Risk of data loss; warning shown in the UI</td>
+    </tr>
+    <tr>
+      <td>APPLICATION</td>
+      <td>Persistent</td>
+      <td>Enterprise backend consumers, shared subscriptions</td>
+      <td>Dedicated Kafka topic per client</td>
+    </tr>
+  </tbody>
+</table>
+
+See the <DocLink product={props.product} path="user-guide/mqtt-client-type" /> for the full Client Type reference.
+
+### Session Configuration Parameters
+
+```yaml
+# Client session expiry settings
+client-session-expiry:
+  # Cron expression for removing expired client sessions
+  cron: "${CLIENT_SESSION_EXPIRY_CRON:0 0 2 * * *}"
+  # Zone for the cron expression
+  zone: "${CLIENT_SESSION_EXPIRY_ZONE:UTC}"
+
+# Persistent session settings
+persistent-session:
+  device:
+    persisted:
+      messages:
+        # Maximum number of messages stored per persistent DEVICE client
+        limit: "${MQTT_PERSISTENT_SESSION_DEVICE_PERSISTED_MESSAGES_LIMIT:1000}"
+        # TTL in seconds for persisted DEVICE messages (0 = no expiry)
+        ttl: "${MQTT_PERSISTENT_SESSION_DEVICE_PERSISTED_MESSAGES_TTL:0}"
+```
+
+## Message Expiry Interval and Session State
+
+In MQTT 5.0, the **Message Expiry Interval** allows publishers to set a time-to-live for individual messages. The broker starts counting this interval from the moment it receives the message. QoS 1 and QoS 2 messages that are queued for offline delivery may expire before the client reconnects.
+
+Note the distinction between the two expiry concepts: **Session Expiry Interval** governs how long the broker retains the entire session state, while **Message Expiry Interval** governs how long an individual queued message remains valid within that session.
+
+## Demonstrating a Persistent Session
+
+The following steps demonstrate a persistent session using the WebSocket Client. See the <DocLink product={props.product} path="user-guide/ui/websocket-client" /> for details on using the WebSocket Client.
+
+1. In a WebSocket Client connection, enable the persistent session (disable Clean Start), set a Session Expiry Interval greater than zero, and click **Connect**.
+2. Add a subscription to the topic `session/persistent` with QoS 1.
+3. Click the **Disconnect** button.
+4. Switch to another client and publish several messages to the topic `session/persistent`.
+5. Switch back to the "Persistent session demo" client and click **Connect**.
+6. After a successful connection, the client receives the messages that were published while it was offline.
+
+<ImageGallery
+  images={[
+    {
+      src: '/src/assets/images/docs/mqtt-broker/user-guide/persistent-session-demo-1.png',
+      alt: 'Step 1: configure persistent session settings and connect',
+      caption:
+        'In a WebSocket Client connection: enable persistent session (disable Clean Start), set a Session Expiry Interval greater than zero, and click "Connect".',
+    },
+    {
+      src: '/src/assets/images/docs/mqtt-broker/user-guide/persistent-session-demo-2.png',
+      alt: 'Step 2: add a subscription with QoS 1',
+      caption: 'Add a subscription to a topic "session/persistent" with QoS 1.',
+    },
+    {
+      src: '/src/assets/images/docs/mqtt-broker/user-guide/persistent-session-demo-3.png',
+      alt: 'Step 3: disconnect the client',
+      caption: 'Click the "Disconnect" button.',
+    },
+    {
+      src: '/src/assets/images/docs/mqtt-broker/user-guide/persistent-session-demo-4.png',
+      alt: 'Step 4: publish messages from another client while offline',
+      caption:
+        'Switch to another Client and publish several messages to the topic "session/persistent".',
+    },
+    {
+      src: '/src/assets/images/docs/mqtt-broker/user-guide/persistent-session-demo-5.png',
+      alt: 'Step 5: reconnect the persistent session client',
+      caption: 'Switch back to the "Persistent session demo" Client and click "Connect".',
+    },
+    {
+      src: '/src/assets/images/docs/mqtt-broker/user-guide/persistent-session-demo-6.png',
+      alt: 'Step 6: receive messages published while offline',
+      caption:
+        'After a successful connection, the Client receives the messages that were published while it was offline.',
+    },
+  ]}
+/>
