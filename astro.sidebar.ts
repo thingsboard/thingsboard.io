@@ -830,7 +830,6 @@ export const gwSidebar: SidebarConfig = [
 		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
 		items: [
-			'docs/iot-gateway',
 			{
 				label: 'What is ThingsBoard IoT Gateway?',
 				items: [
@@ -845,7 +844,6 @@ export const gwSidebar: SidebarConfig = [
 		label: 'Installation',
 		translations: { uk: 'Встановлення' },
 		items: [
-			'docs/iot-gateway/installation',
 			'docs/iot-gateway/installation/deb-installation',
 			'docs/iot-gateway/installation/docker-installation',
 			'docs/iot-gateway/installation/docker-windows',
@@ -997,7 +995,16 @@ export const paasSidebarTabLinks: SidebarTabLinks = {};
 export const paasEuSidebarTabLinks: SidebarTabLinks = {};
 export const edgeSidebarTabLinks: SidebarTabLinks = {};
 export const edgePeSidebarTabLinks: SidebarTabLinks = {};
-export const gwSidebarTabLinks: SidebarTabLinks = {};
+export const gwSidebarTabLinks: SidebarTabLinks = {
+	'Getting Started': '/docs/iot-gateway/',
+	Installation: '/docs/iot-gateway/installation/',
+	'Need help?': '/docs/iot-gateway/help/',
+	Roadmap: '/docs/iot-gateway/roadmap/',
+	Customization: '/docs/iot-gateway/custom/',
+	Configuration: '/docs/iot-gateway/config/general/',
+	Features: '/docs/iot-gateway/features/',
+	Connectors: '/docs/iot-gateway/connectors/',
+};
 export const tbmqSidebarTabLinks: SidebarTabLinks = {};
 export const tbmqPeSidebarTabLinks: SidebarTabLinks = {};
 export const mobileSidebarTabLinks: SidebarTabLinks = {};
