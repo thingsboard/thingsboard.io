@@ -1162,6 +1162,7 @@ export const trendzSidebar: SidebarConfig = [
 				items: [
 					'docs/trendz/install/python-executor-configuration',
 					'docs/trendz/install/connect-thingsboard',
+					'docs/trendz/install/post-installation-steps',
 					'docs/trendz/install/configuration-properties',
 					'docs/trendz/install/old-docker-migrate',
 				],
