@@ -25,6 +25,15 @@ export const caseStudyCards: CaseStudyCard[] = [
 		backgroundImage: 'https://img.thingsboard.io/case-studies/ariot.webp',
 	},
 	{
+		slug: 'lumen',
+		categories: ['Industry 4.0'],
+		title: 'Industrial IoT in manufacturing: how Lumen Energy Solutions digitalized large-scale factories with ThingsBoard',
+		description: 'Lumen Energy Solutions leverages ThingsBoard to digitalize large-scale factories, integrating 1,000+ IoT sensors and energy meters into a unified platform.',
+		logo: 'https://img.thingsboard.io/case-studies/lumen.svg',
+		logoAlt: 'Lumen logo',
+		backgroundImage: 'https://img.thingsboard.io/case-studies/lumen.webp',
+	},
+	{
 		slug: 'super-bock',
 		categories: ['Industry 4.0'],
 		title: 'Revolutionizing beer distribution: how ThingsBoard empowered Super Bock Group',

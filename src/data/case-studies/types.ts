@@ -19,6 +19,8 @@ export interface QuoteData {
 export interface PowerBlock {
 	title: string;
 	text: string;
+	listItems?: string[];
+	secondText?: string;
 	image: string;
 	imageAlt: string;
 }
@@ -27,6 +29,7 @@ export interface HelpBlock {
 	title: string;
 	text: string;
 	listItems?: string[];
+	secondText?: string;
 	images: { src: string; alt: string; title?: string }[];
 }
 
