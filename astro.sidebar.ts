@@ -1130,28 +1130,42 @@ export const trendzSidebar: SidebarConfig = [
 	{
 		label: 'Installation',
 		items: [
-			{ slug: 'docs/trendz/install/installation-options', label: 'Installation options' },
-			'docs/trendz/install/cloud',
+			{ slug: 'docs/trendz/install/installation-options', label: 'Overview' },
 			{
-				label: 'On-premises',
-				collapsed: true,
+				label: 'Installation Options',
+				collapsed: false,
 				items: [
-					'docs/trendz/install/docker',
-					'docs/trendz/install/docker-windows',
-					'docs/trendz/install/ubuntu',
-					'docs/trendz/install/rhel',
-					'docs/trendz/install/windows',
+					'docs/trendz/install/cloud',
+					{
+						label: 'On-Premises',
+						collapsed: true,
+						items: [
+							'docs/trendz/install/docker',
+							'docs/trendz/install/docker-windows',
+							'docs/trendz/install/ubuntu',
+							'docs/trendz/install/rhel',
+							'docs/trendz/install/windows',
+						],
+					},
+					{
+						label: 'Cluster',
+						collapsed: true,
+						items: [
+							'docs/trendz/install/kubernetes',
+						],
+					},
 				],
 			},
 			{
-				label: 'Cluster',
+				label: 'Advanced',
 				collapsed: true,
 				items: [
-					'docs/trendz/install/kubernetes',
+					'docs/trendz/install/python-executor-configuration',
+					'docs/trendz/install/connect-thingsboard',
+					'docs/trendz/install/configuration-properties',
+					'docs/trendz/install/old-docker-migrate',
 				],
 			},
-			'docs/trendz/install/python-executor-configuration',
-			'docs/trendz/configuration-properties',
 			'docs/trendz/install/upgrade-instructions',
 		],
 	},
