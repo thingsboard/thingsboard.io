@@ -34,6 +34,15 @@ export const caseStudyCards: CaseStudyCard[] = [
 		backgroundImage: 'https://img.thingsboard.io/case-studies/lumen.webp',
 	},
 	{
+		slug: 'energroup',
+		categories: ['Smart energy'],
+		title: 'Smart building energy management: how EnerGroup enabled wireless room-level heating control with ThingsBoard',
+		description: 'EnerGroup leverages ThingsBoard to enable wireless room-level heating control for the Pyxis residential building.',
+		logo: 'https://img.thingsboard.io/case-studies/energroup.svg',
+		logoAlt: 'EnerGroup logo',
+		backgroundImage: 'https://img.thingsboard.io/case-studies/energroup.webp',
+	},
+	{
 		slug: 'super-bock',
 		categories: ['Industry 4.0'],
 		title: 'Revolutionizing beer distribution: how ThingsBoard empowered Super Bock Group',
