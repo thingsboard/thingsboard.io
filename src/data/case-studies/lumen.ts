@@ -108,7 +108,7 @@ export const lumenData: CaseStudyData = {
 				text: 'The platform’s asset hierarchy structure allows Lumen to model factories, production lines, machines, and utility systems in a structured and scalable way. This is essential for managing multi-site industrial operations efficiently.',
 				images: [
 					{ src: 'https://img.thingsboard.io/case-studies/entities-table.webp', alt: 'ThingsBoard entities table widget', title: 'ThingsBoard entities table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/value-card.webp', alt: 'ThingsBoard value card widget', title: 'ThingsBoard value card widget' },
+					{ src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp', alt: 'ThingsBoard maps widgets card', title: 'ThingsBoard maps widgets card' },
 				],
 			},
 			{
@@ -116,7 +116,7 @@ export const lumenData: CaseStudyData = {
 				text: 'Highly customized dashboards transform complex telemetry into intuitive visualizations. Executives gain high-level KPI visibility, while technical teams access detailed operational metrics.',
 				images: [
 					{ src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp', alt: 'Thingsboard time series chart widget', title: 'Thingsboard time series chart widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/doughnut.webp', alt: 'ThingsBoard doughnut chart widget', title: 'ThingsBoard doughnut chart widget' },
+					{ src: 'https://img.thingsboard.io/case-studies/donut-widget.webp', alt: 'ThingsBoard doughnut chart widget', title: 'ThingsBoard doughnut chart widget' },
 				],
 			},
 			{
@@ -140,8 +140,8 @@ export const lumenData: CaseStudyData = {
 				],
 				secondText: 'This case demonstrates how Lumen Energy Solutions leverages ThingsBoard to build secure, scalable, and high-performance industrial IoT applications in demanding manufacturing environments.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/hierarchy-widget.webp', alt: 'ThingsBoard hierarchy widget', title: 'ThingsBoard hierarchy widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/roles-table.webp', alt: 'ThingsBoard roles table widget', title: 'ThingsBoard roles table widget' },
+					{ src: 'https://img.thingsboard.io/case-studies/thinsgboard.webp', alt: 'ThingsBoard logo', title: 'ThingsBoard logo' },
+					{ src: 'https://img.thingsboard.io/case-studies/lumen-color.webp', alt: 'Lumen logo', title: 'Lumen logo' },
 				],
 			},
 		],
