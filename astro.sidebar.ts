@@ -951,15 +951,15 @@ export const mobileSidebar: SidebarConfig = [
 					'docs/mobile/customize-devices',
 					'docs/mobile/device-dashboard',
 					'docs/mobile/alarm-dashboard',
+					'docs/mobile/app-icon-splash-screen',
 				],
 			},
-			'docs/mobile/mobile-actions',
 			{
 				label: 'Settings',
 				collapsed: true,
 				items: [
+					'docs/mobile/mobile-actions',
 					'docs/mobile/qr-code-settings',
-					'docs/mobile/app-icon-splash-screen',
 					'docs/mobile/oauth2',
 					'docs/mobile/localization',
 				],
@@ -967,11 +967,22 @@ export const mobileSidebar: SidebarConfig = [
 		],
 	},
 	{
-		label: 'Publish',
+		label: 'Build & deploy',
 		items: [
 			'docs/mobile/release',
 			'docs/mobile/compatibility',
 		],
+	},
+	{
+		label: 'Releases',
+		items: [
+			'docs/mobile/releases',
+			'docs/mobile/roadmap',
+		],
+	},
+	{
+		label: 'Need help?',
+		items: ['docs/mobile/help'],
 	},
 ];
 
@@ -994,15 +1005,15 @@ export const mobilePeSidebar: SidebarConfig = [
 					'docs/mobile/pe/customize-devices',
 					'docs/mobile/pe/device-dashboard',
 					'docs/mobile/pe/alarm-dashboard',
+					'docs/mobile/pe/app-icon-splash-screen',
 				],
 			},
-			'docs/mobile/pe/mobile-actions',
 			{
 				label: 'Settings',
 				collapsed: true,
 				items: [
+					'docs/mobile/pe/mobile-actions',
 					'docs/mobile/pe/qr-code-settings',
-					'docs/mobile/pe/app-icon-splash-screen',
 					'docs/mobile/pe/oauth2',
 					'docs/mobile/pe/localization',
 				],
@@ -1010,11 +1021,22 @@ export const mobilePeSidebar: SidebarConfig = [
 		],
 	},
 	{
-		label: 'Publish',
+		label: 'Build & deploy',
 		items: [
 			'docs/mobile/pe/release',
 			'docs/mobile/pe/compatibility',
 		],
+	},
+	{
+		label: 'Releases',
+		items: [
+			'docs/mobile/pe/releases',
+			'docs/mobile/pe/roadmap',
+		],
+	},
+	{
+		label: 'Need help?',
+		items: ['docs/mobile/pe/help'],
 	},
 ];
 
