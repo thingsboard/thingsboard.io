@@ -1302,11 +1302,11 @@ export const mobileSidebar: SidebarConfig = [
 		items: ['docs/mobile', 'docs/mobile/getting-started'],
 	},
 	{
-		label: 'Customization',
+		label: 'Guides',
 		collapsed: true,
 		items: [
 			{
-				label: 'App UI',
+				label: 'UI customization',
 				collapsed: true,
 				items: [
 					'docs/mobile/customize-dashboards',
@@ -1326,11 +1326,6 @@ export const mobileSidebar: SidebarConfig = [
 					'docs/mobile/localization',
 				],
 			},
-		],
-	},
-	{
-		label: 'Build & deploy',
-		items: [
 			'docs/mobile/release',
 		],
 	},
@@ -1351,11 +1346,11 @@ export const mobilePeSidebar: SidebarConfig = [
 		items: ['docs/mobile/pe', 'docs/mobile/pe/getting-started'],
 	},
 	{
-		label: 'Customization',
+		label: 'Guides',
 		collapsed: true,
 		items: [
 			{
-				label: 'App UI',
+				label: 'UI customization',
 				collapsed: true,
 				items: [
 					'docs/mobile/pe/customize-dashboards',
@@ -1375,11 +1370,6 @@ export const mobilePeSidebar: SidebarConfig = [
 					'docs/mobile/pe/localization',
 				],
 			},
-		],
-	},
-	{
-		label: 'Build & deploy',
-		items: [
 			'docs/mobile/pe/release',
 		],
 	},
