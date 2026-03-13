@@ -156,12 +156,44 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 	{
 		label: 'Security',
 		collapsed: true,
-		items: [`${prefix}/security`, `${prefix}/security/two-factor-authentication`, `${prefix}/security/oauth-2-support`, `${prefix}/security/domains`, `${prefix}/security/self-registration`, `${prefix}/security/http-over-ssl`, `${prefix}/security/audit-log`, `${prefix}/security/secrets-storage`, `${prefix}/security/api-keys`],
+		items: [
+			{ label: 'Overview', slug: `${prefix}/security/overview` },
+			{
+				label: 'Authentication',
+				collapsed: true,
+				items: [
+					`${prefix}/security/two-factor-authentication`,
+					`${prefix}/security/oauth-2-support`,
+					`${prefix}/security/self-registration`,
+					`${prefix}/security/api-keys`,
+				],
+			},
+			{
+				label: 'Infrastructure',
+				collapsed: true,
+				items: [
+					`${prefix}/security/http-over-ssl`,
+					`${prefix}/security/domains`,
+				],
+			},
+			{
+				label: 'Administration',
+				collapsed: true,
+				items: [
+					{ label: 'Security settings', slug: `${prefix}/security` },
+					`${prefix}/security/audit-log`,
+					`${prefix}/security/secrets-storage`,
+				],
+			},
+		],
 	},
 	{
 		label: 'Contribution',
 		collapsed: true,
-		items: [`${prefix}/contribution`, `${prefix}/scada-symbol-dev`],
+		items: [
+			`${prefix}/contribution/rule-node-development`,
+			`${prefix}/scada-symbol-dev`,
+		],
 	},
 	{
 		label: 'Releases',
@@ -738,38 +770,486 @@ export const peSidebar: SidebarConfig = mainSidebarItems('docs/pe', [
 /** Cloud (PaaS) documentation sidebar (pages at /docs/paas/) */
 export const paasSidebar: SidebarConfig = [
 	{
-		label: 'Getting Started NA',
+		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
-		items: ['docs/paas/getting-started'],
+		items: [
+			{
+				label: 'Welcome to IoT!',
+				translations: { uk: 'Новий проект' },
+				items: ['docs/paas/why-thingsboard', 'docs/paas/tutorial/getting-started'],
+			},
+			{
+				label: 'Key concepts',
+				translations: { uk: 'Новий проект' },
+				items: [
+					'docs/paas/concepts/multi-tenancy',
+					'docs/paas/concepts/digital-twin-model',
+					'docs/paas/concepts/data-processing',
+					'docs/paas/concepts/alarms-and-notifications',
+					'docs/paas/concepts/data-visualization',
+				],
+			},
+		],
 	},
 	{
 		label: 'Guides',
 		collapsed: true,
 		items: [
 			{
+				label: 'Digital Twins',
+				collapsed: true,
+				items: [
+					'docs/paas/user-guide/digital-twins/entities',
+					'docs/paas/user-guide/digital-twins/relations',
+					'docs/paas/user-guide/digital-twins/attributes',
+					'docs/paas/user-guide/digital-twins/time-series-data',
+				],
+			},
+			{
+				label: 'Devices & Assets',
+				collapsed: true,
+				items: [
+					'docs/paas/user-guide/devices',
+					'docs/paas/user-guide/device-profiles',
+					'docs/paas/user-guide/connectivity-guide',
+					'docs/paas/user-guide/assets',
+					'docs/paas/user-guide/asset-profiles',
+					'docs/paas/user-guide/connectivity-status',
+					'docs/paas/user-guide/claiming',
+					'docs/paas/user-guide/provisioning',
+					'docs/paas/user-guide/ota-updates',
+					'docs/paas/user-guide/command-and-control',
+				],
+			},
+			{
+				label: 'Data Visualization',
+				collapsed: true,
+				items: [
+					{ label: 'Key concepts', slug: 'docs/paas/user-guide/data-visualization' },
+					'docs/paas/user-guide/dashboards',
+					'docs/paas/user-guide/widgets',
+					'docs/paas/user-guide/time-window',
+					'docs/paas/user-guide/aliases',
+					'docs/paas/user-guide/layouts',
+					'docs/paas/user-guide/actions',
+					'docs/paas/user-guide/scada',
+					'docs/paas/user-guide/units',
+				],
+			},
+			{
+				label: 'Customers & Users',
+				collapsed: true,
+				items: [
+					'docs/paas/user-guide/multi-tenancy',
+					'docs/paas/user-guide/customers',
+					'docs/paas/user-guide/users',
+					'docs/paas/user-guide/roles',
+					'docs/paas/user-guide/groups',
+				],
+			},
+			{
+				label: 'Alarms & Notifications',
+				collapsed: true,
+				items: [
+					'docs/paas/user-guide/alarms',
+					'docs/paas/user-guide/alarm-rules',
+					'docs/paas/user-guide/notifications',
+				],
+			},
+			{
+				label: 'Data Processing',
+				collapsed: true,
+				items: [
+					{
+						label: 'Calculated Fields',
+						collapsed: true,
+						items: [
+							{ label: 'Overview', slug: 'docs/paas/user-guide/calculated-fields' },
+							{ label: 'Simple', slug: 'docs/paas/user-guide/calculated-fields/simple' },
+							{ label: 'Script', slug: 'docs/paas/user-guide/calculated-fields/script' },
+							{ label: 'Propagation', slug: 'docs/paas/user-guide/calculated-fields/propagation' },
+							{ label: 'Geofencing', slug: 'docs/paas/user-guide/calculated-fields/geofencing' },
+							{
+								label: 'Entities Aggregation',
+								slug: 'docs/paas/user-guide/calculated-fields/related-entities-aggregation',
+							},
+							{
+								label: 'Time Series Aggregation',
+								slug: 'docs/paas/user-guide/calculated-fields/time-series-data-aggregation',
+							},
+						],
+					},
+					{
+						label: 'Rule Engine',
+						collapsed: true,
+						items: [
+							{ label: 'Overview', slug: 'docs/paas/user-guide/rule-engine' },
+							{ label: 'Queues', slug: 'docs/paas/user-guide/rule-engine/queues' },
+							{ label: 'Monitoring', slug: 'docs/paas/user-guide/rule-engine/monitoring' },
+						],
+					},
+					'docs/paas/user-guide/rule-nodes',
+				],
+			},
+			{
+				label: 'Reporting',
+				collapsed: true,
+				items: [
+					'docs/paas/user-guide/reporting/getting-started',
+					'docs/paas/user-guide/reporting/report-templates',
+					'docs/paas/user-guide/reporting/subreports',
+					'docs/paas/user-guide/reporting/scheduling',
+					'docs/paas/user-guide/reporting/notifications',
+					'docs/paas/user-guide/reporting/charts',
+					'docs/paas/user-guide/reporting/dashboards',
+				],
+			},
+			{
+				label: 'AI',
+				collapsed: true,
+				items: [
+					'docs/paas/user-guide/ai-models',
+					'docs/paas/user-guide/ai-predictive-maintenance',
+					'docs/paas/user-guide/local-ai-ollama',
+					'docs/paas/user-guide/mcp-server',
+					'docs/paas/user-guide/n8n-node',
+				],
+			},
+			{
+				label: 'Integrations',
+				collapsed: true,
+				items: [
+					'docs/paas/user-guide/integrations',
+					'docs/paas/user-guide/integrations/http',
+					'docs/paas/user-guide/integrations/chirpstack',
+					'docs/paas/user-guide/integrations/aws-iot',
+				],
+			},
+			{
+				label: 'White-labeling',
+				collapsed: true,
+				items: [
+					{ label: 'General', slug: 'docs/paas/user-guide/white-labeling-general' },
+					{ label: 'Login', slug: 'docs/paas/user-guide/white-labeling-login' },
+					{ label: 'Mail Templates', slug: 'docs/paas/user-guide/white-labeling-mail' },
+					{ label: 'Custom Translation', slug: 'docs/paas/user-guide/white-labeling-translation' },
+					{ label: 'Custom Menu', slug: 'docs/paas/user-guide/white-labeling-menu' },
+				],
+			},
+			{
+				label: 'Mobile App Center',
+				collapsed: true,
+				items: [
+					{ label: 'Overview', slug: 'docs/paas/user-guide/mobile-app-center' },
+					'docs/paas/user-guide/mobile-app-center/applications',
+					'docs/paas/user-guide/mobile-app-center/qr-code-widget',
+				],
+			},
+			{
+				label: 'Other Features',
+				collapsed: true,
+				items: [
+					'docs/paas/user-guide/image-gallery',
+					'docs/paas/user-guide/version-control',
+					'docs/paas/user-guide/entity-views',
+					'docs/paas/user-guide/scheduler',
+				],
+			},
+			{
+				label: 'Add-ons',
+				collapsed: true,
+				items: [
+					'docs/paas/user-guide/add-ons',
+					'docs/paas/user-guide/edge-computing',
+					'docs/paas/user-guide/trendz-analytics',
+				],
+			},
+			{
 				label: 'Security',
 				collapsed: true,
-				items: ['docs/paas/user-guide/security/two-factor-authentication', 'docs/paas/user-guide/security/oauth-2-support', 'docs/paas/user-guide/security/domains', 'docs/paas/user-guide/security/audit-log', 'docs/paas/user-guide/security/secrets-storage', 'docs/paas/user-guide/security/api-keys'],
+				items: [
+					{ label: 'Overview', slug: 'docs/paas/user-guide/security/overview' },
+					{
+						label: 'Authentication',
+						collapsed: true,
+						items: [
+							'docs/paas/user-guide/security/two-factor-authentication',
+							'docs/paas/user-guide/security/oauth-2-support',
+							'docs/paas/user-guide/security/self-registration',
+							'docs/paas/user-guide/security/api-keys',
+						],
+					},
+					{
+						label: 'Administration',
+						collapsed: true,
+						items: [
+							'docs/paas/user-guide/security/domains',
+							'docs/paas/user-guide/security/audit-log',
+							'docs/paas/user-guide/security/secrets-storage',
+						],
+					},
+				],
 			},
+			{
+				label: 'Account & Billing',
+				collapsed: true,
+				items: [
+					{ label: 'Overview', slug: 'docs/paas/user-guide/billing-info' },
+					'docs/paas/user-guide/billing-info/subscription',
+					'docs/paas/user-guide/billing-info/billing-details',
+					'docs/paas/user-guide/billing-info/invoices',
+				],
+			},
+		],
+	},
+	{
+		label: 'Reference',
+		collapsed: true,
+		items: [
+			'docs/paas/reference/subscriptions',
 		],
 	},
 ];
 
 export const paasEuSidebar: SidebarConfig = [
 	{
-		label: 'Getting Started EU',
+		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
-		items: ['docs/paas/eu/getting-started'],
+		items: [
+			{
+				label: 'Welcome to IoT!',
+				translations: { uk: 'Новий проект' },
+				items: ['docs/paas/eu/why-thingsboard', 'docs/paas/eu/tutorial/getting-started'],
+			},
+			{
+				label: 'Key concepts',
+				translations: { uk: 'Новий проект' },
+				items: [
+					'docs/paas/eu/concepts/multi-tenancy',
+					'docs/paas/eu/concepts/digital-twin-model',
+					'docs/paas/eu/concepts/data-processing',
+					'docs/paas/eu/concepts/alarms-and-notifications',
+					'docs/paas/eu/concepts/data-visualization',
+				],
+			},
+		],
 	},
 	{
 		label: 'Guides',
 		collapsed: true,
 		items: [
 			{
+				label: 'Digital Twins',
+				collapsed: true,
+				items: [
+					'docs/paas/eu/user-guide/digital-twins/entities',
+					'docs/paas/eu/user-guide/digital-twins/relations',
+					'docs/paas/eu/user-guide/digital-twins/attributes',
+					'docs/paas/eu/user-guide/digital-twins/time-series-data',
+				],
+			},
+			{
+				label: 'Devices & Assets',
+				collapsed: true,
+				items: [
+					'docs/paas/eu/user-guide/devices',
+					'docs/paas/eu/user-guide/device-profiles',
+					'docs/paas/eu/user-guide/connectivity-guide',
+					'docs/paas/eu/user-guide/assets',
+					'docs/paas/eu/user-guide/asset-profiles',
+					'docs/paas/eu/user-guide/connectivity-status',
+					'docs/paas/eu/user-guide/claiming',
+					'docs/paas/eu/user-guide/provisioning',
+					'docs/paas/eu/user-guide/ota-updates',
+					'docs/paas/eu/user-guide/command-and-control',
+				],
+			},
+			{
+				label: 'Data Visualization',
+				collapsed: true,
+				items: [
+					{ label: 'Key concepts', slug: 'docs/paas/eu/user-guide/data-visualization' },
+					'docs/paas/eu/user-guide/dashboards',
+					'docs/paas/eu/user-guide/widgets',
+					'docs/paas/eu/user-guide/time-window',
+					'docs/paas/eu/user-guide/aliases',
+					'docs/paas/eu/user-guide/layouts',
+					'docs/paas/eu/user-guide/actions',
+					'docs/paas/eu/user-guide/scada',
+					'docs/paas/eu/user-guide/units',
+				],
+			},
+			{
+				label: 'Customers & Users',
+				collapsed: true,
+				items: [
+					'docs/paas/eu/user-guide/multi-tenancy',
+					'docs/paas/eu/user-guide/customers',
+					'docs/paas/eu/user-guide/users',
+					'docs/paas/eu/user-guide/roles',
+					'docs/paas/eu/user-guide/groups',
+				],
+			},
+			{
+				label: 'Alarms & Notifications',
+				collapsed: true,
+				items: [
+					'docs/paas/eu/user-guide/alarms',
+					'docs/paas/eu/user-guide/alarm-rules',
+					'docs/paas/eu/user-guide/notifications',
+				],
+			},
+			{
+				label: 'Data Processing',
+				collapsed: true,
+				items: [
+					{
+						label: 'Calculated Fields',
+						collapsed: true,
+						items: [
+							{ label: 'Overview', slug: 'docs/paas/eu/user-guide/calculated-fields' },
+							{ label: 'Simple', slug: 'docs/paas/eu/user-guide/calculated-fields/simple' },
+							{ label: 'Script', slug: 'docs/paas/eu/user-guide/calculated-fields/script' },
+							{ label: 'Propagation', slug: 'docs/paas/eu/user-guide/calculated-fields/propagation' },
+							{ label: 'Geofencing', slug: 'docs/paas/eu/user-guide/calculated-fields/geofencing' },
+							{
+								label: 'Entities Aggregation',
+								slug: 'docs/paas/eu/user-guide/calculated-fields/related-entities-aggregation',
+							},
+							{
+								label: 'Time Series Aggregation',
+								slug: 'docs/paas/eu/user-guide/calculated-fields/time-series-data-aggregation',
+							},
+						],
+					},
+					{
+						label: 'Rule Engine',
+						collapsed: true,
+						items: [
+							{ label: 'Overview', slug: 'docs/paas/eu/user-guide/rule-engine' },
+							{ label: 'Queues', slug: 'docs/paas/eu/user-guide/rule-engine/queues' },
+							{ label: 'Monitoring', slug: 'docs/paas/eu/user-guide/rule-engine/monitoring' },
+						],
+					},
+					'docs/paas/eu/user-guide/rule-nodes',
+				],
+			},
+			{
+				label: 'Reporting',
+				collapsed: true,
+				items: [
+					'docs/paas/eu/user-guide/reporting/getting-started',
+					'docs/paas/eu/user-guide/reporting/report-templates',
+					'docs/paas/eu/user-guide/reporting/subreports',
+					'docs/paas/eu/user-guide/reporting/scheduling',
+					'docs/paas/eu/user-guide/reporting/notifications',
+					'docs/paas/eu/user-guide/reporting/charts',
+					'docs/paas/eu/user-guide/reporting/dashboards',
+				],
+			},
+			{
+				label: 'AI',
+				collapsed: true,
+				items: [
+					'docs/paas/eu/user-guide/ai-models',
+					'docs/paas/eu/user-guide/ai-predictive-maintenance',
+					'docs/paas/eu/user-guide/local-ai-ollama',
+					'docs/paas/eu/user-guide/mcp-server',
+					'docs/paas/eu/user-guide/n8n-node',
+				],
+			},
+			{
+				label: 'Integrations',
+				collapsed: true,
+				items: [
+					'docs/paas/eu/user-guide/integrations',
+					'docs/paas/eu/user-guide/integrations/http',
+					'docs/paas/eu/user-guide/integrations/chirpstack',
+					'docs/paas/eu/user-guide/integrations/aws-iot',
+				],
+			},
+			{
+				label: 'White-labeling',
+				collapsed: true,
+				items: [
+					{ label: 'General', slug: 'docs/paas/eu/user-guide/white-labeling-general' },
+					{ label: 'Login', slug: 'docs/paas/eu/user-guide/white-labeling-login' },
+					{ label: 'Mail Templates', slug: 'docs/paas/eu/user-guide/white-labeling-mail' },
+					{ label: 'Custom Translation', slug: 'docs/paas/eu/user-guide/white-labeling-translation' },
+					{ label: 'Custom Menu', slug: 'docs/paas/eu/user-guide/white-labeling-menu' },
+				],
+			},
+			{
+				label: 'Mobile App Center',
+				collapsed: true,
+				items: [
+					{ label: 'Overview', slug: 'docs/paas/eu/user-guide/mobile-app-center' },
+					'docs/paas/eu/user-guide/mobile-app-center/applications',
+					'docs/paas/eu/user-guide/mobile-app-center/qr-code-widget',
+				],
+			},
+			{
+				label: 'Other Features',
+				collapsed: true,
+				items: [
+					'docs/paas/eu/user-guide/image-gallery',
+					'docs/paas/eu/user-guide/version-control',
+					'docs/paas/eu/user-guide/entity-views',
+					'docs/paas/eu/user-guide/scheduler',
+				],
+			},
+			{
+				label: 'Add-ons',
+				collapsed: true,
+				items: [
+					'docs/paas/eu/user-guide/add-ons',
+					'docs/paas/eu/user-guide/edge-computing',
+					'docs/paas/eu/user-guide/trendz-analytics',
+				],
+			},
+			{
 				label: 'Security',
 				collapsed: true,
-				items: ['docs/paas/eu/user-guide/security/two-factor-authentication', 'docs/paas/eu/user-guide/security/oauth-2-support', 'docs/paas/eu/user-guide/security/domains', 'docs/paas/eu/user-guide/security/audit-log', 'docs/paas/eu/user-guide/security/secrets-storage', 'docs/paas/eu/user-guide/security/api-keys'],
+				items: [
+					{ label: 'Overview', slug: 'docs/paas/eu/user-guide/security/overview' },
+					{
+						label: 'Authentication',
+						collapsed: true,
+						items: [
+							'docs/paas/eu/user-guide/security/two-factor-authentication',
+							'docs/paas/eu/user-guide/security/oauth-2-support',
+							'docs/paas/eu/user-guide/security/self-registration',
+							'docs/paas/eu/user-guide/security/api-keys',
+						],
+					},
+					{
+						label: 'Administration',
+						collapsed: true,
+						items: [
+							'docs/paas/eu/user-guide/security/domains',
+							'docs/paas/eu/user-guide/security/audit-log',
+							'docs/paas/eu/user-guide/security/secrets-storage',
+						],
+					},
+				],
 			},
+			{
+				label: 'Account & Billing',
+				collapsed: true,
+				items: [
+					{ label: 'Overview', slug: 'docs/paas/eu/user-guide/billing-info' },
+					'docs/paas/eu/user-guide/billing-info/subscription',
+					'docs/paas/eu/user-guide/billing-info/billing-details',
+					'docs/paas/eu/user-guide/billing-info/invoices',
+				],
+			},
+		],
+	},
+	{
+		label: 'Reference',
+		collapsed: true,
+		items: [
+			'docs/paas/eu/reference/subscriptions',
 		],
 	},
 ];

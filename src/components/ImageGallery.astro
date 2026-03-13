@@ -39,6 +39,16 @@ const productSuffix: Record<Products, string> = {
 	[Products.TBMQ_PE]: 'tbmq-pe',
 };
 
+// Product fallback chain: if a product-specific image doesn't exist, try the parent product.
+// e.g. PAAS_EU → PAAS → PE → base, EDGE_PE → EDGE → base, MOBILE_PE → MOBILE → base
+const productFallback: Partial<Record<Products, Products[]>> = {
+	[Products.PAAS]: [Products.PE],
+	[Products.PAAS_EU]: [Products.PAAS, Products.PE],
+	[Products.EDGE_PE]: [Products.EDGE],
+	[Products.MOBILE_PE]: [Products.MOBILE],
+	[Products.TBMQ_PE]: [Products.TBMQ],
+};
+
 // Load all images from assets using glob (eager = synchronous at build time)
 // Key — absolute path from project root (/src/assets/...)
 const assetModules = import.meta.glob<{ default: ImageMetadata }>(
@@ -76,24 +86,38 @@ function splitExt(src: string): [string, string] {
  */
 function resolvePaths(src: string): { lightPath: string; darkPath: string } {
 	const [base, ext] = splitExt(src);
-	const suffix = product ? productSuffix[product] : null;
 
-	// Resolve light path: try product-specific first, then base
-	let lightPath: string;
-	if (suffix && assetModules[`${base}-${suffix}${ext}`]) {
-		lightPath = `${base}-${suffix}${ext}`;
-	} else {
-		lightPath = src; // base file
+	// Build suffix chain: current product → fallback products → base (no suffix)
+	const suffixes: string[] = [];
+	if (product) {
+		suffixes.push(productSuffix[product]);
+		const fallbacks = productFallback[product];
+		if (fallbacks) {
+			for (const fb of fallbacks) {
+				suffixes.push(productSuffix[fb]);
+			}
+		}
 	}
 
-	// Resolve dark path: try product+dark, then generic dark, then fall back to light
-	let darkPath: string;
-	if (suffix && assetModules[`${base}-${suffix}-dark${ext}`]) {
-		darkPath = `${base}-${suffix}-dark${ext}`;
-	} else if (assetModules[`${base}-dark${ext}`]) {
+	// Resolve light path: try each suffix, then base
+	let lightPath: string = src;
+	for (const s of suffixes) {
+		if (assetModules[`${base}-${s}${ext}`]) {
+			lightPath = `${base}-${s}${ext}`;
+			break;
+		}
+	}
+
+	// Resolve dark path: try each suffix+dark, then generic dark, then fall back to light
+	let darkPath: string = lightPath;
+	for (const s of suffixes) {
+		if (assetModules[`${base}-${s}-dark${ext}`]) {
+			darkPath = `${base}-${s}-dark${ext}`;
+			break;
+		}
+	}
+	if (darkPath === lightPath && assetModules[`${base}-dark${ext}`]) {
 		darkPath = `${base}-dark${ext}`;
-	} else {
-		darkPath = lightPath; // no dark variant — reuse light
 	}
 
 	return { lightPath, darkPath };
