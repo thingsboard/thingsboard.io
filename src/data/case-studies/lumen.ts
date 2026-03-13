@@ -123,8 +123,8 @@ export const lumenData: CaseStudyData = {
 				title: 'Security, scalability & reliability',
 				text: 'ThingsBoard’s secure device authentication, encrypted communication, and role-based access control meet strict industrial IT standards. The platform handles large-scale industrial workloads while maintaining stability and responsiveness.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/hierarchy-widget.webp', alt: 'ThingsBoard hierarchy widget', title: 'ThingsBoard hierarchy widget' },
 					{ src: 'https://img.thingsboard.io/case-studies/roles-table.webp', alt: 'ThingsBoard roles table widget', title: 'ThingsBoard roles table widget' },
+					{ src: 'https://img.thingsboard.io/case-studies/hierarchy-widget.webp', alt: 'ThingsBoard hierarchy widget', title: 'ThingsBoard hierarchy widget' }
 				],
 			},
 			{
