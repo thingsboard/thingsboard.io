@@ -810,36 +810,28 @@ export const edgeSidebar: SidebarConfig = [
 				collapsed: true,
 				items: [
 					'docs/edge/user-guide/edge-management',
-					'docs/edge/user-guide/manage-alarms',
-					'docs/edge/user-guide/edge-proxy',
-				],
-			},
-			{
-				label: 'Devices & assets',
-				collapsed: true,
-				items: [
-					'docs/edge/user-guide/provision-device',
-					'docs/edge/user-guide/provision-asset',
-					'docs/edge/user-guide/ota-updates',
+					{
+						label: 'Connect Edge behind a proxy',
+						collapsed: true,
+						items: [
+							'docs/edge/user-guide/edge-proxy/debian',
+							'docs/edge/user-guide/edge-proxy/docker',
+						],
+					},
+					'docs/edge/user-guide/grpc-ssl',
 					'docs/edge/user-guide/iot-gateway',
 				],
 			},
 			{
-				label: 'Customers & users',
+				label: 'Entities & visualization',
 				collapsed: true,
 				items: [
-					'docs/edge/user-guide/provision-customer',
-					'docs/edge/user-guide/provision-user',
-				],
-			},
-			{
-				label: 'Data visualization',
-				collapsed: true,
-				items: [
+					'docs/edge/user-guide/device-connectivity',
+					'docs/edge/user-guide/device-management',
+					'docs/edge/user-guide/asset-management',
+					'docs/edge/user-guide/provision-customers-and-users',
+					'docs/edge/user-guide/ota-updates',
 					'docs/edge/user-guide/dashboards',
-					'docs/edge/user-guide/provision-dashboard',
-					'docs/edge/user-guide/public-dashboard',
-					'docs/edge/user-guide/provision-entity-view',
 				],
 			},
 			{
@@ -855,17 +847,21 @@ export const edgeSidebar: SidebarConfig = [
 				label: 'Data processing',
 				collapsed: true,
 				items: [
-					'docs/edge/user-guide/data-processing',
 					'docs/edge/user-guide/rule-chain-templates',
-					'docs/edge/user-guide/provision-rule-chains',
+					'docs/edge/user-guide/rpc',
+					'docs/edge/user-guide/manage-alarms',
 					'docs/edge/user-guide/queues',
 				],
 			},
 			{
-				label: 'Security',
+				label: 'Troubleshooting',
 				collapsed: true,
 				items: [
-					'docs/edge/user-guide/grpc-ssl',
+					'docs/edge/user-guide/edge-status-events',
+					'docs/edge/user-guide/logs',
+					'docs/edge/user-guide/grpc-keepalive',
+					'docs/edge/user-guide/message-statistics',
+					'docs/edge/user-guide/prometheus-metrics',
 				],
 			},
 			{
@@ -917,36 +913,28 @@ export const edgePeSidebar: SidebarConfig = [
 				collapsed: true,
 				items: [
 					'docs/edge/pe/user-guide/edge-management',
-					'docs/edge/pe/user-guide/manage-alarms',
-					'docs/edge/pe/user-guide/edge-proxy',
-				],
-			},
-			{
-				label: 'Devices & assets',
-				collapsed: true,
-				items: [
-					'docs/edge/pe/user-guide/provision-device',
-					'docs/edge/pe/user-guide/provision-asset',
-					'docs/edge/pe/user-guide/ota-updates',
+					{
+						label: 'Connect Edge behind a proxy',
+						collapsed: true,
+						items: [
+							'docs/edge/pe/user-guide/edge-proxy/debian',
+							'docs/edge/pe/user-guide/edge-proxy/docker',
+						],
+					},
+					'docs/edge/pe/user-guide/grpc-ssl',
 					'docs/edge/pe/user-guide/iot-gateway',
 				],
 			},
 			{
-				label: 'Customers & users',
+				label: 'Entities & visualization',
 				collapsed: true,
 				items: [
-					'docs/edge/pe/user-guide/provision-customer',
-					'docs/edge/pe/user-guide/provision-user',
-				],
-			},
-			{
-				label: 'Data visualization',
-				collapsed: true,
-				items: [
+					'docs/edge/pe/user-guide/device-connectivity',
+					'docs/edge/pe/user-guide/device-management',
+					'docs/edge/pe/user-guide/asset-management',
+					'docs/edge/pe/user-guide/provision-customers-and-users',
+					'docs/edge/pe/user-guide/ota-updates',
 					'docs/edge/pe/user-guide/dashboards',
-					'docs/edge/pe/user-guide/provision-dashboard',
-					'docs/edge/pe/user-guide/public-dashboard',
-					'docs/edge/pe/user-guide/provision-entity-view',
 				],
 			},
 			{
@@ -962,17 +950,21 @@ export const edgePeSidebar: SidebarConfig = [
 				label: 'Data processing',
 				collapsed: true,
 				items: [
-					'docs/edge/pe/user-guide/data-processing',
 					'docs/edge/pe/user-guide/rule-chain-templates',
-					'docs/edge/pe/user-guide/provision-rule-chains',
+					'docs/edge/pe/user-guide/rpc',
+					'docs/edge/pe/user-guide/manage-alarms',
 					'docs/edge/pe/user-guide/queues',
 				],
 			},
 			{
-				label: 'Security',
+				label: 'Troubleshooting',
 				collapsed: true,
 				items: [
-					'docs/edge/pe/user-guide/grpc-ssl',
+					'docs/edge/pe/user-guide/edge-status-events',
+					'docs/edge/pe/user-guide/logs',
+					'docs/edge/pe/user-guide/grpc-keepalive',
+					'docs/edge/pe/user-guide/message-statistics',
+					'docs/edge/pe/user-guide/prometheus-metrics',
 				],
 			},
 			{

@@ -1,0 +1,181 @@
+import Tabs from '@components/Tabs.astro';
+import TabItem from '@components/TabItem.astro';
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+By default, the gRPC connection between ThingsBoard Edge and the server is unencrypted. Enabling TLS/SSL secures this channel against interception and tampering. Configuration is split into two parts: the server side and the Edge side — both must be completed for the connection to work.
+
+## Server configuration
+
+Choose how SSL termination is handled on the server — either using the built-in certificate mechanism or delegating termination to an external load balancer.
+
+<Tabs defaultTab="builtin" urlParam="server">
+  <TabItem label="Built-in" id="builtin">
+
+The built-in mechanism uses self-signed certificates generated with OpenSSL. This approach is suitable for testing but is not recommended for production environments.
+
+Run all certificate generation commands on the ThingsBoard server. Store the generated files in a dedicated directory, for example `/etc/thingsboard/conf/certs/`:
+
+```bash
+sudo mkdir -p /etc/thingsboard/conf/certs
+cd /etc/thingsboard/conf/certs
+```
+
+<Steps>
+1. Generate a private key:
+
+   ```bash
+   sudo openssl genpkey -algorithm RSA -out privateKey.pem -pkeyopt rsa_keygen_bits:2048
+   ```
+
+   This creates a 2048-bit RSA private key stored in `privateKey.pem`.
+
+2. Generate a Certificate Signing Request (CSR):
+
+   ```bash
+   sudo openssl req -new -key privateKey.pem -out certRequest.csr
+   ```
+
+   Provide your organization name, common name (domain name), and email address when prompted.
+
+   <Aside type="caution">
+   Set the common name to `localhost` if the ThingsBoard server is running locally, or to the server's domain name if hosted. SSL connections will fail if the certificate's common name does not match the server's hostname.
+   </Aside>
+
+3. Generate a self-signed certificate valid for 365 days:
+
+   ```bash
+   sudo openssl x509 -req -in certRequest.csr -signkey privateKey.pem -out certFile.crt -days 365
+   ```
+
+   Adjust `-days` to change the validity period. An expired certificate breaks all Edge connections silently — plan for renewal before expiry.
+
+4. Enable SSL on the ThingsBoard server. For Ubuntu and CentOS/RHEL installations:
+
+   ```bash
+   sudo sh -c 'cat <<EOL >> /etc/thingsboard/conf/thingsboard.conf
+   export EDGES_RPC_SSL_ENABLED=true
+   export EDGES_RPC_SSL_CERT=/etc/thingsboard/conf/certs/certFile.crt
+   export EDGES_RPC_SSL_PRIVATE_KEY=/etc/thingsboard/conf/certs/privateKey.pem
+   EOL'
+   ```
+
+5. Restart the server to apply the changes:
+
+   ```bash
+   sudo systemctl restart thingsboard
+   ```
+
+   Confirm SSL is active by checking the server logs:
+
+   ```bash
+   sudo journalctl -u thingsboard -n 50 | grep -i ssl
+   ```
+
+   Look for a line confirming that the gRPC server started with SSL enabled.
+</Steps>
+
+  </TabItem>
+  <TabItem label="Load balancer" id="load-balancer">
+
+The recommended approach for production is to delegate SSL termination to an external load balancer such as HAProxy. This keeps certificate management outside the ThingsBoard process and scales better in clustered deployments.
+
+Follow the HAProxy SSL termination instructions for your operating system:
+
+{/* TODO: these link to internal /docs/... paths — verify the pages exist in this site and convert to <DocLink> if so; also verify whether the anchor (#step-6-...) is supported */}
+For Ubuntu Server, see <a href="/docs/user-guide/install/pe/add-haproxy-ubuntu/#step-6-configure-edge-tls-communication-optional" target="_blank" rel="noopener noreferrer">Step 6: Configure Edge TLS communication</a>.
+
+For CentOS/RHEL Server, see <a href="/docs/user-guide/install/pe/add-haproxy-rhel/#step-6-configure-edge-tls-communication-optional" target="_blank" rel="noopener noreferrer">Step 6: Configure Edge TLS communication</a>.
+
+  </TabItem>
+</Tabs>
+
+## Edge configuration
+
+After configuring the server, enable SSL on the Edge side to match.
+
+<Tabs defaultTab="debian" urlParam="installation">
+  <TabItem label="Debian-based" id="debian">
+
+<Steps>
+1. Enable SSL communication on the Edge:
+
+   ```bash
+   sudo sh -c 'cat <<EOL >> /etc/tb-edge/conf/tb-edge.conf
+   export CLOUD_RPC_SSL_ENABLED=true
+   EOL'
+   ```
+
+2. If you are using self-signed certificates, transfer the server's public certificate to the Edge device:
+
+   ```bash
+   scp username@server_ip:/etc/thingsboard/conf/certs/certFile.crt /etc/tb-edge/conf/certFile.crt
+   ```
+
+   Replace `username` and `server_ip` with your server credentials. Then add the certificate path to the Edge configuration:
+
+   ```bash
+   sudo sh -c 'cat <<EOL >> /etc/tb-edge/conf/tb-edge.conf
+   export CLOUD_RPC_SSL_CERT=/etc/tb-edge/conf/certFile.crt
+   EOL'
+   ```
+
+3. Restart Edge to apply the changes:
+
+   ```bash
+   sudo systemctl restart tb-edge
+   ```
+
+4. Verify the TLS connection was established:
+
+   ```bash
+   sudo journalctl -u tb-edge -n 100 | grep -i ssl
+   ```
+
+   Look for a line confirming that the gRPC channel connected with SSL. If you see SSL handshake errors, confirm the certificate's common name matches the server's hostname.
+</Steps>
+
+  </TabItem>
+  <TabItem label="Docker" id="docker">
+
+<Steps>
+1. Copy `certFile.crt` from the server to the Edge device:
+
+   ```bash
+   scp username@server_ip:/etc/thingsboard/conf/certs/certFile.crt /path/to/certs/certFile.crt
+   ```
+
+   Replace `username`, `server_ip`, and the destination path with your actual values.
+
+2. Open `docker-compose.yml` and add the following to the `environment` block:
+
+   ```yaml
+         CLOUD_RPC_SSL_ENABLED: "true"
+         CLOUD_RPC_SSL_CERT: "/etc/tb-edge/certs/certFile.crt"
+   ```
+
+   Omit `CLOUD_RPC_SSL_CERT` if you are using a CA-signed certificate — it is only required for self-signed certificates.
+
+   Add a volume entry to mount the certificate into the container:
+
+   ```yaml
+       volumes:
+         - /path/to/certs/certFile.crt:/etc/tb-edge/certs/certFile.crt
+   ```
+
+3. Restart the Edge container:
+
+   ```bash
+   docker compose restart mytbedge
+   ```
+
+4. Verify the TLS connection was established:
+
+   ```bash
+   docker logs mytbedge 2>&1 | grep -i ssl
+   ```
+
+   Look for a line confirming that the gRPC channel connected with SSL. If you see SSL handshake errors, confirm the certificate's common name matches the server's hostname.
+</Steps>
+
+  </TabItem>
+</Tabs>

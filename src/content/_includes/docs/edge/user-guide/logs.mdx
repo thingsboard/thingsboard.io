@@ -1,0 +1,155 @@
+import Tabs from '@components/Tabs.astro';
+import TabItem from '@components/TabItem.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+ThingsBoard Edge writes all runtime output to log files on disk. Reading and configuring these logs is the first step in diagnosing any issue — connection failures, rule engine errors, and synchronization problems all leave traces here.
+
+## Log location
+
+Regardless of the deployment type, Edge logs are stored at:
+
+```
+/var/log/tb-edge/
+```
+
+The main log file is `tb-edge.log`. Rotated logs follow the pattern `tb-edge.YYYY-MM-DD.N.log`.
+
+## Read logs
+
+<Tabs defaultTab="standalone" urlParam="deployment">
+  <TabItem label="Standalone" id="standalone">
+
+Follow the log output in real time:
+
+```bash
+tail -f /var/log/tb-edge/tb-edge.log
+```
+
+Filter for errors only:
+
+```bash
+cat /var/log/tb-edge/tb-edge.log | grep ERROR
+```
+
+  </TabItem>
+  <TabItem label="Docker" id="docker">
+
+Follow the log output in real time:
+
+```bash
+docker compose logs -f tb-edge
+```
+
+Filter for errors only:
+
+```bash
+docker compose logs tb-edge | grep ERROR
+```
+
+Redirect the full log to a file for offline analysis:
+
+```bash
+docker compose logs -f tb-edge > tb-edge.log
+```
+
+To inspect logs directly inside the container:
+
+```bash
+docker ps
+docker exec -it NAME_OF_THE_CONTAINER bash
+```
+
+<Aside type="note">
+If you are still using the legacy `docker-compose` (with a hyphen), replace `docker compose` with `docker-compose` in all commands above.
+</Aside>
+
+  </TabItem>
+</Tabs>
+
+## Enable specific logs
+
+ThingsBoard Edge uses [Logback](https://logback.qos.ch/) for logging. You can enable or disable logging for any class or package by editing `logback.xml`.
+
+<Tabs defaultTab="standalone" urlParam="deployment">
+  <TabItem label="Standalone" id="standalone">
+
+Edit the configuration file at:
+
+```
+/usr/share/tb-edge/conf/logback.xml
+```
+
+  </TabItem>
+  <TabItem label="Docker" id="docker">
+
+The `/config` directory inside the container is mapped to `./tb-edge/conf/` on the host. Edit the file at:
+
+```
+./tb-edge/conf/logback.xml
+```
+
+  </TabItem>
+</Tabs>
+
+Example `logback.xml` with common logger patterns:
+
+```xml
+<!DOCTYPE configuration>
+<configuration scan="true" scanPeriod="10 seconds">
+
+    <appender name="fileLogAppender"
+              class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>/var/log/tb-edge/tb-edge.log</file>
+        <rollingPolicy
+                class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>/var/log/tb-edge/tb-edge.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>3GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{ISO8601} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="org.thingsboard.server" level="INFO" />
+    <logger name="org.thingsboard.js.api" level="TRACE" />
+    <logger name="com.microsoft.azure.servicebus.primitives.CoreMessageReceiver" level="OFF" />
+
+    <root level="INFO">
+        <appender-ref ref="fileLogAppender"/>
+    </root>
+</configuration>
+```
+
+Each `<logger>` element targets a class or package by name and sets its log level:
+
+| Level | What is logged |
+|-------|----------------|
+| `TRACE` | Most detailed — every method call and data value |
+| `DEBUG` | Diagnostic information useful during development |
+| `INFO` | General operational messages (default) |
+| `WARN` | Unexpected conditions that do not stop execution |
+| `ERROR` | Failures that require attention |
+| `OFF` | Logging disabled for this class or package |
+
+Changes to `logback.xml` are picked up automatically within 10 seconds — no restart required.
+
+### MessagePack processing log
+
+To log the slowest and most frequently called rule nodes, add the following logger:
+
+```xml
+<logger name="org.thingsboard.server.service.queue.TbMsgPackProcessingContext" level="DEBUG" />
+```
+
+This produces output like:
+
+```
+2021-03-24 17:01:21,023 [tb-rule-engine-consumer-24-thread-3] DEBUG ...TbMsgPackProcessingContext
+  - Top Rule Nodes by max execution time:
+  - [Main][3f740670-...] max execution time: 1102. [RuleChain: Thermostat|RuleNode: Device Profile Node]
+  - [Main][3f6debf0-...] max execution time: 1.   [RuleChain: Thermostat|RuleNode: Message Type Switch]
+```
+
+Use this when rule engine processing is slow or messages are timing out.
