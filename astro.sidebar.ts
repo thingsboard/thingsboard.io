@@ -1048,7 +1048,7 @@ const tbmqGuideItems = (prefix: string): SidebarConfig => {
 					? [
 							{ label: 'OAuth 2.0', slug: `${prefix}/security/oauth-2-support` },
 							{ label: 'Domains', slug: `${prefix}/security/domains` },
-							{ label: 'Role-Based Access Control', slug: `${prefix}/security/rbac` },
+							{ label: 'Role-based access control', slug: `${prefix}/security/rbac` },
 						]
 					: []),
 			],
@@ -1071,7 +1071,7 @@ const tbmqGuideItems = (prefix: string): SidebarConfig => {
 		},
 		{ label: 'Integration with ThingsBoard', slug: `${prefix}/user-guide/integration-with-thingsboard` },
 		{
-			label: 'Other features',
+			label: 'Broker operations',
 			collapsed: true,
 			items: [
 				{ label: 'TBMQ client type', slug: `${prefix}/user-guide/tbmq-client-type` },
@@ -1094,7 +1094,7 @@ const tbmqGuideItems = (prefix: string): SidebarConfig => {
 			],
 		},
 		{
-			label: 'Administration UI',
+			label: 'Management console',
 			collapsed: true,
 			items: [
 				{ label: 'Monitoring', slug: `${prefix}/user-guide/ui/monitoring` },
@@ -1227,7 +1227,6 @@ export const tbmqSidebar: SidebarConfig = [
 		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
 		items: [
-			{ label: 'Introduction', slug: 'docs/mqtt-broker' },
 			{
 				label: 'Welcome to MQTT!',
 				translations: { uk: 'Новий проєкт' },
@@ -1290,7 +1289,6 @@ export const tbmqPeSidebar: SidebarConfig = [
 		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
 		items: [
-			{ label: 'Introduction', slug: 'docs/mqtt-broker/pe' },
 			{
 				label: 'Welcome to MQTT!',
 				translations: { uk: 'Новий проєкт' },
@@ -1413,8 +1411,14 @@ export const paasEuSidebarTabLinks: SidebarTabLinks = {};
 export const edgeSidebarTabLinks: SidebarTabLinks = {};
 export const edgePeSidebarTabLinks: SidebarTabLinks = {};
 export const gwSidebarTabLinks: SidebarTabLinks = {};
-export const tbmqSidebarTabLinks: SidebarTabLinks = {};
-export const tbmqPeSidebarTabLinks: SidebarTabLinks = {};
+export const tbmqSidebarTabLinks: SidebarTabLinks = {
+	'Getting Started': '/docs/mqtt-broker/',
+	'Guides': '/docs/mqtt-broker/guides/',
+};
+export const tbmqPeSidebarTabLinks: SidebarTabLinks = {
+	'Getting Started': '/docs/mqtt-broker/pe/',
+	'Guides': '/docs/mqtt-broker/pe/guides/',
+};
 export const mobileSidebarTabLinks: SidebarTabLinks = {};
 export const mobilePeSidebarTabLinks: SidebarTabLinks = {};
 export const trendzSidebarTabLinks: SidebarTabLinks = {};
