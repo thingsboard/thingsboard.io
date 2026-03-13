@@ -41,6 +41,7 @@ export const energroupData: CaseStudyData = {
 		challenges: [
 			'Before the renovation, the Pyxis residential building faced several challenges.',
 			'Decentralized electric domestic hot water systems in each apartment, resulting in high energy consumption.',
+			'No centralized monitoring or control of heating and energy usage.',
 			'Limited visibility for the building operator.',
 			'Constraints related to renovation works in occupied apartments.',
 			'Lack of flexibility for future optimization.',

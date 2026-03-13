@@ -39,11 +39,11 @@ export const lumenData: CaseStudyData = {
 		description:
 			'A large industrial manufacturing group operating multiple facilities required a unified digital platform to manage operations across its factories.',
 		challenges: [
-			'Disparate monitoring systems: Energy meters, industrial equipment, HVAC systems, and environmental sensors operated in silos.',
-			'Need for a single unified platform: The client required one platform capable of integrating predictive maintenance, asset management, energy analytics, and environmental monitoring.',
-			'Strict IT and cybersecurity requirements: Corporate IT policies required secure architecture, controlled access, encrypted communication, and flexible deployment models.',
-			'Scalability across multiple plants: The solution needed to support thousands of telemetry points across multiple sites without compromising performance.',
-			'Long-term operational stability: In a 24/7 industrial environment, system reliability and uptime were critical.',
+			'<strong>Disparate monitoring systems.</strong> Energy meters, industrial equipment, HVAC systems, and environmental sensors operated in silos.',
+			'<strong>Need for a single unified platform.</strong> The client required one platform capable of integrating predictive maintenance, asset management, energy analytics, and environmental monitoring.',
+			'<strong>Strict IT and cybersecurity requirements.</strong> Corporate IT policies required secure architecture, controlled access, encrypted communication, and flexible deployment models.',
+			'<strong>Scalability across multiple plants.</strong> The solution needed to support thousands of telemetry points across multiple sites without compromising performance.',
+			'<strong>Long-term operational stability.</strong> In a 24/7 industrial environment, system reliability and uptime were critical.',
 		],
 		results: [
 			'1,000+ IoT sensors and industrial energy meters integrated into a unified monitoring platform across multiple manufacturing facilities.',
@@ -140,7 +140,7 @@ export const lumenData: CaseStudyData = {
 				],
 				secondText: 'This case demonstrates how Lumen Energy Solutions leverages ThingsBoard to build secure, scalable, and high-performance industrial IoT applications in demanding manufacturing environments.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/thinsgboard.webp', alt: 'ThingsBoard logo', title: 'ThingsBoard logo' },
+					{ src: 'https://img.thingsboard.io/case-studies/thingsboard.webp', alt: 'ThingsBoard logo', title: 'ThingsBoard logo' },
 					{ src: 'https://img.thingsboard.io/case-studies/lumen-color.webp', alt: 'Lumen logo', title: 'Lumen logo' },
 				],
 			},

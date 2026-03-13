@@ -63,7 +63,7 @@ export const caseStudyCards: CaseStudyCard[] = [
 	},
 	{
 		slug: 'lumen',
-		categories: ['Industry 4.0'],
+		categories: ['Smart IoT solution'],
 		title: 'Industrial IoT in manufacturing: how Lumen Energy Solutions digitalized large-scale factories with ThingsBoard',
 		description: 'Lumen Energy Solutions leverages ThingsBoard to digitalize large-scale factories, integrating 1,000+ IoT sensors and energy meters into a unified platform.',
 		logo: 'https://img.thingsboard.io/case-studies/lumen.svg',
@@ -124,6 +124,15 @@ export const caseStudyCards: CaseStudyCard[] = [
 		logoAlt: 'co.met logo',
 		logoHeight: 42,
 		backgroundImage: 'https://img.thingsboard.io/case-studies/comet.webp',
+	},
+	{
+		slug: 'crai',
+		categories: ['Industry 4.0'],
+		title: 'IoT in industrial automation: how CRAI enables remote control and data acquisition with ThingsBoard',
+		description: 'CRAI leverages ThingsBoard for industrial automation and remote monitoring, enabling real-time visibility and control over equipment like generators, motors, and water pumps.',
+		logo: 'https://img.thingsboard.io/case-studies/crai.svg',
+		logoAlt: 'CRAI logo',
+		backgroundImage: 'https://img.thingsboard.io/case-studies/crai.webp',
 	},
 	{
 		slug: 'iioote',
