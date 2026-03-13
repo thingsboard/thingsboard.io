@@ -85,7 +85,10 @@ export const lumenData: CaseStudyData = {
 			},
 			{
 				title: 'Long-term stability in a 24/7 industrial environment',
-				text: 'The platform has been operating continuously for more than four years, supporting high-frequency telemetry across thousands of data points without performance degradation. The system architecture allows seamless onboarding of new devices, additional production areas, and future expansion plans.',
+				text: [
+					'The platform has been operating continuously for more than four years, supporting high-frequency telemetry across thousands of data points without performance degradation.',
+					'The system architecture allows seamless onboarding of new devices, additional production areas, and future expansion plans.'
+				],
 				image: 'https://img.thingsboard.io/case-studies/lumen-4.webp',
 				imageAlt: 'Long-term stability',
 			},

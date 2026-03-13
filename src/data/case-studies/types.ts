@@ -18,7 +18,7 @@ export interface QuoteData {
 
 export interface PowerBlock {
 	title: string;
-	text: string;
+	text: string | string[];
 	listItems?: string[];
 	secondText?: string;
 	image: string;
