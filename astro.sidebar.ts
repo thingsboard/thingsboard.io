@@ -848,32 +848,6 @@ export const paasSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'Security',
-				collapsed: true,
-				items: [
-					{ label: 'Overview', slug: 'docs/paas/user-guide/security/overview' },
-					{
-						label: 'Authentication',
-						collapsed: true,
-						items: [
-							'docs/paas/user-guide/security/two-factor-authentication',
-							'docs/paas/user-guide/security/oauth-2-support',
-							'docs/paas/user-guide/security/self-registration',
-							'docs/paas/user-guide/security/api-keys',
-						],
-					},
-					{
-						label: 'Administration',
-						collapsed: true,
-						items: [
-							'docs/paas/user-guide/security/domains',
-							'docs/paas/user-guide/security/audit-log',
-							'docs/paas/user-guide/security/secrets-storage',
-						],
-					},
-				],
-			},
-			{
 				label: 'Alarms & Notifications',
 				collapsed: true,
 				items: [
@@ -939,6 +913,91 @@ export const paasSidebar: SidebarConfig = [
 					'docs/paas/user-guide/local-ai-ollama',
 					'docs/paas/user-guide/mcp-server',
 					'docs/paas/user-guide/n8n-node',
+				],
+			},
+			{
+				label: 'Integrations',
+				collapsed: true,
+				items: [
+					'docs/paas/user-guide/integrations',
+					'docs/paas/user-guide/integrations/http',
+					'docs/paas/user-guide/integrations/chirpstack',
+					'docs/paas/user-guide/integrations/aws-iot',
+				],
+			},
+			{
+				label: 'White-labeling',
+				collapsed: true,
+				items: [
+					{ label: 'General', slug: 'docs/paas/user-guide/white-labeling-general' },
+					{ label: 'Login', slug: 'docs/paas/user-guide/white-labeling-login' },
+					{ label: 'Mail Templates', slug: 'docs/paas/user-guide/white-labeling-mail' },
+					{ label: 'Custom Translation', slug: 'docs/paas/user-guide/white-labeling-translation' },
+					{ label: 'Custom Menu', slug: 'docs/paas/user-guide/white-labeling-menu' },
+				],
+			},
+			{
+				label: 'Mobile App Center',
+				collapsed: true,
+				items: [
+					{ label: 'Overview', slug: 'docs/paas/user-guide/mobile-app-center' },
+					'docs/paas/user-guide/mobile-app-center/applications',
+					'docs/paas/user-guide/mobile-app-center/qr-code-widget',
+				],
+			},
+			{
+				label: 'Other Features',
+				collapsed: true,
+				items: [
+					'docs/paas/user-guide/image-gallery',
+					'docs/paas/user-guide/version-control',
+					'docs/paas/user-guide/entity-views',
+					'docs/paas/user-guide/scheduler',
+				],
+			},
+			{
+				label: 'Add-ons',
+				collapsed: true,
+				items: [
+					'docs/paas/user-guide/add-ons',
+					'docs/paas/user-guide/edge-computing',
+					'docs/paas/user-guide/trendz-analytics',
+				],
+			},
+			{
+				label: 'Security',
+				collapsed: true,
+				items: [
+					{ label: 'Overview', slug: 'docs/paas/user-guide/security/overview' },
+					{
+						label: 'Authentication',
+						collapsed: true,
+						items: [
+							'docs/paas/user-guide/security/two-factor-authentication',
+							'docs/paas/user-guide/security/oauth-2-support',
+							'docs/paas/user-guide/security/self-registration',
+							'docs/paas/user-guide/security/api-keys',
+						],
+					},
+					{
+						label: 'Administration',
+						collapsed: true,
+						items: [
+							'docs/paas/user-guide/security/domains',
+							'docs/paas/user-guide/security/audit-log',
+							'docs/paas/user-guide/security/secrets-storage',
+						],
+					},
+				],
+			},
+			{
+				label: 'Account & Billing',
+				collapsed: true,
+				items: [
+					{ label: 'Overview', slug: 'docs/paas/user-guide/billing-info' },
+					'docs/paas/user-guide/billing-info/subscription',
+					'docs/paas/user-guide/billing-info/billing-details',
+					'docs/paas/user-guide/billing-info/invoices',
 				],
 			},
 		],
@@ -1032,32 +1091,6 @@ export const paasEuSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'Security',
-				collapsed: true,
-				items: [
-					{ label: 'Overview', slug: 'docs/paas/eu/user-guide/security/overview' },
-					{
-						label: 'Authentication',
-						collapsed: true,
-						items: [
-							'docs/paas/eu/user-guide/security/two-factor-authentication',
-							'docs/paas/eu/user-guide/security/oauth-2-support',
-							'docs/paas/eu/user-guide/security/self-registration',
-							'docs/paas/eu/user-guide/security/api-keys',
-						],
-					},
-					{
-						label: 'Administration',
-						collapsed: true,
-						items: [
-							'docs/paas/eu/user-guide/security/domains',
-							'docs/paas/eu/user-guide/security/audit-log',
-							'docs/paas/eu/user-guide/security/secrets-storage',
-						],
-					},
-				],
-			},
-			{
 				label: 'Alarms & Notifications',
 				collapsed: true,
 				items: [
@@ -1123,6 +1156,91 @@ export const paasEuSidebar: SidebarConfig = [
 					'docs/paas/eu/user-guide/local-ai-ollama',
 					'docs/paas/eu/user-guide/mcp-server',
 					'docs/paas/eu/user-guide/n8n-node',
+				],
+			},
+			{
+				label: 'Integrations',
+				collapsed: true,
+				items: [
+					'docs/paas/eu/user-guide/integrations',
+					'docs/paas/eu/user-guide/integrations/http',
+					'docs/paas/eu/user-guide/integrations/chirpstack',
+					'docs/paas/eu/user-guide/integrations/aws-iot',
+				],
+			},
+			{
+				label: 'White-labeling',
+				collapsed: true,
+				items: [
+					{ label: 'General', slug: 'docs/paas/eu/user-guide/white-labeling-general' },
+					{ label: 'Login', slug: 'docs/paas/eu/user-guide/white-labeling-login' },
+					{ label: 'Mail Templates', slug: 'docs/paas/eu/user-guide/white-labeling-mail' },
+					{ label: 'Custom Translation', slug: 'docs/paas/eu/user-guide/white-labeling-translation' },
+					{ label: 'Custom Menu', slug: 'docs/paas/eu/user-guide/white-labeling-menu' },
+				],
+			},
+			{
+				label: 'Mobile App Center',
+				collapsed: true,
+				items: [
+					{ label: 'Overview', slug: 'docs/paas/eu/user-guide/mobile-app-center' },
+					'docs/paas/eu/user-guide/mobile-app-center/applications',
+					'docs/paas/eu/user-guide/mobile-app-center/qr-code-widget',
+				],
+			},
+			{
+				label: 'Other Features',
+				collapsed: true,
+				items: [
+					'docs/paas/eu/user-guide/image-gallery',
+					'docs/paas/eu/user-guide/version-control',
+					'docs/paas/eu/user-guide/entity-views',
+					'docs/paas/eu/user-guide/scheduler',
+				],
+			},
+			{
+				label: 'Add-ons',
+				collapsed: true,
+				items: [
+					'docs/paas/eu/user-guide/add-ons',
+					'docs/paas/eu/user-guide/edge-computing',
+					'docs/paas/eu/user-guide/trendz-analytics',
+				],
+			},
+			{
+				label: 'Security',
+				collapsed: true,
+				items: [
+					{ label: 'Overview', slug: 'docs/paas/eu/user-guide/security/overview' },
+					{
+						label: 'Authentication',
+						collapsed: true,
+						items: [
+							'docs/paas/eu/user-guide/security/two-factor-authentication',
+							'docs/paas/eu/user-guide/security/oauth-2-support',
+							'docs/paas/eu/user-guide/security/self-registration',
+							'docs/paas/eu/user-guide/security/api-keys',
+						],
+					},
+					{
+						label: 'Administration',
+						collapsed: true,
+						items: [
+							'docs/paas/eu/user-guide/security/domains',
+							'docs/paas/eu/user-guide/security/audit-log',
+							'docs/paas/eu/user-guide/security/secrets-storage',
+						],
+					},
+				],
+			},
+			{
+				label: 'Account & Billing',
+				collapsed: true,
+				items: [
+					{ label: 'Overview', slug: 'docs/paas/eu/user-guide/billing-info' },
+					'docs/paas/eu/user-guide/billing-info/subscription',
+					'docs/paas/eu/user-guide/billing-info/billing-details',
+					'docs/paas/eu/user-guide/billing-info/invoices',
 				],
 			},
 		],
