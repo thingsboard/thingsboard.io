@@ -117,6 +117,25 @@ sequenceDiagram
   </Steps>
   ```
   Outside of `{...}` JSX expressions (top-level or inside `<ComponentTag>` children), `<Steps>` with a markdown numbered list works normally.
+- **Large conditional sections with markdown:** When you need to hide an entire section (with headings, `<Steps>`, markdown lists, code blocks, etc.) for certain products, do NOT wrap in a JSX fragment (`{condition && <>...</>}`) — markdown won't render. Instead, use one of these approaches (in order of preference):
+  1. **Separate includes** — split the content into two include files (e.g., one for CE/PE, one for Cloud) and import the appropriate one from each stub. Best when the content diverges significantly.
+  2. **Composable includes** — split the include into smaller pieces and compose the page from them in each stub. Best when some sections are shared and others are product-specific.
+  3. **`<ShowFor>` component** — wraps a slot and conditionally renders based on product. Markdown inside renders normally. Best for a single section to hide/show.
+     ```mdx
+     import ShowFor from '~/components/ShowFor.astro';
+
+     <ShowFor product={props.product} show={[Products.CE, Products.PE]}>
+
+     ## System admin section
+
+     <Steps>
+     1. This markdown renders normally inside the slot.
+     2. Steps, lists, code blocks all work.
+     </Steps>
+
+     </ShowFor>
+     ```
+     Props: `product` (current product) and `show` (array of products to render for).
 - To render a literal `${varName}` string in MDX text (not as a JS expression), escape the curly braces: `$\{varName\}` — this renders as `${varName}` without any "varName is not defined" build error
 - Use `props.product` (not `Astro.props`) inside include files since they receive props as a component
 - Conditional blocks: `{props.product === Products.PE && (<>...</>)}` or ternary `{props.product === Products.CE ? <A/> : <B/>}`
@@ -408,15 +427,24 @@ interface Props {
 
 #### Product suffix resolution
 
-When `product` is passed, the component automatically resolves product-specific image files. For a given `src`, it tries `{base}-{suffix}{ext}` first, then falls back to the base file. CE is the default product — no suffix (the base file IS the CE file).
+When `product` is passed, the component automatically resolves product-specific image files using a fallback chain. For a given `src`, it tries the current product suffix first, then any fallback product suffixes, then the base file.
 
 **Suffix mapping:** CE → `ce`, PE → `pe`, PAAS → `paas`, PAAS_EU → `paas-eu`, EDGE → `edge`, EDGE_PE → `edge-pe`, GW → `gw`, TRENDZ → `trendz`, MOBILE → `mobile`, MOBILE_PE → `mobile-pe`, TBMQ → `tbmq`, TBMQ_PE → `tbmq-pe`, LICENSE → `license`.
+
+**Product fallback chain** — if a product-specific image doesn't exist, the component tries parent products before falling back to the base file:
+- PAAS → PE → base
+- PAAS_EU → PAAS → PE → base
+- EDGE_PE → EDGE → base
+- MOBILE_PE → MOBILE → base
+- TBMQ_PE → TBMQ → base
+
+This means PaaS pages automatically use PE screenshots when no `-paas` variant exists. **You do NOT need to create `-paas` image copies** — they will resolve to PE images automatically.
 
 #### Dark theme variant resolution
 
 The component automatically detects and uses dark-mode image variants. For each image, it checks (most specific → least specific):
 
-1. `{base}-{product}-dark{ext}` — product + dark
+1. `{base}-{product}-dark{ext}` — product + dark (tries fallback products too)
 2. `{base}-dark{ext}` — generic dark
 3. Falls back to the light variant
 

@@ -1,0 +1,456 @@
+import DocLink from '@components/DocLink.astro';
+import { Steps, Aside } from '@astrojs/starlight/components';
+import { Code } from '@astrojs/starlight/components';
+import { Products } from '~/models/site.models';
+import { CE_BRANCH, PE_FULL_VER } from '~/data/versions';
+
+export const cloneCmd = `git clone -b ${CE_BRANCH} https://github.com/thingsboard/rule-node-examples
+cd rule-node-examples`;
+
+export const pomSnippet = `...
+    <properties>
+        ...
+        <thingsboard.version>${PE_FULL_VER}</thingsboard.version>
+        ...
+    </properties>
+...`;
+
+In this guide you will learn how to create custom rule nodes and add them to your ThingsBoard instance.
+We will review rule nodes of three different types: Filter, Enrichment, and Transformation.
+
+## Prerequisites
+
+We assume you have completed the following:
+
+- <DocLink product={props.product} path='tutorial/getting-started' bold={false}>Getting Started</DocLink> guide
+- <DocLink product={props.product} path='user-guide/rule-engine' bold={false}>Rule Engine Overview</DocLink>
+
+You also need the following tools installed:
+
+| Tool | Version |
+|------|---------|
+| [OpenJDK](https://openjdk.org/) | 17 |
+| [Maven](https://maven.apache.org/install.html) | 3.6.0+ |
+| Java IDE | [IntelliJ IDEA](https://www.jetbrains.com/idea/download) recommended |
+| [Lombok](https://projectlombok.org/) plugin | Optional, for your IDE |
+
+## Step 1. Download and build the sample project
+
+Clone the repository and navigate to the project folder:
+
+<Code code={cloneCmd} lang="bash" />
+
+By default, the sample project uses ThingsBoard Community Edition APIs, making your rule nodes compatible with both Community and Professional editions.
+
+To use exclusive Professional Edition APIs (such as Entity Groups), change the `thingsboard.version` property in `pom.xml`:
+
+```bash
+nano pom.xml
+```
+
+Set the version to the Professional Edition release:
+
+<Code code={pomSnippet} lang="xml" />
+
+Build the project:
+
+```bash
+mvn clean install
+```
+
+Expected output:
+
+```text
+[INFO] BUILD SUCCESS
+```
+
+## Step 2. Import project to the IDE
+
+Make sure the [Lombok](https://projectlombok.org/) plugin is installed in your IDE. Import the project as a Maven project.
+
+## Step 3. Create your rule node
+
+Implement the [TbNode](https://github.com/thingsboard/thingsboard/blob/master/rule-engine/rule-engine-api/src/main/java/org/thingsboard/rule/engine/api/TbNode.java) interface and annotate it with the [@RuleNode](https://github.com/thingsboard/thingsboard/blob/master/rule-engine/rule-engine-api/src/main/java/org/thingsboard/rule/engine/api/RuleNode.java) annotation.
+
+Here is an example rule node that filters incoming messages based on whether a specified key exists in the message payload:
+
+```java download='TbKeyFilterNode.java'
+@RuleNode(
+        type = ComponentType.FILTER,
+        name = "check key",
+        relationTypes = {"True", "False"},
+        configClazz = TbKeyFilterNodeConfiguration.class,
+        nodeDescription = "Checks the existence of the selected key in the message payload.",
+        nodeDetails = "If the selected key exists - send Message via <b>True</b> chain, otherwise <b>False</b> chain is used.",
+        uiResources = {"static/rulenode/custom-nodes-config.js"},
+        configDirective = "tbFilterNodeCheckKeyConfig")
+public class TbKeyFilterNode implements TbNode {
+
+    private static final ObjectMapper mapper = new ObjectMapper();
+
+    private TbKeyFilterNodeConfiguration config;
+    private String key;
+
+    @Override
+    public void init(TbContext tbContext, TbNodeConfiguration configuration) throws TbNodeException {
+        this.config = TbNodeUtils.convert(configuration, TbKeyFilterNodeConfiguration.class);
+        key = config.getKey();
+    }
+
+    @Override
+    public void onMsg(TbContext ctx, TbMsg msg) {
+        try {
+            ctx.tellNext(msg, mapper.readTree(msg.getData()).has(key) ? "True" : "False");
+        } catch (IOException e) {
+            ctx.tellFailure(msg, e);
+        }
+    }
+
+    @Override
+    public void destroy() {
+    }
+}
+```
+
+### The @RuleNode annotation
+
+The `@RuleNode` annotation defines the node type, name, description, UI form, and outbound relations.
+
+| Parameter | Description |
+|-----------|-------------|
+| `type` | One of the available <DocLink product={props.product} path='user-guide/rule-engine' bold={false}>Rule Node Types</DocLink>. Determines which section of the Rule Chain Editor contains your node. |
+| `name` | Display name used in the Rule Chain Editor and debug messages. |
+| `nodeDescription` | Short description visible in the Rule Chain Editor. |
+| `nodeDetails` | Full description with HTML support, visible in the Rule Chain Editor. |
+| `configClazz` | Full class name of the configuration JSON class. |
+| `relationTypes` | Array of pre-defined relation types. Must match the values used in `TbContext.tellNext`. |
+| `customRelations` | Set to `true` if you use custom relation types in `TbContext.tellNext`. |
+| `configDirective` | Name of the Angular UI directive for editing node configuration. Optional — if empty, users see a raw JSON editor. |
+| `uiResources` | Path to the Angular UI file containing the configuration directive. Optional. |
+| `icon` | Icon name from the Angular Material icon set. |
+| `iconUrl` | Full URL to a custom icon for the Rule Chain Editor. |
+| `docUrl` | Link to the documentation page for this rule node. |
+
+### Rule node lifecycle
+
+The **`init`** method is called when a new rule node is created — either when someone adds it to a rule chain or when the system restarts.
+Use it to parse configuration or obtain a local copy of [TbContext](https://github.com/thingsboard/thingsboard/blob/master/rule-engine/rule-engine-api/src/main/java/org/thingsboard/rule/engine/api/TbContext.java).
+
+The **`destroy`** method is called when the rule node is removed from a rule chain or the system stops.
+
+When a user changes the configuration of an existing rule node, the rule engine calls **`destroy`** followed by **`init`**.
+
+### Processing incoming messages
+
+Your rule node **must** call one of the following methods to signal successful processing:
+
+```java
+// Send message via "Success" relation
+void tellSuccess(TbMsg msg);
+
+// Send message via a specific relation type
+void tellNext(TbMsg msg, String relationType);
+
+// Send message via one of the specified relation types
+void tellNext(TbMsg msg, Set<String> relationTypes);
+```
+
+If processing fails, call `tellFailure`:
+
+```java
+void tellFailure(TbMsg msg, Throwable th);
+```
+
+<Aside type="caution">
+If your rule node does not call any of these methods, the Rule Engine will wait for a configurable timeout, **block** processing of other messages, and eventually mark the current message as failed.
+</Aside>
+
+### Using ThingsBoard services
+
+[TbContext](https://github.com/thingsboard/thingsboard/blob/master/rule-engine/rule-engine-api/src/main/java/org/thingsboard/rule/engine/api/TbContext.java) provides getters for platform services. Use "Download Sources" in your IDE to browse service interfaces.
+
+| Service | Getter | Purpose |
+|---------|--------|---------|
+| AttributesService | `getAttributesService()` | Get and save entity attributes |
+| CustomerService | `getCustomerService()` | CRUD operations on customers |
+| UserService | `getUserService()` | CRUD operations on users |
+| AssetService | `getAssetService()` | CRUD operations on assets |
+| DeviceService | `getDeviceService()` | CRUD operations on devices |
+| EntityViewService | `getEntityViewService()` | CRUD operations on entity views |
+| DashboardService | `getDashboardService()` | Create and manage dashboards |
+| RuleEngineAlarmService | `getAlarmService()` | Create and clear alarms |
+| RuleChainService | `getRuleChainService()` | Create and manage rule chains |
+| RuleEngineRpcService | `getRpcService()` | Send RPC commands to devices |
+| RuleEngineTelemetryService | `getTelemetryService()` | Save telemetry and push WebSocket notifications |
+| TimeseriesService | `getTimeseriesService()` | Query and save telemetry without dashboard notifications |
+| RelationService | `getRelationService()` | Query and manage entity relations |
+
+#### Professional Edition services
+
+PE users can access additional services via `TbContext.getPeContext()`:
+
+| Service | Getter | Purpose |
+|---------|--------|---------|
+| IntegrationService | `getIntegrationService()` | Manage integrations |
+| EntityGroupService | `getEntityGroupService()` | Manage entity groups |
+| ReportService | `getReportService()` | Create reports |
+| BlobEntityService | `getBlobEntityService()` | Manage blob entities |
+| GroupPermissionService | `getGroupPermissionService()` | Manage group permissions |
+| RoleService | `getRoleService()` | Manage roles |
+
+`TbPeContext` also provides owner management methods:
+
+```java
+// Get entity owner (TenantId or CustomerId)
+EntityId getOwner(TenantId tenantId, EntityId entityId);
+
+// Change entity owner
+void changeDeviceOwner(TenantId tenantId, EntityId targetOwnerId, Device device);
+void changeAssetOwner(TenantId tenantId, EntityId targetOwnerId, Asset asset);
+void changeDashboardOwner(TenantId tenantId, EntityId targetOwnerId, Dashboard dashboard);
+void changeEntityOwner(TenantId tenantId, EntityId targetOwnerId, EntityId entityId, EntityType entityType);
+
+// Push downlink message to an integration
+void pushToIntegration(IntegrationId integrationId, TbMsg tbMsg, FutureCallback<Void> callback);
+```
+
+### Creating new messages from the rule node
+
+You can create and push derived messages to the Rule Engine. For example, this code duplicates a message from a customer to all of that customer's devices:
+
+```java
+@Override
+public void onMsg(TbContext ctx, TbMsg msg) {
+    EntityId msgOriginator = msg.getOriginator();
+    if (EntityType.CUSTOMER.equals(msgOriginator.getEntityType())) {
+        CustomerId customerId = new CustomerId(msgOriginator.getId());
+        boolean hasNext = true;
+        PageLink pageLink = new PageLink(1024);
+        while (hasNext) {
+            PageData<Device> devices = ctx.getDeviceService()
+                .findDevicesByTenantIdAndCustomerId(ctx.getTenantId(), customerId, pageLink);
+            hasNext = devices.hasNext();
+            pageLink = pageLink.nextPageLink();
+            for (Device device : devices.getData()) {
+                TbMsg newMsg = TbMsg.newMsg(msg.getQueueName(), msg.getType(),
+                    device.getId(), msg.getMetaData(), msg.getData());
+                ctx.enqueueForTellNext(newMsg, "Success");
+            }
+        }
+        ctx.ack(msg);
+    } else {
+        ctx.tellFailure(msg, new IllegalArgumentException("Msg originator is not Customer!"));
+    }
+}
+```
+
+Use `enqueueForTellNext` to push new messages to connected rule nodes by relation type. Alternatively, use `enqueue` to push a message to the beginning of the root rule chain:
+
+```java
+void enqueue(TbMsg msg, String queueName, Runnable onSuccess, Consumer<Throwable> onFailure);
+```
+
+A variant with delivery confirmation:
+
+```java
+void enqueueForTellNext(TbMsg msg, String queueName, String relationType,
+    Runnable onSuccess, Consumer<Throwable> onFailure);
+```
+
+### Multithreading
+
+The Rule Engine uses the [actor model](https://en.wikipedia.org/wiki/Actor_model) — it invokes `TbNode.onMsg` sequentially for every message in the rule node mailbox. If you process the message in the same thread, your implementation is thread-safe.
+
+However, most API calls execute in separate threads. Use callbacks to acknowledge or forward messages:
+
+```java
+@Override
+public void onMsg(TbContext ctx, TbMsg msg) {
+    try {
+        ObjectNode json = (ObjectNode) mapper.readTree(msg.getData());
+        double temperatureF = json.get("temperature").asDouble();
+        double temperatureC = (temperatureF - 32) * 5 / 9;
+        TsKvEntry tsKvEntry = new BasicTsKvEntry(
+            System.currentTimeMillis(), new DoubleDataEntry("temperature", temperatureC));
+        ctx.getTelemetryService().saveAndNotify(
+            ctx.getTenantId(), msg.getOriginator(),
+            Collections.singletonList(tsKvEntry), new FutureCallback<Void>() {
+                @Override
+                public void onSuccess(@Nullable Void aVoid) {
+                    ctx.tellSuccess(msg);
+                }
+                @Override
+                public void onFailure(Throwable throwable) {
+                    ctx.tellFailure(msg, throwable);
+                }
+            });
+    } catch (JsonProcessingException e) {
+        ctx.tellFailure(msg, e);
+    }
+}
+```
+
+Notice that `tellSuccess` and `tellFailure` are called in the callback thread, not in the main thread.
+
+### Clustering mode
+
+A single rule node instance runs on each rule-engine microservice. Messages are partitioned by originator ID (device or asset), so messages from one device always go to the same rule node instance.
+
+When nodes are added or removed, a repartition event occurs. Override `TbNode.onPartitionChangeMsg` to react to topology changes — useful for stateful nodes that cache data by originator ID. Use `TbContext.isLocalEntity` to check if an entity is assigned to the current partition.
+
+<details>
+<summary>Full cache example (TbCacheExampleNode)</summary>
+
+```java download='TbCacheExampleNode.java'
+@Slf4j
+@RuleNode(
+        type = ComponentType.FILTER,
+        name = "Cache example",
+        relationTypes = {"True", "False"},
+        configClazz = EmptyNodeConfiguration.class,
+        nodeDescription = "Checks that the incoming value exceeds certain threshold",
+        nodeDetails = "If temperature is too high - send Message via <b>True</b> chain, otherwise <b>False</b> chain is used.",
+        uiResources = {"static/rulenode/rulenode-core-config.js"},
+        configDirective = "tbNodeEmptyConfig")
+public class TbCacheExampleNode implements TbNode {
+
+    private static final ObjectMapper mapper = new ObjectMapper();
+    private ConcurrentMap<EntityId, Double> cache;
+
+    @Override
+    public void init(TbContext tbContext, TbNodeConfiguration configuration) throws TbNodeException {
+        this.cache = new ConcurrentHashMap<>();
+    }
+
+    @Override
+    public void onMsg(TbContext ctx, TbMsg msg) {
+        try {
+            ObjectNode json = (ObjectNode) mapper.readTree(msg.getData());
+            double temperature = json.get("temperature").asDouble();
+            Double temperatureThreshold = getCacheValue(
+                ctx, msg.getOriginator(), "temperatureThreshold", 42);
+            ctx.tellNext(msg, temperature > temperatureThreshold ? "True" : "False");
+        } catch (JsonProcessingException e) {
+            ctx.tellFailure(msg, e);
+        }
+    }
+
+    @Override
+    public void onPartitionChangeMsg(TbContext ctx, PartitionChangeMsg msg) {
+        // Remove entries for entities no longer assigned to this partition
+        cache.entrySet().removeIf(entry -> !ctx.isLocalEntity(entry.getKey()));
+    }
+
+    private double getCacheValue(TbContext ctx, EntityId entityId,
+            String attributeKey, double defaultValue) {
+        return cache.computeIfAbsent(entityId, id -> {
+            try {
+                Optional<AttributeKvEntry> attr = ctx.getAttributesService()
+                    .find(ctx.getTenantId(), entityId, DataConstants.SERVER_SCOPE, attributeKey).get();
+                return attr.isPresent()
+                    ? attr.get().getDoubleValue().orElse(defaultValue)
+                    : defaultValue;
+            } catch (InterruptedException | ExecutionException e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    @Override
+    public void destroy() {
+        cache.clear();
+    }
+}
+```
+
+</details>
+
+## Step 4. Import custom rule nodes to your ThingsBoard instance
+
+Build the project again:
+
+```bash
+mvn clean install
+```
+
+The JAR file is at `target/rule-engine-1.0.0-custom-nodes.jar`.
+
+{props.product === Products.CE && (<>
+<Aside type="tip">
+Use Step 4.1 if ThingsBoard is installed as a service. Use Step 4.2 if you run ThingsBoard from your IDE.
+</Aside>
+</>)}
+
+### Step 4.1. Add JAR file to a ThingsBoard service installation
+
+<Steps>
+1. Copy the JAR to the ThingsBoard extensions directory:
+
+   ```bash
+   sudo cp rule-engine-1.0.0-custom-nodes.jar /usr/share/thingsboard/extensions/
+   ```
+
+2. Change the file owner:
+
+   ```bash
+   sudo chown thingsboard:thingsboard /usr/share/thingsboard/extensions/*
+   ```
+
+3. Restart ThingsBoard:
+
+   ```bash
+   sudo service thingsboard restart
+   ```
+</Steps>
+
+<Aside type="note">
+After restarting, clear your browser cache and refresh the page to reload the Rule Node UI.
+</Aside>
+
+{props.product === Products.CE && (<>
+<h3 id="step-4-2-add-jar-to-ide">Step 4.2. Add JAR file to a local IDE launch</h3>
+
+<p>See instructions for <a href="https://www.jetbrains.com/help/idea/library.html#add-library-to-module-dependencies">IntelliJ IDEA</a> or <a href="https://help.eclipse.org/luna/index.jsp?topic=%2Forg.eclipse.jst.j2ee.doc.user%2Ftopics%2Ftjimpapp.html">Eclipse</a>.</p>
+
+<p>Restart the ThingsBoard server-side container. See <DocLink product={props.product} path='user-guide/contribution' bold={false}>Running server-side container</DocLink> for details.</p>
+
+<Aside type="note">
+After restarting, clear your browser cache and refresh the page to reload the Rule Node UI.
+</Aside>
+</>)}
+
+## Step 5. Add custom package name to thingsboard.yml
+
+If you changed the package name from `org.thingsboard.rule.engine` to your own (e.g., `com.example.rule.engine`), add it to the `PLUGINS_SCAN_PACKAGES` environment variable in `thingsboard.yml`:
+
+<Code code={`plugins:\n  scan_packages: "\${PLUGINS_SCAN_PACKAGES:org.thingsboard.server.extensions,org.thingsboard.rule.engine,com.example.rule.engine}"`} lang="yaml" />
+
+## Step 6. Troubleshoot your rule node
+
+Create a Generator rule node and connect it to your custom rule node — this produces a configurable stream of test messages. Enable <DocLink product={props.product} path='user-guide/rule-engine' bold={false}>debug mode</DocLink> on your custom rule node to inspect output and errors.
+
+{props.product === Products.CE && (<>
+<h2 id="step-7-rule-node-ui-customization">Step 7. Rule Node UI customization (optional)</h2>
+
+<p>The ThingsBoard rule nodes UI is managed in a separate <a href="https://github.com/thingsboard/rule-node-examples-ui-ngx">GitHub repository</a>. See the repository README for build instructions.</p>
+
+<p>To run the Rule Node UI container in hot-redeploy mode:</p>
+
+<Steps>
+<ol>
+<li>Change the <code>ruleNodeUiforwardPort</code> constant from <strong>8080</strong> to <strong>5000</strong> in <code>proxy.conf.js</code>:
+
+```bash
+nano $TB_WORK_DIR/ui-ngx/proxy.conf.js
+```
+</li>
+<li>Run the UI container in hot-redeploy mode. See <DocLink product={props.product} path='user-guide/contribution' bold={false}>Running UI container in hot redeploy mode</DocLink> for instructions.</li>
+<li>Start the rule node UI dev server:
+
+```bash
+npm start
+```
+</li>
+</ol>
+</Steps>
+</>)}
