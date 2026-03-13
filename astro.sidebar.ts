@@ -1306,7 +1306,7 @@ export const mobileSidebar: SidebarConfig = [
 		collapsed: true,
 		items: [
 			{
-				label: 'UI customization',
+				label: 'Appearance',
 				collapsed: true,
 				items: [
 					'docs/mobile/customize-dashboards',
@@ -1318,7 +1318,7 @@ export const mobileSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'App configuration',
+				label: 'Settings',
 				collapsed: true,
 				items: [
 					'docs/mobile/oauth2',
@@ -1350,7 +1350,7 @@ export const mobilePeSidebar: SidebarConfig = [
 		collapsed: true,
 		items: [
 			{
-				label: 'UI customization',
+				label: 'Appearance',
 				collapsed: true,
 				items: [
 					'docs/mobile/pe/customize-dashboards',
@@ -1359,13 +1359,15 @@ export const mobilePeSidebar: SidebarConfig = [
 					'docs/mobile/pe/alarm-dashboard',
 					'docs/mobile/pe/app-icon-splash-screen',
 					'docs/mobile/pe/mobile-actions',
+					'docs/mobile/pe/white-labeling',
 				],
 			},
 			{
-				label: 'App configuration',
+				label: 'Settings',
 				collapsed: true,
 				items: [
 					'docs/mobile/pe/oauth2',
+					'docs/mobile/pe/self-registration',
 					'docs/mobile/pe/qr-code-settings',
 					'docs/mobile/pe/localization',
 				],
