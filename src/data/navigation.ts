@@ -273,7 +273,7 @@ export const customersSubmenu: SubMenu = {
 					linkClass: 'small-link',
 				},
 				{
-					href: '/clients-feedback/',
+					href: '/industries/smart-energy/',
 					icon: '/src/assets/images/landings/nav/feedback.svg',
 					heading: 'Clients feedback',
 					linkClass: 'small-link',
