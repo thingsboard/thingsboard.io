@@ -1038,7 +1038,7 @@ const tbmqGuideItems = (prefix: string): SidebarConfig => {
 					collapsed: true,
 					items: [
 						{ label: 'Basic', slug: `${prefix}/security/authentication/basic` },
-						{ label: 'X.509 Certificate Chain', slug: `${prefix}/security/authentication/x509` },
+						{ label: 'X.509 certificate chain', slug: `${prefix}/security/authentication/x509` },
 						{ label: 'JWT', slug: `${prefix}/security/authentication/jwt` },
 						{ label: 'SCRAM', slug: `${prefix}/security/authentication/scram` },
 						{ label: 'HTTP', slug: `${prefix}/security/authentication/http` },
@@ -1231,7 +1231,7 @@ const tbmqReferenceItems = (prefix: string): SidebarConfig => [
 /** TBMQ Community Broker sidebar (pages at /docs/mqtt-broker/) */
 export const tbmqSidebar: SidebarConfig = [
 	{
-		label: 'Getting Started',
+		label: 'Getting started',
 		translations: { uk: 'Початок роботи' },
 		items: [
 			{
@@ -1271,22 +1271,19 @@ export const tbmqSidebar: SidebarConfig = [
 		items: tbmqReferenceItems('docs/mqtt-broker'),
 	},
 	{
-		label: "Releases",
+		label: 'Releases',
 		items: [
 			{ label: 'Release notes', slug: 'docs/mqtt-broker/releases' },
 			{ label: 'Roadmap', slug: 'docs/mqtt-broker/roadmap' },
+			{ label: 'Getting support', slug: 'docs/mqtt-broker/help' }
 		],
-	},
-	{
-		label: 'Need help?',
-		items: [{ label: 'Getting support', slug: 'docs/mqtt-broker/help' }],
-	},
+	}
 ];
 
 /** TBMQ PE Broker sidebar (pages at /docs/mqtt-broker/pe/) */
 export const tbmqPeSidebar: SidebarConfig = [
 	{
-		label: 'Getting Started',
+		label: 'Getting started',
 		translations: { uk: 'Початок роботи' },
 		items: [
 			{
@@ -1326,16 +1323,13 @@ export const tbmqPeSidebar: SidebarConfig = [
 		items: tbmqReferenceItems('docs/mqtt-broker/pe'),
 	},
 	{
-		label: "Releases",
+		label: 'Releases',
 		items: [
 			{ label: 'Release notes', slug: 'docs/mqtt-broker/pe/releases' },
 			{ label: 'Roadmap', slug: 'docs/mqtt-broker/pe/roadmap' },
+			{ label: 'Getting support', slug: 'docs/mqtt-broker/pe/help' }
 		],
-	},
-	{
-		label: 'Need help?',
-		items: [{ label: 'Getting support', slug: 'docs/mqtt-broker/pe/help' }],
-	},
+	}
 ];
 
 /** Mobile Application sidebar (pages at /docs/mobile/) */
@@ -1405,16 +1399,18 @@ export const edgeSidebarTabLinks: SidebarTabLinks = {};
 export const edgePeSidebarTabLinks: SidebarTabLinks = {};
 export const gwSidebarTabLinks: SidebarTabLinks = {};
 export const tbmqSidebarTabLinks: SidebarTabLinks = {
-	'Getting Started': '/docs/mqtt-broker/',
+	'Getting started': '/docs/mqtt-broker/',
 	'Guides': '/docs/mqtt-broker/guides/',
 	'Installation': '/docs/mqtt-broker/install/installation-options/',
 	'Reference': '/docs/mqtt-broker/reference/',
+	'Releases': '/docs/mqtt-broker/changelog/',
 };
 export const tbmqPeSidebarTabLinks: SidebarTabLinks = {
-	'Getting Started': '/docs/mqtt-broker/pe/',
+	'Getting started': '/docs/mqtt-broker/pe/',
 	'Guides': '/docs/mqtt-broker/pe/guides/',
 	'Installation': '/docs/mqtt-broker/pe/install/installation-options/',
 	'Reference': '/docs/mqtt-broker/pe/reference/',
+	'Releases': '/docs/mqtt-broker/pe/changelog/',
 };
 export const mobileSidebarTabLinks: SidebarTabLinks = {};
 export const mobilePeSidebarTabLinks: SidebarTabLinks = {};
