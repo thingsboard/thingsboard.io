@@ -1,1 +1,111 @@
-Content is coming soon.
+import { Aside } from '@astrojs/starlight/components';
+import DocLink from '@components/DocLink.astro';
+
+When a client subscribes to a topic and a matching message is published, TBMQ delivers the message through its
+underlying networking layer — **Netty**. Netty provides two ways to send data over a channel:
+
+- `writeAndFlush()` — sends the message and immediately flushes the channel.
+- `write()` — writes to the channel's buffer without sending. Data is held until an explicit `flush()` call.
+
+TBMQ uses this to offer two configurable **delivery strategies**:
+
+- **Write and flush for each message**
+- **Buffer messages and flush periodically or by count**
+
+Both strategies apply independently to <DocLink product={props.product} path="user-guide/tbmq-client-type">DEVICE and APPLICATION clients</DocLink>.
+
+## Write and flush for each message
+
+`writeAndFlush()` is called for every outgoing message.
+
+**When to use:** Low-throughput environments where minimal latency matters more than throughput efficiency.
+
+**Trade-off:** High CPU and I/O overhead under heavy load due to excessive flush operations.
+
+## Buffered delivery
+
+`write()` queues the message without flushing. A flush is triggered when:
+
+- The buffer reaches the configured message count (`buffered-msg-count`).
+- The session has been idle longer than `idle-session-flush-timeout-ms` (Device clients only).
+
+**When to use:** High-throughput or bursty workloads where I/O efficiency and scalability are priorities.
+
+**Trade-off:** May introduce delivery delays in low-throughput scenarios where messages arrive infrequently.
+
+## Configuration
+
+### Device clients
+
+```yaml
+# Write-and-flush for non-persistent DEVICE subscribers.
+# Set to false to enable buffering.
+write-and-flush: "${MQTT_MSG_WRITE_AND_FLUSH:true}"
+# Messages buffered before flush. Used when MQTT_MSG_WRITE_AND_FLUSH=false
+buffered-msg-count: "${MQTT_BUFFERED_MSG_COUNT:5}"
+
+# Write-and-flush for persistent DEVICE subscribers.
+# Set to false to enable buffering.
+persistent-session.device.write-and-flush: "${MQTT_PERSISTENT_MSG_WRITE_AND_FLUSH:true}"
+# Messages buffered before flush. Used when MQTT_PERSISTENT_MSG_WRITE_AND_FLUSH=false
+persistent-session.device.buffered-msg-count: "${MQTT_PERSISTENT_BUFFERED_MSG_COUNT:5}"
+```
+
+When buffering is enabled for Device clients, TBMQ maintains a cache of active session states.
+The parameters below control the cache and the background flusher:
+
+```yaml
+# Maximum number of session entries in the flush state cache.
+# When the cache is full, least-recently-used sessions are evicted and their buffers flushed.
+session-cache-max-size: "${MQTT_BUFFERED_CACHE_MAX_SIZE:10000}"
+# Time in milliseconds after which an inactive session entry expires and its buffer is flushed.
+# Default: 5 minutes
+session-cache-expiration-ms: "${MQTT_BUFFERED_CACHE_EXPIRY_MS:300000}"
+# Interval in milliseconds at which the background scheduler checks sessions for flushing.
+scheduler-execution-interval-ms: "${MQTT_BUFFERED_SCHEDULER_INTERVAL_MS:100}"
+# Maximum idle time in milliseconds before a session's buffer is automatically flushed.
+# A flush occurs when the buffer limit is reached or when this timeout elapses.
+idle-session-flush-timeout-ms: "${MQTT_BUFFERED_IDLE_FLUSH_MS:200}"
+```
+
+### Application clients
+
+```yaml
+# Write-and-flush for persistent APPLICATION subscribers.
+# Defaults to false (buffering enabled) for throughput efficiency.
+write-and-flush: "${MQTT_APP_MSG_WRITE_AND_FLUSH:false}"
+# Messages buffered before flush. Used when MQTT_APP_MSG_WRITE_AND_FLUSH=false
+buffered-msg-count: "${MQTT_APP_BUFFERED_MSG_COUNT:10}"
+```
+
+Application clients are processed in a dedicated per-client consumer thread that polls messages from a dedicated Kafka topic.
+This lets TBMQ control flushing independently per client without shared caches or background schedulers:
+messages are written using `write()` and flushed after every `buffered-msg-count` messages or at the end of each batch.
+
+## How buffered delivery works (Device clients)
+
+1. **Session buffer creation** — TBMQ stores a `SessionFlushState` object in the cache with the buffered message count, last flush timestamp, and the client's Netty channel context.
+2. **Write without flush** — each outgoing message increments the buffer count using `channel.write()`.
+3. **Flush trigger** — a flush occurs when the buffer count reaches the threshold, the session is idle beyond `idle-session-flush-timeout-ms`, or the session is evicted from cache.
+4. **Background flusher** — a scheduler periodically scans the cache and flushes idle session buffers.
+5. **Shutdown handling** — on service shutdown, all buffered sessions are flushed to prevent message loss.
+
+## Choosing a strategy
+
+| Scenario | Recommended setting |
+|---|---|
+| Low-latency, real-time delivery | `write-and-flush = true` |
+| High message volume | `write-and-flush = false` with tuning |
+| Batch-based APPLICATION processing | APPLICATION buffering with a custom count |
+| Infrequent messages | Avoid buffering to prevent delivery delays |
+
+**Tuning tips:**
+
+- Start with `buffered-msg-count` between **5–10** and adjust based on profiling.
+- For Device clients, tune `idle-session-flush-timeout-ms` to balance delay against timely delivery.
+- Monitor logs for cache evictions and flush timings to identify bottlenecks.
+
+<Aside>
+  In the <DocLink product={props.product} path="reference/3m-throughput-single-node-performance-test">3M msg/sec single-node performance test</DocLink>,
+  buffered delivery was enabled to maximize throughput. This significantly reduced CPU overhead and improved overall latency under high load.
+</Aside>
