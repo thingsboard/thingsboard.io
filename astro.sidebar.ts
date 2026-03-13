@@ -935,7 +935,7 @@ export const tbmqPeSidebar: SidebarConfig = [
 /** Mobile Application sidebar (pages at /docs/mobile/) */
 export const mobileSidebar: SidebarConfig = [
 	{
-		label: 'Getting Started',
+		label: 'Getting started',
 		translations: { uk: 'Початок роботи' },
 		items: ['docs/mobile', 'docs/mobile/getting-started'],
 	},
@@ -977,19 +977,14 @@ export const mobileSidebar: SidebarConfig = [
 		items: [
 			'docs/mobile/releases',
 			'docs/mobile/compatibility',
-			'docs/mobile/roadmap',
 		],
-	},
-	{
-		label: 'Need help?',
-		items: ['docs/mobile/help'],
 	},
 ];
 
 /** Mobile PE sidebar (pages at /docs/mobile/pe/) */
 export const mobilePeSidebar: SidebarConfig = [
 	{
-		label: 'Getting Started',
+		label: 'Getting started',
 		translations: { uk: 'Початок роботи' },
 		items: ['docs/mobile/pe', 'docs/mobile/pe/getting-started'],
 	},
@@ -1031,12 +1026,7 @@ export const mobilePeSidebar: SidebarConfig = [
 		items: [
 			'docs/mobile/pe/releases',
 			'docs/mobile/pe/compatibility',
-			'docs/mobile/pe/roadmap',
 		],
-	},
-	{
-		label: 'Need help?',
-		items: ['docs/mobile/pe/help'],
 	},
 ];
 
