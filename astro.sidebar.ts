@@ -1127,7 +1127,6 @@ const tbmqGuideItems = (prefix: string): SidebarConfig => {
 const tbmqInstallItems = (prefix: string): SidebarConfig => {
 	const isPE = prefix.includes('/pe');
 	return [
-	{ label: 'Installation options', slug: `${prefix}/install/installation-options` },
 	{ label: 'Live demo', slug: `${prefix}/install/live-demo` },
 	{
 		label: 'On-premises',
@@ -1192,19 +1191,27 @@ const tbmqReferenceItems = (prefix: string): SidebarConfig => [
 		],
 	},
 	{
+		label: 'Configuration',
+		collapsed: true,
+		items: [
+			{ label: 'MQTT broker', slug: `${prefix}/install/config` },
+			{ label: 'Integration executor', slug: `${prefix}/install/ie-config` }
+		],
+	},
+	{
 		label: 'Performance tests',
 		collapsed: true,
 		items: [
 			{
-				label: 'Point-to-point: 1M msg/sec',
+				label: 'Point-to-point: 1M msg/sec throughput',
 				slug: `${prefix}/reference/1m-throughput-p2p-performance-test`,
 			},
 			{
-				label: 'Fan-out: 3M msg/sec',
+				label: 'Fan-out: 3M msg/sec throughput',
 				slug: `${prefix}/reference/3m-throughput-single-node-performance-test`,
 			},
 			{
-				label: '100M connections',
+				label: 'Fan-in: 100M concurrent connections',
 				slug: `${prefix}/reference/100m-connections-performance-test`,
 			},
 		],
@@ -1257,13 +1264,6 @@ export const tbmqSidebar: SidebarConfig = [
 		label: 'Installation',
 		collapsed: true,
 		items: tbmqInstallItems('docs/mqtt-broker'),
-	},
-	{
-		label: 'Configuration',
-		items: [
-			{ label: 'MQTT broker', slug: 'docs/mqtt-broker/install/config' },
-			{ label: 'Integration Executor', slug: 'docs/mqtt-broker/install/ie-config' },
-		],
 	},
 	{
 		label: 'Reference',
@@ -1319,13 +1319,6 @@ export const tbmqPeSidebar: SidebarConfig = [
 		label: 'Installation',
 		collapsed: true,
 		items: tbmqInstallItems('docs/mqtt-broker/pe'),
-	},
-	{
-		label: 'Configuration',
-		items: [
-			{ label: 'MQTT broker', slug: 'docs/mqtt-broker/pe/install/config' },
-			{ label: 'Integration Executor', slug: 'docs/mqtt-broker/pe/install/ie-config' },
-		],
 	},
 	{
 		label: 'Reference',
@@ -1414,10 +1407,14 @@ export const gwSidebarTabLinks: SidebarTabLinks = {};
 export const tbmqSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/mqtt-broker/',
 	'Guides': '/docs/mqtt-broker/guides/',
+	'Installation': '/docs/mqtt-broker/install/installation-options/',
+	'Reference': '/docs/mqtt-broker/reference/',
 };
 export const tbmqPeSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/mqtt-broker/pe/',
 	'Guides': '/docs/mqtt-broker/pe/guides/',
+	'Installation': '/docs/mqtt-broker/pe/install/installation-options/',
+	'Reference': '/docs/mqtt-broker/pe/reference/',
 };
 export const mobileSidebarTabLinks: SidebarTabLinks = {};
 export const mobilePeSidebarTabLinks: SidebarTabLinks = {};
