@@ -940,7 +940,7 @@ export const mobileSidebar: SidebarConfig = [
 		items: ['docs/mobile', 'docs/mobile/getting-started'],
 	},
 	{
-		label: 'Customize',
+		label: 'Customization',
 		collapsed: true,
 		items: [
 			{
@@ -952,15 +952,15 @@ export const mobileSidebar: SidebarConfig = [
 					'docs/mobile/device-dashboard',
 					'docs/mobile/alarm-dashboard',
 					'docs/mobile/app-icon-splash-screen',
+					'docs/mobile/mobile-actions',
 				],
 			},
 			{
-				label: 'Settings',
+				label: 'App configuration',
 				collapsed: true,
 				items: [
-					'docs/mobile/mobile-actions',
-					'docs/mobile/qr-code-settings',
 					'docs/mobile/oauth2',
+					'docs/mobile/qr-code-settings',
 					'docs/mobile/localization',
 				],
 			},
@@ -970,13 +970,13 @@ export const mobileSidebar: SidebarConfig = [
 		label: 'Build & deploy',
 		items: [
 			'docs/mobile/release',
-			'docs/mobile/compatibility',
 		],
 	},
 	{
 		label: 'Releases',
 		items: [
 			'docs/mobile/releases',
+			'docs/mobile/compatibility',
 			'docs/mobile/roadmap',
 		],
 	},
@@ -994,7 +994,7 @@ export const mobilePeSidebar: SidebarConfig = [
 		items: ['docs/mobile/pe', 'docs/mobile/pe/getting-started'],
 	},
 	{
-		label: 'Customize',
+		label: 'Customization',
 		collapsed: true,
 		items: [
 			{
@@ -1006,15 +1006,15 @@ export const mobilePeSidebar: SidebarConfig = [
 					'docs/mobile/pe/device-dashboard',
 					'docs/mobile/pe/alarm-dashboard',
 					'docs/mobile/pe/app-icon-splash-screen',
+					'docs/mobile/pe/mobile-actions',
 				],
 			},
 			{
-				label: 'Settings',
+				label: 'App configuration',
 				collapsed: true,
 				items: [
-					'docs/mobile/pe/mobile-actions',
-					'docs/mobile/pe/qr-code-settings',
 					'docs/mobile/pe/oauth2',
+					'docs/mobile/pe/qr-code-settings',
 					'docs/mobile/pe/localization',
 				],
 			},
@@ -1024,13 +1024,13 @@ export const mobilePeSidebar: SidebarConfig = [
 		label: 'Build & deploy',
 		items: [
 			'docs/mobile/pe/release',
-			'docs/mobile/pe/compatibility',
 		],
 	},
 	{
 		label: 'Releases',
 		items: [
 			'docs/mobile/pe/releases',
+			'docs/mobile/pe/compatibility',
 			'docs/mobile/pe/roadmap',
 		],
 	},
