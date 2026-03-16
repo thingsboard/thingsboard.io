@@ -1,0 +1,93 @@
+import Tabs from '@components/Tabs.astro';
+import TabItem from '@components/TabItem.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+If an Edge instance repeatedly disconnects and reconnects to the server within a few seconds without an obvious cause, the most likely explanation is unstable network connectivity — low bandwidth, intermittent packet loss, or a NAT/load balancer dropping idle connections. The gRPC keepalive parameters control how the connection is probed and how long both sides wait before declaring it dead.
+
+## Diagnose first
+
+Before tuning keepalive parameters, verify the network is actually the cause:
+
+- Check Edge logs for connection errors: `cat /var/log/tb-edge/tb-edge.log | grep ERROR`
+- Test round-trip latency to the server: `ping server_hostname`
+- Check for packet loss: `mtr server_hostname`
+
+If the network is stable and disconnections persist, consider other causes such as resource exhaustion on the Edge device.
+
+## Keepalive parameters
+
+Keepalive is configured independently on both sides. Both must be adjusted together — mismatched values will cause the server to terminate connections that the client considers healthy.
+
+### Server parameters (`/etc/thingsboard/conf/thingsboard.conf`)
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `EDGES_RPC_CLIENT_MAX_KEEP_ALIVE_TIME_SEC` | 1 s | Minimum allowed interval between client keepalive pings. If a client pings more frequently than this, the server can terminate the connection. |
+| `EDGES_RPC_KEEP_ALIVE_TIME_SEC` | 10 s | Time of inactivity after which the server sends a keepalive ping to the client. |
+| `EDGES_RPC_KEEP_ALIVE_TIMEOUT_SEC` | 5 s | Maximum time the server waits for a response to its keepalive ping before closing the connection. |
+
+### Edge parameters (`/etc/tb-edge/conf/tb-edge.conf`)
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `CLOUD_RPC_KEEP_ALIVE_TIME_SEC` | 10 s | Time of inactivity after which the Edge sends a keepalive ping to the server. Keeps the connection alive through NATs and load balancers that drop idle flows. |
+| `CLOUD_RPC_KEEP_ALIVE_TIMEOUT_SEC` | 5 s | Maximum time the Edge waits for a response to its keepalive ping before considering the connection dead and attempting to reconnect. |
+
+<Aside type="caution">
+gRPC advises against keepalive intervals below one minute in production. Overly aggressive pings can be treated as a denial-of-service signal by the server.
+
+Safe starting points for unstable networks:
+- Do not reduce timeouts — if you see ping-ack timeouts in logs, **increase** `*_KEEP_ALIVE_TIMEOUT_SEC`.
+- Keep the client interval at or above the server's `EDGES_RPC_CLIENT_MAX_KEEP_ALIVE_TIME_SEC`.
+- Keep the interval below the shortest NAT or load balancer idle timeout on the path (for example, if the middlebox drops after 60 s, use 25–55 s intervals).
+</Aside>
+
+## Apply the changes
+
+<Tabs defaultTab="standalone" urlParam="deployment">
+  <TabItem label="Standalone" id="standalone">
+
+**On the ThingsBoard server**, edit `/etc/thingsboard/conf/thingsboard.conf` and add:
+
+```bash
+export EDGES_RPC_CLIENT_MAX_KEEP_ALIVE_TIME_SEC=1
+export EDGES_RPC_KEEP_ALIVE_TIME_SEC=30
+export EDGES_RPC_KEEP_ALIVE_TIMEOUT_SEC=25
+```
+
+**On the Edge device**, edit `/etc/tb-edge/conf/tb-edge.conf` and add:
+
+```bash
+export CLOUD_RPC_KEEP_ALIVE_TIME_SEC=30
+export CLOUD_RPC_KEEP_ALIVE_TIMEOUT_SEC=25
+```
+
+Restart both services to apply the changes:
+
+```bash
+sudo systemctl restart thingsboard
+sudo systemctl restart tb-edge
+```
+
+  </TabItem>
+  <TabItem label="Docker" id="docker">
+
+**On the ThingsBoard server**, stop the container, edit `docker-compose.yml`, and add to the `environment` block:
+
+```yaml
+      - EDGES_RPC_CLIENT_MAX_KEEP_ALIVE_TIME_SEC=1
+      - EDGES_RPC_KEEP_ALIVE_TIME_SEC=30
+      - EDGES_RPC_KEEP_ALIVE_TIMEOUT_SEC=25
+```
+
+**On the Edge device**, stop the container, edit `docker-compose.yml`, and add to the `environment` block:
+
+```yaml
+      - CLOUD_RPC_KEEP_ALIVE_TIME_SEC=30
+      - CLOUD_RPC_KEEP_ALIVE_TIMEOUT_SEC=25
+```
+
+Start both containers after making the changes.
+
+  </TabItem>
+</Tabs>

@@ -1,0 +1,134 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+import { Products } from '~/models/site.models';
+
+ThingsBoard Cloud is a fully managed IoT platform running the same Professional Edition codebase, deployed as a microservices cluster. Two independent regional instances provide complete data isolation and geographic proximity for your devices.
+
+## Regional Deployment
+
+ThingsBoard Cloud operates two independent regions. Each region is a fully self-contained deployment — its own Kubernetes cluster, databases, message queues, and caches. The regions share **no data** with each other.
+
+| | North America (NA) | Europe (EU) |
+|--|--|--|
+| **URL** | `thingsboard.cloud` | `eu.thingsboard.cloud` |
+| **Cloud provider** | AWS | AWS |
+| **Data isolation** | Complete — no data shared with EU | Complete — no data shared with NA |
+
+{props.product === Products.PAAS_EU ? (
+<Aside type="note">
+You are reading the **EU region** documentation. The EU instance runs on AWS infrastructure in the European Union.
+</Aside>
+) : (
+<Aside type="note">
+You are reading the **NA region** documentation. The NA instance runs on AWS infrastructure in North America.
+</Aside>
+)}
+
+Regional independence means a failure or maintenance event in one region does not affect the other.
+
+## Infrastructure
+
+Each region runs on **AWS Elastic Kubernetes Service (EKS)** spanning multiple Availability Zones (AZs). If an entire AZ goes down, services continue running in the remaining AZs without manual intervention.
+
+All ThingsBoard services are stateless Kubernetes pods. Kubernetes handles:
+- **Auto-restart** — failed pods are restarted automatically
+- **Rescheduling** — pods from unhealthy nodes move to healthy ones
+- **Scaling** — pod replicas scale based on CPU, memory, and connection metrics
+
+## Microservices
+
+ThingsBoard Cloud runs as independent microservices, each scaling separately based on load:
+
+| Service | Responsibility |
+|---------|---------------|
+| **MQTT Transport** | Accepts device connections over MQTT, authenticates credentials, pushes messages to the rule engine |
+| **HTTP Transport** | Accepts device data over HTTP/HTTPS |
+| **CoAP Transport** | Accepts device data over CoAP |
+| **LwM2M Transport** | Manages LwM2M device registration, observation, and firmware updates |
+| **SNMP Transport** | Polls SNMP-enabled devices for telemetry |
+| **ThingsBoard Node** | Core service — REST API, WebSocket subscriptions, <DocLink product={props.product} path="user-guide/rule-engine">Rule Engine</DocLink>, entity management, device connectivity state |
+| **JS Executor** | Executes user-defined JavaScript and <DocLink product={props.product} path="user-guide/tbel">TBEL</DocLink> scripts from rule engine nodes in isolated sandboxes |
+| **Integration Executor** | Runs <DocLink product={props.product} path="user-guide/integrations">platform integrations</DocLink> (OPC-UA, SigFox, TheThingsNetwork, etc.), pulling data from external systems into ThingsBoard |
+| **Web UI** | Serves the Angular-based dashboard application, proxies REST/WebSocket requests to ThingsBoard Node |
+
+Each transport protocol runs as its own set of pods — MQTT can scale independently from HTTP or CoAP based on your device fleet composition. See the individual API references for protocol details:
+<DocLink product={props.product} path="reference/mqtt-api/getting-connected">MQTT API</DocLink>,
+<DocLink product={props.product} path="reference/http-api/getting-connected">HTTP API</DocLink>,
+<DocLink product={props.product} path="reference/coap-api/getting-connected">CoAP API</DocLink>,
+<DocLink product={props.product} path="reference/lwm2m-api/getting-started">LwM2M API</DocLink>.
+
+## Data Flow
+
+When a device sends data, it follows this path:
+
+1. **Connect** — Device opens a connection to a Transport pod (MQTT, HTTP, CoAP, or LwM2M).
+2. **Authenticate** — Transport validates device credentials against the Core service. Valid credentials are cached to avoid a database query on every message.
+3. **Push to Rule Engine** — Transport converts the protocol-specific payload into a unified message and forwards it to the Rule Engine via the message queue (Kafka).
+4. **Execute Rule Chains** — The <DocLink product={props.product} path="user-guide/rule-engine">Rule Engine</DocLink> processes the message through your configured rule chains — filtering, enriching, transforming, and triggering actions.
+5. **Persist** — Action nodes save <DocLink product={props.product} path="user-guide/digital-twins/time-series-data">telemetry</DocLink>, <DocLink product={props.product} path="user-guide/digital-twins/attributes">attributes</DocLink>, or <DocLink product={props.product} path="user-guide/alarms">alarms</DocLink> to the database.
+6. **Notify** — Core pushes real-time updates to WebSocket subscribers (<DocLink product={props.product} path="user-guide/dashboards">dashboards</DocLink>).
+
+## Data Layer
+
+ThingsBoard Cloud uses purpose-built databases for each workload:
+
+| Database | What it stores | Replication |
+|----------|---------------|-------------|
+| **PostgreSQL** (main) | Entities, attributes, relations, alarms, system data | Multi-AZ replication |
+| **Cassandra** | Time-series telemetry | Replication factor 3 across AZs |
+| **PostgreSQL** (events) | Debug events, audit logs, lifecycle events | Multi-AZ replication |
+
+The events database is **separate from the main PostgreSQL instance**. This isolation prevents debug event spikes — such as enabling debug mode on a busy rule chain — from affecting entity query latency.
+
+## Data Replication and Durability
+
+Every data store replicates across multiple Availability Zones:
+
+| Component | Replication strategy |
+|-----------|---------------------|
+| **PostgreSQL** | Multi-AZ replication with automatic failover |
+| **Cassandra** | Replication factor 3 across AZs |
+| **Apache Kafka** | Topic replication factor 3 across AZs |
+| **Redis / Valkey** | Cluster mode with AZ-aware failover |
+
+Automated daily backups with point-in-time recovery are configured for all databases.
+
+## Scalability
+
+ThingsBoard Cloud scales horizontally at every layer:
+
+- **Transport pods** scale based on active device connections and message throughput
+- **ThingsBoard Node pods** scale based on REST API load, WebSocket subscriptions, and rule engine processing
+- **JS Executor pods** scale based on script evaluation queue depth
+- **Kafka partitions** distribute rule engine load evenly across ThingsBoard Node pods
+- **Cassandra nodes** scale linearly — adding nodes increases both storage capacity and write throughput
+
+## High Availability
+
+The architecture eliminates single points of failure:
+
+- Multiple pod replicas run across AZs for every service
+- Kubernetes auto-restarts failed pods and reschedules them to healthy nodes
+- Kafka rebalances partitions when a consumer pod fails — other pods pick up the load
+- Load balancers distribute device connections and API requests across healthy pods
+- Regional independence — an incident in one region does not affect the other
+
+## What You Don't Need to Manage
+
+ThingsBoard Cloud handles all infrastructure operations:
+
+| Responsibility | Self-hosted | Cloud |
+|---------------|-------------|-------|
+| Kubernetes cluster provisioning and upgrades | You | ThingsBoard |
+| PostgreSQL administration and replication | You | ThingsBoard |
+| Cassandra cluster management and tuning | You | ThingsBoard |
+| Kafka cluster operations | You | ThingsBoard |
+| Redis / Valkey cache management | You | ThingsBoard |
+| Operating system patching | You | ThingsBoard |
+| Database backups and recovery | You | ThingsBoard |
+| Infrastructure monitoring and alerting | You | ThingsBoard |
+| SSL/TLS certificate management | You | ThingsBoard |
+| Platform version upgrades | You | ThingsBoard |
+| Load balancer configuration | You | ThingsBoard |
+
+You focus on building your IoT solution — <DocLink product={props.product} path="user-guide/devices">devices</DocLink>, <DocLink product={props.product} path="user-guide/rule-engine">rule chains</DocLink>, <DocLink product={props.product} path="user-guide/dashboards">dashboards</DocLink>, and <DocLink product={props.product} path="user-guide/integrations">integrations</DocLink>. ThingsBoard manages everything else.

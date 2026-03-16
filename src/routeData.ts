@@ -1,15 +1,25 @@
 import type { APIContext } from 'astro';
 import { defineRouteMiddleware, type StarlightRouteData } from '@astrojs/starlight/route-data';
-import { tutorialPages as pages } from '~/content';
+import { allPages, tutorialPages as pages } from '~/content';
 import { Products } from '@models/site.models.ts';
 import {
 	getVersionFromSlug,
+	getVersionFromURL,
 	getLanguageFromSlug,
+	getLanguageFromURL,
+	getPageSlugFromURL,
+	getVersionPrefix,
+	getLanguagePrefix,
 	stripLanguagePrefix,
 	type SupportedLanguage,
 } from '~/util/path-utils';
 import { getOgImageUrl } from '~/util/getOgImageUrl';
 import { getTutorialPages } from '~/util/getTutorialPages';
+
+/** Set of content IDs for PE pages, used to verify a PE equivalent exists before rewriting canonical. */
+const pePageIds = new Set(
+	allPages.filter((p) => getVersionFromSlug(p.id) === Products.PE).map((p) => p.id)
+);
 
 export const onRequest = defineRouteMiddleware((context) => {
 	updateHead(context);
@@ -170,6 +180,33 @@ function updateHead(context: APIContext) {
 			defer: true,
 		},
 	});
+
+	// Canonical consolidation: CE/PaaS/PaaS EU → PE
+	// Only rewrite if the equivalent PE page actually exists
+	const version = getVersionFromURL(context.url.pathname);
+	if (version === Products.CE || version === Products.PAAS || version === Products.PAAS_EU) {
+		const lang = getLanguageFromURL(context.url.pathname);
+		const pageSlug = getPageSlugFromURL(context.url.pathname);
+		const langPrefix = getLanguagePrefix(lang);
+		const pePrefix = getVersionPrefix(Products.PE);
+		const docsPrefix = lang === 'uk' ? 'uk/docs/' : 'docs/';
+		const peContentId = `${docsPrefix}${pePrefix}${pageSlug}`;
+
+		if (pePageIds.has(peContentId)) {
+			const pePathname = `/${langPrefix}docs/${pePrefix}${pageSlug}/`;
+			const peCanonical = new URL(pePathname, context.site).href;
+
+			const canonical = head.find(
+				(item) => item.tag === 'link' && item.attrs?.['rel'] === 'canonical'
+			);
+			if (canonical) canonical.attrs!['href'] = peCanonical;
+
+			const ogUrl = head.find(
+				(item) => item.tag === 'meta' && item.attrs?.['property'] === 'og:url'
+			);
+			if (ogUrl) ogUrl.attrs!['content'] = peCanonical;
+		}
+	}
 }
 
 function updateTutorialPagination(starlightRoute: StarlightRouteData) {
