@@ -23,10 +23,10 @@ A standalone deployment is simply a cluster of one. When you need more capacity,
   ┌───────────┐                  ┌───────────┐
   │  TBMQ     │◀── clients       │  TBMQ  1  │◀─┐
   └─────┬─────┘                  └─────┬─────┘  │
-        │                              │        │  Load
-  ┌─────▼─────┐                  ┌─────▼─────┐  │  balancer ◀── clients
-  │   Kafka   │                  │  TBMQ  2  │◀─┤
-  │   Redis   │                  └─────┬─────┘  │
+        │                              │        │
+  ┌─────▼─────┐                  ┌─────▼─────┐  │
+  │   Kafka   │                  │  TBMQ  2  │◀─┤  Load     ◀── clients
+  │   Redis   │                  └─────┬─────┘  │  balancer
   │ PostgreSQL│                        │        │
   └───────────┘                   ┌────▼─────┐  │
                                   │  TBMQ  3 │◀─┘
@@ -55,7 +55,7 @@ All state that must survive a node failure or be visible to other nodes is store
 | DEVICE persistent messages | `tbmq.msg.persisted` | All nodes (same consumer group) |
 | APPLICATION messages | `tbmq.msg.app.$CLIENT_ID` | Only the node where that client is connected |
 
-Each node maintains a local in-memory **Subscription Trie** built from the shared subscriptions topic.
+Each node maintains a local in-memory **Subscription Trie** built from the client subscriptions topic.
 When a message arrives at any node, that node can independently determine which clients should receive it —
 no coordination with other nodes required for the matching step.
 
@@ -124,13 +124,14 @@ The symmetric design eliminates the failure modes that affect coordinator-based 
 | What fails | Impact on TBMQ |
 |---|---|
 | One broker node | Clients on that node reconnect to any other node. Sessions and subscriptions restored from Kafka. In-flight messages redelivered via QoS 1/2. |
-| Kafka broker (with replication) | No message loss. Broker nodes pause processing until Kafka recovers. |
-| Redis node (with Redis Cluster) | DEVICE persistent message lookups slow or pause. No data loss with replication enabled. |
-| Load balancer | New connections blocked; existing connections continue until the node's keep-alive expires. |
+| Kafka broker (with replication) | Shared consumer groups (`tbmq.msg.all`, `tbmq.msg.persisted`) pause during partition rebalance. APPLICATION per-client consumers (direct partition assignment) wait for partition leader election. Processing resumes from the last committed offset — no message loss, but messages polled before the last commit may be redelivered. |
+| Redis node | DEVICE persistent message delivery pauses until a replica is promoted to primary (Redis Sentinel or Redis Cluster failover). No data loss with replication enabled. |
 
 <Aside type="caution">
-  TBMQ guarantees no message loss only when Kafka acknowledges a message before the broker sends `PUBACK` to the publisher.
-  This guarantee holds for QoS 1 and QoS 2. QoS 0 messages are fire-and-forget and are not persisted in Kafka.
+  TBMQ publishes all messages — including QoS 0 — to Kafka before processing. Once a message reaches the Kafka broker,
+  TBMQ processing does not lose it. The no-loss guarantee for QoS 1 and QoS 2 extends to the publisher-to-broker hop:
+  TBMQ sends `PUBACK` only after Kafka acknowledges the write. For QoS 0, the publisher sends with no acknowledgement
+  and will not retransmit — so loss is possible at the network level before the message reaches the broker, not inside TBMQ.
 </Aside>
 
 ## Scaling guidelines

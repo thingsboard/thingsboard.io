@@ -45,7 +45,7 @@ Four listener types are available:
 | TCP | MQTT over plain TCP | 1883 | No |
 | SSL/TLS | MQTT over TLS | 8883 | Yes |
 | WS | MQTT over WebSocket | 8084 | No |
-| WSS | MQTT over WebSocket Secure | — | Yes |
+| WSS | MQTT over WebSocket Secure | 8085 | Yes |
 
 Each listener is independently enabled or disabled. In production, disable the plain TCP and WS listeners and use
 only TLS or WSS to prevent credentials from being sent in clear text.
@@ -82,10 +82,10 @@ Adding or removing providers is not supported — only their configuration and e
 
 ### Provider execution order
 
-When multiple providers are enabled, TBMQ evaluates them in a configurable sequence. The first provider that
-successfully authenticates the client wins. Providers that do not recognize the credentials are skipped.
+When multiple providers are enabled, TBMQ tries each in the configured sequence until one successfully authenticates
+the client. If no provider grants access, the connection is refused.
 
-Configure the order on the <DocLink product={props.product} path="user-guide/ui/monitoring">MQTT Authentication Settings</DocLink> page.
+Configure the order on the <DocLink product={props.product} path="user-guide/ui/settings/#mqtt-authentication">MQTT Authentication Settings</DocLink> page.
 
 ### Credential caching
 
@@ -115,8 +115,15 @@ Publish and subscribe permissions are configured independently.
   └── Subscribe allowed:  commands/device-001/+
 ```
 
-TBMQ rejects any publish attempt to a topic not covered by the client's authorization rules.
-A subscribe request for a non-matching topic is silently filtered — the subscription is not established.
+When a client publishes to a topic not covered by its authorization rules, the broker's response depends on the
+MQTT version:
+
+- **MQTT 3.x** — the broker disconnects the client.
+- **MQTT 5.0** — the broker sends a `PUBACK` (QoS 1) or `PUBREC` (QoS 2) with the `Not Authorized` reason code,
+  and the client remains connected.
+
+When a client subscribes to a topic not covered by its authorization rules, the broker sends a `SUBACK` with
+the `Not Authorized` reason code. The subscription is not established.
 
 ### Dynamic authorization
 
@@ -132,16 +139,30 @@ maintaining per-device credential records in the broker.
 
 ### Authorization and client type
 
-Authorization rules interact with <DocLink product={props.product} path="concepts/client-types">client type</DocLink>:
-the `clientType` field on each credential determines whether the client is treated as DEVICE or APPLICATION,
-which in turn determines session storage and message routing. Dynamic providers (JWT, HTTP) can override this per connection.
+Each credential carries two things: topic authorization rules and a <DocLink product={props.product} path="concepts/client-types">client type</DocLink>.
+Both are resolved from the same credential during the `CONNECT` handshake.
+
+The `clientType` field determines whether the connecting client is treated as **DEVICE** or **APPLICATION**, which
+controls how the broker stores its session state and routes messages to it — not just what topics it can access.
+
+```plaintext
+  Credential: sensor-gateway-001
+  ├── clientType:          DEVICE
+  ├── Publish allowed:     sensors/gateway-001/#
+  └── Subscribe allowed:   commands/gateway-001/+
+```
+
+For static providers (Basic, X.509, SCRAM), `clientType` is set when the credential is created in the UI and does not
+change between connections. For dynamic providers (JWT, HTTP), `clientType` is returned at connection time — the JWT
+payload or HTTP response body can specify it, which allows the same broker credential store to serve clients of
+different types without creating separate credential records.
 
 ## Putting the layers together
 
 A practical example for a production IoT deployment:
 
 ```plaintext
-  Transport:       WSS listener (mutual TLS, port 8883)
+  Transport:       SSL listener (mutual TLS, port 8883)
   Authentication:  X.509 provider — CN matched against device credentials
   Authorization:   Each credential allows publish to sensors/{device-id}/+
                    and subscribe to commands/{device-id}/+
@@ -149,5 +170,3 @@ A practical example for a production IoT deployment:
 
 Result: the device's identity is proven by its certificate (no password needed), the channel is encrypted,
 and the broker rejects any attempt to publish to another device's topic.
-
-For details on configuring each layer, see the Security section in the left sidebar.
