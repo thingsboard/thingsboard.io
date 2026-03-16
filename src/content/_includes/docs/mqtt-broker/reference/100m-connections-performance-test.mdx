@@ -1,5 +1,233 @@
-import { Aside } from '@astrojs/starlight/components';
+import DocLink from '@components/DocLink.astro';
+import ImageGallery from '~/components/ImageGallery.astro';
 
-<Aside type="note">
-  This page is being migrated. Content is coming soon.
-</Aside>
+An essential attribute of an MQTT broker is receiving published messages, filtering by topic, and distributing them
+to subscribers — a procedure that becomes critical under substantial workloads. This article demonstrates how TBMQ
+cluster reliably handles **100 million** connected clients while managing a throughput of **6M MQTT publish messages
+per second**.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/docs/mqtt-broker/reference/perf-tests/mqtt-broker-perf-tests.png',
+    alt: 'TBMQ performance test overview',
+  },
+]} />
+
+## Test methodology
+
+The test environment was deployed on AWS. A TBMQ cluster of **25 nodes** ran on an
+[EKS](https://aws.amazon.com/eks/) cluster (one broker pod per EC2 instance), connected to
+[RDS](https://aws.amazon.com/rds/) and [Kafka](https://kafka.apache.org/). RDS was a single instance; Kafka
+consisted of 9 brokers across 3 Availability Zones.
+
+We emulated smart tracker devices sending 5-field messages of approximately **114 bytes**:
+
+```json
+{ "lat": 40.761894, "long": -73.970455, "speed": 55.5, "fuel": 92, "batLvl": 81 }
+```
+
+**Publishers:** 500 groups × 200k total publishers = 6k msg/sec per group, publishing to topics in the format
+`CountryCode/RandomString/GroupId/ClientId`, creating **100M unique topics**.
+
+**Subscribers:** 500 APPLICATION subscriber groups, each with a single persistent subscriber using the topic filter
+`CountryCode/RandomString/GroupId/+`, receiving 6k msg/sec.
+
+The TBMQ cluster sustained **100,000,500 connections** and handled **6M messages per second** (3M incoming × 2 for
+publish + delivery). Over the 1-hour test, 3M incoming msg/sec resulted in 10,800M total messages processed.
+
+Including a warm-up phase (6 iterations × 100M publishers × 1 message each = 600M warm-up messages in ~7 min),
+the grand total was **11,400M messages** — approximately **1TB** stored in the `tbmq.msg.all` Kafka topic.
+
+Each of the 500 APPLICATION subscribers received **22.8M messages** in its dedicated per-client Kafka topic. With
+only APPLICATION clients, PostgreSQL handled only a few operations per second — Kafka was the sole persistence layer.
+
+## Hardware used
+
+| Service | TBMQ | AWS RDS (PostgreSQL) | Kafka |
+|---|---|---|---|
+| Instance type | m6g.metal | db.m6i.large | m6a.2xlarge |
+| vCPU | 64 | 2 | 8 |
+| Memory (GiB) | 256 | 8 | 32 |
+| Storage (GiB) | 10 | 100 | 500 |
+| Network (Gbps) | 25 | 12.5 | 12.5 |
+
+## Test summary
+
+| Metric | Value |
+|---|---|
+| Connection rate | ~22k connections/sec |
+| Test duration | 1 hour |
+| Total messages | 11,400M |
+| Total data volume | ~1TB |
+| QoS | 1 (AT_LEAST_ONCE) |
+
+| Devices | Throughput | Broker CPU | Broker memory | Kafka CPU | Kafka read/write | PostgreSQL CPU | PostgreSQL IOPS |
+|---|---|---|---|---|---|---|---|
+| 100M | 6M msg/s | 45% | 160 GiB | 58% | 7k / 80k KiB/s | 2% | <1 / <3 |
+
+**Latency:**
+
+| Msg latency avg | Msg latency 95th | Pub ACK avg | Pub ACK 95th |
+|---|---|---|---|
+| 195 ms | 295 ms | 23 ms | 55 ms |
+
+Where:
+- **Msg latency avg:** average time from publisher transmission to subscriber receipt
+- **Pub ACK avg:** average time from publisher transmission to PUBACK receipt
+- **95th:** 95th percentile
+
+**Kafka topic statistics** (100% message delivery success):
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/docs/mqtt-broker/reference/topics/mqtt-pub-topic.png',
+    alt: 'Publish msg topic — received all 11,400M messages',
+    caption: 'Publish msg topic — received all 11,400M messages',
+  },
+  {
+    src: '/src/assets/images/docs/mqtt-broker/reference/topics/mqtt-app-topic-1.png',
+    alt: 'Application topic example 1 — received all 22.8M messages',
+    caption: 'Application topic example 1 — 22.8M messages',
+  },
+  {
+    src: '/src/assets/images/docs/mqtt-broker/reference/topics/mqtt-app-topic-2.png',
+    alt: 'Application topic example 2 — received all 22.8M messages',
+    caption: 'Application topic example 2 — 22.8M messages',
+  },
+]} />
+
+**Grafana monitoring:**
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/docs/mqtt-broker/reference/grafana/consumer-lag.png',
+    alt: 'Consumer lag monitoring during the 100M connections test',
+    caption: 'Consumer lag monitoring',
+  },
+]} />
+
+**AWS instance monitoring** (TBMQ ~45% avg CPU, PostgreSQL minimal, Kafka has headroom for more load):
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/docs/mqtt-broker/reference/aws/aws-broker.png',
+    alt: 'AWS EC2 TBMQ monitoring',
+    caption: 'AWS EC2 TBMQ monitoring',
+  },
+  {
+    src: '/src/assets/images/docs/mqtt-broker/reference/aws/aws-kafka.png',
+    alt: 'AWS EC2 Kafka monitoring',
+    caption: 'AWS EC2 Kafka monitoring',
+  },
+  {
+    src: '/src/assets/images/docs/mqtt-broker/reference/aws/aws-kafka-volume.png',
+    alt: 'AWS EBS Kafka storage monitoring',
+    caption: 'AWS EBS Kafka monitoring',
+  },
+  {
+    src: '/src/assets/images/docs/mqtt-broker/reference/aws/aws-rds-stats.png',
+    alt: 'AWS RDS monitoring',
+    caption: 'AWS RDS monitoring',
+  },
+]} />
+
+**JVM monitoring** (forward the JMX port then open [VisualVM](https://visualvm.github.io/)):
+
+```bash
+kubectl port-forward tb-broker-0 9999:9999
+```
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/docs/mqtt-broker/reference/jmx/broker-jmx.png',
+    alt: 'TBMQ JMX monitoring — broker nodes operating steadily',
+    caption: 'TBMQ JMX monitoring',
+  },
+]} />
+
+## Lessons learned
+
+- TBMQ cluster has capacity to process even higher loads.
+- Kafka provides reliable, highly available message processing.
+- No direct communication between TBMQ nodes enables straightforward horizontal scaling.
+- QoS 1 is widely favored as it balances message delivery speed and reliability.
+- TBMQ excels at fan-in, P2P, and fan-out scenarios at both small and large scale.
+
+## Challenges faced during testing
+
+**Kafka producer disconnects** — caused message loss. Resolved by implementing a dedicated executor service for
+processing [publish callbacks](https://github.com/thingsboard/tbmq/commit/4e8e6d8a2f9855c7df88074efc935cb7d19f593d).
+
+**Publishing queue overhead** — eliminated by
+[leveraging the thread-safe nature of Kafka producers](https://github.com/thingsboard/tbmq/commit/443e260924e214ae89b0158a6369b06f38801bd0)
+directly, with message ordering achieved another way.
+
+**Throughput tuning** — additional improvements to
+[message pack processing and UUID generation](https://github.com/thingsboard/tbmq/commit/47e674589269bb45291f471528c54370ebdaf7ed)
+and [sending messages without explicit flushing](https://github.com/thingsboard/tbmq/commit/3ec317072dead5cb5355d29dd7319ccde3403d04).
+
+**Memory optimization** — reduced unnecessary object creation:
+[ClientSessionInfo reuse](https://github.com/thingsboard/tbmq/commit/56ede8e5ebbaa8deafd24b7a0d4050401835ebc0),
+[application publish msg copies](https://github.com/thingsboard/tbmq/commit/395d48917be0186fafbdfa12c0a9b145b66f31d2),
+[Bytebuf in publish msg](https://github.com/thingsboard/tbmq/commit/fa424ffc32837b4d4aa48b890eb3bc06908a7476).
+
+**Uneven client distribution** — resolved by implementing
+[even distribution of clients among broker nodes](https://github.com/thingsboard/tb-mqtt-perf-tests/commit/bd7649a9321f56f68303b380e634617fa0abc098).
+
+## TCO calculations
+
+Approximate monthly cost for this setup on AWS us-east-1 (prices are illustrative — consult AWS for accurate
+pricing; [Savings Plans](https://aws.amazon.com/savingsplans/), reserved instances, and MSK Tiered Storage can
+reduce costs significantly):
+
+| Component | Details | Approx. cost/month |
+|---|---|---|
+| AWS EKS cluster | — | ~$73 |
+| TBMQ nodes | 25 × m6g.metal (64 vCPU, 256 GiB, 10 GiB EBS GP3) | ~$23,800 |
+| AWS RDS | db.m6i.large, 100 GiB | ~$100 |
+| AWS MSK | 9 × m6a.2xlarge, 4,500 GiB total | ~$2,600 |
+| **Total** | — | **~$26,573** |
+
+**~$0.0003 per device per month.**
+
+## How to repeat the tests
+
+Refer to the <DocLink product={props.product} path="install/cluster/aws-cluster-setup">AWS cluster installation guide</DocLink>
+to deploy TBMQ on AWS.
+
+- [TBMQ branch with test scripts](https://github.com/thingsboard/tbmq/tree/100M/k8s/aws#readme)
+- [Performance testing tool](https://github.com/thingsboard/tb-mqtt-perf-tests/tree/100M)
+- [Publisher configuration](https://github.com/thingsboard/tb-mqtt-perf-tests/blob/100M/k8s/broker-tests-publishers-config.yml)
+- [Subscriber configuration](https://github.com/thingsboard/tb-mqtt-perf-tests/blob/100M/k8s/broker-tests-subscribers-config.yml)
+
+**Publisher group configuration:**
+
+```json
+{
+    "id": 1,
+    "publishers": 200000,
+    "topicPrefix": "usa/ydwvv/1/",
+    "clientIdPrefix": null
+}
+```
+
+**Subscriber group configuration:**
+
+```json
+{
+    "id": 1,
+    "subscribers": 1,
+    "topicFilter": "usa/ydwvv/1/+",
+    "expectedPublisherGroups": [1],
+    "persistentSessionInfo": {
+        "clientType": "APPLICATION"
+    },
+    "clientIdPrefix": null
+}
+```
+
+## Conclusion
+
+This test demonstrates TBMQ cluster's capability to process 6M messages per second from diverse devices while
+handling 100M concurrent connections. TBMQ excels in high-throughput scenarios and scales both vertically and
+horizontally. Follow the project on [GitHub](https://github.com/thingsboard/tbmq) for future performance updates.
