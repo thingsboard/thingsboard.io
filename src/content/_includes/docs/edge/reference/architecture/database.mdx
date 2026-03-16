@@ -1,0 +1,136 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+import { Products } from '~/models/site.models';
+
+ThingsBoard Edge uses **PostgreSQL** as its primary database — for entities, attributes, relations, alarms, events, and the cloud event queue. For time-series data, Edge also supports **Cassandra** as an alternative storage backend, using the same `DATABASE_TS_TYPE` variable as the ThingsBoard server.
+
+```plaintext
+  ┌─────────────────────────────────────────────────────────┐
+  │                   ThingsBoard Edge                      │
+  │                                                         │
+  │   Rule Engine ──▶ Save Telemetry    Save Attributes ◀── │
+  │                      │                   │              │
+  │                      │    SQL Batching   │              │
+  │                      │   (configurable)  │              │
+  └──────────────────────┼───────────────────┼──────────────┘
+                         │                   │
+          ┌──────────────▼──────┐   ┌────────▼─────────────────────┐
+          │  PostgreSQL or      │   │  PostgreSQL                  │
+          │  Cassandra          │   │                              │
+          │  (time-series)      │   │  Entities · Attributes       │
+          └─────────────────────┘   │  Relations · Alarms          │
+                                    │  Events · Cloud Events       │
+                                    └──────────────────────────────┘
+```
+
+## What gets stored
+
+| Data type | Storage | Notes |
+|-----------|---------|-------|
+| **Entities** — devices, assets, users, dashboards, rule chains, device profiles | PostgreSQL | Always PostgreSQL |
+| **Attributes** — server, client, and shared attributes | PostgreSQL | Always PostgreSQL |
+| **Relations** — entity-to-entity relationships | PostgreSQL | Always PostgreSQL |
+| **Alarms** — alarm records, acknowledgements, clear events | PostgreSQL | Always PostgreSQL |
+| **Time-series** — telemetry key-value pairs with timestamps | PostgreSQL or Cassandra | Controlled by `DATABASE_TS_TYPE` (`sql` or `cassandra`) |
+| **Events** — audit logs, rule engine debug events, lifecycle events | PostgreSQL | Always PostgreSQL |
+| **Cloud Events** — events queued for server synchronization | PostgreSQL (`cloud_events` table) or Kafka | Kafka used when `TB_QUEUE_TYPE=kafka` (since 3.9) |
+
+<Aside type="tip">
+  Use Cassandra for time-series when Edge receives high write volume — hundreds of messages per second — and PostgreSQL write latency becomes a bottleneck. For most deployments with hundreds of devices, PostgreSQL is sufficient and simpler to operate.
+</Aside>
+
+## Connection pool
+
+Edge uses HikariCP to manage PostgreSQL connections:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SPRING_DATASOURCE_URL` | `jdbc:postgresql:`<br/>`//localhost:5432/tb_edge` | Database connection URL |
+| `SPRING_DATASOURCE_USERNAME` | `postgres` | Database username |
+| `SPRING_DATASOURCE_PASSWORD` | `postgres` | Database password |
+| `SPRING_DATASOURCE_MAXIMUM_POOL_SIZE` | `16` | Maximum connections in the pool |
+
+## Write batching
+
+Edge batches writes to maximize PostgreSQL throughput. Instead of inserting one row at a time, it collects data points into batches and flushes them periodically.
+
+### Time-series batching
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SQL_TS_BATCH_SIZE` | `10000` | Maximum data points per batch |
+| `SQL_TS_BATCH_MAX_DELAY_MS` | `100` | Maximum wait time (ms) before flushing an incomplete batch |
+| `SQL_TS_BATCH_THREADS` | `3` | Number of threads processing batches |
+
+### Latest time-series values
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SQL_TS_LATEST_BATCH_SIZE` | `1000` | Maximum entries per batch |
+| `SQL_TS_LATEST_BATCH_MAX_DELAY_MS` | `50` | Maximum flush delay (ms) |
+| `SQL_TS_LATEST_BATCH_THREADS` | `3` | Batch processing threads |
+
+### Attribute batching
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SQL_ATTRIBUTES_BATCH_SIZE` | `1000` | Maximum attributes per batch |
+| `SQL_ATTRIBUTES_BATCH_MAX_DELAY_MS` | `50` | Maximum flush delay (ms) |
+| `SQL_ATTRIBUTES_BATCH_THREADS` | `3` | Batch processing threads |
+
+<Aside type="tip">
+  If telemetry is arriving faster than it is being written, increase `SQL_TS_BATCH_THREADS` and `SQL_TS_BATCH_SIZE`. Monitor batch stats (logged every `SQL_TS_BATCH_STATS_PRINT_MS`, default 10 seconds) to identify bottlenecks.
+</Aside>
+
+## Partitioning
+
+PostgreSQL time-series tables are partitioned by time to keep queries fast and enable efficient data expiration. Set the partition granularity with `SQL_POSTGRES_TS_KV_PARTITIONING`:
+
+| Value | Partition size | Best for |
+|-------|---------------|----------|
+| `DAYS` | 1 day | High write volume — more partitions, faster drops |
+| `MONTHS` | 1 month (default) | Most deployments |
+| `YEARS` | 1 year | Very low write volume |
+| `INDEFINITE` | No partitioning | Not recommended for production |
+
+Event tables (audit logs, rule engine debug events) also use time-based partitioning:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SQL_EVENTS_REGULAR_PARTITION_SIZE_HOURS` | `168` (7 days) | Regular events partition size |
+| `SQL_EVENTS_DEBUG_PARTITION_SIZE_HOURS` | `1` | Debug events partition size |
+
+## Data retention (TTL)
+
+ThingsBoard Edge automatically deletes old records based on a configured Time-to-Live (TTL). By default, TTL is disabled — records are kept forever.
+
+### Time-series TTL
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SQL_TTL_TS_ENABLED` | `true` | Enable automatic TTL cleanup |
+| `SQL_TTL_TS_EXECUTION_INTERVAL` | `86400000` (1 day) | How often the cleanup job runs, in milliseconds |
+| `SQL_TTL_TS_TS_KEY_VALUE_TTL` | `0` (disabled) | Retention period in seconds; `0` means records never expire |
+
+### Events and audit log TTL
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SQL_TTL_EVENTS_EVENTS_TTL` | `0` (disabled) | Events TTL in seconds |
+| `SQL_TTL_EVENTS_DEBUG_EVENTS_TTL` | `604800` (7 days) | Debug events TTL in seconds |
+| `SQL_TTL_AUDIT_LOGS_SECS` | `0` (disabled) | Audit log TTL in seconds |
+
+### Cloud and edge event queue TTL
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SQL_TTL_CLOUD_EVENTS_ENABLED` | `true` | Enable automatic TTL cleanup for cloud events |
+| `SQL_TTL_CLOUD_EVENTS_EXECUTION_INTERVAL` | `86400000` (1 day) | How often the cloud events cleanup job runs, in milliseconds |
+| `SQL_TTL_CLOUD_EVENTS_CLOUD_EVENTS_TTL` | `2628000` (~30 days) | Retention period for cloud events in seconds |
+| `SQL_TTL_EDGE_EVENTS_ENABLED` | `true` | Enable automatic TTL cleanup for edge events |
+| `SQL_TTL_EDGE_EVENTS_EXECUTION_INTERVAL` | `86400000` (1 day) | How often the edge events cleanup job runs, in milliseconds |
+| `SQL_TTL_EDGE_EVENTS_EDGE_EVENTS_TTL` | `2628000` (~30 days) | Retention period for edge events in seconds |
+
+<Aside type="tip">
+  On edge hardware with limited disk, set `SQL_TTL_TS_TS_KEY_VALUE_TTL` to a value appropriate for your retention requirements. A common starting point is `2592000` (30 days).
+</Aside>
