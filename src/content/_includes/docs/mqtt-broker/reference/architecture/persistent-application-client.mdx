@@ -1,1 +1,102 @@
-Content is coming soon.
+import { Aside } from '@astrojs/starlight/components';
+import DocLink from '@components/DocLink.astro';
+
+This page explains how TBMQ routes and delivers messages for persistent APPLICATION clients, including the
+per-client Kafka topic design, consumer thread model, and shared subscription support.
+
+<Aside type="caution">
+  APPLICATION clients must use persistent sessions. A non-persistent APPLICATION session receives messages while
+  connected, but no persistence mechanisms are applied — messages may be lost if the client disconnects.
+</Aside>
+
+## Overview
+
+APPLICATION clients are designed for backend services that consume high-rate topic streams and require guaranteed
+delivery of every message, including those published while the client was offline. Unlike
+<DocLink product={props.product} path="reference/architecture/persistent-device-client">persistent DEVICE clients</DocLink>,
+which share a single Kafka topic and use Redis for offline storage, each APPLICATION client gets its own dedicated
+Kafka topic. This design isolates processing per client, enabling independent scaling and high per-client
+throughput.
+
+## Message routing
+
+When a publisher sends a PUBLISH message, it is first written to the `tbmq.msg.all` Kafka topic. A Kafka consumer
+thread reads the message, queries the
+<DocLink product={props.product} path="architecture/#subscriptions-trie">Subscription Trie</DocLink>
+for matching subscribers, and routes messages for APPLICATION clients to their dedicated topics:
+
+```
+tbmq.msg.all  ──▶  Message dispatcher  ──▶  tbmq.msg.app.$CLIENT_ID
+```
+
+The dedicated topic is created automatically when the client authenticates as an APPLICATION type and connects
+with a persistent session. If the client ID contains characters outside the alphanumeric range, a hash of the
+client ID is used instead:
+
+```
+tbmq.msg.app.$CLIENT_ID        ← alphanumeric client IDs
+tbmq.msg.app.$CLIENT_ID_HASH   ← client IDs with special characters
+```
+
+The hash-based naming is controlled by `TB_APP_PERSISTED_MSG_CLIENT_ID_VALIDATION` (enabled by default).
+Disabling it means topics will not be created for clients with special characters in their ID.
+
+## Consumer thread model
+
+A dedicated Kafka consumer thread is assigned to each persistent APPLICATION client when it connects. This thread:
+
+1. Continuously polls `tbmq.msg.app.$CLIENT_ID` for new messages.
+2. Delivers messages to the connected client via the established Netty connection.
+3. Maintains delivery order — Kafka's single-partition consumer guarantee preserves message sequence.
+
+This per-client thread model ensures that a slow or high-volume client does not impact other clients. In cluster
+mode, the dedicated consumer is created on the node where the client connects — no inter-node message forwarding
+is required, unlike the DEVICE client flow.
+
+## Shared subscriptions
+
+The dedicated-topic-per-client architecture makes
+<DocLink product={props.product} path="user-guide/shared-subscriptions">shared subscriptions</DocLink>
+exceptionally efficient for APPLICATION clients. When multiple APPLICATION clients share a subscription, each
+client gets its own consumer in the same Kafka consumer group, and Kafka handles partition-based load balancing
+natively.
+
+The shared subscription Kafka topic follows the naming convention:
+
+| MQTT topic filter | Kafka topic |
+|---|---|
+| `test/topic` | `tbmq.msg.app.shared.test.topic` |
+| `test/#` | `tbmq.msg.app.shared.test.mlw` |
+| `test/+` | `tbmq.msg.app.shared.test.slw` |
+
+Where `#` maps to `mlw` (multi-level wildcard) and `+` maps to `slw` (single-level wildcard).
+
+## Kafka topic configuration
+
+The properties for APPLICATION client Kafka topics are controlled by:
+
+```yaml
+TB_KAFKA_APP_PERSISTED_MSG_TOPIC_PROPERTIES
+```
+
+This allows configuring retention, replication factor, and other Kafka topic settings for APPLICATION message
+topics. See the full <DocLink product={props.product} path="install/config">configuration reference</DocLink>
+for details.
+
+## Cluster mode
+
+APPLICATION clients behave identically in standalone and cluster modes. Because each client's Kafka consumer is
+created on the node where the client connects, message processing is local — no `downlink` Kafka topic is needed
+for inter-node forwarding (unlike DEVICE clients). This design enables seamless horizontal scaling: adding broker
+nodes distributes APPLICATION client connections without any coordination overhead.
+
+## Summary
+
+| Aspect | Persistent APPLICATION client |
+|---|---|
+| **Offline storage** | Dedicated Kafka topic per client |
+| **Consumer model** | One thread per client |
+| **Cluster inter-node traffic** | None — consumer is local to the connected node |
+| **Shared subscription support** | Native via Kafka consumer groups |
+| **Session requirement** | Persistent only |
+| **Typical use cases** | Analytics systems, rule engines, data processors |
