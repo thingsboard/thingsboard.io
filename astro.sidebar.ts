@@ -24,7 +24,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 			`${prefix}/asset-profiles`,
 			`${prefix}/connectivity-status`,
 			`${prefix}/claiming`,
-			`${prefix}/device-provisioning`,
+			`${prefix}/provisioning`,
 			`${prefix}/ota-updates`,
 			`${prefix}/command-and-control`,
 		],
