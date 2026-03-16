@@ -1425,12 +1425,13 @@ export const tbmqPeSidebar: SidebarConfig = [
 /** Mobile Application sidebar (pages at /docs/mobile/) */
 export const mobileSidebar: SidebarConfig = [
 	{
-		label: 'Getting started',
+		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
 		items: ['docs/mobile', 'docs/mobile/getting-started'],
 	},
 	{
 		label: 'Guides',
+		translations: { uk: 'Інструкції' },
 		collapsed: true,
 		items: [
 			{
@@ -1459,6 +1460,8 @@ export const mobileSidebar: SidebarConfig = [
 	},
 	{
 		label: 'Releases',
+		translations: { uk: 'Релізи' },
+		collapsed: true,
 		items: [
 			'docs/mobile/releases',
 			'docs/mobile/compatibility',
@@ -1469,12 +1472,13 @@ export const mobileSidebar: SidebarConfig = [
 /** Mobile PE sidebar (pages at /docs/mobile/pe/) */
 export const mobilePeSidebar: SidebarConfig = [
 	{
-		label: 'Getting started',
+		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
 		items: ['docs/mobile/pe', 'docs/mobile/pe/getting-started'],
 	},
 	{
 		label: 'Guides',
+		translations: { uk: 'Інструкції' },
 		collapsed: true,
 		items: [
 			{
@@ -1505,6 +1509,8 @@ export const mobilePeSidebar: SidebarConfig = [
 	},
 	{
 		label: 'Releases',
+		translations: { uk: 'Релізи' },
+		collapsed: true,
 		items: [
 			'docs/mobile/pe/releases',
 			'docs/mobile/pe/compatibility',
