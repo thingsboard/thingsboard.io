@@ -1003,6 +1003,11 @@ export const paasSidebar: SidebarConfig = [
 		],
 	},
 	{
+		label: 'APIs & SDKs',
+		collapsed: true,
+		items: apisAndSdksItems('docs/paas'),
+	},
+	{
 		label: 'Reference',
 		collapsed: true,
 		items: [
@@ -1244,6 +1249,11 @@ export const paasEuSidebar: SidebarConfig = [
 				],
 			},
 		],
+	},
+	{
+		label: 'APIs & SDKs',
+		collapsed: true,
+		items: apisAndSdksItems('docs/paas/eu'),
 	},
 	{
 		label: 'Reference',
