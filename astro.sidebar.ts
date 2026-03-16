@@ -454,6 +454,198 @@ const apisAndSdksItems = (prefix: string) => [
 	},
 ];
 
+/** Reference items for PaaS — same as CE/PE but without Configuration (no self-hosted config for Cloud). */
+const paasReferenceItems = (prefix: string): SidebarConfig => {
+	const basePrefix = prefix.replace('/reference', '');
+	return [
+	{ label: 'Cloud Architecture', slug: `${prefix}/architecture` },
+	{
+		label: 'Rule Engine',
+		collapsed: true,
+		items: [
+			`${prefix}/rule-engine/message-types`,
+			`${prefix}/rule-engine/templatization`,
+			{
+				label: 'Rule Nodes',
+				collapsed: true,
+				items: [
+					{
+						label: 'Filter',
+						collapsed: true,
+						items: [
+							{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/filter` },
+							`${prefix}/rule-engine/nodes/filter/alarm-status-filter`,
+							`${prefix}/rule-engine/nodes/filter/asset-profile-switch`,
+							`${prefix}/rule-engine/nodes/filter/check-fields-presence`,
+							`${prefix}/rule-engine/nodes/filter/check-relation-presence`,
+							`${prefix}/rule-engine/nodes/filter/device-profile-switch`,
+							`${prefix}/rule-engine/nodes/filter/entity-type-filter`,
+							`${prefix}/rule-engine/nodes/filter/entity-type-switch`,
+							`${prefix}/rule-engine/nodes/filter/gps-geofencing-filter`,
+							`${prefix}/rule-engine/nodes/filter/message-type-filter`,
+							`${prefix}/rule-engine/nodes/filter/message-type-switch`,
+							`${prefix}/rule-engine/nodes/filter/script`,
+							`${prefix}/rule-engine/nodes/filter/switch`,
+						],
+					},
+					{
+						label: 'Enrichment',
+						collapsed: true,
+						items: [
+							{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/enrichment` },
+							`${prefix}/rule-engine/nodes/enrichment/calculate-delta`,
+							`${prefix}/rule-engine/nodes/enrichment/customer-attributes`,
+							`${prefix}/rule-engine/nodes/enrichment/customer-details`,
+							`${prefix}/rule-engine/nodes/enrichment/fetch-device-credentials`,
+							`${prefix}/rule-engine/nodes/enrichment/originator-attributes`,
+							`${prefix}/rule-engine/nodes/enrichment/originator-fields`,
+							`${prefix}/rule-engine/nodes/enrichment/originator-telemetry`,
+							`${prefix}/rule-engine/nodes/enrichment/related-device-attributes`,
+							`${prefix}/rule-engine/nodes/enrichment/related-entity-data`,
+							`${prefix}/rule-engine/nodes/enrichment/tenant-attributes`,
+							`${prefix}/rule-engine/nodes/enrichment/tenant-details`,
+						],
+					},
+					{
+						label: 'Transformation',
+						collapsed: true,
+						items: [
+							{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/transformation` },
+							`${prefix}/rule-engine/nodes/transformation/change-originator`,
+							`${prefix}/rule-engine/nodes/transformation/copy-key-value-pairs`,
+							`${prefix}/rule-engine/nodes/transformation/deduplication`,
+							`${prefix}/rule-engine/nodes/transformation/delete-key-value-pairs`,
+							`${prefix}/rule-engine/nodes/transformation/duplicate-to-group`,
+							`${prefix}/rule-engine/nodes/transformation/duplicate-to-group-by-name`,
+							`${prefix}/rule-engine/nodes/transformation/duplicate-to-related`,
+							`${prefix}/rule-engine/nodes/transformation/json-path`,
+							`${prefix}/rule-engine/nodes/transformation/rename-keys`,
+							`${prefix}/rule-engine/nodes/transformation/script`,
+							`${prefix}/rule-engine/nodes/transformation/split-array-msg`,
+							`${prefix}/rule-engine/nodes/transformation/to-email`,
+						],
+					},
+					{
+						label: 'Action',
+						collapsed: true,
+						items: [
+							{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/action` },
+							`${prefix}/rule-engine/nodes/action/add-to-group`,
+							`${prefix}/rule-engine/nodes/action/assign-to-customer`,
+							`${prefix}/rule-engine/nodes/action/calculated-fields`,
+							`${prefix}/rule-engine/nodes/action/change-owner`,
+							`${prefix}/rule-engine/nodes/action/clear-alarm`,
+							`${prefix}/rule-engine/nodes/action/copy-to-view`,
+							`${prefix}/rule-engine/nodes/action/create-alarm`,
+							`${prefix}/rule-engine/nodes/action/create-relation`,
+							`${prefix}/rule-engine/nodes/action/delay`,
+							`${prefix}/rule-engine/nodes/action/delete-attributes`,
+							`${prefix}/rule-engine/nodes/action/delete-relation`,
+							`${prefix}/rule-engine/nodes/action/device-profile`,
+							`${prefix}/rule-engine/nodes/action/device-state`,
+							`${prefix}/rule-engine/nodes/action/generate-dashboard-report`,
+							`${prefix}/rule-engine/nodes/action/generate-report`,
+							`${prefix}/rule-engine/nodes/action/generator`,
+							`${prefix}/rule-engine/nodes/action/gps-geofencing-events`,
+							`${prefix}/rule-engine/nodes/action/integration-downlink`,
+							`${prefix}/rule-engine/nodes/action/log`,
+							`${prefix}/rule-engine/nodes/action/math-function`,
+							`${prefix}/rule-engine/nodes/action/message-count`,
+							`${prefix}/rule-engine/nodes/action/push-to-cloud`,
+							`${prefix}/rule-engine/nodes/action/push-to-edge`,
+							`${prefix}/rule-engine/nodes/action/remove-from-group`,
+							`${prefix}/rule-engine/nodes/action/rest-call-reply`,
+							`${prefix}/rule-engine/nodes/action/rpc-call-reply`,
+							`${prefix}/rule-engine/nodes/action/rpc-call-request`,
+							`${prefix}/rule-engine/nodes/action/save-attributes`,
+							`${prefix}/rule-engine/nodes/action/save-timeseries`,
+							`${prefix}/rule-engine/nodes/action/save-to-custom-table`,
+							`${prefix}/rule-engine/nodes/action/unassign-from-customer`,
+						],
+					},
+					{
+						label: 'External',
+						collapsed: true,
+						items: [
+							{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/external` },
+							`${prefix}/rule-engine/nodes/external/ai-request`,
+							`${prefix}/rule-engine/nodes/external/aws-lambda`,
+							`${prefix}/rule-engine/nodes/external/aws-sns`,
+							`${prefix}/rule-engine/nodes/external/aws-sqs`,
+							`${prefix}/rule-engine/nodes/external/azure-iot-hub`,
+							`${prefix}/rule-engine/nodes/external/gcp-pubsub`,
+							`${prefix}/rule-engine/nodes/external/kafka`,
+							`${prefix}/rule-engine/nodes/external/mqtt`,
+							`${prefix}/rule-engine/nodes/external/rabbitmq`,
+							`${prefix}/rule-engine/nodes/external/rest-api-call`,
+							`${prefix}/rule-engine/nodes/external/send-email`,
+							`${prefix}/rule-engine/nodes/external/send-notification`,
+							`${prefix}/rule-engine/nodes/external/send-sms`,
+							`${prefix}/rule-engine/nodes/external/send-to-slack`,
+							`${prefix}/rule-engine/nodes/external/twilio-sms`,
+							`${prefix}/rule-engine/nodes/external/twilio-voice`,
+						],
+					},
+					{
+						label: 'Flow',
+						collapsed: true,
+						items: [
+							{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/flow` },
+							`${prefix}/rule-engine/nodes/flow/acknowledge`,
+							`${prefix}/rule-engine/nodes/flow/checkpoint`,
+							`${prefix}/rule-engine/nodes/flow/output`,
+							`${prefix}/rule-engine/nodes/flow/rule-chain`,
+						],
+					},
+					{
+						label: 'Analytics',
+						collapsed: true,
+						items: [
+							{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/analytics` },
+							`${prefix}/rule-engine/nodes/analytics/aggregate-latest`,
+							`${prefix}/rule-engine/nodes/analytics/aggregate-stream`,
+							`${prefix}/rule-engine/nodes/analytics/alarms-count`,
+						],
+					},
+				],
+			},
+		],
+	},
+	{
+		label: 'Notification System',
+		collapsed: true,
+		items: [
+			`${prefix}/notification-system/template-parameters`,
+			`${prefix}/notification-system/rule-triggers`,
+			`${basePrefix}/user-guide/ui/mail-settings`,
+			`${basePrefix}/user-guide/ui/sms-provider-settings`,
+			`${basePrefix}/user-guide/ui/slack-settings`,
+			`${basePrefix}/user-guide/ui/microsoft-teams-settings`,
+		],
+	},
+	{
+		label: 'TBEL',
+		collapsed: true,
+		items: [
+			{ label: 'Overview', slug: `${basePrefix}/user-guide/tbel` },
+			`${basePrefix}/user-guide/tbel/language-guide`,
+			`${basePrefix}/user-guide/tbel/helper-functions`,
+		],
+	},
+	{
+		label: 'Widgets',
+		collapsed: true,
+		items: [
+			`${prefix}/widgets/widget-library`,
+			`${prefix}/widgets/chart-widget`,
+			`${prefix}/widgets/map-widgets`,
+			`${prefix}/widgets/entity-table-widget`,
+			`${prefix}/widgets/markdown-html-card`,
+		],
+	},
+];
+};
+
 const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) => {
 	const basePrefix = prefix.replace('/reference', '');
 	return [
@@ -1003,9 +1195,15 @@ export const paasSidebar: SidebarConfig = [
 		],
 	},
 	{
+		label: 'APIs & SDKs',
+		collapsed: true,
+		items: apisAndSdksItems('docs/paas'),
+	},
+	{
 		label: 'Reference',
 		collapsed: true,
 		items: [
+			...paasReferenceItems('docs/paas/reference'),
 			'docs/paas/reference/subscriptions',
 		],
 	},
@@ -1246,9 +1444,15 @@ export const paasEuSidebar: SidebarConfig = [
 		],
 	},
 	{
+		label: 'APIs & SDKs',
+		collapsed: true,
+		items: apisAndSdksItems('docs/paas/eu'),
+	},
+	{
 		label: 'Reference',
 		collapsed: true,
 		items: [
+			...paasReferenceItems('docs/paas/eu/reference'),
 			'docs/paas/eu/reference/subscriptions',
 		],
 	},
@@ -1268,7 +1472,12 @@ export const edgeSidebar: SidebarConfig = [
 			{
 				label: 'Key concepts',
 				items: [
-					'docs/edge/key-concepts/edge-management',
+					'docs/edge/key-concepts/edge-instance',
+					'docs/edge/key-concepts/entities',
+					'docs/edge/key-concepts/telemetry-synchronization',
+					'docs/edge/key-concepts/attributes',
+					'docs/edge/key-concepts/data-processing',
+					'docs/edge/key-concepts/alarms',
 				],
 			},
 		],
@@ -1276,6 +1485,79 @@ export const edgeSidebar: SidebarConfig = [
 	{
 		label: 'Installation',
 		items: edgeInstallationItems('docs/edge'),
+	},
+	{
+		label: 'Guides',
+		items: [
+			{
+				label: 'Edge configuration',
+				collapsed: true,
+				items: [
+					'docs/edge/user-guide/edge-management',
+					{
+						label: 'Connect Edge behind a proxy',
+						collapsed: true,
+						items: [
+							'docs/edge/user-guide/edge-proxy/debian',
+							'docs/edge/user-guide/edge-proxy/docker',
+						],
+					},
+					'docs/edge/user-guide/grpc-ssl',
+					'docs/edge/user-guide/iot-gateway',
+				],
+			},
+			{
+				label: 'Entities & visualization',
+				collapsed: true,
+				items: [
+					'docs/edge/user-guide/device-connectivity',
+					'docs/edge/user-guide/device-management',
+					'docs/edge/user-guide/asset-management',
+					'docs/edge/user-guide/provision-customers-and-users',
+					'docs/edge/user-guide/ota-updates',
+					'docs/edge/user-guide/dashboards',
+				],
+			},
+			{
+				label: 'Attributes & telemetry',
+				collapsed: true,
+				items: [
+					'docs/edge/user-guide/attributes',
+					'docs/edge/user-guide/telemetry-synchronization',
+					'docs/edge/user-guide/attribute-sync',
+				],
+			},
+			{
+				label: 'Data processing',
+				collapsed: true,
+				items: [
+					'docs/edge/user-guide/rule-chain-templates',
+					'docs/edge/user-guide/rpc',
+					'docs/edge/user-guide/manage-alarms',
+					'docs/edge/user-guide/queues',
+				],
+			},
+			{
+				label: 'Troubleshooting',
+				collapsed: true,
+				items: [
+					'docs/edge/user-guide/edge-status-events',
+					'docs/edge/user-guide/logs',
+					'docs/edge/user-guide/grpc-keepalive',
+					'docs/edge/user-guide/message-statistics',
+					'docs/edge/user-guide/prometheus-metrics',
+				],
+			},
+			{
+				label: 'Releases',
+				collapsed: true,
+				items: [
+					{ label: 'Releases table', slug: 'docs/edge/releases/releases-table' },
+					'docs/edge/releases/release-policy',
+					'docs/edge/releases/roadmap',
+				],
+			},
+		],
 	},
 ];
 
@@ -1293,7 +1575,12 @@ export const edgePeSidebar: SidebarConfig = [
 			{
 				label: 'Key concepts',
 				items: [
-					'docs/edge/pe/key-concepts/edge-management',
+					'docs/edge/pe/key-concepts/edge-instance',
+					'docs/edge/pe/key-concepts/entities',
+					'docs/edge/pe/key-concepts/telemetry-synchronization',
+					'docs/edge/pe/key-concepts/attributes',
+					'docs/edge/pe/key-concepts/data-processing',
+					'docs/edge/pe/key-concepts/alarms',
 				],
 			},
 		],
@@ -1301,6 +1588,79 @@ export const edgePeSidebar: SidebarConfig = [
 	{
 		label: 'Installation',
 		items: edgeInstallationItems('docs/edge/pe'),
+	},
+	{
+		label: 'Guides',
+		items: [
+			{
+				label: 'Edge configuration',
+				collapsed: true,
+				items: [
+					'docs/edge/pe/user-guide/edge-management',
+					{
+						label: 'Connect Edge behind a proxy',
+						collapsed: true,
+						items: [
+							'docs/edge/pe/user-guide/edge-proxy/debian',
+							'docs/edge/pe/user-guide/edge-proxy/docker',
+						],
+					},
+					'docs/edge/pe/user-guide/grpc-ssl',
+					'docs/edge/pe/user-guide/iot-gateway',
+				],
+			},
+			{
+				label: 'Entities & visualization',
+				collapsed: true,
+				items: [
+					'docs/edge/pe/user-guide/device-connectivity',
+					'docs/edge/pe/user-guide/device-management',
+					'docs/edge/pe/user-guide/asset-management',
+					'docs/edge/pe/user-guide/provision-customers-and-users',
+					'docs/edge/pe/user-guide/ota-updates',
+					'docs/edge/pe/user-guide/dashboards',
+				],
+			},
+			{
+				label: 'Attributes & telemetry',
+				collapsed: true,
+				items: [
+					'docs/edge/pe/user-guide/attributes',
+					'docs/edge/pe/user-guide/telemetry-synchronization',
+					'docs/edge/pe/user-guide/attribute-sync',
+				],
+			},
+			{
+				label: 'Data processing',
+				collapsed: true,
+				items: [
+					'docs/edge/pe/user-guide/rule-chain-templates',
+					'docs/edge/pe/user-guide/rpc',
+					'docs/edge/pe/user-guide/manage-alarms',
+					'docs/edge/pe/user-guide/queues',
+				],
+			},
+			{
+				label: 'Troubleshooting',
+				collapsed: true,
+				items: [
+					'docs/edge/pe/user-guide/edge-status-events',
+					'docs/edge/pe/user-guide/logs',
+					'docs/edge/pe/user-guide/grpc-keepalive',
+					'docs/edge/pe/user-guide/message-statistics',
+					'docs/edge/pe/user-guide/prometheus-metrics',
+				],
+			},
+			{
+				label: 'Releases',
+				collapsed: true,
+				items: [
+					{ label: 'Releases table', slug: 'docs/edge/pe/releases/releases-table' },
+					'docs/edge/pe/releases/release-policy',
+					'docs/edge/pe/releases/roadmap',
+				],
+			},
+		],
 	},
 ];
 
@@ -1310,7 +1670,6 @@ export const gwSidebar: SidebarConfig = [
 		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
 		items: [
-			'docs/iot-gateway',
 			{
 				label: 'What is ThingsBoard IoT Gateway?',
 				items: [
@@ -1325,7 +1684,6 @@ export const gwSidebar: SidebarConfig = [
 		label: 'Installation',
 		translations: { uk: 'Встановлення' },
 		items: [
-			'docs/iot-gateway/installation',
 			'docs/iot-gateway/installation/deb-installation',
 			'docs/iot-gateway/installation/docker-installation',
 			'docs/iot-gateway/installation/docker-windows',
@@ -1417,7 +1775,45 @@ export const mobileSidebar: SidebarConfig = [
 	{
 		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
-		items: ['docs/mobile'],
+		items: ['docs/mobile', 'docs/mobile/getting-started'],
+	},
+	{
+		label: 'Guides',
+		translations: { uk: 'Інструкції' },
+		collapsed: true,
+		items: [
+			{
+				label: 'Appearance',
+				collapsed: true,
+				items: [
+					'docs/mobile/customize-dashboards',
+					'docs/mobile/customize-devices',
+					'docs/mobile/device-dashboard',
+					'docs/mobile/alarm-dashboard',
+					'docs/mobile/app-icon-splash-screen',
+					'docs/mobile/mobile-actions',
+				],
+			},
+			{
+				label: 'Settings',
+				collapsed: true,
+				items: [
+					'docs/mobile/oauth2',
+					'docs/mobile/qr-code-settings',
+					'docs/mobile/localization',
+				],
+			},
+			'docs/mobile/release',
+		],
+	},
+	{
+		label: 'Releases',
+		translations: { uk: 'Релізи' },
+		collapsed: true,
+		items: [
+			'docs/mobile/releases',
+			'docs/mobile/compatibility',
+		],
 	},
 ];
 
@@ -1426,7 +1822,47 @@ export const mobilePeSidebar: SidebarConfig = [
 	{
 		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
-		items: ['docs/mobile/pe'],
+		items: ['docs/mobile/pe', 'docs/mobile/pe/getting-started'],
+	},
+	{
+		label: 'Guides',
+		translations: { uk: 'Інструкції' },
+		collapsed: true,
+		items: [
+			{
+				label: 'Appearance',
+				collapsed: true,
+				items: [
+					'docs/mobile/pe/customize-dashboards',
+					'docs/mobile/pe/customize-devices',
+					'docs/mobile/pe/device-dashboard',
+					'docs/mobile/pe/alarm-dashboard',
+					'docs/mobile/pe/app-icon-splash-screen',
+					'docs/mobile/pe/mobile-actions',
+					'docs/mobile/pe/white-labeling',
+				],
+			},
+			{
+				label: 'Settings',
+				collapsed: true,
+				items: [
+					'docs/mobile/pe/oauth2',
+					'docs/mobile/pe/self-registration',
+					'docs/mobile/pe/qr-code-settings',
+					'docs/mobile/pe/localization',
+				],
+			},
+			'docs/mobile/pe/release',
+		],
+	},
+	{
+		label: 'Releases',
+		translations: { uk: 'Релізи' },
+		collapsed: true,
+		items: [
+			'docs/mobile/pe/releases',
+			'docs/mobile/pe/compatibility',
+		],
 	},
 ];
 
@@ -1684,7 +2120,16 @@ export const paasSidebarTabLinks: SidebarTabLinks = {};
 export const paasEuSidebarTabLinks: SidebarTabLinks = {};
 export const edgeSidebarTabLinks: SidebarTabLinks = {};
 export const edgePeSidebarTabLinks: SidebarTabLinks = {};
-export const gwSidebarTabLinks: SidebarTabLinks = {};
+export const gwSidebarTabLinks: SidebarTabLinks = {
+	'Getting Started': '/docs/iot-gateway/',
+	Installation: '/docs/iot-gateway/installation/',
+	'Need help?': '/docs/iot-gateway/help/',
+	Roadmap: '/docs/iot-gateway/roadmap/',
+	Customization: '/docs/iot-gateway/custom/',
+	Configuration: '/docs/iot-gateway/config/general/',
+	Features: '/docs/iot-gateway/features/',
+	Connectors: '/docs/iot-gateway/connectors/',
+};
 export const tbmqSidebarTabLinks: SidebarTabLinks = {};
 export const tbmqPeSidebarTabLinks: SidebarTabLinks = {};
 export const mobileSidebarTabLinks: SidebarTabLinks = {};
