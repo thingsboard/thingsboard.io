@@ -1115,7 +1115,7 @@ const tbmqGuideItems = (prefix: string): SidebarConfig => {
 						collapsed: true,
 						items: [
 							{ label: 'Overview', slug: `${prefix}/white-labeling` },
-							{ label: 'Image gallery', slug: `${prefix}/white-labeling/image-gallery` },
+							{ label: 'Image gallery', slug: `${prefix}/image-gallery` },
 						],
 					},
 					{ label: 'Private Cloud subscription', slug: `${prefix}/subscription` },
