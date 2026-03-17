@@ -243,7 +243,7 @@ Defined in `src/data/case-studies/index.ts`:
 ```ts
 export const caseStudyContactBanner = {
   buttons: [
-    { label: 'Contact Us', href: '/docs/contact-us/' },
+    { label: 'Contact Us', href: '/contact-us/' },
     { label: 'Use cases', href: '/use-cases/', variant: 'outlined' as const },
   ],
 };

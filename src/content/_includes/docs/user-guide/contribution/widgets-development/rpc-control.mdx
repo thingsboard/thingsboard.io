@@ -1,0 +1,292 @@
+import DocLink from '@components/DocLink.astro';
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+Build a **device control panel** with buttons that send RPC commands to a device and display the response. This tutorial teaches you how to use the Control API — `sendOneWayCommand` and `sendTwoWayCommand` — and handle responses, timeouts, and errors.
+
+## What you'll build
+
+A control widget with:
+- Buttons that send RPC commands to the target device
+- A status display showing the command result or error
+- Configurable RPC method name and timeout via settings
+- Visual feedback during command execution
+
+## RPC widget basics
+
+**RPC (Control)** widgets differ from Latest Values and Time-Series widgets:
+- They don't subscribe to telemetry data — they **send commands** to devices
+- The device must implement an RPC handler for the method you send
+- Commands can be **one-way** (fire-and-forget) or **two-way** (request-response)
+
+The Control API is available at `self.ctx.controlApi`.
+
+## Step-by-step
+
+<Steps>
+1. Open **Widget Library** → open your bundle → click **+** → select **RPC (Control)** as the type.
+
+2. In the **HTML** tab, paste:
+
+   ```html
+   <div class="rpc-panel">
+     <div class="header">
+       <div class="title">Device Control</div>
+       <div class="status-indicator"
+            [ngClass]="statusClass">
+         {{statusText}}
+       </div>
+     </div>
+
+     <div class="controls">
+       <button mat-raised-button color="primary"
+               (click)="sendCommand(true)"
+               [disabled]="executing">
+         <mat-icon>power_settings_new</mat-icon>
+         Turn ON
+       </button>
+       <button mat-raised-button color="warn"
+               (click)="sendCommand(false)"
+               [disabled]="executing">
+         <mat-icon>power_off</mat-icon>
+         Turn OFF
+       </button>
+     </div>
+
+     @if (lastResponse) {
+       <div class="response-panel">
+         <div class="response-label">Last response:</div>
+         <div class="response-value">{{lastResponse}}</div>
+       </div>
+     }
+   </div>
+   ```
+
+3. In the **CSS** tab, paste:
+
+   ```css
+   .rpc-panel {
+     width: 100%;
+     height: 100%;
+     display: flex;
+     flex-direction: column;
+     gap: 16px;
+     padding: 8px;
+   }
+
+   .header {
+     display: flex;
+     justify-content: space-between;
+     align-items: center;
+   }
+
+   .title {
+     font-size: 16px;
+     font-weight: 600;
+     color: #344054;
+   }
+
+   .status-indicator {
+     font-size: 12px;
+     font-weight: 500;
+     padding: 4px 12px;
+     border-radius: 999px;
+   }
+
+   .status-idle {
+     background: #f2f4f7;
+     color: #667085;
+   }
+
+   .status-executing {
+     background: #eff8ff;
+     color: #175cd3;
+   }
+
+   .status-success {
+     background: #ecfdf3;
+     color: #027a48;
+   }
+
+   .status-error {
+     background: #fef3f2;
+     color: #b42318;
+   }
+
+   .controls {
+     display: flex;
+     gap: 12px;
+   }
+
+   .controls button {
+     flex: 1;
+   }
+
+   .response-panel {
+     padding: 12px;
+     background: #f9fafb;
+     border-radius: 8px;
+     border: 1px solid #eaecf0;
+   }
+
+   .response-label {
+     font-size: 12px;
+     color: #667085;
+     margin-bottom: 4px;
+   }
+
+   .response-value {
+     font-size: 14px;
+     font-weight: 500;
+     color: #344054;
+     word-break: break-all;
+   }
+   ```
+
+4. In the **JavaScript** tab, paste:
+
+   ```javascript
+   let settings;
+
+   self.onInit = function() {
+     let utils = self.ctx.$scope.$injector.get(
+       self.ctx.servicesMap.get('utils'));
+     settings = utils.deepClone(self.ctx.settings) || {};
+
+     self.ctx.$scope.executing = false;
+     self.ctx.$scope.statusText = 'Idle';
+     self.ctx.$scope.statusClass = 'status-idle';
+     self.ctx.$scope.lastResponse = null;
+
+     self.ctx.$scope.sendCommand = function(turnOn) {
+       let methodName = settings.rpcMethod || 'setState';
+       let timeout = settings.rpcTimeout || 5000;
+       let params = { enabled: turnOn };
+
+       self.ctx.$scope.executing = true;
+       self.ctx.$scope.statusText = 'Executing...';
+       self.ctx.$scope.statusClass = 'status-executing';
+       self.ctx.detectChanges();
+
+       if (settings.oneWay) {
+         self.ctx.controlApi.sendOneWayCommand(
+           methodName, params, timeout
+         ).subscribe(
+           function() {
+             onSuccess('Command sent (one-way)');
+           },
+           function(err) {
+             onError(err);
+           }
+         );
+       } else {
+         self.ctx.controlApi.sendTwoWayCommand(
+           methodName, params, timeout
+         ).subscribe(
+           function(response) {
+             onSuccess(JSON.stringify(response));
+           },
+           function(err) {
+             onError(err);
+           }
+         );
+       }
+     };
+   };
+
+   function onSuccess(response) {
+     self.ctx.$scope.executing = false;
+     self.ctx.$scope.statusText = 'Success';
+     self.ctx.$scope.statusClass = 'status-success';
+     self.ctx.$scope.lastResponse = response;
+     self.ctx.detectChanges();
+
+     // Notify the platform the command completed
+     self.ctx.controlApi.completedCommand();
+   }
+
+   function onError(err) {
+     self.ctx.$scope.executing = false;
+     self.ctx.$scope.statusText = 'Error';
+     self.ctx.$scope.statusClass = 'status-error';
+     self.ctx.$scope.lastResponse =
+       err.error?.message || err.message || 'Request failed';
+     self.ctx.detectChanges();
+   }
+
+   self.typeParameters = function() {
+     return {
+       singleEntity: true,
+       hasDataPageLink: false,
+       dataKeysOptional: true
+     };
+   };
+   ```
+
+   **Key concepts:**
+
+   **`self.ctx.controlApi.sendTwoWayCommand(method, params, timeout)`** — sends an RPC request and waits for a response. Returns an Observable. The `method` is the RPC method name the device handles. `params` is a JSON object sent as the command payload. `timeout` is in milliseconds.
+
+   **`self.ctx.controlApi.sendOneWayCommand(method, params, timeout)`** — sends a command without waiting for a device response. Use this for fire-and-forget commands where you don't need confirmation.
+
+   **`self.ctx.controlApi.completedCommand()`** — call this after a successful command to notify the platform that execution is complete. This resets internal RPC tracking state.
+
+   **Error handling** — the error callback receives an error object. For timeout errors, the device didn't respond within the configured timeout. For other errors, check `err.error?.message` for the server's error description.
+
+5. In the **Settings schema** tab, paste:
+
+   ```json
+   [
+     {
+       "id": "rpcMethod",
+       "name": "RPC method name",
+       "group": "RPC configuration",
+       "type": "text",
+       "default": "setState",
+       "required": true
+     },
+     {
+       "id": "rpcTimeout",
+       "name": "Timeout (ms)",
+       "group": "RPC configuration",
+       "type": "number",
+       "default": 5000,
+       "required": true
+     },
+     {
+       "id": "oneWay",
+       "name": "One-way command (no response)",
+       "group": "RPC configuration",
+       "type": "switch",
+       "default": false,
+       "required": false
+     }
+   ]
+   ```
+
+6. Click **Save** → name the widget "Device Control Panel".
+
+7. To test the widget:
+   - Add it to a dashboard and select a target device
+   - The device must handle the configured RPC method (default: `setState`)
+   - Click "Turn ON" — the status shows "Executing...", then "Success" with the response, or "Error" if the device doesn't respond
+
+   <Aside type="tip">
+     For testing without a real device, use the **Rule Chain** to create a mock RPC response.
+     Add a **Script** node that returns `{ "status": "ok" }` and connect it to the RPC request node.
+   </Aside>
+</Steps>
+
+## Control API reference
+
+| Method | Description |
+|--------|-------------|
+| `sendOneWayCommand(method, params, timeout)` | Fire-and-forget RPC. Returns Observable that completes on send. |
+| `sendTwoWayCommand(method, params, timeout)` | Request-response RPC. Returns Observable with device response. |
+| `completedCommand()` | Notify platform that RPC execution completed. |
+
+The `method` parameter must match an RPC method implemented by the target device. The `params` object is serialized to JSON and sent as the RPC payload.
+
+## Next steps
+
+- <DocLink product={props.product} path='user-guide/contribution/widgets-development/alarm-widget' bold={false}>Alarm Widget tutorial</DocLink> — build a custom alarm table with severity colors
+- <DocLink product={props.product} path='user-guide/contribution/widgets-development/widget-api' bold={false}>Widget API Reference</DocLink> — full API documentation including Control API details
