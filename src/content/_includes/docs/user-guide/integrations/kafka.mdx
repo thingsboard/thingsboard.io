@@ -1,0 +1,346 @@
+import DocLink from '@components/DocLink.astro';
+import ImageGallery from '~/components/ImageGallery.astro';
+import DocImage from '~/components/DocImage.astro';
+import Banner from '~/components/Banner.astro';
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Products } from '~/models/site.models';
+
+<Banner variant="peFeature" product={props.product} path="user-guide/integrations/kafka" />
+
+Kafka Integration connects ThingsBoard to <a href="https://kafka.apache.org/" target="_blank">Apache Kafka</a> message brokers. It subscribes to one or more Kafka topics, consumes incoming messages, and transforms them into ThingsBoard telemetry and attributes via an uplink converter.
+
+<DocImage src="/src/assets/images/user-guide/integrations/kafka/Kafka_main.png" alt="Kafka Integration architecture diagram — devices and IoT platforms publish messages to Kafka brokers; the Kafka Integration consumes topics, passes payloads through an uplink converter, and pushes telemetry and attributes to ThingsBoard; a separate Kafka Rule Node handles downlink" />
+
+## Prerequisites
+
+A running Kafka broker is required before creating the integration.
+
+Use a local installation or a cloud-managed cluster such as <a href="https://www.confluent.io/" target="_blank">Confluent Cloud</a>.
+
+## Uplink converter
+
+The uplink converter decodes the Kafka message body and maps it to the ThingsBoard data model.
+
+The decoder function receives:
+- `payload` — raw bytes of the Kafka message value
+- `metadata` — `integrationName` and any key-value pairs configured in the integration's Metadata settings
+
+It must return `deviceName`, `deviceType`, `telemetry`, and `attributes`. Both `telemetry` and `attributes` are flat key-value maps — nested objects are not supported.
+
+:::tip
+Use **TBEL** (ThingsBoard Expression Language) for converter scripts — it executes significantly faster than plain JavaScript inside ThingsBoard.
+:::
+
+In this example, device **43T1YH-REE** sends a JSON payload where telemetry readings are packed as a 4-byte hex string in the `data` field:
+
+```json
+{
+  "EUI": "43T1YH-REE",
+  "ts": 1638876127000,
+  "data": "3d1f0059",
+  "port": 10,
+  "freq": 24300,
+  "rssi": -130,
+  "serial": "230165HRT"
+}
+```
+
+`EUI` is responsible for the name of the device.  
+Each byte pair in `data` encodes one sensor value (little-endian): 
+- bytes 0–1 (**3d**) &#8702; Temperature 
+- bytes 2–3 (**1f**) &#8702; Humidity 
+- bytes 4–5 (**00**) &#8702; Fan speed 
+- bytes 6–7 (**59**) &#8702; Pressure
+
+<Tabs>
+<TabItem label="TBEL (Recommended)">
+
+```js maxLines=35 collapsible
+/** Decoder **/
+
+var payloadJson = decodeToJson(payload);
+var deviceName = payloadJson.EUI;
+var deviceType = 'Monitoring-sensor';
+
+var result = {
+    deviceName: deviceName,
+    deviceType: deviceType,
+    attributes: {},
+    telemetry: {
+        ts: payloadJson.ts,
+        values: {
+            Temperature: hexToInt(payloadJson.data.substring(0, 2)),
+            Humidity: hexToInt(payloadJson.data.substring(2, 4)),
+            Fan: hexToInt(payloadJson.data.substring(4, 6)),
+            Port: payloadJson.port,
+            Freq: payloadJson.freq,
+            Pressure: hexToInt(payloadJson.data.substring(6, 8)),
+            rssi: payloadJson.rssi,
+            serial: payloadJson.serial
+        }
+    }
+};
+
+function hexToInt(hex) {
+    return parseInt(hex, 16);
+}
+
+/** Helper function 'decodeToJson' is already built-in **/
+
+return result;
+```
+
+</TabItem>
+<TabItem label="JavaScript">
+
+```js maxLines=50 collapsible
+/** Decoder **/
+
+var payloadJson = decodeToJson(payload);
+var deviceName = payloadJson.EUI;
+var deviceType = 'Monitoring-sensor';
+
+var result = {
+    deviceName: deviceName,
+    deviceType: deviceType,
+    attributes: {},
+    telemetry: {
+        ts: payloadJson.ts,
+        values: {
+            Temperature: hexToInt(payloadJson.data.substring(0, 2)),
+            Humidity: hexToInt(payloadJson.data.substring(2, 4)),
+            Fan: hexToInt(payloadJson.data.substring(4, 6)),
+            Port: payloadJson.port,
+            Freq: payloadJson.freq,
+            Pressure: hexToInt(payloadJson.data.substring(6, 8)),
+            rssi: payloadJson.rssi,
+            serial: payloadJson.serial
+        }
+    }
+};
+
+/** Helper functions **/
+
+function decodeToString(payload) {
+    return String.fromCharCode.apply(String, payload);
+}
+
+function decodeToJson(payload) {
+    var str = decodeToString(payload);
+    return JSON.parse(str);
+}
+
+function hexToInt(value) {
+    return parseInt('0x' + value.match(/../g).reverse().join(''));
+}
+
+return result;
+```
+
+</TabItem>
+</Tabs>
+
+## Create Kafka integration
+
+<Steps>
+1. Go to **Integration center → Integrations** and click **+ Add integration**.
+2. **Basic settings:**
+    - Set **Integration type** to **Kafka** and enter a name (e.g. "Kafka integration").
+    - **Enable integration** and **Allow create devices or assets** are on by default.
+    - Click **Next**.
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/kafka/kafka-add-integration-1.png', alt: 'Add integration wizard — Basic settings step: Integration type Kafka, name "Kafka integration", Enable integration and Allow create devices or assets toggles on, Next button', caption: 'Basic settings: set Integration type to Kafka, enter a name, verify both toggles are on, click Next' },
+]} />
+
+<Steps>
+  <ol start="3">
+    <li>
+      <span><strong>Uplink data converter:</strong></span>
+      <ul>
+        <li>Click <strong>Create new</strong>, enter a name, and paste the decoder script for your payload type (<a href="#uplink-converter">see scripts above</a>). Alternatively, click <strong>Select existing</strong> to reuse a previously created converter.</li>
+        <li>Click <strong>Next</strong>.</li>
+      </ul>
+    </li>
+  </ol>
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/kafka/kafka-add-integration-2.png', alt: 'Add integration wizard — Uplink data converter step: converter name entered, decoder script visible in TBEL mode, Test decoder function button', caption: 'Uplink data converter: enter a name, paste the decoder script, click Test decoder function to verify' },
+]} />
+
+<Steps>
+  <ol start="4">
+    <li>
+      <span><strong>Connection:</strong></span>
+      <ul>
+        <li>Fill in <strong>Group ID</strong>, <strong>Client ID</strong>, <strong>Bootstrap servers</strong>, <strong>Poll interval</strong>, and <strong>Topics</strong>.</li>
+        <li>Toggle <strong>Auto create topics</strong> if the topic does not exist yet.</li>
+        <li>For Confluent Cloud or other secured brokers, expand <strong>Advanced settings</strong> and add SASL/SSL properties under <strong>Other properties</strong>.</li>
+      </ul>
+      <span>Read more about each parameter in <a href="#connection-settings">connection settings</a>.</span>
+    </li>
+    <li>Click <strong>Add</strong>.</li>
+  </ol>
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/kafka/kafka-add-integration-3.png', alt: 'Add integration wizard — Connection step: Group ID, Client ID, Bootstrap servers (YOUR_KAFKA_DOMAIN:9092), Poll interval 5000, Topics (my-topic), Auto create topics toggle off, Execute remotely collapsed, Add button', caption: 'Connection: fill in Group ID, Client ID, Bootstrap servers, Poll interval, and Topics, then click Add' },
+]} />
+
+<Aside type="note">
+Enable **Debug mode** during initial setup to inspect all incoming messages and converter execution logs on the integration's **Events** tab. Disable it in production — debug events are stored in the database and can quickly consume disk space.
+</Aside>
+
+### Connection settings
+
+<h4>Group ID</h4>
+
+A string you define — it identifies the consumer group this integration belongs to. You can use any value (e.g. `tb-kafka-group`). All integration instances sharing the same Group ID form a consumer group and split the partition load, so each message is delivered to only one instance.
+
+<h4>Client ID</h4>
+
+A string you define — it labels this consumer client for monitoring and logging purposes (e.g. `tb-kafka-client`). Must be unique per running consumer if you need to distinguish instances in Kafka metrics.
+
+<h4>Bootstrap servers</h4>
+
+Comma-separated list of Kafka broker addresses in `host:port` format, e.g. `localhost:9092`. Used to establish the initial connection to the cluster.
+
+<h4>Poll interval (ms)</h4>
+
+How often the integration polls Kafka for new messages. Default: `5000` ms.
+
+<h4>Topics</h4>
+
+Comma-separated list of Kafka topics to subscribe to, e.g. `my-topic`.
+
+<h4>Auto create topics</h4>
+
+When enabled, ThingsBoard automatically creates any subscribed topics that do not already exist on the broker.
+
+<h4>Other properties</h4>
+
+Additional Kafka consumer properties as key-value pairs. Use this for security configuration such as SASL/SSL when connecting to Confluent Cloud or other secured brokers.
+
+For **Confluent Cloud**, add the following four entries:
+
+| Key | Value |
+|-----|-------|
+| `ssl.endpoint.identification.algorithm` | `https` |
+| `sasl.mechanism` | `PLAIN` |
+| `sasl.jaas.config` | `org.apache.kafka.common.security.plain.PlainLoginModule required username="CLUSTER_API_KEY" password="CLUSTER_API_SECRET";` |
+| `security.protocol` | `SASL_SSL` |
+
+Replace `CLUSTER_API_KEY` and `CLUSTER_API_SECRET` with the API key and secret from your Confluent Cloud cluster's **Data integration → API keys** section.
+
+<h4>Execute remotely</h4>
+
+When enabled, ThingsBoard generates an **Integration key** and **Integration secret**. These credentials allow the integration to run as a separate process outside the ThingsBoard cluster — useful for deployments where the integration must reside in a DMZ or on-premises gateway.
+
+### Confluent Cloud setup
+
+<Steps>
+1. **Get the Bootstrap server address.**
+   Open your Confluent Cloud environment, click the cluster to enter it, then open **Cluster settings → General**. Copy the **Bootstrap server** value (`YOUR_DOMAIN.confluent.cloud:9092`) — paste it into the **Bootstrap servers** field in ThingsBoard.
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/kafka/confluent/create_integration/kafka_work_with_cluster_0.png', alt: 'Confluent Cloud — environment page listing cluster "cluster_TB" (Running, Azure, westeurope)', caption: 'Open your Confluent Cloud environment and click the cluster' },
+  { src: '/src/assets/images/user-guide/integrations/kafka/confluent/create_integration/kafka_work_with_cluster_1.png', alt: 'Side-by-side: Confluent Cloud Cluster settings showing Bootstrap server highlighted, and ThingsBoard integration Connection step with Bootstrap servers field filled from the same value', caption: 'Copy the Bootstrap server from Cluster settings and paste it into the Bootstrap servers field in ThingsBoard' },
+]} />
+
+<Steps>
+  <ol start="2">
+    <li>
+      <strong>Create an API key.</strong>
+      Go to <strong>Data integration → API keys</strong> and click <strong>Create key</strong>. Select <strong>Global access</strong> (development) or <strong>Granular access</strong> (production), complete the wizard, then copy the generated <strong>key</strong> and <strong>secret</strong>. Use them in <code>sasl.jaas.config</code>:
+      <pre><code>{'org.apache.kafka.common.security.plain.PlainLoginModule required username="YOUR_KEY" password="YOUR_SECRET";'}</code></pre>
+    </li>
+  </ol>
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/kafka/confluent/create_integration/kafka_integration_properties_API_keys_1.png', alt: 'Confluent Cloud — Data integration → API keys page with no keys yet and Create key button highlighted', caption: 'Navigate to Data integration → API keys and click Create key' },
+  { src: '/src/assets/images/user-guide/integrations/kafka/confluent/create_integration/kafka_integration_properties_API_keys_2.png', alt: 'Confluent Cloud — Create key wizard step 1: select scope — Global access (recommended for development) or Granular access (recommended for production)', caption: 'Select Global access for development or Granular access for production, then click Next' },
+]} />
+
+<Steps>
+  <ol start="3">
+    <li>
+      <strong>Create a topic.</strong>
+      Go to <strong>Topics</strong> and click <strong>Create topic</strong>. Enter a topic name (e.g. <code>my-topic</code>) and click <strong>Create with defaults</strong>. Use this name in the ThingsBoard integration <strong>Topics</strong> field.
+    </li>
+  </ol>
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/kafka/confluent/create_integration/kafka_confluent_create_topic_0.png', alt: 'Confluent Cloud — Topics page with no topics yet and Create topic button highlighted', caption: 'Navigate to Topics and click Create topic' },
+  { src: '/src/assets/images/user-guide/integrations/kafka/confluent/create_integration/kafka_confluent_create_topic_1.png', alt: 'Confluent Cloud — New topic form: topic name "my-topic", 6 partitions, Create with defaults button highlighted; Topic Summary panel on the right shows default settings', caption: 'Enter the topic name (e.g. my-topic) and click Create with defaults' },
+]} />
+
+<Steps>
+  <ol start="4">
+    <li>
+      <strong>Add SASL/SSL properties in ThingsBoard.</strong>
+      In the integration <strong>Connection</strong> step, expand <strong>Other properties</strong> and add the four entries from the <a href="#other-properties">table above</a>, replacing <code>CLUSTER_API_KEY</code> and <code>CLUSTER_API_SECRET</code> with the values from step 2.
+    </li>
+  </ol>
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/kafka/confluent/create_integration/kafka_integration_properties_1.png', alt: 'ThingsBoard Kafka integration — Other properties panel expanded showing all four SASL/SSL key-value entries: ssl.endpoint.identification.algorithm, sasl.mechanism, sasl.jaas.config, security.protocol', caption: 'Other properties expanded with all four SASL/SSL entries filled in' },
+  { src: '/src/assets/images/user-guide/integrations/kafka/confluent/create_integration/kafka_create_integration_main.png', alt: 'ThingsBoard — Add integration dialog for Kafka Confluent: name, type Kafka, uplink converter selected, Group ID, Client ID, Topics (my-topic), Bootstrap servers (URL_OF_YOUR_BOOTSTRAP_SERVER:9092), all fields filled before clicking Add', caption: 'Integration form filled with Confluent Cloud connection details — click Add to save' },
+]} />
+
+## Send uplink message
+
+<Tabs>
+<TabItem label="Standard Kafka">
+
+Use `kafka-console-producer.sh` to publish a test message. Replace `URL_OF_YOUR_BOOTSTRAP_SERVER` with your broker address and `my-topic` with your configured topic:
+
+```bash
+echo "{\"EUI\":\"43T1YH-REE\",\"ts\":1638876127000,\"data\":\"3d1f0059\",\"port\":10,\"freq\":24300,\"rssi\":-130,\"serial\":\"230165HRT\"}" | \
+  /usr/local/kafka/bin/kafka-console-producer.sh \
+  --broker-list URL_OF_YOUR_BOOTSTRAP_SERVER:9092 \
+  --topic my-topic > /dev/null
+```
+
+</TabItem>
+<TabItem label="Confluent Cloud">
+
+In the Confluent Cloud web UI, open your topic and use the **Produce a new message** button on the **Messages** tab:
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/kafka/confluent/create_integration/kafka_confluent_send_payload_to_tb_0.png', alt: 'Confluent Cloud — topic Messages tab with Produce a new message button visible', caption: 'Open the topic Messages tab and click Produce a new message' },
+  { src: '/src/assets/images/user-guide/integrations/kafka/confluent/create_integration/kafka_confluent_send_payload_to_tb_1.png', alt: 'Confluent Cloud — produce message dialog with JSON payload entered in the Value field', caption: 'Paste the JSON payload into the Value field and confirm' },
+  { src: '/src/assets/images/user-guide/integrations/kafka/confluent/create_integration/kafka_confluent_send_payload_to_tb_2.png', alt: 'Confluent Cloud — message successfully produced confirmation', caption: 'Message produced — ThingsBoard will consume it within the next poll interval' },
+]} />
+
+</TabItem>
+</Tabs>
+
+Go to the integration's **Events** tab to confirm the message was received and decoded. Device **43T1YH-REE** is auto-created on the first uplink.
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/kafka/kafka_integration_test_send_msg_result.png', alt: 'Integration Events tab — uplink event showing decoded telemetry: Temperature, Humidity, Fan, Pressure values from the test message', caption: 'Events tab: uplink event confirms the message was received and telemetry was pushed to ThingsBoard' },
+]} />
+
+## Downlink
+
+The Kafka Integration does not have a dedicated downlink converter. To publish messages from ThingsBoard back to a Kafka topic, use the <DocLink product={props.product} path="reference/rule-engine/nodes/external/kafka">Kafka Rule Node</DocLink> in the rule engine.
+
+<Aside type="caution">
+Do not subscribe the integration and the Kafka Rule Node to the **same topic** — this creates a message loop where each consumed message triggers another publish to the same topic, causing runaway processing.
+</Aside>
+
+Configure the Kafka Rule Node with the same bootstrap servers and security properties as the integration, but point it to a **separate downlink topic**.
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/kafka/confluent/downlink/kafka_confluent_downlink_node_0.png', alt: 'Rule chain editor — Kafka external rule node added and connected after message processing nodes', caption: 'Add the Kafka rule node to the rule chain that processes your device messages' },
+  { src: '/src/assets/images/user-guide/integrations/kafka/confluent/downlink/kafka_confluent_downlink_node_1.png', alt: 'Kafka rule node configuration — bootstrap servers, downlink topic, and SASL/SSL properties filled in', caption: 'Configure bootstrap servers, a separate downlink topic, and SASL/SSL properties for Confluent Cloud' },
+  { src: '/src/assets/images/user-guide/integrations/kafka/confluent/downlink/kafka_confluent_downlink_node_2.png', alt: 'Kafka rule node debug Events tab — outbound message entry showing the published payload', caption: 'Enable Debug mode to verify the message was published in the node Events tab' },
+  { src: '/src/assets/images/user-guide/integrations/kafka/confluent/downlink/kafka_confluent_downlink_result_0.png', alt: 'Confluent Cloud — downlink topic Messages tab showing a message received from ThingsBoard', caption: 'Confluent Cloud confirms the downlink message arrived on the separate topic' },
+  { src: '/src/assets/images/user-guide/integrations/kafka/confluent/downlink/kafka_confluent_downlink_result_1.png', alt: 'Confluent Cloud — message detail view showing the ThingsBoard payload content', caption: 'Message detail: the ThingsBoard payload is visible in the Confluent Cloud message viewer' },
+]} />

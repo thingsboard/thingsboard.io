@@ -1,0 +1,343 @@
+import DocLink from '@components/DocLink.astro';
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+Build a **sensor card** that displays the latest telemetry value with a configurable icon, dynamic value-based colors, and a relative timestamp showing when the data last updated.
+
+Like the <DocLink product={props.product} path='user-guide/contribution/widgets-development' bold={false}>Hello World</DocLink> widget, this tutorial uses **vanilla JavaScript** with direct DOM manipulation — `querySelector`, `textContent`, and `style` properties. No Angular template bindings required.
+
+## What you'll build
+
+A compact horizontal card — similar to ThingsBoard's built-in "Horizontal value card" — that shows:
+- A colored icon badge on the left
+- The data key label, value, and units in a single row
+- Dynamic value color that changes based on the current reading
+
+## Step-by-step
+
+<Steps>
+1. Open **Widget Library** → open your bundle (or create one) → click **+** → select **Latest Values** as the type.
+
+2. In the **HTML** tab, paste:
+
+   ```html
+   <div class="sensor-card">
+     <div class="sensor-card__icon" id="icon-badge">
+       <i class="material-icons" id="icon-text">thermostat</i>
+     </div>
+     <div class="sensor-card__body">
+       <span class="sensor-card__label" id="label">Temperature</span>
+       <span class="sensor-card__value" id="value">--</span>
+       <span class="sensor-card__units" id="units"></span>
+     </div>
+   </div>
+   ```
+
+   The entire widget is a single horizontal row: icon badge on the left, then label, value, and units flowing left to right. We use `<i class="material-icons">` instead of `<mat-icon>` — the Material Icons font is globally available in ThingsBoard, and plain HTML elements work reliably without Angular rendering. Every dynamic element has an `id` for easy `querySelector` access.
+
+3. In the **CSS** tab, paste:
+
+   ```css
+   .sensor-card {
+     width: 100%;
+     height: 100%;
+     display: flex;
+     align-items: center;
+     gap: 14px;
+     font-family: 'Roboto', sans-serif;
+     box-sizing: border-box;
+   }
+
+   /* ---- Icon badge ---- */
+   .sensor-card__icon {
+     width: 36px;
+     height: 36px;
+     border-radius: 10px;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     background: #305680;
+     color: #fff;
+     flex-shrink: 0;
+   }
+
+   .sensor-card__icon i {
+     font-size: 20px;
+   }
+
+   /* ---- Body: label + value + units in a row ---- */
+   .sensor-card__body {
+     display: flex;
+     align-items: baseline;
+     gap: 8px;
+     min-width: 0;
+   }
+
+   .sensor-card__label {
+     font-size: 16px;
+     font-weight: 400;
+     color: #344054;
+     white-space: nowrap;
+   }
+
+   .sensor-card__value {
+     font-size: 20px;
+     font-weight: 600;
+     line-height: 1;
+     color: #101828;
+   }
+
+   .sensor-card__units {
+     font-size: 14px;
+     font-weight: 400;
+     color: #667085;
+   }
+   ```
+
+4. In the **JavaScript** tab, paste the controller logic:
+
+   ```javascript
+   let settings, container, init = false;
+
+   // DOM references
+   let labelEl, valueEl, unitsEl,
+       iconBadgeEl, iconTextEl;
+
+   self.onInit = function() {
+     container = self.ctx.$container[0];
+     let utils = self.ctx.$scope.$injector.get(
+       self.ctx.servicesMap.get('utils'));
+     settings = utils.deepClone(self.ctx.settings) || {};
+
+     // Cache DOM references
+     labelEl     = container.querySelector('#label');
+     valueEl     = container.querySelector('#value');
+     unitsEl     = container.querySelector('#units');
+     iconBadgeEl = container.querySelector('#icon-badge');
+     iconTextEl  = container.querySelector('#icon-text');
+
+     // Apply icon setting
+     if (settings.displayIcon === false) {
+       iconBadgeEl.style.display = 'none';
+     } else {
+       iconTextEl.textContent =
+         settings.icon || 'thermostat';
+     }
+
+     applyColors(0);
+   };
+
+   self.onDataUpdated = function() {
+     let data = self.ctx.data;
+
+     if (data.length === 0 || data[0].data.length === 0) {
+       valueEl.textContent = '--';
+       return;
+     }
+
+     // First data update: read label and units
+     if (!init) {
+       labelEl.textContent = data[0].dataKey.label;
+       unitsEl.textContent = data[0].dataKey.units || '';
+       init = true;
+     }
+
+     let val = data[0].data[0][1];
+     valueEl.textContent = val;
+     applyColors(val);
+   };
+
+   function applyColors(val) {
+     valueEl.style.color = resolveColor(
+       settings.valueColor, val, '#101828');
+
+     if (settings.displayIcon !== false) {
+       iconBadgeEl.style.background = resolveColor(
+         settings.iconBackground, val, '#305680');
+       iconBadgeEl.style.color = resolveColor(
+         settings.iconColor, val, '#ffffff');
+     }
+   }
+
+   function resolveColor(setting, value, fallback) {
+     if (!setting) return fallback;
+
+     if (setting.type === 'constant' || !setting.type) {
+       return setting.color || fallback;
+     }
+
+     if (setting.type === 'range'
+         && setting.rangeList
+         && setting.rangeList.range) {
+       const ranges = setting.rangeList.range;
+       for (let i = 0; i < ranges.length; i++) {
+         const r = ranges[i];
+         const from = r.from != null ? r.from : -Infinity;
+         const to   = r.to   != null ? r.to   :  Infinity;
+         if (value >= from && value < to) return r.color;
+       }
+       return setting.color || fallback;
+     }
+
+     if (setting.type === 'function'
+         && setting.colorFunction) {
+       try {
+         return new Function('value',
+           setting.colorFunction)(value);
+       } catch (e) {
+         console.error('Color function error:', e);
+         return setting.color || fallback;
+       }
+     }
+
+     return setting.color || fallback;
+   }
+
+   self.typeParameters = function() {
+     return {
+       maxDataKeys: 1,
+       singleEntity: true,
+       dataKeysOptional: false,
+       ignoreDataUpdateOnIntervalTick: true,
+       defaultDataKeysFunction: function() {
+         return [{
+           name: 'temperature',
+           label: 'Temperature',
+           type: 'timeseries'
+         }];
+       }
+     };
+   };
+   ```
+
+   Let's walk through the key parts:
+
+   **`self.onInit()`** — caches DOM references and applies initial settings. The icon is shown or hidden based on the `displayIcon` setting, and its Material Icon name is set from `settings.icon`.
+
+   **`self.onDataUpdated()`** — reads the latest data point. On the first call, it copies the label and units from the data key metadata. On every call, it updates the value text and recalculates dynamic colors.
+
+   **`resolveColor(setting, value, fallback)`** — resolves a `color_settings` object to a CSS color string. Supports three modes:
+   - **constant** — returns a fixed color
+   - **range** — matches the value against `{from, to, color}` entries
+   - **function** — executes a user-provided JS function
+
+   The `fallback` parameter ensures good defaults even when settings are empty.
+
+   **`self.typeParameters()`** — restricts the widget to one data key from a single entity and pre-fills the default key as `temperature`.
+
+5. In the **Settings schema** tab, paste:
+
+   ```json
+   [
+     {
+       "id": "valueColor",
+       "name": "Value color",
+       "group": "Card appearance",
+       "type": "color_settings",
+       "default": {
+         "type": "constant",
+         "color": "#101828"
+       }
+     },
+     {
+       "id": "displayIcon",
+       "name": "Display icon",
+       "group": "Icon settings",
+       "type": "switch",
+       "default": true,
+       "required": false
+     },
+     {
+       "id": "icon",
+       "name": "Icon",
+       "group": "Icon settings",
+       "type": "icon",
+       "default": "thermostat",
+       "required": false,
+       "condition": "return model.displayIcon==true;"
+     },
+     {
+       "id": "iconColor",
+       "name": "Icon color",
+       "group": "Icon settings",
+       "type": "color_settings",
+       "default": {
+         "type": "constant",
+         "color": "#ffffff"
+       },
+       "required": false,
+       "condition": "return model.displayIcon==true;"
+     },
+     {
+       "id": "iconBackground",
+       "name": "Icon background",
+       "group": "Icon settings",
+       "type": "color_settings",
+       "default": {
+         "type": "constant",
+         "color": "#305680"
+       },
+       "required": false,
+       "condition": "return model.displayIcon==true;"
+     }
+   ]
+   ```
+
+   This schema defines the settings form with two groups:
+
+   | Field | Type | Notes |
+   |-------|------|-------|
+   | `valueColor` | `color_settings` | Supports constant, range, and function color modes |
+   | `displayIcon` | `switch` | Toggle the icon badge |
+   | `icon` | `icon` | Icon picker — only shown when `displayIcon` is true |
+   | `iconColor` | `color_settings` | Icon color — conditional on `displayIcon` |
+   | `iconBackground` | `color_settings` | Icon background — conditional on `displayIcon` |
+
+   The `condition` field uses `return model.displayIcon==true;` — when the `displayIcon` switch is off, the icon-related fields hide.
+
+   The `color_settings` type renders a color picker with three mode tabs: **Constant** (single color), **Range** (value-based color ranges), and **Function** (custom JavaScript).
+
+6. Click **Run** to preview. You should see a compact horizontal card: blue icon badge on the left, then the label, value, and units in a row.
+
+7. Click **Save** → name the widget "Simple Sensor Card".
+
+8. Add the widget to a dashboard. In the widget datasource configuration:
+   - Select a device that publishes telemetry (e.g., a device sending `temperature`)
+   - The widget auto-suggests the `temperature` key from `defaultDataKeysFunction`
+   - Once data flows, the card displays the label, latest value, and units in a clean horizontal row
+
+9. Open **widget settings** (gear icon) → **Advanced** tab. You'll see the "Card appearance" and "Icon settings" groups. Try:
+   - Toggle "Display icon" off → the icon badge disappears
+   - Change "Value color" to **Range** mode → add ranges like 0–20 = blue, 20–30 = green, 30+ = red
+   - Watch the value color change as telemetry updates
+</Steps>
+
+## Understanding the data model
+
+When ThingsBoard calls `self.onDataUpdated()`, the data is available in `self.ctx.data` — an array of datasource data objects:
+
+```javascript
+self.ctx.data = [
+  {
+    dataKey: {
+      name: 'temperature',   // key name
+      label: 'Temperature',  // display label
+      type: 'timeseries',    // 'timeseries', 'attribute', or 'entityField'
+      units: '°C'            // configured units
+    },
+    data: [
+      [1710000000000, 24.5]  // [timestamp_ms, value]
+    ]
+  }
+];
+```
+
+For **Latest Values** widgets, `data[0].data` typically contains a single entry — the most recent value. The first element `[0]` is the timestamp in milliseconds; the second `[1]` is the value.
+
+## Vanilla JS vs Angular templates
+
+This tutorial and the Hello World both use vanilla JS for clarity. The remaining tutorials (<DocLink product={props.product} path='user-guide/contribution/widgets-development/embedded-chart' bold={false}>Embedded Chart</DocLink>, <DocLink product={props.product} path='user-guide/contribution/widgets-development/rpc-control' bold={false}>RPC Control</DocLink>, <DocLink product={props.product} path='user-guide/contribution/widgets-development/alarm-widget' bold={false}>Alarm Widget</DocLink>) switch to **Angular templates** — the approach ThingsBoard's built-in widgets use. Angular templates simplify complex UIs with data binding (`{{value}}`), conditional rendering (`@if`, `*ngIf`), loops (`*ngFor`), and built-in components (`mat-select`, `mat-button`).
+
+## Next steps
+
+- <DocLink product={props.product} path='user-guide/contribution/widgets-development/embedded-chart' bold={false}>Embedded Chart tutorial</DocLink> — wrap a platform chart with a key selector and custom subscriptions
+- <DocLink product={props.product} path='user-guide/contribution/widgets-development/widget-api' bold={false}>Widget API Reference</DocLink> — full reference for `ctx`, lifecycle functions, data structures, and services

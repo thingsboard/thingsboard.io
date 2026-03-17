@@ -1,0 +1,266 @@
+import DocLink from '@components/DocLink.astro';
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+Build a widget that **wraps a platform time-series chart** with a dropdown to switch which data key is charted, and a large current-value display above the chart.
+
+This tutorial teaches you how to embed ThingsBoard's built-in chart component inside a custom widget, create dynamic subscriptions at runtime, and use Angular Reactive Forms for user input.
+
+## What you'll build
+
+A time-series widget with:
+- A dropdown to select which data key (e.g., "Temperature", "Humidity") is charted
+- A large current-value display showing the latest value of the selected key
+- An embedded `<tb-time-series-chart-widget>` that renders the actual chart
+- A custom title panel with an icon
+
+## Step-by-step
+
+<Steps>
+1. Open **Widget Library** → open your bundle → click **+** → select **Time-Series** as the type.
+
+2. In the **HTML** tab, paste:
+
+   ```html
+   <div class="card-with-chart-container" *ngIf="showChart">
+     <div>
+       <div class="title-panel">
+         <ng-container *ngTemplateOutlet="widgetTitlePanel">
+         </ng-container>
+         <div class="icon-wrapper">
+           <mat-icon>bolt</mat-icon>
+         </div>
+       </div>
+       <div class="selector-wrapper" *ngIf="dataKeysFormControl">
+         <mat-form-field appearance="outline" color="primary">
+           <mat-label>Keys</mat-label>
+           <mat-select [formControl]="dataKeysFormControl"
+                       panelClass="custom-select-panel"
+                       placeholder="Select keys">
+             <mat-option *ngFor="let key of allDataKeys"
+                         [value]="key.name">
+               {{key.label}}
+             </mat-option>
+           </mat-select>
+         </mat-form-field>
+       </div>
+       <div class="last-value-container">
+         <span class="value">{{value}}</span>
+         <span class="units">{{units}}</span>
+       </div>
+     </div>
+
+     <div class="chart-container" *ngIf="showChart">
+       <tb-time-series-chart-widget [ctx]="ctx">
+       </tb-time-series-chart-widget>
+     </div>
+   </div>
+   ```
+
+   Key details:
+   - **`<ng-container *ngTemplateOutlet="widgetTitlePanel">`** — renders the widget's title bar (configured in dashboard widget settings). This works because `typeParameters` sets `embedTitlePanel: true`.
+   - **`<mat-select [formControl]="dataKeysFormControl">`** — Angular Material dropdown bound to a Reactive Forms control.
+   - **`<tb-time-series-chart-widget [ctx]="ctx">`** — embeds the platform's built-in time-series chart. It receives the widget context and renders a fully functional chart.
+   - **`*ngIf="showChart"`** — used to force chart re-initialization when the subscription changes (toggled off then on).
+
+3. In the **CSS** tab, paste:
+
+   ```css
+   .card-with-chart-container {
+     width: 100%;
+     height: 100%;
+     display: flex;
+     flex-direction: column;
+   }
+
+   .title-panel {
+     display: flex;
+     justify-content: space-between;
+   }
+
+   .icon-wrapper {
+     padding: 10px;
+     background-color: var(--tb-primary-50);
+     border-radius: 50%;
+     width: 40px;
+     height: 40px;
+     display: flex;
+     justify-content: center;
+     align-items: center;
+   }
+
+   .icon-wrapper mat-icon {
+     font-size: 20px;
+     width: 20px;
+     height: 20px;
+     color: var(--tb-primary-500);
+   }
+
+   .last-value-container {
+     margin: 32px 0;
+   }
+
+   .value {
+     color: #212121;
+     font-size: 48px;
+     line-height: 44px;
+     margin-right: 4px;
+   }
+
+   .units {
+     color: #212121;
+     font-size: 24px;
+     font-weight: 500;
+     line-height: 32px;
+   }
+
+   .selector-wrapper {
+     margin-top: 12px;
+   }
+
+   .chart-container {
+     flex: 1;
+   }
+
+   .mat-mdc-form-field-subscript-wrapper {
+     display: none !important;
+   }
+
+   .tb-time-series-chart-panel {
+     gap: 0 !important;
+   }
+   ```
+
+4. In the **JavaScript** tab, paste:
+
+   ```javascript
+   function createCustomSubscription(dataKeyNames) {
+     const dataKeys = self.ctx.$scope.allDataKeys
+       .filter(key => dataKeyNames.includes(key.name));
+
+     const datasources =
+       self.ctx.defaultSubscription.datasources.map(ds => ({
+         ...ds,
+         dataKeys
+       }));
+
+     let options = {
+       type: 'timeseries',
+       datasources,
+       callbacks: {
+         onDataUpdated: () => {
+           self.onDataUpdated();
+         }
+       }
+     };
+
+     if (self.ctx.$scope.customSubscription) {
+       self.ctx.$scope.customSubscription.unsubscribe();
+     }
+
+     self.ctx.$scope.customSubscription =
+       self.ctx.subscriptionApi
+         .createSubscription(options, true)
+         .subscribe(subscription => {
+           subscription.timeWindowConfig =
+             self.ctx.defaultSubscription.timeWindowConfig;
+           self.ctx.defaultSubscription = subscription;
+           self.ctx.data = subscription.data;
+           self.ctx.datasources = subscription.datasources;
+           self.ctx.defaultSubscription.update();
+
+           // Force chart re-init by toggling visibility
+           self.ctx.$scope.showChart = false;
+           self.ctx.detectChanges();
+           self.ctx.$scope.units =
+             self.ctx.data[0].dataKey.units;
+           setTimeout(() => {
+             self.ctx.$scope.showChart = true;
+             self.ctx.detectChanges();
+           }, 0);
+         });
+   }
+
+   self.onInit = function() {
+     if (self.ctx.$scope.timeSeriesChartWidget) {
+       self.ctx.$scope.timeSeriesChartWidget.onInit();
+       self.ctx.$scope.timeSeriesChartWidget
+         .timeSeriesChart.onResize();
+     }
+
+     self.ctx.$scope.allDataKeys =
+       self.ctx.widget.config.datasources[0].dataKeys;
+     self.ctx.$scope.dataKeysFormControl =
+       self.ctx.$scope.fb.control(
+         self.ctx.$scope.allDataKeys[0].name
+       );
+
+     createCustomSubscription(
+       self.ctx.$scope.dataKeysFormControl.value
+     );
+
+     self.ctx.$scope.dataKeysFormControl.valueChanges
+       .subscribe(value => {
+         createCustomSubscription(value);
+       });
+   };
+
+   self.onDataUpdated = function() {
+     const data = self.ctx.data[0].data;
+     const valueArr = data[data.length - 1];
+     if (valueArr && valueArr.length) {
+       self.ctx.$scope.value = valueArr[1].toFixed(1);
+     }
+     if (self.ctx.$scope.timeSeriesChartWidget) {
+       self.ctx.$scope.timeSeriesChartWidget.onDataUpdated();
+       self.ctx.detectChanges();
+     }
+   };
+   ```
+
+   Let's walk through the key concepts:
+
+   **Custom subscriptions** — `createCustomSubscription()` is the core technique. When the user picks a different key from the dropdown, we:
+   1. Filter `allDataKeys` to include only the selected key
+   2. Build new `datasources` with the filtered keys
+   3. Call `self.ctx.subscriptionApi.createSubscription(options, true)` to create a new subscription
+   4. Replace `self.ctx.defaultSubscription` with the new one
+   5. Toggle `showChart` off/on to force the embedded chart to reinitialize with new data
+
+   **Reactive Forms** — `self.ctx.$scope.fb` is Angular's `FormBuilder`, available in all widgets. We create a form control with `fb.control(initialValue)` and subscribe to `valueChanges` to react when the user selects a different key.
+
+   **Embedded chart delegation** — in `onDataUpdated()`, we call `self.ctx.$scope.timeSeriesChartWidget.onDataUpdated()` to forward the data update to the embedded chart component.
+
+5. Leave the **Settings schema** tab empty (`[]`) — this widget gets its configuration from the datasource keys.
+
+6. Click **Save** → name the widget "Card with Chart".
+
+7. Add the widget to a dashboard:
+   - Select a device as the datasource
+   - Add multiple data keys (e.g., `temperature`, `humidity`, `pressure`)
+   - The dropdown will list all configured keys
+   - Switching keys replaces the chart and updates the current value display
+</Steps>
+
+## How the chart re-init trick works
+
+The embedded `<tb-time-series-chart-widget>` binds to `self.ctx` and reads `self.ctx.data` and `self.ctx.defaultSubscription`. When we replace the subscription, the chart needs to reinitialize to pick up the new data structure.
+
+Simply replacing the subscription doesn't trigger a re-render of the chart's internal state. The solution: toggle `showChart = false` (which removes the chart from the DOM via `*ngIf`), call `detectChanges()`, then immediately set `showChart = true` in a `setTimeout`. This forces Angular to destroy and recreate the chart component, which reinitializes it with the new subscription data.
+
+## Type parameters for embedded widgets
+
+This widget doesn't declare `typeParameters()`. The embedded `<tb-time-series-chart-widget>` inherits the default time-series type parameters. If you need to customize them (e.g., to embed a title panel or add additional latest data keys), add:
+
+```javascript
+self.typeParameters = function() {
+  return {
+    embedTitlePanel: true,
+    hasAdditionalLatestDataKeys: true
+  };
+};
+```
+
+## Next steps
+
+- <DocLink product={props.product} path='user-guide/contribution/widgets-development/rpc-control' bold={false}>RPC Control tutorial</DocLink> — build a device control panel with command buttons
+- <DocLink product={props.product} path='user-guide/contribution/widgets-development/widget-api' bold={false}>Widget API Reference</DocLink> — full details on `subscriptionApi`, `createSubscription`, and data structures

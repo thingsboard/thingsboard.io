@@ -1,0 +1,553 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Structured reference for the ThingsBoard widget API. Use this page to look up specific APIs after completing one of the <DocLink product={props.product} path='user-guide/contribution/widgets-development' bold={false}>widget tutorials</DocLink>.
+
+## Widget context (ctx)
+
+Every widget has access to `self.ctx` — the widget context object. This is your gateway to data, settings, services, and platform APIs.
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `ctx.data` | `DatasourceData[]` | Array of data objects, one per data key. Updated on each data refresh. |
+| `ctx.datasources` | `Datasource[]` | Configured datasources with entity info and data keys. |
+| `ctx.settings` | `object` | Widget settings defined by the settings schema. |
+| `ctx.units` | `string` | Units configured on the widget. |
+| `ctx.decimals` | `number` | Decimal precision configured on the widget. |
+| `ctx.defaultSubscription` | `IWidgetSubscription` | The active data subscription. Contains timewindow config, alarm data, and more. |
+| `ctx.widget` | `Widget` | The widget configuration object (config, layout, datasources). |
+| `ctx.dashboardWidget` | `DashboardWidget` | Dashboard-level widget wrapper (title, visibility, styles). |
+| `ctx.widgetConfig` | `WidgetConfig` | Shorthand for `ctx.widget.config` — title, colors, fonts, margins. |
+| `ctx.$container` | `jQuery` | jQuery reference to the widget's root DOM element. |
+| `ctx.$scope` | `object` | Angular scope for template bindings. Set properties here to use in HTML templates. |
+| `ctx.$scope.$injector` | `Injector` | Angular dependency injector for accessing platform services. |
+| `ctx.$scope.fb` | `FormBuilder` | Angular Reactive Forms builder for creating form controls. |
+| `ctx.servicesMap` | `Map<string, string>` | Maps service names to injection tokens. Use with `$injector.get()`. |
+| `ctx.controlApi` | `RpcApi` | RPC control API for sending device commands (Control widgets only). |
+| `ctx.subscriptionApi` | `SubscriptionApi` | API for creating and managing custom data subscriptions. |
+| `ctx.timewindowFunctions` | `TimewindowFunctions` | Functions to manipulate the widget's time window. |
+| `ctx.stateController` | `StateController` | Dashboard state controller for navigation and URL state. |
+| `ctx.dashboard` | `DashboardCtx` | Dashboard context (edit mode, white-labeling, etc.). |
+| `ctx.detectChanges()` | `function` | Triggers Angular change detection. Call after modifying `$scope` properties. |
+
+## Lifecycle functions
+
+Define these on `self` in the JavaScript tab:
+
+### self.onInit()
+
+Called once when the widget initializes. Use for:
+- Reading settings (`self.ctx.settings`)
+- Injecting services (`self.ctx.$scope.$injector.get(...)`)
+- Setting up initial scope variables
+- Creating form controls
+- Registering event listeners
+
+```javascript
+self.onInit = function() {
+  let $injector = self.ctx.$scope.$injector;
+  let utils = $injector.get(self.ctx.servicesMap.get('utils'));
+  let settings = utils.deepClone(self.ctx.settings) || {};
+
+  self.ctx.$scope.myValue = settings.defaultValue || 0;
+};
+```
+
+### self.onDataUpdated()
+
+Called whenever the subscription receives new data. For Latest Values widgets this fires when a new data point arrives; for Time-Series widgets it fires on each aggregation interval.
+
+```javascript
+self.onDataUpdated = function() {
+  let data = self.ctx.data;
+  if (data.length > 0 && data[0].data.length > 0) {
+    self.ctx.$scope.value = data[0].data[0][1];
+  }
+  self.ctx.detectChanges();
+};
+```
+
+<Aside type="caution">
+  Always call `self.ctx.detectChanges()` at the end of `onDataUpdated()` to ensure the Angular template re-renders with the new values.
+</Aside>
+
+### self.onResize()
+
+Called when the widget container changes size (browser resize, dashboard layout change). Use for resizing charts or recalculating layouts.
+
+```javascript
+self.onResize = function() {
+  if (myChart) {
+    myChart.resize();
+  }
+};
+```
+
+### self.onEditModeChanged()
+
+Called when the dashboard enters or exits edit mode. Useful for hiding controls during editing.
+
+### self.onMobileModeChanged()
+
+Called when the dashboard switches between desktop and mobile layout.
+
+### self.onDestroy()
+
+Called when the widget is removed. Clean up timers, chart instances, and event listeners.
+
+```javascript
+self.onDestroy = function() {
+  if (myChart) {
+    myChart.clear();
+  }
+};
+```
+
+### self.typeParameters()
+
+Returns an object that configures widget behavior in the platform. Called once during initialization.
+
+```javascript
+self.typeParameters = function() {
+  return {
+    maxDatasources: 1,
+    singleEntity: true,
+    maxDataKeys: 4,
+    dataKeysOptional: false,
+    datasourcesOptional: false,
+    hasDataPageLink: false,
+    ignoreDataUpdateOnIntervalTick: true,
+    embedTitlePanel: false,
+    defaultDataKeysFunction: function() {
+      return [{ name: 'temperature', label: 'Temperature', type: 'timeseries' }];
+    }
+  };
+};
+```
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `maxDatasources` | number | -1 (unlimited) | Maximum number of datasources the user can configure |
+| `singleEntity` | boolean | false | Restrict to a single entity |
+| `maxDataKeys` | number | -1 (unlimited) | Maximum number of data keys per datasource |
+| `dataKeysOptional` | boolean | false | Allow widget without data keys |
+| `datasourcesOptional` | boolean | false | Allow widget without any datasource |
+| `hasDataPageLink` | boolean | false | Enable server-side pagination |
+| `warnOnPageDataOverflow` | boolean | true | Show warning when data exceeds page size |
+| `ignoreDataUpdateOnIntervalTick` | boolean | false | Skip `onDataUpdated` calls triggered by interval timer (not new data) |
+| `embedTitlePanel` | boolean | false | Make `widgetTitlePanel` template available in HTML |
+| `embedActionsPanel` | boolean | false | Make `widgetActionsPanel` template available in HTML |
+| `hasAdditionalLatestDataKeys` | boolean | false | Allow additional latest-value data keys alongside time-series keys |
+| `previewWidth` | string | '100%' | Widget preview width in the editor |
+| `previewHeight` | string | '100%' | Widget preview height in the editor |
+| `defaultDataKeysFunction` | function | null | Returns default data keys for new widget instances |
+| `dataKeySettingsFunction` | function | null | Returns per-data-key settings schema |
+
+### self.actionSources()
+
+Declares the clickable action sources your widget exposes. Users configure actions (navigate to dashboard state, open URL, etc.) for each source in the widget settings.
+
+```javascript
+self.actionSources = function() {
+  return {
+    'rowClick': {
+      name: 'widget-action.row-click',
+      multiple: false
+    },
+    'actionCellButton': {
+      name: 'widget-action.action-cell-button',
+      multiple: true,
+      hasShowCondition: true
+    }
+  };
+};
+```
+
+| Property | Description |
+|----------|-------------|
+| `name` | Display name shown in the widget actions dialog |
+| `multiple` | `true` allows multiple actions; `false` allows only one |
+| `hasShowCondition` | `true` enables a show/hide condition per action |
+
+To trigger an action from your code:
+
+```javascript
+let descriptors = self.ctx.$scope.ctx.actionsApi
+  .getActionDescriptors('rowClick');
+
+if (descriptors.length) {
+  self.ctx.$scope.ctx.actionsApi.handleWidgetAction(
+    null,          // event index
+    descriptors[0], // action descriptor
+    entityId,       // { entityType, id }
+    entityName      // string
+  );
+}
+```
+
+## Data structures
+
+### DatasourceData
+
+Each entry in `self.ctx.data` represents one data key:
+
+```javascript
+{
+  dataKey: {
+    name: 'temperature',    // key name
+    label: 'Temperature',   // display label
+    type: 'timeseries',     // 'timeseries' | 'attribute' | 'entityField'
+    units: '°C',            // configured units (may be empty)
+    decimals: 1             // configured decimal precision
+  },
+  data: [
+    [1710000000000, 24.5],  // [timestamp_ms, value]
+    [1710000060000, 25.1]   // for time-series: multiple points
+  ]
+}
+```
+
+For **Latest Values** widgets, `data` typically has one entry (the most recent). For **Time-Series** widgets, `data` contains all points in the time window.
+
+### Datasource
+
+```javascript
+{
+  type: 'entity',           // 'entity' | 'function'
+  entity: {
+    id: { entityType: 'DEVICE', id: '...' },
+    name: 'My Device'
+  },
+  entityId: '...',
+  entityName: 'My Device',
+  entityType: 'DEVICE',
+  dataKeys: [ /* DataKey objects */ ]
+}
+```
+
+### Alarm data
+
+For **Alarm** widgets, alarms are on the subscription:
+
+```javascript
+let alarms = self.ctx.defaultSubscription.alarms;
+// alarms.data = [ AlarmInfo, AlarmInfo, ... ]
+// alarms.totalElements = 42
+// alarms.totalPages = 5
+```
+
+Each `AlarmInfo` object:
+
+```javascript
+{
+  id: { id: '...', entityType: 'ALARM' },
+  type: 'High Temperature',
+  severity: 'CRITICAL',     // CRITICAL | MAJOR | MINOR | WARNING | INDETERMINATE
+  status: 'ACTIVE_UNACK',   // ACTIVE_UNACK | ACTIVE_ACK | CLEARED_UNACK | CLEARED_ACK
+  createdTime: 1710000000000,
+  startTs: 1710000000000,
+  endTs: 1710000060000,
+  ackTs: 0,                 // 0 = not acknowledged
+  clearTs: 0,               // 0 = not cleared
+  originator: { entityType: 'DEVICE', id: '...' },
+  originatorName: 'My Device',
+  details: { /* custom JSON */ }
+}
+```
+
+## Subscription object
+
+`self.ctx.defaultSubscription` holds the active subscription:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `data` | `DatasourceData[]` | Same as `self.ctx.data` |
+| `datasources` | `Datasource[]` | Same as `self.ctx.datasources` |
+| `timeWindowConfig` | `object` | Current time window configuration |
+| `legendData` | `object` | Legend entries and visibility state |
+| `alarms` | `object` | Alarm page data (alarm widgets only) |
+| `update()` | `function` | Force a subscription data refresh |
+
+## Settings schema
+
+The settings schema defines the configuration form users see in the widget settings dialog. Use the **new-style flat array format** — a JSON array of field objects.
+
+### Field structure
+
+```json
+{
+  "id": "fieldId",
+  "name": "Display Name",
+  "group": "Group Name",
+  "type": "text",
+  "default": "default value",
+  "required": false,
+  "condition": "return model.otherField == true;"
+}
+```
+
+| Property | Description |
+|----------|-------------|
+| `id` | The settings key — accessed in JavaScript as `self.ctx.settings.fieldId` |
+| `name` | Label shown in the settings dialog |
+| `group` | Groups fields under a collapsible header |
+| `type` | Field type (see table below) |
+| `default` | Default value for new widget instances |
+| `required` | Whether the field must be filled |
+| `condition` | JavaScript expression — field is shown only when this returns `true`. Access other fields via `model.fieldId`. |
+
+### Field types
+
+| Type | Renders | Value type |
+|------|---------|------------|
+| `text` | Text input | `string` |
+| `number` | Number input | `number` |
+| `switch` | Toggle switch | `boolean` |
+| `color` | Color picker | `string` (hex/rgb) |
+| `color_settings` | Advanced color picker with constant/range/function modes | `object` |
+| `icon` | Icon picker | `string` (icon name) |
+| `select` | Dropdown select | `string` |
+| `image` | Image uploader | `string` (URL/data URI) |
+| `json` | JSON editor | `object` |
+| `html` | HTML editor | `string` |
+| `css` | CSS editor | `string` |
+| `javascript` | JavaScript editor | `string` |
+
+### color_settings type
+
+The `color_settings` type renders an advanced color picker with three modes:
+
+- **Constant** — a single static color
+- **Range** — define value ranges with `{from, to, color}` entries
+- **Function** — a JavaScript function that receives `value` and returns a color string
+
+Default structure:
+
+```json
+{
+  "type": "constant",
+  "color": "#000",
+  "rangeList": {
+    "range": [
+      { "from": 0, "to": 20, "color": "#2196f3" },
+      { "from": 20, "to": 30, "color": "#4caf50" },
+      { "from": 30, "to": null, "color": "#f44336" }
+    ]
+  },
+  "colorFunction": "if (value > 30) return 'red';\nreturn 'green';"
+}
+```
+
+### Conditional fields
+
+Use the `condition` property to show/hide fields dynamically:
+
+```json
+[
+  {
+    "id": "displayIcon",
+    "type": "switch",
+    "default": true
+  },
+  {
+    "id": "icon",
+    "type": "icon",
+    "condition": "return model.displayIcon == true;"
+  }
+]
+```
+
+When `displayIcon` is off, the `icon` field is hidden from the settings dialog.
+
+## Custom subscriptions
+
+Create additional data subscriptions at runtime using `self.ctx.subscriptionApi.createSubscription()`.
+
+### Basic usage
+
+```javascript
+let options = {
+  type: 'timeseries',  // or 'latest', 'alarm'
+  datasources: [{
+    type: 'entity',
+    dataKeys: [{ name: 'temperature', type: 'timeseries' }],
+    entityFilter: {
+      type: 'singleEntity',
+      singleEntity: { entityType: 'DEVICE', id: deviceId }
+    }
+  }],
+  callbacks: {
+    onDataUpdated: () => { self.onDataUpdated(); }
+  }
+};
+
+self.ctx.subscriptionApi.createSubscription(options, true)
+  .subscribe(subscription => {
+    // Replace default subscription
+    self.ctx.defaultSubscription = subscription;
+    self.ctx.data = subscription.data;
+    self.ctx.defaultSubscription.update();
+  });
+```
+
+### Common entity filter types
+
+| Filter type | Description | Key properties |
+|-------------|-------------|----------------|
+| `singleEntity` | One specific entity | `singleEntity: { entityType, id }` |
+| `entityName` | Entities matching a name pattern | `entityType`, `entityNameFilter` |
+| `deviceType` | Devices of a specific type | `deviceType`, `deviceNameFilter` |
+| `entityList` | Explicit list of entity IDs | `entityType`, `entityList: [id1, id2]` |
+
+For the full list of entity filter types, refer to the ThingsBoard TypeScript source.
+
+### Replacing the default subscription
+
+When replacing `self.ctx.defaultSubscription`, remember to:
+1. Unsubscribe from the previous custom subscription
+2. Copy `timeWindowConfig` from the old subscription
+3. Call `subscription.update()` after assignment
+4. If embedding a chart widget, toggle its visibility to force re-initialization
+
+```javascript
+if (self.ctx.$scope.customSubscription) {
+  self.ctx.$scope.customSubscription.unsubscribe();
+}
+
+self.ctx.$scope.customSubscription =
+  self.ctx.subscriptionApi.createSubscription(options, true)
+    .subscribe(subscription => {
+      subscription.timeWindowConfig =
+        self.ctx.defaultSubscription.timeWindowConfig;
+      self.ctx.defaultSubscription = subscription;
+      self.ctx.data = subscription.data;
+      self.ctx.defaultSubscription.update();
+    });
+```
+
+## Services available in widgets
+
+Access services via the Angular injector:
+
+```javascript
+let $injector = self.ctx.$scope.$injector;
+let service = $injector.get(self.ctx.servicesMap.get('serviceName'));
+```
+
+| Service name | Description |
+|-------------|-------------|
+| `utils` | Utility functions (`deepClone`, etc.) |
+| `entityRelationService` | Query and manage entity relations |
+| `attributeService` | Read/write entity attributes |
+| `deviceService` | Device CRUD operations |
+| `assetService` | Asset CRUD operations |
+| `customerService` | Customer CRUD operations |
+| `userService` | User CRUD operations |
+| `alarmService` | Alarm operations (ack, clear, query) |
+| `entityService` | Generic entity operations |
+| `subscriptionApi` | Create custom data subscriptions |
+| `broadcastService` | Inter-widget communication events |
+| `translate` | i18n translation service |
+| `entityGroupService` | Entity group operations (PE only) |
+
+### Common service patterns
+
+**Read attributes:**
+```javascript
+let attributeService = $injector.get(
+  self.ctx.servicesMap.get('attributeService'));
+
+attributeService.getEntityAttributes(
+  { entityType: 'DEVICE', id: deviceId },
+  'SERVER_SCOPE',
+  ['firmware', 'model']
+).subscribe(attributes => {
+  // attributes = [{ key, lastUpdateTs, value }, ...]
+});
+```
+
+**Save attributes:**
+```javascript
+attributeService.saveEntityAttributes(
+  { entityType: 'DEVICE', id: deviceId },
+  'SERVER_SCOPE',
+  [{ key: 'firmware', value: '2.0' }]
+).subscribe(() => {
+  // saved
+});
+```
+
+**Query relations:**
+```javascript
+let relationService = $injector.get(
+  self.ctx.servicesMap.get('entityRelationService'));
+
+let query = {
+  filters: [{
+    relationType: 'Contains',
+    entityTypes: []
+  }],
+  parameters: {
+    rootId: entityId,
+    rootType: 'ASSET',
+    direction: 'FROM',
+    maxLevel: 1
+  }
+};
+
+relationService.findInfoByQuery(query)
+  .subscribe(relations => {
+    // relations = [{ from, to, fromName, toName, type }, ...]
+  });
+```
+
+## Timewindow functions
+
+Control the widget's time window programmatically:
+
+```javascript
+// Set a fixed time window
+self.ctx.timewindowFunctions.onUpdateTimewindow(
+  startTimestamp, endTimestamp
+);
+```
+
+## State controller
+
+Manage dashboard navigation state:
+
+```javascript
+let controller = self.ctx.$scope.ctx.stateController;
+
+// Read current state parameters
+let params = controller.getStateParams();
+
+// Update state
+controller.updateState(stateValue, params);
+
+// Navigate to previous state
+controller.navigatePrevState(1);
+```
+
+## Broadcast service
+
+Send and receive events between widgets on the same dashboard:
+
+```javascript
+let broadcastService = $injector.get(
+  self.ctx.servicesMap.get('broadcastService'));
+
+// Listen for events
+broadcastService.on('my-event', (event, data) => {
+  // handle event
+  self.ctx.detectChanges();
+});
+```
+
+Events are typically sent via widget actions configured in the dashboard. A common use case is the dark mode toggle:
+
+```javascript
+broadcastService.on('toggle-dark-mode', () => {
+  // Switch chart colors, update styles, etc.
+});
+```

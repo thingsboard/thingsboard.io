@@ -119,14 +119,14 @@ Must be completed before most marketing pages can be built.
 
 | # | Page | URL | Description | Complexity | Dev (h) | Test (h) | Status |
 |---|------|-----|-------------|------------|---------|----------|--------|
-| 3.1 | Products overview | `/products/` | Overview page with product cards | M | 5–8 | 1 | [ ] |
-| 3.2 | ThingsBoard PE | `/products/thingsboard-pe/` | PE landing: advantages over CE, features, CTA | H | 8–12 | 1–2 | [ ] |
-| 3.3 | ThingsBoard Cloud | `/products/paas/` | Cloud landing: SLA, regions, managed infra, pricing | H | 8–12 | 1–2 | [ ] |
-| 3.4 | ThingsBoard Edge | `/products/thingsboard-edge/` | Edge landing: edge computing, architecture, use cases | H | 8–12 | 1–2 | [ ] |
-| 3.5 | TBMQ (MQTT Broker) | `/products/mqtt-broker/` | TBMQ landing: scale, throughput, comparison | M | 6–10 | 1 | [ ] |
-| 3.6 | Trendz Analytics | `/products/trendz/` | Trendz landing: analytics, ML, demo request | M | 6–10 | 1 | [ ] |
-| 3.7 | Mobile Application | `/products/mobile/` | Mobile CE landing | M | 5–8 | 1 | [ ] |
-| 3.8 | Mobile PE | `/products/mobile-pe/` | Mobile PE landing | M | 5–8 | 1 | [ ] |
+| 3.1 | Products overview | `/products/` | Overview page with product cards | M | 5–8 | 1 | [x] |
+| 3.2 | ThingsBoard PE | `/products/thingsboard-pe/` | PE landing: advantages over CE, features, CTA | H | 8–12 | 1–2 | [x] |
+| 3.3 | ThingsBoard Cloud | `/products/paas/` | Cloud landing: SLA, regions, managed infra, pricing | H | 8–12 | 1–2 | [x] |
+| 3.4 | ThingsBoard Edge | `/products/thingsboard-edge/` | Edge landing: edge computing, architecture, use cases | H | 8–12 | 1–2 | [x] |
+| 3.5 | TBMQ (MQTT Broker) | `/products/mqtt-broker/` | TBMQ landing: scale, throughput, comparison | M | 6–10 | 1 | [x] |
+| 3.6 | Trendz Analytics | `/products/trendz/` | Trendz landing: analytics, ML, demo request | M | 6–10 | 1 | [x] |
+| 3.7 | Mobile Application | `/products/mobile/` | Mobile CE landing | M | 5–8 | 1 | [x] |
+| 3.8 | Mobile PE | `/products/mobile-pe/` | Mobile PE landing | M | 5–8 | 1 | [x] |
 | 3.9 | License Server | `/products/license-server/` | License management landing | M | 5–8 | 1 | [ ] |
 
 ### 3b. Product sub-pages
@@ -137,20 +137,20 @@ Must be completed before most marketing pages can be built.
 | 3.11 | Cloud — Subscription | `/products/paas/subscription/` | Subscription plan details | M | 4–6 | 0.5 | [ ] |
 | 3.12 | Cloud — Billing Info | `/products/paas/billing-info/` | Billing FAQ and information | L | 2–4 | 0.5 | [ ] |
 | 3.13 | Cloud — Domains | `/products/paas/domains/` | Custom domain setup guide | L | 2–4 | 0.5 | [ ] |
-| 3.14 | Cloud — Privacy Policy | `/products/paas/privacy-policy/` | Privacy policy (Cloud) | L | 2–3 | — | [ ] |
-| 3.15 | Cloud — Terms of Use | `/products/paas/terms-of-use/` | Terms of use (Cloud) | L | 2–3 | — | [ ] |
-| 3.16 | Cloud EU — Privacy Policy | `/products/paas/eu/privacy-policy/` | EU Cloud privacy | L | 1–2 | — | [ ] |
-| 3.17 | Cloud EU — Terms of Use | `/products/paas/eu/terms-of-use/` | EU Cloud terms | L | 1–2 | — | [ ] |
-| 3.18 | TBMQ — Privacy Policy | `/products/mqtt-broker/privacy-policy/` | TBMQ privacy | L | 1–2 | — | [ ] |
-| 3.19 | TBMQ — Terms of Use | `/products/mqtt-broker/terms-of-use/` | TBMQ terms | L | 1–2 | — | [ ] |
+| 3.14 | Cloud — Privacy Policy | `/products/paas/privacy-policy/` | Privacy policy (Cloud) | L | 2–3 | — | [x] |
+| 3.15 | Cloud — Terms of Use | `/products/paas/terms-of-use/` | Terms of use (Cloud) | L | 2–3 | — | [x] |
+| 3.16 | Cloud EU — Privacy Policy | `/products/paas/eu/privacy-policy/` | EU Cloud privacy | L | 1–2 | — | [x] |
+| 3.17 | Cloud EU — Terms of Use | `/products/paas/eu/terms-of-use/` | EU Cloud terms | L | 1–2 | — | [x] |
+| 3.18 | TBMQ — Privacy Policy | `/products/mqtt-broker/privacy-policy/` | TBMQ privacy | L | 1–2 | — | [x] |
+| 3.19 | TBMQ — Terms of Use | `/products/mqtt-broker/terms-of-use/` | TBMQ terms | L | 1–2 | — | [x] |
 | 3.20 | License Server — Billing Info | `/products/license-server/billing-info/` | LS billing FAQ | L | 2–3 | 0.5 | [ ] |
 | 3.21 | License Server — Subscription | `/products/license-server/subscription/` | LS subscription plans | L | 2–3 | 0.5 | [ ] |
 | 3.22 | License Server — Perpetual | `/products/license-server/perpetual/` | Perpetual license details | L | 2–3 | 0.5 | [ ] |
-| 3.23 | License Server — Privacy Policy | `/products/license-server/privacy-policy/` | LS privacy | L | 1–2 | — | [ ] |
-| 3.24 | License Server — Terms of Use | `/products/license-server/terms-of-use/` | LS terms | L | 1–2 | — | [ ] |
-| 3.25 | Trendz — Demo Request | `/products/trendz/trndz-request-demo/` | Demo request form for Trendz | M | 3–5 | 0.5 | [ ] |
-| 3.26 | Edge — Demo Request | `/products/thingsboard-edge/request-demo/` | Demo request form for Edge | M | 3–5 | 0.5 | [ ] |
-| 3.27 | Demo — Privacy Policy | `/products/demo/privacy-policy/` | Privacy policy for demo environments | L | 1–2 | — | [ ] |
+| 3.23 | License Server — Privacy Policy | `/products/license-server/privacy-policy/` | LS privacy | L | 1–2 | — | [x] |
+| 3.24 | License Server — Terms of Use | `/products/license-server/terms-of-use/` | LS terms | L | 1–2 | — | [x] |
+| 3.25 | Trendz — Demo Request | `/products/trendz/request-demo/` | Demo request form for Trendz | M | 3–5 | 0.5 | [x] |
+| 3.26 | Edge — Demo Request | `/products/thingsboard-edge/request-demo/` | Demo request form for Edge | M | 3–5 | 0.5 | [x] |
+| 3.27 | Demo — Privacy Policy | `/products/demo/privacy-policy/` | Privacy policy for demo environments | L | 1–2 | — | [x] |
 
 **Notes:**
 - Main product pages are P1 priority

@@ -1,0 +1,422 @@
+import DocLink from '@components/DocLink.astro';
+import ImageGallery from '~/components/ImageGallery.astro';
+import DocImage from '~/components/DocImage.astro';
+import Banner from '~/components/Banner.astro';
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Products } from '~/models/site.models';
+
+<Banner variant="peFeature" product={props.product} path="user-guide/integrations/coap" />
+
+CoAP Integration connects ThingsBoard to devices that use the [CoAP protocol](https://tools.ietf.org/html/rfc7252). It exposes a CoAP endpoint, receives device payloads, and transforms them into ThingsBoard telemetry and attributes via an uplink converter.
+
+<DocImage src="/src/assets/images/user-guide/integrations/coap-integration.svg" alt="CoAP Integration architecture diagram — device sends CoAP messages to the ThingsBoard CoAP endpoint, the uplink converter decodes the payload and pushes telemetry and attributes to the platform" />
+
+<Aside type="caution">
+The CoAP endpoint is served by the **tb-core** service and must be reachable from the device network. For DTLS modes, additional key store configuration is required — see [Connection settings](#connection-settings).
+</Aside>
+
+## Prerequisites
+
+In this tutorial, device **SN-001** sends temperature and humidity readings to the CoAP Integration at `coap://localhost`. 
+
+The integration accepts three payload types:
+
+<Tabs>
+<TabItem label="Text">
+```
+SN-001,default,temperature,25.7,humidity,69
+```
+</TabItem>
+<TabItem label="JSON">
+```json
+{
+  "deviceName": "SN-001",
+  "deviceType": "default",
+  "temperature": 25.7,
+  "humidity": 69
+}
+```
+</TabItem>
+<TabItem label="Binary">
+Hex string:
+```
+\x53\x4e\x2d\x30\x30\x31\x64\x65\x66\x61\x75\x6c\x74\x32\x35\x2e\x37\x36\x39
+```
+
+Byte layout:
+
+| Bytes | Hex | Value |
+|-------|-----|-------|
+| 0–5 | `\x53\x4e\x2d\x30\x30\x31` | Device name: `SN-001` |
+| 6–12 | `\x64\x65\x66\x61\x75\x6c\x74` | Device type: `default` |
+| 13–16 | `\x32\x35\x2e\x37` | Temperature: `25.7` |
+| 17–18 | `\x36\x39` | Humidity: `69` |
+</TabItem>
+</Tabs>
+
+## Uplink converter
+
+The uplink converter decodes the CoAP message body and maps it to the ThingsBoard data model. For the full decoder function reference, see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter">Uplink data converter</DocLink>.
+
+The decoder function receives:
+- `payload` — raw bytes of the CoAP message body
+- `metadata` — `integrationName` and any key-value pairs configured in the integration's Metadata settings
+
+Unlike HTTP or MQTT, CoAP provides no transport-level metadata (no headers, no topic) — `deviceName` and `deviceType` must be derived from the payload itself.
+
+It must return `deviceName` and `deviceType` (required); `telemetry` and `attributes` are optional flat key-value maps — nested objects are not supported.
+
+:::tip
+Use **TBEL** (ThingsBoard Expression Language) for converter scripts — it executes significantly faster than plain JavaScript inside ThingsBoard.
+:::
+
+<Tabs>
+<TabItem label="Text payload">
+<Tabs>
+<TabItem label="TBEL (Recommended)">
+
+```js maxLines=25 collapsible
+/** Decoder **/
+
+// decode payload to string
+var strArray = decodeToString(payload);
+var payloadArray = strArray.replaceAll("\"", "").split(',');
+
+var telemetryPayload = {};
+for (var i = 2; i < payloadArray.length; i = i + 2) {
+    var telemetryKey = payloadArray[i];
+    var telemetryValue = parseFloat(payloadArray[i + 1]);
+    telemetryPayload[telemetryKey] = telemetryValue;
+}
+
+// Result object with device attributes/telemetry data
+var result = {
+    deviceName: payloadArray[0],
+    deviceType: payloadArray[1],
+    telemetry: telemetryPayload,
+    attributes: {}
+};
+
+/** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
+
+return result;
+```
+
+</TabItem>
+<TabItem label="JavaScript">
+
+```js maxLines=30 collapsible
+/** Decoder **/
+
+// decode payload to string
+var strArray = decodeToString(payload);
+var payloadArray = strArray.replace(/\"/g, "").replace(/\s/g, "").replace(/\\n/g, "").split(',');
+
+var telemetryPayload = {};
+for (var i = 2; i < payloadArray.length; i = i + 2) {
+    var telemetryKey = payloadArray[i];
+    var telemetryValue = parseFloat(payloadArray[i + 1]);
+    telemetryPayload[telemetryKey] = telemetryValue;
+}
+
+// Result object with device attributes/telemetry data
+var result = {
+    deviceName: payloadArray[0],
+    deviceType: payloadArray[1],
+    telemetry: telemetryPayload,
+    attributes: {}
+};
+
+/** Helper functions **/
+
+function decodeToString(payload) {
+    return String.fromCharCode.apply(String, payload);
+}
+
+return result;
+```
+
+</TabItem>
+</Tabs>
+</TabItem>
+<TabItem label="JSON payload">
+<Tabs>
+<TabItem label="TBEL (Recommended)">
+
+```js maxLines=20 collapsible
+/** Decoder **/
+
+// decode payload to JSON
+var data = decodeToJson(payload);
+
+// Result object with device attributes/telemetry data
+var result = {
+    deviceName: data.deviceName,
+    deviceType: data.deviceType,
+    attributes: {},
+    telemetry: {
+        temperature: data.temperature,
+        humidity: data.humidity
+    }
+};
+
+/** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
+
+return result;
+```
+
+</TabItem>
+<TabItem label="JavaScript">
+
+```js maxLines=30 collapsible
+/** Decoder **/
+
+// decode payload to JSON
+var data = decodeToJson(payload);
+
+// Result object with device attributes/telemetry data
+var result = {
+    deviceName: data.deviceName,
+    deviceType: data.deviceType,
+    attributes: {},
+    telemetry: {
+        temperature: data.temperature,
+        humidity: data.humidity
+    }
+};
+
+/** Helper functions **/
+
+function decodeToString(payload) {
+    return String.fromCharCode.apply(String, payload);
+}
+
+function decodeToJson(payload) {
+    var str = decodeToString(payload);
+    var data = JSON.parse(str);
+    return data;
+}
+
+return result;
+```
+
+</TabItem>
+</Tabs>
+</TabItem>
+<TabItem label="Binary payload">
+<Tabs>
+<TabItem label="TBEL (Recommended)">
+
+```js maxLines=25 collapsible
+/** Decoder **/
+
+// decode payload to string
+var payloadStr = decodeToString(payload);
+
+var deviceName = payloadStr.substring(0, 6);
+var deviceType = payloadStr.substring(6, 13);
+
+// Result object with device attributes/telemetry data
+var result = {
+    deviceName: deviceName,
+    deviceType: deviceType,
+    attributes: {},
+    telemetry: {
+        temperature: parseFloat(payloadStr.substring(13, 17)),
+        humidity: parseFloat(payloadStr.substring(17, 19))
+    }
+};
+
+/** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
+
+return result;
+```
+
+</TabItem>
+<TabItem label="JavaScript">
+
+```js maxLines=35 collapsible
+/** Decoder **/
+
+// decode payload to string
+var payloadStr = decodeToString(payload);
+
+var deviceName = payloadStr.substring(0, 6);
+var deviceType = payloadStr.substring(6, 13);
+
+// Result object with device attributes/telemetry data
+var result = {
+    deviceName: deviceName,
+    deviceType: deviceType,
+    attributes: {},
+    telemetry: {
+        temperature: parseFloat(payloadStr.substring(13, 17)),
+        humidity: parseFloat(payloadStr.substring(17, 19))
+    }
+};
+
+/** Helper functions **/
+
+function decodeToString(payload) {
+    return String.fromCharCode.apply(String, payload);
+}
+
+function decodeToJson(payload) {
+    var str = decodeToString(payload);
+    var data = JSON.parse(str);
+    return data;
+}
+
+return result;
+```
+
+
+</TabItem>
+</Tabs>
+</TabItem>
+</Tabs>
+
+## Create CoAP integration
+
+<Steps>
+1. Go to **Integration center &#8702; Integrations** and click **+ Add integration**.
+2. **Basic settings:**
+    - Set **Integration type** to **CoAP** and enter a name (e.g. "CoAP integration").
+    - **Enable integration** and **Allow create devices or assets** are on by default.
+    - Click **Next**.
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/coap/coap-integration-setup-1.png', alt: 'Add integration wizard — Basic settings step: Integration type CoAP, name "CoAP integration", Enable integration and Allow create devices or assets toggles on, Next button', caption: 'Basic settings: set Integration type to CoAP, enter a name, verify both toggles are on, click Next' },
+]} />
+
+<Steps>
+3. **Uplink data converter:**
+    - Click **Create new**, enter a name, and paste the decoder script for your payload type (<DocLink product={props.product} path="user-guide/integrations/coap/#uplink-converter" bold={false}>see tabs above</DocLink>). Alternatively, click **Select existing** to reuse a previously created converter.
+    - Click **Next**.
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/coap/coap-integration-setup-2.png', alt: 'Add integration wizard — Uplink data converter step: Create new selected, decoder script visible in the editor, Next button', caption: 'Uplink data converter: click Create new, enter a name, and paste the decoder script' },
+]} />  
+
+<Steps>
+  <ol start="4">
+    <li>
+      <span><strong>Connection:</strong></span>
+      <ul>
+        <li>Security mode: <strong>NO SECURE</strong></li>
+        <li>Copy the auto-generated <strong>CoAP endpoint URL</strong> — you will use it to send test messages.</li>
+      </ul>
+      <span>Read more about each parameter in <a href="#connection-settings">connection settings</a>.</span>
+    </li>
+    <li>Click <strong>Add</strong>.</li>
+  </ol>
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/coap/coap-integration-setup-3.png', alt: 'Add integration wizard — Connection step: Security mode NO SECURE, Base URL coap://int.thingsboard.cloud, auto-generated CoAP endpoint URL, Execute remotely toggle off, Add button', caption: 'Connection: security mode is NO SECURE by default. Copy the CoAP endpoint URL, then click Add' },
+]} />
+
+### Connection settings
+
+<h4>Security mode</h4>
+
+Defines the transport security for the CoAP connection:
+
+| Mode | Description |
+|------|-------------|
+| **NO SECURE** (default) | Plain CoAP over UDP — no encryption |
+| **DTLS** | CoAP over DTLS 1.2 — encrypted |
+| **MIXED** | Both plain and DTLS endpoints active simultaneously |
+
+Both **CON** (Confirmable) and **NON** (Non-Confirmable) CoAP message types are supported in all modes. ThingsBoard acknowledges CON messages automatically.
+
+For **DTLS** and **MIXED** modes, enable DTLS support in `thingsboard.yml` or set the following environment variables:
+
+```bash
+# Enable/disable DTLS 1.2 support
+export COAP_DTLS_ENABLED=true
+# Default CoAP DTLS bind port
+export COAP_DTLS_BIND_PORT=5484
+# Path to the key store that holds the SSL certificate
+export COAP_DTLS_KEY_STORE=coapserver.jks
+# Password used to access the key store
+export COAP_DTLS_KEY_STORE_PASSWORD=server_ks_password
+# Password used to access the key
+export COAP_DTLS_KEY_PASSWORD=server_key_password
+# Key alias
+export COAP_DTLS_KEY_ALIAS=serveralias
+# Skip certificate validity check for client certificates
+export TB_COAP_X509_DTLS_SKIP_VALIDITY_CHECK_FOR_CLIENT_CERT=false
+```
+
+<Aside type="note">
+The values above are defaults. At minimum, update the key store path and credentials before enabling DTLS. See the <a href="/docs/reference/coap-api/getting-connected/#coap-over-dtls--server-configuration">CoAP over DTLS</a> guide for full configuration details.
+</Aside>
+
+<h4>Base URL</h4>
+
+The base address of the ThingsBoard CoAP endpoint.
+
+Example: `coap://int.my.thingsboard`
+
+<h4>Path</h4>
+
+Optional URL path appended to the base URL.
+
+Example: `coap://int.my.thingsboard/my-path`
+
+<h4>CoAP endpoint URL</h4>
+
+Auto-generated from the **Base URL** and the path `/i/$INTEGRATION_ROUTING_KEY`. The `/i/` prefix is a fixed segment that routes incoming CoAP messages to the integration; the routing key (UUID) is assigned at creation time. Devices must POST to this URL.
+
+<h4>Execute remotely</h4>
+
+When enabled, ThingsBoard generates an **Integration key** and **Integration secret**. These credentials allow the integration to run as a separate process — either on a remote server or at the edge — and communicate with ThingsBoard over a secure channel. Use this option for deployments where the integration service must reside outside the main ThingsBoard cluster (e.g., in a DMZ or on-premises gateway).
+
+## Send Uplink Message
+
+Once the integration is created, the CoAP server registers the endpoint and waits for incoming data. Send a test message using `coap-client` (part of [`libcoap`](https://libcoap.net/install.html)), replacing `$YOUR_COAP_ENDPOINT_URL` with the URL copied during setup:
+
+<Tabs>
+<TabItem label="Text payload">
+
+```bash
+echo -e 'SN-001,default,temperature,25.7,humidity,69' | coap-client -m post $YOUR_COAP_ENDPOINT_URL -t text/plain -f-
+```
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/coap/coap-terminal-text-payload.png', alt: 'Terminal window: coap-client POST command sending CSV text payload with Content-Type text/plain to the CoAP integration endpoint', caption: 'Sending the text payload to the CoAP endpoint — no output indicates successful delivery' },
+]} />
+
+</TabItem>
+<TabItem label="JSON payload">
+
+```bash
+echo -e -n '{"deviceName": "SN-001", "deviceType": "default", "temperature": 25.7, "humidity": 69}' | coap-client -m post $YOUR_COAP_ENDPOINT_URL -t application/json -f-
+```
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/coap/coap-terminal-json-payload.png', alt: 'Terminal window: coap-client POST command sending JSON payload with Content-Type application/json to the CoAP integration endpoint', caption: 'Sending the JSON payload to the CoAP endpoint — no output indicates successful delivery' },
+]} />
+
+</TabItem>
+<TabItem label="Binary payload">
+
+```bash
+echo -e -n '\x53\x4e\x2d\x30\x30\x31\x64\x65\x66\x61\x75\x6c\x74\x32\x35\x2e\x37\x36\x39' | coap-client -m post $YOUR_COAP_ENDPOINT_URL -t application/octet-stream -f-
+```
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/coap/coap-terminal-binary-payload.png', alt: 'Terminal window: coap-client POST command sending hex-escaped binary payload with Content-Type application/octet-stream to the CoAP integration endpoint', caption: 'Sending the binary payload to the CoAP endpoint — no output indicates successful delivery' },
+]} />
+
+</TabItem>
+</Tabs>
+
+Go to **Entities → Devices**. Device **SN-001** is auto-created on the first uplink. Open the **Latest Telemetry** tab to confirm `temperature = 25.7` and `humidity = 69`.
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/coap/coap-integration-go-to-device.png', alt: 'Entities → Devices: SN-001 auto-created by the integration; Latest telemetry tab shows temperature = 25.7 and humidity = 69', caption: 'Go to Entities → Devices — SN-001 is auto-created on the first uplink. Latest telemetry confirms temperature = 25.7 and humidity = 69' },
+]} />
