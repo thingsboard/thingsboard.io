@@ -45,7 +45,7 @@ Work through the old content section by section. For each section, answer:
    - Config field names (`pubAuthRulePatterns`, `credentialsId`, etc.)
    - Format rules, formulas, and enumerated values
    - Conditions and caveats ("only when X", "requires Y")
-3. **Images** — Does every old screenshot have a corresponding image in the new doc? Is the `product` prop passed to `ImageGallery` so PE variants are resolved?
+3. **Images** — Does every old screenshot have a corresponding image in the new doc? Is the `product` prop passed to `ImageGallery` so PE variants are resolved? When images are copied from the old Jekyll site, only the main `.png` files should be included — `*-preview.png` files must never be copied, as the new site does not use them.
 
 ## Step 3: Evaluate writing quality of the new doc
 
@@ -67,7 +67,7 @@ Do NOT list every minor rewording or structural improvement. Report only:
 
 **Technical inaccuracies** (wrong commands, wrong field names, wrong conditions)
 
-**Image problems** (screenshots missing, wrong path, `product` prop not passed)
+**Image problems** (screenshots missing, wrong path, `product` prop not passed, `*-preview.png` files incorrectly copied)
 
 **Writing issues in the new doc** (grammar errors, ambiguous sentences, style violations that a reader would notice)
 
