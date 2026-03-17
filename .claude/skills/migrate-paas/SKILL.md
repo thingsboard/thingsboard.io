@@ -109,7 +109,17 @@ Add the `Products` import if not already present:
 import { Products } from '@models/site.models.ts';
 ```
 
-### 3.2 Hide system admin / installation content
+### 3.2 Image resolution — no action needed
+
+`ImageGallery` has a built-in product fallback chain: PAAS → PE → base, PAAS_EU → PAAS → PE → base. PaaS pages automatically use PE screenshots when no `-paas` variant exists. **You do NOT need to create `-paas` image copies or symlinks.**
+
+However, if an image's `products` array explicitly lists only `[Products.PE]`, you must expand it to include PaaS:
+```diff
+- products: [Products.PE]
++ products: [Products.PE, Products.PAAS, Products.PAAS_EU]
+```
+
+### 3.3 Hide system admin / installation content (if applicable)
 
 PaaS users are tenants — they don't install or configure the server. Hide content about:
 - Self-managed installation instructions
@@ -118,24 +128,28 @@ PaaS users are tenants — they don't install or configure the server. Hide cont
 - Custom rule node development/deployment
 - Docker commands, server startup
 
-**Pattern for hiding content from PaaS:**
+Choose the right approach based on scope (in order of preference):
+
+**Option A: Separate or composable includes** — best when large sections diverge between CE/PE and Cloud. Split the include into two files (one for CE/PE, one for Cloud), or split into smaller composable pieces and assemble in each stub. Avoids JSX complexity entirely.
+
+**Option B: `<ShowFor>` component** — best for hiding a single large section. Markdown inside renders normally (headings, `<Steps>`, lists, code blocks all work):
 ```mdx
-{![Products.PAAS, Products.PAAS_EU].includes(props.product) && <>
-<h2>Section only for CE/PE</h2>
-<p>Content here...</p>
-</>}
+import ShowFor from '~/components/ShowFor.astro';
+
+<ShowFor product={props.product} show={[Products.CE, Products.PE]}>
+
+## System admin section
+
+<Steps>
+1. Markdown renders normally inside the slot.
+</Steps>
+
+</ShowFor>
 ```
 
-**IMPORTANT: Markdown does NOT render inside JSX fragments (`<>...</>`).** Use HTML tags:
-- `<h2>` instead of `##`
-- `<p>` instead of plain paragraphs
-- `<ul><li>` instead of `- `
-- `<strong>` instead of `**`
-- `<code>` instead of backticks
-- `<hr/>` instead of `---`
-- `<a href="...">` for external links inside JSX
+**Option C: JSX conditional** — only for **small inline content** (a sentence, a table row, an `<li>`). Markdown does NOT render inside `{condition && <>...</>}` — use HTML tags (`<h2>`, `<p>`, `<ul><li>`, `<strong>`, `<code>`, `<hr/>`, `<a href>`).
 
-### 3.3 Add PaaS-specific content
+### 3.4 Add PaaS-specific content
 
 For content that differs between PaaS and CE/PE (e.g., login instructions, cloud URLs):
 
@@ -151,7 +165,7 @@ For content that differs between PaaS and CE/PE (e.g., login instructions, cloud
 </>}
 ```
 
-### 3.4 Host name substitution
+### 3.5 Host name substitution
 
 When includes contain `localhost` or hardcoded hostnames in code examples, commands, or URLs — add product-aware conditionals using the host table above.
 

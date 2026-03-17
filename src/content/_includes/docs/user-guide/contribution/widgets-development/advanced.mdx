@@ -1,0 +1,356 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+export const PEOnly = () => (
+  <span style="display:inline-block;background:#3b82f6;color:white;padding:2px 10px;border-radius:999px;font-size:0.75em;font-weight:600;white-space:nowrap">PE / Cloud only</span>
+);
+
+Advanced techniques for widget development — external chart libraries, inter-widget communication, debugging, dark mode, and report integration.
+
+## External JavaScript libraries (ECharts)
+
+For visualizations beyond what the built-in chart widget offers, integrate external libraries like ECharts. Add the library URL in the **Resources** tab, then use it in your JavaScript.
+
+### ECharts integration pattern
+
+**Resources tab:** Add `https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js`
+
+**HTML:**
+```html
+<div class="chart-wrapper">
+  <div id="my-chart"></div>
+</div>
+```
+
+**CSS:**
+```css
+.chart-wrapper {
+  width: 100%;
+  height: 100%;
+}
+
+#my-chart {
+  width: 100%;
+  height: 100%;
+}
+```
+
+**JavaScript:**
+```javascript
+let chart, option;
+
+self.onInit = function() {
+  let element = self.ctx.$container[0].querySelector('#my-chart');
+  chart = echarts.init(element);
+
+  option = {
+    series: [{
+      type: 'gauge',
+      center: ['50%', '50%'],
+      startAngle: 225,
+      endAngle: -45,
+      min: 0,
+      max: 100,
+      progress: { show: true, width: 30 },
+      pointer: { show: false },
+      axisLine: { lineStyle: { width: 30 } },
+      axisTick: { show: false },
+      splitLine: {
+        distance: -52,
+        length: 14,
+        lineStyle: { width: 3, color: '#757575' }
+      },
+      axisLabel: { distance: -15, color: '#757575', fontSize: 20 },
+      detail: {
+        valueAnimation: true,
+        offsetCenter: [0, 0],
+        fontSize: 36,
+        fontWeight: 600,
+        formatter: function(value) {
+          let label = self.ctx.data[0]?.dataKey?.label || '';
+          let units = self.ctx.data[0]?.dataKey?.units || '';
+          return '{label|' + label + '}\n{value|' + value + units + '}';
+        },
+        rich: {
+          label: { fontSize: 16, lineHeight: 24, color: '#424242' },
+          value: { fontSize: 36, lineHeight: 44, color: '#171717', fontWeight: 600 }
+        }
+      },
+      data: [{ value: 0 }]
+    }]
+  };
+
+  chart.setOption(option);
+};
+
+self.onDataUpdated = function() {
+  if (self.ctx.data.length
+      && self.ctx.data[0].data.length
+      && self.ctx.data[0].data[0].length) {
+    let newValue = self.ctx.data[0].data[0][1];
+    option.series.forEach(s => s.data[0].value = newValue);
+    chart.setOption(option);
+  }
+};
+
+self.onResize = function() {
+  chart.resize();
+};
+
+self.onDestroy = function() {
+  chart.clear();
+};
+```
+
+**Key lifecycle integration:**
+- **`onInit`** — `echarts.init()` on a DOM element, set initial options
+- **`onDataUpdated`** — update `option.series[*].data` and call `chart.setOption()`
+- **`onResize`** — `chart.resize()` to handle container size changes
+- **`onDestroy`** — `chart.clear()` to free memory
+
+### Client-side aggregation
+
+For widgets that need hourly, daily, or custom aggregation beyond what the platform provides:
+
+```javascript
+function aggregateByHour(data, type) {
+  const grouped = {};
+  data.forEach(({ ts, value }) => {
+    // Round to nearest hour
+    const hourTs = Math.floor(ts / 3600000) * 3600000;
+    if (!grouped[hourTs]) grouped[hourTs] = [];
+    grouped[hourTs].push(+value);
+  });
+
+  return Object.entries(grouped).map(([ts, values]) => {
+    let result;
+    switch (type) {
+      case 'Sum': result = values.reduce((a, b) => a + b, 0); break;
+      case 'Avg': result = values.reduce((a, b) => a + b, 0) / values.length; break;
+      case 'Min': result = Math.min(...values); break;
+      case 'Max': result = Math.max(...values); break;
+    }
+    return { ts: Number(ts), value: result };
+  });
+}
+```
+
+Use this when you need to aggregate data client-side — for example, when displaying a heatmap that needs hourly buckets from raw time-series data.
+
+## Widget-to-widget communication
+
+Widgets on the same dashboard can communicate through the **Broadcast Service**.
+
+### Listening for events
+
+```javascript
+self.onInit = function() {
+  let $injector = self.ctx.$scope.$injector;
+  let broadcastService = $injector.get(
+    self.ctx.servicesMap.get('broadcastService'));
+
+  broadcastService.on('my-custom-event', (event, data) => {
+    self.ctx.$scope.receivedData = data;
+    self.ctx.detectChanges();
+  });
+};
+```
+
+### Sending events via widget actions
+
+Events are typically sent using **widget actions** configured in the dashboard editor. In the widget action configuration:
+- Set the action type to "Custom action"
+- In the custom function, use `broadcastService` to emit events
+
+Widgets listening for those events will receive them and can react accordingly.
+
+### Dark mode toggle
+
+A common broadcast pattern is the dark mode toggle. The platform emits `toggle-dark-mode` when the dashboard theme changes:
+
+```javascript
+broadcastService.on('toggle-dark-mode', () => {
+  let isDark = document.querySelector('.tb-dashboard-page')
+    ?.classList.contains('dark');
+
+  if (isDark) {
+    // Switch to dark colors
+    option.series[0].detail.rich.label.color = 'rgba(255,255,255,0.87)';
+    option.series[0].detail.rich.value.color = '#FFF';
+  } else {
+    // Switch to light colors
+    option.series[0].detail.rich.label.color = '#424242';
+    option.series[0].detail.rich.value.color = '#171717';
+  }
+
+  chart.setOption(option);
+});
+```
+
+## Dark mode support
+
+Widgets should handle both light and dark dashboard themes.
+
+### CSS approach
+
+Use ThingsBoard's CSS custom properties for theme-aware colors:
+
+```css
+.my-widget {
+  color: var(--tb-primary-500);
+  background: var(--tb-primary-50);
+}
+```
+
+These custom properties automatically change values between light and dark themes.
+
+### JavaScript approach
+
+Check the current theme at runtime:
+
+```javascript
+function isDarkMode() {
+  return document.querySelector('.tb-dashboard-page')
+    ?.classList.contains('dark') || false;
+}
+```
+
+Or listen for theme changes via the broadcast service (see above).
+
+## Timewindow management
+
+Control the widget's time window programmatically — useful for date navigation widgets:
+
+```javascript
+let currentDate = moment().startOf('day');
+
+self.ctx.$scope.goBack = function() {
+  currentDate = moment(currentDate).subtract(1, 'day').startOf('day');
+  let start = currentDate.valueOf();
+  let end = moment(currentDate).add(1, 'day').startOf('day').valueOf();
+  self.ctx.timewindowFunctions.onUpdateTimewindow(start, end);
+};
+
+self.ctx.$scope.goForward = function() {
+  currentDate = moment(currentDate).add(1, 'day').startOf('day');
+  let start = currentDate.valueOf();
+  let end = moment(currentDate).add(1, 'day').startOf('day').valueOf();
+  self.ctx.timewindowFunctions.onUpdateTimewindow(start, end);
+};
+```
+
+When embedding a chart widget, delegate data updates:
+
+```javascript
+self.onDataUpdated = function() {
+  self.ctx.$scope.timeSeriesChartWidget.onDataUpdated();
+};
+
+self.onLatestDataUpdated = function() {
+  self.ctx.$scope.timeSeriesChartWidget.onLatestDataUpdated();
+};
+```
+
+## Multi-select filtering
+
+Build widgets with multi-select dropdowns to filter both data keys and entities:
+
+```javascript
+self.onInit = function() {
+  let allDataKeys = self.ctx.widget.config.datasources[0].dataKeys;
+  let allDatasources = self.ctx.datasources;
+
+  self.ctx.$scope.formGroup = self.ctx.$scope.fb.group({
+    datasources: ['', []],
+    keys: ['', []]
+  });
+
+  // Initialize with all selected
+  self.ctx.$scope.formGroup.patchValue({
+    datasources: allDatasources.map(ds => ds.entityId),
+    keys: allDataKeys.map(key => key.name)
+  });
+
+  // React to selection changes
+  self.ctx.$scope.formGroup.valueChanges.subscribe(value => {
+    createCustomSubscription(value.datasources, value.keys);
+  });
+};
+```
+
+For the `createCustomSubscription` implementation, use the `entityList` filter type to filter by selected entity IDs:
+
+```javascript
+function createCustomSubscription(entityList, dataKeyNames) {
+  const dataKeys = allDataKeys
+    .filter(key => dataKeyNames.includes(key.name));
+
+  const datasources = [{
+    type: 'entity',
+    dataKeys,
+    entityFilter: {
+      type: 'entityList',
+      entityType: 'DEVICE',
+      entityList: entityList
+    }
+  }];
+
+  // ... create subscription (see Embedded Chart tutorial)
+}
+```
+
+## Widget debugging
+
+### Console logging
+
+Use `console.log()` in any lifecycle function — output appears in the browser's DevTools console:
+
+```javascript
+self.onDataUpdated = function() {
+  console.log('Data received:', self.ctx.data);
+  console.log('First value:', self.ctx.data[0]?.data[0]);
+};
+```
+
+### Debugger statement
+
+Add `debugger;` to pause execution and inspect variables in DevTools:
+
+```javascript
+self.onInit = function() {
+  debugger; // Execution pauses here when DevTools is open
+  let settings = self.ctx.settings;
+};
+```
+
+### Chrome DevTools tips
+
+- **Sources panel** — your widget JavaScript appears under `(no domain)` or as an eval'd script. Search for your function names.
+- **Console panel** — log output and errors from your widget appear here. Filter by "widget" if needed.
+- **Elements panel** — inspect the widget DOM. Your HTML template renders inside a container with the widget ID.
+- **Network panel** — monitor RPC calls, attribute requests, and subscription data.
+
+<Aside type="tip">
+  The Widget Editor's **Run** button executes in the same browser tab — you can set breakpoints before clicking Run.
+</Aside>
+
+## Web report integration <PEOnly/>
+
+PE/Cloud widgets can integrate with the report service for PDF/PNG export:
+
+```javascript
+let reportService = self.ctx.reportService;
+
+if (reportService) {
+  reportService.reportCallback = function() {
+    // Called when the widget is being rendered for a report
+    // Return a promise that resolves when the widget is ready
+    return new Promise(resolve => {
+      // Wait for data to load, charts to render, etc.
+      setTimeout(resolve, 1000);
+    });
+  };
+}
+```
+
+This callback tells the report generator to wait until your widget has finished rendering before capturing the screenshot.
