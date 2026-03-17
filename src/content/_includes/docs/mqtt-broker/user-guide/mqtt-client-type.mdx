@@ -1,69 +1,124 @@
 import { Aside } from '@astrojs/starlight/components';
-import ImageGallery from '~/components/ImageGallery.astro';
 import DocLink from '@components/DocLink.astro';
+import ImageGallery from '~/components/ImageGallery.astro';
+import { Products } from '~/models/site.models';
 
-In TBMQ, each connecting MQTT client is assigned one of two distinct client types: **DEVICE** or **APPLICATION**.
+TBMQ classifies every connecting client as either **DEVICE** or **APPLICATION**.
+This distinction drives message routing, persistence strategy, and resource allocation — ensuring each client type gets
+the behavior best suited to its role in an IoT deployment.
 
-- **DEVICE**: primarily publishes messages at high volume and subscribes with low message rates. Typical examples are IoT sensors and telemetry publishers.
-- **APPLICATION**: subscribes to topics with high message rates and requires message persistence when offline. Typical examples are analytics systems and real-time data processors.
+- **DEVICE** clients primarily publish data and subscribe to a limited number of topics with moderate traffic.
+  They represent IoT sensors, actuators, and embedded devices that send telemetry to the broker.
 
-For example, a temperature sensor publishing every second is a DEVICE client, while a cloud analytics service consuming data across thousands of sensors is an APPLICATION client.
+- **APPLICATION** clients subscribe to high-rate topics and are expected to process every message reliably,
+  even after an offline period. They represent analytics services, rule engines, or backend processors
+  that consume data from the broker.
 
-## Determining Client Type
+For example, a temperature sensor publishing readings every second is a DEVICE client, while a cloud analytics
+service subscribing to data from thousands of sensors is an APPLICATION client.
 
-The client type is determined during CONNECT processing as part of authentication:
+## How client type is determined
 
-- If both Basic and TLS authentication are disabled, the client is always assigned the **DEVICE** type.
-- When Basic or TLS authentication is enabled, the client type is determined by the `clientType` field of the matching MQTT credentials.
+The client type is resolved during MQTT CONNECT packet processing, based on the credentials used:
 
-See the <DocLink product={props.product} path="security/overview" /> for a full overview of TBMQ security, and the <DocLink product={props.product} path="user-guide/ui/mqtt-client-credentials" /> for a step-by-step guide on configuring credentials.
+- When authentication is **disabled**, every client is assigned the DEVICE type.
+- When <DocLink product={props.product} path="security/authentication/basic">Basic</DocLink> or <DocLink product={props.product} path="security/authentication/tls">TLS</DocLink> authentication is **enabled**,
+  the client type is taken from the `clientType` field of the matched MQTT credential.
 
-## Client Persistence
+For instructions on creating credentials with a specific client type, see the
+<DocLink product={props.product} path="user-guide/ui/mqtt-client-credentials">MQTT client credentials</DocLink> guide.
 
-All published messages are persisted to the `tbmq.msg.all` Kafka topic. How they are processed from there depends on the client type and whether the session is persistent.
+## Client persistence
 
-<Aside type="note">
-  To delve into the details of client persistence, it is worthwhile to explore Clean Session (MQTT
-  v3.x) and Clean Start + Session Expiry Interval (MQTT v5) properties.
+All published messages are written to the `tbmq.msg.all` Kafka topic. How messages are forwarded from there
+depends on the client type and whether the client uses a persistent session.
+
+<Aside>
+  Client persistence is governed by the
+  <a href="https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718030" target="_blank" rel="noopener noreferrer">Clean Session</a> property in MQTT v3.x,
+  or the <a href="https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901039" target="_blank" rel="noopener noreferrer">Clean Start</a> and
+  <a href="https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901048" target="_blank" rel="noopener noreferrer">Session Expiry Interval</a> properties in MQTT v5.
 </Aside>
 
-A Kafka consumer polls `tbmq.msg.all` and forwards messages to recipients:
+A Kafka consumer polls the `tbmq.msg.all` topic and forwards messages to their subscribers:
 
-- **Non-persistent clients**: messages are directly published to subscribed clients. See <DocLink product={props.product} path="architecture/#non-persistent-client" /> for details.
-- **Persistent clients**: the broker maintains session state across disconnections. See <DocLink product={props.product} path="architecture/#persistent-client" /> for details. Note that a persistent client with a QoS 0 subscription receives messages without any additional persistence steps.
+- **Non-persistent clients** — messages are delivered directly to the connected client. No state is retained.
+  See <DocLink product={props.product} path="architecture/#non-persistent-client">Non-persistent client</DocLink> in the architecture overview.
+- **Persistent clients** — the session survives disconnections. Messages published while the client is offline
+  are stored and delivered on reconnect. The handling differs by client type (see sections below).
+  See <DocLink product={props.product} path="architecture/#persistent-client">Persistent client</DocLink> in the architecture overview.
 
-## Device Client
+One exception: if a persistent subscriber uses QoS 0, or if the publisher sends at QoS 0, messages are delivered
+without additional persistence steps. This is a result of QoS downgrading.
 
-DEVICE clients can be either persistent or non-persistent.
+## Device client
 
-For **persistent DEVICE clients**, messages are routed to an additional `tbmq.msg.persisted` Kafka topic and then persisted to Redis before being dispatched to the client. When the client reconnects after being offline, it receives the persisted messages from Redis. The `MQTT_PERSISTENT_SESSION_DEVICE_PERSISTED_MESSAGES_LIMIT` environment variable controls the maximum number of messages stored per client.
+DEVICE clients can be persistent or non-persistent, depending on the CONNECT packet settings.
 
-## Application Client
+For persistent DEVICE clients, matching messages are forwarded to the `tbmq.msg.persisted` Kafka topic.
+A dedicated Kafka consumer reads this topic and persists the messages in **Redis** before delivering them to
+online subscribers. When an offline DEVICE client reconnects, it receives the messages stored in Redis.
 
-<Aside type="caution">APPLICATION clients are expected to use persistent sessions.</Aside>
+The maximum number of persisted messages delivered on reconnect is controlled by:
 
-For **non-persistent APPLICATION clients**, messages are still delivered while the client is online, but no persistence mechanisms are engaged. A warning is displayed on the client session details page to alert operators.
+```yaml
+MQTT_PERSISTENT_SESSION_DEVICE_PERSISTED_MESSAGES_LIMIT
+```
 
-<ImageGallery
-  images={[
+## Application client
+
+<Aside type="caution">
+  APPLICATION clients are expected to use persistent sessions.
+</Aside>
+
+If an APPLICATION client connects with a non-persistent session, messages are still delivered while connected,
+but no persistence mechanism is applied — messages can be lost if the client disconnects.
+
+A warning is shown on the session details page when this configuration is detected:
+
+{props.product === Products.TBMQ_PE ? (
+  <ImageGallery images={[
+    {
+      src: '/src/assets/images/docs/mqtt-broker/pe/features/application-client-warning.png',
+      alt: 'Warning displayed on session details page for a non-persistent APPLICATION client',
+    },
+  ]} />
+) : (
+  <ImageGallery images={[
     {
       src: '/src/assets/images/docs/mqtt-broker/features/application-client-warning.png',
-      alt: 'Application client warning for non-persistent client',
-      caption: 'Application client warning for non-persistent client',
+      alt: 'Warning displayed on session details page for a non-persistent APPLICATION client',
     },
-  ]}
-/>
+  ]} />
+)}
 
-For **persistent APPLICATION clients**, each client receives a dedicated Kafka topic named `tbmq.msg.app.$CLIENT_ID` (or `tbmq.msg.app.$CLIENT_ID_HASH` when the Client ID contains special characters). The `TB_APP_PERSISTED_MSG_CLIENT_ID_VALIDATION` environment variable controls whether Client ID validation is enforced (enabled by default). A separate Kafka consumer is maintained per APPLICATION client, providing enhanced throughput and isolation.
+For persistent APPLICATION clients, TBMQ creates a **dedicated Kafka topic** per client:
 
-## Summary
+```
+tbmq.msg.app.$CLIENT_ID
+```
 
-| Feature / Behavior | DEVICE Client | APPLICATION Client |
-| --- | --- | --- |
-| Typical Role | Primarily publishes; subscribes with moderate traffic | Data consumer |
-| Persistence Support | Persistent or non-persistent | Expected to be persistent |
-| Default Type (unauthenticated) | Yes | No |
-| Message Storage (non-persistent) | No persistence | No persistence |
-| Message Storage (persistent) | Redis | Dedicated Kafka topic |
-| Message Delivery While Offline | Yes (if persistent) via Redis | Yes (if persistent) via Kafka |
-| Common Use Cases | IoT sensors, telemetry publishers | Analytics systems, real-time data processors |
+This topic is created automatically when the client authenticates as APPLICATION type with a persistent session.
+A dedicated Kafka consumer per client polls this topic and delivers messages to the client in its own thread,
+providing isolated, high-throughput delivery.
+
+**Client IDs with special characters** — if the client ID contains characters outside the alphanumeric range,
+a hash of the client ID is used instead:
+
+```
+tbmq.msg.app.$CLIENT_ID_HASH
+```
+
+This behavior is controlled by the `TB_APP_PERSISTED_MSG_CLIENT_ID_VALIDATION` environment variable (enabled by default).
+Disabling it means Kafka topics will not be created for clients with special characters in their ID.
+
+## Comparison
+
+| Feature | DEVICE client | APPLICATION client |
+|---|---|---|
+| **Typical role** | Publishes telemetry; moderate subscriptions | Subscribes to high-rate topics; processes data |
+| **Persistence** | Persistent or non-persistent | Expected to be persistent |
+| **Default type (no auth)** | Yes | No |
+| **Storage for persistent sessions** | Redis | Dedicated Kafka topic per client |
+| **Offline message delivery** | Yes, via Redis | Yes, via Kafka |
+| **Common use cases** | IoT sensors, actuators, embedded devices | Analytics systems, rule engines, data processors |

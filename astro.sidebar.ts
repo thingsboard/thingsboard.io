@@ -1074,7 +1074,7 @@ const tbmqGuideItems = (prefix: string): SidebarConfig => {
 			label: 'Broker operations',
 			collapsed: true,
 			items: [
-				{ label: 'TBMQ client type', slug: `${prefix}/user-guide/tbmq-client-type` },
+				{ label: 'TBMQ client type', slug: `${prefix}/user-guide/mqtt-client-type` },
 				{ label: 'Blocked clients', slug: `${prefix}/other/blocked-client` },
 				{ label: 'Backpressure', slug: `${prefix}/user-guide/backpressure` },
 				{ label: 'Msg delivery strategies', slug: `${prefix}/other/msg-delivery-strategy` },
