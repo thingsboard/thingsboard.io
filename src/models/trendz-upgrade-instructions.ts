@@ -48,14 +48,14 @@ export function getTrendzFamilySlug(family: string): string {
 /** All Trendz versions available for upgrade (newest first, non-vulnerable) */
 export const TRENDZ_UPGRADE_VERSIONS: TrendzUpgradeVersion[] = [
 	{
-		version: '1.15.0.4',
-		displayVersion: '1.15.0.4',
+		version: '1.15.0.5',
+		displayVersion: '1.15.0.5',
 		family: '1.15',
 		baseVersion: '1.15.0',
-		releaseDate: 'Feb 9 2026',
+		releaseDate: 'Feb 26 2026',
 		lts: true,
 		patch: true,
-		anchor: 'v1-15-0-4',
+		anchor: 'v1-15-0-5',
 		// 1.15.x uses the new upgrade mechanism — no --fromVersion flag needed
 		haproxyNote: true,
 	},
