@@ -2035,8 +2035,9 @@ export const trendzSidebar: SidebarConfig = [
 				label: 'Other',
 				collapsed: true,
 				items: [
-					'docs/trendz/rest-api',
+					'docs/trendz/topology-discovery',
 					'docs/trendz/tasks-service',
+					'docs/trendz/rest-api',
 				],
 			},
 			{
