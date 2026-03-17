@@ -212,7 +212,6 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 					`${prefix}/contribution/widgets-development/embedded-chart`,
 					`${prefix}/contribution/widgets-development/rpc-control`,
 					`${prefix}/contribution/widgets-development/alarm-widget`,
-					`${prefix}/contribution/widgets-development/widget-api`,
 					`${prefix}/contribution/widgets-development/widget-patterns`,
 					`${prefix}/contribution/widgets-development/advanced`,
 				],
@@ -886,6 +885,7 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 			`${prefix}/widgets/map-widgets`,
 			`${prefix}/widgets/entity-table-widget`,
 			`${prefix}/widgets/markdown-html-card`,
+			`${prefix}/widgets/widget-api`,
 		],
 	},
 ];
