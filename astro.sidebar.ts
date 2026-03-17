@@ -1031,7 +1031,7 @@ const tbmqGuideItems = (prefix: string): SidebarConfig => {
 			items: [
 				{ label: 'Overview', slug: `${prefix}/security/overview` },
 				{ label: 'MQTTS', slug: `${prefix}/security/mqtts` },
-				{ label: 'HTTPS', slug: `${prefix}/security/enable-https` },
+				{ label: 'HTTPS', slug: `${prefix}/security/https` },
 				{ label: 'MQTT listeners', slug: `${prefix}/security/listeners` },
 				{
 					label: 'Authentication',
@@ -1069,18 +1069,18 @@ const tbmqGuideItems = (prefix: string): SidebarConfig => {
 				{ label: 'Keep alive', slug: `${prefix}/user-guide/keep-alive` },
 			],
 		},
-		{ label: 'Integration with ThingsBoard', slug: `${prefix}/user-guide/integration-with-thingsboard` },
+		{ label: 'Integration with ThingsBoard', slug: `${prefix}/user-guide/integrations/how-to-connect-thingsboard-to-tbmq` },
 		{
 			label: 'Broker operations',
 			collapsed: true,
 			items: [
 				{ label: 'TBMQ client type', slug: `${prefix}/user-guide/tbmq-client-type` },
-				{ label: 'Blocked clients', slug: `${prefix}/user-guide/blocked-clients` },
+				{ label: 'Blocked clients', slug: `${prefix}/other/blocked-client` },
 				{ label: 'Backpressure', slug: `${prefix}/user-guide/backpressure` },
-				{ label: 'Msg delivery strategies', slug: `${prefix}/user-guide/msg-delivery-strategies` },
-				{ label: 'PROXY protocol', slug: `${prefix}/user-guide/proxy-protocol` },
-				{ label: 'Health API', slug: `${prefix}/user-guide/health-api` },
-				{ label: 'Bulk provisioning', slug: `${prefix}/user-guide/bulk-provisioning` },
+				{ label: 'Msg delivery strategies', slug: `${prefix}/other/msg-delivery-strategy` },
+				{ label: 'PROXY protocol', slug: `${prefix}/other/proxy-protocol` },
+				{ label: 'Health API', slug: `${prefix}/other/health` },
+				{ label: 'Bulk provisioning', slug: `${prefix}/other/bulk-provisioning` },
 			],
 		},
 		{
@@ -1103,7 +1103,7 @@ const tbmqGuideItems = (prefix: string): SidebarConfig => {
 				{ label: 'MQTT client credentials', slug: `${prefix}/user-guide/ui/mqtt-client-credentials` },
 				{ label: 'Unauthorized clients', slug: `${prefix}/user-guide/ui/unauthorized-clients` },
 				{ label: 'WebSocket client', slug: `${prefix}/user-guide/ui/websocket-client` },
-				{ label: 'Application shared subscriptions', slug: `${prefix}/user-guide/ui/application-shared-subscriptions` },
+				{ label: 'Application shared subscriptions', slug: `${prefix}/user-guide/ui/shared-subscriptions` },
 				{ label: 'Users', slug: `${prefix}/user-guide/ui/users` },
 				{ label: 'Settings', slug: `${prefix}/user-guide/ui/settings` },
 			],
@@ -1184,8 +1184,8 @@ const tbmqReferenceItems = (prefix: string): SidebarConfig => [
 				label: 'Details',
 				collapsed: true,
 				items: [
-					{ label: 'Persistent DEVICE client', slug: `${prefix}/reference/architecture/persistent-device-client` },
-					{ label: 'Persistent APPLICATION client', slug: `${prefix}/reference/architecture/persistent-application-client` },
+					{ label: 'Persistent DEVICE client', slug: `${prefix}/architecture-details/persistent-device-client` },
+					{ label: 'Persistent APPLICATION client', slug: `${prefix}/architecture-details/persistent-app-client` },
 				],
 			},
 		],
@@ -1221,9 +1221,9 @@ const tbmqReferenceItems = (prefix: string): SidebarConfig => [
 		collapsed: true,
 		items: [
 			{ label: 'Administration REST API', slug: `${prefix}/rest-api` },
-			{ label: 'User management', slug: `${prefix}/reference/rest-api/user-management` },
-			{ label: 'MQTT client credentials management', slug: `${prefix}/reference/rest-api/mqtt-client-credentials-management` },
-			{ label: 'Application shared subscriptions management', slug: `${prefix}/reference/rest-api/application-shared-subscriptions-management` },
+			{ label: 'User management', slug: `${prefix}/user-management` },
+			{ label: 'MQTT client credentials management', slug: `${prefix}/mqtt-client-credentials-management` },
+			{ label: 'Application shared subscriptions management', slug: `${prefix}/application-shared-subscription` },
 		],
 	},
 ];
