@@ -2093,6 +2093,7 @@ export const trendzSidebar: SidebarConfig = [
 						collapsed: true,
 						items: [
 							'docs/trendz/install/kubernetes',
+							'docs/trendz/install/docker-compose-setup',
 						],
 					},
 				],
