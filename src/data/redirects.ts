@@ -39,6 +39,28 @@ export interface SingleRedirect {
 }
 
 // ---------------------------------------------------------------------------
+// Helpers for generating upgrade instruction redirects
+// ---------------------------------------------------------------------------
+
+import { UPGRADE_FAMILIES, getFamilySlug } from '../models/upgrade-instructions.ts';
+
+const PLATFORMS = ['ubuntu', 'centos', 'windows', 'docker', 'docker-compose'];
+
+function buildUpgradeRedirectEntries(newPrefix: string): RedirectEntry[] {
+	const entries: RedirectEntry[] = [];
+	for (const family of UPGRADE_FAMILIES) {
+		const familySlug = getFamilySlug(family);
+		for (const platform of PLATFORMS) {
+			entries.push({
+				slug: `${platform}/${familySlug}`,
+				target: `/docs/${newPrefix}/${platform}/${familySlug}/`,
+			});
+		}
+	}
+	return entries;
+}
+
+// ---------------------------------------------------------------------------
 // Data
 // ---------------------------------------------------------------------------
 
@@ -48,15 +70,14 @@ export interface SingleRedirect {
  * Add new groups here when the user provides a prefix-level redirect mapping.
  */
 export const CATCH_ALL_REDIRECTS: CatchAllRedirect[] = [
-	// Groups will be added here as the user provides mappings.
-	// Example:
-	// {
-	//   oldPrefix: 'user-guide/install',
-	//   entries: [
-	//     { slug: 'docker', target: '/docs/installation/docker/' },
-	//     { slug: 'upgrade-instructions/docker/v3-0-x', target: '/docs/installation/upgrade-instructions/docker/' },
-	//   ],
-	// },
+	{
+		oldPrefix: 'user-guide/install/upgrade-instructions',
+		entries: buildUpgradeRedirectEntries('installation/upgrade-instructions'),
+	},
+	{
+		oldPrefix: 'user-guide/install/pe/upgrade-instructions',
+		entries: buildUpgradeRedirectEntries('pe/installation/upgrade-instructions'),
+	},
 ];
 
 /**
