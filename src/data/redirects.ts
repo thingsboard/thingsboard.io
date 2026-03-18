@@ -70,6 +70,25 @@ function buildUpgradeRedirectEntries(newPrefix: string): RedirectEntry[] {
  * Add new groups here when the user provides a prefix-level redirect mapping.
  */
 export const CATCH_ALL_REDIRECTS: CatchAllRedirect[] = [
+	// Rule engine nodes: user-guide/rule-engine-2-0/nodes/* → reference/rule-engine/nodes/*
+	// Entries generated dynamically by [..slug].astro via getCollection('docs').
+	// Listed here for public/_redirects and redirects.json generation.
+	{
+		oldPrefix: 'user-guide/rule-engine-2-0/nodes',
+		entries: [], // PREFIX_RENAME — splat rule in _redirects, JSON populated by generate script
+	},
+	{
+		oldPrefix: 'pe/user-guide/rule-engine-2-0/nodes',
+		entries: [],
+	},
+	{
+		oldPrefix: 'paas/user-guide/rule-engine-2-0/nodes',
+		entries: [],
+	},
+	{
+		oldPrefix: 'paas/eu/user-guide/rule-engine-2-0/nodes',
+		entries: [],
+	},
 	{
 		oldPrefix: 'user-guide/install/upgrade-instructions',
 		entries: buildUpgradeRedirectEntries('installation/upgrade-instructions'),

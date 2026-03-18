@@ -277,6 +277,26 @@ When the user provides a mapping that falls under an existing catch-all prefix (
 | `old-to-new-docs-mapping.csv` | Migration tracking CSV |
 | `scripts/generate-redirects.ts` | Generates `_redirects` and `redirects.json` |
 
+## Astro scoping gotcha
+
+**All variables used inside `getStaticPaths()` must be declared INSIDE the function.** Variables declared in the frontmatter outside `getStaticPaths()` are NOT accessible — Astro runs `getStaticPaths()` in a separate scope at build time.
+
+```astro
+// ❌ WRONG — PLATFORMS is not defined inside getStaticPaths
+const PLATFORMS = ['ubuntu', 'centos'];
+export function getStaticPaths() {
+  for (const p of PLATFORMS) { ... } // ReferenceError
+}
+
+// ✅ CORRECT — declare inside the function
+export function getStaticPaths() {
+  const platforms = ['ubuntu', 'centos'];
+  for (const p of platforms) { ... }
+}
+```
+
+Imports (`import { ... } from '...'`) ARE available inside `getStaticPaths()`.
+
 ## Reference patterns
 
 - `src/pages/docs/pe/edge/[...slug].astro` — existing PREFIX_RENAME pattern (content-enumerated)

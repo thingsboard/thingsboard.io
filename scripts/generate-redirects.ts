@@ -6,8 +6,8 @@
  * Usage: pnpm generate:redirects
  */
 
-import { readFileSync, writeFileSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
+import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
 	CATCH_ALL_REDIRECTS,
@@ -19,10 +19,55 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
 
 // ---------------------------------------------------------------------------
+// Helpers for PREFIX_RENAME groups with empty entries
+// ---------------------------------------------------------------------------
+
+/**
+ * For PREFIX_RENAME groups with empty entries (content-enumerated by .astro files),
+ * map old prefix → new prefix so we can scan the content directory and populate
+ * redirects.json with individual entries.
+ */
+const PREFIX_RENAME_MAP: Record<string, string> = {
+	'user-guide/rule-engine-2-0/nodes': 'reference/rule-engine/nodes',
+	'pe/user-guide/rule-engine-2-0/nodes': 'pe/reference/rule-engine/nodes',
+	'paas/user-guide/rule-engine-2-0/nodes': 'paas/reference/rule-engine/nodes',
+	'paas/eu/user-guide/rule-engine-2-0/nodes': 'paas/eu/reference/rule-engine/nodes',
+};
+
+/** Recursively find all .mdx files under a directory, returning relative paths without extension. */
+function findMdxSlugs(dir: string, base: string = ''): string[] {
+	const slugs: string[] = [];
+	try {
+		for (const entry of readdirSync(dir)) {
+			const fullPath = join(dir, entry);
+			const relPath = base ? `${base}/${entry}` : entry;
+			if (statSync(fullPath).isDirectory()) {
+				slugs.push(...findMdxSlugs(fullPath, relPath));
+			} else if (entry.endsWith('.mdx')) {
+				const slug = relPath.replace(/\.mdx$/, '').replace(/\/index$/, '');
+				slugs.push(slug);
+			}
+		}
+	} catch {
+		// Directory doesn't exist
+	}
+	return slugs;
+}
+
+// ---------------------------------------------------------------------------
 // 1. Generate public/redirects.json
 // ---------------------------------------------------------------------------
 
 const flatMap = getAllRedirectsFlat();
+
+// Add entries for PREFIX_RENAME groups with empty entries by scanning content
+for (const [oldPrefix, newPrefix] of Object.entries(PREFIX_RENAME_MAP)) {
+	const contentDir = resolve(ROOT, 'src/content/docs/docs', newPrefix);
+	const slugs = findMdxSlugs(contentDir);
+	for (const slug of slugs) {
+		flatMap[`/docs/${oldPrefix}/${slug}/`] = `/docs/${newPrefix}/${slug}/`;
+	}
+}
 const jsonPath = resolve(ROOT, 'public/redirects.json');
 writeFileSync(jsonPath, JSON.stringify(flatMap, null, 2) + '\n');
 
@@ -58,7 +103,14 @@ lines.push('');
 // PREFIX_RENAME: entries where different slugs map to different targets (tree-preserving)
 // CONSOLIDATE: entries where all slugs map to the same target (fan-in)
 for (const group of CATCH_ALL_REDIRECTS) {
-	if (group.entries.length === 0) continue;
+	// PREFIX_RENAME with empty entries — content-enumerated, emit splat rule
+	if (group.entries.length === 0) {
+		const newPrefix = PREFIX_RENAME_MAP[group.oldPrefix];
+		if (newPrefix) {
+			lines.push(`/docs/${group.oldPrefix}/* /docs/${newPrefix}/:splat 301`);
+		}
+		continue;
+	}
 
 	// Check if all entries share the same target (CONSOLIDATE)
 	const targets = new Set(group.entries.map((e) => e.target));
