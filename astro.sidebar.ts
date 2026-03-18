@@ -2510,7 +2510,7 @@ export const opensourceSidebarTabLinks: SidebarTabLinks = {
 	'Guides': '/docs/user-guide/',
 	'Recipes': '/docs/recipes/',
 	'Installation': '/docs/installation/',
-	'APIs & SDKs': '/docs/reference/apis-and-sdks/',
+	'APIs & SDKs': '/docs/apis-and-sdks/',
 	'Reference': '/docs/reference/',
 };
 export const peSidebarTabLinks: SidebarTabLinks = {
@@ -2518,20 +2518,20 @@ export const peSidebarTabLinks: SidebarTabLinks = {
 	'Guides': '/docs/pe/user-guide/',
 	'Recipes': '/docs/pe/recipes/',
 	'Installation': '/docs/pe/installation/',
-	'APIs & SDKs': '/docs/pe/reference/apis-and-sdks/',
+	'APIs & SDKs': '/docs/pe/apis-and-sdks/',
 	'Reference': '/docs/pe/reference/',
 };
 
 export const paasSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/paas/',
 	'Guides': '/docs/paas/user-guide/',
-	'APIs & SDKs': '/docs/paas/reference/apis-and-sdks/',
+	'APIs & SDKs': '/docs/paas/apis-and-sdks/',
 	'Reference': '/docs/paas/reference/',
 };
 export const paasEuSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/paas/eu/',
 	'Guides': '/docs/paas/eu/user-guide/',
-	'APIs & SDKs': '/docs/paas/eu/reference/apis-and-sdks/',
+	'APIs & SDKs': '/docs/paas/eu/apis-and-sdks/',
 	'Reference': '/docs/paas/eu/reference/',
 };
 export const edgeSidebarTabLinks: SidebarTabLinks = {
