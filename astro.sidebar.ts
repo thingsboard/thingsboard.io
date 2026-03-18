@@ -899,7 +899,7 @@ const mainSidebarItems = (prefix: string, extraRecipeItems: SidebarConfig = [], 
 			{
 				label: 'Welcome to IoT!',
 				translations: { uk: 'Новий проект' },
-				items: [`${prefix}/why-thingsboard`, `${prefix}/tutorial/getting-started`],
+				items: [`${prefix}/why-thingsboard`, `${prefix}/getting-started`],
 			},
 			{
 				label: 'Key concepts',
@@ -992,7 +992,7 @@ export const paasSidebar: SidebarConfig = [
 			{
 				label: 'Welcome to IoT!',
 				translations: { uk: 'Новий проект' },
-				items: ['docs/paas/why-thingsboard', 'docs/paas/tutorial/getting-started'],
+				items: ['docs/paas/why-thingsboard', 'docs/paas/getting-started'],
 			},
 			{
 				label: 'Key concepts',
@@ -1241,7 +1241,7 @@ export const paasEuSidebar: SidebarConfig = [
 			{
 				label: 'Welcome to IoT!',
 				translations: { uk: 'Новий проект' },
-				items: ['docs/paas/eu/why-thingsboard', 'docs/paas/eu/tutorial/getting-started'],
+				items: ['docs/paas/eu/why-thingsboard', 'docs/paas/eu/getting-started'],
 			},
 			{
 				label: 'Key concepts',
@@ -2142,8 +2142,18 @@ export const peSidebarTabLinks: SidebarTabLinks = {
 	'Reference': '/docs/pe/reference/',
 };
 
-export const paasSidebarTabLinks: SidebarTabLinks = {};
-export const paasEuSidebarTabLinks: SidebarTabLinks = {};
+export const paasSidebarTabLinks: SidebarTabLinks = {
+	'Getting Started': '/docs/paas/',
+	'Guides': '/docs/paas/user-guide/',
+	'APIs & SDKs': '/docs/paas/reference/apis-and-sdks/',
+	'Reference': '/docs/paas/reference/',
+};
+export const paasEuSidebarTabLinks: SidebarTabLinks = {
+	'Getting Started': '/docs/paas/eu/',
+	'Guides': '/docs/paas/eu/user-guide/',
+	'APIs & SDKs': '/docs/paas/eu/reference/apis-and-sdks/',
+	'Reference': '/docs/paas/eu/reference/',
+};
 export const edgeSidebarTabLinks: SidebarTabLinks = {};
 export const edgePeSidebarTabLinks: SidebarTabLinks = {};
 export const gwSidebarTabLinks: SidebarTabLinks = {
