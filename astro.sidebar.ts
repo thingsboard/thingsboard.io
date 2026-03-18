@@ -1210,6 +1210,44 @@ export const paasSidebar: SidebarConfig = [
 		],
 	},
 	{
+		label: 'Recipes',
+		collapsed: true,
+		translations: { uk: 'Рецепти' },
+		items: [
+			...recipeItems('docs/paas/recipes'),
+			{
+				label: 'Reporting',
+				collapsed: true,
+				items: [
+					'docs/paas/recipes/reporting-embed-dashboard',
+					'docs/paas/recipes/reporting-line-chart-temperature',
+					'docs/paas/recipes/reporting-subreport-daily-alarms',
+					'docs/paas/recipes/reporting-alarm-notification',
+				],
+			},
+			{
+				label: 'Access Control',
+				collapsed: true,
+				items: [
+					'docs/paas/recipes/rbac-read-only-analyst',
+					'docs/paas/recipes/rbac-customer-scoped-access',
+					'docs/paas/recipes/rbac-generic-role-scope',
+					'docs/paas/recipes/rbac-isolated-device-groups',
+					'docs/paas/recipes/rbac-smart-buildings',
+				],
+			},
+			{
+				label: 'White-labeling',
+				collapsed: true,
+				items: [
+					'docs/paas/recipes/white-labeling-translate-dashboard',
+					'docs/paas/recipes/white-labeling-html-value-card',
+					'docs/paas/recipes/white-labeling-post-processing',
+				],
+			},
+		],
+	},
+	{
 		label: 'APIs & SDKs',
 		collapsed: true,
 		items: apisAndSdksItems('docs/paas'),
@@ -1454,6 +1492,44 @@ export const paasEuSidebar: SidebarConfig = [
 					'docs/paas/eu/user-guide/billing-info/subscription',
 					'docs/paas/eu/user-guide/billing-info/billing-details',
 					'docs/paas/eu/user-guide/billing-info/invoices',
+				],
+			},
+		],
+	},
+	{
+		label: 'Recipes',
+		collapsed: true,
+		translations: { uk: 'Рецепти' },
+		items: [
+			...recipeItems('docs/paas/eu/recipes'),
+			{
+				label: 'Reporting',
+				collapsed: true,
+				items: [
+					'docs/paas/eu/recipes/reporting-embed-dashboard',
+					'docs/paas/eu/recipes/reporting-line-chart-temperature',
+					'docs/paas/eu/recipes/reporting-subreport-daily-alarms',
+					'docs/paas/eu/recipes/reporting-alarm-notification',
+				],
+			},
+			{
+				label: 'Access Control',
+				collapsed: true,
+				items: [
+					'docs/paas/eu/recipes/rbac-read-only-analyst',
+					'docs/paas/eu/recipes/rbac-customer-scoped-access',
+					'docs/paas/eu/recipes/rbac-generic-role-scope',
+					'docs/paas/eu/recipes/rbac-isolated-device-groups',
+					'docs/paas/eu/recipes/rbac-smart-buildings',
+				],
+			},
+			{
+				label: 'White-labeling',
+				collapsed: true,
+				items: [
+					'docs/paas/eu/recipes/white-labeling-translate-dashboard',
+					'docs/paas/eu/recipes/white-labeling-html-value-card',
+					'docs/paas/eu/recipes/white-labeling-post-processing',
 				],
 			},
 		],
@@ -2525,12 +2601,14 @@ export const peSidebarTabLinks: SidebarTabLinks = {
 export const paasSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/paas/',
 	'Guides': '/docs/paas/user-guide/',
+	'Recipes': '/docs/paas/recipes/',
 	'APIs & SDKs': '/docs/paas/apis-and-sdks/',
 	'Reference': '/docs/paas/reference/',
 };
 export const paasEuSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/paas/eu/',
 	'Guides': '/docs/paas/eu/user-guide/',
+	'Recipes': '/docs/paas/eu/recipes/',
 	'APIs & SDKs': '/docs/paas/eu/apis-and-sdks/',
 	'Reference': '/docs/paas/eu/reference/',
 };
