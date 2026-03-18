@@ -35,6 +35,14 @@ Ignore these Jekyll artifacts — they have no equivalent in the new doc:
 
 **New doc** — read the MDX include file (`src/content/_includes/docs/mqtt-broker/...`).
 
+## DocLink rendering rule
+
+`DocLink` renders its link text from `<slot />` and does **not** auto-resolve the target page's title.
+A self-closing tag `<DocLink product={...} path="..." />` produces an empty anchor — the link renders as blank text.
+
+**Always flag** any `<DocLink ... />` self-closing tag with no children as a broken link.
+The fix is to add explicit text: `<DocLink product={props.product} path="...">Link text</DocLink>`.
+
 ## Step 2: Compare systematically
 
 Work through the old content section by section. For each section, answer:
@@ -58,6 +66,7 @@ Read the new doc as a first-time reader. Flag:
   - Banned words: easy, simple, straightforward, just, leverages, enables you to, utilize, in order to, seamless, robust, powerful, comprehensive
   - Navigation arrows: `>` should be `→`
   - External links must use `<a target="_blank" rel="noopener noreferrer">`, not bare markdown
+  - `<DocLink>` tags must have explicit link text between their tags — self-closing `<DocLink ... />` renders as empty and is a broken link
 
 ## Step 4: Output — critical differences only
 
