@@ -4,14 +4,20 @@ import ImageGallery from '~/components/ImageGallery.astro';
 
 The <a href="https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt" target="_blank" rel="noopener noreferrer">PROXY Protocol</a> safely transports connection metadata — such as the real client IP and port — across proxies and load balancers.
 
-TBMQ supports both **PROXY Protocol v1** (ASCII) and **v2** (binary), enabling it to receive the actual client IP rather
-than the address of the proxy. This is critical for accurate logging, IP-based access control, rate limiting, and auditing.
+TBMQ supports both **PROXY Protocol v1** and **v2**, enabling it to receive the actual client IP rather than the address of the proxy.
+This is critical for accurate logging, IP-based access control, rate limiting, and auditing.
+
+- **PROXY Protocol v1** — a human-readable ASCII format that prepends connection metadata (client IP, port) to the TCP stream.
+- **PROXY Protocol v2** — a binary format that carries the same information as v1 but with better performance in high-throughput environments.
+
+By supporting PROXY Protocol, TBMQ can log, filter, and apply policies based on the real IP address of clients,
+which is otherwise masked by the proxy or load balancer.
 
 ## How it works
 
 The proxy sends a PROXY Protocol header at the very start of the TCP stream, before any MQTT or TLS data.
 
-<ImageGallery images={[
+<ImageGallery product={props.product} images={[
   {
     src: '/src/assets/images/docs/mqtt-broker/other/proxy-protocol.png',
     alt: 'PROXY Protocol connection flow through a load balancer to TBMQ',
@@ -19,20 +25,22 @@ The proxy sends a PROXY Protocol header at the very start of the TCP stream, bef
   },
 ]} />
 
-The connection flow:
+The connection follows this flow:
 
 1. The proxy accepts the TCP connection from the client.
-2. The proxy immediately sends a PROXY Protocol header containing: client source IP and port, destination IP and port, and protocol type (TCP over IPv4 or IPv6).
+2. The proxy immediately sends a PROXY Protocol header containing the client source IP and port, destination IP and port, and protocol type (TCP over IPv4 or IPv6).
 3. TBMQ reads the header, extracts the real client information, then continues:
    - Plain MQTT/WS: processes the MQTT CONNECT packet.
    - TLS-secured MQTT/WS: proceeds with the TLS handshake.
 
 **PROXY Protocol v1 header example (ASCII):**
-```
+```text
 PROXY TCP4 192.0.2.1 198.51.100.1 12345 1883\r\n
 ```
 
 **PROXY Protocol v2** uses a compact binary format suitable for high-performance environments.
+
+This means TBMQ treats the very first bytes of every incoming connection as PROXY Protocol data, before interpreting it as MQTT or TLS.
 
 ## When to enable it
 
@@ -42,7 +50,9 @@ Enable PROXY Protocol in TBMQ when:
 - You need the real client IP for logging, IP-based security policies, rate limiting, or auditing.
 
 TBMQ stores the client IP as part of session information and uses it in the
-<DocLink product={props.product} path="user-guide/ui/unauthorized-clients">Unauthorized Clients</DocLink> feature.
+<DocLink product={props.product} path="user-guide/ui/unauthorized-clients">Unauthorized Clients</DocLink> feature,
+where it tracks connection attempts from clients that fail authentication.
+Having the correct IP address helps identify the source of unauthorized access attempts and improves security monitoring.
 Without PROXY Protocol, TBMQ sees only the proxy's IP, making it impossible to distinguish individual clients.
 
 <Aside type="caution">
@@ -62,6 +72,13 @@ listener:
   # Enable PROXY Protocol support. Disabled by default. Supports both v1 and v2 when enabled.
   proxy_enabled: "${MQTT_PROXY_PROTOCOL_ENABLED:false}"
 ```
+
+Set `MQTT_PROXY_PROTOCOL_ENABLED` to `true` to enable PROXY Protocol for all listeners.
+
+<Aside type="tip">
+  When `proxy_enabled` is set to `true`, TBMQ automatically supports both PROXY Protocol v1 and v2.
+  The header is always read before any MQTT or TLS-specific data.
+</Aside>
 
 ### Since TBMQ v2.3 — per-listener overrides
 
@@ -97,20 +114,28 @@ MQTT_SSL_PROXY_PROTOCOL_ENABLED=       # TLS listener unset → inherits global 
 
 ### HAProxy
 
-```text
-# PROXY Protocol v1
-server tbmq1 192.168.1.100:1883 send-proxy
+To use PROXY Protocol v1:
 
-# PROXY Protocol v2
+```text
+server tbmq1 192.168.1.100:1883 send-proxy
+```
+
+`send-proxy` instructs HAProxy to send PROXY Protocol v1 headers to TBMQ.
+
+To use PROXY Protocol v2:
+
+```text
 server tbmq1 192.168.1.100:1883 send-proxy-v2
 ```
+
+`send-proxy-v2` instructs HAProxy to send PROXY Protocol v2 headers to TBMQ.
 
 Replace `192.168.1.100:1883` with your TBMQ broker's IP and port.
 For the full HAProxy guide, see the <a href="https://www.haproxy.com/documentation/haproxy-configuration-tutorials/proxying-essentials/client-ip-preservation/enable-proxy-protocol/" target="_blank" rel="noopener noreferrer">HAProxy PROXY Protocol documentation</a>.
 
 ### AWS Network Load Balancer (NLB)
 
-AWS NLB supports PROXY Protocol v2 only. Enable it with the AWS CLI:
+AWS NLB supports PROXY Protocol v2 only. Ensure your NLB is TCP or TLS type, then enable PROXY Protocol v2 with the AWS CLI:
 
 ```bash
 aws elbv2 modify-target-group-attributes \
@@ -124,7 +149,8 @@ In a Kubernetes environment, add this annotation to your Service:
 service.beta.kubernetes.io/aws-load-balancer-proxy-protocol: "*"
 ```
 
-See the <a href="https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/service/nlb/#protocols" target="_blank" rel="noopener noreferrer">AWS Load Balancer Controller documentation</a> for details.
+The `*` value enables PROXY Protocol v2 for all source IPs.
+For details, see the <a href="https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/service/nlb/#protocols" target="_blank" rel="noopener noreferrer">AWS Load Balancer Controller documentation</a>.
 
 ### Other load balancers
 
@@ -133,7 +159,7 @@ Enable PROXY Protocol on your load balancer according to its documentation, then
 
 ## Considerations
 
-- If PROXY Protocol is enabled in TBMQ but not on the proxy, TBMQ will fail to parse the initial bytes and may reject connections.
+- If PROXY Protocol is enabled in TBMQ but not on the proxy, TBMQ fails to parse the initial bytes and may reject connections.
 - If PROXY Protocol is enabled on the proxy but not in TBMQ, the header is misinterpreted as MQTT or TLS data, causing connection errors.
 - All connections to TBMQ must pass through a properly configured proxy when PROXY Protocol is enabled.
-- Enable PROXY Protocol only when TBMQ is behind a trusted proxy, as the proxy defines the reported client IP.
+- PROXY Protocol must only be configured when TBMQ is behind a trusted proxy, as the proxy defines the reported client IP.
