@@ -866,6 +866,15 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'paas/user-guide/reporting/attaching-report-to-notification', target: '/docs/paas/user-guide/reporting/notifications/' },
 	{ oldPath: 'paas/eu/user-guide/reporting/attaching-report-to-notification', target: '/docs/paas/eu/user-guide/reporting/notifications/' },
 	{ oldPath: 'pe/user-guide/install/upgrade-instructions', target: '/docs/pe/installation/upgrade-instructions/' },
+	{ oldPath: 'user-guide/scada/scada-symbols-dev-guide', target: '/docs/user-guide/scada-symbol-dev/' },
+	{ oldPath: 'pe/user-guide/scada/scada-symbols-dev-guide', target: '/docs/pe/user-guide/scada-symbol-dev/' },
+	{ oldPath: 'user-guide/reporting/reporting-getting-started', target: '/docs/user-guide/reporting/getting-started/' },
+	{ oldPath: 'user-guide/reporting/reporting-key-concepts', target: '/docs/user-guide/reporting/report-templates/' },
+	{ oldPath: 'user-guide/reporting/embedding-charts', target: '/docs/user-guide/reporting/charts/' },
+	{ oldPath: 'user-guide/reporting/embedding-dashboards-widgets', target: '/docs/user-guide/reporting/dashboards/' },
+	{ oldPath: 'user-guide/reporting/scheduling-reports', target: '/docs/user-guide/reporting/scheduling/' },
+	{ oldPath: 'user-guide/reporting/subreport', target: '/docs/user-guide/reporting/subreports/' },
+	{ oldPath: 'user-guide/reporting/attaching-report-to-notification', target: '/docs/user-guide/reporting/notifications/' },
 ];
 
 // ---------------------------------------------------------------------------
