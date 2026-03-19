@@ -280,9 +280,9 @@ const installationItems = (prefix: string) => {
 					label: 'AWS',
 					collapsed: true,
 					items: [
-						{ label: 'AWS Installation Options', slug: `${prefix}/installation/aws-index` },
-						`${prefix}/installation/aws${isPE ? '-ec2' : ''}`,
-						...(isPE ? [`${prefix}/installation/aws`] : []),
+						{ label: 'AWS Installation Options', slug: `${prefix}/installation/aws` },
+						`${prefix}/installation/aws-ec2`,
+						...(isPE ? [`${prefix}/installation/aws-marketplace`] : []),
 						`${prefix}/installation/aws-monolith`,
 						`${prefix}/installation/aws-microservices`,
 					],
@@ -302,8 +302,8 @@ const installationItems = (prefix: string) => {
 					label: 'Azure',
 					collapsed: true,
 					items: [
-						{ label: 'Azure Installation Options', slug: `${prefix}/installation/azure-index` },
-						...(isPE ? [`${prefix}/installation/azure`] : []),
+						{ label: 'Azure Installation Options', slug: `${prefix}/installation/azure` },
+						...(isPE ? [`${prefix}/installation/azure-marketplace`] : []),
 						`${prefix}/installation/azure-monolith`,
 						`${prefix}/installation/azure-microservices`,
 					],
