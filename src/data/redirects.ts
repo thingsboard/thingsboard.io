@@ -875,6 +875,8 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'user-guide/reporting/scheduling-reports', target: '/docs/user-guide/reporting/scheduling/' },
 	{ oldPath: 'user-guide/reporting/subreport', target: '/docs/user-guide/reporting/subreports/' },
 	{ oldPath: 'user-guide/reporting/attaching-report-to-notification', target: '/docs/user-guide/reporting/notifications/' },
+	{ oldPath: 'paas/user-guide/scada/scada-symbols-dev-guide', target: '/docs/paas/user-guide/scada-symbol-dev/' },
+	{ oldPath: 'paas/eu/user-guide/scada/scada-symbols-dev-guide', target: '/docs/paas/eu/user-guide/scada-symbol-dev/' },
 ];
 
 // ---------------------------------------------------------------------------
