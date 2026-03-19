@@ -2335,9 +2335,9 @@ export const trendzSidebar: SidebarConfig = [
 				items: [
 					'docs/trendz/embed-visuals',
 					'docs/trendz/widget-filter-by-alias',
-					'docs/trendz/trendz-bundle',
 					'docs/trendz/widget-actions',
 					'docs/trendz/widget-settings',
+					'docs/trendz/trendz-bundle',
 				],
 			},
 			{
