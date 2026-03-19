@@ -1,0 +1,439 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Production patterns extracted from real ThingsBoard reference widgets. These are not step-by-step tutorials — each section shows the pattern with code snippets and explanation.
+
+## CRUD tables
+
+Wrap the platform's `<tb-entities-table-widget>` to build entity management tables with custom action dialogs for creating, editing, and deleting entities.
+
+### Basic table setup
+
+The controller is minimal — the `<tb-entities-table-widget>` component handles rendering, pagination, sorting, and filtering:
+
+**HTML:**
+```html
+<tb-entities-table-widget [ctx]="ctx">
+</tb-entities-table-widget>
+```
+
+**JavaScript:**
+```javascript
+self.onInit = function() {
+  // Table initialization is handled by the component
+};
+
+self.onDataUpdated = function() {
+  self.ctx.$scope.entitiesTableWidget.onDataUpdated();
+};
+
+self.onEditModeChanged = function() {
+  self.ctx.$scope.entitiesTableWidget.onEditModeChanged();
+};
+
+self.typeParameters = function() {
+  return {
+    maxDatasources: 1,
+    hasDataPageLink: true,
+    warnOnPageDataOverflow: false,
+    dataKeysOptional: true,
+    defaultDataKeysFunction: function() {
+      return [{ name: 'name', type: 'entityField' }];
+    }
+  };
+};
+```
+
+The key parameter is `hasDataPageLink: true` — this enables server-side pagination so the table can handle thousands of entities efficiently.
+
+### Action sources for tables
+
+Tables typically expose multiple action sources:
+
+```javascript
+self.actionSources = function() {
+  return {
+    'actionCellButton': {
+      name: 'widget-action.action-cell-button',
+      multiple: true,
+      hasShowCondition: true
+    },
+    'rowClick': {
+      name: 'widget-action.row-click',
+      multiple: false
+    },
+    'rowDoubleClick': {
+      name: 'widget-action.row-double-click',
+      multiple: false
+    },
+    'cellClick': {
+      name: 'widget-action.cell-click',
+      multiple: true
+    }
+  };
+};
+```
+
+- **`actionCellButton`** — renders buttons in a dedicated actions column. `multiple: true` allows several buttons, and `hasShowCondition: true` lets each button have a visibility condition.
+- **`rowClick`** / **`rowDoubleClick`** — triggered by clicking/double-clicking a table row. `multiple: false` means only one action per event.
+- **`cellClick`** — triggered by clicking a specific cell. `multiple: true` allows different actions per column.
+
+### Custom dialog actions
+
+Table actions can open custom dialogs using the `customPretty` action type. In the dashboard widget action configuration, set:
+- **Action type**: Custom pretty dialog
+- **Custom HTML**: The dialog's Angular template
+- **Custom CSS**: Dialog styles
+- **Custom function**: JavaScript that runs when the dialog opens
+
+Inside the dialog function, you have access to the entity, services, and a `dialogRef` to close the dialog.
+
+### Entity CRUD via services
+
+```javascript
+// Create a device
+let deviceService = $injector.get(
+  self.ctx.servicesMap.get('deviceService'));
+
+deviceService.saveDevice({
+  name: 'New Device',
+  type: 'sensor',
+  label: 'My sensor'
+}).subscribe(device => {
+  // device.id.id contains the new device ID
+});
+
+// Save attributes
+let attributeService = $injector.get(
+  self.ctx.servicesMap.get('attributeService'));
+
+attributeService.saveEntityAttributes(
+  device.id, 'SERVER_SCOPE',
+  [{ key: 'location', value: 'Building A' }]
+).subscribe();
+```
+
+### Form validation with Angular Material
+
+In custom dialog HTML, use Angular Material form fields with validation:
+
+```html
+<mat-form-field appearance="outline">
+  <mat-label>Device Name</mat-label>
+  <input matInput [formControl]="nameControl" required>
+  <mat-error *ngIf="nameControl.hasError('required')">
+    Name is required
+  </mat-error>
+</mat-form-field>
+```
+
+In the dialog function:
+```javascript
+let nameControl = fb.control('', [Validators.required]);
+```
+
+## Navigation and state management
+
+ThingsBoard dashboards use a **state stack** for navigation. Each state has a name, entity context, and parameters. Navigation widgets read and write to this state.
+
+### Breadcrumb navigation
+
+Build breadcrumbs from the state controller's history:
+
+```javascript
+self.onInit = function() {
+  let controller = self.ctx.$scope.ctx.stateController;
+  let params = controller.getStateParams();
+
+  // Get the state history (breadcrumb trail)
+  let breadcrumbs = controller.stateObject;
+  let stateValues = controller.statesValue;
+
+  // Transform breadcrumb names with entity context
+  breadcrumbs = breadcrumbs.map(bread => ({
+    ...bread,
+    name: stateValues[bread.id].name
+      .replace('${entityName}', params.entityName || '')
+  }));
+
+  self.ctx.$scope.breadcrumbs = breadcrumbs;
+
+  // Handle breadcrumb clicks
+  self.ctx.$scope.onCrumbClick = function(event, crumb, index) {
+    let descriptors = self.ctx.$scope.ctx.actionsApi
+      .getActionDescriptors('elementClick');
+
+    if (descriptors.length) {
+      let entity = {};
+      if (crumb.params && crumb.params.targetEntityParamName) {
+        let paramName = crumb.params.targetEntityParamName;
+        entity.id = crumb.params[paramName].entityId;
+        entity.entityName = crumb.params[paramName].entityName;
+      }
+
+      setTimeout(() => {
+        self.ctx.$scope.ctx.actionsApi.handleWidgetAction(
+          index, descriptors[0], entity.id, entity.entityName
+        );
+      }, 0);
+    }
+  };
+};
+```
+
+**HTML template:**
+```html
+<div class="breadcrumbs">
+  <div *ngFor="let crumb of breadcrumbs; let i = index; let last = last"
+       (click)="last ? $event.preventDefault() : onCrumbClick($event, crumb, i)">
+    <span [ngStyle]="{'cursor': last ? 'default' : 'pointer'}">
+      {{crumb.name}}
+    </span>
+    <span *ngIf="!last"> / </span>
+  </div>
+</div>
+```
+
+### Tab navigation
+
+Tab widgets maintain the active tab in URL state via the `subState` parameter:
+
+```javascript
+let menu = [
+  { icon: 'dashboard', name: 'Overview', action: 'overview', active: false },
+  { icon: 'devices', name: 'Devices', action: 'devices', active: false },
+  { icon: 'people', name: 'Users', action: 'users', active: false }
+];
+
+self.onInit = function() {
+  self.ctx.$scope.menu = menu;
+
+  // Restore active tab from URL state
+  let params = self.ctx.$scope.ctx.stateController.getStateParams();
+  let activeAction = params['subState'] || menu[0].action;
+  makeActive(activeAction);
+
+  self.ctx.$scope.onTabClick = function(event, item) {
+    let params = self.ctx.$scope.ctx.stateController.getStateParams();
+    let descriptors = self.ctx.$scope.ctx.actionsApi
+      .getActionDescriptors('elementClick');
+
+    let action = descriptors.find(a => a.name === item.action);
+    if (action) {
+      params.subState = item.action;
+      makeActive(item.action);
+
+      setTimeout(() => {
+        self.ctx.$scope.ctx.actionsApi.handleWidgetAction(
+          params, action, params.entityId, params.entityName
+        );
+      }, 0);
+    }
+  };
+};
+
+function makeActive(actionName) {
+  menu.forEach(item => {
+    item.active = (item.action === actionName);
+  });
+}
+```
+
+**HTML template:**
+```html
+<div class="tabs">
+  <div *ngFor="let item of menu"
+       class="tab"
+       [ngClass]="item.active ? 'active' : ''"
+       (click)="onTabClick($event, item)">
+    <tb-icon *ngIf="item.icon">{{item.icon}}</tb-icon>
+    <span>{{item.name}}</span>
+  </div>
+</div>
+```
+
+### Role-based navigation
+
+Define different navigation arrays per user role and switch based on a settings parameter:
+
+```javascript
+let adminNav = [
+  { icon: 'home', name: 'Home', title: 'Home' },
+  { icon: 'devices', name: 'Devices', title: 'Devices' },
+  { icon: 'people', name: 'Users', title: 'Users' }
+];
+
+let operatorNav = [
+  { icon: 'home', name: 'Home', title: 'Home' },
+  { icon: 'dashboard', name: 'Dashboard', title: 'Dashboard' }
+];
+
+self.onInit = function() {
+  let settings = self.ctx.settings;
+
+  switch (settings.navigationForType) {
+    case 'admin': self.ctx.$scope.navItems = adminNav; break;
+    case 'operator': self.ctx.$scope.navItems = operatorNav; break;
+    default: self.ctx.$scope.navItems = adminNav;
+  }
+};
+```
+
+## Entity hierarchy
+
+Build tree views by querying entity relations recursively.
+
+### Recursive relation query
+
+```javascript
+let relationService = $injector.get(
+  self.ctx.servicesMap.get('entityRelationService'));
+
+let query = {
+  filters: [{
+    relationType: 'Contains',
+    entityTypes: []
+  }],
+  parameters: {
+    rootId: rootEntity.id.id,
+    rootType: rootEntity.id.entityType,
+    direction: 'FROM',
+    maxLevel: 10
+  }
+};
+
+relationService.findInfoByQuery(query).subscribe(relations => {
+  // Build tree from flat relations array
+  buildTree(relations, rootEntity);
+  self.ctx.detectChanges();
+});
+```
+
+### Building the tree
+
+```javascript
+function buildTree(relations, root) {
+  root.children = [];
+  let children = relations.filter(r => r.from.id === root.id.id);
+
+  if (!children.length) {
+    delete root.children;
+    return;
+  }
+
+  children.forEach(rel => {
+    let child = {
+      name: rel.toName,
+      id: rel.to
+    };
+    buildTree(relations, child);
+    root.children.push(child);
+  });
+}
+```
+
+### Recursive Angular template
+
+```html
+<ul *ngIf="data">
+  <ng-container
+    *ngTemplateOutlet="TreeNode; context: { data: data }">
+  </ng-container>
+</ul>
+
+<ng-template #TreeNode let-data="data">
+  <li *ngFor="let item of data">
+    <p class="node"
+       [ngClass]="item.children ? 'expandable' : ''"
+       (click)="item.children ? toggleNode($event) : onNodeClick($event, item)">
+      <mat-icon *ngIf="displayIcons">
+        {{entitiesIcons[item.id.entityType]}}
+      </mat-icon>
+      {{item.name}}
+      <mat-icon *ngIf="item.children">add</mat-icon>
+    </p>
+    <ul class="nested" *ngIf="item.children">
+      <ng-container
+        *ngTemplateOutlet="TreeNode; context: { data: item.children }">
+      </ng-container>
+    </ul>
+  </li>
+</ng-template>
+```
+
+The `#TreeNode` template references itself via `*ngTemplateOutlet`, creating a recursive tree structure. Each level renders its children using the same template.
+
+### Expand/collapse with CSS
+
+```css
+.nested {
+  display: none;
+}
+
+.nested.active {
+  display: block;
+}
+
+.expandable {
+  cursor: pointer;
+}
+```
+
+Toggle visibility in JavaScript:
+```javascript
+self.ctx.$scope.toggleNode = function(event) {
+  let element = event.target.closest('p');
+  let nested = element.parentElement.querySelector('.nested');
+  if (nested) {
+    nested.classList.toggle('active');
+  }
+};
+```
+
+## Embedded dashboard state
+
+Embed a full dashboard state inside a custom dialog using `<tb-dashboard-state>`:
+
+```html
+<tb-dashboard-state
+  [stateId]="selectedStateId"
+  [entityId]="selectedEntityId"
+  [entityName]="selectedEntityName">
+</tb-dashboard-state>
+```
+
+This renders another dashboard state (with all its widgets) inside your widget's dialog or inline container. Use this for drill-down views or multi-step wizards.
+
+## Device assignment
+
+For PE/Cloud environments, transfer device ownership using `entityGroupService`:
+
+```javascript
+let entityGroupService = $injector.get(
+  self.ctx.servicesMap.get('entityGroupService'));
+
+// Assign device to a customer
+entityGroupService.changeEntityOwner(
+  { entityType: 'DEVICE', id: deviceId },
+  { entityType: 'CUSTOMER', id: customerId }
+).subscribe(() => {
+  // Device assigned
+});
+```
+
+Combine with `mat-autocomplete` for a searchable customer picker:
+
+```html
+<mat-form-field>
+  <mat-label>Customer</mat-label>
+  <input matInput
+         [formControl]="customerControl"
+         [matAutocomplete]="auto">
+  <mat-autocomplete #auto="matAutocomplete">
+    <mat-option *ngFor="let c of filteredCustomers"
+                [value]="c.name">
+      {{c.name}}
+    </mat-option>
+  </mat-autocomplete>
+</mat-form-field>
+```

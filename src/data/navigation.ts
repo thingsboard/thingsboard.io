@@ -297,7 +297,7 @@ export const companySubmenu: SubMenu = {
 					linkClass: 'small-link',
 				},
 				{
-					href: '/docs/contact-us/',
+					href: '/contact-us/',
 					icon: '/src/assets/images/landings/nav/contact-s-icon.svg',
 					heading: 'Contact us',
 					linkClass: 'small-link',

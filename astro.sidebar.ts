@@ -118,8 +118,18 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 		collapsed: true,
 		items: [
 			`${prefix}/integrations`,
+			`${prefix}/integrations/uplink-data-converter`,
+			`${prefix}/integrations/downlink-data-converter`,
+			`${prefix}/integrations/remote`,
 			`${prefix}/integrations/http`,
+			`${prefix}/integrations/mqtt`,
+			`${prefix}/integrations/coap`,
 			`${prefix}/integrations/chirpstack`,
+			`${prefix}/integrations/kafka`,
+			`${prefix}/integrations/opc-ua`,
+			`${prefix}/integrations/thingpark`,
+			`${prefix}/integrations/ttn`,
+			`${prefix}/integrations/tti`,
 			`${prefix}/integrations/aws-iot`,
 		],
 	},
@@ -193,6 +203,19 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 		items: [
 			`${prefix}/contribution/rule-node-development`,
 			`${prefix}/scada-symbol-dev`,
+			{
+				label: 'Widget Development',
+				collapsed: true,
+				items: [
+					{ label: 'Overview', slug: `${prefix}/contribution/widgets-development` },
+					`${prefix}/contribution/widgets-development/latest-values`,
+					`${prefix}/contribution/widgets-development/embedded-chart`,
+					`${prefix}/contribution/widgets-development/rpc-control`,
+					`${prefix}/contribution/widgets-development/alarm-widget`,
+					`${prefix}/contribution/widgets-development/widget-patterns`,
+					`${prefix}/contribution/widgets-development/advanced`,
+				],
+			},
 		],
 	},
 	{
@@ -862,6 +885,7 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 			`${prefix}/widgets/map-widgets`,
 			`${prefix}/widgets/entity-table-widget`,
 			`${prefix}/widgets/markdown-html-card`,
+			`${prefix}/widgets/widget-api`,
 		],
 	},
 ];
@@ -875,7 +899,7 @@ const mainSidebarItems = (prefix: string, extraRecipeItems: SidebarConfig = [], 
 			{
 				label: 'Welcome to IoT!',
 				translations: { uk: 'Новий проект' },
-				items: [`${prefix}/why-thingsboard`, `${prefix}/tutorial/getting-started`],
+				items: [`${prefix}/why-thingsboard`, `${prefix}/getting-started`],
 			},
 			{
 				label: 'Key concepts',
@@ -968,7 +992,7 @@ export const paasSidebar: SidebarConfig = [
 			{
 				label: 'Welcome to IoT!',
 				translations: { uk: 'Новий проект' },
-				items: ['docs/paas/why-thingsboard', 'docs/paas/tutorial/getting-started'],
+				items: ['docs/paas/why-thingsboard', 'docs/paas/getting-started'],
 			},
 			{
 				label: 'Key concepts',
@@ -1217,7 +1241,7 @@ export const paasEuSidebar: SidebarConfig = [
 			{
 				label: 'Welcome to IoT!',
 				translations: { uk: 'Новий проект' },
-				items: ['docs/paas/eu/why-thingsboard', 'docs/paas/eu/tutorial/getting-started'],
+				items: ['docs/paas/eu/why-thingsboard', 'docs/paas/eu/getting-started'],
 			},
 			{
 				label: 'Key concepts',
@@ -2298,8 +2322,18 @@ export const peSidebarTabLinks: SidebarTabLinks = {
 	'Reference': '/docs/pe/reference/',
 };
 
-export const paasSidebarTabLinks: SidebarTabLinks = {};
-export const paasEuSidebarTabLinks: SidebarTabLinks = {};
+export const paasSidebarTabLinks: SidebarTabLinks = {
+	'Getting Started': '/docs/paas/',
+	'Guides': '/docs/paas/user-guide/',
+	'APIs & SDKs': '/docs/paas/reference/apis-and-sdks/',
+	'Reference': '/docs/paas/reference/',
+};
+export const paasEuSidebarTabLinks: SidebarTabLinks = {
+	'Getting Started': '/docs/paas/eu/',
+	'Guides': '/docs/paas/eu/user-guide/',
+	'APIs & SDKs': '/docs/paas/eu/reference/apis-and-sdks/',
+	'Reference': '/docs/paas/eu/reference/',
+};
 export const edgeSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/edge/',
 	'Installation': '/docs/edge/installation/',
@@ -2316,6 +2350,7 @@ export const edgePeSidebarTabLinks: SidebarTabLinks = {
 	'APIs & SDKs': '/docs/edge/pe/reference/apis-and-sdks/',
 	'Reference': '/docs/edge/pe/reference/',
 };
+
 export const gwSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/iot-gateway/',
 	Installation: '/docs/iot-gateway/installation/',

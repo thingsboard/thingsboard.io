@@ -6,4 +6,6 @@ export const redirects: AstroUserConfig['redirects'] = {
 	// Note: dynamic [...slug] redirects are NOT supported in static output mode —
 	// Astro 5 requires getStaticPaths() for any dynamic route, including redirects.
 	// For path-prefix renames use page files with getStaticPaths (see src/pages/docs/pe/).
+	// IMPORTANT: Do NOT add /docs/ redirects here — Starlight treats them as content pages
+	// and fails sidebar resolution. Use page-based redirects instead.
 };
