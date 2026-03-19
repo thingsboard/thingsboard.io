@@ -97,6 +97,10 @@ export const CATCH_ALL_REDIRECTS: CatchAllRedirect[] = [
 		oldPrefix: 'user-guide/install/pe/upgrade-instructions',
 		entries: buildUpgradeRedirectEntries('pe/installation/upgrade-instructions'),
 	},
+	{
+		oldPrefix: 'pe/user-guide/install/upgrade-instructions',
+		entries: buildUpgradeRedirectEntries('pe/installation/upgrade-instructions'),
+	},
 ];
 
 /**
@@ -861,6 +865,7 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'pe/user-guide/reporting/attaching-report-to-notification', target: '/docs/pe/user-guide/reporting/notifications/' },
 	{ oldPath: 'paas/user-guide/reporting/attaching-report-to-notification', target: '/docs/paas/user-guide/reporting/notifications/' },
 	{ oldPath: 'paas/eu/user-guide/reporting/attaching-report-to-notification', target: '/docs/paas/eu/user-guide/reporting/notifications/' },
+	{ oldPath: 'pe/user-guide/install/upgrade-instructions', target: '/docs/pe/installation/upgrade-instructions/' },
 ];
 
 // ---------------------------------------------------------------------------
