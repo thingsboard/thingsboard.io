@@ -881,6 +881,9 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'pe/user-guide/ui/trendz-settings', target: '/docs/pe/user-guide/trendz-analytics/' },
 	{ oldPath: 'paas/user-guide/ui/trendz-settings', target: '/docs/paas/user-guide/trendz-analytics/' },
 	{ oldPath: 'paas/eu/user-guide/ui/trendz-settings', target: '/docs/paas/eu/user-guide/trendz-analytics/' },
+	{ oldPath: 'pe/user-guide/install/config', target: '/docs/pe/reference/configuration/how-to-change-config/' },
+	{ oldPath: 'pe/user-guide/install/docker-windows', target: '/docs/pe/installation/docker-windows/' },
+	{ oldPath: 'pe/user-guide/install/docker', target: '/docs/pe/installation/docker/' },
 ];
 
 // ---------------------------------------------------------------------------
