@@ -1,0 +1,125 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+import { Products } from '~/models/site.models';
+
+ThingsBoard Edge uses an actor-based concurrency model to manage per-entity state. Every device, rule chain, and calculated field gets its own actor — a lightweight object with a private mailbox. The actor processes messages one at a time, eliminating locks and race conditions across the platform.
+
+## How actors work
+
+Each actor follows this lifecycle:
+
+1. **Created on demand:** When a message arrives for an entity (for example, telemetry from device `ABC`), the system creates an actor if one does not already exist.
+2. **Mailbox queuing:** Incoming messages land in the actor's mailbox, an in-memory queue.
+3. **Sequential processing:** The actor processes messages one at a time, in order. No two threads ever execute inside the same actor simultaneously.
+4. **Ephemeral state:** Actors may hold in-memory state (like latest attribute values or active RPC requests), but this state is rebuilt from PostgreSQL on restart. The database is always the source of truth.
+
+## Actor hierarchy
+
+Edge runs a single tenant, so the actor hierarchy is shallower than on the ThingsBoard server. One App actor sits at the root, with a single Tenant actor beneath it:
+
+```plaintext
+                        ┌─────────────┐
+                        │  App Actor  │
+                        └──────┬──────┘
+                               │
+                        ┌──────┴──────┐
+                        │   Tenant    │
+                        └──────┬──────┘
+                               │
+         ┌────────────┬────────┴──────┬──────────────┐
+         ▼            ▼               ▼               ▼
+    ┌─────────┐ ┌──────────┐  ┌────────────┐  ┌──────────────┐
+    │ Device  │ │  Rule    │  │ CF Manager │  │ Cloud Sync   │
+    │ Actors  │ │  Chain   │  │  Actor     │  │   Actor      │
+    └─────────┘ │  Actors  │  └──────┬─────┘  └──────────────┘
+                └────┬─────┘         │
+                     │               ▼
+               ┌─────┴─────┐  ┌──────────────┐
+               ▼    ▼    ▼  │  │  CF Engine   │
+             Rule Rule Rule  │  │   Actors     │
+             Node Node Node  │  └──────────────┘
+             Actors          │
+```
+
+| Actor type | One per | Responsibility |
+|-----------|---------|----------------|
+| **App** | JVM | Root actor — creates and supervises the tenant actor |
+| **Tenant** | Tenant | Creates device, rule chain, and calculated field actors for the Edge tenant |
+| **Device** | Device | Handles device sessions, RPC, connectivity state, and activity tracking |
+| **Rule chain** | Rule chain | Manages rule node actors and routes messages through the <DocLink product={props.product === Products.EDGE_PE ? Products.PE : Products.CE} path="user-guide/rule-engine" target="_blank">rule chain</DocLink> |
+| **Rule node** | Rule node | Executes a single rule node's logic — filter, transform, or action |
+| **CF Manager** | Tenant | Coordinates <DocLink product={props.product === Products.EDGE_PE ? Products.PE : Products.CE} path="user-guide/calculated-fields" target="_blank">calculated field</DocLink> evaluation across entities |
+| **CF Engine** | Calculated field | Executes a single calculated field's logic |
+| **Cloud sync** | Edge instance | Manages the gRPC connection and synchronization state with the ThingsBoard server |
+
+## Dispatcher thread pools
+
+Each actor type runs on a dedicated thread pool. This prevents one type of work from starving another — a burst of incoming telemetry does not block rule chain processing.
+
+| Dispatcher | Env variable | Default | Handles |
+|-----------|-------------|---------|---------|
+| App | `ACTORS_SYSTEM_APP_DISPATCHER_POOL_SIZE` | `1` | App actor only — lightweight |
+| Tenant | `ACTORS_SYSTEM_TENANT_DISPATCHER_POOL_SIZE` | `2` | Tenant actor message processing |
+| Device | `ACTORS_SYSTEM_DEVICE_DISPATCHER_POOL_SIZE` | `4` | Device sessions, RPC, and state tracking |
+| Rule engine | `ACTORS_SYSTEM_RULE_DISPATCHER_POOL_SIZE` | `8` | Rule chain and rule node execution |
+| Cloud sync | `ACTORS_SYSTEM_EDGE_DISPATCHER_POOL_SIZE` | `4` | Cloud synchronization state management |
+| CF Manager | `ACTORS_SYSTEM_CFM_DISPATCHER_POOL_SIZE` | `2` | Calculated field coordination |
+| CF Engine | `ACTORS_SYSTEM_CFE_DISPATCHER_POOL_SIZE` | `8` | Calculated field execution |
+
+<Aside type="tip">
+  On constrained hardware with two to four CPU cores, reduce `ACTORS_SYSTEM_RULE_DISPATCHER_POOL_SIZE` and `ACTORS_SYSTEM_CFE_DISPATCHER_POOL_SIZE` to two to four threads each. Setting these higher than your CPU core count does not improve throughput and increases context-switch overhead.
+</Aside>
+
+## Throughput setting
+
+`ACTORS_SYSTEM_THROUGHPUT` (default `5`) controls how many messages an actor processes in a single batch before yielding the thread to other actors:
+
+- **Low value (one to five):** Each actor processes fewer messages per turn, giving all actors more equal access to the thread pool. Better when many devices send telemetry at the same time.
+- **High value (25–50):** Actors process more messages per turn, reducing context-switch overhead. Better when a small number of devices send high-frequency telemetry.
+
+The default of `5` works well for most Edge deployments.
+
+## External call thread pools
+
+Rule engine action nodes that perform I/O — database writes, HTTP calls, email, SMS — run on separate thread pools to avoid blocking the actor dispatchers:
+
+| Thread pool | Env variable | Default | Purpose |
+|------------|-------------|---------|---------|
+| DB callbacks | `ACTORS_RULE_DB_CALLBACK_THREAD_POOL_SIZE` | `50` | Database write callbacks from rule engine nodes |
+| Mail | `ACTORS_RULE_MAIL_THREAD_POOL_SIZE` | `40` | Email sending from "send email" rule nodes |
+| Password reset mail | `ACTORS_RULE_MAIL_PASSWORD_RESET_THREAD_POOL_SIZE` | `10` | Password reset emails, isolated from the main mail pool |
+| SMS | `ACTORS_RULE_SMS_THREAD_POOL_SIZE` | `50` | SMS sending from "send SMS" rule nodes |
+| External REST | `ACTORS_RULE_EXTERNAL_CALL_THREAD_POOL_SIZE` | `50` | HTTP calls to external APIs from "rest API call" rule nodes |
+| AI requests | `ACTORS_RULE_AI_REQUESTS_THREAD_POOL_SIZE` | `50` | AI/LLM API calls from AI rule nodes |
+
+<Aside type="note">
+  The default values (40–50 threads per pool) are sized for a full ThingsBoard server node. On Edge hardware with limited CPU and RAM, reduce these to five to 10 threads per pool unless your rule chains actively use the corresponding action types.
+</Aside>
+
+## Session concurrency
+
+`ACTORS_MAX_CONCURRENT_SESSION_PER_DEVICE` (default `1`) limits how many simultaneous transport sessions a single device can hold. The default means that when a device opens a new MQTT connection, any existing session for that device closes automatically.
+
+Increase this value only if devices on your Edge legitimately maintain multiple concurrent connections — for example, a gateway that manages several sub-connections simultaneously.
+
+## Rule chain error handling
+
+The actor system throttles error log output to prevent a misconfigured rule chain from flooding the log:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ACTORS_RULE_CHAIN_ERROR_FREQUENCY` | `3000` ms | Minimum interval between error log entries for the same rule chain |
+| `ACTORS_RULE_NODE_ERROR_FREQUENCY` | `3000` ms | Minimum interval between error log entries for the same rule node |
+| `ACTORS_RULE_CHAIN_DEBUG_MODE_RATE_LIMITS_PER_TENANT_ENABLED` | `true` | Enables per-tenant rate limiting in debug mode |
+| `ACTORS_RULE_CHAIN_DEBUG_MODE_RATE_LIMITS_PER_TENANT_CONFIGURATION` | `50000:3600` | Maximum 50,000 debug events per tenant per hour |
+
+## Tuning for Edge hardware
+
+| Workload | What to scale | Why |
+|----------|--------------|-----|
+| Many devices, frequent telemetry | `ACTORS_SYSTEM_DEVICE_DISPATCHER_POOL_SIZE` | More threads to handle concurrent device actor mailboxes |
+| Complex rule chains, many rule nodes | `ACTORS_SYSTEM_RULE_DISPATCHER_POOL_SIZE` | Rule chain processing is CPU-bound |
+| Many external API calls from rules | `ACTORS_RULE_EXTERNAL_CALL_THREAD_POOL_SIZE` | I/O-bound — threads block waiting for HTTP responses |
+| Heavy database writes from rules | `ACTORS_RULE_DB_CALLBACK_THREAD_POOL_SIZE` | Write callbacks queue when PostgreSQL is under load |
+| Many calculated fields | `ACTORS_SYSTEM_CFE_DISPATCHER_POOL_SIZE` | Calculated field evaluation is CPU-bound |
+| Limited CPU cores (two to four) | Reduce all pool sizes proportionally | Prevents thread contention and reduces JVM heap usage |
