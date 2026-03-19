@@ -890,7 +890,7 @@ const mainSidebarItems = (prefix: string, extraRecipeItems: SidebarConfig = [], 
 			{
 				label: 'Welcome to IoT!',
 				translations: { uk: 'Новий проект' },
-				items: [`${prefix}/why-thingsboard`, `${prefix}/getting-started`],
+				items: [`${prefix}/why-thingsboard`, `${prefix}/getting-started`, { label: 'Device connectivity', slug: `${prefix}/connect-iot-devices` }],
 			},
 			{
 				label: 'Key concepts',
@@ -983,7 +983,7 @@ export const paasSidebar: SidebarConfig = [
 			{
 				label: 'Welcome to IoT!',
 				translations: { uk: 'Новий проект' },
-				items: ['docs/paas/why-thingsboard', 'docs/paas/getting-started'],
+				items: ['docs/paas/why-thingsboard', 'docs/paas/getting-started', { label: 'Device connectivity', slug: 'docs/paas/connect-iot-devices' }],
 			},
 			{
 				label: 'Key concepts',
@@ -1270,7 +1270,7 @@ export const paasEuSidebar: SidebarConfig = [
 			{
 				label: 'Welcome to IoT!',
 				translations: { uk: 'Новий проект' },
-				items: ['docs/paas/eu/why-thingsboard', 'docs/paas/eu/getting-started'],
+				items: ['docs/paas/eu/why-thingsboard', 'docs/paas/eu/getting-started', { label: 'Device connectivity', slug: 'docs/paas/eu/connect-iot-devices' }],
 			},
 			{
 				label: 'Key concepts',
