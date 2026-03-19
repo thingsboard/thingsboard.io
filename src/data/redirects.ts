@@ -877,6 +877,10 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'user-guide/reporting/attaching-report-to-notification', target: '/docs/user-guide/reporting/notifications/' },
 	{ oldPath: 'paas/user-guide/scada/scada-symbols-dev-guide', target: '/docs/paas/user-guide/scada-symbol-dev/' },
 	{ oldPath: 'paas/eu/user-guide/scada/scada-symbols-dev-guide', target: '/docs/paas/eu/user-guide/scada-symbol-dev/' },
+	{ oldPath: 'user-guide/ui/trendz-settings', target: '/docs/user-guide/trendz-analytics/' },
+	{ oldPath: 'pe/user-guide/ui/trendz-settings', target: '/docs/pe/user-guide/trendz-analytics/' },
+	{ oldPath: 'paas/user-guide/ui/trendz-settings', target: '/docs/paas/user-guide/trendz-analytics/' },
+	{ oldPath: 'paas/eu/user-guide/ui/trendz-settings', target: '/docs/paas/eu/user-guide/trendz-analytics/' },
 ];
 
 // ---------------------------------------------------------------------------
