@@ -2298,10 +2298,10 @@ export const trendzSidebar: SidebarConfig = [
 				collapsed: true,
 				items: [
 					'docs/trendz/concepts/business-entities',
-					'docs/trendz/concepts/telemetry-aggregation',
-					'docs/trendz/concepts/group-by-time',
-					'docs/trendz/concepts/group-by-category',
-					'docs/trendz/concepts/data-filtering',
+					'docs/trendz/telemetry-aggregation',
+					'docs/trendz/group-by-time',
+					'docs/trendz/group-by-category',
+					'docs/trendz/data-filtering',
 				],
 			},
 			{
@@ -2377,9 +2377,9 @@ export const trendzSidebar: SidebarConfig = [
 				collapsed: true,
 				items: [
 					'docs/trendz/prediction',
-					'docs/trendz/prediction/custom-python-models',
-					'docs/trendz/prediction/predict-remaining-time',
-					'docs/trendz/prediction/save-to-thingsboard',
+					'docs/trendz/predict-with-python-models',
+					'docs/trendz/predict-remaining-time',
+					'docs/trendz/prediction-save-to-tb',
 				],
 			},
 			{
@@ -2404,8 +2404,8 @@ export const trendzSidebar: SidebarConfig = [
 						label: 'White Labeling',
 						collapsed: true,
 						items: [
-							{ slug: 'docs/trendz/white-labeling/overview', label: 'Overview' },
-							{ slug: 'docs/trendz/white-labeling/custom-translation', label: 'Custom Translation' },
+							{ slug: 'docs/trendz/white-labeling', label: 'Overview' },
+							{ slug: 'docs/trendz/custom-translation', label: 'Custom Translation' },
 						],
 					},
 					{ slug: 'docs/trendz/custom-ai-model-configuration', label: 'AI Settings' },
@@ -2434,7 +2434,7 @@ export const trendzSidebar: SidebarConfig = [
 		label: 'Guides',
 		collapsed: false,
 		items: [
-			{ slug: 'docs/trendz/guide', label: 'Overview' },
+			{ slug: 'docs/trendz/guides', label: 'Overview' },
 			{
 				label: 'Scenarios',
 				collapsed: false,
@@ -2483,13 +2483,13 @@ export const trendzSidebar: SidebarConfig = [
 				collapsed: true,
 				items: [
 					'docs/trendz/install/python-executor-configuration',
-					'docs/trendz/install/connect-thingsboard',
-					'docs/trendz/install/post-installation-steps',
-					'docs/trendz/install/configuration-properties',
+					'docs/trendz/connect-thingsboard',
+					'docs/trendz/post-installation-steps',
+					'docs/trendz/configuration-properties',
 					'docs/trendz/install/old-docker-migrate',
 				],
 			},
-			'docs/trendz/install/upgrade-instructions',
+			'docs/trendz/install/trndz-upgrade-instructions',
 		],
 	},
 ];
@@ -2568,7 +2568,7 @@ export const mobilePeSidebarTabLinks: SidebarTabLinks = {};
 export const trendzSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/trendz/',
 	'Documentation': '/docs/trendz/what-is-trendz/',
-	'Guides': '/docs/trendz/guide/',
+	'Guides': '/docs/trendz/guides/',
 	'Installation': '/docs/trendz/install/installation-options/',
 };
 export const licenseSidebarTabLinks: SidebarTabLinks = {};
