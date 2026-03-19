@@ -884,6 +884,12 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'pe/user-guide/install/config', target: '/docs/pe/reference/configuration/how-to-change-config/' },
 	{ oldPath: 'pe/user-guide/install/docker-windows', target: '/docs/pe/installation/docker-windows/' },
 	{ oldPath: 'pe/user-guide/install/docker', target: '/docs/pe/installation/docker/' },
+	{ oldPath: 'paas/subscription', target: '/docs/paas/reference/subscriptions/' },
+	{ oldPath: 'paas/subscriptions', target: '/docs/paas/reference/subscriptions/' },
+	{ oldPath: 'paas/eu/subscription', target: '/docs/paas/eu/reference/subscriptions/' },
+	{ oldPath: 'paas/eu/subscriptions', target: '/docs/paas/eu/reference/subscriptions/' },
+	{ oldPath: 'paas/user-guide/secrets-storage', target: '/docs/paas/user-guide/security/secrets-storage/' },
+	{ oldPath: 'paas/eu/user-guide/secrets-storage', target: '/docs/paas/eu/user-guide/security/secrets-storage/' },
 ];
 
 // ---------------------------------------------------------------------------
