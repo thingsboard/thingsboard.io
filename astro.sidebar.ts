@@ -128,7 +128,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 		label: 'White-labeling',
 		collapsed: true,
 		items: [
-			{ label: 'General', slug: `${prefix}/white-labeling-general` },
+			{ label: 'General', slug: `${prefix}/white-labeling` },
 			{ label: 'Login', slug: `${prefix}/white-labeling-login` },
 			{ label: 'Mail Templates', slug: `${prefix}/white-labeling-mail` },
 			{ label: 'Custom Translation', slug: `${prefix}/white-labeling-translation` },
@@ -213,9 +213,9 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 		label: 'Releases',
 		collapsed: true,
 		items: [
-			{ label: 'Release Policy', slug: `${prefix}/versions-and-support` },
-			{ label: 'Release Table', slug: `${prefix}/releases-table` },
-			`${prefix}/roadmap`,
+			{ label: 'Release Policy', slug: `${prefix.replace('/user-guide', '/releases')}/release-policy` },
+			{ label: 'Release Table', slug: `${prefix.replace('/user-guide', '/releases')}/releases-table` },
+			`${prefix.replace('/user-guide', '/releases')}/roadmap`,
 		],
 	},
 ];
@@ -280,9 +280,9 @@ const installationItems = (prefix: string) => {
 					label: 'AWS',
 					collapsed: true,
 					items: [
-						{ label: 'AWS Installation Options', slug: `${prefix}/installation/aws-index` },
-						`${prefix}/installation/aws${isPE ? '-ec2' : ''}`,
-						...(isPE ? [`${prefix}/installation/aws`] : []),
+						{ label: 'AWS Installation Options', slug: `${prefix}/installation/aws` },
+						`${prefix}/installation/aws-ec2`,
+						...(isPE ? [`${prefix}/installation/aws-marketplace`] : []),
 						`${prefix}/installation/aws-monolith`,
 						`${prefix}/installation/aws-microservices`,
 					],
@@ -291,9 +291,9 @@ const installationItems = (prefix: string) => {
 					label: 'Google Cloud',
 					collapsed: true,
 					items: [
-						{ label: 'GCP Installation Options', slug: `${prefix}/installation/gcp-index` },
-						`${prefix}/installation/gcp${isPE ? '-vm' : ''}`,
-						...(isPE ? [`${prefix}/installation/gcp`] : []),
+						{ label: 'GCP Installation Options', slug: `${prefix}/installation/gcp` },
+						`${prefix}/installation/gcp-vm`,
+						...(isPE ? [`${prefix}/installation/gcp-marketplace`] : []),
 						`${prefix}/installation/gcp-monolith`,
 						`${prefix}/installation/gcp-microservices`,
 					],
@@ -302,8 +302,8 @@ const installationItems = (prefix: string) => {
 					label: 'Azure',
 					collapsed: true,
 					items: [
-						{ label: 'Azure Installation Options', slug: `${prefix}/installation/azure-index` },
-						...(isPE ? [`${prefix}/installation/azure`] : []),
+						{ label: 'Azure Installation Options', slug: `${prefix}/installation/azure` },
+						...(isPE ? [`${prefix}/installation/azure-marketplace`] : []),
 						`${prefix}/installation/azure-monolith`,
 						`${prefix}/installation/azure-microservices`,
 					],
@@ -890,7 +890,7 @@ const mainSidebarItems = (prefix: string, extraRecipeItems: SidebarConfig = [], 
 			{
 				label: 'Welcome to IoT!',
 				translations: { uk: 'Новий проект' },
-				items: [`${prefix}/why-thingsboard`, `${prefix}/getting-started`],
+				items: [`${prefix}/why-thingsboard`, `${prefix}/getting-started`, { label: 'Device connectivity', slug: `${prefix}/connect-iot-devices` }],
 			},
 			{
 				label: 'Key concepts',
@@ -983,7 +983,7 @@ export const paasSidebar: SidebarConfig = [
 			{
 				label: 'Welcome to IoT!',
 				translations: { uk: 'Новий проект' },
-				items: ['docs/paas/why-thingsboard', 'docs/paas/getting-started'],
+				items: ['docs/paas/why-thingsboard', 'docs/paas/getting-started', { label: 'Device connectivity', slug: 'docs/paas/connect-iot-devices' }],
 			},
 			{
 				label: 'Key concepts',
@@ -1136,7 +1136,7 @@ export const paasSidebar: SidebarConfig = [
 				label: 'White-labeling',
 				collapsed: true,
 				items: [
-					{ label: 'General', slug: 'docs/paas/user-guide/white-labeling-general' },
+					{ label: 'General', slug: 'docs/paas/user-guide/white-labeling' },
 					{ label: 'Login', slug: 'docs/paas/user-guide/white-labeling-login' },
 					{ label: 'Mail Templates', slug: 'docs/paas/user-guide/white-labeling-mail' },
 					{ label: 'Custom Translation', slug: 'docs/paas/user-guide/white-labeling-translation' },
@@ -1210,6 +1210,44 @@ export const paasSidebar: SidebarConfig = [
 		],
 	},
 	{
+		label: 'Recipes',
+		collapsed: true,
+		translations: { uk: 'Рецепти' },
+		items: [
+			...recipeItems('docs/paas/recipes'),
+			{
+				label: 'Reporting',
+				collapsed: true,
+				items: [
+					'docs/paas/recipes/reporting-embed-dashboard',
+					'docs/paas/recipes/reporting-line-chart-temperature',
+					'docs/paas/recipes/reporting-subreport-daily-alarms',
+					'docs/paas/recipes/reporting-alarm-notification',
+				],
+			},
+			{
+				label: 'Access Control',
+				collapsed: true,
+				items: [
+					'docs/paas/recipes/rbac-read-only-analyst',
+					'docs/paas/recipes/rbac-customer-scoped-access',
+					'docs/paas/recipes/rbac-generic-role-scope',
+					'docs/paas/recipes/rbac-isolated-device-groups',
+					'docs/paas/recipes/rbac-smart-buildings',
+				],
+			},
+			{
+				label: 'White-labeling',
+				collapsed: true,
+				items: [
+					'docs/paas/recipes/white-labeling-translate-dashboard',
+					'docs/paas/recipes/white-labeling-html-value-card',
+					'docs/paas/recipes/white-labeling-post-processing',
+				],
+			},
+		],
+	},
+	{
 		label: 'APIs & SDKs',
 		collapsed: true,
 		items: apisAndSdksItems('docs/paas'),
@@ -1232,7 +1270,7 @@ export const paasEuSidebar: SidebarConfig = [
 			{
 				label: 'Welcome to IoT!',
 				translations: { uk: 'Новий проект' },
-				items: ['docs/paas/eu/why-thingsboard', 'docs/paas/eu/getting-started'],
+				items: ['docs/paas/eu/why-thingsboard', 'docs/paas/eu/getting-started', { label: 'Device connectivity', slug: 'docs/paas/eu/connect-iot-devices' }],
 			},
 			{
 				label: 'Key concepts',
@@ -1385,7 +1423,7 @@ export const paasEuSidebar: SidebarConfig = [
 				label: 'White-labeling',
 				collapsed: true,
 				items: [
-					{ label: 'General', slug: 'docs/paas/eu/user-guide/white-labeling-general' },
+					{ label: 'General', slug: 'docs/paas/eu/user-guide/white-labeling' },
 					{ label: 'Login', slug: 'docs/paas/eu/user-guide/white-labeling-login' },
 					{ label: 'Mail Templates', slug: 'docs/paas/eu/user-guide/white-labeling-mail' },
 					{ label: 'Custom Translation', slug: 'docs/paas/eu/user-guide/white-labeling-translation' },
@@ -1454,6 +1492,44 @@ export const paasEuSidebar: SidebarConfig = [
 					'docs/paas/eu/user-guide/billing-info/subscription',
 					'docs/paas/eu/user-guide/billing-info/billing-details',
 					'docs/paas/eu/user-guide/billing-info/invoices',
+				],
+			},
+		],
+	},
+	{
+		label: 'Recipes',
+		collapsed: true,
+		translations: { uk: 'Рецепти' },
+		items: [
+			...recipeItems('docs/paas/eu/recipes'),
+			{
+				label: 'Reporting',
+				collapsed: true,
+				items: [
+					'docs/paas/eu/recipes/reporting-embed-dashboard',
+					'docs/paas/eu/recipes/reporting-line-chart-temperature',
+					'docs/paas/eu/recipes/reporting-subreport-daily-alarms',
+					'docs/paas/eu/recipes/reporting-alarm-notification',
+				],
+			},
+			{
+				label: 'Access Control',
+				collapsed: true,
+				items: [
+					'docs/paas/eu/recipes/rbac-read-only-analyst',
+					'docs/paas/eu/recipes/rbac-customer-scoped-access',
+					'docs/paas/eu/recipes/rbac-generic-role-scope',
+					'docs/paas/eu/recipes/rbac-isolated-device-groups',
+					'docs/paas/eu/recipes/rbac-smart-buildings',
+				],
+			},
+			{
+				label: 'White-labeling',
+				collapsed: true,
+				items: [
+					'docs/paas/eu/recipes/white-labeling-translate-dashboard',
+					'docs/paas/eu/recipes/white-labeling-html-value-card',
+					'docs/paas/eu/recipes/white-labeling-post-processing',
 				],
 			},
 		],
@@ -2510,7 +2586,7 @@ export const opensourceSidebarTabLinks: SidebarTabLinks = {
 	'Guides': '/docs/user-guide/',
 	'Recipes': '/docs/recipes/',
 	'Installation': '/docs/installation/',
-	'APIs & SDKs': '/docs/reference/apis-and-sdks/',
+	'APIs & SDKs': '/docs/apis-and-sdks/',
 	'Reference': '/docs/reference/',
 };
 export const peSidebarTabLinks: SidebarTabLinks = {
@@ -2518,20 +2594,22 @@ export const peSidebarTabLinks: SidebarTabLinks = {
 	'Guides': '/docs/pe/user-guide/',
 	'Recipes': '/docs/pe/recipes/',
 	'Installation': '/docs/pe/installation/',
-	'APIs & SDKs': '/docs/pe/reference/apis-and-sdks/',
+	'APIs & SDKs': '/docs/pe/apis-and-sdks/',
 	'Reference': '/docs/pe/reference/',
 };
 
 export const paasSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/paas/',
 	'Guides': '/docs/paas/user-guide/',
-	'APIs & SDKs': '/docs/paas/reference/apis-and-sdks/',
+	'Recipes': '/docs/paas/recipes/',
+	'APIs & SDKs': '/docs/paas/apis-and-sdks/',
 	'Reference': '/docs/paas/reference/',
 };
 export const paasEuSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/paas/eu/',
 	'Guides': '/docs/paas/eu/user-guide/',
-	'APIs & SDKs': '/docs/paas/eu/reference/apis-and-sdks/',
+	'Recipes': '/docs/paas/eu/recipes/',
+	'APIs & SDKs': '/docs/paas/eu/apis-and-sdks/',
 	'Reference': '/docs/paas/eu/reference/',
 };
 export const edgeSidebarTabLinks: SidebarTabLinks = {
