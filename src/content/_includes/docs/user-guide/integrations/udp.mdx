@@ -1,0 +1,686 @@
+import DocLink from '@components/DocLink.astro';
+import ImageGallery from '~/components/ImageGallery.astro';
+import DocImage from '~/components/DocImage.astro';
+import Banner from '~/components/Banner.astro';
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Products } from '~/models/site.models';
+
+<Banner variant="peFeature" product={props.product} path="user-guide/integrations/udp" />
+
+UDP Integration allows you to stream data from devices using the UDP protocol to ThingsBoard and convert device payloads to the ThingsBoard format.
+
+<Aside type="note">
+  UDP Integration can only run as a remote integration. It can run on the same machine as your ThingsBoard instance, or on a separate machine with network access to ThingsBoard.
+</Aside>
+
+<DocImage src="/src/assets/images/user-guide/integrations/udp/udp-integration.svg" alt="UDP integration overview diagram" />
+
+## Prerequisites
+
+This tutorial uses:
+
+- A ThingsBoard Professional Edition instance running locally.
+- UDP Integration running as a remote integration connected to the ThingsBoard instance.
+- The `echo` command to produce a line of text, piped to `netcat` (`nc`) to send it over UDP.
+
+The example sensor device **SN-001** publishes temperature and humidity readings to UDP Integration on port **11560**.
+
+Four payload formats are demonstrated. Select the one that matches your device:
+
+<Tabs>
+<TabItem label="Text">
+```
+SN-001,default,temperature,25.7,humidity,69
+```
+</TabItem>
+<TabItem label="JSON">
+```json
+{
+  "deviceName": "SN-001",
+  "deviceType": "default",
+  "temperature": 25.7,
+  "humidity": 69
+}
+```
+</TabItem>
+<TabItem label="Binary">
+The binary payload is 19 bytes:
+```
+\x53\x4e\x2d\x30\x30\x31\x64\x65\x66\x61\x75\x6c\x74\x32\x35\x2e\x37\x36\x39
+```
+
+Byte layout:
+
+- **Bytes 0–5** (`\x53\x4e\x2d\x30\x30\x31`) — device name: `SN-001`.
+- **Bytes 6–12** (`\x64\x65\x66\x61\x75\x6c\x74`) — device type: `default`.
+- **Bytes 13–16** (`\x32\x35\x2e\x37`) — temperature: `25.7`.
+- **Bytes 17–18** (`\x36\x39`) — humidity: `69`.
+</TabItem>
+<TabItem label="Hex">
+```
+534e2d30303164656661756c7432352e373639
+```
+This is the hex-encoded form of the binary payload above, converted to bytes using `xxd -r -p` before sending.
+</TabItem>
+</Tabs>
+
+## Add UDP integration
+
+### Step 1. Basic settings
+
+Go to **Integration center &#8702; Integrations** and click **+ Add integration**. Select type **UDP** and click **Next**.
+
+<DocImage src="/src/assets/images/user-guide/integrations/udp/udp-integration-setup-1.png" alt="Add integration wizard — UDP type selected" />
+
+### Step 2. Create the uplink data converter
+
+The uplink converter parses the incoming UDP payload and transforms it into the ThingsBoard message format. `deviceName` and `deviceType` are required; `attributes` and `telemetry` are flat key-value objects.
+
+<Aside type="tip" title="TBEL">
+  We recommend using <DocLink product={props.product} path="user-guide/tbel">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
+</Aside>
+
+Select the tab matching your payload type:
+
+<Tabs>
+<TabItem label="Text">
+
+Download the uplink converter file:
+
+<Tabs>
+  <TabItem label="TBEL (Recommended)">
+    <a href="/resources/docs/integrations/udp/udp_text_tbel_uplink_converter.json" download="udp_text_tbel_uplink_converter.json"><strong>udp_text_tbel_uplink_converter.json</strong></a>
+  </TabItem>
+  <TabItem label="JavaScript">
+    <a href="/resources/docs/integrations/udp/udp_text_javascript_uplink_converter.json" download="udp_text_javascript_uplink_converter.json"><strong>udp_text_javascript_uplink_converter.json</strong></a>
+  </TabItem>
+</Tabs>
+
+**The decoder function used in this tutorial:**
+
+<Tabs>
+<TabItem label="TBEL (Recommended)">
+```js maxLines=20 collapsible
+/** Decoder **/
+
+// decode payload to string
+var strArray = decodeToString(payload);
+var payloadArray = strArray.replaceAll("\"", "").replaceAll("\\n", "").split(',');
+
+var telemetryPayload = {};
+for (var i = 2; i < payloadArray.length; i = i + 2) {
+    var telemetryKey = payloadArray[i];
+    var telemetryValue = parseFloat(payloadArray[i + 1]);
+    telemetryPayload[telemetryKey] = telemetryValue;
+}
+
+// Result object with device attributes/telemetry data
+var result = {
+    deviceName: payloadArray[0],
+    deviceType: payloadArray[1],
+    telemetry: telemetryPayload,
+    attributes: {}
+};
+
+/** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
+
+return result;
+```
+</TabItem>
+<TabItem label="JavaScript">
+```js maxLines=25 collapsible
+/** Decoder **/
+
+// decode payload to string
+var strArray = decodeToString(payload);
+var payloadArray = strArray.replace(/"/g, "").replace(/\s/g, "").replace(/\\n/g, "").split(',');
+
+var telemetryPayload = {};
+for (var i = 2; i < payloadArray.length; i = i + 2) {
+    var telemetryKey = payloadArray[i];
+    var telemetryValue = parseFloat(payloadArray[i + 1]);
+    telemetryPayload[telemetryKey] = telemetryValue;
+}
+
+// Result object with device attributes/telemetry data
+var result = {
+    deviceName: payloadArray[0],
+    deviceType: payloadArray[1],
+    telemetry: telemetryPayload,
+    attributes: {}
+};
+
+/** Helper functions **/
+
+function decodeToString(payload) {
+   return String.fromCharCode.apply(String, payload);
+}
+
+return result;
+```
+</TabItem>
+</Tabs>
+
+<DocImage src="/src/assets/images/user-guide/integrations/udp/udp-integration-setup-2-text-tbel.png" alt="Uplink converter — text payload, TBEL decoder" />
+
+</TabItem>
+<TabItem label="JSON">
+
+Download the uplink converter file:
+
+<Tabs>
+  <TabItem label="TBEL (Recommended)">
+    <a href="/resources/docs/integrations/udp/udp_json_tbel_uplink_converter.json" download="udp_json_tbel_uplink_converter.json"><strong>udp_json_tbel_uplink_converter.json</strong></a>
+  </TabItem>
+  <TabItem label="JavaScript">
+    <a href="/resources/docs/integrations/udp/udp_json_javascript_uplink_converter.json" download="udp_json_javascript_uplink_converter.json"><strong>udp_json_javascript_uplink_converter.json</strong></a>
+  </TabItem>
+</Tabs>
+
+**The decoder function used in this tutorial:**
+
+<Tabs>
+<TabItem label="TBEL (Recommended)">
+```js maxLines=20 collapsible
+/** Decoder **/
+
+// decode payload to JSON
+var data = decodeToJson(payload);
+
+var deviceName = data.deviceName;
+var deviceType = data.deviceType;
+var result = {
+    deviceName: deviceName,
+    deviceType: deviceType,
+    attributes: {},
+    telemetry: {
+        temperature: data.temperature,
+        humidity: data.humidity
+    }
+};
+
+/** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
+
+return result;
+```
+</TabItem>
+<TabItem label="JavaScript">
+```js maxLines=30 collapsible
+/** Decoder **/
+
+// decode payload to JSON
+var data = decodeToJson(payload);
+
+var deviceName = data.deviceName;
+var deviceType = data.deviceType;
+var result = {
+    deviceName: deviceName,
+    deviceType: deviceType,
+    attributes: {},
+    telemetry: {
+        temperature: data.temperature,
+        humidity: data.humidity
+    }
+};
+
+/** Helper functions **/
+
+function decodeToString(payload) {
+   return String.fromCharCode.apply(String, payload);
+}
+
+function decodeToJson(payload) {
+   var str = decodeToString(payload);
+   var data = JSON.parse(str);
+   return data;
+}
+
+return result;
+```
+</TabItem>
+</Tabs>
+
+<DocImage src="/src/assets/images/user-guide/integrations/udp/udp-integration-setup-2-json-tbel.png" alt="Uplink converter — JSON payload, TBEL decoder" />
+
+</TabItem>
+<TabItem label="Binary">
+
+Download the uplink converter file:
+
+<Tabs>
+  <TabItem label="TBEL (Recommended)">
+    <a href="/resources/docs/integrations/udp/udp_binary_tbel_uplink_converter.json" download="udp_binary_tbel_uplink_converter.json"><strong>udp_binary_tbel_uplink_converter.json</strong></a>
+  </TabItem>
+  <TabItem label="JavaScript">
+    <a href="/resources/docs/integrations/udp/udp_binary_javascript_uplink_converter.json" download="udp_binary_javascript_uplink_converter.json"><strong>udp_binary_javascript_uplink_converter.json</strong></a>
+  </TabItem>
+</Tabs>
+
+**The decoder function used in this tutorial:**
+
+<Tabs>
+<TabItem label="TBEL (Recommended)">
+```js maxLines=20 collapsible
+/** Decoder **/
+
+// decode payload to string
+var payloadStr = decodeToString(payload);
+
+var deviceName = payloadStr.substring(0, 6);
+var deviceType = payloadStr.substring(6, 13);
+
+// Result object with device/asset attributes/telemetry data
+var result = {
+   deviceName: deviceName,
+   deviceType: deviceType,
+   attributes: {},
+   telemetry: {
+       temperature: parseFloat(payloadStr.substring(13, 17)),
+       humidity: parseFloat(payloadStr.substring(17, 19))
+   }
+};
+
+/** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
+
+return result;
+```
+</TabItem>
+<TabItem label="JavaScript">
+```js maxLines=30 collapsible
+/** Decoder **/
+
+// decode payload to string
+var payloadStr = decodeToString(payload);
+
+var deviceName = payloadStr.substring(0, 6);
+var deviceType = payloadStr.substring(6, 13);
+
+// Result object with device/asset attributes/telemetry data
+var result = {
+   deviceName: deviceName,
+   deviceType: deviceType,
+   attributes: {},
+   telemetry: {
+       temperature: parseFloat(payloadStr.substring(13, 17)),
+       humidity: parseFloat(payloadStr.substring(17, 19))
+   }
+};
+
+/** Helper functions **/
+
+function decodeToString(payload) {
+   return String.fromCharCode.apply(String, payload);
+}
+
+function decodeToJson(payload) {
+   var str = decodeToString(payload);
+   var data = JSON.parse(str);
+   return data;
+}
+
+return result;
+```
+</TabItem>
+</Tabs>
+
+<DocImage src="/src/assets/images/user-guide/integrations/udp/udp-integration-setup-2-binary-tbel.png" alt="Uplink converter — binary payload, TBEL decoder" />
+
+</TabItem>
+<TabItem label="Hex">
+
+Download the uplink converter file:
+
+<Tabs>
+  <TabItem label="TBEL (Recommended)">
+    <a href="/resources/docs/integrations/udp/udp_hex_tbel_uplink_converter.json" download="udp_hex_tbel_uplink_converter.json"><strong>udp_hex_tbel_uplink_converter.json</strong></a>
+  </TabItem>
+  <TabItem label="JavaScript">
+    <a href="/resources/docs/integrations/udp/udp_hex_javascript_uplink_converter.json" download="udp_hex_javascript_uplink_converter.json"><strong>udp_hex_javascript_uplink_converter.json</strong></a>
+  </TabItem>
+</Tabs>
+
+**The decoder function used in this tutorial:**
+
+<Tabs>
+<TabItem label="TBEL (Recommended)">
+```js maxLines=20 collapsible
+/** Decoder **/
+
+// decode payload to JSON
+var data = decodeToJson(payload).reports[0].value;
+
+// Result object with device telemetry data
+var result = {
+    deviceName: hexToString(data.substring(0, 12)),
+    deviceType: hexToString(data.substring(12, 26)),
+    telemetry: {
+        temperature: parseFloat(hexToString(data.substring(26, 34))),
+        humidity: parseFloat(hexToString(data.substring(34, 38)))
+    }
+};
+
+/** Helper functions **/
+
+// Hexadecimal string to string
+function hexToString(hex) {
+    return bytesToString(hexToBytes(hex));
+}
+
+return result;
+```
+</TabItem>
+<TabItem label="JavaScript">
+```js maxLines=35 collapsible
+/** Decoder **/
+
+// decode payload to JSON
+var data = decodeToJson(payload).reports[0].value;
+
+// Result object with device telemetry data
+var result = {
+    deviceName: hexToString(data.substring(0, 12)),
+    deviceType: hexToString(data.substring(12, 26)),
+    telemetry: {
+        temperature: parseFloat(hexToString(data.substring(26, 34))),
+        humidity: parseFloat(hexToString(data.substring(34, 38)))
+    }
+};
+
+/** Helper functions **/
+
+function decodeToString(payload) {
+    return String.fromCharCode.apply(String, payload);
+}
+
+// Hexadecimal string to string
+function hexToString(hex) {
+    var str = '';
+    for (var i = 0; i < hex.length; i += 2) {
+        var notNullValue = parseInt(hex.substr(i, 2), 16);
+        if (notNullValue) {
+            str += String.fromCharCode(notNullValue);
+        }
+    }
+    return str;
+}
+
+function decodeToJson(payload) {
+    var str = decodeToString(payload);
+    var data = JSON.parse(str);
+    return data;
+}
+
+return result;
+```
+</TabItem>
+</Tabs>
+
+<DocImage src="/src/assets/images/user-guide/integrations/udp/udp-integration-setup-2-hex-tbel.png" alt="Uplink converter — hex payload, TBEL decoder" />
+
+</TabItem>
+</Tabs>
+
+<Steps>
+  <ol start="1">
+    <li>Go to **Integration center &#8702; Data converters**.</li>
+    <li>Click **+ Add data converter &#8702; Import converter**.</li>
+    <li>Drag and drop the downloaded JSON file into the **Import converter** window and click **Import**.</li>
+    <li>Back in the integration wizard, select the imported converter and click **Next**.</li>
+  </ol>
+</Steps>
+
+<Aside type="caution">
+  Debug mode is useful during development, but leaving it on in production significantly increases disk usage. Disable it once you have finished testing.
+</Aside>
+
+### Step 3. Downlink data converter
+
+Leave the **Downlink data converter** field empty for now and click **Skip**.
+
+<DocImage src="/src/assets/images/user-guide/integrations/udp/udp-integration-setup-3.png" alt="Add integration wizard — downlink converter skipped" />
+
+### Step 4. Connection settings
+
+UDP Integration always runs as a remote integration — the **Execute remotely** option is enabled and cannot be changed.
+
+By default, UDP Integration listens on port **11560**. You can change this to any available port.
+
+Copy the **Integration key** and **Integration secret** — you will need them when configuring the remote UDP Integration service.
+
+The **Enable broadcast** option is enabled by default. When enabled, the integration accepts UDP packets sent to the broadcast address.
+
+Select your payload type to configure the handler:
+
+<Tabs>
+<TabItem label="Text">
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/udp/handler-configuration-text.png', alt: 'Handler configuration — text payload type selected' },
+  { src: '/src/assets/images/user-guide/integrations/udp/udp-integration-setup-4-text.png', alt: 'Connection settings — text payload handler configuration' },
+]} />
+
+Set the following handler value:
+
+- **Charset Name** — incoming bytes will be converted to a string using this charset. Leave the default **UTF-8**.
+
+</TabItem>
+<TabItem label="JSON">
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/udp/handler-configuration-json.png', alt: 'Handler configuration — JSON payload type selected' },
+  { src: '/src/assets/images/user-guide/integrations/udp/udp-integration-setup-4-json.png', alt: 'Connection settings — JSON payload handler configuration' },
+]} />
+
+</TabItem>
+<TabItem label="Binary">
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/udp/handler-configuration-binary.png', alt: 'Handler configuration — binary payload type selected' },
+  { src: '/src/assets/images/user-guide/integrations/udp/udp-integration-setup-4-binary.png', alt: 'Connection settings — binary payload handler configuration' },
+]} />
+
+</TabItem>
+<TabItem label="Hex">
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/udp/handler-configuration-hex.png', alt: 'Handler configuration — hex payload type selected' },
+  { src: '/src/assets/images/user-guide/integrations/udp/udp-integration-setup-4-hex.png', alt: 'Connection settings — hex payload handler configuration' },
+]} />
+
+</TabItem>
+</Tabs>
+
+Click **Add** to save the integration.
+
+## Install and run the remote UDP integration
+
+Refer to the <DocLink product={props.product} path="user-guide/integrations/remote-integrations">remote integration guide</DocLink> to install and start the UDP Integration service locally or on a separate machine.
+
+Use the **Integration key** and **Integration secret** from Step 4 when configuring the service.
+
+## Send uplink message
+
+Once the UDP integration is active, the UDP server starts and waits for device data.
+
+Select your payload type:
+
+<Tabs>
+<TabItem label="Text">
+
+```bash
+echo -e 'SN-001,default,temperature,25.7,humidity,69' | nc -w5 -u 127.0.0.1 11560
+```
+
+<DocImage src="/src/assets/images/user-guide/integrations/udp/terminal-text.png" alt="Terminal — send text payload to UDP integration" />
+
+</TabItem>
+<TabItem label="JSON">
+
+```bash
+echo -e -n '{"deviceName": "SN-001", "deviceType": "default", "temperature": 25.7, "humidity": 69}' | nc -w60 -u 127.0.0.1 11560
+```
+
+<DocImage src="/src/assets/images/user-guide/integrations/udp/terminal-json.png" alt="Terminal — send JSON payload to UDP integration" />
+
+</TabItem>
+<TabItem label="Binary">
+
+```bash
+echo -e -n '\x53\x4e\x2d\x30\x30\x31\x64\x65\x66\x61\x75\x6c\x74\x32\x35\x2e\x37\x36\x39' | nc -w5 -u 127.0.0.1 11560
+```
+
+<DocImage src="/src/assets/images/user-guide/integrations/udp/terminal-binary.png" alt="Terminal — send binary payload to UDP integration" />
+
+</TabItem>
+<TabItem label="Hex">
+
+```bash
+echo -e -n '534e2d30303164656661756c7432352e373639' | xxd -r -p | nc -w5 -u 127.0.0.1 11560
+```
+
+<DocImage src="/src/assets/images/user-guide/integrations/udp/terminal-hex.png" alt="Terminal — send hex payload to UDP integration" />
+
+</TabItem>
+</Tabs>
+
+Go to **Entities &#8702; Devices**. Device **SN-001** is created automatically by the integration. Open it and check the **Latest Telemetry** tab — you should see `temperature = 25.7` and `humidity = 69`.
+
+<DocImage src="/src/assets/images/user-guide/integrations/udp/udp-integration-add-device.png" alt="Device SN-001 latest telemetry showing temperature and humidity" />
+
+## Downlink
+
+To send messages from ThingsBoard back to a device, add a downlink converter to the integration and configure a rule chain.
+
+### Step 5. Add the downlink converter
+
+The downlink converter encodes outgoing ThingsBoard messages into the format expected by the device.
+
+<Aside type="tip" title="TBEL">
+  We recommend using <DocLink product={props.product} path="user-guide/tbel">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
+</Aside>
+
+Download the downlink converter file:
+
+<Tabs>
+  <TabItem label="TBEL (Recommended)">
+    <a href="/resources/docs/integrations/udp/udp_tbel_downlink_converter.json" download="udp_tbel_downlink_converter.json"><strong>udp_tbel_downlink_converter.json</strong></a>
+  </TabItem>
+  <TabItem label="JavaScript">
+    <a href="/resources/docs/integrations/udp/udp_javascript_downlink_converter.json" download="udp_javascript_downlink_converter.json"><strong>udp_javascript_downlink_converter.json</strong></a>
+  </TabItem>
+</Tabs>
+
+**The encoder used in this tutorial:**
+
+<Tabs>
+<TabItem label="TBEL (Recommended)">
+```js maxLines=15 collapsible
+// Result object with encoded downlink payload
+var result = {
+
+    // downlink data content type: JSON, TEXT or BINARY (base64 format)
+    contentType: "JSON",
+
+    // downlink data
+    data: JSON.stringify(msg),
+
+    // Optional metadata object presented in key/value format
+    metadata: {}
+
+};
+
+return result;
+```
+</TabItem>
+<TabItem label="JavaScript">
+```js maxLines=15 collapsible
+// Result object with encoded downlink payload
+var result = {
+
+    // downlink data content type: JSON, TEXT or BINARY (base64 format)
+    contentType: "JSON",
+
+    // downlink data
+    data: JSON.stringify(msg),
+
+    // Optional metadata object presented in key/value format
+    metadata: {}
+
+};
+
+return result;
+```
+</TabItem>
+</Tabs>
+
+To assign the downlink converter to the integration:
+
+<Steps>
+1. Go to **Integration center &#8702; Integrations**, open the UDP integration, and click the edit (pencil) icon.
+2. In the **Downlink data converter** field, enter a name and click **Create new converter**.
+3. Paste the encoder script and click **Add**.
+4. Click **Apply changes**.
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/udp/udp-add-downlink-converter-tbel-1.png', alt: 'Open UDP integration edit mode', caption: 'Open the integration and click the pencil icon' },
+  { src: '/src/assets/images/user-guide/integrations/udp/udp-add-downlink-converter-tbel-2.png', alt: 'Create a new downlink converter', caption: 'Enter a name and click Create new converter' },
+  { src: '/src/assets/images/user-guide/integrations/udp/udp-add-downlink-converter-tbel-3.png', alt: 'Paste the encoder script', caption: 'Paste the encoder script and click Add' },
+  { src: '/src/assets/images/user-guide/integrations/udp/udp-add-downlink-converter-tbel-4.png', alt: 'Apply changes', caption: 'Apply changes to save the downlink converter' },
+]} />
+
+<Aside type="note">
+  The UDP integration supports optional **Cache Size** and **Cache time to live in minutes** settings for the downlink. **Cache Size** limits the number of stored messages per UDP client. **Cache time to live** controls how long messages are retained before being discarded.
+</Aside>
+
+### Step 6. Configure the Root Rule Chain
+
+Route **Attributes Updated** and **Post Attributes** messages to the downlink converter via the Rule Engine:
+
+<Steps>
+1. Go to **Rule chains** and open the **Root Rule Chain**.
+2. Find the **Integration Downlink** node, drag it onto the canvas, name it `UDP Downlink`, select the UDP integration, and click **Add**.
+3. Connect the **Message Type Switch** node to the **Integration Downlink** node using both **Attributes Updated** and **Post Attributes** relation types.
+4. Save the rule chain.
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/udp/rule-chain-downlink-1.png', alt: 'Rule chain — Integration Downlink node added for UDP', caption: 'Add the Integration Downlink node and select the UDP integration' },
+  { src: '/src/assets/images/user-guide/integrations/udp/rule-chain-downlink-2.png', alt: 'Rule chain — connecting Message Type Switch to Integration Downlink', caption: 'Connect Message Type Switch to Integration Downlink' },
+  { src: '/src/assets/images/user-guide/integrations/udp/rule-chain-downlink-3.png', alt: 'Rule chain — Attributes Updated and Post Attributes connections saved', caption: 'Attributes Updated and Post Attributes connections saved' },
+]} />
+
+### Step 7. Test the downlink
+
+<Steps>
+1. Go to **Entities &#8702; Devices**, open device **SN-001**, and click the **Attributes** tab.
+2. Switch to **Shared attributes** and click **+**.
+3. Enter an attribute key and value (e.g. key: `firmware`, value: `v1.1`) and click **Save**.
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/udp/udp-add-shared-attribute-1.png', alt: 'Device SN-001 — Attributes tab, Shared attributes selected', caption: 'Go to the Attributes tab and select Shared attributes' },
+  { src: '/src/assets/images/user-guide/integrations/udp/udp-add-shared-attribute-2.png', alt: 'Add shared attribute — key firmware, value v1.1', caption: 'Enter the attribute key and value, then click Save' },
+  { src: '/src/assets/images/user-guide/integrations/udp/udp-add-shared-attribute-3.png', alt: 'Shared attribute saved', caption: 'Shared attribute saved successfully' },
+]} />
+
+To receive the downlink response, set the `-w10` timeout (wait up to 10 seconds for a response) and send an uplink:
+
+```bash
+echo -e 'SN-001,default,temperature,25.7,humidity,69' | nc -w10 -u 127.0.0.1 11560
+```
+
+<DocImage src="/src/assets/images/user-guide/integrations/udp/terminal-add-attribute.png" alt="Terminal showing downlink response received from ThingsBoard" />
+
+<Aside type="note">
+  When the UDP connection stays open for an extended time, only one downlink message is delivered immediately. Subsequent messages are queued on the server and sent on the next uplink.
+</Aside>
+
+## See also
+
+- <DocLink product={props.product} path="user-guide/integrations">Integration Overview</DocLink>
+- <DocLink product={props.product} path="user-guide/integrations/remote-integrations">Remote Integrations</DocLink>
+- <DocLink product={props.product} path="user-guide/integrations#uplink-data-converter">Uplink Converters</DocLink>
+- <DocLink product={props.product} path="user-guide/integrations#downlink-data-converter">Downlink Converters</DocLink>
+- <DocLink product={props.product} path="user-guide/rule-engine-2-0/re-getting-started">Rule Engine</DocLink>
+- <DocLink product={props.product} path="user-guide/tbel">ThingsBoard Expression Language (TBEL)</DocLink>

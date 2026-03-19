@@ -1,0 +1,91 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+import { Products } from '~/models/site.models';
+
+<Aside type="note">
+  This node requires **ThingsBoard PE** or **ThingsBoard Cloud**.
+</Aside>
+
+Use this node when you need to compute rolling statistics over a stream of incoming messages — for example, hourly average temperature, daily total energy consumption, or the maximum pressure reading per shift. It groups messages by originator and aggregation interval, computes the result in memory, and emits a `POST_TELEMETRY_REQUEST` at the end of each interval.
+
+Intervals can be persisted to storage periodically to avoid data loss on restart, and a default-value mechanism lets you fill in gaps for entities that stopped reporting.
+
+<Aside type="caution">
+  This node is **order-sensitive**: delayed or out-of-order messages that arrive after their interval has already ended are silently ignored and not included in the aggregated result. Duplicate messages are also counted.
+
+  If your data sources produce late-arriving telemetry or you need the ability to re-process historical data, consider using <DocLink product={Products.CE} path="user-guide/calculated-fields/time-series-data-aggregation">Time Series Data Aggregation</DocLink> or <DocLink product={Products.CE} path="user-guide/calculated-fields/related-entities-aggregation">Related Entities Aggregation</DocLink> (Calculated Fields) instead — they aggregate from stored data on demand and are not affected by message ordering or duplicates.
+</Aside>
+
+---
+
+## Configuration
+
+### Aggregation
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| **Aggregation function** | Yes | `MIN`, `MAX`, `SUM`, `AVG`, `COUNT`, or `UNIQUE` |
+| **Interval** | Yes | The time window over which values are aggregated (e.g., 1 hour) |
+| **Queue name** | No | The rule engine queue to use for emitting result messages |
+
+### Persistence
+
+| Field | Description |
+|-------|-------------|
+| **Interval persistence policy** | Controls when in-progress intervals are written to storage: *After each message*, *Periodically*, or *On interval end* |
+| **Interval check value** | Interval in seconds between persistence writes (for the *Periodically* policy) |
+| **Interval TTL value** | How long completed intervals are cached in memory before eviction (seconds) |
+| **State persistence policy** | Controls how often the aggregation state is saved: *After each message* or *Periodically* |
+| **State persistence value** | Interval in seconds between state saves (for the *Periodically* policy) |
+
+### Default values
+
+| Field | Description |
+|-------|-------------|
+| **Create intervals automatically** | When enabled, default-value messages are emitted for entities in the configured entity group even if no data arrives during an interval |
+| **Interval entities** | Entity group whose members receive default-value messages when no data is reported |
+
+---
+
+## Output message
+
+At the end of each aggregation interval the node emits a `POST_TELEMETRY_REQUEST` message with the aggregated result:
+
+```json
+{
+  "ts": <interval end timestamp in ms>,
+  "values": {
+    "<telemetry key>": <aggregated value>
+  }
+}
+```
+
+The originator of the output message is the same as the originator of the input messages.
+
+---
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Aggregated result message emitted at interval end |
+| `Failure` | Unexpected error during processing |
+
+---
+
+## Example — Hourly average temperature
+
+**Configuration:** Function = `AVG`, Interval = `1 hour`, Interval persistence = *On interval end*.
+
+**Incoming messages:** a stream of `POST_TELEMETRY_REQUEST` messages from a temperature sensor with key `temperature`.
+
+**Result:** at the end of each hour, one message is emitted with the average temperature for that hour:
+
+```json maxLines=15 collapsible
+{
+  "ts": 1700006400000,
+  "values": { "temperature": 22.3 }
+}
+```
+
+This message can be piped directly into a **Save time series** node to persist the hourly average alongside raw readings.

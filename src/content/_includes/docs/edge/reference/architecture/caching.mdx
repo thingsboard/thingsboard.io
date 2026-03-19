@@ -1,0 +1,121 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+import { Products } from '~/models/site.models';
+
+ThingsBoard Edge caches frequently accessed data — device credentials, entity profiles, attributes, and active sessions — to avoid a database query on every incoming message. Because Edge validates device credentials on every MQTT publish or HTTP POST, the cache is the primary factor in per-message throughput.
+
+## Cache backend
+
+Set the cache backend with the `CACHE_TYPE` environment variable:
+
+| Backend | `CACHE_TYPE` | Storage | Best for |
+|---------|-------------|---------|----------|
+| **Caffeine** | `caffeine` | JVM heap on the Edge node | Single-node deployments (default) |
+| **Redis / Valkey** | `redis` | External shared store | Multi-node Edge clusters (4.0+) |
+
+<Aside type="tip">
+  Caffeine is the right choice for most Edge deployments. It requires no extra infrastructure and has no network overhead. Switch to Redis or Valkey only when running a multi-node Edge cluster introduced in Edge 4.0, where all nodes need to share the same cache state.
+</Aside>
+
+With Caffeine, the cache lives in the JVM heap of the Edge process. Because Edge typically runs on hardware with limited RAM — 512 MB to 4 GB — size each cache namespace conservatively. Every entry stays in memory until it expires or is evicted by the LRU policy.
+
+## What gets cached
+
+ThingsBoard Edge maintains separate cache namespaces, each with its own TTL and size limit.
+
+| Cache namespace | Default TTL (min) | Default max size | Why it matters |
+|----------------|-------------------|-----------------|----------------|
+| **Device credentials** | 1440 (24 h) | 10,000 | Checked on every incoming message — the most frequently hit cache on Edge. |
+| **Sessions** | 1440 | 10,000 | Active device session lookups for persistent MQTT connections. |
+| **Device profiles** | 1440 | 10,000 | Alarm rules, transport configuration, and provisioning settings. |
+| **Tenants** | 1440 | 10,000 | Rate limits and feature flags for the Edge tenant. |
+| **Devices** | 1440 | 10,000 | Device metadata — name, type, and label. |
+| **Attributes** | 1440 | 100,000 | Server, client, and shared attributes. |
+| **TS latest** | 1440 | 100,000 | Latest time-series values for dashboards. |
+| **Relations** | 1440 | 10,000 | Entity hierarchy links used in rule chains. |
+| **Assets** | 1440 | 10,000 | Asset metadata. |
+| **Customers** | 1440 | 10,000 | Customer metadata. |
+| **Users** | 1440 | 10,000 | User accounts. |
+| **Entity views** | 1440 | 10,000 | Entity view definitions. |
+| **Asset profiles** | 1440 | 10,000 | Asset profile configurations. |
+| **Security settings** | 1440 | 10,000 | Platform security configuration. |
+| **Rate limits** | 120 (2 h) | 200,000 | Per-device rate limit counters. |
+| **Notification settings** | 10 | 1,000 | Notification delivery configuration. |
+
+The **Attributes** and **TS latest** caches have the largest default size (100,000 entries) because dashboards and rule chains read these values on every refresh. Disable them with `CACHE_ATTRIBUTES_ENABLED=false` and `CACHE_TS_LATEST_ENABLED=false` if you need to reclaim heap memory, at the cost of more frequent PostgreSQL reads.
+
+## TTL and size tuning
+
+Every cache namespace exposes two environment variables:
+
+- `CACHE_SPECS_{NAME}_TTL` — time-to-live in minutes. An entry is evicted from cache this many minutes after it was written.
+- `CACHE_SPECS_{NAME}_MAX_SIZE` — maximum entry count. When full, the least-recently-used entry is evicted.
+
+For example, to double the device credentials cache capacity:
+
+```properties
+CACHE_SPECS_DEVICE_CREDENTIALS_TTL=1440
+CACHE_SPECS_DEVICE_CREDENTIALS_MAX_SIZE=20000
+```
+
+Sizing guidance for Edge hardware:
+
+- Set `MAX_SIZE` for device credentials and sessions to at least the total number of devices connected to this Edge instance.
+- On hardware with under 1 GB RAM, reduce the **Attributes** and **TS latest** max sizes from 100,000 to 10,000–20,000 to limit heap pressure.
+- Monitor the cache hit ratio in Edge logs. A hit ratio below 90% on the credentials or sessions cache means entries are being evicted before they can be reused — increase the cache size or reduce the number of active devices per Edge instance.
+
+## Redis and Valkey connection
+
+When `CACHE_TYPE=redis`, configure the connection to your Redis or Valkey server.
+
+### Standalone
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `REDIS_HOST` | `localhost` | Redis or Valkey server hostname. |
+| `REDIS_PORT` | `6379` | Redis or Valkey server port. |
+| `REDIS_DB` | `0` | Database index. |
+| `REDIS_PASSWORD` | _(empty)_ | Authentication password. |
+| `REDIS_USERNAME` | _(empty)_ | Authentication username (ACL-based auth). |
+
+### Sentinel
+
+Redis Sentinel provides automatic failover. Edge connects to the sentinel nodes, which direct it to the current master.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `REDIS_MASTER` | _(empty)_ | Name of the master node as configured in sentinel. |
+| `REDIS_SENTINELS` | _(empty)_ | Comma-separated `host:port` pairs of sentinel nodes. |
+| `REDIS_SENTINEL_PASSWORD` | _(empty)_ | Sentinel authentication password. |
+
+### Cluster
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `REDIS_NODES` | _(empty)_ | Comma-separated `host:port` pairs of cluster nodes. |
+| `REDIS_MAX_REDIRECTS` | `12` | Maximum cluster redirects before failing a request. |
+
+### SSL/TLS
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `TB_REDIS_SSL_ENABLED` | `false` | Enables TLS for the Redis connection. |
+| `TB_REDIS_SSL_PEM_CERT` | _(empty)_ | Path to the client certificate file. |
+| `TB_REDIS_SSL_PEM_KEY` | _(empty)_ | Path to the client private key file. |
+| `TB_REDIS_SSL_PEM_KEY_PASSWORD` | _(empty)_ | Password for the private key file. |
+
+## Redis connection pool
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `REDIS_POOL_CONFIG_MAX_TOTAL` | `128` | Maximum total connections in the pool. |
+| `REDIS_POOL_CONFIG_MAX_IDLE` | `128` | Maximum idle connections. |
+| `REDIS_POOL_CONFIG_MIN_IDLE` | `16` | Minimum idle connections kept ready. |
+| `REDIS_POOL_CONFIG_MAX_WAIT_MS` | `60000` | Maximum wait time in milliseconds when the pool is exhausted. |
+| `REDIS_POOL_CONFIG_TEST_WHILE_IDLE` | `true` | Validates idle connections with a PING command. |
+| `REDIS_CLIENT_CONNECT_TIMEOUT` | `30000` | Connection timeout in milliseconds. |
+| `REDIS_CLIENT_READ_TIMEOUT` | `60000` | Read timeout in milliseconds. |
+
+<Aside type="tip">
+  If you see "Could not get a resource from the pool" errors in the Edge log, increase `REDIS_POOL_CONFIG_MAX_TOTAL`. Each Edge thread that accesses the cache needs its own Redis connection while the request is in flight.
+</Aside>

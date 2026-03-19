@@ -1,0 +1,447 @@
+import DocLink from '@components/DocLink.astro';
+import ImageGallery from '~/components/ImageGallery.astro';
+import DocImage from '~/components/DocImage.astro';
+import Banner from '~/components/Banner.astro';
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Products } from '~/models/site.models';
+
+<Banner variant="peFeature" product={props.product} path="user-guide/integrations/loriot" />
+
+LORIOT is a LoRaWAN network designed for connecting devices using the LoRaWAN stack.
+After integrating LORIOT with ThingsBoard, you can connect, communicate, process, and visualize data from devices in the ThingsBoard IoT platform.
+
+## Register a LORIOT account
+
+<Steps>
+1. Go to the <a href="https://loriot.io/" target="_blank" rel="noopener noreferrer">LORIOT website</a> and choose a service package (e.g. Community Public Network Server).
+2. Pick your preferred region and country, then complete the registration and log in.
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/loriot/create-loriot-account-1.png', alt: 'LORIOT registration — select service package', caption: 'Select a service package on the LORIOT website' },
+  { src: '/src/assets/images/user-guide/integrations/loriot/create-loriot-account-2.png', alt: 'LORIOT registration — select region', caption: 'Choose your preferred region' },
+  { src: '/src/assets/images/user-guide/integrations/loriot/create-loriot-account-3.png', alt: 'LORIOT registration — complete form', caption: 'Complete the registration form' },
+  { src: '/src/assets/images/user-guide/integrations/loriot/create-loriot-account-4.png', alt: 'LORIOT dashboard after login', caption: 'LORIOT dashboard after successful login' },
+]} />
+
+<Aside type="note">
+  The LORIOT interface may change in the future.
+</Aside>
+
+## ThingsBoard setup
+
+### Step 1. Basic settings
+
+<Steps>
+1. Sign in to your ThingsBoard account and go to **Integration center &#8702; Integrations**.
+2. Click **+ Add integration** and select **Loriot** from the list.
+3. Optionally enable **Debug mode** to track events and errors during development.
+4. Click **Next**.
+</Steps>
+
+<Aside type="note">
+  Enabling debug mode stores all debug events in the database. Starting from ThingsBoard 3.9, full debug events are retained only for the first 15 minutes after the integration is created — afterward, only error events are stored.
+</Aside>
+
+<DocImage src="/src/assets/images/user-guide/integrations/loriot/loriot-add-integration-1.png" alt="Add Loriot integration — basic settings step" />
+
+### Step 2. Create the uplink data converter
+
+The uplink converter transforms incoming LORIOT messages into the ThingsBoard message format.
+
+Starting from ThingsBoard 4.0, you can specify where message fields go (attributes or telemetry) without writing a decoder function manually.
+
+**Sample uplink message from LORIOT:**
+
+```json
+{
+  "cmd":  "rx",
+  "EUI":  "BE7A000000000552",
+  "ts":   1470850675433,
+  "ack":  false,
+  "fcnt": 1,
+  "port": 1,
+  "data": "2A3F",
+  "freq": 868500000,
+  "dr":   "SF12 BW125 4/5",
+  "rssi": -130,
+  "snr":  1.2
+}
+```
+
+The `EUI` field uniquely identifies the device. The `data` field contains the encoded payload — in this example, `2A` decodes to temperature `42` and `3F` decodes to humidity `63`.
+
+Using the pattern `Device $eui` as the entity name, the device will be created with the name `Device BE7A000000000552`.
+
+**Follow these steps:**
+
+<Steps>
+1. Paste the provided decoder function into the Main decoding configuration field:
+</Steps>
+
+<Aside type="tip" title="TBEL">
+  We recommend using <DocLink product={props.product} path="user-guide/tbel">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
+</Aside>
+
+<Tabs>
+<TabItem label="TBEL (Recommended)">
+```js maxLines=15 collapsible
+var data = decodeToJson(payload);
+
+// Decode hex data field: first byte = temperature, second byte = humidity
+var hexData = data.data;
+var decoded = {};
+if (hexData != null && hexData.length >= 4) {
+    decoded.temperature = parseInt(hexData.substring(0, 2), 16);
+    decoded.humidity = parseInt(hexData.substring(2, 4), 16);
+}
+
+var result = {
+    deviceName: 'Device ' + data.EUI,
+    deviceType: 'loriot',
+    attributes: {
+        eui: data.EUI,
+        ack: data.ack,
+        port: data.port
+    },
+    telemetry: decoded
+};
+
+return result;
+```
+</TabItem>
+<TabItem label="JavaScript">
+```js maxLines=15 collapsible
+var data = decodeToJson(payload);
+
+// Decode hex data field: first byte = temperature, second byte = humidity
+var hexData = data.data;
+var decoded = {};
+if (hexData != null && hexData.length >= 4) {
+    decoded.temperature = parseInt(hexData.substring(0, 2), 16);
+    decoded.humidity = parseInt(hexData.substring(2, 4), 16);
+}
+
+var result = {
+    deviceName: 'Device ' + data.EUI,
+    deviceType: 'loriot',
+    attributes: {
+        eui: data.EUI,
+        ack: data.ack,
+        port: data.port
+    },
+    telemetry: decoded
+};
+
+function decodeToString(payload) {
+    return String.fromCharCode.apply(String, payload);
+}
+
+function decodeToJson(payload) {
+    var str = decodeToString(payload);
+    var data = JSON.parse(str);
+    return data;
+}
+
+return result;
+```
+</TabItem>
+</Tabs>
+
+<Steps>
+  <ol start="2">
+    <li>Click **Next**.</li>
+  </ol>
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/loriot/loriot-add-integration-2-1.png', alt: 'Uplink data converter configuration — entity type and name pattern', caption: 'Set entity type to Device and name pattern to Device $eui' },
+  { src: '/src/assets/images/user-guide/integrations/loriot/loriot-add-integration-2-2.png', alt: 'Uplink data converter configuration — attributes and telemetry keys', caption: 'Specify attributes and telemetry keys in the advanced section' },
+]} />
+
+### Step 3. Add a downlink data converter (optional)
+
+At this step you can select a previously created downlink converter or create a new one. To skip for now, leave the **Downlink data converter** field empty and click **Skip**.
+
+<DocImage src="/src/assets/images/user-guide/integrations/loriot/loriot-add-integration-3.png" alt="Downlink data converter step — skipped" />
+
+### Step 4. Connection
+
+There are two ways to connect LORIOT to ThingsBoard.
+
+#### Option A: Configure HTTP push in LORIOT (recommended)
+
+<Steps>
+1. Go to the **Applications** page in the LORIOT UI and open your application.
+2. Open the **Output** page and click **Add new output**.
+3. Select **HTTP Push** as the output type.
+4. Copy the **HTTP endpoint URL** from your ThingsBoard integration details (see [finding the HTTP endpoint URL](#send-uplink-message)).
+5. Paste the URL into the HTTP Push configuration and click **Add output**.
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/loriot/loriot-http-push-1.png', alt: 'LORIOT Applications page', caption: 'Open your application on the Applications page' },
+  { src: '/src/assets/images/user-guide/integrations/loriot/loriot-http-push-2.png', alt: 'LORIOT Output page', caption: 'Open the Output page and click Add new output' },
+  { src: '/src/assets/images/user-guide/integrations/loriot/loriot-http-push-3.png', alt: 'Select HTTP Push output type', caption: 'Select HTTP Push as the output type' },
+  { src: '/src/assets/images/user-guide/integrations/loriot/loriot-http-push-4.png', alt: 'Enter HTTP endpoint URL', caption: 'Paste the ThingsBoard HTTP endpoint URL' },
+  { src: '/src/assets/images/user-guide/integrations/loriot/loriot-http-push-5.png', alt: 'HTTP Push output added successfully', caption: 'HTTP Push output added successfully' },
+]} />
+
+#### Option B: Automatic setup via ThingsBoard
+
+<Steps>
+1. In the ThingsBoard integration wizard, enable **Create Loriot Application output**.
+2. Fill in the **Server** and **Application ID** fields (see [finding server and application ID](#finding-server-and-application-id)).
+3. Select **Basic** as the credential type and enter your LORIOT account credentials.
+4. Click **Add**.
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/loriot/loriot-add-integration-4-1.png', alt: 'Enable Create Loriot Application output option', caption: 'Enable the Create Loriot Application output toggle' },
+  { src: '/src/assets/images/user-guide/integrations/loriot/loriot-add-integration-4-2.png', alt: 'Fill in server, application ID, and credentials', caption: 'Enter the server, application ID, and LORIOT credentials' },
+]} />
+
+#### Finding server and application ID
+
+**Server:** Open the LORIOT UI. The URL contains the server name chosen during registration — use this value in the integration settings.
+
+<DocImage src="/src/assets/images/user-guide/integrations/loriot/loriot-server.png" alt="LORIOT URL showing server name" />
+
+**Application ID:** Locate the Application ID in your LORIOT project — use this value in the integration settings.
+
+<DocImage src="/src/assets/images/user-guide/integrations/loriot/loriot-application-id.png" alt="LORIOT application page showing Application ID" />
+
+#### Enable security (optional)
+
+To reject requests that don't include specific HTTP headers, enable the **Enable security** option:
+
+<Steps>
+1. Turn on **Enable security** in the integration connection settings.
+2. Click **Add** and enter an arbitrary **Header** name and **Value**.
+3. Save the changes.
+4. Add the same header and value in the LORIOT HTTP Push output configuration using the format `-H "header:value"` (e.g. `-H "authorization:secret"`).
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/loriot/loriot-enable-security-1.png', alt: 'Enable security option in integration settings', caption: 'Turn on Enable security and add a header/value pair' },
+  { src: '/src/assets/images/user-guide/integrations/loriot/loriot-enable-security-2.png', alt: 'Security header configuration', caption: 'Enter the header name and value to validate incoming requests' },
+]} />
+
+## Send uplink message
+
+To emulate a device message without a physical LORIOT device, use the following `curl` command:
+
+**Find the HTTP endpoint URL:** Go to **Integration center &#8702; Integrations**, open your Loriot integration, and copy the **HTTP endpoint URL**.
+
+<DocImage src="/src/assets/images/user-guide/integrations/loriot/loriot-copy-http-endpoint.png" alt="Copy HTTP endpoint URL from the Loriot integration details" />
+
+**Without security:**
+
+```bash
+curl -v -X POST \
+  -d '{"EUI":"BE7A000000000552","data":"2A3F","port":1,"cmd":"rx","dr":"SF12 BW125 4/5","snr":1.2,"ack":"false","freq":868500000,"fcnt":1,"rssi":-130,"ts":1613745998000}' \
+  $HTTP_ENDPOINT_URL \
+  -H "Content-Type:application/json"
+```
+
+**With security:**
+
+```bash
+curl -v -X POST \
+  -d '{"EUI":"BE7A000000000552","data":"2A3F","port":1,"cmd":"rx","dr":"SF12 BW125 4/5","snr":1.2,"ack":"false","freq":868500000,"fcnt":1,"rssi":-130,"ts":1613745998000}' \
+  $HTTP_ENDPOINT_URL \
+  -H "Content-Type:application/json" \
+  -H "$HEADER:$VALUE"
+```
+
+After sending the message, go to **Entities &#8702; Devices**. A new device is automatically created and its **Latest telemetry** tab shows the decoded values.
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/loriot/loriot-device-attributes-1.png', alt: 'Device created automatically after uplink message', caption: 'Device created automatically in the Devices list' },
+  { src: '/src/assets/images/user-guide/integrations/loriot/loriot-device-attributes-2.png', alt: 'Device latest telemetry showing decoded temperature and humidity', caption: 'Device latest telemetry with decoded temperature and humidity values' },
+]} />
+
+You can also inspect the raw **In**, **Out**, and **Metadata** data in the uplink converter's **Events** tab.
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/loriot/loriot-uplink-converter-events-1.png', alt: 'Uplink converter events — In tab', caption: 'Events tab: In block showing the raw incoming message' },
+  { src: '/src/assets/images/user-guide/integrations/loriot/loriot-uplink-converter-events-2.png', alt: 'Uplink converter events — Out tab', caption: 'Events tab: Out block showing the converted result' },
+  { src: '/src/assets/images/user-guide/integrations/loriot/loriot-uplink-converter-events-3.png', alt: 'Uplink converter events — Metadata tab', caption: 'Events tab: Metadata block' },
+  { src: '/src/assets/images/user-guide/integrations/loriot/loriot-uplink-converter-events-4.png', alt: 'Uplink converter events — additional event details', caption: 'Full event details in the uplink converter' },
+]} />
+
+## Create a downlink converter
+
+The downlink converter encodes ThingsBoard commands into LORIOT-compatible messages. Use either TBEL or JavaScript.
+
+**Required metadata fields:**
+- `EUI` — the device EUI from LORIOT
+- `port` — the LoRaWAN port (1–223)
+
+To find the device EUI in LORIOT, open the **Devices** section and locate the EUI value for your device.
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/loriot/loriot-devices.png', alt: 'LORIOT Devices page', caption: 'Devices page in the LORIOT UI' },
+  { src: '/src/assets/images/user-guide/integrations/loriot/loriot-device-eui.png', alt: 'LORIOT device EUI value', caption: 'Device EUI shown in the LORIOT device details' },
+]} />
+
+<h4>Import the downlink converter</h4>
+
+<Aside type="tip" title="TBEL">
+  We recommend using <DocLink product={props.product} path="user-guide/tbel">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
+</Aside>
+
+<Steps>
+  <ol start="1">
+    <li>Download the downlink converter file:</li>
+  </ol>
+</Steps>
+
+<Tabs>
+  <TabItem label="TBEL (Recommended)">
+    <a href="/resources/docs/integrations/loriot/loriot_tbel_downlink_converter.json" download="loriot_tbel_downlink_converter.json"><strong>loriot_tbel_downlink_converter.json</strong></a>
+  </TabItem>
+  <TabItem label="JavaScript">
+    <a href="/resources/docs/integrations/loriot/loriot_javascript_downlink_converter.json" download="loriot_javascript_downlink_converter.json"><strong>loriot_javascript_downlink_converter.json</strong></a>
+  </TabItem>
+</Tabs>
+
+<Steps>
+  <ol start="2">
+    <li>Go to **Integration center &#8702; Data converters**.</li>
+    <li>Click **+ Add data converter &#8702; Import converter**.</li>
+    <li>Drag and drop the downloaded JSON file into the **Import converter** window and click **Import**.</li>
+  </ol>
+</Steps>
+
+**The encoder used in this tutorial:**
+
+<Tabs>
+<TabItem label="TBEL (Recommended)">
+```js maxLines=20 collapsible
+// Encode downlink data from incoming Rule Engine message
+// msg        - JSON message payload
+// msgType    - message type, e.g. 'ATTRIBUTES_UPDATED'
+// metadata   - key-value pairs with additional message data
+var result = {
+    // downlink data content type: JSON, TEXT or BINARY (base64 format)
+    contentType: "TEXT",
+    // downlink data
+    data: msg.firmware,
+    // metadata must include EUI and port
+    metadata: {
+        "EUI": metadata.deviceName,
+        "port": 1
+    }
+};
+return result;
+```
+</TabItem>
+<TabItem label="JavaScript">
+```js maxLines=20 collapsible
+// Encode downlink data from incoming Rule Engine message
+// msg        - JSON message payload
+// msgType    - message type, e.g. 'ATTRIBUTES_UPDATED'
+// metadata   - key-value pairs with additional message data
+var result = {
+    // downlink data content type: JSON, TEXT or BINARY (base64 format)
+    contentType: "TEXT",
+    // downlink data
+    data: msg.firmware,
+    // metadata must include EUI and port
+    metadata: {
+        "EUI": metadata.deviceName,
+        "port": 1
+    }
+};
+return result;
+```
+</TabItem>
+</Tabs>
+
+<Aside type="note">
+  If your `data` payload is already in hexadecimal format, add `"isHexEncoded": "true"` to the metadata to avoid double hex encoding:
+
+  ```json
+  "metadata": {
+    "EUI": "BE7A000000000552",
+    "port": 1,
+    "isHexEncoded": "true"
+  }
+  ```
+</Aside>
+
+After importing, add the downlink converter to the integration by editing the integration and selecting the converter in the **Downlink data converter** field.
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/loriot/loriot-downlink-converters-1-tbel.png', alt: 'Downlink converter added to the integration — TBEL', caption: 'Downlink converter (TBEL) assigned to the Loriot integration' },
+  { src: '/src/assets/images/user-guide/integrations/loriot/loriot-downlink-converters-1-javascript.png', alt: 'Downlink converter added to the integration — JavaScript', caption: 'Downlink converter (JavaScript) assigned to the Loriot integration' },
+]} />
+
+## Enable sending downlinks
+
+To send messages from ThingsBoard to LORIOT devices, enable the **Send downlink** option in the integration settings and fill in the required connection fields.
+
+<DocImage src="/src/assets/images/user-guide/integrations/loriot/loriot-add-integration-send-downlink.png" alt="Integration settings with Send downlink enabled and server/application fields filled in" />
+
+Required fields:
+
+- **Server** — the LORIOT server name from the URL (see [finding server and application ID](#finding-server-and-application-id)).
+- **Application ID** — the Application ID from your LORIOT project.
+- **Application Access Token** — generated in the LORIOT **Access Tokens** section of your application.
+
+To generate the Application Access Token in LORIOT:
+
+<Steps>
+1. Open your application in the LORIOT UI.
+2. Go to **Access Tokens** and generate a new token.
+3. Copy the token and paste it into the **Application Access Token** field in ThingsBoard.
+</Steps>
+
+<DocImage src="/src/assets/images/user-guide/integrations/loriot/loriot-server.png" alt="LORIOT URL showing server name" />
+<DocImage src="/src/assets/images/user-guide/integrations/loriot/loriot-application-id.png" alt="LORIOT Application ID" />
+
+## Configure the rule chain for downlinks
+
+To send a downlink message when a device attribute changes, configure the Root Rule Chain:
+
+<Steps>
+1. Open **Rule Chains &#8702; Root Rule Chain** and click the edit icon.
+2. Add an **Integration Downlink** action node and connect it to the **Message Type Switch** node using the **Attributes Updated** relation.
+3. Save the rule chain.
+</Steps>
+
+<DocImage src="/src/assets/images/user-guide/integrations/loriot/loriot-rule-chain-integration-downlink.png" alt="Root Rule Chain with Integration Downlink node connected via Attributes Updated relation" />
+
+Now trigger a downlink by updating a shared attribute:
+
+<Steps>
+1. Go to **Entities &#8702; Devices** and open the device (e.g. `Device BE7A000000000552`).
+2. Open the **Attributes** tab, switch to **Shared attributes**, and click **+**.
+3. Enter the key `firmware` and a value (e.g. `01052020.v1.1`), then click **Add**.
+4. Edit the attribute and change the value (e.g. to `01052020.v1.2`), then click **Save**.
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/loriot/loriot-devices-all-shared-attributes.png', alt: 'Device shared attributes page showing firmware attribute', caption: 'Shared attributes tab with the firmware attribute' },
+  { src: '/src/assets/images/user-guide/integrations/loriot/loriot-devices-all-shared-attributes-update.png', alt: 'Updating the firmware shared attribute value', caption: 'Editing the firmware attribute value triggers the downlink' },
+]} />
+
+Inspect the downlink converter **Events** tab to confirm the message was prepared and sent:
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/loriot/loriot-downlink-converter-events-in.png', alt: 'Downlink converter events — In block showing incoming attribute update', caption: 'Events tab: In block — the incoming attribute update message' },
+  { src: '/src/assets/images/user-guide/integrations/loriot/loriot-downlink-converter-events-out.png', alt: 'Downlink converter events — Out block showing encoded downlink payload', caption: 'Events tab: Out block — the encoded downlink message sent to LORIOT' },
+]} />
+
+To verify the message arrived at the LORIOT side, open **Devices &#8702; LoRaWAN Parameters** in the LORIOT UI and check the **Downlink Queue** section at the bottom of the page.
+
+<DocImage src="/src/assets/images/user-guide/integrations/loriot/loriot-devices-downlink-queue.png" alt="LORIOT Devices LoRaWAN Parameters page showing a queued downlink message" />
+
+## See also
+
+- <DocLink product={props.product} path="user-guide/integrations">Integration Overview</DocLink>
+- <DocLink product={props.product} path="user-guide/integrations#uplink-data-converter">Uplink Converters</DocLink>
+- <DocLink product={props.product} path="user-guide/integrations#downlink-data-converter">Downlink Converters</DocLink>
+- <DocLink product={props.product} path="user-guide/rule-engine-2-0/re-getting-started">Rule Engine</DocLink>
+- <DocLink product={props.product} path="user-guide/tbel">ThingsBoard Expression Language (TBEL)</DocLink>

@@ -1,0 +1,227 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Code } from '@astrojs/starlight/components';
+import { TRENDZ_VER } from '~/data/versions';
+import { Products } from '~/models/site.models';
+
+export const composeYaml = `services:
+  trendz-python-executor:
+    restart: always
+    image: "thingsboard/trendz-python-executor:${TRENDZ_VER}"
+    ports:
+      - "8181:8181"
+    environment:
+      EXECUTOR_MANAGER: 1
+      EXECUTOR_SCRIPT_ENGINE: 6
+      THROTTLING_QUEUE_CAPACITY: 10
+      THROTTLING_THREAD_POOL_SIZE: 6
+      NETWORK_BUFFER_SIZE: 5242880
+    volumes:
+      - trendz-python-executor-conf:/python-executor-config-files
+      - trendz-python-executor-data:/data
+volumes:
+  trendz-python-executor-conf:
+    name: trendz-python-executor-conf
+    driver: local
+  trendz-python-executor-data:
+    name: trendz-python-executor-data
+    driver: local`;
+
+The **Trendz Python Executor** is a Docker-based microservice required for:
+
+- Python Calculation fields
+- All prediction models (except Fourier Transformation)
+- Code generation for Metric Explorer
+
+<Aside type="note">
+Starting from Trendz 1.14.0, the Python Executor is the **only** way to run Python Calculation fields and prediction models. It must be deployed via Docker or Kubernetes.
+
+If you installed Trendz using Docker (Linux/macOS), Docker (Windows), or Kubernetes, the Python Executor is **already included** in the deployment — no separate installation is needed.
+</Aside>
+
+**Deployment recommendations:**
+
+- **Same host** — deploy the Python Executor on the same host as Trendz. Communication uses WebSockets; placing them on separate hosts requires opening the executor port in the firewall and increases latency.
+- **Resources** — allocate at least **1 GB RAM** and **1 CPU core**. More CPU directly speeds up prediction model training and execution.
+
+## Prerequisites
+
+<Tabs>
+<TabItem label="Linux / macOS">
+
+- <a href="https://docs.docker.com/engine/installation/" target="_blank">Docker CE</a> and <a href="https://docs.docker.com/compose/install/" target="_blank">Docker Compose</a> installed.
+
+</TabItem>
+<TabItem label="Windows">
+
+- <a href="https://docs.docker.com/desktop/setup/install/windows-install/" target="_blank">Docker Desktop for Windows</a> installed.
+
+</TabItem>
+</Tabs>
+
+## Standalone installation
+
+Use these steps only if you installed Trendz via a **package** (Ubuntu, RHEL/CentOS, or Windows) and need to add the Python Executor separately.
+
+### Step 1. Create Docker Compose file
+
+Create a new `docker-compose.yml` with the following content:
+
+<Code code={composeYaml} lang="yml" />
+
+**Docker Compose parameters:**
+
+| Parameter | Description |
+|---|---|
+| `8181:8181` | Maps host port 8181 to the Python Executor port |
+| `restart: always` | Auto-restarts the container on failure or system reboot |
+| `EXECUTOR_MANAGER` | Number of executor manager threads |
+| `EXECUTOR_SCRIPT_ENGINE` | Number of script engine threads |
+| `THROTTLING_QUEUE_CAPACITY` | Maximum number of queued script executions |
+| `THROTTLING_THREAD_POOL_SIZE` | Number of threads for throttling |
+| `NETWORK_BUFFER_SIZE` | WebSocket network buffer size in bytes |
+| `trendz-python-executor-conf:/python-executor-config-files` | Persists Python Executor configuration files |
+| `trendz-python-executor-data:/data` | Persists Python Executor data directory |
+
+### Step 2. Start the Python Executor
+
+Run from the directory containing your `docker-compose.yml`:
+
+```bash
+docker compose up -d
+docker compose logs -f trendz-python-executor
+```
+
+### Step 3. Connect Trendz to the Python Executor
+
+<Tabs>
+<TabItem label="Linux / macOS">
+
+Edit `/usr/share/trendz/conf/trendz.conf` and add:
+
+```bash
+export SCRIPT_ENGINE_TIMEOUT=30000
+export SCRIPT_ENGINE_PROVIDER=DOCKER_CONTAINER
+export SCRIPT_ENGINE_DOCKER_PROVIDER_URL=PYTHON_EXECUTOR_HOST:PYTHON_EXECUTOR_PORT
+```
+
+Replace `PYTHON_EXECUTOR_HOST` and `PYTHON_EXECUTOR_PORT` with the actual host and port where your Python Executor is running. Ensure Trendz can reach this network destination.
+
+Restart Trendz to apply the changes:
+
+```bash
+sudo systemctl restart trendz
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+Open Notepad **as Administrator** and edit:
+
+```text
+C:\Program Files (x86)\trendz\conf\trendz.yml
+```
+
+Locate the `script-engine` block and update:
+
+```yml
+script-engine:
+  provider: "${SCRIPT_ENGINE_PROVIDER:DOCKER_CONTAINER}"
+  runtime-timeout: "${SCRIPT_ENGINE_TIMEOUT:30000}"
+  callback-timeout: "${SCRIPT_ENGINE_TIMEOUT:30000}"
+  docker-provider-url: "${SCRIPT_ENGINE_DOCKER_PROVIDER_URL:PYTHON_EXECUTOR_HOST:PYTHON_EXECUTOR_PORT}"
+  websocket-buffer-size: "${SCRIPT_ENGINE_WEBSOCKET_BUFFER_SIZE:20971520}"
+  websocket-concurrency: "${SCRIPT_ENGINE_WEBSOCKET_CONCURRENCY:5}"
+```
+
+Replace `PYTHON_EXECUTOR_HOST` and `PYTHON_EXECUTOR_PORT` with the actual host and port where your Python Executor is running. Ensure Trendz can reach this network destination.
+
+Restart the Trendz service:
+
+```text
+net stop trendz
+net start trendz
+```
+
+</TabItem>
+</Tabs>
+
+## Add custom Python libraries
+
+You can extend the Python Executor with additional libraries to use in Calculation Fields or Custom Prediction Models.
+
+The following libraries are bundled in the official Docker image and available out of the box:
+
+| Library | Min version |
+|---|---|
+| `numpy` | 2.0 |
+| `pandas` | 2.1.0 |
+| `scikit-learn` | 1.6.0 |
+| `statsmodels` | 0.14.0 |
+| `matplotlib` | 3.7.0 |
+| `prophet` | 1.2.0 |
+| `xgboost` | 1.8.0 |
+| `requests` | 2.31.0 |
+
+To add a library not listed above, follow these steps. For example, to add the `emoji` library at version 2.2.0:
+
+### Step 1. Open a shell in the running container
+
+```bash
+docker compose exec trendz-python-executor bash
+```
+
+### Step 2. Add the library to `requirements.txt`
+
+Append the library name and version to the `requirements.txt` file in the configuration directory:
+
+```bash
+echo 'emoji==2.2.0' >> /python-executor-config-files/requirements.txt
+```
+
+Type `exit` to leave the container shell.
+
+### Step 3. Restart the container
+
+```bash
+docker compose restart trendz-python-executor
+```
+
+### Step 4. Verify the installation
+
+```bash
+docker compose logs trendz-python-executor
+```
+
+Look for a line confirming successful installation:
+
+```text
+Installing custom Python requirements...
+Requirement already satisfied: emoji==2.2.0 in /usr/local/lib/python3.9/site-packages
+```
+
+The library is now available in your Trendz Calculation Fields and Custom Prediction Models.
+
+## Configuration properties
+
+All Python Executor settings are configured via environment variables. Pass them under the `environment:` key in your `docker-compose.yml`.
+
+| Environment variable | Default | Description |
+|---|---|---|
+| `EXECUTOR_MANAGER` | `1` | Number of manager executor threads |
+| `EXECUTOR_SCRIPT_ENGINE` | `6` | Number of script engine threads. Increase for higher parallel script execution throughput |
+| `THROTTLING_QUEUE_CAPACITY` | `10` | Maximum number of script execution requests that can wait in queue. Requests beyond this limit are rejected |
+| `NETWORK_BUFFER_SIZE` | `20971520` | WebSocket message buffer size in bytes (default 20 MB). Increase when scripts transfer large datasets |
+| `SCRIPT_ENGINE_RUNTIME_TIMEOUT` | `10000` | Python script execution timeout in milliseconds. Scripts that exceed this limit are terminated |
+
+## Verify the connection
+
+To confirm that Trendz is successfully connected to the Python Executor, create a simple Python Calculation Field and
+run it — for example:
+
+```python
+return 42
+```
+
+If the script executes and returns a result, the connection is working. If it times out or returns an error, check
+that the Python Executor is running and that `SCRIPT_ENGINE_DOCKER_PROVIDER_URL` points to the correct host and port.

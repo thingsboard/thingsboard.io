@@ -1,0 +1,102 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+import { Products } from '~/models/site.models';
+
+ThingsBoard Edge is a standalone ThingsBoard deployment that runs locally — on-premises or on edge hardware. It connects to a ThingsBoard server, which provisions it, pushes configuration, and receives synchronized data. Device data is processed locally whether or not the Edge is connected to the server.
+
+All Edge services run within a **single JVM process**, making it suitable for resource-constrained hardware — as little as 256–512 MB of RAM is sufficient for constrained environments. A single-node deployment supports up to approximately **1,000 devices**, depending on message rate and hardware capacity.
+
+## Technology stack
+
+| Component | Role | Required? |
+|-----------|------|-----------|
+| **PostgreSQL** | Entities, attributes, relations, alarms, time-series, and cloud event queue | Always required |
+| **Apache Kafka** | Message queue between services and cloud event queue (replaces PostgreSQL queue) | Since 3.9, optional |
+
+Single-node deployments require only PostgreSQL. Kafka is added when higher queue throughput or durability is needed for cloud synchronization.
+
+## Components
+
+| Component | Responsibility |
+|-----------|---------------|
+| **Transport** | Accepts device connections over MQTT, HTTP, CoAP, LwM2M, and SNMP; validates credentials; pushes messages to the Rule Engine |
+| **Rule Engine** | Processes every device message locally using the tenant's rule chains — filter, enrich, transform, save, or forward data |
+| **Cloud Manager** | Reads events from the cloud event queue and pushes them to the server over gRPC; handles reconnection and ordered delivery |
+| **Core / REST API** | Entity management, WebSocket subscriptions, active device session tracking |
+| **Web UI** | Stateless Express.js process that serves the ThingsBoard UI as static content; all data is loaded via the REST and WebSocket APIs |
+
+## Data flow
+
+When a device sends data, it follows this path on Edge:
+
+```plaintext
+  ┌────────┐  MQTT / HTTP /  ┌───────────┐  Message  ┌─────────────┐
+  │ Device │──  CoAP / LwM2M ▶│ Transport │── Queue ──▶│ Rule Engine │
+  └────────┘                  └─────┬─────┘           └──────┬──────┘
+                                    │                        │
+                              Authenticate              Execute chains
+                              (credentials              Save, alarm,
+                               from cache)              push to cloud
+                                                              │
+                              ┌───────────────────────────────┘
+                              │
+               ┌──────────────▼──────────────────────────────┐
+               │               Core service                  │
+               │  ┌──────────────┐    ┌─────────────────┐    │
+               │  │ Save to DB   │    │  Notify WS /    │    │
+               │  │ (telemetry,  │    │  dashboards     │    │
+               │  │  attributes) │    └─────────────────┘    │
+               │  └──────┬───────┘                           │
+               └─────────┼─────────────────────────────────  ┘
+                         │
+               ┌──────────▼──────────┐    ┌─────────────────────────┐
+               │     PostgreSQL      │    │  Cloud Event Queue      │
+               │  (entities, attrs,  │    │  (PostgreSQL or Kafka)  │
+               │   time-series)      │    │  → pushed to server     │
+               └─────────────────────┘    └─────────────────────────┘
+```
+
+1. **Connect:** The device opens a connection to the Transport layer.
+2. **Authenticate:** Transport validates device credentials. Credentials are cached to avoid a database query on every message.
+3. **Push to Rule Engine:** Transport converts the payload into a unified message and forwards it via the <DocLink product={props.product === Products.EDGE_PE ? Products.EDGE_PE : Products.EDGE} path="reference/architecture/queue" target="_blank">message queue</DocLink>.
+4. **Execute rule chains:** The <DocLink product={props.product === Products.EDGE_PE ? Products.PE : Products.CE} path="user-guide/rule-engine" target="_blank">Rule Engine</DocLink> processes the message through the tenant's rule chains — filtering, enriching, transforming, and triggering actions.
+5. **Save:** Action nodes write telemetry and attributes to the local <DocLink product={props.product === Products.EDGE_PE ? Products.EDGE_PE : Products.EDGE} path="reference/architecture/database" target="_blank">database</DocLink>.
+6. **Synchronize:** Messages that reach the <DocLink product={props.product === Products.EDGE_PE ? Products.PE : Products.CE} path="reference/rule-engine/nodes/action/push-to-cloud" target="_blank">push to cloud</DocLink> node are stored as Cloud Events and forwarded to the server asynchronously.
+
+## Server connection
+
+Edge communicates with the ThingsBoard server over <a href="https://grpc.io/" target="_blank" rel="noopener noreferrer">gRPC</a>, with messages serialized using <a href="https://github.com/protocolbuffers/protobuf" target="_blank" rel="noopener noreferrer">Protocol Buffers</a>. The connection is persistent and bidirectional:
+
+| Direction | What flows |
+|-----------|-----------|
+| **Edge → Server** | Telemetry, attributes, alarms, events (via cloud event queue) |
+| **Server → Edge** | Entity assignments, configuration changes, rule chain updates, downlinks |
+
+If the connection is lost, Cloud Events continue to accumulate in the local queue. The Cloud Manager delivers all queued events to the server in order once the connection is restored. For details, see <DocLink product={props.product === Products.EDGE_PE ? Products.EDGE_PE : Products.EDGE} path="key-concepts/telemetry-synchronization" target="_blank">Telemetry synchronization</DocLink>.
+
+## Deployment modes
+
+Edge runs as a single-process deployment (equivalent to ThingsBoard monolithic mode). Clustering is supported starting with Edge 4.0, using the same Kafka-based queue and service discovery approach as the ThingsBoard server.
+
+| Mode | When to use |
+|------|-------------|
+| **Single node** | Most edge deployments — one device, one rack, one site |
+| **Cluster (4.0+)** | High-availability requirements at the edge, or when a single node cannot handle the device load |
+
+<Aside type="tip">
+  Start with a single node. Most edge deployments connect hundreds to a few thousand devices — a single node handles this well on modest hardware. Add clustering only when a single node reaches its capacity limits.
+</Aside>
+
+## Authentication
+
+Device authentication on Edge follows the same mechanism as on the ThingsBoard server. Supported credential types:
+
+| Credential type | Protocol | How it works |
+|----------------|----------|-------------|
+| **Access Token** | MQTT, HTTP, CoAP | Token sent as MQTT username or HTTP/CoAP query parameter |
+| **MQTT Basic** | MQTT | Client ID, username, and password combination |
+| **X.509 Certificate** | MQTT (TLS) | Device presents a client certificate during TLS handshake |
+
+Credentials are cached after the first lookup — subsequent messages from the same device are validated from cache without a database query.
+
+User authentication uses JWT tokens for REST API and WebSocket connections, identical to the server.
