@@ -2565,7 +2565,7 @@ export const trendzSidebar: SidebarConfig = [
 					'docs/trendz/install/old-docker-migrate',
 				],
 			},
-			'docs/trendz/install/trndz-upgrade-instructions',
+			'docs/trendz/install/upgrade-instructions',
 		],
 	},
 ];
