@@ -214,7 +214,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 		collapsed: true,
 		items: [
 			{ label: 'Release Policy', slug: `${prefix.replace('/user-guide', '/releases')}/release-policy` },
-			{ label: 'Release Table', slug: `${prefix.replace('/user-guide', '/releases')}/release-table` },
+			{ label: 'Release Table', slug: `${prefix.replace('/user-guide', '/releases')}/releases-table` },
 			`${prefix.replace('/user-guide', '/releases')}/roadmap`,
 		],
 	},
