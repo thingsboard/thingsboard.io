@@ -128,7 +128,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 		label: 'White-labeling',
 		collapsed: true,
 		items: [
-			{ label: 'General', slug: `${prefix}/white-labeling-general` },
+			{ label: 'General', slug: `${prefix}/white-labeling` },
 			{ label: 'Login', slug: `${prefix}/white-labeling-login` },
 			{ label: 'Mail Templates', slug: `${prefix}/white-labeling-mail` },
 			{ label: 'Custom Translation', slug: `${prefix}/white-labeling-translation` },
@@ -291,9 +291,9 @@ const installationItems = (prefix: string) => {
 					label: 'Google Cloud',
 					collapsed: true,
 					items: [
-						{ label: 'GCP Installation Options', slug: `${prefix}/installation/gcp-index` },
-						`${prefix}/installation/gcp${isPE ? '-vm' : ''}`,
-						...(isPE ? [`${prefix}/installation/gcp`] : []),
+						{ label: 'GCP Installation Options', slug: `${prefix}/installation/gcp` },
+						`${prefix}/installation/gcp-vm`,
+						...(isPE ? [`${prefix}/installation/gcp-marketplace`] : []),
 						`${prefix}/installation/gcp-monolith`,
 						`${prefix}/installation/gcp-microservices`,
 					],
@@ -1136,7 +1136,7 @@ export const paasSidebar: SidebarConfig = [
 				label: 'White-labeling',
 				collapsed: true,
 				items: [
-					{ label: 'General', slug: 'docs/paas/user-guide/white-labeling-general' },
+					{ label: 'General', slug: 'docs/paas/user-guide/white-labeling' },
 					{ label: 'Login', slug: 'docs/paas/user-guide/white-labeling-login' },
 					{ label: 'Mail Templates', slug: 'docs/paas/user-guide/white-labeling-mail' },
 					{ label: 'Custom Translation', slug: 'docs/paas/user-guide/white-labeling-translation' },
@@ -1423,7 +1423,7 @@ export const paasEuSidebar: SidebarConfig = [
 				label: 'White-labeling',
 				collapsed: true,
 				items: [
-					{ label: 'General', slug: 'docs/paas/eu/user-guide/white-labeling-general' },
+					{ label: 'General', slug: 'docs/paas/eu/user-guide/white-labeling' },
 					{ label: 'Login', slug: 'docs/paas/eu/user-guide/white-labeling-login' },
 					{ label: 'Mail Templates', slug: 'docs/paas/eu/user-guide/white-labeling-mail' },
 					{ label: 'Custom Translation', slug: 'docs/paas/eu/user-guide/white-labeling-translation' },

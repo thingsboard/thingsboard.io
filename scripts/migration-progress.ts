@@ -42,8 +42,8 @@ interface Category {
 	match: (path: string) => boolean;
 }
 
-// Device Library pattern: /docs/*/devices-library/ or /docs/devices-library/
-const DEVICES_LIBRARY_RE = /^\/docs\/(.*\/)?devices-library\//;
+// Device Library pattern: any path containing /devices-library/ or /device-library/
+const DEVICES_LIBRARY_RE = /\/devices?-library\//;
 
 const CATEGORIES: Category[] = [
 	// --- Device Library (extracted first, before any product match) ---
@@ -118,10 +118,12 @@ async function fetchSitemapPaths(): Promise<string[]> {
 	const locRegex = /<loc>https?:\/\/thingsboard\.io(\/.*?)<\/loc>/gi;
 	const paths = Array.from(xml.matchAll(locRegex), (m) => m[1]!);
 
-	// Deduplicate and sort
-	const unique = [...new Set(paths)].sort();
-	console.log(`Found ${unique.length} unique URLs in sitemap.`);
-	return unique;
+	// Deduplicate, keep only trailing-slash URLs, and sort
+	const unique = [...new Set(paths)];
+	const filtered = unique.filter((p) => p.endsWith('/')).sort();
+
+	console.log(`Found ${unique.length} unique URLs in sitemap (${unique.length - filtered.length} non-trailing-slash URLs removed).`);
+	return filtered;
 }
 
 // ---------------------------------------------------------------------------
