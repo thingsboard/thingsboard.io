@@ -969,6 +969,14 @@ export const peSidebar: SidebarConfig = mainSidebarItems('docs/pe', [
 			'docs/pe/recipes/white-labeling-post-processing',
 		],
 	},
+	{
+		label: 'Integrations',
+		collapsed: true,
+		items: [
+			'docs/pe/recipes/mqtt-one-way-rpc',
+			'docs/pe/recipes/mqtt-two-way-rpc',
+		],
+	},
 ], [
 	'docs/pe/reference/configuration/ie-executor-config',
 	'docs/pe/reference/configuration/report-service-config',

@@ -227,9 +227,9 @@ Similar structure to Use Cases — can reuse or share the same template with min
 |---|------|-----|-------------|------------|---------|----------|--------|
 | 6.1 | Services overview | `/services/` | Overview of all services with cards | M | 4–6 | 0.5 | [x] |
 | 6.2 | Support Plans | `/services/support/` | Support tier comparison table, SLA details | H | 8–12 | 1–2 | [x] |
-| 6.3 | Trainings | `/services/trainings/` | Training programmes, schedule, registration form | H | 8–12 | 1–2 | [ ] |
+| 6.3 | Trainings | `/services/trainings/` | Training programmes, schedule, registration form | H | 8–12 | 1–2 | [x] |
 | 6.4 | Consulting | `/services/consulting/` | Professional services / consulting offering | M | 4–6 | 0.5 | [x] |
-| 6.5 | Development Services | `/services/development-services/` | Custom IoT solution development | H | 8–12 | 1–2 | [ ] |
+| 6.5 | Development Services | `/services/development-services/` | Custom IoT solution development | H | 8–12 | 1–2 | [x] |
 | 6.6 | Dev Services — Customer Reviews | `/services/development-services/customers-full-reviews/` | Full testimonials page | M | 4–6 | 0.5 | [x] | (redirect to /clients-feedback/)
 
 **Notes:**
