@@ -12,6 +12,7 @@
  * Options (env vars):
  *   LOCAL_BASE=http://localhost:4321   — local server base URL
  *   CONCURRENCY=20                    — max parallel requests
+ *   EXCLUDE_LIBRARY=true              — exclude /devices-library/ and /samples/ paths from stats and report
  */
 
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -25,6 +26,7 @@ import { fileURLToPath } from 'node:url';
 const SITEMAP_URL = 'https://thingsboard.io/sitemap.xml';
 const LOCAL_BASE = process.env.LOCAL_BASE ?? 'http://localhost:4321';
 const CONCURRENCY = Number(process.env.CONCURRENCY) || 20;
+const EXCLUDE_LIBRARY = process.env.EXCLUDE_LIBRARY === 'true';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
@@ -42,15 +44,21 @@ interface Category {
 	match: (path: string) => boolean;
 }
 
-// Device Library pattern: any path containing /devices-library/ or /device-library/
+// Device Library / Samples pattern: paths containing /devices-library/, /device-library/, or /samples/
 const DEVICES_LIBRARY_RE = /\/devices?-library\//;
+const EXCLUDED_RE = /\/devices?-library\/|\/samples\//;
 
 const CATEGORIES: Category[] = [
-	// --- Device Library (extracted first, before any product match) ---
+	// --- Device Library & Samples (extracted first, before any product match) ---
 	{
 		id: 'devices-library',
 		label: 'Device Library',
 		match: (p) => DEVICES_LIBRARY_RE.test(p),
+	},
+	{
+		id: 'samples',
+		label: 'Samples',
+		match: (p) => /\/samples\//.test(p),
 	},
 
 	// --- Product categories (most-specific first) ---
@@ -477,7 +485,14 @@ async function main() {
 	const startTime = Date.now();
 
 	// 1. Fetch sitemap
-	const paths = await fetchSitemapPaths();
+	let paths = await fetchSitemapPaths();
+
+	// 1b. Optionally exclude device-library and samples paths
+	if (EXCLUDE_LIBRARY) {
+		const before = paths.length;
+		paths = paths.filter((p) => !EXCLUDED_RE.test(p));
+		console.log(`EXCLUDE_LIBRARY=true — removed ${before - paths.length} device-library/samples URLs (${paths.length} remaining).`);
+	}
 
 	// 2. Test all URLs
 	console.log(`Testing ${paths.length} URLs against ${LOCAL_BASE} (concurrency: ${CONCURRENCY})...`);
