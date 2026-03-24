@@ -452,7 +452,6 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'paas/user-guide/integrations/tuya', target: '/docs/paas/user-guide/integrations/' },
 	{ oldPath: 'paas/eu/user-guide/integrations/tuya', target: '/docs/paas/eu/user-guide/integrations/' },
 	{ oldPath: 'user-guide/integrations/udp', target: '/docs/user-guide/integrations/' },
-	{ oldPath: 'pe/user-guide/integrations/udp', target: '/docs/pe/user-guide/integrations/' },
 	{ oldPath: 'paas/user-guide/integrations/udp', target: '/docs/paas/user-guide/integrations/' },
 	{ oldPath: 'paas/eu/user-guide/integrations/udp', target: '/docs/paas/eu/user-guide/integrations/' },
 	{ oldPath: 'user-guide/rule-engine-2-0/action-nodes', target: '/docs/reference/rule-engine/nodes/action/' },
