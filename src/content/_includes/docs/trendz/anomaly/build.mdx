@@ -1,0 +1,239 @@
+import { Aside } from '@astrojs/starlight/components';
+import ImageGallery from '~/components/ImageGallery.astro';
+
+Anomaly model properties control which data the model trains on, how it segments and clusters that data, and how it
+raises alarms. Configure them in the **Input** tab before building the model.
+
+## General Settings
+
+General settings define the scope of data used for training.
+
+| Setting | Description |
+|---------|-------------|
+| **Entity** | The entity type for which anomaly detection will be performed. |
+| **Fields** | Numeric telemetry fields to analyze, e.g. temperature, vibration, energy consumption. Choose only fields that are potentially related to each other. All fields must belong to the **same entity type** — combining fields from different entity types (e.g. a sensor field and an asset field) is not supported. |
+| **Items** | Specific devices or assets to include in training. Use the most representatively normal items for better accuracy. |
+| **Time Range** | Historical data period to use for training, e.g. past 3 months or 1 year. |
+
+<Aside type="note">
+  Only numeric telemetry fields can be selected. Fields that may correlate with each other — such as vibration and
+  motor temperature — should be selected together to improve detection quality.
+</Aside>
+
+**Telemetry saving options** (also configured here — controls what gets written back to ThingsBoard during refresh/reprocess):
+
+| Setting | Description |
+|---------|-------------|
+| **Key** | Telemetry key name used when saving anomaly score and anomaly score index to ThingsBoard. |
+| **Telemetry Storage Frequency** | Aggregation level at which scores are stored. Should be less than the segment time range (fixed) or less than `segment size × sliding step % / 100` (sliding). |
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/trendz/anomaly/general-settings.png',
+    alt: 'General settings panel showing entity, fields, items, and time range configuration',
+    caption: 'General settings — select entity, fields, items, and training time range.',
+  },
+]} />
+
+## Advanced Properties
+
+### Clustering Settings
+
+Clustering settings determine which algorithm groups data segments into "normal" clusters. Anomalies are segments that
+don't fit well into any cluster.
+
+**Cluster Algorithm:**
+
+```plaintext
+  Segments
+     │
+     ├── K-Means ──────▶  Fixed # of spherical clusters
+     │                    Anomaly = far from centroid
+     │                    Best for: clean, consistent data
+     │
+     ├── DBSCAN ───────▶  Density-based clusters, any shape
+     │                    Anomaly = isolated / low-density point
+     │                    Best for: noisy data, varied shapes
+     │
+     └── GMM ──────────▶  Probabilistic mixture of Gaussians
+                          Anomaly = low probability point
+                          Best for: flexible, overlapping clusters
+```
+
+| Setting | Description |
+|---------|-------------|
+| **Cluster Algorithm** | K-Means, DBSCAN, or GMM (Gaussian Mixture Model). |
+| **Cluster Count** | Number of clusters to create (K-Means and GMM). Set this to the number of distinct typical operating behaviors in your data — for example, use 3 if your equipment has three recognizable normal states. |
+| **Max Iterations** | How many refinement passes K-Means performs. |
+| **Max Epsilon** | DBSCAN — maximum distance between points to be considered neighbours. |
+| **Min Points in Cluster** | DBSCAN — minimum neighbours needed to form a valid cluster. |
+
+**Distance Function** — how similarity between time series segments is measured:
+
+| Function | Characteristics |
+|----------|-----------------|
+| **Dynamic Time Warping (DTW)** | Handles similar shapes with different timing — best for most time-series use cases. |
+| **Euclidean** | Straight-line distance — simple and fast. |
+| **Chebyshev** | Focuses on the single largest difference between two series. |
+| **Manhattan** | Sum of all absolute point-by-point differences. |
+| **Canberra** | Emphasizes small values and sparse data. |
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/trendz/anomaly/clustering-settings-k-means.png',
+    alt: 'Clustering settings panel with K-Means algorithm selected',
+    caption: 'K-Means clustering settings.',
+  },
+  {
+    src: '/src/assets/images/trendz/anomaly/clustering-settings-dbscan.png',
+    alt: 'Clustering settings panel with DBSCAN algorithm selected',
+    caption: 'DBSCAN clustering settings.',
+  },
+  {
+    src: '/src/assets/images/trendz/anomaly/clustering-settings-gmm.png',
+    alt: 'Clustering settings panel with GMM algorithm selected',
+    caption: 'GMM (Gaussian Mixture Model) clustering settings.',
+  },
+]} />
+
+### Segmentation Settings
+
+Segmentation splits continuous telemetry into fixed-length time windows before clustering.
+
+```plaintext
+  Raw telemetry stream
+  ────────────────────────────────────────────────▶ time
+
+  Fixed Range (non-overlapping):
+  ╔══════════╗ ╔══════════╗ ╔══════════╗
+  ║ segment1 ║ ║ segment2 ║ ║ segment3 ║
+  ╚══════════╝ ╚══════════╝ ╚══════════╝
+
+  Sliding Window (overlapping, step = 50%):
+  ╔══════════╗
+  ║ segment1 ║
+  ╚══════════╝
+        ╔══════════╗
+        ║ segment2 ║
+        ╚══════════╝
+              ╔══════════╗
+              ║ segment3 ║
+              ╚══════════╝
+
+  ▶ Sliding Window produces more segments than Fixed Range
+    due to overlap — this increases training time and memory.
+```
+
+| Setting | Description |
+|---------|-------------|
+| **Segment Time Range** | Duration of each data window, e.g. 6 hours, 1 day. |
+| **Time Window Type** | **Fixed Range** — non-overlapping windows. **Sliding Window** — overlapping windows that advance by a fixed step. |
+| **Sliding Step Percent** | Step size as a percentage of the segment duration (Sliding Window only). |
+| **Max Time Gap in Segment** | Maximum allowed gap between consecutive data points within a segment. Segments with larger gaps are discarded. |
+| **Min Segment Duration** | Minimum elapsed time for a segment to be considered valid. |
+| **Min Points in Segment** | Minimum number of data points required for a valid segment. |
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/trendz/anomaly/segmentation-settings.png',
+    alt: 'Segmentation settings panel showing time range, window type, and gap configuration',
+    caption: 'Segmentation settings — control how telemetry is split into analysis windows.',
+  },
+]} />
+
+### Anomaly Detection Settings
+
+After segmentation, each segment is scored for how much it deviates from normal clusters.
+
+**Comparison Type** — how segments are represented before comparison:
+
+| Type | Description |
+|------|-------------|
+| **Feature-based** | Extracts statistical attributes from each segment (e.g. mean, std, slope). Focuses on specific measurable properties of the data. |
+| **Behavior-based** | Captures overall shape and trend of the segment by aggregating it into a fixed number of points. |
+
+Behavior-based additional parameters:
+
+| Setting | Description |
+|---------|-------------|
+| **Aggregation** | Function used to summarize each sub-interval: AVG, MIN, MAX, SUM, or COUNT. |
+| **Aggregation Points** | Number of sub-intervals each segment is divided into before aggregation. |
+
+Scoring and filtering:
+
+| Setting | Description |
+|---------|-------------|
+| **Score Threshold Percent** | Percentile cutoff for classifying a segment as anomalous. For example, 15% means the top 15% of highest-scoring segments are marked as anomalies. |
+| **Min Anomaly Duration** | Minimum duration an anomalous event must last to be reported. Filters out very short noise spikes. |
+| **Cluster Joining Strategy** | When enabled, treats anomalies from consecutive segments — even across different clusters — as a single continuous anomaly. Two anomalous segments are joined when the gap between them does not exceed the **Max Time Gap in Segment** threshold. |
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/trendz/anomaly/anomaly-detection-settings-feature-based.png',
+    alt: 'Anomaly Detection settings with Feature-based comparison type selected',
+    caption: 'Feature-based anomaly detection settings.',
+  },
+  {
+    src: '/src/assets/images/trendz/anomaly/anomaly-detection-settings-behaviour-based.png',
+    alt: 'Anomaly Detection settings with Behavior-based comparison type selected',
+    caption: 'Behavior-based anomaly detection settings.',
+  },
+]} />
+
+### Limits
+
+Limits cap the volume of data processed during training and detection, protecting performance.
+When a limit is reached, the data is **truncated** to the specified count — training continues with the available subset.
+
+| Setting | Description |
+|---------|-------------|
+| **Max Points Count** | Maximum number of individual telemetry data points used for training. Excess points are truncated. |
+| **Max Segments Count** | Maximum number of segments the model will process. Excess segments are truncated. |
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/trendz/anomaly/limits-settings.png',
+    alt: 'Limits settings panel showing max points and max segments fields',
+    caption: 'Limits — cap the data volume for training and detection.',
+  },
+]} />
+
+## Alarm Configuration
+
+Alarm configuration defines how ThingsBoard alarms are created for detected anomalies.
+
+| Setting | Description |
+|---------|-------------|
+| **Alarm Type** | Category/type of alarm created in ThingsBoard. Used for filtering and routing. |
+| **Alarm Behavior on Anomaly Deletion** | Defines what happens to an open alarm when the corresponding anomaly is deleted. Anomalies are deleted when the model is retrained — this setting controls whether the associated alarm is cleared, left open, or acknowledged at that point. |
+| **Severities** | Score thresholds that map anomaly scores to alarm severities (Critical, Major, Minor, etc.). Becomes available after the first model build — Trendz auto-generates default thresholds based on score distribution. The generated thresholds are fully editable. |
+
+<Aside type="note">
+  Enable alarm creation only after validating the model in the Review tab. Prematurely enabling alarms on an
+  unvalidated model leads to alarm fatigue.
+</Aside>
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/trendz/anomaly/alarm-configuration-before-build.png',
+    alt: 'Alarm configuration panel before the first model build — severity thresholds not yet available',
+    caption: 'Alarm configuration before build — severity thresholds are not yet configurable.',
+  },
+  {
+    src: '/src/assets/images/trendz/anomaly/alarm-configuration-after-build.png',
+    alt: 'Alarm configuration panel after build — severity thresholds are now populated',
+    caption: 'Alarm configuration after build — severity thresholds are auto-generated from score distribution.',
+  },
+]} />
+
+## Best Practices
+
+| Area | Recommendation |
+|------|----------------|
+| **Training data** | Use data that represents normal behavior. Build on all devices first to identify the most representative ones, then retrain on those. |
+| **Segmentation** | Match segment duration to natural cycles of your system (e.g. shift length, maintenance intervals). |
+| **Clustering algorithm** | Use DBSCAN for noisy or irregularly shaped data; K-Means for clean, well-separated clusters; GMM when cluster boundaries overlap. |
+| **Score threshold** | Start with a higher threshold (fewer anomalies) and lower it gradually as you validate results. |
+| **Alarm severity** | Set thresholds based on operational impact, not just score magnitude. |
+| **Alarm enablement** | Activate alarms only after reprocessing historical data and reviewing results in the Review tab. |
+| **Performance** | Set Limits conservatively on large datasets to avoid long training times. |

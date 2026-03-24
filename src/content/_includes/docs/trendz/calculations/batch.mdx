@@ -1,0 +1,173 @@
+import { Aside } from '@astrojs/starlight/components';
+import DocLink from '@components/DocLink.astro';
+
+In a standard Simple calculation, Trendz applies aggregation to telemetry before your function runs — you receive a single scalar value per time bucket. In Batch mode, **your function receives the full raw telemetry array across the entire selected time range** and is responsible for transforming it. Trendz then applies the final aggregation — grouped by the configured Grouping Interval — to the array you return.
+
+If your function returns an empty array, no telemetry points are saved for that run.
+
+```plaintext
+  Simple:
+  raw telemetry ──▶ Trendz aggregates ──▶ function(scalar) ──▶ result
+
+  Batch:
+  raw telemetry ──▶ function([{ts, value}, …]) ──▶ transformed array ──▶ Trendz aggregates ──▶ result
+```
+
+To enable batch mode, select **Batch** in the **FIELD TYPE** dropdown in the <DocLink product={props.product} path="calculations/overview">Calculated Field</DocLink> Function tab.
+
+## Input format
+
+When batch mode is enabled, each telemetry variable holds an **array of timestamp/value objects**:
+
+```json
+[
+  { "ts": 1622505600000, "value": 17 },
+  { "ts": 1622592000000, "value": 21 },
+  { "ts": 1622678400000, "value": 35 }
+]
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `ts` | number | Unix timestamp in milliseconds. |
+| `value` | number \| string | Raw telemetry value at that timestamp. |
+
+Declare a telemetry variable using `none()`:
+
+```js
+var temperatureReadings = none(thermostat.temperature);
+// temperatureReadings is [{ts, value}, …]
+```
+
+Attributes are also returned as a single-element array. Unwrap the value before use:
+
+```js
+var unit = uniq(thermostat.measureUnit);
+if (unit.length) {
+    unit = unit[0].value;
+}
+```
+
+<Aside type="note">
+Batch calculations support only two aggregation types: **NONE** (for telemetry data) and **UNIQ** (for attributes).
+</Aside>
+
+## Examples
+
+### Filter raw telemetry
+
+Exclude values above a threshold before aggregation:
+
+```js
+var temperatureReadings = none(thermostat.temperature);
+
+var filteredReadings = [];
+for (var i = 0; i < temperatureReadings.length; i++) {
+    var tsValue = temperatureReadings[i];
+    if (tsValue.value <= 40) {
+        filteredReadings.push(tsValue);
+    }
+}
+
+return filteredReadings;
+```
+
+### Modify raw telemetry
+
+Normalize Fahrenheit readings to Celsius based on an attribute value:
+
+```js
+var temperatureReadings = none(thermostat.temperature);
+
+var unit = uniq(thermostat.measureUnit);
+if (unit.length) {
+    unit = unit[0].value;
+}
+
+for (var i = 0; i < temperatureReadings.length; i++) {
+    var tsValue = temperatureReadings[i];
+    if (unit === 'Fahrenheit') {
+        tsValue.value = 5 / 9 * (tsValue.value - 32);
+    }
+}
+
+return temperatureReadings;
+```
+
+### Group multiple telemetries by timestamp
+
+Combine readings from multiple telemetry keys into a single object per timestamp — useful for multi-stream synchronization before computing a formula:
+
+```plaintext
+  voltageTelemetry     [{ts: T1, value: 220}, {ts: T2, value: 225}, …]
+  temperatureTelemetry [{ts: T1, value: 22},  {ts: T2, value: 24},  …]
+  pressureTelemetry    [{ts: T1, value: 1.01},{ts: T2, value: 1.02}, …]
+          │
+          ▼  groupTelemetryByTime()
+          │
+  groupedTelemetry = {
+    T1: { ts: T1, voltage: 220, temperature: 22, pressure: 1.01 },
+    T2: { ts: T2, voltage: 225, temperature: 24, pressure: 1.02 },
+  }
+```
+
+```js
+var voltageTelemetry     = none(energyMeter.voltage);
+var temperatureTelemetry = none(energyMeter.temperature);
+var pressureTelemetry    = none(energyMeter.pressure);
+
+var groupedTelemetry = {};
+
+groupTelemetryByTime(voltageTelemetry,     groupedTelemetry, 'voltage');
+groupTelemetryByTime(temperatureTelemetry, groupedTelemetry, 'temperature');
+groupTelemetryByTime(pressureTelemetry,    groupedTelemetry, 'pressure');
+
+// … apply custom transformation on groupedTelemetry
+
+groupTelemetryByTime = function (telemetry, groupedTelemetry, keyName) {
+    for (var i = 0; i < telemetry.length; i++) {
+        var ts = telemetry[i].ts;
+        if (!groupedTelemetry[ts]) {
+            groupedTelemetry[ts] = { ts: ts };
+        }
+        groupedTelemetry[ts][keyName] = telemetry[i].value;
+    }
+};
+```
+
+### Fill gaps in telemetry stream
+
+Detect gaps larger than a threshold and insert synthetic `0` values at fixed-interval steps to preserve time-series
+continuity. A `while` loop handles gaps that span multiple intervals — the delta is recalculated after each insertion
+so the loop continues until the gap is fully filled:
+
+```plaintext
+  time  ─────────────────────────────────────────────────────▶
+
+  before  T1      T2                        T5      T6
+           ●───────●                          ●───────●
+                        ↑ gap > 60 min (spans 3 intervals)
+
+  after   T1      T2    T3(0)  T4(0)  T5(0) T5      T6
+           ●───────●──────●──────●──────●─────●───────●
+```
+
+```js
+var temperatureReadings = none(thermostat.temperature);
+if (!temperatureReadings || !temperatureReadings.length) {
+    return [];
+}
+
+var timeGap = 60 * 60 * 1000; // 60 minutes in milliseconds
+
+for (var i = 1; i < temperatureReadings.length; i++) {
+    var tsDelta = temperatureReadings[i].ts - temperatureReadings[i - 1].ts;
+    while (tsDelta > timeGap) {
+        var newTs = temperatureReadings[i - 1].ts + timeGap;
+        temperatureReadings.splice(i, 0, { ts: newTs, value: 0 });
+        tsDelta = temperatureReadings[i].ts - temperatureReadings[i - 1].ts;
+    }
+}
+
+return temperatureReadings;
+```

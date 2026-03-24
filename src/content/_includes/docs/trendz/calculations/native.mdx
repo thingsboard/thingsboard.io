@@ -1,0 +1,368 @@
+import { Aside } from '@astrojs/starlight/components';
+import DocLink from '@components/DocLink.astro';
+
+Native Calculations are Python-based calculated fields with no restrictions on which entities, time ranges, or relations you can access. Unlike Simple or Batch calculations, a Native Calculation fetches its own data using a set of built-in functions — you control exactly what is loaded and when.
+
+```plaintext
+  ┌─────────────────────────────────────────────────────┐
+  │  Native Calculation (Python)                        │
+  │                                                     │
+  │  Built-in parameters (startTs, endTs, groupBy, …)  │
+  │         │                                           │
+  │         ▼                                           │
+  │  ┌─────────────────────────────────────┐            │
+  │  │ get_telemetries() / get_attributes()│            │
+  │  │ get_relations()                     │            │
+  │  │ get_originator_id/type()            │            │
+  │  └──────────────────┬──────────────────┘            │
+  │                     │ raw data                      │
+  │                     ▼                               │
+  │            custom Python logic                      │
+  │                     │                               │
+  │                     ▼                               │
+  │  return [{"ts": <ts>, "value": <value>}, …]         │
+  └─────────────────────────────────────────────────────┘
+                        │
+                        ▼
+              stored in ThingsBoard
+              as telemetry (_ECD_…)
+```
+
+## Required output format
+
+A Native Calculation function must return an array of timestamp/value objects:
+
+```python
+[{"ts": <ts>, "value": <value>}]
+```
+
+`ts` is a Unix timestamp in milliseconds. `value` can be a number or string. The returned time series is stored in ThingsBoard when a reprocess or refresh job is configured for the originator.
+
+## Parameters
+
+The following parameters are injected automatically and are always available in the function body:
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `startTs` | int | Start timestamp in milliseconds. |
+| `endTs` | int | End timestamp in milliseconds. |
+| `groupBy` | str | Grouping interval: `'minute'`, `'hour'`, `'day'`, `'week'`, or `'month'`. |
+| `tzName` | str | Time zone of the user who triggered the task (e.g. `'Europe/Kyiv'`). |
+| `tzOffsetMs` | int | Offset in milliseconds between UTC and the user's time zone. |
+
+These values depend on the calculation context (test run, refresh job, or reprocess job) and may differ between executions.
+
+## Functions
+
+### get_originator_id()
+
+Returns the UUID string of the current calculation originator.
+
+```python
+originator_id = get_originator_id()
+```
+
+### get_originator_type()
+
+Returns the type of the current originator: `'DEVICE'` or `'ASSET'`.
+
+```python
+originator_type = get_originator_type()
+```
+
+### get_telemetries()
+
+Fetches telemetry data from any available entity.
+
+```python
+get_telemetries(
+    keys,          # required: list of telemetry keys, e.g. ['temperature', 'humidity']
+    from_ts,       # optional: start timestamp in ms (defaults to startTs)
+    to_ts,         # optional: end timestamp in ms (defaults to endTs)
+    entity_id,     # optional: entity UUID (defaults to originator ID)
+    entity_type    # optional: 'DEVICE' or 'ASSET' (defaults to originator type)
+)
+```
+
+**Returns** a dictionary keyed by telemetry key:
+
+```python
+{
+    "temperature": [{"value": "21.5", "ts": 1704067200000}, ...],
+    "humidity":    [{"value": "55",   "ts": 1704067200000}, ...],
+}
+```
+
+**Examples:**
+
+```python
+# Fetch from the originator using the default time range
+keys = ['temperature', 'heat_consumption']
+telemetries = get_telemetries(keys)
+
+# Fetch with a custom time range
+telemetries = get_telemetries(
+    keys,
+    from_ts=1704067200000,  # 1 Jan 2024
+    to_ts=1735689600000,    # 1 Jan 2025
+)
+
+# Fetch from a specific device
+telemetries = get_telemetries(
+    keys,
+    entity_id='8c790660-782a-4c7b-ae07-0c3163a6f968',
+    entity_type='DEVICE',
+)
+
+# Iterate the results
+if not telemetries.get('temperature'):
+    print('No temperature data found.')
+    return []
+
+for reading in telemetries['temperature']:
+    ts = reading['ts']
+    value = float(reading['value'])
+    # custom logic here
+```
+
+### get_attributes()
+
+Fetches attributes from any available entity.
+
+```python
+get_attributes(
+    attributes,    # required: list of {'scope': '<scope>', 'key': '<key>'} dicts
+    entity_id,     # optional: entity UUID (defaults to originator ID)
+    entity_type    # optional: 'DEVICE' or 'ASSET' (defaults to originator type)
+)
+```
+
+Valid `scope` values: `'SERVER_SCOPE'`, `'CLIENT_SCOPE'`, `'SHARED_SCOPE'`.
+
+**Returns** a dictionary grouped by scope:
+
+```python
+{
+    "SERVER_SCOPE": {"area": "120", "floor": "3"},
+    "CLIENT_SCOPE": {},
+    "SHARED_SCOPE": {},
+}
+```
+
+**Examples:**
+
+```python
+# Fetch area attribute from the originator
+attrs = get_attributes([{'scope': 'SERVER_SCOPE', 'key': 'area'}])
+area = attrs.get('SERVER_SCOPE', {}).get('area')
+
+# Fetch from a specific asset
+attrs = get_attributes(
+    [{'scope': 'SERVER_SCOPE', 'key': 'area'}],
+    entity_id='4e0aba8c-772d-4d61-9f16-3d8c896b1600',
+    entity_type='ASSET',
+)
+area = attrs.get('SERVER_SCOPE', {}).get('area')
+```
+
+### get_relations()
+
+Fetches relations for any available entity.
+
+```python
+get_relations(
+    entity_id,                  # optional: entity UUID (defaults to originator ID)
+    entity_type,                # optional: 'DEVICE' or 'ASSET' (defaults to originator type)
+    direction,                  # optional: 'FROM' or 'TO' — omit to match any direction
+    relation_type,              # optional: relation type string — omit to match any
+    target_entity_type,         # optional: 'DEVICE' or 'ASSET' — omit to match any
+    target_entity_profile_name  # optional: asset/device profile name — omit to match any
+)
+```
+
+**Returns** a list of relation objects:
+
+```python
+[
+    {
+        "relationType":        "Contains",
+        "direction":           "FROM",
+        "entityId":            "4e0aba8c-772d-4d61-9f16-3d8c896b1600",
+        "entityType":          "ASSET",
+        "entityProfileName":   "EM apartment",
+    },
+    ...
+]
+```
+
+**Examples:**
+
+```python
+# All relations for the originator
+relations = get_relations()
+
+# Filter by type, direction, and target profile
+relations = get_relations(
+    direction='TO',
+    relation_type='Contains',
+    target_entity_type='ASSET',
+    target_entity_profile_name='EM apartment',
+)
+
+# Relations for a specific device
+relations = get_relations(
+    entity_id='8c790660-782a-4c7b-ae07-0c3163a6f968',
+    entity_type='DEVICE',
+)
+
+# Traverse a relation and fetch an attribute from the related entity
+relations = get_relations(
+    direction='TO',
+    relation_type='Contains',
+    target_entity_type='ASSET',
+    target_entity_profile_name='EM apartment',
+)
+if not relations:
+    print('No associated apartment found.')
+    return []
+
+apartment_id   = relations[0]['entityId']
+apartment_type = relations[0]['entityType']
+attrs = get_attributes(
+    [{'scope': 'SERVER_SCOPE', 'key': 'area'}],
+    entity_id=apartment_id,
+    entity_type=apartment_type,
+)
+area = attrs.get('SERVER_SCOPE', {}).get('area')
+```
+
+## Best practices
+
+Use Native Calculations when:
+- You need flexible relation traversal or telemetry loading from entities outside the standard field selection.
+- You are prototyping or experimenting in the Metric Explorer.
+
+Avoid Native Calculations when:
+- The same result can be achieved with a Simple or <DocLink product={props.product} path="calculations/batch">Batch</DocLink> Calculation — those execute faster because Trendz handles data loading and aggregation internally.
+
+## Limitations
+
+Native Calculations only support the **Fixed** timerange strategy. The Dynamic strategy is not available.
+
+## Example: temperature deviation from building average
+
+This example is attached to an **EM heat meter** device. It computes how much that meter's temperature deviates from the average across all heat meters in the same building.
+
+```plaintext
+  EM heat meter (originator)
+        │ TO / Contains
+        ▼
+  EM apartment
+        │ TO / Contains
+        ▼
+  EM building
+        │ FROM / Contains
+        ▼
+  all EM apartments in building
+        │ FROM / Contains
+        ▼
+  all EM heat meters in building
+        │
+        ▼
+  avg(all temperatures at each ts)
+        │
+        ▼
+  originator temperature − building average → return [{ts, value}]
+```
+
+```python maxLines=30 collapsible
+import statistics
+
+# 1. Fetch 'temperature' from the current heat meter.
+heat_meter_temperature_data = get_telemetries(keys=["temperature"])
+if not heat_meter_temperature_data or "temperature" not in heat_meter_temperature_data:
+    print("Temperature telemetry not found for the heat meter.")
+    return []
+
+heat_meter_temperature_values = heat_meter_temperature_data["temperature"]
+if not heat_meter_temperature_values:
+    print("Temperature telemetry values are empty.")
+    return []
+
+# 2. Traverse: heat meter → apartment (TO / Contains).
+apartment_relations = get_relations(
+    direction="TO", relation_type="Contains",
+    target_entity_type="ASSET", target_entity_profile_name="EM apartment",
+)
+if not apartment_relations:
+    print("No related apartment found for the heat meter.")
+    return []
+
+apartment_id   = apartment_relations[0]["entityId"]
+apartment_type = apartment_relations[0]["entityType"]
+
+# 3. Traverse: apartment → building (TO / Contains).
+building_relations = get_relations(
+    entity_id=apartment_id, entity_type=apartment_type,
+    direction="TO", relation_type="Contains",
+    target_entity_type="ASSET", target_entity_profile_name="EM building",
+)
+if not building_relations:
+    print("No related building found for the apartment.")
+    return []
+
+building_id   = building_relations[0]["entityId"]
+building_type = building_relations[0]["entityType"]
+
+# 4. Find all apartments in the building (FROM / Contains).
+all_apartments = get_relations(
+    entity_id=building_id, entity_type=building_type,
+    direction="FROM", relation_type="Contains",
+    target_entity_type="ASSET", target_entity_profile_name="EM apartment",
+)
+if not all_apartments:
+    print("No apartments found for the building.")
+    return []
+
+# 5. For each apartment, collect temperatures from all its heat meters.
+building_temps_by_ts = {}
+for apt in all_apartments:
+    heat_meters = get_relations(
+        entity_id=apt["entityId"], entity_type=apt["entityType"],
+        direction="FROM", relation_type="Contains",
+        target_entity_type="DEVICE", target_entity_profile_name="EM heat meter",
+    )
+    for hm in heat_meters:
+        data = get_telemetries(
+            keys=["temperature"],
+            entity_id=hm["entityId"], entity_type=hm["entityType"],
+        )
+        if data and "temperature" in data:
+            for item in data["temperature"]:
+                ts = item["ts"]
+                try:
+                    value = float(item["value"])
+                    building_temps_by_ts.setdefault(ts, []).append(value)
+                except ValueError as e:
+                    print(f"Skipping invalid temperature value: {e}")
+
+# 6. Compute the building average temperature per timestamp.
+building_avg = {
+    ts: statistics.mean(temps)
+    for ts, temps in building_temps_by_ts.items()
+    if temps
+}
+
+# 7. Return the deviation of the originator from the building average.
+result = []
+for item in heat_meter_temperature_values:
+    ts = item["ts"]
+    try:
+        temp = float(item["value"])
+        if ts in building_avg:
+            result.append({"ts": ts, "value": temp - building_avg[ts]})
+    except ValueError as e:
+        print(f"Skipping invalid temperature value: {e}")
+
+return result
+```

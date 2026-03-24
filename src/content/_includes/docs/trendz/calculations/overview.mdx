@@ -1,0 +1,253 @@
+import { Steps, Aside } from '@astrojs/starlight/components';
+import ImageGallery from '~/components/ImageGallery.astro';
+import DocLink from '@components/DocLink.astro';
+
+Calculated fields let you apply statistical functions and custom formulas to your device telemetry directly in Trendz, without modifying any data in ThingsBoard or adding extra load to the database. Results can optionally be written back to ThingsBoard as telemetry for use in dashboards, rule chains, and further analysis.
+
+To access the calculated fields tool, click the **√x** icon labeled **Calculation Fields** in the left sidebar. The table lists all existing calculated fields. To create a new one, click **Create Calculation Field**.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/trendz/calculations/calculated-field-create.png',
+    alt: 'Calculated Fields list with the Create Calculation Field button',
+    caption: 'Click <b>Create Calculation Field</b> to open the calculated field editor.',
+  },
+]} />
+
+## Calculated field editor
+
+### Function tab
+
+The Function tab defines how the calculation is computed.
+
+| Field | Description |
+|-------|-------------|
+| **KEY** | Identifier used when storing the result in ThingsBoard. The `_ECD_` prefix is added automatically (e.g. key `myField` → ThingsBoard telemetry key `_ECD_myField`). In Trendz views, the field is shown by its display name, not the raw key. Required. |
+| **ENTITY** | Business entity this calculated field is linked to. Determines which data it can access and how it appears in views and filters. Required. |
+| **LANGUAGE** | Scripting language for the calculation: **JavaScript** (ECMAScript 5.1, default) or **Python** (3.8+, with NumPy, Pandas, and more pre-installed). You can also install additional Python packages. See <DocLink product={props.product} path="install/python-executor-configuration#add-custom-python-libraries">Add custom Python libraries</DocLink>. |
+| **GROUPING INTERVAL** | Time bucket for aggregating input data: hour, day, week, or month. |
+| **FIELD TYPE** | **Simple** — computes one value per time bucket. **Batch** — receives the full raw telemetry array for custom aggregation. See <DocLink product={props.product} path="calculations/batch">Batch Calculations</DocLink>. |
+| **AGGREGATION** | Method for summarizing grouped data: AVG, SUM, LATEST, MIN, MAX, COUNT, UNIQ, and others. See <DocLink product={props.product} path="concepts/telemetry-aggregation">Telemetry Aggregation</DocLink>. |
+| **Fill Gap** | How missing telemetry is handled. Configured via TIME UNIT and STRATEGY sub-settings. |
+| **TIMERANGE STRATEGY** | **Dynamic** — loads data since the last successful calculation. **Fixed** — uses a predefined time range on each execution. |
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/trendz/calculations/calculated-function-tab.png',
+    alt: 'Calculated field Function tab with key, entity, language, and aggregation settings',
+    caption: 'The Function tab — configure the key, entity, language, and aggregation strategy.',
+  },
+]} />
+
+### Input tab
+
+The Input tab lets you define and inspect the data fed into the calculation.
+
+**Data field mode:**
+- **Real Data** — shows read-only input values based on the configured parameters.
+- **Manual** — lets you enter test values manually. Manual entries can be edited, copied, or deleted; editable fields have a gray background.
+
+**Built-in variables** always available in the calculation function:
+
+| Variable | Description |
+|----------|-------------|
+| `startTs` | Start timestamp of the current calculation period. |
+| `endTs` | End timestamp of the current calculation period. |
+| `groupBy` | Active grouping interval. |
+| `tzName` | Time zone name used for the calculation. |
+| `tzOffsetMs` | Time zone offset in milliseconds, used to align data to local time. |
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/trendz/calculations/calculated-input-tab.png',
+    alt: 'Calculated field Input tab showing real data and built-in variable fields',
+    caption: 'The Input tab — switch between Real Data and Manual mode and inspect built-in variables.',
+  },
+]} />
+
+### Output tab
+
+After clicking **Run test**, the Output tab shows three views:
+
+| View | Description |
+|------|-------------|
+| **Function** | Shows and lets you modify the calculation function for iterative testing. |
+| **Output Data** | Displays calculation results — simple values or arrays — as a table or line chart. |
+| **Logs** | Shows runtime logs equivalent to browser console output. Useful for debugging. |
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/trendz/calculations/calculated-output-tab.png',
+    alt: 'Calculated field Output tab showing calculation results and log output',
+    caption: 'The Output tab — inspect results and logs after running a test.',
+  },
+]} />
+
+### Tasks tab
+
+The Tasks tab lists all background jobs created for this calculated field, along with their current status: completed, in progress, or pending.
+
+Jobs are triggered in two situations:
+- A calculated field is **enabled** for the first time — Trendz creates an initial job to compute and store historical results in ThingsBoard.
+- You **modify and re-save** an enabled calculation and then manually run a **Reprocess Task** — a new job applies the updated formula to all historical data.
+
+Without running the Reprocess Task after a change, the updated formula applies only to data recorded after the re-save. Historical values retain the results of the previous formula.
+
+## Examples
+
+### Simple conversion
+
+Convert boiler temperature from Celsius to Fahrenheit:
+
+```js
+var celsius = avg(Machine.boilerTemp);
+var fahrenheit = celsius * 1.8 + 32;
+return fahrenheit;
+```
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/trendz/calculations/calculated-simple.png',
+    alt: 'Calculated field with a Celsius-to-Fahrenheit conversion formula',
+    caption: 'A simple calculation converting boiler temperature from Celsius to Fahrenheit.',
+  },
+]} />
+
+### Multiple fields
+
+Calculate total energy consumed by two meters per square meter of apartment area:
+
+```plaintext
+  ┌──────────────────────────────────────────────────────┐
+  │  Apartment (area = 120 m²)                           │
+  │  CF: (energyConsumption + heatConsumption) / area    │
+  └──────────────────────┬───────────────────────────────┘
+                         │ contains
+             ┌───────────┴───────────┐
+             ▼                       ▼
+  ┌────────────────────┐   ┌────────────────────┐
+  │     HeatMeter      │   │    EnergyMeter      │
+  │ heatConsumption    │   │ energyConsumption   │
+  └────────────────────┘   └────────────────────┘
+
+  Result: (200 + 300) / 120 = 4.17 kWh/m²
+```
+
+```js
+var energy = sum(energyMeter.energyConsumption);
+var heat = sum(heatMeter.heatConsumption);
+var size = uniq(apartment.area);
+return (energy + heat) / size;
+```
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/trendz/calculations/calculated-complex-config.png',
+    alt: 'Calculated field configured with two meter inputs and an apartment area attribute',
+    caption: 'Multiple input fields: two energy meters and an apartment area attribute.',
+  },
+]} />
+
+### Field reference syntax
+
+To access a field inside a calculation function, use the three-part reference:
+
+```plaintext
+  avg(Machine.temperature)
+  │    │        │
+  │    │        └─ Field name (telemetry key or attribute)
+  │    └────────── Entity name (Asset Type or Device Type)
+  └─────────────── Aggregation function (avg, sum, uniq, …)
+```
+
+All three parts are required. Use `uniq()` when referencing an **attribute**, an entity name, or an owner name.
+
+## Saving and editing calculations
+
+After configuring the calculation, click **Save Field** in the upper-right corner. The field appears in the business entity list under the name you provided. If a field with the same name or key already exists, the system warns you of the duplicate.
+
+### Enabling a calculated field
+
+While saving, you can **Enable** the field. When enabled, Trendz writes computed results to ThingsBoard as telemetry under the key `_ECD_{KEY}`.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/trendz/calculations/calculated-enable.png',
+    alt: 'Enable toggle shown during the Save Field process',
+    caption: 'Enable the calculated field during saving to start writing results to ThingsBoard as telemetry.',
+  },
+]} />
+
+For full details, see <DocLink product={props.product} path="calculations/save-to-thingsboard">Save Calculation to ThingsBoard</DocLink>.
+
+### Modifying a saved calculation
+
+<Steps>
+
+1. Open the saved calculation and make your changes.
+
+2. Click **Save Field** again. Trendz prompts you to propagate the changes to all view fields that use this calculation — confirm to update them automatically.
+
+3. If the field was enabled, go to the **Tasks tab** and click **Run Reprocess Task** to apply the updated formula to all historical data.
+
+</Steps>
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/trendz/calculations/calculated-reprocess-task.png',
+    alt: 'Tasks tab with the Run Reprocess Task button',
+    caption: 'Run the Reprocess Task to apply an updated calculation formula to all historical data.',
+  },
+]} />
+
+<Aside type="note">
+Without running the Reprocess Task, the updated formula applies only to data recorded after the re-save. Historical data retains the results of the previous formula.
+</Aside>
+
+## Using calculations in view fields
+
+Once saved, a calculated field appears in the business entities panel under the name you assigned it and can be added to any view.
+
+**Real-time (RT) vs ThingsBoard (TB) data:**
+
+| Mode | Description |
+|------|-------------|
+| **TB** | Reads pre-computed results stored in ThingsBoard. Fast to render; updates on the schedule configured in the task settings. **Preferred for dashboards and large datasets.** |
+| **RT** | Computes the result on demand from current raw telemetry. Always up to date but slower — use only for small datasets or when TB data is not yet available. |
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/trendz/calculations/calculated-view-fields.png',
+    alt: 'Business entities panel showing a calculated field available for selection in a view',
+    caption: 'Calculated fields appear in the business entities list under the name assigned during creation.',
+  },
+  {
+    src: '/src/assets/images/trendz/calculations/calculated-real-time.png',
+    alt: 'View field panel showing real-time (RT) toggle for a calculated field',
+    caption: 'Toggle RT to compute the result from current telemetry instead of reading stored ThingsBoard data.',
+  },
+]} />
+
+To adjust a calculation directly from a view field, click **Go to calculation field** in the view field configuration panel.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/trendz/calculations/calculated-go-to-calculation.png',
+    alt: 'Go to calculation field button inside the view field configuration panel',
+    caption: 'Use <b>Go to calculation field</b> to jump from the view field configuration directly to the calculation editor.',
+  },
+]} />
+
+## Disabled calculations
+
+A calculated field that is not enabled still appears in the business entities list and can be dragged into any chart. However, a **red bell icon** appears next to it in the chart-building area as a reminder that the field is not persisted to ThingsBoard.
+
+Click the red bell icon to navigate directly to the calculated field and enable it.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/trendz/calculations/calculated-disabled-bell.png',
+    alt: 'Chart area showing a red bell icon next to a disabled calculated field',
+    caption: 'The red bell icon indicates the calculated field is not enabled — click it to open the field and enable persistence.',
+  },
+]} />

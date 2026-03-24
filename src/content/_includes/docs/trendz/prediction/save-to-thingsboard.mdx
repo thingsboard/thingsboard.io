@@ -1,0 +1,106 @@
+import { Steps, Aside } from '@astrojs/starlight/components';
+import ImageGallery from '~/components/ImageGallery.astro';
+
+After a prediction model is trained, Trendz can write the resulting forecast directly into ThingsBoard as regular telemetry. Once stored, the predicted values can be used in dashboards, rule chains, or any other ThingsBoard feature — exactly like real device telemetry.
+
+## How predicted telemetry is generated
+
+To generate and store telemetry, a model must have:
+- A unique **name**
+- An associated **business entity**
+- A ThingsBoard **telemetry key** (set in the **Key** field on the Input tab)
+
+When these conditions are met, Trendz generates a prediction starting from the latest training data point and covering a time range equal to one segment. The result is stored in ThingsBoard under the key `_EPD_{key}`, on each selected item (device or asset). The `_EPD_` prefix ensures the prediction never overwrites existing device telemetry. Items not included in the job's item list receive no predicted telemetry.
+
+```plaintext
+  Training data (2024)          Prediction
+  ──────────────────────────────────────────────▶ time
+
+  ●──●──●──●──●──●──●──●──●──●──●
+  Jan                          Dec │ Jan 2025 ...
+                                   │
+                              latest point
+                                   │
+                                   ▼
+                         ╔═══════════════════╗
+                         ║  _EPD_energy_key  ║
+                         ║  (1 segment ahead)║
+                         ╚═══════════════════╝
+                               stored in TB
+```
+
+*Example:* A model trained on energy consumption data for all of 2024, with a 1-month prediction range and FIXED segmentation, generates a forecast for January 2025 immediately after training. This is stored under `_EPD_energy_consumption_prediction` and is accessible in Trendz as a field on the associated business entity.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/trendz/prediction/models-save-telemetry.png',
+    alt: 'Prediction model configuration showing entity, key, and training range',
+    caption: 'A trained model with a defined key and business entity is ready to generate and store predicted telemetry.',
+  },
+]} />
+
+## Keeping predictions up to date
+
+A single training run generates one forecast segment. To keep predictions current as new real telemetry arrives, configure a **refresh job** — Trendz will automatically update the forecast on a schedule.
+
+Each time the refresh job runs, it:
+
+1. Detects new telemetry that arrived since the last run.
+2. Optionally retrains the model on the new data (`partial_fit`).
+3. Generates predictions for all segments that have accumulated since the last run — if multiple refresh intervals were missed, Trendz catches up by generating each missing segment in order.
+4. Overwrites any previously predicted values that overlap with the new prediction.
+
+```plaintext
+  After training (Jan 1, 2025)
+  ──────────────────────────────────────────▶ time
+  ●──●──●──●──●  [2024 training data]
+                 ╔═════════╗
+                 ║ Jan '25 ║  initial prediction
+                 ╚═════════╝
+
+  After refresh (Feb 1, 2025 — new Jan data arrived)
+  ──────────────────────────────────────────▶ time
+  ●──●──●──●──●──●  [+ Jan '25 real data]
+                    ╔═════════╗
+                    ║ Feb '25 ║  updated prediction
+                    ╚═════════╝
+                    (Jan '25 prediction overwritten with real data)
+```
+
+The refresh cycle continues iteratively: each new segment of real data produces a new segment of predicted data. The process pauses when there is not enough new data to form a complete segment, and resumes automatically when enough data accumulates.
+
+## Configure the prediction job
+
+<Steps>
+
+1. Open the prediction model and click **JOBS** in the upper-right corner.
+
+2. In the **Prediction Model Parameters** modal, configure the following:
+
+   | Setting | Description |
+   |---------|-------------|
+   | **Enable prediction model refreshing** | Turns on periodic telemetry generation. Must be enabled to save any predictions to ThingsBoard. |
+   | **Every N time unit** | How often Trendz runs the refresh job (e.g. every 1 day). |
+   | **Items** | Which specific devices or assets to generate predictions for. |
+   | **Enable Model Retraining** | When enabled, the model runs `partial_fit` on each new data segment before predicting. When disabled, the existing trained model is used as-is for all future predictions. |
+
+3. Click **Save**.
+
+</Steps>
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/trendz/prediction/models-jobs-1.png',
+    alt: 'JOBS button in the upper-right corner of the prediction model view',
+    caption: 'Click <b>JOBS</b> to open the Prediction Model Parameters modal.',
+  },
+  {
+    src: '/src/assets/images/trendz/prediction/models-jobs-2.png',
+    alt: 'Prediction Model Parameters modal with refresh interval, items, and retraining options',
+    caption: 'Configure the refresh interval, select target items, and toggle model retraining.',
+  },
+]} />
+
+<Aside type="tip">
+Enable **Model Retraining** to keep accuracy high over time. Without retraining, the model uses only the data from the original training period — predictions will drift as real telemetry diverges from the historical pattern.
+</Aside>

@@ -1,0 +1,221 @@
+import ImageGallery from '@components/ImageGallery.astro';
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+Overall Equipment Effectiveness (OEE) is the industry standard metric for measuring manufacturing productivity.
+It combines three components — Availability, Performance, and Quality — into a single score that exposes where
+efficiency losses are occurring and which assembly lines need attention.
+This guide shows how to compute and visualize all three OEE components in real time using IoT sensor data and Trendz Analytics.
+
+**Task definition:** Track OEE score for the whole plant and for each assembly line in real time and on a daily basis.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/trendz/guide/oee_score/oee_score_industrial_plant.png',
+    alt: 'Dashboard with OEE score tracking on the factory floor',
+    caption: 'Dashboard with OEE score tracking on the factory floor.',
+  },
+]} />
+
+### Implementation plan
+
+- Compute **Availability** by tracking the duration and reasons of downtime events.
+- Identify the top 5 downtime reasons per assembly line for root-cause analysis.
+- Compute **Performance** by comparing actual production speed to the planned rate.
+- Compute **Quality** based on the number of rejected parts.
+
+## Prerequisites
+
+The domain model in ThingsBoard:
+
+- `Manufacturing plant` — registered as an asset.
+- `Assembly line` — registered as a device with a relation to the manufacturing plant asset.
+- An on-site gateway collects data via Modbus and forwards it to ThingsBoard.
+
+Telemetry keys reported by each assembly line:
+
+| Key | Description |
+|-----|-------------|
+| `powerUsageWh` | Energy consumed in Wh |
+| `producedParts` | Parts produced (incremental counter, reported every 60 s) |
+| `rejectedParts` | Parts rejected during quality check |
+| `status` | Assembly line status: `running`, `stopped`, `maintenance`, etc. |
+| `reason` | Reason for the current downtime event |
+
+## Implementation
+
+### Step 1: Availability — track downtime duration
+
+Trendz **state fields** calculate how much time a device spent in a given state based on a boolean condition.
+Use this to measure what percentage of time each assembly line was operational.
+
+<Steps>
+1. Create a **Line chart** in Trendz.
+2. Add a **Date** field to the **X-axis** section.
+3. Add `assemblyLine` to the **Series** section — this draws a separate line per assembly line.
+4. Add a **State field** to the **Y-axis** section:
+   - Aggregation: **Duration percent**
+   - Label: `Availability score`
+   - Formula:
+     ```javascript
+     var state = none(assemblyLine.status);
+     return state == "running";
+     ```
+5. Save the view as **OEE Availability line chart**.
+</Steps>
+
+The result is a real-time chart showing OEE Availability percentage per assembly line.
+You can add a threshold line to immediately highlight when Availability falls below a target.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/trendz/guide/oee_score/OEE_create_view_St1_1.png',
+    alt: 'Create line chart in Trendz',
+    caption: 'Create line chart in Trendz.',
+  },
+  {
+    src: '/src/assets/images/trendz/guide/oee_score/OEE_add_fields_St1_2.png',
+    alt: 'Configure availability chart to track downtime events',
+    caption: 'Configure the availability chart to track downtime events.',
+  },
+  {
+    src: '/src/assets/images/trendz/guide/oee_score/OEE_calculated_St1_3.png',
+    alt: 'Use States to track operational time for each assembly line',
+    caption: 'Use States to track how much time each assembly line was operational.',
+  },
+  {
+    src: '/src/assets/images/trendz/guide/oee_score/OEE_final_view_St1_4.png',
+    alt: 'Chart showing operational time percentage per assembly line',
+    caption: 'Chart showing operational time percentage per assembly line.',
+  },
+]} />
+
+### Step 2: Availability — top 5 downtime reasons
+
+Knowing that a line was down 15% of the time is useful; knowing the top reasons is actionable.
+
+<Steps>
+1. Create a **Bar chart** in Trendz.
+2. Add `assemblyLine` to the **X-axis** section.
+3. Add `assemblyLine.status` to the **Series** section with aggregation `UNIQ` — groups bars by status value.
+4. Add `assemblyLine.status` to the **Values** section with aggregation `COUNT`.
+5. Add `assemblyLine.status` to the **Filters** section and select only statuses that represent downtime.
+6. Open view settings:
+   - Sorting: **Descending** by `assemblyLine.status`
+   - Limit: `5`
+   - Enable **Stacked bar**
+7. Save the view as **Availability: Top 5 downtime reasons**.
+</Steps>
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/trendz/guide/oee_score/OEE_add_fields_St2_1.png',
+    alt: 'Create bar chart with top 5 downtime reasons for each assembly line',
+    caption: 'Create bar chart with top 5 downtime reasons for each assembly line.',
+  },
+  {
+    src: '/src/assets/images/trendz/guide/oee_score/OEE_settings_St2_2.png',
+    alt: 'Configure settings to compute top 5 downtime reasons',
+    caption: 'Configure settings to compute top 5 downtime reasons.',
+  },
+  {
+    src: '/src/assets/images/trendz/guide/oee_score/OEE_final_view_St2_3.png',
+    alt: 'Top 5 downtime reasons for each assembly line',
+    caption: 'Top 5 downtime reasons for each assembly line.',
+  },
+]} />
+
+### Step 3: Performance — actual vs. planned production speed
+
+Performance score is the ratio of actual production speed to the planned speed.
+Use a batch calculated field so the formula has access to raw per-point telemetry values.
+
+<Steps>
+1. Create a **Line chart** in Trendz.
+2. Add a **Date** field to the **X-axis** section.
+3. Add `assemblyLine` to the **Series** section.
+4. Add a **Calculated field** to the **Y-axis** section:
+   - Label: `Performance score`
+   - Enable **Batch calculation** — provides raw telemetry points to the formula
+   - Aggregation: `AVG`
+   - Formula:
+     ```javascript
+     var plannedSpeed = uniq(assemblyLine.plannedSpeed)[0].value;
+     var rawProducedPartsArray = none(assemblyLine.producedParts);
+
+     var performanceScore = [];
+     for (var i = 0; i < rawProducedPartsArray.length; i++) {
+         var point = rawProducedPartsArray[i];
+         var score = point.value * 100 / plannedSpeed;
+         performanceScore.push({ts: point.ts, value: score});
+     }
+
+     return performanceScore;
+     ```
+5. Save the view as **OEE Performance score line chart**.
+</Steps>
+
+With batch calculation, Trendz computes a performance score for every raw sensor reading, then applies AVG to aggregate them per time interval (hour, day, week, or month — user-selectable).
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/trendz/guide/oee_score/OEE_add_fields_St3_1.png',
+    alt: 'Create line chart with production speed comparison to planned production',
+    caption: 'Create line chart with production speed comparison to planned production.',
+  },
+  {
+    src: '/src/assets/images/trendz/guide/oee_score/OEE_batch_calculation_St3_2.png',
+    alt: 'Enable batch calculation for the performance metric',
+    caption: 'Enable batch calculation for the performance metric.',
+  },
+  {
+    src: '/src/assets/images/trendz/guide/oee_score/OEE_final_view_St3_3.png',
+    alt: 'Hourly production speed of the plant',
+    caption: 'Hourly production speed of the plant.',
+  },
+]} />
+
+### Step 4: Quality — rejected parts ratio
+
+Quality score measures the percentage of parts that passed quality checks.
+
+<Steps>
+1. Create a **Line chart** in Trendz.
+2. Add a **Date** field to the **X-axis** section.
+3. Add `assemblyLine` to the **Series** section.
+4. Add a **Calculated field** to the **Y-axis** section:
+   - Label: `Quality score`
+   - Formula:
+     ```javascript
+     var producedParts = sum(assemblyLine.producedParts);
+     var rejectedParts = sum(assemblyLine.rejectedParts);
+
+     var qualityScore = 100 - rejectedParts * 100 / producedParts;
+     return qualityScore;
+     ```
+5. Save the view as **OEE Quality score line chart**.
+</Steps>
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/trendz/guide/oee_score/OEE_add_fields_St4_1.png',
+    alt: 'Create line chart showing percent of damaged parts',
+    caption: 'Create line chart showing percent of damaged parts.',
+  },
+  {
+    src: '/src/assets/images/trendz/guide/oee_score/OEE_calculated_St4_2.png',
+    alt: 'Configure quality score calculation based on rejected parts',
+    caption: 'Configure quality score calculation based on rejected parts.',
+  },
+  {
+    src: '/src/assets/images/trendz/guide/oee_score/OEE_final_view_St4_3.png',
+    alt: 'Track rejected parts and overall quality score of the plant',
+    caption: 'Track rejected parts and overall quality score of the plant.',
+  },
+]} />
+
+## Summary
+
+With four Trendz views — Availability line chart, top-5 downtime bar chart, Performance line chart,
+and Quality line chart — you have complete OEE visibility for every assembly line in real time.
+Each chart can be added to a shared ThingsBoard dashboard so plant managers can identify the root cause
+of efficiency losses, target the specific lines or shifts that need improvement, and measure the impact of interventions over time.

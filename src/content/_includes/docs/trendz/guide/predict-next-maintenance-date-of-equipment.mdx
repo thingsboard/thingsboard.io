@@ -1,0 +1,225 @@
+import ImageGallery from '@components/ImageGallery.astro';
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+Cap assembly machines run under variable loads, making fixed-interval maintenance schedules imprecise.
+Servicing too early wastes resources; servicing too late risks unplanned downtime.
+This guide shows how to use Trendz Analytics to forecast when each machine will reach its maintenance threshold and
+automatically notify the maintenance team two weeks in advance — without any manual tracking.
+
+**Task definition:** Predict the number of days until each cap assembly machine produces 500,000 caps,
+and create an alarm to notify the team 14 days before the predicted date.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/trendz/guide/predictive_maintenance/predict_remaining_time_to_next_maintenance_of_the_equipment.png',
+    alt: 'Dashboard: predict remaining time to next equipment maintenance',
+    caption: 'Dashboard showing predicted remaining time to next maintenance for each machine.',
+  },
+]} />
+
+### Implementation plan
+
+- Create a production forecast for each machine using Trendz Analytics.
+- Calculate the number of days remaining until each machine produces 500,000 caps.
+- Save the calculated remaining days as machine telemetry back to ThingsBoard.
+- Create a ThingsBoard alarm if remaining time drops below 14 days.
+- Send an email to the maintenance team when the alarm fires.
+
+### Key outcomes
+
+- reduction in unplanned downtime
+- reduction in maintenance costs
+- improvement in maintenance team efficiency
+
+## Prerequisites
+
+Assembly machines are connected to ThingsBoard via OPC-UA integration.
+For this use case the only telemetry key used is `capsProduced`, reported every 5 minutes as a cumulative counter that resets after each maintenance event.
+
+## Implementation
+
+### Step 1: Forecast when the machine reaches 500,000 caps
+
+<Steps>
+1. Create a **Table** view in Trendz.
+2. Add `machine name` to the **Columns** section — this creates a separate forecast per machine.
+3. Add a **Calculated field** to the **Columns** section.
+4. Enable the **Batch calculation** checkbox — the formula receives raw telemetry points.
+5. Enable the **Prediction** checkbox:
+   - Prediction method: **Fourier transformation**
+   - Prediction range: `3`
+   - Prediction unit: `months`
+6. Write the function that returns the remaining days to the maintenance threshold:
+
+   ```javascript
+   var threshold = 500000;
+   var remainingDays = -1;
+
+   var data = none(machine.capsProduced);
+   for (var i = 0; i < data.length; i++) {
+       var point = data[i];
+       if (point.value >= threshold) {
+           var timeDeltaMillis = point.ts - Date.now();
+           remainingDays = timeDeltaMillis / 1000 / 60 / 60 / 24;
+           break;
+       }
+   }
+
+   return [{ts: 1, value: remainingDays}];
+   ```
+
+7. Click **Build report** — the table shows estimated days to next maintenance for each machine.
+</Steps>
+
+Trendz builds a production forecast using historical `capsProduced` data, then the function scans the forecast to find the first point where the threshold is reached and returns how many days away that point is.
+If the threshold is not reached within 3 months, the function returns `-1`.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/trendz/guide/predictive_maintenance/Remaining_time_create_table_St1_1.png',
+    alt: 'Create table view in Trendz Analytics',
+    caption: 'Create table view in Trendz Analytics.',
+  },
+  {
+    src: '/src/assets/images/trendz/guide/predictive_maintenance/Remaining_time_add_fields_St1_2.png',
+    alt: 'Add machine name and calculated field to columns section',
+    caption: 'Add machine name and calculated field to columns section.',
+  },
+  {
+    src: '/src/assets/images/trendz/guide/predictive_maintenance/Remaining_time_prediction_calculated_St1_3.png',
+    alt: 'Configure the calculated field to forecast remaining time to maintenance',
+    caption: 'Configure the calculated field to forecast remaining time to maintenance.',
+  },
+]} />
+
+### Step 2: Save remaining time as machine telemetry
+
+Trendz can run the calculation on a schedule and write the result back to ThingsBoard as device telemetry.
+Once `capsForecast` is a live telemetry key, the standard ThingsBoard alarm engine can act on it.
+
+<Steps>
+1. Set the calculated field label to **capsForecast** — this becomes the telemetry key name.
+2. Open view settings → **Tb calculated telemetry save**:
+   - Enabled: **true**
+   - Save interval: `1`
+   - Save unit: `hours`
+3. In **View mode fields**, set **Machine** as the **Row click entity** — telemetry is saved under this entity.
+4. Set the default time range to **Last 7 days**.
+5. Save the view as **Machine maintenance remaining days forecast job**.
+</Steps>
+
+Trendz now runs this job hourly, fetches fresh `capsProduced` data, executes the forecast, and writes the result as `capsForecast` telemetry on each machine.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/trendz/guide/predictive_maintenance/Remaining_time_rename_St2_1.png',
+    alt: 'Set calculated field label to capsForecast',
+    caption: 'Set the calculated field label — this becomes the telemetry key name.',
+  },
+  {
+    src: '/src/assets/images/trendz/guide/predictive_maintenance/Remaining_time_TB_calculated_telemetry_save_St2_2.png',
+    alt: 'Enable telemetry save in Tb calculated telemetry save section',
+    caption: 'Enable telemetry save in the Tb calculated telemetry save section.',
+  },
+  {
+    src: '/src/assets/images/trendz/guide/predictive_maintenance/Remaining_time_row_click_entity_St2_3.png',
+    alt: 'Set Machine as the row click entity',
+    caption: 'Set Machine as the row click entity.',
+  },
+]} />
+
+### Step 3: Create an alarm when remaining time is less than 14 days
+
+<Steps>
+1. In ThingsBoard, open the machine's device profile and add a new **Alarm Rule**.
+2. Alarm type: **Maintenance required**
+3. Create alarm condition:
+   - Severity: `Warning`
+   - Condition: `capsForecast` is less than `14`
+4. Clear alarm condition:
+   - Condition: `capsForecast` is greater than `14`
+</Steps>
+
+ThingsBoard will raise a **Maintenance required** alarm as soon as the remaining days forecast drops below 14, and clear it automatically once the value rises above 14 (after a maintenance event resets the counter).
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/trendz/guide/predictive_maintenance/Predict_remaining_open_machine_device_St3_1.png',
+    alt: 'Open Alarm Rules in ThingsBoard device profile',
+    caption: 'Open Alarm Rules in the ThingsBoard device profile.',
+  },
+  {
+    src: '/src/assets/images/trendz/guide/predictive_maintenance/Predict_remaining_create_alarm_rule_St3_2.png',
+    alt: 'Define alarm to raise when remaining time is less than 14 days',
+    caption: 'Define the alarm to raise when remaining time is less than 14 days.',
+  },
+  {
+    src: '/src/assets/images/trendz/guide/predictive_maintenance/Predict_remaining_less_than_St3_3.png',
+    alt: 'Set threshold condition for alarm creation',
+    caption: 'Set threshold condition for alarm creation.',
+  },
+  {
+    src: '/src/assets/images/trendz/guide/predictive_maintenance/Predict_remaining_clear_alarm_rule_St3_4.png',
+    alt: 'Add clear condition to close the active alarm',
+    caption: 'Add a clear condition to close the active alarm.',
+  },
+  {
+    src: '/src/assets/images/trendz/guide/predictive_maintenance/Predict_remaining_save_alarm_St3_6.png',
+    alt: 'Save the alarm rule',
+    caption: 'Save the alarm rule.',
+  },
+]} />
+
+### Step 4: Send an email notification when the alarm fires
+
+<Steps>
+1. Open the **Root rule chain** in ThingsBoard.
+2. Add a `toEmail` rule node after the **Device profile** node, connected via the **Alarm Created** relation.
+3. Configure the `toEmail` node:
+   - From template: `info@testmail.org`
+   - To template: `maintenance@testmail.com`
+   - Subject template: `Maintenance required for $\{entityName\}`
+   - Body template: `Maintenance required for $\{entityName\}. Remaining time: $\{capsForecast\} days`
+4. Add a `send email` rule node after `toEmail`, connected via the **Successful** relation.
+5. Save the rule chain.
+</Steps>
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/trendz/guide/predictive_maintenance/Predict_remaining_open_root_rule_chain_St4_1.png',
+    alt: 'Open the default rule chain in ThingsBoard',
+    caption: 'Open the default rule chain in ThingsBoard.',
+  },
+  {
+    src: '/src/assets/images/trendz/guide/predictive_maintenance/Predict_remaining_to_email_St4_2.png',
+    alt: 'Add toEmail node with email properties',
+    caption: 'Add toEmail node with email properties.',
+  },
+  {
+    src: '/src/assets/images/trendz/guide/predictive_maintenance/Predict_remaining_to_email_setup_St4_3.png',
+    alt: 'Configure dynamic email body to notify the maintenance team',
+    caption: 'Configure dynamic email body to notify the maintenance team.',
+  },
+  {
+    src: '/src/assets/images/trendz/guide/predictive_maintenance/Predict_remaining_alarm_add_link_St4_4.png',
+    alt: 'Connect the toEmail node with the device profile node',
+    caption: 'Connect the toEmail node with the device profile node.',
+  },
+  {
+    src: '/src/assets/images/trendz/guide/predictive_maintenance/Predict_remaining_send_email_St4_5.png',
+    alt: 'Add the send email node',
+    caption: 'Add the send email node.',
+  },
+  {
+    src: '/src/assets/images/trendz/guide/predictive_maintenance/Predict_remaining_rule_chain_view_St4_6.png',
+    alt: 'Final rule chain view',
+    caption: 'Final rule chain view.',
+  },
+]} />
+
+## Summary
+
+By combining Trendz production forecasting with ThingsBoard alarm rules, you can predict equipment maintenance needs
+before they become urgent — giving the team enough lead time to order parts and schedule the work.
+The setup runs automatically in the background: Trendz refreshes the forecast hourly,
+ThingsBoard fires the alarm at the 14-day threshold, and the rule engine delivers the notification by email.
