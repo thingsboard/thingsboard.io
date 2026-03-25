@@ -117,7 +117,7 @@ export const tbPrivateCloudData: PrivateCloudData = {
 			currency: '$',
 			period: '',
 			ctaText: 'Contact Us',
-			ctaHref: '/docs/contact-us/',
+			ctaHref: '/contact-us/',
 			ctaPrimary: false,
 			features: [
 				{ text: '100,000 devices included' },

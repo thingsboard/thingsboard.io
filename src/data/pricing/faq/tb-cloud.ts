@@ -78,12 +78,12 @@ export const tbCloudFaq: FaqCategory[] = [
 			{
 				id: 'migrate-cloud-to-sm',
 				question: 'How to migrate from the Cloud to a self-managed platform instance?',
-				answer: '<p>We recommend using the <a target="_blank" href="/docs/user-guide/version-control/">Version control</a> feature to migrate your configurations. Telemetry data export can be achieved via REST API. Please, <a target="_blank" href="/docs/contact-us/">contact us</a> in case migration assistence needed.</p>',
+				answer: '<p>We recommend using the <a target="_blank" href="/docs/user-guide/version-control/">Version control</a> feature to migrate your configurations. Telemetry data export can be achieved via REST API. Please, <a target="_blank" href="/contact-us/">contact us</a> in case migration assistence needed.</p>',
 			},
 			{
 				id: 'tb-cloud-us-to-eu',
 				question: 'I need to move from US cloud to EU. How to achieve that?',
-				answer: '<p>Technically, you have to follow the same flow as for How to migrate from the Cloud to a self-service platform copy. Please, <a target="_blank" href="/docs/contact-us/">contact us</a> in case migration assistence needed.</p>',
+				answer: '<p>Technically, you have to follow the same flow as for How to migrate from the Cloud to a self-service platform copy. Please, <a target="_blank" href="/contact-us/">contact us</a> in case migration assistence needed.</p>',
 			},
 			{
 				id: 'tb-cloud-what-is-included-in-the-white-labeled-mobile-app-add-on',
@@ -99,27 +99,27 @@ export const tbCloudFaq: FaqCategory[] = [
 			{
 				id: 'how-tb-cloud-billing-works',
 				question: 'How does billing work for ThingsBoard Cloud?',
-				answer: '<p>Billing is handled via Stripe and is charged monthly based on your selected plan. You can also pay annually with card or wire transfer. Please <a target="_blank" href="/docs/contact-us/">contact us</a> to receive a custom invoice.</p>',
+				answer: '<p>Billing is handled via Stripe and is charged monthly based on your selected plan. You can also pay annually with card or wire transfer. Please <a target="_blank" href="/contact-us/">contact us</a> to receive a custom invoice.</p>',
 			},
 			{
 				id: 'tb-cloud-payment-methods',
 				question: 'What payment methods do you accept?',
-				answer: '<p>We accept credit and debit cards through Stripe. You can also pay annually with card or wire transfer. Please <a target="_blank" href="/docs/contact-us/">contact us</a> to receive a custom invoice.</p>',
+				answer: '<p>We accept credit and debit cards through Stripe. You can also pay annually with card or wire transfer. Please <a target="_blank" href="/contact-us/">contact us</a> to receive a custom invoice.</p>',
 			},
 			{
 				id: 'tb-cloud-use-wire-instead-of-card',
 				question: 'I cannot pay by card, may we use wire instead?',
-				answer: '<p>Sure. In this case, you must reach out to our sales team via <a target="_blank" href="/docs/contact-us/">contact us</a>. If you have ongoing communication with the account manager or success manager on our end, please refer your request to that person.</p>',
+				answer: '<p>Sure. In this case, you must reach out to our sales team via <a target="_blank" href="/contact-us/">contact us</a>. If you have ongoing communication with the account manager or success manager on our end, please refer your request to that person.</p>',
 			},
 			{
 				id: 'tb-cloud-pay-monthly-or-annually',
 				question: 'Can I pay monthly or annually?',
-				answer: '<p>We currently offer only a monthly subscription with automatic payments via Stripe. For annual payments, please <a target="_blank" href="/docs/contact-us/">contact</a> our team to arrange a wire transfer invoice.</p>',
+				answer: '<p>We currently offer only a monthly subscription with automatic payments via Stripe. For annual payments, please <a target="_blank" href="/contact-us/">contact</a> our team to arrange a wire transfer invoice.</p>',
 			},
 			{
 				id: 'tb-cloud-volueme-discounts',
 				question: 'Do you offer volume discounts for large deployments?',
-				answer: '<p>We offer Private Cloud plans for large-scale deployments with 10% discounts for annual payments; <a target="_blank" href="/docs/contact-us/">contact us</a> for details.</p>',
+				answer: '<p>We offer Private Cloud plans for large-scale deployments with 10% discounts for annual payments; <a target="_blank" href="/contact-us/">contact us</a> for details.</p>',
 			},
 			{
 				id: 'tb-cloud-billing-history-invoices',
@@ -159,7 +159,7 @@ export const tbCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-cloud-how-to-bill-my-customers',
 				question: 'How to bill my customers on Cloud?',
-				answer: '<p>Currently, ThingsBoard Cloud does not provide a built-in billing module to charge end customers. However, you can create custom dashboards with backend integration between ThingsBoard and the payment system of your choice to set up billing for your application. If you would like our assistance with setting up billing, please <a target="_blank" href="/docs/contact-us/">contact us</a>, and we\'ll be happy to propose such a configuration as an additional service.</p>',
+				answer: '<p>Currently, ThingsBoard Cloud does not provide a built-in billing module to charge end customers. However, you can create custom dashboards with backend integration between ThingsBoard and the payment system of your choice to set up billing for your application. If you would like our assistance with setting up billing, please <a target="_blank" href="/contact-us/">contact us</a>, and we\'ll be happy to propose such a configuration as an additional service.</p>',
 			},
 		],
 	},
@@ -200,7 +200,7 @@ export const tbCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-cloud-migration-to-sm-support',
 				question: 'What support options are available for migrating to a self-managed system instead of switching to the Enterprise plan?',
-				answer: '<p>You can perform the migration on your own using the Version Control feature to transfer your configurations. Telemetry data can be exported via the REST API. Alternatively, the ThingsBoard team can provide additional migration assistance. Please <a target="_blank" href="/docs/contact-us/">contact us</a> for more details.</p>',
+				answer: '<p>You can perform the migration on your own using the Version Control feature to transfer your configurations. Telemetry data can be exported via the REST API. Alternatively, the ThingsBoard team can provide additional migration assistance. Please <a target="_blank" href="/contact-us/">contact us</a> for more details.</p>',
 			},
 			{
 				id: 'tb-cloud-telemetry-storage-billing',
@@ -328,12 +328,12 @@ export const tbCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-cloud-support-24-7',
 				question: 'Do you offer 24/7 customer support?',
-				answer: '<p>Yes, we do provide 24/7 support. If this is what you\'re looking for, please <a target="_blank" href="/docs/contact-us/">contact us</a> for a more detailed discussion about your specific needs.</p>',
+				answer: '<p>Yes, we do provide 24/7 support. If this is what you\'re looking for, please <a target="_blank" href="/contact-us/">contact us</a> for a more detailed discussion about your specific needs.</p>',
 			},
 			{
 				id: 'tb-cloud-support-billing',
 				question: 'How can I contact ThingsBoard support for billing-related issues?',
-				answer: '<p>You can use the <a target="_blank" href="/docs/contact-us/">contact us</a> form and select the "Other" topic. Our account managers will assist you with any billing-related issues.</p>',
+				answer: '<p>You can use the <a target="_blank" href="/contact-us/">contact us</a> form and select the "Other" topic. Our account managers will assist you with any billing-related issues.</p>',
 			},
 			{
 				id: 'tb-cloud-knowledge-base',
@@ -399,7 +399,7 @@ export const tbCloudFaq: FaqCategory[] = [
 			{
 				id: 'trendz-free-trial',
 				question: 'Do you offer a free trial for Trendz?',
-				answer: '<p>ThingsBoard Public Cloud Free plan includes Trendz for free. If you need a free trial for other subscriptions, please <a target="_blank" href="/docs/contact-us/">Contact us</a> for details.</p>',
+				answer: '<p>ThingsBoard Public Cloud Free plan includes Trendz for free. If you need a free trial for other subscriptions, please <a target="_blank" href="/contact-us/">Contact us</a> for details.</p>',
 			},
 			{
 				id: 'trendz-support-included',
@@ -445,7 +445,7 @@ export const tbCloudFaq: FaqCategory[] = [
 			{
 				id: 'edge-addon-cloud-instances-included',
 				question: 'How many edge instances are included in Edge Computing add-on?',
-				answer: '<p>The number of included Edge instances depends on your subscription plan. Additional instances can be purchased separately. Check your plan details or <a target="_blank" href="/docs/contact-us/">contact us</a> for specifics.</p>',
+				answer: '<p>The number of included Edge instances depends on your subscription plan. Additional instances can be purchased separately. Check your plan details or <a target="_blank" href="/contact-us/">contact us</a> for specifics.</p>',
 			},
 			{
 				id: 'edge-addon-cloud-inclusions',
@@ -495,7 +495,7 @@ export const tbCloudFaq: FaqCategory[] = [
 			{
 				id: 'edge-addon-cloud-upgrade-ce-pe',
 				question: 'Can I upgrade from Edge CE to Edge PE?',
-				answer: '<p>Yes, but you\'ll need to upgrade your entire system: upgrade your ThingsBoard Server from CE to PE, purchase the Edge Computing add-on, and reinstall Edge using PE packages. Please <a target="_blank" href="/docs/contact-us/">contact us</a> for migration assistance.</p>',
+				answer: '<p>Yes, but you\'ll need to upgrade your entire system: upgrade your ThingsBoard Server from CE to PE, purchase the Edge Computing add-on, and reinstall Edge using PE packages. Please <a target="_blank" href="/contact-us/">contact us</a> for migration assistance.</p>',
 			},
 			{
 				id: 'edge-addon-cloud-separate-license',

@@ -18,7 +18,7 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'pe-pay-as-you-go-self-managed-purchase-perpetual-license',
 				question: 'How to purchase a Perpetual license?',
-				answer: '<p>If you would like to explore the Perpetual option, please <a target="_blank" href="/docs/contact-us/">contact our sales team</a></p>',
+				answer: '<p>If you would like to explore the Perpetual option, please <a target="_blank" href="/contact-us/">contact our sales team</a></p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-self-managed-license',
@@ -58,7 +58,7 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'pe-pay-as-you-go-cloud-to-self-managed',
 				question: 'Can I migrate from a ThingsBoard Cloud subscription to a self-managed license?',
-				answer: '<p>Please, <a target="_blank" href="/docs/contact-us/">contact us</a> in case migration assistance is needed.</p>',
+				answer: '<p>Please, <a target="_blank" href="/contact-us/">contact us</a> in case migration assistance is needed.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-self-managed-features',
@@ -94,22 +94,22 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'pe-pay-as-you-go-billing-process',
 				question: 'How does billing work for self-managed subscriptions?',
-				answer: '<p>Billing is handled via Stripe and is charged monthly based on your selected plan. You can also pay annually with card or wire transfer. Please <a target="_blank" href="/docs/contact-us/">contact us</a> to receive a custom invoice.</p>',
+				answer: '<p>Billing is handled via Stripe and is charged monthly based on your selected plan. You can also pay annually with card or wire transfer. Please <a target="_blank" href="/contact-us/">contact us</a> to receive a custom invoice.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-payment-methods',
 				question: 'What payment methods do you accept?',
-				answer: '<p>We accept credit and debit cards through Stripe. You can also pay annually with card or wire transfer. Please <a target="_blank" href="/docs/contact-us/">contact us</a> to receive a custom invoice.</p>',
+				answer: '<p>We accept credit and debit cards through Stripe. You can also pay annually with card or wire transfer. Please <a target="_blank" href="/contact-us/">contact us</a> to receive a custom invoice.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-wire-payment',
 				question: 'I cannot pay by card, may we use wire instead?',
-				answer: '<p>Sure. In this case, you must reach out to our sales team via <a target="_blank" href="/docs/contact-us/">contact us</a>. If you have ongoing communication with the account manager or success manager on our end, please refer your request to that person.</p>',
+				answer: '<p>Sure. In this case, you must reach out to our sales team via <a target="_blank" href="/contact-us/">contact us</a>. If you have ongoing communication with the account manager or success manager on our end, please refer your request to that person.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-annual-payment',
 				question: 'Do you offer an annual payment option?',
-				answer: '<p>We currently offer only a monthly subscription with automatic payments via Stripe. For annual payments, please <a target="_blank" href="/docs/contact-us/">contact</a> our team to arrange a wire transfer invoice.</p>',
+				answer: '<p>We currently offer only a monthly subscription with automatic payments via Stripe. For annual payments, please <a target="_blank" href="/contact-us/">contact</a> our team to arrange a wire transfer invoice.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-payment-failure',
@@ -134,7 +134,7 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'pe-pay-as-you-go-multiple-licenses',
 				question: 'Do you offer discounts for multiple licenses?',
-				answer: '<p>Contact our <a target="_blank" href="/docs/contact-us/">sales team</a> for bulk pricing options.</p>',
+				answer: '<p>Contact our <a target="_blank" href="/contact-us/">sales team</a> for bulk pricing options.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-subscription-expiry',
@@ -185,12 +185,12 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'pe-pay-as-you-go-internet-requirement',
 				question: 'Do I need an internet connection to use the self-managed license?',
-				answer: '<p>Yes, an internet connection is required for periodic license verification. The system checks the license once per hour, and if the connection is not restored within 24 hours, the platform may shut down. This process ensures proper license management while allowing temporary connectivity issues. For more details, please refer to the license check <a target="_blank" href="/products/license-server/#architecture">description</a>. Offline mode is also possible as an add-on to the Perpetual license. <a target="_blank" href="/docs/contact-us/">Contact our sales team</a> to know more.</p>',
+				answer: '<p>Yes, an internet connection is required for periodic license verification. The system checks the license once per hour, and if the connection is not restored within 24 hours, the platform may shut down. This process ensures proper license management while allowing temporary connectivity issues. For more details, please refer to the license check <a target="_blank" href="/products/license-server/#architecture">description</a>. Offline mode is also possible as an add-on to the Perpetual license. <a target="_blank" href="/contact-us/">Contact our sales team</a> to know more.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-offline-access',
 				question: 'Can I run offline?',
-				answer: '<p>By default, the platform requires active Internet access or at least access to license portal from your host machine. If Offline access is a must, please <a target="_blank" href="/docs/contact-us/">contact us</a> to discuss options.</p>',
+				answer: '<p>By default, the platform requires active Internet access or at least access to license portal from your host machine. If Offline access is a must, please <a target="_blank" href="/contact-us/">contact us</a> to discuss options.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-cloud-migration',
@@ -298,12 +298,12 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'pe-pay-as-you-go-24-7-support',
 				question: 'Do you offer 24/7 support?',
-				answer: '<p>Yes, we can provide 24/7 support as part of our managed services with an additional signed SLA. Please <a target="_blank" href="/docs/contact-us/">contact us</a> for more details.</p>',
+				answer: '<p>Yes, we can provide 24/7 support as part of our managed services with an additional signed SLA. Please <a target="_blank" href="/contact-us/">contact us</a> for more details.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-installation-help',
 				question: 'How can I get help with installation and setup?',
-				answer: '<p>If your subscription plan includes response time support and you have access to the Support Portal, the ThingsBoard support team can assist with system deployment as part of the subscription. However, this applies only if you follow recommended installation methods and architecture. Custom installation scripts or non-recommended deployment scenarios are not covered under included support. If your subscription plan does not include support, then we recommend using our documentation, tutorials, and optional professional services. To discuss options, please <a target="_blank" href="/docs/contact-us/">contact us</a>.</p>',
+				answer: '<p>If your subscription plan includes response time support and you have access to the Support Portal, the ThingsBoard support team can assist with system deployment as part of the subscription. However, this applies only if you follow recommended installation methods and architecture. Custom installation scripts or non-recommended deployment scenarios are not covered under included support. If your subscription plan does not include support, then we recommend using our documentation, tutorials, and optional professional services. To discuss options, please <a target="_blank" href="/contact-us/">contact us</a>.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-contact-support',
@@ -359,7 +359,7 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'edge-addon-payg-instances-included',
 				question: 'How many edge instances are included in Edge Computing add-on?',
-				answer: '<p>The number of included Edge instances depends on your subscription plan. Additional instances can be purchased separately. Check your plan details or <a target="_blank" href="/docs/contact-us/">contact us</a> for specifics.</p>',
+				answer: '<p>The number of included Edge instances depends on your subscription plan. Additional instances can be purchased separately. Check your plan details or <a target="_blank" href="/contact-us/">contact us</a> for specifics.</p>',
 			},
 			{
 				id: 'edge-addon-payg-inclusions',
@@ -409,7 +409,7 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'edge-addon-payg-upgrade-ce-pe',
 				question: 'Can I upgrade from Edge CE to Edge PE?',
-				answer: '<p>Yes, but you\'ll need to upgrade your entire system: upgrade your ThingsBoard Server from CE to PE, purchase the Edge Computing add-on, and reinstall Edge using PE packages. Please <a target="_blank" href="/docs/contact-us/">contact us</a> for migration assistance.</p>',
+				answer: '<p>Yes, but you\'ll need to upgrade your entire system: upgrade your ThingsBoard Server from CE to PE, purchase the Edge Computing add-on, and reinstall Edge using PE packages. Please <a target="_blank" href="/contact-us/">contact us</a> for migration assistance.</p>',
 			},
 			{
 				id: 'edge-addon-payg-separate-license',
@@ -465,7 +465,7 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'trendz-payg-free-trial',
 				question: 'Do you offer a free trial for Trendz?',
-				answer: '<p>ThingsBoard Maker includes Trendz for free. If you need a free trial for other subscriptions, <a target="_blank" href="/docs/contact-us/">Contact us</a> for details.</p>',
+				answer: '<p>ThingsBoard Maker includes Trendz for free. If you need a free trial for other subscriptions, <a target="_blank" href="/contact-us/">Contact us</a> for details.</p>',
 			},
 			{
 				id: 'trendz-payg-support-types',
@@ -490,7 +490,7 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'trendz-payg-installation-help',
 				question: 'How can I get help with installation and setup?',
-				answer: '<p>If your subscription plan includes basic support and you have access to the Support Portal, the Trendz support team can assist with system deployment as part of basic support. However, this applies only if you follow recommended installation methods and architecture. Custom installation scripts or non-recommended deployment scenarios are not covered under basic support.</p>\n<p>If your subscription plan does not include basic support, we recommend using our documentation, tutorials, and optional professional services. To discuss options, please <a target="_blank" href="/docs/contact-us/">contact us</a>.</p>',
+				answer: '<p>If your subscription plan includes basic support and you have access to the Support Portal, the Trendz support team can assist with system deployment as part of basic support. However, this applies only if you follow recommended installation methods and architecture. Custom installation scripts or non-recommended deployment scenarios are not covered under basic support.</p>\n<p>If your subscription plan does not include basic support, we recommend using our documentation, tutorials, and optional professional services. To discuss options, please <a target="_blank" href="/contact-us/">contact us</a>.</p>',
 			},
 		],
 	},

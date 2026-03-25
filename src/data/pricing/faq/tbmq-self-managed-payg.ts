@@ -94,12 +94,12 @@ export const tbmqSelfManagedPaygFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-payg-wire',
 				question: 'I cannot pay by card, may we use wire instead?',
-				answer: `<p>Sure. In this case, you must reach out to our sales team via <a target="_blank" href="/docs/contact-us/">contact us</a>. If you have ongoing communication with the account manager or success manager on our end, please refer your request to that person.</p>`,
+				answer: `<p>Sure. In this case, you must reach out to our sales team via <a target="_blank" href="/contact-us/">contact us</a>. If you have ongoing communication with the account manager or success manager on our end, please refer your request to that person.</p>`,
 			},
 			{
 				id: 'tbmq-payg-annual',
 				question: 'Do you offer an annual payment option?',
-				answer: `<p>We currently offer only a monthly subscription with automatic payments via Stripe. For annual payments, please <a target="_blank" href="/docs/contact-us/">contact</a> our team to arrange a wire transfer invoice.</p>`,
+				answer: `<p>We currently offer only a monthly subscription with automatic payments via Stripe. For annual payments, please <a target="_blank" href="/contact-us/">contact</a> our team to arrange a wire transfer invoice.</p>`,
 			},
 			{
 				id: 'tbmq-payg-failed-payment',
@@ -124,7 +124,7 @@ export const tbmqSelfManagedPaygFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-payg-discounts',
 				question: 'Do you offer discounts for multiple licenses?',
-				answer: `<p>Contact our <a target="_blank" href="/docs/contact-us/">sales team</a> for bulk pricing options.</p>`,
+				answer: `<p>Contact our <a target="_blank" href="/contact-us/">sales team</a> for bulk pricing options.</p>`,
 			},
 			{
 				id: 'tbmq-payg-renew-fail',
@@ -225,7 +225,7 @@ export const tbmqSelfManagedPaygFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-payg-offline',
 				question: 'Can I run offline?',
-				answer: `<p>By default, the platform requires active Internet access or at least access to license portal from your host machine. If Offline access is a must, please <a target="_blank" href="/docs/contact-us/">contact us</a> to discuss options.</p>`,
+				answer: `<p>By default, the platform requires active Internet access or at least access to license portal from your host machine. If Offline access is a must, please <a target="_blank" href="/contact-us/">contact us</a> to discuss options.</p>`,
 			},
 			{
 				id: 'tbmq-payg-cloud-agnostic',
@@ -313,12 +313,12 @@ export const tbmqSelfManagedPaygFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-payg-support-247',
 				question: 'Do you offer 24/7 support?',
-				answer: `<p>Yes, we can provide 24/7 support as part of our managed services with an additional signed SLA. Please <a target="_blank" href="/docs/contact-us/">contact us</a> for more details.</p>`,
+				answer: `<p>Yes, we can provide 24/7 support as part of our managed services with an additional signed SLA. Please <a target="_blank" href="/contact-us/">contact us</a> for more details.</p>`,
 			},
 			{
 				id: 'tbmq-payg-install-help',
 				question: 'How can I get help with installation and setup?',
-				answer: `<p>If your subscription includes response time support and you have access to the Support Portal, the TBMQ support team can assist with system deployment as part of the subscription. However, this applies only if you follow recommended installation methods and architecture. Custom installation scripts or non-recommended deployment scenarios are not covered under included support. If your subscription plan does not include support, then we recommend using our documentation, tutorials, and optional professional services. To discuss options, please <a target="_blank" href="/docs/contact-us/">contact us</a>.</p>`,
+				answer: `<p>If your subscription includes response time support and you have access to the Support Portal, the TBMQ support team can assist with system deployment as part of the subscription. However, this applies only if you follow recommended installation methods and architecture. Custom installation scripts or non-recommended deployment scenarios are not covered under included support. If your subscription plan does not include support, then we recommend using our documentation, tutorials, and optional professional services. To discuss options, please <a target="_blank" href="/contact-us/">contact us</a>.</p>`,
 			},
 			{
 				id: 'tbmq-payg-contact-support',

@@ -102,7 +102,7 @@ Must be completed before most marketing pages can be built.
 
 | # | Page | Description | Complexity | Dev (h) | Test (h) | Status |
 |---|------|-------------|------------|---------|----------|--------|
-| 2.1 | Pricing | Single page with tabs for CE, Cloud, PE, TBMQ. Feature comparison tables, monthly/annual toggle, billing links, contact forms. Most important commercial page. | H | 12–20 | 2–3 | [ ] |
+| 2.1 | Pricing | Single page with tabs for CE, Cloud, PE, TBMQ. Feature comparison tables, monthly/annual toggle, billing links, contact forms. Most important commercial page. | H | 12–20 | 2–3 | [x] |
 
 **Notes:**
 - Components needed: `PricingTab`, `PricingTable`, `PricingCard`, `PricingToggle`
@@ -556,7 +556,7 @@ Pages that show a filterable/paginated table of ThingsBoard releases.
 - [ ] Routing strategy
 
 ### Phase 2 — Core commercial pages (Weeks 2–3) *(was: Weeks 3–5)*
-- [ ] Pricing
+- [x] Pricing
 - [ ] Products — 9 main pages
 - [ ] Services (Support, Trainings, Dev Services)
 

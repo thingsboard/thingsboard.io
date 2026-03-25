@@ -144,7 +144,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
 				id: 'tb-private-cloud-what-is-included-in-service-reviews-and-architecture-consultations',
 				question: 'What is included in service reviews and architecture consultations?',
 				answer: `<p>Service reviews and architecture consultations are a specialized, ongoing service available exclusively to ThingsBoard Private Cloud customers. These sessions provide structured, high-level guidance from a senior ThingsBoard engineer who collaborates with your team regularly. You’ll receive proactive recommendations on best practices, performance tuning, and scalable architecture design tailored to your evolving use case. <br><br></p>
-                            <p>This service is not included by default and can be purchased separately for customers who require advanced architectural guidance and regular expert engagement. <a target="_blank" href="/docs/contact-us/?subject=Private%20Cloud&message=Architecture%20reviews%20and%20consults">Contact us</a> for more details.</p>`,
+                            <p>This service is not included by default and can be purchased separately for customers who require advanced architectural guidance and regular expert engagement. <a target="_blank" href="/contact-us/?subject=Private%20Cloud&message=Architecture%20reviews%20and%20consults">Contact us</a> for more details.</p>`,
 			},
 		],
 	},

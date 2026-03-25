@@ -38,7 +38,7 @@ export const tbmqSelfManagedPerpFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-perp-servers',
 				question: 'How many servers can I have with the Perpetual license?',
-				answer: `<p>The Perpetual License initially includes a base of one licensed Production Instance. If your deployment needs to scale horizontally for increased performance, fault tolerance, or High Availability (HA), you can purchase additional Production or Development Instances at any time. This scaling enables you to permanently expand your licensed instance count, allowing for seamless horizontal scaling across your infrastructure while ensuring continuous compliance with your license terms. For purchasing details or specialized capacity needs, please <a target="_blank" href="/docs/contact-us/">contact our sales team</a>.</p>`,
+				answer: `<p>The Perpetual License initially includes a base of one licensed Production Instance. If your deployment needs to scale horizontally for increased performance, fault tolerance, or High Availability (HA), you can purchase additional Production or Development Instances at any time. This scaling enables you to permanently expand your licensed instance count, allowing for seamless horizontal scaling across your infrastructure while ensuring continuous compliance with your license terms. For purchasing details or specialized capacity needs, please <a target="_blank" href="/contact-us/">contact our sales team</a>.</p>`,
 			},
 			{
 				id: 'tbmq-perp-min-cost',
@@ -74,7 +74,7 @@ export const tbmqSelfManagedPerpFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-perp-renewal-fee',
 				question: 'What is the renewal fee per year?',
-				answer: `<p>The annual renewal fee for the Perpetual License depends on the total value of your license. <a target="_blank" href="/docs/contact-us/">Contact us</a> for more details.</p>`,
+				answer: `<p>The annual renewal fee for the Perpetual License depends on the total value of your license. <a target="_blank" href="/contact-us/">Contact us</a> for more details.</p>`,
 			},
 			{
 				id: 'tbmq-perp-no-renew',
@@ -89,7 +89,7 @@ export const tbmqSelfManagedPerpFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-perp-missed-renewal',
 				question: 'If I miss 1 year and then decide to prolong, how much should I pay?',
-				answer: `<p>If you miss the renewal for one year and then decide to renew, you will need to pay the yearly renewal fee for the missed period, in addition to the fee for the new period. If you miss 6 months after the initial expiration date, you can still renew by paying the annual fee, and the renewal will be calculated based on the original expiration date of your license, not from the moment you choose to renew. If you require further clarifications on this, please <a target="_blank" href="/docs/contact-us/">contact us</a>, and we will be happy to explain.</p>`,
+				answer: `<p>If you miss the renewal for one year and then decide to renew, you will need to pay the yearly renewal fee for the missed period, in addition to the fee for the new period. If you miss 6 months after the initial expiration date, you can still renew by paying the annual fee, and the renewal will be calculated based on the original expiration date of your license, not from the moment you choose to renew. If you require further clarifications on this, please <a target="_blank" href="/contact-us/">contact us</a>, and we will be happy to explain.</p>`,
 			},
 			{
 				id: 'tbmq-perp-extra-fees',
@@ -99,12 +99,12 @@ export const tbmqSelfManagedPerpFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-perp-refund',
 				question: 'Can I request a refund after purchasing the license?',
-				answer: `<p>Since the Perpetual License is a one-time purchase granting lifetime access, all sales are final. However, we encourage customers to explore our subscription options before committing to a perpetual license. Subscriptions provide full access to TBMQ Professional Edition, allowing you to evaluate its features and scalability. If you need guidance on selecting the best licensing option for your needs, our <a target="_blank" href="/docs/contact-us/">sales team</a> is happy to assist you.</p>`,
+				answer: `<p>Since the Perpetual License is a one-time purchase granting lifetime access, all sales are final. However, we encourage customers to explore our subscription options before committing to a perpetual license. Subscriptions provide full access to TBMQ Professional Edition, allowing you to evaluate its features and scalability. If you need guidance on selecting the best licensing option for your needs, our <a target="_blank" href="/contact-us/">sales team</a> is happy to assist you.</p>`,
 			},
 			{
 				id: 'tbmq-perp-bulk-discount',
 				question: 'Do you offer discounts for multiple licenses?',
-				answer: `<p><a target="_blank" href="/docs/contact-us/">Contact our sales team</a> for bulk pricing options.</p>`,
+				answer: `<p><a target="_blank" href="/contact-us/">Contact our sales team</a> for bulk pricing options.</p>`,
 			},
 			{
 				id: 'tbmq-perp-instance-price',
@@ -175,7 +175,7 @@ export const tbmqSelfManagedPerpFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-perp-offline',
 				question: 'Can I run offline?',
-				answer: `<p>By default, the platform requires active Internet access or at least access to License server from your host machine. If Offline access is a must, please <a target="_blank" href="/docs/contact-us/">contact us</a> to discuss options.</p>`,
+				answer: `<p>By default, the platform requires active Internet access or at least access to License server from your host machine. If Offline access is a must, please <a target="_blank" href="/contact-us/">contact us</a> to discuss options.</p>`,
 			},
 			{
 				id: 'tbmq-perp-backup',
@@ -242,7 +242,7 @@ export const tbmqSelfManagedPerpFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-perp-convert-trial',
 				question: 'Can I convert a trial instance into a perpetual license?',
-				answer: `<p>Yes, you can convert your self-managed subscription to a perpetual license by purchasing the perpetual license and replacing the license key in the configuration files. For more details, please <a target="_blank" href="/docs/contact-us/">contact us</a>.</p>`,
+				answer: `<p>Yes, you can convert your self-managed subscription to a perpetual license by purchasing the perpetual license and replacing the license key in the configuration files. For more details, please <a target="_blank" href="/contact-us/">contact us</a>.</p>`,
 			},
 			{
 				id: 'tbmq-perp-refunds',
@@ -268,17 +268,17 @@ export const tbmqSelfManagedPerpFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-perp-additional-support',
 				question: 'Can I purchase additional support for my perpetual license?',
-				answer: `<p>Yes, you can purchase additional services such as managed services, advanced SLAs, consultancy, development, and training. For more details, please <a target="_blank" href="/docs/contact-us/">contact our sales team</a>.</p>`,
+				answer: `<p>Yes, you can purchase additional services such as managed services, advanced SLAs, consultancy, development, and training. For more details, please <a target="_blank" href="/contact-us/">contact our sales team</a>.</p>`,
 			},
 			{
 				id: 'tbmq-perp-24-7',
 				question: 'Do you offer 24/7 support?',
-				answer: `<p>Yes, we can provide 24/7 support as part of our managed services with an additional signed SLA. Please <a target="_blank" href="/docs/contact-us/">contact us</a> for more details.</p>`,
+				answer: `<p>Yes, we can provide 24/7 support as part of our managed services with an additional signed SLA. Please <a target="_blank" href="/contact-us/">contact us</a> for more details.</p>`,
 			},
 			{
 				id: 'tbmq-perp-maintenance',
 				question: 'Do you provide full maintenance services for TBMQ deployed on my infrastructure?',
-				answer: `<p>Yes, we offer full maintenance services for instances deployed on your infrastructure. These services can be customized based on your needs and are provided under an additional SLA, ensuring regular monitoring, updates, and issue resolution. For more details please <a target="_blank" href="/docs/contact-us/">contact us</a>.</p>`,
+				answer: `<p>Yes, we offer full maintenance services for instances deployed on your infrastructure. These services can be customized based on your needs and are provided under an additional SLA, ensuring regular monitoring, updates, and issue resolution. For more details please <a target="_blank" href="/contact-us/">contact us</a>.</p>`,
 			},
 			{
 				id: 'tbmq-perp-contact-support',
@@ -288,7 +288,7 @@ export const tbmqSelfManagedPerpFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-perp-setup-help',
 				question: 'How can I get help with installation and setup?',
-				answer: `<p>All perpetual license packages provide dedicated support with predefined response time and access to the ThingsBoard Support Portal. Our expert support team is available to assist you with system deployment by following our recommended <a target="_blank" href="/docs/mqtt-broker/install/installation-options/">installation methods</a> and architecture, ensuring a smooth and efficient setup. For custom installation scripts or alternative deployment scenarios, additional support options are available and you can <a target="_blank" href="/docs/contact-us/">contact us</a> to discuss your needs.</p>`,
+				answer: `<p>All perpetual license packages provide dedicated support with predefined response time and access to the ThingsBoard Support Portal. Our expert support team is available to assist you with system deployment by following our recommended <a target="_blank" href="/docs/mqtt-broker/install/installation-options/">installation methods</a> and architecture, ensuring a smooth and efficient setup. For custom installation scripts or alternative deployment scenarios, additional support options are available and you can <a target="_blank" href="/contact-us/">contact us</a> to discuss your needs.</p>`,
 			},
 		],
 	},

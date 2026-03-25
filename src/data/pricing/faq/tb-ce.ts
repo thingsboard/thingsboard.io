@@ -34,13 +34,13 @@ export const tbCeFaq: FaqCategory[] = [
 				id: 'possible-migrate-ce-to-pe-sm',
 				question:
 					'Is it possible to migrate from the Community Edition to the self-managed ThingsBoard Professional Edition?',
-				answer: '<p>Yes, you can upgrade from ThingsBoard Community Edition to Professional Edition without losing telemetry data and/or configurations. The upgrade process preserves your existing setup, ensuring a seamless transition. However, <b>please note</b> that any custom modifications made directly to the source code of the Community Edition will be removed during the upgrade process. For more information about the migration procedure, please <a target="_blank" href="/docs/contact-us/">contact us</a>.</p>',
+				answer: '<p>Yes, you can upgrade from ThingsBoard Community Edition to Professional Edition without losing telemetry data and/or configurations. The upgrade process preserves your existing setup, ensuring a seamless transition. However, <b>please note</b> that any custom modifications made directly to the source code of the Community Edition will be removed during the upgrade process. For more information about the migration procedure, please <a target="_blank" href="/contact-us/">contact us</a>.</p>',
 			},
 			{
 				id: 'possible-migrate-ce-to-cloud',
 				question:
 					'Is it possible to migrate from the Community Edition to the ThingsBoard Cloud?',
-				answer: '<p>Yes, migration from the Community Edition to ThingsBoard Cloud is possible but is not 100% automatic. We recommend to use <a target="_blank" href="/docs/user-guide/version-control/#usage">version control</a> feature to migrate all entities. Then you may transfer telemetry data using the <a target="_blank" href="/docs/reference/rest-api/">REST API</a>. For more information about the migration procedure, please <a target="_blank" href="/docs/contact-us/">contact us</a>.</p>',
+				answer: '<p>Yes, migration from the Community Edition to ThingsBoard Cloud is possible but is not 100% automatic. We recommend to use <a target="_blank" href="/docs/user-guide/version-control/#usage">version control</a> feature to migrate all entities. Then you may transfer telemetry data using the <a target="_blank" href="/docs/reference/rest-api/">REST API</a>. For more information about the migration procedure, please <a target="_blank" href="/contact-us/">contact us</a>.</p>',
 			},
 			{
 				id: 'ce-clustering',
@@ -164,7 +164,7 @@ export const tbCeFaq: FaqCategory[] = [
 			{
 				id: 'ce-purchase-additional-support',
 				question: 'Can I purchase additional support for the Community Edition?',
-				answer: '<p>Depending on the type of support you are looking for, the ThingsBoard team may be able to offer certain types of additional support packages. To discuss your unique case and requirements, please <a target="_blank" href="/docs/contact-us/">contact us</a>.</p>',
+				answer: '<p>Depending on the type of support you are looking for, the ThingsBoard team may be able to offer certain types of additional support packages. To discuss your unique case and requirements, please <a target="_blank" href="/contact-us/">contact us</a>.</p>',
 			},
 			{
 				id: 'ce-help-issue',
@@ -179,7 +179,7 @@ export const tbCeFaq: FaqCategory[] = [
 			{
 				id: 'ce-pay-for-development',
 				question: 'Can I pay for additional features to be developed?',
-				answer: '<p>The ThingsBoard team can propose application configuration services. To discuss your unique case and requirements, please <a target="_blank" href="/docs/contact-us/">contact us</a>.</p>',
+				answer: '<p>The ThingsBoard team can propose application configuration services. To discuss your unique case and requirements, please <a target="_blank" href="/contact-us/">contact us</a>.</p>',
 			},
 			{
 				id: 'ce-soft-updates',
@@ -190,7 +190,7 @@ export const tbCeFaq: FaqCategory[] = [
 				id: 'ce-tb-developers-paid-service',
 				question:
 					'Can I get ThingsBoard developers to help with my Community Edition deployment?',
-				answer: '<p>Yes, you can request such assistance as an additional paid service. Please, <a target="_blank" href="/docs/contact-us/">contact us</a> to discuss how we can help.</p>',
+				answer: '<p>Yes, you can request such assistance as an additional paid service. Please, <a target="_blank" href="/contact-us/">contact us</a> to discuss how we can help.</p>',
 			},
 			{
 				id: 'ce-bug-found',
@@ -227,12 +227,12 @@ export const tbCeFaq: FaqCategory[] = [
 			{
 				id: 'migrate-pe-to-enterprise',
 				question: 'How do I migrate from Professional Edition to Enterprise?',
-				answer: '<p>Migration depends on factors such as whether you are migrating to a self-managed system or ThingsBoard Cloud, the version, source code changes, and more. Please <a target="_blank" href="/docs/contact-us/">contact us</a> for personalized suggestions and a clear strategy on how to perform the migration.</p>',
+				answer: '<p>Migration depends on factors such as whether you are migrating to a self-managed system or ThingsBoard Cloud, the version, source code changes, and more. Please <a target="_blank" href="/contact-us/">contact us</a> for personalized suggestions and a clear strategy on how to perform the migration.</p>',
 			},
 			{
 				id: 'enterprise-trial',
 				question: 'Can I get a trial of the Enterprise Edition before upgrading?',
-				answer: '<p>Yes, we offer a one-month trial on ThingsBoard Cloud for users considering an upgrade. If you would like to try the system in self-managed mode, please <a target="_blank" href="/docs/contact-us/">contact us</a>.</p>',
+				answer: '<p>Yes, we offer a one-month trial on ThingsBoard Cloud for users considering an upgrade. If you would like to try the system in self-managed mode, please <a target="_blank" href="/contact-us/">contact us</a>.</p>',
 			},
 		],
 	},

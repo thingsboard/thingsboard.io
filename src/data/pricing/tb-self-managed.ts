@@ -207,7 +207,7 @@ export const tbPerpetualHero: CommunityEditionData = {
 		'Your business needs a unique, tailored solution, not a one-size-fits-all subscription.',
 	],
 	ctaText: 'Contact us',
-	ctaHref: '/docs/contact-us/?subject=ThingsBoard%20Products&message=I%20am%20interested%20in%20Self-managed%20perpetual%20license',
+	ctaHref: '/contact-us/?subject=ThingsBoard%20Products',
 };
 
 export const tbSelfManagedAddOns: AddOnItem[] = [
