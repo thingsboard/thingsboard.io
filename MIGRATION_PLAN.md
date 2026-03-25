@@ -102,7 +102,7 @@ Must be completed before most marketing pages can be built.
 
 | # | Page | Description | Complexity | Dev (h) | Test (h) | Status |
 |---|------|-------------|------------|---------|----------|--------|
-| 2.1 | Pricing | Single page with tabs for CE, Cloud, PE, TBMQ. Feature comparison tables, monthly/annual toggle, billing links, contact forms. Most important commercial page. | H | 12–20 | 2–3 | [ ] |
+| 2.1 | Pricing | Single page with tabs for CE, Cloud, PE, TBMQ. Feature comparison tables, monthly/annual toggle, billing links, contact forms. Most important commercial page. | H | 12–20 | 2–3 | [x] |
 
 **Notes:**
 - Components needed: `PricingTab`, `PricingTable`, `PricingCard`, `PricingToggle`
@@ -227,9 +227,9 @@ Similar structure to Use Cases — can reuse or share the same template with min
 |---|------|-----|-------------|------------|---------|----------|--------|
 | 6.1 | Services overview | `/services/` | Overview of all services with cards | M | 4–6 | 0.5 | [x] |
 | 6.2 | Support Plans | `/services/support/` | Support tier comparison table, SLA details | H | 8–12 | 1–2 | [x] |
-| 6.3 | Trainings | `/services/trainings/` | Training programmes, schedule, registration form | H | 8–12 | 1–2 | [ ] |
+| 6.3 | Trainings | `/services/trainings/` | Training programmes, schedule, registration form | H | 8–12 | 1–2 | [x] |
 | 6.4 | Consulting | `/services/consulting/` | Professional services / consulting offering | M | 4–6 | 0.5 | [x] |
-| 6.5 | Development Services | `/services/development-services/` | Custom IoT solution development | H | 8–12 | 1–2 | [ ] |
+| 6.5 | Development Services | `/services/development-services/` | Custom IoT solution development | H | 8–12 | 1–2 | [x] |
 | 6.6 | Dev Services — Customer Reviews | `/services/development-services/customers-full-reviews/` | Full testimonials page | M | 4–6 | 0.5 | [x] | (redirect to /clients-feedback/)
 
 **Notes:**
@@ -556,7 +556,7 @@ Pages that show a filterable/paginated table of ThingsBoard releases.
 - [ ] Routing strategy
 
 ### Phase 2 — Core commercial pages (Weeks 2–3) *(was: Weeks 3–5)*
-- [ ] Pricing
+- [x] Pricing
 - [ ] Products — 9 main pages
 - [ ] Services (Support, Trainings, Dev Services)
 
