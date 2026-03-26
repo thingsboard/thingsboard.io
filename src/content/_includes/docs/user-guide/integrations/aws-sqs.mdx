@@ -1,0 +1,453 @@
+import DocLink from '@components/DocLink.astro';
+import Banner from '~/components/Banner.astro';
+import ImageGallery from '~/components/ImageGallery.astro';
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Products } from '~/models/site.models';
+
+<Banner variant="peFeature" product={props.product} path="user-guide/integrations/aws-sqs" />
+
+AWS SQS Integration connects ThingsBoard to an Amazon Simple Queue Service queue. ThingsBoard polls the queue for incoming messages and transforms them into device telemetry and attributes via an uplink converter. This is useful for ingesting device data published to AWS SQS by external services or pipelines into ThingsBoard for real-time processing and visualization.
+
+## Prerequisites
+
+Before you start, make sure you have:
+
+- A running ThingsBoard instance with access to the **Integrations center**.
+- Access to the AWS Management Console.
+- An SQS queue created in the AWS region you plan to use.
+- IAM credentials (**Access Key ID** and **Secret Access Key**) with permission to read from that queue.
+
+## AWS SQS setup
+
+### Open Amazon SQS in AWS
+
+<Steps>
+1. Sign in to the **AWS Management Console**.
+2. In the top-right corner, check the active AWS region. Switch the region to the one you want to use for the queue, for example `eu-north-1`.
+3. In the AWS search bar, type **SQS**.
+4. Click **Simple Queue Service**.
+5. In the left navigation panel, click **Queues**. The SQS console shows all queues in the currently selected region.
+</Steps>
+
+<Aside type="note">
+  If the wrong region is selected, you may not see your queue even if it already exists. The SQS console is region-specific.
+</Aside>
+
+### Create an SQS queue
+
+If you already have a queue, you can skip this step.
+
+<Steps>
+1. On the **Queues** page, click **Create queue**.
+2. In the **Details** section, choose the queue type:
+    - **Standard** — high throughput, best-effort ordering.
+    - **FIFO** — strict ordering and exactly-once processing.
+3. In the **Name** field, enter the queue name. If you selected FIFO, the name must end with `.fifo`.
+4. Configure the main queue parameters as needed: **Visibility timeout**, **Message retention period**, **Delivery delay**, **Maximum message size**, **Receive message wait time**.
+5. In the **Encryption** section, keep server-side encryption enabled unless you have a reason to disable it.
+6. Configure **Dead-letter queue** settings if required.
+7. Click **Create queue**.
+</Steps>
+
+<Aside type="note">
+  A newly created queue may need at least one second before it can be used.
+</Aside>
+
+#### Copy the queue URL
+
+After the queue is created:
+
+<Steps>
+1. Click the queue name in the list to open the queue details page.
+2. Copy the **Queue URL**.
+</Steps>
+
+You will need this value when configuring the integration in ThingsBoard. ThingsBoard expects the full queue URL, for example:
+
+```
+https://sqs.eu-north-1.amazonaws.com/378560561651/ThingsBoard
+```
+
+### Create or verify AWS credentials
+
+The ThingsBoard integration authenticates to AWS using an Access Key ID and Secret Access Key. You need IAM credentials with permission to read from the target queue. AWS recommends using least-privilege IAM policies.
+
+If you already have an IAM user with programmatic credentials and access to the target queue, skip to [ThingsBoard integration setup](#thingsboard-integration-setup).
+
+<Steps>
+1. In the AWS Console search bar, type **IAM** and open **Identity and Access Management (IAM)**.
+2. In the left menu, click **Users**, then click **Create user**.
+3. Enter a user name (e.g. `thingsboard-sqs-user`) and complete user creation.
+4. Open the newly created user. Go to the **Permissions** tab and click **Add permissions**.
+5. Choose **Attach policies directly** or create an inline policy. Grant at least the permissions listed in the [example policy](#example-minimal-iam-policy) below. Save the changes.
+6. Open the **Security credentials** tab. In the **Access keys** section, click **Create access key**.
+7. Select the use case that best matches your deployment and click **Create access key**.
+8. Copy and securely store the **Access key** and **Secret access key**. You will not be able to view the secret again.
+</Steps>
+
+#### Example minimal IAM policy
+
+Replace the region, account ID, and queue name with your values:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowThingsBoardSQSAccess",
+      "Effect": "Allow",
+      "Action": [
+        "sqs:ReceiveMessage",
+        "sqs:DeleteMessage",
+        "sqs:GetQueueAttributes"
+      ],
+      "Resource": "arn:aws:sqs:eu-north-1:378560561651:ThingsBoard"
+    }
+  ]
+}
+```
+
+<Aside type="note">
+  For a FIFO queue, use the FIFO queue ARN in the `Resource` field (ending in `.fifo`).
+</Aside>
+
+## ThingsBoard integration setup
+
+### Create an uplink converter
+
+The uplink converter decodes the SQS message body and maps it to the ThingsBoard data model. The message body is passed to the decoder as `payload`.
+
+**Sample payload:**
+
+```json
+{
+  "devName": "kitchen_thermostat",
+  "devType": "thermostat",
+  "temperature": 22
+}
+```
+
+<Aside type="tip" title="TBEL">
+  We recommend using <DocLink product={props.product} path="user-guide/tbel">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
+</Aside>
+
+**The decoder function used in this tutorial:**
+
+<Tabs>
+  <TabItem label="TBEL (Recommended)">
+  ```js maxLines=15 collapsible
+  // Decode an uplink message from a buffer
+  // payload - array of bytes
+  // metadata - key/value object
+
+  /** Decoder **/
+
+  // decode payload to JSON
+  var data = decodeToJson(payload);
+
+  // --- Device name and type ---
+  var deviceName = data.deviceName != null ? data.deviceName : 'Unknown Device';
+  var deviceType = data.deviceType != null ? data.deviceType : 'default';
+  // var customerName = 'Customer C';
+  // var groupName = 'thermostat devices';
+
+  // use assetName and assetType instead of deviceName and deviceType
+  // to automatically create assets instead of devices.
+  // var assetName = 'Asset A';
+  // var assetType = 'building';
+
+  // --- Timestamp parsing ---
+  var timestamp = -1;
+  if (data.ts != null) {
+    timestamp = data.ts;
+  } else if (data.timestamp != null) {
+    timestamp = new Date(data.timestamp).getTime();
+  }
+  if (timestamp == -1) {
+    timestamp = Date.now();
+  }
+
+  // --- Telemetry and attributes ---
+  var telemetry = {};
+  var attributes = {
+    model: 'Model A',
+    serialNumber: 'SN111',
+    integrationName: metadata['integrationName'],
+  };
+
+  // Keys to exclude from telemetry (already used or non-telemetry fields)
+  var excludeFromTelemetryList = ["deviceName", "deviceType", "ts", "timestamp"];
+
+  // Parse all remaining JSON fields as telemetry
+  telemetry.putAll(toFlatMap(data, excludeFromTelemetryList, true));
+
+  // Result object with device attributes/telemetry data
+  var result = {
+  deviceName: deviceName,
+  deviceType: deviceType,
+  // customerName: customerName,
+  // groupName: groupName,
+  // assetName: assetName,
+  // assetType: assetType,
+    attributes: attributes,
+    telemetry: {
+      ts: timestamp,
+      values: telemetry
+    }
+  };
+
+  /** Helper functions 'decodeToString', 'decodeToJson' and 'toFlatMap' are already built-in **/
+
+  return result;
+  ```
+  </TabItem>
+  <TabItem label="JavaScript">
+  ```js maxLines=15 collapsible
+  // Decode an uplink message from a buffer
+  // payload - array of bytes
+  // metadata - key/value object
+
+  /** Decoder **/
+
+  // decode payload to JSON
+  var data = decodeToJson(payload);
+
+  // --- Device name and type ---
+  var deviceName = data.deviceName != null ? data.deviceName : 'Unknown Device';
+  var deviceType = data.deviceType != null ? data.deviceType : 'default';
+  // var customerName = 'Customer C';
+  // var groupName = 'thermostat devices';
+
+  // use assetName and assetType instead of deviceName and deviceType
+  // to automatically create assets instead of devices.
+  // var assetName = 'Asset A';
+  // var assetType = 'building';
+
+  // --- Timestamp parsing ---
+  var timestamp = -1;
+  if (data.ts != null) {
+    timestamp = data.ts;
+  } else if (data.timestamp != null) {
+    timestamp = new Date(data.timestamp).getTime();
+  }
+    if (timestamp == -1) {
+    timestamp = Date.now();
+  }
+
+  // --- Telemetry and attributes ---
+  var telemetry = {};
+  var attributes = {
+    model: 'Model A',
+    serialNumber: 'SN111',
+    integrationName: metadata['integrationName'],
+  };
+
+  // Keys to exclude from telemetry (already used or non-telemetry fields)
+  var excludeFromTelemetryList = ["deviceName", "deviceType", "ts", "timestamp"];
+
+  // Parse all remaining JSON fields as telemetry
+  toFlatMap(data, telemetry, excludeFromTelemetryList);
+
+  // Result object with device attributes/telemetry data
+  var result = {
+    deviceName: deviceName,
+    deviceType: deviceType,
+    // customerName: customerName,
+    // groupName: groupName,
+    // assetName: assetName,
+    // assetType: assetType,
+    attributes: attributes,
+    telemetry: {
+      ts: timestamp,
+      values: telemetry
+    }
+  };
+
+  /** Helper functions **/
+
+  function decodeToString(payload) {
+    return String.fromCharCode.apply(String, payload);
+  }
+
+  function decodeToJson(payload) {
+    var str = decodeToString(payload);
+    return JSON.parse(str);
+  }
+
+  function toFlatMap(obj, result, excludeList, prefix) {
+    prefix = prefix || '';
+    for (var key in obj) {
+      if (excludeList.indexOf(key) !== -1) continue;
+      var value = obj[key];
+      var fullKey = prefix ? prefix + '.' + key : key;
+      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        toFlatMap(value, result, excludeList, fullKey);
+      } else {
+        result[fullKey] = value;
+      }
+    }
+  }
+
+  return result;
+  ```
+  </TabItem>
+</Tabs>
+
+**To adapt this converter to your device:**
+
+- **Different field names** — replace `data.devName`, `data.devType`, and `data.temperature` with the field names in your payload.
+- **Additional telemetry** — add more keys to the `telemetry` object (e.g. `humidity: data.humidity`).
+- **Attributes** — add an `attributes` key alongside `telemetry` to store static device properties.
+
+### Create the integration
+
+<Steps>
+  1. Go to **Integrations center &#8702; Integrations** and click **+ Add integration**.
+  2. **Basic settings:**
+      - Set **Integration type** to **AWS SQS** and enter a name (e.g. `AWS SQS integration`).
+      - **Enable integration** and **Allow create devices or assets** are on by default.
+      - Click **Next**.
+  3. **Uplink data converter:**
+      - Click **Create new**, enter a name, paste the decoder function from above, and click **Add**.
+      - Alternatively, click **Select existing** to reuse a previously created converter.
+      - Click **Next**.
+  4. **Connection:**
+      - **Queue URL (SQS URL)** — paste the queue URL copied in [Copy the queue URL](#copy-the-queue-url).
+      - **Polling period in seconds** — how often ThingsBoard checks the queue for new messages (default: `5`).
+      - **Region** — the AWS region of the queue (e.g. `eu-north-1`).
+      - **AWS access key id** — the Access Key ID from [create or verify AWS credentials](#create-or-verify-aws-credentials) section.
+      - **AWS secret access key** — the Secret Access Key.
+      - Read more about each parameter in [Connection settings](#connection-settings).
+      - Click **Add** to save the integration.
+</Steps>
+
+#### Connection settings
+
+<h5>Queue URL (SQS URL)</h5>
+
+The full URL of the SQS queue ThingsBoard polls for uplink messages. The queue must exist in your AWS account before the integration can connect.
+
+<h5>Polling period in seconds</h5>
+
+How often ThingsBoard polls the SQS queue for new messages. Lower values reduce message latency but increase the number of API calls to AWS SQS.
+
+<h5>Region</h5>
+
+The AWS region where the queue is deployed (e.g. `us-east-1`, `eu-north-1`). Must match the region in the Queue URL.
+
+<h5>AWS access key id / AWS secret access key</h5>
+
+IAM credentials used to authenticate API requests. The associated IAM user or role must have `sqs:ReceiveMessage`, `sqs:DeleteMessage`, and `sqs:GetQueueAttributes` permissions on the target queue.
+
+<h5>Execute remotely</h5>
+
+When enabled, ThingsBoard generates an **Integration key** and **Integration secret** that allow the integration to run as a separate process outside the ThingsBoard cluster — useful when the SQS endpoint is only reachable from a restricted network. See <DocLink product={props.product} path="user-guide/integrations/remote">Remote Integration</DocLink>.
+
+<h5>Advanced settings</h5>
+
+| Parameter | Description |
+|-----------|-------------|
+| **Description** | Optional text description for the integration. |
+| **Metadata** | Key-value pairs injected into every uplink message as `integrationMetadata` in the converter script. |
+
+## Verify integration
+
+After creation:
+- Integration should appear in list with Status: Active
+- Send a test message to SQS
+
+**Send test message (AWS)**
+
+<Steps>
+1. Open SQS queue
+2. Click Send and receive messages
+3. Enter message:
+</Steps>
+
+```bash
+{
+  "deviceName": "Thermometer A",
+  "deviceType": "thermostat",
+  "temperature": 18.6
+}
+```
+
+<Steps>
+  <ol start="4">
+    <li>Click <strong>Send message</strong></li>
+  </ol>
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/aws-sqs/aws-sqs-validate-uplink-message-1.png', alt: 'Add integration wizard — Basic settings: Integration type set to HTTP', caption: 'Go to Integrations center → Integrations (1) and click + Add integration (2). Set Integration type to HTTP (3) and click Next (4)' },
+  { src: '/src/assets/images/user-guide/integrations/aws-sqs/aws-sqs-validate-uplink-message-2.png', alt: 'Add integration wizard — Uplink data converter: HTTP Uplink Converter selected', caption: 'Click Select existing (5), choose HTTP Uplink Converter from the list, and click Next (6)' },
+  { src: '/src/assets/images/user-guide/integrations/aws-sqs/aws-sqs-validate-uplink-message-3.png', alt: 'Add integration wizard — Downlink data converter step with Skip selected', caption: 'Click Skip (7) on the Downlink data converter step' },
+]} />
+
+Go to **Entities &#8702; Devices**. The device `Thermometer A` is automatically provisioned by the integration. Open it and check the **Latest telemetry** tab — the `temperature` value should equal `18.6`.
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/aws-sqs/aws-sqs-validate-uplink-message-4.png', alt: 'Add integration wizard — Basic settings: Integration type set to HTTP', caption: 'Go to Integrations center → Integrations (1) and click + Add integration (2). Set Integration type to HTTP (3) and click Next (4)' },
+]} />
+
+**Inspect event logs**
+
+To trace the message through the integration, go to **Integrations center ⇾ Integrations**, click **AWS SQS integration**, and open the **Events** tab. 
+Click **…** in the **Message** column to see the message body.
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/aws-sqs/aws-sqs-validate-uplink-message-5.png', alt: 'Add integration wizard — Basic settings: Integration type set to HTTP', caption: 'Go to Integrations center → Integrations (1) and click + Add integration (2). Set Integration type to HTTP (3) and click Next (4)' },
+]} />
+
+To inspect converter processing, go to **Integrations center &#8702; Data converters**, click the uplink converter, and open its **Events** tab. 
+**In** shows the raw payload, **Out** shows the decoded result (device name, type, attributes, telemetry), and **Metadata** contain the integration name.
+
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/aws-sqs/aws-sqs-validate-uplink-message-6.png', alt: 'Add integration wizard — Basic settings: Integration type set to HTTP', caption: 'Go to Integrations center → Integrations (1) and click + Add integration (2). Set Integration type to HTTP (3) and click Next (4)' },
+  { src: '/src/assets/images/user-guide/integrations/aws-sqs/aws-sqs-validate-uplink-message-7.png', alt: 'Add integration wizard — Uplink data converter: HTTP Uplink Converter selected', caption: 'Click Select existing (5), choose HTTP Uplink Converter from the list, and click Next (6)' },
+  { src: '/src/assets/images/user-guide/integrations/aws-sqs/aws-sqs-validate-uplink-message-8.png', alt: 'Add integration wizard — Downlink data converter step with Skip selected', caption: 'Click Skip (7) on the Downlink data converter step' },
+  { src: '/src/assets/images/user-guide/integrations/aws-sqs/aws-sqs-validate-uplink-message-9.png', alt: 'Add integration wizard — Downlink data converter step with Skip selected', caption: 'Click Skip (7) on the Downlink data converter step' },
+]} />
+
+## Troubleshooting
+
+<h5>Queue does not receive messages</h5>
+
+Check the following:
+
+<Steps>
+1. The queue exists in the same AWS region configured in the node.
+2. The Queue URL pattern exactly matches the queue URL from AWS.
+3. The rule chain connection actually routes messages into the AWS SQS node.
+4. The message reaches the node during runtime.
+</Steps>
+
+A wrong region or incorrect queue URL is a common reason why messages do not appear in SQS. The AWS console is region-specific, and the node requires a valid full queue URL.
+
+<h5>Access denied or invalid credentials</h5>
+
+If the node routes messages through Failure:
+
+<Steps>
+1. Verify the Access Key ID and Secret Access Key.
+2. Check that the IAM user is active.
+3. Confirm the IAM policy allows sqs:SendMessage for the target queue ARN.
+</Steps>
+
+AWS recommends least-privilege policies, but the permission must still include the required SQS action on the correct resource.
+
+<h5>Queue not found</h5>
+
+This usually means one of the following:
+- incorrect queue URL;
+- wrong region;
+- the queue was deleted or recreated and the old URL is still configured. The AWS SQS node documents queue-not-found failures as a typical SQS error case.
+
+## See also
+
+- <DocLink product={props.product} path="user-guide/integrations">Integration Overview</DocLink>
+- <DocLink product={props.product} path="user-guide/integrations/integration-types">Integration types</DocLink>
+- <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter">Uplink data converter</DocLink>
+- <DocLink product={props.product} path="user-guide/rule-engine-2-0/re-getting-started">Rule Engine</DocLink>
+- <DocLink product={props.product} path="user-guide/tbel">ThingsBoard Expression Language (TBEL)</DocLink>
