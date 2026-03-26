@@ -11,6 +11,7 @@ A compact horizontal card — similar to ThingsBoard's built-in "Horizontal valu
 - A colored icon badge on the left
 - The data key label, value, and units in a single row
 - Dynamic value color that changes based on the current reading
+- A relative timestamp showing when the value last updated (e.g. "2 min ago")
 
 ## Step-by-step
 
@@ -29,6 +30,7 @@ A compact horizontal card — similar to ThingsBoard's built-in "Horizontal valu
        <span class="sensor-card__value" id="value">--</span>
        <span class="sensor-card__units" id="units"></span>
      </div>
+     <span class="sensor-card__timestamp" id="timestamp"></span>
    </div>
    ```
 
@@ -91,6 +93,14 @@ A compact horizontal card — similar to ThingsBoard's built-in "Horizontal valu
      font-weight: 400;
      color: #667085;
    }
+
+   .sensor-card__timestamp {
+     margin-left: auto;
+     font-size: 12px;
+     color: #98a2b3;
+     white-space: nowrap;
+     flex-shrink: 0;
+   }
    ```
 
 4. In the **JavaScript** tab, paste the controller logic:
@@ -100,7 +110,7 @@ A compact horizontal card — similar to ThingsBoard's built-in "Horizontal valu
 
    // DOM references
    let labelEl, valueEl, unitsEl,
-       iconBadgeEl, iconTextEl;
+       iconBadgeEl, iconTextEl, timestampEl;
 
    self.onInit = function() {
      container = self.ctx.$container[0];
@@ -112,8 +122,9 @@ A compact horizontal card — similar to ThingsBoard's built-in "Horizontal valu
      labelEl     = container.querySelector('#label');
      valueEl     = container.querySelector('#value');
      unitsEl     = container.querySelector('#units');
-     iconBadgeEl = container.querySelector('#icon-badge');
-     iconTextEl  = container.querySelector('#icon-text');
+     iconBadgeEl  = container.querySelector('#icon-badge');
+     iconTextEl   = container.querySelector('#icon-text');
+     timestampEl  = container.querySelector('#timestamp');
 
      // Apply icon setting
      if (settings.displayIcon === false) {
@@ -142,9 +153,19 @@ A compact horizontal card — similar to ThingsBoard's built-in "Horizontal valu
      }
 
      let val = data[0].data[0][1];
-     valueEl.textContent = val;
+     let ts  = data[0].data[0][0];
+     let decimals = data[0].dataKey.decimals;
+     let displayVal = (decimals != null && decimals >= 0)
+       ? parseFloat(val).toFixed(decimals)
+       : val;
+     valueEl.textContent = displayVal;
      applyColors(val);
+     updateTimestamp(ts);
    };
+
+   function updateTimestamp(ts) {
+     timestampEl.textContent = moment(ts).fromNow();
+   }
 
    function applyColors(val) {
      valueEl.style.color = resolveColor(
@@ -197,23 +218,17 @@ A compact horizontal card — similar to ThingsBoard's built-in "Horizontal valu
        maxDataKeys: 1,
        singleEntity: true,
        dataKeysOptional: false,
-       ignoreDataUpdateOnIntervalTick: true,
-       defaultDataKeysFunction: function() {
-         return [{
-           name: 'temperature',
-           label: 'Temperature',
-           type: 'timeseries'
-         }];
-       }
+       ignoreDataUpdateOnIntervalTick: true
      };
    };
+
    ```
 
    Let's walk through the key parts:
 
    **`self.onInit()`** — caches DOM references and applies initial settings. The icon is shown or hidden based on the `displayIcon` setting, and its Material Icon name is set from `settings.icon`.
 
-   **`self.onDataUpdated()`** — reads the latest data point. On the first call, it copies the label and units from the data key metadata. On every call, it updates the value text and recalculates dynamic colors.
+   **`self.onDataUpdated()`** — reads the latest data point. On the first call, it copies the label and units from the data key metadata. On every call, it updates the value text, recalculates dynamic colors, and refreshes the timestamp. The timestamp comes directly from `data[0].data[0][0]` (epoch milliseconds) and is formatted with `moment(ts).fromNow()` — `moment` is available globally in ThingsBoard's widget environment without any import.
 
    **`resolveColor(setting, value, fallback)`** — resolves a `color_settings` object to a CSS color string. Supports three modes:
    - **constant** — returns a fixed color
@@ -222,9 +237,9 @@ A compact horizontal card — similar to ThingsBoard's built-in "Horizontal valu
 
    The `fallback` parameter ensures good defaults even when settings are empty.
 
-   **`self.typeParameters()`** — restricts the widget to one data key from a single entity and pre-fills the default key as `temperature`.
+   **`self.typeParameters()`** — restricts the widget to one data key from a single entity. `ignoreDataUpdateOnIntervalTick: true` prevents `onDataUpdated` from firing on the platform's polling interval when data hasn't actually changed — the callback only fires when a new value arrives.
 
-5. In the **Settings schema** tab, paste:
+5. In the **Settings form** tab, click **Import from JSON** → select the **JSON content** tab → paste:
 
    ```json
    [
@@ -296,9 +311,9 @@ A compact horizontal card — similar to ThingsBoard's built-in "Horizontal valu
 
    The `color_settings` type renders a color picker with three mode tabs: **Constant** (single color), **Range** (value-based color ranges), and **Function** (custom JavaScript).
 
-6. Click **Run** to preview. You should see a compact horizontal card: blue icon badge on the left, then the label, value, and units in a row.
+6. Click **Run** (or `Ctrl+Enter`) to preview. You should see a compact horizontal card: blue icon badge on the left, then the label, value, units, and timestamp in a row.
 
-7. Click **Save** → name the widget "Simple Sensor Card".
+7. Click **Save** (or `Ctrl+S`) → name the widget "Simple Sensor Card".
 
 8. Add the widget to a dashboard. In the widget datasource configuration:
    - Select a device that publishes telemetry (e.g., a device sending `temperature`)
@@ -322,7 +337,9 @@ self.ctx.data = [
       name: 'temperature',   // key name
       label: 'Temperature',  // display label
       type: 'timeseries',    // 'timeseries', 'attribute', or 'entityField'
-      units: '°C'            // configured units
+      units: '°C',           // configured units
+      decimals: 1,           // decimal places set in the data key dialog
+      settings: {}           // values from the Data key settings form
     },
     data: [
       [1710000000000, 24.5]  // [timestamp_ms, value]
@@ -333,6 +350,10 @@ self.ctx.data = [
 
 For **Latest Values** widgets, `data[0].data` typically contains a single entry — the most recent value. The first element `[0]` is the timestamp in milliseconds; the second `[1]` is the value.
 
+`dataKey.decimals` is a built-in data key property set in the data key dialog ("Decimal places"). The widget uses it to round the displayed value via `parseFloat(val).toFixed(decimals)`. If not configured, the raw value is shown as-is.
+
+`dataKey.settings` holds the values from the **Data key settings form** — the per-key configuration form defined in the Widget Editor. For example, if your data key settings form has a `threshold` field, you read it as `data[0].dataKey.settings.threshold`.
+
 ## Vanilla JS vs Angular templates
 
 This tutorial and the Hello World both use vanilla JS for clarity. The remaining tutorials (<DocLink product={props.product} path='user-guide/contribution/widgets-development/embedded-chart' bold={false}>Embedded Chart</DocLink>, <DocLink product={props.product} path='user-guide/contribution/widgets-development/rpc-control' bold={false}>RPC Control</DocLink>, <DocLink product={props.product} path='user-guide/contribution/widgets-development/alarm-widget' bold={false}>Alarm Widget</DocLink>) switch to **Angular templates** — the approach ThingsBoard's built-in widgets use. Angular templates simplify complex UIs with data binding (`{{value}}`), conditional rendering (`@if`, `*ngIf`), loops (`*ngFor`), and built-in components (`mat-select`, `mat-button`).
@@ -340,4 +361,8 @@ This tutorial and the Hello World both use vanilla JS for clarity. The remaining
 ## Next steps
 
 - <DocLink product={props.product} path='user-guide/contribution/widgets-development/embedded-chart' bold={false}>Embedded Chart tutorial</DocLink> — wrap a platform chart with a key selector and custom subscriptions
+- <DocLink product={props.product} path='user-guide/contribution/widgets-development/rpc-control' bold={false}>RPC Control tutorial</DocLink> — build a device control panel with buttons and sliders
+- <DocLink product={props.product} path='user-guide/contribution/widgets-development/alarm-widget' bold={false}>Alarm Widget tutorial</DocLink> — build a custom alarm table
+- <DocLink product={props.product} path='user-guide/contribution/widgets-development/widget-patterns' bold={false}>Widget Patterns</DocLink> — CRUD tables, navigation, entity hierarchy, and more
+- <DocLink product={props.product} path='user-guide/contribution/widgets-development/advanced' bold={false}>Advanced Topics</DocLink> — external libraries, inter-widget communication, debugging
 - <DocLink product={props.product} path='reference/widgets/widget-api' bold={false}>Widget API Reference</DocLink> — full reference for `ctx`, lifecycle functions, data structures, and services
