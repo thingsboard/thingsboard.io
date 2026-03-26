@@ -2267,6 +2267,7 @@ const tbmqGuideItems = (prefix: string): SidebarConfig => {
 							{ label: 'OAuth 2.0', slug: `${prefix}/security/oauth-2-support` },
 							{ label: 'Domains', slug: `${prefix}/security/domains` },
 							{ label: 'Role-based access control', slug: `${prefix}/security/rbac` },
+							{ label: 'Audit logs', slug: `${prefix}/security/audit-log` },
 						]
 					: []),
 			],
