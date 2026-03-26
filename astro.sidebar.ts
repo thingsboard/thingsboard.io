@@ -1135,9 +1135,10 @@ export const paasSidebar: SidebarConfig = [
 				collapsed: true,
 				items: [
 					'docs/paas/user-guide/integrations',
-					'docs/paas/user-guide/integrations/http',
-					'docs/paas/user-guide/integrations/chirpstack',
-					'docs/paas/user-guide/integrations/aws-iot',
+					'docs/paas/user-guide/integrations/integration-types',
+					'docs/paas/user-guide/integrations/uplink-data-converter',
+					'docs/paas/user-guide/integrations/downlink-data-converter',
+					'docs/paas/user-guide/integrations/remote',
 				],
 			},
 			{
@@ -1422,9 +1423,10 @@ export const paasEuSidebar: SidebarConfig = [
 				collapsed: true,
 				items: [
 					'docs/paas/eu/user-guide/integrations',
-					'docs/paas/eu/user-guide/integrations/http',
-					'docs/paas/eu/user-guide/integrations/chirpstack',
-					'docs/paas/eu/user-guide/integrations/aws-iot',
+					'docs/paas/eu/user-guide/integrations/integration-types',
+					'docs/paas/eu/user-guide/integrations/uplink-data-converter',
+					'docs/paas/eu/user-guide/integrations/downlink-data-converter',
+					'docs/paas/eu/user-guide/integrations/remote',
 				],
 			},
 			{

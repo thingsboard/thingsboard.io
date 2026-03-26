@@ -36,12 +36,9 @@ To follow this tutorial you need:
 
 The uplink converter decodes the incoming ChirpStack message and maps it to the ThingsBoard data model. For the full decoder function reference, see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">Uplink data converter</DocLink>.
 
-<Aside type="note">From ThingsBoard 4.0, ChirpStack supports typed converters — map message fields to attributes or telemetry in the UI without writing a decoder script. Converters created before ThingsBoard 4.0 continue to work without changes.</Aside>
+From ThingsBoard 4.0, you can map message fields to attributes or telemetry directly in the UI — no scripting needed for structured JSON payloads. For binary payloads, add a decoder script in the same wizard, as this tutorial demonstrates
 
-The uplink converter wizard offers two modes:
-
-- **Create new** — write a custom decoder script for your device payload format. Use this when your device sends binary data that requires parsing. See <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#typed-uplink-converter" target="_blank">Typed uplink converter</DocLink>.
-- **Library** — pick a vendor and model from a built-in catalog; the converter is fully pre-configured. Use this if your device appears in the catalog and requires no custom parsing. See <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#converters-library" target="_blank">Library</DocLink>.
+If your device is in the built-in catalog, use the **Library** tab — see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#converters-library" target="_blank">Library</DocLink> — a built-in catalog of ready-to-use decoder functions for over 100 devices.
 
 <Aside type="tip" title="TBEL">
   We recommend using <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
@@ -49,7 +46,7 @@ The uplink converter wizard offers two modes:
 
 <Steps>
   <ol>
-    <li>Go to <strong>Integration center &#8702; Data converters</strong>.</li>
+    <li>Go to <strong>Integrations center &#8702; Data converters</strong>.</li>
     <li>Click <strong>+ Add data converter &#8702; Create new converter</strong>.</li>
     <li>Set <strong>Converter type</strong> to <strong>Uplink</strong> (default).</li>
     <li>Select <strong>Integration type</strong>: <strong>ChirpStack</strong>.</li>
@@ -62,13 +59,11 @@ The uplink converter wizard offers two modes:
       </ul>
     </li>
     <li>
-      In <strong>Advanced decoding parameters</strong>, all fields are pre-populated for The Things Stack Community — device profile defaults to <code>$deviceProfileName</code>, label to <code>$deviceName</code>, and the telemetry, attributes, and update-only key lists are pre-filled with standard TTN metadata keys. Adjust as needed; see the <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#advanced-decoding-parameters" target="_blank">Advanced decoding parameters</DocLink> reference for field descriptions.
+      Review <strong>Advanced decoding parameters</strong> — pre-populated for ChirpStack. Adjust if needed; see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#advanced-decoding-parameters" target="_blank">Advanced decoding parameters</DocLink> for details.
     </li>
     <li>Click <strong>Add</strong>.</li>
   </ol>
 </Steps>
-
-**The decoder function used in this tutorial:**
 
 <Tabs>
   <TabItem label="TBEL (Recommended)">
@@ -117,7 +112,7 @@ The uplink converter wizard offers two modes:
     //         sn: parseBytesToInt(input, 0, 4)
     //     },
     //     telemetry: {
-    //         ts: convertDateToTimestamp(metadata.time),
+    //         ts: metadata.ts, // Note: use metadata.ts, not convertDateToTimestamp(metadata.time) — metadata.time may not be populated.
     //         values: {
     //             battery: parseBytesToInt(input, 4, 1),
     //             temperature: parseBytesToInt(input, 5, 2) / 100.0,
@@ -188,7 +183,7 @@ The uplink converter wizard offers two modes:
     //         sn: parseBytesToInt(input, 0, 4)
     //     },
     //     telemetry: {
-    //         ts: convertDateToTimestamp(metadata.time),
+    //         ts: metadata.ts, // Note: use metadata.ts, not convertDateToTimestamp(metadata.time) — metadata.time may not be populated.
     //         values: {
     //             battery: parseBytesToInt(input, 4, 1),
     //             temperature: parseBytesToInt(input, 5, 2) / 100.0,
@@ -228,27 +223,32 @@ The uplink converter wizard offers two modes:
   </TabItem>
 </Tabs>
 
-**Understanding the TBEL decoder:**
+**Understanding the decoder:**
 
-The decoder operates on the full ChirpStack uplink message — a JSON object passed as `payload`. It has two layers of parsing:
+`payload` is the raw LoRaWAN payload bytes — ThingsBoard decodes the base64 `data` field automatically. `parseBytesToInt(input, offset, length)` reads `length` bytes from `offset` and returns a big-endian integer — a TBEL built-in; manually defined at the bottom of the JS tab. `metadata.ts` is the message timestamp in ms, falling back to current server time if unavailable.
 
-- **Device metadata** — `deviceName` and `deviceType` come from `data.deviceInfo`, which ChirpStack populates automatically from the device registry. Change `groupName` to match your ThingsBoard entity group.
-- **LoRaWAN payload bytes** — `data.data` is the base64-encoded payload sent by the device. The `decodePayload(base64ToBytes(data.data))` call decodes it into telemetry and attributes. **This is where you add your device-specific byte parsing.** The example decodes battery level, PIR state, and daylight state using channel IDs — replace or extend this logic to match your device's payload format.
-- **Network metadata** — `toFlatMap(data, excludeList, false)` automatically flattens the remaining ChirpStack message fields (signal quality, spreading factor, gateway data, etc.) into telemetry and attributes. The exclude lists control which fields are stored — add field names to the appropriate list to drop them, or remove names to include them.
-- **Timestamp** — parsed from `data.time` with fallback to the current time if the format cannot be parsed.
+The example decoder expects an 8-byte payload with this layout:
+
+| Bytes | Length | Expression | Output field | Notes |
+|-------|--------|------------|--------------|-------|
+| 0–3 | 4 | `parseBytesToInt(input, 0, 4)` | `attributes.sn` | Serial number |
+| 4 | 1 | `parseBytesToInt(input, 4, 1)` | `telemetry.battery` | Battery level (0–255) |
+| 5–6 | 2 | `parseBytesToInt(input, 5, 2) / 100.0` | `telemetry.temperature` | Temperature, scaled ÷ 100 |
+| 7 | 1 | `parseBytesToInt(input, 7, 1)` | `telemetry.saturation` | Saturation (0–255) |
+
+Device name and profile come from the **Main decoding configuration** section. Uncomment `result.name`, `result.profile`, etc. to override them from payload content instead.
 
 **To adapt this converter to your device:**
 
-- **Device naming** — `deviceName` reads from `data.deviceInfo.deviceName` (the name registered in ChirpStack). To use a different identifier, replace this with another `data.deviceInfo` field or a payload field.
-- **Device-specific payload** — replace the body of `decodePayload` with your own byte-parsing logic. The function receives the raw payload bytes and must return `{ attributes: {}, telemetry: {} }`.
-- **Add or remove stored fields** — edit `excludeFromTelemetryList` and `excludeFromAttributesList` to control which ChirpStack network metadata fields are saved to ThingsBoard.
-- **Group assignment** — change `'IAQ devices'` in `groupName` to the ThingsBoard entity group you want new devices assigned to.
+- **Match your payload structure** — update the byte offsets, lengths, and field names in `decodePayload` to match your device's binary protocol. Refer to your device's payload specification.
+- **Add or remove fields** — add more `parseBytesToInt` calls (or `parseBytesToFloat`, string extraction, etc.) for additional sensors; remove entries your device doesn't transmit.
+- **Override device metadata from the payload** — uncomment and populate `result.name`, `result.profile`, `result.group`, or `result.customer` to derive device identity from payload content rather than the converter UI configuration.
 
 ### Create the integration
 
 <Steps>
   <ol start="1">
-    <li>Go to <strong>Integration center &#8702; Integrations</strong> and click <strong>+ Add integration</strong>.</li>
+    <li>Go to <strong>Integrations center &#8702; Integrations</strong> and click <strong>+ Add integration</strong>.</li>
     <li>
       <span><strong>Basic settings:</strong></span>
       <ul>
@@ -260,14 +260,14 @@ The decoder operates on the full ChirpStack uplink message — a JSON object pas
     <li>
       <span><strong>Uplink data converter:</strong></span>
       <ul>
-        <li><strong>Select existing</strong> — choose a <a href="#create-an-uplink-converter">previously created</a> `The Things Stack Community Uplink Converter` from the list.</li>
+        <li><strong>Select existing</strong> — choose the <a href="#create-an-uplink-converter">previously created</a> <strong>ChirpStack Uplink Converter</strong> from the list.</li>
         <li>Click <strong>Next</strong>.</li>
       </ul>
     </li>
     <li>
       <span><strong>Downlink data converter:</strong></span>
       <ul>
-        <li>Create a <strong>Downlink data converter</strong>, or</li>
+        <li>Click <strong>Create new</strong> to add a downlink converter inline, or</li>
         <li>Click <strong>Skip</strong> — the downlink converter is only needed for sending commands to devices and can be added later.</li>
       </ul>
     </li>
@@ -321,50 +321,62 @@ When enabled, ThingsBoard generates an **Integration key** and **Integration sec
 
 ## Add HTTP integration in ChirpStack
 
-To forward uplink messages from ChirpStack to ThingsBoard, add an HTTP integration to your ChirpStack application. If you already have a ChirpStack application with your devices registered, skip to step 3.
+To forward uplink messages from ChirpStack to ThingsBoard, add an HTTP integration to your ChirpStack application. If you already have a ChirpStack application with your devices registered, skip steps 1–2.
 
 <Steps>
 1. In the ChirpStack UI, go to **Applications** and click **Add application**.
 2. Name the application and click **Submit**.
 3. Open the application and navigate to the **Integrations** tab.
-4. Click **+** to add an HTTP integration.
+4. In the integration catalog, click **+** on the **HTTP** card.
 5. Paste the **HTTP endpoint URL** copied from the ThingsBoard integration. Click **Submit**.
 </Steps>
 
 <ImageGallery images={[
   { src: '/src/assets/images/user-guide/integrations/chirpstack/chirpstack-configure-integration-1.png', alt: 'ChirpStack Applications page', caption: 'Go to Applications and click Add application' },
-  { src: '/src/assets/images/user-guide/integrations/chirpstack/chirpstack-configure-integration-2.png', alt: 'Add application form', caption: 'Enter a name for the application and click Submit' },
+  { src: '/src/assets/images/user-guide/integrations/chirpstack/chirpstack-configure-integration-2.png', alt: 'Add application form', caption: 'Name the application and click Submit' },
   { src: '/src/assets/images/user-guide/integrations/chirpstack/chirpstack-configure-integration-3.png', alt: 'Application created — Integrations tab', caption: 'Open the application and navigate to the Integrations tab' },
-  { src: '/src/assets/images/user-guide/integrations/chirpstack/chirpstack-configure-integration-4.png', alt: 'Integration catalog — HTTP card', caption: 'Find the HTTP integration in the catalog and click +' },
+  { src: '/src/assets/images/user-guide/integrations/chirpstack/chirpstack-configure-integration-4.png', alt: 'Integration catalog — HTTP card', caption: 'Click + on the HTTP card' },
   { src: '/src/assets/images/user-guide/integrations/chirpstack/chirpstack-configure-integration-5.png', alt: 'Add HTTP integration form', caption: 'Paste the HTTP endpoint URL into Event endpoint URL(s) and click Submit' },
-  { src: '/src/assets/images/user-guide/integrations/chirpstack/chirpstack-configure-integration-6.png', alt: 'HTTP integration created', caption: 'HTTP integration created — ChirpStack will now forward uplink messages to ThingsBoard' },
+  { src: '/src/assets/images/user-guide/integrations/chirpstack/chirpstack-configure-integration-6.png', alt: 'HTTP integration created', caption: 'HTTP integration added — uplink messages will now be forwarded to ThingsBoard' },
 ]} />
 
 ## Test uplink
 
-When a device sends an uplink message through ChirpStack, ThingsBoard automatically creates the device and stores its telemetry. If you don't have a physical device transmitting yet, trigger an uplink from the ChirpStack UI: open your application, navigate to the device, and use the **Queue** or simulation feature to send a test frame.
+When a device sends an uplink message via ChirpStack, ThingsBoard automatically creates the device and stores its telemetry.
+If you do not have a physical device sending data, you can emulate a device message by sending an HTTP request directly to the ThingsBoard endpoint using curl — bypassing ChirpStack entirely.
+This is useful to verify that the integration and uplink converter are configured correctly before connecting real hardware.
+To send a test uplink, you need the **HTTP endpoint URL** copied from the [Connection step](#connection-settings) of the integration setup.
 
-Once an uplink is received, a new device appears in **Entities &#8702; Devices**:
+Use this command to send a message. Replace `$HTTP_ENDPOINT_URL` with the HTTP endpoint URL copied from the integration.
+
+```bash
+curl -v \
+  -H "Content-Type: application/json" \
+  -d '{"deduplicationId":"7658d04d-7f1c-4eb6-900b-d948f3061a9d","time":"2026-03-20T14:42:52.653+00:00","deviceInfo":{"tenantId":"6e073e9a-6b4f-4747-b22c-7507e0fdebfb","tenantName":"ChirpStack","applicationId":"c3f2c4aa-07c8-4d6c-8a86-7ea2d4a52dca","applicationName":"Sample Application","deviceProfileId":"d8ee6c09-414c-4b2e-888a-8e8f86e2197a","deviceProfileName":"chirpstack-sensor","deviceName":"chirpstack sensor 001","devEui":"24e124538b223213","deviceClassEnabled":"CLASS_A","tags":{}},"devAddr":"01a44d4c","adr":true,"dr":5,"fCnt":153,"fPort":84,"confirmed":false,"data":"ALxhTl8JKVA=","rxInfo":[{"gatewayId":"24e124fffef64e9e","uplinkId":25127,"gwTime":"2026-03-20T14:42:52.653481+00:00","nsTime":"2026-03-20T14:42:52.670509207+00:00","timeSinceGpsEpoch":"1458052990.653s","rssi":-68,"snr":13.2,"channel":4,"location":{},"context":"Hw9+zQ==","crcStatus":"CRC_OK"}],"txInfo":{"frequency":867300000,"modulation":{"lora":{"bandwidth":125000,"spreadingFactor":7,"codeRate":"CR_4_5"}}},"regionConfigId":"eu868"}' \
+  "$HTTP_ENDPOINT_URL"
+```
+
+Once an uplink is received, a new device named **Device 24e124538b223213** (matching the `devEui` from the payload) appears in **Entities &#8702; Devices**:
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/chirpstack/device-created-1-pe.png', alt: 'Device created in ThingsBoard', caption: 'New device created by the integration' },
+  { src: '/src/assets/images/user-guide/integrations/chirpstack/chirpstack-device-created-1.png', alt: 'Device created in ThingsBoard', caption: 'New device created by the integration' },
 ]} />
 
-**Inspect event logs**
+#### Inspect event logs
 
-Go to **Integration center &#8702; Integrations**, click **ChirpStack integration**, and open the **Events** tab to see the uplink event:
+Go to **Integrations center &#8702; Integrations**, click **ChirpStack integration**, and open the **Events** tab to see the uplink event:
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/chirpstack/integration-uplink-message-event-1.png', alt: 'Uplink event in integration', caption: 'Uplink message received by the ChirpStack integration' },
-  { src: '/src/assets/images/user-guide/integrations/chirpstack/integration-uplink-message-event-2.png', alt: 'Uplink event details', caption: 'Event details showing the raw message' },
+  { src: '/src/assets/images/user-guide/integrations/chirpstack/chirpstack-uplink-message-event-1.png', alt: 'Uplink event in integration', caption: 'Uplink message received by the ChirpStack integration' },
+  { src: '/src/assets/images/user-guide/integrations/chirpstack/chirpstack-uplink-message-event-2.png', alt: 'Uplink event details', caption: 'Event details showing the raw message' },
 ]} />
 
-To inspect converter processing, go to **Integration center &#8702; Data converters**, click the uplink converter, and open its **Events** tab — **In** shows the raw ChirpStack message, **Out** shows the parsed result with `deviceName`, `attributes`, and `telemetry`:
+To inspect converter processing, go to **Integrations center &#8702; Data converters**, click the uplink converter, and open its **Events** tab — **In** shows the raw ChirpStack message, **Out** shows the parsed result with `deviceName`, `attributes`, and `telemetry`:
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/chirpstack/converter-event-1-pe.png', alt: 'Converter events tab', caption: 'Uplink converter Events tab — click ··· in the In or Out column to inspect input and output' },
-  { src: '/src/assets/images/user-guide/integrations/chirpstack/converter-event-2-pe.png', alt: 'Converter event — In', caption: 'In — raw ChirpStack uplink message passed to the converter' },
-  { src: '/src/assets/images/user-guide/integrations/chirpstack/converter-event-3-pe.png', alt: 'Converter event — Out', caption: 'Out — parsed result with deviceName, attributes, and telemetry' },
+  { src: '/src/assets/images/user-guide/integrations/chirpstack/chirpstack-converter-event-1.png', alt: 'Converter events tab', caption: 'Uplink converter Events tab — click ··· in the In or Out column to inspect input and output' },
+  { src: '/src/assets/images/user-guide/integrations/chirpstack/chirpstack-converter-event-2.png', alt: 'Converter event — In', caption: 'In — raw ChirpStack uplink message passed to the converter' },
+  { src: '/src/assets/images/user-guide/integrations/chirpstack/chirpstack-converter-event-3.png', alt: 'Converter event — Out', caption: 'Out — parsed result with deviceName, attributes, and telemetry' },
 ]} />
 
 ## Configure and test downlink
@@ -383,7 +395,7 @@ A downlink converter is required only when the integration sends commands to dev
 ### Add a downlink converter
 
 <Steps>
-1. Go to **Integration center &#8702; Integrations** and open the ChirpStack integration.
+1. Go to **Integrations center &#8702; Integrations** and open the ChirpStack integration.
 2. Click **Toggle edit mode**.
 3. In the **Downlink data converter** field, click **Create new**.
 4. In the **Add data converter** dialog, enter a name, and write or paste the encoder script.
@@ -542,13 +554,13 @@ Check the downlink converter **Events** tab — **In** shows the `ATTRIBUTES_UPD
 <h3>Integration not receiving uplink messages</h3>
 
 **Verify the HTTP endpoint URL is correct.**
-Open the ChirpStack integration in ThingsBoard (**Integration center &#8702; Integrations**), click **Toggle edit mode**, and copy the **HTTP endpoint URL** from the Connection step. Then open the ChirpStack UI, go to your application's **Integrations** tab, and confirm the HTTP integration points to that exact URL.
+Open the ChirpStack integration in ThingsBoard (**Integrations center &#8702; Integrations**), click **Toggle edit mode**, and copy the **HTTP endpoint URL** from the Connection step. Then open the ChirpStack UI, go to your application's **Integrations** tab, and confirm the HTTP integration points to that exact URL.
 
 **Verify the ChirpStack HTTP integration is active.**
 In the ChirpStack UI, the HTTP integration must be listed under your application's **Integrations** tab. If it is missing, add it following the steps in [Add HTTP integration in ChirpStack](#add-http-integration-in-chirpstack).
 
 **Check the integration Events tab.**
-Go to **Integration center &#8702; Integrations**, open the ChirpStack integration, and click the **Events** tab. If uplinks arrive but show errors, the raw message body is visible there — use it to diagnose converter failures.
+Go to **Integrations center &#8702; Integrations**, open the ChirpStack integration, and click the **Events** tab. If uplinks arrive but show errors, the raw message body is visible there — use it to diagnose converter failures.
 
 <h3>Device not created automatically</h3>
 
@@ -556,7 +568,7 @@ Go to **Integration center &#8702; Integrations**, open the ChirpStack integrati
 Open the ChirpStack integration, click **Toggle edit mode**, and confirm **Allow create devices or assets** is turned on in the Basic settings step. When this toggle is off, ThingsBoard processes the uplink but does not create a new device if one does not already exist.
 
 **Check the uplink converter output.**
-Go to **Integration center &#8702; Data converters**, open the uplink converter, and click the **Events** tab. The **Out** column must contain a valid `deviceName` field. If the converter returns an empty object or throws an error, no device is created.
+Go to **Integrations center &#8702; Data converters**, open the uplink converter, and click the **Events** tab. The **Out** column must contain a valid `deviceName` field. If the converter returns an empty object or throws an error, no device is created.
 
 <h3>Downlink not delivered to the device</h3>
 
