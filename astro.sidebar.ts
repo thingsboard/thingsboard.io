@@ -1575,11 +1575,98 @@ export const edgeSidebar: SidebarConfig = [
 	},
 	{
 		label: 'Recipes',
-		items: [{ label: 'Overview', slug: 'docs/edge/recipes' }],
+		items: [
+			{
+				label: 'Sending Data',
+				collapsed: true,
+				items: ['docs/edge/recipes/send-telemetry-mqtt'],
+			},
+			{
+				label: 'Cloud Sync',
+				collapsed: true,
+				items: ['docs/edge/recipes/push-to-cloud'],
+			},
+			{
+				label: 'Data Processing',
+				collapsed: true,
+				items: ['docs/edge/recipes/edge-alarm-rule', 'docs/edge/recipes/alarm-rule-tutorials'],
+			},
+			{
+				label: 'Operations',
+				collapsed: true,
+				items: ['docs/edge/recipes/ota-firmware-update'],
+			},
+		],
 	},
 	{
 		label: 'APIs & SDKs',
-		items: [{ label: 'Overview', slug: 'docs/edge/reference/apis-and-sdks' }],
+		items: [
+			{
+				label: 'Edge API',
+				collapsed: true,
+				items: [
+					'docs/edge/reference/apis-and-sdks/edge-controller',
+					'docs/edge/reference/apis-and-sdks/edge-event-controller',
+				],
+			},
+			{
+				label: 'Device APIs',
+				collapsed: true,
+				items: [
+					'docs/edge/reference/apis-and-sdks/mqtt-api',
+					'docs/edge/reference/apis-and-sdks/coap-api',
+					'docs/edge/reference/apis-and-sdks/http-api',
+					'docs/edge/reference/apis-and-sdks/lwm2m-api',
+					'docs/edge/reference/apis-and-sdks/snmp-api',
+				],
+			},
+			{
+				label: 'Device SDKs',
+				collapsed: true,
+				items: [
+					'docs/edge/reference/apis-and-sdks/python-device-sdk',
+					'docs/edge/reference/apis-and-sdks/micropython-client-sdk',
+					'docs/edge/reference/apis-and-sdks/circuitpython-client-sdk',
+					'docs/edge/reference/apis-and-sdks/arduino-client-sdk',
+				],
+			},
+			{
+				label: 'Edge-to-Cloud',
+				collapsed: true,
+				items: [
+					'docs/edge/reference/apis-and-sdks/edge-to-cloud/grpc-protocol',
+					'docs/edge/reference/apis-and-sdks/edge-to-cloud/connection-management',
+				],
+			},
+			{
+				label: 'Server-side APIs',
+				collapsed: true,
+				items: [
+					'docs/edge/reference/rest-api',
+					'docs/edge/reference/rest-api/controller-reference',
+					'docs/edge/reference/websocket-api',
+					'docs/edge/reference/data-query-api',
+					'docs/edge/reference/alarm-query-api',
+				],
+			},
+			{
+				label: 'Server-side REST Clients',
+				collapsed: true,
+				items: [
+					'docs/edge/reference/java-rest-client',
+					'docs/edge/reference/python-rest-client',
+				],
+			},
+			{
+				label: 'MCP Server',
+				collapsed: true,
+				items: [
+					'docs/edge/reference/apis-and-sdks/mcp-server/getting-started',
+					'docs/edge/reference/apis-and-sdks/mcp-server/tools',
+					'docs/edge/reference/apis-and-sdks/mcp-server/configuration',
+				],
+			},
+		],
 	},
 	{
 		label: 'Reference',
@@ -1871,11 +1958,52 @@ export const edgePeSidebar: SidebarConfig = [
 	},
 	{
 		label: 'Recipes',
-		items: [{ label: 'Overview', slug: 'docs/edge/pe/recipes' }],
+		items: [
+			{
+				label: 'Sending Data',
+				collapsed: true,
+				items: ['docs/edge/pe/recipes/send-telemetry-mqtt'],
+			},
+			{
+				label: 'Cloud Sync',
+				collapsed: true,
+				items: ['docs/edge/pe/recipes/push-to-cloud'],
+			},
+			{
+				label: 'Data Processing',
+				collapsed: true,
+				items: ['docs/edge/pe/recipes/edge-alarm-rule', 'docs/edge/pe/recipes/alarm-rule-tutorials'],
+			},
+			{
+				label: 'Operations',
+				collapsed: true,
+				items: ['docs/edge/pe/recipes/ota-firmware-update'],
+			},
+		],
 	},
 	{
 		label: 'APIs & SDKs',
-		items: [{ label: 'Overview', slug: 'docs/edge/pe/reference/apis-and-sdks' }],
+		items: [
+			{ label: 'Overview', slug: 'docs/edge/pe/reference/apis-and-sdks' },
+			{
+				label: 'Server-side REST Clients',
+				collapsed: true,
+				items: [
+					'docs/edge/pe/reference/java-rest-client',
+					'docs/edge/pe/reference/python-rest-client',
+				],
+			},
+			{
+				label: 'Device SDKs',
+				collapsed: true,
+				items: [
+					'docs/edge/pe/reference/apis-and-sdks/python-device-sdk',
+					'docs/edge/pe/reference/apis-and-sdks/micropython-client-sdk',
+					'docs/edge/pe/reference/apis-and-sdks/circuitpython-client-sdk',
+					'docs/edge/pe/reference/apis-and-sdks/arduino-client-sdk',
+				],
+			},
+		],
 	},
 	{
 		label: 'Reference',

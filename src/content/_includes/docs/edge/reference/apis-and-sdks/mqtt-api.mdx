@@ -1,0 +1,255 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+Devices connect to ThingsBoard Edge over MQTT the same way they connect to ThingsBoard CE — only the host differs. Point your MQTT client to the Edge node's IP address or hostname instead of the cloud server.
+
+**Default ports:** 1883 (plain), 8883 (TLS)
+
+Edge acts as an MQTT broker and supports QoS 0 (at most once) and QoS 1 (at least once).
+
+## Credentials
+
+Three authentication mechanisms are supported:
+
+**Access token** — pass the device access token as the MQTT username, leave the password empty.
+
+**X.509 certificates** — use a device certificate and key for mutual TLS on port 8883. See <DocLink product={props.product} path="reference/configuration/transport-config" target="_blank">Transport configuration</DocLink> for TLS setup.
+
+**Basic MQTT credentials** — authenticate with a client ID, username, and password combination configured in the device credentials.
+
+To find a device's access token: go to **Entities → Devices**, open the device, click **Copy access token** on the **Device details** tab.
+
+```bash
+export ACCESS_TOKEN=your_device_token
+export EDGE_HOST=your_edge_host_or_ip
+```
+
+The examples below use access token authentication.
+
+## Topic reference
+
+| Operation | Direction | Topic |
+|-----------|-----------|-------|
+| Publish telemetry | Device → Edge | `v1/devices/me/telemetry` |
+| Publish client-side attributes | Device → Edge | `v1/devices/me/attributes` |
+| Subscribe to shared attribute updates | Edge → Device | `v1/devices/me/attributes` |
+| Request attributes | Device → Edge | `v1/devices/me/attributes/request/{requestId}` |
+| Receive attribute response | Edge → Device | `v1/devices/me/attributes/response/{requestId}` |
+| Subscribe to server-side RPC | Edge → Device | `v1/devices/me/rpc/request/+` |
+| Respond to server-side RPC | Device → Edge | `v1/devices/me/rpc/response/{requestId}` |
+| Send client-side RPC | Device → Edge | `v1/devices/me/rpc/request/{requestId}` |
+| Receive client-side RPC response | Edge → Device | `v1/devices/me/rpc/response/{requestId}` |
+| Claim device | Device → Edge | `v1/devices/me/claim` |
+| Provision new device | Device → Edge | `/provision` |
+| Subscribe to firmware update | Edge → Device | `v2/fw/response/+/chunk/+` |
+| Subscribe to software update | Edge → Device | `v2/sw/response/+/chunk/+` |
+
+## Telemetry
+
+Publish telemetry to `v1/devices/me/telemetry`. Supported payload formats:
+
+```json
+{"key1": "value1", "key2": true}
+```
+
+```json
+[{"key1": "value1"}, {"key2": true}]
+```
+
+With a client-side timestamp (Unix milliseconds):
+
+```json
+{"ts": 1451649600512, "values": {"key1": "value1", "key2": true}}
+```
+
+Without a timestamp, the server assigns the current time.
+
+<Tabs>
+<TabItem label="Mosquitto">
+
+```bash
+mosquitto_pub -d -q 1 \
+  -h "$EDGE_HOST" -p 1883 \
+  -t "v1/devices/me/telemetry" \
+  -u "$ACCESS_TOKEN" \
+  -m '{"temperature": 42}'
+```
+
+</TabItem>
+<TabItem label="MQTT.js">
+
+```bash
+mqtt pub -v \
+  -h "$EDGE_HOST" -p 1883 \
+  -t "v1/devices/me/telemetry" \
+  -u "$ACCESS_TOKEN" \
+  -m '{"temperature": 42}'
+```
+
+</TabItem>
+</Tabs>
+
+## Attributes
+
+### Publish client-side attributes
+
+Send a flat JSON object to `v1/devices/me/attributes`:
+
+<Tabs>
+<TabItem label="Mosquitto">
+
+```bash
+mosquitto_pub -d \
+  -h "$EDGE_HOST" -p 1883 \
+  -t "v1/devices/me/attributes" \
+  -u "$ACCESS_TOKEN" \
+  -m '{"firmware_version": "1.2.0", "serial": "SN-001"}'
+```
+
+</TabItem>
+<TabItem label="MQTT.js">
+
+```bash
+mqtt pub -v \
+  -h "$EDGE_HOST" -p 1883 \
+  -t "v1/devices/me/attributes" \
+  -u "$ACCESS_TOKEN" \
+  -m '{"firmware_version": "1.2.0", "serial": "SN-001"}'
+```
+
+</TabItem>
+</Tabs>
+
+### Request attribute values
+
+Subscribe to `v1/devices/me/attributes/response/+`, then publish to `v1/devices/me/attributes/request/{requestId}` with a JSON body specifying which keys to retrieve:
+
+```json
+{"clientKeys": "attribute1,attribute2", "sharedKeys": "shared1,shared2"}
+```
+
+The following example uses MQTT.js because subscribe and publish must happen in the same session:
+
+```js
+var mqtt = require('mqtt');
+var client = mqtt.connect('mqtt://' + process.env.EDGE_HOST, {
+  username: process.env.ACCESS_TOKEN
+});
+
+client.on('connect', function () {
+  client.subscribe('v1/devices/me/attributes/response/+');
+  client.publish('v1/devices/me/attributes/request/1',
+    JSON.stringify({clientKeys: 'attribute1,attribute2', sharedKeys: 'shared1'}));
+});
+
+client.on('message', function (topic, message) {
+  console.log('Attributes:', message.toString());
+  client.end();
+});
+```
+
+Response example:
+
+```json
+{"client": {"attribute1": "value1", "attribute2": true}}
+```
+
+### Subscribe to shared attribute updates
+
+Subscribe to `v1/devices/me/attributes` to receive shared attribute changes pushed by the server:
+
+```bash
+mosquitto_sub -d \
+  -h "$EDGE_HOST" -p 1883 \
+  -t "v1/devices/me/attributes" \
+  -u "$ACCESS_TOKEN"
+```
+
+## RPC
+
+### Server-side RPC
+
+Subscribe to `v1/devices/me/rpc/request/+` to receive commands and reply to `v1/devices/me/rpc/response/{requestId}`. Subscribe and publish must happen in the same session:
+
+```js
+var mqtt = require('mqtt');
+var client = mqtt.connect('mqtt://' + process.env.EDGE_HOST, {
+  username: process.env.ACCESS_TOKEN
+});
+
+client.on('connect', function () {
+  client.subscribe('v1/devices/me/rpc/request/+');
+});
+
+client.on('message', function (topic, message) {
+  var requestId = topic.slice('v1/devices/me/rpc/request/'.length);
+  console.log('RPC request:', message.toString());
+  client.publish('v1/devices/me/rpc/response/' + requestId, '{"result": "ok"}');
+});
+```
+
+### Client-side RPC
+
+Publish to `v1/devices/me/rpc/request/{requestId}` and subscribe to `v1/devices/me/rpc/response/{requestId}` for the response:
+
+```js
+var mqtt = require('mqtt');
+var client = mqtt.connect('mqtt://' + process.env.EDGE_HOST, {
+  username: process.env.ACCESS_TOKEN
+});
+
+client.on('connect', function () {
+  client.subscribe('v1/devices/me/rpc/response/+');
+  client.publish('v1/devices/me/rpc/request/1',
+    JSON.stringify({method: 'getTime', params: {}}));
+});
+
+client.on('message', function (topic, message) {
+  console.log('RPC response:', message.toString());
+  client.end();
+});
+```
+
+## Claiming devices
+
+To claim a device, publish to `v1/devices/me/claim`:
+
+```json
+{"secretKey": "mySecret", "durationMs": 60000}
+```
+
+Both fields are optional. If `secretKey` is omitted, an empty string is used. If `durationMs` is omitted, the system default is used.
+
+## Device provisioning
+
+To provision a new device, publish to `/provision` with `username` or `clientId` set to `provision`:
+
+```json
+{
+  "deviceName": "MY_DEVICE",
+  "provisionDeviceKey": "your_provision_key",
+  "provisionDeviceSecret": "your_provision_secret"
+}
+```
+
+On success, ThingsBoard creates the device and returns its credentials.
+
+## Firmware API
+
+When a firmware update is assigned to a device, ThingsBoard sets the `fw_title`, `fw_version`, `fw_checksum`, and `fw_checksum_algorithm` shared attributes. Subscribe to `v1/devices/me/attributes/response/+` to receive the update notification.
+
+When `fw_title` and `fw_version` change, request firmware chunks by publishing to:
+
+```
+v2/fw/request/{requestId}/chunk/{chunkIndex}
+```
+
+The payload should be the requested chunk size in bytes. Subscribe to `v2/fw/response/+/chunk/+` to receive chunks. Increment `chunkIndex` until the received chunk is empty. Use a new `requestId` for each firmware update.
+
+## TLS
+
+For TLS connections, use port **8883**. TLS settings for device-to-Edge MQTT are configured in `tb-edge.conf` via the MQTT transport variables — see <DocLink product={props.product} path="reference/configuration/transport-config" target="_blank">Transport configuration</DocLink>.
+
+<Aside type="note">
+Device-to-Edge TLS on port 8883 is separate from Edge-to-Cloud gRPC TLS on port 7070. They are configured independently.
+</Aside>

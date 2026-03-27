@@ -1,0 +1,99 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+import { Products } from '~/models/site.models';
+
+ThingsBoard Edge communicates with the ThingsBoard server over a persistent, bidirectional <a href="https://grpc.io/" target="_blank" rel="noopener noreferrer">gRPC</a> streaming connection. All messages are serialized with <a href="https://protobuf.dev/" target="_blank" rel="noopener noreferrer">Protocol Buffers</a>. A single long-lived stream carries both directions of traffic — Edge sends telemetry and events upstream, and the server pushes configuration and entity assignments downstream.
+
+The connection uses port **7070** by default, controlled by `CLOUD_RPC_PORT`.
+
+## Connection handshake
+
+When Edge starts, the Cloud Manager opens a stream to the server and sends a `ConnectRequestMsg`:
+
+| Field | Description |
+|-------|-------------|
+| `edgeRoutingKey` | The Edge key generated when the Edge instance was provisioned on the server. |
+| `edgeSecret` | The Edge secret generated alongside the routing key. |
+| `edgeVersion` | The protocol version the Edge instance supports — used for backward compatibility. |
+| `maxInboundMessageSize` | The maximum gRPC message size Edge will accept, controlled by `CLOUD_RPC_MAX_INBOUND_MESSAGE_SIZE` (default 4 MB). |
+
+The server responds with a `ConnectResponseMsg`:
+
+| Response code | Meaning |
+|--------------|---------|
+| `ACCEPTED` | The credentials are valid and the connection is established. |
+| `BAD_CREDENTIALS` | The routing key or secret is incorrect. |
+| `SERVER_UNAVAILABLE` | The server accepted the TCP connection but cannot process Edge requests at this time. |
+
+On `ACCEPTED`, the server also sends an `EdgeConfiguration` payload containing the Edge instance ID, tenant ID, customer ID, name, type, and cloud type. Edge stores this configuration locally.
+
+## Protocol versioning
+
+The `EdgeVersion` enum in the proto definition tracks the gRPC protocol version. Each ThingsBoard release that changes the message format introduces a new version value — for example, `V_3_3_0`, `V_4_0_0`, `V_4_4_0`.
+
+When Edge connects, it declares its version in `ConnectRequestMsg`. The server uses this to determine which message fields and features the Edge instance supports, enabling a newer server to stay backward-compatible with older Edge nodes that have not been upgraded.
+
+<Aside type="note">
+  The Edge and server versions can differ across minor releases, but significant protocol changes require upgrading Edge. For details, see <DocLink product={props.product === Products.EDGE_PE ? Products.EDGE_PE : Products.EDGE} path="releases/releases-table" target="_blank">Releases table</DocLink>.
+</Aside>
+
+## Message flow
+
+The stream carries four message types in each direction:
+
+### Edge → Server (`RequestMsg`)
+
+| Type | Purpose |
+|------|---------|
+| `ConnectRequestMsg` | Initiates the connection with credentials and protocol version. |
+| `UplinkMsg` | Carries telemetry, alarms, entity updates, and other events from Edge to the server. |
+| `DownlinkResponseMsg` | Acknowledges downlink messages received from the server. |
+| `SyncRequestMsg` | Requests the server to push all current state to Edge. |
+
+### Server → Edge (`ResponseMsg`)
+
+| Type | Purpose |
+|------|---------|
+| `ConnectResponseMsg` | Returns the connection result and Edge configuration. |
+| `DownlinkMsg` | Carries entity assignments, configuration changes, and other server-initiated messages. |
+| `UplinkResponseMsg` | Acknowledges uplink messages received from Edge. |
+| `EdgeUpdateMsg` | Notifies Edge of available software updates. |
+
+## Uplink messages
+
+An `UplinkMsg` can carry one or more of the following payloads in a single batch. The Cloud Manager reads up to 50 events per batch from the `cloud_events` queue and sends them together.
+
+| Category | Payload types |
+|----------|--------------|
+| **Entities** | Device, asset, entity view, dashboard, rule chain, rule chain metadata, device profile, asset profile, user, user credentials, API key |
+| **Telemetry & attributes** | Telemetry data, attribute updates, attribute delete |
+| **Alarms** | Alarm create/update, alarm acknowledgement, alarm clear, alarm comment |
+| **Relations** | Relation add/update, relation delete |
+| **Sync requests** | Attributes request, relation request, credentials request |
+| **Processing** | Calculated field, AI model, resource |
+| **RPC** | Device RPC call response |
+
+## Downlink messages
+
+A `DownlinkMsg` carries configuration and entity data pushed from the server to Edge. The server sends downlinks when an entity is assigned to Edge, when configuration changes, or in response to a `SyncRequestMsg`.
+
+| Category | Payload types |
+|----------|--------------|
+| **Entities** | Device, device profile, device credentials, asset, asset profile, entity view, customer, user, user credentials, tenant, tenant profile |
+| **Dashboards & UI** | Dashboard, widget bundle, widget type, admin settings |
+| **Rule processing** | Rule chain, rule chain metadata, queue, calculated field, AI model |
+| **Alarms** | Alarm create/update, alarm comment |
+| **Relations** | Relation add/update/delete |
+| **Device operations** | RPC call request, OTA package |
+| **Security** | OAuth2 client, OAuth2 domain, API key |
+| **Notifications** | Notification rule, notification target, notification template |
+| **Infrastructure** | Edge configuration, resource |
+| **Sync** | Sync completed signal |
+
+The `sync completed` signal marks the end of a full sync sequence — Edge uses it to know that all pending downlinks have been delivered.
+
+## Full synchronization
+
+A `SyncRequestMsg` with `fullSync=true` instructs the server to push the complete current state — all assigned entities, rule chains, dashboards, and credentials — to Edge. This happens automatically on first connection and can be triggered manually via **Force sync** on the Edge instance details page on the server.
+
+Without `fullSync`, the server sends only the delta since the last sync.
