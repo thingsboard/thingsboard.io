@@ -1,0 +1,639 @@
+import { Aside, Code } from '@astrojs/starlight/components';
+import Tabs from '@components/Tabs.astro';
+import TabItem from '@components/TabItem.astro';
+import DocLink from '@components/DocLink.astro';
+import ConditionalHeading from '~/components/ConditionalHeading.astro';
+import ImageGallery from '~/components/ImageGallery.astro';
+import { Products } from '~/models/site.models';
+import { TBMQ_VER, TBMQ_BRANCH } from '~/data/versions';
+
+export const cloneCmdCe = `git clone -b ${TBMQ_BRANCH} https://github.com/thingsboard/tbmq.git
+cd tbmq/k8s/aws`;
+
+export const cloneCmdPe = `git clone -b ${TBMQ_BRANCH} https://github.com/thingsboard/tbmq-pe-k8s.git
+cd tbmq-pe-k8s/aws`;
+
+export const licenseKeyCmd = `export TBMQ_LICENSE_KEY=YOUR_LICENSE_KEY_HERE
+kubectl create -n thingsboard-mqtt-broker secret generic tbmq-license --from-literal=license-key=$TBMQ_LICENSE_KEY`;
+
+export const gitPullCmd = `git pull origin ${TBMQ_BRANCH}`;
+export const gitPullXTheirsCmd = `git pull origin ${TBMQ_BRANCH} -X theirs`;
+
+export const gp3CurlCmd = `curl -o gp3-def-sc.yml https://raw.githubusercontent.com/thingsboard/tbmq/${TBMQ_BRANCH}/k8s/helm/aws/gp3-def-sc.yml`;
+
+This guide covers setting up TBMQ in cluster mode on AWS EKS.
+
+## Prerequisites
+
+Install [kubectl](https://kubernetes.io/docs/tasks/tools/),
+[eksctl](https://docs.aws.amazon.com/eks/latest/userguide/eksctl.html), and
+[awscli](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html).
+
+Then configure your AWS credentials and default region. To get Access and Secret keys, follow
+[this guide](https://docs.aws.amazon.com/general/latest/gr/aws-sec-cred-types.html).
+The default region should be the ID of the region where you'd like to deploy the cluster:
+
+```bash
+aws configure
+```
+
+{props.product !== Products.TBMQ_PE && (
+  <>
+    <ConditionalHeading level={2} id="clone-tbmq-repository">Clone TBMQ repository</ConditionalHeading>
+    <Code code={cloneCmdCe} lang="bash" />
+  </>
+)}
+{props.product === Products.TBMQ_PE && (
+  <>
+    <ConditionalHeading level={2} id="clone-tbmq-pe-repository">Clone TBMQ PE K8S repository</ConditionalHeading>
+    <Code code={cloneCmdPe} lang="bash" />
+  </>
+)}
+
+## Configure and create EKS cluster
+
+In the `cluster.yml` file you will find a sample cluster configuration.
+You can adjust the following fields according to your requirements:
+
+- `region` — the AWS region where the cluster will be created. Default: `us-east-1`.
+- `availabilityZones` — the availability zones within the chosen region. Default: `[us-east-1a, us-east-1b, us-east-1c]`.
+- `managedNodeGroups` — defines the node groups used by the cluster. By default, there are two groups: one for **TBMQ core services** and another for **TBMQ Integration Executors**. If preferred, you may co-locate both workloads in the same node group.
+- `instanceType` — the EC2 instance type for TBMQ and TBMQ IE nodes. Default: `m7a.large`.
+
+**Note:** If you don't change `instanceType` and `desiredCapacity`, the EKS will deploy 4 nodes of type `m7a.large`.
+
+Create the AWS cluster:
+
+```bash
+eksctl create cluster -f cluster.yml
+```
+
+## Create an AWS load-balancer controller
+
+Once the cluster is ready, create an AWS load-balancer controller by following
+[this guide](https://docs.aws.amazon.com/eks/latest/userguide/aws-load-balancer-controller.html).
+The cluster provisioning scripts will create two load balancers:
+
+- `tbmq-http-loadbalancer` — AWS ALB for the web UI and REST API.
+- `tbmq-mqtt-loadbalancer` — AWS NLB for MQTT communication.
+
+Provisioning the AWS load-balancer controller is a **required step** for these load balancers to work properly.
+
+## Amazon PostgreSQL DB Configuration
+
+Provision a PostgreSQL database on **Amazon RDS**.
+One recommended way is to follow the [official AWS RDS setup guide](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_SettingUp.html).
+
+Recommendations:
+
+- **PostgreSQL version**: Use **17.x**.
+- **Template**: Use **Production** for real workloads — it enables important resilience settings by default.
+- **Availability**: Enable **Multi-AZ deployment** for automatic failover.
+- **Credentials**: Change the default `username` and set a secure `password`. Store it safely.
+- **Instance**: Use a general-purpose Graviton instance (e.g., `db.m7g.large`) — right-size first, optimize later.
+- **Storage**: Choose **gp3 or io1** for production.
+- **Connectivity**: Create the database in the **same VPC and subnets** as your TBMQ cluster and assign the
+  `eksctl-tbmq-cluster-ClusterSharedNodeSecurityGroup-*` security group.
+- **Parameter group**: Create a custom parameter group for easier future adjustments.
+- **Monitoring**: Enable enhanced monitoring and CloudWatch alarms for key metrics.
+
+<ImageGallery images={[
+  { src: '/src/assets/images/docs/mqtt-broker/install/aws-rds-vpc.png', alt: 'AWS RDS Connectivity - choose VPC with the name of your cluster', caption: 'AWS RDS Connectivity - choose VPC with the name of your cluster' },
+  { src: '/src/assets/images/docs/mqtt-broker/install/aws-rds-vpc-sg.png', alt: 'AWS RDS SG - choose eksctl-tbmq-cluster-ClusterSharedNodeSecurityGroup-* security group', caption: 'AWS RDS SG - choose "eksctl-tbmq-cluster-ClusterSharedNodeSecurityGroup-*" security group' },
+  { src: '/src/assets/images/docs/mqtt-broker/install/aws-rds-default-database.png', alt: 'AWS RDS Additional config - type thingsboard_mqtt_broker for the initial database name', caption: 'AWS RDS Additional config - type "thingsboard_mqtt_broker" for the initial database name' },
+]} />
+
+## Amazon MSK Configuration
+
+Provision an **Amazon MSK** cluster. Open the AWS Console → MSK → **Create cluster** → **Custom create** mode.
+
+<ImageGallery images={[
+  { src: '/src/assets/images/docs/mqtt-broker/install/aws-msk-creation.png', alt: 'AWS MSK - create cluster', caption: 'AWS MSK - create cluster' },
+]} />
+
+Recommendations:
+
+- **Cluster type**: Select **Provisioned** for full control over capacity and configuration.
+- **Kafka version**: Use **Apache Kafka 4.0.x** — fully validated with TBMQ.
+- **Metadata mode**: Choose **KRaft** for simplified operations and improved resiliency.
+- **Instance type**: Start with `m7g.large` brokers; scale up later if needed.
+- **Cluster configuration**: Create a custom configuration for easier future parameter changes.
+- **Networking**: Deploy in the **same VPC** as your TBMQ cluster using **private subnets**. Attach the
+  `eksctl-tbmq-cluster-ClusterSharedNodeSecurityGroup-*` security group.
+- **Security**: Allow **Unauthenticated access** and **Plaintext** communication.
+- **Monitoring**: Use default monitoring or enable **enhanced topic-level monitoring**.
+
+<ImageGallery images={[
+  { src: '/src/assets/images/docs/mqtt-broker/install/aws-msk-vpc.png', alt: "AWS MSK - choose TBMQ cluster's VPC", caption: "AWS MSK - choose TBMQ cluster's VPC" },
+  { src: '/src/assets/images/docs/mqtt-broker/install/aws-msk-vpc-sg.png', alt: 'AWS MSK - choose eksctl-tbmq-cluster-ClusterSharedNodeSecurityGroup-* security group', caption: 'AWS MSK - choose "eksctl-tbmq-cluster-ClusterSharedNodeSecurityGroup-*" security group' },
+  { src: '/src/assets/images/docs/mqtt-broker/install/aws-msk-security.png', alt: 'AWS MSK - enable Plaintext communication between clients and brokers', caption: 'AWS MSK - enable Plaintext communication between clients and brokers' },
+]} />
+
+Carefully review the full cluster configuration, then proceed with cluster creation.
+
+## Amazon ElastiCache (Valkey) Configuration
+
+TBMQ relies on **Valkey** to store messages for
+[DEVICE persistent clients](/docs/mqtt-broker/architecture/#persistent-device-client)
+and to reduce database load during authentication. Without caching, every new connection triggers a database query
+to validate MQTT client credentials, which can overload the database under high connection rates.
+
+Open the AWS Console → **ElastiCache** → **Valkey caches** → **Create cache**.
+
+Recommendations:
+
+- **Engine**: Select **Valkey**.
+- **Deployment**: Choose **Design your own cache** → **Cluster cache**.
+- **Cluster mode**: Set to **Enabled** for `REDIS_CONNECTION_TYPE=cluster` (used in this guide).
+- **Engine version**: Use **8.x**.
+- **Node type**: Start with `cache.r7g.large`; at least **1 GB RAM** for dev/test.
+- **Shards**: For production, configure **3 shards** with **1 replica per shard**.
+- **Networking**: Deploy in the **same VPC** as TBMQ, using **private subnets**. Assign the
+  `eksctl-tbmq-cluster-ClusterSharedNodeSecurityGroup-*` security group.
+- **Backups**: Enable automatic backups with a 1–7 day retention period.
+
+<ImageGallery images={[
+  { src: '/src/assets/images/docs/mqtt-broker/install/aws-redis-create.png', alt: 'AWS ElastiCache - create Valkey cluster', caption: 'AWS ElastiCache - create Valkey cluster' },
+  { src: '/src/assets/images/docs/mqtt-broker/install/aws-redis-cluster-settings.png', alt: 'AWS ElastiCache - choose 8.x engine version and appropriate Node type', caption: 'AWS ElastiCache - choose 8.x engine version and appropriate Node type' },
+  { src: '/src/assets/images/docs/mqtt-broker/install/aws-redis-connectivity.png', alt: 'AWS ElastiCache - choose TBMQ VPC and private subnets', caption: 'AWS ElastiCache - choose TBMQ VPC and private subnets' },
+  { src: '/src/assets/images/docs/mqtt-broker/install/aws-redis-advanced.png', alt: 'AWS ElastiCache - choose eksctl-tbmq-cluster-ClusterSharedNodeSecurityGroup-* security group', caption: 'AWS ElastiCache - choose "eksctl-tbmq-cluster-ClusterSharedNodeSecurityGroup-*" security group' },
+]} />
+
+## Configure links to Kafka/PostgreSQL/Valkey
+
+### Amazon RDS (PostgreSQL)
+
+Once the RDS instance becomes **Available**, copy its **Endpoint** from the AWS Console.
+Update `SPRING_DATASOURCE_URL` in `tbmq-db-configmap.yml` by replacing `RDS_URL_HERE` with the endpoint.
+
+<ImageGallery images={[
+  { src: '/src/assets/images/docs/mqtt-broker/install/aws-rds-endpoint.png', alt: 'AWS RDS Details', caption: 'AWS RDS Details' },
+]} />
+
+Also set:
+- `SPRING_DATASOURCE_USERNAME` → your PostgreSQL username
+- `SPRING_DATASOURCE_PASSWORD` → your PostgreSQL password
+
+### Amazon MSK (Kafka)
+
+Once the MSK cluster becomes **Active**, retrieve the bootstrap brokers:
+
+```bash
+aws kafka get-bootstrap-brokers --region us-east-1 --cluster-arn $CLUSTER_ARN
+```
+
+Where `$CLUSTER_ARN` is the Amazon Resource Name of your MSK cluster:
+
+<ImageGallery images={[
+  { src: '/src/assets/images/docs/mqtt-broker/install/aws-msk-arn.png', alt: 'AWS MSK Details', caption: 'AWS MSK Details' },
+]} />
+
+Copy the value from `BootstrapBrokerString` and set it as `TB_KAFKA_SERVERS` in `tbmq.yml` and `tbmq-ie.yml`.
+Alternatively, click **View client information** in the MSK Console and copy the **plaintext bootstrap servers**.
+
+### Amazon ElastiCache (Valkey)
+
+Once the Valkey cluster becomes **Available**, open **Cluster details** and copy the connection endpoint:
+
+- **Standalone mode**: copy the **Primary endpoint** (without the `:6379` port suffix).
+- **Cluster mode**: copy the **Cluster configuration endpoint**.
+
+<ImageGallery images={[
+  { src: '/src/assets/images/docs/mqtt-broker/install/aws-redis-result.png', alt: 'AWS ElastiCache Details', caption: 'AWS ElastiCache Details' },
+]} />
+
+Edit `tbmq-cache-configmap.yml`:
+
+For **standalone** mode:
+```yaml
+REDIS_CONNECTION_TYPE: "standalone"
+REDIS_HOST: "YOUR_VALKEY_ENDPOINT_URL_WITHOUT_PORT"
+#REDIS_PASSWORD: "YOUR_REDIS_PASSWORD"
+```
+
+For **cluster** mode:
+```yaml
+REDIS_CONNECTION_TYPE: "cluster"
+REDIS_NODES: "YOUR_VALKEY_CLUSTER_ENDPOINT_URL"
+#REDIS_PASSWORD: "YOUR_REDIS_PASSWORD"
+# Recommended for Kubernetes to handle dynamic IP changes and failover:
+#REDIS_LETTUCE_CLUSTER_TOPOLOGY_REFRESH_ENABLED: "true"
+#REDIS_JEDIS_CLUSTER_TOPOLOGY_REFRESH_ENABLED: "true"
+```
+
+## Installation
+
+Run the installation script:
+
+```bash
+./k8s-install-tbmq.sh
+```
+
+After completion, you should see:
+
+```text
+INFO  o.t.m.b.i.ThingsboardMqttBrokerInstallService - Installation finished successfully!
+```
+
+<Aside>
+  If installation fails, verify that `SPRING_DATASOURCE_URL` and `SPRING_DATASOURCE_PASSWORD` in `tbmq-db-configmap.yml` are set correctly.
+</Aside>
+
+{props.product === Products.TBMQ_PE && (
+  <>
+    <ConditionalHeading level={2} id="get-the-license-key">Get the license key</ConditionalHeading>
+    <p>Before proceeding, select a subscription plan or purchase a perpetual license on the{' '}
+    <a href="https://thingsboard.io/pricing/?section=tbmq-options" target="_blank" rel="noopener noreferrer">Pricing page</a>.</p>
+
+    <ConditionalHeading level={2} id="configure-the-license-key">Configure the license key</ConditionalHeading>
+    <p>Create a Kubernetes secret with your license key:</p>
+    <Code code={licenseKeyCmd} lang="bash" />
+    <Aside>Replace <strong>YOUR_LICENSE_KEY_HERE</strong> with your actual license key.</Aside>
+  </>
+)}
+
+## Configure gp3 as the Default Storage Class
+
+The `gp3` EBS volume type is the recommended default for Amazon EKS, offering better performance and cost efficiency compared to `gp2`.
+
+Before proceeding, install the [AWS EBS CSI Driver](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi.html) on your cluster.
+
+Download and apply the `gp3` StorageClass manifest:
+
+<Code code={gp3CurlCmd} lang="bash" />
+
+```bash
+kubectl apply -f gp3-def-sc.yml
+```
+
+If a `gp2` StorageClass exists, either make it non-default:
+
+```bash
+kubectl patch storageclass gp2 -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}'
+```
+
+Or delete it if unused:
+
+```bash
+kubectl delete storageclass gp2
+```
+
+Verify `gp3` is the default:
+
+```bash
+kubectl get sc
+```
+
+Expected output:
+
+```text
+NAME            PROVISIONER       RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
+gp3 (default)   ebs.csi.aws.com   Delete          WaitForFirstConsumer   true                   30s
+```
+
+## Starting
+
+Deploy TBMQ:
+
+```bash
+./k8s-deploy-tbmq.sh
+```
+
+After a few minutes, check the pod status:
+
+```bash
+kubectl get pods
+```
+
+You should see `tbmq-0` and `tbmq-1` pods, each in the `READY` state.
+
+## Configure Load Balancers
+
+### Configure HTTP(S) Load Balancer
+
+You have two options:
+
+- **HTTP** — no HTTPS support. Suitable for development only.
+- **HTTPS** — SSL termination. Recommended for production. Automatically redirects HTTP to HTTPS.
+
+#### HTTP Load Balancer
+
+```bash
+kubectl apply -f receipts/http-load-balancer.yml
+```
+
+Check provisioning status:
+
+```bash
+kubectl get ingress
+```
+
+Once ready, output will look like:
+
+```text
+NAME                     CLASS    HOSTS   ADDRESS                                                              PORTS   AGE
+tbmq-http-loadbalancer   <none>   *       k8s-thingsbo-tbmq-000aba1305-222186756.eu-west-1.elb.amazonaws.com   80      3d1h
+```
+
+#### HTTPS Load Balancer
+
+Use [AWS Certificate Manager](https://aws.amazon.com/certificate-manager/) to create or import an SSL certificate. Note the certificate ARN.
+
+Replace `YOUR_HTTPS_CERTIFICATE_ARN` in the config:
+
+```bash
+nano receipts/https-load-balancer.yml
+```
+
+Deploy:
+
+```bash
+kubectl apply -f receipts/https-load-balancer.yml
+```
+
+### Configure MQTT Load Balancer
+
+Create a TCP load balancer that forwards traffic on ports 1883 and 8883:
+
+```bash
+kubectl apply -f receipts/mqtt-load-balancer.yml
+```
+
+#### One-way TLS
+
+The simplest MQTTS setup is to configure the AWS NLB as a TLS termination point.
+Traffic between devices and the load balancer is encrypted; traffic between the load balancer and TBMQ is not.
+This is acceptable since the NLB runs within your VPC.
+
+**Limitation:** X.509 certificate client credentials cannot be used with one-way TLS,
+since the client certificate is not forwarded to TBMQ.
+
+Use [AWS Certificate Manager](https://aws.amazon.com/certificate-manager/) to obtain a certificate. Note the ARN.
+
+Replace `YOUR_MQTTS_CERTIFICATE_ARN` in the config:
+
+```bash
+nano receipts/mqtts-load-balancer.yml
+```
+
+Deploy:
+
+```bash
+kubectl apply -f receipts/mqtts-load-balancer.yml
+```
+
+#### Two-way TLS
+
+Two-way TLS allows use of **X.509 certificate** MQTT client credentials.
+
+Follow [this guide](https://thingsboard.io/docs/user-guide/mqtt-over-ssl/) to create a `.pem` certificate file.
+Save it as `server.pem` in the working directory.
+
+Create a ConfigMap from your PEM files:
+
+```bash
+kubectl create configmap tbmq-mqtts-config \
+  --from-file=server.pem=YOUR_PEM_FILENAME \
+  --from-file=mqttserver_key.pem=YOUR_PEM_KEY_FILENAME \
+  -o yaml --dry-run=client | kubectl apply -f -
+```
+
+Where:
+- `YOUR_PEM_FILENAME` — path to your server certificate file
+- `YOUR_PEM_KEY_FILENAME` — path to your server certificate private key file
+
+Uncomment all sections marked with "Uncomment the following lines to enable two-way MQTTS" in `tbmq.yml`:
+
+```bash
+kubectl apply -f tbmq.yml
+```
+
+Deploy the transparent load balancer:
+
+```bash
+kubectl apply -f receipts/mqtt-load-balancer.yml
+```
+
+## Validate the Setup
+
+Open the TBMQ web interface using the DNS name of the HTTP load balancer:
+
+```bash
+kubectl get ingress
+```
+
+```text
+NAME                     CLASS    HOSTS   ADDRESS                                                              PORTS   AGE
+tbmq-http-loadbalancer   <none>   *       k8s-thingsbo-tbmq-000aba1305-222186756.eu-west-1.elb.amazonaws.com   80      3d1h
+```
+
+Use the `ADDRESS` of `tbmq-http-loadbalancer` to access the UI.
+
+You should see the TBMQ login page. Use the default **System Administrator** credentials:
+
+- **Username:** `sysadmin@thingsboard.org`
+- **Password:** `sysadmin`
+
+On first login you will be prompted to change the default password.
+
+### Validate MQTT Access
+
+Retrieve the MQTT load balancer's external IP:
+
+```bash
+kubectl get services
+```
+
+```text
+NAME                     TYPE           CLUSTER-IP       EXTERNAL-IP                                                                 PORT(S)                         AGE
+tbmq-mqtt-loadbalancer   LoadBalancer   10.100.119.170   k8s-thingsbo-tbmq-b9f99d1ab6-1049a98ba4e28403.elb.eu-west-1.amazonaws.com   1883:30308/TCP,8883:31609/TCP   6m58s
+```
+
+Use the `EXTERNAL-IP` to connect via MQTT.
+
+### Troubleshooting
+
+View TBMQ pod logs:
+
+```bash
+kubectl logs -f tbmq-0
+```
+
+Check the state of all StatefulSets:
+
+```bash
+kubectl get statefulsets
+```
+
+See the [kubectl Cheat Sheet](https://kubernetes.io/docs/reference/kubectl/cheatsheet/) for more details.
+
+## Upgrading
+
+Review the <DocLink product={props.product} path="releases">release notes</DocLink> and{' '}
+<DocLink product={props.product} path="install/upgrade-instructions">upgrade instructions</DocLink> for details on the latest changes.
+
+{props.product !== Products.TBMQ_PE && (
+  <p>If there are no <strong>Upgrade to x.x.x</strong> notes for your version, proceed directly with the general <a href="#run-upgrade">upgrade instructions</a>.</p>
+)}
+
+If your specific upgrade path is not covered, <DocLink product={props.product} path="help">contact us</DocLink> for further guidance.
+
+### Backup and restore (Optional)
+
+While backing up your PostgreSQL database before upgrading is recommended, it is optional.
+For guidance, follow the [AWS RDS backup and restore instructions](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_CommonTasks.BackupRestore.html).
+
+{props.product !== Products.TBMQ_PE && (
+  <>
+    <ConditionalHeading level={3} id="upgrade-to-2-2-0">Upgrade to 2.2.0</ConditionalHeading>
+    <p>
+      This release migrates the MQTT authentication mechanism from YAML/env configuration into the database.
+      During the upgrade, TBMQ needs to know which authentication providers are enabled — these are provided
+      as environment variables passed to the upgrade pod.
+    </p>
+    <p>
+      The upgrade script reads from <strong>database-setup.yml</strong>. Variables from <code>tb-broker.yml</code> are{' '}
+      <strong>not</strong> applied during the upgrade — only the values in <code>database-setup.yml</code> are used.
+      Ensure this file reflects your active configuration.
+    </p>
+    <Aside>
+      <ul>
+        <li>If you use only Basic authentication, set <code>SECURITY_MQTT_SSL_ENABLED=false</code>.</li>
+        <li>If you use only X.509 authentication, set <code>SECURITY_MQTT_BASIC_ENABLED=false</code> and <code>SECURITY_MQTT_SSL_ENABLED=true</code>.</li>
+      </ul>
+    </Aside>
+    <p><strong>Supported variables in database-setup.yml</strong></p>
+    <ul>
+      <li><code>SECURITY_MQTT_BASIC_ENABLED</code> (<code>true|false</code>)</li>
+      <li><code>SECURITY_MQTT_SSL_ENABLED</code> (<code>true|false</code>)</li>
+      <li><code>SECURITY_MQTT_SSL_SKIP_VALIDITY_CHECK_FOR_CLIENT_CERT</code> (<code>true|false</code>) — usually <code>false</code></li>
+    </ul>
+    <p>Once the file is verified, proceed with the <a href="#run-upgrade">upgrade process</a>.</p>
+
+    <ConditionalHeading level={3} id="upgrade-to-2-1-0">Upgrade to 2.1.0</ConditionalHeading>
+    <p>TBMQ v2.1.0 introduces the Integration Executor microservice and bumps versions of third-party dependencies.</p>
+    <ConditionalHeading level={4} id="add-integration-executor">Add Integration Executor microservice</ConditionalHeading>
+    <p>
+      This release adds support for external integrations via the new{' '}
+      <a href="/docs/mqtt-broker/integrations/">Integration Executor</a> microservice.
+    </p>
+    <p>
+      To retrieve the latest configuration files, pull the updates from the release branch by following
+      the <a href="#run-upgrade">run upgrade steps</a> up to (but not including) the upgrade script execution.
+      The new config files will be included automatically.
+    </p>
+    <p>
+      The <code>cluster.yml</code> file has been updated to include the new managed node group for Integration Executor pods:
+    </p>
+    <pre><code>{`  - name: tbmq-ie
+    instanceType: m7a.large
+    desiredCapacity: 2
+    maxSize: 2
+    minSize: 1
+    labels: { role: tbmq-ie }
+    ssh:
+      allow: true
+      publicKeyName: 'your-key-name'`}</code></pre>
+    <p>Create it with:</p>
+    <pre><code>eksctl create nodegroup --config-file=cluster.yml</code></pre>
+    <p>
+      You may skip creating dedicated IE instances. If so, update the <code>nodeSelector</code> in <code>tbmq-ie.yml</code>{' '}
+      to change the role from <code>tbmq-ie</code> to <code>tbmq</code> to co-locate IE pods on the same nodes as TBMQ.
+    </p>
+    <ConditionalHeading level={4} id="update-third-party-services">Update third-party services</ConditionalHeading>
+    <p>
+      TBMQ v2.1.0 updates the following third-party dependencies. See the{' '}
+      <a href="https://github.com/thingsboard/tbmq/pull/218" target="_blank" rel="noopener noreferrer">pull request</a> for details.
+    </p>
+    <table>
+      <thead><tr><th>Service</th><th>Previous version</th><th>Updated version</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Redis</strong></td><td>7.0</td><td>7.2.5</td></tr>
+        <tr><td><strong>PostgreSQL</strong></td><td>15.x</td><td>16.x</td></tr>
+        <tr><td><strong>Kafka</strong></td><td>3.5.1</td><td>3.7.0</td></tr>
+      </tbody>
+    </table>
+    <Aside>
+      We do not provide step-by-step upgrade instructions for third-party managed services.
+      Consult the official documentation or your service provider's resources.
+      After addressing third-party versions, continue with the remaining <a href="#run-upgrade">upgrade steps</a>.
+    </Aside>
+
+    <ConditionalHeading level={3} id="run-upgrade">Run upgrade</ConditionalHeading>
+    <p>Pull the latest changes from the release branch:</p>
+    <Code code={gitPullCmd} lang="bash" />
+    <Aside>
+      To upgrade to a specific version (e.g. v2.0.0), replace the branch with the target branch name, e.g. <code>release-2.0.0</code>.
+    </Aside>
+    <p><strong>Note:</strong> Make sure any custom changes are not lost during the merge.</p>
+    <Aside>
+      <p>If you encounter conflicts during the merge that are unrelated to your changes, accept all remote changes:</p>
+      <ol>
+        <li>Abort the current merge: <code>git merge --abort</code></li>
+        <li>Re-pull accepting remote changes: <code>git pull origin {TBMQ_BRANCH} -X theirs</code></li>
+      </ol>
+      <p>Merge strategy options:</p>
+      <ul>
+        <li><code>-X ours</code> — auto-resolve conflicts by favoring your local version</li>
+        <li><code>-X theirs</code> — auto-resolve conflicts by favoring the remote version</li>
+      </ul>
+    </Aside>
+    <p>After pulling, run the upgrade script:</p>
+  </>
+)}
+
+{props.product !== Products.TBMQ_PE && (
+  <Tabs>
+    <TabItem label="Since v2.1.0">
+      <Code code="./k8s-upgrade-tbmq.sh" lang="bash" />
+    </TabItem>
+    <TabItem label="Before v2.1.0">
+      <Code code="./k8s-upgrade-tbmq.sh --fromVersion=FROM_VERSION" lang="bash" />
+      <p>Where <code>FROM_VERSION</code> is the version you are upgrading from.
+      See <DocLink product={props.product} path="install/upgrade-instructions">Upgrade Instructions</DocLink> for valid values.</p>
+    </TabItem>
+  </Tabs>
+)}
+
+{props.product !== Products.TBMQ_PE && (
+  <Aside>
+    <p>You may optionally stop TBMQ pods before running the database upgrade to ensure a consistent DB state:</p>
+    <Code code="./k8s-delete-tbmq.sh" lang="bash" />
+    <p>This causes downtime, but most upgrades do not require stopping TBMQ. Once the upgrade completes, redeploy to roll out the new version:</p>
+    <Code code="./k8s-deploy-tbmq.sh" lang="bash" />
+  </Aside>
+)}
+
+{props.product === Products.TBMQ_PE && (
+  <>
+    <ConditionalHeading level={3} id="upgrade-from-ce-to-pe">Upgrade from TBMQ to TBMQ PE (v2.2.0)</ConditionalHeading>
+    <p>
+      To upgrade an existing TBMQ installation to TBMQ PE, ensure you are running the latest TBMQ{' '}
+      <strong>{TBMQ_VER}</strong> version before starting. Merge your current configuration with the latest{' '}
+      <a href={`https://github.com/thingsboard/tbmq-pe-k8s/tree/${TBMQ_BRANCH}`} target="_blank" rel="noopener noreferrer">TBMQ PE K8S scripts</a>.
+      Don't forget to <a href="#configure-the-license-key">configure the license key</a>.
+    </p>
+    <p>Run the following commands to stop TBMQ, migrate the database, and redeploy:</p>
+    <Code code={`./k8s-delete-tbmq.sh\n./k8s-upgrade-tbmq.sh --fromVersion=ce\n./k8s-deploy-tbmq.sh`} lang="bash" />
+  </>
+)}
+
+## Cluster Deletion
+
+Delete TBMQ nodes:
+
+```bash
+./k8s-delete-tbmq.sh
+```
+
+Delete all TBMQ nodes and ConfigMaps:
+
+```bash
+./k8s-delete-all.sh
+```
+
+Delete the EKS cluster (update the cluster name and region if different):
+
+```bash
+eksctl delete cluster -r us-east-1 -n tbmq -w
+```

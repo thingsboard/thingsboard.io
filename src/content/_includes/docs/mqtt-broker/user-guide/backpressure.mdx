@@ -1,0 +1,111 @@
+import { Aside } from '@astrojs/starlight/components';
+import DocLink from '@components/DocLink.astro';
+
+In high-throughput systems like TBMQ, backpressure handling is essential for preventing out-of-memory errors and maintaining stability under load. Backpressure must be managed in two directions: **inbound** (publishers to the broker) and **outbound** (broker to subscribers).
+
+## Inbound backpressure
+
+TBMQ handles virtually unlimited publisher load by immediately persisting incoming messages to Kafka before any further processing. This decouples ingestion from delivery and lets the broker scale horizontally to meet demand. Two complementary mechanisms govern inbound flow control: TCP-level backpressure and rate limiting.
+
+### TCP-level backpressure
+
+TBMQ uses Netty for network I/O, and the socket receive buffer size can be tuned via the following configuration:
+
+```yaml
+# Socket receive buffer size for Netty in KB.
+# If the buffer limit is reached, TCP will trigger backpressure and notify the sender to slow down.
+# If set to 0 (default), the system's default buffer size will be used.
+so_receive_buffer: "${NETTY_SO_RECEIVE_BUFFER:0}"
+```
+
+When the receive buffer fills up, TCP signals the sender to slow down, preventing the broker from being overwhelmed at the network layer.
+
+<Aside type="tip">
+  In most cases, leave `so_receive_buffer` at `0` and rely on the operating system defaults. Only tune this value after profiling your specific workload.
+</Aside>
+
+### Rate limiting
+
+Unlike TCP-level backpressure, which is reactive, rate limiting is a proactive control layer. It enforces traffic constraints before the system becomes overloaded, preventing individual publishers from overwhelming the broker and maintaining fairness across clients. TBMQ supports both cluster-wide rate limits and per-client publish rate limits:
+
+```yaml
+rate-limits:
+  total:
+    # Enable/disable total incoming and outgoing message rate limits for the broker (per whole cluster)
+    enabled: "${MQTT_TOTAL_RATE_LIMITS_ENABLED:false}"
+    # Total message rate across the cluster (e.g., 1000 messages per second, 50000 per minute)
+    config: "${MQTT_TOTAL_RATE_LIMITS_CONFIG:1000:1,50000:60}"
+  incoming-publish:
+    # Enable/disable per-client publish rate limits
+    enabled: "${MQTT_INCOMING_RATE_LIMITS_ENABLED:false}"
+    # Per-client publish rate (e.g., 10 messages per second, 300 per minute)
+    client-config: "${MQTT_INCOMING_RATE_LIMITS_CLIENT_CONFIG:10:1,300:60}"
+```
+
+## Outbound backpressure
+
+The outbound channel buffer may become overwhelmed when a subscriber cannot consume messages as fast as the broker delivers them. TBMQ detects non-writable Netty channels and pauses delivery to affected clients, resuming automatically once the channel becomes writable again.
+
+### Netty channel writability monitoring
+
+TBMQ monitors channel writability via the `channelWritabilityChanged` event. Write buffer watermarks define the thresholds:
+
+- **High Watermark**: When the write buffer exceeds this threshold, the channel is marked non-writable and message delivery is paused.
+- **Low Watermark**: When the write buffer drops below this threshold, the channel is marked writable again and delivery resumes.
+
+The watermarks are configured via environment variables:
+
+- `NETTY_WRITE_BUFFER_LOW_WATER_MARK` — default: 640 KB (655,360 bytes)
+- `NETTY_WRITE_BUFFER_HIGH_WATER_MARK` — default: 1280 KB (1,310,720 bytes)
+
+### Handling non-persistent and persistent clients
+
+#### Non-persistent clients
+
+When a non-persistent client's channel is non-writable, the broker **skips delivery** of that message. Dropped messages are not retained or retried. TBMQ maintains a global dropped message counter to track how many messages were skipped due to backpressure — this metric provides visibility into system behavior under load and helps identify bottlenecks. This approach avoids memory buildup for short-lived or unreliable clients that are not expected to maintain state.
+
+#### Persistent clients
+
+Persistent clients are guaranteed delivery even under backpressure.
+
+**Device clients** use Redis as a buffer:
+
+- Each client has a per-client message queue with a configurable limit (e.g., 10,000 messages), controlled by `MQTT_PERSISTENT_SESSION_DEVICE_PERSISTED_MESSAGES_LIMIT`. If this limit is exceeded before the client becomes writable, older messages may be dropped.
+- Messages in the queue have a configurable TTL controlled by `MQTT_PERSISTENT_SESSION_DEVICE_PERSISTED_MESSAGES_TTL`.
+- For MQTT 5.0 clients, the broker respects the client-defined message expiry interval.
+
+**Application clients** use Kafka consumer pause:
+
+- When the channel becomes non-writable, the broker pauses the Kafka consumer for that client.
+- When the channel becomes writable again, the broker resumes the consumer.
+- Kafka retains messages during the pause according to the topic retention policy, configured via `TB_KAFKA_APP_PERSISTED_MSG_TOPIC_PROPERTIES`.
+- Default retention: `retention.ms=604800000` — seven days, `retention.bytes=1048576000` — 1 GB.
+
+### Shared subscriptions and backpressure handling
+
+See <DocLink product={props.product} path="user-guide/shared-subscriptions">shared subscriptions</DocLink> for a full overview of shared subscriptions in TBMQ.
+
+#### Non-persistent shared subscription group
+
+When a subscriber in the group is non-writable, the broker skips that subscriber and attempts delivery to another member of the group. If **all** subscribers are non-writable, the message is dropped.
+
+#### Persistent DEVICE shared subscription group
+
+The broker skips non-writable subscribers and routes the message to a writable one. If **all** subscribers are non-writable, the message is saved to a per-group Redis queue. Once any subscriber becomes writable again, delivery resumes from the stored messages. The same configuration parameters apply as for individual persistent DEVICE clients (`MQTT_PERSISTENT_SESSION_DEVICE_PERSISTED_MESSAGES_LIMIT` and `MQTT_PERSISTENT_SESSION_DEVICE_PERSISTED_MESSAGES_TTL`).
+
+#### Persistent APPLICATION shared subscription group
+
+TBMQ removes the non-writable subscriber from the Kafka consumer group. Other writable subscribers continue polling messages from Kafka as usual. If **all** subscribers are non-writable, the consumer group becomes empty and Kafka polling stops. Kafka retains messages until subscribers reconnect. Retention for shared APPLICATION topics is configured via `TB_KAFKA_APP_PERSISTED_MSG_SHARED_TOPIC_PROPERTIES`.
+
+## Recommendations
+
+- Monitor the `nonWritableClients` counter via logs and Prometheus to detect backpressure conditions early.
+- Default watermark thresholds support approximately 10,000 messages per second per subscriber under typical conditions; adjust only after load testing.
+- Ensure sufficient Redis capacity for persistent DEVICE client queues.
+- Ensure sufficient Kafka capacity and appropriate retention settings for APPLICATION client topics.
+- Use horizontal scaling to distribute load across multiple TBMQ nodes.
+- Test your deployment under realistic peak load before going to production.
+
+## Conclusion
+
+TBMQ's layered backpressure architecture — combining TCP flow control, rate limiting, Netty writability monitoring, and type-specific persistence strategies — ensures the broker remains stable and resilient under high-throughput conditions. By buffering inbound messages in Kafka and handling outbound pressure through Redis and Kafka consumer pausing, TBMQ can sustain reliable message delivery for both DEVICE and APPLICATION clients even when subscribers temporarily fall behind.

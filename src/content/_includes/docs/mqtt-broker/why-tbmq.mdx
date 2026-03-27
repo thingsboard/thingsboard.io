@@ -1,0 +1,94 @@
+import DocLink from '@components/DocLink.astro';
+import { LinkButton } from '@astrojs/starlight/components';
+import { Products, productDocsPrefix } from '~/models/site.models';
+
+**TBMQ** is an MQTT broker built by the ThingsBoard team based on years of operating IoT infrastructure at scale.
+Its design starts from a single observation: IoT traffic is not uniform. Devices publish continuously, backend applications subscribe to high-volume streams, and commands must reach specific targets reliably.
+Most brokers treat all of these the same way. TBMQ handles each with a dedicated processing path — and the architecture to back it up.
+
+On a single node, TBMQ delivers <DocLink product={props.product} path="reference/3m-throughput-single-node-performance-test" bold={false}>3 million messages per second</DocLink>.
+In cluster mode, it supports <DocLink product={props.product} path="reference/100m-connections-performance-test" bold={false}>100 million concurrent MQTT connections</DocLink> with consistent throughput and no data loss.
+
+## Three traffic patterns, one broker
+
+IoT deployments generate three fundamentally different kinds of traffic. TBMQ is designed around all three.
+
+**Fan-in:** Thousands or millions of devices continuously publish telemetry, events, and sensor readings. A small set of backend applications must consume every message in order — even during spikes or partial outages. Dropping or reordering messages is not acceptable.
+
+**Fan-out:** A single update or command must reach a large number of subscribed devices simultaneously. One incoming message produces many outgoing deliveries. Every subscriber must receive it.
+
+**Point-to-point:** A publisher targets a specific subscriber through a uniquely defined topic. Command-response interactions, remote control flows, and device-to-device messaging all require low-latency, targeted delivery.
+
+## Architecture
+
+TBMQ is built on [Kafka](https://kafka.apache.org/) for message durability and distribution, [Netty](https://netty.io/) for non-blocking network transport, an Actor system for per-client concurrency, and a Trie data structure for subscription matching in memory. These are not incidental technology choices — each directly determines how the broker behaves under load, during failures, and as the cluster grows.
+
+### No message loss by design
+
+TBMQ does not send a PUBACK or PUBREC to the publisher until Kafka has confirmed the message is durably stored. This means that once the publisher receives an acknowledgment, the message is safe — regardless of what happens to the processing node afterward. If that node crashes before delivery completes, another node picks up from Kafka and continues. No message is lost between acknowledgment and delivery.
+
+This guarantee holds at full throughput. Kafka's replication factor ensures the message survives even if the broker node that received it becomes unavailable.
+
+### Subscription matching at any scale
+
+All active client subscriptions are loaded from Kafka and stored in a [Trie](https://en.wikipedia.org/wiki/Trie) data structure held in memory. When a PUBLISH arrives, TBMQ traverses the Trie to find matching subscribers. Lookup time is proportional to the length of the topic — not the number of subscriptions. Adding more subscribers does not slow down message routing. A broker with one million subscriptions matches topics in the same time as one with a thousand.
+
+### Separate processing paths for publishers and subscribers
+
+TBMQ classifies persistent clients into two categories based on observed IoT traffic patterns:
+
+- **DEVICE clients** publish frequently and subscribe to few topics at low message rates. Messages destined for offline DEVICE clients are persisted in Redis, which handles high write throughput and returns messages quickly on reconnect.
+- **APPLICATION clients** subscribe to high-volume topics and require messages to be buffered while offline. Each APPLICATION client gets a dedicated Kafka topic and a dedicated consumer thread. Messages accumulate safely in Kafka while the client is offline and are delivered in order when it reconnects. APPLICATION clients can handle millions of incoming messages per second.
+
+This separation means that a spike in device publishing does not delay delivery to application subscribers, and a slow application subscriber does not affect device-to-device or broker-to-device flows.
+
+### Symmetric cluster with no coordinator
+
+Every node in a TBMQ cluster is identical. There is no master process, no leader election, and no coordinator that becomes a bottleneck or a single point of failure. A load balancer distributes incoming MQTT connections across all available nodes.
+
+All nodes share session and subscription state through Kafka. When a client reconnects after a node failure, any node in the cluster can resume its session from the latest state in Kafka — no session is tied to a specific node.
+
+Start a new node and it joins the cluster automatically. Kafka consumer groups rebalance, distributing the load across the expanded cluster. No manual resharding, no downtime, no configuration changes.
+
+For details, see the <DocLink product={props.product} path="architecture" bold={false}>TBMQ architecture</DocLink> page.
+
+## MQTT specification support
+
+TBMQ is fully compliant with the MQTT protocol in both single-node and cluster deployments. It supports:
+
+- [MQTT 3.1](https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html)
+- [MQTT 3.1.1](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/mqtt-v3.1.1.html)
+- [MQTT 5.0](https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html)
+
+## Features
+
+<ul>
+  <li>All MQTT v3.x and v5.0 features</li>
+  <li>Multi-node cluster support</li>
+  <li>X.509 certificate chain authentication</li>
+  <li>JWT authentication</li>
+  <li>HTTP authentication</li>
+  <li>Access control (ACL) by client ID, username, or X.509 certificate chain</li>
+  <li>REST API for querying sessions and subscriptions</li>
+  <li>Rate limiting for message processing</li>
+  <li>Cluster and client metrics monitoring</li>
+  <li>MQTT WebSocket client</li>
+  <li>Integrations with HTTP, MQTT, and Kafka</li>
+  <li>Kafka topic and consumer group monitoring</li>
+  <li>Proxy protocol support</li>
+  <li>Blocked client management</li>
+  <li>Unauthorized clients monitoring</li>
+  <li>MQTT channel backpressure</li>
+  {props.product === Products.TBMQ_PE && (
+    <>
+      <li>Single Sign-On (SSO)</li>
+      <li>Role-Based Access Control (RBAC)</li>
+      <li>White labeling</li>
+    </>
+  )}
+</ul>
+
+## Start building with TBMQ
+
+<LinkButton href="https://demo.tbmq.io" target="_blank" rel="noopener noreferrer">Explore live demo</LinkButton>
+<LinkButton variant="secondary" href={`/docs/${productDocsPrefix[props.product]}getting-started/`}>Quickstart guide</LinkButton>

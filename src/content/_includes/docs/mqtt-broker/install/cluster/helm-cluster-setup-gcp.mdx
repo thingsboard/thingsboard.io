@@ -1,0 +1,351 @@
+import { Aside } from '@astrojs/starlight/components';
+import DocLink from '@components/DocLink.astro';
+import { Products } from '~/models/site.models';
+
+This guide covers deploying a TBMQ cluster using the official Helm [chart](https://artifacthub.io/packages/helm/tbmq-helm-chart/tbmq-cluster)
+on Google Cloud Platform (GCP) using Google Kubernetes Engine (GKE).
+
+<Aside>
+  Throughout this guide, the cluster name **`tbmq-cluster`** and region **`us-central1`** are used as defaults
+  (matching the environment variables defined below). If you choose different values, update them consistently across all commands.
+</Aside>
+
+## Prerequisites
+
+To deploy a TBMQ cluster using Helm on GKE, you need the following tools installed on your local machine:
+
+- [helm](https://helm.sh/docs/intro/install/)
+- [kubectl](https://kubernetes.io/docs/tasks/tools/)
+- [gcloud](https://cloud.google.com/sdk/downloads)
+
+## Configure your Kubernetes environment
+
+### Configure GCP tools
+
+See the [before you begin](https://cloud.google.com/kubernetes-engine/docs/how-to/creating-a-zonal-cluster#before_you_begin) guide for more info.
+
+Create a new GCP project (recommended) or choose an existing one. Make sure you have selected the correct project:
+
+```bash
+gcloud init
+```
+
+### Enable GKE service
+
+```bash
+gcloud services enable container.googleapis.com
+```
+
+### Define environment variables
+
+Define environment variables used in various commands throughout this guide.
+Execute the following command (Linux):
+
+```bash
+export GCP_PROJECT=$(gcloud config get-value project)
+export GCP_REGION=us-central1
+export GCP_ZONE=us-central1
+export GCP_ZONE1=us-central1-a
+export GCP_ZONE2=us-central1-b
+export GCP_ZONE3=us-central1-c
+export GCP_NETWORK=default
+export TB_CLUSTER_NAME=tbmq-cluster
+export TB_DATABASE_NAME=tbmq-db
+echo "You have selected project: $GCP_PROJECT, region: $GCP_REGION, gcp zones: $GCP_ZONE1,$GCP_ZONE2,$GCP_ZONE3, network: $GCP_NETWORK, cluster: $TB_CLUSTER_NAME, database: $TB_DATABASE_NAME"
+```
+
+Where:
+
+- `$GCP_PROJECT` — your current GCP project ID (fetched automatically via `gcloud`)
+- `us-central1` — one of the available compute [regions](https://cloud.google.com/compute/docs/regions-zones#available), referenced as `$GCP_REGION`
+- `default` — the default GCP network name, referenced as `$GCP_NETWORK`
+- `tbmq-cluster` — the cluster name, referenced as `$TB_CLUSTER_NAME`
+
+### Configure and create GKE cluster
+
+Create a regional cluster distributed across 3 zones. The example below provisions one **e2-standard-4** node per zone
+(three nodes total), but you can adjust `--machine-type` and `--num-nodes` to suit your workload requirements.
+For a full list of available machine types, refer to the [GCP machine types documentation](https://cloud.google.com/compute/docs/machine-resource).
+
+```bash
+gcloud container clusters create $TB_CLUSTER_NAME \
+  --release-channel stable \
+  --region $GCP_REGION \
+  --network=$GCP_NETWORK \
+  --node-locations $GCP_ZONE1,$GCP_ZONE2,$GCP_ZONE3 \
+  --enable-ip-alias \
+  --num-nodes=1 \
+  --node-labels=role=main \
+  --machine-type=e2-standard-4
+```
+
+Alternatively, use [this guide](https://cloud.google.com/kubernetes-engine/docs/how-to/creating-a-regional-cluster) for a custom cluster setup.
+
+### Update the context of kubectl
+
+Connect `kubectl` to the newly created cluster:
+
+```bash
+gcloud container clusters get-credentials $TB_CLUSTER_NAME --zone $GCP_ZONE
+```
+
+## Add the TBMQ Cluster Helm repository
+
+Before installing the chart, add the TBMQ Helm repository to your local Helm client:
+
+```bash
+helm repo add tbmq-helm-chart https://helm.thingsboard.io/tbmq
+helm repo update
+```
+
+## Modify default chart values
+
+To customize your TBMQ deployment, download the default `values.yaml` from the chart:
+
+```bash
+helm show values tbmq-helm-chart/tbmq-cluster > values.yaml
+```
+
+<Aside>
+  Do not modify `installation.installDbSchema` directly in `values.yaml`.
+  This parameter is only required during the first installation to initialize the TBMQ database schema.
+  Instead, pass it explicitly using `--set` in the `helm install` command.
+</Aside>
+
+### External PostgreSQL
+
+By default, the chart installs Bitnami PostgreSQL as a sub-chart, provisioning a single-node instance with configurable
+storage, backups, and monitoring options.
+
+For users with an existing PostgreSQL instance, TBMQ can be configured to connect externally.
+Disable the built-in PostgreSQL by setting `postgresql.enabled: false` and specify connection details in `externalPostgresql`:
+
+```yaml
+postgresql:
+  enabled: false
+
+externalPostgresql:
+  host: ""
+  port: 5432
+  username: "postgres"
+  password: "postgres"
+  database: "thingsboard_mqtt_broker"
+```
+
+If you plan to use Google Cloud SQL (PostgreSQL), first
+<DocLink product={props.product} path="install/cluster/gcp-cluster-setup/#enable-gcp-services">enable the required GCP services</DocLink>,
+then follow the <DocLink product={props.product} path="install/cluster/gcp-cluster-setup/#step-5-provision-google-cloud-sql-postgresql-instance">Cloud SQL provisioning instructions</DocLink>.
+
+### Load balancer configuration
+
+By default, the Helm chart deploys a standard NGINX Ingress Controller for HTTP and MQTT traffic. Since you are deploying on GCP GKE, change the load balancer type:
+
+```yaml
+loadbalancer:
+  type: "gcp"
+```
+
+This automatically configures:
+
+- Plain HTTP traffic exposed via HTTP Load Balancer
+- Plain MQTT traffic exposed via TCP Load Balancer
+
+#### HTTPS access
+
+The process of configuring the load balancer using Google-managed SSL certificates is described in the
+official [GKE documentation](https://cloud.google.com/kubernetes-engine/docs/how-to/managed-certs).
+Make sure you read the prerequisites carefully before proceeding.
+
+Reserve a static global IP address:
+
+```bash
+gcloud compute addresses create tbmq-http-lb-address --global
+```
+
+Get the reserved static IP address:
+
+```bash
+gcloud compute addresses describe tbmq-http-lb-address --global --format="get(address)"
+```
+
+Configure your DNS — you must have at least one fully qualified domain name (FQDN) pointing to the reserved
+static IP address. This is required for the managed certificate to be issued successfully.
+
+Update `values.yaml`:
+
+```yaml
+loadbalancer:
+  type: "gcp"
+  http:
+    enabled: true
+    ssl:
+      enabled: true
+      # Name of the ManagedCertificate resource automatically created by the Helm chart.
+      certificateRef: "<your-managed-certificate-resource-name>"
+      domains:
+        # Must point to the reserved static IP.
+        - <your-domain-name>
+      # Static IP address name for the GCP HTTP(S) load balancer.
+      staticIP: "tbmq-http-lb-address"
+```
+
+This will automatically issue and manage an SSL certificate via the `ManagedCertificate` resource
+created by the Helm chart and expose TBMQ securely over HTTPS.
+
+#### MQTTS access
+
+GCP Load Balancer does not support TLS termination for MQTT traffic.
+To secure MQTT communication, configure mutual TLS (mTLS) directly in TBMQ.
+Refer to the TBMQ Helm chart documentation for [details on configuring mTLS](https://artifacthub.io/packages/helm/tbmq-helm-chart/tbmq-cluster#configuring-mutual-tls-mtls-for-mqtt).
+
+## Create namespace
+
+Create a dedicated namespace for your TBMQ cluster deployment:
+
+```bash
+kubectl create namespace tbmq
+```
+
+```bash
+kubectl config set-context --current --namespace=tbmq
+```
+
+This sets `tbmq` as the default namespace for your current context, so you don't need to pass `--namespace` to every command.
+
+## Install the TBMQ Helm chart
+
+Make sure you're in the same directory as your customized `values.yaml` file, then install TBMQ:
+
+```bash
+helm install my-tbmq-cluster tbmq-helm-chart/tbmq-cluster \
+  -f values.yaml \
+  --set installation.installDbSchema=true
+```
+
+<Aside>
+  `my-tbmq-cluster` is the Helm release name. You can change it to any name of your choice —
+  it will be used to reference this deployment in future Helm commands.
+</Aside>
+
+Once the deployment completes, you should see output similar to:
+
+```text
+NAME: my-tbmq-cluster
+LAST DEPLOYED: Wed Mar 26 17:42:49 2025
+NAMESPACE: tbmq
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+NOTES:
+TBMQ Cluster my-tbmq-cluster will be deployed in few minutes.
+Info:
+Namespace: tbmq
+```
+
+## Validate HTTP access
+
+Get the address of the load balancer:
+
+```bash
+kubectl get ingress
+```
+
+Expected output:
+
+```text
+NAME                          CLASS    HOSTS   ADDRESS              PORTS   AGE
+my-tbmq-cluster-http-lb       <none>   *       <your-domain-name>   80      3d1h
+```
+
+Use the `ADDRESS` field of `my-tbmq-cluster-http-lb` to open the TBMQ web interface in your browser.
+
+You should see the TBMQ login page. Use the default **System Administrator** credentials:
+
+- **Username:** `sysadmin@thingsboard.org`
+- **Password:** `sysadmin`
+
+On first login you will be prompted to change the default password.
+
+### Validate HTTPS access (if configured)
+
+Check that your domain name resolves to the reserved static IP:
+
+```bash
+dig <your-domain-name>
+```
+
+Once the DNS record is confirmed, wait for the Google-managed certificate to finish provisioning.
+This can take up to 60 minutes. Check certificate status with:
+
+```bash
+kubectl describe managedcertificate <your-managed-certificate-resource-name>
+```
+
+The certificate will be provisioned once the domain records are configured correctly.
+Use `<your-domain-name>` to connect to the cluster.
+
+## Validate MQTT access
+
+Get the external IP of the MQTT load balancer:
+
+```bash
+kubectl get services
+```
+
+Expected output:
+
+```text
+NAME                          TYPE           CLUSTER-IP       EXTERNAL-IP              PORT(S)                         AGE
+my-tbmq-cluster-mqtt-lb       LoadBalancer   10.100.119.170   *******                  1883:30308/TCP,8883:31609/TCP   6m58s
+```
+
+Use the `EXTERNAL-IP` field to connect to the cluster via MQTT.
+
+## Troubleshooting
+
+To examine service logs for errors, view TBMQ logs with:
+
+```bash
+kubectl logs -f my-tbmq-cluster-tbmq-node-0
+```
+
+Check the state of all StatefulSets:
+
+```bash
+kubectl get statefulsets
+```
+
+See the [kubectl Cheat Sheet](https://kubernetes.io/docs/reference/kubectl/quick-reference/) for more details.
+
+## Upgrading
+
+Helm support was introduced with the TBMQ 2.1.0 release. Starting with TBMQ 2.2.0,
+the Helm chart was updated to version [1.1.0](https://artifacthub.io/packages/helm/tbmq-helm-chart/tbmq-cluster/1.0.0?modal=changelog&version=1.1.0),
+which introduced upgrade options.
+For detailed upgrade instructions, refer to the
+[Upgrading](https://artifacthub.io/packages/helm/tbmq-helm-chart/tbmq-cluster#upgrading) section
+of the TBMQ Helm Chart documentation on Artifact Hub.
+
+## Uninstalling TBMQ Helm chart
+
+To uninstall the TBMQ Helm chart:
+
+```bash
+helm delete my-tbmq-cluster
+```
+
+This removes all TBMQ components associated with the release from the current namespace.
+
+To fully clean up all persistent data, manually delete the associated Persistent Volume Claims (PVCs):
+
+```bash
+kubectl delete pvc -l app.kubernetes.io/instance=my-tbmq-cluster
+```
+
+## Delete Kubernetes cluster
+
+To delete the GKE cluster:
+
+```bash
+gcloud container clusters delete $TB_CLUSTER_NAME --region=$GCP_REGION
+```

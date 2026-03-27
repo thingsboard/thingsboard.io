@@ -1,0 +1,292 @@
+import { Aside } from '@astrojs/starlight/components';
+import { Products } from '~/models/site.models';
+
+This guide covers deploying a TBMQ cluster using the official Helm [chart](https://artifacthub.io/packages/helm/tbmq-helm-chart/tbmq-cluster).
+Minikube is used as the reference environment for self-hosted Kubernetes deployments.
+If you're deploying TBMQ in a self-managed cluster without cloud-specific load balancer integrations,
+Minikube provides a simple way to test the setup end-to-end.
+
+## Prerequisites
+
+To deploy a TBMQ cluster using Helm in Minikube, you need the following tools installed on your local machine:
+
+- [helm](https://helm.sh/docs/intro/install/)
+- [kubectl](https://kubernetes.io/docs/tasks/tools/)
+- [minikube](https://kubernetes.io/docs/tasks/tools/#minikube)
+
+## Configure your Kubernetes environment
+
+### Start Minikube
+
+```bash
+minikube start
+```
+
+### Install NGINX Ingress Controller
+
+To expose HTTP(S) services in Minikube, install the NGINX Ingress Controller using Helm
+with a `LoadBalancer` service type:
+
+```bash
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update
+
+helm install nginx-ingress ingress-nginx/ingress-nginx \
+  --set controller.admissionWebhooks.enabled=false \
+  --set controller.service.type=LoadBalancer
+```
+
+This deploys the NGINX Ingress Controller in the default namespace and configures it to expose traffic
+externally via a LoadBalancer service.
+
+Before continuing, verify that the ingress controller pod is running and ready:
+
+```bash
+kubectl get pods -n default
+```
+
+Expected output:
+
+```text
+NAME                                                     READY   STATUS    RESTARTS   AGE
+nginx-ingress-ingress-nginx-controller-xxxxx             1/1     Running   0          1m
+```
+
+### Start Minikube Tunnel
+
+Since Minikube doesn't natively support external LoadBalancer services, you need to create a tunnel
+to expose them outside the cluster. This is required for accessing both the NGINX Ingress Controller
+and the TBMQ MQTT LoadBalancer.
+
+Run the following command in a **separate terminal**:
+
+```bash
+minikube tunnel
+```
+
+<Aside>
+  This command requires administrative privileges and may prompt for your password.
+  It will create a network route on your machine and assign an external IP to the NGINX LoadBalancer service.
+</Aside>
+
+After starting the tunnel, verify that the NGINX Ingress Controller received an `EXTERNAL-IP`:
+
+```bash
+kubectl get svc -n default
+```
+
+Expected output:
+
+```text
+NAME                                     TYPE           CLUSTER-IP       EXTERNAL-IP      PORT(S)                      AGE
+nginx-ingress-ingress-nginx-controller   LoadBalancer   10.101.102.99    192.168.49.2     80:32023/TCP,443:32144/TCP   2m
+```
+
+## Add the TBMQ Cluster Helm repository
+
+Before installing the chart, add the TBMQ Helm repository to your local Helm client:
+
+```bash
+helm repo add tbmq-helm-chart https://helm.thingsboard.io/tbmq
+helm repo update
+```
+
+## Modify default chart values
+
+To customize your TBMQ deployment, download the default `values.yaml` from the chart:
+
+```bash
+helm show values tbmq-helm-chart/tbmq-cluster > values.yaml
+```
+
+<Aside>
+  Do not modify `installation.installDbSchema` directly in `values.yaml`.
+  This parameter is only required during the first installation to initialize the TBMQ database schema.
+  Instead, pass it explicitly using `--set` in the `helm install` command.
+</Aside>
+
+### External PostgreSQL
+
+By default, the chart installs Bitnami PostgreSQL as a sub-chart, provisioning a single-node instance with configurable
+storage, backups, and monitoring options.
+
+For users with an existing PostgreSQL instance, TBMQ can be configured to connect externally.
+Disable the built-in PostgreSQL by setting `postgresql.enabled: false` and specify connection details in `externalPostgresql`:
+
+```yaml
+postgresql:
+  enabled: false
+
+externalPostgresql:
+  host: ""
+  port: 5432
+  username: "postgres"
+  password: "postgres"
+  database: "thingsboard_mqtt_broker"
+```
+
+### Load balancer configuration
+
+The default NGINX Ingress Controller load balancer type is already suitable for Minikube and other
+generic Kubernetes environments — no changes are required:
+
+```yaml
+loadbalancer:
+  type: "nginx"
+```
+
+#### HTTPS access
+
+HTTPS termination at the load balancer level is not currently implemented for the NGINX Ingress Controller.
+This functionality may be added in a future release.
+
+#### MQTTS access
+
+The NGINX Ingress Controller does not support TLS termination for TCP-based protocols like MQTT.
+To secure MQTT communication, configure mutual TLS (mTLS) directly in TBMQ.
+Refer to the TBMQ Helm chart documentation for [details on configuring mTLS](https://artifacthub.io/packages/helm/tbmq-helm-chart/tbmq-cluster#configuring-mutual-tls-mtls-for-mqtt).
+
+## Create namespace
+
+Create a dedicated namespace for your TBMQ cluster deployment:
+
+```bash
+kubectl create namespace tbmq
+```
+
+```bash
+kubectl config set-context --current --namespace=tbmq
+```
+
+This sets `tbmq` as the default namespace for your current context, so you don't need to pass `--namespace` to every command.
+
+## Install the TBMQ Helm chart
+
+Make sure you're in the same directory as your customized `values.yaml` file, then install TBMQ:
+
+```bash
+helm install my-tbmq-cluster tbmq-helm-chart/tbmq-cluster \
+  -f values.yaml \
+  --set installation.installDbSchema=true
+```
+
+<Aside>
+  `my-tbmq-cluster` is the Helm release name. You can change it to any name of your choice —
+  it will be used to reference this deployment in future Helm commands.
+</Aside>
+
+Once the deployment completes, you should see output similar to:
+
+```text
+NAME: my-tbmq-cluster
+LAST DEPLOYED: Wed Mar 26 17:42:49 2025
+NAMESPACE: tbmq
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+NOTES:
+TBMQ Cluster my-tbmq-cluster will be deployed in few minutes.
+Info:
+Namespace: tbmq
+```
+
+## Validate HTTP access
+
+Get the address of the HTTP load balancer:
+
+```bash
+kubectl get ingress my-tbmq-cluster-http-lb
+```
+
+Expected output:
+
+```text
+NAME                      CLASS   HOSTS   ADDRESS         PORTS   AGE
+my-tbmq-cluster-http-lb   nginx   *       10.111.137.85   80      47m
+```
+
+Use the `ADDRESS` field of `my-tbmq-cluster-http-lb` to open the TBMQ web interface in your browser.
+
+You should see the TBMQ login page. Use the default **System Administrator** credentials:
+
+- **Username:** `sysadmin@thingsboard.org`
+- **Password:** `sysadmin`
+
+On first login you will be prompted to change the default password.
+
+## Validate MQTT access
+
+If `minikube tunnel` is running, you should see the MQTT service appear in the tunnel status output:
+
+```text
+Status:
+    machine: minikube
+    pid: 35528
+    route: 10.96.0.0/12 -> 192.168.49.2
+    minikube: Running
+    services: [nginx-ingress-ingress-nginx-controller, my-tbmq-cluster-mqtt-lb]
+```
+
+Retrieve the `EXTERNAL-IP` of the MQTT load balancer:
+
+```bash
+kubectl get svc my-tbmq-cluster-mqtt-lb
+```
+
+Expected output:
+
+```text
+NAME                      TYPE           CLUSTER-IP     EXTERNAL-IP    PORT(S)                                                       AGE
+my-tbmq-cluster-mqtt-lb   LoadBalancer   10.101.27.40   *******        1883:31041/TCP,8084:30151/TCP,8883:30188/TCP,8085:32706/TCP   41m
+```
+
+Use the `EXTERNAL-IP` field to connect to the cluster via MQTT.
+
+## Troubleshooting
+
+To examine service logs for errors, view TBMQ logs with:
+
+```bash
+kubectl logs -f my-tbmq-cluster-tbmq-node-0
+```
+
+Check the state of all StatefulSets:
+
+```bash
+kubectl get statefulsets
+```
+
+See the [kubectl Cheat Sheet](https://kubernetes.io/docs/reference/kubectl/quick-reference/) for more details.
+
+## Upgrading
+
+Helm support was introduced with the TBMQ 2.1.0 release. Starting with TBMQ 2.2.0,
+the Helm chart was updated to version [1.1.0](https://artifacthub.io/packages/helm/tbmq-helm-chart/tbmq-cluster/1.0.0?modal=changelog&version=1.1.0),
+which introduced upgrade options.
+For detailed upgrade instructions, refer to the
+[Upgrading](https://artifacthub.io/packages/helm/tbmq-helm-chart/tbmq-cluster#upgrading) section
+of the TBMQ Helm Chart documentation on Artifact Hub.
+
+## Uninstalling TBMQ Helm chart
+
+To uninstall the TBMQ Helm chart:
+
+```bash
+helm delete my-tbmq-cluster
+```
+
+This removes all TBMQ components associated with the release from the current namespace.
+
+To fully clean up all persistent data, manually delete the associated Persistent Volume Claims (PVCs):
+
+```bash
+kubectl delete pvc -l app.kubernetes.io/instance=my-tbmq-cluster
+```
+
+## Delete Kubernetes cluster
+
+To delete the Minikube cluster:
+
+```bash
+minikube delete
+```

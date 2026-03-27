@@ -1,0 +1,557 @@
+import { Aside, Code } from '@astrojs/starlight/components';
+import DocLink from '@components/DocLink.astro';
+import { Products } from '~/models/site.models';
+import { TBMQ_BRANCH } from '~/data/versions';
+
+export const clusterYmlCmd = `curl -o cluster.yml https://raw.githubusercontent.com/thingsboard/tbmq/${TBMQ_BRANCH}/k8s/helm/aws/cluster.yml`;
+
+export const gp3ScCmd = `curl -o gp3-def-sc.yml https://raw.githubusercontent.com/thingsboard/tbmq/${TBMQ_BRANCH}/k8s/helm/aws/gp3-def-sc.yml`;
+
+This guide covers deploying a TBMQ cluster using the official Helm [chart](https://artifacthub.io/packages/helm/tbmq-helm-chart/tbmq-cluster)
+on AWS using Elastic Kubernetes Service (EKS).
+
+<Aside>
+  Throughout this guide, the cluster name **`tbmq`** is used as the default (matching the provided `cluster.yml`).
+  If you choose a different cluster name, make sure to update it consistently in all commands — including
+  `eksctl create/delete cluster`, the IAM role lookup query, `helm install aws-load-balancer-controller --set clusterName=...`,
+  and the `helm delete` / `kubectl delete pvc` commands.
+</Aside>
+
+## Prerequisites
+
+To deploy a TBMQ cluster using Helm on EKS, you need the following tools installed on your local machine:
+
+- [helm](https://helm.sh/docs/intro/install/)
+- [kubectl](https://kubernetes.io/docs/tasks/tools/)
+- [eksctl](https://docs.aws.amazon.com/eks/latest/userguide/eksctl.html)
+- [awscli](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html)
+
+Afterward, configure your Access Key, Secret Key, and default region.
+To get Access and Secret keys, follow [this](https://docs.aws.amazon.com/general/latest/gr/aws-sec-cred-types.html) guide.
+The default region should be the ID of the region where you'd like to deploy the cluster.
+
+## Configure your Kubernetes environment
+
+### Configure AWS tools
+
+```bash
+aws configure
+```
+
+### Configuration overview
+
+To deploy the EKS cluster, we recommend using a pre-defined EKS cluster configuration file.
+Download it using the following command:
+
+<Code code={clusterYmlCmd} lang="bash" />
+
+Here are the fields you can change depending on your needs:
+
+- `region` — AWS region where you want your cluster to be located (default: `us-east-1`)
+- `availabilityZones` — exact IDs of the region's availability zones (default: `[ us-east-1a,us-east-1b,us-east-1c ]`)
+- `instanceType` — type of EC2 instances for node groups; change per workload (e.g., TBMQ, Redis, Kafka)
+- `desiredCapacity` — number of nodes per node group; defaults are suggested for testing
+- `volumeType` — type of EBS volume for EC2 nodes; defaults to `gp3`
+
+Refer to [Amazon EC2 Instance types](https://aws.amazon.com/ec2/instance-types/) to choose the right instance types for your production workloads.
+
+### PostgreSQL consideration (optional node group)
+
+The TBMQ Helm chart supports external PostgreSQL, so you might not need the `tbmq-postgresql` node group:
+
+```yaml
+  - name: tbmq-postgresql
+    instanceType: c7a.large
+    desiredCapacity: 1
+    maxSize: 1
+    minSize: 0
+    labels: { role: postgresql }
+    volumeType: gp3
+    volumeSize: 20
+```
+
+You can safely remove this section if:
+
+- You're using Amazon RDS or an existing PostgreSQL service.
+- You want to keep your database outside the EKS cluster.
+
+### IAM setup for OIDC and AWS Load Balancer Controller
+
+By including the following block in your `cluster.yml`, you automatically enable IAM roles for service accounts
+and provision the AWS Load Balancer Controller service account:
+
+```yaml
+iam:
+  withOIDC: true
+  serviceAccounts:
+    - metadata:
+        name: aws-load-balancer-controller
+        namespace: kube-system
+      wellKnownPolicies:
+        awsLoadBalancerController: true
+```
+
+This configuration:
+
+- Enables [OIDC](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html) integration (required for IAM roles for service accounts).
+- Automatically creates a service account with the appropriate IAM policies for the [AWS Load Balancer Controller](https://docs.aws.amazon.com/eks/latest/userguide/aws-load-balancer-controller.html).
+
+This is the easiest and most integrated approach when using `eksctl`.
+
+Alternatively, if you prefer not to manage IAM inside `cluster.yml`, or your organization requires manual IAM policy creation,
+you can set it up manually after cluster creation. Follow these official AWS guides:
+
+- [Create an IAM OIDC provider for your cluster](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html)
+- [Route internet traffic with AWS Load Balancer Controller](https://docs.aws.amazon.com/eks/latest/userguide/aws-load-balancer-controller.html)
+
+### Add-ons explained
+
+The `addons` section in `cluster.yml` automatically installs and configures essential components that extend
+the base functionality of your EKS cluster:
+
+- **aws-ebs-csi-driver** — enables dynamic provisioning of Amazon EBS volumes using the [EBS CSI driver](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi.html).
+  TBMQ components like Redis and Kafka require persistent storage. This driver allows Kubernetes to provision `gp3` volumes on-demand when a PersistentVolumeClaim is created.
+- **aws-efs-csi-driver** — allows workloads to use Amazon EFS as a persistent volume via the [EFS CSI driver](https://docs.aws.amazon.com/eks/latest/userguide/efs-csi.html).
+  TBMQ doesn't require EFS, but it's useful for shared access to the same volume from multiple pods.
+- **vpc-cni** — installs the [Amazon VPC CNI plugin](https://docs.aws.amazon.com/eks/latest/userguide/managing-vpc-cni.html), enabling Kubernetes pods to have native VPC networking with their own IP address.
+- **coredns** — provides internal DNS resolution for Kubernetes services via [CoreDNS](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/).
+- **kube-proxy** — manages network rules on each node to handle service routing via [kube-proxy](https://kubernetes.io/docs/concepts/services-networking/service/#kube-proxy).
+
+### Create EKS cluster
+
+```bash
+eksctl create cluster -f cluster.yml
+```
+
+### Create gp3 storage class and make it default
+
+The `gp3` EBS volume type is the recommended default for Amazon EKS, offering better performance, cost efficiency,
+and flexibility compared to `gp2`.
+
+Download the storage class configuration file:
+
+<Code code={gp3ScCmd} lang="bash" />
+
+Apply the configuration:
+
+```bash
+kubectl apply -f gp3-def-sc.yml
+```
+
+If a `gp2` StorageClass exists, it may conflict with `gp3`. Either make `gp2` non-default:
+
+```bash
+kubectl patch storageclass gp2 -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}'
+```
+
+Or delete the `gp2` StorageClass (if unused):
+
+```bash
+kubectl delete storageclass gp2
+```
+
+Verify that the `gp3` storage class is available and marked as default:
+
+```bash
+kubectl get sc
+```
+
+Expected output:
+
+```text
+NAME            PROVISIONER       RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
+gp3 (default)   ebs.csi.aws.com   Delete          WaitForFirstConsumer   true                   30s
+```
+
+### Attach policy
+
+If you created your EKS cluster using the provided `cluster.yml`, the following are already configured automatically:
+
+- OIDC provider is enabled (`withOIDC: true`)
+- Service account `aws-load-balancer-controller` is created in the `kube-system` namespace
+- The account is annotated for IAM access and linked with the well-known AWS-managed policy
+
+However, you must manually attach the `AWSLoadBalancerControllerIAMPolicy` (or your custom policy) to the IAM role
+created by `eksctl`.
+
+Find the role created by `eksctl`:
+
+```bash
+aws iam list-roles \
+  --query "Roles[?contains(RoleName, 'eksctl-tbmq')].RoleName" \
+  --output text
+```
+
+The output looks something like:
+
+```text
+eksctl-tbmq-addon-iamserviceaccount-kube-syst-Role1-J9l4M87BqmNu
+```
+
+Attach the policy — replace `YOUR_AWS_ACCOUNT_ID` and `ROLE_NAME` with your actual values:
+
+```bash
+aws iam attach-role-policy \
+  --policy-arn arn:aws:iam::YOUR_AWS_ACCOUNT_ID:policy/AWSLoadBalancerControllerIAMPolicy \
+  --role-name ROLE_NAME
+```
+
+Verify the attachment:
+
+```bash
+aws iam list-attached-role-policies --role-name ROLE_NAME
+```
+
+Expected output:
+
+```text
+ATTACHEDPOLICIES        arn:aws:iam::YOUR_AWS_ACCOUNT_ID:policy/AWSLoadBalancerControllerIAMPolicy     AWSLoadBalancerControllerIAMPolicy
+```
+
+### Create AWS Load Balancer Controller
+
+To support NLB and ALB provisioning via Kubernetes annotations, deploy the AWS Load Balancer Controller:
+
+```bash
+helm repo add eks https://aws.github.io/eks-charts
+helm repo update
+```
+
+Install the controller into the `kube-system` namespace:
+
+```bash
+helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
+  --namespace kube-system \
+  --set clusterName=tbmq \
+  --set serviceAccount.create=false \
+  --set serviceAccount.name=aws-load-balancer-controller
+```
+
+Verify that the controller is installed:
+
+```bash
+kubectl get deployment -n kube-system aws-load-balancer-controller
+```
+
+Expected output:
+
+```text
+NAME                           READY   UP-TO-DATE   AVAILABLE   AGE
+aws-load-balancer-controller   2/2     2            2           84s
+```
+
+## Add the TBMQ Cluster Helm repository
+
+Before installing the chart, add the TBMQ Helm repository to your local Helm client:
+
+```bash
+helm repo add tbmq-helm-chart https://helm.thingsboard.io/tbmq
+helm repo update
+```
+
+## Modify default chart values
+
+To customize your TBMQ deployment, download the default `values.yaml` from the chart:
+
+```bash
+helm show values tbmq-helm-chart/tbmq-cluster > values.yaml
+```
+
+<Aside>
+  Do not modify `installation.installDbSchema` directly in `values.yaml`.
+  This parameter is only required during the first installation to initialize the TBMQ database schema.
+  Instead, pass it explicitly using `--set` in the `helm install` command.
+</Aside>
+
+### Update nodeSelector for pod scheduling
+
+To ensure high availability and proper scheduling in your EKS-based TBMQ cluster,
+assign TBMQ components to specific node groups using the `nodeSelector` field in `values.yaml`.
+
+Your `cluster.yml` defines dedicated node groups with role-based labels,
+for example for the `tbmq-node` managed node group:
+
+```yaml
+labels: { role: tbmq }
+```
+
+Explicitly assign each component to the appropriate node group:
+
+- TBMQ Broker:
+
+```yaml
+tbmq:
+  nodeSelector:
+    role: tbmq
+```
+
+- TBMQ Integration Executor:
+
+```yaml
+tbmq-ie:
+  nodeSelector:
+    role: tbmq-ie
+```
+
+- Kafka Controller Nodes:
+
+```yaml
+kafka:
+  controller:
+    nodeSelector:
+      role: kafka
+```
+
+- Redis Cluster Nodes:
+
+```yaml
+redis-cluster:
+  redis:
+    nodeSelector:
+      role: redis
+```
+
+- PostgreSQL (if not using external DB):
+
+```yaml
+postgresql:
+  primary:
+    nodeSelector:
+      role: postgresql
+
+  backup:
+    cronjob:
+      nodeSelector:
+        role: postgresql
+```
+
+### External PostgreSQL
+
+By default, the chart installs Bitnami PostgreSQL as a sub-chart, provisioning a single-node instance with configurable
+storage, backups, and monitoring options.
+
+For users with an existing PostgreSQL instance, TBMQ can be configured to connect externally.
+Disable the built-in PostgreSQL by setting `postgresql.enabled: false` and specify connection details in `externalPostgresql`:
+
+```yaml
+postgresql:
+  enabled: false
+
+externalPostgresql:
+  host: ""
+  port: 5432
+  username: "postgres"
+  password: "postgres"
+  database: "thingsboard_mqtt_broker"
+```
+
+If you plan to use Amazon RDS for PostgreSQL, follow the
+<DocLink product={props.product} path="install/cluster/aws-cluster-setup/#step-4-amazon-postgresql-db-configuration">AWS cluster setup guide</DocLink> to provision and configure your RDS instance.
+
+### Load balancer configuration
+
+By default, the Helm chart deploys a standard NGINX Ingress Controller for HTTP and MQTT traffic. Since you are deploying on AWS EKS, change the load balancer type:
+
+```yaml
+loadbalancer:
+  type: "aws"
+```
+
+This automatically configures:
+
+- Plain HTTP traffic exposed via AWS Application Load Balancer (ALB)
+- Plain MQTT traffic exposed via AWS Network Load Balancer (NLB)
+
+#### HTTPS access
+
+Use [AWS Certificate Manager](https://aws.amazon.com/certificate-manager/) to create or import an SSL certificate.
+Note your certificate ARN.
+
+Set `loadbalancer.http.ssl.enabled` to `true` and update `loadbalancer.http.ssl.certificateRef` with the ACM certificate ARN:
+
+```yaml
+loadbalancer:
+  type: "aws"
+  http:
+    enabled: true
+    ssl:
+      enabled: true
+      certificateRef: "<your-acm-certificate-arn-for-alb>"
+```
+
+#### MQTTS access
+
+##### TLS termination (one-way TLS)
+
+The simplest way to configure MQTTS is to use the AWS NLB as a TLS termination point.
+This sets up one-way TLS — traffic between devices and the load balancer is encrypted,
+while traffic between the load balancer and TBMQ runs unencrypted within your VPC.
+
+<Aside type="caution">
+  With TLS termination, you cannot use X.509 certificate MQTT client credentials, since client certificate
+  information is not forwarded from the load balancer to TBMQ.
+</Aside>
+
+Use [AWS Certificate Manager](https://aws.amazon.com/certificate-manager/) to create or import an SSL certificate.
+Note your certificate ARN.
+
+Set `loadbalancer.mqtt.tlsTermination.enabled` to `true` and update `loadbalancer.mqtt.tlsTermination.certificateRef`:
+
+```yaml
+loadbalancer:
+  type: "aws"
+  mqtt:
+    enabled: true
+    tlsTermination:
+      enabled: true
+      certificateRef: "<your-acm-certificate-arn-for-nlb>"
+```
+
+##### Mutual TLS (two-way TLS / mTLS)
+
+For full mTLS, obtain a valid signed TLS certificate and configure it in TBMQ.
+This option supports X.509 certificate MQTT client credentials.
+
+Refer to the TBMQ Helm chart documentation for [details on configuring mTLS](https://artifacthub.io/packages/helm/tbmq-helm-chart/tbmq-cluster#configuring-mutual-tls-mtls-for-mqtt).
+
+<Aside>
+  TLS Termination configuration is ignored if `loadbalancer.mqtt.mutualTls.enabled` is set to `true`.
+</Aside>
+
+## Create namespace
+
+Create a dedicated namespace for your TBMQ cluster deployment:
+
+```bash
+kubectl create namespace tbmq
+```
+
+```bash
+kubectl config set-context --current --namespace=tbmq
+```
+
+This sets `tbmq` as the default namespace for your current context, so you don't need to pass `--namespace` to every command.
+
+## Install the TBMQ Helm chart
+
+Make sure you're in the same directory as your customized `values.yaml` file, then install TBMQ:
+
+```bash
+helm install my-tbmq-cluster tbmq-helm-chart/tbmq-cluster \
+  -f values.yaml \
+  --set installation.installDbSchema=true
+```
+
+<Aside>
+  `my-tbmq-cluster` is the Helm release name. You can change it to any name of your choice —
+  it will be used to reference this deployment in future Helm commands.
+</Aside>
+
+Once the deployment completes, you should see output similar to:
+
+```text
+NAME: my-tbmq-cluster
+LAST DEPLOYED: Wed Mar 26 17:42:49 2025
+NAMESPACE: tbmq
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+NOTES:
+TBMQ Cluster my-tbmq-cluster will be deployed in few minutes.
+Info:
+Namespace: tbmq
+```
+
+## Validate HTTP access
+
+Get the DNS name of the load balancers:
+
+```bash
+kubectl get ingress
+```
+
+Expected output:
+
+```text
+NAME                          CLASS    HOSTS   ADDRESS                                                            PORTS   AGE
+my-tbmq-cluster-http-lb       <none>   *       k8s-tbmq-mytbmq-000aba1305-222186756.eu-west-1.elb.amazonaws.com   80      3d1h
+```
+
+Use the `ADDRESS` field of `my-tbmq-cluster-http-lb` to open the TBMQ web interface in your browser.
+
+You should see the TBMQ login page. Use the default **System Administrator** credentials:
+
+- **Username:** `sysadmin@thingsboard.org`
+- **Password:** `sysadmin`
+
+On first login you will be prompted to change the default password.
+
+## Validate MQTT access
+
+Get the external IP of the MQTT load balancer:
+
+```bash
+kubectl get services
+```
+
+Expected output:
+
+```text
+NAME                          TYPE           CLUSTER-IP       EXTERNAL-IP                                                                              PORT(S)                         AGE
+my-tbmq-cluster-mqtt-lb       LoadBalancer   10.100.119.170   k8s-tbmq-mytbmq-b9f99d1ab6-1049a98ba4e28403.elb.eu-west-1.amazonaws.com                  1883:30308/TCP,8883:31609/TCP   6m58s
+```
+
+Use the `EXTERNAL-IP` field to connect to the cluster via MQTT.
+
+## Troubleshooting
+
+To examine service logs for errors, view TBMQ logs with:
+
+```bash
+kubectl logs -f my-tbmq-cluster-tbmq-node-0
+```
+
+Check the state of all StatefulSets:
+
+```bash
+kubectl get statefulsets
+```
+
+See the [kubectl Cheat Sheet](https://kubernetes.io/docs/reference/kubectl/quick-reference/) for more details.
+
+## Upgrading
+
+Helm support was introduced with the TBMQ 2.1.0 release. Starting with TBMQ 2.2.0,
+the Helm chart was updated to version [1.1.0](https://artifacthub.io/packages/helm/tbmq-helm-chart/tbmq-cluster/1.0.0?modal=changelog&version=1.1.0),
+which introduced upgrade options.
+For detailed upgrade instructions, refer to the
+[Upgrading](https://artifacthub.io/packages/helm/tbmq-helm-chart/tbmq-cluster#upgrading) section
+of the TBMQ Helm Chart documentation on Artifact Hub.
+
+## Uninstalling TBMQ Helm chart
+
+To uninstall the TBMQ Helm chart:
+
+```bash
+helm delete my-tbmq-cluster
+```
+
+This removes all TBMQ components associated with the release from the current namespace.
+
+To fully clean up all persistent data, manually delete the associated Persistent Volume Claims (PVCs):
+
+```bash
+kubectl delete pvc -l app.kubernetes.io/instance=my-tbmq-cluster
+```
+
+## Delete Kubernetes cluster
+
+To delete the EKS cluster:
+
+```bash
+eksctl delete cluster -r us-east-1 -n tbmq -w
+```
+
+<Aside>
+  Update the cluster name (`-n`) and region (`-r`) if your configuration uses different values.
+</Aside>

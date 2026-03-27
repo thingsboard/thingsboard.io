@@ -331,18 +331,18 @@ if __name__ == '__main__':
                     "JS Executor")
     elif tb_repo_type.lower() == "tbmq":
         update_page(tb_repo_abs_path + "/application/src/main/resources/thingsboard-mqtt-broker.yml",
-                    "src/content/docs/docs/mqtt-broker/installation/config.mdx",
+                    "src/content/_includes/docs/mqtt-broker/install/config.mdx",
                     "TBMQ Configuration")
         update_page(tb_repo_abs_path + "/integration/executor/src/main/resources/tbmq-integration-executor.yml",
-                    "src/content/docs/docs/mqtt-broker/installation/ie-config.mdx",
-                    "TBMQ Integration Executor Configuration")
+                    "src/content/_includes/docs/mqtt-broker/install/ie-config.mdx",
+                    "Integration Executor Configuration")
     elif tb_repo_type.lower() == "tbmq-pe":
         update_page(tb_repo_abs_path + "/application/src/main/resources/thingsboard-mqtt-broker.yml",
-                    "src/content/docs/docs/mqtt-broker/pe/installation/config.mdx",
-                    "TBMQ PE Configuration")
+                    "src/content/_includes/docs/mqtt-broker/pe/install/config.mdx",
+                    "TBMQ Configuration")
         update_page(tb_repo_abs_path + "/integration/executor/src/main/resources/tbmq-integration-executor.yml",
-                    "src/content/docs/docs/mqtt-broker/pe/installation/ie-config.mdx",
-                    "TBMQ PE Integration Executor Configuration")
+                    "src/content/_includes/docs/mqtt-broker/pe/install/ie-config.mdx",
+                    "Integration Executor Configuration")
     elif tb_repo_type.lower() == "edge":
         update_page(tb_repo_abs_path + "/application/src/main/resources/tb-edge.yml",
                     "src/content/docs/docs/edge/installation/config.mdx",
