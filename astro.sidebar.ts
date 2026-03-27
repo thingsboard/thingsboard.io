@@ -2379,16 +2379,20 @@ const tbmqInstallItems = (prefix: string): SidebarConfig => {
 			{ label: 'GCP', slug: `${prefix}/install/cluster/gcp-cluster-setup` },
 		],
 	},
-	{
-		label: 'Helm',
-		collapsed: true,
-		items: [
-			{ label: 'Minikube', slug: `${prefix}/install/cluster/helm-cluster-setup-minikube` },
-			{ label: 'AWS EKS', slug: `${prefix}/install/cluster/helm-cluster-setup-aws` },
-			{ label: 'Azure AKS', slug: `${prefix}/install/cluster/helm-cluster-setup-azure` },
-			{ label: 'GCP GKE', slug: `${prefix}/install/cluster/helm-cluster-setup-gcp` },
-		],
-	},
+	...(!isPE
+		? [
+				{
+					label: 'Helm',
+					collapsed: true,
+					items: [
+						{ label: 'Minikube', slug: `${prefix}/install/cluster/helm-cluster-setup-minikube` },
+						{ label: 'AWS EKS', slug: `${prefix}/install/cluster/helm-cluster-setup-aws` },
+						{ label: 'Azure AKS', slug: `${prefix}/install/cluster/helm-cluster-setup-azure` },
+						{ label: 'GCP GKE', slug: `${prefix}/install/cluster/helm-cluster-setup-gcp` },
+					],
+				},
+			]
+		: []),
 	{ label: 'Upgrade instructions', slug: `${prefix}/install/upgrade-instructions` },
 	];
 };
