@@ -35,3 +35,6 @@ export const TBMQ_VER = '2.2.0';
 
 /** TBMQ Broker Professional Edition */
 export const TBMQ_PE_VER = '2.2.0PE';
+
+/** TBMQ Broker release branch (for installation scripts) */
+export const TBMQ_BRANCH = 'release-2.2.0';

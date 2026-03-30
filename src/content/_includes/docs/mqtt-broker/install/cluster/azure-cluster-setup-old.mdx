@@ -1,0 +1,595 @@
+import { Aside, Code } from '@astrojs/starlight/components';
+import Tabs from '@components/Tabs.astro';
+import TabItem from '@components/TabItem.astro';
+import DocLink from '@components/DocLink.astro';
+import { TBMQ_BRANCH } from '~/data/versions';
+
+export const cloneCmdCe = `git clone -b ${TBMQ_BRANCH} https://github.com/thingsboard/tbmq.git
+cd tbmq/k8s/azure`;
+
+export const gitPullCmd = `git pull origin ${TBMQ_BRANCH}`;
+
+This guide covers setting up TBMQ in cluster mode on Azure AKS.
+
+## Prerequisites
+
+Install <a href="https://kubernetes.io/docs/tasks/tools/" target="_blank" rel="noopener noreferrer">kubectl</a>,
+<a href="https://helm.sh/docs/intro/install/" target="_blank" rel="noopener noreferrer">helm</a>, and
+<a href="https://learn.microsoft.com/en-us/cli/azure/" target="_blank" rel="noopener noreferrer">az</a> tools.
+
+Then log in to the Azure CLI:
+
+```bash
+az login
+```
+
+## Clone TBMQ repository
+
+<Code code={cloneCmdCe} lang="bash" />
+
+## Define environment variables
+
+Define environment variables used throughout this guide. Execute the following command on Linux:
+
+```bash
+export AKS_RESOURCE_GROUP=TBMQResources
+export AKS_LOCATION=eastus
+export AKS_GATEWAY=tbmq-gateway
+export TB_CLUSTER_NAME=tbmq-cluster
+export TB_DATABASE_NAME=tbmq-db
+export TB_REDIS_NAME=tbmq-redis
+echo "Variables ready to create resource group $AKS_RESOURCE_GROUP in location $AKS_LOCATION
+and cluster $TB_CLUSTER_NAME with database $TB_DATABASE_NAME"
+```
+
+Where:
+- `TBMQResources` — a logical group in which Azure resources are deployed and managed (**AKS_RESOURCE_GROUP**).
+- `eastus` — the region for the resource group (**AKS_LOCATION**). List all regions with `az account list-locations`.
+- `tbmq-gateway` — the name of the Azure Application Gateway.
+- `tbmq-cluster` — the cluster name (**TB_CLUSTER_NAME**).
+- `tbmq-db` — the database server name (**TB_DATABASE_NAME**).
+
+## Configure and create AKS cluster
+
+Create the Azure Resource Group:
+
+```bash
+az group create --name $AKS_RESOURCE_GROUP --location $AKS_LOCATION
+```
+
+For more details on `az group`, see the <a href="https://learn.microsoft.com/en-us/cli/azure/group?view=azure-cli-latest" target="_blank" rel="noopener noreferrer">Azure CLI documentation</a>.
+
+Create the AKS cluster:
+
+```bash
+az aks create --resource-group $AKS_RESOURCE_GROUP \
+    --name $TB_CLUSTER_NAME \
+    --generate-ssh-keys \
+    --enable-addons ingress-appgw \
+    --appgw-name $AKS_GATEWAY \
+    --appgw-subnet-cidr "10.225.0.0/24" \
+    --node-vm-size Standard_D4s_v6 \
+    --node-count 3
+```
+
+Key parameters:
+- `--node-count` — number of nodes (default: 3; adjust with `az aks scale` later).
+- `--enable-addons ingress-appgw` — enables the <a href="https://learn.microsoft.com/en-us/azure/application-gateway/" target="_blank" rel="noopener noreferrer">Azure Application Gateway</a> ingress controller.
+- `--node-vm-size` — VM size for cluster nodes (default: `Standard_DS2_v2`).
+- `--generate-ssh-keys` — generates SSH keys stored in `~/.ssh/`.
+
+Full parameter list: <a href="https://learn.microsoft.com/en-us/cli/azure/aks?view=azure-cli-latest#az_aks_create" target="_blank" rel="noopener noreferrer">az aks create reference</a>.
+
+Alternatively, use the <a href="https://learn.microsoft.com/en-us/azure/aks/learn/quick-kubernetes-deploy-portal?tabs=azure-cli" target="_blank" rel="noopener noreferrer">Azure portal quickstart guide</a>.
+
+## Update kubectl context
+
+Connect kubectl to the new cluster:
+
+```bash
+az aks get-credentials --resource-group $AKS_RESOURCE_GROUP --name $TB_CLUSTER_NAME
+```
+
+Verify:
+
+```bash
+kubectl get nodes
+```
+
+You should see the cluster's node list.
+
+## Provision PostgreSQL DB
+
+Set up PostgreSQL on Azure following the <a href="https://learn.microsoft.com/en-us/azure/postgresql/flexible-server/quickstart-create-server-portal" target="_blank" rel="noopener noreferrer">official guide</a> with these requirements:
+
+- PostgreSQL version **16.x**
+- Database accessible from the TBMQ cluster
+- Initial database name: `thingsboard_mqtt_broker`
+- Enable **High availability**
+
+Alternatively, use the `az` CLI (replace `POSTGRESS_USER` and `POSTGRESS_PASS`):
+
+```bash
+az postgres flexible-server create --location $AKS_LOCATION --resource-group $AKS_RESOURCE_GROUP \
+  --name $TB_DATABASE_NAME --admin-user POSTGRESS_USER --admin-password POSTGRESS_PASS \
+  --public-access 0.0.0.0 --storage-size 32 \
+  --version 16 -d thingsboard_mqtt_broker
+```
+
+Key parameters:
+- `--location` — region (from `az account list-locations`)
+- `--admin-user` / `--admin-password` — credentials (password: 8–128 chars with uppercase, lowercase, numbers, special chars)
+- `--public-access 0.0.0.0` — allows access from all Azure resources; set to `None` to restrict
+- `--storage-size` — 32 GiB minimum, 16 TiB maximum
+- `--high-availability` — `Disabled` or `Enabled` (only set at creation time)
+- `--database-name` (or `-d`) — the name of the database to be created when provisioning the server
+
+Full parameter reference: <a href="https://learn.microsoft.com/en-us/cli/azure/postgres/flexible-server?view=azure-cli-latest#az_postgres_flexible_server_create" target="_blank" rel="noopener noreferrer">az postgres flexible-server create</a>.
+
+Example response:
+
+```text
+{
+  "connectionString": "postgresql://postgres:postgres@$tbmq-db.postgres.database.azure.com/postgres?sslmode=require",
+  "databaseName": "thingsboard_mqtt_broker",
+  "firewallName": "AllowAllAzureServicesAndResourcesWithinAzureIps_2021-11-17_15-45-6",
+  "host": "tbmq-db.postgres.database.azure.com",
+  "id": "/subscriptions/daff3288-1d5d-47c7-abf0-bfb7b738a18c/resourceGroups/myResourceGroup/providers/Microsoft.DBforPostgreSQL/flexibleServers/thingsboard_mqtt_broker",
+  "location": "East US",
+  "password": "postgres",
+  "resourceGroup": "TBMQResources",
+  "skuname": "Standard_D2s_v3",
+  "username": "postgres",
+  "version": "16"
+}
+```
+
+Note the `host` value. Edit `tb-broker-db-configmap.yml` and replace `YOUR_AZURE_POSTGRES_ENDPOINT_URL` with the host,
+and set `YOUR_AZURE_POSTGRES_USER` and `YOUR_AZURE_POSTGRES_PASSWORD` accordingly:
+
+```bash
+nano tb-broker-db-configmap.yml
+```
+
+## Azure Cache for Redis
+
+TBMQ uses Redis to store messages for
+<DocLink product={props.product} path="architecture/#persistent-device-client">DEVICE persistent clients</DocLink>
+and to reduce database load during authentication. Without caching, every new connection triggers a database query
+to validate MQTT client credentials, which can overload the database under high connection rates.
+
+<Aside>
+  Starting from **TBMQ v2.1.0**, Redis 7.2.5 is the officially supported version for third-party Redis deployments.
+  Only the **Enterprise** and **Enterprise Flash** SKUs of Azure Cache for Redis support Redis 7.2.x.
+  The Basic, Standard, and Premium SKUs support only up to **Redis 6.x**. To ensure full compatibility, use an
+  Enterprise-tier SKU.
+</Aside>
+
+Choose one of the following guides:
+
+- <a href="https://learn.microsoft.com/en-us/azure/azure-cache-for-redis/quickstart-create-redis-enterprise" target="_blank" rel="noopener noreferrer">Quickstart: Create a Redis Enterprise cache</a> **(Recommended)**
+- <a href="https://learn.microsoft.com/en-us/azure/azure-cache-for-redis/quickstart-create-redis" target="_blank" rel="noopener noreferrer">Quickstart: Create an open-source Redis cache</a>
+
+For the open-source (legacy) Redis cache, you can also create it using the `az` CLI:
+
+```bash
+az redis create --name $TB_REDIS_NAME --location $AKS_LOCATION --resource-group $AKS_RESOURCE_GROUP --sku basic --vm-size C0 --enable-non-ssl-port
+```
+
+Key parameters:
+- `--name` (or `-n`) — name of the Redis cache
+- `--resource-group` (or `-g`) — name of the resource group
+- `--sku` — type of Redis cache (accepted values: Basic, Premium, Standard)
+- `--vm-size` — size of Redis cache (Basic/Standard: c0–c6; Premium: p1–p5)
+- `--location` (or `-l`) — region (from `az account list-locations`)
+
+Full parameter list: <a href="https://learn.microsoft.com/en-us/cli/azure/redis?view=azure-cli-latest" target="_blank" rel="noopener noreferrer">az redis reference</a>.
+
+Example response:
+
+```text
+{
+  "accessKeys": null,
+  "enableNonSslPort": true,
+  "hostName": "tbmq-redis.redis.cache.windows.net",
+  "id": "/subscriptions/daff3288-1d5d-47c7-abf0-bfb7b738a18c/resourceGroups/myResourceGroup/providers/Microsoft.Cache/Redis/tbmq-redis",
+  "instances": [
+    {
+      "isMaster": false,
+      "isPrimary": false,
+      "nonSslPort": 13000,
+      "shardId": null,
+      "sslPort": 15000,
+      "zone": null
+    }
+  ],
+  "linkedServers": [],
+  "location": "East US",
+  "minimumTlsVersion": null,
+  "name": "tbmq-redis",
+  "port": 6379,
+  "privateEndpointConnections": null,
+  "provisioningState": "Creating",
+  "publicNetworkAccess": "Enabled",
+  "redisConfiguration": {
+    "maxclients": "256",
+    "maxfragmentationmemory-reserved": "12",
+    "maxmemory-delta": "2",
+    "maxmemory-reserved": "2"
+  },
+  "redisVersion": "6.0.20",
+  "replicasPerMaster": null,
+  "replicasPerPrimary": null,
+  "resourceGroup": "myResourceGroup",
+  "shardCount": null,
+  "sku": {
+    "capacity": 0,
+    "family": "C",
+    "name": "Basic"
+  },
+  "sslPort": 6380,
+  "staticIp": null,
+  "subnetId": null,
+  "tags": {},
+  "tenantSettings": {},
+  "type": "Microsoft.Cache/Redis",
+  "zones": null
+}
+```
+
+Copy the `hostName` value and replace `YOUR_REDIS_ENDPOINT_URL_WITHOUT_PORT` in `tb-broker-cache-configmap.yml`.
+
+Retrieve the Redis access keys:
+
+```bash
+az redis list-keys --name $TB_REDIS_NAME --resource-group $AKS_RESOURCE_GROUP
+```
+
+Copy the `primary` key and replace `YOUR_REDIS_PASSWORD` in `tb-broker-cache-configmap.yml`.
+
+For more information, see the <a href="https://learn.microsoft.com/en-us/azure/azure-cache-for-redis/scripts/create-manage-cache#run-the-script" target="_blank" rel="noopener noreferrer">Azure Cache for Redis script reference</a>.
+
+## Installation
+
+Run the installation script (provisions DB tables, indexes, etc.):
+
+```bash
+./k8s-install-tbmq.sh
+```
+
+After completion, you should see:
+
+```text
+INFO  o.t.m.b.i.ThingsboardMqttBrokerInstallService - Installation finished successfully!
+```
+
+<Aside>
+  If installation fails, verify that the PostgreSQL URL and password are set correctly in `tb-broker-db-configmap.yml`.
+</Aside>
+
+## Provision Kafka
+
+Deploy Bitnami Kafka from Helm. Review the `kafka` folder:
+
+```bash
+ls kafka/
+```
+
+The folder contains `default-values-kafka.yml` (default values from <a href="https://artifacthub.io/packages/helm/bitnami/kafka" target="_blank" rel="noopener noreferrer">Bitnami ArtifactHub</a>) and `values-kafka.yml` with modified values. Keep the first file untouched and make changes to the second one only for smoother upgrades.
+
+Add the Bitnami Helm repo:
+
+```bash
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo update
+```
+
+Install Bitnami Kafka:
+
+```bash
+helm install kafka -f kafka/values-kafka.yml bitnami/kafka --version 29.3.4
+```
+
+Wait several minutes until Kafka pods are up and running.
+
+## Starting
+
+Deploy TBMQ:
+
+```bash
+./k8s-deploy-tbmq.sh
+```
+
+After a few minutes, check pod status:
+
+```bash
+kubectl get pods
+```
+
+You should see `tb-broker-0` and `tb-broker-1` pods, each in the `READY` state.
+
+## Configure Load Balancers
+
+### Configure HTTP(S) Load Balancer
+
+You have two options:
+
+- **HTTP** — no HTTPS support. Suitable for development only.
+- **HTTPS** — SSL termination. Recommended for production. Automatically redirects HTTP to HTTPS.
+
+#### HTTP Load Balancer
+
+```bash
+kubectl apply -f receipts/http-load-balancer.yml
+```
+
+Check provisioning status:
+
+```bash
+kubectl get ingress
+```
+
+Once ready:
+
+```text
+NAME                          CLASS    HOSTS   ADDRESS         PORTS   AGE
+tb-broker-http-loadbalancer   <none>   *       34.111.24.134   80      7m25s
+```
+
+#### HTTPS Load Balancer
+
+Add a certificate to the Azure Application Gateway:
+
+```bash
+az network application-gateway ssl-cert create \
+   --resource-group $(az aks show --name $TB_CLUSTER_NAME --resource-group $AKS_RESOURCE_GROUP --query nodeResourceGroup | tr -d '"') \
+   --gateway-name $AKS_GATEWAY\
+   --name TBMQHTTPSCert \
+   --cert-file YOUR_CERT \
+   --cert-password YOUR_CERT_PASS
+```
+
+Deploy:
+
+```bash
+kubectl apply -f receipts/https-load-balancer.yml
+```
+
+### Configure MQTT Load Balancer
+
+Create a TCP load balancer that forwards traffic on ports 1883 and 8883:
+
+```bash
+kubectl apply -f receipts/mqtt-load-balancer.yml
+```
+
+#### MQTT over SSL
+
+Follow <a href="https://thingsboard.io/docs/user-guide/mqtt-over-ssl/" target="_blank" rel="noopener noreferrer">this guide</a> to create a `.pem` certificate file.
+Save it as `server.pem` in the working directory.
+
+Create a ConfigMap from your PEM files:
+
+```bash
+kubectl create configmap tbmq-mqtts-config \
+ --from-file=server.pem=YOUR_PEM_FILENAME \
+ --from-file=mqttserver_key.pem=YOUR_PEM_KEY_FILENAME \
+ -o yaml --dry-run=client | kubectl apply -f -
+```
+
+Where:
+- `YOUR_PEM_FILENAME` — path to your server certificate file
+- `YOUR_PEM_KEY_FILENAME` — path to your server certificate private key file
+
+Uncomment all sections marked with "Uncomment the following lines to enable two-way MQTTS" in `tb-broker.yml`:
+
+```bash
+kubectl apply -f tb-broker.yml
+```
+
+## Validate the setup
+
+Open the TBMQ web interface using the DNS name of the load balancer:
+
+```bash
+kubectl get ingress
+```
+
+```text
+NAME                          CLASS    HOSTS   ADDRESS         PORTS   AGE
+tb-broker-http-loadbalancer   <none>   *       34.111.24.134   80      3d1h
+```
+
+Use the `ADDRESS` of `tb-broker-http-loadbalancer` to access the UI.
+
+You should see the TBMQ login page. Use the default **System Administrator** credentials:
+
+**Username:**
+
+```
+sysadmin@thingsboard.org
+```
+
+**Password:**
+
+```
+sysadmin
+```
+
+On first login, you are prompted to change the default password and re-login with the new credentials.
+
+### Validate MQTT access
+
+The service `tb-broker-mqtt-loadbalancer` is the LoadBalancer used for MQTT communication. Retrieve its `EXTERNAL-IP` with:
+
+```bash
+kubectl get services
+```
+
+```text
+NAME                          TYPE           CLUSTER-IP       EXTERNAL-IP              PORT(S)                         AGE
+tb-broker-mqtt-loadbalancer   LoadBalancer   10.100.119.170   *******                  1883:30308/TCP,8883:31609/TCP   6m58s
+```
+
+Use the `EXTERNAL-IP` field to connect to the cluster via MQTT.
+
+### Troubleshooting
+
+View TBMQ pod logs:
+
+```bash
+kubectl logs -f tb-broker-0
+```
+
+Check the state of all StatefulSets:
+
+```bash
+kubectl get statefulsets
+```
+
+See the <a href="https://kubernetes.io/docs/reference/kubectl/cheatsheet/" target="_blank" rel="noopener noreferrer">kubectl Cheat Sheet</a> for more details.
+
+## Upgrading
+
+Review the <DocLink product={props.product} path="releases">release notes</DocLink> and{' '}
+<DocLink product={props.product} path="install/upgrade-instructions">upgrade instructions</DocLink> for details on the latest changes.
+
+If there are no **Upgrade to x.x.x** notes for your version, proceed directly with the general <a href="#run-upgrade">upgrade instructions</a>.
+
+If your specific upgrade path is not covered, <DocLink product={props.product} path="help">contact us</DocLink> for further guidance.
+
+### Backup and restore (Optional)
+
+While backing up your PostgreSQL database before upgrading is recommended, it is optional.
+For guidance, follow the <a href="https://learn.microsoft.com/en-us/azure/postgresql/flexible-server/concepts-backup-restore" target="_blank" rel="noopener noreferrer">Azure PostgreSQL backup and restore instructions</a>.
+
+### Upgrade to 2.2.0
+
+This release migrates the MQTT authentication mechanism from YAML/env configuration into the database.
+During the upgrade, TBMQ needs to know which authentication providers are enabled — these are provided
+as environment variables passed to the upgrade pod.
+
+The upgrade script reads from **database-setup.yml**. Variables from `tb-broker.yml` are
+**not** applied during the upgrade — only the values in `database-setup.yml` are used.
+Ensure this file reflects your active configuration.
+
+<Aside>
+  <ul>
+    <li>If you use only Basic authentication, set <code>SECURITY_MQTT_SSL_ENABLED=false</code>.</li>
+    <li>If you use only X.509 authentication, set <code>SECURITY_MQTT_BASIC_ENABLED=false</code> and <code>SECURITY_MQTT_SSL_ENABLED=true</code>.</li>
+  </ul>
+</Aside>
+
+**Supported variables in database-setup.yml:**
+
+- `SECURITY_MQTT_BASIC_ENABLED` (`true|false`)
+- `SECURITY_MQTT_SSL_ENABLED` (`true|false`)
+- `SECURITY_MQTT_SSL_SKIP_VALIDITY_CHECK_FOR_CLIENT_CERT` (`true|false`) — usually `false`
+
+Once the file is verified, proceed with the <a href="#run-upgrade">upgrade process</a>.
+
+### Upgrade to 2.1.0
+
+TBMQ v2.1.0 introduces the Integration Executor microservice and bumps versions of third-party dependencies.
+
+#### Add Integration Executor microservice
+
+This release adds support for external integrations via the new{' '}
+<DocLink product={props.product} path="integrations/">Integration Executor</DocLink> microservice.
+
+To retrieve the latest configuration files, pull the updates from the release branch by following
+the <a href="#run-upgrade">run upgrade steps</a> up to (but not including) the upgrade script execution.
+
+#### Update third-party services
+
+TBMQ v2.1.0 updates the following third-party dependencies. See the{' '}
+<a href="https://github.com/thingsboard/tbmq/pull/218" target="_blank" rel="noopener noreferrer">pull request</a> for details.
+
+| Service | Previous version | Updated version |
+|---|---|---|
+| **Redis** | 7.0 | 7.2.5 |
+| **PostgreSQL** | 15.x | 16.x |
+| **Kafka** | 3.5.1 | 3.7.0 |
+
+<Aside>
+  Step-by-step upgrade instructions for third-party services are not provided here.
+  Consult the official documentation or your service provider's resources.
+  Changing the image tag alone is not sufficient or safe.
+  If you skip upgrading, verify the merge did not alter third-party versions and revert if needed.
+  After addressing versions, continue with the remaining <a href="#run-upgrade">upgrade steps</a>.
+</Aside>
+
+### Upgrade to 2.0.0
+
+For the TBMQ v2.0.0 upgrade, if you have not installed Redis yet, follow the{' '}
+<a href="#azure-cache-for-redis">Azure Cache for Redis</a> section to complete the installation.
+Only then proceed with the <a href="#run-upgrade">upgrade</a>.
+
+### Run upgrade
+
+Pull the latest changes from the release branch:
+
+<Code code={gitPullCmd} lang="bash" />
+
+<Aside>
+  To upgrade to a specific version (e.g. v2.0.0), replace the branch with the target branch name, e.g. <code>release-2.0.0</code>.
+</Aside>
+
+**Note:** Make sure any custom changes are not lost during the merge.
+
+<Aside>
+  If you encounter conflicts during the merge that are unrelated to your changes, accept all remote changes:
+
+  1. Abort the current merge: `git merge --abort`
+  2. Re-pull accepting remote changes:
+
+  <Code code={gitPullCmd.replace(TBMQ_BRANCH, `${TBMQ_BRANCH} -X theirs`)} lang="bash" />
+
+  Merge strategy options:
+
+  - `-X ours` — auto-resolve conflicts by favoring your local version
+  - `-X theirs` — auto-resolve conflicts by favoring the remote version
+</Aside>
+
+After pulling, run the upgrade script:
+
+<Tabs>
+  <TabItem label="Since v2.1.0">
+    <Code code="./k8s-upgrade-tbmq.sh" lang="bash" />
+  </TabItem>
+  <TabItem label="Before v2.1.0">
+    <Code code="./k8s-upgrade-tbmq.sh --fromVersion=FROM_VERSION" lang="bash" />
+    <p>Where <code>FROM_VERSION</code> is the version you are upgrading from.
+    See <DocLink product={props.product} path="install/upgrade-instructions">Upgrade Instructions</DocLink> for valid values.</p>
+  </TabItem>
+</Tabs>
+
+<Aside>
+  You may optionally stop TBMQ pods before running the database upgrade to ensure a consistent DB state:
+
+  <Code code="./k8s-delete-tbmq.sh" lang="bash" />
+
+  This causes downtime, but most upgrades do not require stopping TBMQ. Once the upgrade completes, redeploy to roll out the new version:
+
+  <Code code="./k8s-deploy-tbmq.sh" lang="bash" />
+</Aside>
+
+## Cluster deletion
+
+Delete TBMQ nodes:
+
+```bash
+./k8s-delete-tbmq.sh
+```
+
+Delete all TBMQ nodes, ConfigMaps, and load balancers:
+
+```bash
+./k8s-delete-all.sh
+```
+
+Delete the AKS cluster:
+
+```bash
+az aks delete --resource-group $AKS_RESOURCE_GROUP --name $TB_CLUSTER_NAME
+```

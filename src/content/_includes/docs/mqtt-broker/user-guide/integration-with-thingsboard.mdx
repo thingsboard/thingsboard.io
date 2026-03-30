@@ -1,0 +1,197 @@
+import { Aside, Steps } from '@astrojs/starlight/components';
+import Tabs from '@components/Tabs.astro';
+import TabItem from '@components/TabItem.astro';
+import ImageGallery from '~/components/ImageGallery.astro';
+import DocLink from '@components/DocLink.astro';
+
+This guide shows how to integrate TBMQ with <a href="https://thingsboard.io" target="_blank" rel="noopener noreferrer">ThingsBoard</a> using the ThingsBoard MQTT Integration.
+This guide uses TBMQ client credentials with type **APPLICATION** so that ThingsBoard connects as an APPLICATION client, enabling persistent subscriptions with offline message delivery.
+Read more about client types in the <DocLink product={props.product} path="user-guide/mqtt-client-type">Client types</DocLink> guide.
+
+ThingsBoard MQTT Integration acts as an MQTT client: it subscribes to topics, converts the received data into telemetry and attribute updates, and converts downlink messages to a device-suitable format before pushing them back to TBMQ.
+
+<Aside>
+  TBMQ must be accessible from the ThingsBoard instance — either co-located, deployed in the cloud with a public IP or DNS name, or reachable via VPN.
+  A ThingsBoard instance running in the cloud cannot connect to a TBMQ deployed in a local network without internet access.
+</Aside>
+
+<Aside type="caution">
+  ThingsBoard MQTT Integration is a **ThingsBoard PE / Cloud** feature. Ensure your ThingsBoard instance supports Platform Integrations before proceeding.
+</Aside>
+
+## Prerequisites
+
+- A running <a href="https://thingsboard.io/docs/user-guide/install/pe/installation-options/" target="_blank" rel="noopener noreferrer">ThingsBoard PE</a> instance
+- A running <DocLink product={props.product} path="install/installation-options">TBMQ</DocLink> instance accessible by the ThingsBoard PE instance
+- `mosquitto_pub` MQTT client to send test messages.
+
+## TBMQ setup
+
+Create TBMQ client credentials to use for connecting the ThingsBoard MQTT Integration to TBMQ.
+
+<Steps>
+1. In the TBMQ UI, go to **Authentication → Credentials** and click **Add** (+).
+2. Enter a credential name and select **Application** as the client type.
+3. Select **Basic** as the credentials type.
+4. Enter a **Username** and **Password** (e.g., `tb-pe` / `secret`).
+5. Click **Add**.
+</Steps>
+
+<ImageGallery product={props.product} images={[
+  { src: '/src/assets/images/docs/mqtt-broker/user-guide/integrations/how-to-connect-tbqm-to-thingsboard/tbmq-add-client-credentials-1.png', alt: 'Navigate to Credentials and click the plus icon', caption: 'Navigate to "Credentials" tab, click on the "plus" icon in the top right corner of the table.' },
+  { src: '/src/assets/images/docs/mqtt-broker/user-guide/integrations/how-to-connect-tbqm-to-thingsboard/tbmq-add-client-credentials-2.png', alt: 'Enter credential name, select Application client type and Basic authentication', caption: 'Input client credentials name, select client type. Enable "Basic" authentication type.' },
+  { src: '/src/assets/images/docs/mqtt-broker/user-guide/integrations/how-to-connect-tbqm-to-thingsboard/tbmq-add-client-credentials-3.png', alt: 'Enter Username and Password, then click Add', caption: 'Input "Username" and "Password" with chosen values. For example, use "tb-pe" value for Username and "secret" for Password fields. Click "Add" to save credentials.' },
+  { src: '/src/assets/images/docs/mqtt-broker/user-guide/integrations/how-to-connect-tbqm-to-thingsboard/tbmq-add-client-credentials-4.png', alt: 'New APPLICATION client credentials created', caption: 'New client credential is created.' },
+]} />
+
+<Aside>
+  Basic authentication must be <DocLink product={props.product} path="security/authentication/basic">enabled</DocLink> in TBMQ for these credentials to work.
+</Aside>
+
+## ThingsBoard setup
+
+### Create an uplink converter
+
+The uplink converter parses incoming MQTT data and metadata into a format ThingsBoard can consume.
+
+In ThingsBoard, go to **Integrations center → Data converters** and click **Add** (+). Name it `TBMQ Uplink Converter`, select type **Uplink**, and paste the decoder script below. Click **Add**.
+
+<ImageGallery product={props.product} images={[
+  { src: '/src/assets/images/docs/mqtt-broker/user-guide/integrations/how-to-connect-tbqm-to-thingsboard/tbmq-uplink-converter-tbel-1.png', alt: 'Create TBMQ Uplink Converter in ThingsBoard', caption: 'Create TBMQ Uplink Converter in ThingsBoard.' },
+]} />
+
+<Tabs>
+  <TabItem label="TBEL (Recommended)">
+    ```javascript
+    /** Decoder **/
+
+    // decode payload to string
+    var payloadStr = decodeToString(payload);
+    var data = JSON.parse(payloadStr);
+
+    var deviceName = metadata.topic.split("/")[3];
+    var deviceType = 'sensor';
+
+    // Result object with device attributes/telemetry data
+    var result = {
+        deviceName: deviceName,
+        deviceType: deviceType,
+        attributes: {
+            integrationName: metadata['integrationName'],
+        },
+        telemetry: {
+            temperature: data.value,
+        }
+    };
+
+    /** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
+
+    return result;
+    ```
+  </TabItem>
+  <TabItem label="JavaScript">
+    ```javascript
+    /** Decoder **/
+
+    // decode payload to string
+    var payloadStr = decodeToString(payload);
+    var data = JSON.parse(payloadStr);
+
+    var deviceName = metadata.topic.split("/")[3];
+    var deviceType = 'sensor';
+
+    // Result object with device attributes/telemetry data
+    var result = {
+        deviceName: deviceName,
+        deviceType: deviceType,
+        attributes: {
+            integrationName: metadata['integrationName'],
+        },
+        telemetry: {
+            temperature: data.value,
+        }
+    };
+
+    /** Helper functions **/
+
+    function decodeToString(payload) {
+        return String.fromCharCode.apply(String, payload);
+    }
+
+    function decodeToJson(payload) {
+        var str = decodeToString(payload);
+        var data = JSON.parse(str);
+        return data;
+    }
+
+    return result;
+    ```
+  </TabItem>
+</Tabs>
+
+### Create an MQTT Integration
+
+<Steps>
+1. Go to **Integrations center → Integrations** and click **Add** (+). Name it `MQTT Integration` and select type **MQTT**.
+2. Select the uplink converter you just created.
+3. Leave the **Downlink data converter** field empty and click **Skip**.
+4. Specify the TBMQ **Host** and **Port**. Select **Basic** credentials and enter the TBMQ client credentials.
+   Add topic filter: `tb/mqtt-integration-tutorial/sensors/+/temperature` and select QoS level `1` or higher.
+5. Open **Advanced settings**. Uncheck **Clean session** and set **Client ID** to `tbpeintegration`.
+6. (Optional) Click **Check connection** to verify connectivity. Click **Add** to create the integration.
+</Steps>
+
+<ImageGallery product={props.product} images={[
+  { src: '/src/assets/images/docs/mqtt-broker/user-guide/integrations/how-to-connect-tbqm-to-thingsboard/tbmq-integration-add-integration-1.png', alt: 'Create MQTT Integration in ThingsBoard — name and type', caption: 'Go to the "Integrations center" section -> "Integrations" page and click "plus" icon to add a new integration. Name it "MQTT Integration", select type "MQTT".' },
+  { src: '/src/assets/images/docs/mqtt-broker/user-guide/integrations/how-to-connect-tbqm-to-thingsboard/tbmq-integration-add-integration-2.png', alt: 'Select the uplink converter', caption: 'Add the recently created uplink converter.' },
+  { src: '/src/assets/images/docs/mqtt-broker/user-guide/integrations/how-to-connect-tbqm-to-thingsboard/tbmq-integration-add-integration-3.png', alt: 'Leave downlink converter empty and click Skip', caption: 'Leave the "Downlink data converter" field empty. Click "Skip".' },
+  { src: '/src/assets/images/docs/mqtt-broker/user-guide/integrations/how-to-connect-tbqm-to-thingsboard/tbmq-integration-add-integration-4.png', alt: 'Specify TBMQ host, port, credentials and topic filter', caption: 'Specify host and port of TBMQ instance. Select "Basic" credentials type and specify TBMQ client credentials. Add a topic filter: "tb/mqtt-integration-tutorial/sensors/+/temperature" and select an MQTT QoS level higher than 0.' },
+  { src: '/src/assets/images/docs/mqtt-broker/user-guide/integrations/how-to-connect-tbqm-to-thingsboard/tbmq-integration-add-integration-5.png', alt: 'Advanced settings — uncheck Clean session and set Client ID', caption: 'Now go to the advanced settings. Uncheck the "Clean session" parameter and specify client ID as "tbpeintegration".' },
+  { src: '/src/assets/images/docs/mqtt-broker/user-guide/integrations/how-to-connect-tbqm-to-thingsboard/tbmq-integration-add-integration-6.png', alt: 'Check connection and click Add', caption: '[Optional] Click on Check connection button to check connection to TBMQ. Click Add button to create the integration.' },
+]} />
+
+Once the integration is created and the connection is established, go to the **Sessions** page in the TBMQ UI. You should see a new session with status `Connected`.
+
+<ImageGallery product={props.product} images={[
+  { src: '/src/assets/images/docs/mqtt-broker/user-guide/integrations/how-to-connect-tbqm-to-thingsboard/tbmq-sessions-1.png', alt: 'TBMQ Sessions page showing ThingsBoard integration connected', caption: 'Go to the "Sessions" page in the TBMQ UI. Upon successful establishment of the connection ThingsBoard to TBMQ, we will see a new session and its status - "Connected".' },
+]} />
+
+On the **Topics** page (Kafka Management section), you will see the Kafka topic corresponding to the client ID (`tbpeintegration`), along with partition count, replication factor, and topic size.
+
+<ImageGallery product={props.product} images={[
+  { src: '/src/assets/images/docs/mqtt-broker/user-guide/integrations/how-to-connect-tbqm-to-thingsboard/tbmq-home-page-1.png', alt: 'Kafka Topics page showing the tbpeintegration topic', caption: 'On the "Topics" page you will see a name of Kafka topic (which corresponds to the client ID specified in the MQTT integration), number of partitions, replication factor and size of the topic.' },
+]} />
+
+## Send an uplink message
+
+Simulate a device sending a temperature reading to TBMQ. Run the following command, replacing `$THINGSBOARD_MQTT_BROKER_HOST_NAME`, `username`, and `password` with your broker address and credentials:
+
+```bash
+mosquitto_pub -h $THINGSBOARD_MQTT_BROKER_HOST_NAME -p 1883 -q 1 \
+  -t "tb/mqtt-integration-tutorial/sensors/SN-001/temperature" \
+  -m '{"value":25.1}' -u "username" -P "password"
+```
+
+For this tutorial example:
+
+```bash
+mosquitto_pub -h localhost -p 1883 -q 1 \
+  -t "tb/mqtt-integration-tutorial/sensors/SN-001/temperature" \
+  -m '{"value":25.1}' -u "tb-pe" -P "secret"
+```
+
+<ImageGallery product={props.product} images={[
+  { src: '/src/assets/images/docs/mqtt-broker/user-guide/integrations/how-to-connect-tbqm-to-thingsboard/tbmq-uplink-message-1.png', alt: 'Publishing uplink message via mosquitto_pub', caption: 'Publishing uplink message via mosquitto_pub.' },
+]} />
+
+After publishing, open the MQTT Integration in ThingsBoard UI and go to the **Events** tab. You should see the message consumed by the integration.
+
+<ImageGallery product={props.product} images={[
+  { src: '/src/assets/images/docs/mqtt-broker/user-guide/integrations/how-to-connect-tbqm-to-thingsboard/tbmq-integration-events-1.png', alt: 'ThingsBoard integration Events tab showing the received message', caption: 'ThingsBoard integration Events tab showing the received message.' },
+]} />
+
+Go to **Entities → Devices**. You should find a `SN-001` device provisioned by the integration. Click the device and open the **Latest Telemetry** tab — you should see the `temperature` key with value `25.1`.
+
+<ImageGallery product={props.product} images={[
+  { src: '/src/assets/images/docs/mqtt-broker/user-guide/integrations/how-to-connect-tbqm-to-thingsboard/tbmq-create-device-1.png', alt: 'SN-001 device created in ThingsBoard with temperature telemetry', caption: 'SN-001 device created in ThingsBoard with temperature telemetry.' },
+]} />

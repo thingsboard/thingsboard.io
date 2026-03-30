@@ -1,0 +1,184 @@
+TBMQ exposes health checks through the Spring Boot Actuator framework.
+Health checks let monitoring systems assess the state of TBMQ and its dependencies, and alerting can be configured based on the reported status.
+The primary endpoint is `/actuator/health` on port **8083**, and it can be configured to include
+detailed status for **PostgreSQL**, **Kafka**, and **Redis**.
+
+## Response status codes
+
+| HTTP status | Meaning |
+|---|---|
+| `200 OK` | All components are healthy. |
+| `503 Service Unavailable` | One or more components have failed. |
+
+## Configuration
+
+The parameters below control what the health endpoint exposes and which Actuator endpoints are reachable over HTTP.
+
+```yaml collapsible
+management:
+  health:
+    diskspace:
+      # Enable/disable disk space health check
+      enabled: "${HEALTH_DISKSPACE_ENABLED:false}"
+  endpoint:
+    health:
+      # Controls whether health endpoint shows full component details.
+      # Options:
+      #   never           — always hide details (default when security is enabled)
+      #   when-authorized — show details only to authenticated users
+      #   always          — always include full health details in the response
+      show-details: "${HEALTH_SHOW_DETAILS:never}"
+  endpoints:
+    web:
+      exposure:
+        # Actuator endpoints exposed via HTTP.
+        # Add 'prometheus' to enable metrics scraping (e.g., 'health,info,prometheus')
+        include: "${METRICS_ENDPOINTS_EXPOSE:health,info,prometheus}"
+```
+
+**`health.diskspace.enabled`** — enables the disk space health check. It is disabled by default.
+When enabled, TBMQ reports low disk space on the container.
+
+**`endpoint.health.show-details`** — controls the visibility of component-level details in the response.
+It defaults to `never`. Set to `always` or `when-authorized` to expose individual component status.
+
+**`endpoints.web.exposure.include`** — comma-separated list of Actuator endpoints exposed over HTTP.
+Include `prometheus` to enable metrics scraping.
+
+## Health endpoint responses
+
+The `/actuator/health` endpoint returns JSON with the overall system status.
+When `show-details` is not `never`, the response also includes the status of each component.
+
+**Healthy response:**
+
+```json collapsible
+{
+  "status": "UP",
+  "components": {
+    "db": {
+      "status": "UP",
+      "details": { "database": "PostgreSQL", "validationQuery": "isValid()" }
+    },
+    "kafka": {
+      "status": "UP",
+      "details": { "brokerCount": 3 }
+    },
+    "ping": { "status": "UP" },
+    "redis": {
+      "status": "UP",
+      "details": { "version": "7.0.15" }
+    },
+    "tbmq": { "status": "UP" }
+  }
+}
+```
+
+**Unhealthy response:**
+
+```json collapsible
+{
+  "status": "DOWN",
+  "components": {
+    "db": {
+      "status": "UP",
+      "details": { "database": "PostgreSQL", "validationQuery": "isValid()" }
+    },
+    "kafka": {
+      "status": "UP",
+      "details": { "brokerCount": 1 }
+    },
+    "ping": { "status": "UP" },
+    "redis": {
+      "status": "DOWN",
+      "details": {
+        "error": "org.springframework.dao.QueryTimeoutException: Redis command timed out"
+      }
+    },
+    "tbmq": { "status": "UP" }
+  }
+}
+```
+
+When all components are `UP`, all dependencies are healthy and TBMQ is running normally.
+When a component fails, its status changes to `DOWN` and the response includes an error message describing the failure, like a Redis connection timeout or an unreachable Kafka broker.
+If any component reports `DOWN`, the overall status becomes `DOWN` and the HTTP response code changes to `503`.
+
+## Timeout configuration
+
+Health checks verify connectivity to Kafka, Redis, and PostgreSQL by executing commands against each service.
+Each command has a configurable timeout — if the command does not complete within that time, the connectivity check is considered failed.
+
+```yaml collapsible
+# Kafka Admin client command timeout in seconds (describeCluster, listTopics, etc.)
+queue.command-timeout: "${TB_KAFKA_ADMIN_COMMAND_TIMEOUT_SEC:30}"
+
+# Maximum time in seconds to wait for a Lettuce (Redis) command to complete.
+# This applies to health checks and all command execution (e.g., GET, SET, PING).
+# Reduce to fail fast when Redis is unresponsive.
+lettuce.command-timeout: "${REDIS_LETTUCE_COMMAND_TIMEOUT_SEC:30}"
+
+# Maximum time in milliseconds HikariCP waits to acquire a connection from the pool.
+# If exceeded, an exception is thrown.
+spring.connectionTimeout: "${SPRING_DATASOURCE_CONNECTION_TIMEOUT_MS:30000}"
+```
+
+## Integration Executor health check
+
+The TBMQ Integration Executor (IE) exposes its own health check at `/actuator/health` on port **8082**.
+It monitors connectivity to Kafka only.
+
+**Healthy response:**
+
+```json collapsible
+{
+  "status": "UP",
+  "components": {
+    "kafka": {
+      "status": "UP",
+      "details": { "brokerCount": 3 }
+    },
+    "ping": { "status": "UP" }
+  }
+}
+```
+
+## Using health checks in container environments
+
+### Docker Compose
+
+```yaml
+healthcheck:
+  test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
+  interval: 30s
+  retries: 3
+  start_period: 30s
+  timeout: 10s
+```
+
+### Kubernetes
+
+Configure liveness and readiness probes in your pod, StatefulSet, or Deployment:
+
+```yaml collapsible
+livenessProbe:
+  httpGet:
+    path: /actuator/health
+    port: 8083
+  initialDelaySeconds: 30
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /actuator/health
+    port: 8083
+  initialDelaySeconds: 30
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 3
+```
+
+For details, see the <a href="https://docs.docker.com/reference/dockerfile/#healthcheck" target="_blank" rel="noopener noreferrer">Docker health check documentation</a> and
+<a href="https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/" target="_blank" rel="noopener noreferrer">Kubernetes probes documentation</a>.
