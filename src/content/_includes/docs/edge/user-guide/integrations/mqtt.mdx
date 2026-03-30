@@ -1,0 +1,452 @@
+---
+---
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import ImageGallery from '@components/ImageGallery.astro';
+
+**MQTT Integration** connects ThingsBoard Edge to an external MQTT broker as an MQTT client. It subscribes to topics, converts incoming payloads into telemetry and attribute updates, and can send downlink messages back to devices via the same broker.
+
+```plaintext
+  External MQTT broker
+  ┌──────────────────────────────────────┐
+  │  topic: sensors/SN-001/temperature  │
+  └───────────────┬──────────────────────┘
+                  │ subscribe (uplink)
+                  ▼
+  ┌──────────────────────────────────────┐
+  │  ThingsBoard Edge MQTT Integration  │
+  │  ┌─────────────────────────────┐    │
+  │  │  Uplink converter           │    │
+  │  │  payload → telemetry/attrs  │    │
+  │  └─────────────────────────────┘    │
+  │  ┌─────────────────────────────┐    │
+  │  │  Downlink converter         │    │
+  │  │  RPC / attr update → topic  │    │
+  │  └─────────────────────────────┘    │
+  └──────────────────────────────────────┘
+                  │ publish (downlink)
+                  ▼
+  ┌──────────────────────────────────────┐
+  │  topic: sensors/SN-001/rx           │
+  └──────────────────────────────────────┘
+```
+
+<Aside type="note">
+  The MQTT broker must either be co-located with the ThingsBoard Edge instance or be reachable from it via a valid DNS name or static IP address.
+</Aside>
+
+## Prerequisites
+
+- A <a href="https://thingsboard.cloud" target="_blank" rel="noopener noreferrer">ThingsBoard Professional Edition</a> (Cloud) account or a self-hosted ThingsBoard PE server — used to create integration templates.
+- A locally installed ThingsBoard PE Edge instance.
+- An accessible MQTT broker. This guide uses `broker.hivemq.com` on port 1883.
+- `mosquitto_pub` and `mosquitto_sub` MQTT clients installed locally.
+- A sensor device **SN-001** that:
+  - publishes temperature readings to `tb-edge/mqtt-integration-tutorial/sensors/SN-001/temperature` as `{"value":25.1}`
+  - subscribes to `tb-edge/mqtt-integration-tutorial/sensors/SN-001/rx` to receive RPC commands.
+
+## Create converter and integration templates
+
+Integration and converter templates are created on the Cloud (ThingsBoard PE server) and assigned to Edge instances.
+
+<Steps>
+
+1. In the Cloud, go to **Edge management > Integration templates** and click **+**. Select **MQTT** as the type, name it **Edge MQTT Integration**, then click **Next**.
+
+   <Aside type="note">
+     Enable **Debug mode** during initial setup to inspect incoming and outgoing messages in the **Events** tab. Disable it in production to reduce overhead.
+   </Aside>
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/add-mqtt-integration-template-1-edge.png',
+       alt: 'Create MQTT Integration template — type selection and name',
+       caption: 'Select MQTT type and name the integration template.',
+     },
+   ]} />
+
+2. Create the **Uplink converter**. The uplink converter decodes the raw MQTT payload into ThingsBoard telemetry and attributes. The device name is extracted from the MQTT topic (segment index 3).
+
+   <Tabs>
+     <TabItem label="TBEL (recommended)">
+       ```js
+       /** Decoder **/
+
+       // decode payload to string
+       var payloadStr = decodeToString(payload);
+       var data = JSON.parse(payloadStr);
+
+       var deviceName = metadata.topic.split("/")[3];
+       var deviceType = 'sensor';
+
+       // Result object with device attributes/telemetry data
+       var result = {
+           deviceName: deviceName,
+           deviceType: deviceType,
+           attributes: {
+               integrationName: metadata['integrationName'],
+           },
+           telemetry: {
+               temperature: data.value,
+           }
+       };
+
+       /** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
+
+       return result;
+       ```
+     </TabItem>
+     <TabItem label="JavaScript">
+       ```js
+       /** Decoder **/
+
+       // decode payload to string
+       var payloadStr = decodeToString(payload);
+       var data = JSON.parse(payloadStr);
+
+       var deviceName = metadata.topic.split("/")[3];
+       var deviceType = 'sensor';
+
+       // Result object with device attributes/telemetry data
+       var result = {
+           deviceName: deviceName,
+           deviceType: deviceType,
+           attributes: {
+               integrationName: metadata['integrationName'],
+           },
+           telemetry: {
+               temperature: data.value,
+           }
+       };
+
+       /** Helper functions **/
+
+       function decodeToString(payload) {
+           return String.fromCharCode.apply(String, payload);
+       }
+
+       function decodeToJson(payload) {
+           var str = decodeToString(payload);
+           return JSON.parse(str);
+       }
+
+       return result;
+       ```
+     </TabItem>
+   </Tabs>
+
+   Select **Create new**, paste the script into the Decoder function field, and click **Next**.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/add-mqtt-integration-template-2-edge.png',
+       alt: 'Uplink converter — TBEL decoder',
+       caption: 'Uplink converter with TBEL decoder.',
+     },
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/add-mqtt-integration-template-2-java-edge.png',
+       alt: 'Uplink converter — JavaScript decoder',
+       caption: 'Uplink converter with JavaScript decoder.',
+     },
+   ]} />
+
+3. Create the **Downlink converter**. The downlink converter encodes outbound messages (e.g. attribute updates) into the MQTT payload and sets the target topic using the device name from metadata.
+
+   <Tabs>
+     <TabItem label="TBEL (recommended)">
+       ```js
+       /** Encoder **/
+
+       // Result object with encoded downlink payload
+       var result = {
+           // downlink data content type: JSON, TEXT or BINARY (base64 format)
+           contentType: "JSON",
+
+           // downlink data
+           data: JSON.stringify(msg),
+
+           // Optional metadata object presented in key/value format
+           metadata: {
+               topic: 'tb-edge/mqtt-integration-tutorial/sensors/' + metadata['originatorName'] + '/rx'
+           }
+       };
+
+       return result;
+       ```
+     </TabItem>
+     <TabItem label="JavaScript">
+       ```js
+       /** Encoder **/
+
+       // Result object with encoded downlink payload
+       var result = {
+           // downlink data content type: JSON, TEXT or BINARY (base64 format)
+           contentType: "JSON",
+
+           // downlink data
+           data: JSON.stringify(msg),
+
+           // Optional metadata object presented in key/value format
+           metadata: {
+               topic: 'tb-edge/mqtt-integration-tutorial/sensors/' + metadata['originatorName'] + '/rx'
+           }
+       };
+
+       return result;
+       ```
+     </TabItem>
+   </Tabs>
+
+   Select **Create new**, paste the script into the Encoder function field, and click **Next**.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/add-mqtt-integration-template-3-edge.png',
+       alt: 'Downlink converter — TBEL encoder',
+       caption: 'Downlink converter with TBEL encoder.',
+     },
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/add-mqtt-integration-template-3-java-edge.png',
+       alt: 'Downlink converter — JavaScript encoder',
+       caption: 'Downlink converter with JavaScript encoder.',
+     },
+   ]} />
+
+4. On the **Connection** page, configure the broker connection:
+
+   - Set **Host** to `${{brokerIp}}` — this placeholder will be replaced by the `brokerIp` attribute value on each Edge instance.
+   - Set **Port** to `1883`.
+   - Add a **topic filter**: `tb-edge/mqtt-integration-tutorial/sensors/+/temperature`
+   - Set the **QoS** level as needed (default is 0 — at most once).
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/add-mqtt-integration-template-4-edge.png',
+       alt: 'Connection page — Host set to ${{brokerIp}} placeholder, port 1883, topic filter',
+       caption: 'Use ${{brokerIp}} as the Host placeholder. It is replaced at assignment time by the Edge attribute value.',
+     },
+   ]} />
+
+5. Open **Advanced settings**:
+
+   - Uncheck **Clean session** — many brokers silently close connections when this option is enabled.
+   - Leave **Downlink topic pattern** at the default so the integration uses `metadata.topic` as the downlink topic.
+
+   Click **Add** to save the integration template.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/add-mqtt-integration-template-5-edge.png',
+       alt: 'Advanced settings — Clean session unchecked',
+       caption: 'Uncheck Clean session in Advanced settings, then click Add.',
+     },
+   ]} />
+
+</Steps>
+
+## Modify Edge Root Rule Chain for downlinks
+
+To send downlink messages from the Rule Engine to the MQTT integration, add two rule nodes to the Edge Root Rule Chain: **originator fields** and **integration downlink**.
+
+<Aside type="note">
+  Starting with Edge version 4.0, Rule Chains can be created and edited directly on the Edge. On earlier versions, Rule Chains must be configured as templates in the Cloud and then assigned to the Edge.
+</Aside>
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/downlink-rule-mqtt-1-edge.png',
+    alt: 'Open Edge Root Rule Chain in Rule chain templates',
+    caption: 'Go to Edge management > Rule chain templates and open the Edge Root Rule Chain.',
+  },
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/downlink-rule-mqtt-2-edge.png',
+    alt: 'Add originator fields node — configured to add originator name and type to metadata',
+    caption: 'Add an "originator fields" node. Configure it to add originator name and type to the message metadata — the downlink converter uses the device name to set the correct MQTT topic.',
+  },
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/downlink-rule-mqtt-3-edge.png',
+    alt: 'Add integration downlink node pointing to the MQTT integration',
+    caption: 'Add an "integration downlink" node and select your MQTT integration in the settings.',
+  },
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/downlink-rule-mqtt-4-edge.png',
+    alt: 'Link message type switch → originator fields → integration downlink via Attributes Updated and Post attributes',
+    caption: 'Connect "Attributes Updated" and "Post attributes" outputs of the message type switch node to the originator fields node. Connect the "Success" output of originator fields to the integration downlink node. Apply changes.',
+  },
+]} />
+
+## Assign integration to Edge
+
+Before assigning the integration template, add the `brokerIp` attribute to the Edge instance. This provides the value for the `${{brokerIp}}` placeholder used in the integration configuration.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/assign-mqtt-integration-1-edge.png',
+    alt: 'Open Edge instance Attributes tab',
+    caption: 'Go to Edge management > Instances, open your Edge, and navigate to the Attributes tab. Click + to add a new server attribute.',
+  },
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/assign-mqtt-integration-2-edge.png',
+    alt: 'Add brokerIp attribute with value broker.hivemq.com',
+    caption: 'Enter "brokerIp" as the attribute name and "broker.hivemq.com" as the value. Click Add.',
+  },
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/assign-mqtt-integration-3-edge.png',
+    alt: 'brokerIp server attribute added to the Edge',
+    caption: 'The brokerIp server attribute is now set on the Edge.',
+  },
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/assign-mqtt-integration-4-edge.png',
+    alt: 'Click Manage edge integrations button',
+    caption: 'Click the "Manage edge integrations" button on the Edge instance.',
+  },
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/assign-mqtt-integration-5-edge.png',
+    alt: 'Assign the MQTT integration template to the Edge',
+    caption: 'Click +, select the MQTT integration from the drop-down, and click Assign.',
+  },
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/assign-mqtt-integration-6-edge.png',
+    alt: 'MQTT integration visible on Edge under Integration center',
+    caption: 'Log in to your Edge instance, go to Integration center > Integrations, and click the integration.',
+  },
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/assign-mqtt-integration-7-edge.png',
+    alt: 'Integration details showing ${{brokerIp}} resolved to the attribute value',
+    caption: 'In Integration details, the ${{brokerIp}} placeholder is replaced with the attribute value.',
+  },
+]} />
+
+## Send uplink message
+
+<Steps>
+
+1. Send a test uplink message using `mosquitto_pub`. This simulates a device publishing a temperature reading:
+
+   ```bash
+   mosquitto_pub -h broker.hivemq.com -p 1883 \
+     -t "tb-edge/mqtt-integration-tutorial/sensors/SN-001/temperature" \
+     -m '{"value":25.2}'
+   ```
+
+2. On the Edge, go to **Integration center > Integrations** and open the **Events** tab on your MQTT integration. A message with status **OK** should appear. Click the three dots in the **Message** column to inspect the payload.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/send-mqtt-uplink-1-edge.png',
+       alt: 'Integration Events tab showing uplink message with status OK',
+       caption: 'The uplink message appears with status OK. Click the three dots to inspect it.',
+     },
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/send-mqtt-uplink-2-edge.png',
+       alt: 'Uplink message payload details',
+       caption: 'Uplink message payload.',
+     },
+   ]} />
+
+3. A new device is created automatically. Go to **Entities > Devices** on the Edge to see it.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/create-mqtt-device-1-edge.png',
+       alt: 'Newly created device SN-001 in Entities > Devices on the Edge',
+       caption: 'The device created by the uplink message, visible on the Edge.',
+     },
+   ]} />
+
+4. To inspect how the Uplink Converter processed the message, go to **Integration center > Data converters**, open the uplink converter, and select the **Events** tab.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/converter-events-mqtt-1-edge.png',
+       alt: 'Uplink converter Events tab',
+       caption: 'Open the uplink converter and select the Events tab.',
+     },
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/converter-events-mqtt-2-edge.png',
+       alt: 'Converter In message — raw MQTT payload',
+       caption: 'Click the three dots in the In column to see the raw incoming payload.',
+     },
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/converter-events-mqtt-3-edge.png',
+       alt: 'Converter Out message — processed telemetry',
+       caption: 'Click the three dots in the Out column to see the processed output.',
+     },
+   ]} />
+
+</Steps>
+
+## Send downlink message
+
+<Steps>
+
+1. In a terminal, subscribe to the device's RX topic. Keep this window open — incoming downlink messages will appear here.
+
+   ```bash
+   mosquitto_sub -h broker.hivemq.com -p 1883 \
+     -t "tb-edge/mqtt-integration-tutorial/sensors/+/rx"
+   ```
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/terminal-running-in-background.png',
+       alt: 'mosquitto_sub running in terminal, waiting for downlink messages',
+       caption: 'Keep the subscriber terminal open to receive downlink messages.',
+     },
+   ]} />
+
+2. On the Edge, go to **Entities > Devices**, select device **SN-001**, and open the **Attributes** tab. Under **Shared attributes**, click **+** and add a new attribute — for example, key `firmware`, value `v1.0`. Save.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/add-mqtt-shared-attribute-1-edge.png',
+       alt: 'Adding a shared attribute to device SN-001 on the Edge',
+       caption: 'Add a shared attribute (e.g. firmware: v1.0) to the device. This triggers a downlink.',
+     },
+   ]} />
+
+3. The subscriber terminal should receive the downlink message.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/incoming-message-in-terminal.png',
+       alt: 'Terminal showing the incoming downlink message from ThingsBoard Edge',
+       caption: 'The downlink message sent by ThingsBoard Edge appears in the terminal.',
+     },
+   ]} />
+
+4. Verify the downlink was sent by opening the integration's **Events** tab.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/downlink-message-mqtt-1-edge.png',
+       alt: 'Integration Events tab showing the downlink message',
+       caption: 'A downlink event is recorded when the attribute update is propagated to the integration.',
+     },
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/downlink-message-mqtt-2-edge.png',
+       alt: 'Downlink message payload details',
+       caption: 'Downlink message payload.',
+     },
+   ]} />
+
+5. Inspect the downlink in the Downlink Converter. Go to **Integration center > Data converters**, open the downlink converter, and select the **Events** tab.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/downlink-mqtt-converter-message-1-edge.png',
+       alt: 'Downlink converter Events tab',
+       caption: 'Open the downlink converter and select the Events tab.',
+     },
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/downlink-mqtt-converter-message-2-edge.png',
+       alt: 'Downlink converter In message — raw message from integration',
+       caption: 'Click the three dots in the In column to see the message received by the converter.',
+     },
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/mqtt/downlink-mqtt-converter-message-3-edge.png',
+       alt: 'Downlink converter Out message — encoded message sent to device',
+       caption: 'Click the three dots in the Out column to see the encoded message sent to the device.',
+     },
+   ]} />
+
+</Steps>

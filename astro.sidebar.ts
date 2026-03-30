@@ -213,7 +213,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 		label: 'Releases',
 		collapsed: true,
 		items: [
-			{ label: 'Release Policy', slug: `${prefix.replace('/user-guide', '/releases')}/release-policy` },
+			{ label: 'Release policy', slug: `${prefix.replace('/user-guide', '/releases')}/release-policy` },
 			{ label: 'Release Table', slug: `${prefix.replace('/user-guide', '/releases')}/releases-table` },
 			`${prefix.replace('/user-guide', '/releases')}/roadmap`,
 		],
@@ -1616,6 +1616,7 @@ export const edgeSidebar: SidebarConfig = [
 					'docs/edge/user-guide/provision-customers-and-users',
 					'docs/edge/user-guide/ota-updates',
 					'docs/edge/user-guide/dashboards',
+					'docs/edge/user-guide/edge-public-dashboard',
 				],
 			},
 			{
@@ -1665,7 +1666,10 @@ export const edgeSidebar: SidebarConfig = [
 			{
 				label: 'Sending Data',
 				collapsed: true,
-				items: ['docs/edge/recipes/send-telemetry-mqtt'],
+				items: [
+					'docs/edge/recipes/send-telemetry-mqtt',
+					'docs/edge/recipes/data-filtering-traffic-reduce',
+				],
 			},
 			{
 				label: 'Cloud Sync',
@@ -1675,7 +1679,7 @@ export const edgeSidebar: SidebarConfig = [
 			{
 				label: 'Data Processing',
 				collapsed: true,
-				items: ['docs/edge/recipes/edge-alarm-rule', 'docs/edge/recipes/alarm-rule-tutorials'],
+				items: ['docs/edge/recipes/edge-alarm-rule', 'docs/edge/recipes/alarm-rule-tutorials', 'docs/edge/recipes/manage-alarms-rpc-requests'],
 			},
 			{
 				label: 'Operations',
@@ -1699,12 +1703,18 @@ export const edgeSidebar: SidebarConfig = [
 				label: 'Device APIs',
 				collapsed: true,
 				items: [
+					'docs/edge/reference/apis-and-sdks/overview',
 					'docs/edge/reference/apis-and-sdks/mqtt-api',
 					'docs/edge/reference/apis-and-sdks/coap-api',
 					'docs/edge/reference/apis-and-sdks/http-api',
 					'docs/edge/reference/apis-and-sdks/lwm2m-api',
 					'docs/edge/reference/apis-and-sdks/snmp-api',
 				],
+			},
+			{
+				label: 'Gateway APIs',
+				collapsed: true,
+				items: ['docs/edge/reference/apis-and-sdks/gateway-mqtt-api'],
 			},
 			{
 				label: 'Device SDKs',
@@ -1776,6 +1786,13 @@ export const edgeSidebar: SidebarConfig = [
 				items: [
 					'docs/edge/reference/configuration/how-to-change-config',
 					'docs/edge/reference/configuration/transport-config',
+					'docs/edge/reference/configuration/cloud-config',
+					'docs/edge/reference/configuration/server-config',
+					'docs/edge/reference/configuration/security-config',
+					'docs/edge/reference/configuration/database-config',
+					'docs/edge/reference/configuration/cache-config',
+					'docs/edge/reference/configuration/rule-engine-config',
+					'docs/edge/reference/configuration/notifications-config',
 				],
 			},
 			{
@@ -2021,6 +2038,17 @@ export const edgePeSidebar: SidebarConfig = [
 				],
 			},
 			{
+				label: 'Integrations',
+				collapsed: true,
+				items: [
+					{ label: 'Overview', slug: 'docs/edge/pe/user-guide/integrations/overview' },
+					{ label: 'HTTP', slug: 'docs/edge/pe/user-guide/integrations/http' },
+					{ label: 'CoAP', slug: 'docs/edge/pe/user-guide/integrations/coap' },
+					{ label: 'MQTT', slug: 'docs/edge/pe/user-guide/integrations/mqtt' },
+					{ label: 'OPC-UA', slug: 'docs/edge/pe/user-guide/integrations/opc-ua' },
+				],
+			},
+			{
 				label: 'Troubleshooting',
 				collapsed: true,
 				items: [
@@ -2048,7 +2076,10 @@ export const edgePeSidebar: SidebarConfig = [
 			{
 				label: 'Sending Data',
 				collapsed: true,
-				items: ['docs/edge/pe/recipes/send-telemetry-mqtt'],
+				items: [
+					'docs/edge/pe/recipes/send-telemetry-mqtt',
+					'docs/edge/pe/recipes/data-filtering-traffic-reduce',
+				],
 			},
 			{
 				label: 'Cloud Sync',
@@ -2058,7 +2089,7 @@ export const edgePeSidebar: SidebarConfig = [
 			{
 				label: 'Data Processing',
 				collapsed: true,
-				items: ['docs/edge/pe/recipes/edge-alarm-rule', 'docs/edge/pe/recipes/alarm-rule-tutorials'],
+				items: ['docs/edge/pe/recipes/edge-alarm-rule', 'docs/edge/pe/recipes/alarm-rule-tutorials', 'docs/edge/pe/recipes/manage-alarms-rpc-requests'],
 			},
 			{
 				label: 'Operations',
@@ -2070,14 +2101,30 @@ export const edgePeSidebar: SidebarConfig = [
 	{
 		label: 'APIs & SDKs',
 		items: [
-			{ label: 'Overview', slug: 'docs/edge/pe/reference/apis-and-sdks' },
 			{
-				label: 'Server-side REST Clients',
+				label: 'Edge API',
 				collapsed: true,
 				items: [
-					'docs/edge/pe/reference/java-rest-client',
-					'docs/edge/pe/reference/python-rest-client',
+					'docs/edge/pe/reference/apis-and-sdks/edge-controller',
+					'docs/edge/pe/reference/apis-and-sdks/edge-event-controller',
 				],
+			},
+			{
+				label: 'Device APIs',
+				collapsed: true,
+				items: [
+					'docs/edge/pe/reference/apis-and-sdks/overview',
+					'docs/edge/pe/reference/apis-and-sdks/mqtt-api',
+					'docs/edge/pe/reference/apis-and-sdks/coap-api',
+					'docs/edge/pe/reference/apis-and-sdks/http-api',
+					'docs/edge/pe/reference/apis-and-sdks/lwm2m-api',
+					'docs/edge/pe/reference/apis-and-sdks/snmp-api',
+				],
+			},
+			{
+				label: 'Gateway APIs',
+				collapsed: true,
+				items: ['docs/edge/pe/reference/apis-and-sdks/gateway-mqtt-api'],
 			},
 			{
 				label: 'Device SDKs',
@@ -2087,6 +2134,42 @@ export const edgePeSidebar: SidebarConfig = [
 					'docs/edge/pe/reference/apis-and-sdks/micropython-client-sdk',
 					'docs/edge/pe/reference/apis-and-sdks/circuitpython-client-sdk',
 					'docs/edge/pe/reference/apis-and-sdks/arduino-client-sdk',
+				],
+			},
+			{
+				label: 'Edge-to-Cloud',
+				collapsed: true,
+				items: [
+					'docs/edge/pe/reference/apis-and-sdks/edge-to-cloud/grpc-protocol',
+					'docs/edge/pe/reference/apis-and-sdks/edge-to-cloud/connection-management',
+				],
+			},
+			{
+				label: 'Server-side APIs',
+				collapsed: true,
+				items: [
+					'docs/edge/pe/reference/rest-api',
+					'docs/edge/pe/reference/rest-api/controller-reference',
+					'docs/edge/pe/reference/websocket-api',
+					'docs/edge/pe/reference/data-query-api',
+					'docs/edge/pe/reference/alarm-query-api',
+				],
+			},
+			{
+				label: 'Server-side REST Clients',
+				collapsed: true,
+				items: [
+					'docs/edge/pe/reference/java-rest-client',
+					'docs/edge/pe/reference/python-rest-client',
+				],
+			},
+			{
+				label: 'MCP Server',
+				collapsed: true,
+				items: [
+					'docs/edge/pe/reference/apis-and-sdks/mcp-server/getting-started',
+					'docs/edge/pe/reference/apis-and-sdks/mcp-server/tools',
+					'docs/edge/pe/reference/apis-and-sdks/mcp-server/configuration',
 				],
 			},
 		],
@@ -2113,6 +2196,13 @@ export const edgePeSidebar: SidebarConfig = [
 				items: [
 					'docs/edge/pe/reference/configuration/how-to-change-config',
 					'docs/edge/pe/reference/configuration/transport-config',
+					'docs/edge/pe/reference/configuration/cloud-config',
+					'docs/edge/pe/reference/configuration/server-config',
+					'docs/edge/pe/reference/configuration/security-config',
+					'docs/edge/pe/reference/configuration/database-config',
+					'docs/edge/pe/reference/configuration/cache-config',
+					'docs/edge/pe/reference/configuration/rule-engine-config',
+					'docs/edge/pe/reference/configuration/notifications-config',
 				],
 			},
 			{

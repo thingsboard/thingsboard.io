@@ -1,0 +1,484 @@
+---
+---
+import DocLink from '@components/DocLink.astro';
+import DocImage from '@components/DocImage.astro';
+import ImageGallery from '@components/ImageGallery.astro';
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Products } from '~/models/site.models';
+
+CoAP Integration streams data from CoAP-enabled devices into ThingsBoard Edge and converts device payloads into ThingsBoard telemetry.
+
+<Aside type="note">
+  Edge CoAP Integration works the same way as the standard CoAP Integration — the only difference is how it is created and deployed. Before proceeding, review the <DocLink product={Products.CE} path="user-guide/integrations/coap" target="_blank">CoAP Integration</DocLink> documentation.
+</Aside>
+
+<DocImage src="/src/assets/images/user-guide/integrations/coap-integration.svg" alt="CoAP integration data flow: CoAP device sends data to ThingsBoard Edge, which forwards it to ThingsBoard Server" width="700px" />
+
+## Prerequisites
+
+This guide covers the **NO SECURE** security mode. To simulate a CoAP device, install the `coap-client` utility:
+
+```bash
+sudo apt update
+sudo apt install libcoap2-bin
+```
+
+Verify the installation:
+
+```bash
+coap-client --version
+```
+
+The examples use a sensor **SN-001** that publishes temperature and humidity to the CoAP integration at `coap://10.7.3.0` (the Edge IP address on the local network). Replace this with the actual IP of your Edge instance.
+
+The device supports three payload formats:
+
+<Tabs>
+  <TabItem label="Text">
+    ```text
+    SN-001,default,temperature,25.7,humidity,69
+    ```
+  </TabItem>
+  <TabItem label="JSON">
+    ```json
+    {
+      "deviceName": "SN-001",
+      "deviceType": "default",
+      "temperature": 25.7,
+      "humidity": 69
+    }
+    ```
+  </TabItem>
+  <TabItem label="Binary">
+    ```text
+    \x53\x4e\x2d\x30\x30\x31\x64\x65\x66\x61\x75\x6c\x74\x32\x35\x2e\x37\x36\x39
+    ```
+    Byte breakdown:
+    - Bytes 0–5 (`\x53\x4e\x2d\x30\x30\x31`): device name — **SN-001**
+    - Bytes 6–12 (`\x64\x65\x66\x61\x75\x6c\x74`): device type — **default**
+    - Bytes 13–16 (`\x32\x35\x2e\x37`): temperature — **25.7**
+    - Bytes 17–18 (`\x36\x39`): humidity — **69**
+  </TabItem>
+</Tabs>
+
+<Aside type="note">
+  Choose the payload format based on your device's capabilities and intended use case.
+</Aside>
+
+## Create converter and integration templates
+
+Integration and Converter templates are created in the Cloud (ThingsBoard PE server) and then assigned to Edge instances.
+
+<Steps>
+
+1. In the Cloud, go to **Edge management > Integration templates** and click **+**. Select **CoAP** as the integration type, enter a name, enable **Debug** mode, and click **Next**.
+
+   <Aside type="note">
+     Enable **Debug mode** during initial setup to inspect messages in the **Events** tab. Disable it in production — debug data is persisted to the database and significantly increases storage requirements.
+   </Aside>
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/coap/add-coap-integration-template-1.webp',
+       alt: 'Integration templates section — click + to add a new integration',
+       caption: 'Go to Edge management > Integration templates and click + to add a new integration.',
+     },
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/coap/add-coap-integration-template-2.webp',
+       alt: 'Basic settings — select CoAP type, enter name, enable Debug mode',
+       caption: 'Select CoAP as the Integration type, enter the name, enable Debug mode, then click Next.',
+     },
+   ]} />
+
+2. Create the **Uplink converter**. The decoder function parses the device payload into ThingsBoard telemetry. Select the tab matching your device's payload format:
+
+   <Tabs>
+     <TabItem label="Text payload">
+       ```js
+       /** Decoder **/
+
+       // decode payload to string
+       var strArray = decodeToString(payload);
+       var payloadArray = strArray.replaceAll("\"", "").split(',');
+
+       var telemetryPayload = {};
+       for (var i = 2; i < payloadArray.length; i = i + 2) {
+           var telemetryKey = payloadArray[i];
+           var telemetryValue = parseFloat(payloadArray[i + 1]);
+           telemetryPayload[telemetryKey] = telemetryValue;
+       }
+
+       // Result object with device attributes/telemetry data
+       var result = {
+           deviceName: payloadArray[0],
+           deviceType: payloadArray[1],
+           telemetry: telemetryPayload,
+           attributes: {}
+       };
+
+       /** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
+
+       return result;
+       ```
+
+       <ImageGallery images={[
+         {
+           src: '/src/assets/images/docs/edge/user-guide/integrations/coap/add-uplink-text-payload.webp',
+           alt: 'Uplink converter with text payload TBEL decoder',
+           caption: 'Select "Create new", enter a converter name, paste the script, and click Next.',
+         },
+       ]} />
+     </TabItem>
+     <TabItem label="JSON payload">
+       ```js
+       /** Decoder **/
+
+       // decode payload to JSON
+       var data = decodeToJson(payload);
+
+       var deviceName = data.deviceName;
+       var deviceType = data.deviceType;
+       var result = {
+           deviceName: deviceName,
+           deviceType: deviceType,
+           attributes: {},
+           telemetry: {
+               temperature: data.temperature,
+               humidity: data.humidity
+           }
+       };
+
+       /** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
+
+       return result;
+       ```
+
+       <ImageGallery images={[
+         {
+           src: '/src/assets/images/docs/edge/user-guide/integrations/coap/add-uplink-json-payload.webp',
+           alt: 'Uplink converter with JSON payload TBEL decoder',
+           caption: 'Select "Create new", enter a converter name, paste the script, and click Next.',
+         },
+       ]} />
+     </TabItem>
+     <TabItem label="Binary payload">
+       ```js
+       /** Decoder **/
+
+       // decode payload to string
+       var payloadStr = decodeToString(payload);
+
+       var deviceName = payloadStr.substring(0, 6);
+       var deviceType = payloadStr.substring(6, 13);
+
+       // Result object with device/asset attributes/telemetry data
+       var result = {
+           deviceName: deviceName,
+           deviceType: deviceType,
+           attributes: {},
+           telemetry: {
+               temperature: parseFloat(payloadStr.substring(13, 17)),
+               humidity: parseFloat(payloadStr.substring(17, 19))
+           }
+       };
+
+       /** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
+
+       return result;
+       ```
+
+       <ImageGallery images={[
+         {
+           src: '/src/assets/images/docs/edge/user-guide/integrations/coap/add-uplink-binary-payload.webp',
+           alt: 'Uplink converter with binary payload TBEL decoder',
+           caption: 'Select "Create new", enter a converter name, paste the script, and click Next.',
+         },
+       ]} />
+     </TabItem>
+   </Tabs>
+
+3. On the **Connection** step, enter the IP address and CoAP binding port of your Edge instance as the **Base URL** in `host:port` format.
+
+   To reuse this template across multiple Edge instances with different addresses, use the placeholder `${{edgeIp}}` instead of a hardcoded value. The placeholder is replaced at assignment time by the `edgeIp` attribute value set on each Edge instance.
+
+   Click **Add** to save the integration template.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/coap/add-coap-integration-connection.webp',
+       alt: 'Connection step — Base URL with ${{edgeIp}} placeholder',
+       caption: 'Enter the Edge IP:port or the ${{edgeIp}} placeholder as the Base URL. Click Add.',
+     },
+   ]} />
+
+</Steps>
+
+## Add attribute to Edge
+
+Since the `${{edgeIp}}` placeholder is used in the integration configuration, add the `edgeIp` server attribute to the Edge instance before assigning the integration. Set its value to the Edge IP address and CoAP binding port (e.g. `10.7.3.0:15683`).
+
+<Steps>
+
+1. Go to **Edge management > Instances**, click the Edge instance to open its details, and select the **Attributes** tab. Click **+** to add a new server attribute.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/coap/assign-coap-integration-1-edge.webp',
+       alt: 'Edge Attributes tab — click + to add a server attribute',
+       caption: 'Open the Edge instance, go to the Attributes tab, and click + to add a server attribute.',
+     },
+   ]} />
+
+2. Enter `edgeIp` as the attribute name and the Edge IP address with CoAP port as the value (e.g. `10.7.3.0:15683`). Click **Add**.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/coap/assign-coap-integration-2-edge.webp',
+       alt: 'Add edgeIp attribute — name and IP:port value',
+       caption: 'Enter "edgeIp" as the name and your Edge IP:CoAP-port as the value.',
+     },
+   ]} />
+
+3. Confirm the `edgeIp` server attribute is listed on the Edge.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/coap/assign-coap-integration-3-edge.webp',
+       alt: 'edgeIp attribute confirmed on the Edge',
+       caption: 'The edgeIp attribute is now set on the Edge.',
+     },
+   ]} />
+
+</Steps>
+
+## Assign integration to Edge
+
+<Steps>
+
+1. Click the **Manage edge integrations** button on the Edge instance.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/coap/assign-coap-integration-4-edge.webp',
+       alt: 'Edge instance — click Manage edge integrations',
+       caption: 'Click the "Manage edge integrations" button on the Edge instance.',
+     },
+   ]} />
+
+2. Click **+**, select the CoAP integration from the list, and click **Assign**.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/coap/assign-coap-integration-5-edge.webp',
+       alt: 'Assign CoAP integration to Edge',
+       caption: 'Click +, select the CoAP integration, and click Assign.',
+     },
+   ]} />
+
+3. Log in to your ThingsBoard Edge instance. Go to **Integration center > Integrations** and click the CoAP integration to open its details.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/coap/assign-coap-integration-6-edge.webp',
+       alt: 'CoAP integration visible on the Edge under Integration center',
+       caption: 'The CoAP integration is now available on the Edge.',
+     },
+   ]} />
+
+4. In the integration details, the `${{edgeIp}}` placeholder is replaced with the Edge attribute value.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/coap/assign-coap-integration-7-edge.webp',
+       alt: 'Integration details — edgeIp placeholder resolved to attribute value',
+       caption: 'The ${{edgeIp}} placeholder is replaced with the actual IP:port value.',
+     },
+   ]} />
+
+</Steps>
+
+## Send uplink message
+
+Once the CoAP integration is assigned, the Edge CoAP server registers its resources and waits for device data.
+
+On the Edge, go to **Integration center > Integrations**, click the CoAP integration, and copy the **CoAP endpoint URL**. Use it in the commands below.
+
+<Tabs>
+  <TabItem label="Text payload">
+    <Steps>
+
+    1. Send the uplink message. Replace `$YOUR_COAP_ENDPOINT_URL` with the copied endpoint URL:
+
+       ```shell
+       echo -e 'SN-001,default,temperature,25.7,humidity,69' | coap-client -m post $YOUR_COAP_ENDPOINT_URL -t text/plain -f-
+       ```
+
+       <ImageGallery images={[
+         {
+           src: '/src/assets/images/docs/edge/user-guide/integrations/coap/terminal-coap-text-payload-1-edge.webp',
+           alt: 'Terminal output after sending the text payload via coap-client',
+           caption: 'Terminal output after sending the text payload.',
+         },
+       ]} />
+
+    2. On the Edge, go to **Integration center > Integrations**, open the CoAP integration, and select the **Events** tab. The uplink message should appear with status **OK**.
+
+       <ImageGallery images={[
+         {
+           src: '/src/assets/images/docs/edge/user-guide/integrations/coap/integration-events-coap-1-edge.webp',
+           alt: 'Integration Events tab showing uplink message with status OK',
+           caption: 'The uplink message appears in the Events tab with status OK.',
+         },
+       ]} />
+
+    3. A new device is created automatically. Go to **Entities > Devices**, open **SN-001**, and select the **Latest telemetry** tab to see the received data.
+
+       <ImageGallery images={[
+         {
+           src: '/src/assets/images/docs/edge/user-guide/integrations/coap/device-coap-1-edge.webp',
+           alt: 'Device SN-001 showing temperature and humidity telemetry',
+           caption: 'The device is created automatically and telemetry is visible.',
+         },
+       ]} />
+
+    4. To see how the converter processed the message, go to **Integration center > Data converters**, open the Uplink converter, and select the **Events** tab.
+
+       <ImageGallery images={[
+         {
+           src: '/src/assets/images/docs/edge/user-guide/integrations/coap/converter-events-coap-1-edge.webp',
+           alt: 'Uplink converter Events tab',
+           caption: 'Open the Uplink converter and go to the Events tab.',
+         },
+         {
+           src: '/src/assets/images/docs/edge/user-guide/integrations/coap/converter-events-coap-2-edge.webp',
+           alt: 'Converter In — raw incoming text payload',
+           caption: 'Click the three dots in the In column to see the raw incoming payload.',
+         },
+         {
+           src: '/src/assets/images/docs/edge/user-guide/integrations/coap/converter-events-coap-3-edge.png.webp',
+           alt: 'Converter Out — processed telemetry output',
+           caption: 'Click the three dots in the Out column to see the processed output.',
+         },
+       ]} />
+
+    </Steps>
+  </TabItem>
+  <TabItem label="JSON payload">
+    <Steps>
+
+    1. Send the uplink message. Replace `$YOUR_COAP_ENDPOINT_URL` with the copied endpoint URL:
+
+       ```shell
+       echo -e -n '{"deviceName": "SN-001", "deviceType": "default", "temperature": 25.7, "humidity": 69}' | coap-client -m post $YOUR_COAP_ENDPOINT_URL -t application/json -f-
+       ```
+
+       <ImageGallery images={[
+         {
+           src: '/src/assets/images/docs/edge/user-guide/integrations/coap/terminal-coap-json-payload-1-edge.webp',
+           alt: 'Terminal output after sending the JSON payload via coap-client',
+           caption: 'Terminal output after sending the JSON payload.',
+         },
+       ]} />
+
+    2. On the Edge, go to **Integration center > Integrations**, open the CoAP integration, and select the **Events** tab. The uplink message should appear with status **OK**.
+
+       <ImageGallery images={[
+         {
+           src: '/src/assets/images/docs/edge/user-guide/integrations/coap/integration-events-coap-1-edge.webp',
+           alt: 'Integration Events tab showing uplink message with status OK',
+           caption: 'The uplink message appears in the Events tab with status OK.',
+         },
+       ]} />
+
+    3. A new device is created automatically. Go to **Entities > Devices**, open **SN-001**, and select the **Latest telemetry** tab to see the received data.
+
+       <ImageGallery images={[
+         {
+           src: '/src/assets/images/docs/edge/user-guide/integrations/coap/device-coap-1-edge.webp',
+           alt: 'Device SN-001 showing temperature and humidity telemetry',
+           caption: 'The device is created automatically and telemetry is visible.',
+         },
+       ]} />
+
+    4. To see how the converter processed the message, go to **Integration center > Data converters**, open the Uplink converter, and select the **Events** tab.
+
+       <ImageGallery images={[
+         {
+           src: '/src/assets/images/docs/edge/user-guide/integrations/coap/converter-events-coap-1-edge.webp',
+           alt: 'Uplink converter Events tab',
+           caption: 'Open the Uplink converter and go to the Events tab.',
+         },
+         {
+           src: '/src/assets/images/docs/edge/user-guide/integrations/coap/converter-events-coap-2-edge.webp',
+           alt: 'Converter In — raw incoming JSON payload',
+           caption: 'Click the three dots in the In column to see the raw incoming payload.',
+         },
+         {
+           src: '/src/assets/images/docs/edge/user-guide/integrations/coap/converter-events-coap-3-edge.png.webp',
+           alt: 'Converter Out — processed telemetry output',
+           caption: 'Click the three dots in the Out column to see the processed output.',
+         },
+       ]} />
+
+    </Steps>
+  </TabItem>
+  <TabItem label="Binary payload">
+    <Steps>
+
+    1. Send the uplink message. Replace `$YOUR_COAP_ENDPOINT_URL` with the copied endpoint URL:
+
+       ```shell
+       echo -e -n '\x53\x4e\x2d\x30\x30\x31\x64\x65\x66\x61\x75\x6c\x74\x32\x35\x2e\x37\x36\x39' | coap-client -m post $YOUR_COAP_ENDPOINT_URL -t application/octet-stream -f-
+       ```
+
+       <ImageGallery images={[
+         {
+           src: '/src/assets/images/docs/edge/user-guide/integrations/coap/terminal-coap-binary-payload-1-edge.webp',
+           alt: 'Terminal output after sending the binary payload via coap-client',
+           caption: 'Terminal output after sending the binary payload.',
+         },
+       ]} />
+
+    2. On the Edge, go to **Integration center > Integrations**, open the CoAP integration, and select the **Events** tab. The uplink message should appear with status **OK**.
+
+       <ImageGallery images={[
+         {
+           src: '/src/assets/images/docs/edge/user-guide/integrations/coap/integration-events-coap-1-edge.webp',
+           alt: 'Integration Events tab showing uplink message with status OK',
+           caption: 'The uplink message appears in the Events tab with status OK.',
+         },
+       ]} />
+
+    3. A new device is created automatically. Go to **Entities > Devices**, open **SN-001**, and select the **Latest telemetry** tab to see the received data.
+
+       <ImageGallery images={[
+         {
+           src: '/src/assets/images/docs/edge/user-guide/integrations/coap/device-coap-1-edge.webp',
+           alt: 'Device SN-001 showing temperature and humidity telemetry',
+           caption: 'The device is created automatically and telemetry is visible.',
+         },
+       ]} />
+
+    4. To see how the converter processed the message, go to **Integration center > Data converters**, open the Uplink converter, and select the **Events** tab.
+
+       <ImageGallery images={[
+         {
+           src: '/src/assets/images/docs/edge/user-guide/integrations/coap/converter-events-coap-1-edge.webp',
+           alt: 'Uplink converter Events tab',
+           caption: 'Open the Uplink converter and go to the Events tab.',
+         },
+         {
+           src: '/src/assets/images/docs/edge/user-guide/integrations/coap/converter-events-coap-2-edge.webp',
+           alt: 'Converter In — raw incoming binary payload',
+           caption: 'Click the three dots in the In column to see the raw incoming payload.',
+         },
+         {
+           src: '/src/assets/images/docs/edge/user-guide/integrations/coap/converter-events-coap-3-edge.png.webp',
+           alt: 'Converter Out — processed telemetry output',
+           caption: 'Click the three dots in the Out column to see the processed output.',
+         },
+       ]} />
+
+    </Steps>
+  </TabItem>
+</Tabs>

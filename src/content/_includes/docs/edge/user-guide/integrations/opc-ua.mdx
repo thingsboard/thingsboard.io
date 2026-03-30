@@ -1,0 +1,490 @@
+---
+---
+import { Steps, Aside } from '@astrojs/starlight/components';
+import ImageGallery from '@components/ImageGallery.astro';
+
+**OPC-UA Integration** streams data from an OPC UA server to ThingsBoard Edge, converting device payloads into telemetry and attributes. It also supports downlink — sending RPC commands from ThingsBoard Edge back to OPC UA nodes.
+
+```plaintext
+  OPC UA Server (e.g. UA C++ Demo Server)
+  ┌──────────────────────────────────────┐
+  │  AirConditioner_1                    │
+  │   temperature, humidity,             │
+  │   powerConsumption, state            │
+  └───────────────┬──────────────────────┘
+                  │ subscribe (scan period)
+                  ▼
+  ┌──────────────────────────────────────┐
+  │  ThingsBoard Edge OPC-UA Integration │
+  │  ┌─────────────────────────────┐     │
+  │  │  Uplink converter           │     │
+  │  │  node data → telemetry/attrs│     │
+  │  └─────────────────────────────┘     │
+  │  ┌─────────────────────────────┐     │
+  │  │  Downlink converter         │     │
+  │  │  RPC → writeValues/         │     │
+  │  │        callMethods          │     │
+  │  └─────────────────────────────┘     │
+  └──────────────────────────────────────┘
+                  │ write / call method
+                  ▼
+  ┌──────────────────────────────────────┐
+  │  OPC UA Node (e.g. Start / Stop)     │
+  └──────────────────────────────────────┘
+```
+
+This guide walks through integrating ThingsBoard Edge PE with the <a href="https://www.unified-automation.com/downloads/opc-ua-servers.html" target="_blank" rel="noopener noreferrer">OPC UA C++ Demo Server</a> to visualize air conditioner telemetry and control units via RPC.
+
+## Prerequisites
+
+- Download and install the <a href="https://www.unified-automation.com/downloads/opc-ua-servers.html" target="_blank" rel="noopener noreferrer">OPC UA C++ Demo Server</a> (Windows only).
+- After installation, launch the **UA Admin Dialog** and verify the hostname/IP address and port are configured correctly — you will need these when setting up the integration.
+
+  <ImageGallery images={[
+    {
+      src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/opc-ua-server-config.png',
+      alt: 'UA Admin Dialog showing OPC UA server hostname and port configuration',
+      caption: 'Configure the OPC UA server hostname and port in UA Admin Dialog.',
+    },
+  ]} />
+
+- Launch **UaCPPServer**. A console window will show the server endpoint URLs.
+
+  <ImageGallery images={[
+    {
+      src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/opc-ua-server-config-2.png',
+      alt: 'UaCPPServer console showing endpoint URLs',
+      caption: 'UaCPPServer console with endpoint URLs.',
+    },
+  ]} />
+
+## Create converter templates
+
+Converter and integration templates are created on the **Cloud** (ThingsBoard PE server). Log in as a Tenant administrator.
+
+### Uplink converter
+
+The uplink converter parses the OPC UA node payload and maps it to ThingsBoard telemetry and attributes. For each scanned node, the integration sends a payload and metadata like this:
+
+**Payload:**
+```json
+{
+    "temperature": "72.15819999999641"
+}
+```
+
+**Metadata:**
+```json
+{
+    "opcUaNode_namespaceIndex": "3",
+    "opcUaNode_name": "AirConditioner_1",
+    "integrationName": "OPC-UA Airconditioners",
+    "opcUaNode_identifier": "AirConditioner_1",
+    "opcUaNode_fqn": "Objects.BuildingAutomation.AirConditioner_1"
+}
+```
+
+The converter takes `opcUaNode_name` as the device name and maps `temperature`, `humidity`, `powerConsumption`, and `state` to telemetry and attributes.
+
+<Steps>
+
+1. Go to **Integration templates > Converter templates** and click **+**, then **Create new converter**. Enable **Debug** mode to inspect events.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/add-converter-step-1.webp',
+       alt: 'Create new uplink converter in Converter templates',
+       caption: 'Click + and select Create new converter.',
+     },
+   ]} />
+
+2. Paste the following script into the **Decoder function** field and save:
+
+   ```js
+   /** Decoder **/
+
+   var data = decodeToJson(payload);
+   var deviceName = metadata['opcUaNode_name'];
+   var namespaceIndex = metadata['opcUaNode_namespaceIndex'];
+   var deviceType = 'airconditioner';
+
+   var result = {
+      deviceName: deviceName,
+      deviceType: deviceType,
+      telemetry: {},
+      attributes: {
+          namespaceIndex: namespaceIndex
+      }
+   };
+
+   if (data.temperature != null) {
+       result.telemetry.temperature = toFixed(data.temperature, 2);
+   }
+
+   if (data.humidity != null) {
+      result.telemetry.humidity = toFixed(data.humidity, 2);
+   }
+
+   if (data.powerConsumption != null) {
+      result.telemetry.powerConsumption = toFixed(data.powerConsumption, 2);
+   }
+
+   if (data.state != null) {
+      result.attributes.state = data.state == '1' ? true : false;
+   }
+
+   /** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
+
+   return result;
+   ```
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/add-converter-step-2.webp',
+       alt: 'Uplink converter with decoder function pasted',
+       caption: 'Paste the decoder script and save the converter.',
+     },
+   ]} />
+
+</Steps>
+
+To edit the converter later, open it from the **Converter templates** page, click the **pencil** icon, update the decoder, and click the **checkmark** to save.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/modify-converter-step-1.webp',
+    alt: 'Open converter details and click edit',
+    caption: 'Open the converter and click the pencil icon to edit.',
+  },
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/modify-converter-step-2.webp',
+    alt: 'Edit decoder function and save',
+    caption: 'Update the decoder function and click the checkmark to save.',
+  },
+]} />
+
+### Downlink converter
+
+The downlink converter transforms RPC commands from ThingsBoard Edge into OPC UA write values or call methods. The output must have this structure:
+
+```json
+[{
+  "contentType": "JSON",
+  "data": "{\"writeValues\":[],\"callMethods\":[{\"objectId\":\"ns=3;s=AirConditioner_1\",\"methodId\":\"ns=3;s=AirConditioner_1.Stop\",\"args\":[]}]}",
+  "metadata": {}
+}]
+```
+
+| Field | Description |
+|---|---|
+| `contentType` | Encoding: `JSON`, `TEXT`, or `BINARY`. OPC-UA uses `JSON`. |
+| `data.writeValues` | Array of OPC UA write operations — each has `nodeId` (`ns=<idx>;<type>=<id>`) and `value`. |
+| `data.callMethods` | Array of OPC UA method calls — each has `objectId`, `methodId`, and `args`. |
+| `metadata` | Not used by OPC-UA integration; leave empty. |
+
+<Steps>
+
+1. Create another converter on the **Converter templates** page. Enable **Debug** mode.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/add-downlink-step-1.webp',
+       alt: 'Create new downlink converter',
+       caption: 'Click + and create a new downlink converter.',
+     },
+   ]} />
+
+2. Paste the following script into the **Encoder function** field and save:
+
+   ```js
+   /** Encoder **/
+
+   var data = {
+       writeValues: [],
+       callMethods: []
+   };
+
+   if (msgType === 'RPC_CALL_FROM_SERVER_TO_DEVICE') {
+       if (msg.method === 'setState') {
+           var targetMethod = msg.params === 'true' ? 'Start' : 'Stop';
+           var writeValue = {
+               nodeId: 'ns=' + metadata['cs_namespaceIndex'] + ';s=' + metadata['deviceName'],
+               value: msg.params
+           };
+           data.writeValues.push(writeValue);
+           var callMethod = {
+               objectId: 'ns=' + metadata['cs_namespaceIndex'] + ';s=' + metadata['deviceName'],
+               methodId: 'ns=' + metadata['cs_namespaceIndex'] + ';s=' + metadata['deviceName'] + '.' + targetMethod,
+               args: []
+           };
+           data.callMethods.push(callMethod);
+       }
+   }
+
+   var result = {
+       contentType: "JSON",
+       data: JSON.stringify(data),
+       metadata: {}
+   };
+
+   return result;
+   ```
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/add-downlink-step-2.webp',
+       alt: 'Downlink converter with encoder function pasted',
+       caption: 'Paste the encoder script and save the converter.',
+     },
+   ]} />
+
+</Steps>
+
+## Create integration template
+
+<Steps>
+
+1. Go to **Edge management > Integration templates** and click **+**. Select **OPC-UA**, name it **OPC-UA air conditioners**, enable **Debug** mode, and attach the uplink and downlink converters created above.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/add-integration-template-step-0.webp',
+       alt: 'Integration templates page — click Add',
+       caption: 'Go to Integration templates and click +.',
+     },
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/add-integration-template-step-1.webp',
+       alt: 'Select OPC-UA type and attach converters',
+       caption: 'Select OPC-UA, name the integration, and attach the converters.',
+     },
+   ]} />
+
+2. Fill in the connection and mapping fields:
+
+   | Field | Value |
+   |---|---|
+   | Application name | *(leave empty)* |
+   | Application URI | *(leave empty)* |
+   | Host | `${{endpointHost}}` |
+   | Port | Your OPC UA server endpoint port |
+   | Scan period (seconds) | `10` |
+   | Timeout (milliseconds) | `5000` |
+   | Security | `None` |
+   | Identity | `Anonymous` |
+   | Mapping type | `Fully Qualified Name` |
+   | Device node pattern | `Objects\.BuildingAutomation\.AirConditioner_\d+$` |
+
+   The device node pattern is a regular expression that matches node FQNs to device names. `Objects\.BuildingAutomation\.AirConditioner_\d+$` matches nodes `AirConditioner_1` through `AirConditioner_N`.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/add-integration-template-step-2.webp',
+       alt: 'Integration connection settings — Host, Port, Security, Identity',
+       caption: 'Set Host to ${{endpointHost}}, port, and security settings.',
+     },
+   ]} />
+
+3. Add the following **Subscription tags** (node paths to subscribe to, with their key names in the output):
+
+   | Path | Key |
+   |---|---|
+   | `state` | `State` |
+   | `temperature` | `Temperature` |
+   | `humidity` | `Humidity` |
+   | `powerConsumption` | `PowerConsumption` |
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/add-integration-template-step-3.webp',
+       alt: 'Subscription tags — state, temperature, humidity, powerConsumption',
+       caption: 'Add subscription tags for the four node attributes.',
+     },
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/add-integration-template-step-4.webp',
+       alt: 'Integration template configuration complete',
+       caption: 'Review the configuration.',
+     },
+   ]} />
+
+4. Click **Add** to save the integration template.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/add-integration-template-step-5.webp',
+       alt: 'Integration template saved successfully',
+       caption: 'The OPC-UA integration template is created.',
+     },
+   ]} />
+
+</Steps>
+
+## Modify Edge Root Rule Chain for downlinks
+
+To send RPC commands from ThingsBoard Edge to OPC UA nodes, add two rule nodes to the Edge Root Rule Chain.
+
+<Aside type="note">
+  Starting with Edge version 4.0, Rule Chains can be created and edited directly on the Edge. On earlier versions, Rule Chains must be configured as templates in the Cloud and then assigned to the Edge.
+</Aside>
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/downlink-rule-step-1.webp',
+    alt: 'Open Edge Root Rule Chain in Rule chain templates',
+    caption: 'Go to Edge management > Rule chain templates and open the Edge Root Rule Chain.',
+  },
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/downlink-rule-step-2.webp',
+    alt: 'Add originator fields node — adds device name and type to metadata',
+    caption: 'Add an "originator fields" node configured to add originator name and type to metadata. The downlink converter uses the device name to determine the target OPC UA node.',
+  },
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/downlink-rule-step-3.webp',
+    alt: 'Add integration downlink node and link RPC Request to Device → originator fields → integration downlink',
+    caption: 'Add an "integration downlink" node. Link "RPC Request to Device" → originator fields → integration downlink. Apply changes.',
+  },
+]} />
+
+## Air conditioners dashboard
+
+To visualize air conditioner data and test RPC commands, import the air conditioners dashboard and assign it to the Edge.
+
+<Steps>
+
+1. Download the <a href="/docs/pe/edge/user-guide/resources/airconditioners_dashboard.json" target="_blank" rel="noopener noreferrer">airconditioners_dashboard.json</a> file.
+
+2. In the Cloud, go to **Dashboards**, open the **Groups** tab, and create a new group named **Air conditioner**.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/airconditioners-dashboard-step-1.webp',
+       alt: 'Create Air conditioner dashboard group',
+       caption: 'Go to Dashboards > Groups and create the Air conditioner group.',
+     },
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/airconditioners-dashboard-step-2.webp',
+       alt: 'Open the newly created Air conditioner group',
+       caption: 'Open the Air conditioner group.',
+     },
+   ]} />
+
+3. Click **Import dashboard**, browse to the `airconditioners_dashboard.json` file, and click **Import**.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/airconditioners-dashboard-step-3.webp',
+       alt: 'Import airconditioners_dashboard.json',
+       caption: 'Import the dashboard JSON file.',
+     },
+   ]} />
+
+4. Go to **Edge management > Instances** and click **Manage edge dashboard groups**. Assign the **Air conditioner** group to the Edge.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/airconditioners-dashboard-step-4.webp',
+       alt: 'Click Manage edge dashboard groups on the Edge instance',
+       caption: 'Click the Manage edge dashboard groups button on the Edge instance.',
+     },
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/airconditioners-dashboard-step-5.webp',
+       alt: 'Assign the Air conditioner dashboard group to the Edge',
+       caption: 'Click Assign to edge and select the Air conditioner group.',
+     },
+   ]} />
+
+</Steps>
+
+## Assign integration to Edge
+
+Before assigning, add the `endpointHost` attribute to the Edge instance to provide the value for the `${{endpointHost}}` placeholder.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/assign-integration-step-1.webp',
+    alt: 'Add endpointHost attribute to Edge with OPC UA server IP',
+    caption: 'Add the endpointHost attribute to the Edge and set it to the OPC UA server hostname or IP address.',
+  },
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/assign-integration-step-2.webp',
+    alt: 'Click Manage Integrations on the Edge',
+    caption: 'Click the Manage Integrations button on the Edge entity.',
+  },
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/assign-integration-step-3.webp',
+    alt: 'Assign the OPC-UA integration template to the Edge',
+    caption: 'Assign the OPC-UA integration template to the Edge.',
+  },
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/assign-integration-step-4.webp',
+    alt: 'Integration on Edge with ${{endpointHost}} resolved to attribute value',
+    caption: 'Log in to your Edge instance. The ${{endpointHost}} placeholder is replaced with the attribute value.',
+  },
+]} />
+
+## Validation
+
+After the integration starts on the Edge and connects to the OPC UA server, data flows automatically.
+
+<Steps>
+
+1. Go to **Entities > Device groups**. The **Air conditioners** group appears with all 10 devices.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/device.png',
+       alt: 'Air conditioners device group with 10 devices',
+       caption: 'The Air conditioners device group showing all 10 units.',
+     },
+   ]} />
+
+2. Open any device and select the **Latest Telemetry** tab to see live readings.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/device-telemetry.png',
+       alt: 'Device latest telemetry — temperature, humidity, powerConsumption updating live',
+       caption: 'Telemetry values update continuously as data is read from the OPC UA server.',
+     },
+   ]} />
+
+3. Open the **Air conditioners** dashboard on the Edge to see all units at a glance.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/airconditioners-dashboard-on-edge-step-1.png',
+       alt: 'Air conditioners dashboard on Edge',
+       caption: 'The Air conditioners dashboard showing live telemetry from all 10 units.',
+     },
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/airconditioners-dashboard-on-edge-step-2.png',
+       alt: 'Air conditioners dashboard detail view',
+       caption: 'Dashboard detail view.',
+     },
+   ]} />
+
+4. Click **Details** on any unit to open the Air conditioner details page.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/airconditioners-details.png',
+       alt: 'Air conditioner details page with status and controls',
+       caption: 'The details page shows the current state and the On/Off switch.',
+     },
+   ]} />
+
+5. Click the **On/Off Round switch** to send a downlink RPC command. The unit turns off — the status light turns gray, temperature and humidity begin to rise, and power consumption stops.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/rpc-downlink-step-1.png',
+       alt: 'Air conditioner On/Off switch in active state',
+       caption: 'Toggle the On/Off switch to send an RPC downlink command.',
+     },
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/opc-ua/rpc-downlink-step-2.png',
+       alt: 'Air conditioner turned off — status gray, temperature rising',
+       caption: 'The unit turns off. Temperature and humidity rise; power consumption stops.',
+     },
+   ]} />
+
+</Steps>

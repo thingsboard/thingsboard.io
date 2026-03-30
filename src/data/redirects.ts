@@ -60,6 +60,40 @@ function buildUpgradeRedirectEntries(newPrefix: string): RedirectEntry[] {
 	return entries;
 }
 
+// Edge upgrade instructions were versioned (v3-3-x … v4-3-x) and are now consolidated
+// into single per-platform pages (no version in the URL).
+const EDGE_UPGRADE_VERSIONS = [
+	'v3-3-x', 'v3-4-x', 'v3-5-x', 'v3-6-x', 'v3-7-x', 'v3-8-x', 'v3-9-x',
+	'v4-0-x', 'v4-1-x', 'v4-2-x', 'v4-3-x',
+];
+const EDGE_UPGRADE_PLATFORMS = ['centos', 'docker', 'ubuntu', 'windows'];
+
+function buildEdgeConsolidatedUpgradeEntries(): RedirectEntry[] {
+	const entries: RedirectEntry[] = [];
+	for (const platform of EDGE_UPGRADE_PLATFORMS) {
+		for (const version of EDGE_UPGRADE_VERSIONS) {
+			entries.push({
+				slug: `upgrade-instructions/${platform}/${version}`,
+				target: `/docs/edge/installation/upgrade-instructions/${platform}/`,
+			});
+		}
+	}
+	return entries;
+}
+
+function buildEdgePeConsolidatedUpgradeEntries(): RedirectEntry[] {
+	const entries: RedirectEntry[] = [];
+	for (const platform of EDGE_UPGRADE_PLATFORMS) {
+		for (const version of EDGE_UPGRADE_VERSIONS) {
+			entries.push({
+				slug: `upgrade-instructions/${platform}/${version}`,
+				target: `/docs/edge/pe/installation/upgrade-instructions/${platform}/`,
+			});
+		}
+	}
+	return entries;
+}
+
 // ---------------------------------------------------------------------------
 // Data
 // ---------------------------------------------------------------------------
@@ -101,6 +135,35 @@ export const CATCH_ALL_REDIRECTS: CatchAllRedirect[] = [
 		oldPrefix: 'pe/user-guide/install/upgrade-instructions',
 		entries: buildUpgradeRedirectEntries('pe/installation/upgrade-instructions'),
 	},
+	{
+		oldPrefix: 'user-guide/install/edge',
+		entries: [
+			{ slug: 'building-from-source', target: '/docs/edge/installation/building-from-source/' },
+			{ slug: 'deb-installation', target: '/docs/edge/installation/ubuntu/' },
+			{ slug: 'docker', target: '/docs/edge/installation/docker/' },
+			{ slug: 'docker-windows', target: '/docs/edge/installation/docker-windows/' },
+			{ slug: 'installation-options', target: '/docs/edge/installation/' },
+			{ slug: 'rhel', target: '/docs/edge/installation/rhel/' },
+			{ slug: 'rpi', target: '/docs/edge/installation/rpi/' },
+			{ slug: 'upgrade-instructions', target: '/docs/edge/installation/upgrade-instructions/' },
+			{ slug: 'windows', target: '/docs/edge/installation/windows/' },
+			...buildEdgeConsolidatedUpgradeEntries(),
+		],
+	},
+	{
+		oldPrefix: 'user-guide/install/pe/edge',
+		entries: [
+			{ slug: 'deb-installation', target: '/docs/edge/pe/installation/ubuntu/' },
+			{ slug: 'docker', target: '/docs/edge/pe/installation/docker/' },
+			{ slug: 'docker-windows', target: '/docs/edge/pe/installation/docker-windows/' },
+			{ slug: 'installation-options', target: '/docs/edge/pe/installation/' },
+			{ slug: 'rhel', target: '/docs/edge/pe/installation/rhel/' },
+			{ slug: 'rpi', target: '/docs/edge/pe/installation/rpi/' },
+			{ slug: 'upgrade-instructions', target: '/docs/edge/pe/installation/upgrade-instructions/' },
+			{ slug: 'windows', target: '/docs/edge/pe/installation/windows/' },
+			...buildEdgePeConsolidatedUpgradeEntries(),
+		],
+	},
 ];
 
 /**
@@ -113,6 +176,97 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'pe/api', target: '/docs/pe/apis-and-sdks/' },
 	{ oldPath: 'paas/api', target: '/docs/paas/apis-and-sdks/' },
 	{ oldPath: 'paas/eu/api', target: '/docs/paas/eu/apis-and-sdks/' },
+	{ oldPath: 'edge/api', target: '/docs/edge/reference/apis-and-sdks/' },
+	{ oldPath: 'pe/edge/api', target: '/docs/pe/edge/reference/apis-and-sdks/' },
+	{ oldPath: 'edge/config/create-device', target: '/docs/edge/user-guide/device-management/' },
+	{ oldPath: 'pe/edge/config/create-device', target: '/docs/pe/edge/user-guide/device-management/' },
+	{ oldPath: 'edge/config/deploying-edge-alongside-iot-gateway', target: '/docs/edge/user-guide/iot-gateway/' },
+	{ oldPath: 'pe/edge/config/deploying-edge-alongside-iot-gateway', target: '/docs/pe/edge/user-guide/iot-gateway/' },
+	{ oldPath: 'edge/config/edge-behind-proxy', target: '/docs/edge/user-guide/edge-proxy/docker/' },
+	{ oldPath: 'pe/edge/config/edge-behind-proxy', target: '/docs/pe/edge/user-guide/edge-proxy/docker/' },
+	{ oldPath: 'edge/config/edge-cluster-setup', target: '/docs/edge/installation/docker-compose-setup/' },
+	{ oldPath: 'pe/edge/config/edge-cluster-setup', target: '/docs/pe/edge/installation/docker-compose-setup/' },
+	{ oldPath: 'edge/config/edge-public-dashboard', target: '/docs/edge/user-guide/edge-public-dashboard/' },
+	{ oldPath: 'pe/edge/config/edge-public-dashboard', target: '/docs/pe/edge/user-guide/edge-public-dashboard/' },
+	{ oldPath: 'edge/config/management', target: '/docs/edge/key-concepts/edge-instance/' },
+	{ oldPath: 'pe/edge/config/management', target: '/docs/pe/edge/key-concepts/edge-instance/' },
+	{ oldPath: 'edge/config/provision-asset', target: '/docs/edge/user-guide/asset-management/' },
+	{ oldPath: 'pe/edge/config/provision-asset', target: '/docs/pe/edge/user-guide/asset-management/' },
+	{ oldPath: 'edge/config/provision-customer', target: '/docs/edge/user-guide/provision-customers-and-users/' },
+	{ oldPath: 'pe/edge/config/provision-customer', target: '/docs/pe/edge/user-guide/provision-customers-and-users/' },
+	{ oldPath: 'edge/config/provision-dashboard', target: '/docs/edge/user-guide/dashboards/' },
+	{ oldPath: 'pe/edge/config/provision-dashboard', target: '/docs/pe/edge/user-guide/dashboards/' },
+	{ oldPath: 'edge/config/provision-device', target: '/docs/edge/user-guide/device-management/' },
+	{ oldPath: 'pe/edge/config/provision-device', target: '/docs/pe/edge/user-guide/device-management/' },
+	{ oldPath: 'edge/config/provision-entity-view', target: '/docs/edge/key-concepts/entities/' },
+	{ oldPath: 'pe/edge/config/provision-entity-view', target: '/docs/pe/edge/key-concepts/entities/' },
+	{ oldPath: 'edge/config/provision-user', target: '/docs/edge/user-guide/provision-customers-and-users/' },
+	{ oldPath: 'pe/edge/config/provision-user', target: '/docs/pe/edge/user-guide/provision-customers-and-users/' },
+	{ oldPath: 'edge/config/subscribe-to-attribute', target: '/docs/edge/user-guide/attribute-sync/' },
+	{ oldPath: 'pe/edge/config/subscribe-to-attribute', target: '/docs/pe/edge/user-guide/attribute-sync/' },
+	{ oldPath: 'edge/edge-architecture', target: '/docs/edge/reference/architecture/' },
+	{ oldPath: 'pe/edge/edge-architecture', target: '/docs/pe/edge/reference/architecture/' },
+	{ oldPath: 'edge/faq', target: '/docs/edge/why-thingsboard-edge/' },
+	{ oldPath: 'pe/edge/faq', target: '/docs/pe/edge/why-thingsboard-edge/' },
+	{ oldPath: 'pe/edge/user-guide/integrations/http', target: '/docs/edge/pe/user-guide/integrations/http/' },
+	{ oldPath: 'edge/getting-started-guides/what-is-edge', target: '/docs/edge/why-thingsboard-edge/' },
+	{ oldPath: 'edge/releases', target: '/docs/edge/releases/releases-table/' },
+	{ oldPath: 'pe/edge/releases', target: '/docs/pe/edge/releases/releases-table/' },
+	{ oldPath: 'edge/reference/coap-api', target: '/docs/edge/reference/apis-and-sdks/coap-api/' },
+	{ oldPath: 'pe/edge/reference/coap-api', target: '/docs/pe/edge/reference/apis-and-sdks/coap-api/' },
+	{ oldPath: 'edge/reference/http-api', target: '/docs/edge/reference/apis-and-sdks/http-api/' },
+	{ oldPath: 'pe/edge/reference/http-api', target: '/docs/pe/edge/reference/apis-and-sdks/http-api/' },
+	{ oldPath: 'edge/reference/mqtt-api', target: '/docs/edge/reference/apis-and-sdks/mqtt-api/' },
+	{ oldPath: 'pe/edge/reference/mqtt-api', target: '/docs/pe/edge/reference/apis-and-sdks/mqtt-api/' },
+	{ oldPath: 'edge/reference/lwm2m-api', target: '/docs/edge/reference/apis-and-sdks/lwm2m-api/' },
+	{ oldPath: 'pe/edge/reference/lwm2m-api', target: '/docs/pe/edge/reference/apis-and-sdks/lwm2m-api/' },
+	{ oldPath: 'edge/reference/snmp-api', target: '/docs/edge/reference/apis-and-sdks/snmp-api/' },
+	{ oldPath: 'pe/edge/reference/snmp-api', target: '/docs/pe/edge/reference/apis-and-sdks/snmp-api/' },
+	{ oldPath: 'edge/reference/gateway-mqtt-api', target: '/docs/edge/reference/apis-and-sdks/gateway-mqtt-api/' },
+	{ oldPath: 'pe/edge/reference/gateway-mqtt-api', target: '/docs/pe/edge/reference/apis-and-sdks/gateway-mqtt-api/' },
+	{ oldPath: 'edge/reference/protocols', target: '/docs/edge/reference/apis-and-sdks/' },
+	{ oldPath: 'pe/edge/reference/protocols', target: '/docs/pe/edge/reference/apis-and-sdks/' },
+	{ oldPath: 'edge/use-cases/overview', target: '/docs/edge/why-thingsboard-edge/' },
+	{ oldPath: 'pe/edge/use-cases/overview', target: '/docs/pe/edge/why-thingsboard-edge/' },
+	{ oldPath: 'edge/use-cases/data-filtering-traffic-reduce', target: '/docs/edge/recipes/data-filtering-traffic-reduce/' },
+	{ oldPath: 'pe/edge/use-cases/data-filtering-traffic-reduce', target: '/docs/pe/edge/recipes/data-filtering-traffic-reduce/' },
+	{ oldPath: 'edge/use-cases/manage-alarms-rpc-requests', target: '/docs/edge/recipes/manage-alarms-rpc-requests/' },
+	{ oldPath: 'pe/edge/use-cases/manage-alarms-rpc-requests', target: '/docs/pe/edge/recipes/manage-alarms-rpc-requests/' },
+	{ oldPath: 'edge/user-guide/alarms', target: '/docs/edge/key-concepts/alarms/' },
+	{ oldPath: 'pe/edge/user-guide/alarms', target: '/docs/pe/edge/key-concepts/alarms/' },
+	{ oldPath: 'edge/user-guide/db-overview', target: '/docs/edge/user-guide/dashboards/' },
+	{ oldPath: 'pe/edge/user-guide/db-overview', target: '/docs/pe/edge/user-guide/dashboards/' },
+	{ oldPath: 'edge/user-guide/edge-attributes', target: '/docs/edge/key-concepts/attributes/' },
+	{ oldPath: 'pe/edge/user-guide/edge-attributes', target: '/docs/pe/edge/key-concepts/attributes/' },
+	{ oldPath: 'edge/user-guide/entities-and-relations', target: '/docs/edge/key-concepts/entities/' },
+	{ oldPath: 'pe/edge/user-guide/entities-and-relations', target: '/docs/pe/edge/key-concepts/entities/' },
+	{ oldPath: 'edge/user-guide/grpc-over-ssl', target: '/docs/edge/user-guide/grpc-ssl/' },
+	{ oldPath: 'pe/edge/user-guide/grpc-over-ssl', target: '/docs/pe/edge/user-guide/grpc-ssl/' },
+	{ oldPath: 'edge/user-guide/install/config', target: '/docs/edge/reference/configuration/server-config/' },
+	{ oldPath: 'pe/edge/user-guide/install/config', target: '/docs/pe/edge/reference/configuration/server-config/' },
+	{ oldPath: 'edge/user-guide/install/how-to-change-config', target: '/docs/edge/reference/configuration/how-to-change-config/' },
+	{ oldPath: 'pe/edge/user-guide/install/how-to-change-config', target: '/docs/pe/edge/reference/configuration/how-to-change-config/' },
+	{ oldPath: 'edge/user-guide/telemetry-sync', target: '/docs/edge/key-concepts/telemetry-synchronization/' },
+	{ oldPath: 'pe/edge/user-guide/telemetry-sync', target: '/docs/pe/edge/key-concepts/telemetry-synchronization/' },
+	{ oldPath: 'edge/user-guide/troubleshooting', target: '/docs/edge/user-guide/logs/' },
+	{ oldPath: 'pe/edge/user-guide/troubleshooting', target: '/docs/pe/edge/user-guide/logs/' },
+	{ oldPath: 'paas/edge/getting-started-guides/what-is-edge', target: '/docs/edge/pe/why-thingsboard-edge/' },
+	{ oldPath: 'edge/reference/mcp-server', target: '/docs/edge/reference/apis-and-sdks/mcp-server/getting-started/' },
+	{ oldPath: 'pe/edge/reference/mcp-server', target: '/docs/pe/edge/reference/apis-and-sdks/mcp-server/getting-started/' },
+	{ oldPath: 'pe/edge/getting-started-guides/what-is-edge', target: '/docs/pe/edge/why-thingsboard-edge/' },
+	{ oldPath: 'edge/getting-started-guides/connectivity', target: '/docs/edge/reference/apis-and-sdks/overview/' },
+	{ oldPath: 'pe/edge/getting-started-guides/connectivity', target: '/docs/pe/edge/reference/apis-and-sdks/overview/' },
+	{ oldPath: 'pe/edge/search', target: '/docs/pe/edge/' },
+	{ oldPath: 'edge/rule-engine/provision-rule-chains', target: '/docs/edge/user-guide/rule-chain-templates/' },
+	{ oldPath: 'pe/edge/rule-engine/provision-rule-chains', target: '/docs/pe/edge/user-guide/rule-chain-templates/' },
+	{ oldPath: 'edge/rule-engine/rule-chain-templates', target: '/docs/edge/user-guide/rule-chain-templates/' },
+	{ oldPath: 'pe/edge/rule-engine/rule-chain-templates', target: '/docs/pe/edge/user-guide/rule-chain-templates/' },
+	{ oldPath: 'edge/rule-engine/queues', target: '/docs/edge/user-guide/queues/' },
+	{ oldPath: 'pe/edge/rule-engine/queues', target: '/docs/pe/edge/user-guide/queues/' },
+	{ oldPath: 'edge/features/cloud-events', target: '/docs/edge/user-guide/telemetry-synchronization/' },
+	{ oldPath: 'pe/edge/features/cloud-events', target: '/docs/pe/edge/user-guide/telemetry-synchronization/' },
+	{ oldPath: 'edge/features/edge-status', target: '/docs/edge/user-guide/edge-status-events/' },
+	{ oldPath: 'pe/edge/features/edge-status', target: '/docs/pe/edge/user-guide/edge-status-events/' },
 	{ oldPath: 'domains', target: '/docs/user-guide/security/domains/' },
 	{ oldPath: 'pe/domains', target: '/docs/pe/user-guide/security/domains/' },
 	{ oldPath: 'paas/domains', target: '/docs/paas/user-guide/security/domains/' },
@@ -197,6 +351,8 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'user-guide/install/pe/docker-windows', target: '/docs/pe/installation/docker-windows/' },
 	{ oldPath: 'user-guide/install/installation-options', target: '/docs/installation/' },
 	{ oldPath: 'user-guide/install/pe/installation-options', target: '/docs/pe/installation/' },
+	{ oldPath: 'user-guide/install/edge/installation-options', target: '/docs/edge/installation/' },
+	{ oldPath: 'user-guide/install/pe/edge/installation-options', target: '/docs/pe/edge/installation/' },
 	{ oldPath: 'user-guide/install/rhel', target: '/docs/installation/rhel/' },
 	{ oldPath: 'user-guide/install/pe/rhel', target: '/docs/pe/installation/rhel/' },
 	{ oldPath: 'user-guide/install/rpi', target: '/docs/installation/rpi/' },

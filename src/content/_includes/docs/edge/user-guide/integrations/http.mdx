@@ -1,0 +1,381 @@
+---
+---
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import ImageGallery from '@components/ImageGallery.astro';
+
+HTTP Integration exposes an HTTP endpoint on the Edge that accepts inbound device data (uplink) and can send commands back to devices (downlink). It is useful when:
+
+- You are streaming device or asset data from an external system or connectivity provider.
+- You have a custom application that posts data over HTTP.
+- You want to connect a device to ThingsBoard Edge using a custom HTTP-based protocol.
+
+## Create converter and integration templates
+
+Integration and Converter templates are created in the Cloud (ThingsBoard PE server) and then assigned to Edge instances.
+
+<Steps>
+
+1. In the Cloud, go to **Edge management > Integration templates** and click the **+** button. Select **HTTP** as the type and name it **Edge HTTP Integration**, then click **Next**.
+
+   <Aside type="note">
+     Enable **Debug mode** during initial setup to inspect incoming and outgoing messages in the **Events** tab. Disable it in production to reduce overhead.
+   </Aside>
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/http/add-http-integration-template-1-edge.png',
+       alt: 'Create HTTP Integration template — type selection and name',
+       caption: 'Select HTTP type and name the integration template.',
+     },
+   ]} />
+
+2. Create the **Uplink converter**. The uplink converter decodes the raw HTTP payload into ThingsBoard telemetry and attributes.
+
+   <Tabs>
+     <TabItem label="TBEL (recommended)">
+       ```js
+       // Decode an uplink message from a buffer
+       // payload - array of bytes
+       // metadata - key/value object
+
+       var data = decodeToJson(payload);
+
+       var deviceName = data.deviceName;
+       var deviceType = data.deviceType;
+
+       var result = {
+          deviceName: deviceName,
+          deviceType: deviceType,
+          attributes: {
+              model: data.model,
+              serialNumber: data.param2,
+          },
+          telemetry: {
+              temperature: data.temperature
+          }
+       };
+
+       // Helper functions 'decodeToString' and 'decodeToJson' are built-in
+       return result;
+       ```
+     </TabItem>
+     <TabItem label="JavaScript">
+       ```js
+       // Decode an uplink message from a buffer
+       // payload - array of bytes
+       // metadata - key/value object
+
+       var data = decodeToJson(payload);
+
+       var deviceName = data.deviceName;
+       var deviceType = data.deviceType;
+
+       var result = {
+          deviceName: deviceName,
+          deviceType: deviceType,
+          attributes: {
+              model: data.model,
+              serialNumber: data.param2,
+          },
+          telemetry: {
+              temperature: data.temperature
+          }
+       };
+
+       function decodeToString(payload) {
+          return String.fromCharCode.apply(String, payload);
+       }
+       function decodeToJson(payload) {
+          var str = decodeToString(payload);
+          return JSON.parse(str);
+       }
+
+       return result;
+       ```
+     </TabItem>
+   </Tabs>
+
+   Select **Create new**, paste the script into the Decoder function field, and click **Next**.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/http/add-http-integration-template-2-edge.png',
+       alt: 'Uplink converter — TBEL decoder',
+       caption: 'Uplink converter with TBEL decoder.',
+     },
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/http/add-http-integration-template-2-java-edge.png',
+       alt: 'Uplink converter — JavaScript decoder',
+       caption: 'Uplink converter with JavaScript decoder.',
+     },
+   ]} />
+
+3. Create the **Downlink converter**. The downlink converter encodes outbound messages (e.g. attribute updates) into the format expected by the device.
+
+   <Tabs>
+     <TabItem label="TBEL (recommended)">
+       ```js
+       // Encode downlink data from incoming Rule Engine message
+       // msg        - JSON message payload
+       // msgType    - e.g. 'ATTRIBUTES_UPDATED', 'POST_TELEMETRY_REQUEST'
+       // metadata   - key/value pairs with message metadata
+       // integrationMetadata - key/value pairs defined in the Integration
+
+       var result = {
+           contentType: "JSON",
+           data: JSON.stringify(msg),
+           metadata: {}
+       };
+
+       return result;
+       ```
+     </TabItem>
+     <TabItem label="JavaScript">
+       ```js
+       // Encode downlink data from incoming Rule Engine message
+       // msg        - JSON message payload
+       // msgType    - e.g. 'ATTRIBUTES_UPDATED', 'POST_TELEMETRY_REQUEST'
+       // metadata   - key/value pairs with message metadata
+       // integrationMetadata - key/value pairs defined in the Integration
+
+       var result = {
+           contentType: "JSON",
+           data: JSON.stringify(msg),
+           metadata: {}
+       };
+
+       return result;
+       ```
+     </TabItem>
+   </Tabs>
+
+   Select **Create new**, paste the script into the Encoder function field, and click **Next**.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/http/add-http-integration-template-3-edge.png',
+       alt: 'Downlink converter — TBEL encoder',
+       caption: 'Downlink converter with TBEL encoder.',
+     },
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/http/add-http-integration-template-3-java-edge.png',
+       alt: 'Downlink converter — JavaScript encoder',
+       caption: 'Downlink converter with JavaScript encoder.',
+     },
+   ]} />
+
+4. On the **Connection** page, set the **Base URL** to the IP address and port of your Edge instance in `host:port` format.
+
+   To reuse this template across multiple Edge instances with different addresses, use the placeholder `${{baseUrl}}` instead of a hardcoded value. The placeholder is replaced at assignment time by the value of the `baseUrl` attribute on each Edge.
+
+   Click **Add** to save the integration template.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/http/add-http-integration-template-4-edge.png',
+       alt: 'Integration Connection page — Base URL set to placeholder ${{baseUrl}}',
+       caption: 'Set Base URL to the placeholder ${{baseUrl}} to allow per-Edge configuration.',
+     },
+   ]} />
+
+</Steps>
+
+## Modify Edge Root Rule Chain for downlinks
+
+To send downlink messages from the Rule Engine to the HTTP integration, add an **integration downlink** node to the Edge Root Rule Chain.
+
+<Aside type="note">
+  Starting with Edge version 4.0, Rule Chains can be created and edited directly on the Edge. On earlier versions, Rule Chains must be configured as templates in the Cloud and then assigned to the Edge.
+</Aside>
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/http/downlink-rule-1-edge.png',
+    alt: 'Open Edge Root Rule Chain in Rule chain templates',
+    caption: 'Go to Edge management > Rule chain templates and open the Edge Root Rule Chain.',
+  },
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/http/downlink-rule-2-edge.png',
+    alt: 'Add integration downlink node pointing to the HTTP integration',
+    caption: 'Add an "integration downlink" node and select your HTTP integration in the settings.',
+  },
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/http/downlink-rule-3-edge.png',
+    alt: 'Link message type switch to integration downlink node via Attributes Updated and Post attributes',
+    caption: 'Connect the "Attributes Updated" and "Post attributes" outputs of the message type switch node to the integration downlink node. Apply changes.',
+  },
+]} />
+
+## Assign integration to Edge
+
+Before assigning the integration template, add the `baseUrl` attribute to the Edge instance. This provides the `${{baseUrl}}` placeholder value used in the integration configuration.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/http/assign-integration-1-edge.png',
+    alt: 'Open Edge instance attributes tab',
+    caption: 'Go to Edge management > Instances, open your Edge, and navigate to the Attributes tab. Click + to add a new server attribute.',
+  },
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/http/assign-integration-2-edge.png',
+    alt: 'Add baseUrl attribute with IP:port value',
+    caption: 'Enter "baseUrl" as the attribute name and your Edge IP:port as the value. Click Add.',
+  },
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/http/assign-integration-3-edge.png',
+    alt: 'baseUrl server attribute added to the Edge',
+    caption: 'The baseUrl server attribute is now set on the Edge.',
+  },
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/http/assign-integration-4-edge.png',
+    alt: 'Click Manage edge integrations button',
+    caption: 'Click the "Manage edge integrations" button on the Edge instance.',
+  },
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/http/assign-integration-5-edge.png',
+    alt: 'Assign the HTTP integration template to the Edge',
+    caption: 'Click +, select the HTTP integration from the drop-down, and click Assign.',
+  },
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/http/assign-integration-6-edge.png',
+    alt: 'HTTP integration visible on Edge under Integration center',
+    caption: 'Log in to your Edge instance, go to Integration center > Integrations, and click the integration.',
+  },
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/http/assign-integration-7-edge.png',
+    alt: 'Integration details showing ${{baseUrl}} resolved to the attribute value',
+    caption: 'In Integration details, the ${{baseUrl}} placeholder is replaced with the attribute value.',
+  },
+]} />
+
+## Send uplink message
+
+<Steps>
+
+1. On the Edge, go to **Integration center > Integrations**, click the HTTP integration, and copy the **HTTP endpoint URL**.
+
+2. Send a test uplink message using `curl`. Replace `$DEVICE_NAME` and `$YOUR_HTTP_ENDPOINT_URL` with actual values:
+
+   ```bash
+   curl -v -X POST \
+     -d '{"deviceName":"$DEVICE_NAME","temperature":33,"model":"test"}' \
+     $YOUR_HTTP_ENDPOINT_URL \
+     -H "Content-Type:application/json"
+   ```
+
+3. Open the **Events** tab on the integration. A message with status **OK** should appear. Click the three dots in the **Message** column to inspect the payload.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/http/send-uplink-1-edge.png',
+       alt: 'HTTP integration Events tab showing the endpoint URL',
+       caption: 'Copy the HTTP endpoint URL from the integration, then send the uplink.',
+     },
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/http/send-uplink-2-edge.png',
+       alt: 'Events tab showing the uplink message with status OK',
+       caption: 'The uplink message appears with status OK. Click the three dots to inspect it.',
+     },
+   ]} />
+
+4. A new device is created automatically. Go to **Entities > Devices** on the Edge to see it.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/http/device-1-edge.png',
+       alt: 'Newly created device in Entities > Devices on the Edge',
+       caption: 'The device created by the uplink message, visible on the Edge.',
+     },
+   ]} />
+
+5. To inspect how the Uplink Converter processed the message, go to **Integration center > Data converters**, open the uplink converter, and select the **Events** tab.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/http/converter-events-1-edge.png',
+       alt: 'Uplink converter Events tab',
+       caption: 'Open the uplink converter and select the Events tab.',
+     },
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/http/converter-events-2-edge.png',
+       alt: 'Converter In message — raw HTTP payload',
+       caption: 'Click the three dots in the In column to see the raw incoming payload.',
+     },
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/http/converter-events-3-edge.png',
+       alt: 'Converter Out message — processed telemetry',
+       caption: 'Click the three dots in the Out column to see the processed output.',
+     },
+   ]} />
+
+</Steps>
+
+## Send downlink message
+
+<Steps>
+
+1. On the Edge, go to **Entities > Devices**, select your device, and open the **Attributes** tab. Under **Shared attributes**, click **+** and add a new attribute — for example, key `firmware`, value `01052020.v1.1`. Save.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/http/add-shared-attribute-1-edge.png',
+       alt: 'Adding a shared attribute to the device on the Edge',
+       caption: 'Add a shared attribute (e.g. firmware) to the device. This triggers a downlink.',
+     },
+   ]} />
+
+2. Verify the downlink was sent to the integration by opening the integration's **Events** tab.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/http/downlink-message-1-edge.png',
+       alt: 'Integration Events tab showing the downlink message',
+       caption: 'A downlink event is recorded when the attribute update is propagated to the integration.',
+     },
+   ]} />
+
+3. Send another uplink message with the same `curl` command to receive the downlink response:
+
+   ```bash
+   curl -v -X POST \
+     -d '{"deviceName":"$DEVICE_NAME","temperature":33,"model":"test"}' \
+     $YOUR_HTTP_ENDPOINT_URL \
+     -H "Content-Type:application/json"
+   ```
+
+   The terminal will show the response returned by ThingsBoard.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/http/downlink-responce-1-edge.png',
+       alt: 'curl command sending the second uplink message',
+       caption: 'Send the uplink again to trigger the downlink response.',
+     },
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/http/downlink-responce-2-edge.png',
+       alt: 'Terminal showing the downlink response from ThingsBoard',
+       caption: 'The terminal shows the response received from ThingsBoard.',
+     },
+   ]} />
+
+4. Inspect the downlink in the Downlink Converter. Go to **Integration center > Data converters**, open the downlink converter, and select the **Events** tab.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/http/downlink-converter-message-1-edge.png',
+       alt: 'Downlink converter Events tab',
+       caption: 'Open the downlink converter and select the Events tab.',
+     },
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/http/downlink-converter-message-2-edge.png',
+       alt: 'Downlink converter In message — raw message from integration',
+       caption: 'Click the three dots in the In column to see the message received by the converter.',
+     },
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/http/downlink-converter-message-3-edge.png',
+       alt: 'Downlink converter Out message — encoded message sent to device',
+       caption: 'Click the three dots in the Out column to see the encoded message sent to the device.',
+     },
+   ]} />
+
+</Steps>
