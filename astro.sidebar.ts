@@ -42,6 +42,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 			`${prefix}/actions`,
 			`${prefix}/scada`,
 			`${prefix}/units`,
+			`${prefix}/advanced-data-key-configuration`,
 		],
 	},
 	{
@@ -1049,6 +1050,7 @@ export const paasSidebar: SidebarConfig = [
 					'docs/paas/user-guide/actions',
 					'docs/paas/user-guide/scada',
 					'docs/paas/user-guide/units',
+					'docs/paas/user-guide/advanced-data-key-configuration',
 				],
 			},
 			{
@@ -1337,6 +1339,7 @@ export const paasEuSidebar: SidebarConfig = [
 					'docs/paas/eu/user-guide/actions',
 					'docs/paas/eu/user-guide/scada',
 					'docs/paas/eu/user-guide/units',
+					'docs/paas/eu/user-guide/advanced-data-key-configuration',
 				],
 			},
 			{
