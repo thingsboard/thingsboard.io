@@ -47,7 +47,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 	{
 		label: 'Customers & Users',
 		collapsed: true,
-		items: [`${prefix}/multi-tenancy`, `${prefix}/customers`, `${prefix}/users`, `${prefix}/roles`, ...(isPE ? [`${prefix}/groups`] : [])],
+		items: [`${prefix}/multi-tenancy`, `${prefix}/customers`, `${prefix}/users`, `${prefix}/roles`, ...(isPE ? [`${prefix}/groups`] : []), `${prefix}/tenant-profiles`],
 	},
 	{
 		label: 'Alarms & Notifications',
