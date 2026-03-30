@@ -42,12 +42,13 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 			`${prefix}/actions`,
 			`${prefix}/scada`,
 			`${prefix}/units`,
+			`${prefix}/advanced-data-key-configuration`,
 		],
 	},
 	{
 		label: 'Customers & Users',
 		collapsed: true,
-		items: [`${prefix}/multi-tenancy`, `${prefix}/customers`, `${prefix}/users`, `${prefix}/roles`, ...(isPE ? [`${prefix}/groups`] : [])],
+		items: [`${prefix}/multi-tenancy`, `${prefix}/customers`, `${prefix}/users`, `${prefix}/roles`, ...(isPE ? [`${prefix}/groups`] : []), `${prefix}/tenant-profiles`],
 	},
 	{
 		label: 'Alarms & Notifications',
@@ -1049,6 +1050,7 @@ export const paasSidebar: SidebarConfig = [
 					'docs/paas/user-guide/actions',
 					'docs/paas/user-guide/scada',
 					'docs/paas/user-guide/units',
+					'docs/paas/user-guide/advanced-data-key-configuration',
 				],
 			},
 			{
@@ -1337,6 +1339,7 @@ export const paasEuSidebar: SidebarConfig = [
 					'docs/paas/eu/user-guide/actions',
 					'docs/paas/eu/user-guide/scada',
 					'docs/paas/eu/user-guide/units',
+					'docs/paas/eu/user-guide/advanced-data-key-configuration',
 				],
 			},
 			{
@@ -2485,6 +2488,7 @@ const tbmqGuideItems = (prefix: string): SidebarConfig => {
 							{ label: 'OAuth 2.0', slug: `${prefix}/security/oauth-2-support` },
 							{ label: 'Domains', slug: `${prefix}/security/domains` },
 							{ label: 'Role-based access control', slug: `${prefix}/security/rbac` },
+							{ label: 'Audit logs', slug: `${prefix}/security/audit-log` },
 						]
 					: []),
 			],
@@ -2596,16 +2600,20 @@ const tbmqInstallItems = (prefix: string): SidebarConfig => {
 			{ label: 'GCP', slug: `${prefix}/install/cluster/gcp-cluster-setup` },
 		],
 	},
-	{
-		label: 'Helm',
-		collapsed: true,
-		items: [
-			{ label: 'Minikube', slug: `${prefix}/install/cluster/helm-cluster-setup-minikube` },
-			{ label: 'AWS EKS', slug: `${prefix}/install/cluster/helm-cluster-setup-aws` },
-			{ label: 'Azure AKS', slug: `${prefix}/install/cluster/helm-cluster-setup-azure` },
-			{ label: 'GCP GKE', slug: `${prefix}/install/cluster/helm-cluster-setup-gcp` },
-		],
-	},
+	...(!isPE
+		? [
+				{
+					label: 'Helm',
+					collapsed: true,
+					items: [
+						{ label: 'Minikube', slug: `${prefix}/install/cluster/helm-cluster-setup-minikube` },
+						{ label: 'AWS EKS', slug: `${prefix}/install/cluster/helm-cluster-setup-aws` },
+						{ label: 'Azure AKS', slug: `${prefix}/install/cluster/helm-cluster-setup-azure` },
+						{ label: 'GCP GKE', slug: `${prefix}/install/cluster/helm-cluster-setup-gcp` },
+					],
+				},
+			]
+		: []),
 	{ label: 'Upgrade instructions', slug: `${prefix}/install/upgrade-instructions` },
 	];
 };
