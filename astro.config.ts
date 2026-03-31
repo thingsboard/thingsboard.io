@@ -29,7 +29,7 @@ export default defineConfig({
 		resolve: {
 			alias: {
 				'@starlight/icons': fileURLToPath(
-					new URL('./node_modules/@astrojs/starlight/components/Icons.ts', import.meta.url)
+					new URL('./node_modules/@astrojs/starlight/components-internals/Icons.ts', import.meta.url)
 				),
 				'@starlight/rehype-tabs': fileURLToPath(
 					new URL(

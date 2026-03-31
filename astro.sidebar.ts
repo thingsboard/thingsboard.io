@@ -330,9 +330,14 @@ const installationItems = (prefix: string) => {
 
 const recipeItems = (prefix: string) => [
 	{
-		label: 'Sending Data',
+		label: 'Processing Data',
 		collapsed: true,
-		items: [`${prefix}/python-telemetry`],
+		items: [`${prefix}/python-telemetry`, `${prefix}/telemetry-delta-two-devices`],
+	},
+	{
+		label: 'Validating Data',
+		collapsed: true,
+		items: [`${prefix}/validate-incoming-telemetry`],
 	},
 	{
 		label: 'Storage & Retention',
@@ -342,7 +347,7 @@ const recipeItems = (prefix: string) => [
 	{
 		label: 'Alarms',
 		collapsed: true,
-		items: [`${prefix}/alarm-rule-tutorials`],
+		items: [`${prefix}/alarm-rule-tutorials`, `${prefix}/create-clear-alarms`, `${prefix}/telemetry-delta-calculation`, `${prefix}/send-email-alarm`],
 	},
 	{
 		label: 'Real-time Data',
