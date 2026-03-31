@@ -43,18 +43,6 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 			`${prefix}/scada`,
 			`${prefix}/units`,
 			`${prefix}/advanced-data-key-configuration`,
-			{
-				label: 'Build your dashboard',
-				collapsed: true,
-				items: [
-					{ label: 'Overview', slug: `${prefix}/advanced-guides-for-working-with-dashboard` },
-					{ label: 'Lesson 1. Maps & Entity Tables', slug: `${prefix}/advanced-guides-for-working-with-dashboard/1` },
-					{ label: 'Lesson 2. Dashboard States & Navigation', slug: `${prefix}/advanced-guides-for-working-with-dashboard/2` },
-					{ label: 'Lesson 3. Device States & Telemetry', slug: `${prefix}/advanced-guides-for-working-with-dashboard/3` },
-					{ label: 'Lesson 4. Alarm Management', slug: `${prefix}/advanced-guides-for-working-with-dashboard/4` },
-					{ label: 'Lesson 5. Sharing with Customers', slug: `${prefix}/advanced-guides-for-working-with-dashboard/5` },
-				],
-			},
 		],
 	},
 	{
