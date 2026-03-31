@@ -2049,6 +2049,25 @@ export const edgePeSidebar: SidebarConfig = [
 					{ label: 'CoAP', slug: 'docs/edge/pe/user-guide/integrations/coap' },
 					{ label: 'MQTT', slug: 'docs/edge/pe/user-guide/integrations/mqtt' },
 					{ label: 'OPC-UA', slug: 'docs/edge/pe/user-guide/integrations/opc-ua' },
+					{ label: 'TCP', slug: 'docs/edge/pe/user-guide/integrations/tcp' },
+					{ label: 'UDP', slug: 'docs/edge/pe/user-guide/integrations/udp' },
+					{ label: 'ChirpStack', slug: 'docs/edge/pe/user-guide/integrations/chirpstack' },
+					{ label: 'Remote Integrations', slug: 'docs/edge/pe/user-guide/integrations/remote-integrations' },
+				],
+			},
+			{
+				label: 'White-labeling',
+				collapsed: true,
+				items: [
+					{ label: 'Overview', slug: 'docs/edge/pe/user-guide/white-labeling' },
+				],
+			},
+			{
+				label: 'Scheduler',
+				collapsed: true,
+				items: [
+					{ label: 'Overview', slug: 'docs/edge/pe/user-guide/scheduler' },
+					{ label: 'Scheduler vs Rule Chain', slug: 'docs/edge/pe/user-guide/scheduler-vs-rule-chain' },
 				],
 			},
 			{

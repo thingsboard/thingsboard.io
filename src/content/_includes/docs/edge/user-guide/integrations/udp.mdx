@@ -1,0 +1,601 @@
+---
+---
+import { Steps, Aside, Tabs, TabItem, Code } from '@astrojs/starlight/components';
+import ImageGallery from '@components/ImageGallery.astro';
+import DocImage from '@components/DocImage.astro';
+import { PE_FULL_VER } from '~/data/versions';
+
+**UDP Integration** streams data from devices that use a UDP transport protocol to ThingsBoard Edge, converting payloads into telemetry and attributes. It also supports downlink — sending messages back to devices over the same UDP socket.
+
+<Aside type="caution">
+  UDP Integration can only run as a **Remote Integration**. It must be started on the same machine as the ThingsBoard Edge instance, or on a separate machine that can reach ThingsBoard Edge over the network.
+</Aside>
+
+<DocImage src="/src/assets/images/user-guide/integrations/udp/udp-integration.svg" alt="UDP Integration diagram" width="100%" />
+
+## Prerequisites
+
+In this tutorial we will use:
+
+- A ThingsBoard PE Edge instance.
+- The **UDP Integration** running as a remote service on port **11560**.
+- The `echo` command and `netcat` (`nc`) utility to simulate a device sending data.
+
+The example device **SN-001** publishes temperature and humidity readings to UDP Integration on port **11560**. Depending on your device capabilities, you can use one of four payload formats:
+
+<Tabs>
+  <TabItem label="Text">
+    ```text
+    SN-001,default,temperature,25.7,humidity,69
+    ```
+  </TabItem>
+  <TabItem label="JSON">
+    ```json
+    [{"deviceName": "SN-001", "deviceType": "default", "temperature": 25.7, "humidity": 69}]
+    ```
+  </TabItem>
+  <TabItem label="Binary">
+    ```text
+    \x53\x4e\x2d\x30\x30\x31\x64\x65\x66\x61\x75\x6c\x74\x32\x35\x2e\x37\x36\x39
+    ```
+
+    Byte layout:
+
+    | Bytes | Hex | Value | Description |
+    |---|---|---|---|
+    | 0–5 | `\x53\x4e\x2d\x30\x30\x31` | `SN-001` | Device name |
+    | 6–12 | `\x64\x65\x66\x61\x75\x6c\x74` | `default` | Device type |
+    | 13–16 | `\x32\x35\x2e\x37` | `25.7` | Temperature |
+    | 17–18 | `\x36\x39` | `69` | Humidity |
+  </TabItem>
+  <TabItem label="Hex">
+    ```text
+    534e2d30303164656661756c7432352e373639
+    ```
+
+    Byte layout (each pair of hex digits = 1 byte):
+
+    | Bytes | Hex | Value | Description |
+    |---|---|---|---|
+    | 0–5 | `534e2d303031` | `SN-001` | Device name |
+    | 6–12 | `64656661756c74` | `default` | Device type |
+    | 13–16 | `32352e37` | `25.7` | Temperature |
+    | 17–18 | `3639` | `69` | Humidity |
+  </TabItem>
+</Tabs>
+
+<Aside type="note">
+  On the machine running the remote UDP Integration, port **11560** must be open for incoming connections so the `nc` utility can connect to the UDP socket.
+</Aside>
+
+## Create converter templates
+
+Converter and integration templates are created on the **Cloud** (ThingsBoard PE server). Log in as Tenant administrator.
+
+### Uplink converter
+
+The uplink converter decodes the incoming UDP payload into ThingsBoard telemetry and attributes.
+
+<Steps>
+
+1. In the Cloud, go to **Edge management > Converter templates** and click **+**, then **Create new converter**. Set type to **Uplink** and enable **Debug** mode.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/udp/add-converter-step-1.webp',
+       alt: 'Create new uplink converter in Converter templates',
+       caption: 'Click + and select Create new converter. Set type to Uplink.',
+     },
+   ]} />
+
+2. Paste the decoder script for your payload type into the **function Decoder** field, then click **Add**.
+
+   <Tabs>
+     <TabItem label="Text">
+       ```js
+       /** Decoder **/
+
+       // decode payload to string
+       var strArray = decodeToString(payload);
+       var payloadArray = strArray.replace(/\"/g, "").replace(/\s/g, "").replace(/\\n/g, "").split(',');
+
+       var telemetryPayload = {};
+       for (var i = 2; i < payloadArray.length; i = i + 2) {
+           var telemetryKey = payloadArray[i];
+           var telemetryValue = parseFloat(payloadArray[i + 1]);
+           telemetryPayload[telemetryKey] = telemetryValue;
+       }
+
+       // Result object with device attributes/telemetry data
+       var result = {
+           deviceName: payloadArray[0],
+           deviceType: payloadArray[1],
+           telemetry: telemetryPayload,
+           attributes: {}
+       };
+
+       function decodeToString(payload) {
+          return String.fromCharCode.apply(String, payload);
+       }
+
+       return result;
+       ```
+     </TabItem>
+     <TabItem label="JSON">
+       ```js
+       /** Decoder **/
+
+       // decode payload to JSON
+       var data = decodeToJson(payload);
+
+       var result = {
+          deviceName: data.deviceName,
+          deviceType: data.deviceType,
+          attributes: {},
+          telemetry: {
+              temperature: data.temperature,
+              humidity: data.humidity
+          }
+       };
+
+       function decodeToString(payload) {
+          return String.fromCharCode.apply(String, payload);
+       }
+
+       function decodeToJson(payload) {
+          var str = decodeToString(payload);
+          return JSON.parse(str);
+       }
+
+       return result;
+       ```
+     </TabItem>
+     <TabItem label="Binary">
+       ```js
+       /** Decoder **/
+
+       // decode payload to string
+       var payloadStr = decodeToString(payload);
+
+       var deviceName = payloadStr.substring(0, 6);
+       var deviceType = payloadStr.substring(6, 13);
+
+       var result = {
+          deviceName: deviceName,
+          deviceType: deviceType,
+          attributes: {},
+          telemetry: {
+              temperature: parseFloat(payloadStr.substring(13, 17)),
+              humidity: parseFloat(payloadStr.substring(17, 19))
+          }
+       };
+
+       function decodeToString(payload) {
+          return String.fromCharCode.apply(String, payload);
+       }
+
+       return result;
+       ```
+     </TabItem>
+     <TabItem label="Hex">
+       ```js
+       /** Decoder **/
+
+       // decode payload to JSON — HEX handler wraps the hex string in a reports structure
+       var data = decodeToJson(payload).reports[0].value;
+
+       var result = {
+           deviceName: hexToString(data.substring(0, 12)),
+           deviceType: hexToString(data.substring(12, 26)),
+           telemetry: {
+               temperature: parseFloat(hexToString(data.substring(26, 34))),
+               humidity: parseFloat(hexToString(data.substring(34, 38))),
+           }
+       };
+
+       function decodeToString(payload) {
+           return String.fromCharCode.apply(String, payload);
+       }
+
+       function hexToString(hex) {
+           var str = '';
+           for (var i = 0; i < hex.length; i += 2) {
+               var notNullValue = parseInt(hex.substr(i, 2), 16);
+               if (notNullValue) {
+                   str += String.fromCharCode(notNullValue);
+               }
+           }
+           return str;
+       }
+
+       function decodeToJson(payload) {
+           var str = decodeToString(payload);
+           return JSON.parse(str);
+       }
+
+       return result;
+       ```
+     </TabItem>
+   </Tabs>
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/udp/add-converter-step-2.webp',
+       alt: 'Uplink converter with decoder function pasted',
+       caption: 'Paste the decoder script for your payload type and click Add.',
+     },
+   ]} />
+
+</Steps>
+
+To edit the converter later, open it from the **Converter templates** page, click the **pencil** icon, update the script, and click the **checkmark** to save.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/udp/modify-converter-step-1.webp',
+    alt: 'Open converter and click pencil icon to edit',
+    caption: 'Open the converter and click the pencil icon to edit.',
+  },
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/udp/modify-converter-step-2.webp',
+    alt: 'Update decoder function and save',
+    caption: 'Update the decoder function and click the checkmark to save.',
+  },
+]} />
+
+### Downlink converter
+
+The downlink converter encodes outbound messages (e.g. attribute updates) into the format sent back to the device.
+
+<Steps>
+
+1. On the **Converter templates** page, click **+**, then **Create new converter**. Set type to **Downlink** and enable **Debug** mode.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/udp/add-downlink-step-1.webp',
+       alt: 'Create new downlink converter',
+       caption: 'Click + and create a new Downlink converter.',
+     },
+   ]} />
+
+2. Paste the following script into the **function Encoder** field, then click **Add**:
+
+   ```js
+   // Encode downlink data from incoming Rule Engine message
+
+   // msg - JSON message payload
+   // msgType - e.g. 'ATTRIBUTES_UPDATED', 'POST_TELEMETRY_REQUEST'
+   // metadata - key/value pairs with message metadata
+   // integrationMetadata - key/value pairs defined in the Integration
+
+   var result = {
+       // downlink data content type: JSON, TEXT or BINARY (base64 format)
+       contentType: "JSON",
+
+       // downlink data
+       data: JSON.stringify(msg),
+
+       // Optional metadata object presented in key/value format
+       metadata: {}
+   };
+
+   return result;
+   ```
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/udp/add-downlink-step-2.webp',
+       alt: 'Downlink converter with encoder function pasted',
+       caption: 'Paste the encoder script and click Add.',
+     },
+   ]} />
+
+</Steps>
+
+## Create integration template
+
+<Steps>
+
+1. Go to **Edge management > Integration templates** and click **+**. Select **UDP** as the type, name it, and attach the uplink and downlink converters.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/udp/add-integration-template-step-0.webp',
+       alt: 'Integration templates — click Add and select UDP type',
+       caption: 'Click + and select UDP as the integration type.',
+     },
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/udp/add-integration-template-step-1.webp',
+       alt: 'Name the integration and attach converters',
+       caption: 'Name the integration and attach the uplink and downlink converters.',
+     },
+   ]} />
+
+2. In the **Connection** block, set the **Port** to **11560** (or another available port). Set the **Handler Configuration** for your payload type:
+
+   <Tabs>
+     <TabItem label="Text">
+       - **Handler type:** `Text`
+       - **Charset Name:** `UTF-8`
+     </TabItem>
+     <TabItem label="JSON">
+       - **Handler type:** `JSON`
+     </TabItem>
+     <TabItem label="Binary">
+       - **Handler type:** `Binary`
+     </TabItem>
+     <TabItem label="Hex">
+       - **Handler type:** `HEX`
+     </TabItem>
+   </Tabs>
+
+   Additional Connection settings:
+
+   | Setting | Description |
+   |---|---|
+   | Size of the buffer for inbound socket (in KB) | Socket receive buffer size. |
+   | Cache Size | Maximum number of cached UDP sessions. |
+   | Cache time to live in minutes | How long a UDP session is kept in cache. |
+   | Enable broadcast | When enabled, the integration accepts packets sent to the broadcast address. |
+
+   <Aside type="note">
+     The **Execute remotely** option is selected by default and cannot be changed — UDP Integration can only run as a remote service.
+   </Aside>
+
+   Copy the **Integration key** and **Integration secret** — you will need them when running the remote service.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/udp/add-integration-template-step-2.webp',
+       alt: 'Connection block — port and Handler Configuration',
+       caption: 'Configure the port and Handler Configuration for your payload type.',
+     },
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/udp/add-integration-template-step-3.webp',
+       alt: 'Integration key and secret',
+       caption: 'Copy the Integration key and secret for use in the remote service configuration.',
+     },
+   ]} />
+
+3. Click **Add** to save the integration template.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/udp/add-integration-template-step-4.webp',
+       alt: 'UDP integration template saved',
+       caption: 'The UDP integration template is created.',
+     },
+   ]} />
+
+</Steps>
+
+## Modify Edge Root Rule Chain for downlinks
+
+To send downlink messages from ThingsBoard Edge to devices, add an **integration downlink** node to the Edge Root Rule Chain.
+
+<Aside type="note">
+  Starting with Edge version 4.0, Rule Chains can be created and edited directly on the Edge. On earlier versions, Rule Chains must be configured as templates in the Cloud and then assigned to the Edge.
+</Aside>
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/udp/downlink-rule-step-1.webp',
+    alt: 'Open Edge Root Rule Chain in Rule chain templates',
+    caption: 'Go to Edge management > Rule chain templates and open the Edge Root Rule Chain.',
+  },
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/udp/downlink-rule-step-2.webp',
+    alt: 'Add integration downlink node linked from Attributes Updated',
+    caption: 'Add an "integration downlink" node and link the "Attributes updated" output of the message type switch node to it. Apply changes.',
+  },
+]} />
+
+## Assign integration to Edge
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/udp/assign-integration-step-1.webp',
+    alt: 'Click Manage edge integrations on the Edge instance',
+    caption: 'Go to Edge management > Instances and click the Manage edge integrations button.',
+  },
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/udp/assign-integration-step-2.webp',
+    alt: 'Assign the UDP integration template to the Edge',
+    caption: 'Click Assign to edge, select the UDP integration from the drop-down, and click Assign.',
+  },
+  {
+    src: '/src/assets/images/docs/edge/user-guide/integrations/udp/assign-integration-step-3.webp',
+    alt: 'UDP integration visible on Edge under Integration center',
+    caption: 'Log in to your Edge instance and confirm the UDP integration appears under Integration center > Integrations.',
+  },
+]} />
+
+## Install and run the remote UDP Integration
+
+Use the **Integration key** and **Integration secret** from the integration page to configure the remote service.
+
+<Tabs>
+  <TabItem label="Docker (Linux / Mac)">
+    Pull the image:
+
+    <Code lang="bash" code={`docker pull thingsboard/tb-pe-tcp-udp-integration:${PE_FULL_VER}`} />
+
+    Create a log volume:
+
+    ```bash
+    mkdir -p ~/.tb-pe-tcp-udp-integration-logs && sudo chown -R 799:799 ~/.tb-pe-tcp-udp-integration-logs
+    ```
+
+    Run the integration (replace placeholders with your values):
+
+    <Code lang="bash" code={`docker run -it -p 11560:11560/udp \\
+  -v ~/.tb-pe-tcp-udp-integration-logs:/var/log/tb-tcp-udp-integration \\
+  -e "RPC_HOST=mytbedge" \\
+  -e "RPC_PORT=9090" \\
+  -e "INTEGRATION_ROUTING_KEY=YOUR_ROUTING_KEY" \\
+  -e "INTEGRATION_SECRET=YOUR_SECRET" \\
+  --name my-tb-pe-tcp-udp-integration \\
+  --network NETWORK_NAME \\
+  --restart always \\
+  thingsboard/tb-pe-tcp-udp-integration:${PE_FULL_VER}`} />
+
+    | Parameter | Description |
+    |---|---|
+    | `mytbedge` | Hostname of the ThingsBoard Edge service |
+    | `9090` | Integration RPC port (`INTEGRATIONS_RPC_PORT` in tb-edge.yml) |
+    | `-p 11560:11560/udp` | Maps local UDP port 11560 to the container port |
+    | `YOUR_ROUTING_KEY` | Integration routing key from the integration page |
+    | `YOUR_SECRET` | Integration secret from the integration page |
+    | `NETWORK_NAME` | Docker network where `mytbedge` runs. Check with `docker network ls` |
+
+    To detach from the terminal without stopping the container, press **Ctrl+p** then **Ctrl+q**.
+
+    Useful container commands:
+
+    ```bash
+    docker attach my-tb-pe-tcp-udp-integration  # reattach to logs
+    docker stop my-tb-pe-tcp-udp-integration
+    docker start my-tb-pe-tcp-udp-integration
+    ```
+  </TabItem>
+</Tabs>
+
+## Send uplink message
+
+Once the UDP Integration is running, the UDP server starts listening on port **11560**.
+
+<Steps>
+
+1. Send a test uplink using `echo` and `nc`. Choose the command for your payload type:
+
+   <Tabs>
+     <TabItem label="Text">
+       ```bash
+       echo -e 'SN-001,default,temperature,25.7,humidity,69' | nc -w5 -u 127.0.0.1 11560
+       ```
+     </TabItem>
+     <TabItem label="JSON">
+       ```bash
+       echo -e -n '{"deviceName": "SN-001", "deviceType": "default", "temperature": 25.7, "humidity": 69}' | nc -w60 -u 127.0.0.1 11560
+       ```
+     </TabItem>
+     <TabItem label="Binary">
+       ```bash
+       echo -e -n '\x53\x4e\x2d\x30\x30\x31\x64\x65\x66\x61\x75\x6c\x74\x32\x35\x2e\x37\x36\x39' | nc -w5 -u 127.0.0.1 11560
+       ```
+     </TabItem>
+     <TabItem label="Hex">
+       ```bash
+       echo -e -n '534e2d30303164656661756c7432352e373639' | xxd -r -p | nc -w5 -u 127.0.0.1 11560
+       ```
+     </TabItem>
+   </Tabs>
+
+2. On the Edge, go to **Integration center > Integrations**, open the UDP integration, and select the **Events** tab. A message with status **OK** should appear.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/udp/send-uplink-step-1.webp',
+       alt: 'Integration Events tab showing uplink message with status OK',
+       caption: 'The uplink message appears with status OK.',
+     },
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/udp/send-uplink-step-2.webp',
+       alt: 'Uplink message payload details',
+       caption: 'Uplink message payload.',
+     },
+   ]} />
+
+3. Go to **Entities > Devices** to see the newly created device and its latest telemetry.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/udp/device.webp',
+       alt: 'Device SN-001 in Entities > Devices on the Edge',
+       caption: 'The device created by the uplink, with telemetry visible in Latest Telemetry.',
+     },
+   ]} />
+
+4. To inspect how the Uplink Converter processed the message, go to **Integration center > Data converters**, open the uplink converter, and select the **Events** tab.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/udp/converter-events-step-1.webp',
+       alt: 'Uplink converter Events tab',
+       caption: 'Open the uplink converter and select the Events tab.',
+     },
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/udp/converter-events-step-2.webp',
+       alt: 'Converter In message — raw UDP payload',
+       caption: 'Click the three dots in the In column to see the raw incoming payload.',
+     },
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/udp/converter-events-step-3.webp',
+       alt: 'Converter Out message — processed telemetry',
+       caption: 'Click the three dots in the Out column to see the processed output.',
+     },
+   ]} />
+
+</Steps>
+
+## Send downlink message
+
+<Steps>
+
+1. Send another uplink with `-q120` so `nc` waits 120 seconds for the downlink response:
+
+   <Tabs>
+     <TabItem label="Text">
+       ```bash
+       echo -e 'SN-001,default,temperature,25.7,humidity,69' | nc -q120 -u 127.0.0.1 11560
+       ```
+     </TabItem>
+     <TabItem label="JSON">
+       ```bash
+       echo -e -n '{"deviceName": "SN-001", "deviceType": "default", "temperature": 25.7, "humidity": 69}' | nc -q120 -u 127.0.0.1 11560
+       ```
+     </TabItem>
+     <TabItem label="Binary">
+       ```bash
+       echo -e -n '\x53\x4e\x2d\x30\x30\x31\x64\x65\x66\x61\x75\x6c\x74\x32\x35\x2e\x37\x36\x39' | nc -q120 -u 127.0.0.1 11560
+       ```
+     </TabItem>
+     <TabItem label="Hex">
+       ```bash
+       echo -e -n '534e2d30303164656661756c7432352e373639' | xxd -r -p | nc -q120 -u 127.0.0.1 11560
+       ```
+     </TabItem>
+   </Tabs>
+
+2. Within 120 seconds, go to **Entities > Devices**, select device **SN-001**, and open the **Attributes** tab. Under **Shared attributes**, click **+** and add a new attribute — for example, key `firmware`, value `v1.0`. Save.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/udp/add-shared-attribute.webp',
+       alt: 'Adding a shared attribute to device SN-001',
+       caption: 'Add a shared attribute to the device. This triggers a downlink.',
+     },
+   ]} />
+
+3. Verify the downlink was sent by opening the integration's **Events** tab.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/udp/downlink-message.webp',
+       alt: 'Integration Events tab showing the downlink message',
+       caption: 'A downlink event is recorded when the attribute update is sent to the integration.',
+     },
+   ]} />
+
+4. The terminal will show the response returned by ThingsBoard Edge.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/udp/downlink-terminal.webp',
+       alt: 'Terminal showing the downlink response from ThingsBoard Edge',
+       caption: 'The downlink response from ThingsBoard Edge appears in the terminal.',
+     },
+   ]} />
+
+</Steps>

@@ -1,0 +1,824 @@
+---
+---
+import { Steps, Aside, Tabs, TabItem, Code } from '@astrojs/starlight/components';
+import ImageGallery from '@components/ImageGallery.astro';
+import DocLink from '@components/DocLink.astro';
+import { PE_FULL_VER } from '~/data/versions';
+
+Any ThingsBoard Integration can run **remotely** from the ThingsBoard Edge instance — either on the same machine or on a separate machine that has network access to the Edge. This guide walks through setting up a remote HTTP integration as a concrete example.
+
+```plaintext
+  ┌─────────────────────────────────────────────────────┐
+  │  ThingsBoard Cloud (PE)                             │
+  │  Integration template  ──▶  assigned to Edge        │
+  └─────────────────────────────────────────────────────┘
+                   │  RPC (port 9090)
+                   ▼
+  ┌──────────────────────────────────────────────────┐
+  │  Remote Integration Service (e.g. HTTP, MQTT)    │
+  │  running on same or separate machine             │
+  └──────────────────────────────────────────────────┘
+                   │  forwards uplink data
+                   ▼
+  ┌──────────────────────────────────────────────────┐
+  │  ThingsBoard Edge                                │
+  │  processes and stores device telemetry           │
+  └──────────────────────────────────────────────────┘
+```
+
+## Prerequisites
+
+- A running ThingsBoard Edge instance already connected to the Cloud server, with Tenant administrator access.
+
+## Configure ThingsBoard server
+
+Converter and integration templates are created on the **Cloud** instance. Log in as Tenant administrator.
+
+### Step 1. Create the uplink converter 
+
+The uplink converter parses incoming device data into ThingsBoard telemetry and attributes.
+
+<Steps>
+
+1. Go to **Edge management > Converter templates** and click **+**, then **Create new converter**. Set type to **Uplink** and enable **Debug** mode.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/remote-integrations/add-converter-step-1.webp',
+       alt: 'Create new uplink converter',
+       caption: 'Click + and select Create new converter. Set type to Uplink.',
+     },
+   ]} />
+
+2. Paste the following decoder script into the **function Decoder** field, then click **Add**:
+
+   ```js
+   // decode payload to JSON
+   var data = decodeToJson(payload);
+   var deviceName = data.deviceName;
+
+   var result = {
+     deviceName: deviceName,
+     deviceType: 'default',
+     attributes: {
+       model: data.model,
+     },
+     telemetry: {
+       temperature: data.temperature
+     }
+   };
+
+   function decodeToString(payload) {
+     return String.fromCharCode.apply(String, payload);
+   }
+
+   function decodeToJson(payload) {
+     var str = decodeToString(payload);
+     return JSON.parse(str);
+   }
+
+   return result;
+   ```
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/remote-integrations/add-converter-step-2.webp',
+       alt: 'Uplink converter with decoder script',
+       caption: 'Paste the decoder script and click Add.',
+     },
+   ]} />
+
+</Steps>
+
+<Aside type="note">
+  Debug mode is useful during development. Starting from version 3.9, ThingsBoard stores debug events only during the first 15 minutes. After that, only failure events are retained.
+</Aside>
+
+### Step 2. Create the remote integration template 
+
+<Steps>
+
+1. Go to **Edge management > Integration templates** and click **+**, then **Create new integration**.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/remote-integrations/add-integration-template-step-1.webp',
+       alt: 'Open Integration templates and click +',
+       caption: 'Open Integration templates and click + to add a new integration.',
+     },
+   ]} />
+
+2. In **Basic settings**: set **Integration type** to **HTTP** and enter a name (e.g. `HTTP Demo Remote`). Click **Next**.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/remote-integrations/add-integration-template-step-2.webp',
+       alt: 'Select HTTP integration type and name',
+       caption: 'Select HTTP as the type, enter a name, and click Next.',
+     },
+   ]} />
+
+3. In **Uplink data converter**: select the **Select existing** tab and choose the converter created in Step 1. Click **Next**.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/remote-integrations/add-integration-template-step-3.webp',
+       alt: 'Select existing uplink converter',
+       caption: 'Select the existing uplink converter and click Next.',
+     },
+   ]} />
+
+   Alternatively, create a new converter inline:
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/remote-integrations/add-integration-template-step-4.webp',
+       alt: 'Create converter inline',
+       caption: 'Or create a new converter by entering its name, selecting Uplink type, and pasting the script.',
+     },
+   ]} />
+
+4. In **Connection**: set **Base URL** to `{{remoteHttpIntegrationUrl}}`. Enable the **Execute remotely** toggle. Click **Add**.
+
+   The `{{remoteHttpIntegrationUrl}}` placeholder will be replaced by an Edge attribute value when the integration is assigned to the Edge.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/remote-integrations/add-integration-template-step-5.webp',
+       alt: 'HTTP integration template created',
+       caption: 'The integration template is created successfully.',
+     },
+   ]} />
+
+</Steps>
+
+### Step 3. Save the integration credentials 
+
+You will need the **Integration key** and **Integration secret** when configuring the remote service.
+
+<Steps>
+
+1. Go to **Edge management > Integration templates** and open the integration you created.
+2. In the **Execute remotely** block, copy the **Integration key** and **Integration secret**.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/remote-integrations/copy-credentials.webp',
+       alt: 'Copy Integration key and secret',
+       caption: 'Copy the Integration key and secret from the Execute remotely block.',
+     },
+   ]} />
+
+</Steps>
+
+### Step 4. Assign the integration to Edge 
+
+Before assigning the integration, add the `remoteHttpIntegrationUrl` attribute to the Edge instance. This attribute provides the IP address and port of the machine where the remote HTTP integration service will run (default port: **8082**).
+
+<Steps>
+
+1. Go to **Edge management > Instances** and click the Edge instance.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/remote-integrations/assign-integration-step-1.webp',
+       alt: 'Edge management > Instances — click the Edge',
+       caption: 'Go to Edge management > Instances and click the Edge instance.',
+     },
+   ]} />
+
+2. On the **Edge details** page, select the **Attributes** tab and click **Add**.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/remote-integrations/assign-integration-step-2.webp',
+       alt: 'Attributes tab — click Add',
+       caption: 'Select the Attributes tab and click Add.',
+     },
+   ]} />
+
+3. In the **Add attribute** dialog, enter `remoteHttpIntegrationUrl` as the key and `http://IP:8082` (the address of your remote integration machine) as the value. Click **Add**.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/remote-integrations/assign-integration-step-3.webp',
+       alt: 'Add remoteHttpIntegrationUrl attribute',
+       caption: 'Enter remoteHttpIntegrationUrl with the remote integration address as the value.',
+     },
+   ]} />
+
+4. Close the Edge details page and return to the **Instances** section.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/remote-integrations/assign-integration-step-4.webp',
+       alt: 'Attribute added — return to Instances',
+       caption: 'The attribute is added. Close the Edge details page.',
+     },
+   ]} />
+
+5. Click **Manage edge integrations** on the Edge row.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/remote-integrations/assign-integration-step-5.webp',
+       alt: 'Click Manage edge integrations',
+       caption: 'Click the Manage edge integrations button.',
+     },
+   ]} />
+
+6. Click **Assign to edge**.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/remote-integrations/assign-integration-step-6.webp',
+       alt: 'Click Assign to edge',
+       caption: 'Click the Assign to edge button.',
+     },
+   ]} />
+
+7. Select the HTTP integration from the drop-down and click **Assign**.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/remote-integrations/assign-integration-step-7.webp',
+       alt: 'Select integration and click Assign',
+       caption: 'Select the integration and click Assign.',
+     },
+   ]} />
+
+8. Log in to the ThingsBoard Edge instance and go to **Integration center > Integrations**. Open the **HTTP Demo Remote** integration and confirm that the `{{remoteHttpIntegrationUrl}}` placeholder is replaced with the attribute value.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/remote-integrations/assign-integration-step-8.webp',
+       alt: 'Integration on Edge — placeholder substituted',
+       caption: 'On the Edge, confirm the Base URL shows the actual value from the attribute.',
+     },
+   ]} />
+
+</Steps>
+
+## Install the remote integration service
+
+Use the **Integration key** and **Integration secret** from [Step 3](#step-3-save-remote-integration-credentials) to configure the service.
+
+<Tabs>
+  <TabItem label="Docker (Linux / Mac)">
+    Make sure <a href="https://docs.docker.com/engine/installation/" target="_blank" rel="noopener noreferrer">Docker CE</a> is installed.
+
+    <Tabs>
+      <TabItem label="HTTP">
+        Pull the image:
+
+        <Code lang="bash" code={`docker pull thingsboard/tb-pe-http-integration:${PE_FULL_VER}`} />
+
+        Create a log volume:
+
+        ```bash
+        mkdir -p ~/.tb-pe-http-integration-logs && sudo chown -R 799:799 ~/.tb-pe-http-integration-logs
+        ```
+
+        Run the integration:
+
+        <Code lang="bash" code={`docker run -it \\
+  -v ~/.tb-pe-http-integration-logs:/var/log/tb-http-integration \\
+  -e "RPC_HOST=mytbedge" \\
+  -e "RPC_PORT=9090" \\
+  -e "INTEGRATION_ROUTING_KEY=YOUR_ROUTING_KEY" \\
+  -e "INTEGRATION_SECRET=YOUR_SECRET" \\
+  --name my-tb-pe-http-integration \\
+  --network edge_docker_default \\
+  --restart always \\
+  thingsboard/tb-pe-http-integration:${PE_FULL_VER}`} />
+
+        Useful commands:
+
+        ```bash
+        docker attach my-tb-pe-http-integration  # view logs
+        docker stop my-tb-pe-http-integration
+        docker start my-tb-pe-http-integration
+        ```
+      </TabItem>
+      <TabItem label="MQTT">
+        Pull the image:
+
+        <Code lang="bash" code={`docker pull thingsboard/tb-pe-mqtt-integration:${PE_FULL_VER}`} />
+
+        Create a log volume:
+
+        ```bash
+        mkdir -p ~/.tb-pe-mqtt-integration-logs && sudo chown -R 799:799 ~/.tb-pe-mqtt-integration-logs
+        ```
+
+        Run the integration:
+
+        <Code lang="bash" code={`docker run -it \\
+  -v ~/.tb-pe-mqtt-integration-logs:/var/log/tb-mqtt-integration \\
+  -e "RPC_HOST=mytbedge" \\
+  -e "RPC_PORT=9090" \\
+  -e "INTEGRATION_ROUTING_KEY=YOUR_ROUTING_KEY" \\
+  -e "INTEGRATION_SECRET=YOUR_SECRET" \\
+  --name my-tb-pe-mqtt-integration \\
+  --network edge_docker_default \\
+  --restart always \\
+  thingsboard/tb-pe-mqtt-integration:${PE_FULL_VER}`} />
+
+        Useful commands:
+
+        ```bash
+        docker attach my-tb-pe-mqtt-integration
+        docker stop my-tb-pe-mqtt-integration
+        docker start my-tb-pe-mqtt-integration
+        ```
+      </TabItem>
+      <TabItem label="OPC-UA">
+        Pull the image:
+
+        <Code lang="bash" code={`docker pull thingsboard/tb-pe-opc-ua-integration:${PE_FULL_VER}`} />
+
+        Create a log volume:
+
+        ```bash
+        mkdir -p ~/.tb-pe-opc-ua-integration-logs && sudo chown -R 799:799 ~/.tb-pe-opc-ua-integration-logs
+        ```
+
+        Run the integration:
+
+        <Code lang="bash" code={`docker run -it \\
+  -v ~/.tb-pe-opc-ua-integration-logs:/var/log/tb-opc-ua-integration \\
+  -e "RPC_HOST=mytbedge" \\
+  -e "RPC_PORT=9090" \\
+  -e "INTEGRATION_ROUTING_KEY=YOUR_ROUTING_KEY" \\
+  -e "INTEGRATION_SECRET=YOUR_SECRET" \\
+  --name my-tb-pe-opc-ua-integration \\
+  --network edge_docker_default \\
+  --restart always \\
+  thingsboard/tb-pe-opc-ua-integration:${PE_FULL_VER}`} />
+
+        Useful commands:
+
+        ```bash
+        docker attach my-tb-pe-opc-ua-integration
+        docker stop my-tb-pe-opc-ua-integration
+        docker start my-tb-pe-opc-ua-integration
+        ```
+      </TabItem>
+      <TabItem label="TCP / UDP">
+        Pull the image:
+
+        <Code lang="bash" code={`docker pull thingsboard/tb-pe-tcp-udp-integration:${PE_FULL_VER}`} />
+
+        Create a log volume:
+
+        ```bash
+        mkdir -p ~/.tb-pe-tcp-udp-integration-logs && sudo chown -R 799:799 ~/.tb-pe-tcp-udp-integration-logs
+        ```
+
+        Run the integration (adjust `-p` for TCP or UDP):
+
+        <Code lang="bash" code={`# TCP (port 10560):
+docker run -it -p 10560:10560 \\
+  -v ~/.tb-pe-tcp-udp-integration-logs:/var/log/tb-tcp-udp-integration \\
+  -e "RPC_HOST=mytbedge" \\
+  -e "RPC_PORT=9090" \\
+  -e "INTEGRATION_ROUTING_KEY=YOUR_ROUTING_KEY" \\
+  -e "INTEGRATION_SECRET=YOUR_SECRET" \\
+  --name my-tb-pe-tcp-udp-integration \\
+  --network NETWORK_NAME \\
+  --restart always \\
+  thingsboard/tb-pe-tcp-udp-integration:${PE_FULL_VER}
+
+# UDP (port 11560):
+docker run -it -p 11560:11560/udp \\
+  -v ~/.tb-pe-tcp-udp-integration-logs:/var/log/tb-tcp-udp-integration \\
+  -e "RPC_HOST=mytbedge" \\
+  -e "RPC_PORT=9090" \\
+  -e "INTEGRATION_ROUTING_KEY=YOUR_ROUTING_KEY" \\
+  -e "INTEGRATION_SECRET=YOUR_SECRET" \\
+  --name my-tb-pe-tcp-udp-integration \\
+  --network NETWORK_NAME \\
+  --restart always \\
+  thingsboard/tb-pe-tcp-udp-integration:${PE_FULL_VER}`} />
+
+        Use `docker network ls` to find `NETWORK_NAME`.
+
+        Useful commands:
+
+        ```bash
+        docker attach my-tb-pe-tcp-udp-integration
+        docker stop my-tb-pe-tcp-udp-integration
+        docker start my-tb-pe-tcp-udp-integration
+        ```
+      </TabItem>
+      <TabItem label="CoAP">
+        Pull the image:
+
+        <Code lang="bash" code={`docker pull thingsboard/tb-pe-coap-integration:${PE_FULL_VER}`} />
+
+        Create a log volume:
+
+        ```bash
+        mkdir -p ~/.tb-pe-coap-integration-logs && sudo chown -R 799:799 ~/.tb-pe-coap-integration-logs
+        ```
+
+        Run the integration:
+
+        <Code lang="bash" code={`docker run -it -p 5683:5683/udp \\
+  -v ~/.tb-pe-coap-integration-logs:/var/log/tb-coap-integration \\
+  -e "RPC_HOST=mytbedge" \\
+  -e "RPC_PORT=9090" \\
+  -e "INTEGRATION_ROUTING_KEY=YOUR_ROUTING_KEY" \\
+  -e "INTEGRATION_SECRET=YOUR_SECRET" \\
+  --name my-tb-pe-coap-integration \\
+  --network edge_docker_default \\
+  --restart always \\
+  thingsboard/tb-pe-coap-integration:${PE_FULL_VER}`} />
+
+        Useful commands:
+
+        ```bash
+        docker attach my-tb-pe-coap-integration
+        docker stop my-tb-pe-coap-integration
+        docker start my-tb-pe-coap-integration
+        ```
+      </TabItem>
+    </Tabs>
+
+    Common Docker parameters:
+
+    | Parameter | Description |
+    |---|---|
+    | `mytbedge` | Hostname of the ThingsBoard Edge service |
+    | `9090` | Integration RPC port (`INTEGRATIONS_RPC_PORT` in tb-edge.yml) |
+    | `YOUR_ROUTING_KEY` | Integration key from [Step 3](#step-3-save-remote-integration-credentials) |
+    | `YOUR_SECRET` | Integration secret from [Step 3](#step-3-save-remote-integration-credentials) |
+    | `edge_docker_default` | Docker network where the Edge container runs. Check with `docker network ls` |
+    | `--restart always` | Automatically restarts on system reboot or failure |
+
+    To detach without stopping the container, press **Ctrl+p** then **Ctrl+q**.
+
+    <Aside type="note">
+      If you see DNS errors like `127.0.1.1:53: cannot unmarshal DNS message`, configure your system to use <a href="https://developers.google.com/speed/public-dns/docs/using#linux" target="_blank" rel="noopener noreferrer">Google public DNS</a>.
+    </Aside>
+  </TabItem>
+  <TabItem label="Ubuntu">
+    First, install Java 17 (OpenJDK):
+
+    ```bash
+    sudo apt update
+    sudo apt install openjdk-17-jdk
+    ```
+
+    Then select your integration package:
+
+    <Tabs>
+      <TabItem label="HTTP">
+        <Code lang="bash" code={`wget https://dist.thingsboard.io/tb-http-integration-${PE_FULL_VER}.deb
+sudo dpkg -i tb-http-integration-${PE_FULL_VER}.deb`} />
+
+        Edit the configuration:
+
+        ```bash
+        sudo nano /etc/tb-http-integration/conf/tb-http-integration.conf
+        ```
+
+        Uncomment and set the connection parameters:
+
+        ```bash
+        export RPC_HOST=127.0.0.1   # IP address of your Edge instance
+        export RPC_PORT=9090
+        export INTEGRATION_ROUTING_KEY=YOUR_ROUTING_KEY
+        export INTEGRATION_SECRET=YOUR_SECRET
+        ```
+
+        Start the service:
+
+        ```bash
+        sudo service tb-http-integration start
+        ```
+
+        Logs: `/var/log/tb-http-integration/`
+      </TabItem>
+      <TabItem label="MQTT">
+        <Code lang="bash" code={`wget https://dist.thingsboard.io/tb-mqtt-integration-${PE_FULL_VER}.deb
+sudo dpkg -i tb-mqtt-integration-${PE_FULL_VER}.deb`} />
+
+        Edit the configuration:
+
+        ```bash
+        sudo nano /etc/tb-mqtt-integration/conf/tb-mqtt-integration.conf
+        ```
+
+        Uncomment and set the connection parameters:
+
+        ```bash
+        export RPC_HOST=127.0.0.1
+        export RPC_PORT=9090
+        export INTEGRATION_ROUTING_KEY=YOUR_ROUTING_KEY
+        export INTEGRATION_SECRET=YOUR_SECRET
+        ```
+
+        Start the service:
+
+        ```bash
+        sudo service tb-mqtt-integration start
+        ```
+
+        Logs: `/var/log/tb-mqtt-integration/`
+      </TabItem>
+      <TabItem label="OPC-UA">
+        <Code lang="bash" code={`wget https://dist.thingsboard.io/tb-opc-ua-integration-${PE_FULL_VER}.deb
+sudo dpkg -i tb-opc-ua-integration-${PE_FULL_VER}.deb`} />
+
+        Edit the configuration:
+
+        ```bash
+        sudo nano /etc/tb-opc-ua-integration/conf/tb-opc-ua-integration.conf
+        ```
+
+        Uncomment and set the connection parameters:
+
+        ```bash
+        export RPC_HOST=127.0.0.1
+        export RPC_PORT=9090
+        export INTEGRATION_ROUTING_KEY=YOUR_ROUTING_KEY
+        export INTEGRATION_SECRET=YOUR_SECRET
+        ```
+
+        Start the service:
+
+        ```bash
+        sudo service tb-opc-ua-integration start
+        ```
+
+        Logs: `/var/log/tb-opc-ua-integration/`
+      </TabItem>
+      <TabItem label="TCP / UDP">
+        <Code lang="bash" code={`wget https://dist.thingsboard.io/tb-tcp-udp-integration-${PE_FULL_VER}.deb
+sudo dpkg -i tb-tcp-udp-integration-${PE_FULL_VER}.deb`} />
+
+        Edit the configuration:
+
+        ```bash
+        sudo nano /etc/tb-tcp-udp-integration/conf/tb-tcp-udp-integration.conf
+        ```
+
+        Uncomment and set the connection parameters:
+
+        ```bash
+        export RPC_HOST=127.0.0.1
+        export RPC_PORT=9090
+        export INTEGRATION_ROUTING_KEY=YOUR_ROUTING_KEY
+        export INTEGRATION_SECRET=YOUR_SECRET
+        ```
+
+        Start the service:
+
+        ```bash
+        sudo service tb-tcp-udp-integration start
+        ```
+
+        Logs: `/var/log/tb-tcp-udp-integration/`
+      </TabItem>
+      <TabItem label="CoAP">
+        <Code lang="bash" code={`wget https://dist.thingsboard.io/tb-coap-integration-${PE_FULL_VER}.deb
+sudo dpkg -i tb-coap-integration-${PE_FULL_VER}.deb`} />
+
+        Edit the configuration:
+
+        ```bash
+        sudo nano /etc/tb-coap-integration/conf/tb-coap-integration.conf
+        ```
+
+        Uncomment and set the connection parameters:
+
+        ```bash
+        export RPC_HOST=127.0.0.1
+        export RPC_PORT=9090
+        export INTEGRATION_ROUTING_KEY=YOUR_ROUTING_KEY
+        export INTEGRATION_SECRET=YOUR_SECRET
+        ```
+
+        Start the service:
+
+        ```bash
+        sudo service tb-coap-integration start
+        ```
+
+        Logs: `/var/log/tb-coap-integration/`
+      </TabItem>
+    </Tabs>
+  </TabItem>
+  <TabItem label="CentOS / RHEL">
+    First, install Java 17 (OpenJDK):
+
+    ```bash
+    sudo yum install java-17-openjdk
+    ```
+
+    Then select your integration package:
+
+    <Tabs>
+      <TabItem label="HTTP">
+        <Code lang="bash" code={`wget https://dist.thingsboard.io/tb-http-integration-${PE_FULL_VER}.rpm
+sudo rpm -Uvh tb-http-integration-${PE_FULL_VER}.rpm`} />
+
+        Edit the configuration:
+
+        ```bash
+        sudo nano /etc/tb-http-integration/conf/tb-http-integration.conf
+        ```
+
+        Uncomment and set the connection parameters:
+
+        ```bash
+        export RPC_HOST=127.0.0.1
+        export RPC_PORT=9090
+        export INTEGRATION_ROUTING_KEY=YOUR_ROUTING_KEY
+        export INTEGRATION_SECRET=YOUR_SECRET
+        ```
+
+        Start the service:
+
+        ```bash
+        sudo service tb-http-integration start
+        ```
+
+        Logs: `/var/log/tb-http-integration/`
+      </TabItem>
+      <TabItem label="MQTT">
+        <Code lang="bash" code={`wget https://dist.thingsboard.io/tb-mqtt-integration-${PE_FULL_VER}.rpm
+sudo rpm -Uvh tb-mqtt-integration-${PE_FULL_VER}.rpm`} />
+
+        Edit the configuration:
+
+        ```bash
+        sudo nano /etc/tb-mqtt-integration/conf/tb-mqtt-integration.conf
+        ```
+
+        Uncomment and set the connection parameters:
+
+        ```bash
+        export RPC_HOST=127.0.0.1
+        export RPC_PORT=9090
+        export INTEGRATION_ROUTING_KEY=YOUR_ROUTING_KEY
+        export INTEGRATION_SECRET=YOUR_SECRET
+        ```
+
+        Start the service:
+
+        ```bash
+        sudo service tb-mqtt-integration start
+        ```
+
+        Logs: `/var/log/tb-mqtt-integration/`
+      </TabItem>
+      <TabItem label="OPC-UA">
+        <Code lang="bash" code={`wget https://dist.thingsboard.io/tb-opc-ua-integration-${PE_FULL_VER}.rpm
+sudo rpm -Uvh tb-opc-ua-integration-${PE_FULL_VER}.rpm`} />
+
+        Edit the configuration:
+
+        ```bash
+        sudo nano /etc/tb-opc-ua-integration/conf/tb-opc-ua-integration.conf
+        ```
+
+        Uncomment and set the connection parameters:
+
+        ```bash
+        export RPC_HOST=127.0.0.1
+        export RPC_PORT=9090
+        export INTEGRATION_ROUTING_KEY=YOUR_ROUTING_KEY
+        export INTEGRATION_SECRET=YOUR_SECRET
+        ```
+
+        Start the service:
+
+        ```bash
+        sudo service tb-opc-ua-integration start
+        ```
+
+        Logs: `/var/log/tb-opc-ua-integration/`
+      </TabItem>
+      <TabItem label="TCP / UDP">
+        <Code lang="bash" code={`wget https://dist.thingsboard.io/tb-tcp-udp-integration-${PE_FULL_VER}.rpm
+sudo rpm -Uvh tb-tcp-udp-integration-${PE_FULL_VER}.rpm`} />
+
+        Edit the configuration:
+
+        ```bash
+        sudo nano /etc/tb-tcp-udp-integration/conf/tb-tcp-udp-integration.conf
+        ```
+
+        Uncomment and set the connection parameters:
+
+        ```bash
+        export RPC_HOST=127.0.0.1
+        export RPC_PORT=9090
+        export INTEGRATION_ROUTING_KEY=YOUR_ROUTING_KEY
+        export INTEGRATION_SECRET=YOUR_SECRET
+        ```
+
+        Start the service:
+
+        ```bash
+        sudo service tb-tcp-udp-integration start
+        ```
+
+        Logs: `/var/log/tb-tcp-udp-integration/`
+      </TabItem>
+      <TabItem label="CoAP">
+        <Code lang="bash" code={`wget https://dist.thingsboard.io/tb-coap-integration-${PE_FULL_VER}.rpm
+sudo rpm -Uvh tb-coap-integration-${PE_FULL_VER}.rpm`} />
+
+        Edit the configuration:
+
+        ```bash
+        sudo nano /etc/tb-coap-integration/conf/tb-coap-integration.conf
+        ```
+
+        Uncomment and set the connection parameters:
+
+        ```bash
+        export RPC_HOST=127.0.0.1
+        export RPC_PORT=9090
+        export INTEGRATION_ROUTING_KEY=YOUR_ROUTING_KEY
+        export INTEGRATION_SECRET=YOUR_SECRET
+        ```
+
+        Start the service:
+
+        ```bash
+        sudo service tb-coap-integration start
+        ```
+
+        Logs: `/var/log/tb-coap-integration/`
+      </TabItem>
+    </Tabs>
+  </TabItem>
+</Tabs>
+
+## Validate the remote HTTP integration
+
+<Steps>
+
+1. On the Edge, go to **Integration center > Integrations** and open the **HTTP Demo Remote** integration. Copy the **HTTP endpoint URL**.
+
+   <Aside type="caution">
+     Make sure the machine running the remote HTTP integration is reachable from your client, and that port **8082** is not blocked by firewall rules.
+   </Aside>
+
+2. Send a test uplink message (replace `$DEVICE_NAME` and `$YOUR_HTTP_ENDPOINT_URL` with actual values):
+
+   ```bash
+   curl -v -X POST \
+     -d '{"deviceName":"$DEVICE_NAME","temperature":33,"model":"test"}' \
+     $YOUR_HTTP_ENDPOINT_URL \
+     -H "Content-Type:application/json"
+   ```
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/remote-integrations/send-uplink-step-1.webp',
+       alt: 'HTTP endpoint URL on the Edge integration page',
+       caption: 'Copy the HTTP endpoint URL from the integration page on the Edge.',
+     },
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/remote-integrations/send-uplink-step-2.webp',
+       alt: 'Uplink message sent successfully',
+       caption: 'After sending the request, the integration Events tab shows the received message.',
+     },
+   ]} />
+
+3. Go to **Entities > Devices** on the Edge to see the newly created device and its telemetry.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/images/docs/edge/user-guide/integrations/remote-integrations/device-1-edge.webp',
+       alt: 'Device created on the Edge with telemetry data',
+       caption: 'The device is created on the Edge with the received telemetry.',
+     },
+   ]} />
+
+</Steps>
+
+## Remote integration configuration
+
+Configuration is done entirely through the ThingsBoard interface — no special steps are required on the remote service side beyond the connection parameters. For integration-specific configuration, see:
+
+- <DocLink product={props.product} path="edge/pe/user-guide/integrations/http" target="_blank">HTTP Integration</DocLink>
+- <DocLink product={props.product} path="edge/pe/user-guide/integrations/mqtt" target="_blank">MQTT Integration</DocLink>
+- <DocLink product={props.product} path="edge/pe/user-guide/integrations/opc-ua" target="_blank">OPC-UA Integration</DocLink>
+- <DocLink product={props.product} path="edge/pe/user-guide/integrations/tcp" target="_blank">TCP Integration</DocLink>
+- <DocLink product={props.product} path="edge/pe/user-guide/integrations/udp" target="_blank">UDP Integration</DocLink>
+- <DocLink product={props.product} path="edge/pe/user-guide/integrations/coap" target="_blank">CoAP Integration</DocLink>
+
+## Troubleshooting
+
+Check the log files. Their location depends on the platform and installation method used:
+
+- **Docker:** `~/.tb-pe-{type}-integration-logs/`
+- **Ubuntu / CentOS:** `/var/log/tb-{type}-integration/`
+
+Look for `INFO` log messages showing the latest integration configuration received from the server.
