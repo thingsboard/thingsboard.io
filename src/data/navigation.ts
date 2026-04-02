@@ -327,6 +327,12 @@ export const partnersSubmenu: SubMenu = {
 		{
 			items: [
 				{
+					href: '/partners/affiliate/',
+					icon: '/src/assets/images/landings/nav/affiliate-s-icon.svg',
+					heading: 'Affiliate Program',
+					linkClass: 'small-link',
+				},
+				{
 					href: '/partners/hardware/',
 					icon: '/src/assets/images/landings/nav/hard-s-icon.svg',
 					heading: 'Hardware partners',

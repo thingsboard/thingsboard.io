@@ -38,6 +38,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 			`${prefix}/widgets`,
 			`${prefix}/time-window`,
 			`${prefix}/aliases`,
+			`${prefix}/filters`,
 			`${prefix}/layouts`,
 			`${prefix}/actions`,
 			`${prefix}/scada`,
@@ -148,7 +149,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 	{
 		label: 'Other Features',
 		collapsed: true,
-		items: [`${prefix}/image-gallery`, `${prefix}/version-control`, `${prefix}/entity-views`, `${prefix}/scheduler`],
+		items: [`${prefix}/image-gallery`, `${prefix}/version-control`, `${prefix}/entity-views`, `${prefix}/scheduler`, `${prefix}/csv-xls-data-export`],
 	},
 	{
 		label: 'Add-ons',
@@ -1051,6 +1052,7 @@ export const paasSidebar: SidebarConfig = [
 					'docs/paas/user-guide/widgets',
 					'docs/paas/user-guide/time-window',
 					'docs/paas/user-guide/aliases',
+					'docs/paas/user-guide/filters',
 					'docs/paas/user-guide/layouts',
 					'docs/paas/user-guide/actions',
 					'docs/paas/user-guide/scada',
@@ -1176,6 +1178,7 @@ export const paasSidebar: SidebarConfig = [
 					'docs/paas/user-guide/version-control',
 					'docs/paas/user-guide/entity-views',
 					'docs/paas/user-guide/scheduler',
+					'docs/paas/user-guide/csv-xls-data-export',
 				],
 			},
 			{
@@ -1340,6 +1343,7 @@ export const paasEuSidebar: SidebarConfig = [
 					'docs/paas/eu/user-guide/widgets',
 					'docs/paas/eu/user-guide/time-window',
 					'docs/paas/eu/user-guide/aliases',
+					'docs/paas/eu/user-guide/filters',
 					'docs/paas/eu/user-guide/layouts',
 					'docs/paas/eu/user-guide/actions',
 					'docs/paas/eu/user-guide/scada',
@@ -1465,6 +1469,7 @@ export const paasEuSidebar: SidebarConfig = [
 					'docs/paas/eu/user-guide/version-control',
 					'docs/paas/eu/user-guide/entity-views',
 					'docs/paas/eu/user-guide/scheduler',
+					'docs/paas/eu/user-guide/csv-xls-data-export',
 				],
 			},
 			{

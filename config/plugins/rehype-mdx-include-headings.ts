@@ -4,6 +4,7 @@ import { visit } from 'unist-util-visit';
 import fs from 'node:fs';
 import path from 'node:path';
 import GithubSlugger from 'github-slugger';
+import { EDGE_UPGRADE_VERSIONS } from '../../src/models/edge-upgrade-instructions';
 
 const INCLUDES_ALIAS = '@includes/';
 const INCLUDES_DIR = path.resolve(process.cwd(), 'src/content/_includes');
@@ -43,6 +44,27 @@ function getProductFromFilePath(filePath: string): string {
 	return 'ce';
 }
 
+/** Edge upgrade step component pattern — all three platform components share this suffix */
+const EDGE_UPGRADE_STEPS_PATTERN = /Edge(?:Linux|Docker|Windows)UpgradeSteps\.astro/;
+
+/**
+ * Generate TOC headings for Edge upgrade step includes.
+ * Called when the include file delegates to an Edge*UpgradeSteps Astro component.
+ */
+function generateEdgeUpgradeHeadings(productId: string, filterFamily?: string): HeadingInfo[] {
+	const isPE = productId === 'edge-pe';
+	const versions = filterFamily
+		? EDGE_UPGRADE_VERSIONS.filter((v) => v.family === filterFamily)
+		: EDGE_UPGRADE_VERSIONS;
+
+	return versions.map((v) => {
+		const text = v.patch
+			? `Upgrading Edge${isPE ? ' PE' : ''} to latest ${v.baseVersion} (${v.displayVersion})`
+			: `Upgrading Edge${isPE ? ' PE' : ''} to ${v.displayVersion}`;
+		return { depth: 2, slug: v.anchor, text };
+	});
+}
+
 function cleanHeadingText(raw: string): string {
 	return raw
 		.replace(/\*\*(.+?)\*\*/g, '$1')
@@ -66,7 +88,12 @@ function cleanHeadingText(raw: string): string {
  *
  * Headings are returned in document order.
  */
-function extractHeadingsFromMdx(content: string, productId: string): HeadingInfo[] {
+function extractHeadingsFromMdx(content: string, productId: string, filterFamily?: string): HeadingInfo[] {
+	// Short-circuit: if this include delegates to an Edge upgrade steps component,
+	// generate headings from EDGE_UPGRADE_VERSIONS instead of parsing MDX.
+	if (EDGE_UPGRADE_STEPS_PATTERN.test(content)) {
+		return generateEdgeUpgradeHeadings(productId, filterFamily);
+	}
 	const slugger = new GithubSlugger();
 	const collected: Array<{ line: number; depth: number; text: string; useId?: string }> = [];
 
@@ -209,9 +236,22 @@ export function rehypeMdxIncludeHeadings(): Plugin<[], Root> {
 				const filePath = mdxImports.get(node.name);
 				if (!filePath) return;
 
+				// Extract static string value of the `family` prop (e.g. family="4.3")
+				let filterFamily: string | undefined;
+				for (const attr of node.attributes ?? []) {
+					if (
+						attr.type === 'mdxJsxAttribute' &&
+						attr.name === 'family' &&
+						typeof attr.value === 'string'
+					) {
+						filterFamily = attr.value;
+						break;
+					}
+				}
+
 				try {
 					const content = fs.readFileSync(filePath, 'utf-8');
-					const headings = extractHeadingsFromMdx(content, productId);
+					const headings = extractHeadingsFromMdx(content, productId, filterFamily);
 					if (headings.length > 0) {
 						insertions.push({ afterIndex: headingCount, headings });
 					}
