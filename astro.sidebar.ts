@@ -109,6 +109,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 		collapsed: true,
 		items: [
 			`${prefix}/ai-models`,
+			`${prefix}/ai-solution-creator`,
 			`${prefix}/ai-predictive-maintenance`,
 			`${prefix}/local-ai-ollama`,
 			`${prefix}/mcp-server`,
@@ -1133,6 +1134,7 @@ export const paasSidebar: SidebarConfig = [
 				collapsed: true,
 				items: [
 					'docs/paas/user-guide/ai-models',
+					'docs/paas/user-guide/ai-solution-creator',
 					'docs/paas/user-guide/ai-predictive-maintenance',
 					'docs/paas/user-guide/local-ai-ollama',
 					'docs/paas/user-guide/mcp-server',
@@ -1424,6 +1426,7 @@ export const paasEuSidebar: SidebarConfig = [
 				collapsed: true,
 				items: [
 					'docs/paas/eu/user-guide/ai-models',
+					'docs/paas/eu/user-guide/ai-solution-creator',
 					'docs/paas/eu/user-guide/ai-predictive-maintenance',
 					'docs/paas/eu/user-guide/local-ai-ollama',
 					'docs/paas/eu/user-guide/mcp-server',
