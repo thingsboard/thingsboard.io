@@ -1,0 +1,131 @@
+import DocLink from '@components/DocLink.astro';
+import ImageGallery from '~/components/ImageGallery.astro';
+import { Steps, Aside, Code } from '@astrojs/starlight/components';
+import { Products } from '~/models/site.models';
+
+export const tbHost = (product) =>
+  product === Products.PAAS ? 'thingsboard.cloud' :
+  product === Products.PAAS_EU ? 'eu.thingsboard.cloud' :
+  '$THINGSBOARD_HOST_NAME';
+
+Calculate the difference between telemetry values over a rolling time window and use the result to automatically trigger and clear alarms. This guide uses importable configurations so you can examine the logic and adapt it to your own scenario.
+
+## Use case
+
+Assume a device with a temperature sensor periodically sends telemetry to ThingsBoard. You need to:
+
+- Monitor temperature changes over a fixed time window (15 minutes).
+- Trigger an alarm when the temperature change exceeds a defined threshold (5 °C).
+- Automatically clear the alarm when the value returns to normal.
+
+This pattern is common in real-time monitoring and anomaly detection and can be extended to support more advanced scenarios.
+
+## Prerequisites
+
+Review the following documentation before proceeding:
+
+- <DocLink product={props.product} path="user-guide/calculated-fields">Calculated fields</DocLink> — learn how to compute new telemetry values based on incoming data.
+- <DocLink product={props.product} path="user-guide/alarm-rules">Alarm rules</DocLink> — learn how to define alarm trigger conditions to respond to abnormal conditions.
+
+## Step 1. Add a demo device
+
+Add a device that publishes temperature telemetry. It serves as the data source for the calculated field and alarm rule.
+
+<Steps>
+1. Navigate to **Entities &#8702; Devices**.
+2. Click **+ Add device &#8702; Add new device**, and set:
+   - **Device name**: `Thermometer`
+   - **Device profile**: `thermostat`
+3. Click **Add**.
+</Steps>
+
+## Step 2. Import the calculated field
+
+The calculated field computes the temperature delta over the last 15 minutes and stores the result as a new telemetry key: `deltaTemperature`.
+
+<Steps>
+1. Download the configuration file: <a href="/resources/guides/telemetry_delta_calculation_cf.json" download="telemetry_delta_calculation_cf.json">telemetry_delta_calculation_cf.json</a>
+2. Navigate to **Calculated fields**.
+3. Click **+ Add calculated field &#8702; Import calculated field**.
+4. Upload the downloaded file and click **Import**.
+5. In the **Calculated field** dialog, set **Device profile** to `thermostat` so the field applies to all devices using this profile.
+6. Click **Add**.
+</Steps>
+
+### Calculation logic
+
+The script collects up to 2 temperature values from the last 15-minute rolling window, takes the difference between the last and first values, and stores the absolute result as `deltaTemperature`:
+
+```javascript
+var delta = 0;
+
+if (temperature.values.size() >= 2) {
+    delta = temperature.last - temperature.first;
+}
+
+return {
+    "deltaTemperature": Math.abs(toInt(delta))
+}
+```
+
+<Aside type="note">
+  If fewer than two values are available in the window, the delta is set to `0`. The result is stored as time series telemetry and updated on every incoming reading.
+</Aside>
+
+## Step 3. Import the alarm rule
+
+Configure the alarm rule that reacts to changes in `deltaTemperature`:
+
+- **Create alarm** when `deltaTemperature ≥ 5`
+- **Clear alarm** when `deltaTemperature < 5`
+
+<Steps>
+1. Download the configuration file: <a href="/resources/guides/temperature_deviation_alarm_rule.json" download="temperature_deviation_alarm_rule.json">temperature_deviation_alarm_rule.json</a>
+2. Navigate to **Alarms &#8702; Alarm rules**.
+3. Click **+ Add alarm rule &#8702; Import alarm rule**.
+4. Upload the downloaded file and click **Import**.
+5. Select the `thermostat` device profile as the target entity.
+6. Click **Add**.
+</Steps>
+
+Once imported, the alarm lifecycle is managed automatically by ThingsBoard.
+
+## Step 4. Verify the configuration
+
+Publish two temperature values within a 15-minute interval. Use <DocLink product={props.product} path="user-guide/ui/devices/#check-connectivity">Check connectivity</DocLink> or the commands below.
+
+<Aside type="note">
+  {(props.product === Products.PAAS || props.product === Products.PAAS_EU) ? (
+    <>Replace <code>$ACCESS_TOKEN</code> with the device access token.</>
+  ) : (
+    <>Replace <code>$THINGSBOARD_HOST_NAME</code> with your ThingsBoard host (e.g. <code>localhost:8080</code>) and <code>$ACCESS_TOKEN</code> with the device access token.</>
+  )}
+</Aside>
+
+**Publish an initial value** (e.g. 25 °C):
+
+<Code code={`curl -v -X POST \\
+  --header "Content-Type: application/json" \\
+  --data '{"temperature": 25}' \\
+  http://${tbHost(props.product)}/api/v1/$ACCESS_TOKEN/telemetry`} lang="bash" />
+
+Open the device **Latest telemetry** tab. You should see:
+- `temperature = 25`
+- `deltaTemperature = 0`
+
+**Publish a second value within 15 minutes** (e.g. 32 °C):
+
+<Code code={`curl -v -X POST \\
+  --header "Content-Type: application/json" \\
+  --data '{"temperature": 32}' \\
+  http://${tbHost(props.product)}/api/v1/$ACCESS_TOKEN/telemetry`} lang="bash" />
+
+After the second update, `deltaTemperature = 7` — the threshold is exceeded and the alarm is triggered. Open the device **Alarms** tab to confirm the alarm status.
+
+As soon as `deltaTemperature` drops below 5, the alarm is cleared automatically.
+
+## See also
+
+- <DocLink product={props.product} path="user-guide/calculated-fields">Calculated fields</DocLink> — full configuration reference
+- <DocLink product={props.product} path="user-guide/alarm-rules">Alarm rules</DocLink> — full configuration reference
+- <DocLink product={props.product} path="recipes/alarm-rule-tutorials">Alarm rule tutorials</DocLink> — step-by-step examples for thresholds, duration, schedules, and more

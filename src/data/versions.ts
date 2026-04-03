@@ -19,13 +19,13 @@ export const PE_FULL_VER = '4.3.0.1PE';
 export const TRENDZ_VER = '1.15.0.5';
 
 /** Edge */
-export const EDGE_VER = '4.3.0.1';
+export const EDGE_VER = '4.3.1.1';
 
 /** Edge release branch (for git clone, X.Y format) */
 export const EDGE_BRANCH = 'release-4.3';
 
 /** Edge Professional Edition */
-export const EDGE_PE_VER = '4.3.0.1EDGEPE';
+export const EDGE_PE_VER = '4.3.1.1EDGEPE';
 
 /** Edge PE release branch (for git clone, X.Y.Z format) */
 export const EDGE_PE_BRANCH = 'release-4.3.0';

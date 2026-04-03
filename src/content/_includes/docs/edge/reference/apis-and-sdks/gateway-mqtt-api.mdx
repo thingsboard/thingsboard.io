@@ -1,0 +1,289 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+A Gateway in ThingsBoard is a special device that acts as a bridge, maintaining a single MQTT connection to ThingsBoard Edge while proxying data for multiple physical devices behind it. The gateway itself is also a standard ThingsBoard device and can use the regular MQTT Device API to publish its own telemetry and attributes.
+
+This API is used by the open-source <a href="/docs/iot-gateway/what-is-iot-gateway/" target="_blank" rel="noopener noreferrer">ThingsBoard IoT Gateway</a>.
+
+<Aside type="note">
+  For device-level MQTT details — authentication, QoS, payload formats — see <DocLink product={props.product} path="reference/apis-and-sdks/mqtt-api" target="_blank">MQTT API</DocLink>.
+</Aside>
+
+## Topic reference
+
+| Operation | Direction | Topic |
+|-----------|-----------|-------|
+| Connect device | Gateway → Edge | `v1/gateway/connect` |
+| Disconnect device | Gateway → Edge | `v1/gateway/disconnect` |
+| Publish client-side attributes | Gateway → Edge | `v1/gateway/attributes` |
+| Request attribute values | Gateway → Edge | `v1/gateway/attributes/request` |
+| Receive attribute response | Edge → Gateway | `v1/gateway/attributes/response` |
+| Subscribe to attribute updates | Edge → Gateway | `v1/gateway/attributes` |
+| Publish telemetry | Gateway → Edge | `v1/gateway/telemetry` |
+| Subscribe to RPC | Edge → Gateway | `v1/gateway/rpc` |
+| Publish RPC response | Gateway → Edge | `v1/gateway/rpc` |
+| Claim devices | Gateway → Edge | `v1/gateway/claim` |
+
+## Client libraries setup
+
+The examples in this guide use `mosquitto_pub` and `mosquitto_sub` from the Mosquitto package.
+
+<Tabs>
+<TabItem label="Linux">
+
+```bash
+sudo apt-get install mosquitto-clients
+```
+
+</TabItem>
+<TabItem label="macOS">
+
+```bash
+brew install mosquitto
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+Download and install from the <a href="https://mosquitto.org/download/" target="_blank" rel="noopener noreferrer">Mosquitto download page</a>.
+
+</TabItem>
+</Tabs>
+
+Set up environment variables used in all examples:
+
+```bash
+export ACCESS_TOKEN=your_gateway_access_token
+export EDGE_HOST=your_edge_host_or_ip
+```
+
+## Device connect API
+
+Inform ThingsBoard Edge that a device behind the Gateway is connected and ready to exchange data.
+
+**Topic:** `v1/gateway/connect`
+
+**Payload:**
+
+```json
+{"device": "Device A", "type": "Sensor A"}
+```
+
+- **device** — required. The device name in ThingsBoard.
+- **type** — optional. Device profile name. Defaults to `default` if omitted.
+
+**Behavior:**
+
+- If the device does not exist, ThingsBoard creates it automatically.
+- If the profile name is provided and does not exist, ThingsBoard creates it automatically.
+- Once connected, ThingsBoard routes shared attribute updates and RPC commands for this device through the Gateway.
+
+**Example 1.** Connect a device:
+
+```bash
+mosquitto_pub -h "$EDGE_HOST" -t "v1/gateway/connect" \
+  -u "$ACCESS_TOKEN" -m '{"device": "Device A"}'
+```
+
+**Example 2.** Connect a device with a specific profile:
+
+```bash
+mosquitto_pub -h "$EDGE_HOST" -t "v1/gateway/connect" \
+  -u "$ACCESS_TOKEN" -m '{"device": "Device A", "type": "Sensor A"}'
+```
+
+## Device disconnect API
+
+Inform ThingsBoard Edge that a device behind the Gateway is no longer active.
+
+**Topic:** `v1/gateway/disconnect`
+
+**Payload:**
+
+```json
+{"device": "Device A"}
+```
+
+**Behavior:**
+
+- If the device does not exist, ThingsBoard ignores the message.
+- After processing, ThingsBoard stops routing attribute updates and RPC commands for that device through the Gateway.
+
+**Example:**
+
+```bash
+mosquitto_pub -h "$EDGE_HOST" -t "v1/gateway/disconnect" \
+  -u "$ACCESS_TOKEN" -m '{"device": "Device A"}'
+```
+
+## Attributes API
+
+The Gateway can publish client-side attributes, request attribute values, and subscribe to shared attribute updates for devices behind it. See <DocLink product={props.product} path="user-guide/attributes" target="_blank">Working with attributes</DocLink> for attribute type details.
+
+### Publish attributes
+
+Upload client-side attributes for one or more devices. All keys in the payload are stored as client-side attributes.
+
+**Topic:** `v1/gateway/attributes`
+
+**Payload:**
+
+```json
+{
+  "Device A": {"attribute1": "value1", "attribute2": 42},
+  "Device B": {"attribute1": "value1", "attribute2": 42}
+}
+```
+
+**Behavior:**
+
+- If the device does not exist, ThingsBoard creates it with the `default` profile.
+- New attribute keys are created; existing keys are updated.
+
+**Example:**
+
+```bash
+mosquitto_pub -h "$EDGE_HOST" -t "v1/gateway/attributes" \
+  -u "$ACCESS_TOKEN" \
+  -m '{"Device A": {"fw_version": "1.0", "battery": 87}}'
+```
+
+### Request attribute values
+
+Subscribe to the response topic first, then publish the request.
+
+**Subscribe topic:** `v1/gateway/attributes/response`
+
+**Publish topic:** `v1/gateway/attributes/request`
+
+**Payload:**
+
+```json
+{
+  "id": 1,
+  "device": "Device A",
+  "client": ["key1", "key2"],
+  "shared": ["key3", "key4"]
+}
+```
+
+- **id** — required. Integer request identifier. The response includes the same `id`.
+- **device** — required. The device name in ThingsBoard.
+- **client** — optional. Client-side attribute keys to retrieve.
+- **shared** — optional. Shared attribute keys to retrieve.
+
+### Subscribe to attribute updates
+
+Subscribe to receive shared attribute changes pushed by ThingsBoard for devices behind the Gateway.
+
+**Subscribe topic:** `v1/gateway/attributes`
+
+**Message format:**
+
+```json
+{
+  "device": "Device A",
+  "data": {"attribute1": "value1", "attribute2": 42}
+}
+```
+
+- **device** — the device name in ThingsBoard.
+- **data** — map of updated shared attribute keys and values.
+
+## Telemetry upload API
+
+Publish time-series data for one or more devices in a single message.
+
+**Topic:** `v1/gateway/telemetry`
+
+**Payload:**
+
+```json
+{
+  "Device A": [
+    {"ts": 1483228800000, "values": {"temperature": 42, "humidity": 80}},
+    {"ts": 1483228801000, "values": {"temperature": 43, "humidity": 82}}
+  ],
+  "Device B": [
+    {"ts": 1483228800000, "values": {"temperature": 42, "humidity": 80}}
+  ]
+}
+```
+
+- **ts** — optional. Unix timestamp in milliseconds. If omitted, the server assigns the current time.
+- **values** — required. Key-value map of telemetry fields.
+
+**Behavior:**
+
+- If the device does not exist, ThingsBoard creates it with the `default` profile.
+- New telemetry keys are created; data is stored at the provided timestamps.
+
+**Example:**
+
+```bash
+mosquitto_pub -h "$EDGE_HOST" -t "v1/gateway/telemetry" \
+  -u "$ACCESS_TOKEN" \
+  -m '{"Device A": [{"ts": 1700000000000, "values": {"temperature": 23.5, "humidity": 61}}]}'
+```
+
+## RPC API
+
+### Server-side RPC
+
+Receive RPC commands from ThingsBoard for devices behind the Gateway and publish responses.
+
+**Subscribe topic:** `v1/gateway/rpc`
+
+**Request message format:**
+
+```json
+{"device": "Device A", "data": {"id": 1, "method": "toggle_gpio", "params": {"pin": 1}}}
+```
+
+**Response topic:** `v1/gateway/rpc`
+
+**Response message format:**
+
+```json
+{"device": "Device A", "id": 1, "data": {"success": true}}
+```
+
+- **device** — the device name in ThingsBoard.
+- **id** — the request identifier. Must match the `id` from the request.
+- **data** — response payload.
+
+<Aside type="note">
+  The device must be connected via the Gateway before it can receive RPC commands. The `id` in the response must match the `id` from the request.
+</Aside>
+
+## Claiming devices API
+
+Initiate the claiming process so end users can take ownership of pre-provisioned devices.
+
+**Topic:** `v1/gateway/claim`
+
+**Payload:**
+
+```json
+{
+  "Device A": {"secretKey": "value_A", "durationMs": 60000},
+  "Device B": {"secretKey": "value_B", "durationMs": 60000}
+}
+```
+
+Per-device parameters:
+
+- **secretKey** — optional. Secret key assigned to the device. Defaults to an empty string.
+- **durationMs** — optional. Claiming window in milliseconds. Defaults to the `device.claim.duration` system parameter.
+
+**Example:**
+
+```bash
+mosquitto_pub -h "$EDGE_HOST" -t "v1/gateway/claim" \
+  -u "$ACCESS_TOKEN" \
+  -m '{"Device A": {"secretKey": "mySecret", "durationMs": 60000}}'
+```
+
+## Protocol customization
+
+The MQTT transport can be fully customized for specific use cases by modifying the corresponding <a href="https://github.com/thingsboard/thingsboard/tree/master/transport/mqtt" target="_blank" rel="noopener noreferrer">transport module</a>.

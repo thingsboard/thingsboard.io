@@ -1,0 +1,558 @@
+---
+import { Icon } from 'astro-icon/components';
+import PartnerCard from './PartnerCard.astro';
+import PartnerFilterSidebar from './PartnerFilterSidebar.astro';
+import SearchBar from '../DeviceLibrary/SearchBar.astro';
+import Pagination from '../DeviceLibrary/Pagination.astro';
+import type { HardwarePartner } from '~/data/partners/types';
+
+interface Props {
+	partners: HardwarePartner[];
+}
+
+const { partners } = Astro.props;
+
+const PAGE_SIZE = 12;
+
+function getFilterValues(key: keyof HardwarePartner): { value: string; count: number }[] {
+	const counts = new Map<string, number>();
+	partners.forEach((partner) => {
+		const values = partner[key];
+		if (Array.isArray(values)) {
+			values.forEach((v) => {
+				const str = typeof v === 'string' ? v : String(v);
+				counts.set(str, (counts.get(str) || 0) + 1);
+			});
+		}
+	});
+	return Array.from(counts.entries())
+		.map(([value, count]) => ({ value, count }))
+		.sort((a, b) => a.value.localeCompare(b.value));
+}
+
+const filterGroups = [
+	{ name: 'Hardware Types', key: 'hardwareTypes', values: getFilterValues('hardwareTypes') },
+	{ name: 'Connectivity', key: 'connectivity', values: getFilterValues('connectivity') },
+	{ name: 'Industry', key: 'industry', values: getFilterValues('industry') },
+	{ name: 'Use Cases', key: 'useCase', values: getFilterValues('useCase') },
+];
+
+const partnersWithHref = partners.map((p) => ({
+	...p,
+	href: `/partners/hardware/${p.slug}/`,
+}));
+
+const initialPartners = partnersWithHref.slice(0, PAGE_SIZE);
+---
+
+<div
+	class="partner-library"
+	data-no-results="No partners match your filters."
+	data-partners-found="partners found"
+	data-page-size={PAGE_SIZE}
+>
+	<PartnerFilterSidebar filters={filterGroups} />
+
+	<div class="partner-library-main">
+		<div class="partner-library-header">
+			<button type="button" class="mobile-filter-toggle" id="mobile-filter-toggle">
+				<Icon name="tabler:filter" />
+				<span>Filters</span>
+				<span class="filter-badge" id="filter-badge" hidden></span>
+			</button>
+			<SearchBar placeholder="Search partners..." />
+			<div class="partner-count">
+				<span id="partner-count">{partners.length}</span>
+				partners found
+			</div>
+		</div>
+
+		<div class="partner-grid" id="partner-grid">
+			{
+				initialPartners.map((partner) => (
+					<PartnerCard
+						name={partner.name}
+						slug={partner.slug}
+						logo={partner.logo}
+						description={partner.description}
+						connectivity={partner.connectivity}
+						industry={partner.industry}
+						href={partner.href}
+					/>
+				))
+			}
+		</div>
+
+		<div class="no-results" id="no-results" hidden>
+			No partners match your filters.
+		</div>
+
+		<Pagination translations={{ previous: 'Previous', next: 'Next', page: 'Page', of: 'of' }} />
+	</div>
+</div>
+
+<script is:inline define:vars={{ partnersWithHref }}>
+	window.__PARTNER_LIBRARY_DATA__ = partnersWithHref;
+</script>
+
+<script>
+	interface Partner {
+		name: string;
+		slug: string;
+		connectivity: string[];
+		industry: string[];
+		useCase: string[];
+		hardwareTypes: string[];
+		logo: string;
+		description: string;
+		href: string;
+	}
+
+	interface SearchParams {
+		search: string;
+		filters: Record<string, string[]>;
+		page: number;
+		pageSize: number;
+	}
+
+	interface SearchResult {
+		partners: Partner[];
+		total: number;
+		totalPages: number;
+		currentPage: number;
+	}
+
+	function createPartnerAPI(allPartners: Partner[]) {
+		function matchesSearch(partner: Partner, query: string): boolean {
+			if (!query) return true;
+			const searchLower = query.toLowerCase();
+			const searchableFields = [
+				partner.name,
+				partner.description,
+				...partner.connectivity,
+				...partner.industry,
+				...partner.useCase,
+				...partner.hardwareTypes,
+			];
+			return searchableFields.some((field) => field.toLowerCase().includes(searchLower));
+		}
+
+		function matchesFilters(partner: Partner, filters: Record<string, string[]>): boolean {
+			for (const [key, values] of Object.entries(filters)) {
+				if (values.length === 0) continue;
+				const partnerValues =
+					partner[key as 'connectivity' | 'industry' | 'useCase' | 'hardwareTypes'] || [];
+				const hasMatch = values.some((v) => partnerValues.includes(v));
+				if (!hasMatch) return false;
+			}
+			return true;
+		}
+
+		return {
+			search(params: SearchParams): SearchResult {
+				const filtered = allPartners.filter(
+					(partner) =>
+						matchesSearch(partner, params.search) &&
+						matchesFilters(partner, params.filters)
+				);
+				const total = filtered.length;
+				const totalPages = Math.ceil(total / params.pageSize) || 1;
+				const currentPage = Math.min(Math.max(1, params.page), totalPages);
+				const startIndex = (currentPage - 1) * params.pageSize;
+				const partners = filtered.slice(startIndex, startIndex + params.pageSize);
+				return { partners, total, totalPages, currentPage };
+			},
+		};
+	}
+
+	function initPartnerLibrary() {
+		const container = document.querySelector('.partner-library');
+		if (!container) return;
+
+		const allPartners = (window as any).__PARTNER_LIBRARY_DATA__ as Partner[];
+		if (!allPartners) return;
+
+		const api = createPartnerAPI(allPartners);
+
+		const partnerGrid = container.querySelector('#partner-grid') as HTMLElement;
+		const partnerCountEl = container.querySelector('#partner-count') as HTMLElement;
+		const noResultsEl = container.querySelector('#no-results') as HTMLElement;
+		const clearFiltersBtn = container.querySelector('#clear-filters');
+		const filterCheckboxes = container.querySelectorAll<HTMLInputElement>(
+			'.filter-sidebar input[type="checkbox"]'
+		);
+		const searchInput = container.querySelector('#device-search') as HTMLInputElement;
+		const searchClearBtn = container.querySelector('#search-clear') as HTMLButtonElement;
+		const pagination = container.querySelector('#pagination') as HTMLElement;
+		const paginationPages = container.querySelector('#pagination-pages') as HTMLElement;
+		const paginationPrev = container.querySelector('#pagination-prev') as HTMLButtonElement;
+		const paginationNext = container.querySelector('#pagination-next') as HTMLButtonElement;
+		const paginationInfo = container.querySelector('#pagination-info') as HTMLElement;
+		const paginationCurrent = container.querySelector('#pagination-current') as HTMLElement;
+		const paginationTotal = container.querySelector('#pagination-total') as HTMLElement;
+
+		if (!partnerGrid || !partnerCountEl || !searchInput) return;
+
+		const pageSize = parseInt(container.getAttribute('data-page-size') || '12', 10);
+		let currentPage = 1;
+		let debounceTimer: ReturnType<typeof setTimeout>;
+
+		function getActiveFilters(): Record<string, string[]> {
+			const filters: Record<string, string[]> = {};
+			filterCheckboxes.forEach((checkbox) => {
+				if (checkbox.checked) {
+					const key = checkbox.name;
+					if (!filters[key]) filters[key] = [];
+					filters[key].push(checkbox.value);
+				}
+			});
+			return filters;
+		}
+
+		function renderPartnerCard(partner: Partner): string {
+			const snippet =
+				partner.description.length > 120
+					? partner.description.slice(0, 120).trimEnd() + '…'
+					: partner.description;
+
+			const industryChips = partner.industry
+				.slice(0, 2)
+				.map((ind) => `<span class="filter-chip">${ind}</span>`)
+				.join('');
+			const moreChip =
+				partner.industry.length > 2
+					? `<span class="filter-chip">+${partner.industry.length - 2}</span>`
+					: '';
+
+			return `
+				<a href="${partner.href}" class="partner-card" data-partner-slug="${partner.slug}">
+					<div class="partner-logo">
+						<img src="${partner.logo}" alt="${partner.name}" loading="lazy" />
+					</div>
+					<div class="partner-content">
+						<h3 class="partner-name">${partner.name}</h3>
+						<p class="partner-description">${snippet}</p>
+						<div class="partner-chips">
+							${industryChips}${moreChip}
+						</div>
+					</div>
+				</a>
+			`;
+		}
+
+		function renderPagination(currentPage: number, totalPages: number) {
+			if (totalPages <= 1) {
+				pagination.hidden = true;
+				paginationInfo.hidden = true;
+				return;
+			}
+
+			pagination.hidden = false;
+			paginationInfo.hidden = false;
+
+			paginationPrev.disabled = currentPage <= 1;
+			paginationNext.disabled = currentPage >= totalPages;
+
+			paginationCurrent.textContent = String(currentPage);
+			paginationTotal.textContent = String(totalPages);
+
+			const pages: (number | string)[] = [];
+			const maxVisible = 5;
+
+			if (totalPages <= maxVisible) {
+				for (let i = 1; i <= totalPages; i++) pages.push(i);
+			} else {
+				pages.push(1);
+				if (currentPage > 3) pages.push('...');
+				const start = Math.max(2, currentPage - 1);
+				const end = Math.min(totalPages - 1, currentPage + 1);
+				for (let i = start; i <= end; i++) {
+					if (!pages.includes(i)) pages.push(i);
+				}
+				if (currentPage < totalPages - 2) pages.push('...');
+				if (!pages.includes(totalPages)) pages.push(totalPages);
+			}
+
+			paginationPages.innerHTML = pages
+				.map((p) =>
+					typeof p === 'number'
+						? `<button type="button" class="page-btn${p === currentPage ? ' active' : ''}" data-page="${p}">${p}</button>`
+						: `<span class="page-ellipsis">${p}</span>`
+				)
+				.join('');
+		}
+
+		function updateDisplay() {
+			const result = api.search({
+				search: searchInput.value.trim(),
+				filters: getActiveFilters(),
+				page: currentPage,
+				pageSize,
+			});
+
+			partnerCountEl.textContent = String(result.total);
+
+			if (result.partners.length > 0) {
+				partnerGrid.innerHTML = result.partners.map(renderPartnerCard).join('');
+				noResultsEl.hidden = true;
+			} else {
+				partnerGrid.innerHTML = '';
+				noResultsEl.hidden = false;
+			}
+
+			currentPage = result.currentPage;
+			renderPagination(result.currentPage, result.totalPages);
+			searchClearBtn.hidden = !searchInput.value;
+		}
+
+		function resetAndUpdate() {
+			currentPage = 1;
+			updateDisplay();
+		}
+
+		filterCheckboxes.forEach((checkbox) => {
+			checkbox.addEventListener('change', resetAndUpdate);
+		});
+
+		clearFiltersBtn?.addEventListener('click', () => {
+			filterCheckboxes.forEach((checkbox) => {
+				checkbox.checked = false;
+			});
+			resetAndUpdate();
+		});
+
+		searchInput.addEventListener('input', () => {
+			clearTimeout(debounceTimer);
+			debounceTimer = setTimeout(resetAndUpdate, 300);
+		});
+
+		searchClearBtn?.addEventListener('click', () => {
+			searchInput.value = '';
+			resetAndUpdate();
+			searchInput.focus();
+		});
+
+		paginationPrev?.addEventListener('click', () => {
+			if (currentPage > 1) {
+				currentPage--;
+				updateDisplay();
+				partnerGrid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+			}
+		});
+
+		paginationNext?.addEventListener('click', () => {
+			currentPage++;
+			updateDisplay();
+			partnerGrid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		});
+
+		paginationPages?.addEventListener('click', (e) => {
+			const target = e.target as HTMLElement;
+			if (target.classList.contains('page-btn')) {
+				const page = parseInt(target.dataset.page || '1', 10);
+				if (page !== currentPage) {
+					currentPage = page;
+					updateDisplay();
+					partnerGrid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+				}
+			}
+		});
+
+		const initialTotal = allPartners.length;
+		const initialTotalPages = Math.ceil(initialTotal / pageSize);
+		renderPagination(1, initialTotalPages);
+	}
+
+	initPartnerLibrary();
+	document.addEventListener('astro:page-load', initPartnerLibrary);
+</script>
+
+<style lang="scss">
+	@use '~/styles/_variables.scss' as *;
+
+	.partner-library {
+		display: flex;
+		gap: 2rem;
+		align-items: flex-start;
+	}
+
+	.partner-library-main {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.partner-library-header {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		margin-bottom: 1rem;
+	}
+
+	.mobile-filter-toggle {
+		display: none;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.5rem 1rem;
+		background: var(--color-primary);
+		border: none;
+		border-radius: var(--radius-md);
+		@include text-s;
+		font-weight: $font-weight-semibold;
+		color: #fff;
+		cursor: pointer;
+		white-space: nowrap;
+
+		:global(svg) {
+			width: 16px;
+			height: 16px;
+		}
+
+		:global([data-theme='dark']) & {
+			color: #1a1a2e;
+		}
+	}
+
+	.filter-badge {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 1.25rem;
+		height: 1.25rem;
+		padding: 0 0.25rem;
+		background: #fff;
+		color: var(--color-primary);
+		border-radius: 1rem;
+		@include text-xs;
+		font-weight: $font-weight-bold;
+	}
+
+	.filter-badge[hidden] {
+		display: none;
+	}
+
+	.partner-count {
+		@include text-s;
+		color: var(--color-text-secondary);
+	}
+
+	.partner-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+		gap: 1.5rem;
+	}
+
+	.no-results {
+		text-align: center;
+		padding: 3rem 1rem;
+		color: var(--color-text-secondary);
+		@include text-m;
+	}
+
+	.no-results[hidden] {
+		display: none;
+	}
+
+	@include media-down(md) {
+		.partner-library {
+			flex-direction: column;
+		}
+
+		.mobile-filter-toggle {
+			display: inline-flex;
+		}
+
+		.partner-library-header {
+			flex-direction: row;
+			align-items: center;
+			flex-wrap: nowrap;
+		}
+
+		.partner-grid {
+			grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+		}
+	}
+</style>
+
+<style is:global>
+	/* Styles for dynamically rendered partner cards */
+	.partner-grid .partner-card {
+		background: var(--color-bg);
+		border: 1px solid var(--color-border);
+		border-radius: 0.5rem;
+		overflow: hidden;
+		transition:
+			transform 0.2s,
+			box-shadow 0.2s;
+		display: flex;
+		flex-direction: column;
+		text-decoration: none;
+		color: inherit;
+	}
+
+	.partner-grid .partner-card:hover {
+		transform: translateY(-2px);
+		box-shadow: var(--shadow-card-hover, 0 4px 12px rgba(0, 0, 0, 0.15));
+	}
+
+	.partner-grid .partner-logo {
+		width: 100%;
+		aspect-ratio: 16 / 9;
+		background: #fff;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		overflow: hidden;
+		padding: 1.5rem;
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.partner-grid .partner-logo img {
+		max-width: 100%;
+		max-height: 100%;
+		object-fit: contain;
+	}
+
+	.partner-grid .partner-content {
+		padding: 1rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		flex: 1;
+	}
+
+	.partner-grid .partner-name {
+		font-size: 0.9375rem;
+		font-weight: 600;
+		margin: 0;
+		color: var(--color-text);
+	}
+
+	.partner-grid .partner-description {
+		font-size: 0.8125rem;
+		color: var(--color-text-secondary);
+		margin: 0;
+		line-height: 1.5;
+	}
+
+	.partner-grid .partner-chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.375rem;
+		margin-top: auto;
+	}
+
+	.partner-grid .filter-chip {
+		font-size: 0.75rem;
+		padding: 0.25rem 0.625rem;
+		background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+		border-radius: 1rem;
+		color: var(--color-primary);
+		white-space: nowrap;
+	}
+
+	[data-theme='dark'] .partner-grid .partner-logo {
+		background: #d5d7db;
+	}
+</style>

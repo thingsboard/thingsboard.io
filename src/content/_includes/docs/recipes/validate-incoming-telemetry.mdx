@@ -1,0 +1,122 @@
+import DocLink from '@components/DocLink.astro';
+import { Steps, Aside, Code } from '@astrojs/starlight/components';
+import { Products } from '~/models/site.models';
+
+export const tbHost = (product) =>
+  product === Products.PAAS ? 'thingsboard.cloud' :
+  product === Products.PAAS_EU ? 'eu.thingsboard.cloud' :
+  '$THINGSBOARD_HOST_NAME';
+
+Validate incoming telemetry data in ThingsBoard and discard invalid values before they are stored. This guide uses an importable rule chain configuration so you can examine the logic and adapt it to your own scenario.
+
+## Use case
+
+Assume a device with a temperature sensor periodically sends telemetry to ThingsBoard. The sensor supports measurements in the range **-40 °C to +80 °C**.
+
+Your objective is to:
+
+- Accept and store temperature readings only if they fall within the valid range.
+- Discard telemetry values outside this range.
+- Allow all other telemetry data (that does not contain temperature) to pass through unchanged.
+
+## Prerequisites
+
+Review the <DocLink product={props.product} path="user-guide/rule-engine-2-0/overview">Rule Engine</DocLink> documentation before proceeding — it explains message routing and processing concepts used in this guide.
+
+## Validation logic
+
+Incoming messages may or may not contain the `temperature` field. Validation follows these rules:
+
+- If the message does not contain `temperature`, it is considered valid.
+- If `temperature` is present, its value must be within the range -40 to 80.
+
+Only messages that meet these conditions are stored in the database.
+
+The validation is implemented using a rule chain that filters incoming messages before they are saved. The rule chain:
+
+- Routes all messages from devices using this rule chain to a filter node with the temperature validation script.
+- Forwards valid telemetry to the save timeseries node, which stores data in the database.
+
+### Validation script
+
+```javascript
+return typeof msg.temperature === 'undefined' || (msg.temperature >= -40 && msg.temperature <= 80);
+```
+
+**How it works:**
+
+- `typeof msg.temperature === 'undefined'` — allows messages that do not include temperature data to pass through unchanged.
+- `msg.temperature >= -40 && msg.temperature <= 80` — validates that the temperature value is within the supported range.
+
+## Step 1. Import the validation rule chain
+
+<Steps>
+1. Download the rule chain configuration file: <a href="/resources/guides/validate_incoming_telemetry_rule_chain.json" download="validate_incoming_telemetry_rule_chain.json">validate_incoming_telemetry_rule_chain.json</a>
+2. Navigate to **Rule chains**.
+3. Click **+ Add rule chain &#8702; Import rule chain**.
+4. Upload the configuration file and click **Import**.
+5. Click **Apply changes** to finalize.
+</Steps>
+
+## Step 2. Add a demo device
+
+Create a device that publishes temperature telemetry and assign the imported rule chain to its device profile.
+
+<Steps>
+1. Navigate to **Entities &#8702; Devices**.
+2. Click **+ Add device &#8702; Add new device**, and set:
+   - **Device name**: `Thermometer`
+   - **Device profile**: `thermostat`
+3. Click **Add**.
+4. Open the `thermostat` device profile settings and set **Validate Incoming Telemetry** as the default rule chain for this profile.
+5. Save the changes.
+</Steps>
+
+From this point onward, all telemetry published by devices using this profile is validated before being stored.
+
+## Test the configuration
+
+Open the device's **Latest telemetry** tab to monitor incoming data in real time, then publish the test messages below.
+
+<Aside type="note">
+  {(props.product === Products.PAAS || props.product === Products.PAAS_EU) ? (
+    <>Replace <code>$ACCESS_TOKEN</code> with the device access token.</>
+  ) : (
+    <>Replace <code>$THINGSBOARD_HOST_NAME</code> with your ThingsBoard host (e.g. <code>localhost:8080</code>) and <code>$ACCESS_TOKEN</code> with the device access token.</>
+  )} You can also use <DocLink product={props.product} path="user-guide/ui/devices/#check-connectivity">Check connectivity</DocLink> to get a ready-to-run command.
+</Aside>
+
+**1. Temperature within the valid range — should be stored:**
+
+<Code code={`curl -v -X POST \\
+  --header "Content-Type: application/json" \\
+  --data '{"temperature": 25}' \\
+  http://${tbHost(props.product)}/api/v1/$ACCESS_TOKEN/telemetry`} lang="bash" />
+
+**2. Temperature below the range — should be discarded:**
+
+<Code code={`curl -v -X POST \\
+  --header "Content-Type: application/json" \\
+  --data '{"temperature": -50}' \\
+  http://${tbHost(props.product)}/api/v1/$ACCESS_TOKEN/telemetry`} lang="bash" />
+
+**3. Temperature above the range — should be discarded:**
+
+<Code code={`curl -v -X POST \\
+  --header "Content-Type: application/json" \\
+  --data '{"temperature": 100}' \\
+  http://${tbHost(props.product)}/api/v1/$ACCESS_TOKEN/telemetry`} lang="bash" />
+
+**4. Message without a temperature field — should pass through unchanged:**
+
+<Code code={`curl -v -X POST \\
+  --header "Content-Type: application/json" \\
+  --data '{"humidity": 46}' \\
+  http://${tbHost(props.product)}/api/v1/$ACCESS_TOKEN/telemetry`} lang="bash" />
+
+Only messages that pass validation are persisted. Invalid temperature values are discarded silently.
+
+## See also
+
+- <DocLink product={props.product} path="user-guide/rule-engine-2-0/overview">Rule Engine overview</DocLink> — full reference for message routing and processing
+- <DocLink product={props.product} path="user-guide/rule-engine-2-0/nodes/filter/script">Script filter node</DocLink> — write custom JavaScript conditions for message filtering

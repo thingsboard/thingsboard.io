@@ -302,13 +302,13 @@ Build one `CaseStudyPage` template → populate content via MDX files.
 
 | # | Page | URL | Description | Complexity | Dev (h) | Test (h) | Status |
 |---|------|-----|-------------|------------|---------|----------|--------|
-| 8.1 | Hardware Partners | `/partners/hardware/` | Partner grid with logos, filter, links to partner detail pages | H | 10–16 | 2 | [ ] |
-| 8.2 | Partner Program | `/partners/hardware/program/` | Hardware partnership programme details | M | 4–6 | 0.5 | [ ] |
-| 8.3 | Apply for Partnership | `/partners/hardware/apply/` | Application form | M | 4–6 | 1 | [ ] |
-| 8.4 | Apply — Thank You | `/partners/hardware/apply/thanks/` | Confirmation page after form submission | L | 1–2 | — | [ ] |
-| 8.5 | Distributors | `/partners/distributors/` | Distributor list by region, map | H | 8–12 | 1–2 | [ ] |
-| 8.6 | Marketplace | `/partners/marketplace/` | Marketplace of ThingsBoard-based solutions | H | 10–15 | 2 | [ ] |
-| 8.7 | Affiliate Program | `/partners/affiliate/` | Affiliate/referral programme | M | 4–6 | 0.5 | [ ] |
+| 8.1 | Hardware Partners | `/partners/hardware/` | Partner grid with logos, filter, links to partner detail pages | H | 10–16 | 2 | [x] |
+| 8.2 | Partner Program | `/partners/hardware/program/` | Hardware partnership programme details | M | 4–6 | 0.5 | [x] |
+| 8.3 | Apply for Partnership | `/partners/hardware/apply/` | Application form | M | 4–6 | 1 | [x] |
+| 8.4 | Apply — Thank You | `/partners/hardware/apply-thanks/` | Confirmation page after form submission | L | 1–2 | — | [x] |
+| 8.5 | Distributors | `/partners/distributors/` | Distributor list by region, map | H | 8–12 | 1–2 | [x] |
+| 8.6 | Marketplace | `/partners/marketplace/` | Marketplace of ThingsBoard-based solutions | H | 10–15 | 2 | [x] |
+| 8.7 | Affiliate Program | `/partners/affiliate/` | Affiliate/referral programme | M | 4–6 | 0.5 | [x] |
 
 ### 8b. Individual hardware partner pages (~55 partners)
 
@@ -316,56 +316,56 @@ Each page: company logo, name, device description, link to Device Library.
 
 | # | Task | Dev (h) | Test (h) | Status |
 |---|------|---------|----------|--------|
-| 8.8 | Partner page template | 5–8 | 1 | [ ] |
-| 8.9 | ace-plc | 1–2 | — | [ ] |
-| 8.10 | actility | 1–2 | — | [ ] |
-| 8.11 | agrosense-makerfabs | 1–2 | — | [ ] |
-| 8.12 | akkr8 | 1–2 | — | [ ] |
-| 8.13 | arwin-technology-limited | 1–2 | — | [ ] |
-| 8.14 | atomsenses | 1–2 | — | [ ] |
-| 8.15 | beilai | 1–2 | — | [ ] |
-| 8.16 | decode | 1–2 | — | [ ] |
-| 8.17 | digicom | 1–2 | — | [ ] |
-| 8.18 | digitalcomtech | 1–2 | — | [ ] |
-| 8.19 | dragino | 1–2 | — | [ ] |
-| 8.20 | dusun | 1–2 | — | [ ] |
-| 8.21 | efento | 1–2 | — | [ ] |
-| 8.22 | elastel | 1–2 | — | [ ] |
-| 8.23 | espressif | 1–2 | — | [ ] |
-| 8.24 | exxn | 1–2 | — | [ ] |
-| 8.25 | ezurio | 1–2 | — | [ ] |
-| 8.26 | fusiondaq | 1–2 | — | [ ] |
-| 8.27 | haltian | 1–2 | — | [ ] |
-| 8.28 | iothings | 1–2 | — | [ ] |
-| 8.29 | iotrouter | 1–2 | — | [ ] |
-| 8.30 | kernelgroup | 1–2 | — | [ ] |
-| 8.31 | lansitec | 1–2 | — | [ ] |
-| 8.32 | machineastro | 1–2 | — | [ ] |
-| 8.33 | makerfabs | 1–2 | — | [ ] |
-| 8.34 | mclimate | 1–2 | — | [ ] |
-| 8.35 | mikrotik | 1–2 | — | [ ] |
-| 8.36 | milesight | 1–2 | — | [ ] |
-| 8.37 | mokosmart | 1–2 | — | [ ] |
-| 8.38 | monoz | 1–2 | — | [ ] |
-| 8.39 | ncd | 1–2 | — | [ ] |
-| 8.40 | nettra | 1–2 | — | [ ] |
-| 8.41 | netvox | 1–2 | — | [ ] |
-| 8.42 | radionode | 1–2 | — | [ ] |
-| 8.43 | roltek | 1–2 | — | [ ] |
-| 8.44 | seeed | 1–2 | — | [ ] |
-| 8.45 | senquip | 1–2 | — | [ ] |
-| 8.46 | sensiedge | 1–2 | — | [ ] |
-| 8.47 | sensy32 | 1–2 | — | [ ] |
-| 8.48 | sixfab | 1–2 | — | [ ] |
-| 8.49 | smartico | 1–2 | — | [ ] |
-| 8.50 | sodaq | 1–2 | — | [ ] |
-| 8.51 | solandtec | 1–2 | — | [ ] |
-| 8.52 | tektelic | 1–2 | — | [ ] |
-| 8.53 | teltonika | 1–2 | — | [ ] |
-| 8.54 | temcocontrols | 1–2 | — | [ ] |
-| 8.55 | weinzierl | 1–2 | — | [ ] |
-| 8.56 | yobiiq | 1–2 | — | [ ] |
-| 8.57 | yudash | 1–2 | — | [ ] |
+| 8.8 | Partner page template | 5–8 | 1 | [x] |
+| 8.9 | ace-plc | 1–2 | — | [x] |
+| 8.10 | actility | 1–2 | — | [x] |
+| 8.11 | agrosense-makerfabs | 1–2 | — | [x] |
+| 8.12 | akkr8 | 1–2 | — | [x] |
+| 8.13 | arwin-technology-limited | 1–2 | — | [x] |
+| 8.14 | atomsenses | 1–2 | — | [x] |
+| 8.15 | beilai | 1–2 | — | [x] |
+| 8.16 | decode | 1–2 | — | [x] |
+| 8.17 | digicom | 1–2 | — | [x] |
+| 8.18 | digitalcomtech | 1–2 | — | [x] |
+| 8.19 | dragino | 1–2 | — | [x] |
+| 8.20 | dusun | 1–2 | — | [x] |
+| 8.21 | efento | 1–2 | — | [x] |
+| 8.22 | elastel | 1–2 | — | [x] |
+| 8.23 | espressif | 1–2 | — | [x] |
+| 8.24 | exxn | 1–2 | — | [x] |
+| 8.25 | ezurio | 1–2 | — | [x] |
+| 8.26 | fusiondaq | 1–2 | — | [x] |
+| 8.27 | haltian | 1–2 | — | [x] |
+| 8.28 | iothings | 1–2 | — | [x] |
+| 8.29 | iotrouter | 1–2 | — | [x] |
+| 8.30 | kernelgroup | 1–2 | — | [x] |
+| 8.31 | lansitec | 1–2 | — | [x] |
+| 8.32 | machineastro | 1–2 | — | [x] |
+| 8.33 | makerfabs | 1–2 | — | [x] |
+| 8.34 | mclimate | 1–2 | — | [x] |
+| 8.35 | mikrotik | 1–2 | — | [x] |
+| 8.36 | milesight | 1–2 | — | [x] |
+| 8.37 | mokosmart | 1–2 | — | [x] |
+| 8.38 | monoz | 1–2 | — | [x] |
+| 8.39 | ncd | 1–2 | — | [x] |
+| 8.40 | nettra | 1–2 | — | [x] |
+| 8.41 | netvox | 1–2 | — | [x] |
+| 8.42 | radionode | 1–2 | — | [x] |
+| 8.43 | roltek | 1–2 | — | [x] |
+| 8.44 | seeed | 1–2 | — | [x] |
+| 8.45 | senquip | 1–2 | — | [x] |
+| 8.46 | sensiedge | 1–2 | — | [x] |
+| 8.47 | sensy32 | 1–2 | — | [x] |
+| 8.48 | sixfab | 1–2 | — | [x] |
+| 8.49 | smartico | 1–2 | — | [x] |
+| 8.50 | sodaq | 1–2 | — | [x] |
+| 8.51 | solandtec | 1–2 | — | [x] |
+| 8.52 | tektelic | 1–2 | — | [x] |
+| 8.53 | teltonika | 1–2 | — | [x] |
+| 8.54 | temcocontrols | 1–2 | — | [x] |
+| 8.55 | weinzierl | 1–2 | — | [x] |
+| 8.56 | yobiiq | 1–2 | — | [x] |
+| 8.57 | yudash | 1–2 | — | [x] |
 
 **Notes:**
 - Hardware Partners list integrates with Device Library — can reuse existing data
@@ -571,7 +571,7 @@ Pages that show a filterable/paginated table of ThingsBoard releases.
 - [ ] Careers
 
 ### Phase 5 — Partners + Blog (Weeks 7–9) *(was: Weeks 15–22)*
-- [ ] Partners (Hardware, Distributors, Marketplace)
+- [x] Partners (Hardware, Distributors, Marketplace, Affiliate)
 - [ ] Blog infrastructure + post migration
 
 ### Phase 6 — Wrap-up (Week 10) *(was: Weeks 23–24)*
