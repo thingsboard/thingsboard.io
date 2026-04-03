@@ -210,6 +210,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 					{ label: 'Overview', slug: `${prefix}/contribution/widgets-development` },
 					`${prefix}/contribution/widgets-development/latest-values`,
 					`${prefix}/contribution/widgets-development/time-series`,
+					`${prefix}/contribution/widgets-development/custom-subscription`,
 					`${prefix}/contribution/widgets-development/rpc-control`,
 					`${prefix}/contribution/widgets-development/alarm-widget`,
 					`${prefix}/contribution/widgets-development/static-widget`,

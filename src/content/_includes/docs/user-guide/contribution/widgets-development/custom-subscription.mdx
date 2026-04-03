@@ -1,0 +1,1039 @@
+import DocLink from '@components/DocLink.astro';
+import DocImage from '~/components/DocImage.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Custom subscriptions let you create and replace data subscriptions at runtime — beyond what the widget's static datasource configuration supports. Use them whenever you need to change **which keys** or **which entities** are queried based on user input, settings, or widget logic.
+
+## When to use custom subscriptions
+
+The default subscription is created from the datasource configuration the user sets in the dashboard widget settings. A custom subscription lets you override that at runtime:
+
+- **Key filtering** — the user selects which data key to chart from a dropdown; only that key is subscribed
+- **Entity filtering** — the user picks devices from a list; only those entities are queried
+- **Type override** — a Time-Series widget that also needs a Latest Values subscription for a separate display element
+- **Multi-select filtering** — the user selects combinations of entities and keys; the subscription rebuilds on each change
+
+## Overview
+
+Create a subscription using `self.ctx.subscriptionApi.createSubscription(options, deep)`:
+
+```javascript
+self.ctx.subscriptionApi.createSubscription(options, true)
+  .subscribe(subscription => {
+    // subscription is ready — use it here
+  });
+```
+
+The second argument (`true`) enables deep mode — the subscription fetches full historical data for the configured time window. Pass `false` for a lightweight subscription that only receives new incoming data.
+
+The method returns an RxJS `Observable`. Store the subscription reference so you can unsubscribe later:
+
+```javascript
+self.ctx.$scope.customSubscription =
+  self.ctx.subscriptionApi.createSubscription(options, true)
+    .subscribe(subscription => { /* ... */ });
+```
+
+## Subscription options
+
+| Property | Type | Description |
+|---|---|---|
+| `widgetType` | `String` | Subscription type: `'timeseries'`, `'latest'`, or `'alarm'` |
+| `datasources` | `Array<Datasource>` | Data to subscribe to (time-series and latest subscriptions) |
+| `alarmSource` | `Datasource` | Alarm data source (alarm subscriptions only) |
+| `datasourcesOptional` | `Boolean` | Whether datasources are optional. Always `true` for static widgets |
+| `hasDataPageLink` | `Boolean` | Whether `pageLink` is used for entity paging |
+| `singleEntity` | `Boolean` | Retrieve data from the first found entity only |
+| `pageSize` | `Number` | Number of entities per page |
+| `warnOnPageDataOverflow` | `Boolean` | Show a warning when paged data overflows |
+| `useDashboardTimewindow` | `Boolean` | Use the dashboard's time window instead of `timeWindowConfig` |
+| `dashboardTimewindow` | `Timewindow` | The dashboard time window (pass `self.ctx.dashboardTimewindow`) |
+| `timeWindowConfig` | `Timewindow` | Custom time window, used when `useDashboardTimewindow` is `false` |
+| `legendConfig` | `LegendConfig` | Legend display parameters |
+| `decimals` | `Number` | Decimal places for all keys |
+| `units` | `String` | Units symbol shown next to values for all keys |
+| `callbacks` | `WidgetSubscriptionCallbacks` | Lifecycle callbacks — see [Callbacks](#callbacks) below |
+
+**`widgetType`** determines what data is returned:
+- `'timeseries'` — historical data over the configured time window; `data[i].data` is an array of `[timestamp, value]` pairs
+- `'latest'` — most recent value only; `data[i].data` is a single `[timestamp, value]` pair
+- `'alarm'` — alarm data; use `alarmSource` instead of `datasources`
+
+**Time window** — to sync with the dashboard time window, set `useDashboardTimewindow: true` and pass `dashboardTimewindow: self.ctx.dashboardTimewindow`. To use a custom range, set `useDashboardTimewindow: false` and provide `timeWindowConfig`.
+
+### Datasources
+
+Each object in the `datasources` array describes what data to subscribe to:
+
+| Field | Type | Description |
+|---|---|---|
+| `type` | `DatasourceType` | `'entity'` for entity-based data, `'entityCount'` to count matching entities, `'function'` for generated data |
+| `aliasName` | `String` | Name of the datasource |
+| `dataKeys` | `Array<DataKey>` | Keys to subscribe to |
+| `latestDataKeys` | `Array<DataKey>` | Keys to subscribe to as latest values alongside a time-series subscription |
+| `pageLink` | `EntityDataPageLink` | Page link for entity paging |
+| `keyFilters` | `Array<KeyFilter>` | Filter subscribed data by key value — see [Key filters](#key-filters) below |
+| `entityFilter` | `EntityFilter` | Filter which entities to subscribe to — see [Entity filters](#entity-filters) below |
+
+**`latestDataKeys`** — available in `'timeseries'` subscriptions. Lets you subscribe to some keys as latest values (most recent reading only) while other keys stream full time-series data. Useful when you need a current-value display alongside a chart.
+
+**Inheriting the default datasource** — the most convenient way to build a datasource is to spread the default subscription's datasource and override only what changes:
+
+```javascript
+const datasources = self.ctx.defaultSubscription.datasources.map(ds => ({
+  ...ds,
+  dataKeys   // replace keys; entity, entityFilter, etc. are inherited
+}));
+```
+
+**Custom entity filter** — to query a specific set of entities, build the datasource with an explicit `entityFilter`:
+
+```javascript
+const datasources = [{
+  type: 'entity',
+  dataKeys,
+  entityFilter: {
+    type: 'entityList',
+    entityType: 'DEVICE',
+    entityList: ['id1', 'id2']
+  }
+}];
+```
+
+#### Entity filters
+
+The entity filter defines which entities the subscription retrieves data from. The `type` field selects the filter strategy.
+
+##### Single entity
+
+Filter one specific entity by ID:
+
+```javascript
+{
+  type: 'singleEntity',
+  singleEntity: {
+    id: 'd521edb0-2a7a-11ec-94eb-213c95f54092',
+    entityType: 'DEVICE'
+  }
+}
+```
+
+##### Entity list
+
+Filter entities of the same type by an explicit list of IDs:
+
+```javascript
+{
+  type: 'entityList',
+  entityType: 'DEVICE',
+  entityList: [
+    'e6501f30-2a7a-11ec-94eb-213c95f54092',
+    'e6657bf0-2a7a-11ec-94eb-213c95f54092'
+  ]
+}
+```
+
+##### Entity name
+
+Filter entities whose name starts with a given string:
+
+```javascript
+{
+  type: 'entityName',
+  entityType: 'DEVICE',
+  entityNameFilter: 'Air Quality'
+}
+```
+
+##### Entity type
+
+Filter all entities of a given type:
+
+```javascript
+{
+  type: 'entityType',
+  entityType: 'CUSTOMER'
+}
+```
+
+##### Asset type
+
+Filter assets by profile type and name prefix:
+
+```javascript
+{
+  type: 'assetType',
+  assetTypes: ['charging station'],
+  assetNameFilter: 'Tesla'
+}
+```
+
+##### Device type
+
+Filter devices by profile type and name prefix:
+
+```javascript
+{
+  type: 'deviceType',
+  deviceTypes: ['Temperature Sensor'],
+  deviceNameFilter: 'ABC'
+}
+```
+
+##### Entity view type
+
+Filter entity views by type and name prefix:
+
+```javascript
+{
+  type: 'entityViewType',
+  entityViewTypes: ['Concrete Mixer'],
+  entityViewNameFilter: 'CAT'
+}
+```
+
+##### Edge type
+
+Filter edge instances by type and name prefix:
+
+```javascript
+{
+  type: 'edgeType',
+  edgeTypes: ['Factory'],
+  edgeNameFilter: 'Nevada'
+}
+```
+
+##### API usage state
+
+Query API usage for a tenant or specific customer:
+
+```javascript
+{
+  type: 'apiUsageState',
+  customerId: {
+    id: 'd521edb0-2a7a-11ec-94eb-213c95f54092',
+    entityType: 'CUSTOMER'
+  }
+}
+// omit customerId to get current tenant API usage
+```
+
+##### Relations query
+
+Filter entities related to a root entity, traversing the relation graph:
+
+```javascript
+{
+  type: 'relationsQuery',
+  rootEntity: {
+    entityType: 'ASSET',
+    id: 'e51de0c0-2a7a-11ec-94eb-213c95f54092'
+  },
+  direction: 'FROM',       // 'FROM' or 'TO'
+  maxLevel: 1,
+  fetchLastLevelOnly: false,
+  filters: [
+    {
+      relationType: 'Contains',
+      entityTypes: ['DEVICE', 'ASSET']
+    }
+  ]
+}
+```
+
+`maxLevel` controls how many relation levels to traverse recursively. When `maxLevel > 1`, `fetchLastLevelOnly: true` returns only entities at the deepest level.
+
+##### Asset search query
+
+Filter assets related to a root entity by relation type and asset profile type:
+
+```javascript
+{
+  type: 'assetSearchQuery',
+  rootEntity: {
+    entityType: 'ASSET',
+    id: 'e51de0c0-2a7a-11ec-94eb-213c95f54092'
+  },
+  direction: 'FROM',
+  maxLevel: 1,
+  fetchLastLevelOnly: false,
+  relationType: 'Contains',
+  assetTypes: ['Charging station']
+}
+```
+
+##### Device search query
+
+Filter devices related to a root entity by relation type and device profile type:
+
+```javascript
+{
+  type: 'deviceSearchQuery',
+  rootEntity: {
+    entityType: 'ASSET',
+    id: 'e52b0020-2a7a-11ec-94eb-213c95f54092'
+  },
+  direction: 'FROM',
+  maxLevel: 2,
+  fetchLastLevelOnly: true,
+  relationType: 'Contains',
+  deviceTypes: ['Air Quality Sensor', 'Charging port']
+}
+```
+
+##### Entity view search query
+
+Filter entity views related to a root entity:
+
+```javascript
+{
+  type: 'entityViewSearchQuery',
+  rootEntity: {
+    entityType: 'ASSET',
+    id: 'e52b0020-2a7a-11ec-94eb-213c95f54092'
+  },
+  direction: 'FROM',
+  maxLevel: 1,
+  fetchLastLevelOnly: false,
+  relationType: 'Contains',
+  entityViewTypes: ['Concrete mixer']
+}
+```
+
+##### Edge search query
+
+Filter edge instances related to a root entity:
+
+```javascript
+{
+  type: 'edgeSearchQuery',
+  rootEntity: {
+    entityType: 'ASSET',
+    id: 'e52b0020-2a7a-11ec-94eb-213c95f54092'
+  },
+  direction: 'FROM',
+  maxLevel: 2,
+  fetchLastLevelOnly: true,
+  relationType: 'Contains',
+  edgeTypes: ['Factory']
+}
+```
+
+##### Scheduler event query
+
+Filter scheduler events by originating entity and event type:
+
+```javascript
+{
+  type: 'schedulerEvent',
+  originator: {
+    entityType: 'DEVICE',
+    id: 'e01d2630-d710-11ef-a015-9bbc9baea46f'
+  },
+  eventType: 'Light switch scheduler'
+}
+```
+
+#### Key filters
+
+Key filters (`keyFilters`) let you subscribe only to entities whose attribute or telemetry value satisfies a logical expression. Multiple filters are combined with AND. Filtering is based on the **latest** known value — not historical data.
+
+Each filter object has three parts:
+
+```javascript
+{
+  key: {
+    type: 'TIME_SERIES',
+    key: 'temperature'
+  },
+  valueType: 'NUMERIC',
+  predicate: {
+    type: 'NUMERIC',
+    operation: 'GREATER',
+    value: {
+      defaultValue: 20,
+      dynamicValue: null
+    }
+  }
+}
+```
+
+##### Key object
+
+Defines which field or key to evaluate:
+
+| Type | Description |
+|---|---|
+| `CLIENT_ATTRIBUTE` | Client-side attribute |
+| `SHARED_ATTRIBUTE` | Shared attribute |
+| `SERVER_ATTRIBUTE` | Server-side attribute |
+| `ATTRIBUTE` | Any attribute (client, shared, or server) |
+| `TIME_SERIES` | Latest time-series value |
+| `ENTITY_FIELD` | Entity field such as `name`, `label`, etc. |
+| `ALARM_FIELD` | Entity field used in alarm queries only |
+
+```javascript
+{ type: 'SERVER_ATTRIBUTE', key: 'maxTemperature' }
+```
+
+##### Value type
+
+Declares the data type of the key, which determines which predicate operations are available:
+
+| Type | Applies to | Operations |
+|---|---|---|
+| `STRING` | String or JSON values | `EQUAL`, `NOT_EQUAL`, `STARTS_WITH`, `ENDS_WITH`, `CONTAINS`, `NOT_CONTAINS` |
+| `NUMERIC` | Long and Double values | `EQUAL`, `NOT_EQUAL`, `GREATER`, `LESS`, `GREATER_OR_EQUAL`, `LESS_OR_EQUAL` |
+| `BOOLEAN` | Boolean values | `EQUAL`, `NOT_EQUAL` |
+| `DATE_TIME` | Timestamps (ms since epoch) | `EQUAL`, `NOT_EQUAL`, `GREATER`, `LESS`, `GREATER_OR_EQUAL`, `LESS_OR_EQUAL` |
+
+##### Predicate object
+
+Defines the logical expression to evaluate. Supports four predicate types: `STRING`, `NUMERIC`, `BOOLEAN`, and `COMPLEX`.
+
+**Simple predicate** — value less than 100:
+
+```javascript
+{
+  type: 'NUMERIC',
+  operation: 'LESS',
+  value: {
+    defaultValue: 100,
+    dynamicValue: null
+  }
+}
+```
+
+**Complex predicate** — combines multiple conditions with `OR` or `AND`:
+
+```javascript
+// value < 10 OR value > 20
+{
+  type: 'COMPLEX',
+  operation: 'OR',
+  predicates: [
+    { type: 'NUMERIC', operation: 'LESS',    value: { defaultValue: 10, dynamicValue: null } },
+    { type: 'NUMERIC', operation: 'GREATER', value: { defaultValue: 20, dynamicValue: null } }
+  ]
+}
+```
+
+Complex predicates can be nested to any depth:
+
+```javascript
+// value < 10 OR (value > 50 AND value < 60)
+{
+  type: 'COMPLEX',
+  operation: 'OR',
+  predicates: [
+    { type: 'NUMERIC', operation: 'LESS', value: { defaultValue: 10, dynamicValue: null } },
+    {
+      type: 'COMPLEX',
+      operation: 'AND',
+      predicates: [
+        { type: 'NUMERIC', operation: 'GREATER', value: { defaultValue: 50, dynamicValue: null } },
+        { type: 'NUMERIC', operation: 'LESS',    value: { defaultValue: 60, dynamicValue: null } }
+      ]
+    }
+  ]
+}
+```
+
+##### Dynamic values
+
+Instead of a hardcoded threshold, the predicate value can reference an attribute of the current user, customer, or tenant:
+
+```javascript
+{
+  type: 'NUMERIC',
+  operation: 'GREATER',
+  value: {
+    defaultValue: 0,
+    dynamicValue: {
+      sourceType: 'CURRENT_USER',      // 'CURRENT_USER' | 'CURRENT_CUSTOMER' | 'CURRENT_TENANT'
+      sourceAttribute: 'temperatureThreshold'
+    }
+  }
+}
+```
+
+`defaultValue` is used when the referenced attribute does not exist for the chosen source.
+
+<Aside type="caution">
+  Key filters evaluate the **latest** attribute or time-series value. They filter which entities are included in the subscription — not which historical data points are returned.
+</Aside>
+
+### Callbacks
+
+The `callbacks` object wires subscription lifecycle events back to your widget code:
+
+| Function | Description |
+|---|---|
+| `onDataUpdated` | Called after data is updated |
+| `onLatestDataUpdated` | Called in time-series subscriptions after `latestDataKeys` data is updated |
+| `onDataUpdateError` | Called when a data update fails |
+| `onLatestDataUpdateError` | Called in time-series subscriptions when a `latestDataKeys` update fails |
+| `legendDataUpdated` | Called after legend data changes |
+| `timeWindowUpdated` | Called after the time window changes |
+| `dataLoading` | Called when data is loading |
+| `rpcStateChanged` | Called when RPC state changes |
+| `onRpcSuccess` | Called in RPC subscriptions after a successful command |
+| `onRpcFailed` | Called in RPC subscriptions after a failed command |
+
+Typical usage — forward subscription events to your widget lifecycle functions:
+
+```javascript
+callbacks: {
+  onDataUpdated: () => { self.onDataUpdated(); },
+  onLatestDataUpdated: () => { self.onLatestDataUpdated(); },
+  onDataUpdateError: (subscription, e) => { console.error('Data error', e); }
+}
+```
+
+## Replacing the default subscription
+
+When a custom subscription replaces `defaultSubscription` (required for embedded chart components), follow this sequence inside the `.subscribe()` callback:
+
+```javascript
+.subscribe(subscription => {
+  self.ctx.defaultSubscription = subscription;
+  self.ctx.data = subscription.data;
+  self.ctx.datasources = subscription.datasources;
+  self.ctx.defaultSubscription.update();  // triggers initial data fetch
+});
+```
+
+## Unsubscribing
+
+Always unsubscribe before creating a new custom subscription, and again in `onDestroy`:
+
+```javascript
+// Before creating a new subscription
+if (self.ctx.$scope.customSubscription) {
+  self.ctx.$scope.customSubscription.unsubscribe();
+}
+
+// In onDestroy — prevent memory leaks
+self.onDestroy = function() {
+  if (self.ctx.$scope.customSubscription) {
+    self.ctx.$scope.customSubscription.unsubscribe();
+  }
+};
+```
+
+## Common pitfalls
+
+**Not unsubscribing** — creating a new subscription without unsubscribing from the previous one leaves the old subscription running, consuming server resources and triggering stale `onDataUpdated` callbacks.
+
+**Skipping `update()`** — calling `self.ctx.defaultSubscription.update()` after assignment triggers the initial data fetch. Without it the widget displays no data until the next natural refresh.
+
+**Callbacks vs `.subscribe()`** — `callbacks` in the options fire on every data update throughout the subscription's lifetime. The `.subscribe()` callback fires once when the subscription is created. Put data handling in `callbacks.onDataUpdated`, not in `.subscribe()`.
+
+## Examples
+
+### Entity count
+
+Subscribe to the total number of devices in the system alongside the number of currently active devices. This uses the `entityCount` datasource type with a `count` key, and a `keyFilters` entry to restrict the second datasource to entities where `active == true`.
+
+```javascript
+self.onInit = function() {
+  const datasources = [
+    {
+      type: 'entityCount',
+      dataKeys: [
+        {
+          name: 'count',
+          type: 'count',
+          label: 'Devices',
+          decimals: 0,
+          settings: {}
+        }
+      ],
+      entityFilter: {
+        type: 'entityType',
+        entityType: 'DEVICE'
+      }
+    },
+    {
+      type: 'entityCount',
+      dataKeys: [
+        {
+          name: 'count',
+          type: 'count',
+          label: 'Active Devices',
+          decimals: 0,
+          settings: {}
+        }
+      ],
+      entityFilter: {
+        type: 'entityType',
+        entityType: 'DEVICE'
+      },
+      keyFilters: [
+        {
+          key: { type: 'ATTRIBUTE', key: 'active' },
+          valueType: 'BOOLEAN',
+          predicate: {
+            type: 'BOOLEAN',
+            operation: 'EQUAL',
+            value: { defaultValue: true, dynamicValue: null }
+          }
+        }
+      ]
+    }
+  ];
+
+  const subscriptionOptions = {
+    widgetType: 'latest',
+    datasources,
+    callbacks: {
+      onDataUpdated: () => { self.onDataUpdated(); }
+    }
+  };
+
+  self.ctx.subscriptionApi.createSubscription(subscriptionOptions, true)
+    .subscribe(subscription => {
+      self.ctx.defaultSubscription = subscription;
+      self.ctx.data = subscription.data;
+      self.ctx.datasources = subscription.datasources;
+      // data is not yet available here — wait for onDataUpdated
+    });
+};
+
+self.onDataUpdated = function() {
+  const total  = parseInt(self.ctx.data[0]?.data[0]?.[1] || 0);
+  const active = parseInt(self.ctx.data[1]?.data[0]?.[1] || 0);
+  self.ctx.$scope.total  = total;
+  self.ctx.$scope.active = active;
+  self.ctx.detectChanges();
+};
+```
+
+Key points:
+
+- **`type: 'entityCount'`** — returns the count of entities matching `entityFilter` and `keyFilters`, not their telemetry. The data key must use `type: 'count'` and `name: 'count'`.
+- **Two datasources in one subscription** — both counts are delivered in a single `onDataUpdated` call: `ctx.data[0]` for total, `ctx.data[1]` for active.
+- **`keyFilters`** — narrows the second count to devices where the `active` attribute equals `true`.
+- **Data is not available in `.subscribe()`** — the subscription object arrives before the first data fetch completes. Read data only in `onDataUpdated`.
+
+### Attributes and telemetry for filtered entities
+
+Subscribe to the latest `temperature` telemetry and `active` attribute for all active devices in the system:
+
+```javascript
+self.onInit = function() {
+  const datasources = [
+    {
+      type: 'entity',
+      dataKeys: [
+        {
+          name: 'temperature',
+          type: 'timeseries',
+          label: 'Temperature',
+          decimals: 0,
+          settings: {}
+        },
+        {
+          name: 'active',
+          type: 'attribute',
+          label: 'Active',
+          decimals: 0,
+          settings: {}
+        }
+      ],
+      entityFilter: {
+        type: 'entityType',
+        entityType: 'DEVICE'
+      },
+      keyFilters: [
+        {
+          key: { type: 'ATTRIBUTE', key: 'active' },
+          valueType: 'BOOLEAN',
+          predicate: {
+            type: 'BOOLEAN',
+            operation: 'EQUAL',
+            value: { defaultValue: true, dynamicValue: null }
+          }
+        }
+      ]
+    }
+  ];
+
+  const subscriptionOptions = {
+    widgetType: 'latest',
+    datasources,
+    callbacks: {
+      onDataUpdated: () => { self.onDataUpdated(); }
+    }
+  };
+
+  self.ctx.subscriptionApi.createSubscription(subscriptionOptions, true)
+    .subscribe(subscription => {
+      self.ctx.defaultSubscription = subscription;
+      self.ctx.data = subscription.data;
+      self.ctx.datasources = subscription.datasources;
+      // data is not yet available here — wait for onDataUpdated
+    });
+};
+
+self.onDataUpdated = function() {
+  // ctx.data contains one entry per key per entity
+  // e.g. ctx.data[0] = temperature for entity 0, ctx.data[1] = active for entity 0, etc.
+  self.ctx.detectChanges();
+};
+```
+
+Key points:
+
+- **`type: 'entity'`** — subscribes to actual entity data (telemetry and attributes), as opposed to `entityCount`.
+- **Mixed key types** — `dataKeys` can combine `timeseries` and `attribute` keys in a single datasource. Both are delivered via `onDataUpdated`.
+- **`keyFilters`** — restricts the entity set to devices where `active == true`, but still subscribes to both `temperature` and `active` values for each matching device.
+- **`widgetType: 'latest'`** — returns only the most recent value per key. Use `'timeseries'` instead if you need the full history over a time window.
+
+### Subscription with page link
+
+Subscribe to the latest `temperature` and `active` values for thermostat devices where `temperature > 30`, showing two entities per page:
+
+```javascript
+self.onInit = function() {
+  const datasources = [
+    {
+      type: 'entity',
+      dataKeys: [
+        {
+          name: 'temperature',
+          type: 'timeseries',
+          label: 'Temperature',
+          settings: {}
+        },
+        {
+          name: 'active',
+          type: 'attribute',
+          label: 'Active',
+          settings: {}
+        }
+      ],
+      entityFilter: {
+        type: 'deviceType',
+        deviceTypes: ['thermostat']
+      },
+      keyFilters: [
+        {
+          key: { type: 'TIME_SERIES', key: 'temperature' },
+          valueType: 'NUMERIC',
+          predicate: {
+            type: 'NUMERIC',
+            operation: 'GREATER',
+            value: { defaultValue: 30, dynamicValue: null }
+          }
+        }
+      ]
+    }
+  ];
+
+  const subscriptionOptions = {
+    widgetType: 'latest',
+    datasources,
+    hasDataPageLink: true,
+    callbacks: {
+      onDataUpdated: () => { self.onDataUpdated(); }
+    }
+  };
+
+  self.ctx.$scope.pageLink = {
+    page: 0,
+    pageSize: 2,
+    dynamic: true
+  };
+
+  self.ctx.subscriptionApi.createSubscription(subscriptionOptions, true)
+    .subscribe(subscription => {
+      self.ctx.defaultSubscription = subscription;
+      subscribeForPaginatedData(self.ctx.$scope.pageLink);
+      self.ctx.data = subscription.data;
+      self.ctx.datasources = subscription.datasources;
+      self.ctx.dataPages = subscription.dataPages;
+      self.ctx.datasourcePages = subscription.datasourcePages;
+      // data is not yet available here — wait for onDataUpdated
+    });
+};
+
+function subscribeForPaginatedData(pageLink) {
+  self.ctx.defaultSubscription.subscribeAllForPaginatedData(pageLink, null);
+}
+
+self.onDataUpdated = function() {
+  // ctx.dataPages contains the current page of entity data
+  // ctx.datasourcePages contains the corresponding datasource info
+  self.ctx.detectChanges();
+};
+```
+
+Key points:
+
+- **`hasDataPageLink: true`** — switches the subscription into paginated mode. Without this flag, `pageLink` and `subscribeAllForPaginatedData` have no effect.
+- **`pageLink`** — controls which page of results to fetch. `page` is zero-based, `pageSize` sets the number of entities per page. Setting `dynamic: true` automatically adds new entities to the widget if they start matching the filter criteria at runtime.
+- **`subscribeAllForPaginatedData(pageLink, null)`** — must be called after the subscription is created to trigger the first paginated data fetch. The second argument accepts a sort order configuration (`null` uses the default).
+- **`dataPages` / `datasourcePages`** — paged equivalents of `ctx.data` and `ctx.datasources`. Use these instead of `ctx.data` when working with paginated subscriptions to access entity data by page.
+- To navigate pages, update `pageLink.page` and call `subscribeForPaginatedData` again with the new page link.
+
+### Time-series subscription with latest keys
+
+Subscribe to the `temperature` time-series history for a specific device by name, while also tracking its `active` attribute as a latest value in the same subscription:
+
+```javascript
+self.onInit = function() {
+  const datasources = [
+    {
+      type: 'entity',
+      dataKeys: [
+        {
+          name: 'temperature',
+          type: 'timeseries',
+          label: 'Temperature',
+          settings: {}
+        }
+      ],
+      latestDataKeys: [
+        {
+          name: 'active',
+          type: 'attribute',
+          label: 'Active',
+          settings: {}
+        }
+      ],
+      entityFilter: {
+        type: 'entityName',
+        entityType: 'DEVICE',
+        entityNameFilter: 'Thermostat T2'
+      }
+    }
+  ];
+
+  const subscriptionOptions = {
+    widgetType: 'timeseries',
+    datasources,
+    useDashboardTimewindow: true,
+    ignoreDataUpdateOnIntervalTick: true,
+    callbacks: {
+      onDataUpdated: () => { self.onDataUpdated(); }
+    }
+  };
+
+  self.ctx.subscriptionApi.createSubscription(subscriptionOptions, true)
+    .subscribe(subscription => {
+      self.ctx.defaultSubscription = subscription;
+      self.ctx.data = subscription.data;
+      self.ctx.datasources = subscription.datasources;
+      // data is not yet available here — wait for onDataUpdated
+    });
+};
+
+self.onDataUpdated = function() {
+  // ctx.data[0].data — array of [timestamp, value] pairs for temperature
+  // ctx.latestData — latest values for keys declared in latestDataKeys
+  self.ctx.detectChanges();
+};
+```
+
+Key points:
+
+- **`widgetType: 'timeseries'`** — delivers the full history of `dataKeys` over the configured time window. Each entry in `ctx.data[i].data` is a `[timestamp, value]` pair, sorted oldest to newest.
+- **`latestDataKeys`** — runs a parallel latest-value subscription alongside the time-series one. Useful for displaying current state (e.g. `active`) without including it in the chart data. Updates arrive via `onLatestDataUpdated` if you define that callback, or alongside `onDataUpdated`.
+- **`useDashboardTimewindow: true`** — syncs the subscription time window with the dashboard time window control. When the user shifts the time window in the dashboard, the subscription automatically re-fetches with the new range.
+- **`ignoreDataUpdateOnIntervalTick: true`** — suppresses `onDataUpdated` calls that fire on the platform's polling interval when no new data has actually arrived. With this set to `false` (the default), `onDataUpdated` fires every second regardless of new data.
+- **`entityName` filter** — targets a specific device by name prefix. Here `'Thermostat T2'` matches exactly one device; the subscription returns data only for that entity.
+
+### Alarm subscription
+
+Subscribe to alarms from thermostat devices, paginated and sorted by creation time:
+
+```javascript
+self.onInit = function() {
+  const alarmSource = {
+    type: 'entity',
+    dataKeys: [
+      { type: 'alarm', name: 'createdTime' },
+      { type: 'alarm', name: 'originator' },
+      { type: 'alarm', name: 'type' },
+      { type: 'alarm', name: 'severity' },
+      { type: 'alarm', name: 'status' }
+    ],
+    entityFilter: {
+      type: 'deviceType',
+      deviceTypes: ['thermostat']
+    }
+  };
+
+  const alarmDataPageLink = {
+    page: 0,
+    pageSize: 10,
+    statusList: [],    // empty = all statuses
+    severityList: [],  // empty = all severities
+    typeList: [],      // empty = all alarm types
+    sortOrder: {
+      key: { type: 'ALARM_FIELD', key: 'createdTime' },
+      direction: 'DESC'
+    }
+  };
+
+  const subscriptionOptions = {
+    widgetType: 'alarm',
+    alarmSource,
+    useDashboardTimewindow: true,
+    callbacks: {
+      onDataUpdated: () => { self.onDataUpdated(); }
+    }
+  };
+
+  self.ctx.subscriptionApi.createSubscription(subscriptionOptions, true)
+    .subscribe(subscription => {
+      self.ctx.alarmsSubscription = subscription;
+      self.ctx.alarmsSubscription.subscribeForAlarms(alarmDataPageLink, null);
+      // alarm data is not yet available here — wait for onDataUpdated
+    });
+};
+
+self.onDataUpdated = function() {
+  const alarms = self.ctx.alarmsSubscription.alarms;
+  // alarms.data          — array of AlarmInfo objects for the current page
+  // alarms.totalElements — total number of matching alarms
+  // alarms.totalPages    — total number of pages
+  self.ctx.detectChanges();
+};
+```
+
+Key points:
+
+- **`widgetType: 'alarm'`** — alarm subscriptions use `alarmSource` instead of `datasources`. The `dataKeys` inside `alarmSource` use `type: 'alarm'` and reference alarm fields by name (`createdTime`, `originator`, `type`, `severity`, `status`).
+- **`subscribeForAlarms(alarmDataPageLink, null)`** — must be called after the subscription is created to start fetching alarm data. The second argument accepts additional query parameters (`null` uses defaults).
+- **`alarmDataPageLink`** — controls filtering and pagination: `statusList`, `severityList`, and `typeList` narrow results (empty array = all values included); `sortOrder` sets the sort field and direction.
+- **`ctx.alarmsSubscription.alarms`** — the alarm page object, available in `onDataUpdated`. Contains `data` (current page of `AlarmInfo` objects), `totalElements`, and `totalPages`.
+- **Stored separately** — alarm subscriptions are stored on `ctx.alarmsSubscription`, not `ctx.defaultSubscription`, to keep them independent from the widget's main data subscription.
+
+### Subscription with post-processing
+
+Custom subscriptions support client-side post-processing of incoming data. This lets users supply a JavaScript function that transforms each value before the widget receives it — for example, converting weight from kilograms to grams.
+
+The approach is to subscribe to the same key twice: once for the raw value and once with `usePostProcessing: true` and a user-defined function body read from widget settings.
+
+**Settings schema** — add a `javascript` field to the widget settings form so the user can enter a conversion function. The function receives `(time, value, prevValue, timePrev, prevOrigValue)` and must return the transformed value:
+
+```json
+{
+  "schema": {
+    "type": "object",
+    "properties": {
+      "weightPostProcessingFunction": {
+        "title": "Weight post-processing: f(time, value, prevValue, timePrev, prevOrigValue)",
+        "type": "string",
+        "default": "return value;"
+      }
+    }
+  },
+  "form": [
+    {
+      "key": "weightPostProcessingFunction",
+      "type": "javascript"
+    }
+  ]
+}
+```
+
+The default `return value;` passes the value through unchanged:
+
+<DocImage src="/src/assets/images/user-guide/widgets/development/custom-subscription-post-processing-default.png" alt="Widget settings panel showing the post-processing function field with default return value;" />
+
+The user can replace it with any transformation, e.g. `return value * 1000;` to convert kg → g:
+
+<DocImage src="/src/assets/images/user-guide/widgets/development/custom-subscription-post-processing-example.png" alt="Widget settings panel showing the post-processing function field with return value * 1000;" />
+
+**Subscription** — subscribe to the `weight` key twice: the first entry is the raw value, the second has `usePostProcessing: true` and reads the function body from `self.ctx.settings`:
+
+```javascript
+self.onInit = function() {
+  const datasources = [
+    {
+      type: 'entity',
+      dataKeys: [
+        {
+          name: 'weight',
+          type: 'timeseries',
+          label: 'Weight telemetry',
+          decimals: 0,
+          settings: {}
+        },
+        {
+          name: 'weight',
+          type: 'timeseries',
+          label: 'Post-processed weight',
+          decimals: 0,
+          settings: {},
+          usePostProcessing: true,
+          postFuncBody: self.ctx.settings.weightPostProcessingFunction
+        },
+        {
+          name: 'active',
+          type: 'attribute',
+          label: 'Active',
+          decimals: 0,
+          settings: {}
+        }
+      ],
+      entityFilter: {
+        type: 'entityType',
+        entityType: 'DEVICE'
+      },
+      keyFilters: [
+        {
+          key: { type: 'ATTRIBUTE', key: 'active' },
+          valueType: 'BOOLEAN',
+          predicate: {
+            type: 'BOOLEAN',
+            operation: 'EQUAL',
+            value: { defaultValue: true, dynamicValue: null }
+          }
+        }
+      ]
+    }
+  ];
+
+  const subscriptionOptions = {
+    widgetType: 'latest',
+    datasources,
+    callbacks: {
+      onDataUpdated: () => { self.onDataUpdated(); }
+    }
+  };
+
+  self.ctx.subscriptionApi.createSubscription(subscriptionOptions, true)
+    .subscribe(subscription => {
+      self.ctx.defaultSubscription = subscription;
+      self.ctx.data = subscription.data;
+      self.ctx.datasources = subscription.datasources;
+      // data is not yet available here — wait for onDataUpdated
+    });
+};
+
+self.onDataUpdated = function() {
+  // ctx.data[0].data — raw weight value
+  // ctx.data[1].data — post-processed weight value (transformed by user function)
+  // ctx.data[2].data — active attribute
+  self.ctx.detectChanges();
+};
+```
+
+Key points:
+
+- **`usePostProcessing: true`** — enables post-processing for that specific data key. The platform calls the function for every incoming value before placing it in `ctx.data`.
+- **`postFuncBody`** — the JavaScript function body as a string. It receives five arguments: `time` (current timestamp ms), `value` (current raw value), `prevValue` (previous processed value), `timePrev` (previous timestamp ms), `prevOrigValue` (previous raw value). It must `return` the transformed value.
+- **Same key subscribed twice** — both entries share the same `name: 'weight'`, but produce independent entries in `ctx.data`. `ctx.data[0]` holds the raw value; `ctx.data[1]` holds the post-processed value.
+- **Settings schema format** — post-processing functions use the legacy `{ schema, form }` settings format with `"type": "javascript"` in the form definition, which renders a code editor in the widget settings panel.
+
+## Next steps
+
+- <DocLink product={props.product} path='user-guide/contribution/widgets-development/time-series' bold={false}>Time-Series</DocLink> — key-selector dropdown with embedded platform chart
+- <DocLink product={props.product} path='user-guide/contribution/widgets-development/embedded-chart' bold={false}>Embedded Chart tutorial</DocLink> — multi-key selection with custom subscription
+- <DocLink product={props.product} path='user-guide/contribution/widgets-development/advanced' bold={false}>Advanced Topics</DocLink> — multi-select entity + key filtering
+- <DocLink product={props.product} path='reference/widgets/widget-api' bold={false}>Widget API Reference</DocLink> — full `subscriptionApi` reference and data structures
