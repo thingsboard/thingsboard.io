@@ -910,6 +910,10 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'pe/samples/analytics/spark-integration-with-thingsboard', target: '/docs/pe/user-guide/ai-models/' },
 	{ oldPath: 'paas/samples/analytics/spark-integration-with-thingsboard', target: '/docs/paas/user-guide/ai-models/' },
 	{ oldPath: 'paas/eu/samples/analytics/spark-integration-with-thingsboard', target: '/docs/paas/eu/user-guide/ai-models/' },
+	{ oldPath: 'user-guide/contribution/ui/custom-subscriptions', target: '/docs/user-guide/contribution/widgets-development/custom-subscription/' },
+	{ oldPath: 'pe/user-guide/contribution/ui/custom-subscriptions', target: '/docs/pe/user-guide/contribution/widgets-development/custom-subscription/' },
+	{ oldPath: 'user-guide/contribution/ui/basic-widget-api', target: '/docs/reference/widgets/widget-api/' },
+	{ oldPath: 'pe/user-guide/contribution/ui/basic-widget-api', target: '/docs/pe/reference/widgets/widget-api/' },
 ];
 
 // ---------------------------------------------------------------------------
