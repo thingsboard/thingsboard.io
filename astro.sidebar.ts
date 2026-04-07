@@ -197,7 +197,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 		items: [
 			`${prefix}/contribution/rule-node-development`,
 			`${prefix}/scada-symbol-dev`,
-			`${prefix}/contribution/custom-action-development`, 
+			`${prefix}/contribution/custom-action-development`,
 			{
 				label: 'Widget Development',
 				collapsed: true,
