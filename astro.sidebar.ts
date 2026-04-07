@@ -985,6 +985,13 @@ export const peSidebar: SidebarConfig = mainSidebarItems('docs/pe', [
 			'docs/pe/recipes/mqtt-two-way-rpc',
 		],
 	},
+	{
+		label: 'Step-by-step guides',
+		collapsed: true,
+		items: [
+			'docs/pe/user-guide/advanced-guides-for-working-with-dashboard',
+		],
+	},
 ], [
 	'docs/pe/reference/configuration/ie-executor-config',
 	'docs/pe/reference/configuration/report-service-config',
@@ -1264,6 +1271,13 @@ export const paasSidebar: SidebarConfig = [
 					'docs/paas/recipes/white-labeling-translate-dashboard',
 					'docs/paas/recipes/white-labeling-html-value-card',
 					'docs/paas/recipes/white-labeling-post-processing',
+				],
+			},
+			{
+				label: 'Step-by-step guides',
+				collapsed: true,
+				items: [
+					'docs/paas/user-guide/advanced-guides-for-working-with-dashboard',
 				],
 			},
 		],
@@ -1556,6 +1570,13 @@ export const paasEuSidebar: SidebarConfig = [
 					'docs/paas/eu/recipes/white-labeling-translate-dashboard',
 					'docs/paas/eu/recipes/white-labeling-html-value-card',
 					'docs/paas/eu/recipes/white-labeling-post-processing',
+				],
+			},
+			{
+				label: 'Step-by-step guides',
+				collapsed: true,
+				items: [
+					'docs/paas/eu/user-guide/advanced-guides-for-working-with-dashboard',
 				],
 			},
 		],
