@@ -2,7 +2,7 @@
 import { TRENDZ_UPGRADE_VERSIONS } from '~/models/trendz-upgrade-instructions';
 
 interface Props {
-	platform: 'ubuntu' | 'centos' | 'windows' | 'docker';
+	platform: 'ubuntu' | 'centos' | 'windows' | 'docker' | 'kubernetes';
 	filterFamily?: string;
 }
 
@@ -21,7 +21,16 @@ const syncLink =
 			? '/docs/trendz/install/rhel/#step-6-sync-thingsboard-with-trendz'
 			: platform === 'windows'
 				? '/docs/trendz/install/windows/#step-6-sync-thingsboard-with-trendz'
-				: '/docs/trendz/install/docker/#step-6-sync-thingsboard-with-trendz';
+				: platform === 'kubernetes'
+					? '/docs/trendz/install/kubernetes/#sync-trendz-with-thingsboard'
+					: '/docs/trendz/install/docker/#step-6-sync-thingsboard-with-trendz';
+
+const java17Link =
+	platform === 'centos'
+		? '/docs/trendz/install/rhel/#step-1-install-java-17-openjdk'
+		: platform === 'windows'
+			? '/docs/trendz/install/windows/#step-1-install-java-17-openjdk'
+			: '/docs/trendz/install/ubuntu/#step-1-install-java-17-openjdk';
 ---
 
 {(platform === 'ubuntu' || platform === 'centos') && (
@@ -37,6 +46,19 @@ const syncLink =
 		<pre><code>df -h /</code></pre>
 		<p>If there is enough free space, create a backup:</p>
 		<pre><code>sudo -Hiu postgres pg_dump trendz {'>'} trendz.sql.bak</code></pre>
+	</section>
+)}
+
+{platform === 'kubernetes' && (
+	<section class="prepare-section">
+		<h2 id="prepare-for-upgrading-trendz-analytics">Prepare for upgrading Trendz Analytics</h2>
+		<h3>Obtain Trendz Kubernetes scripts</h3>
+		<p>Use the Kubernetes configuration files from your original installation. If you no longer have them, re-clone the repository and fill in your configuration values as described in the <a href="/docs/trendz/install/kubernetes/">installation guide</a>:</p>
+		<pre><code>git clone https://github.com/thingsboard/trendz-k8s.git --depth 1</code></pre>
+		<h3>Connect to your Kubernetes cluster</h3>
+		<p>Select the correct kube-config context before running any commands:</p>
+		<pre><code>kubectl config get-contexts</code></pre>
+		<pre><code>kubectl config use-context &lt;your-config-name&gt;</code></pre>
 	</section>
 )}
 
@@ -57,6 +79,11 @@ const syncLink =
 		? `C:\\trendz> upgrade.bat --fromVersion=${v.fromVersion}`
 		: `C:\\trendz> upgrade.bat`;
 	const dockerCmds = `docker pull thingsboard/trendz:${v.version}\ndocker compose stop trendz\ndocker compose run --rm -e UPGRADE_TRENDZ=true trendz\ndocker compose up -d`;
+	const k8sFlagFileCmd = v.fromVersion
+		? `kubectl exec <POD_NAME> -- sh -c "echo '${v.fromVersion}' > /data/.upgradeversion"`
+		: '';
+	const k8sLogOutput =
+		'Upgrading Trendz from version …\n…\nCurrent version is …, upgrade is not needed\n…\nStarted TrendzApplication in …';
 
 	return (
 		<section>
@@ -88,20 +115,20 @@ const syncLink =
 				</aside>
 			)}
 
-			{v.java17Warning && (
+			{v.java17Warning && (platform === 'ubuntu' || platform === 'centos' || platform === 'windows') && (
 				<aside class="starlight-aside starlight-aside--caution">
 					<p class="starlight-aside__title" aria-hidden="true">Java 17 required</p>
 					<div class="starlight-aside__content">
-						<p>Trendz Analytics {v.displayVersion} requires <strong>Java 17</strong>. Before upgrading, update your Java installation to Java 17. Refer to the <a href="/docs/trendz/install/ubuntu/#step-3-install-java-17-jdk">Java 17 installation instructions</a> for details.</p>
+						<p>Trendz Analytics {v.displayVersion} requires <strong>Java 17</strong>. Before upgrading, update your Java installation to Java 17. Refer to the <a href={java17Link}>Java 17 installation instructions</a> for details.</p>
 					</div>
 				</aside>
 			)}
 
-			{v.pythonExecutorWarning && (
+			{v.pythonExecutorWarning && (platform === 'ubuntu' || platform === 'centos' || platform === 'windows') && (
 				<aside class="starlight-aside starlight-aside--caution">
 					<p class="starlight-aside__title" aria-hidden="true">Python Executor migration</p>
 					<div class="starlight-aside__content">
-						<p>Starting from Trendz Analytics {v.displayVersion}, the Python Executor has been moved to a separate service. Before upgrading, follow the <a href="/docs/trendz/python-executor-migration/">Python Executor migration guide</a> to prepare your environment.</p>
+						<p>Starting from Trendz Analytics {v.displayVersion}, Python Calculation Fields and prediction models require the <strong>Python Executor</strong> Docker service to run. It is not included in the package installation and must be installed separately before upgrading. See the <a href="/docs/trendz/install/python-executor-configuration/">Python Executor configuration guide</a> for installation steps.</p>
 					</div>
 				</aside>
 			)}
@@ -221,6 +248,55 @@ const syncLink =
 							<pre><code>{dockerCmds}</code></pre>
 						</li>
 					</ol>
+				</>
+			)}
+
+			{platform === 'kubernetes' && (
+				<>
+					<aside class="starlight-aside starlight-aside--note">
+						<p class="starlight-aside__title" aria-hidden="true">Note</p>
+						<div class="starlight-aside__content">
+							<p><a href="#prepare-for-upgrading-trendz-analytics"><strong>Prepare</strong></a> for upgrading Trendz Analytics before running the steps below.</p>
+						</div>
+					</aside>
+
+					<h3>Reduce pods count</h3>
+					<p>The deployment must have exactly one running pod for the upgrade to succeed:</p>
+					<pre><code>kubectl scale deployment trendz-app-deployment --replicas=1</code></pre>
+
+					{v.fromVersion && (
+						<>
+							<h3>Create upgrade flag file</h3>
+							<p>Get the current pod name:</p>
+							<pre><code>kubectl get pods -l app=trendz-app-pod-label</code></pre>
+							<p>Create the <code>.upgradeversion</code> flag file inside the pod, replacing <code>&lt;POD_NAME&gt;</code> with the name from the previous command. Set the version to the one you are currently running:</p>
+							<pre><code>{k8sFlagFileCmd}</code></pre>
+							<aside class="starlight-aside starlight-aside--note">
+								<p class="starlight-aside__title" aria-hidden="true">Note</p>
+								<div class="starlight-aside__content">
+									<p>Set the value to the version you are <strong>currently running</strong>, not the version you are upgrading to. You can upgrade directly from <strong>any earlier version</strong>.</p>
+								</div>
+							</aside>
+						</>
+					)}
+
+					<h3>Update image version</h3>
+					<p>Open <code>trendz-app-deployment.yml</code> and update the <code>image</code> field to <strong>thingsboard/trendz:{v.version}</strong>:</p>
+					<pre><code>nano trendz-app-deployment.yml</code></pre>
+
+					<h3>Apply the deployment</h3>
+					<p>Apply the updated configuration and wait until the pod is ready:</p>
+					<pre><code>kubectl apply -f trendz-app-deployment.yml</code></pre>
+
+					<h3>Verify the upgrade</h3>
+					<p>Stream the pod logs to confirm the upgrade ran successfully:</p>
+					<pre><code>kubectl logs -f &lt;trendz-pod-name&gt;</code></pre>
+					<p>Look for the following lines:</p>
+					<pre><code>{k8sLogOutput}</code></pre>
+
+					<h3>Restore pods count</h3>
+					<p>After the upgrade is complete, restore your preferred replica count:</p>
+					<pre><code>kubectl scale deployment trendz-app-deployment --replicas=&lt;pod-count&gt;</code></pre>
 				</>
 			)}
 

@@ -1,0 +1,592 @@
+import { Aside, Code } from '@astrojs/starlight/components';
+import Tabs from '@components/Tabs.astro';
+import TabItem from '@components/TabItem.astro';
+import DocLink from '@components/DocLink.astro';
+import { TBMQ_BRANCH } from '~/data/versions';
+
+export const cloneCmdCe = `git clone -b ${TBMQ_BRANCH} https://github.com/thingsboard/tbmq.git
+cd tbmq/k8s/gcp`;
+
+export const gitPullCmd = `git pull origin ${TBMQ_BRANCH}`;
+
+This guide covers setting up TBMQ in cluster mode on Google Kubernetes Engine (GKE).
+
+## Prerequisites
+
+Install <a href="https://kubernetes.io/docs/tasks/tools/" target="_blank" rel="noopener noreferrer">kubectl</a> and
+<a href="https://cloud.google.com/sdk/downloads" target="_blank" rel="noopener noreferrer">gcloud</a> tools.
+See the <a href="https://cloud.google.com/kubernetes-engine/docs/how-to/creating-a-zonal-cluster#before_you_begin" target="_blank" rel="noopener noreferrer">before you begin guide</a> for more info.
+
+Create a new Google Cloud Platform project (recommended) or select an existing one. Make sure the correct project is active:
+
+```bash
+gcloud init
+```
+
+Enable the required GCP services:
+
+```bash
+gcloud services enable container.googleapis.com sql-component.googleapis.com sqladmin.googleapis.com
+```
+
+## Clone TBMQ repository
+
+<Code code={cloneCmdCe} lang="bash" />
+
+## Define environment variables
+
+Define environment variables used throughout this guide. Execute the following command on Linux:
+
+```bash
+export GCP_PROJECT=$(gcloud config get-value project)
+export GCP_REGION=us-central1
+export GCP_ZONE=us-central1
+export GCP_ZONE1=us-central1-a
+export GCP_ZONE2=us-central1-b
+export GCP_ZONE3=us-central1-c
+export GCP_NETWORK=default
+export TB_CLUSTER_NAME=tbmq-cluster
+export TB_DATABASE_NAME=tbmq-db
+echo "You have selected project: $GCP_PROJECT, region: $GCP_REGION, gcp zones: $GCP_ZONE1,$GCP_ZONE2,$GCP_ZONE3, network: $GCP_NETWORK, cluster: $TB_CLUSTER_NAME, database: $TB_DATABASE_NAME"
+```
+
+Where:
+- `$GCP_PROJECT` — fetched from your current gcloud config.
+- `us-central1` — one of the available <a href="https://cloud.google.com/compute/docs/regions-zones#available" target="_blank" rel="noopener noreferrer">compute regions</a> (**$GCP_REGION**).
+- `default` — default GCP network name (**$GCP_NETWORK**).
+- `tbmq-cluster` — cluster name (**$TB_CLUSTER_NAME**).
+- `tbmq-db` — database server name (**$TB_DATABASE_NAME**).
+
+## Configure and create GKE cluster
+
+Create a regional cluster distributed across 3 zones. The example below provisions one `e2-standard-4` node per zone (3 nodes total). Adjust `--machine-type` and `--num-nodes` as needed. See <a href="https://cloud.google.com/compute/docs/machine-resource" target="_blank" rel="noopener noreferrer">GCP machine types</a> for options.
+
+```bash
+gcloud container clusters create $TB_CLUSTER_NAME \
+  --release-channel stable \
+  --region $GCP_REGION \
+  --network=$GCP_NETWORK \
+  --node-locations $GCP_ZONE1,$GCP_ZONE2,$GCP_ZONE3 \
+  --enable-ip-alias \
+  --num-nodes=1 \
+  --node-labels=role=main \
+  --machine-type=e2-standard-4
+```
+
+Alternatively, follow the <a href="https://cloud.google.com/kubernetes-engine/docs/how-to/creating-a-regional-cluster" target="_blank" rel="noopener noreferrer">GKE regional cluster guide</a> for a custom setup.
+
+## Update kubectl context
+
+```bash
+gcloud container clusters get-credentials $TB_CLUSTER_NAME --region $GCP_REGION
+```
+
+## Provision Google Cloud SQL (PostgreSQL) instance
+
+### Prerequisites
+
+Enable service networking to allow your K8S cluster to connect to the DB instance:
+
+```bash
+gcloud services enable servicenetworking.googleapis.com --project=$GCP_PROJECT
+
+gcloud compute addresses create google-managed-services-$GCP_NETWORK \
+  --global \
+  --purpose=VPC_PEERING \
+  --prefix-length=16 \
+  --network=projects/$GCP_PROJECT/global/networks/$GCP_NETWORK
+
+gcloud services vpc-peerings connect \
+  --service=servicenetworking.googleapis.com \
+  --ranges=google-managed-services-$GCP_NETWORK \
+  --network=$GCP_NETWORK \
+  --project=$GCP_PROJECT
+```
+
+### Create database instance
+
+Create a PostgreSQL 16 instance with the following recommendations:
+
+- Same region as your GKE cluster (`$GCP_REGION`)
+- Same VPC network as your GKE cluster
+- Private IP only (no public IP)
+- High availability for production; single-zone for development
+- At least 2 vCPUs and 7.5 GB RAM
+
+```bash
+gcloud beta sql instances create $TB_DATABASE_NAME \
+  --database-version=POSTGRES_16 \
+  --region=$GCP_REGION --availability-type=regional \
+  --no-assign-ip --network=projects/$GCP_PROJECT/global/networks/$GCP_NETWORK \
+  --cpu=2 --memory=7680MB
+```
+
+Alternatively, follow the <a href="https://cloud.google.com/sql/docs/postgres/create-instance" target="_blank" rel="noopener noreferrer">Cloud SQL quickstart guide</a>.
+
+Note the `PRIVATE_ADDRESS` from the output — this is your **YOUR_DB_IP_ADDRESS**.
+
+### Set database password
+
+```bash
+gcloud sql users set-password postgres \
+  --instance=$TB_DATABASE_NAME \
+  --password=secret
+```
+
+Replace `secret` with a strong password. This will be **YOUR_DB_PASSWORD**.
+
+### Create the database
+
+```bash
+gcloud sql databases create thingsboard_mqtt_broker --instance=$TB_DATABASE_NAME
+```
+
+### Edit database settings
+
+Replace `YOUR_DB_IP_ADDRESS`, `YOUR_DB_PASSWORD`, and `YOUR_DB_NAME` in the configmap:
+
+```bash
+nano tb-broker-db-configmap.yml
+```
+
+## Create namespace
+
+```bash
+kubectl apply -f tb-broker-namespace.yml
+kubectl config set-context $(kubectl config current-context) --namespace=thingsboard-mqtt-broker
+```
+
+## Provision Redis cluster
+
+Deploy Bitnami Redis Cluster from Helm. Review the `redis` folder:
+
+```bash
+ls redis/
+```
+
+The folder contains `default-values-redis.yml` (default values from <a href="https://artifacthub.io/packages/helm/bitnami/redis-cluster" target="_blank" rel="noopener noreferrer">Bitnami ArtifactHub</a>) and `values-redis.yml` with modified values. Keep the first file untouched and make changes to the second one only for smoother upgrades.
+
+Add the Bitnami Helm repo:
+
+```bash
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo update
+```
+
+Install Bitnami Redis Cluster:
+
+```bash
+helm install redis -f redis/values-redis.yml bitnami/redis-cluster --version 10.2.5
+```
+
+Once deployed, you should see output similar to:
+
+```text
+NAME: redis
+LAST DEPLOYED: Tue Apr  8 11:22:44 2025
+NAMESPACE: thingsboard-mqtt-broker
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+NOTES:
+CHART NAME: redis-cluster
+CHART VERSION: 10.2.5
+APP VERSION: 7.2.5** Please be patient while the chart is being deployed **
+
+
+To get your password run:
+    export REDIS_PASSWORD=$(kubectl get secret --namespace "thingsboard-mqtt-broker" redis-redis-cluster -o jsonpath="{.data.redis-password}" | base64 -d)
+```
+
+Retrieve the Redis password:
+
+```bash
+echo $(kubectl get secret --namespace "thingsboard-mqtt-broker" redis-redis-cluster -o jsonpath="{.data.redis-password}" | base64 -d)
+```
+
+Copy the output and paste it into `tb-broker-cache-configmap.yml`, replacing `YOUR_REDIS_PASSWORD`:
+
+```bash
+nano tb-broker-cache-configmap.yml
+```
+
+<Aside>
+  The value of <code>REDIS_NODES</code> in <code>tb-broker-cache-configmap.yml</code> is set to <code>"redis-redis-cluster-headless:6379"</code> by default.
+  The host name is based on the release name (redis) and the default naming conventions of the Bitnami chart.
+  If you modify the <code>nameOverride</code> or <code>fullnameOverride</code> fields in your Redis values file, or change the release name during installation,
+  update this value accordingly to match the actual headless service name created by the chart.
+</Aside>
+
+## Installation
+
+Run the installation script:
+
+```bash
+./k8s-install-tbmq.sh
+```
+
+After completion, you should see:
+
+```text
+Installation finished successfully!
+```
+
+<Aside>
+  If installation fails, verify that the PostgreSQL URL and password are set correctly in `tb-broker-db-configmap.yml`.
+</Aside>
+
+## Provision Kafka
+
+Deploy Bitnami Kafka from Helm. Review the `kafka` folder:
+
+```bash
+ls kafka/
+```
+
+The folder contains `default-values-kafka.yml` (default values from <a href="https://artifacthub.io/packages/helm/bitnami/kafka" target="_blank" rel="noopener noreferrer">Bitnami ArtifactHub</a>) and `values-kafka.yml` with modified values. Keep the first file untouched and make changes to the second one only for smoother upgrades.
+
+Add the Bitnami Helm repo:
+
+```bash
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo update
+```
+
+Install Bitnami Kafka:
+
+```bash
+helm install kafka -f kafka/values-kafka.yml bitnami/kafka --version 29.3.4
+```
+
+Wait several minutes until Kafka pods are up and running.
+
+## Starting
+
+Deploy TBMQ:
+
+```bash
+./k8s-deploy-tbmq.sh
+```
+
+After a few minutes, check pod status:
+
+```bash
+kubectl get pods
+```
+
+You should see `tb-broker-0` and `tb-broker-1` pods, each in the `READY` state.
+
+## Configure Load Balancers
+
+### Configure HTTP(S) Load Balancer
+
+You have two options:
+
+- **HTTP** — no HTTPS support. Suitable for development only.
+- **HTTPS** — SSL termination with Google-managed certificates. Recommended for production.
+
+#### HTTP Load Balancer
+
+```bash
+kubectl apply -f receipts/http-load-balancer.yml
+```
+
+Check provisioning status:
+
+```bash
+kubectl get ingress
+```
+
+Once ready:
+
+```text
+NAME                          CLASS    HOSTS   ADDRESS         PORTS   AGE
+tb-broker-http-loadbalancer   <none>   *       34.111.24.134   80      7m25s
+```
+
+#### HTTPS Load Balancer
+
+HTTPS uses <a href="https://cloud.google.com/kubernetes-engine/docs/how-to/managed-certs" target="_blank" rel="noopener noreferrer">Google-managed SSL certificates</a>.
+Read the <a href="https://cloud.google.com/kubernetes-engine/docs/how-to/managed-certs#prerequisites" target="_blank" rel="noopener noreferrer">prerequisites</a> carefully before proceeding.
+
+Reserve a static IP address:
+
+```bash
+gcloud compute addresses create tbmq-http-lb-address --global
+```
+
+Replace `PUT_YOUR_DOMAIN_HERE` with a valid domain name in the HTTPS load balancer config:
+
+```bash
+nano receipts/https-load-balancer.yml
+```
+
+Deploy:
+
+```bash
+kubectl apply -f receipts/https-load-balancer.yml
+```
+
+Check provisioning status:
+
+```bash
+kubectl get ingress
+```
+
+Once provisioned:
+
+```text
+NAME                           CLASS    HOSTS   ADDRESS         PORTS   AGE
+tb-broker-https-loadbalancer   gce      *       34.111.24.134   80      7m25s
+```
+
+Assign your domain name to the load balancer IP address shown above. Verify DNS propagation:
+
+```bash
+dig YOUR_DOMAIN_NAME
+```
+
+Then wait for the Google-managed certificate to finish provisioning (up to 60 minutes). Check status:
+
+```bash
+kubectl describe managedcertificate managed-cert
+```
+
+### Configure MQTT Load Balancer
+
+Create a TCP load balancer that forwards traffic on ports 1883 and 8883:
+
+```bash
+kubectl apply -f receipts/mqtt-load-balancer.yml
+```
+
+#### MQTT over SSL
+
+Follow <a href="https://thingsboard.io/docs/user-guide/mqtt-over-ssl/" target="_blank" rel="noopener noreferrer">this guide</a> to create a `.pem` certificate file.
+Save it as `server.pem` in the working directory.
+
+Create a ConfigMap from your PEM files:
+
+```bash
+kubectl create configmap tbmq-mqtts-config \
+ --from-file=server.pem=YOUR_PEM_FILENAME \
+ --from-file=mqttserver_key.pem=YOUR_PEM_KEY_FILENAME \
+ -o yaml --dry-run=client | kubectl apply -f -
+```
+
+Where:
+- `YOUR_PEM_FILENAME` — path to your server certificate file
+- `YOUR_PEM_KEY_FILENAME` — path to your server certificate private key file
+
+Uncomment all sections marked with "Uncomment the following lines to enable two-way MQTTS" in `tb-broker.yml`:
+
+```bash
+kubectl apply -f tb-broker.yml
+```
+
+## Validate the setup
+
+Open the TBMQ web interface using the DNS name of the load balancer:
+
+```bash
+kubectl get ingress
+```
+
+```text
+NAME                          CLASS    HOSTS   ADDRESS         PORTS   AGE
+tb-broker-http-loadbalancer   <none>   *       34.111.24.134   80      3d1h
+```
+
+Use the `ADDRESS` of `tb-broker-http-loadbalancer` to access the UI.
+
+You should see the TBMQ login page. Use the default **System Administrator** credentials:
+
+**Username:**
+
+```
+sysadmin@thingsboard.org
+```
+
+**Password:**
+
+```
+sysadmin
+```
+
+On first login, you are prompted to change the default password and re-login with the new credentials.
+
+### Validate MQTT access
+
+The service `tb-broker-mqtt-loadbalancer` is the LoadBalancer used for MQTT communication. Retrieve its `EXTERNAL-IP` with:
+
+```bash
+kubectl get services
+```
+
+```text
+NAME                          TYPE           CLUSTER-IP       EXTERNAL-IP              PORT(S)                         AGE
+tb-broker-mqtt-loadbalancer   LoadBalancer   10.100.119.170   *******                  1883:30308/TCP,8883:31609/TCP   6m58s
+```
+
+Use the `EXTERNAL-IP` field to connect to the cluster via MQTT.
+
+### Troubleshooting
+
+View TBMQ pod logs:
+
+```bash
+kubectl logs -f tb-broker-0
+```
+
+Check the state of all StatefulSets:
+
+```bash
+kubectl get statefulsets
+```
+
+See the <a href="https://kubernetes.io/docs/reference/kubectl/cheatsheet/" target="_blank" rel="noopener noreferrer">kubectl Cheat Sheet</a> for more details.
+
+## Upgrading
+
+Review the <DocLink product={props.product} path="releases">release notes</DocLink> and{' '}
+<DocLink product={props.product} path="install/upgrade-instructions">upgrade instructions</DocLink> for details on the latest changes.
+
+If there are no **Upgrade to x.x.x** notes for your version, proceed directly with the general <a href="#run-upgrade">upgrade instructions</a>.
+
+If your specific upgrade path is not covered, <DocLink product={props.product} path="help">contact us</DocLink> for further guidance.
+
+### Backup and restore (Optional)
+
+While backing up your PostgreSQL database before upgrading is recommended, it is optional.
+For guidance, follow the <a href="https://cloud.google.com/sql/docs/postgres/backup-recovery/backing-up" target="_blank" rel="noopener noreferrer">Cloud SQL backup and recovery documentation</a>.
+
+### Upgrade to 2.2.0
+
+This release migrates the MQTT authentication mechanism from YAML/env configuration into the database.
+During the upgrade, TBMQ needs to know which authentication providers are enabled — these are provided
+as environment variables passed to the upgrade pod.
+
+The upgrade script reads from **database-setup.yml**. Variables from `tb-broker.yml` are
+**not** applied during the upgrade — only the values in `database-setup.yml` are used.
+Ensure this file reflects your active configuration.
+
+<Aside>
+  <ul>
+    <li>If you use only Basic authentication, set <code>SECURITY_MQTT_SSL_ENABLED=false</code>.</li>
+    <li>If you use only X.509 authentication, set <code>SECURITY_MQTT_BASIC_ENABLED=false</code> and <code>SECURITY_MQTT_SSL_ENABLED=true</code>.</li>
+  </ul>
+</Aside>
+
+**Supported variables in database-setup.yml:**
+
+- `SECURITY_MQTT_BASIC_ENABLED` (`true|false`)
+- `SECURITY_MQTT_SSL_ENABLED` (`true|false`)
+- `SECURITY_MQTT_SSL_SKIP_VALIDITY_CHECK_FOR_CLIENT_CERT` (`true|false`) — usually `false`
+
+Once the file is verified, proceed with the <a href="#run-upgrade">upgrade process</a>.
+
+### Upgrade to 2.1.0
+
+TBMQ v2.1.0 introduces the Integration Executor microservice and bumps versions of third-party dependencies.
+
+#### Add Integration Executor microservice
+
+This release adds support for external integrations via the new{' '}
+<DocLink product={props.product} path="integrations/">Integration Executor</DocLink> microservice.
+
+To retrieve the latest configuration files, pull the updates from the release branch by following
+the <a href="#run-upgrade">run upgrade steps</a> up to (but not including) the upgrade script execution.
+
+#### Update third-party services
+
+TBMQ v2.1.0 updates the following third-party dependencies. See the{' '}
+<a href="https://github.com/thingsboard/tbmq/pull/218" target="_blank" rel="noopener noreferrer">pull request</a> for details.
+
+| Service | Previous version | Updated version |
+|---|---|---|
+| **Redis** | 7.0 | 7.2.5 |
+| **PostgreSQL** | 15.x | 16.x |
+| **Kafka** | 3.5.1 | 3.7.0 |
+
+<Aside>
+  Step-by-step upgrade instructions for third-party services are not provided here.
+  Consult the official documentation or your service provider's resources.
+  Changing the image tag alone is not sufficient or safe.
+  If you skip upgrading, verify the merge did not alter third-party versions and revert if needed.
+  After addressing versions, continue with the remaining <a href="#run-upgrade">upgrade steps</a>.
+</Aside>
+
+### Upgrade to 2.0.0
+
+For the TBMQ v2.0.0 upgrade, if you have not installed Redis yet, follow the{' '}
+<a href="#provision-redis-cluster">Provision Redis cluster</a> section to complete the installation.
+Only then proceed with the <a href="#run-upgrade">upgrade</a>.
+
+### Run upgrade
+
+Pull the latest changes from the release branch:
+
+<Code code={gitPullCmd} lang="bash" />
+
+<Aside>
+  To upgrade to a specific version (e.g. v2.0.0), replace the branch with the target branch name, e.g. <code>release-2.0.0</code>.
+</Aside>
+
+**Note:** Make sure any custom changes are not lost during the merge.
+
+<Aside>
+  If you encounter conflicts during the merge that are unrelated to your changes, accept all remote changes:
+
+  1. Abort the current merge: `git merge --abort`
+  2. Re-pull accepting remote changes:
+
+  <Code code={gitPullCmd.replace(TBMQ_BRANCH, `${TBMQ_BRANCH} -X theirs`)} lang="bash" />
+
+  Merge strategy options:
+
+  - `-X ours` — auto-resolve conflicts by favoring your local version
+  - `-X theirs` — auto-resolve conflicts by favoring the remote version
+</Aside>
+
+After pulling, run the upgrade script:
+
+<Tabs>
+  <TabItem label="Since v2.1.0">
+    <Code code="./k8s-upgrade-tbmq.sh" lang="bash" />
+  </TabItem>
+  <TabItem label="Before v2.1.0">
+    <Code code="./k8s-upgrade-tbmq.sh --fromVersion=FROM_VERSION" lang="bash" />
+    <p>Where <code>FROM_VERSION</code> is the version you are upgrading from.
+    See <DocLink product={props.product} path="install/upgrade-instructions">Upgrade Instructions</DocLink> for valid values.</p>
+  </TabItem>
+</Tabs>
+
+<Aside>
+  You may optionally stop TBMQ pods before running the database upgrade to ensure a consistent DB state:
+
+  <Code code="./k8s-delete-tbmq.sh" lang="bash" />
+
+  This causes downtime, but most upgrades do not require stopping TBMQ. Once the upgrade completes, redeploy to roll out the new version:
+
+  <Code code="./k8s-deploy-tbmq.sh" lang="bash" />
+</Aside>
+
+## Cluster deletion
+
+Delete TBMQ nodes:
+
+```bash
+./k8s-delete-tbmq.sh
+```
+
+Delete all TBMQ nodes, ConfigMaps, and load balancers:
+
+```bash
+./k8s-delete-all.sh
+```
+
+Delete the GKE cluster:
+
+```bash
+gcloud container clusters delete $TB_CLUSTER_NAME --region=$GCP_REGION
+```

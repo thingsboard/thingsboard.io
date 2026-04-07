@@ -1,0 +1,121 @@
+import { Aside } from '@astrojs/starlight/components';
+import DocLink from '@components/DocLink.astro';
+
+MQTT topics are the addressing mechanism that enables publishers and subscribers to exchange messages. Understanding how topics and wildcards work is essential for designing efficient subscription patterns in your MQTT deployments.
+
+## Topics
+
+MQTT has two types of topics:
+
+- **Topic names** — used by publishers to send messages. Must not contain wildcards or start with `$` (reserved for TBMQ system purposes, such as shared subscription topics).
+- **Topic filters** — used by subscribers to receive messages. Can include the wildcard characters `#` and `+`.
+
+Topics are hierarchical and use a forward slash (`/`) as a level separator. For example, `sensors/livingroom/temperature` has three levels: `sensors`, `livingroom`, and `temperature`. This structure enables precise control over message routing, especially when combined with wildcards.
+
+Topic constraints:
+- Maximum length: 65,535 bytes.
+- Minimum length: one character.
+- Must not contain a null character.
+
+## Wildcards
+
+Wildcards allow subscribers to match multiple topics with a single subscription, reducing the complexity of managing subscriptions in dynamic environments. MQTT supports two types:
+
+1. **Multi-level wildcard (`#`)** — matches any number of remaining levels.
+2. **Single-level wildcard (`+`)** — matches exactly one level.
+
+### Multi-level wildcard
+
+The `#` character matches the parent level and all child levels beneath it.
+
+| Subscription topic filter | Matching topics | Not matching |
+|---|---|---|
+| `sensors/#` | `sensors`, `sensors/`, `sensors/livingroom`, `sensors/livingroom/window` | `/sensors` |
+
+The `#` wildcard **must**:
+- Appear only once.
+- Be at the end of the topic filter.
+- Be preceded by a `/` delimiter.
+
+**Invalid examples** (incorrectly positioned `#`):
+- `#sensors`
+- `#/sensors`
+- `sensors/#/`
+- `sensors/#/temperature`
+
+### Single-level wildcard
+
+The `+` character matches exactly one level in the topic hierarchy.
+
+| Subscription topic filter | Matching topics | Not matching |
+|---|---|---|
+| `sensors/+/temperature` | `sensors/livingroom/temperature`, `sensors/bedroom/temperature` | `sensors/livingroom/window/temperature`, `sensors/temperature` |
+
+The `+` wildcard **must** either:
+- Start the topic filter or follow a `/`.
+- End the topic filter or be followed by a `/`.
+
+**Invalid examples** (incorrectly positioned `+`):
+- `+sensors`
+- `sensors+`
+- `sensors/home+`
+- `sensors/+home`
+
+### Wildcard usage examples
+
+| Subscription topic filter | Matching topics |
+|---|---|
+| `sensors/+/temperature/#` | `sensors/livingroom/temperature`, `sensors/bedroom/temperature`, `sensors/livingroom/temperature/status` |
+| `sensors/+/sensor/#` | `sensors/kitchen/sensor/temperature`, `sensors/bedroom/sensor/humidity`, `sensors/livingroom/sensor/light/intensity` |
+| `+/house/#` | `north/house/livingroom/temperature`, `south/house/kitchen/humidity`, `east/house/garden/light/intensity` |
+| `factory/+/status/#` | `factory/machine1/status`, `factory/machine2/status`, `factory/machine1/status/error` |
+| `+/devices/+/battery` | `home/devices/laptop/battery`, `office/devices/phone/battery`, `car/devices/gps/battery` |
+| `building/+/room/+/temperature` | `building/1stfloor/room/101/temperature`, `building/2ndfloor/room/201/temperature`, `building/3rdfloor/room/301/temperature` |
+
+## Best practices
+
+- **Avoid blank spaces and special characters** (except `/`) — they can cause confusion or errors.
+- **Use lowercase consistently** — topics are case-sensitive, so `sensors/temperature` and `Sensors/Temperature` are two different topics.
+- **Avoid leading or trailing slashes** — `/sensors/home` and `sensors/home` are considered different topics.
+- **Avoid subscribing to `#`** — receiving every message from all topics can quickly overwhelm a client with a flood of messages, leading to performance issues and potential crashes.
+- **Avoid very deep hierarchies** — they become difficult to manage; use clear, descriptive names like `building/floor1/room1/temperature`.
+- **Use only ASCII characters** — non-printable characters can cause compatibility issues across systems.
+
+## Multiple subscriptions match
+
+It is possible for a client to have multiple subscriptions that all match the topic of a published message.
+
+For example, if a client subscribes to both `sensors/+/temperature` and `sensors/room1/#`, and a message is published to `sensors/room1/temperature`, both subscriptions match.
+
+In this case, TBMQ delivers the message to the **subscription with the highest QoS**. If multiple matching subscriptions have the same QoS, the message is delivered to the first matching subscription.
+
+## Configuring maximum topic segments
+
+You can define the maximum number of forward slashes (`/`) allowed in a topic using the `MQTT_TOPIC_MAX_SEGMENTS_COUNT` environment variable.
+
+By default, this is set to `0` (disabled — no restriction).
+
+**Example:** Setting `MQTT_TOPIC_MAX_SEGMENTS_COUNT=2` causes the broker to reject topics with more than two slashes. A topic like `sensors/floor1/room1/temperature` (three slashes) would be rejected.
+
+<Aside type="note">
+  Excessive topic depth increases the complexity of matching and routing, which can lead to higher latency and resource consumption.
+</Aside>
+
+## Shared subscription topics
+
+<DocLink product={props.product} path="user-guide/shared-subscriptions">Shared subscriptions</DocLink> distribute messages across multiple subscribers for load balancing and efficient resource use. Their topic format uses a `$share` prefix:
+
+```
+$share/{ShareName}/{TopicFilter}
+```
+
+Where:
+- `$share` — constant prefix that marks the subscription as shared.
+- `{ShareName}` — identifier distinguishing this group from other shared subscriptions.
+- `{TopicFilter}` — the topic filter, similar to regular subscriptions. Can include wildcards such as `#` and `+` to match multiple topics.
+
+**Example:**
+
+```
+$share/group1/country/+/city/+/home/#
+```

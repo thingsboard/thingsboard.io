@@ -38,10 +38,12 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 			`${prefix}/widgets`,
 			`${prefix}/time-window`,
 			`${prefix}/aliases`,
+			`${prefix}/filters`,
 			`${prefix}/layouts`,
 			`${prefix}/actions`,
 			`${prefix}/scada`,
 			`${prefix}/units`,
+			`${prefix}/advanced-data-key-configuration`,
 		],
 	},
 	{
@@ -53,6 +55,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 			`${prefix}/users`,
 			`${prefix}/roles`,
 			...(isPE ? [`${prefix}/groups`] : []),
+			`${prefix}/tenant-profiles`,
 		],
 	},
 	{
@@ -113,6 +116,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 		collapsed: true,
 		items: [
 			`${prefix}/ai-models`,
+			`${prefix}/ai-solution-creator`,
 			`${prefix}/ai-predictive-maintenance`,
 			`${prefix}/local-ai-ollama`,
 			`${prefix}/mcp-server`,
@@ -158,6 +162,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 			`${prefix}/version-control`,
 			`${prefix}/entity-views`,
 			`${prefix}/scheduler`,
+			`${prefix}/csv-xls-data-export`,
 		],
 	},
 	{
@@ -225,7 +230,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 		collapsed: true,
 		items: [
 			{
-				label: 'Release Policy',
+				label: 'Release policy',
 				slug: `${prefix.replace('/user-guide', '/releases')}/release-policy`,
 			},
 			{
@@ -344,9 +349,14 @@ const installationItems = (prefix: string) => {
 
 const recipeItems = (prefix: string) => [
 	{
-		label: 'Sending Data',
+		label: 'Processing Data',
 		collapsed: true,
-		items: [`${prefix}/python-telemetry`],
+		items: [`${prefix}/python-telemetry`, `${prefix}/telemetry-delta-two-devices`],
+	},
+	{
+		label: 'Validating Data',
+		collapsed: true,
+		items: [`${prefix}/validate-incoming-telemetry`],
 	},
 	{
 		label: 'Storage & Retention',
@@ -356,7 +366,12 @@ const recipeItems = (prefix: string) => [
 	{
 		label: 'Alarms',
 		collapsed: true,
-		items: [`${prefix}/alarm-rule-tutorials`],
+		items: [
+			`${prefix}/alarm-rule-tutorials`,
+			`${prefix}/create-clear-alarms`,
+			`${prefix}/telemetry-delta-calculation`,
+			`${prefix}/send-email-alarm`,
+		],
 	},
 	{
 		label: 'Real-time Data',
@@ -1067,10 +1082,12 @@ export const paasSidebar: SidebarConfig = [
 					'docs/paas/user-guide/widgets',
 					'docs/paas/user-guide/time-window',
 					'docs/paas/user-guide/aliases',
+					'docs/paas/user-guide/filters',
 					'docs/paas/user-guide/layouts',
 					'docs/paas/user-guide/actions',
 					'docs/paas/user-guide/scada',
 					'docs/paas/user-guide/units',
+					'docs/paas/user-guide/advanced-data-key-configuration',
 				],
 			},
 			{
@@ -1146,6 +1163,7 @@ export const paasSidebar: SidebarConfig = [
 				collapsed: true,
 				items: [
 					'docs/paas/user-guide/ai-models',
+					'docs/paas/user-guide/ai-solution-creator',
 					'docs/paas/user-guide/ai-predictive-maintenance',
 					'docs/paas/user-guide/local-ai-ollama',
 					'docs/paas/user-guide/mcp-server',
@@ -1157,9 +1175,10 @@ export const paasSidebar: SidebarConfig = [
 				collapsed: true,
 				items: [
 					'docs/paas/user-guide/integrations',
-					'docs/paas/user-guide/integrations/http',
-					'docs/paas/user-guide/integrations/chirpstack',
-					'docs/paas/user-guide/integrations/aws-iot',
+					'docs/paas/user-guide/integrations/integration-types',
+					'docs/paas/user-guide/integrations/uplink-data-converter',
+					'docs/paas/user-guide/integrations/downlink-data-converter',
+					'docs/paas/user-guide/integrations/remote',
 				],
 			},
 			{
@@ -1190,6 +1209,7 @@ export const paasSidebar: SidebarConfig = [
 					'docs/paas/user-guide/version-control',
 					'docs/paas/user-guide/entity-views',
 					'docs/paas/user-guide/scheduler',
+					'docs/paas/user-guide/csv-xls-data-export',
 				],
 			},
 			{
@@ -1355,10 +1375,12 @@ export const paasEuSidebar: SidebarConfig = [
 					'docs/paas/eu/user-guide/widgets',
 					'docs/paas/eu/user-guide/time-window',
 					'docs/paas/eu/user-guide/aliases',
+					'docs/paas/eu/user-guide/filters',
 					'docs/paas/eu/user-guide/layouts',
 					'docs/paas/eu/user-guide/actions',
 					'docs/paas/eu/user-guide/scada',
 					'docs/paas/eu/user-guide/units',
+					'docs/paas/eu/user-guide/advanced-data-key-configuration',
 				],
 			},
 			{
@@ -1437,6 +1459,7 @@ export const paasEuSidebar: SidebarConfig = [
 				collapsed: true,
 				items: [
 					'docs/paas/eu/user-guide/ai-models',
+					'docs/paas/eu/user-guide/ai-solution-creator',
 					'docs/paas/eu/user-guide/ai-predictive-maintenance',
 					'docs/paas/eu/user-guide/local-ai-ollama',
 					'docs/paas/eu/user-guide/mcp-server',
@@ -1448,9 +1471,10 @@ export const paasEuSidebar: SidebarConfig = [
 				collapsed: true,
 				items: [
 					'docs/paas/eu/user-guide/integrations',
-					'docs/paas/eu/user-guide/integrations/http',
-					'docs/paas/eu/user-guide/integrations/chirpstack',
-					'docs/paas/eu/user-guide/integrations/aws-iot',
+					'docs/paas/eu/user-guide/integrations/integration-types',
+					'docs/paas/eu/user-guide/integrations/uplink-data-converter',
+					'docs/paas/eu/user-guide/integrations/downlink-data-converter',
+					'docs/paas/eu/user-guide/integrations/remote',
 				],
 			},
 			{
@@ -1484,6 +1508,7 @@ export const paasEuSidebar: SidebarConfig = [
 					'docs/paas/eu/user-guide/version-control',
 					'docs/paas/eu/user-guide/entity-views',
 					'docs/paas/eu/user-guide/scheduler',
+					'docs/paas/eu/user-guide/csv-xls-data-export',
 				],
 			},
 			{
@@ -1592,7 +1617,6 @@ export const edgeSidebar: SidebarConfig = [
 		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
 		items: [
-			'docs/edge',
 			{
 				label: 'Welcome to IoT!',
 				items: ['docs/edge/why-thingsboard-edge', 'docs/edge/getting-started'],
@@ -1644,6 +1668,7 @@ export const edgeSidebar: SidebarConfig = [
 					'docs/edge/user-guide/provision-customers-and-users',
 					'docs/edge/user-guide/ota-updates',
 					'docs/edge/user-guide/dashboards',
+					'docs/edge/user-guide/edge-public-dashboard',
 				],
 			},
 			{
@@ -1689,11 +1714,108 @@ export const edgeSidebar: SidebarConfig = [
 	},
 	{
 		label: 'Recipes',
-		items: [{ label: 'Overview', slug: 'docs/edge/recipes' }],
+		items: [
+			{
+				label: 'Sending Data',
+				collapsed: true,
+				items: [
+					'docs/edge/recipes/send-telemetry-mqtt',
+					'docs/edge/recipes/data-filtering-traffic-reduce',
+				],
+			},
+			{
+				label: 'Cloud Sync',
+				collapsed: true,
+				items: ['docs/edge/recipes/push-to-cloud'],
+			},
+			{
+				label: 'Data Processing',
+				collapsed: true,
+				items: [
+					'docs/edge/recipes/edge-alarm-rule',
+					'docs/edge/recipes/alarm-rule-tutorials',
+					'docs/edge/recipes/manage-alarms-rpc-requests',
+				],
+			},
+			{
+				label: 'Operations',
+				collapsed: true,
+				items: ['docs/edge/recipes/ota-firmware-update'],
+			},
+		],
 	},
 	{
 		label: 'APIs & SDKs',
-		items: [{ label: 'Overview', slug: 'docs/edge/reference/apis-and-sdks' }],
+		items: [
+			{
+				label: 'Edge API',
+				collapsed: true,
+				items: [
+					'docs/edge/reference/apis-and-sdks/edge-controller',
+					'docs/edge/reference/apis-and-sdks/edge-event-controller',
+				],
+			},
+			{
+				label: 'Device APIs',
+				collapsed: true,
+				items: [
+					'docs/edge/reference/apis-and-sdks/overview',
+					'docs/edge/reference/apis-and-sdks/mqtt-api',
+					'docs/edge/reference/apis-and-sdks/coap-api',
+					'docs/edge/reference/apis-and-sdks/http-api',
+					'docs/edge/reference/apis-and-sdks/lwm2m-api',
+					'docs/edge/reference/apis-and-sdks/snmp-api',
+				],
+			},
+			{
+				label: 'Gateway APIs',
+				collapsed: true,
+				items: ['docs/edge/reference/apis-and-sdks/gateway-mqtt-api'],
+			},
+			{
+				label: 'Device SDKs',
+				collapsed: true,
+				items: [
+					'docs/edge/reference/apis-and-sdks/python-device-sdk',
+					'docs/edge/reference/apis-and-sdks/micropython-client-sdk',
+					'docs/edge/reference/apis-and-sdks/circuitpython-client-sdk',
+					'docs/edge/reference/apis-and-sdks/arduino-client-sdk',
+				],
+			},
+			{
+				label: 'Edge-to-Cloud',
+				collapsed: true,
+				items: [
+					'docs/edge/reference/apis-and-sdks/edge-to-cloud/grpc-protocol',
+					'docs/edge/reference/apis-and-sdks/edge-to-cloud/connection-management',
+				],
+			},
+			{
+				label: 'Server-side APIs',
+				collapsed: true,
+				items: [
+					'docs/edge/reference/rest-api',
+					'docs/edge/reference/rest-api/controller-reference',
+					'docs/edge/reference/websocket-api',
+					'docs/edge/reference/data-query-api',
+					'docs/edge/reference/alarm-query-api',
+				],
+			},
+			{
+				label: 'Server-side REST Clients',
+				collapsed: true,
+				items: ['docs/edge/reference/java-rest-client', 'docs/edge/reference/python-rest-client'],
+			},
+			{
+				label: 'MCP Server',
+				collapsed: true,
+				items: [
+					'docs/edge/reference/apis-and-sdks/mcp-server/getting-started',
+					'docs/edge/reference/apis-and-sdks/mcp-server/tools',
+					'docs/edge/reference/apis-and-sdks/mcp-server/configuration',
+				],
+			},
+		],
 	},
 	{
 		label: 'Reference',
@@ -1717,6 +1839,13 @@ export const edgeSidebar: SidebarConfig = [
 				items: [
 					'docs/edge/reference/configuration/how-to-change-config',
 					'docs/edge/reference/configuration/transport-config',
+					'docs/edge/reference/configuration/cloud-config',
+					'docs/edge/reference/configuration/server-config',
+					'docs/edge/reference/configuration/security-config',
+					'docs/edge/reference/configuration/database-config',
+					'docs/edge/reference/configuration/cache-config',
+					'docs/edge/reference/configuration/rule-engine-config',
+					'docs/edge/reference/configuration/notifications-config',
 				],
 			},
 			{
@@ -1892,7 +2021,6 @@ export const edgePeSidebar: SidebarConfig = [
 		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
 		items: [
-			'docs/edge/pe',
 			{
 				label: 'Welcome to IoT!',
 				items: ['docs/edge/pe/why-thingsboard-edge', 'docs/edge/pe/getting-started'],
@@ -1966,6 +2094,40 @@ export const edgePeSidebar: SidebarConfig = [
 				],
 			},
 			{
+				label: 'Integrations',
+				collapsed: true,
+				items: [
+					{ label: 'Overview', slug: 'docs/edge/pe/user-guide/integrations/overview' },
+					{ label: 'HTTP', slug: 'docs/edge/pe/user-guide/integrations/http' },
+					{ label: 'CoAP', slug: 'docs/edge/pe/user-guide/integrations/coap' },
+					{ label: 'MQTT', slug: 'docs/edge/pe/user-guide/integrations/mqtt' },
+					{ label: 'OPC-UA', slug: 'docs/edge/pe/user-guide/integrations/opc-ua' },
+					{ label: 'TCP', slug: 'docs/edge/pe/user-guide/integrations/tcp' },
+					{ label: 'UDP', slug: 'docs/edge/pe/user-guide/integrations/udp' },
+					{ label: 'ChirpStack', slug: 'docs/edge/pe/user-guide/integrations/chirpstack' },
+					{
+						label: 'Remote Integrations',
+						slug: 'docs/edge/pe/user-guide/integrations/remote-integrations',
+					},
+				],
+			},
+			{
+				label: 'White-labeling',
+				collapsed: true,
+				items: [{ label: 'Overview', slug: 'docs/edge/pe/user-guide/white-labeling' }],
+			},
+			{
+				label: 'Scheduler',
+				collapsed: true,
+				items: [
+					{ label: 'Overview', slug: 'docs/edge/pe/user-guide/scheduler' },
+					{
+						label: 'Scheduler vs Rule Chain',
+						slug: 'docs/edge/pe/user-guide/scheduler-vs-rule-chain',
+					},
+				],
+			},
+			{
 				label: 'Troubleshooting',
 				collapsed: true,
 				items: [
@@ -1989,11 +2151,111 @@ export const edgePeSidebar: SidebarConfig = [
 	},
 	{
 		label: 'Recipes',
-		items: [{ label: 'Overview', slug: 'docs/edge/pe/recipes' }],
+		items: [
+			{
+				label: 'Sending Data',
+				collapsed: true,
+				items: [
+					'docs/edge/pe/recipes/send-telemetry-mqtt',
+					'docs/edge/pe/recipes/data-filtering-traffic-reduce',
+				],
+			},
+			{
+				label: 'Cloud Sync',
+				collapsed: true,
+				items: ['docs/edge/pe/recipes/push-to-cloud'],
+			},
+			{
+				label: 'Data Processing',
+				collapsed: true,
+				items: [
+					'docs/edge/pe/recipes/edge-alarm-rule',
+					'docs/edge/pe/recipes/alarm-rule-tutorials',
+					'docs/edge/pe/recipes/manage-alarms-rpc-requests',
+				],
+			},
+			{
+				label: 'Operations',
+				collapsed: true,
+				items: ['docs/edge/pe/recipes/ota-firmware-update'],
+			},
+		],
 	},
 	{
 		label: 'APIs & SDKs',
-		items: [{ label: 'Overview', slug: 'docs/edge/pe/reference/apis-and-sdks' }],
+		items: [
+			{
+				label: 'Edge API',
+				collapsed: true,
+				items: [
+					'docs/edge/pe/reference/apis-and-sdks/edge-controller',
+					'docs/edge/pe/reference/apis-and-sdks/edge-event-controller',
+				],
+			},
+			{
+				label: 'Device APIs',
+				collapsed: true,
+				items: [
+					'docs/edge/pe/reference/apis-and-sdks/overview',
+					'docs/edge/pe/reference/apis-and-sdks/mqtt-api',
+					'docs/edge/pe/reference/apis-and-sdks/coap-api',
+					'docs/edge/pe/reference/apis-and-sdks/http-api',
+					'docs/edge/pe/reference/apis-and-sdks/lwm2m-api',
+					'docs/edge/pe/reference/apis-and-sdks/snmp-api',
+				],
+			},
+			{
+				label: 'Gateway APIs',
+				collapsed: true,
+				items: ['docs/edge/pe/reference/apis-and-sdks/gateway-mqtt-api'],
+			},
+			{
+				label: 'Device SDKs',
+				collapsed: true,
+				items: [
+					'docs/edge/pe/reference/apis-and-sdks/python-device-sdk',
+					'docs/edge/pe/reference/apis-and-sdks/micropython-client-sdk',
+					'docs/edge/pe/reference/apis-and-sdks/circuitpython-client-sdk',
+					'docs/edge/pe/reference/apis-and-sdks/arduino-client-sdk',
+				],
+			},
+			{
+				label: 'Edge-to-Cloud',
+				collapsed: true,
+				items: [
+					'docs/edge/pe/reference/apis-and-sdks/edge-to-cloud/grpc-protocol',
+					'docs/edge/pe/reference/apis-and-sdks/edge-to-cloud/connection-management',
+				],
+			},
+			{
+				label: 'Server-side APIs',
+				collapsed: true,
+				items: [
+					'docs/edge/pe/reference/rest-api',
+					'docs/edge/pe/reference/rest-api/controller-reference',
+					'docs/edge/pe/reference/websocket-api',
+					'docs/edge/pe/reference/data-query-api',
+					'docs/edge/pe/reference/alarm-query-api',
+				],
+			},
+			{
+				label: 'Server-side REST Clients',
+				collapsed: true,
+				items: [
+					'docs/edge/pe/reference/java-rest-client',
+					'docs/edge/pe/reference/python-rest-client',
+				],
+			},
+			{
+				label: 'MCP Server',
+				collapsed: true,
+				items: [
+					'docs/edge/pe/reference/apis-and-sdks/mcp-server/getting-started',
+					'docs/edge/pe/reference/apis-and-sdks/mcp-server/tools',
+					'docs/edge/pe/reference/apis-and-sdks/mcp-server/configuration',
+				],
+			},
+		],
 	},
 	{
 		label: 'Reference',
@@ -2017,6 +2279,13 @@ export const edgePeSidebar: SidebarConfig = [
 				items: [
 					'docs/edge/pe/reference/configuration/how-to-change-config',
 					'docs/edge/pe/reference/configuration/transport-config',
+					'docs/edge/pe/reference/configuration/cloud-config',
+					'docs/edge/pe/reference/configuration/server-config',
+					'docs/edge/pe/reference/configuration/security-config',
+					'docs/edge/pe/reference/configuration/database-config',
+					'docs/edge/pe/reference/configuration/cache-config',
+					'docs/edge/pe/reference/configuration/rule-engine-config',
+					'docs/edge/pe/reference/configuration/notifications-config',
 				],
 			},
 			{
@@ -2278,21 +2547,344 @@ export const gwSidebar: SidebarConfig = [
 	},
 ];
 
+const tbmqGuideItems = (prefix: string): SidebarConfig => {
+	const isPE = prefix.includes('/pe');
+	return [
+		{
+			label: 'Security',
+			collapsed: true,
+			items: [
+				{ label: 'Overview', slug: `${prefix}/security/overview` },
+				{ label: 'MQTTS', slug: `${prefix}/security/mqtts` },
+				{ label: 'HTTPS', slug: `${prefix}/security/https` },
+				{ label: 'MQTT listeners', slug: `${prefix}/security/listeners` },
+				{
+					label: 'Authentication',
+					collapsed: true,
+					items: [
+						{ label: 'Basic', slug: `${prefix}/security/authentication/basic` },
+						{ label: 'X.509 certificate chain', slug: `${prefix}/security/authentication/x509` },
+						{ label: 'JWT', slug: `${prefix}/security/authentication/jwt` },
+						{ label: 'SCRAM', slug: `${prefix}/security/authentication/scram` },
+						{ label: 'HTTP', slug: `${prefix}/security/authentication/http` },
+					],
+				},
+				...(isPE
+					? [
+							{ label: 'OAuth 2.0', slug: `${prefix}/security/oauth-2-support` },
+							{ label: 'Domains', slug: `${prefix}/security/domains` },
+							{ label: 'Role-based access control', slug: `${prefix}/security/rbac` },
+							{ label: 'Audit logs', slug: `${prefix}/security/audit-log` },
+						]
+					: []),
+			],
+		},
+		{
+			label: 'MQTT essentials',
+			collapsed: true,
+			items: [
+				{ label: 'MQTT protocol', slug: `${prefix}/user-guide/mqtt-protocol` },
+				{ label: 'MQTT broker', slug: `${prefix}/user-guide/mqtt-broker` },
+				{ label: 'Topics and wildcards', slug: `${prefix}/user-guide/topics` },
+				{ label: 'Quality of service (QoS)', slug: `${prefix}/user-guide/qos` },
+				{
+					label: 'Non-persistent and persistent sessions',
+					slug: `${prefix}/user-guide/clean-persistent-sessions`,
+				},
+				{ label: 'MQTT over WebSocket', slug: `${prefix}/user-guide/mqtt-over-ws` },
+				{ label: 'Shared subscriptions', slug: `${prefix}/user-guide/shared-subscriptions` },
+				{ label: 'Retained messages', slug: `${prefix}/user-guide/retained-messages` },
+				{ label: 'Last will and testament', slug: `${prefix}/user-guide/last-will` },
+				{ label: 'Keep alive', slug: `${prefix}/user-guide/keep-alive` },
+			],
+		},
+		{
+			label: 'Integration with ThingsBoard',
+			slug: `${prefix}/user-guide/integrations/how-to-connect-thingsboard-to-tbmq`,
+		},
+		{
+			label: 'Broker operations',
+			collapsed: true,
+			items: [
+				{ label: 'TBMQ client type', slug: `${prefix}/user-guide/mqtt-client-type` },
+				{ label: 'Blocked clients', slug: `${prefix}/other/blocked-client` },
+				{ label: 'Backpressure', slug: `${prefix}/user-guide/backpressure` },
+				{ label: 'Msg delivery strategies', slug: `${prefix}/other/msg-delivery-strategy` },
+				{ label: 'PROXY protocol', slug: `${prefix}/other/proxy-protocol` },
+				{ label: 'Health API', slug: `${prefix}/other/health` },
+				{ label: 'Bulk provisioning', slug: `${prefix}/other/bulk-provisioning` },
+			],
+		},
+		{
+			label: 'Integrations',
+			collapsed: true,
+			items: [
+				{ label: 'Overview', slug: `${prefix}/integrations` },
+				{ label: 'HTTP', slug: `${prefix}/integrations/http` },
+				{ label: 'MQTT', slug: `${prefix}/integrations/mqtt` },
+				{ label: 'Kafka', slug: `${prefix}/integrations/kafka` },
+			],
+		},
+		{
+			label: 'Management console',
+			collapsed: true,
+			items: [
+				{ label: 'Monitoring', slug: `${prefix}/user-guide/ui/monitoring` },
+				{ label: 'Sessions', slug: `${prefix}/user-guide/ui/sessions` },
+				{ label: 'Subscriptions', slug: `${prefix}/user-guide/ui/subscriptions` },
+				{
+					label: 'MQTT client credentials',
+					slug: `${prefix}/user-guide/ui/mqtt-client-credentials`,
+				},
+				{ label: 'Unauthorized clients', slug: `${prefix}/user-guide/ui/unauthorized-clients` },
+				{ label: 'WebSocket client', slug: `${prefix}/user-guide/ui/websocket-client` },
+				{
+					label: 'Application shared subscriptions',
+					slug: `${prefix}/user-guide/ui/shared-subscriptions`,
+				},
+				{ label: 'Users', slug: `${prefix}/user-guide/ui/users` },
+				{ label: 'Settings', slug: `${prefix}/user-guide/ui/settings` },
+			],
+		},
+		...(isPE
+			? [
+					{
+						label: 'White Labeling',
+						collapsed: true,
+						items: [
+							{ label: 'Overview', slug: `${prefix}/white-labeling` },
+							{ label: 'Image gallery', slug: `${prefix}/image-gallery` },
+						],
+					},
+					{ label: 'Private Cloud subscription', slug: `${prefix}/subscription` },
+				]
+			: []),
+	];
+};
+
+const tbmqInstallItems = (prefix: string): SidebarConfig => {
+	const isPE = prefix.includes('/pe');
+	return [
+		{ label: 'Live demo', slug: `${prefix}/install/live-demo` },
+		{
+			label: 'On-premises',
+			collapsed: true,
+			items: [
+				{
+					label: 'Standalone',
+					collapsed: true,
+					items: [
+						{ label: 'Docker (Linux & macOS)', slug: `${prefix}/install/docker` },
+						{ label: 'Docker (Windows)', slug: `${prefix}/install/docker-windows` },
+						...(!isPE
+							? [{ label: 'Building from source', slug: `${prefix}/install/building-from-source` }]
+							: []),
+					],
+				},
+				{
+					label: 'Cluster',
+					collapsed: true,
+					items: [
+						{ label: 'Docker Compose', slug: `${prefix}/install/cluster/docker-compose-setup` },
+						{ label: 'Minikube', slug: `${prefix}/install/cluster/minikube-cluster-setup` },
+					],
+				},
+			],
+		},
+		{
+			label: 'Cloud',
+			collapsed: true,
+			items: [
+				{ label: 'AWS', slug: `${prefix}/install/cluster/aws-cluster-setup` },
+				{ label: 'Azure', slug: `${prefix}/install/cluster/azure-cluster-setup` },
+				{ label: 'GCP', slug: `${prefix}/install/cluster/gcp-cluster-setup` },
+			],
+		},
+		...(!isPE
+			? [
+					{
+						label: 'Helm',
+						collapsed: true,
+						items: [
+							{ label: 'Minikube', slug: `${prefix}/install/cluster/helm-cluster-setup-minikube` },
+							{ label: 'AWS EKS', slug: `${prefix}/install/cluster/helm-cluster-setup-aws` },
+							{ label: 'Azure AKS', slug: `${prefix}/install/cluster/helm-cluster-setup-azure` },
+							{ label: 'GCP GKE', slug: `${prefix}/install/cluster/helm-cluster-setup-gcp` },
+						],
+					},
+				]
+			: []),
+		{ label: 'Upgrade instructions', slug: `${prefix}/install/upgrade-instructions` },
+	];
+};
+
+const tbmqReferenceItems = (prefix: string): SidebarConfig => [
+	{
+		label: 'Architecture',
+		collapsed: true,
+		items: [
+			{ label: 'Overview', slug: `${prefix}/architecture` },
+			{
+				label: 'Details',
+				collapsed: true,
+				items: [
+					{
+						label: 'Persistent DEVICE client',
+						slug: `${prefix}/architecture-details/persistent-device-client`,
+					},
+					{
+						label: 'Persistent APPLICATION client',
+						slug: `${prefix}/architecture-details/persistent-app-client`,
+					},
+				],
+			},
+		],
+	},
+	{
+		label: 'Configuration',
+		collapsed: true,
+		items: [
+			{ label: 'MQTT broker', slug: `${prefix}/install/config` },
+			{ label: 'Integration executor', slug: `${prefix}/install/ie-config` },
+		],
+	},
+	{
+		label: 'Performance tests',
+		collapsed: true,
+		items: [
+			{
+				label: 'Point-to-point: 1M msg/sec throughput',
+				slug: `${prefix}/reference/1m-throughput-p2p-performance-test`,
+			},
+			{
+				label: 'Fan-out: 3M msg/sec throughput',
+				slug: `${prefix}/reference/3m-throughput-single-node-performance-test`,
+			},
+			{
+				label: 'Fan-in: 100M concurrent connections',
+				slug: `${prefix}/reference/100m-connections-performance-test`,
+			},
+		],
+	},
+	{
+		label: 'REST APIs',
+		collapsed: true,
+		items: [
+			{ label: 'Administration REST API', slug: `${prefix}/rest-api` },
+			{ label: 'User management', slug: `${prefix}/user-management` },
+			{
+				label: 'MQTT client credentials management',
+				slug: `${prefix}/mqtt-client-credentials-management`,
+			},
+			{
+				label: 'Application shared subscriptions management',
+				slug: `${prefix}/application-shared-subscription`,
+			},
+		],
+	},
+];
+
 /** TBMQ Community Broker sidebar (pages at /docs/mqtt-broker/) */
 export const tbmqSidebar: SidebarConfig = [
 	{
-		label: 'Getting Started',
+		label: 'Getting started',
 		translations: { uk: 'Початок роботи' },
-		items: ['docs/mqtt-broker'],
+		items: [
+			{
+				label: 'Welcome to MQTT!',
+				translations: { uk: 'Новий проєкт' },
+				items: [
+					{ label: 'Why TBMQ?', slug: 'docs/mqtt-broker/why-tbmq' },
+					{ label: 'Getting started', slug: 'docs/mqtt-broker/getting-started' },
+				],
+			},
+			{
+				label: 'Core concepts',
+				items: [
+					{ label: 'Client types', slug: 'docs/mqtt-broker/concepts/client-types' },
+					{ label: 'Sessions', slug: 'docs/mqtt-broker/concepts/sessions' },
+					{ label: 'Topics and wildcards', slug: 'docs/mqtt-broker/concepts/topics' },
+					{ label: 'Delivery guarantees', slug: 'docs/mqtt-broker/concepts/qos' },
+					{ label: 'Security model', slug: 'docs/mqtt-broker/concepts/security' },
+					{ label: 'Clustering', slug: 'docs/mqtt-broker/concepts/clustering' },
+				],
+			},
+		],
+	},
+	{
+		label: 'Guides',
+		collapsed: true,
+		items: tbmqGuideItems('docs/mqtt-broker'),
+	},
+	{
+		label: 'Installation',
+		collapsed: true,
+		items: tbmqInstallItems('docs/mqtt-broker'),
+	},
+	{
+		label: 'Reference',
+		collapsed: true,
+		items: tbmqReferenceItems('docs/mqtt-broker'),
+	},
+	{
+		label: 'Releases',
+		items: [
+			{ label: 'Release notes', slug: 'docs/mqtt-broker/releases' },
+			{ label: 'Roadmap', slug: 'docs/mqtt-broker/roadmap' },
+			{ label: 'Getting support', slug: 'docs/mqtt-broker/help' },
+		],
 	},
 ];
 
 /** TBMQ PE Broker sidebar (pages at /docs/mqtt-broker/pe/) */
 export const tbmqPeSidebar: SidebarConfig = [
 	{
-		label: 'Getting Started',
+		label: 'Getting started',
 		translations: { uk: 'Початок роботи' },
-		items: ['docs/mqtt-broker/pe'],
+		items: [
+			{
+				label: 'Welcome to MQTT!',
+				translations: { uk: 'Новий проєкт' },
+				items: [
+					{ label: 'Why TBMQ?', slug: 'docs/mqtt-broker/pe/why-tbmq' },
+					{ label: 'Getting started', slug: 'docs/mqtt-broker/pe/getting-started' },
+				],
+			},
+			{
+				label: 'Core concepts',
+				items: [
+					{ label: 'Client types', slug: 'docs/mqtt-broker/pe/concepts/client-types' },
+					{ label: 'Sessions', slug: 'docs/mqtt-broker/pe/concepts/sessions' },
+					{ label: 'Topics and wildcards', slug: 'docs/mqtt-broker/pe/concepts/topics' },
+					{ label: 'Delivery guarantees', slug: 'docs/mqtt-broker/pe/concepts/qos' },
+					{ label: 'Security model', slug: 'docs/mqtt-broker/pe/concepts/security' },
+					{ label: 'Clustering', slug: 'docs/mqtt-broker/pe/concepts/clustering' },
+				],
+			},
+		],
+	},
+	{
+		label: 'Guides',
+		collapsed: true,
+		items: tbmqGuideItems('docs/mqtt-broker/pe'),
+	},
+	{
+		label: 'Installation',
+		collapsed: true,
+		items: tbmqInstallItems('docs/mqtt-broker/pe'),
+	},
+	{
+		label: 'Reference',
+		collapsed: true,
+		items: tbmqReferenceItems('docs/mqtt-broker/pe'),
+	},
+	{
+		label: 'Releases',
+		items: [
+			{ label: 'Release notes', slug: 'docs/mqtt-broker/pe/releases' },
+			{ label: 'Roadmap', slug: 'docs/mqtt-broker/pe/roadmap' },
+			{ label: 'Getting support', slug: 'docs/mqtt-broker/pe/help' },
+		],
 	},
 ];
 
@@ -2308,6 +2900,7 @@ export const mobileSidebar: SidebarConfig = [
 		translations: { uk: 'Інструкції' },
 		collapsed: true,
 		items: [
+			'docs/mobile/customization',
 			{
 				label: 'Appearance',
 				collapsed: true,
@@ -2317,13 +2910,13 @@ export const mobileSidebar: SidebarConfig = [
 					'docs/mobile/device-dashboard',
 					'docs/mobile/alarm-dashboard',
 					'docs/mobile/app-icon-splash-screen',
-					'docs/mobile/mobile-actions',
+					'docs/mobile/localization',
 				],
 			},
 			{
 				label: 'Settings',
 				collapsed: true,
-				items: ['docs/mobile/oauth2', 'docs/mobile/qr-code-settings', 'docs/mobile/localization'],
+				items: ['docs/mobile/mobile-actions', 'docs/mobile/oauth2', 'docs/mobile/qr-code-settings'],
 			},
 			'docs/mobile/release',
 		],
@@ -2348,6 +2941,7 @@ export const mobilePeSidebar: SidebarConfig = [
 		translations: { uk: 'Інструкції' },
 		collapsed: true,
 		items: [
+			'docs/mobile/pe/customization',
 			{
 				label: 'Appearance',
 				collapsed: true,
@@ -2357,7 +2951,7 @@ export const mobilePeSidebar: SidebarConfig = [
 					'docs/mobile/pe/device-dashboard',
 					'docs/mobile/pe/alarm-dashboard',
 					'docs/mobile/pe/app-icon-splash-screen',
-					'docs/mobile/pe/mobile-actions',
+					'docs/mobile/pe/localization',
 					'docs/mobile/pe/white-labeling',
 				],
 			},
@@ -2365,10 +2959,10 @@ export const mobilePeSidebar: SidebarConfig = [
 				label: 'Settings',
 				collapsed: true,
 				items: [
+					'docs/mobile/pe/mobile-actions',
 					'docs/mobile/pe/oauth2',
 					'docs/mobile/pe/self-registration',
 					'docs/mobile/pe/qr-code-settings',
-					'docs/mobile/pe/localization',
 				],
 			},
 			'docs/mobile/pe/release',
@@ -2410,10 +3004,10 @@ export const trendzSidebar: SidebarConfig = [
 				collapsed: true,
 				items: [
 					'docs/trendz/concepts/business-entities',
-					'docs/trendz/concepts/telemetry-aggregation',
-					'docs/trendz/concepts/group-by-time',
-					'docs/trendz/concepts/group-by-category',
-					'docs/trendz/concepts/data-filtering',
+					'docs/trendz/telemetry-aggregation',
+					'docs/trendz/group-by-time',
+					'docs/trendz/group-by-category',
+					'docs/trendz/data-filtering',
 				],
 			},
 			{
@@ -2447,9 +3041,9 @@ export const trendzSidebar: SidebarConfig = [
 				items: [
 					'docs/trendz/embed-visuals',
 					'docs/trendz/widget-filter-by-alias',
-					'docs/trendz/trendz-bundle',
 					'docs/trendz/widget-actions',
 					'docs/trendz/widget-settings',
+					'docs/trendz/trendz-bundle',
 				],
 			},
 			{
@@ -2489,9 +3083,9 @@ export const trendzSidebar: SidebarConfig = [
 				collapsed: true,
 				items: [
 					'docs/trendz/prediction',
-					'docs/trendz/prediction/custom-python-models',
-					'docs/trendz/prediction/predict-remaining-time',
-					'docs/trendz/prediction/save-to-thingsboard',
+					'docs/trendz/predict-with-python-models',
+					'docs/trendz/predict-remaining-time',
+					'docs/trendz/prediction-save-to-tb',
 				],
 			},
 			{
@@ -2516,11 +3110,8 @@ export const trendzSidebar: SidebarConfig = [
 						label: 'White Labeling',
 						collapsed: true,
 						items: [
-							{ slug: 'docs/trendz/white-labeling/overview', label: 'Overview' },
-							{
-								slug: 'docs/trendz/white-labeling/custom-translation',
-								label: 'Custom Translation',
-							},
+							{ slug: 'docs/trendz/white-labeling', label: 'Overview' },
+							{ slug: 'docs/trendz/custom-translation', label: 'Custom Translation' },
 						],
 					},
 					{ slug: 'docs/trendz/custom-ai-model-configuration', label: 'AI Settings' },
@@ -2546,7 +3137,7 @@ export const trendzSidebar: SidebarConfig = [
 		label: 'Guides',
 		collapsed: false,
 		items: [
-			{ slug: 'docs/trendz/guide', label: 'Overview' },
+			{ slug: 'docs/trendz/guides', label: 'Overview' },
 			{
 				label: 'Scenarios',
 				collapsed: false,
@@ -2607,9 +3198,9 @@ export const trendzSidebar: SidebarConfig = [
 				collapsed: true,
 				items: [
 					'docs/trendz/install/python-executor-configuration',
-					'docs/trendz/install/connect-thingsboard',
-					'docs/trendz/install/post-installation-steps',
-					'docs/trendz/install/configuration-properties',
+					'docs/trendz/connect-thingsboard',
+					'docs/trendz/post-installation-steps',
+					'docs/trendz/configuration-properties',
 					'docs/trendz/install/old-docker-migrate',
 				],
 			},
@@ -2687,14 +3278,28 @@ export const gwSidebarTabLinks: SidebarTabLinks = {
 	Features: '/docs/iot-gateway/features/',
 	Connectors: '/docs/iot-gateway/connectors/',
 };
-export const tbmqSidebarTabLinks: SidebarTabLinks = {};
-export const tbmqPeSidebarTabLinks: SidebarTabLinks = {};
+
+export const tbmqSidebarTabLinks: SidebarTabLinks = {
+	'Getting started': '/docs/mqtt-broker/',
+	Guides: '/docs/mqtt-broker/guides/',
+	Installation: '/docs/mqtt-broker/install/installation-options/',
+	Reference: '/docs/mqtt-broker/reference/',
+	Releases: '/docs/mqtt-broker/changelog/',
+};
+export const tbmqPeSidebarTabLinks: SidebarTabLinks = {
+	'Getting started': '/docs/mqtt-broker/pe/',
+	Guides: '/docs/mqtt-broker/pe/guides/',
+	Installation: '/docs/mqtt-broker/pe/install/installation-options/',
+	Reference: '/docs/mqtt-broker/pe/reference/',
+	Releases: '/docs/mqtt-broker/pe/changelog/',
+};
+
 export const mobileSidebarTabLinks: SidebarTabLinks = {};
 export const mobilePeSidebarTabLinks: SidebarTabLinks = {};
 export const trendzSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/trendz/',
 	Documentation: '/docs/trendz/what-is-trendz/',
-	Guides: '/docs/trendz/guide/',
+	Guides: '/docs/trendz/guides/',
 	Installation: '/docs/trendz/install/installation-options/',
 };
 export const licenseSidebarTabLinks: SidebarTabLinks = {};

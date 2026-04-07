@@ -1,0 +1,139 @@
+import { Aside } from '@astrojs/starlight/components';
+import DocLink from '@components/DocLink.astro';
+import { Products } from '~/models/site.models';
+
+Every MQTT message is published to a **topic** — a UTF-8 string that acts as the address for that message.
+Subscribers express interest by providing a **topic filter**, which may be an exact topic name or a pattern that uses
+wildcard characters to match many topics at once. The broker evaluates each incoming message against all active
+subscriptions and delivers it to every matching subscriber.
+
+Topics are hierarchical. A forward slash (`/`) separates levels, and the resulting tree structure is what makes
+wildcard matching expressive enough to cover entire device fleets with a single subscription.
+
+## Topic names and topic filters
+
+| | **Topic name** | **Topic filter** |
+|---|---|---|
+| **Used by** | Publishers (`PUBLISH` packet) | Subscribers (`SUBSCRIBE` packet) |
+| **Wildcards allowed** | No | Yes (`+` and `#`) |
+| **`$` prefix allowed** | No — reserved for system topics | Yes, via `$share/` for shared subscriptions |
+| **Min length** | 1 character | 1 character |
+| **Max length** | 65,535 bytes | 65,535 bytes |
+| **Null character** | Not allowed | Not allowed |
+
+Topic names and filters are **case-sensitive**: `sensors/temperature` and `Sensors/Temperature` are two distinct topics.
+
+## Topic structure
+
+```plaintext
+  sensors / livingroom / temperature
+  ───┬─── ───────┬───── ──────┬──────
+   level 1    level 2      level 3
+```
+
+Each `/` creates a new level. There is no required depth — a topic can be a single word or a long path.
+Leading and trailing slashes are valid but create empty levels that are easy to misread:
+`/sensors` has an empty first level and is a different topic from `sensors`.
+
+## Wildcards
+
+### Multi-level wildcard `#`
+
+Matches the level where it appears and every level below it.
+
+```plaintext
+  Subscription: sensors/#
+
+  ✔  sensors
+  ✔  sensors/
+  ✔  sensors/livingroom
+  ✔  sensors/livingroom/temperature
+  ✗  /sensors   (different first level)
+```
+
+Rules:
+- Must appear exactly once.
+- Must be the last character in the filter.
+- Must be preceded by `/` or be the entire filter (`#` alone).
+
+Invalid filters: `#sensors`, `#/sensors`, `sensors/#/temperature`
+
+### Single-level wildcard `+`
+
+Matches exactly one level — any characters, but only within a single segment.
+
+```plaintext
+  Subscription: sensors/+/temperature
+
+  ✔  sensors/livingroom/temperature
+  ✔  sensors/bedroom/temperature
+  ✗  sensors/livingroom/window/temperature  (two levels between sensors/ and /temperature)
+  ✗  sensors/temperature                    (no middle level)
+```
+
+Rules:
+- Must be surrounded by `/` on each side, or sit at the very start or end of the filter.
+
+Invalid filters: `+sensors`, `sensors+`, `sensors/home+`, `sensors/+home`
+
+### Combined wildcard examples
+
+| Topic filter | Matches |
+|---|---|
+| `sensors/+/temperature/#` | `sensors/livingroom/temperature`, `sensors/bedroom/temperature/status` |
+| `+/house/#` | `north/house/livingroom/temp`, `south/house/kitchen/humidity` |
+| `factory/+/status/#` | `factory/machine1/status`, `factory/machine1/status/error` |
+| `building/+/room/+/temperature` | `building/1stfloor/room/101/temperature` |
+| `+/devices/+/battery` | `home/devices/laptop/battery`, `car/devices/gps/battery` |
+
+## Overlapping subscriptions
+
+A client may hold multiple subscriptions where more than one filter matches the same published topic.
+
+```plaintext
+  Client subscriptions:
+    sensors/+/temperature   (QoS 1)
+    sensors/room1/#         (QoS 0)
+
+  Published topic: sensors/room1/temperature
+    → both filters match
+```
+
+When this happens, TBMQ delivers the message **once**, using the subscription with the **highest QoS**.
+If multiple matching subscriptions share the same QoS, the first match wins.
+
+## Shared subscription topics
+
+Shared subscriptions distribute messages across a group of subscribers rather than delivering to each one.
+They use a reserved prefix format:
+
+```text
+$share/{ShareName}/{TopicFilter}
+```
+
+Example: `$share/analytics-group/country/+/city/+/home/#`
+
+The `{TopicFilter}` portion follows all the same wildcard rules as a regular subscription.
+For details, see <DocLink product={props.product} path="user-guide/shared-subscriptions">Shared subscriptions</DocLink>.
+
+## Configuring the maximum topic depth
+
+Deep hierarchies increase the cost of subscription matching. TBMQ lets you enforce a segment limit with
+`MQTT_TOPIC_MAX_SEGMENTS_COUNT` (default: `0`, meaning no limit).
+
+When set to `N`, any `PUBLISH` or `SUBSCRIBE` packet whose topic contains more than `N` forward slashes is rejected.
+
+<Aside type="note">
+  Set this limit based on your expected topic depth. For most IoT deployments, a value between 5 and 10 covers
+  all legitimate patterns and prevents accidental runaway paths from affecting broker performance.
+</Aside>
+
+## Design guidelines
+
+- **Use lowercase only.** Topics are case-sensitive; mixing cases creates hard-to-debug duplicate streams.
+- **Avoid leading or trailing slashes.** `/sensors/home` and `sensors/home` are different topics.
+- **Avoid spaces and special characters** (except `/`). They are not forbidden but cause interoperability problems with some clients and parsing libraries.
+- **Avoid non-ASCII characters.** Stick to ASCII to prevent encoding issues across platforms.
+- **Do not subscribe to `#` alone** unless you specifically need every message on the broker. It routes the full message stream to a single client and will saturate it at scale.
+- **Keep hierarchies shallow.** Three to five levels cover most patterns. Very deep paths are difficult to maintain and marginally slower to match.
+- **Use categories at root levels, IDs at leaf levels.** A pattern like `{product}/{tenant}/{device-id}/telemetry` is easier to wildcard than `{device-id}/{product}/{tenant}/telemetry`.

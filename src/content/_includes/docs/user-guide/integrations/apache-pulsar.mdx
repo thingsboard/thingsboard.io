@@ -1,0 +1,315 @@
+import DocLink from '@components/DocLink.astro';
+import ImageGallery from '~/components/ImageGallery.astro';
+import Banner from '~/components/Banner.astro';
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Products } from '~/models/site.models';
+
+<Banner variant="peFeature" product={props.product} path="user-guide/integrations/apache-pulsar" />
+
+**Apache Pulsar Integration** connects ThingsBoard to an <a href="https://pulsar.apache.org/" target="_blank" rel="noopener noreferrer">Apache Pulsar</a> cluster. ThingsBoard subscribes to a Pulsar topic, consumes incoming messages, and decodes them via an uplink converter into device telemetry and attributes.
+
+## Prerequisites
+
+Before creating the integration, prepare the following:
+
+- A running Pulsar broker. Use a <a href="https://pulsar.apache.org/docs/getting-started-docker/" target="_blank" rel="noopener noreferrer">local Docker installation</a> or a managed service such as <a href="https://streamnative.io/" target="_blank" rel="noopener noreferrer">StreamNative Cloud</a>.
+- A topic to consume from.
+- A security token if your broker requires authentication.
+
+<Aside type="tip" title="Quick local broker">
+  Start a Pulsar standalone broker in Docker:
+
+  ```bash
+  docker run -it --rm --name pulsar \
+    -p 6650:6650 -p 8080:8080 \
+    apachepulsar/pulsar:3.3.0 bin/pulsar standalone
+  ```
+
+  The broker listens on `pulsar://localhost:6650`. Topics are created automatically on first use.
+</Aside>
+
+## ThingsBoard integration setup
+
+The Apache Pulsar integration wizard creates the uplink converter inline — you write the decoder function in step 2 of the wizard without leaving the dialog.
+
+### Uplink decoder
+
+The uplink converter decodes incoming Pulsar messages and maps them to the ThingsBoard data model. Apache Pulsar uses a <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter">generic uplink converter</DocLink>.
+
+The decoder function receives:
+- `payload` — raw Pulsar message body as a UTF-8 byte array
+- `metadata` — `integrationName` and any key-value pairs configured in the integration's Metadata settings
+
+<Aside type="tip">
+  Use <DocLink product={props.product} path="user-guide/tbel">TBEL</DocLink> for converter scripts — it executes significantly faster than plain JavaScript inside ThingsBoard.
+</Aside>
+
+**Sample payload:**
+
+```json
+{
+  "deviceName": "Sensor A1",
+  "deviceType": "thermostat",
+  "temperature": 23.5,
+  "humidity": 60
+}
+```
+
+**The decoder function used in this tutorial:**
+
+<Tabs>
+  <TabItem label="TBEL (Recommended)">
+    ```js maxLines=15 collapsible
+    // Decode an uplink message from a buffer
+    // payload - array of bytes
+    // metadata - key/value object
+
+    /** Decoder **/
+
+    var data = decodeToJson(payload);
+
+    var deviceName = data.deviceName != null ? data.deviceName : 'Unknown Device';
+    var deviceType = data.deviceType != null ? data.deviceType : 'default';
+
+    // Timestamp: use ts (Unix ms), timestamp (ISO 8601), or server time
+    var timestamp = -1;
+    if (data.ts != null) {
+      timestamp = data.ts;
+    } else if (data.timestamp != null) {
+      timestamp = new Date(data.timestamp).getTime();
+    }
+    if (timestamp == -1) { timestamp = Date.now(); }
+
+    var telemetry = {};
+    var attributes = {
+      integrationName: metadata['integrationName']
+    };
+
+    var excludeFromTelemetryList = ["deviceName", "deviceType", "ts", "timestamp"];
+    telemetry.putAll(toFlatMap(data, excludeFromTelemetryList, true));
+
+    var result = {
+      deviceName: deviceName,
+      deviceType: deviceType,
+      attributes: attributes,
+      telemetry: { ts: timestamp, values: telemetry }
+    };
+
+    /** Helper functions 'decodeToString', 'decodeToJson' and 'toFlatMap' are already built-in **/
+
+    return result;
+    ```
+  </TabItem>
+  <TabItem label="JavaScript">
+    ```js maxLines=15 collapsible
+    // Decode an uplink message from a buffer
+    // payload - array of bytes
+    // metadata - key/value object
+
+    /** Decoder **/
+
+    var data = decodeToJson(payload);
+
+    var deviceName = data.deviceName != null ? data.deviceName : 'Unknown Device';
+    var deviceType = data.deviceType != null ? data.deviceType : 'default';
+
+    var timestamp = -1;
+    if (data.ts != null) {
+      timestamp = data.ts;
+    } else if (data.timestamp != null) {
+      timestamp = new Date(data.timestamp).getTime();
+    }
+    if (timestamp == -1) { timestamp = Date.now(); }
+
+    var telemetry = {};
+    var attributes = {
+      integrationName: metadata['integrationName']
+    };
+
+    var excludeFromTelemetryList = ["deviceName", "deviceType", "ts", "timestamp"];
+    toFlatMap(data, telemetry, excludeFromTelemetryList);
+
+    var result = {
+      deviceName: deviceName,
+      deviceType: deviceType,
+      attributes: attributes,
+      telemetry: { ts: timestamp, values: telemetry }
+    };
+
+    /** Helper functions **/
+
+    function decodeToString(payload) {
+      return String.fromCharCode.apply(String, payload);
+    }
+
+    function decodeToJson(payload) {
+      return JSON.parse(decodeToString(payload));
+    }
+
+    function toFlatMap(obj, result, excludeList, prefix) {
+      prefix = prefix || '';
+      for (var key in obj) {
+        if (excludeList.indexOf(key) !== -1) continue;
+        var value = obj[key];
+        var fullKey = prefix ? prefix + '.' + key : key;
+        if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+          toFlatMap(value, result, excludeList, fullKey);
+        } else {
+          result[fullKey] = value;
+        }
+      }
+    }
+
+    return result;
+    ```
+  </TabItem>
+</Tabs>
+
+**To adapt this converter to your device:**
+
+- **Different device name / type fields** — replace `data.deviceName` and `data.deviceType` with the field names your device sends.
+- **Timestamp** — name the field `ts` for Unix milliseconds or `timestamp` for ISO 8601. Without either, the converter falls back to server receive time.
+- **Telemetry fields** — all JSON fields not in `excludeFromTelemetryList` are mapped to telemetry automatically. Add field names to the list to exclude them.
+- **Static attributes** — add device properties (e.g. firmware version, location) to the `attributes` object.
+- **Assets instead of devices** — use `assetName` / `assetType` instead of `deviceName` / `deviceType`.
+
+### Create the integration
+
+<Steps>
+1. Go to **Integrations center &#8702; Integrations** and click **+ Add integration**.
+2. **Basic settings:**
+   - Set **Integration type** to **Apache Pulsar** and enter a name (e.g. `Apache Pulsar Integration`).
+   - **Enable integration** and **Allow create devices or assets** are on by default.
+   - Click **Next**.
+3. **Uplink data converter:**
+   - Select **Create new**. A name is pre-filled — change it if needed.
+   - Replace the default decoder with the function from the [Uplink decoder](#uplink-decoder) section above.
+   - Click **Next**.
+4. **Connection:**
+   - Fill in **Service URL**, **Topic**, **Subscription name**, and the remaining parameters.
+   - Select **Credentials type** and provide a token if required.
+   - See [Connection settings](#connection-settings) for a full description.
+   - Click **Add** to save the integration.
+</Steps>
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/user-guide/integrations/apache-pulsar/apache-pulsar-create-integration-1.png',
+    alt: 'Add integration wizard — Basic settings: Integration type Apache Pulsar, name "Apache Pulsar integration", Enable integration and Allow create devices or assets toggles on, 15 min debug badge',
+    caption: 'Basic settings — set Integration type to Apache Pulsar, enter a name, and click Next.'
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/apache-pulsar/apache-pulsar-create-integration-2.png',
+    alt: 'Add integration wizard — Uplink data converter step: Create new tab selected, name pre-filled, Main decoding configuration section with TBEL code editor',
+    caption: 'Uplink data converter — Create new is selected by default. Paste your decoder function into the editor and click Next.'
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/apache-pulsar/apache-pulsar-create-integration-3.png',
+    alt: 'Add integration wizard — Connection step: Service URL pulsar://YOUR_PULSAR_DOMAIN:6650, Topic my-topic, Subscription name my-subscription, Max number of messages 1000, Max number of bytes 10485760, Timeout 100 ms, Credentials type Anonymous',
+    caption: 'Connection — enter the Service URL, Topic, and Subscription name. Set Credentials type to Anonymous for open brokers or Security token for authenticated clusters.'
+  },
+]} />
+
+#### Connection settings
+
+<h5>Service URL</h5>
+
+The Pulsar broker endpoint. Use `pulsar://` for plain connections (default port `6650`) and `pulsar+ssl://` for TLS-encrypted connections (default port `6651`).
+
+Examples:
+- Local: `pulsar://localhost:6650`
+- TLS / managed: `pulsar+ssl://broker.example.com:6651`
+
+<h5>Topic</h5>
+
+The Pulsar topic to consume messages from (e.g. `my-topic`). Pulsar topics follow the format `{persistent|non-persistent}://{tenant}/{namespace}/{topic-name}`. The broker resolves a short name like `my-topic` to `persistent://public/default/my-topic` on a standalone instance.
+
+<h5>Subscription name</h5>
+
+A string identifier for this consumer subscription (e.g. `my-subscription`). The subscription tracks the last acknowledged message offset and resumes from the same position after a restart. Use a consistent name across integration restarts.
+
+<h5>Max number of messages</h5>
+
+Maximum number of messages to fetch in a single poll. Default: `1000`.
+
+<h5>Max number of bytes</h5>
+
+Maximum total payload size to fetch per poll, in bytes. Default: `10485760` (10 MB).
+
+<h5>Timeout in milliseconds</h5>
+
+Consumer receive timeout — how long the client waits for a message before returning an empty result. Default: `100`.
+
+<h5>Credentials type</h5>
+
+| Option | Description |
+|--------|-------------|
+| **Anonymous** | No authentication. Suitable for local or open brokers. |
+| **Security token** | JWT bearer token. Required for StreamNative Cloud and other managed Pulsar services that enforce token authentication. |
+
+<h5>Execute remotely</h5>
+
+When enabled, ThingsBoard generates an **Integration key** and **Integration secret** that allow the integration to run as a separate process outside the ThingsBoard cluster — useful when the broker is only reachable from a restricted network. See <DocLink product={props.product} path="user-guide/integrations/remote">Remote Integration</DocLink>.
+
+## Send a test uplink
+
+Publish a test message to the Pulsar topic using the `pulsar-client` CLI tool.
+
+<Tabs>
+  <TabItem label="Docker">
+    If your broker is running in Docker, exec into the container and use the built-in CLI:
+
+    ```bash
+    docker exec -it pulsar bin/pulsar-client produce my-topic \
+      --num-produce 1 \
+      --messages '{"deviceName":"Sensor A1","deviceType":"thermostat","temperature":23.5,"humidity":60}'
+    ```
+  </TabItem>
+  <TabItem label="CLI (local install)">
+    If Pulsar binaries are installed locally:
+
+    ```bash
+    bin/pulsar-client produce my-topic \
+      --num-produce 1 \
+      --messages '{"deviceName":"Sensor A1","deviceType":"thermostat","temperature":23.5,"humidity":60}'
+    ```
+
+    For a remote broker, add `--url pulsar://your-broker-host:6650`.
+  </TabItem>
+  <TabItem label="Python">
+    ```bash
+    pip install pulsar-client
+    ```
+
+    ```python
+    import pulsar, json
+
+    client = pulsar.Client('pulsar://localhost:6650')
+    producer = client.create_producer('my-topic')
+    payload = json.dumps({
+        "deviceName": "Sensor A1",
+        "deviceType": "thermostat",
+        "temperature": 23.5,
+        "humidity": 60
+    })
+    producer.send(payload.encode('utf-8'))
+    client.close()
+    print("Message sent.")
+    ```
+  </TabItem>
+</Tabs>
+
+## Verify in ThingsBoard
+
+**Device** — go to **Entities &#8702; Devices**. The device **Sensor A1** is automatically provisioned on the first message. Open it and check the **Latest telemetry** tab — `temperature` and `humidity` should reflect the published values.
+
+**Integration events** — go to **Integrations center &#8702; Integrations**, open **Apache Pulsar Integration**, and check the **Events** tab. An **Uplink** event with **Status: OK** confirms the message was processed. Click **…** in the **Message** column to inspect the raw payload.
+
+**Converter events** — go to **Integrations center &#8702; Data converters**, open the uplink converter, and click the **Events** tab. Inspect the **In** (raw payload), **Out** (decoded result), and **Metadata** columns to verify the decoder output.
+
+## See also
+
+- <DocLink product={props.product} path="user-guide/integrations">Integration Overview</DocLink>
+- <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter">Uplink Converters</DocLink>
+- <DocLink product={props.product} path="user-guide/rule-engine-2-0/re-getting-started">Rule Engine</DocLink>
+- <DocLink product={props.product} path="user-guide/tbel">ThingsBoard Expression Language (TBEL)</DocLink>
