@@ -2710,6 +2710,22 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 		oldPath: 'paas/eu/samples/analytics/kafka-streams',
 		target: '/docs/paas/eu/user-guide/ai-models/',
 	},
+	{
+		oldPath: 'user-guide/contribution/ui/custom-subscriptions',
+		target: '/docs/user-guide/contribution/widgets-development/custom-subscription/',
+	},
+	{
+		oldPath: 'pe/user-guide/contribution/ui/custom-subscriptions',
+		target: '/docs/pe/user-guide/contribution/widgets-development/custom-subscription/',
+	},
+	{
+		oldPath: 'user-guide/contribution/ui/basic-widget-api',
+		target: '/docs/reference/widgets/widget-api/',
+	},
+	{
+		oldPath: 'pe/user-guide/contribution/ui/basic-widget-api',
+		target: '/docs/pe/reference/widgets/widget-api/',
+	},
 	{ oldPath: 'samples/analytics/mcp-server-ai-insights', target: '/docs/user-guide/mcp-server/' },
 	{
 		oldPath: 'pe/samples/analytics/mcp-server-ai-insights',
@@ -2755,22 +2771,6 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{
 		oldPath: 'paas/eu/samples/analytics/spark-integration-with-thingsboard',
 		target: '/docs/paas/eu/user-guide/ai-models/',
-	},
-	{
-		oldPath: 'user-guide/contribution/ui/custom-subscriptions',
-		target: '/docs/user-guide/contribution/widgets-development/custom-subscription/',
-	},
-	{
-		oldPath: 'pe/user-guide/contribution/ui/custom-subscriptions',
-		target: '/docs/pe/user-guide/contribution/widgets-development/custom-subscription/',
-	},
-	{
-		oldPath: 'user-guide/contribution/ui/basic-widget-api',
-		target: '/docs/reference/widgets/widget-api/',
-	},
-	{
-		oldPath: 'pe/user-guide/contribution/ui/basic-widget-api',
-		target: '/docs/pe/reference/widgets/widget-api/',
 	},
 	// TBMQ CE redirects
 	{ oldPath: 'mqtt-broker/api', target: '/docs/mqtt-broker/rest-api/' },
