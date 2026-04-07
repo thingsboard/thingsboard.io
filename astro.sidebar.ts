@@ -984,6 +984,13 @@ export const peSidebar: SidebarConfig = mainSidebarItems('docs/pe', [
 			'docs/pe/recipes/mqtt-two-way-rpc',
 		],
 	},
+	{
+		label: 'Step-by-step guides',
+		collapsed: true,
+		items: [
+			'docs/pe/user-guide/advanced-guides-for-working-with-dashboard',
+		],
+	},
 ], [
 	'docs/pe/reference/configuration/ie-executor-config',
 	'docs/pe/reference/configuration/report-service-config',
