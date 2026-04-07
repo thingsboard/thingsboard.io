@@ -123,6 +123,19 @@ export const CATCH_ALL_REDIRECTS: CatchAllRedirect[] = [
 		oldPrefix: 'paas/eu/user-guide/rule-engine-2-0/nodes',
 		entries: [],
 	},
+	// Solution templates: solution-templates/* → recipes/solution-templates/*
+	{
+		oldPrefix: 'pe/solution-templates',
+		entries: [], // PREFIX_RENAME — splat rule in _redirects, enumerated by [..slug].astro
+	},
+	{
+		oldPrefix: 'paas/solution-templates',
+		entries: [],
+	},
+	{
+		oldPrefix: 'paas/eu/solution-templates',
+		entries: [],
+	},
 	{
 		oldPrefix: 'user-guide/install/upgrade-instructions',
 		entries: buildUpgradeRedirectEntries('installation/upgrade-instructions'),

@@ -460,6 +460,53 @@ Each page: company logo, name, device description, link to Device Library.
 
 ---
 
+## 14. Solution templates (PE docs → Recipes)
+
+**URL pattern:** `/docs/pe/recipes/solution-templates/{slug}/`
+
+**Source of truth:** PE project source at `pe/application/src/main/data/json/solutions/` — NOT the old Jekyll docs, which are outdated (missing calculated fields, edge instructions, entity groups, asset profiles).
+
+**Note:** Solutions were refactored to use **calculated fields and alarm rules** instead of rule chains. Old Jekyll docs reference rule chains that no longer exist. Some old screenshots may show deprecated rule chains and need replacement.
+
+**Placeholders:** PE source markdown uses dynamic placeholders (`${MAIN_DASHBOARD_URL}`, `${device_nameACCESS_TOKEN}`, etc.) that are substituted at runtime. Static docs replace these with descriptive text.
+
+### 14a. Infrastructure & overview
+
+| # | Task | Description | Status |
+|---|------|-------------|--------|
+| 14.1 | Overview page | Listing of all 13 solutions with descriptions | [x] |
+| 14.2 | Sidebar group | "Solution Templates" group in PE, PaaS, PaaS EU sidebars | [x] |
+| 14.3 | Recipe index update | Solution Templates section added to recipe index page | [x] |
+| 14.4 | Image migration | ~554 images copied from old Jekyll site | [x] |
+| 14.5 | Redirects | PREFIX_RENAME redirects for PE, PaaS, PaaS EU | [x] |
+
+### 14b. Individual solution pages (13 solutions)
+
+Each page: three-tier structure (`_includes` + CE stub with `peFeature` Banner + PE stub + PaaS US/EU stubs).
+
+| # | Solution | Slug | Edge? | Calc fields? | Status |
+|---|----------|------|-------|--------------|--------|
+| 14.6 | Temperature & Humidity sensors | `temperature-humidity-sensors` | Yes | No | [x] |
+| 14.7 | Smart office | `smart-office` | Yes | No | [x] |
+| 14.8 | Site fleet tracking | `site-fleet-tracking` | No | Yes | [x] |
+| 14.9 | Fuel level monitoring | `fuel-level-monitoring` | No | No | [x] |
+| 14.10 | Swimming pool SCADA system | `swimming-pool-scada-system` | No | Yes | [x] |
+| 14.11 | SCADA Oil & Gas drilling system | `scada-drilling-system` | No | No | [x] |
+| 14.12 | SCADA Energy management | `scada-energy-management` | No | Yes | [x] |
+| 14.13 | Air quality monitoring | `air-quality-monitoring` | Yes | Yes | [x] |
+| 14.14 | Water metering | `water-metering` | Yes | Yes | [x] |
+| 14.15 | Smart retail | `smart-retail` | Yes | No | [x] |
+| 14.16 | Smart irrigation | `smart-irrigation` | Yes | Yes | [x] |
+| 14.17 | Assisted living | `assisted-living` | Yes | No | [x] |
+| 14.18 | Waste management | `waste-management` | No | No | [x] |
+
+**Notes:**
+- `fleet_tracking_old` (bus tracking) is deprecated — not in `solutions.json`, not migrated
+- 70 MDX files created (14 includes + 56 stubs)
+- 554 images copied, 23 rule chain screenshots flagged for review
+
+---
+
 ## Overall estimate
 
 | Category | Solo dev min | Solo dev max | Claude min | Claude max | Test solo | Test Claude |
