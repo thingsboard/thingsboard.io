@@ -149,6 +149,72 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 		"description": "Designs a range of high-performance Wi-Fi+Bluetooth/BLE chipsets and modules."
 	},
 	{
+		"name": "Bivocom",
+		"slug": "bivocom",
+		"connectivity": [
+			"HTTP",
+			"MQTT",
+			"Ethernet",
+			"Wi-Fi",
+			"Bluetooth",
+			"4G/LTE",
+			"NB-IoT",
+			"LTE-M",
+			"GNSS/GPS",
+			"BACnet",
+			"CAN",
+			"CAT-1",
+			"GSM/GPRS",
+			"IEC 104",
+			"Modbus",
+			"OPC UA",
+			"USB",
+			"RS-485"
+		],
+		"industry": [
+			"Smart Cities",
+			"Retail",
+			"Agriculture",
+			"Transportation & Logistics",
+			"Healthcare",
+			"Industrial Manufacturing",
+			"Smart Buildings",
+			"Energy Management",
+			"Security",
+			"Environmental Monitoring"
+		],
+		"useCase": [
+			"Environment Monitoring",
+			"Smart Energy",
+			"Smart Metering",
+			"Smart Farming",
+			"Smart Office",
+			"Smart Irrigation",
+			"Smart Retail",
+			"Health Care",
+			"Assisted Living",
+			"Air Quality Monitoring",
+			"Tank Level Monitoring",
+			"Water Metering"
+		],
+		"hardwareTypes": [
+			"Microcontrollers",
+			"Gateways",
+			"Other devices"
+		],
+		"logo": "/images/partners/bivocom-logo.png",
+		"website": "https://www.bivocom.com/",
+		"links": {
+			"gatewayGuides": [
+				{
+					"label": "Bivocom TG451 IoT Gateway",
+					"href": "/device-library/bivocom-tg451/"
+				}
+			]
+		},
+		"description": "A leading global IoT & M2M solutions provider with 11+ years of deep expertise, trusted in 90+ countries. Our portfolio spans IoT sensors, 5G/4G/LoRa routers, gateways, modems, RTUs, IoT platforms, and OEM&ODM customised solutions. Together, connect for smarts, sustain for tomorrow."
+	},
+	{
 		"name": "Ezurio",
 		"slug": "ezurio",
 		"connectivity": [
