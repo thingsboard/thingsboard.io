@@ -1059,19 +1059,10 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 		"slug": "beilai",
 		"connectivity": [
 			"Bluetooth LE",
-			"GSM/GPRS",
 			"LoRaWAN",
-			"LTE-M",
-			"NB-IoT",
-			"CAT-M/NB",
 			"Wi-Fi",
-			"Ethernet",
-			"Modbus",
-			"BACnet",
-			"MQTT",
-			"OPC UA",
-			"IEC 104",
-			"PLC"
+			"4G",
+			"Ethernet"
 		],
 		"industry": [
 			"Smart Cities",
@@ -1106,12 +1097,16 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"Other devices"
 		],
 		"logo": "/images/partners/bliiot-logo.webp",
-		"website": "https://www.iot-solution.com/",
+		"website": "https://bliiot.com/",
 		"links": {
 			"otherDevicesGuides": [
 				{
 					"label": "4G LTE Industrial Router",
 					"href": "/docs/samples/kingpigeon/kingpigeon/"
+				},
+				{
+					"label": "Flexible Device–Edge–Cloud IoT Solution with ARMxy & ThingsBoard",
+					"href": "https://bliiot.com/cases-detail/flexible-device%E2%80%93edge%E2%80%93cloud-iot-solution-with-armxy-thingsboard"
 				}
 			]
 		},
