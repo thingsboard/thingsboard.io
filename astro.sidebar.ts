@@ -265,6 +265,7 @@ const installationItems = (prefix: string) => {
 						`${prefix}/installation/ubuntu`,
 						`${prefix}/installation/rhel`,
 						`${prefix}/installation/rpi`,
+						{ label: 'HAProxy Setup for ThingsBoard', slug: isPE ? `${prefix}/installation/haproxy` : `${prefix}/installation/haproxy-ubuntu` },
 					],
 				},
 				{
