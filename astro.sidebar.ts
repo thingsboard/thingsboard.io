@@ -989,6 +989,13 @@ export const peSidebar: SidebarConfig = mainSidebarItems('docs/pe', [
 		],
 	},
 	{
+		label: 'Step-by-step guides',
+		collapsed: true,
+		items: [
+			'docs/pe/user-guide/advanced-guides-for-working-with-dashboard',
+    ],
+	},
+	{
 		label: 'Solution Templates',
 		collapsed: true,
 		items: [
@@ -1290,6 +1297,13 @@ export const paasSidebar: SidebarConfig = [
 				],
 			},
 			{
+				label: 'Step-by-step guides',
+				collapsed: true,
+				items: [
+					'docs/paas/user-guide/advanced-guides-for-working-with-dashboard',
+        ],
+	    },
+	    {
 				label: 'Solution Templates',
 				collapsed: true,
 				items: [
@@ -1600,6 +1614,13 @@ export const paasEuSidebar: SidebarConfig = [
 					'docs/paas/eu/recipes/white-labeling-html-value-card',
 					'docs/paas/eu/recipes/white-labeling-post-processing',
 				],
+			},
+			{
+				label: 'Step-by-step guides',
+				collapsed: true,
+				items: [
+					'docs/paas/eu/user-guide/advanced-guides-for-working-with-dashboard',
+       ],
 			},
 			{
 				label: 'Solution Templates',
