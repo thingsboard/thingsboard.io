@@ -150,7 +150,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 	{
 		label: 'Other Features',
 		collapsed: true,
-		items: [`${prefix}/image-gallery`, `${prefix}/version-control`, `${prefix}/entity-views`, `${prefix}/scheduler`, `${prefix}/csv-xls-data-export`],
+		items: [`${prefix}/image-gallery`, `${prefix}/version-control`, `${prefix}/entity-views`, `${prefix}/scheduler`, `${prefix}/csv-xls-data-export`, ...(isPE ? [`${prefix}/file-storage`] : [])],
 	},
 	{
 		label: 'Add-ons',
@@ -1211,6 +1211,7 @@ export const paasSidebar: SidebarConfig = [
 					'docs/paas/user-guide/entity-views',
 					'docs/paas/user-guide/scheduler',
 					'docs/paas/user-guide/csv-xls-data-export',
+					'docs/paas/user-guide/file-storage',
 				],
 			},
 			{
@@ -1530,6 +1531,7 @@ export const paasEuSidebar: SidebarConfig = [
 					'docs/paas/eu/user-guide/entity-views',
 					'docs/paas/eu/user-guide/scheduler',
 					'docs/paas/eu/user-guide/csv-xls-data-export',
+					'docs/paas/eu/user-guide/file-storage',
 				],
 			},
 			{
