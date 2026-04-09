@@ -32,6 +32,10 @@ const PREFIX_RENAME_MAP: Record<string, string> = {
 	'pe/user-guide/rule-engine-2-0/nodes': 'pe/reference/rule-engine/nodes',
 	'paas/user-guide/rule-engine-2-0/nodes': 'paas/reference/rule-engine/nodes',
 	'paas/eu/user-guide/rule-engine-2-0/nodes': 'paas/eu/reference/rule-engine/nodes',
+	'pe/solution-templates': 'pe/recipes/solution-templates',
+	'paas/solution-templates': 'paas/recipes/solution-templates',
+	'paas/eu/solution-templates': 'paas/eu/recipes/solution-templates',
+	'iot-gateway/install': 'iot-gateway/installation',
 };
 
 /** Recursively find all .mdx files under a directory, returning relative paths without extension. */

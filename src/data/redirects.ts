@@ -435,6 +435,8 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'samples/analytics/n8n-node', target: '/docs/user-guide/n8n-node/' },
 	{ oldPath: 'pe/samples/analytics/n8n-node', target: '/docs/pe/user-guide/n8n-node/' },
 	{ oldPath: 'paas/samples/analytics/n8n-node', target: '/docs/paas/user-guide/n8n-node/' },
+	{ oldPath: 'paas/billing-info', target: '/docs/paas/user-guide/billing-info/' },
+	{ oldPath: 'paas/eu/billing-info', target: '/docs/paas/eu/user-guide/billing-info/' },
 	{ oldPath: 'paas/eu/samples/analytics/n8n-node', target: '/docs/paas/eu/user-guide/n8n-node/' },
 	{ oldPath: 'trendz/business-entities', target: '/docs/trendz/concepts/business-entities/' },
 	{ oldPath: 'trendz/install/trndz-upgrade-instructions-kubernetes', target: '/docs/trendz/install/upgrade-instructions/' },
