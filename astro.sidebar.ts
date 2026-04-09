@@ -317,6 +317,7 @@ const installationItems = (prefix: string) => {
 				`${prefix}/installation/digital-ocean`,
 			],
 		},
+		`${prefix}/installation/haproxy`,
 		{ label: 'Building from Sources', slug: `${prefix}/installation/building-from-source` },
 		...(isPE
 			? [
