@@ -123,6 +123,19 @@ export const CATCH_ALL_REDIRECTS: CatchAllRedirect[] = [
 		oldPrefix: 'paas/eu/user-guide/rule-engine-2-0/nodes',
 		entries: [],
 	},
+	// Solution templates: solution-templates/* → recipes/solution-templates/*
+	{
+		oldPrefix: 'pe/solution-templates',
+		entries: [], // PREFIX_RENAME — splat rule in _redirects, enumerated by [..slug].astro
+	},
+	{
+		oldPrefix: 'paas/solution-templates',
+		entries: [],
+	},
+	{
+		oldPrefix: 'paas/eu/solution-templates',
+		entries: [],
+	},
 	{
 		oldPrefix: 'user-guide/install/upgrade-instructions',
 		entries: buildUpgradeRedirectEntries('installation/upgrade-instructions'),
@@ -569,11 +582,7 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'pe/user-guide/integrations/decode', target: '/docs/pe/user-guide/integrations/' },
 	{ oldPath: 'paas/user-guide/integrations/decode', target: '/docs/paas/user-guide/integrations/' },
 	{ oldPath: 'paas/eu/user-guide/integrations/decode', target: '/docs/paas/eu/user-guide/integrations/' },
-	{ oldPath: 'user-guide/integrations/ibm-watson-iot', target: '/docs/user-guide/integrations/' },
-	{ oldPath: 'pe/user-guide/integrations/ibm-watson-iot', target: '/docs/pe/user-guide/integrations/' },
-	{ oldPath: 'paas/user-guide/integrations/ibm-watson-iot', target: '/docs/paas/user-guide/integrations/' },
-	{ oldPath: 'paas/eu/user-guide/integrations/ibm-watson-iot', target: '/docs/paas/eu/user-guide/integrations/' },
-	{ oldPath: 'user-guide/integrations/remote-integrations', target: '/docs/user-guide/integrations/' },
+{ oldPath: 'user-guide/integrations/remote-integrations', target: '/docs/user-guide/integrations/' },
 	{ oldPath: 'pe/user-guide/integrations/remote-integrations', target: '/docs/pe/user-guide/integrations/' },
 	{ oldPath: 'paas/user-guide/integrations/remote-integrations', target: '/docs/paas/user-guide/integrations/' },
 	{ oldPath: 'paas/eu/user-guide/integrations/remote-integrations', target: '/docs/paas/eu/user-guide/integrations/' },
@@ -711,7 +720,9 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'paas/user-guide/device-credentials', target: '/docs/paas/user-guide/connectivity-guide/' },
 	{ oldPath: 'paas/eu/user-guide/device-credentials', target: '/docs/paas/eu/user-guide/connectivity-guide/' },
 	{ oldPath: 'user-guide/device-provisioning', target: '/docs/user-guide/provisioning/' },
+	{ oldPath: 'user-guide/bulk-provisioning', target: '/docs/user-guide/provisioning/#bulk-provisioning' },
 	{ oldPath: 'pe/user-guide/device-provisioning', target: '/docs/pe/user-guide/provisioning/' },
+	{ oldPath: 'pe/user-guide/bulk-provisioning', target: '/docs/pe/user-guide/provisioning/#bulk-provisioning' },
 	{ oldPath: 'paas/user-guide/device-provisioning', target: '/docs/paas/user-guide/provisioning/' },
 	{ oldPath: 'paas/eu/user-guide/device-provisioning', target: '/docs/paas/eu/user-guide/provisioning/' },
 	{ oldPath: 'user-guide/rpc', target: '/docs/user-guide/command-and-control/' },
@@ -1036,6 +1047,10 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'pe/samples/analytics/kafka-streams', target: '/docs/pe/user-guide/ai-models/' },
 	{ oldPath: 'paas/samples/analytics/kafka-streams', target: '/docs/paas/user-guide/ai-models/' },
 	{ oldPath: 'paas/eu/samples/analytics/kafka-streams', target: '/docs/paas/eu/user-guide/ai-models/' },
+	{ oldPath: 'user-guide/contribution/ui/custom-subscriptions', target: '/docs/user-guide/contribution/widgets-development/custom-subscription/' },
+	{ oldPath: 'pe/user-guide/contribution/ui/custom-subscriptions', target: '/docs/pe/user-guide/contribution/widgets-development/custom-subscription/' },
+	{ oldPath: 'user-guide/contribution/ui/basic-widget-api', target: '/docs/reference/widgets/widget-api/' },
+	{ oldPath: 'pe/user-guide/contribution/ui/basic-widget-api', target: '/docs/pe/reference/widgets/widget-api/' },
 	{ oldPath: 'samples/analytics/mcp-server-ai-insights', target: '/docs/user-guide/mcp-server/' },
 	{ oldPath: 'pe/samples/analytics/mcp-server-ai-insights', target: '/docs/pe/user-guide/mcp-server/' },
 	{ oldPath: 'paas/samples/analytics/mcp-server-ai-insights', target: '/docs/paas/user-guide/mcp-server/' },
@@ -1080,6 +1095,15 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'pe/mqtt-broker/search', target: '/docs/mqtt-broker/pe/' },
 	{ oldPath: 'pe/mqtt-broker/troubleshooting', target: '/docs/mqtt-broker/pe/help/' },
 	{ oldPath: 'pe/mqtt-broker/user-guide/ui/mail-server', target: '/docs/mqtt-broker/pe/user-guide/ui/settings/' },
+
+	// Services (docs → non-docs)
+	{ oldPath: 'services', target: '/services/' },
+	{ oldPath: 'services/consulting', target: '/services/consulting/' },
+	{ oldPath: 'services/customers-full-reviews', target: '/services/development-services/' },
+	{ oldPath: 'services/development-services', target: '/services/development-services/' },
+	{ oldPath: 'services/iot-solutions', target: '/services/development-services/' },
+	{ oldPath: 'services/support', target: '/services/support/' },
+	{ oldPath: 'services/trainings', target: '/services/trainings/' },
 ];
 
 // ---------------------------------------------------------------------------

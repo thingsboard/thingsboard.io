@@ -1,21 +1,32 @@
 import DocLink from '@components/DocLink.astro';
+import DocImage from '~/components/DocImage.astro';
 import { Steps, Aside } from '@astrojs/starlight/components';
 
-Build a **sensor card** that displays the latest telemetry value with a configurable icon, dynamic value-based colors, and a relative timestamp showing when the data last updated.
+**Latest Values** widgets subscribe to the most recent known value of each configured data key. The platform calls `self.onDataUpdated()` once when the widget loads and again whenever a new value arrives — you never poll; the platform pushes.
 
-Like the <DocLink product={props.product} path='user-guide/contribution/widgets-development' bold={false}>Hello World</DocLink> widget, this tutorial uses **vanilla JavaScript** with direct DOM manipulation — `querySelector`, `textContent`, and `style` properties. No Angular template bindings required.
+Each data key maps to one entry in `self.ctx.data[]`. For Latest Values widgets, `data[i].data` contains a single `[timestamp, value]` pair — the most recent reading.
 
-## What you'll build
+## When to use Latest Values
 
-A compact horizontal card — similar to ThingsBoard's built-in "Horizontal value card" — that shows:
-- A colored icon badge on the left
-- The data key label, value, and units in a single row
-- Dynamic value color that changes based on the current reading
+Use this type to display the **current state** of a device or asset — not history, not trends, just "what is the value right now":
 
-## Step-by-step
+- Sensor reading cards (temperature, humidity, pressure)
+- Device status indicators (online/offline, door open/closed)
+- KPI tiles showing a current metric
+- Asset attribute panels
+
+If you need historical data over a time window, use the <DocLink product={props.product} path='user-guide/contribution/widgets-development/time-series' bold={false}>Time-Series</DocLink> type instead.
+
+---
+
+## Example 1: Sensor card
+
+A compact horizontal card showing a single telemetry value with a configurable icon, dynamic value-based color, and a relative timestamp.
+
+<DocImage src="/src/assets/images/user-guide/widgets/development/latest-value-sensor-card.png" alt="Sensor card widget preview showing temperature value with icon badge and timestamp" />
 
 <Steps>
-1. Open **Widget Library** → open your bundle (or create one) → click **+** → select **Latest Values** as the type.
+1. Open **Widget Library** → open your bundle → click **+** → select **Latest Values** as the type.
 
 2. In the **HTML** tab, paste:
 
@@ -29,10 +40,11 @@ A compact horizontal card — similar to ThingsBoard's built-in "Horizontal valu
        <span class="sensor-card__value" id="value">--</span>
        <span class="sensor-card__units" id="units"></span>
      </div>
+     <span class="sensor-card__timestamp" id="timestamp"></span>
    </div>
    ```
 
-   The entire widget is a single horizontal row: icon badge on the left, then label, value, and units flowing left to right. We use `<i class="material-icons">` instead of `<mat-icon>` — the Material Icons font is globally available in ThingsBoard, and plain HTML elements work reliably without Angular rendering. Every dynamic element has an `id` for easy `querySelector` access.
+   The layout is a single horizontal row: icon badge on the left, then label, value, and units, with a relative timestamp pushed to the far right. We use `<i class="material-icons">` — the Material Icons font is globally available, and plain HTML elements work reliably without Angular rendering.
 
 3. In the **CSS** tab, paste:
 
@@ -47,7 +59,6 @@ A compact horizontal card — similar to ThingsBoard's built-in "Horizontal valu
      box-sizing: border-box;
    }
 
-   /* ---- Icon badge ---- */
    .sensor-card__icon {
      width: 36px;
      height: 36px;
@@ -64,7 +75,6 @@ A compact horizontal card — similar to ThingsBoard's built-in "Horizontal valu
      font-size: 20px;
    }
 
-   /* ---- Body: label + value + units in a row ---- */
    .sensor-card__body {
      display: flex;
      align-items: baseline;
@@ -88,19 +98,23 @@ A compact horizontal card — similar to ThingsBoard's built-in "Horizontal valu
 
    .sensor-card__units {
      font-size: 14px;
-     font-weight: 400;
      color: #667085;
+   }
+
+   .sensor-card__timestamp {
+     margin-left: auto;
+     font-size: 12px;
+     color: #98a2b3;
+     white-space: nowrap;
+     flex-shrink: 0;
    }
    ```
 
-4. In the **JavaScript** tab, paste the controller logic:
+4. In the **JavaScript** tab, paste:
 
    ```javascript
    let settings, container, init = false;
-
-   // DOM references
-   let labelEl, valueEl, unitsEl,
-       iconBadgeEl, iconTextEl;
+   let labelEl, valueEl, unitsEl, iconBadgeEl, iconTextEl, timestampEl;
 
    self.onInit = function() {
      container = self.ctx.$container[0];
@@ -108,19 +122,17 @@ A compact horizontal card — similar to ThingsBoard's built-in "Horizontal valu
        self.ctx.servicesMap.get('utils'));
      settings = utils.deepClone(self.ctx.settings) || {};
 
-     // Cache DOM references
      labelEl     = container.querySelector('#label');
      valueEl     = container.querySelector('#value');
      unitsEl     = container.querySelector('#units');
      iconBadgeEl = container.querySelector('#icon-badge');
      iconTextEl  = container.querySelector('#icon-text');
+     timestampEl = container.querySelector('#timestamp');
 
-     // Apply icon setting
      if (settings.displayIcon === false) {
        iconBadgeEl.style.display = 'none';
      } else {
-       iconTextEl.textContent =
-         settings.icon || 'thermostat';
+       iconTextEl.textContent = settings.icon || 'thermostat';
      }
 
      applyColors(0);
@@ -128,13 +140,11 @@ A compact horizontal card — similar to ThingsBoard's built-in "Horizontal valu
 
    self.onDataUpdated = function() {
      let data = self.ctx.data;
-
      if (data.length === 0 || data[0].data.length === 0) {
        valueEl.textContent = '--';
        return;
      }
 
-     // First data update: read label and units
      if (!init) {
        labelEl.textContent = data[0].dataKey.label;
        unitsEl.textContent = data[0].dataKey.units || '';
@@ -142,53 +152,42 @@ A compact horizontal card — similar to ThingsBoard's built-in "Horizontal valu
      }
 
      let val = data[0].data[0][1];
-     valueEl.textContent = val;
+     let ts  = data[0].data[0][0];
+     let decimals = data[0].dataKey.decimals;
+     let displayVal = (decimals != null && decimals >= 0)
+       ? parseFloat(val).toFixed(decimals) : val;
+
+     valueEl.textContent = displayVal;
      applyColors(val);
+     timestampEl.textContent = moment(ts).fromNow();
    };
 
    function applyColors(val) {
-     valueEl.style.color = resolveColor(
-       settings.valueColor, val, '#101828');
-
+     valueEl.style.color = resolveColor(settings.valueColor, val, '#101828');
      if (settings.displayIcon !== false) {
-       iconBadgeEl.style.background = resolveColor(
-         settings.iconBackground, val, '#305680');
-       iconBadgeEl.style.color = resolveColor(
-         settings.iconColor, val, '#ffffff');
+       iconBadgeEl.style.background = resolveColor(settings.iconBackground, val, '#305680');
+       iconBadgeEl.style.color      = resolveColor(settings.iconColor, val, '#ffffff');
      }
    }
 
    function resolveColor(setting, value, fallback) {
      if (!setting) return fallback;
-
-     if (setting.type === 'constant' || !setting.type) {
-       return setting.color || fallback;
-     }
-
-     if (setting.type === 'range'
-         && setting.rangeList
-         && setting.rangeList.range) {
-       const ranges = setting.rangeList.range;
-       for (let i = 0; i < ranges.length; i++) {
-         const r = ranges[i];
-         const from = r.from != null ? r.from : -Infinity;
-         const to   = r.to   != null ? r.to   :  Infinity;
+     if (setting.type === 'constant' || !setting.type) return setting.color || fallback;
+     if (setting.type === 'range' && setting.rangeList?.range) {
+       for (let r of setting.rangeList.range) {
+         let from = r.from != null ? r.from : -Infinity;
+         let to   = r.to   != null ? r.to   :  Infinity;
          if (value >= from && value < to) return r.color;
        }
        return setting.color || fallback;
      }
-
-     if (setting.type === 'function'
-         && setting.colorFunction) {
+     if (setting.type === 'function' && setting.colorFunction) {
        try {
-         return new Function('value',
-           setting.colorFunction)(value);
+         return new Function('value', setting.colorFunction)(value);
        } catch (e) {
-         console.error('Color function error:', e);
          return setting.color || fallback;
        }
      }
-
      return setting.color || fallback;
    }
 
@@ -197,34 +196,20 @@ A compact horizontal card — similar to ThingsBoard's built-in "Horizontal valu
        maxDataKeys: 1,
        singleEntity: true,
        dataKeysOptional: false,
-       ignoreDataUpdateOnIntervalTick: true,
-       defaultDataKeysFunction: function() {
-         return [{
-           name: 'temperature',
-           label: 'Temperature',
-           type: 'timeseries'
-         }];
-       }
+       ignoreDataUpdateOnIntervalTick: true
      };
    };
    ```
 
-   Let's walk through the key parts:
+   **Key points:**
 
-   **`self.onInit()`** — caches DOM references and applies initial settings. The icon is shown or hidden based on the `displayIcon` setting, and its Material Icon name is set from `settings.icon`.
+   **`self.onDataUpdated()`** — reads the latest data point. On the first call it copies the label and units from `dataKey` metadata. On every call it updates the value, recalculates colors, and refreshes the timestamp using `moment(ts).fromNow()` — `moment` is available globally in the widget environment.
 
-   **`self.onDataUpdated()`** — reads the latest data point. On the first call, it copies the label and units from the data key metadata. On every call, it updates the value text and recalculates dynamic colors.
+   **`resolveColor(setting, value, fallback)`** — resolves a `color_settings` object to a CSS string. Supports three modes: **constant** (fixed color), **range** (value-based ranges), and **function** (user-provided JS).
 
-   **`resolveColor(setting, value, fallback)`** — resolves a `color_settings` object to a CSS color string. Supports three modes:
-   - **constant** — returns a fixed color
-   - **range** — matches the value against `{from, to, color}` entries
-   - **function** — executes a user-provided JS function
+   **`ignoreDataUpdateOnIntervalTick: true`** — prevents `onDataUpdated` from firing on the platform's polling interval when no new data has arrived.
 
-   The `fallback` parameter ensures good defaults even when settings are empty.
-
-   **`self.typeParameters()`** — restricts the widget to one data key from a single entity and pre-fills the default key as `temperature`.
-
-5. In the **Settings schema** tab, paste:
+5. In the **Settings form** tab, click **Import from JSON** → select the **JSON content** tab → paste:
 
    ```json
    [
@@ -233,10 +218,7 @@ A compact horizontal card — similar to ThingsBoard's built-in "Horizontal valu
        "name": "Value color",
        "group": "Card appearance",
        "type": "color_settings",
-       "default": {
-         "type": "constant",
-         "color": "#101828"
-       }
+       "default": { "type": "constant", "color": "#101828" }
      },
      {
        "id": "displayIcon",
@@ -260,10 +242,7 @@ A compact horizontal card — similar to ThingsBoard's built-in "Horizontal valu
        "name": "Icon color",
        "group": "Icon settings",
        "type": "color_settings",
-       "default": {
-         "type": "constant",
-         "color": "#ffffff"
-       },
+       "default": { "type": "constant", "color": "#ffffff" },
        "required": false,
        "condition": "return model.displayIcon==true;"
      },
@@ -272,72 +251,353 @@ A compact horizontal card — similar to ThingsBoard's built-in "Horizontal valu
        "name": "Icon background",
        "group": "Icon settings",
        "type": "color_settings",
-       "default": {
-         "type": "constant",
-         "color": "#305680"
-       },
+       "default": { "type": "constant", "color": "#305680" },
        "required": false,
        "condition": "return model.displayIcon==true;"
      }
    ]
    ```
 
-   This schema defines the settings form with two groups:
+6. Click **Run** (or `Ctrl+Enter`) → you should see a card with a blue icon badge, label, value placeholder, and timestamp. Click **Save** → name it "Sensor Card".
 
-   | Field | Type | Notes |
-   |-------|------|-------|
-   | `valueColor` | `color_settings` | Supports constant, range, and function color modes |
-   | `displayIcon` | `switch` | Toggle the icon badge |
-   | `icon` | `icon` | Icon picker — only shown when `displayIcon` is true |
-   | `iconColor` | `color_settings` | Icon color — conditional on `displayIcon` |
-   | `iconBackground` | `color_settings` | Icon background — conditional on `displayIcon` |
+7. Add the widget to a dashboard. Select a device that publishes telemetry, configure the data key (e.g., `temperature`). Once data flows, the card shows the label, latest value, units, and a relative timestamp.
 
-   The `condition` field uses `return model.displayIcon==true;` — when the `displayIcon` switch is off, the icon-related fields hide.
-
-   The `color_settings` type renders a color picker with three mode tabs: **Constant** (single color), **Range** (value-based color ranges), and **Function** (custom JavaScript).
-
-6. Click **Run** to preview. You should see a compact horizontal card: blue icon badge on the left, then the label, value, and units in a row.
-
-7. Click **Save** → name the widget "Simple Sensor Card".
-
-8. Add the widget to a dashboard. In the widget datasource configuration:
-   - Select a device that publishes telemetry (e.g., a device sending `temperature`)
-   - The widget auto-suggests the `temperature` key from `defaultDataKeysFunction`
-   - Once data flows, the card displays the label, latest value, and units in a clean horizontal row
-
-9. Open **widget settings** (gear icon) → **Advanced** tab. You'll see the "Card appearance" and "Icon settings" groups. Try:
-   - Toggle "Display icon" off → the icon badge disappears
-   - Change "Value color" to **Range** mode → add ranges like 0–20 = blue, 20–30 = green, 30+ = red
-   - Watch the value color change as telemetry updates
+8. Open **widget settings** → **Advanced** tab. Try **Value color** in Range mode — add ranges like 0–20 = blue, 20–30 = green, 30+ = red. Watch the value color change as telemetry updates.
 </Steps>
 
-## Understanding the data model
+---
 
-When ThingsBoard calls `self.onDataUpdated()`, the data is available in `self.ctx.data` — an array of datasource data objects:
+## Example 2: Progress bar card
+
+A card that shows the current value as a percentage progress bar alongside the raw `current / max` text. Instead of relying on fixed data key names, each key is assigned a **role** (`value`, `min`, `max`) in the Data key settings form — the widget finds the right key by role, making it robust to any label or naming convention.
+
+This example introduces two important patterns:
+- **`dashboardWidget` title hijacking** — reading the platform title and rendering it inside the widget body for full layout control
+- **Data key roles** — assigning semantic meaning to keys via the Data key settings form instead of matching by name
+
+<DocImage src="/src/assets/images/user-guide/widgets/development/latest-value-progress-bar-card.png" alt="Progress bar card widget preview showing percentage and current/max values" />
+
+<Steps>
+1. Open **Widget Library** → open your bundle → click **+** → select **Latest Values** as the type.
+
+2. In the **HTML** tab, paste:
+
+   ```html
+   <div class="progress-bar-card-container">
+     <div class="title-panel">
+       <div *ngIf="showTitle" class="title" [ngStyle]="titleStyle">
+         {{title$ | async}}
+       </div>
+       <div class="icon-wrapper" *ngIf="showTitleIcon"
+            [style.backgroundColor]="iconBackground">
+         <mat-icon [ngStyle]="titleIconStyle">{{titleIcon}}</mat-icon>
+       </div>
+     </div>
+
+     <div class="progress-bar-panel">
+       <div class="stats-container">
+         <div>
+           <span class="percent-value">{{currentPercentage}}</span>
+           <span class="percent-unit">%</span>
+         </div>
+         <div class="number-progress">
+           {{currentValue}}/{{maxValue}}{{units}}
+         </div>
+       </div>
+       <div class="progress-bar">
+         <mat-progress-bar mode="determinate"
+                           class="progressBar"
+                           [value]="currentPercentage">
+         </mat-progress-bar>
+       </div>
+     </div>
+   </div>
+   ```
+
+   Key details:
+   - **`{{title$ | async}}`** — renders an Observable value using Angular's async pipe. `title$` is assigned from `self.ctx.dashboardWidget.title$`, which emits the widget title string whenever it changes.
+   - **`<mat-progress-bar mode="determinate" [value]="currentPercentage">`** — Angular Material's built-in progress bar. `[value]` expects a number from 0–100.
+   - The title panel is rendered **inside** the widget body. The platform's default title bar is hidden in JavaScript (`dashboardWidget.showTitle = false`), giving full control over where and how the title appears.
+
+3. In the **CSS** tab, paste:
+
+   ```css
+   .progress-bar-card-container {
+     width: 100%;
+     height: 100%;
+     display: flex;
+     flex-direction: column;
+     justify-content: space-between;
+   }
+
+   .title-panel {
+     display: flex;
+     justify-content: space-between;
+   }
+
+   .icon-wrapper {
+     width: 48px;
+     height: 48px;
+     min-width: 48px;
+     min-height: 48px;
+     border-radius: 50%;
+     display: flex;
+     justify-content: center;
+     align-items: center;
+   }
+
+   .stats-container {
+     display: flex;
+     justify-content: space-between;
+     align-items: flex-end;
+     margin-bottom: 4px;
+   }
+
+   .percent-value {
+     color: #212121;
+     font-size: 28px;
+     font-weight: 600;
+     line-height: 36px;
+     margin-right: 4px;
+   }
+
+   .percent-unit {
+     color: #212121;
+     font-size: 16px;
+     font-weight: 500;
+   }
+
+   .number-progress {
+     color: #212121;
+     font-size: 14px;
+     line-height: 21px;
+     letter-spacing: 0.2px;
+   }
+
+   .mdc-linear-progress,
+   .mdc-linear-progress__buffer,
+   .mdc-linear-progress__bar {
+     height: 12px !important;
+     border-radius: 16px !important;
+   }
+
+   .mdc-linear-progress__bar-inner {
+     border-top-width: 12px !important;
+   }
+   ```
+
+4. In the **JavaScript** tab, paste:
+
+   ```javascript
+   let settings;
+
+   self.onInit = function() {
+     // Read the platform title configuration and render it inside the widget
+     self.ctx.$scope.showTitle     = self.ctx.dashboardWidget.showTitle;
+     self.ctx.$scope.titleStyle    = self.ctx.dashboardWidget.titleStyle;
+     self.ctx.$scope.title$        = self.ctx.dashboardWidget.title$;
+     self.ctx.$scope.showTitleIcon = self.ctx.dashboardWidget.showTitleIcon;
+     self.ctx.$scope.titleIcon     = self.ctx.dashboardWidget.titleIcon;
+     self.ctx.$scope.titleIconStyle = self.ctx.dashboardWidget.titleIconStyle;
+
+     // Hide the platform's default title bar
+     self.ctx.dashboardWidget.showTitle = false;
+
+     let utils = self.ctx.$scope.$injector.get(
+       self.ctx.servicesMap.get('utils'));
+     settings = utils.deepClone(self.ctx.settings) || {};
+   };
+
+   self.onDataUpdated = function() {
+     // Find a data key by its configured role (set in Data key settings form)
+     const findByRole = function(role) {
+       return self.ctx.data.find(function(d) {
+         return (d.dataKey.settings.role || 'value') === role;
+       });
+     };
+
+     let valueData = findByRole('value');
+     let maxData   = findByRole('max');
+     let minData   = findByRole('min');
+
+     let currentValue = (valueData && valueData.data.length)
+       ? parseFloat(valueData.data[0][1]) : 0;
+     let maxValue = (maxData && maxData.data.length)
+       ? parseFloat(maxData.data[0][1]) : 100;
+     let minValue = (minData && minData.data.length)
+       ? parseFloat(minData.data[0][1]) : 0;
+
+     self.ctx.$scope.currentValue = currentValue;
+     self.ctx.$scope.maxValue     = maxValue;
+     self.ctx.$scope.units        = valueData ? valueData.dataKey.units || '' : '';
+
+     let range = maxValue - minValue;
+     let pct = range > 0
+       ? Math.round(((currentValue - minValue) / range) * 100)
+       : 0;
+     self.ctx.$scope.currentPercentage = Math.max(0, Math.min(100, pct));
+
+     self.ctx.$scope.iconBackground = resolveColor(settings.iconBackground, currentValue, '#000000');
+
+     self.ctx.detectChanges();
+   };
+
+   function resolveColor(setting, value, fallback) {
+     if (!setting) return fallback;
+     if (setting.type === 'constant' || !setting.type) return setting.color || fallback;
+     if (setting.type === 'range' && setting.rangeList?.range) {
+       for (let r of setting.rangeList.range) {
+         let from = r.from != null ? r.from : -Infinity;
+         let to   = r.to   != null ? r.to   :  Infinity;
+         if (value >= from && value < to) return r.color;
+       }
+       return setting.color || fallback;
+     }
+     if (setting.type === 'function' && setting.colorFunction) {
+       try {
+         return new Function('value', setting.colorFunction)(value);
+       } catch (e) {
+         return setting.color || fallback;
+       }
+     }
+     return setting.color || fallback;
+   }
+
+   self.actionSources = function() {
+     return {
+       'elementClick': {
+         name: 'widget-action.element-click',
+         multiple: true
+       }
+     };
+   };
+
+   self.typeParameters = function() {
+     return {
+       datasourcesOptional: true,
+       dataKeysOptional: true
+     };
+   };
+
+   self.onDestroy = function() {};
+   ```
+
+   **Key concepts:**
+
+   **`self.ctx.dashboardWidget`** — exposes the widget's title configuration set in the dashboard editor. By copying its properties to `$scope` and then setting `showTitle = false`, you hide the platform's header bar and take over rendering it inside the widget body. This gives full control over title placement in the layout.
+
+   **`title$`** — an Observable that emits the widget title string. The `| async` pipe in the template subscribes automatically and updates the DOM when the title changes (e.g., when it contains `${entityName}` and the entity context changes).
+
+   **`findByRole(role)`** — looks up a data key by its `role` setting from the Data key settings form. This is more robust than matching by label name: renaming a key in the dashboard doesn't break the widget as long as the role is set correctly.
+
+   **Percentage with min** — when a `min` key is configured (e.g., a minimum threshold), the percentage is calculated as `(current − min) / (max − min) × 100`. Without a min key it defaults to `0`, matching the simpler `current / max × 100` formula. The result is clamped to `[0, 100]`.
+
+5. In the **Data key settings form** tab, click **Import from JSON** → select the **JSON content** tab → paste:
+
+   ```json
+   [
+     {
+       "id": "role",
+       "name": "Role",
+       "type": "select",
+       "items": [
+         { "value": "value", "label": "Current value" },
+         { "value": "max",   "label": "Maximum" },
+         { "value": "min",   "label": "Minimum" }
+       ],
+       "default": "value",
+       "required": true
+     }
+   ]
+   ```
+
+   This adds a **Role** dropdown to the per-key settings dialog. For each data key, the user opens its settings and picks one of the three roles. The widget then uses these roles to identify which key is which — regardless of key name or label.
+
+6. In the **Settings form** tab, click **Import from JSON** → select the **JSON content** tab → paste:
+
+   ```json
+   [
+     {
+       "id": "iconBackground",
+       "name": "Icon background",
+       "type": "color_settings",
+       "default": { "type": "constant", "color": "#000000" },
+       "required": false
+     }
+   ]
+   ```
+
+7. Click **Save** → name it "Progress Bar Card".
+
+8. Add the widget to a dashboard:
+   - Select a device as the datasource
+   - Add three data keys: the current value key, a maximum key (e.g., from server attributes), and optionally a minimum key
+   - For each key, open its settings → set the **Role** dropdown (`Current value`, `Maximum`, or `Minimum`)
+   - The progress bar fills relative to the min–max range; the `current / max` text updates in real time
+</Steps>
+
+### Understanding `dataKey.settings`
+
+`dataKey.settings` holds the values from the **Data key settings form** — per-key configuration scoped to an individual data key, as opposed to `self.ctx.settings` which is widget-wide:
+
+```javascript
+// Widget-wide settings
+let iconBg = self.ctx.settings.iconBackground;
+
+// Per-key settings — different per data key
+let role = d.dataKey.settings.role; // 'value', 'max', or 'min'
+```
+
+The role pattern shown in this example is a common idiom for widgets that need to consume multiple keys with different semantic meanings. Instead of requiring specific key names (fragile, breaks on rename), you let the user declare intent via a settings field — the widget adapts to any key name as long as the role is set.
+
+## Data model
+
+When ThingsBoard calls `self.onDataUpdated()`, the data is available at `self.ctx.data` — an array with one entry per configured data key:
 
 ```javascript
 self.ctx.data = [
   {
     dataKey: {
-      name: 'temperature',   // key name
-      label: 'Temperature',  // display label
-      type: 'timeseries',    // 'timeseries', 'attribute', or 'entityField'
-      units: '°C'            // configured units
+      name: 'temperature',  // raw key name as configured in the datasource
+      label: 'Temperature', // display label — editable by the user in the key dialog
+      type: 'timeseries',   // 'timeseries', 'attribute', or 'entityField'
+      units: '°C',          // units string configured in the key dialog
+      decimals: 1,          // decimal places (null if not set)
+      settings: {}          // values from the Data key settings form
     },
     data: [
-      [1710000000000, 24.5]  // [timestamp_ms, value]
+      [1710000000000, '24.5']  // [timestamp_ms, value] — single entry for Latest Values
     ]
-  }
+  },
+  // one entry per additional configured data key
 ];
 ```
 
-For **Latest Values** widgets, `data[0].data` typically contains a single entry — the most recent value. The first element `[0]` is the timestamp in milliseconds; the second `[1]` is the value.
+**Latest Values widgets receive one `[timestamp, value]` pair per key** — the most recent reading. `data[i].data[0][0]` is the timestamp in milliseconds; `data[i].data[0][1]` is the value.
 
-## Vanilla JS vs Angular templates
+**Values are always strings.** Even numeric telemetry arrives as `'24.5'`, not `24.5`. Always convert before doing arithmetic:
 
-This tutorial and the Hello World both use vanilla JS for clarity. The remaining tutorials (<DocLink product={props.product} path='user-guide/contribution/widgets-development/embedded-chart' bold={false}>Embedded Chart</DocLink>, <DocLink product={props.product} path='user-guide/contribution/widgets-development/rpc-control' bold={false}>RPC Control</DocLink>, <DocLink product={props.product} path='user-guide/contribution/widgets-development/alarm-widget' bold={false}>Alarm Widget</DocLink>) switch to **Angular templates** — the approach ThingsBoard's built-in widgets use. Angular templates simplify complex UIs with data binding (`{{value}}`), conditional rendering (`@if`, `*ngIf`), loops (`*ngFor`), and built-in components (`mat-select`, `mat-button`).
+```javascript
+let raw = self.ctx.data[0].data[0][1]; // '24.5'
+let num = parseFloat(raw);             // 24.5
+```
+
+**`dataKey.decimals`** is the "Decimal places" setting from the key dialog — use it to round the displayed value consistently with the rest of the dashboard:
+
+```javascript
+let val = (decimals != null && decimals >= 0)
+  ? parseFloat(raw).toFixed(decimals)
+  : raw;
+```
+
+**`dataKey.settings`** holds values from the **Data key settings form** — per-key configuration you define in the Widget Editor. For example, if your Data key settings form has a `role` field, read it as `d.dataKey.settings.role`. This is distinct from `self.ctx.settings`, which holds widget-wide configuration.
+
+**Multiple datasources** — if the widget has more than one datasource (e.g., multiple devices), `self.ctx.data` contains entries for all keys from all datasources in the order they were added.
 
 ## Next steps
 
-- <DocLink product={props.product} path='user-guide/contribution/widgets-development/embedded-chart' bold={false}>Embedded Chart tutorial</DocLink> — wrap a platform chart with a key selector and custom subscriptions
-- <DocLink product={props.product} path='reference/widgets/widget-api' bold={false}>Widget API Reference</DocLink> — full reference for `ctx`, lifecycle functions, data structures, and services
+- <DocLink product={props.product} path='user-guide/contribution/widgets-development/time-series' bold={false}>Time-Series</DocLink> — embedded platform chart, custom subscriptions, and ECharts integration
+- <DocLink product={props.product} path='user-guide/contribution/widgets-development/rpc-control' bold={false}>RPC Control</DocLink> — send commands to devices and handle responses
+- <DocLink product={props.product} path='user-guide/contribution/widgets-development/alarm-widget' bold={false}>Alarm Widget</DocLink> — display and manage active alarms
+- <DocLink product={props.product} path='user-guide/contribution/widgets-development/widget-patterns' bold={false}>Widget Patterns</DocLink> — CRUD tables, navigation, entity hierarchy
+- <DocLink product={props.product} path='reference/widgets/widget-api' bold={false}>Widget API Reference</DocLink> — full `ctx`, lifecycle, and data structure reference

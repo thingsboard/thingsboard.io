@@ -1,26 +1,31 @@
 import DocLink from '@components/DocLink.astro';
+import DocImage from '~/components/DocImage.astro';
 import { Steps, Aside } from '@astrojs/starlight/components';
 
-Build a **device control panel** with buttons that send RPC commands to a device and display the response. This tutorial teaches you how to use the Control API — `sendOneWayCommand` and `sendTwoWayCommand` — and handle responses, timeouts, and errors.
+**RPC (Control)** widgets send commands to devices instead of subscribing to data. They are the mechanism for pushing instructions — toggle a relay, set a target temperature, trigger a firmware update. The device must implement an RPC handler for each method you send.
 
-## What you'll build
+Commands are sent through `self.ctx.controlApi` and can be:
+- **One-way** (`sendOneWayCommand`) — fire-and-forget; the widget doesn't wait for a device response
+- **Two-way** (`sendTwoWayCommand`) — request-response; the widget waits for the device to reply
 
-A control widget with:
-- Buttons that send RPC commands to the target device
-- A status display showing the command result or error
-- Configurable RPC method name and timeout via settings
-- Visual feedback during command execution
+## When to use RPC Control
 
-## RPC widget basics
+Use this type when the widget's primary purpose is to **issue a command**, not to read telemetry:
 
-**RPC (Control)** widgets differ from Latest Values and Time-Series widgets:
-- They don't subscribe to telemetry data — they **send commands** to devices
-- The device must implement an RPC handler for the method you send
-- Commands can be **one-way** (fire-and-forget) or **two-way** (request-response)
+- Power on/off buttons for devices or circuits
+- Setpoint controls (target temperature, fan speed, brightness)
+- Trigger buttons (open valve, start pump, reboot device)
+- Configuration panels that push settings to the device
 
-The Control API is available at `self.ctx.controlApi`.
+RPC widgets can still read Latest Values or attribute data alongside command functionality — add data keys as normal and implement `self.onDataUpdated()` if needed.
 
-## Step-by-step
+---
+
+## Example 1: ON/OFF control panel
+
+A two-button panel that sends an RPC command to turn a device on or off, with a status badge showing the result of the last command.
+
+<DocImage src="/src/assets/images/user-guide/widgets/development/rpc-example-1.png" alt="ON/OFF control panel widget showing Turn ON and Turn OFF buttons with a Success status badge and last response JSON" />
 
 <Steps>
 1. Open **Widget Library** → open your bundle → click **+** → select **RPC (Control)** as the type.
@@ -31,8 +36,7 @@ The Control API is available at `self.ctx.controlApi`.
    <div class="rpc-panel">
      <div class="header">
        <div class="title">Device Control</div>
-       <div class="status-indicator"
-            [ngClass]="statusClass">
+       <div class="status-indicator" [ngClass]="statusClass">
          {{statusText}}
        </div>
      </div>
@@ -92,34 +96,17 @@ The Control API is available at `self.ctx.controlApi`.
      border-radius: 999px;
    }
 
-   .status-idle {
-     background: #f2f4f7;
-     color: #667085;
-   }
-
-   .status-executing {
-     background: #eff8ff;
-     color: #175cd3;
-   }
-
-   .status-success {
-     background: #ecfdf3;
-     color: #027a48;
-   }
-
-   .status-error {
-     background: #fef3f2;
-     color: #b42318;
-   }
+   .status-idle      { background: #f2f4f7; color: #667085; }
+   .status-executing { background: #eff8ff; color: #175cd3; }
+   .status-success   { background: #ecfdf3; color: #027a48; }
+   .status-error     { background: #fef3f2; color: #b42318; }
 
    .controls {
      display: flex;
      gap: 12px;
    }
 
-   .controls button {
-     flex: 1;
-   }
+   .controls button { flex: 1; }
 
    .response-panel {
      padding: 12px;
@@ -152,61 +139,49 @@ The Control API is available at `self.ctx.controlApi`.
        self.ctx.servicesMap.get('utils'));
      settings = utils.deepClone(self.ctx.settings) || {};
 
-     self.ctx.$scope.executing = false;
-     self.ctx.$scope.statusText = 'Idle';
+     self.ctx.$scope.executing   = false;
+     self.ctx.$scope.statusText  = 'Idle';
      self.ctx.$scope.statusClass = 'status-idle';
      self.ctx.$scope.lastResponse = null;
 
      self.ctx.$scope.sendCommand = function(turnOn) {
-       let methodName = settings.rpcMethod || 'setState';
-       let timeout = settings.rpcTimeout || 5000;
-       let params = { enabled: turnOn };
+       let methodName = settings.rpcMethod  || 'setState';
+       let timeout    = settings.rpcTimeout || 5000;
+       let params     = { enabled: turnOn };
 
-       self.ctx.$scope.executing = true;
-       self.ctx.$scope.statusText = 'Executing...';
+       self.ctx.$scope.executing   = true;
+       self.ctx.$scope.statusText  = 'Executing...';
        self.ctx.$scope.statusClass = 'status-executing';
        self.ctx.detectChanges();
 
        if (settings.oneWay) {
-         self.ctx.controlApi.sendOneWayCommand(
-           methodName, params, timeout
-         ).subscribe(
-           function() {
-             onSuccess('Command sent (one-way)');
-           },
-           function(err) {
-             onError(err);
-           }
-         );
+         self.ctx.controlApi.sendOneWayCommand(methodName, params, timeout)
+           .subscribe(
+             function() { onSuccess('Command sent (one-way)'); },
+             function(err) { onError(err); }
+           );
        } else {
-         self.ctx.controlApi.sendTwoWayCommand(
-           methodName, params, timeout
-         ).subscribe(
-           function(response) {
-             onSuccess(JSON.stringify(response));
-           },
-           function(err) {
-             onError(err);
-           }
-         );
+         self.ctx.controlApi.sendTwoWayCommand(methodName, params, timeout)
+           .subscribe(
+             function(response) { onSuccess(JSON.stringify(response)); },
+             function(err) { onError(err); }
+           );
        }
      };
    };
 
    function onSuccess(response) {
-     self.ctx.$scope.executing = false;
-     self.ctx.$scope.statusText = 'Success';
+     self.ctx.$scope.executing   = false;
+     self.ctx.$scope.statusText  = 'Success';
      self.ctx.$scope.statusClass = 'status-success';
      self.ctx.$scope.lastResponse = response;
-     self.ctx.detectChanges();
-
-     // Notify the platform the command completed
      self.ctx.controlApi.completedCommand();
+     self.ctx.detectChanges();
    }
 
    function onError(err) {
-     self.ctx.$scope.executing = false;
-     self.ctx.$scope.statusText = 'Error';
+     self.ctx.$scope.executing   = false;
+     self.ctx.$scope.statusText  = 'Error';
      self.ctx.$scope.statusClass = 'status-error';
      self.ctx.$scope.lastResponse =
        err.error?.message || err.message || 'Request failed';
@@ -216,7 +191,6 @@ The Control API is available at `self.ctx.controlApi`.
    self.typeParameters = function() {
      return {
        singleEntity: true,
-       hasDataPageLink: false,
        dataKeysOptional: true
      };
    };
@@ -224,15 +198,15 @@ The Control API is available at `self.ctx.controlApi`.
 
    **Key concepts:**
 
-   **`self.ctx.controlApi.sendTwoWayCommand(method, params, timeout)`** — sends an RPC request and waits for a response. Returns an Observable. The `method` is the RPC method name the device handles. `params` is a JSON object sent as the command payload. `timeout` is in milliseconds.
+   **`sendTwoWayCommand(method, params, timeout)`** — sends an RPC request and waits for a device response. The `method` must match an RPC handler implemented by the device. `params` is a JSON object sent as the payload. `timeout` is in milliseconds.
 
-   **`self.ctx.controlApi.sendOneWayCommand(method, params, timeout)`** — sends a command without waiting for a device response. Use this for fire-and-forget commands where you don't need confirmation.
+   **`sendOneWayCommand(method, params, timeout)`** — sends without waiting for a response. Use when you don't need confirmation from the device.
 
-   **`self.ctx.controlApi.completedCommand()`** — call this after a successful command to notify the platform that execution is complete. This resets internal RPC tracking state.
+   **`completedCommand()`** — call after a successful command to notify the platform that execution is complete and reset internal RPC tracking state.
 
-   **Error handling** — the error callback receives an error object. For timeout errors, the device didn't respond within the configured timeout. For other errors, check `err.error?.message` for the server's error description.
+   **Error handling** — the error callback receives an error object. Timeout errors occur when the device doesn't respond within the configured window. Check `err.error?.message` for the server's error description.
 
-5. In the **Settings schema** tab, paste:
+5. In the **Settings form** tab, click **Import from JSON** → select the **JSON content** tab → paste:
 
    ```json
    [
@@ -263,30 +237,230 @@ The Control API is available at `self.ctx.controlApi`.
    ]
    ```
 
-6. Click **Save** → name the widget "Device Control Panel".
+6. Click **Save** → name it "ON/OFF Control Panel".
 
-7. To test the widget:
-   - Add it to a dashboard and select a target device
-   - The device must handle the configured RPC method (default: `setState`)
-   - Click "Turn ON" — the status shows "Executing...", then "Success" with the response, or "Error" if the device doesn't respond
-
-   <Aside type="tip">
-     For testing without a real device, use the **Rule Chain** to create a mock RPC response.
-     Add a **Script** node that returns `{ "status": "ok" }` and connect it to the RPC request node.
-   </Aside>
+7. Add the widget to a dashboard and select a target device. The device must handle the configured RPC method (default: `setState`). Click **Turn ON** — the status badge shows "Executing...", then "Success" with the device response, or "Error" if the device doesn't respond within the timeout.
 </Steps>
+
+---
+
+## Example 2: Numeric value input
+
+A form field with a numeric input and a Send button. Useful for setpoint controls where the user types a value (target temperature, fan speed percentage, brightness level) and pushes it to the device.
+
+This example introduces Angular Reactive Forms (`fb.control`) for input binding inside an RPC widget.
+
+<DocImage src="/src/assets/images/user-guide/widgets/development/rpc-example-2.png" alt="Numeric value input widget showing a Value field with 12 entered and a Send button, with a Sent status badge below" />
+
+<Steps>
+1. Open **Widget Library** → open your bundle → click **+** → select **RPC (Control)** as the type.
+
+2. In the **HTML** tab, paste:
+
+   ```html
+   <div class="input-panel">
+     <div class="input-row" *ngIf="valueControl">
+       <mat-form-field appearance="outline" color="primary" class="input-field">
+         <mat-label>{{label}}</mat-label>
+         <input matInput
+                type="number"
+                [formControl]="valueControl"
+                [step]="step">
+         <span matSuffix *ngIf="units">{{units}}</span>
+       </mat-form-field>
+
+       <button mat-raised-button color="primary"
+               (click)="sendValue()"
+               [disabled]="executing || valueControl.invalid">
+         <mat-icon>send</mat-icon>
+         Send
+       </button>
+     </div>
+
+     <div class="status-badge" [ngClass]="statusClass" *ngIf="statusText">
+       {{statusText}}
+     </div>
+   </div>
+   ```
+
+   **`[formControl]="valueControl"`** — binds the input to a Reactive Forms control so you can read its value in JavaScript without querying the DOM. **`[disabled]="executing || valueControl.invalid"`** — disables the button while a command is in flight or the input is invalid.
+
+3. In the **CSS** tab, paste:
+
+   ```css
+   .input-panel {
+     width: 100%;
+     height: 100%;
+     display: flex;
+     flex-direction: column;
+     justify-content: center;
+     gap: 12px;
+     padding: 8px;
+     box-sizing: border-box;
+   }
+
+   .input-row {
+     display: flex;
+     align-items: center;
+     gap: 12px;
+   }
+
+   .input-field { flex: 1; }
+
+   .mat-mdc-form-field-subscript-wrapper {
+     display: none !important;
+   }
+
+   .status-badge {
+     font-size: 12px;
+     font-weight: 500;
+     padding: 4px 12px;
+     border-radius: 999px;
+     align-self: flex-start;
+   }
+
+   .status-executing { background: #eff8ff; color: #175cd3; }
+   .status-success   { background: #ecfdf3; color: #027a48; }
+   .status-error     { background: #fef3f2; color: #b42318; }
+   ```
+
+4. In the **JavaScript** tab, paste:
+
+   ```javascript
+   let settings;
+
+   self.onInit = function() {
+     let utils = self.ctx.$scope.$injector.get(
+       self.ctx.servicesMap.get('utils'));
+     settings = utils.deepClone(self.ctx.settings) || {};
+
+     self.ctx.$scope.label     = settings.label    || 'Value';
+     self.ctx.$scope.units     = settings.units    || '';
+     self.ctx.$scope.step      = settings.step     || 1;
+     self.ctx.$scope.executing  = false;
+     self.ctx.$scope.statusText  = '';
+     self.ctx.$scope.statusClass = '';
+
+     // Create a form control initialized with the default value from settings
+     self.ctx.$scope.valueControl = self.ctx.$scope.fb.control(
+       settings.defaultValue ?? 0
+     );
+
+     self.ctx.$scope.sendValue = function() {
+       let method  = settings.rpcMethod  || 'setValue';
+       let timeout = settings.rpcTimeout || 5000;
+       let params  = { value: self.ctx.$scope.valueControl.value };
+
+       self.ctx.$scope.executing   = true;
+       self.ctx.$scope.statusText  = 'Sending...';
+       self.ctx.$scope.statusClass = 'status-executing';
+       self.ctx.detectChanges();
+
+       self.ctx.controlApi.sendTwoWayCommand(method, params, timeout)
+         .subscribe(
+           function() {
+             self.ctx.$scope.executing   = false;
+             self.ctx.$scope.statusText  = 'Sent';
+             self.ctx.$scope.statusClass = 'status-success';
+             self.ctx.controlApi.completedCommand();
+             self.ctx.detectChanges();
+           },
+           function(err) {
+             self.ctx.$scope.executing   = false;
+             self.ctx.$scope.statusText  = err.error?.message || 'Error';
+             self.ctx.$scope.statusClass = 'status-error';
+             self.ctx.detectChanges();
+           }
+         );
+     };
+   };
+
+   self.typeParameters = function() {
+     return {
+       singleEntity: true,
+       dataKeysOptional: true
+     };
+   };
+   ```
+
+   **`self.ctx.$scope.fb.control(initialValue)`** — creates an Angular Reactive Forms `FormControl`. `fb` (FormBuilder) is available in all widgets via `$scope`. The control's current value is read as `valueControl.value` when the user clicks Send.
+
+   The device receives: `{ "value": <number> }` as the RPC params object. The method name and timeout are configurable from the settings form.
+
+5. In the **Settings form** tab, click **Import from JSON** → select the **JSON content** tab → paste:
+
+   ```json
+   [
+     {
+       "id": "label",
+       "name": "Input label",
+       "group": "Input",
+       "type": "text",
+       "default": "Target value",
+       "required": false
+     },
+     {
+       "id": "units",
+       "name": "Units suffix",
+       "group": "Input",
+       "type": "text",
+       "default": "",
+       "required": false
+     },
+     {
+       "id": "step",
+       "name": "Step",
+       "group": "Input",
+       "type": "number",
+       "default": 1,
+       "required": false
+     },
+     {
+       "id": "defaultValue",
+       "name": "Default value",
+       "group": "Input",
+       "type": "number",
+       "default": 0,
+       "required": false
+     },
+     {
+       "id": "rpcMethod",
+       "name": "RPC method name",
+       "group": "RPC configuration",
+       "type": "text",
+       "default": "setValue",
+       "required": true
+     },
+     {
+       "id": "rpcTimeout",
+       "name": "Timeout (ms)",
+       "group": "RPC configuration",
+       "type": "number",
+       "default": 5000,
+       "required": true
+     }
+   ]
+   ```
+
+6. Click **Save** → name it "Numeric Value Input".
+
+7. Add to a dashboard → select a device → open widget settings. Configure the label (e.g., "Target temperature"), units ("°C"), and RPC method (e.g., `setTemperature`). The device receives `{ "value": <number> }` when the user clicks Send.
+</Steps>
+
+<Aside type="tip">
+  To test either example with a real device over MQTT, see the <DocLink product={props.product} path='reference/mqtt-api/rpc#example'>Server-Side RPC example</DocLink> — it shows a complete mqtt.js echo script that subscribes to RPC requests and sends responses back.
+</Aside>
 
 ## Control API reference
 
 | Method | Description |
 |--------|-------------|
-| `sendOneWayCommand(method, params, timeout)` | Fire-and-forget RPC. Returns Observable that completes on send. |
-| `sendTwoWayCommand(method, params, timeout)` | Request-response RPC. Returns Observable with device response. |
-| `completedCommand()` | Notify platform that RPC execution completed. |
-
-The `method` parameter must match an RPC method implemented by the target device. The `params` object is serialized to JSON and sent as the RPC payload.
+| `sendOneWayCommand(method, params, timeout)` | Fire-and-forget. Returns an Observable that completes when the command is sent. |
+| `sendTwoWayCommand(method, params, timeout)` | Request-response. Returns an Observable that emits the device's response. |
+| `completedCommand()` | Notifies the platform that RPC execution is complete. Resets internal tracking state. |
 
 ## Next steps
 
-- <DocLink product={props.product} path='user-guide/contribution/widgets-development/alarm-widget' bold={false}>Alarm Widget tutorial</DocLink> — build a custom alarm table with severity colors
-- <DocLink product={props.product} path='reference/widgets/widget-api' bold={false}>Widget API Reference</DocLink> — full API documentation including Control API details
+- <DocLink product={props.product} path='user-guide/contribution/widgets-development/alarm-widget' bold={false}>Alarm Widget</DocLink> — display and manage active alarms
+- <DocLink product={props.product} path='user-guide/contribution/widgets-development/latest-values' bold={false}>Latest Values</DocLink> — display current device state alongside RPC controls
+- <DocLink product={props.product} path='reference/widgets/widget-api' bold={false}>Widget API Reference</DocLink> — full Control API documentation

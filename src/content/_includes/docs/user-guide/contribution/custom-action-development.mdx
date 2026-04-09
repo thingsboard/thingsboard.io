@@ -1,0 +1,1256 @@
+import DocLink from '@components/DocLink.astro';
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+**Custom Actions** let you attach JavaScript logic to widget UI events — button clicks, row selections, map marker taps — and execute arbitrary code in response. They are the primary mechanism for building interactive dashboards that react to user input beyond what built-in widget actions support.
+
+ThingsBoard provides two custom action types:
+
+- **Custom action** — executes a JavaScript function directly (e.g. deleting a device or calling an external API).
+- **Custom action (with HTML template)** — executes a JavaScript function rendered inside an HTML template, allowing you to build dialogs, forms, and other UI overlays.
+
+For the conceptual overview and configuration walkthrough, see <DocLink product={props.product} path='user-guide/actions#custom-action'>Custom action</DocLink> and <DocLink product={props.product} path='user-guide/actions#custom-action-with-html-template'>Custom action with HTML template</DocLink> in the Actions reference.
+
+Every action function receives the same six arguments injected by the platform:
+
+| Argument | Description |
+|---|---|
+| `$event` | The originating DOM event |
+| `widgetContext` | Widget context — HTTP client, service injector, state controller |
+| `entityId` | `{ id: string, entityType: string }` of the entity in context |
+| `entityName` | Entity display name |
+| `additionalParams` | Extra parameters from the triggering widget (e.g. row data, `dataKey`) |
+| `entityLabel` | Entity label |
+
+---
+
+## Custom action
+
+**Custom action** (no HTML template) executes a JavaScript function when a widget UI event fires — a row click, a button, a map marker tap — without rendering any overlay. Use it for **side-effects**: deleting records, navigating to a state, calling REST endpoints, unassigning relationships.
+
+### Example 1: Delete entity
+
+**Use case:** You manage entities (devices, assets, customers, users) through an entities table and need a one-click delete button per row. The built-in delete action does not exist as a widget action type, so a custom action is the only way to trigger deletion directly from a table row.
+
+Prompts the user for confirmation then deletes the entity in context via the appropriate service. Supports CUSTOMER, ASSET, DEVICE, ENTITY_VIEW, and USER. Shows an error dialog if the deletion fails.
+
+<Steps>
+1. Open the widget in edit mode → **Actions** tab → **Add action**.
+
+2. Set the **Action source** (e.g. **Action cell button** for table rows), choose **Custom action** as the type, and give the action a name.
+
+3. Paste the following into the **Action function** editor:
+
+   ```javascript
+   let $injector = widgetContext.$scope.$injector;
+   let dialogs = $injector.get(widgetContext.servicesMap.get('dialogs'));
+   let customerService = $injector.get(widgetContext.servicesMap.get('customerService'));
+   let assetService = $injector.get(widgetContext.servicesMap.get('assetService'));
+   let deviceService = $injector.get(widgetContext.servicesMap.get('deviceService'));
+   let entityViewService = $injector.get(widgetContext.servicesMap.get('entityViewService'));
+   let userService = $injector.get(widgetContext.servicesMap.get('userService'));
+
+   openDeleteEntityDialog();
+
+   function openDeleteEntityDialog() {
+       let title = `Delete ${entityName}`;
+       let content = `Are you sure you want to delete the ${entityName}?`;
+
+       dialogs.confirm(title, content, 'Cancel', 'Delete').subscribe(
+           function(result) {
+               if (result) {
+                   deleteEntity();
+               }
+           }
+       );
+   }
+
+   function deleteEntity() {
+       let observable = deleteEntityObservable();
+
+       if (observable) {
+           observable.subscribe(
+               function success() {
+                   widgetContext.updateAliases();
+               },
+               function fail() {
+                   showErrorDialog();
+               }
+           );
+       }
+   }
+
+   function deleteEntityObservable() {
+       switch (entityId.entityType) {
+           case 'CUSTOMER':
+               return customerService.deleteCustomer(entityId.id);
+           case 'ASSET':
+               return assetService.deleteAsset(entityId.id);
+           case 'DEVICE':
+               return deviceService.deleteDevice(entityId.id);
+           case 'ENTITY_VIEW':
+               return entityViewService.deleteEntityView(entityId.id);
+           case 'USER':
+               return userService.deleteUser(entityId.id);
+           default:
+               return null;
+       }
+   }
+
+   function showErrorDialog() {
+       let title = 'Error';
+       let content = 'An error occurred while deleting the entity. Please try again.';
+       dialogs.alert(title, content, 'CLOSE').subscribe();
+   }
+   ```
+
+4. Click **Save** on the action, then **Apply** on the widget.
+</Steps>
+
+<Aside type="tip">
+`widgetContext.updateAliases()` forces all widgets on the dashboard that share the same alias to refresh — the deleted row disappears without a page reload.
+</Aside>
+
+---
+
+### Example 2: Navigate to a dashboard state based on device type
+
+**Use case:** You have devices of different types (e.g. thermostat, occupancy sensor, vibration sensor) and a dedicated dashboard state for each type. The built-in **Navigate to new dashboard state** action does not support dynamically choosing the target state based on a condition — it always navigates to the same fixed state. A custom action lets you fetch the device type at runtime and pick the correct state accordingly.
+
+Fetches the full device object to read its `type`, then routes to a different dashboard state depending on the value. The current state parameters are preserved and extended with a `selectedDevice` object so the target state has full entity context.
+
+<Steps>
+1. Add a **Custom action** to a widget whose alias resolves to DEVICE entities (e.g. an **Entities table**).
+
+2. Set the **Action source** (e.g. **On row click**), choose **Custom action** as the type, and give the action a name.
+
+3. Paste the following into the **Action function** editor:
+
+   ```javascript
+   let deviceService = widgetContext.$scope.$injector.get(widgetContext.servicesMap.get('deviceService'));
+
+   deviceService.getDevice(entityId.id).subscribe((device) => {
+       if (!device) return;
+
+       let stateId = 'defaultDevicePage';
+
+       switch (device.type) {
+           case 'thermostat':
+               stateId = 'thermostatDevicePage';
+               break;
+           case 'occupancy':
+               stateId = 'occupancyDevicePage';
+               break;
+           case 'vibration':
+               stateId = 'vibrationDevicePage';
+               break;
+           default:
+               stateId = 'defaultDevicePage';
+       }
+
+       let params = widgetContext.stateController.getStateParams();
+
+       params.selectedDevice = {
+           entityId,
+           entityName,
+           entityLabel
+       };
+
+       widgetContext.stateController.openState(stateId, params);
+   });
+   ```
+
+4. Replace the `case` values (`'thermostat'`, `'occupancy'`, `'vibration'`) with your actual device type names, and the `stateId` strings with the state names defined in your dashboard.
+
+5. Click **Save** on the action, then **Apply** on the widget.
+</Steps>
+
+<Aside type="tip">
+`getStateParams()` copies the existing state parameters before adding `selectedDevice`, so any entity context already set by a parent state (e.g. a selected customer or asset) is forwarded to the target state unchanged.
+</Aside>
+
+---
+
+### Example 3: Unassign device from customer
+
+**Use case:** You are a tenant admin who rents devices to customers. When a rental period expires, you need to reclaim a device — remove it from the customer's ownership and clean up any incoming relations — directly from the dashboard without going into the device management UI.
+
+Returns the device in context to the tenant by changing its owner back to the tenant and deleting all incoming relations. Uses `entityRelationService` to find and remove every relation pointing to the device, then `entityGroupService.changeEntityOwner` to transfer ownership — all in a single `forkJoin` so the alias refresh only fires once both operations complete.
+
+<Steps>
+1. Add a **Custom action** (Action cell button source) to a widget whose alias resolves to DEVICE entities.
+
+2. Paste the following into the **Action function** editor:
+
+   ```javascript
+   let $injector = widgetContext.$scope.$injector;
+   let dialogs = $injector.get(widgetContext.servicesMap.get('dialogs'));
+   let entityGroupService = $injector.get(widgetContext.servicesMap.get('entityGroupService'));
+   let entityRelationService = $injector.get(widgetContext.servicesMap.get('entityRelationService'));
+
+   let tenantId = {
+       id: widgetContext.currentUser.tenantId,
+       entityType: 'TENANT'
+   };
+
+   openUnassignDeviceDialog();
+
+   function openUnassignDeviceDialog() {
+       let title = `Unassign ${entityName}`;
+       let content = 'Are you sure you want to unassign the device from customer?';
+
+       dialogs.confirm(title, content, 'Cancel', 'Unassign').subscribe(
+           function(result) {
+               if (result) {
+                   unassignDevice();
+               }
+           }
+       );
+   }
+
+   function unassignDevice() {
+       unassignDeviceObservable().subscribe(() => {
+           widgetContext.updateAliases();
+       });
+   }
+
+   function unassignDeviceObservable() {
+       return entityRelationService.findByTo(entityId).pipe(
+           widgetContext.rxjs.switchMap(relations => {
+               let requests = [entityGroupService.changeEntityOwner(tenantId, entityId)];
+
+               if (relations?.length) {
+                   relations.forEach(x => {
+                       requests.push(entityRelationService.deleteRelation(x.from, x.type, x.to));
+                   });
+               }
+
+               return widgetContext.rxjs.forkJoin(requests);
+           })
+       );
+   }
+   ```
+
+3. Save and apply the widget.
+</Steps>
+
+<Aside type="tip">
+`entityGroupService.changeEntityOwner` is a PE-only API. On CE, replace it with `deviceService.unassignDeviceFromCustomer(entityId.id)` and remove the `entityGroupService` injection.
+</Aside>
+
+---
+
+### Example 4: Delete a single telemetry data point
+
+**Use case:** You have a timeseries table showing device telemetry and occasionally a device sends incorrect or corrupted data. You need to remove that specific bad data point without affecting the rest of the history.
+
+Deletes one specific telemetry data point on the entity in context — identified by a hardcoded key name and the row's timestamp from `additionalParams`. Prompts for confirmation and shows an error dialog on failure.
+
+<Steps>
+1. Open a **Timeseries table** widget in edit mode → **Actions** tab → **Add action** → source: **Action cell button**.
+
+2. Paste the following into the **Action function** editor, replacing `YOUR_KEY_NAME` with the telemetry key you want to target:
+
+   ```javascript
+   let $injector = widgetContext.$scope.$injector;
+   let dialogs = $injector.get(widgetContext.servicesMap.get('dialogs'));
+   let attributeService = $injector.get(widgetContext.servicesMap.get('attributeService'));
+
+   const ts = additionalParams['0'];
+   const keyName = 'YOUR_KEY_NAME';
+   const deleteAllDataForKeys = false;
+
+   deleteTelemetryDialog();
+
+   function deleteTelemetryDialog() {
+       let title = 'Delete telemetry';
+       let content = 'Are you sure you want to delete telemetry?';
+       dialogs.confirm(title, content, 'Cancel', 'Delete').subscribe(
+           function(result) {
+               if (result) {
+                   deleteEntity();
+               }
+           }
+       );
+   }
+
+   function deleteEntity() {
+       attributeService.deleteEntityTimeseries(
+           entityId,
+           [{ key: keyName }],
+           deleteAllDataForKeys,
+           ts,
+           ts + 1
+       ).subscribe(
+           function success() {
+               widgetContext.updateAliases();
+           },
+           function fail() {
+               showErrorDialog();
+           }
+       );
+   }
+
+   function showErrorDialog() {
+       let title = 'Error';
+       let content = 'An error occurred while deleting the data point. Please try again.';
+       dialogs.alert(title, content, 'CLOSE').subscribe();
+   }
+   ```
+
+3. Save and apply the widget. Clicking the action button on a row deletes the single data point at that row's timestamp for the configured key.
+</Steps>
+
+<Aside type="tip">
+`additionalParams['0']` is the Unix timestamp (ms) of the clicked row. Passing `ts` and `ts + 1` as the time range to `deleteEntityTimeseries` targets exactly that one data point. Set `deleteAllDataForKeys = true` to remove every stored point for the key across all time instead.
+</Aside>
+
+### Example 5: Update sub-state and re-render content panel
+
+**Use case:** You have a detail page with a horizontal navigation widget and a Markdown/HTML Card content panel. Each navigation tab needs to update the `subState` URL parameter and tell the content panel to re-render with the new state — without navigating away from the current dashboard state.
+
+Updates `subState` in the current state params, calls `updateAliases()` to trigger the Markdown/HTML Card to re-evaluate its value function, then calls `updateState()` to apply the new params to the URL.
+
+<Steps>
+1. Open the navigation widget in edit mode → **Actions** tab → **Add action**.
+   - **Action source**: Element click
+   - **Action name**: the tab's action value as configured in widget settings (e.g. `overview`)
+   - **Action type**: Custom action
+
+2. Paste the following into the **Action function** editor, replacing `'Overview'` with the `subState` value for this tab and `'shelterDetails'` with your container state ID:
+
+   ```javascript
+   let controller = widgetContext.$scope.ctx.stateController;
+   let params = controller.getStateParams();
+
+   params.subState = 'Overview';
+
+   widgetContext.updateAliases();
+   controller.updateState('shelterDetails', params);
+   ```
+
+3. Repeat for each tab, changing `params.subState` to match that tab's value (e.g. `'Analytics'`, `'Users'`).
+</Steps>
+
+<Aside type="tip">
+`updateAliases()` must be called before `updateState()` so the Markdown/HTML Card picks up the new `subState` value and re-renders the correct embedded dashboard state. This action is part of a three-widget pattern:
+- <DocLink product={props.product} path="user-guide/contribution/widgets-development/static-widget/#example-2-navigation-menu" bold={false}>Horizontal navigation widget</DocLink> — renders the tab bar and calls this action on each click
+- <DocLink product={props.product} path="reference/widgets/markdown-html-card/#example-embedded-dashboard-state-panel" bold={false}>Markdown/HTML Card content panel</DocLink> — reads `subState` and renders the matching embedded dashboard state
+</Aside>
+
+---
+
+## Custom action (with HTML template)
+
+**Custom action with HTML template** renders an HTML panel when a widget UI event fires. The panel stays visible until the user dismisses it or navigates away, giving you a full form surface — inputs, selects, file pickers, progress indicators — backed by the ThingsBoard REST API.
+
+The HTML template is rendered inside an Angular component. Set properties on `widgetContext.$scope` in JavaScript to bind data to the template via Angular's `[(ngModel)]`, `*ngIf`, `*ngFor`, `(click)`, and other directives. Call `$scope.$apply()` after async updates to trigger change detection.
+
+### Example 1: Create device or asset
+
+**Use case:** You manage a fleet from a dashboard and need to provision new devices or assets on the spot — without leaving the dashboard to open the entity management UI. A custom HTML action lets you embed the creation form directly into the widget as a dialog.
+
+Opens a dialog that creates a new device or asset with optional server-side attributes (location, address, owner, and custom values). The entity type is selectable in the form itself. After the entity is saved, attributes are written in a single `forkJoin` request.
+
+<Steps>
+1. Open the widget in edit mode → **Actions** tab → **Add action**. Choose **Custom action (with HTML template)** and give it a name.
+
+2. In the **HTML template** tab, paste:
+
+   ```html
+   <form #addEntityForm="ngForm" [formGroup]="addEntityFormGroup"
+         (ngSubmit)="save()" class="add-entity-form">
+     <mat-toolbar class="flex flex-row" color="primary">
+       <h2>Add entity</h2>
+       <span class="flex-1"></span>
+       <button mat-icon-button (click)="cancel()" type="button">
+         <mat-icon>close</mat-icon>
+       </button>
+     </mat-toolbar>
+
+     <div mat-dialog-content class="flex flex-col">
+       <div class="flex flex-row gap-2">
+         <mat-form-field appearance="outline" class="mat-block flex-1">
+           <mat-label>Entity Name</mat-label>
+           <input matInput formControlName="entityName" required>
+           <mat-error *ngIf="addEntityFormGroup.get('entityName').hasError('required')">
+             Entity name is required.
+           </mat-error>
+         </mat-form-field>
+         <mat-form-field appearance="outline" class="mat-block flex-1">
+           <mat-label>Entity Label</mat-label>
+           <input matInput formControlName="entityLabel">
+         </mat-form-field>
+       </div>
+
+       <div class="flex flex-row gap-2">
+         <tb-entity-type-select
+             class="mat-block flex-1"
+             formControlName="entityType"
+             [showLabel]="true"
+             [allowedEntityTypes]="allowedEntityTypes">
+         </tb-entity-type-select>
+         <tb-entity-subtype-autocomplete
+             *ngIf="addEntityFormGroup.get('entityType').value === 'ASSET'"
+             class="mat-block flex-1"
+             formControlName="type"
+             [required]="true"
+             [entityType]="'ASSET'">
+         </tb-entity-subtype-autocomplete>
+         <tb-entity-subtype-autocomplete
+             *ngIf="addEntityFormGroup.get('entityType').value !== 'ASSET'"
+             class="mat-block flex-1"
+             formControlName="type"
+             [required]="true"
+             [entityType]="'DEVICE'">
+         </tb-entity-subtype-autocomplete>
+       </div>
+
+       <div formGroupName="attributes" class="flex flex-col">
+         <div class="flex flex-row gap-2">
+           <mat-form-field appearance="outline" class="mat-block flex-1">
+             <mat-label>Latitude</mat-label>
+             <input type="number" step="any" matInput formControlName="latitude">
+           </mat-form-field>
+           <mat-form-field appearance="outline" class="mat-block flex-1">
+             <mat-label>Longitude</mat-label>
+             <input type="number" step="any" matInput formControlName="longitude">
+           </mat-form-field>
+         </div>
+         <mat-form-field appearance="outline" class="mat-block">
+           <mat-label>Address</mat-label>
+           <input matInput formControlName="address">
+         </mat-form-field>
+         <div class="flex flex-row gap-2">
+           <mat-form-field appearance="outline" class="mat-block flex-1">
+             <mat-label>Integer Value</mat-label>
+             <input type="number" step="1" matInput formControlName="number">
+             <mat-error *ngIf="addEntityFormGroup.get('attributes.number').hasError('pattern')">
+               Invalid integer value.
+             </mat-error>
+           </mat-form-field>
+           <div class="flex flex-1 flex-col items-center justify-start">
+             <label>Boolean Value</label>
+             <mat-checkbox formControlName="booleanValue">
+               {{ addEntityFormGroup.get('attributes.booleanValue').value ? 'True' : 'False' }}
+             </mat-checkbox>
+           </div>
+         </div>
+       </div>
+     </div>
+
+     <div mat-dialog-actions class="flex flex-row items-center justify-end">
+       <button mat-button color="primary" type="button" (click)="cancel()">Cancel</button>
+       <button mat-raised-button color="primary" type="submit"
+               [disabled]="addEntityForm.invalid || !addEntityForm.dirty">
+         Create
+       </button>
+     </div>
+   </form>
+   ```
+
+3. In the **Action function** tab, paste:
+
+   ```javascript
+   let $injector = widgetContext.$scope.$injector;
+   let customDialog = $injector.get(widgetContext.servicesMap.get('customDialog'));
+   let assetService = $injector.get(widgetContext.servicesMap.get('assetService'));
+   let deviceService = $injector.get(widgetContext.servicesMap.get('deviceService'));
+   let attributeService = $injector.get(widgetContext.servicesMap.get('attributeService'));
+
+   openAddEntityDialog();
+
+   function openAddEntityDialog() {
+       customDialog.customDialog(htmlTemplate, AddEntityDialogController).subscribe();
+   }
+
+   function AddEntityDialogController(instance) {
+       let vm = instance;
+
+       vm.allowedEntityTypes = ['ASSET', 'DEVICE'];
+
+       vm.addEntityFormGroup = vm.fb.group({
+           entityName: ['', [vm.validators.required]],
+           entityType: ['DEVICE'],
+           entityLabel: [null],
+           type: ['', [vm.validators.required]],
+           attributes: vm.fb.group({
+               latitude: [null],
+               longitude: [null],
+               address: [null],
+               number: [null, [vm.validators.pattern(/^-?[0-9]+$/)]],
+               booleanValue: [null]
+           }),
+       });
+
+       vm.cancel = function() {
+           vm.dialogRef.close(null);
+       };
+
+       vm.save = function() {
+           vm.addEntityFormGroup.markAsPristine();
+           saveEntityObservable().subscribe(function(entity) {
+               widgetContext.rxjs.forkJoin([
+                   saveAttributes(entity.id)
+               ]).subscribe(function() {
+                   widgetContext.updateAliases();
+                   vm.dialogRef.close(null);
+               });
+           });
+       };
+
+       function saveEntityObservable() {
+           const formValues = vm.addEntityFormGroup.value;
+           let entity = {
+               name: formValues.entityName,
+               type: formValues.type,
+               label: formValues.entityLabel
+           };
+           if (formValues.entityType === 'ASSET') {
+               return assetService.saveAsset(entity);
+           } else {
+               return deviceService.saveDevice(entity);
+           }
+       }
+
+       function saveAttributes(entityId) {
+           let attributes = vm.addEntityFormGroup.get('attributes').value;
+           let attributesArray = [];
+           for (let key in attributes) {
+               if (attributes[key] !== null) {
+                   attributesArray.push({ key: key, value: attributes[key] });
+               }
+           }
+           if (attributesArray.length > 0) {
+               return attributeService.saveEntityAttributes(entityId, 'SERVER_SCOPE', attributesArray);
+           }
+           return widgetContext.rxjs.of([]);
+       }
+   }
+   ```
+
+4. Save the action and apply the widget.
+</Steps>
+
+<Aside type="tip">
+`tb-entity-type-select` and `tb-entity-subtype-autocomplete` are built-in ThingsBoard Angular components available inside custom action dialogs. The subtype autocomplete swaps its `entityType` binding based on the currently selected entity type so it always fetches the correct profile list.
+</Aside>
+
+---
+
+### Example 2: Create customer
+
+**Use case:** You operate a multi-tenant platform and need to onboard new customers with structured metadata — country, address, and a custom type — directly from a dashboard. The built-in entity creation flow does not support saving custom server-side attributes in the same step, so a custom action covers both operations atomically.
+
+A dialog that creates a new customer with a country picker, address, description, and a custom `customerType` server-side attribute saved after the entity is created.
+
+<Steps>
+1. Open the widget in edit mode → **Actions** tab → **Add action**. Choose **Custom action (with HTML template)** and give it a name.
+
+2. In the **HTML template** tab, paste:
+
+   ```html
+   <form #addEntityForm="ngForm" [formGroup]="addEntityFormGroup"
+         (ngSubmit)="save()" class="add-entity-form">
+     <mat-toolbar class="flex flex-row" color="primary">
+       <h2>Add customer</h2>
+       <span class="flex-1"></span>
+       <button mat-icon-button (click)="cancel()" type="button">
+         <mat-icon>close</mat-icon>
+       </button>
+     </mat-toolbar>
+
+     <div mat-dialog-content class="flex flex-col">
+       <div class="flex flex-row gap-2">
+         <mat-form-field appearance="outline" class="mat-block flex-1">
+           <mat-label>Customer Name</mat-label>
+           <input matInput formControlName="title" required>
+           <mat-error *ngIf="addEntityFormGroup.get('title').hasError('required')">
+             Title name is required.
+           </mat-error>
+         </mat-form-field>
+       </div>
+
+       <div class="flex flex-row gap-2">
+         <tb-country-autocomplete appearance="outline" formControlName="country">
+         </tb-country-autocomplete>
+         <mat-form-field appearance="outline" class="mat-block">
+           <mat-label>Address</mat-label>
+           <input matInput formControlName="address">
+         </mat-form-field>
+       </div>
+
+       <div formGroupName="additionalInfo" class="flex flex-col">
+         <mat-form-field appearance="outline" class="mat-block flex-1">
+           <mat-label>Description</mat-label>
+           <textarea matInput cdkTextareaAutosize formControlName="description"
+                     cdkAutosizeMinRows="3" cdkAutosizeMaxRows="5"></textarea>
+         </mat-form-field>
+       </div>
+
+       <div formGroupName="attributes" class="flex flex-col">
+         <mat-form-field appearance="outline" class="mat-block flex-1">
+           <mat-label>Customer Type</mat-label>
+           <mat-select formControlName="customerType">
+             <mat-option *ngFor="let type of customerTypes" [value]="type">{{ type }}</mat-option>
+           </mat-select>
+         </mat-form-field>
+       </div>
+     </div>
+
+     <div mat-dialog-actions class="flex flex-row items-center justify-end">
+       <button mat-button color="primary" type="button" (click)="cancel()">Cancel</button>
+       <button mat-raised-button color="primary" type="submit"
+               [disabled]="addEntityForm.invalid || !addEntityForm.dirty">
+         Create
+       </button>
+     </div>
+   </form>
+   ```
+
+3. In the **Action function** tab, paste:
+
+   ```javascript
+   let $injector = widgetContext.$scope.$injector;
+   let customDialog = $injector.get(widgetContext.servicesMap.get('customDialog'));
+   let customerService = $injector.get(widgetContext.servicesMap.get('customerService'));
+   let attributeService = $injector.get(widgetContext.servicesMap.get('attributeService'));
+
+   openAddEntityDialog();
+
+   function openAddEntityDialog() {
+       customDialog.customDialog(htmlTemplate, AddEntityDialogController).subscribe();
+   }
+
+   function AddEntityDialogController(instance) {
+       let vm = instance;
+
+       vm.customerTypes = ['Independent', 'Distributor'];
+
+       vm.addEntityFormGroup = vm.fb.group({
+           title: ['', [vm.validators.required]],
+           address: [null],
+           country: [null],
+           additionalInfo: vm.fb.group({
+               description: [null]
+           }),
+           attributes: vm.fb.group({
+               customerType: [null]
+           })
+       });
+
+       vm.cancel = function() {
+           vm.dialogRef.close(null);
+       };
+
+       vm.save = function() {
+           vm.addEntityFormGroup.markAsPristine();
+           saveEntityObservable().subscribe(function(entity) {
+               widgetContext.rxjs.forkJoin([
+                   saveAttributes(entity.id)
+               ]).subscribe(function() {
+                   widgetContext.updateAliases();
+                   vm.dialogRef.close(null);
+               });
+           });
+       };
+
+       function saveEntityObservable() {
+           const formValues = vm.addEntityFormGroup.value;
+           let entity = {
+               title: formValues.title,
+               address: formValues.address,
+               country: formValues.country,
+               additionalInfo: formValues.additionalInfo
+           };
+           return customerService.saveCustomer(entity);
+       }
+
+       function saveAttributes(entityId) {
+           let attributes = vm.addEntityFormGroup.get('attributes').value;
+           let attributesArray = [];
+           for (let key in attributes) {
+               if (attributes[key] !== null) {
+                   attributesArray.push({ key: key, value: attributes[key] });
+               }
+           }
+           if (attributesArray.length > 0) {
+               return attributeService.saveEntityAttributes(entityId, 'SERVER_SCOPE', attributesArray);
+           }
+           return widgetContext.rxjs.of([]);
+       }
+   }
+   ```
+
+4. Save the action and apply the widget.
+</Steps>
+
+<Aside type="tip">
+`tb-country-autocomplete` is a built-in ThingsBoard component that renders a searchable country dropdown and outputs the selected country code. `customerTypes` is set directly on `vm` so the template can iterate over it with `*ngFor`. Extend the array with any custom type values your system uses.
+</Aside>
+
+---
+
+### Example 3: Create user
+
+**Use case:** You are a tenant admin managing customers through a dashboard and need to invite new users to a customer account without switching to the Users management page. The action also handles the full activation flow — either emailing the link or displaying it inline — so the operator never leaves the dashboard.
+
+A dialog that creates a new customer user with first name, last name, email, activation method, and phone number. After saving, it either sends an activation email or displays a copyable activation link in a second dialog.
+
+<Steps>
+1. Open the widget in edit mode → **Actions** tab → **Add action**. Choose **Custom action (with HTML template)** and give it a name.
+
+2. In the **HTML template** tab, paste:
+
+   ```html
+   <form #addEntityForm="ngForm" [formGroup]="form"
+         (ngSubmit)="save()" class="add-entity-form">
+     <mat-toolbar class="flex flex-row" color="primary">
+       <h2>Add user</h2>
+       <span class="flex-1"></span>
+       <button mat-icon-button (click)="cancel()" type="button">
+         <mat-icon>close</mat-icon>
+       </button>
+     </mat-toolbar>
+
+     <div mat-dialog-content class="flex flex-col">
+       <div class="flex flex-row gap-2 xs:flex-col xs:gap-0">
+         <mat-form-field class="flex flex-1 mat-block" appearance="outline">
+           <mat-label>First name</mat-label>
+           <input matInput formControlName="firstName">
+         </mat-form-field>
+         <mat-form-field class="flex flex-1 mat-block" appearance="outline">
+           <mat-label>Last name</mat-label>
+           <input matInput formControlName="lastName">
+         </mat-form-field>
+       </div>
+       <div class="flex flex-row gap-2 xs:flex-col xs:gap-0">
+         <mat-form-field class="flex flex-1" appearance="outline">
+           <mat-label>Email</mat-label>
+           <input matInput formControlName="email" required>
+           <mat-error *ngIf="form.get('email').hasError('required')">
+             Email is required.
+           </mat-error>
+         </mat-form-field>
+       </div>
+       <div class="flex flex-row gap-2 xs:flex-col xs:gap-0 temp-select">
+         <mat-form-field class="flex flex-1 mat-block" appearance="outline">
+           <mat-label>Activation method</mat-label>
+           <mat-select formControlName="activationMethod" required>
+             <mat-option *ngFor="let option of activationMethod" [value]="option.value">
+               {{option.label}}
+             </mat-option>
+           </mat-select>
+           <mat-error *ngIf="form.get('activationMethod').hasError('required')">
+             Activation method is required.
+           </mat-error>
+         </mat-form-field>
+       </div>
+       <div class="flex flex-col">
+         <tb-phone-input formControlName="phone" appearance="outline" [required]="false"></tb-phone-input>
+       </div>
+     </div>
+
+     <div mat-dialog-actions class="flex flex-row items-center justify-end">
+       <button mat-button color="primary" type="button" (click)="cancel()">Cancel</button>
+       <button mat-raised-button color="primary" type="submit"
+               [disabled]="addEntityForm.invalid || !addEntityForm.dirty">
+         Create
+       </button>
+     </div>
+   </form>
+   ```
+
+3. In the **Action function** tab, paste:
+
+   ```javascript
+   let $injector = widgetContext.$scope.$injector;
+   let customDialog = $injector.get(widgetContext.servicesMap.get('customDialog'));
+   let userService = $injector.get(widgetContext.servicesMap.get('userService'));
+   let entityGroupService = $injector.get(widgetContext.servicesMap.get('entityGroupService'));
+   let params = widgetContext.stateController.getStateParams();
+
+   openAddEntityDialog();
+
+   function openAddEntityDialog() {
+       customDialog.customDialog(htmlTemplate, AddEntityDialogController).subscribe();
+   }
+
+   function AddEntityDialogController(instance) {
+       let vm = instance;
+
+       vm.activationMethod = [
+           { label: 'Display activation link', value: 'displayActivationLink' },
+           { label: 'Send activation mail', value: 'sendActivationMail' }
+       ];
+
+       vm.form = vm.fb.group({
+           email: ['', [vm.validators.required, vm.validators.email]],
+           firstName: [''],
+           lastName: [''],
+           phone: [''],
+           activationMethod: ['displayActivationLink']
+       });
+
+       vm.cancel = function() {
+           vm.dialogRef.close(null);
+       };
+
+       vm.save = function() {
+           const formValues = vm.form.value;
+           const sendActivationMail = (formValues.activationMethod === 'sendActivationMail');
+
+           const user = {
+               customerId: params.selectedCustomer.entityId,
+               email: formValues.email,
+               phone: formValues.phone,
+               authority: 'CUSTOMER_USER',
+               firstName: formValues.firstName,
+               lastName: formValues.lastName
+           };
+
+           entityGroupService.getEntityGroupsByOwnerId(
+               params.selectedCustomer.entityId.entityType,
+               params.selectedCustomer.entityId.id,
+               'USER'
+           ).pipe(
+               widgetContext.rxjs.map(groups => groups.find(g => g.name.includes('Customer Administrators'))),
+               widgetContext.rxjs.filter(adminGroup => !!adminGroup),
+               widgetContext.rxjs.switchMap(adminGroup =>
+                   userService.saveUser(user, sendActivationMail, adminGroup.id.id)
+               ),
+               widgetContext.rxjs.switchMap(savedUser => {
+                   if (sendActivationMail) {
+                       return widgetContext.rxjs.of(null);
+                   }
+                   return userService.getActivationLinkInfo(savedUser.id.id).pipe(
+                       widgetContext.rxjs.switchMap(link => displayActivationLink(link))
+                   );
+               })
+           ).subscribe(() => {
+               widgetContext.updateAliases();
+               vm.dialogRef.close(null);
+           });
+       };
+
+       function displayActivationLink(activationLink) {
+           const template = `
+               <form style="min-width: 400px;">
+                   <mat-toolbar color="primary" class="flex flex-1 flex-row justify-between">
+                       <h2 translate="user.activation-link"></h2>
+                       <button mat-icon-button
+                           (click)="close()"
+                           type="button">
+                           <mat-icon class="material-icons">close</mat-icon>
+                       </button>
+                   </mat-toolbar>
+                   <mat-progress-bar color="warn" mode="indeterminate" *ngIf="isLoading$ | async">
+                   </mat-progress-bar>
+                   <div style="height: 4px;" *ngIf="!(isLoading$ | async)"></div>
+                   <div mat-dialog-content tb-toast toastTarget="activationLinkDialogContent">
+                       <div class="mat-content flex-col">
+                           <span [innerHTML]="'user.activation-link-text' | translate: {activationLink: activationLink.value, activationLinkTtl: activationLink.ttlMs | milliSecondsToTimeString}"></span>
+                           <div class="flex flex-row items-center">
+                               <pre class="tb-highlight flex"><code>{{ activationLink.value }}</code></pre>
+                               <button
+                                   mat-icon-button
+                                   color="primary"
+                                   ngxClipboard
+                                   [cbContent]="activationLink.value"
+                                   (cbOnSuccess)="onActivationLinkCopied()"
+                                   matTooltip="{{ 'user.copy-activation-link' | translate }}"
+                                   matTooltipPosition="above">
+                                       <mat-icon svgIcon="mdi:clipboard-arrow-left"></mat-icon>
+                               </button>
+                           </div>
+                       </div>
+                   </div>
+                   <div mat-dialog-actions class="items-center justify-end">
+                       <button mat-button color="primary"
+                           type="button"
+                           cdkFocusInitial
+                           [disabled]="(isLoading$ | async)"
+                           (click)="close()">
+                           {{ 'action.ok' | translate }}
+                       </button>
+                   </div>
+               </form>`;
+           return customDialog.customDialog(template, ActivationLinkDialogController, { activationLink: activationLink });
+       }
+
+       function ActivationLinkDialogController(instance) {
+           let vm = instance;
+           vm.activationLink = instance.data.activationLink;
+           vm.onActivationLinkCopied = function() {
+               widgetContext.showSuccessToast(
+                   translate.instant('user.activation-link-copied-message'),
+                   1000, 'bottom', 'left', 'activationLinkDialogContent'
+               );
+           };
+           vm.close = function() {
+               vm.dialogRef.close(null);
+           };
+       }
+   }
+   ```
+
+4. Save the action and apply the widget.
+</Steps>
+
+<Aside type="tip">
+`params.selectedCustomer` is the customer entity passed via dashboard state params. When the activation method is `displayActivationLink`, a second dialog opens with the link and a one-click copy button. Switch to `sendActivationMail` to email the link instead.
+</Aside>
+
+---
+
+### Example 4: Set threshold attributes
+
+**Use case:** You have field operators who need to adjust alarm trigger values (e.g. temperature or vibration thresholds) for individual devices directly from the monitoring dashboard, without granting them access to the full entity editor or rule chain configuration.
+
+A dialog that reads an existing `thresholds` server-side attribute from the device in context, pre-fills the form, and saves the updated values back as a single JSON attribute. Useful for configuring alarm trigger values without opening the entity editor.
+
+<Steps>
+1. Add a **Custom action (with HTML template)** to a widget whose alias resolves to DEVICE entities.
+
+2. In the **HTML template** tab, paste:
+
+   ```html
+   <form #addEntityForm="ngForm" [formGroup]="addEntityFormGroup"
+         (ngSubmit)="save()" class="add-entity-form">
+     <mat-toolbar class="flex flex-row" color="primary">
+       <h2>Set thresholds</h2>
+       <span class="flex-1"></span>
+       <button mat-icon-button (click)="cancel()" type="button">
+         <mat-icon>close</mat-icon>
+       </button>
+     </mat-toolbar>
+
+     <div mat-dialog-content class="flex flex-col">
+       <div class="flex flex-row gap-2">
+         <div class="flex flex-1 flex-col gap-1">
+           <span class="modal-sub-title">Both doors open</span>
+           <mat-form-field class="mat-block flex-1" appearance="outline">
+             <mat-label>Alarm trigger after, min</mat-label>
+             <input matInput formControlName="bothDoorsOpenAlarmMin">
+           </mat-form-field>
+         </div>
+         <div class="flex flex-1 flex-col gap-1">
+           <span class="modal-sub-title">Motion detected</span>
+           <mat-form-field class="mat-block flex-1" appearance="outline">
+             <mat-label>Alarm trigger after, min</mat-label>
+             <input matInput formControlName="motionDetectedAlarmMin">
+           </mat-form-field>
+         </div>
+       </div>
+
+       <div class="flex flex-row gap-2">
+         <div class="flex flex-1 flex-col gap-1">
+           <span class="modal-sub-title">Temperature inside</span>
+           <mat-form-field class="mat-block flex-1" appearance="outline">
+             <mat-label>Max allowed value, °C</mat-label>
+             <input matInput formControlName="maxTemperatureCelsius">
+           </mat-form-field>
+         </div>
+         <div class="flex flex-1 flex-col gap-1">
+           <span class="modal-sub-title">Pressure inside</span>
+           <mat-form-field class="mat-block flex-1" appearance="outline">
+             <mat-label>Max allowed value, psi</mat-label>
+             <input matInput formControlName="maxPressurePsi">
+           </mat-form-field>
+         </div>
+       </div>
+     </div>
+
+     <div mat-dialog-actions class="flex flex-row items-center justify-end">
+       <button mat-button color="primary" type="button" (click)="cancel()">Cancel</button>
+       <button mat-raised-button color="primary" type="submit"
+               [disabled]="addEntityForm.invalid || !addEntityForm.dirty">
+         Save
+       </button>
+     </div>
+   </form>
+   ```
+
+3. In the **Action function** tab, paste:
+
+   ```javascript
+   let $injector = widgetContext.$scope.$injector;
+   let customDialog = $injector.get(widgetContext.servicesMap.get('customDialog'));
+   let attributeService = $injector.get(widgetContext.servicesMap.get('attributeService'));
+
+   openAddEntityDialog();
+
+   function openAddEntityDialog() {
+       customDialog.customDialog(htmlTemplate, AddEntityDialogController).subscribe();
+   }
+
+   function AddEntityDialogController(instance) {
+       let vm = instance;
+
+       vm.addEntityFormGroup = vm.fb.group({
+           bothDoorsOpenAlarmMin: [null],
+           motionDetectedAlarmMin: [null],
+           maxTemperatureCelsius: [null],
+           maxPressurePsi: [null]
+       });
+
+       vm.cancel = function() {
+           vm.dialogRef.close(null);
+       };
+
+       getThresholds();
+
+       function getThresholds() {
+           attributeService.getEntityAttributes(entityId, 'SERVER_SCOPE', ['thresholds']).subscribe(
+               function(data) {
+                   if (data && data[0] && data[0].value) {
+                       vm.addEntityFormGroup.patchValue(data[0].value);
+                   }
+               }
+           );
+       }
+
+       vm.save = function() {
+           attributeService.saveEntityAttributes(
+               entityId, 'SERVER_SCOPE',
+               [{ key: 'thresholds', value: vm.addEntityFormGroup.value }]
+           ).subscribe(function() {
+               widgetContext.updateAliases();
+               vm.dialogRef.close(null);
+           });
+       };
+   }
+   ```
+
+4. Save and apply the widget.
+</Steps>
+
+---
+
+### Example 5: Assign device to customer
+
+**Use case:** You manage a pool of unassigned devices and need to allocate them to customers from a dashboard state that already holds the selected customer in its state params. The dialog filters out devices already visible in the widget so the operator only sees candidates that are not yet assigned.
+
+A dialog that lists all devices not yet assigned to the current group, lets the user pick one from a dropdown, removes any existing incoming relations, transfers ownership to the group, and creates a new `fromCustomerToDevice` relation — all in a single `forkJoin`. Designed for scenarios where a dashboard state holds a selected customer entity in its state params.
+
+<Steps>
+1. Add a **Custom action (with HTML template)** to a widget whose alias resolves to a group entity.
+
+2. In the **HTML template** tab, paste:
+
+   ```html
+   <form #addEntityForm="ngForm" [formGroup]="form"
+         (ngSubmit)="save()" class="add-entity-form">
+     <mat-toolbar class="flex flex-row" color="primary">
+       <h2>Assign device</h2>
+       <span class="flex-1"></span>
+       <button mat-icon-button (click)="cancel()" type="button">
+         <mat-icon>close</mat-icon>
+       </button>
+     </mat-toolbar>
+
+     <div mat-dialog-content class="flex flex-col">
+       <mat-form-field class="mat-block flex-1" appearance="outline">
+         <mat-label>Choose device</mat-label>
+         <mat-select formControlName="deviceId" required>
+           <mat-option *ngFor="let device of devices" [value]="device.id">
+             {{ device.name }}
+           </mat-option>
+         </mat-select>
+         <mat-error *ngIf="form.get('deviceId').hasError('required')">
+           You should select a device.
+         </mat-error>
+       </mat-form-field>
+     </div>
+
+     <div mat-dialog-actions class="flex flex-row items-center justify-end">
+       <button mat-button color="primary" type="button" (click)="cancel()">Cancel</button>
+       <button mat-raised-button color="primary" type="submit"
+               [disabled]="addEntityForm.invalid || !addEntityForm.dirty">
+         Assign
+       </button>
+     </div>
+   </form>
+   ```
+
+3. In the **Action function** tab, paste:
+
+   ```javascript
+   let $injector = widgetContext.$scope.$injector;
+   let customDialog = $injector.get(widgetContext.servicesMap.get('customDialog'));
+   let entityGroupService = $injector.get(widgetContext.servicesMap.get('entityGroupService'));
+   let entityRelationService = $injector.get(widgetContext.servicesMap.get('entityRelationService'));
+   let deviceService = $injector.get(widgetContext.servicesMap.get('deviceService'));
+   let params = widgetContext.stateController.getStateParams();
+
+   openAddEntityDialog();
+
+   function openAddEntityDialog() {
+       customDialog.customDialog(htmlTemplate, AddEntityDialogController).subscribe();
+   }
+
+   function AddEntityDialogController(instance) {
+       let vm = instance;
+
+       let assignedDeviceIds = widgetContext.datasources.map(function(x) { return x.entityId; }) || [];
+
+       deviceService.getAllDeviceInfos(false, widgetContext.pageLink(10000)).subscribe(function(response) {
+           if (response && response.data && response.data.length) {
+               vm.devices = response.data.filter(function(device) {
+                   return !assignedDeviceIds.includes(device.id.id);
+               });
+           }
+       });
+
+       vm.form = vm.fb.group({
+           deviceId: [null, [vm.validators.required]]
+       });
+
+       vm.cancel = function() {
+           vm.dialogRef.close(null);
+       };
+
+       vm.save = function() {
+           const selectedDeviceId = vm.form.value.deviceId;
+
+           entityRelationService.findByTo(selectedDeviceId).pipe(
+               widgetContext.rxjs.switchMap(function(relations) {
+                   let requests = [];
+
+                   if (relations && relations.length) {
+                       relations.forEach(function(relation) {
+                           requests.push(entityRelationService.deleteRelation(relation.from, relation.type, relation.to));
+                       });
+                   }
+
+                   requests.push(entityGroupService.changeEntityOwner(params.selectedCustomer.entityId, selectedDeviceId));
+                   requests.push(entityRelationService.saveRelation({
+                       from: params.selectedCustomer.entityId,
+                       to: selectedDeviceId,
+                       type: 'fromCustomerToDevice',
+                       typeGroup: 'COMMON'
+                   }));
+
+                   return widgetContext.rxjs.forkJoin(requests);
+               })
+           ).subscribe(function() {
+               widgetContext.updateAliases();
+               vm.dialogRef.close(null);
+           });
+       };
+   }
+   ```
+
+4. Save and apply the widget.
+</Steps>
+
+<Aside type="tip">
+`params.selectedCustomer` is the customer entity passed via dashboard state params — replace the key with whatever name your state controller uses for the parent entity. The device list is pre-filtered to exclude devices already present in the widget's datasource so the dropdown only shows unassigned ones.
+</Aside>
+
+---
+
+### Example 6: Upload image as telemetry
+
+**Use case:** You track physical assets (e.g. equipment, rooms, vehicles) and want operators to attach a photo from the dashboard — for example after an inspection or installation — and store it as a timestamped telemetry entry linked to the entity.
+
+A dialog with a `tb-image-input` picker that saves the selected image as an `image` telemetry entry — storing the encoded image data, filename, and the current user's name.
+
+<Steps>
+1. Add a **Custom action (with HTML template)** to any widget.
+
+2. In the **HTML template** tab, paste:
+
+   ```html
+   <form #editEntityForm="ngForm" [formGroup]="imageFormGroup"
+         (ngSubmit)="save()" class="add-entity-form">
+     <mat-toolbar class="flex flex-row" color="primary">
+       <h2>Upload image</h2>
+       <span class="flex-1"></span>
+       <button mat-icon-button (click)="cancel()" type="button">
+         <mat-icon>close</mat-icon>
+       </button>
+     </mat-toolbar>
+
+     <div mat-dialog-content class="flex-column-block">
+       <div class="flex-column-block gap-8">
+         <tb-image-input
+           label="{{'image.image-preview' | translate}}"
+           formControlName="image"
+           style="width: 100%"
+           [fileName]="data?.image?.fileName"
+           [showFileName]="true"
+           (fileNameChanged)="imageFileNameChanged($event)">
+         </tb-image-input>
+         {{data?.image?.fileName}}
+       </div>
+     </div>
+
+     <div mat-dialog-actions class="flex flex-row items-center justify-end">
+       <button mat-button color="primary" type="button" (click)="cancel()">Cancel</button>
+       <button mat-raised-button color="primary" type="submit"
+               [disabled]="editEntityForm.invalid || !editEntityForm.dirty">
+         Upload
+       </button>
+     </div>
+   </form>
+   ```
+
+3. In the **Action function** tab, paste:
+
+   ```javascript
+   let $injector = widgetContext.$scope.$injector;
+   let customDialog = $injector.get(widgetContext.servicesMap.get('customDialog'));
+   let attributeService = $injector.get(widgetContext.servicesMap.get('attributeService'));
+
+   openDialog();
+
+   function openDialog() {
+       customDialog.customDialog(htmlTemplate, DialogController).subscribe();
+   }
+
+   function DialogController(instance) {
+       let vm = instance;
+
+       vm.fileName = '';
+
+       vm.imageFormGroup = vm.fb.group({
+           image: ['', [vm.validators.required]]
+       });
+
+       vm.cancel = function() {
+           vm.dialogRef.close(null);
+       };
+
+       vm.imageFileNameChanged = function(event) {
+           vm.fileName = event;
+       };
+
+       vm.save = function() {
+           vm.imageFormGroup.markAsPristine();
+           let user = widgetContext.currentUser.firstName && widgetContext.currentUser.lastName ?
+               widgetContext.currentUser.firstName + ' ' + widgetContext.currentUser.lastName
+               : widgetContext.currentUser.sub;
+
+           let body = [{
+               key: 'image',
+               value: {
+                   image: vm.imageFormGroup.get('image').value,
+                   fileName: vm.fileName,
+                   user: user
+               }
+           }];
+
+           attributeService.saveEntityTimeseries(entityId, 'time', body).subscribe(
+               function() {
+                   widgetContext.$scope.showToast('success', 'Image uploaded',
+                       3000, 'top', 'right', 'details-layout');
+                   widgetContext.updateAliases();
+                   vm.dialogRef.close(null);
+               }
+           );
+       };
+   }
+   ```
+
+4. Save and apply the widget.
+</Steps>

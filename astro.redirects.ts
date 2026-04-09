@@ -8,4 +8,30 @@ export const redirects: AstroUserConfig['redirects'] = {
 	// For path-prefix renames use page files with getStaticPaths (see src/pages/docs/pe/).
 	// IMPORTANT: Do NOT add /docs/ redirects here — Starlight treats them as content pages
 	// and fails sidebar resolution. Use page-based redirects instead.
+
+	// Trendz
+	'/products/trendz/trndz-request-demo/': '/products/trendz/request-demo/',
+	'/images/trendz/trndz-request-demo/': '/products/trendz/request-demo/',
+
+	// PaaS
+	'/products/paas/billing-info/': '/docs/paas/user-guide/billing-info/',
+	'/products/paas/domains/': '/docs/paas/user-guide/security/domains/',
+	'/products/paas/subscription/': '/docs/paas/reference/subscriptions/',
+	'/products/paas/eu/subscription/': '/docs/paas/eu/reference/subscriptions/',
+	'/products/paas/what-is-thingsboard-cloud/': '/docs/paas/why-thingsboard/',
+	'/products/thingsboard-pe/install/': '/docs/pe/installation/',
+	'/products/thingsboard-pe/install/aws/': '/docs/pe/installation/aws-marketplace/',
+	'/products/thingsboard-pe/install-thanks/': '/contact-us-thanks/',
+
+	// License Server
+	'/products/license-server/': '/docs/license-server/what-is-license-server/',
+	'/products/license-server/billing-info/': '/docs/license-server/billing-info/',
+	'/products/license-server/subscription/': '/docs/license-server/subscription/',
+	'/products/license-server/perpetual/': '/docs/license-server/perpetual/',
+	'/products/license-server/instance/': '/docs/license-server/instance/',
+	'/products/license-server/user/': '/docs/license-server/user/',
+
+	// Services
+	'/services/development-services/customers-full-reviews/': '/services/development-services/',
+	'/iot-solutions/': '/services/development-services/',
 };

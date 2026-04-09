@@ -197,15 +197,18 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 		items: [
 			`${prefix}/contribution/rule-node-development`,
 			`${prefix}/scada-symbol-dev`,
+			`${prefix}/contribution/custom-action-development`,
 			{
 				label: 'Widget Development',
 				collapsed: true,
 				items: [
 					{ label: 'Overview', slug: `${prefix}/contribution/widgets-development` },
 					`${prefix}/contribution/widgets-development/latest-values`,
-					`${prefix}/contribution/widgets-development/embedded-chart`,
+					`${prefix}/contribution/widgets-development/time-series`,
 					`${prefix}/contribution/widgets-development/rpc-control`,
 					`${prefix}/contribution/widgets-development/alarm-widget`,
+					`${prefix}/contribution/widgets-development/static-widget`,
+					`${prefix}/contribution/widgets-development/custom-subscription`,
 					`${prefix}/contribution/widgets-development/widget-patterns`,
 					`${prefix}/contribution/widgets-development/advanced`,
 				],
@@ -317,15 +320,15 @@ const installationItems = (prefix: string) => {
 		{ label: 'Building from Sources', slug: `${prefix}/installation/building-from-source` },
 		...(isPE
 			? [
-					{
-						label: 'Upgrade',
-						collapsed: true,
-						items: [
-							`${prefix}/installation/upgrade-instructions`,
-							`${prefix}/installation/upgrade-from-ce`,
-						],
-					},
-				]
+				{
+					label: 'Upgrade',
+					collapsed: true,
+					items: [
+						`${prefix}/installation/upgrade-instructions`,
+						`${prefix}/installation/upgrade-from-ce`,
+					],
+				},
+			]
 			: [{ label: 'Upgrade instructions', slug: `${prefix}/installation/upgrade-instructions` }]),
 	];
 };
@@ -480,414 +483,414 @@ const apisAndSdksItems = (prefix: string) => [
 const paasReferenceItems = (prefix: string): SidebarConfig => {
 	const basePrefix = prefix.replace('/reference', '');
 	return [
-	{ label: 'Cloud Architecture', slug: `${prefix}/architecture` },
-	{
-		label: 'Rule Engine',
-		collapsed: true,
-		items: [
-			`${prefix}/rule-engine/message-types`,
-			`${prefix}/rule-engine/templatization`,
-			{
-				label: 'Rule Nodes',
-				collapsed: true,
-				items: [
-					{
-						label: 'Filter',
-						collapsed: true,
-						items: [
-							{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/filter` },
-							`${prefix}/rule-engine/nodes/filter/alarm-status-filter`,
-							`${prefix}/rule-engine/nodes/filter/asset-profile-switch`,
-							`${prefix}/rule-engine/nodes/filter/check-fields-presence`,
-							`${prefix}/rule-engine/nodes/filter/check-relation-presence`,
-							`${prefix}/rule-engine/nodes/filter/device-profile-switch`,
-							`${prefix}/rule-engine/nodes/filter/entity-type-filter`,
-							`${prefix}/rule-engine/nodes/filter/entity-type-switch`,
-							`${prefix}/rule-engine/nodes/filter/gps-geofencing-filter`,
-							`${prefix}/rule-engine/nodes/filter/message-type-filter`,
-							`${prefix}/rule-engine/nodes/filter/message-type-switch`,
-							`${prefix}/rule-engine/nodes/filter/script`,
-							`${prefix}/rule-engine/nodes/filter/switch`,
-						],
-					},
-					{
-						label: 'Enrichment',
-						collapsed: true,
-						items: [
-							{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/enrichment` },
-							`${prefix}/rule-engine/nodes/enrichment/calculate-delta`,
-							`${prefix}/rule-engine/nodes/enrichment/customer-attributes`,
-							`${prefix}/rule-engine/nodes/enrichment/customer-details`,
-							`${prefix}/rule-engine/nodes/enrichment/fetch-device-credentials`,
-							`${prefix}/rule-engine/nodes/enrichment/originator-attributes`,
-							`${prefix}/rule-engine/nodes/enrichment/originator-fields`,
-							`${prefix}/rule-engine/nodes/enrichment/originator-telemetry`,
-							`${prefix}/rule-engine/nodes/enrichment/related-device-attributes`,
-							`${prefix}/rule-engine/nodes/enrichment/related-entity-data`,
-							`${prefix}/rule-engine/nodes/enrichment/tenant-attributes`,
-							`${prefix}/rule-engine/nodes/enrichment/tenant-details`,
-						],
-					},
-					{
-						label: 'Transformation',
-						collapsed: true,
-						items: [
-							{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/transformation` },
-							`${prefix}/rule-engine/nodes/transformation/change-originator`,
-							`${prefix}/rule-engine/nodes/transformation/copy-key-value-pairs`,
-							`${prefix}/rule-engine/nodes/transformation/deduplication`,
-							`${prefix}/rule-engine/nodes/transformation/delete-key-value-pairs`,
-							`${prefix}/rule-engine/nodes/transformation/duplicate-to-group`,
-							`${prefix}/rule-engine/nodes/transformation/duplicate-to-group-by-name`,
-							`${prefix}/rule-engine/nodes/transformation/duplicate-to-related`,
-							`${prefix}/rule-engine/nodes/transformation/json-path`,
-							`${prefix}/rule-engine/nodes/transformation/rename-keys`,
-							`${prefix}/rule-engine/nodes/transformation/script`,
-							`${prefix}/rule-engine/nodes/transformation/split-array-msg`,
-							`${prefix}/rule-engine/nodes/transformation/to-email`,
-						],
-					},
-					{
-						label: 'Action',
-						collapsed: true,
-						items: [
-							{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/action` },
-							`${prefix}/rule-engine/nodes/action/add-to-group`,
-							`${prefix}/rule-engine/nodes/action/assign-to-customer`,
-							`${prefix}/rule-engine/nodes/action/calculated-fields`,
-							`${prefix}/rule-engine/nodes/action/change-owner`,
-							`${prefix}/rule-engine/nodes/action/clear-alarm`,
-							`${prefix}/rule-engine/nodes/action/copy-to-view`,
-							`${prefix}/rule-engine/nodes/action/create-alarm`,
-							`${prefix}/rule-engine/nodes/action/create-relation`,
-							`${prefix}/rule-engine/nodes/action/delay`,
-							`${prefix}/rule-engine/nodes/action/delete-attributes`,
-							`${prefix}/rule-engine/nodes/action/delete-relation`,
-							`${prefix}/rule-engine/nodes/action/device-profile`,
-							`${prefix}/rule-engine/nodes/action/device-state`,
-							`${prefix}/rule-engine/nodes/action/generate-dashboard-report`,
-							`${prefix}/rule-engine/nodes/action/generate-report`,
-							`${prefix}/rule-engine/nodes/action/generator`,
-							`${prefix}/rule-engine/nodes/action/gps-geofencing-events`,
-							`${prefix}/rule-engine/nodes/action/integration-downlink`,
-							`${prefix}/rule-engine/nodes/action/log`,
-							`${prefix}/rule-engine/nodes/action/math-function`,
-							`${prefix}/rule-engine/nodes/action/message-count`,
-							`${prefix}/rule-engine/nodes/action/push-to-cloud`,
-							`${prefix}/rule-engine/nodes/action/push-to-edge`,
-							`${prefix}/rule-engine/nodes/action/remove-from-group`,
-							`${prefix}/rule-engine/nodes/action/rest-call-reply`,
-							`${prefix}/rule-engine/nodes/action/rpc-call-reply`,
-							`${prefix}/rule-engine/nodes/action/rpc-call-request`,
-							`${prefix}/rule-engine/nodes/action/save-attributes`,
-							`${prefix}/rule-engine/nodes/action/save-timeseries`,
-							`${prefix}/rule-engine/nodes/action/save-to-custom-table`,
-							`${prefix}/rule-engine/nodes/action/unassign-from-customer`,
-						],
-					},
-					{
-						label: 'External',
-						collapsed: true,
-						items: [
-							{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/external` },
-							`${prefix}/rule-engine/nodes/external/ai-request`,
-							`${prefix}/rule-engine/nodes/external/aws-lambda`,
-							`${prefix}/rule-engine/nodes/external/aws-sns`,
-							`${prefix}/rule-engine/nodes/external/aws-sqs`,
-							`${prefix}/rule-engine/nodes/external/azure-iot-hub`,
-							`${prefix}/rule-engine/nodes/external/gcp-pubsub`,
-							`${prefix}/rule-engine/nodes/external/kafka`,
-							`${prefix}/rule-engine/nodes/external/mqtt`,
-							`${prefix}/rule-engine/nodes/external/rabbitmq`,
-							`${prefix}/rule-engine/nodes/external/rest-api-call`,
-							`${prefix}/rule-engine/nodes/external/send-email`,
-							`${prefix}/rule-engine/nodes/external/send-notification`,
-							`${prefix}/rule-engine/nodes/external/send-sms`,
-							`${prefix}/rule-engine/nodes/external/send-to-slack`,
-							`${prefix}/rule-engine/nodes/external/twilio-sms`,
-							`${prefix}/rule-engine/nodes/external/twilio-voice`,
-						],
-					},
-					{
-						label: 'Flow',
-						collapsed: true,
-						items: [
-							{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/flow` },
-							`${prefix}/rule-engine/nodes/flow/acknowledge`,
-							`${prefix}/rule-engine/nodes/flow/checkpoint`,
-							`${prefix}/rule-engine/nodes/flow/output`,
-							`${prefix}/rule-engine/nodes/flow/rule-chain`,
-						],
-					},
-					{
-						label: 'Analytics',
-						collapsed: true,
-						items: [
-							{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/analytics` },
-							`${prefix}/rule-engine/nodes/analytics/aggregate-latest`,
-							`${prefix}/rule-engine/nodes/analytics/aggregate-stream`,
-							`${prefix}/rule-engine/nodes/analytics/alarms-count`,
-						],
-					},
-				],
-			},
-		],
-	},
-	{
-		label: 'Notification System',
-		collapsed: true,
-		items: [
-			`${prefix}/notification-system/template-parameters`,
-			`${prefix}/notification-system/rule-triggers`,
-			`${basePrefix}/user-guide/ui/mail-settings`,
-			`${basePrefix}/user-guide/ui/sms-provider-settings`,
-			`${basePrefix}/user-guide/ui/slack-settings`,
-			`${basePrefix}/user-guide/ui/microsoft-teams-settings`,
-		],
-	},
-	{
-		label: 'TBEL',
-		collapsed: true,
-		items: [
-			{ label: 'Overview', slug: `${basePrefix}/user-guide/tbel` },
-			`${basePrefix}/user-guide/tbel/language-guide`,
-			`${basePrefix}/user-guide/tbel/helper-functions`,
-		],
-	},
-	{
-		label: 'Widgets',
-		collapsed: true,
-		items: [
-			`${prefix}/widgets/widget-library`,
-			`${prefix}/widgets/chart-widget`,
-			`${prefix}/widgets/map-widgets`,
-			`${prefix}/widgets/entity-table-widget`,
-			`${prefix}/widgets/markdown-html-card`,
-		],
-	},
-];
+		{ label: 'Cloud Architecture', slug: `${prefix}/architecture` },
+		{
+			label: 'Rule Engine',
+			collapsed: true,
+			items: [
+				`${prefix}/rule-engine/message-types`,
+				`${prefix}/rule-engine/templatization`,
+				{
+					label: 'Rule Nodes',
+					collapsed: true,
+					items: [
+						{
+							label: 'Filter',
+							collapsed: true,
+							items: [
+								{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/filter` },
+								`${prefix}/rule-engine/nodes/filter/alarm-status-filter`,
+								`${prefix}/rule-engine/nodes/filter/asset-profile-switch`,
+								`${prefix}/rule-engine/nodes/filter/check-fields-presence`,
+								`${prefix}/rule-engine/nodes/filter/check-relation-presence`,
+								`${prefix}/rule-engine/nodes/filter/device-profile-switch`,
+								`${prefix}/rule-engine/nodes/filter/entity-type-filter`,
+								`${prefix}/rule-engine/nodes/filter/entity-type-switch`,
+								`${prefix}/rule-engine/nodes/filter/gps-geofencing-filter`,
+								`${prefix}/rule-engine/nodes/filter/message-type-filter`,
+								`${prefix}/rule-engine/nodes/filter/message-type-switch`,
+								`${prefix}/rule-engine/nodes/filter/script`,
+								`${prefix}/rule-engine/nodes/filter/switch`,
+							],
+						},
+						{
+							label: 'Enrichment',
+							collapsed: true,
+							items: [
+								{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/enrichment` },
+								`${prefix}/rule-engine/nodes/enrichment/calculate-delta`,
+								`${prefix}/rule-engine/nodes/enrichment/customer-attributes`,
+								`${prefix}/rule-engine/nodes/enrichment/customer-details`,
+								`${prefix}/rule-engine/nodes/enrichment/fetch-device-credentials`,
+								`${prefix}/rule-engine/nodes/enrichment/originator-attributes`,
+								`${prefix}/rule-engine/nodes/enrichment/originator-fields`,
+								`${prefix}/rule-engine/nodes/enrichment/originator-telemetry`,
+								`${prefix}/rule-engine/nodes/enrichment/related-device-attributes`,
+								`${prefix}/rule-engine/nodes/enrichment/related-entity-data`,
+								`${prefix}/rule-engine/nodes/enrichment/tenant-attributes`,
+								`${prefix}/rule-engine/nodes/enrichment/tenant-details`,
+							],
+						},
+						{
+							label: 'Transformation',
+							collapsed: true,
+							items: [
+								{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/transformation` },
+								`${prefix}/rule-engine/nodes/transformation/change-originator`,
+								`${prefix}/rule-engine/nodes/transformation/copy-key-value-pairs`,
+								`${prefix}/rule-engine/nodes/transformation/deduplication`,
+								`${prefix}/rule-engine/nodes/transformation/delete-key-value-pairs`,
+								`${prefix}/rule-engine/nodes/transformation/duplicate-to-group`,
+								`${prefix}/rule-engine/nodes/transformation/duplicate-to-group-by-name`,
+								`${prefix}/rule-engine/nodes/transformation/duplicate-to-related`,
+								`${prefix}/rule-engine/nodes/transformation/json-path`,
+								`${prefix}/rule-engine/nodes/transformation/rename-keys`,
+								`${prefix}/rule-engine/nodes/transformation/script`,
+								`${prefix}/rule-engine/nodes/transformation/split-array-msg`,
+								`${prefix}/rule-engine/nodes/transformation/to-email`,
+							],
+						},
+						{
+							label: 'Action',
+							collapsed: true,
+							items: [
+								{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/action` },
+								`${prefix}/rule-engine/nodes/action/add-to-group`,
+								`${prefix}/rule-engine/nodes/action/assign-to-customer`,
+								`${prefix}/rule-engine/nodes/action/calculated-fields`,
+								`${prefix}/rule-engine/nodes/action/change-owner`,
+								`${prefix}/rule-engine/nodes/action/clear-alarm`,
+								`${prefix}/rule-engine/nodes/action/copy-to-view`,
+								`${prefix}/rule-engine/nodes/action/create-alarm`,
+								`${prefix}/rule-engine/nodes/action/create-relation`,
+								`${prefix}/rule-engine/nodes/action/delay`,
+								`${prefix}/rule-engine/nodes/action/delete-attributes`,
+								`${prefix}/rule-engine/nodes/action/delete-relation`,
+								`${prefix}/rule-engine/nodes/action/device-profile`,
+								`${prefix}/rule-engine/nodes/action/device-state`,
+								`${prefix}/rule-engine/nodes/action/generate-dashboard-report`,
+								`${prefix}/rule-engine/nodes/action/generate-report`,
+								`${prefix}/rule-engine/nodes/action/generator`,
+								`${prefix}/rule-engine/nodes/action/gps-geofencing-events`,
+								`${prefix}/rule-engine/nodes/action/integration-downlink`,
+								`${prefix}/rule-engine/nodes/action/log`,
+								`${prefix}/rule-engine/nodes/action/math-function`,
+								`${prefix}/rule-engine/nodes/action/message-count`,
+								`${prefix}/rule-engine/nodes/action/push-to-cloud`,
+								`${prefix}/rule-engine/nodes/action/push-to-edge`,
+								`${prefix}/rule-engine/nodes/action/remove-from-group`,
+								`${prefix}/rule-engine/nodes/action/rest-call-reply`,
+								`${prefix}/rule-engine/nodes/action/rpc-call-reply`,
+								`${prefix}/rule-engine/nodes/action/rpc-call-request`,
+								`${prefix}/rule-engine/nodes/action/save-attributes`,
+								`${prefix}/rule-engine/nodes/action/save-timeseries`,
+								`${prefix}/rule-engine/nodes/action/save-to-custom-table`,
+								`${prefix}/rule-engine/nodes/action/unassign-from-customer`,
+							],
+						},
+						{
+							label: 'External',
+							collapsed: true,
+							items: [
+								{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/external` },
+								`${prefix}/rule-engine/nodes/external/ai-request`,
+								`${prefix}/rule-engine/nodes/external/aws-lambda`,
+								`${prefix}/rule-engine/nodes/external/aws-sns`,
+								`${prefix}/rule-engine/nodes/external/aws-sqs`,
+								`${prefix}/rule-engine/nodes/external/azure-iot-hub`,
+								`${prefix}/rule-engine/nodes/external/gcp-pubsub`,
+								`${prefix}/rule-engine/nodes/external/kafka`,
+								`${prefix}/rule-engine/nodes/external/mqtt`,
+								`${prefix}/rule-engine/nodes/external/rabbitmq`,
+								`${prefix}/rule-engine/nodes/external/rest-api-call`,
+								`${prefix}/rule-engine/nodes/external/send-email`,
+								`${prefix}/rule-engine/nodes/external/send-notification`,
+								`${prefix}/rule-engine/nodes/external/send-sms`,
+								`${prefix}/rule-engine/nodes/external/send-to-slack`,
+								`${prefix}/rule-engine/nodes/external/twilio-sms`,
+								`${prefix}/rule-engine/nodes/external/twilio-voice`,
+							],
+						},
+						{
+							label: 'Flow',
+							collapsed: true,
+							items: [
+								{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/flow` },
+								`${prefix}/rule-engine/nodes/flow/acknowledge`,
+								`${prefix}/rule-engine/nodes/flow/checkpoint`,
+								`${prefix}/rule-engine/nodes/flow/output`,
+								`${prefix}/rule-engine/nodes/flow/rule-chain`,
+							],
+						},
+						{
+							label: 'Analytics',
+							collapsed: true,
+							items: [
+								{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/analytics` },
+								`${prefix}/rule-engine/nodes/analytics/aggregate-latest`,
+								`${prefix}/rule-engine/nodes/analytics/aggregate-stream`,
+								`${prefix}/rule-engine/nodes/analytics/alarms-count`,
+							],
+						},
+					],
+				},
+			],
+		},
+		{
+			label: 'Notification System',
+			collapsed: true,
+			items: [
+				`${prefix}/notification-system/template-parameters`,
+				`${prefix}/notification-system/rule-triggers`,
+				`${basePrefix}/user-guide/ui/mail-settings`,
+				`${basePrefix}/user-guide/ui/sms-provider-settings`,
+				`${basePrefix}/user-guide/ui/slack-settings`,
+				`${basePrefix}/user-guide/ui/microsoft-teams-settings`,
+			],
+		},
+		{
+			label: 'TBEL',
+			collapsed: true,
+			items: [
+				{ label: 'Overview', slug: `${basePrefix}/user-guide/tbel` },
+				`${basePrefix}/user-guide/tbel/language-guide`,
+				`${basePrefix}/user-guide/tbel/helper-functions`,
+			],
+		},
+		{
+			label: 'Widgets',
+			collapsed: true,
+			items: [
+				`${prefix}/widgets/widget-library`,
+				`${prefix}/widgets/chart-widget`,
+				`${prefix}/widgets/map-widgets`,
+				`${prefix}/widgets/entity-table-widget`,
+				`${prefix}/widgets/markdown-html-card`,
+			],
+		},
+	];
 };
 
 const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) => {
 	const basePrefix = prefix.replace('/reference', '');
 	return [
-	{
-		label: 'Architecture',
-		collapsed: true,
-		items: [
-			{ label: 'Overview', slug: `${prefix}/architecture` },
-			`${prefix}/architecture/monolithic`,
-			`${prefix}/architecture/microservices`,
-			`${prefix}/architecture/queue`,
-			`${prefix}/architecture/actor-system`,
-			`${prefix}/architecture/caching`,
-			`${prefix}/architecture/database`,
-			`${prefix}/architecture/deployment-scenarios`,
-			`${prefix}/architecture/performance`,
-		],
-	},
-	{
-		label: 'Configuration',
-		collapsed: true,
-		items: [
-			`${prefix}/configuration/how-to-change-config`,
-			`${prefix}/configuration/core-rule-engine-config`,
-			`${prefix}/configuration/http-transport-config`,
-			`${prefix}/configuration/mqtt-transport-config`,
-			`${prefix}/configuration/coap-transport-config`,
-			`${prefix}/configuration/lwm2m-transport-config`,
-			`${prefix}/configuration/snmp-transport-config`,
-			`${prefix}/configuration/vc-executor-config`,
-			`${prefix}/configuration/js-executor-config`,
-			...extraConfigItems,
-		],
-	},
-	{
-		label: 'Rule Engine',
-		collapsed: true,
-		items: [
-			`${prefix}/rule-engine/message-types`,
-			`${prefix}/rule-engine/templatization`,
-			{
-				label: 'Rule Nodes',
-				collapsed: true,
-				items: [
-					{
-						label: 'Filter',
-						collapsed: true,
-						items: [
-							{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/filter` },
-							`${prefix}/rule-engine/nodes/filter/alarm-status-filter`,
-							`${prefix}/rule-engine/nodes/filter/asset-profile-switch`,
-							`${prefix}/rule-engine/nodes/filter/check-fields-presence`,
-							`${prefix}/rule-engine/nodes/filter/check-relation-presence`,
-							`${prefix}/rule-engine/nodes/filter/device-profile-switch`,
-							`${prefix}/rule-engine/nodes/filter/entity-type-filter`,
-							`${prefix}/rule-engine/nodes/filter/entity-type-switch`,
-							`${prefix}/rule-engine/nodes/filter/gps-geofencing-filter`,
-							`${prefix}/rule-engine/nodes/filter/message-type-filter`,
-							`${prefix}/rule-engine/nodes/filter/message-type-switch`,
-							`${prefix}/rule-engine/nodes/filter/script`,
-							`${prefix}/rule-engine/nodes/filter/switch`,
-						],
-					},
-					{
-						label: 'Enrichment',
-						collapsed: true,
-						items: [
-							{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/enrichment` },
-							`${prefix}/rule-engine/nodes/enrichment/calculate-delta`,
-							`${prefix}/rule-engine/nodes/enrichment/customer-attributes`,
-							`${prefix}/rule-engine/nodes/enrichment/customer-details`,
-							`${prefix}/rule-engine/nodes/enrichment/fetch-device-credentials`,
-							`${prefix}/rule-engine/nodes/enrichment/originator-attributes`,
-							`${prefix}/rule-engine/nodes/enrichment/originator-fields`,
-							`${prefix}/rule-engine/nodes/enrichment/originator-telemetry`,
-							`${prefix}/rule-engine/nodes/enrichment/related-device-attributes`,
-							`${prefix}/rule-engine/nodes/enrichment/related-entity-data`,
-							`${prefix}/rule-engine/nodes/enrichment/tenant-attributes`,
-							`${prefix}/rule-engine/nodes/enrichment/tenant-details`,
-						],
-					},
-					{
-						label: 'Transformation',
-						collapsed: true,
-						items: [
-							{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/transformation` },
-							`${prefix}/rule-engine/nodes/transformation/change-originator`,
-							`${prefix}/rule-engine/nodes/transformation/copy-key-value-pairs`,
-							`${prefix}/rule-engine/nodes/transformation/deduplication`,
-							`${prefix}/rule-engine/nodes/transformation/delete-key-value-pairs`,
-							`${prefix}/rule-engine/nodes/transformation/duplicate-to-group`,
-							`${prefix}/rule-engine/nodes/transformation/duplicate-to-group-by-name`,
-							`${prefix}/rule-engine/nodes/transformation/duplicate-to-related`,
-							`${prefix}/rule-engine/nodes/transformation/json-path`,
-							`${prefix}/rule-engine/nodes/transformation/rename-keys`,
-							`${prefix}/rule-engine/nodes/transformation/script`,
-							`${prefix}/rule-engine/nodes/transformation/split-array-msg`,
-							`${prefix}/rule-engine/nodes/transformation/to-email`,
-						],
-					},
-					{
-						label: 'Action',
-						collapsed: true,
-						items: [
-							{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/action` },
-							`${prefix}/rule-engine/nodes/action/add-to-group`,
-							`${prefix}/rule-engine/nodes/action/assign-to-customer`,
-							`${prefix}/rule-engine/nodes/action/calculated-fields`,
-							`${prefix}/rule-engine/nodes/action/change-owner`,
-							`${prefix}/rule-engine/nodes/action/clear-alarm`,
-							`${prefix}/rule-engine/nodes/action/copy-to-view`,
-							`${prefix}/rule-engine/nodes/action/create-alarm`,
-							`${prefix}/rule-engine/nodes/action/create-relation`,
-							`${prefix}/rule-engine/nodes/action/delay`,
-							`${prefix}/rule-engine/nodes/action/delete-attributes`,
-							`${prefix}/rule-engine/nodes/action/delete-relation`,
-							`${prefix}/rule-engine/nodes/action/device-profile`,
-							`${prefix}/rule-engine/nodes/action/device-state`,
-							`${prefix}/rule-engine/nodes/action/generate-dashboard-report`,
-							`${prefix}/rule-engine/nodes/action/generate-report`,
-							`${prefix}/rule-engine/nodes/action/generator`,
-							`${prefix}/rule-engine/nodes/action/gps-geofencing-events`,
-							`${prefix}/rule-engine/nodes/action/integration-downlink`,
-							`${prefix}/rule-engine/nodes/action/log`,
-							`${prefix}/rule-engine/nodes/action/math-function`,
-							`${prefix}/rule-engine/nodes/action/message-count`,
-							`${prefix}/rule-engine/nodes/action/push-to-cloud`,
-							`${prefix}/rule-engine/nodes/action/push-to-edge`,
-							`${prefix}/rule-engine/nodes/action/remove-from-group`,
-							`${prefix}/rule-engine/nodes/action/rest-call-reply`,
-							`${prefix}/rule-engine/nodes/action/rpc-call-reply`,
-							`${prefix}/rule-engine/nodes/action/rpc-call-request`,
-							`${prefix}/rule-engine/nodes/action/save-attributes`,
-							`${prefix}/rule-engine/nodes/action/save-timeseries`,
-							`${prefix}/rule-engine/nodes/action/save-to-custom-table`,
-							`${prefix}/rule-engine/nodes/action/unassign-from-customer`,
-						],
-					},
-					{
-						label: 'External',
-						collapsed: true,
-						items: [
-							{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/external` },
-							`${prefix}/rule-engine/nodes/external/ai-request`,
-							`${prefix}/rule-engine/nodes/external/aws-lambda`,
-							`${prefix}/rule-engine/nodes/external/aws-sns`,
-							`${prefix}/rule-engine/nodes/external/aws-sqs`,
-							`${prefix}/rule-engine/nodes/external/azure-iot-hub`,
-							`${prefix}/rule-engine/nodes/external/gcp-pubsub`,
-							`${prefix}/rule-engine/nodes/external/kafka`,
-							`${prefix}/rule-engine/nodes/external/mqtt`,
-							`${prefix}/rule-engine/nodes/external/rabbitmq`,
-							`${prefix}/rule-engine/nodes/external/rest-api-call`,
-							`${prefix}/rule-engine/nodes/external/send-email`,
-							`${prefix}/rule-engine/nodes/external/send-notification`,
-							`${prefix}/rule-engine/nodes/external/send-sms`,
-							`${prefix}/rule-engine/nodes/external/send-to-slack`,
-							`${prefix}/rule-engine/nodes/external/twilio-sms`,
-							`${prefix}/rule-engine/nodes/external/twilio-voice`,
-						],
-					},
-					{
-						label: 'Flow',
-						collapsed: true,
-						items: [
-							{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/flow` },
-							`${prefix}/rule-engine/nodes/flow/acknowledge`,
-							`${prefix}/rule-engine/nodes/flow/checkpoint`,
-							`${prefix}/rule-engine/nodes/flow/output`,
-							`${prefix}/rule-engine/nodes/flow/rule-chain`,
-						],
-					},
-					{
-						label: 'Analytics',
-						collapsed: true,
-						items: [
-							{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/analytics` },
-							`${prefix}/rule-engine/nodes/analytics/aggregate-latest`,
-							`${prefix}/rule-engine/nodes/analytics/aggregate-stream`,
-							`${prefix}/rule-engine/nodes/analytics/alarms-count`,
-						],
-					},
-				],
-			},
-		],
-	},
-	{
-		label: 'Notification System',
-		collapsed: true,
-		items: [
-			`${prefix}/notification-system/template-parameters`,
-			`${prefix}/notification-system/rule-triggers`,
-			`${basePrefix}/user-guide/ui/mail-settings`,
-			`${basePrefix}/user-guide/ui/sms-provider-settings`,
-			`${basePrefix}/user-guide/ui/slack-settings`,
-			`${basePrefix}/user-guide/ui/microsoft-teams-settings`,
-		],
-	},
-	{
-		label: 'TBEL',
-		collapsed: true,
-		items: [
-			{ label: 'Overview', slug: `${basePrefix}/user-guide/tbel` },
-			`${basePrefix}/user-guide/tbel/language-guide`,
-			`${basePrefix}/user-guide/tbel/helper-functions`,
-		],
-	},
-	{
-		label: 'Widgets',
-		collapsed: true,
-		items: [
-			`${prefix}/widgets/widget-library`,
-			`${prefix}/widgets/chart-widget`,
-			`${prefix}/widgets/map-widgets`,
-			`${prefix}/widgets/entity-table-widget`,
-			`${prefix}/widgets/markdown-html-card`,
-			`${prefix}/widgets/widget-api`,
-		],
-	},
-];
+		{
+			label: 'Architecture',
+			collapsed: true,
+			items: [
+				{ label: 'Overview', slug: `${prefix}/architecture` },
+				`${prefix}/architecture/monolithic`,
+				`${prefix}/architecture/microservices`,
+				`${prefix}/architecture/queue`,
+				`${prefix}/architecture/actor-system`,
+				`${prefix}/architecture/caching`,
+				`${prefix}/architecture/database`,
+				`${prefix}/architecture/deployment-scenarios`,
+				`${prefix}/architecture/performance`,
+			],
+		},
+		{
+			label: 'Configuration',
+			collapsed: true,
+			items: [
+				`${prefix}/configuration/how-to-change-config`,
+				`${prefix}/configuration/core-rule-engine-config`,
+				`${prefix}/configuration/http-transport-config`,
+				`${prefix}/configuration/mqtt-transport-config`,
+				`${prefix}/configuration/coap-transport-config`,
+				`${prefix}/configuration/lwm2m-transport-config`,
+				`${prefix}/configuration/snmp-transport-config`,
+				`${prefix}/configuration/vc-executor-config`,
+				`${prefix}/configuration/js-executor-config`,
+				...extraConfigItems,
+			],
+		},
+		{
+			label: 'Rule Engine',
+			collapsed: true,
+			items: [
+				`${prefix}/rule-engine/message-types`,
+				`${prefix}/rule-engine/templatization`,
+				{
+					label: 'Rule Nodes',
+					collapsed: true,
+					items: [
+						{
+							label: 'Filter',
+							collapsed: true,
+							items: [
+								{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/filter` },
+								`${prefix}/rule-engine/nodes/filter/alarm-status-filter`,
+								`${prefix}/rule-engine/nodes/filter/asset-profile-switch`,
+								`${prefix}/rule-engine/nodes/filter/check-fields-presence`,
+								`${prefix}/rule-engine/nodes/filter/check-relation-presence`,
+								`${prefix}/rule-engine/nodes/filter/device-profile-switch`,
+								`${prefix}/rule-engine/nodes/filter/entity-type-filter`,
+								`${prefix}/rule-engine/nodes/filter/entity-type-switch`,
+								`${prefix}/rule-engine/nodes/filter/gps-geofencing-filter`,
+								`${prefix}/rule-engine/nodes/filter/message-type-filter`,
+								`${prefix}/rule-engine/nodes/filter/message-type-switch`,
+								`${prefix}/rule-engine/nodes/filter/script`,
+								`${prefix}/rule-engine/nodes/filter/switch`,
+							],
+						},
+						{
+							label: 'Enrichment',
+							collapsed: true,
+							items: [
+								{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/enrichment` },
+								`${prefix}/rule-engine/nodes/enrichment/calculate-delta`,
+								`${prefix}/rule-engine/nodes/enrichment/customer-attributes`,
+								`${prefix}/rule-engine/nodes/enrichment/customer-details`,
+								`${prefix}/rule-engine/nodes/enrichment/fetch-device-credentials`,
+								`${prefix}/rule-engine/nodes/enrichment/originator-attributes`,
+								`${prefix}/rule-engine/nodes/enrichment/originator-fields`,
+								`${prefix}/rule-engine/nodes/enrichment/originator-telemetry`,
+								`${prefix}/rule-engine/nodes/enrichment/related-device-attributes`,
+								`${prefix}/rule-engine/nodes/enrichment/related-entity-data`,
+								`${prefix}/rule-engine/nodes/enrichment/tenant-attributes`,
+								`${prefix}/rule-engine/nodes/enrichment/tenant-details`,
+							],
+						},
+						{
+							label: 'Transformation',
+							collapsed: true,
+							items: [
+								{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/transformation` },
+								`${prefix}/rule-engine/nodes/transformation/change-originator`,
+								`${prefix}/rule-engine/nodes/transformation/copy-key-value-pairs`,
+								`${prefix}/rule-engine/nodes/transformation/deduplication`,
+								`${prefix}/rule-engine/nodes/transformation/delete-key-value-pairs`,
+								`${prefix}/rule-engine/nodes/transformation/duplicate-to-group`,
+								`${prefix}/rule-engine/nodes/transformation/duplicate-to-group-by-name`,
+								`${prefix}/rule-engine/nodes/transformation/duplicate-to-related`,
+								`${prefix}/rule-engine/nodes/transformation/json-path`,
+								`${prefix}/rule-engine/nodes/transformation/rename-keys`,
+								`${prefix}/rule-engine/nodes/transformation/script`,
+								`${prefix}/rule-engine/nodes/transformation/split-array-msg`,
+								`${prefix}/rule-engine/nodes/transformation/to-email`,
+							],
+						},
+						{
+							label: 'Action',
+							collapsed: true,
+							items: [
+								{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/action` },
+								`${prefix}/rule-engine/nodes/action/add-to-group`,
+								`${prefix}/rule-engine/nodes/action/assign-to-customer`,
+								`${prefix}/rule-engine/nodes/action/calculated-fields`,
+								`${prefix}/rule-engine/nodes/action/change-owner`,
+								`${prefix}/rule-engine/nodes/action/clear-alarm`,
+								`${prefix}/rule-engine/nodes/action/copy-to-view`,
+								`${prefix}/rule-engine/nodes/action/create-alarm`,
+								`${prefix}/rule-engine/nodes/action/create-relation`,
+								`${prefix}/rule-engine/nodes/action/delay`,
+								`${prefix}/rule-engine/nodes/action/delete-attributes`,
+								`${prefix}/rule-engine/nodes/action/delete-relation`,
+								`${prefix}/rule-engine/nodes/action/device-profile`,
+								`${prefix}/rule-engine/nodes/action/device-state`,
+								`${prefix}/rule-engine/nodes/action/generate-dashboard-report`,
+								`${prefix}/rule-engine/nodes/action/generate-report`,
+								`${prefix}/rule-engine/nodes/action/generator`,
+								`${prefix}/rule-engine/nodes/action/gps-geofencing-events`,
+								`${prefix}/rule-engine/nodes/action/integration-downlink`,
+								`${prefix}/rule-engine/nodes/action/log`,
+								`${prefix}/rule-engine/nodes/action/math-function`,
+								`${prefix}/rule-engine/nodes/action/message-count`,
+								`${prefix}/rule-engine/nodes/action/push-to-cloud`,
+								`${prefix}/rule-engine/nodes/action/push-to-edge`,
+								`${prefix}/rule-engine/nodes/action/remove-from-group`,
+								`${prefix}/rule-engine/nodes/action/rest-call-reply`,
+								`${prefix}/rule-engine/nodes/action/rpc-call-reply`,
+								`${prefix}/rule-engine/nodes/action/rpc-call-request`,
+								`${prefix}/rule-engine/nodes/action/save-attributes`,
+								`${prefix}/rule-engine/nodes/action/save-timeseries`,
+								`${prefix}/rule-engine/nodes/action/save-to-custom-table`,
+								`${prefix}/rule-engine/nodes/action/unassign-from-customer`,
+							],
+						},
+						{
+							label: 'External',
+							collapsed: true,
+							items: [
+								{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/external` },
+								`${prefix}/rule-engine/nodes/external/ai-request`,
+								`${prefix}/rule-engine/nodes/external/aws-lambda`,
+								`${prefix}/rule-engine/nodes/external/aws-sns`,
+								`${prefix}/rule-engine/nodes/external/aws-sqs`,
+								`${prefix}/rule-engine/nodes/external/azure-iot-hub`,
+								`${prefix}/rule-engine/nodes/external/gcp-pubsub`,
+								`${prefix}/rule-engine/nodes/external/kafka`,
+								`${prefix}/rule-engine/nodes/external/mqtt`,
+								`${prefix}/rule-engine/nodes/external/rabbitmq`,
+								`${prefix}/rule-engine/nodes/external/rest-api-call`,
+								`${prefix}/rule-engine/nodes/external/send-email`,
+								`${prefix}/rule-engine/nodes/external/send-notification`,
+								`${prefix}/rule-engine/nodes/external/send-sms`,
+								`${prefix}/rule-engine/nodes/external/send-to-slack`,
+								`${prefix}/rule-engine/nodes/external/twilio-sms`,
+								`${prefix}/rule-engine/nodes/external/twilio-voice`,
+							],
+						},
+						{
+							label: 'Flow',
+							collapsed: true,
+							items: [
+								{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/flow` },
+								`${prefix}/rule-engine/nodes/flow/acknowledge`,
+								`${prefix}/rule-engine/nodes/flow/checkpoint`,
+								`${prefix}/rule-engine/nodes/flow/output`,
+								`${prefix}/rule-engine/nodes/flow/rule-chain`,
+							],
+						},
+						{
+							label: 'Analytics',
+							collapsed: true,
+							items: [
+								{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/analytics` },
+								`${prefix}/rule-engine/nodes/analytics/aggregate-latest`,
+								`${prefix}/rule-engine/nodes/analytics/aggregate-stream`,
+								`${prefix}/rule-engine/nodes/analytics/alarms-count`,
+							],
+						},
+					],
+				},
+			],
+		},
+		{
+			label: 'Notification System',
+			collapsed: true,
+			items: [
+				`${prefix}/notification-system/template-parameters`,
+				`${prefix}/notification-system/rule-triggers`,
+				`${basePrefix}/user-guide/ui/mail-settings`,
+				`${basePrefix}/user-guide/ui/sms-provider-settings`,
+				`${basePrefix}/user-guide/ui/slack-settings`,
+				`${basePrefix}/user-guide/ui/microsoft-teams-settings`,
+			],
+		},
+		{
+			label: 'TBEL',
+			collapsed: true,
+			items: [
+				{ label: 'Overview', slug: `${basePrefix}/user-guide/tbel` },
+				`${basePrefix}/user-guide/tbel/language-guide`,
+				`${basePrefix}/user-guide/tbel/helper-functions`,
+			],
+		},
+		{
+			label: 'Widgets',
+			collapsed: true,
+			items: [
+				`${prefix}/widgets/widget-library`,
+				`${prefix}/widgets/chart-widget`,
+				`${prefix}/widgets/map-widgets`,
+				`${prefix}/widgets/entity-table-widget`,
+				`${prefix}/widgets/markdown-html-card`,
+				`${prefix}/widgets/widget-api`,
+			],
+		},
+	];
 };
 
 const mainSidebarItems = (prefix: string, extraRecipeItems: SidebarConfig = [], referenceConfigItems: SidebarConfig = []): SidebarConfig => [
@@ -990,6 +993,26 @@ export const peSidebar: SidebarConfig = mainSidebarItems('docs/pe', [
 		collapsed: true,
 		items: [
 			'docs/pe/user-guide/advanced-guides-for-working-with-dashboard',
+    ],
+	},
+	{
+		label: 'Solution Templates',
+		collapsed: true,
+		items: [
+			'docs/pe/recipes/solution-templates/overview',
+			'docs/pe/recipes/solution-templates/temperature-humidity-sensors',
+			'docs/pe/recipes/solution-templates/smart-office',
+			'docs/pe/recipes/solution-templates/site-fleet-tracking',
+			'docs/pe/recipes/solution-templates/fuel-level-monitoring',
+			'docs/pe/recipes/solution-templates/swimming-pool-scada-system',
+			'docs/pe/recipes/solution-templates/scada-drilling-system',
+			'docs/pe/recipes/solution-templates/scada-energy-management',
+			'docs/pe/recipes/solution-templates/air-quality-monitoring',
+			'docs/pe/recipes/solution-templates/water-metering',
+			'docs/pe/recipes/solution-templates/smart-retail',
+			'docs/pe/recipes/solution-templates/smart-irrigation',
+			'docs/pe/recipes/solution-templates/assisted-living',
+			'docs/pe/recipes/solution-templates/waste-management',
 		],
 	},
 ], [
@@ -1278,6 +1301,26 @@ export const paasSidebar: SidebarConfig = [
 				collapsed: true,
 				items: [
 					'docs/paas/user-guide/advanced-guides-for-working-with-dashboard',
+        ],
+	    },
+	    {
+				label: 'Solution Templates',
+				collapsed: true,
+				items: [
+					'docs/paas/recipes/solution-templates/overview',
+					'docs/paas/recipes/solution-templates/temperature-humidity-sensors',
+					'docs/paas/recipes/solution-templates/smart-office',
+					'docs/paas/recipes/solution-templates/site-fleet-tracking',
+					'docs/paas/recipes/solution-templates/fuel-level-monitoring',
+					'docs/paas/recipes/solution-templates/swimming-pool-scada-system',
+					'docs/paas/recipes/solution-templates/scada-drilling-system',
+					'docs/paas/recipes/solution-templates/scada-energy-management',
+					'docs/paas/recipes/solution-templates/air-quality-monitoring',
+					'docs/paas/recipes/solution-templates/water-metering',
+					'docs/paas/recipes/solution-templates/smart-retail',
+					'docs/paas/recipes/solution-templates/smart-irrigation',
+					'docs/paas/recipes/solution-templates/assisted-living',
+					'docs/paas/recipes/solution-templates/waste-management',
 				],
 			},
 		],
@@ -1577,6 +1620,26 @@ export const paasEuSidebar: SidebarConfig = [
 				collapsed: true,
 				items: [
 					'docs/paas/eu/user-guide/advanced-guides-for-working-with-dashboard',
+       ],
+			},
+			{
+				label: 'Solution Templates',
+				collapsed: true,
+				items: [
+					'docs/paas/eu/recipes/solution-templates/overview',
+					'docs/paas/eu/recipes/solution-templates/temperature-humidity-sensors',
+					'docs/paas/eu/recipes/solution-templates/smart-office',
+					'docs/paas/eu/recipes/solution-templates/site-fleet-tracking',
+					'docs/paas/eu/recipes/solution-templates/fuel-level-monitoring',
+					'docs/paas/eu/recipes/solution-templates/swimming-pool-scada-system',
+					'docs/paas/eu/recipes/solution-templates/scada-drilling-system',
+					'docs/paas/eu/recipes/solution-templates/scada-energy-management',
+					'docs/paas/eu/recipes/solution-templates/air-quality-monitoring',
+					'docs/paas/eu/recipes/solution-templates/water-metering',
+					'docs/paas/eu/recipes/solution-templates/smart-retail',
+					'docs/paas/eu/recipes/solution-templates/smart-irrigation',
+					'docs/paas/eu/recipes/solution-templates/assisted-living',
+					'docs/paas/eu/recipes/solution-templates/waste-management',
 				],
 			},
 		],
@@ -2432,14 +2495,8 @@ export const gwSidebar: SidebarConfig = [
 		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
 		items: [
-			{
-				label: 'What is ThingsBoard IoT Gateway?',
-				items: [
-					'docs/iot-gateway/architecture',
-					'docs/iot-gateway/features-overview',
-					'docs/iot-gateway/getting-started',
-				],
-			},
+			'docs/iot-gateway/getting-started',
+			'docs/iot-gateway/what-is-thingsboard-iot-gateway',
 		],
 	},
 	{
@@ -2538,11 +2595,11 @@ const tbmqGuideItems = (prefix: string): SidebarConfig => {
 				},
 				...(isPE
 					? [
-							{ label: 'OAuth 2.0', slug: `${prefix}/security/oauth-2-support` },
-							{ label: 'Domains', slug: `${prefix}/security/domains` },
-							{ label: 'Role-based access control', slug: `${prefix}/security/rbac` },
-							{ label: 'Audit logs', slug: `${prefix}/security/audit-log` },
-						]
+						{ label: 'OAuth 2.0', slug: `${prefix}/security/oauth-2-support` },
+						{ label: 'Domains', slug: `${prefix}/security/domains` },
+						{ label: 'Role-based access control', slug: `${prefix}/security/rbac` },
+						{ label: 'Audit logs', slug: `${prefix}/security/audit-log` },
+					]
 					: []),
 			],
 		},
@@ -2603,16 +2660,16 @@ const tbmqGuideItems = (prefix: string): SidebarConfig => {
 		},
 		...(isPE
 			? [
-					{
-						label: 'White Labeling',
-						collapsed: true,
-						items: [
-							{ label: 'Overview', slug: `${prefix}/white-labeling` },
-							{ label: 'Image gallery', slug: `${prefix}/image-gallery` },
-						],
-					},
-					{ label: 'Private Cloud subscription', slug: `${prefix}/subscription` },
-				]
+				{
+					label: 'White Labeling',
+					collapsed: true,
+					items: [
+						{ label: 'Overview', slug: `${prefix}/white-labeling` },
+						{ label: 'Image gallery', slug: `${prefix}/image-gallery` },
+					],
+				},
+				{ label: 'Private Cloud subscription', slug: `${prefix}/subscription` },
+			]
 			: []),
 	];
 };
@@ -2620,41 +2677,41 @@ const tbmqGuideItems = (prefix: string): SidebarConfig => {
 const tbmqInstallItems = (prefix: string): SidebarConfig => {
 	const isPE = prefix.includes('/pe');
 	return [
-	{ label: 'Live demo', slug: `${prefix}/install/live-demo` },
-	{
-		label: 'On-premises',
-		collapsed: true,
-		items: [
-			{
-				label: 'Standalone',
-				collapsed: true,
-				items: [
-					{ label: 'Docker (Linux & macOS)', slug: `${prefix}/install/docker` },
-					{ label: 'Docker (Windows)', slug: `${prefix}/install/docker-windows` },
-					...(!isPE ? [{ label: 'Building from source', slug: `${prefix}/install/building-from-source` }] : []),
-				],
-			},
-			{
-				label: 'Cluster',
-				collapsed: true,
-				items: [
-					{ label: 'Docker Compose', slug: `${prefix}/install/cluster/docker-compose-setup` },
-					{ label: 'Minikube', slug: `${prefix}/install/cluster/minikube-cluster-setup` },
-				],
-			},
-		],
-	},
-	{
-		label: 'Cloud',
-		collapsed: true,
-		items: [
-			{ label: 'AWS', slug: `${prefix}/install/cluster/aws-cluster-setup` },
-			{ label: 'Azure', slug: `${prefix}/install/cluster/azure-cluster-setup` },
-			{ label: 'GCP', slug: `${prefix}/install/cluster/gcp-cluster-setup` },
-		],
-	},
-	...(!isPE
-		? [
+		{ label: 'Live demo', slug: `${prefix}/install/live-demo` },
+		{
+			label: 'On-premises',
+			collapsed: true,
+			items: [
+				{
+					label: 'Standalone',
+					collapsed: true,
+					items: [
+						{ label: 'Docker (Linux & macOS)', slug: `${prefix}/install/docker` },
+						{ label: 'Docker (Windows)', slug: `${prefix}/install/docker-windows` },
+						...(!isPE ? [{ label: 'Building from source', slug: `${prefix}/install/building-from-source` }] : []),
+					],
+				},
+				{
+					label: 'Cluster',
+					collapsed: true,
+					items: [
+						{ label: 'Docker Compose', slug: `${prefix}/install/cluster/docker-compose-setup` },
+						{ label: 'Minikube', slug: `${prefix}/install/cluster/minikube-cluster-setup` },
+					],
+				},
+			],
+		},
+		{
+			label: 'Cloud',
+			collapsed: true,
+			items: [
+				{ label: 'AWS', slug: `${prefix}/install/cluster/aws-cluster-setup` },
+				{ label: 'Azure', slug: `${prefix}/install/cluster/azure-cluster-setup` },
+				{ label: 'GCP', slug: `${prefix}/install/cluster/gcp-cluster-setup` },
+			],
+		},
+		...(!isPE
+			? [
 				{
 					label: 'Helm',
 					collapsed: true,
@@ -2666,8 +2723,8 @@ const tbmqInstallItems = (prefix: string): SidebarConfig => {
 					],
 				},
 			]
-		: []),
-	{ label: 'Upgrade instructions', slug: `${prefix}/install/upgrade-instructions` },
+			: []),
+		{ label: 'Upgrade instructions', slug: `${prefix}/install/upgrade-instructions` },
 	];
 };
 
@@ -2728,7 +2785,7 @@ const tbmqReferenceItems = (prefix: string): SidebarConfig => [
 /** TBMQ Community Broker sidebar (pages at /docs/mqtt-broker/) */
 export const tbmqSidebar: SidebarConfig = [
 	{
-		label: 'Getting started',
+		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
 		items: [
 			{
@@ -2736,7 +2793,7 @@ export const tbmqSidebar: SidebarConfig = [
 				translations: { uk: 'Новий проєкт' },
 				items: [
 					{ label: 'Why TBMQ?', slug: 'docs/mqtt-broker/why-tbmq' },
-					{ label: 'Getting started', slug: 'docs/mqtt-broker/getting-started' },
+					{ label: 'Getting Started', slug: 'docs/mqtt-broker/getting-started' },
 				],
 			},
 			{
@@ -2780,7 +2837,7 @@ export const tbmqSidebar: SidebarConfig = [
 /** TBMQ PE Broker sidebar (pages at /docs/mqtt-broker/pe/) */
 export const tbmqPeSidebar: SidebarConfig = [
 	{
-		label: 'Getting started',
+		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
 		items: [
 			{
@@ -2788,7 +2845,7 @@ export const tbmqPeSidebar: SidebarConfig = [
 				translations: { uk: 'Новий проєкт' },
 				items: [
 					{ label: 'Why TBMQ?', slug: 'docs/mqtt-broker/pe/why-tbmq' },
-					{ label: 'Getting started', slug: 'docs/mqtt-broker/pe/getting-started' },
+					{ label: 'Getting Started', slug: 'docs/mqtt-broker/pe/getting-started' },
 				],
 			},
 			{
@@ -3156,7 +3213,24 @@ export const licenseSidebar: SidebarConfig = [
 	{
 		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
-		items: ['docs/license-server'],
+		items: ['docs/license-server', 'docs/license-server/what-is-license-server'],
+	},
+	{
+		label: 'License Management',
+		translations: { uk: 'Управління ліцензіями' },
+		items: [
+			'docs/license-server/subscription',
+			'docs/license-server/perpetual',
+			'docs/license-server/instance',
+		],
+	},
+	{
+		label: 'Account & Billing',
+		translations: { uk: 'Акаунт та оплата' },
+		items: [
+			'docs/license-server/billing-info',
+			'docs/license-server/user',
+		],
 	},
 ];
 
@@ -3222,14 +3296,14 @@ export const gwSidebarTabLinks: SidebarTabLinks = {
 };
 
 export const tbmqSidebarTabLinks: SidebarTabLinks = {
-	'Getting started': '/docs/mqtt-broker/',
+	'Getting Started': '/docs/mqtt-broker/',
 	'Guides': '/docs/mqtt-broker/guides/',
 	'Installation': '/docs/mqtt-broker/install/installation-options/',
 	'Reference': '/docs/mqtt-broker/reference/',
 	'Releases': '/docs/mqtt-broker/changelog/',
 };
 export const tbmqPeSidebarTabLinks: SidebarTabLinks = {
-	'Getting started': '/docs/mqtt-broker/pe/',
+	'Getting Started': '/docs/mqtt-broker/pe/',
 	'Guides': '/docs/mqtt-broker/pe/guides/',
 	'Installation': '/docs/mqtt-broker/pe/install/installation-options/',
 	'Reference': '/docs/mqtt-broker/pe/reference/',
@@ -3244,7 +3318,11 @@ export const trendzSidebarTabLinks: SidebarTabLinks = {
 	'Guides': '/docs/trendz/guides/',
 	'Installation': '/docs/trendz/install/installation-options/',
 };
-export const licenseSidebarTabLinks: SidebarTabLinks = {};
+export const licenseSidebarTabLinks: SidebarTabLinks = {
+	'Getting Started': '/docs/license-server/',
+	'License Management': '/docs/license-server/subscription/',
+	'Account & Billing': '/docs/license-server/billing-info/',
+};
 
 /**
  * Maps URL prefix → tab navigation links for that product's sidebar.

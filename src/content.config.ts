@@ -1,7 +1,8 @@
 import { docsLoader, i18nLoader } from '@astrojs/starlight/loaders';
 import { docsSchema, i18nSchema } from '@astrojs/starlight/schema';
-import { defineCollection, z, type CollectionEntry } from 'astro:content';
-import { file } from 'astro/loaders';
+import { defineCollection, type CollectionEntry } from 'astro:content';
+import { z } from 'astro/zod';
+import { file, glob } from 'astro/loaders';
 import { logoKeys } from './data/logos';
 import { Products } from './models/site.models';
 import fs from 'node:fs';
@@ -108,6 +109,21 @@ export const deviceSchema = z.object({
 	category: z.string().optional(),
 });
 
+export const blogSchema = z.object({
+	title: z.string(),
+	description: z.string(),
+	date: z.coerce.date(),
+	updatedDate: z.coerce.date().optional(),
+	author: z.string(),
+	categories: z
+		.array(z.string())
+		.or(z.string())
+		.transform((v) => (Array.isArray(v) ? v : [v])),
+	featuredImage: z.string(),
+	featuredImageAlt: z.string().default(''),
+	draft: z.boolean().default(false),
+});
+
 export const docsCollectionSchema = z.union([
 	baseSchema,
 	backendSchema,
@@ -169,7 +185,11 @@ export const isMigrationEntry = createIsDocsEntry('migration');
 
 export const isRecipeEntry = createIsDocsEntry('recipe');
 
-export const collections = {
+export const collections: Record<string, ReturnType<typeof defineCollection>> = {
+	blog: defineCollection({
+		loader: glob({ pattern: '**/*.mdx', base: './src/content/blog' }),
+		schema: blogSchema,
+	}),
 	docs: defineCollection({
 		loader: docsLoader(),
 		schema: docsSchema({ extend: docsCollectionSchema }),
