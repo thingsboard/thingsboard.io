@@ -503,7 +503,7 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'pe/user-guide/templatization', target: '/docs/pe/reference/rule-engine/templatization/' },
 	{ oldPath: 'paas/user-guide/templatization', target: '/docs/paas/reference/rule-engine/templatization/' },
 	{ oldPath: 'paas/eu/user-guide/templatization', target: '/docs/paas/eu/reference/rule-engine/templatization/' },
-	{ oldPath: 'user-guide/troubleshooting', target: '/docs/guides/troubleshooting/' },
+	{ oldPath: 'user-guide/troubleshooting', target: '/docs/troubleshooting/' },
 	{ oldPath: 'user-guide/two-factor-authentication', target: '/docs/user-guide/security/two-factor-authentication/' },
 	{ oldPath: 'pe/user-guide/two-factor-authentication', target: '/docs/pe/user-guide/security/two-factor-authentication/' },
 	{ oldPath: 'paas/user-guide/two-factor-authentication', target: '/docs/paas/user-guide/security/two-factor-authentication/' },

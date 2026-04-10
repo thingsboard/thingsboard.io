@@ -224,6 +224,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 			`${prefix.replace('/user-guide', '/releases')}/roadmap`,
 		],
 	},
+	{ label: 'Troubleshooting', slug: `${prefix.replace('/user-guide', '')}/troubleshooting` },
 ];
 
 const edgeInstallationItems = (prefix: string) => [
