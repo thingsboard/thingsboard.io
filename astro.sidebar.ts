@@ -333,11 +333,11 @@ const installationItems = (prefix: string) => {
 	];
 };
 
-const recipeItems = (prefix: string) => [
+const recipeItems = (prefix: string, extraProcessingItems: string[] = []) => [
 	{
 		label: 'Processing Data',
 		collapsed: true,
-		items: [`${prefix}/python-telemetry`, `${prefix}/telemetry-delta-two-devices`],
+		items: [`${prefix}/python-telemetry`, `${prefix}/telemetry-delta-two-devices`, ...extraProcessingItems],
 	},
 	{
 		label: 'Validating Data',
@@ -893,7 +893,7 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 	];
 };
 
-const mainSidebarItems = (prefix: string, extraRecipeItems: SidebarConfig = [], referenceConfigItems: SidebarConfig = []): SidebarConfig => [
+const mainSidebarItems = (prefix: string, extraRecipeItems: SidebarConfig = [], referenceConfigItems: SidebarConfig = [], extraProcessingItems: string[] = []): SidebarConfig => [
 	{
 		label: 'Getting Started',
 		translations: { uk: 'Початок роботи' },
@@ -926,7 +926,7 @@ const mainSidebarItems = (prefix: string, extraRecipeItems: SidebarConfig = [], 
 		label: 'Recipes',
 		collapsed: true,
 		translations: { uk: 'Рецепти' },
-		items: [...recipeItems(`${prefix}/recipes`), ...extraRecipeItems],
+		items: [...recipeItems(`${prefix}/recipes`, extraProcessingItems), ...extraRecipeItems],
 	},
 	{
 		label: 'Installation',
@@ -1018,7 +1018,7 @@ export const peSidebar: SidebarConfig = mainSidebarItems('docs/pe', [
 ], [
 	'docs/pe/reference/configuration/ie-executor-config',
 	'docs/pe/reference/configuration/report-service-config',
-]);
+], ['docs/pe/recipes/add-devices-to-group']);
 
 /** Cloud (PaaS) documentation sidebar (pages at /docs/paas/) */
 export const paasSidebar: SidebarConfig = [
@@ -1265,7 +1265,7 @@ export const paasSidebar: SidebarConfig = [
 		collapsed: true,
 		translations: { uk: 'Рецепти' },
 		items: [
-			...recipeItems('docs/paas/recipes'),
+			...recipeItems('docs/paas/recipes', ['docs/paas/recipes/add-devices-to-group']),
 			{
 				label: 'Reporting',
 				collapsed: true,
@@ -1584,7 +1584,7 @@ export const paasEuSidebar: SidebarConfig = [
 		collapsed: true,
 		translations: { uk: 'Рецепти' },
 		items: [
-			...recipeItems('docs/paas/eu/recipes'),
+			...recipeItems('docs/paas/eu/recipes', ['docs/paas/eu/recipes/add-devices-to-group']),
 			{
 				label: 'Reporting',
 				collapsed: true,
