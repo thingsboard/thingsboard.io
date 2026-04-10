@@ -6,7 +6,7 @@ export const advantagesCards: AdvantageCard[] = [
 		title: 'Security',
 		description:
 			'ThingsBoard protects your data with industry-standard encryption algorithms like RSA and ECDSA. Secure communication is ensured via TLS (TCP) and DTLS (UDP). Role-based access control and audit logs further enhance platform security.',
-		href: '/docs/pe/user-guide/ssl/http-over-ssl/',
+		href: '/docs/pe/user-guide/security/overview/',
 		linkText: 'Learn more about security',
 	},
 	{
