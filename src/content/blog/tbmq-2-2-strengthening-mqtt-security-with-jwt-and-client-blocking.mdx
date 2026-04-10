@@ -1,0 +1,170 @@
+---
+title: 'TBMQ 2.2: Strengthening MQTT security with JWT and Client Blocking'
+description: 'We’re excited to announce the release of TBMQ 2.2.0! This release brings powerful new features that make TBMQ more secure, resilient, and easier to operate in production at scale. With TBMQ 2.2, we focused on these key areas: Stronger security — new pluggable authentication providers, including full'
+date: 2025-09-01
+updatedDate: 2025-09-01
+author: dlandiak
+categories: ['updates']
+featuredImage: '/images/blog/tbmq-2-2-strengthening-mqtt-security-with-jwt-and-client-blocking/cover.webp'
+featuredImageAlt: 'TBMQ 2.2 Release'
+draft: false
+---
+
+We’re excited to announce the release of TBMQ [2.2.0](https://thingsboard.io/docs/mqtt-broker/releases)! This release brings powerful new features that make TBMQ more secure, resilient, and easier to operate in production at scale.
+
+With TBMQ 2.2, we focused on these key areas:
+
+- **Stronger security** — new pluggable authentication providers, including full support for **JWT authentication**, and the ability to block suspicious clients before they even reach the authentication stage.
+- **Greater reliability under load** — advanced **backpressure handling** ensures subscribers that can’t keep up no longer put the broker at risk, protecting memory and maintaining stability.
+- **Operational flexibility** — security and traffic control policies can now be adjusted **on the fly**, without restarts.
+
+Together, these improvements make TBMQ 2.2 the most secure and resilient release yet — ready to power demanding MQTT workloads across IoT, messaging, and event-driven systems.
+
+## MQTT authentication providers
+
+![](/images/blog/tbmq-2-2-strengthening-mqtt-security-with-jwt-and-client-blocking/mqtt_authentication_providers.webp)
+
+Security has always been a cornerstone of TBMQ, and with this version, we’re taking a big step forward in how authentication is managed. Previously, TBMQ supported **Basic authentication (clientId/username/password)**, **X.509 certificate chain authentication**, and **SCRAM (MQTT 5.0)**. While these worked well, they were configured exclusively via YAML files or environment variables, meaning that every change required a broker restart.
+
+With TBMQ 2.2, authentication providers have been fully **moved into the database** and can now be configured on the fly — directly through the user interface or APIs — without downtime. This makes it significantly easier to adapt authentication policies in dynamic environments.
+
+### Pluggable authentication providers
+
+TBMQ now supports a flexible, pluggable model for authentication providers. The following methods are available and can be enabled, disabled, or tuned independently:
+
+- **Basic Authentication** — Authenticates clients using a clientId, username, and password sent in the CONNECT packet.
+- **X.509 Certificate Chain** — Uses the client’s X.509 certificate chain during TLS handshake for authentication.
+- **JWT Authentication (NEW)** — Authenticates clients using a signed JWT passed in the password field of the CONNECT packet.
+- **SCRAM (MQTT 5.0 only)** — Performs a secure challenge-response using hashed credentials to authenticate without sending the actual password.
+
+Each provider can be controlled from the Authentication Providers page in the TBMQ UI. You can toggle providers, adjust their parameters, or dive deeper into provider details to fine-tune your security model.
+
+### Execution order
+
+Another improvement in TBMQ 2.2 is the **configurable execution order** of authentication providers.
+From the **MQTT Authentication Settings** page, you can define the order in which TBMQ evaluates providers when handling client connections. This makes it possible to prioritize, for example, certificate-based authentication over username/password, or vice versa, depending on your deployment needs.
+
+### Why it matters
+
+This change turns authentication management from something static and operationally heavy into a dynamic, UI-driven process. Instead of restarts and manual environment variable changes, you now get:
+
+- Zero-downtime changes to authentication policies.
+- Centralized management of all authentication methods.
+- More flexibility for combining different auth strategies.
+
+This paves the way for the other security improvements in TBMQ 2.2, such as JWT-based authentication.
+
+## JWT authentication
+
+![](/images/blog/tbmq-2-2-strengthening-mqtt-security-with-jwt-and-client-blocking/jwt_authentication_3x.webp)
+
+Starting with version 2.2, TBMQ introduces support for JWT (JSON Web Token) authentication for MQTT clients. This enables a secure, flexible, and scalable way to verify client identity using signed tokens, making it easier to integrate with centralized identity systems and enforce fine-grained access control.
+
+### How it works
+
+When an MQTT client connects, it places a **signed JWT token** into the `password` field of the `CONNECT` packet. TBMQ then:
+
+1. **Validates the token’s signature** using one of the supported verification methods:
+
+**HMAC secrets** (HS256/384/512)
+
+**Public keys in PEM format** (RSA, EC, Ed25519)
+
+**JWKS endpoints** (commonly used with providers like Keycloak, AWS Cognito, or Auth0)
+2. **Checks standard claims** such as `exp` (expiration) and `nbf` (not before) to ensure the token is valid in time.
+3. **Optionally validates custom claims** (e.g., ensuring the token `sub` matches the clientId or `mqtt_user` matches the username).
+4. **Classifies the client type** (DEVICE or APPLICATION) based on token claims or defaults.
+5. **Applies authorization rules** — either static, regex-based rules from the provider settings or **dynamic rules extracted directly from JWT claims** (for example, `pub_rules` and `sub_rules` claims defining which topics the client may publish or subscribe to).
+
+Only if all these steps succeed is the client allowed to connect and exchange data.
+
+### Why JWT matters for MQTT
+
+JWT brings a number of benefits to TBMQ users:
+
+- **Centralized identity integration** — Connect your broker to modern identity systems that issue JWTs.
+- **No static credentials** — Eliminates the risks of managing passwords in configuration files or clients.
+- **Dynamic authorization** — Authorization rules can be injected directly into tokens, making access control more flexible and adaptive.
+- **Scalability & security** — Ideal for IoT deployments where thousands or millions of devices need secure, token-based authentication.
+
+## Blocked clients
+
+![](/images/blog/tbmq-2-2-strengthening-mqtt-security-with-jwt-and-client-blocking/blocked_clients_3x.webp)
+
+Another major addition is the Blocked Clients feature — a proactive security tool that gives administrators more control over who can connect to the broker.
+
+With Blocked Clients, you can prevent unwanted or suspicious MQTT clients from establishing a connection, based on identifiers such as:
+
+- **Client ID**
+- **Username**
+- **IP address**
+- **Regex-based rules** for more flexible pattern matching
+
+For example, if you detect a client like `attack-bot-23` attempting to flood the broker with repeated connection attempts, you can immediately block it by client ID — cutting off access before authentication even takes place.
+
+### How it works
+
+- **Early rejection:** Block checks happen **before authentication**, ensuring malicious traffic is stopped without consuming system resources.
+- **Cluster-wide consistency:** Block rules are synchronized across all TBMQ nodes using Kafka, ensuring consistent enforcement in distributed deployments.
+- **Temporary blocks:** Each entry can include an **expiration time**, after which it’s automatically cleaned up. This is useful for temporary quarantines or time-limited restrictions.
+
+### Why it matters
+
+The feature not only strengthens security but also helps **reduce load** on the broker by rejecting unwanted connections earlier in the pipeline. This improves both system stability and responsiveness under attack or heavy traffic.
+
+### Best practices
+
+- Use **exact matches** (Client ID, Username, IP) whenever possible — regex rules are powerful but more resource-intensive.
+- Keep the blocked list lean for optimal performance.
+- Combine blocking with standard authentication to create a **multi-layered defense strategy**.
+
+In short, Blocked Clients adds a new layer of protection, enabling administrators to quickly react to suspicious activity and maintain a secure, stable MQTT environment.
+
+## MQTT backpressure
+
+![](/images/blog/tbmq-2-2-strengthening-mqtt-security-with-jwt-and-client-blocking/mqtt_backpressure.webp)
+
+High-throughput MQTT systems face a common challenge: what happens if subscribers cannot keep up with the flow of messages? Without safeguards, the broker’s buffers may grow uncontrollably, leading to excessive memory usage or even system crashes.
+
+With TBMQ 2.2, this problem is solved by introducing **backpressure-aware delivery**. Instead of overwhelming slow subscribers, TBMQ intelligently pauses and resumes message delivery based on the health of each client connection.
+
+### How it works
+
+TBMQ continuously monitors whether a client’s connection can accept new data. When a subscriber becomes overloaded:
+
+- **Message delivery is temporarily paused** once the connection buffer reaches a configured threshold.
+- **Delivery resumes automatically** as soon as the connection is ready again.
+- This ensures no single client can destabilize the broker or consume excessive resources.
+
+### Handling different client types
+
+TBMQ applies tailored strategies depending on the type of MQTT client:
+
+- **Non-persistent clients**: Messages are skipped if the client cannot keep up. This prevents memory buildup and aligns with MQTT expectations where message loss is acceptable for short-lived sessions. A counter tracks how many messages were dropped for visibility.
+- **Persistent clients**: Messages are not lost. Instead, they are buffered until the connection recovers:
+
+**Devices** → messages are queued in Redis.
+
+**Applications** → messages are paused at the Kafka consumer level until the client is ready.
+
+This design guarantees durability for persistent sessions while protecting resources from runaway growth.
+
+### Shared Subscriptions
+
+Backpressure handling also extends to shared subscriptions. If one subscriber in a group slows down, TBMQ reroutes messages to other subscribers when possible. If all are overloaded, messages are safely buffered (for persistent groups) or dropped (for non-persistent groups).
+
+### Why it matters
+
+By making delivery backpressure-aware, TBMQ 2.2 ensures:
+
+- **Stable memory usage** even under heavy load.
+- **Fair resource distribution** across fast and slow consumers.
+- **No downtime or crashes** due to subscriber overload.
+
+In practice, this means your broker can handle **massive throughput** while staying resilient — delivering messages reliably to subscribers that can keep up, without being dragged down by those that can’t.
+
+## Final words
+
+TBMQ 2.2 delivers important advancements in security, reliability, and performance — but this post only scratches the surface. We encourage you to review the full [release notes](https://thingsboard.io/docs/mqtt-broker/releases) to explore all improvements and fixes included in this version.
+
+If you find TBMQ valuable, support us by **starring the [TBMQ GitHub repository](https://github.com/thingsboard/tbmq)**, sharing your feedback, and contributing through issues or pull requests. Your input helps us make TBMQ better with every release.

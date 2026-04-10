@@ -160,3 +160,4 @@ export default defineConfig({
         service: sharpImageService(),
     },
 });
+
