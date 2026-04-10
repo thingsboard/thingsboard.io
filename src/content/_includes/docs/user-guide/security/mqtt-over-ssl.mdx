@@ -1,0 +1,167 @@
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import DocLink from '~/components/DocLink.astro';
+import { Products } from '~/models/site.models';
+
+ThingsBoard supports running its MQTT server over SSL/TLS, with both one-way and two-way SSL available.
+
+Most deployments terminate SSL at the load balancer — MQTT traffic is encrypted between the device and the load balancer, but decrypted between the load balancer and the platform services. This approach is easy to configure and works well with cloud load balancers (AWS, Google Cloud, etc.) that provide built-in certificate management. The drawback is that two-way SSL is not possible, because client certificate information is not forwarded from the load balancer to the platform.
+
+To enable two-way SSL or avoid SSL termination at the load balancer, configure ThingsBoard to handle SSL directly. Using valid certificates from a trusted Certificate Authority (CA) is strongly recommended over self-signed certificates to avoid connection issues.
+
+---
+
+## PEM certificate configuration
+
+<Aside type="note">Available since ThingsBoard 3.3.2.</Aside>
+
+Configure SSL by setting the following environment variables in `thingsboard.conf`, Docker Compose, or Kubernetes manifests:
+
+```bash
+export MQTT_SSL_ENABLED=true
+export MQTT_SSL_CREDENTIALS_TYPE=PEM
+export MQTT_SSL_PEM_CERT=server.pem
+export MQTT_SSL_PEM_KEY=server_key.pem
+export MQTT_SSL_PEM_KEY_PASSWORD=secret
+```
+
+| Variable | Description |
+|---|---|
+| `MQTT_SSL_ENABLED` | Enables or disables SSL support for the MQTT server. |
+| `MQTT_SSL_CREDENTIALS_TYPE` | Credential format: `PEM` for certificate files, or `KEYSTORE` for a Java keystore. |
+| `MQTT_SSL_PEM_CERT` | Path to the server certificate file. May also contain the server private key. |
+| `MQTT_SSL_PEM_KEY` | Path to the private key file. Optional if the key is already included in the certificate file. |
+| `MQTT_SSL_PEM_KEY_PASSWORD` | Password for an encrypted private key. Optional. |
+
+After completing the configuration, restart the ThingsBoard server.
+
+---
+
+## Certificate file placement
+
+Certificate files must be accessible to the ThingsBoard process. Place them in the appropriate directory for your deployment:
+
+<Tabs>
+  <TabItem label="Linux">
+    Place the certificate files in `/etc/thingsboard/conf/` with the same permissions as `thingsboard.conf`. Use relative paths in the configuration:
+
+    ```bash
+    export MQTT_SSL_PEM_CERT=server.pem
+    export MQTT_SSL_PEM_KEY=server_key.pem
+    ```
+  </TabItem>
+  <TabItem label="Docker Compose">
+    Mount the directory containing your certificate files to `/config` inside the container. Use full paths in the configuration:
+
+    ```bash
+    export MQTT_SSL_PEM_CERT=/config/server.pem
+    export MQTT_SSL_PEM_KEY=/config/server_key.pem
+    ```
+  </TabItem>
+  <TabItem label="Kubernetes">
+    Mount the directory containing your certificate files to `/https-config` inside the container. Use full paths in the configuration:
+
+    ```bash
+    export MQTT_SSL_PEM_CERT=/https-config/server.pem
+    export MQTT_SSL_PEM_KEY=/https-config/server_key.pem
+    ```
+  </TabItem>
+  <TabItem label="Windows">
+    Place the certificate files in `C:\Program Files (x86)\thingsboard\conf\`. Use relative paths in the configuration:
+
+    ```bash
+    export MQTT_SSL_PEM_CERT=server.pem
+    export MQTT_SSL_PEM_KEY=server_key.pem
+    ```
+  </TabItem>
+</Tabs>
+
+---
+
+## Additional configuration
+
+The following environment variables allow further customization of the MQTT SSL server:
+
+| Variable | Default | Description |
+|---|---|---|
+| `MQTT_SSL_BIND_ADDRESS` | `0.0.0.0` | Bind address for the MQTT SSL server. `0.0.0.0` listens on all interfaces. |
+| `MQTT_SSL_BIND_PORT` | `8883` | Port for the MQTT SSL server. |
+| `MQTT_SSL_PROTOCOL` | `TLSv1.2` | TLS protocol version. See [Java security standard names](https://docs.oracle.com/en/java/javase/11/docs/specs/security/standard-names.html#sslcontext-algorithms) for supported values. |
+| `MQTT_SSL_SKIP_VALIDITY_CHECK_FOR_CLIENT_CERT` | `false` | Skip certificate validity check for client certificates. |
+
+---
+
+## Generating certificates
+
+You can use OpenSSL to generate certificates for testing or internal environments. For production deployments, use certificates issued by a trusted Certificate Authority (CA).
+
+<Aside type="caution">
+  Self-signed certificates are not validated by any third party. Clients will show a security warning unless the certificate is manually imported and trusted. Use certificates from a trusted CA for production environments.
+</Aside>
+
+### Self-signed certificate
+
+<Steps>
+1. Generate the server private key:
+
+   ```bash
+   openssl ecparam -out server_key.pem -name secp256r1 -genkey
+   ```
+
+2. Generate the self-signed certificate:
+
+   ```bash
+   openssl req -new -key server_key.pem -x509 -nodes -days 365 -out server.pem
+   ```
+
+   To skip interactive prompts and set the Common Name automatically, add `-subj '/CN=localhost'`:
+
+   ```bash
+   openssl req -new -key server_key.pem -x509 -nodes -days 365 -out server.pem -subj '/CN=localhost'
+   ```
+</Steps>
+
+---
+
+### CA-signed certificate
+
+<Steps>
+1. Generate the CA private key:
+
+   ```bash
+   openssl ecparam -out ca_key.pem -name secp256r1 -genkey
+   ```
+
+2. Create the self-signed CA certificate (valid 365 days):
+
+   ```bash
+   openssl req -new -x509 -key ca_key.pem -days 365 -out ca.pem
+   ```
+
+3. Generate the server private key:
+
+   ```bash
+   openssl ecparam -out server_key.pem -name secp256r1 -genkey
+   ```
+
+4. Create a Certificate Signing Request (CSR) for the server:
+
+   ```bash
+   openssl req -new -key server_key.pem -out server.csr
+   ```
+
+5. Sign the server certificate with your CA:
+
+   ```bash
+   openssl x509 -req -in server.csr -CA ca.pem -CAkey ca_key.pem -CAcreateserial -out server.pem -days 365
+   ```
+
+   The `-CAcreateserial` flag automatically creates a `ca.srl` file to track certificate serial numbers.
+</Steps>
+
+After completing these steps, configure `MQTT_SSL_PEM_CERT` and `MQTT_SSL_PEM_KEY` to point to `server.pem` and `server_key.pem` respectively. Import `ca.pem` into the trust store of any client that needs to verify the server certificate.
+
+---
+
+## Client examples
+
+See <DocLink product={props.product} path="reference/mqtt-api/getting-connected" target="_blank">MQTT getting connected</DocLink> for connection examples covering both one-way SSL (Access Token) and two-way SSL (X.509 certificate) authentication.
