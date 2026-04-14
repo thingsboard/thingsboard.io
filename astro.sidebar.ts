@@ -337,7 +337,7 @@ const recipeItems = (prefix: string) => [
 	{
 		label: 'Processing Data',
 		collapsed: true,
-		items: [`${prefix}/python-telemetry`, `${prefix}/telemetry-delta-two-devices`],
+		items: [`${prefix}/python-telemetry`, `${prefix}/telemetry-delta-two-devices`, `${prefix}/trigger-related-entities-via-relation`],
 	},
 	{
 		label: 'Validating Data',
