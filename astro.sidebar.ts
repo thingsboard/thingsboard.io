@@ -1630,16 +1630,6 @@ export const paasEuSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'Account & Billing',
-				collapsed: true,
-				items: [
-					{ label: 'Overview', slug: 'docs/paas/eu/user-guide/billing-info' },
-					'docs/paas/eu/user-guide/billing-info/subscription',
-					'docs/paas/eu/user-guide/billing-info/billing-details',
-					'docs/paas/eu/user-guide/billing-info/invoices',
-				],
-			},
-			{
 				label: 'Contribution',
 				collapsed: true,
 				items: [
@@ -1662,6 +1652,16 @@ export const paasEuSidebar: SidebarConfig = [
 							'docs/paas/eu/user-guide/contribution/widgets-development/advanced',
 						],
 					},
+				],
+			},
+			{
+				label: 'Account & Billing',
+				collapsed: true,
+				items: [
+					{ label: 'Overview', slug: 'docs/paas/eu/user-guide/billing-info' },
+					'docs/paas/eu/user-guide/billing-info/subscription',
+					'docs/paas/eu/user-guide/billing-info/billing-details',
+					'docs/paas/eu/user-guide/billing-info/invoices',
 				],
 			},
 		],
