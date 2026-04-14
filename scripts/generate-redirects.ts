@@ -32,6 +32,10 @@ const PREFIX_RENAME_MAP: Record<string, string> = {
 	'pe/user-guide/rule-engine-2-0/nodes': 'pe/reference/rule-engine/nodes',
 	'paas/user-guide/rule-engine-2-0/nodes': 'paas/reference/rule-engine/nodes',
 	'paas/eu/user-guide/rule-engine-2-0/nodes': 'paas/eu/reference/rule-engine/nodes',
+	'pe/solution-templates': 'pe/recipes/solution-templates',
+	'paas/solution-templates': 'paas/recipes/solution-templates',
+	'paas/eu/solution-templates': 'paas/eu/recipes/solution-templates',
+	'iot-gateway/install': 'iot-gateway/installation',
 };
 
 /** Recursively find all .mdx files under a directory, returning relative paths without extension. */
@@ -99,10 +103,35 @@ const lines: string[] = [];
 lines.push(AUTO_START);
 lines.push('');
 
+// Collect SINGLE_REDIRECTS that fall under a CATCH_ALL prefix so we can
+// emit them right before the corresponding wildcard rule (Netlify matches
+// the first rule, so specific overrides must precede their catch-all).
+const catchAllPrefixes = CATCH_ALL_REDIRECTS.map((g) => g.oldPrefix);
+const singlesByPrefix = new Map<string, typeof SINGLE_REDIRECTS>();
+const remainingSingles: typeof SINGLE_REDIRECTS = [];
+
+for (const entry of SINGLE_REDIRECTS) {
+	const matchedPrefix = catchAllPrefixes.find((p) => entry.oldPath.startsWith(p + '/'));
+	if (matchedPrefix) {
+		if (!singlesByPrefix.has(matchedPrefix)) singlesByPrefix.set(matchedPrefix, []);
+		singlesByPrefix.get(matchedPrefix)!.push(entry);
+	} else {
+		remainingSingles.push(entry);
+	}
+}
+
 // Group catch-all entries by type for cleaner output
 // PREFIX_RENAME: entries where different slugs map to different targets (tree-preserving)
 // CONSOLIDATE: entries where all slugs map to the same target (fan-in)
 for (const group of CATCH_ALL_REDIRECTS) {
+	// Emit any single-page overrides for this prefix before the wildcard
+	const overrides = singlesByPrefix.get(group.oldPrefix);
+	if (overrides?.length) {
+		for (const entry of overrides) {
+			lines.push(`/docs/${entry.oldPath}/ ${entry.target} 301`);
+		}
+	}
+
 	// PREFIX_RENAME with empty entries — content-enumerated, emit splat rule
 	if (group.entries.length === 0) {
 		const newPrefix = PREFIX_RENAME_MAP[group.oldPrefix];
@@ -121,9 +150,7 @@ for (const group of CATCH_ALL_REDIRECTS) {
 		lines.push(`/docs/${group.oldPrefix}/* ${target} 301`);
 	} else {
 		// PREFIX_RENAME — try to detect common prefix mapping for a splat rule
-		// Check if there's a consistent prefix transformation
 		const firstEntry = group.entries[0];
-		const oldFull = `${group.oldPrefix}/${firstEntry.slug}`;
 		const newFull = firstEntry.target.replace(/^\/docs\//, '').replace(/\/$/, '');
 		const newPrefix = newFull.slice(0, newFull.length - firstEntry.slug.length).replace(/\/$/, '');
 
@@ -148,10 +175,10 @@ for (const group of CATCH_ALL_REDIRECTS) {
 	}
 }
 
-if (SINGLE_REDIRECTS.length > 0) {
+if (remainingSingles.length > 0) {
 	lines.push('');
 	lines.push('# Single page redirects');
-	for (const entry of SINGLE_REDIRECTS) {
+	for (const entry of remainingSingles) {
 		lines.push(`/docs/${entry.oldPath}/ ${entry.target} 301`);
 	}
 }

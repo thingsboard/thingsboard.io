@@ -31,6 +31,18 @@ export const redirects: AstroUserConfig['redirects'] = {
 	'/products/license-server/instance/': '/docs/license-server/instance/',
 	'/products/license-server/user/': '/docs/license-server/user/',
 
+	// Use Cases
+	'/use-cases/fleet-tracking/': '/use-cases/site-fleet-tracking/',
+	'/fleet-tracking/': '/use-cases/site-fleet-tracking/',
+	'/smart-metering/': '/use-cases/smart-metering/',
+	'/smart-farming/': '/use-cases/smart-farming/',
+	'/smart-energy/': '/use-cases/smart-energy/',
+
+	// Partners
+	'/partners/hardware/iotracker/': '/partners/hardware/iothings/',
+	'/partners/hardware/makerfabs/': '/partners/hardware/agrosense-makerfabs/',
+	'/partners/hardware/apply/thanks/': '/partners/hardware/apply-thanks/',
+
 	// Services
 	'/services/development-services/customers-full-reviews/': '/services/development-services/',
 	'/iot-solutions/': '/services/development-services/',
