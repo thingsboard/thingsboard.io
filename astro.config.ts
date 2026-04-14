@@ -25,6 +25,7 @@ export default defineConfig({
     base: '/',
     build: {
         inlineStylesheets: 'always',
+			  concurrency: 4,
     },
     redirects,
     vite: {

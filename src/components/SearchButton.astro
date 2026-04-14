@@ -1,6 +1,4 @@
 ---
-import '@docsearch/css/dist/modal.css';
-import './starlight/Search/variables.css';
 ---
 
 <search-button>
@@ -23,50 +21,105 @@ import './starlight/Search/variables.css';
 </search-button>
 
 <script>
-	let initialized = false;
+	// Guard: component renders twice (mobile + desktop header), script deduplicates — runs once.
+	// Use window flag to avoid re-init across navigations.
+	if (!(window as any).__tbSearch) {
+		(window as any).__tbSearch = true;
 
-	async function initDocSearch() {
-		if (initialized) return;
-		initialized = true;
+		// Load Google CSE
+		const script = document.createElement('script');
+		script.async = true;
+		script.src = 'https://cse.google.com/cse.js?cx=006967103846171422263:o5lnt35mvwq';
+		document.head.appendChild(script);
 
-		const { default: docsearch } = await import('@docsearch/js');
+		// Build modal once and attach to body
+		const modal = document.createElement('div');
+		modal.id = 'tb-search-modal';
+		modal.innerHTML = `
+			<div class="tb-search-overlay"></div>
+			<div class="tb-search-box">
+				<div class="tb-loader-bar"></div>
+				<div class="gcse-search"></div>
+			</div>
+		`;
+		document.body.appendChild(modal);
 
-		const searchContainer = document.createElement('div');
-		searchContainer.id = 'docsearch-container';
-		searchContainer.style.cssText = 'position:fixed;left:-9999px;top:-9999px;';
-		document.body.appendChild(searchContainer);
+		const loaderBar = modal.querySelector<HTMLElement>('.tb-loader-bar')!;
+		const showLoader = () => { loaderBar.classList.add('active'); };
+		const hideLoader = () => { loaderBar.classList.remove('active'); };
 
-		docsearch({
-			container: '#docsearch-container',
-			appId: '7AFBU8EPJU',
-			indexName: 'astro',
-			apiKey: '4440670147c44d744fd8da35ff652518',
-			searchParameters: {
-				facetFilters: [[`lang:${location.pathname.split('/')[1]}`]],
-				attributesToHighlight: ['hierarchy.lvl0'],
-			},
-			insights: true,
-			transformItems: (items) => {
-				return items.map((item) => {
-					const url = new URL(item.url);
-					if (url.hash === '#_top') url.hash = '';
-					return {
-						...item,
-						url: url.href.replace(url.origin, ''),
-					};
-				});
-			},
+		const overlay = modal.querySelector('.tb-search-overlay')!;
+
+		const open = () => {
+			document.documentElement.classList.add('tb-search-open');
+			modal.classList.add('open');
+		};
+		const close = () => {
+			modal.classList.remove('open');
+			document.documentElement.classList.remove('tb-search-open');
+		};
+
+		overlay.addEventListener('click', close);
+		document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+
+		// Resolve search page URL based on current pathname
+		const getSearchPageUrl = (query: string) => {
+			const path = window.location.pathname;
+			const prefixes: [string, string][] = [
+				['/docs/paas/eu/', '/docs/paas/eu/search/'],
+				['/docs/edge/pe/', '/docs/edge/pe/search/'],
+				['/docs/mqtt-broker/pe/', '/docs/mqtt-broker/pe/search/'],
+				['/docs/mobile/pe/', '/docs/mobile/pe/search/'],
+				['/docs/pe/', '/docs/pe/search/'],
+				['/docs/paas/', '/docs/paas/search/'],
+				['/docs/edge/', '/docs/edge/search/'],
+				['/docs/trendz/', '/docs/trendz/search/'],
+				['/docs/iot-gateway/', '/docs/iot-gateway/search/'],
+				['/docs/mqtt-broker/', '/docs/mqtt-broker/search/'],
+				['/docs/mobile/', '/docs/mobile/search/'],
+				['/docs/license-server/', '/docs/license-server/search/'],
+			];
+			const match = prefixes.find(([prefix]) => path.startsWith(prefix));
+			const searchPage = match ? match[1] : '/docs/search/';
+			return query ? `${searchPage}?q=${encodeURIComponent(query)}` : searchPage;
+		};
+
+		// Inject "Search more results" link next to Google branding
+		const injectMoreLink = () => {
+			const branding = modal.querySelector('.gcsc-more-maybe-branding-root');
+			if (!branding || branding.querySelector('.tb-more-link')) return;
+			const query = (modal.querySelector<HTMLInputElement>('input.gsc-input') as HTMLInputElement)?.value || '';
+			const link = document.createElement('a');
+			link.className = 'tb-more-link';
+			link.href = getSearchPageUrl(query);
+			link.textContent = 'Search more results';
+			branding.prepend(link);
+		};
+
+		// Show loader on search
+		modal.addEventListener('submit', showLoader, true);
+		modal.addEventListener('click', (e) => {
+			if ((e.target as HTMLElement).closest('.gsc-search-button')) showLoader();
+		}, true);
+		modal.addEventListener('keydown', (e) => {
+			if ((e.target as HTMLElement).classList.contains('gsc-input') && e.key === 'Enter') showLoader();
+		}, true);
+		new MutationObserver((mutations) => {
+			for (const m of mutations) {
+				if ((m.target as Element).classList?.contains('gsc-results') ||
+					(m.target as Element).closest?.('.gsc-results')) {
+					hideLoader();
+					break;
+				}
+			}
+			injectMoreLink();
+		}).observe(modal, { childList: true, subtree: true });
+
+		// Attach to all search buttons via delegation
+		document.addEventListener('click', (e) => {
+			if ((e.target as Element).closest('search-button')) open();
 		});
-
-		// Wait for DocSearch to render its button, then click it
-		setTimeout(() => {
-			document.querySelector<HTMLButtonElement>('#docsearch-container .DocSearch-Button')?.click();
-		}, 50);
 	}
-
-	document.querySelectorAll('search-button button').forEach((btn) => {
-		btn.addEventListener('click', initDocSearch);
-	});
 </script>
 
 <style lang="scss">
@@ -84,19 +137,183 @@ import './starlight/Search/variables.css';
 		background: transparent;
 		cursor: pointer;
 		color: var(--sl-color-white);
-		transition: color $transition-base;
+		transition: opacity $transition-base;
 
-		&:hover {
-			opacity: 0.7;
-		}
+		&:hover { opacity: 0.7; }
+		&:focus { outline: none; }
 
-		&:focus {
-			outline: none;
-		}
-
-		svg {
-			width: 20px;
-			height: 20px;
-		}
+		svg { width: 20px; height: 20px; }
 	}
+</style>
+
+<style is:global>
+	html.tb-search-open {
+		overflow: hidden;
+		scrollbar-gutter: stable;
+	}
+
+	#tb-search-modal {
+		display: none;
+		position: fixed;
+		inset: 0;
+		z-index: 9999;
+		align-items: flex-start;
+		justify-content: center;
+		padding-top: 80px;
+	}
+	#tb-search-modal.open {
+		display: flex;
+	}
+	.tb-search-overlay {
+		position: absolute;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.55);
+	}
+	.tb-search-box {
+		position: relative;
+		z-index: 1;
+		width: 620px;
+		max-width: calc(100vw - 2rem);
+		min-height: 110px;
+		max-height: calc(100vh - 120px);
+		overflow-y: auto;
+		background: #fff;
+		border-radius: 8px;
+		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+		padding: 1.25rem 1.25rem 1rem;
+		scrollbar-width: thin;
+		scrollbar-color: transparent transparent;
+		&:hover { scrollbar-color: rgba(0,0,0,0.2) transparent; }
+	}
+	[data-theme='dark'] .tb-search-box {
+		background: #1e1e2e;
+		&:hover { scrollbar-color: rgba(255,255,255,0.2) transparent; }
+	}
+	/* Google CSE autocomplete dropdown — rendered outside modal, needs high z-index */
+	.gssb_c { z-index: 50000 !important; position: fixed !important; }
+
+	/* Loader — progress bar */
+	.tb-loader-bar {
+		position: sticky;
+		top: -1.25rem;
+		left: -1.25rem;
+		right: -1.25rem;
+		margin: -1.25rem -1.25rem 1.25rem;
+		height: 3px;
+		border-radius: 8px 8px 0 0;
+		overflow: hidden;
+		z-index: 2;
+	}
+	.tb-loader-bar::after {
+		content: '';
+		display: block;
+		height: 100%;
+		background: var(--sl-color-text-accent);
+		transform: scaleX(0);
+		transform-origin: left;
+	}
+	.tb-loader-bar.active::after {
+		animation: tb-progress 1.4s ease-in-out infinite;
+	}
+	@keyframes tb-progress {
+		0%   { transform: scaleX(0); transform-origin: left; }
+		45%  { transform: scaleX(1); transform-origin: left; }
+		55%  { transform: scaleX(1); transform-origin: right; }
+		100% { transform: scaleX(0); transform-origin: right; }
+	}
+
+	/* Google CSE overrides */
+	.tb-search-box .gsc-control-cse {
+		background: transparent !important;
+		border: none !important;
+		padding: 0 !important;
+	}
+	.tb-search-box .gsc-input-box { border-radius: 6px !important; }
+	.tb-search-box 	.gsc-webResult.gsc-result {
+		border-radius: 6px !important;
+		padding: 8px !important;
+		transition: background 0.15s ease !important;
+		cursor: pointer !important;
+	}
+	.tb-search-box .gsc-webResult.gsc-result:hover {
+		background: var(--sl-color-gray-6, #f5f5f5) !important;
+	}
+	[data-theme='dark'] .tb-search-box .gsc-webResult.gsc-result {
+		background: #1e1e2e !important;
+		color: rgba(255, 255, 255, 0.75) !important;
+		border: none !important;
+	}
+	[data-theme='dark'] .tb-search-box .gsc-webResult.gsc-result:hover {
+		background: rgba(255, 255, 255, 0.06) !important;
+	}
+	[data-theme='dark'] .tb-search-box .gsc-result .gs-snippet {
+		color: rgba(255, 255, 255, 0.65) !important;
+	}
+	.tb-search-box .gsc-webResult-divider {
+		display: block !important;
+		border: none !important;
+		border-top: 1px solid var(--sl-color-hairline-light) !important;
+		margin: 0 !important;
+	}
+	.tb-search-box .gsc-result .gs-title,
+	.tb-search-box .gsc-result a.gs-title,
+	.tb-search-box .gsc-result a.gs-title:link,
+	.tb-search-box .gsc-result a.gs-title:visited {
+		color: var(--sl-color-text-accent) !important;
+		display: block !important;
+		white-space: nowrap !important;
+		overflow: hidden !important;
+		text-overflow: ellipsis !important;
+		max-width: 100% !important;
+		text-decoration: none !important;
+	}
+	.tb-search-box .gsc-result a.gs-title:link b {
+		color: var(--sl-color-text-accent) !important;
+	}
+	[data-theme='dark'] .tb-search-box .gsc-result a.gs-title:visited,
+	[data-theme='dark'] .tb-search-box .gsc-result a.gs-title:visited b {
+		color: hsl(224, 70%, 75%) !important;
+	}
+	.tb-search-box .gsc-result .gs-title a:hover { text-decoration: none !important; }
+	.tb-search-box .gsc-table-result {
+		display: block !important;
+		width: 100% !important;
+		overflow: hidden !important;
+	}
+	.tb-search-box .gsc-table-cell-snippet-close {
+		display: block !important;
+		width: 100% !important;
+		overflow: hidden !important;
+	}
+
+	/* Show only title — hide snippet, URL, thumbnail, branding, labels */
+	.tb-search-box .gsc-thumbnail-inside,
+	.tb-search-box .gsc-url-top,
+	.tb-search-box .gsc-url-bottom,
+	.tb-search-box .gs-visibleUrl,
+	.tb-search-box .gs-visibleUrl-long,
+	.tb-search-box .gsc-table-cell-thumbnail,
+	.tb-search-box .gsc-cursor-box,
+	.tb-search-box .gsc-branding,
+	.tb-search-box .gsc-result-info,
+	.tb-search-box .gs-per-result-labels,
+	.tb-search-box .gs-fileformat,
+	.tb-search-box .gcsc-find-more-on-google-root {
+		display: none !important;
+	}
+
+	.tb-search-box .gcsc-more-maybe-branding-root {
+		display: flex !important;
+		justify-content: center !important;
+		align-items: center !important;
+	}
+	.tb-search-box .gcsc-more-maybe-branding-root > :not(.tb-more-link) {
+		display: none !important;
+	}
+	.tb-search-box .tb-more-link {
+		font-size: 13px;
+		color: var(--sl-color-text-accent) !important;
+		text-decoration: none;
+	}
+	.tb-search-box .tb-more-link:hover { text-decoration: underline !important; }
 </style>
