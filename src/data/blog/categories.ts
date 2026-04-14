@@ -23,4 +23,3 @@ export const CATEGORY_LABELS: Record<BlogCategory, string> = {
 	updates: 'Updates',
 	'use-cases': 'Use Cases',
 };
-

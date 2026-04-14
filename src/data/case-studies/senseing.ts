@@ -81,8 +81,16 @@ export const senseingData: CaseStudyData = {
 					'Automated alerts notify operators when temperature thresholds are exceeded.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/entities-table.webp', alt: 'Thingsboard entities table widget', title: 'Thingsboard entities table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp', alt: 'Thingsboard time series chart widget', title: 'Thingsboard time series chart widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/entities-table.webp',
+						alt: 'Thingsboard entities table widget',
+						title: 'Thingsboard entities table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp',
+						alt: 'Thingsboard time series chart widget',
+						title: 'Thingsboard time series chart widget',
+					},
 				],
 			},
 			{
@@ -94,8 +102,16 @@ export const senseingData: CaseStudyData = {
 					'Operators can respond in real-time, preventing costly product spoilage.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/value-stepper-widget.webp', alt: 'Thingsboard value stepper widget', title: 'Thingsboard value stepper widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/notification-widget.webp', alt: 'Thingsboard notification widget', title: 'Thingsboard notification widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/value-stepper-widget.webp',
+						alt: 'Thingsboard value stepper widget',
+						title: 'Thingsboard value stepper widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/notification-widget.webp',
+						alt: 'Thingsboard notification widget',
+						title: 'Thingsboard notification widget',
+					},
 				],
 			},
 			{
@@ -107,8 +123,16 @@ export const senseingData: CaseStudyData = {
 					'Maintenance teams receive alerts before critical failures occur, allowing timely servicing.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/alarms-table.webp', alt: 'Thingsboard alarms table widget', title: 'Thingsboard alarms table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/line-chart.webp', alt: 'Thingsboard line chart widget', title: 'Thingsboard line chart widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/alarms-table.webp',
+						alt: 'Thingsboard alarms table widget',
+						title: 'Thingsboard alarms table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/line-chart.webp',
+						alt: 'Thingsboard line chart widget',
+						title: 'Thingsboard line chart widget',
+					},
 				],
 			},
 			{
@@ -120,8 +144,16 @@ export const senseingData: CaseStudyData = {
 					'Custom dashboards help visualize adherence to SOPs (Standard Operating Procedures).',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/sensors-widget.webp', alt: 'Thingsboard sensors widget', title: 'Thingsboard sensors widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/pie-chart.webp', alt: 'Thingsboard pie chart widget', title: 'Thingsboard pie chart widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/sensors-widget.webp',
+						alt: 'Thingsboard sensors widget',
+						title: 'Thingsboard sensors widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/pie-chart.webp',
+						alt: 'Thingsboard pie chart widget',
+						title: 'Thingsboard pie chart widget',
+					},
 				],
 			},
 			{
@@ -133,8 +165,16 @@ export const senseingData: CaseStudyData = {
 					'AI-driven analytics predict potential risks and suggest alternative solutions.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/label-value-widget.webp', alt: 'Thingsboard label and value widget', title: 'Thingsboard label and value widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/sensor-map-widget.webp', alt: 'Thingsboard sensor map widget', title: 'Thingsboard sensor map widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/label-value-widget.webp',
+						alt: 'Thingsboard label and value widget',
+						title: 'Thingsboard label and value widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/sensor-map-widget.webp',
+						alt: 'Thingsboard sensor map widget',
+						title: 'Thingsboard sensor map widget',
+					},
 				],
 			},
 			{
@@ -146,8 +186,16 @@ export const senseingData: CaseStudyData = {
 					'Automated controls dynamically optimize refrigeration power usage based on demand.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/donut-widget.webp', alt: 'Thingsboard donut chart widget', title: 'Thingsboard donut chart widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/control-widgets.webp', alt: 'Thingsboard control widgets', title: 'Thingsboard control widgets' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/donut-widget.webp',
+						alt: 'Thingsboard donut chart widget',
+						title: 'Thingsboard donut chart widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/control-widgets.webp',
+						alt: 'Thingsboard control widgets',
+						title: 'Thingsboard control widgets',
+					},
 				],
 			},
 		],

@@ -93,32 +93,64 @@ export const energenixData: CaseStudyData = {
 				title: 'Comprehensive device & security management',
 				text: 'ThingsBoard handles device provisioning, authentication, and access control out-of-the-box. This eliminates the burden of building and maintaining custom IoT infrastructure, significantly reducing long-term maintenance costs.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/entities-table-4.webp', alt: 'Thingsboard entities table widget', title: 'Thingsboard entities table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/hp-scada-energy.webp', alt: 'Thingsboard HP SCADA energy widgets', title: 'Thingsboard HP SCADA energy widgets' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/entities-table-4.webp',
+						alt: 'Thingsboard entities table widget',
+						title: 'Thingsboard entities table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/hp-scada-energy.webp',
+						alt: 'Thingsboard HP SCADA energy widgets',
+						title: 'Thingsboard HP SCADA energy widgets',
+					},
 				],
 			},
 			{
 				title: 'Powerful dashboards & data visualization',
 				text: "The platform's flexible widget system enables intuitive visualization of complex energy data, making performance trends and anomalies easy to interpret for both technical and non-technical users.",
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/digital_gauges.webp', alt: 'Thingsboard digital gauges widgets', title: 'Thingsboard digital gauges widgets' },
-					{ src: 'https://img.thingsboard.io/case-studies/line-chart.webp', alt: 'Thingsboard line chart widget', title: 'Thingsboard line chart widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/digital_gauges.webp',
+						alt: 'Thingsboard digital gauges widgets',
+						title: 'Thingsboard digital gauges widgets',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/line-chart.webp',
+						alt: 'Thingsboard line chart widget',
+						title: 'Thingsboard line chart widget',
+					},
 				],
 			},
 			{
 				title: 'Scalability without complexity',
 				text: 'As Energenix expanded its portfolio toward 120+ MW, ThingsBoard scaled effortlessly. New plants and devices can be onboarded with minimal configuration, supporting rapid business growth.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/hierarchy-widget.webp', alt: 'Thingsboard hierarchy widget', title: 'Thingsboard hierarchy widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp', alt: 'Thingsboard maps widgets widget', title: 'Thingsboard maps widgets widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/hierarchy-widget.webp',
+						alt: 'Thingsboard hierarchy widget',
+						title: 'Thingsboard hierarchy widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp',
+						alt: 'Thingsboard maps widgets widget',
+						title: 'Thingsboard maps widgets widget',
+					},
 				],
 			},
 			{
 				title: 'Lower total cost of ownership',
 				text: 'By leveraging a mature IoT platform, Energenix avoids high engineering overhead related to device management, security hardening, and platform stability - allowing teams to focus on value-added analytics and customer outcomes.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/alarms-table.webp', alt: 'Thingsboard alarms table widget', title: 'Thingsboard alarms table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/bar-chart.webp', alt: 'Thingsboard bar chart widget', title: 'Thingsboard bar chart widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/alarms-table.webp',
+						alt: 'Thingsboard alarms table widget',
+						title: 'Thingsboard alarms table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/bar-chart.webp',
+						alt: 'Thingsboard bar chart widget',
+						title: 'Thingsboard bar chart widget',
+					},
 				],
 			},
 			{
@@ -131,8 +163,16 @@ export const energenixData: CaseStudyData = {
 					'Sustainable long-term growth',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/tb-logo-card.webp', alt: 'Thingsboard logo card', title: 'Thingsboard logo card' },
-					{ src: 'https://img.thingsboard.io/case-studies/energenix-logo-card.webp', alt: 'Energenix logo card', title: 'Energenix logo card' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/tb-logo-card.webp',
+						alt: 'Thingsboard logo card',
+						title: 'Thingsboard logo card',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/energenix-logo-card.webp',
+						alt: 'Energenix logo card',
+						title: 'Energenix logo card',
+					},
 				],
 			},
 		],

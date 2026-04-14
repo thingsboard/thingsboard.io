@@ -65,13 +65,15 @@ export const vypinData: CaseStudyData = {
 			{
 				title: 'Automated alerting & compliance tracking',
 				text: 'ThingsBoard\u2019s alerting system was customized to detect any anomalies in storage conditions. The platform now generates automatic reports that comply with FDA regulations, ensuring that all required data is logged and traceable. This reduces manual paperwork and the risk of non-compliance penalties.',
-				image: 'https://img.thingsboard.io/case-studies/automated_alerting_compliance_tracking.webp',
+				image:
+					'https://img.thingsboard.io/case-studies/automated_alerting_compliance_tracking.webp',
 				imageAlt: 'Male investigating alert with laptop',
 			},
 			{
 				title: 'Seamless data synchronization & integration',
 				text: 'The ThingsBoard platform enables smooth integration with existing enterprise systems. Warehouse managers can now access all sensor data in a unified interface, eliminating inconsistencies between different monitoring tools and improving decision-making processes.',
-				image: 'https://img.thingsboard.io/case-studies/seamless_data_synchronization_integration.webp',
+				image:
+					'https://img.thingsboard.io/case-studies/seamless_data_synchronization_integration.webp',
 				imageAlt: 'Synchronized devices and tablets',
 			},
 		],
@@ -89,8 +91,16 @@ export const vypinData: CaseStudyData = {
 					'Warehouse personnel access data through an intuitive dashboard.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/entities-table.webp', alt: 'Thingsboard entities table widget', title: 'Thingsboard entities table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp', alt: 'Thingsboard time series chart widget', title: 'Thingsboard time series chart widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/entities-table.webp',
+						alt: 'Thingsboard entities table widget',
+						title: 'Thingsboard entities table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp',
+						alt: 'Thingsboard time series chart widget',
+						title: 'Thingsboard time series chart widget',
+					},
 				],
 			},
 			{
@@ -102,8 +112,16 @@ export const vypinData: CaseStudyData = {
 					'If conditions exceed set thresholds, automated alerts are triggered for corrective action.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/alarms-table-2.webp', alt: 'Thingsboard alarms table widget', title: 'Thingsboard alarms table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/analogue-gauge.webp', alt: 'Thingsboard analogue gauge widget', title: 'Thingsboard analogue gauge widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/alarms-table-2.webp',
+						alt: 'Thingsboard alarms table widget',
+						title: 'Thingsboard alarms table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/analogue-gauge.webp',
+						alt: 'Thingsboard analogue gauge widget',
+						title: 'Thingsboard analogue gauge widget',
+					},
 				],
 			},
 			{
@@ -115,8 +133,16 @@ export const vypinData: CaseStudyData = {
 					'Automated alerts schedule maintenance before breakdowns occur.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/notification-widget.webp', alt: 'Thingsboard notification widget', title: 'Thingsboard notification widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/line-chart.webp', alt: 'Thingsboard line chart widget', title: 'Thingsboard line chart widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/notification-widget.webp',
+						alt: 'Thingsboard notification widget',
+						title: 'Thingsboard notification widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/line-chart.webp',
+						alt: 'Thingsboard line chart widget',
+						title: 'Thingsboard line chart widget',
+					},
 				],
 			},
 			{
@@ -128,8 +154,16 @@ export const vypinData: CaseStudyData = {
 					'Live video feeds and event logs are accessible through ThingsBoard dashboards.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/apartment-image-map.webp', alt: 'Thingsboard apartment image map widget', title: 'Thingsboard apartment image map widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/status-widget-1.webp', alt: 'Thingsboard status widget', title: 'Thingsboard status widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/apartment-image-map.webp',
+						alt: 'Thingsboard apartment image map widget',
+						title: 'Thingsboard apartment image map widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/status-widget-1.webp',
+						alt: 'Thingsboard status widget',
+						title: 'Thingsboard status widget',
+					},
 				],
 			},
 		],

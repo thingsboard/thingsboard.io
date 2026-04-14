@@ -11,7 +11,8 @@ export const craiData: CaseStudyData = {
 
 	hero: {
 		category: 'INDUSTRIAL AUTOMATION',
-		heading: 'IoT in industrial automation: how CRAI enables remote control and data acquisition with ThingsBoard',
+		heading:
+			'IoT in industrial automation: how CRAI enables remote control and data acquisition with ThingsBoard',
 		paragraphs: [
 			'CRAI, which stands for Centro de Reparación y Automatización Industrial (Industrial Repair and Automation Centre), is an industrial automation and control company based in Honduras. The company specializes in industrial automation solutions, control systems, and the repair of industrial electronic equipment. In recent years, CRAI has expanded into Industrial IoT (IIoT), offering remote monitoring and control services that provide clients with real-time visibility, operational control, and automated alerts across their industrial systems.',
 		],
@@ -27,7 +28,8 @@ export const craiData: CaseStudyData = {
 		{
 			value: 1,
 			suffix: 'K+',
-			label: 'completed service engagements and automation solutions delivered to clients across multiple industries',
+			label:
+				'completed service engagements and automation solutions delivered to clients across multiple industries',
 		},
 		{
 			value: 50,
@@ -104,32 +106,64 @@ export const craiData: CaseStudyData = {
 				title: 'Real-time monitoring of critical operational parameters',
 				text: 'Industrial automation systems require continuous visibility into key parameters such as voltage, current, frequency, pressure, temperature, RPM, and system states. ThingsBoard centralizes telemetry from industrial devices (PLCs, VFDs, generators, sensors, and energy meters) into real-time dashboards and charts, providing operators with instant access to both historical data and current operating conditions. This real-time visibility enables faster detection of abnormal equipment behavior, unexpected state changes, and performance deviations. As a result, organizations can improve uptime, enhance safety, and increase overall system reliability and efficiency.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp', alt: 'Thingsboard time series chart widget', title: 'Thingsboard time series chart widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/entities-table.webp', alt: 'ThingsBoard entities table widget', title: 'ThingsBoard entities table widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp',
+						alt: 'Thingsboard time series chart widget',
+						title: 'Thingsboard time series chart widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/entities-table.webp',
+						alt: 'ThingsBoard entities table widget',
+						title: 'ThingsBoard entities table widget',
+					},
 				],
 			},
 			{
 				title: 'Automated alerts and event-driven workflows',
 				text: 'Unexpected deviations in operational parameters can lead to equipment damage, production losses, or safety risks. ThingsBoard enables organizations to configure automated alerts and alarms that notify stakeholders when abnormal or critical conditions occur. Notifications can be delivered through dashboards and other communication channels to ensure rapid response. This approach reduces downtime, supports preventive maintenance strategies, and improves overall system reliability.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/alarms-table.webp', alt: 'ThingsBoard alarms table widget', title: 'ThingsBoard alarms table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/notification-widget.webp', alt: 'ThingsBoard notification widget', title: 'ThingsBoard notification widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/alarms-table.webp',
+						alt: 'ThingsBoard alarms table widget',
+						title: 'ThingsBoard alarms table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/notification-widget.webp',
+						alt: 'ThingsBoard notification widget',
+						title: 'ThingsBoard notification widget',
+					},
 				],
 			},
 			{
 				title: 'Remote control and device interaction',
 				text: 'Modern industrial environments benefit from the ability to remotely interact with equipment to perform control actions and verify device states. ThingsBoard supports bi-directional communication with industrial assets, enabling operators to issue commands (e.g., start/stop equipment, reset faults, update setpoints) and request real-time device status. This capability reduces the need for on-site presence and enables faster, safer intervention when operational changes are required. Remote interaction improves flexibility and response times in industrial systems. Access to these control functions can be securely managed through ThingsBoard’s role-based access control and multi-tenancy features.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/single-switch-widget.webp', alt: 'Thingsboard single switch widget', title: 'Thingsboard single switch widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/power_button.webp', alt: 'Thingsboard power button widget', title: 'Thingsboard power button widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/single-switch-widget.webp',
+						alt: 'Thingsboard single switch widget',
+						title: 'Thingsboard single switch widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/power_button.webp',
+						alt: 'Thingsboard power button widget',
+						title: 'Thingsboard power button widget',
+					},
 				],
 			},
 			{
 				title: 'Historical analytics and performance optimization',
 				text: 'Access to historical operational data is essential for understanding system behavior and optimizing performance over time. ThingsBoard stores time-series telemetry and provides users with built-in visualization and analytical tools to explore trends, peaks, and anomalies. This enables operators and managers to identify inefficiencies, correlate events with operational outcomes, and validate expected behavior (e.g., reduced load outside operating hours). These data-driven insights support continuous improvement, improve system efficiency, and help teams anticipate potential issues before they become critical.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/tables.webp', alt: 'ThingsBoard tables widget', title: 'ThingsBoard tables widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/bar-chart.webp', alt: 'ThingsBoard bar chart widget', title: 'ThingsBoard bar chart widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/tables.webp',
+						alt: 'ThingsBoard tables widget',
+						title: 'ThingsBoard tables widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/bar-chart.webp',
+						alt: 'ThingsBoard bar chart widget',
+						title: 'ThingsBoard bar chart widget',
+					},
 				],
 			},
 		],

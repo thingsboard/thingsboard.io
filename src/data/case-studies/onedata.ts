@@ -11,7 +11,8 @@ export const onedataData: CaseStudyData = {
 
 	hero: {
 		category: 'HEALTHCARE',
-		heading: 'Visual Transformation: How OneData boosted 60-70% Efficiency at a multi-speciality hospital',
+		heading:
+			'Visual Transformation: How OneData boosted 60-70% Efficiency at a multi-speciality hospital',
 		paragraphs: [
 			'OneData Software Solutions is a technology and software development company that helps businesses modernize and grow with digital solutions. They offer a broad range of services including data analytics, custom software and website development, cloud consulting, digital marketing, IoT solutions, UI/UX design, and ERP/CRM systems.',
 			'Their focus is on transforming raw data into actionable insights, building scalable cloud-based systems, connecting smart devices for real-time operations, and improving customer engagement through targeted marketing and intuitive user experiences. They serve diverse industries and emphasize customized, results-driven technology to support business growth and operational efficiency.',
@@ -91,32 +92,64 @@ export const onedataData: CaseStudyData = {
 				title: 'Rule Engine',
 				text: 'Processes telemetry to trigger actions like alarms for asset misuse, automating workflows that reduced manual checks by 60%. Custom chains filter data for efficiency in high-volume settings.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/entities-table.webp', alt: 'ThingsBoard entities table widget', title: 'ThingsBoard entities table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/value-card.webp', alt: 'ThingsBoard value card widget', title: 'ThingsBoard value card widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/entities-table.webp',
+						alt: 'ThingsBoard entities table widget',
+						title: 'ThingsBoard entities table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/value-card.webp',
+						alt: 'ThingsBoard value card widget',
+						title: 'ThingsBoard value card widget',
+					},
 				],
 			},
 			{
 				title: 'Asset hierarchies',
 				text: 'Organizes devices into logical groups (e.g., by ward), enabling bulk management and inheritance of rules, simplifying oversight for 80-bed facilities.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/hierarchy-widget.webp', alt: 'ThingsBoard hierarchy widget', title: 'ThingsBoard hierarchy widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/roles-table.webp', alt: 'Thingsboard roles table widget', title: 'Thingsboard roles table widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/hierarchy-widget.webp',
+						alt: 'ThingsBoard hierarchy widget',
+						title: 'ThingsBoard hierarchy widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/roles-table.webp',
+						alt: 'Thingsboard roles table widget',
+						title: 'Thingsboard roles table widget',
+					},
 				],
 			},
 			{
 				title: 'Dashboarding',
 				text: 'Interactive visualizations with maps and charts provide role-based views, empowering staff with instant insights and cutting response times by 50%.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp', alt: 'Thingsboard time series chart widget', title: 'Thingsboard time series chart widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp', alt: 'ThingsBoard maps widget', title: 'ThingsBoard maps widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp',
+						alt: 'Thingsboard time series chart widget',
+						title: 'Thingsboard time series chart widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp',
+						alt: 'ThingsBoard maps widget',
+						title: 'ThingsBoard maps widget',
+					},
 				],
 			},
 			{
 				title: 'Alarms and security',
 				text: 'Configurable notifications via SMS/email, plus RBAC and encryption, ensure secure, proactive operations, preventing breaches while scaling seamlessly.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/alarms-table.webp', alt: 'ThingsBoard alarms table widget', title: 'ThingsBoard alarms table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/notification-widget.webp', alt: 'ThingsBoard notification widget', title: 'ThingsBoard notification widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/alarms-table.webp',
+						alt: 'ThingsBoard alarms table widget',
+						title: 'ThingsBoard alarms table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/notification-widget.webp',
+						alt: 'ThingsBoard notification widget',
+						title: 'ThingsBoard notification widget',
+					},
 				],
 			},
 		],

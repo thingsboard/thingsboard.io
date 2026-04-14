@@ -44,7 +44,7 @@ export const oneserveData: CaseStudyData = {
 			'They were looking for a technology partner who could support their innovation and help them continue growing in the future.',
 		],
 		results: [
-			'ThingsBoard quickly met Oneserve\'s need for flexibility and easy service delivery.',
+			"ThingsBoard quickly met Oneserve's need for flexibility and easy service delivery.",
 			'The platform made it simple to adapt and set up new projects without much difficulty.',
 			'Built-in tools for connection and data visualization helped improve system performance and made it easier to manage operations.',
 			'Regular platform updates and strong support from the ThingsBoard team gave Oneserve a reliable and future-ready IoT solution.',
@@ -62,13 +62,13 @@ export const oneserveData: CaseStudyData = {
 			},
 			{
 				title: 'Fast and flexible IoT integration',
-				text: 'With ThingsBoard, Oneserve was able to quickly and easily add IoT capabilities to their services. The platform\'s flexibility allowed them to adapt it to different projects and customer needs without needing complex technical changes. This helped them deliver solutions faster and with less effort.',
+				text: "With ThingsBoard, Oneserve was able to quickly and easily add IoT capabilities to their services. The platform's flexibility allowed them to adapt it to different projects and customer needs without needing complex technical changes. This helped them deliver solutions faster and with less effort.",
 				image: 'https://img.thingsboard.io/case-studies/oneserve-3.webp',
 				imageAlt: 'Fast and flexible IoT integration',
 			},
 			{
 				title: 'Smart data, smarter decisions',
-				text: 'Another big advantage was ThingsBoard\'s built-in tools for integration and visualisation. Oneserve could connect ThingsBoard smoothly with their existing systems, making it easier to collect, manage, and understand data from their field operations. The visualisation features allowed them to create useful dashboards and reports, helping their teams make better and faster decisions.',
+				text: "Another big advantage was ThingsBoard's built-in tools for integration and visualisation. Oneserve could connect ThingsBoard smoothly with their existing systems, making it easier to collect, manage, and understand data from their field operations. The visualisation features allowed them to create useful dashboards and reports, helping their teams make better and faster decisions.",
 				image: 'https://img.thingsboard.io/case-studies/oneserve-2.webp',
 				imageAlt: 'Smart data, smarter decisions',
 			},
@@ -99,8 +99,16 @@ export const oneserveData: CaseStudyData = {
 					'Automated alerts and system responses can be configured (e.g., turning on ventilation when CO\u2082 levels rise).',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/entities-table.webp', alt: 'Thingsboard entities table widget', title: 'Thingsboard entities table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/supermarkets_2.webp', alt: 'Thingsboard supermarkets widget', title: 'Thingsboard supermarkets widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/entities-table.webp',
+						alt: 'Thingsboard entities table widget',
+						title: 'Thingsboard entities table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/supermarkets_2.webp',
+						alt: 'Thingsboard supermarkets widget',
+						title: 'Thingsboard supermarkets widget',
+					},
 				],
 			},
 			{
@@ -112,8 +120,16 @@ export const oneserveData: CaseStudyData = {
 					'The system automatically creates notifications or service requests.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/line-chart.webp', alt: 'Thingsboard line chart widget', title: 'Thingsboard line chart widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/alarms-table-3.webp', alt: 'Thingsboard alarms widget', title: 'Thingsboard alarms widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/line-chart.webp',
+						alt: 'Thingsboard line chart widget',
+						title: 'Thingsboard line chart widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/alarms-table-3.webp',
+						alt: 'Thingsboard alarms widget',
+						title: 'Thingsboard alarms widget',
+					},
 				],
 			},
 			{
@@ -125,8 +141,16 @@ export const oneserveData: CaseStudyData = {
 					'Role-based access control allows engineers to see one set of metrics while managers view another.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/donut-widget.webp', alt: 'Thingsboard donut chart widget', title: 'Thingsboard donut chart widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/analogue-gauge.webp', alt: 'Thingsboard analogue gauge widget', title: 'Thingsboard analogue gauge widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/donut-widget.webp',
+						alt: 'Thingsboard donut chart widget',
+						title: 'Thingsboard donut chart widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/analogue-gauge.webp',
+						alt: 'Thingsboard analogue gauge widget',
+						title: 'Thingsboard analogue gauge widget',
+					},
 				],
 			},
 			{
@@ -138,8 +162,16 @@ export const oneserveData: CaseStudyData = {
 					'Automated scenarios can be configured, such as dimming lights at night or turning off air-conditioners in empty rooms.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/digital_gauges.webp', alt: 'Thingsboard digital gauges widgets', title: 'Thingsboard digital gauges widgets' },
-					{ src: 'https://img.thingsboard.io/case-studies/status-widget-1.webp', alt: 'Thingsboard status widget', title: 'Thingsboard status widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/digital_gauges.webp',
+						alt: 'Thingsboard digital gauges widgets',
+						title: 'Thingsboard digital gauges widgets',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/status-widget-1.webp',
+						alt: 'Thingsboard status widget',
+						title: 'Thingsboard status widget',
+					},
 				],
 			},
 			{
@@ -151,8 +183,16 @@ export const oneserveData: CaseStudyData = {
 					'Motion sensors ensure lights are only on in occupied areas.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/single-switch-widget.webp', alt: 'Thingsboard single switch widget', title: 'Thingsboard single switch widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/power_button.webp', alt: 'Thingsboard power button widget', title: 'Thingsboard power button widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/single-switch-widget.webp',
+						alt: 'Thingsboard single switch widget',
+						title: 'Thingsboard single switch widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/power_button.webp',
+						alt: 'Thingsboard power button widget',
+						title: 'Thingsboard power button widget',
+					},
 				],
 			},
 			{
@@ -164,8 +204,16 @@ export const oneserveData: CaseStudyData = {
 					'In case of fire or gas leaks, the system automatically sends an alarm and activates emergency protocols.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/alarm_widgets.webp', alt: 'Thingsboard alarm widgets', title: 'Thingsboard alarm widgets' },
-					{ src: 'https://img.thingsboard.io/case-studies/supermarkets.webp', alt: 'Supermarkets widget', title: 'Supermarkets widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/alarm_widgets.webp',
+						alt: 'Thingsboard alarm widgets',
+						title: 'Thingsboard alarm widgets',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/supermarkets.webp',
+						alt: 'Supermarkets widget',
+						title: 'Supermarkets widget',
+					},
 				],
 			},
 		],

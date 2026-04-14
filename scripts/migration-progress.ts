@@ -78,15 +78,27 @@ const CATEGORIES: Category[] = [
 	// Prefix-based products (order: most-specific prefix first)
 	{ id: 'paas-eu', label: 'PaaS EU (Cloud EU)', match: (p) => p.startsWith('/docs/paas/eu/') },
 	{ id: 'paas', label: 'PaaS (Cloud)', match: (p) => p.startsWith('/docs/paas/') },
-	{ id: 'pe', label: 'Professional Edition (PE)', match: (p) => p.startsWith('/docs/pe/') && !p.startsWith('/docs/pe/mqtt-broker/') },
+	{
+		id: 'pe',
+		label: 'Professional Edition (PE)',
+		match: (p) => p.startsWith('/docs/pe/') && !p.startsWith('/docs/pe/mqtt-broker/'),
+	},
 	{ id: 'trendz', label: 'Trendz', match: (p) => p.startsWith('/docs/trendz/') },
 	{ id: 'gw', label: 'IoT Gateway', match: (p) => p.startsWith('/docs/iot-gateway/') },
-	{ id: 'tbmq-pe', label: 'TBMQ PE', match: (p) => p.startsWith('/docs/mqtt-broker/pe/') || p.startsWith('/docs/pe/mqtt-broker/') },
+	{
+		id: 'tbmq-pe',
+		label: 'TBMQ PE',
+		match: (p) => p.startsWith('/docs/mqtt-broker/pe/') || p.startsWith('/docs/pe/mqtt-broker/'),
+	},
 	{ id: 'tbmq', label: 'TBMQ', match: (p) => p.startsWith('/docs/mqtt-broker/') },
 	{ id: 'mobile-pe', label: 'Mobile PE', match: (p) => p.startsWith('/docs/mobile/pe/') },
 	{ id: 'mobile', label: 'Mobile', match: (p) => p.startsWith('/docs/mobile/') },
 	{ id: 'license', label: 'License Server', match: (p) => p.startsWith('/docs/license-server/') },
-	{ id: 'ce', label: 'Community Edition (CE)', match: (p) => p.startsWith('/docs/') && !p.startsWith('/docs/services/') },
+	{
+		id: 'ce',
+		label: 'Community Edition (CE)',
+		match: (p) => p.startsWith('/docs/') && !p.startsWith('/docs/services/'),
+	},
 	// Non-docs is the fallback — matched when nothing above matches
 ];
 
@@ -130,7 +142,9 @@ async function fetchSitemapPaths(): Promise<string[]> {
 	const unique = [...new Set(paths)];
 	const filtered = unique.filter((p) => p.endsWith('/')).sort();
 
-	console.log(`Found ${unique.length} unique URLs in sitemap (${unique.length - filtered.length} non-trailing-slash URLs removed).`);
+	console.log(
+		`Found ${unique.length} unique URLs in sitemap (${unique.length - filtered.length} non-trailing-slash URLs removed).`
+	);
 	return filtered;
 }
 
@@ -489,11 +503,15 @@ async function main() {
 	if (EXCLUDE_LIBRARY) {
 		const before = paths.length;
 		paths = paths.filter((p) => !EXCLUDED_RE.test(p));
-		console.log(`EXCLUDE_LIBRARY=true — removed ${before - paths.length} device-library/samples URLs (${paths.length} remaining).`);
+		console.log(
+			`EXCLUDE_LIBRARY=true — removed ${before - paths.length} device-library/samples URLs (${paths.length} remaining).`
+		);
 	}
 
 	// 2. Test all URLs
-	console.log(`Testing ${paths.length} URLs against ${LOCAL_BASE} (concurrency: ${CONCURRENCY})...`);
+	console.log(
+		`Testing ${paths.length} URLs against ${LOCAL_BASE} (concurrency: ${CONCURRENCY})...`
+	);
 	const results = await testAllUrls(paths);
 
 	// 3. Build category results

@@ -56,13 +56,13 @@ export const superBockData: CaseStudyData = {
 		blocks: [
 			{
 				title: 'Beer tanks monitoring',
-				text: "To address the challenge of tracking beer levels in beer tanks at restaurants, ThingsBoard implemented a comprehensive solution to monitor the sensors which SBG deployed on beer tanks. Key metrics include remaining stock, pressure, and battery levels. Real-time monitoring dashboards provided immediate insights into stock status, while alert notifications ensured users were informed whenever beer levels dropped below predefined thresholds, enabling timely replenishment.",
+				text: 'To address the challenge of tracking beer levels in beer tanks at restaurants, ThingsBoard implemented a comprehensive solution to monitor the sensors which SBG deployed on beer tanks. Key metrics include remaining stock, pressure, and battery levels. Real-time monitoring dashboards provided immediate insights into stock status, while alert notifications ensured users were informed whenever beer levels dropped below predefined thresholds, enabling timely replenishment.',
 				image: 'https://img.thingsboard.io/case-studies/beer-tanks.webp',
 				imageAlt: 'Beer tank',
 			},
 			{
 				title: 'Vehicle management',
-				text: "To manage beer delivery logistics effectively, ThingsBoard developed a fully integrated solution. SBG implemented a real-time vehicle tracking system, using GPS data to monitor the locations and movements of trucks. ThingsBoard created dashboards to display vital metrics, such as battery levels, beer stock, and delivery statuses, ensuring that stakeholders always had a clear overview. Additional logic segmented data per trip, which helped to visualize and report delivery operations more efficiently.",
+				text: 'To manage beer delivery logistics effectively, ThingsBoard developed a fully integrated solution. SBG implemented a real-time vehicle tracking system, using GPS data to monitor the locations and movements of trucks. ThingsBoard created dashboards to display vital metrics, such as battery levels, beer stock, and delivery statuses, ensuring that stakeholders always had a clear overview. Additional logic segmented data per trip, which helped to visualize and report delivery operations more efficiently.',
 				image: 'https://img.thingsboard.io/case-studies/vehicle-management.webp',
 				imageAlt: 'Man near vehicles',
 			},
@@ -91,18 +91,42 @@ export const superBockData: CaseStudyData = {
 					'Predictive rule nodes to estimate when beer levels would fall below acceptable thresholds, streamlining replenishment schedules.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/range-chart.webp', alt: 'Thingsboard range chart widget', title: 'Thingsboard range chart widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/alarms-table.webp', alt: 'Thingsboard alarms table widget', title: 'Thingsboard alarms table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/route-map.webp', alt: 'Thingsboard route map widget', title: 'Thingsboard route map widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/range-chart.webp',
+						alt: 'Thingsboard range chart widget',
+						title: 'Thingsboard range chart widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/alarms-table.webp',
+						alt: 'Thingsboard alarms table widget',
+						title: 'Thingsboard alarms table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/route-map.webp',
+						alt: 'Thingsboard route map widget',
+						title: 'Thingsboard route map widget',
+					},
 				],
 			},
 			{
 				title: 'A reliable and forward-thinking IoT partner',
-				text: "Super Bock Group expressed their confidence in ThingsBoard after witnessing such professionalism, expertise, and commitment. Before engaging with ThingsBoard, the group had relied on other systems which no longer met the efficiency and modern capabilities required for their operations.<br/><br/>ThingsBoard delivered an exceptional beer tank tracking solution on time and within budget. This solution brought real-time visibility into assets, enhanced operational efficiency, and offered actionable insights. The platform's flexibility, user-friendly interface, and advanced IoT integration helped Super Bock Group modernize their operations and gain a competitive edge.<br/><br/><span class=\"quote-text\">They are pleased to recommend ThingsBoard as a reliable and forward-thinking IoT partner for businesses seeking quality, innovation, and excellence in operational solutions.</span><br/><br/>Beyond implementation, ThingsBoard's continuous support ensured that the system was optimized and issues were promptly addressed. The collaboration has significantly improved productivity and enhanced customer service. Super Bock Group views this partnership as a step toward embracing IoT as a cornerstone of their business strategy and looks forward to a long-lasting relationship with ThingsBoard.",
+				text: 'Super Bock Group expressed their confidence in ThingsBoard after witnessing such professionalism, expertise, and commitment. Before engaging with ThingsBoard, the group had relied on other systems which no longer met the efficiency and modern capabilities required for their operations.<br/><br/>ThingsBoard delivered an exceptional beer tank tracking solution on time and within budget. This solution brought real-time visibility into assets, enhanced operational efficiency, and offered actionable insights. The platform\'s flexibility, user-friendly interface, and advanced IoT integration helped Super Bock Group modernize their operations and gain a competitive edge.<br/><br/><span class="quote-text">They are pleased to recommend ThingsBoard as a reliable and forward-thinking IoT partner for businesses seeking quality, innovation, and excellence in operational solutions.</span><br/><br/>Beyond implementation, ThingsBoard\'s continuous support ensured that the system was optimized and issues were promptly addressed. The collaboration has significantly improved productivity and enhanced customer service. Super Bock Group views this partnership as a step toward embracing IoT as a cornerstone of their business strategy and looks forward to a long-lasting relationship with ThingsBoard.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/value-card.webp', alt: 'Thingsboard value card widget', title: 'Thingsboard value card widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/entities-table-2.webp', alt: 'Thingsboard entities table widget', title: 'Thingsboard entities table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp', alt: 'Thingsboard time series chart widget', title: 'Thingsboard time series chart widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/value-card.webp',
+						alt: 'Thingsboard value card widget',
+						title: 'Thingsboard value card widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/entities-table-2.webp',
+						alt: 'Thingsboard entities table widget',
+						title: 'Thingsboard entities table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp',
+						alt: 'Thingsboard time series chart widget',
+						title: 'Thingsboard time series chart widget',
+					},
 				],
 			},
 		],

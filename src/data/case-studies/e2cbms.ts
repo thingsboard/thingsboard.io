@@ -11,7 +11,8 @@ export const e2cbmsData: CaseStudyData = {
 
 	hero: {
 		category: 'SMART ENERGY',
-		heading: 'Smarter buildings made simple: Environmental Energy Controls chooses ThingsBoard for scalable BMS Solutions',
+		heading:
+			'Smarter buildings made simple: Environmental Energy Controls chooses ThingsBoard for scalable BMS Solutions',
 		paragraphs: [
 			'E2CBMS (E2C Building Management Solutions) is a Bahrain-based company that specialises in providing smart building management and automation systems. E2CBMS delivers comprehensive solutions including Building Management Systems (BMS), Energy Management Systems (EMS), and integration of IoT technologies. Their expertise spans across engineering, project execution, and post-installation support, helping clients optimise performance, reduce costs, and enhance user comfort within built environments. The company serves a broad range of sectors, including commercial, industrial, and residential developments throughout the GCC region.',
 		],
@@ -75,40 +76,80 @@ export const e2cbmsData: CaseStudyData = {
 				title: 'One platform for all energy devices',
 				text: 'ThingsBoard makes it much easier for smart energy companies to manage their operations. Instead of juggling different systems for different types of devices, companies can connect everything into one platform. ThingsBoard supports all the major communication protocols - like MQTT, CoAP, HTTP, LwM2M, SNMP, Modbus, and OPC-UA - which means it can easily work with a wide range of energy devices without any extra hassle.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/entities-table-4.webp', alt: 'Thingsboard entities table widget', title: 'Thingsboard entities table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/hp-scada-energy.webp', alt: 'Thingsboard HP SCADA energy widgets', title: 'Thingsboard HP SCADA energy widgets' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/entities-table-4.webp',
+						alt: 'Thingsboard entities table widget',
+						title: 'Thingsboard entities table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/hp-scada-energy.webp',
+						alt: 'Thingsboard HP SCADA energy widgets',
+						title: 'Thingsboard HP SCADA energy widgets',
+					},
 				],
 			},
 			{
 				title: 'Real-time insights with zero effort',
 				text: 'With ThingsBoard, companies can collect real-time data from their devices and display it on customizable dashboards. This makes it easy to monitor energy usage, device status, and system performance at any time. The platform includes a powerful Rule Engine that can automatically detect problems, send alarms, and trigger actions without human intervention.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp', alt: 'Thingsboard maps widgets widget', title: 'Thingsboard maps widgets widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/line-chart.webp', alt: 'Thingsboard line chart widget', title: 'Thingsboard line chart widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp',
+						alt: 'Thingsboard maps widgets widget',
+						title: 'Thingsboard maps widgets widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/line-chart.webp',
+						alt: 'Thingsboard line chart widget',
+						title: 'Thingsboard line chart widget',
+					},
 				],
 			},
 			{
 				title: 'Reliable offline with Edge and OTA',
 				text: 'With ThingsBoard, companies can collect real-time data from their devices and display it on customizable dashboards. This makes it easy to monitor energy usage, device status, and system performance at any time. The platform includes a powerful Rule Engine that can automatically detect problems, send alarms, and trigger actions without human intervention.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/single-switch-widget.webp', alt: 'Thingsboard single switch widget', title: 'Thingsboard single switch widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/power_button.webp', alt: 'Thingsboard power button widget', title: 'Thingsboard power button widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/single-switch-widget.webp',
+						alt: 'Thingsboard single switch widget',
+						title: 'Thingsboard single switch widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/power_button.webp',
+						alt: 'Thingsboard power button widget',
+						title: 'Thingsboard power button widget',
+					},
 				],
 			},
 			{
 				title: 'Organized assets and built-in security',
 				text: 'Companies can also organise their devices, sites, and customers clearly with asset hierarchies and groupings. Strong security features - like role-based access control, encrypted data transfer, and detailed audit logs - help protect sensitive information and meet regulatory requirements.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/roles-table.webp', alt: 'Thingsboard roles table widget', title: 'Thingsboard roles table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/hierarchy-widget.webp', alt: 'Thingsboard hierarchy widget', title: 'Thingsboard hierarchy widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/roles-table.webp',
+						alt: 'Thingsboard roles table widget',
+						title: 'Thingsboard roles table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/hierarchy-widget.webp',
+						alt: 'Thingsboard hierarchy widget',
+						title: 'Thingsboard hierarchy widget',
+					},
 				],
 			},
 			{
 				title: 'Analytics that drive efficiency',
 				text: 'On top of that, ThingsBoard provides powerful data analytics tools, allowing companies to store historical data, track performance trends, and generate reports. This helps identify ways to improve efficiency, detect issues early, and make better decisions based on real data.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/donut-widget.webp', alt: 'Thingsboard donut chart widget', title: 'Thingsboard donut chart widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/bar-chart.webp', alt: 'Thingsboard bar chart widget', title: 'Thingsboard bar chart widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/donut-widget.webp',
+						alt: 'Thingsboard donut chart widget',
+						title: 'Thingsboard donut chart widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/bar-chart.webp',
+						alt: 'Thingsboard bar chart widget',
+						title: 'Thingsboard bar chart widget',
+					},
 				],
 			},
 		],

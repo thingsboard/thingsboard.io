@@ -26,7 +26,11 @@ export const kioteraData: CaseStudyData = {
 	},
 
 	statistics: [
-		{ value: 80, suffix: '+', label: 'companies and municipalities supported with the implementation of IoT-Solutions' },
+		{
+			value: 80,
+			suffix: '+',
+			label: 'companies and municipalities supported with the implementation of IoT-Solutions',
+		},
 		{ value: 6, suffix: '+', label: 'years of expertise with ThingsBoard Projects' },
 		{ value: 20, suffix: 'K+', label: 'devices integrated and managed on ThingsBoard' },
 	],
@@ -60,7 +64,7 @@ export const kioteraData: CaseStudyData = {
 			},
 			{
 				title: 'Condition monitoring for industrial machines',
-				text: "KIOTERA integrates vibration and temperature sensors to monitor industrial equipment such as motors, pumps, fans, and compressors. ThingsBoard acts as the central platform for processing and visualising machine health indicators. Dashboards display vibration levels and temperature trends, while the rule engine detects deviations and triggers maintenance alerts. This enables companies to move from interval-based servicing to condition-based maintenance, which significantly reduces downtime and costs, while extending equipment life and improving overall equipment effectiveness.",
+				text: 'KIOTERA integrates vibration and temperature sensors to monitor industrial equipment such as motors, pumps, fans, and compressors. ThingsBoard acts as the central platform for processing and visualising machine health indicators. Dashboards display vibration levels and temperature trends, while the rule engine detects deviations and triggers maintenance alerts. This enables companies to move from interval-based servicing to condition-based maintenance, which significantly reduces downtime and costs, while extending equipment life and improving overall equipment effectiveness.',
 				image: 'https://img.thingsboard.io/case-studies/kiotera-2.webp',
 				imageAlt: 'Condition monitoring for industrial machines',
 			},
@@ -78,34 +82,66 @@ export const kioteraData: CaseStudyData = {
 		blocks: [
 			{
 				title: 'Universal device connectivity',
-				text: "ThingsBoard supports all major IoT communication standards like LoRaWAN, MQTT, NB-IoT, HTTP, and Modbus allowing KIOTERA to integrate sensors and meters from virtually any manufacturer. This vendor independence is essential for real-world deployments, where legacy equipment and modern IoT devices must coexist.",
+				text: 'ThingsBoard supports all major IoT communication standards like LoRaWAN, MQTT, NB-IoT, HTTP, and Modbus allowing KIOTERA to integrate sensors and meters from virtually any manufacturer. This vendor independence is essential for real-world deployments, where legacy equipment and modern IoT devices must coexist.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/entities-table.webp', alt: 'Thingsboard entities table widget', title: 'Thingsboard entities table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp', alt: 'Thingsboard time series chart widget', title: 'Thingsboard time series chart widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/entities-table.webp',
+						alt: 'Thingsboard entities table widget',
+						title: 'Thingsboard entities table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp',
+						alt: 'Thingsboard time series chart widget',
+						title: 'Thingsboard time series chart widget',
+					},
 				],
 			},
 			{
 				title: 'Reusable assets for faster rollouts',
-				text: "ThingsBoard allows KIOTERA to develop reusable telemetry models, device profiles, rule chains and dashboards, which can be deployed across various sites and use cases.<br/><br/>This standardisation reduces project delivery time while ensuring that every installation follows a proven and scalable architecture. Meanwhile, ThingsBoard remains fully customisable, enabling KIOTERA to extend modules whenever customers require industry-specific logic or visualisations.",
+				text: 'ThingsBoard allows KIOTERA to develop reusable telemetry models, device profiles, rule chains and dashboards, which can be deployed across various sites and use cases.<br/><br/>This standardisation reduces project delivery time while ensuring that every installation follows a proven and scalable architecture. Meanwhile, ThingsBoard remains fully customisable, enabling KIOTERA to extend modules whenever customers require industry-specific logic or visualisations.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/alarms-table.webp', alt: 'Thingsboard alarms table widget', title: 'Thingsboard alarms table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/markdown-html-widget.webp', alt: 'Thingsboard markdown html widget', title: 'Thingsboard markdown html widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/alarms-table.webp',
+						alt: 'Thingsboard alarms table widget',
+						title: 'Thingsboard alarms table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/markdown-html-widget.webp',
+						alt: 'Thingsboard markdown html widget',
+						title: 'Thingsboard markdown html widget',
+					},
 				],
 			},
 			{
 				title: 'Multi-tenant scalability',
 				text: "Scalable multi-tenant architecture: Thanks to ThingsBoard's built-in multi-tenancy, KIOTERA can structure large customer environments into separate divisions, locations or operational units, each with their own dashboards, access rights and assets.",
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/hierarchy-widget.webp', alt: 'Thingsboard hierarchy widget', title: 'Thingsboard hierarchy widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/roles-table.webp', alt: 'Thingsboard roles table widget', title: 'Thingsboard roles table widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/hierarchy-widget.webp',
+						alt: 'Thingsboard hierarchy widget',
+						title: 'Thingsboard hierarchy widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/roles-table.webp',
+						alt: 'Thingsboard roles table widget',
+						title: 'Thingsboard roles table widget',
+					},
 				],
 			},
 			{
 				title: 'Deployment flexibility: cloud or on-premises',
 				text: "Many industrial operators require strict data handling rules or prefer on-premises deployment for security reasons. ThingsBoard supports both cloud-based and on-premises deployments, enabling KIOTERA to align with each customer's IT and cybersecurity needs without compromising on functionality or performance.",
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/digital_gauges.webp', alt: 'Thingsboard digital gauges widgets', title: 'Thingsboard digital gauges widgets' },
-					{ src: 'https://img.thingsboard.io/case-studies/donut-widget.webp', alt: 'Thingsboard donut chart widget', title: 'Thingsboard donut chart widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/digital_gauges.webp',
+						alt: 'Thingsboard digital gauges widgets',
+						title: 'Thingsboard digital gauges widgets',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/donut-widget.webp',
+						alt: 'Thingsboard donut chart widget',
+						title: 'Thingsboard donut chart widget',
+					},
 				],
 			},
 		],

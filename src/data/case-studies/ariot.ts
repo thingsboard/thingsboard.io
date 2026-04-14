@@ -32,7 +32,7 @@ export const ariotData: CaseStudyData = {
 
 	problem: {
 		description:
-			'Prior to adopting the IoT solution, the hospital relied on manual processes that posed significant operational risks. Staff had to manually log temperatures for vaccine fridges, blood banks, and morgue units, creating a risk of human error and data gaps. Furthermore, the hospital\'s large concrete structure made traditional wired cabling expensive and invasive.',
+			"Prior to adopting the IoT solution, the hospital relied on manual processes that posed significant operational risks. Staff had to manually log temperatures for vaccine fridges, blood banks, and morgue units, creating a risk of human error and data gaps. Furthermore, the hospital's large concrete structure made traditional wired cabling expensive and invasive.",
 		challenges: [
 			'Manual monitoring risks: Dependency on manual logging created risks of human error in critical areas like blood banks and morgues.',
 			'Compliance difficulties: Preparing historical data reports for ISO and JCI audits was time-consuming and lacked granular accuracy.',
@@ -91,32 +91,64 @@ export const ariotData: CaseStudyData = {
 				title: 'Rule engine & automation',
 				text: 'ThingsBoard\'s Rule Engine handles complex alarm logic for scenarios such as "high temperature", "door left open\u201D, and "connection loss\u201D, ensuring immediate action is taken before assets are compromised.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/alarms-table.webp', alt: 'Thingsboard alarms table widget', title: 'Thingsboard alarms table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/notification-widget.webp', alt: 'Thingsboard notification widget', title: 'Thingsboard notification widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/alarms-table.webp',
+						alt: 'Thingsboard alarms table widget',
+						title: 'Thingsboard alarms table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/notification-widget.webp',
+						alt: 'Thingsboard notification widget',
+						title: 'Thingsboard notification widget',
+					},
 				],
 			},
 			{
 				title: 'Custom dashboard',
 				text: 'The platform enables the creation of custom widgets, including Heat Maps and real-time status indicators displayed on wallboards in nursing stations, providing staff with at-a-glance situational awareness.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp', alt: 'Thingsboard maps widgets widget', title: 'Thingsboard maps widgets widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/value-card.webp', alt: 'Thingsboard value card widget', title: 'Thingsboard value card widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp',
+						alt: 'Thingsboard maps widgets widget',
+						title: 'Thingsboard maps widgets widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/value-card.webp',
+						alt: 'Thingsboard value card widget',
+						title: 'Thingsboard value card widget',
+					},
 				],
 			},
 			{
 				title: 'Data reliability',
 				text: 'The system ensures seamless handling of delayed telemetry through retransmission protocols. This capability is critical for maintaining the continuous data records required for JCI and ISO certifications.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/entities-table.webp', alt: 'Thingsboard entities table widget', title: 'Thingsboard entities table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp', alt: 'Thingsboard time series chart widget', title: 'Thingsboard time series chart widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/entities-table.webp',
+						alt: 'Thingsboard entities table widget',
+						title: 'Thingsboard entities table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp',
+						alt: 'Thingsboard time series chart widget',
+						title: 'Thingsboard time series chart widget',
+					},
 				],
 			},
 			{
 				title: 'Role-based access control',
 				text: 'ThingsBoard allows for distinct views and permissions for different user groups, ensuring technical staff, doctors, and hospital administrators only see the data and controls relevant to their specific roles.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/hierarchy-widget.webp', alt: 'Thingsboard hierarchy widget', title: 'Thingsboard hierarchy widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/roles-table.webp', alt: 'Thingsboard roles table widget', title: 'Thingsboard roles table widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/hierarchy-widget.webp',
+						alt: 'Thingsboard hierarchy widget',
+						title: 'Thingsboard hierarchy widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/roles-table.webp',
+						alt: 'Thingsboard roles table widget',
+						title: 'Thingsboard roles table widget',
+					},
 				],
 			},
 			{
@@ -129,8 +161,16 @@ export const ariotData: CaseStudyData = {
 					'Milesight TS201: High-precision contact temperature monitoring for vaccines.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/milesight-1.webp', alt: 'Thingsboard hierarchy widget', title: 'Thingsboard hierarchy widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/milesight-2.webp', alt: 'Thingsboard roles table widget', title: 'Thingsboard roles table widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/milesight-1.webp',
+						alt: 'Thingsboard hierarchy widget',
+						title: 'Thingsboard hierarchy widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/milesight-2.webp',
+						alt: 'Thingsboard roles table widget',
+						title: 'Thingsboard roles table widget',
+					},
 				],
 			},
 		],

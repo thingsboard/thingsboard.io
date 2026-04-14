@@ -40,7 +40,8 @@ export const useCaseItems: UseCaseCardItem[] = [
 		name: 'SCADA Oil & Gas drilling system',
 		description:
 			'Automate drilling operations with SCADA and ThingsBoard. Control rigs, pumps, and blowout preventers in real time, visualize key parameters, and enhance safety. Flexible SCADA symbol templates let you tailor the system to any production scenario.',
-		image: 'https://img.thingsboard.io/solutions/scada_drilling_system/hp-scada-systems-in-drilling-1.png',
+		image:
+			'https://img.thingsboard.io/solutions/scada_drilling_system/hp-scada-systems-in-drilling-1.png',
 		imageAlt: 'See more about SCADA Oil & gas drilling system',
 		video: [
 			'https://video.thingsboard.io/usecases/hp-drilling-scada-system.mp4',
@@ -53,7 +54,8 @@ export const useCaseItems: UseCaseCardItem[] = [
 		name: 'SCADA Energy management',
 		description:
 			'Monitor, analyze, and optimize energy flows in real time with SCADA-powered dashboards. Track efficiency, forecast demand peaks, and reduce costs across your infrastructure.',
-		image: 'https://img.thingsboard.io/solutions/scada_energy_management/scada-energy-management-1.png',
+		image:
+			'https://img.thingsboard.io/solutions/scada_energy_management/scada-energy-management-1.png',
 		imageAlt: 'See more about SCADA Energy management',
 		video: [
 			'https://video.thingsboard.io/usecases/scada-energy-management.mp4',
@@ -66,7 +68,8 @@ export const useCaseItems: UseCaseCardItem[] = [
 		name: 'Environment Monitoring',
 		description:
 			'Monitor indoor and outdoor environments using a wide range of sensors. Supports NB IoT, LoRaWAN, SigFox, MQTT, CoAP, HTTP, LwM2M, and other modern protocols.',
-		image: 'https://img.thingsboard.io/usecases/environment-monitoring/video/environment-monitoring.png',
+		image:
+			'https://img.thingsboard.io/usecases/environment-monitoring/video/environment-monitoring.png',
 		imageAlt: 'Environment monitoring dashboard',
 		video: [
 			'https://video.thingsboard.io/usecases/environment-monitoring.mp4',

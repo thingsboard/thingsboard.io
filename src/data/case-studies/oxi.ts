@@ -11,7 +11,8 @@ export const oxiData: CaseStudyData = {
 
 	hero: {
 		category: 'SMART ENERGY',
-		heading: 'Empowering alternative energy: how OXI TRADE streamlined IoT infrastructure with ThingsBoard',
+		heading:
+			'Empowering alternative energy: how OXI TRADE streamlined IoT infrastructure with ThingsBoard',
 		paragraphs: [
 			'OXI TRADE is a Ukrainian company with over 10 years of experience in developing innovative solutions in the field of alternative energy. It specializes in the production of pellet burners under the OXI brand for efficient and environmentally friendly heating. Their product line includes pellet burners designed for both domestic and industrial use. The company has already sold over 7,000 units of equipment in Ukraine and Europe.',
 			'OXI pellet burners are highly efficient (with an efficiency of at least 96%) thanks to their unique proprietary technologies. They are also more reliable, flexible, and of higher quality compared to similar equipment produced abroad.',
@@ -71,13 +72,13 @@ export const oxiData: CaseStudyData = {
 			},
 			{
 				title: 'Real-time monitoring and remote control via dashboards',
-				text: "Using ThingsBoard dashboards, OXI TRADE and its partners can monitor all connected pellet burners in real-time. Depending on their access level, users\u2014whether customers, resellers, or service teams\u2014can view key device data, such as operational mode, temperature, and overall system status. This insight helps users stay informed and proactive. In addition to monitoring, they can also control devices remotely. Common actions include starting or stopping a device, triggering the fuel feeder, or adjusting temperature settings. All of this can be done through the platform, without being physically present near the equipment. Remote control capabilities save time, reduce service visits, and enable quicker responses to customer needs and technical issues.",
+				text: 'Using ThingsBoard dashboards, OXI TRADE and its partners can monitor all connected pellet burners in real-time. Depending on their access level, users\u2014whether customers, resellers, or service teams\u2014can view key device data, such as operational mode, temperature, and overall system status. This insight helps users stay informed and proactive. In addition to monitoring, they can also control devices remotely. Common actions include starting or stopping a device, triggering the fuel feeder, or adjusting temperature settings. All of this can be done through the platform, without being physically present near the equipment. Remote control capabilities save time, reduce service visits, and enable quicker responses to customer needs and technical issues.',
 				image: 'https://img.thingsboard.io/case-studies/pallet_3.webp',
 				imageAlt: 'Hands with tablet',
 			},
 			{
 				title: 'Proactive alert management and full system accountability',
-				text: "Devices also report real-time alerts for critical issues, such as fuel shortages, overheating, sensor failures, or controller malfunctions. ThingsBoard categorizes and logs these alerts, allowing service teams to respond quickly. Alongside alert management, the platform maintains a detailed log of all user actions. This audit logging feature gives OXI TRADE full visibility into every command sent through the system\u2014such as configuration changes, operational commands, or remote updates. These logs help the company trace exactly what actions were taken, by whom, and when. If a device experiences problems, OXI TRADE can review the history to identify whether an incorrect user action or misconfiguration was the cause. This improves accountability across all user levels and simplifies troubleshooting.",
+				text: 'Devices also report real-time alerts for critical issues, such as fuel shortages, overheating, sensor failures, or controller malfunctions. ThingsBoard categorizes and logs these alerts, allowing service teams to respond quickly. Alongside alert management, the platform maintains a detailed log of all user actions. This audit logging feature gives OXI TRADE full visibility into every command sent through the system\u2014such as configuration changes, operational commands, or remote updates. These logs help the company trace exactly what actions were taken, by whom, and when. If a device experiences problems, OXI TRADE can review the history to identify whether an incorrect user action or misconfiguration was the cause. This improves accountability across all user levels and simplifies troubleshooting.',
 				image: 'https://img.thingsboard.io/case-studies/proactive-alert-management.webp',
 				imageAlt: 'Call center',
 			},
@@ -96,32 +97,64 @@ export const oxiData: CaseStudyData = {
 				title: 'Real-time energy monitoring',
 				text: 'ThingsBoard allows seamless integration with various energy meters and IoT devices, facilitating real-time data collection on energy consumption and generation. This continuous monitoring provides immediate insights into system performance, aiding in the identification of inefficiencies and areas for improvement',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/line-chart.webp', alt: 'Thingsboard line chart widget', title: 'Thingsboard line chart widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/analogue-gauge.webp', alt: 'Thingsboard analogue gauge widget', title: 'Thingsboard analogue gauge widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/line-chart.webp',
+						alt: 'Thingsboard line chart widget',
+						title: 'Thingsboard line chart widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/analogue-gauge.webp',
+						alt: 'Thingsboard analogue gauge widget',
+						title: 'Thingsboard analogue gauge widget',
+					},
 				],
 			},
 			{
 				title: 'Advanced data visualization',
-				text: "The platform offers customizable dashboards that present complex energy data in an intuitive and user-friendly manner. Users can visualize energy usage patterns, compare performance metrics, and track key indicators over time, supporting informed decision-making and strategic planning.",
+				text: 'The platform offers customizable dashboards that present complex energy data in an intuitive and user-friendly manner. Users can visualize energy usage patterns, compare performance metrics, and track key indicators over time, supporting informed decision-making and strategic planning.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp', alt: 'Thingsboard maps widgets widget', title: 'Thingsboard maps widgets widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/donut-widget.webp', alt: 'Thingsboard donut chart widget', title: 'Thingsboard donut chart widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp',
+						alt: 'Thingsboard maps widgets widget',
+						title: 'Thingsboard maps widgets widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/donut-widget.webp',
+						alt: 'Thingsboard donut chart widget',
+						title: 'Thingsboard donut chart widget',
+					},
 				],
 			},
 			{
 				title: 'Automated alerts and notifications',
 				text: "ThingsBoard's rule engine enables the configuration of automated alerts for specific events or thresholds, such as equipment malfunctions or energy overuse. These timely notifications allow for prompt responses to potential issues, minimizing downtime and enhancing overall system reliability.",
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/alarms-table-2.webp', alt: 'Thingsboard alarms table widget', title: 'Thingsboard alarms table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/notification-widget.webp', alt: 'Thingsboard notification widget', title: 'Thingsboard notification widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/alarms-table-2.webp',
+						alt: 'Thingsboard alarms table widget',
+						title: 'Thingsboard alarms table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/notification-widget.webp',
+						alt: 'Thingsboard notification widget',
+						title: 'Thingsboard notification widget',
+					},
 				],
 			},
 			{
 				title: 'Flexible deployment options',
 				text: 'Catering to diverse organizational needs, ThingsBoard supports both cloud-based and on-premises deployments. This flexibility ensures that companies can choose the most suitable infrastructure for their energy management solutions, whether prioritizing scalability, security, or control.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/entities-table-3.webp', alt: 'Thingsboard entities table widget', title: 'Thingsboard entities table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/single-switch-widget.webp', alt: 'Thingsboard single switch widget', title: 'Thingsboard single switch widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/entities-table-3.webp',
+						alt: 'Thingsboard entities table widget',
+						title: 'Thingsboard entities table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/single-switch-widget.webp',
+						alt: 'Thingsboard single switch widget',
+						title: 'Thingsboard single switch widget',
+					},
 				],
 			},
 		],

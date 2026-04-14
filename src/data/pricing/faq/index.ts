@@ -18,10 +18,30 @@ export interface FaqContextData {
 export const pricingFaqData: FaqContextData[] = [
 	{ contextId: 'thingsboard-ce', title: 'ThingsBoard Community Edition FAQs', categories: tbCeFaq },
 	{ contextId: 'thingsboard-cloud', title: 'ThingsBoard Cloud FAQs', categories: tbCloudFaq },
-	{ contextId: 'thingsboard-private-cloud', title: 'ThingsBoard Private Cloud FAQs', categories: tbPrivateCloudFaq },
-	{ contextId: 'thingsboard-pe', title: 'ThingsBoard Self-managed FAQs', categories: tbSelfManagedFaq },
+	{
+		contextId: 'thingsboard-private-cloud',
+		title: 'ThingsBoard Private Cloud FAQs',
+		categories: tbPrivateCloudFaq,
+	},
+	{
+		contextId: 'thingsboard-pe',
+		title: 'ThingsBoard Self-managed FAQs',
+		categories: tbSelfManagedFaq,
+	},
 	{ contextId: 'tbmq-ce', title: 'TBMQ Community Edition FAQs', categories: tbmqCeFaq },
-	{ contextId: 'tbmq-pe-payg', title: 'TBMQ Self-managed Pay-as-you-go FAQs', categories: tbmqSelfManagedPaygFaq },
-	{ contextId: 'tbmq-pe-perpetual', title: 'TBMQ Self-managed Perpetual FAQs', categories: tbmqSelfManagedPerpFaq },
-	{ contextId: 'tbmq-private-cloud', title: 'TBMQ Private Cloud FAQs', categories: tbmqPrivateCloudFaq },
+	{
+		contextId: 'tbmq-pe-payg',
+		title: 'TBMQ Self-managed Pay-as-you-go FAQs',
+		categories: tbmqSelfManagedPaygFaq,
+	},
+	{
+		contextId: 'tbmq-pe-perpetual',
+		title: 'TBMQ Self-managed Perpetual FAQs',
+		categories: tbmqSelfManagedPerpFaq,
+	},
+	{
+		contextId: 'tbmq-private-cloud',
+		title: 'TBMQ Private Cloud FAQs',
+		categories: tbmqPrivateCloudFaq,
+	},
 ];

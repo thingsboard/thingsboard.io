@@ -56,7 +56,7 @@ export const schwarzData: CaseStudyData = {
 			},
 			{
 				title: 'Transforming retail operations with ThingsBoard',
-				text: "By partnering with ThingsBoard, the Schwarz Group achieved significant improvements. The ThingsBoard IoT platform was able to interconnect over 500,000 devices across all its supermarkets. No matter what communication protocols the devices used\u2014LoRaWAN, SigFox, MQTT\u2014ThingsBoard made sure they could all work together seamlessly. Each store now has secure, customized access to its data, facilitating better decision-making and operational efficiency. Moreover, the flexibility of ThingsBoard enabled the Schwarz Group to quickly introduce new digital solutions while keeping everything standardized. These outcomes not only improved current operations but also positioned the Schwarz Group for future growth and innovation.",
+				text: 'By partnering with ThingsBoard, the Schwarz Group achieved significant improvements. The ThingsBoard IoT platform was able to interconnect over 500,000 devices across all its supermarkets. No matter what communication protocols the devices used\u2014LoRaWAN, SigFox, MQTT\u2014ThingsBoard made sure they could all work together seamlessly. Each store now has secure, customized access to its data, facilitating better decision-making and operational efficiency. Moreover, the flexibility of ThingsBoard enabled the Schwarz Group to quickly introduce new digital solutions while keeping everything standardized. These outcomes not only improved current operations but also positioned the Schwarz Group for future growth and innovation.',
 				image: 'https://img.thingsboard.io/case-studies/schwarz-2.webp',
 				imageAlt: 'Retail operations',
 			},
@@ -90,8 +90,16 @@ export const schwarzData: CaseStudyData = {
 					'Detect and fix problems before they cause major issues.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/entities-table.webp', alt: 'Thingsboard entities table widget', title: 'Thingsboard entities table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/control-widgets.webp', alt: 'Thingsboard control widgets', title: 'Thingsboard control widgets' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/entities-table.webp',
+						alt: 'Thingsboard entities table widget',
+						title: 'Thingsboard entities table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/control-widgets.webp',
+						alt: 'Thingsboard control widgets',
+						title: 'Thingsboard control widgets',
+					},
 				],
 			},
 			{
@@ -103,8 +111,16 @@ export const schwarzData: CaseStudyData = {
 					'Providing historical data analysis, which helps stores predict when they need to restock or service critical equipment.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp', alt: 'Thingsboard time series chart widget', title: 'Thingsboard time series chart widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/image-map.webp', alt: 'Thingsboard image map widget', title: 'Thingsboard image map widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp',
+						alt: 'Thingsboard time series chart widget',
+						title: 'Thingsboard time series chart widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/image-map.webp',
+						alt: 'Thingsboard image map widget',
+						title: 'Thingsboard image map widget',
+					},
 				],
 			},
 			{
@@ -116,8 +132,16 @@ export const schwarzData: CaseStudyData = {
 					'Improve security by connecting with smart cameras and alarm systems.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/supermarkets.webp', alt: 'Supermarkets widget', title: 'Supermarkets widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/analogue-gauge.webp', alt: 'Thingsboard analogue gauge widget', title: 'Thingsboard analogue gauge widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/supermarkets.webp',
+						alt: 'Supermarkets widget',
+						title: 'Supermarkets widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/analogue-gauge.webp',
+						alt: 'Thingsboard analogue gauge widget',
+						title: 'Thingsboard analogue gauge widget',
+					},
 				],
 			},
 			{
@@ -129,8 +153,16 @@ export const schwarzData: CaseStudyData = {
 					'Custom dashboards and workflows, so retailers can adjust the system to fit their needs.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp', alt: 'Thingsboard maps widgets widget', title: 'Thingsboard maps widgets widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/scalable-2.webp', alt: 'Thingsboard widget', title: 'Scalable and grows with your business' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp',
+						alt: 'Thingsboard maps widgets widget',
+						title: 'Thingsboard maps widgets widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/scalable-2.webp',
+						alt: 'Thingsboard widget',
+						title: 'Scalable and grows with your business',
+					},
 				],
 			},
 		],

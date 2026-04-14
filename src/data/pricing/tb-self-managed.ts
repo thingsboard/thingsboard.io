@@ -179,12 +179,14 @@ export const tbSelfManagedData: SelfManagedData = {
 			{
 				icon: 'tabler:trending-up',
 				title: 'Lower TCO',
-				description: 'Eliminates recurring subscription fees, offering a lower total cost of ownership for long-term projects.',
+				description:
+					'Eliminates recurring subscription fees, offering a lower total cost of ownership for long-term projects.',
 			},
 			{
 				icon: 'tabler:server',
 				title: 'On-Premises & Offline Mode',
-				description: 'Deploy anywhere, including fully offline or isolated networks for 100% data sovereignty.',
+				description:
+					'Deploy anywhere, including fully offline or isolated networks for 100% data sovereignty.',
 			},
 			{
 				icon: 'tabler:settings',
@@ -220,7 +222,8 @@ export const tbSelfManagedAddOns: AddOnItem[] = [
 		period: '/month',
 		startingFrom: true,
 		faqId: 'edge-addon-payg-what-is',
-		faqTooltip: 'Run a local on-prem instance to keep operations running even when the internet is down.',
+		faqTooltip:
+			'Run a local on-prem instance to keep operations running even when the internet is down.',
 	},
 	{
 		id: 'sm-trendz',
@@ -231,7 +234,8 @@ export const tbSelfManagedAddOns: AddOnItem[] = [
 		period: '/month',
 		startingFrom: true,
 		faqId: 'trendz-payg-what-is',
-		faqTooltip: 'Turn raw IoT data into actionable insights with advanced analytics and trend prediction.',
+		faqTooltip:
+			'Turn raw IoT data into actionable insights with advanced analytics and trend prediction.',
 	},
 	{
 		id: 'sm-mobile',

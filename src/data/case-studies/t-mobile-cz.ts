@@ -94,8 +94,16 @@ export const tMobileCzData: CaseStudyData = {
 					'Rule Engine triggers real-time alarms when anomalies or failures occur.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp', alt: 'Thingsboard maps widgets widget', title: 'Thingsboard maps widgets widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/entities-table.webp', alt: 'Thingsboard entities table widget', title: 'Thingsboard entities table widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp',
+						alt: 'Thingsboard maps widgets widget',
+						title: 'Thingsboard maps widgets widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/entities-table.webp',
+						alt: 'Thingsboard entities table widget',
+						title: 'Thingsboard entities table widget',
+					},
 				],
 			},
 			{
@@ -107,8 +115,16 @@ export const tMobileCzData: CaseStudyData = {
 					'Automatic alerts warn of power failures, overloads, or low battery voltage.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/digital_gauges.webp', alt: 'Thingsboard digital gauges widgets', title: 'Thingsboard digital gauges widgets' },
-					{ src: 'https://img.thingsboard.io/case-studies/hp-scada-energy.webp', alt: 'Thingsboard HP SCADA energy widgets', title: 'Thingsboard HP SCADA energy widgets' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/digital_gauges.webp',
+						alt: 'Thingsboard digital gauges widgets',
+						title: 'Thingsboard digital gauges widgets',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/hp-scada-energy.webp',
+						alt: 'Thingsboard HP SCADA energy widgets',
+						title: 'Thingsboard HP SCADA energy widgets',
+					},
 				],
 			},
 			{
@@ -119,8 +135,16 @@ export const tMobileCzData: CaseStudyData = {
 					'Maintenance teams receive early alerts, enabling scheduled servicing instead of reactive repair.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/notification-widget.webp', alt: 'Thingsboard notification widget', title: 'Thingsboard notification widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp', alt: 'Thingsboard time series chart widget', title: 'Thingsboard time series chart widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/notification-widget.webp',
+						alt: 'Thingsboard notification widget',
+						title: 'Thingsboard notification widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp',
+						alt: 'Thingsboard time series chart widget',
+						title: 'Thingsboard time series chart widget',
+					},
 				],
 			},
 			{
@@ -132,8 +156,16 @@ export const tMobileCzData: CaseStudyData = {
 					'SCADA integration simplifies monitoring of mission-critical systems at scale.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/hp-curcuit-breaker.webp', alt: 'Thingsboard HP curcuit breaker widget', title: 'Thingsboard HP curcuit breaker widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/value-stepper-widget.webp', alt: 'Thingsboard value stepper widget', title: 'Thingsboard value stepper widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/hp-curcuit-breaker.webp',
+						alt: 'Thingsboard HP curcuit breaker widget',
+						title: 'Thingsboard HP curcuit breaker widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/value-stepper-widget.webp',
+						alt: 'Thingsboard value stepper widget',
+						title: 'Thingsboard value stepper widget',
+					},
 				],
 			},
 		],

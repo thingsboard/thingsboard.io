@@ -64,7 +64,7 @@ export const products: ProductData[] = [
 		id: 'thingsboard-cloud',
 		title: 'ThingsBoard Cloud',
 		description:
-			'The ThingsBoard Cloud is a fully managed, scalable and fault-tolerant platform for your IoT applications. ThingsBoard Cloud is for everyone who would like to use ThingsBoard Professional Edition but don\'t want to host their own instance of the platform.\n\nThe ThingsBoard cluster stores your data within the European and the United States, complying with their respective regulations.\n\nSelect your region and start using ThingsBoard Cloud <b>for free</b>.',
+			"The ThingsBoard Cloud is a fully managed, scalable and fault-tolerant platform for your IoT applications. ThingsBoard Cloud is for everyone who would like to use ThingsBoard Professional Edition but don't want to host their own instance of the platform.\n\nThe ThingsBoard cluster stores your data within the European and the United States, complying with their respective regulations.\n\nSelect your region and start using ThingsBoard Cloud <b>for free</b>.",
 		buttons: [
 			{
 				id: 'TryItNow_Cloud_NorthAmerica',
@@ -106,7 +106,8 @@ export const products: ProductData[] = [
 				{
 					title: 'Reduced costs',
 					href: '/pricing/',
-					description: 'The cost of the cluster infrastructure is shared between the users of the platform.',
+					description:
+						'The cost of the cluster infrastructure is shared between the users of the platform.',
 				},
 			],
 			[
@@ -120,7 +121,7 @@ export const products: ProductData[] = [
 					title: 'Data durability',
 					href: '/docs/reference/msa/',
 					description:
-						'Platform uses data replication and backup procedures to make sure you don\'t lose the data.',
+						"Platform uses data replication and backup procedures to make sure you don't lose the data.",
 				},
 			],
 		],
@@ -171,7 +172,8 @@ export const products: ProductData[] = [
 				{
 					title: 'Data collection & Visualization',
 					href: '/docs/user-guide/visualization/',
-					description: 'Collect and store telemetry data. Visualize your data with flexible dashboards.',
+					description:
+						'Collect and store telemetry data. Visualize your data with flexible dashboards.',
 				},
 				{
 					title: 'Devices & Assets management',
@@ -467,7 +469,8 @@ export const products: ProductData[] = [
 				{
 					title: 'Local alarms',
 					href: '/docs/edge/getting-started-guides/what-is-edge/',
-					description: 'React instantly to critical situations on site without connectivity to cloud.',
+					description:
+						'React instantly to critical situations on site without connectivity to cloud.',
 				},
 				{
 					title: 'Batch update and visualization',
@@ -678,7 +681,8 @@ export const products: ProductData[] = [
 					title: 'Unlimited Horizontal Scaling',
 					href: '/docs/mqtt-broker/reference/100m-connections-performance-test/',
 					target: '_blank',
-					description: 'Scale horizontally to manage more than 100M MQTT connections on a single cluster',
+					description:
+						'Scale horizontally to manage more than 100M MQTT connections on a single cluster',
 				},
 				{
 					title: 'Million-Message Throughput',
@@ -699,14 +703,15 @@ export const products: ProductData[] = [
 					title: 'Universal MQTT Support',
 					href: '/docs/mqtt-broker/getting-started/',
 					target: '_blank',
-					description: 'MQTT 3.x and 5.0 compatible for a seamless and secure connection experience',
+					description:
+						'MQTT 3.x and 5.0 compatible for a seamless and secure connection experience',
 				},
 				{
 					title: 'Zero Data Loss Guarantee',
 					href: '/docs/mqtt-broker/architecture/',
 					target: '_blank',
 					description:
-						'Guarantee the persistence and replication of your data to ensure it\'s never lost',
+						"Guarantee the persistence and replication of your data to ensure it's never lost",
 				},
 				{
 					title: 'K8s & Cloud Agnostic',
@@ -789,16 +794,17 @@ export const products: ProductData[] = [
 
 export const productTabs = products.map((p, i) => ({
 	id: p.id,
-	label: p.id === 'thingsboard-ce'
-		? 'Community Edition'
-		: p.id === 'thingsboard-pe'
-			? 'Professional Edition'
-			: p.id === 'thingsboard-cloud'
-				? 'Cloud'
-				: p.id === 'thingsboard-edge'
-					? 'Edge'
-					: p.id === 'thingsboard-trendz'
-						? 'Trendz'
-						: 'TBMQ',
+	label:
+		p.id === 'thingsboard-ce'
+			? 'Community Edition'
+			: p.id === 'thingsboard-pe'
+				? 'Professional Edition'
+				: p.id === 'thingsboard-cloud'
+					? 'Cloud'
+					: p.id === 'thingsboard-edge'
+						? 'Edge'
+						: p.id === 'thingsboard-trendz'
+							? 'Trendz'
+							: 'TBMQ',
 	active: i === 0,
 }));

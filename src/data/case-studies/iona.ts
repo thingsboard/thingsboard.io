@@ -36,7 +36,7 @@ export const ionaData: CaseStudyData = {
 			'IONA Tech selected the ThingsBoard suite for its flexibility, rich functionality, and ease of use in presenting Industrial IoT data.',
 			'The platform integrated smoothly with their distributed hardware used for monitoring electrostatic discharge (ESD) in manufacturing environments.',
 			'Comprehensive documentation enabled the team to quickly implement and configure the system with minimal setup time.',
-			'To meet specific operational needs, IONA Tech collaborated with the ThingsBoard Development Unit to extend the platform\'s functionality.',
+			"To meet specific operational needs, IONA Tech collaborated with the ThingsBoard Development Unit to extend the platform's functionality.",
 			'This partnership allowed them to adapt the system to their workflows, resulting in a tailored and scalable solution for both internal use and customer-facing services.',
 		],
 	},
@@ -83,40 +83,80 @@ export const ionaData: CaseStudyData = {
 				title: 'Real-Time Telemetry & Dashboards',
 				text: 'ThingsBoard enables real-time collection, visualization, and analysis of telemetry data from ESD monitoring devices. Electronics safety teams can configure dynamic dashboards to track live ESD values, detect abnormal spikes, and immediately identify unsafe conditions.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/analogue-gauge.webp', alt: 'Thingsboard analogue gauge widget', title: 'Thingsboard analogue gauge widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp', alt: 'Thingsboard time series chart widget', title: 'Thingsboard time series chart widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/analogue-gauge.webp',
+						alt: 'Thingsboard analogue gauge widget',
+						title: 'Thingsboard analogue gauge widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp',
+						alt: 'Thingsboard time series chart widget',
+						title: 'Thingsboard time series chart widget',
+					},
 				],
 			},
 			{
 				title: 'Device management at scale',
 				text: 'The platform provides comprehensive tools for registering, provisioning, and managing thousands of distributed devices. For electronics safety environments, this means centralized control of sensors across multiple production zones or facilities. Features such as remote configuration, firmware updates, and device state monitoring help reduce maintenance time and improve system reliability.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/entities-table.webp', alt: 'Thingsboard entities table widget', title: 'Thingsboard entities table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/device-count-widget.webp', alt: 'Thingsboard device count widget', title: 'Thingsboard device count widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/entities-table.webp',
+						alt: 'Thingsboard entities table widget',
+						title: 'Thingsboard entities table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/device-count-widget.webp',
+						alt: 'Thingsboard device count widget',
+						title: 'Thingsboard device count widget',
+					},
 				],
 			},
 			{
 				title: 'Advanced Rule Engine for Automation',
-				text: "ThingsBoard includes a powerful rule engine that allows safety engineers to define complex event-processing workflows. Businesses can automate safety responses\u2014such as triggering alarms, sending emails, or updating dashboards\u2014when ESD thresholds are exceeded or if sensor connectivity fails. Rule chains can be configured through a visual editor, reducing dependency on code.",
+				text: 'ThingsBoard includes a powerful rule engine that allows safety engineers to define complex event-processing workflows. Businesses can automate safety responses\u2014such as triggering alarms, sending emails, or updating dashboards\u2014when ESD thresholds are exceeded or if sensor connectivity fails. Rule chains can be configured through a visual editor, reducing dependency on code.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/alarms-table.webp', alt: 'Thingsboard alarms table widget', title: 'Thingsboard alarms table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/notification-widget.webp', alt: 'Thingsboard notification widget', title: 'Thingsboard notification widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/alarms-table.webp',
+						alt: 'Thingsboard alarms table widget',
+						title: 'Thingsboard alarms table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/notification-widget.webp',
+						alt: 'Thingsboard notification widget',
+						title: 'Thingsboard notification widget',
+					},
 				],
 			},
 			{
 				title: 'Asset & Entity Management',
 				text: 'Safety equipment and monitoring devices can be logically grouped into assets (e.g., zones, workstations, rooms), making it easier to organize and manage devices by physical or operational context. This structure simplifies tracking, alerting, and reporting at different levels of a facility.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/image-building-map.webp', alt: 'Thingsboard image building map widget', title: 'Thingsboard image building map widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp', alt: 'Thingsboard maps widgets widget', title: 'Thingsboard maps widgets widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/image-building-map.webp',
+						alt: 'Thingsboard image building map widget',
+						title: 'Thingsboard image building map widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp',
+						alt: 'Thingsboard maps widgets widget',
+						title: 'Thingsboard maps widgets widget',
+					},
 				],
 			},
 			{
 				title: 'Role-Based Access Control (RBAC)',
 				text: 'With advanced RBAC, organizations can define user roles and permissions to limit access to sensitive data and configuration controls. For example, floor operators can be given read-only access to dashboards, while engineers and admins maintain control over device settings and rule logic.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/hierarchy-widget.webp', alt: 'Thingsboard hierarchy widget', title: 'Thingsboard hierarchy widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/roles-table.webp', alt: 'Thingsboard roles table widget', title: 'Thingsboard roles table widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/hierarchy-widget.webp',
+						alt: 'Thingsboard hierarchy widget',
+						title: 'Thingsboard hierarchy widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/roles-table.webp',
+						alt: 'Thingsboard roles table widget',
+						title: 'Thingsboard roles table widget',
+					},
 				],
 			},
 		],

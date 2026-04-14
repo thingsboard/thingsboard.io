@@ -23,7 +23,7 @@ export const courses: Course[] = [
 		id: 'data-visualization',
 		courseName: 'Data visualization',
 		courseDescription:
-			'Learn how to effectively model and visualize data using the ThingsBoard platform. This training block covers the essentials of ThingsBoard\'s Web UI, entity management, and advanced data visualization techniques. You will gain hands-on experience with creating and customizing widgets, as well as building comprehensive dashboards that provide insightful data representations for your IoT projects.',
+			"Learn how to effectively model and visualize data using the ThingsBoard platform. This training block covers the essentials of ThingsBoard's Web UI, entity management, and advanced data visualization techniques. You will gain hands-on experience with creating and customizing widgets, as well as building comprehensive dashboards that provide insightful data representations for your IoT projects.",
 		carouselCourseDescription:
 			'Clear and simple introduction to data visualization tools and how to create custom widgets',
 		courseSessions: [
@@ -54,8 +54,7 @@ export const courses: Course[] = [
 							'Understand entity relations, different relationship types, and how they define connections between entities.',
 					},
 					{
-						textContent:
-							'Explore real-world use cases of entity relations in ThingsBoard.',
+						textContent: 'Explore real-world use cases of entity relations in ThingsBoard.',
 					},
 					{
 						textContent:
@@ -63,8 +62,7 @@ export const courses: Course[] = [
 					},
 					{ textContent: 'Apply knowledge through real-world scenarios.' },
 					{
-						textContent:
-							'Discuss best practices for ThingsBoard UI and data management.',
+						textContent: 'Discuss best practices for ThingsBoard UI and data management.',
 					},
 				],
 			},
@@ -77,20 +75,17 @@ export const courses: Course[] = [
 							'Deep Dive into ThingsBoard Dashboards to understand Entity Aliases, Time Window selection, General Settings, and Dashboard States.',
 					},
 					{
-						textContent:
-							'Explore state transitions and how to enhance user experience.',
+						textContent: 'Explore state transitions and how to enhance user experience.',
 					},
 					{
-						textContent:
-							'Learn how to customize Chart, Markdown/HTML Card, and Map widgets.',
+						textContent: 'Learn how to customize Chart, Markdown/HTML Card, and Map widgets.',
 					},
 					{
 						textContent:
 							'Utilize Custom Tooltips and Dashboard Actions to improve usability and interaction.',
 					},
 					{
-						textContent:
-							'Create dashboards with multiple states to display Asset hierarchy.',
+						textContent: 'Create dashboards with multiple states to display Asset hierarchy.',
 					},
 					{
 						textContent:
@@ -113,12 +108,10 @@ export const courses: Course[] = [
 							'Learn how to use the ThingsBoard Widget Editor, its layout, and key features.',
 					},
 					{
-						textContent:
-							'Explore how to navigate, create, and configure widget bundles.',
+						textContent: 'Explore how to navigate, create, and configure widget bundles.',
 					},
 					{
-						textContent:
-							'Manage widgets efficiently through importing, modifying, and exporting.',
+						textContent: 'Manage widgets efficiently through importing, modifying, and exporting.',
 					},
 					{
 						textContent:
@@ -149,31 +142,25 @@ export const courses: Course[] = [
 						warning: true,
 					},
 					{
-						textContent:
-							'Understand complex widget structures and custom logic implementation.',
+						textContent: 'Understand complex widget structures and custom logic implementation.',
 					},
 					{
-						textContent:
-							'Work with the Last Values widgets for real-time data representation.',
+						textContent: 'Work with the Last Values widgets for real-time data representation.',
 					},
 					{ textContent: 'Learn how to Develop Time-Series Widgets.' },
 					{
-						textContent:
-							'Build a Time-Series Table to structure historical data.',
+						textContent: 'Build a Time-Series Table to structure historical data.',
 					},
 					{
-						textContent:
-							'Create a Dynamic Line Chart to visualize trends in telemetry data.',
+						textContent: 'Create a Dynamic Line Chart to visualize trends in telemetry data.',
 					},
 					{
-						textContent:
-							'Implement custom action templates for interactive dashboards.',
+						textContent: 'Implement custom action templates for interactive dashboards.',
 					},
 					{ textContent: 'Use HTML extensions for advanced data manipulation.' },
 					{ textContent: 'Discuss common custom widget challenges.' },
 					{
-						textContent:
-							'Learn best practices for scalable and maintainable widget development.',
+						textContent: 'Learn best practices for scalable and maintainable widget development.',
 					},
 				],
 			},
@@ -183,7 +170,7 @@ export const courses: Course[] = [
 		id: 'administration',
 		courseName: 'ThingsBoard administration',
 		courseDescription:
-			'This training provides administrators with the skills needed to successfully deploy, configure, and manage ThingsBoard in various environments. You will learn monolithic and cluster-based deployment strategies, understand architecture components. This training covers hands-on AWS deployment, troubleshooting common issues using logs and diagnostic tools, and improving ThingsBoard\'s performance and stability.',
+			"This training provides administrators with the skills needed to successfully deploy, configure, and manage ThingsBoard in various environments. You will learn monolithic and cluster-based deployment strategies, understand architecture components. This training covers hands-on AWS deployment, troubleshooting common issues using logs and diagnostic tools, and improving ThingsBoard's performance and stability.",
 		carouselCourseDescription:
 			'Basic understanding of installation, configuration, and maintenance for effective platform administration.',
 		courseSessions: [
@@ -216,8 +203,7 @@ export const courses: Course[] = [
 							'Discuss best practices for configuring ThingsBoard for optimal performance in different environments.',
 					},
 					{
-						textContent:
-							'Identify and troubleshoot common issues using logs and diagnostic tools.',
+						textContent: 'Identify and troubleshoot common issues using logs and diagnostic tools.',
 					},
 					{
 						textContent:
@@ -255,8 +241,7 @@ export const courses: Course[] = [
 							'Learn about rule chains – what they are, how they work, and how to set them up with practical examples such as processing data with default rule chains, editing them, and assigning custom rule chains to devices.',
 					},
 					{
-						textContent:
-							'Dive into a quick overview of ThingsBoard IoT data visualisation.',
+						textContent: 'Dive into a quick overview of ThingsBoard IoT data visualisation.',
 					},
 					{
 						textContent:
@@ -283,12 +268,10 @@ export const courses: Course[] = [
 				sessionTopics: [
 					{ textContent: 'Learn the core functions of the SCADA user interface.' },
 					{
-						textContent:
-							'Understand the structure and navigation of the SCADA platform.',
+						textContent: 'Understand the structure and navigation of the SCADA platform.',
 					},
 					{
-						textContent:
-							'Discover how to create a basic dashboard using pre-configured symbols.',
+						textContent: 'Discover how to create a basic dashboard using pre-configured symbols.',
 					},
 					{
 						textContent:
@@ -309,8 +292,7 @@ export const courses: Course[] = [
 				sessionLengthInHours: 2,
 				sessionTopics: [
 					{
-						textContent:
-							'Learn how to navigate and manage the library of existing SCADA symbols.',
+						textContent: 'Learn how to navigate and manage the library of existing SCADA symbols.',
 					},
 					{
 						textContent:
@@ -329,14 +311,12 @@ export const courses: Course[] = [
 							'Work with tags effectively and ensure they update data correctly and interact smoothly.',
 					},
 					{
-						textContent:
-							'Engage in a Q&A session to better understand advanced topics.',
+						textContent: 'Engage in a Q&A session to better understand advanced topics.',
 					},
 				],
 			},
 			{
-				sessionName:
-					'SCADA mastery – advanced properties, behaviors, and widget engineering',
+				sessionName: 'SCADA mastery – advanced properties, behaviors, and widget engineering',
 				sessionLengthInHours: 2,
 				sessionTopics: [
 					{
@@ -371,7 +351,7 @@ export const courses: Course[] = [
 		id: 'management',
 		courseName: 'Platform management and security',
 		courseDescription:
-			'This training program helps participants gain a strong understanding of ThingsBoard\'s main features through hands-on practice. It covers data automation using the Rule Engine, user access control with RBAC, alarm management, and API interaction. Advanced users will also learn custom rule node development to extend the system capabilities. This program is perfect for professionals who want to build scalable, secure, high-performing IoT solutions using ThingsBoard.',
+			"This training program helps participants gain a strong understanding of ThingsBoard's main features through hands-on practice. It covers data automation using the Rule Engine, user access control with RBAC, alarm management, and API interaction. Advanced users will also learn custom rule node development to extend the system capabilities. This program is perfect for professionals who want to build scalable, secure, high-performing IoT solutions using ThingsBoard.",
 		carouselCourseDescription:
 			'Comprehensive overview of rule engine, alarm management, security model, and API usage.',
 		courseSessions: [
@@ -380,21 +360,18 @@ export const courses: Course[] = [
 				sessionLengthInHours: 2,
 				sessionTopics: [
 					{
-						textContent:
-							'Learn what a Rule Engine is and how it helps process data automatically.',
+						textContent: 'Learn what a Rule Engine is and how it helps process data automatically.',
 					},
 					{ textContent: 'Understand how messages flow through rule chains.' },
 					{
-						textContent:
-							'Understand the differences between regular and edge rule chains.',
+						textContent: 'Understand the differences between regular and edge rule chains.',
 					},
 					{
 						textContent:
 							'Discover how data arrives in the rule chains, including messages produced by the device and platform-generated events (e.g., lifecycle events).',
 					},
 					{
-						textContent:
-							'Explore what a Rule Node is and understand its purpose.',
+						textContent: 'Explore what a Rule Node is and understand its purpose.',
 					},
 					{
 						textContent:
@@ -451,8 +428,7 @@ export const courses: Course[] = [
 							'Understand how to use role-based access control (RBAC) and control user access and permissions.',
 					},
 					{
-						textContent:
-							'Understand the difference between generic and group roles.',
+						textContent: 'Understand the difference between generic and group roles.',
 					},
 					{
 						textContent:
@@ -498,8 +474,7 @@ export const courses: Course[] = [
 							'Learn about alarm types and their intended usage (e.g. threshold-exceeded alarm).',
 					},
 					{
-						textContent:
-							'Explore alarm severity levels and how they help prioritize incidents.',
+						textContent: 'Explore alarm severity levels and how they help prioritize incidents.',
 					},
 					{
 						textContent:
@@ -522,12 +497,10 @@ export const courses: Course[] = [
 							'Understand how alarm comments work, differentiating between user-defined and system-generated comments.',
 					},
 					{
-						textContent:
-							'Understand how alarm rules define when alarms are created and cleared.',
+						textContent: 'Understand how alarm rules define when alarms are created and cleared.',
 					},
 					{
-						textContent:
-							'Explore different rule conditions and how they are evaluated.',
+						textContent: 'Explore different rule conditions and how they are evaluated.',
 					},
 					{
 						textContent:
@@ -556,29 +529,23 @@ export const courses: Course[] = [
 				sessionLengthInHours: 2,
 				sessionTopics: [
 					{
-						textContent:
-							'Understand how to interact with ThingsBoard using the REST API.',
+						textContent: 'Understand how to interact with ThingsBoard using the REST API.',
 					},
 					{
-						textContent:
-							'Learn how to use Swagger UI for testing, developing, and exploring APIs.',
+						textContent: 'Learn how to use Swagger UI for testing, developing, and exploring APIs.',
 					},
 					{
-						textContent:
-							'Discover how authentication and authorization work in REST API.',
+						textContent: 'Discover how authentication and authorization work in REST API.',
 					},
 					{
-						textContent:
-							'Learn how to obtain and use JWT tokens for secure API access.',
+						textContent: 'Learn how to obtain and use JWT tokens for secure API access.',
 					},
 					{ textContent: 'Explore entity hierarchy access control.' },
 					{
-						textContent:
-							'Understand user authorities and how RBAC applies to API interactions.',
+						textContent: 'Understand user authorities and how RBAC applies to API interactions.',
 					},
 					{
-						textContent:
-							'Learn how to troubleshoot API permission issues and handle errors.',
+						textContent: 'Learn how to troubleshoot API permission issues and handle errors.',
 					},
 					{
 						textContent:
@@ -593,8 +560,7 @@ export const courses: Course[] = [
 							'Learn how to manage attributes via the Attributes API, including fetching, uploading, and subscribing to updates.',
 					},
 					{
-						textContent:
-							'Work with Time Series API for fetching and uploading telemetry data.',
+						textContent: 'Work with Time Series API for fetching and uploading telemetry data.',
 					},
 				],
 			},
@@ -607,12 +573,10 @@ export const courses: Course[] = [
 							'Get an overview of different data transport protocols such as MQTT, HTTP, CoAP, LwM2M, and SNMP.',
 					},
 					{
-						textContent:
-							'Learn how to send and receive data using MQTT, HTTP, and CoAP protocols.',
+						textContent: 'Learn how to send and receive data using MQTT, HTTP, and CoAP protocols.',
 					},
 					{
-						textContent:
-							'Understand how Remote Procedure Calls (RPC) work in ThingsBoard.',
+						textContent: 'Understand how Remote Procedure Calls (RPC) work in ThingsBoard.',
 					},
 					{
 						textContent:
@@ -653,8 +617,7 @@ export const courses: Course[] = [
 							'Manage entity data, update records, store information, and send data using custom nodes.',
 					},
 					{
-						textContent:
-							'Learn how to deploy a custom node to a self-hosted ThingsBoard instance.',
+						textContent: 'Learn how to deploy a custom node to a self-hosted ThingsBoard instance.',
 					},
 					{ textContent: 'Explore rule node versioning and upgrade mechanisms.' },
 					{
@@ -662,8 +625,7 @@ export const courses: Course[] = [
 							'Work with the @RuleNode annotation and understand its role in ThingsBoard.',
 					},
 					{
-						textContent:
-							'Use the TbNode interface to define custom logic within a rule node.',
+						textContent: 'Use the TbNode interface to define custom logic within a rule node.',
 					},
 					{
 						textContent:
@@ -678,8 +640,7 @@ export const courses: Course[] = [
 							'Optimize performance by utilizing asynchronous programming and efficient threading.',
 					},
 					{
-						textContent:
-							'Learn how to avoid common mistakes when implementing custom nodes.',
+						textContent: 'Learn how to avoid common mistakes when implementing custom nodes.',
 					},
 				],
 			},

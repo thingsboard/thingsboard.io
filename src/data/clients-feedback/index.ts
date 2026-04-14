@@ -61,8 +61,7 @@ export const feedbackEntries: Record<string, FeedbackEntry[]> = {
 			companyImage: CDN + 'energenix.webp',
 			companyImageWidth: 132,
 			companyImageHeight: 45,
-			tagline:
-				'Real-time solar portfolio visibility with unified dashboards and automated alerts',
+			tagline: 'Real-time solar portfolio visibility with unified dashboards and automated alerts',
 			text: [
 				'Energenix has significantly improved visibility across our entire solar portfolio. Having real-time performance data, unified dashboards, and automated alerts in one platform has transformed how our teams monitor plants, identify issues, and make operational decisions. It has become an essential tool for managing and optimizing our renewable energy assets at scale.',
 			],
@@ -150,8 +149,7 @@ export const feedbackEntries: Record<string, FeedbackEntry[]> = {
 			companyImage: CDN + 'supertech-agroline.svg',
 			companyImageWidth: 122,
 			companyImageHeight: 36,
-			tagline:
-				'Develops, manufactures and sells high quality post-harvest equipment worldwide.',
+			tagline: 'Develops, manufactures and sells high quality post-harvest equipment worldwide.',
 			text: [
 				'ThingsBoard (TB) turned out to be a great match to build our Agricultural IoT platform. First and foremost because of the extremely skilled and service minded architects behind it. Together with the TB developers several new features were added to the platform for our needs, among these the Asset system and PostgreSQL support. These new features gave us the possibility to model our data structure using only TB as the backend, both on the multi-tenant cloud server and on-premise installations. The real time UI system proved useful both in development phase and for our final user interface.',
 				'Using TB as our platform allowed us to rapidly achieve a very genetic solution that will serve our scaling needs for years to come.',
@@ -408,8 +406,7 @@ export const feedbackEntries: Record<string, FeedbackEntry[]> = {
 			companyImage: CDN + 'kiotera.svg',
 			companyImageWidth: 166,
 			companyImageHeight: 60,
-			tagline:
-				'Fast time-to-value: modular IoT solutions in days with ThingsBoard.',
+			tagline: 'Fast time-to-value: modular IoT solutions in days with ThingsBoard.',
 			text: [
 				'ThingsBoard enables us to use a modular approach in our solutions, allowing our customers to implement IoT-Solutions in a matter of days. These modules are based on standardized, proven building blocks that combine industrial gateways, tried-and-tested sensors, rule chains and visualizations refined through many years of project experience.',
 			],
@@ -526,8 +523,8 @@ export const feedbackEntries: Record<string, FeedbackEntry[]> = {
 			text: [
 				'The development process was smooth, well-structured, and highly professional. From the initial requirements gathering to the final delivery, the team demonstrated deep technical expertise and a clear understanding of our vision.',
 				'The development team was highly responsive, transparent, and easy to work with, keeping us informed at every milestone. Any questions or concerns were addressed promptly, which gave us confidence that the project was always on track.',
-				"The final mobile app exceeded our expectations. It\'s user-friendly, visually appealing, and performs reliably in real-world use. The mobile app was also designed in a way where my team could maintain widgets in the app without depending on mobile app developers.",
-				'This custom development has played a key role in advancing our business goals. The mobile app has allowed us to better serve our customers, and bring our IoT data to the palm of their hands in a seamless way. It\'s already proving to be a valuable tool for both our team and our clients.',
+				"The final mobile app exceeded our expectations. It's user-friendly, visually appealing, and performs reliably in real-world use. The mobile app was also designed in a way where my team could maintain widgets in the app without depending on mobile app developers.",
+				"This custom development has played a key role in advancing our business goals. The mobile app has allowed us to better serve our customers, and bring our IoT data to the palm of their hands in a seamless way. It's already proving to be a valuable tool for both our team and our clients.",
 				'The fixed-price, fast delivery approach worked perfectly for us. It gave us cost certainty, kept the project moving at a great pace, and ensured that we met our timelines without compromising on quality.',
 				'We look forward to working with the ThingsBoard team again in the future and highly recommend their services to anyone looking for expert IoT and mobile development!',
 			],
@@ -640,8 +637,8 @@ export const feedbackEntries: Record<string, FeedbackEntry[]> = {
 			text: [
 				'The development process was smooth, well-structured, and highly professional. From the initial requirements gathering to the final delivery, the team demonstrated deep technical expertise and a clear understanding of our vision.',
 				'The development team was highly responsive, transparent, and easy to work with, keeping us informed at every milestone. Any questions or concerns were addressed promptly, which gave us confidence that the project was always on track.',
-				"The final mobile app exceeded our expectations. It\'s user-friendly, visually appealing, and performs reliably in real-world use. The mobile app was also designed in a way where my team could maintain widgets in the app without depending on mobile app developers.",
-				'This custom development has played a key role in advancing our business goals. The mobile app has allowed us to better serve our customers, and bring our IoT data to the palm of their hands in a seamless way. It\'s already proving to be a valuable tool for both our team and our clients.',
+				"The final mobile app exceeded our expectations. It's user-friendly, visually appealing, and performs reliably in real-world use. The mobile app was also designed in a way where my team could maintain widgets in the app without depending on mobile app developers.",
+				"This custom development has played a key role in advancing our business goals. The mobile app has allowed us to better serve our customers, and bring our IoT data to the palm of their hands in a seamless way. It's already proving to be a valuable tool for both our team and our clients.",
 				'The fixed-price, fast delivery approach worked perfectly for us. It gave us cost certainty, kept the project moving at a great pace, and ensured that we met our timelines without compromising on quality.',
 				'We look forward to working with the ThingsBoard team again in the future and highly recommend their services to anyone looking for expert IoT and mobile development!',
 			],
@@ -799,7 +796,7 @@ export const feedbackEntries: Record<string, FeedbackEntry[]> = {
 };
 
 export const allFeedbackEntries: FeedbackEntry[] = feedbackCategories.flatMap(
-	(cat) => feedbackEntries[cat.key] || [],
+	(cat) => feedbackEntries[cat.key] || []
 );
 
 /**
@@ -824,12 +821,13 @@ export const devServicesFeedback: import('./types').FeedbackEntry[] = [
 		authorImage: '/images/customers/tamati-iro.webp',
 		companyImage: '/images/customers/vodafone.svg',
 		companyImageWidth: 170,
-		tagline: 'Working with the ThingsBoard Development team on our custom Mobile App has been an outstanding experience.',
+		tagline:
+			'Working with the ThingsBoard Development team on our custom Mobile App has been an outstanding experience.',
 		text: [
 			'The development process was smooth, well-structured, and highly professional. From the initial requirements gathering to the final delivery, the team demonstrated deep technical expertise and a clear understanding of our vision.',
 			'The development team was highly responsive, transparent, and easy to work with, keeping us informed at every milestone. Any questions or concerns were addressed promptly, which gave us confidence that the project was always on track.',
-			'The final mobile app exceeded our expectations. It\'s user-friendly, visually appealing, and performs reliably in real-world use. The mobile app was also designed in a way where my team could maintain widgets in the app without depending on mobile app developers.',
-			'This custom development has played a key role in advancing our business goals. The mobile app has allowed us to better serve our customers, and bring our IoT data to the palm of their hands in a seamless way. It\'s already proving to be a valuable tool for both our team and our clients.',
+			"The final mobile app exceeded our expectations. It's user-friendly, visually appealing, and performs reliably in real-world use. The mobile app was also designed in a way where my team could maintain widgets in the app without depending on mobile app developers.",
+			"This custom development has played a key role in advancing our business goals. The mobile app has allowed us to better serve our customers, and bring our IoT data to the palm of their hands in a seamless way. It's already proving to be a valuable tool for both our team and our clients.",
 			'The fixed-price, fast delivery approach worked perfectly for us. It gave us cost certainty, kept the project moving at a great pace, and ensured that we met our timelines without compromising on quality.',
 			'We look forward to working with the ThingsBoard team again in the future and highly recommend their services to anyone looking for expert IoT and mobile development!',
 		],
@@ -843,7 +841,8 @@ export const devServicesFeedback: import('./types').FeedbackEntry[] = [
 		companyImage: '/images/customers/circutor.svg',
 		companyImageWidth: 138,
 		companyImageHeight: 32,
-		tagline: 'CIRCUTOR has over 40 years\' experience working on the design and manufacture of units for improving energy efficiency.',
+		tagline:
+			"CIRCUTOR has over 40 years' experience working on the design and manufacture of units for improving energy efficiency.",
 		text: [
 			'CIRCUTOR owns a wide portfolio of connected energy control and metering devices. Despite the diversity of proprietary and off-the-shelf data protocols, Thingsboard has made it easy to accommodate most of our products in a common data platform.',
 			'I am deeply impressed by the dynamism and professionalism of the Thingsboard team. I appreciate greatly the ability to attend our technical suggestions and adopt them in the form of new functionalities. I highly recommend Thingsboard for its reliability, its flexibility and above all, the quality of the product and its technical service.',
@@ -857,10 +856,11 @@ export const devServicesFeedback: import('./types').FeedbackEntry[] = [
 		authorImage: '/images/customers/poliglot-photo.webp',
 		companyImage: '/images/customers/poligiot.svg',
 		companyImageHeight: 40,
-		tagline: 'Working with the ThingsBoard team throughout this project has been a very positive and productive experience.',
+		tagline:
+			'Working with the ThingsBoard team throughout this project has been a very positive and productive experience.',
 		text: [
 			'They also guided me through setting up critical components such as data history storage, the early warning system, and automated monthly reports. Each stage of the development was handled with great attention to detail, always ensuring that the solutions aligned with the system architecture and functional goals.',
-			'Communication has been clear, responsive, and solution-oriented. I always felt that I had a reliable partner on the other side, ready to face challenges with me, especially when integrating ThingsBoard\'s services with third-party tools.',
+			"Communication has been clear, responsive, and solution-oriented. I always felt that I had a reliable partner on the other side, ready to face challenges with me, especially when integrating ThingsBoard's services with third-party tools.",
 			'The final result is a robust, scalable system that performs exactly as envisioned. I also appreciate their continued openness to collaborate on the next stages of the project.',
 		],
 	},
@@ -873,12 +873,13 @@ export const devServicesFeedback: import('./types').FeedbackEntry[] = [
 		companyImage: '/images/customers/awake.webp',
 		companyImageWidth: 172,
 		companyImageHeight: 32,
-		tagline: 'End-to-end rental management solution with IoT, multi-channel alerts, and branded interface.',
+		tagline:
+			'End-to-end rental management solution with IoT, multi-channel alerts, and branded interface.',
 		text: [
 			'We have reached out to ThingsBoard to build a rental operations dashboard for managing rental stations that offer our products. Additionally, we wanted to provide those stations with a ready-made interface for fleet and contract management.',
 			'The solution needed to support rental contracts, performance reporting for rental centers, fleet management, geofencing, internal incident reporting, and multi-channel notifications (SMS, email, WhatsApp), along with real-time IoT connectivity to our products via MQTT.',
 			'Given time constraints, we chose to outsource the development so our internal team could focus on other priorities. Working with the ThingsBoard team proved to be efficient, with just the right level of collaboration needed to deliver an optimal outcome.',
-			'The final product met our expectations, featuring a user interface aligned with our brand\'s design language and enabling rental centers to manage operations easily, safely, and in a centralized way.',
+			"The final product met our expectations, featuring a user interface aligned with our brand's design language and enabling rental centers to manage operations easily, safely, and in a centralized way.",
 		],
 	},
 ];

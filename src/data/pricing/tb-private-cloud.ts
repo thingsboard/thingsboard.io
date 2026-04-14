@@ -163,7 +163,8 @@ export const tbPrivateCloudAddOns: AddOnItem[] = [
 		period: '/month',
 		startingFrom: true,
 		faqId: 'tb-private-cloud-edge-addon-cloud-what-is',
-		faqTooltip: 'Run a local on-prem instance to keep operations running even when the internet is down.',
+		faqTooltip:
+			'Run a local on-prem instance to keep operations running even when the internet is down.',
 	},
 	{
 		id: 'pc-trendz',
@@ -174,7 +175,8 @@ export const tbPrivateCloudAddOns: AddOnItem[] = [
 		period: '/month',
 		startingFrom: true,
 		faqId: 'tb-private-cloud-trendz-what-is',
-		faqTooltip: 'Turn raw IoT data into actionable insights with advanced analytics and trend prediction.',
+		faqTooltip:
+			'Turn raw IoT data into actionable insights with advanced analytics and trend prediction.',
 	},
 	{
 		id: 'pc-mobile',

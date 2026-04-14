@@ -11,7 +11,8 @@ export const energroupData: CaseStudyData = {
 
 	hero: {
 		category: 'SMART ENERGY',
-		heading: 'Smart building energy management: how EnerGroup enabled wireless room-level heating control with ThingsBoard',
+		heading:
+			'Smart building energy management: how EnerGroup enabled wireless room-level heating control with ThingsBoard',
 		paragraphs: [
 			'EnerGroup is a Swiss energy and automation integrator specializing in smart building technologies, energy renovation projects, and IoT-driven supervision platforms. The company supports residential and commercial building owners in reducing energy consumption, improving occupant comfort, and gaining full visibility into their technical installations.',
 			'EnerGroup delivers end-to-end solutions covering renewable energy production, heating and domestic hot water systems, building automation (MCR), IoT connectivity, and digital supervision through its proprietary platform EnerMon, built on ThingsBoard.',
@@ -90,32 +91,64 @@ export const energroupData: CaseStudyData = {
 				title: 'Custom dashboards',
 				text: 'ThingsBoard dashboards provide intuitive visualizations for both tenants and operators, including room temperatures, setpoints, heating status, and system overview screens.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp', alt: 'Thingsboard time series chart widget', title: 'Thingsboard time series chart widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/alarms-table.webp', alt: 'ThingsBoard alarms table widget', title: 'ThingsBoard alarms table widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp',
+						alt: 'Thingsboard time series chart widget',
+						title: 'Thingsboard time series chart widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/alarms-table.webp',
+						alt: 'ThingsBoard alarms table widget',
+						title: 'ThingsBoard alarms table widget',
+					},
 				],
 			},
 			{
 				title: 'Asset and device hierarchies',
 				text: 'The platform models the building structure using assets (building → floors → apartments → rooms), allowing Energroup to organize data logically and scale the solution easily to larger portfolios.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/entities-table.webp', alt: 'ThingsBoard entities table widget', title: 'ThingsBoard entities table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp', alt: 'ThingsBoard maps widgets card', title: 'ThingsBoard maps widgets card' }
+					{
+						src: 'https://img.thingsboard.io/case-studies/entities-table.webp',
+						alt: 'ThingsBoard entities table widget',
+						title: 'ThingsBoard entities table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp',
+						alt: 'ThingsBoard maps widgets card',
+						title: 'ThingsBoard maps widgets card',
+					},
 				],
 			},
 			{
 				title: 'Rule engine and automation',
 				text: 'ThingsBoard’s rule engine enables automated data processing, condition-based actions, and integration with external systems, forming the basis for advanced regulation and optimization strategies.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/hp-curcuit-breaker.webp', alt: 'Thingsboard hp circuit breaker widget', title: 'Thingsboard hp circuit breaker widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/markdown-html-widget.webp', alt: 'ThingsBoard markdown html widget', title: 'ThingsBoard markdown html widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/hp-curcuit-breaker.webp',
+						alt: 'Thingsboard hp circuit breaker widget',
+						title: 'Thingsboard hp circuit breaker widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/markdown-html-widget.webp',
+						alt: 'ThingsBoard markdown html widget',
+						title: 'ThingsBoard markdown html widget',
+					},
 				],
 			},
 			{
 				title: 'Role-based access control',
 				text: 'Different user roles ensure that tenants can only access their own apartment data, while operators have full visibility and control over the entire installation.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/roles-table.webp', alt: 'ThingsBoard roles table widget', title: 'ThingsBoard roles table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/hierarchy-widget.webp', alt: 'ThingsBoard hierarchy widget', title: 'ThingsBoard hierarchy widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/roles-table.webp',
+						alt: 'ThingsBoard roles table widget',
+						title: 'ThingsBoard roles table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/hierarchy-widget.webp',
+						alt: 'ThingsBoard hierarchy widget',
+						title: 'ThingsBoard hierarchy widget',
+					},
 				],
 			},
 		],

@@ -98,8 +98,16 @@ export const suesscoData: CaseStudyData = {
 					'Automated alerts and system responses can be configured (e.g., turning on ventilation when CO\u2082 levels rise).',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/entities-table.webp', alt: 'Thingsboard entities table widget', title: 'Thingsboard entities table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/supermarkets_2.webp', alt: 'Thingsboard supermarkets widget', title: 'Thingsboard supermarkets widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/entities-table.webp',
+						alt: 'Thingsboard entities table widget',
+						title: 'Thingsboard entities table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/supermarkets_2.webp',
+						alt: 'Thingsboard supermarkets widget',
+						title: 'Thingsboard supermarkets widget',
+					},
 				],
 			},
 			{
@@ -111,8 +119,16 @@ export const suesscoData: CaseStudyData = {
 					'The system automatically creates notifications or service requests.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/line-chart.webp', alt: 'Thingsboard line chart widget', title: 'Thingsboard line chart widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/alarms-table-3.webp', alt: 'Thingsboard alarms widget', title: 'Thingsboard alarms widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/line-chart.webp',
+						alt: 'Thingsboard line chart widget',
+						title: 'Thingsboard line chart widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/alarms-table-3.webp',
+						alt: 'Thingsboard alarms widget',
+						title: 'Thingsboard alarms widget',
+					},
 				],
 			},
 			{
@@ -124,8 +140,16 @@ export const suesscoData: CaseStudyData = {
 					'Role-based access control allows engineers to see one set of metrics while managers view another.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/donut-widget.webp', alt: 'Thingsboard donut chart widget', title: 'Thingsboard donut chart widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/analogue-gauge.webp', alt: 'Thingsboard analogue gauge widget', title: 'Thingsboard analogue gauge widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/donut-widget.webp',
+						alt: 'Thingsboard donut chart widget',
+						title: 'Thingsboard donut chart widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/analogue-gauge.webp',
+						alt: 'Thingsboard analogue gauge widget',
+						title: 'Thingsboard analogue gauge widget',
+					},
 				],
 			},
 			{
@@ -137,8 +161,16 @@ export const suesscoData: CaseStudyData = {
 					'Automated scenarios can be configured, such as dimming lights at night or turning off air-conditioners in empty rooms.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/digital_gauges.webp', alt: 'Thingsboard digital gauges widgets', title: 'Thingsboard digital gauges widgets' },
-					{ src: 'https://img.thingsboard.io/case-studies/status-widget-1.webp', alt: 'Thingsboard status widget', title: 'Thingsboard status widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/digital_gauges.webp',
+						alt: 'Thingsboard digital gauges widgets',
+						title: 'Thingsboard digital gauges widgets',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/status-widget-1.webp',
+						alt: 'Thingsboard status widget',
+						title: 'Thingsboard status widget',
+					},
 				],
 			},
 			{
@@ -150,8 +182,16 @@ export const suesscoData: CaseStudyData = {
 					'Motion sensors ensure lights are only on in occupied areas.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/single-switch-widget.webp', alt: 'Thingsboard single switch widget', title: 'Thingsboard single switch widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/power_button.webp', alt: 'Thingsboard power button widget', title: 'Thingsboard power button widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/single-switch-widget.webp',
+						alt: 'Thingsboard single switch widget',
+						title: 'Thingsboard single switch widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/power_button.webp',
+						alt: 'Thingsboard power button widget',
+						title: 'Thingsboard power button widget',
+					},
 				],
 			},
 			{
@@ -163,8 +203,16 @@ export const suesscoData: CaseStudyData = {
 					'In case of fire or gas leaks, the system automatically sends an alarm and activates emergency protocols.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/alarm_widgets.webp', alt: 'Thingsboard alarm widgets', title: 'Thingsboard alarm widgets' },
-					{ src: 'https://img.thingsboard.io/case-studies/supermarkets.webp', alt: 'Supermarkets widget', title: 'Supermarkets widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/alarm_widgets.webp',
+						alt: 'Thingsboard alarm widgets',
+						title: 'Thingsboard alarm widgets',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/supermarkets.webp',
+						alt: 'Supermarkets widget',
+						title: 'Supermarkets widget',
+					},
 				],
 			},
 		],

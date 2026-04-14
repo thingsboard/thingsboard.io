@@ -12,7 +12,8 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
 			},
 			{
 				id: 'tb-private-cloud-how-does-private-cloud-compare-to-thingsboard-cloud-community-edition-and-self-managed',
-				question: 'How Private Cloud compares to ThingsBoard Cloud, Community Edition and Self-Managed?',
+				question:
+					'How Private Cloud compares to ThingsBoard Cloud, Community Edition and Self-Managed?',
 				answer: `<ul>
                                 <li>Community Edition itself is the open-source core—perfect for experiments and hobby projects, but offers less features and no SLA.</li>
                                 <li>Self-Managed deployments (using either the paid Professional Edition or free Community Edition) live on infrastructure you operate; you gain total control and customisation, yet you also own every patch, backup and compliance task.</li>

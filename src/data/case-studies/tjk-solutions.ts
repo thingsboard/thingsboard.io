@@ -91,8 +91,16 @@ export const tjkSolutionsData: CaseStudyData = {
 					'Connect external systems through integrations',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/entities-table.webp', alt: 'Thingsboard entities table widget', title: 'Thingsboard entities table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp', alt: 'Thingsboard maps widgets widget', title: 'Thingsboard maps widgets widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/entities-table.webp',
+						alt: 'Thingsboard entities table widget',
+						title: 'Thingsboard entities table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp',
+						alt: 'Thingsboard maps widgets widget',
+						title: 'Thingsboard maps widgets widget',
+					},
 				],
 			},
 			{
@@ -103,8 +111,16 @@ export const tjkSolutionsData: CaseStudyData = {
 					'Use Timeseries charts for historical analysis of critical signals (battery voltage, sensor triggers).',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/battery-level.webp', alt: 'Thingsboard battery level widget', title: 'Thingsboard battery level widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp', alt: 'Thingsboard time series chart widget', title: 'Thingsboard time series chart widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/battery-level.webp',
+						alt: 'Thingsboard battery level widget',
+						title: 'Thingsboard battery level widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp',
+						alt: 'Thingsboard time series chart widget',
+						title: 'Thingsboard time series chart widget',
+					},
 				],
 			},
 			{
@@ -115,8 +131,16 @@ export const tjkSolutionsData: CaseStudyData = {
 					'Trigger notifications through SMS, email and more.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/alarms-table.webp', alt: 'Thingsboard alarms table widget', title: 'Thingsboard alarms table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/notification-widget.webp', alt: 'Thingsboard notification widget', title: 'Thingsboard notification widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/alarms-table.webp',
+						alt: 'Thingsboard alarms table widget',
+						title: 'Thingsboard alarms table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/notification-widget.webp',
+						alt: 'Thingsboard notification widget',
+						title: 'Thingsboard notification widget',
+					},
 				],
 			},
 			{
@@ -127,8 +151,16 @@ export const tjkSolutionsData: CaseStudyData = {
 					'Set up HA clusters, regular backups, and custom firewall rules for disaster readiness.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/network-status.webp', alt: 'Thingsboard network status widget', title: 'Thingsboard network status widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/signal-strength-hop-count.webp', alt: 'Thingsboard signal strength widget', title: 'Thingsboard signal strength widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/network-status.webp',
+						alt: 'Thingsboard network status widget',
+						title: 'Thingsboard network status widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/signal-strength-hop-count.webp',
+						alt: 'Thingsboard signal strength widget',
+						title: 'Thingsboard signal strength widget',
+					},
 				],
 			},
 		],

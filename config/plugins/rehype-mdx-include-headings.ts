@@ -88,7 +88,11 @@ function cleanHeadingText(raw: string): string {
  *
  * Headings are returned in document order.
  */
-function extractHeadingsFromMdx(content: string, productId: string, filterFamily?: string): HeadingInfo[] {
+function extractHeadingsFromMdx(
+	content: string,
+	productId: string,
+	filterFamily?: string
+): HeadingInfo[] {
 	// Short-circuit: if this include delegates to an Edge upgrade steps component,
 	// generate headings from EDGE_UPGRADE_VERSIONS instead of parsing MDX.
 	if (EDGE_UPGRADE_STEPS_PATTERN.test(content)) {

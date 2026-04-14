@@ -20,7 +20,8 @@ export const jobs: Job[] = [
 		tag: '',
 		location: 'Kyiv, Ukraine',
 		dateString: '',
-		intro: 'ThingsBoard Inc. (Open-Source IoT platform) is looking for a Middle Java developer to join our team on a full-time basis in the Kyiv office.\n\nThingsBoard, Inc. is a US corporation founded in 2016 with RnD center in Kyiv, Ukraine. We are the main contributor and maintainer of ThingsBoard open-source IoT Platform. We deliver and constantly improve scalable, robust and affordable IoT Platform that dramatically reduces time-to-market for life-changing IoT solutions. We also help companies to deliver great IoT products based on ThingsBoard.',
+		intro:
+			'ThingsBoard Inc. (Open-Source IoT platform) is looking for a Middle Java developer to join our team on a full-time basis in the Kyiv office.\n\nThingsBoard, Inc. is a US corporation founded in 2016 with RnD center in Kyiv, Ukraine. We are the main contributor and maintainer of ThingsBoard open-source IoT Platform. We deliver and constantly improve scalable, robust and affordable IoT Platform that dramatically reduces time-to-market for life-changing IoT solutions. We also help companies to deliver great IoT products based on ThingsBoard.',
 		sections: [
 			{
 				title: 'Requirements',
@@ -39,10 +40,7 @@ export const jobs: Job[] = [
 			},
 			{
 				title: 'Nice to have',
-				items: [
-					'Experience with cloud services: AWS, GCE, or Azure',
-					'Technical education',
-				],
+				items: ['Experience with cloud services: AWS, GCE, or Azure', 'Technical education'],
 			},
 			{
 				title: 'Responsibilities',

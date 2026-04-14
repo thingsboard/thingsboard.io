@@ -17,8 +17,10 @@ export const caseStudyCards: CaseStudyCard[] = [
 	{
 		slug: 'ariot',
 		categories: ['Cold chain monitoring'],
-		title: 'Smart Healthcare: How Medline Adana Hospital ensured patient safety and JCI compliance with ARIOT IOT TEKNOLOJILERI and ThingsBoard',
-		description: 'Smart Healthcare: How Medline Adana Hospital ensured patient safety and JCI compliance with ARIOT IOT TEKNOLOJILERI and ThingsBoard',
+		title:
+			'Smart Healthcare: How Medline Adana Hospital ensured patient safety and JCI compliance with ARIOT IOT TEKNOLOJILERI and ThingsBoard',
+		description:
+			'Smart Healthcare: How Medline Adana Hospital ensured patient safety and JCI compliance with ARIOT IOT TEKNOLOJILERI and ThingsBoard',
 		logo: 'https://img.thingsboard.io/case-studies/ariot.svg',
 		logoAlt: 'ARIOT IOT TEKNOLOJILERI logo',
 		logoHeight: 75,
@@ -36,8 +38,10 @@ export const caseStudyCards: CaseStudyCard[] = [
 	{
 		slug: 'kiotera',
 		categories: ['Smart city'],
-		title: 'Fast paced IoT-Implementation: How Customers of KIOTERA profit from standardized IoT-solutions based on ThingsBoard',
-		description: 'Fast paced IoT-Implementation: How Customers of KIOTERA profit from standardized IoT-solutions based on ThingsBoard',
+		title:
+			'Fast paced IoT-Implementation: How Customers of KIOTERA profit from standardized IoT-solutions based on ThingsBoard',
+		description:
+			'Fast paced IoT-Implementation: How Customers of KIOTERA profit from standardized IoT-solutions based on ThingsBoard',
 		logo: 'https://img.thingsboard.io/case-studies/kiotera.svg',
 		logoAlt: 'KIOTERA logo',
 		backgroundImage: 'https://img.thingsboard.io/case-studies/kiotera.webp',
@@ -45,8 +49,10 @@ export const caseStudyCards: CaseStudyCard[] = [
 	{
 		slug: 'onedata',
 		categories: ['Smart IoT solution'],
-		title: 'Visual Transformation: How OneData boosted 60-70% Efficiency at a multi-speciality hospital',
-		description: 'Visual Transformation: How OneData boosted 60-70% Efficiency at a multi-speciality hospital',
+		title:
+			'Visual Transformation: How OneData boosted 60-70% Efficiency at a multi-speciality hospital',
+		description:
+			'Visual Transformation: How OneData boosted 60-70% Efficiency at a multi-speciality hospital',
 		logo: 'https://img.thingsboard.io/case-studies/onedata.svg',
 		logoAlt: 'OneData logo',
 		backgroundImage: 'https://img.thingsboard.io/case-studies/onedata.webp',
@@ -54,8 +60,10 @@ export const caseStudyCards: CaseStudyCard[] = [
 	{
 		slug: 'xtelia',
 		categories: ['Smart city'],
-		title: 'Smart signage at scale: X-TELIA deploys LoRaWAN\u2122 parking management with ThingsBoard',
-		description: 'Smart signage at scale: X-TELIA deploys LoRaWAN\u2122 parking management with ThingsBoard',
+		title:
+			'Smart signage at scale: X-TELIA deploys LoRaWAN\u2122 parking management with ThingsBoard',
+		description:
+			'Smart signage at scale: X-TELIA deploys LoRaWAN\u2122 parking management with ThingsBoard',
 		logo: 'https://img.thingsboard.io/case-studies/x-telia.svg',
 		logoAlt: 'X-TELIA logo',
 		logoHeight: 35,
@@ -64,8 +72,10 @@ export const caseStudyCards: CaseStudyCard[] = [
 	{
 		slug: 'lumen',
 		categories: ['Smart IoT solution'],
-		title: 'Industrial IoT in manufacturing: how Lumen Energy Solutions digitalized large-scale factories with ThingsBoard',
-		description: 'Lumen Energy Solutions leverages ThingsBoard to digitalize large-scale factories, integrating 1,000+ IoT sensors and energy meters into a unified platform.',
+		title:
+			'Industrial IoT in manufacturing: how Lumen Energy Solutions digitalized large-scale factories with ThingsBoard',
+		description:
+			'Lumen Energy Solutions leverages ThingsBoard to digitalize large-scale factories, integrating 1,000+ IoT sensors and energy meters into a unified platform.',
 		logo: 'https://img.thingsboard.io/case-studies/lumen.svg',
 		logoAlt: 'Lumen logo',
 		backgroundImage: 'https://img.thingsboard.io/case-studies/lumen.webp',
@@ -73,8 +83,10 @@ export const caseStudyCards: CaseStudyCard[] = [
 	{
 		slug: 'tjk-solutions',
 		categories: ['Smart city'],
-		title: 'Securing Critical Communication: How TJK-Solutions Uses ThingsBoard to Monitor Meshtastic Infrastructure in Disaster Response',
-		description: 'Securing Critical Communication: How TJK-Solutions Uses ThingsBoard to Monitor Meshtastic Infrastructure in Disaster Response',
+		title:
+			'Securing Critical Communication: How TJK-Solutions Uses ThingsBoard to Monitor Meshtastic Infrastructure in Disaster Response',
+		description:
+			'Securing Critical Communication: How TJK-Solutions Uses ThingsBoard to Monitor Meshtastic Infrastructure in Disaster Response',
 		logo: 'https://img.thingsboard.io/case-studies/tjk-solutions.svg',
 		logoAlt: 'TJK-Solutions logo',
 		backgroundImage: 'https://img.thingsboard.io/case-studies/tjk-solutions.webp',
@@ -82,8 +94,10 @@ export const caseStudyCards: CaseStudyCard[] = [
 	{
 		slug: 'energenix',
 		categories: ['Smart energy'],
-		title: 'Scaling renewable energy intelligence: how Energenix uses ThingsBoard to monitor and optimize 120+ MW of solar power assets',
-		description: 'Scaling renewable energy intelligence: how Energenix uses ThingsBoard to monitor and optimize 120+ MW of solar power assets',
+		title:
+			'Scaling renewable energy intelligence: how Energenix uses ThingsBoard to monitor and optimize 120+ MW of solar power assets',
+		description:
+			'Scaling renewable energy intelligence: how Energenix uses ThingsBoard to monitor and optimize 120+ MW of solar power assets',
 		logo: 'https://img.thingsboard.io/case-studies/energenix.svg',
 		logoAlt: 'Energenix logo',
 		backgroundImage: 'https://img.thingsboard.io/case-studies/energenix.webp',
@@ -91,8 +105,10 @@ export const caseStudyCards: CaseStudyCard[] = [
 	{
 		slug: 'energroup',
 		categories: ['Smart energy'],
-		title: 'Smart building energy management: how EnerGroup enabled wireless room-level heating control with ThingsBoard',
-		description: 'EnerGroup leverages ThingsBoard to enable wireless room-level heating control for the Pyxis residential building.',
+		title:
+			'Smart building energy management: how EnerGroup enabled wireless room-level heating control with ThingsBoard',
+		description:
+			'EnerGroup leverages ThingsBoard to enable wireless room-level heating control for the Pyxis residential building.',
 		logo: 'https://img.thingsboard.io/case-studies/energroup.svg',
 		logoAlt: 'EnerGroup logo',
 		backgroundImage: 'https://img.thingsboard.io/case-studies/energroup.webp',
@@ -100,8 +116,10 @@ export const caseStudyCards: CaseStudyCard[] = [
 	{
 		slug: 'oxi',
 		categories: ['Smart energy'],
-		title: 'Empowering alternative energy: how OXI TRADE streamlined IoT infrastructure with ThingsBoard',
-		description: 'Empowering alternative energy: how OXI TRADE streamlined IoT infrastructure with ThingsBoard',
+		title:
+			'Empowering alternative energy: how OXI TRADE streamlined IoT infrastructure with ThingsBoard',
+		description:
+			'Empowering alternative energy: how OXI TRADE streamlined IoT infrastructure with ThingsBoard',
 		logo: 'https://img.thingsboard.io/case-studies/oxi.svg',
 		logoAlt: 'OXI Trade logo',
 		backgroundImage: 'https://img.thingsboard.io/case-studies/oxi.webp',
@@ -109,8 +127,10 @@ export const caseStudyCards: CaseStudyCard[] = [
 	{
 		slug: 'dacor',
 		categories: ['Industry 4.0'],
-		title: 'Real-Time Production Monitoring for Automotive Supplier by s\u00fcc//dacor GmbH Using ThingsBoard',
-		description: 'Real-Time Production Monitoring for Automotive Supplier by s\u00fcc//dacor GmbH Using ThingsBoard',
+		title:
+			'Real-Time Production Monitoring for Automotive Supplier by s\u00fcc//dacor GmbH Using ThingsBoard',
+		description:
+			'Real-Time Production Monitoring for Automotive Supplier by s\u00fcc//dacor GmbH Using ThingsBoard',
 		logo: 'https://img.thingsboard.io/case-studies/dacor.svg',
 		logoAlt: 's\u00fcc//dacor GmbH logo',
 		backgroundImage: 'https://img.thingsboard.io/case-studies/dacor.webp',
@@ -118,8 +138,9 @@ export const caseStudyCards: CaseStudyCard[] = [
 	{
 		slug: 'comet',
 		categories: ['Smart energy'],
-		title: 'Powering the future of utilities: co.met GmbH\'s IoT breakthrough with ThingsBoard',
-		description: 'Powering the future of utilities: co.met GmbH\'s IoT breakthrough with ThingsBoard',
+		title: "Powering the future of utilities: co.met GmbH's IoT breakthrough with ThingsBoard",
+		description:
+			"Powering the future of utilities: co.met GmbH's IoT breakthrough with ThingsBoard",
 		logo: 'https://img.thingsboard.io/case-studies/comet.svg',
 		logoAlt: 'co.met logo',
 		logoHeight: 42,
@@ -128,8 +149,10 @@ export const caseStudyCards: CaseStudyCard[] = [
 	{
 		slug: 'crai',
 		categories: ['Industry 4.0'],
-		title: 'IoT in industrial automation: how CRAI enables remote control and data acquisition with ThingsBoard',
-		description: 'CRAI leverages ThingsBoard for industrial automation and remote monitoring, enabling real-time visibility and control over equipment like generators, motors, and water pumps.',
+		title:
+			'IoT in industrial automation: how CRAI enables remote control and data acquisition with ThingsBoard',
+		description:
+			'CRAI leverages ThingsBoard for industrial automation and remote monitoring, enabling real-time visibility and control over equipment like generators, motors, and water pumps.',
 		logo: 'https://img.thingsboard.io/case-studies/crai.svg',
 		logoAlt: 'CRAI logo',
 		backgroundImage: 'https://img.thingsboard.io/case-studies/crai.webp',
@@ -148,7 +171,8 @@ export const caseStudyCards: CaseStudyCard[] = [
 		slug: 'obb-infra',
 		categories: ['Smart infrastructure'],
 		title: 'Smart railway infrastructure: digital transformation of \u00d6BB-Infrastruktur AG',
-		description: 'Smart railway infrastructure: digital transformation of \u00d6BB-Infrastruktur AG',
+		description:
+			'Smart railway infrastructure: digital transformation of \u00d6BB-Infrastruktur AG',
 		logo: 'https://img.thingsboard.io/case-studies/obb.svg',
 		logoAlt: '\u00d6BB-Infrastruktur AG logo',
 		backgroundImage: 'https://img.thingsboard.io/case-studies/obb.webp',
@@ -175,8 +199,10 @@ export const caseStudyCards: CaseStudyCard[] = [
 	{
 		slug: 'agrolog',
 		categories: ['Smart agriculture'],
-		title: 'Revolutionizing Agriculture: How Supertech Agroline Built a Scalable IoT Platform with ThingsBoard',
-		description: 'Revolutionizing Agriculture: How Supertech Agroline Built a Scalable IoT Platform with ThingsBoard',
+		title:
+			'Revolutionizing Agriculture: How Supertech Agroline Built a Scalable IoT Platform with ThingsBoard',
+		description:
+			'Revolutionizing Agriculture: How Supertech Agroline Built a Scalable IoT Platform with ThingsBoard',
 		logo: 'https://img.thingsboard.io/case-studies/agrolog.svg',
 		logoAlt: 'AgroLog Sensors GmbH logo',
 		backgroundImage: 'https://img.thingsboard.io/case-studies/agrolog.webp',
@@ -193,8 +219,8 @@ export const caseStudyCards: CaseStudyCard[] = [
 	{
 		slug: 'asg-tech',
 		categories: ['Smart IoT solution'],
-		title: 'From Concept to Launch: ASG Tech\'s Rapid IoT Innovation with ThingsBoard',
-		description: 'From Concept to Launch: ASG Tech\'s Rapid IoT Innovation with ThingsBoard',
+		title: "From Concept to Launch: ASG Tech's Rapid IoT Innovation with ThingsBoard",
+		description: "From Concept to Launch: ASG Tech's Rapid IoT Innovation with ThingsBoard",
 		logo: 'https://img.thingsboard.io/case-studies/asg-tech.svg',
 		logoAlt: 'ASG-Tech logo',
 		backgroundImage: 'https://img.thingsboard.io/case-studies/asg-tech.webp',
@@ -222,7 +248,8 @@ export const caseStudyCards: CaseStudyCard[] = [
 		slug: 'berliner-energieinstitut',
 		categories: ['Smart energy'],
 		title: 'From idea to IoT in weeks: how Berliner Energieinstitut scaled fast with ThingsBoard',
-		description: 'From idea to IoT in weeks: how Berliner Energieinstitut scaled fast with ThingsBoard',
+		description:
+			'From idea to IoT in weeks: how Berliner Energieinstitut scaled fast with ThingsBoard',
 		logo: 'https://img.thingsboard.io/case-studies/berliner-energieinstitut.svg',
 		logoAlt: 'Berliner Energieinstitut logo',
 		backgroundImage: 'https://img.thingsboard.io/case-studies/berliner-energieinstitut.webp',
@@ -230,8 +257,10 @@ export const caseStudyCards: CaseStudyCard[] = [
 	{
 		slug: 'e2cbms',
 		categories: ['Smart energy'],
-		title: 'Smarter buildings made simple: Environmental Energy Controls chooses ThingsBoard for scalable BMS Solutions',
-		description: 'Smarter buildings made simple: Environmental Energy Controls chooses ThingsBoard for scalable BMS Solutions',
+		title:
+			'Smarter buildings made simple: Environmental Energy Controls chooses ThingsBoard for scalable BMS Solutions',
+		description:
+			'Smarter buildings made simple: Environmental Energy Controls chooses ThingsBoard for scalable BMS Solutions',
 		logo: 'https://img.thingsboard.io/case-studies/e2cbms.svg',
 		logoAlt: 'Environmental Energy Controls logo',
 		logoHeight: 87,
@@ -279,8 +308,8 @@ export const caseStudyCards: CaseStudyCard[] = [
 	{
 		slug: 'nettra',
 		categories: ['Smart energy'],
-		title: 'Cutting time and costs: Nettra\'s shortcut to IoT platform success',
-		description: 'Cutting time and costs: Nettra\'s shortcut to IoT platform success',
+		title: "Cutting time and costs: Nettra's shortcut to IoT platform success",
+		description: "Cutting time and costs: Nettra's shortcut to IoT platform success",
 		logo: 'https://img.thingsboard.io/case-studies/nettra.svg',
 		logoAlt: 'Nettra logo',
 		backgroundImage: 'https://img.thingsboard.io/case-studies/nettra.webp',
@@ -306,8 +335,8 @@ export const caseStudyCards: CaseStudyCard[] = [
 	{
 		slug: 'tektelic',
 		categories: ['Telecom'],
-		title: 'From sensors to dashboards: TEKTELIC\'s rapid IoT deployment with ThingsBoard',
-		description: 'From sensors to dashboards: TEKTELIC\'s rapid IoT deployment with ThingsBoard',
+		title: "From sensors to dashboards: TEKTELIC's rapid IoT deployment with ThingsBoard",
+		description: "From sensors to dashboards: TEKTELIC's rapid IoT deployment with ThingsBoard",
 		logo: 'https://img.thingsboard.io/case-studies/tektelic.svg',
 		logoAlt: 'TEKTELIC logo',
 		logoHeight: 56,
@@ -316,8 +345,9 @@ export const caseStudyCards: CaseStudyCard[] = [
 	{
 		slug: 'iona',
 		categories: ['Industry 4.0'],
-		title: 'Protecting electronics and workers: IONA Tech\'s IoT transformation with ThingsBoard',
-		description: 'Protecting electronics and workers: IONA Tech\'s IoT transformation with ThingsBoard',
+		title: "Protecting electronics and workers: IONA Tech's IoT transformation with ThingsBoard",
+		description:
+			"Protecting electronics and workers: IONA Tech's IoT transformation with ThingsBoard",
 		logo: 'https://img.thingsboard.io/case-studies/iona.svg',
 		logoAlt: 'IONA Tech logo',
 		backgroundImage: 'https://img.thingsboard.io/case-studies/iona.webp',
@@ -345,7 +375,8 @@ export const featuredCard: FeaturedCard = {
 	slug: 'schwarz',
 	category: 'SMART RETAIL',
 	title: 'IoT in retail: how Schwarz Group accelerated digitalization with ThingsBoard',
-	description: 'The Schwarz Group is one of the largest retail companies in the world, based in Neckarsulm, Germany. It operates in 32 countries, managing around 13,900 stores and employing approximately 575,000 people. Millions of people shop at Schwarz Group supermarkets every day.',
+	description:
+		'The Schwarz Group is one of the largest retail companies in the world, based in Neckarsulm, Germany. It operates in 32 countries, managing around 13,900 stores and employing approximately 575,000 people. Millions of people shop at Schwarz Group supermarkets every day.',
 	logo: 'https://img.thingsboard.io/case-studies/schwarz.svg',
 	logoAlt: 'Schwarz Group logo',
 	backgroundImage: 'https://img.thingsboard.io/case-studies/schwarz.webp',

@@ -90,8 +90,16 @@ export const iiooteData: CaseStudyData = {
 					'Faulty units trigger automatic alerts to maintenance crews.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp', alt: 'Thingsboard maps widgets widget', title: 'Thingsboard maps widgets widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/hp-scada-energy.webp', alt: 'Thingsboard HP SCADA energy widgets', title: 'Thingsboard HP SCADA energy widgets' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp',
+						alt: 'Thingsboard maps widgets widget',
+						title: 'Thingsboard maps widgets widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/hp-scada-energy.webp',
+						alt: 'Thingsboard HP SCADA energy widgets',
+						title: 'Thingsboard HP SCADA energy widgets',
+					},
 				],
 			},
 			{
@@ -103,8 +111,16 @@ export const iiooteData: CaseStudyData = {
 					'Integrates with route optimization software to improve collection efficiency.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp', alt: 'Thingsboard time series chart widget', title: 'Thingsboard time series chart widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/hp-scada-energy.webp', alt: 'Thingsboard HP SCADA energy widgets', title: 'Thingsboard HP SCADA energy widgets' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp',
+						alt: 'Thingsboard time series chart widget',
+						title: 'Thingsboard time series chart widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/hp-scada-energy.webp',
+						alt: 'Thingsboard HP SCADA energy widgets',
+						title: 'Thingsboard HP SCADA energy widgets',
+					},
 				],
 			},
 			{
@@ -116,8 +132,16 @@ export const iiooteData: CaseStudyData = {
 					'Use real-time data to optimize signals, guide drivers, and reduce congestion.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/entities-table-3.webp', alt: 'Thingsboard entities table widget', title: 'Thingsboard entities table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/parking-status-widget.webp', alt: 'Thingsboard parking-status-widget', title: 'Thingsboard parking-status-widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/entities-table-3.webp',
+						alt: 'Thingsboard entities table widget',
+						title: 'Thingsboard entities table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/parking-status-widget.webp',
+						alt: 'Thingsboard parking-status-widget',
+						title: 'Thingsboard parking-status-widget',
+					},
 				],
 			},
 			{
@@ -129,8 +153,16 @@ export const iiooteData: CaseStudyData = {
 					'City planners use historical data for regulatory compliance and policy planning.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/digital_gauges.webp', alt: 'Thingsboard digital gauges widgets', title: 'Thingsboard digital gauges widgets' },
-					{ src: 'https://img.thingsboard.io/case-studies/hp-curcuit-breaker.webp', alt: 'Thingsboard HP curcuit breaker widget', title: 'Thingsboard HP curcuit breaker widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/digital_gauges.webp',
+						alt: 'Thingsboard digital gauges widgets',
+						title: 'Thingsboard digital gauges widgets',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/hp-curcuit-breaker.webp',
+						alt: 'Thingsboard HP curcuit breaker widget',
+						title: 'Thingsboard HP curcuit breaker widget',
+					},
 				],
 			},
 			{
@@ -142,8 +174,16 @@ export const iiooteData: CaseStudyData = {
 					'SCADA dashboards allow operators to control pumps and valves remotely.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/bar-chart.webp', alt: 'Thingsboard bar chart widget', title: 'Thingsboard bar chart widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/hp-centrifugal-pump.webp', alt: 'Thingsboard HP centrifugal-pump widget', title: 'Thingsboard HP centrifugal-pump widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/bar-chart.webp',
+						alt: 'Thingsboard bar chart widget',
+						title: 'Thingsboard bar chart widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/hp-centrifugal-pump.webp',
+						alt: 'Thingsboard HP centrifugal-pump widget',
+						title: 'Thingsboard HP centrifugal-pump widget',
+					},
 				],
 			},
 			{
@@ -155,8 +195,16 @@ export const iiooteData: CaseStudyData = {
 					'Visual dashboards support faster decision-making during incidents.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/notification-widget.webp', alt: 'Thingsboard notification widget', title: 'Thingsboard notification widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/map-widget.webp', alt: 'Thingsboard map widget', title: 'Thingsboard map widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/notification-widget.webp',
+						alt: 'Thingsboard notification widget',
+						title: 'Thingsboard notification widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/map-widget.webp',
+						alt: 'Thingsboard map widget',
+						title: 'Thingsboard map widget',
+					},
 				],
 			},
 			{
@@ -168,8 +216,16 @@ export const iiooteData: CaseStudyData = {
 					'Multi-tenant support keeps data isolated and secure.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/hierarchy-widget.webp', alt: 'Thingsboard hierarchy widget', title: 'Thingsboard hierarchy widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/roles-table.webp', alt: 'Thingsboard roles table widget', title: 'Thingsboard roles table widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/hierarchy-widget.webp',
+						alt: 'Thingsboard hierarchy widget',
+						title: 'Thingsboard hierarchy widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/roles-table.webp',
+						alt: 'Thingsboard roles table widget',
+						title: 'Thingsboard roles table widget',
+					},
 				],
 			},
 		],

@@ -36,12 +36,12 @@ export const awakeData: CaseStudyData = {
 
 	problem: {
 		description:
-			"Awake created a new business model based on revenue-sharing and needed a specialized solution to support it. Main goals of creation of this system were managing product health and assets, ensuring efficient financial follow-up on revenue-sharing agreements. In essence, Awake needed to build a new operational foundation from scratch to successfully launch and scale this innovative business approach.",
+			'Awake created a new business model based on revenue-sharing and needed a specialized solution to support it. Main goals of creation of this system were managing product health and assets, ensuring efficient financial follow-up on revenue-sharing agreements. In essence, Awake needed to build a new operational foundation from scratch to successfully launch and scale this innovative business approach.',
 		challenges: [
 			"The company needed a completely new technological infrastructure that could accommodate Awake's innovative business model, that previously didn't exist within the company.",
 			'Awake required a single platform to gain full control over all new rental operations, including asset tracking, product health, and financial follow-up.',
 			'An important task was to equip partners with a professional, easy-to-use interface for fleet and contract management.',
-			'The solution had to seamlessly connect with Awake\'s products in real-time to translate raw IoT data into actionable business intelligence and automated notifications.',
+			"The solution had to seamlessly connect with Awake's products in real-time to translate raw IoT data into actionable business intelligence and automated notifications.",
 		],
 		results: [
 			'Delivered a tailor-made rental operations dashboard that empowered Awake to scale a completely new revenue-sharing model - establishing an operational foundation that had not existed before.',
@@ -83,16 +83,32 @@ export const awakeData: CaseStudyData = {
 				title: 'Centralized management system',
 				text: 'ThingsBoard allows all operations to be united within a single platform. Instead of using multiple disparate systems, all data, from a global level down to individual devices, can be organized in a single structure. This provides complete control and simplifies managing a large network.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/entities-table.webp', alt: 'Thingsboard entities table widget', title: 'Thingsboard entities table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp', alt: 'Thingsboard maps widgets widget', title: 'Thingsboard maps widgets widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/entities-table.webp',
+						alt: 'Thingsboard entities table widget',
+						title: 'Thingsboard entities table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp',
+						alt: 'Thingsboard maps widgets widget',
+						title: 'Thingsboard maps widgets widget',
+					},
 				],
 			},
 			{
 				title: 'Role-based access and custom dashboards',
 				text: 'A key advantage of ThingsBoard is its ability to create tailored interfaces for different user roles. This allows administrators to have a full overview of the system, while workers are given only the functionality necessary for their daily tasks, which enhances efficiency and security.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/roles-table.webp', alt: 'Thingsboard roles table widget', title: 'Thingsboard roles table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/hierarchy-widget.webp', alt: 'Thingsboard hierarchy widget', title: 'Thingsboard hierarchy widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/roles-table.webp',
+						alt: 'Thingsboard roles table widget',
+						title: 'Thingsboard roles table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/hierarchy-widget.webp',
+						alt: 'Thingsboard hierarchy widget',
+						title: 'Thingsboard hierarchy widget',
+					},
 				],
 			},
 			{
@@ -104,16 +120,32 @@ export const awakeData: CaseStudyData = {
 					'Incident Reporting - a simple tool for quickly reporting equipment problems.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/alarms-table.webp', alt: 'Thingsboard alarms table widget', title: 'Thingsboard alarms table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/bar-chart.webp', alt: 'Thingsboard bar chart widget', title: 'Thingsboard bar chart widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/alarms-table.webp',
+						alt: 'Thingsboard alarms table widget',
+						title: 'Thingsboard alarms table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/bar-chart.webp',
+						alt: 'Thingsboard bar chart widget',
+						title: 'Thingsboard bar chart widget',
+					},
 				],
 			},
 			{
 				title: 'Reliable integration and IoT connectivity',
 				text: 'The platform ensures stable, real-time connectivity via the MQTT protocol. Multi-channel notifications \u2014 SMS, email, and WhatsApp \u2014 allow businesses to react instantly to critical events, enhancing operational safety and responsiveness.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/notification-widget.webp', alt: 'Thingsboard notification widget', title: 'Thingsboard notification widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp', alt: 'Thingsboard time series chart widget', title: 'Thingsboard time series chart widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/notification-widget.webp',
+						alt: 'Thingsboard notification widget',
+						title: 'Thingsboard notification widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp',
+						alt: 'Thingsboard time series chart widget',
+						title: 'Thingsboard time series chart widget',
+					},
 				],
 			},
 		],

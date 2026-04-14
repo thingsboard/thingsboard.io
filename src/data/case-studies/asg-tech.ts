@@ -4,7 +4,7 @@ export const asgTechData: CaseStudyData = {
 	title: 'ASG Tech Boosts IoT Speed with ThingsBoard Widgets',
 	pageTitle: 'ASG Tech Boosts IoT Speed with ThingsBoard Widgets',
 	description:
-		"Discover how ASG Tech leveraged ThingsBoard platform to rapidly deliver high-quality IoT applications with custom widgets. Learn how expert collaboration cut time-to-market and boosted user experience.",
+		'Discover how ASG Tech leveraged ThingsBoard platform to rapidly deliver high-quality IoT applications with custom widgets. Learn how expert collaboration cut time-to-market and boosted user experience.',
 	pageSlug: 'asg-tech',
 	breadcrumb: 'ASG Tech — Smart IoT Solutions',
 	categories: ['Smart IoT solution'],
@@ -73,16 +73,32 @@ export const asgTechData: CaseStudyData = {
 					'Optimize operations with flexible data visualization, rule-based event processing, and integration with external systems like cloud platforms and analytics tools.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/digital_gauges.webp', alt: 'Thingsboard digital gauges widgets', title: 'Thingsboard digital gauges widgets' },
-					{ src: 'https://img.thingsboard.io/case-studies/alarms-table-2.webp', alt: 'Thingsboard alarms table widget', title: 'Thingsboard alarms table widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/digital_gauges.webp',
+						alt: 'Thingsboard digital gauges widgets',
+						title: 'Thingsboard digital gauges widgets',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/alarms-table-2.webp',
+						alt: 'Thingsboard alarms table widget',
+						title: 'Thingsboard alarms table widget',
+					},
 				],
 			},
 			{
 				title: 'Faster growth with a future-ready IoT platform',
-				text: "By leveraging these capabilities, ASG Tech can focus on delivering tailored IoT applications for Industry 4.0, Smart Cities, Energy Management, and Environmental Monitoring \u2014 while relying on the stability, flexibility, and extensibility of the ThingsBoard Professional Edition platform. This partnership drives faster time-to-market, reduced operational costs, and enhanced customer satisfaction.",
+				text: 'By leveraging these capabilities, ASG Tech can focus on delivering tailored IoT applications for Industry 4.0, Smart Cities, Energy Management, and Environmental Monitoring \u2014 while relying on the stability, flexibility, and extensibility of the ThingsBoard Professional Edition platform. This partnership drives faster time-to-market, reduced operational costs, and enhanced customer satisfaction.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp', alt: 'Thingsboard maps widgets widget', title: 'Thingsboard maps widgets widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/bar-chart.webp', alt: 'Thingsboard bar chart widget', title: 'Thingsboard bar chart widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp',
+						alt: 'Thingsboard maps widgets widget',
+						title: 'Thingsboard maps widgets widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/bar-chart.webp',
+						alt: 'Thingsboard bar chart widget',
+						title: 'Thingsboard bar chart widget',
+					},
 				],
 			},
 		],

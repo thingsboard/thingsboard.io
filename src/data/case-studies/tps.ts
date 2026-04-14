@@ -93,8 +93,16 @@ export const tpsData: CaseStudyData = {
 					'Enable real-time alerts, analytics, and status monitoring across assets and locations.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp', alt: 'Thingsboard maps widgets widget', title: 'Thingsboard maps widgets widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/entities-table.webp', alt: 'Thingsboard entities table widget', title: 'Thingsboard entities table widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp',
+						alt: 'Thingsboard maps widgets widget',
+						title: 'Thingsboard maps widgets widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/entities-table.webp',
+						alt: 'Thingsboard entities table widget',
+						title: 'Thingsboard entities table widget',
+					},
 				],
 			},
 			{
@@ -106,8 +114,16 @@ export const tpsData: CaseStudyData = {
 					'Automate alerts and schedule preventive service actions.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp', alt: 'Thingsboard time series chart widget', title: 'Thingsboard time series chart widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/notification-widget.webp', alt: 'Thingsboard notification widget', title: 'Thingsboard notification widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp',
+						alt: 'Thingsboard time series chart widget',
+						title: 'Thingsboard time series chart widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/notification-widget.webp',
+						alt: 'Thingsboard notification widget',
+						title: 'Thingsboard notification widget',
+					},
 				],
 			},
 			{
@@ -119,8 +135,16 @@ export const tpsData: CaseStudyData = {
 					'Automate energy-saving scenarios based on occupancy or schedule.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/donut-widget.webp', alt: 'Thingsboard donut chart widget', title: 'Thingsboard donut chart widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/bar-chart.webp', alt: 'Thingsboard bar chart widget', title: 'Thingsboard bar chart widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/donut-widget.webp',
+						alt: 'Thingsboard donut chart widget',
+						title: 'Thingsboard donut chart widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/bar-chart.webp',
+						alt: 'Thingsboard bar chart widget',
+						title: 'Thingsboard bar chart widget',
+					},
 				],
 			},
 			{
@@ -132,8 +156,16 @@ export const tpsData: CaseStudyData = {
 					'Enable comfort optimization by zone, floor, or time of day.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/indoor-environment.webp', alt: 'Thingsboard indoor environment widget', title: 'Thingsboard indoor environment widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/indoor-range-chart.webp', alt: 'Thingsboard indoor range chart widget', title: 'Thingsboard indoor range chart widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/indoor-environment.webp',
+						alt: 'Thingsboard indoor environment widget',
+						title: 'Thingsboard indoor environment widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/indoor-range-chart.webp',
+						alt: 'Thingsboard indoor range chart widget',
+						title: 'Thingsboard indoor range chart widget',
+					},
 				],
 			},
 			{
@@ -145,8 +177,16 @@ export const tpsData: CaseStudyData = {
 					'Automate alerts, logs, or on-site reactions.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/alarms-table-2.webp', alt: 'Thingsboard alarms table widget', title: 'Thingsboard alarms table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/power_button.webp', alt: 'Thingsboard power button widget', title: 'Thingsboard power button widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/alarms-table-2.webp',
+						alt: 'Thingsboard alarms table widget',
+						title: 'Thingsboard alarms table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/power_button.webp',
+						alt: 'Thingsboard power button widget',
+						title: 'Thingsboard power button widget',
+					},
 				],
 			},
 			{
@@ -158,8 +198,16 @@ export const tpsData: CaseStudyData = {
 					'Allow manual override via dashboards when needed.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/single-switch-widget.webp', alt: 'Thingsboard single switch widget', title: 'Thingsboard single switch widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/scheduler-events.webp', alt: 'Thingsboard scheduler events widget', title: 'Thingsboard scheduler events widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/single-switch-widget.webp',
+						alt: 'Thingsboard single switch widget',
+						title: 'Thingsboard single switch widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/scheduler-events.webp',
+						alt: 'Thingsboard scheduler events widget',
+						title: 'Thingsboard scheduler events widget',
+					},
 				],
 			},
 		],

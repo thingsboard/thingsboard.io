@@ -46,11 +46,11 @@ export const tbmqPrivateCloudData: PrivateCloudData = {
 						'Expand your data transfer capacity beyond the included limit to ensure uninterrupted connectivity as your message volume scales.',
 				},
 				{
-				text: '$0.10 per extra GB',
-				plusIcon: true,
-				faqTooltip:
-					'Network traffic exceeding the included 200 GB allowance is billed per GB per month.',
-			},
+					text: '$0.10 per extra GB',
+					plusIcon: true,
+					faqTooltip:
+						'Network traffic exceeding the included 200 GB allowance is billed per GB per month.',
+				},
 				{
 					text: 'Multi-AZ replication: +$400/mo',
 					faqTooltip:

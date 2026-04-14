@@ -379,9 +379,7 @@ export const tbCloudTopUps: { na: TopUpGroup[]; eu: TopUpGroup[] } = {
 					name: 'Extra Calculated Field',
 					priceUsd: '$5',
 					period: '/month',
-					details: [
-						{ label: 'Max Calculated Fields per entity', value: '+1 Calculated Field' },
-					],
+					details: [{ label: 'Max Calculated Fields per entity', value: '+1 Calculated Field' }],
 				},
 			],
 		},
@@ -410,9 +408,7 @@ export const tbCloudTopUps: { na: TopUpGroup[]; eu: TopUpGroup[] } = {
 					name: 'Storage pack',
 					priceUsd: '$10',
 					period: '/month',
-					details: [
-						{ label: 'Data points storage days', value: '+1B Data points storage days' },
-					],
+					details: [{ label: 'Data points storage days', value: '+1B Data points storage days' }],
 				},
 				{
 					name: 'Alarm pack',
@@ -476,9 +472,7 @@ export const tbCloudTopUps: { na: TopUpGroup[]; eu: TopUpGroup[] } = {
 					name: 'Extra Calculated Field',
 					priceUsd: '€5',
 					period: '/month',
-					details: [
-						{ label: 'Max Calculated Fields per entity', value: '+1 Calculated Field' },
-					],
+					details: [{ label: 'Max Calculated Fields per entity', value: '+1 Calculated Field' }],
 				},
 			],
 		},
@@ -507,9 +501,7 @@ export const tbCloudTopUps: { na: TopUpGroup[]; eu: TopUpGroup[] } = {
 					name: 'Storage pack',
 					priceUsd: '€10',
 					period: '/month',
-					details: [
-						{ label: 'Data points storage days', value: '+1B Data points storage days' },
-					],
+					details: [{ label: 'Data points storage days', value: '+1B Data points storage days' }],
 				},
 				{
 					name: 'Alarm pack',

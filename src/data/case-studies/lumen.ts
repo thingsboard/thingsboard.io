@@ -11,7 +11,8 @@ export const lumenData: CaseStudyData = {
 
 	hero: {
 		category: 'INDUSTRIAL IOT',
-		heading: 'Industrial IoT in manufacturing: how Lumen Energy Solutions digitalized large-scale factories with ThingsBoard',
+		heading:
+			'Industrial IoT in manufacturing: how Lumen Energy Solutions digitalized large-scale factories with ThingsBoard',
 		paragraphs: [
 			'Lumen Energy Solutions is an Industrial IoT and energy digitalization company specializing in smart monitoring, energy management, and industrial automation solutions across Central America.',
 			'Operating in the intersection of IoT, energy analytics, and industrial digital transformation, Lumen designs and deploys end-to-end solutions that integrate sensors, gateways, connectivity, and software platforms into scalable and secure ecosystems.',
@@ -73,7 +74,8 @@ export const lumenData: CaseStudyData = {
 					'Temperature and Environmental Control',
 					'Utility Optimization',
 				],
-				secondText: 'Role-based dashboards ensure that plant managers, maintenance teams, and executives access relevant data aligned with their responsibilities.',
+				secondText:
+					'Role-based dashboards ensure that plant managers, maintenance teams, and executives access relevant data aligned with their responsibilities.',
 				image: 'https://img.thingsboard.io/case-studies/lumen-2.webp',
 				imageAlt: 'Personalized dashboards',
 			},
@@ -87,7 +89,7 @@ export const lumenData: CaseStudyData = {
 				title: 'Long-term stability in a 24/7 industrial environment',
 				text: [
 					'The platform has been operating continuously for more than four years, supporting high-frequency telemetry across thousands of data points without performance degradation.',
-					'The system architecture allows seamless onboarding of new devices, additional production areas, and future expansion plans.'
+					'The system architecture allows seamless onboarding of new devices, additional production areas, and future expansion plans.',
 				],
 				image: 'https://img.thingsboard.io/case-studies/lumen-4.webp',
 				imageAlt: 'Long-term stability',
@@ -102,32 +104,64 @@ export const lumenData: CaseStudyData = {
 				title: 'Rule engine & automated workflows',
 				text: 'ThingsBoard’s rule engine enables automated alerts and anomaly detection for abnormal energy usage, equipment behavior, and environmental deviations. This strengthens preventive and predictive maintenance strategies.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/alarms-table.webp', alt: 'ThingsBoard alarms table widget', title: 'ThingsBoard alarms table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/notification-widget.webp', alt: 'ThingsBoard notification widget', title: 'ThingsBoard notification widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/alarms-table.webp',
+						alt: 'ThingsBoard alarms table widget',
+						title: 'ThingsBoard alarms table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/notification-widget.webp',
+						alt: 'ThingsBoard notification widget',
+						title: 'ThingsBoard notification widget',
+					},
 				],
 			},
 			{
 				title: 'Asset hierarchies & multi-site modeling',
 				text: 'The platform’s asset hierarchy structure allows Lumen to model factories, production lines, machines, and utility systems in a structured and scalable way. This is essential for managing multi-site industrial operations efficiently.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/entities-table.webp', alt: 'ThingsBoard entities table widget', title: 'ThingsBoard entities table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp', alt: 'ThingsBoard maps widgets card', title: 'ThingsBoard maps widgets card' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/entities-table.webp',
+						alt: 'ThingsBoard entities table widget',
+						title: 'ThingsBoard entities table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp',
+						alt: 'ThingsBoard maps widgets card',
+						title: 'ThingsBoard maps widgets card',
+					},
 				],
 			},
 			{
 				title: 'Advanced dashboarding & data visualization',
 				text: 'Highly customized dashboards transform complex telemetry into intuitive visualizations. Executives gain high-level KPI visibility, while technical teams access detailed operational metrics.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp', alt: 'Thingsboard time series chart widget', title: 'Thingsboard time series chart widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/donut-widget.webp', alt: 'ThingsBoard doughnut chart widget', title: 'ThingsBoard doughnut chart widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp',
+						alt: 'Thingsboard time series chart widget',
+						title: 'Thingsboard time series chart widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/donut-widget.webp',
+						alt: 'ThingsBoard doughnut chart widget',
+						title: 'ThingsBoard doughnut chart widget',
+					},
 				],
 			},
 			{
 				title: 'Security, scalability & reliability',
 				text: 'ThingsBoard’s secure device authentication, encrypted communication, and role-based access control meet strict industrial IT standards. The platform handles large-scale industrial workloads while maintaining stability and responsiveness.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/roles-table.webp', alt: 'ThingsBoard roles table widget', title: 'ThingsBoard roles table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/hierarchy-widget.webp', alt: 'ThingsBoard hierarchy widget', title: 'ThingsBoard hierarchy widget' }
+					{
+						src: 'https://img.thingsboard.io/case-studies/roles-table.webp',
+						alt: 'ThingsBoard roles table widget',
+						title: 'ThingsBoard roles table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/hierarchy-widget.webp',
+						alt: 'ThingsBoard hierarchy widget',
+						title: 'ThingsBoard hierarchy widget',
+					},
 				],
 			},
 			{
@@ -139,12 +173,21 @@ export const lumenData: CaseStudyData = {
 					'Improved predictive maintenance capabilities',
 					'Enhanced energy monitoring and cost optimization',
 					'Secure and scalable multi-site architecture',
-					'Continuous, reliable operation for over four years'
+					'Continuous, reliable operation for over four years',
 				],
-				secondText: 'This case demonstrates how Lumen Energy Solutions leverages ThingsBoard to build secure, scalable, and high-performance industrial IoT applications in demanding manufacturing environments.',
+				secondText:
+					'This case demonstrates how Lumen Energy Solutions leverages ThingsBoard to build secure, scalable, and high-performance industrial IoT applications in demanding manufacturing environments.',
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/thingsboard.webp', alt: 'ThingsBoard logo', title: 'ThingsBoard logo' },
-					{ src: 'https://img.thingsboard.io/case-studies/lumen-color.webp', alt: 'Lumen logo', title: 'Lumen logo' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/thingsboard.webp',
+						alt: 'ThingsBoard logo',
+						title: 'ThingsBoard logo',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/lumen-color.webp',
+						alt: 'Lumen logo',
+						title: 'Lumen logo',
+					},
 				],
 			},
 		],

@@ -27,7 +27,7 @@ export const tbmqSelfManagedData: SelfManagedData = {
 						highlight: true,
 						faqId: 'tbmq-payg-session-price',
 						faqTooltip:
-							'Sessions exceeding the subscription plan\'s included number are billed at a per-session, per-month rate.',
+							"Sessions exceeding the subscription plan's included number are billed at a per-session, per-month rate.",
 					},
 					{
 						text: '100 msg/sec throughput included',
@@ -41,7 +41,7 @@ export const tbmqSelfManagedData: SelfManagedData = {
 						highlight: true,
 						faqId: 'tbmq-payg-throughput-price',
 						faqTooltip:
-							'Throughput capacity exceeding the subscription plan\'s included amount is billed at a per-msg/sec, per-month rate.',
+							"Throughput capacity exceeding the subscription plan's included amount is billed at a per-msg/sec, per-month rate.",
 					},
 					{
 						text: '1 production instance',
@@ -87,7 +87,7 @@ export const tbmqSelfManagedData: SelfManagedData = {
 						highlight: true,
 						faqId: 'tbmq-perp-session-price',
 						faqTooltip:
-							'Sessions exceeding the perpetual license\'s included number are billed at a one-time, per-session rate.',
+							"Sessions exceeding the perpetual license's included number are billed at a one-time, per-session rate.",
 					},
 					{
 						text: '1,000 msg/sec throughput included',
@@ -101,7 +101,7 @@ export const tbmqSelfManagedData: SelfManagedData = {
 						highlight: true,
 						faqId: 'tbmq-perp-throughput-price',
 						faqTooltip:
-							'Throughput capacity exceeding the perpetual license\'s included amount is billed at a one-time, per-msg/sec rate.',
+							"Throughput capacity exceeding the perpetual license's included amount is billed at a one-time, per-msg/sec rate.",
 					},
 					{
 						text: '1 production instance',

@@ -30,11 +30,7 @@
 
 function appendClassName(node, name) {
 	const existing = node.properties.className;
-	const list = Array.isArray(existing)
-		? existing.map(String)
-		: existing
-			? [String(existing)]
-			: [];
+	const list = Array.isArray(existing) ? existing.map(String) : existing ? [String(existing)] : [];
 	if (!list.includes(name)) list.push(name);
 	node.properties.className = list;
 }

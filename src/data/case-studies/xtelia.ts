@@ -11,7 +11,8 @@ export const xteliaData: CaseStudyData = {
 
 	hero: {
 		category: 'SMART CITY',
-		heading: 'Smart signage at scale: X-TELIA deploys LoRaWAN\u2122 parking management with ThingsBoard',
+		heading:
+			'Smart signage at scale: X-TELIA deploys LoRaWAN\u2122 parking management with ThingsBoard',
 		paragraphs: [
 			'X-TELIA is a global leader in the design and manufacturing of LoRaWAN\u00AE IoT solutions. With a mission to simplify IoT deployments, X-TELIA provides end-to-end wireless solutions that include high-performance gateways, sensors, and network infrastructure. Their products are known for their carrier-grade reliability, scalability, and efficiency, supporting diverse use cases from smart cities to industrial IoT.',
 			'Their portfolio includes smart parking, street lighting, air quality monitoring, asset tracking, and other mission-critical applications. Through a unique combination of infrastructure ownership, integration capabilities, and vertical-specific expertise, X-TELIA plays a pivotal role in accelerating the adoption of IoT across Canada.',
@@ -90,21 +91,37 @@ export const xteliaData: CaseStudyData = {
 					'Faulty units trigger automatic alerts to maintenance crews.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp', alt: 'Thingsboard maps widgets widget', title: 'Thingsboard maps widgets widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/hp-scada-energy.webp', alt: 'Thingsboard HP SCADA energy widgets', title: 'Thingsboard HP SCADA energy widgets' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp',
+						alt: 'Thingsboard maps widgets widget',
+						title: 'Thingsboard maps widgets widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/hp-scada-energy.webp',
+						alt: 'Thingsboard HP SCADA energy widgets',
+						title: 'Thingsboard HP SCADA energy widgets',
+					},
 				],
 			},
 			{
 				title: 'Smart waste management',
-				text: 'Efficient waste collection is critical to sanitation, fuel savings, and environmental health. ThingsBoard helps cities deploy smart bins that signal when they\'re full and optimize collection routes.<br/><br/>How It Works:',
+				text: "Efficient waste collection is critical to sanitation, fuel savings, and environmental health. ThingsBoard helps cities deploy smart bins that signal when they're full and optimize collection routes.<br/><br/>How It Works:",
 				listItems: [
 					'Ultrasonic or weight sensors detect bin fill levels.',
 					'ThingsBoard triggers alerts when bins reach thresholds.',
 					'Integrates with route optimization software to improve collection efficiency.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp', alt: 'Thingsboard time series chart widget', title: 'Thingsboard time series chart widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/hp-scada-energy.webp', alt: 'Thingsboard HP SCADA energy widgets', title: 'Thingsboard HP SCADA energy widgets' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/time-series-chart.webp',
+						alt: 'Thingsboard time series chart widget',
+						title: 'Thingsboard time series chart widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/hp-scada-energy.webp',
+						alt: 'Thingsboard HP SCADA energy widgets',
+						title: 'Thingsboard HP SCADA energy widgets',
+					},
 				],
 			},
 			{
@@ -116,8 +133,16 @@ export const xteliaData: CaseStudyData = {
 					'Use real-time data to optimize signals, guide drivers, and reduce congestion.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/entities-table-3.webp', alt: 'Thingsboard entities table widget', title: 'Thingsboard entities table widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/parking-status-widget.webp', alt: 'Thingsboard parking-status-widget', title: 'Thingsboard parking-status-widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/entities-table-3.webp',
+						alt: 'Thingsboard entities table widget',
+						title: 'Thingsboard entities table widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/parking-status-widget.webp',
+						alt: 'Thingsboard parking-status-widget',
+						title: 'Thingsboard parking-status-widget',
+					},
 				],
 			},
 			{
@@ -129,8 +154,16 @@ export const xteliaData: CaseStudyData = {
 					'City planners use historical data for regulatory compliance and policy planning.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/digital_gauges.webp', alt: 'Thingsboard digital gauges widgets', title: 'Thingsboard digital gauges widgets' },
-					{ src: 'https://img.thingsboard.io/case-studies/hp-curcuit-breaker.webp', alt: 'Thingsboard HP curcuit breaker widget', title: 'Thingsboard HP curcuit breaker widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/digital_gauges.webp',
+						alt: 'Thingsboard digital gauges widgets',
+						title: 'Thingsboard digital gauges widgets',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/hp-curcuit-breaker.webp',
+						alt: 'Thingsboard HP curcuit breaker widget',
+						title: 'Thingsboard HP curcuit breaker widget',
+					},
 				],
 			},
 			{
@@ -142,8 +175,16 @@ export const xteliaData: CaseStudyData = {
 					'SCADA dashboards allow operators to control pumps and valves remotely.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/bar-chart.webp', alt: 'Thingsboard bar chart widget', title: 'Thingsboard bar chart widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/hp-centrifugal-pump.webp', alt: 'Thingsboard HP centrifugal-pump widget', title: 'Thingsboard HP centrifugal-pump widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/bar-chart.webp',
+						alt: 'Thingsboard bar chart widget',
+						title: 'Thingsboard bar chart widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/hp-centrifugal-pump.webp',
+						alt: 'Thingsboard HP centrifugal-pump widget',
+						title: 'Thingsboard HP centrifugal-pump widget',
+					},
 				],
 			},
 			{
@@ -155,8 +196,16 @@ export const xteliaData: CaseStudyData = {
 					'Visual dashboards support faster decision-making during incidents.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/notification-widget.webp', alt: 'Thingsboard notification widget', title: 'Thingsboard notification widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/map-widget.webp', alt: 'Thingsboard map widget', title: 'Thingsboard map widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/notification-widget.webp',
+						alt: 'Thingsboard notification widget',
+						title: 'Thingsboard notification widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/map-widget.webp',
+						alt: 'Thingsboard map widget',
+						title: 'Thingsboard map widget',
+					},
 				],
 			},
 			{
@@ -168,8 +217,16 @@ export const xteliaData: CaseStudyData = {
 					'Multi-tenant support keeps data isolated and secure.',
 				],
 				images: [
-					{ src: 'https://img.thingsboard.io/case-studies/hierarchy-widget.webp', alt: 'Thingsboard hierarchy widget', title: 'Thingsboard hierarchy widget' },
-					{ src: 'https://img.thingsboard.io/case-studies/roles-table.webp', alt: 'Thingsboard roles table widget', title: 'Thingsboard roles table widget' },
+					{
+						src: 'https://img.thingsboard.io/case-studies/hierarchy-widget.webp',
+						alt: 'Thingsboard hierarchy widget',
+						title: 'Thingsboard hierarchy widget',
+					},
+					{
+						src: 'https://img.thingsboard.io/case-studies/roles-table.webp',
+						alt: 'Thingsboard roles table widget',
+						title: 'Thingsboard roles table widget',
+					},
 				],
 			},
 		],
