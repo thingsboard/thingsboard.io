@@ -220,7 +220,6 @@ export const collections: Record<string, ReturnType<typeof defineCollection>> = 
 				'since.addedIn': z.string().default('Added in:'),
 				'since.new': z.string().default('New'),
 				'since.beta': z.string().default('Beta'),
-				'docsearch.button': z.string().default('Search'),
 				'backend.navTitle': z.string().default('More backend guides'),
 				'cms.navTitle': z.string().default('More CMS guides'),
 				'deploy.altSectionTitle': z.string().default('More deploy guides'),
