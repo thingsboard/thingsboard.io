@@ -1286,7 +1286,6 @@ export const paasSidebar: SidebarConfig = [
 				label: 'Contribution',
 				collapsed: true,
 				items: [
-					'docs/paas/user-guide/contribution/rule-node-development',
 					'docs/paas/user-guide/scada-symbol-dev',
 					'docs/paas/user-guide/contribution/custom-action-development',
 					{
@@ -1635,7 +1634,6 @@ export const paasEuSidebar: SidebarConfig = [
 				label: 'Contribution',
 				collapsed: true,
 				items: [
-					'docs/paas/eu/user-guide/contribution/rule-node-development',
 					'docs/paas/eu/user-guide/scada-symbol-dev',
 					'docs/paas/eu/user-guide/contribution/custom-action-development',
 					{
