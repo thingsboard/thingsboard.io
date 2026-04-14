@@ -31,10 +31,10 @@ export const EDGE_PE_VER = '4.3.1.1EDGEPE';
 export const EDGE_PE_BRANCH = 'release-4.3.0';
 
 /** TBMQ Broker */
-export const TBMQ_VER = '2.2.0';
+export const TBMQ_VER = '2.3.0';
 
 /** TBMQ Broker Professional Edition */
-export const TBMQ_PE_VER = '2.2.0PE';
+export const TBMQ_PE_VER = '2.3.0PE';
 
 /** TBMQ Broker release branch (for installation scripts) */
-export const TBMQ_BRANCH = 'release-2.2.0';
+export const TBMQ_BRANCH = 'release-2.3.0';
