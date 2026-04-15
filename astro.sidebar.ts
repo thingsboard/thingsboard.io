@@ -686,6 +686,7 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 				`${prefix}/widgets/map-widgets`,
 				`${prefix}/widgets/entity-table-widget`,
 				`${prefix}/widgets/markdown-html-card`,
+				`${prefix}/widgets/widget-api`,
 			],
 		},
 	];
