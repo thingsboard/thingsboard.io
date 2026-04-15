@@ -339,7 +339,7 @@ const recipeItems = (prefix: string, extraProcessingItems: string[] = []) => [
 	{
 		label: 'Processing Data',
 		collapsed: true,
-		items: [`${prefix}/python-telemetry`, `${prefix}/telemetry-delta-two-devices`, `${prefix}/trigger-related-entities-via-relation`, `${prefix}/enrich-alarms-with-details`, `${prefix}/rpc-reply-with-related-telemetry`, ...extraProcessingItems],
+		items: [`${prefix}/python-telemetry`, `${prefix}/telemetry-delta-two-devices`, `${prefix}/trigger-related-entities-via-relation`, `${prefix}/enrich-alarms-with-details`, `${prefix}/rpc-reply-with-related-telemetry`, `${prefix}/send-rpc-to-related-device`, ...extraProcessingItems],
 	},
 	{
 		label: 'Validating Data',
