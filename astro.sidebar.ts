@@ -344,7 +344,7 @@ const recipeItems = (prefix: string, extraProcessingItems: string[] = []) => [
 	{
 		label: 'Calculated Fields',
 		collapsed: true,
-		items: [`${prefix}/aggregate-related-entities`],
+		items: [`${prefix}/aggregate-related-entities`, `${prefix}/average-temperature-related-devices`],
 	},
 	{
 		label: 'Validating Data',
