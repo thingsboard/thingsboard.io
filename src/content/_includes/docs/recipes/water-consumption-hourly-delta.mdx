@@ -1,0 +1,183 @@
+import DocLink from '@components/DocLink.astro';
+import MultiProductImageGallery from '~/components/MultiProductImageGallery.astro';
+import HostCode from '~/components/HostCode.astro';
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+Use a <DocLink product={props.product} path="user-guide/calculated-fields/script" target="_blank">Script</DocLink> calculated field to compute the difference between the last two water meter readings and derive a new value—the water usage delta.
+
+## Use case
+
+The **Water Meter A1** device reports hourly water consumption readings using the `waterConsumption` key.
+
+ThingsBoard:
+- collects the two most recent `waterConsumption` readings within a 1-hour rolling window
+- computes the difference between them
+- stores the result as `waterConsumptionHourly` on the device
+
+## Step 1. Create device
+
+Create a device:
+
+- **Name**: `Water Meter A1`
+- **Device profile**: `Water Meter`
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/water-consumption-hourly-delta/create-device-1.png',
+    alt: 'Devices list with Water Meter A1',
+    caption: 'Navigate to <strong>Entities &#8702; Devices</strong> and create <strong>Water Meter A1</strong> with the <strong>Water Meter</strong> device profile.'
+  },
+]} />
+
+## Step 2. Create the calculated field
+
+You can import a ready-made calculated field or build it manually.
+
+**Option 1. Import calculated field**
+
+- Download the **Water Consumption Hourly** calculated field as <a href="/resources/docs/recipes/water-consumption-hourly-delta/water_consumption_hourly_cf.json" download="water_consumption_hourly_cf.json"><strong>JSON file</strong></a> and <DocLink product={props.product} path="user-guide/calculated-fields/#export--import" target="_blank">import</DocLink> it into your instance.
+
+    <Aside type="note">
+      During import, set the target entity type to <strong>Device profile</strong> and select the <strong>Water Meter</strong> profile.
+    </Aside>
+
+**Option 2. Create manually**
+
+Navigate to **Calculated fields** and click **+ Add calculated field**.
+
+### General settings
+
+- **Title**: `Water Consumption Hourly`
+- **Entity type**: `Device profile`
+- **Device profile**: `Water Meter`
+- **Type**: `Script`
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/water-consumption-hourly-delta/create-cf-1.png',
+    alt: 'Calculated field general settings with Script type for Water Meter device profile',
+    caption: 'Set <strong>Entity type</strong> to <strong>Device profile</strong>, select <strong>Water Meter</strong>, and set <strong>Type</strong> to <strong>Script</strong>.'
+  },
+]} />
+
+### Argument
+
+Click **Add argument** and configure the rolling window:
+
+- **Entity type**: `Current entity`
+- **Argument type**: `Time series rolling`
+- **Time series key**: `waterConsumption`
+- **Argument name**: `waterConsumption`
+- **Time window**: `1 hour`
+- **Max values**: `2`
+
+This argument collects the two most recent `waterConsumption` readings from the last hour.
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/water-consumption-hourly-delta/create-cf-2.png',
+    alt: 'Argument settings with Time series rolling type, 2 hours window, max 2 values',
+    caption: 'Add a <strong>Time series rolling</strong> argument with key <code>waterConsumption</code>, time window <strong>2 hours</strong>, and max values <strong>2</strong>.'
+  },
+]} />
+
+### Script
+
+The script iterates over the two collected readings, computes the delta between the latest and the previous value, clamps negative results to zero (e.g. on meter reset), and returns the result timestamped to the latest reading.
+
+```javascript
+var previousItem = null;
+var currentItem = null;
+
+foreach(item: ctx.args.waterConsumption.values) {
+    previousItem = currentItem;
+    currentItem = item;
+}
+
+if (currentItem == null) {
+    return {};
+}
+
+var waterConsumptionHourly = 0;
+
+if (previousItem != null) {
+    waterConsumptionHourly = currentItem.value - previousItem.value;
+
+    if (waterConsumptionHourly < 0) {
+        waterConsumptionHourly = 0;
+    }
+}
+
+waterConsumptionHourly = toFixed(waterConsumptionHourly, 2);
+
+return {
+    ts: currentItem.ts,
+    values: {
+        waterConsumptionHourly: waterConsumptionHourly
+    }
+};
+```
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/water-consumption-hourly-delta/create-cf-3.png',
+    alt: 'Calculated field form with waterConsumption argument added and script editor visible',
+    caption: 'After adding the argument, paste the script into the <strong>Script</strong> editor. The <code>waterConsumption</code> argument appears in the arguments list above.'
+  },
+  {
+    src: '/src/assets/images/recipes/water-consumption-hourly-delta/create-cf-4.png',
+    alt: 'Full script in the TBEL editor showing delta calculation logic',
+    caption: 'The script uses <code>ctx.args.waterConsumption.values</code> to iterate over the rolling window and compute the consumption delta between the two most recent readings.'
+  },
+]} />
+
+### Output
+
+- **Output type**: `Time series`
+- **Strategy**: `Process right away`
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/water-consumption-hourly-delta/create-cf-5.png',
+    alt: 'Calculated field output type Time series with Process right away strategy',
+    caption: 'Set <strong>Output type</strong> to <strong>Time series</strong> and <strong>Strategy</strong> to <strong>Process right away</strong>.'
+  },
+]} />
+
+Click **Add** to save.
+
+## Step 3. Verify the result
+
+Post two `waterConsumption` readings to **Water Meter A1** within the configured time window. Replace `$ACCESS_TOKEN` with the device access token.
+
+**First reading:**
+
+<HostCode product={props.product} lang="bash" code={`curl -v -X POST -d '{"waterConsumption": 140}' https://{HTTP_HOST}/api/v1/$ACCESS_TOKEN/telemetry --header "Content-Type:application/json"`} />
+
+**Second reading:**
+
+<HostCode product={props.product} lang="bash" code={`curl -v -X POST -d '{"waterConsumption": 145}' https://{HTTP_HOST}/api/v1/$ACCESS_TOKEN/telemetry --header "Content-Type:application/json"`} />
+
+**Expected result:** Open **Water Meter A1** &#8702; **Latest telemetry** tab. A new `waterConsumptionHourly` key appears with value `5.0` — the delta between the two readings.
+
+## Step 4. Import the dashboard
+
+Download the **Water Consumption** dashboard as a <a href="/resources/docs/recipes/water-consumption-hourly-delta/water_consumption_dashboard.json" download="water_consumption_dashboard.json"><strong>JSON file</strong></a> and <DocLink product={props.product} path="user-guide/dashboards/#import-dashboard" target="_blank">import</DocLink> it.
+
+The dashboard includes:
+- a summary widget showing the latest hourly consumption value
+- a time series table displaying `waterConsumption` and `waterConsumptionHourly` readings over time
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/water-consumption-hourly-delta/dashboard-1.png',
+    alt: 'Water Consumption dashboard showing latest hourly usage and historical readings table',
+    caption: 'The <strong>Water Consumption</strong> dashboard shows the latest hourly usage and a history table with both the cumulative meter reading and the computed delta.'
+  },
+]} />
+
+## See also
+
+- <DocLink product={props.product} path="user-guide/calculated-fields/script">Script calculated fields</DocLink> — full feature reference
+- <DocLink product={props.product} path="user-guide/calculated-fields">Calculated fields</DocLink> — overview of all calculated field types
+- <DocLink product={props.product} path="recipes/aggregate-related-entities">Aggregate Telemetry from Related Devices</DocLink> — aggregation across multiple related devices using Sum
