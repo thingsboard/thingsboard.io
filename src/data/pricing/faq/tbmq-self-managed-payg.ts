@@ -220,7 +220,7 @@ export const tbmqSelfManagedPaygFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-payg-internet-connection',
 				question: 'Do I need an internet connection to use the self-managed license?',
-				answer: `<p>Yes, an internet connection is required for periodic license verification. The system checks the license once per hour, and if the connection is not restored within 24 hours, the platform may shut down. This process ensures proper license management while allowing temporary connectivity issues. For more details, please refer to the license check <a target="_blank" href="/docs/mqtt-broker/install/license-server/#architecture">description</a>.</p>`,
+				answer: `<p>Yes, an internet connection is required for periodic license verification. The system checks the license once per hour, and if the connection is not restored within 24 hours, the platform may shut down. This process ensures proper license management while allowing temporary connectivity issues. For more details, please refer to the license check <a target="_blank" href="/products/license-server/#architecture">description</a>.</p>`,
 			},
 			{
 				id: 'tbmq-payg-offline',
@@ -271,7 +271,7 @@ export const tbmqSelfManagedPaygFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-payg-vulnerability-matrix',
 				question: 'Where can I find the logged vulnerability fixes matrix: version + list of fixes?',
-				answer: `<p>Please stay tuned with our <a target="_blank" href="/docs/mqtt-broker/reference/releases/">Release notes</a>. Critical vulnerabilities or security issues are mentioned in separate line items. Less threatful vulnerabilities appear as a single record (“Vulnerability fixes”) stating that, at the release date, the version is free of known HIGH and some MEDIUM CVEs.</p>`,
+				answer: `<p>Please stay tuned with our <a target="_blank" href="/docs/mqtt-broker/pe/releases/">Release notes</a>. Critical vulnerabilities or security issues are mentioned in separate line items. Less threatful vulnerabilities appear as a single record (“Vulnerability fixes”) stating that, at the release date, the version is free of known HIGH and some MEDIUM CVEs.</p>`,
 			},
 		],
 	},

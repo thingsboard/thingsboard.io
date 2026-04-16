@@ -637,7 +637,7 @@ export const products: ProductData[] = [
 		id: 'mqtt-broker',
 		title: 'MQTT Broker',
 		description:
-			'<b>TBMQ</b> is a highly scalable and durable <a href="/products/mqtt-broker/" target="_blank">MQTT message broker</a> built for real-time data processing across IoT ecosystems of any scale. It efficiently handles millions of concurrent client connections and processes millions of messages per second while maintaining low latency and reliable delivery. Designed for horizontal scalability, TBMQ seamlessly expands across cluster nodes to support massive deployments with millions of connected devices. <a href="/docs/mqtt-broker" target="_blank">Read More</a>.',
+			'<b>TBMQ</b> is a highly scalable and durable <a href="/products/mqtt-broker/" target="_blank">MQTT message broker</a> built for real-time data processing across IoT ecosystems of any scale. It efficiently handles millions of concurrent client connections and processes millions of messages per second while maintaining low latency and reliable delivery. Designed for horizontal scalability, TBMQ seamlessly expands across cluster nodes to support massive deployments with millions of connected devices. <a href="/docs/mqtt-broker/" target="_blank">Read More</a>.',
 		buttons: [
 			{
 				id: 'TryItNow_TBMQ_Demo',

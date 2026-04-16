@@ -60,7 +60,10 @@ export class CanonicalUrl extends CheckBase {
 					linkedPage.redirectTargetUrl.pathname
 				);
 				const targetPathname = redirectTargetPage
-					? redirectTargetPage.getExpectedLinkPathname(context.page.pathnameLang)
+					? redirectTargetPage.getExpectedLinkPathname(
+							context.page.pathnameLang,
+							context.consolidationPatterns
+						)
 					: null;
 				const autofixHref = targetPathname
 					? targetPathname + decodeURIComponent(url.hash)
@@ -99,9 +102,19 @@ export class CanonicalUrl extends CheckBase {
 			// Skip links that point to the wrong language (those are handled by SameLanguage)
 			if (linkedPage.pathnameLang !== context.page.pathnameLang) return;
 
-			// It's an error if the link URL pathname does not match the
-			// canonical URL pathname of the linked page
-			const expectedPathname = linkedPage.getExpectedLinkPathname(context.page.pathnameLang);
+			// It's an error if the link URL pathname does not match the expected pathname
+			// of the linked page. `getExpectedLinkPathname` prefers the page's actual pathname
+			// when the canonical represents SEO consolidation (see `isConsolidationCanonical`),
+			// so this check:
+			//   - fires for URL-form mismatches (e.g. missing trailing slash, wrong case);
+			//   - fires for real non-consolidation canonical mismatches;
+			//   - does NOT fire when a link points to the actual URL of a consolidation source
+			//     (linking to CE pathname from within CE is intentional, even though the
+			//     canonical is rewritten to PE for SEO).
+			const expectedPathname = linkedPage.getExpectedLinkPathname(
+				context.page.pathnameLang,
+				context.consolidationPatterns
+			);
 			if (url.pathname !== expectedPathname) {
 				const autofixHref = expectedPathname + decodeURIComponent(url.hash);
 				context.report({

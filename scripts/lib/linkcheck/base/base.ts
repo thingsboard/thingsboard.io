@@ -1,5 +1,24 @@
 import type { CheckBase } from './check.ts';
 
+/**
+ * Describes a known SEO canonical consolidation transformation.
+ *
+ * A page whose pathname starts with `from` and whose `<link rel="canonical">`
+ * points to a URL starting with `to` (with the same tail after the prefix) is
+ * considered a consolidation source — it serves distinct content at its own URL,
+ * but declares a canonical elsewhere for SEO signal only.
+ *
+ * This affects link checking:
+ * - `[can]` LinkToNonCanonicalUrl: skipped for consolidation targets (linking to
+ *   the actual pathname is intentional and correct).
+ * - `[ref]` / `[lng]` / `[abs]` autofix: preserves the actual pathname instead of
+ *   rewriting to the canonical URL, keeping users within the current product context.
+ */
+export interface ConsolidationPattern {
+	from: string;
+	to: string;
+}
+
 export interface LinkCheckerOptions {
 	baseUrl: string;
 	buildOutputDir: string;
@@ -7,6 +26,7 @@ export interface LinkCheckerOptions {
 	checks: CheckBase[];
 	autofix?: boolean;
 	excludePagePatterns?: RegExp[];
+	consolidationPatterns?: ConsolidationPattern[];
 }
 
 export class LinkCheckerState {

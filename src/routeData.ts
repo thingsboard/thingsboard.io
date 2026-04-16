@@ -16,9 +16,27 @@ import {
 import { getOgImageUrl } from '~/util/getOgImageUrl';
 import { getTutorialPages } from '~/util/getTutorialPages';
 
-/** Set of content IDs for PE pages, used to verify a PE equivalent exists before rewriting canonical. */
-const pePageIds = new Set(
-	allPages.filter((p) => getVersionFromSlug(p.id) === Products.PE).map((p) => p.id)
+/**
+ * Maps "free" product versions to their "professional" canonical equivalents.
+ * Pages in free versions have their <link rel="canonical"> rewritten to the
+ * corresponding professional URL for SEO consolidation, IF the professional
+ * equivalent exists. Both versions continue serving their own distinct content.
+ */
+const canonicalConsolidationMap: Partial<Record<Products, Products>> = {
+	[Products.CE]: Products.PE,
+	[Products.PAAS]: Products.PE,
+	[Products.PAAS_EU]: Products.PE,
+	[Products.EDGE]: Products.EDGE_PE,
+	[Products.TBMQ]: Products.TBMQ_PE,
+	[Products.MOBILE]: Products.MOBILE_PE,
+};
+
+/** Per-target sets of content IDs, used to verify an equivalent exists before rewriting canonical. */
+const canonicalTargetPageIds = new Map<Products, Set<string>>(
+	[...new Set(Object.values(canonicalConsolidationMap))].map((target) => [
+		target,
+		new Set(allPages.filter((p) => getVersionFromSlug(p.id) === target).map((p) => p.id)),
+	])
 );
 
 export const onRequest = defineRouteMiddleware((context) => {
@@ -181,30 +199,32 @@ function updateHead(context: APIContext) {
 		},
 	});
 
-	// Canonical consolidation: CE/PaaS/PaaS EU → PE
-	// Only rewrite if the equivalent PE page actually exists
-	const version = getVersionFromURL(context.url.pathname);
-	if (version === Products.CE || version === Products.PAAS || version === Products.PAAS_EU) {
+	// Canonical consolidation: free product versions → professional equivalents.
+	// Only rewrite if the equivalent professional page actually exists.
+	const sourceVersion = getVersionFromURL(context.url.pathname);
+	const targetVersion = canonicalConsolidationMap[sourceVersion];
+	if (targetVersion) {
+		const targetPageIds = canonicalTargetPageIds.get(targetVersion)!;
 		const lang = getLanguageFromURL(context.url.pathname);
 		const pageSlug = getPageSlugFromURL(context.url.pathname);
 		const langPrefix = getLanguagePrefix(lang);
-		const pePrefix = getVersionPrefix(Products.PE);
+		const targetPrefix = getVersionPrefix(targetVersion);
 		const docsPrefix = lang === 'uk' ? 'uk/docs/' : 'docs/';
-		const peContentId = `${docsPrefix}${pePrefix}${pageSlug}`;
+		const targetContentId = `${docsPrefix}${targetPrefix}${pageSlug}`;
 
-		if (pePageIds.has(peContentId)) {
-			const pePathname = `/${langPrefix}docs/${pePrefix}${pageSlug}/`;
-			const peCanonical = new URL(pePathname, context.site).href;
+		if (targetPageIds.has(targetContentId)) {
+			const targetPathname = `/${langPrefix}docs/${targetPrefix}${pageSlug}/`;
+			const targetCanonical = new URL(targetPathname, context.site).href;
 
 			const canonical = head.find(
 				(item) => item.tag === 'link' && item.attrs?.['rel'] === 'canonical'
 			);
-			if (canonical) canonical.attrs!['href'] = peCanonical;
+			if (canonical) canonical.attrs!['href'] = targetCanonical;
 
 			const ogUrl = head.find(
 				(item) => item.tag === 'meta' && item.attrs?.['property'] === 'og:url'
 			);
-			if (ogUrl) ogUrl.attrs!['content'] = peCanonical;
+			if (ogUrl) ogUrl.attrs!['content'] = targetCanonical;
 		}
 	}
 }

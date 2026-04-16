@@ -216,12 +216,12 @@ export const tbmqSelfManagedPerpFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-perp-vuln-matrix',
 				question: 'Where can I find the logged vulnerability fixes matrix: version + list of fixes?',
-				answer: `<p>Please stay tuned with our <a target="_blank" href="/docs/mqtt-broker/reference/releases/">Release notes</a>. Critical vulnerabilities or security issues are mentioned in separate line items. Less threatful vulnerabilities appear as a single record (“Vulnerability fixes”) stating that, at the release date, the version is free of known HIGH and some MEDIUM CVEs.</p>`,
+				answer: `<p>Please stay tuned with our <a target="_blank" href="/docs/mqtt-broker/pe/releases/">Release notes</a>. Critical vulnerabilities or security issues are mentioned in separate line items. Less threatful vulnerabilities appear as a single record (“Vulnerability fixes”) stating that, at the release date, the version is free of known HIGH and some MEDIUM CVEs.</p>`,
 			},
 			{
 				id: 'tbmq-perp-license-data',
 				question: 'What data does ThingsBoard collect for license verification?',
-				answer: `<p>During the first launch of ThingsBoard PE, built-in License Server Client generates an “Activate Instance Request” to the License Server. This request contains the license key and version info about the current platform installation. License Server looks up the subscription info based on the license key and replies with the instance id, subscription plan data, and some magic bytes. License Client stores this information locally and uses instance id and some magic bytes for the next license check requests. More details <a target="_blank" href="/docs/mqtt-broker/install/license-server/">here</a>.</p>`,
+				answer: `<p>During the first launch of ThingsBoard PE, built-in License Server Client generates an “Activate Instance Request” to the License Server. This request contains the license key and version info about the current platform installation. License Server looks up the subscription info based on the license key and replies with the instance id, subscription plan data, and some magic bytes. License Client stores this information locally and uses instance id and some magic bytes for the next license check requests. More details <a target="_blank" href="/products/license-server/">here</a>.</p>`,
 			},
 		],
 	},

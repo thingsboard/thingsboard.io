@@ -69,6 +69,21 @@ const linkChecker = new LinkChecker({
 	buildOutputDir: './dist',
 	pageSourceDir: './src/content/docs',
 	excludePagePatterns: [/^\/device-library\//],
+	// SEO canonical consolidation: pages in "free" versions have their <link rel="canonical">
+	// rewritten to the "professional" equivalent (see `src/routeData.ts`). These patterns tell
+	// the link checker that such canonical mismatches are consolidation (not URL-form
+	// canonicalization) — the `[can]` check will not fire for links to the actual pathname,
+	// and `[ref]` / `[lng]` / `[abs]` autofix suggestions will preserve product context.
+	consolidationPatterns: [
+		// Main product: CE / PaaS / PaaS EU → PE
+		{ from: '/docs/', to: '/docs/pe/' },
+		{ from: '/docs/paas/', to: '/docs/pe/' },
+		{ from: '/docs/paas/eu/', to: '/docs/pe/' },
+		// Sub-products: free → professional
+		{ from: '/docs/edge/', to: '/docs/edge/pe/' },
+		{ from: '/docs/mqtt-broker/', to: '/docs/mqtt-broker/pe/' },
+		{ from: '/docs/mobile/', to: '/docs/mobile/pe/' },
+	],
 	checks: [
 		new TargetExists(),
 		new SameLanguage({

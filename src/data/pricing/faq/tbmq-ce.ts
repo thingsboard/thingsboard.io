@@ -43,7 +43,7 @@ export const tbmqCeFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-ce-clustering',
 				question: 'Does the Community Edition support clustering?',
-				answer: '<p>Yes, clustering is fully supported in the Community Edition. You can find more details about deployment scenarios <a target="_blank" href="/docs/mqtt-broker/install/deployment-options/">here</a>.</p>',
+				answer: '<p>Yes, clustering is fully supported in the Community Edition. You can find more details about deployment scenarios <a target="_blank" href="/docs/mqtt-broker/install/installation-options/">here</a>.</p>',
 			},
 			{
 				id: 'tbmq-ce-customize',
