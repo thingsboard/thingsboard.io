@@ -359,7 +359,7 @@ const recipeItems = (prefix: string, extraProcessingItems: string[] = []) => [
 	{
 		label: 'Alarms',
 		collapsed: true,
-		items: [`${prefix}/alarm-rule-tutorials`, `${prefix}/create-clear-alarms`, `${prefix}/telemetry-delta-calculation`, `${prefix}/send-email-alarm`],
+		items: [`${prefix}/alarm-rule-tutorials`, `${prefix}/create-clear-alarms`, `${prefix}/device-inactivity-alarm`, `${prefix}/telemetry-delta-calculation`, `${prefix}/send-email-alarm`],
 	},
 	{
 		label: 'Real-time Data',
