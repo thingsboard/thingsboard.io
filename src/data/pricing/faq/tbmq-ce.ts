@@ -23,7 +23,7 @@ export const tbmqCeFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-ce-diff-pe',
 				question: 'How does the Community Edition differ from Professional Edition?',
-				answer: '<p>Community Edition includes essential MQTT broker features with full support for MQTT 3.x and MQTT 5.0. The Professional Edition offers advanced features such as White Labeling, RBAC, Single sign-on, etc. You can find a more detailed comparison <a target="_blank" href="/products/mqtt-broker/">here</a>.</p>',
+				answer: '<p>Community Edition includes essential MQTT broker features with full support for MQTT 3.x and MQTT 5.0. The Professional Edition offers advanced features such as White Labeling, RBAC, Single sign-on, etc. You can find a more detailed comparison <a target="_blank" href="/products/mqtt-broker/">on the TBMQ product page</a>.</p>',
 			},
 			{
 				id: 'tbmq-ce-session-limits',
@@ -43,7 +43,7 @@ export const tbmqCeFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-ce-clustering',
 				question: 'Does the Community Edition support clustering?',
-				answer: '<p>Yes, clustering is fully supported in the Community Edition. You can find more details about deployment scenarios <a target="_blank" href="/docs/mqtt-broker/install/installation-options/">here</a>.</p>',
+				answer: '<p>Yes, clustering is fully supported in the Community Edition. You can find more details about deployment scenarios <a target="_blank" href="/docs/mqtt-broker/install/installation-options/">in the deployment options guide</a>.</p>',
 			},
 			{
 				id: 'tbmq-ce-customize',
@@ -74,7 +74,7 @@ export const tbmqCeFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-ce-db-support',
 				question: 'What databases does the Community Edition support?',
-				answer: '<p>The Community Edition supports Kafka, Redis/Valkey, and PostgreSQL. For more details on database options, you can check <a target="_blank" href="/docs/mqtt-broker/architecture/">here</a>.</p>',
+				answer: '<p>The Community Edition supports Kafka, Redis/Valkey, and PostgreSQL. For more details on database options, you can check <a target="_blank" href="/docs/mqtt-broker/architecture/">the TBMQ architecture page</a>.</p>',
 			},
 			{
 				id: 'tbmq-ce-docker',
@@ -100,12 +100,12 @@ export const tbmqCeFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-ce-features-list',
 				question: 'What features are included in TBMQ Community Edition?',
-				answer: '<p>The Community Edition includes all essential MQTT broker features with full support for MQTT 3.x and MQTT 5.0. You can find all features and descriptions <a target="_blank" href="/docs/mqtt-broker/">here</a>.</p>',
+				answer: '<p>The Community Edition includes all essential MQTT broker features with full support for MQTT 3.x and MQTT 5.0. You can find all features and descriptions <a target="_blank" href="/docs/mqtt-broker/">in the TBMQ documentation</a>.</p>',
 			},
 			{
 				id: 'tbmq-ce-pe-exclusive',
 				question: 'What features are exclusive to the Professional Edition?',
-				answer: '<p>The Professional Edition offers advanced features such as White Labeling, RBAC, Single sign-on, etc. You can find a more detailed comparison <a target="_blank" href="/products/mqtt-broker/">here</a>.</p>',
+				answer: '<p>The Professional Edition offers advanced features such as White Labeling, RBAC, Single sign-on, etc. You can find a more detailed comparison <a target="_blank" href="/products/mqtt-broker/">on the TBMQ product page</a>.</p>',
 			},
 			{
 				id: 'tbmq-ce-white-label',

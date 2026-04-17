@@ -311,7 +311,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-private-cloud-are-there-rest-websocket-api-rate-limits',
 				question: 'Are there REST / WebSocket API rate limits?',
-				answer: `<p>Yes. Per tenant, device and user limits prevent abuse and protect cluster health. The full tables are published <a target="_blank" href="/docs/private-cloud/subscription/">here</a>.</p>`,
+				answer: `<p>Yes. Per tenant, device and user limits prevent abuse and protect cluster health. The full tables are published <a target="_blank" href="/docs/private-cloud/subscription/">on the Private Cloud subscription page</a>.</p>`,
 			},
 			{
 				id: 'tb-private-cloud-are-there-limits-on-dashboards-widgets-rule-chains-or-alarms',

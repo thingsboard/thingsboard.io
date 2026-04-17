@@ -27,6 +27,14 @@ export interface LinkCheckerOptions {
 	autofix?: boolean;
 	excludePagePatterns?: RegExp[];
 	consolidationPatterns?: ConsolidationPattern[];
+	/**
+	 * Additional URL pathnames that should be treated as pages, on top of what
+	 * the sitemap reports. Useful for including redirect pages that are generated
+	 * but excluded from the sitemap (e.g. entries from `astro.redirects` config,
+	 * whose built HTML carries `<meta name="robots" content="noindex">` and is
+	 * filtered out by `@astrojs/sitemap`).
+	 */
+	additionalPathnames?: string[];
 }
 
 export class LinkCheckerState {

@@ -11,5 +11,5 @@ export const tbCeData: CommunityEditionData = {
 		'Community support',
 	],
 	ctaText: 'Install',
-	ctaHref: '/docs/user-guide/install/installation-options/',
+	ctaHref: '/docs/installation/',
 };

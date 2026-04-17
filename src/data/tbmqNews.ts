@@ -13,7 +13,7 @@ export const tbmqNews: TbmqNewsItem[] = [
 		image: '/src/assets/images/landings/mqtt-broker/news-1.webp',
 		imageAlt: 'TBMQ 2.2: Strengthening MQTT security with JWT and Client Blocking',
 		tag: 'Updates',
-		tagHref: '/blog/category/updates/',
+		tagHref: '/blog/?category=updates',
 		title: 'TBMQ 2.2: Strengthening MQTT security with JWT and Client Blocking',
 		href: '/blog/tbmq-2-2-strengthening-mqtt-security-with-jwt-and-client-blocking/',
 		excerpt:
@@ -23,7 +23,7 @@ export const tbmqNews: TbmqNewsItem[] = [
 		image: '/src/assets/images/landings/mqtt-broker/news-4.webp',
 		imageAlt: 'TBMQ 2.1: New chapter in MQTT messaging with embedded Integrations',
 		tag: 'Updates',
-		tagHref: '/blog/category/updates/',
+		tagHref: '/blog/?category=updates',
 		title: 'TBMQ 2.1: New chapter in MQTT messaging with embedded Integrations',
 		href: '/blog/tbmq-2-1-new-chapter-in-mqtt-messaging-with-embedded-integrations/',
 		excerpt:
@@ -33,7 +33,7 @@ export const tbmqNews: TbmqNewsItem[] = [
 		image: '/src/assets/images/landings/mqtt-broker/news-3.webp',
 		imageAlt: 'TBMQ one million messages per second',
 		tag: 'Tech',
-		tagHref: '/blog/category/tech/',
+		tagHref: '/blog/?category=tech',
 		title: '1 Million reasons to choose TBMQ as a high-performance MQTT broker',
 		href: '/blog/1-million-reasons-to-choose-tbmq-as-high-performance-mqtt-broker/',
 		excerpt:
@@ -43,7 +43,7 @@ export const tbmqNews: TbmqNewsItem[] = [
 		image: '/src/assets/images/landings/mqtt-broker/news-2.webp',
 		imageAlt: 'TBMQ 2.0.0 release',
 		tag: 'Updates',
-		tagHref: '/blog/category/updates/',
+		tagHref: '/blog/?category=updates',
 		title: 'TBMQ 2.0.0 release: migration to Redis, MQTT 5.0 support, and more',
 		href: '/blog/tbmq-2-0-migration-to-redis-mqtt-5-0-support-and-more/',
 		excerpt:

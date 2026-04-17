@@ -61,7 +61,7 @@ export const wasteManagementData: UseCaseData = {
 	solutionStructure: {
 		title: 'Solution structure of waste management use case',
 		shortText:
-			'The ThingsBoard-powered <a href="/docs/pe/solution-templates/waste-management/">waste management solution</a> begins at the edge — where IoT sensors installed in bins monitor fill levels and battery status in real time. These devices send telemetry data to ThingsBoard using supported protocols such as MQTT, CoAP, or HTTP.',
+			'The ThingsBoard-powered <a href="/docs/pe/recipes/solution-templates/waste-management/">waste management solution</a> begins at the edge — where IoT sensors installed in bins monitor fill levels and battery status in real time. These devices send telemetry data to ThingsBoard using supported protocols such as MQTT, CoAP, or HTTP.',
 		longText: [
 			'Once the data reaches the platform, it is processed and stored in a time-series database. Rule Engine chains trigger alarms based on predefined conditions such as low battery or bins nearing capacity. Finally, this structured information is presented on interactive dashboards, allowing operators to make timely decisions and optimize collection routes.',
 		],

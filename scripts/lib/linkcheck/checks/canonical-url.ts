@@ -61,9 +61,9 @@ export class CanonicalUrl extends CheckBase {
 				);
 				const targetPathname = redirectTargetPage
 					? redirectTargetPage.getExpectedLinkPathname(
-							context.page.pathnameLang,
-							context.consolidationPatterns
-						)
+						context.page.pathnameLang,
+						context.consolidationPatterns
+					)
 					: null;
 				const autofixHref = targetPathname
 					? targetPathname + decodeURIComponent(url.hash)

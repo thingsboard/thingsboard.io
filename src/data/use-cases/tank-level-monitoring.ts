@@ -53,7 +53,7 @@ export const tankLevelMonitoringData: UseCaseData = {
 	solutionStructure: {
 		title: 'Solution structure of tank level monitoring use case',
 		shortText:
-			'The ThingsBoard-powered <a href="/docs/pe/solution-templates/fuel-level-monitoring/">tank level monitoring solution</a> integrates IoT sensors installed on tanks to continuously measure liquid levels, temperature, and pressure. Sensor data is transmitted to the platform via MQTT, CoAP, or HTTP protocols, either directly or through IoT gateways for legacy equipment.',
+			'The ThingsBoard-powered <a href="/docs/pe/recipes/solution-templates/fuel-level-monitoring/">tank level monitoring solution</a> integrates IoT sensors installed on tanks to continuously measure liquid levels, temperature, and pressure. Sensor data is transmitted to the platform via MQTT, CoAP, or HTTP protocols, either directly or through IoT gateways for legacy equipment.',
 		longText: [
 			'Once the telemetry reaches ThingsBoard, it is processed in real time by the Rule Engine, which evaluates conditions and triggers alarms for events such as low levels, overfill risks, or sudden drops indicating potential leaks. The processed data is stored in a time-series database and visualized on interactive dashboards, providing operators with a clear picture of tank status across all monitored locations.',
 			'The architecture supports hierarchical asset management, allowing operators to organize tanks by site, region, or client. Combined with role-based access control, this ensures that each stakeholder sees only the data relevant to their scope — from field technicians monitoring individual tanks to managers overseeing enterprise-wide operations.',

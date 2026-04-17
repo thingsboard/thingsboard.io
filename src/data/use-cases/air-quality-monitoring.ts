@@ -20,7 +20,7 @@ export const airQualityMonitoringData: UseCaseData = {
 	solutionStructure: {
 		title: 'Solution structure of air quality monitoring use case',
 		shortText:
-			'The air quality monitoring solution connects outdoor and indoor sensor stations to the ThingsBoard platform via IoT gateways. Sensors measure key pollutants and environmental parameters, transmitting data through MQTT, CoAP, or HTTP protocols. You may find the detailed solution setup guide in our <a href="/docs/pe/solution-templates/air-quality-monitoring/">air quality monitoring solution template</a> documentation.',
+			'The air quality monitoring solution connects outdoor and indoor sensor stations to the ThingsBoard platform via IoT gateways. Sensors measure key pollutants and environmental parameters, transmitting data through MQTT, CoAP, or HTTP protocols. You may find the detailed solution setup guide in our <a href="/docs/pe/recipes/solution-templates/air-quality-monitoring/">air quality monitoring solution template</a> documentation.',
 		longText: [
 			'At the sensor level, monitoring stations equipped with gas and particulate sensors collect real-time measurements of PM2.5, PM10, CO2, NO2, ozone, temperature, and humidity. These stations can be deployed on street poles, building rooftops, or inside facilities.',
 			'The ThingsBoard rule engine processes incoming data streams, calculating air quality indices (AQI), detecting threshold violations, and routing alerts to relevant stakeholders. Geospatial dashboards display sensor locations on interactive maps with color-coded status indicators.',

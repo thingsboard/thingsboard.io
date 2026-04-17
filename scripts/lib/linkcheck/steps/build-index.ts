@@ -22,6 +22,9 @@ export function getPagePathnamesFromSitemap(options: LinkCheckerOptions) {
 		paths.forEach((path) => uniquePagePaths.add(path));
 	}
 
+	// Merge in additional pathnames (e.g. `astro.redirects` entries excluded from sitemap)
+	options.additionalPathnames?.forEach((p) => uniquePagePaths.add(p));
+
 	const paths = Array.from(uniquePagePaths);
 	if (options.excludePagePatterns?.length) {
 		return paths.filter((p) => !options.excludePagePatterns!.some((re) => re.test(p)));

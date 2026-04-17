@@ -52,7 +52,8 @@ export const tbmqSelfManagedPerpFaq: FaqCategory[] = [
 			},
 			{
 				id: 'tbmq-perp-exceed-limits',
-				question: 'What happens if I exceed the total messages per second or session limit in my subscription?',
+				question:
+					'What happens if I exceed the total messages per second or session limit in my subscription?',
 				answer: `<p>If your TBMQ deployment exceeds the licensed limit for either Sessions or Throughput messages per second, the broker software will enforce the capacity defined in your license key. This typically means that new client connections or incoming messages will be rejected, or your deployment performance may be throttled until usage falls back below the purchased capacity. To maintain continuous service and prevent disruption, we recommend proactively monitoring your capacity usage and adjusting your licensed limits via the <a target="_blank" href="https://license.thingsboard.io/">License Portal</a> before reaching your peak operational thresholds.</p>`,
 			},
 		],
@@ -78,12 +79,13 @@ export const tbmqSelfManagedPerpFaq: FaqCategory[] = [
 			},
 			{
 				id: 'tbmq-perp-no-renew',
-				question: 'What happens to my license if I don\'t pay for the renewal?',
+				question: "What happens to my license if I don't pay for the renewal?",
 				answer: `<p>Your current license will remain active, allowing you to continue using the platform seamlessly. By renewing your license, you'll gain access to the latest version releases and ongoing support to enhance your experience.</p>`,
 			},
 			{
 				id: 'tbmq-perp-renewal-logic',
-				question: 'I do not understand how the renewal logic works in relation to new version releases?',
+				question:
+					'I do not understand how the renewal logic works in relation to new version releases?',
 				answer: `<p>Here’s how the renewal logic works: If you purchased your license on January 1, 2024, your support period and access to new version releases will expire on January 1, 2025. You can continue using the version of the platform you have without any interruptions. However, after January 1, 2025, you will no longer have access to new versions that are released after that date. You can still use the version you have, and you are free to migrate your hardware or upgrade to any version that was available before January 2, 2025.</p>`,
 			},
 			{
@@ -169,7 +171,8 @@ export const tbmqSelfManagedPerpFaq: FaqCategory[] = [
 			},
 			{
 				id: 'tbmq-perp-limits',
-				question: 'Are there any sessions, message throughput, etc., limits for perpetual licenses?',
+				question:
+					'Are there any sessions, message throughput, etc., limits for perpetual licenses?',
 				answer: `<p>Yes, the Perpetual License is a commercial product defined by the specific Sessions, Throughput, and Instance count you purchase. These limits are set by your licensed capacity, and the software will enforce them to ensure compliance. However, the TBMQ Professional Edition is engineered for indefinite scalability to meet your long-term growth. You are not locked into your initial configuration: you can permanently expand your licensed capacity at any time by making a new one-time purchase of additional Sessions, Throughput, and Instances. This ensures the license can always be scaled to support your evolving operational demands, constrained only by your total purchased capacity.</p>`,
 			},
 			{
@@ -215,13 +218,14 @@ export const tbmqSelfManagedPerpFaq: FaqCategory[] = [
 			},
 			{
 				id: 'tbmq-perp-vuln-matrix',
-				question: 'Where can I find the logged vulnerability fixes matrix: version + list of fixes?',
+				question:
+					'Where can I find the logged vulnerability fixes matrix: version + list of fixes?',
 				answer: `<p>Please stay tuned with our <a target="_blank" href="/docs/mqtt-broker/pe/releases/">Release notes</a>. Critical vulnerabilities or security issues are mentioned in separate line items. Less threatful vulnerabilities appear as a single record (“Vulnerability fixes”) stating that, at the release date, the version is free of known HIGH and some MEDIUM CVEs.</p>`,
 			},
 			{
 				id: 'tbmq-perp-license-data',
 				question: 'What data does ThingsBoard collect for license verification?',
-				answer: `<p>During the first launch of ThingsBoard PE, built-in License Server Client generates an “Activate Instance Request” to the License Server. This request contains the license key and version info about the current platform installation. License Server looks up the subscription info based on the license key and replies with the instance id, subscription plan data, and some magic bytes. License Client stores this information locally and uses instance id and some magic bytes for the next license check requests. More details <a target="_blank" href="/products/license-server/">here</a>.</p>`,
+				answer: `<p>During the first launch of ThingsBoard PE, built-in License Server Client generates an “Activate Instance Request” to the License Server. This request contains the license key and version info about the current platform installation. License Server looks up the subscription info based on the license key and replies with the instance id, subscription plan data, and some magic bytes. License Client stores this information locally and uses instance id and some magic bytes for the next license check requests. More details <a target="_blank" href="/docs/license-server/what-is-license-server/">in the License Server documentation</a>.</p>`,
 			},
 		],
 	},
@@ -277,7 +281,8 @@ export const tbmqSelfManagedPerpFaq: FaqCategory[] = [
 			},
 			{
 				id: 'tbmq-perp-maintenance',
-				question: 'Do you provide full maintenance services for TBMQ deployed on my infrastructure?',
+				question:
+					'Do you provide full maintenance services for TBMQ deployed on my infrastructure?',
 				answer: `<p>Yes, we offer full maintenance services for instances deployed on your infrastructure. These services can be customized based on your needs and are provided under an additional SLA, ensuring regular monitoring, updates, and issue resolution. For more details please <a target="_blank" href="/contact-us/">contact us</a>.</p>`,
 			},
 			{

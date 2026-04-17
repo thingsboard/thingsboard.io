@@ -27,12 +27,14 @@ export const tbmqSelfManagedPaygFaq: FaqCategory[] = [
 			},
 			{
 				id: 'tbmq-payg-calculator-reason',
-				question: 'Why does the TBMQ Self-managed Subscription utilize a detailed capacity calculator instead of offering fixed plans?',
+				question:
+					'Why does the TBMQ Self-managed Subscription utilize a detailed capacity calculator instead of offering fixed plans?',
 				answer: `<p>TBMQ utilizes a detailed capacity calculator to ensure our licensing model is highly flexible and fully transparent. We do not offer fixed subscription plans because we want you to be in complete control of your deployment costs. The calculator is your primary tool for licensing, allowing you to define the exact capacity required for Sessions, Throughput, and Instances. This approach ensures optimal cost efficiency by matching your payment precisely to the resources you consume, allowing for dynamic scaling without the constraints of predefined tiers.</p>`,
 			},
 			{
 				id: 'tbmq-payg-min-cost',
-				question: 'What is the minimum configuration and cost for a TBMQ Self-managed Subscription?',
+				question:
+					'What is the minimum configuration and cost for a TBMQ Self-managed Subscription?',
 				answer: `<p>The minimum configuration for the TBMQ Self-managed Subscription grants you the base licensing capacity required to run the TBMQ Professional Edition. This configuration is priced at $15.00 per month and includes the following minimum licensed resources:<br>* 100 Sessions<br>* 100 messages per second (msg/sec) Throughput<br>* 1 Production Instance<br>* Community Support<br>This configuration is typically used for initial testing, proof-of-concept deployments, and qualifies for the 30-day free trial.</p>`,
 			},
 			{
@@ -52,7 +54,8 @@ export const tbmqSelfManagedPaygFaq: FaqCategory[] = [
 			},
 			{
 				id: 'tbmq-payg-exceed-limits',
-				question: 'What happens if I exceed the total messages per second or session limit in my subscription?',
+				question:
+					'What happens if I exceed the total messages per second or session limit in my subscription?',
 				answer: `<p>If your TBMQ deployment exceeds the licensed limit for either Sessions or Throughput messages per second, the broker software will enforce the capacity defined in your license key. This typically means that new client connections or incoming messages will be rejected, or your deployment performance may be throttled until usage falls back below the purchased capacity. To maintain continuous service and prevent disruption, we recommend proactively monitoring your capacity usage and adjusting your licensed limits via the <a target="_blank" href="https://license.thingsboard.io/">License Portal</a> before reaching your peak operational thresholds.</p>`,
 			},
 			{
@@ -199,12 +202,14 @@ export const tbmqSelfManagedPaygFaq: FaqCategory[] = [
 			},
 			{
 				id: 'tbmq-payg-capacity-establishment',
-				question: 'Since there are no fixed plans, how is my maximum Session and Throughput capacity established?',
+				question:
+					'Since there are no fixed plans, how is my maximum Session and Throughput capacity established?',
 				answer: `<p>Since the TBMQ Self-managed Subscription operates on a Pay-as-you-go model, your maximum Session and Throughput capacities are established entirely by you. You use the self-managed calculator to configure the exact limits needed for your deployment. The license then grants you a total aggregate capacity up to those chosen values. Your license fee is calculated based on the unit rates for the selected Sessions and Throughput capacity, rather than being determined by fixed tiers.</p>`,
 			},
 			{
 				id: 'tbmq-payg-exceed-usage',
-				question: 'What happens if I exceed my subscription’s throughput (messages per second) or session limit?',
+				question:
+					'What happens if I exceed my subscription’s throughput (messages per second) or session limit?',
 				answer: `<p>If your TBMQ deployment exceeds the licensed limit for either Sessions or Throughput messages per second, the broker software will enforce the capacity defined in your license key. This typically means that new client connections or incoming messages will be rejected, or your deployment performance may be throttled until usage falls back below the purchased capacity. To maintain continuous service and prevent disruption, we recommend proactively monitoring your capacity usage and adjusting your licensed limits via the calculator before reaching your peak operational thresholds.</p>`,
 			},
 			{
@@ -220,7 +225,7 @@ export const tbmqSelfManagedPaygFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-payg-internet-connection',
 				question: 'Do I need an internet connection to use the self-managed license?',
-				answer: `<p>Yes, an internet connection is required for periodic license verification. The system checks the license once per hour, and if the connection is not restored within 24 hours, the platform may shut down. This process ensures proper license management while allowing temporary connectivity issues. For more details, please refer to the license check <a target="_blank" href="/products/license-server/#architecture">description</a>.</p>`,
+				answer: `<p>Yes, an internet connection is required for periodic license verification. The system checks the license once per hour, and if the connection is not restored within 24 hours, the platform may shut down. This process ensures proper license management while allowing temporary connectivity issues. For more details, please refer to the license check <a target="_blank" href="/docs/license-server/what-is-license-server/#architecture">description</a>.</p>`,
 			},
 			{
 				id: 'tbmq-payg-offline',
@@ -270,7 +275,8 @@ export const tbmqSelfManagedPaygFaq: FaqCategory[] = [
 			},
 			{
 				id: 'tbmq-payg-vulnerability-matrix',
-				question: 'Where can I find the logged vulnerability fixes matrix: version + list of fixes?',
+				question:
+					'Where can I find the logged vulnerability fixes matrix: version + list of fixes?',
 				answer: `<p>Please stay tuned with our <a target="_blank" href="/docs/mqtt-broker/pe/releases/">Release notes</a>. Critical vulnerabilities or security issues are mentioned in separate line items. Less threatful vulnerabilities appear as a single record (“Vulnerability fixes”) stating that, at the release date, the version is free of known HIGH and some MEDIUM CVEs.</p>`,
 			},
 		],

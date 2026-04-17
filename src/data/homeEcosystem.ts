@@ -16,7 +16,7 @@ export const homeEcosystem: EcosystemItem[] = [
 		name: 'IoT Gateway',
 		description: 'Connect legacy protocols',
 		icon: '/src/assets/images/landings/ce/gateway-icon.svg',
-		href: '/docs/iot-gateway/what-is-iot-gateway/',
+		href: '/docs/iot-gateway/',
 	},
 	{
 		name: 'MQTT Broker',

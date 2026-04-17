@@ -172,10 +172,11 @@ function updateHead(context: APIContext) {
 	const { head, entry } = context.locals.starlightRoute;
 
 	const title = head.find((item) => item.tag === 'title');
-	const frontmatterTitle = entry.data.head.find((item) => item.tag === 'title');
+	const entryHead = (entry.data as { head: StarlightRouteData['head'] }).head;
+	const frontmatterTitle = entryHead.find((item) => item.tag === 'title');
 
-	if (isTutorialEntry(entry) && title && !frontmatterTitle) {
-		title.content = context.locals.t('tutorial.title.prefix', {
+	if (isTutorialEntry(entry) && title && title.content && !frontmatterTitle) {
+		title.content = context.locals.t('tutorial.title.prefix', 'Tutorial - {{title}}', {
 			title: title.content,
 		});
 	}

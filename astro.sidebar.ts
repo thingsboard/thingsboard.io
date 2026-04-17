@@ -3187,11 +3187,12 @@ export const trendzSidebar: SidebarConfig = [
 				collapsed: true,
 				items: [
 					{ slug: 'docs/trendz/anomaly/overview', label: 'Overview' },
-					{ slug: 'docs/trendz/anomaly/build', label: 'Model Properties' },
-					{ slug: 'docs/trendz/anomaly/refresh-reprocess', label: 'Refresh & Reprocess' },
-					{ slug: 'docs/trendz/anomaly/save-to-tb', label: 'Save to ThingsBoard' },
-					{ slug: 'docs/trendz/anomaly/visualization', label: 'Visualization' },
-					{ slug: 'docs/trendz/anomaly/alarms', label: 'Alarms' },
+					{ slug: 'docs/trendz/anomaly/interface', label: 'Interface Overview' },
+					{ slug: 'docs/trendz/anomaly/create', label: 'Create Anomaly Model' },
+					{ slug: 'docs/trendz/anomaly/manage', label: 'Analyze Model Results' },
+					{ slug: 'docs/trendz/anomaly/build', label: 'Anomaly Model Properties' },
+					{ slug: 'docs/trendz/anomaly/monitoring', label: 'Monitoring & Alarms' },
+					{ slug: 'docs/trendz/anomaly/visualization', label: 'Visualize Anomaly Data' },
 				],
 			},
 			{

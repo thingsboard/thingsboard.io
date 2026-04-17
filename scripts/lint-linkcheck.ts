@@ -1,3 +1,4 @@
+import { redirects } from '../astro.redirects.ts';
 import { LinkCheckerState, type LinkCheckerOptions } from './lib/linkcheck/base/base.ts';
 import { CanonicalUrl } from './lib/linkcheck/checks/canonical-url.ts';
 import { GoodLabels } from './lib/linkcheck/checks/good-link-label.ts';
@@ -69,6 +70,10 @@ const linkChecker = new LinkChecker({
 	buildOutputDir: './dist',
 	pageSourceDir: './src/content/docs',
 	excludePagePatterns: [/^\/device-library\//],
+	// Include `astro.redirects` entries as pages so `[ref]` and its autofix can
+	// reason about them. Their built HTML carries `noindex` and is filtered from
+	// the sitemap, so without this they would be invisible to the link checker.
+	additionalPathnames: Object.keys(redirects ?? {}),
 	// SEO canonical consolidation: pages in "free" versions have their <link rel="canonical">
 	// rewritten to the "professional" equivalent (see `src/routeData.ts`). These patterns tell
 	// the link checker that such canonical mismatches are consolidation (not URL-form
@@ -85,7 +90,9 @@ const linkChecker = new LinkChecker({
 		{ from: '/docs/mobile/', to: '/docs/mobile/pe/' },
 	],
 	checks: [
-		new TargetExists(),
+		new TargetExists({
+			ignoredLinkPathnames: ['/device-library/', '/docs/samples'],
+		}),
 		new SameLanguage({
 			ignoredLinkPathnames: ['/lighthouse/'],
 		}),
