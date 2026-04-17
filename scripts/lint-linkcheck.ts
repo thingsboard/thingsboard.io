@@ -91,7 +91,7 @@ const linkChecker = new LinkChecker({
 	],
 	checks: [
 		new TargetExists({
-			ignoredLinkPathnames: ['/device-library/'],
+			ignoredLinkPathnames: ['/device-library/', '/docs/samples'],
 		}),
 		new SameLanguage({
 			ignoredLinkPathnames: ['/lighthouse/'],

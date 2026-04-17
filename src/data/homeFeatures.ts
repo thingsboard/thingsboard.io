@@ -93,14 +93,14 @@ export const homeFeatures: FeatureItem[] = [
 	{
 		icon: '/src/assets/images/landings/ce/microservices-icon.svg',
 		title: 'Microservices or Monolithic',
-		href: '/docs/reference/architecture/monolithic',
+		href: '/docs/reference/architecture/monolithic/',
 		description:
 			'Supports monolithic deployment for getting started or small environments. Provides ability to upgrade to microservices for high availability and horizontal scalability.',
 	},
 	{
 		icon: '/src/assets/images/landings/ce/database-icon.svg',
 		title: 'SQL, NoSQL and Hybrid database',
-		href: '/docs/reference/architecture/database',
+		href: '/docs/reference/architecture/database/',
 		description:
 			'Supports various database options and ability to choose where to store main entities and where to store telemetry data.',
 	},

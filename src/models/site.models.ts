@@ -38,12 +38,12 @@ export function getDocsPrefix(product: Products): string {
 
 /** Builds a full docs link: /docs/{prefix}{path}/ */
 export function docsLink(product: Products, path: string): string {
-	const normalizedPath = path.endsWith('/') ? path : path + '/';
+	const normalizedPath = path === '' ? '' : (path.endsWith('/') ? path : path + '/');
 	return `/docs/${productDocsPrefix[product]}${normalizedPath}`;
 }
 
 /** Builds a full docs link: /docs/{prefix}{path}/ */
 export function docLink(title: string, product: Products, path: string): string {
-	const normalizedPath = path.endsWith('/') ? path : path + '/';
+	const normalizedPath = path === '' ? '' : (path.endsWith('/') ? path : path + '/');
 	return `<a href="/docs/${productDocsPrefix[product]}${normalizedPath}">${title}</a>`;
 }
