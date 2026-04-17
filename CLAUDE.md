@@ -13,7 +13,7 @@ This is the **ThingsBoard documentation site**, built with **Astro + Starlight**
 pnpm install
 
 # Development
-pnpm dev              # Start dev server
+              # Start dev server
 pnpm build            # Production build
 pnpm build:fast       # Fast build (skips OG image generation) — use this for verification
 

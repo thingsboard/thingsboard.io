@@ -53,6 +53,14 @@ export interface PlanCard {
 	productId?: string;
 	/** License server plan ID */
 	planId?: string;
+	/** Annual price (when billing toggle is set to Annual) */
+	annualPrice?: number | null;
+	/** FAQ id for the price info icon (shown when price is null / "Custom") */
+	priceFaqId?: string;
+	/** Tooltip text for the price info icon */
+	priceFaqTooltip?: string;
+	/** GTM element ID for the CTA button (e.g., "Pricing_PE_Cloud_Maker") */
+	gtmId?: string;
 }
 
 // ─── Community Edition ──────────────────────
@@ -67,6 +75,13 @@ export interface CommunityEditionData {
 	features: string[];
 	ctaText: string;
 	ctaHref: string;
+	/** Optional onclick for the main CTA (overrides href navigation) */
+	ctaOnclick?: string;
+	/** Optional secondary button */
+	secondaryCtaText?: string;
+	secondaryCtaOnclick?: string;
+	/** Optional price display (e.g., "Starting from $4,999") */
+	priceLabel?: string;
 }
 
 // ─── Public Cloud ───────────────────────────

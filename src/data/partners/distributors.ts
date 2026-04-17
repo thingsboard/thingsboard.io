@@ -117,6 +117,13 @@ export const DISTRIBUTORS: Distributor[] = [
 		website: "cimyco.com",
 	},
 	{
+		name: "Chongqing Huidu Technology Co., Ltd. (EVGET)",
+		regions: ["Asia"],
+		countries: ["China"],
+		email: "sales@evget.com",
+		website: "www.evget.com",
+	},
+	{
 		name: "Citykinect Inc.",
 		regions: ["North America"],
 		countries: ["Canada"],

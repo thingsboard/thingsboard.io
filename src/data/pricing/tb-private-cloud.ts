@@ -14,23 +14,26 @@ export const tbPrivateCloudData: PrivateCloudData = {
 			name: 'Launch',
 			description: 'Suitable for pilots and early stage deployments.',
 			price: 1499,
+			annualPrice: 1349,
 			currency: '$',
 			period: '/month',
 			ctaText: 'Get Started',
 			ctaHref: 'https://license.thingsboard.io/signup',
 			ctaPrimary: true,
 			popular: true,
+			gtmId: 'Pricing_PE_PrivateCloud_Launch',
 			features: [
 				{ text: '5,000 devices included' },
 				{ text: '99.9% uptime guarantee' },
 				{
 					text: '50,000 msg/minute',
-					faqId: 'tb-private-cloud-determine-right-plan',
+					faqId: 'tb-private-cloud-how-are-datapoints-defined-and-metered',
 					faqTooltip:
 						'Calculated as the sum of all telemetry data points (key/value pairs) plus any messages without measurements (like RPC calls). This aggregate reflects your real-time platform throughput.',
 				},
 				{
 					text: '500 GB of storage included',
+					faqId: 'tb-private-cloud-what-telemetry-storage-is-included-and-what-data-consumes-it',
 					faqTooltip:
 						'Includes 500 GB to store your platform data (telemetry, attributes, events, files). Near the limit: prune old data, add storage, or upgrade plan.',
 				},
@@ -38,6 +41,7 @@ export const tbPrivateCloudData: PrivateCloudData = {
 					text: '$0.10 /extra device',
 					plusIcon: true,
 					highlight: true,
+					faqId: 'tb-private-cloud-what-happens-if-i-exceed-my-included-device-limit',
 					faqTooltip:
 						'You can add more devices anytime. After 5,000 included devices, extra devices are $0.10 per device per month.',
 				},
@@ -48,22 +52,25 @@ export const tbPrivateCloudData: PrivateCloudData = {
 			name: 'Growth',
 			description: 'Perfect for fast-growing deployments \u2014 adds capacity as you expand.',
 			price: 2199,
+			annualPrice: 1979,
 			currency: '$',
 			period: '/month',
 			ctaText: 'Get Started',
 			ctaHref: 'https://license.thingsboard.io/signup',
 			ctaPrimary: false,
+			gtmId: 'Pricing_PE_PrivateCloud_Growth',
 			features: [
 				{ text: '25,000 devices included' },
 				{ text: '99.9% uptime guarantee' },
 				{
 					text: '100,000 msg/minute',
-					faqId: 'tb-private-cloud-determine-right-plan',
+					faqId: 'tb-private-cloud-how-are-datapoints-defined-and-metered',
 					faqTooltip:
 						'Calculated as the sum of all telemetry data points (key/value pairs) plus any messages without measurements (like RPC calls). This aggregate reflects your real-time platform throughput.',
 				},
 				{
 					text: '1 TB of storage included',
+					faqId: 'tb-private-cloud-what-telemetry-storage-is-included-and-what-data-consumes-it',
 					faqTooltip:
 						'Includes 1 TB to store your platform data (telemetry, attributes, events, files). Near the limit: prune old data, add storage, or upgrade plan.',
 				},
@@ -71,6 +78,7 @@ export const tbPrivateCloudData: PrivateCloudData = {
 					text: '$0.09 /extra device',
 					plusIcon: true,
 					highlight: true,
+					faqId: 'tb-private-cloud-what-happens-if-i-exceed-my-included-device-limit',
 					faqTooltip:
 						'You can add more devices anytime. After 25,000 included devices, extra devices are $0.09 per device per month.',
 				},
@@ -81,22 +89,25 @@ export const tbPrivateCloudData: PrivateCloudData = {
 			name: 'Scale',
 			description: 'Designed for mission-critical, high-scale workloads.',
 			price: 3999,
+			annualPrice: 3599,
 			currency: '$',
 			period: '/month',
 			ctaText: 'Get Started',
 			ctaHref: 'https://license.thingsboard.io/signup',
 			ctaPrimary: false,
+			gtmId: 'Pricing_PE_PrivateCloud_Scale',
 			features: [
 				{ text: '50,000 devices included' },
 				{ text: '99.95% uptime guarantee' },
 				{
 					text: '500,000 msg/minute',
-					faqId: 'tb-private-cloud-determine-right-plan',
+					faqId: 'tb-private-cloud-how-are-datapoints-defined-and-metered',
 					faqTooltip:
 						'Calculated as the sum of all telemetry data points (key/value pairs) plus any messages without measurements (like RPC calls). This aggregate reflects your real-time platform throughput.',
 				},
 				{
 					text: '2 TB of storage included',
+					faqId: 'tb-private-cloud-what-telemetry-storage-is-included-and-what-data-consumes-it',
 					faqTooltip:
 						'Includes 2 TB to store your platform data (telemetry, attributes, events, files). Near the limit: prune old data, add storage, or upgrade plan.',
 				},
@@ -104,6 +115,7 @@ export const tbPrivateCloudData: PrivateCloudData = {
 					text: '$0.08 /extra device',
 					plusIcon: true,
 					highlight: true,
+					faqId: 'tb-private-cloud-what-happens-if-i-exceed-my-included-device-limit',
 					faqTooltip:
 						'You can add more devices anytime. After 50,000 included devices, extra devices are $0.08 per device per month.',
 				},
@@ -114,11 +126,14 @@ export const tbPrivateCloudData: PrivateCloudData = {
 			name: 'Enterprise',
 			description: 'Tailored architecture, pricing, and SLAs to fit your business.',
 			price: null,
+			priceFaqId: 'tb-private-cloud-what-features-are-unique-to-the-enterprise-plan',
+			priceFaqTooltip: 'Enterprise pricing built around your scale. Share your devices, msg/min, and retention and we\u2019ll right-size the architecture and quote the best-fit package.',
 			currency: '$',
 			period: '',
 			ctaText: 'Contact Us',
 			ctaHref: '/contact-us/',
 			ctaPrimary: false,
+			gtmId: 'Pricing_PE_PrivateCloud_Enterprise',
 			features: [
 				{ text: '100,000 devices included' },
 				{ text: 'Custom SLA' },
@@ -128,6 +143,7 @@ export const tbPrivateCloudData: PrivateCloudData = {
 					text: '<$0.05 /extra device',
 					plusIcon: true,
 					highlight: true,
+					faqId: 'tb-private-cloud-what-happens-if-i-exceed-my-included-device-limit',
 					faqTooltip:
 						'Need more than 100,000 devices? Extra devices are < $0.05/device/month \u2014 contact us for the best rate.',
 				},

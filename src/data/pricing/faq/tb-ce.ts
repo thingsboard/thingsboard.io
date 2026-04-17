@@ -195,12 +195,12 @@ export const tbCeFaq: FaqCategory[] = [
 			{
 				id: 'ce-bug-found',
 				question: 'What should I do if I find a bug in Community Edition?',
-				answer: '<p>You can report it on <a target="_blank" href="https://github.com/thingsboard/">GitHub</a>, and the open-source community may help fix it.</p>',
+				answer: '<p>You can report it on <a target="_blank" href="https://github.com/thingsboard/thingsboard/issues">GitHub</a>, and the open-source community may help fix it.</p>',
 			},
 			{
 				id: 'ce-contribute',
 				question: 'Can I contribute to the development of ThingsBoard Community Edition?',
-				answer: '<p>Yes! Pull requests and contributions are welcome on <a target="_blank" href="https://github.com/thingsboard/">GitHub</a>.</p>',
+				answer: '<p>Yes! Pull requests and contributions are welcome on <a target="_blank" href="https://github.com/thingsboard/thingsboard/issues">GitHub</a>.</p>',
 			},
 			{
 				id: 'ce-development-services',
