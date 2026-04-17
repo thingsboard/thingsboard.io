@@ -76,7 +76,7 @@ export const tbCeFaq: FaqCategory[] = [
 			{
 				id: 'ce-database-support',
 				question: 'What databases does the Community Edition support?',
-				answer: '<p>The Community Edition supports pure SQL or a hybrid SQL + NoSQL (for telemetry storage) . For more details on database options, you can check <a target="_blank" href="/docs/reference/architecture/database">the database approach reference</a>.</p>',
+				answer: '<p>The Community Edition supports pure SQL or a hybrid SQL + NoSQL (for telemetry storage) . For more details on database options, you can check <a target="_blank" href="/docs/reference/architecture/database/">the database approach reference</a>.</p>',
 			},
 			{
 				id: 'official-docker-ce',

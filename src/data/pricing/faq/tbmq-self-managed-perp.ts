@@ -221,7 +221,7 @@ export const tbmqSelfManagedPerpFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-perp-license-data',
 				question: 'What data does ThingsBoard collect for license verification?',
-				answer: `<p>During the first launch of ThingsBoard PE, built-in License Server Client generates an “Activate Instance Request” to the License Server. This request contains the license key and version info about the current platform installation. License Server looks up the subscription info based on the license key and replies with the instance id, subscription plan data, and some magic bytes. License Client stores this information locally and uses instance id and some magic bytes for the next license check requests. More details <a target="_blank" href="/products/license-server/">in the License Server documentation</a>.</p>`,
+				answer: `<p>During the first launch of ThingsBoard PE, built-in License Server Client generates an “Activate Instance Request” to the License Server. This request contains the license key and version info about the current platform installation. License Server looks up the subscription info based on the license key and replies with the instance id, subscription plan data, and some magic bytes. License Client stores this information locally and uses instance id and some magic bytes for the next license check requests. More details <a target="_blank" href="/docs/license-server/what-is-license-server/">in the License Server documentation</a>.</p>`,
 			},
 		],
 	},

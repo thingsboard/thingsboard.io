@@ -1,3 +1,5 @@
+// noinspection JSUnusedGlobalSymbols — `GET` is consumed by Astro's route convention, not called from our code.
+
 import rss from '@astrojs/rss';
 import { getCollection } from 'astro:content';
 import { getAuthor } from '~/data/blog/authors';

@@ -210,7 +210,7 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'pe-pay-as-you-go-telemetry-storage',
 				question: 'How is telemetry data stored in self-managed ThingsBoard?',
-				answer: '<p>ThingsBoard supports PostgreSQL or PostgreSQL + Cassandra (Hybrid mode) for telemetry storage. For more details on database options, you can check the <a target="_blank" href="/docs/reference/architecture/database">database approach reference</a>.</p>',
+				answer: '<p>ThingsBoard supports PostgreSQL or PostgreSQL + Cassandra (Hybrid mode) for telemetry storage. For more details on database options, you can check the <a target="_blank" href="/docs/reference/architecture/database/">database approach reference</a>.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-multi-tenancy',
@@ -334,7 +334,7 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'edge-addon-payg-pricing-plans',
 				question: 'What pricing plans does Edge Computing add-on offer?',
-				answer: '<p>Edge Computing add-on pricing depends on your ThingsBoard model. Check the relevant pricing in the <a href="javascript:void(0)" onclick="window.openTbPaygCalc?.();window.scrollTo({top:0,behavior:\'smooth\'})">Plan Calculator</a>.</p>',
+				answer: '<p>Edge Computing add-on pricing depends on your ThingsBoard model. Check the relevant pricing in the <a href="#" onclick="event.preventDefault();window.openTbPaygCalc?.();window.scrollTo({top:0,behavior:\'smooth\'})">Plan Calculator</a>.</p>',
 			},
 			{
 				id: 'edge-addon-payg-compatibility',
@@ -425,12 +425,12 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'trendz-payg-what-is',
 				question: 'What is Trendz?',
-				answer: '<p>Trendz is an add-on for advanced IoT Data Analytics. It allows you to analyze, detect anomalies, and predict outcomes — all in one unified analytics workspace that works seamlessly with ThingsBoard. You can check pricing in the <a href="javascript:void(0)" onclick="window.openTbPaygCalc?.();window.scrollTo({top:0,behavior:\'smooth\'})">Plan Calculator</a>.</p>',
+				answer: '<p>Trendz is an add-on for advanced IoT Data Analytics. It allows you to analyze, detect anomalies, and predict outcomes — all in one unified analytics workspace that works seamlessly with ThingsBoard. You can check pricing in the <a href="#" onclick="event.preventDefault();window.openTbPaygCalc?.();window.scrollTo({top:0,behavior:\'smooth\'})">Plan Calculator</a>.</p>',
 			},
 			{
 				id: 'trendz-payg-pricing-plans',
 				question: 'What pricing plans does Trendz offer?',
-				answer: '<p>Trendz pricing depends on your ThingsBoard model. You can check the relevant pricing in the <a href="javascript:void(0)" onclick="window.openTbPaygCalc?.();window.scrollTo({top:0,behavior:\'smooth\'})">Plan Calculator</a> on this page.</p>',
+				answer: '<p>Trendz pricing depends on your ThingsBoard model. You can check the relevant pricing in the <a href="#" onclick="event.preventDefault();window.openTbPaygCalc?.();window.scrollTo({top:0,behavior:\'smooth\'})">Plan Calculator</a> on this page.</p>',
 			},
 			{
 				id: 'trendz-payg-activate-cancel',
