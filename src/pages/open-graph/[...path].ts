@@ -8,7 +8,9 @@ type OGImageOptions = Awaited<ReturnType<Parameters<typeof OGImageRoute>[0]['get
 const brandFont = await fetchBrandFont();
 
 /** Paths for all of our Markdown content we want to generate OG images for. */
-const paths = process.env.SKIP_OG ? [] : allPages;
+// OG generation temporarily disabled — all pages fall back to /thingsboard-og.png.
+// To re-enable: const paths = process.env.SKIP_OG ? [] : allPages;
+const paths: typeof allPages = [];
 
 /** An object mapping file paths to file metadata. */
 const pages = Object.fromEntries(
@@ -35,8 +37,8 @@ export const { getStaticPaths, GET } = await OGImageRoute({
 			description: data.description,
 			dir: 'ltr',
 			logo: {
-				path: './src/pages/open-graph/_images/docs-logo.png',
-				size: [300],
+				path: './src/pages/open-graph/_images/tb-logo-white.png',
+				size: [260],
 			},
 			border: { width: 32, side: 'inline-start' },
 			padding: 80,
@@ -45,15 +47,15 @@ export const { getStaticPaths, GET } = await OGImageRoute({
 			},
 			font: {
 				title: {
-					size: 72,
+					size: 60,
 					lineHeight: 1.2,
 					families: ['Obviously', 'Inter', 'Noto Sans'],
 					weight: 'Medium',
 					color: [255, 255, 255],
 				},
 				description: {
-					size: 42,
-					lineHeight: 1.2,
+					size: 32,
+					lineHeight: 1.3,
 					families: ['Inter', 'Noto Sans'],
 					weight: 'Normal',
 					color: [191, 193, 201],

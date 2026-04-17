@@ -169,7 +169,11 @@ function linkMatchesLanguage(href: string, lang: SupportedLanguage): boolean {
 }
 
 function updateHead(context: APIContext) {
-	const { head, entry } = context.locals.starlightRoute;
+	const starlightRoute = context.locals.starlightRoute;
+	starlightRoute.head = starlightRoute.head.filter(
+		(item) => !(item.tag === 'meta' && item.attrs?.name === 'generator')
+	);
+	const { head, entry } = starlightRoute;
 
 	const title = head.find((item) => item.tag === 'title');
 	const entryHead = (entry.data as { head: StarlightRouteData['head'] }).head;
@@ -182,13 +186,13 @@ function updateHead(context: APIContext) {
 	}
 
 	const ogImageUrl = getOgImageUrl(context.url.pathname, false);
-	const imageSrc = ogImageUrl ?? '/default-og-image.png';
+	const imageSrc = ogImageUrl ?? '/thingsboard-og.png';
 	const canonicalImageSrc = new URL(imageSrc, context.site);
 	const is404 = context.url.pathname.endsWith('/404/');
 
 	head.push({ tag: 'meta', attrs: { property: 'og:image', content: canonicalImageSrc.href } });
 	head.push({ tag: 'meta', attrs: { name: 'twitter:image', content: canonicalImageSrc.href } });
-	head.push({ tag: 'meta', attrs: { name: 'twitter:site', content: 'astrodotbuild' } });
+	head.push({ tag: 'meta', attrs: { name: 'twitter:site', content: '@thingsboard' } });
 
 	head.push({
 		tag: 'script',
