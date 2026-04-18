@@ -201,31 +201,42 @@ function updateHead(context: APIContext) {
 	});
 
 	// Canonical consolidation: free product versions → professional equivalents.
-	// Only rewrite if the equivalent professional page actually exists.
+	// Only rewrite if the equivalent professional page actually exists, and the
+	// page is not edition-specific (different Docker images, licensing, hosts).
 	const sourceVersion = getVersionFromURL(context.url.pathname);
 	const targetVersion = canonicalConsolidationMap[sourceVersion];
 	if (targetVersion) {
-		const targetPageIds = canonicalTargetPageIds.get(targetVersion)!;
-		const lang = getLanguageFromURL(context.url.pathname);
 		const pageSlug = getPageSlugFromURL(context.url.pathname);
-		const langPrefix = getLanguagePrefix(lang);
-		const targetPrefix = getVersionPrefix(targetVersion);
-		const docsPrefix = lang === 'uk' ? 'uk/docs/' : 'docs/';
-		const targetContentId = `${docsPrefix}${targetPrefix}${pageSlug}`;
 
-		if (targetPageIds.has(targetContentId)) {
-			const targetPathname = `/${langPrefix}docs/${targetPrefix}${pageSlug}/`;
-			const targetCanonical = new URL(targetPathname, context.site).href;
+		const selfCanonicalSegments = ['installation', 'install', 'getting-started'];
+		const isSelfCanonicalPath = selfCanonicalSegments.some(
+			(seg) => pageSlug === seg || pageSlug.startsWith(`${seg}/`)
+		);
+		const isSelfCanonicalFrontmatter =
+			(entry.data as { selfCanonical?: boolean }).selfCanonical === true;
 
-			const canonical = head.find(
-				(item) => item.tag === 'link' && item.attrs?.['rel'] === 'canonical'
-			);
-			if (canonical) canonical.attrs!['href'] = targetCanonical;
+		if (!isSelfCanonicalPath && !isSelfCanonicalFrontmatter) {
+			const targetPageIds = canonicalTargetPageIds.get(targetVersion)!;
+			const lang = getLanguageFromURL(context.url.pathname);
+			const langPrefix = getLanguagePrefix(lang);
+			const targetPrefix = getVersionPrefix(targetVersion);
+			const docsPrefix = lang === 'uk' ? 'uk/docs/' : 'docs/';
+			const targetContentId = `${docsPrefix}${targetPrefix}${pageSlug}`;
 
-			const ogUrl = head.find(
-				(item) => item.tag === 'meta' && item.attrs?.['property'] === 'og:url'
-			);
-			if (ogUrl) ogUrl.attrs!['content'] = targetCanonical;
+			if (targetPageIds.has(targetContentId)) {
+				const targetPathname = `/${langPrefix}docs/${targetPrefix}${pageSlug}/`;
+				const targetCanonical = new URL(targetPathname, context.site).href;
+
+				const canonical = head.find(
+					(item) => item.tag === 'link' && item.attrs?.['rel'] === 'canonical'
+				);
+				if (canonical) canonical.attrs!['href'] = targetCanonical;
+
+				const ogUrl = head.find(
+					(item) => item.tag === 'meta' && item.attrs?.['property'] === 'og:url'
+				);
+				if (ogUrl) ogUrl.attrs!['content'] = targetCanonical;
+			}
 		}
 	}
 }
