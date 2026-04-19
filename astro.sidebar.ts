@@ -365,11 +365,15 @@ const recipeItems = (prefix: string, extraProcessingItems: string[] = []) => [
 		collapsed: true,
 		items: [`${prefix}/validate-incoming-telemetry`],
 	},
-	{
-		label: 'Storage & Retention',
-		collapsed: true,
-		items: [`${prefix}/configure-telemetry-ttl`],
-	},
+	...(prefix.startsWith('docs/paas')
+		? []
+		: [
+				{
+					label: 'Storage & Retention',
+					collapsed: true,
+					items: [`${prefix}/configure-telemetry-ttl`],
+				},
+			]),
 	{
 		label: 'Alarms',
 		collapsed: true,

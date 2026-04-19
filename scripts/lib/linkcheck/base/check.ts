@@ -52,7 +52,7 @@ export abstract class CheckBase {
 		if (!fileExtensionRegex.test(pathname)) {
 			return undefined;
 		}
-		const filePath = join(context.buildOutputDir, pathname);
+		const filePath = join(context.buildOutputDir, decodeURIComponent(pathname));
 
 		if (existsSync(filePath)) {
 			this.foundFiles.set(pathname, filePath);
