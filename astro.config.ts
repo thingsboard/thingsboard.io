@@ -1,5 +1,5 @@
 import starlight from '@astrojs/starlight';
-import { defineConfig, sharpImageService } from 'astro/config';
+import { defineConfig, passthroughImageService, sharpImageService } from 'astro/config';
 import rehypeSlug from 'rehype-slug';
 import remarkSmartypants from 'remark-smartypants';
 import { redirects } from './astro.redirects';
@@ -144,7 +144,7 @@ export default defineConfig({
             },
         ],
         disable404Route: true,
-        plugins: [starlightPluginLlmsTxt()],
+        plugins: process.env.SKIP_LLMS ? [] : [starlightPluginLlmsTxt()],
 		}), sitemap()],
     trailingSlash: 'always',
     scopedStyleStrategy: 'where',
@@ -159,7 +159,7 @@ export default defineConfig({
     },
     image: {
         domains: ['avatars.githubusercontent.com'],
-        service: sharpImageService(),
+        service: process.env.SKIP_IMG ? passthroughImageService() : sharpImageService(),
     },
 });
 
