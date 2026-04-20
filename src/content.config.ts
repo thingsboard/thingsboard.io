@@ -10,7 +10,7 @@ import path from 'node:path';
 
 export const baseSchema = z.object({
 	type: z.literal('base').optional().default('base'),
-	githubURL: z.string().url().optional(),
+	githubURL: z.url().optional(),
 	hasREADME: z.boolean().optional(),
 	hero: z
 		.object({
@@ -26,7 +26,7 @@ export const baseSchema = z.object({
 					}),
 					z.object({
 						type: z.literal('dashboard'),
-						product: z.nativeEnum(Products),
+						product: z.enum(Products),
 					}),
 				])
 				.optional(),
@@ -68,7 +68,7 @@ export const integrationSchema = baseSchema.extend({
 			'"title" must start with "@astrojs/" for integration docs.'
 		),
 	category: z.enum(['renderer', 'adapter', 'other']),
-	githubIntegrationURL: z.string().url(),
+	githubIntegrationURL: z.url(),
 });
 
 export const migrationSchema = baseSchema.extend({
@@ -146,11 +146,11 @@ export type DocsEntryData = z.infer<typeof docsCollectionSchema>;
 export type DocsEntryType = DocsEntryData['type'];
 
 export type DocsEntry<T extends DocsEntryType> = CollectionEntry<'docs'> & {
-	data: Extract<DocsEntryData, { type: T }>;
+	data: { title: string } & Extract<DocsEntryData, { type: T }>;
 };
 
 export function createIsDocsEntry<T extends DocsEntryType>(type: T) {
-	return (entry: CollectionEntry<'docs'>): entry is DocsEntry<T> => entry.data.type === type;
+	return (entry: CollectionEntry<'docs'>): entry is DocsEntry<T> => (entry.data as DocsEntryData).type === type;
 }
 
 export type DeployEntry = DocsEntry<'deploy'>;
@@ -185,7 +185,7 @@ export const isMigrationEntry = createIsDocsEntry('migration');
 
 export const isRecipeEntry = createIsDocsEntry('recipe');
 
-export const collections: Record<string, ReturnType<typeof defineCollection>> = {
+export const collections = {
 	blog: defineCollection({
 		loader: glob({ pattern: '**/*.mdx', base: './src/content/blog' }),
 		schema: blogSchema,
@@ -220,7 +220,6 @@ export const collections: Record<string, ReturnType<typeof defineCollection>> = 
 				'since.addedIn': z.string().default('Added in:'),
 				'since.new': z.string().default('New'),
 				'since.beta': z.string().default('Beta'),
-				'docsearch.button': z.string().default('Search'),
 				'backend.navTitle': z.string().default('More backend guides'),
 				'cms.navTitle': z.string().default('More CMS guides'),
 				'deploy.altSectionTitle': z.string().default('More deploy guides'),

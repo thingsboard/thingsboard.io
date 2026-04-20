@@ -27,7 +27,7 @@ export const PROGRAM_FAQ: ProgramFaqCategory[] = [
 			{
 				question: 'How can I enable free trial?',
 				answer:
-					'See the <a href="/docs/getting-started-guides/connectivity/">connectivity diagram</a> to get started and contact us if you have any questions.',
+					'See the <a href="/docs/user-guide/connectivity-guide/">connectivity diagram</a> to get started and contact us if you have any questions.',
 			},
 			{
 				question:

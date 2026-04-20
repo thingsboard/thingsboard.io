@@ -18,12 +18,12 @@ export const tbCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-cloud-pricing-structure',
 				question: 'How is ThingsBoard Cloud pricing structured?',
-				answer: '<p>Pricing is based on the number of connected devices and the volume of messages they generate. Each plan has a fixed monthly fee, with the option to purchase additional entity packs and API call packs. In this case, the total monthly cost consists of the base fee for the selected plan plus additional charges for extra features. More details are available on the <a target="_blank" href="/docs/paas/subscription/">subscription plans</a> page.</p>',
+				answer: '<p>Pricing is based on the number of connected devices and the volume of messages they generate. Each plan has a fixed monthly fee, with the option to purchase additional entity packs and API call packs. In this case, the total monthly cost consists of the base fee for the selected plan plus additional charges for extra features. More details are available on the <a target="_blank" href="/docs/paas/reference/subscriptions/">subscription plans</a> page.</p>',
 			},
 			{
 				id: 'tb-cloud-api-rate-limits',
 				question: 'Are there any API or rate limits?',
-				answer: '<p>Yes, each plan includes specific API and rate limits. If needed, you can extend these limits by purchasing additional API call packs. Detailed limits for each plan are available on the <a target="_blank" href="/docs/paas/subscription/">subscription plans</a> page.</p>',
+				answer: '<p>Yes, each plan includes specific API and rate limits. If needed, you can extend these limits by purchasing additional API call packs. Detailed limits for each plan are available on the <a target="_blank" href="/docs/paas/reference/subscriptions/">subscription plans</a> page.</p>',
 			},
 			{
 				id: 'tb-cloud-free-trial',
@@ -73,7 +73,7 @@ export const tbCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-cloud-how-cancel-supscription',
 				question: 'How to cancel my subscription?',
-				answer: '<p>Kindly refer to the guide <a target="_blank" href="/docs/paas/eu/subscription/#how-to-cancel-my-subscription">here</a>.</p>',
+				answer: '<p>Kindly refer to the <a target="_blank" href="/docs/paas/eu/reference/subscriptions/#cancel-subscription">subscription cancellation guide</a>.</p>',
 			},
 			{
 				id: 'migrate-cloud-to-sm',
@@ -139,7 +139,7 @@ export const tbCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-cloud-charge-for-data-transfer-api-calls-msg-processing',
 				question: 'Do you charge for data transfer, API calls, or message processing?',
-				answer: '<p>Each plan includes predefined usage limits that you can find <a target="_blank" href="/docs/paas/subscription/">here</a>. You can also purchase additional entity and API call packs if required.</p>',
+				answer: '<p>Each plan includes predefined usage limits that you can find <a target="_blank" href="/docs/paas/reference/subscriptions/">on the subscription plans page</a>. You can also purchase additional entity and API call packs if required.</p>',
 			},
 			{
 				id: 'tb-cloud-custom-plan-billing',
@@ -170,7 +170,7 @@ export const tbCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-cloud-device-msg-data-storage-limits-for-plans',
 				question: 'What are the device, message, and data storage limits for each plan?',
-				answer: '<p>Limits vary by plan; details can be found on our plans definition <a target="_blank" href="/docs/paas/subscription/">page</a>.</p>',
+				answer: '<p>Limits vary by plan; details can be found on our plans definition <a target="_blank" href="/docs/paas/reference/subscriptions/">page</a>.</p>',
 			},
 			{
 				id: 'tb-cloud-device-usage-calculation',
@@ -205,7 +205,7 @@ export const tbCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-cloud-telemetry-storage-billing',
 				question: 'How is telemetry data storage billed?',
-				answer: '<p>Storage is included in your plan, but exceeding the limits may require upgrading your subscription or purchasing an additional storage pack. Storage limits vary by plan, you may see details <a target="_blank" href="/docs/paas/subscription/">here</a>.</p>',
+				answer: '<p>Storage is included in your plan, but exceeding the limits may require upgrading your subscription or purchasing an additional storage pack. Storage limits vary by plan, you may see details <a target="_blank" href="/docs/paas/reference/subscriptions/">on the subscription plans page</a>.</p>',
 			},
 			{
 				id: 'tb-cloud-dashboard-costs',
@@ -225,12 +225,12 @@ export const tbCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-cloud-users-limits-per-acc',
 				question: 'Is there a limit on the number of users per account?',
-				answer: '<p>Each plan has a predefined number of users. Limits vary by plan; details can be found on our <a target="_blank" href="/docs/paas/subscription/">plans definition page</a>. If needed, you can purchase additional user packs to increase the number of users.</p>',
+				answer: '<p>Each plan has a predefined number of users. Limits vary by plan; details can be found on our <a target="_blank" href="/docs/paas/reference/subscriptions/">plans definition page</a>. If needed, you can purchase additional user packs to increase the number of users.</p>',
 			},
 			{
 				id: 'tb-cloud-domain-certificate',
 				question: 'Where can I put a domain certificate?',
-				answer: '<p>ThingsBoard automatically provisions certificates for your domain name using Let\'s Encrypt. Refer to the guide <a target="_blank" href="/docs/paas/domains/">here</a>. Custom certificate provisioning is available exclusively for Enterprise Cloud subscribers upon request.</p>',
+				answer: '<p>ThingsBoard automatically provisions certificates for your domain name using Let\'s Encrypt. Refer to the <a target="_blank" href="/docs/paas/user-guide/security/domains/">domain configuration guide</a>. Custom certificate provisioning is available exclusively for Enterprise Cloud subscribers upon request.</p>',
 			},
 			{
 				id: 'tb-cloud-tenant-uptime-tracking',
@@ -302,7 +302,7 @@ export const tbCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-cloud-subscription-cancel',
 				question: 'How to cancel my subscription?',
-				answer: '<p>Kindly refer to the guide <a target="_blank" href="/docs/paas/eu/subscription/#how-to-cancel-my-subscription">here</a>.</p>',
+				answer: '<p>Kindly refer to the <a target="_blank" href="/docs/paas/eu/reference/subscriptions/#cancel-subscription">subscription cancellation guide</a>.</p>',
 			},
 			{
 				id: 'tb-cloud-subscription-cancel-impact',

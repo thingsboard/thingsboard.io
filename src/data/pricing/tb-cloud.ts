@@ -21,7 +21,7 @@ export const tbCloudData: CloudRegionData = {
 						text: '1M data points/mo',
 						faqId: 'tb-cloud-device-msg-data-storage-limits-for-plans',
 						faqTooltip:
-							'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/user-guide/subscription/#plans-definition" target="_blank">plans definition page</a>.',
+							'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/reference/subscriptions/" target="_blank">plans definition page</a>.',
 					},
 					{
 						text: 'Community support',
@@ -49,7 +49,7 @@ export const tbCloudData: CloudRegionData = {
 						text: '10M data points/mo',
 						faqId: 'tb-cloud-device-msg-data-storage-limits-for-plans',
 						faqTooltip:
-							'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/user-guide/subscription/#plans-definition" target="_blank">plans definition page</a>.',
+							'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/reference/subscriptions/" target="_blank">plans definition page</a>.',
 					},
 					{
 						text: 'Community support',
@@ -78,7 +78,7 @@ export const tbCloudData: CloudRegionData = {
 						text: '100M data points/mo',
 						faqId: 'tb-cloud-device-msg-data-storage-limits-for-plans',
 						faqTooltip:
-							'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/user-guide/subscription/#plans-definition" target="_blank">plans definition page</a>.',
+							'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/reference/subscriptions/" target="_blank">plans definition page</a>.',
 					},
 					{
 						text: 'Help desk',
@@ -110,7 +110,7 @@ export const tbCloudData: CloudRegionData = {
 						text: '500M data points/mo',
 						faqId: 'tb-cloud-device-msg-data-storage-limits-for-plans',
 						faqTooltip:
-							'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/user-guide/subscription/#plans-definition" target="_blank">plans definition page</a>.',
+							'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/reference/subscriptions/" target="_blank">plans definition page</a>.',
 					},
 					{
 						text: 'Priority help desk',
@@ -144,7 +144,7 @@ export const tbCloudData: CloudRegionData = {
 						text: '1B data points/mo',
 						faqId: 'tb-cloud-device-msg-data-storage-limits-for-plans',
 						faqTooltip:
-							'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/user-guide/subscription/#plans-definition" target="_blank">plans definition page</a>.',
+							'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/reference/subscriptions/" target="_blank">plans definition page</a>.',
 					},
 					{
 						text: 'Priority help desk',
@@ -191,7 +191,7 @@ export const tbCloudData: CloudRegionData = {
 						text: '1M data points/mo',
 						faqId: 'tb-cloud-device-msg-data-storage-limits-for-plans',
 						faqTooltip:
-							'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/user-guide/subscription/#plans-definition" target="_blank">plans definition page</a>.',
+							'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/reference/subscriptions/" target="_blank">plans definition page</a>.',
 					},
 					{
 						text: 'Community support',
@@ -219,7 +219,7 @@ export const tbCloudData: CloudRegionData = {
 						text: '10M data points/mo',
 						faqId: 'tb-cloud-device-msg-data-storage-limits-for-plans',
 						faqTooltip:
-							'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/user-guide/subscription/#plans-definition" target="_blank">plans definition page</a>.',
+							'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/reference/subscriptions/" target="_blank">plans definition page</a>.',
 					},
 					{
 						text: 'Community support',
@@ -248,7 +248,7 @@ export const tbCloudData: CloudRegionData = {
 						text: '100M data points/mo',
 						faqId: 'tb-cloud-device-msg-data-storage-limits-for-plans',
 						faqTooltip:
-							'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/user-guide/subscription/#plans-definition" target="_blank">plans definition page</a>.',
+							'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/reference/subscriptions/" target="_blank">plans definition page</a>.',
 					},
 					{
 						text: 'Help desk',
@@ -280,7 +280,7 @@ export const tbCloudData: CloudRegionData = {
 						text: '500M data points/mo',
 						faqId: 'tb-cloud-device-msg-data-storage-limits-for-plans',
 						faqTooltip:
-							'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/user-guide/subscription/#plans-definition" target="_blank">plans definition page</a>.',
+							'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/reference/subscriptions/" target="_blank">plans definition page</a>.',
 					},
 					{
 						text: 'Priority help desk',
@@ -314,7 +314,7 @@ export const tbCloudData: CloudRegionData = {
 						text: '1B data points/mo',
 						faqId: 'tb-cloud-device-msg-data-storage-limits-for-plans',
 						faqTooltip:
-							'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/user-guide/subscription/#plans-definition" target="_blank">plans definition page</a>.',
+							'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/reference/subscriptions/" target="_blank">plans definition page</a>.',
 					},
 					{
 						text: 'Priority help desk',

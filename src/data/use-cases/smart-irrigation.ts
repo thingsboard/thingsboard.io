@@ -53,7 +53,7 @@ export const smartIrrigationData: UseCaseData = {
 	solutionStructure: {
 		title: 'Solution structure of smart irrigation use case',
 		shortText:
-			'The smart irrigation solution connects soil sensors, weather stations, and irrigation controllers to the ThingsBoard platform through IoT gateways. You may find the detailed solution setup guide in our <a href="/docs/pe/solution-templates/smart-irrigation/">smart irrigation solution template</a> documentation.',
+			'The smart irrigation solution connects soil sensors, weather stations, and irrigation controllers to the ThingsBoard platform through IoT gateways. You may find the detailed solution setup guide in our <a href="/docs/pe/recipes/solution-templates/smart-irrigation/">smart irrigation solution template</a> documentation.',
 		longText: [
 			'At the field level, soil moisture sensors, temperature probes, and rain gauges collect environmental data at configurable intervals. Irrigation controllers manage valve actuators for individual zones, enabling precise water delivery to specific areas based on their unique requirements.',
 			'IoT gateways aggregate sensor data and transmit it to the ThingsBoard server using MQTT, CoAP, or HTTP protocols. The platform processes incoming telemetry through its rule engine, evaluating soil moisture levels against configured thresholds and weather conditions to generate automated irrigation commands.',

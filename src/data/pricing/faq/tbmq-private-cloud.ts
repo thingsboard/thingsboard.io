@@ -240,7 +240,7 @@ export const tbmqPrivateCloudFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-additional-limits',
 				question: 'Are there any additional limits?',
-				answer: '<p>Yes, TBMQ Private Cloud subscription has sessions, messages, and storage limits. See subscription <a target="_blank" href="/docs/mqtt-broker/subscription/">documentation</a> for more details.</p>',
+				answer: '<p>Yes, TBMQ Private Cloud subscription has sessions, messages, and storage limits. See subscription <a target="_blank" href="/docs/mqtt-broker/pe/subscription/">documentation</a> for more details.</p>',
 			},
 		],
 	},

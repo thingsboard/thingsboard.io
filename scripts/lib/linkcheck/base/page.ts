@@ -1,5 +1,6 @@
 import type { Document, Element } from 'domhandler';
 import { parseDocument, DomUtils } from 'htmlparser2';
+import type { ConsolidationPattern } from './base.ts';
 
 export interface AllPagesByPathname {
 	[key: string]: HtmlPage;
@@ -140,11 +141,42 @@ export class HtmlPage {
 	}
 
 	/**
+	 * Determines whether this page's canonical URL represents SEO consolidation —
+	 * i.e. the canonical points to a different physical page that serves related
+	 * but distinct content (e.g. CE → PE cross-product consolidation), as opposed
+	 * to URL-form canonicalization (trailing slash, language prefix, etc.).
+	 *
+	 * Returns `true` only if the transformation `pathname → canonical.pathname`
+	 * exactly matches one of the provided patterns (after stripping optional
+	 * language prefix). An empty patterns list always returns `false`.
+	 */
+	isConsolidationCanonical(patterns: ConsolidationPattern[]): boolean {
+		if (!this.canonicalUrl) return false;
+		if (this.canonicalUrl.pathname === this.pathname) return false;
+		const stripLang = (p: string) => p.replace(/^\/uk(?=\/|$)/, '');
+		const source = stripLang(this.pathname);
+		const canonical = stripLang(this.canonicalUrl.pathname);
+		return patterns.some(({ from, to }) => {
+			if (!source.startsWith(from) || !canonical.startsWith(to)) return false;
+			return to + source.slice(from.length) === canonical;
+		});
+	}
+
+	/**
 	 * Determines the URL pathname that should be used to link to this page
 	 * from a page with the given source language.
+	 *
+	 * When the page's canonical URL matches a known SEO consolidation pattern,
+	 * the actual pathname is used instead of the canonical — consolidation
+	 * canonicals are SEO signals, not navigation targets. Otherwise, the
+	 * canonical pathname is preferred (normal URL-form canonicalization).
 	 */
-	getExpectedLinkPathname(sourceLang: string | null) {
-		let pathname = this.canonicalUrl?.pathname || this.pathname;
+	getExpectedLinkPathname(
+		sourceLang: string | null,
+		consolidationPatterns: ConsolidationPattern[] = []
+	) {
+		const useActual = this.isConsolidationCanonical(consolidationPatterns);
+		let pathname = useActual ? this.pathname : this.canonicalUrl?.pathname || this.pathname;
 		if (sourceLang && (this.isLanguageFallback || pathname.startsWith('/en/'))) {
 			pathname = pathname.replace(/^\/en\//, `/${sourceLang}/`);
 		}

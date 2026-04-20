@@ -3,6 +3,16 @@ import { dedentMd } from '../../output.mjs';
 import { CheckBase, type CheckHtmlPageContext } from '../base/check.ts';
 import { IssueType } from '../base/issue.ts';
 
+export interface TargetExistsOptions {
+	/**
+	 * A list of link pathnames whose missing targets should not be reported.
+	 *
+	 * Subpaths of the given pathnames are automatically ignored as well,
+	 * so adding `/example/` will also ignore `/example/some-subpath/`.
+	 */
+	ignoredLinkPathnames?: string[];
+}
+
 export class TargetExists extends CheckBase {
 	private static readonly BrokenPageLink = new IssueType({
 		title: 'broken page link(s)',
@@ -15,8 +25,20 @@ export class TargetExists extends CheckBase {
 		sortOrder: 101,
 	});
 
+	readonly ignoredLinkPathnames: string[];
+
+	constructor({ ignoredLinkPathnames }: TargetExistsOptions = {}) {
+		super();
+
+		this.ignoredLinkPathnames = ignoredLinkPathnames || [];
+	}
+
 	checkHtmlPage(context: CheckHtmlPageContext) {
 		this.forEachLocalLink(context, (linkHref, url) => {
+			// Skip paths found in the ignore list
+			if (this.ignoredLinkPathnames.some((ignoredPath) => url.pathname.startsWith(ignoredPath)))
+				return;
+
 			const linkedPage = this.findPageByPathname(context, url.pathname);
 
 			// Report links to missing pages

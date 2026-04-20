@@ -24,7 +24,7 @@ export const defaultCustomersLogos: CustomerLogo[] = [
 	{
 		src: '/src/assets/images/landings/customer-logo/t-mobile.svg',
 		ariaLabel: 'T-mobile logo',
-		href: '/industries/telecom/#tmobile',
+		href: '/clients-feedback/?category=telecom',
 		width: 181,
 		height: 30,
 	},
@@ -52,7 +52,7 @@ export const defaultCustomersLogos: CustomerLogo[] = [
 	{
 		src: '/src/assets/images/landings/customer-logo/tektelic.svg',
 		ariaLabel: 'Tektelic logo',
-		href: '/industries/telecom/#tektelic',
+		href: '/clients-feedback/?category=telecom',
 		width: 179,
 		height: 40,
 	},

@@ -293,7 +293,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"singleBoardComputersGuides": [
 				{
 					"label": "ODYSSEY STM32MP157C",
-					"href": "https://thingsboard.io/device-library/pe/odyssey-stm32mp157c/"
+					"href": "/device-library/pe/odyssey-stm32mp157c/"
 				}
 			],
 			"gatewayGuides": [
@@ -820,7 +820,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"otherDevicesGuides": [
 				{
 					"label": "Decode DL28",
-					"href": "/docs/user-guide/integrations/decode/"
+					"href": "/docs/user-guide/integrations/"
 				}
 			]
 		},

@@ -185,7 +185,7 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'pe-pay-as-you-go-internet-requirement',
 				question: 'Do I need an internet connection to use the self-managed license?',
-				answer: '<p>Yes, an internet connection is required for periodic license verification. The system checks the license once per hour, and if the connection is not restored within 24 hours, the platform may shut down. This process ensures proper license management while allowing temporary connectivity issues. For more details, please refer to the license check <a target="_blank" href="/products/license-server/#architecture">description</a>. Offline mode is also possible as an add-on to the Perpetual license. <a target="_blank" href="/contact-us/">Contact our sales team</a> to know more.</p>',
+				answer: '<p>Yes, an internet connection is required for periodic license verification. The system checks the license once per hour, and if the connection is not restored within 24 hours, the platform may shut down. This process ensures proper license management while allowing temporary connectivity issues. For more details, please refer to the license check <a target="_blank" href="/docs/license-server/what-is-license-server/">description</a>. Offline mode is also possible as an add-on to the Perpetual license. <a target="_blank" href="/contact-us/">Contact our sales team</a> to know more.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-offline-access',
@@ -210,7 +210,7 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'pe-pay-as-you-go-telemetry-storage',
 				question: 'How is telemetry data stored in self-managed ThingsBoard?',
-				answer: '<p>ThingsBoard supports PostgreSQL or PostgreSQL + Cassandra (Hybrid mode) for telemetry storage. For more details on database options, you can check <a target="_blank" href="/docs/reference/#sql-vs-nosql-vs-hybrid-database-approach">here</a>.</p>',
+				answer: '<p>ThingsBoard supports PostgreSQL or PostgreSQL + Cassandra (Hybrid mode) for telemetry storage. For more details on database options, you can check the <a target="_blank" href="/docs/reference/architecture/database/">database approach reference</a>.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-multi-tenancy',
@@ -256,7 +256,7 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'pe-pay-as-you-go-vulnerability-fixes',
 				question: 'Where can I find the logged vulnerability fixes matrix: version + list of fixes?',
-				answer: '<p>Please stay tuned with our <a target="_blank" href="/docs/pe/reference/releases/">Release notes</a>. Critical vulnerabilities or security issues are mentioned in separate line items. Less threatful vulnerabilities appear as a single record ("Vulnerability fixes") stating that, at the release date, the version is free of known HIGH and some MEDIUM CVEs.</p>',
+				answer: '<p>Please stay tuned with our <a target="_blank" href="/docs/pe/releases/releases-table/">Release notes</a>. Critical vulnerabilities or security issues are mentioned in separate line items. Less threatful vulnerabilities appear as a single record ("Vulnerability fixes") stating that, at the release date, the version is free of known HIGH and some MEDIUM CVEs.</p>',
 			},
 		],
 	},

@@ -22,7 +22,7 @@ export const advantagesCards: AdvantageCard[] = [
 		title: 'Connectivity',
 		description:
 			'Connect devices directly to the platform via the following built-in protocols: HTTP, CoAP, MQTT, LwM2M, and SNMP. Connect devices in your local network to the cloud using ThingsBoard Gateway.',
-		href: '/docs/getting-started-guides/connectivity/',
+		href: '/docs/user-guide/connectivity-guide/',
 		linkText: 'Learn more about connectivity',
 	},
 	{
@@ -30,7 +30,7 @@ export const advantagesCards: AdvantageCard[] = [
 		title: 'Data processing',
 		description:
 			'ThingsBoard allows you to define app logic using a drag-and-drop rule chain designer. Its scalable Rule Engine uses message queues like Kafka or AWS SQS for durable, reliable data processing.',
-		href: '/docs/pe/user-guide/rule-engine-2-0/overview/',
+		href: '/docs/pe/user-guide/rule-engine/',
 		linkText: 'Learn more about data processing',
 	},
 	{
@@ -38,7 +38,7 @@ export const advantagesCards: AdvantageCard[] = [
 		title: 'Scalability',
 		description:
 			'ThingsBoard supports high-availability cloud and on-prem deployments via Kubernetes or bare-metal. Its components scale horizontally and handle 18K+ vehicles and 5K+ devices in prod.',
-		href: '/docs/reference/msa/',
+		href: '/docs/reference/architecture/microservices/',
 		linkText: 'Learn more about scalability',
 	},
 	{
@@ -46,7 +46,7 @@ export const advantagesCards: AdvantageCard[] = [
 		title: 'Multi-tenancy',
 		description:
 			'ThingsBoard provides UI and API to manage tenants, customers, users, devices, and assets. Single tenant may have multiple tenant administrators and millions of devices and customers.',
-		href: '/docs/user-guide/entities-and-relations/',
+		href: '/docs/user-guide/digital-twins/entities/',
 		linkText: 'Learn more about multi-tenancy',
 	},
 	{
