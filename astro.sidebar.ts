@@ -687,6 +687,13 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 				`${prefix}/widgets/map-widgets`,
 				`${prefix}/widgets/entity-table-widget`,
 				`${prefix}/widgets/markdown-html-card`,
+				{
+					label: 'Alarm widgets',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/alarm-widgets/alarms-table`,
+					],
+				},
 				`${prefix}/widgets/widget-api`,
 			],
 		},
@@ -909,6 +916,13 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 				`${prefix}/widgets/map-widgets`,
 				`${prefix}/widgets/entity-table-widget`,
 				`${prefix}/widgets/markdown-html-card`,
+				{
+					label: 'Alarm widgets',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/alarm-widgets/alarms-table`,
+					],
+				},
 				`${prefix}/widgets/widget-api`,
 			],
 		},
