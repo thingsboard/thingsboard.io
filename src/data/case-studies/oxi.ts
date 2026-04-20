@@ -2,7 +2,7 @@ import type { CaseStudyData } from './types';
 
 export const oxiData: CaseStudyData = {
 	title: 'How OXI TRADE Uses ThingsBoard to Power Scalable IoT for Green Energy',
-	pageTitle: 'How OXI TRADE Uses ThingsBoard to Power Scalable IoT for Green Energy',
+	pageTitle: 'How OXI TRADE Powers Scalable IoT for Green Energy',
 	description:
 		"Discover how OXI TRADE optimized its alternative energy operations by integrating ThingsBoard's IoT platform\u2014achieving efficient device management, real-time monitoring, and scalable infrastructure for enhanced performance.",
 	pageSlug: 'oxi',

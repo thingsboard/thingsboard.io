@@ -2,7 +2,7 @@ import type { CaseStudyData } from './types';
 
 export const onedataData: CaseStudyData = {
 	title: 'OneData Boosts Hospital Efficiency 60-70% with ThingsBoard IoT',
-	pageTitle: 'OneData Boosts Hospital Efficiency 60-70% with ThingsBoard IoT',
+	pageTitle: 'OneData Boosts Hospital Efficiency 60-70%',
 	description:
 		'OneData Software Solutions transforms multi-specialty hospital operations with ThingsBoard IoT platform\u2014real-time asset tracking, patient monitoring, automated alerts, and comprehensive dashboards for 500+ assets.',
 	pageSlug: 'onedata',

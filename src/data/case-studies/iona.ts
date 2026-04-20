@@ -2,7 +2,7 @@ import type { CaseStudyData } from './types';
 
 export const ionaData: CaseStudyData = {
 	title: 'How IONA Tech Uses ThingsBoard to Improve ESD Monitoring and Workplace Safety',
-	pageTitle: 'How IONA Tech Uses ThingsBoard to Improve ESD Monitoring and Workplace Safety',
+	pageTitle: 'How IONA Tech Improved ESD Monitoring and Workplace Safety',
 	description:
 		"Discover how IONA Tech enhanced ESD monitoring by integrating ThingsBoard's IoT platform\u2014achieving real-time data visualization, seamless hardware integration, and scalable solutions for improved workplace safety and product quality.",
 	pageSlug: 'iona',

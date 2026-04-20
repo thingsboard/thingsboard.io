@@ -2,7 +2,7 @@ import type { CaseStudyData } from './types';
 
 export const craiData: CaseStudyData = {
 	title: 'CRAI Enables Remote Control and Data Acquisition with ThingsBoard',
-	pageTitle: 'CRAI Enables Remote Control and Data Acquisition with ThingsBoard',
+	pageTitle: 'CRAI Enables Remote Control and Data Acquisition',
 	description:
 		'CRAI leverages ThingsBoard for industrial automation and remote monitoring, enabling real-time visibility and control over equipment like generators, motors, and water pumps.',
 	pageSlug: 'crai',

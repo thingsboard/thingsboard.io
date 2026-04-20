@@ -7,16 +7,28 @@ interface Props {
 const { sectionId, defaultMode = 'high-performance' } = Astro.props;
 ---
 
-<div class="uc-mode-selector" data-mode-section={sectionId}>
+<div
+	class="uc-mode-selector"
+	data-mode-section={sectionId}
+	role="tablist"
+	aria-label="SCADA mode selection"
+>
+	<div class="uc-mode-highlight" aria-hidden="true"></div>
 	<button
+		type="button"
+		role="tab"
 		class:list={['uc-mode-tab', { active: defaultMode === 'high-performance' }]}
 		data-mode="high-performance"
+		aria-selected={defaultMode === 'high-performance'}
 	>
 		High-performance
 	</button>
 	<button
+		type="button"
+		role="tab"
 		class:list={['uc-mode-tab', { active: defaultMode === 'traditional' }]}
 		data-mode="traditional"
+		aria-selected={defaultMode === 'traditional'}
 	>
 		Traditional
 	</button>
@@ -26,66 +38,119 @@ const { sectionId, defaultMode = 'high-performance' } = Astro.props;
 	@use '../../styles/variables' as *;
 
 	.uc-mode-selector {
-		display: flex;
-		gap: $spacing-2;
+		position: relative;
+		display: inline-flex;
+		align-items: center;
+		padding: 4px;
 		margin-bottom: $spacing-8;
+		background: var(--color-bg-light);
+		border: 1px solid var(--sl-color-gray-5);
+		border-radius: $radius-full;
+		width: fit-content;
+	}
 
-		.uc-mode-tab {
-			padding: $spacing-3 $spacing-6;
-			font-size: $font-size-lg;
-			font-weight: $font-weight-medium;
-			background: transparent;
-			border: 1px solid var(--color-border-light);
-			border-radius: $radius-sm;
-			cursor: pointer;
-			color: $color-text-secondary;
-			transition: all $transition-base;
+	.uc-mode-highlight {
+		position: absolute;
+		top: 4px;
+		left: 4px;
+		height: calc(100% - 8px);
+		border-radius: $radius-full;
+		background: var(--color-bg-surface);
+		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.04);
+		transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+		pointer-events: none;
+		z-index: 0;
 
-			&:hover {
-				border-color: $color-primary;
-				color: $color-primary;
-			}
+		[data-theme='dark'] & {
+			box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.06);
+		}
+	}
 
-			&.active {
-				background: $color-primary;
-				border-color: $color-primary;
-				color: $color-white;
-			}
+	.uc-mode-tab {
+		position: relative;
+		z-index: 1;
+		padding: $spacing-2 $spacing-5;
+		font-size: $font-size-base;
+		font-weight: $font-weight-semibold;
+		color: var(--color-text-secondary);
+		background: transparent;
+		border: none;
+		border-radius: $radius-full;
+		cursor: pointer;
+		transition: color 0.2s ease;
+		white-space: nowrap;
+		user-select: none;
+		-webkit-tap-highlight-color: transparent;
+		outline: none;
+
+		&:hover:not(.active) {
+			color: var(--color-text);
+		}
+
+		&.active {
+			color: var(--color-text);
 		}
 	}
 </style>
 
 <script>
+	function moveHighlight(selector: HTMLElement) {
+		const highlight = selector.querySelector<HTMLElement>('.uc-mode-highlight');
+		const active = selector.querySelector<HTMLElement>('.uc-mode-tab.active');
+		if (!highlight || !active) return;
+		const containerRect = selector.getBoundingClientRect();
+		const tabRect = active.getBoundingClientRect();
+		highlight.style.width = tabRect.width + 'px';
+		highlight.style.transform = `translateX(${tabRect.left - containerRect.left - 4}px)`;
+	}
+
 	function initModeToggles() {
-		const selectors = document.querySelectorAll<HTMLElement>('[data-mode-section]');
+		// Each `[data-mode-section]` toggle owns its own state. Flipping it only affects
+		// content blocks whose `[data-mode-content]` matches THIS toggle's sectionId.
+		// Two toggles with different sectionIds (Key Functions vs Dashboard Structure)
+		// operate independently.
+		const selectors = Array.from(document.querySelectorAll<HTMLElement>('[data-mode-section]'));
 
 		selectors.forEach((selector) => {
-			const sectionId = selector.dataset.modeSection;
-			const tabs = selector.querySelectorAll<HTMLButtonElement>('.uc-mode-tab');
+			if (selector.dataset.modeInit === 'true') return;
+			selector.dataset.modeInit = 'true';
+
+			const sectionId = selector.dataset.modeSection!;
+			const tabs = Array.from(selector.querySelectorAll<HTMLButtonElement>('.uc-mode-tab'));
 
 			tabs.forEach((tab) => {
 				tab.addEventListener('click', () => {
 					if (tab.classList.contains('active')) return;
-
-					// Update tabs
-					tabs.forEach((t) => t.classList.remove('active'));
-					tab.classList.add('active');
-
-					// Toggle content sections
 					const mode = tab.dataset.mode;
-					const contentBlocks = document.querySelectorAll<HTMLElement>(
-						`[data-mode-content="${sectionId}"]`
-					);
-					contentBlocks.forEach((block) => {
-						if (block.dataset.mode === mode) {
-							block.classList.add('active');
-						} else {
-							block.classList.remove('active');
-						}
+					if (!mode) return;
+
+					// Flip tab state scoped to this toggle only.
+					tabs.forEach((t) => {
+						const isActive = t === tab;
+						t.classList.toggle('active', isActive);
+						t.setAttribute('aria-selected', String(isActive));
 					});
+					moveHighlight(selector);
+
+					// Flip only the content blocks for THIS sectionId.
+					document
+						.querySelectorAll<HTMLElement>(`[data-mode-content="${sectionId}"]`)
+						.forEach((block) => {
+							block.classList.toggle('active', block.dataset.mode === mode);
+						});
 				});
 			});
+
+			// Initial highlight after layout paints.
+			requestAnimationFrame(() => moveHighlight(selector));
 		});
+
+		// Keep highlights aligned on resize across all toggles.
+		window.addEventListener(
+			'resize',
+			() => selectors.forEach(moveHighlight),
+			{ passive: true },
+		);
 	}
 
 	document.addEventListener('DOMContentLoaded', initModeToggles);

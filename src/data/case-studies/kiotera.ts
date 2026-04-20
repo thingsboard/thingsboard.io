@@ -2,7 +2,7 @@ import type { CaseStudyData } from './types';
 
 export const kioteraData: CaseStudyData = {
 	title: 'Fast-Paced IoT Implementation with KIOTERA on ThingsBoard',
-	pageTitle: 'Fast-Paced IoT Implementation with KIOTERA on ThingsBoard',
+	pageTitle: 'Fast-Paced IoT Implementation with KIOTERA',
 	description:
 		'From energy and machine condition monitoring to utility metering\u2014KIOTERA accelerates deployments using validated sensors, gateways, rule chains and out-of-the-box visualizations on ThingsBoard.',
 	pageSlug: 'kiotera',

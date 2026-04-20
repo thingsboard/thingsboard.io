@@ -2,7 +2,7 @@ import type { CaseStudyData } from './types';
 
 export const vypinData: CaseStudyData = {
 	title: 'How Vypin Ensures Pharmaceutical Compliance with ThingsBoard\u2019s IoT Monitoring',
-	pageTitle: 'How Vypin Ensures Pharmaceutical Compliance with ThingsBoard\u2019s IoT Monitoring',
+	pageTitle: 'How Vypin Ensures Pharmaceutical Compliance with IoT Monitoring',
 	description:
 		'Discover how Vypin leveraged ThingsBoard\u2019s IoT platform to achieve real-time temperature and humidity monitoring, ensuring FDA compliance and reducing data loss in pharmaceutical storage.',
 	pageSlug: 'vypin',

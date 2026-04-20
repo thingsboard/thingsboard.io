@@ -2,7 +2,7 @@ import type { CaseStudyData } from './types';
 
 export const nettraData: CaseStudyData = {
 	title: 'How Nettra Accelerated IoT Innovation by Switching to ThingsBoard',
-	pageTitle: 'How Nettra Accelerated IoT Innovation by Switching to ThingsBoard',
+	pageTitle: 'How Nettra Accelerated IoT Innovation',
 	description:
 		'Discover how Nettra, an IoT company in telecom and energy, replaced months of in-house development by adopting ThingsBoard \u2014 gaining speed, scalability, and reliability for smart infrastructure solutions.',
 	pageSlug: 'nettra',

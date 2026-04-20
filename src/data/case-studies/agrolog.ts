@@ -2,7 +2,7 @@ import type { CaseStudyData } from './types';
 
 export const agrologData: CaseStudyData = {
 	title: 'Smart Farming Platform by Supertech Agroline and ThingsBoard',
-	pageTitle: 'Smart Farming Platform by Supertech Agroline and ThingsBoard',
+	pageTitle: 'Smart Farming Platform by Supertech Agroline',
 	description:
 		'Discover how Supertech Agroline, a leading Romanian AgTech innovator, leveraged ThingsBoard to build a scalable, real-time Agricultural IoT platform for post-harvest monitoring and smart automation.',
 	pageSlug: 'agrolog',

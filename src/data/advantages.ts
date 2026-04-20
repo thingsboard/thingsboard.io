@@ -14,7 +14,7 @@ export const advantagesCards: AdvantageCard[] = [
 		title: 'Data visualization',
 		description:
 			'Visualize data with interactive, multi-state dashboards\u2014no coding needed. Use built-in charts, gauges, maps, tables, and control widgets. Customize every detail via advanced settings or custom widget bundles.',
-		href: '/iot-data-visualization/',
+		href: '/docs/pe/concepts/data-visualization/',
 		linkText: 'Learn more about data visualization',
 	},
 	{

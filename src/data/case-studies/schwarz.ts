@@ -2,7 +2,7 @@ import type { CaseStudyData } from './types';
 
 export const schwarzData: CaseStudyData = {
 	title: 'How Schwarz Group Unified 500,000+ IoT Devices with ThingsBoard',
-	pageTitle: 'How Schwarz Group Unified 500,000+ IoT Devices with ThingsBoard',
+	pageTitle: 'How Schwarz Group Unified 500,000+ IoT Devices',
 	description:
 		"Discover how Schwarz Group, operating over 13,000 stores globally, streamlined its retail operations by integrating 500,000+ devices using ThingsBoard's IoT platform, enhancing efficiency and accelerating digital transformation.",
 	pageSlug: 'schwarz',

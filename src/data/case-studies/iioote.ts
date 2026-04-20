@@ -2,7 +2,7 @@ import type { CaseStudyData } from './types';
 
 export const iiooteData: CaseStudyData = {
 	title: 'How iiOOTE Scaled LPWAN Services with ThingsBoard',
-	pageTitle: 'How iiOOTE Scaled LPWAN Services with ThingsBoard',
+	pageTitle: 'How iiOOTE Scaled LPWAN Services',
 	description:
 		'See how iiOOTE used ThingsBoard to launch, scale, and manage LPWAN IoT services for smart cities and beyond.',
 	pageSlug: 'iioote',

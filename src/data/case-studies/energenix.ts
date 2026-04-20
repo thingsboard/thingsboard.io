@@ -2,7 +2,7 @@ import type { CaseStudyData } from './types';
 
 export const energenixData: CaseStudyData = {
 	title: 'Energenix Scales Solar SCADA & Analytics on ThingsBoard',
-	pageTitle: 'Energenix Scales Solar SCADA & Analytics on ThingsBoard',
+	pageTitle: 'Energenix Scales Solar SCADA & Analytics',
 	description:
 		'Energenix unifies 80+ sites and monitors 120+ MW on an AWS-hosted ThingsBoard Cloud + ThingsBoard Edge setup\u2014real-time KPI dashboards, rule-engine alarms, on-site monitoring and control, and automated reporting.',
 	pageSlug: 'energenix',

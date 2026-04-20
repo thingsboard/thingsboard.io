@@ -2,7 +2,7 @@ import type { CaseStudyData } from './types';
 
 export const energroupData: CaseStudyData = {
 	title: 'EnerGroup Enables Wireless Room-Level Heating Control with ThingsBoard',
-	pageTitle: 'EnerGroup Enables Wireless Room-Level Heating Control with ThingsBoard',
+	pageTitle: 'EnerGroup Enables Wireless Room-Level Heating Control',
 	description:
 		'EnerGroup leverages ThingsBoard to enable wireless room-level heating control for the Pyxis residential building, integrating Milesight LoRaWAN devices and M-Bus meters into a unified supervision platform.',
 	pageSlug: 'energroup',

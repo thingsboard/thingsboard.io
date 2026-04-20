@@ -2,7 +2,7 @@ import type { CaseStudyData } from './types';
 
 export const asgTechData: CaseStudyData = {
 	title: 'ASG Tech Boosts IoT Speed with ThingsBoard Widgets',
-	pageTitle: 'ASG Tech Boosts IoT Speed with ThingsBoard Widgets',
+	pageTitle: 'ASG Tech Boosts IoT Speed with Custom Widgets',
 	description:
 		"Discover how ASG Tech leveraged ThingsBoard platform to rapidly deliver high-quality IoT applications with custom widgets. Learn how expert collaboration cut time-to-market and boosted user experience.",
 	pageSlug: 'asg-tech',

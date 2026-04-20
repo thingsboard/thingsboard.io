@@ -2,7 +2,7 @@ import type { CaseStudyData } from './types';
 
 export const tjkSolutionsData: CaseStudyData = {
 	title: 'Securing Critical Communication with ThingsBoard | TJK-Solutions',
-	pageTitle: 'Securing Critical Communication with ThingsBoard | TJK-Solutions',
+	pageTitle: 'Securing Critical Communication — TJK-Solutions',
 	description:
 		'Discover how TJK-Solutions uses ThingsBoard to monitor its Meshtastic-based emergency communication network \u2014 ensuring visibility and reliability even offline.',
 	pageSlug: 'tjk-solutions',

@@ -2,7 +2,7 @@ import type { CaseStudyData } from './types';
 
 export const kalitecData: CaseStudyData = {
 	title: 'How Kalitec Delivers Smart Signage with ThingsBoard\'s IoT Expertise',
-	pageTitle: 'How Kalitec Delivers Smart Signage with ThingsBoard\'s IoT Expertise',
+	pageTitle: 'How Kalitec Delivers Smart Signage with IoT Expertise',
 	description:
 		'Discover how Kalitec partnered with ThingsBoard to deliver reliable smart signage solutions for urban safety—achieving fast deployment, high uptime, and scalable IoT architecture for transport clients.',
 	pageSlug: 'kalitec',
