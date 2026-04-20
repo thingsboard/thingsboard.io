@@ -10,6 +10,7 @@ import path from 'node:path';
 
 export const baseSchema = z.object({
 	type: z.literal('base').optional().default('base'),
+	selfCanonical: z.boolean().optional(),
 	githubURL: z.url().optional(),
 	hasREADME: z.boolean().optional(),
 	hero: z

@@ -206,6 +206,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 		label: 'Contribution',
 		collapsed: true,
 		items: [
+			...(!isPE ? [`${prefix}/contribution/how-to-contribute`] : []),
 			`${prefix}/contribution/rule-node-development`,
 			`${prefix}/scada-symbol-dev`,
 			`${prefix}/contribution/custom-action-development`,
@@ -354,31 +355,31 @@ const recipeItems = (prefix: string, extraProcessingItems: string[] = []) => [
 	{
 		label: 'Processing Data',
 		collapsed: true,
-		items: [
-			`${prefix}/python-telemetry`,
-			`${prefix}/telemetry-delta-two-devices`,
-			...extraProcessingItems,
-		],
+		items: [`${prefix}/python-telemetry`, `${prefix}/telemetry-delta-two-devices`, `${prefix}/trigger-related-entities-via-relation`, `${prefix}/enrich-alarms-with-details`, `${prefix}/rpc-reply-with-related-telemetry`, `${prefix}/send-rpc-to-related-device`, `${prefix}/fetch-weather-data`, `${prefix}/send-alarm-email-to-customer`, `${prefix}/telegram-alarm-notification`, ...extraProcessingItems],
+	},
+	{
+		label: 'Calculated Fields',
+		collapsed: true,
+		items: [`${prefix}/aggregate-related-entities`, `${prefix}/average-temperature-related-devices`, `${prefix}/water-consumption-hourly-delta`],
 	},
 	{
 		label: 'Validating Data',
 		collapsed: true,
 		items: [`${prefix}/validate-incoming-telemetry`],
 	},
-	{
-		label: 'Storage & Retention',
-		collapsed: true,
-		items: [`${prefix}/configure-telemetry-ttl`],
-	},
+	...(prefix.startsWith('docs/paas')
+		? []
+		: [
+				{
+					label: 'Storage & Retention',
+					collapsed: true,
+					items: [`${prefix}/configure-telemetry-ttl`],
+				},
+			]),
 	{
 		label: 'Alarms',
 		collapsed: true,
-		items: [
-			`${prefix}/alarm-rule-tutorials`,
-			`${prefix}/create-clear-alarms`,
-			`${prefix}/telemetry-delta-calculation`,
-			`${prefix}/send-email-alarm`,
-		],
+		items: [`${prefix}/alarm-rule-tutorials`, `${prefix}/create-clear-alarms`, `${prefix}/device-inactivity-alarm`, `${prefix}/telemetry-delta-calculation`, `${prefix}/send-email-alarm`],
 	},
 	{
 		label: 'Real-time Data',

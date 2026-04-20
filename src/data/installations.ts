@@ -416,7 +416,7 @@ export const products: ProductData[] = [
 		id: 'thingsboard-edge',
 		title: 'ThingsBoard Edge',
 		description:
-			'The ThingsBoard Edge empowers businesses with real-time data analysis and management right at the source, enhancing agility and efficiency in data-driven decisions.\n\nSeamlessly connected to your preferred ThingsBoard platform—whether it\'s ThingsBoard Cloud, ThingsBoard Demo, ThingsBoard PE, or ThingsBoard CE—it ensures continuous synchronization that adapts to your unique business needs, delivering the power of edge intelligence.\n\nMaximize efficiency and gain immediate, actionable insights with ThingsBoard Edge! <a href="/products/thingsboard-edge/">Read more<span class="sr-only"> about ThingsBoard Edge</span></a>.',
+			'The ThingsBoard Edge empowers businesses with real-time data analysis and management right at the source, enhancing agility and efficiency in data-driven decisions.\n\nSeamlessly connected to your preferred ThingsBoard platform—whether it\'s ThingsBoard Cloud, ThingsBoard PE, or ThingsBoard CE—it ensures continuous synchronization that adapts to your unique business needs, delivering the power of edge intelligence.\n\nMaximize efficiency and gain immediate, actionable insights with ThingsBoard Edge! <a href="/products/thingsboard-edge/">Read more<span class="sr-only"> about ThingsBoard Edge</span></a>.',
 		buttons: [
 			{
 				id: 'TryItNow_Edge_Install_Edge_CE',

@@ -1,0 +1,216 @@
+import DocLink from '@components/DocLink.astro';
+import { Tabs, TabItem, Aside, Steps } from '@astrojs/starlight/components';
+import HostCode from '~/components/HostCode.astro';
+
+Send a Telegram message when a device alarm is created using the Rule Engine and the Telegram Bot API.
+
+## Use case
+
+**Thermostat A** sends temperature telemetry. When the temperature goes outside the acceptable range (below −15 °C or above 30 °C), ThingsBoard:
+
+- creates an alarm
+- builds a Telegram message payload with the alarm type and device name
+- sends the message to a Telegram chat via the Telegram Bot API
+
+The notification is sent only when an alarm is **created** — not when it is updated.
+
+## Prerequisites
+
+- A Telegram account with access to the Telegram app or web client
+
+## Step 1. Set up Telegram Bot
+
+### Step 1.1. Create bot and get token
+
+<Steps>
+1. Open Telegram and start a chat with <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer">@BotFather</a>.
+2. Send the `/newbot` command and follow the prompts to set a name and username for your bot.
+3. After creation, **BotFather** replies with an authorization token. It looks like:
+   ```
+   110201543:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw
+   ```
+   Save this token — you will need it as `{YOUR_BOT_TOKEN}` in the REST API Call URL.
+</Steps>
+
+<Aside type="note">
+  More info to help you create new bots and change their settings <a href="https://core.telegram.org/bots#6-botfather" target="_blank" rel="noopener noreferrer">here</a>.
+</Aside>
+
+### Step 1.2. Get the Chat ID
+
+The Chat ID identifies the recipient of the notification.
+
+<Steps>
+1. Send any message to your bot in the Telegram app.
+2. Open the following URL in your browser, replacing `{YOUR_BOT_TOKEN}` with your token:
+   ```
+   https://api.telegram.org/bot{YOUR_BOT_TOKEN}/getUpdates
+   ```
+3. In the JSON response, find the `id` field inside `message.chat`:
+   ```json
+   {
+     "result": [{
+       "message": {
+         "chat": {
+           "id": 337878729
+         }
+       }
+     }]
+   }
+   ```
+   The value of `id` is your `chat_id`. Save it — you will use it in the Transformation Script.
+</Steps>
+
+<Aside type="tip">
+  If the response is empty, make sure you sent a message to your bot before calling <code>getUpdates</code>.
+</Aside>
+
+## Step 2. Create rule chain
+
+You can import a ready-made rule chain or build it manually.
+
+**Option 1. Import rule chain**
+
+- Download the **Telegram Alarm Notification** rule chain as a <a href="/resources/docs/recipes/telegram-alarm-notification/telegram_alarm_notification_rule_chain.json" download="telegram_alarm_notification_rule_chain.json"><strong>JSON file</strong></a> and <DocLink product={props.product} path="user-guide/rule-engine/#import-a-rule-chain" target="_blank">import</DocLink> it into your instance.
+
+**Option 2. Create manually**
+
+<DocLink product={props.product} path="user-guide/rule-engine/#create-a-rule-chain" target="_blank">Create a new rule chain</DocLink> named `Telegram Alarm Notification`, open it, and add the following nodes:
+
+### Step 2.1. Filter Script node
+
+Add a <DocLink product={props.product} path="reference/rule-engine/nodes/filter/script" target="_blank">Filter Script</DocLink> node connected to the **Input** node.
+
+Passes the message only when the temperature is outside the acceptable range.
+
+- **Name**: `Check Temperature Range`
+- **Add the following script**:
+
+<Tabs>
+  <TabItem label="TBEL">
+    ```javascript
+    return msg.temperature < -15 || msg.temperature > 30;
+    ```
+  </TabItem>
+  <TabItem label="JavaScript">
+    ```javascript
+    return msg.temperature < -15 || msg.temperature > 30;
+    ```
+  </TabItem>
+</Tabs>
+
+### Step 2.2. Clear Alarm node
+
+Add a <DocLink product={props.product} path="reference/rule-engine/nodes/action/clear-alarm/" target="_blank">Clear Alarm</DocLink> node and connect it to the **Check Temperature Range** node with relation type **False**.
+
+Clears the alarm when the temperature returns to the acceptable range.
+
+- **Name**: `Clear Temperature Alarm`
+- **Alarm type**: `High Temperature`
+
+### Step 2.3. Create Alarm node
+
+Add a <DocLink product={props.product} path="reference/rule-engine/nodes/action/create-alarm" target="_blank">Create Alarm</DocLink> node connected to the **Check Temperature Range** node with relation type **True**.
+
+Creates the alarm when the temperature is out of range.
+
+- **Name**: `Create Temperature Alarm`
+- **Alarm type**: `High Temperature`
+- **Alarm severity**: `Critical`
+
+<Aside type="note">
+  The Telegram notification is sent only when the alarm is <strong>created</strong>. If an uncleared alarm of the same type already exists, the node updates it — and the message will not be re-sent.
+</Aside>
+
+### Step 2.4. Transformation Script node
+
+Add a <DocLink product={props.product} path="reference/rule-engine/nodes/transformation/script" target="_blank">Transformation Script</DocLink> node connected to the **Create Temperature Alarm** node with relation type **Created**.
+
+Builds the Telegram message payload. The Telegram Bot API requires two fields: `chat_id` and `text`.
+
+- **Name**: `New Telegram Message`
+
+Replace `337878729` with the `chat_id` from [Step 1.2](#step-12-get-the-chat-id).
+
+<Tabs>
+  <TabItem label="TBEL">
+    ```javascript
+    var newMsg = {};
+    newMsg.text = '"' + metadata.alarmType + '"' + ' alarm was created for device: "' + metadata.deviceName + '"';
+    newMsg.chat_id = 337878729; // replace with your chat_id
+    return {msg: newMsg, metadata: metadata, msgType: msgType};
+    ```
+  </TabItem>
+  <TabItem label="JavaScript">
+    ```javascript
+    var newMsg = {};
+    newMsg.text = '"' + metadata.alarmType + '"' + ' alarm was created for device: "' + metadata.deviceName + '"';
+    newMsg.chat_id = 337878729; // replace with your chat_id
+    return {msg: newMsg, metadata: metadata, msgType: msgType};
+    ```
+  </TabItem>
+</Tabs>
+
+### Step 2.5. REST API Call node
+
+Add a <DocLink product={props.product} path="reference/rule-engine/nodes/external/rest-api-call" target="_blank">REST API Call</DocLink> node connected to the **New Telegram Message** node with relation type **Success**.
+
+Sends the message payload to the Telegram Bot API.
+
+- **Name**: `Send Telegram Message`
+- **Endpoint URL pattern**: `https://api.telegram.org/bot{YOUR_BOT_TOKEN}/sendMessage`
+
+  Replace `{YOUR_BOT_TOKEN}` with the token from [Step 1.1](#step-11-create-bot-and-get-token).
+
+- **Request method**: `POST`
+- **Headers**:
+  - **Key**: `Content-Type`
+  - **Value**: `application/json`
+
+### Step 2.6. Check node connections
+
+- **Input &#8702; Check Temperature Range**
+- **Check Temperature Range &#8702;** `True` **&#8702; Create Temperature Alarm**
+- **Create Temperature Alarm &#8702;** `Created` **&#8702; New Telegram Message**
+- **New Telegram Message &#8702;** `Success` **&#8702; Send Telegram Message**
+
+Save the rule chain.
+
+## Step 3. Route telemetry to the rule chain
+
+In the **Root Rule Chain**, add a <DocLink product={props.product} path="reference/rule-engine/nodes/flow/rule-chain" target="_blank">Rule Chain</DocLink> node connected to the <DocLink product={props.product} path="reference/rule-engine/nodes/filter/message-type-switch/" target="_blank">Message Type Switch</DocLink> node with relation type **Post telemetry**:
+
+- **Name**: `Telegram Alarm Notification`
+- **Rule Chain**: `Telegram Alarm Notification`
+
+Save the rule chain.
+
+## Step 4. Test the setup
+
+Create a device **Thermostat A** with the `thermostat` profile if you haven't already. 
+
+Post a temperature value that exceeds 30 °C. Replace `$ACCESS_TOKEN` with the access token of **Thermostat A**.
+
+<HostCode product={props.product} lang="bash" code={`curl -v -X POST \\
+  --header "Content-Type: application/json" \\
+  --data '{"temperature": 32}' \\
+  https://{HTTP_HOST}/api/v1/$ACCESS_TOKEN/telemetry`} />
+
+**Expected result:**
+
+A **High Temperature** Critical alarm is created on **Thermostat A** and your Telegram bot delivers a message to the configured chat:
+
+```
+"High Temperature" alarm was created for device: "Thermostat A"
+```
+
+<Aside type="note">
+  If no message arrives, check that the alarm was <strong>created</strong> (not updated). Clear the existing alarm first and then send another out-of-range value to trigger a new creation.
+</Aside>
+
+## See also
+
+- <DocLink product={props.product} path="reference/rule-engine/nodes/external/rest-api-call">REST API Call node</DocLink> — full node reference
+- <DocLink product={props.product} path="recipes/create-clear-alarms">Create and Clear Alarms</DocLink> — alarm rule basics
+- <DocLink product={props.product} path="recipes/send-alarm-email-to-customer">Send Alarm Email to Customer</DocLink> — email-based alarm notification
+- <DocLink product={props.product} path="user-guide/notifications">Notification Center</DocLink> — no-code alternative for alarm notifications

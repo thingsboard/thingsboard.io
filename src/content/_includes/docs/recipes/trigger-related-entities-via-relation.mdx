@@ -1,0 +1,408 @@
+import DocLink from '@components/DocLink.astro';
+import MultiProductImageGallery from '~/components/MultiProductImageGallery.astro';
+import { Tabs, TabItem, Aside, Steps } from '@astrojs/starlight/components';
+import HostCode from '~/components/HostCode.astro';
+import { Products } from '~/models/site.models';
+
+This tutorial demonstrates how to trigger a related device action based on telemetry received from another device using the Rule Engine.
+
+## Use case
+
+A Smoke Detector reports telemetry: `smoke = "true"`
+
+ThingsBoard:
+- creates a **Smoke Alarm**
+- finds a related **Fire Alarm System**
+- sends an **RPC command** to activate it
+
+When `smoke != "true"`:
+- the alarm is cleared
+
+## Architecture
+
+**Devices**
+- **Smoke Detector** with the type **Smoke Sensor**
+- **Fire Alarm System** with the type **Fire Alarm Device**
+
+**Relation**
+- **Smoke Detector** -- **Uses** --> **Fire Alarm System**
+
+**Rule chains**
+- modified **Root Rule Chain**
+- new **Related Fire Alarm System** rule chain
+
+## Step 1. Create devices
+
+Create two devices:
+
+**Device 1**
+- **Name**: `Smoke Detector`
+- **Type**: `Smoke Sensor`
+
+**Device 2**
+- **Name**: `Fire Alarm System`
+- **Type**: `Fire Alarm Device`
+
+<Aside type="note">
+  To simplify setup, download and import the device list from a <a href="/resources/docs/recipes/trigger-related-entities-via-relation/tutorial-devices-1.csv" download="tutorial-devices-1.csv"><strong>CSV file</strong></a> into your instance. For more information about <strong>bulk provisioning</strong>, see <DocLink product={props.product} path="user-guide/provisioning/#bulk-provisioning" target="_blank">here</DocLink>.
+</Aside>
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/trigger-related-entities-via-relation/add-devices-and-relation-1.png',
+    alt: 'Devices list',
+    caption: 'Open the <strong>Devices</strong> page and create the required devices (<strong>Smoke Detector</strong> and <strong>Fire Alarm System</strong>).'
+  },
+]} />
+
+## Step 2. Create relation
+
+Create a relation:
+- **From**: `Smoke Detector`
+- **To**: `Fire Alarm System`
+- **Relation type**: `Uses`
+
+<Aside type="note">
+  This relation is the key part of the solution. Later, the rule chain will use it to find which fire alarm device belongs to the smoke detector. More information about <strong>relations</strong>, see <DocLink product={props.product} path="user-guide/digital-twins/relations/" target="_blank">here</DocLink>.
+</Aside>
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/trigger-related-entities-via-relation/add-devices-and-relation-2.png',
+    alt: 'Device relations configured',
+    caption: 'Open device details <strong>Smoke Detector</strong> &#8702; <strong>Relations</strong> ab and create an output relation <code>Uses</code> with <strong>Fire Alarm System</strong>.'
+  },
+]} />
+
+## Step 3. Create rule chain
+
+You can import a ready-made rule chain or build it manually.
+
+**Option 1. Import rule chain**
+
+- Download the Related Fire Alarm System rule chain as a <a href="/resources/docs/recipes/trigger-related-entities-via-relation/related_fire_alarm_system_rule_chain.json" download="related_fire_alarm_system_rule_chain.json"><strong>JSON file</strong></a> and <DocLink product={props.product} path="user-guide/rule-engine/#import-a-rule-chain" target="_blank">import</DocLink> it into your instance.
+
+**Option 2. Create manually**
+
+- <DocLink product={props.product} path="user-guide/rule-engine/#create-a-rule-chain" target="_blank">Create a new rule chain</DocLink> named `Related Fire Alarm System`, open it, and add the following nodes:
+
+### Step 3.1 Check Relation Presence node
+
+Add the <DocLink product={props.product} path="reference/rule-engine/nodes/filter/check-relation-presence/" target="_blank">Check Relation Presence</DocLink> node and connect it to the **Input** node.
+
+This node will check the relation from the **Fire Alarm System** device to the originator of the message **Smoke Detector** using the type and direction of relation.
+If the relation exists, the message will be sent through the **True** chain.
+
+Fill in the fields:
+- **Name**: `Check Relation`
+- **Relation search parameters**:
+  - **Direction**: `To originator`
+  - **Relation type**: `Uses`
+  - **Check relation to specific entity**: `Fire Alarm System` device
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/trigger-related-entities-via-relation/related-fire-alarm-system-rc-1.png',
+    alt: 'Check relation rule node configuration',
+    caption: 'Configure the <strong>Check Relation</strong> rule node to verify the <code>Uses</code> relation from the originator device to the specific entity <strong>Fire Alarm System</strong>.'
+  },
+]} />
+
+### Step 3.2 Change Originator node
+
+Add the <DocLink product={props.product} path="reference/rule-engine/nodes/transformation/change-originator/" target="_blank">Change Originator</DocLink> node and connect it to the **Check Relation Presence** node with a relation type **True**.
+
+This node will change the originator from the Device **Smoke Detector** to the related Device **Fire Alarm System** and the submitted message will be processed as a message from another entity, namely **Fire Alarm System**.
+
+Fill in the fields:
+- **Name**: `Change Originator`
+- **New originator**: `Related entity`
+- **Relations query**:
+  - **Direction**: `From originator`
+  - **From originator**: `1`
+- **Relation filters**:  
+  - **Relation type**: `Uses`
+  - **Entity types**: `Device`
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/trigger-related-entities-via-relation/related-fire-alarm-system-rc-2.png',
+    alt: 'Change originator rule node configuration',
+    caption: 'Configure the <strong>Change Originator</strong> rule node to switch the originator to the related entity using the <code>Uses</code> relation with direction <strong>From originator</strong>.'
+  },
+]} />
+
+### Step 3.3 Script Transformation node
+
+Add the <DocLink product={props.product} path="reference/rule-engine/nodes/transformation/script/" target="_blank">Transformation Script</DocLink> node and connect it to the **Change Originator** node with a relation type **Success**.
+Enter the Name field as **New RPC message**.
+
+This node will transform an original message into RPC request message.
+
+The RPC call will have 2 properties:
+
+<table>
+  <thead>
+    <tr>
+      <td><b>Property</b></td><td><b>Value</b></td>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>method</td>
+      <td>ON</td>
+    </tr>
+    <tr>
+      <td>params</td>
+      <td>&#123;&#125;</td>
+    </tr>
+  </tbody>
+</table>
+
+In order to do this, add the following Script:
+
+<Tabs>
+  <TabItem label="TBEL">
+    ```javascript
+    newMsg = {};
+    if (msg.smoke == 'true') {
+    newMsg.method = 'ON';
+  }
+    newMsg.params = {};
+    return {msg: newMsg, metadata: metadata, msgType: msgType};
+    ```
+  </TabItem>
+  <TabItem label="JavaScript">
+    ```javascript
+    var newMsg = {};
+    if (msg.smoke == 'true') {
+    newMsg.method = 'ON';
+  }
+    newMsg.params = {};
+    return {msg: newMsg, metadata: metadata, msgType: msgType};
+    ```
+  </TabItem>
+</Tabs>
+
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/trigger-related-entities-via-relation/related-fire-alarm-system-rc-3.png',
+    alt: 'Script node for RPC message transformation',
+    caption: 'Configure the <strong>script</strong> node to create a new RPC message that sets <code>method</code> to <code>ON</code> when <code>msg.smoke</code> equals <code>true</code>.'
+  },
+]} />
+
+### Step 3.4 RPC call request node
+
+Add the <DocLink product={props.product} path="reference/rule-engine/nodes/action/rpc-call-request/" target="_blank">RPC call request</DocLink> node and connect it to the **Transformation Script** node with a relation type **Success**.
+
+This node takes the message payload and sends it as a response to the Message Originator **Fire Alarm System**.
+
+Fill in the fields with the input data shown in the following table:
+- **Name**: `Fire Alarm System`
+- **Fire Alarm System**: `60`
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/trigger-related-entities-via-relation/related-fire-alarm-system-rc-4.png',
+    alt: 'RPC call request node configuration',
+    caption: 'Configure the <strong>RPC call request</strong> node to send the command to the <code>Fire Alarm System</code> device with a timeout of <code>60</code> seconds.'
+  },
+]} />
+
+### Step 3.5 Check the node connections
+
+- <strong>Input &#8702; Check Relation</strong>
+- <strong>Check Relation &#8702;</strong> <code>True</code> <strong>&#8702; Change Originator</strong>
+- <strong>Change Originator &#8702;</strong> <code>Success</code> <strong>&#8702; New RPC message</strong>
+- <strong>New RPC message &#8702;</strong> <code>Success</code> <strong>&#8702; Fire Alarm System</strong>
+
+This Rule chain is ready. Save it.
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/trigger-related-entities-via-relation/related-fire-alarm-system-rc-5.png',
+    alt: 'Completed rule chain for related fire alarm system',
+    caption: 'Final rule chain: messages pass through <strong>Check Relation</strong>, then <strong>Change Originator</strong>, followed by the <strong>script</strong> node, and finally trigger the <strong>RPC call request</strong> to the Fire Alarm System.'
+  },
+]} />
+
+## Step 4. Modify the Root Rule Chain
+
+In the Root Rule Chain, add these nodes after <DocLink product={props.product} path="reference/rule-engine/nodes/action/save-timeseries/" target="_blank">Save Timeseries</DocLink> node:
+
+### Step 4.1 Filter Script node
+
+Add the **Filter Script** node and connect it to the **Save Timeseries** node with a relation type **Success**.
+
+Enter the Name field as **Smoke Alarm Filter**.
+
+This node will check if data of incoming message is **smoke** using the following script:
+
+<Tabs>
+<TabItem label="TBEL">
+```javascript
+return msg.smoke == 'true';
+```
+</TabItem>
+<TabItem label="JavaScript">
+```javascript
+return msg.smoke == 'true';
+```
+</TabItem>
+</Tabs>
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/trigger-related-entities-via-relation/update-root-rule-chain-1.png',
+    alt: 'Smoke alarm filter script configuration',
+    caption: 'Configure the <strong>script</strong> filter node to pass messages only when <code>msg.smoke</code> equals <code>true</code>.'
+  },
+]} />
+
+### Step 4.2 Clear Alarm node
+
+Add the **Clear Alarm** node and connect it to the **Filter Script** node with a relation type **False**.
+
+Enter the Name field as **Clear Smoke Alarm** and the Alarm type as **Smoke Alarm**.
+
+This node loads the latest Alarm with configured Alarm Type for Message Originator **Smoke Detector** and Clears the Alarm if it exists.
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/trigger-related-entities-via-relation/update-root-rule-chain-2.png',
+    alt: 'Clear smoke alarm node configuration',
+    caption: 'Configure the <strong>Clear Alarm</strong> node to clear the <code>Smoke Alarm</code> using details parsed from <code>metadata.prevAlarmDetails</code>.'
+  },
+]} />
+
+### Step 4.3 Create Alarm node
+
+Add the **Create Alarm** node and connect it to the **Filter Script** node with a relation type **True**.
+
+Enter the Name field as **Create Smoke Alarm** and the Alarm type as **Smoke Alarm**.
+
+This node tries to load the latest Alarm with configured Alarm Type for Message Originator, namely **Smoke Detector**.
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/trigger-related-entities-via-relation/update-root-rule-chain-4.png',
+    alt: 'Create smoke alarm node configuration',
+    caption: 'Configure the <strong>Create Alarm</strong> node to create a <code>Smoke Alarm</code>, reusing details from <code>metadata.prevAlarmDetails</code> when available.'
+  },
+]} />
+
+### Step 4.4 Rule Chain node
+
+Add the **Rule Chain** node and connect it to the **Filter Script** node with a relation type **True**.
+
+Enter the Name field as **Related Fire Alarm System**.
+
+This node forwards incoming Message to specified Rule Chain **Related Fire Alarm System**.
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/trigger-related-entities-via-relation/update-root-rule-chain-4.png',
+    alt: 'Rule chain input node configuration',
+    caption: 'Configure the <strong>Rule Chain Input</strong> node to forward messages to the <code>Related Fire Alarm System</code> rule chain.'
+  },
+]} />
+
+### Step 4.5 Check the node connections
+
+- <strong>Save Timeseries &#8702;</strong> <code>Success</code> <strong>&#8702; Smoke Alarm Filter</strong>
+- <strong>Smoke Alarm Filter &#8702;</strong> <code>False</code> <strong>&#8702; Clear Smoke Alarm</strong>
+- <strong>Smoke Alarm Filter &#8702;</strong> <code>True</code> <strong>&#8702; Create Smoke Alarm</strong>
+- <strong>Smoke Alarm Filter &#8702;</strong> <code>True</code> <strong>&#8702; Rule Chain Input</strong>
+
+This Rule chain is ready. Save it.
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/trigger-related-entities-via-relation/update-root-rule-chain-5.png',
+    alt: 'Updated root rule chain with smoke alarm logic',
+    caption: 'Final <strong>Root Rule Chain</strong> configuration with smoke alarm processing and forwarding to the <code>Related Fire Alarm System</code> rule chain.'
+  },
+]} />
+
+## Step 5. Test the setup
+
+To verify the configuration:
+
+<Steps>
+1. Download the following <a href="/resources/docs/recipes/trigger-related-entities-via-relation/FireAlarmEmulator.js" download="FireAlarmEmulator.js">JavaScript emulator</a> to emulate the **Fire Alarm System** device.
+
+    <Aside type="note">
+      The emulator connects to `mqtt.thingsboard.cloud` by default. If you are using a different host, update the `thingsboardHost` constant in `FireAlarmEmulator.js` before running the script.
+    </Aside>
+  
+2. Run the script by executing the following command:
+
+    ```bash
+    ACCESS_TOKEN=$ACCESS_TOKEN node FireAlarmEmulator.js
+    ```
+    
+    Replace `$ACCESS_TOKEN` with the access token of the **Fire Alarm System** device.
+
+    <MultiProductImageGallery product={props.product} images={[
+      {
+        src: '/src/assets/images/recipes/trigger-related-entities-via-relation/check-relation-test-setup-1.png',
+        alt: 'Fire alarm emulator connected via MQTT',
+        caption: 'Run the <strong>Fire Alarm Emulator</strong> using an access token. The <code>Client connected!</code> message confirms a successful connection to <strong>mqtt.thingsboard.cloud</strong>.'
+      },
+    ]} />
+
+3. Post telemetry to the `Smoke Detector`:
+
+    <HostCode product={props.product} lang="bash" code={`curl -v -X POST -d '{"smoke":"true"}' https://{HTTP_HOST}/api/v1/$ACCESS_TOKEN/telemetry --header "Content-Type:application/json"`} />
+
+    {(props.product === Products.CE || props.product === Products.PE) && (
+      <span>Replace <code>$THINGSBOARD_HOST</code> with your ThingsBoard host and port. </span>
+    )}
+    Replace `$ACCESS_TOKEN` with the access token of the **Smoke Detector**.
+
+    <MultiProductImageGallery product={props.product} images={[
+      {
+        src: '/src/assets/images/recipes/trigger-related-entities-via-relation/check-relation-test-setup-2.png',
+        alt: 'Sending smoke telemetry with curl',
+        caption: 'Send test telemetry to the <strong>Smoke Detector</strong> device using a <code>curl</code> request with payload <code>{"smoke":"true"}</code>. A successful <code>HTTP/1.1 200</code> response confirms that the message was accepted by ThingsBoard.'
+      },
+    ]} />
+</Steps>
+
+**Expected result:**
+- A <strong>Smoke Alarm</strong> is triggered for the <strong>Smoke Detector</strong> device and appears in the <strong>Alarm list</strong>.
+- The <strong>Smoke Detector</strong> reports telemetry <code>smoke = true</code>, which triggers the alarm logic.
+- The related <strong>Fire Alarm System</strong> device receives an RPC command (<code>Fire alarm: ON</code>) as a result of the relation-based rule chain.
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/trigger-related-entities-via-relation/check-relation-test-setup-4.png',
+    alt: 'Smoke detector telemetry showing smoke true',
+    caption: 'The <strong>Smoke Detector</strong> reports telemetry <code>smoke = true</code>, which triggers the alarm logic.'
+  },
+  {
+    src: '/src/assets/images/recipes/trigger-related-entities-via-relation/check-relation-test-setup-3.png',
+    alt: 'Active smoke alarm in alarm list',
+    caption: 'A <strong>Smoke Alarm</strong> is triggered for the <strong>Smoke Detector</strong> device and appears in the <strong>Alarm list</strong>.'
+  },
+  {
+    src: '/src/assets/images/recipes/trigger-related-entities-via-relation/check-relation-test-setup-5.png',
+    alt: 'Fire alarm system receives RPC command',
+    caption: 'The related <strong>Fire Alarm System</strong> device receives an RPC command (<code>Fire alarm: ON</code>) as a result of the relation-based rule chain.'
+  },
+]} />
+
+To test alarm clearing, send telemetry where smoke is no longer true, for example a message without active smoke logic. Based on the configured filter, the **False** branch will clear the alarm. This follows directly from the Root Rule Chain logic in the tutorial.
+
+**Also, you can:**
+
+- configure the <DocLink product={props.product} path="user-guide/dashboards/" target="_blank">dashboard</DocLink> by adding an alarm widget to visualize the <DocLink product={props.product} path="user-guide/alarms/" target="_blank">alarms</DocLink>.
+- define an additional logic for alarm processing, for example, <DocLink product={props.product} path="recipes/send-email-alarm/" target="_blank">sending an email when an alarm is generated</DocLink>.
+
+## See Also
+
+- <DocLink product={props.product} path="recipes/validate-incoming-telemetry">Validate incoming telemetry</DocLink> tutorial — for more information about how to validate an incoming telemetry using the Script Filter node.
+- <DocLink product={props.product} path="recipes/create-clear-alarms">Create & Clear Alarms: configure dashboard</DocLink> guide — to learn how to add an Alarm widget to the dashboard.
+- <DocLink product={props.product} path="user-guide/rpc#server-side-rpc-api">RPC capabilities</DocLink> guide — for more information about how RPC works in ThingsBoard.

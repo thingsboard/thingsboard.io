@@ -169,7 +169,11 @@ function linkMatchesLanguage(href: string, lang: SupportedLanguage): boolean {
 }
 
 function updateHead(context: APIContext) {
-	const { head, entry } = context.locals.starlightRoute;
+	const starlightRoute = context.locals.starlightRoute;
+	starlightRoute.head = starlightRoute.head.filter(
+		(item) => !(item.tag === 'meta' && item.attrs?.name === 'generator')
+	);
+	const { head, entry } = starlightRoute;
 
 	const title = head.find((item) => item.tag === 'title');
 	const entryHead = (entry.data as { head: StarlightRouteData['head'] }).head;
@@ -182,13 +186,13 @@ function updateHead(context: APIContext) {
 	}
 
 	const ogImageUrl = getOgImageUrl(context.url.pathname, false);
-	const imageSrc = ogImageUrl ?? '/default-og-image.png';
+	const imageSrc = ogImageUrl ?? '/thingsboard-og.png';
 	const canonicalImageSrc = new URL(imageSrc, context.site);
 	const is404 = context.url.pathname.endsWith('/404/');
 
 	head.push({ tag: 'meta', attrs: { property: 'og:image', content: canonicalImageSrc.href } });
 	head.push({ tag: 'meta', attrs: { name: 'twitter:image', content: canonicalImageSrc.href } });
-	head.push({ tag: 'meta', attrs: { name: 'twitter:site', content: 'astrodotbuild' } });
+	head.push({ tag: 'meta', attrs: { name: 'twitter:site', content: '@thingsboard' } });
 
 	head.push({
 		tag: 'script',
@@ -201,31 +205,42 @@ function updateHead(context: APIContext) {
 	});
 
 	// Canonical consolidation: free product versions → professional equivalents.
-	// Only rewrite if the equivalent professional page actually exists.
+	// Only rewrite if the equivalent professional page actually exists, and the
+	// page is not edition-specific (different Docker images, licensing, hosts).
 	const sourceVersion = getVersionFromURL(context.url.pathname);
 	const targetVersion = canonicalConsolidationMap[sourceVersion];
 	if (targetVersion) {
-		const targetPageIds = canonicalTargetPageIds.get(targetVersion)!;
-		const lang = getLanguageFromURL(context.url.pathname);
 		const pageSlug = getPageSlugFromURL(context.url.pathname);
-		const langPrefix = getLanguagePrefix(lang);
-		const targetPrefix = getVersionPrefix(targetVersion);
-		const docsPrefix = lang === 'uk' ? 'uk/docs/' : 'docs/';
-		const targetContentId = `${docsPrefix}${targetPrefix}${pageSlug}`;
 
-		if (targetPageIds.has(targetContentId)) {
-			const targetPathname = `/${langPrefix}docs/${targetPrefix}${pageSlug}/`;
-			const targetCanonical = new URL(targetPathname, context.site).href;
+		const selfCanonicalSegments = ['installation', 'install', 'getting-started'];
+		const isSelfCanonicalPath = selfCanonicalSegments.some(
+			(seg) => pageSlug === seg || pageSlug.startsWith(`${seg}/`)
+		);
+		const isSelfCanonicalFrontmatter =
+			(entry.data as { selfCanonical?: boolean }).selfCanonical === true;
 
-			const canonical = head.find(
-				(item) => item.tag === 'link' && item.attrs?.['rel'] === 'canonical'
-			);
-			if (canonical) canonical.attrs!['href'] = targetCanonical;
+		if (!isSelfCanonicalPath && !isSelfCanonicalFrontmatter) {
+			const targetPageIds = canonicalTargetPageIds.get(targetVersion)!;
+			const lang = getLanguageFromURL(context.url.pathname);
+			const langPrefix = getLanguagePrefix(lang);
+			const targetPrefix = getVersionPrefix(targetVersion);
+			const docsPrefix = lang === 'uk' ? 'uk/docs/' : 'docs/';
+			const targetContentId = `${docsPrefix}${targetPrefix}${pageSlug}`;
 
-			const ogUrl = head.find(
-				(item) => item.tag === 'meta' && item.attrs?.['property'] === 'og:url'
-			);
-			if (ogUrl) ogUrl.attrs!['content'] = targetCanonical;
+			if (targetPageIds.has(targetContentId)) {
+				const targetPathname = `/${langPrefix}docs/${targetPrefix}${pageSlug}/`;
+				const targetCanonical = new URL(targetPathname, context.site).href;
+
+				const canonical = head.find(
+					(item) => item.tag === 'link' && item.attrs?.['rel'] === 'canonical'
+				);
+				if (canonical) canonical.attrs!['href'] = targetCanonical;
+
+				const ogUrl = head.find(
+					(item) => item.tag === 'meta' && item.attrs?.['property'] === 'og:url'
+				);
+				if (ogUrl) ogUrl.attrs!['content'] = targetCanonical;
+			}
 		}
 	}
 }

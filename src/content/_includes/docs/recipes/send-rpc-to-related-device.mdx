@@ -1,0 +1,450 @@
+import DocLink from '@components/DocLink.astro';
+import { Tabs, TabItem, Aside, Steps } from '@astrojs/starlight/components';
+import HostCode from '~/components/HostCode.astro';
+import { Products } from '~/models/site.models';
+import MultiProductImageGallery from '~/components/MultiProductImageGallery.astro';
+
+This recipe shows how to send an RPC command to a device based on its telemetry and data fetched from a related sensor device.
+
+## Use case
+
+A **Rotating System** periodically reports its current `turbineDirection`.
+
+ThingsBoard:
+- fetches the latest `windDirection` from the related **Wind Direction Sensor**
+- calculates whether the turbine should spin left or right to align with the wind
+- sends an RPC command (`spinLeft` or `spinRight`) with the rotation angle to the **Rotating System**
+
+Telemetry from both devices is also aggregated and stored on the parent **Wind Turbine** asset.
+
+## Architecture
+
+**Entities**
+- Asset **Wind Turbine** with type **Wind Turbine**
+- Device **Wind Direction Sensor** with type **Direction Sensor**
+- Device **Rotating System** with type **Rotating System**
+
+**Relations**
+- **Wind Turbine** -- **Contains** --> **Wind Direction Sensor**
+- **Wind Turbine** -- **Contains** --> **Rotating System**
+- **Rotating System** -- **Uses** --> **Wind Direction Sensor**
+
+**Rule chains**
+- modified **Root Rule Chain**
+- new **Rotating System Controller** rule chain
+
+## Step 1. Create entities
+
+Create one asset and two devices:
+
+**Asset**
+- **Name**: `Wind Turbine`
+- **Type**: `Wind Turbine`
+
+**Device 1**
+- **Name**: `Wind Direction Sensor`
+- **Type**: `Direction Sensor`
+
+**Device 2**
+- **Name**: `Rotating System`
+- **Type**: `Rotating System`
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/send-rpc-to-related-device/add-entities-1.png',
+    alt: 'Wind Turbine asset',
+    caption: 'Create the <strong>Wind Turbine</strong> asset in the <strong>Assets</strong> section.'
+  },
+  {
+    src: '/src/assets/images/recipes/send-rpc-to-related-device/add-entities-2.png',
+    alt: 'Devices list with Wind Direction Sensor and Rotating System',
+    caption: 'Create two devices — <strong>Wind Direction Sensor</strong> and <strong>Rotating System</strong> — in the <strong>Devices</strong> section.'
+  },
+]} />
+
+## Step 2. Create relations
+
+Create the following three relations:
+
+**Relation 1**
+- **From**: `Wind Turbine` (Asset)
+- **To**: `Wind Direction Sensor` (Device)
+- **Relation type**: `Contains`
+
+**Relation 2**
+- **From**: `Wind Turbine` (Asset)
+- **To**: `Rotating System` (Device)
+- **Relation type**: `Contains`
+
+**Relation 3**
+- **From**: `Rotating System` (Device)
+- **To**: `Wind Direction Sensor` (Device)
+- **Relation type**: `Uses`
+
+<Aside type="note">
+  The <code>Uses</code> relation would allow the rule chain to fetch wind data from the sensor when processing <strong>Rotating System</strong> telemetry. For more information about <strong>relations</strong>, see <DocLink product={props.product} path="user-guide/digital-twins/relations/" target="_blank">Relations</DocLink>.
+</Aside>
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/send-rpc-to-related-device/add-relations-1.png',
+    alt: 'Wind Turbine asset relations',
+    caption: 'In the <strong>Wind Turbine</strong> asset, create <code>Contains</code> relations to both <strong>Rotating System</strong> and <strong>Wind Direction Sensor</strong>.'
+  },
+  {
+    src: '/src/assets/images/recipes/send-rpc-to-related-device/add-relations-2.png',
+    alt: 'Rotating System device relation',
+    caption: 'In the <strong>Rotating System</strong> device, create a <code>Uses</code> relation to the <strong>Wind Direction Sensor</strong>.'
+  },
+]} />
+
+## Step 3. Create rule chain
+
+You can import a ready-made rule chain or build it manually.
+
+**Option 1. Import rule chain**
+
+- Download the **Rotating System Controller** rule chain as <a href="/resources/docs/recipes/send-rpc-to-related-device/rotating_system_controller_rule_chain.json" download="rotating_system_controller_rule_chain.json"><strong>JSON file</strong></a> and <DocLink product={props.product} path="user-guide/rule-engine/#import-a-rule-chain" target="_blank">import</DocLink> it into your instance.
+
+**Option 2. Create manually**
+
+- <DocLink product={props.product} path="user-guide/rule-engine/#create-a-rule-chain" target="_blank">Create a new rule chain</DocLink> named `Rotating System Controller`, open it, and add the following nodes:
+
+### Step 3.1 Message Type Switch node
+
+Add the <DocLink product={props.product} path="reference/rule-engine/nodes/filter/message-type-switch/" target="_blank">Message Type Switch</DocLink> node and connect it to the **Input** node.
+
+Routes incoming messages by type. Only `Post telemetry` messages proceed to the next node.
+
+- **Name**: `Message Type Switch`
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/send-rpc-to-related-device/rotating-system-controller-rc-1.png',
+    alt: 'Message Type Switch node configuration',
+    caption: 'Use the <strong>Message Type Switch</strong> node to route incoming messages by type; only <strong>Post telemetry</strong> messages proceed.'
+  },
+]} />
+
+### Step 3.2 Save TimeSeries node
+
+Add the <DocLink product={props.product} path="reference/rule-engine/nodes/action/save-timeseries/" target="_blank">Save Time Series</DocLink> node and connect it to the **Message Type Switch** node with relation type **Post telemetry**.
+
+Stores incoming telemetry from **Wind Direction Sensor** and **Rotating System** in the database.
+
+- **Name**: `Save Time Series`
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/send-rpc-to-related-device/rotating-system-controller-rc-2.png',
+    alt: 'Save Time Series node configuration',
+    caption: 'Configure the <strong>Save Time Series</strong> node to persist incoming telemetry data using the default <code>On every message</code> processing strategy.'
+  },
+]} />
+
+### Step 3.3 Related Entity Data node
+
+Add the <DocLink product={props.product} path="reference/rule-engine/nodes/enrichment/related-entity-data" target="_blank">Related Entity Data</DocLink> node and connect it to the **Save Time Series** node with relation type **Success**.
+
+This node follows the `Uses` relation from the **Rotating System** to the **Wind Direction Sensor** and loads its latest `windDirection` telemetry into message metadata.
+
+Fill in the fields:
+- **Name**: `Fetch Wind Sensor Telemetry`
+- **Direction**: `From originator`
+- **Max relation level**: `1`
+- **Relation filters**:
+  - **Relation type**: `Uses`
+  - **Entity type**: `Device`
+- **Data to fetch**: `Latest telemetry`
+- **Latest telemetry mapping**:
+  - **Source attribute key**: `windDirection`
+  - **Target key**: `windDirection`
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/send-rpc-to-related-device/rotating-system-controller-rc-3.png',
+    alt: 'Related entity data node - relation query configuration',
+    caption: 'Configure the <strong>Related Entity Data</strong> node to follow the <code>Uses</code> relation from the originator device to fetch wind direction data.'
+  },
+  {
+    src: '/src/assets/images/recipes/send-rpc-to-related-device/rotating-system-controller-rc-4.png',
+    alt: 'Related entity data node - telemetry mapping',
+    caption: 'Map the source telemetry key <code>windDirection</code> to the metadata key <code>windDirection</code>.'
+  },
+]} />
+
+### Step 3.4 Transformation Script node
+
+Add the <DocLink product={props.product} path="reference/rule-engine/nodes/transformation/script" target="_blank">Transformation Script</DocLink> node and connect it to the **Related Entity Data** node with relation type **Success**.
+
+This node computes the angular difference between `turbineDirection` (from the message) and `windDirection` (from metadata) to determine the optimal spin direction, then builds the RPC payload.
+
+The RPC payload contains two properties: `method` (`spinLeft` or `spinRight`) and `params` (rotation angle in degrees, rounded to 2 decimal places).
+
+Fill in the fields:
+- **Name**: `New RPC Message`
+
+Script:
+
+<Tabs>
+  <TabItem label="TBEL">
+    ```javascript maxLines=15 collapsible
+    newMsg = {};
+
+    if (msg.containsKey("turbineDirection") && metadata.containsKey("windDirection")) {
+      value = msg.turbineDirection - metadata.windDirection;
+  
+      if (value < 0) {
+      value = -value;
+    }
+  
+      if ((value < 180 && msg.turbineDirection < metadata.windDirection) ||
+      (value > 180 && msg.turbineDirection > metadata.windDirection)) {
+      newMsg.method = "spinLeft";
+    }
+  
+      if ((value < 180 && msg.turbineDirection > metadata.windDirection) ||
+      (value > 180 && msg.turbineDirection < metadata.windDirection)) {
+      newMsg.method = "spinRight";
+    }
+  
+      newMsg.params = value;
+    }
+
+    return {msg: newMsg, metadata: metadata, msgType: msgType};
+    ```
+  </TabItem>
+  <TabItem label="JavaScript">
+    ```javascript
+    var newMsg = {};
+    var value = Math.abs(msg.turbineDirection - metadata.windDirection);
+    if ((value < 180 && msg.turbineDirection < metadata.windDirection) ||
+        (value > 180 && msg.turbineDirection > metadata.windDirection)) {
+        newMsg.method = 'spinLeft';
+    }
+    if ((value <= 180 && msg.turbineDirection > metadata.windDirection) ||
+        (value >= 180 && msg.turbineDirection < metadata.windDirection)) {
+        newMsg.method = 'spinRight';
+    }
+    if (newMsg.method == 'spinLeft' || newMsg.method == 'spinRight') {
+        msgType = 'RPC message';
+    }
+    newMsg.params = Math.round(value * 100) / 100;
+    return {msg: newMsg, metadata: metadata, msgType: msgType};
+    ```
+  </TabItem>
+</Tabs>
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/send-rpc-to-related-device/rotating-system-controller-rc-5.png',
+    alt: 'New RPC Message script node configuration',
+    caption: 'Configure the <strong>New RPC Message</strong> transformation node to compute the direction difference and set the <code>method</code> field to <code>spinLeft</code> or <code>spinRight</code>, forming a valid RPC request.'
+  },
+]} />
+
+### Step 3.5 Filter Script node
+
+Add the <DocLink product={props.product} path="reference/rule-engine/nodes/filter/script" target="_blank">Filter Script</DocLink> node and connect it to the **Transformation Script** node with relation type **Success**.
+
+This node passes the message only if the transformation produced a valid RPC payload.
+
+Fill in the fields:
+- **Name**: `Check RPC Message`
+
+Script:
+
+<Tabs>
+  <TabItem label="TBEL">
+    ```javascript
+    return msg.containsKey("method") && msg.method != null;
+    ```
+  </TabItem>
+  <TabItem label="JavaScript">
+    ```javascript
+    return typeof msg.method !== 'undefined';
+    ```
+  </TabItem>
+</Tabs>
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/send-rpc-to-related-device/rotating-system-controller-rc-6.png',
+    alt: 'Check Request Validity script node configuration',
+    caption: 'Configure the <strong>Check Request Validity</strong> filter node to pass only messages that contain a non-null <code>method</code> field using a TBEL script.'
+  },
+]} />
+
+### Step 3.6 RPC call request node
+
+Add the <DocLink product={props.product} path="reference/rule-engine/nodes/action/rpc-call-request" target="_blank">RPC call request</DocLink> node and connect it to the **Filter Script** node with relation type **True**.
+
+This node sends the computed spin command to the **Rotating System** device.
+
+Fill in the fields:
+- **Name**: `Rotating System`
+- **Timeout**: `60`
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/send-rpc-to-related-device/rotating-system-controller-rc-7.png',
+    alt: 'RPC call request node configuration',
+    caption: 'Configure the <strong>RPC call request</strong> node to send the spin command to the <strong>Rotating System</strong> device with a timeout of <code>60</code> seconds.'
+  },
+]} />
+
+### Step 3.7 Change Originator node
+
+Add the <DocLink product={props.product} path="reference/rule-engine/nodes/transformation/change-originator" target="_blank">Change Originator</DocLink> node and connect it to the **Save Timeseries** node with relation type **Success**.
+
+This node changes the originator from the source device (**Wind Direction Sensor** or **Rotating System**) to the parent **Wind Turbine** asset, so telemetry is stored on the asset level.
+
+Fill in the fields:
+- **Name**: `Change Originator to Wind Turbine`
+- **Originator source**: `Related entity`
+- **Direction**: `To originator`
+- **Max relation level**: `1`
+- **Relation type**: `Contains`
+- **Entity type**: `Asset`
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/send-rpc-to-related-device/rotating-system-controller-rc-8.png',
+    alt: 'Change Originator to Wind Turbine node configuration',
+    caption: 'Configure the <strong>Change Originator to Wind Turbine</strong> node to switch the message originator to the related <strong>Wind Turbine</strong> asset using the <code>Contains</code> relation.'
+  },
+]} />
+
+### Step 3.8 Save Timeseries node (Wind Turbine)
+
+Add a second <DocLink product={props.product} path="reference/rule-engine/nodes/action/save-timeseries" target="_blank">Save Timeseries</DocLink> node and connect it to the **Change Originator** node with relation type **Success**.
+
+This node stores the device telemetry under the **Wind Turbine** asset.
+
+Fill in the fields:
+- **Name**: `Save to Wind Turbine`
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/send-rpc-to-related-device/rotating-system-controller-rc-9.png',
+    alt: 'Save to Wind Turbine node configuration',
+    caption: 'Configure the <strong>Save to Wind Turbine</strong> action node to persist telemetry for the <strong>Wind Turbine</strong> asset using the default “On every message” processing strategy.'
+  },
+]} />
+
+### Step 3.9 Check the node connections
+
+- **Input &#8702; Message Type Switch**
+- **Message Type Switch &#8702;** `Post telemetry` **&#8702; Save Time Series**
+- **Save Time Series &#8702;** `Success` **&#8702; Fetch Wind Sensor Telemetry**
+- **Save Time Series &#8702;** `Success` **&#8702; Change Originator to Wind Turbine**
+- **Fetch Wind Sensor Telemetry &#8702;** `Success` **&#8702; New RPC Message**
+- **New RPC Message &#8702;** `Success` **&#8702; Check RPC Message**
+- **Check RPC Message &#8702;** `True` **&#8702; Rotating System**
+- **Change Originator to Wind Turbine &#8702;** `Success` **&#8702; Save to Wind Turbine**
+
+Save the rule chain.
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/send-rpc-to-related-device/rotating-system-controller-rc-10.png',
+    alt: 'Rotating System Controller rule chain',
+    caption: 'Complete <strong>Rotating System Controller</strong> rule chain that fetches related device data, validates the request, and sends an RPC call to the <strong>Rotating System</strong> device.'
+  },
+]} />
+
+### Step 3.10 Mark the new rule chain as "root"
+
+In the **Rotating System Controller** line, click **Make rule chain root** and confirm.
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/send-rpc-to-related-device/make-rule-chain-root-1.png',
+    alt: 'Rule chains list with Rotating System Controller',
+    caption: 'In the <strong>Rule chains</strong> page, locate the <strong>Rotating System Controller</strong> rule chain and click <strong>Make rule chain root</strong>.'
+  },
+  {
+    src: '/src/assets/images/recipes/send-rpc-to-related-device/make-rule-chain-root-2.png',
+    alt: 'Confirmation dialog for making rule chain root',
+    caption: 'Confirm making the <strong>Rotating System Controller</strong> rule chain the root to handle all incoming transport messages.'
+  },
+]} />
+
+## How it works
+
+For example, the **Rotating System** sends `turbineDirection = 135` and the related **Wind Direction Sensor** has `windDirection = 100`:
+
+```
+value = |135 - 100| = 35
+value < 180 AND turbineDirection (135) < windDirection (100) → spinRight
+```
+
+The rule engine sends an RPC command to the **Rotating System**:
+
+```json
+{"method": "spinRight", "params": 35}
+```
+
+To trace execution, enable **debug mode** on the **Rotating System Controller** rule chain.
+
+## Test the setup
+
+Run both device emulators to publish live telemetry, then import the dashboard to observe the RPC commands triggered by the rule engine.
+
+### Run device emulators
+
+<Aside type="note">
+  Both emulators connect to `mqtt.thingsboard.cloud` by default. To use a different host, update the `thingsboardHost` constant in each script before running.
+</Aside>
+
+<Steps>
+1. Download <a href="/resources/docs/recipes/send-rpc-to-related-device/WindDirectionEmulator.js" download="WindDirectionEmulator.js"><strong>WindDirectionEmulator.js</strong></a> and run it:
+
+    ```bash
+    ACCESS_TOKEN=$ACCESS_TOKEN node WindDirectionEmulator.js
+    ```
+
+    Replace `$ACCESS_TOKEN` with the access token of the **Wind Direction Sensor** device.
+
+    <MultiProductImageGallery product={props.product} images={[
+      {
+        src: '/src/assets/images/recipes/send-rpc-to-related-device/test-the-setup-use-emulator-1.png',
+        alt: 'Wind Direction Emulator sending telemetry via MQTT',
+        caption: 'Run the <strong>Wind Direction Emulator</strong> using an access token. The <code>Client connected!</code> message confirms a successful connection to <strong>mqtt.thingsboard.cloud</strong>, and telemetry data is sent continuously.'
+      },
+    ]} />
+
+2. Download <a href="/resources/docs/recipes/send-rpc-to-related-device/RotatingSystemEmulator.js" download="RotatingSystemEmulator.js"><strong>RotatingSystemEmulator.js</strong></a> and run it:
+
+    ```bash
+    ACCESS_TOKEN=$ACCESS_TOKEN node RotatingSystemEmulator.js
+    ```
+
+    Replace `$ACCESS_TOKEN` with the access token of the **Rotating System** device.
+
+    <MultiProductImageGallery product={props.product} images={[
+      {
+        src: '/src/assets/images/recipes/send-rpc-to-related-device/test-the-setup-use-emulator-2.png',
+        alt: 'Rotating System Emulator sending telemetry via MQTT',
+        caption: 'Run the <strong>Rotating System Emulator</strong> using an access token. The <code>Client connected!</code> message confirms a successful connection to <strong>mqtt.thingsboard.cloud</strong>, and turbine direction telemetry is sent continuously.'
+      },
+    ]} />
+</Steps>
+
+### Configure dashboard
+
+Download the pre-built dashboard as a <a href="/resources/docs/recipes/send-rpc-to-related-device/wind_turbine_dashboard.json" download="wind_turbine_dashboard.json"><strong>JSON file</strong></a> and <DocLink product={props.product} path="user-guide/dashboards/#import-dashboard" target="_blank">import</DocLink> it. Once open, you should see live wind direction, turbine direction, and the rotation command (`spinLeft` / `spinRight`) sent by the rule engine.
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/send-rpc-to-related-device/test-the-setup-dashboard-1.png',
+    alt: 'Wind Turbine dashboard with wind and turbine direction',
+    caption: 'Open the <strong>Wind Turbine Dashboard</strong> to monitor real-time <strong>Wind direction</strong> and <strong>Turbine direction</strong>, along with rotation status derived from related device data.'
+  },
+]} />
+
+## See also
+
+- <DocLink product={props.product} path="user-guide/rpc">RPC capabilities</DocLink> — for more information about how server-side RPC works in ThingsBoard.
+- <DocLink product={props.product} path="recipes/rpc-reply-with-related-telemetry">Reply to RPC call with related device telemetry</DocLink> — a related recipe for handling client-side RPC calls.
+- <DocLink product={props.product} path="recipes/trigger-related-entities-via-relation">Trigger related entities via relation</DocLink> — a related recipe for triggering actions on related devices.

@@ -1,0 +1,356 @@
+import DocLink from '@components/DocLink.astro';
+import { Tabs, TabItem, Aside, Steps } from '@astrojs/starlight/components';
+import HostCode from '~/components/HostCode.astro';
+import { Products } from '~/models/site.models';
+import MultiProductImageGallery from '~/components/MultiProductImageGallery.astro';
+
+This recipe shows how to handle a client-side RPC call from a device by fetching telemetry from a related device and returning it as the RPC response.
+
+## Use case
+
+A **Controller** sends a client-side RPC call with method `getCurrentTemperature`.
+
+ThingsBoard:
+- routes the request to a dedicated rule chain
+- fetches the latest `temperature` from a related **Thermostat** device
+- returns the temperature value as the RPC response
+
+## Architecture
+
+**Devices**
+- **Thermostat A** with type **thermostat**
+- **Controller A** with type **controller**
+
+**Relation**
+- **Controller A** -- **Thermostat** --> **Thermostat A**
+
+**Rule chains**
+- modified **Root Rule Chain**
+- new **Related thermostat temperature** rule chain
+
+## Step 1. Create devices
+
+Create two devices:
+
+**Device 1**
+- **Name**: `Thermostat A`
+- **Type**: `thermostat`
+
+**Device 2**
+- **Name**: `Controller A`
+- **Type**: `controller`
+
+<Aside type="note">
+  To simplify setup, download and import the device list from a <a href="/resources/docs/recipes/rpc-reply-with-related-telemetry/tutorial-devices-2.csv" download="tutorial-devices-2.csv"><strong>CSV file</strong></a> into your instance. For more information about <strong>bulk provisioning</strong>, see <DocLink product={props.product} path="user-guide/provisioning/#bulk-provisioning" target="_blank">here</DocLink>.
+</Aside>
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/rpc-reply-with-related-telemetry/add-devices-and-relation-1.png',
+    alt: 'Devices list with Controller and Thermostat',
+    caption: 'Open the <strong>Devices</strong> page and create the required devices (e.g., <strong>Controller A</strong> and <strong>Thermostat A</strong>) that will be used for RPC communication and relation-based data retrieval.'
+  },
+]} />
+
+## Step 2. Create relation
+
+Create a relation:
+- **From**: `Controller A`
+- **To**: `Thermostat A`
+- **Relation type**: `Uses`
+
+<Aside type="note">
+  This relation lets the rule chain find the thermostat associated with the controller. For more information about **relations**, see <DocLink product={props.product} path="user-guide/digital-twins/relations/" target="_blank">Relations</DocLink>.
+</Aside>
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/rpc-reply-with-related-telemetry/add-devices-and-relation-2.png',
+    alt: 'Device outbound relation configuration',
+    caption: 'Open device details <strong>Controller A</strong> &#8702; <strong>Relations</strong> tab and create an outbound relation <code>Uses</code> to the target device <strong>Thermostat A</strong>.'
+  },
+]} />
+
+## Step 3. Create rule chain
+
+You can import a ready-made rule chain or build it manually.
+
+**Option 1. Import rule chain**
+
+- Download the **Related Thermostat Temperature** rule chain as a <a href="/resources/docs/recipes/rpc-reply-with-related-telemetry/related_thermostat_temperature_rule_chain.json" download="related_thermostat_temperature_rule_chain.json"><strong>JSON file</strong></a> and <DocLink product={props.product} path="user-guide/rule-engine/#import-a-rule-chain" target="_blank">import</DocLink> it into your instance.
+
+**Option 2. Create manually**
+
+- <DocLink product={props.product} path="user-guide/rule-engine/#create-a-rule-chain" target="_blank">Create a new rule chain</DocLink> named `Related Thermostat Temperature`, open it, and add the following nodes:
+
+### Step 3.1 Related Entity Data node
+
+Add the <DocLink product={props.product} path="reference/rule-engine/nodes/enrichment/related-entity-data" target="_blank">Related Entity Data</DocLink> node and connect it to the **Input** node.
+
+This node fetches the latest `temperature` from **Thermostat A** and saves it in message metadata as `roomTemperature`.
+
+Fill in the fields:
+- **Name**: `Get Temperature from Related Thermostat`
+- **Direction**: `From originator`
+- **Max relation level**: `1`
+- **Relation filters**:
+  - **Relation type**: `Uses`
+  - **Entity type**: `Device`
+- **Data to fetch**: `Latest telemetry`
+- **Latest telemetry mapping**:
+  - **Source attribute key**: `temperature`
+  - **Target key**: `roomTemperature`
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/rpc-reply-with-related-telemetry/related-thermostat-temperature-rc-1.png',
+    alt: 'Related entity data node configuration - relation query',
+    caption: 'Configure the <strong>Related Entity Data</strong> node to fetch data from related devices using the <code>Uses</code> relation. Set direction to <strong>From originator</strong> and limit the relation level to <code>1</code>.'
+  },
+  {
+    src: '/src/assets/images/recipes/rpc-reply-with-related-telemetry/related-thermostat-temperature-rc-2.png',
+    alt: 'Related entity data node configuration - telemetry mapping',
+    caption: 'Map the related device telemetry key <code>temperature</code> to <code>roomTemperature</code> and store it in <strong>metadata</strong> for further processing in the rule chain.'
+  },
+]} />
+
+### Step 3.2 Script Transformation node
+
+Add the <DocLink product={props.product} path="reference/rule-engine/nodes/transformation/script" target="_blank">Transformation Script</DocLink> node and connect it to the **Related Entity Data** node with relation type **Success**.
+
+This node builds the RPC reply payload. The **RPC call reply** node sends the message payload as the response, so the payload must contain the temperature value.
+
+Fill in the fields:
+- **Name**: `Build Response`
+
+Script:
+
+<Tabs>
+  <TabItem label="TBEL">
+    ```javascript
+    return {msg: {temperature: metadata.roomTemperature}, metadata: metadata, msgType: msgType};
+    ```
+  </TabItem>
+  <TabItem label="JavaScript">
+    ```javascript
+    return {msg: {temperature: metadata.roomTemperature}, metadata: metadata, msgType: msgType};
+    ```
+  </TabItem>
+</Tabs>
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/rpc-reply-with-related-telemetry/related-thermostat-temperature-rc-3.png',
+    alt: 'Build response script node configuration',
+    caption: 'Configure the <strong>Build Response</strong> script node to construct the RPC reply using <code>metadata.roomTemperature</code>, returning it as <code>{ temperature }</code> in the message body.'
+  },
+]} />
+
+### Step 3.3 RPC call reply node
+
+Add the <DocLink product={props.product} path="reference/rule-engine/nodes/action/rpc-call-reply" target="_blank">RPC call reply</DocLink> node and connect it to the **Transformation Script** node with relation type **Success**.
+
+This node reads `requestId` from message metadata and sends the message payload as the RPC response to the originator.
+
+Fill in the fields:
+- **Name**: `Send Response`
+- **Request ID**: `requestId`
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/rpc-reply-with-related-telemetry/related-thermostat-temperature-rc-4.png',
+    alt: 'Send RPC reply node configuration',
+    caption: 'Configure the <strong>RPC Call Reply</strong> node to send the response back to the device using default metadata fields (<code>serviceId</code>, <code>sessionId</code>, <code>requestId</code>).'
+  },
+]} />
+
+### Step 3.4 Check the node connections
+
+- **Input** &#8702; **Get Temperature from Related Thermostat**
+- **Get Temperature from Related Thermostat** &#8702; `Success` &#8702; **Build Response**
+- **Build Response** &#8702; `Success` &#8702; **Send Response**
+
+Save the rule chain.
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/rpc-reply-with-related-telemetry/related-thermostat-temperature-rc-5.png',
+    alt: 'Rule chain overview for RPC response with related telemetry',
+    caption: 'Complete rule chain: fetch related device telemetry, build the response payload, and send it back to the device using the <strong>RPC Call Reply</strong> node.'
+  },
+]} />
+
+## Step 4. Modify the Root Rule Chain
+
+Open the **Root Rule Chain**. By default, the <DocLink product={props.product} path="reference/rule-engine/nodes/filter/message-type-switch" target="_blank">Message Type Switch</DocLink> node routes **RPC Request from Device** messages to a <DocLink product={props.product} path="reference/rule-engine/nodes/action/log" target="_blank">Log</DocLink> node named **Log RPC from Device**.
+
+Add the following nodes after **Message Type Switch**:
+
+### Step 4.1 Filter Script node
+
+Add the <DocLink product={props.product} path="reference/rule-engine/nodes/filter/script" target="_blank">Filter Script</DocLink> node and connect it to the **Message Type Switch** node with relation type **RPC Request from Device**, replacing the existing connection to **Log RPC from Device**.
+
+This node passes only requests with method `getCurrentTemperature`.
+
+Fill in the fields:
+- **Name**: `Filter getCurrentTemperature RPC`
+
+Script:
+
+<Tabs>
+  <TabItem label="TBEL">
+    ```javascript
+    return msg.method == 'getCurrentTemperature';
+    ```
+  </TabItem>
+  <TabItem label="JavaScript">
+    ```javascript
+    return msg.method == 'getCurrentTemperature';
+    ```
+  </TabItem>
+</Tabs>
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/rpc-reply-with-related-telemetry/update-root-rule-chain-1.png',
+    alt: 'RPC method filter script configuration',
+    caption: 'Configure the <strong>script</strong> filter node to pass only RPC requests where <code>msg.method</code> equals <code>"getCurrentTemperature"</code>.'
+  },
+]} />
+
+### Step 4.2 Rule Chain node
+
+Add the <DocLink product={props.product} path="reference/rule-engine/nodes/flow/rule-chain" target="_blank">Rule Chain</DocLink> node and connect it to the **Filter Script** node with relation type **True**.
+
+This node forwards matched requests to the **Related thermostat temperature** rule chain.
+
+Fill in the fields:
+- **Name**: `To Related Thermostat Temperature`
+- **Rule Chain**: `Related Thermostat Temperature`
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/rpc-reply-with-related-telemetry/update-root-rule-chain-2.png',
+    alt: 'Rule chain node configuration in root rule chain',
+    caption: 'Configure the <strong>Rule Chain</strong> node in the Root Rule Chain to forward RPC requests to the <strong>Related Thermostat Temperature</strong> rule chain.'
+  },
+]} />
+
+### Step 4.3 Log node
+
+Connect the existing **Log RPC from Device** node to the **Filter Script** node with relation type **False**.
+
+Requests with an unrecognized method are logged instead of dropped.
+
+<Aside type="note">
+  Do not delete the existing <strong>Log RPC from Device</strong> node — reconnect it from the <strong>False</strong> output of the filter node.
+</Aside>
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/rpc-reply-with-related-telemetry/update-root-rule-chain-3.png',
+    alt: 'Log RPC from Device node configuration',
+    caption: 'Configure the <strong>Log RPC from Device</strong> action node to log incoming RPC request payload and metadata for debugging using a JavaScript <code>ToString</code> function.'
+  },
+]} />
+
+### Step 4.4 Check the node connections
+
+- **Message Type Switch** → `RPC Request from Device` → **Filter getCurrentTemperature RPC**
+- **Filter getCurrentTemperature RPC** → `True` → **To Related thermostat temperature**
+- **Filter getCurrentTemperature RPC** → `False` → **Log RPC from Device**
+
+Save the Root Rule Chain.
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/rpc-reply-with-related-telemetry/update-root-rule-chain-4.png',
+    alt: 'Root rule chain RPC routing configuration',
+    caption: 'Update the <strong>Root Rule Chain</strong> to route <code>RPC Request from Device</code> messages through the <strong>getCurrentTemperature</strong> filter and forward valid requests to the <strong>Related Thermostat Temperature</strong> rule chain.'
+  },
+]} />
+
+## Step 5. Test the setup
+
+<Steps>
+1. Publish `temperature` telemetry for **Thermostat A**. Go to the device **Check connectivity** tab, copy the `curl` command and execute it, or run:
+
+    <HostCode product={props.product} lang="bash" code={`curl -v -X POST -d '{"temperature":25}' https://{HTTP_HOST}/api/v1/$ACCESS_TOKEN/telemetry --header "Content-Type:application/json"`} />
+
+    Replace `$ACCESS_TOKEN` with the access token of **Thermostat A**.
+  
+    <MultiProductImageGallery product={props.product} images={[
+      {
+        src: '/src/assets/images/recipes/rpc-reply-with-related-telemetry/test-the-setup-1.png',
+        alt: 'Log RPC from Device node configuration',
+        caption: 'Configure the <strong>Log RPC from Device</strong> action node to log incoming RPC request payload and metadata for debugging using a JavaScript <code>ToString</code> function.'
+      },
+    ]} />
+    
+2. Send an RPC request from **Controller A**. Go to the device **Check connectivity** tab and copy the `curl` command. Replace `telemetry` with `rpc` in the URL and use this payload:
+
+    <HostCode product={props.product} lang="bash" code={`curl -v -X POST -d '{"method":"getCurrentTemperature","params":{}}' https://{HTTP_HOST}/api/v1/$ACCESS_TOKEN/rpc --header "Content-Type:application/json"`} />
+
+    <MultiProductImageGallery product={props.product} images={[
+      {
+        src: '/src/assets/images/recipes/rpc-reply-with-related-telemetry/test-the-setup-2.png',
+        alt: 'Log RPC from Device node configuration',
+        caption: 'Configure the <strong>Log RPC from Device</strong> action node to log incoming RPC request payload and metadata for debugging using a JavaScript <code>ToString</code> function.'
+      },
+    ]} />
+  
+    Replace `$ACCESS_TOKEN` with the access token of **Controller A**.
+</Steps>
+
+**Expected result:**
+
+The response contains the temperature reported by **Thermostat A**:
+
+```json
+{"temperature":"25"}
+```
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/rpc-reply-with-related-telemetry/test-the-setup-3.png',
+    alt: 'Log RPC from Device node configuration',
+    caption: 'Configure the <strong>Log RPC from Device</strong> action node to log incoming RPC request payload and metadata for debugging using a JavaScript <code>ToString</code> function.'
+  },
+]} />
+
+If an RPC call with an unknown method is sent, the **Log RPC from Device** node logs the request:
+
+Incoming message:
+```text
+{ "method": "getCurrentHumidity", "params": {} }
+```
+
+Incoming metadata:
+
+```text
+{ "deviceName": "Controller A", "deviceType": "controller", "requestId": "0", "serviceId": "tb-http-transport-1", "sessionId": "68587996-a91b-4095-9c1a-5c6aa3f02183" }
+```
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/rpc-reply-with-related-telemetry/send-unknown-method-1.png',
+    alt: 'Unknown RPC method debug event',
+    caption: 'Verify the <strong>Debug events</strong> for the <strong>Log RPC from Device</strong> node to inspect incoming RPC requests with unsupported methods.'
+  },
+  {
+    src: '/src/assets/images/recipes/rpc-reply-with-related-telemetry/send-unknown-method-2.png',
+    alt: 'Unknown RPC request payload',
+    caption: 'Review the RPC request <strong>payload</strong> to confirm the unsupported method (e.g., <code>getCurrentHumidity</code>) received by the platform.'
+  },
+  {
+    src: '/src/assets/images/recipes/rpc-reply-with-related-telemetry/send-unknown-method-3.png',
+    alt: 'Unknown RPC request metadata',
+    caption: 'Inspect the <strong>metadata</strong> associated with the RPC request, including <code>requestId</code>, <code>serviceId</code>, and <code>sessionId</code>.'
+  },
+]} />
+
+## See also
+
+- <DocLink product={props.product} path="user-guide/rpc">RPC capabilities</DocLink> — for more information about how RPC works in ThingsBoard.
+- <DocLink product={props.product} path="recipes/trigger-related-entities-via-relation">Trigger related entities via relation</DocLink> — a related recipe using relations to trigger actions on another device.
+- <DocLink product={props.product} path="reference/rule-engine/nodes/enrichment/related-entity-data">Related Entity Data node</DocLink> — node reference for fetching data from related entities.

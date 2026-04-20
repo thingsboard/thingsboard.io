@@ -74,11 +74,15 @@ const linkChecker = new LinkChecker({
 	// reason about them. Their built HTML carries `noindex` and is filtered from
 	// the sitemap, so without this they would be invisible to the link checker.
 	additionalPathnames: Object.keys(redirects ?? {}),
-	// SEO canonical consolidation: pages in "free" versions have their <link rel="canonical">
-	// rewritten to the "professional" equivalent (see `src/routeData.ts`). These patterns tell
-	// the link checker that such canonical mismatches are consolidation (not URL-form
-	// canonicalization) — the `[can]` check will not fire for links to the actual pathname,
-	// and `[ref]` / `[lng]` / `[abs]` autofix suggestions will preserve product context.
+	// SEO canonical consolidation: pages in "free" versions whose content is ~95% identical
+	// to the "professional" equivalent have their <link rel="canonical"> rewritten to the PE
+	// URL (see `src/routeData.ts`). Edition-specific pages (installation/*, install/*,
+	// getting-started/*) and stubs with `selfCanonical: true` in frontmatter are self-canonical
+	// instead. These patterns tell the link checker which URL pairs count as consolidation —
+	// runtime still filters per page via `isConsolidationCanonical` (which returns false when
+	// canonical === pathname), so self-canonical pages fall through automatically. Effect:
+	// `[can]` does not fire for links to the actual pathname of a consolidation source, and
+	// `[ref]` / `[lng]` / `[abs]` autofixes preserve product context.
 	consolidationPatterns: [
 		// Main product: CE / PaaS / PaaS EU → PE
 		{ from: '/docs/', to: '/docs/pe/' },
