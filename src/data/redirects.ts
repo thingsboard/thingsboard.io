@@ -532,6 +532,7 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'paas/eu/user-guide/ui/widgets/trip-animation-widget', target: '/docs/paas/eu/reference/widgets/map-widgets/' },
 	{ oldPath: 'user-guide/contribution/widgets-development-before-3.0', target: '/docs/user-guide/contribution/widgets-development/' },
 	{ oldPath: 'pe/user-guide/contribution/widgets-development-before-3.0', target: '/docs/pe/user-guide/contribution/widgets-development/' },
+	{ oldPath: 'pe/user-guide/contribution/how-to-contribute-your-device-integration-guide', target: '/docs/user-guide/contribution/how-to-contribute-your-device-integration-guide/' },
 	{ oldPath: 'user-guide/contribution/ui/advanced-development', target: '/docs/user-guide/contribution/widgets-development/advanced/' },
 	{ oldPath: 'pe/user-guide/contribution/ui/advanced-development', target: '/docs/pe/user-guide/contribution/widgets-development/advanced/' },
 	{ oldPath: 'paas/user-guide/contribution/ui/advanced-development', target: '/docs/paas/user-guide/contribution/widgets-development/advanced/' },

@@ -206,7 +206,10 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 		label: 'Contribution',
 		collapsed: true,
 		items: [
-			...(!isPE ? [`${prefix}/contribution/how-to-contribute`] : []),
+			...(!isPE ? [
+				`${prefix}/contribution/how-to-contribute`,
+				`${prefix}/contribution/how-to-contribute-your-device-integration-guide`,
+			] : []),
 			`${prefix}/contribution/rule-node-development`,
 			`${prefix}/scada-symbol-dev`,
 			`${prefix}/contribution/custom-action-development`,
