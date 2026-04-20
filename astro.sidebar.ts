@@ -692,6 +692,7 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 					collapsed: true,
 					items: [
 						`${prefix}/widgets/alarm-widgets/alarms-table`,
+						`${prefix}/widgets/alarm-widgets/alarm-count`,
 					],
 				},
 				`${prefix}/widgets/widget-api`,
@@ -921,6 +922,7 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 					collapsed: true,
 					items: [
 						`${prefix}/widgets/alarm-widgets/alarms-table`,
+						`${prefix}/widgets/alarm-widgets/alarm-count`,
 					],
 				},
 				`${prefix}/widgets/widget-api`,
