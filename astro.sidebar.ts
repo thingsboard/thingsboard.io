@@ -683,16 +683,41 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 			collapsed: true,
 			items: [
 				`${prefix}/widgets/widget-library`,
-				`${prefix}/widgets/chart-widget`,
-				`${prefix}/widgets/map-widgets`,
-				`${prefix}/widgets/entity-table-widget`,
-				`${prefix}/widgets/markdown-html-card`,
 				{
 					label: 'Alarm widgets',
 					collapsed: true,
 					items: [
 						`${prefix}/widgets/alarm-widgets/alarms-table`,
 						`${prefix}/widgets/alarm-widgets/alarm-count`,
+					],
+				},
+				{
+					label: 'Cards',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/cards/markdown-html-card`,
+					],
+				},
+				{
+					label: 'Charts',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/charts/chart-widgets`,
+						`${prefix}/widgets/charts/line-chart`,
+					],
+				},
+				{
+					label: 'Maps',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/maps/map`,
+					],
+				},
+				{
+					label: 'Tables',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/tables/entities-table`,
 					],
 				},
 				`${prefix}/widgets/widget-api`,
@@ -913,16 +938,41 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 			collapsed: true,
 			items: [
 				`${prefix}/widgets/widget-library`,
-				`${prefix}/widgets/chart-widget`,
-				`${prefix}/widgets/map-widgets`,
-				`${prefix}/widgets/entity-table-widget`,
-				`${prefix}/widgets/markdown-html-card`,
 				{
 					label: 'Alarm widgets',
 					collapsed: true,
 					items: [
 						`${prefix}/widgets/alarm-widgets/alarms-table`,
 						`${prefix}/widgets/alarm-widgets/alarm-count`,
+					],
+				},
+				{
+					label: 'Cards',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/cards/markdown-html-card`,
+					],
+				},
+				{
+					label: 'Charts',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/charts/chart-widgets`,
+						`${prefix}/widgets/charts/line-chart`,
+					],
+				},
+				{
+					label: 'Maps',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/maps/map`,
+					],
+				},
+				{
+					label: 'Tables',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/tables/entities-table`,
 					],
 				},
 				`${prefix}/widgets/widget-api`,
