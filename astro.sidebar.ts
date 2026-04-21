@@ -696,6 +696,7 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 					collapsed: true,
 					items: [
 						`${prefix}/widgets/cards/markdown-html-card`,
+						`${prefix}/widgets/cards/value-card`,
 					],
 				},
 				{
@@ -718,6 +719,7 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 					collapsed: true,
 					items: [
 						`${prefix}/widgets/tables/entities-table`,
+						`${prefix}/widgets/tables/timeseries-table`,
 					],
 				},
 				`${prefix}/widgets/widget-api`,
@@ -951,6 +953,7 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 					collapsed: true,
 					items: [
 						`${prefix}/widgets/cards/markdown-html-card`,
+						`${prefix}/widgets/cards/value-card`,
 					],
 				},
 				{
@@ -973,6 +976,7 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 					collapsed: true,
 					items: [
 						`${prefix}/widgets/tables/entities-table`,
+						`${prefix}/widgets/tables/timeseries-table`,
 					],
 				},
 				`${prefix}/widgets/widget-api`,
