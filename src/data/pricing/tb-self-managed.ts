@@ -217,7 +217,7 @@ export const tbPerpetualHero: CommunityEditionData = {
 	ctaHref: '#',
 	ctaOnclick: 'window.openTbPerpCalc?.()',
 	secondaryCtaText: 'Contact Us',
-	secondaryCtaOnclick: "window.location.href='/contact-us/?subject=ThingsBoard%20Products'",
+	secondaryCtaHref: '/contact-us/?subject=ThingsBoard%20Products',
 };
 
 export const tbPerpetualPlans: PlanCard[] = [

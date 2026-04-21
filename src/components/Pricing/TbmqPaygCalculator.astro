@@ -55,7 +55,11 @@ import CalculatorInline from './CalculatorInline.astro';
 
 	function initTbmqPaygCalc() {
 		const c = document.getElementById('tbmq-payg-calc');
-		if (!c) return;
+		// Idempotent: skip if this container already has listeners bound. Prevents
+		// duplicates when astro:page-load fires against persisted DOM nodes (or when
+		// `pricing:product-activated` fires multiple times before a navigation).
+		if (!c || c.dataset.inited === 'true') return;
+		c.dataset.inited = 'true';
 		const $ = (s: string) => c.querySelector(s) as HTMLElement;
 		const sI = $('#mq-sessions') as HTMLInputElement, sS = $('#mq-sessions-slider') as HTMLInputElement;
 		const tI = $('#mq-throughput') as HTMLInputElement, tS = $('#mq-throughput-slider') as HTMLInputElement;
@@ -64,6 +68,15 @@ import CalculatorInline from './CalculatorInline.astro';
 		const wl = $('#mq-wl-toggle') as HTMLInputElement, hd = $('#mq-hd-toggle') as HTMLInputElement;
 
 		let st = { sessions: 100, throughput: 100, prod: 1, dev: 0, wl: false, hd: false };
+
+		// Single source of truth for the "free trial" predicate — shared by calc() and buildSummary().
+		const isBaseOnly = () =>
+			!st.wl && !st.hd &&
+			st.sessions <= MQ_PLAN.includedSessions &&
+			st.throughput <= MQ_PLAN.includedThroughput &&
+			st.prod <= MQ_PLAN.includedProdInstances &&
+			st.dev === 0;
+
 		const fmt = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/,/g, ' ');
 		const fN = (n: number) => n.toLocaleString('en-US').replace(/,/g, ' ');
 
@@ -88,7 +101,7 @@ import CalculatorInline from './CalculatorInline.astro';
 			const supportLevel = st.hd ? 'Priority Help Desk' : (total >= 300 ? 'Help Desk' : 'Community');
 			const supportTip = supportLevel === 'Community' ? 'Self-service access to public knowledge base, documentation, and community forums.' : supportLevel === 'Help Desk' ? 'Help Desk access to the dedicated TBMQ expert team for technical resolution.' : 'Prioritized ticket handling via a high-priority queue managed by the expert team.';
 			const subCost = MQ_PLAN.basePrice + sCost + tCost + pCost + dCost;
-			const baseOnly = subCost === MQ_PLAN.basePrice && !st.wl && !st.hd && eS === 0 && eT === 0 && eP === 0 && st.dev === 0;
+			const baseOnly = isBaseOnly();
 			const subPriceHtml = baseOnly ? `<span style="font-weight:700">$0.00</span> <span style="text-decoration:line-through;color:var(--color-text-secondary);font-weight:400">${fmt(subCost)}</span>` : fmt(subCost);
 			let html = `<div class="calc-section"><div class="calc-section-header"><span class="calc-section-title">Subscription</span><span class="calc-section-price">${subPriceHtml}${tip(baseOnly ? 'Free 30-day trial — subscription starts after trial ends.' : 'Total monthly subscription cost including extra resources (excluding add-ons).')}</span></div><div class="calc-section-body">`;
 			html += row('Included Sessions', fN(MQ_PLAN.includedSessions), "Number of sessions covered by this subscription plan's base price.");
@@ -194,7 +207,7 @@ import CalculatorInline from './CalculatorInline.astro';
 			let total = MQ_PLAN.basePrice + eS * MQ_PLAN.extraSessionsPrice + eT * MQ_PLAN.extraThroughputPrice + eP * MQ_PLAN.extraProdInstancesPrice + st.dev * MQ_PLAN.extraDevInstancesPrice;
 			if (st.wl) total += MQ_PLAN.whiteLabelingPrice;
 			if (st.hd) total += MQ_PLAN.priorityHelpDeskPrice;
-			const baseOnly = total === MQ_PLAN.basePrice && !st.wl && !st.hd && eS === 0 && eT === 0 && eP === 0 && st.dev === 0;
+			const baseOnly = isBaseOnly();
 			const supportLevel = st.hd ? 'Priority Help Desk' : (total >= 300 ? 'Help Desk' : 'Community');
 
 			const subCost = MQ_PLAN.basePrice + eS * MQ_PLAN.extraSessionsPrice + eT * MQ_PLAN.extraThroughputPrice + eP * MQ_PLAN.extraProdInstancesPrice + st.dev * MQ_PLAN.extraDevInstancesPrice;
@@ -252,15 +265,10 @@ import CalculatorInline from './CalculatorInline.astro';
 		requestAnimationFrame(() => { if (c) initAllSliders(c); });
 	}
 
-	// Defer TBMQ calculator init until TBMQ product tab is activated
-	let _mqPaygInited = false;
-	function _lazyInitMqPayg() {
-		if (_mqPaygInited) return;
-		_mqPaygInited = true;
-		initTbmqPaygCalc();
-	}
+	// Defer TBMQ calculator init until TBMQ product tab is activated. `initTbmqPaygCalc`
+	// is idempotent (data-inited on the container), so duplicate activation events or
+	// view-transition replays are safe.
 	document.addEventListener('pricing:product-activated', ((e: CustomEvent) => {
-		if (e.detail === 'tbmq') _lazyInitMqPayg();
+		if (e.detail === 'tbmq') initTbmqPaygCalc();
 	}) as EventListener);
-	document.addEventListener('astro:page-load', () => { _mqPaygInited = false; });
 </script>

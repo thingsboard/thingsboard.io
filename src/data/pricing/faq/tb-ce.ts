@@ -200,7 +200,7 @@ export const tbCeFaq: FaqCategory[] = [
 			{
 				id: 'ce-contribute',
 				question: 'Can I contribute to the development of ThingsBoard Community Edition?',
-				answer: '<p>Yes! Pull requests and contributions are welcome on <a target="_blank" href="https://github.com/thingsboard/thingsboard/issues">GitHub</a>.</p>',
+				answer: '<p>Yes! Pull requests and contributions are welcome on <a target="_blank" href="https://github.com/thingsboard/">GitHub</a>.</p>',
 			},
 			{
 				id: 'ce-development-services',
