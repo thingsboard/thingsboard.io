@@ -1,15 +1,23 @@
 ---
 import { getImage } from 'astro:assets';
 import type { ImageMetadata } from 'astro';
+import { getDocsPrefix, Products } from '~/models/site.models';
 
 interface Props {
 	src: string;
 	alt: string;
 	width?: number | string;
 	align?: 'left' | 'center' | 'right';
+	/**
+	 * Product context for inlined interactive SVGs. When provided, every
+	 * `/docs/…` link inside the SVG is rewritten to `/docs/{prefix}…` so the
+	 * same diagram works correctly across CE/PE/PaaS/Edge/etc. SVGs on disk
+	 * carry CE paths as the source of truth (validated by lint-linkcheck).
+	 */
+	product?: Products;
 }
 
-const { src, alt, width, align = 'center' } = Astro.props;
+const { src, alt, width, align = 'center', product } = Astro.props;
 
 const numericWidth = typeof width === 'number' ? width : undefined;
 const styleWidth = typeof width === 'string' ? width : undefined;
@@ -26,8 +34,28 @@ const assetModules = import.meta.glob<{ default: ImageMetadata }>(
 	{ eager: true }
 );
 
+// Raw SVG sources, so diagrams with clickable <a> can be inlined.
+// <img src> disables SVG interactivity in every browser, so there is no
+// way to make the links work other than rendering the SVG inline.
+const svgRawModules = import.meta.glob<string>(
+	'/src/assets/**/*.svg',
+	{ eager: true, query: '?raw', import: 'default' }
+);
+
 const mod = assetModules[src];
 const isSvg = src.endsWith('.svg');
+const rawSvg = isSvg ? svgRawModules[src] : undefined;
+let interactiveSvg = rawSvg && /<a[\s>]/i.test(rawSvg) ? rawSvg : null;
+
+// Rewrite hrefs for the current product so inline diagrams navigate within
+// the same product context (CE → PE/PaaS/etc). SVG source stays CE-based.
+if (interactiveSvg && product && product !== Products.CE) {
+	const prefix = getDocsPrefix(product);
+	interactiveSvg = interactiveSvg.replace(
+		/((?:xlink:)?href=")\/docs\//g,
+		`$1/docs/${prefix}`
+	);
+}
 const optimized =
 	mod && !isSvg
 		? await getImage({
@@ -39,9 +67,17 @@ const optimized =
 		: null;
 ---
 
-<figure class="doc-image" style={figureStyle}>
+<figure
+	class="doc-image"
+	class:list={{ 'doc-image--inline-svg': !!interactiveSvg }}
+	style={figureStyle}
+	role={interactiveSvg ? 'img' : undefined}
+	aria-label={interactiveSvg ? alt : undefined}
+>
 	{
-		optimized ? (
+		interactiveSvg ? (
+			<Fragment set:html={interactiveSvg} />
+		) : optimized ? (
 			<img
 				src={optimized.src}
 				alt={alt}
@@ -65,6 +101,13 @@ const optimized =
 	}
 
 	.doc-image img {
+		max-width: 100%;
+		height: auto;
+		border-radius: 6px;
+	}
+
+	/* Inlined interactive SVGs (set:html content is not Astro-scoped). */
+	.doc-image--inline-svg :global(svg) {
 		max-width: 100%;
 		height: auto;
 		border-radius: 6px;
