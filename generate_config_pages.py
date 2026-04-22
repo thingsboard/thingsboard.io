@@ -37,15 +37,15 @@ def parse_line(table_name, table_description, comment, key_level_map, parent_lin
                     index = index + 1
                     parse_line(table_name, table_description, comment, key_level_map, line_level, index, lines, properties, has_section_properties, after_empty_comment=True)
                     return
-                if has_section_properties or table_description or after_empty_comment:
-                    # Properties already seen, description already set, or preceded by an empty
-                    # comment line — this comment starts a new section
+                if has_section_properties or after_empty_comment:
+                    # Properties already seen or preceded by an empty comment line —
+                    # this comment starts a new section
                     table_name = comment_text
                     table_description = ''
                     has_section_properties = False
                 elif table_name:
-                    # Name set, no description, no properties yet — this is the description
-                    table_description = comment_text
+                    # Name set, no properties yet — append to the description (preserving line breaks)
+                    table_description = (table_description + '\n' + comment_text) if table_description else comment_text
                 else:
                     # Nothing set yet — this line is the section name
                     table_name = comment_text
@@ -102,6 +102,42 @@ _HTML_TAG_RE = re.compile(
     re.IGNORECASE,
 )
 
+_URL_RE = re.compile(r'https?://[^\s<>"\'()\[\]]+')
+
+
+def _escape_mdx(text):
+    return (
+        text.replace('&', '&amp;')
+        .replace('<', '&lt;')
+        .replace('>', '&gt;')
+        .replace('{', '&#123;')
+        .replace('}', '&#125;')
+        .replace('_', '&#95;')
+        .replace('*', '&#42;')
+    )
+
+
+def _escape_plain_text(text):
+    # Escape MDX-special characters, but wrap any http(s):// URLs as {'...'}
+    # JSX string expressions so MDX does not auto-link them.
+    result = []
+    last_end = 0
+    for m in _URL_RE.finditer(text):
+        url = m.group(0)
+        # Drop trailing punctuation that is likely sentence-level, not part of the URL
+        while url and url[-1] in '.,;:!?':
+            url = url[:-1]
+        if not url:
+            continue
+        start = m.start()
+        end = start + len(url)
+        result.append(_escape_mdx(text[last_end:start]))
+        safe_url = url.replace('\\', '\\\\').replace("'", "\\'")
+        result.append("{'" + safe_url + "'}")
+        last_end = end
+    result.append(_escape_mdx(text[last_end:]))
+    return ''.join(result)
+
 
 def escape_cell(text):
     text = str(text).replace('\n', ' ').strip()
@@ -113,17 +149,8 @@ def escape_cell(text):
     for i, part in enumerate(parts):
         if i % 2 == 1:  # captured HTML tag — preserve as-is
             result.append(part)
-        else:            # plain text — escape MDX-special characters
-            result.append(
-                part
-                .replace('&', '&amp;')
-                .replace('<', '&lt;')
-                .replace('>', '&gt;')
-                .replace('{', '&#123;')
-                .replace('}', '&#125;')
-                .replace('_', '&#95;')
-                .replace('*', '&#42;')
-            )
+        else:            # plain text — escape MDX-special characters + neutralize URLs
+            result.append(_escape_plain_text(part))
     return ''.join(result)
 
 
@@ -133,6 +160,8 @@ def generate_section(table_name, rows, product='ce'):
     html = f'## {table_name.strip()}\n\n'
     table_description = rows[0][5].strip() if rows and len(rows[0]) > 5 else ''
     if table_description:
+        # Preserve multi-line descriptions as <br /> so multi-paragraph banners stay readable
+        table_description = table_description.replace('\n', '<br />')
         html += f'<Banner variant="{product}">{escape_cell(table_description)}</Banner>\n\n'
     html += '<div class="config-def-list">\n'
     for row in rows:
