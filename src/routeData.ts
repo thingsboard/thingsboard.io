@@ -14,7 +14,7 @@ import {
 	stripLanguagePrefix,
 	type SupportedLanguage,
 } from '~/util/path-utils';
-import { DOCS_SUFFIX, formatDocsTitle } from '~/consts';
+import { DOCS_SUFFIX, formatDocsTitle, TITLE_SEPARATOR } from '~/consts';
 import { getOgImageUrl } from '~/util/getOgImageUrl';
 import { getTutorialPages } from '~/util/getTutorialPages';
 
@@ -194,7 +194,8 @@ function updateHead(context: APIContext) {
 		const lang = getLanguageFromURL(pathname);
 		const versionBase = `/${getLanguagePrefix(lang)}docs/${getVersionPrefix(product)}`;
 		const isIndex = pathname === versionBase;
-		const docsSuffixMatcher = new RegExp(` \\| ${DOCS_SUFFIX}$`);
+		const escapedSep = TITLE_SEPARATOR.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+		const docsSuffixMatcher = new RegExp(` ${escapedSep} ${DOCS_SUFFIX}$`);
 		const pageTitle = title.content.replace(docsSuffixMatcher, '');
 		title.content = formatDocsTitle(pageTitle, productTitleName, isIndex);
 

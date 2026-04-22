@@ -12,6 +12,7 @@ export const SECTION_LABELS: Record<string, string> = {
 	'/partners/': 'Partners',
 	'/services/': 'Services',
 	'/careers/': 'Careers',
+	// Lives at /clients-feedback/ but is surfaced as "About" in the title for SEO.
 	'/clients-feedback/': 'About',
 };
 
