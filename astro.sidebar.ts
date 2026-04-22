@@ -692,6 +692,14 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 					],
 				},
 				{
+					label: 'Buttons',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/buttons/power-button`,
+						`${prefix}/widgets/buttons/value-stepper`,
+					],
+				},
+				{
 					label: 'Cards',
 					collapsed: true,
 					items: [
@@ -946,6 +954,14 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 					items: [
 						`${prefix}/widgets/alarm-widgets/alarms-table`,
 						`${prefix}/widgets/alarm-widgets/alarm-count`,
+					],
+				},
+				{
+					label: 'Buttons',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/buttons/power-button`,
+						`${prefix}/widgets/buttons/value-stepper`,
 					],
 				},
 				{
