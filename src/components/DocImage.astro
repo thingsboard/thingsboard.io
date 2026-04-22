@@ -37,14 +37,17 @@ const assetModules = import.meta.glob<{ default: ImageMetadata }>(
 // Raw SVG sources, so diagrams with clickable <a> can be inlined.
 // <img src> disables SVG interactivity in every browser, so there is no
 // way to make the links work other than rendering the SVG inline.
+// Lazy so Vite only reads the SVG actually referenced by this DocImage —
+// eager would pull ~400 SVG source strings into the module graph even
+// though only a handful contain <a> tags.
 const svgRawModules = import.meta.glob<string>(
 	'/src/assets/**/*.svg',
-	{ eager: true, query: '?raw', import: 'default' }
+	{ query: '?raw', import: 'default' }
 );
 
 const mod = assetModules[src];
 const isSvg = src.endsWith('.svg');
-const rawSvg = isSvg ? svgRawModules[src] : undefined;
+const rawSvg = isSvg ? await svgRawModules[src]?.() : undefined;
 let interactiveSvg = rawSvg && /<a[\s>]/i.test(rawSvg) ? rawSvg : null;
 
 // Rewrite hrefs for the current product so inline diagrams navigate within
@@ -55,6 +58,16 @@ if (interactiveSvg && product && product !== Products.CE) {
 		/((?:xlink:)?href=")\/docs\//g,
 		`$1/docs/${prefix}`
 	);
+}
+
+// Expose `alt` as the SVG's own accessible name. No `role="img"`: that role
+// hides the subtree from AT, making the interactive <a> anchors unreachable
+// for screen-reader users — defeats the point of inlining them. SVG's
+// default graphics-document role keeps children exposed while still picking
+// up `aria-label` as the accessible name.
+if (interactiveSvg) {
+	const escapedAlt = alt.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+	interactiveSvg = interactiveSvg.replace(/<svg\b/, `<svg aria-label="${escapedAlt}"`);
 }
 const optimized =
 	mod && !isSvg
@@ -71,8 +84,6 @@ const optimized =
 	class="doc-image"
 	class:list={{ 'doc-image--inline-svg': !!interactiveSvg }}
 	style={figureStyle}
-	role={interactiveSvg ? 'img' : undefined}
-	aria-label={interactiveSvg ? alt : undefined}
 >
 	{
 		interactiveSvg ? (
