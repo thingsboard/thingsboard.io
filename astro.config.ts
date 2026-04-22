@@ -14,10 +14,19 @@ import icon from 'astro-icon';
 import svgo from 'vite-plugin-svgo';
 import { fileURLToPath } from 'node:url';
 
-/* https://docs.netlify.com/configure-builds/environment-variables/#read-only-variables */
+/* Cloudflare Pages: https://developers.cloudflare.com/pages/configuration/build-configuration/#environment-variables */
+const PUBLIC_SITE_URL = process.env.PUBLIC_SITE_URL;
+const CF_PAGES_URL = process.env.CF_PAGES_URL;
+const CF_PAGES_BRANCH = process.env.CF_PAGES_BRANCH;
+
+/* Netlify (kept as fallback in case of platform switch): https://docs.netlify.com/configure-builds/environment-variables/#read-only-variables */
 const NETLIFY_PREVIEW_SITE = process.env.CONTEXT !== 'production' && process.env.DEPLOY_PRIME_URL;
 
-const site = NETLIFY_PREVIEW_SITE || 'https://thingsboard.io/';
+const site =
+	PUBLIC_SITE_URL ||
+	(CF_PAGES_BRANCH && CF_PAGES_URL ? CF_PAGES_URL : null) ||
+	NETLIFY_PREVIEW_SITE ||
+	'https://thingsboard.io/';
 
 // https://astro.build/config
 export default defineConfig({
