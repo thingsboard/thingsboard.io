@@ -10,9 +10,11 @@ import {
 	getPageSlugFromURL,
 	getVersionPrefix,
 	getLanguagePrefix,
+	getProductTitleName,
 	stripLanguagePrefix,
 	type SupportedLanguage,
 } from '~/util/path-utils';
+import { DOCS_SUFFIX, formatDocsTitle, TITLE_SEPARATOR } from '~/consts';
 import { getOgImageUrl } from '~/util/getOgImageUrl';
 import { getTutorialPages } from '~/util/getTutorialPages';
 
@@ -183,6 +185,29 @@ function updateHead(context: APIContext) {
 		title.content = context.locals.t('tutorial.title.prefix', 'Tutorial - {{title}}', {
 			title: title.content,
 		});
+	}
+
+	const pathname = context.url.pathname;
+	if (title && title.content && /^\/(uk\/)?docs(\/|$)/.test(pathname)) {
+		const product = getVersionFromURL(pathname);
+		const productTitleName = getProductTitleName(product);
+		const lang = getLanguageFromURL(pathname);
+		const versionBase = `/${getLanguagePrefix(lang)}docs/${getVersionPrefix(product)}`;
+		const isIndex = pathname === versionBase;
+		const escapedSep = TITLE_SEPARATOR.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+		const docsSuffixMatcher = new RegExp(` ${escapedSep} ${DOCS_SUFFIX}$`);
+		const pageTitle = title.content.replace(docsSuffixMatcher, '');
+		title.content = formatDocsTitle(pageTitle, productTitleName, isIndex);
+
+		for (const item of head) {
+			if (
+				item.tag === 'meta' &&
+				item.attrs &&
+				(item.attrs.property === 'og:title' || item.attrs.name === 'twitter:title')
+			) {
+				item.attrs.content = title.content;
+			}
+		}
 	}
 
 	const ogImageUrl = getOgImageUrl(context.url.pathname, false);
