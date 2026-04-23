@@ -5,8 +5,10 @@ import { z } from 'astro/zod';
 import { file, glob } from 'astro/loaders';
 import { logoKeys } from './data/logos';
 import { Products } from './models/site.models';
-import fs from 'node:fs';
-import path from 'node:path';
+import { PLATFORM_VALUES, type DevicePlatform } from './util/device-platform';
+
+export { PLATFORM_VALUES };
+export type { DevicePlatform };
 
 export const baseSchema = z.object({
 	type: z.literal('base').optional().default('base'),
@@ -92,22 +94,29 @@ export const recipeSchema = baseSchema.extend({
 export const deviceSchema = z.object({
 	title: z.string(),
 	vendor: z.string().optional(),
-	deviceImageFileName: z.string(),
-	hardwareType: z.string(),
+	deviceImageFileName: z.string().default('placeholder.svg'),
+	hardwareType: z.string().default('Other devices'),
 	connectivity: z
 		.array(z.string())
 		.or(z.string())
-		.transform((v) => (Array.isArray(v) ? v : [v])),
+		.transform((v) => (Array.isArray(v) ? v : [v]))
+		.default([]),
 	industry: z
 		.array(z.string())
 		.or(z.string())
-		.transform((v) => (Array.isArray(v) ? v : [v])),
+		.transform((v) => (Array.isArray(v) ? v : [v]))
+		.default([]),
 	useCase: z
 		.array(z.string())
 		.or(z.string())
-		.transform((v) => (Array.isArray(v) ? v : [v])),
+		.transform((v) => (Array.isArray(v) ? v : [v]))
+		.default([]),
 	chip: z.string().optional(),
 	category: z.string().optional(),
+	platforms: z
+		.array(z.enum(PLATFORM_VALUES))
+		.default([...PLATFORM_VALUES]),
+	hasBranching: z.boolean().default(false),
 });
 
 export const blogSchema = z.object({
@@ -293,13 +302,7 @@ export const collections = {
 		schema: z.object({ avatar_url: z.string() }),
 	}),
 	devices: defineCollection({
-		loader: async () => {
-			// loader: glob({ pattern: '**/*.mdx', base: './src/content/devices' }),
-			const filePath = path.join(process.cwd(), 'src/data/devices.json');
-			const fileContent = fs.readFileSync(filePath, 'utf-8');
-			const data = JSON.parse(fileContent);
-			return data;
-		},
+		loader: glob({ pattern: '**/*.mdx', base: './src/content/devices' }),
 		schema: deviceSchema,
 	}),
 };

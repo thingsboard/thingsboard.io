@@ -69,7 +69,6 @@ const linkChecker = new LinkChecker({
 	baseUrl: 'https://thingsboard.io',
 	buildOutputDir: './dist',
 	pageSourceDir: './src/content/docs',
-	excludePagePatterns: [/^\/device-library\//],
 	// Include `astro.redirects` entries as pages so `[ref]` and its autofix can
 	// reason about them. Their built HTML carries `noindex` and is filtered from
 	// the sitemap, so without this they would be invisible to the link checker.
@@ -94,9 +93,7 @@ const linkChecker = new LinkChecker({
 		{ from: '/docs/mobile/', to: '/docs/mobile/pe/' },
 	],
 	checks: [
-		new TargetExists({
-			ignoredLinkPathnames: ['/device-library/', '/docs/samples'],
-		}),
+		new TargetExists(),
 		new SameLanguage({
 			ignoredLinkPathnames: ['/lighthouse/'],
 		}),

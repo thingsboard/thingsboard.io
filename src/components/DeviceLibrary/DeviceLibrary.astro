@@ -3,62 +3,46 @@ import DeviceCard from './DeviceCard.astro';
 import FilterSidebar from './FilterSidebar.astro';
 import SearchBar from './SearchBar.astro';
 import Pagination from './Pagination.astro';
-import { DEFAULT_LOCALE } from '~/util/language-router';
+import { PLATFORM_VALUES } from '~/util/device-platform';
 
 interface Device {
 	id: string;
 	title: string;
 	vendor?: string;
 	imageSrc: string;
+	imageWidth?: number;
+	imageHeight?: number;
 	hardwareType: string;
 	connectivity: string[];
 	industry: string[];
 	useCase: string[];
+	platforms: string[];
 }
 
 interface Props {
 	devices: Device[];
-	lang: 'en' | 'uk';
 }
 
-const { devices, lang } = Astro.props;
+const { devices } = Astro.props;
 
 const PAGE_SIZE = 12;
 
-const translations = {
-	en: {
-		filters: 'Filters',
-		clearAll: 'Clear all',
-		hardwareType: 'Hardware Type',
-		connectivity: 'Connectivity',
-		industry: 'Industry',
-		useCase: 'Use Case',
-		noResults: 'No devices match your filters.',
-		devicesFound: 'devices found',
-		searchPlaceholder: 'Search devices...',
-		previous: 'Previous',
-		next: 'Next',
-		page: 'Page',
-		of: 'of',
-	},
-	uk: {
-		filters: 'Фільтри',
-		clearAll: 'Очистити все',
-		hardwareType: 'Тип обладнання',
-		connectivity: 'Підключення',
-		industry: 'Галузь',
-		useCase: 'Сфера застосування',
-		noResults: 'Жоден пристрій не відповідає вашим фільтрам.',
-		devicesFound: 'пристроїв знайдено',
-		searchPlaceholder: 'Пошук пристроїв...',
-		previous: 'Попередня',
-		next: 'Наступна',
-		page: 'Сторінка',
-		of: 'з',
-	},
+const t = {
+	filters: 'Filters',
+	clearAll: 'Clear all',
+	platform: 'Platform',
+	hardwareType: 'Hardware Type',
+	connectivity: 'Connectivity',
+	industry: 'Industry',
+	useCase: 'Use Case',
+	noResults: 'No devices match your filters.',
+	devicesFound: 'devices found',
+	searchPlaceholder: 'Search devices...',
+	previous: 'Previous',
+	next: 'Next',
+	page: 'Page',
+	of: 'of',
 };
-
-const t = translations[lang || DEFAULT_LOCALE];
 
 // Extract unique filter values with counts
 function getFilterValues(key: keyof Device): { value: string; count: number }[] {
@@ -76,7 +60,31 @@ function getFilterValues(key: keyof Device): { value: string; count: number }[] 
 		.sort((a, b) => a.value.localeCompare(b.value));
 }
 
+// Platforms sort in product-progression order (CE → PE → Cloud → Cloud EU →
+// Edge → Edge PE), matching the canonical `PLATFORM_VALUES` list rather than
+// alphabetical. Unknown platforms (shouldn't happen) fall back to alphabetical
+// at the end.
+function getPlatformFilterValues(): { value: string; count: number }[] {
+	const raw = new Map<string, number>();
+	devices.forEach((device) => {
+		device.platforms.forEach((v) => raw.set(v, (raw.get(v) || 0) + 1));
+	});
+	const ordered: { value: string; count: number }[] = [];
+	for (const p of PLATFORM_VALUES) {
+		if (raw.has(p)) {
+			ordered.push({ value: p, count: raw.get(p)! });
+			raw.delete(p);
+		}
+	}
+	// Append any stragglers alphabetically.
+	const leftover = Array.from(raw.entries())
+		.map(([value, count]) => ({ value, count }))
+		.sort((a, b) => a.value.localeCompare(b.value));
+	return [...ordered, ...leftover];
+}
+
 const filterGroups = [
+	{ name: t.platform, key: 'platforms', values: getPlatformFilterValues(), single: true },
 	{ name: t.hardwareType, key: 'hardwareType', values: getFilterValues('hardwareType') },
 	{ name: t.connectivity, key: 'connectivity', values: getFilterValues('connectivity') },
 	{ name: t.industry, key: 'industry', values: getFilterValues('industry') },
@@ -85,10 +93,9 @@ const filterGroups = [
 
 // Generate href for each device
 function getDeviceHref(deviceId: string): string {
-	const [deviceLang, ...slugParts] = deviceId.split('/');
+	const [, ...slugParts] = deviceId.split('/');
 	const slug = slugParts.join('/');
-	const basePath = deviceLang === 'en' ? '/device-library' : `/${deviceLang}/device-library`;
-	return `${basePath}/${slug}/`;
+	return `/device-library/${slug}/`;
 }
 
 // Prepare device data with href for client-side rendering
@@ -128,10 +135,13 @@ const initialDevices = devicesWithHref.slice(0, PAGE_SIZE);
 						title={device.title}
 						vendor={device.vendor}
 						imageSrc={device.imageSrc}
+						imageWidth={device.imageWidth}
+						imageHeight={device.imageHeight}
 						hardwareType={device.hardwareType}
 						connectivity={device.connectivity}
 						industry={device.industry}
 						useCase={device.useCase}
+						platforms={device.platforms}
 						href={device.href}
 					/>
 				))
@@ -146,7 +156,13 @@ const initialDevices = devicesWithHref.slice(0, PAGE_SIZE);
 	</div>
 </div>
 
-<!-- Store all devices data for client-side API emulation -->
+<!--
+	Store all devices data for client-side filter/search/pagination.
+	Inlined rather than fetched so filters are interactive immediately on page
+	load. Measured payload at ~123 devices: 66 KB raw / 7.7 KB gzipped — fine.
+	If the catalog crosses ~300 devices or ~25 KB gzipped, revisit: move to a
+	build-time emitted `/api/devices.json` and fetch on `astro:page-load`.
+-->
 <script is:inline define:vars={{ devicesWithHref }}>
 	window.__DEVICE_LIBRARY_DATA__ = devicesWithHref;
 </script>
@@ -157,11 +173,20 @@ const initialDevices = devicesWithHref.slice(0, PAGE_SIZE);
 		title: string;
 		vendor?: string;
 		imageSrc: string;
+		imageWidth?: number;
+		imageHeight?: number;
 		hardwareType: string;
 		connectivity: string[];
 		industry: string[];
 		useCase: string[];
+		platforms: string[];
 		href: string;
+	}
+
+	declare global {
+		interface Window {
+			__DEVICE_LIBRARY_DATA__?: Device[];
+		}
 	}
 
 	interface SearchParams {
@@ -204,7 +229,8 @@ const initialDevices = devicesWithHref.slice(0, PAGE_SIZE);
 				if (key === 'hardwareType') {
 					deviceValues = [device.hardwareType];
 				} else {
-					deviceValues = device[key as 'connectivity' | 'industry' | 'useCase'] || [];
+					deviceValues =
+						device[key as 'connectivity' | 'industry' | 'useCase' | 'platforms'] || [];
 				}
 
 				const hasMatch = values.some((v) => deviceValues.includes(v));
@@ -233,10 +259,18 @@ const initialDevices = devicesWithHref.slice(0, PAGE_SIZE);
 	}
 
 	function initDeviceLibrary() {
-		const container = document.querySelector('.device-library');
+		const container = document.querySelector<HTMLElement>('.device-library');
 		if (!container) return;
+		// DOM-level idempotency marker — `astro:page-load` fires on both the
+		// initial page load and on every view-transition navigation, so this
+		// handler can run multiple times against the same DOM. Without the
+		// marker every filter checkbox / pagination button / search input
+		// would accumulate listeners (pagination Prev/Next would skip two
+		// pages per click, search debounce would leak timers, etc.).
+		if (container.dataset.inited === 'true') return;
+		container.dataset.inited = 'true';
 
-		const allDevices = (window as any).__DEVICE_LIBRARY_DATA__ as Device[];
+		const allDevices = window.__DEVICE_LIBRARY_DATA__;
 		if (!allDevices) return;
 
 		const api = createDeviceAPI(allDevices);
@@ -265,6 +299,47 @@ const initialDevices = devicesWithHref.slice(0, PAGE_SIZE);
 		let currentPage = 1;
 		let debounceTimer: ReturnType<typeof setTimeout>;
 
+		// Map between ?platform=X URL values and platform display labels used as filter values.
+		const PLATFORM_LABEL_BY_QUERY: Record<string, string> = {
+			ce: 'CE',
+			pe: 'PE',
+			paas: 'Cloud',
+			'paas-eu': 'Cloud EU',
+			edge: 'Edge',
+			'pe-edge': 'Edge PE',
+		};
+		const PLATFORM_QUERY_BY_LABEL: Record<string, string> = Object.fromEntries(
+			Object.entries(PLATFORM_LABEL_BY_QUERY).map(([q, l]) => [l, q]),
+		);
+
+		function syncFiltersFromUrl(): void {
+			const params = new URLSearchParams(window.location.search);
+			const platformValue = params.get('platform');
+			if (!platformValue) return;
+			const label = PLATFORM_LABEL_BY_QUERY[platformValue.toLowerCase()];
+			if (!label) return;
+			filterCheckboxes.forEach((cb) => {
+				if (cb.name === 'platforms' && cb.value === label) cb.checked = true;
+			});
+		}
+
+		function syncUrlFromFilters(): void {
+			const params = new URLSearchParams(window.location.search);
+			const checkedPlatforms = Array.from(filterCheckboxes)
+				.filter((cb) => cb.checked && cb.name === 'platforms')
+				.map((cb) => cb.value);
+			if (checkedPlatforms.length === 1) {
+				const q = PLATFORM_QUERY_BY_LABEL[checkedPlatforms[0]!];
+				if (q) params.set('platform', q);
+				else params.delete('platform');
+			} else {
+				params.delete('platform');
+			}
+			const search = params.toString();
+			const url = window.location.pathname + (search ? '?' + search : '');
+			window.history.replaceState(null, '', url);
+		}
+
 		function getActiveFilters(): Record<string, string[]> {
 			const filters: Record<string, string[]> = {};
 			filterCheckboxes.forEach((checkbox) => {
@@ -277,33 +352,63 @@ const initialDevices = devicesWithHref.slice(0, PAGE_SIZE);
 			return filters;
 		}
 
+		function hrefWithActivePlatform(base: string): string {
+			// Carry the catalog's current ?platform= filter onto each card link so
+			// a user who filtered to Cloud EU and clicks a device lands on the
+			// guide with ?platform=paas-eu — the detail page then substitutes the
+			// right hostnames (eu.thingsboard.cloud etc.) in code snippets.
+			const params = new URLSearchParams(window.location.search);
+			const platform = params.get('platform');
+			if (!platform) return base;
+			return `${base}${base.includes('?') ? '&' : '?'}platform=${encodeURIComponent(platform)}`;
+		}
+
+		// HTML entity escape — safe for text content AND attribute values
+		// (escapes both `"` and `'`, so either quote style is safe). Used on
+		// every frontmatter-sourced string interpolated into the template
+		// literal below. Catalog content is authored, not user-submitted, but
+		// values like `16A Switch & Power Meter` and future titles with
+		// apostrophes ("O'Brien Sensor") would otherwise produce invalid HTML
+		// or break single-quoted attributes.
+		function esc(s: string): string {
+			return s
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;')
+				.replace(/"/g, '&quot;')
+				.replace(/'/g, '&#39;');
+		}
+
 		function renderDeviceCard(device: Device): string {
-			const connectivityJson = JSON.stringify(device.connectivity);
-			const industryJson = JSON.stringify(device.industry);
-			const useCaseJson = JSON.stringify(device.useCase);
+			const connectivityJson = esc(JSON.stringify(device.connectivity));
+			const industryJson = esc(JSON.stringify(device.industry));
+			const useCaseJson = esc(JSON.stringify(device.useCase));
+			const platformsJson = esc(JSON.stringify(device.platforms));
 
 			const industryChips = device.industry
 				.slice(0, 3)
-				.map((ind) => `<span class="filter-chip">${ind}</span>`)
+				.map((ind) => `<span class="filter-chip">${esc(ind)}</span>`)
 				.join('');
 			const moreChip =
 				device.industry.length > 3
 					? `<span class="filter-chip">+${device.industry.length - 3}</span>`
 					: '';
 
+			const title = esc(device.title);
 			return `
-				<a href="${device.href}" class="device-card"
-					data-device-id="${device.id}"
-					data-hardware-type="${device.hardwareType}"
-					data-connectivity='${connectivityJson}'
-					data-industry='${industryJson}'
-					data-use-case='${useCaseJson}'>
+				<a href="${esc(hrefWithActivePlatform(device.href))}" class="device-card"
+					data-device-id="${esc(device.id)}"
+					data-hardware-type="${esc(device.hardwareType)}"
+					data-connectivity="${connectivityJson}"
+					data-industry="${industryJson}"
+					data-use-case="${useCaseJson}"
+					data-platforms="${platformsJson}">
 					<div class="device-image">
-						<img src="${device.imageSrc}" alt="${device.title}" loading="lazy" />
+						<img src="${esc(device.imageSrc)}" alt="${title}" loading="lazy"${device.imageWidth ? ` width="${device.imageWidth}"` : ''}${device.imageHeight ? ` height="${device.imageHeight}"` : ''} />
 					</div>
 					<div class="device-content">
-						<h3 class="device-title">${device.title}</h3>
-						${device.vendor ? `<p class="device-vendor">${device.vendor}</p>` : ''}
+						<h3 class="device-title">${title}</h3>
+						${device.vendor ? `<p class="device-vendor">${esc(device.vendor)}</p>` : ''}
 						<div class="device-chips">
 							${industryChips}${moreChip}
 						</div>
@@ -394,12 +499,28 @@ const initialDevices = devicesWithHref.slice(0, PAGE_SIZE);
 
 		function resetAndUpdate() {
 			currentPage = 1;
+			syncUrlFromFilters();
 			updateDisplay();
 		}
 
+		// Pre-check filter chips from ?platform=X URL state, then re-render if any synced.
+		const hadUrlPlatform = new URLSearchParams(window.location.search).has('platform');
+		syncFiltersFromUrl();
+		if (hadUrlPlatform) updateDisplay();
+
 		// Event listeners
 		filterCheckboxes.forEach((checkbox) => {
-			checkbox.addEventListener('change', resetAndUpdate);
+			checkbox.addEventListener('change', () => {
+				// Single-select groups (e.g. Platform) — uncheck other options
+				// in the same group so only one stays active at a time.
+				const group = checkbox.closest<HTMLElement>('.filter-group');
+				if (group?.dataset.single === 'true' && checkbox.checked) {
+					group.querySelectorAll<HTMLInputElement>('input[type="checkbox"]').forEach((other) => {
+						if (other !== checkbox) other.checked = false;
+					});
+				}
+				resetAndUpdate();
+			});
 		});
 
 		clearFiltersBtn?.addEventListener('click', () => {
@@ -452,10 +573,13 @@ const initialDevices = devicesWithHref.slice(0, PAGE_SIZE);
 		renderPagination(1, initialTotalPages);
 	}
 
-	// Run on page load
+	// Run on cold load AND on every view-transition navigation. The direct
+	// call covers the case where `astro:page-load` already fired before this
+	// module finished loading (Astro client scripts are async, so the event
+	// can race the listener registration). Running twice is harmless — the
+	// `data-inited` marker inside `initDeviceLibrary` makes the second call
+	// a no-op.
 	initDeviceLibrary();
-
-	// Re-run on Astro page transitions
 	document.addEventListener('astro:page-load', initDeviceLibrary);
 </script>
 

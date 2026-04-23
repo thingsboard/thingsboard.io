@@ -130,6 +130,12 @@ export function pluginMaxLines() {
 					requestAnimationFrame(initMaxLines);
 				}
 			});
+
+			// Device-library PlatformToggle dispatches this when it swaps the
+			// visible variant. Double RAF so layout settles after display: block.
+			document.addEventListener('dl-variant-change', () => {
+				requestAnimationFrame(() => requestAnimationFrame(initMaxLines));
+			});
 			`,
 		],
 
