@@ -39,21 +39,21 @@ export const homeFeatures: FeatureItem[] = [
 		title: 'IoT Rule Engine',
 		href: '/docs/user-guide/rule-engine/',
 		description:
-			'Process incoming device data with flexible rule chains based on entity attributes or message content. Forward data to external systems or trigger alarms using custom logic.',
+			'Process incoming device data with flexible rule chains based on entity attributes or message content. Forward data to external systems or trigger alarms using custom logic. Configure complex notification chains on alarms. Enrich server-side functionality or manipulate your devices with highly customizable rules. Define your application logic with drag-n-drop rule chain designer.',
 	},
 	{
 		icon: '/src/assets/images/landings/ce/integration-icon.svg',
 		title: 'Customization and Integration',
 		href: '/docs/user-guide/contribution/how-to-contribute/',
 		description:
-			'Extend default platform functionality using customizable rule chains, widgets and transport implementations.',
+			'Extend default platform functionality using customizable <a href="/docs/user-guide/rule-engine/">rule chains</a>, <a href="/docs/reference/widgets/widget-library/">widgets</a> and <a href="/docs/user-guide/connectivity-guide/">transport implementations</a>. In addition to MQTT, CoAP and HTTP support, ThingsBoard users can use their own transport implementations or customize behaviour of existing protocols. You can also take advantage of our <a href="/services/development-services/">IoT development services</a> to create tailored solutions for your needs.',
 	},
 	{
 		icon: '/src/assets/images/landings/ce/device-icon.svg',
 		title: 'Device Management',
 		href: '/docs/user-guide/devices/',
 		description:
-			'Provides ability to register and manage devices. Allows to monitor client-side and provision server-side device attributes.',
+			'Provides ability to register and manage devices. Allows to monitor client-side and provision server-side <a href="/docs/user-guide/digital-twins/attributes/">device attributes</a>. Provides API for server-side applications to send <a href="/docs/user-guide/command-and-control/">RPC commands</a> to devices.',
 	},
 	{
 		icon: '/src/assets/images/landings/ce/security-icon.svg',
@@ -67,7 +67,7 @@ export const homeFeatures: FeatureItem[] = [
 		title: 'Asset Management',
 		href: '/docs/user-guide/assets/',
 		description:
-			'Provides ability to register and manage assets. Allows to provision server-side asset attributes and monitor related alarms.',
+			'Provides ability to register and manage assets. Allows to provision server-side <a href="/docs/user-guide/digital-twins/attributes/">asset attributes</a> and monitor related <a href="/docs/user-guide/alarms/">alarms</a>. Ability to build hierarchy of entities using <a href="/docs/user-guide/digital-twins/entities/">relations</a>.',
 	},
 	{
 		icon: '/src/assets/images/landings/ce/tolerance-icon.svg',
@@ -81,21 +81,21 @@ export const homeFeatures: FeatureItem[] = [
 		title: 'Alarms Management',
 		href: '/docs/user-guide/alarms/',
 		description:
-			'Provides ability to create and manage alarms related to your entities: devices, assets, customers, etc.',
+			'Provides ability to create and manage <a href="/docs/user-guide/alarms/">alarms</a> related to your entities: devices, assets, customers, etc. Allows real-time alarms monitoring and alarms propagation to related entities hierarchy.',
 	},
 	{
 		icon: '/src/assets/images/landings/ce/opensource-icon.svg',
 		title: '100% Open-source',
 		href: 'https://github.com/thingsboard/thingsboard',
 		description:
-			'ThingsBoard is licensed under Apache License 2.0, so you can use it in your commercial products for free.',
+			'ThingsBoard is licensed under Apache License 2.0, so you can use it in your commercial products for free. You can even host it as a SaaS or PaaS solution.',
 	},
 	{
 		icon: '/src/assets/images/landings/ce/microservices-icon.svg',
 		title: 'Microservices or Monolithic',
 		href: '/docs/reference/architecture/monolithic/',
 		description:
-			'Supports monolithic deployment for getting started or small environments. Provides ability to upgrade to microservices for high availability and horizontal scalability.',
+			'Supports <a href="/docs/reference/architecture/monolithic/">monolithic</a> deployment for getting started or small environments. Provides ability to upgrade to <a href="/docs/reference/architecture/microservices/">microservices</a> for high availability and horizontal scalability.',
 	},
 	{
 		icon: '/src/assets/images/landings/ce/database-icon.svg',
