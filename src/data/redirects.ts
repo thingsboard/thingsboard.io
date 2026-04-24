@@ -38,6 +38,21 @@ export interface SingleRedirect {
 	target: string;
 }
 
+export interface DynamicRedirect {
+	/** Full source pattern — may contain splats (`*`) and placeholders (`:name`). */
+	source: string;
+	/** Full target — may reference `:splat` or any `:name` captured in the source. */
+	target: string;
+	/** HTTP status; defaults to 301. */
+	status?: number;
+}
+
+export interface DynamicRedirectGroup {
+	/** Header comment rendered above the entries in public/_redirects. */
+	comment: string;
+	entries: DynamicRedirect[];
+}
+
 // ---------------------------------------------------------------------------
 // Helpers for generating upgrade instruction redirects
 // ---------------------------------------------------------------------------
@@ -54,40 +69,6 @@ function buildUpgradeRedirectEntries(newPrefix: string): RedirectEntry[] {
 			entries.push({
 				slug: `${platform}/${familySlug}`,
 				target: `/docs/${newPrefix}/${platform}/${familySlug}/`,
-			});
-		}
-	}
-	return entries;
-}
-
-// Edge upgrade instructions were versioned (v3-3-x … v4-3-x) and are now consolidated
-// into single per-platform pages (no version in the URL).
-const EDGE_UPGRADE_VERSIONS = [
-	'v3-3-x', 'v3-4-x', 'v3-5-x', 'v3-6-x', 'v3-7-x', 'v3-8-x', 'v3-9-x',
-	'v4-0-x', 'v4-1-x', 'v4-2-x', 'v4-3-x',
-];
-const EDGE_UPGRADE_PLATFORMS = ['centos', 'docker', 'ubuntu', 'windows'];
-
-function buildEdgeConsolidatedUpgradeEntries(): RedirectEntry[] {
-	const entries: RedirectEntry[] = [];
-	for (const platform of EDGE_UPGRADE_PLATFORMS) {
-		for (const version of EDGE_UPGRADE_VERSIONS) {
-			entries.push({
-				slug: `upgrade-instructions/${platform}/${version}`,
-				target: `/docs/edge/installation/upgrade-instructions/${platform}/`,
-			});
-		}
-	}
-	return entries;
-}
-
-function buildEdgePeConsolidatedUpgradeEntries(): RedirectEntry[] {
-	const entries: RedirectEntry[] = [];
-	for (const platform of EDGE_UPGRADE_PLATFORMS) {
-		for (const version of EDGE_UPGRADE_VERSIONS) {
-			entries.push({
-				slug: `upgrade-instructions/${platform}/${version}`,
-				target: `/docs/edge/pe/installation/upgrade-instructions/${platform}/`,
 			});
 		}
 	}
@@ -165,7 +146,8 @@ export const CATCH_ALL_REDIRECTS: CatchAllRedirect[] = [
 			{ slug: 'rpi', target: '/docs/edge/installation/rpi/' },
 			{ slug: 'upgrade-instructions', target: '/docs/edge/installation/upgrade-instructions/' },
 			{ slug: 'windows', target: '/docs/edge/installation/windows/' },
-			...buildEdgeConsolidatedUpgradeEntries(),
+			// Versioned upgrade paths (upgrade-instructions/:platform/:version) are handled
+			// by a placeholder rule in DYNAMIC_REDIRECTS instead of being enumerated here.
 		],
 	},
 	{
@@ -179,7 +161,8 @@ export const CATCH_ALL_REDIRECTS: CatchAllRedirect[] = [
 			{ slug: 'rpi', target: '/docs/edge/pe/installation/rpi/' },
 			{ slug: 'upgrade-instructions', target: '/docs/edge/pe/installation/upgrade-instructions/' },
 			{ slug: 'windows', target: '/docs/edge/pe/installation/windows/' },
-			...buildEdgePeConsolidatedUpgradeEntries(),
+			// Versioned upgrade paths (upgrade-instructions/:platform/:version) are handled
+			// by a placeholder rule in DYNAMIC_REDIRECTS instead of being enumerated here.
 		],
 	},
 ];
@@ -1250,6 +1233,52 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'paas/user-guide/integrations/ocean-connect', target: '/docs/paas/user-guide/integrations/integration-types/' },
 	{ oldPath: 'paas/eu/user-guide/integrations/ocean-connect', target: '/docs/paas/eu/user-guide/integrations/integration-types/' },
 	{ oldPath: 'sitemap', target: '/docs/' },
+];
+
+/**
+ * Dynamic redirects — splat (`*`) and placeholder (`:name`) patterns that
+ * cannot be expressed as individual static rules.
+ *
+ * These land in the Dynamic block at the tail of public/_redirects. They MUST
+ * live after every static rule because Cloudflare Pages starts a 100-entry
+ * cap at the first dynamic rule in the file; static rules past that cap are
+ * silently ignored (see https://developers.cloudflare.com/pages/configuration/redirects/).
+ *
+ * Catch-all prefix renames (rule-engine-2-0/nodes, solution-templates, etc.)
+ * are generated from CATCH_ALL_REDIRECTS by scripts/generate-redirects.ts and
+ * should NOT be duplicated here.
+ */
+export const DYNAMIC_REDIRECTS: DynamicRedirectGroup[] = [
+	{
+		comment: 'Blog — category pages & pagination → index with filter',
+		entries: [
+			{ source: '/blog/category/:category/page/*', target: '/blog/?category=:category' },
+			{ source: '/blog/category/:category/', target: '/blog/?category=:category' },
+			{ source: '/blog/page/:num/', target: '/blog/?page=:num' },
+		],
+	},
+	{
+		comment: 'Blog — WordPress year archives → blog index',
+		entries: [
+			{ source: '/blog/2023/*', target: '/blog/' },
+			{ source: '/blog/2024/*', target: '/blog/' },
+			{ source: '/blog/2025/*', target: '/blog/' },
+			{ source: '/blog/2026/*', target: '/blog/' },
+		],
+	},
+	{
+		comment: 'Docs — Edge upgrade instructions (any version → per-platform page)',
+		entries: [
+			{
+				source: '/docs/user-guide/install/edge/upgrade-instructions/:platform/:version/',
+				target: '/docs/edge/installation/upgrade-instructions/:platform/',
+			},
+			{
+				source: '/docs/user-guide/install/pe/edge/upgrade-instructions/:platform/:version/',
+				target: '/docs/edge/pe/installation/upgrade-instructions/:platform/',
+			},
+		],
+	},
 ];
 
 // ---------------------------------------------------------------------------
