@@ -1279,6 +1279,26 @@ export const DYNAMIC_REDIRECTS: DynamicRedirectGroup[] = [
 			},
 		],
 	},
+	{
+		comment:
+			'Device Library — legacy per-platform URLs collapse to the flat slug. ' +
+			'Pure splat rules only (Cloudflare Pages docs do not show splat + placeholder ' +
+			'combined in the same source, so we enumerate each platform prefix explicitly).',
+		entries: [
+			{ source: '/device-library/ce/*', target: '/device-library/:splat' },
+			{ source: '/device-library/pe/*', target: '/device-library/:splat' },
+			{ source: '/device-library/paas/*', target: '/device-library/:splat' },
+			{ source: '/device-library/paas-eu/*', target: '/device-library/:splat' },
+			{ source: '/device-library/edge/*', target: '/device-library/:splat' },
+			{ source: '/device-library/pe-edge/*', target: '/device-library/:splat' },
+			{ source: '/docs/devices-library/*', target: '/device-library/:splat' },
+			{ source: '/docs/pe/devices-library/*', target: '/device-library/:splat' },
+			{ source: '/docs/paas/devices-library/*', target: '/device-library/:splat' },
+			{ source: '/docs/paas/eu/devices-library/*', target: '/device-library/:splat' },
+			{ source: '/docs/edge/devices-library/*', target: '/device-library/:splat' },
+			{ source: '/docs/pe/edge/devices-library/*', target: '/device-library/:splat' },
+		],
+	},
 ];
 
 // ---------------------------------------------------------------------------
