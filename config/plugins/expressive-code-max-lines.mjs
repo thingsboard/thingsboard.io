@@ -77,65 +77,72 @@ export function pluginMaxLines() {
 
 		jsModules: [
 			`
-			function initMaxLines() {
-				document.querySelectorAll('.ec-max-lines[data-max-lines]').forEach((el) => {
-					if (el.dataset.mlInit) return;
+			// Guard against double-registration: Astro view transitions can re-run
+			// this module, which would stack another set of document-level
+			// listeners on every navigation.
+			if (!window.__ecMaxLinesInit) {
+				window.__ecMaxLinesInit = true;
 
-					const maxLines = parseInt(el.dataset.maxLines, 10);
-					const pre = el.querySelector('pre');
-					if (!pre) return;
+				function initMaxLines() {
+					document.querySelectorAll('.ec-max-lines[data-max-lines]').forEach((el) => {
+						if (el.dataset.mlInit) return;
 
-					const firstLine = pre.querySelector('.ec-line');
-					const lineH = firstLine ? firstLine.getBoundingClientRect().height : 20;
-					const maxH = Math.round(maxLines * lineH);
+						const maxLines = parseInt(el.dataset.maxLines, 10);
+						const pre = el.querySelector('pre');
+						if (!pre) return;
 
-					// Hidden tab panels report scrollHeight as 0 — skip and retry when visible
-					if (pre.scrollHeight <= maxH + lineH) return;
+						const firstLine = pre.querySelector('.ec-line');
+						const lineH = firstLine ? firstLine.getBoundingClientRect().height : 20;
+						const maxH = Math.round(maxLines * lineH);
 
-					el.dataset.mlInit = '1';
-					pre.style.maxHeight = maxH + 'px';
+						// Hidden tab panels report scrollHeight as 0 — skip and retry when visible
+						if (pre.scrollHeight <= maxH + lineH) return;
 
-					// Expand/Collapse button — only when the collapsible attribute is set
-					if (!el.classList.contains('ec-collapsible')) return;
+						el.dataset.mlInit = '1';
+						pre.style.maxHeight = maxH + 'px';
 
-					const btn = document.createElement('button');
-					btn.className = 'ec-expand-btn';
-					btn.setAttribute('type', 'button');
-					btn.setAttribute('aria-expanded', 'false');
-					btn.innerHTML = '&#9660;&nbsp;Expand';
-					el.appendChild(btn);
+						// Expand/Collapse button — only when the collapsible attribute is set
+						if (!el.classList.contains('ec-collapsible')) return;
 
-					btn.addEventListener('click', () => {
-						const expanded = el.classList.toggle('is-expanded');
-						if (expanded) {
-							pre.style.maxHeight = '';
-							btn.setAttribute('aria-expanded', 'true');
-							btn.innerHTML = '&#9650;&nbsp;Collapse';
-						} else {
-							pre.style.maxHeight = maxH + 'px';
-							btn.setAttribute('aria-expanded', 'false');
-							btn.innerHTML = '&#9660;&nbsp;Expand';
-							el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-						}
+						const btn = document.createElement('button');
+						btn.className = 'ec-expand-btn';
+						btn.setAttribute('type', 'button');
+						btn.setAttribute('aria-expanded', 'false');
+						btn.innerHTML = '&#9660;&nbsp;Expand';
+						el.appendChild(btn);
+
+						btn.addEventListener('click', () => {
+							const expanded = el.classList.toggle('is-expanded');
+							if (expanded) {
+								pre.style.maxHeight = '';
+								btn.setAttribute('aria-expanded', 'true');
+								btn.innerHTML = '&#9650;&nbsp;Collapse';
+							} else {
+								pre.style.maxHeight = maxH + 'px';
+								btn.setAttribute('aria-expanded', 'false');
+								btn.innerHTML = '&#9660;&nbsp;Expand';
+								el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+							}
+						});
 					});
+				}
+
+				initMaxLines();
+				document.addEventListener('astro:page-load', initMaxLines);
+
+				// Re-run when a tab becomes visible — hidden panels have scrollHeight 0
+				document.addEventListener('click', (e) => {
+					if (e.target && e.target.closest('[role="tab"]')) {
+						requestAnimationFrame(initMaxLines);
+					}
+				});
+
+				// Device-library PlatformToggle dispatches this when it swaps the
+				// visible variant. Double RAF so layout settles after display: block.
+				document.addEventListener('dl-variant-change', () => {
+					requestAnimationFrame(() => requestAnimationFrame(initMaxLines));
 				});
 			}
-
-			initMaxLines();
-			document.addEventListener('astro:page-load', initMaxLines);
-
-			// Re-run when a tab becomes visible — hidden panels have scrollHeight 0
-			document.addEventListener('click', (e) => {
-				if (e.target && e.target.closest('[role="tab"]')) {
-					requestAnimationFrame(initMaxLines);
-				}
-			});
-
-			// Device-library PlatformToggle dispatches this when it swaps the
-			// visible variant. Double RAF so layout settles after display: block.
-			document.addEventListener('dl-variant-change', () => {
-				requestAnimationFrame(() => requestAnimationFrame(initMaxLines));
-			});
 			`,
 		],
 
@@ -201,58 +208,63 @@ export function pluginDownload() {
 
 		jsModules: [
 			`
-			const EC_DL_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><polyline points="7 11 12 16 17 11"/><line x1="12" y1="4" x2="12" y2="16"/></svg>';
+			// Guard against double-registration on view transitions, same as pluginMaxLines.
+			if (!window.__ecDownloadInit) {
+				window.__ecDownloadInit = true;
 
-			function initDownload() {
-				document.querySelectorAll('figure[data-ec-download]').forEach((fig) => {
-					if (fig.dataset.dlInit) return;
+				const EC_DL_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><polyline points="7 11 12 16 17 11"/><line x1="12" y1="4" x2="12" y2="16"/></svg>';
 
-					const filename = fig.dataset.ecDownload;
-					if (!filename) return;
+				function initDownload() {
+					document.querySelectorAll('figure[data-ec-download]').forEach((fig) => {
+						if (fig.dataset.dlInit) return;
 
-					// EC copy button: button[data-code] inside div.copy inside the figure
-					const copyBtn = fig.querySelector('.copy button[data-code]');
-					if (!copyBtn) return;
+						const filename = fig.dataset.ecDownload;
+						if (!filename) return;
 
-					fig.dataset.dlInit = '1';
+						// EC copy button: button[data-code] inside div.copy inside the figure
+						const copyBtn = fig.querySelector('.copy button[data-code]');
+						if (!copyBtn) return;
 
-					const btn = document.createElement('button');
-					btn.className = 'ec-download-btn';
-					btn.setAttribute('type', 'button');
-					btn.setAttribute('aria-label', 'Download ' + filename);
-					btn.setAttribute('title', 'Download ' + filename);
-					// div is required for EC's hover background overlay (same as copy button)
-					btn.innerHTML = '<div></div>' + EC_DL_SVG;
+						fig.dataset.dlInit = '1';
 
-					// Insert before the copy button inside the same .copy container
-					copyBtn.parentElement.insertBefore(btn, copyBtn);
+						const btn = document.createElement('button');
+						btn.className = 'ec-download-btn';
+						btn.setAttribute('type', 'button');
+						btn.setAttribute('aria-label', 'Download ' + filename);
+						btn.setAttribute('title', 'Download ' + filename);
+						// div is required for EC's hover background overlay (same as copy button)
+						btn.innerHTML = '<div></div>' + EC_DL_SVG;
 
-					btn.addEventListener('click', () => {
-						// EC encodes newlines as \\x7F in data-code — decode them back
-						const raw = copyBtn.getAttribute('data-code') || '';
-						const code = raw.replace(/\\x7F/g, '\\n');
-						const blob = new Blob([code], { type: 'text/plain' });
-						const url = URL.createObjectURL(blob);
-						const a = document.createElement('a');
-						a.href = url;
-						a.download = filename;
-						document.body.appendChild(a);
-						a.click();
-						document.body.removeChild(a);
-						URL.revokeObjectURL(url);
+						// Insert before the copy button inside the same .copy container
+						copyBtn.parentElement.insertBefore(btn, copyBtn);
+
+						btn.addEventListener('click', () => {
+							// EC encodes newlines as \\x7F in data-code — decode them back
+							const raw = copyBtn.getAttribute('data-code') || '';
+							const code = raw.replace(/\\x7F/g, '\\n');
+							const blob = new Blob([code], { type: 'text/plain' });
+							const url = URL.createObjectURL(blob);
+							const a = document.createElement('a');
+							a.href = url;
+							a.download = filename;
+							document.body.appendChild(a);
+							a.click();
+							document.body.removeChild(a);
+							URL.revokeObjectURL(url);
+						});
 					});
+				}
+
+				initDownload();
+				document.addEventListener('astro:page-load', initDownload);
+
+				// Re-run when tabs become visible (hidden panels load after click)
+				document.addEventListener('click', (e) => {
+					if (e.target && e.target.closest('[role="tab"]')) {
+						requestAnimationFrame(initDownload);
+					}
 				});
 			}
-
-			initDownload();
-			document.addEventListener('astro:page-load', initDownload);
-
-			// Re-run when tabs become visible (hidden panels load after click)
-			document.addEventListener('click', (e) => {
-				if (e.target && e.target.closest('[role="tab"]')) {
-					requestAnimationFrame(initDownload);
-				}
-			});
 			`,
 		],
 

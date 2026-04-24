@@ -204,14 +204,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 		],
 		"logo": "/images/partners/bivocom-logo.png",
 		"website": "https://www.bivocom.com/",
-		"links": {
-			"gatewayGuides": [
-				{
-					"label": "Bivocom TG451 IoT Gateway",
-					"href": "/device-library/bivocom-tg451/"
-				}
-			]
-		},
+		"links": {},
 		"description": "A leading global IoT & M2M solutions provider with 11+ years of deep expertise, trusted in 90+ countries. Our portfolio spans IoT sensors, 5G/4G/LoRa routers, gateways, modems, RTUs, IoT platforms, and OEM&ODM customised solutions. Together, connect for smarts, sustain for tomorrow."
 	},
 	{

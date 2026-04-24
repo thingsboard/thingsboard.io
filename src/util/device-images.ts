@@ -1,12 +1,16 @@
 import { getImage } from 'astro:assets';
 import type { ImageMetadata } from 'astro';
 
+// Lazy glob (no `eager: true`) so importing this module doesn't force Vite to
+// materialize metadata for every image at startup — with ~1,700 device images
+// the eager variant inflated dev-server heap usage past 6 GB. Each entry is
+// a function that returns the real module on first await, keeping the catalog
+// page's 123 cover resolves cheap and deferring the other ~1,580 body images
+// until the slug page that actually needs them is built.
 const rasterMods = import.meta.glob<{ default: ImageMetadata }>(
 	'/src/assets/devices/*.{png,jpg,jpeg,webp}',
-	{ eager: true },
 );
 const svgMods = import.meta.glob<string>('/src/assets/devices/*.svg', {
-	eager: true,
 	query: '?url',
 	import: 'default',
 });
@@ -27,12 +31,15 @@ export async function resolveDeviceImage(
 ): Promise<ResolvedDeviceImage | null> {
 	const key = `/src/assets/devices/${filename}`;
 	if (filename.toLowerCase().endsWith('.svg')) {
-		const url = svgMods[key];
-		return url ? { src: url } : null;
+		const loader = svgMods[key];
+		if (!loader) return null;
+		const url = await loader();
+		return { src: url };
 	}
-	const meta = rasterMods[key]?.default;
-	if (!meta) return null;
-	const out = await getImage({ src: meta, width, format: 'webp' });
+	const loader = rasterMods[key];
+	if (!loader) return null;
+	const mod = await loader();
+	const out = await getImage({ src: mod.default, width, format: 'webp' });
 	return {
 		src: out.src,
 		width: Number(out.attributes.width) || undefined,

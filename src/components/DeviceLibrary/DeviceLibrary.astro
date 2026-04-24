@@ -168,6 +168,12 @@ const initialDevices = devicesWithHref.slice(0, PAGE_SIZE);
 </script>
 
 <script>
+	import {
+		platformToQueryParam,
+		queryParamToPlatform,
+		type DevicePlatform,
+	} from '~/util/device-platform';
+
 	interface Device {
 		id: string;
 		title: string;
@@ -299,27 +305,17 @@ const initialDevices = devicesWithHref.slice(0, PAGE_SIZE);
 		let currentPage = 1;
 		let debounceTimer: ReturnType<typeof setTimeout>;
 
-		// Map between ?platform=X URL values and platform display labels used as filter values.
-		const PLATFORM_LABEL_BY_QUERY: Record<string, string> = {
-			ce: 'CE',
-			pe: 'PE',
-			paas: 'Cloud',
-			'paas-eu': 'Cloud EU',
-			edge: 'Edge',
-			'pe-edge': 'Edge PE',
-		};
-		const PLATFORM_QUERY_BY_LABEL: Record<string, string> = Object.fromEntries(
-			Object.entries(PLATFORM_LABEL_BY_QUERY).map(([q, l]) => [l, q]),
-		);
+		// Platform filter checkbox values are the DevicePlatform names themselves
+		// (e.g. 'CE', 'Cloud EU'), so we can round-trip through the shared
+		// queryParamToPlatform / platformToQueryParam helpers and avoid keeping
+		// a second copy of the URL-query ↔ platform-label map in this file.
 
 		function syncFiltersFromUrl(): void {
 			const params = new URLSearchParams(window.location.search);
-			const platformValue = params.get('platform');
-			if (!platformValue) return;
-			const label = PLATFORM_LABEL_BY_QUERY[platformValue.toLowerCase()];
-			if (!label) return;
+			const platform = queryParamToPlatform(params.get('platform'));
+			if (!platform) return;
 			filterCheckboxes.forEach((cb) => {
-				if (cb.name === 'platforms' && cb.value === label) cb.checked = true;
+				if (cb.name === 'platforms' && cb.value === platform) cb.checked = true;
 			});
 		}
 
@@ -329,7 +325,7 @@ const initialDevices = devicesWithHref.slice(0, PAGE_SIZE);
 				.filter((cb) => cb.checked && cb.name === 'platforms')
 				.map((cb) => cb.value);
 			if (checkedPlatforms.length === 1) {
-				const q = PLATFORM_QUERY_BY_LABEL[checkedPlatforms[0]!];
+				const q = platformToQueryParam(checkedPlatforms[0] as DevicePlatform);
 				if (q) params.set('platform', q);
 				else params.delete('platform');
 			} else {
@@ -357,10 +353,14 @@ const initialDevices = devicesWithHref.slice(0, PAGE_SIZE);
 			// a user who filtered to Cloud EU and clicks a device lands on the
 			// guide with ?platform=paas-eu — the detail page then substitutes the
 			// right hostnames (eu.thingsboard.cloud etc.) in code snippets.
-			const params = new URLSearchParams(window.location.search);
-			const platform = params.get('platform');
+			// Build via URLSearchParams.set so a pre-existing `platform` in `base`
+			// is replaced (not duplicated), and encoding stays consistent.
+			const platform = new URLSearchParams(window.location.search).get('platform');
 			if (!platform) return base;
-			return `${base}${base.includes('?') ? '&' : '?'}platform=${encodeURIComponent(platform)}`;
+			const [path, existingQuery = ''] = base.split('?');
+			const params = new URLSearchParams(existingQuery);
+			params.set('platform', platform);
+			return `${path}?${params.toString()}`;
 		}
 
 		// HTML entity escape — safe for text content AND attribute values
@@ -567,10 +567,15 @@ const initialDevices = devicesWithHref.slice(0, PAGE_SIZE);
 			}
 		});
 
-		// Initial render is already done by Astro, just set up pagination
-		const initialTotal = allDevices.length;
-		const initialTotalPages = Math.ceil(initialTotal / pageSize);
-		renderPagination(1, initialTotalPages);
+		// Initial render is already done by Astro, just set up pagination.
+		// Skip when ?platform= was present — updateDisplay() above already rendered
+		// pagination for the filtered set; rendering for the unfiltered total
+		// would re-add phantom pages with empty grids.
+		if (!hadUrlPlatform) {
+			const initialTotal = allDevices.length;
+			const initialTotalPages = Math.ceil(initialTotal / pageSize);
+			renderPagination(1, initialTotalPages);
+		}
 	}
 
 	// Run on cold load AND on every view-transition navigation. The direct
