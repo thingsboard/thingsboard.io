@@ -194,7 +194,7 @@ function updateHead(context: APIContext) {
 		const lang = getLanguageFromURL(pathname);
 		const versionBase = `/${getLanguagePrefix(lang)}docs/${getVersionPrefix(product)}`;
 		const isIndex = pathname === versionBase;
-		const escapedSep = TITLE_SEPARATOR.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+		const escapedSep = TITLE_SEPARATOR.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
 		const docsSuffixMatcher = new RegExp(` ${escapedSep} ${DOCS_SUFFIX}$`);
 		const pageTitle = title.content.replace(docsSuffixMatcher, '');
 		title.content = formatDocsTitle(pageTitle, productTitleName, isIndex);
