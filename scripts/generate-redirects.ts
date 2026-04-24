@@ -29,6 +29,7 @@ import {
 	CATCH_ALL_REDIRECTS,
 	SINGLE_REDIRECTS,
 	DYNAMIC_REDIRECTS,
+	NON_DOCS_REDIRECTS,
 	getAllRedirectsFlat,
 } from '../src/data/redirects.ts';
 
@@ -53,6 +54,15 @@ const PREFIX_RENAME_MAP: Record<string, string> = {
 	'paas/solution-templates': 'paas/recipes/solution-templates',
 	'paas/eu/solution-templates': 'paas/eu/recipes/solution-templates',
 	'iot-gateway/install': 'iot-gateway/installation',
+	// Product-tree splits: /docs/pe/{product} → /docs/{product}/pe
+	'pe/edge': 'edge/pe',
+	'pe/mobile': 'mobile/pe',
+	'pe/mqtt-broker': 'mqtt-broker/pe',
+	// Tutorial tree merged into getting-started
+	'tutorial/getting-started': 'getting-started',
+	'pe/tutorial/getting-started': 'pe/getting-started',
+	'paas/tutorial/getting-started': 'paas/getting-started',
+	'paas/eu/tutorial/getting-started': 'paas/eu/getting-started',
 };
 
 /** Recursively find all .mdx files under a directory, returning relative paths without extension. */
@@ -195,6 +205,25 @@ if (remainingSingles.length > 0) {
 	}
 }
 
+// Non-docs rules: marketing pages, /products/*, /industries/*, external targets.
+// A rule is "dynamic" only when the SOURCE has a splat or :placeholder (those
+// require Cloudflare pattern matching). Literal `?query` in the target is just
+// a regular static target.
+const nonDocsStatic: string[] = [];
+const nonDocsDynamic: string[] = [];
+for (const [source, target] of Object.entries(NON_DOCS_REDIRECTS)) {
+	if (source.includes('*') || /:[A-Za-z_]/.test(source)) {
+		nonDocsDynamic.push(`${source} ${target} 301`);
+	} else {
+		nonDocsStatic.push(`${source} ${target} 301`);
+	}
+}
+if (nonDocsStatic.length > 0) {
+	staticLines.push('');
+	staticLines.push('# Non-docs redirects (from NON_DOCS_REDIRECTS)');
+	staticLines.push(...nonDocsStatic);
+}
+
 // DYNAMIC_REDIRECTS from redirects.ts render first in the Dynamic block so
 // hand-authored patterns (blog, edge upgrade) stay at the top. Group comments
 // live in the data file for maintainers; the generated file stays terse.
@@ -215,9 +244,10 @@ const dynamicHeader = [
 ];
 
 // One flat block: manual rules first (blog, edge upgrade), then auto-derived
-// splat rules. Rules are self-describing so no comments are emitted.
+// splat rules, then non-docs rules with query/placeholder targets.
+// Rules are self-describing so no comments are emitted.
 const autoDynamicRules = autoDynamicGroups.flatMap((g) => g.rules);
-const dynamicRules = [...manualDynamicRules, ...autoDynamicRules];
+const dynamicRules = [...manualDynamicRules, ...autoDynamicRules, ...nonDocsDynamic];
 
 const output =
 	manualHeader +

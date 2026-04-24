@@ -202,6 +202,37 @@ Chrome components all carry `.not-content` so Starlight's markdown flow/typograp
 
 **Redirects:** `scripts/device-library-redirects.json` maps every legacy URL shape (`/docs/devices-library/{slug}/`, `/docs/pe/devices-library/{slug}/`, `/device-library/{platform}/{slug}/`, and the `guides/` variants) to `/device-library/{slug}/?platform={platform}`. Imported at build time by `astro.redirects.ts`. Covers 983/983 inbound URLs from the legacy site.
 
+## Redirects
+
+**Single source of truth:** `src/data/redirects.ts`. Four exports, chosen by pattern shape:
+
+| Export | Use for | Example |
+|---|---|---|
+| `SINGLE_REDIRECTS` | one-off `/docs/*` page rename | `{ oldPath: 'pe/user-guide/roadmap', target: '/docs/pe/releases/roadmap/' }` |
+| `CATCH_ALL_REDIRECTS` | `/docs/*` prefix rename (whole tree renamed 1:1) | `{ oldPrefix: 'pe/edge', entries: [] }` → `/docs/pe/edge/* → /docs/edge/pe/:splat` |
+| `DYNAMIC_REDIRECTS` | splat / `:placeholder` patterns that aren't a simple prefix rename | `/blog/category/:category/page/* → /blog/?category=:category` |
+| `NON_DOCS_REDIRECTS` | everything outside `/docs/*` (marketing, `/products/*`, `/industries/*`, external targets) | `/iot-use-cases/` → `/use-cases/` |
+
+**Workflow to add a redirect:**
+
+1. Edit `src/data/redirects.ts` (pick the export that matches the pattern).
+2. For new `CATCH_ALL_REDIRECTS` prefixes with empty entries, also add the old → new mapping to `PREFIX_RENAME_MAP` in `scripts/generate-redirects.ts`.
+3. Run `pnpm generate:redirects` — regenerates `public/_redirects` and `public/redirects.json`.
+4. Commit both the data change and the regenerated output.
+
+**Two places, two purposes:**
+
+- `public/_redirects` — served by Cloudflare Pages. Gives **real 301s at the edge**. Cloudflare rule: *"Redirects are always followed, regardless of whether or not an asset matches the incoming request."* ([docs](https://developers.cloudflare.com/pages/configuration/redirects/)) — so a matching rule here always wins, even if a static HTML file exists at the same path.
+- `astro.redirects.ts` → `redirects:` — used by Astro in `pnpm dev` / `pnpm preview` so old URLs resolve locally instead of 404-ing. In static build mode these emit a `200 + <meta refresh>` HTML stub, which Cloudflare's edge rule then supersedes in production. The file spreads `public/redirects.json` (all `/docs/*`) + `device-library-redirects.json` + `NON_DOCS_REDIRECTS`, so a single run of `pnpm generate:redirects` keeps dev and prod in sync.
+
+**Why page-based `.astro` redirect stubs are deprecated:** they only emit meta-refresh pages (no real 301), they pollute the sitemap, and they duplicate rules already present in `_redirects`. The generator in `src/data/redirects.ts` → `public/_redirects` covers them all.
+
+**Hard rules:**
+
+- **Do NOT create new `.astro` stub files** under `src/pages/docs/` that only call `Astro.redirect()`. Put the entry in `src/data/redirects.ts` instead.
+- **Do NOT hand-edit `public/_redirects` or `public/redirects.json`** below the auto-generated markers — they're rewritten by `pnpm generate:redirects`. Edit `src/data/redirects.ts` and regenerate.
+- **Keep dynamic rules (splat / `:placeholder`) under 100.** Cloudflare Pages limit is 2,000 static + 100 dynamic = 2,100 total; the generator already quarantines dynamic rules to the tail block to keep the static zone uncapped.
+
 ## Releasing a New Version
 
 Use the `release` skill for the full checklist. Key files:

@@ -1,10 +1,13 @@
 /**
- * Centralized redirect rules for old Jekyll docs URLs → new Astro docs URLs.
+ * Centralized redirect rules for old docs URLs → new docs URLs.
  *
- * This file is the single source of truth for all redirect mappings.
- * It is consumed by:
- *   - Page-based redirect files in src/pages/docs/ (Astro.redirect)
- *   - scripts/generate-redirects.ts (generates public/_redirects and public/redirects.json)
+ * Single source of truth. Consumed by:
+ *   - scripts/generate-redirects.ts  → public/_redirects (Cloudflare edge 301)
+ *                                      + public/redirects.json
+ *   - astro.redirects.ts             → Astro dev-mode redirects (NON_DOCS_REDIRECTS only)
+ *
+ * After editing, run `pnpm generate:redirects` and commit both the data change
+ * and the regenerated public/_redirects + public/redirects.json.
  *
  * Redirect types:
  *   PREFIX_RENAME  — tree-preserving 1:1 (old prefix/* → new prefix/*)
@@ -25,14 +28,14 @@ export interface RedirectEntry {
 }
 
 export interface CatchAllRedirect {
-	/** Old path prefix (no leading/trailing slash). Maps to a [...slug].astro file at this location. */
+	/** Old path prefix (no leading/trailing slash). Emits `/docs/{oldPrefix}/* → …:splat 301`. */
 	oldPrefix: string;
-	/** Redirect entries — each slug is relative to oldPrefix */
+	/** Redirect entries — each slug is relative to oldPrefix. Empty = PREFIX_RENAME (splat-only). */
 	entries: RedirectEntry[];
 }
 
 export interface SingleRedirect {
-	/** Old path (no leading/trailing slash, e.g. 'user-guide/audit-log') */
+	/** Old path under /docs/ (no leading/trailing slash, e.g. 'user-guide/audit-log') */
 	oldPath: string;
 	/** Absolute target path with trailing slash (e.g. '/docs/user-guide/security/audit-log/') */
 	target: string;
@@ -122,6 +125,15 @@ export const CATCH_ALL_REDIRECTS: CatchAllRedirect[] = [
 		oldPrefix: 'iot-gateway/install',
 		entries: [], // PREFIX_RENAME — splat rule in _redirects; rpi/windows overrides in SINGLE_REDIRECTS
 	},
+	// Legacy product-tree splits: old /docs/pe/{product} prefixes → new /docs/{product}/pe
+	{ oldPrefix: 'pe/edge', entries: [] },
+	{ oldPrefix: 'pe/mobile', entries: [] },
+	{ oldPrefix: 'pe/mqtt-broker', entries: [] },
+	// Tutorial tree merged into getting-started
+	{ oldPrefix: 'tutorial/getting-started', entries: [] },
+	{ oldPrefix: 'pe/tutorial/getting-started', entries: [] },
+	{ oldPrefix: 'paas/tutorial/getting-started', entries: [] },
+	{ oldPrefix: 'paas/eu/tutorial/getting-started', entries: [] },
 	{
 		oldPrefix: 'user-guide/install/upgrade-instructions',
 		entries: buildUpgradeRedirectEntries('installation/upgrade-instructions'),
@@ -168,8 +180,7 @@ export const CATCH_ALL_REDIRECTS: CatchAllRedirect[] = [
 ];
 
 /**
- * Individual page redirects.
- * Each entry maps to a single .astro file at src/pages/docs/{oldPath}.astro.
+ * Individual /docs/* page redirects.
  * Add entries here for one-off page renames or removed pages.
  */
 export const SINGLE_REDIRECTS: SingleRedirect[] = [
@@ -1233,7 +1244,100 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'paas/user-guide/integrations/ocean-connect', target: '/docs/paas/user-guide/integrations/integration-types/' },
 	{ oldPath: 'paas/eu/user-guide/integrations/ocean-connect', target: '/docs/paas/eu/user-guide/integrations/integration-types/' },
 	{ oldPath: 'sitemap', target: '/docs/' },
+
+	// Docs root — legacy paths that point off-docs
+	{ oldPath: 'contact-us-thanks', target: '/contact-us-thanks/' },
+	{ oldPath: 'user-guide/live-demo', target: '/docs/installation/?installationType=saas' },
+
+	// PaaS/PaaS-EU — getting-started-guides renamed to /why-thingsboard/
+	{ oldPath: 'paas/getting-started-guides/what-is-thingsboard-cloud', target: '/docs/paas/why-thingsboard/' },
+	{ oldPath: 'paas/eu/getting-started-guides/what-is-thingsboard-cloud', target: '/docs/paas/eu/why-thingsboard/' },
+
+	// MQTT v5 error codes — moved to getting-connected anchor
+	{ oldPath: 'reference/mqtt-v5-errors-code', target: '/docs/reference/mqtt-api/getting-connected/#mqtt-v50-error-codes' },
+	{ oldPath: 'pe/reference/mqtt-v5-errors-code', target: '/docs/pe/reference/mqtt-api/getting-connected/#mqtt-v50-error-codes' },
+
+	// Releases/roadmap — moved from user-guide to releases tree
+	{ oldPath: 'user-guide/releases-table', target: '/docs/releases/releases-table/' },
+	{ oldPath: 'pe/user-guide/releases-table', target: '/docs/pe/releases/releases-table/' },
+	{ oldPath: 'user-guide/roadmap', target: '/docs/releases/roadmap/' },
+	{ oldPath: 'pe/user-guide/roadmap', target: '/docs/pe/releases/roadmap/' },
+	{ oldPath: 'user-guide/versions-and-support', target: '/docs/releases/release-policy/' },
+	{ oldPath: 'pe/user-guide/versions-and-support', target: '/docs/pe/releases/release-policy/' },
+
+	// Old /docs/services/* service pages moved to top-level product pages
+	{ oldPath: 'services/device-management', target: '/device-management/' },
+	{ oldPath: 'services/monitoring-dashboard', target: '/monitoring-dashboard/' },
+
+	// Trendz — pages consolidated into monitoring / aggregation / tasks-service
+	{ oldPath: 'trendz/anomaly/alarms', target: '/docs/trendz/anomaly/monitoring/' },
+	{ oldPath: 'trendz/anomaly/refresh-reprocess', target: '/docs/trendz/anomaly/monitoring/' },
+	{ oldPath: 'trendz/anomaly/save-to-tb', target: '/docs/trendz/anomaly/monitoring/' },
+	{ oldPath: 'trendz/background-jobs', target: '/docs/trendz/tasks-service/' },
+	{ oldPath: 'trendz/data-grouping-aggregation', target: '/docs/trendz/telemetry-aggregation/' },
+	{ oldPath: 'trendz/releases', target: '/docs/trendz/releases/releases-table/' },
+	{ oldPath: 'trendz/view-builder', target: '/docs/trendz/telemetry-aggregation/' },
 ];
+
+/**
+ * Non-docs redirects — marketing pages, /products/*, /use-cases/*, /partners/*,
+ * /services/*, /industries/*, and external targets. These are ALSO consumed by
+ * astro.redirects.ts so Astro applies them in dev mode and at build time.
+ *
+ * Add entries here for any non-/docs/ path rename. Do NOT add /docs/ entries
+ * here — those belong in CATCH_ALL_REDIRECTS / SINGLE_REDIRECTS / DYNAMIC_REDIRECTS.
+ *
+ * All entries render as static 301 rules in public/_redirects and are spread
+ * verbatim into astro.redirects.ts for dev-mode parity. Targets may include
+ * literal `?query` strings (no placeholder substitution).
+ */
+export const NON_DOCS_REDIRECTS: Record<string, string> = {
+	// Trendz
+	'/products/trendz/trndz-request-demo/': '/products/trendz/request-demo/',
+	'/images/trendz/trndz-request-demo/': '/products/trendz/request-demo/',
+
+	// PaaS
+	'/products/paas/billing-info/': '/docs/paas/user-guide/billing-info/',
+	'/products/paas/domains/': '/docs/paas/user-guide/security/domains/',
+	'/products/paas/subscription/': '/docs/paas/reference/subscriptions/',
+	'/products/paas/eu/subscription/': '/docs/paas/eu/reference/subscriptions/',
+	'/products/paas/what-is-thingsboard-cloud/': '/docs/paas/why-thingsboard/',
+	'/products/thingsboard-pe/install/': '/docs/pe/installation/',
+	'/products/thingsboard-pe/install/aws/': '/docs/pe/installation/aws-marketplace/',
+	'/products/thingsboard-pe/install-thanks/': '/contact-us-thanks/',
+
+	// License Server
+	'/products/license-server/': '/docs/license-server/what-is-license-server/',
+	'/products/license-server/billing-info/': '/docs/license-server/billing-info/',
+	'/products/license-server/subscription/': '/docs/license-server/subscription/',
+	'/products/license-server/perpetual/': '/docs/license-server/perpetual/',
+	'/products/license-server/instance/': '/docs/license-server/instance/',
+	'/products/license-server/user/': '/docs/license-server/user/',
+
+	// Use Cases
+	'/use-cases/fleet-tracking/': '/use-cases/site-fleet-tracking/',
+	'/fleet-tracking/': '/use-cases/site-fleet-tracking/',
+	'/smart-metering/': '/use-cases/smart-metering/',
+	'/smart-farming/': '/use-cases/smart-farming/',
+	'/smart-energy/': '/use-cases/smart-energy/',
+
+	// Partners
+	'/partners/hardware/iotracker/': '/partners/hardware/iothings/',
+	'/partners/hardware/makerfabs/': '/partners/hardware/agrosense-makerfabs/',
+	'/partners/hardware/apply/thanks/': '/partners/hardware/apply-thanks/',
+
+	// Services
+	'/services/development-services/customers-full-reviews/': '/services/development-services/',
+	'/iot-solutions/': '/services/development-services/',
+
+	// Industries — bare index; per-industry pages collapse via DYNAMIC_REDIRECTS
+	'/industries/': '/clients-feedback/',
+
+	// Installations / use-cases / external
+	'/installations/forever-free-cloud/': '/installations/choose-region/',
+	'/iot-use-cases/': '/use-cases/',
+	'/support-ukraine/': 'https://u24.gov.ua/',
+};
 
 /**
  * Dynamic redirects — splat (`*`) and placeholder (`:name`) patterns that
@@ -1258,6 +1362,12 @@ export const DYNAMIC_REDIRECTS: DynamicRedirectGroup[] = [
 		],
 	},
 	{
+		comment: 'Industries — per-industry page → clients-feedback filtered by category',
+		entries: [
+			{ source: '/industries/:category/', target: '/clients-feedback/?category=:category' },
+		],
+	},
+	{
 		comment: 'Blog — WordPress year archives → blog index',
 		entries: [
 			{ source: '/blog/2023/*', target: '/blog/' },
@@ -1276,6 +1386,26 @@ export const DYNAMIC_REDIRECTS: DynamicRedirectGroup[] = [
 			{
 				source: '/docs/user-guide/install/pe/edge/upgrade-instructions/:platform/:version/',
 				target: '/docs/edge/pe/installation/upgrade-instructions/:platform/',
+			},
+		],
+	},
+	{
+		comment: 'Docs — legacy product prefixes (/gw, /license) → canonical prefixes',
+		entries: [
+			{ source: '/docs/gw/*', target: '/docs/iot-gateway/:splat' },
+			{ source: '/docs/license/*', target: '/docs/license-server/:splat' },
+		],
+	},
+	{
+		comment: 'Docs — versioned releases-table pages moved under /releases/',
+		entries: [
+			{
+				source: '/docs/user-guide/releases-table/*',
+				target: '/docs/releases/releases-table/:splat',
+			},
+			{
+				source: '/docs/pe/user-guide/releases-table/*',
+				target: '/docs/pe/releases/releases-table/:splat',
 			},
 		],
 	},
