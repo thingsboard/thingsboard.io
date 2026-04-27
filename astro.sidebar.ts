@@ -1794,7 +1794,7 @@ export const edgeSidebar: SidebarConfig = [
 					'docs/edge/user-guide/provision-customers-and-users',
 					'docs/edge/user-guide/ota-updates',
 					'docs/edge/user-guide/dashboards',
-					'docs/edge/user-guide/edge-public-dashboard',
+					'docs/edge/user-guide/public-dashboard',
 				],
 			},
 			{
