@@ -36,35 +36,6 @@ import {
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
 
-// ---------------------------------------------------------------------------
-// Helpers for PREFIX_RENAME groups with empty entries
-// ---------------------------------------------------------------------------
-
-/**
- * For PREFIX_RENAME groups with empty entries (content-enumerated by .astro files),
- * map old prefix → new prefix so we can scan the content directory and populate
- * redirects.json with individual entries.
- */
-const PREFIX_RENAME_MAP: Record<string, string> = {
-	'user-guide/rule-engine-2-0/nodes': 'reference/rule-engine/nodes',
-	'pe/user-guide/rule-engine-2-0/nodes': 'pe/reference/rule-engine/nodes',
-	'paas/user-guide/rule-engine-2-0/nodes': 'paas/reference/rule-engine/nodes',
-	'paas/eu/user-guide/rule-engine-2-0/nodes': 'paas/eu/reference/rule-engine/nodes',
-	'pe/solution-templates': 'pe/recipes/solution-templates',
-	'paas/solution-templates': 'paas/recipes/solution-templates',
-	'paas/eu/solution-templates': 'paas/eu/recipes/solution-templates',
-	'iot-gateway/install': 'iot-gateway/installation',
-	// Product-tree splits: /docs/pe/{product} → /docs/{product}/pe
-	'pe/edge': 'edge/pe',
-	'pe/mobile': 'mobile/pe',
-	'pe/mqtt-broker': 'mqtt-broker/pe',
-	// Tutorial tree merged into getting-started
-	'tutorial/getting-started': 'getting-started',
-	'pe/tutorial/getting-started': 'pe/getting-started',
-	'paas/tutorial/getting-started': 'paas/getting-started',
-	'paas/eu/tutorial/getting-started': 'paas/eu/getting-started',
-};
-
 /** Recursively find all .mdx files under a directory, returning relative paths without extension. */
 function findMdxSlugs(dir: string, base: string = ''): string[] {
 	const slugs: string[] = [];
@@ -91,12 +62,14 @@ function findMdxSlugs(dir: string, base: string = ''): string[] {
 
 const flatMap = getAllRedirectsFlat();
 
-// Add entries for PREFIX_RENAME groups with empty entries by scanning content
-for (const [oldPrefix, newPrefix] of Object.entries(PREFIX_RENAME_MAP)) {
-	const contentDir = resolve(ROOT, 'src/content/docs/docs', newPrefix);
+// Add entries for PREFIX_RENAME groups with empty entries by scanning content.
+// Source of truth for prefix renames: CATCH_ALL_REDIRECTS[].newPrefix.
+for (const group of CATCH_ALL_REDIRECTS) {
+	if (group.entries.length > 0 || !group.newPrefix) continue;
+	const contentDir = resolve(ROOT, 'src/content/docs/docs', group.newPrefix);
 	const slugs = findMdxSlugs(contentDir);
 	for (const slug of slugs) {
-		flatMap[`/docs/${oldPrefix}/${slug}/`] = `/docs/${newPrefix}/${slug}/`;
+		flatMap[`/docs/${group.oldPrefix}/${slug}/`] = `/docs/${group.newPrefix}/${slug}/`;
 	}
 }
 const jsonPath = resolve(ROOT, 'public/redirects.json');
@@ -156,10 +129,9 @@ for (const group of CATCH_ALL_REDIRECTS) {
 
 	// Empty-entry PREFIX_RENAME group — one splat rule drives the whole tree.
 	if (group.entries.length === 0) {
-		const newPrefix = PREFIX_RENAME_MAP[group.oldPrefix];
-		if (newPrefix) {
+		if (group.newPrefix) {
 			autoDynamicGroups.push({
-				rules: [`/docs/${group.oldPrefix}/* /docs/${newPrefix}/:splat 301`],
+				rules: [`/docs/${group.oldPrefix}/* /docs/${group.newPrefix}/:splat 301`],
 			});
 		}
 		continue;

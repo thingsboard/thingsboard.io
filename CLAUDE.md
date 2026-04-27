@@ -216,7 +216,7 @@ Chrome components all carry `.not-content` so Starlight's markdown flow/typograp
 **Workflow to add a redirect:**
 
 1. Edit `src/data/redirects.ts` (pick the export that matches the pattern).
-2. For new `CATCH_ALL_REDIRECTS` prefixes with empty entries, also add the old → new mapping to `PREFIX_RENAME_MAP` in `scripts/generate-redirects.ts`.
+2. For new `CATCH_ALL_REDIRECTS` prefixes with empty entries, populate the `newPrefix` field on the same entry — the generator reads it directly.
 3. Run `pnpm generate:redirects` — regenerates `public/_redirects` and `public/redirects.json`.
 4. Commit both the data change and the regenerated output.
 
