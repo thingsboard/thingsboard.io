@@ -1287,6 +1287,28 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'services/device-management', target: '/device-management/' },
 	{ oldPath: 'services/monitoring-dashboard', target: '/monitoring-dashboard/' },
 
+	// Legacy /docs/samples/* — folded into Getting Started, user guide, device library, recipes
+	{ oldPath: 'samples', target: '/docs/getting-started/' },
+	{ oldPath: 'samples/alarms/basic-rules', target: '/docs/user-guide/alarms/' },
+	{ oldPath: 'samples/alarms/mail', target: '/docs/user-guide/ui/mail-settings/' },
+	{ oldPath: 'samples/arduino', target: '/device-library/arduino-nano-rp2040-connect/' },
+	{ oldPath: 'samples/arduino/sim808-htu21d', target: '/device-library/arduino-nano-rp2040-connect/' },
+	{ oldPath: 'samples/arduino/temperature', target: '/device-library/arduino-nano-rp2040-connect/' },
+	{ oldPath: 'samples/ble/raspberry-esp32-xiaomi-sensor-htu21d', target: '/device-library/esp32-dev-kit-v1/' },
+	{ oldPath: 'samples/esp32', target: '/device-library/esp32-dev-kit-v1/' },
+	{ oldPath: 'samples/esp32/gpio-control-pico-kit-dht22-sensor', target: '/device-library/esp32-dev-kit-v1/' },
+	{ oldPath: 'samples/esp32/ota', target: '/device-library/esp32-dev-kit-v1/' },
+	{ oldPath: 'samples/esp8266', target: '/device-library/nodemcuv3/' },
+	{ oldPath: 'samples/esp8266/gpio', target: '/device-library/nodemcuv3/' },
+	{ oldPath: 'samples/esp8266/temperature', target: '/device-library/nodemcuv3/' },
+	{ oldPath: 'samples/monitoring/facilities-monitoring-poc', target: '/docs/recipes/solution-templates/smart-office/' },
+	{ oldPath: 'samples/nodemcu', target: '/device-library/nodemcuv3/' },
+	{ oldPath: 'samples/nodemcu/temperature', target: '/device-library/nodemcuv3/' },
+	{ oldPath: 'samples/raspberry', target: '/device-library/raspberry-pi-4/' },
+	{ oldPath: 'samples/raspberry/gpio', target: '/device-library/raspberry-pi-4/' },
+	{ oldPath: 'samples/raspberry/gpio-android-things', target: '/device-library/raspberry-pi-4/' },
+	{ oldPath: 'samples/raspberry/temperature', target: '/device-library/raspberry-pi-4/' },
+
 	// Trendz — pages consolidated into monitoring / aggregation / tasks-service
 	{ oldPath: 'trendz/anomaly/alarms', target: '/docs/trendz/anomaly/monitoring/' },
 	{ oldPath: 'trendz/anomaly/refresh-reprocess', target: '/docs/trendz/anomaly/monitoring/' },
