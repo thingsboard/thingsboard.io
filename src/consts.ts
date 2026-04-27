@@ -30,6 +30,6 @@ export function formatMarketingTitle(title: string, section?: string): string {
 
 export function formatDocsTitle(pageTitle: string, productName: string, isIndex: boolean): string {
 	return isIndex
-		? `${productName}${SEP}${DOCS_SUFFIX}`
-		: `${pageTitle}${SEP}${productName}${SEP}${DOCS_SUFFIX}`;
+		? `${DOCS_SUFFIX}${SEP}${productName}`
+		: `${pageTitle}${SEP}${DOCS_SUFFIX}${SEP}${productName}`;
 }

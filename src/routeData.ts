@@ -19,6 +19,19 @@ import { getOgImageUrl } from '~/util/getOgImageUrl';
 import { getTutorialPages } from '~/util/getTutorialPages';
 
 /**
+ * Display names for `/reference/<api>-api/` sub-sections, used to build unique
+ * SEO titles for sibling pages that share short H1s like "Attributes" or "RPC".
+ */
+const API_SECTION_NAMES: Record<string, string> = {
+	'coap-api': 'CoAP API',
+	'gateway-api': 'Gateway API',
+	'http-api': 'HTTP API',
+	'lwm2m-api': 'LwM2M API',
+	'mqtt-api': 'MQTT API',
+	'snmp-api': 'SNMP API',
+};
+
+/**
  * Maps "free" product versions to their "professional" canonical equivalents.
  * Pages in free versions have their <link rel="canonical"> rewritten to the
  * corresponding professional URL for SEO consolidation, IF the professional
@@ -196,7 +209,18 @@ function updateHead(context: APIContext) {
 		const isIndex = pathname === versionBase;
 		const escapedSep = TITLE_SEPARATOR.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
 		const docsSuffixMatcher = new RegExp(` ${escapedSep} ${DOCS_SUFFIX}$`);
-		const pageTitle = title.content.replace(docsSuffixMatcher, '');
+		let pageTitle = title.content.replace(docsSuffixMatcher, '');
+
+		// Auto-append API section name to disambiguate sibling reference pages
+		// (e.g. several `/reference/<x>-api/attributes/` pages all share H1 "Attributes").
+		// Skipped when the page sets its own <title> via frontmatter `head`.
+		if (!frontmatterTitle) {
+			const pageSlug = getPageSlugFromURL(pathname);
+			const apiMatch = pageSlug.match(/^reference\/([^/]+)\//);
+			const apiName = apiMatch ? API_SECTION_NAMES[apiMatch[1]!] : undefined;
+			if (apiName) pageTitle = `${pageTitle} - ${apiName}`;
+		}
+
 		title.content = formatDocsTitle(pageTitle, productTitleName, isIndex);
 
 		for (const item of head) {
