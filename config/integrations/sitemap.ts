@@ -6,8 +6,8 @@ export function sitemap(): AstroIntegration {
 	return AstroSitemap({
 		filter: (page) => {
 			const path = new URL(page).pathname;
-			// Exclude 404 pages
-			return !path.endsWith('/404/');
+			// Exclude 404 and search pages — no SEO value.
+			return !path.endsWith('/404/') && !path.endsWith('/search/');
 		},
 	});
 }
