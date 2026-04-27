@@ -268,6 +268,22 @@ function updateHead(context: APIContext) {
 			}
 		}
 	}
+
+	// Per-page explicit canonical override (highest priority — wins over consolidation).
+	const explicitCanonical = (entry.data as { canonicalUrl?: string }).canonicalUrl;
+	if (explicitCanonical) {
+		const targetCanonical = new URL(explicitCanonical, context.site).href;
+
+		const canonical = head.find(
+			(item) => item.tag === 'link' && item.attrs?.['rel'] === 'canonical'
+		);
+		if (canonical) canonical.attrs!['href'] = targetCanonical;
+
+		const ogUrl = head.find(
+			(item) => item.tag === 'meta' && item.attrs?.['property'] === 'og:url'
+		);
+		if (ogUrl) ogUrl.attrs!['content'] = targetCanonical;
+	}
 }
 
 function updateTutorialPagination(starlightRoute: StarlightRouteData) {
