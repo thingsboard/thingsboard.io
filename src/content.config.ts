@@ -238,8 +238,6 @@ export const collections = {
 				'deploy.ssrTag': z.string().default('SSR'),
 				'media.navTitle': z.string().default('More media guides'),
 				'migration.navTitle': z.string().default('More migration guides'),
-				'404.content': z.string().default("We couldn't find what you were looking for."),
-				'404.linkText': z.string().default('Take me home.'),
 				'install.autoTab': z.string().default('Automatic CLI'),
 				'install.manualTab': z.string().default('Manual Setup'),
 				'starlight.title': z.string().default('Wanna build docs?'),

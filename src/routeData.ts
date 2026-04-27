@@ -213,21 +213,17 @@ function updateHead(context: APIContext) {
 	const ogImageUrl = getOgImageUrl(context.url.pathname, false);
 	const imageSrc = ogImageUrl ?? '/thingsboard-og.png';
 	const canonicalImageSrc = new URL(imageSrc, context.site);
-	const is404 = context.url.pathname.endsWith('/404/');
+	const isSearch = context.url.pathname.endsWith('/search/');
 
 	head.push({ tag: 'meta', attrs: { property: 'og:image', content: canonicalImageSrc.href } });
 	head.push({ tag: 'meta', attrs: { name: 'twitter:image', content: canonicalImageSrc.href } });
 	head.push({ tag: 'meta', attrs: { name: 'twitter:site', content: '@thingsboard' } });
 
-	head.push({
-		tag: 'script',
-		attrs: {
-			src: 'https://cdn.usefathom.com/script.js',
-			'data-site': 'EZBHTSIG',
-			'data-canonical': is404 ? 'false' : 'true',
-			defer: true,
-		},
-	});
+	// Search pages render a search widget with no indexable content. Keep them
+	// out of search results (consistent with the sitemap exclusion).
+	if (isSearch) {
+		head.push({ tag: 'meta', attrs: { name: 'robots', content: 'noindex, follow' } });
+	}
 
 	// Canonical consolidation: free product versions → professional equivalents.
 	// Only rewrite if the equivalent professional page actually exists, and the

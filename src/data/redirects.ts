@@ -1264,6 +1264,7 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'sitemap', target: '/docs/' },
 
 	// Docs root — legacy paths that point off-docs
+	{ oldPath: 'contact-us', target: '/contact-us/' },
 	{ oldPath: 'contact-us-thanks', target: '/contact-us-thanks/' },
 	{ oldPath: 'user-guide/live-demo', target: '/docs/installation/?installationType=saas' },
 
