@@ -4,7 +4,7 @@ export const kalitecData: CaseStudyData = {
 	title: 'How Kalitec Delivers Smart Signage with ThingsBoard\'s IoT Expertise',
 	pageTitle: 'How Kalitec Delivers Smart Signage with IoT Expertise',
 	description:
-		'Discover how Kalitec partnered with ThingsBoard to deliver reliable smart signage solutions for urban safety—achieving fast deployment, high uptime, and scalable IoT architecture for transport clients.',
+		'Kalitec partners with ThingsBoard to deliver smart signage for urban safety — fast deployment, high uptime, and scalable IoT architecture.',
 	pageSlug: 'kalitec',
 	breadcrumb: 'Kalitec — Smart Infrastructure',
 	categories: ['Smart infrastructure'],

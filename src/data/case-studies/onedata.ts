@@ -4,7 +4,7 @@ export const onedataData: CaseStudyData = {
 	title: 'OneData Boosts Hospital Efficiency 60-70% with ThingsBoard IoT',
 	pageTitle: 'OneData Boosts Hospital Efficiency 60-70%',
 	description:
-		'OneData Software Solutions transforms multi-specialty hospital operations with ThingsBoard IoT platform\u2014real-time asset tracking, patient monitoring, automated alerts, and comprehensive dashboards for 500+ assets.',
+		'OneData uses ThingsBoard for multi-specialty hospital operations \u2014 real-time asset tracking, patient monitoring, and dashboards for 500+ assets.',
 	pageSlug: 'onedata',
 	breadcrumb: 'Multi-Specialty Hospital — Healthcare',
 	categories: ['Smart IoT solution'],

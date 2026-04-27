@@ -4,7 +4,7 @@ export const environmentMonitoringData: UseCaseData = {
 	title: 'Environment monitoring',
 	pageTitle: 'IoT Environment Monitoring solutions with ThingsBoard',
 	description:
-		'Discover scalable and secure IoT environment monitoring solutions with ThingsBoard. Connect multiple sensors, automate alerts, and gain real-time insights to improve safety, efficiency, and comfort across industrial, commercial, and smart building applications.',
+		'Scalable IoT environment monitoring with ThingsBoard. Connect sensors, automate alerts, and gain insights for industrial, commercial, and smart buildings.',
 	pageSlug: 'environment-monitoring',
 	about: {
 		shortText:

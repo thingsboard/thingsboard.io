@@ -4,7 +4,7 @@ export const tjkSolutionsData: CaseStudyData = {
 	title: 'Securing Critical Communication with ThingsBoard | TJK-Solutions',
 	pageTitle: 'Securing Critical Communication — TJK-Solutions',
 	description:
-		'Discover how TJK-Solutions uses ThingsBoard to monitor its Meshtastic-based emergency communication network \u2014 ensuring visibility and reliability even offline.',
+		'TJK-Solutions uses ThingsBoard to monitor a Meshtastic-based emergency communication network with visibility and reliability even offline.',
 	pageSlug: 'tjk-solutions',
 	breadcrumb: 'TJK-Solutions — Disaster and Civil Protection',
 	categories: ['Smart city'],

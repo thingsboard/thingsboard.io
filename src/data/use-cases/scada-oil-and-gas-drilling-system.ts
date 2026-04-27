@@ -4,7 +4,7 @@ export const scadaDrillingData: UseCaseData = {
 	title: 'SCADA Oil & gas drilling system',
 	pageTitle: 'SCADA Oil & Gas Drilling Monitoring with ThingsBoard',
 	description:
-		'Automate oil and gas drilling operations with ThingsBoard SCADA. Real-time monitoring of drawworks, mud pumps, and blowout preventers through unified dashboards, alarms, and protocol integration.',
+		'Automate oil and gas drilling with ThingsBoard SCADA — real-time monitoring of drawworks, mud pumps, and blowout preventers through unified dashboards.',
 	pageSlug: 'scada-oil-and-gas-drilling-system',
 	about: {
 		shortText:

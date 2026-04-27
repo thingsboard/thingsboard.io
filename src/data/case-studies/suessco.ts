@@ -4,7 +4,7 @@ export const suesscoData: CaseStudyData = {
 	title: 'How SuessCo Sensors Uses ThingsBoard to Monitor Infrastructure with 6D Sensors',
 	pageTitle: 'How SuessCo Sensors Monitor Infrastructure with 6D Sensors',
 	description:
-		'Discover how SuessCo Sensors and ThingsBoard enable real-time monitoring of bridges and historic structures in Austria using 6D sensors\u2014improving safety, precision, and maintenance planning.',
+		'SuessCo Sensors and ThingsBoard provide real-time monitoring of bridges and historic structures in Austria with 6D sensors for safety and maintenance.',
 	pageSlug: 'suessco',
 	breadcrumb: 'SuessCo — Facility Management',
 	categories: ['Facility management'],

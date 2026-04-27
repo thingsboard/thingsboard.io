@@ -4,7 +4,7 @@ export const scadaEnergyManagementData: UseCaseData = {
 	title: 'SCADA Energy management',
 	pageTitle: 'SCADA Energy Management & Monitoring with ThingsBoard',
 	description:
-		'Optimize energy generation, distribution, and consumption with ThingsBoard SCADA. Unify data from solar, wind, batteries, and grid infrastructure into real-time dashboards with automated alerts.',
+		'Optimize energy generation and consumption with ThingsBoard SCADA — unify data from solar, wind, batteries, and grid into real-time dashboards.',
 	pageSlug: 'scada-energy-management',
 	about: {
 		shortText:

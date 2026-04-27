@@ -4,7 +4,7 @@ export const lumenData: CaseStudyData = {
 	title: 'Lumen Digitalizes Factories with ThingsBoard Industrial IoT',
 	pageTitle: 'Lumen Digitalizes Factories with Industrial IoT',
 	description:
-		'Lumen Energy Solutions leverages ThingsBoard to digitalize large-scale factories, integrating 1,000+ IoT sensors and energy meters into a unified platform for predictive maintenance and real-time monitoring.',
+		'Lumen Energy Solutions digitalizes large-scale factories on ThingsBoard, integrating 1,000+ IoT sensors and energy meters for predictive maintenance.',
 	pageSlug: 'lumen',
 	breadcrumb: 'Industrial IoT in manufacturing — Industry 4.0',
 	categories: ['Industry 4.0'],

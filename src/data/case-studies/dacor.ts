@@ -4,7 +4,7 @@ export const dacorData: CaseStudyData = {
 	title: 'Real-Time Monitoring for Automotive Supplier | s\u00FCc//dacor + ThingsBoard',
 	pageTitle: 'Real-Time Monitoring for Automotive Supplier — s\u00FCc//dacor',
 	description:
-		'Learn how an automotive parts manufacturer uses ThingsBoard and LoRaWAN to collect real-time machine data, visualize production with digital twins, and reduce downtime.',
+		'An automotive parts manufacturer uses ThingsBoard and LoRaWAN to collect real-time machine data, visualize production with digital twins, and cut downtime.',
 	pageSlug: 'dacor',
 	breadcrumb: 'süc//dacor GmbH — Industry 4.0',
 	categories: ['Industry 4.0'],
