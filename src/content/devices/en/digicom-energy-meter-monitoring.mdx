@@ -1,0 +1,285 @@
+---
+title: Energy Meter Monitoring with Digicom DRN500/DRN3000
+platforms:
+  - PE
+  - Cloud
+  - Cloud EU
+hasBranching: false
+vendor: Digicom
+deviceImageFileName: digicom-drn500.png
+hardwareType: Gateways
+connectivity:
+  - MQTT
+  - Modbus
+industry:
+  - Energy Management
+  - Industrial Manufacturing
+useCase:
+  - Smart energy
+  - Smart Metering
+category: Other devices
+---
+
+import ImageGallery from '~/components/ImageGallery.astro';
+import DocImage from '~/components/DocImage.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+## Introduction
+
+<a href="https://www.digicom.it/" target="_blank" rel="noopener noreferrer">Digicom</a> DRN500 and DRN3000 Multifunction Routers are designed to interoperate with ThingsBoard by providing built-in Modbus and MQTT support. This guide walks through connecting a Digicom router to ThingsBoard via an external MQTT broker using the ThingsBoard MQTT Integration, reading energy meter data (voltage, current, frequency, power), and visualizing it on a dashboard.
+
+<DocImage src="/src/assets/devices-library/digicom/head1.png" alt="Digicom energy meter monitoring" />
+
+The router reads Modbus registers from an energy meter, publishes data to an external MQTT broker, and ThingsBoard subscribes to that broker through an MQTT Integration, converting payloads using a TBEL data converter.
+
+<DocImage src="/src/assets/devices-library/digicom/scenario1.png" alt="Integration scenario: Digicom → MQTT broker → ThingsBoard" />
+
+## Prerequisites
+
+- Digicom DRN500 or DRN3000 Multifunction Router with firmware 1.10 or newer
+- External MQTT broker (publicly reachable)
+- ThingsBoard PE, Cloud, or Cloud EU instance
+
+## ThingsBoard setup
+
+### Create the MQTT integration
+
+<a href="/docs/pe/user-guide/integrations/mqtt/" target="_blank" rel="noopener noreferrer">MQTT Integration</a> connects to an external MQTT broker, subscribes to data streams, and converts payloads to ThingsBoard message format. It is used when devices publish to an external broker rather than directly to ThingsBoard.
+
+Go to **Integrations center &#8702; Integrations**, click **+ Add integration**, select **MQTT**, then click **Next**.
+
+<DocImage src="/src/assets/devices-library/digicom/integ-mqtt-1.png" alt="Create new MQTT integration" />
+
+In the <a href="/docs/pe/user-guide/integrations/#uplink-data-converter" target="_blank" rel="noopener noreferrer">Uplink data converter</a> step, give the converter a name, select **TBEL**, clear the default decoder content, and paste the following code. Then click **Next**.
+
+<Aside type="note">
+<a href="/docs/pe/user-guide/tbel/" target="_blank" rel="noopener noreferrer">ThingsBoard Expression Language (TBEL)</a> is an optimized alternative to JavaScript for data converter functions. It is preferred, though JavaScript remains supported.
+</Aside>
+
+```js maxLines=15 collapsible
+// *** Digicom Data Converter ***
+
+var variableNamesMap = {
+  "Volts": "voltage",
+  "Ampere": "current",
+  "Frequency": "hertz",
+  "kVA": "power"
+};
+
+var payload = decodeToJson(payload);
+if (payload.modbus == null) {
+  return;}
+
+var telemetry = [];
+var telemetries = payload.modbus.data[0].samples;
+foreach(sample: telemetries) {
+  var values = {};
+  var varName = variableNamesMap[sample.reg];
+  if (varName != null) {
+    values[varName] = sample.value;
+    telemetry.push({
+      ts: Long.parseLong(sample
+        .timestamp) * 1000,
+      values: values
+    });
+  }}
+
+var result = {
+  deviceName: payload.serialnum,
+  deviceType: payload.type,
+  attributes: {
+    model: payload.model,
+    integrationName: metadata['integrationName'],
+  },
+  telemetry: telemetry};
+
+/** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
+
+return result;
+```
+
+<DocImage src="/src/assets/devices-library/digicom/integ-mqtt-2.png" alt="Uplink data converter with TBEL code" />
+
+Click **Skip** in the <a href="/docs/pe/user-guide/integrations/#downlink-data-converter" target="_blank" rel="noopener noreferrer">Downlink data converter</a> tab.
+
+<DocImage src="/src/assets/devices-library/digicom/integ-mqtt-3.png" alt="Skip downlink data converter" />
+
+Fill in the **Connection** tab:
+
+- **Host** and **Port** of the external MQTT broker
+- **Credentials type**: Basic — enter **Username** and **Password**
+- **Topic**: `digicom/+/data/modbus`
+- **QoS**: 1
+
+Click **Check connection** to verify, then click **Add**.
+
+<DocImage src="/src/assets/devices-library/digicom/integ-mqtt-4.png" alt="MQTT connection settings" />
+
+<DocImage src="/src/assets/devices-library/digicom/integ-mqtt-5.png" alt="Add MQTT integration" />
+
+Once created, the integration status will show **Active** if the connection succeeds. If it remains **Inactive**, check the broker address, port, and credentials.
+
+<DocImage src="/src/assets/devices-library/digicom/integ-mqtt-6.png" alt="Integration active status" />
+
+### Test the data converter
+
+The <a href="/docs/pe/user-guide/integrations/#data-converters" target="_blank" rel="noopener noreferrer">data converter</a> transforms device payloads into ThingsBoard telemetry and attribute format. You can test it before real data arrives.
+
+Go to **Integrations center** → **Data converters**, open the **Modbus Data** converter, and enter edit mode.
+
+<DocImage src="/src/assets/devices-library/digicom/test-data-converter-1.png" alt="Open data converter" />
+
+Click **Test decoder function**.
+
+<DocImage src="/src/assets/devices-library/digicom/test-data-converter-2.png" alt="Test decoder function button" />
+
+Paste the following sample payload into the **Payload content** tab and click **Test**.
+
+```json maxLines=15 collapsible
+{
+    "timestamp": "1741688471",
+    "serialnum": "50012345",
+    "type": "Router500",
+    "model": "8D5913",
+    "method": "event",
+    "msg_cnt": "1494",
+    "done": "true",
+    "modbus": {
+        "data": [{
+            "device": "Energy_Meter",
+            "event": "read",
+            "samples": [{
+                "timestamp": "1741869373",
+                "reg": "Volts",
+                "unit": "V",
+                "value": "228.800000",
+                "deferred": "false"
+            }, {
+                "timestamp": "1741869374",
+                "reg": "Ampere",
+                "unit": "A",
+                "value": "0.868000",
+                "deferred": "false"
+            }, {
+                "timestamp": "17418693735",
+                "reg": "Frequency",
+                "unit": "Hz",
+                "value": "50",
+                "deferred": "false"
+            }, {
+                "timestamp": "1741869376",
+                "reg": "kVA",
+                "unit": "kVA",
+                "value": "1.491000",
+                "deferred": "false"
+            }]
+        }]
+    }
+}
+```
+
+<DocImage src="/src/assets/devices-library/digicom/test-data-converter-3.png" alt="Decoder test output with telemetry" />
+
+The **Output** tab should show the transformed telemetry with `voltage`, `current`, `hertz`, and `power` keys. Click **Cancel**, then exit edit mode.
+
+## Device setup
+
+### Login
+
+Log in to the Digicom device web interface using your **Username** and **Password**.
+
+<DocImage src="/src/assets/devices-library/digicom/log1.png" alt="Digicom device web interface login" />
+
+This guide covers Modbus and MQTT configuration only, assuming the device is already configured for Internet access and Modbus physical connections are in place.
+
+### Modbus COM configuration
+
+Select **Modbus** → **COM Configuration** from the menu.
+
+<DocImage src="/src/assets/devices-library/digicom/modbus_serial1.png" alt="Modbus COM configuration menu" />
+
+Enable the Modbus serial interface and set **type**, **speed**, and **data format** to match the energy meter's operating parameters. Click **Save**.
+
+<DocImage src="/src/assets/devices-library/digicom/Immagine-11.png" alt="Modbus serial interface settings" />
+
+### Modbus Master
+
+Go to **Modbus** → **Modbus Master** and click **Add**.
+
+<DocImage src="/src/assets/devices-library/digicom/Immagine-13.png" alt="Modbus Master menu" />
+
+Enable the profile and set **Name**, **ID**, **Connection type**, **COM type**, rates, and register formats. Set **Data Destination** to **MQTT**, then click **Save**.
+
+<DocImage src="/src/assets/devices-library/digicom/Immagine-14.png" alt="Modbus Master profile settings" />
+
+Click **Requests** to define the Modbus read registers.
+
+<DocImage src="/src/assets/devices-library/digicom/slave1.png" alt="Requests button" />
+
+Add a request for **Volts** (voltage) and click **Save**.
+
+<DocImage src="/src/assets/devices-library/digicom/Immagine-16.png" alt="Voltage register request" />
+
+Repeat for **Ampere** (current), **Frequency**, and **kVA** (power) by clicking **Add** for each. The result should show four active requests, with the **Value** column updating at the configured scan rate. Use **Test** for an immediate read.
+
+<DocImage src="/src/assets/devices-library/digicom/Immagine-17.png" alt="All four Modbus requests configured" />
+
+### MQTT configuration
+
+Select **Modbus** → **MQTT Configuration** from the menu.
+
+<DocImage src="/src/assets/devices-library/digicom/modqtt1.png" alt="MQTT configuration menu" />
+
+Enter the external broker **Server Address**, **Port**, **Username**, and **Password**. The device publishes Modbus data to the following topic by default:
+
+```
+digicom/<device SN>/data/modbus
+```
+
+Click **Save**.
+
+<DocImage src="/src/assets/devices-library/digicom/modqtt2.png" alt="MQTT broker settings" />
+
+### Reboot
+
+Select **Device** → **Reboot** from the menu and confirm to apply the new configuration. Wait for the device to come back online.
+
+<DocImage src="/src/assets/devices-library/digicom/reb1.png" alt="Reboot menu" />
+
+<DocImage src="/src/assets/devices-library/digicom/reb2.png" alt="Confirm reboot" />
+
+## Verify device in ThingsBoard
+
+Go to **Entities &#8702; Devices**. Once the device publishes its first data to the MQTT broker, a new <a href="/docs/pe/user-guide/ui/devices/" target="_blank" rel="noopener noreferrer">device entry</a> will appear automatically.
+
+<DocImage src="/src/assets/devices-library/digicom/check-device-1.png" alt="Device appears in the Devices list" />
+
+Click the device row and check the **Last telemetry** tab to verify incoming measurements. The **Attributes** tab will show the `model` and `integrationName` values extracted by the data converter.
+
+<DocImage src="/src/assets/devices-library/digicom/check-device-2.png" alt="Device telemetry and attributes" />
+
+## Create a dashboard
+
+Navigate to <a href="/docs/pe/user-guide/dashboards/" target="_blank" rel="noopener noreferrer">Dashboards</a>, click **+ Add dashboard &#8702; Create new dashboard**. Enter a title and click **Add**.
+
+<DocImage src="/src/assets/devices-library/digicom/dashboard-energy-meter-1.png" alt="Create new dashboard" />
+
+Click **Add widget** (or the center icon on an empty dashboard).
+
+<DocImage src="/src/assets/devices-library/digicom/dashboard-energy-meter-2.png" alt="Add widget" />
+
+Find the **Analogue gauges** widget bundle and select **Radial gauge**.
+
+<DocImage src="/src/assets/devices-library/digicom/dashboard-energy-meter-3.png" alt="Analogue gauges widget bundle" />
+
+<DocImage src="/src/assets/devices-library/digicom/dashboard-energy-meter-4.png" alt="Radial gauge widget" />
+
+Set device **50012345** as the data source, set the data key to **power**, configure the title, units, and scale as needed, then click **Add**.
+
+<DocImage src="/src/assets/devices-library/digicom/dashboard-energy-meter-5.png" alt="Configure radial gauge for power" />
+
+<DocImage src="/src/assets/devices-library/digicom/dashboard-energy-meter-6.png" alt="Power gauge widget on dashboard" />
+
+Add similar widgets for **voltage**, **current**, and **hertz**. Position them on the dashboard and click **Save**.
+
+<DocImage src="/src/assets/devices-library/digicom/dashboard-energy-meter-7.png" alt="Completed energy meter dashboard with all four gauges" />

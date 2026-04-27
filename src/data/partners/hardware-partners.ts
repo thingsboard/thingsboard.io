@@ -1828,7 +1828,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"generalGuides": [
 				{
 					"label": "Energy Meter monitoring",
-					"href": "/docs/samples/digicom/energy-meter-monitoring-with-thingsboard-iot-plaƞorm/"
+					"href": "/device-library/digicom-energy-meter-monitoring/"
 				}
 			]
 		},
