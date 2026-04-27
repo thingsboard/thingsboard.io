@@ -77,7 +77,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 					{ label: 'Propagation', slug: `${prefix}/calculated-fields/propagation` },
 					{ label: 'Geofencing', slug: `${prefix}/calculated-fields/geofencing` },
 					{
-						label: 'Entities Aggregation',
+						label: 'Related Entities Aggregation',
 						slug: `${prefix}/calculated-fields/related-entities-aggregation`,
 					},
 					{
@@ -1159,7 +1159,7 @@ export const paasSidebar: SidebarConfig = [
 							{ label: 'Propagation', slug: 'docs/paas/user-guide/calculated-fields/propagation' },
 							{ label: 'Geofencing', slug: 'docs/paas/user-guide/calculated-fields/geofencing' },
 							{
-								label: 'Entities Aggregation',
+								label: 'Related Entities Aggregation',
 								slug: 'docs/paas/user-guide/calculated-fields/related-entities-aggregation',
 							},
 							{
@@ -1504,7 +1504,7 @@ export const paasEuSidebar: SidebarConfig = [
 							},
 							{ label: 'Geofencing', slug: 'docs/paas/eu/user-guide/calculated-fields/geofencing' },
 							{
-								label: 'Entities Aggregation',
+								label: 'Related Entities Aggregation',
 								slug: 'docs/paas/eu/user-guide/calculated-fields/related-entities-aggregation',
 							},
 							{
