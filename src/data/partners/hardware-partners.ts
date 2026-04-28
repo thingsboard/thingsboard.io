@@ -1370,7 +1370,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"gatewayGuides": [
 				{
 					"label": "EXXN IoT Gateway",
-					"href": "/docs/samples/exxn/exxn/"
+					"href": "/device-library/exxn-iot-gateway/"
 				}
 			]
 		},
