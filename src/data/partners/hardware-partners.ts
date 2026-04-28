@@ -1330,7 +1330,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"trackersGuides": [
 				{
 					"label": "LPWA GPS Tracker",
-					"href": "/docs/samples/monoz/LPWA_GPS_Tracker_with_monoZ/"
+					"href": "/device-library/monozero-bg96-v2/"
 				}
 			]
 		},
