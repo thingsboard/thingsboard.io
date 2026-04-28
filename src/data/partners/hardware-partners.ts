@@ -1415,7 +1415,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"otherDevicesGuides": [
 				{
 					"label": "FDQ-99900 MI-8",
-					"href": "/docs/samples/fusion-daq/fusion-daq/"
+					"href": "/device-library/fusiondaq-fdq-99900-mi-8/"
 				}
 			]
 		},
