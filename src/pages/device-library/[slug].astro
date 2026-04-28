@@ -3,13 +3,6 @@ import { getCollection, render } from 'astro:content';
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import DeviceInfoCard from '~/components/DeviceLibrary/DeviceInfoCard.astro';
 import DeviceCTAFooter from '~/components/DeviceLibrary/DeviceCTAFooter.astro';
-import PlatformToggle from '~/components/DeviceLibrary/PlatformToggle.astro';
-
-import {
-	getDefaultPlatform,
-	getVariantForPlatform,
-	queryParamToPlatform,
-} from '~/util/device-platform.ts';
 
 export async function getStaticPaths() {
 	const devices = await getCollection('devices');
@@ -28,13 +21,15 @@ export async function getStaticPaths() {
 const { device } = Astro.props;
 const { Content, headings } = await render(device);
 
-const platformQuery = Astro.url.searchParams.get('platform');
-const requestedPlatform = queryParamToPlatform(platformQuery);
-const activePlatform =
-	requestedPlatform && device.data.platforms.includes(requestedPlatform)
-		? requestedPlatform
-		: getDefaultPlatform(device.data.platforms);
-const activeVariant = getVariantForPlatform(activePlatform);
+// `frontmatter.title` flows into BOTH Starlight's auto-rendered page H1 AND
+// the <title> head tag. We want the visible H1 to stay the bare device name
+// (clean reading, good for SEO) while the <title> tag carries the breadcrumb
+// (good for browser tabs, search results, social shares). Pass the desired
+// <title> content via Astro.locals so Head.astro can override that single
+// head entry without affecting the visible H1.
+const isEdge = device.data.platforms.includes('Edge');
+(Astro.locals as unknown as Record<string, unknown>).dlPageTitle =
+	`${device.data.title} | Device library | ThingsBoard${isEdge ? ' | Edge' : ''}`;
 ---
 
 <StarlightPage
@@ -46,20 +41,12 @@ const activeVariant = getVariantForPlatform(activePlatform);
 	hasSidebar={false}
 	headings={headings}
 >
-	<div
-		class="dl-device-page"
-		data-active-variant={activeVariant}
-		data-active-platform={activePlatform}
-	>
+	<div class="dl-device-page">
 		<nav class="dl-breadcrumb not-content" aria-label="Breadcrumb">
 			<a href="/device-library/">&larr; Back to Device Library</a>
 		</nav>
 
 		<DeviceInfoCard device={device} />
-
-		{device.data.hasBranching && (
-			<PlatformToggle defaultVariant={activeVariant} />
-		)}
 
 		<Content />
 
@@ -124,141 +111,13 @@ const activeVariant = getVariantForPlatform(activePlatform);
 </style>
 
 <script>
-	import {
-		queryParamToPlatform,
-		resolveSentinelMap,
-		type DevicePlatform,
-	} from '~/util/device-platform';
-
-	// Static output bakes a single HTML per slug — SSR can't see `?platform=` at
-	// build time, so `data-active-variant` is always the device default (usually
-	// PE). Do the real pick on the client: query string wins, then SSR default.
-	const PLATFORM_TO_VARIANT: Record<string, 'ce' | 'pe'> = {
-		ce: 'ce',
-		pe: 'pe',
-		paas: 'pe',
-		'paas-eu': 'pe',
-		edge: 'ce',
-		'pe-edge': 'pe',
-	};
-
-	function getActivePlatform(): DevicePlatform {
-		const query = new URLSearchParams(window.location.search).get('platform');
-		const fromQuery = queryParamToPlatform(query);
-		if (fromQuery) return fromQuery;
-		const page = document.querySelector<HTMLElement>('.dl-device-page');
-		return (page?.dataset.activePlatform as DevicePlatform | undefined) ?? 'PE';
-	}
-
-	function initPlatformVariant() {
-		const page = document.querySelector<HTMLElement>('.dl-device-page');
-		if (!page) return;
-		const query = new URLSearchParams(window.location.search).get('platform')?.toLowerCase();
-		const fromQuery = query ? PLATFORM_TO_VARIANT[query] : undefined;
-		const variant =
-			fromQuery ?? (page.dataset.activeVariant as 'ce' | 'pe' | undefined) ?? 'pe';
-		// Flip PlatformContent's CSS into JS-controlled mode so `.is-active`
-		// overrides the SSR default driven by `data-active-variant`.
-		page.classList.add('dl-js-variant');
-		document.querySelectorAll<HTMLElement>('.device-platform-content').forEach((block) => {
-			block.classList.toggle('is-active', block.dataset.variant === variant);
-		});
-		// Sync PlatformToggle tab button state so its own init picks the right one.
-		document.querySelectorAll<HTMLElement>('.dl-variant-tab').forEach((tab) => {
-			const isActive = tab.dataset.variant === variant;
-			tab.classList.toggle('active', isActive);
-			tab.setAttribute('aria-pressed', String(isActive));
-		});
-	}
-
-	/**
-	 * PE-family MDX bodies carry sentinel strings (YOUR_TB_HOST, YOUR_TB_MQTT_HOST,
-	 * etc.) instead of real hostnames. Walk the rendered body and swap each
-	 * sentinel with the active platform's actual value. Covers text nodes and
-	 * Expressive Code copy-to-clipboard `data-code` attrs. Idempotent — running
-	 * twice is a no-op (sentinels are gone after the first run).
-	 */
-	function swapHostTokens() {
-		const root = document.querySelector<HTMLElement>('.dl-device-page');
-		if (!root) return;
-		const platform = getActivePlatform();
-		const values = resolveSentinelMap(platform);
-		const sentinels = Object.keys(values);
-		// Pre-build a quick "does any sentinel appear?" check to skip clean nodes.
-		const anySentinel = new RegExp(
-			sentinels.map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'),
-		);
-		// Don't use `.not-content` as the exclusion anchor: Expressive Code marks
-		// its <figure> with `.not-content`, which would skip every host token
-		// inside code blocks — exactly where we need the swap. Instead, skip only
-		// the page chrome components (info card, CTA footer, variant toggle,
-		// breadcrumb) that have hand-written copy we want to leave alone.
-		const CHROME_SELECTOR =
-			'.dl-info-card, .dl-cta-footer, .dl-variant-toggle, .dl-breadcrumb';
-		const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-			acceptNode: (n) =>
-				n.parentElement?.closest(CHROME_SELECTOR)
-					? NodeFilter.FILTER_REJECT
-					: NodeFilter.FILTER_ACCEPT,
-		});
-		for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-			const text = node.nodeValue;
-			if (!text || !anySentinel.test(text)) continue;
-			let next = text;
-			for (const s of sentinels) {
-				if (next.includes(s)) next = next.split(s).join(values[s]!);
-			}
-			if (next !== text) node.nodeValue = next;
-		}
-		// Expressive Code reads the copy-clipboard content from data-code.
-		root.querySelectorAll<HTMLElement>('[data-code]').forEach((el) => {
-			const raw = el.getAttribute('data-code');
-			if (!raw || !anySentinel.test(raw)) return;
-			let next = raw;
-			for (const s of sentinels) {
-				if (next.includes(s)) next = next.split(s).join(values[s]!);
-			}
-			if (next !== raw) el.setAttribute('data-code', next);
-		});
-		// Link hrefs often carry `https://YOUR_TB_HOST/...` baked in — swap those
-		// too so click destinations point at the active platform's host. Scope to
-		// links inside the content, skipping chrome.
-		root.querySelectorAll<HTMLAnchorElement>('a[href]').forEach((el) => {
-			if (el.closest(CHROME_SELECTOR)) return;
-			const raw = el.getAttribute('href');
-			if (!raw || !anySentinel.test(raw)) return;
-			let next = raw;
-			for (const s of sentinels) {
-				if (next.includes(s)) next = next.split(s).join(values[s]!);
-			}
-			if (next !== raw) el.setAttribute('href', next);
-		});
-	}
-
-	// Starlight renders the TOC from the full MDX at build time, so headings
-	// from BOTH the inactive CE/PE `<PlatformContent>` branch AND every inactive
-	// `<Tabs>` panel end up listed in the "On this page" rail — you see the
-	// outline duplicated. Hide TOC entries whose target heading sits inside
-	// content that isn't currently rendered: an inactive `.device-platform-content`
-	// branch, OR an ancestor with the `hidden` attribute (Starlight's Tabs hides
-	// non-selected `[role="tabpanel"]` that way).
-	//
-	// `knownVariant` is the authoritative variant from a `dl-variant-change`
-	// event — we prefer it over the URL query because PlatformToggle's
-	// `history.replaceState` is queued on the same frame as the dispatch, so
-	// reading `window.location.search` inside the listener would race and
-	// occasionally see the stale query.
-	function filterToc(knownVariant?: 'ce' | 'pe') {
-		const page = document.querySelector<HTMLElement>('.dl-device-page');
-		if (!page) return;
-		let variant: 'ce' | 'pe';
-		if (knownVariant) {
-			variant = knownVariant;
-		} else {
-			const query = new URLSearchParams(window.location.search).get('platform')?.toLowerCase();
-			const fromQuery = query ? PLATFORM_TO_VARIANT[query] : undefined;
-			variant = fromQuery ?? (page.dataset.activeVariant as 'ce' | 'pe' | undefined) ?? 'pe';
-		}
+	// Starlight builds the "On this page" TOC from every heading in the MDX
+	// at build time, including headings inside inactive `<Tabs>` panels.
+	// Hide the TOC links whose target heading is currently inside a
+	// `[hidden]` ancestor (Starlight's Tabs flips `hidden` on inactive
+	// `[role="tabpanel"]`). Re-run on every tab switch via a MutationObserver
+	// on the `hidden` attribute.
+	function filterToc() {
 		const tocLinks = document.querySelectorAll<HTMLAnchorElement>(
 			'starlight-toc a[href^="#"], mobile-starlight-toc a[href^="#"]',
 		);
@@ -278,12 +137,7 @@ const activeVariant = getVariantForPlatform(activePlatform);
 				li.style.display = '';
 				return;
 			}
-			const branch = heading.closest<HTMLElement>('.device-platform-content');
-			const inInactiveBranch = branch ? branch.dataset.variant !== variant : false;
-			// Any ancestor with `hidden` means the heading is inside an
-			// inactive Tab panel (or any other hidden container).
-			const inHiddenContainer = heading.closest('[hidden]') !== null;
-			li.style.display = inInactiveBranch || inHiddenContainer ? 'none' : '';
+			li.style.display = heading.closest('[hidden]') !== null ? 'none' : '';
 		});
 	}
 
@@ -296,25 +150,14 @@ const activeVariant = getVariantForPlatform(activePlatform);
 			.forEach((panel) => tabObserver!.observe(panel, { attributeFilter: ['hidden'] }));
 	}
 
-	function initAll() {
-		initPlatformVariant();
-		swapHostTokens();
+	function init() {
 		filterToc();
 		observeTabPanels();
 	}
 
-	document.addEventListener('DOMContentLoaded', initAll);
-	document.addEventListener('astro:page-load', initAll);
-	// When PlatformToggle reveals a previously-hidden CE/PE subtree, any sentinels
-	// inside it need swapping too — and the TOC needs to re-filter to the new
-	// active branch. Read the variant from the event detail so we don't race
-	// the URL update.
-	document.addEventListener('dl-variant-change', (e) => {
-		const detail = (e as CustomEvent<{ variant?: 'ce' | 'pe' }>).detail;
-		swapHostTokens();
-		filterToc(detail?.variant);
-		// The previously-hidden PlatformContent branch may contain its own Tabs
-		// — re-bind observers so their hidden-attr flips also trigger filterToc.
-		observeTabPanels();
-	});
+	// Both events fire on cold load AND view-transition navigation. `filterToc`
+	// is idempotent and `observeTabPanels` disconnects before re-binding, so
+	// running both is safe.
+	document.addEventListener('DOMContentLoaded', init);
+	document.addEventListener('astro:page-load', init);
 </script>
