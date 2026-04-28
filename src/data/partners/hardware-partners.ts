@@ -1037,7 +1037,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"generalGuides": [
 				{
 					"label": "PLC KERNEL",
-					"href": "/docs/samples/kernel/kernel/"
+					"href": "/partners/hardware/kernelgroup/samples/plc-kernel-thingsboard/"
 				},
 				{
 					"label": "Integration guide",
@@ -1095,7 +1095,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"otherDevicesGuides": [
 				{
 					"label": "4G LTE Industrial Router",
-					"href": "/docs/samples/kingpigeon/kingpigeon/"
+					"href": "/partners/hardware/beilai/samples/4g-lte-industrial-router/"
 				},
 				{
 					"label": "Flexible Device–Edge–Cloud IoT Solution with ARMxy & ThingsBoard",
@@ -1370,7 +1370,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"gatewayGuides": [
 				{
 					"label": "EXXN IoT Gateway",
-					"href": "/device-library/exxn-iot-gateway/"
+					"href": "/device-library/iot-gateway-cell-1024/"
 				}
 			]
 		},
