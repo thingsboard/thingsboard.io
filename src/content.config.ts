@@ -116,8 +116,7 @@ export const deviceSchema = z.object({
 	category: z.string().optional(),
 	platforms: z
 		.array(z.enum(PLATFORM_VALUES))
-		.default([...PLATFORM_VALUES]),
-	hasBranching: z.boolean().default(false),
+		.default(['ThingsBoard']),
 });
 
 export const blogSchema = z.object({
