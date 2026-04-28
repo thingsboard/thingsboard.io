@@ -1828,7 +1828,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"generalGuides": [
 				{
 					"label": "Energy Meter monitoring",
-					"href": "/device-library/digicom-energy-meter-monitoring/"
+					"href": "/partners/hardware/digicom/samples/digicom-energy-meter-monitoring/"
 				}
 			]
 		},
