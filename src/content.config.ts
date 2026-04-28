@@ -133,6 +133,7 @@ export const blogSchema = z.object({
 	featuredImage: z.string(),
 	featuredImageAlt: z.string().default(''),
 	draft: z.boolean().default(false),
+	excludeFromCarousel: z.boolean().default(false),
 });
 
 export const docsCollectionSchema = z.union([
