@@ -1547,7 +1547,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"generalGuides": [
 				{
 					"label": "MOKO SMART LoRaWAN device",
-					"href": "/docs/samples/moko-smart/moko-smart-guide/"
+					"href": "/partners/hardware/mokosmart/samples/lorawan-device-and-thingsboard/"
 				},
 				{
 					"label": "How to connect LW001-BG PRO LoRaWAN Tracker to ThingsBoard?",
