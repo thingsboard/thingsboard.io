@@ -276,7 +276,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"generalGuides": [
 				{
 					"label": "Raspberry Pi with Grove Base Hat",
-					"href": "/docs/samples/raspberry/grove/"
+					"href": "/partners/hardware/seeed/samples/raspberry-pi-with-grove-base-hat/"
 				},
 				{
 					"label": "Seeed Wiki integration",
