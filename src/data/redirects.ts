@@ -323,7 +323,7 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'pe/edge/getting-started-guides/what-is-edge', target: '/docs/edge/pe/why-thingsboard-edge/' },
 	{ oldPath: 'edge/getting-started-guides/connectivity', target: '/docs/edge/reference/apis-and-sdks/overview/' },
 	{ oldPath: 'pe/edge/getting-started-guides/connectivity', target: '/docs/edge/pe/reference/apis-and-sdks/overview/' },
-	{ oldPath: 'pe/edge/search', target: '/docs/edge/pe/' },
+	{ oldPath: 'pe/edge/search', target: '/docs/edge/pe/search/' },
 	{ oldPath: 'edge/rule-engine/provision-rule-chains', target: '/docs/edge/user-guide/rule-chain-templates/' },
 	{ oldPath: 'pe/edge/rule-engine/provision-rule-chains', target: '/docs/edge/pe/user-guide/rule-chain-templates/' },
 	{ oldPath: 'edge/rule-engine/rule-chain-templates', target: '/docs/edge/user-guide/rule-chain-templates/' },
