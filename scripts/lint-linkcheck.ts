@@ -83,10 +83,11 @@ const linkChecker = new LinkChecker({
 	// `[can]` does not fire for links to the actual pathname of a consolidation source, and
 	// `[ref]` / `[lng]` / `[abs]` autofixes preserve product context.
 	consolidationPatterns: [
+		{ from: '/docs/paas/eu/user-guide/billing-info/', to: '/docs/paas/user-guide/billing-info/' },
 		// Main product: CE / PaaS / PaaS EU → PE
-		{ from: '/docs/', to: '/docs/pe/' },
-		{ from: '/docs/paas/', to: '/docs/pe/' },
 		{ from: '/docs/paas/eu/', to: '/docs/pe/' },
+		{ from: '/docs/paas/', to: '/docs/pe/' },
+		{ from: '/docs/', to: '/docs/pe/' },
 		// Sub-products: free → professional
 		{ from: '/docs/edge/', to: '/docs/edge/pe/' },
 		{ from: '/docs/mqtt-broker/', to: '/docs/mqtt-broker/pe/' },
