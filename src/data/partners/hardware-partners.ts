@@ -442,12 +442,12 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 					"href": "/device-library/smartico-g-1-6/"
 				},
 				{
-					"label": "Gas Shutoff Valve",
-					"href": "/docs/samples/smartico/gas-valve-lorawan/Gas_Valve_LoRaWAN/"
+					"label": "Gas Shutoff Valve LoRaWAN \"Smartico V-LR\"",
+					"href": "/device-library/smartico-v-lr/"
 				},
 				{
-					"label": "Leaks Detector",
-					"href": "/docs/samples/smartico/leaks-detector-lorawan/Leaks_Detector_LoRaWAN/"
+					"label": "Leaks Detector LoRaWAN \"Smartico L2-LR\"",
+					"href": "/device-library/smartico-l2-lr/"
 				},
 				{
 					"label": "Water meter Pulse Sensor",
