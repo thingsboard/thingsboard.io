@@ -201,7 +201,16 @@ export const collections = {
 		schema: blogSchema,
 	}),
 	docs: defineCollection({
-		loader: docsLoader(),
+		// Default Astro slug derivation runs each path segment through `github-slugger`,
+		// which strips dots (only `[a-z0-9-]` survives). Override to preserve dotted
+		// filenames like `…-before-v1.7.mdx` so the URL keeps the version separator.
+		// Mirrors the default behaviour for `slug:` frontmatter overrides.
+		loader: docsLoader({
+			generateId: ({ entry, data }) => {
+				if (typeof data.slug === 'string') return data.slug;
+				return entry.replace(/\.(md|mdx|mdoc)$/, '').replace(/(?:^|\/)index$/, '');
+			},
+		}),
 		schema: docsSchema({ extend: docsCollectionSchema }),
 	}),
 	i18n: defineCollection({
