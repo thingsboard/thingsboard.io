@@ -939,7 +939,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"otherDevicesGuides": [
 				{
 					"label": "Integration guide",
-					"href": "/docs/samples/roltek/roltek/"
+					"href": "/partners/hardware/roltek/samples/dc620-integration/"
 				}
 			]
 		},
