@@ -12,6 +12,7 @@ export type { DevicePlatform };
 
 export const baseSchema = z.object({
 	type: z.literal('base').optional().default('base'),
+	description: z.string().optional(),
 	selfCanonical: z.boolean().optional(),
 	canonicalUrl: z.string().optional(),
 	githubURL: z.url().optional(),

@@ -14,7 +14,7 @@ import {
 	stripLanguagePrefix,
 	type SupportedLanguage,
 } from '~/util/path-utils';
-import { DOCS_SUFFIX, formatDocsTitle, TITLE_SEPARATOR } from '~/consts';
+import { DOCS_SUFFIX, formatDocsTitle, SITE_NAME, TITLE_SEPARATOR } from '~/consts';
 import { getOgImageUrl } from '~/util/getOgImageUrl';
 import { getTutorialPages } from '~/util/getTutorialPages';
 
@@ -224,11 +224,7 @@ function updateHead(context: APIContext) {
 		title.content = formatDocsTitle(pageTitle, productTitleName, isIndex);
 
 		for (const item of head) {
-			if (
-				item.tag === 'meta' &&
-				item.attrs &&
-				(item.attrs.property === 'og:title' || item.attrs.name === 'twitter:title')
-			) {
+			if (item.tag === 'meta' && item.attrs?.property === 'og:title') {
 				item.attrs.content = title.content;
 			}
 		}
@@ -240,8 +236,17 @@ function updateHead(context: APIContext) {
 	const isSearch = context.url.pathname.endsWith('/search/');
 
 	head.push({ tag: 'meta', attrs: { property: 'og:image', content: canonicalImageSrc.href } });
-	head.push({ tag: 'meta', attrs: { name: 'twitter:image', content: canonicalImageSrc.href } });
 	head.push({ tag: 'meta', attrs: { name: 'twitter:site', content: '@thingsboard' } });
+
+	const ogSiteName = head.find(
+		(item) => item.tag === 'meta' && item.attrs?.property === 'og:site_name'
+	);
+	if (ogSiteName) ogSiteName.attrs!['content'] = SITE_NAME;
+
+	const ogType = head.find(
+		(item) => item.tag === 'meta' && item.attrs?.property === 'og:type'
+	);
+	if (ogType) ogType.attrs!['content'] = 'website';
 
 	// Search pages render a search widget with no indexable content. Keep them
 	// out of search results (consistent with the sitemap exclusion).
