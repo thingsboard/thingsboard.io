@@ -450,8 +450,8 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 					"href": "/device-library/smartico-l2-lr/"
 				},
 				{
-					"label": "Water meter Pulse Sensor",
-					"href": "/docs/samples/smartico/pulse-sensor-lorawan/Pulse_Sensor_LoRaWAN/"
+					"label": "Pulse Sensor LoRaWAN \"Smartico P22-LR\"",
+					"href": "/device-library/smartico-p22-lr/"
 				},
 				{
 					"label": "Water meter wM-Bus Reader",
