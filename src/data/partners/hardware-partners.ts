@@ -434,12 +434,12 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 		"links": {
 			"sensorGuides": [
 				{
-					"label": "Electricity Meter",
-					"href": "/docs/samples/smartico/elec-meter-lorawan/Electricity_Meter_LoRaWAN/"
+					"label": "Electricity Three Phase Smart Meter \"Smartico E307\"",
+					"href": "/device-library/smartico-e307/"
 				},
 				{
-					"label": "Gas Meter",
-					"href": "/docs/samples/smartico/gas-meter-lorawan/Gas_Meter_LoRaWAN/"
+					"label": "Smart Gas Meter \"Smartico G-1.6\"",
+					"href": "/device-library/smartico-g-1-6/"
 				},
 				{
 					"label": "Gas Shutoff Valve",
@@ -1229,12 +1229,14 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 		"links": {
 			"generalGuides": [
 				{
-					"label": "Senquip telemetry device",
-					"href": "/docs/samples/senquip/senquip/"
-				},
-				{
 					"label": "Integration guide",
 					"href": "https://cdn.senquip.com/wp-content/uploads/2024/04/18103454/APN0015-Rev-1.1-Connecting-Senquip-Devices-to-the-ThingsBoard.pdf"
+				}
+			],
+			"sensorGuides": [
+				{
+					"label": "ORB-C1-G",
+					"href": "/device-library/orb-c1-g/"
 				}
 			]
 		},
