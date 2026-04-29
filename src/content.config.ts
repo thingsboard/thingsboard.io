@@ -94,6 +94,7 @@ export const recipeSchema = baseSchema.extend({
 
 export const deviceSchema = z.object({
 	title: z.string(),
+	description: z.string(),
 	vendor: z.string().optional(),
 	deviceImageFileName: z.string().default('placeholder.svg'),
 	hardwareType: z.string().default('Other devices'),
