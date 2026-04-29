@@ -46,7 +46,7 @@ function findMdxSlugs(dir: string, base: string = ''): string[] {
 			if (statSync(fullPath).isDirectory()) {
 				slugs.push(...findMdxSlugs(fullPath, relPath));
 			} else if (entry.endsWith('.mdx')) {
-				const slug = relPath.replace(/\.mdx$/, '').replace(/\/index$/, '');
+				const slug = relPath.replace(/\.mdx$/, '').replace(/(?:^|\/)index$/, '');
 				slugs.push(slug);
 			}
 		}
@@ -69,7 +69,9 @@ for (const group of CATCH_ALL_REDIRECTS) {
 	const contentDir = resolve(ROOT, 'src/content/docs/docs', group.newPrefix);
 	const slugs = findMdxSlugs(contentDir);
 	for (const slug of slugs) {
-		flatMap[`/docs/${group.oldPrefix}/${slug}/`] = `/docs/${group.newPrefix}/${slug}/`;
+		const oldPath = slug ? `/docs/${group.oldPrefix}/${slug}/` : `/docs/${group.oldPrefix}/`;
+		const newPath = slug ? `/docs/${group.newPrefix}/${slug}/` : `/docs/${group.newPrefix}/`;
+		flatMap[oldPath] = newPath;
 	}
 }
 const jsonPath = resolve(ROOT, 'public/redirects.json');
