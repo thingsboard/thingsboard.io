@@ -454,8 +454,8 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 					"href": "/device-library/smartico-p22-lr/"
 				},
 				{
-					"label": "Water meter wM-Bus Reader",
-					"href": "/docs/samples/smartico/wm-bus-lorawan/wMBus_Reader_LoRaWAN/"
+					"label": "Wireless M-BUS reader LoRaWAN \"Smartico WM-LR\"",
+					"href": "/device-library/smartico-wm-lr/"
 				}
 			]
 		},
