@@ -551,8 +551,8 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 		"links": {
 			"generalGuides": [
 				{
-					"label": "Nettra RTU",
-					"href": "/docs/samples/nettrartu+/rtu_temp_sensor/"
+					"label": "RTU-X",
+					"href": "/device-library/rtu-x/"
 				}
 			]
 		},
@@ -1592,7 +1592,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"generalGuides": [
 				{
 					"label": "Netvox LoRaWAN Devices",
-					"href": "/docs/samples/netvox/netvox-guide/"
+					"href": "/partners/hardware/netvox/samples/lorawan-devices-and-thingsboard/"
 				}
 			]
 		},
