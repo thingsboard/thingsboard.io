@@ -861,7 +861,14 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 		],
 		"logo": "/images/partners/tektelic.webp",
 		"website": "https://tektelic.com/",
-		"links": {},
+		"links": {
+			"sensorGuides": [
+				{
+					"label": "COMFORT v2 LoRaWAN® Leak Detection Sensor",
+					"href": "/device-library/comfort-v2-lorawan-leak-detection-sensor/"
+				}
+			]
+		},
 		"description": "Leading supplier of LoRaWAN IoT equipment including best-in-class gateways and end devices."
 	},
 	{
