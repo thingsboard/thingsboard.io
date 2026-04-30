@@ -248,4 +248,4 @@ Use the `release` skill for the full checklist. Key files:
 
 ## CI Checks
 
-PRs run: `astro check`, `eslint`, `slugcheck`, `linkcheck`. All must pass.
+PRs run: `astro check`, `eslint`, `slugcheck`. All must pass.
