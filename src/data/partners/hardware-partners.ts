@@ -641,7 +641,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"trackersGuides": [
 				{
 					"label": "Abeeway Micro Tracker and Abeeway Industrial Tracker",
-					"href": "/docs/samples/abeeway/tracker/"
+					"href": "/partners/hardware/actility/samples/abeeway-trackers-thingpark-integration/"
 				}
 			]
 		},
