@@ -510,7 +510,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"gatewayGuides": [
 				{
 					"label": "Syrus 4 IoT Telematics Gateway",
-					"href": "/docs/samples/syrus/syrus/"
+					"href": "/device-library/syrus-4g-iot-telematics-gateway/"
 				}
 			]
 		},
@@ -591,7 +591,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 		"logo": "/images/partners/solandtec.webp",
 		"website": "https://solandtec.com/",
 		"links": {
-			"otherGuides": [
+			"gatewayGuides": [
 				{
 					"label": "ADAM-6717",
 					"href": "/device-library/adam-6717/"
