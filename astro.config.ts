@@ -10,6 +10,7 @@ import { starlightPluginLlmsTxt } from './config/plugins/llms-txt';
 import { rehypeMdxIncludeHeadings } from './config/plugins/rehype-mdx-include-headings';
 import { rehypeTasklistEnhancer } from './config/plugins/rehype-tasklist-enhancer';
 
+import partytown from '@astrojs/partytown';
 import icon from 'astro-icon';
 import svgo from 'vite-plugin-svgo';
 import { fileURLToPath } from 'node:url';
@@ -104,7 +105,7 @@ export default defineConfig({
             }),
         ],
     },
-    integrations: [icon(), devServerFileWatcher([
+    integrations: [partytown({ config: { forward: ['dataLayer.push', 'gtag'] } }), icon(), devServerFileWatcher([
         './config/**', // Custom plugins and integrations
         './astro.sidebar.ts', // Sidebar configuration file
 		]), starlight({
