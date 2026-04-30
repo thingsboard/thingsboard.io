@@ -1840,8 +1840,8 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 		"links": {
 			"generalGuides": [
 				{
-					"label": "Energy Meter monitoring",
-					"href": "/partners/hardware/digicom/samples/digicom-energy-meter-monitoring/"
+					"label": "4G Router DRN 500",
+					"href": "/device-library/drn-500/"
 				}
 			]
 		},
