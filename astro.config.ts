@@ -105,7 +105,31 @@ export default defineConfig({
             }),
         ],
     },
-    integrations: [partytown({ config: { forward: ['dataLayer.push'] } }), icon(), devServerFileWatcher([
+    integrations: [partytown({
+			config: {
+				forward: ['dataLayer.push'],
+				resolveUrl(url, location) {
+					if (location.hostname === 'localhost') return url;
+					const proxied = [
+						'www.googletagmanager.com',
+						'googletagmanager.com',
+						'www.google-analytics.com',
+						'google-analytics.com',
+						'region1.google-analytics.com',
+						'analytics.google.com',
+						'region1.analytics.google.com',
+						'googleads.g.doubleclick.net',
+						'www.googleadservices.com',
+					];
+					if (proxied.includes(url.hostname)) {
+						const proxy = new URL('/partytown-proxy', location.origin);
+						proxy.searchParams.set('apiurl', url.href);
+						return proxy;
+					}
+					return url;
+				},
+			},
+		}), icon(), devServerFileWatcher([
         './config/**', // Custom plugins and integrations
         './astro.sidebar.ts', // Sidebar configuration file
 		]), starlight({
