@@ -12,7 +12,9 @@ export type { DevicePlatform };
 
 export const baseSchema = z.object({
 	type: z.literal('base').optional().default('base'),
+	description: z.string().optional(),
 	selfCanonical: z.boolean().optional(),
+	canonicalUrl: z.string().optional(),
 	githubURL: z.url().optional(),
 	hasREADME: z.boolean().optional(),
 	hero: z
@@ -93,6 +95,7 @@ export const recipeSchema = baseSchema.extend({
 
 export const deviceSchema = z.object({
 	title: z.string(),
+	description: z.string(),
 	vendor: z.string().optional(),
 	deviceImageFileName: z.string().default('placeholder.svg'),
 	hardwareType: z.string().default('Other devices'),
@@ -115,8 +118,7 @@ export const deviceSchema = z.object({
 	category: z.string().optional(),
 	platforms: z
 		.array(z.enum(PLATFORM_VALUES))
-		.default([...PLATFORM_VALUES]),
-	hasBranching: z.boolean().default(false),
+		.default(['ThingsBoard']),
 });
 
 export const blogSchema = z.object({
@@ -132,6 +134,7 @@ export const blogSchema = z.object({
 	featuredImage: z.string(),
 	featuredImageAlt: z.string().default(''),
 	draft: z.boolean().default(false),
+	excludeFromCarousel: z.boolean().default(false),
 });
 
 export const docsCollectionSchema = z.union([
@@ -201,7 +204,16 @@ export const collections = {
 		schema: blogSchema,
 	}),
 	docs: defineCollection({
-		loader: docsLoader(),
+		// Default Astro slug derivation runs each path segment through `github-slugger`,
+		// which strips dots (only `[a-z0-9-]` survives). Override to preserve dotted
+		// filenames like `…-before-v1.7.mdx` so the URL keeps the version separator.
+		// Mirrors the default behaviour for `slug:` frontmatter overrides.
+		loader: docsLoader({
+			generateId: ({ entry, data }) => {
+				if (typeof data.slug === 'string') return data.slug;
+				return entry.replace(/\.(md|mdx|mdoc)$/, '').replace(/(?:^|\/)index$/, '');
+			},
+		}),
 		schema: docsSchema({ extend: docsCollectionSchema }),
 	}),
 	i18n: defineCollection({
@@ -237,8 +249,6 @@ export const collections = {
 				'deploy.ssrTag': z.string().default('SSR'),
 				'media.navTitle': z.string().default('More media guides'),
 				'migration.navTitle': z.string().default('More migration guides'),
-				'404.content': z.string().default("We couldn't find what you were looking for."),
-				'404.linkText': z.string().default('Take me home.'),
 				'install.autoTab': z.string().default('Automatic CLI'),
 				'install.manualTab': z.string().default('Manual Setup'),
 				'starlight.title': z.string().default('Wanna build docs?'),

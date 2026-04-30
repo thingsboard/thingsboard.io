@@ -4,7 +4,7 @@ export const waterMeteringData: UseCaseData = {
 	title: 'Water metering',
 	pageTitle: 'Smart Water Metering with ThingsBoard IoT Platform',
 	description:
-		'Discover how ThingsBoard enables real-time water monitoring, automated alerts, and consumption analytics with a scalable IoT water metering solution for utilities, buildings, and agriculture.',
+		'ThingsBoard enables real-time water monitoring, automated alerts, and consumption analytics with a scalable IoT water metering solution.',
 	pageSlug: 'water-metering',
 	about: {
 		shortText:

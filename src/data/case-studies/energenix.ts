@@ -4,7 +4,7 @@ export const energenixData: CaseStudyData = {
 	title: 'Energenix Scales Solar SCADA & Analytics on ThingsBoard',
 	pageTitle: 'Energenix Scales Solar SCADA & Analytics',
 	description:
-		'Energenix unifies 80+ sites and monitors 120+ MW on an AWS-hosted ThingsBoard Cloud + ThingsBoard Edge setup\u2014real-time KPI dashboards, rule-engine alarms, on-site monitoring and control, and automated reporting.',
+		'Energenix unifies 80+ sites and 120+ MW on AWS-hosted ThingsBoard Cloud and Edge \u2014 KPI dashboards, rule-engine alarms, and automated reporting.',
 	pageSlug: 'energenix',
 	breadcrumb: 'Energenix — Smart Energy',
 	categories: ['Smart energy'],

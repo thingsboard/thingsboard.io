@@ -4,7 +4,7 @@ export const asgTechData: CaseStudyData = {
 	title: 'ASG Tech Boosts IoT Speed with ThingsBoard Widgets',
 	pageTitle: 'ASG Tech Boosts IoT Speed with Custom Widgets',
 	description:
-		"Discover how ASG Tech leveraged ThingsBoard platform to rapidly deliver high-quality IoT applications with custom widgets. Learn how expert collaboration cut time-to-market and boosted user experience.",
+		"ASG Tech uses ThingsBoard to rapidly deliver high-quality IoT applications with custom widgets — expert collaboration cuts time-to-market.",
 	pageSlug: 'asg-tech',
 	breadcrumb: 'ASG Tech — Smart IoT Solutions',
 	categories: ['Smart IoT solution'],

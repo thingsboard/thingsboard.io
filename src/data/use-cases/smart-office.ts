@@ -4,7 +4,7 @@ export const smartOfficeData: UseCaseData = {
 	title: 'Smart office',
 	pageTitle: 'IoT smart office solutions with ThingsBoard',
 	description:
-		'Smart Office is a ready-to-use IoT solution powered by ThingsBoard for real-time monitoring and automation of office environments. Control energy usage, climate, air quality, and devices through intuitive dashboards. Scalable, flexible, and efficient.',
+		'Smart Office IoT solution by ThingsBoard for real-time monitoring and automation. Control energy, climate, air quality, and devices through dashboards.',
 	pageSlug: 'smart-office',
 	about: {
 		shortText:

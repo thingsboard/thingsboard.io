@@ -4,7 +4,7 @@ export const scadaData: UseCaseData = {
 	title: 'SCADA Swimming pool',
 	pageTitle: 'SCADA Swimming Pool Management System with ThingsBoard',
 	description:
-		'Monitor and control swimming pool systems in real time with ThingsBoard SCADA. Supports both high-performance and traditional SCADA interfaces with interactive dashboards, alarms, and Modbus integration.',
+		'Monitor and control swimming pool systems in real time with ThingsBoard SCADA — high-performance and traditional HMIs with dashboards, alarms, and Modbus.',
 	pageSlug: 'scada',
 	about: {
 		shortText:

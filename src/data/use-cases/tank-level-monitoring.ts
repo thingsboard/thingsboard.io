@@ -4,7 +4,7 @@ export const tankLevelMonitoringData: UseCaseData = {
 	title: 'Tank level monitoring solution',
 	pageTitle: 'Tank Level Monitoring with ThingsBoard for Any Industry',
 	description:
-		'A comprehensive IoT solution for tank level monitoring. Real-time insights for fuel, water, and chemical storage with dashboards, alarms, and scalable device management — powered by ThingsBoard',
+		'IoT solution for tank level monitoring — real-time insights for fuel, water, and chemical storage with dashboards and alarms, powered by ThingsBoard.',
 	pageSlug: 'tank-level-monitoring',
 	about: {
 		shortText:

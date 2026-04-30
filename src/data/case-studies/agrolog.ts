@@ -4,7 +4,7 @@ export const agrologData: CaseStudyData = {
 	title: 'Smart Farming Platform by Supertech Agroline and ThingsBoard',
 	pageTitle: 'Smart Farming Platform by Supertech Agroline',
 	description:
-		'Discover how Supertech Agroline, a leading Romanian AgTech innovator, leveraged ThingsBoard to build a scalable, real-time Agricultural IoT platform for post-harvest monitoring and smart automation.',
+		'Supertech Agroline, a Romanian AgTech innovator, uses ThingsBoard to build a real-time agricultural IoT platform for post-harvest monitoring.',
 	pageSlug: 'agrolog',
 	breadcrumb: 'Supertech Agroline — Smart Agriculture',
 	categories: ['Smart agriculture'],

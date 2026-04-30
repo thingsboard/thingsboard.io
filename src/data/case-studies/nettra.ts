@@ -4,7 +4,7 @@ export const nettraData: CaseStudyData = {
 	title: 'How Nettra Accelerated IoT Innovation by Switching to ThingsBoard',
 	pageTitle: 'How Nettra Accelerated IoT Innovation',
 	description:
-		'Discover how Nettra, an IoT company in telecom and energy, replaced months of in-house development by adopting ThingsBoard \u2014 gaining speed, scalability, and reliability for smart infrastructure solutions.',
+		'Nettra, an IoT company in telecom and energy, replaced months of in-house development by adopting ThingsBoard \u2014 gaining speed, scale, and reliability.',
 	pageSlug: 'nettra',
 	breadcrumb: 'Nettra — Smart Energy',
 	categories: ['Smart energy'],

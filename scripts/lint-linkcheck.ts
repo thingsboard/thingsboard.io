@@ -1,4 +1,4 @@
-import { redirects } from '../astro.redirects.ts';
+import { redirects, devFallbackRedirects } from '../astro.redirects.ts';
 import { LinkCheckerState, type LinkCheckerOptions } from './lib/linkcheck/base/base.ts';
 import { CanonicalUrl } from './lib/linkcheck/checks/canonical-url.ts';
 import { GoodLabels } from './lib/linkcheck/checks/good-link-label.ts';
@@ -72,7 +72,11 @@ const linkChecker = new LinkChecker({
 	// Include `astro.redirects` entries as pages so `[ref]` and its autofix can
 	// reason about them. Their built HTML carries `noindex` and is filtered from
 	// the sitemap, so without this they would be invisible to the link checker.
-	additionalPathnames: Object.keys(redirects ?? {}),
+	// Exclude devFallbackRedirects — their targets (search pages, paginated views)
+	// are not in the sitemap and would always produce false-positive 404 errors.
+	additionalPathnames: Object.keys(redirects ?? {}).filter(
+		(p) => !(p in devFallbackRedirects)
+	),
 	// SEO canonical consolidation: pages in "free" versions whose content is ~95% identical
 	// to the "professional" equivalent have their <link rel="canonical"> rewritten to the PE
 	// URL (see `src/routeData.ts`). Edition-specific pages (installation/*, install/*,
@@ -83,17 +87,22 @@ const linkChecker = new LinkChecker({
 	// `[can]` does not fire for links to the actual pathname of a consolidation source, and
 	// `[ref]` / `[lng]` / `[abs]` autofixes preserve product context.
 	consolidationPatterns: [
+		{ from: '/docs/paas/eu/user-guide/billing-info/', to: '/docs/paas/user-guide/billing-info/' },
 		// Main product: CE / PaaS / PaaS EU → PE
-		{ from: '/docs/', to: '/docs/pe/' },
-		{ from: '/docs/paas/', to: '/docs/pe/' },
 		{ from: '/docs/paas/eu/', to: '/docs/pe/' },
+		{ from: '/docs/paas/', to: '/docs/pe/' },
+		{ from: '/docs/', to: '/docs/pe/' },
 		// Sub-products: free → professional
 		{ from: '/docs/edge/', to: '/docs/edge/pe/' },
 		{ from: '/docs/mqtt-broker/', to: '/docs/mqtt-broker/pe/' },
 		{ from: '/docs/mobile/', to: '/docs/mobile/pe/' },
 	],
 	checks: [
-		new TargetExists(),
+		new TargetExists({
+			// These pages exist in dist but carry noindex and are intentionally absent
+			// from the sitemap, so the link checker cannot find them via normal means.
+			ignoredLinkPathnames: ['/contact-us-thanks/', '/partners/hardware/apply-thanks/'],
+		}),
 		new SameLanguage({
 			ignoredLinkPathnames: ['/lighthouse/'],
 		}),

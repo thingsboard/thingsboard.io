@@ -66,8 +66,17 @@ function braceDepthAt(content: string, index: number): number {
 	return depth;
 }
 
+// Replace MDX block comments (the `{/* … */}` form) with same-length
+// whitespace so brace depth counting and offset-based line numbers stay correct.
+function stripMdxComments(content: string): string {
+	return content.replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, (m) =>
+		m.replace(/[^\n]/g, ' '),
+	);
+}
+
 function checkFile(filePath: string): Array<{ line: number }> {
-	const content = readFileSync(filePath, 'utf-8');
+	const raw = readFileSync(filePath, 'utf-8');
+	const content = stripMdxComments(raw);
 	const errors: Array<{ line: number }> = [];
 
 	const stepsRegex = /<Steps>([\s\S]*?)<\/Steps>/g;
