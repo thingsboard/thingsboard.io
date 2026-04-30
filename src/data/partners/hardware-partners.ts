@@ -683,8 +683,12 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 		"links": {
 			"generalGuides": [
 				{
-					"label": "SODAQ Universal Tracker",
+					"label": "SODAQ Universal Tracker with T-Mobile NB-IoT and ThingsBoard",
 					"href": "/partners/hardware/sodaq/samples/sodaq-universal-tracker/"
+				},
+				{
+					"label": "SODAQ Universal Tracker via UDP Integration",
+					"href": "/partners/hardware/sodaq/samples/sodaq-udp-integration/"
 				}
 			]
 		},
