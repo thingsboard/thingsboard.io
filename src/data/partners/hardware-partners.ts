@@ -684,7 +684,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"generalGuides": [
 				{
 					"label": "SODAQ Universal Tracker",
-					"href": "/docs/samples/sodaq/sodaq/"
+					"href": "/partners/hardware/sodaq/samples/sodaq-universal-tracker/"
 				}
 			]
 		},
