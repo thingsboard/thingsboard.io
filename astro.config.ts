@@ -105,7 +105,7 @@ export default defineConfig({
             }),
         ],
     },
-    integrations: [partytown({ config: { forward: ['dataLayer.push', 'gtag'] } }), icon(), devServerFileWatcher([
+    integrations: [partytown({ config: { forward: ['dataLayer.push'] } }), icon(), devServerFileWatcher([
         './config/**', // Custom plugins and integrations
         './astro.sidebar.ts', // Sidebar configuration file
 		]), starlight({
