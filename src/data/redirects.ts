@@ -1096,6 +1096,22 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'samples/raspberry/gpio-android-things', target: '/device-library/raspberry-pi-4/' },
 	{ oldPath: 'samples/raspberry/temperature', target: '/device-library/raspberry-pi-4/' },
 
+	// Device library: per-platform slug aliases on the legacy site that must
+	// override the /device-library/{platform}/* → /device-library/:splat catch-all
+	// in DYNAMIC_REDIRECTS (would otherwise 301 to a non-existent slug).
+	{
+		oldPath: 'pe/devices-library/tecmo-controls-t3e-6ct-and-hum-w1',
+		target: '/device-library/temco-controls-t3e-6ct-and-hum-w1/',
+	},
+	{
+		oldPath: 'pe/devices-library/teltonika-rut-955-and-siemens-logo',
+		target: '/device-library/teltonika-rut955-and-siemens-logo/',
+	},
+	{
+		oldPath: 'devices-library/temco-controls-tstat-10',
+		target: '/device-library/temco-controls-tstat-10-and-hum-w1/',
+	},
+
 	// Trendz — pages consolidated into monitoring / aggregation / tasks-service
 	{ oldPath: 'trendz/anomaly/alarms', target: '/docs/trendz/anomaly/monitoring/' },
 	{ oldPath: 'trendz/anomaly/refresh-reprocess', target: '/docs/trendz/anomaly/monitoring/' },
@@ -1164,6 +1180,13 @@ export const NON_DOCS_REDIRECTS: Record<string, string> = {
 	'/installations/forever-free-cloud/': '/installations/choose-region/',
 	'/iot-use-cases/': '/use-cases/',
 	'/support-ukraine/': 'https://u24.gov.ua/',
+
+	// Device library: per-platform slug aliases on the legacy site that must
+	// override the /device-library/{platform}/* → /device-library/:splat catch-all
+	// in DYNAMIC_REDIRECTS (would otherwise 301 to a non-existent slug).
+	'/device-library/pe/tecmo-controls-t3e-6ct-and-hum-w1/': '/device-library/temco-controls-t3e-6ct-and-hum-w1/',
+	'/device-library/pe/teltonika-rut-955-and-siemens-logo/': '/device-library/teltonika-rut955-and-siemens-logo/',
+	'/device-library/ce/temco-controls-tstat-10/': '/device-library/temco-controls-tstat-10-and-hum-w1/',
 };
 
 /**

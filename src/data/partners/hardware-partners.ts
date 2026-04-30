@@ -1693,7 +1693,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 				},
 				{
 					"label": "Temco Tstat10",
-					"href": "/device-library/temco-controls-tstat-10/?platform=tb"
+					"href": "/device-library/temco-controls-tstat-10-and-hum-w1/?platform=tb"
 				}
 			]
 		},
