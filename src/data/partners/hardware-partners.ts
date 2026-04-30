@@ -594,7 +594,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"otherGuides": [
 				{
 					"label": "ADAM-6717",
-					"href": "/docs/samples/solandtec/thingsboard-guide-solandtec/"
+					"href": "/device-library/adam-6717/"
 				}
 			]
 		},
