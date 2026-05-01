@@ -726,11 +726,11 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"singleBoardComputersGuides": [
 				{
 					"label": "SensiLoRa 2.0 V1.2",
-					"href": "/docs/samples/sensiedge/getting_started_sensiLoRa.pdf"
+					"href": "/partners/hardware/sensiedge/samples/getting_started_sensiLoRa.pdf"
 				},
 				{
 					"label": "SensiBLE 1.0 & 2.1",
-					"href": "/docs/samples/sensiedge/connect_sensi_ble.pdf"
+					"href": "/partners/hardware/sensiedge/samples/connect_sensi_ble.pdf"
 				}
 			]
 		},
