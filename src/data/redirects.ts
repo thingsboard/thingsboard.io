@@ -455,6 +455,8 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'samples/raspberry/grove', target: '/partners/hardware/seeed/samples/raspberry-pi-with-grove-base-hat/' },
 	{ oldPath: 'samples/lansitec/solar-bluetooth-gateway', target: '/device-library/solar-bluetooth-gateway/' },
 	{ oldPath: 'samples/kingpigeon/kingpigeon', target: '/partners/hardware/beilai/samples/4g-lte-industrial-router/' },
+	{ oldPath: 'samples/fusion-daq/fusion-daq', target: '/device-library/fusiondaq-fdq-99900-mi-8/' },
+	{ oldPath: 'samples/digicom/energy-meter-monitoring-with-thingsboard-iot-pla%C6%9Eorm', target: '/device-library/drn-500/' },
 	{ oldPath: 'trendz/business-entities', target: '/docs/trendz/concepts/business-entities/' },
 	{ oldPath: 'trendz/install/trndz-upgrade-instructions-kubernetes', target: '/docs/trendz/install/upgrade-instructions/' },
 	{ oldPath: 'trendz/install/trndz-upgrade-instructions', target: '/docs/trendz/install/upgrade-instructions/' },

@@ -46,7 +46,7 @@ export const onRequest = async ({ request }: { request: Request }) => {
 		response.headers.set('Access-Control-Allow-Origin', '*');
 
 		return response;
-	} catch (e) {
+	} catch {
 		return new Response('Invalid URL or Fetch Error', { status: 500 });
 	}
 };
