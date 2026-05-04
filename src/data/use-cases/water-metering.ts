@@ -24,7 +24,7 @@ export const waterMeteringData: UseCaseData = {
 		longText: [
 			'The platform stores this data, applies intelligent rules to trigger alerts, and visualizes everything through intuitive dashboards for immediate operational insights.',
 		],
-		schemeSrc: '/src/assets/schemas/iot-solution-architecture.svg',
+		schemeSrc: '/src/assets/schemas/water-metering.svg',
 		schemeAlt:
 			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for alarms, dashboards, notifications, and data lakes',
 		schemeCaption:
@@ -33,7 +33,7 @@ export const waterMeteringData: UseCaseData = {
 	dashboardStructure: {
 		title: 'Dashboard structure of water metering solution',
 		subtitle:
-			'The live dashboard displays real-time data from several smart water meters collected using ThingsBoard. Collected data is processed via the rule engine to raise alarms on certain thresholds.',
+			'The ThingsBoard water metering dashboard is structured into dedicated states, each focusing on a key aspect of system monitoring, control, and analysis. Below is a breakdown of each state with its purpose and content:',
 		panels: [
 			{
 				title: 'Total overview state',
@@ -57,7 +57,7 @@ export const waterMeteringData: UseCaseData = {
 			{
 				title: 'Devices state',
 				description:
-					'This dashboard displays all registered water meters with essential metadata like latest readings, status, and leak detection. Users can manage device information, monitor their real-time performance, and quickly respond to technical issues. Additionally, this view allows users to add new devices, edit existing device details, change geolocation parameters, and configure alarm thresholds.',
+					'This dashboard displays all registered water meters with essential metadata like latest readings, status, and leak detection. Users can manage device information, monitor their real-time performance, and quickly respond to technical issues. Additionally, this view allows users to add new devices by entering their serial number and metadata, edit existing device details, change geolocation parameters by dragging a map marker, and configure alarm thresholds for consumption, battery, or inactivity detection.',
 				image: '/src/assets/images/usecases/water-metering/water-metering-6.webp',
 				imageAlt:
 					'ThingsBoard interface for editing smart water meter device details with active alerts and status overview',
@@ -94,7 +94,7 @@ export const waterMeteringData: UseCaseData = {
 			{
 				title: 'Individual device dashboards',
 				description:
-					'Each device has its own dedicated view showing granular consumption data by hour, daily/weekly totals, and battery health. It includes editable location mapping and detailed metadata, enabling localized control and diagnostics.',
+					'Each device has its own dedicated view showing granular consumption data by hour, daily/weekly totals, and battery health. It includes editable location mapping and detailed metadata, enabling localized control and diagnostics. Additionally, each dashboard displays device-specific contact information for the owner, facilitating support and communication, as well as a photo section that allows users to upload or update an image of the physical device for visual identification and verification.',
 				image: '/src/assets/images/usecases/water-metering/water-metering-3.webp',
 				imageAlt:
 					'Detailed IoT water meter monitoring with usage graph, location map, alerts, and installation info',
@@ -112,7 +112,7 @@ export const waterMeteringData: UseCaseData = {
 			{
 				title: 'Rule chains: data processing logic',
 				description:
-					'The backend logic of the solution is driven by ThingsBoard rule chains, which handle incoming telemetry from devices and automate alarm routing, threshold checks, and notification dispatch.',
+					'The backend logic of the solution is driven by ThingsBoard rule chains, which handle incoming telemetry from devices and automate alarm routing, threshold checks, and notification dispatch. These visual flowcharts allow platform administrators to customize workflows based on device status, tenant or customer settings, and alarm types, ensuring flexibility and scalability of the solution.',
 				image: '/src/assets/images/usecases/water-metering/water-metering-9.webp',
 				imageAlt:
 					'ThingsBoard rule chain flow diagram for water consumption processing and alarm generation',
@@ -132,7 +132,7 @@ export const waterMeteringData: UseCaseData = {
 			{
 				title: 'Municipal water services',
 				description:
-					'Automate meter readings and billing, track city-wide consumption trends, and detect leaks instantly.',
+					'By using IoT-based water metering, municipalities can automate meter readings and billing processes, gain insight into consumption trends across entire cities, and react instantly to issues such as leaks or overuse.',
 				desktopImage: '/src/assets/images/usecases/scada/water-1.svg',
 				mobileImage: '/src/assets/images/usecases/scada/water-2.svg',
 				imageAlt: 'Water valve',
@@ -140,7 +140,7 @@ export const waterMeteringData: UseCaseData = {
 			{
 				title: 'Industrial facilities',
 				description:
-					'Monitor water usage to ensure environmental compliance and reduce utility costs with predictive insights.',
+					'Industries benefit from accurate water monitoring to stay compliant with strict environmental standards and to manage utility costs more effectively through predictive consumption insights.',
 				desktopImage: '/src/assets/images/usecases/water-metering/industrial-1.svg',
 				mobileImage: '/src/assets/images/usecases/water-metering/industrial-2.svg',
 				imageAlt: 'Industrial',
@@ -148,7 +148,7 @@ export const waterMeteringData: UseCaseData = {
 			{
 				title: 'Smart buildings',
 				description:
-					'Minimize water waste with real-time monitoring to optimize plumbing and improve building sustainability.',
+					'Water metering in smart buildings enables facility managers to fine-tune plumbing infrastructure, minimize waste through real-time monitoring, and improve the overall experience and sustainability for occupants.',
 				desktopImage: '/src/assets/images/usecases/water-metering/smart-building-1.svg',
 				mobileImage: '/src/assets/images/usecases/water-metering/smart-building-2.svg',
 				imageAlt: 'Building',

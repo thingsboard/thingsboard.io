@@ -494,7 +494,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-private-cloud-edge-addon-cloud-pricing-plans',
 				question: 'What pricing plans does Edge Computing add-on offer?',
-				answer: `<p>Edge Computing add-on pricing depends on your ThingsBoard model. Check the relevant pricing in the <a href="/pricing/?section=thingsboard-pe-options&product=thingsboard-private-cloud&calculator/">Plan Calculator</a>.</p>`,
+				answer: `<p>Edge Computing add-on pricing depends on your ThingsBoard model. Check the relevant pricing in the <a href="/pricing/?section=thingsboard-pe-options&product=thingsboard-private-cloud&calculator">Plan Calculator</a>.</p>`,
 			},
 			{
 				id: 'tb-private-cloud-trendz-what-is',
@@ -504,7 +504,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-private-cloud-trendz-pricing-plans',
 				question: 'What pricing plans does Trendz offer?',
-				answer: `<p>Trendz pricing depends on your ThingsBoard model. You can check the relevant pricing in the <a href="/pricing/?section=thingsboard-pe-options&product=thingsboard-private-cloud&calculator/">Plan Calculator</a> on this page.</p>`,
+				answer: `<p>Trendz pricing depends on your ThingsBoard model. You can check the relevant pricing in the <a href="/pricing/?section=thingsboard-pe-options&product=thingsboard-private-cloud&calculator">Plan Calculator</a> on this page.</p>`,
 			},
 			{
 				id: 'tb-private-cloud-what-is-included-in-the-white-labeled-mobile-app-add-on',

@@ -10,8 +10,8 @@ export const smartFarmingData: UseCaseData = {
 		shortText:
 			'Modern agriculture is undergoing a digital transformation driven by the need for sustainability, efficiency, and resilience. Farmers and agricultural enterprises face increasing pressure to optimize yield, reduce resource consumption, and mitigate risks related to climate and storage. ThingsBoard easily handles this task by providing real-time data collection, automation, and intuitive visualization tailored for smart farming needs.',
 		longText: [
-			'The ThingsBoard platform enables seamless integration of soil sensors, weather stations, climate controllers, and storage monitoring devices into a unified IoT ecosystem. With support for MQTT, CoAP, HTTP, and LwM2M protocols, as well as LoRaWAN and NB-IoT integrations, it accommodates both field-deployed and facility-based devices across large agricultural operations.',
-			'From crop monitoring and irrigation automation to silo climate control and livestock tracking, ThingsBoard gives farmers and agritech companies full control over their assets. Interactive dashboards, configurable rule chains, and real-time alerting ensure that critical events are detected and acted upon instantly — reducing losses, improving yields, and driving operational excellence.',
+			'ThingsBoard IoT platform empowers agricultural stakeholders with a robust, scalable solution to collect, process, and visualize environmental and operational data. Its support for multiple communication protocols and seamless device integration makes it ideal for diverse farming environments, whether remote fields, greenhouses, or storage facilities.',
+			'By leveraging ThingsBoard, agribusinesses gain full control over assets and infrastructure — from temperature and humidity sensors to automated aeration systems. With real-time dashboards, rule-based alerts, and remote control features, the platform helps reduce waste, improve crop quality, and lower operational costs.',
 		],
 		demoUrl:
 			'https://demo.thingsboard.io/dashboard/1f9828d0-058e-11e7-87f7-bb0136cc33d0?publicId=963ab470-34c9-11e7-a7ce-bb0136cc33d0',
@@ -23,69 +23,62 @@ export const smartFarmingData: UseCaseData = {
 		overlayImage: '/src/assets/images/usecases/smart-farming/smart-farming-1.webp',
 	},
 	solutionStructure: {
-		title: 'Solution structure of smart farming use case',
+		title: 'Solution structure of smart farming',
 		shortText:
-			'Field sensors, weather stations, and storage monitors transmit data to ThingsBoard using IoT protocols like MQTT, CoAP, and HTTP, or via integrations with LoRaWAN servers and other platforms.',
+			'The smart farming solution powered by ThingsBoard connects IoT sensors across silos, greenhouses, and fields to gather key data like temperature, humidity, soil moisture, and crop levels. Using protocols such as MQTT, CoAP, HTTP, and Modbus, the system ensures smooth, real-time data transmission and integration with existing equipment.',
 		longText: [
-			'The built-in rule engine processes incoming telemetry in real time, evaluating thresholds for soil moisture, temperature, humidity, and other critical parameters. Automated actions such as irrigation triggers, ventilation adjustments, and alarm notifications are executed without manual intervention.',
-			'All collected data is visualized through customizable dashboards, giving farmers and operators clear insights into crop conditions, storage environments, and equipment performance — all in real time, from a single interface.',
+			'ThingsBoard processes incoming telemetry with automated rule chains that trigger alerts or control actions. Custom dashboards visualize the data through maps and charts, enabling users to monitor operations, identify issues, and respond quickly. The solution is fully scalable—from small farms to large agricultural enterprises.',
 		],
-		schemeSrc: '/src/assets/schemas/iot-solution-architecture.svg',
-		schemeAlt:
-			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for alarms, dashboards, notifications, and data lakes',
+		schemeSrc: '/src/assets/schemas/use-case.svg',
+		schemeAlt: 'Smart farming solution architecture',
 		schemeCaption:
-			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for processing, visualization, and automation',
+			'Smart farming solution architecture: IoT devices connect via gateways to the cloud for processing, visualization, and automation',
 	},
 	dashboardStructure: {
-		title: 'Dashboard structure of smart farming solution',
+		title: 'Smart farming dashboard structure',
 		subtitle:
-			'The live dashboard displays real-time data from agricultural sensors and controllers. Collected data is processed via the rule engine to automate actions and raise alarms on certain thresholds.',
+			'Effective data visualization is critical for smart farming. ThingsBoard dashboards are designed to be intuitive, modular, and informative, helping users quickly identify anomalies and make informed decisions.',
 		panels: [
 			{
-				title: 'Farm overview state',
+				title: 'Overview dashboard state',
 				description:
-					'The main dashboard provides a comprehensive view of the entire farming operation, displaying field conditions, storage status, and active alarms on an interactive map. Operators can monitor soil moisture, temperature, and humidity across all zones from a single interface.',
+					'Displays a geographic map with locations, real-time stats (aeration, crop level, temperature, humidity), charts for crop level and temperature, and an alarm panel. Consolidates multiple data points for instant status tracking and efficient response.',
 				image: '/src/assets/images/usecases/smart-farming/smart-farming-1.webp',
 				imageAlt:
 					'Farm overview dashboard with field conditions and storage status on interactive map',
-				imageTitle:
-					'ThingsBoard smart farming dashboard showing real-time field conditions, storage status, and active alarms',
+				imageTitle: 'Overview dashboard state',
 			},
 			{
-				title: 'Crop monitoring state',
+				title: 'Night mode dashboard state',
 				description:
-					'Detailed view of individual crop zones with real-time soil moisture, temperature, and light intensity readings. Historical trend charts help identify patterns and optimize irrigation schedules for maximum yield.',
+					'A dark-themed version of the main dashboard \u2014 ideal for nighttime operation or low-light environments. Enhances operator focus and visibility during late-hour monitoring.',
 				image: '/src/assets/images/usecases/smart-farming/smart-farming-2.webp',
 				imageAlt: 'Crop monitoring dashboard with soil moisture and temperature data',
-				imageTitle:
-					'Real-time crop monitoring with soil moisture, temperature, and light intensity trends',
+				imageTitle: 'Night mode dashboard state',
 			},
 			{
-				title: 'Silo climate control state',
+				title: 'Silo A state',
 				description:
-					'Monitoring and controlling climate conditions inside grain silos, including temperature, humidity, and CO\u2082 levels. Automated ventilation and drying systems are triggered based on configurable thresholds to prevent spoilage.',
+					'Features local map, moisture graph, crop level chart, temperature trends, and aeration control toggle. Focused monitoring supports precise diagnostics and device-level control.',
 				image: '/src/assets/images/usecases/smart-farming/smart-farming-3.webp',
 				imageAlt: 'Silo climate control dashboard with temperature and humidity monitoring',
-				imageTitle:
-					'Grain silo climate control with automated ventilation and real-time condition monitoring',
+				imageTitle: 'Silo A state',
 			},
 			{
-				title: 'Irrigation automation state',
+				title: 'Silo B state',
 				description:
-					'This panel displays irrigation zone status, soil moisture levels, and water consumption metrics. Automated irrigation schedules can be configured based on sensor readings, weather forecasts, and crop requirements.',
+					'Similar layout, highlighting real-time moisture, crop level, indoor/outdoor temperature comparison. Enables insights into environmental conditions and ventilation efficiency.',
 				image: '/src/assets/images/usecases/smart-farming/smart-farming-4.webp',
 				imageAlt: 'Irrigation automation dashboard with zone status and water consumption',
-				imageTitle:
-					'Smart irrigation automation with soil moisture-based scheduling and water consumption analytics',
+				imageTitle: 'Silo B state',
 			},
 			{
-				title: 'Alarm and notification state',
+				title: 'Silo C state',
 				description:
-					'Centralized alarm management displaying all active alerts with severity levels, timestamps, and sensor origins. Farmers receive instant notifications via email or SMS for critical events such as frost warnings, equipment failures, or storage anomalies.',
+					'Displays readings from a silo with aeration turned off, helping to assess impact on crop conditions. Supports preventive maintenance and smarter control strategies.',
 				image: '/src/assets/images/usecases/smart-farming/smart-farming-5.webp',
 				imageAlt: 'Alarm management panel with severity indicators and notification settings',
-				imageTitle:
-					'ThingsBoard alarm management for smart farming with real-time notifications and severity-based filtering',
+				imageTitle: 'Silo C state',
 			},
 		],
 		demoUrl:
@@ -146,8 +139,8 @@ export const smartFarmingData: UseCaseData = {
 		],
 	},
 	summary: {
-		title: 'Summary of smart farming solution',
-		text: 'ThingsBoard provides an end-to-end IoT solution for smart farming that covers everything from field monitoring and irrigation automation to silo climate control and livestock management. With scalable device integration, powerful rule-based automation, and intuitive dashboards, agricultural businesses can reduce losses, optimize resources, and make data-driven decisions — all from a single platform.',
+		title: 'Summary of smart farming',
+		text: 'Smart farming with ThingsBoard offers a complete end-to-end IoT solution for agricultural operations. From field to storage, it unifies device connectivity, real-time analytics, control systems, and user-friendly dashboards. By adopting this solution, agri-businesses can boost productivity, ensure compliance, minimize losses, and gain full transparency over their entire value chain.',
 		icon: '/src/assets/images/usecases/health-care/summary.svg',
 		iconAlt: 'Text summary icon',
 	},

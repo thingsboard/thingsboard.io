@@ -10,8 +10,8 @@ export const healthCareData: UseCaseData = {
 		shortText:
 			'ThingsBoard is an IoT platform with all the tools needed to build a comprehensive healthcare monitoring and management solution with ease. ThingsBoard provides an extensive range of built-in features as well as flexible customization options.',
 		longText: [
-			'The ThingsBoard IoT platform offers powerful capabilities for healthcare environments, including real-time device monitoring, configurable alarm rules, role-based access control, and rich dashboard visualizations. These features enable healthcare providers to track patient vitals, environmental conditions, and equipment status from a single unified interface.',
-			'The smart assisted living solution demonstrates how ThingsBoard can be deployed in residential care facilities to monitor residents, manage rooms and zones, and automate alerts for caregivers. By combining BLE beacons, environmental sensors, and intelligent rule chains, the platform delivers a complete ecosystem for improving resident safety, comfort, and quality of care.',
+			'Healthcare monitoring systems are designed to track patient health metrics in real time and immediately notify medical professionals of critical changes. ThingsBoard, as a robust IoT platform, provides all the necessary tools for collecting, processing, and visualizing data from devices that use protocols like BLE or LoRaWAN gateways, enabling seamless integration and support for flexible solutions.',
+			"Our smart assisted living solution powered by ThingsBoard provides real-time monitoring and management of residents' health in assisted living facilities. Using ThingsBoard’s powerful IoT capabilities, this solution integrates connected devices, data analytics, and automated alerts to create a seamless experience for caregivers and administrators, ensuring timely responses and a higher quality of care.",
 		],
 		demoUrl:
 			'https://thingsboard.cloud/dashboard/f8e77210-8fa8-11ef-90c1-0b39f28da380?publicId=7aa99e80-8acd-11ef-a59e-a9c993dbec14',
@@ -44,25 +44,26 @@ export const healthCareData: UseCaseData = {
 		],
 	},
 	solutionStructure: {
-		title: 'Solution structure of health care use case',
+		title: 'Solution structure',
 		shortText:
 			'The solution is designed to be used with BLE (Bluetooth Low Energy) or LoRaWAN gateways and devices. The rooms may be equipped with a number of sensors like room temperature, humidity, indoor air quality (IAQ), leak, smoke, and open/close detectors.',
 		longText: [
 			"The geopositioning of the resident is done via the beacon in the wristband and a set of nearby gateways. The platform deduplicates the incoming message from the beacon and enriches it with the attributes of the nearby gateways. The geopositioning algorithm is relatively simple and based on the payload's RSSI parameter. One may improve the algorithm based on the particular use case.",
 		],
-		schemeSrc: '/src/assets/schemas/iot-solution-architecture.svg',
-		schemeAlt:
-			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for alarms, dashboards, notifications, and data lakes',
+		schemeSrc: '/src/assets/schemas/health-care.svg',
+		schemeAlt: 'Health care solution structure',
 		schemeCaption:
 			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for processing, visualization, and automation',
 	},
 	benefits: {
-		title: 'Health care benefits',
+		title: 'Smart assisted living benefits',
+		subtitle:
+			'The smart assisted living solution offers a range of benefits for care providers, residents, and facility administrators, supporting safe and efficient management of assisted living facilities:',
 		benefits: [
 			{
 				title: 'Efficient monitoring and response',
 				description:
-					"Enables real-time tracking of residents' health and environmental conditions, allowing caregivers to respond promptly to emergencies.",
+					'Enables real-time tracking of residents’ health and environmental conditions, allowing caregivers to respond promptly to emergencies.',
 			},
 			{
 				title: 'Automated alerts and notifications',
@@ -92,70 +93,70 @@ export const healthCareData: UseCaseData = {
 		],
 	},
 	dashboardStructure: {
-		title: 'Dashboard structure of health care solution',
+		title: 'Dashboard structure',
 		subtitle:
-			'The live dashboard demonstrates a comprehensive healthcare monitoring system built with ThingsBoard. It provides real-time visibility into resident health, room conditions, and facility management — all from a single interface.',
+			'The smart assisted living dashboard enables caregivers and administrators to monitor residents’ health data and environmental conditions in real-time, with intuitive interfaces and easily configurable alarm systems.',
 		panels: [
 			{
 				title: 'Resident overview',
 				description:
-					'The main dashboard displays a summary of all residents, their current locations, health status indicators, and active alarms. Caregivers can quickly identify residents requiring attention and navigate to detailed profiles with a single click.',
+					"Provides a detailed profile for each resident, including health metrics such as heart rate, body temperature, and panic button status, allowing caregivers to quickly assess each resident's current health condition.",
 				image: '/src/assets/images/usecases/health-care/resident-overview.webp',
 				imageAlt: 'Resident overview dashboard with health status and location tracking',
 			},
 			{
-				title: 'Resident alarm dashboard',
+				title: 'Resident alarm configuration',
 				description:
-					'This view provides a detailed alarm history for individual residents, including alarm type, severity, timestamp, and acknowledgment status. Caregivers can filter alarms by date range and severity to focus on critical events.',
+					'Allows administrators to set customized alarm rules for resident health parameters like heart rate and body temperature. Major and critical thresholds can be configured to trigger appropriate alerts in case of abnormalities.',
 				image: '/src/assets/images/usecases/health-care/resident-alarm.webp',
 				imageAlt: 'Resident alarm history with severity levels and timestamps',
 			},
 			{
-				title: 'Real-time resident alarm',
+				title: 'Real-time resident alarms',
 				description:
-					'A real-time alarm view shows active alerts as they occur, enabling immediate response. The dashboard highlights the affected resident, their location, and the nature of the alarm — whether it is a health event, environmental trigger, or device malfunction.',
+					"Displays active alarms for residents, such as panic button presses or irregular vital signs, with real-time updates on each alert's status and severity, enabling quick response by caregivers.",
 				image: '/src/assets/images/usecases/health-care/real-time-resident-alarm.webp',
 				imageAlt: 'Real-time alarm notification for resident health events',
 			},
 			{
 				title: 'Room alarm configuration',
 				description:
-					'Administrators can configure alarm thresholds for each room, including temperature limits, humidity ranges, air quality indices, and noise levels. Custom rules trigger automated notifications when conditions exceed safe parameters.',
+					'Provides settings to adjust alarm thresholds for environmental factors in rooms, such as temperature, humidity, air quality, and window or door status. This ensures rooms remain within safe and comfortable conditions for residents.',
 				image: '/src/assets/images/usecases/health-care/room-alarm-configuration.webp',
 				imageAlt: 'Room alarm threshold configuration interface',
 			},
 			{
 				title: 'Resident list management',
 				description:
-					'A comprehensive list view of all residents with their profiles, assigned rooms, health conditions, and emergency contacts. Facility managers can add, edit, or archive resident records and assign care plans directly from this interface.',
+					'Lists all residents with essential information such as age, gender, assigned room, and floor, allowing caregivers to locate and access each resident’s data efficiently.',
 				image: '/src/assets/images/usecases/health-care/resident-list-management.webp',
 				imageAlt: 'Resident list with profiles and room assignments',
 			},
 			{
 				title: 'Zone and floor management',
 				description:
-					'This dashboard provides a facility-wide view organized by zones and floors. Managers can monitor environmental conditions across the entire building, identify problem areas, and ensure consistent comfort levels throughout the facility.',
+					'Enables administrators to organize the facility into zones or floors, allowing for easy navigation and monitoring of different areas within the facility.',
 				image: '/src/assets/images/usecases/health-care/zone-and-floor-management.webp',
 				imageAlt: 'Facility zone and floor management overview',
 			},
 			{
 				title: 'Room and device layout',
 				description:
-					'An interactive room layout showing the placement of sensors and devices within each room. Users can view real-time readings from individual sensors, check device battery levels, and verify connectivity status.',
+					'Shows the layout of each floor with room labels and device icons, allowing caregivers and administrators to identify the location of sensors and devices quickly for effective monitoring.',
 				image: '/src/assets/images/usecases/health-care/room-and-device-layout.webp',
 				imageAlt: 'Interactive room layout with sensor and device placement',
 			},
 			{
 				title: 'Device addition',
 				description:
-					'The device provisioning interface allows administrators to register new sensors and gateways, assign them to specific rooms, and configure their telemetry parameters. The guided workflow ensures proper setup and connectivity validation.',
+					'Allows the addition of new devices like sensors or gateways to specific rooms, supporting scalability and enabling administrators to expand monitoring capabilities as needed.',
 				image: '/src/assets/images/usecases/health-care/device-addition.webp',
 				imageAlt: 'Device provisioning and registration interface',
 			},
 			{
 				title: 'Room configuration',
 				description:
-					'Detailed room configuration panel where administrators define room properties, assign sensors, set alarm thresholds, and configure environmental monitoring parameters. Changes are applied in real time without requiring device restarts.',
+					'Provides a tool to edit room details and positions within the facility layout, enabling accurate mapping and customization of room assignments.',
 				image: '/src/assets/images/usecases/health-care/room-configuration.webp',
 				imageAlt: 'Room configuration panel with sensor assignments and thresholds',
 			},
@@ -173,7 +174,7 @@ export const healthCareData: UseCaseData = {
 			{
 				title: 'Hospitals and healthcare facilities',
 				description:
-					'Real-time patient monitoring, environmental control in wards, and automated alerting for medical staff to ensure timely response to critical health events.',
+					"Real-time monitoring of patients' conditions, tracking vital signs, managing wards and departments, and setting up alerts for timely response by medical staff to any health deterioration.",
 				desktopImage: '/src/assets/images/usecases/health-care/hospital-1.svg',
 				mobileImage: '/src/assets/images/usecases/health-care/hospital-2.svg',
 				imageAlt: 'Hospital',
@@ -182,7 +183,7 @@ export const healthCareData: UseCaseData = {
 			{
 				title: 'Rehabilitation centers',
 				description:
-					'Tracking patient recovery progress, monitoring exercise routines, and maintaining optimal environmental conditions for rehabilitation activities.',
+					'Monitoring the condition of patients undergoing rehabilitation after surgery or injuries. The system can track recovery progress, transmit data to doctors, and set reminders for physical therapy.',
 				desktopImage: '/src/assets/images/usecases/health-care/sport-complex-1.svg',
 				mobileImage: '/src/assets/images/usecases/health-care/sport-complex-2.svg',
 				imageAlt: 'Rehabilitation center',
@@ -191,7 +192,7 @@ export const healthCareData: UseCaseData = {
 			{
 				title: 'Prisons and correctional facilities',
 				description:
-					'Monitoring inmate locations, environmental conditions in cells and common areas, and ensuring safety compliance through automated alert systems.',
+					'Monitoring the health of inmates with vital sign tracking, smoke detectors, and access control systems. The system can also monitor movements and support facility security.',
 				desktopImage: '/src/assets/images/usecases/health-care/rehabilitation-center-1.svg',
 				mobileImage: '/src/assets/images/usecases/health-care/rehabilitation-center-2.svg',
 				imageAlt: 'Correctional facility',
@@ -200,7 +201,7 @@ export const healthCareData: UseCaseData = {
 			{
 				title: 'Sports complexes and fitness centers',
 				description:
-					'Tracking athlete performance, monitoring environmental conditions in training areas, and managing facility zones for optimal comfort and safety.',
+					"Maintaining optimal conditions in gyms and locker rooms, monitoring the health of visitors (e.g., heart rate), and setting up emergency alerts if someone's health deteriorates during workouts.",
 				desktopImage: '/src/assets/images/usecases/health-care/factories-1.svg',
 				mobileImage: '/src/assets/images/usecases/health-care/factories-2.svg',
 				imageAlt: 'Sports complex',
@@ -209,7 +210,7 @@ export const healthCareData: UseCaseData = {
 			{
 				title: 'Factories and industrial sites',
 				description:
-					'Worker health monitoring in hazardous environments, air quality tracking, and automated safety alerts to prevent occupational health incidents.',
+					'Ensuring employee safety by monitoring working conditions (temperature, gas emissions, noise, humidity) and controlling equipment status to respond promptly to emergency situations.',
 				desktopImage: '/src/assets/images/usecases/health-care/prison-1.svg',
 				mobileImage: '/src/assets/images/usecases/health-care/prison-2.svg',
 				imageAlt: 'Factory',
@@ -219,7 +220,7 @@ export const healthCareData: UseCaseData = {
 	},
 	summary: {
 		title: 'Summary of health care solution',
-		text: 'The smart assisted living solution powered by ThingsBoard provides a comprehensive approach to resident and facility management. By combining real-time health monitoring, environmental sensing, and intelligent automation, healthcare providers can deliver higher quality care while reducing administrative overhead. The platform enables proactive response to health events, personalized care plans, and data-driven decision-making — all from a centralized, intuitive interface that scales from small care homes to large multi-facility deployments.',
+		text: 'This smart assisted living solution on ThingsBoard provides a comprehensive approach to resident and facility management, with robust monitoring capabilities, intuitive zoning and device management, and customizable alerts for both health and environmental conditions. The solution empowers caregivers and administrators to respond quickly, keep environments safe, and provide the highest standard of care for residents.',
 		icon: '/src/assets/images/usecases/health-care/summary.svg',
 		iconAlt: 'Text summary icon',
 	},

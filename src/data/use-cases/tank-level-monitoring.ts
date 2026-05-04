@@ -10,8 +10,8 @@ export const tankLevelMonitoringData: UseCaseData = {
 		shortText:
 			'Modern enterprises that manage liquid storage — from fuel to water — face the critical need for continuous tank level monitoring and infrastructure status control. Poor monitoring can lead to leaks, equipment downtime, and higher operational costs. In this context, IoT-powered solutions become essential for digital transformation. The ThingsBoard IoT platform addresses these challenges with ease.',
 		longText: [
-			'ThingsBoard provides a comprehensive approach to tank level monitoring, combining real-time telemetry with advanced automation. The platform collects data from level sensors, pressure gauges, and temperature probes installed on tanks of all sizes. By leveraging the Rule Engine, operators can set up threshold-based alarms, automated notifications, and escalation workflows that ensure no anomaly goes unnoticed — whether it is an unexpected level drop indicating a leak or a tank approaching overflow capacity.',
-			'Built for scalability, ThingsBoard supports deployment from a handful of tanks at a single facility to thousands of storage units distributed across multiple sites. Multi-tenant architecture enables service providers to manage separate client environments from a single platform instance. With support for MQTT, CoAP, HTTP, and Modbus protocols, the solution integrates seamlessly with both modern IoT sensors and legacy industrial equipment, making it the ideal foundation for any tank monitoring infrastructure.',
+			'The ThingsBoard platform offers a comprehensive approach to tank level monitoring, enabling real-time tracking of key metrics such as volume, temperature, sensor battery level, and connectivity status. Thanks to its flexibility, ThingsBoard can be easily tailored to meet industry-specific needs, whether for small-scale or enterprise-wide deployments.',
+			'ThingsBoard stands out due to its scalability, support for multiple protocols (MQTT, HTTP, CoAP, and others), customizable dashboards, and robust device management tools. It empowers users to deploy both local and cloud-based solutions that effectively monitor dispersed tank networks at any scale.',
 		],
 		demoUrl:
 			'https://thingsboard.cloud/dashboard/e1ff5690-5e0c-11ee-aeee-d16039673934?publicId=7aa99e80-8acd-11ef-a59e-a9c993dbec14',
@@ -51,73 +51,69 @@ export const tankLevelMonitoringData: UseCaseData = {
 		],
 	},
 	solutionStructure: {
-		title: 'Solution structure of tank level monitoring use case',
+		title: 'Solution structure of tank level monitoring',
 		shortText:
-			'The ThingsBoard-powered <a href="/docs/pe/recipes/solution-templates/fuel-level-monitoring/">tank level monitoring solution</a> integrates IoT sensors installed on tanks to continuously measure liquid levels, temperature, and pressure. Sensor data is transmitted to the platform via MQTT, CoAP, or HTTP protocols, either directly or through IoT gateways for legacy equipment.',
+			'The <a href="/docs/pe/recipes/solution-templates/fuel-level-monitoring/">tank level monitoring</a> solution integrates IoT sensors — such as level, temperature, and battery — with the ThingsBoard platform. Data is transmitted via standard protocols: MQTT for real-time telemetry, HTTP for periodic updates, and CoAP for low-power environments. This ensures reliable, efficient communication across a wide range of devices and conditions.',
 		longText: [
-			'Once the telemetry reaches ThingsBoard, it is processed in real time by the Rule Engine, which evaluates conditions and triggers alarms for events such as low levels, overfill risks, or sudden drops indicating potential leaks. The processed data is stored in a time-series database and visualized on interactive dashboards, providing operators with a clear picture of tank status across all monitored locations.',
-			'The architecture supports hierarchical asset management, allowing operators to organize tanks by site, region, or client. Combined with role-based access control, this ensures that each stakeholder sees only the data relevant to their scope — from field technicians monitoring individual tanks to managers overseeing enterprise-wide operations.',
+			'Once collected, the data is transmitted to ThingsBoard for processing, aggregation, and visualization. The platform offers historical data storage, advanced alarm rule configuration, and remote device management. Incoming data is presented through interactive dashboards that display all metrics in user-friendly formats: graphs, maps, tables, and status widgets.',
 		],
-		schemeSrc: '/src/assets/schemas/iot-solution-architecture.svg',
-		schemeAlt:
-			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for alarms, dashboards, notifications, and data lakes',
+		schemeSrc: '/src/assets/schemas/use-case.svg',
+		schemeAlt: 'Tank level monitoring solution architecture',
 		schemeCaption:
-			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for processing, visualization, and automation',
+			'Tank level monitoring solution architecture: IoT devices connect via gateways to the cloud for processing, visualization, and automation',
 	},
 	dashboardStructure: {
-		title: 'Dashboard structure of tank level monitoring solution',
+		title: 'Tank level monitoring dashboard structure',
+		subtitle:
+			'The dashboards in ThingsBoard are modular: each panel is a self-contained widget that retrieves data from a specific device or group. They support drill-down navigation, filtering, and grouping by fuel type or region. This makes the interface intuitive and easy to scale for large deployments.',
 		panels: [
 			{
-				title: 'Fleet overview dashboard',
+				title: 'Interactive map and tank status overview state',
 				description:
-					'The main dashboard displays all monitored tanks on an interactive map with real-time status indicators. Each tank marker shows current fill level, last update time, and alarm status at a glance. Side panels provide summary statistics including total tank count, active alarms, and average fill levels across the entire fleet — giving operators a single-pane view of their entire storage infrastructure.',
+					'This state combines an interactive map with a real-time table of tank metrics, displaying fuel level, temperature, battery, and connectivity status for each unit. It also includes a centralized alarm panel showing active alarms like low fuel, overheating, or offline sensors. The unified view allows operators to monitor spatial distribution and critical tank data at a glance, ensuring fast, informed decision-making.',
 				image: '/src/assets/images/usecases/tank-level-monitoring/tank-level-monitoring-1.webp',
 				imageAlt: 'Tank level monitoring fleet overview with interactive map and status indicators',
-				imageTitle:
-					'Fleet overview dashboard showing all monitored tanks on an interactive map with real-time status',
+				imageTitle: 'Interactive map and tank status overview state',
 			},
 			{
-				title: 'Individual tank details',
+				title: 'Sensor add interface',
 				description:
-					'The tank detail view presents comprehensive information for a selected tank, including real-time fill level, temperature readings, and historical trends. Gauge widgets provide instant visual feedback on current levels relative to capacity, while time-series charts display level changes over configurable periods — helping operators identify consumption patterns and forecast refill schedules.',
+					'This form guides users through adding a new sensor by entering its serial number and assigning a label. It’s the first step in onboarding a tank into the system. Simple onboarding flows are critical for scaling the monitoring system with minimal manual work or technical barriers.',
 				image: '/src/assets/images/usecases/tank-level-monitoring/tank-level-monitoring-2.webp',
 				imageAlt: 'Individual tank detail view with gauges and historical trend charts',
-				imageTitle:
-					'Individual tank details with real-time gauges, temperature, and historical level trends',
+				imageTitle: 'Sensor add interface',
 			},
 			{
-				title: 'Alarm management panel',
+				title: 'Alarm rules configuration',
 				description:
-					'The alarm management panel provides a centralized view of all active and historical alarms across the monitored fleet. Operators can filter alarms by severity, type, or location, acknowledge critical events, and review alarm history to identify recurring issues. Configurable alarm rules support multi-level escalation to ensure timely response to both minor anomalies and critical incidents.',
+					'This screen lets users configure threshold values for alarms based on remaining level, temperature, and battery status. Alarms are triggered when incoming data crosses defined boundaries. Such visual rule management helps organizations enforce control policies and reduce downtime through preventive alarms.',
 				image: '/src/assets/images/usecases/tank-level-monitoring/tank-level-monitoring-3.webp',
 				imageAlt: 'Alarm management panel with severity filters and escalation history',
-				imageTitle:
-					'Centralized alarm management panel with filtering, acknowledgment, and escalation workflows',
+				imageTitle: 'Alarm rules configuration',
 			},
 			{
-				title: 'Consumption analytics',
+				title: 'Edit sensor',
 				description:
-					'The consumption analytics view presents aggregated data on liquid usage patterns over daily, weekly, and monthly intervals. Bar charts and trend lines help operators compare consumption across tanks, detect unusual spikes, and plan procurement schedules. Exportable reports support compliance documentation and operational auditing requirements.',
+					'This state allows users to edit key sensor details, including the serial number, custom label, tank assignment, and related metadata. It provides a clean, form-based interface to ensure sensor information stays accurate and organized across the system. Maintaining consistent sensor data is essential for reliable monitoring, especially in large-scale deployments with many connected devices.',
 				image: '/src/assets/images/usecases/tank-level-monitoring/tank-level-monitoring-4.webp',
 				imageAlt: 'Consumption analytics dashboard with usage patterns and trend comparisons',
-				imageTitle: 'Consumption analytics with aggregated usage data and exportable reporting',
+				imageTitle: 'Edit sensor',
 			},
 			{
-				title: 'Device management interface',
+				title: 'Tank details dashboard state',
 				description:
-					'The device management interface enables operators to register, configure, and maintain tank sensors from a unified panel. Bulk provisioning via CSV import supports rapid deployment across multiple sites, while individual device profiles allow fine-tuning of reporting intervals, alarm thresholds, and communication parameters for each sensor.',
+					'This state provides a detailed view of an individual tank, displaying current fuel level with visual indicators, real-time telemetry, historical data logs, and refill or drain events. It also includes a list of recent alarms related to this tank, such as level drops or temperature spikes, with timestamps and statuses. Such granular visualization helps operators track tank behavior over time, identify abnormal patterns, and take preventive action before issues escalate.',
 				image: '/src/assets/images/usecases/tank-level-monitoring/tank-level-monitoring-5.webp',
 				imageAlt: 'Device management interface for tank sensor registration and configuration',
-				imageTitle:
-					'Device management panel for bulk provisioning and individual sensor configuration',
+				imageTitle: 'Tank details dashboard state',
 			},
 			{
-				title: 'Notification and reporting center',
+				title: 'Tank shape',
 				description:
-					'The notification center aggregates all system alerts, scheduled reports, and escalation events in a single timeline. Operators can configure notification channels — including email, SMS, and messaging integrations — for different alarm types and severity levels. Automated daily and weekly reports summarize fleet health, consumption trends, and maintenance needs.',
+					'This state allows users to define the physical characteristics of a tank — including its shape (e.g., cylindrical, rectangular), dimensions, and total capacity — which are crucial for accurate volume calculation. Users can also configure how the sensor interprets level data based on the tank geometry and select the preferred measurement method (e.g., linear, step-based). Precise calibration of sensor readings to the real tank shape significantly improves measurement accuracy and ensures correct volume representation on dashboards.',
 				image: '/src/assets/images/usecases/tank-level-monitoring/tank-level-monitoring-6.webp',
 				imageAlt: 'Notification and reporting center with multi-channel alert configuration',
-				imageTitle: 'Notification center with configurable alert channels and automated reporting',
+				imageTitle: 'Tank shape',
 			},
 		],
 		demoUrl:
@@ -131,7 +127,7 @@ export const tankLevelMonitoringData: UseCaseData = {
 			{
 				title: 'Oil & gas',
 				description:
-					'Real-time fuel tank monitoring with automated leak detection across refineries, depots, and distribution networks.',
+					'Enables remote monitoring of fuel tanks with automated alarms and minimal maintenance requirements.',
 				desktopImage: '/src/assets/images/usecases/tank-level-monitoring/gas-1.svg',
 				mobileImage: '/src/assets/images/usecases/tank-level-monitoring/gas-2.svg',
 				imageAlt: 'Oil and gas',
@@ -140,7 +136,7 @@ export const tankLevelMonitoringData: UseCaseData = {
 			{
 				title: 'Logistics & transportation',
 				description:
-					'Tracks fuel and fluid levels across fleets and fuel stations, enabling consumption visibility and cost control.',
+					'Tracks fuel levels in fleet tankers and depots, integrated with GPS and routing systems.',
 				desktopImage: '/src/assets/images/usecases/scada-drilling-system/logistics.svg',
 				mobileImage: '/src/assets/images/usecases/scada-drilling-system/logistics-2.svg',
 				imageAlt: 'Logistics and transportation',
@@ -149,7 +145,7 @@ export const tankLevelMonitoringData: UseCaseData = {
 			{
 				title: 'Agriculture',
 				description:
-					'Monitors water tanks, irrigation reservoirs, and chemical storage on farms. Automated alerts for low water levels and fertilizer depletion ensure uninterrupted crop care and efficient resource allocation across large agricultural operations.',
+					'Tracks water or fertilizer tank levels on farms, with location-based analysis and consumption forecasting.',
 				desktopImage: '/src/assets/images/usecases/smart-irrigation/agriculture-1.svg',
 				mobileImage: '/src/assets/images/usecases/smart-irrigation/agriculture-2.svg',
 				imageAlt: 'Agriculture',
@@ -158,7 +154,7 @@ export const tankLevelMonitoringData: UseCaseData = {
 			{
 				title: 'Manufacturing & processing',
 				description:
-					'Continuous monitoring of raw material and coolant tanks with threshold alarms to prevent production delays.',
+					'Monitors chemical storage tanks for compliance and safety in industrial environments.',
 				desktopImage: '/src/assets/images/usecases/tank-level-monitoring/manufacturing-1.svg',
 				mobileImage: '/src/assets/images/usecases/tank-level-monitoring/manufacturing-2.svg',
 				imageAlt: 'Manufacturing and processing',
@@ -167,7 +163,7 @@ export const tankLevelMonitoringData: UseCaseData = {
 			{
 				title: 'Municipal services',
 				description:
-					'Monitors municipal water towers, wastewater holding tanks, and treatment facility reservoirs. Centralized dashboards help utility operators maintain service continuity and respond proactively to demand fluctuations and infrastructure issues.',
+					'Manages city tanks for drinking water or chemicals with centralized monitoring and regulatory reporting.',
 				desktopImage: '/src/assets/images/usecases/smart-metering/utilities-1.svg',
 				mobileImage: '/src/assets/images/usecases/smart-metering/utilities-2.svg',
 				imageAlt: 'Municipal services',
@@ -176,8 +172,8 @@ export const tankLevelMonitoringData: UseCaseData = {
 		],
 	},
 	summary: {
-		title: 'Summary of tank level monitoring solution',
-		text: 'ThingsBoard delivers a scalable, protocol-agnostic tank level monitoring solution that combines real-time telemetry with intelligent automation. From fuel depots and water treatment plants to agricultural reservoirs and industrial chemical storage, the platform provides operators with actionable insights, proactive alarming, and comprehensive fleet visibility — all from a single, customizable dashboard. With built-in multi-tenancy, flexible device integration, and powerful analytics, ThingsBoard empowers organizations to eliminate manual checks, prevent costly incidents, and optimize resource management at any scale.',
+		title: 'Summary of tank level monitoring',
+		text: 'The ThingsBoard-based tank level monitoring solution automates fluid storage monitoring for any scale or complexity. With strong support for industrial protocols, real-time visualization, rule-based alarming, and device control, it is a perfect fit for B2B enterprises, public infrastructure, and industrial environments. Enhanced transparency and timely alarms lead to improved operational efficiency and reduced costs.',
 		icon: '/src/assets/images/usecases/health-care/summary.svg',
 		iconAlt: 'Text summary icon',
 	},
