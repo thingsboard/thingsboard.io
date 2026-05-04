@@ -695,6 +695,8 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 					label: 'Buttons',
 					collapsed: true,
 					items: [
+						`${prefix}/widgets/buttons/action-button`,
+						`${prefix}/widgets/buttons/toggle-button`,
 						`${prefix}/widgets/buttons/power-button`,
 						`${prefix}/widgets/buttons/value-stepper`,
 					],
@@ -704,6 +706,7 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 					collapsed: true,
 					items: [
 						`${prefix}/widgets/cards/markdown-html-card`,
+						`${prefix}/widgets/cards/html-value-card`,
 						`${prefix}/widgets/cards/value-card`,
 					],
 				},
@@ -960,6 +963,8 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 					label: 'Buttons',
 					collapsed: true,
 					items: [
+						`${prefix}/widgets/buttons/action-button`,
+						`${prefix}/widgets/buttons/toggle-button`,
 						`${prefix}/widgets/buttons/power-button`,
 						`${prefix}/widgets/buttons/value-stepper`,
 					],
@@ -969,6 +974,7 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 					collapsed: true,
 					items: [
 						`${prefix}/widgets/cards/markdown-html-card`,
+						`${prefix}/widgets/cards/html-value-card`,
 						`${prefix}/widgets/cards/value-card`,
 					],
 				},
