@@ -33,7 +33,7 @@ export const smartRetailData: UseCaseData = {
 	dashboardStructure: {
 		title: 'Smart retail dashboard structure',
 		subtitle:
-			'<a href="/docs/pe/solution-templates/smart-retail/">Smart retail solution</a> dashboards in ThingsBoard are designed to give retail operators full situational awareness, from high-level monitoring of multiple store locations down to detailed insights into individual devices. Each dashboard state provides a specific layer of visibility to support operational efficiency and safety.',
+			'<a href="/docs/pe/recipes/solution-templates/smart-retail/">Smart retail solution</a> dashboards in ThingsBoard are designed to give retail operators full situational awareness, from high-level monitoring of multiple store locations down to detailed insights into individual devices. Each dashboard state provides a specific layer of visibility to support operational efficiency and safety.',
 		panels: [
 			{
 				title: 'Supermarket map overview state',
