@@ -38,9 +38,9 @@ export const smartEnergyData: UseCaseData = {
 		],
 		schemeSrc: '/src/assets/schemas/smart-energy.svg',
 		schemeAlt:
-			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for alarms, dashboards, notifications, and data lakes',
+			'Smart energy solution architecture: devices connect via protocols and gateways to ThingsBoard for alarms, dashboards, notifications, and data lakes',
 		schemeCaption:
-			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for processing, visualization, and automation',
+			'Smart energy solution architecture: devices connect via protocols and gateways to ThingsBoard for processing, visualization, and automation',
 	},
 	benefits: {
 		badge: 'Why choose Smart energy',
