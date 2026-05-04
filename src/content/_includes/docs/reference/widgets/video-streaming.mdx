@@ -9,8 +9,8 @@ The **Video Streaming** widget bundle plays live video from IP cameras directly 
 
 | Widget | Protocol | Latency | When to use |
 |---|---|---|---|
-| **HLS Video Stream** | HLS (`.m3u8`) | ~3–6 s | Wide browser support, fewer NAT considerations, tolerates restrictive networks. |
-| **WebRTC Video Stream** | WebRTC over WHEP signaling | Sub-second | Live monitoring where latency matters. Needs UDP reachability between viewer and edge host. |
+| **HLS Video Stream** | HLS (`.m3u8`) | typically a few seconds | Wide browser support, fewer NAT considerations, tolerates restrictive networks. |
+| **WebRTC Video Stream** | WebRTC over WHEP signaling | typically sub-second once connected | Live monitoring where latency matters. Needs UDP reachability between viewer and edge host. |
 
 Both widgets read the stream URL from a configured data key and fall back to an optional static URL when the key is empty. Neither widget sends video through ThingsBoard — the browser fetches video bytes directly from the URL it is given. ThingsBoard only delivers the URL string to the browser as part of the dashboard subscription.
 
@@ -38,7 +38,7 @@ The protocol IP cameras speak natively. RTSP itself is a TCP control protocol (t
 
 ### HLS
 
-**HTTP Live Streaming.** A protocol that breaks a stream into a playlist of short `.ts` or `.mp4` segments served over plain HTTP(S). Browsers fetch the playlist (`index.m3u8`), then fetch each segment in turn. HLS is firewall-friendly because it looks like ordinary HTTP traffic, but the segmentation introduces 3–6 seconds of glass-to-glass latency at typical settings.
+**HTTP Live Streaming.** A protocol that breaks a stream into a playlist of short `.ts` or `.mp4` segments served over plain HTTP(S). Browsers fetch the playlist (`index.m3u8`), then fetch each segment in turn. HLS is firewall-friendly because it looks like ordinary HTTP traffic, but the segmentation introduces noticeable end-to-end latency — typically several seconds, depending on segment count and duration.
 
 ### WebRTC
 
@@ -90,7 +90,7 @@ The HLS path needs **TCP 80 and TCP 443** open inbound. The WebRTC path needs th
 
 ## Stream with HLS
 
-HLS is the path of least resistance: a single TCP port for everything (443 outbound from the viewer, 443 inbound on your router), no UDP, no NAT traversal surprises. The tradeoff is latency — typically 3–6 seconds from camera lens to browser.
+HLS is the path of least resistance: a single TCP port for everything (443 outbound from the viewer, 443 inbound on your router), no UDP, no NAT traversal surprises. The tradeoff is latency — typically several seconds from camera lens to browser, depending on segment size and count.
 
 ### When to choose HLS
 
@@ -163,7 +163,7 @@ Every key explained:
 
 | Key | What it does |
 |---|---|
-| `image: bluenviron/mediamtx:latest-ffmpeg` | The official MediaMTX image with `ffmpeg` and a BusyBox shell bundled. The `-ffmpeg` variant is needed if you ever enable on-the-fly transcoding, and BusyBox is what makes the `docker compose exec mediamtx wget …` smoke test in the next section work — the slimmer `:latest` tag is `FROM scratch` and has no shell. |
+| `image: bluenviron/mediamtx:latest-ffmpeg` | The official MediaMTX image with `ffmpeg` and BusyBox utilities bundled. The `-ffmpeg` variant is needed if you ever enable on-the-fly transcoding, and BusyBox provides the `wget` binary used by the `docker compose exec mediamtx wget …` smoke test in the next section — the slimmer `:latest` tag is `FROM scratch` and contains only the mediamtx binary, with no `wget`. |
 | `restart: unless-stopped` | Restart automatically if the container exits, except when you stop it manually. |
 | `expose: ["8888"]` | Documents that MediaMTX listens on 8888 inside the container. The port is **not** published to the host, so MediaMTX is reachable only from other containers on the same Compose network — there is no direct path from the public internet. (`expose` itself is purely documentation in modern Compose; the actual reachability comes from being on the shared Compose network with no host-side publish.) |
 | `MTX_LOGLEVEL: info` | MediaMTX log verbosity. `debug` is useful while diagnosing camera connection issues; revert to `info` once stable. |
@@ -247,7 +247,7 @@ Before opening the firewall, prove the LAN pipeline works end to end — camera 
    docker compose exec mediamtx wget -qO- http://localhost:8888/camera1/index.m3u8 | head -3
    ```
 
-   The first line should be `#EXTM3U`. If it is, MediaMTX is producing HLS correctly. (BusyBox `wget` ships in the `:latest-ffmpeg` image used here. The slimmer `:latest` tag is `FROM scratch` with no shell, so on that tag run the check from a sidecar container instead — for example `docker run --rm --network <project>_default curlimages/curl http://mediamtx:8888/camera1/index.m3u8`.)
+   The first line should be `#EXTM3U`. If it is, MediaMTX is producing HLS correctly. (BusyBox `wget` ships in the `:latest-ffmpeg` image used here. The slimmer `:latest` tag is `FROM scratch` and contains only the mediamtx binary, so on that tag run the check from a sidecar container instead — for example `docker run --rm --network <project>_default curlimages/curl http://mediamtx:8888/camera1/index.m3u8`.)
 </Steps>
 
 If this step fails, fix it before continuing. Common causes are listed in [Troubleshooting](#troubleshooting).
@@ -282,7 +282,7 @@ Now expose the stack publicly.
    docker compose up -d
    ```
 
-   First startup takes 30–60 seconds while Caddy obtains the certificate. Watch the logs:
+   First startup typically takes 30–60 seconds while Caddy obtains the certificate. Watch the logs:
 
    ```bash
    docker compose logs -f caddy
@@ -318,7 +318,7 @@ Now expose the stack publicly.
 The widget plays HLS streams via <a href="https://github.com/video-dev/hls.js" target="_blank" rel="noopener noreferrer">hls.js</a> on Chromium and Firefox, and via the browser's native HLS support on Safari.
 
 - **Video.** Configure the camera for **H.264**. HEVC (H.265) support across browsers and players is fragmented, so H.264 is the only safe choice for the widget.
-- **Audio.** With `MTX_HLSVARIANT: mpegts` the supported audio codec is **AAC**. Most IP cameras default to AAC, so audio usually works without changes. hls.js and the browser's native HLS player only decode AAC over mpegts HLS — if your camera only outputs G.711 and you want HLS audio, you would need to transcode it to AAC (out of scope for this guide).
+- **Audio.** With `MTX_HLSVARIANT: mpegts`, **AAC** is the practical choice — most IP cameras default to AAC, and it's reliably supported by hls.js and Safari's native HLS player. If your camera only outputs G.711 and you want HLS audio, you would need to transcode it to AAC (out of scope for this guide).
 
 If you also want WebRTC for the same camera, the audio matrix changes — see [Audio and video codec notes (WebRTC)](#audio-and-video-codec-notes-webrtc).
 
@@ -393,7 +393,7 @@ Keys that differ from the HLS file, or that are new:
 | `ports: ["127.0.0.1:8889:8889"]` | Publish the WHEP signaling port on loopback only. Used during the [local verification step](#verify-on-loopback). In the public deployment, Caddy reaches MediaMTX over the Docker network as `mediamtx:8889`, so this loopback binding is harmless and convenient for `curl` checks. |
 | `MTX_WEBRTC: "yes"` | Enable the WebRTC server. |
 | `MTX_WEBRTCADDRESS: ":8889"` | The WHEP signaling endpoint port (HTTP) inside the container. Caddy reverse-proxies to this port. |
-| `MTX_WEBRTCENCRYPTION: "no"` | Have MediaMTX serve WHEP signaling over plain HTTP. Caddy terminates TLS one hop upstream and forwards plain HTTP to MediaMTX over the internal Docker network, so MediaMTX itself doesn't need a certificate. |
+| `MTX_WEBRTCENCRYPTION: "no"` | Have MediaMTX serve WHEP signaling over plain HTTP. This setting governs only the signaling channel — WebRTC media is always encrypted via DTLS-SRTP regardless. Caddy terminates TLS one hop upstream and forwards plain HTTP to MediaMTX over the internal Docker network, so MediaMTX itself doesn't need a certificate. |
 | `MTX_WEBRTCALLOWORIGINS: "*"` | The CORS allow-origin header for WHEP responses. Same purpose as `MTX_HLSALLOWORIGINS`. |
 | `MTX_WEBRTCLOCALUDPADDRESS: ":8189"` | The UDP port MediaMTX uses for ICE/RTP media. Must match the host port-forward. |
 | `MTX_WEBRTCIPSFROMINTERFACES: "no"` | Tell MediaMTX **not** to advertise its container's network interfaces in ICE candidates. Without this it would advertise Docker bridge IPs (like `172.x.x.x`) which are unreachable from outside the container — the browser would fail to connect. |
@@ -440,7 +440,7 @@ Loopback verification keeps everything on a single laptop — no DNS, no Caddy, 
    curl -sS -X POST http://localhost:8889/camera1/whep -i | head -5
    ```
 
-   A `400 Bad Request` or `405 Method Not Allowed` is the **expected** outcome — it confirms MediaMTX is listening and the WHEP route is registered. (WHEP needs a real SDP offer in the body; an empty POST is rejected, but the response means the server is up.)
+   A `400 Bad Request` is the **expected** outcome — it confirms MediaMTX is listening and the WHEP route is registered. (WHEP needs a real SDP offer in the body; an empty POST is rejected, but the response means the server is up.) Any 4xx response is fine for the purpose of this check.
 
    `connection refused` means MediaMTX has not started yet, or it failed to start. Check `docker compose logs mediamtx`.
 
@@ -460,7 +460,7 @@ Loopback verification keeps everything on a single laptop — no DNS, no Caddy, 
 
    See [Configure the widget in ThingsBoard](#configure-the-widget-in-thingsboard) for the full attribute setup.
 
-5. Open the dashboard with the WebRTC Video Stream widget. Live video should appear within 1–3 seconds.
+5. Open the dashboard with the WebRTC Video Stream widget. Live video should appear within a few seconds.
 </Steps>
 
 Browsers treat `http://localhost:*` as a "potentially trustworthy origin", so a dashboard served over `https://` can still fetch `http://localhost/...` without mixed-content blocking. This exemption applies only to loopback addresses — for any non-loopback URL, the dashboard's HTTPS origin requires the stream URL to be HTTPS too.
@@ -504,7 +504,7 @@ The DNS and Caddy steps are identical to the HLS publish step; the difference is
    curl -sS -X POST https://cameras.yourdomain.com/camera1/whep -i | head -5
    ```
 
-   A `400 Bad Request` or `405 Method Not Allowed` means signaling is reachable: Caddy terminates TLS, forwards to MediaMTX, MediaMTX responds. `502 Bad Gateway` means Caddy is up but MediaMTX is not reachable on `:8889` — verify `MTX_WEBRTC: "yes"` and the upstream port in the Caddyfile.
+   A `400 Bad Request` means signaling is reachable: Caddy terminates TLS, forwards to MediaMTX, MediaMTX responds. `502 Bad Gateway` means Caddy is up but MediaMTX is not reachable on `:8889` — verify `MTX_WEBRTC: "yes"` and the upstream port in the Caddyfile.
 </Steps>
 
 ### Audio and video codec notes (WebRTC)
@@ -526,7 +526,7 @@ To enable WebRTC audio:
    ```
 </Steps>
 
-If you want both HLS and WebRTC for the same camera, the audio codecs collide: hls.js only decodes AAC over mpegts HLS, and WebRTC doesn't accept AAC. So G.711 gives you WebRTC audio but no HLS audio, and AAC gives you HLS audio but no WebRTC audio. Picking video-only on whichever protocol is the lower priority usually requires less work than transcoding.
+If you want both HLS and WebRTC for the same camera, the audio codecs collide: AAC plays reliably over mpegts HLS but is not a WebRTC audio codec, while G.711 works over WebRTC but is not supported by hls.js or Safari's native HLS player. So G.711 gives you WebRTC audio but no HLS audio, and AAC gives you HLS audio but no WebRTC audio. Picking video-only on whichever protocol is the lower priority usually requires less work than transcoding.
 
 ## Configure the widget in ThingsBoard
 
@@ -691,7 +691,7 @@ If video does not appear, walk the pipeline hop by hop. Each step confirms one s
 
 3. **MediaMTX serves the protocol.** Inside the container or over the Docker network:
    - HLS: `wget -qO- http://mediamtx:8888/camera1/index.m3u8 | head -3` should return `#EXTM3U`.
-   - WebRTC signaling: `curl -X POST http://mediamtx:8889/camera1/whep -i | head -5` should return `400` or `405` with valid headers.
+   - WebRTC signaling: `curl -X POST http://mediamtx:8889/camera1/whep -i | head -5` should return a `400` with valid headers.
 
 4. **Caddy serves HTTPS** with a valid Let's Encrypt cert:
 
@@ -703,7 +703,7 @@ If video does not appear, walk the pipeline hop by hop. Each step confirms one s
 
 5. **Public endpoint reachable** from outside your LAN. Use a phone on cellular (not Wi-Fi from the same network), or ask a colleague:
    - HLS: `curl https://cameras.yourdomain.com/camera1/index.m3u8 | head -3` → `#EXTM3U`.
-   - WebRTC: `curl -X POST https://cameras.yourdomain.com/camera1/whep -i | head -5` → `400` or `405`.
+   - WebRTC: `curl -X POST https://cameras.yourdomain.com/camera1/whep -i | head -5` → `400`.
 
 6. **Widget receives the attribute update.** Open browser DevTools → Network tab. Filter by `subscribe` or watch the WebSocket frames. The attribute change should arrive as a telemetry update; the widget then opens the stream URL and you'll see `.m3u8` / `.ts` requests (HLS) or a `whep` POST (WebRTC).
 
@@ -772,7 +772,9 @@ cameras.yourdomain.com {
     handle @allowed {
         reverse_proxy mediamtx:8888
     }
-    respond 403
+    handle {
+        respond 403
+    }
 
     log {
         output stdout
