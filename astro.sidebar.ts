@@ -338,6 +338,7 @@ const installationItems = (prefix: string) => {
 			],
 		},
 		`${prefix}/installation/haproxy`,
+		`${prefix}/installation/demo-account`,
 		{ label: 'Building from Sources', slug: `${prefix}/installation/building-from-source` },
 		...(isPE
 			? [
