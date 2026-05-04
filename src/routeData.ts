@@ -10,11 +10,26 @@ import {
 	getPageSlugFromURL,
 	getVersionPrefix,
 	getLanguagePrefix,
+	getProductTitleName,
 	stripLanguagePrefix,
 	type SupportedLanguage,
 } from '~/util/path-utils';
+import { DOCS_SUFFIX, formatDocsTitle, TITLE_SEPARATOR } from '~/consts';
 import { getOgImageUrl } from '~/util/getOgImageUrl';
 import { getTutorialPages } from '~/util/getTutorialPages';
+
+/**
+ * Display names for `/reference/<api>-api/` sub-sections, used to build unique
+ * SEO titles for sibling pages that share short H1s like "Attributes" or "RPC".
+ */
+const API_SECTION_NAMES: Record<string, string> = {
+	'coap-api': 'CoAP API',
+	'gateway-api': 'Gateway API',
+	'http-api': 'HTTP API',
+	'lwm2m-api': 'LwM2M API',
+	'mqtt-api': 'MQTT API',
+	'snmp-api': 'SNMP API',
+};
 
 /**
  * Maps "free" product versions to their "professional" canonical equivalents.
@@ -39,12 +54,30 @@ const canonicalTargetPageIds = new Map<Products, Set<string>>(
 	])
 );
 
+/** Tutorial pages bucketed by product version. Built once at module load — `pages` is static. */
+const tutorialPagesByVersion: Map<Products, typeof pages> = (() => {
+	const result = new Map<Products, typeof pages>();
+	const ordered = getTutorialPages(pages);
+	for (const page of ordered) {
+		const version = getVersionFromSlug(page.id);
+		const bucket = result.get(version);
+		if (bucket) bucket.push(page);
+		else result.set(version, [page]);
+	}
+	return result;
+})();
+
+/** Memoization cache for `linkMatchesVersion(href) && linkMatchesLanguage(href)`. */
+const sidebarLinkMatchCache = new Map<string, boolean>();
+
 export const onRequest = defineRouteMiddleware((context) => {
-	updateHead(context);
-	filterSidebarByVersionAndLanguage(context.locals.starlightRoute);
-	markParentSidebarItemAsCurrent(context.locals.starlightRoute, context.url.pathname);
-	filterPaginationByVersion(context.locals.starlightRoute);
-	updateTutorialPagination(context.locals.starlightRoute);
+	const starlightRoute = context.locals.starlightRoute;
+	const isTutorial = isTutorialEntry(starlightRoute.entry);
+	updateHead(context, isTutorial);
+	filterSidebarByVersionAndLanguage(starlightRoute);
+	markParentSidebarItemAsCurrent(starlightRoute, context.url.pathname);
+	filterPaginationByVersion(starlightRoute);
+	if (isTutorial) updateTutorialPagination(starlightRoute);
 });
 
 /**
@@ -65,7 +98,12 @@ function sidebarEntryMatchesVersionAndLanguage(
 	lang: SupportedLanguage
 ): boolean {
 	if (entry.type === 'link') {
-		return linkMatchesVersion(entry.href, version) && linkMatchesLanguage(entry.href, lang);
+		const key = `${version}|${lang}|${entry.href}`;
+		const cached = sidebarLinkMatchCache.get(key);
+		if (cached !== undefined) return cached;
+		const match = linkMatchesVersion(entry.href, version) && linkMatchesLanguage(entry.href, lang);
+		sidebarLinkMatchCache.set(key, match);
+		return match;
 	}
 	if (entry.type === 'group') {
 		entry.entries = entry.entries.filter((child) =>
@@ -168,51 +206,93 @@ function linkMatchesLanguage(href: string, lang: SupportedLanguage): boolean {
 	return !href.startsWith('/uk/');
 }
 
-function updateHead(context: APIContext) {
+const docsPathRegex = /^\/(uk\/)?docs(\/|$)/;
+const escapedSep = TITLE_SEPARATOR.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+const docsSuffixMatcher = new RegExp(` ${escapedSep} ${DOCS_SUFFIX}$`);
+const apiPathMatcher = /^reference\/([^/]+)\//;
+const selfCanonicalSegments = ['installation', 'install', 'getting-started'];
+
+function updateHead(context: APIContext, isTutorial: boolean) {
 	const starlightRoute = context.locals.starlightRoute;
 	starlightRoute.head = starlightRoute.head.filter(
 		(item) => !(item.tag === 'meta' && item.attrs?.name === 'generator')
 	);
 	const { head, entry } = starlightRoute;
 
-	const title = head.find((item) => item.tag === 'title');
+	// Single pass collecting all head entries we will mutate later (avoids separate find() walks).
+	let title: (typeof head)[number] | undefined;
+	let ogTitle: (typeof head)[number] | undefined;
+	let ogUrl: (typeof head)[number] | undefined;
+	let canonical: (typeof head)[number] | undefined;
+	for (const item of head) {
+		if (item.tag === 'title') {
+			title = item;
+		} else if (item.tag === 'meta') {
+			const property = item.attrs?.property;
+			if (property === 'og:title') ogTitle = item;
+			else if (property === 'og:url') ogUrl = item;
+		} else if (item.tag === 'link' && item.attrs?.rel === 'canonical') {
+			canonical = item;
+		}
+	}
+
 	const entryHead = (entry.data as { head: StarlightRouteData['head'] }).head;
 	const frontmatterTitle = entryHead.find((item) => item.tag === 'title');
 
-	if (isTutorialEntry(entry) && title && title.content && !frontmatterTitle) {
+	if (isTutorial && title && title.content && !frontmatterTitle) {
 		title.content = context.locals.t('tutorial.title.prefix', 'Tutorial - {{title}}', {
 			title: title.content,
 		});
 	}
 
-	const ogImageUrl = getOgImageUrl(context.url.pathname, false);
-	const imageSrc = ogImageUrl ?? '/thingsboard-og.png';
-	const canonicalImageSrc = new URL(imageSrc, context.site);
-	const is404 = context.url.pathname.endsWith('/404/');
+	const pathname = context.url.pathname;
+	const product = getVersionFromURL(pathname);
+	const lang = getLanguageFromURL(pathname);
+	const pageSlug = getPageSlugFromURL(pathname);
 
-	head.push({ tag: 'meta', attrs: { property: 'og:image', content: canonicalImageSrc.href } });
-	head.push({ tag: 'meta', attrs: { name: 'twitter:image', content: canonicalImageSrc.href } });
-	head.push({ tag: 'meta', attrs: { name: 'twitter:site', content: '@thingsboard' } });
+	if (title && title.content && docsPathRegex.test(pathname)) {
+		const productTitleName = getProductTitleName(product);
+		const versionBase = `/${getLanguagePrefix(lang)}docs/${getVersionPrefix(product)}`;
+		const isIndex = pathname === versionBase;
+		let pageTitle = title.content.replace(docsSuffixMatcher, '');
 
-	head.push({
-		tag: 'script',
-		attrs: {
-			src: 'https://cdn.usefathom.com/script.js',
-			'data-site': 'EZBHTSIG',
-			'data-canonical': is404 ? 'false' : 'true',
-			defer: true,
-		},
-	});
+		// Auto-append API section name to disambiguate sibling reference pages
+		// (e.g. several `/reference/<x>-api/attributes/` pages all share H1 "Attributes").
+		// Skipped when the page sets its own <title> via frontmatter `head`.
+		if (!frontmatterTitle) {
+			const apiMatch = pageSlug.match(apiPathMatcher);
+			const apiName = apiMatch ? API_SECTION_NAMES[apiMatch[1]!] : undefined;
+			if (apiName) pageTitle = `${pageTitle} - ${apiName}`;
+		}
+
+		title.content = formatDocsTitle(pageTitle, productTitleName, isIndex);
+		if (ogTitle) ogTitle.attrs!['content'] = title.content;
+	}
+
+	const ogImageUrl = getOgImageUrl(pathname);
+	let imageSrc = ogImageUrl ?? '/thingsboard-og.png';
+	// Astro dev with `trailingSlash: 'always'` requires dynamic-route URLs to end with '/'
+	// even when they have a file extension. Production (Cloudflare Pages serving static files)
+	// needs the clean .png URL with no trailing slash.
+	if (import.meta.env.DEV && /\.png$/.test(imageSrc) && imageSrc !== '/thingsboard-og.png') {
+		imageSrc = imageSrc + '/';
+	}
+	// Use request origin so dev shows localhost; in static build it equals context.site origin.
+	const canonicalImageSrc = new URL(imageSrc, context.url.origin).href;
+
+	head.push({ tag: 'meta', attrs: { property: 'og:image', content: canonicalImageSrc } });
+
+	// Search pages render a search widget with no indexable content. Keep them
+	// out of search results (consistent with the sitemap exclusion).
+	if (pathname.endsWith('/search/')) {
+		head.push({ tag: 'meta', attrs: { name: 'robots', content: 'noindex, follow' } });
+	}
 
 	// Canonical consolidation: free product versions → professional equivalents.
 	// Only rewrite if the equivalent professional page actually exists, and the
 	// page is not edition-specific (different Docker images, licensing, hosts).
-	const sourceVersion = getVersionFromURL(context.url.pathname);
-	const targetVersion = canonicalConsolidationMap[sourceVersion];
+	const targetVersion = canonicalConsolidationMap[product];
 	if (targetVersion) {
-		const pageSlug = getPageSlugFromURL(context.url.pathname);
-
-		const selfCanonicalSegments = ['installation', 'install', 'getting-started'];
 		const isSelfCanonicalPath = selfCanonicalSegments.some(
 			(seg) => pageSlug === seg || pageSlug.startsWith(`${seg}/`)
 		);
@@ -221,7 +301,6 @@ function updateHead(context: APIContext) {
 
 		if (!isSelfCanonicalPath && !isSelfCanonicalFrontmatter) {
 			const targetPageIds = canonicalTargetPageIds.get(targetVersion)!;
-			const lang = getLanguageFromURL(context.url.pathname);
 			const langPrefix = getLanguagePrefix(lang);
 			const targetPrefix = getVersionPrefix(targetVersion);
 			const docsPrefix = lang === 'uk' ? 'uk/docs/' : 'docs/';
@@ -230,28 +309,26 @@ function updateHead(context: APIContext) {
 			if (targetPageIds.has(targetContentId)) {
 				const targetPathname = `/${langPrefix}docs/${targetPrefix}${pageSlug}/`;
 				const targetCanonical = new URL(targetPathname, context.site).href;
-
-				const canonical = head.find(
-					(item) => item.tag === 'link' && item.attrs?.['rel'] === 'canonical'
-				);
 				if (canonical) canonical.attrs!['href'] = targetCanonical;
-
-				const ogUrl = head.find(
-					(item) => item.tag === 'meta' && item.attrs?.['property'] === 'og:url'
-				);
 				if (ogUrl) ogUrl.attrs!['content'] = targetCanonical;
 			}
 		}
+	}
+
+	// Per-page explicit canonical override (highest priority — wins over consolidation).
+	const explicitCanonical = (entry.data as { canonicalUrl?: string }).canonicalUrl;
+	if (explicitCanonical) {
+		const targetCanonical = new URL(explicitCanonical, context.site).href;
+		if (canonical) canonical.attrs!['href'] = targetCanonical;
+		if (ogUrl) ogUrl.attrs!['content'] = targetCanonical;
 	}
 }
 
 function updateTutorialPagination(starlightRoute: StarlightRouteData) {
 	const { entry, pagination } = starlightRoute;
-
-	if (!isTutorialEntry(entry)) return;
-
 	const version = getVersionFromSlug(entry.id);
-	const tutorialPages = getTutorialPages(pages).filter((p) => getVersionFromSlug(p.id) === version);
+	const tutorialPages = tutorialPagesByVersion.get(version);
+	if (!tutorialPages) return;
 	const i = tutorialPages.findIndex((p) => p.id === entry.id);
 
 	const lang = getLanguageFromSlug(entry.id);

@@ -2,7 +2,7 @@ import type { CaseStudyData } from './types';
 
 export const superBockData: CaseStudyData = {
 	title: 'How Super Bock Transformed Beverage Distribution with ThingsBoard IoT',
-	pageTitle: 'How Super Bock Transformed Beverage Distribution with ThingsBoard IoT',
+	pageTitle: 'How Super Bock Transformed Beverage Distribution',
 	description:
 		"Discover how Super Bock Group optimized beer tank monitoring and logistics using ThingsBoard's IoT platform\u2014achieving real-time insights, predictive maintenance, and enhanced customer satisfaction.",
 	pageSlug: 'super-bock',

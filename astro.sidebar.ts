@@ -77,7 +77,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 					{ label: 'Propagation', slug: `${prefix}/calculated-fields/propagation` },
 					{ label: 'Geofencing', slug: `${prefix}/calculated-fields/geofencing` },
 					{
-						label: 'Entities Aggregation',
+						label: 'Related Entities Aggregation',
 						slug: `${prefix}/calculated-fields/related-entities-aggregation`,
 					},
 					{
@@ -206,7 +206,10 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 		label: 'Contribution',
 		collapsed: true,
 		items: [
-			...(!isPE ? [`${prefix}/contribution/how-to-contribute`] : []),
+			...(!isPE ? [
+				`${prefix}/contribution/how-to-contribute`,
+				`${prefix}/contribution/how-to-contribute-your-device-integration-guide`,
+			] : []),
 			`${prefix}/contribution/rule-node-development`,
 			`${prefix}/scada-symbol-dev`,
 			`${prefix}/contribution/custom-action-development`,
@@ -353,38 +356,24 @@ const installationItems = (prefix: string) => {
 
 const recipeItems = (prefix: string, extraProcessingItems: string[] = []) => [
 	{
-		label: 'Processing Data',
+		label: 'Rule Engine',
 		collapsed: true,
-		items: [`${prefix}/python-telemetry`, `${prefix}/telemetry-delta-two-devices`, `${prefix}/trigger-related-entities-via-relation`, `${prefix}/enrich-alarms-with-details`, `${prefix}/rpc-reply-with-related-telemetry`, `${prefix}/send-rpc-to-related-device`, `${prefix}/fetch-weather-data`, `${prefix}/send-alarm-email-to-customer`, `${prefix}/telegram-alarm-notification`, ...extraProcessingItems],
+		items: [`${prefix}/python-telemetry`, `${prefix}/trigger-related-entities-via-relation`, `${prefix}/rpc-reply-with-related-telemetry`, `${prefix}/send-rpc-to-related-device`, `${prefix}/fetch-weather-data`, `${prefix}/validate-incoming-telemetry`, `${prefix}/websocket-live-telemetry`, ...extraProcessingItems],
 	},
 	{
 		label: 'Calculated Fields',
 		collapsed: true,
-		items: [`${prefix}/aggregate-related-entities`, `${prefix}/average-temperature-related-devices`, `${prefix}/water-consumption-hourly-delta`],
+		items: [`${prefix}/aggregate-related-entities`, `${prefix}/average-temperature-related-devices`, `${prefix}/water-consumption-hourly-delta`, `${prefix}/telemetry-delta-two-devices`, `${prefix}/telemetry-delta-calculation`],
 	},
 	{
-		label: 'Validating Data',
+		label: 'Storage & Retention',
 		collapsed: true,
-		items: [`${prefix}/validate-incoming-telemetry`],
-	},
-	...(prefix.startsWith('docs/paas')
-		? []
-		: [
-				{
-					label: 'Storage & Retention',
-					collapsed: true,
-					items: [`${prefix}/configure-telemetry-ttl`],
-				},
-			]),
-	{
-		label: 'Alarms',
-		collapsed: true,
-		items: [`${prefix}/alarm-rule-tutorials`, `${prefix}/create-clear-alarms`, `${prefix}/device-inactivity-alarm`, `${prefix}/telemetry-delta-calculation`, `${prefix}/send-email-alarm`],
+		items: [`${prefix}/configure-telemetry-ttl`],
 	},
 	{
-		label: 'Real-time Data',
+		label: 'Alarms & Notifications',
 		collapsed: true,
-		items: [`${prefix}/websocket-live-telemetry`],
+		items: [`${prefix}/alarm-rule-tutorials`, `${prefix}/create-clear-alarms`, `${prefix}/device-inactivity-alarm`, `${prefix}/enrich-alarms-with-details`, `${prefix}/send-email-alarm`, `${prefix}/send-sms-alarm`, `${prefix}/send-slack-alarm`, `${prefix}/send-mobile-app-alarm`, `${prefix}/send-microsoft-teams-alarm`, `${prefix}/send-alarm-email-to-customer`, `${prefix}/telegram-alarm-notification`],
 	},
 ];
 
@@ -1141,7 +1130,7 @@ export const peSidebar: SidebarConfig = mainSidebarItems(
 			],
 		},
 		{
-			label: 'White-labeling',
+			label: 'UI Customization',
 			collapsed: true,
 			items: [
 				'docs/pe/recipes/white-labeling-translate-dashboard',
@@ -1155,7 +1144,7 @@ export const peSidebar: SidebarConfig = mainSidebarItems(
 			items: ['docs/pe/recipes/mqtt-one-way-rpc', 'docs/pe/recipes/mqtt-two-way-rpc'],
 		},
 		{
-			label: 'Step-by-step guides',
+			label: 'Walkthroughs',
 			collapsed: true,
 			items: ['docs/pe/user-guide/advanced-guides-for-working-with-dashboard'],
 		},
@@ -1296,7 +1285,7 @@ export const paasSidebar: SidebarConfig = [
 							{ label: 'Propagation', slug: 'docs/paas/user-guide/calculated-fields/propagation' },
 							{ label: 'Geofencing', slug: 'docs/paas/user-guide/calculated-fields/geofencing' },
 							{
-								label: 'Entities Aggregation',
+								label: 'Related Entities Aggregation',
 								slug: 'docs/paas/user-guide/calculated-fields/related-entities-aggregation',
 							},
 							{
@@ -1483,7 +1472,7 @@ export const paasSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'White-labeling',
+				label: 'UI Customization',
 				collapsed: true,
 				items: [
 					'docs/paas/recipes/white-labeling-translate-dashboard',
@@ -1492,7 +1481,7 @@ export const paasSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'Step-by-step guides',
+				label: 'Walkthroughs',
 				collapsed: true,
 				items: ['docs/paas/user-guide/advanced-guides-for-working-with-dashboard'],
 			},
@@ -1641,7 +1630,7 @@ export const paasEuSidebar: SidebarConfig = [
 							},
 							{ label: 'Geofencing', slug: 'docs/paas/eu/user-guide/calculated-fields/geofencing' },
 							{
-								label: 'Entities Aggregation',
+								label: 'Related Entities Aggregation',
 								slug: 'docs/paas/eu/user-guide/calculated-fields/related-entities-aggregation',
 							},
 							{
@@ -1834,7 +1823,7 @@ export const paasEuSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'White-labeling',
+				label: 'UI Customization',
 				collapsed: true,
 				items: [
 					'docs/paas/eu/recipes/white-labeling-translate-dashboard',
@@ -1843,7 +1832,7 @@ export const paasEuSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'Step-by-step guides',
+				label: 'Walkthroughs',
 				collapsed: true,
 				items: ['docs/paas/eu/user-guide/advanced-guides-for-working-with-dashboard'],
 			},
@@ -1941,7 +1930,7 @@ export const edgeSidebar: SidebarConfig = [
 					'docs/edge/user-guide/provision-customers-and-users',
 					'docs/edge/user-guide/ota-updates',
 					'docs/edge/user-guide/dashboards',
-					'docs/edge/user-guide/edge-public-dashboard',
+					'docs/edge/user-guide/public-dashboard',
 				],
 			},
 			{

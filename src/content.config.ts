@@ -5,12 +5,16 @@ import { z } from 'astro/zod';
 import { file, glob } from 'astro/loaders';
 import { logoKeys } from './data/logos';
 import { Products } from './models/site.models';
-import fs from 'node:fs';
-import path from 'node:path';
+import { PLATFORM_VALUES, type DevicePlatform } from './util/device-platform';
+
+export { PLATFORM_VALUES };
+export type { DevicePlatform };
 
 export const baseSchema = z.object({
 	type: z.literal('base').optional().default('base'),
+	description: z.string().optional(),
 	selfCanonical: z.boolean().optional(),
+	canonicalUrl: z.string().optional(),
 	githubURL: z.url().optional(),
 	hasREADME: z.boolean().optional(),
 	hero: z
@@ -91,23 +95,30 @@ export const recipeSchema = baseSchema.extend({
 
 export const deviceSchema = z.object({
 	title: z.string(),
+	description: z.string(),
 	vendor: z.string().optional(),
-	deviceImageFileName: z.string(),
-	hardwareType: z.string(),
+	deviceImageFileName: z.string().default('placeholder.svg'),
+	hardwareType: z.string().default('Other devices'),
 	connectivity: z
 		.array(z.string())
 		.or(z.string())
-		.transform((v) => (Array.isArray(v) ? v : [v])),
+		.transform((v) => (Array.isArray(v) ? v : [v]))
+		.default([]),
 	industry: z
 		.array(z.string())
 		.or(z.string())
-		.transform((v) => (Array.isArray(v) ? v : [v])),
+		.transform((v) => (Array.isArray(v) ? v : [v]))
+		.default([]),
 	useCase: z
 		.array(z.string())
 		.or(z.string())
-		.transform((v) => (Array.isArray(v) ? v : [v])),
+		.transform((v) => (Array.isArray(v) ? v : [v]))
+		.default([]),
 	chip: z.string().optional(),
 	category: z.string().optional(),
+	platforms: z
+		.array(z.enum(PLATFORM_VALUES))
+		.default(['ThingsBoard']),
 });
 
 export const blogSchema = z.object({
@@ -123,6 +134,7 @@ export const blogSchema = z.object({
 	featuredImage: z.string(),
 	featuredImageAlt: z.string().default(''),
 	draft: z.boolean().default(false),
+	excludeFromCarousel: z.boolean().default(false),
 });
 
 export const docsCollectionSchema = z.union([
@@ -192,7 +204,16 @@ export const collections = {
 		schema: blogSchema,
 	}),
 	docs: defineCollection({
-		loader: docsLoader(),
+		// Default Astro slug derivation runs each path segment through `github-slugger`,
+		// which strips dots (only `[a-z0-9-]` survives). Override to preserve dotted
+		// filenames like `…-before-v1.7.mdx` so the URL keeps the version separator.
+		// Mirrors the default behaviour for `slug:` frontmatter overrides.
+		loader: docsLoader({
+			generateId: ({ entry, data }) => {
+				if (typeof data.slug === 'string') return data.slug;
+				return entry.replace(/\.(md|mdx|mdoc)$/, '').replace(/(?:^|\/)index$/, '');
+			},
+		}),
 		schema: docsSchema({ extend: docsCollectionSchema }),
 	}),
 	i18n: defineCollection({
@@ -228,8 +249,6 @@ export const collections = {
 				'deploy.ssrTag': z.string().default('SSR'),
 				'media.navTitle': z.string().default('More media guides'),
 				'migration.navTitle': z.string().default('More migration guides'),
-				'404.content': z.string().default("We couldn't find what you were looking for."),
-				'404.linkText': z.string().default('Take me home.'),
 				'install.autoTab': z.string().default('Automatic CLI'),
 				'install.manualTab': z.string().default('Manual Setup'),
 				'starlight.title': z.string().default('Wanna build docs?'),
@@ -293,13 +312,7 @@ export const collections = {
 		schema: z.object({ avatar_url: z.string() }),
 	}),
 	devices: defineCollection({
-		loader: async () => {
-			// loader: glob({ pattern: '**/*.mdx', base: './src/content/devices' }),
-			const filePath = path.join(process.cwd(), 'src/data/devices.json');
-			const fileContent = fs.readFileSync(filePath, 'utf-8');
-			const data = JSON.parse(fileContent);
-			return data;
-		},
+		loader: glob({ pattern: '**/*.mdx', base: './src/content/devices' }),
 		schema: deviceSchema,
 	}),
 };

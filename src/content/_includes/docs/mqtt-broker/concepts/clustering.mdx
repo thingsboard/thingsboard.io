@@ -1,4 +1,4 @@
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Steps } from '@astrojs/starlight/components';
 import DocLink from '@components/DocLink.astro';
 import { Products } from '~/models/site.models';
 
@@ -88,34 +88,45 @@ The three MQTT traffic patterns scale differently in a TBMQ cluster:
 
 ### Fan-in (many publishers, few subscribers)
 
-```plaintext
-  Devices ──▶ any node ──▶ tbmq.msg.all ──▶ nodes in consumer group
-                                                      │
-                                              matched APPLICATION
-                                              consumer on its node
-```
+How a published message flows from a device to its APPLICATION consumer:
 
-Kafka consumer group load-balances the `tbmq.msg.all` partitions across nodes.
+<Steps>
+1. A device connects to **any** broker node and publishes a message.
+2. That node writes the message to the shared `tbmq.msg.all` Kafka topic.
+3. All broker nodes consume `tbmq.msg.all` as a **single consumer group** — each partition is handled by exactly one node.
+4. The node that owns the matched APPLICATION consumer delivers the message locally to its client.
+</Steps>
+
+The consumer group load-balances the `tbmq.msg.all` partitions across nodes.
 Add Kafka partitions and broker nodes together to increase ingestion throughput linearly.
 
 ### Fan-out (few publishers, many subscribers)
 
-```plaintext
-  Publisher ──▶ Node A ──▶ Subscription Trie matches N subscribers
-                                    │
-                 ┌──────────────────┼──────────────────┐
-                 ▼                  ▼                  ▼
-           on Node A          downlink to B      downlink to C
-           (direct)           (via Kafka)        (via Kafka)
-```
+How one published message reaches N subscribers spread across the cluster:
+
+<Steps>
+1. The publisher sends a message to its broker node — call it **Node A**.
+2. Node A's in-memory **Subscription Trie** matches the topic to N subscribers.
+3. Subscribers connected to Node A are delivered to **directly**, with no extra hop.
+4. Subscribers on other nodes are reached via the target node's dedicated downlink topic in Kafka — for example, `tbmq.msg.downlink.basic.$NODE_B_ID` for Node B.
+</Steps>
 
 Each broker node delivers to the subscribers it owns directly. Cross-node delivery goes through per-node downlink topics.
 Fan-out throughput scales by adding nodes — each node handles its share of the subscriber population.
 
-### Point-to-point (P2P)
+### Point-to-point (one publisher, one subscriber)
 
-Targeted messaging between a single publisher and a single subscriber follows the same path as fan-out
-but with exactly one matching subscriber. If publisher and subscriber are on the same node, no cross-node hop occurs.
+How a message reaches exactly one targeted subscriber — the same path as fan-out, but with a single match:
+
+<Steps>
+1. The publisher sends a message to its broker node.
+2. That node's Subscription Trie matches the topic to **exactly one** subscriber.
+3. If the subscriber is on the **same node**, the message is delivered directly — no cross-node hop.
+4. If the subscriber is on a **different node**, the message is forwarded through that node's dedicated downlink topic in Kafka.
+</Steps>
+
+Co-locating publisher and subscriber on the same node eliminates the cross-node hop entirely,
+yielding the lowest possible broker latency for targeted messaging.
 
 ## No single point of failure
 

@@ -2,7 +2,7 @@ import type { CaseStudyData } from './types';
 
 export const tektelicData: CaseStudyData = {
 	title: 'TEKTELIC Rapidly Deploys IoT with ThingsBoard',
-	pageTitle: 'TEKTELIC Rapidly Deploys IoT with ThingsBoard',
+	pageTitle: 'TEKTELIC Rapidly Deploys IoT',
 	description:
 		'Discover how TEKTELIC reduced time-to-market and built high-quality IoT applications on the ThingsBoard platform.',
 	pageSlug: 'tektelic',

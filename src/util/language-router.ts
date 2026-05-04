@@ -50,50 +50,11 @@ interface SectionConfig {
 	) => { url: string; isFallback?: boolean };
 }
 
-/**
- * Extracts slug from a path after a given base path.
- * Example: extractSlug('/uk/device-library/my-device/', '/device-library/') => 'my-device/'
- */
-function extractSlug(pathname: string, basePath: string): string {
-	// Remove language prefix if present
-	let path = pathname;
-	if (path.startsWith('/uk/')) {
-		path = path.slice(3);
-	}
-
-	// Find the base path and extract everything after it
-	const baseIndex = path.indexOf(basePath);
-	if (baseIndex === -1) return '';
-
-	return path.slice(baseIndex + basePath.length);
-}
-
-/**
- * Builds a language-prefixed URL.
- */
-function buildLangUrl(basePath: string, slug: string, targetLang: SupportedLanguage): string {
-	const prefix = targetLang === DEFAULT_LOCALE ? '' : `/${targetLang}`;
-	const normalizedSlug = slug ? `${slug}` : '';
-	return `${prefix}${basePath}${normalizedSlug}`;
-}
-
 // ============================================================================
 // Section Configurations
 // ============================================================================
 
 const sections: SectionConfig[] = [
-	// Device Library section
-	{
-		name: 'device-library',
-		match: (pathname) => pathname.includes('/device-library'),
-		buildUrl: (pathname, targetLang) => {
-			const slug = extractSlug(pathname, '/device-library/');
-			return {
-				url: buildLangUrl('/device-library/', slug, targetLang),
-			};
-		},
-	},
-
 	// Docs section (with fallback support)
 	{
 		name: 'docs',
@@ -103,16 +64,6 @@ const sections: SectionConfig[] = [
 			return switchLanguageWithFallback(pathname, targetLang, existingPageIds);
 		},
 	},
-
-	// Add more sections here as needed:
-	// {
-	//   name: 'blog',
-	//   match: (pathname) => pathname.includes('/blog'),
-	//   buildUrl: (pathname, targetLang) => {
-	//     const slug = extractSlug(pathname, '/blog/');
-	//     return { url: buildLangUrl('/blog/', slug, targetLang) };
-	//   },
-	// },
 ];
 
 // Default fallback for pages not matching any section

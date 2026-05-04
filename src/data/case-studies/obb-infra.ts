@@ -2,7 +2,7 @@ import type { CaseStudyData } from './types';
 
 export const obbInfraData: CaseStudyData = {
 	title: 'How \u00D6BB-Infrastruktur AG Transformed Railway Operations with ThingsBoard',
-	pageTitle: 'How \u00D6BB-Infrastruktur AG Transformed Railway Operations with ThingsBoard',
+	pageTitle: 'How \u00D6BB-Infrastruktur AG Transformed Railway Operations',
 	description:
 		"Discover how \u00D6BB-Infrastruktur AG enhanced railway efficiency and safety by integrating ThingsBoard's IoT platform\u2014achieving real-time monitoring, predictive maintenance, and secure data flow without public internet exposure.",
 	pageSlug: 'obb-infra',

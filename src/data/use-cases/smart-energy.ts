@@ -4,7 +4,7 @@ export const smartEnergyData: UseCaseData = {
 	title: 'Smart energy',
 	pageTitle: 'IoT Energy Management & Monitoring with ThingsBoard',
 	description:
-		'The Smart Energy solution based on ThingsBoard IoT platform enables real-time energy monitoring and optimization. It helps reduce costs, improve energy efficiency, automate management processes, and achieve sustainable development.',
+		'Smart Energy solution on ThingsBoard for real-time energy monitoring and optimization — reduce costs, improve efficiency, and automate management.',
 	pageSlug: 'smart-energy',
 	about: {
 		shortText:

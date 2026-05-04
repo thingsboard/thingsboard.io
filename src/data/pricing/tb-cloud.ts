@@ -1,5 +1,8 @@
 import type { CloudRegionData, TopUpGroup } from './types';
 
+const DATA_POINT_TOOLTIP =
+	'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/reference/subscriptions/" target="_blank">plans definition page</a>.';
+
 export const tbCloudData: CloudRegionData = {
 	na: {
 		sectionTitle: 'Subscription plans',
@@ -14,6 +17,7 @@ export const tbCloudData: CloudRegionData = {
 				ctaText: 'Start Free',
 				ctaHref: 'https://thingsboard.cloud/signup',
 				ctaPrimary: false,
+				gtmId: 'Pricing_PE_Cloud_Maker',
 				features: [
 					{ text: '5 devices' },
 					{ text: '5 assets' },
@@ -21,7 +25,7 @@ export const tbCloudData: CloudRegionData = {
 						text: '1M data points/mo',
 						faqId: 'tb-cloud-device-msg-data-storage-limits-for-plans',
 						faqTooltip:
-							'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/reference/subscriptions/" target="_blank">plans definition page</a>.',
+							DATA_POINT_TOOLTIP,
 					},
 					{
 						text: 'Community support',
@@ -42,6 +46,7 @@ export const tbCloudData: CloudRegionData = {
 				ctaText: 'Get started',
 				ctaHref: 'https://thingsboard.cloud/signup',
 				ctaPrimary: false,
+				gtmId: 'Pricing_PE_Cloud_Prototype',
 				features: [
 					{ text: '50 devices' },
 					{ text: '50 assets' },
@@ -49,7 +54,7 @@ export const tbCloudData: CloudRegionData = {
 						text: '10M data points/mo',
 						faqId: 'tb-cloud-device-msg-data-storage-limits-for-plans',
 						faqTooltip:
-							'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/reference/subscriptions/" target="_blank">plans definition page</a>.',
+							DATA_POINT_TOOLTIP,
 					},
 					{
 						text: 'Community support',
@@ -71,6 +76,7 @@ export const tbCloudData: CloudRegionData = {
 				ctaHref: 'https://thingsboard.cloud/signup',
 				ctaPrimary: true,
 				popular: true,
+				gtmId: 'Pricing_PE_Cloud_Pilot',
 				features: [
 					{ text: '100 devices' },
 					{ text: '100 assets' },
@@ -78,7 +84,7 @@ export const tbCloudData: CloudRegionData = {
 						text: '100M data points/mo',
 						faqId: 'tb-cloud-device-msg-data-storage-limits-for-plans',
 						faqTooltip:
-							'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/reference/subscriptions/" target="_blank">plans definition page</a>.',
+							DATA_POINT_TOOLTIP,
 					},
 					{
 						text: 'Help desk',
@@ -103,6 +109,7 @@ export const tbCloudData: CloudRegionData = {
 				ctaText: 'Get started',
 				ctaHref: 'https://thingsboard.cloud/signup',
 				ctaPrimary: false,
+				gtmId: 'Pricing_PE_Cloud_Startup',
 				features: [
 					{ text: '500 devices' },
 					{ text: '500 assets' },
@@ -110,7 +117,7 @@ export const tbCloudData: CloudRegionData = {
 						text: '500M data points/mo',
 						faqId: 'tb-cloud-device-msg-data-storage-limits-for-plans',
 						faqTooltip:
-							'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/reference/subscriptions/" target="_blank">plans definition page</a>.',
+							DATA_POINT_TOOLTIP,
 					},
 					{
 						text: 'Priority help desk',
@@ -137,6 +144,7 @@ export const tbCloudData: CloudRegionData = {
 				ctaText: 'Get started',
 				ctaHref: 'https://thingsboard.cloud/signup',
 				ctaPrimary: false,
+				gtmId: 'Pricing_PE_Cloud_Business',
 				features: [
 					{ text: '1,000 devices' },
 					{ text: '1,000 assets' },
@@ -144,7 +152,7 @@ export const tbCloudData: CloudRegionData = {
 						text: '1B data points/mo',
 						faqId: 'tb-cloud-device-msg-data-storage-limits-for-plans',
 						faqTooltip:
-							'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/reference/subscriptions/" target="_blank">plans definition page</a>.',
+							DATA_POINT_TOOLTIP,
 					},
 					{
 						text: 'Priority help desk',
@@ -184,6 +192,7 @@ export const tbCloudData: CloudRegionData = {
 				ctaText: 'Start Free',
 				ctaHref: 'https://eu.thingsboard.cloud/signup',
 				ctaPrimary: false,
+				gtmId: 'Pricing_PE_Cloud_Maker',
 				features: [
 					{ text: '5 devices' },
 					{ text: '5 assets' },
@@ -191,7 +200,7 @@ export const tbCloudData: CloudRegionData = {
 						text: '1M data points/mo',
 						faqId: 'tb-cloud-device-msg-data-storage-limits-for-plans',
 						faqTooltip:
-							'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/reference/subscriptions/" target="_blank">plans definition page</a>.',
+							DATA_POINT_TOOLTIP,
 					},
 					{
 						text: 'Community support',
@@ -212,6 +221,7 @@ export const tbCloudData: CloudRegionData = {
 				ctaText: 'Get started',
 				ctaHref: 'https://eu.thingsboard.cloud/signup',
 				ctaPrimary: false,
+				gtmId: 'Pricing_PE_Cloud_Prototype',
 				features: [
 					{ text: '50 devices' },
 					{ text: '50 assets' },
@@ -219,7 +229,7 @@ export const tbCloudData: CloudRegionData = {
 						text: '10M data points/mo',
 						faqId: 'tb-cloud-device-msg-data-storage-limits-for-plans',
 						faqTooltip:
-							'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/reference/subscriptions/" target="_blank">plans definition page</a>.',
+							DATA_POINT_TOOLTIP,
 					},
 					{
 						text: 'Community support',
@@ -241,6 +251,7 @@ export const tbCloudData: CloudRegionData = {
 				ctaHref: 'https://eu.thingsboard.cloud/signup',
 				ctaPrimary: true,
 				popular: true,
+				gtmId: 'Pricing_PE_Cloud_Pilot',
 				features: [
 					{ text: '100 devices' },
 					{ text: '100 assets' },
@@ -248,7 +259,7 @@ export const tbCloudData: CloudRegionData = {
 						text: '100M data points/mo',
 						faqId: 'tb-cloud-device-msg-data-storage-limits-for-plans',
 						faqTooltip:
-							'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/reference/subscriptions/" target="_blank">plans definition page</a>.',
+							DATA_POINT_TOOLTIP,
 					},
 					{
 						text: 'Help desk',
@@ -273,6 +284,7 @@ export const tbCloudData: CloudRegionData = {
 				ctaText: 'Get started',
 				ctaHref: 'https://eu.thingsboard.cloud/signup',
 				ctaPrimary: false,
+				gtmId: 'Pricing_PE_Cloud_Startup',
 				features: [
 					{ text: '500 devices' },
 					{ text: '500 assets' },
@@ -280,7 +292,7 @@ export const tbCloudData: CloudRegionData = {
 						text: '500M data points/mo',
 						faqId: 'tb-cloud-device-msg-data-storage-limits-for-plans',
 						faqTooltip:
-							'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/reference/subscriptions/" target="_blank">plans definition page</a>.',
+							DATA_POINT_TOOLTIP,
 					},
 					{
 						text: 'Priority help desk',
@@ -307,6 +319,7 @@ export const tbCloudData: CloudRegionData = {
 				ctaText: 'Get started',
 				ctaHref: 'https://eu.thingsboard.cloud/signup',
 				ctaPrimary: false,
+				gtmId: 'Pricing_PE_Cloud_Business',
 				features: [
 					{ text: '1,000 devices' },
 					{ text: '1,000 assets' },
@@ -314,7 +327,7 @@ export const tbCloudData: CloudRegionData = {
 						text: '1B data points/mo',
 						faqId: 'tb-cloud-device-msg-data-storage-limits-for-plans',
 						faqTooltip:
-							'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/reference/subscriptions/" target="_blank">plans definition page</a>.',
+							DATA_POINT_TOOLTIP,
 					},
 					{
 						text: 'Priority help desk',
@@ -330,7 +343,7 @@ export const tbCloudData: CloudRegionData = {
 							'Brand the platform as your own. Fully customize it with your own logo, domain, color scheme, and menu items.',
 					},
 					{
-						text: '\u20AC0.29 /extra device',
+						text: '\u20AC0.30 /extra device',
 						highlight: true,
 						plusIcon: true,
 						faqId: 'tb-cloud-exceed-plan-limits',

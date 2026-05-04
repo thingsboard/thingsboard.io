@@ -2,7 +2,7 @@ import type { CaseStudyData } from './types';
 
 export const senseingData: CaseStudyData = {
 	title: 'How SenseING GmbH Optimized Cold Chain Monitoring with ThingsBoard',
-	pageTitle: 'How SenseING GmbH Optimized Cold Chain Monitoring with ThingsBoard',
+	pageTitle: 'How SenseING GmbH Optimized Cold Chain Monitoring',
 	description:
 		"Discover how SenseING GmbH enhanced food logistics by integrating ThingsBoard's IoT platform\u2014achieving real-time temperature monitoring, reducing human error, and ensuring regulatory compliance across 100+ storage and transportation units.",
 	pageSlug: 'senseing',

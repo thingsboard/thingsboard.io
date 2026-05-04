@@ -2,7 +2,7 @@ import type { CaseStudyData } from './types';
 
 export const circutorData: CaseStudyData = {
 	title: 'How Circutor Centralized Energy Devices Using ThingsBoard',
-	pageTitle: 'How Circutor Centralized Energy Devices Using ThingsBoard',
+	pageTitle: 'How Circutor Centralized Energy Devices',
 	description:
 		"Discover how Circutor centralized multi-protocol energy devices and scaled operations globally using ThingsBoard's flexible IoT platform.",
 	pageSlug: 'circutor',

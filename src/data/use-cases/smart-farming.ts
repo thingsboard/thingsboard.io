@@ -4,7 +4,7 @@ export const smartFarmingData: UseCaseData = {
 	title: 'Smart farming & IoT agriculture solution',
 	pageTitle: 'Smart Farming with ThingsBoard: Scalable IoT for Agriculture',
 	description:
-		'Smart farming IoT solution powered by ThingsBoard. Real-time monitoring, automation, and analytics for crops, silos, and climate control. Ideal for agriculture, logistics, and agritech businesses.',
+		'Smart farming IoT solution on ThingsBoard — real-time monitoring, automation, and analytics for crops, silos, and climate control across agritech.',
 	pageSlug: 'smart-farming',
 	about: {
 		shortText:

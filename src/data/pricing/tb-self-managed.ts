@@ -1,8 +1,9 @@
-import type { SelfManagedData, AddOnItem, CommunityEditionData } from './types';
+import type { SelfManagedData, AddOnItem, CommunityEditionData, PlanCard } from './types';
 
 import edgeIcon from '../../assets/pricing/edge-add-on-icon.svg?raw';
 import trendzIcon from '../../assets/pricing/trendz-add-on-icon.svg?raw';
 import mobileIcon from '../../assets/pricing/wl-add-on-icon.svg?raw';
+import offlineIcon from '../../assets/pricing/offline-add-on-icon.svg?raw';
 
 export const tbSelfManagedData: SelfManagedData = {
 	payg: {
@@ -18,6 +19,7 @@ export const tbSelfManagedData: SelfManagedData = {
 				ctaText: 'Get started',
 				ctaHref: 'https://license.thingsboard.io/signup',
 				ctaPrimary: false,
+				gtmId: 'Pricing_PE_SM_Maker',
 				features: [
 					{ text: '10 devices' },
 					{ text: '10 assets' },
@@ -48,6 +50,7 @@ export const tbSelfManagedData: SelfManagedData = {
 				ctaText: 'Get started',
 				ctaHref: 'https://license.thingsboard.io/signup',
 				ctaPrimary: false,
+				gtmId: 'Pricing_PE_SM_Prototype',
 				features: [
 					{ text: '50 devices' },
 					{ text: '50 assets' },
@@ -79,6 +82,7 @@ export const tbSelfManagedData: SelfManagedData = {
 				ctaHref: 'https://license.thingsboard.io/signup',
 				ctaPrimary: true,
 				popular: true,
+				gtmId: 'Pricing_PE_SM_Pilot',
 				features: [
 					{ text: '100 devices' },
 					{ text: '100 assets' },
@@ -109,6 +113,7 @@ export const tbSelfManagedData: SelfManagedData = {
 				ctaText: 'Get started',
 				ctaHref: 'https://license.thingsboard.io/signup',
 				ctaPrimary: false,
+				gtmId: 'Pricing_PE_SM_Startup',
 				features: [
 					{ text: '500 devices' },
 					{ text: '500 assets' },
@@ -139,6 +144,7 @@ export const tbSelfManagedData: SelfManagedData = {
 				ctaText: 'Get started',
 				ctaHref: 'https://license.thingsboard.io/signup',
 				ctaPrimary: false,
+				gtmId: 'Pricing_PE_SM_Business',
 				features: [
 					{ text: '1,000 devices' },
 					{ text: '1,000 assets' },
@@ -177,7 +183,7 @@ export const tbSelfManagedData: SelfManagedData = {
 				description: 'A single, transparent license fee simplifies long-term financial planning.',
 			},
 			{
-				icon: 'tabler:trending-up',
+				icon: 'tabler:trending-down',
 				title: 'Lower TCO',
 				description: 'Eliminates recurring subscription fees, offering a lower total cost of ownership for long-term projects.',
 			},
@@ -201,14 +207,41 @@ export const tbPerpetualHero: CommunityEditionData = {
 		'The one-time, enterprise-grade license for maximum security, permanent data control, and predictable costs.',
 	description:
 		'A perpetual license transforms your core IoT platform into a permanent asset, giving you a predictable financial model and complete control over your technology roadmap. It\u2019s the ideal foundation for a long-term, large-scale enterprise deployment.',
+	priceLabel: 'Starting from $4,999',
 	features: [
 		'Your security policy requires an isolated, on-premises, or offline deployment.',
 		'Your financial model favors a one-time capital investment (CAPEX) over recurring expenses.',
 		'Your business needs a unique, tailored solution, not a one-size-fits-all subscription.',
 	],
-	ctaText: 'Contact us',
-	ctaHref: '/contact-us/?subject=ThingsBoard%20Products',
+	ctaText: 'Estimate your cost',
+	ctaHref: '#',
+	ctaOnclick: 'window.openTbPerpCalc?.()',
+	secondaryCtaText: 'Contact Us',
+	secondaryCtaHref: '/contact-us/?subject=ThingsBoard%20Products',
 };
+
+export const tbPerpetualPlans: PlanCard[] = [
+	{
+		name: 'Platform',
+		description: 'One-time license \u2014 own your IoT platform forever.',
+		price: 4999,
+		currency: '$',
+		period: ' one-time',
+		ctaText: 'Estimate your cost',
+		ctaHref: '#',
+		ctaPrimary: true,
+		popular: true,
+		features: [
+			{ text: '1,000 devices included' },
+			{ text: '$1.00 /extra device', plusIcon: true, highlight: true },
+			{ text: '1 production instance included' },
+			{ text: 'White labeling included' },
+			{ text: 'Edge Computing (2 instances included)' },
+			{ text: 'Trendz Analytics available' },
+			{ text: 'Offline Mode available' },
+		],
+	},
+];
 
 export const tbSelfManagedAddOns: AddOnItem[] = [
 	{
@@ -244,5 +277,40 @@ export const tbSelfManagedAddOns: AddOnItem[] = [
 		faqId: 'pe-pay-as-you-go-what-is-included-in-the-white-labeled-mobile-app-add-on',
 		faqTooltip:
 			'Launch a client-ready mobile app under your brand \u2014 your name, logo, colors, and a fully polished look & feel \u2014 so customers experience your product, not a third-party app.',
+	},
+];
+
+export const tbPerpetualAddOns: AddOnItem[] = [
+	{
+		id: 'perp-edge',
+		name: 'Edge Computing',
+		description: 'Process data where it is collected.',
+		icon: edgeIcon,
+		priceUsd: 849,
+		period: '',
+		startingFrom: true,
+		faqId: 'edge-addon-payg-what-is',
+		faqTooltip: 'Deploy and manage Edge instances at remote locations for offline operation, local processing, and automatic cloud sync.',
+	},
+	{
+		id: 'perp-trendz',
+		name: 'Trendz Analytics',
+		description: 'Advanced analytics for your solution.',
+		icon: trendzIcon,
+		priceUsd: 1499,
+		period: '',
+		startingFrom: true,
+		faqId: 'trendz-payg-what-is',
+		faqTooltip: 'Advanced analytics for data insights, custom dashboards, and trend discovery.',
+	},
+	{
+		id: 'perp-offline',
+		name: 'Offline Mode',
+		description: 'Full functionality without internet.',
+		icon: offlineIcon,
+		priceUsd: '$19 999',
+		period: '',
+		faqId: 'perp-offline-mode',
+		faqTooltip: 'Enables full platform functionality in environments without internet connection.',
 	},
 ];

@@ -53,6 +53,14 @@ export interface PlanCard {
 	productId?: string;
 	/** License server plan ID */
 	planId?: string;
+	/** Annual price (when billing toggle is set to Annual) */
+	annualPrice?: number | null;
+	/** FAQ id for the price info icon (shown when price is null / "Custom") */
+	priceFaqId?: string;
+	/** Tooltip text for the price info icon */
+	priceFaqTooltip?: string;
+	/** GTM element ID for the CTA button (e.g., "Pricing_PE_Cloud_Maker") */
+	gtmId?: string;
 }
 
 // ─── Community Edition ──────────────────────
@@ -62,11 +70,19 @@ export interface CommunityEditionData {
 	/** Optional subtitle (rendered bolder, before main description) */
 	subtitle?: string;
 	description: string;
-	/** Heading above features list (default: "This solution is for you if:") */
-	featuresHeading?: string;
 	features: string[];
 	ctaText: string;
 	ctaHref: string;
+	/** Optional onclick for the main CTA (overrides href navigation) */
+	ctaOnclick?: string;
+	/** Optional secondary button */
+	secondaryCtaText?: string;
+	/** Navigation target for the secondary button (preferred — keeps middle-click / new-tab working) */
+	secondaryCtaHref?: string;
+	/** Onclick handler for the secondary button — only use for non-navigation actions (e.g. opening a modal) */
+	secondaryCtaOnclick?: string;
+	/** Optional price display (e.g., "Starting from $4,999") */
+	priceLabel?: string;
 }
 
 // ─── Public Cloud ───────────────────────────

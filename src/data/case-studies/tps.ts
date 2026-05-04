@@ -2,7 +2,7 @@ import type { CaseStudyData } from './types';
 
 export const tpsData: CaseStudyData = {
 	title: 'Cultural IoT - TPS Powers Museums with ThingsBoard',
-	pageTitle: 'Cultural IoT - TPS Powers Museums with ThingsBoard',
+	pageTitle: 'Cultural IoT — TPS Powers Museums',
 	description:
 		'Discover how TPS uses ThingsBoard to connect sensors across museums and deliver smart analytics for cultural site management.',
 	pageSlug: 'tps',
