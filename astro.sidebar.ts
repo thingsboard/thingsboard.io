@@ -702,11 +702,19 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 					],
 				},
 				{
+					label: 'Control widgets',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/control-widgets/single-switch`,
+						`${prefix}/widgets/control-widgets/led-indicator`,
+					],
+				},
+				{
 					label: 'Cards',
 					collapsed: true,
 					items: [
-						`${prefix}/widgets/cards/markdown-html-card`,
 						`${prefix}/widgets/cards/html-value-card`,
+						`${prefix}/widgets/cards/markdown-html-card`,
 						`${prefix}/widgets/cards/value-card`,
 					],
 				},
@@ -714,8 +722,20 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 					label: 'Charts',
 					collapsed: true,
 					items: [
+						`${prefix}/widgets/charts/bar-chart`,
 						`${prefix}/widgets/charts/chart-widgets`,
 						`${prefix}/widgets/charts/line-chart`,
+						`${prefix}/widgets/charts/point-chart`,
+						`${prefix}/widgets/charts/state-chart`,
+						`${prefix}/widgets/charts/time-series-chart`,
+					],
+				},
+				{
+					label: 'Count widgets',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/alarm-widgets/alarm-count`,
+						`${prefix}/widgets/count-widgets/entity-count`,
 					],
 				},
 				{
@@ -729,8 +749,10 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 					label: 'Tables',
 					collapsed: true,
 					items: [
+						`${prefix}/widgets/alarm-widgets/alarms-table`,
 						`${prefix}/widgets/tables/entities-table`,
 						`${prefix}/widgets/tables/timeseries-table`,
+						`${prefix}/widgets/tables/persistent-table`,
 					],
 				},
 				`${prefix}/widgets/widget-api`,
@@ -970,6 +992,14 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 					],
 				},
 				{
+					label: 'Control widgets',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/control-widgets/single-switch`,
+						`${prefix}/widgets/control-widgets/led-indicator`,
+					],
+				},
+				{
 					label: 'Cards',
 					collapsed: true,
 					items: [
@@ -982,8 +1012,20 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 					label: 'Charts',
 					collapsed: true,
 					items: [
+						`${prefix}/widgets/charts/bar-chart`,
 						`${prefix}/widgets/charts/chart-widgets`,
 						`${prefix}/widgets/charts/line-chart`,
+						`${prefix}/widgets/charts/point-chart`,
+						`${prefix}/widgets/charts/state-chart`,
+						`${prefix}/widgets/charts/time-series-chart`,
+					],
+				},
+				{
+					label: 'Count widgets',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/alarm-widgets/alarm-count`,
+						`${prefix}/widgets/count-widgets/entity-count`,
 					],
 				},
 				{
@@ -997,8 +1039,10 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 					label: 'Tables',
 					collapsed: true,
 					items: [
+						`${prefix}/widgets/alarm-widgets/alarms-table`,
 						`${prefix}/widgets/tables/entities-table`,
 						`${prefix}/widgets/tables/timeseries-table`,
+						`${prefix}/widgets/tables/persistent-table`,
 					],
 				},
 				`${prefix}/widgets/widget-api`,
