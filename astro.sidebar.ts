@@ -733,6 +733,8 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 					collapsed: true,
 					items: [
 						`${prefix}/widgets/maps/map`,
+						`${prefix}/widgets/maps/image-map`,
+						`${prefix}/widgets/maps/trip-map`,
 						`${prefix}/widgets/maps/route-map`,
 					],
 				},
@@ -1024,6 +1026,8 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 					collapsed: true,
 					items: [
 						`${prefix}/widgets/maps/map`,
+						`${prefix}/widgets/maps/image-map`,
+						`${prefix}/widgets/maps/trip-map`,
 						`${prefix}/widgets/maps/route-map`,
 					],
 				},
