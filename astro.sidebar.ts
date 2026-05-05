@@ -745,7 +745,15 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 						`${prefix}/widgets/tables/persistent-table`,
 					],
 				},
-				{ label: 'Video streaming', slug: `${prefix}/widgets/video/overview` },
+				{
+					label: 'Video streaming',
+					collapsed: true,
+					items: [
+						{ label: 'Overview', slug: `${prefix}/widgets/video/overview` },
+						{ label: 'Configure the widget', slug: `${prefix}/widgets/video/configure` },
+						{ label: 'Deploy MediaMTX + Caddy', slug: `${prefix}/widgets/video/deploy` },
+					],
+				},
 				`${prefix}/widgets/widget-api`,
 			],
 		},
@@ -1036,7 +1044,15 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 						`${prefix}/widgets/tables/persistent-table`,
 					],
 				},
-				{ label: 'Video streaming', slug: `${prefix}/widgets/video/overview` },
+				{
+					label: 'Video streaming',
+					collapsed: true,
+					items: [
+						{ label: 'Overview', slug: `${prefix}/widgets/video/overview` },
+						{ label: 'Configure the widget', slug: `${prefix}/widgets/video/configure` },
+						{ label: 'Deploy MediaMTX + Caddy', slug: `${prefix}/widgets/video/deploy` },
+					],
+				},
 				`${prefix}/widgets/widget-api`,
 			],
 		},
