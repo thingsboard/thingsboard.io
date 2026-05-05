@@ -36,13 +36,14 @@ export const smartEnergyData: UseCaseData = {
 			'These devices connect through IoT gateways that support a wide range of communication protocols, including MQTT, CoAP, HTTP, and LwM2M, ensuring secure and seamless data transmission to the cloud.',
 			'ThingsBoard core handles device and user management, real-time data processing via a powerful rule engine. The collected data is visualized through intuitive dashboards and mobile applications, giving users clear insights into energy usage, system alarms, and performance metrics — all in real time, from a single interface.',
 		],
-		schemeSrc: '/src/assets/schemas/iot-solution-architecture.svg',
+		schemeSrc: '/src/assets/schemas/smart-energy.svg',
 		schemeAlt:
-			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for alarms, dashboards, notifications, and data lakes',
+			'Smart energy solution architecture: devices connect via protocols and gateways to ThingsBoard for alarms, dashboards, notifications, and data lakes',
 		schemeCaption:
-			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for processing, visualization, and automation',
+			'Smart energy solution architecture: devices connect via protocols and gateways to ThingsBoard for processing, visualization, and automation',
 	},
 	benefits: {
+		badge: 'Why choose Smart energy',
 		title: 'Smart energy benefits',
 		subtitle:
 			'The smart energy solution provides a wide range of benefits for businesses, facility managers, and technical teams, enabling efficient, automated, and scalable energy management.',
@@ -146,7 +147,7 @@ export const smartEnergyData: UseCaseData = {
 			{
 				title: 'Industrial facilities and factories',
 				description:
-					'Track machinery energy use, identify inefficiencies, and optimize power distribution across production lines.',
+					'Tracking energy usage of heavy machinery, identifying inefficiencies, and improving power distribution for safer and more cost-effective production processes.',
 				desktopImage: '/src/assets/images/usecases/smart-energy/factory-1.svg',
 				mobileImage: '/src/assets/images/usecases/smart-energy/factory-2.svg',
 				imageAlt: 'Factory',
@@ -164,7 +165,7 @@ export const smartEnergyData: UseCaseData = {
 			{
 				title: 'Educational institutions and campuses',
 				description:
-					'Control power consumption in classrooms, labs, and dorms based on occupancy and sustainability goals.',
+					'Controlling power consumption in classrooms, labs, and dormitories, scheduling energy use based on occupancy, and ensuring sustainability targets are met.',
 				desktopImage: '/src/assets/images/usecases/smart-energy/education-1.svg',
 				mobileImage: '/src/assets/images/usecases/smart-energy/education-2.svg',
 				imageAlt: 'School',

@@ -8,10 +8,10 @@ export const smartIrrigationData: UseCaseData = {
 	pageSlug: 'smart-irrigation',
 	about: {
 		shortText:
-			'The global challenges of water scarcity, climate variability, and rising agricultural demand call for smarter approaches to irrigation management. ThingsBoard provides a robust IoT platform for building intelligent irrigation systems that optimize water usage, reduce waste, and improve crop yields through real-time monitoring and automated control.',
+			'The global challenges of water scarcity, rising agricultural costs, and the need for sustainable farming have made smart irrigation not just a trend, but a necessity. Traditional watering systems often lack responsiveness, leading to water overuse and crop stress. Modern agriculture requires a platform that can bring automation, precision, and adaptability — exactly what ThingsBoard delivers.',
 		longText: [
-			'Traditional irrigation methods often rely on fixed schedules or manual observation, leading to overwatering, underwatering, and inefficient resource use. IoT-enabled smart irrigation with ThingsBoard replaces guesswork with data-driven decision-making — soil moisture sensors, weather stations, and flow meters feed real-time data into the platform, which automatically adjusts irrigation schedules based on actual field conditions.',
-			"ThingsBoard supports a wide range of agricultural sensors and communication protocols, from LoRaWAN devices in remote fields to cellular-connected controllers in urban parks. The platform's rule engine enables sophisticated automation — triggering irrigation zones based on soil moisture thresholds, weather forecasts, and time-of-day schedules while providing full visibility through interactive dashboards and mobile applications.",
+			'ThingsBoard IoT Platform is purpose-built to address these needs with its robust architecture, supporting seamless integration of diverse sensors, reliable data collection via MQTT, CoAP, or HTTP, and powerful real-time analytics. By enabling farmers to monitor soil conditions, receive threshold-based alarms, and automate irrigation actions through intuitive rule chains, ThingsBoard ensures optimal water distribution and timely response to changing field conditions.',
+			'From small farms to enterprise-scale agricultural operations, ThingsBoard scales effortlessly thanks to its edge computing capabilities, multi-tenant model, and rich dashboard customization. It empowers agribusinesses to implement smart irrigation that not only conserves water and boosts yield, but also reduces manual labor, improves traceability, and aligns with long-term sustainability goals.',
 		],
 		demoUrl:
 			'https://thingsboard.cloud/dashboard/a4640cc0-8fa9-11ef-baa8-4521077809fd?publicId=7aa99e80-8acd-11ef-a59e-a9c993dbec14',
@@ -51,79 +51,77 @@ export const smartIrrigationData: UseCaseData = {
 		],
 	},
 	solutionStructure: {
-		title: 'Solution structure of smart irrigation use case',
+		title: 'Solution structure of smart irrigation',
 		shortText:
-			'The smart irrigation solution connects soil sensors, weather stations, and irrigation controllers to the ThingsBoard platform through IoT gateways. You may find the detailed solution setup guide in our <a href="/docs/pe/recipes/solution-templates/smart-irrigation/">smart irrigation solution template</a> documentation.',
+			'In the <a href="/docs/pe/recipes/solution-templates/smart-irrigation/">smart irrigation solution template</a> setup, soil moisture sensors and water meters are installed in each field zone. These devices continuously collect real-time environmental data such as moisture level, temperature, and water flow. The data is transmitted via lightweight and reliable communication protocols such as MQTT, CoAP, or HTTP directly to the ThingsBoard platform.',
 		longText: [
-			'At the field level, soil moisture sensors, temperature probes, and rain gauges collect environmental data at configurable intervals. Irrigation controllers manage valve actuators for individual zones, enabling precise water delivery to specific areas based on their unique requirements.',
-			'IoT gateways aggregate sensor data and transmit it to the ThingsBoard server using MQTT, CoAP, or HTTP protocols. The platform processes incoming telemetry through its rule engine, evaluating soil moisture levels against configured thresholds and weather conditions to generate automated irrigation commands.',
-			'Interactive dashboards provide farm managers with a complete view of their irrigation infrastructure — from high-level field maps showing zone statuses to detailed sensor readings and historical water consumption charts. Mobile access ensures that operators can monitor and control irrigation systems from anywhere, at any time.',
+			'Once received, data is processed by ThingsBoard’s rule engine, stored, and visualized on dashboards. If thresholds are exceeded—like low soil moisture—the platform can automatically trigger irrigation or notify personnel, ensuring timely response and water efficiency.',
+			'With flexible device provisioning, edge processing, and a multi-tenant architecture, ThingsBoard scales seamlessly from small farms to enterprise operations, supporting both manual oversight and fully automated control.',
 		],
-		schemeSrc: '/src/assets/schemas/iot-solution-architecture.svg',
-		schemeAlt:
-			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for alarms, dashboards, notifications, and data lakes',
+		schemeSrc: '/src/assets/schemas/use-case.svg',
+		schemeAlt: 'Smart irrigation solution architecture',
 		schemeCaption:
-			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for processing, visualization, and automation',
+			'Smart irrigation solution architecture: IoT devices connect via gateways to the cloud for processing, visualization, and automation',
 	},
 	dashboardStructure: {
-		title: 'Dashboard structure of smart irrigation solution',
+		title: 'Smart irrigation dashboard structure',
 		subtitle:
-			'The live dashboard demonstrates a complete smart irrigation monitoring and control system built with ThingsBoard. It provides real-time visibility into soil conditions, irrigation schedules, water consumption, and system health across multiple zones.',
+			'The smart irrigation dashboard on ThingsBoard provides a clear, real-time view of irrigation processes. It includes map-based tracking, sensor panels, scheduling tools, and alarm systems—enabling fast decisions, automation, and efficient water use across varied field conditions.',
 		panels: [
 			{
-				title: 'Field overview map',
+				title: 'Field overview dashboard state',
 				description:
-					'The top-level dashboard displays an interactive map of the irrigation area with all zones marked by color-coded indicators. Each zone shows its current soil moisture level, irrigation status (active, scheduled, or idle), and any active alarms. Users can click on any zone to drill down into detailed sensor data.',
+					'This high-level map displays all monitored fields and their average moisture levels in real time. It includes interactive polygons that represent specific fields, labeled with crop types and live sensor values. This allows operators to instantly assess field health. Visualizing field data geographically accelerates decision-making and localizes issues within seconds.',
 				image: '/src/assets/images/usecases/smart-irrigation/smart-irrigation-1.webp',
 				imageAlt:
 					'Interactive field map showing irrigation zones with moisture and status indicators',
 			},
 			{
-				title: 'Zone detail dashboard',
+				title: 'Add field',
 				description:
-					'A detailed view of an individual irrigation zone displaying real-time soil moisture readings at multiple depths, soil temperature, ambient temperature, humidity, and recent rainfall data. Trend charts show how moisture levels change throughout the day relative to irrigation events.',
+					'This interface allows users to add new fields, define crop types, and set individual soil moisture thresholds. These values are used to trigger automated irrigation actions or alarms. Custom moisture thresholds per field help tailor irrigation plans to specific crop needs, increasing efficiency.',
 				image: '/src/assets/images/usecases/smart-irrigation/smart-irrigation-2.webp',
 				imageAlt: 'Individual zone dashboard with soil moisture, temperature, and rainfall data',
 			},
 			{
-				title: 'Irrigation schedule management',
+				title: 'Edit field',
 				description:
-					'This panel allows operators to view and configure irrigation schedules for each zone. Schedules can be time-based, threshold-based (triggered by soil moisture levels), or a combination of both. The interface shows upcoming irrigation events and historical execution logs.',
+					'Users can edit field parameters, update crop labels, and reconfigure map boundaries using a visual map editor. This ensures that geospatial information is always accurate and actionable. Accurate geolocation enhances field-specific analytics and irrigation zoning precision.',
 				image: '/src/assets/images/usecases/smart-irrigation/smart-irrigation-3.webp',
 				imageAlt: 'Irrigation schedule configuration with time-based and threshold-based settings',
 			},
 			{
-				title: 'Water consumption analytics',
+				title: 'SI Field 1 dashboard with sensor data and irrigation logs',
 				description:
-					'A comprehensive water usage dashboard showing consumption per zone, per day, and per irrigation cycle. Flow meter data is aggregated into daily, weekly, and monthly totals, enabling operators to track water efficiency, detect leaks, and optimize scheduling to reduce waste.',
+					'Displays real-time soil moisture readings from all sensors, average moisture levels, water consumption, alarms, and detailed irrigation task logs. Combining sensor data and water logs offers a complete view for effective irrigation planning and validation.',
 				image: '/src/assets/images/usecases/smart-irrigation/smart-irrigation-4.webp',
 				imageAlt: 'Water consumption analytics with per-zone and per-cycle usage data',
 			},
 			{
-				title: 'Weather station integration',
+				title: 'Add new sensor',
 				description:
-					'Real-time weather data from on-site stations and external APIs is displayed alongside irrigation metrics. Temperature, humidity, wind speed, solar radiation, and rainfall measurements inform automated irrigation decisions and help operators plan ahead.',
+					'Quickly integrate a new sensor by assigning a name and label, seamlessly extending system coverage as your infrastructure grows. Easy sensor addition supports scalability and fast deployment across multiple zones.',
 				image: '/src/assets/images/usecases/smart-irrigation/smart-irrigation-5.webp',
 				imageAlt: 'Weather station data with temperature, humidity, wind, and rainfall readings',
 			},
 			{
-				title: 'Alarm and notification center',
+				title: 'Create irrigation schedule',
 				description:
-					'A centralized alarm dashboard listing all system events including low soil moisture warnings, equipment malfunctions, communication failures, and water pressure anomalies. Each alarm includes severity, timestamp, and recommended action, with options to acknowledge or escalate.',
+					'Users can define irrigation conditions such as start time, repetition, water volume, and stop rules (e.g., water volume or duration). The system then triggers irrigation commands automatically. Automating irrigation based on real thresholds reduces human error and conserves water.',
 				image: '/src/assets/images/usecases/smart-irrigation/smart-irrigation-6.webp',
 				imageAlt: 'Alarm center with system alerts, equipment status, and recommended actions',
 			},
 			{
-				title: 'Valve and controller status',
+				title: 'Alarm monitoring panel',
 				description:
-					'A real-time view of all irrigation valves and controllers showing their current state (open, closed, or transitioning), last activation time, and communication health. Operators can manually override valve positions directly from the dashboard for emergency situations.',
+					'This view aggregates all critical and warning-level alarms related to soil moisture and device health, helping users quickly react to anomalies. Centralized alarm management ensures prompt responses to avoid crop stress or system failures.',
 				image: '/src/assets/images/usecases/smart-irrigation/smart-irrigation-7.webp',
 				imageAlt: 'Valve and controller status dashboard with manual override controls',
 			},
 			{
-				title: 'Historical performance report',
+				title: 'SI Field 2 dashboard state',
 				description:
-					'A summary dashboard presenting long-term irrigation performance metrics including total water consumed, average soil moisture maintained, irrigation efficiency scores, and cost savings estimates. Data can be exported for reporting and regulatory compliance purposes.',
+					'Similar to the first field dashboard, this view provides detailed monitoring for another crop zone (corn), showcasing ThingsBoard’s multi-field, multi-crop support. Supporting multiple field dashboards promotes centralized yet granular monitoring for large-scale operations.',
 				image: '/src/assets/images/usecases/smart-irrigation/smart-irrigation-8.webp',
 				imageAlt: 'Historical irrigation performance report with efficiency metrics and trends',
 			},
@@ -141,7 +139,7 @@ export const smartIrrigationData: UseCaseData = {
 			{
 				title: 'Precision agriculture',
 				description:
-					'Sensor-driven watering schedules for row crops, orchards, and vineyards that maximize yields and cut water use.',
+					'Covers the need for data-driven water management by providing real-time moisture analytics, alarming, and automated irrigation, improving crop yield while reducing resource waste.',
 				desktopImage: '/src/assets/images/usecases/smart-irrigation/agriculture-1.svg',
 				mobileImage: '/src/assets/images/usecases/smart-irrigation/agriculture-2.svg',
 				imageAlt: 'Farm field',
@@ -150,7 +148,7 @@ export const smartIrrigationData: UseCaseData = {
 			{
 				title: 'Municipal parks & landscaping',
 				description:
-					'Weather- and soil-aware smart scheduling for public parks and urban green spaces that reduces water waste.',
+					'Solves the challenge of wide-area water efficiency by offering centralized dashboard control, alarm notifications, and device management for public green spaces.',
 				desktopImage: '/src/assets/images/usecases/smart-irrigation/greenhouse-1.svg',
 				mobileImage: '/src/assets/images/usecases/smart-irrigation/greenhouse-2.svg',
 				imageAlt: 'Park',
@@ -159,7 +157,7 @@ export const smartIrrigationData: UseCaseData = {
 			{
 				title: 'Agri-Tech research & experimental farms',
 				description:
-					'Controlled irrigation and structured data collection for testing watering strategies at research stations.',
+					'Meets the need for accurate environmental data collection and testing flexibility by enabling detailed telemetry tracking, custom rule chains, and rapid integration of new devices.',
 				desktopImage: '/src/assets/images/usecases/smart-irrigation/parks-1.svg',
 				mobileImage: '/src/assets/images/usecases/smart-irrigation/parks-2.svg',
 				imageAlt: 'Research farm',
@@ -168,7 +166,7 @@ export const smartIrrigationData: UseCaseData = {
 			{
 				title: 'Smart greenhouses',
 				description:
-					'Climate-controlled irrigation in greenhouse environments where precise moisture management is critical. Integration with HVAC, lighting, and fertigation systems enables fully automated growing conditions.',
+					'Fulfills the demand for microclimate-based watering by supporting multi-zone sensor management and conditional scheduling, ensuring healthy plant growth with minimal manual intervention.',
 				desktopImage: '/src/assets/images/usecases/smart-irrigation/fields-1.svg',
 				mobileImage: '/src/assets/images/usecases/smart-irrigation/fields-2.svg',
 				imageAlt: 'Greenhouse',
@@ -177,7 +175,7 @@ export const smartIrrigationData: UseCaseData = {
 			{
 				title: 'Golf courses & sports fields',
 				description:
-					'Automated zone-based turf irrigation that maintains optimal playing conditions and meets water-use regulations.',
+					'Addresses the requirement for uniform turf quality with zone-specific moisture monitoring, historical analytics, and rule-based irrigation triggers to maintain optimal soil conditions.',
 				desktopImage: '/src/assets/images/usecases/smart-irrigation/research-1.svg',
 				mobileImage: '/src/assets/images/usecases/smart-irrigation/research-2.svg',
 				imageAlt: 'Golf course',
@@ -186,8 +184,8 @@ export const smartIrrigationData: UseCaseData = {
 		],
 	},
 	summary: {
-		title: 'Summary of smart irrigation solution',
-		text: 'Smart irrigation with ThingsBoard delivers intelligent water management through IoT sensor integration, real-time monitoring, and automated control. By combining soil moisture data, weather information, and configurable automation rules, the platform optimizes water delivery across agricultural fields, urban parks, greenhouses, and sports facilities. Organizations gain full visibility into their irrigation operations — from field-level sensor readings to facility-wide water consumption analytics — enabling data-driven decisions that conserve water, reduce costs, and improve outcomes.',
+		title: 'Summary of smart irrigation',
+		text: 'The smart irrigation solution built on ThingsBoard empowers users to manage irrigation processes intelligently, reduce water waste, and maintain crop health with precision. Leveraging real-time data collection, powerful automation, and rich visualizations, it enables scalable deployments across diverse sectors—from agriculture to urban landscapes. With its flexible architecture and low-code configurability, the solution can be rapidly deployed, customized, and expanded as needs grow.',
 		icon: '/src/assets/images/usecases/health-care/summary.svg',
 		iconAlt: 'Text summary icon',
 	},

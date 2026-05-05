@@ -1,0 +1,466 @@
+import { Aside, Steps } from '@astrojs/starlight/components';
+import ImageGallery from '~/components/ImageGallery.astro';
+
+## Introduction
+
+<a href="https://sodaq.com/" target="_blank" rel="noopener noreferrer">SODAQ</a> NB-IoT Trackers collect GPS location and sensor data and transmit it over the T-Mobile NB-IoT network. This guide walks through connecting a SODAQ NB-IoT Tracker to ThingsBoard PE using the T-Mobile IoT CDP integration, setting up a data converter, importing alarm rule chains, and visualizing data on a dashboard.
+
+<img src="/src/assets/devices-library/sodaq/sodaq-demo-dashboard.gif" alt="SODAQ tracker dashboard demo" style="width: 100%; margin: 1rem 0;" />
+
+## Prerequisites
+
+- SODAQ NB-IoT Tracker connected to the T-Mobile NB-IoT network
+- <a href="/docs/pe/installation/" target="_blank" rel="noopener noreferrer">ThingsBoard PE server</a> or a free <a href="/installations/choose-region/" target="_blank" rel="noopener noreferrer">ThingsBoard Cloud</a> account
+- Basic ThingsBoard knowledge — complete the <a href="/docs/pe/getting-started/" target="_blank" rel="noopener noreferrer">Getting Started</a> guide before proceeding
+
+## Step 1. Data converter configuration
+
+The uplink data converter decodes the incoming hex-encoded payload from T-Mobile NB-IoT into the ThingsBoard telemetry format.
+
+**Input payload from T-Mobile NB-IoT platform:**
+
+```json
+{
+    "reports": [{
+        "serialNumber": "IMEI:0123456789",
+        "timestamp": 1547035621977,
+        "subscriptionId": "43524b52-b924-40f0-91f0-e7fa71dca87b",
+        "resourcePath": "uplinkMsg/0/data",
+        "value": "010145292a2bfbfc0000000000000000e6e3355c751a879de31e6535d10306005600d00402"
+    }]
+}
+```
+
+**Decoded output:**
+
+```json
+{
+    "deviceName": "0123456789",
+    "deviceType": "tracker",
+    "telemetry": [{
+        "ts": 1547035622000,
+        "values": {
+            "batteryVoltage": 4.17,
+            "temperature": 26,
+            "latitude": 51.8233479,
+            "longitude": 6.4042341,
+            "altitude": 6,
+            "speed": 86,
+            "satellitesObserved": 208,
+            "timetToFirstFix": 4
+        }
+    }]
+}
+```
+
+Key points:
+
+- The IMEI from the incoming message becomes the device name in ThingsBoard.
+- ThingsBoard automatically creates a device with type `tracker` and a name equal to the IMEI.
+- Timestamp and sensor readings are decoded from the incoming hex string.
+
+The following table shows each encoded field's position and byte length in the hex string:
+
+| Field | First byte | Byte length |
+|-------|-----------|-------------|
+| ts | 16 | 4 |
+| batteryVoltage | 20 | 1 |
+| temperature | 21 | 1 |
+| latitude | 22 | 4 |
+| longitude | 26 | 4 |
+| altitude | 30 | 2 |
+| speed | 32 | 2 |
+| satellitesObserved | 35 | 1 |
+| timetToFirstFix | 36 | 1 |
+
+### Import uplink converter
+
+<Steps>
+  1. Download <a href="/partners/hardware/sodaq/samples/sodaq-universal-tracker/resources/sodaq_uplink_data_converter.json" download="sodaq_uplink_data_converter.json">sodaq_uplink_data_converter.json</a>.
+  2. Go to **Integrations center &#8702; Data converters** and click **+ Add data converter > Import converter**.
+  3. Drag and drop the downloaded `sodaq_uplink_data_converter.json` file.
+  4. Click **Import**.
+</Steps>
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/devices-library/sodaq/sodaq-import-converter-1.png',
+    alt: 'Import data converter dialog',
+    caption: 'Click <strong>Add data converter</strong>, then upload the JSON file to import the uplink data converter.',
+  },
+  {
+    src: '/src/assets/devices-library/sodaq/sodaq-import-converter-2.png',
+    alt: 'Uplink data converter details',
+    caption: 'Open the imported converter to review and edit the uplink decoding configuration.',
+  }
+]} />
+
+**Decoder function:**
+
+```js maxLines=10 collapsible
+// Decode an uplink message from a buffer
+// payload - array of bytes
+// metadata - key/value object
+
+/** Decoder **/
+
+// decode payload to JSON
+var data = decodeToJson(payload);
+
+var reports = data.reports;
+var deviceName = data.devName;
+
+// Result object
+var result = {
+   deviceName: {},
+   deviceType: "tracker",
+   telemetry: []
+};
+
+for (var i = 0; i < reports.length; i++) {
+
+   result.deviceName = reports[i].serialNumber.replace("IMEI:", "");
+
+   var telemetryObj = {
+       ts: {},
+       values: {}
+   };
+
+   var timestamp = stringToInt(reports[i].value.substring(32, 40)) * 1000;
+   var v = stringToInt(reports[i].value.substring(40, 42)) / 100 + 3;
+   var t = stringToInt(reports[i].value.substring(42, 44));
+   var lat = stringToInt(reports[i].value.substring(44, 52)) / 10000000;
+   var lon = stringToInt(reports[i].value.substring(52, 60)) / 10000000;
+   var alt = stringToInt(reports[i].value.substring(60, 64));
+   var speed = stringToInt(reports[i].value.substring(64, 68));
+   var sat = stringToInt(reports[i].value.substring(68, 70));
+   var ttf = stringToInt(reports[i].value.substring(70, 72));
+
+   telemetryObj.ts = timestamp;
+   telemetryObj.values.batteryVoltage = v;
+   telemetryObj.values.temperature = t;
+
+   if (lat !== 0) {
+       telemetryObj.values.latitude = lat;
+   }
+   if (lon !== 0) {
+       telemetryObj.values.longitude = lon;
+   }
+   if (alt !== 0) {
+       telemetryObj.values.altitude = alt;
+   }
+
+   telemetryObj.values.speed = speed;
+   telemetryObj.values.satellitesObserved = sat;
+   telemetryObj.values.timetToFirstFix = ttf;
+
+   result.telemetry.push(telemetryObj);
+}
+
+/** Helper functions **/
+
+function stringToInt(hex) {
+    return parseInt('0x' + hex.match(/../g).reverse().join(''));
+}
+
+function decodeToString(payload) {
+   return String.fromCharCode.apply(String, payload);
+}
+
+function decodeToJson(payload) {
+   var str = decodeToString(payload);
+   return JSON.parse(str);
+}
+
+return result;
+```
+
+## Step 2. Integration configuration
+
+<Steps>
+1. Go to <strong>Integrations center &#8702; Integrations</strong> and click <strong>+ Add integration</strong>.
+2. <strong>Basic settings:</strong>
+    - Set <strong>Integration type</strong> to <strong>iotcreators.com (T-Mobile – IoT CDP)</strong>.
+    - **Enable integration** and <strong>Allow create devices or assets</strong> are on by default.
+    - Click <strong>Next</strong>.
+3. <strong>Uplink data converter:</strong>
+    - <strong>Select existing</strong> — choose the previously created <code>SODAQ Uplink data converter</code> from the list.
+    - Click <strong>Next</strong>.
+4. <strong>Connection:</strong>
+    - <strong>Base URL</strong> is pre-filled with your ThingsBoard instance URL.
+    - Copy the generated <strong>HTTP export URL</strong> — you will configure IoT Creators to POST to this address.
+    - Click <strong>Add</strong> to save the integration.
+</Steps>
+
+For more information about MQTT integrations in ThingsBoard, see the <a href="/docs/pe/user-guide/integrations/iotcreators/" target="_blank" rel="noopener noreferrer">IoT Creators integration documentation</a>.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/devices-library/sodaq/sodaq-create-integration-1.png',
+    alt: 'Add IoT Creators integration - basic settings',
+    caption: 'Click <strong>Add integration</strong>, select <strong>iotcreators.com (T-Mobile – IoT CDP)</strong>, enter a name, and click <strong>Next</strong>.',
+  },
+  {
+    src: '/src/assets/devices-library/sodaq/sodaq-create-integration-2.png',
+    alt: 'Select uplink data converter for IoT Creators integration',
+    caption: 'On the <strong>Uplink data converter</strong> step, select the required converter and click <strong>Next</strong>.',
+  },
+  {
+    src: '/src/assets/devices-library/sodaq/sodaq-create-integration-3.png',
+    alt: 'Configure IoT Creators connection settings',
+    caption: 'On the <strong>Connection</strong> step, verify the base URL and copy the generated HTTP endpoint URL, then click <strong>Add</strong>.',
+  }
+]} />
+
+## Step 3. Post telemetry and verify the integration
+
+Before configuring the T-Mobile platform, verify that ThingsBoard is correctly configured by sending a test message with cURL.
+
+<Steps>
+1. Download the test data file: <a href="/partners/hardware/sodaq/samples/sodaq-universal-tracker/resources/telemetry-data.json" download="telemetry-data.json">telemetry-data.json</a>.
+2. Run the following command, replacing `$HTTP_ENDPOINT_URL` with the copied **endpoint URL** from the integration:
+
+    ```bash
+    curl -v -X POST -d @telemetry-data.json $HTTP_ENDPOINT_URL --header "Content-Type:application/json"
+    ```
+    <ImageGallery images={[
+      {
+        src: '/src/assets/devices-library/sodaq/sodaq-post-telemetry.png',
+        alt: 'Add IoT Creators integration - basic settings',
+        caption: 'Click <strong>Add integration</strong>, select <strong>iotcreators.com (T-Mobile – IoT CDP)</strong>, enter a name, and click <strong>Next</strong>.',
+      },
+    ]} />
+</Steps>
+
+A new device should be created in ThingsBoard:
+
+Go to **Entities &#8702; Devices** — device **0123456789** is provisioned automatically on the first uplink. Open the <strong>Latest telemetry</strong> tab to verify decoded data such as location, battery voltage, and other sensor values.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/devices-library/sodaq/sodaq-new-device-created.png',
+    alt: 'Device details page showing latest telemetry values such as altitude, batteryVoltage, latitude, and longitude',
+    caption: 'The device is auto-created after the first uplink. Open the <strong>Latest telemetry</strong> tab to verify decoded data such as location, battery voltage, and other sensor values.',
+  },
+]} />
+
+## Step 4. T-Mobile NB-IoT platform callback configuration
+
+In the T-Mobile IoT CDP platform, configure the callback URL to the HTTP endpoint URL from Step 2. Use the image below as a reference:
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/devices-library/sodaq/sodaq-tmobile-configuration.png',
+    alt: 'IoT Creators application server configuration with ThingsBoard callback URL',
+    caption: 'In the IoT Creators portal, open <strong>Your application server</strong> and paste the ThingsBoard <strong>Integration endpoint URL</strong> into the <strong>Callback URL</strong> field to forward uplink data.',
+  },
+]} />
+
+## Step 5. Check integration debug events
+
+To trace the message through the integration, go to **Integrations center &#8702; Integrations**, click **iotcreators.com (T-Mobile – IoT CDP) integration**, open the **Events** tab, and set **Event type** to **Debug**. Click **...** in the Message column to see the reports received by the integration.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/devices-library/sodaq/iotcreators-integration-events-1.png',
+    alt: 'IoT Creators integration Events tab with Debug event and successful uplink message',
+    caption: 'Open the <strong>Events</strong> tab, set <strong>Event type</strong> to <strong>Debug</strong>, and verify that uplink messages are received with <strong>Status: OK</strong>.',
+  },
+  {
+    src: '/src/assets/devices-library/sodaq/iotcreators-integration-events-2.png',
+    alt: 'IoT Creators integration message payload details dialog',
+    caption: 'Click the <strong>...</strong> action to inspect the raw uplink payload, including device identifiers, timestamp, and encoded data.',
+  },
+]} />
+
+## Step 6. Rule chain import
+
+This guide uses a modified **Root Rule Chain** and a new **Tracker Alarms** rule chain. The rule chain forwards telemetry to the Tracker Alarms chain, which evaluates individual alarm threshold parameters configured in the dashboard.
+
+Download and <a href="/docs/pe/user-guide/rule-engine/#import-a-rule-chain" target="_blank" rel="noopener noreferrer">import</a> the Tracker Alarms rule chain:
+<a href="/partners/hardware/sodaq/samples/sodaq-universal-tracker/resources/tracker-alarms.json" download="tracker-alarms.json">tracker-alarms.json</a>.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/devices-library/sodaq/sodaq-configure-rule-chains-1.png',
+    alt: 'Import rule chain dialog in ThingsBoard',
+    caption: 'Go to <strong>Rule chains</strong>, click <strong>Add rule chain</strong> → <strong>Import rule chain</strong>, then upload the provided JSON file (e.g., tracker-alarms.json).',
+  },
+  {
+    src: '/src/assets/devices-library/sodaq/sodaq-configure-rule-chains-2.png',
+    alt: 'Tracker Alarms rule chain diagram',
+    caption: 'Open the imported <strong>Tracker Alarms</strong> rule chain to review logic for validating telemetry and triggering alarms (temperature, speed, voltage).',
+  },
+  {
+    src: '/src/assets/devices-library/sodaq/sodaq-configure-rule-chains-3.png',
+    alt: 'Root Rule Chain with rule chain node',
+    caption: 'Open the <strong>Root Rule Chain</strong> and locate the processing flow for incoming telemetry and attributes.',
+  },
+  {
+    src: '/src/assets/devices-library/sodaq/sodaq-configure-rule-chains-4.png',
+    alt: 'Root Rule Chain linking to Tracker Alarms rule chain',
+    caption: 'Add or verify the <strong>rule chain</strong> node that forwards messages to the <strong>Tracker Alarms</strong> rule chain after telemetry is saved.',
+  }
+]} />
+
+## Step 7. Dashboard import
+
+Download <a href="/partners/hardware/sodaq/samples/sodaq-universal-tracker/resources/sodaq-dashboard.json" download="sodaq-dashboard.json">sodaq-dashboard.json</a> and import it in **Dashboards**. See the <a href="/docs/user-guide/dashboards/#import-dashboard" target="_blank" rel="noopener noreferrer">dashboard import instructions</a>.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/devices-library/sodaq/sodaq-import-dashboard-1.png',
+    alt: 'Import dashboard dialog in ThingsBoard',
+    caption: 'Go to <strong>Dashboards</strong>, click <strong>Add dashboard</strong> → <strong>Import dashboard</strong>, then upload the provided JSON file.',
+  },
+  {
+    src: '/src/assets/devices-library/sodaq/sodaq-import-dashboard-2.png',
+    alt: 'Imported dashboard with map and tracker data widgets',
+    caption: 'Open the imported dashboard to visualize device data, including location on the map and telemetry such as battery voltage, temperature, and speed.',
+  }
+]} />
+
+After importing the dashboard, navigate to the **Tracker details** state and set the alarm threshold values:
+
+- **Max Speed**
+- **Min Voltage**
+- **Min Temperature**
+- **Max Temperature**
+
+Once the rule chains and dashboard are configured, trigger the device to post real data and verify that the integration and rule chains work as expected.
+
+## Advanced configuration (optional)
+
+The following sections explain how the rule chains work and how to recreate them from scratch. These steps are optional — beginners can skip this section.
+
+### Security
+
+You can add additional HTTP headers with unique parameters to secure the integration. Add a custom header (like `MY-INTEGRATION-AUTH-HEADER` with a random string value) to both the integration configuration (Step 2) and the T-Mobile platform configuration (Step 4). The header values must match for data to flow correctly.
+
+### Message flow
+
+The **Tracker Alarms** rule chain uses the following nodes:
+
+- **Node A: Originator attributes** — adds Message Originator Attributes (client, shared, and server scope) and the latest telemetry values into message metadata.
+- **Nodes B, C, D, E: Filter Script** — evaluate threshold conditions. Return `true` if the condition is met, `false` otherwise.
+- **Nodes F, H, J, L: Create alarm** — create or update an alarm when the corresponding filter script returns `true`.
+- **Nodes G, I, K, M: Clear alarm** — clear the alarm when the corresponding filter script returns `false`.
+- **Node O: Rule Chain** — forwards incoming messages to the **Tracker Alarms** rule chain.
+
+### Create the Tracker Alarms rule chain
+
+<Steps>
+
+1. Go to **Rule Chains → Add new Rule Chain**. Enter the name **Tracker Alarms** and click **Add**.
+
+   <ImageGallery images={[{
+     src: '/src/assets/devices-library/sodaq/sodaq-add-chain.png',
+     alt: 'Add new Rule Chain dialog',
+     caption: 'Go to <strong>Rule Chains → Add new Rule Chain</strong>, enter the name <strong>Tracker Alarms</strong>, and click <strong>Add</strong>.',
+   }]} />
+
+2. Open the rule chain and click **Edit**. Add 13 nodes as described below.
+
+3. Add **Node A: Originator attributes** and connect it to the **Input** node. This node fetches shared scope attributes set from the dashboard.
+
+   Configure it with the following shared attributes: `maxTemperature`, `minTemperature`, `maxSpeed`, `minVoltage`. Set the name to **Fetch Limit telemetry**.
+
+4. Add four **Filter Script** nodes (B, C, D, E) and connect each to Node A with relation type **Success**:
+
+   <table>
+     <thead><tr><th style="white-space:nowrap">Node</th><th>Name</th><th>Script</th></tr></thead>
+     <tbody>
+       <tr><td style="white-space:nowrap">B</td><td>Validate Max temperature</td><td><code>{'return msg.temperature > metadata.shared_maxTemperature;'}</code></td></tr>
+       <tr><td style="white-space:nowrap">C</td><td>Validate Min temperature</td><td><code>{'return msg.temperature < metadata.shared_minTemperature;'}</code></td></tr>
+       <tr><td style="white-space:nowrap">D</td><td>Validate Max speed</td><td><code>{'return msg.speed > metadata.shared_maxSpeed;'}</code></td></tr>
+       <tr><td style="white-space:nowrap">E</td><td>Validate Min voltage</td><td><code>{'return msg.batteryVoltage < metadata.shared_minVoltage;'}</code></td></tr>
+     </tbody>
+   </table>
+
+   <ImageGallery images={[{
+     src: '/src/assets/devices-library/sodaq/sodaq-validate-max-temperature.png',
+     alt: 'Filter Script node configuration for max temperature threshold',
+     caption: 'Filter Script node <strong>Validate Max temperature</strong> — returns <code>true</code> when the reported temperature exceeds the <code>shared_maxTemperature</code> threshold.',
+   }]} />
+
+5. Add four **Create alarm** nodes (F, H, J, L) and connect each to the corresponding Filter Script node with relation type **True**:
+
+   <table>
+     <thead><tr><th style="white-space:nowrap">Node</th><th style="white-space:nowrap">Name</th><th style="white-space:nowrap">Alarm type</th><th>Details function</th></tr></thead>
+     <tbody>
+       <tr><td style="white-space:nowrap">F</td><td>Max Temperature</td><td>Max Temperature</td><td><code>{'var details = {}; details.value = msg.temperature; if (metadata.prevAlarmDetails) { details = JSON.parse(metadata.prevAlarmDetails); } return details;'}</code></td></tr>
+       <tr><td style="white-space:nowrap">H</td><td>Min temperature</td><td>Min temperature</td><td><code>{'var details = {}; details.value = msg.temperature; if (metadata.prevAlarmDetails) { details = JSON.parse(metadata.prevAlarmDetails); } return details;'}</code></td></tr>
+       <tr><td style="white-space:nowrap">J</td><td>Max Speed</td><td>Max Speed</td><td><code>{'var details = {}; details.value = msg.speed; if (metadata.prevAlarmDetails) { details = JSON.parse(metadata.prevAlarmDetails); } return details;'}</code></td></tr>
+       <tr><td style="white-space:nowrap">L</td><td>Min Voltage</td><td>Min Voltage</td><td><code>{'var details = {}; details.value = msg.batteryVoltage; if (metadata.prevAlarmDetails) { details = JSON.parse(metadata.prevAlarmDetails); } return details;'}</code></td></tr>
+     </tbody>
+   </table>
+
+   <ImageGallery images={[{
+     src: '/src/assets/devices-library/sodaq/sodaq-create-alarm.png',
+     alt: 'Create alarm node configuration',
+     caption: 'Create alarm node — creates or updates an alarm when the threshold condition is met, storing the triggering value in the alarm details.',
+   }]} />
+
+6. Add four **Clear alarm** nodes (G, I, K, M) and connect each to the corresponding Filter Script node with relation type **False**:
+
+   <table>
+     <thead><tr><th style="white-space:nowrap">Node</th><th style="white-space:nowrap">Name</th><th style="white-space:nowrap">Alarm type</th><th>Details function</th></tr></thead>
+     <tbody>
+       <tr><td style="white-space:nowrap">G</td><td>Clear Max Temperature</td><td>Max Temperature</td><td><code>{'var details = {}; if (metadata.prevAlarmDetails) { details = JSON.parse(metadata.prevAlarmDetails); } details.clearedValue = msg.temperature; return details;'}</code></td></tr>
+       <tr><td style="white-space:nowrap">I</td><td>Clear Min temperature</td><td>Min temperature</td><td><code>{'var details = {}; if (metadata.prevAlarmDetails) { details = JSON.parse(metadata.prevAlarmDetails); } details.clearedValue = msg.temperature; return details;'}</code></td></tr>
+       <tr><td style="white-space:nowrap">K</td><td>Clear Max Speed</td><td>Max Speed</td><td><code>{'var details = {}; if (metadata.prevAlarmDetails) { details = JSON.parse(metadata.prevAlarmDetails); } details.clearedValue = msg.speed; return details;'}</code></td></tr>
+       <tr><td style="white-space:nowrap">M</td><td>Clear Min Voltage</td><td>Min Voltage</td><td><code>{'var details = {}; if (metadata.prevAlarmDetails) { details = JSON.parse(metadata.prevAlarmDetails); } details.clearedValue = msg.batteryVoltage; return details;'}</code></td></tr>
+     </tbody>
+   </table>
+
+   <ImageGallery images={[{
+     src: '/src/assets/devices-library/sodaq/sodaq-clear-alarm.png',
+     alt: 'Clear alarm node configuration',
+     caption: 'Clear alarm node — clears an active alarm when the threshold condition is no longer met, storing the value at the time of clearance.',
+   }]} />
+
+7. The completed Tracker Alarms rule chain:
+
+   <ImageGallery images={[{
+     src: '/src/assets/devices-library/sodaq/sodaq-tracker-alarms.png',
+     alt: 'Completed Tracker Alarms rule chain',
+     caption: 'Completed <strong>Tracker Alarms</strong> rule chain — Originator attributes node feeds four Filter Script nodes, each connected to a Create alarm (True) and Clear alarm (False) node pair.',
+   }]} />
+
+</Steps>
+
+### Modify the root rule chain
+
+Add two nodes to the existing **Root Rule Chain**:
+
+<Steps>
+
+1. Add a **Filter Script** node and connect it to the **Save Timeseries** node with relation type **Success**. Set the name to **Tracker filter** and enter the following script:
+
+   ```js
+   return metadata.deviceType === 'tracker';
+   ```
+
+   <ImageGallery images={[{
+     src: '/src/assets/devices-library/sodaq/sodaq-tracker-filter.png',
+     alt: 'Tracker filter node configuration',
+     caption: 'Filter Script node named <strong>Tracker filter</strong> — filters messages by device type <code>tracker</code> before forwarding to the Tracker Alarms chain.',
+   }]} />
+
+2. Add a **Rule Chain** node and connect it to the **Filter Script** node with relation type **True**. Set the name to **Tracker Alarms** and point it to the **Tracker Alarms** rule chain.
+
+   <ImageGallery images={[{
+     src: '/src/assets/devices-library/sodaq/sodaq-rule-chain-node.png',
+     alt: 'Rule Chain node configuration',
+     caption: 'Rule Chain node named <strong>Tracker Alarms</strong> — forwards messages from trackers to the <strong>Tracker Alarms</strong> rule chain.',
+   }]} />
+
+3. The completed Root Rule Chain:
+
+   <ImageGallery images={[{
+     src: '/src/assets/devices-library/sodaq/sodaq-root-rule-chain.png',
+     alt: 'Modified Root Rule Chain',
+     caption: 'Root Rule Chain with the <strong>Tracker filter</strong> and <strong>Tracker Alarms</strong> nodes added after Save Timeseries.',
+   }]} />
+
+</Steps>

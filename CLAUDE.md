@@ -233,6 +233,28 @@ Chrome components all carry `.not-content` so Starlight's markdown flow/typograp
 - **Do NOT hand-edit `public/_redirects` or `public/redirects.json`** below the auto-generated markers — they're rewritten by `pnpm generate:redirects`. Edit `src/data/redirects.ts` and regenerate.
 - **Keep dynamic rules (splat / `:placeholder`) under 100.** Cloudflare Pages limit is 2,000 static + 100 dynamic = 2,100 total; the generator already quarantines dynamic rules to the tail block to keep the static zone uncapped.
 
+## OG image generation
+
+Per-page OG cards (1200×630 PNG) are generated at build time by Satori + Resvg. Each content collection has its own static endpoint under `src/pages/open-graph/`. One JSX template (`_shared/Card.tsx`) is varied only by an "eyebrow" line and an optional bottom-left meta line.
+
+**Files:**
+- `src/pages/open-graph/_shared/Card.tsx` — template
+- `src/pages/open-graph/_shared/render.ts` — Satori → Resvg pipeline + content-hash cache
+- `src/pages/open-graph/_shared/page-data.ts` — collection enumerators
+- `src/pages/open-graph/_shared/jsx-runtime.ts` — minimal Satori-shaped JSX shim (no React)
+- `src/pages/open-graph/{collection}/[…].png.ts` — six static endpoints (docs, blog, case-studies, use-cases, device-library, pages)
+- `src/util/ogContext.ts` — eyebrow / label helpers + `MARKETING_ALLOWLIST`
+- `src/util/getOgImageUrl.ts` — pathname → OG PNG URL aggregator
+
+**Key facts:**
+- Cache lives at `node_modules/.og-cache/` (gitignored). Bump `TEMPLATE_VERSION` in `render.ts` to invalidate.
+- `SKIP_OG=true` (used by `pnpm build:fast`) makes `renderCard` return the global fallback instead of running Satori — endpoints still register paths.
+- Pages outside `MARKETING_ALLOWLIST` (or otherwise unmapped) fall back to `/thingsboard-og.png` via `SeoMeta.astro`.
+- Roboto 400/500/700 (7 subsets each: latin, latin-ext, cyrillic, cyrillic-ext, greek, greek-ext, vietnamese) + Noto Sans Symbols 400 for arrows. CJK / Arabic / Hebrew not covered — render as `.notdef`. Site CSS uses an unrelated system font stack; no `FONT_CREDENTIALS` env var.
+- **Astro dev quirk:** `trailingSlash: 'always'` makes dev-server 404 dynamic-route URLs that end in `.png`. `SeoMeta.astro` and `routeData.ts` append `/` to `og:image` only when `import.meta.env.DEV` so dev links resolve to `localhost:.../foo.png/` while production HTML keeps the clean `.png` URL Cloudflare Pages serves directly.
+
+**To add a new marketing landing to OG generation:** add its pathname to `MARKETING_ALLOWLIST` in `src/util/ogContext.ts` and rebuild.
+
 ## Releasing a New Version
 
 Use the `release` skill for the full checklist. Key files:
@@ -248,4 +270,4 @@ Use the `release` skill for the full checklist. Key files:
 
 ## CI Checks
 
-PRs run: `astro check`, `eslint`, `slugcheck`, `linkcheck`. All must pass.
+PRs run: `astro check`, `eslint`, `slugcheck`. All must pass.

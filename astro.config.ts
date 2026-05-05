@@ -10,6 +10,7 @@ import { starlightPluginLlmsTxt } from './config/plugins/llms-txt';
 import { rehypeMdxIncludeHeadings } from './config/plugins/rehype-mdx-include-headings';
 import { rehypeTasklistEnhancer } from './config/plugins/rehype-tasklist-enhancer';
 
+import partytown from '@astrojs/partytown';
 import icon from 'astro-icon';
 import svgo from 'vite-plugin-svgo';
 import { fileURLToPath } from 'node:url';
@@ -104,7 +105,32 @@ export default defineConfig({
             }),
         ],
     },
-    integrations: [icon(), devServerFileWatcher([
+    integrations: [partytown({
+			config: {
+				forward: ['dataLayer.push'],
+				resolveUrl(url, location) {
+					if (location.hostname === 'localhost') return url;
+					const needsProxy = new Set([
+						'googleads.g.doubleclick.net',
+						'www.googleadservices.com',
+						'connect.facebook.net',
+						'www.facebook.com',
+					]);
+					if (needsProxy.has(url.hostname)) {
+						const proxy = new URL('/partytown-proxy', location.origin);
+						proxy.searchParams.set('apiurl', url.href);
+						return proxy;
+					}
+					return url;
+				},
+				resolveSendBeaconRequestParameters(url) {
+					if (/google-analytics\.com|analytics\.google\.com/.test(url.hostname)) {
+						return { keepalive: false };
+					}
+					return {};
+				},
+			},
+		}), icon(), devServerFileWatcher([
         './config/**', // Custom plugins and integrations
         './astro.sidebar.ts', // Sidebar configuration file
 		]), starlight({
@@ -151,6 +177,15 @@ export default defineConfig({
                     type: 'image/svg+xml',
                 },
             },
+            // Override Starlight defaults: site_name uses Starlight `title:` ("Docs") and og:type
+            // is hard-coded to "article" — neither is correct for our docs. Starlight's mergeHead
+            // replaces same-property defaults with these.
+            { tag: 'meta', attrs: { property: 'og:site_name', content: 'ThingsBoard' } },
+            { tag: 'meta', attrs: { property: 'og:type', content: 'website' } },
+            // Starlight only emits twitter:site if a twitter/x.com entry is set in `social:`.
+            // We can't use `social:` here without also rendering a duplicate icon in the header
+            // (footer already has X via the custom <SocialNetworks /> component).
+            { tag: 'meta', attrs: { name: 'twitter:site', content: '@thingsboard' } },
         ],
         disable404Route: true,
         plugins: process.env.SKIP_LLMS ? [] : [starlightPluginLlmsTxt()],

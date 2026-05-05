@@ -1,185 +1,384 @@
 ---
-import { Icon } from 'astro-icon/components';
 import { Products } from '@models/site.models.ts';
 import { allPages } from '~/content';
-import {
-	getVersionFromURL,
-	getMainVersion,
-	mainProductList,
-	productVersions,
-	subVersionGroups,
-	switchVersionWithFallback,
-} from '~/util/path-utils';
+import { getVersionFromURL, switchVersionWithFallback } from '~/util/path-utils';
 import { RELEASE_FAMILIES, familySlug } from '~/models/releases-table';
 import { UPGRADE_FAMILIES, getFamilySlug } from '~/models/upgrade-instructions';
 
-const currentVersion = getVersionFromURL(Astro.url.pathname);
-const mainVersion = getMainVersion(currentVersion);
+// Inline SVGs as raw strings so their `currentColor` flows from the parent's CSS `color`.
+const iconSources = import.meta.glob<string>('/src/assets/images/docs/product-selector/*.svg', {
+	eager: true,
+	query: '?raw',
+	import: 'default',
+});
+const getIcon = (name: string) => iconSources[`/src/assets/images/docs/product-selector/${name}.svg`] ?? '';
 
-// Build a set of all existing page IDs for fast lookup
-const existingPageIds = new Set(allPages.map((page) => page.id));
+// ────────────────────────────────────────────────────────────────────────────
+// FAMILIES — single source of truth for what the selector renders.
+// Add or edit one entry to add/edit a product in the selector.
+// ────────────────────────────────────────────────────────────────────────────
+type Group = 'core' | 'addons' | 'ecosystem';
 
-// Add synthetic IDs for dynamic release-notes pages (src/pages/, not in content collection)
+interface Edition {
+	product: Products;
+	label: string;
+}
+interface Region {
+	product: Products;
+	label: string;
+	subtitle: string;
+}
+interface Family {
+	id: Products;
+	group: Group;
+	name: string;
+	tagline: string;
+	iconId: string;
+	editions: Edition[];
+	/** When defined, region row + popover render whenever the active edition
+	 * matches one of `options[].product`. */
+	regions?: { options: Region[] };
+	/** Edition to land on when this family is picked from the product dropdown.
+	 * Defaults to `editions[editions.length - 1]` (Professional/Cloud first). */
+	preferredEdition?: Products;
+}
+
+const FAMILIES: Family[] = [
+	{
+		id: Products.CE,
+		group: 'core',
+		name: 'ThingsBoard',
+		tagline: 'IoT Platform',
+		iconId: 'tb-logo',
+		editions: [
+			{ product: Products.CE, label: 'Community' },
+			{ product: Products.PE, label: 'Professional' },
+			{ product: Products.PAAS, label: 'Cloud' },
+		],
+		regions: {
+			options: [
+				{ product: Products.PAAS, label: 'North America', subtitle: 'N. Virginia' },
+				{ product: Products.PAAS_EU, label: 'Europe', subtitle: 'Frankfurt' },
+			],
+		},
+		preferredEdition: Products.PE,
+	},
+	{
+		id: Products.EDGE,
+		group: 'addons',
+		name: 'Edge Computing',
+		tagline: 'Real-time processing at the source',
+		iconId: 'edge',
+		editions: [
+			{ product: Products.EDGE, label: 'Community' },
+			{ product: Products.EDGE_PE, label: 'Professional' },
+		],
+		preferredEdition: Products.EDGE_PE,
+	},
+	{
+		id: Products.TRENDZ,
+		group: 'addons',
+		name: 'Trendz Analytics',
+		tagline: 'Turn raw data into foresight',
+		iconId: 'trendz',
+		editions: [{ product: Products.TRENDZ, label: 'Trendz' }],
+	},
+	{
+		id: Products.GW,
+		group: 'ecosystem',
+		name: 'IoT Gateway',
+		tagline: 'Bridge any hardware to the cloud',
+		iconId: 'gateway',
+		editions: [{ product: Products.GW, label: 'IoT Gateway' }],
+	},
+	{
+		id: Products.TBMQ,
+		group: 'ecosystem',
+		name: 'MQTT Broker',
+		tagline: 'Reliable messaging for massive fleets',
+		iconId: 'tbmq',
+		editions: [
+			{ product: Products.TBMQ, label: 'Community' },
+			{ product: Products.TBMQ_PE, label: 'Professional' },
+		],
+		preferredEdition: Products.TBMQ_PE,
+	},
+	{
+		id: Products.MOBILE,
+		group: 'ecosystem',
+		name: 'Mobile Application',
+		tagline: 'Your operation, available anywhere',
+		iconId: 'mobile',
+		editions: [
+			{ product: Products.MOBILE, label: 'Community' },
+			{ product: Products.MOBILE_PE, label: 'Professional' },
+		],
+		preferredEdition: Products.MOBILE_PE,
+	},
+	{
+		id: Products.LICENSE,
+		group: 'ecosystem',
+		name: 'License Server',
+		tagline: 'Automated billing and license management',
+		iconId: 'license-portal',
+		editions: [{ product: Products.LICENSE, label: 'License Server' }],
+	},
+];
+
+const SECTIONS: { label: string; group: Group }[] = [
+	{ label: 'Core platform', group: 'core' },
+	{ label: 'Add-ons', group: 'addons' },
+	{ label: 'Ecosystem', group: 'ecosystem' },
+];
+
+// ────────────────────────────────────────────────────────────────────────────
+// State derivation
+// ────────────────────────────────────────────────────────────────────────────
+const currentProduct = getVersionFromURL(Astro.url.pathname);
+const currentFamily =
+	FAMILIES.find((f) => f.editions.some((e) => e.product === currentProduct)) ??
+	// If currentProduct is a region variant (PAAS_EU), find the family by region match
+	FAMILIES.find((f) => f.regions?.options.some((r) => r.product === currentProduct))!;
+
+// Build the existing-pages set used by switchVersionWithFallback (incl. dynamic pages).
+const existingPageIds = new Set(allPages.map((p) => p.id));
 for (const f of RELEASE_FAMILIES) {
 	const slug = familySlug(f.family);
 	existingPageIds.add(`docs/releases/releases-table/${slug}`);
 	existingPageIds.add(`docs/pe/releases/releases-table/${slug}`);
 }
-
-// Add synthetic IDs for dynamic upgrade-instructions pages (src/pages/, not in content collection)
 const upgradePlatforms = ['ubuntu', 'centos', 'windows', 'docker', 'docker-compose'];
-for (const family of UPGRADE_FAMILIES) {
-	const slug = getFamilySlug(family);
+for (const fam of UPGRADE_FAMILIES) {
+	const slug = getFamilySlug(fam);
 	for (const platform of upgradePlatforms) {
 		existingPageIds.add(`docs/installation/upgrade-instructions/${platform}/${slug}`);
 		existingPageIds.add(`docs/pe/installation/upgrade-instructions/${platform}/${slug}`);
 	}
 }
 
-// Main switcher options (only products in mainProductList)
-const options = Object.entries(productVersions)
-	.filter(([key]) => mainProductList.includes(key as Products))
-	.map(([key, value]) => ({
-		value: switchVersionWithFallback(Astro.url.pathname, key as Products, existingPageIds),
-		selected: (key as Products) === mainVersion,
-		label: value!.label,
-	}));
+const href = (target: Products) => switchVersionWithFallback(Astro.url.pathname, target, existingPageIds);
 
-const currentLabel = options.find((o) => o.selected)?.label ?? options[0]?.label ?? '';
+const preferredOf = (f: Family) => f.preferredEdition ?? f.editions[f.editions.length - 1]!.product;
 
-// Sub-variant switcher (Cloud, Edge, Mobile, TBMQ)
-const subVariants = subVersionGroups[mainVersion] ?? null;
-const subOptions = subVariants
-	? subVariants.map(({ product, label, subtitle }) => ({
-			value: switchVersionWithFallback(Astro.url.pathname, product, existingPageIds),
-			selected: product === currentVersion,
-			label,
-			subtitle: subtitle ?? null,
-		}))
-	: null;
+// Edition pill is "active" if its product matches current OR if it's the
+// regional trigger and current is one of its region variants (so the Cloud
+// pill stays highlighted when reading EU docs).
+const isEditionActive = (e: Edition): boolean => {
+	if (e.product === currentProduct) return true;
+	if (currentFamily.regions?.options.some((r) => r.product === currentProduct)) {
+		return e.product === currentFamily.regions.options[0]!.product;
+	}
+	return false;
+};
 
-const currentSubLabel = subOptions?.find((o) => o.selected)?.label ?? subOptions?.[0]?.label ?? '';
+// Region row: shown only when family has regions AND current edition is a region variant.
+const activeRegion = currentFamily.regions?.options.find((r) => r.product === currentProduct) ?? null;
 ---
 
-<version-select data-product={mainVersion} data-variant={currentVersion}>
-	<div class="version-switchers">
-		<!-- Main product switcher -->
-		<div class="select-wrapper">
-			<button class="select-trigger" aria-expanded="false" aria-haspopup="listbox">
-				<span class="select-label">{currentLabel}</span>
-				<Icon
-					name="tabler:chevron-down"
-					class="caret"
-					width="14"
-					height="14"
-					aria-hidden="true"
-				/>
-			</button>
-			<ul class="select-dropdown" role="listbox" aria-label="Product Version">
-				{
-					options.map(({ value, selected, label }) => (
-						<li
-							role="option"
-							aria-selected={selected}
-							data-value={value}
-							class:list={[{ 'is-selected': selected }]}
-						>
-							{label}
-						</li>
-					))
-				}
-			</ul>
-		</div>
+<product-selector data-family={currentFamily.id} data-edition={currentProduct}>
+	<div class="ps-card">
+		<!-- Header button: opens product popover -->
+		<button class="ps-header" aria-haspopup="listbox" aria-expanded="false" aria-controls="ps-products">
+			<span class="ps-icon-box ps-icon-box--header">
+				<span class="ps-icon" set:html={getIcon(currentFamily.iconId)} />
+			</span>
+			<span class="ps-header-text">
+				<span class="ps-eyebrow">You're reading docs for</span>
+				<span class="ps-name">{currentFamily.name}</span>
+			</span>
+			<svg class="ps-caret" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+				<path
+					d="M5 6L8 3L11 6M5 10L8 13L11 10"
+					stroke="currentColor"
+					stroke-width="1.33"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					fill="none"></path>
+			</svg>
+		</button>
 
-		<!-- Sub-variant switcher (Cloud, Edge, Mobile, TBMQ) -->
+		<!-- Edition switch: rendered when family has multiple editions -->
 		{
-			subOptions && (
-				<div class="select-wrapper">
-					<button class="select-trigger" aria-expanded="false" aria-haspopup="listbox">
-						<span class="select-label">{currentSubLabel}</span>
-						<Icon
-							name="tabler:chevron-down"
-							class="caret"
-							width="14"
-							height="14"
-							aria-hidden="true"
-						/>
-					</button>
-					<ul class="select-dropdown" role="listbox" aria-label="Product Variant">
-						{subOptions.map(({ value, selected, label, subtitle }) => (
-							<li
-								role="option"
-								aria-selected={selected}
-								data-value={value}
-								class:list={[{ 'is-selected': selected }]}
-							>
-								{label}
-								{subtitle && <span class="option-subtitle">{subtitle}</span>}
-							</li>
-						))}
-					</ul>
+			currentFamily.editions.length > 1 && (
+				<div class="ps-switch" role="group" aria-label="Edition">
+					{currentFamily.editions.map((e) => (
+						<a
+							class:list={['ps-pill', { 'is-active': isEditionActive(e) }]}
+							href={href(e.product)}
+							aria-pressed={isEditionActive(e)}
+						>
+							{e.label}
+						</a>
+					))}
 				</div>
 			)
 		}
+
+		<!-- Region row: rendered only when family has regions AND we're on a regional edition -->
+		{
+			currentFamily.regions && activeRegion && (
+				<button class="ps-region" aria-haspopup="listbox" aria-expanded="false" aria-controls="ps-regions">
+					<span class="ps-icon" set:html={getIcon('region')} />
+					<span class="ps-region-label">{activeRegion.label}</span>
+					<svg class="ps-caret-down" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+						<path
+							d="M4 6L8 10L12 6"
+							stroke="currentColor"
+							stroke-width="1.33"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							fill="none"
+						/>
+					</svg>
+				</button>
+			)
+		}
 	</div>
-</version-select>
+
+	<!-- Product popover: grouped list of all families -->
+	<div class="ps-popover ps-popover--products" id="ps-products" role="listbox" aria-label="Product" hidden>
+		{
+			SECTIONS.map((section) => (
+				<>
+					<div class="ps-section-label">{section.label}</div>
+					{FAMILIES.filter((f) => f.group === section.group).map((f) => (
+						<a
+							role="option"
+							class:list={['ps-item', { 'is-active': f.id === currentFamily.id }]}
+							href={href(preferredOf(f))}
+							aria-selected={f.id === currentFamily.id}
+						>
+							<span class:list={['ps-icon-box', { 'ps-icon-box--active': f.id === currentFamily.id }]}>
+								<span class="ps-icon" set:html={getIcon(f.iconId)} />
+							</span>
+							<span class="ps-item-text">
+								<span class="ps-item-name">{f.name}</span>
+								<span class="ps-item-tagline">{f.tagline}</span>
+							</span>
+							{f.id === currentFamily.id && (
+								<svg class="ps-check" width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+									<path
+										d="M4.5 10.5L8 14L15.5 6.5"
+										stroke="currentColor"
+										stroke-width="1.67"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										fill="none"
+									/>
+								</svg>
+							)}
+						</a>
+					))}
+				</>
+			))
+		}
+	</div>
+
+	<!-- Region popover: us / eu list -->
+	{
+		currentFamily.regions && (
+			<div class="ps-popover ps-popover--regions" id="ps-regions" role="listbox" aria-label="Cloud region" hidden>
+				<div class="ps-section-label">Cloud region</div>
+				{currentFamily.regions.options.map((r) => (
+					<a
+						role="option"
+						class:list={['ps-item', 'ps-item--region', { 'is-active': r.product === currentProduct }]}
+						href={href(r.product)}
+						aria-selected={r.product === currentProduct}
+					>
+						<span class="ps-item-text">
+							<span class="ps-item-name">{r.label}</span>
+							<span class="ps-item-tagline">{r.subtitle}</span>
+						</span>
+						{r.product === currentProduct && (
+							<svg class="ps-check" width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+								<path
+									d="M4.5 10.5L8 14L15.5 6.5"
+									stroke="currentColor"
+									stroke-width="1.67"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									fill="none"
+								/>
+							</svg>
+						)}
+					</a>
+				))}
+			</div>
+		)
+	}
+</product-selector>
 
 <script>
-	class VersionSelect extends HTMLElement {
+	class ProductSelector extends HTMLElement {
 		constructor() {
 			super();
 
-			const wrappers = Array.from(this.querySelectorAll<HTMLElement>('.select-wrapper'));
+			const triggers = Array.from(this.querySelectorAll<HTMLButtonElement>('[aria-haspopup="listbox"]'));
 
 			const closeAll = () => {
-				wrappers.forEach((w) => {
-					w.querySelector<HTMLButtonElement>('.select-trigger')?.setAttribute(
-						'aria-expanded',
-						'false'
-					);
+				triggers.forEach((t) => {
+					t.setAttribute('aria-expanded', 'false');
+					const popoverId = t.getAttribute('aria-controls');
+					if (popoverId) {
+						const pop = this.querySelector<HTMLElement>(`#${popoverId}`);
+						if (pop) pop.hidden = true;
+					}
 				});
 			};
 
-			wrappers.forEach((wrapper) => {
-				const trigger = wrapper.querySelector<HTMLButtonElement>('.select-trigger');
-				const dropdown = wrapper.querySelector<HTMLUListElement>('.select-dropdown');
-				const items = Array.from(wrapper.querySelectorAll<HTMLLIElement>('[role="option"]'));
+			const positionPopover = (trigger: HTMLElement, popover: HTMLElement) => {
+				const rect = trigger.getBoundingClientRect();
+				const minWidth = 320;
+				const width = Math.max(rect.width, minWidth);
+				const viewportPad = 8;
+				// Anchor to trigger.left, but keep popover inside viewport on the right.
+				const maxLeft = window.innerWidth - width - viewportPad;
+				const left = Math.min(rect.left, Math.max(viewportPad, maxLeft));
+				popover.style.top = `${rect.bottom + 8}px`;
+				popover.style.left = `${left}px`;
+				popover.style.width = `${width}px`;
+			};
 
-				if (!trigger || !dropdown) return;
+			triggers.forEach((trigger) => {
+				const popoverId = trigger.getAttribute('aria-controls');
+				if (!popoverId) return;
+				const popover = this.querySelector<HTMLElement>(`#${popoverId}`);
+				if (!popover) return;
 
+				const items = Array.from(popover.querySelectorAll<HTMLAnchorElement>('[role="option"]'));
+				items.forEach((item) => item.setAttribute('tabindex', '-1'));
+
+				const isOpen = () => trigger.getAttribute('aria-expanded') === 'true';
 				const open = () => {
 					closeAll();
+					positionPopover(trigger, popover);
 					trigger.setAttribute('aria-expanded', 'true');
+					popover.hidden = false;
 				};
-				const close = () => trigger.setAttribute('aria-expanded', 'false');
-				const isOpen = () => trigger.getAttribute('aria-expanded') === 'true';
+				const close = () => {
+					trigger.setAttribute('aria-expanded', 'false');
+					popover.hidden = true;
+				};
 
-				trigger.addEventListener('click', () => {
+				trigger.addEventListener('click', (e) => {
+					e.preventDefault();
 					if (isOpen()) close();
 					else open();
 				});
 
-				items.forEach((item) => {
-					item.addEventListener('click', () => {
-						const value = item.dataset.value;
-						if (value) window.location.pathname = value;
-					});
-				});
-
-				// Keyboard navigation
 				trigger.addEventListener('keydown', (e) => {
-					if (e.key === 'ArrowDown') {
+					if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
 						e.preventDefault();
 						open();
-						(items[0] as HTMLElement)?.focus();
+						items[0]?.focus();
 					}
 					if (e.key === 'Escape') close();
 				});
 
-				dropdown.addEventListener('keydown', (e) => {
+				popover.addEventListener('keydown', (e) => {
 					const focused = document.activeElement as HTMLElement;
-					const idx = items.indexOf(focused as HTMLLIElement);
-
+					const idx = items.indexOf(focused as HTMLAnchorElement);
 					if (e.key === 'ArrowDown') {
 						e.preventDefault();
 						(items[idx + 1] ?? items[0])?.focus();
@@ -188,280 +387,311 @@ const currentSubLabel = subOptions?.find((o) => o.selected)?.label ?? subOptions
 						e.preventDefault();
 						(items[idx - 1] ?? items[items.length - 1])?.focus();
 					}
-					if (e.key === 'Enter' || e.key === ' ') {
-						e.preventDefault();
-						const value = focused.dataset.value;
-						if (value) window.location.pathname = value;
-					}
 					if (e.key === 'Escape') {
 						close();
 						trigger.focus();
 					}
 				});
-
-				items.forEach((item) => {
-					item.setAttribute('tabindex', '-1');
-				});
 			});
 
-			// Close all on outside click
 			document.addEventListener('click', (e) => {
 				if (!this.contains(e.target as Node)) closeAll();
 			});
+
+			// Reposition / close on viewport changes
+			const repositionOpen = () => {
+				triggers.forEach((t) => {
+					if (t.getAttribute('aria-expanded') !== 'true') return;
+					const popoverId = t.getAttribute('aria-controls');
+					if (!popoverId) return;
+					const pop = this.querySelector<HTMLElement>(`#${popoverId}`);
+					if (pop) positionPopover(t, pop);
+				});
+			};
+			window.addEventListener('resize', repositionOpen, { passive: true });
+			// Sidebar-pane scrolls; close popovers when it does.
+			const sidebarPane = this.closest('.sidebar-pane');
+			sidebarPane?.addEventListener('scroll', () => closeAll(), { passive: true });
 		}
 	}
-	customElements.define('version-select', VersionSelect);
+	customElements.define('product-selector', ProductSelector);
 </script>
 
 <style lang="scss">
-	version-select {
+	@use '../styles/variables' as *;
+
+	product-selector {
 		display: block;
+		position: relative;
 		width: 100%;
 	}
 
-	.version-switchers {
+	// ─── Outer card wrapping the 3 controls ─────────────────────────────────
+	.ps-card {
 		display: flex;
-		gap: 0.5rem;
-		position: relative;
+		flex-direction: column;
+		gap: 10px;
+		padding: 8px;
+		background: var(--sl-color-bg-sidebar, var(--sl-color-bg));
+		border: 1px solid var(--sl-color-hairline-light);
+		border-radius: 10px;
 	}
 
-	.select-wrapper {
-		flex: 1;
-		min-width: 0;
-	}
-
-	.select-trigger {
+	// ─── Header button ───────────────────────────────────────────────────────
+	.ps-header {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
-		gap: 0.5rem;
+		gap: 8px;
 		width: 100%;
-		padding: 0.625rem;
-		color: var(--sl-color-gray-1);
+		padding: 6px 8px;
+		background: transparent;
+		border: 0;
+		border-radius: 8px;
 		cursor: pointer;
-		border: 1px solid var(--sl-color-hairline-light);
-		border-radius: 0.5rem;
-		background-color: var(--sl-color-gray-7, var(--sl-color-gray-6));
-		font-weight: 700;
-		font-size: var(--sl-text-sm);
-		line-height: 172%;
-		outline: none;
 		text-align: left;
+		color: var(--sl-color-white);
+		transition: background-color 0.15s ease;
 
 		&:hover {
-			color: var(--sl-color-white);
-			background-color: var(--sl-color-gray-6);
+			background: var(--sl-color-gray-7);
 		}
 	}
 
-	.select-label {
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+	.ps-header-text {
+		display: flex;
+		flex-direction: column;
+		flex: 1;
+		min-width: 0;
+		line-height: 1.2;
 	}
 
-	:global([data-theme='dark']) .select-trigger {
-		background-color: var(--sl-color-black);
-
-		&:hover {
-			background-color: var(--sl-color-gray-6);
-		}
-	}
-
-	.caret {
-		flex-shrink: 0;
-		transition: transform 0.2s ease;
-	}
-
-	.select-trigger[aria-expanded='true'] .caret {
-		transform: rotate(180deg);
-	}
-
-	.select-dropdown {
-		display: none;
-		position: absolute;
-		top: calc(100% + 4px);
-		left: 0;
-		right: 0;
-		z-index: 100;
-		list-style: none;
-		margin: 0;
-		padding: 0.25rem;
-		border: 1px solid var(--sl-color-hairline-light);
-		border-radius: 0.5rem;
-		background-color: var(--sl-color-black);
-	}
-
-	.select-trigger[aria-expanded='true'] + .select-dropdown {
-		display: block;
-	}
-
-	:global([data-theme='dark']) .select-dropdown {
-		background-color: var(--sl-color-black);
-	}
-
-	[role='option'] {
-		padding: 0.625rem;
-		font-weight: 700;
-		font-size: var(--sl-text-sm);
-		line-height: 172%;
-		color: var(--sl-color-gray-1);
-		cursor: pointer;
-		border-radius: 0.375rem;
-
-		&:hover,
-		&:focus {
-			background-color: var(--sl-color-gray-6);
-			color: var(--sl-color-white);
-			outline: none;
-		}
-
-		&.is-selected {
-			background-color: var(--sl-color-gray-5);
-			color: var(--sl-color-white);
-		}
-	}
-
-	:global([data-theme='dark']) [role='option'] {
-		&:hover,
-		&:focus {
-			background-color: var(--sl-color-gray-6);
-		}
-
-		&.is-selected {
-			background-color: var(--sl-color-gray-6);
-		}
-	}
-
-	.option-subtitle {
-		display: block;
-		font-size: 14px;
+	.ps-eyebrow {
+		font-size: 11px;
 		font-weight: 400;
-		line-height: 172%;
 		color: var(--sl-color-gray-3);
 	}
 
-	// Product-specific trigger colors
-	@mixin trigger-product-colors($r, $g, $b) {
-		color: rgba($r, $g, $b, 1);
-		border-color: rgba($r, $g, $b, 0.16);
-		background-color: rgba($r, $g, $b, 0.08);
+	.ps-name {
+		font-size: 16px;
+		font-weight: 600;
+		color: var(--sl-color-white);
+	}
+
+	.ps-caret {
+		flex-shrink: 0;
+		color: var(--sl-color-gray-3);
+	}
+
+	// ─── Icon box (32×32 with 20×20 SVG inside) ─────────────────────────────
+	.ps-icon-box {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		border-radius: 4px;
+		flex-shrink: 0;
+		background: var(--sl-color-gray-6);
+		color: var(--sl-color-gray-1);
+	}
+
+	.ps-icon-box--header {
+		background: var(--sl-color-accent-low);
+		color: var(--sl-color-text-accent, var(--sl-color-accent));
+	}
+
+	.ps-icon-box--active {
+		background: var(--sl-color-accent-low);
+		color: var(--sl-color-text-accent, var(--sl-color-accent));
+	}
+
+	.ps-icon {
+		display: inline-flex;
+		width: 20px;
+		height: 20px;
+
+		:global(svg) {
+			width: 20px;
+			height: 20px;
+		}
+	}
+
+	// ─── Edition switch ─────────────────────────────────────────────────────
+	.ps-switch {
+		display: flex;
+		justify-content: space-evenly;
+		gap: 4px;
+		padding: 4px;
+		background: var(--sl-color-gray-7);
+		border: 1px solid var(--sl-color-hairline-light);
+		border-radius: 8px;
+	}
+
+	.ps-pill {
+		flex: 0 0 auto;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: 6px 10px;
+		font-size: 12px;
+		font-weight: 400;
+		line-height: 1.2;
+		color: var(--sl-color-gray-3);
+		text-decoration: none;
+		border: 1px solid transparent;
+		border-radius: 6px;
+		cursor: pointer;
+		transition:
+			background-color 0.15s ease,
+			color 0.15s ease;
+		white-space: nowrap;
 
 		&:hover {
-			color: rgba($r, $g, $b, 1);
-			background-color: rgba($r, $g, $b, 0.16);
+			color: var(--sl-color-white);
+		}
+
+		&.is-active {
+			background: var(--sl-color-bg);
+			border-color: var(--sl-color-gray-6);
+			color: var(--sl-color-white);
+			font-weight: 600;
 		}
 	}
 
-	// CE group: CE, Edge, TBMQ, Mobile
-	version-select[data-product='CE'],
-	version-select[data-product='EDGE'],
-	version-select[data-product='TBMQ'],
-	version-select[data-product='MOBILE'] {
-		.select-trigger {
-			@include trigger-product-colors(48, 86, 128);
+	// ─── Region row ──────────────────────────────────────────────────────────
+	.ps-region {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		width: 100%;
+		min-height: 36px;
+		padding: 6px 12px;
+		background: transparent;
+		border: 1px solid var(--sl-color-hairline-light);
+		border-radius: 8px;
+		cursor: pointer;
+		text-align: left;
+		color: var(--sl-color-white);
+		transition: background-color 0.15s ease;
+
+		&:hover {
+			background: var(--sl-color-gray-7);
+		}
+
+		.ps-icon {
+			color: var(--sl-color-gray-3);
 		}
 	}
 
-	:global([data-theme='dark']) version-select[data-product='CE'],
-	:global([data-theme='dark']) version-select[data-product='EDGE'],
-	:global([data-theme='dark']) version-select[data-product='TBMQ'],
-	:global([data-theme='dark']) version-select[data-product='MOBILE'] {
-		.select-trigger {
-			@include trigger-product-colors(120, 180, 245);
+	.ps-region-label {
+		flex: 1;
+		min-width: 0;
+		font-size: 16px;
+		font-weight: 600;
+		line-height: 1.2;
+		color: var(--sl-color-white);
+	}
+
+	.ps-caret-down {
+		flex-shrink: 0;
+		color: var(--sl-color-gray-3);
+		transition: transform 0.15s ease;
+	}
+
+	.ps-region[aria-expanded='true'] .ps-caret-down {
+		transform: rotate(180deg);
+	}
+
+	// ─── Popovers ────────────────────────────────────────────────────────────
+	.ps-popover {
+		position: fixed;
+		// top / left / width are set by JS so the popover can extend past the
+		// sidebar boundary into the content area (matches Figma).
+		z-index: 1000;
+		display: flex;
+		flex-direction: column;
+		padding: 4px;
+		background: var(--sl-color-bg-sidebar, var(--sl-color-bg));
+		border: 1px solid var(--sl-color-hairline-light);
+		border-radius: 12px;
+		box-shadow:
+			0 4px 12px rgba(0, 0, 0, 0.08),
+			0 1px 3px rgba(0, 0, 0, 0.06);
+
+		&[hidden] {
+			display: none;
 		}
 	}
 
-	// IoT Gateway
-	version-select[data-product='GW'] {
-		.select-trigger {
-			@include trigger-product-colors(109, 40, 217);
+	.ps-section-label {
+		padding: 12px 8px 4px;
+		font-size: 11px;
+		font-weight: 600;
+		line-height: 1.2;
+		text-transform: uppercase;
+		color: var(--sl-color-gray-4, var(--sl-color-gray-3));
+		letter-spacing: 0.02em;
+	}
+
+	.ps-item {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 8px;
+		border-radius: 8px;
+		text-decoration: none;
+		color: var(--sl-color-white);
+		transition: background-color 0.15s ease;
+
+		&:hover {
+			background: var(--sl-color-gray-6);
+		}
+
+		&.is-active {
+			background: var(--sl-color-gray-6);
+
+			.ps-item-name {
+				color: var(--sl-color-text-accent, var(--sl-color-accent-high));
+			}
 		}
 	}
 
-	:global([data-theme='dark']) version-select[data-product='GW'] {
-		.select-trigger {
-			@include trigger-product-colors(167, 139, 250);
+	.ps-item--region {
+		min-height: 47px;
+
+		.ps-item-name {
+			color: var(--sl-color-white);
+		}
+
+		&.is-active .ps-item-name {
+			color: var(--sl-color-text-accent, var(--sl-color-accent-high));
 		}
 	}
 
-	// PE group: PE, License Server
-	version-select[data-product='PE'],
-	version-select[data-product='LICENSE'] {
-		.select-trigger {
-			@include trigger-product-colors(0, 105, 92);
-		}
+	.ps-item-text {
+		display: flex;
+		flex: 1;
+		min-width: 0;
+		flex-direction: column;
+		justify-content: center;
+		line-height: 1.2;
+		gap: 2px;
 	}
 
-	:global([data-theme='dark']) version-select[data-product='PE'],
-	:global([data-theme='dark']) version-select[data-product='LICENSE'] {
-		.select-trigger {
-			@include trigger-product-colors(63, 217, 209);
-		}
+	.ps-item-name {
+		font-size: 14px;
+		font-weight: 600;
+		color: var(--sl-color-white);
 	}
 
-	// PE variants: Edge PE, Mobile PE, TBMQ PE — same color as PE
-	version-select[data-variant='EDGE_PE'],
-	version-select[data-variant='MOBILE_PE'],
-	version-select[data-variant='TBMQ_PE'] {
-		.select-trigger {
-			@include trigger-product-colors(0, 105, 92);
-		}
+	.ps-item-tagline {
+		font-size: 12px;
+		font-weight: 400;
+		color: var(--sl-color-gray-3);
 	}
 
-	:global([data-theme='dark']) version-select[data-variant='EDGE_PE'],
-	:global([data-theme='dark']) version-select[data-variant='MOBILE_PE'],
-	:global([data-theme='dark']) version-select[data-variant='TBMQ_PE'] {
-		.select-trigger {
-			@include trigger-product-colors(63, 217, 209);
-		}
-	}
-
-	// Cloud
-	version-select[data-product='PAAS'] {
-		.select-trigger {
-			@include trigger-product-colors(61, 80, 245);
-		}
-	}
-
-	:global([data-theme='dark']) version-select[data-product='PAAS'] {
-		.select-trigger {
-			@include trigger-product-colors(179, 199, 255);
-		}
-	}
-
-	// Products with sub-selectors: main selector narrower, sub-variant gets more space
-	version-select[data-product='PAAS'],
-	version-select[data-product='EDGE'] {
-		.select-wrapper:first-child {
-			flex: 2;
-		}
-
-		.select-wrapper:last-child {
-			flex: 3;
-		}
-	}
-	version-select[data-product='MOBILE'],
-	version-select[data-product='TBMQ'] {
-		.select-wrapper:first-child {
-			flex: 4;
-		}
-
-		.select-wrapper:last-child {
-			flex: 5;
-		}
-	}
-
-	// Trendz
-	version-select[data-product='TRENDZ'] {
-		.select-trigger {
-			@include trigger-product-colors(38, 150, 243);
-		}
-	}
-
-	:global([data-theme='dark']) version-select[data-product='TRENDZ'] {
-		.select-trigger {
-			@include trigger-product-colors(76, 174, 255);
-		}
+	.ps-check {
+		flex-shrink: 0;
+		color: var(--sl-color-text-accent, var(--sl-color-accent-high));
 	}
 </style>

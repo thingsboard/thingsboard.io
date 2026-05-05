@@ -1,0 +1,472 @@
+---
+title: DRN 500
+description: Connect DRN 500 to ThingsBoard    
+platforms: ['ThingsBoard']
+hasBranching: false
+vendor: Digicom
+deviceImageFileName: drn-500.png
+hardwareType: Gateways
+connectivity:
+  - LTE
+  - Wi-Fi
+  - Ethernet
+  - Modbus
+  - MQTT
+industry:
+  - Energy Management
+  - Smart Cities
+  - Industrial Manufacturing
+useCase:
+  - Smart Energy
+  - Smart Metering
+  - Environment Monitoring
+category: Gateways
+---
+
+import ImageGallery from '~/components/ImageGallery.astro';
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+## Introduction
+
+The <a href="https://digicom.it/en/prodotti/4g-router-500/" target="_blank" rel="noopener noreferrer">Digicom DRN 500</a> is a multifunction 4G router with built-in Modbus master and MQTT client. It reads registers from serial Modbus devices (like energy meters), publishes the data to an external MQTT broker, and ThingsBoard subscribes to that broker through an MQTT Integration.
+
+This guide covers connecting a DRN 500 to ThingsBoard via an external MQTT broker, reading energy meter telemetry (voltage, current, frequency, power), and visualizing it on a dashboard.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/devices-library/drn-500/drn-500-header.png',
+    alt: 'Digicom DRN 500 energy meter monitoring overview',
+    caption: 'Digicom DRN 500 reading energy meter data and forwarding it to ThingsBoard',
+  },
+  {
+    src: '/src/assets/devices-library/drn-500/drn-500-scenario.png',
+    alt: 'Integration scenario: DRN 500 → MQTT broker → ThingsBoard',
+    caption: 'Data flow: DRN 500 reads Modbus registers, publishes to an MQTT broker, ThingsBoard subscribes and converts the payload',
+  },
+]} />
+
+## Prerequisites
+
+- Digicom DRN 500 with firmware 1.10 or newer
+- Energy meter connected via Modbus serial
+- External MQTT broker (publicly reachable)
+- ThingsBoard PE instance: use <a href="/installations/choose-region/" target="_blank" rel="noopener noreferrer">ThingsBoard Cloud</a> or install a <a href="/docs/pe/installation/" target="_blank" rel="noopener noreferrer">local PE server</a>
+
+## ThingsBoard setup
+
+### Create the MQTT integration
+
+The <a href="/docs/pe/user-guide/integrations/mqtt/" target="_blank" rel="noopener noreferrer">MQTT Integration</a> connects to an external broker, subscribes to data streams, and converts payloads to ThingsBoard telemetry format. Use it when devices publish to an external broker rather than directly to ThingsBoard.
+
+<Aside type="note">
+  Use <a href="/docs/pe/user-guide/tbel/" target="_blank" rel="noopener noreferrer">TBEL</a> for the uplink converter — it executes more efficiently than JavaScript inside ThingsBoard.
+</Aside>
+
+```js maxLines=15 collapsible
+// *** Digicom Data Converter ***
+
+var variableNamesMap = {
+  "Volts": "voltage",
+  "Ampere": "current",
+  "Frequency": "hertz",
+  "kVA": "power"
+};
+
+var payload = decodeToJson(payload);
+if (payload.modbus == null) {
+  return;}
+
+var telemetry = [];
+var telemetries = payload.modbus.data[0].samples;
+foreach(sample: telemetries) {
+  var values = {};
+  var varName = variableNamesMap[sample.reg];
+  if (varName != null) {
+    values[varName] = sample.value;
+    telemetry.push({
+      ts: Long.parseLong(sample
+        .timestamp) * 1000,
+      values: values
+    });
+  }}
+
+var result = {
+  deviceName: payload.serialnum,
+  deviceType: payload.type,
+  attributes: {
+    model: payload.model,
+    integrationName: metadata['integrationName'],
+  },
+  telemetry: telemetry};
+
+/** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
+
+return result;
+```
+
+<Steps>
+1. Go to **Integrations center &#8702; Integrations** and click **+ Add integration**.
+
+2. Select **MQTT** as the integration type and click **Next**.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/devices-library/drn-500/drn-500-integ-mqtt-1.png',
+       alt: 'Add integration dialog with MQTT type selected',
+       caption: 'Select <strong>MQTT</strong> as the integration type and click <strong>Next</strong>',
+     },
+   ]} />
+
+3. In the **Uplink data converter** step, enter a name, select **TBEL**, clear the default content, paste the decoder above, and click **Next**.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/devices-library/drn-500/drn-500-integ-mqtt-2.png',
+       alt: 'Uplink data converter with TBEL decoder code pasted',
+       caption: 'Paste the TBEL decoder, then click <strong>Next</strong>',
+     },
+   ]} />
+
+4. Click **Skip** in the **Downlink data converter** step.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/devices-library/drn-500/drn-500-integ-mqtt-3.png',
+       alt: 'Downlink data converter step with Skip button',
+       caption: 'Click <strong>Skip</strong> — downlink is not required for this setup',
+     },
+   ]} />
+
+5. Fill in the **Connection** tab:
+   - Set **Host** and **Port** of the external MQTT broker (e.g. `iot-tic3.digicom.cloud` and `1883`).
+   - Set **Credentials type** to **Basic** and enter **Username** and **Password**.
+   - Add topic filter: `digicom/+/data/modbus`, QoS **1**.
+
+   Click **Check connection** to verify, then click **Add**.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/devices-library/drn-500/drn-500-integ-mqtt-4.png',
+       alt: 'MQTT connection settings with broker host, port, credentials, and topic filter',
+       caption: 'Enter broker host, port, credentials, and topic filter <code>digicom/+/data/modbus</code>',
+     },
+     {
+       src: '/src/assets/devices-library/drn-500/drn-500-integ-mqtt-5.png',
+       alt: 'Add integration button to complete MQTT integration setup',
+       caption: 'Click <strong>Check connection</strong> to verify, then click <strong>Add</strong>',
+     },
+   ]} />
+</Steps>
+
+Once created, the integration status shows **Active** if the broker connection succeeds. If it remains **Inactive**, check the broker address, port, and credentials.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/devices-library/drn-500/drn-500-integ-mqtt-6.png',
+    alt: 'MQTT integration showing Active status',
+    caption: 'Integration status: <strong>Active</strong> confirms the broker connection is established',
+  },
+]} />
+
+### Test the data converter
+
+You can test the decoder before real data arrives. Use the sample payload below.
+
+```json maxLines=15 collapsible
+{
+    "timestamp": "1741688471",
+    "serialnum": "50012345",
+    "type": "Router500",
+    "model": "8D5913",
+    "method": "event",
+    "msg_cnt": "1494",
+    "done": "true",
+    "modbus": {
+        "data": [{
+            "device": "Energy_Meter",
+            "event": "read",
+            "samples": [{
+                "timestamp": "1741869373",
+                "reg": "Volts",
+                "unit": "V",
+                "value": "228.800000",
+                "deferred": "false"
+            }, {
+                "timestamp": "1741869374",
+                "reg": "Ampere",
+                "unit": "A",
+                "value": "0.868000",
+                "deferred": "false"
+            }, {
+                "timestamp": "17418693735",
+                "reg": "Frequency",
+                "unit": "Hz",
+                "value": "50",
+                "deferred": "false"
+            }, {
+                "timestamp": "1741869376",
+                "reg": "kVA",
+                "unit": "kVA",
+                "value": "1.491000",
+                "deferred": "false"
+            }]
+        }]
+    }
+}
+```
+
+<Steps>
+1. Go to **Integrations center &#8702; Data converters**, open the **Modbus Data** converter, and enter edit mode.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/devices-library/drn-500/drn-500-test-converter-1.png',
+       alt: 'Data converters list with the Modbus Data converter open',
+       caption: 'Open the <strong>Modbus Data</strong> converter and click the edit icon',
+     },
+   ]} />
+
+2. Click **Test decoder function**.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/devices-library/drn-500/drn-500-test-converter-2.png',
+       alt: 'Test decoder function button inside the converter editor',
+       caption: 'Click <strong>Test decoder function</strong> to open the test panel',
+     },
+   ]} />
+
+3. Paste the sample payload above into the **Payload content** tab and click **Test**. The **Output** tab should show telemetry with `voltage`, `current`, `hertz`, and `power` keys. Click **Cancel**, then exit edit mode.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/devices-library/drn-500/drn-500-test-converter-3.png',
+       alt: 'Decoder test output showing voltage, current, hertz, and power telemetry keys',
+       caption: 'Test output: <code>voltage</code>, <code>current</code>, <code>hertz</code>, and <code>power</code> keys confirm the decoder works correctly',
+     },
+   ]} />
+</Steps>
+
+## Device setup
+
+### Login
+
+Log in to the DRN 500 web interface with your **Username** and **Password**.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/devices-library/drn-500/drn-500-login.png',
+    alt: 'Digicom DRN 500 web interface login screen',
+    caption: 'Log in to the DRN 500 web interface to begin configuration',
+  },
+]} />
+
+This guide assumes the device already has Internet access configured and Modbus physical connections are in place.
+
+### Modbus COM configuration
+
+<Steps>
+1. Select **Modbus &#8702; COM Configuration** from the menu.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/devices-library/drn-500/drn-500-modbus-com-menu.png',
+       alt: 'DRN 500 menu showing Modbus COM Configuration option',
+       caption: 'Navigate to <strong>Modbus → COM Configuration</strong>',
+     },
+   ]} />
+
+2. Enable the Modbus serial interface and set **type**, **speed**, and **data format** to match the energy meter. Click **Save**.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/devices-library/drn-500/drn-500-modbus-serial-settings.png',
+       alt: 'Modbus serial interface settings with type, speed, and data format fields',
+       caption: 'Set the serial interface parameters to match your energy meter and click <strong>Save</strong>',
+     },
+   ]} />
+</Steps>
+
+### Modbus Master
+
+<Steps>
+1. Go to **Modbus &#8702; Modbus Master** and click **Add**.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/devices-library/drn-500/drn-500-modbus-master-menu.png',
+       alt: 'Modbus Master page with Add button',
+       caption: 'Go to <strong>Modbus → Modbus Master</strong> and click <strong>Add</strong>',
+     },
+   ]} />
+
+2. Enable the profile and set **Name**, **ID**, **Connection type**, **COM type**, rates, and register formats. Set **Data Destination** to **MQTT**, then click **Save**.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/devices-library/drn-500/drn-500-modbus-master-settings.png',
+       alt: 'Modbus Master profile settings with Data Destination set to MQTT',
+       caption: 'Configure the Modbus Master profile and set <strong>Data Destination</strong> to <strong>MQTT</strong>, then click <strong>Save</strong>',
+     },
+   ]} />
+
+3. Click **Requests** to define the Modbus read registers.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/devices-library/drn-500/drn-500-modbus-requests-btn.png',
+       alt: 'Requests button on the Modbus Master profile row',
+       caption: 'Click <strong>Requests</strong> to define which registers the device will read',
+     },
+   ]} />
+
+4. Add a request for **Volts** (voltage) and click **Save**.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/devices-library/drn-500/drn-500-modbus-volts-register.png',
+       alt: 'Add Modbus request form with Volts register configured',
+       caption: 'Add a register request for <strong>Volts</strong> and click <strong>Save</strong>',
+     },
+   ]} />
+
+5. Repeat for **Ampere** (current), **Frequency**, and **kVA** (power) by clicking **Add** for each. The table should show four active requests with the **Value** column updating at the configured scan rate. Use **Test** for an immediate read.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/devices-library/drn-500/drn-500-modbus-all-requests.png',
+       alt: 'Modbus Requests table showing all four registers: Volts, Ampere, Frequency, kVA',
+       caption: 'Four active Modbus register requests — values update at the configured scan rate',
+     },
+   ]} />
+</Steps>
+
+### MQTT configuration
+
+<Steps>
+1. Select **Modbus &#8702; MQTT Configuration** from the menu.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/devices-library/drn-500/drn-500-mqtt-menu.png',
+       alt: 'DRN 500 menu showing MQTT Configuration option',
+       caption: 'Navigate to <strong>Modbus → MQTT Configuration</strong>',
+     },
+   ]} />
+
+2. Enter the external broker **Server Address**, **Port**, **Username**, and **Password**. The device publishes to:
+
+   ```
+   digicom/<device SN>/data/modbus
+   ```
+
+   Click **Save**.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/devices-library/drn-500/drn-500-mqtt-settings.png',
+       alt: 'MQTT broker settings with server address, port, username, and password fields',
+       caption: 'Enter the MQTT broker address, port, and credentials, then click <strong>Save</strong>',
+     },
+   ]} />
+</Steps>
+
+### Reboot
+
+Select **Device &#8702; Reboot** and confirm to apply the configuration. Wait for the device to come back online.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/devices-library/drn-500/drn-500-reboot-menu.png',
+    alt: 'DRN 500 Device menu with Reboot option',
+    caption: 'Go to <strong>Device → Reboot</strong> to apply the new configuration',
+  },
+  {
+    src: '/src/assets/devices-library/drn-500/drn-500-reboot-confirm.png',
+    alt: 'Reboot confirmation dialog',
+    caption: 'Confirm the reboot and wait for the device to come back online',
+  },
+]} />
+
+## Verify device in ThingsBoard
+
+After the DRN 500 publishes its first payload, a new device entry appears automatically in **Entities &#8702; Devices**.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/devices-library/drn-500/drn-500-verify-device-list.png',
+    alt: 'ThingsBoard Devices page showing the auto-created DRN 500 device entry',
+    caption: 'Device created automatically after the first MQTT publish',
+  },
+  {
+    src: '/src/assets/devices-library/drn-500/drn-500-verify-telemetry.png',
+    alt: 'Device Latest telemetry tab showing voltage, current, hertz, and power values',
+    caption: '<strong>Latest telemetry</strong> tab confirms incoming measurements; <strong>Attributes</strong> shows <code>model</code> and <code>integrationName</code>',
+  },
+]} />
+
+## Create a dashboard
+
+Use <a href="/docs/user-guide/dashboards/" target="_blank" rel="noopener noreferrer">ThingsBoard dashboards</a> to visualize the energy meter data in real time. The steps below create a dashboard with radial gauge widgets for voltage, current, frequency, and power.
+
+<Steps>
+1. Go to **Dashboards** and click **+ Add dashboard &#8702; Create new dashboard**. Enter a title and click **Add**.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/devices-library/drn-500/drn-500-dashboard-create.png',
+       alt: 'Create new dashboard dialog with title field',
+       caption: 'Create a new dashboard for the energy meter readings',
+     },
+   ]} />
+
+2. Click **Add widget** (or the center icon on an empty dashboard).
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/devices-library/drn-500/drn-500-dashboard-add-widget.png',
+       alt: 'Empty dashboard with Add widget button highlighted',
+       caption: 'Click <strong>Add widget</strong> to open the widget library',
+     },
+   ]} />
+
+3. Open the **Analogue gauges** bundle and select **Radial gauge**.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/devices-library/drn-500/drn-500-dashboard-widget-bundle.png',
+       alt: 'Widget library showing the Analogue gauges bundle',
+       caption: 'Select the <strong>Analogue gauges</strong> bundle',
+     },
+     {
+       src: '/src/assets/devices-library/drn-500/drn-500-dashboard-radial-gauge.png',
+       alt: 'Analogue gauges bundle with Radial gauge widget highlighted',
+       caption: 'Choose the <strong>Radial gauge</strong> widget',
+     },
+   ]} />
+
+4. Set the device as the data source, set the data key to **power**, configure the title, units, and scale, then click **Add**.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/devices-library/drn-500/drn-500-dashboard-gauge-config.png',
+       alt: 'Radial gauge widget configuration with device data source and power key',
+       caption: 'Set the device as the data source, choose the <strong>power</strong> key, and configure the gauge display settings',
+     },
+     {
+       src: '/src/assets/devices-library/drn-500/drn-500-dashboard-gauge-power.png',
+       alt: 'Power radial gauge widget shown on the dashboard',
+       caption: 'Power gauge widget added to the dashboard',
+     },
+   ]} />
+
+5. Add similar widgets for **voltage**, **current**, and **hertz**. Position them and click **Save**.
+
+   <ImageGallery images={[
+     {
+       src: '/src/assets/devices-library/drn-500/drn-500-dashboard-complete.png',
+       alt: 'Completed energy meter dashboard with four radial gauge widgets',
+       caption: 'Completed dashboard showing live voltage, current, frequency, and power readings from the energy meter',
+     },
+   ]} />
+</Steps>
