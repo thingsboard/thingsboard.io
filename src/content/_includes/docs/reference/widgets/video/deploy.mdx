@@ -156,7 +156,9 @@ volumes:
 
 </details>
 
-Save this file as `docker-compose.yml` in a new directory. Edit the camera RTSP line to match your camera.
+Save this file as `docker-compose.yml` in a new directory. Before starting the stack, replace the placeholder:
+
+- `MTX_PATHS_CAMERA1_SOURCE: rtsp://admin:PASSWORD@192.168.1.64:554/...` — set this to your camera's RTSP URL and credentials.
 
 ### Caddyfile (HLS)
 
@@ -252,6 +254,10 @@ Now expose the stack publicly.
    |---|---|---|---|---|
    | 80 | TCP | edge-host LAN IP | 80 | Let's Encrypt HTTP-01 challenge |
    | 443 | TCP | edge-host LAN IP | 443 | Public HTTPS HLS |
+
+   <Aside type="caution" title="Non-standard HTTPS port">
+   If WAN port 443 is blocked or already in use (some residential ISPs block 443 on consumer connections), forward a different external TCP port to internal 443 instead — for example `444 → 443`. Caddy still binds 443 inside the container and serves the same Let's Encrypt cert; **the public URL must include the port** (`https://cameras.yourdomain.com:444/camera1/index.m3u8`). Port 80 for the ACME HTTP-01 challenge must stay on external port 80 — Let's Encrypt does not support non-standard challenge ports.
+   </Aside>
 
 3. **Start the full stack:**
 
@@ -383,6 +389,11 @@ volumes:
 </details>
 
 The remaining keys (`MTX_LOGLEVEL`, `MTX_RTSP`, the path-block, the Caddy service) work the same as in the HLS section.
+
+Save this file as `docker-compose.yml`. Before starting the stack, replace the two placeholders:
+
+- `MTX_WEBRTCADDITIONALHOSTS: "cameras.yourdomain.com"` — set this to the public hostname your edge host will be reachable on (the same hostname you'll point DNS at and that Caddy will obtain a certificate for).
+- `MTX_PATHS_CAMERA1_SOURCE: rtsp://admin:PASSWORD@192.168.1.64:554/...` — set this to your camera's RTSP URL and credentials.
 
 ### Caddyfile (WebRTC)
 
@@ -608,9 +619,19 @@ If video does not appear, work through the steps below. Each one confirms a sing
 
    Expect a line indicating the path is ready. If you see repeated reconnect attempts, the camera is rejecting MediaMTX's connection — try the camera in VLC from the edge host to isolate.
 
-3. **MediaMTX serves the protocol.** Run from the edge host, inside the MediaMTX container:
-   - HLS: `docker compose exec mediamtx wget -qO- http://127.0.0.1:8888/camera1/index.m3u8 | head -3` should return `#EXTM3U`.
-   - WebRTC signaling: `docker compose exec mediamtx wget -q --post-data='ping' -S -O - http://127.0.0.1:8889/camera1/whep 2>&1 | head -5` should return a `400` with valid headers.
+3. **MediaMTX serves the protocol.** Run from the edge host, inside the MediaMTX container.
+
+   For HLS — should return `#EXTM3U`:
+
+   ```bash
+   docker compose exec mediamtx wget -qO- http://127.0.0.1:8888/camera1/index.m3u8 | head -3
+   ```
+
+   For WebRTC signaling — should return a `400` with valid headers:
+
+   ```bash
+   docker compose exec mediamtx wget -q --post-data='ping' -S -O - http://127.0.0.1:8889/camera1/whep 2>&1 | head -5
+   ```
 
 4. **Caddy serves HTTPS** with a valid Let's Encrypt cert:
 
@@ -620,9 +641,19 @@ If video does not appear, work through the steps below. Each one confirms a sing
 
    The issuer should be Let's Encrypt. A self-signed cert means Caddy could not complete the ACME challenge — see [Common to both protocols](#common-to-both-protocols) below.
 
-5. **Public endpoint reachable** from outside your LAN. Use a phone on cellular (not Wi-Fi from the same network), or ask a colleague:
-   - HLS: `curl https://cameras.yourdomain.com/camera1/index.m3u8 | head -3` → `#EXTM3U`.
-   - WebRTC: `curl -X POST https://cameras.yourdomain.com/camera1/whep -i | head -5` → `400`.
+5. **Public endpoint reachable** from outside your LAN. Use a phone on cellular (not Wi-Fi from the same network), or ask a colleague.
+
+   For HLS — should return `#EXTM3U`:
+
+   ```bash
+   curl https://cameras.yourdomain.com/camera1/index.m3u8 | head -3
+   ```
+
+   For WebRTC — should return `400`:
+
+   ```bash
+   curl -X POST https://cameras.yourdomain.com/camera1/whep -i | head -5
+   ```
 
 6. **Widget receives the attribute update.** Open browser DevTools → Network tab. Filter by `subscribe` or watch the WebSocket frames. The attribute change should arrive as a telemetry update; the widget then opens the stream URL and you'll see `.m3u8` / `.ts` requests (HLS) or a `whep` POST (WebRTC).
 
@@ -640,9 +671,19 @@ If video does not appear, work through the steps below. Each one confirms a sing
 **Caddy logs show `acme: error: 400` or a connection error during certificate issuance.**
 Let's Encrypt tried to reach `http://cameras.yourdomain.com/.well-known/acme-challenge/...` and failed. Check, in order:
 
-1. The DNS A record is set and propagated: `dig +short cameras.yourdomain.com` returns your public IP.
+1. The DNS A record is set and propagated — should return your public IP:
+
+   ```bash
+   dig +short cameras.yourdomain.com
+   ```
+
 2. Port 80 is forwarded on your router to port 80 on the edge host.
-3. Nothing else is bound to port 80 on the edge host: `sudo ss -tlnp | grep ':80 '`.
+
+3. Nothing else is bound to port 80 on the edge host:
+
+   ```bash
+   sudo ss -tlnp | grep ':80 '
+   ```
 
 After fixing the underlying problem, Caddy retries automatically — no restart needed.
 
@@ -657,7 +698,13 @@ The widget's loading watchdog fired after 10 seconds without a successful start.
 ### HLS-specific
 
 **`curl https://cameras.yourdomain.com/camera1/index.m3u8` returns `502 Bad Gateway`.**
-Caddy is up but MediaMTX is not reachable on its HLS port. Check `docker compose logs mediamtx` — common causes are a wrong RTSP URL, the camera being offline, or `MTX_HLS: "yes"` accidentally set to `"no"`.
+Caddy is up but MediaMTX is not reachable on its HLS port. Check the MediaMTX logs:
+
+```bash
+docker compose logs mediamtx
+```
+
+Common causes are a wrong RTSP URL, the camera being offline, or `MTX_HLS: "yes"` accidentally set to `"no"`.
 
 **Stream loads but stalls every few seconds.**
 Increase `MTX_HLSSEGMENTDURATION` to `2s` or `3s`. Short segments produce lower latency but are more sensitive to network jitter.
