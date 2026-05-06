@@ -751,7 +751,7 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 					items: [
 						{ label: 'Overview', slug: `${prefix}/widgets/video/overview` },
 						{ label: 'Configure the widget', slug: `${prefix}/widgets/video/configure` },
-						{ label: 'Deploy MediaMTX + Caddy', slug: `${prefix}/widgets/video/deploy` },
+						{ label: 'Build a public stream URL', slug: `${prefix}/widgets/video/deploy` },
 					],
 				},
 				`${prefix}/widgets/widget-api`,
@@ -1050,7 +1050,7 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 					items: [
 						{ label: 'Overview', slug: `${prefix}/widgets/video/overview` },
 						{ label: 'Configure the widget', slug: `${prefix}/widgets/video/configure` },
-						{ label: 'Deploy MediaMTX + Caddy', slug: `${prefix}/widgets/video/deploy` },
+						{ label: 'Build a public stream URL', slug: `${prefix}/widgets/video/deploy` },
 					],
 				},
 				`${prefix}/widgets/widget-api`,
