@@ -1,4 +1,5 @@
 const ALLOWED_HOSTNAMES = new Set([
+	'www.googletagmanager.com',
 	'googleads.g.doubleclick.net',
 	'www.googleadservices.com',
 	'connect.facebook.net',

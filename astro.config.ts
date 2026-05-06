@@ -111,6 +111,7 @@ export default defineConfig({
 				resolveUrl(url, location) {
 					if (location.hostname === 'localhost') return url;
 					const needsProxy = new Set([
+						'www.googletagmanager.com',
 						'googleads.g.doubleclick.net',
 						'www.googleadservices.com',
 						'connect.facebook.net',
