@@ -95,7 +95,7 @@ const blogUrl = new URL('/blog/', Astro.site).href;
 												</a>
 											</div>
 											<div class="carousel__image">
-												<img src={post.data.featuredImage} alt={post.data.featuredImageAlt} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : undefined} />
+												<img src={post.data.featuredImage} alt={post.data.featuredImageAlt} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : undefined} decoding="async" />
 											</div>
 										</div>
 									);
@@ -180,15 +180,27 @@ const blogUrl = new URL('/blog/', Astro.site).href;
 				<div class="community-cta__left">
 					<h2 class="community-cta__title">Join ThingsBoard community</h2>
 					<p class="community-cta__subtitle">Stay tuned and get first-hand updates and access to insights.</p>
-					<form
-						action="https://thingsboard.us15.list-manage.com/subscribe/post?u=ef0e79cf5e18a386741e07661&id=295e227f23"
-						method="post"
-						target="_blank"
-						class="community-cta__form"
-					>
-						<input type="email" name="EMAIL" placeholder="Your email address" required class="community-cta__input" aria-label="Email address" />
-						<button type="submit" class="community-cta__btn">Subscribe</button>
-					</form>
+					{/* Mailerlite wrapper structure — required for webforms.min.js to
+					    intercept the submit, AJAX-post, and toggle in the inline
+					    success state. Without it, target="_blank" lands on a blank
+					    Mailerlite response page (designed to be rendered in their iframe). */}
+					<div id="mlb2-z9h4b4-blog-index" class="ml-subscribe-form ml-subscribe-form-z9h4b4 community-cta__ml-wrap">
+						<div class="subscribe-form ml-block-success" style="display:none">
+							<p class="community-cta__success">Thank you! You're subscribed.</p>
+						</div>
+						<form
+							action="https://static.mailerlite.com/webforms/submit/z9h4b4"
+							data-id="6028548"
+							data-code="z9h4b4"
+							method="post"
+							target="_blank"
+							class="community-cta__form ml-block-form"
+						>
+							<input type="email" name="fields[email]" placeholder="Your email address" required class="community-cta__input" aria-label="Email address" />
+							<input type="hidden" name="ml-submit" value="1" />
+							<button type="submit" class="community-cta__btn">Subscribe</button>
+						</form>
+					</div>
 				</div>
 				<div class="community-cta__right">
 					<h3 class="community-cta__brand">
@@ -364,6 +376,43 @@ const blogUrl = new URL('/blog/', Astro.site).href;
 
 	render();
 	initCarousel();
+
+	// ── Newsletter (Mailerlite) — lazy-load webforms.min.js on first focus
+	// of the email input. Once loaded, Mailerlite's script intercepts the
+	// submit, AJAX-posts, and toggles the inline .ml-block-success state.
+	// Also clears the input + freezes success once shown.
+	(function initBlogNewsletter() {
+		const wrap = document.getElementById('mlb2-z9h4b4-blog-index');
+		if (!wrap) return;
+		const form = wrap.querySelector<HTMLFormElement>('form.ml-block-form');
+		const success = wrap.querySelector<HTMLElement>('.ml-block-success');
+		const emailInput = wrap.querySelector<HTMLInputElement>('input[type="email"]');
+		if (!form || !success || !emailInput) return;
+
+		let loaded = false;
+		function loadMailerlite() {
+			if (loaded) return;
+			loaded = true;
+			const s = document.createElement('script');
+			s.async = true;
+			s.defer = true;
+			s.src = 'https://static.mailerlite.com/js/w/webforms.min.js?vd4de52e171e8eb9c47c0c20caf367ddf';
+			document.head.appendChild(s);
+		}
+		emailInput.addEventListener('focus', loadMailerlite, { once: true });
+		// Fallback if user submits very fast — at least the loading is triggered
+		form.addEventListener('submit', loadMailerlite, { once: true });
+
+		// When ML script reveals .ml-block-success, clear the input and
+		// freeze the form-hidden state so it can't toggle back.
+		const observer = new MutationObserver(() => {
+			if (getComputedStyle(success).display === 'none') return;
+			emailInput.value = '';
+			form.style.setProperty('display', 'none', 'important');
+		});
+		observer.observe(success, { attributes: true, attributeFilter: ['style', 'class'] });
+		success.addEventListener('click', (e) => e.stopPropagation());
+	})();
 </script>
 
 <style lang="scss" is:global>
@@ -429,6 +478,11 @@ const blogUrl = new URL('/blog/', Astro.site).href;
 		border-radius: 50%;
 		filter: blur(180px);
 		opacity: 0.18;
+		// Promote each blob to its own GPU layer so Safari rasterizes the huge
+		// 180px blur once instead of every time a sibling (e.g. the carousel)
+		// transforms. translateZ(0) is the cheaper cousin of will-change here —
+		// these elements don't animate, they just need a stable cached bitmap.
+		transform: translateZ(0);
 
 		[data-theme='dark'] & {
 			opacity: 0.05;
@@ -498,8 +552,20 @@ const blogUrl = new URL('/blog/', Astro.site).href;
 		padding-right: var(--spacing-5);
 	}
 	.carousel { position: relative; }
-	.carousel__viewport { overflow: hidden; }
-	.carousel__container { display: flex; }
+	// Safari fix: isolate the carousel into its own paint/composite layer.
+	// Without `contain: paint` and a GPU-layer hint, the slide transform
+	// invalidates the giant blurred .blog-blob backgrounds (filter: blur(180px))
+	// every frame, which Safari re-rasterizes — causing the slide-transition lag.
+	// Chrome happens to layerize this on its own; Safari needs the explicit hint.
+	.carousel__viewport {
+		overflow: hidden;
+		contain: paint;
+	}
+	.carousel__container {
+		display: flex;
+		will-change: transform;
+		transform: translateZ(0);
+	}
 
 	.carousel__slide {
 		flex: 0 0 100%;
