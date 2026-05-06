@@ -10,7 +10,6 @@ import { starlightPluginLlmsTxt } from './config/plugins/llms-txt';
 import { rehypeMdxIncludeHeadings } from './config/plugins/rehype-mdx-include-headings';
 import { rehypeTasklistEnhancer } from './config/plugins/rehype-tasklist-enhancer';
 
-import partytown from '@astrojs/partytown';
 import icon from 'astro-icon';
 import svgo from 'vite-plugin-svgo';
 import { fileURLToPath } from 'node:url';
@@ -105,32 +104,7 @@ export default defineConfig({
             }),
         ],
     },
-    integrations: [partytown({
-			config: {
-				forward: ['dataLayer.push'],
-				resolveUrl(url, location) {
-					if (location.hostname === 'localhost') return url;
-					const needsProxy = new Set([
-						'googleads.g.doubleclick.net',
-						'www.googleadservices.com',
-						'connect.facebook.net',
-						'www.facebook.com',
-					]);
-					if (needsProxy.has(url.hostname)) {
-						const proxy = new URL('/partytown-proxy', location.origin);
-						proxy.searchParams.set('apiurl', url.href);
-						return proxy;
-					}
-					return url;
-				},
-				resolveSendBeaconRequestParameters(url) {
-					if (/google-analytics\.com|analytics\.google\.com/.test(url.hostname)) {
-						return { keepalive: false };
-					}
-					return {};
-				},
-			},
-		}), icon(), devServerFileWatcher([
+    integrations: [icon(), devServerFileWatcher([
         './config/**', // Custom plugins and integrations
         './astro.sidebar.ts', // Sidebar configuration file
 		]), starlight({

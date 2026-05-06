@@ -312,7 +312,15 @@ export const collections = {
 		schema: z.object({ avatar_url: z.string() }),
 	}),
 	devices: defineCollection({
-		loader: glob({ pattern: '**/*.mdx', base: './src/content/devices' }),
+		loader: glob({
+			pattern: '**/*.mdx',
+			base: './src/content/devices',
+			// Preserve filename case in the generated id so device URLs match the
+			// source filename (e.g. `raspberry-pi-3-model-B-plus`). The default
+			// `generateId` lowercases via github-slugger, which collides with the
+			// legacy redirect targets that use the original casing.
+			generateId: ({ entry }) => entry.replace(/\.mdx$/, ''),
+		}),
 		schema: deviceSchema,
 	}),
 };
