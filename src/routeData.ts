@@ -288,6 +288,12 @@ function updateHead(context: APIContext, isTutorial: boolean) {
 		head.push({ tag: 'meta', attrs: { name: 'robots', content: 'noindex, follow' } });
 	}
 
+	// IoT Hub docs are work-in-progress contribution guides — keep the entire
+	// section out of search results until content stabilizes.
+	if (/^\/(uk\/)?docs\/iot-hub(\/|$)/.test(pathname)) {
+		head.push({ tag: 'meta', attrs: { name: 'robots', content: 'noindex, follow' } });
+	}
+
 	// Canonical consolidation: free product versions → professional equivalents.
 	// Only rewrite if the equivalent professional page actually exists, and the
 	// page is not edition-specific (different Docker images, licensing, hosts).

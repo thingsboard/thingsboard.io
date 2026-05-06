@@ -64,9 +64,22 @@ class LinkChecker {
 	}
 }
 
+// Mirror the `site` resolution from astro.config.ts so preview builds
+// (Cloudflare Pages, Netlify, or an explicit PUBLIC_SITE_URL) parse the
+// sitemap under the same origin the build emitted.
+const resolvedSite =
+	process.env.PUBLIC_SITE_URL ||
+	(process.env.CF_PAGES_BRANCH && process.env.CF_PAGES_URL) ||
+	(process.env.CONTEXT !== 'production' && process.env.DEPLOY_PRIME_URL) ||
+	'https://thingsboard.io';
+
+// build-index.ts greps `<loc>${baseUrl}(/.*?)</loc>`, so the origin must not
+// carry a trailing slash.
+const baseUrl = resolvedSite.replace(/\/$/, '');
+
 // Use our class to check for link issues
 const linkChecker = new LinkChecker({
-	baseUrl: 'https://thingsboard.io',
+	baseUrl,
 	buildOutputDir: './dist',
 	pageSourceDir: './src/content/docs',
 	// Include `astro.redirects` entries as pages so `[ref]` and its autofix can
