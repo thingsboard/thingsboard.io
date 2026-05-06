@@ -687,8 +687,9 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 					items: [
 						`${prefix}/widgets/buttons/action-button`,
 						`${prefix}/widgets/buttons/command-button`,
-						`${prefix}/widgets/buttons/toggle-button`,
 						`${prefix}/widgets/buttons/power-button`,
+						`${prefix}/widgets/buttons/toggle-button`,
+						`${prefix}/widgets/buttons/two-segment-button`,
 						`${prefix}/widgets/buttons/value-stepper`,
 					],
 				},
@@ -981,8 +982,9 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 					items: [
 						`${prefix}/widgets/buttons/action-button`,
 						`${prefix}/widgets/buttons/command-button`,
-						`${prefix}/widgets/buttons/toggle-button`,
 						`${prefix}/widgets/buttons/power-button`,
+						`${prefix}/widgets/buttons/toggle-button`,
+						`${prefix}/widgets/buttons/two-segment-button`,
 						`${prefix}/widgets/buttons/value-stepper`,
 					],
 				},
