@@ -5,61 +5,114 @@ import { Aside } from '@astrojs/starlight/components';
   This node requires **ThingsBoard PE** or **ThingsBoard Cloud**.
 </Aside>
 
-Use this node when you need to compute rolling statistics over a stream of incoming messages — for example, hourly average temperature, daily total energy consumption, or the maximum pressure reading per shift. It groups messages by originator and aggregation interval, computes the result in memory, and emits a `POST_TELEMETRY_REQUEST` at the end of each interval.
-
-Intervals can be persisted to storage periodically to avoid data loss on restart, and a default-value mechanism lets you fill in gaps for entities that stopped reporting.
+Use this node when you need to compute rolling statistics over a stream of incoming messages — for example, hourly average temperature, daily total energy consumption, or the maximum pressure reading per shift. It groups messages by originator and aggregation interval, computes the result in memory, and emits a `POST_TELEMETRY_REQUEST` (or a custom message type) according to the configured interval persistence policy.
+The running aggregator can be persisted to storage so values are not lost on restart, and a default‑value mechanism lets you fill in gaps for entities that stopped reporting.
 
 <Aside type="caution">
-  This node is **order-sensitive**: delayed or out-of-order messages that arrive after their interval has already ended are silently ignored and not included in the aggregated result. Duplicate messages are also counted.
+  This node is **order‑sensitive**: delayed or out‑of‑order messages that arrive after their interval has already ended are silently ignored and not included in the aggregated result. Duplicate messages are also counted.
 
-  If your data sources produce late-arriving telemetry or you need the ability to re-process historical data, consider using <DocLink product={props.product} path="user-guide/calculated-fields/time-series-data-aggregation">Time Series Data Aggregation</DocLink> or <DocLink product={props.product} path="user-guide/calculated-fields/related-entities-aggregation">Related Entities Aggregation</DocLink> (Calculated Fields) instead — they aggregate from stored data on demand and are not affected by message ordering or duplicates.
+  If your data sources produce late‑arriving telemetry or you need the ability to re‑process historical data, consider using <DocLink product={props.product} path="user-guide/calculated-fields/time-series-data-aggregation">Time Series Data Aggregation</DocLink> or <DocLink product={props.product} path="user-guide/calculated-fields/related-entities-aggregation">Related Entities Aggregation</DocLink> (Calculated Fields) instead — they aggregate from stored data on demand and are not affected by message ordering or duplicates.
 </Aside>
+
+---
+
+## Concepts
+
+A few terms recur throughout the configuration; defining them up front makes the rest of the page short.
+
+**Interval.** A bucket keyed by `(originatorId, intervalStartTs)`. For each originator the node maintains an in‑memory map of intervals — one per time window (hour, day, custom, …). Each bucket holds a small aggregator object (e.g. `{sum, count}` for `Average`, the smallest value seen for `Min`, a set of values for `Count unique`). An interval is created lazily, the first time a message for that originator falls into the window. Old intervals are evicted from memory after a TTL of 2 × the interval duration.
+
+**State.** The aggregator object inside an interval. It is the small "scratch‑pad" the node uses to accumulate the result — not the user's telemetry. Every incoming message updates the matching state.
+
+**Reporting.** Emitting an outgoing message (default `POST_TELEMETRY_REQUEST`) with the current aggregated value on the *Success* branch. Reporting **does not write to the database by itself** — to store the result you must wire *Success* to a Save Time Series node.
+
+**State persistence.** Writing the in‑memory state back to the time‑series DB **so the node can resume aggregation after a restart, partition switch, or rule‑chain reload**. The state is stored as a JSON string under a special key prefix (`ruleNodeState_<ruleNodeId>`) and uses `saveWithoutLatest`, so it never appears in the entity's latest telemetry. This is independent of, and additional to, any user‑level Save Time Series step you might do downstream.
+
+**Check.** A periodic internal self‑tick re‑scheduled every **Interval check value** units (minimum 1 minute). At each check the node walks the interval table, decides which intervals to report, and evicts intervals past TTL. A separate internal tick drives state persistence when the *Periodically* policy is selected.
 
 ---
 
 ## Configuration
 
+The fields below follow the order of the rule node editor.
+
+### General
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| **Name** | Yes | Display name of the rule node. |
+| **Output message type** | Yes | Type used for outgoing aggregate messages. Defaults to `POST_TELEMETRY_REQUEST`. Selecting a built‑in type fills *Message type value* automatically; selecting *Custom* lets you type any string. |
+| **Input value key** | Yes | JSON key inside incoming messages whose numeric value is fed into the aggregator. |
+| **Output value key** | Yes | JSON key written to the outgoing aggregate message under the originator entity. |
+
 ### Aggregation
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| **Aggregation function** | Yes | `MIN`, `MAX`, `SUM`, `AVG`, `COUNT`, or `UNIQUE` |
-| **Interval** | Yes | The time window over which values are aggregated (e.g., 1 hour) |
-| **Queue name** | No | The rule engine queue to use for emitting result messages |
+| **Aggregation function** | Yes | `Min`, `Max`, `Sum`, `Average`, `Count`, or `Count unique`. |
+| **Aggregate interval type** | Yes | `Hour`, `Day`, `Week`, `Week (Sun–Sat)`, `Month`, `Year`, or `Custom`. Fixed types are aligned to the start of the period in the configured time zone. `Custom` lets you specify any duration. |
+| **Time zone** | Conditional | Shown for fixed interval types. Determines the local moment at which the period boundary falls (for example, when "day" actually starts). |
+| **Interval value / time unit** | Conditional | Shown when *Aggregate interval type* is `Custom`. The duration of one aggregation window. |
 
-### Persistence
+### Interval persistence
 
-| Field | Description |
-|-------|-------------|
-| **Interval persistence policy** | Controls when in-progress intervals are written to storage: *After each message*, *Periodically*, or *On interval end* |
-| **Interval check value** | Interval in seconds between persistence writes (for the *Periodically* policy) |
-| **Interval TTL value** | How long completed intervals are cached in memory before eviction (seconds) |
-| **State persistence policy** | Controls how often the aggregation state is saved: *After each message* or *Periodically* |
-| **State persistence value** | Interval in seconds between state saves (for the *Periodically* policy) |
-
-### Default values
+Controls **when an aggregate result is emitted downstream**. Despite the field name, this setting does not by itself write to the database — it only triggers an outgoing message on the *Success* branch.
 
 | Field | Description |
 |-------|-------------|
-| **Create intervals automatically** | When enabled, default-value messages are emitted for entities in the configured entity group even if no data arrives during an interval |
-| **Interval entities** | Entity group whose members receive default-value messages when no data is reported |
+| **Interval persistence policy** | `On each message` — emit a result right after every incoming message that updated the state (rolling result). `On each check` — on every check tick, emit a result for every interval that has changed since the last tick, including intervals whose window is still open. `On each check after interval end` (default) — on every check tick, emit a result only for intervals whose window has fully closed (one final result per closed interval). |
+| **Interval check value / time unit** | Period of the internal check tick; minimum 1 minute. Used by the two `On each check…` policies. |
+
+### State persistence
+
+Controls **when the in‑memory aggregator is written to the time‑series DB** so values are not lost on restart. Each write goes to a special internal key prefix (`ruleNodeState_<ruleNodeId>`) and never appears in the entity's latest telemetry.
+
+| Field | Description |
+|-------|-------------|
+| **State persistence policy** | `On each change` (default) — every accepted incoming message synchronously writes the state to the DB and is acked only after the write succeeds. Most durable, highest write rate. `Periodically` — incoming messages only mark the state dirty; a separate scheduled tick writes all dirty states in batch. Cheaper on the DB; updates between ticks are lost on crash. |
+| **State persistence value / time unit** | Shown only when policy is `Periodically`. Period of the state‑persist tick; minimum 1 minute. |
+
+### Create intervals automatically
+
+By default an interval is created **only when a message for that originator arrives**. If a device goes silent, no interval and no result message are produced for the missing windows. Tick this checkbox to emit results for silent entities.
+
+When enabled the node periodically iterates the configured entity set and fills any missing intervals between the last seen one and "now" with a default‑valued state. Those default intervals follow the normal report path, so a result is emitted even when no telemetry arrived.
+
+Ticking the checkbox reveals an **Interval entities** card with the following structure.
+
+#### Interval entities
+
+| Field | Description |
+|-------|-------------|
+| **Execution period value / time unit** | How often the entity list is re‑resolved and missing intervals are back‑filled. Default 5 minutes, minimum 1 minute. New members start receiving defaults automatically; removed members stop. This is independent of the *Interval check* period configured under *Interval persistence*. |
+
+#### Entities
+
+A nested card under *Interval entities*. Selects the universe of entities for which default‑value intervals are generated. Pick one mode via the radio button.
+
+| Mode | Behavior |
+|------|----------|
+| **Single entity** | One fixed entity. Configure *Type* and the entity itself. Only that entity receives default intervals. |
+| **Group of entities** | Every member of a specific entity group becomes an originator that may receive default intervals. Configure *Type* (e.g. `Device`) and *Select entity group*. The list of members is refreshed on each *Execution period* tick. |
+| **Relations query** | For each parent entity returned by a root‑and‑direction relations query, the configured child‑entities relations query is run, and each resolved child becomes an originator. Configure the root entity, direction, max relation level, and relation type filters. |
+
+### Queue
+
+Optional. Selects a rule engine queue for tick and outgoing messages. If empty, the node uses the queue of the rule chain.
 
 ---
 
 ## Output message
 
-At the end of each aggregation interval the node emits a `POST_TELEMETRY_REQUEST` message with the aggregated result:
+At each emission the node produces a message of the configured *Output message type* (default `POST_TELEMETRY_REQUEST`). The originator is the entity whose interval is being reported.
 
 ```json
 {
-  "ts": <interval end timestamp in ms>,
-  "values": {
-    "<telemetry key>": <aggregated value>
-  }
+  "<output value key>": <aggregated value>
 }
 ```
 
-The originator of the output message is the same as the originator of the input messages.
+Metadata: `ts` is set to the interval start timestamp, and `overwriteValue=true` so a downstream Save Time Series node replaces any earlier write at the same timestamp.
 
 ---
 
@@ -67,14 +120,26 @@ The originator of the output message is the same as the originator of the input 
 
 | Connection | Condition |
 |------------|-----------|
-| `Success` | Aggregated result message emitted at interval end |
-| `Failure` | Unexpected error during processing |
+| `Success` | Aggregated result message emitted at interval end (or per the configured *Interval persistence policy*). |
+| `Failure` | Unexpected error during processing — for example, the input message is not a JSON object, or the configured input key is missing or `null`. |
+
+---
+
+## Effects on time‑series DB write volume
+
+Three sources of writes to consider when sizing the DB:
+
+1. **Reporting** never writes to the DB by itself. If you wire *Success* to a Save Time Series node you get one telemetry write per emission, per originator, per output key.
+2. **State persistence**:
+   - `On each change` ≈ 1 internal write per accepted incoming message.
+   - `Periodically` ≈ 1 internal write per dirty `(entity, interval)` per state‑persist tick (batched).
+3. **Create intervals automatically** multiplies emissions by the size of the configured entity set, regardless of how many of those entities actually sent data.
 
 ---
 
 ## Example — Hourly average temperature
 
-**Configuration:** Function = `AVG`, Interval = `1 hour`, Interval persistence = *On interval end*.
+**Configuration:** Aggregation function = `Average`, Aggregate interval type = `Hour`, *Interval persistence policy* = `On each check after interval end`, *State persistence policy* = `On each change`.
 
 **Incoming messages:** a stream of `POST_TELEMETRY_REQUEST` messages from a temperature sensor with key `temperature`.
 
@@ -82,8 +147,7 @@ The originator of the output message is the same as the originator of the input 
 
 ```json maxLines=15 collapsible
 {
-  "ts": 1700006400000,
-  "values": { "temperature": 22.3 }
+  "avgHourlyTemperature": 22.3
 }
 ```
 
