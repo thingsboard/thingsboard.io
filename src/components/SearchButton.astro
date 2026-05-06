@@ -26,41 +26,29 @@
 	if (!(window as any).__tbSearch) {
 		(window as any).__tbSearch = true;
 
-		// Load Google CSE
-		const script = document.createElement('script');
-		script.async = true;
-		script.src = 'https://cse.google.com/cse.js?cx=006967103846171422263:o5lnt35mvwq';
-		document.head.appendChild(script);
-
-		// Build modal once and attach to body
-		const modal = document.createElement('div');
-		modal.id = 'tb-search-modal';
-		modal.innerHTML = `
-			<div class="tb-search-overlay"></div>
-			<div class="tb-search-box">
-				<div class="tb-loader-bar"></div>
-				<div class="gcse-search"></div>
-			</div>
-		`;
-		document.body.appendChild(modal);
-
-		const loaderBar = modal.querySelector<HTMLElement>('.tb-loader-bar')!;
-		const showLoader = () => { loaderBar.classList.add('active'); };
-		const hideLoader = () => { loaderBar.classList.remove('active'); };
-
-		const overlay = modal.querySelector('.tb-search-overlay')!;
-
-		const open = () => {
-			document.documentElement.classList.add('tb-search-open');
-			modal.classList.add('open');
-		};
-		const close = () => {
-			modal.classList.remove('open');
-			document.documentElement.classList.remove('tb-search-open');
+		// Lazy-load Google CSE on first interaction with the search button.
+		// Loading it eagerly costs ~170 KiB of JS and ~200 ms of main-thread time
+		// on every page even if the user never opens search.
+		//
+		// Critical: cse.js scans the DOM for `.gcse-search` elements once at
+		// execute-time (default `parsetags=onload`). The modal containing that
+		// element MUST be in the DOM before cse.js executes — otherwise CSE
+		// finds nothing and the modal stays empty when the user opens it. So
+		// loadCse() and buildModal() are always called together via init().
+		let cseLoaded = false;
+		const loadCse = () => {
+			if (cseLoaded) return;
+			cseLoaded = true;
+			const script = document.createElement('script');
+			script.async = true;
+			script.src = 'https://cse.google.com/cse.js?cx=006967103846171422263:o5lnt35mvwq';
+			document.head.appendChild(script);
 		};
 
-		overlay.addEventListener('click', close);
-		document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+		const init = () => {
+			buildModal();
+			loadCse();
+		};
 
 		// Resolve search page URL based on current pathname
 		const getSearchPageUrl = (query: string) => {
@@ -84,36 +72,96 @@
 			return query ? `${searchPage}?q=${encodeURIComponent(query)}` : searchPage;
 		};
 
-		// Inject "Search more results" link next to Google branding
-		const injectMoreLink = () => {
-			const branding = modal.querySelector('.gcsc-more-maybe-branding-root');
-			if (!branding || branding.querySelector('.tb-more-link')) return;
-			const query = (modal.querySelector<HTMLInputElement>('input.gsc-input') as HTMLInputElement)?.value || '';
-			const link = document.createElement('a');
-			link.className = 'tb-more-link';
-			link.href = getSearchPageUrl(query);
-			link.textContent = 'Search more results';
-			branding.prepend(link);
+		let modal: HTMLElement | null = null;
+		let loaderBar: HTMLElement | null = null;
+
+		const close = () => {
+			if (!modal) return;
+			modal.classList.remove('open');
+			document.documentElement.classList.remove('tb-search-open');
 		};
 
-		// Show loader on search
-		modal.addEventListener('submit', showLoader, true);
-		modal.addEventListener('click', (e) => {
-			if ((e.target as HTMLElement).closest('.gsc-search-button')) showLoader();
-		}, true);
-		modal.addEventListener('keydown', (e) => {
-			if ((e.target as HTMLElement).classList.contains('gsc-input') && e.key === 'Enter') showLoader();
-		}, true);
-		new MutationObserver((mutations) => {
-			for (const m of mutations) {
-				if ((m.target as Element).classList?.contains('gsc-results') ||
-					(m.target as Element).closest?.('.gsc-results')) {
-					hideLoader();
-					break;
+		const buildModal = (): HTMLElement => {
+			if (modal) return modal;
+			modal = document.createElement('div');
+			modal.id = 'tb-search-modal';
+			modal.innerHTML = `
+				<div class="tb-search-overlay"></div>
+				<div class="tb-search-box">
+					<div class="tb-loader-bar"></div>
+					<div class="gcse-search"></div>
+				</div>
+			`;
+			document.body.appendChild(modal);
+
+			loaderBar = modal.querySelector<HTMLElement>('.tb-loader-bar');
+			const showLoader = () => loaderBar?.classList.add('active');
+			const hideLoader = () => loaderBar?.classList.remove('active');
+
+			modal.querySelector('.tb-search-overlay')!.addEventListener('click', close);
+
+			const injectMoreLink = () => {
+				const branding = modal!.querySelector('.gcsc-more-maybe-branding-root');
+				if (!branding || branding.querySelector('.tb-more-link')) return;
+				const query = modal!.querySelector<HTMLInputElement>('input.gsc-input')?.value || '';
+				const link = document.createElement('a');
+				link.className = 'tb-more-link';
+				link.href = getSearchPageUrl(query);
+				link.textContent = 'Search more results';
+				branding.prepend(link);
+			};
+
+			modal.addEventListener('submit', showLoader, true);
+			modal.addEventListener('click', (e) => {
+				if ((e.target as HTMLElement).closest('.gsc-search-button')) showLoader();
+			}, true);
+			modal.addEventListener('keydown', (e) => {
+				if ((e.target as HTMLElement).classList.contains('gsc-input') && e.key === 'Enter') showLoader();
+			}, true);
+			new MutationObserver((mutations) => {
+				for (const m of mutations) {
+					if ((m.target as Element).classList?.contains('gsc-results') ||
+						(m.target as Element).closest?.('.gsc-results')) {
+						hideLoader();
+						break;
+					}
 				}
+				injectMoreLink();
+			}).observe(modal, { childList: true, subtree: true });
+
+			return modal;
+		};
+
+		const open = () => {
+			init();
+			const m = modal!;
+			document.documentElement.classList.add('tb-search-open');
+			m.classList.add('open');
+			// Show loader until CSE finishes mounting its input — only matters on
+			// the first open, when cse.js is still being fetched/executed.
+			if (!m.querySelector('input.gsc-input')) {
+				loaderBar?.classList.add('active');
+				const obs = new MutationObserver(() => {
+					if (m.querySelector('input.gsc-input')) {
+						loaderBar?.classList.remove('active');
+						obs.disconnect();
+					}
+				});
+				obs.observe(m, { childList: true, subtree: true });
 			}
-			injectMoreLink();
-		}).observe(modal, { childList: true, subtree: true });
+		};
+
+		// Esc to close — no-op when modal isn't built yet.
+		document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+
+		// Warm cse.js + modal on hover/focus so the click feels instant. The
+		// modal must be built here too (not just preloading the script) — see
+		// loadCse comment above for why.
+		const preload = (e: Event) => {
+			if ((e.target as Element)?.closest?.('search-button')) init();
+		};
+		document.addEventListener('pointerover', preload, { capture: true, passive: true });
+		document.addEventListener('focusin', preload, { capture: true });
 
 		// Attach to all search buttons via delegation
 		document.addEventListener('click', (e) => {
