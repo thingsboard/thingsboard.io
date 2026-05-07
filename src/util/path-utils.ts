@@ -12,9 +12,7 @@ export const supportedLanguages: Record<SupportedLanguage, { label: string; pref
 
 /** Product version configuration (all products including variants).
  *  `label` is used in version-switcher UI; `titleName` is the SEO brand form used in <title> tags. */
-export const productVersions: Partial<
-	Record<Products, { label: string; prefix: string; titleName: string }>
-> = {
+export const productVersions: Partial<Record<Products, { label: string; prefix: string; titleName: string }>> = {
 	[Products.CE]: { label: 'Community Edition', prefix: '', titleName: 'ThingsBoard' },
 	[Products.PE]: { label: 'Professional Edition', prefix: 'pe/', titleName: 'ThingsBoard PE' },
 	[Products.PAAS]: { label: 'Cloud', prefix: 'paas/', titleName: 'ThingsBoard Cloud' },
@@ -65,50 +63,6 @@ export const productVersions: Partial<
 		titleName: 'ThingsBoard License Server',
 	},
 };
-
-/** Products shown in the main version switcher dropdown (excludes variants like PAAS_EU, EDGE_PE) */
-export const mainProductList: Products[] = [
-	Products.CE,
-	Products.PE,
-	Products.PAAS,
-	Products.EDGE,
-	Products.TRENDZ,
-	Products.GW,
-	Products.TBMQ,
-	Products.MOBILE,
-	Products.LICENSE,
-];
-
-/** Sub-version groups for products that have a secondary variant selector */
-export const subVersionGroups: Partial<
-	Record<Products, Array<{ product: Products; label: string; subtitle?: string }>>
-> = {
-	[Products.PAAS]: [
-		{ product: Products.PAAS, label: 'North America', subtitle: 'N. Virginia' },
-		{ product: Products.PAAS_EU, label: 'Europe', subtitle: 'Frankfurt' },
-	],
-	[Products.EDGE]: [
-		{ product: Products.EDGE, label: 'Community' },
-		{ product: Products.EDGE_PE, label: 'Professional' },
-	],
-	[Products.MOBILE]: [
-		{ product: Products.MOBILE, label: 'Community' },
-		{ product: Products.MOBILE_PE, label: 'Professional' },
-	],
-	[Products.TBMQ]: [
-		{ product: Products.TBMQ, label: 'Community' },
-		{ product: Products.TBMQ_PE, label: 'Professional' },
-	],
-};
-
-/** Get the main/parent product for a variant (PAAS_EU → PAAS, EDGE_PE → EDGE, others unchanged) */
-export function getMainVersion(version: Products): Products {
-	if (version === Products.PAAS_EU) return Products.PAAS;
-	if (version === Products.EDGE_PE) return Products.EDGE;
-	if (version === Products.MOBILE_PE) return Products.MOBILE;
-	if (version === Products.TBMQ_PE) return Products.TBMQ;
-	return version;
-}
 
 /** Detect language from a URL pathname. */
 export function getLanguageFromURL(pathname: string): SupportedLanguage {

@@ -338,6 +338,7 @@ const installationItems = (prefix: string) => {
 			],
 		},
 		`${prefix}/installation/haproxy`,
+		`${prefix}/installation/demo-account`,
 		{ label: 'Building from Sources', slug: `${prefix}/installation/building-from-source` },
 		...(isPE
 			? [
@@ -672,10 +673,78 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 			collapsed: true,
 			items: [
 				`${prefix}/widgets/widget-library`,
-				`${prefix}/widgets/chart-widget`,
-				`${prefix}/widgets/map-widgets`,
-				`${prefix}/widgets/entity-table-widget`,
-				`${prefix}/widgets/markdown-html-card`,
+				{
+					label: 'Alarm widgets',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/alarm-widgets/alarms-table`,
+						`${prefix}/widgets/alarm-widgets/alarm-count`,
+					],
+				},
+				{
+					label: 'Buttons',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/buttons/action-button`,
+						`${prefix}/widgets/buttons/toggle-button`,
+						`${prefix}/widgets/buttons/power-button`,
+						`${prefix}/widgets/buttons/value-stepper`,
+					],
+				},
+				{
+					label: 'Control widgets',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/control-widgets/single-switch`,
+						`${prefix}/widgets/control-widgets/led-indicator`,
+					],
+				},
+				{
+					label: 'Cards',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/cards/html-value-card`,
+						`${prefix}/widgets/cards/markdown-html-card`,
+						`${prefix}/widgets/cards/value-card`,
+					],
+				},
+				{
+					label: 'Charts',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/charts/bar-chart`,
+						`${prefix}/widgets/charts/chart-widgets`,
+						`${prefix}/widgets/charts/line-chart`,
+						`${prefix}/widgets/charts/point-chart`,
+						`${prefix}/widgets/charts/state-chart`,
+						`${prefix}/widgets/charts/time-series-chart`,
+					],
+				},
+				{
+					label: 'Count widgets',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/alarm-widgets/alarm-count`,
+						`${prefix}/widgets/count-widgets/entity-count`,
+					],
+				},
+				{
+					label: 'Maps',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/maps/map`,
+					],
+				},
+				{
+					label: 'Tables',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/alarm-widgets/alarms-table`,
+						`${prefix}/widgets/tables/entities-table`,
+						`${prefix}/widgets/tables/timeseries-table`,
+						`${prefix}/widgets/tables/persistent-table`,
+					],
+				},
 				`${prefix}/widgets/widget-api`,
 			],
 		},
@@ -894,10 +963,78 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 			collapsed: true,
 			items: [
 				`${prefix}/widgets/widget-library`,
-				`${prefix}/widgets/chart-widget`,
-				`${prefix}/widgets/map-widgets`,
-				`${prefix}/widgets/entity-table-widget`,
-				`${prefix}/widgets/markdown-html-card`,
+				{
+					label: 'Alarm widgets',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/alarm-widgets/alarms-table`,
+						`${prefix}/widgets/alarm-widgets/alarm-count`,
+					],
+				},
+				{
+					label: 'Buttons',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/buttons/action-button`,
+						`${prefix}/widgets/buttons/toggle-button`,
+						`${prefix}/widgets/buttons/power-button`,
+						`${prefix}/widgets/buttons/value-stepper`,
+					],
+				},
+				{
+					label: 'Control widgets',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/control-widgets/single-switch`,
+						`${prefix}/widgets/control-widgets/led-indicator`,
+					],
+				},
+				{
+					label: 'Cards',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/cards/markdown-html-card`,
+						`${prefix}/widgets/cards/html-value-card`,
+						`${prefix}/widgets/cards/value-card`,
+					],
+				},
+				{
+					label: 'Charts',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/charts/bar-chart`,
+						`${prefix}/widgets/charts/chart-widgets`,
+						`${prefix}/widgets/charts/line-chart`,
+						`${prefix}/widgets/charts/point-chart`,
+						`${prefix}/widgets/charts/state-chart`,
+						`${prefix}/widgets/charts/time-series-chart`,
+					],
+				},
+				{
+					label: 'Count widgets',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/alarm-widgets/alarm-count`,
+						`${prefix}/widgets/count-widgets/entity-count`,
+					],
+				},
+				{
+					label: 'Maps',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/maps/map`,
+					],
+				},
+				{
+					label: 'Tables',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/alarm-widgets/alarms-table`,
+						`${prefix}/widgets/tables/entities-table`,
+						`${prefix}/widgets/tables/timeseries-table`,
+						`${prefix}/widgets/tables/persistent-table`,
+					],
+				},
 				`${prefix}/widgets/widget-api`,
 			],
 		},

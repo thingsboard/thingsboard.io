@@ -18,7 +18,7 @@ export const tbPrivateCloudData: PrivateCloudData = {
 			currency: '$',
 			period: '/month',
 			ctaText: 'Get Started',
-			ctaHref: 'https://license.thingsboard.io/signup',
+			ctaHref: '/contact-us/?subject=Private%20Cloud&pcorder&message=I%20am%20interested%20in%20Launch%20plan%20for%20Private%20Cloud',
 			ctaPrimary: true,
 			popular: true,
 			gtmId: 'Pricing_PE_PrivateCloud_Launch',
@@ -56,7 +56,7 @@ export const tbPrivateCloudData: PrivateCloudData = {
 			currency: '$',
 			period: '/month',
 			ctaText: 'Get Started',
-			ctaHref: 'https://license.thingsboard.io/signup',
+			ctaHref: '/contact-us/?subject=Private%20Cloud&pcorder&message=I%20am%20interested%20in%20Growth%20plan%20for%20Private%20Cloud',
 			ctaPrimary: false,
 			gtmId: 'Pricing_PE_PrivateCloud_Growth',
 			features: [
@@ -93,7 +93,7 @@ export const tbPrivateCloudData: PrivateCloudData = {
 			currency: '$',
 			period: '/month',
 			ctaText: 'Get Started',
-			ctaHref: 'https://license.thingsboard.io/signup',
+			ctaHref: '/contact-us/?subject=Private%20Cloud&pcorder&message=I%20am%20interested%20in%20Scale%20plan%20for%20Private%20Cloud',
 			ctaPrimary: false,
 			gtmId: 'Pricing_PE_PrivateCloud_Scale',
 			features: [
@@ -131,7 +131,7 @@ export const tbPrivateCloudData: PrivateCloudData = {
 			currency: '$',
 			period: '',
 			ctaText: 'Contact Us',
-			ctaHref: '/contact-us/',
+			ctaHref: '/contact-us/?subject=Private%20Cloud&pcorder&message=I%20am%20interested%20in%20Enterprise%20plan%20for%20Private%20Cloud',
 			ctaPrimary: false,
 			gtmId: 'Pricing_PE_PrivateCloud_Enterprise',
 			features: [

@@ -47,22 +47,22 @@ export const environmentMonitoringData: UseCaseData = {
 		],
 	},
 	solutionStructure: {
-		title: 'Solution structure of environment monitoring use case',
+		title: 'Solution structure of environment monitoring',
 		shortText:
 			'Sensor data is transmitted to ThingsBoard using IoT protocols like HTTP, MQTT, CoAP, and LwM2M, or via integrations with LoRaWAN servers and other platforms.',
 		longText: [
 			'The built-in stream processing engine instantly analyzes incoming messages, triggers events, generates alarms, and routes data to monitoring dashboards. The collected data is visualized through intuitive dashboards, giving users clear insights into alarms, and performance metrics — all in real time, from a single interface.',
 		],
-		schemeSrc: '/src/assets/schemas/iot-solution-architecture.svg',
+		schemeSrc: '/src/assets/schemas/use-case.svg',
 		schemeAlt:
 			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for alarms, dashboards, notifications, and data lakes',
 		schemeCaption:
 			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for processing, visualization, and automation',
 	},
 	dashboardStructure: {
-		title: 'Dashboard structure of environment monitoring solution',
+		title: 'Environment monitoring dashboard structure',
 		subtitle:
-			'The live dashboard displays real-time data from environment sensors. Collected data is processed via the rule engine to raise alarms on certain thresholds.',
+			'The dashboard has several states. The main state displays the list of the sensors, their location on the map as well as the list of their alarms. You may drill down to the sensor details state by clicking on the table row. The sensor details state allows to browse temperature and humidity history, change sensor settings and location. The live dashboard is part of the solution template',
 		panels: [
 			{
 				title: 'Environment monitoring state',
@@ -113,7 +113,7 @@ export const environmentMonitoringData: UseCaseData = {
 			{
 				title: 'Smart cities and urban infrastructure',
 				description:
-					'Monitoring air quality, noise levels, temperature, and humidity across city zones to support environment policy, alert residents, and improve urban living conditions.',
+					'Monitoring air quality, noise levels, temperature, and humidity across city zones to support environmental policy, alert residents, improve urban living conditions.',
 				desktopImage: '/src/assets/images/usecases/environment-monitoring/smart-cities-1.svg',
 				mobileImage: '/src/assets/images/usecases/environment-monitoring/smart-cities-2.svg',
 				imageAlt: 'Smart city',
@@ -140,7 +140,7 @@ export const environmentMonitoringData: UseCaseData = {
 			{
 				title: 'Educational and research institutions',
 				description:
-					'Collecting long-term environment data for scientific research, campus sustainability programs, and educational use in environment studies.',
+					'Collecting long-term environmental data for scientific research, campus sustainability programs, and educational use in environmental studies.',
 				desktopImage: '/src/assets/images/usecases/environment-monitoring/education-1.svg',
 				mobileImage: '/src/assets/images/usecases/environment-monitoring/education-2.svg',
 				imageAlt: 'School',

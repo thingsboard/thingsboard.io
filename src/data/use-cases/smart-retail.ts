@@ -18,87 +18,79 @@ export const smartRetailData: UseCaseData = {
 		demoButtonId: 'UseCases_SmartRetail_ViewLiveDemo',
 	},
 	solutionStructure: {
-		title: 'Solution structure of smart retail use case',
+		title: 'Solution structure of smart retail',
 		shortText:
-			'Devices such as temperature sensors, door sensors, and energy meters connect to ThingsBoard through IoT protocols like MQTT, CoAP, and HTTP, or via integrations with LoRaWAN and other platforms.',
+			'A wide range of IoT devices installed across supermarkets—such as motion sensors, temperature probes, smoke detectors, door sensors, and more—are connected to the ThingsBoard platform using MQTT, CoAP, or HTTP protocols.',
 		longText: [
-			'ThingsBoard processes incoming telemetry in real time using its built-in rule engine, which evaluates thresholds, triggers alarms, and routes notifications to the appropriate users.',
-			'All collected data is stored and visualized through fully customizable dashboards, allowing both solution providers and end customers to monitor store conditions, track device status, and respond to incidents — all from a single, unified interface.',
-			'Custom floor plans can be uploaded to map device placement visually, enabling intuitive spatial monitoring of each retail location.',
+			'All telemetry and event data is collected within ThingsBoard, where it is structured, stored, and processed via the built-in Rule Engine. This enables real-time alarm generation, automation workflows, and configurable notifications to ensure prompt response to anomalies.',
+			'Custom dashboards provide visual insights into equipment status, temperature trends, sensor activity, and alarm history. This empowers operators with clear and actionable monitoring across the entire retail network.',
 		],
-		schemeSrc: '/src/assets/schemas/iot-solution-architecture.svg',
-		schemeAlt:
-			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for alarms, dashboards, notifications, and data lakes',
+		schemeSrc: '/src/assets/schemas/use-case.svg',
+		schemeAlt: 'Smart retail solution architecture',
 		schemeCaption:
-			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for processing, visualization, and automation',
+			'Smart retail solution architecture: IoT devices connect via gateways to the cloud for processing, visualization, and automation',
 	},
 	dashboardStructure: {
-		title: 'Dashboard structure of smart retail solution',
+		title: 'Smart retail dashboard structure',
 		subtitle:
-			'The live dashboard displays real-time data from store sensors and devices. Collected data is processed via the rule engine to raise alarms on certain thresholds.',
+			'<a href="/docs/pe/recipes/solution-templates/smart-retail/">Smart retail solution</a> dashboards in ThingsBoard are designed to give retail operators full situational awareness, from high-level monitoring of multiple store locations down to detailed insights into individual devices. Each dashboard state provides a specific layer of visibility to support operational efficiency and safety.',
 		panels: [
 			{
-				title: 'Provider overview state',
+				title: 'Supermarket map overview state',
 				description:
-					"This top-level dashboard gives solution providers a bird's-eye view of all customer supermarkets. It displays the total number of connected devices, active alarms, and customer locations on an interactive map. Providers can quickly navigate to individual customer dashboards for deeper analysis.",
+					'This screen provides a global view of all supermarket locations on the map, where each store is marked with a color-coded status icon indicating Normal, Major, or Critical state, and the right-side panel lists all supermarkets with their addresses and current operational status.',
 				image: '/src/assets/images/usecases/smart-retail/smart-retail-1.webp',
 				imageAlt: 'Provider overview dashboard with customer locations and device statistics',
-				imageTitle:
-					'ThingsBoard smart retail provider dashboard showing customer supermarkets, device counts, and active alarms',
+				imageTitle: 'Supermarket map overview state',
 			},
 			{
-				title: 'Customer supermarket overview',
+				title: 'Supermarket S1 layout and devices state',
 				description:
-					"Each customer gets a dedicated dashboard displaying their supermarket's floor plan with device placements. Real-time sensor data, alarm indicators, and device statuses are overlaid directly on the layout, providing spatial context for monitoring.",
+					'This dashboard displays the detailed layout of Supermarket S1 with real-time positions and statuses of sensors, while highlighting all critical and major alarms directly on the floor plan, and also provides access to the device list and full alarm history.',
 				image: '/src/assets/images/usecases/smart-retail/smart-retail-2.webp',
 				imageAlt: 'Supermarket floor plan with sensor placements and real-time data overlay',
-				imageTitle:
-					'Customer supermarket dashboard with floor plan, device locations, and live sensor readings',
+				imageTitle: 'Supermarket S1 layout and devices state',
 			},
 			{
-				title: 'Device monitoring and alarms',
+				title: 'Supermarket S1: motion sensor detail state',
 				description:
-					'A detailed view of individual devices showing current readings, historical trends, and alarm history. Users can configure thresholds for temperature, humidity, door open/close events, and energy consumption directly from the dashboard.',
+					'This state focuses on a specific motion sensor in a restricted area, showing its recent movement detection timeline, current critical state, battery level history, and alarm log for security monitoring and maintenance control.',
 				image: '/src/assets/images/usecases/smart-retail/smart-retail-3.webp',
 				imageAlt: 'Device monitoring panel with real-time readings and alarm configuration',
-				imageTitle:
-					'Detailed device monitoring with threshold configuration and alarm history in ThingsBoard',
+				imageTitle: 'Supermarket S1: motion sensor detail state',
 			},
 			{
-				title: 'Temperature monitoring state',
+				title: 'Supermarket S2 layout and devices state',
 				description:
-					'Dedicated temperature monitoring view for refrigeration units and cold storage areas. Real-time temperature readings are displayed alongside configurable high/low thresholds, with automatic alarm generation when conditions deviate from acceptable ranges.',
+					'This view shows the layout of Supermarket S2 where several sensors such as door, chiller, freezer, and smart shelves are displayed, and the dashboard alarms users about critical issues including broken doors and temperature breaches.',
 				image: '/src/assets/images/usecases/smart-retail/smart-retail-4.webp',
 				imageAlt: 'Temperature monitoring dashboard for retail refrigeration units',
-				imageTitle:
-					'Real-time temperature monitoring of refrigeration units with threshold-based alarms',
+				imageTitle: 'Supermarket S2 layout and devices state',
 			},
 			{
-				title: 'Energy consumption analytics',
+				title: 'Supermarket S2: freezer temperature monitoring state',
 				description:
-					'This panel tracks energy usage across the supermarket, breaking down consumption by device type and time period. Historical trends help identify peak usage patterns and opportunities for energy optimization.',
+					'This dashboard monitors the freezer labeled "Meat" in Supermarket S2, displaying the 7-day temperature history, current temperature status in the normal range, and confirming that no alarms were raised during the observed period.',
 				image: '/src/assets/images/usecases/smart-retail/smart-retail-5.webp',
 				imageAlt: 'Energy consumption analytics dashboard with usage trends and breakdowns',
-				imageTitle:
-					'Smart retail energy analytics showing consumption patterns and optimization opportunities',
+				imageTitle: 'Supermarket S2: freezer temperature monitoring state',
 			},
 			{
-				title: 'Alarm management state',
+				title: 'Supermarket S3 layout and devices state',
 				description:
-					'Centralized alarm management interface displaying all active and historical alarms with severity levels, timestamps, and device origins. Operators can acknowledge, clear, or escalate alarms and configure notification preferences.',
+					'This state presents the plan of Supermarket S3, showing active devices including a critically malfunctioning door sensor and chiller, along with their types and statuses, and offers quick insights into recent critical alarms.',
 				image: '/src/assets/images/usecases/smart-retail/smart-retail-6.webp',
 				imageAlt: 'Alarm management panel with severity indicators and acknowledgment controls',
-				imageTitle:
-					'ThingsBoard alarm management for smart retail with severity-based filtering and notification settings',
+				imageTitle: 'Supermarket S3 layout and devices state',
 			},
 			{
-				title: 'Device provisioning and settings',
+				title: 'Supermarket S3: chiller analytics state',
 				description:
-					'Administrative interface for adding new devices, configuring alarm thresholds, and managing device metadata. Solution providers can assign devices to customers and set up automated provisioning workflows.',
+					'This dashboard visualizes temperature telemetry from the "Milk" chiller in Supermarket S3, where temperature exceeded the critical limit of 15°C, resulting in an active unacknowledged high temperature alarm with full context available in the alarm log.',
 				image: '/src/assets/images/usecases/smart-retail/smart-retail-7.webp',
 				imageAlt:
 					'Device provisioning interface with configuration and customer assignment options',
-				imageTitle: 'Smart retail device provisioning and threshold configuration in ThingsBoard',
+				imageTitle: 'Supermarket S3: chiller analytics state',
 			},
 		],
 		demoUrl:
@@ -113,7 +105,7 @@ export const smartRetailData: UseCaseData = {
 			{
 				title: 'Pharmacy chains',
 				description:
-					'Monitoring storage conditions for temperature-sensitive medications, ensuring regulatory compliance, and automating alerts for cold chain deviations across multiple pharmacy locations.',
+					'Smart retail solution enables pharmacy networks to ensure safe medication storage by monitoring refrigeration units, maintaining regulatory compliance, and detecting unauthorized access.',
 				desktopImage: '/src/assets/images/usecases/smart-retail/pharmacy-1.svg',
 				mobileImage: '/src/assets/images/usecases/smart-retail/pharmacy-2.svg',
 				imageAlt: 'Pharmacy',
@@ -122,7 +114,7 @@ export const smartRetailData: UseCaseData = {
 			{
 				title: 'Convenience stores at fuel stations',
 				description:
-					'Track refrigeration, HVAC, and security across fuel station stores to maintain product quality remotely.',
+					'Convenience stores benefit from automated monitoring of refrigeration, security alarms, and predictive maintenance based on real-time telemetry data.',
 				desktopImage: '/src/assets/images/usecases/smart-retail/fuel-1.svg',
 				mobileImage: '/src/assets/images/usecases/smart-retail/fuel-1.svg',
 				imageAlt: 'Fuel station',
@@ -131,7 +123,7 @@ export const smartRetailData: UseCaseData = {
 			{
 				title: 'Logistics and cold chain warehouses',
 				description:
-					'Monitor temperature, humidity, and door events in cold chain warehouses to prevent spoilage and ensure compliance.',
+					'The platform helps logistics operators maintain precise environmental conditions, monitor access points, and comply with food safety standards across their storage facilities.',
 				desktopImage: '/src/assets/images/usecases/smart-retail/logistics-1.svg',
 				mobileImage: '/src/assets/images/usecases/smart-retail/logistics-2.svg',
 				imageAlt: 'Warehouse',
@@ -140,7 +132,7 @@ export const smartRetailData: UseCaseData = {
 			{
 				title: 'Hospital cafeterias and institutional kitchens',
 				description:
-					'Monitor food storage temps and equipment status in institutional kitchens to maintain health standards.',
+					'Institutional kitchens use smart retail solution to ensure food safety, prevent equipment failures, and optimize stock levels through smart shelf monitoring.',
 				desktopImage: '/src/assets/images/usecases/smart-retail/cafeterias-1.svg',
 				mobileImage: '/src/assets/images/usecases/smart-retail/cafeterias-2.svg',
 				imageAlt: 'Cafeteria',
@@ -149,7 +141,7 @@ export const smartRetailData: UseCaseData = {
 			{
 				title: 'Food courts and restaurant chains',
 				description:
-					'Centrally monitor kitchen equipment and refrigeration across restaurant locations for food safety and savings.',
+					'Restaurants and food courts can leverage ThingsBoard to track equipment health, detect fire risks, and monitor access to restricted areas in real time.',
 				desktopImage: '/src/assets/images/usecases/smart-retail/court-1.svg',
 				mobileImage: '/src/assets/images/usecases/smart-retail/court-2.svg',
 				imageAlt: 'Food court',
@@ -158,8 +150,8 @@ export const smartRetailData: UseCaseData = {
 		],
 	},
 	summary: {
-		title: 'Summary of smart retail solution',
-		text: 'The ThingsBoard smart retail solution provides centralized monitoring and management of store infrastructure through intuitive dashboards, automated alarms, and flexible device integration. Whether you manage a single supermarket or a chain of retail locations, this solution adapts to your scale — delivering real-time visibility, operational efficiency, and data-driven decision making.',
+		title: 'Summary of smart retail',
+		text: 'Smart retail solution by ThingsBoard is a comprehensive solution that enables centralized monitoring of store operations, improves safety through automated alarms and incident logging, and reduces costs related to equipment failures and product spoilage. By streamlining incident response and automating routine checks, it also enhances staff efficiency. More than just data visualization, this solution transforms retail infrastructure into an intelligent, predictive, and adaptive environment that drives value for both customers and businesses.',
 		icon: '/src/assets/images/usecases/health-care/summary.svg',
 		iconAlt: 'Text summary icon',
 	},

@@ -46,7 +46,7 @@ function findMdxSlugs(dir: string, base: string = ''): string[] {
 			if (statSync(fullPath).isDirectory()) {
 				slugs.push(...findMdxSlugs(fullPath, relPath));
 			} else if (entry.endsWith('.mdx')) {
-				const slug = relPath.replace(/\.mdx$/, '').replace(/\/index$/, '');
+				const slug = relPath.replace(/\.mdx$/, '').replace(/(?:^|\/)index$/, '');
 				slugs.push(slug);
 			}
 		}
@@ -69,7 +69,9 @@ for (const group of CATCH_ALL_REDIRECTS) {
 	const contentDir = resolve(ROOT, 'src/content/docs/docs', group.newPrefix);
 	const slugs = findMdxSlugs(contentDir);
 	for (const slug of slugs) {
-		flatMap[`/docs/${group.oldPrefix}/${slug}/`] = `/docs/${group.newPrefix}/${slug}/`;
+		const oldPath = slug ? `/docs/${group.oldPrefix}/${slug}/` : `/docs/${group.oldPrefix}/`;
+		const newPath = slug ? `/docs/${group.newPrefix}/${slug}/` : `/docs/${group.newPrefix}/`;
+		flatMap[oldPath] = newPath;
 	}
 }
 const jsonPath = resolve(ROOT, 'public/redirects.json');
@@ -119,10 +121,20 @@ for (const entry of SINGLE_REDIRECTS) {
 }
 
 for (const group of CATCH_ALL_REDIRECTS) {
-	// Single-page overrides always render statically (specific paths, not patterns).
+	// Single-page overrides render statically (specific paths win over the splat
+	// by being earlier in the file). Exception: for empty-entry PREFIX_RENAME
+	// groups the splat already maps oldPrefix/X → newPrefix/X — entries whose
+	// target matches that mapping are redundant and would just duplicate the
+	// splat. They still belong in redirects.json (so Astro emits dist stubs)
+	// but not in _redirects.
 	const overrides = singlesByPrefix.get(group.oldPrefix);
 	if (overrides?.length) {
+		const splatNewPrefix = group.entries.length === 0 ? group.newPrefix : null;
 		for (const entry of overrides) {
+			if (splatNewPrefix) {
+				const rest = entry.oldPath.slice(group.oldPrefix.length + 1);
+				if (entry.target === `/docs/${splatNewPrefix}/${rest}/`) continue;
+			}
 			staticLines.push(`/docs/${entry.oldPath}/ ${entry.target} 301`);
 		}
 	}

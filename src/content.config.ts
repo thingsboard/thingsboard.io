@@ -12,6 +12,7 @@ export type { DevicePlatform };
 
 export const baseSchema = z.object({
 	type: z.literal('base').optional().default('base'),
+	description: z.string().optional(),
 	selfCanonical: z.boolean().optional(),
 	canonicalUrl: z.string().optional(),
 	githubURL: z.url().optional(),
@@ -94,6 +95,7 @@ export const recipeSchema = baseSchema.extend({
 
 export const deviceSchema = z.object({
 	title: z.string(),
+	description: z.string(),
 	vendor: z.string().optional(),
 	deviceImageFileName: z.string().default('placeholder.svg'),
 	hardwareType: z.string().default('Other devices'),
@@ -116,8 +118,7 @@ export const deviceSchema = z.object({
 	category: z.string().optional(),
 	platforms: z
 		.array(z.enum(PLATFORM_VALUES))
-		.default([...PLATFORM_VALUES]),
-	hasBranching: z.boolean().default(false),
+		.default(['ThingsBoard']),
 });
 
 export const blogSchema = z.object({
@@ -133,6 +134,7 @@ export const blogSchema = z.object({
 	featuredImage: z.string(),
 	featuredImageAlt: z.string().default(''),
 	draft: z.boolean().default(false),
+	excludeFromCarousel: z.boolean().default(false),
 });
 
 export const docsCollectionSchema = z.union([
@@ -202,7 +204,16 @@ export const collections = {
 		schema: blogSchema,
 	}),
 	docs: defineCollection({
-		loader: docsLoader(),
+		// Default Astro slug derivation runs each path segment through `github-slugger`,
+		// which strips dots (only `[a-z0-9-]` survives). Override to preserve dotted
+		// filenames like `…-before-v1.7.mdx` so the URL keeps the version separator.
+		// Mirrors the default behaviour for `slug:` frontmatter overrides.
+		loader: docsLoader({
+			generateId: ({ entry, data }) => {
+				if (typeof data.slug === 'string') return data.slug;
+				return entry.replace(/\.(md|mdx|mdoc)$/, '').replace(/(?:^|\/)index$/, '');
+			},
+		}),
 		schema: docsSchema({ extend: docsCollectionSchema }),
 	}),
 	i18n: defineCollection({
@@ -301,7 +312,15 @@ export const collections = {
 		schema: z.object({ avatar_url: z.string() }),
 	}),
 	devices: defineCollection({
-		loader: glob({ pattern: '**/*.mdx', base: './src/content/devices' }),
+		loader: glob({
+			pattern: '**/*.mdx',
+			base: './src/content/devices',
+			// Preserve filename case in the generated id so device URLs match the
+			// source filename (e.g. `raspberry-pi-3-model-B-plus`). The default
+			// `generateId` lowercases via github-slugger, which collides with the
+			// legacy redirect targets that use the original casing.
+			generateId: ({ entry }) => entry.replace(/\.mdx$/, ''),
+		}),
 		schema: deviceSchema,
 	}),
 };

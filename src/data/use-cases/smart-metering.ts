@@ -10,79 +10,77 @@ export const smartMeteringData: UseCaseData = {
 		shortText:
 			"In today's world of growing urban infrastructure, energy efficiency and water management have become top priorities. Smart metering solutions powered by the ThingsBoard IoT platform offer a transformative approach to utility monitoring, enabling stakeholders to access accurate, real-time insights into consumption patterns.",
 		longText: [
-			'ThingsBoard provides the flexibility to connect smart meters across diverse environments — from residential buildings to industrial facilities — using protocols such as MQTT, CoAP, HTTP, and LwM2M. Its open-source foundation ensures full transparency, community-driven innovation, and the freedom to customize every layer of the solution to match specific business requirements.',
-			'The modular architecture of ThingsBoard allows organizations to start small and scale seamlessly. Whether deploying a handful of meters in a single building or rolling out thousands across a city, the platform supports multi-tenancy, role-based access, powerful rule engine automation, and rich dashboard visualizations — all essential for building robust, future-proof smart metering systems.',
+			'With enhanced visibility, municipalities, facilities managers, and utility providers can make faster, data-driven decisions that optimize resource use, reduce waste, and lower operational costs. ThingsBoard plays an important role in this evolution by offering flexible, open-source tools to collect, process, and visualize telemetry data across distributed assets such as meters, sensors, and edge devices. Its modular architecture and rich feature set enable seamless integration of diverse devices, ensuring reliable real-time monitoring and control of utility infrastructure.',
+			'This use case showcases how ThingsBoard empowers organizations to build robust, end-to-end smart metering solutions. By combining protocol versatility, intuitive dashboards, and powerful rule engines, ThingsBoard makes it easy to monitor energy and water usage across residential, commercial, and municipal environments—enhancing sustainability and operational control.',
 		],
 		demoUrl:
 			'https://demo.thingsboard.io/dashboard/3a1026e0-83f6-11e7-b56d-c7f326cba909?publicId=322a2330-7c36-11e7-835d-c7f326cba909',
 		demoButtonId: 'UseCases_SmartMetering_ViewLiveDemo',
 	},
 	solutionStructure: {
-		title: 'Solution structure of smart metering use case',
+		title: 'Solution structure of smart metering',
 		shortText:
-			'The smart metering solution is built on a layered architecture that connects utility meters to the ThingsBoard platform through IoT gateways. Smart meters for electricity, water, gas, and heat transmit data via industry-standard protocols to a centralized cloud or on-premise instance.',
+			'The ThingsBoard solution is designed to seamlessly integrate with smart meters and environmental sensors using a broad set of IoT protocols including MQTT, CoAP, and HTTP. These protocols enable low-latency, efficient data transmission even over constrained networks.',
 		longText: [
-			'At the edge level, smart meters and sensors collect granular consumption data — energy usage, water flow, gas volume, and heat output — at configurable intervals. IoT gateways aggregate this data and forward it securely to the ThingsBoard server using MQTT, CoAP, or HTTP protocols.',
-			'The ThingsBoard rule engine processes incoming telemetry in real time, applying threshold-based alarms, data transformations, and routing logic. This enables automated notifications for abnormal consumption, leak detection, and predictive maintenance alerts without manual intervention.',
-			'Dashboards provide a hierarchical drill-down view: from city-wide district maps to individual building layouts and apartment-level details. Each level displays relevant KPIs, consumption trends, alarm statuses, and device health — giving utility managers, building operators, and residents the visibility they need at every scale.',
+			'Smart meters transmit electricity, water, and temperature data to ThingsBoard via lightweight, efficient protocols. The platform processes this data through its rule engine, enabling alarms, storage, or forwarding.',
+			'Telemetry is securely stored and visualized on customizable dashboards. Built-in widgets help display trends, real-time usage, and alarms — forming a scalable, reliable system from device to dashboard.',
 		],
-		schemeSrc: '/src/assets/schemas/iot-solution-architecture.svg',
-		schemeAlt:
-			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for alarms, dashboards, notifications, and data lakes',
+		schemeSrc: '/src/assets/schemas/use-case.svg',
+		schemeAlt: 'Smart metering solution architecture',
 		schemeCaption:
-			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for processing, visualization, and automation',
+			'Smart metering solution architecture: IoT devices connect via gateways to the cloud for processing, visualization, and automation',
 	},
 	dashboardStructure: {
-		title: 'Dashboard structure of smart metering solution',
+		title: 'Smart metering dashboard structure',
 		subtitle:
-			'The live dashboard displays real-time data from smart meters collected using ThingsBoard MQTT API. Collected data is processed via the rule engine to raise alarms on certain thresholds. The dashboard provides a hierarchical drill-down view from city districts to individual apartments.',
+			'The ThingsBoard smart metering dashboard is structured hierarchically for clear navigation across different locations and asset levels. Each level is designed to provide intuitive, real-time visualization of data, ensuring stakeholders can act quickly and effectively.',
 		panels: [
 			{
 				title: 'Districts overview state',
 				description:
-					'The top-level view displays a city map with marked districts, each showing aggregated energy and water consumption statistics. Users can quickly identify high-consumption areas and click on any district to drill down into building-level details. The overview also highlights active alarms across all districts.',
+					'The top-level view displays a city map with marked districts. Each district shows energy and water consumption statistics, with alarms highlighted for immediate attention. Data visualization at this level enables city operators to identify high-load zones instantly and prioritize interventions.',
 				image: '/src/assets/images/usecases/smart-metering/smart-metering-1.webp',
 				imageAlt: 'City map with district energy and water consumption statistics',
 			},
 			{
 				title: 'District A dashboard state',
 				description:
-					'Selecting a district reveals its buildings with detailed utility metrics including energy consumption, water usage, and active alarm counts. An alarm table at the bottom lists recent events with severity levels, enabling operators to prioritize responses. Each building row is clickable for further drill-down.',
+					'Selecting a district reveals its buildings, associated addresses, and utility metrics. A real-time alarm table notifies users of anomalies like overheating. These dashboards allow users to quickly assess building performance and spot irregular consumption.',
 				image: '/src/assets/images/usecases/smart-metering/smart-metering-2.webp',
 				imageAlt: 'District A buildings with utility metrics and alarm table',
 			},
 			{
 				title: 'Building A dashboard state',
 				description:
-					'The next layer shows a building layout with apartment-level energy and water data. Each apartment displays current consumption values, thermostat settings, and alarm indicators. This view helps building managers identify units with unusual usage patterns or active issues.',
+					'The next layer shows a building layout and associated apartments. Energy and water data is displayed per apartment, alongside a localized alarm feed. By visualizing metrics at the building level, operators can pinpoint inefficiencies or leaks with precision.',
 				image: '/src/assets/images/usecases/smart-metering/smart-metering-3.webp',
 				imageAlt: 'Building A layout with apartment-level energy and water data',
 			},
 			{
 				title: 'Apartment A1-1 dashboard state',
 				description:
-					'This view provides thermostat data including current temperature, target temperature, and humidity levels. Interactive graphs show temperature trends over time, and control dials allow remote adjustment of thermostat settings. Energy and water consumption for the specific apartment are also displayed.',
+					'This view provides thermostat data, control dials, and temperature graphs. The user can track room-level temperature changes and set optimal thresholds. Granular visualizations empower users to optimize comfort and reduce unnecessary energy use.',
 				image: '/src/assets/images/usecases/smart-metering/smart-metering-4.webp',
 				imageAlt: 'Apartment thermostat data with temperature graphs and control dials',
 			},
 			{
 				title: 'District B & sub-level dashboard state',
 				description:
-					'Similar structure with Building B1 and B2, providing cross-district utility consumption comparison. This view enables utility managers to benchmark districts against each other, identify trends, and allocate resources more effectively based on comparative data.',
+					'Similar structure with Building B1 and B2. Users can compare utility consumption across districts and buildings for better decision-making. Comparative visual data allows stakeholders to benchmark efficiency and replicate best practices across locations.',
 				image: '/src/assets/images/usecases/smart-metering/smart-metering-5.webp',
 				imageAlt: 'District B with cross-district utility consumption comparison',
 			},
 			{
 				title: 'Building B1 overview state',
 				description:
-					'Displays apartment-level data for Building B1, including per-unit energy and water consumption, thermostat statuses, and alarm summaries. The layout mirrors the Building A view, ensuring a consistent user experience across the entire metering hierarchy.',
+					'Displays apartment-level data for energy and water use. No alarms present, suggesting normal operation. Alarm - free dashboards confirm system stability and simplify routine checks.',
 				image: '/src/assets/images/usecases/smart-metering/smart-metering-6.webp',
 				imageAlt: 'Building B1 apartment-level energy and water data',
 			},
 			{
 				title: 'Apartment B1-1 dashboard state',
 				description:
-					'Temperature and thermostat data per room, including real-time readings, historical trends, and remote control capabilities. Users can monitor comfort levels, adjust heating or cooling settings, and review consumption patterns for the individual apartment unit.',
+					'Temperature and thermostat data per room. Visuals include dial controls and temperature history for precise indoor climate monitoring. These visuals help occupants understand thermal patterns and improve energy-saving behavior over time.',
 				image: '/src/assets/images/usecases/smart-metering/smart-metering-7.webp',
 				imageAlt: 'Apartment B1-1 temperature and thermostat monitoring',
 			},
@@ -100,7 +98,7 @@ export const smartMeteringData: UseCaseData = {
 			{
 				title: 'Municipal utilities',
 				description:
-					'Monitor city-wide electricity, water, and gas consumption to detect leaks and improve billing accuracy.',
+					'Optimize city-wide water and energy management to support sustainable urban development.',
 				desktopImage: '/src/assets/images/usecases/smart-metering/utilities-1.svg',
 				mobileImage: '/src/assets/images/usecases/smart-metering/utilities-2.svg',
 				imageAlt: 'Municipal utilities',
@@ -109,7 +107,7 @@ export const smartMeteringData: UseCaseData = {
 			{
 				title: 'Residential complexes',
 				description:
-					'Per-apartment metering for energy, water, and heating in multi-unit residential buildings. Residents gain visibility into their consumption while property managers can identify waste and enforce fair billing.',
+					'Enable landlords and tenants to monitor and reduce energy bills through transparent usage tracking.',
 				desktopImage: '/src/assets/images/usecases/smart-metering/complex-1.svg',
 				mobileImage: '/src/assets/images/usecases/smart-metering/complex-2.svg',
 				imageAlt: 'Residential complexes',
@@ -118,7 +116,7 @@ export const smartMeteringData: UseCaseData = {
 			{
 				title: 'Commercial facilities',
 				description:
-					'Monitoring and optimizing utility usage in office buildings, shopping centers, and hospitality venues. Smart metering helps reduce operational costs and supports sustainability certifications.',
+					'Ensure operational efficiency and compliance with green building standards by tracking real-time resource use.',
 				desktopImage: '/src/assets/images/usecases/smart-metering/facilities-1.svg',
 				mobileImage: '/src/assets/images/usecases/smart-metering/facilities-2.svg',
 				imageAlt: 'Commercial facilities',
@@ -127,7 +125,7 @@ export const smartMeteringData: UseCaseData = {
 			{
 				title: 'Industrial plants',
 				description:
-					'Tracking energy and resource consumption across production lines, warehouses, and support systems. Enables plant managers to identify inefficiencies, balance loads, and reduce peak demand charges.',
+					'Gain insights into high-consumption areas, detect leaks or overuse early, and prevent costly downtime.',
 				desktopImage: '/src/assets/images/usecases/smart-metering/industrial-1.svg',
 				mobileImage: '/src/assets/images/usecases/smart-metering/industrial-2.svg',
 				imageAlt: 'Industrial plants',
@@ -136,7 +134,7 @@ export const smartMeteringData: UseCaseData = {
 			{
 				title: 'Educational institutions',
 				description:
-					'Track utility usage across campuses and dormitories to support energy-saving and sustainability reporting.',
+					'Empower facility managers to improve campus energy efficiency and promote eco-friendly behavior.',
 				desktopImage: '/src/assets/images/usecases/smart-metering/institutions-1.svg',
 				mobileImage: '/src/assets/images/usecases/smart-metering/institutions-2.svg',
 				imageAlt: 'Educational institutions',
@@ -145,7 +143,7 @@ export const smartMeteringData: UseCaseData = {
 		],
 	},
 	summary: {
-		title: 'Summary of smart metering solution',
+		title: 'Summary of smart metering',
 		text: 'IoT smart metering with ThingsBoard provides a scalable, flexible way to monitor utilities. Through sensor integration and protocol support, data is collected and visualized across districts, buildings, and apartments. ThingsBoard enables tracking of energy use, alarms, and temperature trends—helping users make timely decisions and meet sustainability goals across industries. With ThingsBoard, organizations can build future-ready smart metering systems that scale, adapt, and drive sustainable impact.',
 		icon: '/src/assets/images/usecases/health-care/summary.svg',
 		iconAlt: 'Text summary icon',

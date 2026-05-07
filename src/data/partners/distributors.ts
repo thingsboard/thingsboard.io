@@ -33,20 +33,6 @@ export const DISTRIBUTORS: Distributor[] = [
 		website: "acorde.com",
 	},
 	{
-		name: "Advancethings",
-		regions: ["North America","Middle East","Asia"],
-		countries: ["India"],
-		email: "pradip.kulkarni@advancetech.in",
-		website: "advancetech.in",
-	},
-	{
-		name: "Agreefy FZE",
-		regions: ["Middle East"],
-		countries: ["United Arab Emirates"],
-		email: "vinu@agreefy.com",
-		website: "agreefy.com",
-	},
-	{
 		name: "AppBuilder (Pty.) Ltd.",
 		regions: ["Africa"],
 		countries: ["South Africa"],
@@ -243,13 +229,6 @@ export const DISTRIBUTORS: Distributor[] = [
 		website: "epithos.com",
 	},
 	{
-		name: "FEEL Digital Asset Strategy",
-		regions: ["Australia and Oceania"],
-		countries: ["Australia"],
-		email: "contact@feelvirtualreality.com.au",
-		website: "feelvirtualreality.com.au",
-	},
-	{
 		name: "Fourier",
 		regions: ["Africa"],
 		countries: ["South Africa"],
@@ -306,13 +285,6 @@ export const DISTRIBUTORS: Distributor[] = [
 		website: "ibtsystems.it",
 	},
 	{
-		name: "Inovatink",
-		regions: ["Middle East"],
-		countries: ["Turkey"],
-		email: "bariscan@inovatink.com",
-		website: "inovatink.com",
-	},
-	{
 		name: "IoT solutions AS",
 		regions: ["Europe"],
 		countries: ["Norway"],
@@ -346,13 +318,6 @@ export const DISTRIBUTORS: Distributor[] = [
 		countries: ["Taiwan"],
 		email: "info@linksoft.com.tw",
 		website: "linksoft.com.tw",
-	},
-	{
-		name: "Logicon Technosolutions Pvt. Ltd.",
-		regions: ["Asia"],
-		countries: ["India"],
-		email: "support@logicontech.com",
-		website: "logicontech.com",
 	},
 	{
 		name: "Loriot",
@@ -397,13 +362,6 @@ export const DISTRIBUTORS: Distributor[] = [
 		website: "mcregem.com",
 	},
 	{
-		name: "Mechanica Irev Yazılım Sa. Tic. Ltd. Şti.",
-		regions: ["Middle East"],
-		countries: ["Turkey"],
-		email: "irfan@mechanicairev.com",
-		website: "mechanicairev.com",
-	},
-	{
 		name: "Metro Systems Corp. PCL",
 		regions: ["Asia"],
 		countries: ["Thailand"],
@@ -423,13 +381,6 @@ export const DISTRIBUTORS: Distributor[] = [
 		countries: ["American Samoa","Australia","Cook Islands","Federated States of Micronesia","Fiji","French Polynesia","Guam","Kiribati","Marshall Islands","Nauru","New Caledonia","New Zealand","Niue","Norfolk Island","Northern Mariana Islands","Palau","Papua New Guinea","Pitcairn Islands","Samoa","Solomon Islands","Tonga","Tuvalu","Vanuatu","Wallis and Futuna"],
 		email: "info@moreton.io",
 		website: "https://www.moreton.io",
-	},
-	{
-		name: "N-able Pvt. Ltd.",
-		regions: ["Asia"],
-		countries: ["Sri Lanka"],
-		email: "info@n-able.biz",
-		website: "n-able.biz",
 	},
 	{
 		name: "NistantriTech Pvt. Ltd.",
@@ -502,25 +453,11 @@ export const DISTRIBUTORS: Distributor[] = [
 		website: "rittmeyer.com",
 	},
 	{
-		name: "RPA Romsat Ltd.",
-		regions: ["Europe"],
-		countries: ["Ukraine"],
-		email: "info@romsat.ua",
-		website: "romsat.ua",
-	},
-	{
 		name: "S.C. Skybase Solar S.R.L.",
 		regions: ["Europe"],
 		countries: ["Romania"],
 		email: "skybasesolar.bacau@gmail.com",
 		website: "",
-	},
-	{
-		name: "Samptel Technologies",
-		regions: ["Asia"],
-		countries: ["India"],
-		email: "info@samptel.com",
-		website: "samptel.com",
 	},
 	{
 		name: "SanCloud Ltd.",
@@ -731,20 +668,6 @@ export const DISTRIBUTORS: Distributor[] = [
 		countries: ["Malaysia"],
 		email: "hakim@rodatech.com.my",
 		website: "rodatech.com.my",
-	},
-	{
-		name: "Ariprus Digicon Pvt Ltd",
-		regions: ["Asia"],
-		countries: ["India"],
-		email: "praful.satasia@ariprus.com",
-		website: "ariprus.com",
-	},
-	{
-		name: "Dvm Technology Inc.",
-		regions: ["Asia"],
-		countries: ["Turkey"],
-		email: "tunc.sirinyildiz@dvm.com.tr",
-		website: "dvm.com.tr",
 	},
 	{
 		name: "3D Alem",

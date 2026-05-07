@@ -209,7 +209,7 @@ export const tbPerpetualHero: CommunityEditionData = {
 		'A perpetual license transforms your core IoT platform into a permanent asset, giving you a predictable financial model and complete control over your technology roadmap. It\u2019s the ideal foundation for a long-term, large-scale enterprise deployment.',
 	priceLabel: 'Starting from $4,999',
 	features: [
-		'Your security policy requires an isolated, on-premises, or offline deployment.',
+		'Your security policy requires an isolated, on-premises, or development deployment.',
 		'Your financial model favors a one-time capital investment (CAPEX) over recurring expenses.',
 		'Your business needs a unique, tailored solution, not a one-size-fits-all subscription.',
 	],
