@@ -741,6 +741,28 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 					],
 				},
 				{
+					label: 'SCADA Widgets',
+					collapsed: true,
+					items: [
+						{
+							label: 'Traditional SCADA fluid system',
+							collapsed: true,
+							items: [
+								`${prefix}/widgets/scada/traditional-fluid-system/horizontal-pipe`,
+								`${prefix}/widgets/scada/traditional-fluid-system/long-horizontal-pipe`,
+								`${prefix}/widgets/scada/traditional-fluid-system/extra-long-horizontal-pipe`,
+								`${prefix}/widgets/scada/traditional-fluid-system/vertical-pipe`,
+								`${prefix}/widgets/scada/traditional-fluid-system/long-vertical-pipe`,
+								`${prefix}/widgets/scada/traditional-fluid-system/extra-long-vertical-pipe`,
+								`${prefix}/widgets/scada/traditional-fluid-system/left-bottom-elbow-pipe`,
+								`${prefix}/widgets/scada/traditional-fluid-system/bottom-right-elbow-pipe`,
+								`${prefix}/widgets/scada/traditional-fluid-system/top-right-elbow-pipe`,
+								`${prefix}/widgets/scada/traditional-fluid-system/left-top-elbow-pipe`,
+							],
+						},
+					],
+				},
+				{
 					label: 'Tables',
 					collapsed: true,
 					items: [
@@ -1033,6 +1055,28 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 						`${prefix}/widgets/maps/image-map`,
 						`${prefix}/widgets/maps/trip-map`,
 						`${prefix}/widgets/maps/route-map`,
+					],
+				},
+				{
+					label: 'SCADA Widgets',
+					collapsed: true,
+					items: [
+						{
+							label: 'Traditional SCADA fluid system',
+							collapsed: true,
+							items: [
+								`${prefix}/widgets/scada/traditional-fluid-system/horizontal-pipe`,
+								`${prefix}/widgets/scada/traditional-fluid-system/long-horizontal-pipe`,
+								`${prefix}/widgets/scada/traditional-fluid-system/extra-long-horizontal-pipe`,
+								`${prefix}/widgets/scada/traditional-fluid-system/vertical-pipe`,
+								`${prefix}/widgets/scada/traditional-fluid-system/long-vertical-pipe`,
+								`${prefix}/widgets/scada/traditional-fluid-system/extra-long-vertical-pipe`,
+								`${prefix}/widgets/scada/traditional-fluid-system/left-bottom-elbow-pipe`,
+								`${prefix}/widgets/scada/traditional-fluid-system/bottom-right-elbow-pipe`,
+								`${prefix}/widgets/scada/traditional-fluid-system/top-right-elbow-pipe`,
+								`${prefix}/widgets/scada/traditional-fluid-system/left-top-elbow-pipe`,
+							],
+						},
 					],
 				},
 				{
