@@ -316,12 +316,16 @@ const activeRegion = currentFamily.regions?.options.find((r) => r.product === cu
 
 			const triggers = Array.from(this.querySelectorAll<HTMLButtonElement>('[aria-haspopup="listbox"]'));
 
+			// After first open() the popovers are portalled to <body>, so use
+			// document.getElementById rather than this.querySelector.
+			const findPopover = (id: string) => document.getElementById(id);
+
 			const closeAll = () => {
 				triggers.forEach((t) => {
 					t.setAttribute('aria-expanded', 'false');
 					const popoverId = t.getAttribute('aria-controls');
 					if (popoverId) {
-						const pop = this.querySelector<HTMLElement>(`#${popoverId}`);
+						const pop = findPopover(popoverId);
 						if (pop) pop.hidden = true;
 					}
 				});
@@ -352,6 +356,13 @@ const activeRegion = currentFamily.regions?.options.find((r) => r.product === cu
 				const isOpen = () => trigger.getAttribute('aria-expanded') === 'true';
 				const open = () => {
 					closeAll();
+					// Portal to <body> so we escape any ancestor stacking context or
+					// overflow clipping (Safari in particular paints the docs main
+					// content over a `position: fixed` popover that's nested under
+					// the sidebar's stacking context). Idempotent — runs once.
+					if (popover.parentElement !== document.body) {
+						document.body.appendChild(popover);
+					}
 					positionPopover(trigger, popover);
 					trigger.setAttribute('aria-expanded', 'true');
 					popover.hidden = false;
@@ -395,7 +406,18 @@ const activeRegion = currentFamily.regions?.options.find((r) => r.product === cu
 			});
 
 			document.addEventListener('click', (e) => {
-				if (!this.contains(e.target as Node)) closeAll();
+				const target = e.target as Node;
+				// Click inside the trigger / wrapper: handled by per-trigger listeners.
+				if (this.contains(target)) return;
+				// Click inside a portalled popover: keep it open.
+				const popoverIds = triggers
+					.map((t) => t.getAttribute('aria-controls'))
+					.filter((id): id is string => !!id);
+				for (const id of popoverIds) {
+					const pop = findPopover(id);
+					if (pop && pop.contains(target)) return;
+				}
+				closeAll();
 			});
 
 			// Reposition / close on viewport changes
@@ -404,7 +426,7 @@ const activeRegion = currentFamily.regions?.options.find((r) => r.product === cu
 					if (t.getAttribute('aria-expanded') !== 'true') return;
 					const popoverId = t.getAttribute('aria-controls');
 					if (!popoverId) return;
-					const pop = this.querySelector<HTMLElement>(`#${popoverId}`);
+					const pop = findPopover(popoverId);
 					if (pop) positionPopover(t, pop);
 				});
 			};
@@ -517,6 +539,12 @@ const activeRegion = currentFamily.regions?.options.find((r) => r.product === cu
 	}
 
 	// ─── Edition switch ─────────────────────────────────────────────────────
+	// Content-sized pills with `flex: 0 1 auto` — each pill is sized to its
+	// own text (so "Professional" has natural padding, doesn't fill the cell
+	// edge-to-edge), and `space-evenly` distributes whatever room is left.
+	// If the sidebar narrows enough that pills can't fit, flex-shrink kicks
+	// in and the pills ellipsize (overflow:hidden + text-overflow:ellipsis)
+	// instead of overflowing the .ps-card.
 	.ps-switch {
 		display: flex;
 		justify-content: space-evenly;
@@ -528,10 +556,11 @@ const activeRegion = currentFamily.regions?.options.find((r) => r.product === cu
 	}
 
 	.ps-pill {
-		flex: 0 0 auto;
+		flex: 0 1 auto;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
+		min-width: 0;
 		padding: 6px 10px;
 		font-size: 12px;
 		font-weight: 400;
@@ -545,6 +574,8 @@ const activeRegion = currentFamily.regions?.options.find((r) => r.product === cu
 			background-color 0.15s ease,
 			color 0.15s ease;
 		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 
 		&:hover {
 			color: var(--sl-color-white);
@@ -552,7 +583,7 @@ const activeRegion = currentFamily.regions?.options.find((r) => r.product === cu
 
 		&.is-active {
 			background: var(--sl-color-bg);
-			border-color: var(--sl-color-gray-6);
+			border-color: var(--sl-color-text-accent, var(--sl-color-accent));
 			color: var(--sl-color-white);
 			font-weight: 600;
 		}

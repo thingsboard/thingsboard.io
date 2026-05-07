@@ -5,7 +5,7 @@ head:
   - tag: title
     content: Device Contribution Guide | Docs | IoT Hub
 ---
-import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+import { CardGrid, LinkCard, Steps, Aside } from '@astrojs/starlight/components';
 
 Welcome to **ThingsBoard IoT Hub**. This guide walks you through building a device package that end users can install on their ThingsBoard instance in a single click.
 
@@ -393,12 +393,32 @@ Each entity step takes a `template` (a JSON file that matches the ThingsBoard RE
 | `GATEWAY_CONNECTOR` | Gateway connector configuration | appended to gateway |
 | `DASHBOARD` | Dashboard | no (always new) |
 | `RULE_CHAIN` | Rule chain | yes |
-| `CONVERTER` | Uplink converter (PE only) | no |
+| `UPLINK_CONVERTER` | Uplink converter (PE only) | no |
+| `DOWNLINK_CONVERTER` | Downlink converter (PE only) | no |
 | `INTEGRATION` | Integration (PE only) | no |
 
+#### Converter / Integration ordering
+
+Any `UPLINK_CONVERTER` or `DOWNLINK_CONVERTER` step **must appear before** the `INTEGRATION` step in the same install method's array. The validator rejects packages that put converters after the integration.
+
+This ordering is what makes the wiring automatic: the wizard runs the converter steps first, captures their generated IDs as `${uplinkConverter.id}` / `${uplinkConverter.name}` and `${downlinkConverter.id}` / `${downlinkConverter.name}`, then resolves those placeholders in the integration template before creating the integration. The creator does not need to wire converter IDs by hand. Referencing `${uplinkConverter.id}` and `${downlinkConverter.id}` in the integration template is enough; the wizard fills them in at install time.
+
 ```json
-{"type": "DEVICE", "name": "${deviceName}", "template": "device.json"}
+"installSteps": {
+  "INTEGRATION_TTN": [
+    {"type": "SHOW_FORM", "name": "TTN Settings", "file": "ttn/form.json"},
+    {"type": "DEVICE_PROFILE", "name": "Acme Sensor", "template": "common/device-profile.json"},
+    {"type": "UPLINK_CONVERTER", "name": "Acme Decoder", "template": "ttn/uplink.json"},
+    {"type": "DOWNLINK_CONVERTER", "name": "Acme Encoder", "template": "ttn/downlink.json"},
+    {"type": "INTEGRATION", "name": "${deviceName} - TTN", "template": "ttn/integration.json"},
+    {"type": "DEVICE", "name": "${deviceName}", "template": "common/device.json"},
+    {"type": "DASHBOARD", "name": "Monitor", "template": "common/dashboard.json"},
+    {"type": "SHOW_INSTRUCTION", "name": "Setup Complete", "file": "ttn/post-install.md"}
+  ]
+}
 ```
+
+For the recommended way to author the converter and integration files, see [Integration Packages — Export-Driven Format](#integration-packages--export-driven-format) below.
 
 #### Optional Fields on Entity Steps
 
@@ -442,6 +462,13 @@ Form files are JSON arrays of field definitions. Every `key` becomes a `${key}` 
     ]
   },
   {
+    "key": "loriotServer",
+    "label": "Loriot server",
+    "type": "STRING_AUTOCOMPLETE",
+    "defaultValue": "eu1",
+    "options": ["eu1", "us1", "as1", "eu2", "ap1"]
+  },
+  {
     "key": "enableTls",
     "label": "Enable TLS",
     "type": "BOOLEAN",
@@ -462,7 +489,8 @@ Form files are JSON arrays of field definitions. Every `key` becomes a `${key}` 
 | `PASSWORD` | Password input with visibility toggle | string |
 | `INTEGER` | Number input | integer |
 | `BOOLEAN` | Checkbox | boolean |
-| `SELECT` | Dropdown | string (from `options[].value`) |
+| `SELECT` | Dropdown — value picked from `options[].value` | string |
+| `STRING_AUTOCOMPLETE` | Free-text input with autocomplete suggestions from `options` | string |
 
 ### Field Properties
 
@@ -475,11 +503,19 @@ Form files are JSON arrays of field definitions. Every `key` becomes a `${key}` 
 | `defaultValue` | Pre-filled value shown in the field |
 | `helpText` | Text shown when the user clicks the help icon |
 | `helpImage` | Image path shown alongside `helpText` |
-| `options` | For `SELECT` only: array of `{value, label}` entries |
+| `options` | `SELECT`: array of `{value, label}` entries. `STRING_AUTOCOMPLETE`: array of plain strings |
 | `validators` | Array of regex validators (see below) |
+| `secretSupport` | Boolean. If `true`, the install dialog renders both a plaintext input and a Secret picker so the user can choose to back the value with a ThingsBoard Secret |
+| `secretType` | `TEXT` or `TEXT_FILE`. Used by the Secret picker to filter eligible Secrets. Default: `TEXT` |
+| `group` | Optional section header. Fields with the same `group` value render under one heading on the install form |
 | `randomGenerator` | `STRING`/`PASSWORD` only: if `true`, shows a regenerate icon that fills the field with a random value |
 | `randomSize` | `STRING`/`PASSWORD` only: length of the generated value (default: `20`) |
 | `randomByDefault` | `STRING`/`PASSWORD` only: if `true`, the field is pre-filled with a random value when the form opens (overrides `defaultValue`) |
+
+#### Reserved keys
+
+These keys are populated by step output and cannot be used as form field keys:
+`uplinkConverter.id`, `uplinkConverter.name`, `downlinkConverter.id`, `downlinkConverter.name`, `integration.id`, `integration.name`, `integration.httpEndpoint`. The validator rejects packages that try to define them.
 
 ### Validators
 
@@ -498,6 +534,112 @@ Add regex validators with custom error messages:
 ```
 
 Multiple validators can be applied to one field — all must pass for the form to be valid.
+
+## Integration Packages — Export-Driven Format
+
+ThingsBoard PE generates a complete integration package via the **Export to IoT Hub** button on the integration detail page. The exported ZIP is self-describing: drop the files into your device package and let the install wizard substitute placeholders at install time. Hand-authoring the integration JSON works, but exporting from a real PE integration is the canonical path because it produces the right shape and naming on the first try.
+
+### File layout
+
+For PE integration install methods (`INTEGRATION_LORIOT`, `INTEGRATION_TTN`, `INTEGRATION_AWS_IOT`, etc.), the package places three files alongside the device-side files:
+
+| File | Purpose |
+|------|---------|
+| `integration.json` | Integration entity JSON, verbatim from PE's exporter, with `${formKey}`, `${secret:NAME;type:TEXT}`, and `${alias.prop}` placeholders |
+| `uplink.json` | Uplink converter, verbatim from the exporter |
+| `downlink.json` | Downlink converter, verbatim from the exporter |
+
+The `INTEGRATION` step references just one template; the wizard's `SHOW_FORM` step still drives the combined `form.json`:
+
+```json
+{"type": "INTEGRATION", "name": "LORIOT Integration", "template": "integration.json"}
+```
+
+The integration type comes from the `type` field at the top of `integration.json`. The validator rejects packages with a missing or unknown integration type.
+
+### Placeholder conventions inside `integration.json`
+
+The exporter emits three kinds of placeholders. Keep them verbatim when copying the export into a package.
+
+| Placeholder | Meaning |
+|-------------|---------|
+| `${formKey}` | Non-secret form value. The install dialog substitutes the user's `form.json` input directly into the body. Examples: `${integrationName}`, `${loriotServer}`, `${loriotDomain}` |
+| `${secret:NAME;type:TEXT\|TEXT_FILE}` | Sensitive value. Preserved verbatim in the body. The install dialog creates a Secret named `NAME` from the user's form input via `POST /api/secret`, and ThingsBoard PE resolves the placeholder when the integration starts |
+| `${alias.prop}` | Output from an earlier install step. The wizard captures step outputs and substitutes them into later steps. Examples: `${uplinkConverter.id}`, `${downlinkConverter.id}`, `${deviceProfile.id}` |
+
+Form keys that drive a `${secret:…}` placeholder receive an 8-character alphanumeric suffix at export time (like `loriotToken3KYhD5Wl`) so two exports of the same field do not collide on Secret names. **Do not rename these keys** — the placeholder in `integration.json` and the `key` field in `form.json` must match exactly.
+
+### Combining device fields with integration fields
+
+The wizard renders one form per `SHOW_FORM` step. Combine the device-side fields and the integration-side fields into a single `form.json`, and use `group` to keep the visual sections from the exporter intact:
+
+```json
+[
+  {
+    "key": "deviceName",
+    "label": "Device Name",
+    "type": "STRING",
+    "defaultValue": "Acme LoRaWAN Sensor",
+    "required": true
+  },
+  {
+    "key": "integrationName",
+    "label": "Integration name",
+    "type": "STRING",
+    "defaultValue": "Acme LoRaWAN Sensor - LoRaWAN",
+    "required": true,
+    "group": "LORIOT Connection"
+  },
+  {
+    "key": "loriotServer",
+    "label": "LORIOT server",
+    "type": "STRING_AUTOCOMPLETE",
+    "defaultValue": "eu1",
+    "options": ["eu1", "us1", "as1", "eu2", "ap1"],
+    "required": true,
+    "group": "LORIOT Connection"
+  },
+  {
+    "key": "loriotAppId",
+    "label": "Application ID",
+    "type": "STRING",
+    "secretSupport": true,
+    "secretType": "TEXT",
+    "required": true,
+    "group": "LORIOT Connection"
+  },
+  {
+    "key": "loriotToken",
+    "label": "Application Access Token",
+    "type": "PASSWORD",
+    "secretSupport": true,
+    "secretType": "TEXT",
+    "required": true,
+    "group": "LORIOT Connection"
+  }
+]
+```
+
+### Migration recipe (existing pre-export packages)
+
+For each device package using the older split-artifacts format (`integration-template.json` + `integration-form.json`):
+
+<Steps>
+1. Configure a working integration of the same type in PE, then click **Export to IoT Hub** on the integration detail page. Save the ZIP and unpack it.
+2. Delete the old `integration-template.json` and `integration-form.json`. Drop the export's `integration.json` into the package directory unchanged.
+3. Replace `uplink_data_converter.json` with the export's `uplink.json`. Replace `downlink_data_converter.json` with the export's `downlink.json` (if the package supports downlink).
+4. Merge `form.json`. Keep the device-side entries (like `deviceName`) at the top, then append the export's entries. Use `group` fields to preserve the visual layout.
+5. Update `device-info.json`. The `INTEGRATION` step now references a single template (no `form` field). Converter step `template` paths point at `uplink.json` and `downlink.json` (no `_data_converter` suffix).
+6. Smoke-test the package end-to-end via the install dialog. Page 1 shows the combined form with grouped sections, page 2 provisions the entities, and page 3 confirms success.
+</Steps>
+
+<Aside type="note">
+Some integration types (notably LORIOT) currently emit a redundant legacy `configuration.token` placeholder alongside `configuration.credentials.token`. Both substitute correctly at install time; only the one inside `credentials` is read at runtime. PE will strip the redundant field in a follow-up — packages do not need a workaround.
+</Aside>
+
+<Aside type="note">
+The `httpEndpoint` field on Loriot configurations contains the source integration's UUID. PE rewrites it on save, so the value in the template is harmless.
+</Aside>
 
 ## Entity Templates
 
@@ -922,8 +1064,13 @@ Every form field `key` is exposed as `${key}`. Common examples:
 | `${dashboard.name}` | `DASHBOARD` | Dashboard name |
 | `${dashboard.url}` | `DASHBOARD` | Link to the dashboard |
 | `${ruleChain.id}` | `RULE_CHAIN` | Rule chain UUID |
-| `${uplinkConverter.id}` | `CONVERTER` | Converter UUID (PE only) |
+| `${uplinkConverter.id}` | `UPLINK_CONVERTER` | Uplink converter UUID (PE only). Auto-substituted into the integration template. |
+| `${uplinkConverter.name}` | `UPLINK_CONVERTER` | Uplink converter name |
+| `${downlinkConverter.id}` | `DOWNLINK_CONVERTER` | Downlink converter UUID (PE only). Auto-substituted into the integration template. |
+| `${downlinkConverter.name}` | `DOWNLINK_CONVERTER` | Downlink converter name |
 | `${integration.id}` | `INTEGRATION` | Integration UUID (PE only) |
+| `${integration.name}` | `INTEGRATION` | Integration name (PE only) |
+| `${integration.httpEndpoint}` | `INTEGRATION` | The webhook URL the integration listens on (PE only). Reference it in `post-install.md` to display the URL the customer registers with their LoRaWAN provider, MQTT broker, etc. |
 
 ### Transport Connectivity
 
