@@ -2,7 +2,7 @@ import type { CaseStudyData } from './types';
 
 export const kenersData: CaseStudyData = {
 	title: 'IoT-Powered Farming - How Keners Scaled with ThingsBoard',
-	pageTitle: 'IoT-Powered Farming - How Keners Scaled with ThingsBoard',
+	pageTitle: 'IoT-Powered Farming — How Keners Scaled',
 	description:
 		'Discover how Keners boosted agricultural efficiency using ThingsBoard PE\u2014achieving scalable IoT, custom dashboards, and real-time automation with ease.',
 	pageSlug: 'keners',

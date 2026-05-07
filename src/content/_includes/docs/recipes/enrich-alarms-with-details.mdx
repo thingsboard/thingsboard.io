@@ -1,0 +1,272 @@
+import DocLink from '@components/DocLink.astro';
+import { Tabs, TabItem, Aside, Steps } from '@astrojs/starlight/components';
+import HostCode from '~/components/HostCode.astro';
+import { Products } from '~/models/site.models';
+import MultiProductImageGallery from '~/components/MultiProductImageGallery.astro';
+
+This tutorial shows how to enrich alarm details with custom data using the Rule Engine — tracking the triggering temperature reading and a running alarm count that increments with each occurrence.
+
+## Use case
+
+A **Thermostat** device publishes temperature readings. When temperature goes outside the acceptable range, ThingsBoard:
+
+- **Creates an alarm** and stores in its details:
+  - `temperature` — the value that triggered the alarm
+  - `count` — how many times the alarm has fired since it was last cleared
+- **Clears the alarm** when temperature returns to normal, appending `clearedTemperature` to the existing details
+
+All three fields can be displayed as columns in an alarm widget on a dashboard.
+
+## Prerequisites
+
+You need a device to test with. Use an existing device or create one:
+- **Name**: `Thermometer A1`
+- **Type**: `thermostat`
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/enrich-alarms-with-details/add-device-1.png',
+    alt: 'Thermometer device creation',
+    caption: 'Create a new device (e.g., <strong>Thermometer A1</strong>) with the appropriate device profile (e.g., <code>thermostat</code>) to simulate temperature telemetry and trigger alarm processing.'
+  },
+]} />
+
+## Step 1. Create the rule chain
+
+<DocLink product={props.product} path="user-guide/rule-engine/#create-a-rule-chain" target="_blank">Create a new rule chain</DocLink> named `Create & Clear Alarms with Details`, open it, and add the following nodes:
+
+### Step 1.1. Filter Script node
+
+Add a <DocLink product={props.product} path="reference/rule-engine/nodes/filter/script/" target="_blank">Script</DocLink> filter node and connect it to the **Input** node.
+
+This node returns `true` when the temperature is outside the valid sensor range, routing the message to the **Create Alarm** branch; otherwise it returns `false` and routes to the **Clear Alarm** branch.
+
+- **Name**: `Temperature Range Filter`
+- **Add the following script**:
+
+<Tabs>
+  <TabItem label="TBEL">
+    ```javascript
+    return msg.temperature < -25 || msg.temperature > 15;
+    ```
+  </TabItem>
+  <TabItem label="JavaScript">
+    ```javascript
+    return msg.temperature < -25 || msg.temperature > 15;
+    ```
+  </TabItem>
+</Tabs>
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/enrich-alarms-with-details/create-clear-alarms-with-details-1.png',
+    alt: 'Temperature range filter node configuration',
+    caption: 'Configure the <strong>Script Filter</strong> node (e.g., <code>Temperature Range Filter</code>) to trigger when the temperature is outside the allowed range (e.g., below -25 or above 15).'
+  },
+]} />
+
+### Step 1.2. Create Alarm node
+
+Add a <DocLink product={props.product} path="reference/rule-engine/nodes/action/create-alarm/" target="_blank">Create Alarm</DocLink> node and connect it to the **Temperature Range Filter** node with relation type **True**.
+
+Fill in the fields:
+- **Name**: `Create Temperature Alarm`
+- **Alarm type**: `Temperature Out of Range`
+- **Alarm severity**: `Critical`
+
+Enter the following **Details** function:
+
+<Tabs>
+  <TabItem label="TBEL">
+    ```javascript
+    details = {};
+    details.temperature = msg.temperature;
+
+    if (metadata.containsKey("prevAlarmDetails") && metadata.prevAlarmDetails != null) {
+      prevDetails = JSON.parse(metadata.prevAlarmDetails);
+      details.count = prevDetails.count + 1;
+    } else {
+      details.count = 1;
+    }
+
+    return details;
+    ```
+  </TabItem>
+  <TabItem label="JavaScript">
+    ```javascript
+    var details = {};
+    details.temperature = msg.temperature;
+    
+    if (metadata.prevAlarmDetails) {
+      var prevDetails = JSON.parse(metadata.prevAlarmDetails);
+      details.count = prevDetails.count + 1;
+    } else {
+      details.count = 1;
+    }
+
+    return details;
+    ```
+  </TabItem>
+</Tabs>
+
+The function stores the triggering temperature and increments `count` on each alarm update. On first trigger, `count` is set to `1`.
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/enrich-alarms-with-details/create-clear-alarms-with-details-2.png',
+    alt: 'Create temperature alarm node configuration',
+    caption: 'Configure the <strong>Create Alarm</strong> node (e.g., <code>Create Temperature Alarm</code>) to populate alarm details with the current value (e.g., <code>temperature</code>) and increment a counter using <code>metadata.prevAlarmDetails</code> when available.'
+  },
+]} />
+
+### Step 1.3. Clear Alarm node
+
+Add a <DocLink product={props.product} path="reference/rule-engine/nodes/action/clear-alarm/" target="_blank">Clear Alarm</DocLink> node and connect it to the **Temperature Range Filter** node with relation type **False**.
+
+Fill in the fields:
+- **Name**: `Clear Temperature Alarm`
+- **Alarm type**: `Temperature Out of Range`
+
+Enter the following **Alarm Details** function:
+
+<Tabs>
+  <TabItem label="TBEL">
+    ```javascript
+    details = {};
+
+    if (metadata.containsKey("prevAlarmDetails") && metadata.prevAlarmDetails != null) {
+      details = JSON.parse(metadata.prevAlarmDetails);
+    }
+
+    details.clearedTemperature = msg.temperature;
+
+    return details;
+    ```
+  </TabItem>
+  <TabItem label="JavaScript">
+    ```javascript
+    var details = {};
+    
+    if (metadata.prevAlarmDetails) {
+      details = JSON.parse(metadata.prevAlarmDetails);
+    }
+
+    details.clearedTemperature = msg.temperature;
+
+    return details;
+    ```
+  </TabItem>
+</Tabs>
+
+The function preserves the existing alarm details (retaining `temperature` and `count`) and appends the temperature reading at the moment of clearing.
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/enrich-alarms-with-details/create-clear-alarms-with-details-3.png',
+    alt: 'Clear temperature alarm node configuration',
+    caption: 'Configure the <strong>Clear Alarm</strong> node (e.g., <code>Clear Temperature Alarm</code>) to reuse <code>metadata.prevAlarmDetails</code> and enrich it with the current value (e.g., <code>clearedTemperature</code>) when the alarm is cleared.'
+  },
+]} />
+
+### Step 1.4. Check node connections
+
+- **Input &#8702; Temperature Range Filter**
+- **Temperature Range Filter &#8702;** `True` **&#8702; Create Temperature Alarm**
+- **Temperature Range Filter &#8702;** `False` **&#8702; Clear Temperature Alarm**
+
+Save the rule chain.
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/enrich-alarms-with-details/create-clear-alarms-with-details-4.png',
+    alt: 'Create & Clear Alarms with Details rule chain',
+    caption: 'Inside the <strong>Create & Clear Alarms with Details</strong> rule chain, use a <strong>script</strong> node (e.g., <code>Temperature Range Filter</code>) to route messages for alarm creation (<strong>True</strong>) and clearing (<strong>False</strong>).'
+  },
+]} />
+
+## Step 2. Route telemetry to the rule chain
+
+In the **Root Rule Chain**, add a <DocLink product={props.product} path="reference/rule-engine/nodes/flow/rule-chain" target="_blank">Rule Chain</DocLink> node connected to the <DocLink product={props.product} path="reference/rule-engine/nodes/action/save-timeseries/" target="_blank">Save Timeseries</DocLink> node with relation type **Success**:
+- **Name**: `Create & Clear Alarms with Details`
+- **Rule Chain**: `Create & Clear Alarms with Details`
+
+Save the rule chain.
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/enrich-alarms-with-details/update-root-rule-chain-1.png',
+    alt: 'Rule chain configuration for Create & Clear Alarms with Details',
+    caption: 'Open the <strong>Root Rule Chain</strong> and add a <strong>Rule Chain</strong> node that points to <code>Create & Clear Alarms with Details</code>.'
+  },
+  {
+    src: '/src/assets/images/recipes/enrich-alarms-with-details/update-root-rule-chain-2.png',
+    alt: 'Root rule chain connected to Create & Clear Alarms with Details',
+    caption: 'Connect the <strong>Save Timeseries</strong> node to the <strong>Create & Clear Alarms with Details</strong> rule chain to process alarm creation and clearing with preserved details.'
+  },
+]} />
+
+## Step 3. Configure the dashboard
+
+To display alarm details in the widget, download the attached <a href="/resources/docs/recipes/enrich-alarms-with-details/thermostat_alarms_dashboard.json" download="thermostat_alarms_dashboard.json"><strong>JSON file</strong></a> for the dashboard and <DocLink product={props.product} path="user-guide/dashboards/#import-dashboard" target="_blank">import</DocLink> it.
+
+<Aside type="note">
+  The dashboard is pre-configured for devices with the `thermostat` device type. If you are using a custom device type, open the alarms widget, go to its alarm source, and update the entity filter to match your device type.
+</Aside>
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/enrich-alarms-with-details/configure-dashboard-1.png',
+    alt: 'Thermostat dashboard alarms view',
+    caption: 'Import the <strong>Thermostat Dashboard</strong>, which will display the event temperature, events count, and cleaning temperature.'
+  },
+]} />
+
+<Aside type="tip">
+  See the <DocLink product={props.product} path="user-guide/dashboards/" target="_blank">dashboards</DocLink> documentation for instructions on creating a dashboard and adding an <DocLink product={props.product} path="user-guide/alarms/#alarm-widgets" target="_blank">alarm widget</DocLink>.
+</Aside>
+
+## Step 4. Test the setup
+
+Use `curl` to publish telemetry to **Thermostat A1**. Replace `$ACCESS_TOKEN` with the device access token.
+
+**Trigger the alarm** — publish a temperature above 15 °C:
+
+<HostCode product={props.product} lang="bash" code={`curl -v -X POST -d '{"temperature":25}' https://{HTTP_HOST}/api/v1/$ACCESS_TOKEN/telemetry --header "Content-Type:application/json"`} />
+
+The alarm is created with `details.temperature = 25` and `details.count = 1`.
+
+**Update the alarm** — publish another out-of-range value:
+
+<HostCode product={props.product} lang="bash" code={`curl -v -X POST -d '{"temperature":28}' https://{HTTP_HOST}/api/v1/$ACCESS_TOKEN/telemetry --header "Content-Type:application/json"`} />
+
+The alarm is updated: `details.temperature = 28`, `details.count = 2`.
+
+**Clear the alarm** — publish a value within the normal range:
+
+<HostCode product={props.product} lang="bash" code={`curl -v -X POST -d '{"temperature":12}' https://{HTTP_HOST}/api/v1/$ACCESS_TOKEN/telemetry --header "Content-Type:application/json"`} />
+
+The alarm is cleared with `details.clearedTemperature = 12` appended to the existing details.
+
+<MultiProductImageGallery product={props.product} images={[
+  {
+    src: '/src/assets/images/recipes/enrich-alarms-with-details/test-the-setup-1.png',
+    alt: 'Alarm triggered with initial temperature',
+    caption: 'Send telemetry with a temperature value outside the configured range (e.g., 25) to trigger a <strong>Temperature Out of Range</strong> alarm. The dashboard displays the event temperature and initializes the events counter.'
+  },
+  {
+    src: '/src/assets/images/recipes/enrich-alarms-with-details/test-the-setup-2.png',
+    alt: 'Alarm updated with new temperature',
+    caption: 'Send another out-of-range value (e.g., 28). The existing alarm is updated, increasing the <strong>events count</strong> and reflecting the latest event temperature.'
+  },
+  {
+    src: '/src/assets/images/recipes/enrich-alarms-with-details/test-the-setup-3.png',
+    alt: 'Alarm cleared with normalized temperature',
+    caption: 'Send a value within the normal range (e.g., 12) to clear the alarm. The dashboard shows the <strong>cleared status</strong> and records the <strong>alarm cleared temperature</strong>.'
+  },
+]} />
+
+## See also
+
+- <DocLink product={props.product} path="recipes/create-clear-alarms">Create and Clear Alarms</DocLink> — alarm rules approach without rule engine customization
+- <DocLink product={props.product} path="recipes/send-email-alarm">Send email on alarm</DocLink> — extend alarm processing with email notifications
+- <DocLink product={props.product} path="user-guide/alarms">Alarms</DocLink> — full alarm lifecycle reference

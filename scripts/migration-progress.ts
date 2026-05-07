@@ -154,9 +154,7 @@ function classifyPath(path: string): string {
 async function testUrl(path: string): Promise<PageResult> {
 	const url = `${LOCAL_BASE}${path}`;
 	try {
-		const res = await fetch(url, { method: 'GET', redirect: 'follow' });
-		// Consume body to free resources
-		await res.text();
+		const res = await fetch(url, { method: 'HEAD', redirect: 'follow' });
 		return { path, status: res.status, migrated: res.status === 200 };
 	} catch {
 		return { path, status: 'error', migrated: false };

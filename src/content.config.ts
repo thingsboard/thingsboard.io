@@ -1,15 +1,21 @@
 import { docsLoader, i18nLoader } from '@astrojs/starlight/loaders';
 import { docsSchema, i18nSchema } from '@astrojs/starlight/schema';
-import { defineCollection, z, type CollectionEntry } from 'astro:content';
-import { file } from 'astro/loaders';
+import { defineCollection, type CollectionEntry } from 'astro:content';
+import { z } from 'astro/zod';
+import { file, glob } from 'astro/loaders';
 import { logoKeys } from './data/logos';
 import { Products } from './models/site.models';
-import fs from 'node:fs';
-import path from 'node:path';
+import { PLATFORM_VALUES, type DevicePlatform } from './util/device-platform';
+
+export { PLATFORM_VALUES };
+export type { DevicePlatform };
 
 export const baseSchema = z.object({
 	type: z.literal('base').optional().default('base'),
-	githubURL: z.string().url().optional(),
+	description: z.string().optional(),
+	selfCanonical: z.boolean().optional(),
+	canonicalUrl: z.string().optional(),
+	githubURL: z.url().optional(),
 	hasREADME: z.boolean().optional(),
 	hero: z
 		.object({
@@ -25,7 +31,7 @@ export const baseSchema = z.object({
 					}),
 					z.object({
 						type: z.literal('dashboard'),
-						product: z.nativeEnum(Products),
+						product: z.enum(Products),
 					}),
 				])
 				.optional(),
@@ -67,7 +73,7 @@ export const integrationSchema = baseSchema.extend({
 			'"title" must start with "@astrojs/" for integration docs.'
 		),
 	category: z.enum(['renderer', 'adapter', 'other']),
-	githubIntegrationURL: z.string().url(),
+	githubIntegrationURL: z.url(),
 });
 
 export const migrationSchema = baseSchema.extend({
@@ -89,23 +95,46 @@ export const recipeSchema = baseSchema.extend({
 
 export const deviceSchema = z.object({
 	title: z.string(),
+	description: z.string(),
 	vendor: z.string().optional(),
-	deviceImageFileName: z.string(),
-	hardwareType: z.string(),
+	deviceImageFileName: z.string().default('placeholder.svg'),
+	hardwareType: z.string().default('Other devices'),
 	connectivity: z
 		.array(z.string())
 		.or(z.string())
-		.transform((v) => (Array.isArray(v) ? v : [v])),
+		.transform((v) => (Array.isArray(v) ? v : [v]))
+		.default([]),
 	industry: z
 		.array(z.string())
 		.or(z.string())
-		.transform((v) => (Array.isArray(v) ? v : [v])),
+		.transform((v) => (Array.isArray(v) ? v : [v]))
+		.default([]),
 	useCase: z
 		.array(z.string())
 		.or(z.string())
-		.transform((v) => (Array.isArray(v) ? v : [v])),
+		.transform((v) => (Array.isArray(v) ? v : [v]))
+		.default([]),
 	chip: z.string().optional(),
 	category: z.string().optional(),
+	platforms: z
+		.array(z.enum(PLATFORM_VALUES))
+		.default(['ThingsBoard']),
+});
+
+export const blogSchema = z.object({
+	title: z.string(),
+	description: z.string(),
+	date: z.coerce.date(),
+	updatedDate: z.coerce.date().optional(),
+	author: z.string(),
+	categories: z
+		.array(z.string())
+		.or(z.string())
+		.transform((v) => (Array.isArray(v) ? v : [v])),
+	featuredImage: z.string(),
+	featuredImageAlt: z.string().default(''),
+	draft: z.boolean().default(false),
+	excludeFromCarousel: z.boolean().default(false),
 });
 
 export const docsCollectionSchema = z.union([
@@ -130,11 +159,11 @@ export type DocsEntryData = z.infer<typeof docsCollectionSchema>;
 export type DocsEntryType = DocsEntryData['type'];
 
 export type DocsEntry<T extends DocsEntryType> = CollectionEntry<'docs'> & {
-	data: Extract<DocsEntryData, { type: T }>;
+	data: { title: string } & Extract<DocsEntryData, { type: T }>;
 };
 
 export function createIsDocsEntry<T extends DocsEntryType>(type: T) {
-	return (entry: CollectionEntry<'docs'>): entry is DocsEntry<T> => entry.data.type === type;
+	return (entry: CollectionEntry<'docs'>): entry is DocsEntry<T> => (entry.data as DocsEntryData).type === type;
 }
 
 export type DeployEntry = DocsEntry<'deploy'>;
@@ -170,8 +199,21 @@ export const isMigrationEntry = createIsDocsEntry('migration');
 export const isRecipeEntry = createIsDocsEntry('recipe');
 
 export const collections = {
+	blog: defineCollection({
+		loader: glob({ pattern: '**/*.mdx', base: './src/content/blog' }),
+		schema: blogSchema,
+	}),
 	docs: defineCollection({
-		loader: docsLoader(),
+		// Default Astro slug derivation runs each path segment through `github-slugger`,
+		// which strips dots (only `[a-z0-9-]` survives). Override to preserve dotted
+		// filenames like `…-before-v1.7.mdx` so the URL keeps the version separator.
+		// Mirrors the default behaviour for `slug:` frontmatter overrides.
+		loader: docsLoader({
+			generateId: ({ entry, data }) => {
+				if (typeof data.slug === 'string') return data.slug;
+				return entry.replace(/\.(md|mdx|mdoc)$/, '').replace(/(?:^|\/)index$/, '');
+			},
+		}),
 		schema: docsSchema({ extend: docsCollectionSchema }),
 	}),
 	i18n: defineCollection({
@@ -200,7 +242,6 @@ export const collections = {
 				'since.addedIn': z.string().default('Added in:'),
 				'since.new': z.string().default('New'),
 				'since.beta': z.string().default('Beta'),
-				'docsearch.button': z.string().default('Search'),
 				'backend.navTitle': z.string().default('More backend guides'),
 				'cms.navTitle': z.string().default('More CMS guides'),
 				'deploy.altSectionTitle': z.string().default('More deploy guides'),
@@ -208,8 +249,6 @@ export const collections = {
 				'deploy.ssrTag': z.string().default('SSR'),
 				'media.navTitle': z.string().default('More media guides'),
 				'migration.navTitle': z.string().default('More migration guides'),
-				'404.content': z.string().default("We couldn't find what you were looking for."),
-				'404.linkText': z.string().default('Take me home.'),
 				'install.autoTab': z.string().default('Automatic CLI'),
 				'install.manualTab': z.string().default('Manual Setup'),
 				'starlight.title': z.string().default('Wanna build docs?'),
@@ -273,13 +312,15 @@ export const collections = {
 		schema: z.object({ avatar_url: z.string() }),
 	}),
 	devices: defineCollection({
-		loader: async () => {
-			// loader: glob({ pattern: '**/*.mdx', base: './src/content/devices' }),
-			const filePath = path.join(process.cwd(), 'src/data/devices.json');
-			const fileContent = fs.readFileSync(filePath, 'utf-8');
-			const data = JSON.parse(fileContent);
-			return data;
-		},
+		loader: glob({
+			pattern: '**/*.mdx',
+			base: './src/content/devices',
+			// Preserve filename case in the generated id so device URLs match the
+			// source filename (e.g. `raspberry-pi-3-model-B-plus`). The default
+			// `generateId` lowercases via github-slugger, which collides with the
+			// legacy redirect targets that use the original casing.
+			generateId: ({ entry }) => entry.replace(/\.mdx$/, ''),
+		}),
 		schema: deviceSchema,
 	}),
 };

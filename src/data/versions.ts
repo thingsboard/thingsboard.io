@@ -16,22 +16,25 @@ export const CE_BRANCH = 'release-4.3';
 export const PE_FULL_VER = '4.3.0.1PE';
 
 /** Trendz Analytics */
-export const TRENDZ_VER = '1.15.0.5';
+export const TRENDZ_VER = '1.15.1';
 
 /** Edge */
-export const EDGE_VER = '4.3.0.1';
+export const EDGE_VER = '4.3.1.1';
 
 /** Edge release branch (for git clone, X.Y format) */
 export const EDGE_BRANCH = 'release-4.3';
 
 /** Edge Professional Edition */
-export const EDGE_PE_VER = '4.3.0.1EDGEPE';
+export const EDGE_PE_VER = '4.3.1.1EDGEPE';
 
 /** Edge PE release branch (for git clone, X.Y.Z format) */
 export const EDGE_PE_BRANCH = 'release-4.3.0';
 
 /** TBMQ Broker */
-export const TBMQ_VER = '2.2.0';
+export const TBMQ_VER = '2.3.0';
 
 /** TBMQ Broker Professional Edition */
-export const TBMQ_PE_VER = '2.2.0PE';
+export const TBMQ_PE_VER = '2.3.0PE';
+
+/** TBMQ Broker release branch (for installation scripts) */
+export const TBMQ_BRANCH = 'release-2.3.0';

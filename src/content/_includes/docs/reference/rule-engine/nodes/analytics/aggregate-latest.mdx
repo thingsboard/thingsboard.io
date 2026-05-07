@@ -5,85 +5,117 @@ import { Aside } from '@astrojs/starlight/components';
   This node requires **ThingsBoard PE** or **ThingsBoard Cloud**.
 </Aside>
 
-Use this node to periodically aggregate attribute or time-series values from child entities and store the results as telemetry on the parent entities — for example, computing the average temperature across all sensors in a building and posting it to the building asset every minute, or counting active devices in a fleet and writing the count to a fleet asset.
+Use this node to aggregate the latest attribute or time‑series values of an entity's related entities and emit the result as an outgoing telemetry message for that entity — for example, computing the average temperature across all sensors located in a building and posting it to the building asset whenever a sensor reports new data, or counting the active devices related to a fleet asset.
+The node is **event‑driven**: every incoming message triggers a fresh aggregation pass for the message originator. To protect the database from bursts, the node deduplicates calculations per originator within a configurable window.
+
+<Aside type="note">
+  An older periodic *aggregate latest (deprecated)* variant is still available for legacy rule chains. It runs on a timer instead of on incoming messages and exposes a different *Single entity / Group / Relations query* parent selection. New rule chains should use the node described here.
+</Aside>
+
+---
+
+## Concepts
+
+**Source entity (originator).** The originator of the incoming message. The aggregation result is emitted as outgoing telemetry for this entity.
+
+**Related entity.** An entity reached from the source via a single‑hop relation matching the configured *Direction* and *Relation type*. The aggregator iterates over these related entities and reads their attributes / latest time‑series values.
+
+**Mapping.** One `(source key on related entity → aggregation function → target key on the originator)` rule. A node can carry several mappings; each runs independently per incoming message.
+
+**Deduplication period.** A per‑originator cool‑down window. If new messages for the same originator arrive while the window is open, only the latest one is kept; when the window closes, exactly one calculation is run for that originator. Prevents one‑message‑in / one‑calc‑out blow‑ups when many sensors update at once.
+
+---
 
 ## Configuration
 
-- **Execution period value / time unit** — required. How often to run the aggregation task.
+The fields below follow the order of the rule node editor.
 
-### Entities
+### General
 
-Specifies which parent entities receive the aggregation results:
-
-- **Single entity** — one specific entity.
-- **Group of entities** — all members of a specific entity group.
-- **Relations query** — entities found by a relations query starting from a root entity.
-
-### Child entities
-
-Specifies which child entities to aggregate values from:
-
-- For **Single entity** and **Relations query**: configure a **Relations query** to find children starting from each parent entity.
-- For **Group of entities**: child entities are the group members themselves.
+| Field | Required | Description |
+|-------|----------|-------------|
+| **Name** | Yes | Display name of the rule node. |
+| **Direction** | Yes | `From` — related entities are the targets of relations whose source is the originator (originator points at them). `To` — related entities are the sources of relations whose target is the originator (they point at the originator). |
+| **Relation type** | Yes | The relation type to follow, for example `Contains` or `Manages`. Only relations of this type are considered. |
+| **Deduplication period (sec)** | Yes | Minimum time between two aggregations for the same originator. Minimum effective value is 10 seconds. The deduplication algorithm is described below. |
 
 ### Aggregate latest mappings
 
-A table of mapping configurations, each defining one aggregation:
+A list of mapping rows. Add rows with **+ Add**, edit with the pencil icon, remove with the cross icon. Each row defines one `(source → aggregation → target)` rule applied to every related entity for every incoming message.
 
 | Field | Description |
-|---|---|
-| **Latest telemetry** | When checked, aggregate the latest time-series value; when unchecked, aggregate an attribute |
-| **Source telemetry/attribute** | Key name of the child value to aggregate |
-| **Attribute scope** | Attribute scope (`CLIENT_SCOPE`, `SHARED_SCOPE`, `SERVER_SCOPE`) — only when aggregating attributes |
-| **Default value** | Numeric value used when the source is absent for a child entity |
-| **Aggregation function** | `Minimum`, `Maximum`, `Sum`, `Average`, `Count`, `Count unique` |
-| **Target telemetry** | Key name on the parent entity where the result is stored |
-| **Filter entities** | When enabled, apply a JavaScript filter to child entities before aggregation |
-| **Entity filter** | List of attribute/telemetry keys to fetch + a JS function returning `true`/`false`; fetched values use scope prefixes: `shared_`, `cs_`, `ss_` (telemetry: no prefix) |
+|-------|-------------|
+| **Latest telemetry** | When checked, the source is the related entity's latest time‑series value for the given key. When unchecked, the source is an attribute. |
+| **Source telemetry/attribute** | Key name read from each related entity. |
+| **Attribute scope** | `CLIENT_SCOPE`, `SHARED_SCOPE`, or `SERVER_SCOPE`. Applicable only when aggregating attributes. |
+| **Default value** | Numeric value used in place of a missing source on a related entity. |
+| **Aggregation function** | `Minimum`, `Maximum`, `Sum`, `Average`, `Count`, `Count unique`. |
+| **Target telemetry** | Key name on the originator entity where the result is written. |
+| **Filter entities** | When enabled, applies a JavaScript / TBEL filter to each related entity before it contributes to the aggregation. |
+| **Entity filter** | List of attribute / latest telemetry keys to fetch and a script function returning `true` / `false`. Fetched values are exposed in the function under scope prefixes: `cs_` for client attributes, `shared_` for shared attributes, `ss_` for server attributes; latest telemetry values are exposed without a prefix. |
+
+### Output
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| **Output message type** | Yes | Type used for outgoing aggregate messages. Defaults to `POST_TELEMETRY_REQUEST`. Selecting a built‑in type fills *Message type value* automatically; selecting *Custom* lets you type any string. |
+
+### Queue
+
+Optional. Selects a rule engine queue for outgoing messages. If empty, the `Main` queue is used.
+
+### Rule node description
+
+Optional free‑text note shown in the rule chain editor. Has no effect on processing.
+
+---
 
 ## Message processing algorithm
 
-1. At each execution interval, collect the set of parent entities per the **Entities** configuration.
-2. For each parent entity, resolve child entities via the **Relations query** (or group members).
-3. Apply the entity filter if configured.
-4. For each mapping row: fetch the source key from each child entity, apply the aggregation function across all children (using the default value for absent keys), and write the result as a `POST_TELEMETRY_REQUEST` to the parent entity.
-5. Route the generated message via `Success` for each parent entity. If any aggregation fails, route a failure message via `Failure` with the failure reason.
+For each incoming message:
+
+1. Look up the in‑flight state for `originator = msg.getOriginator()`.
+   - If no calculation has been run for this originator yet, or the previous one happened more than *Deduplication period* seconds ago, **start a calculation immediately** with this message.
+   - Otherwise, **stash the message as the pending message** for this originator and schedule a calculation at the next deduplication boundary. Any further messages for the same originator that arrive during the window simply replace the pending message — only the latest one is processed.
+   - The incoming message is acked in either case.
+2. When a calculation runs, the node:
+   - resolves the related entities by querying relations of the configured *Relation type* in the configured *Direction* starting from the originator;
+   - prefetches all required attributes / latest time‑series in one batch (per scope and per latest‑ts key list collected from all mappings);
+   - for each mapping row, drops related entities for which the optional *Entity filter* returns `false`, applies the aggregation function across the rest using the configured *Default value* for missing sources, and writes the result under *Target telemetry* in the outgoing payload;
+   - emits one outgoing message of the configured *Output message type*, originated by the source entity, on the *Success* branch.
+3. Inactive originator entries (no message for ≥ 3 × *Deduplication period*) are evicted from the in‑memory map by an internal cleanup tick.
+
+---
 
 ## Output connections
 
 | Connection | Condition |
 |------------|-----------|
-| `Success` | Generated `POST_TELEMETRY_REQUEST` message for each parent entity with the aggregated value. |
-| `Failure` | Aggregation failed for a parent entity; failure message contains the reason. |
+| `Success` | Aggregation completed; one message per triggering originator with the aggregated values under the configured *Target telemetry* keys. |
+| `Failure` | Aggregation failed for the originator (e.g. relation lookup or attribute fetch threw an error). |
 
-## JSON schema
+---
 
-```json maxLines=25 collapsible
+## Effects on time‑series DB write volume
+
+The node itself does not write telemetry — outgoing messages must be routed to a Save Time Series node downstream. Each calculation produces **one outgoing message per originator**, regardless of how many incoming messages were merged inside the deduplication window. Lowering the deduplication period multiplies write volume; raising it caps the calc rate at one per period per originator.
+
+Per calculation the node also **reads** from the database: relations for the originator, plus latest time‑series and attribute lookups for every related entity (batched per scope across all mappings). When you have many mappings on the same scope, the cost is paid once for the prefetch and reused across mappings.
+
+---
+
+## Example — Average temperature across building sensors
+
+**Configuration:** Direction = `From`, Relation type = `Contains`, Deduplication period = `10` sec, one mapping with *Latest telemetry* checked, *Source* = `temperature`, *Aggregation function* = `Average`, *Target* = `latestAvgTemperature`. Place the node downstream of the rule chain branch that processes building telemetry.
+
+**Trigger:** the building asset receives any message (typically a telemetry update from one of its sensors, routed via Originator Attributes / relations propagation).
+
+**Result:** at most once every 10 seconds per building, one outgoing message is emitted, originated by the building, with:
+
+```json maxLines=15 collapsible
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "TbAggregateLatestNodeConfiguration",
-  "type": "object",
-  "additionalProperties": true,
-  "properties": {
-    "period": { "type": "integer", "description": "Execution period value." },
-    "periodTimeUnit": { "type": "string", "description": "Time unit for the execution period." },
-    "entitiesType": { "type": "string", "enum": ["SINGLE", "GROUP", "RELATIONS_QUERY"] },
-    "childEntitiesRelationsQuery": { "type": "object", "description": "Relations query to find child entities." },
-    "mappings": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "latestTelemetry": { "type": "boolean" },
-          "sourceKey": { "type": "string" },
-          "attributeScope": { "type": "string" },
-          "defaultValue": { "type": "number" },
-          "aggregation": { "type": "string", "enum": ["MIN", "MAX", "SUM", "AVG", "COUNT", "COUNT_UNIQUE"] },
-          "targetKey": { "type": "string" },
-          "filterEntities": { "type": "boolean" }
-        }
-      }
-    }
-  }
+  "latestAvgTemperature": 22.3
 }
 ```
+
+Wire *Success* into a Save Time Series node to persist the rolling building‑level average alongside per‑sensor readings.

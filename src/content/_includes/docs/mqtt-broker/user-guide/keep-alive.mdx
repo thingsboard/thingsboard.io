@@ -1,0 +1,59 @@
+import { Aside } from '@astrojs/starlight/components';
+import DocLink from '@components/DocLink.astro';
+
+The Keep Alive feature ensures a client remains connected even when no messages are exchanged — it acts as a heartbeat mechanism between the client and the broker.
+The Keep Alive value is set by the client as a time interval between 0 and 65,535 seconds (up to 18 hours, 12 minutes, and 15 seconds).
+If the broker does not receive any MQTT packet from the client within 1.5 times the Keep Alive period, it closes the connection.
+
+## Half-open TCP connections in MQTT
+
+A half-open TCP connection occurs when one side of the connection believes it is still active while the other side has already closed it — for example, due to a network failure, device crash, or intermediate firewall dropping the session silently.
+In standard TCP, neither side is automatically notified of such failures, which can leave stale connections occupying broker resources indefinitely.
+The Keep Alive mechanism mitigates this problem by requiring the client to prove it is still alive at regular intervals, allowing the broker to detect and clean up dead connections.
+
+## How Keep Alive works
+
+The Keep Alive value is declared in the `CONNECT` packet.
+For example, if a client sets Keep Alive to 60 seconds, it must send at least one MQTT packet to the broker within every 90 seconds (60 × 1.5).
+
+If no application messages are being sent, the client sends a `PINGREQ` packet and the broker responds with a `PINGRESP` to confirm the connection is alive.
+
+If the broker does not receive any packet within the 1.5× window, it terminates the connection and triggers the client's <DocLink product={props.product} path="user-guide/last-will">Last Will</DocLink> message, if one was configured.
+
+The TBMQ broker checks Keep Alive timeouts using the `MQTT_KEEP_ALIVE_MONITORING_DELAY_MS` environment variable, which by default checks every second.
+When a timeout is detected, the broker closes the connection with the reason `KEEP_ALIVE_TIMEOUT`.
+
+## When to turn off Keep Alive
+
+Setting the Keep Alive value to `0` disables the mechanism entirely.
+The client is not required to send periodic `PINGREQ` packets and the broker will not monitor the connection for inactivity.
+
+For example, a device that transmits data at a fixed regular rate may not need Keep Alive, since the frequent data traffic inherently keeps the connection active.
+
+Key implications of disabling Keep Alive:
+
+- **No periodic ping** — the broker treats the connection as always active unless explicitly disconnected.
+- **Risk of undetected disconnections** — if the client disconnects unexpectedly due to a network failure, the broker will not detect it until it attempts to send a message to the client.
+
+<Aside type="caution">
+  Keep the Keep Alive mechanism enabled.
+  Only disable it if absolutely necessary and you fully understand the implications.
+</Aside>
+
+## When to use Keep Alive
+
+Keep Alive is especially valuable in environments where connections may be unreliable or intermittent:
+
+- **Smart home**: Devices such as thermostats, lights, or door sensors are often connected over Wi-Fi networks that can drop briefly. Keep Alive ensures the broker detects and cleans up stale connections quickly rather than leaving ghost sessions open.
+- **Smart farming**: Field sensors deployed in remote locations may experience connectivity gaps due to terrain or poor signal. Keep Alive allows the broker to identify when a sensor has gone silent and trigger a Last Will alert to notify the monitoring system.
+
+## Client take-over in MQTT
+
+Client take-over occurs when a new client connects to the broker using the same `clientId` as an existing active session.
+When this happens, the broker terminates the old network connection and allows the new connection to take over the session.
+
+This mechanism ensures that only one instance of a client is active at any given time, which helps avoid conflicting sessions or duplicate messages.
+It is also a normal part of session management — for example, a device that reboots and reconnects will resume its session without the previous connection blocking it.
+If the original client was disconnected without the broker's knowledge (e.g., due to a half-open TCP connection), the new connection forcefully closes the outdated session and establishes a fresh one.
+
+Note that client take-over does **not** trigger the Last Will of the displaced connection, as the session itself continues under the new network connection.

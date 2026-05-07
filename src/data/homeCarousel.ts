@@ -17,7 +17,7 @@ export const homeCarouselItems: CarouselItem[] = [
 		description:
 			'Deliver and store data from smart meters in reliable and fault-tolerant way, visualize real-time and historical energy consumption data on customizable end-user dashboards, integrate with third-party analytics frameworks and solutions.',
 		linkLabel: 'Smart energy use case',
-		href: '/smart-energy/',
+		href: '/use-cases/smart-energy/',
 		width: 1920,
 		height: 866,
 	},
@@ -28,7 +28,7 @@ export const homeCarouselItems: CarouselItem[] = [
 		description:
 			'Collect important indicators for your agricultural production such as soil conditions or facilities state via IoT sensors and visualize them using end-user customizable dashboards provided by ThingsBoard platform.',
 		linkLabel: 'Smart farming use case',
-		href: '/smart-farming/',
+		href: '/use-cases/smart-farming/',
 		width: 1920,
 		height: 866,
 	},
@@ -39,7 +39,7 @@ export const homeCarouselItems: CarouselItem[] = [
 		description:
 			'ThingsBoard platform allows to track vehicles state and alerts via various sensors, plot vehicle routes in real-time and browse their sensors reading history at the same time using customizable high quality widgets and dashboards.',
 		linkLabel: 'Fleet tracking use case',
-		href: '/fleet-tracking/',
+		href: '/use-cases/site-fleet-tracking/',
 		width: 1920,
 		height: 866,
 	},
@@ -50,7 +50,7 @@ export const homeCarouselItems: CarouselItem[] = [
 		description:
 			'Collect, store and aggregate data from smart meters in reliable and fault-tolerant way. Analyze resource consumption and raise alerts on leakage, anomaly or fraud. Present results of the analysis to end users.',
 		linkLabel: 'Smart metering use case',
-		href: '/smart-metering/',
+		href: '/use-cases/smart-metering/',
 		width: 1920,
 		height: 866,
 	},

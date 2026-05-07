@@ -39,6 +39,7 @@ function findLinkIssuesOnPage(
 			page,
 			checkSingleLinkHref,
 			buildOutputDir: options.buildOutputDir,
+			consolidationPatterns: options.consolidationPatterns || [],
 			report: (issueData) => {
 				// Do not add the issue found in the HTML build output
 				// if it was just autofixed in the source file

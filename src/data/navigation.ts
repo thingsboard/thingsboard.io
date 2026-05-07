@@ -28,7 +28,7 @@ export interface SubMenu {
 export const mainNavItems: NavItem[] = [
 	{ label: 'Products', submenuId: 'nav-products' },
 	{ label: 'Services', submenuId: 'nav-services' },
-	{ label: 'Use Cases', href: '/iot-use-cases/', submenuId: 'nav-cases' },
+	{ label: 'Use Cases', href: '/use-cases/', submenuId: 'nav-cases' },
 	{ label: 'Customers', submenuId: 'nav-customers' },
 	{ label: 'Company', submenuId: 'nav-company' },
 	{ label: 'Partners', submenuId: 'nav-partners' },
@@ -327,6 +327,12 @@ export const partnersSubmenu: SubMenu = {
 		{
 			items: [
 				{
+					href: '/partners/affiliate/',
+					icon: '/src/assets/images/landings/nav/affiliate-s-icon.svg',
+					heading: 'Affiliate Program',
+					linkClass: 'small-link',
+				},
+				{
 					href: '/partners/hardware/',
 					icon: '/src/assets/images/landings/nav/hard-s-icon.svg',
 					heading: 'Hardware partners',
@@ -397,7 +403,7 @@ export const docsSubmenu: SubMenu = {
 					linkClass: 'mobile-lnk',
 				},
 				{
-					href: '/docs/pe/mobile/',
+					href: '/docs/mobile/pe/',
 					heading: 'PE Mobile Application',
 					description: 'Advanced IoT mobile product',
 					linkClass: 'mobile-pe-lnk',

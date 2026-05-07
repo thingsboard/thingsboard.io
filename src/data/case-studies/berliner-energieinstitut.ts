@@ -2,7 +2,7 @@ import type { CaseStudyData } from './types';
 
 export const berlinerEnergieinstitutData: CaseStudyData = {
 	title: 'Berliner Energieinstitut Modernizes Energy IoT with ThingsBoard',
-	pageTitle: 'Berliner Energieinstitut Modernizes Energy IoT with ThingsBoard',
+	pageTitle: 'Berliner Energieinstitut Modernizes Energy IoT',
 	description:
 		"Learn how Berliner Energieinstitut launched a fully custom energy IoT solution in weeks using ThingsBoard's open-source platform and rapid development support.",
 	pageSlug: 'berliner-energieinstitut',

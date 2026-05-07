@@ -1,0 +1,353 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Products } from '~/models/site.models';
+
+## Possible performance issues
+
+### No Message Processing
+
+If you are using `RETRY_ALL`, `RETRY_FAILED`, `RETRY_TIMED_OUT`, or `RETRY_FAILED_AND_TIMED_OUT` strategy for some rule-engine queue, it is possible that some failed node could block the whole processing of the messages in this queue.
+
+Here what you can do to find the reason of the issue:
+
+- Analyze the <DocLink product={props.product} path="user-guide/rule-engine/monitoring#statistics">Rule Engine Statistics Dashboard</DocLink>. Here you can find out if some of your messages failed or timed out. Also at the bottom of the dashboard you can find the description of exceptions inside the rule-engine with the name of the problematic rule-node.
+
+- After finding out what rule-node is failing you can <DocLink product={props.product} path="user-guide/rule-engine/monitoring#debug">enable DEBUG</DocLink> and see what messages cause the failure of the rule-node and look at the detailed error description.
+
+**Tip:** Separate unstable and test use-cases from other rule-engine by creating a separate queue. In this case failure will only affect the processing of this separate queue, and not the whole system. You can configure this logic to happen automatically for the device by using the <DocLink product={props.product} path="user-guide/device-profiles#queue">Device Profile</DocLink> feature.
+
+**Tip:** Handle **Failure** events for all rule-nodes that connect to some external service (REST API call, Kafka, MQTT etc). This way you guarantee that your rule-engine processing won't stop in case of some failure on the side of external system. You can store failed message in DB, send some notification or just **log** message.
+
+### Growing Latency For Messages
+
+Sometimes you can experience growing latency of message processing inside the rule-engine. Here are the steps you can take to discover the reason for the issue:
+
+- Check if there are timeouts in the <DocLink product={props.product} path="user-guide/rule-engine/monitoring#statistics">Rule Engine Statistics Dashboard</DocLink>. Timeouts in rule-nodes slow down the processing of the queue and can lead to latency.
+
+- [Check CPU usage](#cpumemory-usage) for the following services:
+  - ThingsBoard services (tb-nodes, tb-rule-engine and tb-core nodes, transport nodes). High CPU load on some services means that you need to scale up that part of the system.
+  - PostgreSQL and pgpool (if you are in **high-availability** mode). High load on Postgres can lead to slow processing of all Postgres-related rule-nodes (saving attributes, reading attributes etc), and the system in general.
+  - Cassandra (if you are using Cassandra as storage for timeseries data). High load on Cassandra can lead to slow processing of all Cassandra-related rule-nodes (saving timeseries etc).
+  - Queue. Regardless of the queue type, make sure that it always has enough resources.
+
+- Check [consumer-group lag](#consumer-group-message-lag-for-kafka-queue) (if you are using Kafka as queue).
+
+- Enable [Message Pack Processing Log](#message-pack-processing-log). It will allow you to see the name of the slowest rule-node.
+
+- Separate your use-cases by different queues. If some group of your devices should be processed separately from other devices, you should <DocLink product={props.product} path="user-guide/device-profiles#queue">configure a separate rule-engine queue</DocLink> for this group. Also, you can just separate messages based on some logic to different queues inside of the Root rule-engine. By doing this you guarantee that slow processing of one use-case will not affect the processing of the other use-case.
+
+## Troubleshooting instruments and tips
+
+### Rule Engine Statistics Dashboard
+
+You can see if there are any Failures, Timeouts or Exceptions during the processing of your rule-chain. More detailed information can be found in the <DocLink product={props.product} path="user-guide/rule-engine/monitoring#statistics">Rule Engine Statistics</DocLink> section.
+
+### Consumer group message lag for Kafka Queue
+
+<Aside type="note">This method can be used only if Kafka is selected as a queue.</Aside>
+
+With this metric you can identify if there is an issue with processing of your messages. Since the Queue is used for all messaging inside the system, you can analyze not only rule-engine queues but also **transport**, **core**, etc. For more detailed information about troubleshooting rule-engine processing using consumer-group lag, see the <DocLink product={props.product} path="user-guide/rule-engine/monitoring">Rule Engine Monitoring</DocLink> page.
+
+### CPU/Memory Usage
+
+Sometimes the problem is that you don't have enough resources for some service. You can view CPU and Memory usage by logging into your server/container/pod and executing the `top` Linux command.
+
+For more convenient monitoring, it is better to have Prometheus and Grafana configured.
+
+If you see that some services sometimes use 100% of the CPU, you should either scale the service horizontally by creating new nodes in the cluster or scale it vertically by increasing the total amount of CPU.
+
+### Message Pack Processing Log
+
+You can enable logging of the slowest and most frequently called rule-nodes. To do this you need to [update your logging configuration](#enable-certain-logs) with the following logger:
+
+```xml
+<logger name="org.thingsboard.server.service.queue.TbMsgPackProcessingContext" level="DEBUG" />
+```
+
+After this you can find the following messages in your [logs](#logs):
+
+```
+2021-03-24 17:01:21,023 [tb-rule-engine-consumer-24-thread-3] DEBUG o.t.s.s.q.TbMsgPackProcessingContext - Top Rule Nodes by max execution time:
+2021-03-24 17:01:21,024 [tb-rule-engine-consumer-24-thread-3] DEBUG o.t.s.s.q.TbMsgPackProcessingContext - [Main][3f740670-8cc0-11eb-bcd9-d343878c0c7f] max execution time: 1102. [RuleChain: Thermostat|RuleNode: Device Profile Node(3f740670-8cc0-11eb-bcd9-d343878c0c7f)]
+2021-03-24 17:01:21,024 [tb-rule-engine-consumer-24-thread-3] DEBUG o.t.s.s.q.TbMsgPackProcessingContext - [Main][3f6debf0-8cc0-11eb-bcd9-d343878c0c7f] max execution time: 1. [RuleChain: Thermostat|RuleNode: Message Type Switch(3f6debf0-8cc0-11eb-bcd9-d343878c0c7f)]
+2021-03-24 17:01:21,024 [tb-rule-engine-consumer-24-thread-3] INFO  o.t.s.s.q.TbMsgPackProcessingContext - Top Rule Nodes by avg execution time:
+2021-03-24 17:01:21,024 [tb-rule-engine-consumer-24-thread-3] INFO  o.t.s.s.q.TbMsgPackProcessingContext - [Main][3f740670-8cc0-11eb-bcd9-d343878c0c7f] avg execution time: 604.0. [RuleChain: Thermostat|RuleNode: Device Profile Node(3f740670-8cc0-11eb-bcd9-d343878c0c7f)]
+2021-03-24 17:01:21,025 [tb-rule-engine-consumer-24-thread-3] INFO  o.t.s.s.q.TbMsgPackProcessingContext - [Main][3f6debf0-8cc0-11eb-bcd9-d343878c0c7f] avg execution time: 1.0. [RuleChain: Thermostat|RuleNode: Message Type Switch(3f6debf0-8cc0-11eb-bcd9-d343878c0c7f)]
+2021-03-24 17:01:21,025 [tb-rule-engine-consumer-24-thread-3] INFO  o.t.s.s.q.TbMsgPackProcessingContext - Top Rule Nodes by execution count:
+2021-03-24 17:01:21,025 [tb-rule-engine-consumer-24-thread-3] INFO  o.t.s.s.q.TbMsgPackProcessingContext - [Main][3f740670-8cc0-11eb-bcd9-d343878c0c7f] execution count: 2. [RuleChain: Thermostat|RuleNode: Device Profile Node(3f740670-8cc0-11eb-bcd9-d343878c0c7f)]
+2021-03-24 17:01:21,028 [tb-rule-engine-consumer-24-thread-3] INFO  o.t.s.s.q.TbMsgPackProcessingContext - [Main][3f6debf0-8cc0-11eb-bcd9-d343878c0c7f] execution count: 1. [RuleChain: Thermostat|RuleNode: Message Type Switch(3f6debf0-8cc0-11eb-bcd9-d343878c0c7f)]
+```
+
+### Clearing Redis/Valkey Cache
+
+<Aside type="note">This can be used only if Redis or Valkey is selected as a cache.</Aside>
+
+It is possible that the data inside the cache has become corrupted. Regardless of the reason, it is always safe to clear the cache — ThingsBoard will simply refill it at runtime. To clear the cache, you need to log into the server/container/pod where it is deployed, open the application command-line tool (`redis-cli` for Redis and `valkey-cli` for Valkey), and run the `FLUSHALL` command. To clear the cache in Sentinel mode, access the master container and execute the cache-clearing command.
+
+If you are struggling to identify the reason for some problem, you can safely clear the cache to make sure it isn't the cause of the issue.
+
+## Logs
+
+### Read logs
+
+Regardless of the deployment type, ThingsBoard logs are stored on the same server/container as the ThingsBoard Server/Node in the following directory:
+
+```bash
+/var/log/thingsboard
+```
+
+Different deployment types provide different ways to view logs:
+
+<Tabs>
+  <TabItem label="Standalone">
+    View last logs in runtime:
+
+    ```bash
+    tail -f /var/log/thingsboard/thingsboard.log
+    ```
+
+    You can use the `grep` command to show only the output with the desired string in it.
+    For example you can use the following command to check if there are any errors on the backend side:
+
+    ```bash
+    cat /var/log/thingsboard/thingsboard.log | grep ERROR
+    ```
+  </TabItem>
+  <TabItem label="Docker Compose">
+    View last logs in runtime:
+
+    ```bash
+    docker compose logs -f tb-core1 tb-core2 tb-rule-engine1 tb-rule-engine2
+    ```
+
+    If you suspect the issue is related only to rule-engine, you can filter and view only the rule-engine logs:
+
+    ```bash
+    docker compose logs -f tb-rule-engine1 tb-rule-engine2
+    ```
+
+    You can use the `grep` command to show only the output with the desired string in it.
+    For example you can use the following command to check if there are any errors on the backend side:
+
+    ```bash
+    docker compose logs tb-core1 tb-core2 tb-rule-engine1 tb-rule-engine2 | grep ERROR
+    ```
+
+    **Tip:** you can redirect logs to a file and then analyze with any text editor:
+
+    ```bash
+    docker compose logs -f tb-rule-engine1 tb-rule-engine2 > rule-engine.log
+    ```
+
+    You can also log into the ThingsBoard container and view logs there:
+
+    ```bash
+    docker ps
+    docker exec -it NAME_OF_THE_CONTAINER bash
+    ```
+  </TabItem>
+  <TabItem label="Kubernetes">
+    View all pods of the cluster:
+
+    ```bash
+    kubectl get pods
+    ```
+
+    View last logs for the desired pod:
+
+    ```bash
+    kubectl logs -f POD_NAME
+    ```
+
+    To view ThingsBoard node logs use the command:
+
+    ```bash
+    kubectl logs -f tb-node-0
+    ```
+
+    You can use the `grep` command to show only the output with the desired string in it.
+    For example you can use the following command to check if there are any errors on the backend side:
+
+    ```bash
+    kubectl logs -f tb-node-0 | grep ERROR
+    ```
+
+    If you have multiple nodes you can redirect logs from all nodes to files on your machine and then analyze them:
+
+    ```bash
+    kubectl logs -f tb-node-0 > tb-node-0.log
+    kubectl logs -f tb-node-1 > tb-node-1.log
+    ```
+
+    You can also log into the ThingsBoard container and view logs there:
+
+    ```bash
+    kubectl exec -it tb-node-0 -- bash
+    cat /var/log/thingsboard/tb-node-0/thingsboard.log
+    ```
+  </TabItem>
+</Tabs>
+
+### Enable certain logs
+
+ThingsBoard provides the ability to enable/disable logging for certain parts of the system depending on what information you need for troubleshooting.
+
+You can do this by modifying the **logback.xml** file. Like the logs themselves, it is stored on the same server/container as the ThingsBoard Server/Node in the following directory:
+
+```bash
+/usr/share/thingsboard/conf
+```
+
+Here's an example of the **logback.xml** configuration:
+
+```xml
+<!DOCTYPE configuration>
+<configuration scan="true" scanPeriod="10 seconds">
+
+    <appender name="fileLogAppender"
+              class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>/var/log/thingsboard/thingsboard.log</file>
+        <rollingPolicy
+                class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>/var/log/thingsboard/thingsboard.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>3GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{ISO8601} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="org.thingsboard.server" level="INFO" />
+    <logger name="org.thingsboard.js.api" level="TRACE" />
+    <logger name="com.microsoft.azure.servicebus.primitives.CoreMessageReceiver" level="OFF" />
+
+    <root level="INFO">
+        <appender-ref ref="fileLogAppender"/>
+    </root>
+</configuration>
+```
+
+The most useful parts of the config file for troubleshooting are the _loggers_. They allow you to enable/disable logging for a certain class or group of classes. In the example above the default logging level is **INFO** (it means that logs will contain only general information, warnings and errors), but for the package `org.thingsboard.js.api` we enabled the most detailed level of logging. There's also a possibility to completely disable logs for some part of the system — in the example above we did it to `com.microsoft.azure.servicebus.primitives.CoreMessageReceiver` class using the **OFF** log-level.
+
+To enable/disable logging for some part of the system you need to add the appropriate `<logger>` entry to the configuration and wait up to 10 seconds.
+
+Different deployment types require different steps to apply the updated configuration:
+
+<Tabs>
+  <TabItem label="Standalone">
+    Update `/usr/share/thingsboard/conf/logback.xml` to change the logging configuration.
+  </TabItem>
+  <TabItem label="Docker Compose">
+    The `/config` folder inside the container is mapped to your local system (`./tb-node/conf` folder).
+    Update `./tb-node/conf/logback.xml` to change the logging configuration.
+  </TabItem>
+  <TabItem label="Kubernetes">
+    Kubernetes uses a **ConfigMap** to provide tb-nodes with logback configuration.
+    To update **logback.xml**:
+
+    ```bash
+    edit common/tb-node-configmap.yml
+    kubectl apply -f common/tb-node-configmap.yml
+    ```
+
+    After 10 seconds the changes will be applied to the logging configuration.
+  </TabItem>
+</Tabs>
+
+## Metrics
+
+You may enable Prometheus metrics by setting the environment variable `METRICS_ENABLED` to `true` and `METRICS_ENDPOINTS_EXPOSE` to `prometheus` in the configuration file.
+
+If you are running ThingsBoard as microservices with separate services for MQTT and CoAP transport, you also need to set `WEB_APPLICATION_ENABLE` to `true`, `WEB_APPLICATION_TYPE` to `servlet`, and `HTTP_BIND_PORT` to `8081` for MQTT and CoAP services in order to enable the web server with Prometheus metrics.
+
+These metrics are exposed at: `https://<yourhostname>/actuator/prometheus` (no authentication required).
+
+## Prometheus metrics
+
+Some internal state metrics can be exposed by the Spring Actuator using Prometheus. Here's the list of metrics ThingsBoard pushes to Prometheus.
+
+### tb-node metrics
+
+- `attributes_queue_{index_of_queue}` (statsNames — _totalMsgs, failedMsgs, successfulMsgs_): stats about writing **attributes** to the database. Note that there are several queues (threads) for persisting attributes in order to reach maximum performance.
+- `ruleEngine_{name_of_queue}` (statsNames — _totalMsgs, failedMsgs, successfulMsgs, tmpFailed, failedIterations, successfulIterations, timeoutMsgs, tmpTimeout_): stats about processing of the messages inside of the Rule Engine. They are persisted for each queue (e.g. Main, HighPriority, SequentialByOriginator etc). Some stats descriptions:
+  - _tmpFailed_: number of messages that failed and got reprocessed later
+  - _tmpTimeout_: number of messages that timed out and got reprocessed later
+  - _timeoutMsgs_: number of messages that timed out and were discarded afterwards
+  - _failedIterations_: iterations of processing messages pack where at least one message wasn't processed successfully
+- `ruleEngine_{name_of_queue}_seconds` (for each present _tenantId_): stats about the time message processing took for different queues.
+- _core_ (statsNames — _totalMsgs, toDevRpc, coreNfs, sessionEvents, subInfo, subToAttr, subToRpc, deviceState, getAttr, claimDevice, subMsgs_): stats about processing of the internal system messages. Some stats descriptions:
+  - _toDevRpc_: number of processed RPC responses from Transport services
+  - _sessionEvents_: number of session events from Transport services
+  - _subInfo_: number of subscription infos from Transport services
+  - _subToAttr_: number of subscribes to attribute updates from Transport services
+  - _subToRpc_: number of subscribes to RPC from Transport services
+  - _getAttr_: number of 'get attributes' requests from Transport services
+  - _claimDevice_: number of Device claims from Transport services
+  - _deviceState_: number of processed changes to Device State
+  - _subMsgs_: number of processed subscriptions
+  - _coreNfs_: number of processed specific 'system' messages
+- _jsInvoke_ (statsNames — _requests, responses, failures_): stats about total, successful and failed requests to the JS executors
+- _attributes\_cache_ (results — _hit, miss_): stats about how many attribute requests went to the cache
+
+### transport metrics
+
+- _transport_ (statsNames — _totalMsgs, failedMsgs, successfulMsgs_): stats about requests received by Transport from TB nodes
+- _ruleEngine\_producer_ (statsNames — _totalMsgs, failedMsgs, successfulMsgs_): stats about pushing messages from Transport to the Rule Engine.
+- _core\_producer_ (statsNames — _totalMsgs, failedMsgs, successfulMsgs_): stats about pushing messages from Transport to the TB node Device actor.
+- _transport\_producer_ (statsNames — _totalMsgs, failedMsgs, successfulMsgs_): stats about requests from Transport to the TB.
+
+**Some metrics depend on the type of database you are using to persist timeseries data.**
+
+### PostgreSQL-specific metrics
+
+- `ts_latest_queue_{index_of_queue}` (statsNames — _totalMsgs, failedMsgs, successfulMsgs_): stats about writing **latest telemetry** to the database. Note that there are several queues (threads) in order to reach maximum performance.
+- `ts_queue_{index_of_queue}` (statsNames — _totalMsgs, failedMsgs, successfulMsgs_): stats about writing **telemetry** to the database. Note that there are several queues (threads) in order to reach maximum performance.
+
+### Cassandra-specific metrics
+
+- _rateExecutor\_currBuffer_: number of messages that are currently being persisted inside Cassandra.
+- _rateExecutor\_tenant_ (for each present _tenantId_): number of requests that got rate-limited
+- _rateExecutor_ (statsNames — _totalAdded, totalRejected, totalLaunched, totalReleased, totalFailed, totalExpired, totalRateLimited_). Stats descriptions:
+  - _totalAdded_: number of messages that were submitted for persisting
+  - _totalRejected_: number of messages that were rejected while trying to submit for persisting
+  - _totalLaunched_: number of messages sent to Cassandra
+  - _totalReleased_: number of successfully persisted messages
+  - _totalFailed_: number of messages that were not persisted
+  - _totalExpired_: number of expired messages that were not sent to Cassandra
+  - _totalRateLimited_: number of messages that were not processed because of the Tenant's rate-limits
+
+## Grafana Dashboards
+
+You can import preconfigured Grafana dashboards from{' '}
+{props.product === Products.PE
+  ? <a href="https://github.com/thingsboard/thingsboard-pe-docker-compose/tree/master/basic/monitoring/grafana/provisioning/dashboards" target="_blank" rel="noopener noreferrer">this repository</a>
+  : <a href="https://github.com/thingsboard/thingsboard/tree/master/docker/monitoring/grafana/provisioning/dashboards" target="_blank" rel="noopener noreferrer">this repository</a>
+}.
+
+<Aside type="note">Depending on the cluster configuration, you may need to make changes to the dashboards.</Aside>
+
+You can also view Grafana dashboards after deploying the ThingsBoard Docker Compose cluster configuration (for more information, follow the [Docker Compose cluster setup guide](/docs/installation/docker-compose-setup/)).
+Make sure that the `MONITORING_ENABLED` environment variable is set to `true`. Once deployed, you can access Prometheus at [http://localhost:9090](http://localhost:9090) and Grafana at [http://localhost:3000](http://localhost:3000) (by default, the username is `admin` and the password is `foobar`).
+
+## OAuth2
+
+Sometimes after configuring OAuth you cannot see the button for logging in with an OAuth provider. This happens when **Domain name** and **Redirect URI Template** contain faulty values — they need to match the URL you use to access your ThingsBoard web page.
+
+| Base URL | Domain name | Redirect URI Template |
+|---|---|---|
+| `http://mycompany.com:8080` | `mycompany.com:8080` | `http://mycompany.com:8080/login/oauth2/code` |
+| `https://mycompany.com` | `mycompany.com` | `https://mycompany.com/login/oauth2/code` |
+
+<Aside type="caution">
+  Go to ThingsBoard as a System Administrator. Check **General Settings → Base URL** — it should not contain a trailing `/` (e.g. `https://mycompany.com` instead of `https://mycompany.com/`).
+</Aside>
+
+For OAuth2 configuration, see <DocLink product={props.product} path="user-guide/security/oauth-2-support">OAuth 2.0 Support</DocLink>.
+
+## Getting help
+
+- [GitHub Project](https://github.com/thingsboard/thingsboard) — check out the project and consider contributing.
+- [Stack Overflow](https://stackoverflow.com/questions/tagged/thingsboard) — ask questions tagged with `thingsboard`; the ThingsBoard team monitors this tag.
+- [Contact us](/contact-us/) — if your problem isn't answered by any of the guides above, feel free to contact the ThingsBoard team.

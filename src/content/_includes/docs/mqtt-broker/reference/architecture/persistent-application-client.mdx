@@ -1,0 +1,209 @@
+import { Aside } from '@astrojs/starlight/components';
+import DocLink from '@components/DocLink.astro';
+
+This page explains how TBMQ routes and delivers messages for persistent APPLICATION clients, including the
+per-client Kafka topic design, consumer thread model, pack processing, and shared subscription support.
+
+<Aside type="caution">
+  APPLICATION clients must use persistent sessions. A non-persistent APPLICATION session receives messages while
+  connected, but no persistence mechanisms are applied — messages may be lost if the client disconnects.
+</Aside>
+
+APPLICATION clients are designed for backend services that consume high-rate topic streams and require guaranteed
+delivery of every message, including those published while the client was offline. Unlike
+<DocLink product={props.product} path="architecture-details/persistent-device-client">persistent DEVICE clients</DocLink>,
+which share a single Kafka topic and use Redis for offline storage, each APPLICATION client gets its own dedicated
+Kafka topic. This design isolates processing per client, enabling independent scaling and high per-client
+throughput.
+
+## Message routing
+
+When a publisher sends a PUBLISH message, it is first written to the `tbmq.msg.all` Kafka topic. A Kafka consumer
+thread reads the message, queries the
+<DocLink product={props.product} path="architecture/#subscriptions-trie">Subscription Trie</DocLink>
+for matching subscribers, and routes messages for APPLICATION clients to their dedicated topics:
+
+```
+tbmq.msg.all  ──▶  Message dispatcher  ──▶  tbmq.msg.app.$CLIENT_ID
+```
+
+The dedicated topic is created automatically when the client authenticates as an APPLICATION type and connects
+with a persistent session. If the client ID contains characters outside the alphanumeric range, a hash of the
+client ID is used instead:
+
+```
+tbmq.msg.app.$CLIENT_ID        ← alphanumeric client IDs
+tbmq.msg.app.$CLIENT_ID_HASH   ← client IDs with special characters
+```
+
+The hash-based naming is controlled by `TB_APP_PERSISTED_MSG_CLIENT_ID_VALIDATION` (enabled by default).
+Disabling it means topics will not be created for clients with special characters in their ID.
+
+## Consumer thread model
+
+A dedicated Kafka consumer thread is assigned to each persistent APPLICATION client when it connects. This thread:
+
+1. Continuously polls `tbmq.msg.app.$CLIENT_ID` for new messages.
+2. Processes messages in **packs** (batches) — delivering each pack and waiting for acknowledgements before
+   advancing the consumer offset. See [Pack processing and acknowledgement](#pack-processing-and-acknowledgement)
+   for details.
+3. Maintains delivery order — Kafka's single-partition consumer guarantee preserves message sequence.
+
+This per-client thread model ensures that a slow or high-volume client does not impact other clients. In cluster
+mode, the dedicated consumer is created on the node where the client connects — no inter-node message forwarding
+is required, unlike the DEVICE client flow.
+
+## Pack processing and acknowledgement
+
+The consumer thread delivers messages in **packs** — batches polled from Kafka in a single call. The maximum
+number of records per poll is controlled by `max.poll.records` (default 200). Each pack goes through a
+deliver-wait-commit cycle:
+
+1. **Poll** — the consumer fetches the next batch of messages from the client's Kafka topic.
+2. **Deliver** — messages are sent to the client over the MQTT connection.
+3. **Wait** — the broker waits for the client to acknowledge every message in the pack. The wait timeout is
+   controlled by `TB_APP_PERSISTED_MSG_PACK_PROCESSING_TIMEOUT` (default 20 seconds).
+4. **Commit or retry** — once all messages are acknowledged, the Kafka consumer offset is committed and the next
+   pack is polled. If some messages remain unacknowledged after the timeout, the acknowledgement strategy decides
+   what happens next.
+
+### QoS acknowledgement flows
+
+The acknowledgement the broker expects depends on the message's QoS level:
+
+- **QoS 0** — no acknowledgement required. The message is considered delivered immediately.
+- **QoS 1** — the client sends a **PUBACK**. The message is removed from the pending map.
+- **QoS 2** — a four-step handshake: the broker delivers the PUBLISH, the client sends **PUBREC**, the broker
+  responds with **PUBREL**, and the client completes the exchange with **PUBCOMP**. Only after PUBCOMP is the
+  message fully acknowledged.
+
+### Acknowledgement strategies
+
+The acknowledgement strategy (`TB_APP_PERSISTED_MSG_ACK_STRATEGY_TYPE`) determines behavior when the pack
+processing timeout expires with unacknowledged messages:
+
+- **RETRY_ALL** (default) — resubmits unacknowledged messages with the MQTT DUP flag set. The maximum number of
+  retries is controlled by `TB_APP_PERSISTED_MSG_ACK_STRATEGY_RETRIES` (default 3; set to 0 for unlimited
+  retries). When all retries are exhausted, the pack is committed to prevent indefinite blocking.
+- **SKIP_ALL** — discards unacknowledged messages and commits the Kafka offset immediately.
+
+## Flow control
+
+TBMQ applies backpressure when a client reads slower than the message arrival rate. The mechanism uses Netty's
+write buffer watermarks:
+
+- When the client's TCP write buffer exceeds the **high watermark** (`NETTY_WRITE_BUFFER_HIGH_WATER_MARK`,
+  default 1280 KB), all Kafka consumers for that client — both the main consumer and any shared subscription
+  consumers — are **paused**.
+- When the buffer drops below the **low watermark** (`NETTY_WRITE_BUFFER_LOW_WATER_MARK`, default 640 KB),
+  consumers **resume** polling.
+
+This prevents unbounded memory growth on the broker side when a client cannot keep up with the incoming message
+rate.
+
+## Session recovery
+
+When a persistent APPLICATION client disconnects, the broker persists all **unacknowledged message packet IDs and
+their Kafka offsets** to the database. This covers both PUBLISH messages awaiting PUBACK (QoS 1) or PUBREC
+(QoS 2) and PUBREL messages awaiting PUBCOMP (QoS 2).
+
+On reconnect:
+
+1. The saved context is loaded from the database.
+2. The client's MQTT packet ID sequence is restored from the last persisted packet ID, preventing ID collisions
+   with in-flight messages.
+3. Previously unacknowledged messages are **re-delivered with the same packet IDs** and the DUP flag set.
+4. After the recovered messages are processed, the consumer continues polling new messages from the committed
+   Kafka offset.
+
+Combined with Kafka's committed consumer offset, this guarantees that no messages are lost between sessions.
+
+## Message expiry
+
+Messages with an MQTT 5.0 message expiry interval are checked before delivery. If the interval has elapsed, the
+message is **skipped** — it is not delivered and does not consume a packet ID. For non-expired messages, the
+remaining expiry interval is recalculated and included in the delivered message properties, so the client receives
+an accurate remaining TTL.
+
+## Delivery strategy
+
+TBMQ supports two delivery modes for APPLICATION clients, controlled by `MQTT_APP_MSG_WRITE_AND_FLUSH`:
+
+- **Write-and-flush** (`true`) — flushes the Netty channel after each message. Provides the lowest latency for
+  individual message delivery.
+- **Buffered** (`false`, default for APPLICATION clients) — buffers messages and flushes every N messages, where
+  N is controlled by `MQTT_APP_BUFFERED_MSG_COUNT` (default 10). Provides higher throughput for batch-oriented
+  consumers by reducing the number of system calls.
+
+## Shared subscriptions
+
+The dedicated-topic-per-client architecture makes
+<DocLink product={props.product} path="user-guide/shared-subscriptions">shared subscriptions</DocLink>
+efficient for APPLICATION clients. When multiple APPLICATION clients share a subscription, each
+client gets its own consumer in the same Kafka consumer group, and Kafka handles partition-based load balancing
+natively.
+
+Each shared subscription receives its **own independent Kafka consumer, processing thread, and pack processing
+context** — fully isolated from the main consumer and from other shared subscriptions on the same client. This
+means a client can have one main consumer for its dedicated topic and multiple shared subscription consumers
+running concurrently.
+
+### Topic naming
+
+The shared subscription Kafka topic follows the naming convention:
+
+| MQTT topic filter | Kafka topic |
+|---|---|
+| `test/topic` | `tbmq.msg.app.shared.test.topic` |
+| `test/#` | `tbmq.msg.app.shared.test.mlw` |
+| `test/+` | `tbmq.msg.app.shared.test.slw` |
+
+Where `#` maps to `mlw` (multi-level wildcard) and `+` maps to `slw` (single-level wildcard). If the topic
+filter contains characters outside the allowed range, a SHA-256 hash is used for the Kafka topic name instead.
+This behavior is controlled by `TB_APP_PERSISTED_MSG_SHARED_TOPIC_VALIDATION` (enabled by default).
+
+### Consumer groups
+
+All APPLICATION clients sharing the same subscription join the same Kafka consumer group:
+`application-shared-msg-consumer-group-{shareName}-{sharedAppTopic}`. Kafka distributes topic partitions among
+the consumers in the group, providing native load balancing without any broker-level coordination.
+
+### QoS downgrading
+
+For shared subscriptions, the effective QoS of a delivered message is the **minimum** of the publisher's QoS and
+the subscriber's requested QoS. This prevents a subscriber from receiving messages at a higher QoS than it
+subscribed with.
+
+## Kafka topic configuration
+
+The properties for APPLICATION client Kafka topics are controlled by:
+
+```yaml
+TB_KAFKA_APP_PERSISTED_MSG_TOPIC_PROPERTIES
+```
+
+This allows configuring retention, replication factor, and other Kafka topic settings for APPLICATION message
+topics. See the full <DocLink product={props.product} path="install/config">configuration reference</DocLink>
+for details.
+
+## Cluster mode
+
+APPLICATION clients behave identically in standalone and cluster modes. Because each client's Kafka consumer is
+created on the node where the client connects, message processing is local — no `downlink` Kafka topic is needed
+for inter-node forwarding (unlike DEVICE clients). This design enables horizontal scaling without coordination overhead: adding broker
+nodes distributes APPLICATION client connections automatically.
+
+## Summary
+
+| Aspect | Persistent APPLICATION client |
+|---|---|
+| **Offline storage** | Dedicated Kafka topic per client |
+| **Consumer model** | One thread per client |
+| **Message delivery** | Pack-based with per-message acknowledgement tracking |
+| **Flow control** | TCP backpressure pauses Kafka consumers |
+| **Session recovery** | Unacknowledged messages persisted to DB, re-delivered on reconnect |
+| **Message expiry** | Expired messages filtered before delivery |
+| **Cluster inter-node traffic** | None — consumer is local to the connected node |
+| **Shared subscription support** | Native via Kafka consumer groups |
+| **Session requirement** | Persistent only |
+| **Typical use cases** | Analytics systems, rule engines, data processors |

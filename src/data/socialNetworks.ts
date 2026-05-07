@@ -34,7 +34,7 @@ export const socialNetworks: SocialNetwork[] = [
 	},
 	{
 		href: 'https://www.linkedin.com/company/thingsboard/',
-		icon: 'fa-brands:linkedin',
+		icon: 'simple-icons:linkedin',
 		ariaLabel: 'Link to our linkedin',
 	},
 	{

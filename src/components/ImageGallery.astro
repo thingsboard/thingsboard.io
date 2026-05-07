@@ -17,9 +17,14 @@ interface Props {
 	images: ImageItem[];
 	/** If set, enables product suffix resolution (e.g. -pe, -paas). */
 	product?: Products;
+	/**
+	 * When true and there is exactly one image, renders it as a gallery thumbnail card
+	 * (with border, fixed height, hover effect) instead of the full-width DocImage style.
+	 */
+	cardMode?: boolean;
 }
 
-const { images, product } = Astro.props;
+const { images, product, cardMode = false } = Astro.props;
 const galleryId = `ig-${Math.random().toString(36).slice(2, 9)}`;
 
 // Maps each product to the filename suffix inserted before the extension.
@@ -123,6 +128,20 @@ function resolvePaths(src: string): { lightPath: string; darkPath: string } {
 	return { lightPath, darkPath };
 }
 
+// Captions arrive as Markdown strings (the device-library importer preserves
+// `**bold**`, `` `code` `` etc. from the legacy site). They get rendered via
+// `set:html` into thumb tooltips and the lightbox caption, so convert the
+// inline-emphasis subset of Markdown to HTML before storage. Non-Markdown
+// captions (plain text, or already-HTML) pass through unchanged.
+function captionToHtml(s: string): string {
+	if (!s) return '';
+	if (!/[`*]/.test(s)) return s;
+	return s
+		.replace(/`([^`]+)`/g, '<code>$1</code>')
+		.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+		.replace(/(?<!\*)\*([^*\s][^*]*?)\*(?!\*)/g, '<em>$1</em>');
+}
+
 // Filter by product if specified, then resolve paths and process images
 const filteredImages = product
 	? images.filter(({ products: p }) => !p || p.includes(product))
@@ -147,7 +166,7 @@ const processed = await Promise.all(
 			const darkCdnSrc = hasDark ? resolveToCdn(darkPath) : cdnSrc;
 			return {
 				alt,
-				caption: caption ?? '',
+				caption: captionToHtml(caption ?? ''),
 				thumbSrc: cdnSrc,
 				fullSrc: cdnSrc,
 				darkThumbSrc: darkCdnSrc,
@@ -167,7 +186,7 @@ const processed = await Promise.all(
 			const darkSrc = darkMod ? darkMod.default.src : lightSrc;
 			return {
 				alt,
-				caption: caption ?? '',
+				caption: captionToHtml(caption ?? ''),
 				thumbSrc: lightSrc,
 				fullSrc: lightSrc,
 				darkThumbSrc: darkSrc,
@@ -204,7 +223,7 @@ const processed = await Promise.all(
 
 		return {
 			alt,
-			caption: caption ?? '',
+			caption: captionToHtml(caption ?? ''),
 			thumbSrc: thumb.src,
 			fullSrc: full.src,
 			darkThumbSrc,
@@ -217,11 +236,12 @@ const processed = await Promise.all(
 );
 
 const isSingle = processed.length === 1;
+const useCardMode = cardMode && isSingle;
 ---
 
 <div class:list={['image-gallery', { 'has-theme-variants': hasThemeVariants }]} id={galleryId}>
 	{
-		isSingle ? (
+		isSingle && !useCardMode ? (
 			/* Single image — displayed like DocImage but clickable */
 			<figure class="single-image">
 				<button
@@ -259,8 +279,8 @@ const isSingle = processed.length === 1;
 				</button>
 			</figure>
 		) : (
-			/* Multiple images — regular thumbnail grid */
-			<div class="gallery-grid">
+			/* Multiple images or cardMode single — regular thumbnail grid */
+			<div class:list={['gallery-grid', { 'gallery-grid--card': useCardMode }]}>
 				{processed.map((img, index) => (
 					<button
 						class="gallery-thumb"
@@ -766,6 +786,14 @@ const isSingle = processed.length === 1;
 		display: block !important;
 	}
 
+	/* ── Scroll lock (no layout shift) ─────────────── */
+	/* scrollbar-gutter:stable reserves scrollbar space even when hidden → no page jump.
+	   Applied to html (not body) so fixed headers are unaffected. */
+	:global(html:has(.gallery-lightbox.is-open)) {
+		overflow: hidden;
+		scrollbar-gutter: stable;
+	}
+
 	/* ── Reduced motion ────────────────────────────── */
 
 	@media (prefers-reduced-motion: reduce) {
@@ -782,7 +810,9 @@ const isSingle = processed.length === 1;
 	}
 </style>
 
-<script define:vars={{ galleryId }}>
+<script is:inline define:vars={{ galleryId }}>
+	/* eslint-disable @typescript-eslint/ban-ts-comment */
+	// @ts-nocheck
 	const gallery = document.getElementById(galleryId);
 	if (!gallery) throw new Error(`ImageGallery: #${galleryId} not found`);
 
@@ -820,6 +850,7 @@ const isSingle = processed.length === 1;
 		lbImgDark.src = darkSrc;
 		lbImgDark.alt = btn.dataset.alt;
 		caption.innerHTML = btn.dataset.caption ?? '';
+		caption.hidden = !caption.innerHTML;
 
 		// SVGs are vector — scale up to fill viewport via CSS class
 		const isSvg = lightSrc.includes('.svg');
@@ -845,7 +876,6 @@ const isSingle = processed.length === 1;
 		updateContent();
 
 		lightbox.setAttribute('aria-hidden', 'false');
-		document.body.style.overflow = 'hidden';
 
 		// First is-open (shows the element), then is-opening (triggers animation)
 		lightbox.classList.add('is-open', 'is-opening');
@@ -874,7 +904,6 @@ const isSingle = processed.length === 1;
 			if (!lightbox.classList.contains('is-closing')) return;
 			lightbox.classList.remove('is-closing');
 			lightbox.setAttribute('aria-hidden', 'true');
-			document.body.style.overflow = '';
 			thumbs[currentIndex]?.blur();
 			isClosing = false;
 		}

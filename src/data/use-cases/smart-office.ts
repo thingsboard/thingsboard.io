@@ -4,14 +4,14 @@ export const smartOfficeData: UseCaseData = {
 	title: 'Smart office',
 	pageTitle: 'IoT smart office solutions with ThingsBoard',
 	description:
-		'Smart Office is a ready-to-use IoT solution powered by ThingsBoard for real-time monitoring and automation of office environments. Control energy usage, climate, air quality, and devices through intuitive dashboards. Scalable, flexible, and efficient.',
+		'Smart Office IoT solution by ThingsBoard for real-time monitoring and automation. Control energy, climate, air quality, and devices through dashboards.',
 	pageSlug: 'smart-office',
 	about: {
 		shortText:
 			'The smart office solution powered by ThingsBoard enables efficient monitoring of energy and water consumption, tracking of air quality and CO\u2082 levels, control of HVAC systems, real-time response to critical events, and overall improvement of energy efficiency and employee comfort.',
 		longText: [
 			'Smart office solutions are designed to optimize workplace environments by monitoring key operational parameters and automating building systems in real time. ThingsBoard, as a robust IoT platform, provides all the necessary tools for collecting, processing, and visualizing data from devices that use protocols like BLE or LoRaWAN gateways, enabling seamless integration and support for flexible solutions.',
-			'Thanks to ThingsBoard, an open-source IoT platform, it\'s easy to integrate and visualize data from various devices and sensors, enabling the creation of intelligent, data-driven solutions. This approach allows not only real-time monitoring of office conditions but also active management\u2014turning systems on or off, receiving alerts, and configuring automation scenarios. All of these capabilities are fully demonstrated in our <a href="/docs/pe/solution-templates/smart-office/">smart office solution</a>.',
+			'Thanks to ThingsBoard, an open-source IoT platform, it\'s easy to integrate and visualize data from various devices and sensors, enabling the creation of intelligent, data-driven solutions. This approach allows not only real-time monitoring of office conditions but also active management\u2014turning systems on or off, receiving alerts, and configuring automation scenarios. All of these capabilities are fully demonstrated in our <a href="/docs/pe/recipes/solution-templates/smart-office/">smart office solution</a>.',
 		],
 		demoUrl:
 			'https://thingsboard.cloud/dashboard/375ddea0-f5e5-11f0-bc85-bd57f974c663?publicId=4978baf0-8a92-11ec-98f9-ff45c37940c6',
@@ -69,7 +69,7 @@ export const smartOfficeData: UseCaseData = {
 		longText: [
 			'This setup enables seamless data ingestion through IoT gateways or direct connections. The collected data is then visualized in real time on interactive dashboards and processed through a powerful rule engine that supports analytics and configurable alarms.',
 		],
-		schemeSrc: '/src/assets/schemas/iot-solution-architecture.svg',
+		schemeSrc: '/src/assets/schemas/use-case.svg',
 		schemeAlt:
 			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for alarms, dashboards, notifications, and data lakes',
 		schemeCaption:

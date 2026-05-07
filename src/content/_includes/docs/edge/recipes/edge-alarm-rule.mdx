@@ -1,0 +1,113 @@
+import DocLink from '@components/DocLink.astro';
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+Manage alarms directly in the Edge rule chain using three dedicated rule nodes: **create alarm**, **clear alarm**, and **alarm status filter**. This approach gives you full programmatic control over alarm creation and clearing — based on any telemetry condition, attribute value, or custom script logic — entirely on the Edge node without a cloud connection.
+
+## When to use rule chain alarm nodes
+
+Use rule chain alarm nodes when you need logic that device profile alarm rules cannot express: conditions that span multiple telemetry keys, dynamic thresholds from attributes, or post-alarm actions (such as sending an RPC to another device). For single-key threshold alarms, device profile alarm rules require less configuration.
+
+## The pattern
+
+The standard pattern for a threshold alarm in the rule chain:
+
+```
+Post telemetry → [Script filter: condition?]
+                      ├─ True  → create alarm → Created → (act on new alarm)
+                      │                       → Updated → (alarm already exists, skip)
+                      └─ False → clear alarm  → Cleared → (act on cleared alarm)
+                                              → False   → (no alarm was active, skip)
+```
+
+## Example — temperature threshold alarm
+
+This example creates a Critical alarm when `temperature > 35` and clears it when the reading drops to or below 35.
+
+### Step 1 — Open the rule chain
+
+<Steps>
+1. On the Edge instance, go to **Rule chains** and open the **Edge Root Rule Chain**.
+2. Click **Edit**.
+</Steps>
+
+### Step 2 — Add a Script filter node
+
+<Steps>
+1. In the node panel, search for **Script** (under Filter) and drag it onto the canvas.
+2. Set the node name to `High Temp?`.
+3. Enter the condition:
+   ```js
+   return msg.temperature !== undefined && msg.temperature > 35;
+   ```
+4. Click **Add**.
+</Steps>
+
+### Step 3 — Add a create alarm node
+
+<Steps>
+1. Search for **create alarm** (under Action) and drag it onto the canvas.
+2. Configure:
+   - **Alarm type:** `High Temperature`
+   - **Severity:** *Critical*
+   - **Alarm details script** (optional — records the triggering value):
+     ```js
+     return { temperature: msg.temperature };
+     ```
+3. Click **Add**.
+4. Connect the **True** output of `High Temp?` to this node.
+</Steps>
+
+### Step 4 — Add a clear alarm node
+
+<Steps>
+1. Search for **clear alarm** (under Action) and drag it onto the canvas.
+2. Set **Alarm type** to `High Temperature` (must match exactly).
+3. Click **Add**.
+4. Connect the **False** output of `High Temp?` to this node.
+</Steps>
+
+### Step 5 — Wire the Script filter to the incoming message
+
+<Steps>
+1. Find the existing **Message type switch** node in the root rule chain.
+2. Connect its **Post telemetry** output to the `High Temp?` Script filter node.
+3. Click **Apply changes**.
+</Steps>
+
+<Aside type="note">
+  If you already have a Script filter or other nodes between Message type switch and Push to cloud, insert the new nodes on that same branch so telemetry still reaches the cloud.
+</Aside>
+
+## Output connections
+
+### create alarm
+
+| Connection | When | Message after |
+|-----------|------|---------------|
+| `Created` | A new alarm was created | Message replaced with alarm object; metadata: `isNewAlarm: true` |
+| `Updated` | Alarm of the same type already existed | Message replaced with alarm object; metadata: `isExistingAlarm: true` |
+| `Failure` | Script error or invalid severity | Original message unchanged |
+
+### clear alarm
+
+| Connection | When | Message after |
+|-----------|------|---------------|
+| `Cleared` | Active alarm was found and cleared | Message replaced with alarm object; metadata: `isClearedAlarm: true` |
+| `False` | No active alarm existed | Original message unchanged |
+
+## Using the alarm status filter
+
+After a **create alarm** or **clear alarm** node, the message type changes to `ALARM` and the payload contains the full alarm object. Use the **alarm status filter** node to branch on the current alarm status before taking further action (for example, only send a notification on a genuinely new unacknowledged alarm).
+
+Add an **alarm status filter** node after **create alarm**, configure the status set (e.g., `Active Unacknowledged`), and connect:
+
+- `True` → send notification / RPC / push to cloud
+- `False` → skip
+
+<Aside type="tip">
+  Alarms created or cleared on Edge are automatically pushed to the ThingsBoard Server when the gRPC connection is available. To apply the same alarm logic to all Edge instances of the same device type, configure the rule chain as a <DocLink product={props.product} path='user-guide/rule-chain-templates' target="_blank">Rule chain template</DocLink> on the Server and provision it to Edge.
+</Aside>
+
+For step-by-step examples using the standalone alarm rules editor in ThingsBoard 4.3 and later, see <DocLink product={props.product} path='recipes/alarm-rule-tutorials' target="_blank">Alarm rule tutorials</DocLink>.
+
+For the full alarm management reference, see <DocLink product={props.product} path='user-guide/manage-alarms' target="_blank">Manage alarms on Edge</DocLink>.

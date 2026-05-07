@@ -2,36 +2,29 @@ import DocLink from '@components/DocLink.astro';
 import ImageGallery from '~/components/ImageGallery.astro';
 import DocImage from '~/components/DocImage.astro';
 import Banner from '~/components/Banner.astro';
-import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Steps, Aside } from '@astrojs/starlight/components';
 import { Products } from '~/models/site.models';
+import Tabs from '@components/Tabs.astro';
+import TabItem from '@components/TabItem.astro';
 
 <Banner variant="peFeature" product={props.product} path="user-guide/integrations/custom" />
 
-Custom integrations always execute remotely from the main ThingsBoard instance and can use any transport protocol to communicate with devices. This guide demonstrates how to build a TCP-based custom integration that receives comma-separated sensor readings, converts them using an uplink data converter, and pushes the result to ThingsBoard.
+Custom integrations always execute <DocLink product={props.product} path="user-guide/integrations/remote/" target="_blank">remotely</DocLink> from the main ThingsBoard instance and can use any transport protocol to communicate with devices. This guide demonstrates how to build a TCP-based custom integration that receives comma-separated sensor readings, converts them using an uplink data converter, and pushes the result to ThingsBoard.
 
 ## Prerequisites
 
 - A ThingsBoard PE instance (v2.4.1 or later) with Tenant Administrator access.
 - Java 11+ and Maven installed locally to build the sample application.
 
-## Uplink data converter
+## ThingsBoard integration setup
 
-The uplink converter parses incoming device messages and maps them to ThingsBoard telemetry. In this example, a device transmits three readings as a comma-separated string (`"25,40,94"` — temperature, humidity, and battery level). The decoder splits the string and converts each value to a number.
+### Create an uplink converter
+
+Custom integrations use a <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">generic uplink converter</DocLink>. The uplink converter parses incoming device messages and maps them to ThingsBoard telemetry. In this example, a device transmits three readings as a comma-separated string (`"25,40,94"` — temperature, humidity, and battery level). The decoder splits the string and converts each value to a number.
 
 <Aside type="tip" title="TBEL">
   We recommend using <DocLink product={props.product} path="user-guide/tbel">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
 </Aside>
-
-Download the uplink converter file:
-
-<Tabs>
-  <TabItem label="TBEL (Recommended)">
-    <a href="/resources/docs/integrations/custom/custom_tbel_uplink_converter.json" download="custom_tbel_uplink_converter.json"><strong>custom_tbel_uplink_converter.json</strong></a>
-  </TabItem>
-  <TabItem label="JavaScript">
-    <a href="/resources/docs/integrations/custom/custom_javascript_uplink_converter.json" download="custom_javascript_uplink_converter.json"><strong>custom_javascript_uplink_converter.json</strong></a>
-  </TabItem>
-</Tabs>
 
 **The decoder function used in this tutorial:**
 
@@ -100,23 +93,65 @@ return result;
 </TabItem>
 </Tabs>
 
+### Create a downlink converter
+
+The downlink converter encodes a Rule Engine message — such as an RPC command or shared attribute update — into the payload format expected by your custom integration. It is optional: skip it if the integration only ingests data into ThingsBoard.
+
+The encoder function receives four parameters and must return a result object:
+
+| Parameter | Description |
+|---|---|
+| `msg` | JSON payload of the Rule Engine message |
+| `msgType` | Message type, e.g. `ATTRIBUTES_UPDATED`, `POST_TELEMETRY_REQUEST` |
+| `metadata` | Key-value pairs with additional data about the message |
+| `integrationMetadata` | Key-value pairs defined in the integration configuration |
+
+The returned object must contain:
+- `contentType` — `JSON`, `TEXT`, or `BINARY` (Base64-encoded string)
+- `data` — the encoded payload string
+- `metadata` — optional key-value pairs forwarded to the integration
+
+**Encoder function example:**
+
+```js
+function encoder(msg, metadata, msgType, integrationMetadata) {
+  // Encode downlink data from incoming Rule Engine message
+
+  /** Encoder **/
+
+  // Process data from incoming message and metadata
+  var data = {};
+  data.tmpFreq = msg.temperatureUploadFrequency;
+  data.humFreq = msg.humidityUploadFrequency;
+  data.deviceSerialNumber = metadata['ss_serialNumber'];
+
+  // Result object with encoded downlink payload
+  var result = {
+    // downlink data content type: JSON, TEXT or BINARY (base64 format)
+    contentType: 'JSON',
+
+    // downlink data
+    data: JSON.stringify(data),
+
+    // Optional metadata object presented in key/value format
+    metadata: {
+      topic: metadata['deviceType'] + '/' + metadata['deviceName'] + '/upload'
+    }
+  };
+
+  return result;
+}
+```
+
+For the full downlink converter reference — including the Library catalog, test function, and rule chain setup — see <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink data converter</DocLink>.
+
+### Create the integration
+
 <Steps>
-  <ol start="1">
-    <li>Go to **Integration center &#8702; Data converters**.</li>
-    <li>Click **+ Add data converter &#8702; Import converter**.</li>
-    <li>Drag and drop the downloaded JSON file into the **Import converter** window and click **Import**.</li>
-  </ol>
-</Steps>
-
-<DocImage src="/src/assets/images/user-guide/integrations/custom/custom-converter.gif" alt="Creating the uplink data converter for a custom integration" />
-
-## Create the custom integration
-
-<Steps>
-1. Go to **Integration center &#8702; Integrations** and click **+ Add integration**. Select type **Custom**, enter a name, and click **Next**.
-2. **Uplink data converter:** select the uplink converter you imported and click **Next**.
-3. **Downlink data converter:** skip or select one if needed, and click **Next**.
-4. **Connection:** fill in the **Integration class** and **Integration JSON configuration** fields (see values below), then click **Add** to save.
+1. Go to **Integrations center &#8702; Integrations** and click **+ Add integration**. Set type to **Custom**, enter a name, and click **Next**.
+2. **Uplink data converter:** click **Create new**, enter a converter name, paste the decoder function from the <a href="#create-an-uplink-converter">section above</a>, and click **Next**. Use the **Test decoder function** button to validate the decoder output before proceeding.
+3. **Downlink data converter:** click **Skip** if you do not need to send commands to devices. To enable downlinks, click **Create new** instead, enter a name, and implement the encoder function (<a href="#create-a-downlink-converter">see template above</a>).
+4. **Connection:** enter the **Integration class** and **Integration JSON configuration** (see values below), then click **Add**. Once saved, copy the **Integration Key** and **Integration Secret** — you will need them to configure the remote integration application.
 </Steps>
 
 Use the following values in the **Connection** step:
@@ -145,7 +180,12 @@ org.thingsboard.integration.custom.basic.CustomIntegration
   **Debug mode** stores every processed message in the database. Disable it in production to avoid excessive disk usage.
 </Aside>
 
-<DocImage src="/src/assets/images/user-guide/integrations/custom/custom-integration.gif" alt="Configuring the custom integration in ThingsBoard" />
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/custom/custom-add-integration-1.png', alt: 'Add integration wizard — Basic settings: Integration type Custom, name Custom Integration, Enable integration and Allow create devices or assets toggled on', caption: 'Set Integration type to Custom, enter a name, and click Next' },
+  { src: '/src/assets/images/user-guide/integrations/custom/custom-add-integration-2.png', alt: 'Add integration wizard — Uplink data converter step: Create new selected, name pre-filled, TBEL decoder editor open with Test decoder function button', caption: 'Click Create new, paste the decoder function, use Test decoder function to validate, then click Next' },
+  { src: '/src/assets/images/user-guide/integrations/custom/custom-add-integration-3.png', alt: 'Add integration wizard — Downlink data converter step: Create new and Skip options shown', caption: 'Click Skip to omit downlink, or Create new to add a downlink encoder' },
+  { src: '/src/assets/images/user-guide/integrations/custom/custom-add-integration-4.png', alt: 'Add integration wizard — Connection step: Integration class and JSON configuration filled, Execute remotely enabled, Integration Key and Integration Secret fields shown', caption: 'Enter Integration class and JSON configuration; copy Integration Key and Secret for the remote app, then click Add' },
+]} />
 
 ## Build and run the integration application
 
@@ -180,14 +220,28 @@ Clone the repository, then build:
 mvn clean install
 ```
 
+Before starting the application, set the **Integration Key** and **Integration Secret** (copied from the Connection step) in `tb-remote-integration.yml`:
+
+```yaml
+integration:
+  routingKey: "${TB_INTEGRATION_ROUTING_KEY:YOUR_ROUTING_KEY}"
+  secret: "${TB_INTEGRATION_SECRET:YOUR_SECRET}"
+
+thingsboard:
+  host: "${THINGSBOARD_GW_HOST:localhost}"
+  port: "${THINGSBOARD_GW_PORT:9090}"
+```
+
 **How the integration works:**
 
+<Steps>
 1. The integration starts a TCP server on the configured port.
 2. A built-in client emulator connects and sends `Hello to ThingsBoard!` with the device name.
 3. The server responds with `Hello from ThingsBoard!` and marks the session as initialized.
 4. The emulator starts sending auto-generated comma-separated readings every `msgGenerationIntervalMs` milliseconds.
 5. Each message is passed to the uplink converter, and the resulting telemetry is pushed to ThingsBoard.
-
+</Steps>
+  
 <Aside type="caution" title="Configuration required for ThingsBoard 3.3.1+">
   Add the following property to `tb-remote-integration.yml` before starting the integration:
 
@@ -200,6 +254,6 @@ mvn clean install
 ## See also
 
 - <DocLink product={props.product} path="user-guide/integrations">Integration Overview</DocLink>
-- <DocLink product={props.product} path="user-guide/integrations#uplink-data-converter">Uplink Converters</DocLink>
-- <DocLink product={props.product} path="user-guide/rule-engine-2-0/re-getting-started">Rule Engine</DocLink>
+- <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter">Uplink Converters</DocLink>
+- <DocLink product={props.product} path="user-guide/rule-engine">Rule Engine</DocLink>
 - <DocLink product={props.product} path="user-guide/tbel">ThingsBoard Expression Language (TBEL)</DocLink>

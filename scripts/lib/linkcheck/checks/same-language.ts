@@ -52,7 +52,10 @@ export class SameLanguage extends CheckBase {
 			// does not match the current page's pathname-based language
 			const linkedLang = linkedPage.pathnameLang;
 			if (linkedLang !== context.page.pathnameLang) {
-				const expectedPathname = linkedPage.getExpectedLinkPathname(context.page.pathnameLang);
+				const expectedPathname = linkedPage.getExpectedLinkPathname(
+					context.page.pathnameLang,
+					context.consolidationPatterns
+				);
 				const autofixHref = expectedPathname + decodeURIComponent(url.hash);
 				context.report({
 					type: SameLanguage.UnexpectedLanguageLink,
