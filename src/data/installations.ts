@@ -197,12 +197,6 @@ export const products: ProductData[] = [
 						href: '/docs/installation/rhel/',
 					},
 					{
-						logo: install('windows.svg'),
-						logoAlt: 'Windows',
-						title: 'Windows',
-						href: '/docs/installation/docker-windows/',
-					},
-					{
 						logo: install('raspberry-pi.svg'),
 						logoAlt: 'Raspberry Pi',
 						title: 'Raspberry Pi',
@@ -354,12 +348,6 @@ export const products: ProductData[] = [
 						href: '/docs/pe/installation/rhel/',
 					},
 					{
-						logo: install('windows.svg'),
-						logoAlt: 'Windows',
-						title: 'Windows',
-						href: '/docs/pe/installation/docker-windows/',
-					},
-					{
 						logo: install('docker-windows.svg'),
 						logoAlt: 'Docker (Windows)',
 						title: 'Docker (Windows)',
@@ -493,12 +481,6 @@ export const products: ProductData[] = [
 						href: '/docs/edge/installation/rhel/',
 					},
 					{
-						logo: install('windows.svg'),
-						logoAlt: 'Windows',
-						title: 'Windows',
-						href: '/docs/edge/installation/windows/',
-					},
-					{
 						logo: install('docker-windows.svg'),
 						logoAlt: 'Docker (Windows)',
 						title: 'Docker (Windows)',
@@ -542,7 +524,7 @@ export const products: ProductData[] = [
 			{
 				id: 'TryItNow_Trendz_Pricing',
 				label: 'Pricing',
-				href: '/pricing/?section=trendz-options&product=trendz-self-managed&solution=trendz-pay-as-you-go',
+				href: '/pricing/?section=thingsboard-pe-options&product=thingsboard-cloud',
 				secondary: true,
 			},
 		],
@@ -778,7 +760,7 @@ export const products: ProductData[] = [
 						logo: install('helm.svg'),
 						logoAlt: 'Cluster setup using Helm',
 						title: 'Cluster setup using Helm',
-						href: '/docs/mqtt-broker/install/installation-options/',
+						href: '/docs/mqtt-broker/install/installation-options/?installationType=helm',
 						target: '_blank',
 					},
 				],
