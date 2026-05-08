@@ -524,7 +524,7 @@ export const products: ProductData[] = [
 			{
 				id: 'TryItNow_Trendz_Pricing',
 				label: 'Pricing',
-				href: '/pricing/?section=thingsboard-pe-options&product=thingsboard-cloud',
+				href: '/pricing/',
 				secondary: true,
 			},
 		],
