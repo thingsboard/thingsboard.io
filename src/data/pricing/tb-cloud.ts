@@ -1,7 +1,7 @@
 import type { CloudRegionData, TopUpGroup } from './types';
 
 const DATA_POINT_TOOLTIP =
-	'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/reference/subscriptions/" target="_blank">plans definition page</a>.';
+	'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/reference/subscriptions/" target="_blank" rel="noopener noreferrer">plans definition page</a>.';
 
 export const tbCloudData: CloudRegionData = {
 	na: {
@@ -31,7 +31,7 @@ export const tbCloudData: CloudRegionData = {
 						text: 'Community support',
 						faqId: 'tb-cloud-support-included',
 						faqTooltip:
-							'Leverage the collective expertise of the ThingsBoard community. Report bugs, request features, and find technical solutions alongside thousands of developers on our <a href="https://github.com/thingsboard/thingsboard/issues" target="_blank">GitHub Issues page</a>.',
+							'Leverage the collective expertise of the ThingsBoard community. Report bugs, request features, and find technical solutions alongside thousands of developers on our <a href="https://github.com/thingsboard/thingsboard/issues" target="_blank" rel="noopener noreferrer">GitHub Issues page</a>.',
 					},
 					{ text: '', noIcon: true },
 					{ text: '', noIcon: true },
@@ -60,7 +60,7 @@ export const tbCloudData: CloudRegionData = {
 						text: 'Community support',
 						faqId: 'tb-cloud-support-included',
 						faqTooltip:
-							'Leverage the collective expertise of the ThingsBoard community. Report bugs, request features, and find technical solutions alongside thousands of developers on our <a href="https://github.com/thingsboard/thingsboard/issues" target="_blank">GitHub Issues page</a>.',
+							'Leverage the collective expertise of the ThingsBoard community. Report bugs, request features, and find technical solutions alongside thousands of developers on our <a href="https://github.com/thingsboard/thingsboard/issues" target="_blank" rel="noopener noreferrer">GitHub Issues page</a>.',
 					},
 					{ text: '', noIcon: true },
 					{ text: '', noIcon: true },
@@ -173,7 +173,7 @@ export const tbCloudData: CloudRegionData = {
 						plusIcon: true,
 						faqId: 'tb-cloud-exceed-plan-limits',
 						faqTooltip:
-							'Supports scaling up to 5,000 devices. For large-scale deployments exceeding this, a <a target="_blank" href="/pricing/?section=thingsboard-pe-options&product=thingsboard-private-cloud">Private Cloud</a> transition is recommended for enhanced cost-efficiency and dedicated resources.',
+							'Supports scaling up to 5,000 devices. For large-scale deployments exceeding this, a <a target="_blank" href="/pricing/?section=thingsboard-pe-options&product=thingsboard-private-cloud" rel="noopener noreferrer">Private Cloud</a> transition is recommended for enhanced cost-efficiency and dedicated resources.',
 					},
 				],
 			},
@@ -206,7 +206,7 @@ export const tbCloudData: CloudRegionData = {
 						text: 'Community support',
 						faqId: 'tb-cloud-support-included',
 						faqTooltip:
-							'Leverage the collective expertise of the ThingsBoard community. Report bugs, request features, and find technical solutions alongside thousands of developers on our <a href="https://github.com/thingsboard/thingsboard/issues" target="_blank">GitHub Issues page</a>.',
+							'Leverage the collective expertise of the ThingsBoard community. Report bugs, request features, and find technical solutions alongside thousands of developers on our <a href="https://github.com/thingsboard/thingsboard/issues" target="_blank" rel="noopener noreferrer">GitHub Issues page</a>.',
 					},
 					{ text: '', noIcon: true },
 					{ text: '', noIcon: true },
@@ -235,7 +235,7 @@ export const tbCloudData: CloudRegionData = {
 						text: 'Community support',
 						faqId: 'tb-cloud-support-included',
 						faqTooltip:
-							'Leverage the collective expertise of the ThingsBoard community. Report bugs, request features, and find technical solutions alongside thousands of developers on our <a href="https://github.com/thingsboard/thingsboard/issues" target="_blank">GitHub Issues page</a>.',
+							'Leverage the collective expertise of the ThingsBoard community. Report bugs, request features, and find technical solutions alongside thousands of developers on our <a href="https://github.com/thingsboard/thingsboard/issues" target="_blank" rel="noopener noreferrer">GitHub Issues page</a>.',
 					},
 					{ text: '', noIcon: true },
 					{ text: '', noIcon: true },
@@ -348,7 +348,7 @@ export const tbCloudData: CloudRegionData = {
 						plusIcon: true,
 						faqId: 'tb-cloud-exceed-plan-limits',
 						faqTooltip:
-							'Supports scaling up to 5,000 devices. For large-scale deployments exceeding this, a <a target="_blank" href="/pricing/?section=thingsboard-pe-options&product=thingsboard-private-cloud">Private Cloud</a> transition is recommended for enhanced cost-efficiency and dedicated resources.',
+							'Supports scaling up to 5,000 devices. For large-scale deployments exceeding this, a <a target="_blank" href="/pricing/?section=thingsboard-pe-options&product=thingsboard-private-cloud" rel="noopener noreferrer">Private Cloud</a> transition is recommended for enhanced cost-efficiency and dedicated resources.',
 					},
 				],
 			},

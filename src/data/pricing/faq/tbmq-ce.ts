@@ -23,7 +23,7 @@ export const tbmqCeFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-ce-diff-pe',
 				question: 'How does the Community Edition differ from Professional Edition?',
-				answer: '<p>Community Edition includes essential MQTT broker features with full support for MQTT 3.x and MQTT 5.0. The Professional Edition offers advanced features such as White Labeling, RBAC, Single sign-on, etc. You can find a more detailed comparison <a target="_blank" href="/products/mqtt-broker/">on the TBMQ product page</a>.</p>',
+				answer: '<p>Community Edition includes essential MQTT broker features with full support for MQTT 3.x and MQTT 5.0. The Professional Edition offers advanced features such as White Labeling, RBAC, Single sign-on, etc. You can find a more detailed comparison <a target="_blank" href="/products/mqtt-broker/" rel="noopener noreferrer">on the TBMQ product page</a>.</p>',
 			},
 			{
 				id: 'tbmq-ce-session-limits',
@@ -38,17 +38,17 @@ export const tbmqCeFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-ce-migration-pe',
 				question: 'Is it possible to migrate from the Community Edition to the self-managed TBMQ Professional Edition?',
-				answer: '<p>Yes, you can upgrade from TBMQ Community Edition to Professional Edition without losing any data and/or configurations. The upgrade process preserves your existing setup, ensuring a seamless transition. However, please note that any custom modifications made directly to the source code of the Community Edition will be removed during the upgrade process. For more information about the migration procedure, please <a target="_blank" href="/contact-us/">contact us</a>.</p>',
+				answer: '<p>Yes, you can upgrade from TBMQ Community Edition to Professional Edition without losing any data and/or configurations. The upgrade process preserves your existing setup, ensuring a seamless transition. However, please note that any custom modifications made directly to the source code of the Community Edition will be removed during the upgrade process. For more information about the migration procedure, please <a target="_blank" href="/contact-us/" rel="noopener noreferrer">contact us</a>.</p>',
 			},
 			{
 				id: 'tbmq-ce-clustering',
 				question: 'Does the Community Edition support clustering?',
-				answer: '<p>Yes, clustering is fully supported in the Community Edition. You can find more details about deployment scenarios <a target="_blank" href="/docs/mqtt-broker/install/installation-options/">in the deployment options guide</a>.</p>',
+				answer: '<p>Yes, clustering is fully supported in the Community Edition. You can find more details about deployment scenarios <a target="_blank" href="/docs/mqtt-broker/install/installation-options/" rel="noopener noreferrer">in the deployment options guide</a>.</p>',
 			},
 			{
 				id: 'tbmq-ce-customize',
 				question: 'Can I customize and modify the Community Edition?',
-				answer: '<p>Yes, the source code is available on <a target="_blank" href="https://github.com/thingsboard/tbmq">GitHub</a>, and you can fork and modify it according to your requirements. By the way, please consider starring our <a target="_blank" href="https://github.com/thingsboard/tbmq">repository★</a>.</p>',
+				answer: '<p>Yes, the source code is available on <a target="_blank" href="https://github.com/thingsboard/tbmq" rel="noopener noreferrer">GitHub</a>, and you can fork and modify it according to your requirements. By the way, please consider starring our <a target="_blank" href="https://github.com/thingsboard/tbmq" rel="noopener noreferrer">repository★</a>.</p>',
 			},
 			{
 				id: 'tbmq-ce-internet',
@@ -64,7 +64,7 @@ export const tbmqCeFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-ce-install-guide',
 				question: 'How do I install TBMQ Community Edition?',
-				answer: '<p>Installation guides are available in the <a target="_blank" href="/docs/mqtt-broker/install/installation-options/">documentation</a>. The Community Edition can be installed in monolith or cluster mode, and supports deployment on Docker and Kubernetes.</p>',
+				answer: '<p>Installation guides are available in the <a target="_blank" href="/docs/mqtt-broker/install/installation-options/" rel="noopener noreferrer">documentation</a>. The Community Edition can be installed in monolith or cluster mode, and supports deployment on Docker and Kubernetes.</p>',
 			},
 			{
 				id: 'tbmq-ce-install-location',
@@ -74,12 +74,12 @@ export const tbmqCeFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-ce-db-support',
 				question: 'What databases does the Community Edition support?',
-				answer: '<p>The Community Edition supports Kafka, Redis/Valkey, and PostgreSQL. For more details on database options, you can check <a target="_blank" href="/docs/mqtt-broker/architecture/">the TBMQ architecture page</a>.</p>',
+				answer: '<p>The Community Edition supports Kafka, Redis/Valkey, and PostgreSQL. For more details on database options, you can check <a target="_blank" href="/docs/mqtt-broker/architecture/" rel="noopener noreferrer">the TBMQ architecture page</a>.</p>',
 			},
 			{
 				id: 'tbmq-ce-docker',
 				question: 'Is there an official Docker image for Community Edition?',
-				answer: '<p>Yes, official Docker images are available on <a target="_blank" href="https://hub.docker.com/r/thingsboard/tbmq">Docker Hub</a>.</p>',
+				answer: '<p>Yes, official Docker images are available on <a target="_blank" href="https://hub.docker.com/r/thingsboard/tbmq" rel="noopener noreferrer">Docker Hub</a>.</p>',
 			},
 			{
 				id: 'tbmq-ce-multitenancy',
@@ -100,12 +100,12 @@ export const tbmqCeFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-ce-features-list',
 				question: 'What features are included in TBMQ Community Edition?',
-				answer: '<p>The Community Edition includes all essential MQTT broker features with full support for MQTT 3.x and MQTT 5.0. You can find all features and descriptions <a target="_blank" href="/docs/mqtt-broker/">in the TBMQ documentation</a>.</p>',
+				answer: '<p>The Community Edition includes all essential MQTT broker features with full support for MQTT 3.x and MQTT 5.0. You can find all features and descriptions <a target="_blank" href="/docs/mqtt-broker/" rel="noopener noreferrer">in the TBMQ documentation</a>.</p>',
 			},
 			{
 				id: 'tbmq-ce-pe-exclusive',
 				question: 'What features are exclusive to the Professional Edition?',
-				answer: '<p>The Professional Edition offers advanced features such as White Labeling, RBAC, Single sign-on, etc. You can find a more detailed comparison <a target="_blank" href="/products/mqtt-broker/">on the TBMQ product page</a>.</p>',
+				answer: '<p>The Professional Edition offers advanced features such as White Labeling, RBAC, Single sign-on, etc. You can find a more detailed comparison <a target="_blank" href="/products/mqtt-broker/" rel="noopener noreferrer">on the TBMQ product page</a>.</p>',
 			},
 			{
 				id: 'tbmq-ce-white-label',
@@ -120,7 +120,7 @@ export const tbmqCeFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-ce-integrations',
 				question: 'Can I integrate third-party systems with Community Edition?',
-				answer: '<p>Yes, you can integrate the TBMQ Community Edition with third-party systems through <a target="_blank" href="/docs/mqtt-broker/integrations/">platform integrations</a>.</p>',
+				answer: '<p>Yes, you can integrate the TBMQ Community Edition with third-party systems through <a target="_blank" href="/docs/mqtt-broker/integrations/" rel="noopener noreferrer">platform integrations</a>.</p>',
 			},
 		],
 	},
@@ -131,47 +131,47 @@ export const tbmqCeFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-ce-support',
 				question: 'Is there out-of-the-box support from TBMQ team for Community Edition users?',
-				answer: '<p>The TBMQ team does not provide dedicated support for Community Edition users. However, users can access community-driven resources such as <a target="_blank" href="https://github.com/thingsboard/tbmq/discussions">forums</a>, <a target="_blank" href="/docs/mqtt-broker/">documentation</a>, and <a target="_blank" href="https://github.com/thingsboard/tbmq">GitHub</a> for assistance.</p>',
+				answer: '<p>The TBMQ team does not provide dedicated support for Community Edition users. However, users can access community-driven resources such as <a target="_blank" href="https://github.com/thingsboard/tbmq/discussions" rel="noopener noreferrer">forums</a>, <a target="_blank" href="/docs/mqtt-broker/" rel="noopener noreferrer">documentation</a>, and <a target="_blank" href="https://github.com/thingsboard/tbmq" rel="noopener noreferrer">GitHub</a> for assistance.</p>',
 			},
 			{
 				id: 'tbmq-ce-paid-support',
 				question: 'Can I purchase additional support for the Community Edition?',
-				answer: '<p>Depending on the type of support you are looking for, the TBMQ team may be able to offer certain types of additional support packages. To discuss your unique case and requirements, please <a target="_blank" href="/contact-us/">contact us</a>.</p>',
+				answer: '<p>Depending on the type of support you are looking for, the TBMQ team may be able to offer certain types of additional support packages. To discuss your unique case and requirements, please <a target="_blank" href="/contact-us/" rel="noopener noreferrer">contact us</a>.</p>',
 			},
 			{
 				id: 'tbmq-ce-help',
 				question: 'Where can I get help if I run into issues?',
-				answer: '<p><a target="_blank" href="https://github.com/thingsboard/tbmq/issues">GitHub</a> (report issues, contribute)<br><a target="_blank" href="https://stackoverflow.com/questions/tagged/thingsboard">Stack Overflow</a> (for developer-related questions)<br><a target="_blank" href="/docs/mqtt-broker/">Documentation & Tutorials</a></p>',
+				answer: '<p><a target="_blank" href="https://github.com/thingsboard/tbmq/issues" rel="noopener noreferrer">GitHub</a> (report issues, contribute)<br><a target="_blank" href="https://stackoverflow.com/questions/tagged/thingsboard" rel="noopener noreferrer">Stack Overflow</a> (for developer-related questions)<br><a target="_blank" href="/docs/mqtt-broker/" rel="noopener noreferrer">Documentation & Tutorials</a></p>',
 			},
 			{
 				id: 'tbmq-ce-feature-request',
 				question: 'Can I request custom features or improvements?',
-				answer: '<p>Yes, you are welcome to submit feature requests on <a target="_blank" href="https://github.com/thingsboard/tbmq/issues">GitHub</a>. After the product team reviews them, they may be added to the backlog.</p>',
+				answer: '<p>Yes, you are welcome to submit feature requests on <a target="_blank" href="https://github.com/thingsboard/tbmq/issues" rel="noopener noreferrer">GitHub</a>. After the product team reviews them, they may be added to the backlog.</p>',
 			},
 			{
 				id: 'tbmq-ce-dev-services',
 				question: 'Can I pay for additional features to be developed?',
-				answer: '<p>The TBMQ team can propose application configuration services. To discuss your unique case and requirements, please <a target="_blank" href="/contact-us/">contact us</a>.</p>',
+				answer: '<p>The TBMQ team can propose application configuration services. To discuss your unique case and requirements, please <a target="_blank" href="/contact-us/" rel="noopener noreferrer">contact us</a>.</p>',
 			},
 			{
 				id: 'tbmq-ce-updates',
 				question: 'Are software updates available for Community Edition?',
-				answer: '<p>Yes, updates for all <a target="_blank" href="https://github.com/thingsboard/tbmq/releases">versions</a> are available.</p>',
+				answer: '<p>Yes, updates for all <a target="_blank" href="https://github.com/thingsboard/tbmq/releases" rel="noopener noreferrer">versions</a> are available.</p>',
 			},
 			{
 				id: 'tbmq-ce-dev-assist',
 				question: 'Can I get TBMQ developers to help with my Community Edition deployment?',
-				answer: '<p>Yes, you can request such assistance as an additional paid service. Please, <a target="_blank" href="/contact-us/">contact us</a> to discuss how we can help.</p>',
+				answer: '<p>Yes, you can request such assistance as an additional paid service. Please, <a target="_blank" href="/contact-us/" rel="noopener noreferrer">contact us</a> to discuss how we can help.</p>',
 			},
 			{
 				id: 'tbmq-ce-bug-report',
 				question: 'What should I do if I find a bug in Community Edition?',
-				answer: '<p>You can report it on <a target="_blank" href="https://github.com/thingsboard/tbmq/issues">GitHub</a>, and the open-source community may help fix it.</p>',
+				answer: '<p>You can report it on <a target="_blank" href="https://github.com/thingsboard/tbmq/issues" rel="noopener noreferrer">GitHub</a>, and the open-source community may help fix it.</p>',
 			},
 			{
 				id: 'tbmq-ce-contribute',
 				question: 'Can I contribute to the development of TBMQ Community Edition?',
-				answer: '<p>Yes! Pull requests and contributions are welcome on <a target="_blank" href="https://github.com/thingsboard/tbmq">GitHub</a>.</p>',
+				answer: '<p>Yes! Pull requests and contributions are welcome on <a target="_blank" href="https://github.com/thingsboard/tbmq" rel="noopener noreferrer">GitHub</a>.</p>',
 			},
 		],
 	},
@@ -192,7 +192,7 @@ export const tbmqCeFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-ce-migration-strategy',
 				question: 'How do I migrate from Community Edition to Enterprise?',
-				answer: '<p>Migration depends on factors such as the version, source code changes, and more. Please <a target="_blank" href="/contact-us/">contact us</a> for personalized suggestions and a clear strategy on how to perform the migration.</p>',
+				answer: '<p>Migration depends on factors such as the version, source code changes, and more. Please <a target="_blank" href="/contact-us/" rel="noopener noreferrer">contact us</a> for personalized suggestions and a clear strategy on how to perform the migration.</p>',
 			},
 			{
 				id: 'tbmq-ce-pe-trial',
