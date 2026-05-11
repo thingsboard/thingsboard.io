@@ -248,26 +248,30 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 	{ label: 'Troubleshooting', slug: `${prefix.replace('/user-guide', '')}/troubleshooting` },
 ];
 
-const edgeInstallationItems = (prefix: string) => [
-	{ label: 'Installation options', slug: `${prefix}/installation` },
-	{
-		label: 'Single node',
-		items: [
-			`${prefix}/installation/docker`,
-			`${prefix}/installation/docker-windows`,
-			`${prefix}/installation/ubuntu`,
-			`${prefix}/installation/rhel`,
-			`${prefix}/installation/rpi`,
-			`${prefix}/installation/windows`,
-		],
-	},
-	{
-		label: 'Cluster',
-		items: [`${prefix}/installation/docker-compose-setup`],
-	},
-	{ label: 'Building from Sources', slug: `${prefix}/installation/building-from-source` },
-	{ label: 'Upgrade instructions', slug: `${prefix}/installation/upgrade-instructions` },
-];
+const edgeInstallationItems = (prefix: string) => {
+	const isPE = prefix.includes('/pe');
+	return [
+		{ label: 'Installation options', slug: `${prefix}/installation` },
+		{
+			label: 'Single node',
+			items: [
+				`${prefix}/installation/docker`,
+				`${prefix}/installation/docker-windows`,
+				`${prefix}/installation/ubuntu`,
+				`${prefix}/installation/rhel`,
+				`${prefix}/installation/rpi`,
+			],
+		},
+		{
+			label: 'Cluster',
+			items: [`${prefix}/installation/docker-compose-setup`],
+		},
+		...(isPE
+			? []
+			: [{ label: 'Building from Sources', slug: `${prefix}/installation/building-from-source` }]),
+		{ label: 'Upgrade instructions', slug: `${prefix}/installation/upgrade-instructions` },
+	];
+};
 
 const installationItems = (prefix: string) => {
 	const isPE = prefix.includes('/pe');
@@ -3434,7 +3438,7 @@ export const trendzSidebar: SidebarConfig = [
 	{
 		label: 'Installation',
 		items: [
-			{ slug: 'docs/trendz/install/installation-options', label: 'Overview' },
+			{ slug: 'docs/trendz/install', label: 'Overview' },
 			{
 				label: 'Installation Options',
 				collapsed: false,
@@ -3448,7 +3452,6 @@ export const trendzSidebar: SidebarConfig = [
 							'docs/trendz/install/docker-windows',
 							'docs/trendz/install/ubuntu',
 							'docs/trendz/install/rhel',
-							'docs/trendz/install/windows',
 						],
 					},
 					{
@@ -3561,14 +3564,14 @@ export const gwSidebarTabLinks: SidebarTabLinks = {
 export const tbmqSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/mqtt-broker/',
 	Guides: '/docs/mqtt-broker/guides/',
-	Installation: '/docs/mqtt-broker/install/installation-options/',
+	Installation: '/docs/mqtt-broker/install/',
 	Reference: '/docs/mqtt-broker/reference/',
 	Releases: '/docs/mqtt-broker/changelog/',
 };
 export const tbmqPeSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/mqtt-broker/pe/',
 	Guides: '/docs/mqtt-broker/pe/guides/',
-	Installation: '/docs/mqtt-broker/pe/install/installation-options/',
+	Installation: '/docs/mqtt-broker/pe/install/',
 	Reference: '/docs/mqtt-broker/pe/reference/',
 	Releases: '/docs/mqtt-broker/pe/changelog/',
 };
@@ -3579,7 +3582,7 @@ export const trendzSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/trendz/',
 	Documentation: '/docs/trendz/what-is-trendz/',
 	Guides: '/docs/trendz/guides/',
-	Installation: '/docs/trendz/install/installation-options/',
+	Installation: '/docs/trendz/install/',
 };
 export const licenseSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/license-server/',

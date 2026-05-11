@@ -592,12 +592,6 @@ export const products: ProductData[] = [
 						href: '/docs/trendz/install/rhel/',
 					},
 					{
-						logo: install('windows.svg'),
-						logoAlt: 'Windows',
-						title: 'Windows',
-						href: '/docs/trendz/install/windows/',
-					},
-					{
 						logo: install('docker-windows.svg'),
 						logoAlt: 'Docker (Windows)',
 						title: 'Docker (Windows)',
@@ -630,14 +624,14 @@ export const products: ProductData[] = [
 			{
 				id: 'TryItNow_TBMQ_Install_CE',
 				label: 'Download CE',
-				href: '/docs/mqtt-broker/install/installation-options/',
+				href: '/docs/mqtt-broker/install/',
 				target: '_blank',
 				secondary: true,
 			},
 			{
 				id: 'TryItNow_TBMQ_Install_PE',
 				label: 'Start PE Trial',
-				href: '/docs/mqtt-broker/pe/install/installation-options/',
+				href: '/docs/mqtt-broker/pe/install/',
 				target: '_blank',
 				secondary: true,
 			},
@@ -692,7 +686,7 @@ export const products: ProductData[] = [
 				},
 				{
 					title: 'K8s & Cloud Agnostic',
-					href: '/docs/mqtt-broker/install/installation-options/',
+					href: '/docs/mqtt-broker/install/',
 					target: '_blank',
 					description: 'Deploy in cloud or on-premises using K8s scripts with ease',
 				},
@@ -760,7 +754,7 @@ export const products: ProductData[] = [
 						logo: install('helm.svg'),
 						logoAlt: 'Cluster setup using Helm',
 						title: 'Cluster setup using Helm',
-						href: '/docs/mqtt-broker/install/installation-options/?installationType=helm',
+						href: '/docs/mqtt-broker/install/?installationType=helm',
 						target: '_blank',
 					},
 				],
