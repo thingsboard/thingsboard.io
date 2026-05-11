@@ -7,6 +7,7 @@ var client  = mqtt.connect('mqtt://thingsboard.cloud/',{
 
 client.on('connect', function () {
     console.log('Client connected!');
+    client.subscribe('v1/devices/me/rpc/request/+');
     console.log('Uploading gps data once per second...');
     setInterval(publishTelemetry, 1000);
     publishTelemetry();
@@ -359,9 +360,10 @@ var gpsData = [
 
 var index = 0,
     speed = 40,
-    status = "On route";
-    stopTime = -5;
-    runTime = 0;
+    status = "On route",
+    stopTime = -5,
+    runTime = 0,
+    softwareVersion = null;
 
 client.on('message', function (topic, message) {
     console.log('request.topic: ' + topic);
@@ -370,7 +372,7 @@ client.on('message', function (topic, message) {
         messageData = JSON.parse(message.toString());
     if (messageData.method === 'setSoftwareVersion') {
         softwareVersion = messageData.params.value;
-        console.log('New software version was successfylly updated!');
+        console.log('New software version was successfully updated!');
         client.publish('v1/devices/me/attributes', JSON.stringify({'softwareVersion': softwareVersion}));
     } else {
         client.publish('v1/devices/me/rpc/response/' + requestId, message);
@@ -396,7 +398,7 @@ function publishTelemetry() {
     if(status == "On route") {
         index += 2;
     }
-    if(index == 684) {
+    if(index >= gpsData.length) {
         index = 0;
     }
 }
