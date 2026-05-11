@@ -335,7 +335,7 @@ export const caseStudyServicesBanner = {
 	title: 'Want to achieve similarly impactful results?',
 	subtitle:
 		'Find your development partner for scalable solutions delivered fast and on a fixed timeline.',
-	iconSrc: 'https://img.thingsboard.io/usecases/services-icon.svg',
+	iconSrc: '/images/usecases/services-icon.svg',
 	iconAlt: 'Services icon',
 	buttons: [{ label: 'Explore our service', href: '/services/' }],
 	variant: 'light' as const,
