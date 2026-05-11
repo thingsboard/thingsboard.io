@@ -1,14 +1,11 @@
 import { Aside } from '@astrojs/starlight/components';
 import DocLink from '@components/DocLink.astro';
+import { Products } from '~/models/site.models';
+import ShowFor from '~/components/ShowFor.astro';
+import ConditionalHeading from '~/components/ConditionalHeading.astro';
 
 This guide covers deploying a TBMQ cluster using the official Helm <a href="https://artifacthub.io/packages/helm/tbmq-helm-chart/tbmq-cluster" target="_blank" rel="noopener noreferrer">chart</a>
 on Azure using Azure Kubernetes Service (AKS).
-
-<Aside type="caution" title="Helm chart for TBMQ 2.3 is not yet released">
-  A new version of the TBMQ Helm chart for the 2.3 release is not yet published. The current chart still uses the
-  previous component images (including Bitnami-based images for Kafka, Redis, and PostgreSQL), does not yet support
-  upgrades from 2.2 to 2.3, and does not yet support migration from CE to PE. An updated chart is in progress.
-</Aside>
 
 <Aside>
   Throughout this guide, the cluster name **`tbmq-cluster`** and resource group **`TBMQResources`** are used as defaults
@@ -113,6 +110,20 @@ helm repo add tbmq-helm-chart https://helm.thingsboard.io/tbmq
 helm repo update
 ```
 
+## Create namespace
+
+Create a dedicated namespace for your TBMQ cluster deployment:
+
+```bash
+kubectl create namespace tbmq
+```
+
+```bash
+kubectl config set-context --current --namespace=tbmq
+```
+
+This sets `tbmq` as the default namespace for your current context, so you don't need to pass `--namespace` to every command.
+
 ## Modify default chart values
 
 To customize your TBMQ deployment, download the default `values.yaml` from the chart:
@@ -127,28 +138,84 @@ helm show values tbmq-helm-chart/tbmq-cluster > values.yaml
   Instead, pass it explicitly using `--set` in the `helm install` command.
 </Aside>
 
-### External PostgreSQL
+### Deploy and connect to dependencies
 
-By default, the chart installs Bitnami PostgreSQL as a sub-chart, provisioning a single-node instance with configurable
-storage, backups, and monitoring options.
+Starting with chart version 2.0.0, the TBMQ Helm chart no longer bundles PostgreSQL, Kafka, or a Redis-compatible cache.
+This step assumes you have already deployed all three so they're reachable from the `tbmq` namespace. On Azure, the
+common choices are managed services: Azure Database for PostgreSQL, Azure Event Hubs with the Kafka protocol enabled,
+and Azure Cache for Redis. You can also self-host any of them inside the AKS cluster with operators like CrunchyData
+PGO, Strimzi, or Valkey. For an Azure Database for PostgreSQL provisioning walkthrough, see the
+<DocLink product={props.product} path="install/cluster/azure-cluster-setup/#provision-postgresql-db">Azure cluster setup guide</DocLink>.
 
-For users with an existing PostgreSQL instance, TBMQ can be configured to connect externally.
-Disable the built-in PostgreSQL by setting `postgresql.enabled: false` and specify connection details in `externalPostgresql`:
+Point the chart at your instances by setting the connection values in `values.yaml`. At a minimum, set:
 
 ```yaml
 postgresql:
-  enabled: false
-
-externalPostgresql:
-  host: ""
+  host: "my-tbmq-db.postgres.database.azure.com"
   port: 5432
-  username: "postgres"
-  password: "postgres"
   database: "thingsboard_mqtt_broker"
+  username: "postgres"
+  existingSecret: "my-pg-secret"
+  existingSecretPasswordKey: "password"
+
+kafka:
+  bootstrapServers: "my-eventhubs.servicebus.windows.net:9093"
+
+redis:
+  connectionType: "standalone"
+  host: "my-tbmq-cache.redis.cache.windows.net"
+  port: 6379
+  existingSecret: "my-redis-secret"
+  existingSecretPasswordKey: "redis-password"
 ```
 
-If you plan to use Azure Database for PostgreSQL, follow the
-<DocLink product={props.product} path="install/cluster/azure-cluster-setup/#provision-postgresql-db">Azure cluster setup guide</DocLink> to provision and configure your instance.
+Replace the hostnames, credentials, and `redis.connectionType` (`standalone` or `cluster`) with values that match
+your actual deployment. For the full set of supported keys, see the
+<a href="https://artifacthub.io/packages/helm/tbmq-helm-chart/tbmq-cluster#infrastructure-configuration" target="_blank" rel="noopener noreferrer">Infrastructure Configuration</a>
+section of the chart documentation.
+
+<ShowFor product={props.product} show={[Products.TBMQ_PE]}>
+
+<ConditionalHeading level={3} id="configure-license-and-broker-images" showFor="mqtt-broker-pe">Configure license and broker images</ConditionalHeading>
+
+The chart defaults point at the open-source broker and Integration Executor images. Switch both to the PE variants
+and provide a license.
+
+In your `values.yaml`, update the `tbmq.image` and `tbmq-ie.image` blocks:
+
+```yaml
+tbmq:
+  image:
+    repository: thingsboard/tbmq-pe-node
+    tag: 2.3.0PE
+
+tbmq-ie:
+  image:
+    repository: thingsboard/tbmq-pe-integration-executor
+    tag: 2.3.0PE
+```
+
+Pre-create a Kubernetes Secret holding the license value in the namespace you plan to install into,
+and reference it from `values.yaml`:
+
+```bash
+kubectl create secret generic my-tbmq-license -n tbmq \
+  --from-literal=license-key='YOUR_LICENSE_VALUE'
+```
+
+```yaml
+license:
+  existingSecret: my-tbmq-license
+```
+
+<Aside type="tip">
+  Pre-creating a Secret keeps the license value out of `values.yaml`. For test setups, you can paste the value inline
+  with `license.secret: "YOUR_LICENSE_VALUE"` and let the chart render the Secret for you. See the
+  <a href="https://artifacthub.io/packages/helm/tbmq-helm-chart/tbmq-cluster#professional-edition-pe" target="_blank" rel="noopener noreferrer">Professional Edition section</a>
+  of the chart documentation for trade-offs.
+</Aside>
+
+</ShowFor>
 
 ### Load balancer configuration
 
@@ -185,20 +252,6 @@ loadbalancer:
 Azure Load Balancer does not support TLS termination for MQTT traffic.
 To secure MQTT communication, configure mutual TLS (mTLS) directly in TBMQ.
 Refer to the TBMQ Helm chart documentation for <a href="https://artifacthub.io/packages/helm/tbmq-helm-chart/tbmq-cluster#configuring-mutual-tls-mtls-for-mqtt" target="_blank" rel="noopener noreferrer">details on configuring mTLS</a>.
-
-## Create namespace
-
-Create a dedicated namespace for your TBMQ cluster deployment:
-
-```bash
-kubectl create namespace tbmq
-```
-
-```bash
-kubectl config set-context --current --namespace=tbmq
-```
-
-This sets `tbmq` as the default namespace for your current context, so you don't need to pass `--namespace` to every command.
 
 ## Install the TBMQ Helm chart
 
@@ -298,18 +351,20 @@ See the <a href="https://kubernetes.io/docs/reference/kubectl/quick-reference/" 
 
 ## Upgrading
 
+Chart version 2.0.0 is a breaking change from the 1.x line: the Bitnami PostgreSQL, Kafka, and Redis subcharts that
+earlier versions bundled have been removed. Upgrades from chart 1.x require either keeping the existing in-cluster
+Bitnami stack (annotated with `helm.sh/resource-policy: keep`) or provisioning a fresh third-party stack
+(PostgreSQL 17, Apache Kafka 4.0.0, Valkey 8.0+). Same-edition upgrades and CE → PE cross-edition migration on the
+same TBMQ version are also supported via the chart's pre-upgrade hook.
+
 <Aside type="caution">
-  The Helm chart has not yet been updated for the TBMQ 2.3 release. Upgrading an existing Helm-based deployment
-  from 2.2 to 2.3, as well as migration from CE to PE, is not yet supported through the chart. An updated chart is
-  in progress, and detailed instructions will follow.
+  Always back up your PostgreSQL database before upgrading, regardless of which path you take.
 </Aside>
 
-Helm support was introduced with the TBMQ 2.1.0 release. Starting with TBMQ 2.2.0,
-the Helm chart was updated to version <a href="https://artifacthub.io/packages/helm/tbmq-helm-chart/tbmq-cluster/1.0.0?modal=changelog&version=1.1.0" target="_blank" rel="noopener noreferrer">1.1.0</a>,
-which introduced upgrade options.
-For detailed upgrade instructions, refer to the
-<a href="https://artifacthub.io/packages/helm/tbmq-helm-chart/tbmq-cluster#upgrading" target="_blank" rel="noopener noreferrer">Upgrading</a> section
-of the TBMQ Helm Chart documentation on Artifact Hub.
+For the full procedure, refer to the
+<a href="https://artifacthub.io/packages/helm/tbmq-helm-chart/tbmq-cluster#upgrading" target="_blank" rel="noopener noreferrer">Upgrading</a>
+section of the TBMQ Helm Chart documentation on Artifact Hub. It covers the chart 1.x → 2.0.0 migration paths, the
+`upgrade.upgradeDbSchema` and `upgrade.fromVersion` flags, and the CE → PE migration steps.
 
 ## Uninstalling TBMQ Helm chart
 
@@ -321,12 +376,16 @@ helm delete my-tbmq-cluster
 
 This removes all TBMQ components associated with the release from the current namespace.
 
-The `helm delete` command removes only the logical resources of the TBMQ cluster.
-To fully clean up all persistent data, manually delete the associated Persistent Volume Claims (PVCs):
+The `helm delete` command removes only the logical resources of the TBMQ cluster. Per-pod PVCs created from the
+broker's `volumeClaimTemplate` are intentionally not deleted by `helm uninstall` and carry no `app=` label.
+Drop them explicitly by name pattern:
 
 ```bash
-kubectl delete pvc -l app.kubernetes.io/instance=my-tbmq-cluster
+kubectl get pvc -n tbmq -o name | grep tbmq-node-data | xargs -r kubectl delete -n tbmq
 ```
+
+Azure Database for PostgreSQL, Event Hubs, and Managed Redis resources are owned by Azure and are not affected by
+`helm delete`. Drop them through their own portal or IaC tooling if you no longer need them.
 
 ## Delete Kubernetes cluster
 
