@@ -637,6 +637,7 @@ const useCardMode = cardMode && isSingle;
 		object-fit: contain;
 		border-radius: 4px;
 		display: block;
+		cursor: zoom-in;
 		/* Shadow gives the "floating" image effect */
 		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 	}
@@ -833,6 +834,13 @@ const useCardMode = cardMode && isSingle;
 	let currentIndex = 0;
 	let isClosing = false;
 
+	// Zoom state — applied as inline transform on imgWrapper (between open/close animations)
+	let zoomScale = 1;
+	let zoomTX = 0;
+	let zoomTY = 0;
+	const ZOOM_MIN = 1;
+	const ZOOM_MAX = 4;
+
 	function isOpen() {
 		return lightbox.getAttribute('aria-hidden') === 'false';
 	}
@@ -858,6 +866,7 @@ const useCardMode = cardMode && isSingle;
 		counter.textContent = single ? '' : `${currentIndex + 1} / ${thumbs.length}`;
 		prevBtn.toggleAttribute('hidden', single);
 		nextBtn.toggleAttribute('hidden', single);
+		resetZoom();
 	}
 
 	// When overflow:hidden removes the scrollbar, the ICB for fixed elements grows by the scrollbar
@@ -866,6 +875,7 @@ const useCardMode = cardMode && isSingle;
 	// (keeps header content width). Suppress header transitions with `transition:none` + double-rAF
 	// so the instant padding change doesn't animate over the header's CSS transition-duration:0.3s.
 	const header = /** @type {HTMLElement|null} */ (document.querySelector('header.header'));
+	let headerCompensated = false;
 
 	function lockScroll() {
 		const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
@@ -874,23 +884,67 @@ const useCardMode = cardMode && isSingle;
 			return;
 		}
 		if (header) {
-			const currentPR = parseFloat(getComputedStyle(header).paddingRight);
+			const currentPaddingRight = parseFloat(getComputedStyle(header).paddingRight);
 			header.style.transition = 'none';
-			header.style.paddingRight = (currentPR + scrollbarWidth) + 'px';
+			header.style.paddingRight = (currentPaddingRight + scrollbarWidth) + 'px';
 			requestAnimationFrame(() => requestAnimationFrame(() => { header.style.transition = ''; }));
+			headerCompensated = true;
 		}
 		document.documentElement.style.paddingRight = scrollbarWidth + 'px';
 		document.documentElement.classList.add('gallery-scroll-locked');
 	}
 
 	function unlockScroll() {
-		if (header) {
+		if (header && headerCompensated) {
 			header.style.transition = 'none';
 			header.style.paddingRight = '';
 			requestAnimationFrame(() => requestAnimationFrame(() => { header.style.transition = ''; }));
+			headerCompensated = false;
 		}
 		document.documentElement.classList.remove('gallery-scroll-locked');
 		document.documentElement.style.paddingRight = '';
+	}
+
+	// ── Zoom helpers ──────────────────────────────────────────────────────────
+	function applyZoom() {
+		if (zoomScale === 1) {
+			imgWrapper.style.transform = '';
+			imgWrapper.style.cursor = '';
+			lbImgLight.style.cursor = '';
+			lbImgDark.style.cursor = '';
+		} else {
+			imgWrapper.style.transformOrigin = '50% 50%';
+			imgWrapper.style.transform = `translate(${zoomTX}px,${zoomTY}px) scale(${zoomScale})`;
+			imgWrapper.style.cursor = 'grab';
+			lbImgLight.style.cursor = 'grab';
+			lbImgDark.style.cursor = 'grab';
+		}
+	}
+
+	function clampPan() {
+		if (zoomScale <= 1) { zoomTX = 0; zoomTY = 0; return; }
+		// Image is at most 90vw × 78vh (from CSS max-width/max-height)
+		const maxX = Math.max(0, window.innerWidth * (0.9 * zoomScale - 1) / 2);
+		const maxY = Math.max(0, window.innerHeight * (0.78 * zoomScale - 1) / 2);
+		zoomTX = Math.max(-maxX, Math.min(maxX, zoomTX));
+		zoomTY = Math.max(-maxY, Math.min(maxY, zoomTY));
+	}
+
+	function resetZoom() {
+		zoomScale = 1; zoomTX = 0; zoomTY = 0;
+		applyZoom();
+	}
+
+	function zoomToPoint(ox, oy, factor) {
+		const prev = zoomScale;
+		zoomScale = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoomScale * factor));
+		if (zoomScale === prev) return;
+		const r = zoomScale / prev;
+		const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+		zoomTX = (ox - cx) * (1 - r) + zoomTX * r;
+		zoomTY = (oy - cy) * (1 - r) + zoomTY * r;
+		clampPan();
+		applyZoom();
 	}
 
 	function openLightbox(index, triggerBtn) {
@@ -920,6 +974,7 @@ const useCardMode = cardMode && isSingle;
 	function closeLightbox() {
 		if (isClosing || !isOpen()) return;
 		isClosing = true;
+		resetZoom(); // clear zoom before collapse animation
 
 		// Update origin to current thumbnail position (for collapse animation)
 		const btn = thumbs[currentIndex];
@@ -961,9 +1016,57 @@ const useCardMode = cardMode && isSingle;
 	// Lightbox buttons
 	closeBtn.addEventListener('click', closeLightbox);
 	backdrop.addEventListener('click', closeLightbox);
-	imgWrapper.addEventListener('click', closeLightbox);
+	imgWrapper.addEventListener('click', (e) => {
+		if (dragMoved) { dragMoved = false; return; }
+		if (e.target !== lbImgLight && e.target !== lbImgDark) closeLightbox();
+	});
 	prevBtn.addEventListener('click', showPrev);
 	nextBtn.addEventListener('click', showNext);
+
+	// ── Zoom: double-click to zoom in at cursor; double-click again to reset ──
+	lightbox.addEventListener('dblclick', (e) => {
+		if (e.target !== lbImgLight && e.target !== lbImgDark) return;
+		if (zoomScale > 1) resetZoom();
+		else zoomToPoint(e.clientX, e.clientY, 2.5);
+	});
+
+	// ── Zoom: mouse wheel (desktop) ──
+	lightbox.addEventListener('wheel', (e) => {
+		if (!isOpen()) return;
+		e.preventDefault();
+		zoomToPoint(e.clientX, e.clientY, e.deltaY < 0 ? 1.15 : 1 / 1.15);
+	}, { passive: false });
+
+	// ── Zoom: mouse drag to pan when zoomed ──
+	let isDragging = false;
+	let dragMoved = false;
+	let dragStartX = 0, dragStartY = 0, dragStartTX = 0, dragStartTY = 0;
+
+	imgWrapper.addEventListener('mousedown', (e) => {
+		if (zoomScale <= 1 || e.button !== 0) return;
+		isDragging = true;
+		dragMoved = false;
+		dragStartX = e.clientX; dragStartY = e.clientY;
+		dragStartTX = zoomTX; dragStartTY = zoomTY;
+		imgWrapper.style.cursor = 'grabbing';
+		e.preventDefault();
+	});
+
+	document.addEventListener('mousemove', (e) => {
+		if (!isDragging) return;
+		const dx = e.clientX - dragStartX, dy = e.clientY - dragStartY;
+		if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragMoved = true;
+		zoomTX = dragStartTX + dx;
+		zoomTY = dragStartTY + dy;
+		clampPan();
+		applyZoom();
+	});
+
+	document.addEventListener('mouseup', () => {
+		if (!isDragging) return;
+		isDragging = false;
+		applyZoom();
+	});
 
 	// Keyboard (only if this lightbox is open)
 	document.addEventListener('keydown', (e) => {
@@ -973,27 +1076,34 @@ const useCardMode = cardMode && isSingle;
 		else if (e.key === 'ArrowRight') showNext();
 	});
 
-	// Swipe gestures: left/right → prev/next, up/down → close
+	// Swipe gestures: left/right → prev/next, up/down → close.
+	// MIN_DIST and angle guard match the site-wide handler in HeaderContent.astro (MIN_DIST=60).
+	// stopPropagation prevents bubbling to the document handler that opens burger/sidebar menus.
+	// angle < 30° = horizontal swipe, angle > 60° = vertical swipe, 30–60° diagonal = ignored.
 	let swipeStartX = 0;
 	let swipeStartY = 0;
-	const SWIPE_THRESHOLD = 50;
+	const SWIPE_MIN_DIST = 60;
 
 	lightbox.addEventListener('touchstart', (e) => {
+		e.stopPropagation();
 		swipeStartX = e.changedTouches[0].clientX;
 		swipeStartY = e.changedTouches[0].clientY;
 	}, { passive: true });
 
 	lightbox.addEventListener('touchend', (e) => {
+		e.stopPropagation();
 		const deltaX = e.changedTouches[0].clientX - swipeStartX;
 		const deltaY = e.changedTouches[0].clientY - swipeStartY;
 		const absX = Math.abs(deltaX);
 		const absY = Math.abs(deltaY);
+		if (Math.sqrt(absX * absX + absY * absY) < SWIPE_MIN_DIST) return;
 
-		if (absX > absY && absX > SWIPE_THRESHOLD && thumbs.length > 1) {
+		const angle = Math.atan2(absY, absX) * (180 / Math.PI);
+		if (angle < 30 && thumbs.length > 1) {
 			e.preventDefault();
 			if (deltaX < 0) showNext();
 			else showPrev();
-		} else if (absY > absX && absY > SWIPE_THRESHOLD) {
+		} else if (angle > 60) {
 			e.preventDefault();
 			closeLightbox();
 		}
