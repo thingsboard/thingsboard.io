@@ -139,17 +139,6 @@ export const CATCH_ALL_REDIRECTS: CatchAllRedirect[] = [
 		newPrefix: 'iot-gateway/installation',
 		entries: [], // PREFIX_RENAME — splat rule in _redirects; rpi/windows overrides in SINGLE_REDIRECTS
 	},
-	// TBMQ install: mqtt-broker/install/* → mqtt-broker/installation/*
-	{
-		oldPrefix: 'mqtt-broker/install',
-		newPrefix: 'mqtt-broker/installation',
-		entries: [], // PREFIX_RENAME — splat rule in _redirects
-	},
-	{
-		oldPrefix: 'mqtt-broker/pe/install',
-		newPrefix: 'mqtt-broker/pe/installation',
-		entries: [],
-	},
 	// Legacy product-tree splits: old /docs/pe/{product} prefixes → new /docs/{product}/pe
 	{ oldPrefix: 'pe/edge', newPrefix: 'edge/pe', entries: [] },
 	{ oldPrefix: 'pe/mobile', newPrefix: 'mobile/pe', entries: [] },
