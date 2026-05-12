@@ -49,6 +49,13 @@ export function pluginMaxLines() {
 				overflow-y: auto;
 			}
 
+			/* Hide the default browser scrollbar-corner box where the
+			   horizontal and vertical scrollbar tracks meet — without this
+			   it renders as a white square in the bottom-right of the block. */
+			.ec-max-lines pre::-webkit-scrollbar-corner {
+				background: transparent;
+			}
+
 			/* collapsible: expand/collapse button */
 			.ec-expand-btn {
 				display: flex;
