@@ -3572,8 +3572,16 @@ export const tbmqPeSidebarTabLinks: SidebarTabLinks = {
 	Releases: '/docs/mqtt-broker/pe/changelog/',
 };
 
-export const mobileSidebarTabLinks: SidebarTabLinks = {};
-export const mobilePeSidebarTabLinks: SidebarTabLinks = {};
+export const mobileSidebarTabLinks: SidebarTabLinks = {
+	'Getting Started': '/docs/mobile/',
+	Guides: '/docs/mobile/customization/',
+	Releases: '/docs/mobile/releases/',
+};
+export const mobilePeSidebarTabLinks: SidebarTabLinks = {
+	'Getting Started': '/docs/mobile/pe/',
+	Guides: '/docs/mobile/pe/customization/',
+	Releases: '/docs/mobile/pe/releases/',
+};
 export const trendzSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/trendz/',
 	Documentation: '/docs/trendz/what-is-trendz/',
