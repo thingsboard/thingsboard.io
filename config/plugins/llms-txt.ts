@@ -84,7 +84,7 @@ export const starlightPluginLlmsTxt = () =>
 			'docs/mqtt-broker/index',
 			'docs/mqtt-broker/search',
 			'docs/mqtt-broker/architecture-details/**',
-			'docs/mqtt-broker/install/**',
+			'docs/mqtt-broker/installation/**',
 			'docs/mqtt-broker/user-guide/**',
 			'docs/mqtt-broker/reference/**',
 			'docs/mqtt-broker/reference',

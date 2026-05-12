@@ -2933,7 +2933,7 @@ const tbmqGuideItems = (prefix: string): SidebarConfig => {
 const tbmqInstallItems = (prefix: string): SidebarConfig => {
 	const isPE = prefix.includes('/pe');
 	return [
-		{ label: 'Live demo', slug: `${prefix}/install/live-demo` },
+		{ label: 'Live demo', slug: `${prefix}/installation/live-demo` },
 		{
 			label: 'On-premises',
 			collapsed: true,
@@ -2942,10 +2942,10 @@ const tbmqInstallItems = (prefix: string): SidebarConfig => {
 					label: 'Standalone',
 					collapsed: true,
 					items: [
-						{ label: 'Docker (Linux & macOS)', slug: `${prefix}/install/docker` },
-						{ label: 'Docker (Windows)', slug: `${prefix}/install/docker-windows` },
+						{ label: 'Docker (Linux & macOS)', slug: `${prefix}/installation/docker` },
+						{ label: 'Docker (Windows)', slug: `${prefix}/installation/docker-windows` },
 						...(!isPE
-							? [{ label: 'Building from source', slug: `${prefix}/install/building-from-source` }]
+							? [{ label: 'Building from source', slug: `${prefix}/installation/building-from-source` }]
 							: []),
 					],
 				},
@@ -2953,8 +2953,8 @@ const tbmqInstallItems = (prefix: string): SidebarConfig => {
 					label: 'Cluster',
 					collapsed: true,
 					items: [
-						{ label: 'Docker Compose', slug: `${prefix}/install/cluster/docker-compose-setup` },
-						{ label: 'Minikube', slug: `${prefix}/install/cluster/minikube-cluster-setup` },
+						{ label: 'Docker Compose', slug: `${prefix}/installation/cluster/docker-compose-setup` },
+						{ label: 'Minikube', slug: `${prefix}/installation/cluster/minikube-cluster-setup` },
 					],
 				},
 			],
@@ -2963,22 +2963,22 @@ const tbmqInstallItems = (prefix: string): SidebarConfig => {
 			label: 'Cloud',
 			collapsed: true,
 			items: [
-				{ label: 'AWS', slug: `${prefix}/install/cluster/aws-cluster-setup` },
-				{ label: 'Azure', slug: `${prefix}/install/cluster/azure-cluster-setup` },
-				{ label: 'GCP', slug: `${prefix}/install/cluster/gcp-cluster-setup` },
+				{ label: 'AWS', slug: `${prefix}/installation/cluster/aws-cluster-setup` },
+				{ label: 'Azure', slug: `${prefix}/installation/cluster/azure-cluster-setup` },
+				{ label: 'GCP', slug: `${prefix}/installation/cluster/gcp-cluster-setup` },
 			],
 		},
 		{
 			label: 'Helm',
 			collapsed: true,
 			items: [
-				{ label: 'Minikube', slug: `${prefix}/install/cluster/helm-cluster-setup-minikube` },
-				{ label: 'AWS EKS', slug: `${prefix}/install/cluster/helm-cluster-setup-aws` },
-				{ label: 'Azure AKS', slug: `${prefix}/install/cluster/helm-cluster-setup-azure` },
-				{ label: 'GCP GKE', slug: `${prefix}/install/cluster/helm-cluster-setup-gcp` },
+				{ label: 'Minikube', slug: `${prefix}/installation/cluster/helm-cluster-setup-minikube` },
+				{ label: 'AWS EKS', slug: `${prefix}/installation/cluster/helm-cluster-setup-aws` },
+				{ label: 'Azure AKS', slug: `${prefix}/installation/cluster/helm-cluster-setup-azure` },
+				{ label: 'GCP GKE', slug: `${prefix}/installation/cluster/helm-cluster-setup-gcp` },
 			],
 		},
-		{ label: 'Upgrade instructions', slug: `${prefix}/install/upgrade-instructions` },
+		{ label: 'Upgrade instructions', slug: `${prefix}/installation/upgrade-instructions` },
 	];
 };
 
@@ -3008,9 +3008,9 @@ const tbmqReferenceItems = (prefix: string): SidebarConfig => [
 		label: 'Configuration',
 		collapsed: true,
 		items: [
-			{ label: 'How to change configuration', slug: `${prefix}/install/how-to-change-config` },
-			{ label: 'MQTT broker', slug: `${prefix}/install/config` },
-			{ label: 'Integration executor', slug: `${prefix}/install/ie-config` },
+			{ label: 'How to change configuration', slug: `${prefix}/installation/how-to-change-config` },
+			{ label: 'MQTT broker', slug: `${prefix}/installation/config` },
+			{ label: 'Integration executor', slug: `${prefix}/installation/ie-config` },
 		],
 	},
 	{
@@ -3561,14 +3561,14 @@ export const gwSidebarTabLinks: SidebarTabLinks = {
 export const tbmqSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/mqtt-broker/',
 	Guides: '/docs/mqtt-broker/user-guide/',
-	Installation: '/docs/mqtt-broker/install/',
+	Installation: '/docs/mqtt-broker/installation/',
 	Reference: '/docs/mqtt-broker/reference/',
 	Releases: '/docs/mqtt-broker/changelog/',
 };
 export const tbmqPeSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/mqtt-broker/pe/',
 	Guides: '/docs/mqtt-broker/pe/user-guide/',
-	Installation: '/docs/mqtt-broker/pe/install/',
+	Installation: '/docs/mqtt-broker/pe/installation/',
 	Reference: '/docs/mqtt-broker/pe/reference/',
 	Releases: '/docs/mqtt-broker/pe/changelog/',
 };
