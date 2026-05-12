@@ -165,6 +165,9 @@ export const CATCH_ALL_REDIRECTS: CatchAllRedirect[] = [
 	// Legacy product-tree splits: old /docs/pe/{product} prefixes → new /docs/{product}/pe
 	{ oldPrefix: 'pe/edge', newPrefix: 'edge/pe', entries: [] },
 	{ oldPrefix: 'pe/mobile', newPrefix: 'mobile/pe', entries: [] },
+	// TBMQ PE Jekyll URLs — must come before `pe/mqtt-broker` so install/* maps directly
+	// to mqtt-broker/pe/installation/* (Cloudflare doesn't chain redirects)
+	{ oldPrefix: 'pe/mqtt-broker/install', newPrefix: 'mqtt-broker/pe/installation', entries: [] },
 	{ oldPrefix: 'pe/mqtt-broker', newPrefix: 'mqtt-broker/pe', entries: [] },
 	{
 		oldPrefix: 'user-guide/install/upgrade-instructions',
