@@ -103,7 +103,7 @@ export const starlightPluginLlmsTxt = () =>
 			'docs/mqtt-broker/white-labeling',
 			'docs/mqtt-broker/why-tbmq',
 			'docs/mqtt-broker/application-shared-subscription',
-			'docs/mqtt-broker/guides',
+			'docs/mqtt-broker/user-guide',
 			'docs/mqtt-broker/help',
 			'docs/mqtt-broker/mqtt-client-credentials-management',
 			'docs/mqtt-broker/user-management',
