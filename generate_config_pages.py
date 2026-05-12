@@ -223,6 +223,29 @@ def _detect_product(output_file):
     return 'ce'
 
 
+def _read_existing_header(output_file):
+    """Return the existing `---` frontmatter block + Banner import (with trailing newlines),
+    or None if the file does not exist."""
+    if not os.path.exists(output_file):
+        return None
+    with open(output_file, 'r') as f:
+        text = f.read()
+    if not text.startswith('---\n'):
+        return None
+    end = text.find('\n---\n', 4)
+    if end == -1:
+        return None
+    frontmatter = text[: end + len('\n---\n')]
+    return frontmatter + "\nimport Banner from '~/components/Banner.astro';\n\n"
+
+
+def _default_header(sidebar_label):
+    return (
+        f'---\ntitle: {sidebar_label} Configuration\nsidebar:\n  label: {sidebar_label}\n---\n\n'
+        "import Banner from '~/components/Banner.astro';\n\n"
+    )
+
+
 def update_page(input_file, output_file, sidebar_label):
     properties = extract_properties_with_comments(input_file)
     property_info = extract_property_info(properties)
@@ -236,8 +259,9 @@ def update_page(input_file, output_file, sidebar_label):
             content += section + '\n'
 
     os.makedirs(os.path.dirname(os.path.abspath(output_file)), exist_ok=True)
+    header = _read_existing_header(output_file) or _default_header(sidebar_label)
     with open(output_file, 'w') as f:
-        f.write(f'---\ntitle: {sidebar_label} Configuration\nsidebar:\n  label: {sidebar_label}\n---\n\nimport Banner from \'~/components/Banner.astro\';\n\n')
+        f.write(header)
         f.write(content)
 
     print(f"Generated {output_file} from {input_file}")
@@ -287,8 +311,9 @@ def update_page_from_config(config_dir, output_file, sidebar_label):
             content += section + '\n'
 
     os.makedirs(os.path.dirname(os.path.abspath(output_file)), exist_ok=True)
+    header = _read_existing_header(output_file) or _default_header(sidebar_label)
     with open(output_file, 'w') as f:
-        f.write(f'---\ntitle: {sidebar_label} Configuration\nsidebar:\n  label: {sidebar_label}\n---\n\nimport Banner from \'~/components/Banner.astro\';\n\n')
+        f.write(header)
         f.write(content)
 
     print(f"Generated {output_file} from {config_dir}")
