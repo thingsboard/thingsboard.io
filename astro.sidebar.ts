@@ -248,26 +248,30 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 	{ label: 'Troubleshooting', slug: `${prefix.replace('/user-guide', '')}/troubleshooting` },
 ];
 
-const edgeInstallationItems = (prefix: string) => [
-	{ label: 'Installation options', slug: `${prefix}/installation` },
-	{
-		label: 'Single node',
-		items: [
-			`${prefix}/installation/docker`,
-			`${prefix}/installation/docker-windows`,
-			`${prefix}/installation/ubuntu`,
-			`${prefix}/installation/rhel`,
-			`${prefix}/installation/rpi`,
-			`${prefix}/installation/windows`,
-		],
-	},
-	{
-		label: 'Cluster',
-		items: [`${prefix}/installation/docker-compose-setup`],
-	},
-	{ label: 'Building from Sources', slug: `${prefix}/installation/building-from-source` },
-	{ label: 'Upgrade instructions', slug: `${prefix}/installation/upgrade-instructions` },
-];
+const edgeInstallationItems = (prefix: string) => {
+	const isPE = prefix.includes('/pe');
+	return [
+		{ label: 'Installation options', slug: `${prefix}/installation` },
+		{
+			label: 'Single node',
+			items: [
+				`${prefix}/installation/docker`,
+				`${prefix}/installation/docker-windows`,
+				`${prefix}/installation/ubuntu`,
+				`${prefix}/installation/rhel`,
+				`${prefix}/installation/rpi`,
+			],
+		},
+		{
+			label: 'Cluster',
+			items: [`${prefix}/installation/docker-compose-setup`],
+		},
+		...(isPE
+			? []
+			: [{ label: 'Building from Sources', slug: `${prefix}/installation/building-from-source` }]),
+		{ label: 'Upgrade instructions', slug: `${prefix}/installation/upgrade-instructions` },
+	];
+};
 
 const installationItems = (prefix: string) => {
 	const isPE = prefix.includes('/pe');
@@ -884,6 +888,15 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 						`${prefix}/widgets/tables/persistent-table`,
 					],
 				},
+				{
+					label: 'Video streaming',
+					collapsed: true,
+					items: [
+						{ label: 'Overview', slug: `${prefix}/widgets/video/overview` },
+						{ label: 'Configure the widget', slug: `${prefix}/widgets/video/configure` },
+						{ label: 'Build a public stream URL', slug: `${prefix}/widgets/video/deploy` },
+					],
+				},
 				`${prefix}/widgets/widget-api`,
 			],
 		},
@@ -1311,6 +1324,15 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 						`${prefix}/widgets/tables/entities-table`,
 						`${prefix}/widgets/tables/timeseries-table`,
 						`${prefix}/widgets/tables/persistent-table`,
+					],
+				},
+				{
+					label: 'Video streaming',
+					collapsed: true,
+					items: [
+						{ label: 'Overview', slug: `${prefix}/widgets/video/overview` },
+						{ label: 'Configure the widget', slug: `${prefix}/widgets/video/configure` },
+						{ label: 'Build a public stream URL', slug: `${prefix}/widgets/video/deploy` },
 					],
 				},
 				`${prefix}/widgets/widget-api`,
@@ -3197,7 +3219,7 @@ const tbmqGuideItems = (prefix: string): SidebarConfig => {
 const tbmqInstallItems = (prefix: string): SidebarConfig => {
 	const isPE = prefix.includes('/pe');
 	return [
-		{ label: 'Live demo', slug: `${prefix}/install/live-demo` },
+		{ label: 'Live demo', slug: `${prefix}/installation/live-demo` },
 		{
 			label: 'On-premises',
 			collapsed: true,
@@ -3206,10 +3228,10 @@ const tbmqInstallItems = (prefix: string): SidebarConfig => {
 					label: 'Standalone',
 					collapsed: true,
 					items: [
-						{ label: 'Docker (Linux & macOS)', slug: `${prefix}/install/docker` },
-						{ label: 'Docker (Windows)', slug: `${prefix}/install/docker-windows` },
+						{ label: 'Docker (Linux & macOS)', slug: `${prefix}/installation/docker` },
+						{ label: 'Docker (Windows)', slug: `${prefix}/installation/docker-windows` },
 						...(!isPE
-							? [{ label: 'Building from source', slug: `${prefix}/install/building-from-source` }]
+							? [{ label: 'Building from source', slug: `${prefix}/installation/building-from-source` }]
 							: []),
 					],
 				},
@@ -3217,8 +3239,8 @@ const tbmqInstallItems = (prefix: string): SidebarConfig => {
 					label: 'Cluster',
 					collapsed: true,
 					items: [
-						{ label: 'Docker Compose', slug: `${prefix}/install/cluster/docker-compose-setup` },
-						{ label: 'Minikube', slug: `${prefix}/install/cluster/minikube-cluster-setup` },
+						{ label: 'Docker Compose', slug: `${prefix}/installation/cluster/docker-compose-setup` },
+						{ label: 'Minikube', slug: `${prefix}/installation/cluster/minikube-cluster-setup` },
 					],
 				},
 			],
@@ -3227,26 +3249,22 @@ const tbmqInstallItems = (prefix: string): SidebarConfig => {
 			label: 'Cloud',
 			collapsed: true,
 			items: [
-				{ label: 'AWS', slug: `${prefix}/install/cluster/aws-cluster-setup` },
-				{ label: 'Azure', slug: `${prefix}/install/cluster/azure-cluster-setup` },
-				{ label: 'GCP', slug: `${prefix}/install/cluster/gcp-cluster-setup` },
+				{ label: 'AWS', slug: `${prefix}/installation/cluster/aws-cluster-setup` },
+				{ label: 'Azure', slug: `${prefix}/installation/cluster/azure-cluster-setup` },
+				{ label: 'GCP', slug: `${prefix}/installation/cluster/gcp-cluster-setup` },
 			],
 		},
-		...(!isPE
-			? [
-					{
-						label: 'Helm',
-						collapsed: true,
-						items: [
-							{ label: 'Minikube', slug: `${prefix}/install/cluster/helm-cluster-setup-minikube` },
-							{ label: 'AWS EKS', slug: `${prefix}/install/cluster/helm-cluster-setup-aws` },
-							{ label: 'Azure AKS', slug: `${prefix}/install/cluster/helm-cluster-setup-azure` },
-							{ label: 'GCP GKE', slug: `${prefix}/install/cluster/helm-cluster-setup-gcp` },
-						],
-					},
-				]
-			: []),
-		{ label: 'Upgrade instructions', slug: `${prefix}/install/upgrade-instructions` },
+		{
+			label: 'Helm',
+			collapsed: true,
+			items: [
+				{ label: 'Minikube', slug: `${prefix}/installation/cluster/helm-cluster-setup-minikube` },
+				{ label: 'AWS EKS', slug: `${prefix}/installation/cluster/helm-cluster-setup-aws` },
+				{ label: 'Azure AKS', slug: `${prefix}/installation/cluster/helm-cluster-setup-azure` },
+				{ label: 'GCP GKE', slug: `${prefix}/installation/cluster/helm-cluster-setup-gcp` },
+			],
+		},
+		{ label: 'Upgrade instructions', slug: `${prefix}/installation/upgrade-instructions` },
 	];
 };
 
@@ -3276,8 +3294,9 @@ const tbmqReferenceItems = (prefix: string): SidebarConfig => [
 		label: 'Configuration',
 		collapsed: true,
 		items: [
-			{ label: 'MQTT broker', slug: `${prefix}/install/config` },
-			{ label: 'Integration executor', slug: `${prefix}/install/ie-config` },
+			{ label: 'How to change configuration', slug: `${prefix}/installation/how-to-change-config` },
+			{ label: 'MQTT broker', slug: `${prefix}/installation/config` },
+			{ label: 'Integration executor', slug: `${prefix}/installation/ie-config` },
 		],
 	},
 	{
@@ -3670,29 +3689,29 @@ export const trendzSidebar: SidebarConfig = [
 		label: 'Guides',
 		collapsed: false,
 		items: [
-			{ slug: 'docs/trendz/guides', label: 'Overview' },
+			{ slug: 'docs/trendz/user-guide', label: 'Overview' },
 			{
 				label: 'Scenarios',
 				collapsed: false,
 				items: [
 					{
-						slug: 'docs/trendz/guide/detect-anomalies-in-heat-pumps',
+						slug: 'docs/trendz/user-guide/detect-anomalies-in-heat-pumps',
 						label: 'Heat Pump Anomaly Detection',
 					},
 					{
-						slug: 'docs/trendz/guide/analyze-building-energy-usage-and-carbon-emissions',
+						slug: 'docs/trendz/user-guide/analyze-building-energy-usage-and-carbon-emissions',
 						label: 'Energy & Emissions Analysis',
 					},
 					{
-						slug: 'docs/trendz/guide/predict-next-maintenance-date-of-equipment',
+						slug: 'docs/trendz/user-guide/predict-next-maintenance-date-of-equipment',
 						label: 'Predictive Maintenance',
 					},
 					{
-						slug: 'docs/trendz/guide/industrial-oee-score-monitoring',
+						slug: 'docs/trendz/user-guide/industrial-oee-score-monitoring',
 						label: 'Industrial OEE Monitoring',
 					},
 					{
-						slug: 'docs/trendz/guide/occupancy-analysis-of-the-building',
+						slug: 'docs/trendz/user-guide/occupancy-analysis-of-the-building',
 						label: 'Predictive Occupancy Monitoring',
 					},
 				],
@@ -3702,27 +3721,26 @@ export const trendzSidebar: SidebarConfig = [
 	{
 		label: 'Installation',
 		items: [
-			{ slug: 'docs/trendz/install/installation-options', label: 'Overview' },
+			{ slug: 'docs/trendz/installation', label: 'Overview' },
 			{
 				label: 'Installation Options',
 				collapsed: false,
 				items: [
-					'docs/trendz/install/cloud',
+					'docs/trendz/installation/cloud',
 					{
 						label: 'On-Premises',
 						collapsed: true,
 						items: [
-							'docs/trendz/install/docker',
-							'docs/trendz/install/docker-windows',
-							'docs/trendz/install/ubuntu',
-							'docs/trendz/install/rhel',
-							'docs/trendz/install/windows',
+							'docs/trendz/installation/docker',
+							'docs/trendz/installation/docker-windows',
+							'docs/trendz/installation/ubuntu',
+							'docs/trendz/installation/rhel',
 						],
 					},
 					{
 						label: 'Cluster',
 						collapsed: true,
-						items: ['docs/trendz/install/kubernetes', 'docs/trendz/install/docker-compose-setup'],
+						items: ['docs/trendz/installation/kubernetes', 'docs/trendz/installation/docker-compose-setup'],
 					},
 				],
 			},
@@ -3730,14 +3748,14 @@ export const trendzSidebar: SidebarConfig = [
 				label: 'Advanced',
 				collapsed: true,
 				items: [
-					'docs/trendz/install/python-executor-configuration',
+					'docs/trendz/installation/python-executor-configuration',
 					'docs/trendz/connect-thingsboard',
 					'docs/trendz/post-installation-steps',
 					'docs/trendz/configuration-properties',
-					'docs/trendz/install/old-docker-migrate',
+					'docs/trendz/installation/old-docker-migrate',
 				],
 			},
-			'docs/trendz/install/upgrade-instructions',
+			'docs/trendz/installation/upgrade-instructions',
 		],
 	},
 ];
@@ -3828,26 +3846,34 @@ export const gwSidebarTabLinks: SidebarTabLinks = {
 
 export const tbmqSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/mqtt-broker/',
-	Guides: '/docs/mqtt-broker/guides/',
-	Installation: '/docs/mqtt-broker/install/installation-options/',
+	Guides: '/docs/mqtt-broker/user-guide/',
+	Installation: '/docs/mqtt-broker/installation/',
 	Reference: '/docs/mqtt-broker/reference/',
 	Releases: '/docs/mqtt-broker/changelog/',
 };
 export const tbmqPeSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/mqtt-broker/pe/',
-	Guides: '/docs/mqtt-broker/pe/guides/',
-	Installation: '/docs/mqtt-broker/pe/install/installation-options/',
+	Guides: '/docs/mqtt-broker/pe/user-guide/',
+	Installation: '/docs/mqtt-broker/pe/installation/',
 	Reference: '/docs/mqtt-broker/pe/reference/',
 	Releases: '/docs/mqtt-broker/pe/changelog/',
 };
 
-export const mobileSidebarTabLinks: SidebarTabLinks = {};
-export const mobilePeSidebarTabLinks: SidebarTabLinks = {};
+export const mobileSidebarTabLinks: SidebarTabLinks = {
+	'Getting Started': '/docs/mobile/',
+	Guides: '/docs/mobile/customization/',
+	Releases: '/docs/mobile/releases/',
+};
+export const mobilePeSidebarTabLinks: SidebarTabLinks = {
+	'Getting Started': '/docs/mobile/pe/',
+	Guides: '/docs/mobile/pe/customization/',
+	Releases: '/docs/mobile/pe/releases/',
+};
 export const trendzSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/trendz/',
 	Documentation: '/docs/trendz/what-is-trendz/',
-	Guides: '/docs/trendz/guides/',
-	Installation: '/docs/trendz/install/installation-options/',
+	Guides: '/docs/trendz/user-guide/',
+	Installation: '/docs/trendz/installation/',
 };
 export const licenseSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/license-server/',
