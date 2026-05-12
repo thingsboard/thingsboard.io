@@ -3008,6 +3008,7 @@ const tbmqReferenceItems = (prefix: string): SidebarConfig => [
 		label: 'Configuration',
 		collapsed: true,
 		items: [
+			{ label: 'How to change configuration', slug: `${prefix}/install/how-to-change-config` },
 			{ label: 'MQTT broker', slug: `${prefix}/install/config` },
 			{ label: 'Integration executor', slug: `${prefix}/install/ie-config` },
 		],
