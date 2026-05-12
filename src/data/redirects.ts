@@ -247,6 +247,8 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'paas/eu/api', target: '/docs/paas/eu/apis-and-sdks/' },
 	{ oldPath: 'user-guide/customization', target: '/docs/user-guide/' },
 	{ oldPath: 'pe/user-guide/customization', target: '/docs/pe/user-guide/' },
+	{ oldPath: 'pe/guides/rule-engine', target: '/docs/pe/user-guide/rule-engine/' },
+	{ oldPath: 'paas/guides/cloud-setup', target: '/installations/' },
 	{ oldPath: 'paas/user-guide/customization', target: '/docs/paas/user-guide/' },
 	{ oldPath: 'paas/eu/user-guide/customization', target: '/docs/paas/eu/user-guide/' },
 	{ oldPath: 'edge/api', target: '/docs/edge/reference/apis-and-sdks/' },
@@ -1112,7 +1114,7 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 
 	// Services (docs → non-docs)
 	{ oldPath: 'services', target: '/services/' },
-	{ oldPath: 'services/consulting', target: '/services/consulting/' },
+	{ oldPath: 'services/consulting', target: '/services/development-services/' },
 	{ oldPath: 'services/customers-full-reviews', target: '/services/development-services/' },
 	{ oldPath: 'services/development-services', target: '/services/development-services/' },
 	{ oldPath: 'services/iot-solutions', target: '/services/development-services/' },
