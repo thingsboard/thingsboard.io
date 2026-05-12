@@ -295,7 +295,7 @@ export const products: ProductData[] = [
 			[
 				{
 					title: 'White-labeling',
-					href: '/docs/user-guide/white-labeling/',
+					href: '/docs/pe/user-guide/white-labeling/',
 					description: 'Multi-tenant configurable white-labeling.',
 				},
 				{
@@ -306,7 +306,7 @@ export const products: ProductData[] = [
 				},
 				{
 					title: 'Advanced RBAC for IoT',
-					href: '/docs/user-guide/roles/',
+					href: '/docs/pe/user-guide/roles/',
 					description:
 						'Advanced management of user roles and permissions. Manage hierarchy of customers.',
 				},
@@ -314,18 +314,18 @@ export const products: ProductData[] = [
 			[
 				{
 					title: 'CSV/XLS data export',
-					href: '/docs/user-guide/csv-xls-data-export/',
+					href: '/docs/pe/user-guide/csv-xls-data-export/',
 					description: 'Export any dashboard widget data to CSV or XLS format.',
 				},
 				{
 					title: 'Platform Integrations',
-					href: '/docs/user-guide/integrations/',
+					href: '/docs/pe/user-guide/integrations/',
 					description:
 						'Out of the box integrations with popular IoT platforms and connectivity providers.',
 				},
 				{
 					title: 'Scheduler and Reporting',
-					href: '/docs/user-guide/scheduler/',
+					href: '/docs/pe/user-guide/scheduler/',
 					description:
 						'Schedule various types of events with flexible schedule configuration. Generate great looking reports using dashboards visualization capabilities.',
 				},
