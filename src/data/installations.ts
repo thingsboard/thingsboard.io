@@ -197,12 +197,6 @@ export const products: ProductData[] = [
 						href: '/docs/installation/rhel/',
 					},
 					{
-						logo: install('windows.svg'),
-						logoAlt: 'Windows',
-						title: 'Windows',
-						href: '/docs/installation/docker-windows/',
-					},
-					{
 						logo: install('raspberry-pi.svg'),
 						logoAlt: 'Raspberry Pi',
 						title: 'Raspberry Pi',
@@ -354,12 +348,6 @@ export const products: ProductData[] = [
 						href: '/docs/pe/installation/rhel/',
 					},
 					{
-						logo: install('windows.svg'),
-						logoAlt: 'Windows',
-						title: 'Windows',
-						href: '/docs/pe/installation/docker-windows/',
-					},
-					{
 						logo: install('docker-windows.svg'),
 						logoAlt: 'Docker (Windows)',
 						title: 'Docker (Windows)',
@@ -493,12 +481,6 @@ export const products: ProductData[] = [
 						href: '/docs/edge/installation/rhel/',
 					},
 					{
-						logo: install('windows.svg'),
-						logoAlt: 'Windows',
-						title: 'Windows',
-						href: '/docs/edge/installation/windows/',
-					},
-					{
 						logo: install('docker-windows.svg'),
 						logoAlt: 'Docker (Windows)',
 						title: 'Docker (Windows)',
@@ -542,7 +524,7 @@ export const products: ProductData[] = [
 			{
 				id: 'TryItNow_Trendz_Pricing',
 				label: 'Pricing',
-				href: '/pricing/?section=trendz-options&product=trendz-self-managed&solution=trendz-pay-as-you-go',
+				href: '/pricing/',
 				secondary: true,
 			},
 		],
@@ -610,12 +592,6 @@ export const products: ProductData[] = [
 						href: '/docs/trendz/install/rhel/',
 					},
 					{
-						logo: install('windows.svg'),
-						logoAlt: 'Windows',
-						title: 'Windows',
-						href: '/docs/trendz/install/windows/',
-					},
-					{
 						logo: install('docker-windows.svg'),
 						logoAlt: 'Docker (Windows)',
 						title: 'Docker (Windows)',
@@ -637,7 +613,7 @@ export const products: ProductData[] = [
 		id: 'mqtt-broker',
 		title: 'MQTT Broker',
 		description:
-			'<b>TBMQ</b> is a highly scalable and durable <a href="/products/mqtt-broker/" target="_blank">MQTT message broker</a> built for real-time data processing across IoT ecosystems of any scale. It efficiently handles millions of concurrent client connections and processes millions of messages per second while maintaining low latency and reliable delivery. Designed for horizontal scalability, TBMQ seamlessly expands across cluster nodes to support massive deployments with millions of connected devices. <a href="/docs/mqtt-broker/" target="_blank">Read more<span class="sr-only"> about TBMQ MQTT Broker</span></a>.',
+			'<b>TBMQ</b> is a highly scalable and durable <a href="/products/mqtt-broker/" target="_blank" rel="noopener noreferrer">MQTT message broker</a> built for real-time data processing across IoT ecosystems of any scale. It efficiently handles millions of concurrent client connections and processes millions of messages per second while maintaining low latency and reliable delivery. Designed for horizontal scalability, TBMQ seamlessly expands across cluster nodes to support massive deployments with millions of connected devices. <a href="/docs/mqtt-broker/" target="_blank" rel="noopener noreferrer">Read more<span class="sr-only"> about TBMQ MQTT Broker</span></a>.',
 		buttons: [
 			{
 				id: 'TryItNow_TBMQ_Demo',
@@ -648,14 +624,14 @@ export const products: ProductData[] = [
 			{
 				id: 'TryItNow_TBMQ_Install_CE',
 				label: 'Download CE',
-				href: '/docs/mqtt-broker/install/installation-options/',
+				href: '/docs/mqtt-broker/install/',
 				target: '_blank',
 				secondary: true,
 			},
 			{
 				id: 'TryItNow_TBMQ_Install_PE',
 				label: 'Start PE Trial',
-				href: '/docs/mqtt-broker/pe/install/installation-options/',
+				href: '/docs/mqtt-broker/pe/install/',
 				target: '_blank',
 				secondary: true,
 			},
@@ -710,7 +686,7 @@ export const products: ProductData[] = [
 				},
 				{
 					title: 'K8s & Cloud Agnostic',
-					href: '/docs/mqtt-broker/install/installation-options/',
+					href: '/docs/mqtt-broker/install/',
 					target: '_blank',
 					description: 'Deploy in cloud or on-premises using K8s scripts with ease',
 				},
@@ -778,7 +754,7 @@ export const products: ProductData[] = [
 						logo: install('helm.svg'),
 						logoAlt: 'Cluster setup using Helm',
 						title: 'Cluster setup using Helm',
-						href: '/docs/mqtt-broker/install/installation-options/',
+						href: '/docs/mqtt-broker/install/?installationType=helm',
 						target: '_blank',
 					},
 				],

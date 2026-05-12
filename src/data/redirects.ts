@@ -166,7 +166,7 @@ export const CATCH_ALL_REDIRECTS: CatchAllRedirect[] = [
 			{ slug: 'rhel', target: '/docs/edge/installation/rhel/' },
 			{ slug: 'rpi', target: '/docs/edge/installation/rpi/' },
 			{ slug: 'upgrade-instructions', target: '/docs/edge/installation/upgrade-instructions/' },
-			{ slug: 'windows', target: '/docs/edge/installation/windows/' },
+			{ slug: 'windows', target: '/docs/edge/installation/docker-windows/' },
 			// Versioned upgrade paths (upgrade-instructions/:platform/:version) are handled
 			// by a placeholder rule in DYNAMIC_REDIRECTS instead of being enumerated here.
 		],
@@ -181,7 +181,7 @@ export const CATCH_ALL_REDIRECTS: CatchAllRedirect[] = [
 			{ slug: 'rhel', target: '/docs/edge/pe/installation/rhel/' },
 			{ slug: 'rpi', target: '/docs/edge/pe/installation/rpi/' },
 			{ slug: 'upgrade-instructions', target: '/docs/edge/pe/installation/upgrade-instructions/' },
-			{ slug: 'windows', target: '/docs/edge/pe/installation/windows/' },
+			{ slug: 'windows', target: '/docs/edge/pe/installation/docker-windows/' },
 			// Versioned upgrade paths (upgrade-instructions/:platform/:version) are handled
 			// by a placeholder rule in DYNAMIC_REDIRECTS instead of being enumerated here.
 		],
@@ -461,6 +461,7 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'trendz/business-entities', target: '/docs/trendz/concepts/business-entities/' },
 	{ oldPath: 'trendz/install/trndz-upgrade-instructions-kubernetes', target: '/docs/trendz/install/upgrade-instructions/' },
 	{ oldPath: 'trendz/install/trndz-upgrade-instructions', target: '/docs/trendz/install/upgrade-instructions/' },
+	{ oldPath: 'trendz/install/installation-options', target: '/docs/trendz/install/' },
 	{ oldPath: 'pe/user-guide/install/installation-options', target: '/docs/pe/installation/' },
 	{ oldPath: 'pe/user-guide/install/upgrade-instructions/old-upgrade-instructions', target: '/docs/pe/installation/upgrade-instructions/' },
 	{ oldPath: 'pe/user-guide/install/upgrade-instructions/upgrade-from-ce', target: '/docs/pe/installation/upgrade-from-ce/' },
@@ -1057,7 +1058,8 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'mqtt-broker/faq', target: '/docs/mqtt-broker/why-tbmq/' },
 	{ oldPath: 'mqtt-broker/getting-started-guides/what-is-thingsboard-mqtt-broker', target: '/docs/mqtt-broker/why-tbmq/' },
 	{ oldPath: 'mqtt-broker/image-gallery', target: '/docs/mqtt-broker/pe/image-gallery/' },
-	{ oldPath: 'mqtt-broker/install/cluster/helm-cluster-setup-options', target: '/docs/mqtt-broker/install/installation-options/' },
+	{ oldPath: 'mqtt-broker/install/cluster/helm-cluster-setup-options', target: '/docs/mqtt-broker/install/' },
+	{ oldPath: 'mqtt-broker/install/installation-options', target: '/docs/mqtt-broker/install/' },
 	{ oldPath: 'mqtt-broker/install/cluster/helm-cluster-upgrading-options', target: '/docs/mqtt-broker/install/upgrade-instructions/' },
 	{ oldPath: 'mqtt-broker/install/cluster/resources/upgrade-options/docker-compose-upgrade-tbmq-with-from-version', target: '/docs/mqtt-broker/install/upgrade-instructions/' },
 	{ oldPath: 'mqtt-broker/install/cluster/resources/upgrade-options/docker-compose-upgrade-tbmq-without-from-version', target: '/docs/mqtt-broker/install/upgrade-instructions/' },
@@ -1071,7 +1073,8 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'pe/mqtt-broker/faq', target: '/docs/mqtt-broker/pe/why-tbmq/' },
 	{ oldPath: 'pe/mqtt-broker/getting-started-guides/what-is-thingsboard-mqtt-broker', target: '/docs/mqtt-broker/pe/why-tbmq/' },
 	{ oldPath: 'pe/mqtt-broker/image-gallery', target: '/docs/mqtt-broker/pe/image-gallery/' },
-	{ oldPath: 'pe/mqtt-broker/install/cluster/helm-cluster-setup-options', target: '/docs/mqtt-broker/pe/install/installation-options/' },
+	{ oldPath: 'pe/mqtt-broker/install/cluster/helm-cluster-setup-options', target: '/docs/mqtt-broker/pe/install/' },
+	{ oldPath: 'pe/mqtt-broker/install/installation-options', target: '/docs/mqtt-broker/pe/install/' },
 	{ oldPath: 'pe/mqtt-broker/install/cluster/helm-cluster-upgrading-options', target: '/docs/mqtt-broker/pe/install/upgrade-instructions/' },
 	{ oldPath: 'pe/mqtt-broker/install/cluster/resources/upgrade-options/docker-compose-upgrade-tbmq-with-from-version', target: '/docs/mqtt-broker/pe/install/upgrade-instructions/' },
 	{ oldPath: 'pe/mqtt-broker/install/cluster/resources/upgrade-options/docker-compose-upgrade-tbmq-without-from-version', target: '/docs/mqtt-broker/pe/install/upgrade-instructions/' },

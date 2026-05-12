@@ -248,26 +248,30 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 	{ label: 'Troubleshooting', slug: `${prefix.replace('/user-guide', '')}/troubleshooting` },
 ];
 
-const edgeInstallationItems = (prefix: string) => [
-	{ label: 'Installation options', slug: `${prefix}/installation` },
-	{
-		label: 'Single node',
-		items: [
-			`${prefix}/installation/docker`,
-			`${prefix}/installation/docker-windows`,
-			`${prefix}/installation/ubuntu`,
-			`${prefix}/installation/rhel`,
-			`${prefix}/installation/rpi`,
-			`${prefix}/installation/windows`,
-		],
-	},
-	{
-		label: 'Cluster',
-		items: [`${prefix}/installation/docker-compose-setup`],
-	},
-	{ label: 'Building from Sources', slug: `${prefix}/installation/building-from-source` },
-	{ label: 'Upgrade instructions', slug: `${prefix}/installation/upgrade-instructions` },
-];
+const edgeInstallationItems = (prefix: string) => {
+	const isPE = prefix.includes('/pe');
+	return [
+		{ label: 'Installation options', slug: `${prefix}/installation` },
+		{
+			label: 'Single node',
+			items: [
+				`${prefix}/installation/docker`,
+				`${prefix}/installation/docker-windows`,
+				`${prefix}/installation/ubuntu`,
+				`${prefix}/installation/rhel`,
+				`${prefix}/installation/rpi`,
+			],
+		},
+		{
+			label: 'Cluster',
+			items: [`${prefix}/installation/docker-compose-setup`],
+		},
+		...(isPE
+			? []
+			: [{ label: 'Building from Sources', slug: `${prefix}/installation/building-from-source` }]),
+		{ label: 'Upgrade instructions', slug: `${prefix}/installation/upgrade-instructions` },
+	];
+};
 
 const installationItems = (prefix: string) => {
 	const isPE = prefix.includes('/pe');
@@ -686,8 +690,10 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 					collapsed: true,
 					items: [
 						`${prefix}/widgets/buttons/action-button`,
-						`${prefix}/widgets/buttons/toggle-button`,
+						`${prefix}/widgets/buttons/command-button`,
 						`${prefix}/widgets/buttons/power-button`,
+						`${prefix}/widgets/buttons/toggle-button`,
+						`${prefix}/widgets/buttons/two-segment-button`,
 						`${prefix}/widgets/buttons/value-stepper`,
 					],
 				},
@@ -733,6 +739,9 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 					collapsed: true,
 					items: [
 						`${prefix}/widgets/maps/map`,
+						`${prefix}/widgets/maps/image-map`,
+						`${prefix}/widgets/maps/trip-map`,
+						`${prefix}/widgets/maps/route-map`,
 					],
 				},
 				{
@@ -976,8 +985,10 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 					collapsed: true,
 					items: [
 						`${prefix}/widgets/buttons/action-button`,
-						`${prefix}/widgets/buttons/toggle-button`,
+						`${prefix}/widgets/buttons/command-button`,
 						`${prefix}/widgets/buttons/power-button`,
+						`${prefix}/widgets/buttons/toggle-button`,
+						`${prefix}/widgets/buttons/two-segment-button`,
 						`${prefix}/widgets/buttons/value-stepper`,
 					],
 				},
@@ -1023,6 +1034,9 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 					collapsed: true,
 					items: [
 						`${prefix}/widgets/maps/map`,
+						`${prefix}/widgets/maps/image-map`,
+						`${prefix}/widgets/maps/trip-map`,
+						`${prefix}/widgets/maps/route-map`,
 					],
 				},
 				{
@@ -3420,7 +3434,7 @@ export const trendzSidebar: SidebarConfig = [
 	{
 		label: 'Installation',
 		items: [
-			{ slug: 'docs/trendz/install/installation-options', label: 'Overview' },
+			{ slug: 'docs/trendz/install', label: 'Overview' },
 			{
 				label: 'Installation Options',
 				collapsed: false,
@@ -3434,7 +3448,6 @@ export const trendzSidebar: SidebarConfig = [
 							'docs/trendz/install/docker-windows',
 							'docs/trendz/install/ubuntu',
 							'docs/trendz/install/rhel',
-							'docs/trendz/install/windows',
 						],
 					},
 					{
@@ -3547,14 +3560,14 @@ export const gwSidebarTabLinks: SidebarTabLinks = {
 export const tbmqSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/mqtt-broker/',
 	Guides: '/docs/mqtt-broker/guides/',
-	Installation: '/docs/mqtt-broker/install/installation-options/',
+	Installation: '/docs/mqtt-broker/install/',
 	Reference: '/docs/mqtt-broker/reference/',
 	Releases: '/docs/mqtt-broker/changelog/',
 };
 export const tbmqPeSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/mqtt-broker/pe/',
 	Guides: '/docs/mqtt-broker/pe/guides/',
-	Installation: '/docs/mqtt-broker/pe/install/installation-options/',
+	Installation: '/docs/mqtt-broker/pe/install/',
 	Reference: '/docs/mqtt-broker/pe/reference/',
 	Releases: '/docs/mqtt-broker/pe/changelog/',
 };
@@ -3565,7 +3578,7 @@ export const trendzSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/trendz/',
 	Documentation: '/docs/trendz/what-is-trendz/',
 	Guides: '/docs/trendz/guides/',
-	Installation: '/docs/trendz/install/installation-options/',
+	Installation: '/docs/trendz/install/',
 };
 export const licenseSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/license-server/',
