@@ -21,6 +21,7 @@ export class StarlightTOC extends HTMLElement {
 	private abortController?: AbortController;
 	private observer?: IntersectionObserver;
 	private rafId = 0;
+	private resizeTimeout?: ReturnType<typeof setTimeout>;
 
 	protected set current(link: HTMLAnchorElement) {
 		if (link === this._current) return;
@@ -44,6 +45,10 @@ export class StarlightTOC extends HTMLElement {
 		if (this.rafId) {
 			cancelAnimationFrame(this.rafId);
 			this.rafId = 0;
+		}
+		if (this.resizeTimeout) {
+			clearTimeout(this.resizeTimeout);
+			this.resizeTimeout = undefined;
 		}
 	}
 
@@ -159,7 +164,6 @@ export class StarlightTOC extends HTMLElement {
 		};
 		observe();
 
-		let timeout: NodeJS.Timeout;
 		window.addEventListener(
 			'resize',
 			() => {
@@ -168,8 +172,8 @@ export class StarlightTOC extends HTMLElement {
 					this.observer.disconnect();
 					this.observer = undefined;
 				}
-				clearTimeout(timeout);
-				timeout = setTimeout(() => this.onIdle(observe), 200);
+				if (this.resizeTimeout) clearTimeout(this.resizeTimeout);
+				this.resizeTimeout = setTimeout(() => this.onIdle(observe), 200);
 			},
 			{ signal },
 		);
