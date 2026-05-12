@@ -680,6 +680,31 @@ const tbmqSubTabs = enrichTabs([
 		let pricingTipShowTimer: ReturnType<typeof setTimeout> | null = null;
 		let pricingTipHideTimer: ReturnType<typeof setTimeout> | null = null;
 
+		// Mobile browsers don't fire mouseleave after a tap, so a tooltip
+		// opened on (i)-icon tap stays pinned at its `position: fixed` slot
+		// when the user scrolls. Dismiss on any window scroll as a safety net.
+		// Guard: same pattern as `_pricingClickInit` — initPricing() re-runs on
+		// every astro:page-load, so the listener must be installed once. Resolve
+		// the visible tooltip via DOM query (not closure state) so it still
+		// works after a View Transitions navigation rebinds the closure.
+		if (!(window as any)._pricingScrollInit) {
+			(window as any)._pricingScrollInit = true;
+			window.addEventListener(
+				'scroll',
+				() => {
+					document.querySelectorAll('.pricing-tooltip--visible').forEach((tip) => {
+						tip.classList.remove(
+							'pricing-tooltip--visible',
+							'pricing-tooltip--interactive',
+							'pricing-tooltip--flipped',
+						);
+						(tip as HTMLElement).style.left = '-9999px';
+					});
+				},
+				{ passive: true },
+			);
+		}
+
 		function forceHidePricingTip() {
 			if (pricingTipShowTimer) { clearTimeout(pricingTipShowTimer); pricingTipShowTimer = null; }
 			if (pricingTipHideTimer) { clearTimeout(pricingTipHideTimer); pricingTipHideTimer = null; }
@@ -821,7 +846,13 @@ const tbmqSubTabs = enrichTabs([
 				bindPricingTooltip(trigger, tooltip);
 			}
 
-			trigger.addEventListener('click', () => {
+			trigger.addEventListener('click', (e) => {
+				if ((e.target as HTMLElement).closest('a')) return;
+				e.stopPropagation();
+				// Mobile browsers don't fire mouseleave after a tap, so the
+				// tooltip would otherwise stay pinned at its `position: fixed`
+				// slot while we scroll to the FAQ.
+				forceHidePricingTip();
 				const faqId = (trigger as HTMLElement).dataset.faqId;
 				if (faqId) scrollToFaqItem(faqId);
 			});
@@ -830,7 +861,9 @@ const tbmqSubTabs = enrichTabs([
 		// ─── Addon tooltip click → scroll to FAQ ───
 		$$('.addon-tooltip-trigger').forEach((trigger) => {
 			trigger.addEventListener('click', (e) => {
+				if ((e.target as HTMLElement).closest('a')) return;
 				e.stopPropagation();
+				forceHidePricingTip();
 				const faqId = (trigger as HTMLElement).dataset.faqId;
 				if (faqId) scrollToFaqItem(faqId);
 			});
@@ -1200,9 +1233,17 @@ const tbmqSubTabs = enrichTabs([
 			}
 		}
 
-		// Position segment highlights on init and resize
+		// Position segment highlights on init and resize.
+		// Guard: same pattern as `_pricingClickInit` — initPricing() re-runs on
+		// every astro:page-load. Re-export the latest `initAllHighlights` to
+		// window so the once-installed listener always calls the current
+		// closure's function, not a stale one.
 		initAllHighlights();
-		window.addEventListener('resize', () => initAllHighlights());
+		(window as any)._pricingInitAllHighlights = initAllHighlights;
+		if (!(window as any)._pricingResizeInit) {
+			(window as any)._pricingResizeInit = true;
+			window.addEventListener('resize', () => (window as any)._pricingInitAllHighlights?.());
+		}
 
 		// Enable animations after initial render
 		skipAnimation = false;

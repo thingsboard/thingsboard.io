@@ -144,7 +144,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
 				id: 'tb-private-cloud-what-is-included-in-service-reviews-and-architecture-consultations',
 				question: 'What is included in service reviews and architecture consultations?',
 				answer: `<p>Service reviews and architecture consultations are a specialized, ongoing service available exclusively to ThingsBoard Private Cloud customers. These sessions provide structured, high-level guidance from a senior ThingsBoard engineer who collaborates with your team regularly. You’ll receive proactive recommendations on best practices, performance tuning, and scalable architecture design tailored to your evolving use case. <br><br></p>
-                            <p>This service is not included by default and can be purchased separately for customers who require advanced architectural guidance and regular expert engagement. <a target="_blank" href="/contact-us/?subject=Private%20Cloud&message=Architecture%20reviews%20and%20consults">Contact us</a> for more details.</p>`,
+                            <p>This service is not included by default and can be purchased separately for customers who require advanced architectural guidance and regular expert engagement. <a target="_blank" href="/contact-us/?subject=Private%20Cloud&message=Architecture%20reviews%20and%20consults" rel="noopener noreferrer">Contact us</a> for more details.</p>`,
 			},
 		],
 	},
@@ -311,7 +311,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-private-cloud-are-there-rest-websocket-api-rate-limits',
 				question: 'Are there REST / WebSocket API rate limits?',
-				answer: `<p>Yes. Per tenant, device and user limits prevent abuse and protect cluster health. The full tables are published <a target="_blank" href="/docs/private-cloud/subscription/">on the Private Cloud subscription page</a>.</p>`,
+				answer: `<p>Yes. Per tenant, device and user limits prevent abuse and protect cluster health. The full tables are published <a target="_blank" href="/docs/private-cloud/subscription/" rel="noopener noreferrer">on the Private Cloud subscription page</a>.</p>`,
 			},
 			{
 				id: 'tb-private-cloud-are-there-limits-on-dashboards-widgets-rule-chains-or-alarms',
@@ -444,7 +444,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-private-cloud-is-there-a-trial-option-for-private-cloud',
 				question: 'Is there a trial option for Private Cloud?',
-				answer: `<p>Trial access is available on <a target="_blank" href="/installations/choose-region/">ThingsBoard Cloud</a>, which allows you to explore the core features and capabilities of ThingsBoard without setup overhead.</p>
+				answer: `<p>Trial access is available on <a target="_blank" href="/installations/choose-region/" rel="noopener noreferrer">ThingsBoard Cloud</a>, which allows you to explore the core features and capabilities of ThingsBoard without setup overhead.</p>
                             <p>For ThingsBoard Private Cloud, trials are not applicable due to the use of dedicated infrastructure and custom deployment.</p>`,
 			},
 			{

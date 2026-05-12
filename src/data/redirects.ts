@@ -139,9 +139,35 @@ export const CATCH_ALL_REDIRECTS: CatchAllRedirect[] = [
 		newPrefix: 'iot-gateway/installation',
 		entries: [], // PREFIX_RENAME — splat rule in _redirects; rpi/windows overrides in SINGLE_REDIRECTS
 	},
+	// TBMQ install: mqtt-broker/install/* → mqtt-broker/installation/*
+	{
+		oldPrefix: 'mqtt-broker/install',
+		newPrefix: 'mqtt-broker/installation',
+		entries: [], // PREFIX_RENAME — splat rule in _redirects
+	},
+	{
+		oldPrefix: 'mqtt-broker/pe/install',
+		newPrefix: 'mqtt-broker/pe/installation',
+		entries: [],
+	},
+	// Trendz install: trendz/install/* → trendz/installation/*
+	{
+		oldPrefix: 'trendz/install',
+		newPrefix: 'trendz/installation',
+		entries: [], // PREFIX_RENAME — splat rule in _redirects, JSON populated by generate script
+	},
+	// Trendz guides: trendz/guide/* → trendz/user-guide/* (index lived at /docs/trendz/guides/ via slug override; see SINGLE_REDIRECTS)
+	{
+		oldPrefix: 'trendz/guide',
+		newPrefix: 'trendz/user-guide',
+		entries: [],
+	},
 	// Legacy product-tree splits: old /docs/pe/{product} prefixes → new /docs/{product}/pe
 	{ oldPrefix: 'pe/edge', newPrefix: 'edge/pe', entries: [] },
 	{ oldPrefix: 'pe/mobile', newPrefix: 'mobile/pe', entries: [] },
+	// TBMQ PE Jekyll URLs — must come before `pe/mqtt-broker` so install/* maps directly
+	// to mqtt-broker/pe/installation/* (Cloudflare doesn't chain redirects)
+	{ oldPrefix: 'pe/mqtt-broker/install', newPrefix: 'mqtt-broker/pe/installation', entries: [] },
 	{ oldPrefix: 'pe/mqtt-broker', newPrefix: 'mqtt-broker/pe', entries: [] },
 	{
 		oldPrefix: 'user-guide/install/upgrade-instructions',
@@ -166,7 +192,7 @@ export const CATCH_ALL_REDIRECTS: CatchAllRedirect[] = [
 			{ slug: 'rhel', target: '/docs/edge/installation/rhel/' },
 			{ slug: 'rpi', target: '/docs/edge/installation/rpi/' },
 			{ slug: 'upgrade-instructions', target: '/docs/edge/installation/upgrade-instructions/' },
-			{ slug: 'windows', target: '/docs/edge/installation/windows/' },
+			{ slug: 'windows', target: '/docs/edge/installation/docker-windows/' },
 			// Versioned upgrade paths (upgrade-instructions/:platform/:version) are handled
 			// by a placeholder rule in DYNAMIC_REDIRECTS instead of being enumerated here.
 		],
@@ -181,7 +207,7 @@ export const CATCH_ALL_REDIRECTS: CatchAllRedirect[] = [
 			{ slug: 'rhel', target: '/docs/edge/pe/installation/rhel/' },
 			{ slug: 'rpi', target: '/docs/edge/pe/installation/rpi/' },
 			{ slug: 'upgrade-instructions', target: '/docs/edge/pe/installation/upgrade-instructions/' },
-			{ slug: 'windows', target: '/docs/edge/pe/installation/windows/' },
+			{ slug: 'windows', target: '/docs/edge/pe/installation/docker-windows/' },
 			// Versioned upgrade paths (upgrade-instructions/:platform/:version) are handled
 			// by a placeholder rule in DYNAMIC_REDIRECTS instead of being enumerated here.
 		],
@@ -459,8 +485,11 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'samples/fusion-daq/fusion-daq', target: '/device-library/fusiondaq-fdq-99900-mi-8/' },
 	{ oldPath: 'samples/digicom/energy-meter-monitoring-with-thingsboard-iot-pla%C6%9Eorm', target: '/device-library/drn-500/' },
 	{ oldPath: 'trendz/business-entities', target: '/docs/trendz/concepts/business-entities/' },
-	{ oldPath: 'trendz/install/trndz-upgrade-instructions-kubernetes', target: '/docs/trendz/install/upgrade-instructions/' },
-	{ oldPath: 'trendz/install/trndz-upgrade-instructions', target: '/docs/trendz/install/upgrade-instructions/' },
+	{ oldPath: 'trendz/install/trndz-upgrade-instructions-kubernetes', target: '/docs/trendz/installation/upgrade-instructions/' },
+	{ oldPath: 'trendz/install/trndz-upgrade-instructions', target: '/docs/trendz/installation/upgrade-instructions/' },
+	{ oldPath: 'trendz/install/installation-options', target: '/docs/trendz/installation/' },
+	{ oldPath: 'trendz/install/windows', target: '/docs/trendz/installation/docker-windows/' },
+	{ oldPath: 'trendz/guides', target: '/docs/trendz/user-guide/' },
 	{ oldPath: 'pe/user-guide/install/installation-options', target: '/docs/pe/installation/' },
 	{ oldPath: 'pe/user-guide/install/upgrade-instructions/old-upgrade-instructions', target: '/docs/pe/installation/upgrade-instructions/' },
 	{ oldPath: 'pe/user-guide/install/upgrade-instructions/upgrade-from-ce', target: '/docs/pe/installation/upgrade-from-ce/' },
@@ -1057,11 +1086,12 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'mqtt-broker/faq', target: '/docs/mqtt-broker/why-tbmq/' },
 	{ oldPath: 'mqtt-broker/getting-started-guides/what-is-thingsboard-mqtt-broker', target: '/docs/mqtt-broker/why-tbmq/' },
 	{ oldPath: 'mqtt-broker/image-gallery', target: '/docs/mqtt-broker/pe/image-gallery/' },
-	{ oldPath: 'mqtt-broker/install/cluster/helm-cluster-setup-options', target: '/docs/mqtt-broker/install/installation-options/' },
-	{ oldPath: 'mqtt-broker/install/cluster/helm-cluster-upgrading-options', target: '/docs/mqtt-broker/install/upgrade-instructions/' },
-	{ oldPath: 'mqtt-broker/install/cluster/resources/upgrade-options/docker-compose-upgrade-tbmq-with-from-version', target: '/docs/mqtt-broker/install/upgrade-instructions/' },
-	{ oldPath: 'mqtt-broker/install/cluster/resources/upgrade-options/docker-compose-upgrade-tbmq-without-from-version', target: '/docs/mqtt-broker/install/upgrade-instructions/' },
-	{ oldPath: 'mqtt-broker/install/cluster/resources/upgrade-options/k8s-upgrade-tbmq-with-from-version', target: '/docs/mqtt-broker/install/upgrade-instructions/' },
+	{ oldPath: 'mqtt-broker/install/cluster/helm-cluster-setup-options', target: '/docs/mqtt-broker/installation/' },
+	{ oldPath: 'mqtt-broker/install/installation-options', target: '/docs/mqtt-broker/installation/' },
+	{ oldPath: 'mqtt-broker/install/cluster/helm-cluster-upgrading-options', target: '/docs/mqtt-broker/installation/upgrade-instructions/' },
+	{ oldPath: 'mqtt-broker/install/cluster/resources/upgrade-options/docker-compose-upgrade-tbmq-with-from-version', target: '/docs/mqtt-broker/installation/upgrade-instructions/' },
+	{ oldPath: 'mqtt-broker/install/cluster/resources/upgrade-options/docker-compose-upgrade-tbmq-without-from-version', target: '/docs/mqtt-broker/installation/upgrade-instructions/' },
+	{ oldPath: 'mqtt-broker/install/cluster/resources/upgrade-options/k8s-upgrade-tbmq-with-from-version', target: '/docs/mqtt-broker/installation/upgrade-instructions/' },
 	{ oldPath: 'mqtt-broker/subscription', target: '/docs/mqtt-broker/pe/subscription/' },
 	{ oldPath: 'mqtt-broker/troubleshooting', target: '/docs/mqtt-broker/help/' },
 	{ oldPath: 'mqtt-broker/user-guide/ui/mail-server', target: '/docs/mqtt-broker/user-guide/ui/settings/' },
@@ -1071,11 +1101,12 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'pe/mqtt-broker/faq', target: '/docs/mqtt-broker/pe/why-tbmq/' },
 	{ oldPath: 'pe/mqtt-broker/getting-started-guides/what-is-thingsboard-mqtt-broker', target: '/docs/mqtt-broker/pe/why-tbmq/' },
 	{ oldPath: 'pe/mqtt-broker/image-gallery', target: '/docs/mqtt-broker/pe/image-gallery/' },
-	{ oldPath: 'pe/mqtt-broker/install/cluster/helm-cluster-setup-options', target: '/docs/mqtt-broker/pe/install/installation-options/' },
-	{ oldPath: 'pe/mqtt-broker/install/cluster/helm-cluster-upgrading-options', target: '/docs/mqtt-broker/pe/install/upgrade-instructions/' },
-	{ oldPath: 'pe/mqtt-broker/install/cluster/resources/upgrade-options/docker-compose-upgrade-tbmq-with-from-version', target: '/docs/mqtt-broker/pe/install/upgrade-instructions/' },
-	{ oldPath: 'pe/mqtt-broker/install/cluster/resources/upgrade-options/docker-compose-upgrade-tbmq-without-from-version', target: '/docs/mqtt-broker/pe/install/upgrade-instructions/' },
-	{ oldPath: 'pe/mqtt-broker/install/cluster/resources/upgrade-options/k8s-upgrade-tbmq-with-from-version', target: '/docs/mqtt-broker/pe/install/upgrade-instructions/' },
+	{ oldPath: 'pe/mqtt-broker/install/cluster/helm-cluster-setup-options', target: '/docs/mqtt-broker/pe/installation/' },
+	{ oldPath: 'pe/mqtt-broker/install/installation-options', target: '/docs/mqtt-broker/pe/installation/' },
+	{ oldPath: 'pe/mqtt-broker/install/cluster/helm-cluster-upgrading-options', target: '/docs/mqtt-broker/pe/installation/upgrade-instructions/' },
+	{ oldPath: 'pe/mqtt-broker/install/cluster/resources/upgrade-options/docker-compose-upgrade-tbmq-with-from-version', target: '/docs/mqtt-broker/pe/installation/upgrade-instructions/' },
+	{ oldPath: 'pe/mqtt-broker/install/cluster/resources/upgrade-options/docker-compose-upgrade-tbmq-without-from-version', target: '/docs/mqtt-broker/pe/installation/upgrade-instructions/' },
+	{ oldPath: 'pe/mqtt-broker/install/cluster/resources/upgrade-options/k8s-upgrade-tbmq-with-from-version', target: '/docs/mqtt-broker/pe/installation/upgrade-instructions/' },
 	{ oldPath: 'pe/mqtt-broker/troubleshooting', target: '/docs/mqtt-broker/pe/help/' },
 	{ oldPath: 'pe/mqtt-broker/user-guide/ui/mail-server', target: '/docs/mqtt-broker/pe/user-guide/ui/settings/' },
 

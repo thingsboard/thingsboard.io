@@ -33,7 +33,7 @@ export const tbSelfManagedData: SelfManagedData = {
 						text: 'Community support',
 						faqId: 'pe-pay-as-you-go-support-included',
 						faqTooltip:
-							'Leverage the collective expertise of the ThingsBoard community. Report bugs, request features, and find technical solutions alongside thousands of developers on our <a href="https://github.com/thingsboard/thingsboard/issues" target="_blank">GitHub Issues page</a>.',
+							'Leverage the collective expertise of the ThingsBoard community. Report bugs, request features, and find technical solutions alongside thousands of developers on our <a href="https://github.com/thingsboard/thingsboard/issues" target="_blank" rel="noopener noreferrer">GitHub Issues page</a>.',
 					},
 					{ text: '', noIcon: true },
 					{ text: '', noIcon: true },
@@ -64,7 +64,7 @@ export const tbSelfManagedData: SelfManagedData = {
 						text: 'Community support',
 						faqId: 'pe-pay-as-you-go-support-included',
 						faqTooltip:
-							'Leverage the collective expertise of the ThingsBoard community. Report bugs, request features, and find technical solutions alongside thousands of developers on our <a href="https://github.com/thingsboard/thingsboard/issues" target="_blank">GitHub Issues page</a>.',
+							'Leverage the collective expertise of the ThingsBoard community. Report bugs, request features, and find technical solutions alongside thousands of developers on our <a href="https://github.com/thingsboard/thingsboard/issues" target="_blank" rel="noopener noreferrer">GitHub Issues page</a>.',
 					},
 					{ text: '', noIcon: true },
 					{ text: '', noIcon: true },
