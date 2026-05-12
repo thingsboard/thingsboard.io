@@ -139,6 +139,18 @@ export const CATCH_ALL_REDIRECTS: CatchAllRedirect[] = [
 		newPrefix: 'iot-gateway/installation',
 		entries: [], // PREFIX_RENAME — splat rule in _redirects; rpi/windows overrides in SINGLE_REDIRECTS
 	},
+	// Trendz install: trendz/install/* → trendz/installation/*
+	{
+		oldPrefix: 'trendz/install',
+		newPrefix: 'trendz/installation',
+		entries: [], // PREFIX_RENAME — splat rule in _redirects, JSON populated by generate script
+	},
+	// Trendz guides: trendz/guide/* → trendz/user-guide/* (index lived at /docs/trendz/guides/ via slug override; see SINGLE_REDIRECTS)
+	{
+		oldPrefix: 'trendz/guide',
+		newPrefix: 'trendz/user-guide',
+		entries: [],
+	},
 	// Legacy product-tree splits: old /docs/pe/{product} prefixes → new /docs/{product}/pe
 	{ oldPrefix: 'pe/edge', newPrefix: 'edge/pe', entries: [] },
 	{ oldPrefix: 'pe/mobile', newPrefix: 'mobile/pe', entries: [] },
@@ -459,9 +471,11 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'samples/fusion-daq/fusion-daq', target: '/device-library/fusiondaq-fdq-99900-mi-8/' },
 	{ oldPath: 'samples/digicom/energy-meter-monitoring-with-thingsboard-iot-pla%C6%9Eorm', target: '/device-library/drn-500/' },
 	{ oldPath: 'trendz/business-entities', target: '/docs/trendz/concepts/business-entities/' },
-	{ oldPath: 'trendz/install/trndz-upgrade-instructions-kubernetes', target: '/docs/trendz/install/upgrade-instructions/' },
-	{ oldPath: 'trendz/install/trndz-upgrade-instructions', target: '/docs/trendz/install/upgrade-instructions/' },
-	{ oldPath: 'trendz/install/installation-options', target: '/docs/trendz/install/' },
+	{ oldPath: 'trendz/install/trndz-upgrade-instructions-kubernetes', target: '/docs/trendz/installation/upgrade-instructions/' },
+	{ oldPath: 'trendz/install/trndz-upgrade-instructions', target: '/docs/trendz/installation/upgrade-instructions/' },
+	{ oldPath: 'trendz/install/installation-options', target: '/docs/trendz/installation/' },
+	{ oldPath: 'trendz/install/windows', target: '/docs/trendz/installation/docker-windows/' },
+	{ oldPath: 'trendz/guides', target: '/docs/trendz/user-guide/' },
 	{ oldPath: 'pe/user-guide/install/installation-options', target: '/docs/pe/installation/' },
 	{ oldPath: 'pe/user-guide/install/upgrade-instructions/old-upgrade-instructions', target: '/docs/pe/installation/upgrade-instructions/' },
 	{ oldPath: 'pe/user-guide/install/upgrade-instructions/upgrade-from-ce', target: '/docs/pe/installation/upgrade-from-ce/' },
