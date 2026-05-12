@@ -3560,14 +3560,14 @@ export const gwSidebarTabLinks: SidebarTabLinks = {
 
 export const tbmqSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/mqtt-broker/',
-	Guides: '/docs/mqtt-broker/guides/',
+	Guides: '/docs/mqtt-broker/user-guide/',
 	Installation: '/docs/mqtt-broker/install/',
 	Reference: '/docs/mqtt-broker/reference/',
 	Releases: '/docs/mqtt-broker/changelog/',
 };
 export const tbmqPeSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/mqtt-broker/pe/',
-	Guides: '/docs/mqtt-broker/pe/guides/',
+	Guides: '/docs/mqtt-broker/pe/user-guide/',
 	Installation: '/docs/mqtt-broker/pe/install/',
 	Reference: '/docs/mqtt-broker/pe/reference/',
 	Releases: '/docs/mqtt-broker/pe/changelog/',
