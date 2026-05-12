@@ -33,6 +33,36 @@ export class StarlightTOC extends HTMLElement {
 		/** All the links in the table of contents. */
 		const links = [...this.querySelectorAll('a')];
 
+		/** Heading elements that correspond to TOC links, in document order. */
+		const tocHeadings = links
+			.map((link) => {
+				const id = decodeURIComponent(link.hash.slice(1));
+				return id ? document.getElementById(id) : null;
+			})
+			.filter((h): h is HTMLElement => h !== null);
+
+		/** True when the document is scrolled as far down as it can go. */
+		const isAtBottom = (): boolean =>
+			window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
+
+		/**
+		 * When at scroll-bottom, the IntersectionObserver's narrow trigger band
+		 * near the top of the viewport can't be reached by trailing headings on
+		 * tall viewports — so the active link gets stuck on the last heading
+		 * that did cross it. Promote the lowest visible heading in that case.
+		 */
+		const promoteIfAtBottom = (): void => {
+			if (!isAtBottom()) return;
+			let lastVisible: HTMLElement | null = null;
+			const vh = window.innerHeight;
+			for (const h of tocHeadings) {
+				if (h.getBoundingClientRect().top <= vh) lastVisible = h;
+			}
+			if (!lastVisible) return;
+			const link = links.find((l) => l.hash === '#' + encodeURIComponent(lastVisible!.id));
+			if (link) this.current = link;
+		};
+
 		/** Test if an element is a table-of-contents heading. */
 		const isHeading = (el: Element): el is HTMLHeadingElement => {
 			if (el instanceof HTMLHeadingElement) {
@@ -83,6 +113,10 @@ export class StarlightTOC extends HTMLElement {
 					break;
 				}
 			}
+			// IO may have settled on an early heading even though we're already
+			// pinned at the bottom of the page — promote to the lowest visible
+			// heading in that case.
+			promoteIfAtBottom();
 		};
 
 		// Observe elements with an `id` (most likely headings) and their siblings.
@@ -108,6 +142,21 @@ export class StarlightTOC extends HTMLElement {
 			clearTimeout(timeout);
 			timeout = setTimeout(() => this.onIdle(observe), 200);
 		});
+
+		// Scroll listener for the bottom-of-page case — IO won't fire once the
+		// page can't scroll any further, so we need our own trigger. rAF-coalesced.
+		let rafId = 0;
+		const onScroll = () => {
+			if (rafId) return;
+			rafId = requestAnimationFrame(() => {
+				rafId = 0;
+				promoteIfAtBottom();
+			});
+		};
+		window.addEventListener('scroll', onScroll, { passive: true });
+		// Handle the case where the page loads already scrolled to the bottom
+		// (e.g. very short content on a very tall viewport).
+		promoteIfAtBottom();
 	};
 
 	private getRootMargin(): `-${number}px 0% ${number}px` {
