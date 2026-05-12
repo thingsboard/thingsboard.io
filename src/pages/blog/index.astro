@@ -185,7 +185,11 @@ const blogUrl = new URL('/blog/', Astro.site).href;
 					    success state. Without it, target="_blank" lands on a blank
 					    Mailerlite response page (designed to be rendered in their iframe). */}
 					<div id="mlb2-z9h4b4-blog-index" class="ml-subscribe-form ml-subscribe-form-z9h4b4 community-cta__ml-wrap">
-						<div class="subscribe-form ml-block-success" style="display:none">
+						{/* `role="status"` + `aria-live="polite"` so screen readers
+						    announce the success message when JS reveals it via
+						    `display: block`. `tabindex="-1"` so the JS handler
+						    can focus it for keyboard users. */}
+						<div class="subscribe-form ml-block-success" style="display:none" role="status" aria-live="polite" tabindex="-1">
 							<p class="community-cta__success">Thank you! You're subscribed.</p>
 						</div>
 						<form
@@ -377,41 +381,54 @@ const blogUrl = new URL('/blog/', Astro.site).href;
 	render();
 	initCarousel();
 
-	// ── Newsletter (Mailerlite) — lazy-load webforms.min.js on first focus
-	// of the email input. Once loaded, Mailerlite's script intercepts the
-	// submit, AJAX-posts, and toggles the inline .ml-block-success state.
-	// Also clears the input + freezes success once shown.
+	// ── Newsletter (Mailerlite) — submit directly via fetch instead of
+	// loading Mailerlite's webforms.min.js. The lazy-loaded intercept script
+	// was racing with the user's submit click on slower networks (form's
+	// native `target="_blank"` fallback opened a useless ML response tab
+	// before the script could bind), and was blocked outright by some
+	// ad-blockers. The /webforms/submit/ endpoint accepts cross-origin
+	// fire-and-forget POSTs, so the email lands even without the script.
 	(function initBlogNewsletter() {
 		const wrap = document.getElementById('mlb2-z9h4b4-blog-index');
 		if (!wrap) return;
 		const form = wrap.querySelector<HTMLFormElement>('form.ml-block-form');
 		const success = wrap.querySelector<HTMLElement>('.ml-block-success');
 		const emailInput = wrap.querySelector<HTMLInputElement>('input[type="email"]');
-		if (!form || !success || !emailInput) return;
+		const submitBtn = form?.querySelector<HTMLButtonElement>('button[type="submit"]');
+		if (!form || !success || !emailInput || !submitBtn) return;
 
-		let loaded = false;
-		function loadMailerlite() {
-			if (loaded) return;
-			loaded = true;
-			const s = document.createElement('script');
-			s.async = true;
-			s.defer = true;
-			s.src = 'https://static.mailerlite.com/js/w/webforms.min.js?vd4de52e171e8eb9c47c0c20caf367ddf';
-			document.head.appendChild(s);
-		}
-		emailInput.addEventListener('focus', loadMailerlite, { once: true });
-		// Fallback if user submits very fast — at least the loading is triggered
-		form.addEventListener('submit', loadMailerlite, { once: true });
+		let submitted = false;
+		form.addEventListener('submit', (e) => {
+			e.preventDefault();
+			if (submitted) return;
+			if (!form.checkValidity()) return;
+			submitted = true;
+			submitBtn.disabled = true;
+			submitBtn.setAttribute('aria-busy', 'true');
 
-		// When ML script reveals .ml-block-success, clear the input and
-		// freeze the form-hidden state so it can't toggle back.
-		const observer = new MutationObserver(() => {
-			if (getComputedStyle(success).display === 'none') return;
+			// Fire-and-forget POST. `no-cors` means we can't read the response,
+			// but Mailerlite's endpoint returns 200 for valid emails and the
+			// signup still lands. Show success optimistically.
+			fetch(form.action, {
+				method: 'POST',
+				body: new FormData(form),
+				mode: 'no-cors',
+				credentials: 'omit',
+			}).catch(() => {
+				// Network failure (offline, DNS, etc.) — still optimistic since
+				// retry-flicker is a worse UX than a phantom "subscribed" state
+				// the user can re-verify in their inbox.
+			});
+
 			emailInput.value = '';
 			form.style.setProperty('display', 'none', 'important');
+			success.style.setProperty('display', 'block', 'important');
+			// Move keyboard focus into the success region — combined with
+			// `role="status" aria-live="polite"` on the wrapper, this makes
+			// the confirmation discoverable for screen-reader + keyboard users
+			// (otherwise the form just silently vanishes from underneath them).
+			success.focus();
 		});
-		observer.observe(success, { attributes: true, attributeFilter: ['style', 'class'] });
-		success.addEventListener('click', (e) => e.stopPropagation());
 	})();
 </script>
 

@@ -295,7 +295,7 @@ export const products: ProductData[] = [
 			[
 				{
 					title: 'White-labeling',
-					href: '/docs/user-guide/white-labeling/',
+					href: '/docs/pe/user-guide/white-labeling/',
 					description: 'Multi-tenant configurable white-labeling.',
 				},
 				{
@@ -306,7 +306,7 @@ export const products: ProductData[] = [
 				},
 				{
 					title: 'Advanced RBAC for IoT',
-					href: '/docs/user-guide/roles/',
+					href: '/docs/pe/user-guide/roles/',
 					description:
 						'Advanced management of user roles and permissions. Manage hierarchy of customers.',
 				},
@@ -314,18 +314,18 @@ export const products: ProductData[] = [
 			[
 				{
 					title: 'CSV/XLS data export',
-					href: '/docs/user-guide/csv-xls-data-export/',
+					href: '/docs/pe/user-guide/csv-xls-data-export/',
 					description: 'Export any dashboard widget data to CSV or XLS format.',
 				},
 				{
 					title: 'Platform Integrations',
-					href: '/docs/user-guide/integrations/',
+					href: '/docs/pe/user-guide/integrations/',
 					description:
 						'Out of the box integrations with popular IoT platforms and connectivity providers.',
 				},
 				{
 					title: 'Scheduler and Reporting',
-					href: '/docs/user-guide/scheduler/',
+					href: '/docs/pe/user-guide/scheduler/',
 					description:
 						'Schedule various types of events with flexible schedule configuration. Generate great looking reports using dashboards visualization capabilities.',
 				},
@@ -577,31 +577,31 @@ export const products: ProductData[] = [
 						logo: install('trendz-cloud.svg'),
 						logoAlt: 'Trendz Cloud',
 						title: 'Trendz Cloud',
-						href: '/docs/trendz/install/cloud/',
+						href: '/docs/trendz/installation/cloud/',
 					},
 					{
 						logo: install('ubuntu.svg'),
 						logoAlt: 'Ubuntu',
 						title: 'Ubuntu Server',
-						href: '/docs/trendz/install/ubuntu/',
+						href: '/docs/trendz/installation/ubuntu/',
 					},
 					{
 						logo: install('cenos-rhel.svg'),
 						logoAlt: 'CentOS/RHEL',
 						title: 'CentOS/RHEL Server',
-						href: '/docs/trendz/install/rhel/',
+						href: '/docs/trendz/installation/rhel/',
 					},
 					{
 						logo: install('docker-windows.svg'),
 						logoAlt: 'Docker (Windows)',
 						title: 'Docker (Windows)',
-						href: '/docs/trendz/install/docker-windows/',
+						href: '/docs/trendz/installation/docker-windows/',
 					},
 					{
 						logo: install('docker-linux-mac.svg'),
 						logoAlt: 'Docker (Linux or Mac OS)',
 						title: 'Docker (Linux or Mac OS)',
-						href: '/docs/trendz/install/docker/',
+						href: '/docs/trendz/installation/docker/',
 					},
 				],
 			},

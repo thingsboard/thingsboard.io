@@ -7,13 +7,13 @@
  */
 
 /** Community Edition */
-export const CE_FULL_VER = '4.3.0.1';
+export const CE_FULL_VER = '4.3.1.1';
 
 /** Community Edition release branch (for git clone) */
 export const CE_BRANCH = 'release-4.3';
 
 /** Professional Edition */
-export const PE_FULL_VER = '4.3.0.1PE';
+export const PE_FULL_VER = '4.3.1.1PE';
 
 /** Trendz Analytics */
 export const TRENDZ_VER = '1.15.1';

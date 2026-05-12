@@ -754,6 +754,15 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 						`${prefix}/widgets/tables/persistent-table`,
 					],
 				},
+				{
+					label: 'Video streaming',
+					collapsed: true,
+					items: [
+						{ label: 'Overview', slug: `${prefix}/widgets/video/overview` },
+						{ label: 'Configure the widget', slug: `${prefix}/widgets/video/configure` },
+						{ label: 'Build a public stream URL', slug: `${prefix}/widgets/video/deploy` },
+					],
+				},
 				`${prefix}/widgets/widget-api`,
 			],
 		},
@@ -1047,6 +1056,15 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 						`${prefix}/widgets/tables/entities-table`,
 						`${prefix}/widgets/tables/timeseries-table`,
 						`${prefix}/widgets/tables/persistent-table`,
+					],
+				},
+				{
+					label: 'Video streaming',
+					collapsed: true,
+					items: [
+						{ label: 'Overview', slug: `${prefix}/widgets/video/overview` },
+						{ label: 'Configure the widget', slug: `${prefix}/widgets/video/configure` },
+						{ label: 'Build a public stream URL', slug: `${prefix}/widgets/video/deploy` },
 					],
 				},
 				`${prefix}/widgets/widget-api`,
@@ -3403,29 +3421,29 @@ export const trendzSidebar: SidebarConfig = [
 		label: 'Guides',
 		collapsed: false,
 		items: [
-			{ slug: 'docs/trendz/guides', label: 'Overview' },
+			{ slug: 'docs/trendz/user-guide', label: 'Overview' },
 			{
 				label: 'Scenarios',
 				collapsed: false,
 				items: [
 					{
-						slug: 'docs/trendz/guide/detect-anomalies-in-heat-pumps',
+						slug: 'docs/trendz/user-guide/detect-anomalies-in-heat-pumps',
 						label: 'Heat Pump Anomaly Detection',
 					},
 					{
-						slug: 'docs/trendz/guide/analyze-building-energy-usage-and-carbon-emissions',
+						slug: 'docs/trendz/user-guide/analyze-building-energy-usage-and-carbon-emissions',
 						label: 'Energy & Emissions Analysis',
 					},
 					{
-						slug: 'docs/trendz/guide/predict-next-maintenance-date-of-equipment',
+						slug: 'docs/trendz/user-guide/predict-next-maintenance-date-of-equipment',
 						label: 'Predictive Maintenance',
 					},
 					{
-						slug: 'docs/trendz/guide/industrial-oee-score-monitoring',
+						slug: 'docs/trendz/user-guide/industrial-oee-score-monitoring',
 						label: 'Industrial OEE Monitoring',
 					},
 					{
-						slug: 'docs/trendz/guide/occupancy-analysis-of-the-building',
+						slug: 'docs/trendz/user-guide/occupancy-analysis-of-the-building',
 						label: 'Predictive Occupancy Monitoring',
 					},
 				],
@@ -3435,26 +3453,26 @@ export const trendzSidebar: SidebarConfig = [
 	{
 		label: 'Installation',
 		items: [
-			{ slug: 'docs/trendz/install', label: 'Overview' },
+			{ slug: 'docs/trendz/installation', label: 'Overview' },
 			{
 				label: 'Installation Options',
 				collapsed: false,
 				items: [
-					'docs/trendz/install/cloud',
+					'docs/trendz/installation/cloud',
 					{
 						label: 'On-Premises',
 						collapsed: true,
 						items: [
-							'docs/trendz/install/docker',
-							'docs/trendz/install/docker-windows',
-							'docs/trendz/install/ubuntu',
-							'docs/trendz/install/rhel',
+							'docs/trendz/installation/docker',
+							'docs/trendz/installation/docker-windows',
+							'docs/trendz/installation/ubuntu',
+							'docs/trendz/installation/rhel',
 						],
 					},
 					{
 						label: 'Cluster',
 						collapsed: true,
-						items: ['docs/trendz/install/kubernetes', 'docs/trendz/install/docker-compose-setup'],
+						items: ['docs/trendz/installation/kubernetes', 'docs/trendz/installation/docker-compose-setup'],
 					},
 				],
 			},
@@ -3462,14 +3480,14 @@ export const trendzSidebar: SidebarConfig = [
 				label: 'Advanced',
 				collapsed: true,
 				items: [
-					'docs/trendz/install/python-executor-configuration',
+					'docs/trendz/installation/python-executor-configuration',
 					'docs/trendz/connect-thingsboard',
 					'docs/trendz/post-installation-steps',
 					'docs/trendz/configuration-properties',
-					'docs/trendz/install/old-docker-migrate',
+					'docs/trendz/installation/old-docker-migrate',
 				],
 			},
-			'docs/trendz/install/upgrade-instructions',
+			'docs/trendz/installation/upgrade-instructions',
 		],
 	},
 ];
@@ -3573,13 +3591,21 @@ export const tbmqPeSidebarTabLinks: SidebarTabLinks = {
 	Releases: '/docs/mqtt-broker/pe/changelog/',
 };
 
-export const mobileSidebarTabLinks: SidebarTabLinks = {};
-export const mobilePeSidebarTabLinks: SidebarTabLinks = {};
+export const mobileSidebarTabLinks: SidebarTabLinks = {
+	'Getting Started': '/docs/mobile/',
+	Guides: '/docs/mobile/customization/',
+	Releases: '/docs/mobile/releases/',
+};
+export const mobilePeSidebarTabLinks: SidebarTabLinks = {
+	'Getting Started': '/docs/mobile/pe/',
+	Guides: '/docs/mobile/pe/customization/',
+	Releases: '/docs/mobile/pe/releases/',
+};
 export const trendzSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/trendz/',
 	Documentation: '/docs/trendz/what-is-trendz/',
-	Guides: '/docs/trendz/guides/',
-	Installation: '/docs/trendz/install/',
+	Guides: '/docs/trendz/user-guide/',
+	Installation: '/docs/trendz/installation/',
 };
 export const licenseSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/license-server/',
