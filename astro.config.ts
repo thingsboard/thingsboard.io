@@ -6,7 +6,6 @@ import { redirects } from './astro.redirects';
 import { sidebar } from './astro.sidebar';
 import { devServerFileWatcher } from './config/integrations/dev-server-file-watcher';
 import { sitemap } from './config/integrations/sitemap';
-import { starlightPluginLlmsTxt } from './config/plugins/llms-txt';
 import { rehypeMdxIncludeHeadings } from './config/plugins/rehype-mdx-include-headings';
 import { rehypeTasklistEnhancer } from './config/plugins/rehype-tasklist-enhancer';
 
@@ -162,7 +161,6 @@ export default defineConfig({
             { tag: 'meta', attrs: { name: 'twitter:site', content: '@thingsboard' } },
         ],
         disable404Route: true,
-        plugins: process.env.SKIP_LLMS ? [] : [starlightPluginLlmsTxt()],
 		}), sitemap()],
     trailingSlash: 'always',
     scopedStyleStrategy: 'where',

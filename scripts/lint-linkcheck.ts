@@ -87,9 +87,7 @@ const linkChecker = new LinkChecker({
 	// the sitemap, so without this they would be invisible to the link checker.
 	// Exclude devFallbackRedirects — their targets (search pages, paginated views)
 	// are not in the sitemap and would always produce false-positive 404 errors.
-	additionalPathnames: Object.keys(redirects ?? {}).filter(
-		(p) => !(p in devFallbackRedirects)
-	),
+	additionalPathnames: Object.keys(redirects ?? {}).filter((p) => !(p in devFallbackRedirects)),
 	// SEO canonical consolidation: pages in "free" versions whose content is ~95% identical
 	// to the "professional" equivalent have their <link rel="canonical"> rewritten to the PE
 	// URL (see `src/routeData.ts`). Edition-specific pages (installation/*, install/*,
@@ -109,12 +107,23 @@ const linkChecker = new LinkChecker({
 		{ from: '/docs/edge/', to: '/docs/edge/pe/' },
 		{ from: '/docs/mqtt-broker/', to: '/docs/mqtt-broker/pe/' },
 		{ from: '/docs/mobile/', to: '/docs/mobile/pe/' },
+		{ from: '/docs/edge/pe/reference/', to: '/docs/pe/reference/' },
+		{ from: '/docs/edge/reference/', to: '/docs/pe/reference/' },
+		{ from: '/docs/edge/pe/user-guide/', to: '/docs/pe/user-guide/' },
+		{ from: '/docs/edge/user-guide/', to: '/docs/pe/user-guide/' },
+		{ from: '/docs/pe/installation/building-from-source/', to: '/docs/installation/building-from-source/' },
 	],
 	checks: [
 		new TargetExists({
 			// These pages exist in dist but carry noindex and are intentionally absent
 			// from the sitemap, so the link checker cannot find them via normal means.
-			ignoredLinkPathnames: ['/contact-us-thanks/', '/partners/hardware/apply-thanks/'],
+			ignoredLinkPathnames: [
+				'/contact-us-thanks/',
+				'/partners/hardware/apply-thanks/',
+				'/careers/',
+				'/blog/author/',
+				'/installations/choose-region/',
+			],
 		}),
 		new SameLanguage({
 			ignoredLinkPathnames: ['/lighthouse/'],

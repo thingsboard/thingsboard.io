@@ -15,6 +15,7 @@ export const baseSchema = z.object({
 	description: z.string().optional(),
 	selfCanonical: z.boolean().optional(),
 	canonicalUrl: z.string().optional(),
+	customDocsTitle: z.string().optional(),
 	githubURL: z.url().optional(),
 	hasREADME: z.boolean().optional(),
 	hero: z
