@@ -2,7 +2,7 @@ import type { CaseStudyData } from './types';
 
 export const cometData: CaseStudyData = {
 	title: 'Transforming Utility Data with ThingsBoard - co.met GmbH Case',
-	pageTitle: 'Transforming Utility Data with ThingsBoard - co.met GmbH Case',
+	pageTitle: 'Transforming Utility Data — co.met GmbH Case',
 	description:
 		"Discover how co.met GmbH modernized smart metering and LoRaWAN services using ThingsBoard's scalable IoT platform for automation and data visualization.",
 	pageSlug: 'comet',

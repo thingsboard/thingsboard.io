@@ -4,7 +4,7 @@ export const ariotData: CaseStudyData = {
 	title: 'Smart Healthcare - 100% Cold Chain Digitization at Medline Adana',
 	pageTitle: 'Smart Healthcare - 100% Cold Chain Digitization at Medline Adana',
 	description:
-		'How Medline Adana moved from manual checks to a single pane of glass - role-based dashboards, a rules engine, real-time SMS or email alerts, and a complete audit trail.',
+		'How Medline Adana moved from manual checks to a single pane of glass — role-based dashboards, a rule engine, SMS/email alerts, and an audit trail.',
 	pageSlug: 'ariot',
 	breadcrumb: 'Medline Adana Hospital — Healthcare',
 	categories: ['Cold chain monitoring'],

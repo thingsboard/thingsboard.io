@@ -4,7 +4,7 @@ export const scadaData: UseCaseData = {
 	title: 'SCADA Swimming pool',
 	pageTitle: 'SCADA Swimming Pool Management System with ThingsBoard',
 	description:
-		'Monitor and control swimming pool systems in real time with ThingsBoard SCADA. Supports both high-performance and traditional SCADA interfaces with interactive dashboards, alarms, and Modbus integration.',
+		'Monitor and control swimming pool systems in real time with ThingsBoard SCADA — high-performance and traditional HMIs with dashboards, alarms, and Modbus.',
 	pageSlug: 'scada',
 	about: {
 		shortText:
@@ -56,7 +56,7 @@ export const scadaData: UseCaseData = {
 	solutionStructure: {
 		title: 'Solution structure',
 		shortText: '',
-		schemeSrc: '/src/assets/schemas/iot-solution-architecture.svg',
+		schemeSrc: '/src/assets/schemas/swimming-pool.svg',
 		schemeAlt:
 			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for alarms, dashboards, notifications, and data lakes',
 		schemeCaption:
@@ -115,7 +115,7 @@ export const scadaData: UseCaseData = {
 			{
 				title: 'Pump monitoring and management',
 				description:
-					'Pump symbols for tracking performance, efficiency, pressure regulation, and liquid volume control.',
+					'A range of pump symbols (centrifugal, heat, motor pumps) allows for monitoring the performance and efficiency of pump systems. This solution is particularly important for regulating pressure and liquid volumes.',
 				image: '/src/assets/images/usecases/scada/pump-monitoring-management.svg',
 				imageAlt: 'Examples of SCADA high performance pump symbols',
 			},
@@ -129,7 +129,7 @@ export const scadaData: UseCaseData = {
 			{
 				title: 'Tank level monitoring',
 				description:
-					'Tank and reservoir symbols for monitoring liquid levels to prevent overflow and depletion.',
+					'Tank level meter and reservoir symbols enable operators to monitor liquid levels within the system, preventing both overflow and depletion—critical for water supply and chemical processes.',
 				image: '/src/assets/images/usecases/scada/tank-level-monitoring.svg',
 				imageAlt: 'Examples of SCADA high performance tanks symbols',
 			},
@@ -159,7 +159,7 @@ export const scadaData: UseCaseData = {
 			{
 				title: 'Pump monitoring and management',
 				description:
-					'Pump symbols for tracking performance, efficiency, pressure regulation, and liquid volume control.',
+					'A range of pump symbols (centrifugal, heat, motor pumps) allows for monitoring the performance and efficiency of pump systems. This solution is particularly important for regulating pressure and liquid volumes.',
 				image: '/src/assets/images/usecases/scada/pump.svg',
 				imageAlt: 'Three examples of pump monitoring and management dashboard symbols',
 			},
@@ -173,7 +173,7 @@ export const scadaData: UseCaseData = {
 			{
 				title: 'Tank level monitoring',
 				description:
-					'Tank and reservoir symbols for monitoring liquid levels to prevent overflow and depletion.',
+					'Tank level meter and reservoir symbols enable operators to monitor liquid levels within the system, preventing both overflow and depletion—critical for water supply and chemical processes.',
 				image: '/src/assets/images/usecases/scada/tank.svg',
 				imageAlt: 'Three examples of tank level monitoring dashboard symbols',
 			},

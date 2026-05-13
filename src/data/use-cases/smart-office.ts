@@ -4,7 +4,7 @@ export const smartOfficeData: UseCaseData = {
 	title: 'Smart office',
 	pageTitle: 'IoT smart office solutions with ThingsBoard',
 	description:
-		'Smart Office is a ready-to-use IoT solution powered by ThingsBoard for real-time monitoring and automation of office environments. Control energy usage, climate, air quality, and devices through intuitive dashboards. Scalable, flexible, and efficient.',
+		'Smart Office IoT solution by ThingsBoard for real-time monitoring and automation. Control energy, climate, air quality, and devices through dashboards.',
 	pageSlug: 'smart-office',
 	about: {
 		shortText:
@@ -69,7 +69,7 @@ export const smartOfficeData: UseCaseData = {
 		longText: [
 			'This setup enables seamless data ingestion through IoT gateways or direct connections. The collected data is then visualized in real time on interactive dashboards and processed through a powerful rule engine that supports analytics and configurable alarms.',
 		],
-		schemeSrc: '/src/assets/schemas/iot-solution-architecture.svg',
+		schemeSrc: '/src/assets/schemas/use-case.svg',
 		schemeAlt:
 			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for alarms, dashboards, notifications, and data lakes',
 		schemeCaption:

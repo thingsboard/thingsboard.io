@@ -8,81 +8,78 @@ export const airQualityMonitoringData: UseCaseData = {
 	pageSlug: 'air-quality-monitoring',
 	about: {
 		shortText:
-			'Urban areas, industrial districts, and transportation corridors face increasing pressure to monitor and manage air quality. Poor air quality affects public health, regulatory compliance, and quality of life. IoT-based air quality monitoring with ThingsBoard provides real-time visibility into pollutant levels, enabling proactive decision-making and timely interventions.',
+			'Urban areas, industrial districts, and high-traffic zones constantly battle air pollution — a critical issue that affects both public health and regulatory compliance. From fine particulate matter (PM2.5, PM10) to harmful gases like SO₂ and CO, monitoring these environmental threats requires a robust and responsive system. ThingsBoard rises to this challenge with unmatched flexibility and reliability.',
 		longText: [
-			'ThingsBoard supports a wide range of air quality sensors and communication protocols, making it easy to deploy monitoring stations across cities, industrial zones, and indoor environments. Data from particulate matter (PM2.5, PM10), CO2, NO2, SO2, ozone, and VOC sensors is collected, processed, and visualized in real time on interactive dashboards.',
-			"The platform's rule engine enables automated alerting when pollutant levels exceed predefined thresholds, triggering notifications to authorities, facility managers, or the public. Historical data analysis supports trend identification, regulatory reporting, and evidence-based urban planning. With ThingsBoard, organizations can build scalable air quality monitoring networks that grow from a single station to thousands of sensors across an entire region.",
+			'The ThingsBoard IoT platform is purpose-built to address this challenge with its scalable architecture, multi-protocol support (MQTT, HTTP, CoAP, LwM2M), and powerful rule engine. It seamlessly connects distributed air quality sensors, ensures secure and reliable data ingestion, and enables real-time analytics and alarming across large deployments.',
+			'With its customizable dashboards, flexible data visualization tools, and low-code rule configuration, ThingsBoard empowers organizations to deploy air quality monitoring systems faster, manage them efficiently, and respond to environmental changes proactively. Whether for smart cities, industrial compliance, or community health initiatives, ThingsBoard delivers the performance and adaptability needed to take control of air quality.',
 		],
 		demoUrl:
 			'https://thingsboard.cloud/dashboard/ec564620-82b2-11ed-a624-8360a2a6cb0e?publicId=4978baf0-8a92-11ec-98f9-ff45c37940c6',
 		demoButtonId: 'UseCases_AirQM_ViewLiveDemo',
 	},
 	solutionStructure: {
-		title: 'Solution structure of air quality monitoring use case',
+		title: 'Solution structure of air quality monitoring',
 		shortText:
-			'The air quality monitoring solution connects outdoor and indoor sensor stations to the ThingsBoard platform via IoT gateways. Sensors measure key pollutants and environmental parameters, transmitting data through MQTT, CoAP, or HTTP protocols. You may find the detailed solution setup guide in our <a href="/docs/pe/recipes/solution-templates/air-quality-monitoring/">air quality monitoring solution template</a> documentation.',
+			'An <a href="/docs/pe/recipes/solution-templates/air-quality-monitoring/">air quality monitoring solution</a> powered by ThingsBoard consists of IoT sensors that collect real-time data on pollutants such as PM2.5, PM10, CO, SO₂, NO₂, and O₃. These devices transmit telemetry to the platform via industry-standard communication protocols, including MQTT, HTTP/HTTPS, CoAP, and LwM2M — enabling flexible integration across sectors.',
 		longText: [
-			'At the sensor level, monitoring stations equipped with gas and particulate sensors collect real-time measurements of PM2.5, PM10, CO2, NO2, ozone, temperature, and humidity. These stations can be deployed on street poles, building rooftops, or inside facilities.',
-			'The ThingsBoard rule engine processes incoming data streams, calculating air quality indices (AQI), detecting threshold violations, and routing alerts to relevant stakeholders. Geospatial dashboards display sensor locations on interactive maps with color-coded status indicators.',
-			'Historical data storage enables long-term trend analysis, seasonal pattern recognition, and regulatory compliance reporting. The solution supports multi-tenant deployment, allowing cities to share infrastructure while maintaining data isolation between departments and organizations.',
+			'Once received by ThingsBoard, the data is processed, stored in a time-series database, and visualized via interactive dashboards. Custom rule chains allow the generation of automated alarms when AQI thresholds are breached or sensor battery levels drop below critical levels.',
 		],
-		schemeSrc: '/src/assets/schemas/iot-solution-architecture.svg',
-		schemeAlt:
-			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for alarms, dashboards, notifications, and data lakes',
+		schemeSrc: '/src/assets/schemas/use-case.svg',
+		schemeAlt: 'Air quality monitoring solution architecture',
 		schemeCaption:
-			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for processing, visualization, and automation',
+			'Air quality monitoring solution architecture: IoT devices connect via gateways to the cloud for processing, visualization, and automation',
 	},
 	dashboardStructure: {
-		title: 'Dashboard structure of air quality monitoring solution',
+		title: 'Air quality monitoring dashboard structure',
 		subtitle:
-			'The live dashboard provides a comprehensive view of air quality data collected from multiple monitoring stations. Users can explore real-time measurements, historical trends, and alarm statuses through an intuitive drill-down interface.',
+			'The air quality monitoring solution in ThingsBoard is built on a modular dashboard structure that serves both public and administrative needs. Each dashboard is composed of configurable widgets, real-time data streams, map overlays, and interactive filters — all powered by ThingsBoard’s flexible dashboard engine.',
 		panels: [
 			{
-				title: 'Air quality map overview',
+				title: 'Public dashboard: citywide AQI map state',
 				description:
-					'The top-level dashboard displays an interactive map with all monitoring stations marked by color-coded indicators. Each station shows its current AQI status — green for good, yellow for moderate, orange for unhealthy for sensitive groups, and red for unhealthy. Clicking on a station reveals detailed readings.',
+					'Displays all sensor locations with live AQI values. Colored markers reflect pollution levels using EPA standards. Clicking on a location shows its historical AQI trend. This interface makes data easily accessible to users (citizens and city officials) for transparent decision-making.',
 				image: '/src/assets/images/usecases/air-quality/aiq-1.webp',
 				imageAlt: 'Interactive map showing air quality monitoring stations with AQI indicators',
 			},
 			{
-				title: 'Station detail dashboard',
+				title: 'Particulate matter insights: PM10, PM2.5, and more',
 				description:
-					'A detailed view of an individual monitoring station displaying real-time measurements for PM2.5, PM10, CO2, NO2, ozone, temperature, and humidity. Gauges and trend charts provide immediate insight into current conditions and recent changes.',
+					'Detailed popup with pollutant-specific graphs, current and average levels, and health impact descriptions. These insights allow environmental analysts to evaluate pollutant behavior throughout the day.',
 				image: '/src/assets/images/usecases/air-quality/aiq-2.webp',
 				imageAlt: 'Individual station dashboard with pollutant readings and trend charts',
 			},
 			{
-				title: 'Historical data analysis',
+				title: 'Dashboard list: access management ',
 				description:
-					'This panel provides historical charts for all monitored parameters over configurable time ranges. Users can compare data across days, weeks, or months to identify seasonal patterns, correlate pollution events with weather conditions, and generate compliance reports.',
+					'Displays all available dashboards: public for general visibility and administrative for sensor configuration. Separation of access ensures operational control while maintaining public transparency.',
 				image: '/src/assets/images/usecases/air-quality/aiq-3.webp',
 				imageAlt: 'Historical air quality data charts with configurable time ranges',
 			},
 			{
-				title: 'Alarm management dashboard',
+				title: 'Admin dashboard: sensor status and map overview state',
 				description:
-					'A centralized alarm view listing all threshold violations across the monitoring network. Each alarm includes the station name, parameter, measured value, threshold, severity, and timestamp. Operators can acknowledge, clear, or escalate alarms directly from this interface.',
+					'The administrator panel shows sensor connectivity, battery status, last AQI readings, and geolocation. This enables rapid identification of sensor issues or local air quality anomalies.',
 				image: '/src/assets/images/usecases/air-quality/aiq-4.webp',
 				imageAlt: 'Air quality alarm management interface with threshold violations',
 			},
 			{
-				title: 'Comparative analysis view',
+				title: 'Sensor detail view state',
 				description:
-					'Side-by-side comparison of air quality data from multiple stations, enabling users to identify pollution hotspots, assess the impact of industrial activity on nearby residential areas, and evaluate the effectiveness of mitigation measures.',
+					'Shows real-time values for each pollutant, battery trend, historical connection status, and location on the map. It supports deep technical analysis and validation of specific sensor performance.',
 				image: '/src/assets/images/usecases/air-quality/aiq-5.webp',
 				imageAlt: 'Comparative view of multiple monitoring stations with side-by-side data',
 			},
 			{
-				title: 'Environmental parameters dashboard',
+				title: 'Add sensor interface',
 				description:
-					'Focused view on environmental parameters including temperature, humidity, wind speed, and atmospheric pressure. These contextual measurements help correlate air quality readings with weather conditions and improve the accuracy of pollution forecasting.',
+					'Simple form for registering new sensors with ID, label, and coordinates. This supports fast expansion of the network without any development effort.',
 				image: '/src/assets/images/usecases/air-quality/aiq-6.webp',
 				imageAlt: 'Environmental parameters dashboard with weather and atmospheric data',
 			},
 			{
-				title: 'AQI trends and reporting',
+				title: 'Alarm rule configuration',
 				description:
-					'A summary dashboard displaying aggregated AQI trends across the entire monitoring network. Daily, weekly, and monthly averages are presented alongside regulatory thresholds, helping administrators assess overall air quality performance and generate compliance documentation.',
+					'Rule editor for triggering alarms based on battery level or lost connectivity. Enables proactive maintenance and ensures data reliability over time.',
 				image: '/src/assets/images/usecases/air-quality/aiq-7.webp',
 				imageAlt: 'Aggregated AQI trends and regulatory compliance reporting dashboard',
 			},
@@ -100,7 +97,7 @@ export const airQualityMonitoringData: UseCaseData = {
 			{
 				title: 'Smart cities',
 				description:
-					'City-wide pollution monitoring that delivers real-time data for urban planning and public health decisions.',
+					'ThingsBoard enables city authorities to deploy scalable sensor networks and automate air quality alarms, helping protect public health and enforce clean air regulations in real time.',
 				desktopImage: '/src/assets/images/usecases/air-quality/cities-1.svg',
 				mobileImage: '/src/assets/images/usecases/air-quality/cities-2.svg',
 				imageAlt: 'Smart city',
@@ -109,7 +106,7 @@ export const airQualityMonitoringData: UseCaseData = {
 			{
 				title: 'Industrial zones',
 				description:
-					'Fence-line emission tracking around factories to ensure environmental compliance and community safety.',
+					'Manufacturers use ThingsBoard to monitor emissions through customizable dashboards and rule-based automation, ensuring regulatory compliance and minimizing environmental risks.',
 				desktopImage: '/src/assets/images/usecases/air-quality/industrial-1.svg',
 				mobileImage: '/src/assets/images/usecases/air-quality/industrial-2.svg',
 				imageAlt: 'Industrial zone',
@@ -127,7 +124,7 @@ export const airQualityMonitoringData: UseCaseData = {
 			{
 				title: 'Education & research',
 				description:
-					'Deploying sensor networks on campuses and research stations to collect long-term environmental data for academic studies, climate research, and student engagement programs.',
+					"Academic institutions benefit from ThingsBoard's real-time data visualization and open API, integrating environmental data into curriculum, research projects, and citizen science initiatives.",
 				desktopImage: '/src/assets/images/usecases/air-quality/education-1.svg',
 				mobileImage: '/src/assets/images/usecases/air-quality/education-2.svg',
 				imageAlt: 'Education',
@@ -136,7 +133,7 @@ export const airQualityMonitoringData: UseCaseData = {
 			{
 				title: 'Real estate development',
 				description:
-					'Verified air quality data for properties that enhances value and supports green building certifications.',
+					"Developers leverage ThingsBoard's remote monitoring, public dashboards, and analytics to showcase air quality metrics as a selling point for eco-friendly properties.",
 				desktopImage: '/src/assets/images/usecases/air-quality/development-1.svg',
 				mobileImage: '/src/assets/images/usecases/air-quality/development-2.svg',
 				imageAlt: 'Real estate',
@@ -145,8 +142,8 @@ export const airQualityMonitoringData: UseCaseData = {
 		],
 	},
 	summary: {
-		title: 'Summary of air quality monitoring solution',
-		text: 'Air quality monitoring with ThingsBoard provides a scalable, real-time IoT-based platform for tracking pollutants and environmental conditions across urban, industrial, and indoor environments. Through flexible sensor integration, powerful rule engine automation, and interactive geospatial dashboards, organizations gain the visibility needed to protect public health, meet regulatory requirements, and make data-driven decisions. The platform scales from single-station deployments to city-wide monitoring networks, adapting to the needs of municipalities, industries, and research institutions alike.',
+		title: 'Summary of air quality monitoring',
+		text: 'ThingsBoard’s air quality monitoring solution offers a scalable, real-time IoT-based platform for environmental intelligence. It connects pollution sensors with cloud dashboards, alarms, and data storage to empower cities, industries, and institutions to act on air quality insights. Its flexibility, open protocol support, and customizable visualization make it ideal for public health, regulatory compliance, and green initiatives.',
 		icon: '/src/assets/images/usecases/health-care/summary.svg',
 		iconAlt: 'Text summary icon',
 	},

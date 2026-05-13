@@ -68,6 +68,11 @@ export const BLOG_AUTHORS: BlogAuthor[] = [
 		avatar: 'https://secure.gravatar.com/avatar/a3943357abe98fde87650378eb223cbe?s=96&d=mm&r=g',
 	},
 	{
+		slug: 'mariia-shelaieva',
+		name: 'Mariia Shelaieva',
+		avatar: 'https://secure.gravatar.com/avatar/761940dbae49ac60ca0667d911508aed?s=96&d=mm&r=g',
+	},
+	{
 		slug: 'maryna',
 		name: 'Maryna Zakharchenko',
 		avatar: 'https://secure.gravatar.com/avatar/dc90b5503779dccb8df48e2e964a3e83?s=96&d=mm&r=g',

@@ -2,7 +2,7 @@ import type { CaseStudyData } from './types';
 
 export const mdegData: CaseStudyData = {
 	title: 'mdeg Scales Secure Medical IoT with ThingsBoard',
-	pageTitle: 'mdeg Scales Secure Medical IoT with ThingsBoard',
+	pageTitle: 'mdeg Scales Secure Medical IoT',
 	description:
 		'Discover how mdeg GmbH used ThingsBoard to build a secure, scalable IoT platform for connecting medical devices in compliance with EU healthcare standards.',
 	pageSlug: 'mdeg',

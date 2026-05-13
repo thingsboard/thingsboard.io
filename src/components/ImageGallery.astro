@@ -128,6 +128,20 @@ function resolvePaths(src: string): { lightPath: string; darkPath: string } {
 	return { lightPath, darkPath };
 }
 
+// Captions arrive as Markdown strings (the device-library importer preserves
+// `**bold**`, `` `code` `` etc. from the legacy site). They get rendered via
+// `set:html` into thumb tooltips and the lightbox caption, so convert the
+// inline-emphasis subset of Markdown to HTML before storage. Non-Markdown
+// captions (plain text, or already-HTML) pass through unchanged.
+function captionToHtml(s: string): string {
+	if (!s) return '';
+	if (!/[`*]/.test(s)) return s;
+	return s
+		.replace(/`([^`]+)`/g, '<code>$1</code>')
+		.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+		.replace(/(?<!\*)\*([^*\s][^*]*?)\*(?!\*)/g, '<em>$1</em>');
+}
+
 // Filter by product if specified, then resolve paths and process images
 const filteredImages = product
 	? images.filter(({ products: p }) => !p || p.includes(product))
@@ -152,7 +166,7 @@ const processed = await Promise.all(
 			const darkCdnSrc = hasDark ? resolveToCdn(darkPath) : cdnSrc;
 			return {
 				alt,
-				caption: caption ?? '',
+				caption: captionToHtml(caption ?? ''),
 				thumbSrc: cdnSrc,
 				fullSrc: cdnSrc,
 				darkThumbSrc: darkCdnSrc,
@@ -172,7 +186,7 @@ const processed = await Promise.all(
 			const darkSrc = darkMod ? darkMod.default.src : lightSrc;
 			return {
 				alt,
-				caption: caption ?? '',
+				caption: captionToHtml(caption ?? ''),
 				thumbSrc: lightSrc,
 				fullSrc: lightSrc,
 				darkThumbSrc: darkSrc,
@@ -209,7 +223,7 @@ const processed = await Promise.all(
 
 		return {
 			alt,
-			caption: caption ?? '',
+			caption: captionToHtml(caption ?? ''),
 			thumbSrc: thumb.src,
 			fullSrc: full.src,
 			darkThumbSrc,
@@ -772,12 +786,9 @@ const useCardMode = cardMode && isSingle;
 		display: block !important;
 	}
 
-	/* ── Scroll lock (no layout shift) ─────────────── */
-	/* scrollbar-gutter:stable reserves scrollbar space even when hidden → no page jump.
-	   Applied to html (not body) so fixed headers are unaffected. */
-	:global(html:has(.gallery-lightbox.is-open)) {
+	/* ── Scroll lock — managed via JS (see lockScroll / unlockScroll) ── */
+	:global(html.gallery-scroll-locked) {
 		overflow: hidden;
-		scrollbar-gutter: stable;
 	}
 
 	/* ── Reduced motion ────────────────────────────── */
@@ -797,6 +808,7 @@ const useCardMode = cardMode && isSingle;
 </style>
 
 <script is:inline define:vars={{ galleryId }}>
+	/* eslint-disable @typescript-eslint/ban-ts-comment */
 	// @ts-nocheck
 	const gallery = document.getElementById(galleryId);
 	if (!gallery) throw new Error(`ImageGallery: #${galleryId} not found`);
@@ -848,6 +860,42 @@ const useCardMode = cardMode && isSingle;
 		nextBtn.toggleAttribute('hidden', single);
 	}
 
+	// When overflow:hidden removes the scrollbar, the ICB for fixed elements grows by the scrollbar
+	// width, causing the header (position:fixed; width:100%) to widen and visually jump.
+	// Fix: compensate html padding-right (keeps document content width) + header padding-right
+	// (keeps header content width). Suppress header transitions with `transition:none` + double-rAF
+	// so the instant padding change doesn't animate over the header's CSS transition-duration:0.3s.
+	const header = /** @type {HTMLElement|null} */ (document.querySelector('header.header'));
+	let headerCompensated = false;
+
+	function lockScroll() {
+		const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+		if (scrollbarWidth <= 0) {
+			document.documentElement.classList.add('gallery-scroll-locked');
+			return;
+		}
+		if (header) {
+			const currentPaddingRight = parseFloat(getComputedStyle(header).paddingRight);
+			header.style.transition = 'none';
+			header.style.paddingRight = (currentPaddingRight + scrollbarWidth) + 'px';
+			requestAnimationFrame(() => requestAnimationFrame(() => { header.style.transition = ''; }));
+			headerCompensated = true;
+		}
+		document.documentElement.style.paddingRight = scrollbarWidth + 'px';
+		document.documentElement.classList.add('gallery-scroll-locked');
+	}
+
+	function unlockScroll() {
+		if (header && headerCompensated) {
+			header.style.transition = 'none';
+			header.style.paddingRight = '';
+			requestAnimationFrame(() => requestAnimationFrame(() => { header.style.transition = ''; }));
+			headerCompensated = false;
+		}
+		document.documentElement.classList.remove('gallery-scroll-locked');
+		document.documentElement.style.paddingRight = '';
+	}
+
 	function openLightbox(index, triggerBtn) {
 		if (isClosing) return;
 
@@ -860,6 +908,7 @@ const useCardMode = cardMode && isSingle;
 		currentIndex = index;
 		updateContent();
 
+		lockScroll();
 		lightbox.setAttribute('aria-hidden', 'false');
 
 		// First is-open (shows the element), then is-opening (triggers animation)
@@ -891,6 +940,7 @@ const useCardMode = cardMode && isSingle;
 			lightbox.setAttribute('aria-hidden', 'true');
 			thumbs[currentIndex]?.blur();
 			isClosing = false;
+			unlockScroll();
 		}
 
 		// Finish on animationend or after timeout (if animation is disabled)

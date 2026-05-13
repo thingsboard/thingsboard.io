@@ -22,6 +22,7 @@ export class GoodLabels extends CheckBase {
 			const linkLabel = anchor.label.replace(/[\n\s\t]+/g, ' ').trim();
 
 			if (!blocklist.has(linkLabel.toLowerCase())) return;
+			if (!anchor.href) return;
 
 			context.report({
 				type: GoodLabels.BadLabel,

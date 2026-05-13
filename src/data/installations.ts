@@ -197,12 +197,6 @@ export const products: ProductData[] = [
 						href: '/docs/installation/rhel/',
 					},
 					{
-						logo: install('windows.svg'),
-						logoAlt: 'Windows',
-						title: 'Windows',
-						href: '/docs/installation/docker-windows/',
-					},
-					{
 						logo: install('raspberry-pi.svg'),
 						logoAlt: 'Raspberry Pi',
 						title: 'Raspberry Pi',
@@ -301,7 +295,7 @@ export const products: ProductData[] = [
 			[
 				{
 					title: 'White-labeling',
-					href: '/docs/user-guide/white-labeling/',
+					href: '/docs/pe/user-guide/white-labeling/',
 					description: 'Multi-tenant configurable white-labeling.',
 				},
 				{
@@ -312,7 +306,7 @@ export const products: ProductData[] = [
 				},
 				{
 					title: 'Advanced RBAC for IoT',
-					href: '/docs/user-guide/roles/',
+					href: '/docs/pe/user-guide/roles/',
 					description:
 						'Advanced management of user roles and permissions. Manage hierarchy of customers.',
 				},
@@ -320,18 +314,18 @@ export const products: ProductData[] = [
 			[
 				{
 					title: 'CSV/XLS data export',
-					href: '/docs/user-guide/csv-xls-data-export/',
+					href: '/docs/pe/user-guide/csv-xls-data-export/',
 					description: 'Export any dashboard widget data to CSV or XLS format.',
 				},
 				{
 					title: 'Platform Integrations',
-					href: '/docs/user-guide/integrations/',
+					href: '/docs/pe/user-guide/integrations/',
 					description:
 						'Out of the box integrations with popular IoT platforms and connectivity providers.',
 				},
 				{
 					title: 'Scheduler and Reporting',
-					href: '/docs/user-guide/scheduler/',
+					href: '/docs/pe/user-guide/scheduler/',
 					description:
 						'Schedule various types of events with flexible schedule configuration. Generate great looking reports using dashboards visualization capabilities.',
 				},
@@ -352,12 +346,6 @@ export const products: ProductData[] = [
 						logoAlt: 'CentOS/RHEL',
 						title: 'CentOS/RHEL',
 						href: '/docs/pe/installation/rhel/',
-					},
-					{
-						logo: install('windows.svg'),
-						logoAlt: 'Windows',
-						title: 'Windows',
-						href: '/docs/pe/installation/docker-windows/',
 					},
 					{
 						logo: install('docker-windows.svg'),
@@ -416,7 +404,7 @@ export const products: ProductData[] = [
 		id: 'thingsboard-edge',
 		title: 'ThingsBoard Edge',
 		description:
-			'The ThingsBoard Edge empowers businesses with real-time data analysis and management right at the source, enhancing agility and efficiency in data-driven decisions.\n\nSeamlessly connected to your preferred ThingsBoard platform—whether it\'s ThingsBoard Cloud, ThingsBoard Demo, ThingsBoard PE, or ThingsBoard CE—it ensures continuous synchronization that adapts to your unique business needs, delivering the power of edge intelligence.\n\nMaximize efficiency and gain immediate, actionable insights with ThingsBoard Edge! <a href="/products/thingsboard-edge/">Read more<span class="sr-only"> about ThingsBoard Edge</span></a>.',
+			'The ThingsBoard Edge empowers businesses with real-time data analysis and management right at the source, enhancing agility and efficiency in data-driven decisions.\n\nSeamlessly connected to your preferred ThingsBoard platform—whether it\'s ThingsBoard Cloud, ThingsBoard PE, or ThingsBoard CE—it ensures continuous synchronization that adapts to your unique business needs, delivering the power of edge intelligence.\n\nMaximize efficiency and gain immediate, actionable insights with ThingsBoard Edge! <a href="/products/thingsboard-edge/">Read more<span class="sr-only"> about ThingsBoard Edge</span></a>.',
 		buttons: [
 			{
 				id: 'TryItNow_Edge_Install_Edge_CE',
@@ -493,12 +481,6 @@ export const products: ProductData[] = [
 						href: '/docs/edge/installation/rhel/',
 					},
 					{
-						logo: install('windows.svg'),
-						logoAlt: 'Windows',
-						title: 'Windows',
-						href: '/docs/edge/installation/windows/',
-					},
-					{
 						logo: install('docker-windows.svg'),
 						logoAlt: 'Docker (Windows)',
 						title: 'Docker (Windows)',
@@ -542,7 +524,7 @@ export const products: ProductData[] = [
 			{
 				id: 'TryItNow_Trendz_Pricing',
 				label: 'Pricing',
-				href: '/pricing/?section=trendz-options&product=trendz-self-managed&solution=trendz-pay-as-you-go',
+				href: '/pricing/',
 				secondary: true,
 			},
 		],
@@ -595,37 +577,31 @@ export const products: ProductData[] = [
 						logo: install('trendz-cloud.svg'),
 						logoAlt: 'Trendz Cloud',
 						title: 'Trendz Cloud',
-						href: '/docs/trendz/install/cloud/',
+						href: '/docs/trendz/installation/cloud/',
 					},
 					{
 						logo: install('ubuntu.svg'),
 						logoAlt: 'Ubuntu',
 						title: 'Ubuntu Server',
-						href: '/docs/trendz/install/ubuntu/',
+						href: '/docs/trendz/installation/ubuntu/',
 					},
 					{
 						logo: install('cenos-rhel.svg'),
 						logoAlt: 'CentOS/RHEL',
 						title: 'CentOS/RHEL Server',
-						href: '/docs/trendz/install/rhel/',
-					},
-					{
-						logo: install('windows.svg'),
-						logoAlt: 'Windows',
-						title: 'Windows',
-						href: '/docs/trendz/install/windows/',
+						href: '/docs/trendz/installation/rhel/',
 					},
 					{
 						logo: install('docker-windows.svg'),
 						logoAlt: 'Docker (Windows)',
 						title: 'Docker (Windows)',
-						href: '/docs/trendz/install/docker-windows/',
+						href: '/docs/trendz/installation/docker-windows/',
 					},
 					{
 						logo: install('docker-linux-mac.svg'),
 						logoAlt: 'Docker (Linux or Mac OS)',
 						title: 'Docker (Linux or Mac OS)',
-						href: '/docs/trendz/install/docker/',
+						href: '/docs/trendz/installation/docker/',
 					},
 				],
 			},
@@ -637,7 +613,7 @@ export const products: ProductData[] = [
 		id: 'mqtt-broker',
 		title: 'MQTT Broker',
 		description:
-			'<b>TBMQ</b> is a highly scalable and durable <a href="/products/mqtt-broker/" target="_blank">MQTT message broker</a> built for real-time data processing across IoT ecosystems of any scale. It efficiently handles millions of concurrent client connections and processes millions of messages per second while maintaining low latency and reliable delivery. Designed for horizontal scalability, TBMQ seamlessly expands across cluster nodes to support massive deployments with millions of connected devices. <a href="/docs/mqtt-broker/" target="_blank">Read more<span class="sr-only"> about TBMQ MQTT Broker</span></a>.',
+			'<b>TBMQ</b> is a highly scalable and durable <a href="/products/mqtt-broker/" target="_blank" rel="noopener noreferrer">MQTT message broker</a> built for real-time data processing across IoT ecosystems of any scale. It efficiently handles millions of concurrent client connections and processes millions of messages per second while maintaining low latency and reliable delivery. Designed for horizontal scalability, TBMQ seamlessly expands across cluster nodes to support massive deployments with millions of connected devices. <a href="/docs/mqtt-broker/" target="_blank" rel="noopener noreferrer">Read more<span class="sr-only"> about TBMQ MQTT Broker</span></a>.',
 		buttons: [
 			{
 				id: 'TryItNow_TBMQ_Demo',
@@ -648,14 +624,14 @@ export const products: ProductData[] = [
 			{
 				id: 'TryItNow_TBMQ_Install_CE',
 				label: 'Download CE',
-				href: '/docs/mqtt-broker/install/installation-options/',
+				href: '/docs/mqtt-broker/installation/',
 				target: '_blank',
 				secondary: true,
 			},
 			{
 				id: 'TryItNow_TBMQ_Install_PE',
 				label: 'Start PE Trial',
-				href: '/docs/mqtt-broker/pe/install/installation-options/',
+				href: '/docs/mqtt-broker/pe/installation/',
 				target: '_blank',
 				secondary: true,
 			},
@@ -710,7 +686,7 @@ export const products: ProductData[] = [
 				},
 				{
 					title: 'K8s & Cloud Agnostic',
-					href: '/docs/mqtt-broker/install/installation-options/',
+					href: '/docs/mqtt-broker/installation/',
 					target: '_blank',
 					description: 'Deploy in cloud or on-premises using K8s scripts with ease',
 				},
@@ -724,28 +700,28 @@ export const products: ProductData[] = [
 						logo: install('docker-linux-mac.svg'),
 						logoAlt: 'Docker (Linux or Mac OS)',
 						title: 'Docker (Linux or Mac OS)',
-						href: '/docs/mqtt-broker/install/docker/',
+						href: '/docs/mqtt-broker/installation/docker/',
 						target: '_blank',
 					},
 					{
 						logo: install('docker-windows.svg'),
 						logoAlt: 'Docker (Windows)',
 						title: 'Docker (Windows)',
-						href: '/docs/mqtt-broker/install/docker-windows/',
+						href: '/docs/mqtt-broker/installation/docker-windows/',
 						target: '_blank',
 					},
 					{
 						logo: install('docker-compose.svg'),
 						logoAlt: 'Cluster setup with Docker Compose',
 						title: 'Cluster with Docker Compose',
-						href: '/docs/mqtt-broker/install/cluster/docker-compose-setup/',
+						href: '/docs/mqtt-broker/installation/cluster/docker-compose-setup/',
 						target: '_blank',
 					},
 					{
 						logo: install('minikube.svg'),
 						logoAlt: 'Cluster setup with Minikube',
 						title: 'Cluster setup with Minikube',
-						href: '/docs/mqtt-broker/install/cluster/minikube-cluster-setup/',
+						href: '/docs/mqtt-broker/installation/cluster/minikube-cluster-setup/',
 						target: '_blank',
 					},
 				],
@@ -757,28 +733,28 @@ export const products: ProductData[] = [
 						logo: install('eks.svg'),
 						logoAlt: 'Cluster setup on EKS',
 						title: 'Cluster setup on EKS',
-						href: '/docs/mqtt-broker/install/cluster/aws-cluster-setup/',
+						href: '/docs/mqtt-broker/installation/cluster/aws-cluster-setup/',
 						target: '_blank',
 					},
 					{
 						logo: install('azure.svg'),
 						logoAlt: 'Cluster setup on AKS',
 						title: 'Cluster setup on AKS',
-						href: '/docs/mqtt-broker/install/cluster/azure-cluster-setup/',
+						href: '/docs/mqtt-broker/installation/cluster/azure-cluster-setup/',
 						target: '_blank',
 					},
 					{
 						logo: install('gcp.svg'),
 						logoAlt: 'Cluster setup on GCP',
 						title: 'Cluster setup on GCP',
-						href: '/docs/mqtt-broker/install/cluster/gcp-cluster-setup/',
+						href: '/docs/mqtt-broker/installation/cluster/gcp-cluster-setup/',
 						target: '_blank',
 					},
 					{
 						logo: install('helm.svg'),
 						logoAlt: 'Cluster setup using Helm',
 						title: 'Cluster setup using Helm',
-						href: '/docs/mqtt-broker/install/installation-options/',
+						href: '/docs/mqtt-broker/installation/?installationType=helm',
 						target: '_blank',
 					},
 				],

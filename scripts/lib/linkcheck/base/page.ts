@@ -25,7 +25,7 @@ export class HtmlPage {
 	readonly anchors: Array<{
 		label: string;
 		name: string;
-		href: string;
+		href: string | undefined;
 	}>;
 	/**
 	 * A list of unique link hrefs on the page.
@@ -79,19 +79,27 @@ export class HtmlPage {
 		this.href = href;
 		this.pathname = pathname;
 
-		// Provide commonly used data as properties
-		this.anchors = DomUtils.getElementsByTagName('a', parser.dom, true).map((el) => ({
-			// Pass the strings through Buffer to allow Node to reallocate them into independent memory
-			// instead of using slices of the original large string containing the full HTML document.
-			//
-			// This reduces memory usage significantly, at time of writing, 2.1Gib -> 300MiB.
-			label: Buffer.from(DomUtils.innerText(el)).toString(),
-			name: el.attribs.name && Buffer.from(el.attribs.name).toString(),
-			href: el.attribs.href && Buffer.from(el.attribs.href).toString(),
-		}));
+		// Provide commonly used data as properties.
+		// Inline SVGs may use SVG 1.1 `xlink:href` instead of the modern `href` — fall back to it
+		// so anchors inside embedded SVG diagrams are validated. Anchors without any href form
+		// (e.g. `<a name="…">` bookmarks) keep href undefined and are filtered out below.
+		this.anchors = DomUtils.getElementsByTagName('a', parser.dom, true).map((el) => {
+			const rawHref = el.attribs.href ?? el.attribs['xlink:href'];
+			return {
+				// Pass the strings through Buffer to allow Node to reallocate them into independent memory
+				// instead of using slices of the original large string containing the full HTML document.
+				//
+				// This reduces memory usage significantly, at time of writing, 2.1Gib -> 300MiB.
+				label: Buffer.from(DomUtils.innerText(el)).toString(),
+				name: el.attribs.name && Buffer.from(el.attribs.name).toString(),
+				href: rawHref && Buffer.from(rawHref).toString(),
+			};
+		});
 
 		// Build a list of unique link hrefs on the page
-		this.uniqueLinkHrefs = [...new Set(this.anchors.map((el) => decodeURI(el.href)))];
+		this.uniqueLinkHrefs = [
+			...new Set(this.anchors.map((el) => el.href && decodeURI(el.href)).filter((h): h is string => Boolean(h))),
+		];
 
 		// Build a list of hashes that can be used as URL fragments to jump to parts of the page
 		const anchorNames = this.anchors.map((el) => el.name).filter((name) => name !== undefined);

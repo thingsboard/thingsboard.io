@@ -1,5 +1,5 @@
 import starlight from '@astrojs/starlight';
-import { defineConfig, sharpImageService } from 'astro/config';
+import { defineConfig, passthroughImageService, sharpImageService } from 'astro/config';
 import rehypeSlug from 'rehype-slug';
 import remarkSmartypants from 'remark-smartypants';
 import { redirects } from './astro.redirects';
@@ -14,10 +14,19 @@ import icon from 'astro-icon';
 import svgo from 'vite-plugin-svgo';
 import { fileURLToPath } from 'node:url';
 
-/* https://docs.netlify.com/configure-builds/environment-variables/#read-only-variables */
+/* Cloudflare Pages: https://developers.cloudflare.com/pages/configuration/build-configuration/#environment-variables */
+const PUBLIC_SITE_URL = process.env.PUBLIC_SITE_URL;
+const CF_PAGES_URL = process.env.CF_PAGES_URL;
+const CF_PAGES_BRANCH = process.env.CF_PAGES_BRANCH;
+
+/* Netlify (kept as fallback in case of platform switch): https://docs.netlify.com/configure-builds/environment-variables/#read-only-variables */
 const NETLIFY_PREVIEW_SITE = process.env.CONTEXT !== 'production' && process.env.DEPLOY_PRIME_URL;
 
-const site = NETLIFY_PREVIEW_SITE || 'https://thingsboard.io/';
+const site =
+	PUBLIC_SITE_URL ||
+	(CF_PAGES_BRANCH && CF_PAGES_URL ? CF_PAGES_URL : null) ||
+	NETLIFY_PREVIEW_SITE ||
+	'https://thingsboard.io/';
 
 // https://astro.build/config
 export default defineConfig({
@@ -142,9 +151,18 @@ export default defineConfig({
                     type: 'image/svg+xml',
                 },
             },
+            // Override Starlight defaults: site_name uses Starlight `title:` ("Docs") and og:type
+            // is hard-coded to "article" — neither is correct for our docs. Starlight's mergeHead
+            // replaces same-property defaults with these.
+            { tag: 'meta', attrs: { property: 'og:site_name', content: 'ThingsBoard' } },
+            { tag: 'meta', attrs: { property: 'og:type', content: 'website' } },
+            // Starlight only emits twitter:site if a twitter/x.com entry is set in `social:`.
+            // We can't use `social:` here without also rendering a duplicate icon in the header
+            // (footer already has X via the custom <SocialNetworks /> component).
+            { tag: 'meta', attrs: { name: 'twitter:site', content: '@thingsboard' } },
         ],
         disable404Route: true,
-        plugins: [starlightPluginLlmsTxt()],
+        plugins: process.env.SKIP_LLMS ? [] : [starlightPluginLlmsTxt()],
 		}), sitemap()],
     trailingSlash: 'always',
     scopedStyleStrategy: 'where',
@@ -159,7 +177,7 @@ export default defineConfig({
     },
     image: {
         domains: ['avatars.githubusercontent.com'],
-        service: sharpImageService(),
+        service: process.env.SKIP_IMG ? passthroughImageService() : sharpImageService(),
     },
 });
 

@@ -77,7 +77,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 					{ label: 'Propagation', slug: `${prefix}/calculated-fields/propagation` },
 					{ label: 'Geofencing', slug: `${prefix}/calculated-fields/geofencing` },
 					{
-						label: 'Entities Aggregation',
+						label: 'Related Entities Aggregation',
 						slug: `${prefix}/calculated-fields/related-entities-aggregation`,
 					},
 					{
@@ -206,6 +206,10 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 		label: 'Contribution',
 		collapsed: true,
 		items: [
+			...(!isPE ? [
+				`${prefix}/contribution/how-to-contribute`,
+				`${prefix}/contribution/how-to-contribute-your-device-integration-guide`,
+			] : []),
 			`${prefix}/contribution/rule-node-development`,
 			`${prefix}/scada-symbol-dev`,
 			`${prefix}/contribution/custom-action-development`,
@@ -244,26 +248,30 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 	{ label: 'Troubleshooting', slug: `${prefix.replace('/user-guide', '')}/troubleshooting` },
 ];
 
-const edgeInstallationItems = (prefix: string) => [
-	{ label: 'Installation options', slug: `${prefix}/installation` },
-	{
-		label: 'Single node',
-		items: [
-			`${prefix}/installation/docker`,
-			`${prefix}/installation/docker-windows`,
-			`${prefix}/installation/ubuntu`,
-			`${prefix}/installation/rhel`,
-			`${prefix}/installation/rpi`,
-			`${prefix}/installation/windows`,
-		],
-	},
-	{
-		label: 'Cluster',
-		items: [`${prefix}/installation/docker-compose-setup`],
-	},
-	{ label: 'Building from Sources', slug: `${prefix}/installation/building-from-source` },
-	{ label: 'Upgrade instructions', slug: `${prefix}/installation/upgrade-instructions` },
-];
+const edgeInstallationItems = (prefix: string) => {
+	const isPE = prefix.includes('/pe');
+	return [
+		{ label: 'Installation options', slug: `${prefix}/installation` },
+		{
+			label: 'Single node',
+			items: [
+				`${prefix}/installation/docker`,
+				`${prefix}/installation/docker-windows`,
+				`${prefix}/installation/ubuntu`,
+				`${prefix}/installation/rhel`,
+				`${prefix}/installation/rpi`,
+			],
+		},
+		{
+			label: 'Cluster',
+			items: [`${prefix}/installation/docker-compose-setup`],
+		},
+		...(isPE
+			? []
+			: [{ label: 'Building from Sources', slug: `${prefix}/installation/building-from-source` }]),
+		{ label: 'Upgrade instructions', slug: `${prefix}/installation/upgrade-instructions` },
+	];
+};
 
 const installationItems = (prefix: string) => {
 	const isPE = prefix.includes('/pe');
@@ -334,6 +342,7 @@ const installationItems = (prefix: string) => {
 			],
 		},
 		`${prefix}/installation/haproxy`,
+		`${prefix}/installation/demo-account`,
 		{ label: 'Building from Sources', slug: `${prefix}/installation/building-from-source` },
 		...(isPE
 			? [
@@ -352,18 +361,14 @@ const installationItems = (prefix: string) => {
 
 const recipeItems = (prefix: string, extraProcessingItems: string[] = []) => [
 	{
-		label: 'Processing Data',
+		label: 'Rule Engine',
 		collapsed: true,
-		items: [
-			`${prefix}/python-telemetry`,
-			`${prefix}/telemetry-delta-two-devices`,
-			...extraProcessingItems,
-		],
+		items: [`${prefix}/python-telemetry`, `${prefix}/trigger-related-entities-via-relation`, `${prefix}/rpc-reply-with-related-telemetry`, `${prefix}/send-rpc-to-related-device`, `${prefix}/fetch-weather-data`, `${prefix}/validate-incoming-telemetry`, `${prefix}/websocket-live-telemetry`, ...extraProcessingItems],
 	},
 	{
-		label: 'Validating Data',
+		label: 'Calculated Fields',
 		collapsed: true,
-		items: [`${prefix}/validate-incoming-telemetry`],
+		items: [`${prefix}/aggregate-related-entities`, `${prefix}/average-temperature-related-devices`, `${prefix}/water-consumption-hourly-delta`, `${prefix}/telemetry-delta-two-devices`, `${prefix}/telemetry-delta-calculation`],
 	},
 	{
 		label: 'Storage & Retention',
@@ -371,19 +376,9 @@ const recipeItems = (prefix: string, extraProcessingItems: string[] = []) => [
 		items: [`${prefix}/configure-telemetry-ttl`],
 	},
 	{
-		label: 'Alarms',
+		label: 'Alarms & Notifications',
 		collapsed: true,
-		items: [
-			`${prefix}/alarm-rule-tutorials`,
-			`${prefix}/create-clear-alarms`,
-			`${prefix}/telemetry-delta-calculation`,
-			`${prefix}/send-email-alarm`,
-		],
-	},
-	{
-		label: 'Real-time Data',
-		collapsed: true,
-		items: [`${prefix}/websocket-live-telemetry`],
+		items: [`${prefix}/alarm-rule-tutorials`, `${prefix}/create-clear-alarms`, `${prefix}/device-inactivity-alarm`, `${prefix}/enrich-alarms-with-details`, `${prefix}/send-email-alarm`, `${prefix}/send-sms-alarm`, `${prefix}/send-slack-alarm`, `${prefix}/send-mobile-app-alarm`, `${prefix}/send-microsoft-teams-alarm`, `${prefix}/send-alarm-email-to-customer`, `${prefix}/telegram-alarm-notification`],
 	},
 ];
 
@@ -682,10 +677,226 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 			collapsed: true,
 			items: [
 				`${prefix}/widgets/widget-library`,
-				`${prefix}/widgets/chart-widget`,
-				`${prefix}/widgets/map-widgets`,
-				`${prefix}/widgets/entity-table-widget`,
-				`${prefix}/widgets/markdown-html-card`,
+				{
+					label: 'Alarm widgets',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/alarm-widgets/alarms-table`,
+						`${prefix}/widgets/alarm-widgets/alarm-count`,
+					],
+				},
+				{
+					label: 'Buttons',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/buttons/action-button`,
+						`${prefix}/widgets/buttons/command-button`,
+						`${prefix}/widgets/buttons/power-button`,
+						`${prefix}/widgets/buttons/toggle-button`,
+						`${prefix}/widgets/buttons/two-segment-button`,
+						`${prefix}/widgets/buttons/value-stepper`,
+					],
+				},
+				{
+					label: 'Control widgets',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/control-widgets/single-switch`,
+						`${prefix}/widgets/control-widgets/led-indicator`,
+					],
+				},
+				{
+					label: 'Cards',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/cards/html-value-card`,
+						`${prefix}/widgets/cards/markdown-html-card`,
+						`${prefix}/widgets/cards/value-card`,
+					],
+				},
+				{
+					label: 'Charts',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/charts/bar-chart`,
+						`${prefix}/widgets/charts/chart-widgets`,
+						`${prefix}/widgets/charts/line-chart`,
+						`${prefix}/widgets/charts/point-chart`,
+						`${prefix}/widgets/charts/state-chart`,
+						`${prefix}/widgets/charts/time-series-chart`,
+					],
+				},
+				{
+					label: 'Count widgets',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/alarm-widgets/alarm-count`,
+						`${prefix}/widgets/count-widgets/entity-count`,
+					],
+				},
+				{
+					label: 'Maps',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/maps/map`,
+						`${prefix}/widgets/maps/image-map`,
+						`${prefix}/widgets/maps/trip-map`,
+						`${prefix}/widgets/maps/route-map`,
+					],
+				},
+				{
+					label: 'SCADA Widgets',
+					collapsed: true,
+					items: [
+						{
+							label: 'Traditional SCADA fluid system',
+							collapsed: true,
+							items: [
+								{
+									label: 'Pipes',
+									collapsed: true,
+									items: [
+										`${prefix}/widgets/scada/traditional-fluid-system/horizontal-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/long-horizontal-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/extra-long-horizontal-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/vertical-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/long-vertical-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/extra-long-vertical-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/left-bottom-elbow-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/bottom-right-elbow-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/top-right-elbow-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/left-top-elbow-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/cross-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/left-tee-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/bottom-tee-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/right-tee-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/top-tee-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/right-elbow-drain-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/left-elbow-drain-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/left-drain-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/right-drain-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/short-left-drain-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/short-right-drain-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/horizontal-broken-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/vertical-broken-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/long-horizontal-broken-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/long-vertical-broken-pipe`,
+									],
+								},
+								{
+									label: 'Fluid Meters',
+									collapsed: true,
+									items: [
+										`${prefix}/widgets/scada/traditional-fluid-system/top-flow-meter`,
+										`${prefix}/widgets/scada/traditional-fluid-system/right-flow-meter`,
+										`${prefix}/widgets/scada/traditional-fluid-system/bottom-flow-meter`,
+										`${prefix}/widgets/scada/traditional-fluid-system/left-flow-meter`,
+										`${prefix}/widgets/scada/traditional-fluid-system/horizontal-inline-flow-meter`,
+										`${prefix}/widgets/scada/traditional-fluid-system/vertical-inline-flow-meter`,
+										`${prefix}/widgets/scada/traditional-fluid-system/left-analog-water-level-meter`,
+										`${prefix}/widgets/scada/traditional-fluid-system/right-analog-water-level-meter`,
+										`${prefix}/widgets/scada/traditional-fluid-system/meter`,
+										`${prefix}/widgets/scada/traditional-fluid-system/small-meter`,
+										`${prefix}/widgets/scada/traditional-fluid-system/small-left-meter`,
+										`${prefix}/widgets/scada/traditional-fluid-system/small-right-meter`,
+									],
+								},
+								{
+									label: 'Leak Sensors',
+									collapsed: true,
+									items: [
+										`${prefix}/widgets/scada/traditional-fluid-system/leak-sensor`,
+									],
+								},
+								{
+									label: 'Pumps',
+									collapsed: true,
+									items: [
+										`${prefix}/widgets/scada/traditional-fluid-system/centrifugal-pump`,
+										`${prefix}/widgets/scada/traditional-fluid-system/small-right-motor-pump`,
+										`${prefix}/widgets/scada/traditional-fluid-system/small-left-motor-pump`,
+										`${prefix}/widgets/scada/traditional-fluid-system/right-motor-pump`,
+										`${prefix}/widgets/scada/traditional-fluid-system/left-motor-pump`,
+										`${prefix}/widgets/scada/traditional-fluid-system/right-heat-pump`,
+										`${prefix}/widgets/scada/traditional-fluid-system/left-heat-pump`,
+									],
+								},
+								{
+									label: 'Filters',
+									collapsed: true,
+									items: [
+										`${prefix}/widgets/scada/traditional-fluid-system/short-bottom-filter`,
+										`${prefix}/widgets/scada/traditional-fluid-system/long-bottom-filter`,
+										`${prefix}/widgets/scada/traditional-fluid-system/short-top-filter`,
+										`${prefix}/widgets/scada/traditional-fluid-system/long-top-filter`,
+										`${prefix}/widgets/scada/traditional-fluid-system/sand-filter`,
+									],
+								},
+								{
+									label: 'Valves',
+									collapsed: true,
+									items: [
+										`${prefix}/widgets/scada/traditional-fluid-system/horizontal-wheel-valve`,
+										`${prefix}/widgets/scada/traditional-fluid-system/vertical-wheel-valve`,
+										`${prefix}/widgets/scada/traditional-fluid-system/horizontal-ball-valve`,
+										`${prefix}/widgets/scada/traditional-fluid-system/vertical-ball-valve`,
+										`${prefix}/widgets/scada/traditional-fluid-system/water-stop`,
+									],
+								},
+								{
+									label: 'Tanks',
+									collapsed: true,
+									items: [
+										`${prefix}/widgets/scada/traditional-fluid-system/conical-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/large-conical-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/elevated-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/cylindrical-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/horizontal-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/large-cylindrical-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/large-stand-cylindrical-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/large-stand-vertical-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/large-vertical-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/small-cylindrical-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/small-spherical-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/spherical-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/stand-cylindrical-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/stand-horizontal-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/stand-vertical-short-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/stand-vertical-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/vertical-short-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/vertical-tank`,
+									],
+								},
+								{
+									label: 'Pools',
+									collapsed: true,
+									items: [
+										`${prefix}/widgets/scada/traditional-fluid-system/pool`,
+									],
+								},
+							],
+						},
+					],
+				},
+				{
+					label: 'Tables',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/alarm-widgets/alarms-table`,
+						`${prefix}/widgets/tables/entities-table`,
+						`${prefix}/widgets/tables/timeseries-table`,
+						`${prefix}/widgets/tables/persistent-table`,
+					],
+				},
+				{
+					label: 'Video streaming',
+					collapsed: true,
+					items: [
+						{ label: 'Overview', slug: `${prefix}/widgets/video/overview` },
+						{ label: 'Configure the widget', slug: `${prefix}/widgets/video/configure` },
+						{ label: 'Build a public stream URL', slug: `${prefix}/widgets/video/deploy` },
+					],
+				},
 				`${prefix}/widgets/widget-api`,
 			],
 		},
@@ -904,10 +1115,226 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 			collapsed: true,
 			items: [
 				`${prefix}/widgets/widget-library`,
-				`${prefix}/widgets/chart-widget`,
-				`${prefix}/widgets/map-widgets`,
-				`${prefix}/widgets/entity-table-widget`,
-				`${prefix}/widgets/markdown-html-card`,
+				{
+					label: 'Alarm widgets',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/alarm-widgets/alarms-table`,
+						`${prefix}/widgets/alarm-widgets/alarm-count`,
+					],
+				},
+				{
+					label: 'Buttons',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/buttons/action-button`,
+						`${prefix}/widgets/buttons/command-button`,
+						`${prefix}/widgets/buttons/power-button`,
+						`${prefix}/widgets/buttons/toggle-button`,
+						`${prefix}/widgets/buttons/two-segment-button`,
+						`${prefix}/widgets/buttons/value-stepper`,
+					],
+				},
+				{
+					label: 'Control widgets',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/control-widgets/single-switch`,
+						`${prefix}/widgets/control-widgets/led-indicator`,
+					],
+				},
+				{
+					label: 'Cards',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/cards/markdown-html-card`,
+						`${prefix}/widgets/cards/html-value-card`,
+						`${prefix}/widgets/cards/value-card`,
+					],
+				},
+				{
+					label: 'Charts',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/charts/bar-chart`,
+						`${prefix}/widgets/charts/chart-widgets`,
+						`${prefix}/widgets/charts/line-chart`,
+						`${prefix}/widgets/charts/point-chart`,
+						`${prefix}/widgets/charts/state-chart`,
+						`${prefix}/widgets/charts/time-series-chart`,
+					],
+				},
+				{
+					label: 'Count widgets',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/alarm-widgets/alarm-count`,
+						`${prefix}/widgets/count-widgets/entity-count`,
+					],
+				},
+				{
+					label: 'Maps',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/maps/map`,
+						`${prefix}/widgets/maps/image-map`,
+						`${prefix}/widgets/maps/trip-map`,
+						`${prefix}/widgets/maps/route-map`,
+					],
+				},
+				{
+					label: 'SCADA Widgets',
+					collapsed: true,
+					items: [
+						{
+							label: 'Traditional SCADA fluid system',
+							collapsed: true,
+							items: [
+								{
+									label: 'Pipes',
+									collapsed: true,
+									items: [
+										`${prefix}/widgets/scada/traditional-fluid-system/horizontal-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/long-horizontal-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/extra-long-horizontal-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/vertical-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/long-vertical-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/extra-long-vertical-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/left-bottom-elbow-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/bottom-right-elbow-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/top-right-elbow-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/left-top-elbow-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/cross-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/left-tee-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/bottom-tee-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/right-tee-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/top-tee-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/right-elbow-drain-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/left-elbow-drain-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/left-drain-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/right-drain-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/short-left-drain-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/short-right-drain-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/horizontal-broken-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/vertical-broken-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/long-horizontal-broken-pipe`,
+										`${prefix}/widgets/scada/traditional-fluid-system/long-vertical-broken-pipe`,
+									],
+								},
+								{
+									label: 'Fluid Meters',
+									collapsed: true,
+									items: [
+										`${prefix}/widgets/scada/traditional-fluid-system/top-flow-meter`,
+										`${prefix}/widgets/scada/traditional-fluid-system/right-flow-meter`,
+										`${prefix}/widgets/scada/traditional-fluid-system/bottom-flow-meter`,
+										`${prefix}/widgets/scada/traditional-fluid-system/left-flow-meter`,
+										`${prefix}/widgets/scada/traditional-fluid-system/horizontal-inline-flow-meter`,
+										`${prefix}/widgets/scada/traditional-fluid-system/vertical-inline-flow-meter`,
+										`${prefix}/widgets/scada/traditional-fluid-system/left-analog-water-level-meter`,
+										`${prefix}/widgets/scada/traditional-fluid-system/right-analog-water-level-meter`,
+										`${prefix}/widgets/scada/traditional-fluid-system/meter`,
+										`${prefix}/widgets/scada/traditional-fluid-system/small-meter`,
+										`${prefix}/widgets/scada/traditional-fluid-system/small-left-meter`,
+										`${prefix}/widgets/scada/traditional-fluid-system/small-right-meter`,
+									],
+								},
+								{
+									label: 'Leak Sensors',
+									collapsed: true,
+									items: [
+										`${prefix}/widgets/scada/traditional-fluid-system/leak-sensor`,
+									],
+								},
+								{
+									label: 'Pumps',
+									collapsed: true,
+									items: [
+										`${prefix}/widgets/scada/traditional-fluid-system/centrifugal-pump`,
+										`${prefix}/widgets/scada/traditional-fluid-system/small-right-motor-pump`,
+										`${prefix}/widgets/scada/traditional-fluid-system/small-left-motor-pump`,
+										`${prefix}/widgets/scada/traditional-fluid-system/right-motor-pump`,
+										`${prefix}/widgets/scada/traditional-fluid-system/left-motor-pump`,
+										`${prefix}/widgets/scada/traditional-fluid-system/right-heat-pump`,
+										`${prefix}/widgets/scada/traditional-fluid-system/left-heat-pump`,
+									],
+								},
+								{
+									label: 'Filters',
+									collapsed: true,
+									items: [
+										`${prefix}/widgets/scada/traditional-fluid-system/short-bottom-filter`,
+										`${prefix}/widgets/scada/traditional-fluid-system/long-bottom-filter`,
+										`${prefix}/widgets/scada/traditional-fluid-system/short-top-filter`,
+										`${prefix}/widgets/scada/traditional-fluid-system/long-top-filter`,
+										`${prefix}/widgets/scada/traditional-fluid-system/sand-filter`,
+									],
+								},
+								{
+									label: 'Valves',
+									collapsed: true,
+									items: [
+										`${prefix}/widgets/scada/traditional-fluid-system/horizontal-wheel-valve`,
+										`${prefix}/widgets/scada/traditional-fluid-system/vertical-wheel-valve`,
+										`${prefix}/widgets/scada/traditional-fluid-system/horizontal-ball-valve`,
+										`${prefix}/widgets/scada/traditional-fluid-system/vertical-ball-valve`,
+										`${prefix}/widgets/scada/traditional-fluid-system/water-stop`,
+									],
+								},
+								{
+									label: 'Tanks',
+									collapsed: true,
+									items: [
+										`${prefix}/widgets/scada/traditional-fluid-system/conical-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/large-conical-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/elevated-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/cylindrical-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/horizontal-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/large-cylindrical-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/large-stand-cylindrical-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/large-stand-vertical-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/large-vertical-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/small-cylindrical-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/small-spherical-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/spherical-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/stand-cylindrical-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/stand-horizontal-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/stand-vertical-short-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/stand-vertical-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/vertical-short-tank`,
+										`${prefix}/widgets/scada/traditional-fluid-system/vertical-tank`,
+									],
+								},
+								{
+									label: 'Pools',
+									collapsed: true,
+									items: [
+										`${prefix}/widgets/scada/traditional-fluid-system/pool`,
+									],
+								},
+							],
+						},
+					],
+				},
+				{
+					label: 'Tables',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/alarm-widgets/alarms-table`,
+						`${prefix}/widgets/tables/entities-table`,
+						`${prefix}/widgets/tables/timeseries-table`,
+						`${prefix}/widgets/tables/persistent-table`,
+					],
+				},
+				{
+					label: 'Video streaming',
+					collapsed: true,
+					items: [
+						{ label: 'Overview', slug: `${prefix}/widgets/video/overview` },
+						{ label: 'Configure the widget', slug: `${prefix}/widgets/video/configure` },
+						{ label: 'Build a public stream URL', slug: `${prefix}/widgets/video/deploy` },
+					],
+				},
 				`${prefix}/widgets/widget-api`,
 			],
 		},
@@ -1004,7 +1431,7 @@ export const peSidebar: SidebarConfig = mainSidebarItems(
 			],
 		},
 		{
-			label: 'White-labeling',
+			label: 'UI Customization',
 			collapsed: true,
 			items: [
 				'docs/pe/recipes/white-labeling-translate-dashboard',
@@ -1018,7 +1445,7 @@ export const peSidebar: SidebarConfig = mainSidebarItems(
 			items: ['docs/pe/recipes/mqtt-one-way-rpc', 'docs/pe/recipes/mqtt-two-way-rpc'],
 		},
 		{
-			label: 'Step-by-step guides',
+			label: 'Walkthroughs',
 			collapsed: true,
 			items: ['docs/pe/user-guide/advanced-guides-for-working-with-dashboard'],
 		},
@@ -1159,7 +1586,7 @@ export const paasSidebar: SidebarConfig = [
 							{ label: 'Propagation', slug: 'docs/paas/user-guide/calculated-fields/propagation' },
 							{ label: 'Geofencing', slug: 'docs/paas/user-guide/calculated-fields/geofencing' },
 							{
-								label: 'Entities Aggregation',
+								label: 'Related Entities Aggregation',
 								slug: 'docs/paas/user-guide/calculated-fields/related-entities-aggregation',
 							},
 							{
@@ -1346,7 +1773,7 @@ export const paasSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'White-labeling',
+				label: 'UI Customization',
 				collapsed: true,
 				items: [
 					'docs/paas/recipes/white-labeling-translate-dashboard',
@@ -1355,7 +1782,7 @@ export const paasSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'Step-by-step guides',
+				label: 'Walkthroughs',
 				collapsed: true,
 				items: ['docs/paas/user-guide/advanced-guides-for-working-with-dashboard'],
 			},
@@ -1504,7 +1931,7 @@ export const paasEuSidebar: SidebarConfig = [
 							},
 							{ label: 'Geofencing', slug: 'docs/paas/eu/user-guide/calculated-fields/geofencing' },
 							{
-								label: 'Entities Aggregation',
+								label: 'Related Entities Aggregation',
 								slug: 'docs/paas/eu/user-guide/calculated-fields/related-entities-aggregation',
 							},
 							{
@@ -1697,7 +2124,7 @@ export const paasEuSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'White-labeling',
+				label: 'UI Customization',
 				collapsed: true,
 				items: [
 					'docs/paas/eu/recipes/white-labeling-translate-dashboard',
@@ -1706,7 +2133,7 @@ export const paasEuSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'Step-by-step guides',
+				label: 'Walkthroughs',
 				collapsed: true,
 				items: ['docs/paas/eu/user-guide/advanced-guides-for-working-with-dashboard'],
 			},
@@ -1804,7 +2231,7 @@ export const edgeSidebar: SidebarConfig = [
 					'docs/edge/user-guide/provision-customers-and-users',
 					'docs/edge/user-guide/ota-updates',
 					'docs/edge/user-guide/dashboards',
-					'docs/edge/user-guide/edge-public-dashboard',
+					'docs/edge/user-guide/public-dashboard',
 				],
 			},
 			{
@@ -2792,7 +3219,7 @@ const tbmqGuideItems = (prefix: string): SidebarConfig => {
 const tbmqInstallItems = (prefix: string): SidebarConfig => {
 	const isPE = prefix.includes('/pe');
 	return [
-		{ label: 'Live demo', slug: `${prefix}/install/live-demo` },
+		{ label: 'Live demo', slug: `${prefix}/installation/live-demo` },
 		{
 			label: 'On-premises',
 			collapsed: true,
@@ -2801,10 +3228,10 @@ const tbmqInstallItems = (prefix: string): SidebarConfig => {
 					label: 'Standalone',
 					collapsed: true,
 					items: [
-						{ label: 'Docker (Linux & macOS)', slug: `${prefix}/install/docker` },
-						{ label: 'Docker (Windows)', slug: `${prefix}/install/docker-windows` },
+						{ label: 'Docker (Linux & macOS)', slug: `${prefix}/installation/docker` },
+						{ label: 'Docker (Windows)', slug: `${prefix}/installation/docker-windows` },
 						...(!isPE
-							? [{ label: 'Building from source', slug: `${prefix}/install/building-from-source` }]
+							? [{ label: 'Building from source', slug: `${prefix}/installation/building-from-source` }]
 							: []),
 					],
 				},
@@ -2812,8 +3239,8 @@ const tbmqInstallItems = (prefix: string): SidebarConfig => {
 					label: 'Cluster',
 					collapsed: true,
 					items: [
-						{ label: 'Docker Compose', slug: `${prefix}/install/cluster/docker-compose-setup` },
-						{ label: 'Minikube', slug: `${prefix}/install/cluster/minikube-cluster-setup` },
+						{ label: 'Docker Compose', slug: `${prefix}/installation/cluster/docker-compose-setup` },
+						{ label: 'Minikube', slug: `${prefix}/installation/cluster/minikube-cluster-setup` },
 					],
 				},
 			],
@@ -2822,26 +3249,22 @@ const tbmqInstallItems = (prefix: string): SidebarConfig => {
 			label: 'Cloud',
 			collapsed: true,
 			items: [
-				{ label: 'AWS', slug: `${prefix}/install/cluster/aws-cluster-setup` },
-				{ label: 'Azure', slug: `${prefix}/install/cluster/azure-cluster-setup` },
-				{ label: 'GCP', slug: `${prefix}/install/cluster/gcp-cluster-setup` },
+				{ label: 'AWS', slug: `${prefix}/installation/cluster/aws-cluster-setup` },
+				{ label: 'Azure', slug: `${prefix}/installation/cluster/azure-cluster-setup` },
+				{ label: 'GCP', slug: `${prefix}/installation/cluster/gcp-cluster-setup` },
 			],
 		},
-		...(!isPE
-			? [
-					{
-						label: 'Helm',
-						collapsed: true,
-						items: [
-							{ label: 'Minikube', slug: `${prefix}/install/cluster/helm-cluster-setup-minikube` },
-							{ label: 'AWS EKS', slug: `${prefix}/install/cluster/helm-cluster-setup-aws` },
-							{ label: 'Azure AKS', slug: `${prefix}/install/cluster/helm-cluster-setup-azure` },
-							{ label: 'GCP GKE', slug: `${prefix}/install/cluster/helm-cluster-setup-gcp` },
-						],
-					},
-				]
-			: []),
-		{ label: 'Upgrade instructions', slug: `${prefix}/install/upgrade-instructions` },
+		{
+			label: 'Helm',
+			collapsed: true,
+			items: [
+				{ label: 'Minikube', slug: `${prefix}/installation/cluster/helm-cluster-setup-minikube` },
+				{ label: 'AWS EKS', slug: `${prefix}/installation/cluster/helm-cluster-setup-aws` },
+				{ label: 'Azure AKS', slug: `${prefix}/installation/cluster/helm-cluster-setup-azure` },
+				{ label: 'GCP GKE', slug: `${prefix}/installation/cluster/helm-cluster-setup-gcp` },
+			],
+		},
+		{ label: 'Upgrade instructions', slug: `${prefix}/installation/upgrade-instructions` },
 	];
 };
 
@@ -2871,8 +3294,9 @@ const tbmqReferenceItems = (prefix: string): SidebarConfig => [
 		label: 'Configuration',
 		collapsed: true,
 		items: [
-			{ label: 'MQTT broker', slug: `${prefix}/install/config` },
-			{ label: 'Integration executor', slug: `${prefix}/install/ie-config` },
+			{ label: 'How to change configuration', slug: `${prefix}/installation/how-to-change-config` },
+			{ label: 'MQTT broker', slug: `${prefix}/installation/config` },
+			{ label: 'Integration executor', slug: `${prefix}/installation/ie-config` },
 		],
 	},
 	{
@@ -3265,29 +3689,29 @@ export const trendzSidebar: SidebarConfig = [
 		label: 'Guides',
 		collapsed: false,
 		items: [
-			{ slug: 'docs/trendz/guides', label: 'Overview' },
+			{ slug: 'docs/trendz/user-guide', label: 'Overview' },
 			{
 				label: 'Scenarios',
 				collapsed: false,
 				items: [
 					{
-						slug: 'docs/trendz/guide/detect-anomalies-in-heat-pumps',
+						slug: 'docs/trendz/user-guide/detect-anomalies-in-heat-pumps',
 						label: 'Heat Pump Anomaly Detection',
 					},
 					{
-						slug: 'docs/trendz/guide/analyze-building-energy-usage-and-carbon-emissions',
+						slug: 'docs/trendz/user-guide/analyze-building-energy-usage-and-carbon-emissions',
 						label: 'Energy & Emissions Analysis',
 					},
 					{
-						slug: 'docs/trendz/guide/predict-next-maintenance-date-of-equipment',
+						slug: 'docs/trendz/user-guide/predict-next-maintenance-date-of-equipment',
 						label: 'Predictive Maintenance',
 					},
 					{
-						slug: 'docs/trendz/guide/industrial-oee-score-monitoring',
+						slug: 'docs/trendz/user-guide/industrial-oee-score-monitoring',
 						label: 'Industrial OEE Monitoring',
 					},
 					{
-						slug: 'docs/trendz/guide/occupancy-analysis-of-the-building',
+						slug: 'docs/trendz/user-guide/occupancy-analysis-of-the-building',
 						label: 'Predictive Occupancy Monitoring',
 					},
 				],
@@ -3297,27 +3721,26 @@ export const trendzSidebar: SidebarConfig = [
 	{
 		label: 'Installation',
 		items: [
-			{ slug: 'docs/trendz/install/installation-options', label: 'Overview' },
+			{ slug: 'docs/trendz/installation', label: 'Overview' },
 			{
 				label: 'Installation Options',
 				collapsed: false,
 				items: [
-					'docs/trendz/install/cloud',
+					'docs/trendz/installation/cloud',
 					{
 						label: 'On-Premises',
 						collapsed: true,
 						items: [
-							'docs/trendz/install/docker',
-							'docs/trendz/install/docker-windows',
-							'docs/trendz/install/ubuntu',
-							'docs/trendz/install/rhel',
-							'docs/trendz/install/windows',
+							'docs/trendz/installation/docker',
+							'docs/trendz/installation/docker-windows',
+							'docs/trendz/installation/ubuntu',
+							'docs/trendz/installation/rhel',
 						],
 					},
 					{
 						label: 'Cluster',
 						collapsed: true,
-						items: ['docs/trendz/install/kubernetes', 'docs/trendz/install/docker-compose-setup'],
+						items: ['docs/trendz/installation/kubernetes', 'docs/trendz/installation/docker-compose-setup'],
 					},
 				],
 			},
@@ -3325,14 +3748,14 @@ export const trendzSidebar: SidebarConfig = [
 				label: 'Advanced',
 				collapsed: true,
 				items: [
-					'docs/trendz/install/python-executor-configuration',
+					'docs/trendz/installation/python-executor-configuration',
 					'docs/trendz/connect-thingsboard',
 					'docs/trendz/post-installation-steps',
 					'docs/trendz/configuration-properties',
-					'docs/trendz/install/old-docker-migrate',
+					'docs/trendz/installation/old-docker-migrate',
 				],
 			},
-			'docs/trendz/install/upgrade-instructions',
+			'docs/trendz/installation/upgrade-instructions',
 		],
 	},
 ];
@@ -3423,26 +3846,34 @@ export const gwSidebarTabLinks: SidebarTabLinks = {
 
 export const tbmqSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/mqtt-broker/',
-	Guides: '/docs/mqtt-broker/guides/',
-	Installation: '/docs/mqtt-broker/install/installation-options/',
+	Guides: '/docs/mqtt-broker/user-guide/',
+	Installation: '/docs/mqtt-broker/installation/',
 	Reference: '/docs/mqtt-broker/reference/',
 	Releases: '/docs/mqtt-broker/changelog/',
 };
 export const tbmqPeSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/mqtt-broker/pe/',
-	Guides: '/docs/mqtt-broker/pe/guides/',
-	Installation: '/docs/mqtt-broker/pe/install/installation-options/',
+	Guides: '/docs/mqtt-broker/pe/user-guide/',
+	Installation: '/docs/mqtt-broker/pe/installation/',
 	Reference: '/docs/mqtt-broker/pe/reference/',
 	Releases: '/docs/mqtt-broker/pe/changelog/',
 };
 
-export const mobileSidebarTabLinks: SidebarTabLinks = {};
-export const mobilePeSidebarTabLinks: SidebarTabLinks = {};
+export const mobileSidebarTabLinks: SidebarTabLinks = {
+	'Getting Started': '/docs/mobile/',
+	Guides: '/docs/mobile/customization/',
+	Releases: '/docs/mobile/releases/',
+};
+export const mobilePeSidebarTabLinks: SidebarTabLinks = {
+	'Getting Started': '/docs/mobile/pe/',
+	Guides: '/docs/mobile/pe/customization/',
+	Releases: '/docs/mobile/pe/releases/',
+};
 export const trendzSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/trendz/',
 	Documentation: '/docs/trendz/what-is-trendz/',
-	Guides: '/docs/trendz/guides/',
-	Installation: '/docs/trendz/install/installation-options/',
+	Guides: '/docs/trendz/user-guide/',
+	Installation: '/docs/trendz/installation/',
 };
 export const licenseSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/license-server/',

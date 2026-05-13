@@ -2,7 +2,7 @@ import type { CaseStudyData } from './types';
 
 export const xteliaData: CaseStudyData = {
 	title: 'Smart City Parking - X-TELIA Scales Fast with ThingsBoard',
-	pageTitle: 'Smart City Parking - X-TELIA Scales Fast with ThingsBoard',
+	pageTitle: 'Smart City Parking — X-TELIA Scales Fast',
 	description:
 		'Discover how X-TELIA partnered with ThingsBoard to deliver a smart signage system using solar LoRaWAN\u2122 "No Parking" signs and real-time dashboards.',
 	pageSlug: 'xtelia',

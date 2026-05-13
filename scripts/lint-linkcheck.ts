@@ -1,4 +1,4 @@
-import { redirects } from '../astro.redirects.ts';
+import { redirects, devFallbackRedirects } from '../astro.redirects.ts';
 import { LinkCheckerState, type LinkCheckerOptions } from './lib/linkcheck/base/base.ts';
 import { CanonicalUrl } from './lib/linkcheck/checks/canonical-url.ts';
 import { GoodLabels } from './lib/linkcheck/checks/good-link-label.ts';
@@ -64,26 +64,47 @@ class LinkChecker {
 	}
 }
 
+// Mirror the `site` resolution from astro.config.ts so preview builds
+// (Cloudflare Pages, Netlify, or an explicit PUBLIC_SITE_URL) parse the
+// sitemap under the same origin the build emitted.
+const resolvedSite =
+	process.env.PUBLIC_SITE_URL ||
+	(process.env.CF_PAGES_BRANCH && process.env.CF_PAGES_URL) ||
+	(process.env.CONTEXT !== 'production' && process.env.DEPLOY_PRIME_URL) ||
+	'https://thingsboard.io';
+
+// build-index.ts greps `<loc>${baseUrl}(/.*?)</loc>`, so the origin must not
+// carry a trailing slash.
+const baseUrl = resolvedSite.replace(/\/$/, '');
+
 // Use our class to check for link issues
 const linkChecker = new LinkChecker({
-	baseUrl: 'https://thingsboard.io',
+	baseUrl,
 	buildOutputDir: './dist',
 	pageSourceDir: './src/content/docs',
-	excludePagePatterns: [/^\/device-library\//],
 	// Include `astro.redirects` entries as pages so `[ref]` and its autofix can
 	// reason about them. Their built HTML carries `noindex` and is filtered from
 	// the sitemap, so without this they would be invisible to the link checker.
-	additionalPathnames: Object.keys(redirects ?? {}),
-	// SEO canonical consolidation: pages in "free" versions have their <link rel="canonical">
-	// rewritten to the "professional" equivalent (see `src/routeData.ts`). These patterns tell
-	// the link checker that such canonical mismatches are consolidation (not URL-form
-	// canonicalization) — the `[can]` check will not fire for links to the actual pathname,
-	// and `[ref]` / `[lng]` / `[abs]` autofix suggestions will preserve product context.
+	// Exclude devFallbackRedirects — their targets (search pages, paginated views)
+	// are not in the sitemap and would always produce false-positive 404 errors.
+	additionalPathnames: Object.keys(redirects ?? {}).filter(
+		(p) => !(p in devFallbackRedirects)
+	),
+	// SEO canonical consolidation: pages in "free" versions whose content is ~95% identical
+	// to the "professional" equivalent have their <link rel="canonical"> rewritten to the PE
+	// URL (see `src/routeData.ts`). Edition-specific pages (installation/*, install/*,
+	// getting-started/*) and stubs with `selfCanonical: true` in frontmatter are self-canonical
+	// instead. These patterns tell the link checker which URL pairs count as consolidation —
+	// runtime still filters per page via `isConsolidationCanonical` (which returns false when
+	// canonical === pathname), so self-canonical pages fall through automatically. Effect:
+	// `[can]` does not fire for links to the actual pathname of a consolidation source, and
+	// `[ref]` / `[lng]` / `[abs]` autofixes preserve product context.
 	consolidationPatterns: [
+		{ from: '/docs/paas/eu/user-guide/billing-info/', to: '/docs/paas/user-guide/billing-info/' },
 		// Main product: CE / PaaS / PaaS EU → PE
-		{ from: '/docs/', to: '/docs/pe/' },
-		{ from: '/docs/paas/', to: '/docs/pe/' },
 		{ from: '/docs/paas/eu/', to: '/docs/pe/' },
+		{ from: '/docs/paas/', to: '/docs/pe/' },
+		{ from: '/docs/', to: '/docs/pe/' },
 		// Sub-products: free → professional
 		{ from: '/docs/edge/', to: '/docs/edge/pe/' },
 		{ from: '/docs/mqtt-broker/', to: '/docs/mqtt-broker/pe/' },
@@ -91,7 +112,9 @@ const linkChecker = new LinkChecker({
 	],
 	checks: [
 		new TargetExists({
-			ignoredLinkPathnames: ['/device-library/', '/docs/samples'],
+			// These pages exist in dist but carry noindex and are intentionally absent
+			// from the sitemap, so the link checker cannot find them via normal means.
+			ignoredLinkPathnames: ['/contact-us-thanks/', '/partners/hardware/apply-thanks/'],
 		}),
 		new SameLanguage({
 			ignoredLinkPathnames: ['/lighthouse/'],

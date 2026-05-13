@@ -2,7 +2,7 @@ import type { CaseStudyData } from './types';
 
 export const oneserveData: CaseStudyData = {
 	title: 'Smart Field Service Delivery with ThingsBoard and Oneserve',
-	pageTitle: 'Smart Field Service Delivery with ThingsBoard and Oneserve',
+	pageTitle: 'Smart Field Service Delivery with Oneserve',
 	description:
 		'Discover how Oneserve uses ThingsBoard to deliver scalable, integrated, and agile field service solutions across housing, utilities, and manufacturing.',
 	pageSlug: 'oneserve',

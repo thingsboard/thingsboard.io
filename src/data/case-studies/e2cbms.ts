@@ -2,7 +2,7 @@ import type { CaseStudyData } from './types';
 
 export const e2cbmsData: CaseStudyData = {
 	title: 'E2CBMS Scales Smart Building Solutions with ThingsBoard IoT',
-	pageTitle: 'E2CBMS Scales Smart Building Solutions with ThingsBoard IoT',
+	pageTitle: 'E2CBMS Scales Smart Building Solutions',
 	description:
 		'Discover how E2CBMS delivers flexible, scalable BMS and EMS solutions across the GCC using the ThingsBoard IoT platform for automation and real-time visibility.',
 	pageSlug: 'e2cbms',

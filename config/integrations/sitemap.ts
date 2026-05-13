@@ -1,13 +1,28 @@
 import AstroSitemap from '@astrojs/sitemap';
 import type { AstroIntegration } from 'astro';
 
-/** Get a preconfigured instance of the `@astrojs/sitemap` integration. */
+// Pages that ship `<meta robots="noindex">`. Listing them in the sitemap
+// while serving noindex is a soft error in Search Console. Keep in sync with
+// `noIndex={true}` in BaseLayout/SeoMeta and the `/search/` noindex injected
+// in routeData.ts.
+const NOINDEX_PATHS = new Set([
+	'/contact-us-thanks/',
+	'/partners/hardware/apply-thanks/',
+	'/installations/choose-region/',
+]);
+// Suffixes for paths that legitimately repeat across language/product trees
+// (e.g. /404/, /uk/404/, /docs/pe/search/).
+const NOINDEX_SUFFIXES = ['/404/', '/search/'];
+// Path prefixes excluded from the sitemap (pages that ship `<meta robots="noindex">`).
+const NOINDEX_PREFIXES = ['/blog/author/', '/careers/', '/docs/iot-hub/'];
+
 export function sitemap(): AstroIntegration {
 	return AstroSitemap({
 		filter: (page) => {
 			const path = new URL(page).pathname;
-			// Exclude 404 pages
-			return !path.endsWith('/404/');
+			if (NOINDEX_PATHS.has(path)) return false;
+			if (NOINDEX_SUFFIXES.some((s) => path.endsWith(s))) return false;
+			return !NOINDEX_PREFIXES.some((p) => path.startsWith(p));
 		},
 	});
 }

@@ -2,7 +2,7 @@ import type { CaseStudyData } from './types';
 
 export const tMobileCzData: CaseStudyData = {
 	title: 'How T-Mobile uses ThingsBoard for agile IoT prototyping',
-	pageTitle: 'How T-Mobile uses ThingsBoard for agile IoT prototyping',
+	pageTitle: 'How T-Mobile Accelerated Agile IoT Prototyping',
 	description:
 		'Learn how T-Mobile Czech Republic leverages ThingsBoard to streamline development and visualization of IoT solutions.',
 	pageSlug: 't-mobile-cz',

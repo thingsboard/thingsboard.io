@@ -8,10 +8,18 @@ import {
 	CATEGORY_LABELS,
 	type BlogCategory,
 } from '~/data/blog/categories';
+import type { z } from 'astro/zod';
+import type { blogSchema } from '~/content.config';
 
-const allPosts = await getCollection('blog', ({ data }) => !data.draft);
+type BlogData = z.infer<typeof blogSchema>;
+type BlogPost = { id: string; data: BlogData; collection: 'blog' };
+
+const allPosts = (await getCollection('blog', ({ data }) => !(data as BlogData).draft)) as unknown as BlogPost[];
 const posts = allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
-const featuredPosts = posts.slice(0, 5);
+const featuredPosts = posts.filter((p) => !p.data.excludeFromCarousel).slice(0, 5);
+
+const siteOrigin = new URL(Astro.site!).origin;
+const blogUrl = new URL('/blog/', Astro.site).href;
 ---
 
 <BlogLayout
@@ -20,19 +28,33 @@ const featuredPosts = posts.slice(0, 5);
 	jsonLd={{
 		'@context': 'https://schema.org',
 		'@type': 'Blog',
-		'@id': 'https://thingsboard.io/blog/#blog',
+		'@id': `${blogUrl}#blog`,
 		name: 'ThingsBoard Blog',
 		description: 'ThingsBoard blog — product updates, technical guides, and IoT solutions.',
-		url: 'https://thingsboard.io/blog/',
+		url: blogUrl,
 		publisher: {
 			'@type': 'Organization',
 			name: 'ThingsBoard',
-			url: 'https://thingsboard.io',
-			logo: { '@type': 'ImageObject', url: 'https://thingsboard.io/images/thingsboard_logo_blue.svg' },
+			url: siteOrigin,
+			logo: { '@type': 'ImageObject', url: new URL('/images/thingsboard_logo_blue.svg', Astro.site).href },
 		},
 	}}
 >
-	<section class="blog-page">
+	<main class="blog-page">
+		{/* Runs synchronously before children are parsed so CSS animation's "from" keyframe
+		    is in effect the moment elements exist — no flash of final state. */}
+		<script is:inline>
+			{
+				const el = document.currentScript.parentElement;
+				const atTop = (window.scrollY || 0) < 50;
+				const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+				const hasParams = window.location.search.length > 0;
+				if (atTop && !reduced) {
+					el.classList.add('is-entering');
+					if (hasParams) el.classList.add('is-entering--no-grid');
+				}
+			}
+		</script>
 		<div class="blog-blobs" aria-hidden="true">
 			<div class="blog-blob blog-blob--blue"></div>
 			<div class="blog-blob blog-blob--pink"></div>
@@ -48,7 +70,7 @@ const featuredPosts = posts.slice(0, 5);
 					<div class="carousel" id="featured-carousel">
 						<div class="carousel__viewport">
 							<div class="carousel__container">
-								{featuredPosts.map((post) => {
+								{featuredPosts.map((post, i) => {
 									const author = getAuthor(post.data.author);
 									const cat = post.data.categories[0] as BlogCategory;
 									return (
@@ -73,14 +95,24 @@ const featuredPosts = posts.slice(0, 5);
 												</a>
 											</div>
 											<div class="carousel__image">
-												<img src={post.data.featuredImage} alt={post.data.featuredImageAlt} />
+												<img src={post.data.featuredImage} alt={post.data.featuredImageAlt} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : undefined} decoding="async" />
 											</div>
 										</div>
 									);
 								})}
 							</div>
 						</div>
-						<div class="carousel__dots" id="carousel-dots"></div>
+						{featuredPosts.length > 1 && (
+							<div class="carousel__dots" id="carousel-dots">
+								{featuredPosts.map((_, i) => (
+									<button
+										type="button"
+										class={`carousel__dot${i === 0 ? ' carousel__dot--active' : ''}`}
+										aria-label={`Go to slide ${i + 1}`}
+									></button>
+								))}
+							</div>
+						)}
 					</div>
 				</div>
 			)}
@@ -96,17 +128,24 @@ const featuredPosts = posts.slice(0, 5);
 					))}
 					<a href="/blog/" class="clear-all" id="clear-all" style="display:none">Clear all</a>
 				</div>
-				<p class="article-count" id="article-count"></p>
+				<p class="article-count" id="article-count">{posts.length} {posts.length === 1 ? 'article' : 'articles'}</p>
 			</div>
 
-			{/* ── Hidden card source ── */}
-			<div id="card-source" style="display:none">
-				{posts.map((post) => {
+			{/*
+				── Post Grid (first 6 visible; rest hidden, revealed via filter/pagination) ──
+				NOTE: every post ships in the initial HTML (with `.post-card--hidden` on ones past the first 6).
+				`loading="lazy"` on images + `display: none` on hidden cards means browsers don't
+				decode off-screen images, so the image-cost concern is already mitigated.
+				TODO(perf): if the archive grows past ~150 posts, switch to build-time pagination
+				(e.g. `/blog/page/N` via getStaticPaths) so initial payload scales sub-linearly.
+			*/}
+			<div class="post-grid" id="post-grid-top">
+				{posts.map((post, i) => {
 					const author = getAuthor(post.data.author);
 					return (
 						<a
 							href={`/blog/${post.id}/`}
-							class="post-card"
+							class={`post-card${i >= 6 ? ' post-card--hidden' : ''}`}
 							data-title={post.data.title.toLowerCase()}
 							data-description={post.data.description.toLowerCase()}
 							data-categories={post.data.categories.join(' ').toLowerCase()}
@@ -123,20 +162,17 @@ const featuredPosts = posts.slice(0, 5);
 								</div>
 							</div>
 							<div class="post-card__body">
+								<h3 class="post-card__title">{post.data.title}</h3>
 								<span class="post-card__meta">
 									{author && `By ${author.name} · `}
 									{post.data.date.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
 								</span>
-								<h3 class="post-card__title">{post.data.title}</h3>
 								<p class="post-card__excerpt">{post.data.description}</p>
 							</div>
 						</a>
 					);
 				})}
 			</div>
-
-			{/* ── Post Grid (6 posts per page) ── */}
-			<div class="post-grid" id="post-grid-top"></div>
 			<p class="no-posts" id="no-posts" style="display:none">No posts match your filters.</p>
 
 			{/* ── Community CTA ── */}
@@ -144,15 +180,31 @@ const featuredPosts = posts.slice(0, 5);
 				<div class="community-cta__left">
 					<h2 class="community-cta__title">Join ThingsBoard community</h2>
 					<p class="community-cta__subtitle">Stay tuned and get first-hand updates and access to insights.</p>
-					<form
-						action="https://thingsboard.us15.list-manage.com/subscribe/post?u=ef0e79cf5e18a386741e07661&id=295e227f23"
-						method="post"
-						target="_blank"
-						class="community-cta__form"
-					>
-						<input type="email" name="EMAIL" placeholder="Your email address" required class="community-cta__input" />
-						<button type="submit" class="community-cta__btn">Subscribe</button>
-					</form>
+					{/* Mailerlite wrapper structure — required for webforms.min.js to
+					    intercept the submit, AJAX-post, and toggle in the inline
+					    success state. Without it, target="_blank" lands on a blank
+					    Mailerlite response page (designed to be rendered in their iframe). */}
+					<div id="mlb2-z9h4b4-blog-index" class="ml-subscribe-form ml-subscribe-form-z9h4b4 community-cta__ml-wrap">
+						{/* `role="status"` + `aria-live="polite"` so screen readers
+						    announce the success message when JS reveals it via
+						    `display: block`. `tabindex="-1"` so the JS handler
+						    can focus it for keyboard users. */}
+						<div class="subscribe-form ml-block-success" style="display:none" role="status" aria-live="polite" tabindex="-1">
+							<p class="community-cta__success">Thank you! You're subscribed.</p>
+						</div>
+						<form
+							action="https://static.mailerlite.com/webforms/submit/z9h4b4"
+							data-id="6028548"
+							data-code="z9h4b4"
+							method="post"
+							target="_blank"
+							class="community-cta__form ml-block-form"
+						>
+							<input type="email" name="fields[email]" placeholder="Your email address" required class="community-cta__input" aria-label="Email address" />
+							<input type="hidden" name="ml-submit" value="1" />
+							<button type="submit" class="community-cta__btn">Subscribe</button>
+						</form>
+					</div>
 				</div>
 				<div class="community-cta__right">
 					<h3 class="community-cta__brand">
@@ -174,7 +226,7 @@ const featuredPosts = posts.slice(0, 5);
 			{/* ── Pagination ── */}
 			<nav class="pagination" id="pagination" aria-label="Blog pagination"></nav>
 		</div>
-	</section>
+	</main>
 </BlogLayout>
 
 <script>
@@ -183,7 +235,6 @@ const featuredPosts = posts.slice(0, 5);
 
 	const POSTS_PER_PAGE = 6;
 
-	const cardSource = document.getElementById('card-source')!;
 	const gridTop = document.getElementById('post-grid-top')!;
 	const pagination = document.getElementById('pagination')!;
 	const noPostsMsg = document.getElementById('no-posts')!;
@@ -191,10 +242,7 @@ const featuredPosts = posts.slice(0, 5);
 	const clearAll = document.getElementById('clear-all')!;
 	const articleCount = document.getElementById('article-count')!;
 
-	const allItems = Array.from(cardSource.querySelectorAll('.post-card')) as HTMLElement[];
-	// Detach all items
-	const fragment = document.createDocumentFragment();
-	for (const item of allItems) fragment.appendChild(item);
+	const allItems = Array.from(gridTop.querySelectorAll('.post-card')) as HTMLElement[];
 
 	let currentCategory = '';
 	let currentDate = '';
@@ -217,11 +265,10 @@ const featuredPosts = posts.slice(0, 5);
 	}
 
 	function getFilteredItems(): HTMLElement[] {
-		return allItems.filter((el) => {
-			if (currentCategory && !(el.dataset.categories || '').includes(currentCategory)) return false;
-			if (currentDate && el.dataset.date !== currentDate) return false;
-			return true;
-		});
+		return allItems.filter((el) =>
+			(!currentCategory || (el.dataset.categories || '').includes(currentCategory)) &&
+			(!currentDate || el.dataset.date === currentDate)
+		);
 	}
 
 	function renderPagination(totalItems: number) {
@@ -264,10 +311,11 @@ const featuredPosts = posts.slice(0, 5);
 		if (currentPage > totalPages) currentPage = Math.max(1, totalPages);
 
 		const start = (currentPage - 1) * POSTS_PER_PAGE;
-		const visible = filtered.slice(start, start + POSTS_PER_PAGE);
+		const visibleSet = new Set(filtered.slice(start, start + POSTS_PER_PAGE));
 
-		gridTop.innerHTML = '';
-		for (const item of visible) gridTop.appendChild(item);
+		for (const item of allItems) {
+			item.classList.toggle('post-card--hidden', !visibleSet.has(item));
+		}
 
 		noPostsMsg.style.display = total === 0 ? '' : 'none';
 		articleCount.textContent = `${total} article${total !== 1 ? 's' : ''}`;
@@ -299,49 +347,89 @@ const featuredPosts = posts.slice(0, 5);
 
 	window.addEventListener('popstate', () => { readUrlParams(); render(); });
 
-	// Carousel
+	// Carousel — dots are SSR-rendered; JS only wires up click handlers and active state.
 	function initCarousel() {
 		const viewport = document.querySelector('#featured-carousel .carousel__viewport');
 		const dotsContainer = document.getElementById('carousel-dots');
-		if (!viewport || !dotsContainer) return;
+		if (!viewport) return;
 
 		const embla = EmblaCarousel(viewport as HTMLElement, { loop: true, align: 'center' }, [Autoplay({ delay: 5000, stopOnInteraction: true })]);
-		const slides = embla.slideNodes();
-		if (slides.length <= 1) return;
+		if (!dotsContainer) return;
 
-		Object.assign(dotsContainer.style, {
-			display: 'flex', justifyContent: 'center', alignItems: 'center',
-			gap: '8px', marginTop: '12px',
-			background: 'var(--color-bg-light)', borderRadius: '100px',
-			padding: '8px 14px', width: 'fit-content',
-			marginLeft: 'auto', marginRight: 'auto',
-			border: '1px solid var(--color-border)',
-		});
+		const dots = Array.from(dotsContainer.querySelectorAll<HTMLButtonElement>('button'));
+		if (dots.length <= 1) return;
 
-		const dotBase = 'width:8px;height:8px;border-radius:50%;border:none;background:var(--color-text-muted);cursor:pointer;padding:0;transition:all .3s ease;';
-		const dotActive = 'width:28px;height:8px;border-radius:100px;background:var(--color-primary);';
+		dots.forEach((dot, i) => dot.addEventListener('click', () => embla.scrollTo(i)));
 
-		slides.forEach((_, i) => {
-			const dot = document.createElement('button');
-			dot.style.cssText = dotBase;
-			dot.setAttribute('aria-label', `Go to slide ${i + 1}`);
-			dot.addEventListener('click', () => embla.scrollTo(i));
-			dotsContainer.appendChild(dot);
-		});
-
-		const dots = Array.from(dotsContainer.querySelectorAll('button'));
 		function updateDots() {
 			const selected = embla.selectedScrollSnap();
-			dots.forEach((dot, i) => { dot.style.cssText = i === selected ? dotBase + dotActive : dotBase; });
+			dots.forEach((dot, i) => dot.classList.toggle('carousel__dot--active', i === selected));
 		}
 		embla.on('select', updateDots);
 		updateDots();
 	}
 
 	readUrlParams();
+
+	// The inline script at the top of <main> may have added .is-entering before children painted.
+	// Clean it up after animations finish so future filter/pagination doesn't re-trigger anything.
+	const blogPage = document.querySelector('.blog-page') as HTMLElement | null;
+	if (blogPage?.classList.contains('is-entering')) {
+		setTimeout(() => blogPage.classList.remove('is-entering', 'is-entering--no-grid'), 1600);
+	}
+
 	render();
-	gridTop.style.display = '';
 	initCarousel();
+
+	// ── Newsletter (Mailerlite) — submit directly via fetch instead of
+	// loading Mailerlite's webforms.min.js. The lazy-loaded intercept script
+	// was racing with the user's submit click on slower networks (form's
+	// native `target="_blank"` fallback opened a useless ML response tab
+	// before the script could bind), and was blocked outright by some
+	// ad-blockers. The /webforms/submit/ endpoint accepts cross-origin
+	// fire-and-forget POSTs, so the email lands even without the script.
+	(function initBlogNewsletter() {
+		const wrap = document.getElementById('mlb2-z9h4b4-blog-index');
+		if (!wrap) return;
+		const form = wrap.querySelector<HTMLFormElement>('form.ml-block-form');
+		const success = wrap.querySelector<HTMLElement>('.ml-block-success');
+		const emailInput = wrap.querySelector<HTMLInputElement>('input[type="email"]');
+		const submitBtn = form?.querySelector<HTMLButtonElement>('button[type="submit"]');
+		if (!form || !success || !emailInput || !submitBtn) return;
+
+		let submitted = false;
+		form.addEventListener('submit', (e) => {
+			e.preventDefault();
+			if (submitted) return;
+			if (!form.checkValidity()) return;
+			submitted = true;
+			submitBtn.disabled = true;
+			submitBtn.setAttribute('aria-busy', 'true');
+
+			// Fire-and-forget POST. `no-cors` means we can't read the response,
+			// but Mailerlite's endpoint returns 200 for valid emails and the
+			// signup still lands. Show success optimistically.
+			fetch(form.action, {
+				method: 'POST',
+				body: new FormData(form),
+				mode: 'no-cors',
+				credentials: 'omit',
+			}).catch(() => {
+				// Network failure (offline, DNS, etc.) — still optimistic since
+				// retry-flicker is a worse UX than a phantom "subscribed" state
+				// the user can re-verify in their inbox.
+			});
+
+			emailInput.value = '';
+			form.style.setProperty('display', 'none', 'important');
+			success.style.setProperty('display', 'block', 'important');
+			// Move keyboard focus into the success region — combined with
+			// `role="status" aria-live="polite"` on the wrapper, this makes
+			// the confirmation discoverable for screen-reader + keyboard users
+			// (otherwise the form just silently vanishes from underneath them).
+			success.focus();
+		});
+	})();
 </script>
 
 <style lang="scss" is:global>
@@ -351,6 +439,47 @@ const featuredPosts = posts.slice(0, 5);
 		padding: #{$header-height} 0 0;
 		position: relative;
 		overflow: hidden;
+	}
+
+	// ── Entrance animations (first paint at top of page only) ──
+
+	@keyframes blog-enter-down {
+		from {
+			opacity: 0;
+			transform: translate3d(0, -24px, 0);
+		}
+		to {
+			opacity: 1;
+			transform: translate3d(0, 0, 0);
+		}
+	}
+
+	@keyframes blog-enter-up {
+		from {
+			opacity: 0;
+			transform: translate3d(0, 24px, 0);
+		}
+		to {
+			opacity: 1;
+			transform: translate3d(0, 0, 0);
+		}
+	}
+
+	.blog-page.is-entering {
+		.blog-title         { animation: blog-enter-down 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+		.carousel-section   { animation: blog-enter-down 0.65s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both; }
+		.filter-bar         { animation: blog-enter-up   0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.22s both; }
+		.post-grid          { animation: blog-enter-up   0.65s cubic-bezier(0.22, 1, 0.36, 1) 0.30s both; }
+	}
+
+	// Skip grid animation when URL has active filters (grid re-renders mid-animation otherwise).
+	.blog-page.is-entering--no-grid .post-grid { animation: none; }
+
+	@media (prefers-reduced-motion: reduce) {
+		.blog-page.is-entering,
+		.blog-page.is-entering--no-grid {
+			.blog-title, .carousel-section, .filter-bar, .post-grid { animation: none; }
+		}
 	}
 
 	.blog-blobs {
@@ -366,6 +495,11 @@ const featuredPosts = posts.slice(0, 5);
 		border-radius: 50%;
 		filter: blur(180px);
 		opacity: 0.18;
+		// Promote each blob to its own GPU layer so Safari rasterizes the huge
+		// 180px blur once instead of every time a sibling (e.g. the carousel)
+		// transforms. translateZ(0) is the cheaper cousin of will-change here —
+		// these elements don't animate, they just need a stable cached bitmap.
+		transform: translateZ(0);
 
 		[data-theme='dark'] & {
 			opacity: 0.05;
@@ -435,8 +569,20 @@ const featuredPosts = posts.slice(0, 5);
 		padding-right: var(--spacing-5);
 	}
 	.carousel { position: relative; }
-	.carousel__viewport { overflow: hidden; }
-	.carousel__container { display: flex; }
+	// Safari fix: isolate the carousel into its own paint/composite layer.
+	// Without `contain: paint` and a GPU-layer hint, the slide transform
+	// invalidates the giant blurred .blog-blob backgrounds (filter: blur(180px))
+	// every frame, which Safari re-rasterizes — causing the slide-transition lag.
+	// Chrome happens to layerize this on its own; Safari needs the explicit hint.
+	.carousel__viewport {
+		overflow: hidden;
+		contain: paint;
+	}
+	.carousel__container {
+		display: flex;
+		will-change: transform;
+		transform: translateZ(0);
+	}
 
 	.carousel__slide {
 		flex: 0 0 100%;
@@ -571,6 +717,37 @@ const featuredPosts = posts.slice(0, 5);
 		}
 	}
 
+	.carousel__dots {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		gap: 8px;
+		margin: var(--spacing-5) auto 0;
+		padding: 8px 14px;
+		width: fit-content;
+		background: var(--color-bg-light);
+		border: 1px solid var(--color-border);
+		border-radius: 100px;
+	}
+
+	.carousel__dot {
+		width: 8px;
+		height: 8px;
+		padding: 0;
+		border: none;
+		border-radius: 50%;
+		background: var(--color-text-muted);
+		cursor: pointer;
+		transition: width 0.3s ease, background 0.3s ease, border-radius 0.3s ease;
+		appearance: none;
+
+		&--active {
+			width: 28px;
+			border-radius: 100px;
+			background: var(--color-primary);
+		}
+	}
+
 	// ── Filter Bar ──
 
 	.filter-bar {
@@ -625,7 +802,7 @@ const featuredPosts = posts.slice(0, 5);
 
 	.article-count {
 		@include text-s;
-		color: var(--color-text-muted);
+		color: var(--color-text-secondary);
 		margin: 0;
 	}
 
@@ -648,7 +825,18 @@ const featuredPosts = posts.slice(0, 5);
 		box-shadow: none;
 		border-radius: 0;
 		padding: 0;
+		transition: transform 0.25s ease;
+
+		&:hover {
+			transform: translateY(-4px);
+
+			.post-card__image img { transform: scale(1.04); }
+			.post-card__title { color: var(--color-primary); }
+		}
 	}
+
+	// Hidden via filtering/pagination. Kept in DOM to preserve SSR layout and avoid re-mounting images.
+	.post-card--hidden { display: none; }
 
 	.post-card__image {
 		position: relative;
@@ -661,6 +849,7 @@ const featuredPosts = posts.slice(0, 5);
 			width: 100%;
 			height: 100%;
 			object-fit: cover;
+			transition: transform 0.5s ease;
 		}
 	}
 
@@ -692,30 +881,35 @@ const featuredPosts = posts.slice(0, 5);
 		padding: var(--spacing-3) var(--spacing-4) var(--spacing-5);
 	}
 
-	.post-card__meta {
-		font-size: $font-size-sm;
-		color: var(--color-text);
-		margin-bottom: var(--spacing-3);
-		display: block;
-	}
-
 	.post-card__title {
 		font-size: $font-size-lg;
 		font-weight: $font-weight-semibold;
 		color: var(--color-text);
 		line-height: 1.35;
-		margin-bottom: var(--spacing-3);
+		margin-bottom: var(--spacing-2);
+		// Reserve 2 lines of height so 1-line and 2-line titles produce equal-height cards.
+		min-height: calc(1.35em * 2);
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
+		line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
+		transition: color 0.2s ease;
+	}
+
+	.post-card__meta {
+		font-size: $font-size-sm;
+		color: var(--color-text-muted);
+		margin-bottom: var(--spacing-3);
+		display: block;
 	}
 
 	.post-card__excerpt {
 		font-size: $font-size-sm;
-		color: var(--color-text);
+		color: var(--color-text-secondary);
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
+		line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 		line-height: 1.6;

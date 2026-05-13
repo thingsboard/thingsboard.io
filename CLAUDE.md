@@ -168,6 +168,93 @@ Key dirs: `src/data/case-studies/`, `src/components/CaseStudy/`, `src/pages/case
 
 Data-driven page at `/clients-feedback/`. Key dirs: `src/data/clients-feedback/`, `src/components/Feedback/`, `src/pages/clients-feedback/`.
 
+### Device Library
+
+Catalog of supported hardware + integration guides at `/device-library/` (index) and `/device-library/{slug}/` (detail pages). **Flat slug**, not product-prefixed — one URL per device regardless of platform. Platform context rides on a `?platform=` query parameter that the detail page reads client-side to activate the right CE/PE branch and swap hostname sentinels (`YOUR_TB_HOST` → actual platform host) in code snippets.
+
+Content lives in the `devices` collection, not `docs`:
+
+```
+src/content/devices/en/{slug}.mdx       ← device guides (EN-only; no i18n for this collection)
+src/content.config.ts                   ← `deviceSchema` + `PLATFORM_VALUES` allow-list
+src/util/device-platform.ts             ← platform metadata, sentinel map, query → variant mapping
+src/util/device-images.ts               ← asset-pipeline resolver for catalog thumbnails + hero images
+```
+
+Presentation uses `StarlightPage` with `template: 'doc'` so guide bodies get the same Starlight typography as real docs pages, wrapped in the chrome components under `src/components/DeviceLibrary/`:
+
+```
+DeviceLibrary.astro        ← index: search + filter sidebar + paginated grid (client-side)
+DeviceCard.astro           ← catalog thumbnail card
+DeviceInfoCard.astro       ← detail page hero (product image + spec sheet + CTA)
+PlatformContent.astro      ← wraps `<PlatformContent variant="ce|pe">…</PlatformContent>` blocks
+PlatformToggle.astro       ← CE/PE segmented control (role="group" + aria-pressed)
+DeviceCTAFooter.astro      ← detail page CTA footer
+FilterSidebar.astro        ← search + filter sidebar (reused)
+```
+
+Chrome components all carry `.not-content` so Starlight's markdown flow/typography rules don't apply to them, while the MDX body inside `<Content />` does get full Starlight styling.
+
+**Assets:**
+- `src/assets/devices/{filename}` — catalog thumbnails (referenced by `deviceImageFileName:` frontmatter)
+- `src/assets/devices-library/**` — body content images (screenshots, diagrams, galleries)
+- Both go through Astro's asset pipeline (content-hashed URLs, WebP re-encoding, intrinsic `width`/`height`)
+
+**Redirects:** `scripts/device-library-redirects.json` maps every legacy URL shape (`/docs/devices-library/{slug}/`, `/docs/pe/devices-library/{slug}/`, `/device-library/{platform}/{slug}/`, and the `guides/` variants) to `/device-library/{slug}/?platform={platform}`. Imported at build time by `astro.redirects.ts`. Covers 983/983 inbound URLs from the legacy site.
+
+## Redirects
+
+**Single source of truth:** `src/data/redirects.ts`. Four exports, chosen by pattern shape:
+
+| Export | Use for | Example |
+|---|---|---|
+| `SINGLE_REDIRECTS` | one-off `/docs/*` page rename | `{ oldPath: 'pe/user-guide/roadmap', target: '/docs/pe/releases/roadmap/' }` |
+| `CATCH_ALL_REDIRECTS` | `/docs/*` prefix rename (whole tree renamed 1:1) | `{ oldPrefix: 'pe/edge', entries: [] }` → `/docs/pe/edge/* → /docs/edge/pe/:splat` |
+| `DYNAMIC_REDIRECTS` | splat / `:placeholder` patterns that aren't a simple prefix rename | `/blog/category/:category/page/* → /blog/?category=:category` |
+| `NON_DOCS_REDIRECTS` | everything outside `/docs/*` (marketing, `/products/*`, `/industries/*`, external targets) | `/iot-use-cases/` → `/use-cases/` |
+
+**Workflow to add a redirect:**
+
+1. Edit `src/data/redirects.ts` (pick the export that matches the pattern).
+2. For new `CATCH_ALL_REDIRECTS` prefixes with empty entries, populate the `newPrefix` field on the same entry — the generator reads it directly.
+3. Run `pnpm generate:redirects` — regenerates `public/_redirects` and `public/redirects.json`.
+4. Commit both the data change and the regenerated output.
+
+**Two places, two purposes:**
+
+- `public/_redirects` — served by Cloudflare Pages. Gives **real 301s at the edge**. Cloudflare rule: *"Redirects are always followed, regardless of whether or not an asset matches the incoming request."* ([docs](https://developers.cloudflare.com/pages/configuration/redirects/)) — so a matching rule here always wins, even if a static HTML file exists at the same path.
+- `astro.redirects.ts` → `redirects:` — used by Astro in `pnpm dev` / `pnpm preview` so old URLs resolve locally instead of 404-ing. In static build mode these emit a `200 + <meta refresh>` HTML stub, which Cloudflare's edge rule then supersedes in production. The file spreads `public/redirects.json` (all `/docs/*`) + `device-library-redirects.json` + `NON_DOCS_REDIRECTS`, so a single run of `pnpm generate:redirects` keeps dev and prod in sync.
+
+**Why page-based `.astro` redirect stubs are deprecated:** they only emit meta-refresh pages (no real 301), they pollute the sitemap, and they duplicate rules already present in `_redirects`. The generator in `src/data/redirects.ts` → `public/_redirects` covers them all.
+
+**Hard rules:**
+
+- **Do NOT create new `.astro` stub files** under `src/pages/docs/` that only call `Astro.redirect()`. Put the entry in `src/data/redirects.ts` instead.
+- **Do NOT hand-edit `public/_redirects` or `public/redirects.json`** below the auto-generated markers — they're rewritten by `pnpm generate:redirects`. Edit `src/data/redirects.ts` and regenerate.
+- **Keep dynamic rules (splat / `:placeholder`) under 100.** Cloudflare Pages limit is 2,000 static + 100 dynamic = 2,100 total; the generator already quarantines dynamic rules to the tail block to keep the static zone uncapped.
+
+## OG image generation
+
+Per-page OG cards (1200×630 PNG) are generated at build time by Satori + Resvg. Each content collection has its own static endpoint under `src/pages/open-graph/`. One JSX template (`_shared/Card.tsx`) is varied only by an "eyebrow" line and an optional bottom-left meta line.
+
+**Files:**
+- `src/pages/open-graph/_shared/Card.tsx` — template
+- `src/pages/open-graph/_shared/render.ts` — Satori → Resvg pipeline + content-hash cache
+- `src/pages/open-graph/_shared/page-data.ts` — collection enumerators
+- `src/pages/open-graph/_shared/jsx-runtime.ts` — minimal Satori-shaped JSX shim (no React)
+- `src/pages/open-graph/{collection}/[…].png.ts` — six static endpoints (docs, blog, case-studies, use-cases, device-library, pages)
+- `src/util/ogContext.ts` — eyebrow / label helpers + `MARKETING_ALLOWLIST`
+- `src/util/getOgImageUrl.ts` — pathname → OG PNG URL aggregator
+
+**Key facts:**
+- Cache lives at `node_modules/.og-cache/` (gitignored). Bump `TEMPLATE_VERSION` in `render.ts` to invalidate.
+- `SKIP_OG=true` (used by `pnpm build:fast`) makes `renderCard` return the global fallback instead of running Satori — endpoints still register paths.
+- Pages outside `MARKETING_ALLOWLIST` (or otherwise unmapped) fall back to `/thingsboard-og.png` via `SeoMeta.astro`.
+- Roboto 400/500/700 (7 subsets each: latin, latin-ext, cyrillic, cyrillic-ext, greek, greek-ext, vietnamese) + Noto Sans Symbols 400 for arrows. CJK / Arabic / Hebrew not covered — render as `.notdef`. Site CSS uses an unrelated system font stack; no `FONT_CREDENTIALS` env var.
+- **Astro dev quirk:** `trailingSlash: 'always'` makes dev-server 404 dynamic-route URLs that end in `.png`. `SeoMeta.astro` and `routeData.ts` append `/` to `og:image` only when `import.meta.env.DEV` so dev links resolve to `localhost:.../foo.png/` while production HTML keeps the clean `.png` URL Cloudflare Pages serves directly.
+
+**To add a new marketing landing to OG generation:** add its pathname to `MARKETING_ALLOWLIST` in `src/util/ogContext.ts` and rebuild.
+
 ## Releasing a New Version
 
 Use the `release` skill for the full checklist. Key files:
@@ -183,4 +270,4 @@ Use the `release` skill for the full checklist. Key files:
 
 ## CI Checks
 
-PRs run: `astro check`, `eslint`, `slugcheck`, `linkcheck`. All must pass.
+PRs run: `astro check`, `eslint`, `slugcheck`. All must pass.

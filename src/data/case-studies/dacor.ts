@@ -2,9 +2,9 @@ import type { CaseStudyData } from './types';
 
 export const dacorData: CaseStudyData = {
 	title: 'Real-Time Monitoring for Automotive Supplier | s\u00FCc//dacor + ThingsBoard',
-	pageTitle: 'Real-Time Monitoring for Automotive Supplier | s\u00FCc//dacor + ThingsBoard',
+	pageTitle: 'Real-Time Monitoring for Automotive Supplier — s\u00FCc//dacor',
 	description:
-		'Learn how an automotive parts manufacturer uses ThingsBoard and LoRaWAN to collect real-time machine data, visualize production with digital twins, and reduce downtime.',
+		'An automotive parts manufacturer uses ThingsBoard and LoRaWAN to collect real-time machine data, visualize production with digital twins, and cut downtime.',
 	pageSlug: 'dacor',
 	breadcrumb: 'süc//dacor GmbH — Industry 4.0',
 	categories: ['Industry 4.0'],
@@ -81,7 +81,7 @@ export const dacorData: CaseStudyData = {
 			},
 			{
 				title: 'Increasing productivity with retrofit devices',
-				text: 'Watch Andreas K\u00FCcker, Manager Digital at s\u00FCc//dacor GmbH, share insights from his conference presentation on how retrofit IoT solutions transformed their manufacturing processes and increased operational efficiency.<br><br><a target="_blank" href="https://www.youtube.com/watch?v=qxQHQtXjfEg">Watch conference presentation</a>',
+				text: 'Watch Andreas K\u00FCcker, Manager Digital at s\u00FCc//dacor GmbH, share insights from his conference presentation on how retrofit IoT solutions transformed their manufacturing processes and increased operational efficiency.<br><br><a target="_blank" href="https://www.youtube.com/watch?v=qxQHQtXjfEg" rel="noopener noreferrer">Watch conference presentation</a>',
 				image: 'https://img.thingsboard.io/case-studies/dacor-6.webp',
 				imageAlt: 'Increasing productivity with retrofit devices',
 			},

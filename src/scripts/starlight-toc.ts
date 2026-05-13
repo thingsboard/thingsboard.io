@@ -14,6 +14,15 @@ export class StarlightTOC extends HTMLElement {
 	private minH = parseInt(this.dataset.minH || '2', 10);
 	private maxH = parseInt(this.dataset.maxH || '3', 10);
 
+	// Lifetime management. All window-level listeners are registered with
+	// this controller's signal, and disconnectedCallback aborts it — so
+	// when the custom element is removed (view transition, hot-reload,
+	// dynamic page swap) we don't leave stale handlers attached to window.
+	private abortController?: AbortController;
+	private observer?: IntersectionObserver;
+	private rafId = 0;
+	private resizeTimeout?: ReturnType<typeof setTimeout>;
+
 	protected set current(link: HTMLAnchorElement) {
 		if (link === this._current) return;
 		if (this._current) this._current.removeAttribute('aria-current');
@@ -29,9 +38,63 @@ export class StarlightTOC extends HTMLElement {
 		this.onIdle(() => this.init());
 	}
 
+	disconnectedCallback(): void {
+		this.abortController?.abort();
+		this.observer?.disconnect();
+		this.observer = undefined;
+		if (this.rafId) {
+			cancelAnimationFrame(this.rafId);
+			this.rafId = 0;
+		}
+		if (this.resizeTimeout) {
+			clearTimeout(this.resizeTimeout);
+			this.resizeTimeout = undefined;
+		}
+	}
+
 	private init = (): void => {
+		this.abortController = new AbortController();
+		const { signal } = this.abortController;
+
 		/** All the links in the table of contents. */
 		const links = [...this.querySelectorAll('a')];
+
+		/**
+		 * Heading elements that correspond to TOC links, in document order.
+		 * Snapshotted once — Starlight docs don't async-swap their headings,
+		 * so the refs stay valid for the element's lifetime. If a future
+		 * MDX feature ever re-renders headings client-side without
+		 * remounting this element, this list would go stale and
+		 * promoteIfAtBottom would no-op against detached nodes.
+		 */
+		const tocHeadings = links
+			.map((link) => {
+				const id = decodeURIComponent(link.hash.slice(1));
+				return id ? document.getElementById(id) : null;
+			})
+			.filter((h): h is HTMLElement => h !== null);
+
+		/** True when the document is scrolled as far down as it can go. */
+		const isAtBottom = (): boolean =>
+			window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
+
+		/**
+		 * When at scroll-bottom, the IntersectionObserver's narrow trigger band
+		 * near the top of the viewport can't be reached by trailing headings on
+		 * tall viewports — so the active link gets stuck on the last heading
+		 * that did cross it. Promote the lowest visible heading in that case.
+		 */
+		const promoteIfAtBottom = (): void => {
+			if (!isAtBottom()) return;
+			let lastVisible: HTMLElement | null = null;
+			const vh = window.innerHeight;
+			for (const h of tocHeadings) {
+				if (h.getBoundingClientRect().top <= vh) lastVisible = h;
+			}
+			if (!lastVisible) return;
+			const link = links.find((l) => l.hash === '#' + encodeURIComponent(lastVisible!.id));
+			if (link) this.current = link;
+		};
 
 		/** Test if an element is a table-of-contents heading. */
 		const isHeading = (el: Element): el is HTMLHeadingElement => {
@@ -83,6 +146,10 @@ export class StarlightTOC extends HTMLElement {
 					break;
 				}
 			}
+			// IO may have settled on an early heading even though we're already
+			// pinned at the bottom of the page — promote to the lowest visible
+			// heading in that case.
+			promoteIfAtBottom();
 		};
 
 		// Observe elements with an `id` (most likely headings) and their siblings.
@@ -90,24 +157,40 @@ export class StarlightTOC extends HTMLElement {
 		// the first heading.
 		const toObserve = document.querySelectorAll('main [id], main [id] ~ *, main .content > *');
 
-		let observer: IntersectionObserver | undefined;
 		const observe = () => {
-			if (observer) return;
-			observer = new IntersectionObserver(setCurrent, { rootMargin: this.getRootMargin() });
-			toObserve.forEach((h) => observer!.observe(h));
+			if (this.observer) return;
+			this.observer = new IntersectionObserver(setCurrent, { rootMargin: this.getRootMargin() });
+			toObserve.forEach((h) => this.observer!.observe(h));
 		};
 		observe();
 
-		let timeout: NodeJS.Timeout;
-		window.addEventListener('resize', () => {
-			// Disable intersection observer while window is resizing.
-			if (observer) {
-				observer.disconnect();
-				observer = undefined;
-			}
-			clearTimeout(timeout);
-			timeout = setTimeout(() => this.onIdle(observe), 200);
-		});
+		window.addEventListener(
+			'resize',
+			() => {
+				// Disable intersection observer while window is resizing.
+				if (this.observer) {
+					this.observer.disconnect();
+					this.observer = undefined;
+				}
+				if (this.resizeTimeout) clearTimeout(this.resizeTimeout);
+				this.resizeTimeout = setTimeout(() => this.onIdle(observe), 200);
+			},
+			{ signal },
+		);
+
+		// Scroll listener for the bottom-of-page case — IO won't fire once the
+		// page can't scroll any further, so we need our own trigger. rAF-coalesced.
+		const onScroll = () => {
+			if (this.rafId) return;
+			this.rafId = requestAnimationFrame(() => {
+				this.rafId = 0;
+				promoteIfAtBottom();
+			});
+		};
+		window.addEventListener('scroll', onScroll, { passive: true, signal });
+		// Handle the case where the page loads already scrolled to the bottom
+		// (e.g. very short content on a very tall viewport).
+		promoteIfAtBottom();
 	};
 
 	private getRootMargin(): `-${number}px 0% ${number}px` {
