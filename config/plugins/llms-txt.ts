@@ -139,8 +139,9 @@ export const starlightPluginLlmsTxt = () =>
 			'docs/mobile/self-registration',
 			'docs/mobile/white-labeling',
 
-			// PaaS EU — PaaS is canonical for cloud
-			'docs/paas/eu/**',
+			// PaaS — PE is canonical; PaaS wrappers import the same _includes with product={PAAS},
+			// so the rendered content is identical to PE and only inflates the file.
+			'docs/paas/**',
 
 			// Release notes, changelogs, roadmaps across all products
 			'docs/pe/releases/**',
