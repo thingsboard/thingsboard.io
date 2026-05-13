@@ -1,0 +1,54 @@
+<!--
+	Shared trigger for deferring third-party scripts (GTM, YourGPT chatbot, etc.)
+	until the user shows intent — first interaction OR a 2.5s post-DOMContentLoaded
+	fallback.
+
+	Consumers call `window.__deferOnInteraction(cb)`. Callbacks fire once when
+	the trigger fires; callers registered after that fire immediately.
+
+	The trigger itself does NOT skip localhost so the defer behaviour can be
+	measured in a local Lighthouse run. Whether to register a callback at all
+	on localhost is the consumer's decision (e.g. GtmHead skips, YourGpt does
+	not).
+-->
+<script is:inline>
+	(function () {
+		const callbacks = [];
+		let fired = false;
+
+		const runCallback = (cb) => {
+			try {
+				cb();
+			} catch (err) {
+				console.error('deferred loader callback failed', err);
+			}
+		};
+
+		window.__deferOnInteraction = function (cb) {
+			if (fired) runCallback(cb);
+			else callbacks.push(cb);
+		};
+
+		const events = ['pointerdown', 'keydown', 'scroll', 'touchstart'];
+		const fire = () => {
+			if (fired) return;
+			fired = true;
+			events.forEach((e) => window.removeEventListener(e, fire));
+			callbacks.splice(0).forEach(runCallback);
+		};
+
+		events.forEach((e) => window.addEventListener(e, fire, { once: true, passive: true }));
+
+		// Two-step cleanup pattern: { once: true } removes only the listener that
+		// actually fired; the explicit removeEventListener loop in fire() cleans
+		// up the other 3 events that are still waiting. Don't drop either half.
+
+		const fallback = () => setTimeout(fire, 2500);
+		// In current Astro usage this is inline in <head>, so readyState is
+		// always 'loading' here — the if-branch is unreachable today. Kept as a
+		// defensive fallback in case the component is later loaded via slot,
+		// dynamic import, or moved out of inline head context.
+		if (document.readyState !== 'loading') fallback();
+		else document.addEventListener('DOMContentLoaded', fallback, { once: true });
+	})();
+</script>
