@@ -23,12 +23,12 @@ export const tbmqSelfManagedPerpFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-perp-buy',
 				question: 'How can I buy a perpetual license?',
-				answer: `<p>To purchase a perpetual license, you can acquire a license through your <a target="_blank" href="https://license.thingsboard.io/" rel="noopener noreferrer">License Server</a> account. Each license comes with a unique activation key, which allows you to deploy and run the system by following our detailed <a target="_blank" href="/docs/mqtt-broker/install/" rel="noopener noreferrer">installation guides</a>.</p>`,
+				answer: `<p>To purchase a perpetual license, you can acquire a license through your <a target="_blank" href="https://license.thingsboard.io/" rel="noopener noreferrer">License Server</a> account. Each license comes with a unique activation key, which allows you to deploy and run the system by following our detailed <a target="_blank" href="/docs/mqtt-broker/installation/" rel="noopener noreferrer">installation guides</a>.</p>`,
 			},
 			{
 				id: 'tbmq-perp-license-meaning',
 				question: 'What does it mean to get the license?',
-				answer: `<p>Licensing is applicable to self-hosted platform versions only. Each license comes with a unique license key (activation code) that is automatically generated in your <a target="_blank" href="https://license.thingsboard.io/" rel="noopener noreferrer">License Server</a> account. Using this license key, you can deploy and run the system by following our detailed <a target="_blank" href="/docs/mqtt-broker/install/" rel="noopener noreferrer">installation guides</a>.</p>`,
+				answer: `<p>Licensing is applicable to self-hosted platform versions only. Each license comes with a unique license key (activation code) that is automatically generated in your <a target="_blank" href="https://license.thingsboard.io/" rel="noopener noreferrer">License Server</a> account. Using this license key, you can deploy and run the system by following our detailed <a target="_blank" href="/docs/mqtt-broker/installation/" rel="noopener noreferrer">installation guides</a>.</p>`,
 			},
 			{
 				id: 'tbmq-perp-aim',
@@ -293,7 +293,7 @@ export const tbmqSelfManagedPerpFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-perp-setup-help',
 				question: 'How can I get help with installation and setup?',
-				answer: `<p>All perpetual license packages provide dedicated support with predefined response time and access to the ThingsBoard Support Portal. Our expert support team is available to assist you with system deployment by following our recommended <a target="_blank" href="/docs/mqtt-broker/install/" rel="noopener noreferrer">installation methods</a> and architecture, ensuring a smooth and efficient setup. For custom installation scripts or alternative deployment scenarios, additional support options are available and you can <a target="_blank" href="/contact-us/" rel="noopener noreferrer">contact us</a> to discuss your needs.</p>`,
+				answer: `<p>All perpetual license packages provide dedicated support with predefined response time and access to the ThingsBoard Support Portal. Our expert support team is available to assist you with system deployment by following our recommended <a target="_blank" href="/docs/mqtt-broker/installation/" rel="noopener noreferrer">installation methods</a> and architecture, ensuring a smooth and efficient setup. For custom installation scripts or alternative deployment scenarios, additional support options are available and you can <a target="_blank" href="/contact-us/" rel="noopener noreferrer">contact us</a> to discuss your needs.</p>`,
 			},
 		],
 	},

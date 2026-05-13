@@ -1,0 +1,411 @@
+import { Aside, Code } from '@astrojs/starlight/components';
+import DocLink from '@components/DocLink.astro';
+import ConditionalHeading from '~/components/ConditionalHeading.astro';
+import { Products } from '~/models/site.models';
+import { TBMQ_VER, TBMQ_BRANCH } from '~/data/versions';
+
+export const cloneCmdCe = `git clone -b ${TBMQ_BRANCH} https://github.com/thingsboard/tbmq.git
+cd tbmq/docker`;
+
+export const cloneCmdPe = `git clone -b ${TBMQ_BRANCH} https://github.com/thingsboard/tbmq-pe-docker-compose.git
+cd tbmq-pe-docker-compose/cluster`;
+
+export const gitPullCmd = `git pull origin ${TBMQ_BRANCH}`;
+
+export const upgradeWithoutFromVersion = `./scripts/docker-stop-services.sh
+./scripts/docker-upgrade-tbmq.sh
+./scripts/docker-start-services.sh`;
+
+This guide covers setting up TBMQ in cluster mode using Docker Compose.
+
+## Prerequisites
+
+- <a href="https://docs.docker.com/engine/install/" target="_blank" rel="noopener noreferrer">Docker</a> installed.
+
+<Aside type="caution">
+  Add your Linux user to the Docker group before running Docker commands.
+  For details, see <a href="https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user" target="_blank" rel="noopener noreferrer">Manage Docker as a non-root user</a>.
+</Aside>
+
+{props.product !== Products.TBMQ_PE && (
+  <>
+    <ConditionalHeading level={2} id="clone-tbmq-repository" exclude="mqtt-broker-pe">Clone TBMQ repository</ConditionalHeading>
+    <Code code={cloneCmdCe} lang="bash" />
+  </>
+)}
+{props.product === Products.TBMQ_PE && (
+  <>
+    <ConditionalHeading level={2} id="clone-tbmq-pe-repository" showFor="mqtt-broker-pe">Clone TBMQ Docker Compose repository</ConditionalHeading>
+    <Code code={cloneCmdPe} lang="bash" />
+  </>
+)}
+
+{props.product === Products.TBMQ_PE && (
+  <>
+    <ConditionalHeading level={2} id="get-the-license-key" showFor="mqtt-broker-pe">Get the license key</ConditionalHeading>
+    <p>Before proceeding, ensure you have an active TBMQ license. If you don't have one yet, visit the{' '}
+    <a href="/pricing/?section=tbmq-options" target="_blank" rel="noopener noreferrer">Pricing page</a>,
+    choose a pay-as-you-go subscription or a perpetual license, and use the calculator to size your deployment — session and throughput limits, production and development instances, and any add-ons — to obtain your license key.</p>
+    <Aside>
+      Throughout this guide, the license key is referred to as <strong>YOUR_LICENSE_KEY_HERE</strong>.
+    </Aside>
+
+    <ConditionalHeading level={2} id="configure-the-license-key" showFor="mqtt-broker-pe">Configure the license key</ConditionalHeading>
+    <p>Open the <code>tbmq.env</code> file:</p>
+    <Code code="nano tbmq.env" lang="bash" />
+    <p>Find <code>TBMQ_LICENSE_SECRET</code> and replace <strong>YOUR_LICENSE_KEY_HERE</strong> with your actual license key:</p>
+    <Code code={`# License info\nTBMQ_LICENSE_SECRET=YOUR_LICENSE_KEY_HERE`} lang="text" />
+    <Aside type="caution">The broker will not start without a valid license key.</Aside>
+  </>
+)}
+
+## Installation
+
+Create the necessary Docker volumes and update the HAProxy config in the created volume:
+
+```bash
+./scripts/docker-create-volumes.sh
+```
+
+Run the installation:
+
+```bash
+./scripts/docker-install-tbmq.sh
+```
+
+## Running
+
+Start all services:
+
+```bash
+./scripts/docker-start-services.sh
+```
+
+Once all services have started, open `http://{your-host-ip}` in your browser (e.g. **http://localhost**) and connect MQTT clients on port 1883.
+
+You should see the TBMQ login page. Use the default **System Administrator** credentials:
+
+**Username:**
+
+```
+sysadmin@thingsboard.org
+```
+
+**Password:**
+
+```
+sysadmin
+```
+
+On first login, you are prompted to change the default password and re-login with the new credentials.
+
+## Logs, stop, and start commands
+
+To view TBMQ node logs:
+
+```bash
+docker compose logs -f tbmq1
+```
+
+To view the state of all containers:
+
+```bash
+docker compose ps
+```
+
+To inspect logs of all running services:
+
+```bash
+docker compose logs -f
+```
+
+See the <a href="https://docs.docker.com/compose/reference/logs/" target="_blank" rel="noopener noreferrer">docker compose logs</a> reference for more details.
+
+To stop services:
+
+```bash
+./scripts/docker-stop-services.sh
+```
+
+To stop and completely remove deployed containers:
+
+```bash
+./scripts/docker-remove-services.sh
+```
+
+To remove Docker volumes for all containers (**warning: deletes all data**):
+
+```bash
+./scripts/docker-remove-volumes.sh
+```
+
+To apply config changes at runtime (e.g. edits to `haproxy.cfg` or `logback.xml`):
+
+```bash
+./scripts/docker-refresh-config.sh
+```
+
+To reload HAProxy configuration without restarting the container, send a HUP signal:
+
+```bash
+docker exec -it haproxy-certbot sh -c "kill -HUP 1"
+```
+
+## Upgrading
+
+<ol>
+  <li>Check the <strong>version-specific notes</strong> below for any preparation your target version requires.</li>
+  <li><a href="#backup-and-restore-optional">Back up your database</a> (optional but recommended).</li>
+  <li><a href="#run-upgrade">Run the upgrade</a> commands.</li>
+</ol>
+
+For full version history and supported upgrade paths, see the{' '}
+<DocLink product={props.product} path="installation/upgrade-instructions">upgrade instructions</DocLink> page.{' '}
+If the documentation does not cover your specific upgrade path,{' '}
+<DocLink product={props.product} path="help">contact us</DocLink> for guidance.
+
+If there are no version-specific notes for your upgrade path, skip directly to <a href="#run-upgrade">Run upgrade</a>.
+
+### Backup and restore (optional)
+
+Backing up your PostgreSQL database before upgrading is highly recommended but optional.{' '}
+For guidance, follow the{' '}
+<a
+  href={props.product !== Products.TBMQ_PE
+    ? 'https://github.com/thingsboard/tbmq/blob/main/docker/backup-restore/README.md'
+    : 'https://github.com/thingsboard/tbmq-pe-docker-compose/blob/master/cluster/backup-restore/README.md'}
+  target="_blank"
+  rel="noopener noreferrer"
+>backup and restore instructions</a>.
+
+{props.product !== Products.TBMQ_PE && (
+  <>
+    <ConditionalHeading level={3} id="upgrade-to-2-3-0" exclude="mqtt-broker-pe">Upgrade to 2.3.0</ConditionalHeading>
+    <p>
+      This release migrates all third-party components from Bitnami images to official open-source alternatives.{' '}
+      Review the <DocLink product={props.product} path="installation/upgrade-instructions/#third-party-component-updates-in-v230">third-party component updates</DocLink> for full details.
+    </p>
+    <p>Then proceed with the <a href="#run-upgrade">upgrade</a>.</p>
+
+    <ConditionalHeading level={3} id="upgrade-to-2-2-0" exclude="mqtt-broker-pe">Upgrade to 2.2.0</ConditionalHeading>
+    <details>
+      <summary>This release migrates MQTT authentication from YAML/env configuration into the database.</summary>
+
+      <p>
+        The upgrade script reads from the <strong><code>tbmq.env</code></strong> file. Environment variables in{' '}
+        <code>docker-compose.yml</code> are <strong>not</strong> applied during the upgrade — only the values in{' '}
+        <code>tbmq.env</code> are used. Make sure this file reflects your active configuration.
+      </p>
+      <Aside type="tip">
+        If you use only Basic authentication, set <code>SECURITY_MQTT_SSL_ENABLED=false</code>.{' '}
+        If you use only X.509 authentication, set <code>SECURITY_MQTT_BASIC_ENABLED=false</code> and <code>SECURITY_MQTT_SSL_ENABLED=true</code>.
+      </Aside>
+      <p><strong>Supported variables in tbmq.env</strong></p>
+      <ul>
+        <li><code>SECURITY_MQTT_BASIC_ENABLED</code> (<code>true|false</code>)</li>
+        <li><code>SECURITY_MQTT_SSL_ENABLED</code> (<code>true|false</code>)</li>
+        <li><code>SECURITY_MQTT_SSL_SKIP_VALIDITY_CHECK_FOR_CLIENT_CERT</code> (<code>true|false</code>) — usually <code>false</code></li>
+      </ul>
+      <p>Once the file is verified, proceed with the <a href="#run-upgrade">upgrade</a>.</p>
+    </details>
+
+    <ConditionalHeading level={3} id="upgrade-to-2-1-0" exclude="mqtt-broker-pe">Upgrade to 2.1.0</ConditionalHeading>
+    <details>
+      <summary>This release adds the Integration Executor microservice and updates third-party service versions.</summary>
+
+      <p><strong>Add Integration Executor microservice</strong></p>
+      <p>
+        This release adds support for external integrations via the new{' '}
+        <DocLink product={props.product} path="integrations">Integration Executor</DocLink> microservice ({' '}
+        <a href="https://github.com/thingsboard/tbmq/blob/release-2.1.0/docker/docker-compose.yml" target="_blank" rel="noopener noreferrer">full example</a>).
+      </p>
+      <p>
+        Pull the updates from the release branch by following the <a href="#run-upgrade">Run upgrade</a> steps up to (but not including) the upgrade script.
+        Then create the required Docker volumes:
+      </p>
+      <Code code="./scripts/docker-create-volumes.sh" lang="bash" />
+      <p>You should see output similar to:</p>
+      <Code code={`user@user:~/tbmq/docker$ ./scripts/docker-create-volumes.sh\n\ntbmq-ie1-logs\ntbmq-ie2-logs\ntbmq-ie-config`} lang="text" />
+
+      <p><strong>Update third-party services</strong></p>
+      <p>
+        This release updates third-party dependency versions ({' '}
+        <a href="https://github.com/thingsboard/tbmq/pull/218" target="_blank" rel="noopener noreferrer">pull request</a>):
+      </p>
+      <table>
+        <thead><tr><th>Service</th><th>Previous version</th><th>Updated version</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Redis</strong></td><td>7.0</td><td>7.2.5</td></tr>
+          <tr><td><strong>PostgreSQL</strong></td><td>15.x</td><td>16.x</td></tr>
+          <tr><td><strong>Kafka</strong></td><td>3.5.1</td><td>3.7.0</td></tr>
+        </tbody>
+      </table>
+      <Aside type="caution">
+        Changing the image tag alone is <strong>not</strong> enough.{' '}
+        Refer to the official documentation of each service for proper upgrade procedures.
+      </Aside>
+      <p>After addressing third-party service versions, proceed with the <a href="#run-upgrade">upgrade</a>.</p>
+    </details>
+  </>
+)}
+
+{props.product === Products.TBMQ_PE && (
+  <>
+    <ConditionalHeading level={3} id="upgrade-to-2-3-0-pe" showFor="mqtt-broker-pe">Upgrade to 2.3.0</ConditionalHeading>
+    <p>
+      This is a standard upgrade from v2.2.0. No third-party component changes are required — the official images are already in use since v2.2.0.
+    </p>
+    <p>Proceed with the <a href="#run-upgrade">upgrade</a>.</p>
+
+    <ConditionalHeading level={3} id="upgrade-from-ce-to-pe" showFor="mqtt-broker-pe">Upgrade from TBMQ to TBMQ PE</ConditionalHeading>
+    <p>
+      CE-to-PE migration is supported for the <strong>same version only</strong>.{' '}
+      If you are on an earlier CE version,{' '}
+      <DocLink product={Products.TBMQ} path="installation/upgrade-instructions/">upgrade TBMQ CE</DocLink> to the latest version first.{' '}
+      For all supported paths, see the{' '}
+      <DocLink product={props.product} path="installation/upgrade-instructions/#upgrade-from-tbmq-to-tbmq-pe">upgrade instructions</DocLink>.
+    </p>
+    <p>
+      Before upgrading, merge your current configuration with the latest{' '}
+      <a href={`https://github.com/thingsboard/tbmq-pe-docker-compose/tree/${TBMQ_BRANCH}`} target="_blank" rel="noopener noreferrer">TBMQ PE Docker Compose scripts</a>.{' '}
+      Update your <code>tbmq.env</code> to include the PE-specific environment variables:
+    </p>
+    <ul>
+      <li><code>TBMQ_LICENSE_SECRET</code> — your license key from the <a href="#get-the-license-key">license step</a>;</li>
+      <li><code>TBMQ_LICENSE_INSTANCE_DATA_FILE</code> — path to the auto-generated instance data file.</li>
+    </ul>
+    <p>Then run the following commands to stop services, migrate the database, and restart:</p>
+    <Code code={`./scripts/docker-stop-services.sh\n./scripts/docker-upgrade-tbmq.sh --fromVersion=ce\n./scripts/docker-start-services.sh`} lang="bash" />
+    <Aside type="tip">
+      After the upgrade completes, clear your browser cache to ensure PE assets load correctly.
+    </Aside>
+  </>
+)}
+
+### Run upgrade
+
+Pull the latest changes from the release branch:
+
+<Code code={gitPullCmd} lang="bash" />
+
+<Aside type="tip">
+  To upgrade to a specific version (e.g. v2.0.0), replace the branch with the target branch name, e.g. <code>release-2.0.0</code>.
+</Aside>
+
+<p>
+  <strong>Note:</strong> Make sure any custom changes are not lost during the merge. Also ensure{' '}
+  <code>TBMQ_VERSION</code> in the <code>.env</code> file is set to the target version (e.g. <strong>{TBMQ_VER}</strong> for the latest).
+</p>
+
+<Aside>
+  <p>If you encounter conflicts during the merge that are unrelated to your changes, accept all remote changes:</p>
+  <ol>
+    <li>Abort the current merge: <code>git merge --abort</code></li>
+    <li>Re-pull accepting remote changes: <code>git pull origin {TBMQ_BRANCH} -X theirs</code></li>
+  </ol>
+  <p>Merge strategy options:</p>
+  <ul>
+    <li><code>-X ours</code> — auto-resolve conflicts by favoring your local version</li>
+    <li><code>-X theirs</code> — auto-resolve conflicts by favoring the remote version</li>
+  </ul>
+</Aside>
+
+After pulling, execute the upgrade commands:
+
+<Code code={upgradeWithoutFromVersion} lang="bash" />
+
+## Generate certificate for HTTPS
+
+HAProxy handles traffic proxying and serves the web UI on ports 80 and 443 by default.
+To enable HTTPS with a valid certificate, run:
+
+```bash
+docker exec haproxy-certbot certbot-certonly --domain your_domain --email your_email
+docker exec haproxy-certbot haproxy-refresh
+```
+
+<Aside>
+  The valid certificate is only used when accessing the web UI via a domain name URL.
+</Aside>
+
+## Enable MQTTS (MQTT over SSL/TLS)
+
+MQTTS allows clients to connect over an encrypted TLS/SSL channel. There are two common approaches:
+
+- **Two-way MQTTS (Mutual TLS)** — TBMQ terminates TLS; clients must present valid certificates.
+- **One-way MQTTS (TLS termination at load balancer)** — HAProxy handles TLS termination and forwards plain MQTT to TBMQ over the internal network.
+
+Both approaches encrypt external connections. Two-way MQTTS adds client certificate verification for higher security; one-way MQTTS simplifies broker configuration and can reuse existing HTTPS certificates.
+
+### Two-way MQTTS
+
+In this configuration, TBMQ handles TLS termination and (optionally) client certificate authentication directly.
+This approach is suitable when you want the broker to fully control SSL/TLS and mutual authentication without relying on a load balancer for security.
+
+For supported certificate formats and options, see the <DocLink product={props.product} path="security/mqtts">MQTT over SSL</DocLink> guide.
+
+**Provide SSL certificates**
+
+Obtain a valid SSL certificate and private key:
+
+- `mqttserver.pem` — public certificate (may include the full chain)
+- `mqttserver_key.pem` — private key
+
+<Aside>
+  Self-signed certificates are supported for testing. Use certificates from a trusted Certificate Authority in production.
+</Aside>
+
+**Mount certificates into the container**
+
+In `docker-compose.yml`, uncomment and update the volume mount:
+
+```yaml
+volumes:
+  - PATH_TO_CERTS:/config/certificates
+```
+
+Replace `PATH_TO_CERTS` with the path to your certificate files. Ensure TBMQ has read access.
+
+**Configure environment variables**
+
+Edit the <code>tbmq.env</code> file and uncomment/configure the following lines:
+
+```text
+LISTENER_SSL_ENABLED=true
+LISTENER_SSL_PEM_CERT=/config/certificates/mqttserver.pem
+LISTENER_SSL_PEM_KEY=/config/certificates/mqttserver_key.pem
+LISTENER_SSL_PEM_KEY_PASSWORD=server_key_password
+```
+
+Leave `LISTENER_SSL_PEM_KEY_PASSWORD` empty if your private key has no password.
+
+**Restart services**
+
+```bash
+./scripts/docker-start-services.sh
+```
+
+Once restarted, MQTT clients can connect securely on **port 8883**.
+
+### One-way MQTTS
+
+TLS is terminated at HAProxy. Clients connect to HAProxy on port 8883, which forwards plain MQTT to TBMQ on port 1883.
+You can reuse the same certificate used for HTTPS.
+
+Point HAProxy to your certificate bundle (PEM with full chain + private key). If you reuse the HTTPS certificate, reference the same bundle.
+Update the `haproxy.cfg` file:
+
+```text
+ listen mqtts-in
+  bind *:${MQTTS_PORT} ssl crt /usr/local/etc/haproxy/certs.d/fullchain-and-key.pem
+  mode tcp
+  option clitcpka # For TCP keep-alive
+  timeout client 3h
+  timeout server 3h
+  option tcplog
+  balance leastconn
+  server tbMqtt1 tbmq1:1883 check inter 5s resolvers docker_resolver resolve-prefer ipv4
+  server tbMqtt2 tbmq2:1883 check inter 5s resolvers docker_resolver resolve-prefer ipv4
+```
+
+Replace `fullchain-and-key.pem` with the actual filename of your certificate bundle.

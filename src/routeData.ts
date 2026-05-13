@@ -210,7 +210,7 @@ const docsPathRegex = /^\/(uk\/)?docs(\/|$)/;
 const escapedSep = TITLE_SEPARATOR.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
 const docsSuffixMatcher = new RegExp(` ${escapedSep} ${DOCS_SUFFIX}$`);
 const apiPathMatcher = /^reference\/([^/]+)\//;
-const selfCanonicalSegments = ['installation', 'install', 'getting-started'];
+const selfCanonicalSegments = ['installation/upgrade-instructions'];
 
 function updateHead(context: APIContext, isTutorial: boolean) {
 	const starlightRoute = context.locals.starlightRoute;
@@ -251,21 +251,29 @@ function updateHead(context: APIContext, isTutorial: boolean) {
 	const pageSlug = getPageSlugFromURL(pathname);
 
 	if (title && title.content && docsPathRegex.test(pathname)) {
-		const productTitleName = getProductTitleName(product);
-		const versionBase = `/${getLanguagePrefix(lang)}docs/${getVersionPrefix(product)}`;
-		const isIndex = pathname === versionBase;
-		let pageTitle = title.content.replace(docsSuffixMatcher, '');
+		// Per-page `customDocsTitle` frontmatter overrides the auto-formatted
+		// docs title entirely. Used by product index pages that want a
+		// non-default <title> (e.g. "Docs | ThingsBoard Professional Edition").
+		const customDocsTitle = (entry.data as { customDocsTitle?: string }).customDocsTitle;
+		if (customDocsTitle) {
+			title.content = customDocsTitle;
+		} else {
+			const productTitleName = getProductTitleName(product);
+			const versionBase = `/${getLanguagePrefix(lang)}docs/${getVersionPrefix(product)}`;
+			const isIndex = pathname === versionBase;
+			let pageTitle = title.content.replace(docsSuffixMatcher, '');
 
-		// Auto-append API section name to disambiguate sibling reference pages
-		// (e.g. several `/reference/<x>-api/attributes/` pages all share H1 "Attributes").
-		// Skipped when the page sets its own <title> via frontmatter `head`.
-		if (!frontmatterTitle) {
-			const apiMatch = pageSlug.match(apiPathMatcher);
-			const apiName = apiMatch ? API_SECTION_NAMES[apiMatch[1]!] : undefined;
-			if (apiName) pageTitle = `${pageTitle} - ${apiName}`;
+			// Auto-append API section name to disambiguate sibling reference pages
+			// (e.g. several `/reference/<x>-api/attributes/` pages all share H1 "Attributes").
+			// Skipped when the page sets its own <title> via frontmatter `head`.
+			if (!frontmatterTitle) {
+				const apiMatch = pageSlug.match(apiPathMatcher);
+				const apiName = apiMatch ? API_SECTION_NAMES[apiMatch[1]!] : undefined;
+				if (apiName) pageTitle = `${pageTitle} - ${apiName}`;
+			}
+
+			title.content = formatDocsTitle(pageTitle, productTitleName, isIndex);
 		}
-
-		title.content = formatDocsTitle(pageTitle, productTitleName, isIndex);
 		if (ogTitle) ogTitle.attrs!['content'] = title.content;
 	}
 
@@ -310,10 +318,14 @@ function updateHead(context: APIContext, isTutorial: boolean) {
 			const langPrefix = getLanguagePrefix(lang);
 			const targetPrefix = getVersionPrefix(targetVersion);
 			const docsPrefix = lang === 'uk' ? 'uk/docs/' : 'docs/';
-			const targetContentId = `${docsPrefix}${targetPrefix}${pageSlug}`;
+			// `targetPrefix` already ends with `/`, so concatenating an empty `pageSlug`
+			// (root page) yields a trailing slash that doesn't match the generated
+			// content id (`docs/pe`, not `docs/pe/`). Strip it.
+			const targetContentId = `${docsPrefix}${targetPrefix}${pageSlug}`.replace(/\/$/, '');
 
 			if (targetPageIds.has(targetContentId)) {
-				const targetPathname = `/${langPrefix}docs/${targetPrefix}${pageSlug}/`;
+				const slugSuffix = pageSlug ? `${pageSlug}/` : '';
+				const targetPathname = `/${langPrefix}docs/${targetPrefix}${slugSuffix}`;
 				const targetCanonical = new URL(targetPathname, context.site).href;
 				if (canonical) canonical.attrs!['href'] = targetCanonical;
 				if (ogUrl) ogUrl.attrs!['content'] = targetCanonical;

@@ -1,213 +1,129 @@
+# Contributing to ThingsBoard Docs
 
-# Contributor Manual
+Thanks for helping improve the ThingsBoard documentation. This repo holds the source for [thingsboard.io/docs](https://thingsboard.io/docs/) — documentation content, the site code that renders it, redirects, and translations. Bugs and features in the ThingsBoard platform itself live in the [`thingsboard/thingsboard`](https://github.com/thingsboard/thingsboard) repo.
 
-We welcome contributions of any size and contributors of any skill level. As an open source project, we believe in giving back to our contributors. We are happy to help with guidance on PRs, technical writing, and turning any feature idea into a reality.
+## Prerequisites
 
+- Node.js — any recent LTS release.
+- [pnpm](https://pnpm.io/installation) — the package manager this repo uses.
+- Python 3 — only needed for the configuration-page regeneration task in [Common tasks](#common-tasks).
 
-> **"[Astro Docs Docs"](https://contribute.docs.astro.build)** is the best place to learn how to make a helpful, successful contribution to Astro Docs.
->
-> There, you'll find all the information below, and so much more!
+## Local development
 
-This document has some basic information to get you started, but we encourage you to visit our [dedicated site for contributing to Astro docs](https://contribute.docs.astro.build) for all the information you need!
+1. Fork this repo on GitHub.
+2. Clone your fork:
+   ```bash
+   git clone git@github.com:<your-username>/thingsboard.io.git
+   cd thingsboard.io
+   ```
+3. Install dependencies and start the dev server:
+   ```bash
+   pnpm install
+   pnpm dev
+   ```
+4. Open <http://localhost:4321/docs/> in your browser.
 
-There, you will find a writing and style guide, instructions on how to make changes and open PRs, guidance for translating the docs, and even information about how to help review Astro Docs PRs. 
+`pnpm dev` rebuilds incrementally and is the normal authoring loop. Before opening a PR, run `pnpm build:fast` for a full production build. It skips OG image generation for speed; CI runs the full `pnpm build`.
 
+## Before you open a PR
 
-> **Tip for new contributors:**
-> Take a look at [GitHub's Docs](https://docs.github.com/en/get-started/quickstart/hello-world) for helpful information on working with GitHub.
+CI runs four checks. All must pass for the PR to be merged. Run them locally first:
 
-## Types of Contributions
+- `pnpm check` — TypeScript and Astro type checking.
+- `pnpm lint:eslint` — ESLint.
+- `pnpm lint:slugcheck` — verifies slugs match across languages.
+- `pnpm build:fast` — production build (catches broken imports, missing assets, schema errors).
 
-There are lots of ways to contribute to the Astro Docs website! 
+Other commands worth knowing:
 
-The Astro Docs website is ... an Astro website! Maintaining it requires not only written content but also maintaining Astro code and addressing a11y, CSS, UI, and UX concerns. We also make our documentation available in several languages, so we need help translating the entire site.
+- `pnpm lint:linkcheck` — full link validation (slow; runs a full build first).
+- `pnpm format` — Prettier formatting.
 
-You can also make a huge contribution by getting involved by leaving review comments on [PRs](https://github.com/withastro/docs/pulls), adding ideas in existing GitHub [Issues](https://github.com/withastro/docs/issues) and [Discussions](https://github.com/withastro/docs/discussions) and participating in our "Pinned" issue maintenance tasks! 
+## Content authoring basics
 
-Every PR, especially translation PRs, needs reviewers! Reviewing PRs and leaving comments, suggestions, or an approving "LGTM!" ("Looks Good To Me!") is a great way to get started on Team Docs, and to learn more about Astro.
+A 30-second orientation. For the full architecture (product system, schemas, redirects, OG cards), see [`CLAUDE.md`](./CLAUDE.md).
 
-We encourage you to:
+**Where pages live.** Documentation pages are MDX files under `src/content/docs/{lang}/docs/...`. English (`en`) is canonical; other languages mirror the English structure and fall back to English automatically when untranslated.
 
-- **File an Issue** to let us know of outdated, confusing, or incorrect documentation. You can also let us know of any problems you encounter on the site itself.
+**The CE / PE three-tier pattern.** Pages that exist for both Community Edition (CE) and Professional Edition (PE) do not duplicate content. The actual content lives in a shared MDX file under `src/content/_includes/docs/{path}/{page}.mdx`. Two thin stub pages import it. The CE stub at `src/content/docs/docs/{path}/{page}.mdx` passes `Products.CE`; the PE stub at `src/content/docs/docs/pe/{path}/{page}.mdx` passes `Products.PE`:
 
-- **Start a Discussion** if you're not sure that your "issue" rises to the level of incorrect documentation requiring a "fix," but you still want to share ideas and opinions.
+```mdx
+---
+title: My Page
+---
+import Content from '~/content/_includes/docs/path/page.mdx';
+import { Products } from '~/models/site.models';
 
-- **Make a PR directly** for very obvious documentation fixes like typos or broken links.
-
-- **Look at our Existing Issues** (especially those labelled [`help wanted`](https://github.com/withastro/docs/issues?q=is:open+is:issue+label:%22help+wanted%22) and [`good first issue`](https://github.com/withastro/docs/issues?q=is:open+is:issue+label:%22good+first+issue%22)) for contributions we are actively seeking.
-
-- **Review Existing PRs** (especially translations!) to help us get our fixes implemented live on the website sooner.
-
-We provide new content and rework existing content _in response to GitHub Issues and Discussions_.
-
-Submitting an Issue is usually the first step to making a change. After an Issue has been considered by the community, we often reach out to community members to encourage them to submit PRs based on existing Issues.
-
-Larger contributions to the docs are encouraged after participating in Issues and Discussions, as unsolicited material may not fit into our existing plans.
-
-### Examples of Helpful GitHub New Issues
-
-- a particular explanation is confusing (with explanation)
-- a code example is wrong (with or without a proposed fix)
-- accessibility (a11y) issues discovered
-- missing content
-- a request for an example of how to implement a specific feature (e.g. responsive nav bar)
-
-### Examples of Helpful GitHub PRs
- - PRs addressing an existing Issue
- - unsolicited PRs to address typos, broken links, and other minor problems
-<!--TODO: Link to past successful PRs, and explain why they were successful (maybe best for a later section) -->
-
-### Examples of Helpful GitHub Discussions
-- is this page in the right section of the docs?
-- is anything missing from our docs landing page?
-- is this theme color too bold?
-- is site navigation clear and helpful?
-- is our "Astro vs X" page providing helpful comparisons between Astro and other website builders?
-
-<!-- ## Who Are We? -->
-
-## Making a New Issue
-
-If you're unsure which type of contribution best represents your concern, please [make a new issue](https://github.com/withastro/docs/issues/new)!
-
-### Writing an Issue
-
-Helpful issues usually include:
-- Clear descriptive titles
-- Links to relevant pages/files
-- Explanations as to why (or _for whom_) this is a problem
-- Optional: proposed solutions
-
-## Making PRs (pull requests)
-
-> Need help making a PR? [Join us on Discord](https://astro.build/chat), we'll be more than glad to help you out!
-
-Contributions to the documentation site are made by editing the docs repository. You can do this directly on GitHub.com or by creating a copy of the repository locally, making your changes there, and contributing back to our repository.
-
-> **Note**
-> By default, your merged PR to an English page will trigger our Translation Status Tracker. If your change should **NOT** be applied to every language (e.g. a typo fix to an English word), please include the keyword "en-only" in your PR title.  See the next section for more details.
-
-**Internationalization (i18n)**
-
-Please only add new text content to the docs **in English**, by modifying only **`.md` files located within `src/content/docs/en/`**.
-
-We have automated systems in place for notifying our community translators that there is new material to be translated, so there is no need to make changes to additional languages yourself.
-
-Our Docs are translated into several languages and we rely on automation to notify our translators that English pages have changed. By default, when a PR to an English page is merged, our Translation Status Tracker is updated.
-
-**When choosing a PR title, please consider whether your PR should or should NOT trigger a rewrite to pages in other languages**: some tiny fixes are English only (e.g. spelling of English words) but some *will* require updating all language pages (e.g. a small error in a code sample).  Please use the keyword "en-only" in your PR title to override this default behavior and indicate that your PR does **NOT** require translating.
-
-**Pages generated from outside sources**
-
-Some of our English-language pages are generated from outside sources and maintained in another repo. Currently, these files are configuration-reference.md and all our error messages.
-The page's **Edit this page** button should redirect you to the file that should be changed. Alternatively, you can get the correct URL from the file's `githubURL` frontmatter property.
-
-> **Note**
-> All of the generated pages will have a dev-only warning at the top and the `githubURL`frontmatter property.
-
-When you make a PR with docs changes in another repo, please ping **@withastro/maintainers-docs** so we are aware of the changes made and can properly review your contribution.
-
-### Edit this Page via GitHub
-
-Every page on [docs.astro.build](https://docs.astro.build/) has an **Edit this page** button in the sidebar. You can click that button to edit the source code for that page in **GitHub**.
-
-After you make your changes, click **Commit changes**.
-This will automatically create a [fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/about-forks) of the docs in your GitHub account with the changes.
-
-Once you have committed your edits to your fork, follow the prompts to **create a pull request** and submit your changes for review.
-
-Every pull request needs to be reviewed by our contributors and approved by a maintainer.
-
-You can find more information about submitting your pull requests in our [contributor guides](https://contribute.docs.astro.build)
-
-### Contribute PRs using an online code editor (e.g. StackBlitz, Codeflow, CodeSandbox)
-
-Editing a local fork on GitHub.com is convenient for small text changes, but does not allow you to see a live preview of the site.
-
-You can instead open your fork in an online IDE (integrated development environment) for a code editor and live preview without needing to set up any local development environment. Each online IDE has its own shortcut URL for opening an existing repository, and will allow you to create pull requests after you have made changes.
-
-See specific instructions for opening an existing repository in [CodeSandbox](https://codesandbox.io/docs/importing#import-from-github), [StackBlitz](https://developer.stackblitz.com/docs/platform/importing-projects/#import-from-github) and [Codeflow IDE](https://developer.stackblitz.com/codeflow/working-in-codeflow-ide) on their respective websites.
-
-Note that CodeSandbox and StackBlitz provide Astro syntax highlighting in their custom code editors, while Codeflow supports the full [Astro VSCode extension](https://docs.astro.build/en/editor-setup/#vs-code).
-
-### Contribute PRs by Developing Locally
-
-To begin developing locally, checkout this project from your machine.
-
-```shell
-git clone git@github.com:withastro/docs.git
+<Content {...{ product: Products.CE }} />
 ```
 
-You can install and run the project locally using [pnpm](https://pnpm.io/). Head to [the pnpm installation guide](https://pnpm.io/installation) to get that set up. Then, run the following from your terminal:
+**Internal links.** Use the `<DocLink>` component, never bare Markdown links to other doc pages. Bare links break when language fallback kicks in or when product prefixes change.
 
-```shell
-pnpm install
+**Version strings.** Never hardcode ThingsBoard version numbers in Docker image tags, download URLs, or code samples. Import constants from `~/data/versions` (`CE_FULL_VER`, `PE_FULL_VER`, `TBMQ_VER`, etc.).
 
-pnpm run dev
+**Sidebar.** When you add a new page, register it in `astro.sidebar.ts`. The shared helpers `guideItems(prefix)` and `installationItems(prefix)` cover both CE and PE — add the entry once and both products pick it up.
+
+## Common tasks
+
+### Fix a typo or broken link
+
+1. Edit the affected file.
+2. Run `pnpm lint:linkcheck:nobuild` if you touched a link (skip for pure typos).
+3. Commit and open a PR.
+
+### Add a new documentation page
+
+1. Create the shared include at `src/content/_includes/docs/{path}/{page}.mdx`.
+2. Create the CE stub at `src/content/docs/docs/{path}/{page}.mdx` that imports the include with `Products.CE`.
+3. Create the PE stub at `src/content/docs/docs/pe/{path}/{page}.mdx` that imports the include with `Products.PE`.
+4. Register the page's slug in `astro.sidebar.ts` (typically inside the matching `guideItems` or `installationItems` helper).
+5. Run `pnpm dev` and verify the page renders for both products.
+
+### Add a redirect
+
+1. Edit `src/data/redirects.ts` and pick the export that matches your pattern:
+   - `SINGLE_REDIRECTS` — one-off page rename under `/docs/*`.
+   - `CATCH_ALL_REDIRECTS` — prefix rename (whole subtree renamed 1:1).
+   - `DYNAMIC_REDIRECTS` — splat or `:placeholder` patterns.
+   - `NON_DOCS_REDIRECTS` — anything outside `/docs/*`.
+2. Run `pnpm generate:redirects` — this regenerates `public/_redirects` and `public/redirects.json`.
+3. Commit both the data change and the regenerated output.
+
+Do not hand-edit `public/_redirects` or `public/redirects.json` directly — they are rewritten by the generator.
+
+### Regenerate configuration reference pages
+
+When ThingsBoard's upstream `*.yml` config files change, regenerate the configuration reference MDX pages with `generate_config_pages.py`. Clone the upstream ThingsBoard repo as a sibling of this one, then from this repo's root:
+
+```bash
+python3 generate_config_pages.py <repo_type> <relative_path_to_upstream>
 ```
 
-If you’re copying these instructions, remember to [configure this project as a fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/configuring-a-remote-repository-for-a-fork).
+`<repo_type>` is one of: `ce`, `pe`, `tbmq`, `tbmq-pe`, `edge`, `edge-pe`. For example, to regenerate CE pages from a `thingsboard` checkout next to this repo:
 
-```shell
-git remote add upstream git@github.com:withastro/docs.git
+```bash
+python3 generate_config_pages.py ce ../thingsboard
 ```
 
-At any point, create a branch for your contribution.
-We are not strict about branch names.
+Commit the regenerated files (under `src/content/docs/docs/.../reference/configuration/` for CE / PE, or the equivalent path for TBMQ / Edge).
 
-```shell
-git checkout -b add/partial-hydration-typo-fix
-```
-### Opening a PR
+### Translate a page
 
-One you have made your changes using any of the above methods, you’re ready to create a “Pull Request!”
+1. Find the English source under `src/content/docs/en/docs/...`.
+2. Create the file at the same path under `src/content/docs/{lang}/docs/...`.
+3. Copy and translate the body; keep the frontmatter structure. Set `i18nReady: true` once the translation is ready to publish.
+4. Untranslated pages fall back to English automatically — do not stub-translate or leave English placeholders.
 
-This will let the Astro docs team know you have some changes to propose. At this point we can give you feedback and might request changes. For translations, we like to have at least one other person who knows the language you are translating into review the PR.
+## Opening the PR
 
-[Read more about making a pull request in GitHub’s docs](https://docs.github.com/en/get-started/quickstart/contributing-to-projects#making-a-pull-request)
+- Branch naming is loose; descriptive is enough (`fix/mqtt-quickstart-typo`, `add/edge-installation-page`).
+- Use imperative-mood commit messages. Keep the subject brief; add a body if the motivation isn't obvious from the diff.
+- The PR title should describe the change. The body should mention the affected pages and include screenshots if there's a visual change.
+- Every PR gets a preview deployment link in the PR conversation — use it to verify your change in a rendered context.
+- The four CI checks must pass before merge.
 
-Please include a clear title. The description will be pre-filled with questions that you can answer by editing right in the text field.
+## Getting help
 
-Every pull request generates a preview of the docs site, including your proposed changes, using **Netlify** for anyone to see.
-
-Use the **Deploy Preview** link in your pull request to review and share your changes.
-
-The docs site will be automatically updated whenever pull requests are merged.
-
-
-### Helpful information about Forks
-
-On GitHub you’ll need a “fork” of this repository to work on. This is your own copy where you can make changes. [Read more about forks in GitHub’s docs](https://guides.github.com/activities/forking/).
-
-Not sure how to get started with GitHub, forks, pull requests, or want a quick refresher? You might want to check out this free video series:
-
-[How to Contribute to an Open Source Project on GitHub](https://egghead.io/courses/how-to-contribute-to-an-open-source-project-on-github)
-
-#### Creating a fork
-To create your copy, click the <kbd>Fork</kbd> button at the top right of any page in this repository.
-
-#### Maintaining a fork
-When you first create your fork, it will be an exact copy of this repository. Over time, `withastro/docs` will change as the docs are updated, but your fork won’t automatically stay up-to-date. Here are some ways to keep your fork in sync with this repo.
-
-##### Manually via the GitHub UI
-1. Navigate to your fork on GitHub
-2. Click <kbd>Sync fork</kbd> and then <kbd>Update branch</kbd>
-
-##### Manually from the command line
-In the terminal on your computer:
-1. Make sure you’re on the main branch: `git checkout main`
-2. Fetch and merge updates: `git pull upstream main`
-3. Push the updates back to your fork on GitHub: `git push origin main`
-
-##### Automatically with a GitHub app
-1. Go to [the “Pull” GitHub app page](https://github.com/apps/pull)
-2. Click <kbd>Install</kbd>
-3. Follow the instructions to select your fork
-
-## Next Steps
-
-- [Read the docs](https://docs.astro.build/)
-- [Fork the docs](https://github.com/withastro/docs/fork)
-- [Raise an issue](https://github.com/withastro/docs/issues/new)
-- [Discuss the docs](https://discord.gg/cZDZU3hJHc)
-- [Visit the Astro Docs Docs to see even more documentation about contributing to Astro docs!](https://contribute.docs.astro.build)
+- Found a documentation bug, broken link, or unclear page? [Open an issue](https://github.com/thingsboard/thingsboard.io/issues).
+- Read the live docs at [thingsboard.io/docs](https://thingsboard.io/docs/) to see what's already published.
+- PRs are reviewed by the ThingsBoard docs team on a best-effort basis.
