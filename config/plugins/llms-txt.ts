@@ -155,5 +155,9 @@ export const starlightPluginLlmsTxt = () =>
 
 			// Rule engine nodes — very large, detailed reference
 			'docs/pe/reference/rule-engine/nodes/**',
+
+			// Edge PE upgrade-instructions for the legacy 3.x line — non-LTS and superseded by 4.x.
+			// 4.x families (incl. 4.2/4.3 LTS) stay in.
+			'docs/edge/pe/installation/upgrade-instructions/*/v3-*-x',
 		],
 	});
