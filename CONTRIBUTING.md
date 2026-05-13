@@ -93,16 +93,16 @@ Do not hand-edit `public/_redirects` or `public/redirects.json` directly — the
 
 ### Regenerate configuration reference pages
 
-When ThingsBoard's upstream `*.yml` config files change, regenerate the configuration reference MDX pages with `generate_config_pages.py`. Clone the upstream ThingsBoard repo as a sibling of this one, then from this repo's root:
+When ThingsBoard's upstream `*.yml` config files change, regenerate the configuration reference MDX pages with `scripts/generate_config_pages.py`. Clone the upstream ThingsBoard repo as a sibling of this one, then from this repo's root:
 
 ```bash
-python3 generate_config_pages.py <repo_type> <relative_path_to_upstream>
+python3 scripts/generate_config_pages.py <repo_type> <relative_path_to_upstream>
 ```
 
 `<repo_type>` is one of: `ce`, `pe`, `tbmq`, `tbmq-pe`, `edge`, `edge-pe`. For example, to regenerate CE pages from a `thingsboard` checkout next to this repo:
 
 ```bash
-python3 generate_config_pages.py ce ../thingsboard
+python3 scripts/generate_config_pages.py ce ../thingsboard
 ```
 
 Commit the regenerated files (under `src/content/docs/docs/.../reference/configuration/` for CE / PE, or the equivalent path for TBMQ / Edge).
