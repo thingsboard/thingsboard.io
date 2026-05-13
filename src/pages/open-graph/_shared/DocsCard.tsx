@@ -23,11 +23,11 @@ const CIRCLE_SIZE = 130;
 const ICON_SIZE = 100; // default — fills the circle with a comfortable inset
 
 /** Per-icon tight viewBox covering only the visible content, computed by
- *  rasterising the source SVG and finding its non-transparent bbox
- *  (see scripts/svgbbox.mjs). Used to crop out the natural padding around
- *  icons whose content doesn't fill the source viewBox. Each entry adds a
- *  small margin around the raw bbox so the rendered icon doesn't sit flush
- *  against the glass-circle edge. */
+ *  rasterising the source SVG and finding its non-transparent bbox.
+ *  Used to crop out the natural padding around icons whose content doesn't
+ *  fill the source viewBox. Each entry adds a small margin around the raw
+ *  bbox so the rendered icon doesn't sit flush against the glass-circle
+ *  edge. */
 const TIGHT_VIEWBOX: Partial<Record<DocsProductMeta['iconKey'], string>> = {
 	// PE bbox 3.38 5 24.5 22.5 — match Mobile PE's natural ~12% padding ratio
 	// so the cog reads at the same comfortable size as other icons.
