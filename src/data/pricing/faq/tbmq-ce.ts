@@ -43,7 +43,7 @@ export const tbmqCeFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-ce-clustering',
 				question: 'Does the Community Edition support clustering?',
-				answer: '<p>Yes, clustering is fully supported in the Community Edition. You can find more details about deployment scenarios <a target="_blank" href="/docs/mqtt-broker/install/" rel="noopener noreferrer">in the deployment options guide</a>.</p>',
+				answer: '<p>Yes, clustering is fully supported in the Community Edition. You can find more details about deployment scenarios <a target="_blank" href="/docs/mqtt-broker/installation/" rel="noopener noreferrer">in the deployment options guide</a>.</p>',
 			},
 			{
 				id: 'tbmq-ce-customize',
@@ -64,7 +64,7 @@ export const tbmqCeFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-ce-install-guide',
 				question: 'How do I install TBMQ Community Edition?',
-				answer: '<p>Installation guides are available in the <a target="_blank" href="/docs/mqtt-broker/install/" rel="noopener noreferrer">documentation</a>. The Community Edition can be installed in monolith or cluster mode, and supports deployment on Docker and Kubernetes.</p>',
+				answer: '<p>Installation guides are available in the <a target="_blank" href="/docs/mqtt-broker/installation/" rel="noopener noreferrer">documentation</a>. The Community Edition can be installed in monolith or cluster mode, and supports deployment on Docker and Kubernetes.</p>',
 			},
 			{
 				id: 'tbmq-ce-install-location',
