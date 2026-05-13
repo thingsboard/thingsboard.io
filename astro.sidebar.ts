@@ -678,7 +678,7 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 			items: [
 				`${prefix}/widgets/widget-library`,
 				{
-					label: 'Alarm widgets',
+					label: 'Alarm Widgets',
 					collapsed: true,
 					items: [
 						`${prefix}/widgets/alarm-widgets/alarms-table`,
@@ -698,7 +698,7 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 					],
 				},
 				{
-					label: 'Control widgets',
+					label: 'Control Widgets',
 					collapsed: true,
 					items: [
 						`${prefix}/widgets/control-widgets/single-switch`,
@@ -727,7 +727,7 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 					],
 				},
 				{
-					label: 'Count widgets',
+					label: 'Count Widgets',
 					collapsed: true,
 					items: [
 						`${prefix}/widgets/alarm-widgets/alarm-count`,
@@ -876,6 +876,22 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 								},
 							],
 						},
+						{
+							label: 'High-performance SCADA fluid system',
+							collapsed: true,
+							items: [
+								`${prefix}/widgets/scada/high-performance-fluid-system/hp-centrifugal-pump`,
+								`${prefix}/widgets/scada/high-performance-fluid-system/hp-heat-pump`,
+								`${prefix}/widgets/scada/high-performance-fluid-system/hp-filter`,
+								`${prefix}/widgets/scada/high-performance-fluid-system/hp-sand-filter`,
+								`${prefix}/widgets/scada/high-performance-fluid-system/hp-horizontal-valve`,
+								`${prefix}/widgets/scada/high-performance-fluid-system/hp-vertical-valve`,
+								`${prefix}/widgets/scada/high-performance-fluid-system/hp-horizontal-tank`,
+								`${prefix}/widgets/scada/high-performance-fluid-system/hp-vertical-tank`,
+								`${prefix}/widgets/scada/high-performance-fluid-system/hp-short-vertical-tank`,
+								`${prefix}/widgets/scada/high-performance-fluid-system/hp-pool`,
+							],
+						},
 					],
 				},
 				{
@@ -889,7 +905,7 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 					],
 				},
 				{
-					label: 'Video streaming',
+					label: 'Video Streaming',
 					collapsed: true,
 					items: [
 						{ label: 'Overview', slug: `${prefix}/widgets/video/overview` },
@@ -1116,7 +1132,7 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 			items: [
 				`${prefix}/widgets/widget-library`,
 				{
-					label: 'Alarm widgets',
+					label: 'Alarm Widgets',
 					collapsed: true,
 					items: [
 						`${prefix}/widgets/alarm-widgets/alarms-table`,
@@ -1136,7 +1152,7 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 					],
 				},
 				{
-					label: 'Control widgets',
+					label: 'Control Widgets',
 					collapsed: true,
 					items: [
 						`${prefix}/widgets/control-widgets/single-switch`,
@@ -1165,7 +1181,7 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 					],
 				},
 				{
-					label: 'Count widgets',
+					label: 'Count Widgets',
 					collapsed: true,
 					items: [
 						`${prefix}/widgets/alarm-widgets/alarm-count`,
@@ -1314,6 +1330,22 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 								},
 							],
 						},
+						{
+							label: 'High-performance SCADA fluid system',
+							collapsed: true,
+							items: [
+								`${prefix}/widgets/scada/high-performance-fluid-system/hp-centrifugal-pump`,
+								`${prefix}/widgets/scada/high-performance-fluid-system/hp-heat-pump`,
+								`${prefix}/widgets/scada/high-performance-fluid-system/hp-filter`,
+								`${prefix}/widgets/scada/high-performance-fluid-system/hp-sand-filter`,
+								`${prefix}/widgets/scada/high-performance-fluid-system/hp-horizontal-valve`,
+								`${prefix}/widgets/scada/high-performance-fluid-system/hp-vertical-valve`,
+								`${prefix}/widgets/scada/high-performance-fluid-system/hp-horizontal-tank`,
+								`${prefix}/widgets/scada/high-performance-fluid-system/hp-vertical-tank`,
+								`${prefix}/widgets/scada/high-performance-fluid-system/hp-short-vertical-tank`,
+								`${prefix}/widgets/scada/high-performance-fluid-system/hp-pool`,
+							],
+						},
 					],
 				},
 				{
@@ -1327,7 +1359,7 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 					],
 				},
 				{
-					label: 'Video streaming',
+					label: 'Video Streaming',
 					collapsed: true,
 					items: [
 						{ label: 'Overview', slug: `${prefix}/widgets/video/overview` },
