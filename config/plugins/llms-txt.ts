@@ -38,6 +38,14 @@ export const starlightPluginLlmsTxt = () =>
 			},
 		],
 
+		minify: {
+			customSelectors: [
+				'a.sl-anchor-link',
+				'img',
+				'astro-image',
+			],
+		},
+
 		promote: [
 			'docs/pe/index',
 			'docs/pe/getting-started/index',
