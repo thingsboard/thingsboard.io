@@ -27,7 +27,7 @@ export interface SubMenu {
 // Main navigation items
 export const mainNavItems: NavItem[] = [
 	{ label: 'Products', submenuId: 'nav-products' },
-	{ label: 'Services', href: '/services/', submenuId: 'nav-services' },
+	{ label: 'Services', submenuId: 'nav-services' },
 	{ label: 'Use Cases', href: '/use-cases/', submenuId: 'nav-cases' },
 	{ label: 'Customers', submenuId: 'nav-customers' },
 	{ label: 'Company', submenuId: 'nav-company' },
@@ -133,7 +133,7 @@ export const servicesSubmenu: SubMenu = {
 					href: '/services/',
 					icon: '/src/assets/images/landings/nav/support-icon.svg',
 					heading: 'Support',
-					description: 'Support packages',
+					description: 'Support packages and SLAs',
 				},
 				{
 					href: '/services/trainings/',
