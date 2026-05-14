@@ -52,12 +52,14 @@ aws configure
 In the `cluster.yml` file you will find a sample cluster configuration.
 You can adjust the following fields according to your requirements:
 
-- `region` — the AWS region where the cluster will be created. Default: `us-east-1`.
-- `availabilityZones` — the availability zones within the chosen region. Default: `[us-east-1a, us-east-1b, us-east-1c]`.
-- `managedNodeGroups` — defines the node groups used by the cluster. By default, there are two groups: one for **TBMQ core services** and another for **TBMQ Integration Executors**. If preferred, you may co-locate both workloads in the same node group.
-- `instanceType` — the EC2 instance type for TBMQ and TBMQ IE nodes. Default: `m7a.large`.
+- `region`: AWS region where the cluster will be created. Default: `us-east-1`.
+- `availabilityZones`: Availability zones within the chosen region. Default: `[us-east-1a, us-east-1b, us-east-1c]`.
+- `managedNodeGroups`: Node groups used by the cluster. By default, there are two groups: one for **TBMQ core services** and another for **TBMQ Integration Executors**. You can co-locate both workloads in the same node group.
+- `instanceType`: EC2 instance type for TBMQ and TBMQ IE nodes. Default: `m7a.large`.
 
-**Note:** If you don't change `instanceType` and `desiredCapacity`, the EKS will deploy 4 nodes of type `m7a.large`.
+The cluster configuration also enables the IAM OIDC provider, pre-provisions the `aws-load-balancer-controller` Kubernetes service account, and installs the **AWS EBS CSI Driver**, **VPC CNI**, **CoreDNS**, and **kube-proxy** managed add-ons.
+
+<Aside>If you don't change `instanceType` and `desiredCapacity`, EKS will deploy 4 nodes of type `m7a.large`.</Aside>
 
 Create the AWS cluster:
 
@@ -65,16 +67,20 @@ Create the AWS cluster:
 eksctl create cluster -f cluster.yml
 ```
 
-## Create an AWS load-balancer controller
+## Install the AWS Load Balancer Controller
 
-Once the cluster is ready, create an AWS load-balancer controller by following
-<a href="https://docs.aws.amazon.com/eks/latest/userguide/aws-load-balancer-controller.html" target="_blank" rel="noopener noreferrer">this guide</a>.
-The cluster provisioning scripts will create two load balancers:
+The cluster configuration pre-provisions the IAM OIDC provider and the `aws-load-balancer-controller` Kubernetes service account in the `kube-system` namespace, so the IAM prerequisites are already in place. You only need to install the controller itself by following the **Install with Helm** steps in
+<a href="https://docs.aws.amazon.com/eks/latest/userguide/lbc-helm.html" target="_blank" rel="noopener noreferrer">the AWS guide</a>,
+skipping the IAM policy and service account creation steps.
 
-- `tbmq-http-loadbalancer` — AWS ALB for the web UI and REST API.
-- `tbmq-mqtt-loadbalancer` — AWS NLB for MQTT communication.
+<Aside type="tip">When installing the controller via Helm, set `serviceAccount.create=false` and `serviceAccount.name=aws-load-balancer-controller` to reuse the service account provisioned by `eksctl`.</Aside>
 
-Provisioning the AWS load-balancer controller is a **required step** for these load balancers to work properly.
+The cluster provisioning scripts create two load balancers:
+
+- `tbmq-http-loadbalancer`: AWS ALB for the web UI and REST API.
+- `tbmq-mqtt-loadbalancer`: AWS NLB for MQTT communication.
+
+Installing the AWS Load Balancer Controller is a **required step** for these load balancers to work properly.
 
 ## Amazon PostgreSQL DB configuration
 
@@ -84,15 +90,16 @@ One recommended way is to follow the <a href="https://docs.aws.amazon.com/Amazon
 Recommendations:
 
 - **PostgreSQL version**: Use **17.x**.
-- **Template**: Use **Production** for real workloads — it enables important resilience settings by default.
+- **Template**: Use **Production** for real workloads. It enables important resilience settings by default.
 - **Availability**: Enable **Multi-AZ deployment** for automatic failover.
 - **Credentials**: Change the default `username` and set a secure `password`. Store it safely.
-- **Instance**: Use a general-purpose Graviton instance (e.g., `db.m7g.large`) — right-size first, optimize later.
-- **Scaling**: Scale vertically (instance class/size) if sustained CPU exceeds 80% or active connections near limits; change type during a maintenance window.
+- **Instance**: Use a general-purpose Graviton instance like `db.m7g.large`. Right-size first, optimize later.
+- **Scaling**: Scale vertically (instance class/size) if sustained CPU exceeds 80% or active connections near limits. Change type during a maintenance window.
 - **Storage**: Choose **gp3 or io1** for production.
 - **Connectivity**: Create the database in the **same VPC and subnets** as your TBMQ cluster and assign the
   `eksctl-tbmq-cluster-ClusterSharedNodeSecurityGroup-*` security group.
 - **Parameter group**: Create a custom parameter group for easier future adjustments.
+- **Initial database name**: Set to `thingsboard_mqtt_broker` under **Additional configuration**.
 - **Monitoring**: Enable enhanced monitoring and CloudWatch alarms for key metrics.
 
 <ImageGallery images={[
@@ -112,9 +119,9 @@ Provision an **Amazon MSK** cluster. Open the AWS Console → MSK → **Create c
 Recommendations:
 
 - **Cluster type**: Select **Provisioned** for full control over capacity and configuration.
-- **Kafka version**: Use **Apache Kafka 4.0.x** — fully validated with TBMQ.
+- **Kafka version**: Use **Apache Kafka 4.0.x**, fully validated with TBMQ.
 - **Metadata mode**: Choose **KRaft** for simplified operations and improved resiliency.
-- **Instance type**: Start with `m7g.large` brokers; scale up later if needed.
+- **Instance type**: Start with `m7g.large` brokers. Scale up later if needed.
 - **Cluster configuration**: Create a custom configuration for easier future parameter changes.
 - **Networking**: Deploy in the **same VPC** as your TBMQ cluster using **private subnets**. Attach the
   `eksctl-tbmq-cluster-ClusterSharedNodeSecurityGroup-*` security group.
@@ -260,7 +267,7 @@ INFO  o.t.m.b.i.ThingsboardMqttBrokerInstallService - Installation finished succ
 
 The `gp3` EBS volume type is the recommended default for Amazon EKS, offering better performance and cost efficiency compared to `gp2`.
 
-Before proceeding, install the <a href="https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi.html" target="_blank" rel="noopener noreferrer">AWS EBS CSI Driver</a> on your cluster.
+The cluster configuration installs the <a href="https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi.html" target="_blank" rel="noopener noreferrer">AWS EBS CSI Driver</a> as a managed add-on, so no additional installation is required.
 
 Download and apply the `gp3` StorageClass manifest:
 
@@ -313,14 +320,11 @@ You should see `tbmq-0` and `tbmq-1` pods, each in the `READY` state.
 
 ## Configure load balancers
 
-### Configure HTTP(S) load balancer
+The cluster needs two load balancers: an ALB for the web UI and REST API (HTTP or HTTPS), and an NLB for MQTT communication (plain or TLS).
 
-You have two options:
+### HTTP load balancer
 
-- **HTTP** — no HTTPS support. Suitable for development only.
-- **HTTPS** — SSL termination. Recommended for production. Automatically redirects HTTP to HTTPS.
-
-#### HTTP load balancer
+<Aside>Suitable for development only. For production, use the [HTTPS load balancer](#https-load-balancer) instead.</Aside>
 
 ```bash
 kubectl apply -f receipts/http-load-balancer.yml
@@ -339,7 +343,9 @@ NAME                     CLASS    HOSTS   ADDRESS                               
 tbmq-http-loadbalancer   <none>   *       k8s-thingsbo-tbmq-000aba1305-222186756.eu-west-1.elb.amazonaws.com   80      3d1h
 ```
 
-#### HTTPS load balancer
+### HTTPS load balancer
+
+Recommended for production. The ALB terminates SSL and automatically redirects HTTP to HTTPS.
 
 Use <a href="https://aws.amazon.com/certificate-manager/" target="_blank" rel="noopener noreferrer">AWS Certificate Manager</a> to create or import an SSL certificate. Note the certificate ARN.
 
@@ -355,7 +361,7 @@ Deploy:
 kubectl apply -f receipts/https-load-balancer.yml
 ```
 
-### Configure MQTT load balancer
+### MQTT load balancer
 
 Create a TCP load balancer that forwards traffic on ports 1883 and 8883:
 
@@ -363,14 +369,15 @@ Create a TCP load balancer that forwards traffic on ports 1883 and 8883:
 kubectl apply -f receipts/mqtt-load-balancer.yml
 ```
 
-#### One-way TLS
+For encrypted MQTT traffic, deploy one of the TLS variants described below instead.
+
+### MQTT load balancer with one-way TLS
 
 The most common MQTTS setup is to configure the AWS NLB as a TLS termination point.
-Traffic between devices and the load balancer is encrypted; traffic between the load balancer and TBMQ is not.
+Traffic between devices and the load balancer is encrypted, while traffic between the load balancer and TBMQ is not.
 This is acceptable since the NLB runs within your VPC.
 
-**Limitation:** X.509 certificate client credentials cannot be used with one-way TLS,
-since the client certificate is not forwarded to TBMQ.
+<Aside type="caution">X.509 certificate client credentials cannot be used with one-way TLS, since the client certificate is not forwarded to TBMQ.</Aside>
 
 Use <a href="https://aws.amazon.com/certificate-manager/" target="_blank" rel="noopener noreferrer">AWS Certificate Manager</a> to obtain a certificate. Note the ARN.
 
@@ -386,7 +393,7 @@ Deploy:
 kubectl apply -f receipts/mqtts-load-balancer.yml
 ```
 
-#### Two-way TLS
+### MQTT load balancer with two-way TLS
 
 Two-way TLS allows use of **X.509 certificate** MQTT client credentials.
 
@@ -403,8 +410,8 @@ kubectl create configmap tbmq-mqtts-config \
 ```
 
 Where:
-- `YOUR_PEM_FILENAME` — path to your server certificate file
-- `YOUR_PEM_KEY_FILENAME` — path to your server certificate private key file
+- `YOUR_PEM_FILENAME`: Path to your server certificate file.
+- `YOUR_PEM_KEY_FILENAME`: Path to your server certificate private key file.
 
 Uncomment all sections marked with "Uncomment the following lines to enable two-way MQTTS" in `tbmq.yml`:
 
@@ -431,7 +438,9 @@ NAME                     CLASS    HOSTS   ADDRESS                               
 tbmq-http-loadbalancer   <none>   *       k8s-thingsbo-tbmq-000aba1305-222186756.eu-west-1.elb.amazonaws.com   80      3d1h
 ```
 
-Use the `ADDRESS` of `tbmq-http-loadbalancer` to access the UI.
+Use the `ADDRESS` of `tbmq-http-loadbalancer` — or the DNS record you pointed at it for HTTPS — to access the UI.
+
+<Aside>If you deployed the [HTTPS load balancer](#https-load-balancer) instead, look for `tbmq-https-loadbalancer` in the output and open the UI via `https://<ADDRESS>`.</Aside>
 
 You should see the TBMQ login page. Use the default **System Administrator** credentials:
 
@@ -451,7 +460,12 @@ On first login, you are prompted to change the default password and re-login wit
 
 ### Validate MQTT access
 
-The service `tbmq-mqtt-loadbalancer` is the LoadBalancer used for MQTT communication. Retrieve its `EXTERNAL-IP` with:
+The Service name to inspect depends on the variant you deployed:
+
+- **[Plain MQTT](#mqtt-load-balancer)** or **[two-way TLS](#mqtt-load-balancer-with-two-way-tls)** — `tbmq-mqtt-loadbalancer` (port 1883 for plain, 8883 for two-way TLS).
+- **[One-way TLS](#mqtt-load-balancer-with-one-way-tls)** — `tbmq-mqtts-loadbalancer` (port 8883).
+
+Retrieve its `EXTERNAL-IP` with:
 
 ```bash
 kubectl get services
@@ -462,7 +476,7 @@ NAME                     TYPE           CLUSTER-IP       EXTERNAL-IP            
 tbmq-mqtt-loadbalancer   LoadBalancer   10.100.119.170   k8s-thingsbo-tbmq-b9f99d1ab6-1049a98ba4e28403.elb.eu-west-1.amazonaws.com   1883:30308/TCP,8883:31609/TCP   6m58s
 ```
 
-Use the `EXTERNAL-IP` field to connect to the cluster via MQTT.
+Use the `EXTERNAL-IP` of the matching Service — or the DNS record you pointed at it for TLS — to connect to the cluster.
 
 ### Troubleshooting
 
