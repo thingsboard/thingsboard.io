@@ -262,4 +262,6 @@ Use the `release` skill for the full checklist. Key files:
 
 ## CI Checks
 
-PRs run: `astro check`, `eslint`, `slugcheck`. All must pass.
+GitHub Actions runs: `astro check`, `eslint`, `slugcheck`.
+
+`lint:linkcheck` runs in a separate CI pipeline (not GitHub Actions) because it needs a full build. It must also pass before a PR can merge — so run it locally before requesting review, especially when adding, renaming, or removing pages, changing redirects, or editing internal links. Use `pnpm lint:linkcheck` for a clean check, or `pnpm lint:linkcheck:nobuild` if you already produced a build in this session and just want to re-validate links.
