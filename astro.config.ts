@@ -33,7 +33,7 @@ export default defineConfig({
     base: '/',
     build: {
         inlineStylesheets: 'always',
-			  concurrency: 4,
+			  concurrency: 12,
     },
     redirects,
     vite: {
