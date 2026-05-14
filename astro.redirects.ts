@@ -2,6 +2,7 @@ import type { AstroUserConfig } from 'astro';
 import { NON_DOCS_REDIRECTS } from './src/data/redirects.ts';
 import { BLOG_CATEGORIES } from './src/data/blog/categories.ts';
 import { feedbackCategories } from './src/data/clients-feedback/index.ts';
+import { UPGRADE_FAMILIES, getFamilySlug } from './src/models/upgrade-instructions.ts';
 import deviceLibraryRedirects from './scripts/device-library-redirects.json' with { type: 'json' };
 import docsRedirects from './public/redirects.json' with { type: 'json' };
 
@@ -34,6 +35,42 @@ for (const cat of BLOG_CATEGORIES) {
 }
 for (let page = 2; page <= 11; page++) {
 	devFallbackRedirects[`/blog/page/${page}/`] = `/blog/?page=${page}`;
+}
+
+// Blog — WordPress year/month archives → blog index.
+// Mirrors DYNAMIC_REDIRECTS splats /blog/{2023..2026}/* → /blog/ in public/_redirects.
+for (const year of [2023, 2024, 2025, 2026]) {
+	for (let month = 1; month <= 12; month++) {
+		const mm = String(month).padStart(2, '0');
+		devFallbackRedirects[`/blog/${year}/${mm}/`] = '/blog/';
+	}
+}
+
+// Edge upgrade-instructions — legacy versioned paths collapse to the per-platform page.
+// Mirrors DYNAMIC_REDIRECTS placeholder rule. UPGRADE_FAMILIES covers all v3-0-x..v4-3-x.
+const EDGE_PLATFORMS = ['centos', 'docker', 'ubuntu', 'windows'];
+for (const platform of EDGE_PLATFORMS) {
+	for (const family of UPGRADE_FAMILIES) {
+		const slug = getFamilySlug(family);
+		devFallbackRedirects[
+			`/docs/user-guide/install/edge/upgrade-instructions/${platform}/${slug}/`
+		] = `/docs/edge/installation/upgrade-instructions/${platform}/`;
+		devFallbackRedirects[
+			`/docs/user-guide/install/pe/edge/upgrade-instructions/${platform}/${slug}/`
+		] = `/docs/edge/pe/installation/upgrade-instructions/${platform}/`;
+	}
+}
+
+// Trendz upgrade-instructions — legacy /install/ paths kept their version suffix under
+// /installation/. Mirrors the prefix-rename splat /docs/trendz/install/* → /docs/trendz/installation/:splat
+// in public/_redirects (CATCH_ALL_REDIRECTS group with empty entries).
+const TRENDZ_PLATFORMS = ['centos', 'docker', 'ubuntu', 'windows'];
+const TRENDZ_FAMILY_SLUGS = ['v1-8-x', 'v1-9-x', 'v1-10-x', 'v1-11-x', 'v1-12-x', 'v1-13-x', 'v1-14-x', 'v1-15-x'];
+for (const platform of TRENDZ_PLATFORMS) {
+	for (const slug of TRENDZ_FAMILY_SLUGS) {
+		devFallbackRedirects[`/docs/trendz/install/upgrade-instructions/${platform}/${slug}/`] =
+			`/docs/trendz/installation/upgrade-instructions/${platform}/${slug}/`;
+	}
 }
 
 export const redirects: AstroUserConfig['redirects'] = {
