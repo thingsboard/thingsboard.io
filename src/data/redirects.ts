@@ -1207,6 +1207,9 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
  * literal `?query` strings (no placeholder substitution).
  */
 export const NON_DOCS_REDIRECTS: Record<string, string> = {
+	// Services
+	'/services/support/': '/services/',
+
 	// Trendz
 	'/products/trendz/trndz-request-demo/': '/products/trendz/request-demo/',
 	'/images/trendz/trndz-request-demo/': '/products/trendz/request-demo/',
