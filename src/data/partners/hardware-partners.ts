@@ -204,7 +204,14 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 		],
 		"logo": "/images/partners/bivocom-logo.png",
 		"website": "https://www.bivocom.com/",
-		"links": {},
+		"links": {
+			"gatewayGuides": [
+				{
+					"label": "Bivocom Gateway Integration with ThingsBoard",
+					"href": "/partners/hardware/bivocom/samples/getting_started_bivocom.pdf"
+				}
+			],
+		},
 		"description": "A leading global IoT & M2M solutions provider with 11+ years of deep expertise, trusted in 90+ countries. Our portfolio spans IoT sensors, 5G/4G/LoRa routers, gateways, modems, RTUs, IoT platforms, and OEM&ODM customised solutions. Together, connect for smarts, sustain for tomorrow."
 	},
 	{
