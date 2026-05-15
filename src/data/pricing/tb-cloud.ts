@@ -1,7 +1,7 @@
 import type { CloudRegionData, TopUpGroup } from './types';
 
 const DATA_POINT_TOOLTIP =
-	'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a href="/docs/paas/reference/subscriptions/" target="_blank" rel="noopener noreferrer">plans definition page</a>.';
+	'A data point is defined as a single telemetry measurement (e.g., temperature=22). Your monthly allowance covers all incoming data across your device fleet. Additional Traffic Packs are available on-demand. See full details on the <a class="pricing-paas-link" data-paas-path="/reference/subscriptions/" href="/docs/paas/reference/subscriptions/" target="_blank" rel="noopener noreferrer">plans definition page</a>.';
 
 export const tbCloudData: CloudRegionData = {
 	na: {
