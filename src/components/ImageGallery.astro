@@ -2,6 +2,7 @@
 import { getImage } from 'astro:assets';
 import type { ImageMetadata } from 'astro';
 import { Products } from '~/models/site.models';
+import { getDocsPrefix } from '~/models/site.models';
 
 interface ImageItem {
 	// Base path from project root, e.g. /src/assets/images/screenshot.png
@@ -60,6 +61,33 @@ const assetModules = import.meta.glob<{ default: ImageMetadata }>(
 	'/src/assets/**/*.{png,jpg,jpeg,webp,gif,svg}',
 	{ eager: true }
 );
+
+// Raw SVG sources for interactive diagrams that contain `<a>` tags. We inline
+// them so the anchors stay clickable — same pattern DocImage uses. Lazy so
+// Vite only reads the SVGs actually referenced by an ImageGallery.
+const svgRawModules = import.meta.glob<string>(
+	'/src/assets/**/*.svg',
+	{ query: '?raw', import: 'default' }
+);
+
+// Apply DocImage-style rewrites to an interactive SVG: inject aria-label,
+// rewrite per-product `/docs/` paths, force `target="_blank"` on every <a>.
+function prepareInteractiveSvg(raw: string, alt: string, product: Products | undefined): string {
+	let out = raw;
+	const escapedAlt = alt.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+	out = out.replace(/<svg\b/, `<svg aria-label="${escapedAlt}"`);
+	if (product && product !== Products.CE) {
+		const prefix = getDocsPrefix(product);
+		out = out.replace(/((?:xlink:)?href=")\/docs\//g, `$1/docs/${prefix}`);
+	}
+	out = out.replace(/<a\b([^>]*)>/g, (_m, attrs) => {
+		const stripped = attrs
+			.replace(/\s+target="[^"]*"/g, '')
+			.replace(/\s+rel="[^"]*"/g, '');
+		return `<a${stripped} target="_blank" rel="noopener noreferrer">`;
+	});
+	return out;
+}
 
 // CDN fallback for images not found locally (e.g. use-case screenshots hosted externally)
 const CDN_BASE = 'https://img.thingsboard.io/';
@@ -174,16 +202,26 @@ const processed = await Promise.all(
 				fullWidth: undefined,
 				fullHeight: undefined,
 				hasDark,
+				interactiveSvg: undefined as string | undefined,
 			};
 		}
 
 		const isSvg = lightPath.endsWith('.svg');
 
-		// SVGs don't need processing — use raw src directly
+		// SVGs don't need raster processing — use raw src directly. Additionally,
+		// if the SVG contains `<a>` tags, prepare an inline markup string so the
+		// thumb + lightbox can render the SVG inline (anchors clickable). When
+		// `<img src>` is used instead, browsers disable SVG interactivity.
 		if (isSvg) {
 			const lightSrc = lightMod.default.src;
 			const darkMod = hasDark ? assetModules[darkPath] : null;
 			const darkSrc = darkMod ? darkMod.default.src : lightSrc;
+
+			const rawSvg = await svgRawModules[lightPath]?.();
+			const interactiveSvg = rawSvg && /<a[\s>]/i.test(rawSvg)
+				? prepareInteractiveSvg(rawSvg, alt, product)
+				: undefined;
+
 			return {
 				alt,
 				caption: captionToHtml(caption ?? ''),
@@ -194,6 +232,7 @@ const processed = await Promise.all(
 				fullWidth: lightMod.default.width,
 				fullHeight: lightMod.default.height,
 				hasDark,
+				interactiveSvg,
 			};
 		}
 
@@ -231,6 +270,7 @@ const processed = await Promise.all(
 			fullWidth: full.attributes.width as number | undefined,
 			fullHeight: full.attributes.height as number | undefined,
 			hasDark,
+			interactiveSvg: undefined as string | undefined,
 		};
 	})
 );
@@ -242,41 +282,60 @@ const useCardMode = cardMode && isSingle;
 <div class:list={['image-gallery', { 'has-theme-variants': hasThemeVariants }]} id={galleryId}>
 	{
 		isSingle && !useCardMode ? (
-			/* Single image — displayed like DocImage but clickable */
+			/* Single image — displayed like DocImage but clickable. For an
+			   interactive SVG (one with <a> tags) we render the SVG inline so
+			   its anchors stay clickable in both thumb and lightbox; the
+			   <button> wrapper would be invalid HTML with nested <a>, so we
+			   use a div + role=button instead in that path. */
 			<figure class="single-image">
-				<button
-					class="gallery-thumb single-thumb"
-					type="button"
-					data-index={0}
-					data-full-src={processed[0].fullSrc}
-					data-full-src-dark={processed[0].darkFullSrc}
-					data-alt={processed[0].alt}
-					data-caption={processed[0].caption}
-					data-full-width={processed[0].fullWidth}
-					data-full-height={processed[0].fullHeight}
-					aria-label={`View: ${processed[0].alt}`}
-				>
-					<img
-						class:list={[{ 'light-only': processed[0].hasDark }]}
-						src={processed[0].fullSrc}
-						alt={processed[0].alt}
-						width={processed[0].fullWidth}
-						height={processed[0].fullHeight}
-						loading="lazy"
-						decoding="async"
-					/>
-					{processed[0].hasDark && (
+				{processed[0].interactiveSvg ? (
+					<div
+						class="gallery-thumb single-thumb gallery-thumb--interactive"
+						role="button"
+						tabindex={0}
+						data-index={0}
+						data-interactive="true"
+						data-alt={processed[0].alt}
+						data-caption={processed[0].caption}
+						aria-label={`View: ${processed[0].alt}`}
+					>
+						<Fragment set:html={processed[0].interactiveSvg} />
+					</div>
+				) : (
+					<button
+						class="gallery-thumb single-thumb"
+						type="button"
+						data-index={0}
+						data-full-src={processed[0].fullSrc}
+						data-full-src-dark={processed[0].darkFullSrc}
+						data-alt={processed[0].alt}
+						data-caption={processed[0].caption}
+						data-full-width={processed[0].fullWidth}
+						data-full-height={processed[0].fullHeight}
+						aria-label={`View: ${processed[0].alt}`}
+					>
 						<img
-							class="dark-only"
-							src={processed[0].darkFullSrc}
+							class:list={[{ 'light-only': processed[0].hasDark }]}
+							src={processed[0].fullSrc}
 							alt={processed[0].alt}
 							width={processed[0].fullWidth}
 							height={processed[0].fullHeight}
 							loading="lazy"
 							decoding="async"
 						/>
-					)}
-				</button>
+						{processed[0].hasDark && (
+							<img
+								class="dark-only"
+								src={processed[0].darkFullSrc}
+								alt={processed[0].alt}
+								width={processed[0].fullWidth}
+								height={processed[0].fullHeight}
+								loading="lazy"
+								decoding="async"
+							/>
+						)}
+					</button>
+				)}
 			</figure>
 		) : (
 			/* Multiple images or cardMode single — regular thumbnail grid */
@@ -336,6 +395,8 @@ const useCardMode = cardMode && isSingle;
 		<div class="lb-img-wrapper">
 			<img class="lb-img lb-img-light" src="" alt="" />
 			<img class="lb-img lb-img-dark" src="" alt="" />
+			<!-- Inline-SVG slot for interactive diagrams (anchors clickable). -->
+			<div class="lb-svg-container" aria-hidden="true"></div>
 			<!-- Caption placed below the image in flow to avoid overlapping it -->
 			<div class="lb-footer">
 				<span class="lb-caption"></span>
@@ -648,6 +709,49 @@ const useCardMode = cardMode && isSingle;
 		box-shadow: none;
 	}
 
+	/* Interactive SVG slot in the lightbox. Same sizing as .lb-img--svg
+	   so a vector diagram fills the viewport, anchors stay clickable.
+	   White background so the SVG's stray labels/text aren't sitting on
+	   the blurred-dark backdrop (the source SVG has a transparent canvas
+	   and only inner panels are filled). */
+	.lb-svg-container {
+		width: 90vw;
+		height: 78vh;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: #fff;
+		border-radius: 4px;
+		padding: 1.5rem;
+		box-sizing: border-box;
+		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+	}
+	.lb-svg-container[hidden] {
+		display: none;
+	}
+	.lb-svg-container :global(svg) {
+		max-width: 100%;
+		max-height: 100%;
+		width: 100%;
+		height: 100%;
+	}
+
+	/* Inline interactive SVG thumb (rendered via set:html — descendants are
+	   global). Background area shows zoom-in cursor; inner <a> tags revert
+	   to pointer. The thumb itself uses a div + role=button so nested <a>
+	   tags don't violate HTML semantics. */
+	.gallery-thumb--interactive {
+		cursor: zoom-in;
+	}
+	.gallery-thumb--interactive :global(svg) {
+		display: block;
+		max-width: 100%;
+		height: auto;
+	}
+	.gallery-thumb--interactive :global(a) {
+		cursor: pointer;
+	}
+
 	/* ── Lightbox buttons (all position:fixed) ────── */
 
 	.lb-close,
@@ -817,6 +921,7 @@ const useCardMode = cardMode && isSingle;
 	const imgWrapper = gallery.querySelector('.lb-img-wrapper');
 	const lbImgLight = gallery.querySelector('.lb-img-light');
 	const lbImgDark = gallery.querySelector('.lb-img-dark');
+	const lbSvgContainer = gallery.querySelector('.lb-svg-container');
 	const caption = gallery.querySelector('.lb-caption');
 	const counter = gallery.querySelector('.lb-counter');
 	const closeBtn = gallery.querySelector('.lb-close');
@@ -840,19 +945,46 @@ const useCardMode = cardMode && isSingle;
 	// Updates image and counter/caption
 	function updateContent() {
 		const btn = thumbs[currentIndex];
-		const lightSrc = btn.dataset.fullSrc;
-		const darkSrc = btn.dataset.fullSrcDark || lightSrc;
-		lbImgLight.src = lightSrc;
-		lbImgLight.alt = btn.dataset.alt;
-		lbImgDark.src = darkSrc;
-		lbImgDark.alt = btn.dataset.alt;
+		const isInteractive = btn.dataset.interactive === 'true';
+
+		// Reset both presentation modes — we toggle one on per row below.
+		lbSvgContainer.innerHTML = '';
+		lbSvgContainer.hidden = true;
+		lbImgLight.hidden = false;
+		lbImgDark.hidden = false;
+
+		if (isInteractive) {
+			// Clone the SVG from the thumb so the lightbox copy keeps the
+			// same <a> tags clickable.
+			const sourceSvg = btn.querySelector('svg');
+			if (sourceSvg) {
+				const clone = sourceSvg.cloneNode(true);
+				// Source SVG may have `width="95%"` etc. that's fine in the
+				// thumb but constrains the lightbox copy. Strip presentational
+				// width/height so the CSS sizing controls it.
+				clone.removeAttribute('width');
+				clone.removeAttribute('height');
+				lbSvgContainer.appendChild(clone);
+			}
+			lbSvgContainer.hidden = false;
+			lbImgLight.hidden = true;
+			lbImgDark.hidden = true;
+		} else {
+			const lightSrc = btn.dataset.fullSrc;
+			const darkSrc = btn.dataset.fullSrcDark || lightSrc;
+			lbImgLight.src = lightSrc;
+			lbImgLight.alt = btn.dataset.alt;
+			lbImgDark.src = darkSrc;
+			lbImgDark.alt = btn.dataset.alt;
+
+			// SVGs are vector — scale up to fill viewport via CSS class
+			const isSvg = lightSrc.includes('.svg');
+			lbImgLight.classList.toggle('lb-img--svg', isSvg);
+			lbImgDark.classList.toggle('lb-img--svg', isSvg);
+		}
+
 		caption.innerHTML = btn.dataset.caption ?? '';
 		caption.hidden = !caption.innerHTML;
-
-		// SVGs are vector — scale up to fill viewport via CSS class
-		const isSvg = lightSrc.includes('.svg');
-		lbImgLight.classList.toggle('lb-img--svg', isSvg);
-		lbImgDark.classList.toggle('lb-img--svg', isSvg);
 
 		const single = thumbs.length <= 1;
 		counter.textContent = single ? '' : `${currentIndex + 1} / ${thumbs.length}`;
@@ -958,13 +1090,33 @@ const useCardMode = cardMode && isSingle;
 		updateContent();
 	}
 
-	// Thumbnail click
-	thumbs.forEach((btn, i) => btn.addEventListener('click', () => openLightbox(i, btn)));
+	// Thumbnail click. For interactive-SVG thumbs we must skip the lightbox
+	// when the click hit an <a> — the browser is about to navigate.
+	thumbs.forEach((btn, i) => {
+		btn.addEventListener('click', (e) => {
+			if (btn.dataset.interactive === 'true' && e.target.closest('a')) return;
+			openLightbox(i, btn);
+		});
+		// Keyboard activation for the div-based interactive thumb.
+		if (btn.dataset.interactive === 'true') {
+			btn.addEventListener('keydown', (e) => {
+				if ((e.key === 'Enter' || e.key === ' ') && e.target === btn) {
+					e.preventDefault();
+					openLightbox(i, btn);
+				}
+			});
+		}
+	});
 
 	// Lightbox buttons
 	closeBtn.addEventListener('click', closeLightbox);
 	backdrop.addEventListener('click', closeLightbox);
-	imgWrapper.addEventListener('click', closeLightbox);
+	// Click on the image area closes the lightbox — except when the click
+	// landed on an <a> inside an interactive SVG (let it navigate instead).
+	imgWrapper.addEventListener('click', (e) => {
+		if (e.target.closest('a')) return;
+		closeLightbox();
+	});
 	prevBtn.addEventListener('click', showPrev);
 	nextBtn.addEventListener('click', showNext);
 

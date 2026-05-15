@@ -115,15 +115,16 @@ const linkChecker = new LinkChecker({
 	],
 	checks: [
 		new TargetExists({
-			// These pages exist in dist but carry noindex and are intentionally absent
-			// from the sitemap, so the link checker cannot find them via normal means.
-			ignoredLinkPathnames: [
-				'/contact-us-thanks/',
-				'/partners/hardware/apply-thanks/',
-				'/careers/',
-				'/blog/author/',
-				'/installations/choose-region/',
-			],
+			// Replay Cloudflare's _redirects on each link before the on-disk lookup,
+			// so rules that shadow real files (e.g. catch-alls rewriting to a
+			// non-existent destination) surface as broken instead of passing
+			// because the original file happens to be in dist/.
+			//
+			// Noindex pages (contact-us-thanks, partners apply-thanks, careers,
+			// blog/author/*, installations/choose-region) are discovered
+			// automatically via a cached `dist/{pathname}/index.html` fallback
+			// in TargetExists itself — no manual prefix list needed.
+			redirectsFilePath: './public/_redirects',
 		}),
 		new SameLanguage({
 			ignoredLinkPathnames: ['/lighthouse/'],

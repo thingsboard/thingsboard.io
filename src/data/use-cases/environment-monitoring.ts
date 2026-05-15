@@ -108,7 +108,8 @@ export const environmentMonitoringData: UseCaseData = {
 	},
 	applications: {
 		title: 'Applications of environment monitoring solution',
-		subtitle: 'The environment monitoring approach can be easily adapted to various other sectors',
+		subtitle:
+			'An IoT-powered environmental monitoring system can be deployed across various sectors to ensure safety, compliance, and sustainability. Below are key areas where such solutions bring significant value.',
 		applications: [
 			{
 				title: 'Smart cities and urban infrastructure',
