@@ -193,8 +193,7 @@ export const scadaEnergyManagementData: UseCaseData = {
 		applications: [
 			{
 				title: 'Industrial facilities',
-				description:
-					'Real-time SCADA dashboards for manufacturing energy use, helping balance loads and cut peak demand costs.',
+				description: 'Monitoring and optimizing energy usage in manufacturing plants.',
 				desktopImage: '/src/assets/images/usecases/scada-energy-management/indust.svg',
 				mobileImage: '/src/assets/images/usecases/scada-energy-management/indust-2.svg',
 				imageAlt: 'Industrial facilities',
@@ -202,8 +201,7 @@ export const scadaEnergyManagementData: UseCaseData = {
 			},
 			{
 				title: 'Smart buildings',
-				description:
-					'Integrates building energy systems — HVAC, lighting, elevators, and on-site generation — into a unified SCADA interface. Automated demand response and scheduling reduce energy waste while maintaining occupant comfort and building performance standards.',
+				description: 'Enhancing energy efficiency in commercial and residential structures.',
 				desktopImage: '/src/assets/images/usecases/scada-energy-management/smart.svg',
 				mobileImage: '/src/assets/images/usecases/scada-energy-management/smart-2.svg',
 				imageAlt: 'Smart buildings',
@@ -211,8 +209,7 @@ export const scadaEnergyManagementData: UseCaseData = {
 			},
 			{
 				title: 'Renewable energy plants',
-				description:
-					'Centralized monitoring of solar farms and wind parks with generation tracking and grid synchronization.',
+				description: 'Managing solar and wind energy production.',
 				desktopImage: '/src/assets/images/usecases/scada-energy-management/renewable.svg',
 				mobileImage: '/src/assets/images/usecases/scada-energy-management/renewable-2.svg',
 				imageAlt: 'Renewable energy plants',
@@ -220,8 +217,7 @@ export const scadaEnergyManagementData: UseCaseData = {
 			},
 			{
 				title: 'Data centers',
-				description:
-					'Monitors power distribution units, UPS systems, generators, and cooling infrastructure to ensure uninterrupted operations. Energy efficiency metrics and capacity planning tools help data center operators optimize power usage effectiveness and reduce operational costs.',
+				description: 'Ensuring stable power supply and backup power management.',
 				desktopImage: '/src/assets/images/usecases/scada-energy-management/data-centers.svg',
 				mobileImage: '/src/assets/images/usecases/scada-energy-management/data-centers-2.svg',
 				imageAlt: 'Data centers',
@@ -229,8 +225,7 @@ export const scadaEnergyManagementData: UseCaseData = {
 			},
 			{
 				title: 'Utilities and power grids',
-				description:
-					'Real-time substation and feeder monitoring with automated fault detection to maintain grid stability.',
+				description: 'Supervising grid operations and power distribution.',
 				desktopImage: '/src/assets/images/usecases/scada-energy-management/utilites.svg',
 				mobileImage: '/src/assets/images/usecases/scada-energy-management/utilites-2.svg',
 				imageAlt: 'Utilities and power grids',

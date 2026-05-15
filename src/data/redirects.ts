@@ -1259,6 +1259,8 @@ export const NON_DOCS_REDIRECTS: Record<string, string> = {
 	'/device-library/pe/tecmo-controls-t3e-6ct-and-hum-w1/': '/device-library/temco-controls-t3e-6ct-and-hum-w1/',
 	'/device-library/pe/teltonika-rut-955-and-siemens-logo/': '/device-library/teltonika-rut955-and-siemens-logo/',
 	'/device-library/ce/temco-controls-tstat-10/': '/device-library/temco-controls-tstat-10-and-hum-w1/',
+	
+	'/services/consulting/': '/services/development-services/'
 };
 
 /**

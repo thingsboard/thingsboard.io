@@ -27,10 +27,6 @@ pnpm lint:linkcheck   # Link validation (runs build first)
 pnpm lint:linkcheck:nobuild  # Link validation (skip build)
 pnpm lint:slugcheck   # Validate slugs match across languages
 pnpm format           # Format with Prettier
-
-# Content generation (pulls from withastro/astro repo)
-pnpm docgen           # Generate configuration reference
-pnpm docgen:errors    # Generate error reference
 ```
 
 ## Architecture
@@ -135,10 +131,6 @@ Available: `CE_FULL_VER`, `PE_FULL_VER`, `TRENDZ_VER`, `EDGE_VER`, `EDGE_PE_VER`
 - `config/plugins/rehype-mdx-include-headings.ts` — extracts headings from `_includes` MDX files and injects them into the page TOC; supports `<ConditionalHeading>` for product-conditional headings
 - `config/plugins/llms-txt.ts` — generates llms.txt
 - `config/plugins/smoke-test.ts` — build validation
-
-### Generated Content
-
-Configuration reference and error docs are auto-generated from the Astro source repo via `pnpm docgen` and `pnpm docgen:errors`. Do not edit these manually.
 
 ### Pages vs Content
 
