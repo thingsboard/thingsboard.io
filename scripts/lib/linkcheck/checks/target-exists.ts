@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import kleur from 'kleur';
 import { dedentMd } from '../../output.mjs';
 import { CheckBase, type CheckHtmlPageContext } from '../base/check.ts';
@@ -11,13 +13,6 @@ import {
 } from '../util/redirects-file.ts';
 
 export interface TargetExistsOptions {
-	/**
-	 * A list of link pathnames whose missing targets should not be reported.
-	 *
-	 * Subpaths of the given pathnames are automatically ignored as well,
-	 * so adding `/example/` will also ignore `/example/some-subpath/`.
-	 */
-	ignoredLinkPathnames?: string[];
 	/**
 	 * Path to a Cloudflare-style `_redirects` file (e.g. `./public/_redirects`).
 	 *
@@ -48,22 +43,35 @@ export class TargetExists extends CheckBase {
 		sortOrder: 102,
 	});
 
-	readonly ignoredLinkPathnames: string[];
 	private readonly redirectRules: RedirectRuleIndex | null;
+	private readonly diskPageCache = new Map<string, boolean>();
 
-	constructor({ ignoredLinkPathnames, redirectsFilePath }: TargetExistsOptions = {}) {
+	constructor({ redirectsFilePath }: TargetExistsOptions = {}) {
 		super();
 
-		this.ignoredLinkPathnames = ignoredLinkPathnames || [];
 		this.redirectRules = redirectsFilePath ? loadRedirectsFile(redirectsFilePath) : null;
+	}
+
+	/**
+	 * Checks whether a page exists in `dist/` for the given pathname even when
+	 * the sitemap doesn't list it. Covers pages built with `noindex` (e.g.
+	 * thank-you confirmations, region pickers, blog author pages), which
+	 * `@astrojs/sitemap` filters out but are still reachable from links.
+	 *
+	 * Cached per-pathname so multiple links to the same noindex page only hit
+	 * the file system once.
+	 */
+	private pageExistsOnDisk(buildOutputDir: string, pathname: string): boolean {
+		const normalized = pathname.endsWith('/') ? pathname : pathname + '/';
+		const cached = this.diskPageCache.get(normalized);
+		if (cached !== undefined) return cached;
+		const exists = existsSync(join(buildOutputDir, normalized, 'index.html'));
+		this.diskPageCache.set(normalized, exists);
+		return exists;
 	}
 
 	checkHtmlPage(context: CheckHtmlPageContext) {
 		this.forEachLocalLink(context, (linkHref, url) => {
-			// Skip paths found in the ignore list
-			if (this.ignoredLinkPathnames.some((ignoredPath) => url.pathname.startsWith(ignoredPath)))
-				return;
-
 			// Simulate Cloudflare's _redirects evaluation: a matching rule wins
 			// over a static file on disk. Without this, a link to a path that's
 			// rewritten by a catch-all can pass locally (the file exists in dist)
@@ -94,6 +102,13 @@ export class TargetExists extends CheckBase {
 			if (!linkedPage) {
 				// If it's not a page it may be a file
 				if (this.findFileByPathname(context, effectivePathname)) {
+					return;
+				}
+
+				// Pages built with `noindex` are intentionally absent from the
+				// sitemap, so they can't be found via the parsed index — fall
+				// back to a cached file system check for `index.html`.
+				if (this.pageExistsOnDisk(context.buildOutputDir, effectivePathname)) {
 					return;
 				}
 
