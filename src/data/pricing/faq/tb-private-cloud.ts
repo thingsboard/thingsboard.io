@@ -393,8 +393,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
                             <ul>
                                 <li><b>Cassandra</b> (time-series storage) replicates data 3× across three Availability Zones on the Launch, Growth, and Scale plans. Enterprise plan database topology is tailored to the customer's requirements.</li>
                                 <li><b>PostgreSQL</b> replicates data 2× across two Availability Zones, primary–standby, with automatic failover.</li>
-                            </ul>
-                            <p>ThingsBoard application services (transport, core, rule engine, JS executor, etc.) run within a single Availability Zone. On the Launch and Growth plans they are deployed as a monolith; on the Scale and Enterprise plans they run as multiple instances spread across separate physical racks within the same AZ using the cloud provider's spread placement strategy, which removes single-rack failures as a point of failure.</p>`,
+                            </ul>`,
 			},
 			{
 				id: 'tb-private-cloud-what-does-geo-region-deployment-selection-include',
