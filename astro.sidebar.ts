@@ -701,8 +701,13 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 					label: 'Control Widgets',
 					collapsed: true,
 					items: [
-						`${prefix}/widgets/control-widgets/single-switch`,
+						`${prefix}/widgets/control-widgets/command-button`,
 						`${prefix}/widgets/control-widgets/led-indicator`,
+						`${prefix}/widgets/control-widgets/power-button`,
+						`${prefix}/widgets/control-widgets/single-switch`,
+						`${prefix}/widgets/control-widgets/toggle-button`,
+						`${prefix}/widgets/control-widgets/two-segment-button`,
+						`${prefix}/widgets/control-widgets/value-stepper`,
 					],
 				},
 				{
@@ -730,8 +735,16 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 					label: 'Count Widgets',
 					collapsed: true,
 					items: [
-						`${prefix}/widgets/alarm-widgets/alarm-count`,
+						`${prefix}/widgets/count-widgets/alarm-count`,
 						`${prefix}/widgets/count-widgets/entity-count`,
+					],
+				},
+				{
+					label: 'HTML Widgets',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/html-widgets/markdown-html-card`,
+						`${prefix}/widgets/html-widgets/html-value-card`,
 					],
 				},
 				{
@@ -975,7 +988,7 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 					label: 'Tables',
 					collapsed: true,
 					items: [
-						`${prefix}/widgets/alarm-widgets/alarms-table`,
+						`${prefix}/widgets/tables/alarms-table`,
 						`${prefix}/widgets/tables/entities-table`,
 						`${prefix}/widgets/tables/timeseries-table`,
 						`${prefix}/widgets/tables/persistent-table`,
@@ -1232,8 +1245,13 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 					label: 'Control Widgets',
 					collapsed: true,
 					items: [
-						`${prefix}/widgets/control-widgets/single-switch`,
+						`${prefix}/widgets/control-widgets/command-button`,
 						`${prefix}/widgets/control-widgets/led-indicator`,
+						`${prefix}/widgets/control-widgets/power-button`,
+						`${prefix}/widgets/control-widgets/single-switch`,
+						`${prefix}/widgets/control-widgets/toggle-button`,
+						`${prefix}/widgets/control-widgets/two-segment-button`,
+						`${prefix}/widgets/control-widgets/value-stepper`,
 					],
 				},
 				{
@@ -1261,8 +1279,16 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 					label: 'Count Widgets',
 					collapsed: true,
 					items: [
-						`${prefix}/widgets/alarm-widgets/alarm-count`,
+						`${prefix}/widgets/count-widgets/alarm-count`,
 						`${prefix}/widgets/count-widgets/entity-count`,
+					],
+				},
+				{
+					label: 'HTML Widgets',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/html-widgets/markdown-html-card`,
+						`${prefix}/widgets/html-widgets/html-value-card`,
 					],
 				},
 				{
@@ -1506,7 +1532,7 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 					label: 'Tables',
 					collapsed: true,
 					items: [
-						`${prefix}/widgets/alarm-widgets/alarms-table`,
+						`${prefix}/widgets/tables/alarms-table`,
 						`${prefix}/widgets/tables/entities-table`,
 						`${prefix}/widgets/tables/timeseries-table`,
 						`${prefix}/widgets/tables/persistent-table`,
