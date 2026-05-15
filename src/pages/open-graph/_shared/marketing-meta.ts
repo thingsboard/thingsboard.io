@@ -42,6 +42,7 @@ const PRODUCT_OVERRIDES: Record<string, MarketingOverride> = {
 	'/products/license-server/privacy-policy/':{ eyebrow: 'License Server',            title: 'Privacy Policy' },
 	'/products/license-server/terms-of-use/':  { eyebrow: 'License Server',            title: 'Terms of Use' },
 	'/products/demo/privacy-policy/':          { eyebrow: 'Live Demo',                 title: 'Privacy Policy' },
+	'/services/':                              { eyebrow: 'ThingsBoard',               title: 'Support and Services' }
 };
 
 export function getMarketingOverride(pathname: string): MarketingOverride | null {

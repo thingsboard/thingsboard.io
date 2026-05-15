@@ -1118,7 +1118,7 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'services/customers-full-reviews', target: '/services/development-services/' },
 	{ oldPath: 'services/development-services', target: '/services/development-services/' },
 	{ oldPath: 'services/iot-solutions', target: '/services/development-services/' },
-	{ oldPath: 'services/support', target: '/services/support/' },
+	{ oldPath: 'services/support', target: '/services/' },
 	{ oldPath: 'services/trainings', target: '/services/trainings/' },
 	{ oldPath: 'user-guide/integrations/ibm-watson-iot', target: '/docs/user-guide/integrations/integration-types/' },
 	{ oldPath: 'paas/user-guide/integrations/ibm-watson-iot', target: '/docs/paas/user-guide/integrations/integration-types/' },
@@ -1207,6 +1207,9 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
  * literal `?query` strings (no placeholder substitution).
  */
 export const NON_DOCS_REDIRECTS: Record<string, string> = {
+	// Services
+	'/services/support/': '/services/',
+
 	// Trendz
 	'/products/trendz/trndz-request-demo/': '/products/trendz/request-demo/',
 	'/images/trendz/trndz-request-demo/': '/products/trendz/request-demo/',

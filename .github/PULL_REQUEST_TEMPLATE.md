@@ -1,23 +1,36 @@
-<!-- Thank you for opening a PR! We really appreciate you taking the time to help out 🙌 -->
+<!-- Thanks for contributing to the ThingsBoard documentation site! -->
 
-#### Description (required)
+## Description
 
-<!-- Please describe the change you are proposing, and why -->
+<!-- What does this PR change and why? Link any related ticket or context. -->
 
-<!-- Please make changes in **one language** only -->
+## Type of change
 
-#### Related issues & labels (optional)
+<!-- Tick all that apply -->
 
-- Closes #<!-- Add an issue number if this PR will close it. -->
-- Suggested label: <!-- Help us triage by suggesting one of our labels that describes your PR -->
+- [ ] New / updated documentation page (`src/content/docs/**`)
+- [ ] Shared include file (`src/content/_includes/**`)
+- [ ] Component, layout, or styling change (`src/components/**`, `src/styles/**`)
+- [ ] Landing / use-case / case-study page (`src/pages/**`, `src/data/**`)
+- [ ] Redirects (`src/data/redirects.ts`)
+- [ ] Version bump / release (see `release` skill)
+- [ ] Build, CI, scripts, or tooling
+- [ ] Other (please describe)
 
-<!-- For a new/changed feature in an upcoming Astro release? -->
-<!-- 1. Uncomment the line below, update the minor version number if known, and include a PR link -->
-<!-- #### For Astro version: `5.x`. See astro PR [#](url). -->
+## Affected products
 
-<!-- 2. Check that your PR includes `<p><Since v="4.x.0" /></p>` and imports the `<Since>` component, if necessary! -->
+<!-- e.g. CE only, PE + PaaS, Edge, TBMQ, all products. Mention if the PaaS/EU variant is impacted. -->
 
-<!-- #### First-time contributor to Astro Docs? -->
+## Related issues
 
-<!-- If you are a member of the Astro Discord, please add your username in the description so we can welcome you there! -->
-<!-- https://astro.build/chat -->
+- Closes #
+
+## Checklist
+
+- [ ] `pnpm check` passes (Astro / TypeScript)
+- [ ] `pnpm lint:eslint` passes
+- [ ] `pnpm lint:slugcheck` passes (required if pages were added/renamed/moved across languages)
+- [ ] `pnpm lint:linkcheck` passes locally — required to merge; run it before requesting review (use `pnpm lint:linkcheck:nobuild` if you already ran a build)
+- [ ] Renamed/removed pages have a redirect in `src/data/redirects.ts`, and `pnpm generate:redirects` was run
+- [ ] No hardcoded versions — values come from `src/data/versions.ts`
+- [ ] Screenshots attached for visual changes

@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 const PUBLIC_SITE_URL = process.env.PUBLIC_SITE_URL;
 const CF_PAGES_URL = process.env.CF_PAGES_URL;
 const CF_PAGES_BRANCH = process.env.CF_PAGES_BRANCH;
+const BUILD_CONCURRENCY = process.env.BUILD_CONCURRENCY ? Number(process.env.BUILD_CONCURRENCY) : 8;
 
 /* Netlify (kept as fallback in case of platform switch): https://docs.netlify.com/configure-builds/environment-variables/#read-only-variables */
 const NETLIFY_PREVIEW_SITE = process.env.CONTEXT !== 'production' && process.env.DEPLOY_PRIME_URL;
@@ -33,7 +34,7 @@ export default defineConfig({
     base: '/',
     build: {
         inlineStylesheets: 'always',
-			  concurrency: 4,
+			  concurrency: BUILD_CONCURRENCY,
     },
     redirects,
     vite: {

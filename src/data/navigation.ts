@@ -130,10 +130,10 @@ export const servicesSubmenu: SubMenu = {
 					description: 'IoT Solutions development',
 				},
 				{
-					href: '/services/support/',
+					href: '/services/',
 					icon: '/src/assets/images/landings/nav/support-icon.svg',
 					heading: 'Support',
-					description: 'Support packages',
+					description: 'Support packages and SLAs',
 				},
 				{
 					href: '/services/trainings/',
