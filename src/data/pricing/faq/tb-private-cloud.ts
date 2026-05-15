@@ -42,7 +42,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
                             <ul>
                                 <li>Scheduled maintenance announced ≥ 48 h in advance</li>
                                 <li>Emergency security patches</li>
-                                <li>Force-majeure events or upstream cloud failures (e.g., AWS region outage)</li>
+                                <li>Force-majeure events or upstream cloud failures (e.g., cloud provider region outage)</li>
                                 <li>Issues caused by customer-side logic (mis-configured Rule Chains, custom JS, connector errors, abusive API use, edge gateways, etc.)</li>
                             </ul>`,
 			},
@@ -371,8 +371,8 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-private-cloud-what-are-the-database-options-in-each-plan',
 				question: 'What is the underlying database structure?',
-				answer: `<p>All plans use PostgreSQL (SQL) with replication factor of 2 for entities storage and NoSQL (Cassandra) with a replication factor of 3 to store time-series data. Cassandra storage is more efficient—each data point occupies on average five times less space before replication.<br><br></p>
-                            <p>PostgreSQL (SQL) is a relational database ideal for structured queries, transactional operations, and smaller workloads. It offers simplicity and consistency, making it perfect for monolithic deployments like the Launch plan.<br><br></p>
+				answer: `<p>Launch, Growth, and Scale plans use PostgreSQL (SQL) with replication factor of 2 for entities storage and NoSQL (Cassandra) with a replication factor of 3 to store time-series data. Cassandra storage is more efficient—each data point occupies on average five times less space before replication. The Enterprise plan database structure is tailored to the customer's workload and may use a different combination of storage backends.<br><br></p>
+                            <p>PostgreSQL (SQL) is a relational database ideal for structured queries, transactional operations, and smaller workloads. It offers simplicity and consistency, making it well-suited for monolithic deployments like the Launch and Growth plans.<br><br></p>
                             <p>Cassandra is a distributed NoSQL database designed for high availability and horizontal scalability. It is more than five times more efficient for storing large volumes of telemetry data, requiring significantly less storage space, while also delivering high performance and enabling seamless horizontal scaling.</p>`,
 			},
 			{
@@ -388,19 +388,18 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-private-cloud-what-does-multi-az-database-replication-mean',
 				question: 'What does multi-AZ database replication mean?',
-				answer: `<p>Multi-AZ (Availability Zone) database replication refers to the distribution of data copies across multiple physical data center locations within the same region. This provides enhanced fault tolerance, automatic failover, and increased uptime by ensuring that even if one availability zone goes down, your data and services remain accessible through other zones. It is a key feature in Growth, Scale, and Enterprise plans to support high availability and disaster resilience.</p>`,
+				answer: `<p>Multi-AZ (Availability Zone) database replication distributes data copies across multiple physical data center locations within the same cloud region, providing fault tolerance, automatic failover, and durability if a single Availability Zone becomes unavailable.<br><br></p>
+                            <p>Database durability across Availability Zones applies to every Private Cloud plan:</p>
+                            <ul>
+                                <li><b>Cassandra</b> (time-series storage) replicates data 3× across three Availability Zones on the Launch, Growth, and Scale plans. Enterprise plan database topology is tailored to the customer's requirements.</li>
+                                <li><b>PostgreSQL</b> replicates data 2× across two Availability Zones, primary–standby, with automatic failover.</li>
+                            </ul>
+                            <p>ThingsBoard application services (transport, core, rule engine, JS executor, etc.) run within a single Availability Zone. On the Launch and Growth plans they are deployed as a monolith; on the Scale and Enterprise plans they run as multiple instances spread across separate physical racks within the same AZ using the cloud provider's spread placement strategy, which removes single-rack failures as a point of failure.</p>`,
 			},
 			{
 				id: 'tb-private-cloud-what-does-geo-region-deployment-selection-include',
 				question: 'What does geo-region deployment selection include?',
-				answer: `<p>Geo-region deployment selection allows you to choose the specific geographic region where your Private Cloud instance will be hosted. This ensures your data is stored and processed in a location that meets your compliance or data sovereignty requirements. During onboarding, you can select region, and our team will deploy your environment accordingly. This feature is particularly valuable for organizations subject to regional data protection regulations or those with distributed global operations.<br><br></p>
-                            <p><b>For the Launch plan, region selection is limited to the following supported regions:</b>
-                            <ul>
-                                <li><b>North America:</b> US West, US East, Mexico;</li>
-                                <li><b>Europe:</b> Ireland, Stockholm;</li>
-                                <li><b>Asia:</b> Taipei, Thailand, Mumbai.</li>
-                            </ul>
-                            </p>`,
+				answer: `<p>Geo-region deployment selection allows you to choose the specific geographic region where your Private Cloud instance will be hosted. This ensures your data is stored and processed in a location that meets your compliance or data sovereignty requirements. During onboarding, you select a region, and our team will deploy your environment accordingly. This feature is particularly valuable for organizations subject to regional data protection regulations or those with distributed global operations. All Private Cloud plans, including Launch, can be deployed in any supported region across our cloud providers.</p>`,
 			},
 			{
 				id: 'tb-private-cloud-can-i-choose-a-specific-maintenance-window',
@@ -481,8 +480,8 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-private-cloud-are-high-availability-services-available-as-an-add-on',
 				question: 'Are high-availability services available as an add-on?',
-				answer: `<p>High-availability (HA) services are built into the structure of Private Cloud starting Scale plan and are not offered separately as an add-on. <br><br></p>
-                            <p>If your usage or operational requirements indicate the need for HA, the ThingsBoard team will proactively recommend an upgrade to the appropriate tier.<br><br></p>
+				answer: `<p>High-availability (HA) for ThingsBoard application services is built into the Scale and Enterprise plans, and is not offered separately as an add-on. The Launch and Growth plans run as a single-instance monolith and do not include application-level HA. Database durability across Availability Zones (Cassandra 3×, PostgreSQL 2×) applies to every plan, including Launch and Growth.<br><br></p>
+                            <p>If your usage or operational requirements indicate the need for application-level HA, the ThingsBoard team will proactively recommend an upgrade to the appropriate tier.<br><br></p>
                             <p>This approach ensures consistent architecture, SLA alignment, and reliability without complicating plan configurations.</p>`,
 			},
 			{
