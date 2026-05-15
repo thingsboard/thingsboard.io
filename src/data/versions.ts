@@ -16,7 +16,7 @@ export const CE_BRANCH = 'release-4.3';
 export const PE_FULL_VER = '4.3.1.1PE';
 
 /** Trendz Analytics */
-export const TRENDZ_VER = '1.15.1';
+export const TRENDZ_VER = '1.15.2';
 
 /** Edge */
 export const EDGE_VER = '4.3.1.1';
