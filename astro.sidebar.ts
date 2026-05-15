@@ -686,6 +686,17 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 					],
 				},
 				{
+					label: 'Analogue Gauges',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/analogue-gauges/temperature-radial-gauge`,
+						`${prefix}/widgets/analogue-gauges/thermometer-scale`,
+						`${prefix}/widgets/analogue-gauges/speed-gauge`,
+						`${prefix}/widgets/analogue-gauges/radial-gauge`,
+						`${prefix}/widgets/analogue-gauges/compass`,
+					],
+				},
+				{
 					label: 'Buttons',
 					collapsed: true,
 					items: [
@@ -1227,6 +1238,17 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 					items: [
 						`${prefix}/widgets/alarm-widgets/alarms-table`,
 						`${prefix}/widgets/alarm-widgets/alarm-count`,
+					],
+				},
+				{
+					label: 'Analogue Gauges',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/analogue-gauges/temperature-radial-gauge`,
+						`${prefix}/widgets/analogue-gauges/thermometer-scale`,
+						`${prefix}/widgets/analogue-gauges/speed-gauge`,
+						`${prefix}/widgets/analogue-gauges/radial-gauge`,
+						`${prefix}/widgets/analogue-gauges/compass`,
 					],
 				},
 				{
