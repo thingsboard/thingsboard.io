@@ -2,32 +2,27 @@
 import { getImage } from 'astro:assets';
 import type { ImageMetadata } from 'astro';
 import { Products } from '~/models/site.models';
+import 'photoswipe/style.css';
 
 interface ImageItem {
-	// Base path from project root, e.g. /src/assets/images/screenshot.png
-	// When product/theme resolution is active, this is the base name without suffixes.
+	/** Project-relative path, e.g. `/src/assets/images/screenshot.png`. */
 	src: string;
 	alt: string;
 	caption?: string;
-	/** If set, this image is only included when the current product is in the list. */
+	/** Restrict to a subset of products. */
 	products?: Products[];
 }
 
 interface Props {
 	images: ImageItem[];
-	/** If set, enables product suffix resolution (e.g. -pe, -paas). */
+	/** Enables product suffix resolution on filenames (e.g. `-pe`, `-paas`). */
 	product?: Products;
-	/**
-	 * When true and there is exactly one image, renders it as a gallery thumbnail card
-	 * (with border, fixed height, hover effect) instead of the full-width DocImage style.
-	 */
+	/** When `true` and only one image is supplied, render as a thumb card instead of inline. */
 	cardMode?: boolean;
 }
 
 const { images, product, cardMode = false } = Astro.props;
-const galleryId = `ig-${Math.random().toString(36).slice(2, 9)}`;
 
-// Maps each product to the filename suffix inserted before the extension.
 const productSuffix: Record<Products, string> = {
 	[Products.CE]: 'ce',
 	[Products.PE]: 'pe',
@@ -44,8 +39,8 @@ const productSuffix: Record<Products, string> = {
 	[Products.TBMQ_PE]: 'tbmq-pe',
 };
 
-// Product fallback chain: if a product-specific image doesn't exist, try the parent product.
-// e.g. PAAS_EU → PAAS → PE → base, EDGE_PE → EDGE → base, MOBILE_PE → MOBILE → base
+// Fallback chain when a product-specific image is missing.
+// e.g. PAAS_EU → PAAS → PE → base.
 const productFallback: Partial<Record<Products, Products[]>> = {
 	[Products.PAAS]: [Products.PE],
 	[Products.PAAS_EU]: [Products.PAAS, Products.PE],
@@ -54,25 +49,19 @@ const productFallback: Partial<Record<Products, Products[]>> = {
 	[Products.TBMQ_PE]: [Products.TBMQ],
 };
 
-// Load all images from assets using glob (eager = synchronous at build time)
-// Key — absolute path from project root (/src/assets/...)
 const assetModules = import.meta.glob<{ default: ImageMetadata }>(
 	'/src/assets/**/*.{png,jpg,jpeg,webp,gif,svg}',
 	{ eager: true }
 );
 
-// Raw SVG sources for interactive diagrams that contain `<a>` tags. We inline
-// them so the anchors stay clickable — same pattern DocImage uses. Lazy so
-// Vite only reads the SVGs actually referenced by an ImageGallery.
+// Lazy raw SVG sources — used to inline SVGs with `<a>` so the anchors stay
+// clickable (browsers disable interactivity when SVG is loaded via `<img>`).
 const svgRawModules = import.meta.glob<string>(
 	'/src/assets/**/*.svg',
 	{ query: '?raw', import: 'default' }
 );
 
-// Inject aria-label on the root <svg> and force `target="_blank"` on every
-// <a>. SVG hrefs are treated as already-resolved final URLs — when product-
-// specific links are needed, author the SVG with placeholders and substitute
-// at render time (see `public/hero/hero.svg` for that pattern).
+// Add aria-label + force `target="_blank"` on every `<a>` inside an interactive SVG.
 function prepareInteractiveSvg(raw: string, alt: string): string {
 	let out = raw;
 	const escapedAlt = alt.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -86,7 +75,7 @@ function prepareInteractiveSvg(raw: string, alt: string): string {
 	return out;
 }
 
-// CDN fallback for images not found locally (e.g. use-case screenshots hosted externally)
+// CDN fallback for images hosted outside the local assets pipeline.
 const CDN_BASE = 'https://img.thingsboard.io/';
 const LOCAL_PREFIX = '/src/assets/images/';
 
@@ -94,10 +83,6 @@ function resolveToCdn(path: string): string {
 	return path.startsWith(LOCAL_PREFIX) ? CDN_BASE + path.slice(LOCAL_PREFIX.length) : path;
 }
 
-/**
- * Splits a src path into base (before extension) and ext (including dot).
- * e.g. "/src/assets/schemas/foo.svg" → ["/src/assets/schemas/foo", ".svg"]
- */
 function splitExt(src: string): [string, string] {
 	const dot = src.lastIndexOf('.');
 	if (dot === -1) throw new Error(`ImageGallery: src has no extension: "${src}"`);
@@ -105,31 +90,22 @@ function splitExt(src: string): [string, string] {
 }
 
 /**
- * Resolve the actual asset path for a given base src, considering product and theme.
- * Fallback chain (most specific → least specific):
- *   1. {base}-{product}-dark{ext}  (product + dark)
- *   2. {base}-dark{ext}            (generic dark)
- *   3. {base}-{product}{ext}       (product + light)
- *   4. {base}{ext}                 (base — always exists)
- * For light theme, skip steps 1-2.
- * CE is the default product — no suffix needed (the base file IS the CE file).
+ * Asset path resolution with theme + product fallback chain:
+ *   {base}-{product}-dark → {base}-dark → {base}-{product} → {base}
+ * CE has no suffix (the base file IS the CE file).
  */
 function resolvePaths(src: string): { lightPath: string; darkPath: string } {
 	const [base, ext] = splitExt(src);
 
-	// Build suffix chain: current product → fallback products → base (no suffix)
 	const suffixes: string[] = [];
 	if (product) {
 		suffixes.push(productSuffix[product]);
 		const fallbacks = productFallback[product];
 		if (fallbacks) {
-			for (const fb of fallbacks) {
-				suffixes.push(productSuffix[fb]);
-			}
+			for (const fb of fallbacks) suffixes.push(productSuffix[fb]);
 		}
 	}
 
-	// Resolve light path: try each suffix, then base
 	let lightPath: string = src;
 	for (const s of suffixes) {
 		if (assetModules[`${base}-${s}${ext}`]) {
@@ -138,7 +114,6 @@ function resolvePaths(src: string): { lightPath: string; darkPath: string } {
 		}
 	}
 
-	// Resolve dark path: try each suffix+dark, then generic dark, then fall back to light
 	let darkPath: string = lightPath;
 	for (const s of suffixes) {
 		if (assetModules[`${base}-${s}-dark${ext}`]) {
@@ -153,11 +128,7 @@ function resolvePaths(src: string): { lightPath: string; darkPath: string } {
 	return { lightPath, darkPath };
 }
 
-// Captions arrive as Markdown strings (the device-library importer preserves
-// `**bold**`, `` `code` `` etc. from the legacy site). They get rendered via
-// `set:html` into thumb tooltips and the lightbox caption, so convert the
-// inline-emphasis subset of Markdown to HTML before storage. Non-Markdown
-// captions (plain text, or already-HTML) pass through unchanged.
+// Render the inline-emphasis subset of Markdown (``code``, `*em*`, `**strong**`) to HTML.
 function captionToHtml(s: string): string {
 	if (!s) return '';
 	if (!/[`*]/.test(s)) return s;
@@ -167,25 +138,18 @@ function captionToHtml(s: string): string {
 		.replace(/(?<!\*)\*([^*\s][^*]*?)\*(?!\*)/g, '<em>$1</em>');
 }
 
-// Filter by product if specified, then resolve paths and process images
 const filteredImages = product
 	? images.filter(({ products: p }) => !p || p.includes(product))
 	: images;
 
-// Whether any image actually has a distinct dark variant
-let hasThemeVariants = false;
-
-// thumb — compressed WebP 800px for the grid (fast loading)
-// full  — WebP at original size, quality 90 for the lightbox
+// thumb = 800px WebP @ q80 (grid + single-mode src). full = original WebP @ q90 (lightbox).
 const processed = await Promise.all(
 	filteredImages.map(async ({ src, alt, caption }) => {
 		const { lightPath, darkPath } = resolvePaths(src);
 		const hasDark = darkPath !== lightPath;
-		if (hasDark) hasThemeVariants = true;
 
 		const lightMod = assetModules[lightPath];
 
-		// CDN fallback: image not found locally → resolve to CDN URL, skip processing
 		if (!lightMod) {
 			const cdnSrc = resolveToCdn(lightPath);
 			const darkCdnSrc = hasDark ? resolveToCdn(darkPath) : cdnSrc;
@@ -205,10 +169,7 @@ const processed = await Promise.all(
 
 		const isSvg = lightPath.endsWith('.svg');
 
-		// SVGs don't need raster processing — use raw src directly. Additionally,
-		// if the SVG contains `<a>` tags, prepare an inline markup string so the
-		// thumb + lightbox can render the SVG inline (anchors clickable). When
-		// `<img src>` is used instead, browsers disable SVG interactivity.
+		// SVGs skip raster processing. If they contain `<a>`, inline them so anchors stay clickable.
 		if (isSvg) {
 			const lightSrc = lightMod.default.src;
 			const darkMod = hasDark ? assetModules[darkPath] : null;
@@ -276,44 +237,40 @@ const isSingle = processed.length === 1;
 const useCardMode = cardMode && isSingle;
 ---
 
-<div class:list={['image-gallery', { 'has-theme-variants': hasThemeVariants }]} id={galleryId}>
+<div class="image-gallery">
 	{
 		isSingle && !useCardMode ? (
-			/* Single image — displayed like DocImage but clickable. For an
-			   interactive SVG (one with <a> tags) we render the SVG inline so
-			   its anchors stay clickable in both thumb and lightbox; the
-			   <button> wrapper would be invalid HTML with nested <a>, so we
-			   use a div + role=button instead in that path. */
+			/* Single image — inline DocImage-style. Interactive SVGs use a
+			   div+role=button wrapper (nested <a> in <a> is invalid HTML). */
 			<figure class="single-image">
 				{processed[0].interactiveSvg ? (
 					<div
 						class="gallery-thumb single-thumb gallery-thumb--interactive"
 						role="button"
 						tabindex={0}
-						data-index={0}
-						data-interactive="true"
-						data-alt={processed[0].alt}
+						data-pswp-interactive-svg="true"
+						data-pswp-width={processed[0].fullWidth ?? 1600}
+						data-pswp-height={processed[0].fullHeight ?? 900}
 						data-caption={processed[0].caption}
 						aria-label={`View: ${processed[0].alt}`}
 					>
 						<Fragment set:html={processed[0].interactiveSvg} />
 					</div>
 				) : (
-					<button
+					/* `src` = 800px thumb (bandwidth); `href` + `data-pswp-*` point
+					   at the full asset so the lightbox shows it at full quality. */
+					<a
 						class="gallery-thumb single-thumb"
-						type="button"
-						data-index={0}
-						data-full-src={processed[0].fullSrc}
-						data-full-src-dark={processed[0].darkFullSrc}
-						data-alt={processed[0].alt}
+						href={processed[0].fullSrc}
+						data-pswp-width={processed[0].fullWidth ?? 1600}
+						data-pswp-height={processed[0].fullHeight ?? 900}
+						data-pswp-src-dark={processed[0].hasDark ? processed[0].darkFullSrc : undefined}
 						data-caption={processed[0].caption}
-						data-full-width={processed[0].fullWidth}
-						data-full-height={processed[0].fullHeight}
 						aria-label={`View: ${processed[0].alt}`}
 					>
 						<img
 							class:list={[{ 'light-only': processed[0].hasDark }]}
-							src={processed[0].fullSrc}
+							src={processed[0].thumbSrc}
 							alt={processed[0].alt}
 							width={processed[0].fullWidth}
 							height={processed[0].fullHeight}
@@ -323,7 +280,7 @@ const useCardMode = cardMode && isSingle;
 						{processed[0].hasDark && (
 							<img
 								class="dark-only"
-								src={processed[0].darkFullSrc}
+								src={processed[0].darkThumbSrc}
 								alt={processed[0].alt}
 								width={processed[0].fullWidth}
 								height={processed[0].fullHeight}
@@ -331,23 +288,19 @@ const useCardMode = cardMode && isSingle;
 								decoding="async"
 							/>
 						)}
-					</button>
+					</a>
 				)}
 			</figure>
 		) : (
-			/* Multiple images or cardMode single — regular thumbnail grid */
-			<div class:list={['gallery-grid', { 'gallery-grid--card': useCardMode }]}>
-				{processed.map((img, index) => (
-					<button
+			<div class="gallery-grid">
+				{processed.map((img) => (
+					<a
 						class="gallery-thumb"
-						type="button"
-						data-index={index}
-						data-full-src={img.fullSrc}
-						data-full-src-dark={img.darkFullSrc}
-						data-alt={img.alt}
+						href={img.fullSrc}
+						data-pswp-width={img.fullWidth ?? 1600}
+						data-pswp-height={img.fullHeight ?? 900}
+						data-pswp-src-dark={img.hasDark ? img.darkFullSrc : undefined}
 						data-caption={img.caption}
-						data-full-width={img.fullWidth}
-						data-full-height={img.fullHeight}
 						aria-label={`View: ${img.alt}`}
 					>
 						<span class="thumb-img">
@@ -371,80 +324,14 @@ const useCardMode = cardMode && isSingle;
 						{img.caption && (
 							<span class="thumb-tooltip" aria-hidden="true" set:html={img.caption} />
 						)}
-					</button>
+					</a>
 				))}
 			</div>
 		)
 	}
-
-	<!-- Lightbox -->
-	<div
-		class="gallery-lightbox"
-		role="dialog"
-		aria-modal="true"
-		aria-hidden="true"
-		aria-label="Image viewer"
-	>
-		<!-- Blurred backdrop (not solid black) -->
-		<div class="lb-backdrop"></div>
-
-		<!-- Image wrapper (absolute, full viewport — needed for transform-origin) -->
-		<div class="lb-img-wrapper">
-			<img class="lb-img lb-img-light" src="" alt="" />
-			<img class="lb-img lb-img-dark" src="" alt="" />
-			<!-- Inline-SVG slot for interactive diagrams (anchors clickable). -->
-			<div class="lb-svg-container" aria-hidden="true"></div>
-			<!-- Caption placed below the image in flow to avoid overlapping it -->
-			<div class="lb-footer">
-				<span class="lb-caption"></span>
-				<span class="lb-counter"></span>
-			</div>
-		</div>
-
-		<!-- All buttons are position:fixed — guaranteed no overlap and independent of layout -->
-		<button class="lb-close" type="button" aria-label="Close (Esc)">
-			<svg
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2.5"
-				aria-hidden="true"
-			>
-				<path d="M18 6L6 18M6 6l12 12" stroke-linecap="round"></path>
-			</svg>
-		</button>
-
-		<button class="lb-prev" type="button" aria-label="Previous (←)">
-			<svg
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2.5"
-				aria-hidden="true"
-			>
-				<path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"></path>
-			</svg>
-		</button>
-
-		<button class="lb-next" type="button" aria-label="Next (→)">
-			<svg
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2.5"
-				aria-hidden="true"
-			>
-				<path d="M9 18l6-6-6-6" stroke-linecap="round" stroke-linejoin="round"></path>
-			</svg>
-		</button>
-	</div>
 </div>
 
 <style>
-	/* ═══════════════════════════════════════════════
-	   THUMBNAIL GRID
-	═══════════════════════════════════════════════ */
-
 	.image-gallery {
 		margin: 1.5rem 0;
 	}
@@ -461,9 +348,9 @@ const useCardMode = cardMode && isSingle;
 		}
 	}
 
-	/* Thumbnail button */
 	.gallery-thumb {
 		position: relative;
+		display: block;
 		cursor: pointer;
 		border: 2px solid var(--sl-color-gray-5);
 		border-radius: 8px;
@@ -471,11 +358,12 @@ const useCardMode = cardMode && isSingle;
 		margin: 0;
 		padding: 0;
 		background: var(--sl-color-bg-sidebar);
+		color: inherit;
+		text-decoration: none;
 		transition:
 			border-color 0.2s ease,
 			transform 0.2s ease,
 			box-shadow 0.2s ease;
-		display: block;
 	}
 
 	.gallery-thumb:hover,
@@ -486,10 +374,9 @@ const useCardMode = cardMode && isSingle;
 		outline: none;
 	}
 
-	/* ── Single image mode (like DocImage) ──── */
-
 	.single-image {
-		margin: 1.5rem 0;
+		/* Reset browser default `figure` margin — parent provides spacing. */
+		margin: 0;
 		text-align: center;
 	}
 
@@ -528,7 +415,7 @@ const useCardMode = cardMode && isSingle;
 		outline-offset: 2px;
 	}
 
-	/* Fixed height → uniform size for all thumbnails */
+	/* Fixed height keeps grid rows uniform regardless of image aspect ratio. */
 	.thumb-img {
 		display: block;
 		height: 115px;
@@ -539,17 +426,14 @@ const useCardMode = cardMode && isSingle;
 	.thumb-img img {
 		width: 100%;
 		height: 100%;
-		/* contain — full image without cropping */
 		object-fit: contain;
-		/* top — image pinned to top, empty space at bottom (not top) */
 		object-position: top center;
 		display: block;
-		/* reset any global margin from Starlight/global.scss */
+		/* Reset global Starlight img margin. */
 		margin: 0;
 		padding: 0;
 	}
 
-	/* Caption tooltip — slides up from bottom on hover */
 	.thumb-tooltip {
 		position: absolute;
 		bottom: 0;
@@ -564,7 +448,6 @@ const useCardMode = cardMode && isSingle;
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
-		/* hidden by default */
 		opacity: 0;
 		transform: translateY(4px);
 		transition:
@@ -579,164 +462,7 @@ const useCardMode = cardMode && isSingle;
 		transform: translateY(0);
 	}
 
-	/* ═══════════════════════════════════════════════
-	   LIGHTBOX — main container
-	═══════════════════════════════════════════════ */
-
-	.gallery-lightbox {
-		position: fixed;
-		inset: 0;
-		z-index: 9999;
-		/* hidden by default */
-		display: none;
-	}
-
-	/* Open state via class (JS manages class and aria-hidden) */
-	.gallery-lightbox.is-open {
-		display: block;
-	}
-
-	/* Closing — lightbox still visible but pointer-events already disabled */
-	.gallery-lightbox.is-closing {
-		display: block;
-		pointer-events: none;
-		animation: lb-fade-out 0.22s ease forwards;
-	}
-
-	@keyframes lb-fade-out {
-		from {
-			opacity: 1;
-		}
-		to {
-			opacity: 0;
-		}
-	}
-
-	/* ── Blurred backdrop (not solid black) ─────────────────── */
-
-	.lb-backdrop {
-		position: absolute;
-		inset: 0;
-		/* Blur + semi-transparent dark — not solid black */
-		background: rgba(10, 10, 20, 0.55);
-		backdrop-filter: blur(18px);
-		-webkit-backdrop-filter: blur(18px);
-		/* Smooth backdrop fade-in on open */
-		animation: lb-backdrop-in 0.25s ease forwards;
-	}
-
-	@keyframes lb-backdrop-in {
-		from {
-			opacity: 0;
-		}
-		to {
-			opacity: 1;
-		}
-	}
-
-	/* ── Image wrapper ──────────────────────────── */
-
-	/* Covers the full viewport — transform-origin is set in px from the viewport top-left,
-	   matching the thumbnail center → image "grows" from it */
-	.lb-img-wrapper {
-		position: absolute;
-		inset: 0;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 0.75rem;
-		padding: 1rem;
-		/* transform-origin is set via JS before the animation */
-		transform-origin: 50% 50%;
-	}
-
-	/* Footer hidden during zoom animations so it doesn't scale with the image */
-	.gallery-lightbox.is-opening .lb-footer,
-	.gallery-lightbox.is-closing .lb-footer {
-		opacity: 0;
-	}
-
-	/* "Zoom from thumbnail" animation on open */
-	.gallery-lightbox.is-opening .lb-img-wrapper {
-		animation: lb-expand 0.38s cubic-bezier(0.34, 1.25, 0.64, 1) forwards;
-	}
-
-	/* "Collapse to thumbnail" animation on close */
-	.gallery-lightbox.is-closing .lb-img-wrapper {
-		animation: lb-collapse 0.22s ease-in forwards;
-	}
-
-	@keyframes lb-expand {
-		from {
-			transform: scale(0.07);
-			opacity: 0;
-		}
-		to {
-			transform: scale(1);
-			opacity: 1;
-		}
-	}
-
-	@keyframes lb-collapse {
-		from {
-			transform: scale(1);
-			opacity: 1;
-		}
-		to {
-			transform: scale(0.07);
-			opacity: 0;
-		}
-	}
-
-	.lb-img {
-		max-width: 90vw;
-		max-height: 78vh;
-		object-fit: contain;
-		border-radius: 4px;
-		display: block;
-		/* Shadow gives the "floating" image effect */
-		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-	}
-
-	/* SVGs are vector — scale up to fill the viewport */
-	.lb-img.lb-img--svg {
-		width: 90vw;
-		height: 78vh;
-		box-shadow: none;
-	}
-
-	/* Interactive SVG slot in the lightbox. Same sizing as .lb-img--svg
-	   so a vector diagram fills the viewport, anchors stay clickable.
-	   White background so the SVG's stray labels/text aren't sitting on
-	   the blurred-dark backdrop (the source SVG has a transparent canvas
-	   and only inner panels are filled). */
-	.lb-svg-container {
-		width: 90vw;
-		height: 78vh;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: #fff;
-		border-radius: 4px;
-		padding: 1.5rem;
-		box-sizing: border-box;
-		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-	}
-	.lb-svg-container[hidden] {
-		display: none;
-	}
-	.lb-svg-container :global(svg) {
-		max-width: 100%;
-		max-height: 100%;
-		width: 100%;
-		height: 100%;
-	}
-
-	/* Inline interactive SVG thumb (rendered via set:html — descendants are
-	   global). Background area shows zoom-in cursor; inner <a> tags revert
-	   to pointer. The thumb itself uses a div + role=button so nested <a>
-	   tags don't violate HTML semantics. */
+	/* Inline interactive SVG thumb — anchors inside revert to pointer cursor. */
 	.gallery-thumb--interactive {
 		cursor: zoom-in;
 	}
@@ -749,123 +475,7 @@ const useCardMode = cardMode && isSingle;
 		cursor: pointer;
 	}
 
-	/* ── Lightbox buttons (all position:fixed) ────── */
-
-	.lb-close,
-	.lb-prev,
-	.lb-next {
-		position: fixed;
-		z-index: 10001;
-		border-radius: 50%;
-		border: 1px solid rgba(255, 255, 255, 0.2);
-		background: rgba(30, 30, 40, 0.6);
-		backdrop-filter: blur(8px);
-		-webkit-backdrop-filter: blur(8px);
-		color: #fff;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		transition:
-			background 0.18s ease,
-			transform 0.18s ease;
-	}
-
-	.lb-close:hover,
-	.lb-prev:hover,
-	.lb-next:hover,
-	.lb-close:focus-visible,
-	.lb-prev:focus-visible,
-	.lb-next:focus-visible {
-		background: rgba(60, 60, 80, 0.85);
-		transform: scale(1.08);
-		outline: none;
-	}
-
-	.lb-close {
-		top: 1rem;
-		right: 1rem;
-		width: 2.5rem;
-		height: 2.5rem;
-	}
-
-	.lb-close svg {
-		width: 1.1rem;
-		height: 1.1rem;
-	}
-
-	/* Prev / Next — vertically centered in the viewport */
-	.lb-prev {
-		left: 1rem;
-		top: 50%;
-		transform: translateY(-50%);
-		width: 3rem;
-		height: 3rem;
-	}
-
-	.lb-next {
-		right: 1rem;
-		top: 50%;
-		transform: translateY(-50%);
-		width: 3rem;
-		height: 3rem;
-	}
-
-	.lb-prev:hover,
-	.lb-next:hover,
-	.lb-prev:focus-visible,
-	.lb-next:focus-visible {
-		transform: translateY(-50%) scale(1.08);
-	}
-
-	.lb-prev svg,
-	.lb-next svg {
-		width: 1.4rem;
-		height: 1.4rem;
-	}
-
-	.lb-prev[hidden],
-	.lb-next[hidden] {
-		visibility: hidden;
-		pointer-events: none;
-	}
-
-	/* ── Footer: caption + counter (fixed to bottom) ─────────────── */
-
-	.lb-footer {
-		position: fixed;
-		bottom: 1.5rem;
-		left: 50%;
-		transform: translateX(-50%);
-		z-index: 10000;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 0.25rem;
-		max-width: 80vw;
-		text-align: center;
-		pointer-events: none;
-	}
-
-	.lb-caption {
-		color: #fff;
-		font-size: 1.125rem;
-		line-height: 1.5;
-		background: rgba(0, 0, 0, 0.65);
-		padding: 0.5rem 1.25rem;
-		border-radius: 8px;
-		backdrop-filter: blur(8px);
-		-webkit-backdrop-filter: blur(8px);
-	}
-
-	.lb-counter {
-		color: rgba(255, 255, 255, 0.6);
-		font-size: 0.8rem;
-	}
-
-	/* ── Theme switching (light/dark image variants) ──── */
-	/* !important needed to override .single-thumb img / .thumb-img img display rules */
-
+	/* `!important` overrides the `display: block` on `.single-thumb img` / `.thumb-img img`. */
 	.dark-only {
 		display: none !important;
 	}
@@ -876,252 +486,380 @@ const useCardMode = cardMode && isSingle;
 		display: block !important;
 	}
 
-	/* Lightbox: show correct themed image */
-	.lb-img-dark {
-		display: none !important;
-	}
-	:global([data-theme='dark']) .lb-img-light {
-		display: none !important;
-	}
-	:global([data-theme='dark']) .lb-img-dark {
-		display: block !important;
-	}
-
-	/* ── Scroll lock — managed via JS (see lockScroll / unlockScroll) ── */
-	:global(html.gallery-scroll-locked) {
-		overflow: hidden;
-	}
-
-	/* ── Reduced motion ────────────────────────────── */
-
 	@media (prefers-reduced-motion: reduce) {
-		.gallery-lightbox.is-opening .lb-img-wrapper,
-		.gallery-lightbox.is-closing .lb-img-wrapper,
-		.gallery-lightbox.is-closing,
-		.lb-backdrop {
-			animation: none !important;
-		}
-
 		.gallery-thumb {
 			transition: none;
 		}
 	}
 </style>
 
-<script is:inline define:vars={{ galleryId }}>
-	/* eslint-disable @typescript-eslint/ban-ts-comment */
-	// @ts-nocheck
-	const gallery = document.getElementById(galleryId);
-	if (!gallery) throw new Error(`ImageGallery: #${galleryId} not found`);
+<script>
+	// Astro deduplicates this `<script>` per page — pages without an
+	// `<ImageGallery>` never load it.
+	import PhotoSwipeLightbox from 'photoswipe/lightbox';
+	import type PhotoSwipe from 'photoswipe';
+	import type { SlideData } from 'photoswipe';
 
-	const lightbox = gallery.querySelector('.gallery-lightbox');
-	const imgWrapper = gallery.querySelector('.lb-img-wrapper');
-	const lbImgLight = gallery.querySelector('.lb-img-light');
-	const lbImgDark = gallery.querySelector('.lb-img-dark');
-	const lbSvgContainer = gallery.querySelector('.lb-svg-container');
-	const caption = gallery.querySelector('.lb-caption');
-	const counter = gallery.querySelector('.lb-counter');
-	const closeBtn = gallery.querySelector('.lb-close');
-	const prevBtn = gallery.querySelector('.lb-prev');
-	const nextBtn = gallery.querySelector('.lb-next');
-	const backdrop = gallery.querySelector('.lb-backdrop');
-	const thumbs = Array.from(gallery.querySelectorAll('.gallery-thumb'));
+	// Tear down on re-init so View Transitions (when enabled) don't accumulate
+	// duplicate click handlers / observers across navigations.
+	let currentLb: PhotoSwipeLightbox | undefined;
 
-	// Teleport lightbox to document.body — escape any stacking context
-	// (article, main, content div may have isolation/transform/overflow that limits z-index)
-	// After this, position:fixed will be relative to viewport, not the parent element
-	document.body.appendChild(lightbox);
+	function init() {
+		currentLb?.destroy();
+		currentLb = undefined;
+		if (!document.querySelector('.image-gallery')) return;
 
-	let currentIndex = 0;
-	let isClosing = false;
+		const lb = new PhotoSwipeLightbox({
+			gallery: '.image-gallery',
+			children: '.gallery-thumb',
+			pswpModule: () => import('photoswipe'),
+			showHideAnimationType: 'zoom',
+			bgOpacity: 1,
+			padding: { top: 24, bottom: 64, left: 24, right: 24 },
+			wheelToZoom: true,
+			loop: false,
+			zoom: false,
+		});
 
-	function isOpen() {
-		return lightbox.getAttribute('aria-hidden') === 'false';
-	}
+		// Interactive SVG slides + dark-theme src swap for raster images.
+		lb.addFilter('itemData', (itemData: SlideData) => {
+			const el = itemData.element as HTMLElement | undefined;
+			if (!el) return itemData;
 
-	// Updates image and counter/caption
-	function updateContent() {
-		const btn = thumbs[currentIndex];
-		const isInteractive = btn.dataset.interactive === 'true';
-
-		// Reset both presentation modes — we toggle one on per row below.
-		lbSvgContainer.innerHTML = '';
-		lbSvgContainer.hidden = true;
-		lbImgLight.hidden = false;
-		lbImgDark.hidden = false;
-
-		if (isInteractive) {
-			// Clone the SVG from the thumb so the lightbox copy keeps the
-			// same <a> tags clickable.
-			const sourceSvg = btn.querySelector('svg');
-			if (sourceSvg) {
-				const clone = sourceSvg.cloneNode(true);
-				// Source SVG may have `width="95%"` etc. that's fine in the
-				// thumb but constrains the lightbox copy. Strip presentational
-				// width/height so the CSS sizing controls it.
-				clone.removeAttribute('width');
-				clone.removeAttribute('height');
-				lbSvgContainer.appendChild(clone);
+			if (el.dataset.pswpInteractiveSvg === 'true') {
+				// PhotoSwipe's `_domElementToItemData` runs `querySelector('a')`
+				// to extract an image href. With an SVG `<a>` inside, it returns
+				// an `SVGAnimatedString` that stringifies to "[object
+				// SVGAnimatedString]" — a broken URL. Build a fresh item with
+				// `type: 'html'` instead of spreading the polluted one.
+				return {
+					element: el,
+					type: 'html',
+					html: el.innerHTML,
+					width: parseInt(el.dataset.pswpWidth ?? '', 10) || 1600,
+					height: parseInt(el.dataset.pswpHeight ?? '', 10) || 900,
+				};
 			}
-			lbSvgContainer.hidden = false;
-			lbImgLight.hidden = true;
-			lbImgDark.hidden = true;
-		} else {
-			const lightSrc = btn.dataset.fullSrc;
-			const darkSrc = btn.dataset.fullSrcDark || lightSrc;
-			lbImgLight.src = lightSrc;
-			lbImgLight.alt = btn.dataset.alt;
-			lbImgDark.src = darkSrc;
-			lbImgDark.alt = btn.dataset.alt;
 
-			// SVGs are vector — scale up to fill viewport via CSS class
-			const isSvg = lightSrc.includes('.svg');
-			lbImgLight.classList.toggle('lb-img--svg', isSvg);
-			lbImgDark.classList.toggle('lb-img--svg', isSvg);
-		}
+			const isDark = document.documentElement.dataset.theme === 'dark';
+			if (isDark) {
+				const darkSrc = el.dataset.pswpSrcDark;
+				if (darkSrc) itemData.src = darkSrc;
+				const darkThumb = el.querySelector<HTMLImageElement>('img.dark-only');
+				if (darkThumb?.src) itemData.msrc = darkThumb.src;
+			}
+			return itemData;
+		});
 
-		caption.innerHTML = btn.dataset.caption ?? '';
-		caption.hidden = !caption.innerHTML;
+		// Use the visible img for zoom bounds — the hidden variant has rect (0,0,0,0).
+		lb.addFilter('thumbEl', (thumbnail, itemData) => {
+			const el = itemData.element as HTMLElement | undefined;
+			const isDark = document.documentElement.dataset.theme === 'dark';
+			const selector = isDark ? 'img:not(.light-only)' : 'img:not(.dark-only)';
+			return (el?.querySelector<HTMLImageElement>(selector) ?? thumbnail ?? el) as HTMLElement;
+		});
 
-		const single = thumbs.length <= 1;
-		counter.textContent = single ? '' : `${currentIndex + 1} / ${thumbs.length}`;
-		prevBtn.toggleAttribute('hidden', single);
-		nextBtn.toggleAttribute('hidden', single);
-	}
+		let pswp: PhotoSwipe | undefined;
+		let themeObserver: MutationObserver | null = null;
 
-	// When overflow:hidden removes the scrollbar, the ICB for fixed elements grows by the scrollbar
-	// width, causing the header (position:fixed; width:100%) to widen and visually jump.
-	// Fix: compensate html padding-right (keeps document content width) + header padding-right
-	// (keeps header content width). Suppress header transitions with `transition:none` + double-rAF
-	// so the instant padding change doesn't animate over the header's CSS transition-duration:0.3s.
-	const header = /** @type {HTMLElement|null} */ (document.querySelector('header.header'));
-	let headerCompensated = false;
+		// PhotoSwipe v5 does NOT lock document scroll itself. We lock `<html>`
+		// and compensate fixed widgets so they don't jump when the scrollbar hides.
+		let headerOriginalPadding = '';
+		let htmlOriginalPadding = '';
+		let yourgptOriginalPositionX = '';
+		// Per-element flags — restore only what this open cycle actually
+		// modified (handles the case where scrollbar disappears between opens,
+		// e.g. window resize).
+		let headerCompensated = false;
+		let chatCompensated = false;
+		function lockScroll() {
+			const sw = window.innerWidth - document.documentElement.clientWidth;
+			htmlOriginalPadding = document.documentElement.style.paddingRight;
+			if (sw > 0) {
+				document.documentElement.style.paddingRight = sw + 'px';
 
-	function lockScroll() {
-		const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-		if (scrollbarWidth <= 0) {
+				// Full-width fixed header: pad from the inside.
+				const header = document.querySelector<HTMLElement>('header.header');
+				if (header) {
+					const cur = parseFloat(getComputedStyle(header).paddingRight) || 0;
+					headerOriginalPadding = header.style.paddingRight;
+					header.style.transition = 'none';
+					header.style.paddingRight = cur + sw + 'px';
+					requestAnimationFrame(() =>
+						requestAnimationFrame(() => {
+							header.style.transition = '';
+						})
+					);
+					headerCompensated = true;
+				}
+
+				// yourgpt chat widget uses a CSS variable for its right offset —
+				// inline-override it (wins over the class declaration).
+				const chat = document.querySelector<HTMLElement>('.ygpt-chatbot');
+				if (chat) {
+					yourgptOriginalPositionX = chat.style.getPropertyValue('--yourgptChatbotPositionX');
+					const currentX =
+						parseFloat(getComputedStyle(chat).getPropertyValue('--yourgptChatbotPositionX')) || 0;
+					chat.style.setProperty('--yourgptChatbotPositionX', currentX + sw + 'px');
+					chatCompensated = true;
+				}
+			}
 			document.documentElement.classList.add('gallery-scroll-locked');
-			return;
 		}
-		if (header) {
-			const currentPaddingRight = parseFloat(getComputedStyle(header).paddingRight);
-			header.style.transition = 'none';
-			header.style.paddingRight = (currentPaddingRight + scrollbarWidth) + 'px';
-			requestAnimationFrame(() => requestAnimationFrame(() => { header.style.transition = ''; }));
-			headerCompensated = true;
-		}
-		document.documentElement.style.paddingRight = scrollbarWidth + 'px';
-		document.documentElement.classList.add('gallery-scroll-locked');
-	}
-
-	function unlockScroll() {
-		if (header && headerCompensated) {
-			header.style.transition = 'none';
-			header.style.paddingRight = '';
-			requestAnimationFrame(() => requestAnimationFrame(() => { header.style.transition = ''; }));
-			headerCompensated = false;
-		}
-		document.documentElement.classList.remove('gallery-scroll-locked');
-		document.documentElement.style.paddingRight = '';
-	}
-
-	function openLightbox(index, triggerBtn) {
-		if (isClosing) return;
-
-		// Thumbnail center in viewport coordinates → transform-origin for zoom animation
-		const rect = triggerBtn.getBoundingClientRect();
-		const originX = rect.left + rect.width / 2;
-		const originY = rect.top + rect.height / 2;
-		imgWrapper.style.transformOrigin = `${originX}px ${originY}px`;
-
-		currentIndex = index;
-		updateContent();
-
-		lockScroll();
-		lightbox.setAttribute('aria-hidden', 'false');
-
-		// First is-open (shows the element), then is-opening (triggers animation)
-		lightbox.classList.add('is-open', 'is-opening');
-		imgWrapper.addEventListener('animationend', () => lightbox.classList.remove('is-opening'), {
-			once: true,
-		});
-
-		closeBtn.focus();
-	}
-
-	function closeLightbox() {
-		if (isClosing || !isOpen()) return;
-		isClosing = true;
-
-		// Update origin to current thumbnail position (for collapse animation)
-		const btn = thumbs[currentIndex];
-		if (btn) {
-			const rect = btn.getBoundingClientRect();
-			imgWrapper.style.transformOrigin = `${rect.left + rect.width / 2}px ${rect.top + rect.height / 2}px`;
+		function unlockScroll() {
+			document.documentElement.classList.remove('gallery-scroll-locked');
+			document.documentElement.style.paddingRight = htmlOriginalPadding;
+			if (headerCompensated) {
+				const header = document.querySelector<HTMLElement>('header.header');
+				if (header) {
+					header.style.transition = 'none';
+					header.style.paddingRight = headerOriginalPadding;
+					requestAnimationFrame(() =>
+						requestAnimationFrame(() => {
+							header.style.transition = '';
+						})
+					);
+				}
+				headerCompensated = false;
+			}
+			if (chatCompensated) {
+				const chat = document.querySelector<HTMLElement>('.ygpt-chatbot');
+				if (chat) {
+					if (yourgptOriginalPositionX) {
+						chat.style.setProperty('--yourgptChatbotPositionX', yourgptOriginalPositionX);
+					} else {
+						chat.style.removeProperty('--yourgptChatbotPositionX');
+					}
+				}
+				chatCompensated = false;
+			}
 		}
 
-		lightbox.classList.remove('is-open');
-		lightbox.classList.add('is-closing');
+		lb.on('beforeOpen', lockScroll);
 
-		function finish() {
-			if (!lightbox.classList.contains('is-closing')) return;
-			lightbox.classList.remove('is-closing');
-			lightbox.setAttribute('aria-hidden', 'true');
-			thumbs[currentIndex]?.blur();
-			isClosing = false;
-			unlockScroll();
-		}
+		lb.on('afterInit', () => {
+			pswp = lb.pswp;
+			if (!pswp) return;
 
-		// Finish on animationend or after timeout (if animation is disabled)
-		lightbox.addEventListener('animationend', finish, { once: true });
-		setTimeout(finish, 280);
-	}
+			pswp.ui!.registerElement({
+				name: 'caption',
+				appendTo: 'root',
+				onInit: (el) => {
+					el.className = 'pswp-caption';
+					const refresh = () => {
+						const src = pswp?.currSlide?.data.element as HTMLElement | undefined;
+						const html = src?.dataset.caption ?? '';
+						el.innerHTML = html;
+						el.style.display = html ? '' : 'none';
+					};
+					pswp!.on('change', refresh);
+					refresh();
+				},
+			});
 
-	function showPrev() {
-		currentIndex = (currentIndex - 1 + thumbs.length) % thumbs.length;
-		updateContent();
-	}
+			// Preload neighbours so swipe is instant.
+			pswp.on('change', () => {
+				if (!pswp) return;
+				const cur = pswp.currIndex;
+				[cur - 1, cur + 1].forEach((i) => {
+					const data = pswp!.getItemData(i);
+					if (data?.src) {
+						new Image().src = data.src;
+					}
+				});
+			});
 
-	function showNext() {
-		currentIndex = (currentIndex + 1) % thumbs.length;
-		updateContent();
-	}
-
-	// Thumbnail click. For interactive-SVG thumbs we must skip the lightbox
-	// when the click hit an <a> — the browser is about to navigate.
-	thumbs.forEach((btn, i) => {
-		btn.addEventListener('click', (e) => {
-			if (btn.dataset.interactive === 'true' && e.target.closest('a')) return;
-			openLightbox(i, btn);
-		});
-		// Keyboard activation for the div-based interactive thumb.
-		if (btn.dataset.interactive === 'true') {
-			btn.addEventListener('keydown', (e) => {
-				if ((e.key === 'Enter' || e.key === ' ') && e.target === btn) {
-					e.preventDefault();
-					openLightbox(i, btn);
+			// Re-render current slide on site theme toggle.
+			themeObserver = new MutationObserver(() => {
+				if (pswp && pswp.currSlide) {
+					pswp.refreshSlideContent(pswp.currIndex);
 				}
 			});
-		}
-	});
+			themeObserver.observe(document.documentElement, {
+				attributes: true,
+				attributeFilter: ['data-theme'],
+			});
+		});
 
-	// Lightbox buttons
-	closeBtn.addEventListener('click', closeLightbox);
-	backdrop.addEventListener('click', closeLightbox);
-	// Click on the image area closes the lightbox — except when the click
-	// landed on an <a> inside an interactive SVG (let it navigate instead).
-	imgWrapper.addEventListener('click', (e) => {
-		if (e.target.closest('a')) return;
-		closeLightbox();
-	});
-	prevBtn.addEventListener('click', showPrev);
-	nextBtn.addEventListener('click', showNext);
+		lb.on('destroy', () => {
+			unlockScroll();
+			themeObserver?.disconnect();
+			themeObserver = null;
+			pswp = undefined;
+		});
 
-	// Keyboard (only if this lightbox is open)
-	document.addEventListener('keydown', (e) => {
-		if (!isOpen()) return;
-		if (e.key === 'Escape') closeLightbox();
-		else if (e.key === 'ArrowLeft') showPrev();
-		else if (e.key === 'ArrowRight') showNext();
-	});
+		lb.init();
+		currentLb = lb;
+	}
+
+	init();
+	document.addEventListener('astro:page-load', init);
 </script>
+
+<style is:global>
+	/* `.pswp` + `.pswp__bg` ship with `transform: translateZ(0)` + `will-change: opacity`.
+	   Together they create a compositing layer that prevents `backdrop-filter` from
+	   sampling the page behind PhotoSwipe (blur appears not to work). Drop both. */
+	.pswp {
+		--pswp-bg: rgba(10, 10, 20, 0.55);
+		/* Suppress the `#222` placeholder bg painted during zoom-from-thumbnail. */
+		--pswp-placeholder-bg: transparent;
+		/* PhotoSwipe icons have a 2px grey stroke designed for light buttons —
+		   make everything white for our dark blur-glass buttons. */
+		--pswp-icon-color: #fff;
+		--pswp-icon-color-secondary: #fff;
+		--pswp-icon-stroke-color: #fff;
+		--pswp-icon-stroke-width: 0;
+		transform: none !important;
+		will-change: auto !important;
+	}
+	.pswp__bg {
+		backdrop-filter: blur(18px) !important;
+		-webkit-backdrop-filter: blur(18px) !important;
+		transform: none !important;
+		/* Pre-allocate the blur compositing layer so it appears in sync with
+		   the bg opacity fade-in. */
+		will-change: backdrop-filter !important;
+	}
+
+	/* PhotoSwipe v5 doesn't lock document scroll itself. */
+	html.gallery-scroll-locked {
+		overflow: hidden !important;
+	}
+
+	.pswp__img {
+		border-radius: 4px;
+	}
+	/* `:not(--placeholder)` avoids stacking two box-shadows during the zoom
+	   animation (placeholder + full image are both `.pswp__img`). */
+	.pswp__img:not(.pswp__img--placeholder) {
+		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+	}
+	.pswp__img[src$='.svg'] {
+		box-shadow: none;
+	}
+
+	/* Interactive-SVG slide content — white panel + shadow for contrast. */
+	.pswp__zoom-wrap > .pswp__content {
+		width: 100%;
+		height: 100%;
+		background: #fff;
+		border-radius: 4px;
+		padding: 1.5rem;
+		box-sizing: border-box;
+		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+	.pswp__zoom-wrap > .pswp__content > svg {
+		max-width: 100%;
+		max-height: 100%;
+		width: 100%;
+		height: 100%;
+	}
+
+	.pswp__button {
+		border-radius: 50%;
+		background: rgba(30, 30, 40, 0.6);
+		backdrop-filter: blur(8px);
+		-webkit-backdrop-filter: blur(8px);
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		/* No `!important` — PhotoSwipe's `:disabled` and `.pswp--one-slide` hide
+		   rules must still win. */
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0;
+		transition: background 0.18s ease;
+	}
+	/* PhotoSwipe's `:hover, :active, :focus` reset wipes `transition` and
+	   `background`. Cover all three states explicitly. */
+	.pswp__button:hover,
+	.pswp__button:active,
+	.pswp__button:focus-visible {
+		background: rgba(60, 60, 80, 0.85);
+		transition: background 0.18s ease;
+	}
+
+	/* PhotoSwipe positions the icon absolutely with `top/left` — drop that
+	   so the flex parent centers it. */
+	.pswp__button .pswp__icn {
+		position: static;
+		margin: 0;
+	}
+
+	/* Lift the close button out of `.pswp__top-bar`'s flex flow so we can
+	   pin it at the viewport corner. */
+	.pswp__button--close {
+		position: absolute;
+		top: 1rem;
+		right: 1rem;
+		margin: 0;
+		width: 2.5rem;
+		height: 2.5rem;
+	}
+	.pswp__button--close .pswp__icn {
+		width: 1.5rem;
+		height: 1.5rem;
+	}
+
+	.pswp__button--arrow {
+		width: 3rem;
+		height: 3rem;
+		/* PhotoSwipe ships `margin-top: -50px` for its 100px-tall arrows;
+		   we need half of our 3rem to keep vertical centering. */
+		margin-top: -1.5rem;
+		transition:
+			background 0.18s ease,
+			transform 0.18s ease;
+	}
+	.pswp__button--arrow .pswp__icn {
+		width: 1.8rem;
+		height: 1.8rem;
+	}
+	.pswp__button--arrow:hover,
+	.pswp__button--arrow:active,
+	.pswp__button--arrow:focus-visible {
+		transform: scale(1.08);
+		transition:
+			background 0.18s ease,
+			transform 0.18s ease;
+	}
+	/* PhotoSwipe defaults arrows to `left: 0` / `right: 0` — push them in. */
+	.pswp__button--arrow--prev {
+		left: 1rem;
+	}
+	.pswp__button--arrow--next {
+		right: 1rem;
+	}
+
+	.pswp-caption {
+		position: absolute;
+		bottom: 1.5rem;
+		left: 50%;
+		transform: translateX(-50%);
+		max-width: 80vw;
+		padding: 0.5rem 1.25rem;
+		background: rgba(0, 0, 0, 0.65);
+		backdrop-filter: blur(8px);
+		-webkit-backdrop-filter: blur(8px);
+		color: #fff;
+		font-size: 1.125rem;
+		line-height: 1.5;
+		border-radius: 8px;
+		text-align: center;
+		pointer-events: none;
+		z-index: 1500;
+	}
+
+	/* Suppress PhotoSwipe's `text-shadow` — its colour comes from
+	   `--pswp-icon-color-secondary` which we set to white (would render as
+	   white-on-white blur). */
+	.pswp__counter {
+		color: rgba(255, 255, 255, 0.6);
+		font-size: 0.8rem;
+		opacity: 1;
+		text-shadow: none;
+	}
+</style>

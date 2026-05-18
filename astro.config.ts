@@ -69,6 +69,9 @@ export default defineConfig({
                 },
             },
         },
+        optimizeDeps: {
+            include: ['photoswipe', 'photoswipe/lightbox'],
+        },
         plugins: [
             {
                 name: 'starlight-icon-override',
