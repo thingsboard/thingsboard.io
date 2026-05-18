@@ -67,19 +67,29 @@ class LinkChecker {
 // Mirror the `site` resolution from astro.config.ts so preview builds
 // (Cloudflare Pages, Netlify, or an explicit PUBLIC_SITE_URL) parse the
 // sitemap under the same origin the build emitted.
+const PROD_ORIGIN = 'https://thingsboard.io';
 const resolvedSite =
 	process.env.PUBLIC_SITE_URL ||
 	(process.env.CF_PAGES_BRANCH && process.env.CF_PAGES_URL) ||
 	(process.env.CONTEXT !== 'production' && process.env.DEPLOY_PRIME_URL) ||
-	'https://thingsboard.io';
+	PROD_ORIGIN;
 
 // build-index.ts greps `<loc>${baseUrl}(/.*?)</loc>`, so the origin must not
 // carry a trailing slash.
 const baseUrl = resolvedSite.replace(/\/$/, '');
 
+// On preview/staging builds, also treat the production origin as local so
+// hardcoded `https://thingsboard.io/...` URLs in build artifacts (assets,
+// inlined SVGs, component output) are still caught by `[abs]` / `[404]`.
+// Otherwise they look like external links and slip past every check, which
+// is how the IoT Gateway architecture SVG smuggled 15 hardcoded prod URLs
+// into the build undetected.
+const additionalLocalHosts = baseUrl === PROD_ORIGIN ? [] : [PROD_ORIGIN];
+
 // Use our class to check for link issues
 const linkChecker = new LinkChecker({
 	baseUrl,
+	additionalLocalHosts,
 	buildOutputDir: './dist',
 	pageSourceDir: './src/content/docs',
 	// Include `astro.redirects` entries as pages so `[ref]` and its autofix can
