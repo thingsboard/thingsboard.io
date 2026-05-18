@@ -121,6 +121,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 			`${prefix}/local-ai-ollama`,
 			`${prefix}/mcp-server`,
 			`${prefix}/n8n-node`,
+			...(isPE ? [`${prefix}/cli`] : []),
 		],
 	},
 	{
@@ -1630,6 +1631,7 @@ export const paasSidebar: SidebarConfig = [
 					'docs/paas/user-guide/local-ai-ollama',
 					'docs/paas/user-guide/mcp-server',
 					'docs/paas/user-guide/n8n-node',
+					'docs/paas/user-guide/cli',
 				],
 			},
 			{
@@ -1975,6 +1977,7 @@ export const paasEuSidebar: SidebarConfig = [
 					'docs/paas/eu/user-guide/local-ai-ollama',
 					'docs/paas/eu/user-guide/mcp-server',
 					'docs/paas/eu/user-guide/n8n-node',
+					'docs/paas/eu/user-guide/cli',
 				],
 			},
 			{

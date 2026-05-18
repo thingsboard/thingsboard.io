@@ -1,0 +1,333 @@
+import DocLink from '@components/DocLink.astro';
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+**ThingsBoard CLI** is a command-line tool (`thingsboard`, alias `tb`) for managing your ThingsBoard resources from the terminal.
+
+It is purpose-built for **AI-driven solution development**: a single `tb init` call scaffolds a project on disk together with [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview) skills and agents that teach Claude how to design, generate, and deploy complete IoT solutions for you. You can also drive the CLI directly from the terminal for scripting, CI, or one-off tasks.
+
+## Key concepts
+
+- **Project** — your local workspace for designing and managing ThingsBoard solutions. You create one with `tb init` in any folder you like. From then on, that folder is where Claude builds your solutions and where the CLI looks when you run commands.
+- **Solution** — a self-contained collection of devices, dashboards, alarms, and the rest that work together to solve one business need (a smart house, a fleet, a factory line). A single project can hold many solutions, and the same solution can be deployed to multiple ThingsBoard targets (dev, staging, prod) without any changes.
+
+## Two ways to use it
+
+1. **Let Claude drive it.** Open the project in Claude Code, describe the solution you want, review what Claude produced, then run `tb push` to deploy.
+2. **Drive it yourself.** Run `tb device save`, `tb dashboard save`, `tb push`, and friends directly — great for scripting, CI pipelines, or quick one-off tasks.
+
+## Prerequisites
+
+- A ThingsBoard account — ThingsBoard Cloud, ThingsBoard Cloud EU, or self-hosted PE.
+- An <DocLink product={props.product} path="user-guide/security/api-keys">API key</DocLink> with CRUD permissions for the resources the CLI will manage.
+
+## Installation
+
+<Steps>
+1. **Install uv.** [uv](https://docs.astral.sh/uv/) is a fast Python package manager that handles the CLI's virtual environment for you.
+
+   ```bash
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   ```
+
+   See the [uv installation guide](https://docs.astral.sh/uv/getting-started/installation/) for platform-specific options.
+
+2. **Install the CLI.**
+
+   ```bash
+   uv tool install thingsboard-cli --index https://test.pypi.org/simple/ --index-strategy unsafe-best-match
+   ```
+
+   This installs the `thingsboard` command and its `tb` alias on your system.
+
+3. **Verify the install.**
+
+   ```bash
+   tb --version
+   ```
+
+4. **Keep it up to date.** The CLI checks for updates automatically each time you run it. You can also upgrade manually with `tb update`.
+</Steps>
+
+## Configure your first profile
+
+Run the interactive wizard:
+
+```bash
+tb config
+```
+
+The wizard asks four questions, in this order:
+
+```text
+ThingsBoard URL [https://thingsboard.cloud]:
+Auth method [api_key]:
+API Key: ********
+Profile name: cloud
+```
+
+- **ThingsBoard URL.** Enter the URL of the ThingsBoard instance you want to connect to:
+  - `https://thingsboard.cloud` — ThingsBoard Cloud (North America). This is the default; just press Enter.
+  - `https://eu.thingsboard.cloud` — ThingsBoard Cloud EU.
+  - Your own URL (e.g. `https://tb.example.com`) — self-hosted ThingsBoard PE.
+- **Auth method.** `api_key` is recommended. The alternative `jwt` prompts for username and password, which are stored in plaintext — the CLI will warn you and suggest API key auth instead.
+- **Profile name.** The wizard saves the profile under this name and makes it your default. Pick anything that makes sense for you — `cloud`, `cloud-eu`, `prod`, etc.
+
+On success the wizard prints:
+
+```text
+Profile '<name>' saved. Connected to <url>
+```
+
+If the connectivity test fails, the CLI still saves the profile but prints a warning. Re-run `tb config` to fix the URL or key, or run `tb config show` to confirm what's active.
+
+For scripting and CI, skip the wizard and use the one-shot form:
+
+```bash
+tb config set --url <url> --api-key <key>
+```
+
+You can have any number of profiles (typically one per ThingsBoard target):
+
+```bash
+tb config list                                       # show all profiles
+tb config use prod                                   # switch the default profile
+tb config add staging --url https://... --api-key ...
+tb config remove staging
+```
+
+Pass `--profile <name>` to any command to override the active profile for that single call.
+
+## Create your first project
+
+```bash
+mkdir my-iot-project && cd my-iot-project && tb init
+```
+
+The scaffold creates a directory tree like this:
+
+```text
+my-iot-project/
+  thingsboard.json         # project config
+  .gitignore
+  .git/                    # git repository (initialized if not already inside one)
+  devices/                 # entity directories — one JSON file per entity
+  device-profiles/
+  dashboards/
+  rule-chains/
+  customers/
+  calculated-fields/
+  ...
+  solutions/               # solutions live here, one subdirectory per solution
+  tasks/                   # synthetic-telemetry generators
+  .claude/                 # Claude Code skills bundled with the CLI
+```
+
+Open the project in [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview):
+
+```bash
+claude --model sonnet
+```
+
+The scaffolded `.claude/` skills auto-load and Claude can immediately design and generate solutions for you.
+
+## Building solutions with Claude
+
+Once you have a project on disk, the AI-first workflow is short: ask Claude for a solution, review what it built, run `tb push <slug>` when Claude tells you it's ready.
+
+<Steps>
+1. **You ask.** Describe the solution you want. Claude designs the full IoT solution for you — devices and their hierarchy, dashboards, alarms, calculated metrics, and customers and user accounts. It also generates demo telemetry emulators so your dashboards have data from day one, and validates the design against ThingsBoard as it goes.
+
+2. **You review.** By default, Claude pauses for your approval after each design step — first the entity model, then the dashboards. You can also tell Claude to run autonomously and just show you the final result.
+
+3. **You deploy.** When Claude says the solution is ready, run the `tb push <slug>` command it suggests. Add `--run-tasks` to also generate demo telemetry and backfill calculated fields with historical inputs:
+
+   ```bash
+   tb push smart-house --run-tasks
+   ```
+
+4. **You iterate.** Ask Claude for changes — *"add a humidity sensor to each room"*, *"split the kitchen dashboard"*. Claude regenerates the affected pieces, and you re-run `tb push`. Push is idempotent: ThingsBoard tracks entity identity by external ID, so the same solution can be pushed many times with no duplication.
+</Steps>
+
+### How to phrase your request
+
+Claude does its best work when you mention these things up front. It will ask if you don't, but answering up front means fewer follow-up questions:
+
+- **Domain & entities** — what's being monitored or controlled. Sensors, vehicles, machines, meters, infrastructure.
+- **Hierarchy** — are these standalone devices, or are they grouped inside container assets (a building, a fleet, a site)?
+- **Customers & users** — single tenant, or multiple independent customers / sites that should see only their own data?
+- **Alarms & metrics** — specific thresholds or derived values you care about. Optional; Claude proposes sensible defaults if you don't specify.
+
+**Example prompts:**
+
+- *"Create a smart house monitoring solution with a few temperature, humidity, and motion sensors per room."*
+- *"Build a fleet tracking system for two delivery customers, with location and battery alarms."*
+
+<Aside type="tip">
+The same flow is available as a slash command: `/create-solution`. Use it if you prefer that style of invocation.
+</Aside>
+
+### What Claude has access to
+
+`/create-solution` is the umbrella command; behind the scenes Claude uses purpose-built skills for entity generation, dashboards, alarms, calculated fields, and emulators. These ship with the CLI and update automatically with it.
+
+<Aside>
+`.claude/` is regenerated by the CLI on each launch, so don't commit it — a teammate's first `tb` command after cloning will repopulate it.
+</Aside>
+
+<Aside type="caution">
+Entities edited directly in the ThingsBoard UI will be **overwritten on the next `tb push`**. Treat the local project as the source of truth.
+</Aside>
+
+## Local vs remote mode
+
+The CLI has two operating modes:
+
+- **Local mode** — the default after `tb init`. Commands like `tb device save` write the resource to your project files on disk; nothing reaches ThingsBoard until you run `tb push`. This is what enables managing your tenant as code, multi-target deployments, and version control of your solutions.
+- **Remote mode** — `tb device save` and friends call the ThingsBoard API directly and apply changes immediately. No project files are written.
+
+Outside any project, the CLI always talks to the API directly — there's no project on disk to write to.
+
+Mode is a per-project setting. Switch it at any time:
+
+```bash
+tb config mode remote    # turn the current project into remote mode
+tb config mode local     # switch back to the default local mode
+```
+
+To force a single command to call the API directly without changing the project's mode, add `--remote`:
+
+```bash
+tb device save --remote --json '{"name": "Sensor-01", "type": "Temperature Sensor"}'
+```
+
+## Solutions & multi-target deployment
+
+ThingsBoard CLI treats your tenant configuration as code: entity definitions live in your project on disk, and `tb push` deploys them to ThingsBoard. The same solution can be pushed to multiple ThingsBoard targets — dev, staging, prod — without code changes.
+
+Each entity directory under the project root holds entities that aren't part of any solution. Solutions are self-contained slices under `solutions/<slug>/` with the same directory layout in miniature.
+
+When a solution is on disk you can target it from anywhere in the project with the `--solution` flag:
+
+```bash
+tb device save --solution smart-house --json '{"name": "Sensor-01", "type": "Temperature Sensor"}'
+```
+
+<Aside type="caution">
+**Don't `cd` into solution directories** to scope commands. Always use `--solution <name>`. The `--solution` flag works from anywhere inside your project and is more reliable than relying on the current directory.
+</Aside>
+
+To start a new solution by hand (without Claude):
+
+```bash
+tb solution new smart-house
+```
+
+### Multi-target push: dev → staging → prod
+
+The same solution can be deployed to multiple ThingsBoard environments by pushing it under different config profiles:
+
+```bash
+tb push smart-house --profile dev
+tb push smart-house --profile staging
+tb push smart-house --profile prod
+```
+
+The CLI writes **no state files** to your project — ThingsBoard itself tracks entity identity by external ID, so the same solution pushed to the same target twice updates the existing entities rather than creating duplicates. Develop and test against dev, promote to staging once you're happy, and ship to prod with the exact same files.
+
+### Validating without pushing
+
+```bash
+tb validate              # validate root entities
+tb validate smart-house  # validate one solution
+```
+
+Validation is a dry-run against the target ThingsBoard instance. Combine it with `--profile <name>` to validate against any environment.
+
+### What `--run-tasks` does
+
+`tb push --run-tasks` does the regular push and then runs two extra steps:
+
+- **Telemetry emulators.** The CLI writes synthetic telemetry for the devices Claude set up emulators for, so dashboards have something to display.
+- **Calculated field backfill.** The CLI replays historical inputs through each calculated field expression so derived values are populated for the time range covered by the emulators.
+
+Both steps are safe to omit on subsequent pushes once the data exists — they are most useful on the very first push to a fresh tenant.
+
+<Aside>
+Claude generates emulators automatically for devices it creates. If you're driving the CLI manually, add emulators with `tb emulator add` — see `tb emulator --help` for the available subcommands.
+</Aside>
+
+## Manual usage
+
+The CLI's own help is always up to date and is the canonical reference for every command.
+
+```bash
+tb --help                # top-level command groups
+tb device --help         # subcommands inside a group
+tb device save --help    # flags and options for one command
+```
+
+### Verbose help with `-H`
+
+For any command that maps to a ThingsBoard API method, append `-H` (or `--help-verbose`) to see the full request schema, including which fields are required, which are read-only, and the underlying API method name:
+
+```bash
+tb device save -H
+```
+
+Claude Code uses verbose help internally to discover schemas. Humans benefit from it too — it answers most "what JSON do I need to pass?" questions on the spot.
+
+### A handful of representative commands
+
+```bash
+# List devices
+tb device list
+
+# Create a device by passing a JSON body
+tb device save --json '{"name": "Sensor-01", "type": "Temperature Sensor"}'
+
+# Save server-scope attributes on an entity
+tb attributes save DEVICE 16216cd0-4f85-11f1-b03b-97f809988331 --scope SERVER_SCOPE --json '{"firmwareVersion": "1.0.3"}'
+```
+
+Every entity type has its own group (`tb dashboard`, `tb asset`, `tb customer`, `tb rule-chain`, `tb calculated-field`, ...) with the same `list` / `save` / `delete` shape.
+
+### Shell completion
+
+Install completion once and restart your terminal:
+
+```bash
+tb --install-completion bash    # bash
+tb --install-completion zsh     # zsh
+tb --install-completion fish    # fish
+```
+
+## Troubleshooting
+
+<Aside type="note" title="Not a ThingsBoard project. Run 'tb init' first.">
+You're outside any project directory. Either run `tb init` in the directory you want to manage as a project, or `cd` somewhere inside an existing project.
+</Aside>
+
+<Aside type="note" title="No entities to push.">
+The targeted solution or project root contains no entity files yet. Generate some with Claude or create them manually with `tb <entity-type> save`, then push again.
+</Aside>
+
+<Aside type="tip" title="Need to see the raw HTTP exchange">
+Add `--debug` to any command (for example, `tb push smart-house --debug`) or set `TB_DEBUG=1` in your environment. Both print every HTTP request and response — useful when filing a bug report.
+</Aside>
+
+<Aside type="caution" title="Authentication issues (403 on push, login failures)">
+The most common cause is an API key whose owning user lacks CRUD permissions for the resources you're pushing — API keys mirror the permissions of the user they were generated for, so check that user's role and permissions in ThingsBoard. You can also re-run `tb config` to redo the wizard, or `tb config show` to confirm which profile is active.
+</Aside>
+
+## Limitations
+
+<Aside type="caution">
+- Works with **ThingsBoard PE and Cloud.**
+- `tb push` has **no automatic rollback.** If you push a broken solution, fix it locally and push again.
+- Entity identity is tracked server-side by **external ID**. Entities created outside the CLI (for example, edited directly in the ThingsBoard UI) are not picked up and will be overwritten on the next `tb push` if they collide with project-managed entities.
+</Aside>
+
+## Links
+
+- **uv installer**: [docs.astral.sh/uv](https://docs.astral.sh/uv/)
+- **Claude Code**: [docs.anthropic.com/en/docs/claude-code](https://docs.anthropic.com/en/docs/claude-code/overview)
