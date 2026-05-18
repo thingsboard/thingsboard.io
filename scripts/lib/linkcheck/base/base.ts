@@ -35,6 +35,15 @@ export interface LinkCheckerOptions {
 	 * filtered out by `@astrojs/sitemap`).
 	 */
 	additionalPathnames?: string[];
+	/**
+	 * Origins that should be treated as "local" in addition to `baseUrl` — e.g.
+	 * the production origin `https://thingsboard.io` when the build was emitted
+	 * against a staging/preview origin via `PUBLIC_SITE_URL`. Without this,
+	 * hardcoded `https://thingsboard.io/...` links in build artifacts (assets,
+	 * inlined SVGs, component output) slip past `[abs]` / `[404]` checks because
+	 * they don't match the staging `baseUrl` and get treated as external.
+	 */
+	additionalLocalHosts?: string[];
 }
 
 export class LinkCheckerState {

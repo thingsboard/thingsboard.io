@@ -36,6 +36,7 @@ function findLinkIssuesOnPage(
 		check.checkHtmlPage({
 			allPages,
 			baseUrl: options.baseUrl,
+			additionalLocalHosts: options.additionalLocalHosts || [],
 			page,
 			checkSingleLinkHref,
 			buildOutputDir: options.buildOutputDir,
