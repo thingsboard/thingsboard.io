@@ -38,3 +38,9 @@ export const TBMQ_PE_VER = '2.3.0PE';
 
 /** TBMQ Broker release branch (for installation scripts) */
 export const TBMQ_BRANCH = 'release-2.3.0';
+
+/** ThingsBoard Java client — used by both the new (thingsboard-{ce,pe,paas}-client) and legacy (rest-client) docs */
+export const JAVA_CLIENT_VER = '4.3.1.1';
+
+/** ThingsBoard Python client — used by both the new (tb-{ce,pe,paas}-client) and legacy (tb-rest-client) docs */
+export const PYTHON_CLIENT_VER = '4.3.1.1';
