@@ -329,7 +329,7 @@ export const feedbackEntries: Record<string, FeedbackEntry[]> = {
 			companyName: 'TOURISTIC PLATFORM SYSTEMS SRL',
 			id: 'tps',
 			caseStudySlug: 'tps',
-			link: 'https://www.tps.company/',
+			link: 'https://www.tps-factory.com/',
 			companyImage: CDN + 'tps.svg',
 			companyImageWidth: 65,
 			companyImageHeight: 60,
