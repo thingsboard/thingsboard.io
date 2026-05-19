@@ -2185,7 +2185,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"Trackers"
 		],
 		"logo": "/images/partners/dragino-logo.webp",
-		"website": "http://www.dragino.com/",
+		"website": "https://www.dragino.com/",
 		"links": {
 			"generalGuides": [
 				{
@@ -2288,7 +2288,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"Trackers"
 		],
 		"logo": "/images/partners/sixfab-logo.webp",
-		"website": "https://sixfab.com/alpon",
+		"website": "https://sixfab.com/alpon/",
 		"links": {
 			"gatewayGuides": [
 				{
