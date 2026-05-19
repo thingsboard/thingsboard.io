@@ -593,13 +593,6 @@ export const DISTRIBUTORS: Distributor[] = [
 		website: "velotechsolutions.com",
 	},
 	{
-		name: "Voxney PLSC, Inc.",
-		regions: ["North America","South America"],
-		countries: ["United States of America","Belize","Panama","Peru","Colombia","Argentina"],
-		email: "trading@voxney.com",
-		website: "voxney.com",
-	},
-	{
 		name: "Wavecom",
 		regions: ["Europe"],
 		countries: ["Spain","Portugal"],
