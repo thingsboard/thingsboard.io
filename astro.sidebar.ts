@@ -484,9 +484,14 @@ const apisAndSdksItems = (prefix: string) => [
 		],
 	},
 	{
-		label: 'Server-side REST Clients',
+		label: 'Server-side Clients',
 		collapsed: true,
-		items: [`${prefix}/reference/java-rest-client`, `${prefix}/reference/python-rest-client`],
+		items: [
+			`${prefix}/reference/java-client`,
+			`${prefix}/reference/python-client`,
+			`${prefix}/reference/java-rest-client`,
+			`${prefix}/reference/python-rest-client`,
+		],
 	},
 	{
 		label: 'Mobile',
@@ -2368,9 +2373,14 @@ export const edgeSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'Server-side REST Clients',
+				label: 'Server-side Clients',
 				collapsed: true,
-				items: ['docs/edge/reference/java-rest-client', 'docs/edge/reference/python-rest-client'],
+				items: [
+					'docs/reference/java-client',
+					'docs/reference/python-client',
+					'docs/edge/reference/java-rest-client',
+					'docs/edge/reference/python-rest-client',
+				],
 			},
 			{
 				label: 'MCP Server',
@@ -2805,9 +2815,11 @@ export const edgePeSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'Server-side REST Clients',
+				label: 'Server-side Clients',
 				collapsed: true,
 				items: [
+					'docs/pe/reference/java-client',
+					'docs/pe/reference/python-client',
 					'docs/edge/pe/reference/java-rest-client',
 					'docs/edge/pe/reference/python-rest-client',
 				],
