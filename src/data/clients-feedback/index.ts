@@ -228,7 +228,6 @@ export const feedbackEntries: Record<string, FeedbackEntry[]> = {
 			position: 'Founder & CEO',
 			companyName: 'Sensolyze GmbH',
 			id: 'sensolyze',
-			link: 'https://www.sensolyze.com/',
 			authorImage: CDN + 'sensolyze-person.webp',
 			companyImage: CDN + 'sensolyze.svg',
 			companyImageWidth: 180,
