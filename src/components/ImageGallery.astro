@@ -164,6 +164,7 @@ const processed = await Promise.all(
 				fullHeight: undefined,
 				hasDark,
 				interactiveSvg: undefined as string | undefined,
+				isCdn: true,
 			};
 		}
 
@@ -191,6 +192,7 @@ const processed = await Promise.all(
 				fullHeight: lightMod.default.height,
 				hasDark,
 				interactiveSvg,
+				isCdn: false,
 			};
 		}
 
@@ -229,6 +231,7 @@ const processed = await Promise.all(
 			fullHeight: full.attributes.height as number | undefined,
 			hasDark,
 			interactiveSvg: undefined as string | undefined,
+			isCdn: false,
 		};
 	})
 );
@@ -265,6 +268,7 @@ const useCardMode = cardMode && isSingle;
 						data-pswp-width={processed[0].fullWidth ?? 1600}
 						data-pswp-height={processed[0].fullHeight ?? 900}
 						data-pswp-src-dark={processed[0].hasDark ? processed[0].darkFullSrc : undefined}
+						data-pswp-cdn={processed[0].isCdn ? 'true' : undefined}
 						data-caption={processed[0].caption}
 						aria-label={`View: ${processed[0].alt}`}
 					>
@@ -300,6 +304,7 @@ const useCardMode = cardMode && isSingle;
 						data-pswp-width={img.fullWidth ?? 1600}
 						data-pswp-height={img.fullHeight ?? 900}
 						data-pswp-src-dark={img.hasDark ? img.darkFullSrc : undefined}
+						data-pswp-cdn={img.isCdn ? 'true' : undefined}
 						data-caption={img.caption}
 						aria-label={`View: ${img.alt}`}
 					>
@@ -505,10 +510,35 @@ const useCardMode = cardMode && isSingle;
 	// duplicate click handlers / observers across navigations.
 	let currentLb: PhotoSwipeLightbox | undefined;
 
+	// CDN images skip the asset pipeline → no build-time dims. Use the visible
+	// <img>'s naturalWidth/Height (thumb === full-res for CDN sources).
+	function getVisibleImg(anchor: HTMLElement): HTMLImageElement | null {
+		const isDark = document.documentElement.dataset.theme === 'dark';
+		const selector = isDark ? 'img:not(.light-only)' : 'img:not(.dark-only)';
+		return anchor.querySelector<HTMLImageElement>(selector);
+	}
+
+	function syncCdnAnchorDims(anchor: HTMLElement) {
+		const img = getVisibleImg(anchor);
+		if (!img) return;
+		const apply = () => {
+			if (img.naturalWidth && img.naturalHeight) {
+				anchor.dataset.pswpWidth = String(img.naturalWidth);
+				anchor.dataset.pswpHeight = String(img.naturalHeight);
+			}
+		};
+		if (img.complete) apply();
+		else img.addEventListener('load', apply, { once: true });
+	}
+
 	function init() {
 		currentLb?.destroy();
 		currentLb = undefined;
 		if (!document.querySelector('.image-gallery')) return;
+
+		document
+			.querySelectorAll<HTMLElement>('.gallery-thumb[data-pswp-cdn="true"]')
+			.forEach(syncCdnAnchorDims);
 
 		const lb = new PhotoSwipeLightbox({
 			gallery: '.image-gallery',
@@ -554,6 +584,16 @@ const useCardMode = cardMode && isSingle;
 				const darkThumb = el.querySelector<HTMLImageElement>('img.dark-only');
 				if (darkThumb?.src) itemData.msrc = darkThumb.src;
 			}
+
+			// Backup if init's load listener hasn't fired yet (fast click).
+			if (el.dataset.pswpCdn === 'true') {
+				const img = getVisibleImg(el);
+				if (img?.naturalWidth && img.naturalHeight) {
+					itemData.width = img.naturalWidth;
+					itemData.height = img.naturalHeight;
+				}
+			}
+
 			return itemData;
 		});
 
