@@ -86,6 +86,8 @@ const filterGroups = [
 <script>
 	type FilterKey = 'connectivity' | 'industry' | 'useCase' | 'hardwareTypes';
 
+	const FILTER_KEYS: FilterKey[] = ['connectivity', 'industry', 'useCase', 'hardwareTypes'];
+
 	interface CardInfo {
 		el: HTMLElement;
 		slug: string;
@@ -95,6 +97,15 @@ const filterGroups = [
 		industry: string[];
 		useCase: string[];
 		hardwareTypes: string[];
+		searchText: string;
+	}
+
+	interface FilterOption {
+		label: HTMLLabelElement;
+		checkbox: HTMLInputElement;
+		countEl: HTMLElement | null;
+		key: string;
+		value: string;
 	}
 
 	interface SearchParams {
@@ -112,31 +123,43 @@ const filterGroups = [
 	}
 
 	function readCards(grid: HTMLElement): CardInfo[] {
-		return Array.from(grid.querySelectorAll<HTMLElement>('.partner-card')).map((el) => ({
-			el,
-			slug: el.dataset.partnerSlug || '',
-			name: el.querySelector('.partner-name')?.textContent || '',
-			description: el.dataset.description || '',
-			connectivity: JSON.parse(el.dataset.connectivity || '[]'),
-			industry: JSON.parse(el.dataset.industry || '[]'),
-			useCase: JSON.parse(el.dataset.useCase || '[]'),
-			hardwareTypes: JSON.parse(el.dataset.hardwareTypes || '[]'),
+		return Array.from(grid.querySelectorAll<HTMLElement>('.partner-card')).map((el) => {
+			const name = el.querySelector('.partner-name')?.textContent || '';
+			const description = el.dataset.description || '';
+			const connectivity = JSON.parse(el.dataset.connectivity || '[]');
+			const industry = JSON.parse(el.dataset.industry || '[]');
+			const useCase = JSON.parse(el.dataset.useCase || '[]');
+			const hardwareTypes = JSON.parse(el.dataset.hardwareTypes || '[]');
+			return {
+				el,
+				slug: el.dataset.partnerSlug || '',
+				name,
+				description,
+				connectivity,
+				industry,
+				useCase,
+				hardwareTypes,
+				searchText: [name, description, ...connectivity, ...industry, ...useCase, ...hardwareTypes]
+					.join(' ')
+					.toLowerCase(),
+			};
+		});
+	}
+
+	function readFilterOptions(sidebar: Element): FilterOption[] {
+		return Array.from(
+			sidebar.querySelectorAll<HTMLLabelElement>('.filter-option[data-filter-key]')
+		).map((label) => ({
+			label,
+			checkbox: label.querySelector<HTMLInputElement>('input[type="checkbox"]')!,
+			countEl: label.querySelector<HTMLElement>('.filter-count'),
+			key: label.dataset.filterKey || '',
+			value: label.dataset.filterValue || '',
 		}));
 	}
 
 	function matchesSearch(card: CardInfo, query: string): boolean {
-		if (!query) return true;
-		const haystack = [
-			card.name,
-			card.description,
-			...card.connectivity,
-			...card.industry,
-			...card.useCase,
-			...card.hardwareTypes,
-		]
-			.join(' ')
-			.toLowerCase();
-		return haystack.includes(query);
+		return !query || card.searchText.includes(query);
 	}
 
 	function matchesFilters(card: CardInfo, filters: Record<string, string[]>): boolean {
@@ -158,6 +181,49 @@ const filterGroups = [
 		const startIndex = (currentPage - 1) * params.pageSize;
 		const cards = filtered.slice(startIndex, startIndex + params.pageSize);
 		return { cards, total, totalPages, currentPage };
+	}
+
+	function computeFacetCounts(
+		allCards: CardInfo[],
+		filters: Record<string, string[]>,
+		query: string
+	): Record<string, Map<string, number>> {
+		const result: Record<string, Map<string, number>> = {};
+		for (const key of FILTER_KEYS) {
+			const { [key]: _excluded, ...otherFilters } = filters;
+			const selection = new Set(filters[key] || []);
+			const hasSelection = selection.size > 0;
+
+			const counts = new Map<string, number>();
+			for (const card of allCards) {
+				if (!matchesSearch(card, query) || !matchesFilters(card, otherFilters)) continue;
+				const cardMatchesSelection =
+					hasSelection && card[key].some((v) => selection.has(v));
+				for (const value of card[key]) {
+					// Unselected value in a card already part of the current OR-set adds nothing
+					if (hasSelection && !selection.has(value) && cardMatchesSelection) continue;
+					counts.set(value, (counts.get(value) || 0) + 1);
+				}
+			}
+			result[key] = counts;
+		}
+		return result;
+	}
+
+	function updateFacets(
+		options: FilterOption[],
+		counts: Record<string, Map<string, number>>,
+		filters: Record<string, string[]>
+	) {
+		for (const opt of options) {
+			const count = counts[opt.key]?.get(opt.value) ?? 0;
+			const selection = filters[opt.key] || [];
+			const isDelta = selection.length > 0 && !selection.includes(opt.value);
+			if (opt.countEl) opt.countEl.textContent = isDelta ? `(+${count})` : `(${count})`;
+			const shouldDisable = count === 0 && !opt.checkbox.checked;
+			opt.checkbox.disabled = shouldDisable;
+			opt.label.classList.toggle('is-disabled', shouldDisable);
+		}
 	}
 
 	function initPartnerLibrary() {
@@ -242,11 +308,15 @@ const filterGroups = [
 		}
 
 		const allCards = readCards(partnerGrid);
+		const sidebar = container.querySelector('.filter-sidebar');
+		const filterOptions = sidebar ? readFilterOptions(sidebar) : [];
 
 		function updateDisplay() {
+			const filters = getActiveFilters();
+			const query = searchInput.value.trim().toLowerCase();
 			const result = searchCards(allCards, {
 				search: searchInput.value.trim(),
-				filters: getActiveFilters(),
+				filters,
 				page: currentPage,
 				pageSize,
 			});
@@ -258,6 +328,8 @@ const filterGroups = [
 				card.el.classList.toggle('is-hidden', !visibleSlugs.has(card.slug));
 			});
 			noResultsEl.hidden = result.cards.length > 0;
+
+			updateFacets(filterOptions, computeFacetCounts(allCards, filters, query), filters);
 
 			currentPage = result.currentPage;
 			renderPagination(result.currentPage, result.totalPages);
