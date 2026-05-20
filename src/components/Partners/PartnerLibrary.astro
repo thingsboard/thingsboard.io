@@ -37,10 +37,6 @@ const filterGroups = [
 	{ name: 'Use Cases', key: 'useCase', values: getFilterValues('useCase') },
 ];
 
-const partnersWithHref = partners.map((p) => ({
-	...p,
-	href: `/partners/hardware/${p.slug}/`,
-}));
 ---
 
 <div class="partner-library" data-page-size={PAGE_SIZE}>
@@ -62,7 +58,7 @@ const partnersWithHref = partners.map((p) => ({
 
 		<div class="partner-grid" id="partner-grid">
 			{
-				partnersWithHref.map((partner, index) => (
+				partners.map((partner, index) => (
 					<PartnerCard
 						name={partner.name}
 						slug={partner.slug}
@@ -70,7 +66,9 @@ const partnersWithHref = partners.map((p) => ({
 						description={partner.description}
 						connectivity={partner.connectivity}
 						industry={partner.industry}
-						href={partner.href}
+						useCase={partner.useCase}
+						hardwareTypes={partner.hardwareTypes}
+						href={`/partners/hardware/${partner.slug}/`}
 						hidden={index >= PAGE_SIZE}
 					/>
 				))
@@ -85,21 +83,18 @@ const partnersWithHref = partners.map((p) => ({
 	</div>
 </div>
 
-<script is:inline define:vars={{ partnersWithHref }}>
-	window.__PARTNER_LIBRARY_DATA__ = partnersWithHref;
-</script>
-
 <script>
-	interface Partner {
-		name: string;
+	type FilterKey = 'connectivity' | 'industry' | 'useCase' | 'hardwareTypes';
+
+	interface CardInfo {
+		el: HTMLElement;
 		slug: string;
+		name: string;
+		description: string;
 		connectivity: string[];
 		industry: string[];
 		useCase: string[];
 		hardwareTypes: string[];
-		logo: string;
-		description: string;
-		href: string;
 	}
 
 	interface SearchParams {
@@ -110,62 +105,64 @@ const partnersWithHref = partners.map((p) => ({
 	}
 
 	interface SearchResult {
-		partners: Partner[];
+		cards: CardInfo[];
 		total: number;
 		totalPages: number;
 		currentPage: number;
 	}
 
-	function createPartnerAPI(allPartners: Partner[]) {
-		function matchesSearch(partner: Partner, query: string): boolean {
-			if (!query) return true;
-			const searchLower = query.toLowerCase();
-			const searchableFields = [
-				partner.name,
-				partner.description,
-				...partner.connectivity,
-				...partner.industry,
-				...partner.useCase,
-				...partner.hardwareTypes,
-			];
-			return searchableFields.some((field) => field.toLowerCase().includes(searchLower));
-		}
+	function readCards(grid: HTMLElement): CardInfo[] {
+		return Array.from(grid.querySelectorAll<HTMLElement>('.partner-card')).map((el) => ({
+			el,
+			slug: el.dataset.partnerSlug || '',
+			name: el.querySelector('.partner-name')?.textContent || '',
+			description: el.dataset.description || '',
+			connectivity: JSON.parse(el.dataset.connectivity || '[]'),
+			industry: JSON.parse(el.dataset.industry || '[]'),
+			useCase: JSON.parse(el.dataset.useCase || '[]'),
+			hardwareTypes: JSON.parse(el.dataset.hardwareTypes || '[]'),
+		}));
+	}
 
-		function matchesFilters(partner: Partner, filters: Record<string, string[]>): boolean {
-			for (const [key, values] of Object.entries(filters)) {
-				const partnerValues =
-					partner[key as 'connectivity' | 'industry' | 'useCase' | 'hardwareTypes'] || [];
-				const hasMatch = values.some((v) => partnerValues.includes(v));
-				if (!hasMatch) return false;
-			}
-			return true;
-		}
+	function matchesSearch(card: CardInfo, query: string): boolean {
+		if (!query) return true;
+		const haystack = [
+			card.name,
+			card.description,
+			...card.connectivity,
+			...card.industry,
+			...card.useCase,
+			...card.hardwareTypes,
+		]
+			.join(' ')
+			.toLowerCase();
+		return haystack.includes(query);
+	}
 
-		return {
-			search(params: SearchParams): SearchResult {
-				const filtered = allPartners.filter(
-					(partner) =>
-						matchesSearch(partner, params.search) &&
-						matchesFilters(partner, params.filters)
-				);
-				const total = filtered.length;
-				const totalPages = Math.ceil(total / params.pageSize) || 1;
-				const currentPage = Math.min(Math.max(1, params.page), totalPages);
-				const startIndex = (currentPage - 1) * params.pageSize;
-				const partners = filtered.slice(startIndex, startIndex + params.pageSize);
-				return { partners, total, totalPages, currentPage };
-			},
-		};
+	function matchesFilters(card: CardInfo, filters: Record<string, string[]>): boolean {
+		for (const [key, values] of Object.entries(filters)) {
+			const cardValues = card[key as FilterKey] || [];
+			if (!values.some((v) => cardValues.includes(v))) return false;
+		}
+		return true;
+	}
+
+	function searchCards(allCards: CardInfo[], params: SearchParams): SearchResult {
+		const query = params.search.toLowerCase();
+		const filtered = allCards.filter(
+			(card) => matchesSearch(card, query) && matchesFilters(card, params.filters)
+		);
+		const total = filtered.length;
+		const totalPages = Math.ceil(total / params.pageSize) || 1;
+		const currentPage = Math.min(Math.max(1, params.page), totalPages);
+		const startIndex = (currentPage - 1) * params.pageSize;
+		const cards = filtered.slice(startIndex, startIndex + params.pageSize);
+		return { cards, total, totalPages, currentPage };
 	}
 
 	function initPartnerLibrary() {
 		const container = document.querySelector('.partner-library');
 		if (!container) return;
-
-		const allPartners = (window as any).__PARTNER_LIBRARY_DATA__ as Partner[];
-		if (!allPartners) return;
-
-		const api = createPartnerAPI(allPartners);
 
 		const partnerGrid = container.querySelector('#partner-grid') as HTMLElement;
 		const partnerCountEl = container.querySelector('#partner-count') as HTMLElement;
@@ -244,17 +241,10 @@ const partnersWithHref = partners.map((p) => ({
 				.join('');
 		}
 
-		const allCards = Array.from(
-			partnerGrid.querySelectorAll<HTMLElement>('.partner-card')
-		);
-		const cardsBySlug = new Map<string, HTMLElement>();
-		allCards.forEach((card) => {
-			const slug = card.getAttribute('data-partner-slug');
-			if (slug) cardsBySlug.set(slug, card);
-		});
+		const allCards = readCards(partnerGrid);
 
 		function updateDisplay() {
-			const result = api.search({
+			const result = searchCards(allCards, {
 				search: searchInput.value.trim(),
 				filters: getActiveFilters(),
 				page: currentPage,
@@ -263,11 +253,11 @@ const partnersWithHref = partners.map((p) => ({
 
 			partnerCountEl.textContent = String(result.total);
 
-			const visibleSlugs = new Set(result.partners.map((p) => p.slug));
-			cardsBySlug.forEach((card, slug) => {
-				card.classList.toggle('is-hidden', !visibleSlugs.has(slug));
+			const visibleSlugs = new Set(result.cards.map((c) => c.slug));
+			allCards.forEach((card) => {
+				card.el.classList.toggle('is-hidden', !visibleSlugs.has(card.slug));
 			});
-			noResultsEl.hidden = result.partners.length > 0;
+			noResultsEl.hidden = result.cards.length > 0;
 
 			currentPage = result.currentPage;
 			renderPagination(result.currentPage, result.totalPages);
@@ -327,8 +317,7 @@ const partnersWithHref = partners.map((p) => ({
 			}
 		});
 
-		const initialTotal = allPartners.length;
-		const initialTotalPages = Math.ceil(initialTotal / pageSize);
+		const initialTotalPages = Math.ceil(allCards.length / pageSize);
 		renderPagination(1, initialTotalPages);
 	}
 
