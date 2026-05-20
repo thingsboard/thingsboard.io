@@ -121,7 +121,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 			`${prefix}/local-ai-ollama`,
 			`${prefix}/mcp-server`,
 			`${prefix}/n8n-node`,
-			...(isPE ? [`${prefix}/cli`] : []),
+			{ slug: `${prefix}/cli`, badge: { text: 'New', class: 'tb-badge' } },
 		],
 	},
 	{
@@ -484,13 +484,14 @@ const apisAndSdksItems = (prefix: string) => [
 		],
 	},
 	{
-		label: 'Server-side Clients',
+		label: 'Clients & CLI',
 		collapsed: true,
 		items: [
+			// Using `slug:` (not raw `link:`) so the per-version sidebar filter in routeData.ts keeps
+			// the entry inside its own sidebar only — avoids cross-sidebar duplication.
+			{ slug: `${prefix}/user-guide/cli`, badge: { text: 'New', class: 'tb-badge' } },
 			`${prefix}/reference/java-client`,
 			`${prefix}/reference/python-client`,
-			`${prefix}/reference/java-rest-client`,
-			`${prefix}/reference/python-rest-client`,
 		],
 	},
 	{
@@ -1636,7 +1637,7 @@ export const paasSidebar: SidebarConfig = [
 					'docs/paas/user-guide/local-ai-ollama',
 					'docs/paas/user-guide/mcp-server',
 					'docs/paas/user-guide/n8n-node',
-					'docs/paas/user-guide/cli',
+					{ slug: 'docs/paas/user-guide/cli', badge: { text: 'New', class: 'tb-badge' } },
 				],
 			},
 			{
@@ -1982,7 +1983,7 @@ export const paasEuSidebar: SidebarConfig = [
 					'docs/paas/eu/user-guide/local-ai-ollama',
 					'docs/paas/eu/user-guide/mcp-server',
 					'docs/paas/eu/user-guide/n8n-node',
-					'docs/paas/eu/user-guide/cli',
+					{ slug: 'docs/paas/eu/user-guide/cli', badge: { text: 'New', class: 'tb-badge' } },
 				],
 			},
 			{
@@ -2370,16 +2371,6 @@ export const edgeSidebar: SidebarConfig = [
 					'docs/edge/reference/websocket-api',
 					'docs/edge/reference/data-query-api',
 					'docs/edge/reference/alarm-query-api',
-				],
-			},
-			{
-				label: 'Server-side Clients',
-				collapsed: true,
-				items: [
-					'docs/reference/java-client',
-					'docs/reference/python-client',
-					'docs/edge/reference/java-rest-client',
-					'docs/edge/reference/python-rest-client',
 				],
 			},
 			{
@@ -2812,16 +2803,6 @@ export const edgePeSidebar: SidebarConfig = [
 					'docs/edge/pe/reference/websocket-api',
 					'docs/edge/pe/reference/data-query-api',
 					'docs/edge/pe/reference/alarm-query-api',
-				],
-			},
-			{
-				label: 'Server-side Clients',
-				collapsed: true,
-				items: [
-					'docs/pe/reference/java-client',
-					'docs/pe/reference/python-client',
-					'docs/edge/pe/reference/java-rest-client',
-					'docs/edge/pe/reference/python-rest-client',
 				],
 			},
 			{
