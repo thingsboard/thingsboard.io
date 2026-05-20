@@ -3,7 +3,7 @@ import DocLink from '@components/DocLink.astro';
 import HostCode from '~/components/HostCode.astro';
 import ConditionalHeading from '~/components/ConditionalHeading.astro';
 import { Products } from '~/models/site.models';
-import { JAVA_CLIENT_VER } from '~/data/versions';
+import { TB_VER } from '~/data/versions';
 
 export const artifactId = (product) =>
     product === Products.CE
@@ -16,20 +16,28 @@ export const mavenDependency = (product) => `<dependencies>
     <dependency>
         <groupId>org.thingsboard.client</groupId>
         <artifactId>${artifactId(product)}</artifactId>
-        <version>${JAVA_CLIENT_VER}</version>
+        <version>${TB_VER}</version>
     </dependency>
 </dependencies>`;
 
-The ThingsBoard Java client wraps the <DocLink product={props.product} path='reference/rest-api'>REST API</DocLink> and is auto-generated from the OpenAPI spec. Edition-specific artifacts ensure type-safe access to the right endpoints for your tenant.
+export const saveDeviceCall = (product) =>
+    product === Products.CE
+        ? 'Device savedDevice = client.saveDevice(newDevice, null, null, null, null);'
+        : 'Device savedDevice = client.saveDevice(newDevice, null, null, null, null, null, null);';
+
+<Aside type="note">
+Looking for the legacy <DocLink product={props.product} path='reference/java-rest-client'>Java REST Client</DocLink>? It still works but is no longer recommended for new projects.
+</Aside>
+
+The ThingsBoard Java REST Client wraps the <DocLink product={props.product} path='reference/rest-api'>REST API</DocLink> and is auto-generated from the OpenAPI spec — every REST endpoint has a typed method. Edition-specific artifacts ensure type-safe access to the right endpoints for your tenant.
 
 <Aside type="tip">
-Source and additional examples are available in the [thingsboard-java-client](https://github.com/thingsboard/thingsboard-java-client) repository.
-For a Python alternative, see the <DocLink product={props.product} path='reference/python-client'>Python client</DocLink>.
+Source and additional examples are available in the [thingsboard-java-client](https://github.com/thingsboard/thingsboard-java-client) repository. For a Python alternative, see the <DocLink product={props.product} path='reference/python-client'>Python REST Client</DocLink>.
 </Aside>
 
 ## Installation
 
-Add the Maven dependency:
+Add the Maven dependency for your edition:
 
 <Code lang="xml" code={mavenDependency(props.product)} />
 
@@ -44,7 +52,41 @@ Add the ThingsBoard repository:
 </repositories>
 ```
 
+The client lives under `org.thingsboard.client.*` and all models under `org.thingsboard.client.model.*`. Snippets below assume a `ThingsboardClient client` from one of the [Quickstart](#quickstart) or [Authentication](#authentication) examples.
+
+## Quickstart
+
+End-to-end: authenticate with an API key, create a device, push a telemetry value, then clean up. Drop it into a `main()` to run.
+
+<HostCode product={props.product} lang="java" meta="maxLines=30 collapsible" code={`import org.thingsboard.client.ApiException;
+import org.thingsboard.client.ThingsboardClient;
+import org.thingsboard.client.model.Device;
+
+public class Quickstart {
+    public static void main(String[] args) throws ApiException {
+        ThingsboardClient client = ThingsboardClient.builder()
+            .url("{BASE_URL}")
+            .apiKey("YOUR_API_KEY_VALUE")
+            .build();
+
+        Device newDevice = new Device();
+        newDevice.setName("Quickstart Device");
+        newDevice.setType("default");
+        ${saveDeviceCall(props.product)}
+
+        String deviceId = savedDevice.getId().getId().toString();
+        client.saveEntityTelemetry("DEVICE", deviceId, "ANY", """
+            {"temperature": 22.4}
+            """);
+        System.out.println("Pushed telemetry to " + savedDevice.getName());
+
+        client.deleteDevice(deviceId);
+    }
+}`} />
+
 ## Authentication
+
+`ThingsboardClient.builder()` constructs and configures the client. `.build()` logs in immediately when credentials are supplied and starts a background JWT refresh; the client re-logs in transparently if the refresh token expires.
 
 ### API key (recommended)
 
@@ -59,175 +101,181 @@ ThingsboardClient client = ThingsboardClient.builder()
     .apiKey(apiKey)
     .build();
 
-System.out.println(client.getUser());`} />
+System.out.println("Logged in as " + client.getUser().getEmail());`} />
 
 ### Username and password (JWT)
 
 <HostCode product={props.product} lang="java" code={`String url = "{BASE_URL}";
-String username = "tenant@thingsboard.org";
-String password = "tenant";
 ThingsboardClient client = ThingsboardClient.builder()
     .url(url)
+    .credentials("tenant@thingsboard.org", "tenant")
     .build();
-client.login(username, password);
 
-System.out.println(client.getUser());`} />
+System.out.println("Logged in as " + client.getUser().getEmail());`} />
 
-The JWT flow refreshes tokens automatically before they expire — no extra bookkeeping required.
+## Rate-limit handling
 
-## Manage devices
+The client retries `429 Too Many Requests` responses with exponential backoff by default. Tune via builder methods (defaults shown below), or call `.retryOnRateLimit(false)` to disable:
 
-Create a device, save and read shared attributes, then delete:
-
-<HostCode product={props.product} lang="java" meta="maxLines=30 collapsible" code={`String url = "{BASE_URL}";
-String apiKey = "YOUR_API_KEY_VALUE";
-ThingsboardClient client = ThingsboardClient.builder()
+<HostCode product={props.product} lang="java" code={`ThingsboardClient client = ThingsboardClient.builder()
     .url(url)
     .apiKey(apiKey)
-    .build();
+    .maxRetries(3)              // default 3
+    .initialRetryDelayMs(1000)  // default 1 s
+    .maxRetryDelayMs(30_000)    // default 30 s
+    .build();`} />
 
-Device newDevice = new Device();
+## Working with entities
+
+Every entity type — devices, assets, dashboards, customers, alarms — exposes the same method-naming pattern: `save<Entity>`, `get<Entity>ById`, `get<Entity>InfoById`, `delete<Entity>`. Required fields differ per type; see the <DocLink product={props.product} path='reference/rest-api'>REST API reference</DocLink> for each model. The walkthrough below uses devices. To update an existing entity, mutate the model and call `save<Entity>` again.
+
+<HostCode product={props.product} lang="java" meta="maxLines=20 collapsible" code={`Device newDevice = new Device();
 newDevice.setName("Test Device");
 newDevice.setType("default");
-Device savedDevice = client.saveDevice(newDevice, null, null, null, null, null, null);
-System.out.println("Saved device: " + savedDevice);
+${saveDeviceCall(props.product)}
 
 String deviceId = savedDevice.getId().getId().toString();
-DeviceInfo foundDevice = client.getDeviceInfoById(deviceId);
-
-client.saveEntityAttributesV2("DEVICE", deviceId, "SHARED_SCOPE",
-    """
-    {"temperature": 22.4, "humidity": 57.4}
-    """);
-
-List<AttributeData> attributes = client.getAttributesByScope(
-    "DEVICE", deviceId, "SHARED_SCOPE",
-    "temperature,humidity", null);
-System.out.println("Found attributes:");
-attributes.forEach(System.out::println);
+Device fetched = client.getDeviceById(deviceId);
+System.out.println("Fetched: " + fetched.getName());
 
 client.deleteDevice(deviceId);`} />
 
+{props.product !== Products.CE && (<Aside type="note">
+On PE and PaaS, `saveDevice` takes two extra optional parameters — `entityGroupId` and `entityGroupIds` — for assigning the device to one or more entity groups on save. Pass `null` for both when you don't need this; parameters are positional so trailing optionals can't be omitted.
+</Aside>)}
+
+## Telemetry and attributes
+
+Both `saveEntityTelemetry(entityType, entityId, scope, body)` and `saveEntityAttributesV2(entityType, entityId, scope, body)` take a JSON **string** as `body`, not a typed model — build it with `ObjectMapper.writeValueAsString(...)` or a text block.
+
+### Push telemetry
+
+<HostCode product={props.product} lang="java" code={`String deviceId = "YOUR_DEVICE_ID";
+String body = """
+    {"temperature": 26.5, "humidity": 87}
+    """;
+client.saveEntityTelemetry("DEVICE", deviceId, "ANY", body);`} />
+
 <Aside type="note">
-CE method signatures have fewer trailing arguments — check the JavaDoc bundled with your edition's JAR under `api-docs/` for exact parameter lists.
+The `scope` parameter is required by the URL path but server-ignored for telemetry — pass any non-empty string.
 </Aside>
 
-## Fetch tenant devices
+### Read and write attributes
 
-Paginate through every device on the tenant:
+This example uses an asset with a `deviceCount` attribute; the same calls work for any entity type — substitute `"DEVICE"` / `deviceId` for a device.
 
-<HostCode product={props.product} lang="java" code={`String url = "{BASE_URL}";
-String apiKey = "YOUR_API_KEY_VALUE";
-ThingsboardClient client = ThingsboardClient.builder()
-    .url(url)
-    .apiKey(apiKey)
-    .build();
-
-int page = 0;
-PageDataDevice tenantDevices;
-do {
-    tenantDevices = client.getTenantDevices(10, page, null, null, null, null);
-    tenantDevices.getData().forEach(System.out::println);
-    page++;
-} while (tenantDevices.getHasNext());`} />
-
-## Manage attributes (read-modify-write)
-
-Read an attribute value, change it, and write it back:
-
-<HostCode product={props.product} lang="java" meta="maxLines=25 collapsible" code={`String url = "{BASE_URL}";
-String apiKey = "YOUR_API_KEY_VALUE";
-ThingsboardClient client = ThingsboardClient.builder()
-    .url(url)
-    .apiKey(apiKey)
-    .build();
-
-String assetId = "YOUR_ASSET_ID";
+<HostCode product={props.product} lang="java" meta="maxLines=20 collapsible" code={`String assetId = "YOUR_ASSET_ID";
 
 List<AttributeData> attrs = client.getAttributesByScope(
     "ASSET", assetId, "SERVER_SCOPE", "deviceCount", null);
 
-long current = 0;
-if (!attrs.isEmpty()) {
-    current = ((Number) attrs.get(0).getValue()).longValue();
-}
-
+// getValue() returns Object — JSON numbers come back as Number subclasses
+long current = attrs.isEmpty() ? 0L : ((Number) attrs.get(0).getValue()).longValue();
 long updated = current + 1;
+
 client.saveEntityAttributesV2("ASSET", assetId, "SERVER_SCOPE",
     "{\\"deviceCount\\": %d}".formatted(updated));`} />
 
-## Count entities with Entity Data Query API
+## Listing and querying entities
 
-Count all devices, then count only the active ones:
+### Paginated tenant list
 
-<HostCode product={props.product} lang="java" meta="maxLines=30 collapsible" code={`String url = "{BASE_URL}";
-String apiKey = "YOUR_API_KEY_VALUE";
-ThingsboardClient client = ThingsboardClient.builder()
-    .url(url)
-    .apiKey(apiKey)
-    .build();
+Use `getTenantDevices` (and its equivalents for other entity types) to walk every entity on the tenant. The return type is `PageDataDevice` — the generated per-entity page type; there's `PageDataAsset`, `PageDataDashboard`, etc.
+
+<HostCode product={props.product} lang="java" code={`int page = 0;  // pages are zero-indexed
+PageDataDevice devices;
+do {
+    devices = client.getTenantDevices(100, page, null, null, null, null);
+    devices.getData().forEach(System.out::println);
+    page++;
+} while (devices.getHasNext());`} />
+
+### Filtered query with Entity Data Query API
+
+For server-side filtering on attribute or telemetry values, use the Entity Data Query API. The example below counts all devices, then counts only the active ones:
+
+<HostCode product={props.product} lang="java" meta="maxLines=30 collapsible" code={`import org.thingsboard.client.model.BooleanOperation;
 
 EntityTypeFilter typeFilter = new EntityTypeFilter();
 typeFilter.setEntityType(EntityType.DEVICE);
 
-EntityCountQuery totalDevicesQuery = new EntityCountQuery();
-totalDevicesQuery.setEntityFilter(typeFilter);
-Long totalDevices = client.countEntitiesByQuery(totalDevicesQuery);
-System.out.println("Total devices: " + totalDevices);
+EntityCountQuery totalQuery = new EntityCountQuery();
+totalQuery.setEntityFilter(typeFilter);
+System.out.println("Total devices: " + client.countEntitiesByQuery(totalQuery));
 
-KeyFilter keyFilter = new KeyFilter();
-keyFilter.setKey(new EntityKey().type(EntityKeyType.ATTRIBUTE).key("active"));
-keyFilter.setValueType(EntityKeyValueType.BOOLEAN);
-
+KeyFilter activeFilter = new KeyFilter();
+activeFilter.setKey(new EntityKey().type(EntityKeyType.ATTRIBUTE).key("active"));
+activeFilter.setValueType(EntityKeyValueType.BOOLEAN);
 BooleanFilterPredicate predicate = new BooleanFilterPredicate();
-predicate.setOperation(BooleanFilterPredicate.OperationEnum.EQUAL);
+predicate.setOperation(BooleanOperation.EQUAL);
 predicate.setValue(new FilterPredicateValueBoolean().defaultValue(true));
-keyFilter.setPredicate(predicate);
+activeFilter.setPredicate(predicate);
 
-EntityCountQuery activeDevicesQuery = new EntityCountQuery();
-activeDevicesQuery.setEntityFilter(typeFilter);
-activeDevicesQuery.setKeyFilters(List.of(keyFilter));
-Long activeDevices = client.countEntitiesByQuery(activeDevicesQuery);
-System.out.println("Active devices: " + activeDevices);`} />
+EntityCountQuery activeQuery = new EntityCountQuery();
+activeQuery.setEntityFilter(typeFilter);
+activeQuery.setKeyFilters(List.of(activeFilter));
+System.out.println("Active devices: " + client.countEntitiesByQuery(activeQuery));`} />
+
+For a paginated **list** of matching entities (not just a count), build an `EntityDataQuery` with an `EntityDataPageLink` and call `client.findEntityDataByQuery(query)`. See the [tb-examples.md catalog](https://github.com/thingsboard/thingsboard-java-client/blob/master/common/docs/tb-examples.md) for full examples.
 
 {props.product !== Products.CE && (<>
 <ConditionalHeading level={2} id="entity-groups-and-permissions" exclude="ce">Entity groups and permissions</ConditionalHeading>
 
 <Aside type="note">
-The APIs in this section are only available in the PE and PaaS editions. They will not compile against the CE client.
+The methods in this section are only available in the PE and PaaS editions. See the <DocLink product={props.product} path='user-guide/entity-groups'>Entity Groups</DocLink> and <DocLink product={props.product} path='user-guide/role-management'>Roles</DocLink> guides for the underlying concepts.
 </Aside>
 
-<ConditionalHeading level={3} id="create-a-device-group" exclude="ce">Create a device group</ConditionalHeading>
+<ConditionalHeading level={3} id="create-and-populate-a-group" exclude="ce">Create and populate a group</ConditionalHeading>
 
 <HostCode product={props.product} lang="java" code={`EntityGroup deviceGroup = new EntityGroup();
 deviceGroup.setName("Acme Devices");
 deviceGroup.setType(EntityGroup.TypeEnum.DEVICE);
 EntityGroupInfo savedGroup = client.saveEntityGroup(deviceGroup);
-String deviceGroupId = savedGroup.getId().getId().toString();`} />
+String deviceGroupId = savedGroup.getId().getId().toString();
 
-<ConditionalHeading level={3} id="add-devices-to-the-group" exclude="ce">Add devices to the group</ConditionalHeading>
+// addEntitiesToEntityGroup takes a List<String> of raw UUID strings
+client.addEntitiesToEntityGroup(deviceGroupId, List.of("YOUR_DEVICE_ID"));`} />
 
-<HostCode product={props.product} lang="java" code={`client.addEntitiesToEntityGroup(deviceGroupId, List.of(deviceId));`} />
+<ConditionalHeading level={3} id="share-with-a-customer" exclude="ce">Share with a customer</ConditionalHeading>
 
-<ConditionalHeading level={3} id="create-a-role" exclude="ce">Create a role</ConditionalHeading>
+Create a role, look up the customer's auto-generated "All" user group, then bind them via `shareEntityGroupToChildOwnerUserGroup`:
 
-<HostCode product={props.product} lang="java" code={`Role role = new Role();
+<HostCode product={props.product} lang="java" meta="maxLines=20 collapsible" code={`String customerId = "YOUR_CUSTOMER_ID";
+String deviceGroupId = "YOUR_DEVICE_GROUP_ID";
+
+Role role = new Role();
 role.setName("Acme Device Readers");
 role.setType(RoleType.GROUP);
 Role savedRole = client.saveRole(role);
-String roleId = savedRole.getId().getId().toString();`} />
+String roleId = savedRole.getId().getId().toString();
 
-<ConditionalHeading level={3} id="share-with-a-customers-user-group" exclude="ce">Share with a customer's user group</ConditionalHeading>
-
-<HostCode product={props.product} lang="java" meta="maxLines=15 collapsible" code={`// Look up the customer's auto-created "All" user group
 EntityGroupInfo allUsers = client.getEntityGroupAllByOwnerAndType(
     "CUSTOMER", customerId, "USER");
 String userGroupId = allUsers.getId().getId().toString();
 
-// Share the device group with that user group via the role
 client.shareEntityGroupToChildOwnerUserGroup(deviceGroupId, userGroupId, roleId);`} />
 </>)}
 
+## Error handling
+
+Every generated method declares `throws ApiException`, but `ApiException` extends `RuntimeException` — catching is optional. There's a single exception class with no subclass hierarchy; check `e.getCode()` to distinguish error kinds.
+
+- **401 Unauthorized** — JWT auth auto-refreshes tokens and re-logs in using stored credentials, so you'll only see this if credentials become invalid.
+- **429 Too Many Requests** — already retried with exponential backoff by default (see [Rate-limit handling](#rate-limit-handling)). You only observe a 429 if retries are exhausted or disabled.
+- **404 Not Found** — the common case worth catching explicitly:
+
+<HostCode product={props.product} lang="java" code={`import org.thingsboard.client.ApiException;
+
+try {
+    Device device = client.getDeviceById("nonexistent-id");
+} catch (ApiException e) {
+    if (e.getCode() == 404) {
+        System.out.println("Device not found");
+    } else {
+        System.out.printf("API error %d: %s%n", e.getCode(), e.getResponseBody());
+    }
+}`} />
+
 ## More examples
 
-See the [full tb-examples.md catalog](https://github.com/thingsboard/thingsboard-java-client/blob/master/common/docs/tb-examples.md) in the repository for additional API examples including assets, telemetry, alarms, relations, dashboards, and entity-data queries.
+The [tb-examples.md catalog](https://github.com/thingsboard/thingsboard-java-client/blob/master/common/docs/tb-examples.md) in the repository covers additional entities (assets, dashboards, customers), alarms, relations, and Entity Data Query examples with pagination and sort orders.
