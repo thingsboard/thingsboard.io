@@ -1193,9 +1193,6 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'trendz/releases', target: '/docs/trendz/releases/releases-table/' },
 	{ oldPath: 'trendz/view-builder', target: '/docs/trendz/telemetry-aggregation/' },
 
-	// Solution-templates: legacy fleet-tracking page → renamed to site-fleet-tracking
-	// and later moved under recipes/. Skip the rename chain — point directly at the
-	// final URL (overrides the {pe,paas,paas/eu}/solution-templates splat).
 	{
 		oldPath: 'pe/solution-templates/fleet-tracking',
 		target: '/docs/pe/recipes/solution-templates/site-fleet-tracking/',
@@ -1208,6 +1205,21 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 		oldPath: 'paas/eu/solution-templates/fleet-tracking',
 		target: '/docs/paas/eu/recipes/solution-templates/site-fleet-tracking/',
 	},
+	{ oldPath: 'user-guide/dashboard', target: '/docs/user-guide/dashboards/' },
+	{ oldPath: 'iot-gateway/modbus', target: '/docs/iot-gateway/config/modbus/' },
+	{ oldPath: 'getting-started-guide/hello-world', target: '/docs/getting-started/' },
+	{ oldPath: 'getting-started-guides/heloworld', target: '/docs/getting-started/' },
+	{ oldPath: 'getting-started-guides', target: '/docs/getting-started/' },
+	{ oldPath: 'user-guide/getting-started', target: '/docs/getting-started/' },
+	{ oldPath: 'user-guide/install', target: '/docs/installation/' },
+	{ oldPath: 'user-guide/install/openbsd', target: '/docs/installation/' },
+	{ oldPath: 'user-guide/install-and-use/install', target: '/docs/installation/' },
+	{ oldPath: 'mqtt-broker/security', target: '/docs/mqtt-broker/security/overview/' },
+	{ oldPath: 'reference/apis', target: '/docs/apis-and-sdks/' },
+	{ oldPath: 'reference/device-connectivity-api', target: '/docs/apis-and-sdks/' },
+	{ oldPath: 'reference/edge', target: '/docs/edge/' },
+	{ oldPath: 'user-guide/middleware', target: '/docs/user-guide/' },
+	{ oldPath: 'user-guide/ui', target: '/docs/user-guide/' },
 ];
 
 /**
