@@ -17,6 +17,8 @@ import {
 import { DOCS_SUFFIX, formatDocsTitle, TITLE_SEPARATOR } from '~/consts';
 import { getOgImageUrl } from '~/util/getOgImageUrl';
 import { getTutorialPages } from '~/util/getTutorialPages';
+import type { Announcement } from '~/types/announcement';
+import { docsAnnouncements } from '~/data/docsBanner';
 
 /**
  * Display names for `/reference/<api>-api/` sub-sections, used to build unique
@@ -78,7 +80,25 @@ export const onRequest = defineRouteMiddleware((context) => {
 	markParentSidebarItemAsCurrent(starlightRoute, context.url.pathname);
 	filterPaginationByVersion(starlightRoute);
 	if (isTutorial) updateTutorialPagination(starlightRoute);
+	injectAnnouncementFallback(starlightRoute);
 });
+
+function isAnnouncementExpired(a: Announcement): boolean {
+	return a.expiresAt ? new Date(a.expiresAt).getTime() < Date.now() : false;
+}
+
+function injectAnnouncementFallback(starlightRoute: StarlightRouteData) {
+	const data = starlightRoute.entry.data as { announcement?: Announcement };
+	if (data.announcement) {
+		if (isAnnouncementExpired(data.announcement)) delete data.announcement;
+		return;
+	}
+	const product = getVersionFromSlug(starlightRoute.id);
+	const fallback = docsAnnouncements[product];
+	if (!fallback) return;
+	if (isAnnouncementExpired(fallback)) return;
+	data.announcement = fallback;
+}
 
 /**
  * Filter sidebar entries to only show items for the current product version and language.

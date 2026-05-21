@@ -6,6 +6,7 @@ import { file, glob } from 'astro/loaders';
 import { logoKeys } from './data/logos';
 import { Products } from './models/site.models';
 import { PLATFORM_VALUES, type DevicePlatform } from './util/device-platform';
+import { announcementSchema } from './types/announcement';
 
 export { PLATFORM_VALUES };
 export type { DevicePlatform };
@@ -38,6 +39,7 @@ export const baseSchema = z.object({
 				.optional(),
 		})
 		.optional(),
+	announcement: announcementSchema.optional(),
 });
 
 // Third-party guide schemas (deploy, backend, cms, media)

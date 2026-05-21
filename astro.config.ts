@@ -132,6 +132,7 @@ export default defineConfig({
             Sidebar: './src/components/starlight/Sidebar.astro',
             MobileMenuFooter: './src/components/starlight/MobileMenuFooter.astro',
             PageTitle: './src/components/starlight/PageTitle.astro',
+            Banner: './src/components/starlight/Banner.astro',
         },
         routeMiddleware: './src/routeData.ts',
         editLink: {
