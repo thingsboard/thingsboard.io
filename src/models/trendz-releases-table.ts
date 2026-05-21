@@ -53,7 +53,7 @@ export const TRENDZ_RELEASE_FAMILIES: TrendzReleaseFamily[] = [
 		releaseDate: 'Jan 20 2026',
 		latestPatch: 'v1.15.2',
 		latestPatchDate: 'May 15 2026',
-		highlights: 'Bidirectional TB Communication, Licensing v2',
+		highlights: 'Bidirectional TB Sync, Anomaly Wizard',
 		tbVersion: '4.3',
 		patches: [
 			{ version: 'v1.15.2', date: 'May 15, 2026' },
@@ -69,7 +69,7 @@ export const TRENDZ_RELEASE_FAMILIES: TrendzReleaseFamily[] = [
 		releaseDate: 'Nov 6 2025',
 		latestPatch: 'v1.14.0',
 		latestPatchDate: 'Nov 6 2025',
-		highlights: 'Metric Explorer, Native Calculations & AI Cards',
+		highlights: 'Metric Explorer, AI Cards',
 		tbVersion: '4.2',
 		patches: [{ version: 'v1.14.0', date: 'Nov 6, 2025' }],
 	},
@@ -79,7 +79,7 @@ export const TRENDZ_RELEASE_FAMILIES: TrendzReleaseFamily[] = [
 		releaseDate: 'Mar 10 2025',
 		latestPatch: 'v1.13.2',
 		latestPatchDate: 'Jun 27 2025',
-		highlights: 'AI Assistant, Anomaly Alerting',
+		highlights: 'AI Assistant, Anomaly Alerts',
 		tbVersion: '4.0',
 		patches: [
 			{ version: 'v1.13.2', date: 'Jun 27, 2025' },
@@ -93,7 +93,7 @@ export const TRENDZ_RELEASE_FAMILIES: TrendzReleaseFamily[] = [
 		releaseDate: 'Dec 31 2024',
 		latestPatch: 'v1.12.0',
 		latestPatchDate: 'Dec 31 2024',
-		highlights: 'Prediction Models 2.0, 2FA & Custom Locales',
+		highlights: 'Prediction Models, 2FA',
 		tbVersion: '3.9',
 		patches: [{ version: 'v1.12.0', date: 'Dec 31, 2024' }],
 	},
@@ -103,7 +103,7 @@ export const TRENDZ_RELEASE_FAMILIES: TrendzReleaseFamily[] = [
 		releaseDate: 'Apr 2 2024',
 		latestPatch: 'v1.11.2',
 		latestPatchDate: 'Nov 12 2024',
-		highlights: 'Calculation Fields 2.0, Scheduled Tasks',
+		highlights: 'Calculation Fields, Scheduled Tasks',
 		tbVersion: '3.8',
 		patches: [
 			{ version: 'v1.11.2', date: 'Nov 12, 2024' },
@@ -117,7 +117,7 @@ export const TRENDZ_RELEASE_FAMILIES: TrendzReleaseFamily[] = [
 		releaseDate: 'Feb 27 2023',
 		latestPatch: 'v1.10.3-HF7',
 		latestPatchDate: 'Feb 19 2024',
-		highlights: 'New UI & Advanced Forecasting Models',
+		highlights: 'New UI, Dark Mode, Forecasting',
 		tbVersion: '3.5',
 		patches: [
 			{ version: 'v1.10.3-HF7', date: 'Feb 19, 2024' },
@@ -148,7 +148,7 @@ export const TRENDZ_RELEASE_FAMILIES: TrendzReleaseFamily[] = [
 		releaseDate: 'Aug 27 2021',
 		latestPatch: 'v1.8.2',
 		latestPatchDate: 'Dec 13 2021',
-		highlights: 'Persistent Cache, Native TB Widget Bundle',
+		highlights: 'Persistent Cache, TB Widget Bundle',
 		tbVersion: '3.3',
 		patches: [
 			{ version: 'v1.8.2', date: 'Dec 13, 2021' },

@@ -131,7 +131,7 @@ export const tbmqCeFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-ce-support',
 				question: 'Is there out-of-the-box support from TBMQ team for Community Edition users?',
-				answer: '<p>The TBMQ team does not provide dedicated support for Community Edition users. However, users can access community-driven resources such as <a target="_blank" href="https://github.com/thingsboard/tbmq/discussions" rel="noopener noreferrer">forums</a>, <a target="_blank" href="/docs/mqtt-broker/" rel="noopener noreferrer">documentation</a>, and <a target="_blank" href="https://github.com/thingsboard/tbmq" rel="noopener noreferrer">GitHub</a> for assistance.</p>',
+				answer: '<p>The TBMQ team does not provide dedicated support for Community Edition users. However, users can access community-driven resources such as <a target="_blank" href="https://github.com/thingsboard/tbmq/issues" rel="noopener noreferrer">GitHub Issues</a>, <a target="_blank" href="/docs/mqtt-broker/" rel="noopener noreferrer">documentation</a>, and <a target="_blank" href="https://github.com/thingsboard/tbmq" rel="noopener noreferrer">GitHub</a> for assistance.</p>',
 			},
 			{
 				id: 'tbmq-ce-paid-support',

@@ -23,8 +23,8 @@ export interface EdgeUpgradeVersion {
 	 */
 	linuxPkgSuffix: string;
 	/**
-	 * Override for the CE GitHub release tag when it differs from linuxPkgSuffix.
-	 * Only needed for 4.0.1 whose tag is "4.0" but package filename is "4.0.1".
+	 * Override for the CE GitHub release tag when it differs from linuxPkgSuffix
+	 * (e.g. if a release is published under a different tag than its package name).
 	 */
 	ceGhTagOverride?: string;
 	/** Anchor ID for version section on platform pages, e.g. "v4-3-0-1" */
@@ -174,7 +174,6 @@ export const EDGE_UPGRADE_VERSIONS: EdgeUpgradeVersion[] = [
 		upgrade: true,
 		manualVersionUpgrade: true,
 		linuxPkgSuffix: '4.0.1',
-		ceGhTagOverride: '4.0',
 		anchor: 'v4-0-1',
 		releaseDate: 'Apr 22 2025',
 		lts: false,
