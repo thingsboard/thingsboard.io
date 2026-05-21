@@ -1192,6 +1192,22 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'trendz/data-grouping-aggregation', target: '/docs/trendz/telemetry-aggregation/' },
 	{ oldPath: 'trendz/releases', target: '/docs/trendz/releases/releases-table/' },
 	{ oldPath: 'trendz/view-builder', target: '/docs/trendz/telemetry-aggregation/' },
+
+	// Solution-templates: legacy fleet-tracking page → renamed to site-fleet-tracking
+	// and later moved under recipes/. Skip the rename chain — point directly at the
+	// final URL (overrides the {pe,paas,paas/eu}/solution-templates splat).
+	{
+		oldPath: 'pe/solution-templates/fleet-tracking',
+		target: '/docs/pe/recipes/solution-templates/site-fleet-tracking/',
+	},
+	{
+		oldPath: 'paas/solution-templates/fleet-tracking',
+		target: '/docs/paas/recipes/solution-templates/site-fleet-tracking/',
+	},
+	{
+		oldPath: 'paas/eu/solution-templates/fleet-tracking',
+		target: '/docs/paas/eu/recipes/solution-templates/site-fleet-tracking/',
+	},
 ];
 
 /**
