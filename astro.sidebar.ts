@@ -195,7 +195,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 				label: 'Administration',
 				collapsed: true,
 				items: [
-					{ label: 'Security settings', slug: `${prefix}/security` },
+					{ label: 'Security Settings', slug: `${prefix}/security` },
 					`${prefix}/security/audit-log`,
 					`${prefix}/security/secrets-storage`,
 				],

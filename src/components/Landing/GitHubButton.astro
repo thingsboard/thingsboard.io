@@ -43,8 +43,27 @@ const link = `https://github.com/${repo}`;
 </div>
 
 <script>
-	const loadStars = () => {
-		document.querySelectorAll<HTMLAnchorElement>('a.gh-button[data-repo]').forEach(async (btn) => {
+	// Defer via `__deferOnInteraction` (GTM's system); 3s fallback > GTM's 2.5s keeps GTM first.
+	const DEFER_MS = 3000;
+
+	type DeferFn = (cb: () => void, fallbackMs?: number) => void;
+
+	const fetchStars = async (repo: string): Promise<string | null> => {
+		try {
+			const res = await fetch(`https://api.github.com/repos/${repo}`, {
+				headers: { Accept: 'application/vnd.github.v3+json' },
+			});
+			if (!res.ok) return null;
+			const { stargazers_count: count } = await res.json();
+			return count.toLocaleString('en-US');
+		} catch {
+			return null;
+		}
+	};
+
+	const init = () => {
+		const defer = (window as { __deferOnInteraction?: DeferFn }).__deferOnInteraction;
+		document.querySelectorAll<HTMLAnchorElement>('a.gh-button[data-repo]').forEach((btn) => {
 			const repo = btn.dataset.repo!;
 			const counterEl = btn.querySelector<HTMLElement>('.gh-count')!;
 
@@ -53,58 +72,35 @@ const link = `https://github.com/${repo}`;
 				btn.classList.add('is-loaded');
 			};
 
-			const hide = () => {
-				btn.classList.remove('is-loaded');
-			};
-
 			const cached = sessionStorage.getItem(`gh_stars_${repo}`);
 			if (cached) {
 				show(cached);
 				return;
 			}
 
-			try {
-				const res = await fetch(`https://api.github.com/repos/${repo}`, {
-					headers: { Accept: 'application/vnd.github.v3+json' },
-				});
-
-				if (res.ok) {
-					const { stargazers_count: count } = await res.json();
-					const display = count.toLocaleString('en-US');
-					sessionStorage.setItem(`gh_stars_${repo}`, display);
-					show(display);
-				} else {
-					hide();
+			const runFetch = async () => {
+				const value = await fetchStars(repo);
+				if (value) {
+					sessionStorage.setItem(`gh_stars_${repo}`, value);
+					show(value);
 				}
-			} catch {
-				hide();
-			}
+			};
+
+			if (defer) defer(runFetch, DEFER_MS);
+			else setTimeout(runFetch, DEFER_MS);
 		});
 	};
 
-	const schedule = () => {
-		if ('requestIdleCallback' in (window as object)) {
-			requestIdleCallback(loadStars);
-		} else {
-			loadStars();
-		}
-	};
-
 	if (document.readyState === 'complete') {
-		schedule();
+		init();
 	} else {
-		window.addEventListener('load', schedule, { once: true });
+		window.addEventListener('load', init, { once: true });
 	}
 </script>
 
 <style>
-	/* The wrap is the boundary the parent flex layout (.logo-burger) sees.
-	   Pinning it to a fixed width here means whatever happens INSIDE (button
-	   collapses while waiting for stars, then expands when the API resolves)
-	   never propagates outward — no shift in nav menu position.
-	   No overflow:hidden — that would clip the button's hover translateY. The
-	   width is sized 5–6px above the loaded button so any internal overflow
-	   stays inside the wrap naturally. */
+	/* Fixed wrap width absorbs the button's collapsed→expanded transition so the
+	   nav doesn't shift. No overflow:hidden — would clip the hover translateY. */
 	.gh-wrap {
 		display: none;
 		flex-shrink: 0;
@@ -117,9 +113,7 @@ const link = `https://github.com/${repo}`;
 		}
 	}
 
-	/* Laptop widths — drop the "Star" label; star icon + count remains.
-	   Without "Star" the loaded button is ~95px, wrap is 100px (5px breathing
-	   room so the rounded right edge of the button always renders fully). */
+	/* Laptop widths: drop "Star" label; 100px wrap = ~95px loaded button + 5px right-edge breathing. */
 	@media screen and (max-width: 1599px) {
 		.gh-wrap {
 			width: 100px;
@@ -186,9 +180,7 @@ const link = `https://github.com/${repo}`;
 		flex-shrink: 0;
 	}
 
-	/* Opacity (not visibility) is used because Safari has known flex-layout
-	   quirks with `visibility: hidden` empty items not honoring `flex-basis`
-	   reliably. */
+	/* Safari quirk: `visibility: hidden` on empty flex items doesn't honor `flex-basis` — use opacity. */
 	.gh-sep {
 		display: block;
 		opacity: 0;
@@ -231,16 +223,9 @@ const link = `https://github.com/${repo}`;
 
 		.gh-count {
 			opacity: 1;
-			/* Lock the cell to exactly 60px (40px content + 20px padding). The
-			   four properties together pin it in every browser:
-			   - box-sizing: border-box  → width includes padding
-			   - width                   → fallback if flex-basis is misbehaving
-			   - flex: 0 0 60px          → flex-grow:0, flex-shrink:0, basis:60
-			   - min-width: 0            → override flex-item auto-min-content
-			     (without this, `min-width: auto` resolves to min-content size,
-			     which jumps from ~0 to ~45px the moment the real "21,640" text
-			     replaces the placeholder &nbsp; — letting auto-min defeat
-			     flex-basis and grow the cell, which is the Safari pathology). */
+			/* Lock cell to 60px. `min-width:0` is essential — it overrides the flex-item
+			   `min-width: auto` (= min-content) that would grow the cell in Safari when
+			   real text replaces the &nbsp; placeholder. */
 			width: 60px;
 			flex: 0 0 60px;
 			padding: 0 10px;

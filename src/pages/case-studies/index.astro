@@ -18,13 +18,6 @@ const filterValues = caseStudyCategories.map((cat) => ({
 	value: cat,
 	count: categoryCountMap.get(cat) || 0,
 }));
-
-const initialCards = caseStudyCards.slice(0, PAGE_SIZE);
-
-const cardsWithHref = caseStudyCards.map((card) => ({
-	...card,
-	href: `/case-studies/${card.slug}/`,
-}));
 ---
 
 <BaseLayout
@@ -77,14 +70,23 @@ const cardsWithHref = caseStudyCards.map((card) => ({
 
 			<!-- Card grid -->
 		<div class="cs-card-grid" id="cs-card-grid">
-			{initialCards.map((card) => (
-				<a href={`/case-studies/${card.slug}/`} class="cs-client-card" style={`--card-bg: linear-gradient(0deg, rgba(0,0,0,0.30) 0%, rgba(0,0,0,0.30) 100%), url('${card.backgroundImage}')`}>
+			{caseStudyCards.map((card, index) => (
+				<a
+					href={`/case-studies/${card.slug}/`}
+					class:list={['cs-client-card', { 'is-hidden': index >= PAGE_SIZE }]}
+					style={`--card-bg: linear-gradient(0deg, rgba(0,0,0,0.30) 0%, rgba(0,0,0,0.30) 100%), url('${card.backgroundImage}')`}
+					data-slug={card.slug}
+					data-title={card.title}
+					data-description={card.description}
+					data-categories={JSON.stringify(card.categories)}
+				>
 					<div class="cs-card-content">
 						<div class="cs-card-top">
 							<img
 								class="cs-card-logo"
 								src={card.logo}
 								alt={card.logoAlt}
+								loading="lazy"
 								style={card.logoHeight ? `height: ${card.logoHeight}px` : undefined}
 							/>
 						</div>
@@ -134,114 +136,93 @@ const cardsWithHref = caseStudyCards.map((card) => ({
 	</main>
 </BaseLayout>
 
-<script is:inline define:vars={{ cardsWithHref }}>
-	window.__CS_DATA__ = cardsWithHref;
-</script>
-
 <script>
 	interface CSCard {
+		el: HTMLElement;
 		slug: string;
-		categories: string[];
 		title: string;
 		description: string;
-		logo: string;
-		logoAlt: string;
-		logoHeight?: number;
-		backgroundImage: string;
-		href: string;
+		categories: string[];
+		searchText: string;
+	}
+
+	function readCards(grid: HTMLElement): CSCard[] {
+		return Array.from(grid.querySelectorAll<HTMLElement>('.cs-client-card')).map((el) => {
+			const title = el.dataset.title || '';
+			const description = el.dataset.description || '';
+			const categories = JSON.parse(el.dataset.categories || '[]') as string[];
+			return {
+				el,
+				slug: el.dataset.slug || '',
+				title,
+				description,
+				categories,
+				searchText: [title, description, ...categories].join(' ').toLowerCase(),
+			};
+		});
 	}
 
 	function initCaseStudyIndex() {
-		const allCards = (window as any).__CS_DATA__ as CSCard[];
-		if (!allCards) return;
+		const grid = document.getElementById('cs-card-grid');
+		if (!grid) return;
 
 		const PAGE_SIZE = 9;
 		let currentPage = 1;
 		let debounceTimer: ReturnType<typeof setTimeout>;
 
-		const grid = document.getElementById('cs-card-grid')!;
 		const noResults = document.getElementById('cs-no-results')!;
 		const searchInput = document.getElementById('cs-search') as HTMLInputElement;
 		const searchClear = document.getElementById('cs-search-clear') as HTMLButtonElement;
 		const clearFilters = document.getElementById('cs-clear-filters') as HTMLButtonElement;
-		const checkboxes = document.querySelectorAll<HTMLInputElement>('.cs-filter-pills input[type="checkbox"]');
+		const pills = Array.from(document.querySelectorAll<HTMLElement>('.cs-filter-pill'));
+		const checkboxes = pills.map((pill) => pill.querySelector<HTMLInputElement>('input[type="checkbox"]')!);
 		const pagination = document.getElementById('cs-pagination')!;
 		const pageNumbers = document.getElementById('cs-page-numbers')!;
 		const pagePrev = document.getElementById('cs-page-prev') as HTMLButtonElement;
 		const pageNext = document.getElementById('cs-page-next') as HTMLButtonElement;
 		const successCta = document.getElementById('cs-success-cta')!;
 
+		const allCards = readCards(grid);
+
 		function getActiveCategories(): string[] {
-			const cats: string[] = [];
-			checkboxes.forEach((cb) => { if (cb.checked) cats.push(cb.value); });
-			return cats;
+			return checkboxes.filter((cb) => cb.checked).map((cb) => cb.value);
 		}
 
 		function search(query: string, categories: string[], page: number) {
-			let filtered = allCards;
+			const q = query.toLowerCase();
+			const filtered = allCards.filter((c) =>
+				(!q || c.searchText.includes(q)) &&
+				(categories.length === 0 || categories.some((cat) => c.categories.includes(cat)))
+			);
 
-			if (query) {
-				const q = query.toLowerCase();
-				filtered = filtered.filter((c) =>
-					c.title.toLowerCase().includes(q) ||
-					c.description.toLowerCase().includes(q) ||
-					c.categories.some((cat) => cat.toLowerCase().includes(q))
-				);
-			}
-
-			if (categories.length > 0) {
-				filtered = filtered.filter((c) =>
-					categories.some((cat) => c.categories.includes(cat))
-				);
-			}
-
-			const total = filtered.length;
-			const totalPages = Math.ceil(total / PAGE_SIZE) || 1;
+			const totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
 			const curPage = Math.min(Math.max(1, page), totalPages);
 			const start = (curPage - 1) * PAGE_SIZE;
-			const items = filtered.slice(start, start + PAGE_SIZE);
-
-			return { items, total, totalPages, currentPage: curPage };
-		}
-
-		function renderCard(card: CSCard): string {
-			const logoStyle = card.logoHeight ? ` style="height: ${card.logoHeight}px"` : '';
-			const categories = card.categories.map((cat) => `<span class="cs-card-category">${cat}</span>`).join('');
-			return `<a href="${card.href}" class="cs-client-card" style="--card-bg: linear-gradient(0deg, rgba(0,0,0,0.30) 0%, rgba(0,0,0,0.30) 100%), url('${card.backgroundImage}')">
-				<div class="cs-card-content">
-					<div class="cs-card-top">
-						<img class="cs-card-logo" src="${card.logo}" alt="${card.logoAlt}"${logoStyle} />
-					</div>
-					<div class="cs-card-bottom">
-						<div class="cs-card-categories">${categories}</div>
-						<h3 class="cs-card-title">${card.title}</h3>
-						<p class="cs-card-link">Learn more <svg class="cs-card-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" fill="currentColor"><path d="m190.5 66.9l22.2-22.2c9.4-9.4 24.6-9.4 33.9 0L441 239c9.4 9.4 9.4 24.6 0 33.9L246.6 467.3c-9.4 9.4-24.6 9.4-33.9 0l-22.2-22.2c-9.5-9.5-9.3-25 .4-34.3L311.4 296H24c-13.3 0-24-10.7-24-24v-32c0-13.3 10.7-24 24-24h287.4L190.9 101.2c-9.8-9.3-10-24.8-.4-34.3"/></svg></p>
-					</div>
-				</div>
-			</a>`;
+			return {
+				items: filtered.slice(start, start + PAGE_SIZE),
+				totalPages,
+				currentPage: curPage,
+			};
 		}
 
 		function renderPagination(current: number, total: number) {
-			if (total <= 1) {
-				pagination.hidden = true;
-				return;
-			}
-			pagination.hidden = false;
+			pagination.hidden = total <= 1;
+			if (total <= 1) return;
+
 			pagePrev.disabled = current <= 1;
 			pageNext.disabled = current >= total;
 
 			const pages: (number | string)[] = [];
-			const maxVisible = 5;
-			if (total <= maxVisible) {
+			if (total <= 5) {
 				for (let i = 1; i <= total; i++) pages.push(i);
 			} else {
 				pages.push(1);
 				if (current > 3) pages.push('...');
 				const start = Math.max(2, current - 1);
 				const end = Math.min(total - 1, current + 1);
-				for (let i = start; i <= end; i++) { if (!pages.includes(i)) pages.push(i); }
+				for (let i = start; i <= end; i++) pages.push(i);
 				if (current < total - 2) pages.push('...');
-				if (!pages.includes(total)) pages.push(total);
+				pages.push(total);
 			}
 
 			pageNumbers.innerHTML = pages.map((p) =>
@@ -251,43 +232,33 @@ const cardsWithHref = caseStudyCards.map((card) => ({
 			).join('');
 		}
 
-		function saveState() {
+		function saveState(query: string, categories: string[]) {
 			const state: Record<string, string> = {};
-			const q = searchInput.value.trim();
-			if (q) state.q = q;
-			const cats = getActiveCategories();
-			if (cats.length) state.category = cats.join(',');
+			if (query) state.q = query;
+			if (categories.length) state.category = categories.join(',');
 			if (currentPage > 1) state.page = String(currentPage);
 			sessionStorage.setItem('cs-index-state', JSON.stringify(state));
 		}
 
 		function updateDisplay() {
-			const result = search(searchInput.value.trim(), getActiveCategories(), currentPage);
-			if (result.items.length > 0) {
-				grid.innerHTML = result.items.map(renderCard).join('');
-				noResults.hidden = true;
-			} else {
-				grid.innerHTML = '';
-				noResults.hidden = false;
-			}
+			const query = searchInput.value.trim();
+			const categories = getActiveCategories();
+			const result = search(query, categories, currentPage);
+
+			const visibleSlugs = new Set(result.items.map((c) => c.slug));
+			allCards.forEach((card) => {
+				card.el.classList.toggle('is-hidden', !visibleSlugs.has(card.slug));
+			});
+
+			noResults.hidden = result.items.length > 0;
+			searchClear.hidden = !query;
+			clearFilters.hidden = categories.length === 0;
+			pills.forEach((pill, i) => pill.classList.toggle('active', checkboxes[i].checked));
+			successCta.style.display = result.currentPage >= result.totalPages ? '' : 'none';
 
 			currentPage = result.currentPage;
 			renderPagination(result.currentPage, result.totalPages);
-			searchClear.hidden = !searchInput.value;
-
-			// Show "Clear all" only when filters are active
-			const hasActiveFilters = getActiveCategories().length > 0;
-			clearFilters.hidden = !hasActiveFilters;
-			// Toggle active class on pills
-			checkboxes.forEach((cb) => {
-				const pill = cb.closest('.cs-filter-pill') as HTMLElement;
-				if (pill) pill.classList.toggle('active', cb.checked);
-			});
-
-			// Show success CTA only on last page or when few results
-			successCta.style.display = (result.currentPage >= result.totalPages) ? '' : 'none';
-
-			saveState();
+			saveState(query, categories);
 		}
 
 		function resetAndUpdate() {
@@ -297,8 +268,7 @@ const cardsWithHref = caseStudyCards.map((card) => ({
 
 		// Restore state only when navigating back from a case study detail page
 		function restoreState() {
-			const referrer = document.referrer;
-			const cameFromCaseStudy = referrer && /\/case-studies\/[^/]+\//.test(referrer);
+			const cameFromCaseStudy = /\/case-studies\/[^/]+\//.test(document.referrer);
 			if (!cameFromCaseStudy) {
 				sessionStorage.removeItem('cs-index-state');
 				return;
@@ -316,10 +286,9 @@ const cardsWithHref = caseStudyCards.map((card) => ({
 			} catch { /* ignore malformed state */ }
 		}
 
-		// Event listeners
 		checkboxes.forEach((cb) => cb.addEventListener('change', resetAndUpdate));
 
-		clearFilters?.addEventListener('click', () => {
+		clearFilters.addEventListener('click', () => {
 			checkboxes.forEach((cb) => { cb.checked = false; });
 			searchInput.value = '';
 			resetAndUpdate();
@@ -330,21 +299,21 @@ const cardsWithHref = caseStudyCards.map((card) => ({
 			debounceTimer = setTimeout(resetAndUpdate, 300);
 		});
 
-		searchClear?.addEventListener('click', () => {
+		searchClear.addEventListener('click', () => {
 			searchInput.value = '';
 			resetAndUpdate();
 			searchInput.focus();
 		});
 
-		pagePrev?.addEventListener('click', () => {
+		pagePrev.addEventListener('click', () => {
 			if (currentPage > 1) { currentPage--; updateDisplay(); }
 		});
 
-		pageNext?.addEventListener('click', () => {
+		pageNext.addEventListener('click', () => {
 			currentPage++; updateDisplay();
 		});
 
-		pageNumbers?.addEventListener('click', (e) => {
+		pageNumbers.addEventListener('click', (e) => {
 			const target = e.target as HTMLElement;
 			if (target.classList.contains('cs-num-btn')) {
 				const page = parseInt(target.dataset.page || '1', 10);
@@ -431,10 +400,6 @@ const cardsWithHref = caseStudyCards.map((card) => ({
 
 		&:hover {
 			text-decoration: underline;
-		}
-
-		&[hidden] {
-			display: none;
 		}
 	}
 
@@ -653,6 +618,10 @@ const cardsWithHref = caseStudyCards.map((card) => ({
 		height: 340px;
 		color: $color-white;
 
+		&.is-hidden {
+			display: none;
+		}
+
 		// Background image layer with zoom effect
 		&::after {
 			content: '';
@@ -776,10 +745,6 @@ const cardsWithHref = caseStudyCards.map((card) => ({
 		padding: $spacing-12 $spacing-4;
 		@include text-m;
 		color: var(--color-text-secondary);
-
-		&[hidden] {
-			display: none;
-		}
 	}
 
 	// ─── Pagination ───
