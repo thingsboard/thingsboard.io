@@ -52,10 +52,11 @@ export const RELEASE_FAMILIES: ReleaseFamily[] = [
 		family: '4.3',
 		lts: true,
 		releaseDate: 'Jan 20 2026',
-		latestPatch: 'v4.3.1.1',
-		latestPatchDate: 'Mar 31 2026',
+		latestPatch: 'v4.3.1.2',
+		latestPatchDate: 'May 28 2026',
 		highlightsCe: 'Alarm Rules 2.0 & new Calculated Fields',
 		patches: [
+			{ version: 'v4.3.1.2', date: 'May 28, 2026' },
 			{ version: 'v4.3.1.1', date: 'Mar 31, 2026' },
 			{ version: 'v4.3.1', date: 'Mar 10, 2026' },
 			{ version: 'v4.3.0.1', date: 'Feb 3, 2026' },

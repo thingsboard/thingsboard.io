@@ -7,7 +7,7 @@
  */
 
 /** Community Edition */
-export const CE_FULL_VER = '4.3.1.1';
+export const CE_FULL_VER = '4.3.1.2';
 
 export const TB_VER = CE_FULL_VER;
 
@@ -15,7 +15,7 @@ export const TB_VER = CE_FULL_VER;
 export const CE_BRANCH = 'release-4.3';
 
 /** Professional Edition */
-export const PE_FULL_VER = '4.3.1.1PE';
+export const PE_FULL_VER = '4.3.1.2PE';
 
 /** Trendz Analytics */
 export const TRENDZ_VER = '1.15.1';
