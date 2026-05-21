@@ -67,19 +67,29 @@ class LinkChecker {
 // Mirror the `site` resolution from astro.config.ts so preview builds
 // (Cloudflare Pages, Netlify, or an explicit PUBLIC_SITE_URL) parse the
 // sitemap under the same origin the build emitted.
+const PROD_ORIGIN = 'https://thingsboard.io';
 const resolvedSite =
 	process.env.PUBLIC_SITE_URL ||
 	(process.env.CF_PAGES_BRANCH && process.env.CF_PAGES_URL) ||
 	(process.env.CONTEXT !== 'production' && process.env.DEPLOY_PRIME_URL) ||
-	'https://thingsboard.io';
+	PROD_ORIGIN;
 
 // build-index.ts greps `<loc>${baseUrl}(/.*?)</loc>`, so the origin must not
 // carry a trailing slash.
 const baseUrl = resolvedSite.replace(/\/$/, '');
 
+// On preview/staging builds, also treat the production origin as local so
+// hardcoded `https://thingsboard.io/...` URLs in build artifacts (assets,
+// inlined SVGs, component output) are still caught by `[abs]` / `[404]`.
+// Otherwise they look like external links and slip past every check, which
+// is how the IoT Gateway architecture SVG smuggled 15 hardcoded prod URLs
+// into the build undetected.
+const additionalLocalHosts = baseUrl === PROD_ORIGIN ? [] : [PROD_ORIGIN];
+
 // Use our class to check for link issues
 const linkChecker = new LinkChecker({
 	baseUrl,
+	additionalLocalHosts,
 	buildOutputDir: './dist',
 	pageSourceDir: './src/content/docs',
 	// Include `astro.redirects` entries as pages so `[ref]` and its autofix can
@@ -115,15 +125,16 @@ const linkChecker = new LinkChecker({
 	],
 	checks: [
 		new TargetExists({
-			// These pages exist in dist but carry noindex and are intentionally absent
-			// from the sitemap, so the link checker cannot find them via normal means.
-			ignoredLinkPathnames: [
-				'/contact-us-thanks/',
-				'/partners/hardware/apply-thanks/',
-				'/careers/',
-				'/blog/author/',
-				'/installations/choose-region/',
-			],
+			// Replay Cloudflare's _redirects on each link before the on-disk lookup,
+			// so rules that shadow real files (e.g. catch-alls rewriting to a
+			// non-existent destination) surface as broken instead of passing
+			// because the original file happens to be in dist/.
+			//
+			// Noindex pages (contact-us-thanks, partners apply-thanks, careers,
+			// blog/author/*, installations/choose-region) are discovered
+			// automatically via a cached `dist/{pathname}/index.html` fallback
+			// in TargetExists itself — no manual prefix list needed.
+			redirectsFilePath: './public/_redirects',
 		}),
 		new SameLanguage({
 			ignoredLinkPathnames: ['/lighthouse/'],

@@ -53,7 +53,7 @@ export const environmentMonitoringData: UseCaseData = {
 		longText: [
 			'The built-in stream processing engine instantly analyzes incoming messages, triggers events, generates alarms, and routes data to monitoring dashboards. The collected data is visualized through intuitive dashboards, giving users clear insights into alarms, and performance metrics — all in real time, from a single interface.',
 		],
-		schemeSrc: '/src/assets/schemas/use-case.svg',
+		schemeSrc: '/src/assets/schemas/environment-monitoring.svg',
 		schemeAlt:
 			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for alarms, dashboards, notifications, and data lakes',
 		schemeCaption:
@@ -108,7 +108,8 @@ export const environmentMonitoringData: UseCaseData = {
 	},
 	applications: {
 		title: 'Applications of environment monitoring solution',
-		subtitle: 'The environment monitoring approach can be easily adapted to various other sectors',
+		subtitle:
+			'An IoT-powered environmental monitoring system can be deployed across various sectors to ensure safety, compliance, and sustainability. Below are key areas where such solutions bring significant value.',
 		applications: [
 			{
 				title: 'Smart cities and urban infrastructure',

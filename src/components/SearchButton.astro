@@ -84,6 +84,7 @@
 			if (!modal) return;
 			modal.classList.remove('open');
 			document.documentElement.classList.remove('tb-search-open');
+			stopFocusRetention();
 		};
 
 		const buildModal = (): HTMLElement => {
@@ -137,6 +138,61 @@
 			return modal;
 		};
 
+		const focusInput = (m: HTMLElement) => {
+			const input = m.querySelector<HTMLInputElement>('input.gsc-input');
+			if (input && document.activeElement !== input) input.focus();
+		};
+
+		// Two complementary mechanisms keep the search input focused while
+		// the modal is open. Both stop the moment the modal closes — see
+		// `stopFocusRetention()`.
+		//
+		// 1. MutationObserver: Google CSE rebuilds its input element multiple
+		//    times during its async mount, so a single focus() right when the
+		//    first input appears gets blown away. Re-focus on every DOM
+		//    mutation inside the modal.
+		// 2. focusout rescue: covers the case where some unrelated late-
+		//    arriving script (page-load handler, layout-shift) steals focus
+		//    by moving it to <body>/null — i.e. NOT to a specific element
+		//    the user clicked. We only restore when relatedTarget is null/
+		//    body so a legitimate user click outside the modal still wins.
+		let focusObs: MutationObserver | null = null;
+		let focusOutHandler: ((e: FocusEvent) => void) | null = null;
+
+		const startFocusRetention = (m: HTMLElement) => {
+			focusInput(m);
+
+			focusObs?.disconnect();
+			focusObs = new MutationObserver(() => focusInput(m));
+			focusObs.observe(m, { childList: true, subtree: true });
+
+			if (focusOutHandler) m.removeEventListener('focusout', focusOutHandler);
+			focusOutHandler = (e: FocusEvent) => {
+				if (!m.classList.contains('open')) return;
+				const input = m.querySelector<HTMLInputElement>('input.gsc-input');
+				if (!input || e.target !== input) return;
+				const next = e.relatedTarget as Node | null;
+				// Focus moving inside the modal — intentional, leave it.
+				if (next && m.contains(next)) return;
+				// Focus moving to a real element outside the modal — assume
+				// the user clicked there deliberately, don't fight them.
+				if (next && next !== document.body) return;
+				// Focus going to body/null — script-steal pattern. Restore on
+				// the next frame to avoid recursive blur/focus loops.
+				requestAnimationFrame(() => {
+					if (m.classList.contains('open')) input.focus();
+				});
+			};
+			m.addEventListener('focusout', focusOutHandler);
+		};
+
+		const stopFocusRetention = () => {
+			focusObs?.disconnect();
+			focusObs = null;
+			if (focusOutHandler && modal) modal.removeEventListener('focusout', focusOutHandler);
+			focusOutHandler = null;
+		};
+
 		const open = () => {
 			init();
 			const m = modal!;
@@ -149,10 +205,15 @@
 				const obs = new MutationObserver(() => {
 					if (m.querySelector('input.gsc-input')) {
 						loaderBar?.classList.remove('active');
+						startFocusRetention(m);
 						obs.disconnect();
 					}
 				});
 				obs.observe(m, { childList: true, subtree: true });
+			} else {
+				// Subsequent opens — input already mounted; still need to
+				// guard against CSE re-renders that follow a fresh modal open.
+				requestAnimationFrame(() => startFocusRetention(m));
 			}
 		};
 

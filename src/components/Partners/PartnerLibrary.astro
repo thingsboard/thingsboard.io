@@ -37,20 +37,9 @@ const filterGroups = [
 	{ name: 'Use Cases', key: 'useCase', values: getFilterValues('useCase') },
 ];
 
-const partnersWithHref = partners.map((p) => ({
-	...p,
-	href: `/partners/hardware/${p.slug}/`,
-}));
-
-const initialPartners = partnersWithHref.slice(0, PAGE_SIZE);
 ---
 
-<div
-	class="partner-library"
-	data-no-results="No partners match your filters."
-	data-partners-found="partners found"
-	data-page-size={PAGE_SIZE}
->
+<div class="partner-library" data-page-size={PAGE_SIZE}>
 	<PartnerFilterSidebar filters={filterGroups} />
 
 	<div class="partner-library-main">
@@ -69,7 +58,7 @@ const initialPartners = partnersWithHref.slice(0, PAGE_SIZE);
 
 		<div class="partner-grid" id="partner-grid">
 			{
-				initialPartners.map((partner) => (
+				partners.map((partner, index) => (
 					<PartnerCard
 						name={partner.name}
 						slug={partner.slug}
@@ -77,7 +66,10 @@ const initialPartners = partnersWithHref.slice(0, PAGE_SIZE);
 						description={partner.description}
 						connectivity={partner.connectivity}
 						industry={partner.industry}
-						href={partner.href}
+						useCase={partner.useCase}
+						hardwareTypes={partner.hardwareTypes}
+						href={`/partners/hardware/${partner.slug}/`}
+						hidden={index >= PAGE_SIZE}
 					/>
 				))
 			}
@@ -91,21 +83,29 @@ const initialPartners = partnersWithHref.slice(0, PAGE_SIZE);
 	</div>
 </div>
 
-<script is:inline define:vars={{ partnersWithHref }}>
-	window.__PARTNER_LIBRARY_DATA__ = partnersWithHref;
-</script>
-
 <script>
-	interface Partner {
-		name: string;
+	type FilterKey = 'connectivity' | 'industry' | 'useCase' | 'hardwareTypes';
+
+	const FILTER_KEYS: FilterKey[] = ['connectivity', 'industry', 'useCase', 'hardwareTypes'];
+
+	interface CardInfo {
+		el: HTMLElement;
 		slug: string;
+		name: string;
+		description: string;
 		connectivity: string[];
 		industry: string[];
 		useCase: string[];
 		hardwareTypes: string[];
-		logo: string;
-		description: string;
-		href: string;
+		searchText: string;
+	}
+
+	interface FilterOption {
+		label: HTMLLabelElement;
+		checkbox: HTMLInputElement;
+		countEl: HTMLElement | null;
+		key: string;
+		value: string;
 	}
 
 	interface SearchParams {
@@ -116,68 +116,129 @@ const initialPartners = partnersWithHref.slice(0, PAGE_SIZE);
 	}
 
 	interface SearchResult {
-		partners: Partner[];
+		cards: CardInfo[];
 		total: number;
 		totalPages: number;
 		currentPage: number;
 	}
 
-	function createPartnerAPI(allPartners: Partner[]) {
-		function matchesSearch(partner: Partner, query: string): boolean {
-			if (!query) return true;
-			const searchLower = query.toLowerCase();
-			const searchableFields = [
-				partner.name,
-				partner.description,
-				...partner.connectivity,
-				...partner.industry,
-				...partner.useCase,
-				...partner.hardwareTypes,
-			];
-			return searchableFields.some((field) => field.toLowerCase().includes(searchLower));
-		}
+	function readCards(grid: HTMLElement): CardInfo[] {
+		return Array.from(grid.querySelectorAll<HTMLElement>('.partner-card')).map((el) => {
+			const name = el.dataset.name || '';
+			const description = el.dataset.description || '';
+			const connectivity = JSON.parse(el.dataset.connectivity || '[]');
+			const industry = JSON.parse(el.dataset.industry || '[]');
+			const useCase = JSON.parse(el.dataset.useCase || '[]');
+			const hardwareTypes = JSON.parse(el.dataset.hardwareTypes || '[]');
+			return {
+				el,
+				slug: el.dataset.partnerSlug || '',
+				name,
+				description,
+				connectivity,
+				industry,
+				useCase,
+				hardwareTypes,
+				searchText: [name, description, ...connectivity, ...industry, ...useCase, ...hardwareTypes]
+					.join(' ')
+					.toLowerCase(),
+			};
+		});
+	}
 
-		function matchesFilters(partner: Partner, filters: Record<string, string[]>): boolean {
-			for (const [key, values] of Object.entries(filters)) {
-				if (values.length === 0) continue;
-				const partnerValues =
-					partner[key as 'connectivity' | 'industry' | 'useCase' | 'hardwareTypes'] || [];
-				const hasMatch = values.some((v) => partnerValues.includes(v));
-				if (!hasMatch) return false;
+	function readFilterOptions(sidebar: Element): FilterOption[] {
+		return Array.from(
+			sidebar.querySelectorAll<HTMLLabelElement>('.filter-option[data-filter-key]')
+		).map((label) => ({
+			label,
+			checkbox: label.querySelector<HTMLInputElement>('input[type="checkbox"]')!,
+			countEl: label.querySelector<HTMLElement>('.filter-count'),
+			key: label.dataset.filterKey || '',
+			value: label.dataset.filterValue || '',
+		}));
+	}
+
+	function matchesSearch(card: CardInfo, query: string): boolean {
+		return !query || card.searchText.includes(query);
+	}
+
+	function matchesFilters(
+		card: CardInfo,
+		filters: Record<string, string[]>,
+		exceptKey?: FilterKey
+	): boolean {
+		for (const [key, values] of Object.entries(filters)) {
+			if (key === exceptKey) continue;
+			const cardValues = card[key as FilterKey] || [];
+			if (!values.some((v) => cardValues.includes(v))) return false;
+		}
+		return true;
+	}
+
+	function searchCards(allCards: CardInfo[], params: SearchParams): SearchResult {
+		const query = params.search.toLowerCase();
+		const filtered = allCards.filter(
+			(card) => matchesSearch(card, query) && matchesFilters(card, params.filters)
+		);
+		const total = filtered.length;
+		const totalPages = Math.ceil(total / params.pageSize) || 1;
+		const currentPage = Math.min(Math.max(1, params.page), totalPages);
+		const startIndex = (currentPage - 1) * params.pageSize;
+		const cards = filtered.slice(startIndex, startIndex + params.pageSize);
+		return { cards, total, totalPages, currentPage };
+	}
+
+	function computeFacetCounts(
+		allCards: CardInfo[],
+		filters: Record<string, string[]>,
+		query: string
+	): Record<string, Map<string, number>> {
+		const result: Record<string, Map<string, number>> = {};
+		for (const key of FILTER_KEYS) {
+			const selection = new Set(filters[key] || []);
+			const hasSelection = selection.size > 0;
+
+			const counts = new Map<string, number>();
+			for (const card of allCards) {
+				if (!matchesSearch(card, query) || !matchesFilters(card, filters, key)) continue;
+				const cardMatchesSelection =
+					hasSelection && card[key].some((v) => selection.has(v));
+				for (const value of card[key]) {
+					// Unselected value in a card already part of the current OR-set adds nothing
+					if (hasSelection && !selection.has(value) && cardMatchesSelection) continue;
+					counts.set(value, (counts.get(value) || 0) + 1);
+				}
 			}
-			return true;
+			result[key] = counts;
 		}
+		return result;
+	}
 
-		return {
-			search(params: SearchParams): SearchResult {
-				const filtered = allPartners.filter(
-					(partner) =>
-						matchesSearch(partner, params.search) &&
-						matchesFilters(partner, params.filters)
-				);
-				const total = filtered.length;
-				const totalPages = Math.ceil(total / params.pageSize) || 1;
-				const currentPage = Math.min(Math.max(1, params.page), totalPages);
-				const startIndex = (currentPage - 1) * params.pageSize;
-				const partners = filtered.slice(startIndex, startIndex + params.pageSize);
-				return { partners, total, totalPages, currentPage };
-			},
-		};
+	function updateFacets(
+		options: FilterOption[],
+		counts: Record<string, Map<string, number>>,
+		filters: Record<string, string[]>
+	) {
+		for (const opt of options) {
+			const count = counts[opt.key]?.get(opt.value) ?? 0;
+			const selection = filters[opt.key] || [];
+			const isDelta = selection.length > 0 && !selection.includes(opt.value);
+			if (opt.countEl) opt.countEl.textContent = isDelta ? `(+${count})` : `(${count})`;
+			const shouldDisable = count === 0 && !opt.checkbox.checked;
+			opt.checkbox.disabled = shouldDisable;
+			opt.label.classList.toggle('is-disabled', shouldDisable);
+		}
 	}
 
 	function initPartnerLibrary() {
 		const container = document.querySelector('.partner-library');
 		if (!container) return;
 
-		const allPartners = (window as any).__PARTNER_LIBRARY_DATA__ as Partner[];
-		if (!allPartners) return;
-
-		const api = createPartnerAPI(allPartners);
-
 		const partnerGrid = container.querySelector('#partner-grid') as HTMLElement;
 		const partnerCountEl = container.querySelector('#partner-count') as HTMLElement;
 		const noResultsEl = container.querySelector('#no-results') as HTMLElement;
 		const clearFiltersBtn = container.querySelector('#clear-filters');
+		const sidebar = container.querySelector('.filter-sidebar') as HTMLElement;
 		const filterCheckboxes = container.querySelectorAll<HTMLInputElement>(
 			'.filter-sidebar input[type="checkbox"]'
 		);
@@ -191,7 +252,7 @@ const initialPartners = partnersWithHref.slice(0, PAGE_SIZE);
 		const paginationCurrent = container.querySelector('#pagination-current') as HTMLElement;
 		const paginationTotal = container.querySelector('#pagination-total') as HTMLElement;
 
-		if (!partnerGrid || !partnerCountEl || !searchInput) return;
+		if (!partnerGrid || !partnerCountEl || !searchInput || !sidebar) return;
 
 		const pageSize = parseInt(container.getAttribute('data-page-size') || '12', 10);
 		let currentPage = 1;
@@ -207,37 +268,6 @@ const initialPartners = partnersWithHref.slice(0, PAGE_SIZE);
 				}
 			});
 			return filters;
-		}
-
-		function renderPartnerCard(partner: Partner): string {
-			const snippet =
-				partner.description.length > 120
-					? partner.description.slice(0, 120).trimEnd() + '…'
-					: partner.description;
-
-			const industryChips = partner.industry
-				.slice(0, 2)
-				.map((ind) => `<span class="filter-chip">${ind}</span>`)
-				.join('');
-			const moreChip =
-				partner.industry.length > 2
-					? `<span class="filter-chip">+${partner.industry.length - 2}</span>`
-					: '';
-
-			return `
-				<a href="${partner.href}" class="partner-card" data-partner-slug="${partner.slug}">
-					<div class="partner-logo">
-						<img src="${partner.logo}" alt="${partner.name}" loading="lazy" />
-					</div>
-					<div class="partner-content">
-						<h3 class="partner-name">${partner.name}</h3>
-						<p class="partner-description">${snippet}</p>
-						<div class="partner-chips">
-							${industryChips}${moreChip}
-						</div>
-					</div>
-				</a>
-			`;
 		}
 
 		function renderPagination(currentPage: number, totalPages: number) {
@@ -282,23 +312,28 @@ const initialPartners = partnersWithHref.slice(0, PAGE_SIZE);
 				.join('');
 		}
 
+		const allCards = readCards(partnerGrid);
+		const filterOptions = readFilterOptions(sidebar);
+
 		function updateDisplay() {
-			const result = api.search({
+			const filters = getActiveFilters();
+			const query = searchInput.value.trim().toLowerCase();
+			const result = searchCards(allCards, {
 				search: searchInput.value.trim(),
-				filters: getActiveFilters(),
+				filters,
 				page: currentPage,
 				pageSize,
 			});
 
 			partnerCountEl.textContent = String(result.total);
 
-			if (result.partners.length > 0) {
-				partnerGrid.innerHTML = result.partners.map(renderPartnerCard).join('');
-				noResultsEl.hidden = true;
-			} else {
-				partnerGrid.innerHTML = '';
-				noResultsEl.hidden = false;
-			}
+			const visibleSlugs = new Set(result.cards.map((c) => c.slug));
+			allCards.forEach((card) => {
+				card.el.classList.toggle('is-hidden', !visibleSlugs.has(card.slug));
+			});
+			noResultsEl.hidden = result.cards.length > 0;
+
+			updateFacets(filterOptions, computeFacetCounts(allCards, filters, query), filters);
 
 			currentPage = result.currentPage;
 			renderPagination(result.currentPage, result.totalPages);
@@ -358,8 +393,7 @@ const initialPartners = partnersWithHref.slice(0, PAGE_SIZE);
 			}
 		});
 
-		const initialTotal = allPartners.length;
-		const initialTotalPages = Math.ceil(initialTotal / pageSize);
+		const initialTotalPages = Math.ceil(allCards.length / pageSize);
 		renderPagination(1, initialTotalPages);
 	}
 
@@ -475,84 +509,3 @@ const initialPartners = partnersWithHref.slice(0, PAGE_SIZE);
 	}
 </style>
 
-<style is:global>
-	/* Styles for dynamically rendered partner cards */
-	.partner-grid .partner-card {
-		background: var(--color-bg);
-		border: 1px solid var(--color-border);
-		border-radius: 0.5rem;
-		overflow: hidden;
-		transition:
-			transform 0.2s,
-			box-shadow 0.2s;
-		display: flex;
-		flex-direction: column;
-		text-decoration: none;
-		color: inherit;
-	}
-
-	.partner-grid .partner-card:hover {
-		transform: translateY(-2px);
-		box-shadow: var(--shadow-card-hover, 0 4px 12px rgba(0, 0, 0, 0.15));
-	}
-
-	.partner-grid .partner-logo {
-		width: 100%;
-		aspect-ratio: 16 / 9;
-		background: #fff;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		overflow: hidden;
-		padding: 1.5rem;
-		border-bottom: 1px solid var(--color-border);
-	}
-
-	.partner-grid .partner-logo img {
-		max-width: 100%;
-		max-height: 100%;
-		object-fit: contain;
-	}
-
-	.partner-grid .partner-content {
-		padding: 1rem;
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-		flex: 1;
-	}
-
-	.partner-grid .partner-name {
-		font-size: 0.9375rem;
-		font-weight: 600;
-		margin: 0;
-		color: var(--color-text);
-	}
-
-	.partner-grid .partner-description {
-		font-size: 0.8125rem;
-		color: var(--color-text-secondary);
-		margin: 0;
-		line-height: 1.5;
-	}
-
-	.partner-grid .partner-chips {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.375rem;
-		margin-top: auto;
-	}
-
-	.partner-grid .filter-chip {
-		font-size: 0.75rem;
-		padding: 0.25rem 0.625rem;
-		background: color-mix(in srgb, var(--color-primary) 12%, transparent);
-		border-radius: 1rem;
-		color: var(--color-primary);
-		white-space: nowrap;
-	}
-
-	[data-theme='dark'] .partner-grid .partner-logo {
-		background: #d5d7db;
-	}
-</style>
