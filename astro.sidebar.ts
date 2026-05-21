@@ -2608,6 +2608,15 @@ export const edgeSidebar: SidebarConfig = [
 				],
 			},
 			{
+				label: 'Clients & CLI',
+				collapsed: true,
+				items: [
+					{ slug: 'docs/edge/user-guide/cli', badge: { text: 'New', class: 'tb-badge' } },
+					'docs/edge/reference/java-client',
+					'docs/edge/reference/python-client',
+				],
+			},
+			{
 				label: 'MCP Server',
 				collapsed: true,
 				items: [
@@ -3037,6 +3046,15 @@ export const edgePeSidebar: SidebarConfig = [
 					'docs/edge/pe/reference/websocket-api',
 					'docs/edge/pe/reference/data-query-api',
 					'docs/edge/pe/reference/alarm-query-api',
+				],
+			},
+			{
+				label: 'Clients & CLI',
+				collapsed: true,
+				items: [
+					{ slug: 'docs/edge/pe/user-guide/cli', badge: { text: 'New', class: 'tb-badge' } },
+					'docs/edge/pe/reference/java-client',
+					'docs/edge/pe/reference/python-client',
 				],
 			},
 			{

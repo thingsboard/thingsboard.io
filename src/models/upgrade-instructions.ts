@@ -105,6 +105,7 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 		manualVersionUpgrade: false,
 		windowsZip: false,
 		anchor: 'v4-3-0-1',
+		vulnerable: true,
 	},
 	{
 		version: '4.2.2.2',
@@ -171,6 +172,7 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 		manualVersionUpgrade: false,
 		windowsZip: false,
 		anchor: 'v4-2-1-2',
+		vulnerable: true,
 	},
 	{
 		version: '4.2.0',
