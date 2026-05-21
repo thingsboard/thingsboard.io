@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import type { APIContext } from 'astro';
 import { defineRouteMiddleware, type StarlightRouteData } from '@astrojs/starlight/route-data';
 import { allPages, tutorialPages as pages } from '~/content';
@@ -70,15 +71,46 @@ const tutorialPagesByVersion: Map<Products, typeof pages> = (() => {
 /** Memoization cache for `linkMatchesVersion(href) && linkMatchesLanguage(href)`. */
 const sidebarLinkMatchCache = new Map<string, boolean>();
 
+const EDIT_BASE_URL = 'https://github.com/thingsboard/thingsboard.io/edit/main';
+const INCLUDES_IMPORT_REGEX = /^\s*import\s+\w+\s+from\s+['"]@includes\/([^'"]+)['"]/gm;
+const JSX_COMPONENT_REGEX = /^\s*<[A-Z][A-Za-z0-9]*\b/gm;
+const editUrlOverrideCache = new Map<string, URL | null>();
+
 export const onRequest = defineRouteMiddleware((context) => {
 	const starlightRoute = context.locals.starlightRoute;
 	const isTutorial = isTutorialEntry(starlightRoute.entry);
 	updateHead(context, isTutorial);
+	rewriteStubEditUrl(starlightRoute);
 	filterSidebarByVersionAndLanguage(starlightRoute);
 	markParentSidebarItemAsCurrent(starlightRoute, context.url.pathname);
 	filterPaginationByVersion(starlightRoute);
 	if (isTutorial) updateTutorialPagination(starlightRoute);
 });
+
+/** Thin stubs (1 `@includes` import + 1 JSX call) point "Edit page" at the include, not the stub. */
+function rewriteStubEditUrl(starlightRoute: StarlightRouteData) {
+	if (!starlightRoute.editUrl) return;
+	const filePath = (starlightRoute.entry as { filePath?: string }).filePath;
+	if (!filePath) return;
+
+	let override = editUrlOverrideCache.get(filePath);
+	if (override === undefined) {
+		override = null;
+		try {
+			const source = readFileSync(filePath, 'utf8');
+			const includeMatches = [...source.matchAll(INCLUDES_IMPORT_REGEX)];
+			const jsxMatches = [...source.matchAll(JSX_COMPONENT_REGEX)];
+			if (includeMatches.length === 1 && jsxMatches.length === 1) {
+				override = new URL(`${EDIT_BASE_URL}/src/content/_includes/${includeMatches[0]![1]}`);
+			}
+		} catch {
+			// Source file unreadable — keep the stub edit URL.
+		}
+		editUrlOverrideCache.set(filePath, override);
+	}
+
+	if (override) starlightRoute.editUrl = override;
+}
 
 /**
  * Filter sidebar entries to only show items for the current product version and language.
