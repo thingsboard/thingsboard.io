@@ -79,9 +79,12 @@ function normalizeCanonicalHref(href: string): string | null {
 	try {
 		const url = new URL(href, PROD_ORIGIN);
 		if (url.hostname !== PROD_HOST) return url.href;
+		// Preserve `?query` and `#fragment` — `url.pathname` strips them, and the
+		// pre-refactor code passed the raw value into `new URL(value, context.site)`
+		// which kept both. Forcing a trailing slash matches Astro's `trailingSlash: 'always'`.
 		let p = url.pathname;
 		if (!p.endsWith('/')) p = p + '/';
-		return p;
+		return p + url.search + url.hash;
 	} catch {
 		return null;
 	}
