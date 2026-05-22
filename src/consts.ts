@@ -2,6 +2,14 @@ export const SITE_NAME = 'ThingsBoard';
 export const DOCS_SUFFIX = 'Docs';
 export const TITLE_SEPARATOR = '|';
 
+/**
+ * Production site origin. SEO canonicals and the link checker's "treat as
+ * local" allow-list both anchor to this regardless of `PUBLIC_SITE_URL` /
+ * preview origins, so that canonical hrefs and absolute-URL detection stay
+ * stable across staging and production builds.
+ */
+export const PROD_ORIGIN = 'https://thingsboard.io';
+
 const SEP = ` ${TITLE_SEPARATOR} `;
 
 export const SECTION_LABELS: Record<string, string> = {

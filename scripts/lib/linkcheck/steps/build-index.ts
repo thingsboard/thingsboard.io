@@ -18,13 +18,7 @@ export function getPagePathnamesFromBuildOutput(options: LinkCheckerOptions) {
 		cwd: options.buildOutputDir,
 		onlyFiles: true,
 	});
-	const uniquePagePaths = new Set<string>(
-		htmlFiles.map((p) => '/' + p.replace(/index\.html$/, ''))
-	);
-
-	options.additionalPathnames?.forEach((p) => uniquePagePaths.add(p));
-
-	const paths = Array.from(uniquePagePaths);
+	const paths = htmlFiles.map((p) => '/' + p.replace(/index\.html$/, ''));
 	if (options.excludePagePatterns?.length) {
 		return paths.filter((p) => !options.excludePagePatterns!.some((re) => re.test(p)));
 	}
@@ -67,7 +61,7 @@ function parsePage(pathname: string, options: LinkCheckerOptions): HtmlPage {
 		return htmlPage;
 	} catch (err: unknown) {
 		throw new Error(dedentMd`Error parsing HTML file "${htmlFilePath}"
-			referenced by sitemap: ${err instanceof Error ? err.message : err}`);
+			referenced by build output: ${err instanceof Error ? err.message : err}`);
 	}
 }
 

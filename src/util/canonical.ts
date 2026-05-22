@@ -1,5 +1,6 @@
 import { Products } from '@models/site.models.ts';
 import { allPages } from '~/content';
+import { PROD_ORIGIN } from '~/consts';
 import {
 	getLanguageFromSlug,
 	getLanguagePrefix,
@@ -55,6 +56,8 @@ function getPathnameFromId(id: string): string {
 	return `${langPrefix}/${stripped}/`;
 }
 
+const PROD_HOST = new URL(PROD_ORIGIN).hostname;
+
 /**
  * Resolve a `canonicalUrl:` frontmatter value into the form `routeData.ts` expects.
  *  - Same-origin (or root-relative) → site-relative pathname with trailing slash,
@@ -62,15 +65,20 @@ function getPathnameFromId(id: string): string {
  *    rebuilds the canonical against the site origin.
  *  - Cross-origin → preserve the absolute href verbatim. `new URL(absolute, base)`
  *    ignores the base when the first arg is absolute, so the rewritten canonical
- *    keeps its foreign origin instead of being silently rebased to `thingsboard.io`.
+ *    keeps its foreign origin instead of being silently rebased to PROD_ORIGIN.
  *  - Malformed (unparsable) → returns `null` so the caller can fall back to the
  *    page's own pathname (no rewrite) instead of letting a garbage string flow
  *    into `new URL(...)` and crash the build.
+ *
+ * The resolver base is hardcoded to `PROD_ORIGIN` (not Astro's runtime `site`)
+ * so that root-relative `canonicalUrl: /docs/foo/` values stay canonical across
+ * preview/staging builds — using the build origin would emit different `<link
+ * rel="canonical">` hrefs from preview deploys.
  */
 function normalizeCanonicalHref(href: string): string | null {
 	try {
-		const url = new URL(href, 'https://thingsboard.io');
-		if (url.hostname !== 'thingsboard.io') return url.href;
+		const url = new URL(href, PROD_ORIGIN);
+		if (url.hostname !== PROD_HOST) return url.href;
 		let p = url.pathname;
 		if (!p.endsWith('/')) p = p + '/';
 		return p;

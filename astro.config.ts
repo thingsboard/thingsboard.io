@@ -8,6 +8,7 @@ import { devServerFileWatcher } from './config/integrations/dev-server-file-watc
 import { sitemap } from './config/integrations/sitemap';
 import { rehypeMdxIncludeHeadings } from './config/plugins/rehype-mdx-include-headings';
 import { rehypeTasklistEnhancer } from './config/plugins/rehype-tasklist-enhancer';
+import { PROD_ORIGIN } from './src/consts';
 
 import icon from 'astro-icon';
 import svgo from 'vite-plugin-svgo';
@@ -26,7 +27,7 @@ const site =
 	PUBLIC_SITE_URL ||
 	(CF_PAGES_BRANCH && CF_PAGES_URL ? CF_PAGES_URL : null) ||
 	NETLIFY_PREVIEW_SITE ||
-	'https://thingsboard.io/';
+	`${PROD_ORIGIN}/`;
 
 // https://astro.build/config
 export default defineConfig({

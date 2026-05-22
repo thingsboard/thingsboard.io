@@ -1,3 +1,4 @@
+import { PROD_ORIGIN } from '../src/consts.ts';
 import { LinkCheckerState, type LinkCheckerOptions } from './lib/linkcheck/base/base.ts';
 import { CanonicalUrl } from './lib/linkcheck/checks/canonical-url.ts';
 import { GoodLabels } from './lib/linkcheck/checks/good-link-label.ts';
@@ -64,17 +65,16 @@ class LinkChecker {
 }
 
 // Mirror the `site` resolution from astro.config.ts so preview builds
-// (Cloudflare Pages, Netlify, or an explicit PUBLIC_SITE_URL) parse the
-// sitemap under the same origin the build emitted.
-const PROD_ORIGIN = 'https://thingsboard.io';
+// (Cloudflare Pages, Netlify, or an explicit PUBLIC_SITE_URL) match the
+// origin the build emitted.
 const resolvedSite =
 	process.env.PUBLIC_SITE_URL ||
 	(process.env.CF_PAGES_BRANCH && process.env.CF_PAGES_URL) ||
 	(process.env.CONTEXT !== 'production' && process.env.DEPLOY_PRIME_URL) ||
 	PROD_ORIGIN;
 
-// build-index.ts greps `<loc>${baseUrl}(/.*?)</loc>`, so the origin must not
-// carry a trailing slash.
+// Strip the trailing slash so `pathnameToHref` in build-index.ts (which calls
+// `new URL(pathname, baseUrl)`) doesn't end up with `//` between origin and path.
 const baseUrl = resolvedSite.replace(/\/$/, '');
 
 // On preview/staging builds, also treat the production origin as local so
