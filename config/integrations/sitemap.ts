@@ -11,9 +11,19 @@ import { fileURLToPath } from 'node:url';
  * no parallel allow/deny lists to drift from the actual output.
  */
 export function sitemap(): AstroIntegration {
-	let outDir = '';
+	// Populated by our `astro:build:done` wrapper below, before we delegate to
+	// @astrojs/sitemap's own hook (the only place that invokes `filter`). If
+	// a future upgrade ever calls the filter from an earlier hook, the explicit
+	// throw below makes the broken assumption loud instead of silently letting
+	// every page through.
+	let outDir: string | null = null;
 	const integration = AstroSitemap({
-		filter: (page) => (outDir ? isIndexableCanonicalPage(outDir, page) : true),
+		filter: (page) => {
+			if (outDir === null) {
+				throw new Error('sitemap filter invoked before `astro:build:done` populated outDir');
+			}
+			return isIndexableCanonicalPage(outDir, page);
+		},
 	});
 	const innerHook = integration.hooks['astro:build:done'];
 	return {

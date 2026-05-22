@@ -1,12 +1,12 @@
-import { Products } from '../models/site.models';
-import { allPages } from '../content';
+import { Products } from '@models/site.models.ts';
+import { allPages } from '~/content';
 import {
 	getLanguageFromSlug,
 	getLanguagePrefix,
 	getVersionFromSlug,
 	getVersionPrefix,
 	stripLanguagePrefix,
-} from './path-utils';
+} from '~/util/path-utils';
 
 /**
  * Maps "free" product versions to their "professional" canonical equivalents.
@@ -38,9 +38,12 @@ const canonicalTargetPageIds = new Map<Products, Set<string>>(
 function getPageSlugFromId(id: string, version: Products): string {
 	let path = stripLanguagePrefix(id);
 	if (path.startsWith('docs/')) path = path.slice(5);
+	// CE root index page: id is just 'docs' (no trailing slash via generateId).
 	else if (path === 'docs') path = '';
 	const prefix = getVersionPrefix(version);
 	if (prefix && path.startsWith(prefix)) path = path.slice(prefix.length);
+	// Product root index page: id is `docs/<product>` (e.g. `docs/pe`), so after
+	// stripping `docs/` we have `pe` while the prefix is `pe/` — match index here.
 	else if (prefix && path + '/' === prefix) path = '';
 	return path;
 }
@@ -52,15 +55,27 @@ function getPathnameFromId(id: string): string {
 	return `${langPrefix}/${stripped}/`;
 }
 
-/** Resolve a canonical URL string to a site-relative pathname (with trailing slash). */
-function normalizeCanonicalToPathname(href: string): string {
+/**
+ * Resolve a `canonicalUrl:` frontmatter value into the form `routeData.ts` expects.
+ *  - Same-origin (or root-relative) → site-relative pathname with trailing slash,
+ *    so `pathname !== self` comparison works and `new URL(value, context.site)`
+ *    rebuilds the canonical against the site origin.
+ *  - Cross-origin → preserve the absolute href verbatim. `new URL(absolute, base)`
+ *    ignores the base when the first arg is absolute, so the rewritten canonical
+ *    keeps its foreign origin instead of being silently rebased to `thingsboard.io`.
+ *  - Malformed (unparsable) → returns `null` so the caller can fall back to the
+ *    page's own pathname (no rewrite) instead of letting a garbage string flow
+ *    into `new URL(...)` and crash the build.
+ */
+function normalizeCanonicalHref(href: string): string | null {
 	try {
 		const url = new URL(href, 'https://thingsboard.io');
+		if (url.hostname !== 'thingsboard.io') return url.href;
 		let p = url.pathname;
 		if (!p.endsWith('/')) p = p + '/';
 		return p;
 	} catch {
-		return href;
+		return null;
 	}
 }
 
@@ -74,7 +89,7 @@ export function getCanonicalPathname(
 ): string {
 	const selfPathname = getPathnameFromId(id);
 
-	if (data.canonicalUrl) return normalizeCanonicalToPathname(data.canonicalUrl);
+	if (data.canonicalUrl) return normalizeCanonicalHref(data.canonicalUrl) ?? selfPathname;
 
 	if (data.selfCanonical) return selfPathname;
 
