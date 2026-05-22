@@ -121,7 +121,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 			`${prefix}/local-ai-ollama`,
 			`${prefix}/mcp-server`,
 			`${prefix}/n8n-node`,
-			{ slug: `${prefix}/cli`, badge: { text: 'New', class: 'tb-badge' } },
+			`${prefix}/cli`,
 		],
 	},
 	{
@@ -487,9 +487,9 @@ const apisAndSdksItems = (prefix: string) => [
 		label: 'Clients & CLI',
 		collapsed: true,
 		items: [
-			// Using `slug:` (not raw `link:`) so the per-version sidebar filter in routeData.ts keeps
-			// the entry inside its own sidebar only — avoids cross-sidebar duplication.
-			{ slug: `${prefix}/user-guide/cli`, badge: { text: 'New', class: 'tb-badge' } },
+			// Using slug-based entries (not raw `link:`) so the per-version sidebar filter in
+			// routeData.ts keeps each entry inside its own sidebar only — avoids cross-sidebar duplication.
+			`${prefix}/user-guide/cli`,
 			`${prefix}/reference/java-client`,
 			`${prefix}/reference/python-client`,
 		],
@@ -1871,7 +1871,7 @@ export const paasSidebar: SidebarConfig = [
 					'docs/paas/user-guide/local-ai-ollama',
 					'docs/paas/user-guide/mcp-server',
 					'docs/paas/user-guide/n8n-node',
-					{ slug: 'docs/paas/user-guide/cli', badge: { text: 'New', class: 'tb-badge' } },
+					'docs/paas/user-guide/cli',
 				],
 			},
 			{
@@ -2217,7 +2217,7 @@ export const paasEuSidebar: SidebarConfig = [
 					'docs/paas/eu/user-guide/local-ai-ollama',
 					'docs/paas/eu/user-guide/mcp-server',
 					'docs/paas/eu/user-guide/n8n-node',
-					{ slug: 'docs/paas/eu/user-guide/cli', badge: { text: 'New', class: 'tb-badge' } },
+					'docs/paas/eu/user-guide/cli',
 				],
 			},
 			{
@@ -2611,7 +2611,7 @@ export const edgeSidebar: SidebarConfig = [
 				label: 'Clients & CLI',
 				collapsed: true,
 				items: [
-					{ slug: 'docs/edge/user-guide/cli', badge: { text: 'New', class: 'tb-badge' } },
+					'docs/edge/user-guide/cli',
 					'docs/edge/reference/java-client',
 					'docs/edge/reference/python-client',
 				],
@@ -3052,7 +3052,7 @@ export const edgePeSidebar: SidebarConfig = [
 				label: 'Clients & CLI',
 				collapsed: true,
 				items: [
-					{ slug: 'docs/edge/pe/user-guide/cli', badge: { text: 'New', class: 'tb-badge' } },
+					'docs/edge/pe/user-guide/cli',
 					'docs/edge/pe/reference/java-client',
 					'docs/edge/pe/reference/python-client',
 				],
