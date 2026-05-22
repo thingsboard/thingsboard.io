@@ -1,11 +1,10 @@
-import { redirects, devFallbackRedirects } from '../astro.redirects.ts';
 import { LinkCheckerState, type LinkCheckerOptions } from './lib/linkcheck/base/base.ts';
 import { CanonicalUrl } from './lib/linkcheck/checks/canonical-url.ts';
 import { GoodLabels } from './lib/linkcheck/checks/good-link-label.ts';
 import { RelativeUrl } from './lib/linkcheck/checks/relative-url.ts';
 import { SameLanguage } from './lib/linkcheck/checks/same-language.ts';
 import { TargetExists } from './lib/linkcheck/checks/target-exists.ts';
-import { getPagePathnamesFromSitemap, parsePages } from './lib/linkcheck/steps/build-index.ts';
+import { getPagePathnamesFromBuildOutput, parsePages } from './lib/linkcheck/steps/build-index.ts';
 import { addSourceFileAnnotations, findLinkIssues } from './lib/linkcheck/steps/find-issues.ts';
 import { handlePossibleAutofix } from './lib/linkcheck/steps/optional-autofix.ts';
 import { outputAnnotationsForGitHub, outputIssues } from './lib/linkcheck/steps/output-issues.ts';
@@ -30,10 +29,10 @@ class LinkChecker {
 		const options = this.options;
 		const state = this.state;
 
-		// Get the pathnames of all content pages from the sitemap contained in the build output
-		const pagePathnames = getPagePathnamesFromSitemap(options);
+		// Get the pathnames of every page emitted to the build output
+		const pagePathnames = getPagePathnamesFromBuildOutput(options);
 
-		// Parse all pages referenced by the sitemap and build an index of their contents
+		// Parse all built pages and build an index of their contents
 		const allPages = parsePages(pagePathnames, options);
 
 		// Find all link issues
@@ -92,12 +91,6 @@ const linkChecker = new LinkChecker({
 	additionalLocalHosts,
 	buildOutputDir: './dist',
 	pageSourceDir: './src/content/docs',
-	// Include `astro.redirects` entries as pages so `[ref]` and its autofix can
-	// reason about them. Their built HTML carries `noindex` and is filtered from
-	// the sitemap, so without this they would be invisible to the link checker.
-	// Exclude devFallbackRedirects — their targets (search pages, paginated views)
-	// are not in the sitemap and would always produce false-positive 404 errors.
-	additionalPathnames: Object.keys(redirects ?? {}).filter((p) => !(p in devFallbackRedirects)),
 	// SEO canonical consolidation: pages in "free" versions whose content is ~95% identical
 	// to the "professional" equivalent have their <link rel="canonical"> rewritten to the PE
 	// URL (see `src/routeData.ts`). Edition-specific pages (installation/*, install/*,

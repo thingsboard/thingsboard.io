@@ -1,6 +1,6 @@
 import type { APIContext } from 'astro';
 import { defineRouteMiddleware, type StarlightRouteData } from '@astrojs/starlight/route-data';
-import { allPages, tutorialPages as pages } from '~/content';
+import { tutorialPages as pages } from '~/content';
 import { Products } from '@models/site.models.ts';
 import {
 	getVersionFromSlug,
@@ -14,6 +14,7 @@ import {
 	stripLanguagePrefix,
 	type SupportedLanguage,
 } from '~/util/path-utils';
+import { getCanonicalPathname } from '~/util/canonical';
 import { DOCS_SUFFIX, formatDocsTitle, TITLE_SEPARATOR } from '~/consts';
 import { getOgImageUrl } from '~/util/getOgImageUrl';
 import { getTutorialPages } from '~/util/getTutorialPages';
@@ -30,29 +31,6 @@ const API_SECTION_NAMES: Record<string, string> = {
 	'mqtt-api': 'MQTT API',
 	'snmp-api': 'SNMP API',
 };
-
-/**
- * Maps "free" product versions to their "professional" canonical equivalents.
- * Pages in free versions have their <link rel="canonical"> rewritten to the
- * corresponding professional URL for SEO consolidation, IF the professional
- * equivalent exists. Both versions continue serving their own distinct content.
- */
-const canonicalConsolidationMap: Partial<Record<Products, Products>> = {
-	[Products.CE]: Products.PE,
-	[Products.PAAS]: Products.PE,
-	[Products.PAAS_EU]: Products.PE,
-	[Products.EDGE]: Products.EDGE_PE,
-	[Products.TBMQ]: Products.TBMQ_PE,
-	[Products.MOBILE]: Products.MOBILE_PE,
-};
-
-/** Per-target sets of content IDs, used to verify an equivalent exists before rewriting canonical. */
-const canonicalTargetPageIds = new Map<Products, Set<string>>(
-	[...new Set(Object.values(canonicalConsolidationMap))].map((target) => [
-		target,
-		new Set(allPages.filter((p) => getVersionFromSlug(p.id) === target).map((p) => p.id)),
-	])
-);
 
 /** Tutorial pages bucketed by product version. Built once at module load — `pages` is static. */
 const tutorialPagesByVersion: Map<Products, typeof pages> = (() => {
@@ -210,7 +188,6 @@ const docsPathRegex = /^\/(uk\/)?docs(\/|$)/;
 const escapedSep = TITLE_SEPARATOR.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
 const docsSuffixMatcher = new RegExp(` ${escapedSep} ${DOCS_SUFFIX}$`);
 const apiPathMatcher = /^reference\/([^/]+)\//;
-const selfCanonicalSegments = ['installation/upgrade-instructions'];
 
 function updateHead(context: APIContext, isTutorial: boolean) {
 	const starlightRoute = context.locals.starlightRoute;
@@ -302,41 +279,16 @@ function updateHead(context: APIContext, isTutorial: boolean) {
 		head.push({ tag: 'meta', attrs: { name: 'robots', content: 'noindex, follow' } });
 	}
 
-	// Canonical consolidation: free product versions → professional equivalents.
-	// Only rewrite if the equivalent professional page actually exists, and the
-	// page is not edition-specific (different Docker images, licensing, hosts).
-	const targetVersion = canonicalConsolidationMap[product];
-	if (targetVersion) {
-		const isSelfCanonicalPath = selfCanonicalSegments.some(
-			(seg) => pageSlug === seg || pageSlug.startsWith(`${seg}/`)
-		);
-		const isSelfCanonicalFrontmatter =
-			(entry.data as { selfCanonical?: boolean }).selfCanonical === true;
-
-		if (!isSelfCanonicalPath && !isSelfCanonicalFrontmatter) {
-			const targetPageIds = canonicalTargetPageIds.get(targetVersion)!;
-			const langPrefix = getLanguagePrefix(lang);
-			const targetPrefix = getVersionPrefix(targetVersion);
-			const docsPrefix = lang === 'uk' ? 'uk/docs/' : 'docs/';
-			// `targetPrefix` already ends with `/`, so concatenating an empty `pageSlug`
-			// (root page) yields a trailing slash that doesn't match the generated
-			// content id (`docs/pe`, not `docs/pe/`). Strip it.
-			const targetContentId = `${docsPrefix}${targetPrefix}${pageSlug}`.replace(/\/$/, '');
-
-			if (targetPageIds.has(targetContentId)) {
-				const slugSuffix = pageSlug ? `${pageSlug}/` : '';
-				const targetPathname = `/${langPrefix}docs/${targetPrefix}${slugSuffix}`;
-				const targetCanonical = new URL(targetPathname, context.site).href;
-				if (canonical) canonical.attrs!['href'] = targetCanonical;
-				if (ogUrl) ogUrl.attrs!['content'] = targetCanonical;
-			}
-		}
-	}
-
-	// Per-page explicit canonical override (highest priority — wins over consolidation).
-	const explicitCanonical = (entry.data as { canonicalUrl?: string }).canonicalUrl;
-	if (explicitCanonical) {
-		const targetCanonical = new URL(explicitCanonical, context.site).href;
+	// Canonical: free product versions → professional equivalents, plus explicit
+	// frontmatter overrides. See `getCanonicalPathname` — also drives sitemap
+	// exclusion so the two stay in lockstep.
+	const canonicalPathname = getCanonicalPathname(
+		entry.id,
+		entry.data as { selfCanonical?: boolean; canonicalUrl?: string }
+	);
+	const selfPathname = pathname.endsWith('/') ? pathname : pathname + '/';
+	if (canonicalPathname !== selfPathname) {
+		const targetCanonical = new URL(canonicalPathname, context.site).href;
 		if (canonical) canonical.attrs!['href'] = targetCanonical;
 		if (ogUrl) ogUrl.attrs!['content'] = targetCanonical;
 	}

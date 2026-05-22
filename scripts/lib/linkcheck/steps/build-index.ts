@@ -1,28 +1,27 @@
 import fs from 'fs';
 import path from 'path';
+import fg from 'fast-glob';
 import { dedentMd } from '../../output.mjs';
 import type { LinkCheckerOptions } from '../base/base.ts';
 import { HtmlPage, type AllPagesByPathname } from '../base/page.ts';
 
 /**
- * Reads sitemaps from the build output and extracts all unique pathnames.
- * `@astrojs/sitemap` can generate multiple numbered sitemaps, named `sitemap-0.xml` etc.
+ * Enumerates every page actually emitted into the build by globbing for
+ * `**\/index.html` under `buildOutputDir`. This is broader than the sitemap
+ * (which only lists indexable + canonical pages) and intentionally so —
+ * the link checker must validate links on noindex and non-canonical pages
+ * too, otherwise broken links inside them go undetected. The previous
+ * sitemap-driven approach skipped pages excluded by `@astrojs/sitemap`.
  */
-export function getPagePathnamesFromSitemap(options: LinkCheckerOptions) {
-	const distContents = fs.readdirSync(options.buildOutputDir);
-	const sitemaps = distContents.filter((path) => /^sitemap-\d+\.xml$/.test(path));
+export function getPagePathnamesFromBuildOutput(options: LinkCheckerOptions) {
+	const htmlFiles = fg.sync('**/index.html', {
+		cwd: options.buildOutputDir,
+		onlyFiles: true,
+	});
+	const uniquePagePaths = new Set<string>(
+		htmlFiles.map((p) => '/' + p.replace(/index\.html$/, ''))
+	);
 
-	const sitemapRegex = new RegExp(`<loc>${options.baseUrl}(/.*?)</loc>`, 'ig');
-	const uniquePagePaths = new Set<string>();
-
-	for (const filename of sitemaps) {
-		const sitemapFilePath = path.join(options.buildOutputDir, filename);
-		const sitemap = fs.readFileSync(sitemapFilePath, 'utf8');
-		const paths = Array.from(sitemap.matchAll(sitemapRegex), (m) => m[1]);
-		paths.forEach((path) => uniquePagePaths.add(path));
-	}
-
-	// Merge in additional pathnames (e.g. `astro.redirects` entries excluded from sitemap)
 	options.additionalPathnames?.forEach((p) => uniquePagePaths.add(p));
 
 	const paths = Array.from(uniquePagePaths);
