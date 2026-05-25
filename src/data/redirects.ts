@@ -1208,9 +1208,6 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 		oldPath: 'paas/eu/solution-templates/fleet-tracking',
 		target: '/docs/paas/eu/recipes/solution-templates/site-fleet-tracking/',
 	},
-	// Scheduling widgets — CE has no stubs; redirect to PE equivalents
-	{ oldPath: 'reference/widgets/scheduling/scheduler-events', target: '/docs/pe/reference/widgets/scheduling/scheduler-events/' },
-	{ oldPath: 'reference/widgets/scheduling/reports-schedule', target: '/docs/pe/reference/widgets/scheduling/reports-schedule/' },
 ];
 
 /**

@@ -1008,6 +1008,16 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 					],
 				},
 				{
+					label: 'Status Indicators',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/status-indicators/battery-level`,
+						`${prefix}/widgets/status-indicators/progress-bar`,
+						`${prefix}/widgets/status-indicators/signal-strength`,
+						`${prefix}/widgets/status-indicators/status-widget`,
+					],
+				},
+				{
 					label: 'Tables',
 					collapsed: true,
 					items: [
@@ -1582,6 +1592,16 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 								`${prefix}/widgets/scada/high-performance-scada-oil-gas/hp-turbine`,
 							],
 						},
+					],
+				},
+				{
+					label: 'Status Indicators',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/status-indicators/battery-level`,
+						`${prefix}/widgets/status-indicators/progress-bar`,
+						`${prefix}/widgets/status-indicators/signal-strength`,
+						`${prefix}/widgets/status-indicators/status-widget`,
 					],
 				},
 				{
