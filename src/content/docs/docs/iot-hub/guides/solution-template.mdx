@@ -118,7 +118,7 @@ The ZIP archive must contain all three of these at the root. The platform reject
 | `asset_profiles/` | Asset profile templates referenced from `entities/assets.json` |
 | `rule_chains/` | Rule chain templates referenced from `entities/rule_chains.json` |
 | `calculated_fields/` | Calculated field templates referenced from related entities |
-| `images/` | Custom images — usually not needed if you host images externally |
+| `images/` | Bundled preview and gallery images referenced from `solution.json` (`previewImageUrl`, `imageUrls`) by relative path, e.g. `images/preview.png` |
 
 ## Editions
 
@@ -153,24 +153,24 @@ If your template uses only CE features but also offers a richer PE experience (e
 | Field | Type | Description |
 |-------|------|-------------|
 | `title` | string | Human-readable solution name shown on the catalog card |
-| `previewImageUrl` | string | Main preview image shown on browse cards and the detail page header. Can be an external URL or a path to a file in the ZIP's `images/` folder |
+| `previewImageUrl` | string | Main preview image shown on browse cards and the detail page header. Accepts an external URL (e.g. `https://img.thingsboard.io/...`), a relative path to a file in the ZIP's `images/` folder (e.g. `images/hp-swimming-pool-preview.png`), or an inline data URI (`data:image/png;base64,...`) |
 
 ### Optional Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `imageUrls` | string[] | Gallery images shown on the solution's detail page. Same URL/path rules as `previewImageUrl` |
+| `imageUrls` | string[] | Gallery images shown on the solution's detail page. Each entry uses the same URL/path rules as `previewImageUrl` — e.g. `https://img.thingsboard.io/...` or `images/hp-swimming-pool-gallery-1.png` for files in the ZIP's `images/` folder |
 | `installTimeoutMs` | integer | Upper bound for how long the install may take (in ms). `0` means use the default server timeout. Set this only if your template creates many entities or heavy rule chains |
 
-### Image URL Resolution
+At install time the platform resolves every image, saves it as a ThingsBoard image resource, and rewrites dashboard and profile references to point at the new resource IDs — so the solution keeps working even if the original image host goes down later.
 
-Both `previewImageUrl` and each entry in `imageUrls` can be:
+### Image Best Practices
 
-- An **external URL** (`https://img.thingsboard.io/...`) — downloaded at install time and cached as an image resource
-- A **relative path** into the ZIP (`images/preview.png`) — read directly from the archive
-- A **data URI** (`data:image/png;base64,...`) — embedded inline
-
-When you release the template, images are resolved, saved as image resources in ThingsBoard, and the dashboard/profile references are rewritten to point at the new resource IDs. This means your template works even if the original image host goes down later.
+- **Preview image** — 16:9 aspect ratio, 1600×900 px, under 200 KB after compression.
+- **Gallery images** — 16:9 or 4:3 aspect, 800×600 px minimum, showing different screens or views of the dashboard.
+- Use **PNG** for screenshots with text or charts; **JPG** for photos.
+- Always include at least 2–3 gallery images — users browse the gallery before clicking install.
+- Crop to show dashboard content, not surrounding chrome (toolbars, navigation).
 
 ## `entities/` — The Heart of Your Template
 
@@ -226,7 +226,7 @@ Per-device fields:
 | `type` | Device profile type (must match a profile in `device_profiles/` or the default `default`) |
 | `additionalInfo` | Arbitrary metadata (e.g. `{"gateway": true}` to mark a gateway device) |
 | `sharedAttributes` | Shared attributes saved to the device on creation — useful for gateway connector configs |
-| `serverAttributes` | Server-side attributes saved on creation |
+| `attributes` | Server-side attributes saved on creation (the field is named `attributes`, but values are stored as server-side attributes) |
 | `emulator` | Name of an entry from `entities/device_emulators.json` — binds this device to a telemetry emulator |
 | `credentials` | Optional custom credentials (access token, MQTT basic, X.509) |
 
@@ -304,7 +304,67 @@ Wires dashboard JSON files from the `dashboards/` folder to actual dashboards.
 
 ### `entities/device_emulators.json`
 
-Defines synthetic telemetry streams that make your solution feel alive immediately after install. See [Device Emulators](#device-emulators) below.
+Device emulators are the secret sauce that makes a solution template look alive. Instead of users seeing empty dashboards, each emulated device streams realistic synthetic telemetry the moment the template is installed.
+
+Emulators are defined as a JSON array in `entities/device_emulators.json`:
+
+```json
+[
+  {
+    "name": "Tank Emulator",
+    "publishPeriodInDays": 7,
+    "publishFrequencyInSeconds": 3600,
+    "publishPauseInMillis": 1,
+    "activityPeriodInMillis": 720000,
+    "telemetryProfiles": [
+      {
+        "key": "battery",
+        "valueStrategy": {
+          "type": "natural",
+          "precision": 1,
+          "minStartValue": 99,
+          "maxStartValue": 99,
+          "minLowValue": 21,
+          "maxLowValue": 21,
+          "minHighValue": 21,
+          "maxHighValue": 100,
+          "minIncrement": 100.0,
+          "maxIncrement": 100.0,
+          "minDecrement": 0.1,
+          "maxDecrement": 0.2,
+          "holidayMultiplier": 1.0,
+          "workHoursMultiplier": 1.0,
+          "nightHoursMultiplier": 1.0
+        }
+      }
+    ]
+  }
+]
+```
+
+#### Top-Level Emulator Fields
+
+| Field | Description |
+|-------|-------------|
+| `name` | Emulator name, referenced by devices via `"emulator": "..."` in `entities/devices.json` |
+| `publishPeriodInDays` | How many historical days of data to backfill on install |
+| `publishFrequencyInSeconds` | How often each telemetry point is emitted |
+| `publishPauseInMillis` | Delay between individual telemetry writes |
+| `activityPeriodInMillis` | Length of each simulated activity burst |
+| `telemetryProfiles` | Array of per-key generation profiles |
+
+#### Telemetry Profile — `valueStrategy.type`
+
+| Strategy | Use for |
+|----------|---------|
+| `natural` | Smoothly drifting numeric values (temperature, humidity, battery) with min/max bounds and increment/decrement ranges |
+| `enum` | Categorical values that switch randomly between a defined set |
+| `constant` | Values that stay fixed |
+| `step` | Values that transition between levels on a schedule |
+
+#### Why Emulators Matter
+
+Without emulators, your user installs the template, opens the dashboard, and sees empty widgets. With emulators, the user sees a realistic live system within seconds, which is the difference between a compelling demo and a confusing one.
 
 ## Dashboards
 
@@ -392,79 +452,20 @@ If you reference a rule chain via `defaultRuleChainId`, the `id` must match the 
 
 ## Rule Chains and Calculated Fields
 
-Exported rule chain and calculated field JSONs. Rule chains are referenced by file name from `entities/rule_chains.json`; calculated fields are typically referenced from device profile configuration.
+Rule chains and calculated fields are exported as JSON files from ThingsBoard and dropped into `rule_chains/` and `calculated_fields/` respectively. The exports require no post-edit — wiring happens through `entities/` and device profiles.
 
-### Rule Chain Example
+### Rule Chains
 
-A dedicated Rule Chain Contribution Guide will cover the full JSON structure. For now, export a working rule chain from ThingsBoard and drop it into `rule_chains/`.
+1. In ThingsBoard, open **Rule Chains** and export the rule chain.
+2. Save the JSON to `rule_chains/<file>.json`.
+3. Register it in [`entities/rule_chains.json`](#entitiesrule_chainsjson) with `name`, `file`, and a stable `jsonId`.
+4. If a device profile uses this rule chain as its default, set its `defaultRuleChainId.id` to the same `jsonId`. The platform rewrites both to the real UUID at install time.
 
-### Calculated Field Example
+### Calculated Fields
 
-A dedicated Calculated Field Contribution Guide will cover the full JSON structure. For now, export a working calculated field from ThingsBoard and drop it into `calculated_fields/`.
-
-## Device Emulators
-
-Device emulators are the secret sauce that makes a solution template look alive. Instead of users seeing empty dashboards, each emulated device streams realistic synthetic telemetry the moment the template is installed.
-
-Emulators are defined in `entities/device_emulators.json`:
-
-```json
-[
-  {
-    "name": "Tank Emulator",
-    "publishPeriodInDays": 7,
-    "publishFrequencyInSeconds": 3600,
-    "publishPauseInMillis": 1,
-    "activityPeriodInMillis": 720000,
-    "telemetryProfiles": [
-      {
-        "key": "battery",
-        "valueStrategy": {
-          "type": "natural",
-          "precision": 1,
-          "minStartValue": 99,
-          "maxStartValue": 99,
-          "minLowValue": 21,
-          "maxLowValue": 21,
-          "minHighValue": 21,
-          "maxHighValue": 100,
-          "minIncrement": 100.0,
-          "maxIncrement": 100.0,
-          "minDecrement": 0.1,
-          "maxDecrement": 0.2,
-          "holidayMultiplier": 1.0,
-          "workHoursMultiplier": 1.0,
-          "nightHoursMultiplier": 1.0
-        }
-      }
-    ]
-  }
-]
-```
-
-### Top-Level Emulator Fields
-
-| Field | Description |
-|-------|-------------|
-| `name` | Emulator name, referenced by devices via `"emulator": "..."` in `entities/devices.json` |
-| `publishPeriodInDays` | How many historical days of data to backfill on install |
-| `publishFrequencyInSeconds` | How often each telemetry point is emitted |
-| `publishPauseInMillis` | Delay between individual telemetry writes |
-| `activityPeriodInMillis` | Length of each simulated activity burst |
-| `telemetryProfiles` | Array of per-key generation profiles |
-
-### Telemetry Profile — `valueStrategy.type`
-
-| Strategy | Use for |
-|----------|---------|
-| `natural` | Smoothly drifting numeric values (temperature, humidity, battery) with min/max bounds and increment/decrement ranges |
-| `enum` | Categorical values that switch randomly between a defined set |
-| `constant` | Values that stay fixed |
-| `step` | Values that transition between levels on a schedule |
-
-### Why Emulators Matter
-
-Without emulators, your user installs the template, opens the dashboard, and sees empty widgets. With emulators, the user sees a realistic live system within seconds, which is the difference between a compelling demo and a confusing one.
+1. In ThingsBoard, open the calculated field on a device or asset profile and export it.
+2. Save the JSON to `calculated_fields/<file>.json`.
+3. Reference the file from the owning profile's configuration — no separate entry in `entities/` is required.
 
 ## `description.md` — Marketplace Description
 
@@ -513,7 +514,6 @@ Keep the first paragraph under 512 characters — it's shown in a card.
 4. **Why use this template** — real benefits to the user.
 5. **Key features** — technical capabilities.
 6. **Real-world applications** — industries and use cases that match.
-7. **How to connect real devices** — bridge from the emulated demo to production.
 
 ## `instructions.md` — Post-Install Instructions
 
@@ -570,6 +570,7 @@ These placeholders are resolved at install time:
 | `${MAIN_DASHBOARD_URL}` | Deep link to the solution's main dashboard |
 | `${DOCKER_CONFIG}` | Full `docker-compose.yml` content for the gateway, pre-filled with host, port, and token. Usually wrapped in a `bash` code block |
 | `${DOCS_BASE_URL}` | Base URL of the ThingsBoard documentation — use for links that should work on both ThingsBoard Cloud and on-prem |
+| `${item-link:<item-uuid>}` | Renders a link card pointing at another IoT Hub item (widget, dashboard, rule chain, etc.) the user can install in one click. Use for dependencies your template relies on |
 
 ### Code Block Tags
 
@@ -588,7 +589,14 @@ docker run --pull always --rm -d --name tb-modbus-pool-emulator \
 A good `instructions.md` follows this flow:
 
 1. **Welcome** — one-line orientation.
-2. **Prerequisites** — what the user needs (Docker, network access, accounts).
+2. **Prerequisites** — what the user needs (Docker, network access, accounts). If your solution template depends on another IoT Hub item you have published (e.g. a custom widget, dashboard, or rule chain), reference it here with `${item-link:<item-uuid>}`. The platform replaces the placeholder with a link card pointing at that IoT Hub item so users can install the dependency in one click. Example:
+
+   ```markdown
+   This solution uses our custom Air Quality widget. Install it first:
+
+   ${item-link:d93b9a1a-1c07-408c-bb86-743bbcb36832}
+   ```
+
 3. **Launch the emulator** — copy-paste Docker commands.
 4. **Launch the gateway** — use `${DOCKER_CONFIG}` to give them a ready-to-run config.
 5. **Interacting with the dashboard** — link to the main dashboard via `${MAIN_DASHBOARD_URL}`.
@@ -603,47 +611,6 @@ Use `edge_instructions.md` to explain edge-specific setup: how to assign the rul
 
 If you don't provide `edge_instructions.md`, the platform shows the regular `instructions.md`.
 
-## Images
-
-You have two options for preview and gallery images:
-
-### External Hosting (recommended)
-
-Host images on a reliable CDN (e.g. `img.thingsboard.io`, S3, Cloudflare). Reference them by URL in `solution.json`:
-
-```json
-{
-  "previewImageUrl": "https://img.thingsboard.io/solutions/my_solution/preview.png",
-  "imageUrls": [
-    "https://img.thingsboard.io/solutions/my_solution/gallery-1.png",
-    "https://img.thingsboard.io/solutions/my_solution/gallery-2.png"
-  ]
-}
-```
-
-At install time the platform downloads each image, saves it as a ThingsBoard image resource, and rewrites references so the solution works even if the original URL goes down later.
-
-### Bundled in the ZIP
-
-Place images in an `images/` folder and reference by relative path:
-
-```json
-{
-  "previewImageUrl": "images/preview.png",
-  "imageUrls": ["images/gallery-1.png", "images/gallery-2.png"]
-}
-```
-
-This is recommended for solutions that may ship without internet access during install. The trade-off is a larger ZIP archive.
-
-### Image Best Practices
-
-- **Preview image** — 16:9 aspect ratio, 1600×900 px, under 200 KB after compression.
-- **Gallery images** — 16:9 or 4:3 aspect, 800×600 px minimum, showing different screens or views of the dashboard.
-- Use **PNG** for screenshots with text or charts; **JPG** for photos.
-- Always include at least 2–3 gallery images — users browse the gallery before clicking install.
-- Crop to show dashboard content, not surrounding chrome (toolbars, navigation).
-
 ## Allowed Values
 
 ### Solution Template Categories
@@ -657,16 +624,6 @@ Allowed values: `Agriculture`, `Analytics`, `Asset Management`, `Device Manageme
 Pick one or more IoT domains the solution addresses. These are shared across the whole marketplace — a user filtering by a use case sees your solution alongside matching widgets, dashboards, and devices.
 
 Allowed values: `Air Quality Monitoring`, `Asset Tracking`, `Cold Chain`, `Drones`, `Environment Monitoring`, `Fleet Tracking`, `Health Care`, `Industrial Automation`, `Predictive Maintenance`, `Robotics`, `SCADA`, `Smart Building`, `Smart City`, `Smart Energy`, `Smart Farming`, `Smart Home`, `Smart Metering`, `Smart Office`, `Smart Retail`, `Solar Monitoring`, `Tank Level Monitoring`, `Waste Management`.
-
-## Variables Reference
-
-Variables are resolved after the solution is installed and available in `instructions.md` and `edge_instructions.md`.
-
-| Variable | Scope | Description |
-|----------|-------|-------------|
-| `${MAIN_DASHBOARD_URL}` | Dashboards | Deep link to the dashboard marked `main: true` in `entities/dashboards.json` |
-| `${DOCKER_CONFIG}` | Gateway | Pre-filled `docker-compose.yml` for the ThingsBoard IoT Gateway, including host, port, and access token |
-| `${DOCS_BASE_URL}` | Documentation | Base URL of the ThingsBoard docs for the running edition — resolves to `https://thingsboard.io/docs/ce` on CE and `https://thingsboard.io/docs/pe` on PE |
 
 ## What's Auto-Derived vs What You Provide
 
@@ -713,7 +670,7 @@ Every upload creates a new version of your template. Bump the version in the upl
 
 - [ ] Contains a `## Solution Description` (or similar-level) heading
 - [ ] The first paragraph after that heading is under 512 characters (becomes the short description)
-- [ ] Covers: highlights, what's inside, why use it, key features, real-world applications, how to connect real devices
+- [ ] Covers: highlights, what's inside, why use it, key features, real-world applications
 
 ### `instructions.md`
 
