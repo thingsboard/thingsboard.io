@@ -439,6 +439,109 @@ const tbmqSubTabs = enrichTabs([
 			if (sol === 'payg' || sol === 'perpetual') activeBilling = sol;
 		}
 
+		// ─── Single delegated click listener on the pricing root ───
+		// Replaces 10+ per-element forEach(addEventListener('click', …)) loops
+		// that ran on every astro:page-load.
+		//
+		// Uses AbortController so the previous run's listener is removed when
+		// initPricing() re-runs (View Transitions keep the document alive). A
+		// plain `_pricingDelegInit` flag would freeze the listener to the first
+		// closure's handler functions, but those functions mutate per-closure
+		// state (`activeProduct`, `activeSubTab`) — every navigation needs its
+		// own closure to be the one taking action. AbortController gives us
+		// "exactly one listener at a time, always the current closure".
+		{
+			const prevCtl = (window as any)._pricingDelegCtl as AbortController | undefined;
+			prevCtl?.abort();
+			const ctl = new AbortController();
+			(window as any)._pricingDelegCtl = ctl;
+			const pricingRoot = document.querySelector('main.pricing-page');
+			pricingRoot?.addEventListener('click', (e) => {
+				const t = e.target as HTMLElement;
+				if (!t || typeof t.closest !== 'function') return;
+
+				// Tooltip-info icons that double as "scroll to FAQ" buttons.
+				// Skip if the click landed on a link inside the tooltip body.
+				const faqJump = t.closest<HTMLElement>('.sub-tab-info, .plan-feature-info, .addon-tooltip-trigger, .comparison-tooltip-trigger');
+				if (faqJump) {
+					if (t.closest('a')) return;
+					e.stopPropagation();
+					forceHidePricingTip();
+					const faqId = faqJump.dataset.faqId;
+					if (faqId) scrollToFaqItem(faqId);
+					return;
+				}
+
+				// Plan-card CTAs that should route through getLicense() instead
+				// of following their href.
+				const planCta = t.closest<HTMLElement>('.plan-card-cta[data-product-id][data-plan-id]');
+				if (planCta) {
+					e.preventDefault();
+					getLicense(planCta.dataset.productId!, planCta.dataset.planId!);
+					return;
+				}
+
+				// Upsell card switch.
+				const upsell = t.closest<HTMLElement>('.upsell-card-btn');
+				if (upsell) {
+					const target = upsell.dataset.switchTo;
+					if (target === 'contact') window.open('/contact-us/', '_blank');
+					else if (target) activateSubTab(target);
+					return;
+				}
+
+				// Top-ups accordion.
+				const topupHeader = t.closest<HTMLElement>('.topup-header');
+				if (topupHeader) {
+					const item = topupHeader.closest('.topup-item');
+					if (item) {
+						item.classList.toggle('expanded');
+						topupHeader.setAttribute('aria-expanded', String(item.classList.contains('expanded')));
+					}
+					return;
+				}
+
+				// Product-tab click (top-level tabs).
+				const productTab = t.closest<HTMLElement>('.product-tab');
+				if (productTab) {
+					activateProductTab(productTab.dataset.product!);
+					return;
+				}
+
+				// Sub-tab click.
+				const subTab = t.closest<HTMLElement>('.sub-tab');
+				if (subTab) {
+					activateSubTab(subTab.dataset.subtab!);
+					return;
+				}
+
+				// Region-toggle label click → flip #region-select, fire change.
+				const regionLabel = t.closest<HTMLElement>('.region-toggle-label');
+				if (regionLabel) {
+					const cb = document.getElementById('region-select') as HTMLInputElement | null;
+					if (cb) {
+						cb.checked = regionLabel.dataset.region === 'eu';
+						cb.dispatchEvent(new Event('change', { bubbles: true }));
+					}
+					return;
+				}
+
+				// Billing-toggle label click → flip the related checkbox, fire change.
+				const billingLabel = t.closest<HTMLElement>('.billing-toggle-label');
+				if (billingLabel) {
+					const toggle = billingLabel.closest('.billing-toggle');
+					const cb = toggle?.querySelector<HTMLInputElement>('[data-billing-toggle]');
+					if (cb && toggle) {
+						const labels = Array.from(toggle.querySelectorAll('.billing-toggle-label'));
+						const idx = labels.indexOf(billingLabel);
+						cb.checked = idx === 1;
+						cb.dispatchEvent(new Event('change', { bubbles: true }));
+					}
+					return;
+				}
+			}, { signal: ctl.signal });
+		}
+
 		// ─── Product tabs ───
 		function activateProductTab(product: string, skipSubTabActivation = false) {
 			$$('.product-tab').forEach((tab) => {
@@ -490,11 +593,7 @@ const tbmqSubTabs = enrichTabs([
 			updateUrl();
 		}
 
-		$$('.product-tab').forEach((tab) => {
-			tab.addEventListener('click', () => {
-				activateProductTab(tab.dataset.product!);
-			});
-		});
+		// `.product-tab` click is delegated above on `main.pricing-page`.
 
 		// ─── FAQ context mapping ───
 		// Maps sub-tab ID to FAQ context ID(s)
@@ -601,11 +700,7 @@ const tbmqSubTabs = enrichTabs([
 			updateUrl();
 		}
 
-		$$('.sub-tab').forEach((tab) => {
-			tab.addEventListener('click', () => {
-				activateSubTab(tab.dataset.subtab!);
-			});
-		});
+		// `.sub-tab` click is delegated above on `main.pricing-page`.
 
 		// ─── Helper: scroll to FAQ item (handles hidden, category, expand) ───
 		function scrollToFaqItem(faqId: string) {
@@ -663,17 +758,7 @@ const tbmqSubTabs = enrichTabs([
 			setTimeout(() => targetItem.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
 		}
 
-		// ─── Tooltip info icon click → scroll to FAQ ───
-		$$('.sub-tab-info').forEach((info) => {
-			info.addEventListener('click', (e) => {
-				// Don't scroll to FAQ if user clicked a link inside the tooltip
-				if ((e.target as HTMLElement).closest('a')) return;
-				e.stopPropagation();
-				forceHidePricingTip();
-				const faqId = (info as HTMLElement).dataset.faqId;
-				if (faqId) scrollToFaqItem(faqId);
-			});
-		});
+		// `.sub-tab-info` click (FAQ scroll) is delegated above on `main.pricing-page`.
 
 		// ─── Shared tooltip system: JS-only visibility ───
 		let activePricingTip: { trigger: Element; tooltip: HTMLElement } | null = null;
@@ -821,16 +906,7 @@ const tbmqSubTabs = enrichTabs([
 			bindPricingTooltip(info, tooltip);
 		});
 
-		// ─── Plan feature tooltip click → scroll to FAQ ───
-		$$('.plan-feature-info').forEach((info) => {
-			info.addEventListener('click', (e) => {
-				if ((e.target as HTMLElement).closest('a')) return;
-				e.stopPropagation();
-				forceHidePricingTip();
-				const faqId = (info as HTMLElement).dataset.faqId;
-				if (faqId) scrollToFaqItem(faqId);
-			});
-		});
+		// `.plan-feature-info` click (FAQ scroll) is delegated above on `main.pricing-page`.
 
 		// ─── Addon tooltip positioning (fixed, escapes stacking contexts) ───
 		$$('.addon-tooltip-trigger').forEach((trigger) => {
@@ -839,47 +915,15 @@ const tbmqSubTabs = enrichTabs([
 			bindPricingTooltip(trigger, tooltip);
 		});
 
-		// ─── Comparison table tooltip positioning + click → scroll to FAQ ───
+		// ─── Comparison table tooltip positioning ───
+		// (Click → scroll-to-FAQ is delegated above on `main.pricing-page`.)
 		$$('.comparison-tooltip-trigger').forEach((trigger) => {
 			const tooltip = trigger.querySelector('.comparison-tooltip') as HTMLElement | null;
-			if (tooltip) {
-				bindPricingTooltip(trigger, tooltip);
-			}
-
-			trigger.addEventListener('click', (e) => {
-				if ((e.target as HTMLElement).closest('a')) return;
-				e.stopPropagation();
-				// Mobile browsers don't fire mouseleave after a tap, so the
-				// tooltip would otherwise stay pinned at its `position: fixed`
-				// slot while we scroll to the FAQ.
-				forceHidePricingTip();
-				const faqId = (trigger as HTMLElement).dataset.faqId;
-				if (faqId) scrollToFaqItem(faqId);
-			});
+			if (tooltip) bindPricingTooltip(trigger, tooltip);
 		});
 
-		// ─── Addon tooltip click → scroll to FAQ ───
-		$$('.addon-tooltip-trigger').forEach((trigger) => {
-			trigger.addEventListener('click', (e) => {
-				if ((e.target as HTMLElement).closest('a')) return;
-				e.stopPropagation();
-				forceHidePricingTip();
-				const faqId = (trigger as HTMLElement).dataset.faqId;
-				if (faqId) scrollToFaqItem(faqId);
-			});
-		});
-
-		// ─── Upsell card switch ───
-		$$('.upsell-card-btn').forEach((btn) => {
-			btn.addEventListener('click', () => {
-				const target = btn.dataset.switchTo;
-				if (target === 'contact') {
-					window.open('/contact-us/', '_blank');
-				} else if (target) {
-					activateSubTab(target);
-				}
-			});
-		});
+		// `.addon-tooltip-trigger` click (FAQ scroll) is delegated above.
+		// `.upsell-card-btn` click is delegated above.
 
 		// ─── Region toggle ───
 		const regionCheckbox = $('#region-select') as HTMLInputElement | null;
@@ -915,14 +959,9 @@ const tbmqSubTabs = enrichTabs([
 			regionCheckbox.addEventListener('change', () => {
 				setRegion(regionCheckbox.checked);
 			});
-
-			$$('.region-toggle-label').forEach((lbl) => {
-				lbl.addEventListener('click', () => {
-					const isEu = lbl.dataset.region === 'eu';
-					regionCheckbox.checked = isEu;
-					setRegion(isEu);
-				});
-			});
+			// `.region-toggle-label` click is delegated above on `main.pricing-page`;
+			// it flips `regionCheckbox.checked` and dispatches `change`, which
+			// the handler above picks up.
 
 			// Restore from cookie (supports both new "eu"/"na" and old "/docs/paas/eu/" format)
 			const cookieMatch = document.cookie.match(/cloudServer=([^;]+)/);
@@ -976,19 +1015,9 @@ const tbmqSubTabs = enrichTabs([
 					}
 				});
 			});
-
-			// Label click
-			const toggle = checkbox.closest('.billing-toggle');
-			if (toggle) {
-				$$('.billing-toggle-label', toggle).forEach((lbl, i) => {
-					lbl.addEventListener('click', () => {
-						checkbox.checked = i === 1;
-						setBilling(i === 1);
-						if (activeSubTab) updateFaqVisibility(activeSubTab);
-						updateUrl();
-					});
-				});
-			}
+			// `.billing-toggle-label` click is delegated above on `main.pricing-page`;
+			// it flips `checkbox.checked` and dispatches `change`, which the
+			// handler above picks up.
 		});
 
 		// ─── Private Cloud billing toggle (monthly/annual) ───
@@ -1014,15 +1043,8 @@ const tbmqSubTabs = enrichTabs([
 				}
 			}
 			pcBillingCheckbox.addEventListener('change', () => setPcBilling(pcBillingCheckbox.checked));
-			const pcToggle = pcBillingCheckbox.closest('.billing-toggle');
-			if (pcToggle) {
-				$$('.billing-toggle-label', pcToggle).forEach((lbl, i) => {
-					lbl.addEventListener('click', () => {
-						pcBillingCheckbox.checked = i === 1;
-						setPcBilling(i === 1);
-					});
-				});
-			}
+			// `.billing-toggle-label` click for the PC toggle is also delegated
+			// above; the change event handler above picks up the result.
 		}
 
 		// ─── getLicense — plan card CTA clicks for self-managed plans ───
@@ -1046,26 +1068,8 @@ const tbmqSubTabs = enrichTabs([
 			window.open(url, '_blank');
 		}
 
-		// Intercept plan card CTA clicks that have productId/planId
-		$$('.plan-card-cta[data-product-id][data-plan-id]').forEach((btn) => {
-			btn.addEventListener('click', (e) => {
-				e.preventDefault();
-				const productId = (btn as HTMLElement).dataset.productId!;
-				const planId = (btn as HTMLElement).dataset.planId!;
-				getLicense(productId, planId);
-			});
-		});
-
-		// ─── Top-ups accordion ───
-		$$('.topup-header').forEach((header) => {
-			header.addEventListener('click', () => {
-				const item = header.closest('.topup-item');
-				if (item) {
-					item.classList.toggle('expanded');
-					header.setAttribute('aria-expanded', String(item.classList.contains('expanded')));
-				}
-			});
-		});
+		// `.plan-card-cta[data-product-id][data-plan-id]` click is delegated above.
+		// `.topup-header` click (accordion) is delegated above.
 
 		// ─── FAQ — single delegated listener for all FAQ interactions ───
 		// Guard: register on document ONCE per page lifetime. initPricing() re-runs on
