@@ -284,15 +284,42 @@ By default `tb pull` refuses to overwrite files with uncommitted local changes, 
 
 ## Custom backend extensions
 
-Some things live outside what ThingsBoard does on its own — giving each user their own default dashboard, rolling numbers up overnight, checking incoming telemetry against a custom rule before it lands, or talking to another system you already run. Extensions are how you add that kind of behavior. You describe what you want in plain language, Claude writes it, and `tb extension` runs it for you alongside ThingsBoard.
+Some features need server-side logic of their own — a custom REST endpoint that runs a multi-step workflow in one call, a scheduled job that combines data across entities to produce derived results, or a bridge to another system you already run. Extensions are how you add that kind of behavior. You describe what you want in plain language, Claude writes it, and `tb extension` builds, runs, and publishes it.
+
+The full lifecycle is short: scaffold the extension once, ask Claude to build features into it, run it locally to try them out, and — when you're ready to deploy — push the image to a registry so any server can pull it.
 
 ### Scaffold the extension
 
+Every extension has a **name**, set once when you scaffold it. The name is the local Docker image tag the CLI uses for builds (`<name>:latest`, `<name>:1.2.3`), and it shows up in the `tb extension push` examples you'll run later. Pick something descriptive — your project's slug, your company short-name, the product the extension belongs to.
+
+Pass the name with `--name`:
+
 ```bash
-tb extension new
+tb extension new --name acme-telemetry-extension
 ```
 
-The CLI picks the right edition — self-hosted PE or ThingsBoard Cloud — from your active profile.
+If you leave `--name` off in an interactive terminal, the CLI explains what the name is for and prompts you for it:
+
+```text
+This name will be used as the local Docker image tag for your extension
+(e.g. <name>:1.2.3). Pick something descriptive — your project's slug,
+your company short-name, etc. You can change it later with
+`tb extension rename <new-name>`.
+
+Extension name:
+```
+
+In CI or any non-interactive session, the prompt isn't available — pass `--name` explicitly.
+
+The CLI picks the right edition — self-hosted PE or ThingsBoard Cloud — from your active profile and writes the name into your `thingsboard.json`:
+
+```json
+{
+  "extension": {
+    "name": "acme-telemetry-extension"
+  }
+}
+```
 
 You get an `extension/` folder in your project. The one file worth keeping an eye on is `extension/README.md`. Claude keeps a plain-English summary there of every feature your extension has, plus a history of the ones you've asked it to remove.
 
@@ -301,7 +328,7 @@ You get an `extension/` folder in your project. The one file worth keeping an ey
 The flow mirrors solutions:
 
 <Steps>
-1. **You ask.** Describe the feature in plain language — what it does, who or what triggers it, what data it reads or writes. Claude designs it, picks the right kind of trigger for the job, writes the feature, and checks that it works. Triggers Claude can wire up for you:
+1. **You ask.** Describe the feature in plain language — what it does, who or what triggers it, what data it reads or writes. Claude picks the right kind of trigger for the job and writes the feature. Triggers Claude can wire up for you:
 
    - A dashboard widget calling the extension when a user clicks or interacts with it.
    - A job that runs on its own schedule (every night, every hour, etc.).
@@ -317,7 +344,7 @@ The flow mirrors solutions:
 
    The CLI builds the extension the first time, then keeps it running until you stop it.
 
-4. **You iterate.** Ask Claude for changes — *"only run that for premium customers"*, *"send a daily email of the rollup instead"*. Claude regenerates the affected pieces and refreshes the README. Features you drop are moved into a "removed features" history so the story of how the extension grew stays visible.
+4. **You iterate.** Ask Claude for changes — *"only invoice customers with active devices"*, *"send a daily email of the rollup instead"*. Claude regenerates the affected pieces and refreshes the README. Features you drop are moved into a "removed features" history so the story of how the extension grew stays visible.
 </Steps>
 
 <Aside type="tip">
@@ -328,26 +355,126 @@ The same flow is available as a slash command: `/create-extension`. Use it if yo
 Claude rewrites the `## Features` and `## Removed features (history)` blocks in `extension/README.md` on every iteration. Hand-edits to those two sections will be lost; everything else in the README is safe to edit.
 </Aside>
 
-### Running and managing it
+### Build and run it locally
+
+Docker is the default build target:
 
 ```bash
-tb extension run             # start it (builds first if it hasn't been built yet)
-tb extension restart         # pick up your latest changes (faster than stop + run)
-tb extension stop            # stop it
-tb extension status          # current features, last build, whether it's running OK
+tb extension build              # builds acme-telemetry-extension:latest
+tb extension run                # runs the image; builds first if it isn't there yet
+tb extension run -d             # same, but detached (run in the background)
+tb extension logs -f            # follow the running container's logs
 ```
 
-### Docker workflow
+When the build finishes, the CLI prints a green summary panel listing the images it produced and a hint for the next step:
 
-Docker lets you hand the running extension off to a server, a teammate, or your hosting platform without that machine needing the CLI installed. When you're ready to deploy somewhere real, package the extension as a Docker image and run that:
+```text
+Build succeeded
+  • acme-telemetry-extension:latest
+
+  Next: `tb extension push --image-name <user>/acme-telemetry-extension`
+        (or replace `<user>` with a private registry path)
+```
+
+To produce a versioned image alongside `:latest`, pass `--image-tag`:
 
 ```bash
-tb extension build --docker --image-tag v1.0.0
-tb extension run --docker -d
-tb extension logs -f
+tb extension build --image-tag 1.2.3
 ```
 
-`tb extension run --docker` is standalone — if the image isn't there yet, the CLI builds it for you first. The image is named `thingsboard-extension` by default and tagged from your project's version automatically, so each build is uniquely identifiable.
+That tags both `acme-telemetry-extension:1.2.3` **and** `acme-telemetry-extension:latest` — the version is the immutable artifact you'll publish, `:latest` keeps a moving pointer to your most recent build.
+
+`tb extension restart` picks up your latest changes faster than a stop + run. It auto-discovers the image that's currently running (from `docker compose ps`), so you don't need to remember which tag you last started:
+
+```bash
+tb extension restart
+tb extension stop               # stop it
+tb extension status             # current features, extension name, last build, whether it's running OK
+```
+
+<Aside>
+Prefer the classic JAR workflow over Docker? Pass `--jar` to `build` or `run` to opt into the Maven `package` path and a local `java -jar` launch. Docker is the recommended mode — the JAR path is there for environments where Docker isn't available.
+</Aside>
+
+### Renaming your extension
+
+If you picked a name you've outgrown — the project changed direction, you want to publish under a different brand, the original was a placeholder — rename the extension in place:
+
+```bash
+tb extension rename acme-new
+```
+
+The CLI validates the new name (same rules as `tb extension new`) and updates `thingsboard.json`. Subsequent builds tag the image as `acme-new:<tag>`.
+
+The previous local images (`acme-old:latest`, `acme-old:1.2.3`, …) stay on your Docker daemon until you remove them yourself:
+
+```bash
+docker image rm acme-old:latest acme-old:1.2.3
+```
+
+### Publishing the extension image
+
+Once the extension runs the way you want, push the built image to a Docker registry so anyone — a server, a teammate, your hosting platform — can pull and run it without having the CLI installed.
+
+`tb extension push` takes the local image (built by `tb extension build`) and uploads it to the registry/repository you pass via `--image-name`. The local name from your manifest is the **source**; `--image-name` is the **publish target** and must include any registry or org prefix.
+
+Authenticate with the registry first — the CLI doesn't store credentials and won't run `docker login` for you:
+
+```bash
+docker login                              # Docker Hub
+docker login registry.example.com         # private registry
+```
+
+Then push. To Docker Hub:
+
+```bash
+tb extension push --image-name myuser/acme-telemetry-extension
+```
+
+To a private registry:
+
+```bash
+tb extension push --image-name registry.example.com/team/acme-telemetry-extension
+```
+
+Before anything is uploaded the CLI shows a confirmation panel listing exactly what's about to leave your machine, and asks you to confirm:
+
+```text
+About to push:
+  myuser/acme-telemetry-extension:latest
+to registry: docker.io
+
+Push this image? [y/N]:
+```
+
+The default answer is **no** — pressing Enter cancels the push. Type `y` to go ahead.
+
+By default, `tb extension push` publishes only the `:latest` tag. Pass `--image-tag` to publish a specific version alongside it — the CLI then pushes both the versioned tag and `:latest`:
+
+```bash
+tb extension push --image-name myuser/acme-telemetry-extension --image-tag 1.2.3
+```
+
+```text
+About to push:
+  myuser/acme-telemetry-extension:1.2.3
+  myuser/acme-telemetry-extension:latest
+to registry: docker.io
+
+Push these images? [y/N]:
+```
+
+This matches the typical release pattern: each release publishes an immutable version tag *and* moves `:latest` forward so people who don't pin a version automatically pick up the newest one.
+
+For CI pipelines and other non-interactive runs, skip the confirmation with `--yes` (or `-y`):
+
+```bash
+tb extension push --image-name myuser/acme-telemetry-extension --image-tag 1.2.3 --yes
+```
+
+<Aside type="caution">
+If the local image isn't built yet, push errors out and asks you to run `tb extension build` first. The registry only ever sees what you've already built and verified locally.
+</Aside>
 
 ## Manual usage
 
