@@ -555,12 +555,12 @@ import CalculatorModal from './CalculatorModal.astro';
 				p.devices = sliderToReal(Number(slider.value));
 				devInput.value = String(p.devices);
 				sliderProgress(slider);
-				calculate();
+				scheduleCalculate();
 			});
 
 			devInput?.addEventListener('input', () => {
 				const v = Number(devInput.value);
-				if (!isNaN(v) && v >= 0) { p.devices = v; slider.value = String(Math.min(SLIDER_MAX, realToSlider(Math.min(REAL_MAX, v)))); sliderProgress(slider); calculate(); }
+				if (!isNaN(v) && v >= 0) { p.devices = v; slider.value = String(Math.min(SLIDER_MAX, realToSlider(Math.min(REAL_MAX, v)))); sliderProgress(slider); scheduleCalculate(); }
 			});
 			devInput?.addEventListener('blur', () => {
 				p.devices = Math.max(0, Number(devInput.value) || 0);
@@ -578,7 +578,7 @@ import CalculatorModal from './CalculatorModal.astro';
 				input.addEventListener('input', () => {
 					const field = (input as HTMLInputElement).dataset.input!;
 					const v = Number((input as HTMLInputElement).value);
-					if (!isNaN(v) && v >= 1) { (p as any)[field] = v; calculate(); }
+					if (!isNaN(v) && v >= 1) { (p as any)[field] = v; scheduleCalculate(); }
 				});
 				input.addEventListener('blur', () => {
 					const field = (input as HTMLInputElement).dataset.input!;
@@ -749,7 +749,7 @@ import CalculatorModal from './CalculatorModal.astro';
 				calculate();
 			});
 		});
-		edgeCountInput.addEventListener('input', () => { const v = parseInt(edgeCountInput.value); if (!isNaN(v) && v >= 1) { state.addons.edge.count = v; calculate(); } });
+		edgeCountInput.addEventListener('input', () => { const v = parseInt(edgeCountInput.value); if (!isNaN(v) && v >= 1) { state.addons.edge.count = v; scheduleCalculate(); } });
 		edgeCountInput.addEventListener('blur', () => { const plan = state.currentPlan || PLANS_DATA.plans[0]; const min = plan.edgeInstancesIncluded; const v = Math.max(min, parseInt(edgeCountInput.value) || min); state.addons.edge.count = v; edgeCountInput.value = String(v); edgeDecBtn.disabled = v <= min; calculate(); });
 
 		// DevQA stepper
@@ -762,7 +762,7 @@ import CalculatorModal from './CalculatorModal.astro';
 				calculate();
 			});
 		});
-		devCountInput.addEventListener('input', () => { const v = parseInt(devCountInput.value); if (!isNaN(v) && v >= 1) { state.addons.devqa.count = v; calculate(); } });
+		devCountInput.addEventListener('input', () => { const v = parseInt(devCountInput.value); if (!isNaN(v) && v >= 1) { state.addons.devqa.count = v; scheduleCalculate(); } });
 		devCountInput.addEventListener('blur', () => { const v = Math.max(1, parseInt(devCountInput.value) || 1); state.addons.devqa.count = v; devCountInput.value = String(v); devDecBtn.disabled = v <= 1; calculate(); });
 
 		// ═══════════════════════════════════════════
@@ -783,6 +783,15 @@ import CalculatorModal from './CalculatorModal.astro';
 			return { profiles, totalDP, totalDevices, addons: state.addons };
 		}
 		pcGetInputs = getInputs;
+
+		// rAF-batch calculate() for continuous input events (slider drag, typing).
+		// Final-state events (blur, change) still call calculate() directly.
+		let _calcQueued = false;
+		function scheduleCalculate() {
+			if (_calcQueued) return;
+			_calcQueued = true;
+			requestAnimationFrame(() => { _calcQueued = false; calculate(); });
+		}
 
 		function calculate() {
 			const inp = getInputs();
@@ -943,7 +952,6 @@ import CalculatorModal from './CalculatorModal.astro';
 			const totalEl = footer.querySelector('.calc-total-row');
 			if (totalEl) totalEl.innerHTML = `<span class="calc-total-label">Total</span><span class="calc-total-amount">${fmtC(finalTotal)}/month${tip(totalTip)}</span>`;
 
-			bindResultEvents();
 			buildClipboard(r, inp, finalTotal);
 		}
 
@@ -999,17 +1007,17 @@ import CalculatorModal from './CalculatorModal.astro';
 			return `<div class="calc-addon-result"><span class="calc-addon-result-name">${name}</span><button type="button" class="calc-addon-result-action" data-enable-addon="${key}">Add to plan (${fmtC(price)})</button></div>`;
 		}
 
-		function bindResultEvents() {
-			results.querySelectorAll('[data-enable-addon]').forEach(btn => {
-				btn.addEventListener('click', () => {
-					const key = (btn as HTMLElement).dataset.enableAddon!;
-					if (key in toggles) {
-						(toggles as any)[key].checked = true;
-						handleAddon(key, true);
-					}
-				});
-			});
-		}
+		// Delegated handler for [data-enable-addon] buttons that the results
+		// template re-renders on every calculate(). Bound once instead of
+		// re-attached per button on every slider tick.
+		results.addEventListener('click', (e) => {
+			const btn = (e.target as HTMLElement)?.closest('[data-enable-addon]') as HTMLElement | null;
+			if (!btn) return;
+			const key = btn.dataset.enableAddon!;
+			if (!(key in toggles)) return;
+			(toggles as any)[key].checked = true;
+			handleAddon(key, true);
+		});
 
 		function buildClipboard(r: any, inp: any, finalTotal: number) {
 			const plan = r.plan;

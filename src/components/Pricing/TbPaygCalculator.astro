@@ -379,22 +379,23 @@ import CalculatorModal from './CalculatorModal.astro';
 
 			footer.innerHTML = `<div class="calc-total-row"><span class="calc-total-label">Total</span><span class="calc-total-amount">${fmt(total)}/month${tip(totalParts.join(' + '))}</span></div><a class="calc-cta" href="${ctaUrl}" target="_blank" rel="noopener noreferrer">Get started</a>`;
 
-			// Bind events
-			results.querySelectorAll('[data-enable-addon]').forEach(btn => {
-				btn.addEventListener('click', () => {
-					const key = (btn as HTMLElement).dataset.enableAddon as string;
-					if (key in toggles) {
-						(toggles as any)[key].checked = true;
-						(state.addons as any)[key].on = true;
-						if (key === 'edge') { state.addons.edge.count = 1; edgeCounter.classList.remove('hidden'); }
-						cards[key as keyof typeof cards].classList.add('active');
-						calculate();
-					}
-				});
-			});
-
 			sendSmGTM();
 		}
+
+		// Delegated handler for [data-enable-addon] buttons rendered inside the
+		// results panel. Bound once here instead of per-button on every calculate(),
+		// which both leaked listeners and wasted CPU on each slider tick.
+		results.addEventListener('click', (e) => {
+			const btn = (e.target as HTMLElement)?.closest('[data-enable-addon]') as HTMLElement | null;
+			if (!btn) return;
+			const key = btn.dataset.enableAddon as string;
+			if (!(key in toggles)) return;
+			(toggles as any)[key].checked = true;
+			(state.addons as any)[key].on = true;
+			if (key === 'edge') { state.addons.edge.count = 1; edgeCounter.classList.remove('hidden'); }
+			cards[key as keyof typeof cards].classList.add('active');
+			calculate();
+		});
 
 		function renderEnterprise() {
 			let html = `<div class="calc-optimal-plan"><span class="calc-optimal-label">Deployment Summary</span></div>`;
@@ -415,10 +416,20 @@ import CalculatorModal from './CalculatorModal.astro';
 			footer.innerHTML = `<a class="calc-cta" href="/contact-us/?subject=${encodeURIComponent('ThingsBoard Products')}&message=${encodeURIComponent(msg)}" target="_blank" rel="noopener noreferrer">Get Enterprise Quote</a>`;
 		}
 
+		// rAF-batch calculate() during continuous input (slider drag, typing) so we
+		// rebuild the results panel at most once per animation frame. Final-state
+		// events (change/blur) still call calculate() directly to commit.
+		let _calcQueued = false;
+		function scheduleCalculate() {
+			if (_calcQueued) return;
+			_calcQueued = true;
+			requestAnimationFrame(() => { _calcQueued = false; calculate(); });
+		}
+
 		// ─── Slider ───
-		slider.addEventListener('input', () => { state.devices = sliderToDevices(parseFloat(slider.value)); devicesInput.value = String(state.devices); updateProgress(); calculate(); });
+		slider.addEventListener('input', () => { state.devices = sliderToDevices(parseFloat(slider.value)); devicesInput.value = String(state.devices); updateProgress(); scheduleCalculate(); });
 		slider.addEventListener('change', () => { const v = parseFloat(slider.value); if (v <= 4) { const s = Math.round(v); slider.value = String(s); state.devices = sliderToDevices(s); devicesInput.value = String(state.devices); updateProgress(); calculate(); } });
-		devicesInput.addEventListener('input', () => { const d = parseInt(devicesInput.value); if (!isNaN(d) && d > 0) { state.devices = Math.min(SM_MAX, d); slider.value = String(devicesToSlider(state.devices)); updateProgress(); calculate(); } });
+		devicesInput.addEventListener('input', () => { const d = parseInt(devicesInput.value); if (!isNaN(d) && d > 0) { state.devices = Math.min(SM_MAX, d); slider.value = String(devicesToSlider(state.devices)); updateProgress(); scheduleCalculate(); } });
 		devicesInput.addEventListener('blur', () => { let d = Math.max(1, Math.min(SM_MAX, parseInt(devicesInput.value) || 1)); if (d <= 1000) d = SM_THRESHOLDS.find(t => d <= t) || 1000; state.devices = d; devicesInput.value = String(d); slider.value = String(devicesToSlider(d)); updateProgress(); calculate(); });
 
 		// ─── Steppers ───
@@ -441,7 +452,7 @@ import CalculatorModal from './CalculatorModal.astro';
 				if (key === 'prod') state.prodInstances = v;
 				else if (key === 'dev') state.devInstances = v;
 				else if (key === 'edge') state.addons.edge.count = v;
-				calculate();
+				scheduleCalculate();
 			});
 			sInp?.addEventListener('blur', () => {
 				const plan = getPlan(state.devices);
