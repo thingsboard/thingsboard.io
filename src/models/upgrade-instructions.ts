@@ -13,6 +13,8 @@ export interface UpgradeVersion {
 	releaseDatePe?: string;
 	/** "upgradable-from" value, e.g. "4.2.1.x" or "4.1.0" */
 	upgradableFrom: string;
+	/** Optional override for the in-family patch label used in "or any X patch" text and the "from version X" upgrade-script note. When unset, templates fall back to baseVersion (and baseVersion.x for the script note). */
+	patchableFrom?: string;
 	/** Anchor of the upgradable-from version on the same platform page */
 	prevVersionAnchor?: string;
 	lts: boolean;
@@ -47,6 +49,7 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 		baseVersion: '4.3.1',
 		releaseDate: 'May 28 2026',
 		upgradableFrom: '4.2.1.x',
+		patchableFrom: '4.3.x',
 		prevVersionAnchor: 'v4-3-0-1',
 		lts: true,
 		patch: true,
@@ -63,6 +66,7 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 		baseVersion: '4.3.1',
 		releaseDate: 'Mar 31 2026',
 		upgradableFrom: '4.2.1.x',
+		patchableFrom: '4.3.x',
 		prevVersionAnchor: 'v4-3-0-1',
 		lts: true,
 		patch: true,
@@ -80,6 +84,7 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 		baseVersion: '4.3.1',
 		releaseDate: 'Mar 10 2026',
 		upgradableFrom: '4.2.1.x',
+		patchableFrom: '4.3.x',
 		prevVersionAnchor: 'v4-3-0-1',
 		lts: true,
 		patch: true,
