@@ -24,7 +24,7 @@ Through these deployments, we recognized that IoT devices and applications follo
 
 To address these differences, TBMQ introduces a key feature: the classification of MQTT clients as either standard (IoT devices) or [application](/docs/mqtt-broker/architecture/#persistent-application-client) clients. This distinction enables optimized handling of persistent MQTT sessions for applications. Specifically, each persistent application client is assigned a separate Kafka topic. This approach ensures efficient message persistence and retrieval when an MQTT client reconnects, improving overall reliability and performance. Additionally, application clients support MQTT’s shared subscription feature, allowing multiple instances of an application to efficiently distribute message processing.
 
-![](/images/blog/1-million-reasons-to-choose-tbmq-as-high-performance-mqtt-broker/TBMQ-fan-in-application-clients.svg)
+![TBMQ fan-in pattern with multiple application clients consuming MQTT messages](/images/blog/1-million-reasons-to-choose-tbmq-as-high-performance-mqtt-broker/TBMQ-fan-in-application-clients.svg)
 
 [Kafka](https://kafka.apache.org/) serves as one of the core components. Designed for high-throughput, distributed messaging, Kafka efficiently handles large volumes of data streams, making it an ideal choice for TBMQ. With the latest Kafka versions capable of managing a huge number of topics, this architecture is well-suited for enterprise-scale deployments.
 
@@ -34,7 +34,7 @@ Unlike the fan-in, the point-to-point (P2P) communication pattern enables direct
 
 One of the key differences between fan-in and peer-to-peer MQTT messaging is the volume and flow of messages. In a P2P scenario, subscribers do not handle high message volumes, making it unnecessary to allocate dedicated Kafka topics and consumer threads to each MQTT client. Instead, the primary requirements for P2P message exchange are low latency and reliable message delivery, even for clients that may go offline temporarily. To meet these needs, TBMQ optimizes persistent session management for standard MQTT clients, which include IoT devices.
 
-![](/images/blog/1-million-reasons-to-choose-tbmq-as-high-performance-mqtt-broker/P2P-Postrgres-2.svg)
+![TBMQ peer-to-peer performance test with PostgreSQL backend](/images/blog/1-million-reasons-to-choose-tbmq-as-high-performance-mqtt-broker/P2P-Postrgres-2.svg)
 
 In TBMQ 1.x, standard MQTT clients relied on PostgreSQL for message persistence and retrieval, ensuring that messages were delivered when a client reconnected. While PostgreSQL performed well initially, it had a fundamental limitation—it could only scale vertically. We anticipated that as the number of persistent MQTT sessions grew, PostgreSQL’s architecture would eventually become a bottleneck. To address this, we explored more scalable alternatives capable of handling the increasing demands of our MQTT broker. Redis was quickly chosen as the best fit due to its horizontal scalability, native clustering support, and widespread adoption.
 
@@ -98,7 +98,7 @@ While this design ensured reliable message delivery, it also introduced performa
 
 With the prototype testing, we ultimately reach the **limit** at 30k msg/s throughput utilizing PostgreSQL as a persistence message storage. Throughput refers to the total number of messages per second, including both incoming and outgoing messages.
 
-![](/images/blog/1-million-reasons-to-choose-tbmq-as-high-performance-mqtt-broker/schedule.webp)
+![TBMQ message scheduling and processing diagram](/images/blog/1-million-reasons-to-choose-tbmq-as-high-performance-mqtt-broker/schedule.webp)
 *The graph reflects 75k tuples in/5s, corresponding to 15k msg/s for persistent MQTT clients, or half of the 30k msg/s throughput measured.*
 
 Based on the TimescaleDB blog [post](https://www.timescale.com/blog/postgresql-timescaledb-1000x-faster-queries-90-data-compression-and-much-more#ingest-performance), vanilla PostgreSQL can handle up to 300k inserts per second under ideal conditions. However, this performance depends on factors such as hardware, workload, and table schema. While vertical scaling can provide some improvement, PostgreSQL’s per-table insert throughput eventually reaches a hard limit. Confident that Redis could overcome this bottleneck, we began the migration process to achieve greater scalability and efficiency.
@@ -107,7 +107,7 @@ Based on the TimescaleDB blog [post](https://www.timescale.com/blog/postgresql-t
 
 Our decision to migrate to Redis was driven by its ability to address the core performance bottlenecks encountered with PostgreSQL. Unlike PostgreSQL, which relies on disk-based storage and vertical scaling, Redis operates primarily in memory, significantly reducing read and write latency. Additionally, Redis’s distributed architecture enables horizontal scaling, making it an ideal fit for high-throughput messaging in P2P communication scenarios.
 
-![](/images/blog/1-million-reasons-to-choose-tbmq-as-high-performance-mqtt-broker/P2P-600k-Redis-V1.svg)
+![TBMQ peer-to-peer benchmark with 600,000 MQTT connections on Redis](/images/blog/1-million-reasons-to-choose-tbmq-as-high-performance-mqtt-broker/P2P-600k-Redis-V1.svg)
 
 With these benefits in mind, we started our migration process with an evaluation of data structures that could preserve the functionality of the PostgreSQL approach while aligning with Redis Cluster constraints to enable efficient horizontal scaling. This also presented an opportunity to improve certain aspects of the original design, such as periodic cleanups, by leveraging Redis features like built-in expiration mechanisms.
 
@@ -115,7 +115,7 @@ With these benefits in mind, we started our migration process with an evaluation
 
 When migrating from PostgreSQL to Redis, we recognized that replicating the existing data model would require multiple Redis data structures to efficiently handle message persistence and ordering. This, in turn, meant using multiple keys for each persistent MQTT Client session.
 
-![](/images/blog/1-million-reasons-to-choose-tbmq-as-high-performance-mqtt-broker/redis-cluster.png)
+![Redis cluster architecture supporting TBMQ at scale](/images/blog/1-million-reasons-to-choose-tbmq-as-high-performance-mqtt-broker/redis-cluster.png)
 
 Redis Cluster distributes data across multiple slots to enable horizontal scaling. However, multi-key operations must access keys within the same slot. If the keys reside in different slots, the operation triggers a cross-slot error, preventing the command from executing. We used the persistent MQTT client ID as a [hash tag](https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/#hash-tags) in our key names to address this. By enclosing the client ID in curly braces `{}`, Redis ensures that all keys for the same client are hashed to the same slot. This guarantees that related data for each client stays together, allowing multi-key operations to proceed without errors.
 
@@ -123,7 +123,7 @@ Redis Cluster distributes data across multiple slots to enable horizontal scalin
 
 Consistency is critical in a high-throughput environment like TBMQ, where many messages can arrive simultaneously for the same MQTT client. Hashtagging helps to avoid cross-slot errors, but without atomic operations, there is a risk of race conditions or partial updates. This could lead to message loss or incorrect ordering. It is important to make sure that operations updating the keys for the same MQTT client are atomic.
 
-![](/images/blog/1-million-reasons-to-choose-tbmq-as-high-performance-mqtt-broker/atomicity_with_lua_scripting_2x.webp)
+![Lua scripting in Redis for atomic operations in TBMQ broker](/images/blog/1-million-reasons-to-choose-tbmq-as-high-performance-mqtt-broker/atomicity_with_lua_scripting_2x.webp)
 
 Redis is designed to execute individual commands atomically. However, in our case, we need to update multiple data structures as part of a single operation for each MQTT client. Executing these sequentially without atomicity opens the door to inconsistencies if another process modifies the same data in between commands. That’s where [Lua scripting](https://redis.io/docs/latest/develop/interact/programmability/eval-intro/) comes in. Lua script executes as a single, isolated unit. During script execution, no other commands can run concurrently, ensuring that the operations inside the script happen atomically.
 
@@ -135,7 +135,7 @@ One of the key requirements of the migration was maintaining message order, a ta
 
 Redis sorted sets naturally organize data by score, enabling quick retrieval of messages in ascending or descending order. While sorted sets provided an efficient way to maintain message order, storing full message payloads directly in sorted sets led to excessive memory usage. Redis does not support per-member TTL within sorted sets. As a result, messages persisted indefinitely unless explicitly removed. Similar to PostgreSQL, we had to perform periodic cleanups using `ZREMRANGEBYSCORE` to delete expired messages. This operation carries a complexity of `O(log N + M)`, where `M` is the number of elements removed. To overcome this limitation we decided to store message payloads using [strings](https://redis.io/docs/latest/develop/data-types/strings/) data structure while storing in the sorted set references to these keys.
 
-![](/images/blog/1-million-reasons-to-choose-tbmq-as-high-performance-mqtt-broker/table-1.webp)
+![TBMQ benchmark results comparison table](/images/blog/1-million-reasons-to-choose-tbmq-as-high-performance-mqtt-broker/table-1.webp)
 *client_id is a placeholder for the actual client ID, while the curly braces \{\} around it are added to create a hash tag.*
 
 In the image above, you can see that the score continues to grow even when the MQTT packet ID wraps around. Let’s take a closer look at the details illustrated in this image. At first, the reference for the message with the MQTT packet ID equal to `65534` was added to the sorted set:
@@ -272,18 +272,18 @@ In the next sections, we describe the performance of the new Redis-based archite
 
 ## Migration from Jedis to Lettuce
 
-![](/images/blog/1-million-reasons-to-choose-tbmq-as-high-performance-mqtt-broker/migration_from_jedis_to_lettuce.webp)
+![Migration diagram from Jedis to Lettuce Redis client in TBMQ](/images/blog/1-million-reasons-to-choose-tbmq-as-high-performance-mqtt-broker/migration_from_jedis_to_lettuce.webp)
 
 As we mentioned earlier, we conducted a prototype test that revealed the limit of 30k msg/s throughput when using PostgreSQL for persistence message storage. At the moment we migrated to Redis, we already used the [Jedis](https://github.com/redis/jedis) library for Redis interactions, primarily for cache management, and extended it to handle message persistence for persistent MQTT clients. However, the initial results of the Redis implementation with Jedis were unexpected. While we anticipated Redis would significantly outperform PostgreSQL, the performance improvement was modest – reaching only 40k msg/s throughput compared to the 30k msg/s limit with PostgreSQL.
 
-![](/images/blog/1-million-reasons-to-choose-tbmq-as-high-performance-mqtt-broker/screenshot_from_2025_01_03_16_37_17_1x.webp)
+![TBMQ performance benchmark results dashboard](/images/blog/1-million-reasons-to-choose-tbmq-as-high-performance-mqtt-broker/screenshot_from_2025_01_03_16_37_17_1x.webp)
 *RedisInsight shows ~66k commands/s per node, aligning with TBMQ’s 40k msg/s, as Lua scripts trigger multiple Redis operations per message.*
 
 This led us to investigate the bottlenecks, where we discovered that Jedis was a limiting factor. While reliable, Jedis operates synchronously, processing each Redis command sequentially. This forces the system to wait for one operation to complete before executing the next. In high-throughput environments, this approach significantly limited Redis’s potential, preventing the full utilization of system resources.
 
 To overcome this limitation, we migrated to [Lettuce](https://github.com/redis/lettuce), an asynchronous Redis client built on top of [Netty](https://github.com/netty/netty). With Lettuce, our throughput increased to 60k msg/s, demonstrating the benefits of non-blocking operations and improved parallelism.
 
-![](/images/blog/1-million-reasons-to-choose-tbmq-as-high-performance-mqtt-broker/screenshot_from_2025_01_03_16_45_49_1x.webp)
+![TBMQ broker monitoring metrics screenshot](/images/blog/1-million-reasons-to-choose-tbmq-as-high-performance-mqtt-broker/screenshot_from_2025_01_03_16_45_49_1x.webp)
 *At 60k msg/s, RedisInsight shows ~100k commands/s per node, aligning with the expected increase from 40k msg/s, which produced ~66k commands/s per node.*
 
 Lettuce allows multiple commands to be sent and processed in parallel, fully exploiting Redis’s capacity for concurrent workloads. Ultimately, the migration unlocked the performance gains we expected from Redis, paving the way for successful P2P testing at scale.
@@ -314,7 +314,7 @@ Beyond adding resources, each increase in load required fine-tuning of Kafka top
 
 We reached our target of **1 million messages per second**, validating TBMQ’s capability to support high-throughput reliable P2P messaging. To better illustrate the test setup and results, the following diagram provides a visual breakdown of the final performance test.
 
-![](/images/blog/1-million-reasons-to-choose-tbmq-as-high-performance-mqtt-broker/P2P-1M-Redis-V2.svg)
+![TBMQ peer-to-peer test reaching 1 million MQTT connections with Redis](/images/blog/1-million-reasons-to-choose-tbmq-as-high-performance-mqtt-broker/P2P-1M-Redis-V2.svg)
 
 **Tests results**
 
