@@ -112,19 +112,6 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 		],
 	},
 	{
-		label: 'AI',
-		collapsed: true,
-		items: [
-			`${prefix}/ai-models`,
-			`${prefix}/ai-solution-creator`,
-			`${prefix}/ai-predictive-maintenance`,
-			`${prefix}/local-ai-ollama`,
-			`${prefix}/mcp-server`,
-			`${prefix}/n8n-node`,
-			`${prefix}/cli`,
-		],
-	},
-	{
 		label: 'Integrations',
 		collapsed: true,
 		items: [
@@ -1619,6 +1606,19 @@ const mainSidebarItems = (
 		collapsed: true,
 		translations: { uk: 'Посібники' },
 		items: guideItems(`${prefix}/user-guide`, { isPE: prefix.includes('/pe') }),
+	},
+	{
+		label: 'AI & Automation',
+		collapsed: true,
+		items: [
+			`${prefix}/user-guide/ai-models`,
+			`${prefix}/user-guide/ai-solution-creator`,
+			`${prefix}/user-guide/ai-predictive-maintenance`,
+			`${prefix}/user-guide/local-ai-ollama`,
+			`${prefix}/user-guide/mcp-server`,
+			`${prefix}/user-guide/n8n-node`,
+			`${prefix}/user-guide/cli`,
+		],
 	},
 	{
 		label: 'Recipes',
@@ -4036,6 +4036,7 @@ export type SidebarTabLinks = Partial<Record<string, string>>;
 export const opensourceSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/',
 	Guides: '/docs/user-guide/',
+	'AI & Automation': '/docs/user-guide/ai/',
 	Recipes: '/docs/recipes/',
 	Installation: '/docs/installation/',
 	'APIs & SDKs': '/docs/apis-and-sdks/',
@@ -4044,6 +4045,7 @@ export const opensourceSidebarTabLinks: SidebarTabLinks = {
 export const peSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/pe/',
 	Guides: '/docs/pe/user-guide/',
+	'AI & Automation': '/docs/pe/user-guide/ai/',
 	Recipes: '/docs/pe/recipes/',
 	Installation: '/docs/pe/installation/',
 	'APIs & SDKs': '/docs/pe/apis-and-sdks/',
