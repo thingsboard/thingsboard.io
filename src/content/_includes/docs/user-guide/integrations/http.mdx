@@ -8,29 +8,57 @@ import TabItem from '@components/TabItem.astro';
 
 <Banner variant="peFeature" product={props.product} path="user-guide/integrations/mqtt" />
 
-HTTP Integration converts existing protocols and payload formats to ThingsBoard message format. Common deployment scenarios:
+HTTP Integration enables external applications, cloud services, scripts, and HTTP-enabled devices to push data into ThingsBoard using standard HTTP `POST` requests. Incoming requests are passed to an uplink converter that decodes the payload and maps it to ThingsBoard telemetry and attributes.
 
-- Stream device or asset data from an external system, IoT platform, or connectivity provider back-end.
-- Stream data from a custom cloud application.
-- Connect an existing device with a custom HTTP-based protocol to ThingsBoard.
+Use this integration when:
+
+- Devices support HTTP but not MQTT or CoAP.
+- Third-party platforms or services deliver data via webhooks.
+- Custom backends need a simple REST interface to push data into ThingsBoard.
 
 <DocImage src="/src/assets/images/user-guide/integrations/http-integration.svg" alt="HTTP integration architecture" product={props.product} />
 
-## ThingsBoard integration setup
+## Prerequisites
 
-### Create an uplink converter
+Before creating the integration, ensure:
 
-The uplink converter decodes the incoming HTTP request body and maps it to the ThingsBoard data model. The decoder receives:
-- `payload` — raw bytes of the HTTP request body
-- `metadata` — HTTP request headers (as `Header:{name}` keys, e.g. `Header:content-type`) and `integrationName`
+- You have access to ThingsBoard PE or ThingsBoard Cloud with integration functionality enabled for your tenant.
+- You have permissions to create integrations and data converters.
+- You know the structure of the incoming HTTP payload.
 
-It must return `deviceName`, `deviceType`, `attributes`, and `telemetry`. Both are flat key-value maps — nested objects are not supported. For the full decoder API, see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">Uplink data converter</DocLink>.
+## Uplink Data Converter for HTTP Integration
+
+The uplink converter decodes the HTTP request payload and maps it to ThingsBoard's data model: it resolves the target device and extracts fields into telemetry and attributes.
+
+For the full decoder function reference — all input parameters and output fields — see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#decoder-function" target="_blank">Uplink data converter</DocLink>.
+
+<Aside type="note">
+  In HTTP integrations, `metadata` exposes request headers as `Header:{name}` keys (e.g. `metadata['Header:authorization']`), alongside `integrationName`. Use this to read auth tokens or routing information from incoming request headers.
+</Aside>
+
+### Example: Mapping JSON Payload
+
+Suppose your device or service sends this HTTP POST body:
+
+```json
+{
+  "deviceName": "Thermometer A",
+  "deviceType": "thermostat",
+  "model": "N001",
+  "param2": "SN-12345",
+  "temperature": 25.0
+}
+```
+
+The converter below parses it and maps each field to ThingsBoard:
+
+<Aside type="caution">
+  Both `attributes` and `telemetry` must be flat key-value maps. Nested objects are not supported — extract the values you need explicitly.
+</Aside>
 
 <Aside type="tip" title="TBEL">
   We recommend using <DocLink product={props.product} path="user-guide/tbel">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
 </Aside>
-
-**The decoder function used in this tutorial:**
 
 <Tabs>
 <TabItem label="TBEL (Recommended)">
@@ -100,17 +128,17 @@ return result;
 </TabItem>
 </Tabs>
 
-The decoder expects a flat JSON body and maps its fields to ThingsBoard:
+**Field mapping:**
 
-| JSON field | Output field | Type | Notes |
-|------------|--------------|------|-------|
-| `deviceName` | `deviceName` | — | Device identifier; auto-creates the device on first uplink |
-| `deviceType` | `deviceType` | — | Device profile name |
-| `model` | `model` | attribute | |
-| `param2` | `serialNumber` | attribute | Field is renamed in the output |
-| `temperature` | `temperature` | telemetry | |
+| Payload field | ThingsBoard field | Output type | Notes |
+|---------------|-------------------|-------------|-------|
+| `data.deviceName` | `deviceName` | — | Device identifier; auto-creates the device on first uplink |
+| `data.deviceType` | `deviceType` | — | Device profile name |
+| `data.model` | `model` | attribute | |
+| `data.param2` | `serialNumber` | attribute | Field is renamed in the output |
+| `data.temperature` | `temperature` | telemetry | |
 
-For request body `{"deviceName":"Thermometer A","deviceType":"thermostat","model":"N001","param2":"SN-12345","temperature":25.0}` the decoder produces:
+**Converter output:**
 
 ```json
 {
@@ -121,15 +149,11 @@ For request body `{"deviceName":"Thermometer A","deviceType":"thermostat","model
 }
 ```
 
-**To adapt this converter to your device:**
+For common scripting patterns — renaming fields, extracting nested values, normalizing data, and handling non-JSON payloads — see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#common-scripting-patterns" target="_blank">Uplink data converter: Common scripting patterns</DocLink>.
 
-- **Device name from a different field** — replace `data.deviceName` with the field that carries the device identifier in your payload.
-- **Hardcoded device type** — replace `data.deviceType` with a string literal (e.g. `'thermostat'`) if all devices share the same profile.
-- **Rename a field** — use `outputName: data.sourceField` to store the value under a different key in ThingsBoard (as shown with `serialNumber: data.param2`).
-- **Different telemetry or attribute fields** — add, remove, or rename entries in the `telemetry` and `attributes` blocks.
-- **Non-JSON payload** — replace `decodeToJson(payload)` with `decodeToString(payload)` and parse the string manually.
+### Create Uplink Data Converter
 
-**Import the uplink converter:**
+Create an uplink converter to decode incoming HTTP payloads, then configure the integration to expose the HTTP endpoint.
 
 <Steps>
   <ol start="1">
@@ -155,7 +179,7 @@ For request body `{"deviceName":"Thermometer A","deviceType":"thermostat","model
   </ol>
 </Steps>
 
-### Create the integration
+## Create HTTP Integration
 
 <Steps>
   <ol start="1">
@@ -163,29 +187,33 @@ For request body `{"deviceName":"Thermometer A","deviceType":"thermostat","model
     <li>
       <span><strong>Basic settings:</strong></span>
       <ul>
-        <li>Set <strong>Integration type</strong> to <strong>HTTP</strong>.</li>
-        <li><strong>Enable integration</strong> and <strong>Allow create devices or assets</strong> are on by default.</li>
+        <li>Select <strong>HTTP</strong> as <strong>integration type</strong>.</li>
+        <li>Enter a <strong>Name</strong> for the integration, or keep the default <code>HTTP integration</code>.</li>
+        <li><strong>Enable integration</strong> — controls whether the integration is active and processes incoming requests. Leave on to start immediately. Disable to pause the integration without deleting it (useful during maintenance or while updating the converter).</li>
+        <li><strong>Allow create devices or assets</strong> — when enabled, ThingsBoard automatically creates a new device the first time an uplink arrives for an unknown device name. Disable if you want to accept data only from devices already registered in ThingsBoard.</li>
         <li>Click <strong>Next</strong>.</li>
       </ul>
     </li>
     <li>
       <span><strong>Uplink data converter:</strong></span>
       <ul>
-        <li><strong>Select existing</strong> — choose a <a href="#create-an-uplink-converter">previously created</a> <code>HTTP Uplink Converter</code> from the list.</li>
-        <li>Click <strong>Next</strong>.</li>
+        <li>Click <strong>Select existing</strong> and choose the <a href="#create-uplink-data-converter">previously created</a> uplink converter from the dropdown, then click <strong>Next</strong>.</li>
       </ul>
+      <Aside type="note">
+        The uplink converter step offers three options: <strong>Create new</strong> lets you write the decoder script inline without leaving the wizard; <strong>Select existing</strong> picks a converter you already created; <strong>Library</strong> loads a vendor-provided preset for supported hardware (e.g., Milesight).
+      </Aside>
     </li>
     <li>
       <span><strong>Downlink data converter:</strong></span>
       <ul>
-        <li>Click <strong>Skip</strong> — the downlink converter is only required for RPC and can be added later.</li>
+        <li>Click <strong>Skip</strong> — a downlink converter is only needed when ThingsBoard must send data back to the device (e.g., RPC commands or shared attribute updates). It can be configured later.</li>
       </ul>
     </li>
     <li>
       <span><strong>Connection:</strong></span>
       <ul>
         <li>Copy the <strong>HTTP endpoint URL</strong> — you will use it to send uplink messages.</li>
-        <li>In <strong>Advanced settings</strong> enable <strong>Replace response status from 'No-Content' to 'OK'</strong>.</li>
+        <li>In <strong>Advanced settings</strong>, enable <strong>Replace response status from "No-Content" to "OK"</strong> if your device or client requires a <code>200 OK</code> response — by default the integration returns <code>204 No Content</code>.</li>
       </ul>
       <span>Read more about each parameter in <a href="#connection-settings">connection settings</a>.</span>
     </li>
@@ -194,13 +222,13 @@ For request body `{"deviceName":"Thermometer A","deviceType":"thermostat","model
 </Steps>
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/http/http-add-integration-1.png', alt: 'Add integration wizard — Basic settings: Integration type set to HTTP', caption: 'Go to Integrations center → Integrations (1) and click + Add integration (2). Set Integration type to HTTP (3) and click Next (4)' },
-  { src: '/src/assets/images/user-guide/integrations/http/http-add-integration-2.png', alt: 'Add integration wizard — Uplink data converter: HTTP Uplink Converter selected', caption: 'Click Select existing (5), choose HTTP Uplink Converter from the list, and click Next (6)' },
-  { src: '/src/assets/images/user-guide/integrations/http/http-add-integration-3.png', alt: 'Add integration wizard — Downlink data converter step with Skip selected', caption: 'Click Skip (7) on the Downlink data converter step' },
-  { src: '/src/assets/images/user-guide/integrations/http/http-add-integration-4.png', alt: 'Add integration wizard — Connection step: HTTP endpoint URL and Advanced settings', caption: 'Copy the HTTP endpoint URL (8), expand Advanced settings and enable Replace response status from No-Content to OK (9), then click Add (10)' },
+  { src: '/src/assets/images/user-guide/integrations/http/http-add-integration-1.png', alt: 'Add integration wizard — Basic settings step: Integration type HTTP selected, Name field, Enable integration and Allow create devices or assets toggles', caption: 'Go to Integrations center → Integrations and click + Add integration. Set Integration type to HTTP, enter a name, then click Next' },
+  { src: '/src/assets/images/user-guide/integrations/http/http-add-integration-2.png', alt: 'Add integration wizard — Uplink data converter step: Select existing tab active, uplink converter selected from the dropdown', caption: 'Click Select existing, choose the uplink converter from the dropdown, and click Next' },
+  { src: '/src/assets/images/user-guide/integrations/http/http-add-integration-3.png', alt: 'Add integration wizard — Downlink data converter step with Create new and Skip buttons', caption: 'Click Skip on the Downlink data converter step' },
+  { src: '/src/assets/images/user-guide/integrations/http/http-add-integration-4.png', alt: 'Add integration wizard — Connection step: Base URL, HTTP endpoint URL, Enable security, Execute remotely, and Advanced settings', caption: 'Copy the HTTP endpoint URL, configure any advanced options if needed, then click Add' },
 ]} />
 
-#### Connection settings
+### Connection Settings
 
 <h4>Base URL</h4>
 
@@ -223,7 +251,7 @@ When enabled, ThingsBoard validates each incoming request against a list of requ
 | Field | Description |
 |-------|-------------|
 | **Header** | Name of the required HTTP header (e.g. `Authorization`, `X-API-Key`) |
-| **Secret** | Required value for that header (e.g. `Bearer my-token`) |
+| **Value** | Required value for that header (e.g. `Bearer my-token`) |
 
 Multiple header filters can be added. All configured headers must be present in every request.
 
@@ -241,7 +269,7 @@ When enabled, ThingsBoard generates an **Integration key** and **Integration sec
 
 Optional key–value pairs attached to the integration. These values are injected into every message processed by the integration and are accessible in converter scripts as `integrationMetadata`.
 
-## Send an uplink message
+## Send Test Uplink
 
 Send a test message by running the command below, replacing `$YOUR_HTTP_ENDPOINT_URL` with the HTTP endpoint URL copied during setup.
 
@@ -259,11 +287,10 @@ Go to **Entities &#8702; Devices** — device *Thermometer A* is provisioned aut
   { src: '/src/assets/images/user-guide/integrations/http/http-integration-go-to-devices-1.png', alt: 'Entities → Devices (1): Thermometer A auto-created by the integration (2); Latest telemetry tab (3) shows temperature = 33', caption: 'Go to Entities → Devices (1) — Thermometer A is auto-created on the first uplink (2). Open Latest telemetry (3) to confirm temperature = 33' },
 ]} />
 
-<Aside type="note">
-  If the "Allow create devices or assets" checkbox is unchecked in the integration settings, devices or assets referenced in incoming messages will not be created automatically if they don't already exist.
-</Aside>
+## Validation and Debugging
 
-Go to **Integrations center &#8702; Integrations**, click **HTTP integration**, and open the **Events** tab. You should see one event with status "OK":
+Go to **Integrations center &#8702; Integrations**, click **HTTP integration**, and open the **Events** tab.  
+You should see one event with status **OK**:
 
 <ImageGallery images={[
   { src: '/src/assets/images/user-guide/integrations/http/http-send-uplink-message-2.png', alt: 'Integration event — OK', caption: 'Integration event — OK' },
@@ -281,62 +308,69 @@ To inspect converter processing, go to **Integrations center &#8702; Data conver
   { src: '/src/assets/images/user-guide/integrations/http/http-send-uplink-message-6.png', alt: 'Converter event Metadata — HTTP request headers and integration name', caption: 'Metadata: HTTP request headers and integration name passed to the converter' },
 ]} />
 
-Use <DocLink product={props.product} path="user-guide/dashboards">Dashboards</DocLink> to visualize the received data. ThingsBoard provides **Solution Templates** with pre-built dashboards for common use cases.
+Use <DocLink product={props.product} path="user-guide/dashboards" bold={true} target="_blank">Dashboards</DocLink> to visualize the received data. ThingsBoard provides **Solution Templates** with pre-built dashboards for common use cases.
 
-## Restrict access with a header filter
+## Secure HTTP Integration with Header Filters
 
-Require a specific HTTP header on every incoming request — requests without it are rejected.
+A header filter protects the integration endpoint by requiring every incoming HTTP request to include one or more specific headers with exact values. Requests missing a required header or sending the wrong value are rejected with `401 Unauthorized` before reaching the converter.
+
+Use this to prevent unauthorized systems from pushing arbitrary data to your ThingsBoard endpoint.
 
 <Steps>
-1. Open the HTTP integration, click **Toggle edit mode** (pencil icon, top right).
-2. Enable the **Enable security (Headers filter)** toggle, enter a header name (e.g. `test-header`) and value (e.g. `secret`), click **Add**, then click **Apply changes**.
+1. Open the HTTP integration and click **Toggle edit mode** (pencil icon, top right).
+2. Enable **Enable security (Headers filter)**.
+3. Click **Add** and enter the **Header** name and its expected **Value**, then click **Add**.
+4. Repeat to add more headers if needed — all configured headers must be present in every request.
+5. Click **Apply changes**.
 </Steps>
 
 <ImageGallery images={[
   { src: '/src/assets/images/user-guide/integrations/http/http-enable-security-1.png', alt: 'Integration details in read-only mode — click Toggle edit mode pencil button', caption: 'Open the HTTP integration and click Toggle edit mode (pencil button, top right)' },
-  { src: '/src/assets/images/user-guide/integrations/http/http-enable-security-2.png', alt: 'Enable security toggle on — test-header and secret values entered', caption: 'Enable security, enter a header name and value, click Add, then Apply changes' },
+  { src: '/src/assets/images/user-guide/integrations/http/http-enable-security-2.png', alt: 'Enable security (Headers filter) toggle enabled — header name and value fields filled in', caption: 'Enable security, enter the header name and value, click Add, then Apply changes' },
 ]} />
 
-Once configured, add the required header to every uplink request with `-H "$HEADER:$VALUE"`.
+**Header filter fields:**
 
-Run the command below, replacing `$YOUR_HTTP_ENDPOINT_URL`, `$HEADER`, and `$VALUE` with your values:
+| Field | Description |
+|-------|-------------|
+| **Header** | HTTP header name ThingsBoard checks on each incoming request |
+| **Value** | Exact value required in that header |
+
+**Example: Authorization header**
+
+A common pattern is to protect the endpoint with a bearer token. Set **Header** to `Authorization` and **Value** to `Bearer my-secret-token`, then include the header in every uplink request. Replace `$YOUR_HTTP_ENDPOINT_URL` with the HTTP endpoint URL copied during setup:
 
 ```bash
-curl -v -X POST -d '{"deviceName":"Thermometer A","deviceType":"thermostat","temperature":33,"model":"N001"}' $YOUR_HTTP_ENDPOINT_URL -H "Content-Type:application/json" -H "$HEADER:$VALUE"
+curl -v -X POST \
+  -d '{"deviceName":"Thermometer A","deviceType":"thermostat","temperature":33,"model":"N001"}' \
+  $YOUR_HTTP_ENDPOINT_URL \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer my-secret-token"
 ```
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/http/http-enable-security-4.png', alt: 'Terminal showing curl command with security header being sent', caption: 'Send the uplink message with the security header' },
-  { src: '/src/assets/images/user-guide/integrations/http/http-enable-security-3.png', alt: 'Curl command with -H test-header:secret header alongside the integration settings showing the same header configured', caption: 'The header in the curl command (-H "test-header:secret") must match the one configured in the integration' },
+  { src: '/src/assets/images/user-guide/integrations/http/http-enable-security-4.png', alt: 'Terminal showing curl command sent with a security header', caption: 'Send the uplink message with the required header' },
+  { src: '/src/assets/images/user-guide/integrations/http/http-enable-security-3.png', alt: 'Curl command with security header alongside the integration settings showing the same header configured', caption: 'The header value in the request must exactly match the value configured in the integration' },
 ]} />
 
-## Configure downlink
+Any request without the correct `Authorization` header is rejected.
 
-The downlink converter (encoder) transforms a Rule Engine message into the HTTP response body returned to the device. For the full encoder function reference, see <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter">Downlink data converter</DocLink>.
+## Configure Downlink
 
-HTTP downlinks are not pushed — they are delivered as the response body to the device's **next uplink request**. When a downlink is queued, the integration returns `200 OK` with the encoded payload instead of `204 No Content`.
+HTTP downlinks are not pushed to the device — they are delivered as the response body to the device's **next uplink request**. When a downlink is queued, the integration returns `200 OK` with the encoded payload instead of `204 No Content`.
 
-The encoder function receives `msg`, `metadata`, and `msgType`, and must return an object with:
-- `contentType` — `JSON`, `TEXT`, or `BINARY` (`BINARY` expects a Base64-encoded string)
-- `data` — the response body string
-- `metadata` — optional key-value pairs
+The downlink converter transforms a Rule Engine message into the HTTP response body. For the full encoder function reference, see <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter">Downlink data converter</DocLink>.
 
-<Aside type="note">
-A downlink converter is required only when the integration sends messages back to devices (RPCs, attribute updates). For uplink-only use cases it can be skipped.
-</Aside>
-
-### Add a downlink converter
+### Add Downlink Converter
 
 <Steps>
-  1. Go to **Integrations center &#8702; Integrations** and open the HTTP Integration.
+  1. Go to **Integrations center &#8702; Integrations** and open the HTTP integration.
   2. Click **Toggle edit mode**.
   3. In the **Downlink data converter** field, click **Create new**.
-  4. In the **Add data converter** dialog, enter a name, and write or paste the encoder script.
+  4. Enter a name and paste the encoder script below, then click **Add**.
 </Steps>
 
-<Tabs>
-<TabItem label="TBEL (Recommended)">
-```js maxLines=15 collapsible
+```js
 /** Encoder **/
 
 var result = {
@@ -347,24 +381,11 @@ var result = {
 
 return result;
 ```
-</TabItem>
-<TabItem label="JavaScript">
-```js maxLines=15 collapsible
-/** Encoder **/
-
-var result = {
-    contentType: "JSON",        // JSON, TEXT, or BINARY (base64)
-    data: JSON.stringify(msg),  // encode the full message as the response body
-    metadata: {}
-};
-
-return result;
-```
-</TabItem>
-</Tabs>
 
 <Steps>
-  5. Click **Add**, then click **Apply changes**.
+  <ol start="5">
+    <li>Click <strong>Apply changes</strong>.</li>
+  </ol>
 </Steps>
 
 <ImageGallery images={[
@@ -374,7 +395,7 @@ return result;
   { src: '/src/assets/images/user-guide/integrations/http/http-add-downlink-converter-4.png', alt: 'Integration in edit mode with HTTP Downlink Converter assigned — Apply changes button visible', caption: 'Downlink converter assigned — click Apply changes to save' },
 ]} />
 
-### Configure the Root Rule Chain
+### Configure Root Rule Chain
 
 <ConfigureDownlinkRuleChain integrationName="HTTP" />
 
@@ -386,7 +407,7 @@ import ConfigureDownlinkRuleChain from '@includes/docs/user-guide/integrations/_
   { src: '/src/assets/images/user-guide/integrations/http/http-integration-configure-rule-chain-3.png', alt: 'Rule chain with integration downlink node connected to Attributes Updated output', caption: 'Connect the node to the Attributes Updated / Post attributes output and click Apply changes' },
 ]} />
 
-### Test the downlink
+### Test Downlink
 
 When a shared attribute is created or updated, the Rule Engine routes the event to the integration, which queues the encoded payload as the response to the device's next uplink.
 
@@ -408,7 +429,7 @@ Send the uplink message again. ThingsBoard returns the downlink payload in the H
   { src: '/src/assets/images/user-guide/integrations/http/http-send-downlink-message-3.png', alt: 'Terminal — HTTP/2 200 response with {"powerState":"on"} body', caption: 'Response body contains the downlink payload: {"powerState":"on"}' },
 ]} />
 
-The sent and received data can be viewed in the downlink converter's **Events** tab — the **In** block shows the input data, the **Out** block shows the encoded message sent to the device, and **Metadata** shows the request headers:
+To inspect the exchange, open the downlink converter's **Events** tab — **In** shows the Rule Engine message, **Out** shows the encoded response, **Metadata** shows the request headers.
 
 <ImageGallery images={[
   { src: '/src/assets/images/user-guide/integrations/http/http-send-downlink-message-4.png', alt: 'Downlink converter Events tab showing one Downlink event', caption: 'Events tab of the downlink converter — one Downlink event recorded' },
@@ -417,7 +438,29 @@ The sent and received data can be viewed in the downlink converter's **Events** 
   { src: '/src/assets/images/user-guide/integrations/http/http-send-downlink-message-7.png', alt: 'Downlink converter event Metadata — HTTP request headers', caption: 'Metadata: HTTP request headers passed to the downlink converter' },
 ]} />
 
-## See also
+## Troubleshooting
+
+**No telemetry or device after sending a request**
+
+Open the converter's **Events** tab: go to **Integrations center → Data converters**, click your converter, and open **Events**. If **Out** is empty or shows an error, the script failed. Check the **In** column first to confirm the payload you expected was received.
+
+**Common issues:**
+
+| Symptom | Likely cause | Fix |
+|---------|-------------|-----|
+| Telemetry missing in ThingsBoard | Wrong field path in the script | Check **Out** in converter events; verify `data.yourField` matches the actual JSON key |
+| Device not created, `deviceName` is null | Field doesn't exist or has a different name | Add a fallback: `var deviceName = data.id \|\| 'Unknown';` |
+| Script error in converter events | Accessing a field on a `null` parent | Add a null-check: `data.sensor ? data.sensor.temp : null` |
+| Device not auto-created despite correct converter output | **Allow create devices or assets** is disabled | Enable it in the integration settings |
+| Unexpected key names in ThingsBoard | Output key name differs from expected | Field names in `attributes`/`telemetry` blocks become the ThingsBoard keys exactly as written |
+
+**Converter not triggered at all**
+
+- Check the integration **Events** tab — `ERROR` status means the request was rejected (e.g., failed header filter, malformed body).
+- No events at all: verify the `POST` is going to the exact endpoint URL copied from the integration **Connection** step.
+- Confirm the integration is enabled — the toggle must be on in integration settings.
+
+## See Also
 
 - <DocLink product={props.product} path="user-guide/integrations">Integration overview</DocLink>
 - <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter">Uplink data converter</DocLink>

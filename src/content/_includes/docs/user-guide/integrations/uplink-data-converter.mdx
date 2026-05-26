@@ -12,6 +12,30 @@ import TabItem from '@components/TabItem.astro';
 
 The **Uplink data converter** is the decoding stage of every **ThingsBoard integration**, where raw payloads from an external device or network server are mapped to the ThingsBoard data model: device or asset name, profile, customer, group, telemetry values, and attributes.
 
+Without an uplink converter, ThingsBoard cannot understand how external HTTP payloads should be interpreted and processed internally.
+
+Example:
+
+Incoming HTTP payload:
+
+```json
+{
+  "device": "Boiler-01",
+  "temperature": 42
+}
+```
+
+Converter output:
+
+```json
+{
+  "deviceName": "Boiler-01",
+  "telemetry": {
+    "temperature": 42
+  }
+}
+```
+
 ThingsBoard provides three ways to define the decoder:
 - **Typed:** Configure entity type, name patterns, and field mappings in the UI — ThingsBoard pre-fills a decoder script tailored to each integration type. No scripting needed for structured JSON payloads; for binary or custom-encoded payloads, edit the pre-filled decoder to match your device's payload format.
   Supported integrations: <DocLink product={props.product} path="user-guide/integrations/chirpstack" target="_blank">ChirpStack</DocLink>, <DocLink product={props.product} path="user-guide/integrations/loriot/" target="_blank">Loriot</DocLink>, <DocLink product={props.product} path="user-guide/integrations/ttn/" target="_blank">The Things Stack Community</DocLink>, <DocLink product={props.product} path="user-guide/integrations/tti/" target="_blank">The Things Stack Industries</DocLink>, <DocLink product={props.product} path="user-guide/integrations/thingpark/" target="_blank">ThingPark</DocLink>, and <DocLink product={props.product} path="user-guide/integrations/thingparkenterprise" target="_blank">ThingPark Enterprise</DocLink>.
@@ -116,6 +140,98 @@ Keys added to the **Update only keys list** in **Advanced decoding parameters** 
 <Aside type="note">
   In a cluster deployment, keys in the <strong>Update only keys list</strong> may still be written more than once when uplink messages arrive at different executor nodes, or immediately after a converter configuration change.
 </Aside>
+
+### Common Scripting Patterns
+
+The patterns below apply to any generic uplink converter, regardless of integration type.
+
+**Device name from a different field**
+
+Replace the field reference to match whatever field carries the device identifier in your payload:
+
+```js
+var deviceName = data.serial;       // if your field is "serial"
+var deviceName = data.id;           // if your field is "id"
+var deviceName = 'Gateway-01';      // hardcoded — all data goes to one device
+```
+
+**Hardcoded device type**
+
+If all devices share the same profile, use a string literal instead of reading it from the payload:
+
+```js
+var deviceType = 'thermostat';
+```
+
+**Rename a field**
+
+Map a source field to a different ThingsBoard key using `newName: data.originalField`:
+
+```js
+attributes: {
+    serialNumber: data.param2,       // renames param2 → serialNumber
+    firmwareVersion: data.fw,        // renames fw → firmwareVersion
+}
+```
+
+**Extract nested values**
+
+If your payload contains nested objects, access them with dot notation:
+
+```json
+{ "sensor": { "temperature": 22.5, "humidity": 60 } }
+```
+
+```js
+telemetry: {
+    temperature: data.sensor.temperature,
+    humidity: data.sensor.humidity
+}
+```
+
+**Separate telemetry from attributes**
+
+Put values that change over time in `telemetry`, and device metadata in `attributes`:
+
+```js
+attributes: {
+    firmware: data.fw,           // rarely changes — store as attribute
+    model: data.model
+},
+telemetry: {
+    temperature: data.temp,      // changes over time — store as telemetry
+    battery: data.bat,
+    rssi: data.signal
+}
+```
+
+**Normalize or transform values**
+
+Transform values inside the decoder before mapping them:
+
+```js
+telemetry: {
+    temperature: data.tempC * 9/5 + 32,          // Celsius → Fahrenheit
+    batteryPercent: Math.round(data.bat * 100)    // 0–1 float → 0–100 integer
+}
+```
+
+**Non-JSON payload**
+
+If the device sends plain text or CSV, decode the payload as a string and parse manually:
+
+```js
+// Example: "Sensor-01,22.5,60"
+var str = decodeToString(payload);
+var parts = str.split(',');
+var result = {
+    deviceName: parts[0],
+    telemetry: {
+        temperature: parseFloat(parts[1]),
+        humidity: parseFloat(parts[2])
+    }
+};
+```
 
 ## Typed Uplink Converter
 
