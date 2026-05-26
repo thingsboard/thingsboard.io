@@ -713,3 +713,17 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 
 /** Unique version families in order, e.g. ["4.3", "4.2", "4.1", ...] */
 export const UPGRADE_FAMILIES: string[] = [...new Set(UPGRADE_VERSIONS.map((v) => v.family))];
+
+/** Version strings that are the newest patch within their baseVersion family. */
+export const LATEST_PATCH_VERSIONS: Set<string> = (() => {
+	const seen = new Set<string>();
+	const latest = new Set<string>();
+	for (const v of UPGRADE_VERSIONS) {
+		if (!v.patch || !v.baseVersion) continue;
+		if (!seen.has(v.baseVersion)) {
+			seen.add(v.baseVersion);
+			latest.add(v.version);
+		}
+	}
+	return latest;
+})();
