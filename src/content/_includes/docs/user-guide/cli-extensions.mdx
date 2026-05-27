@@ -1,0 +1,294 @@
+import DocLink from '@components/DocLink.astro';
+import Banner from '~/components/Banner.astro';
+import { Products } from '~/models/site.models';
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+<Banner variant="peFeature" product={props.product}>ThingsBoard CLI works only with <DocLink product={Products.PE} path="user-guide/cli-extensions" target="_blank">ThingsBoard Professional</DocLink> and <a href="/installations/?product=thingsboard-cloud" target="_blank" rel="noopener noreferrer" class="tb-banner-ext"><b>ThingsBoard Cloud</b></a>.</Banner>
+
+Extensions let you add custom server-side logic to ThingsBoard — a custom REST endpoint that runs a multi-step workflow in one call, a scheduled job that aggregates cross-entity data, or a bridge to an external system. You describe what you want in plain language, Claude writes the code, and `tb extension` builds, runs, and publishes it.
+
+The workflow has four steps: scaffold the extension once, ask Claude to build features into it, run it locally to verify, then push the image to a registry when you're ready to deploy.
+
+Haven't set up the CLI yet? Start with <DocLink product={props.product} path="user-guide/cli">Getting Started with CLI</DocLink>.
+
+## Scaffold the Extension
+
+Every extension has a **name** set at scaffold time. It becomes the local Docker image tag the CLI uses for builds (`<name>:latest`, `<name>:1.2.3`) and the source tag for `tb extension push`. Pick something descriptive — your project's slug, company short-name, or the product the extension belongs to.
+
+Pass the name with `--name`:
+
+```bash
+tb extension new --name acme-telemetry-extension
+```
+
+Omit `--name` in an interactive terminal and the CLI prompts you — use `--name` explicitly in CI or any non-interactive session:
+
+```text
+This name will be used as the local Docker image tag for your extension
+(e.g. <name>:1.2.3). Pick something descriptive — your project's slug,
+your company short-name, etc. You can change it later with
+`tb extension rename <new-name>`.
+
+Extension name:
+```
+
+The CLI reads the edition (PE or Cloud) from your active profile and writes the name to `thingsboard.json`:
+
+```json
+{
+  "extension": {
+    "name": "acme-telemetry-extension"
+  }
+}
+```
+
+You get an `extension/` directory in your project. The key file is `extension/README.md` — Claude maintains a plain-English summary of every active feature there, along with a history of features you've removed.
+
+## Building Features with Claude
+
+The AI workflow follows the same pattern as building solutions:
+
+<Steps>
+1. **You ask.** Describe the feature in plain language — what it does, who or what triggers it, what data it reads or writes. Claude picks the right kind of trigger for the job and writes the feature. Triggers Claude can wire up for you:
+
+   - **Widget trigger** — runs when a user clicks or interacts with a dashboard widget.
+   - **Scheduled job** — runs on a fixed schedule (hourly, nightly, or any cron expression).
+   - **Webhook** — runs when any external system or shared URL calls the endpoint.
+
+2. **You review.** Claude updates the features section of `extension/README.md` with a plain-English summary of what's there and how to use it.
+
+3. **You run.**
+
+   ```bash
+   tb extension run
+   ```
+
+   The CLI builds the extension the first time, then keeps it running until you stop it.
+
+4. **You iterate.** Ask Claude for changes — *"only invoice customers with active devices"*, *"send a daily email of the rollup instead"*. Claude regenerates the affected pieces and refreshes the README. Features you drop are moved to a "removed features" history, keeping an audit trail of what's been added and removed over time.
+</Steps>
+
+<Aside type="tip">
+The same flow is available as a slash command: `/create-extension`. Use it if you prefer that style of invocation.
+</Aside>
+
+<Aside type="caution">
+Claude rewrites the `## Features` and `## Removed features (history)` blocks in `extension/README.md` on every iteration. Hand-edits to those two sections will be lost; everything else in the README is safe to edit.
+</Aside>
+
+## Build and Run Locally
+
+The CLI uses Docker to build and run the extension locally:
+
+```bash
+tb extension build              # builds acme-telemetry-extension:latest
+tb extension run                # runs the image; builds first if it isn't there yet
+tb extension run -d             # same, but detached (run in the background)
+tb extension logs -f            # follow the running container's logs
+```
+
+When the build finishes, the CLI prints a summary of the images it produced and a hint for the next step:
+
+```text
+Build succeeded
+  • acme-telemetry-extension:latest
+
+Next:
+  tb extension run                          smoke test locally
+  tb extension push --image-name <reg>/foo  publish to a registry
+```
+
+To produce a versioned image alongside `:latest`, pass `--image-tag`:
+
+```bash
+tb extension build --image-tag 1.2.3
+```
+
+That tags both `acme-telemetry-extension:1.2.3` **and** `acme-telemetry-extension:latest` — the version is the immutable artifact you'll publish, `:latest` keeps a moving pointer to your most recent build.
+
+As soon as the container is up, the CLI prints local control hints alongside the integration paths for rule-chain and widget callers:
+
+```text
+[OK] Running 'acme-telemetry-extension' at http://localhost:8090
+
+Local:
+  tb extension logs -f       tail logs
+  tb extension restart       reload after code edit
+  tb extension stop          stop the container
+
+Wire from a rule chain (REST API Call node):
+  POST http://localhost:8090/api/extension/<your-endpoint>
+  Header: X-Authorization: ApiKey <your-api-key>
+
+Wire from a widget (when ThingsBoard runs on this host) — add to your
+existing HAProxy frontend, before the TB backend ACL:
+
+  acl is_extension path_beg /api/extension/
+  use_backend thingsboard_extension if is_extension
+
+  backend thingsboard_extension
+      server extension 127.0.0.1:8090 check
+
+Widget JS templates: examples/widgets/{on-premise,cloud}-button.js
+```
+
+`tb extension restart` reloads your latest changes without a full stop-and-restart cycle. It auto-discovers the running image from `docker compose ps`, so no tag argument is needed:
+
+```bash
+tb extension restart
+tb extension stop               # stop it
+tb extension status             # current features, extension name, last build, whether it's running OK
+```
+
+<Aside>
+Prefer the classic JAR workflow over Docker? Pass `--jar` to `build` or `run` to opt into the Maven `package` path and a local `java -jar` launch. Docker is the recommended mode — the JAR path is there for environments where Docker isn't available.
+</Aside>
+
+## Renaming Your Extension
+
+If you picked a name you've outgrown — the project changed direction, you want a different brand, or the original was a placeholder — rename it at any time:
+
+```bash
+tb extension rename acme-new
+```
+
+The CLI validates the new name (same rules as `tb extension new`) and updates `thingsboard.json`. Subsequent builds tag the image as `acme-new:<tag>`.
+
+The previous local images (`acme-old:latest`, `acme-old:1.2.3`, …) stay on your Docker daemon until you remove them yourself:
+
+```bash
+docker image rm acme-old:latest acme-old:1.2.3
+```
+
+## Switching ThingsBoard Editions
+
+The scaffolded project is pinned to one of two ThingsBoard client artifacts in its root `pom.xml` — `thingsboard-pe-client` (Professional) or `thingsboard-paas-client` (Cloud). Each exposes a slightly different set of API endpoints, so the right artifact has to be wired in before Claude generates code against it. The CLI selects one at scaffold time based on your active profile. To switch later, run:
+
+```bash
+tb extension set-edition pe
+```
+
+The argument is `pe` or `paas`. Run `tb extension build` afterwards — the build regenerates the API reference Claude reads when writing features, so the next iteration targets the right edition's endpoints.
+
+## Publishing the Extension Image
+
+Once the extension runs the way you want, push the built image to a Docker registry so anyone — a server, a teammate, your hosting platform — can pull and run it without having the CLI installed.
+
+`tb extension push` takes the local image (built by `tb extension build`) and uploads it to the registry/repository you pass via `--image-name`. The local name from your manifest is the **source**; `--image-name` is the **publish target** and must include any registry or org prefix.
+
+Authenticate with the registry first — the CLI doesn't store credentials and won't run `docker login` for you:
+
+```bash
+docker login                              # Docker Hub
+docker login registry.example.com         # private registry
+```
+
+Then push. To Docker Hub:
+
+```bash
+tb extension push --image-name myuser/acme-telemetry-extension
+```
+
+To a private registry:
+
+```bash
+tb extension push --image-name registry.example.com/team/acme-telemetry-extension
+```
+
+Before uploading anything, the CLI shows a confirmation prompt listing the images to be pushed, then — after a successful push — displays the deployment steps for the host running ThingsBoard:
+
+```text
+About to push:
+  myuser/acme-telemetry-extension:latest
+to registry: docker.io
+
+Push this image? [y/N]: y
+
+Pushed
+  • Pushed myuser/acme-telemetry-extension:latest
+
+Deploy on the host that runs ThingsBoard:
+
+  1. Copy this project's extension/deploy/ directory to that host, then cd into it
+  2. cp .env.example .env
+  3. Edit .env: set IMAGE_NAME=myuser/acme-telemetry-extension
+       (Cloud TB: also set CORS_ALLOWED_ORIGINS, or widget calls get blocked)
+  4. docker compose up -d
+  5. For dashboard widgets, apply this snippet to your HAProxy frontend:
+
+       acl is_extension path_beg /api/extension/
+       use_backend thingsboard_extension if is_extension
+
+       backend thingsboard_extension
+           server extension 127.0.0.1:8090 check
+```
+
+The default answer at the prompt is **no** — pressing Enter cancels the push. Type `y` to go ahead.
+
+By default, `tb extension push` publishes only the `:latest` tag. Pass `--image-tag` to publish a specific version alongside it — the CLI then pushes both the versioned tag and `:latest`:
+
+```bash
+tb extension push --image-name myuser/acme-telemetry-extension --image-tag 1.2.3
+```
+
+```text
+About to push:
+  myuser/acme-telemetry-extension:1.2.3
+  myuser/acme-telemetry-extension:latest
+to registry: docker.io
+
+Push these images? [y/N]:
+```
+
+This matches the standard release pattern: each release publishes an immutable version tag *and* advances `:latest`, so deployments that track `:latest` always receive the most recent build.
+
+For CI pipelines and other non-interactive runs, skip the confirmation with `--yes` (or `-y`):
+
+```bash
+tb extension push --image-name myuser/acme-telemetry-extension --image-tag 1.2.3 --yes
+```
+
+<Aside type="caution">
+If the local image isn't built yet, push errors out and asks you to run `tb extension build` first. The registry only ever sees what you've already built and verified locally.
+</Aside>
+
+## Deploying to Your ThingsBoard Host
+
+The post-push output lists five deployment steps. This section covers the ones that need more explanation. The same `extension/deploy/` directory works for both self-hosted ThingsBoard PE and ThingsBoard Cloud.
+
+<Steps>
+1. **Copy `extension/deploy/` to the host that runs ThingsBoard.** It contains the compose file and the `.env.example` template. Transfer it using `scp`, `rsync`, `git`, or any other method. Then `cd` into the directory on the host.
+
+2. **Create `.env` from the template.**
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   The template has every variable the compose file consumes, with inline comments explaining which ones matter for which deployment.
+
+3. **Edit `.env` for your target.** Three variables are worth a closer look:
+
+   - **`IMAGE_NAME`** — must match the image you just pushed (`myuser/acme-telemetry-extension`, or the full `registry.example.com/team/...` form for a private registry). Compose pulls this image when it starts the container.
+   - **`THINGSBOARD_URL`** — defaults to `http://host.docker.internal:8080`, which is correct for self-hosted ThingsBoard running on the same Docker host. For ThingsBoard Cloud, uncomment the cloud line in the template and set it to your tenant's URL (e.g. `https://thingsboard.cloud` or your custom domain).
+   - **`CORS_ALLOWED_ORIGINS`** — leave blank for on-premise deployments where widget calls reach the extension same-origin through HAProxy. For ThingsBoard Cloud, set it to the origin your dashboard widgets call from (typically your tenant URL).
+
+   `TB_AUTH_API_KEY` and the username/password pair are only needed if your extension runs `@Scheduled` background jobs — leave them blank for endpoint-only extensions.
+
+   <Aside type="caution">
+   On ThingsBoard Cloud, `CORS_ALLOWED_ORIGINS` is **required** for widget callbacks. If you leave it blank, the container starts and looks healthy, but every browser request from a widget is blocked by CORS. The extension keeps defaulting to `host.docker.internal:8080` and silently fails to reach your cloud tenant from the browser. Set it before bringing the container up.
+   </Aside>
+
+4. **Start the container.**
+
+   ```bash
+   docker compose up -d
+   ```
+
+   The extension exposes port `8090` on the host. Override with `EXTENSION_PORT` in `.env` if that port is already taken.
+
+5. **Apply the HAProxy snippet for widget integration.** If any feature in your extension is triggered from a dashboard widget, the browser needs same-origin access to `/api/extension/*`. Add the snippet from the push hint to your existing HAProxy frontend, **before** the TB backend ACL — that way HAProxy routes `/api/extension/*` to the extension service first, and only falls through to the ThingsBoard backend for everything else. A reference copy of the snippet also lives at `extension/deploy/haproxy-extension.cfg.snippet` in your project.
+</Steps>
+
+Rule-chain-triggered features don't need HAProxy at all — ThingsBoard's REST API Call node talks to the extension service directly on the same host. The HAProxy step is only there for widget callbacks, which run in the user's browser.
+

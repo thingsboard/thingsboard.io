@@ -1610,7 +1610,15 @@ const mainSidebarItems = (
 	{
 		label: 'Build with AI',
 		items: [
-			`${prefix}/user-guide/cli`,
+			{
+				label: 'ThingsBoard CLI',
+				collapsed: false,
+				items: [
+					`${prefix}/user-guide/cli`,
+					`${prefix}/user-guide/cli-solutions`,
+					`${prefix}/user-guide/cli-extensions`,
+				],
+			},
 			`${prefix}/user-guide/ai-solution-creator`,
 			`${prefix}/user-guide/ai-assistant`,
 			`${prefix}/user-guide/ai-models`,
@@ -1977,7 +1985,15 @@ export const paasSidebar: SidebarConfig = [
 	{
 		label: 'Build with AI',
 		items: [
-			'docs/paas/user-guide/cli',
+			{
+				label: 'ThingsBoard CLI',
+				collapsed: false,
+				items: [
+					'docs/paas/user-guide/cli',
+					'docs/paas/user-guide/cli-solutions',
+					'docs/paas/user-guide/cli-extensions',
+				],
+			},
 			'docs/paas/user-guide/ai-solution-creator',
 			'docs/paas/user-guide/ai-assistant',
 			'docs/paas/user-guide/ai-models',
@@ -2329,7 +2345,15 @@ export const paasEuSidebar: SidebarConfig = [
 	{
 		label: 'Build with AI',
 		items: [
-			'docs/paas/eu/user-guide/cli',
+			{
+				label: 'ThingsBoard CLI',
+				collapsed: false,
+				items: [
+					'docs/paas/eu/user-guide/cli',
+					'docs/paas/eu/user-guide/cli-solutions',
+					'docs/paas/eu/user-guide/cli-extensions',
+				],
+			},
 			'docs/paas/eu/user-guide/ai-solution-creator',
 			'docs/paas/eu/user-guide/ai-assistant',
 			'docs/paas/eu/user-guide/ai-models',
