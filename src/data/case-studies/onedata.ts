@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const onedataData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'OneData Boosts Hospital Efficiency 60-70% with ThingsBoard IoT',
 	pageTitle: 'OneData Boosts Hospital Efficiency 60-70%',
 	description:

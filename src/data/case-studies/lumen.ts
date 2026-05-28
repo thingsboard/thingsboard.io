@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const lumenData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'Lumen Digitalizes Factories with ThingsBoard Industrial IoT',
 	pageTitle: 'Lumen Digitalizes Factories with Industrial IoT',
 	description:

@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const energenixData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'Energenix Scales Solar SCADA & Analytics on ThingsBoard',
 	pageTitle: 'Energenix Scales Solar SCADA & Analytics',
 	description:

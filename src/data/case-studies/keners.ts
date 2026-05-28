@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const kenersData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'IoT-Powered Farming - How Keners Scaled with ThingsBoard',
 	pageTitle: 'IoT-Powered Farming — How Keners Scaled',
 	description:

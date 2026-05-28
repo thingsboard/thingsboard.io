@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const tMobileCzData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'How T-Mobile uses ThingsBoard for agile IoT prototyping',
 	pageTitle: 'How T-Mobile Accelerated Agile IoT Prototyping',
 	description:

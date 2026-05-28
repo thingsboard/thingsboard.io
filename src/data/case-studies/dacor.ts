@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const dacorData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'Real-Time Monitoring for Automotive Supplier | s\u00FCc//dacor + ThingsBoard',
 	pageTitle: 'Real-Time Monitoring for Automotive Supplier — s\u00FCc//dacor',
 	description:

@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const kalitecData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'How Kalitec Delivers Smart Signage with ThingsBoard\'s IoT Expertise',
 	pageTitle: 'How Kalitec Delivers Smart Signage with IoT Expertise',
 	description:

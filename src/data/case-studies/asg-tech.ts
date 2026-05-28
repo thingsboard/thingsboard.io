@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const asgTechData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'ASG Tech Boosts IoT Speed with ThingsBoard Widgets',
 	pageTitle: 'ASG Tech Boosts IoT Speed with Custom Widgets',
 	description:

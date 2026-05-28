@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const oxiData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'How OXI TRADE Uses ThingsBoard to Power Scalable IoT for Green Energy',
 	pageTitle: 'How OXI TRADE Powers Scalable IoT for Green Energy',
 	description:

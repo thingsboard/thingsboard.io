@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const schwarzData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'How Schwarz Group Unified 500,000+ IoT Devices with ThingsBoard',
 	pageTitle: 'How Schwarz Group Unified 500,000+ IoT Devices',
 	description:

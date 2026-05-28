@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const obbInfraData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'How \u00D6BB-Infrastruktur AG Transformed Railway Operations with ThingsBoard',
 	pageTitle: 'How \u00D6BB-Infrastruktur AG Transformed Railway Operations',
 	description:

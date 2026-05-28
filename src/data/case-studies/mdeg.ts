@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const mdegData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'mdeg Scales Secure Medical IoT with ThingsBoard',
 	pageTitle: 'mdeg Scales Secure Medical IoT',
 	description:

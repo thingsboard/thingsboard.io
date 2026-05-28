@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const awakeData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'Awake - IoT Rental Operations Dashboard for Global Fleet',
 	pageTitle: 'Awake - IoT Rental Operations Dashboard for Global Fleet',
 	description:

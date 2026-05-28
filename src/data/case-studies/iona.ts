@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const ionaData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'How IONA Tech Uses ThingsBoard to Improve ESD Monitoring and Workplace Safety',
 	pageTitle: 'How IONA Tech Improved ESD Monitoring and Workplace Safety',
 	description:

@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const tektelicData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'TEKTELIC Rapidly Deploys IoT with ThingsBoard',
 	pageTitle: 'TEKTELIC Rapidly Deploys IoT',
 	description:

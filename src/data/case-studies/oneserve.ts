@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const oneserveData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'Smart Field Service Delivery with ThingsBoard and Oneserve',
 	pageTitle: 'Smart Field Service Delivery with Oneserve',
 	description:
