@@ -57,6 +57,8 @@ export const data: CaseStudyData = {
 	fullWidthImage: {
 		src: 'https://img.thingsboard.io/case-studies/asg-engineer.webp',
 		alt: 'Road sign',
+		width: 1920,
+		height: 946,
 	},
 
 	help: {

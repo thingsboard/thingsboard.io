@@ -74,6 +74,8 @@ export const data: CaseStudyData = {
 	fullWidthImage: {
 		src: 'https://img.thingsboard.io/case-studies/male_technician_examining_broken_computer.webp',
 		alt: 'Technician',
+		width: 1920,
+		height: 946,
 	},
 
 	help: {

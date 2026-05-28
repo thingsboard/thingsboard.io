@@ -66,6 +66,8 @@ export const data: CaseStudyData = {
 	fullWidthImage: {
 		src: 'https://img.thingsboard.io/case-studies/railway.webp',
 		alt: 'Railways',
+		width: 1920,
+		height: 946,
 	},
 
 	help: {

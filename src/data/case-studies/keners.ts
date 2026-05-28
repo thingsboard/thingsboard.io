@@ -55,6 +55,8 @@ export const data: CaseStudyData = {
 	fullWidthImage: {
 		src: 'https://img.thingsboard.io/case-studies/field.webp',
 		alt: 'Irrigated Field',
+		width: 1920,
+		height: 946,
 	},
 
 	help: {

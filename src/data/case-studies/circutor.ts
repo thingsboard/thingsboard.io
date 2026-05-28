@@ -55,6 +55,8 @@ export const data: CaseStudyData = {
 	fullWidthImage: {
 		src: 'https://img.thingsboard.io/case-studies/circutor-solar.webp',
 		alt: 'Solar panels',
+		width: 1920,
+		height: 946,
 	},
 
 	help: {

@@ -72,6 +72,8 @@ export const data: CaseStudyData = {
 	award: {
 		image: 'https://img.thingsboard.io/case-studies/schwarz-award.svg',
 		imageAlt: 'Top supplier retail award',
+		imageWidth: 228,
+		imageHeight: 330,
 		title: 'An Award-Winning Collaboration',
 		titleHref: '/blog/top-supplier-retail-2024-2/',
 		description:

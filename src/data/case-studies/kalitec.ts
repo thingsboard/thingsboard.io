@@ -89,6 +89,8 @@ export const data: CaseStudyData = {
 	fullWidthImage: {
 		src: 'https://img.thingsboard.io/case-studies/information_sign_by_road_against_sky.webp',
 		alt: 'Road sign',
+		width: 1920,
+		height: 946,
 	},
 
 	help: {

@@ -87,6 +87,8 @@ export const data: CaseStudyData = {
 	fullWidthImage: {
 		src: 'https://img.thingsboard.io/case-studies/burning-pellets.webp',
 		alt: 'Burning pellets',
+		width: 1920,
+		height: 946,
 	},
 
 	help: {
