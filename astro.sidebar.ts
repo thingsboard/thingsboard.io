@@ -1621,11 +1621,23 @@ const mainSidebarItems = (
 			},
 			`${prefix}/user-guide/ai-solution-creator`,
 			`${prefix}/user-guide/ai-assistant`,
-			`${prefix}/user-guide/ai-models`,
-			`${prefix}/user-guide/ai-predictive-maintenance`,
-			`${prefix}/user-guide/local-ai-ollama`,
-			`${prefix}/user-guide/mcp-server`,
-			`${prefix}/user-guide/n8n-node`,
+			{
+				label: 'Process IoT Data with AI',
+				collapsed: false,
+				items: [
+					`${prefix}/user-guide/ai-models`,
+					`${prefix}/user-guide/local-ai-ollama`,
+					`${prefix}/user-guide/ai-predictive-maintenance`,
+				],
+			},
+			{
+				label: 'Workflow Automation',
+				collapsed: false,
+				items: [
+					`${prefix}/user-guide/mcp-server`,
+					`${prefix}/user-guide/n8n-node`,
+				],
+			},
 		],
 	},
 	{
@@ -1996,11 +2008,23 @@ export const paasSidebar: SidebarConfig = [
 			},
 			'docs/paas/user-guide/ai-solution-creator',
 			'docs/paas/user-guide/ai-assistant',
-			'docs/paas/user-guide/ai-models',
-			'docs/paas/user-guide/ai-predictive-maintenance',
-			'docs/paas/user-guide/local-ai-ollama',
-			'docs/paas/user-guide/mcp-server',
-			'docs/paas/user-guide/n8n-node',
+			{
+				label: 'Process IoT Data with AI',
+				collapsed: false,
+				items: [
+					'docs/paas/user-guide/ai-models',
+					'docs/paas/user-guide/local-ai-ollama',
+					'docs/paas/user-guide/ai-predictive-maintenance',
+				],
+			},
+			{
+				label: 'Workflow Automation',
+				collapsed: false,
+				items: [
+					'docs/paas/user-guide/mcp-server',
+					'docs/paas/user-guide/n8n-node',
+				],
+			},
 		],
 	},
 	{
@@ -2356,11 +2380,23 @@ export const paasEuSidebar: SidebarConfig = [
 			},
 			'docs/paas/eu/user-guide/ai-solution-creator',
 			'docs/paas/eu/user-guide/ai-assistant',
-			'docs/paas/eu/user-guide/ai-models',
-			'docs/paas/eu/user-guide/ai-predictive-maintenance',
-			'docs/paas/eu/user-guide/local-ai-ollama',
-			'docs/paas/eu/user-guide/mcp-server',
-			'docs/paas/eu/user-guide/n8n-node',
+			{
+				label: 'Process IoT Data with AI',
+				collapsed: false,
+				items: [
+					'docs/paas/eu/user-guide/ai-models',
+					'docs/paas/eu/user-guide/local-ai-ollama',
+					'docs/paas/eu/user-guide/ai-predictive-maintenance',
+				],
+			},
+			{
+				label: 'Workflow Automation',
+				collapsed: false,
+				items: [
+					'docs/paas/eu/user-guide/mcp-server',
+					'docs/paas/eu/user-guide/n8n-node',
+				],
+			},
 		],
 	},
 	{
