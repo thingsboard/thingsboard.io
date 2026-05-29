@@ -53,7 +53,7 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 		x: true,
 		upgrade: true,
 		manualVersionUpgrade: false,
-		windowsZip: false,
+		windowsZip: true,
 		anchor: 'v4-3-1-2',
 	},
 	{
@@ -120,7 +120,7 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 		x: true,
 		upgrade: true,
 		manualVersionUpgrade: false,
-		windowsZip: false,
+		windowsZip: true,
 		anchor: 'v4-2-2-2',
 	},
 	{
