@@ -82,7 +82,7 @@ export const data: CaseStudyData = {
 	},
 
 	help: {
-		industryName: 'Industrial IoT improve operations with IoT',
+		industryName: 'industrial automation improve operations with IoT',
 		blocks: [
 			{
 				title: 'Real-Time Operational Visibility',
