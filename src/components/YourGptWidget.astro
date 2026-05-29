@@ -9,14 +9,26 @@
 		document.body.appendChild(script);
 	};
 
-	// Inject after the load event, then on the next idle — keeps the widget
-	// (script + its Inter font) off the initial render path while still loading
-	// promptly on every page nav, no interaction required. Note: this does NOT
-	// remove the font from Lighthouse's critical-request-chain diagnostic — its
-	// simulated throttling scales the fast-lab timeline, so any auto-load lands
-	// inside the measured window. That's acceptable here: the font is widget-only
-	// (the site itself uses a system font stack), so it never blocks the real LCP.
-	const start = () => (window.requestIdleCallback || ((cb) => setTimeout(cb, 200)))(injectWidget);
-	if (document.readyState === 'complete') start();
-	else window.addEventListener('load', start, { once: true });
+	// Defer the widget through the shared `__deferOnInteraction` queue with a
+	// 10000 ms fallback. Two things matter here:
+	//
+	// 1. We register `loadWidget`, not `injectWidget` directly. `loadWidget`
+	//    wraps the appendChild in `requestIdleCallback`. Critical: if the user
+	//    already engaged elsewhere in this session, `DeferredLoadTrigger`
+	//    treats `__deferOnInteraction` as fired and runs the callback
+	//    SYNCHRONOUSLY at register-time — which is inside <head> parsing,
+	//    before <body> exists. The rIC bounce defers the appendChild to idle
+	//    time, by which point the body is parsed.
+	//
+	// 2. Going through the deferred queue (rather than gating on `load` + idle
+	//    directly) preserves the load-ordering invariant against analytics:
+	//    `GtmHead` registers `__deferOnInteraction(loadGtm)` (default 2500 ms
+	//    fallback) and is mounted before this widget in `ThirdPartyScripts`,
+	//    so GTM fires first in both the interaction and no-interaction paths.
+	//
+	// The widget's Inter font isn't visible in Lighthouse's critical chain
+	// because the site's own CSS uses a system font stack.
+	const loadWidget = () =>
+		(window.requestIdleCallback || ((cb) => setTimeout(cb, 200)))(injectWidget);
+	(window.__deferOnInteraction || ((cb) => cb()))(loadWidget, 10000);
 </script>
