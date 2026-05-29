@@ -1,4 +1,4 @@
-import type { CaseStudyCard, FeaturedCard } from './types';
+import type { CaseStudyCard, CaseStudyData, FeaturedCard } from './types';
 
 export const caseStudyCategories = [
 	'Industry 4.0',
@@ -13,316 +13,118 @@ export const caseStudyCategories = [
 	'Telecom',
 ] as const;
 
-export const caseStudyCards: CaseStudyCard[] = [
-	{
-		slug: 'ariot',
-		categories: ['Cold chain monitoring'],
-		title: 'Smart Healthcare: How Medline Adana Hospital ensured patient safety and JCI compliance with ARIOT IOT TEKNOLOJILERI and ThingsBoard',
-		description: 'Smart Healthcare: How Medline Adana Hospital ensured patient safety and JCI compliance with ARIOT IOT TEKNOLOJILERI and ThingsBoard',
-		logo: 'https://img.thingsboard.io/case-studies/ariot.svg',
-		logoAlt: 'ARIOT IOT TEKNOLOJILERI logo',
-		logoHeight: 75,
-		backgroundImage: 'https://img.thingsboard.io/case-studies/ariot.webp',
-	},
-	{
-		slug: 'super-bock',
-		categories: ['Industry 4.0'],
-		title: 'Revolutionizing beer distribution: how ThingsBoard empowered Super Bock Group',
-		description: 'Revolutionizing beer distribution: how ThingsBoard empowered Super Bock Group',
-		logo: 'https://img.thingsboard.io/case-studies/super-bock-group.svg',
-		logoAlt: 'Super Bock Group logo',
-		backgroundImage: 'https://img.thingsboard.io/case-studies/super-bock-group.webp',
-	},
-	{
-		slug: 'kiotera',
-		categories: ['Smart city'],
-		title: 'Fast paced IoT-Implementation: How Customers of KIOTERA profit from standardized IoT-solutions based on ThingsBoard',
-		description: 'Fast paced IoT-Implementation: How Customers of KIOTERA profit from standardized IoT-solutions based on ThingsBoard',
-		logo: 'https://img.thingsboard.io/case-studies/kiotera.svg',
-		logoAlt: 'KIOTERA logo',
-		backgroundImage: 'https://img.thingsboard.io/case-studies/kiotera.webp',
-	},
-	{
-		slug: 'onedata',
-		categories: ['Smart IoT solution'],
-		title: 'Visual Transformation: How OneData boosted 60-70% Efficiency at a multi-speciality hospital',
-		description: 'Visual Transformation: How OneData boosted 60-70% Efficiency at a multi-speciality hospital',
-		logo: 'https://img.thingsboard.io/case-studies/onedata.svg',
-		logoAlt: 'OneData logo',
-		backgroundImage: 'https://img.thingsboard.io/case-studies/onedata.webp',
-	},
-	{
-		slug: 'xtelia',
-		categories: ['Smart city'],
-		title: 'Smart signage at scale: X-TELIA deploys LoRaWAN\u2122 parking management with ThingsBoard',
-		description: 'Smart signage at scale: X-TELIA deploys LoRaWAN\u2122 parking management with ThingsBoard',
-		logo: 'https://img.thingsboard.io/case-studies/x-telia.svg',
-		logoAlt: 'X-TELIA logo',
-		logoHeight: 35,
-		backgroundImage: 'https://img.thingsboard.io/case-studies/x-telia.webp',
-	},
-	{
-		slug: 'lumen',
-		categories: ['Smart IoT solution'],
-		title: 'Industrial IoT in manufacturing: how Lumen Energy Solutions digitalized large-scale factories with ThingsBoard',
-		description: 'Lumen Energy Solutions leverages ThingsBoard to digitalize large-scale factories, integrating 1,000+ IoT sensors and energy meters into a unified platform.',
-		logo: 'https://img.thingsboard.io/case-studies/lumen.svg',
-		logoAlt: 'Lumen logo',
-		backgroundImage: 'https://img.thingsboard.io/case-studies/lumen.webp',
-	},
-	{
-		slug: 'tjk-solutions',
-		categories: ['Smart city'],
-		title: 'Securing Critical Communication: How TJK-Solutions Uses ThingsBoard to Monitor Meshtastic Infrastructure in Disaster Response',
-		description: 'Securing Critical Communication: How TJK-Solutions Uses ThingsBoard to Monitor Meshtastic Infrastructure in Disaster Response',
-		logo: 'https://img.thingsboard.io/case-studies/tjk-solutions.svg',
-		logoAlt: 'TJK-Solutions logo',
-		backgroundImage: 'https://img.thingsboard.io/case-studies/tjk-solutions.webp',
-	},
-	{
-		slug: 'energenix',
-		categories: ['Smart energy'],
-		title: 'Scaling renewable energy intelligence: how Energenix uses ThingsBoard to monitor and optimize 120+ MW of solar power assets',
-		description: 'Scaling renewable energy intelligence: how Energenix uses ThingsBoard to monitor and optimize 120+ MW of solar power assets',
-		logo: 'https://img.thingsboard.io/case-studies/energenix.svg',
-		logoAlt: 'Energenix logo',
-		backgroundImage: 'https://img.thingsboard.io/case-studies/energenix.webp',
-	},
-	{
-		slug: 'energroup',
-		categories: ['Smart energy'],
-		title: 'Smart building energy management: how EnerGroup enabled wireless room-level heating control with ThingsBoard',
-		description: 'EnerGroup leverages ThingsBoard to enable wireless room-level heating control for the Pyxis residential building.',
-		logo: 'https://img.thingsboard.io/case-studies/energroup.svg',
-		logoAlt: 'EnerGroup logo',
-		backgroundImage: 'https://img.thingsboard.io/case-studies/energroup.webp',
-	},
-	{
-		slug: 'oxi',
-		categories: ['Smart energy'],
-		title: 'Empowering alternative energy: how OXI TRADE streamlined IoT infrastructure with ThingsBoard',
-		description: 'Empowering alternative energy: how OXI TRADE streamlined IoT infrastructure with ThingsBoard',
-		logo: 'https://img.thingsboard.io/case-studies/oxi.svg',
-		logoAlt: 'OXI Trade logo',
-		backgroundImage: 'https://img.thingsboard.io/case-studies/oxi.webp',
-	},
-	{
-		slug: 'dacor',
-		categories: ['Industry 4.0'],
-		title: 'Real-Time Production Monitoring for Automotive Supplier by s\u00fcc//dacor GmbH Using ThingsBoard',
-		description: 'Real-Time Production Monitoring for Automotive Supplier by s\u00fcc//dacor GmbH Using ThingsBoard',
-		logo: 'https://img.thingsboard.io/case-studies/dacor.svg',
-		logoAlt: 's\u00fcc//dacor GmbH logo',
-		backgroundImage: 'https://img.thingsboard.io/case-studies/dacor.webp',
-	},
-	{
-		slug: 'comet',
-		categories: ['Smart energy'],
-		title: 'Powering the future of utilities: co.met GmbH\'s IoT breakthrough with ThingsBoard',
-		description: 'Powering the future of utilities: co.met GmbH\'s IoT breakthrough with ThingsBoard',
-		logo: 'https://img.thingsboard.io/case-studies/comet.svg',
-		logoAlt: 'co.met logo',
-		logoHeight: 42,
-		backgroundImage: 'https://img.thingsboard.io/case-studies/comet.webp',
-	},
-	{
-		slug: 'crai',
-		categories: ['Industry 4.0'],
-		title: 'IoT in industrial automation: how CRAI enables remote control and data acquisition with ThingsBoard',
-		description: 'CRAI leverages ThingsBoard for industrial automation and remote monitoring, enabling real-time visibility and control over equipment like generators, motors, and water pumps.',
-		logo: 'https://img.thingsboard.io/case-studies/crai.svg',
-		logoAlt: 'CRAI logo',
-		backgroundImage: 'https://img.thingsboard.io/case-studies/crai.webp',
-	},
-	{
-		slug: 'iioote',
-		categories: ['Smart city'],
-		title: 'From Prototyping to Commercial Services: How iiOOTE Scaled IoT with ThingsBoard',
-		description: 'From Prototyping to Commercial Services: How iiOOTE Scaled IoT with ThingsBoard',
-		logo: 'https://img.thingsboard.io/case-studies/iioote.svg',
-		logoAlt: 'iiOOTE logo',
-		logoHeight: 35,
-		backgroundImage: 'https://img.thingsboard.io/case-studies/iioote.webp',
-	},
-	{
-		slug: 'obb-infra',
-		categories: ['Smart infrastructure'],
-		title: 'Smart railway infrastructure: digital transformation of \u00d6BB-Infrastruktur AG',
-		description: 'Smart railway infrastructure: digital transformation of \u00d6BB-Infrastruktur AG',
-		logo: 'https://img.thingsboard.io/case-studies/obb.svg',
-		logoAlt: '\u00d6BB-Infrastruktur AG logo',
-		backgroundImage: 'https://img.thingsboard.io/case-studies/obb.webp',
-	},
-	{
-		slug: 'senseing',
-		categories: ['Cold chain monitoring'],
-		title: 'Transforming food logistics with IoT-powered temperature monitoring',
-		description: 'Transforming food logistics with IoT-powered temperature monitoring',
-		logo: 'https://img.thingsboard.io/case-studies/senseing.svg',
-		logoAlt: 'SenseING GmbH logo',
-		backgroundImage: 'https://img.thingsboard.io/case-studies/senseing.webp',
-	},
-	{
-		slug: 'awake',
-		categories: ['Smart city'],
-		title: 'Awake: unifying global rental operations with custom IoT solutions',
-		description: 'Awake: unifying global rental operations with custom IoT solutions',
-		logo: 'https://img.thingsboard.io/case-studies/awake.svg',
-		logoAlt: 'Awake logo',
-		logoHeight: 35,
-		backgroundImage: 'https://img.thingsboard.io/case-studies/awake.webp',
-	},
-	{
-		slug: 'agrolog',
-		categories: ['Smart agriculture'],
-		title: 'Revolutionizing Agriculture: How Supertech Agroline Built a Scalable IoT Platform with ThingsBoard',
-		description: 'Revolutionizing Agriculture: How Supertech Agroline Built a Scalable IoT Platform with ThingsBoard',
-		logo: 'https://img.thingsboard.io/case-studies/agrolog.svg',
-		logoAlt: 'AgroLog Sensors GmbH logo',
-		backgroundImage: 'https://img.thingsboard.io/case-studies/agrolog.webp',
-	},
-	{
-		slug: 'suessco',
-		categories: ['Facility management'],
-		title: 'SuessCo: IoT hub as a platform for monitoring sensors',
-		description: 'SuessCo: IoT hub as a platform for monitoring sensors',
-		logo: 'https://img.thingsboard.io/case-studies/suessco.svg',
-		logoAlt: 'SuessCo Sensors GmbH logo',
-		backgroundImage: 'https://img.thingsboard.io/case-studies/suessco.webp',
-	},
-	{
-		slug: 'asg-tech',
-		categories: ['Smart IoT solution'],
-		title: 'From Concept to Launch: ASG Tech\'s Rapid IoT Innovation with ThingsBoard',
-		description: 'From Concept to Launch: ASG Tech\'s Rapid IoT Innovation with ThingsBoard',
-		logo: 'https://img.thingsboard.io/case-studies/asg-tech.svg',
-		logoAlt: 'ASG-Tech logo',
-		backgroundImage: 'https://img.thingsboard.io/case-studies/asg-tech.webp',
-	},
-	{
-		slug: 't-mobile-cz',
-		categories: ['Telecom'],
-		title: 'Scaling IoT prototyping at T-Mobile CZ with ThingsBoard',
-		description: 'Scaling IoT prototyping at T-Mobile CZ with ThingsBoard',
-		logo: 'https://img.thingsboard.io/case-studies/t-mobile-cz.svg',
-		logoAlt: 'T-Mobile CZ logo',
-		logoHeight: 87,
-		backgroundImage: 'https://img.thingsboard.io/case-studies/t-mobile-cz.webp',
-	},
-	{
-		slug: 'keners',
-		categories: ['Smart agriculture'],
-		title: 'From Soil to Sensor: How Keners Revolutionized Farming with ThingsBoard',
-		description: 'From Soil to Sensor: How Keners Revolutionized Farming with ThingsBoard',
-		logo: 'https://img.thingsboard.io/case-studies/keners.svg',
-		logoAlt: 'Keners logo',
-		backgroundImage: 'https://img.thingsboard.io/case-studies/keners.webp',
-	},
-	{
-		slug: 'berliner-energieinstitut',
-		categories: ['Smart energy'],
-		title: 'From idea to IoT in weeks: how Berliner Energieinstitut scaled fast with ThingsBoard',
-		description: 'From idea to IoT in weeks: how Berliner Energieinstitut scaled fast with ThingsBoard',
-		logo: 'https://img.thingsboard.io/case-studies/berliner-energieinstitut.svg',
-		logoAlt: 'Berliner Energieinstitut logo',
-		backgroundImage: 'https://img.thingsboard.io/case-studies/berliner-energieinstitut.webp',
-	},
-	{
-		slug: 'e2cbms',
-		categories: ['Smart energy'],
-		title: 'Smarter buildings made simple: Environmental Energy Controls chooses ThingsBoard for scalable BMS Solutions',
-		description: 'Smarter buildings made simple: Environmental Energy Controls chooses ThingsBoard for scalable BMS Solutions',
-		logo: 'https://img.thingsboard.io/case-studies/e2cbms.svg',
-		logoAlt: 'Environmental Energy Controls logo',
-		logoHeight: 87,
-		backgroundImage: 'https://img.thingsboard.io/case-studies/e2cbms.webp',
-	},
-	{
-		slug: 'circutor',
-		categories: ['Smart energy'],
-		title: 'Circutor scales global energy management with ThingsBoard IoT platform',
-		description: 'Circutor scales global energy management with ThingsBoard IoT platform',
-		logo: 'https://img.thingsboard.io/case-studies/circutor.svg',
-		logoAlt: 'Circutor logo',
-		logoHeight: 42,
-		backgroundImage: 'https://img.thingsboard.io/case-studies/circutor.webp',
-	},
-	{
-		slug: 'oneserve',
-		categories: ['Facility management'],
-		title: 'Oneserve builds agile FSM platform using ThingsBoard IoT',
-		description: 'Oneserve builds agile FSM platform using ThingsBoard IoT',
-		logo: 'https://img.thingsboard.io/case-studies/oneserve.svg',
-		logoAlt: 'Oneserve logo',
-		backgroundImage: 'https://img.thingsboard.io/case-studies/oneserve.webp',
-	},
-	{
-		slug: 'mdeg',
-		categories: ['Smart IoT solution'],
-		title: 'How mdeg scaled secure medical device connectivity with ThingsBoard',
-		description: 'How mdeg scaled secure medical device connectivity with ThingsBoard',
-		logo: 'https://img.thingsboard.io/case-studies/mdeg.svg',
-		logoAlt: 'mdeg logo',
-		logoHeight: 87,
-		backgroundImage: 'https://img.thingsboard.io/case-studies/mdeg.webp',
-	},
-	{
-		slug: 'tps',
-		categories: ['Smart infrastructure'],
-		title: 'Digitalizing cultural heritage: how TPS connects museums with ThingsBoard',
-		description: 'Digitalizing cultural heritage: how TPS connects museums with ThingsBoard',
-		logo: 'https://img.thingsboard.io/case-studies/tps.svg',
-		logoAlt: 'TPS logo',
-		logoHeight: 87,
-		backgroundImage: 'https://img.thingsboard.io/case-studies/tps.webp',
-	},
-	{
-		slug: 'nettra',
-		categories: ['Smart energy'],
-		title: 'Cutting time and costs: Nettra\'s shortcut to IoT platform success',
-		description: 'Cutting time and costs: Nettra\'s shortcut to IoT platform success',
-		logo: 'https://img.thingsboard.io/case-studies/nettra.svg',
-		logoAlt: 'Nettra logo',
-		backgroundImage: 'https://img.thingsboard.io/case-studies/nettra.webp',
-	},
-	{
-		slug: 'kalitec',
-		categories: ['Smart infrastructure'],
-		title: 'How Kalitec and ThingsBoard Redefined Urban Safety with IoT Innovation',
-		description: 'How Kalitec and ThingsBoard Redefined Urban Safety with IoT Innovation',
-		logo: 'https://img.thingsboard.io/case-studies/kalitec.svg',
-		logoAlt: 'Kalitec logo',
-		backgroundImage: 'https://img.thingsboard.io/case-studies/kalitec.webp',
-	},
-	{
-		slug: 'vypin',
-		categories: ['Warehouse monitoring'],
-		title: 'Smart reliable T&H monitoring with WhereView (ThingsBoard)',
-		description: 'Smart reliable T&H monitoring with WhereView (ThingsBoard)',
-		logo: 'https://img.thingsboard.io/case-studies/vypin.svg',
-		logoAlt: 'Vypin LLC logo',
-		backgroundImage: 'https://img.thingsboard.io/case-studies/vypin.webp',
-	},
-	{
-		slug: 'tektelic',
-		categories: ['Telecom'],
-		title: 'From sensors to dashboards: TEKTELIC\'s rapid IoT deployment with ThingsBoard',
-		description: 'From sensors to dashboards: TEKTELIC\'s rapid IoT deployment with ThingsBoard',
-		logo: 'https://img.thingsboard.io/case-studies/tektelic.svg',
-		logoAlt: 'TEKTELIC logo',
-		logoHeight: 56,
-		backgroundImage: 'https://img.thingsboard.io/case-studies/tektelic.webp',
-	},
-	{
-		slug: 'iona',
-		categories: ['Industry 4.0'],
-		title: 'Protecting electronics and workers: IONA Tech\'s IoT transformation with ThingsBoard',
-		description: 'Protecting electronics and workers: IONA Tech\'s IoT transformation with ThingsBoard',
-		logo: 'https://img.thingsboard.io/case-studies/iona.svg',
-		logoAlt: 'IONA Tech logo',
-		backgroundImage: 'https://img.thingsboard.io/case-studies/iona.webp',
-	},
+// ── Display order (newest first). ─────────────────────────────────────────────
+// Adding a case study?
+//   1. Drop a {slug}.ts data file in this folder (export const data: CaseStudyData = …).
+//   2. Add the slug to this array in the position you want it displayed.
+//   3. (Optional) If the card needs a custom logo height, add an entry to
+//      `cardLogoHeights` below.
+export const caseStudyOrder: string[] = [
+	'ariot',
+	'super-bock',
+	'kiotera',
+	'onedata',
+	'lumen',
+	'solandtec',
+	'tjk-solutions',
+	'energenix',
+	'energroup',
+	'xtelia',
+	'oxi',
+	'dacor',
+	'comet',
+	'crai',
+	'iioote',
+	'obb-infra',
+	'senseing',
+	'awake',
+	'agrolog',
+	'suessco',
+	'asg-tech',
+	't-mobile-cz',
+	'keners',
+	'berliner-energieinstitut',
+	'e2cbms',
+	'circutor',
+	'oneserve',
+	'mdeg',
+	'tps',
+	'nettra',
+	'kalitec',
+	'vypin',
+	'tektelic',
+	'iona',
 ];
+
+// Card-only logo height overrides. The hero on the detail page may want a
+// different intrinsic size than the catalog card, so we keep the card override
+// here rather than on the data itself.
+const cardLogoHeights: Record<string, number> = {
+	ariot: 75,
+	iioote: 35,
+	xtelia: 35,
+	comet: 42,
+	awake: 35,
+	't-mobile-cz': 87,
+	e2cbms: 87,
+	circutor: 42,
+	mdeg: 87,
+	tps: 87,
+	tektelic: 56,
+};
+
+// ── Auto-discovered case-study data ───────────────────────────────────────────
+// Every {slug}.ts file in this folder exports `const data: CaseStudyData`.
+// Vite's import.meta.glob pulls them in at build time; we look them up by slug.
+const dataModules = import.meta.glob<CaseStudyData>(
+	['./*.ts', '!./index.ts', '!./types.ts'],
+	{ eager: true, import: 'data' },
+);
+
+export const caseStudyBySlug: Record<string, CaseStudyData> = {};
+for (const d of Object.values(dataModules)) {
+	caseStudyBySlug[d.pageSlug] = d;
+}
+
+// Slugs that have a detail page but are deliberately excluded from the catalog
+// (e.g. the featured card on the index renders schwarz separately).
+const FEATURED_ONLY_SLUGS = new Set(['schwarz']);
+
+// Surface registration drift between data files and caseStudyOrder at build
+// time. Silent mismatches cause orphaned pages or quietly-missing catalog
+// entries — see comments on caseStudyOrder above.
+for (const slug of caseStudyOrder) {
+	if (!caseStudyBySlug[slug]) {
+		console.warn(
+			`[case-studies] caseStudyOrder lists "${slug}" but no matching data file exists in src/data/case-studies/.`,
+		);
+	}
+}
+for (const slug of Object.keys(caseStudyBySlug)) {
+	if (!caseStudyOrder.includes(slug) && !FEATURED_ONLY_SLUGS.has(slug)) {
+		console.warn(
+			`[case-studies] data file "${slug}.ts" exists but is not in caseStudyOrder — its detail page builds, but it won't appear in the catalog. Add the slug to caseStudyOrder, or add it to FEATURED_ONLY_SLUGS if that's intentional.`,
+		);
+	}
+}
+
+function toCard(d: CaseStudyData): CaseStudyCard {
+	return {
+		slug: d.pageSlug,
+		categories: d.categories,
+		title: d.title,
+		description: d.description,
+		logo: d.hero.logo,
+		logoAlt: d.hero.logoAlt,
+		logoHeight: cardLogoHeights[d.pageSlug],
+		backgroundImage: d.hero.backgroundImage,
+	};
+}
+
+export const caseStudyCards: CaseStudyCard[] = caseStudyOrder
+	.map((slug) => caseStudyBySlug[slug])
+	.filter((d): d is CaseStudyData => Boolean(d))
+	.map(toCard);
 
 export const caseStudyContactBanner = {
 	buttons: [
@@ -341,12 +143,31 @@ export const caseStudyServicesBanner = {
 	variant: 'light' as const,
 };
 
+// ── Featured card ─────────────────────────────────────────────────────────────
+// Catalog's hero featured card. Derived from the case study's data file (single
+// source of truth, prevents the title/logo/bg drifting from the detail page),
+// except for `description`: the featured card shows long marketing copy while
+// the data file's `description` is the SEO meta description — intentionally
+// different. The override lives here so it's easy to spot when revising copy.
+const FEATURED_SLUG = 'schwarz';
+const FEATURED_DESCRIPTION =
+	'The Schwarz Group is one of the largest retail companies in the world, based in Neckarsulm, Germany. ' +
+	'It operates in 32 countries, managing around 13,900 stores and employing approximately 575,000 people. ' +
+	'Millions of people shop at Schwarz Group supermarkets every day.';
+
+const featuredData = caseStudyBySlug[FEATURED_SLUG];
+if (!featuredData) {
+	throw new Error(
+		`[case-studies] Featured slug "${FEATURED_SLUG}" has no matching data file in src/data/case-studies/.`,
+	);
+}
+
 export const featuredCard: FeaturedCard = {
-	slug: 'schwarz',
-	category: 'SMART RETAIL',
-	title: 'IoT in retail: how Schwarz Group accelerated digitalization with ThingsBoard',
-	description: 'The Schwarz Group is one of the largest retail companies in the world, based in Neckarsulm, Germany. It operates in 32 countries, managing around 13,900 stores and employing approximately 575,000 people. Millions of people shop at Schwarz Group supermarkets every day.',
-	logo: 'https://img.thingsboard.io/case-studies/schwarz.svg',
-	logoAlt: 'Schwarz Group logo',
-	backgroundImage: 'https://img.thingsboard.io/case-studies/schwarz.webp',
+	slug: featuredData.pageSlug,
+	category: featuredData.hero.category,
+	title: featuredData.title,
+	description: FEATURED_DESCRIPTION,
+	logo: featuredData.hero.logo,
+	logoAlt: featuredData.hero.logoAlt,
+	backgroundImage: featuredData.hero.backgroundImage,
 };

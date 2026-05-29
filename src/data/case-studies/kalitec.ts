@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const kalitecData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'How Kalitec Delivers Smart Signage with ThingsBoard\'s IoT Expertise',
 	pageTitle: 'How Kalitec Delivers Smart Signage with IoT Expertise',
 	description:
@@ -89,6 +89,8 @@ export const kalitecData: CaseStudyData = {
 	fullWidthImage: {
 		src: 'https://img.thingsboard.io/case-studies/information_sign_by_road_against_sky.webp',
 		alt: 'Road sign',
+		width: 1920,
+		height: 946,
 	},
 
 	help: {

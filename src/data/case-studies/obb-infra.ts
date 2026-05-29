@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const obbInfraData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'How \u00D6BB-Infrastruktur AG Transformed Railway Operations with ThingsBoard',
 	pageTitle: 'How \u00D6BB-Infrastruktur AG Transformed Railway Operations',
 	description:
@@ -66,6 +66,8 @@ export const obbInfraData: CaseStudyData = {
 	fullWidthImage: {
 		src: 'https://img.thingsboard.io/case-studies/railway.webp',
 		alt: 'Railways',
+		width: 1920,
+		height: 946,
 	},
 
 	help: {

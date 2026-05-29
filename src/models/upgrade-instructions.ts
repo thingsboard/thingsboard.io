@@ -41,6 +41,22 @@ export function getFamilySlug(family: string): string {
 
 export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 	{
+		version: '4.3.1.2',
+		displayVersion: '4.3.1.2',
+		family: '4.3',
+		baseVersion: '4.3.1',
+		releaseDate: 'May 28 2026',
+		upgradableFrom: '4.2.1.x',
+		prevVersionAnchor: 'v4-3-0-1',
+		lts: true,
+		patch: true,
+		x: true,
+		upgrade: true,
+		manualVersionUpgrade: false,
+		windowsZip: true,
+		anchor: 'v4-3-1-2',
+	},
+	{
 		version: '4.3.1.1',
 		displayVersion: '4.3.1.1',
 		family: '4.3',
@@ -55,6 +71,7 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 		manualVersionUpgrade: false,
 		windowsZip: true,
 		anchor: 'v4-3-1-1',
+		vulnerable: true,
 	},
 	{
 		version: '4.3.1',
@@ -88,6 +105,23 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 		manualVersionUpgrade: false,
 		windowsZip: false,
 		anchor: 'v4-3-0-1',
+		vulnerable: true,
+	},
+	{
+		version: '4.2.2.2',
+		displayVersion: '4.2.2.2',
+		family: '4.2',
+		baseVersion: '4.2.2',
+		releaseDate: 'May 28 2026',
+		upgradableFrom: '4.2.0',
+		prevVersionAnchor: 'v4-2-1-2',
+		lts: true,
+		patch: true,
+		x: true,
+		upgrade: true,
+		manualVersionUpgrade: false,
+		windowsZip: true,
+		anchor: 'v4-2-2-2',
 	},
 	{
 		version: '4.2.2.1',
@@ -104,6 +138,7 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 		manualVersionUpgrade: false,
 		windowsZip: true,
 		anchor: 'v4-2-2-1',
+		vulnerable: true,
 	},
 	{
 		version: '4.2.2',
@@ -137,6 +172,7 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 		manualVersionUpgrade: false,
 		windowsZip: false,
 		anchor: 'v4-2-1-2',
+		vulnerable: true,
 	},
 	{
 		version: '4.2.0',

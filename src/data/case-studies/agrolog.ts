@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const agrologData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'Smart Farming Platform by Supertech Agroline and ThingsBoard',
 	pageTitle: 'Smart Farming Platform by Supertech Agroline',
 	description:

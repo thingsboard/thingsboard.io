@@ -68,7 +68,9 @@ for (const group of CATCH_ALL_REDIRECTS) {
 	if (group.entries.length > 0 || !group.newPrefix) continue;
 	const contentDir = resolve(ROOT, 'src/content/docs/docs', group.newPrefix);
 	const slugs = findMdxSlugs(contentDir);
+	const excluded = new Set(group.excludeSlugs ?? []);
 	for (const slug of slugs) {
+		if (excluded.has(slug)) continue;
 		const oldPath = slug ? `/docs/${group.oldPrefix}/${slug}/` : `/docs/${group.oldPrefix}/`;
 		const newPath = slug ? `/docs/${group.newPrefix}/${slug}/` : `/docs/${group.newPrefix}/`;
 		flatMap[oldPath] = newPath;

@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const berlinerEnergieinstitutData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'Berliner Energieinstitut Modernizes Energy IoT with ThingsBoard',
 	pageTitle: 'Berliner Energieinstitut Modernizes Energy IoT',
 	description:

@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const craiData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'CRAI Enables Remote Control and Data Acquisition with ThingsBoard',
 	pageTitle: 'CRAI Enables Remote Control and Data Acquisition',
 	description:

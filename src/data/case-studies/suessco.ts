@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const suesscoData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'How SuessCo Sensors Uses ThingsBoard to Monitor Infrastructure with 6D Sensors',
 	pageTitle: 'How SuessCo Sensors Monitor Infrastructure with 6D Sensors',
 	description:

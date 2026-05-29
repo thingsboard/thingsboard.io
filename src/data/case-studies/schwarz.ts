@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const schwarzData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'How Schwarz Group Unified 500,000+ IoT Devices with ThingsBoard',
 	pageTitle: 'How Schwarz Group Unified 500,000+ IoT Devices',
 	description:
@@ -72,6 +72,8 @@ export const schwarzData: CaseStudyData = {
 	award: {
 		image: 'https://img.thingsboard.io/case-studies/schwarz-award.svg',
 		imageAlt: 'Top supplier retail award',
+		imageWidth: 228,
+		imageHeight: 330,
 		title: 'An Award-Winning Collaboration',
 		titleHref: '/blog/top-supplier-retail-2024-2/',
 		description:

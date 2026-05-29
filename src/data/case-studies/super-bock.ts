@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const superBockData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'How Super Bock Transformed Beverage Distribution with ThingsBoard IoT',
 	pageTitle: 'How Super Bock Transformed Beverage Distribution',
 	description:

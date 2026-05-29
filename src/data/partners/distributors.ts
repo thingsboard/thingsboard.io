@@ -683,4 +683,25 @@ export const DISTRIBUTORS: Distributor[] = [
 		email: "ingrid.gomez@tkmecloud.com",
 		website: "tkmecloud.io",
 	},
+	{
+		name: "Teknei",
+		regions: ["Europe","North America","South America"],
+		countries: ["Spain","Portugal","Italy","Mexico","Colombia","Peru","United States of America"],
+		email: "japcossio@teknei.com",
+		website: "teknei.com",
+	},
+	{
+		name: "Redpill Linpro",
+		regions: ["Europe"],
+		countries: ["Denmark"],
+		email: "olelys@redpill-linpro.com",
+		website: "redpill-linpro.com",
+	},
+	{
+		name: "N2M",
+		regions: ["Asia"],
+		countries: ["South Korea"],
+		email: "delee@n2m.co.kr",
+		website: "n2m.co.kr",
+	},
 ];

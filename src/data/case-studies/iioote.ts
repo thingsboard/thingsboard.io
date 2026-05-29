@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const iiooteData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'How iiOOTE Scaled LPWAN Services with ThingsBoard',
 	pageTitle: 'How iiOOTE Scaled LPWAN Services',
 	description:

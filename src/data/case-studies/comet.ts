@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const cometData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'Transforming Utility Data with ThingsBoard - co.met GmbH Case',
 	pageTitle: 'Transforming Utility Data — co.met GmbH Case',
 	description:

@@ -1,0 +1,297 @@
+import { Aside, Code } from '@astrojs/starlight/components';
+import DocLink from '@components/DocLink.astro';
+import HostCode from '~/components/HostCode.astro';
+import ConditionalHeading from '~/components/ConditionalHeading.astro';
+import { Products } from '~/models/site.models';
+import { TB_VER } from '~/data/versions';
+
+export const pipPackage = (product) =>
+    (product === Products.CE || product === Products.EDGE)
+        ? 'tb-ce-client'
+        : (product === Products.PE || product === Products.EDGE_PE)
+            ? 'tb-pe-client'
+            : 'tb-paas-client';
+
+export const importModule = (product) => pipPackage(product).replace(/-/g, '_');
+
+export const pipInstall = (product) => `pip install ${pipPackage(product)}==${TB_VER}`;
+
+export const isEdge = (product) => product === Products.EDGE || product === Products.EDGE_PE;
+
+<Aside type="note">
+Looking for the legacy <DocLink product={props.product} path='reference/python-rest-client'>Python REST Client</DocLink>? It still works but is no longer recommended for new projects.
+</Aside>
+
+The ThingsBoard Python REST Client wraps the <DocLink product={props.product} path='reference/rest-api'>{isEdge(props.product) ? 'Edge REST API' : 'REST API'}</DocLink> and is auto-generated from the OpenAPI spec — every REST endpoint has a typed method. {isEdge(props.product) ? 'It lets Python applications manage devices, assets, dashboards, customers, and other entities on your Edge node — connect it directly to the Edge node’s local REST endpoint.' : 'Edition-specific packages ensure type-safe access to the right endpoints for your tenant.'}
+
+<Aside type="tip">
+Source and additional examples are available in the [thingsboard-python-client](https://github.com/thingsboard/thingsboard-python-client) repository. For a Java alternative, see the <DocLink product={props.product} path='reference/java-client'>Java REST Client</DocLink>.
+</Aside>
+
+## Installation
+
+Install the edition-specific package:
+
+<Code lang="bash" code={pipInstall(props.product)} />
+
+Snippets below import models from <code>{`${importModule(props.product)}.models`}</code> and exceptions from <code>{`${importModule(props.product)}.exceptions`}</code>. Each snippet is self-contained — open it inside a `with ThingsboardClient(...) as client:` block, replace placeholders like `YOUR_API_KEY_VALUE` and `YOUR_DEVICE_ID` with real values, and run it. The client is synchronous and not thread-safe — create one instance per worker.
+
+## Quickstart
+
+End-to-end: authenticate with an API key, create a device, push a telemetry value, then clean up.
+
+<HostCode product={props.product} lang="python" meta="maxLines=25 collapsible" code={`import json
+from ${importModule(props.product)} import ThingsboardClient
+from ${importModule(props.product)}.models import Device
+
+with ThingsboardClient("{BASE_URL}", api_key="YOUR_API_KEY_VALUE") as client:
+    saved = client.save_device(Device(name="Quickstart Device", type="default"))
+    device_id = str(saved.id.id)
+
+    client.save_entity_telemetry(
+        entity_type="DEVICE",
+        entity_id=device_id,
+        scope="ANY",
+        body=json.dumps({"temperature": 22.4}),
+    )
+    print(f"Pushed telemetry to {saved.name}")
+
+    client.delete_device(device_id=device_id)`} />
+
+## Authentication
+
+`ThingsboardClient` authenticates eagerly on construction. The client is a context manager — using it inside `with` releases the underlying connection pool on exit. JWT tokens refresh automatically; the client re-logs in transparently if the refresh token expires.
+
+### API key (recommended)
+
+<Aside type="tip">
+Available since ThingsBoard 4.3. See the <DocLink product={props.product} path='user-guide/security/api-keys' useTbDocs>API Keys</DocLink> guide.
+</Aside>
+
+<HostCode product={props.product} lang="python" code={`from ${importModule(props.product)} import ThingsboardClient
+
+with ThingsboardClient("{BASE_URL}", api_key="YOUR_API_KEY_VALUE") as client:
+    print(f"Logged in as {client.get_user().email}")`} />
+
+### Username and password (JWT)
+
+<HostCode product={props.product} lang="python" code={`from ${importModule(props.product)} import ThingsboardClient
+
+with ThingsboardClient(
+    "{BASE_URL}",
+    username="tenant@thingsboard.org",
+    password="tenant",
+) as client:
+    print(f"Logged in as {client.get_user().email}")`} />
+
+## Rate-limit handling
+
+The client retries `429 Too Many Requests` responses with exponential backoff by default. Tune via constructor keyword arguments (defaults shown below), or pass `retry_on_rate_limit=False` to disable:
+
+<HostCode product={props.product} lang="python" code={`from ${importModule(props.product)} import ThingsboardClient
+
+client = ThingsboardClient(
+    "{BASE_URL}",
+    api_key="YOUR_API_KEY_VALUE",
+    max_retries=3,                # default 3
+    initial_retry_delay_ms=1_000, # default 1 s
+    max_retry_delay_ms=30_000,    # default 30 s
+)`} />
+
+## Working with entities
+
+Every entity type — devices, assets, dashboards, customers, alarms — follows the same method-naming pattern: `save_<entity>`, `get_<entity>_by_id`, `get_<entity>_info_by_id`, `delete_<entity>`. Required fields differ per type; see the <DocLink product={props.product} path='reference/rest-api'>REST API reference</DocLink> for each model. The walkthrough below uses devices. To update an existing entity, mutate the model and call `save_<entity>` again.
+
+<Aside type="note">
+Saved entities return an `EntityId` wrapper: `saved.id` is the wrapper, `saved.id.id` is the `uuid.UUID`. Call `str(...)` when passing it to other API methods (which take string UUIDs).
+</Aside>
+
+<HostCode product={props.product} lang="python" meta="maxLines=20 collapsible" code={`from ${importModule(props.product)} import ThingsboardClient
+from ${importModule(props.product)}.models import Device
+
+with ThingsboardClient("{BASE_URL}", api_key="YOUR_API_KEY_VALUE") as client:
+    new_device = Device(name="Test Device", type="default")
+    saved = client.save_device(new_device)
+    device_id = str(saved.id.id)  # saved.id is EntityId wrapper, .id is the UUID
+
+    fetched = client.get_device_by_id(device_id=device_id)
+    print("Fetched:", fetched.name)
+
+    client.delete_device(device_id=device_id)`} />
+
+{(props.product !== Products.CE && props.product !== Products.EDGE) && (<Aside type="tip">
+On PE and PaaS, `save_device` accepts `entity_group_id` and `entity_group_ids` keyword arguments to assign the device to one or more entity groups on creation.
+</Aside>)}
+
+## Telemetry and attributes
+
+Both `save_entity_telemetry(entity_type, entity_id, scope, body)` and `save_entity_attributes_v2(entity_type, entity_id, scope, body)` take a JSON **string** as `body`.
+
+<Aside type="caution">
+`body` must be a JSON string. Passing a `dict` raises a Pydantic validation error. Always wrap with `json.dumps(...)`.
+</Aside>
+
+### Push telemetry
+
+<HostCode product={props.product} lang="python" code={`import json
+from ${importModule(props.product)} import ThingsboardClient
+
+with ThingsboardClient("{BASE_URL}", api_key="YOUR_API_KEY_VALUE") as client:
+    device_id = "YOUR_DEVICE_ID"
+    client.save_entity_telemetry(
+        entity_type="DEVICE",
+        entity_id=device_id,
+        scope="ANY",  # required by URL path; server-ignored for telemetry
+        body=json.dumps({"temperature": 26.5, "humidity": 87}),
+    )`} />
+
+### Read and write attributes
+
+This example uses an asset with a `deviceCount` attribute; the same calls work for any entity type — substitute `"DEVICE"` / `device_id` for a device.
+
+<HostCode product={props.product} lang="python" meta="maxLines=25 collapsible" code={`import json
+from ${importModule(props.product)} import ThingsboardClient
+
+with ThingsboardClient("{BASE_URL}", api_key="YOUR_API_KEY_VALUE") as client:
+    asset_id = "YOUR_ASSET_ID"
+
+    attrs = client.get_attributes_by_scope(
+        entity_type="ASSET",
+        entity_id=asset_id,
+        scope="SERVER_SCOPE",
+        keys="deviceCount",  # comma-separated; pass "k1,k2,k3" for multiple
+    )
+
+    current = int(attrs[0].value) if attrs else 0
+    updated = current + 1
+
+    client.save_entity_attributes_v2(
+        entity_type="ASSET",
+        entity_id=asset_id,
+        scope="SERVER_SCOPE",
+        body=json.dumps({"deviceCount": updated}),
+    )`} />
+
+## Listing and querying entities
+
+### Paginated tenant list
+
+<HostCode product={props.product} lang="python" code={`from ${importModule(props.product)} import ThingsboardClient
+
+with ThingsboardClient("{BASE_URL}", api_key="YOUR_API_KEY_VALUE") as client:
+    page = 0  # pages are zero-indexed
+    while True:
+        devices = client.get_tenant_devices(page_size=100, page=page)
+        for device in devices.data:
+            print(device.name, str(device.id.id))
+        if not devices.has_next:
+            break
+        page += 1`} />
+
+### Filtered query with Entity Data Query API
+
+For server-side filtering on attribute or telemetry values, use the Entity Data Query API. The example below counts all devices, then counts only the active ones:
+
+<HostCode product={props.product} lang="python" meta="maxLines=30 collapsible" code={`from ${importModule(props.product)} import ThingsboardClient
+from ${importModule(props.product)}.models import (
+    EntityCountQuery, EntityTypeFilter, KeyFilter, EntityKey,
+    BooleanFilterPredicate, FilterPredicateValueBoolean,
+)
+
+with ThingsboardClient("{BASE_URL}", api_key="YOUR_API_KEY_VALUE") as client:
+    type_filter = EntityTypeFilter(entity_type="DEVICE")
+
+    total = client.count_entities_by_query(
+        EntityCountQuery(entity_filter=type_filter)
+    )
+    print("Total devices:", total)
+
+    active_filter = KeyFilter(
+        key=EntityKey(type="ATTRIBUTE", key="active"),
+        value_type="BOOLEAN",
+        predicate=BooleanFilterPredicate(
+            operation="EQUAL",
+            value=FilterPredicateValueBoolean(default_value=True),
+        ),
+    )
+    active = client.count_entities_by_query(
+        EntityCountQuery(entity_filter=type_filter, key_filters=[active_filter])
+    )
+    print("Active devices:", active)`} />
+
+For a paginated **list** of matching entities (not just a count), build an `EntityDataQuery` with an `EntityDataPageLink` and call `client.find_entity_data_by_query(query)`. See the [tb-examples.md catalog](https://github.com/thingsboard/thingsboard-python-client/blob/master/common/docs/tb-examples.md) for full examples.
+
+{(props.product !== Products.CE && props.product !== Products.EDGE) && (<>
+<ConditionalHeading level={2} id="entity-groups-and-permissions" exclude="ce,edge">Entity groups and permissions</ConditionalHeading>
+
+<Aside type="note">
+The methods in this section are only available in the PE and PaaS editions. See the <DocLink product={props.product} path='user-guide/groups' useTbDocs>Entity Groups</DocLink> and <DocLink product={props.product} path='user-guide/roles' useTbDocs>Roles</DocLink> guides for the underlying concepts.
+</Aside>
+
+<ConditionalHeading level={3} id="create-and-populate-a-group" exclude="ce,edge">Create and populate a group</ConditionalHeading>
+
+<HostCode product={props.product} lang="python" code={`from ${importModule(props.product)} import ThingsboardClient
+from ${importModule(props.product)}.models import EntityGroup
+
+with ThingsboardClient("{BASE_URL}", api_key="YOUR_API_KEY_VALUE") as client:
+    device_group = EntityGroup(name="Acme Devices", type="DEVICE")
+    saved_group = client.save_entity_group(entity_group=device_group)
+    device_group_id = str(saved_group.id.id)
+
+    # add_entities_to_entity_group takes a list of raw UUID strings
+    client.add_entities_to_entity_group(
+        entity_group_id=device_group_id,
+        request_body=["YOUR_DEVICE_ID"],
+    )`} />
+
+<ConditionalHeading level={3} id="share-with-a-customer" exclude="ce,edge">Share with a customer</ConditionalHeading>
+
+Create a role, look up the customer's auto-generated "All" user group, then bind them via `share_entity_group_to_child_owner_user_group`:
+
+<HostCode product={props.product} lang="python" meta="maxLines=25 collapsible" code={`from ${importModule(props.product)} import ThingsboardClient
+from ${importModule(props.product)}.models import Role
+
+with ThingsboardClient("{BASE_URL}", api_key="YOUR_API_KEY_VALUE") as client:
+    customer_id = "YOUR_CUSTOMER_ID"
+    device_group_id = "YOUR_DEVICE_GROUP_ID"
+
+    role = Role(name="Acme Device Readers", type="GROUP")
+    saved_role = client.save_role(role=role)
+    role_id = str(saved_role.id.id)
+
+    all_users = client.get_entity_group_all_by_owner_and_type(
+        owner_type="CUSTOMER",
+        owner_id=customer_id,
+        group_type="USER",
+    )
+    user_group_id = str(all_users.id.id)
+
+    client.share_entity_group_to_child_owner_user_group(
+        entity_group_id=device_group_id,
+        user_group_id=user_group_id,
+        role_id=role_id,
+    )`} />
+</>)}
+
+## Error handling
+
+The client raises `ApiException` for non-2xx responses, with HTTP-status-specific subclasses (`NotFoundException` for 404, `UnauthorizedException` for 401, etc.). `e.body` is the raw response body (typically JSON for 4xx, may be empty for 5xx).
+
+- **401 Unauthorized** — JWT auth auto-refreshes tokens and re-logs in using stored credentials, so you'll only see this if credentials become invalid.
+- **429 Too Many Requests** — already retried with exponential backoff by default (see [Rate-limit handling](#rate-limit-handling)). You only observe a 429 if retries are exhausted or disabled.
+- **404 Not Found** — the common case worth catching explicitly:
+
+<HostCode product={props.product} lang="python" code={`from ${importModule(props.product)} import ThingsboardClient
+from ${importModule(props.product)}.exceptions import ApiException, NotFoundException
+
+with ThingsboardClient("{BASE_URL}", api_key="YOUR_API_KEY_VALUE") as client:
+    try:
+        device = client.get_device_by_id(device_id="nonexistent-id")
+    except NotFoundException:
+        print("Device not found")
+    except ApiException as e:
+        print(f"API error {e.status}: {e.body}")`} />
+
+## More examples
+
+The [tb-examples.md catalog](https://github.com/thingsboard/thingsboard-python-client/blob/master/common/docs/tb-examples.md) in the repository covers additional entities (assets, dashboards, customers), alarms, relations, and Entity Data Query examples with pagination and sort orders.

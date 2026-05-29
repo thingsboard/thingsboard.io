@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const oxiData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'How OXI TRADE Uses ThingsBoard to Power Scalable IoT for Green Energy',
 	pageTitle: 'How OXI TRADE Powers Scalable IoT for Green Energy',
 	description:
@@ -87,6 +87,8 @@ export const oxiData: CaseStudyData = {
 	fullWidthImage: {
 		src: 'https://img.thingsboard.io/case-studies/burning-pellets.webp',
 		alt: 'Burning pellets',
+		width: 1920,
+		height: 946,
 	},
 
 	help: {

@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const energroupData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'EnerGroup Enables Wireless Room-Level Heating Control with ThingsBoard',
 	pageTitle: 'EnerGroup Enables Wireless Room-Level Heating Control',
 	description:

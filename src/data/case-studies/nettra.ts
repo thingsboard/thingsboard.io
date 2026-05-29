@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const nettraData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'How Nettra Accelerated IoT Innovation by Switching to ThingsBoard',
 	pageTitle: 'How Nettra Accelerated IoT Innovation',
 	description:

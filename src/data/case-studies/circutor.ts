@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const circutorData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'How Circutor Centralized Energy Devices Using ThingsBoard',
 	pageTitle: 'How Circutor Centralized Energy Devices',
 	description:
@@ -55,6 +55,8 @@ export const circutorData: CaseStudyData = {
 	fullWidthImage: {
 		src: 'https://img.thingsboard.io/case-studies/circutor-solar.webp',
 		alt: 'Solar panels',
+		width: 1920,
+		height: 946,
 	},
 
 	help: {

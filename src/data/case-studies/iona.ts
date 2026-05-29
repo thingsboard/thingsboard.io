@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const ionaData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'How IONA Tech Uses ThingsBoard to Improve ESD Monitoring and Workplace Safety',
 	pageTitle: 'How IONA Tech Improved ESD Monitoring and Workplace Safety',
 	description:
@@ -74,6 +74,8 @@ export const ionaData: CaseStudyData = {
 	fullWidthImage: {
 		src: 'https://img.thingsboard.io/case-studies/male_technician_examining_broken_computer.webp',
 		alt: 'Technician',
+		width: 1920,
+		height: 946,
 	},
 
 	help: {
