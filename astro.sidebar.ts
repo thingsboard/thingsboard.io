@@ -2665,10 +2665,9 @@ export const edgeSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'Clients & CLI',
+				label: 'Server-side REST Clients',
 				collapsed: true,
 				items: [
-					'docs/edge/user-guide/cli',
 					'docs/edge/reference/java-client',
 					'docs/edge/reference/python-client',
 				],
@@ -3106,10 +3105,9 @@ export const edgePeSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'Clients & CLI',
+				label: 'Server-side REST Clients',
 				collapsed: true,
 				items: [
-					'docs/edge/pe/user-guide/cli',
 					'docs/edge/pe/reference/java-client',
 					'docs/edge/pe/reference/python-client',
 				],
