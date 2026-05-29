@@ -345,45 +345,54 @@ const tbmqSubTabs = enrichTabs([
 		{/* Pre-paint state sync. Runs synchronously during body parsing — after
 		    all `.product-tab` / `.sub-tab` / `.pricing-section` /
 		    `.pricing-product-content` nodes are in the DOM but before first
-		    paint. Mirrors the URL→state logic in initPricing() below so the
-		    correct tabs are highlighted and the correct section is visible
-		    from frame 1, even when arriving via a deep-link URL. Without this,
-		    visitors using `?product=…` / `?section=…` URLs see the SSR-default
-		    state painted briefly before initPricing() swaps it post-parse.
+		    paint. Resolves URL→state via the shared window.__resolvePricingState()
+		    (defined just below) so the correct tabs are highlighted and the
+		    correct section is visible from frame 1, even when arriving via a
+		    deep-link URL. Without this, visitors using `?product=…` / `?section=…`
+		    URLs see the SSR-default state painted briefly before initPricing()
+		    swaps it post-parse.
 
-		    When initPricing() later runs (same closure scope as the main
-		    `<script>` below), it re-applies the same logic — no-op for state
-		    that's already correct. */}
+		    initPricing() later calls the same resolver — no-op for state that's
+		    already correct. */}
 		<script is:inline>
 			(function () {
-				try {
-					const p = new URLSearchParams(location.search);
+				// Single source of truth for the URL→state mapping. Defined on
+				// `window` from this is:inline script — which runs during body
+				// parsing, before the deferred initPricing() module — so BOTH this
+				// pre-paint block and initPricing() resolve identical state from one
+				// pure function (params → { activeProduct, activeSubTab, activeBilling }).
+				// The DOM application differs between the two callers and stays
+				// separate in each.
+				window.__resolvePricingState = function (search) {
+					const p = new URLSearchParams(search);
 					const sectionParam = p.get('section');
 					const productParam = p.get('product');
 					const solutionParam = p.get('solution');
-
-					// NOTE: this URL→state resolution must stay in sync with the
-					// matching block in initPricing() (see "URL state" below). Keep the
-					// param names, sectionMap, and idioms identical between the two.
 					const sectionMap = {
 						'thingsboard-pe-options': { product: 'thingsboard', subtab: 'thingsboard-pe' },
 						'tbmq-options': { product: 'tbmq' },
 					};
-
 					let activeProduct = 'thingsboard';
 					let activeSubTab = null;
 					let activeBilling = null;
-
 					if (sectionParam && sectionMap[sectionParam]) {
 						activeProduct = sectionMap[sectionParam].product;
 						if (sectionMap[sectionParam].subtab) activeSubTab = sectionMap[sectionParam].subtab;
 					}
-					if (productParam?.startsWith('tbmq')) activeProduct = 'tbmq';
+					if (productParam && productParam.startsWith('tbmq')) activeProduct = 'tbmq';
 					if (productParam) activeSubTab = productParam;
 					if (solutionParam) {
 						const sol = solutionParam.replace(/^pe-/, '');
 						if (sol === 'payg' || sol === 'perpetual') activeBilling = sol;
 					}
+					return { activeProduct, activeSubTab, activeBilling };
+				};
+
+				try {
+					const state = window.__resolvePricingState(location.search);
+					const activeProduct = state.activeProduct;
+					const activeBilling = state.activeBilling;
+					let activeSubTab = state.activeSubTab;
 
 					// Mirror initPricing()'s billing-toggle flip so visitors landing on
 					// `?solution=pe-perpetual` don't see PAYG plans flash before JS runs.
@@ -492,45 +501,20 @@ const tbmqSubTabs = enrichTabs([
 		let skipAnimation = true; // No animation on initial load
 
 		// ─── URL state ───
-		// NOTE: keep this resolution in sync with the pre-paint inline script
-		// near the top of <body> — it mirrors the same param names, sectionMap,
-		// and idioms so deep-link URLs paint correctly before this runs.
+		// Resolved via the shared window.__resolvePricingState() (defined in the
+		// pre-paint is:inline script near the top of <body>) — the single source
+		// of truth for the param→state mapping, so deep-link first paint and this
+		// post-parse pass can't drift.
 		const params = new URLSearchParams(window.location.search);
 
-		// Legacy param mapping: section=thingsboard-pe-options → product=thingsboard
-		const sectionParam = params.get('section');
-		const productParam = params.get('product');
-		const solutionParam = params.get('solution');
-
+		// These stay `let`: activateProductTab(), activateSubTab() and the billing
+		// toggle reassign them as the user navigates.
 		let activeProduct = 'thingsboard';
 		let activeSubTab: string | null = null;
 		let activeBilling: string | null = null;
-
-		// Map legacy section param to product + subtab
-		const sectionMap: Record<string, { product: string; subtab?: string }> = {
-			'thingsboard-pe-options': { product: 'thingsboard', subtab: 'thingsboard-pe' },
-			'tbmq-options': { product: 'tbmq' },
-		};
-
-		if (sectionParam && sectionMap[sectionParam]) {
-			activeProduct = sectionMap[sectionParam].product;
-			if (sectionMap[sectionParam].subtab) {
-				activeSubTab = sectionMap[sectionParam].subtab!;
-			}
-		}
-
-		if (productParam?.startsWith('tbmq')) {
-			activeProduct = 'tbmq';
-		}
-
-		if (productParam) {
-			activeSubTab = productParam;
-		}
-
-		if (solutionParam) {
-			const sol = solutionParam.replace(/^pe-/, '');
-			if (sol === 'payg' || sol === 'perpetual') activeBilling = sol;
-		}
+		({ activeProduct, activeSubTab, activeBilling } = (window as any).__resolvePricingState(
+			window.location.search,
+		));
 
 		// ─── Single delegated click listener on the pricing root ───
 		// Replaces 10+ per-element forEach(addEventListener('click', …)) loops.
