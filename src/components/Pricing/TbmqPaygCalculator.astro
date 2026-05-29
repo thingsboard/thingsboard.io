@@ -52,21 +52,33 @@ import CalculatorInline from './CalculatorInline.astro';
 	// switches to the TBMQ product tab — visitors who stay on ThingsBoard
 	// never pay its parse cost.
 	//
-	// Trigger: pricing/index.astro dispatches `pricing:product-activated` from
-	// `activateProductTab()` on every init (including the initial bootstrap
-	// after a fresh page-load or View-Transition nav), so the listener catches
-	// both manual tab clicks and URL-driven initial activations. The listener
-	// is registered ONCE per document lifetime — the script re-runs on each
-	// `astro:page-load`, but the guard prevents stacking duplicate listeners
-	// on the persistent document.
+	// Two init paths, because the calc must load both on a later tab click AND
+	// on a deep-link that lands directly on TBMQ:
+	//   1. `pricing:product-activated` (detail 'tbmq') — dispatched by
+	//      activateProductTab() in pricing/index.astro on every tab switch.
+	//   2. On registration, if TBMQ is ALREADY the active product. We can't
+	//      rely on (1) for the initial activation: both this loader and the
+	//      initPricing() dispatcher are hoisted module scripts with no
+	//      guaranteed execution order, so initPricing() can fire the one-shot
+	//      event before this listener is attached. The pre-paint inline script
+	//      in index.astro sets `.product-tab.active` during HTML parse (before
+	//      any module runs), so a deep-link visitor has the correct active tab
+	//      by the time this deferred loader executes — we read it directly.
+	// initTbmqPaygCalc() is idempotent (container `data-inited` guard), so the
+	// two paths can't double-init. Listener registered ONCE per document
+	// lifetime — the script re-runs on each `astro:page-load`, but the guard
+	// prevents stacking duplicate listeners on the persistent document.
 	if (!(window as any)._tbmqPaygLoaderInited) {
 		(window as any)._tbmqPaygLoaderInited = true;
-		document.addEventListener('pricing:product-activated', ((e: CustomEvent) => {
-			if (e.detail !== 'tbmq') return;
+		const loadCalc = () =>
 			import('~/scripts/pricing/calc-tbmq-payg')
 				.then((m) => m.initTbmqPaygCalc())
 				.catch(() => {/* chunk fetch failed — keep the console clean */});
+		document.addEventListener('pricing:product-activated', ((e: CustomEvent) => {
+			if (e.detail === 'tbmq') loadCalc();
 		}) as EventListener);
+		const activeTab = document.querySelector('.product-tab.active') as HTMLElement | null;
+		if (activeTab?.dataset.product === 'tbmq') loadCalc();
 	}
 </script>
 
