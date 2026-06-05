@@ -1,0 +1,336 @@
+---
+title: IoT Hub Alarm Rule Contribution Guide
+description: Publish an alarm rule to ThingsBoard IoT Hub by uploading a single exported JSON.
+head:
+  - tag: title
+    content: Alarm Rule Contribution Guide | Docs | IoT Hub
+---
+
+import { Steps } from '@astrojs/starlight/components';
+import DocLink from '@components/DocLink.astro';
+import { Products } from '~/models/site.models';
+
+Welcome to **ThingsBoard IoT Hub**. This guide walks you through contributing an alarm rule that end users can install on their ThingsBoard instance in a single click.
+
+An alarm rule contribution is a **single JSON file** that you export from ThingsBoard and upload through IoT Hub. When a user clicks **Install** on your alarm rule, the platform imports it onto a device, asset, or profile of their choice, where it starts evaluating live telemetry and raising alarms.
+
+## How Users Install Your Alarm Rule
+
+When a user installs your alarm rule from IoT Hub:
+
+1. The platform downloads your alarm rule JSON file.
+2. The user picks the target — a device, an asset, or a device/asset profile — directly in the install dialog.
+3. The rule is created on that target and immediately starts evaluating live telemetry — raising and clearing alarms according to its conditions.
+
+An alarm rule contribution is self-contained — the trigger conditions, severities, thresholds, and clear condition are entirely in the `configuration` object. When the thresholds read from server attributes with default values, the rule works out of the box and users can tune it per entity without editing the rule.
+
+## Quick Start
+
+<Steps>
+1. In your ThingsBoard instance, create and test your alarm rule on a device, asset, or profile.
+2. Export it as a JSON file — see [Exporting an Alarm Rule from ThingsBoard](#exporting-an-alarm-rule-from-thingsboard).
+3. Go to **IoT Hub → + Add new item**. A four-step wizard walks you through the rest:
+    - **Upload** — upload your exported JSON. The platform recognizes it as an alarm rule automatically and pre-fills the Name.
+    - **Listing** — fill in the listing metadata (see [The Listing Step](#the-listing-step)). Name is pre-filled from the JSON, Icon and Color are filled with the default alarm icon (you can change them), and Description contains a fill-in template. Categories, Use Cases, and the supported ThingsBoard version must be selected manually.
+    - **Readme** — the editor is pre-filled with the recommended readme structure. Replace each placeholder section with your documentation (see [Readme Content](#readme-content)).
+    - **Review & Submit** — verify everything and submit the version for review.
+</Steps>
+
+The sections below are a complete reference for each step.
+
+## Exporting an Alarm Rule from ThingsBoard
+
+<Steps>
+1. In your ThingsBoard instance, go to the **Alarms** page and open the **Alarm rules** tab.
+2. Locate your alarm rule in the list.
+3. Click the **Export** button (download icon) in the rule's row.
+4. Save the resulting `.json` file — this is your upload file.
+</Steps>
+
+The exported file is a complete alarm rule definition and requires no further editing to be valid.
+
+## Alarm Rule JSON Structure
+
+A valid alarm rule file is a JSON object with three required fields — `name`, `type`, and `configuration`. The `type` is always `ALARM`. The export also includes a few auxiliary fields. Leave `configurationVersion` as exported. In `debugSettings`, make sure `failuresEnabled` is `true` and `allEnabled` is `false` — every installed copy of your rule then automatically records a debug event when an evaluation fails, without the overhead of tracking every evaluation.
+
+```json
+{
+  "name": "High Temperature Alarm",
+  "type": "ALARM",
+  "configurationVersion": 0,
+  "debugSettings": {
+    "failuresEnabled": true,
+    "allEnabled": false,
+    "allEnabledUntil": 0
+  },
+  "configuration": {
+    "type": "ALARM",
+    "arguments": {
+      "metric": {
+        "refEntityKey": {
+          "key": "temperature",
+          "type": "TS_LATEST"
+        },
+        "defaultValue": "0"
+      },
+      "threshold": {
+        "refEntityKey": {
+          "key": "temperatureThreshold",
+          "type": "ATTRIBUTE",
+          "scope": "SERVER_SCOPE"
+        },
+        "defaultValue": "30"
+      }
+    },
+    "createRules": {
+      "MAJOR": {
+        "condition": {
+          "type": "SIMPLE",
+          "expression": {
+            "type": "SIMPLE",
+            "filters": [
+              {
+                "argument": "metric",
+                "valueType": "NUMERIC",
+                "operation": "AND",
+                "predicates": [
+                  {
+                    "type": "NUMERIC",
+                    "operation": "GREATER",
+                    "value": {
+                      "dynamicValueArgument": "threshold"
+                    }
+                  }
+                ]
+              }
+            ],
+            "operation": "AND"
+          }
+        },
+        "alarmDetails": "Temperature ${metric}°C exceeded the threshold (${threshold}°C)."
+      }
+    },
+    "clearRule": {
+      "condition": {
+        "type": "SIMPLE",
+        "expression": {
+          "type": "SIMPLE",
+          "filters": [
+            {
+              "argument": "metric",
+              "valueType": "NUMERIC",
+              "operation": "AND",
+              "predicates": [
+                {
+                  "type": "NUMERIC",
+                  "operation": "LESS",
+                  "value": {
+                    "dynamicValueArgument": "threshold"
+                  }
+                }
+              ]
+            }
+          ],
+          "operation": "AND"
+        }
+      },
+      "alarmDetails": "Temperature ${metric}°C returned below the threshold (${threshold}°C)."
+    },
+    "propagate": true,
+    "propagateToOwner": true,
+    "propagateToTenant": true
+  }
+}
+```
+
+### Required Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Non-empty alarm rule name (e.g. `High Temperature Alarm`) |
+| `type` | string | Always `ALARM` |
+| `configuration` | object | The rule definition — arguments, trigger conditions per severity, clear condition, and propagation flags |
+
+### Configuration Structure
+
+| Field | Description |
+|-------|-------------|
+| `arguments` | Map of argument name → reference the conditions read from. Telemetry arguments use `TS_LATEST`, threshold arguments typically use `ATTRIBUTE` with a `defaultValue` so the rule works without per-entity setup |
+| `createRules` | Map of severity (`CRITICAL`, `MAJOR`, `MINOR`, `WARNING`, `INDETERMINATE`) → trigger condition, optional schedule, and the alarm details message |
+| `clearRule` | Optional condition that clears the alarm automatically. Without it, the alarm must be cleared by an operator |
+| `propagate*` | Flags controlling where the alarm shows up — related entities, owner, owner hierarchy, tenant. Owner-hierarchy propagation (`propagateToOwnerHierarchy`) is a Professional Edition feature — if your rule relies on it, mark the listing as PE |
+
+See the <DocLink product={Products.CE} path="user-guide/alarm-rules">ThingsBoard Alarm Rules documentation</DocLink> for the full configuration schema, condition types, and schedules.
+
+## The Listing Step
+
+The Listing step of the upload wizard collects the fields shown on the browse card and detail page. Name, Icon, Color, and a Description template are pre-filled. The rest are manual.
+
+| Field | Required | Source | Notes |
+|-------|:--------:|--------|-------|
+| Name | yes | `name` in JSON | Editable |
+| Icon | yes | Default alarm icon | Editable — see [Icon and Color](#icon-and-color) |
+| Color | yes | Default alarm color | Editable — hex color for the icon background |
+| Description | yes | Template | Pre-filled with a fill-in template. One-sentence summary, max 512 chars |
+| Categories | yes | Manual | Pick from [Alarm Rule Categories](#alarm-rule-categories) |
+| Use Cases | yes | Manual | Pick from [Use Cases](#use-cases) |
+| Supported ThingsBoard version | no | Manual | Min (`≥`) and optional max (`<`) version |
+| Professional Edition | no | Manual | Toggle if the alarm rule requires PE |
+| Tags | no | Manual | Free-form keywords |
+
+## What's Auto-Derived vs What You Provide
+
+### Auto-Derived from Alarm Rule JSON
+
+| Listing Field | Source |
+|-------------------|--------|
+| Name | `name` |
+| Icon | Default alarm icon (editable) |
+| Color | Default alarm color (editable) |
+
+### You Provide via the Listing Form
+
+| Field | Purpose |
+|-------|---------|
+| Description | One-sentence summary shown on browse cards (a fill-in template is pre-filled) |
+| Categories | Browse filtering |
+| Use Cases | Browse filtering |
+| Supported ThingsBoard version | Compatibility constraints |
+| Professional Edition | Edition targeting |
+| Tags | Free-form keywords used for search |
+
+### You Provide in the Readme Step
+
+Long-form documentation following the pre-filled readme structure. See [Readme Content](#readme-content).
+
+### Set Per Version
+
+Version (semver) and changelog — bumped every time you upload a changed JSON.
+
+## Allowed Values
+
+### Alarm Rule Categories
+
+Pick one or more categories that describe what your alarm rule monitors. Allowed values: `Threshold`, `Connectivity`, `Equipment Health`, `Environmental`, `Energy`, `Safety`, `Geofencing`, `Other`.
+
+### Use Cases
+
+Pick one or more IoT domains where your alarm rule is useful. These are shared across the whole marketplace.
+
+Allowed values: `Air Quality Monitoring`, `Asset Tracking`, `Cold Chain`, `Drones`, `Environment Monitoring`, `Fleet Tracking`, `Health Care`, `Industrial Automation`, `Predictive Maintenance`, `Robotics`, `SCADA`, `Smart Building`, `Smart City`, `Smart Energy`, `Smart Farming`, `Smart Home`, `Smart Metering`, `Smart Office`, `Smart Retail`, `Solar Monitoring`, `Tank Level Monitoring`, `Waste Management`.
+
+## Icon and Color
+
+Alarm rules are displayed in the catalog with a **Material Icon** on a **colored background** instead of a preview image. When you upload your JSON, the platform pre-fills the default alarm icon and color. You can keep the default or change it in the Listing step.
+
+### Icon
+
+Prefer an icon that shows **what is being monitored** over a generic alert symbol — a catalog full of identical warning triangles tells users nothing. The icon picker offers a curated list of alarm-relevant icons plus the full Material and MDI icon sets.
+
+**Good icon choices from the catalog:**
+
+- Temperature → `mdi:thermometer-high`, `thermostat`
+- Connectivity and offline detection → `mdi:lan-disconnect`, `mdi:access-point-off`
+- Doors and access → `mdi:door-open`
+- Vibration and equipment health → `mdi:vibrate`, `mdi:gauge`
+- Air quality → `mdi:molecule-co2`
+- Energy → `mdi:transmission-tower`, `bolt`
+
+### Color
+
+Pick a hex color for the icon background. The picker provides 24 presets and a custom color picker.
+
+The catalog convention for alarm rules is the red-orange-amber family — deeper reds for safety-critical alarms, oranges and ambers for warnings and efficiency monitoring. Keep your custom color in that family so the catalog stays visually consistent.
+
+## Readme Content
+
+The Readme step of the upload wizard collects the long-form documentation shown on your alarm rule's detail page. It is written in standard Markdown. The editor comes pre-filled with the recommended structure — the same four sections all official ThingsBoard templates follow. Replace each placeholder with your content.
+
+1. `# Who it's for` — the audience and the questions they're asking, one short paragraph
+2. `# What it does` — the telemetry the rule reads, when each severity fires, and when the alarm clears (automatically or by an operator). Optionally add a diagram image (SVG or PNG) that visually explains the trigger and clear flow — paste it directly into the readme editor
+3. `# How to set up` — the install target and anything that must exist before the rule works. If every threshold has a default value, say that the rule works as soon as it is installed, and that a profile-level install covers every entity of that type including ones added later
+4. `# How to customize` — a bulleted list. Each bullet starts with the user's goal in bold — what the user wants to achieve, not the control they will touch (e.g. `**To monitor different telemetry**`, `**To change the default threshold**`). After the goal, a dash and the exact field or setting to change
+
+Example:
+
+````markdown
+# Who it's for
+
+Cold chain operators, warehouse managers, and on-call engineers
+asking "is the cooler holding temperature?", "did the compressor
+fail overnight?", "which sites are drifting out of the safe range?"
+— when a brief spike should pass quietly but a sustained rise needs
+attention.
+
+# What it does
+
+Reads the `temperature` telemetry and raises a **Major** alarm when
+it rises above the threshold (default 30 °C). The alarm clears
+automatically when the temperature falls back below the threshold.
+The threshold reads from a server attribute with a default value, so
+each entity can carry its own limit.
+
+# How to set up
+
+The rule has a default value for the threshold, so it works as soon
+as it is installed. Install on a device profile so every device of
+that type is monitored and any new device added later is picked up
+automatically. Single-device installs are also supported.
+
+# How to customize
+
+- **To monitor different telemetry** — change the **Time series key**
+  on the `metric` argument (e.g. `temperature` → `humidity`).
+- **To change the threshold used when no per-entity attribute is
+  set** — change the **Default value** on the `threshold` argument.
+- **To tune the threshold at runtime without editing the rule** —
+  set `temperatureThreshold` as a server attribute on the entity.
+  The per-entity value overrides the default.
+- **To restrict firing to specific hours or days** — set the
+  **Schedule** on the **Trigger condition**.
+````
+
+## Versioning & Checksum
+
+Each alarm rule version is identified by a semver string (e.g. `1.0.0`) and a SHA-256 **checksum** computed from:
+
+- `name`
+- `type`
+- `configuration` (the entire configuration object as JSON)
+
+This means any change to the arguments, trigger conditions, clear condition, or propagation settings changes the checksum and requires bumping the version. Changes to description, icon, or color do not change the checksum.
+
+**Always bump the version** when uploading a changed alarm rule JSON.
+
+## Pre-Upload Checklist
+
+### Alarm Rule JSON
+
+- [ ] `name` is non-empty and descriptive
+- [ ] `type` is `ALARM`
+- [ ] `configuration` is a valid object with `arguments` and at least one severity in `createRules`
+- [ ] Threshold arguments provide a sensible `defaultValue` so the rule works without per-entity setup
+- [ ] A `clearRule` is present, unless the alarm is meant to stay active until an operator clears it
+- [ ] `debugSettings` has `failuresEnabled: true` and `allEnabled: false`
+
+### Listing Form
+
+- [ ] The icon shows what is being monitored, and any custom color stays in the catalog's alarm color family
+- [ ] Description is one sentence, under 512 characters, with all template placeholders replaced
+- [ ] At least one value selected from the [Alarm Rule Categories](#alarm-rule-categories) list
+- [ ] At least one value selected from the [Use Cases](#use-cases) list
+- [ ] Minimum ThingsBoard version is set appropriately
+- [ ] Professional Edition toggle matches whether the rule uses PE-only features (e.g. owner-hierarchy propagation)
+
+### Readme
+
+- [ ] No template placeholder text is left in any section
+- [ ] `Who it's for` names the audience and the questions they're asking
+- [ ] `What it does` documents the telemetry keys, every severity and its trigger condition, and the clear behavior
+- [ ] `How to set up` states the install target and any prerequisites
+- [ ] Every `How to customize` bullet starts with the user's goal and names the exact setting to change
+
+### Content Quality
+
+- [ ] Alarm rule has been tested on a real ThingsBoard instance — both the trigger and the clear transition
+- [ ] Version follows semver (e.g. `1.0.0`)

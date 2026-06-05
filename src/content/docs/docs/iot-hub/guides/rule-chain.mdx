@@ -6,6 +6,10 @@ head:
     content: Rule Chain Contribution Guide | Docs | IoT Hub
 ---
 
+import { Steps } from '@astrojs/starlight/components';
+import DocLink from '@components/DocLink.astro';
+import { Products } from '~/models/site.models';
+
 Welcome to **ThingsBoard IoT Hub**. This guide walks you through contributing a rule chain that end users can install on their ThingsBoard instance in a single click.
 
 A rule chain contribution is a **single JSON file** that you export from ThingsBoard and upload through IoT Hub. When a user clicks **Install** on your rule chain, the platform imports it directly where they can link it into their message flow.
@@ -15,79 +19,163 @@ A rule chain contribution is a **single JSON file** that you export from ThingsB
 When a user installs your rule chain from IoT Hub:
 
 1. The platform downloads your rule chain JSON file.
-2. The rule chain is imported into the user's **Rule Chains** list.
-3. The user can wire it into their root rule chain, set it as the default for a device profile, or deploy it to edge instances (for `EDGE` type chains).
+2. The user chooses in the install dialog — import only, or also set the chain as the default rule chain for a device or asset profile (with an overwrite confirmation if the profile already has one).
+3. The rule chain appears in the user's **Rule Chains** list and starts receiving messages as soon as it is wired in or bound to a profile.
 
-A rule chain contribution is self-contained — every node (its type, name, configuration) and every connection between nodes are encoded in the JSON. End users do not need to install any dependencies or configure anything outside ThingsBoard.
+A rule chain contribution is structurally self-contained — every node (its type, name, configuration) and every connection between nodes are encoded in the JSON. Chains built around external nodes are the exception: a chain that publishes to Kafka, an MQTT broker, or a REST endpoint only works once that external system is reachable and its address and credentials are set on the node. Document such prerequisites in the readme's `# Requirements` section (see [Readme Content](#readme-content)).
 
 ## Quick Start
 
-1. In your ThingsBoard instance, build and test your rule chain in the Rule Chains editor.
+<Steps>
+1. In your ThingsBoard instance, build and test your rule chain — starting from the default root chain (see [Start from the Default Root Chain](#start-from-the-default-root-chain)).
 2. Export it as a JSON file — see [Exporting a Rule Chain from ThingsBoard](#exporting-a-rule-chain-from-thingsboard).
-3. Go to **IoT Hub → Add Item → Rule Chain**. A four-step wizard walks you through the rest:
-    - **Type & Data** — upload your exported JSON. The platform parses it and pre-fills the Name from the file.
-    - **Listing** — fill in the listing metadata (see [The Listing Step](#the-listing-step)). Name is pre-filled; Icon, Color, Description, Categories, Use Cases, and the supported ThingsBoard version must be selected manually.
-    - **Readme** — write the long-form documentation in Markdown (see [Readme Content](#readme-content)).
+3. Go to **IoT Hub → + Add new item**. A four-step wizard walks you through the rest:
+    - **Upload** — upload your exported JSON. The platform recognizes it as a rule chain automatically and pre-fills the Name.
+    - **Listing** — fill in the listing metadata (see [The Listing Step](#the-listing-step)). Name is pre-filled from the JSON, Icon and Color are filled automatically based on the rule chain type (you can change them), and Description contains a fill-in template. Categories, Use Cases, and the supported ThingsBoard version must be selected manually.
+    - **Readme** — the editor is pre-filled with the recommended readme structure. Replace each placeholder section with your documentation (see [Readme Content](#readme-content)).
     - **Review & Submit** — verify everything and submit the version for review.
+</Steps>
 
 The sections below are a complete reference for each step.
 
+## Start from the Default Root Chain
+
+Author your rule chain as an **extension of the default <DocLink product={Products.CE} path="user-guide/rule-engine/#rule-chain">root rule chain</DocLink>**, not as a bare standalone chain. Start from the root chain of a fresh tenant, then wire the nodes of your logic onto the relevant path — for example, a flow that forwards telemetry to an external system hangs off the **Post telemetry** route.
+
+This matters because of how users install your chain. The install dialog lets them set your chain as a **profile's default rule chain** — every message from that profile's devices then flows through your chain *instead of* the root chain. If your chain doesn't include the default processing (saving telemetry and attributes, handling RPC), devices bound to it silently stop persisting data. Extending the default root keeps the platform behavior intact and makes your logic purely additive.
+
+Give the added logic a name — e.g. *the Kafka-publishing flow* — and reuse that name throughout your readme, so users can tell your nodes apart from the default ones at a glance.
+
 ## Exporting a Rule Chain from ThingsBoard
 
-1. Open **Rule Chains** in your ThingsBoard instance.
-2. Find your rule chain in the list.
-3. Click the **Export rule chain** button (download icon on the row).
+<Steps>
+1. In your ThingsBoard instance, go to the **Rule Chains** page.
+2. Locate your rule chain in the list.
+3. Click the **Export rule chain** button (download icon) in the chain's row.
 4. Save the resulting `.json` file — this is your upload file.
+</Steps>
 
 The exported file is a complete rule chain definition and requires no further editing to be valid.
 
 ## Rule Chain JSON Structure
 
-A valid rule chain file is a JSON object with a `ruleChain` header, a `metadata` body containing `nodes`, and optional `connections`.
+A valid rule chain file is a JSON object with a `ruleChain` header and a `metadata` body containing `nodes` and `connections`. The `ruleChain.root` flag must be `false` — if you authored your logic directly in the tenant's root chain, copy it into a regular chain and export that copy. The example below is trimmed from a real export — the default root chain's **Message Type Switch** and **Save Timeseries** nodes, extended with a two-node Kafka-publishing flow. A full export keeps the remaining default-processing nodes (attribute saving, RPC handling) as well. On the nodes you add, set `debugSettings` with `failuresEnabled` as `true` and `allEnabled` as `false` — failed messages then produce debug events without the overhead of tracing every message. Leave the default-processing nodes' debug settings as they are.
 
 ```json
 {
   "ruleChain": {
-    "name": "Temperature Alarm Chain",
+    "name": "Send IoT Device Data to Kafka",
     "type": "CORE",
     "root": false,
     "debugMode": false,
-    "configuration": null,
     "additionalInfo": {
-      "description": "Triggers alarms when temperature exceeds thresholds"
+      "description": "Forward device telemetry to a Kafka topic, enriching each record with device identity (deviceId, deviceName, deviceType) fetched from the originator."
     }
   },
   "metadata": {
+    "version": 6,
     "firstNodeIndex": 0,
     "nodes": [
       {
-        "type": "org.thingsboard.rule.engine.filter.TbMsgTypeFilterNode",
-        "name": "Telemetry",
-        "debugMode": false,
+        "type": "org.thingsboard.rule.engine.filter.TbMsgTypeSwitchNode",
+        "name": "Message Type Switch",
+        "singletonMode": false,
+        "configurationVersion": 0,
         "configuration": {
-          "messageTypes": ["POST_TELEMETRY_REQUEST"]
+          "version": 0
         },
         "additionalInfo": {
-          "layoutX": 200,
-          "layoutY": 200
+          "layoutX": 347,
+          "layoutY": 149
         }
       },
       {
-        "type": "org.thingsboard.rule.engine.action.TbCreateAlarmNode",
-        "name": "Create High Temp Alarm",
-        "debugMode": false,
+        "type": "org.thingsboard.rule.engine.telemetry.TbMsgTimeseriesNode",
+        "name": "Save Timeseries",
+        "singletonMode": false,
+        "configurationVersion": 1,
         "configuration": {
-          "alarmType": "High Temperature",
-          "severity": "WARNING",
-          "propagate": true
+          "defaultTTL": 0,
+          "useServerTs": false,
+          "processingSettings": {
+            "type": "ON_EVERY_MESSAGE"
+          }
+        },
+        "additionalInfo": {
+          "layoutX": 824,
+          "layoutY": 156
+        }
+      },
+      {
+        "type": "org.thingsboard.rule.engine.metadata.TbGetOriginatorFieldsNode",
+        "name": "Fetch Device Info",
+        "debugSettings": {
+          "failuresEnabled": true,
+          "allEnabled": false,
+          "allEnabledUntil": 0
+        },
+        "singletonMode": false,
+        "configurationVersion": 1,
+        "configuration": {
+          "dataMapping": {
+            "id": "deviceId",
+            "name": "deviceName",
+            "type": "deviceType"
+          },
+          "ignoreNullStrings": false,
+          "fetchTo": "DATA"
+        },
+        "additionalInfo": {
+          "description": "",
+          "layoutX": 1129,
+          "layoutY": 156
+        }
+      },
+      {
+        "type": "org.thingsboard.rule.engine.kafka.TbKafkaNode",
+        "name": "Send to Kafka",
+        "debugSettings": {
+          "failuresEnabled": true,
+          "allEnabled": false,
+          "allEnabledUntil": 0
+        },
+        "singletonMode": false,
+        "configurationVersion": 1,
+        "configuration": {
+          "topicPattern": "iot.telemetry",
+          "keyPattern": "$[deviceId]",
+          "bootstrapServers": "localhost:9092",
+          "retries": 0,
+          "batchSize": 16384,
+          "linger": 0,
+          "bufferMemory": 33554432,
+          "acks": "-1",
+          "otherProperties": {},
+          "addMetadataKeyValuesAsKafkaHeaders": true,
+          "kafkaHeadersCharset": "UTF-8"
+        },
+        "additionalInfo": {
+          "description": "",
+          "layoutX": 1461,
+          "layoutY": 157
         }
       }
     ],
     "connections": [
       {
+        "fromIndex": 1,
+        "toIndex": 2,
+        "type": "Success"
+      },
+      {
         "fromIndex": 0,
         "toIndex": 1,
-        "type": "True"
+        "type": "Post telemetry"
+      },
+      {
+        "fromIndex": 2,
+        "toIndex": 3,
+        "type": "Success"
       }
     ],
     "ruleChainConnections": []
@@ -102,8 +190,10 @@ A valid rule chain file is a JSON object with a `ruleChain` header, a `metadata`
 | `ruleChain` | object | Rule chain header — must be present |
 | `ruleChain.name` | string | Non-empty rule chain name |
 | `ruleChain.type` | string | One of the [Rule Chain Types](#rule-chain-types) |
+| `ruleChain.root` | boolean | Must be `false` — a contributed chain must never declare itself the root chain. Users decide whether to make it the root after install |
 | `metadata` | object | Rule chain body — must be present |
-| `metadata.nodes` | array | At least an empty array — typically contains your filter, transformation, and action nodes |
+| `metadata.nodes` | array | The default-processing nodes plus the nodes of your added flow |
+| `metadata.connections` | array | Wiring between nodes — technically optional, but any chain with more than one node needs it |
 
 ### Node Structure
 
@@ -111,9 +201,12 @@ Each entry in `metadata.nodes` represents one rule node on the canvas:
 
 | Field | Description |
 |-------|-------------|
-| `type` | Fully qualified Java class name of the node (e.g. `org.thingsboard.rule.engine.filter.TbMsgTypeFilterNode`) |
+| `type` | Fully qualified Java class name of the node (e.g. `org.thingsboard.rule.engine.kafka.TbKafkaNode`) |
 | `name` | Display name shown on the canvas |
-| `debugMode` | Whether debug logging is enabled for this node |
+| `debugSettings` | Per-node debug configuration — see the recommendation for added nodes above |
+| `singletonMode` | Whether the node runs as a single instance across the cluster |
+| `queueName` | Processing queue override (`null` uses the chain's queue) |
+| `configurationVersion` | Node configuration schema version — set by the export |
 | `configuration` | Node-specific configuration object |
 | `additionalInfo` | Editor metadata (position on canvas, etc.) |
 
@@ -129,14 +222,14 @@ Each entry in `metadata.connections` wires two nodes together:
 
 ## The Listing Step
 
-The Listing step of the upload wizard collects the fields shown on the browse card and detail page. Only the Name is pre-filled from the JSON; the rest are manual.
+The Listing step of the upload wizard collects the fields shown on the browse card and detail page. Name, Icon, Color, and a Description template are pre-filled. The rest are manual.
 
 | Field | Required | Source | Notes |
 |-------|:--------:|--------|-------|
 | Name | yes | `ruleChain.name` in JSON | Editable |
-| Icon | yes | Manual | Material Icon — see [Icon and Color](#icon-and-color) |
-| Color | yes | Manual | Hex color for the icon background |
-| Description | yes | Manual | One-sentence summary, max 512 chars |
+| Icon | yes | Auto from `ruleChain.type` | Editable — see [Icon and Color](#icon-and-color) |
+| Color | yes | Auto from `ruleChain.type` | Editable — hex color for the icon background |
+| Description | yes | Template | Pre-filled with a fill-in template. One-sentence summary, max 512 chars |
 | Categories | yes | Manual | Pick from [Rule Chain Categories](#rule-chain-categories) |
 | Use Cases | yes | Manual | Pick from [Use Cases](#use-cases) |
 | Supported ThingsBoard version | no | Manual | Min (`≥`) and optional max (`<`) version |
@@ -153,14 +246,14 @@ The Listing step of the upload wizard collects the fields shown on the browse ca
 | Rule chain type | `ruleChain.type` |
 | Node count | Count of entries in `metadata.nodes` |
 | Node summary | Deduplicated node type categories (filter, transformation, action, etc.) |
+| Icon | Derived from `ruleChain.type` (editable) |
+| Color | Derived from `ruleChain.type` (editable) |
 
 ### You Provide via the Listing Form
 
 | Field | Purpose |
 |-------|---------|
-| Icon | Material icon shown on browse cards |
-| Color | Hex background color for the icon |
-| Description | One-sentence summary shown on browse cards |
+| Description | One-sentence summary shown on browse cards (a fill-in template is pre-filled) |
 | Categories | Browse filtering |
 | Use Cases | Browse filtering |
 | Supported ThingsBoard version | Compatibility constraints |
@@ -169,7 +262,7 @@ The Listing step of the upload wizard collects the fields shown on the browse ca
 
 ### You Provide in the Readme Step
 
-Long-form documentation — what the rule chain does, trigger, behavior, configuration, outputs, and wiring instructions. See [Readme Content](#readme-content).
+Long-form documentation following the pre-filled readme structure. See [Readme Content](#readme-content).
 
 ### Set Per Version
 
@@ -188,7 +281,7 @@ The `ruleChain.type` field must be one of: `CORE`, `EDGE`.
 
 ### Rule Chain Categories
 
-Pick one or more categories that describe what your rule chain does. Allowed values: `Alerting`, `Analytics`, `Data Processing`, `Device Connectivity`, `Integration`.
+Pick one or more categories that describe what your rule chain does. Allowed values: `Alerting`, `Analytics`, `Automation`, `Data Processing`, `Device Connectivity`, `Integration`.
 
 ### Use Cases
 
@@ -198,19 +291,20 @@ Allowed values: `Air Quality Monitoring`, `Asset Tracking`, `Cold Chain`, `Drone
 
 ## Icon and Color
 
-Rule chains are displayed in the catalog with a **Material Icon** on a **colored background** instead of a preview image. Both are required in the Listing step.
+Rule chains are displayed in the catalog with a **Material Icon** on a **colored background** instead of a preview image. When you upload your JSON, the platform picks a default icon and color based on the rule chain type — `account_tree` on blue for `CORE`, `developer_board` on teal for `EDGE`. You can keep the default or change it in the Listing step.
 
 ### Icon
 
-Pick a Material Icon that visually represents what the rule chain does. The icon picker shows a curated list of icons relevant to rule chains (e.g. `account_tree`, `device_hub`, `hub`, `filter_alt`, `notifications_active`). You can also search the full Material Icons set.
+Pick a Material Icon that visually represents what the rule chain does. The icon picker shows a curated list of icons relevant to rule chains (e.g. `account_tree`, `device_hub`, `hub`, `filter_alt`, `webhook`). You can also search the full Material and MDI icon sets.
 
 **Good icon choices:**
 
 - Alerting chains → `notifications_active`, `warning`, `priority_high`
 - Analytics chains → `analytics`, `insights`, `query_stats`
+- Automation chains → `auto_mode`, `rule`, `autorenew`
 - Data processing chains → `filter_alt`, `transform`, `timeline`
 - Device connectivity chains → `device_hub`, `hub`, `lan`
-- Integration chains → `integration_instructions`, `sync_alt`
+- Integration chains → `webhook`, `integration_instructions`, `sync_alt`, `cloud_upload`
 
 ### Color
 
@@ -219,59 +313,97 @@ Pick a hex color for the icon background. The picker provides 24 presets and a c
 **Conventions across the catalog:**
 
 - Red tones for alerting
+- Orange tones for automation
 - Blue tones for integration and connectivity
 - Green tones for transformations and analytics
 - Purple for machine-learning or custom-logic chains
 
-### Why Icons Instead of Images?
-
-Rule chains don't have a natural visual representation like widgets or dashboards do. A color-coded icon scales cleanly at any size on cards, headers, and dialog previews, and keeps the catalog layout consistent.
-
 ## Readme Content
 
-The Readme step of the upload wizard collects the long-form documentation shown on your rule chain's detail page. It is written in standard Markdown.
+The Readme step of the upload wizard collects the long-form documentation shown on your rule chain's detail page. It is written in standard Markdown. The editor comes pre-filled with the recommended structure — the same sections all official ThingsBoard templates follow. Replace each placeholder with your content.
 
-A good readme always includes:
-
-1. **What the rule chain does** — one or two sentences
-2. **Trigger** — what message type(s) and source entity type(s) the chain operates on
-3. **Behavior** — the logic flow in plain English, aligned with the node graph
-4. **Configuration** — any fields inside nodes that users should tune for their data (e.g. thresholds, alarm severities, rate limits)
-5. **Outputs** — what the chain produces (alarms, attribute updates, forwarded messages, external HTTP calls)
-6. **Wiring guide** — how to hook the chain into the user's root rule chain
+1. `# Who it's for` — the audience and the questions they're asking, one short paragraph
+2. `# What it does` — open by naming the added logic and the route it hangs off, e.g. "Extends the default ThingsBoard root chain with **the Kafka-publishing flow** on the **Post telemetry** path". Then describe what each added node does. Optionally add a diagram image (SVG or PNG) — paste it directly into the readme editor. The diagram should show what the flow produces, not a picture of the rule chain itself — for example, an integration chain can show how the ThingsBoard message turns into the outgoing record, and an automation chain can show the resulting entity arrangement in each scenario
+3. `# Requirements` *(optional)* — include only when the chain can't run until something outside it is in place: external systems, brokers, credentials, or platform features that must be pre-configured
+4. `# How to set up` — numbered steps written from the extends-the-root premise. Step 1 covers the two install-dialog paths: bind to a profile (the chain becomes that profile's <DocLink product={Products.CE} path="user-guide/device-profiles/#default-rule-chain">default rule chain</DocLink>), or install only — then <DocLink product={Products.CE} path="user-guide/rule-engine/#set-a-rule-chain-as-root">set it as the root</DocLink>, or extract the added flow into a <DocLink product={Products.CE} path="user-guide/rule-engine/#create-a-nested-rule-chain">nested rule chain</DocLink> and <DocLink product={Products.CE} path="user-guide/rule-engine/#forward-messages-to-another-rule-chain">connect it</DocLink> from the existing root. Follow with any post-install node configuration (broker addresses, credentials, endpoint URLs) and end with how to verify the flow works
+5. `# How to customize` — a bulleted list. Each bullet starts with the user's goal in bold — what the user wants to achieve, not the control they will touch (e.g. `**To publish to a different topic**`, `**To route per device type**`). After the goal, a dash and the exact field and node to change
 
 Example:
 
-```markdown
-## Temperature Alarm Chain
+````markdown
+# Who it's for
 
-Triggers `High Temperature` alarms when incoming telemetry exceeds a configurable threshold.
+Platform and DevOps engineers asking "how do I make device telemetry
+available to my Kafka consumers?", "how do I feed analytics or data
+lake pipelines from ThingsBoard without polling?" — when the goal is
+to forward device telemetry into an existing Kafka topic as it
+arrives.
 
-### Trigger
+# What it does
 
-Processes `POST_TELEMETRY_REQUEST` messages from any device.
+Extends the default ThingsBoard root chain with **the
+Kafka-publishing flow** on the **Post telemetry** path:
 
-### Behavior
+- **Fetch Device Info** writes `deviceId`, `deviceName`, and
+  `deviceType` into the message data, so each Kafka record carries
+  the identity of the device it came from.
+- **Send to Kafka** publishes the message to the `iot.telemetry`
+  topic, keyed by `deviceId` for per-device ordering.
 
-1. **Filter** — only telemetry messages with a `temperature` key are processed
-2. **Threshold check** — temperature > 70°C routes to the alarm branch
-3. **Create alarm** — raises a `High Temperature` alarm with `WARNING` severity, propagating to related assets
-4. **Clear alarm** — temperature ≤ 70°C clears any existing alarm for the device
+# Requirements
 
-### Configuration
+- Apache Kafka cluster reachable from the ThingsBoard server
+- Kafka topic created, or auto-creation enabled on the broker side
 
-Tune these node fields to match your deployment:
+# How to set up
 
-| Node | Field | Purpose |
-|------|-------|---------|
-| Threshold check | `jsScript` | Change the threshold value (default 70) |
-| Create alarm | `severity` | `CRITICAL`, `MAJOR`, `MINOR`, or `WARNING` |
-| Create alarm | `propagate` | Whether to propagate to related assets |
+1. Click **Install** to open the install dialog. The dialog offers
+   two paths:
 
-### How to Use
+   - **Bind to a profile** — enable **Set as profile default rule
+     chain** and pick the target device profile. The imported chain
+     becomes that profile's
+     [default rule chain](https://thingsboard.io/docs/user-guide/device-profiles/#default-rule-chain).
+   - **Install only** — leave the toggle off. After install, either
+     [set it as the root](https://thingsboard.io/docs/user-guide/rule-engine/#set-a-rule-chain-as-root)
+     — it already bundles the default routing plus the
+     Kafka-publishing flow — or extract the Kafka-publishing flow
+     into a
+     [nested rule chain](https://thingsboard.io/docs/user-guide/rule-engine/#create-a-nested-rule-chain)
+     and
+     [connect it](https://thingsboard.io/docs/user-guide/rule-engine/#forward-messages-to-another-rule-chain)
+     to the **Post telemetry** output of **Message Type Switch**.
 
-Link this chain from your root rule chain's `Post Telemetry` output, or set it as the default rule chain for a temperature-sensor device profile.
-```
+2. Open the **Send to Kafka** node and set:
+
+   - **Bootstrap servers** — all broker addresses (e.g.
+     `kafka-1:9092,kafka-2:9092,kafka-3:9092`). Default: `localhost:9092`.
+   - **Topic pattern** — target topic. Default: `iot.telemetry`.
+
+3. The chain runs on post telemetry uploads. Use
+   [**Check connectivity**](https://thingsboard.io/docs/user-guide/devices/#check-connectivity)
+   on any device whose telemetry routes through the installed chain
+   to confirm the record arrives in your Kafka topic.
+
+# How to customize
+
+- **To route different device types to different topics** — use
+  [templatization](https://thingsboard.io/docs/reference/rule-engine/templatization/)
+  in **Topic pattern** on the **Send to Kafka** node (e.g.
+  `iot.telemetry.$[deviceType]`).
+- **To drop unwanted messages before they reach Kafka** — add a
+  [Filter](https://thingsboard.io/docs/reference/rule-engine/nodes/filter/)
+  node before **Send to Kafka** (e.g. a filter script on data
+  or metadata fields).
+- **To add more context to the Kafka record** — add an
+  [Enrichment](https://thingsboard.io/docs/reference/rule-engine/nodes/enrichment/)
+  node before **Send to Kafka** (e.g. customer, tenant, asset,
+  or related-entity data).
+- **To tune producer reliability and throughput** — adjust the
+  **Producer settings** on the **Send to Kafka** node (retries,
+  batch size, linger time, buffer memory, acks). Defaults work
+  for most deployments.
+````
 
 ## Versioning & Checksum
 
@@ -290,17 +422,16 @@ This means any structural change — adding a node, changing a node's configurat
 
 ### Rule Chain JSON
 
-- [ ] `ruleChain` object is present with `name` and `type`
-- [ ] `ruleChain.type` is one of `CORE` or `EDGE`
-- [ ] `metadata.nodes` is an array (may be empty, but usually contains your logic)
-- [ ] All node `configuration` fields are valid for their respective node types
+- [ ] `ruleChain` object is present with a non-empty `name` and `type` of `CORE` or `EDGE`
+- [ ] `ruleChain.root` is `false`
+- [ ] Chain extends the default root chain — default processing (telemetry and attribute saving, RPC handling) remains intact when the chain is set as a profile default
+- [ ] Added nodes have `debugSettings` with `failuresEnabled: true` and `allEnabled: false`
 - [ ] All `connections` reference valid node indices and correct labels for the source node's output ports
 
 ### Listing Form
 
-- [ ] Icon is set to a Material Icon name
-- [ ] Color is set to a hex value (e.g. `#4CAF50`)
-- [ ] Description is one sentence, under 512 characters
+- [ ] The auto-selected icon and color fit the chain's purpose, and any custom color stays in the catalog's color family for your category
+- [ ] Description is one sentence, under 512 characters, with all template placeholders replaced
 - [ ] At least one value selected from the [Rule Chain Categories](#rule-chain-categories) list
 - [ ] At least one value selected from the [Use Cases](#use-cases) list
 - [ ] Minimum ThingsBoard version is set appropriately
@@ -308,14 +439,14 @@ This means any structural change — adding a node, changing a node's configurat
 
 ### Readme
 
-- [ ] Documents the exact message types and keys the chain expects
-- [ ] Describes the behavior in plain English, step by step
-- [ ] Lists every node field users should tune
-- [ ] Explains how to wire the chain into the root rule chain
+- [ ] No template placeholder text is left in any section
+- [ ] `Who it's for` names the audience and the questions they're asking
+- [ ] `What it does` names the added flow and describes what each added node does
+- [ ] `How to set up` covers both install-dialog paths and ends with how to verify the flow works
+- [ ] Every `How to customize` bullet starts with the user's goal and names the exact field and node to change
 
 ### Content Quality
 
-- [ ] Rule chain has been tested on a real ThingsBoard instance with realistic data
+- [ ] Rule chain has been tested on a real ThingsBoard instance with realistic data — both the added flow and the default processing
 - [ ] Node names in the JSON are descriptive (not `node_1`, `Copy of X`, etc.)
-- [ ] Icon and color are consistent with the catalog conventions for your category
 - [ ] Version follows semver (e.g. `1.0.0`)

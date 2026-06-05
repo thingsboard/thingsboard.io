@@ -1169,6 +1169,63 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 		"description": "MachineAstro provides AI-powered predictive maintenance and energy analytics solutions. Our VIBit wireless vibration & temperature sensors enable real-time machine condition monitoring. The iEdge360 platform delivers 400+ fault diagnostics, anomaly detection, and energy insights. Our AI video analytics ensures workplace safety with fire, smoke, and PPE compliance monitoring."
 	},
 	{
+		"name": "Nano Sensorics",
+		"slug": "nanosensorics",
+		"connectivity": [
+			"LoRaWAN"
+		],
+		"industry": [
+			"Retail",
+			"Industrial Manufacturing",
+			"Smart Buildings",
+			"Energy Management",
+			"Security",
+			"Environmental Monitoring"
+		],
+		"useCase": [
+			"Smart Energy",
+			"Environment Monitoring",
+			"Smart Retail",
+			"Smart Office",
+			"Smart Metering",
+			"Air Quality Monitoring"
+		],
+		"hardwareTypes": [
+			"Sensors"
+		],
+		"logo": "/images/partners/nanosensorics-logo.png",
+		"website": "https://nanosensorics.com/",
+		"links": {
+			"sensorGuides": [
+				{
+					"label": "AmpSense Smart current Sensor",
+					"href": "/device-library/ampsense-smart-current-sensor/"
+				},
+				{
+					"label": "Carbonless CO2 temperature and humidity Sensor",
+					"href": "/device-library/carbonless-co2-temperature-and-humidity-sensor/"
+				},
+				{
+					"label": "TempHu Temperature and Humidity Sensor",
+					"href": "/device-library/temphu-temperature-and-humidity-sensor/"
+				},
+				{
+					"label": "Vapeless Gas detection indoor Sensor",
+					"href": "/device-library/vapeless-gas-detection-indoor-sensor/"
+				},
+				{
+					"label": "Vapeless Pro Gas detection indoor Sensor",
+					"href": "/device-library/vapeless-pro-gas-detection-indoor-sensor/"
+				},
+				{
+					"label": "Vocless VOC temperature and humidity Sensor",
+					"href": "/device-library/vocless-voc-temperature-and-humidity-sensor/"
+				}
+			]
+		},
+		"description": "Nano Sensorics is a Lithuanian R&D and manufacturing company specializing in LoRaWAN-based IoT sensors and cybersecurity-focused monitoring solutions. All products are designed, developed, and manufactured in Lithuania by our experienced engineering team. We help businesses improve energy efficiency, sustainability, and operational performance through reliable, secure, and innovative IoT technologies."
+	},
+	{
 		"name": "MClimate",
 		"slug": "mclimate",
 		"connectivity": [

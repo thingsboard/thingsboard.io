@@ -1,0 +1,453 @@
+---
+import Icon from '~/components/starlight/Icon.astro';
+
+const FORMSPREE_ENDPOINT = 'https://formspree.io/f/mjgzrgwn';
+
+const questions = {
+	yes: [
+		['Accurate', 'accurate'],
+		['Easy to understand', 'easy-to-understand'],
+		['Solved my problem', 'solved-my-problem'],
+		['Helped me decide to use the product', 'helped-me-decide-to-use-the-product'],
+		['Other', 'other-yes'],
+	],
+	no: [
+		['Hard to understand', 'hard-to-understand'],
+		['Incorrect information', 'incorrect-information'],
+		['Missing information', 'missing-information'],
+		['Other', 'other-no'],
+	],
+} as const;
+
+const options = ['yes', 'no'] as const;
+---
+
+<div class="feedback-prompt not-content" data-feedback-root data-endpoint={FORMSPREE_ENDPOINT}>
+	<p class="feedback-title" data-feedback-title>Was this helpful?</p>
+
+	<div class="feedback-buttons" data-feedback-buttons>
+		<button type="button" class="feedback-btn" data-option="yes">
+			<Icon name="tabler:thumb-up" size="1.5rem" />
+			<span>Yes</span>
+		</button>
+		<button type="button" class="feedback-btn" data-option="no">
+			<Icon name="tabler:thumb-down" size="1.5rem" />
+			<span>No</span>
+		</button>
+	</div>
+
+	<form class="feedback-form" data-feedback-form hidden novalidate>
+
+		{
+			options.map((opt) => (
+				<fieldset class="feedback-fieldset" data-option-fieldset={opt} hidden>
+					<legend class="sr-only">
+						{opt === 'yes' ? 'What did you like?' : 'What went wrong?'}
+					</legend>
+					<div class="feedback-reasons">
+						{questions[opt].map(([label, value]) => (
+							<label class="feedback-reason">
+								<input
+									type="radio"
+									name="reason"
+									value={value}
+									class="feedback-reason-input"
+								/>
+								<span class="feedback-reason-ring">
+									<span class="feedback-reason-dot" />
+								</span>
+								<span class="feedback-reason-label">{label}</span>
+							</label>
+						))}
+					</div>
+				</fieldset>
+			))
+		}
+
+		<textarea
+			class="feedback-textarea"
+			name="info"
+			rows="2"
+			placeholder="Tell us more about your experience."></textarea>
+
+		<input
+			type="text"
+			name="_gotcha"
+			tabindex="-1"
+			autocomplete="off"
+			class="feedback-honeypot"
+			aria-hidden="true"
+		/>
+
+		<button type="submit" class="feedback-submit" disabled>Submit</button>
+	</form>
+
+	<div class="feedback-success" data-feedback-success hidden>
+		<Icon name="tabler:circle-check-filled" size="1.125rem" />
+		<span>Thank you for your feedback!</span>
+	</div>
+
+	<div class="sr-only" role="status" aria-live="polite" data-feedback-announce></div>
+</div>
+
+<script>
+	type FeedbackOption = 'yes' | 'no';
+
+	const STORAGE_PREFIX = 'feedback-submitted:';
+	const SUBMITTED_EVENT = 'feedback:submitted';
+
+	const isSubmitted = () => {
+		try {
+			return sessionStorage.getItem(STORAGE_PREFIX + location.pathname) === '1';
+		} catch {
+			return false;
+		}
+	};
+
+	const markSubmitted = () => {
+		try {
+			sessionStorage.setItem(STORAGE_PREFIX + location.pathname, '1');
+		} catch {
+			/* Storage may be disabled; in-page custom event still syncs siblings. */
+		}
+		document.dispatchEvent(new CustomEvent(SUBMITTED_EVENT));
+	};
+
+	const showSuccessFor = (root: HTMLElement, announce: boolean) => {
+		const title = root.querySelector<HTMLElement>('[data-feedback-title]');
+		const buttons = root.querySelector<HTMLElement>('[data-feedback-buttons]');
+		const form = root.querySelector<HTMLFormElement>('[data-feedback-form]');
+		const success = root.querySelector<HTMLElement>('[data-feedback-success]');
+		const announceEl = root.querySelector<HTMLElement>('[data-feedback-announce]');
+		if (!title || !buttons || !form || !success) return;
+		title.hidden = true;
+		buttons.hidden = true;
+		form.hidden = true;
+		success.hidden = false;
+		if (announce && announceEl) announceEl.textContent = 'Thank you for your feedback!';
+	};
+
+	// Single module-scope listener so View Transitions don't accumulate one per page navigation.
+	document.addEventListener(SUBMITTED_EVENT, () => {
+		document
+			.querySelectorAll<HTMLElement>('[data-feedback-root]')
+			.forEach((root) => showSuccessFor(root, false));
+	});
+
+	function bind(root: HTMLElement) {
+		if (root.dataset.bound) return;
+		root.dataset.bound = '1';
+
+		const endpoint = root.dataset.endpoint;
+		const title = root.querySelector<HTMLElement>('[data-feedback-title]');
+		const buttons = root.querySelector<HTMLElement>('[data-feedback-buttons]');
+		const form = root.querySelector<HTMLFormElement>('[data-feedback-form]');
+		const success = root.querySelector<HTMLElement>('[data-feedback-success]');
+		const submit = form?.querySelector<HTMLButtonElement>('button[type="submit"]');
+		if (!endpoint || !title || !buttons || !form || !success || !submit) return;
+
+		if (isSubmitted()) {
+			showSuccessFor(root, false);
+			return;
+		}
+
+		let chosen: FeedbackOption | null = null;
+
+		buttons.addEventListener('click', (e) => {
+			const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-option]');
+			if (!btn) return;
+			chosen = btn.dataset.option as FeedbackOption;
+			title.textContent = chosen === 'yes' ? 'What did you like?' : 'What went wrong?';
+			buttons.hidden = true;
+			form.hidden = false;
+			root.querySelectorAll<HTMLElement>('[data-option-fieldset]').forEach((fs) => {
+				fs.hidden = fs.dataset.optionFieldset !== chosen;
+			});
+			root
+				.querySelector<HTMLInputElement>(
+					`[data-option-fieldset="${chosen}"] .feedback-reason-input`
+				)
+				?.focus();
+		});
+
+		form.addEventListener('change', (e) => {
+			if ((e.target as HTMLInputElement).name === 'reason') submit.disabled = false;
+		});
+
+		form.addEventListener('submit', async (e) => {
+			e.preventDefault();
+			if (!chosen) return;
+			submit.disabled = true;
+			let ok = false;
+			try {
+				const response = await fetch(endpoint, {
+					method: 'POST',
+					headers: {
+						Accept: 'application/json',
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify({
+						...Object.fromEntries(new FormData(form)),
+						option: chosen,
+						page: location.pathname,
+					}),
+				});
+				ok = response.ok;
+			} catch {
+				/* Network failure — fall through with ok=false. */
+			}
+			if (!ok) {
+				submit.disabled = false;
+				return;
+			}
+			markSubmitted();
+			showSuccessFor(root, true);
+		});
+	}
+
+	const init = () =>
+		document.querySelectorAll<HTMLElement>('[data-feedback-root]').forEach(bind);
+
+	document.addEventListener('astro:page-load', init);
+	if (document.readyState !== 'loading') init();
+</script>
+
+<style lang="scss">
+	/* HTML5 [hidden] is just `display: none` at user-agent level;
+	   any class with `display: flex/grid` would override it, so force it. */
+	.feedback-prompt [hidden] {
+		display: none !important;
+	}
+
+	.feedback-prompt {
+		container-type: inline-size;
+		max-width: var(--feedback-max-width, 18rem);
+		margin: 2rem 0 1.5rem;
+		padding-top: 1.25rem;
+		border-top: 1px solid var(--sl-color-hairline);
+	}
+
+	.feedback-title {
+		margin: 0;
+		font-size: 0.6875rem;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--sl-color-gray-3);
+	}
+
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
+	}
+
+	.feedback-buttons {
+		display: flex;
+		gap: 0.5rem;
+		margin-top: 0.75rem;
+	}
+
+	.feedback-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		height: 2.25rem;
+		padding: 0 0.875rem;
+		border: 1px solid var(--sl-color-hairline);
+		border-radius: 0.5rem;
+		background: var(--sl-color-bg-nav);
+		color: var(--sl-color-text);
+		font: inherit;
+		font-size: 0.8125rem;
+		font-weight: 500;
+		cursor: pointer;
+		transition: background-color 0.15s ease, border-color 0.15s ease;
+	}
+
+	.feedback-btn:hover {
+		border-color: var(--sl-color-gray-3);
+		background: var(--sl-color-gray-6, var(--sl-color-bg));
+	}
+
+	.feedback-btn :global(svg) {
+		width: 1.5rem;
+		height: 1.5rem;
+		font-size: 1.5rem;
+		opacity: 0.75;
+	}
+
+	.feedback-success :global(svg) {
+		width: 1.25rem;
+		height: 1.25rem;
+		font-size: 1.25rem;
+		flex-shrink: 0;
+	}
+
+	.feedback-form {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		margin-top: 0.75rem;
+	}
+
+	.feedback-fieldset {
+		margin: 0;
+		padding: 0;
+		border: 0;
+	}
+
+	.feedback-reasons {
+		display: flex;
+		flex-direction: column;
+		gap: 0.375rem;
+	}
+
+	.feedback-reason {
+		position: relative;
+		display: flex;
+		align-items: center;
+		gap: 0.625rem;
+		padding: 0.5rem 0.625rem;
+		border: 1px solid var(--sl-color-hairline);
+		border-radius: 0.5rem;
+		font-size: 0.8125rem;
+		color: var(--sl-color-text);
+		cursor: pointer;
+		user-select: none;
+		transition: border-color 0.15s ease, background-color 0.15s ease;
+	}
+
+	.feedback-reason:hover {
+		border-color: var(--sl-color-gray-3);
+		background: var(--sl-color-bg-nav);
+	}
+
+	.feedback-reason:has(.feedback-reason-input:checked) {
+		border-color: var(--sl-color-text-accent);
+	}
+
+	.feedback-reason:has(.feedback-reason-input:focus-visible) {
+		outline: 2px solid var(--sl-color-text-accent);
+		outline-offset: 2px;
+	}
+
+	.feedback-reason-input {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		opacity: 0;
+		cursor: pointer;
+		margin: 0;
+	}
+
+	.feedback-reason-ring {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		width: 1rem;
+		height: 1rem;
+		border: 1px solid var(--sl-color-gray-3);
+		border-radius: 50%;
+		transition: border-color 0.15s ease, border-width 0.15s ease;
+	}
+
+	.feedback-reason:has(.feedback-reason-input:checked) .feedback-reason-ring {
+		border-color: var(--sl-color-text-accent);
+		border-width: 2px;
+	}
+
+	.feedback-reason-dot {
+		width: 0.5rem;
+		height: 0.5rem;
+		border-radius: 50%;
+		background: var(--sl-color-text-accent);
+		transform: scale(0);
+		transition: transform 0.15s ease;
+	}
+
+	.feedback-reason:has(.feedback-reason-input:checked) .feedback-reason-dot {
+		transform: scale(1);
+	}
+
+	.feedback-reason-label {
+		line-height: 1.3;
+	}
+
+	.feedback-textarea {
+		width: 100%;
+		padding: 0.5rem 0.75rem;
+		border: 1px solid var(--sl-color-hairline);
+		border-radius: 0.5rem;
+		background: var(--sl-color-bg);
+		color: var(--sl-color-text);
+		font: inherit;
+		font-size: 0.8125rem;
+		resize: vertical;
+		min-height: 4rem;
+		transition: border-color 0.15s ease, box-shadow 0.15s ease;
+	}
+
+	.feedback-textarea::placeholder {
+		color: var(--sl-color-gray-3);
+	}
+
+	.feedback-textarea:focus {
+		outline: none;
+		border-color: var(--sl-color-text-accent);
+		box-shadow: 0 0 0 1px var(--sl-color-text-accent);
+	}
+
+	.feedback-honeypot {
+		position: absolute;
+		left: -9999px;
+		width: 1px;
+		height: 1px;
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	.feedback-submit {
+		align-self: flex-start;
+		height: 2rem;
+		padding: 0 1rem;
+		border: 0;
+		border-radius: 0.5rem;
+		background: var(--sl-color-text-accent);
+		color: var(--sl-color-bg);
+		font: inherit;
+		font-size: 0.8125rem;
+		font-weight: 500;
+		cursor: pointer;
+		transition: opacity 0.15s ease;
+	}
+
+	.feedback-submit:hover:not(:disabled) {
+		opacity: 0.9;
+	}
+
+	.feedback-submit:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
+	}
+
+	.feedback-success {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin-top: 0.75rem;
+		padding: 0.625rem 0.75rem;
+		border-radius: 0.5rem;
+		background: var(--sl-color-green-low);
+		color: var(--sl-color-green-high);
+		font-size: 0.8125rem;
+	}
+</style>

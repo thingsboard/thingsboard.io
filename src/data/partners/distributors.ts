@@ -54,13 +54,6 @@ export const DISTRIBUTORS: Distributor[] = [
 		website: "asc-ro.com",
 	},
 	{
-		name: "arx iT",
-		regions: ["Europe"],
-		countries: ["France"],
-		email: "info@arxit.com",
-		website: "arxit.com",
-	},
-	{
 		name: "Atea Sverige AB",
 		regions: ["Europe"],
 		countries: ["Sweden"],
