@@ -1183,7 +1183,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"Environmental Monitoring"
 		],
 		"useCase": [
-			"Smart energy",
+			"Smart Energy",
 			"Environment Monitoring",
 			"Smart Retail",
 			"Smart Office",
@@ -1193,10 +1193,10 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 		"hardwareTypes": [
 			"Sensors"
 		],
-		"logo": "/images/partners/nanosensorics-logo.jpg",
+		"logo": "/images/partners/nanosensorics-logo.png",
 		"website": "https://nanosensorics.com/",
 		"links": {
-			"generalGuides": [
+			"sensorGuides": [
 				{
 					"label": "AmpSense Smart current Sensor",
 					"href": "/device-library/ampsense-smart-current-sensor/"
@@ -1223,7 +1223,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 				}
 			]
 		},
-		"description": "Nanosensorics is a Lithuanian R&D and manufacturing company specializing in LoRaWAN-based IoT sensors and cybersecurity-focused monitoring solutions. All products are designed, developed, and manufactured in Lithuania by our experienced engineering team. We help businesses improve energy efficiency, sustainability, and operational performance through reliable, secure, and innovative IoT technologies."
+		"description": "Nano Sensorics is a Lithuanian R&D and manufacturing company specializing in LoRaWAN-based IoT sensors and cybersecurity-focused monitoring solutions. All products are designed, developed, and manufactured in Lithuania by our experienced engineering team. We help businesses improve energy efficiency, sustainability, and operational performance through reliable, secure, and innovative IoT technologies."
 	},
 	{
 		"name": "MClimate",
