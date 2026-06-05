@@ -1183,10 +1183,13 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"Environmental Monitoring"
 		],
 		"useCase": [
-			"Smart energy",
+			"Smart Energy",
 			"Environment Monitoring",
 			"Smart Retail",
 			"Smart Office",
+			"Smart Metering",
+			"Air Quality Monitoring"
+		],
 			"Smart Metering",
 			"Air Quality Monitoring"
 		],
