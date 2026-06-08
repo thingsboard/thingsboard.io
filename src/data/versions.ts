@@ -11,7 +11,11 @@ export const CE_FULL_VER = '4.3.1.2';
 
 export const TB_VER = CE_FULL_VER;
 
-/** Community Edition release branch (for git clone) */
+/**
+ * Community Edition release branch (X.Y format) — only for repos branched per
+ * minor release: `thingsboard`, `rule-node-examples`. For k8s repos use
+ * `k8sCloneCmd` from `~/util/install-commands`.
+ */
 export const CE_BRANCH = 'release-4.3';
 
 /**

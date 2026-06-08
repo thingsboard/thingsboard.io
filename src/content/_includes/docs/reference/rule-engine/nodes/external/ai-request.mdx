@@ -1,17 +1,132 @@
 import DocLink from '@components/DocLink.astro';
 import { Aside } from '@astrojs/starlight/components';
+import { Products } from '~/models/site.models';
 
-Use this node to send message data to a large language model and receive an AI-generated response as the outgoing message — for example, analysing device anomaly descriptions with a natural-language model, classifying incoming telemetry against predefined categories, or generating a human-readable alarm summary from raw sensor values.
+This node sends a request to a large language model (LLM) and writes the model's response into the outgoing message. A typical use case is predictive maintenance: the model analyzes equipment telemetry to detect early signs of failure — see the <DocLink product={props.product} path="user-guide/ai-predictive-maintenance" useTbDocs>AI Predictive Maintenance</DocLink> guide for a complete walkthrough.
 
 ## Configuration
 
-- **Model** — required. Reference to a configured AI model entity in ThingsBoard.
-- **System prompt** — optional. System-level instruction for the LLM (up to 500,000 characters). Supports <DocLink product={props.product} path="reference/rule-engine/templatization">templatization</DocLink>. Use `${*}` for all metadata or `${key}` for a specific field; `$[*]` for all message data or `$[key]` for a specific field.
-- **User prompt** — required. User-level message sent to the LLM (up to 500,000 characters). Supports templatization with the same `$[...]` / `${...}` syntax.
-- **AI resources** — optional file attachments included with the request (text/*, application/pdf, image/*).
-- **Response format** — `TEXT`, `JSON`, or `JSON_SCHEMA`. Note: `JSON` and `JSON_SCHEMA` are not supported on Amazon Bedrock, Anthropic, or GitHub Models.
+- **Model** — required. The AI model to use for the request. See the <DocLink product={props.product} path="user-guide/ai-models" useTbDocs>AI Models</DocLink> page to learn how to configure one.
+- **System prompt** — optional. Instructions that define the model's role and behavior (up to 500,000 characters). Supports [prompt templates](#prompt-templates).
+- **User prompt** — required. The task you want the model to perform (up to 500,000 characters). Supports [prompt templates](#prompt-templates).
+- **AI resources** — optional. Files attached to the request, such as documents or images for the model to analyze. To attach a file, first upload it to the Resources library as a resource of type **General**. Supported media types are text/*, application/pdf, and image/*; other types are treated as text.
+- **Response format** — controls how the model's output is constrained:
+
+  - **Text** — the output is not constrained in any way. The model responds with free-form
+    text: prose, Markdown, or even valid JSON — whatever your prompts ask for.
+
+  - **JSON** — schemaless JSON mode. The model is forced to produce syntactically valid JSON,
+    but its structure — field names, nesting, value types — is not enforced; you guide it
+    through the prompts.
+
+  - **JSON Schema** — the model's output is constrained to adhere to the JSON Schema you
+    provide. See [JSON Schema support](#json-schema-support) for what the schema may contain.
+
+  Both JSON and JSON Schema ensure the model's output can be reliably parsed by downstream
+  rule nodes — use JSON when the exact shape of the output is flexible, and JSON Schema when
+  it must be precise. JSON and JSON Schema are not available for Anthropic, Amazon Bedrock,
+  and GitHub Models — these providers support Text only.
 - **Timeout** — request timeout in seconds (1–600).
-- **Force acknowledgement** — controlled by the `ACTORS_RULE_EXTERNAL_NODE_FORCE_ACK` environment variable.
+- **Force acknowledgement** — if enabled, the incoming message is acknowledged immediately, and the AI request is processed asynchronously. {(props.product === Products.PAAS || props.product === Products.PAAS_EU) ? <>On ThingsBoard Cloud, this setting is effectively always enabled for platform reliability reasons — incoming messages are always acknowledged immediately regardless of its value.</> : <>Force acknowledgement is also enabled platform-wide for all external rule nodes when the <code>ACTORS_RULE_EXTERNAL_NODE_FORCE_ACK</code> environment variable is set to true, regardless of this setting.</>}
+
+<details>
+  <summary>Node configuration JSON Schema — for programmatic use</summary>
+
+  ```json
+  {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "TbAiRequestNodeConfiguration",
+    "type": "object",
+    "required": ["modelId", "userPrompt", "responseFormat", "timeoutSeconds"],
+    "additionalProperties": false,
+    "properties": {
+      "modelId": { "type": "object", "description": "Reference to the AI model entity." },
+      "systemPrompt": { "type": "string" },
+      "userPrompt": { "type": "string" },
+      "resourceIds": { "type": "array" },
+      "responseFormat": {
+        "type": "object",
+        "required": ["type"],
+        "additionalProperties": false,
+        "properties": {
+          "type": { "type": "string", "enum": ["TEXT", "JSON", "JSON_SCHEMA"] },
+          "schema": {
+            "type": "object",
+            "description": "The JSON Schema for the model output."
+          }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "type": { "const": "JSON_SCHEMA" } } },
+            "then": { "required": ["schema"] }
+          }
+        ]
+      },
+      "timeoutSeconds": { "type": "integer", "minimum": 1, "maximum": 600 },
+      "forceAck": { "type": "boolean" }
+    }
+  }
+  ```
+
+</details>
+
+### Prompt templates
+
+Both prompts can include data from the incoming message using <DocLink product={props.product} path="reference/rule-engine/templatization">templatization</DocLink>:
+
+| Template | Inserts                   |
+|----------|---------------------------|
+| `$[*]`   | all message data          |
+| `$[key]` | a specific data field     |
+| `${*}`   | all metadata              |
+| `${key}` | a specific metadata field |
+
+Templates mix freely with static text. With message data `{"deviceId": "sensor-5", "temperature": 97.3}`, the prompt
+
+```
+Analyze this telemetry: $[*]
+```
+
+is sent to the model as:
+
+```
+Analyze this telemetry: {"deviceId":"sensor-5","temperature":97.3}
+```
+
+### JSON Schema support
+
+The schema must be a valid [JSON Schema](https://json-schema.org/) (draft 2020-12) and must define a top-level `title`,
+which is used as the schema name in the request to the AI provider. For example:
+
+```json
+{
+  "title": "AnomalyReport",
+  "type": "object",
+  "properties": {
+    "anomaly": { "type": "boolean" },
+    "reason": { "type": "string", "description": "Short explanation of the verdict" }
+  },
+  "required": ["anomaly", "reason"],
+  "additionalProperties": false
+}
+```
+
+Only the following JSON Schema keywords are sent to the model — any other keyword
+(`pattern`, `minimum`, `format`, `$ref`, `oneOf`, …) is ignored:
+
+| Keyword                | Applies to  | Notes                                                               |
+|------------------------|-------------|---------------------------------------------------------------------|
+| `title`                | top level   | Required. Used as the schema name.                                  |
+| `type`                 | any element | `string`, `integer`, `number`, `boolean`, `null`, `object`, `array` |
+| `description`          | any element |                                                                     |
+| `enum`                 | any element | String values only. May be used with or without `type`.             |
+| `properties`           | objects     |                                                                     |
+| `required`             | objects     |                                                                     |
+| `additionalProperties` | objects     | Boolean form only.                                                  |
+| `items`                | arrays      |                                                                     |
+
+How strictly the schema is enforced — and whether every keyword is honored — ultimately
+depends on the AI provider and the specific model used.
 
 ## Message processing algorithm
 
@@ -19,51 +134,53 @@ Use this node to send message data to a large language model and receive an AI-g
 2. Render the system and user prompts using templatization.
 3. Load and convert any configured resources (UTF-8 for text, Base64 for binary).
 4. Send the chat request to the configured AI model.
-5. Validate the response:
-   - For `JSON` / `JSON_SCHEMA` responses: parse as JSON and wrap in `{"response": ...}` if the top-level value is not an object.
-   - For `TEXT` responses: use as-is.
-6. Replace the incoming message data with the AI response; route via `Success`.
+5. Normalize the response: a valid JSON object is kept as-is; anything else is wrapped as a string under the `response` key. This applies to all response formats, including Text. For example:
+
+   | Model response                              | Outgoing message data                      |
+   |---------------------------------------------|--------------------------------------------|
+   | `{"anomaly": true}` — a valid JSON object   | `{"anomaly": true}` — unchanged            |
+   | `Everything looks normal.` — plain text     | `{"response": "Everything looks normal."}` |
+   | `[1, 2, 3]` — valid JSON, but not an object | `{"response": "[1, 2, 3]"}`                |
+
+6. Build the outgoing message: the data is replaced with the AI response, while the originator, message type, and metadata are carried over from the incoming message unchanged. Route via `Success`.
 
 ## Output connections
 
-| Connection | Condition |
-|------------|-----------|
-| `Success` | AI responded successfully. Outgoing message data = AI response. |
-| `Failure` | Request timeout, model or resource not found, provider error, or unexpected error. |
+| Connection | Condition                                                                          |
+|------------|------------------------------------------------------------------------------------|
+| `Success`  | AI responded successfully. Outgoing message data = AI response.                    |
+| `Failure`  | Request timeout, model or resource not found, provider error, or unexpected error. |
 
-## Examples
+## Example — Classify telemetry anomaly
 
-### Example 1 — Classify telemetry anomaly
+A device reports telemetry, and the node asks the model whether the reading is anomalous,
+returning a structured verdict that downstream nodes can route on.
 
-**Data**: `{ "temperature": 97.3, "deviceId": "sensor-5" }`.
+**Incoming message data:**
 
-```json maxLines=20 collapsible
-{
-  "systemPrompt": "You are an IoT anomaly classifier. Respond with JSON only.",
-  "userPrompt": "Device $[deviceId] reports temperature $[temperature]. Is this a critical anomaly? Respond: {\"anomaly\": true/false, \"reason\": \"...\"}",
-  "responseFormat": "JSON",
-  "timeoutSec": 30
-}
+```json
+{ "deviceId": "sensor-5", "temperature": 97.3 }
 ```
 
-**Outgoing data** (example): `{ "anomaly": true, "reason": "Temperature 97.3°C exceeds safe threshold of 80°C." }`. Routes via `Success`.
+**Node configuration:**
 
-## JSON schema
+| Field           | Value                                                                                  |
+|-----------------|----------------------------------------------------------------------------------------|
+| System prompt   | You are an IoT anomaly classifier.                                                     |
+| User prompt     | Device $[deviceId] reports temperature $[temperature] °C. Is this a critical anomaly?  |
+| Response format | JSON Schema — the AnomalyReport schema from [JSON Schema support](#json-schema-support) |
+| Timeout         | 30 seconds                                                                             |
 
-```json maxLines=25 collapsible
-{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "TbAiRequestNodeConfiguration",
-  "type": "object",
-  "required": ["userPrompt", "responseFormat", "timeoutSec"],
-  "additionalProperties": false,
-  "properties": {
-    "modelId": { "type": "object", "description": "Reference to the AI model entity." },
-    "systemPrompt": { "type": "string" },
-    "userPrompt": { "type": "string" },
-    "resources": { "type": "array" },
-    "responseFormat": { "type": "string", "enum": ["TEXT", "JSON", "JSON_SCHEMA"] },
-    "timeoutSec": { "type": "integer", "minimum": 1, "maximum": 600 }
-  }
-}
+The user prompt is rendered with the message data and sent to the model as:
+
 ```
+Device sensor-5 reports temperature 97.3 °C. Is this a critical anomaly?
+```
+
+The model's response conforms to the schema and becomes the outgoing message data, routed
+via `Success`:
+
+```json
+{ "anomaly": true, "reason": "Temperature 97.3 °C exceeds the typical operating range." }
+```
+
