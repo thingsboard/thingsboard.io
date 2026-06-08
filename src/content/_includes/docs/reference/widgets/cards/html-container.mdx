@@ -1,5 +1,9 @@
 import DocLink from '@components/DocLink.astro';
 import { Steps, Aside } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import ImageGallery from '~/components/ImageGallery.astro';
+import tankFleetImg from '~/assets/images/reference/widgets/cards/html-container-tank-fleet.png';
+import compositeTabsImg from '~/assets/images/reference/widgets/cards/html-container-composite-tabs.png';
 
 The **HTML container** widget renders fully custom, self-contained content on a dashboard — your own HTML markup (or an Angular template), CSS, JavaScript, and any external resources you load. It is the most flexible widget in the library: instead of binding to a fixed visual, you write the entire markup and behavior yourself.
 
@@ -92,13 +96,13 @@ The **JavaScript** field holds the widget logic. Your code runs as the body of a
 | Argument | Description |
 |----------|-------------|
 | `ctx` | The standard widget context — the same object available to every widget. Use it to send RPC, switch dashboard states, create data subscriptions, read settings, and access platform services. See the <DocLink product={props.product} path="reference/widgets/widget-api#widget-context-ctx" target="_blank">Widget API reference</DocLink> for its full surface. |
-| `container` | The widget's content element — a native DOM node (`<div class="tb-absolute-fill">`) that wraps your rendered template and fills the full widget area. Query it with `container.querySelector(...)` to reach elements in your markup. |
+| `container` | **Plain HTML mode only.** The widget's content element — a native DOM node (`<div class="tb-absolute-fill">`) that wraps your rendered template; query it with `container.querySelector(...)`. In **Angular mode** it is not passed — bind through `this` instead, and if you need the root element use `ctx.$container[0]` or `event.currentTarget.closest(...)` from a handler. |
 
 Use this function to initialize libraries loaded from [Resources](#resources), build or update the DOM inside `container`, wire up event handlers, and drive the widget through `ctx`.
 
 The JavaScript editor also supports reusing **ThingsBoard JavaScript modules** from the platform's Resource library, letting you share common code across widgets and other UI JavaScript functions.
 
-The body runs bound to a persistent `this` for the widget instance, so you can store handles and state on it (subscription ids, helper functions, cached data) and reuse them across callbacks.
+In **Angular** mode, the template binds to the **widget instance (`this`)**. Expose data and handlers to the template by assigning them to `this` — `this.myValue = …` (or `this.myHandler = () => …`) — and reference `myValue` / `myHandler(...)` from the template. Define any helper functions as **arrow functions** so they keep the same `this` (a plain `function` declaration would not). After changing any template-bound value — for example inside a subscription callback — call `ctx.detectChanges()` so the template re-renders. Keep internal state the template never reads in ordinary local variables.
 
 #### Real-time data with custom subscriptions
 
@@ -157,7 +161,7 @@ const subscriptionOptions = {
 };
 ```
 
-**Data shape.** `subscription.data` is a flat array with one entry per *datasource × data key* combination, in the order the keys were declared. Each entry carries its `datasource` and a `data` array of `[timestamp, value]` pairs (latest values hold a single pair). Index into it as `rowIndex * dataKeys.length + keyIndex`. The globally available `_utils.valueFromKeyData(keyData)` helper extracts a plain value from an entry's `data`.
+**Data shape.** `subscription.data` is a flat array with one entry per *datasource × data key* combination, in the order the keys were declared. Each entry carries its `datasource` and a `data` array of `[timestamp, value]` pairs (latest values hold a single pair). Index into it as `rowIndex * dataKeys.length + keyIndex`, and read a value straight from an entry's `data` — the latest value is the second element of the last pair, `data[data.length - 1][1]`.
 
 ### Widget card
 
@@ -183,57 +187,719 @@ const subscriptionOptions = {
 | **Preserve aspect ratio** | Maintain the width-to-height ratio when resizing. |
 | **Mobile** | Control visibility, stacking order, and fixed height in the mobile layout. |
 
-## Example
+## Examples
 
-### Custom KPI banner
+### Tank fleet overview (Angular)
 
-**Goal:** Build a full-width banner across the top of a dashboard with a custom layout that the grid widgets cannot reproduce — a title, a live clock, and three labeled tiles.
+This example builds a single widget that replaces a whole grid of per-tank cards: summary cards plus one live table of every tank in a fleet. Selecting a tank updates the cards in place, and a per-row **Details** button drills into that tank's dashboard state. It uses **Angular** template mode, with data exposed to the template through the widget instance (`this`).
 
-**Step 1. Add the widget.** Open your dashboard in edit mode, click **Add widget**, select **HTML Widgets**, then choose **HTML container**. Leave the template mode set to **Plain HTML**.
+<Image
+  src={tankFleetImg}
+  alt="HTML container Tank fleet overview — summary cards above a live table of tanks, with the selected row highlighted"
+  style={{ width: '100%', height: 'auto', borderRadius: '8px', border: '1px solid var(--sl-color-hairline)' }}
+/>
 
-**Step 2. Enter the template.** In the **HTML** field, paste:
+**What it does**
 
-```html
-<div class="banner">
-  <div class="brand">
-    <h2>Operations Overview</h2>
-    <span id="clock"></span>
+- Resolves a **Tanks** entity alias and opens a `latest` custom subscription for each tank's temperature and liquid level.
+- Groups the incoming data by entity and renders one row per tank — temperature and liquid level — with summary **cards** above that show the same metrics for the selected tank.
+- Clicking a row **selects that tank in place** (the cards update, no navigation); the **Details** button **opens the `tankDetailsState`** for that tank — a master→detail drill-down with breadcrumb back.
+
+<Aside type="note">
+Set **Template mode** to **Angular** so `{{ }}` interpolation and `*ngFor` are compiled. The template binds to the **widget instance (`this`)**, so every value and handler it references (`tanks`, `selectTank`, `selectedTank`, …) is assigned to `this` in the JavaScript below. The helper functions are arrow functions so they keep the same `this`. After updating any template-bound value, call `ctx.detectChanges()` to re-render.
+</Aside>
+
+**Step 1. Add the widget.** Open the dashboard in edit mode, click **Add widget**, select **HTML Widgets**, choose **HTML container**, and set **Template mode** to **Angular**.
+
+**Step 2. Create the alias and the detail state.**
+
+- Add a dashboard entity alias named `Tanks` that resolves to your tank entities (devices or assets).
+- Add a dashboard state with id `tankDetailsState` holding the per-tank detail widgets (charts, cards) bound to the state entity. Clicking a row navigates here for the selected tank.
+
+**Step 3. Enter the Angular template.**
+
+```html maxLines=15 collapsible
+<div class="tank-fleet">
+  <h3 class="tank-fleet__title">Tank fleet</h3>
+  <div class="tank-fleet__cards">
+    <div class="kpi">
+      <span class="kpi__label">Selected</span>
+      <span class="kpi__value">{{ selected?.name || '—' }}</span>
+    </div>
+    <div class="kpi">
+      <span class="kpi__label">Temperature, °C</span>
+      <span class="kpi__value">{{ selected?.values?.temperature ?? '—' }}</span>
+    </div>
+    <div class="kpi">
+      <span class="kpi__label">Liquid level</span>
+      <span class="kpi__value">{{ selected?.values?.liquid_level ?? '—' }}</span>
+    </div>
   </div>
-  <div class="tiles">
-    <div class="tile"><span class="label">Site</span><span class="value">North Plant</span></div>
-    <div class="tile"><span class="label">Shift</span><span class="value">Day</span></div>
-    <div class="tile"><span class="label">Status</span><span class="value ok">Nominal</span></div>
+  <table class="tank-fleet__table">
+    <thead>
+      <tr><th>Tank</th><th>Temperature, °C</th><th>Liquid level</th><th></th></tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let tank of tanks"
+          [class.is-selected]="tank.entityId === selectedTank"
+          (click)="selectTank(tank)">
+        <td class="tank-fleet__name">{{ tank.name }}</td>
+        <td>{{ tank.values.temperature ?? '—' }}</td>
+        <td>{{ tank.values.liquid_level ?? '—' }}</td>
+        <td class="tank-fleet__actions">
+          <button class="btn-ghost" (click)="openDetails(tank); $event.stopPropagation()">Details ›</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+```
+
+**Step 4. Add CSS.**
+
+```css maxLines=15 collapsible
+.tank-fleet {
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  font-family: 'Roboto', system-ui, sans-serif;
+  color: #1f2733;
+}
+.tank-fleet__title { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: 0.2px; }
+
+/* Summary cards */
+.tank-fleet__cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffffff, #f7f9fc);
+  border: 1px solid #e6eaf0;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+.kpi__label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: #8a94a6; }
+.kpi__value { font-size: 24px; font-weight: 700; line-height: 1.1; }
+
+/* Table */
+.tank-fleet__table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+.tank-fleet__table th {
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #8a94a6;
+  border-bottom: 1px solid #e6eaf0;
+}
+.tank-fleet__table td { padding: 12px 14px; border-bottom: 1px solid #f0f2f6; }
+.tank-fleet__name { font-weight: 600; }
+.tank-fleet__actions { text-align: right; }
+.tank-fleet__table tbody tr { cursor: pointer; transition: background 0.15s ease; }
+.tank-fleet__table tbody tr:hover { background: #f5f8ff; }
+.tank-fleet__table tbody tr.is-selected { background: #eaf1ff; box-shadow: inset 3px 0 0 #2f6bff; }
+
+/* Ghost button */
+.btn-ghost {
+  padding: 6px 12px;
+  border: 1px solid #d6dbe4;
+  border-radius: 8px;
+  background: #fff;
+  color: #2f6bff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.btn-ghost:hover { background: #f0f5ff; border-color: #2f6bff; }
+```
+
+**Step 5. Add the JavaScript.** This resolves the alias, opens the subscription, builds the table rows, computes the selected-tank cards, and wires up the template helpers.
+
+```javascript maxLines=20 collapsible
+// The Angular template binds to the widget instance (this). Expose data and
+// handlers to the template by assigning them to this. The functions below are
+// arrow functions so they keep the same this.
+this.tanks = [];
+this.selected = null; // the currently selected tank, shown in the cards
+this.selectedTank = ctx.stateController.getStateParams().entityId?.id;
+this.selectedTankName = ctx.stateController.getStateParams().entityName;
+
+// Internal state — not referenced by the template.
+let latestData = null;
+let tanksAliasId = null;
+
+const latestKeys = [
+  { type: 'timeseries', name: 'temperature', settings: {} },
+  { type: 'timeseries', name: 'liquid_level', settings: {} },
+];
+
+// Recompute the selected tank (shown in the cards) from the current selection.
+const updateSelected = () => {
+  this.selected = this.tanks.find((tank) => tank.entityId === this.selectedTank) || null;
+};
+
+// Selection follows dashboard state changes.
+ctx.stateController.dashboardCtrl.dashboardCtx.stateChanged.subscribe(() => {
+  this.selectedTank = ctx.stateController.getStateParams().entityId?.id;
+  this.selectedTankName = ctx.stateController.getStateParams().entityName;
+  updateSelected();
+  ctx.detectChanges();
+});
+
+// Clicking a row selects the tank in place — it updates the current state
+// params, so the cards above the table reflect it without navigating away.
+this.selectTank = (tank) =>
+  ctx.stateController.updateState(null, {
+    entityId: { entityType: tank.entityType, id: tank.entityId },
+    entityName: tank.name,
+  });
+
+// The "Details" button drills into the tank's detail state. openState adds it
+// to the breadcrumb, so the user can navigate back to the overview.
+this.openDetails = (tank) =>
+  ctx.stateController.openState('tankDetailsState', {
+    entityId: { entityType: tank.entityType, id: tank.entityId },
+    entityName: tank.name,
+  });
+
+// Build one row per entity. Each data entry already carries its datasource
+// (entityId, entityName, entityType) and its dataKey — so group by entity and
+// read each value by key name instead of relying on positional indexes.
+const rebuildTanks = () => {
+  const byEntity = new Map();
+  const tankFor = (ds) => {
+    let tank = byEntity.get(ds.entityId);
+    if (!tank) {
+      tank = { entityId: ds.entityId, entityType: ds.entityType, name: ds.entityName, values: {} };
+      byEntity.set(ds.entityId, tank);
+    }
+    return tank;
+  };
+
+  (latestData || []).forEach((entry) => {
+    const data = entry.data; // array of [ts, value] pairs
+    tankFor(entry.datasource).values[entry.dataKey.name] = data.length ? data[data.length - 1][1] : undefined;
+  });
+
+  this.tanks = Array.from(byEntity.values());
+  updateSelected();
+};
+
+// Resolve the "Tanks" alias, then open the subscription.
+const aliases = ctx.aliasController.getEntityAliases();
+for (const aliasId of Object.keys(aliases)) {
+  if (aliases[aliasId].alias === 'Tanks') tanksAliasId = aliasId;
+}
+
+if (tanksAliasId) {
+  const latestSubOpts = {
+    type: 'latest',
+    datasources: [{ type: 'entity', entityAliasId: tanksAliasId, dataKeys: latestKeys }],
+    callbacks: {
+      onDataUpdated: (subscription) => {
+        latestData = subscription.data;
+        rebuildTanks();
+        ctx.detectChanges();
+      },
+      onDataUpdateError: (subscription, e) => console.error(e),
+    },
+  };
+  ctx.subscriptionApi.createSubscription(latestSubOpts, true).subscribe();
+}
+```
+
+**Step 6. Save and resize.** Click **Add**, size the widget to span the area you want, and click **Save**.
+
+**Result:** One HTML container shows the whole fleet as a custom live table with summary cards that react to the selected tank, plus a per-row drill-down into `tankDetailsState` — a layout and interaction stock widgets can't combine.
+
+<Aside type="tip">
+`openState(stateId, params)` pushes the detail state onto the breadcrumb, so the user can navigate back to the overview. Use `updateState(stateId, params)` instead only when you want to replace the current state with no way back.
+</Aside>
+
+### Composite dashboard with tab navigation (Angular)
+
+This example puts several dashboards inside one widget. A custom tab bar switches which dashboard **state** is rendered in an embedded `<tb-dashboard-state>` region, turning a single HTML container into a multi-view panel. The active view is stored in the dashboard state params, so it survives deep links and browser back/forward.
+
+<Image
+  src={compositeTabsImg}
+  alt="HTML container with an Assets / Devices / Customers tab bar above an embedded dashboard state"
+  style={{ width: '100%', height: 'auto', borderRadius: '8px', border: '1px solid var(--sl-color-hairline)' }}
+/>
+
+**What it does**
+
+- Renders a custom **tab bar**; each tab maps to a dashboard state (`assetsState`, `devicesState`, `customersState`).
+- Embeds the selected state inline with `<tb-dashboard-state [ctx]="ctx" [stateId]="stateId" [syncParentStateParams]="true">` — a whole dashboard state rendered inside the widget.
+- Clicking a tab writes the choice into the dashboard **state params** (`subState`) through `ctx.stateController`; the widget reacts to that change and swaps the embedded state. Because the selection lives in the state params, it is shareable by URL and survives back/forward.
+
+<Aside type="note">
+Set **Template mode** to **Angular**. The template binds to the widget instance (`this`), so `tabs`, `activeTab`, `stateId`, `selectTab`, and `ctx` are all assigned to `this` in the JavaScript. `<tb-dashboard-state>` takes `[ctx]="ctx"` (the widget context) and `[stateId]` (which state to render); `[syncParentStateParams]="true"` passes the parent state params down into the embedded state.
+</Aside>
+
+**Step 1. Add the widget.** Open the dashboard in edit mode, click **Add widget**, select **HTML Widgets**, choose **HTML container**, and set **Template mode** to **Angular**.
+
+**Step 2. Create the states to embed.** Add the dashboard states you want as tabs — for example `assetsState`, `devicesState`, and `customersState` — each a normal state with its own widgets (an assets table, a devices table, a customers table, and so on).
+
+**Step 3. Enter the Angular template.**
+
+```html maxLines=15 collapsible
+<div class="composite">
+  <nav class="tabs">
+    <button *ngFor="let tab of tabs"
+            class="tab"
+            [class.is-active]="tab.id === activeTab"
+            (click)="selectTab(tab.id)">
+      {{ tab.label }}
+    </button>
+  </nav>
+  <div tb-toast toastTarget="layout" class="container">
+    <tb-dashboard-state class="state" [ctx]="ctx" [stateId]="stateId" [syncParentStateParams]="true"></tb-dashboard-state>
   </div>
 </div>
 ```
 
-**Step 3. Add CSS.** In the **CSS** field, paste:
+**Step 4. Add CSS.**
 
-```css
-.banner { display: flex; align-items: center; justify-content: space-between; height: 100%; padding: 0 24px; gap: 24px; }
-.brand h2 { margin: 0; font-size: 20px; font-weight: 600; }
-.brand #clock { font-size: 13px; color: #888; }
-.tiles { display: flex; gap: 16px; }
-.tile { display: flex; flex-direction: column; padding: 8px 16px; border-radius: 8px; background: #f4f6f8; }
-.tile .label { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: #888; }
-.tile .value { font-size: 16px; font-weight: 600; }
-.tile .value.ok { color: #2e7d32; }
+```css maxLines=15 collapsible
+.composite {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  font-family: 'Roboto', system-ui, sans-serif;
+}
+
+/* Segmented tab bar */
+.tabs { display: inline-flex; gap: 4px; padding: 4px; align-self: flex-start; background: #eef1f6; border-radius: 10px; }
+.tab {
+  border: 0;
+  background: transparent;
+  padding: 8px 16px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #5b6472;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.tab:hover { color: #1f2733; }
+.tab.is-active { background: #fff; color: #2f6bff; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08); }
+
+/* Embedded dashboard state fills the remaining area */
+.container { flex-grow: 1; width: 100%; display: flex; padding: 0; border: 1px solid #e6eaf0; border-radius: 12px; overflow: hidden; }
+.state { flex-grow: 1; width: 100%; height: 100%; padding: 0; }
 ```
 
-**Step 4. Add JavaScript.** In the **JavaScript** field, paste a small clock so the banner is live:
+**Step 5. Add the JavaScript.** This maps the tabs to states, swaps the embedded state from the `subState` param, and handles tab clicks.
 
-```javascript
-const el = container.querySelector('#clock');
-function tick() { el.textContent = new Date().toLocaleTimeString(); }
-tick();
-setInterval(tick, 1000);
+```javascript maxLines=20 collapsible
+this.ctx = ctx; // exposed to the template for <tb-dashboard-state [ctx]="ctx">
+
+// Tabs → embedded dashboard states.
+this.tabs = [
+  { id: 'assets', label: 'Assets', stateId: 'assetsState' },
+  { id: 'devices', label: 'Devices', stateId: 'devicesState' },
+  { id: 'customers', label: 'Customers', stateId: 'customersState' },
+];
+
+// Map the subState param to the active tab and the embedded stateId.
+const apply = (subState) => {
+  const tab = this.tabs.find((t) => t.id === subState) || this.tabs[0];
+  this.activeTab = tab.id;
+  this.stateId = tab.stateId;
+};
+apply(ctx.stateController.getStateParams().subState);
+
+// A tab click writes the choice into the state params — no navigation here.
+this.selectTab = (subState) => ctx.stateController.updateState(null, { subState });
+
+// React to state-param changes (tab clicks, deep links, back/forward),
+// then swap the embedded state.
+ctx.stateController.dashboardCtrl.dashboardCtx.stateChanged.subscribe(() => {
+  apply(ctx.stateController.getStateParams().subState);
+  ctx.detectChanges();
+});
 ```
 
-**Step 5. Configure the widget card.** On the **Widget card** tab, disable **Display widget title**, set **Background color** to `#FFFFFF00`, and set **Padding** to `0` so the banner fills the area.
+**Step 6. Save and resize.** Click **Add**, size the widget to span the area you want, and click **Save**.
 
-**Step 6. Save.** Click **Add**, then stretch the widget across the full width of the dashboard and click **Save**.
+**Result:** One HTML container becomes a tabbed, multi-dashboard panel — each tab swaps a full embedded dashboard state in place, with the active view kept in the dashboard state params. The grid layout can't express this on its own.
 
-**Result:** A custom banner spans the dashboard with a layout the standard widgets cannot produce, driven entirely by your own markup, styles, and script.
+### Resizable split master–detail (Angular)
+
+This example splits the widget into a **device list** and a **detail pane** with a **draggable divider** between them — like an IDE. Drag the handle and the panes resize live. Interactive pane resizing inside a single widget is something the dashboard grid can't do at all — there, every widget is a fixed cell you only resize in edit mode.
+
+It uses **Angular** template mode; the split logic is plain mouse-event JavaScript.
+
+**What it does**
+
+- Lists devices of type `peopleCount` in the left pane (name + latest reading).
+- Clicking a device shows its detail on the right — a custom header plus an embedded **`deviceCharts`** dashboard state for that device (handed over through the state params, `[syncParentStateParams]="true"`).
+- A **drag handle** between the panes resizes them live: `mousedown` on the divider tracks the pointer and updates the list-pane width.
+
+<Aside type="note">
+Set **Template mode** to **Angular**. The template binds to the widget instance (`this`) — `devices`, `selected`, `listWidth`, `select`, `startDrag`, and `ctx` are all assigned to `this`; the list-pane width is bound with `[style.width.px]="listWidth"`. Drag tracking uses `window` mouse events so it keeps working while the pointer leaves the divider. Call `ctx.detectChanges()` after updates.
+</Aside>
+
+**Step 1. Add the widget.** Open the dashboard in edit mode, click **Add widget**, select **HTML Widgets**, choose **HTML container**, and set **Template mode** to **Angular**.
+
+**Step 2. Create the detail state.** Add a `deviceCharts` dashboard state holding widgets bound to the **state entity** (time-series charts, cards, …) so it reacts to the selected device.
+
+**Step 3. Enter the Angular template.**
+
+```html maxLines=15 collapsible
+<div class="split">
+  <aside class="split__list" [style.width.px]="listWidth">
+    <h3 class="split__title">Devices</h3>
+    <ul class="split__items">
+      <li *ngFor="let d of devices"
+          class="split__item"
+          [class.is-active]="d.entityId === selectedId"
+          (click)="select(d)">
+        <span class="split__name">{{ d.name }}</span>
+        <span class="split__value">{{ d.lastValue }}</span>
+      </li>
+    </ul>
+  </aside>
+
+  <div class="split__divider" (mousedown)="startDrag($event)"></div>
+
+  <section class="split__detail">
+    <ng-container *ngIf="selected; else empty">
+      <header>
+        <div class="split__eyebrow">Device</div>
+        <h3 class="split__detail-title">{{ selected.name }}</h3>
+      </header>
+      <div class="split__state">
+        <tb-dashboard-state [ctx]="ctx" stateId="deviceCharts" [syncParentStateParams]="true"></tb-dashboard-state>
+      </div>
+    </ng-container>
+    <ng-template #empty><div class="split__empty">Select a device</div></ng-template>
+  </section>
+</div>
+```
+
+**Step 4. Add CSS.**
+
+```css maxLines=15 collapsible
+.split {
+  display: flex;
+  height: 100%;
+  box-sizing: border-box;
+  font-family: 'Inter', 'Roboto', system-ui, sans-serif;
+  color: #0f172a;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+}
+
+/* List pane — width is bound inline and changes while dragging */
+.split__list { flex: 0 0 auto; min-width: 160px; overflow: auto; border-right: 1px solid #eef1f6; }
+.split__title { margin: 0; padding: 16px; font-size: 14px; font-weight: 700; }
+.split__items { list-style: none; margin: 0; padding: 0; }
+.split__item { display: flex; justify-content: space-between; gap: 12px; padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #f1f5f9; transition: background 0.15s ease; }
+.split__item:hover { background: #f8fafc; }
+.split__item.is-active { background: rgba(47, 107, 255, 0.08); box-shadow: inset 3px 0 0 #2f6bff; }
+.split__value { font-weight: 700; color: #475569; }
+
+/* Drag handle */
+.split__divider {
+  flex: 0 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: col-resize;
+  background: #eef1f6;
+  transition: background 0.15s ease;
+}
+.split__divider:hover { background: #e2e8f0; }
+.split__divider::before {
+  content: '';
+  width: 4px;
+  height: 32px;
+  background-image: radial-gradient(circle, #94a3b8 1.2px, transparent 1.4px); /* grip dots */
+  background-position: center;
+  background-size: 4px 6px;
+  background-repeat: repeat-y;
+}
+.split--dragging { user-select: none; }
+.split--dragging .split__list, .split--dragging .split__detail { pointer-events: none; } /* let mousemove reach window during drag */
+
+/* Detail pane */
+.split__detail { flex: 1 1 0; min-width: 220px; display: flex; flex-direction: column; gap: 16px; padding: 20px; overflow: auto; }
+.split__eyebrow { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8; }
+.split__detail-title { margin: 2px 0 0; font-size: 20px; font-weight: 800; }
+.split__state { flex: 1 1 auto; min-height: 260px; border: 1px solid #eef1f6; border-radius: 14px; overflow: hidden; }
+.split__state tb-dashboard-state { display: block; width: 100%; height: 100%; }
+.split__empty { margin: auto; color: #94a3b8; font-size: 14px; }
+```
+
+**Step 5. Add the JavaScript.**
+
+```javascript maxLines=20 collapsible
+this.ctx = ctx; // exposed to the template for <tb-dashboard-state [ctx]="ctx">
+this.devices = [];
+this.selected = null;
+this.selectedId = null;
+this.listWidth = 280; // px, bound to [style.width.px] on the list pane
+
+// Select a device → show its detail state on the right.
+this.select = (d) => {
+  this.selected = d;
+  this.selectedId = d.entityId;
+  ctx.stateController.updateState(null, {
+    entityId: { entityType: d.entityType, id: d.entityId },
+    entityName: d.name,
+  });
+  ctx.detectChanges();
+};
+
+// Drag the divider to resize the panes. Mouse events live on window so the drag
+// continues even when the pointer moves off the thin handle.
+this.startDrag = (event) => {
+  event.preventDefault();
+  const root = event.currentTarget.closest('.split'); // Angular mode has no `container`
+  const left = root.getBoundingClientRect().left;
+  // While dragging, the panes ignore the pointer — otherwise the embedded
+  // dashboard state swallows mousemove and the drag stops over it.
+  root.classList.add('split--dragging');
+  const onMove = (e) => {
+    this.listWidth = Math.max(160, Math.min(e.clientX - left, root.clientWidth - 220));
+    ctx.detectChanges();
+  };
+  const onUp = () => {
+    root.classList.remove('split--dragging');
+    window.removeEventListener('mousemove', onMove);
+    window.removeEventListener('mouseup', onUp);
+  };
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+};
+
+// List devices of type "peopleCount" with their latest reading.
+const subOpts = {
+  type: 'latest',
+  datasources: [
+    {
+      type: 'entity',
+      entityFilter: { type: 'deviceType', deviceTypes: ['peopleCount'], deviceNameFilter: '', resolveMultiple: true },
+      dataKeys: [{ type: 'timeseries', name: 'peopleCount', settings: {} }],
+    },
+  ],
+  callbacks: {
+    onDataUpdated: (subscription) => {
+      this.devices = (subscription.data || []).map((entry) => {
+        const ds = entry.datasource;
+        const last = entry.data && entry.data.length ? entry.data[entry.data.length - 1] : null;
+        return { entityId: ds.entityId, entityType: ds.entityType, name: ds.entityName, lastValue: last ? last[1] : '—' };
+      });
+      ctx.detectChanges();
+    },
+    onDataUpdateError: (subscription, e) => console.error(e),
+  },
+};
+ctx.subscriptionApi.createSubscription(subOpts, true).subscribe();
+```
+
+**Step 6. Save and resize.** Click **Add**, give the widget room, and click **Save**. Drag the divider to balance the list and detail panes.
+
+**Result:** One HTML container becomes a resizable master–detail layout with a draggable splitter — the list and the embedded `deviceCharts` state share the space in whatever proportion you drag to. Interactive pane sizing like this is outside what the widget grid can express.
+
+### Slide-over device detail with mat-drawer (Angular)
+
+This example is the clearest answer to "what does the grid stop me from doing?". A device table fills the widget; clicking a device slides a **right-hand drawer** (~70% wide) **over** the dashboard, showing custom cards plus two embedded dashboard states for that device. An overlay panel like this — floating above other content, sized as a fraction of the screen — is impossible with the rectangular widget grid, where every widget is a fixed cell. Here it's just markup and CSS.
+
+It uses **Angular** template mode and the platform's **Angular Material** `mat-drawer`.
+
+<ImageGallery
+  product={props.product}
+  images={[
+    {
+      src: '/src/assets/images/reference/widgets/cards/html-container-drawer-list.png',
+      alt: 'Material table listing the people-count devices',
+      caption: 'The device list (mat-table) fills the widget.',
+    },
+    {
+      src: '/src/assets/images/reference/widgets/cards/html-container-drawer-detail.png',
+      alt: 'Right-hand drawer with custom cards plus embedded alarms and charts dashboard states',
+      caption: 'Clicking a device slides a ~70% drawer over the dashboard — custom cards plus embedded alarms and charts states.',
+    },
+  ]}
+/>
+
+**What it does**
+
+- Lists devices of type `peopleCount` in an Angular Material **`mat-table`** (name + latest reading).
+- Clicking a row opens an Angular Material **`mat-drawer`** from the right (`position="end"`, `mode="over"`), ~70% wide, overlaying the list.
+- The drawer shows **custom cards** (people, type, last update) plus two embedded **`<tb-dashboard-state>`** panels — `deviceAlarms` and `deviceCharts`.
+- The selected device is handed to those states through the dashboard state params (`[syncParentStateParams]="true"`), so the alarms and charts are for that device.
+
+<Aside type="note">
+Set **Template mode** to **Angular**. `mat-drawer` and `mat-table` are Angular Material components (available across ThingsBoard), and the template binds to the widget instance (`this`) — `devices`, `columns`, `selected`, `drawerOpen`, `openDevice`, and `ctx` are all assigned to `this` in the JavaScript. Call `ctx.detectChanges()` after changing any of them.
+
+Use the **flex-based `<mat-table>`** form (with `<mat-cell>` / `<mat-row>`), **not** `<table mat-table>` with `<td>`/`<tr>`: inside a real `<table>` the HTML parser foster-parents `<ng-container>` out of the table ("voodoo mode"), which breaks the column definitions.
+</Aside>
+
+**Step 1. Add the widget.** Open the dashboard in edit mode, click **Add widget**, select **HTML Widgets**, choose **HTML container**, and set **Template mode** to **Angular**.
+
+**Step 2. Create the embedded states.** Add two dashboard states, `deviceAlarms` and `deviceCharts`, each holding widgets bound to the **state entity** (an alarms table, time-series charts, …) so they react to the selected device.
+
+**Step 3. Enter the Angular template.**
+
+```html maxLines=15 collapsible
+<mat-drawer-container class="dd">
+  <mat-drawer-content class="dd__main">
+    <h3 class="dd__title">Devices</h3>
+    <div class="dd__card">
+      <mat-table [dataSource]="devices" class="dd__table">
+        <ng-container matColumnDef="name">
+          <mat-header-cell *matHeaderCellDef>Device</mat-header-cell>
+          <mat-cell *matCellDef="let d">{{ d.name }}</mat-cell>
+        </ng-container>
+        <ng-container matColumnDef="people">
+          <mat-header-cell *matHeaderCellDef>People</mat-header-cell>
+          <mat-cell *matCellDef="let d">{{ d.lastValue }}</mat-cell>
+        </ng-container>
+        <mat-header-row *matHeaderRowDef="columns"></mat-header-row>
+        <mat-row *matRowDef="let d; columns: columns" [class.is-active]="d.entityId === selectedId" (click)="openDevice(d)"></mat-row>
+      </mat-table>
+    </div>
+  </mat-drawer-content>
+
+  <mat-drawer class="dd__drawer" mode="over" position="end" [opened]="drawerOpen" (openedChange)="drawerOpen = $event">
+    <div class="dd__panel" *ngIf="selected">
+      <header class="dd__panel-bar">
+        <div>
+          <div class="dd__panel-eyebrow">Device</div>
+          <h3 class="dd__panel-title">{{ selected.name }}</h3>
+        </div>
+        <button class="dd__close" (click)="drawerOpen = false">✕</button>
+      </header>
+
+      <div class="dd__cards">
+        <div class="card"><span class="card__label">People</span><span class="card__value">{{ selected.lastValue }}</span></div>
+        <div class="card"><span class="card__label">Type</span><span class="card__value">{{ selected.type }}</span></div>
+        <div class="card"><span class="card__label">Last update</span><span class="card__value">{{ selected.lastSeen }}</span></div>
+      </div>
+
+      <section class="dd__section">
+        <h4 class="dd__section-title">Alarms</h4>
+        <div class="dd__state"><tb-dashboard-state [ctx]="ctx" stateId="deviceAlarms" [syncParentStateParams]="true"></tb-dashboard-state></div>
+      </section>
+      <section class="dd__section">
+        <h4 class="dd__section-title">Charts</h4>
+        <div class="dd__state"><tb-dashboard-state [ctx]="ctx" stateId="deviceCharts" [syncParentStateParams]="true"></tb-dashboard-state></div>
+      </section>
+    </div>
+  </mat-drawer>
+</mat-drawer-container>
+```
+
+**Step 4. Add CSS.**
+
+```css maxLines=15 collapsible
+.dd { height: 100%; font-family: 'Inter', 'Roboto', system-ui, sans-serif; color: #0f172a; }
+
+/* Device list — Angular Material table (mat-table) */
+.dd__main { padding: 20px; box-sizing: border-box; }
+.dd__title { margin: 0 0 16px; font-size: 18px; font-weight: 700; }
+.dd__card { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.12); }
+.dd__table { width: 100%; } /* flex-based mat-table: columns are flex items */
+.dd__table .mat-column-name { flex: 1; } /* Device column eats the slack */
+.dd__table .mat-column-people { flex: 0 0 120px; justify-content: flex-end; } /* numeric column */
+.dd__table .mat-mdc-row { cursor: pointer; }
+.dd__table .mat-mdc-row:hover { background: rgba(0, 0, 0, 0.04); }
+.dd__table .mat-mdc-row.is-active { background: rgba(47, 107, 255, 0.08); }
+
+/* Right slide-over drawer (~70% of the widget) */
+.dd__drawer { width: 70%; box-sizing: border-box; }
+.dd__panel { display: flex; flex-direction: column; gap: 16px; padding: 24px; }
+.dd__panel-bar { display: flex; align-items: flex-start; justify-content: space-between; }
+.dd__panel-eyebrow { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #94a3b8; }
+.dd__panel-title { margin: 2px 0 0; font-size: 22px; font-weight: 800; }
+.dd__close { border: 0; background: #f1f5f9; border-radius: 10px; width: 36px; height: 36px; font-size: 16px; cursor: pointer; color: #475569; }
+.dd__close:hover { background: #e2e8f0; }
+
+/* Custom cards */
+.dd__cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.card { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border-radius: 14px; background: linear-gradient(180deg, #f8fafc, #eef2f7); border: 1px solid #e6ebf2; }
+.card__label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #94a3b8; }
+.card__value { font-size: 18px; font-weight: 800; }
+
+/* Embedded dashboard states */
+.dd__section { display: flex; flex-direction: column; gap: 8px; }
+.dd__section-title { margin: 0; font-size: 13px; font-weight: 700; color: #334155; }
+.dd__state { height: 280px; border: 1px solid #eef1f6; border-radius: 14px; overflow: hidden; }
+.dd__state tb-dashboard-state { display: block; width: 100%; height: 100%; }
+```
+
+**Step 5. Add the JavaScript.**
+
+```javascript maxLines=20 collapsible
+this.ctx = ctx; // exposed to the template for <tb-dashboard-state [ctx]="ctx">
+this.devices = [];
+this.columns = ['name', 'people']; // mat-table column order
+this.selected = null;
+this.selectedId = null;
+this.drawerOpen = false;
+
+// Open the right drawer for a device, and pass it to the embedded states via the
+// dashboard state params (the states use [syncParentStateParams]="true").
+this.openDevice = (d) => {
+  this.selected = d;
+  this.selectedId = d.entityId;
+  this.drawerOpen = true;
+  ctx.stateController.updateState(null, {
+    entityId: { entityType: d.entityType, id: d.entityId },
+    entityName: d.name,
+  });
+  ctx.detectChanges();
+};
+
+// List devices of type "peopleCount" with their latest reading.
+const subOpts = {
+  type: 'latest',
+  datasources: [
+    {
+      type: 'entity',
+      entityFilter: { type: 'deviceType', deviceTypes: ['peopleCount'], deviceNameFilter: '', resolveMultiple: true },
+      dataKeys: [{ type: 'timeseries', name: 'peopleCount', settings: {} }],
+    },
+  ],
+  callbacks: {
+    onDataUpdated: (subscription) => {
+      this.devices = (subscription.data || []).map((entry) => {
+        const ds = entry.datasource;
+        const last = entry.data && entry.data.length ? entry.data[entry.data.length - 1] : null;
+        return {
+          entityId: ds.entityId,
+          entityType: ds.entityType,
+          name: ds.entityName,
+          type: ds.entityType,
+          lastValue: last ? last[1] : '—',
+          lastSeen: last ? new Date(last[0]).toLocaleString() : '—',
+        };
+      });
+      ctx.detectChanges();
+    },
+    onDataUpdateError: (subscription, e) => console.error(e),
+  },
+};
+ctx.subscriptionApi.createSubscription(subOpts, true).subscribe();
+```
+
+**Step 6. Save and resize.** Click **Add**, give the widget plenty of room, and click **Save**.
+
+**Result:** One HTML container becomes a master device list with a 70%-wide slide-over detail drawer that overlays the dashboard, composing custom cards with two full dashboard states (alarms, charts) for the selected device — an overlay, free-placement layout the widget grid simply can't produce.
 
 ## Troubleshooting
 
@@ -249,6 +915,7 @@ setInterval(tick, 1000);
 
 | Cause | Solution |
 |-------|----------|
+| Referenced by bare name | The editor's linter flags globals it doesn't recognise — CDN libraries and some browser APIs — as `'x' is not defined`. Access them through `window`: `const echarts = window.echarts;`, `new window.ResizeObserver(...)`. This satisfies the linter and resolves the global at runtime. |
 | Resource not added | Add the script URL under **Resources**. The JavaScript block only sees libraries declared there. |
 | Wrong load order | List resources in dependency order — a library that depends on another must come after it in the **Resources** list. |
 
