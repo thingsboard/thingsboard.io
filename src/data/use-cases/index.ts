@@ -242,6 +242,13 @@ const dataModules = import.meta.glob<UseCaseData>(
 
 export const useCaseBySlug: Record<string, UseCaseData> = {};
 for (const d of Object.values(dataModules)) {
+	if (useCaseBySlug[d.pageSlug]) {
+		// Two data files sharing a pageSlug collide on the same URL; one would be
+		// silently dropped. Fail loud rather than ship a quietly-missing page.
+		throw new Error(
+			`[use-cases] duplicate pageSlug "${d.pageSlug}" — two data files in src/data/use-cases/ map to /use-cases/${d.pageSlug}/.`,
+		);
+	}
 	useCaseBySlug[d.pageSlug] = d;
 }
 

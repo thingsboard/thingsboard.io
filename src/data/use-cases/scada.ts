@@ -59,8 +59,6 @@ export const data: UseCaseData = {
 		schemeSrc: '/src/assets/schemas/swimming-pool.svg',
 		schemeAlt:
 			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for alarms, dashboards, notifications, and data lakes',
-		schemeCaption:
-			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for processing, visualization, and automation',
 	},
 	benefits: {
 		benefits: [
