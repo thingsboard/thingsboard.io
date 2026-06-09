@@ -1,7 +1,7 @@
 import type { UseCaseData } from './types';
 import { SCADA_COMMON_BENEFITS } from './_scada-shared';
 
-export const scadaEnergyManagementData: UseCaseData = {
+export const data: UseCaseData = {
 	title: 'SCADA Energy management',
 	pageTitle: 'SCADA Energy Management & Monitoring with ThingsBoard',
 	description:

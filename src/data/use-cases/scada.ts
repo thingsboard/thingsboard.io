@@ -1,6 +1,6 @@
 import type { UseCaseData } from './types';
 
-export const scadaData: UseCaseData = {
+export const data: UseCaseData = {
 	title: 'SCADA Swimming pool',
 	pageTitle: 'SCADA Swimming Pool Management System with ThingsBoard',
 	description:

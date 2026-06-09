@@ -1,7 +1,7 @@
 import type { UseCaseData } from './types';
 import { SCADA_COMMON_BENEFITS } from './_scada-shared';
 
-export const scadaDrillingData: UseCaseData = {
+export const data: UseCaseData = {
 	title: 'SCADA Oil & gas drilling system',
 	pageTitle: 'SCADA Oil & Gas Drilling Monitoring with ThingsBoard',
 	description:

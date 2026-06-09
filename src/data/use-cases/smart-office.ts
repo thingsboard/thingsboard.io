@@ -1,6 +1,6 @@
 import type { UseCaseData } from './types';
 
-export const smartOfficeData: UseCaseData = {
+export const data: UseCaseData = {
 	title: 'Smart office',
 	pageTitle: 'IoT smart office solutions with ThingsBoard',
 	description:

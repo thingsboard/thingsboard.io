@@ -1,6 +1,6 @@
 import type { UseCaseData } from './types';
 
-export const healthCareData: UseCaseData = {
+export const data: UseCaseData = {
 	title: 'Health care: smart assisted living solution',
 	pageTitle: 'IoT Healthcare Monitoring & Smart Assisted Living with ThingsBoard',
 	description:

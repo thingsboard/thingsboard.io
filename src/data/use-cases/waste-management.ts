@@ -1,6 +1,6 @@
 import type { UseCaseData } from './types';
 
-export const wasteManagementData: UseCaseData = {
+export const data: UseCaseData = {
 	title: 'Waste management solution',
 	pageTitle: 'Smart Waste Management with ThingsBoard for Cities & Industry',
 	description:
