@@ -1,6 +1,6 @@
 import type { UseCaseData } from './types';
 
-export const scadaData: UseCaseData = {
+export const data: UseCaseData = {
 	title: 'SCADA Swimming pool',
 	pageTitle: 'SCADA Swimming Pool Management System with ThingsBoard',
 	description:
@@ -59,8 +59,6 @@ export const scadaData: UseCaseData = {
 		schemeSrc: '/src/assets/schemas/swimming-pool.svg',
 		schemeAlt:
 			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for alarms, dashboards, notifications, and data lakes',
-		schemeCaption:
-			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for processing, visualization, and automation',
 	},
 	benefits: {
 		benefits: [

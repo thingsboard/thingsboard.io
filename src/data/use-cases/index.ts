@@ -1,4 +1,5 @@
 import type { ImageMetadata } from 'astro';
+import type { UseCaseData } from './types';
 
 import airQuality from '~/assets/images/usecases/air-quality/air-quality.png';
 import environmentMonitoring from '~/assets/images/usecases/environment-monitoring/environment-monitoring.png';
@@ -229,3 +230,44 @@ export const useCaseItems: UseCaseCardItem[] = [
 		href: '/use-cases/tank-level-monitoring/',
 	},
 ];
+
+// ── Auto-discovered page data ─────────────────────────────────────────────────
+// Each {slug}.ts file exports `const data: UseCaseData`. The dynamic route
+// (src/pages/use-cases/[slug].astro) builds one page per entry; the catalog
+// cards above are the single source for card content (no duplication).
+const dataModules = import.meta.glob<UseCaseData>(
+	['./*.ts', '!./index.ts', '!./types.ts', '!./_scada-shared.ts'],
+	{ eager: true, import: 'data' },
+);
+
+export const useCaseBySlug: Record<string, UseCaseData> = {};
+for (const d of Object.values(dataModules)) {
+	if (useCaseBySlug[d.pageSlug]) {
+		// Two data files sharing a pageSlug collide on the same URL; one would be
+		// silently dropped. Fail loud rather than ship a quietly-missing page.
+		throw new Error(
+			`[use-cases] duplicate pageSlug "${d.pageSlug}" — two data files in src/data/use-cases/ map to /use-cases/${d.pageSlug}/.`,
+		);
+	}
+	useCaseBySlug[d.pageSlug] = d;
+}
+
+// Surface drift between catalog cards and page data files at build time, so a
+// missing card or an orphaned data file is caught instead of silently shipping.
+const cardSlugs = new Set(
+	useCaseItems.map((i) => i.href.replace(/^\/use-cases\//, '').replace(/\/$/, '')),
+);
+for (const slug of Object.keys(useCaseBySlug)) {
+	if (!cardSlugs.has(slug)) {
+		console.warn(
+			`[use-cases] data file "${slug}.ts" exists but has no catalog card in useCaseItems (src/data/use-cases/index.ts).`,
+		);
+	}
+}
+for (const slug of cardSlugs) {
+	if (!useCaseBySlug[slug]) {
+		console.warn(
+			`[use-cases] catalog card "${slug}" has no matching {slug}.ts data file in src/data/use-cases/.`,
+		);
+	}
+}

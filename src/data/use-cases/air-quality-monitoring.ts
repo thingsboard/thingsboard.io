@@ -1,6 +1,6 @@
 import type { UseCaseData } from './types';
 
-export const airQualityMonitoringData: UseCaseData = {
+export const data: UseCaseData = {
 	title: 'Air quality monitoring solution',
 	pageTitle: 'Urban & Industrial Air Monitoring with IoT and Dashboards',
 	description:

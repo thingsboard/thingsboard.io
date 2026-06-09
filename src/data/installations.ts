@@ -538,7 +538,6 @@ export const products: ProductData[] = [
 				src: trendz('dashboard-screen.png'),
 				alt: 'ThingsBoard Trendz Greenhouse Dashboard',
 				position: 'main',
-				extraClass: 'left-negative',
 			},
 		],
 		features: [
