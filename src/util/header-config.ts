@@ -1,5 +1,5 @@
-// Resolves the marketing header's appearance from BaseLayout props for the
-// global Starlight Header override (replaces the old `<html>#id`-keyed CSS).
+// Resolves the marketing header's appearance from BaseLayout props, consumed by
+// the Starlight Header override.
 
 export type HeaderVariant =
 	| 'base' // sidebar bg, no border, icons shown (id'd marketing pages, e.g. device library)
@@ -10,25 +10,19 @@ export type HeaderVariant =
 	| 'solid-shadow' // solid bg + drop shadow (product/marketing pages)
 	| 'solid-border'; // surface bg + bottom border (use-cases, blog, partners, …)
 
-// Button skin is two orthogonal axes (the old CSS layered them independently):
-// cta = Pricing/Try shape (`marketing` = bordered Pricing + filled Try);
-// tryStyle = Try accent (`accent` = docs `--color-primary`, for contact-us/pricing).
+// cta = Pricing/Try button shape: `marketing` gives a bordered Pricing button + filled Try.
 export type HeaderCta = 'base' | 'marketing';
-export type HeaderTryStyle = 'brand' | 'accent';
 
 export interface HeaderConfig {
 	variant: HeaderVariant;
 	cta: HeaderCta;
-	tryStyle: HeaderTryStyle;
 	showSearch: boolean;
 	showThemeToggle: boolean;
-	promoAccent: PromoAccent;
 }
 
 export interface HeaderConfigInput {
 	variant?: HeaderVariant;
 	cta?: HeaderCta;
-	tryStyle?: HeaderTryStyle;
 	forceLight?: boolean;
 	showSearch?: boolean;
 	showThemeToggle?: boolean;
@@ -53,22 +47,10 @@ export function resolveHeaderConfig(input: HeaderConfigInput = {}): HeaderConfig
 	const forceLight = input.forceLight ?? false;
 	const showThemeToggle = forceLight ? false : (input.showThemeToggle ?? defaults.showThemeToggle);
 	const cta = input.cta ?? defaults.cta;
-	const tryStyle = input.tryStyle ?? 'brand';
-	// Promo banner matches the "Try it now" button: azure when the Try is the
-	// brand-blue pill (transparent-hero or marketing-CTA pages), indigo otherwise
-	// (the docs accent on base pages, or the explicit `accent` try style).
-	const azureTry = tryStyle !== 'accent' && (cta === 'marketing' || variant === 'transparent');
 	return {
 		variant,
 		cta,
-		tryStyle,
 		showSearch: input.showSearch ?? defaults.showSearch,
 		showThemeToggle,
-		promoAccent: azureTry ? 'azure' : 'indigo',
 	};
 }
-
-// Promo-banner accent, derived in `resolveHeaderConfig` to match the "Try it
-// now" CTA: azure on transparent-hero / marketing-CTA pages, indigo everywhere
-// else. Bridged through `bslHeaderConfig` and read by PromoBanner.
-export type PromoAccent = 'indigo' | 'azure';
