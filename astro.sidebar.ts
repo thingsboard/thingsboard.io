@@ -725,6 +725,7 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 						`${prefix}/widgets/cards/markdown-html-card`,
 						`${prefix}/widgets/cards/progress-bar`,
 						`${prefix}/widgets/cards/value-card`,
+						`${prefix}/widgets/cards/html-container`,
 					],
 				},
 				{
@@ -762,6 +763,7 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 						`${prefix}/widgets/html-widgets/html-card`,
 						`${prefix}/widgets/html-widgets/html-value-card`,
 						`${prefix}/widgets/html-widgets/markdown-html-card`,
+						`${prefix}/widgets/html-widgets/html-container`,
 					],
 				},
 				{
@@ -1310,6 +1312,7 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 						`${prefix}/widgets/cards/markdown-html-card`,
 						`${prefix}/widgets/cards/progress-bar`,
 						`${prefix}/widgets/cards/value-card`,
+						`${prefix}/widgets/cards/html-container`,
 					],
 				},
 				{
@@ -1349,6 +1352,7 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 						`${prefix}/widgets/html-widgets/html-card`,
 						`${prefix}/widgets/html-widgets/html-value-card`,
 						`${prefix}/widgets/html-widgets/markdown-html-card`,
+						`${prefix}/widgets/html-widgets/html-container`,
 					],
 				},
 				{
