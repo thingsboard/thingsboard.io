@@ -17,6 +17,41 @@ export const data: UseCaseData = {
 			'https://thingsboard.cloud/dashboard/aff5f200-8b48-11ec-a344-c767c1ab1bb8?publicId=4978baf0-8a92-11ec-98f9-ff45c37940c6',
 		demoButtonId: 'UseCases_WaterMeter_ViewLiveDemo',
 	},
+	overview: {
+		type: 'carousel',
+		carouselImages: [
+			{
+				src: '/src/assets/images/usecases/water-metering/water-metering-1.webp',
+				alt: 'water metering 1',
+				width: 1819,
+				height: 967,
+			},
+			{
+				src: '/src/assets/images/usecases/water-metering/water-metering-2.webp',
+				alt: 'water metering 2',
+				width: 1819,
+				height: 967,
+			},
+			{
+				src: '/src/assets/images/usecases/water-metering/water-metering-3.webp',
+				alt: 'water metering 3',
+				width: 1819,
+				height: 967,
+			},
+			{
+				src: '/src/assets/images/usecases/water-metering/water-metering-4.webp',
+				alt: 'water metering 4',
+				width: 1819,
+				height: 967,
+			},
+			{
+				src: '/src/assets/images/usecases/water-metering/water-metering-5.webp',
+				alt: 'water metering 5',
+				width: 1819,
+				height: 967,
+			},
+		],
+	},
 	solutionStructure: {
 		title: 'Solution structure of water metering use case',
 		shortText:

@@ -18,6 +18,29 @@ export const data: UseCaseData = {
 			'https://thingsboard.cloud/dashboard/2430dc20-3172-11f0-858a-67efd1bc8a87?publicId=7aa99e80-8acd-11ef-a59e-a9c993dbec14',
 		demoButtonId: 'UseCases_ScadaEnergy_ViewLiveDemo',
 	},
+	overview: {
+		type: 'carousel',
+		carouselImages: [
+			{
+				src: '/src/assets/images/usecases/scada-energy-management/scada-energy-management-1.webp',
+				alt: 'Main state of SCADA energy management dashboard',
+				width: 1286,
+				height: 660,
+			},
+			{
+				src: '/src/assets/images/usecases/scada-energy-management/scada-energy-management-2.webp',
+				alt: 'SCADA energy management dashboard consumption state',
+				width: 1286,
+				height: 660,
+			},
+			{
+				src: '/src/assets/images/usecases/scada-energy-management/scada-energy-management-3.webp',
+				alt: 'SCADA energy management dashboard small screen responsiveness',
+				width: 1302,
+				height: 679,
+			},
+		],
+	},
 	solutionStructure: {
 		title: 'Solution structure',
 		shortText: '',
