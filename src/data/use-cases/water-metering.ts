@@ -1,6 +1,6 @@
 import type { UseCaseData } from './types';
 
-export const waterMeteringData: UseCaseData = {
+export const data: UseCaseData = {
 	title: 'Water metering',
 	pageTitle: 'Smart Water Metering with ThingsBoard IoT Platform',
 	description:

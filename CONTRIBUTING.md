@@ -102,7 +102,7 @@ python3 scripts/generate_config_pages.py <repo_type> <relative_path_to_upstream>
 `<repo_type>` is one of: `ce`, `pe`, `tbmq`, `tbmq-pe`, `edge`, `edge-pe`. For example, to regenerate CE pages from a `thingsboard` checkout next to this repo:
 
 ```bash
-python3 scripts/generate_config_pages.py ce ../thingsboard
+python3 scripts/generate_config_pages.py ce ../../thingsboard
 ```
 
 Commit the regenerated files (under `src/content/docs/docs/.../reference/configuration/` for CE / PE, or the equivalent path for TBMQ / Edge).

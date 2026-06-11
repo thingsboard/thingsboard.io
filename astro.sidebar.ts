@@ -112,19 +112,6 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 		],
 	},
 	{
-		label: 'AI',
-		collapsed: true,
-		items: [
-			`${prefix}/ai-models`,
-			`${prefix}/ai-solution-creator`,
-			`${prefix}/ai-predictive-maintenance`,
-			`${prefix}/local-ai-ollama`,
-			`${prefix}/mcp-server`,
-			`${prefix}/n8n-node`,
-			`${prefix}/cli`,
-		],
-	},
-	{
 		label: 'Integrations',
 		collapsed: true,
 		items: [
@@ -696,11 +683,11 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 					label: 'Analogue Gauges',
 					collapsed: true,
 					items: [
-						`${prefix}/widgets/analogue-gauges/temperature-radial-gauge`,
-						`${prefix}/widgets/analogue-gauges/thermometer-scale`,
-						`${prefix}/widgets/analogue-gauges/speed-gauge`,
-						`${prefix}/widgets/analogue-gauges/radial-gauge`,
 						`${prefix}/widgets/analogue-gauges/compass`,
+						`${prefix}/widgets/analogue-gauges/radial-gauge`,
+						`${prefix}/widgets/analogue-gauges/speed-gauge`,
+						`${prefix}/widgets/analogue-gauges/thermometer-scale`,
+						`${prefix}/widgets/analogue-gauges/temperature-radial-gauge`,
 					],
 				},
 				{
@@ -732,9 +719,13 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 					label: 'Cards',
 					collapsed: true,
 					items: [
+						`${prefix}/widgets/cards/attributes-card`,
+						`${prefix}/widgets/cards/html-card`,
 						`${prefix}/widgets/cards/html-value-card`,
 						`${prefix}/widgets/cards/markdown-html-card`,
+						`${prefix}/widgets/cards/progress-bar`,
 						`${prefix}/widgets/cards/value-card`,
+						`${prefix}/widgets/cards/html-container`,
 					],
 				},
 				{
@@ -758,11 +749,21 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 					],
 				},
 				{
+					label: 'Files',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/files/files`,
+						`${prefix}/widgets/files/dashboard-reports`,
+					],
+				},
+				{
 					label: 'HTML Widgets',
 					collapsed: true,
 					items: [
-						`${prefix}/widgets/html-widgets/markdown-html-card`,
+						`${prefix}/widgets/html-widgets/html-card`,
 						`${prefix}/widgets/html-widgets/html-value-card`,
+						`${prefix}/widgets/html-widgets/markdown-html-card`,
+						`${prefix}/widgets/html-widgets/html-container`,
 					],
 				},
 				{
@@ -1003,6 +1004,16 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 					],
 				},
 				{
+					label: 'Status Indicators',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/status-indicators/battery-level`,
+						`${prefix}/widgets/status-indicators/progress-bar`,
+						`${prefix}/widgets/status-indicators/signal-strength`,
+						`${prefix}/widgets/status-indicators/status-widget`,
+					],
+				},
+				{
 					label: 'Tables',
 					collapsed: true,
 					items: [
@@ -1010,6 +1021,14 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 						`${prefix}/widgets/tables/entities-table`,
 						`${prefix}/widgets/tables/timeseries-table`,
 						`${prefix}/widgets/tables/persistent-table`,
+					],
+				},
+				{
+					label: 'Scheduling',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/scheduling/scheduler-events`,
+						`${prefix}/widgets/scheduling/reports-schedule`,
 					],
 				},
 				{
@@ -1251,11 +1270,11 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 					label: 'Analogue Gauges',
 					collapsed: true,
 					items: [
-						`${prefix}/widgets/analogue-gauges/temperature-radial-gauge`,
-						`${prefix}/widgets/analogue-gauges/thermometer-scale`,
-						`${prefix}/widgets/analogue-gauges/speed-gauge`,
-						`${prefix}/widgets/analogue-gauges/radial-gauge`,
 						`${prefix}/widgets/analogue-gauges/compass`,
+						`${prefix}/widgets/analogue-gauges/radial-gauge`,
+						`${prefix}/widgets/analogue-gauges/speed-gauge`,
+						`${prefix}/widgets/analogue-gauges/thermometer-scale`,
+						`${prefix}/widgets/analogue-gauges/temperature-radial-gauge`,
 					],
 				},
 				{
@@ -1287,9 +1306,13 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 					label: 'Cards',
 					collapsed: true,
 					items: [
-						`${prefix}/widgets/cards/markdown-html-card`,
+						`${prefix}/widgets/cards/attributes-card`,
+						`${prefix}/widgets/cards/html-card`,
 						`${prefix}/widgets/cards/html-value-card`,
+						`${prefix}/widgets/cards/markdown-html-card`,
+						`${prefix}/widgets/cards/progress-bar`,
 						`${prefix}/widgets/cards/value-card`,
+						`${prefix}/widgets/cards/html-container`,
 					],
 				},
 				{
@@ -1312,12 +1335,24 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 						`${prefix}/widgets/count-widgets/entity-count`,
 					],
 				},
+				...(prefix.includes('/pe/') ? [
+					{
+						label: 'Files',
+						collapsed: true,
+						items: [
+							`${prefix}/widgets/files/files`,
+							`${prefix}/widgets/files/dashboard-reports`,
+						],
+					},
+				] : []),
 				{
 					label: 'HTML Widgets',
 					collapsed: true,
 					items: [
-						`${prefix}/widgets/html-widgets/markdown-html-card`,
+						`${prefix}/widgets/html-widgets/html-card`,
 						`${prefix}/widgets/html-widgets/html-value-card`,
+						`${prefix}/widgets/html-widgets/markdown-html-card`,
+						`${prefix}/widgets/html-widgets/html-container`,
 					],
 				},
 				{
@@ -1558,6 +1593,16 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 					],
 				},
 				{
+					label: 'Status Indicators',
+					collapsed: true,
+					items: [
+						`${prefix}/widgets/status-indicators/battery-level`,
+						`${prefix}/widgets/status-indicators/progress-bar`,
+						`${prefix}/widgets/status-indicators/signal-strength`,
+						`${prefix}/widgets/status-indicators/status-widget`,
+					],
+				},
+				{
 					label: 'Tables',
 					collapsed: true,
 					items: [
@@ -1567,6 +1612,16 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 						`${prefix}/widgets/tables/persistent-table`,
 					],
 				},
+				...(prefix.includes('/pe/') ? [
+					{
+						label: 'Scheduling',
+						collapsed: true,
+						items: [
+							`${prefix}/widgets/scheduling/scheduler-events`,
+							`${prefix}/widgets/scheduling/reports-schedule`,
+						],
+					},
+				] : []),
 				{
 					label: 'Video Streaming',
 					collapsed: true,
@@ -1619,6 +1674,38 @@ const mainSidebarItems = (
 		collapsed: true,
 		translations: { uk: 'Посібники' },
 		items: guideItems(`${prefix}/user-guide`, { isPE: prefix.includes('/pe') }),
+	},
+	{
+		label: 'Build with AI',
+		items: [
+			{
+				label: 'ThingsBoard CLI',
+				collapsed: false,
+				items: [
+					`${prefix}/user-guide/cli`,
+					`${prefix}/user-guide/cli-solutions`,
+				],
+			},
+			`${prefix}/user-guide/ai-solution-creator`,
+			`${prefix}/user-guide/ai-assistant`,
+			{
+				label: 'Process IoT Data with AI',
+				collapsed: false,
+				items: [
+					`${prefix}/user-guide/ai-models`,
+					`${prefix}/user-guide/local-ai-ollama`,
+					`${prefix}/user-guide/ai-predictive-maintenance`,
+				],
+			},
+			{
+				label: 'Workflow Automation',
+				collapsed: false,
+				items: [
+					`${prefix}/user-guide/mcp-server`,
+					`${prefix}/user-guide/n8n-node`,
+				],
+			},
+		],
 	},
 	{
 		label: 'Recipes',
@@ -1862,19 +1949,6 @@ export const paasSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'AI',
-				collapsed: true,
-				items: [
-					'docs/paas/user-guide/ai-models',
-					'docs/paas/user-guide/ai-solution-creator',
-					'docs/paas/user-guide/ai-predictive-maintenance',
-					'docs/paas/user-guide/local-ai-ollama',
-					'docs/paas/user-guide/mcp-server',
-					'docs/paas/user-guide/n8n-node',
-					'docs/paas/user-guide/cli',
-				],
-			},
-			{
 				label: 'Integrations',
 				collapsed: true,
 				items: [
@@ -1983,6 +2057,38 @@ export const paasSidebar: SidebarConfig = [
 					'docs/paas/user-guide/billing-info/subscription',
 					'docs/paas/user-guide/billing-info/billing-details',
 					'docs/paas/user-guide/billing-info/invoices',
+				],
+			},
+		],
+	},
+	{
+		label: 'Build with AI',
+		items: [
+			{
+				label: 'ThingsBoard CLI',
+				collapsed: false,
+				items: [
+					'docs/paas/user-guide/cli',
+					'docs/paas/user-guide/cli-solutions',
+				],
+			},
+			'docs/paas/user-guide/ai-solution-creator',
+			'docs/paas/user-guide/ai-assistant',
+			{
+				label: 'Process IoT Data with AI',
+				collapsed: false,
+				items: [
+					'docs/paas/user-guide/ai-models',
+					'docs/paas/user-guide/local-ai-ollama',
+					'docs/paas/user-guide/ai-predictive-maintenance',
+				],
+			},
+			{
+				label: 'Workflow Automation',
+				collapsed: false,
+				items: [
+					'docs/paas/user-guide/mcp-server',
+					'docs/paas/user-guide/n8n-node',
 				],
 			},
 		],
@@ -2208,19 +2314,6 @@ export const paasEuSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'AI',
-				collapsed: true,
-				items: [
-					'docs/paas/eu/user-guide/ai-models',
-					'docs/paas/eu/user-guide/ai-solution-creator',
-					'docs/paas/eu/user-guide/ai-predictive-maintenance',
-					'docs/paas/eu/user-guide/local-ai-ollama',
-					'docs/paas/eu/user-guide/mcp-server',
-					'docs/paas/eu/user-guide/n8n-node',
-					'docs/paas/eu/user-guide/cli',
-				],
-			},
-			{
 				label: 'Integrations',
 				collapsed: true,
 				items: [
@@ -2335,6 +2428,38 @@ export const paasEuSidebar: SidebarConfig = [
 					'docs/paas/eu/user-guide/billing-info/subscription',
 					'docs/paas/eu/user-guide/billing-info/billing-details',
 					'docs/paas/eu/user-guide/billing-info/invoices',
+				],
+			},
+		],
+	},
+	{
+		label: 'Build with AI',
+		items: [
+			{
+				label: 'ThingsBoard CLI',
+				collapsed: false,
+				items: [
+					'docs/paas/eu/user-guide/cli',
+					'docs/paas/eu/user-guide/cli-solutions',
+				],
+			},
+			'docs/paas/eu/user-guide/ai-solution-creator',
+			'docs/paas/eu/user-guide/ai-assistant',
+			{
+				label: 'Process IoT Data with AI',
+				collapsed: false,
+				items: [
+					'docs/paas/eu/user-guide/ai-models',
+					'docs/paas/eu/user-guide/local-ai-ollama',
+					'docs/paas/eu/user-guide/ai-predictive-maintenance',
+				],
+			},
+			{
+				label: 'Workflow Automation',
+				collapsed: false,
+				items: [
+					'docs/paas/eu/user-guide/mcp-server',
+					'docs/paas/eu/user-guide/n8n-node',
 				],
 			},
 		],
@@ -2608,10 +2733,9 @@ export const edgeSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'Clients & CLI',
+				label: 'Server-side REST Clients',
 				collapsed: true,
 				items: [
-					'docs/edge/user-guide/cli',
 					'docs/edge/reference/java-client',
 					'docs/edge/reference/python-client',
 				],
@@ -3049,10 +3173,9 @@ export const edgePeSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'Clients & CLI',
+				label: 'Server-side REST Clients',
 				collapsed: true,
 				items: [
-					'docs/edge/pe/user-guide/cli',
 					'docs/edge/pe/reference/java-client',
 					'docs/edge/pe/reference/python-client',
 				],
@@ -4036,6 +4159,7 @@ export type SidebarTabLinks = Partial<Record<string, string>>;
 export const opensourceSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/',
 	Guides: '/docs/user-guide/',
+	'Build with AI': '/docs/iot-solutions-with-ai/',
 	Recipes: '/docs/recipes/',
 	Installation: '/docs/installation/',
 	'APIs & SDKs': '/docs/apis-and-sdks/',
@@ -4044,6 +4168,7 @@ export const opensourceSidebarTabLinks: SidebarTabLinks = {
 export const peSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/pe/',
 	Guides: '/docs/pe/user-guide/',
+	'Build with AI': '/docs/pe/iot-solutions-with-ai/',
 	Recipes: '/docs/pe/recipes/',
 	Installation: '/docs/pe/installation/',
 	'APIs & SDKs': '/docs/pe/apis-and-sdks/',
@@ -4053,6 +4178,7 @@ export const peSidebarTabLinks: SidebarTabLinks = {
 export const paasSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/paas/',
 	Guides: '/docs/paas/user-guide/',
+	'Build with AI': '/docs/paas/iot-solutions-with-ai/',
 	Recipes: '/docs/paas/recipes/',
 	'APIs & SDKs': '/docs/paas/apis-and-sdks/',
 	Reference: '/docs/paas/reference/',
@@ -4060,6 +4186,7 @@ export const paasSidebarTabLinks: SidebarTabLinks = {
 export const paasEuSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/paas/eu/',
 	Guides: '/docs/paas/eu/user-guide/',
+	'Build with AI': '/docs/paas/eu/iot-solutions-with-ai/',
 	Recipes: '/docs/paas/eu/recipes/',
 	'APIs & SDKs': '/docs/paas/eu/apis-and-sdks/',
 	Reference: '/docs/paas/eu/reference/',

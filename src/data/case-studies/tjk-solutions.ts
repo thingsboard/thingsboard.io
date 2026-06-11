@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const tjkSolutionsData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'Securing Critical Communication with ThingsBoard | TJK-Solutions',
 	pageTitle: 'Securing Critical Communication — TJK-Solutions',
 	description:

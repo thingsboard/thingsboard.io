@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const tpsData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'Cultural IoT - TPS Powers Museums with ThingsBoard',
 	pageTitle: 'Cultural IoT — TPS Powers Museums',
 	description:

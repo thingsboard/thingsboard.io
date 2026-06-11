@@ -36,6 +36,8 @@ export interface HelpBlock {
 export interface AwardData {
 	image: string;
 	imageAlt: string;
+	imageWidth?: number;
+	imageHeight?: number;
 	title: string;
 	titleHref?: string;
 	description: string;
@@ -82,6 +84,8 @@ export interface CaseStudyData {
 	fullWidthImage?: {
 		src: string;
 		alt: string;
+		width?: number;
+		height?: number;
 	};
 
 	help: {

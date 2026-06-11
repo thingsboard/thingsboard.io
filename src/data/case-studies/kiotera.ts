@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const kioteraData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'Fast-Paced IoT Implementation with KIOTERA on ThingsBoard',
 	pageTitle: 'Fast-Paced IoT Implementation with KIOTERA',
 	description:

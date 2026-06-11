@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const e2cbmsData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'E2CBMS Scales Smart Building Solutions with ThingsBoard IoT',
 	pageTitle: 'E2CBMS Scales Smart Building Solutions',
 	description:

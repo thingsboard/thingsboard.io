@@ -1,6 +1,6 @@
 import type { UseCaseData } from './types';
 
-export const siteFleetTrackingData: UseCaseData = {
+export const data: UseCaseData = {
 	title: 'Site fleet tracking monitoring solution',
 	pageTitle: 'Geofencing-Based Excavator & Truck Tracking for Clay Mines',
 	description:

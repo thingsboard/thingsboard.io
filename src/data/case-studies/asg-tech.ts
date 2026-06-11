@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const asgTechData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'ASG Tech Boosts IoT Speed with ThingsBoard Widgets',
 	pageTitle: 'ASG Tech Boosts IoT Speed with Custom Widgets',
 	description:
@@ -57,6 +57,8 @@ export const asgTechData: CaseStudyData = {
 	fullWidthImage: {
 		src: 'https://img.thingsboard.io/case-studies/asg-engineer.webp',
 		alt: 'Road sign',
+		width: 1920,
+		height: 946,
 	},
 
 	help: {

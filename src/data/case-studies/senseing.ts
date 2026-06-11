@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const senseingData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'How SenseING GmbH Optimized Cold Chain Monitoring with ThingsBoard',
 	pageTitle: 'How SenseING GmbH Optimized Cold Chain Monitoring',
 	description:

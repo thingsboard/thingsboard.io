@@ -54,13 +54,6 @@ export const DISTRIBUTORS: Distributor[] = [
 		website: "asc-ro.com",
 	},
 	{
-		name: "arx iT",
-		regions: ["Europe"],
-		countries: ["France"],
-		email: "info@arxit.com",
-		website: "arxit.com",
-	},
-	{
 		name: "Atea Sverige AB",
 		regions: ["Europe"],
 		countries: ["Sweden"],
@@ -682,5 +675,26 @@ export const DISTRIBUTORS: Distributor[] = [
 		countries: ["Anguilla","Antigua and Barbuda","Argentina","Aruba","Barbados","Belize","Bolivia","Brazil","British Virgin Islands","Canada","Caribbean Netherlands","Cayman Islands","Chile","Colombia","Costa Rica","Cuba","Curaçao","Dominica","Dominican Republic","Ecuador","El Salvador","Falkland Islands (Islas Malvinas)","French Guiana","Greenland","Grenada","Guadeloupe","Guatemala","Guyana","Haiti","Honduras","Jamaica","Martinique","Mexico","Montserrat","Nicaragua","Panama","Paraguay","Peru","Puerto Rico","Saint Barthélemy","Saint Kitts and Nevis","Saint Lucia","Saint Martin","Saint Pierre and Miquelon","Saint Vincent and the Grenadines","Sint Maarten","Suriname","The Bahamas","Trinidad and Tobago","Turks and Caicos Islands","U.S. Virgin Islands","United States of America","United States Minor Outlying Islands","Uruguay","Venezuela"],
 		email: "ingrid.gomez@tkmecloud.com",
 		website: "tkmecloud.io",
+	},
+	{
+		name: "Teknei",
+		regions: ["Europe","North America","South America"],
+		countries: ["Spain","Portugal","Italy","Mexico","Colombia","Peru","United States of America"],
+		email: "japcossio@teknei.com",
+		website: "teknei.com",
+	},
+	{
+		name: "Redpill Linpro",
+		regions: ["Europe"],
+		countries: ["Denmark"],
+		email: "olelys@redpill-linpro.com",
+		website: "redpill-linpro.com",
+	},
+	{
+		name: "N2M",
+		regions: ["Asia"],
+		countries: ["South Korea"],
+		email: "delee@n2m.co.kr",
+		website: "n2m.co.kr",
 	},
 ];

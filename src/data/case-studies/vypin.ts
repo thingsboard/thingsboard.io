@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const vypinData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'How Vypin Ensures Pharmaceutical Compliance with ThingsBoard\u2019s IoT Monitoring',
 	pageTitle: 'How Vypin Ensures Pharmaceutical Compliance with IoT Monitoring',
 	description:

@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const ariotData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'Smart Healthcare - 100% Cold Chain Digitization at Medline Adana',
 	pageTitle: 'Smart Healthcare - 100% Cold Chain Digitization at Medline Adana',
 	description:

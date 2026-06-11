@@ -1,6 +1,6 @@
 import type { CaseStudyData } from './types';
 
-export const xteliaData: CaseStudyData = {
+export const data: CaseStudyData = {
 	title: 'Smart City Parking - X-TELIA Scales Fast with ThingsBoard',
 	pageTitle: 'Smart City Parking — X-TELIA Scales Fast',
 	description:

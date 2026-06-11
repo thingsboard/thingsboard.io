@@ -1,6 +1,6 @@
 import type { UseCaseData } from './types';
 
-export const environmentMonitoringData: UseCaseData = {
+export const data: UseCaseData = {
 	title: 'Environment monitoring',
 	pageTitle: 'IoT Environment Monitoring solutions with ThingsBoard',
 	description:

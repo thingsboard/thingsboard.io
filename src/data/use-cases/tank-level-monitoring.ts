@@ -1,6 +1,6 @@
 import type { UseCaseData } from './types';
 
-export const tankLevelMonitoringData: UseCaseData = {
+export const data: UseCaseData = {
 	title: 'Tank level monitoring solution',
 	pageTitle: 'Tank Level Monitoring with ThingsBoard for Any Industry',
 	description:

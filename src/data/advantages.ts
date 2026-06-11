@@ -25,7 +25,7 @@ export const advantagesCards: AdvantageCard[] = [
 		title: 'Connectivity',
 		description:
 			'Connect devices directly to the platform via the following built-in protocols: HTTP, CoAP, MQTT, LwM2M, and SNMP. Connect devices in your local network to the cloud using ThingsBoard Gateway.',
-		href: '/docs/user-guide/connectivity-guide/',
+		href: '/docs/pe/user-guide/connectivity-guide/',
 		linkText: 'Learn more about connectivity',
 	},
 	{
@@ -43,7 +43,7 @@ export const advantagesCards: AdvantageCard[] = [
 		title: 'Scalability',
 		description:
 			'ThingsBoard supports high-availability cloud and on-prem deployments via Kubernetes or bare-metal. Its components scale horizontally and handle 18K+ vehicles and 5K+ devices in prod.',
-		href: '/docs/reference/architecture/microservices/',
+		href: '/docs/pe/reference/architecture/microservices/',
 		linkText: 'Learn more about scalability',
 	},
 	{
@@ -52,7 +52,7 @@ export const advantagesCards: AdvantageCard[] = [
 		title: 'Multi-tenancy',
 		description:
 			'ThingsBoard provides UI and API to manage tenants, customers, users, devices, and assets. Single tenant may have multiple tenant administrators and millions of devices and customers.',
-		href: '/docs/user-guide/digital-twins/entities/',
+		href: '/docs/pe/user-guide/digital-twins/entities/',
 		linkText: 'Learn more about multi-tenancy',
 	},
 	{
@@ -61,7 +61,7 @@ export const advantagesCards: AdvantageCard[] = [
 		title: 'LoRaWAN & SigFox',
 		description:
 			'Connect LoRaWAN devices via integrations with standard network servers like TTN, LORIOT, ChirpStack, Actility, etc. Connect SigFox devices via integrations with the SigFox backend.',
-		href: '/docs/user-guide/integrations/',
+		href: '/docs/pe/user-guide/integrations/',
 		linkText: 'Learn more about LoRaWAN & SigFox',
 	},
 	{
@@ -70,7 +70,7 @@ export const advantagesCards: AdvantageCard[] = [
 		title: 'Mobile application',
 		description:
 			'Build your own IoT mobile application with minimum coding efforts using ThingsBoard Mobile Application, an open-source project based on Flutter.',
-		href: '/docs/mobile/',
+		href: '/docs/mobile/pe/',
 		linkText: 'Learn more about mobile application',
 	},
 ];
