@@ -1,13 +1,4 @@
-export interface CarouselItem {
-	src: string;
-	alt: string;
-	title: string;
-	description: string;
-	linkLabel: string;
-	href: string;
-	width: number;
-	height: number;
-}
+import type { CarouselItem } from '../components/Carousel/Carousel.astro';
 
 export const homeCarouselItems: CarouselItem[] = [
 	{
