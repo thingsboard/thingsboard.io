@@ -35,6 +35,10 @@ export const IOT_HUB_CATEGORIES = [
 		tileColorDark: '#4c63cc',
 		heroDescription:
 			'Explore the device library to find pre-configured connectivity templates you can deploy in minutes to connect your hardware instantly.',
+		guideHref: '/docs/iot-hub/guides/device/',
+		ctaTitle: 'Add your device',
+		ctaDescription:
+			'Submit your devices to the ThingsBoard IoT Hub to showcase them to our global community and make it way easier for your clients.',
 	},
 	{
 		slug: 'solution-templates',
@@ -46,6 +50,7 @@ export const IOT_HUB_CATEGORIES = [
 		tileColorDark: '#2c6cb4',
 		heroDescription:
 			'Complete IoT solution packages with dashboards, rule chains, and device configurations. Get started with proven architectures.',
+		guideHref: '/docs/iot-hub/guides/solution-template/',
 	},
 	{
 		slug: 'widgets',
@@ -57,6 +62,7 @@ export const IOT_HUB_CATEGORIES = [
 		tileColorDark: '#2c9755',
 		heroDescription:
 			'Jumpstart your IoT journey with pre-configured widgets designed for your industry. Deploy proven architectures instantly and focus your energy on what matters: your unique business logic.',
+		guideHref: '/docs/iot-hub/guides/widget/',
 	},
 	{
 		slug: 'calculated-fields',
@@ -68,6 +74,7 @@ export const IOT_HUB_CATEGORIES = [
 		tileColorDark: '#3db5e0',
 		heroDescription:
 			'Use pre-configured Calculated Fields to automate complex metrics like fuel efficiency or power factor. Skip the manual logic and keep your dashboards clean and actionable.',
+		guideHref: '/docs/iot-hub/guides/calculated-field/',
 	},
 	{
 		slug: 'alarm-rules',
@@ -79,6 +86,7 @@ export const IOT_HUB_CATEGORIES = [
 		tileColorDark: '#d7702f',
 		heroDescription:
 			'Use pre-built Alarm Rule templates to detect critical conditions like low battery, threshold breaches, or devices going offline. Skip writing the rule logic and start reacting to incidents the moment they happen.',
+		guideHref: '/docs/iot-hub/guides/alarm-rule/',
 	},
 	{
 		slug: 'rule-chains',
@@ -90,6 +98,7 @@ export const IOT_HUB_CATEGORIES = [
 		tileColorDark: '#bb7ce9',
 		heroDescription:
 			'From sophisticated data processing to seamless API integrations, Rule Chain templates provide the architectural foundation you need to scale without building from scratch.',
+		guideHref: '/docs/iot-hub/guides/rule-chain/',
 	},
 ] as const;
 
