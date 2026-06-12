@@ -3,7 +3,7 @@ import { Icon } from 'astro-icon/components';
 import DeviceCard from './DeviceCard.astro';
 import FilterSidebar from './FilterSidebar.astro';
 import SearchBar from './SearchBar.astro';
-import Pagination from './Pagination.astro';
+import Pagination from '@components/Pagination/Pagination.astro';
 import { PLATFORM_VALUES } from '~/util/device-platform';
 
 interface Device {
@@ -39,10 +39,6 @@ const t = {
 	noResults: 'No devices match your filters.',
 	devicesFound: 'devices found',
 	searchPlaceholder: 'Search devices...',
-	previous: 'Previous',
-	next: 'Next',
-	page: 'Page',
-	of: 'of',
 };
 
 // Extract unique filter values with counts
@@ -158,7 +154,7 @@ const initialDevices = devicesWithHref.slice(0, PAGE_SIZE);
 			{t.noResults}
 		</div>
 
-		<Pagination translations={{ previous: t.previous, next: t.next, page: t.page, of: t.of }} />
+		<Pagination hidden />
 	</div>
 </div>
 
@@ -174,6 +170,7 @@ const initialDevices = devicesWithHref.slice(0, PAGE_SIZE);
 </script>
 
 <script>
+	import { updatePagination } from '@components/Pagination/pagination-client';
 	import {
 		platformToQueryParam,
 		queryParamToPlatform,
@@ -276,9 +273,9 @@ const initialDevices = devicesWithHref.slice(0, PAGE_SIZE);
 		// DOM-level idempotency marker — `astro:page-load` fires on both the
 		// initial page load and on every view-transition navigation, so this
 		// handler can run multiple times against the same DOM. Without the
-		// marker every filter checkbox / pagination button / search input
-		// would accumulate listeners (pagination Prev/Next would skip two
-		// pages per click, search debounce would leak timers, etc.).
+		// marker every filter checkbox / pagination nav / search input
+		// would accumulate listeners (each page change would rerun
+		// updateDisplay per duplicate, search debounce would leak timers).
 		if (container.dataset.inited === 'true') return;
 		container.dataset.inited = 'true';
 
@@ -297,15 +294,9 @@ const initialDevices = devicesWithHref.slice(0, PAGE_SIZE);
 		);
 		const searchInput = container.querySelector('#device-search') as HTMLInputElement;
 		const searchClearBtn = container.querySelector('#search-clear') as HTMLButtonElement;
-		const pagination = container.querySelector('#pagination') as HTMLElement;
-		const paginationPages = container.querySelector('#pagination-pages') as HTMLElement;
-		const paginationPrev = container.querySelector('#pagination-prev') as HTMLButtonElement;
-		const paginationNext = container.querySelector('#pagination-next') as HTMLButtonElement;
-		const paginationInfo = container.querySelector('#pagination-info') as HTMLElement;
-		const paginationCurrent = container.querySelector('#pagination-current') as HTMLElement;
-		const paginationTotal = container.querySelector('#pagination-total') as HTMLElement;
+		const paginationNav = container.querySelector('[data-tb-pagination]') as HTMLElement;
 
-		if (!deviceGrid || !deviceCountEl || !searchInput) return;
+		if (!deviceGrid || !deviceCountEl || !searchInput || !paginationNav) return;
 
 		const pageSize = parseInt(container.getAttribute('data-page-size') || '12', 10);
 		let currentPage = 1;
@@ -421,58 +412,6 @@ const initialDevices = devicesWithHref.slice(0, PAGE_SIZE);
 			`;
 		}
 
-		function renderPagination(currentPage: number, totalPages: number) {
-			if (totalPages <= 1) {
-				pagination.hidden = true;
-				paginationInfo.hidden = true;
-				return;
-			}
-
-			pagination.hidden = false;
-			paginationInfo.hidden = false;
-
-			paginationPrev.disabled = currentPage <= 1;
-			paginationNext.disabled = currentPage >= totalPages;
-
-			paginationCurrent.textContent = String(currentPage);
-			paginationTotal.textContent = String(totalPages);
-
-			// Generate page buttons
-			const pages: (number | string)[] = [];
-			const maxVisible = 5;
-
-			if (totalPages <= maxVisible) {
-				for (let i = 1; i <= totalPages; i++) pages.push(i);
-			} else {
-				pages.push(1);
-
-				if (currentPage > 3) {
-					pages.push('...');
-				}
-
-				const start = Math.max(2, currentPage - 1);
-				const end = Math.min(totalPages - 1, currentPage + 1);
-
-				for (let i = start; i <= end; i++) {
-					if (!pages.includes(i)) pages.push(i);
-				}
-
-				if (currentPage < totalPages - 2) {
-					pages.push('...');
-				}
-
-				if (!pages.includes(totalPages)) pages.push(totalPages);
-			}
-
-			paginationPages.innerHTML = pages
-				.map((p) =>
-					typeof p === 'number'
-						? `<button type="button" class="page-btn${p === currentPage ? ' active' : ''}" data-page="${p}">${p}</button>`
-						: `<span class="page-ellipsis">${p}</span>`
-				)
-				.join('');
-		}
-
 		function updateDisplay() {
 			const result = api.search({
 				search: searchInput.value.trim(),
@@ -495,7 +434,11 @@ const initialDevices = devicesWithHref.slice(0, PAGE_SIZE);
 
 			// Update pagination
 			currentPage = result.currentPage;
-			renderPagination(result.currentPage, result.totalPages);
+			updatePagination(paginationNav, {
+				currentPage: result.currentPage,
+				totalPages: result.totalPages,
+				hideOnSinglePage: true,
+			});
 
 			// Update search clear button
 			searchClearBtn.hidden = !searchInput.value;
@@ -545,30 +488,10 @@ const initialDevices = devicesWithHref.slice(0, PAGE_SIZE);
 			searchInput.focus();
 		});
 
-		paginationPrev?.addEventListener('click', () => {
-			if (currentPage > 1) {
-				currentPage--;
-				updateDisplay();
-				deviceGrid.scrollIntoView({ behavior: 'smooth', block: 'start' });
-			}
-		});
-
-		paginationNext?.addEventListener('click', () => {
-			currentPage++;
+		paginationNav.addEventListener('tb-pagination:page-change', (e) => {
+			currentPage = (e as CustomEvent<{ page: number }>).detail.page;
 			updateDisplay();
 			deviceGrid.scrollIntoView({ behavior: 'smooth', block: 'start' });
-		});
-
-		paginationPages?.addEventListener('click', (e) => {
-			const target = e.target as HTMLElement;
-			if (target.classList.contains('page-btn')) {
-				const page = parseInt(target.dataset.page || '1', 10);
-				if (page !== currentPage) {
-					currentPage = page;
-					updateDisplay();
-					deviceGrid.scrollIntoView({ behavior: 'smooth', block: 'start' });
-				}
-			}
 		});
 
 		// Initial render is already done by Astro, just set up pagination.
@@ -578,7 +501,11 @@ const initialDevices = devicesWithHref.slice(0, PAGE_SIZE);
 		if (!hadUrlPlatform) {
 			const initialTotal = allDevices.length;
 			const initialTotalPages = Math.ceil(initialTotal / pageSize);
-			renderPagination(1, initialTotalPages);
+			updatePagination(paginationNav, {
+				currentPage: 1,
+				totalPages: initialTotalPages,
+				hideOnSinglePage: true,
+			});
 		}
 	}
 
@@ -681,6 +608,12 @@ const initialDevices = devicesWithHref.slice(0, PAGE_SIZE);
 
 	.no-results[hidden] {
 		display: none;
+	}
+
+	// Grid → pagination gap the old shell carried; vanishes with the nav's
+	// own `display: none` when it hides on single-page results.
+	.device-library-main :global(.tb-pagination) {
+		margin-top: 2rem;
 	}
 
 	@media (max-width: 768px) {

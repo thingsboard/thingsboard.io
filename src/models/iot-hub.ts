@@ -209,10 +209,6 @@ export const IOT_HUB_STRINGS = {
 		resultSingular: 'result',
 		resultPlural: 'results',
 	},
-	pagination: {
-		prevPageAriaLabel: 'Previous page',
-		nextPageAriaLabel: 'Next page',
-	},
 	installs: {
 		singular: 'install',
 		plural: 'installs',
@@ -231,11 +227,6 @@ export function formatInstallCount(count: number): string {
 export function formatInstalls(count: number): string {
 	const word = count === 1 ? IOT_HUB_STRINGS.installs.singular : IOT_HUB_STRINGS.installs.plural;
 	return `${formatInstallCount(count)} ${word}`;
-}
-
-/** Compact pagination summary for the mobile layout, e.g. `Page 2 of 7`. */
-export function formatPageSummary(current: number, total: number): string {
-	return `Page ${current} of ${total}`;
 }
 
 // Maps raw subtype keys from the API (`timeseries`, `SIMPLE`, `CORE`, …)
