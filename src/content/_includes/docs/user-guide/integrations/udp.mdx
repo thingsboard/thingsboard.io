@@ -497,8 +497,8 @@ Copy the automatically generated **Integration key** and **Integration secret** 
 
 | Parameter | Description |
 |-----------|-------------|
-| **Cache Size** | Maximum number of downlink messages stored per UDP client. |
-| **Cache time to live in minutes** | How long queued downlink messages are retained before being discarded. |
+| **Cache Size** | Maximum number of device source addresses remembered for downlink routing. When the limit is reached, the oldest entry is evicted. |
+| **Cache time to live in minutes** | How long a device's source address is retained. If a downlink is triggered after the entry expires, it cannot be delivered until the device sends another uplink. |
 
 <h4>Advanced settings</h4>
 
@@ -521,11 +521,11 @@ Defines how the integration interprets the raw datagram bytes before passing the
 
   </TabItem>
   <TabItem label="JSON">
-    Parses the datagram as a JSON object. No additional parameters. Suitable when devices send a single JSON object per datagram.
+    Passes the raw datagram bytes to the converter without modification. The converter is responsible for parsing the JSON content. No additional parameters. Suitable when devices send a single JSON object per datagram.
     
   </TabItem>
   <TabItem label="Binary">
-    Interprets the datagram as a binary frame with a length field header. Suitable for binary protocols where the frame header encodes the payload length.
+    Passes the raw datagram bytes directly to the converter without any framing or length-field parsing. Suitable for custom binary protocols where each UDP datagram is a complete, self-contained message.
 
   </TabItem>
   <TabItem label="Hex">
@@ -585,7 +585,8 @@ echo -e -n '534e2d30303364656661756c7432352e373639' | xxd -r -p | nc -u -w5 loca
 
 ### Integration Events
 
-Go to **Integrations center &#8702; Integrations**, click **UDP Integration**, and open the **Events** tab. You should see one event with status **OK** for each message received.
+Each successfully processed uplink is recorded as an event with status **OK**.
+Go to **Integrations center &#8702; Integrations**, click **UDP integration**, and open the **Events** tab to confirm the uplink was received.
 
 ### Converter Events
 
@@ -613,7 +614,7 @@ The downlink converter transforms a <DocLink product={props.product} path="user-
 
 <Steps>
   1. Go to **Integrations center &#8702; Integrations** and open the UDP integration.
-  2. Click **Toggle edit mode**.
+  2. Click the **pencil** icon to enter edit mode.
   3. In the **Downlink data converter** field, click **Create new**.
   4. Enter a name, paste the encoder script shown below, then click **Add**.
   5. Click **Apply changes**.
@@ -670,28 +671,37 @@ Select your script language:
 ]} />
 
 <Aside type="note">
-  The UDP integration supports optional **Cache Size** and **Cache time to live in minutes** settings for the downlink. **Cache Size** limits the number of stored messages per UDP client. **Cache time to live** controls how long messages are retained before being discarded.
+  The UDP integration uses a cache to remember each device's source address for downlink routing. **Cache Size** limits how many device addresses are remembered. **Cache time to live** controls how long an address stays valid — if it expires before a downlink fires, the downlink cannot be delivered until the device sends another uplink.
 </Aside>
 
 ### Configure Root Rule Chain
 
-<Steps>
-  1. Go to <strong>Rule chains &#8702; Root Rule Chain</strong>.
-  2. Find the **Integration Downlink** node, drag it onto the canvas, name it `UDP Downlink`, select the UDP integration, and click **Add**.
-  3. Connect the **Message Type Switch** node to the **Integration Downlink** node using both **Attributes Updated** and **Post Attributes** relation types.
-  4. Click **Apply changes**.
-</Steps>
+<ConfigureDownlinkRuleChain integrationName="UDP" />
+
+import ConfigureDownlinkRuleChain from '@includes/docs/user-guide/integrations/_configure-downlink-rule-chain.mdx';
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/udp/rule-chain-downlink-1.png', alt: 'Root Rule Chain canvas — Integration Downlink node found in the sidebar, ready to drag onto the canvas', caption: 'Search for the Integration Downlink node and drag it onto the canvas' },
-  { src: '/src/assets/images/user-guide/integrations/udp/rule-chain-downlink-2.png', alt: 'Add rule node dialog — name: UDP Downlink, integration: UDP Integration, Add button highlighted', caption: 'Name the node UDP Downlink, select UDP Integration, and click Add' },
-  { src: '/src/assets/images/user-guide/integrations/udp/rule-chain-downlink-3.png', alt: 'Root Rule Chain — Message Type Switch connected to UDP Downlink node via Attributes Updated and Post Attributes; Apply changes highlighted', caption: 'Connect Message Type Switch to UDP Downlink via Attributes Updated and Post Attributes, then click Apply changes' },
+  {
+    src: '/src/assets/images/user-guide/integrations/http/integration-configure-rule-chain-1.png',
+    alt: 'Root Rule Chain editor with Integration Downlink node available in the node palette',
+    caption: 'Open the <strong>Root Rule Chain</strong>, locate the <strong>integration downlink</strong> node in the node palette and drag it onto the rule chain canvas.',
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/udp/udp-integration-configure-rule-chain-2.png',
+    alt: 'Add rule node dialog configured for a UDP integration downlink',
+    caption: 'Enter a node name, select the target <strong>UDP Integration</strong>, and click <strong>Add</strong>.',
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/udp/udp-integration-configure-rule-chain-3.png',
+    alt: 'Rule chain with Integration Downlink node connected to the Attributes Updated message flow',
+    caption: 'Connect the <strong>message type switch</strong> node to the newly created <strong>integration downlink</strong> node using the <strong>Post attributes</strong> and <strong>Attributes Updated</strong> relation types to trigger downlinks whenever shared attributes are created or updated.',
+  },
 ]} />
 
 ### Test Downlink
 
 <Aside type="note">
-  UDP downlink is sent to the source address of the last uplink datagram. To receive a response, keep a UDP socket open on the same port the device sends from. Use `nc -u -l -p <port>` in a second terminal to listen, and send the uplink from a separate terminal bound to the same source port. When the connection stays open for an extended time, only one downlink message is delivered immediately — subsequent messages are queued and sent on the next uplink.
+  UDP downlink is sent to the source address of the last uplink datagram. To receive a response, keep a UDP socket open on the same port the device sends from. Use <code>nc -u -l -p &#60;port&#62;</code> in a second terminal to listen, and send the uplink from a separate terminal bound to the same source port. Downlinks are delivered immediately while the device's source address is cached — all pending messages are sent in sequence. After each downlink payload, the integration sends a second datagram containing the platform line separator (`\n` on Linux/macOS, `\r\n` on Windows) — device-side parsers should expect and strip this trailing datagram.
 </Aside>
 
 Trigger a downlink by adding a shared attribute to the device:
