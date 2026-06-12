@@ -41,6 +41,17 @@ export function getFamilySlug(family: string): string {
 	return 'v' + family.replace(/\./g, '-') + '-x';
 }
 
+/**
+ * All upgrade-eligible versions, newest-first.
+ *
+ * ORDERING IS LOAD-BEARING — keep entries in descending version order, and within
+ * a baseVersion group list the newest patch first. Consumers rely on array position:
+ *   - UPGRADE_FAMILIES dedups by position to derive family order
+ *   - UpgradeTable / *UpgradeSteps render rows in array order
+ *   - LATEST_PATCH_VERSIONS treats the first entry per baseVersion as the latest
+ * An out-of-order insert silently mislabels "(latest patch)" and visibly reorders
+ * the upgrade table and steps.
+ */
 export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 	{
 		version: '4.3.1.2',
@@ -714,7 +725,11 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 /** Unique version families in order, e.g. ["4.3", "4.2", "4.1", ...] */
 export const UPGRADE_FAMILIES: string[] = [...new Set(UPGRADE_VERSIONS.map((v) => v.family))];
 
-/** Version strings that are the newest patch within their baseVersion family. */
+/**
+ * Version strings that are the newest patch within their baseVersion family.
+ * Relies on UPGRADE_VERSIONS being newest-first per baseVersion (see note there) —
+ * the first entry seen for each baseVersion is taken as the latest.
+ */
 export const LATEST_PATCH_VERSIONS: Set<string> = (() => {
 	const seen = new Set<string>();
 	const latest = new Set<string>();
