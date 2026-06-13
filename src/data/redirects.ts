@@ -1285,6 +1285,7 @@ export const NON_DOCS_REDIRECTS: Record<string, string> = {
 	'/partners/hardware/iotracker/': '/partners/hardware/iothings/',
 	'/partners/hardware/makerfabs/': '/partners/hardware/agrosense-makerfabs/',
 	'/partners/hardware/apply/thanks/': '/partners/hardware/apply-thanks/',
+	'/partners/marketplace/': '/iot-hub/',
 
 	// Services
 	'/services/development-services/customers-full-reviews/': '/services/development-services/',
