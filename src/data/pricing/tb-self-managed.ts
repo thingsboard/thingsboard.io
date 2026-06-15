@@ -1,4 +1,4 @@
-import type { SelfManagedData, AddOnItem, CommunityEditionData, PlanCard } from './types';
+import type { SelfManagedData, AddOnItem, CommunityEditionData } from './types';
 
 import edgeIcon from '../../assets/pricing/edge-add-on-icon.svg?raw';
 import trendzIcon from '../../assets/pricing/trendz-add-on-icon.svg?raw';
@@ -213,35 +213,9 @@ export const tbPerpetualHero: CommunityEditionData = {
 		'Your financial model favors a one-time capital investment (CAPEX) over recurring expenses.',
 		'Your business needs a unique, tailored solution, not a one-size-fits-all subscription.',
 	],
-	ctaText: 'Estimate your cost',
-	ctaHref: '#',
-	ctaOnclick: 'window.openTbPerpCalc?.()',
-	secondaryCtaText: 'Contact Us',
-	secondaryCtaHref: '/contact-us/?subject=ThingsBoard%20Products',
+	ctaText: 'Contact Us',
+	ctaHref: '/contact-us/?subject=ThingsBoard%20Products',
 };
-
-export const tbPerpetualPlans: PlanCard[] = [
-	{
-		name: 'Platform',
-		description: 'One-time license \u2014 own your IoT platform forever.',
-		price: 4999,
-		currency: '$',
-		period: ' one-time',
-		ctaText: 'Estimate your cost',
-		ctaHref: '#',
-		ctaPrimary: true,
-		popular: true,
-		features: [
-			{ text: '1,000 devices included' },
-			{ text: '$1.00 /extra device', plusIcon: true, highlight: true },
-			{ text: '1 production instance included' },
-			{ text: 'White labeling included' },
-			{ text: 'Edge Computing (2 instances included)' },
-			{ text: 'Trendz Analytics available' },
-			{ text: 'Offline Mode available' },
-		],
-	},
-];
 
 export const tbSelfManagedAddOns: AddOnItem[] = [
 	{
