@@ -24,18 +24,21 @@ export const data: UseCaseData = {
 			{
 				src: '/src/assets/images/usecases/scada-energy-management/scada-energy-management-1.webp',
 				alt: 'Main state of SCADA energy management dashboard',
+				title: 'Main mimic diagram: generation, storage and consumption',
 				width: 1286,
 				height: 660,
 			},
 			{
 				src: '/src/assets/images/usecases/scada-energy-management/scada-energy-management-2.webp',
 				alt: 'SCADA energy management dashboard consumption state',
+				title: 'Live power, voltage, current and frequency by phase',
 				width: 1286,
 				height: 660,
 			},
 			{
 				src: '/src/assets/images/usecases/scada-energy-management/scada-energy-management-3.webp',
 				alt: 'SCADA energy management dashboard small screen responsiveness',
+				title: 'Responsive SCADA layout on tablet and phone',
 				width: 1302,
 				height: 679,
 			},
