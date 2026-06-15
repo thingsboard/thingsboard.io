@@ -4169,6 +4169,7 @@ export const iotHubSidebar: SidebarConfig = [
 			{ label: 'Rule chain', slug: 'docs/iot-hub/guides/rule-chain' },
 			{ label: 'Solution template', slug: 'docs/iot-hub/guides/solution-template' },
 			{ label: 'Widgets', slug: 'docs/iot-hub/guides/widget' },
+			{ label: 'Changelog guidelines', slug: 'docs/iot-hub/guides/changelog-guidelines' },
 		],
 	},
 ];
