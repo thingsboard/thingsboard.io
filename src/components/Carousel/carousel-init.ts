@@ -29,12 +29,16 @@ export async function initCarousel(wrapper: HTMLElement) {
 	const autoplay = wrapper.dataset.autoplay === 'true';
 	const autoplayInterval = parseInt(wrapper.dataset.autoplayInterval || '5000', 10);
 
+	// On touch (coarse pointer) a swipe should stop autoplay so it doesn't fight the user —
+	// mouseenter/leave never fires there, so stopOnMouseEnter alone can't pause it. On mouse,
+	// keep hover-pause + resume-after-drag (stopOnInteraction:false enables the pointerUp resume).
+	const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
 	const plugins =
 		autoplay && !reducedMotion
 			? [
 					Autoplay({
 						delay: autoplayInterval,
-						stopOnInteraction: false,
+						stopOnInteraction: coarsePointer,
 						stopOnMouseEnter: true,
 					}),
 				]
@@ -131,12 +135,16 @@ export function observeCarousels() {
 	const observer = new IntersectionObserver(
 		(entries) => {
 			entries.forEach((entry) => {
-				if (entry.isIntersecting) {
-					const wrapper = entry.target as HTMLElement;
-					wrapper.dataset.carouselInit = 'true';
-					observer.unobserve(wrapper);
-					initCarousel(wrapper);
-				}
+				if (!entry.isIntersecting) return;
+				const wrapper = entry.target as HTMLElement;
+				observer.unobserve(wrapper);
+				// Re-check the flag here, not just at querySelectorAll time: if observeCarousels
+				// runs twice before any intersection (e.g. both DOMContentLoaded and
+				// astro:page-load fire), two observers can watch the same wrapper. The flag
+				// keeps initCarousel from running twice on it.
+				if (wrapper.dataset.carouselInit) return;
+				wrapper.dataset.carouselInit = 'true';
+				initCarousel(wrapper);
 			});
 		},
 		{ rootMargin: '200px' }
