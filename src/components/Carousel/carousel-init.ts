@@ -139,9 +139,8 @@ export function observeCarousels() {
 				const wrapper = entry.target as HTMLElement;
 				observer.unobserve(wrapper);
 				// Re-check the flag here, not just at querySelectorAll time: if observeCarousels
-				// runs twice before any intersection (e.g. both DOMContentLoaded and
-				// astro:page-load fire), two observers can watch the same wrapper. The flag
-				// keeps initCarousel from running twice on it.
+				// runs twice before any intersection, two observers can watch the same wrapper.
+				// The flag keeps initCarousel from running twice on it.
 				if (wrapper.dataset.carouselInit) return;
 				wrapper.dataset.carouselInit = 'true';
 				initCarousel(wrapper);
