@@ -1,4 +1,4 @@
-import type { CarouselItem } from '../components/Carousel/Carousel.astro';
+import type { CarouselItem } from '../components/Landing/DashboardSlide.astro';
 
 export const homeCarouselItems: CarouselItem[] = [
 	{
