@@ -1,11 +1,11 @@
 // Lazy-loaded module for the ThingsBoard Private Cloud calculator.
 // See `calc-tb-payg.ts` for the lazy-load pattern rationale.
 
+import { makeModalController, portalToBody } from '@root/scripts/pricing/modal-controller';
+
 declare function sliderProgress(slider: HTMLInputElement): void;
 declare function initTickMarks(container: HTMLElement): void;
 declare function initAllSliders(root?: HTMLElement | Document): void;
-declare function calcModalOpen(): void;
-declare function calcModalClose(): void;
 
 // ═══════════════════════════════════════════
 // PRIVATE CLOUD CALCULATOR — Full port
@@ -327,7 +327,15 @@ export function initTbPcCalc() {
 		jsonInput.value = '';
 		jsonError.textContent = '';
 		jsonDpCount.textContent = '0';
+		// Re-parent to <body> alongside the main modal so this nested overlay
+		// (z-index 10001) escapes `.main-pane { isolation: isolate }` and paints
+		// above the now body-level main modal instead of being trapped behind it.
+		portalToBody(payloadModal);
 		payloadModal.style.display = '';
+	}
+
+	function closePayloadModal() {
+		payloadModal.style.display = 'none';
 	}
 
 	jsonInput?.addEventListener('input', () => {
@@ -359,12 +367,12 @@ export function initTbPcCalc() {
 		const el = container.querySelector(`[data-profile-id="${payloadTargetProfileId}"]`);
 		const inp = el?.querySelector('[data-input="dataPoints"]') as HTMLInputElement | null;
 		if (inp) inp.value = String(count);
-		payloadModal.style.display = 'none';
+		closePayloadModal();
 		calculate();
 	});
 
-	document.getElementById('pc-payload-close')?.addEventListener('click', () => { payloadModal.style.display = 'none'; });
-	payloadModal?.addEventListener('click', (e) => { if (e.target === payloadModal) payloadModal.style.display = 'none'; });
+	document.getElementById('pc-payload-close')?.addEventListener('click', closePayloadModal);
+	payloadModal?.addEventListener('click', (e) => { if (e.target === payloadModal) closePayloadModal(); });
 
 	// ─── Mode toggle ───
 	$$('.calc-mode-btn').forEach(btn => {
@@ -753,10 +761,24 @@ export function initTbPcCalc() {
 	}
 
 	// ─── Modal controls ───
-	function closeModal() { calcModalClose(); setTimeout(() => { modal!.style.display = 'none'; }, 300); }
-	$('[data-calc-close]').addEventListener('click', closeModal);
-	modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
-	document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal.style.display !== 'none') closeModal(); });
+	const { open: openModal } = makeModalController({
+		modal,
+		onOpen: () => {
+			calculate();
+			requestAnimationFrame(() => initAllSliders(modal));
+		},
+		// Hide the payload sub-modal too — it's portaled to <body> as a sibling,
+		// so closing the main modal must not leave it orphaned.
+		onClose: closePayloadModal,
+		// Escape closes the top layer first: the payload sub-modal, then the modal.
+		onEscape: () => {
+			if (payloadModal.style.display !== 'none') {
+				closePayloadModal();
+				return true;
+			}
+			return false;
+		},
+	});
 
 	modal.querySelector('[data-calc-copy]')?.addEventListener('click', (e) => {
 		const btn = e.currentTarget as HTMLElement;
@@ -826,12 +848,7 @@ export function initTbPcCalc() {
 
 	// ─── Init ───
 	addProfile(true);
-	openImpl = () => {
-		modal.style.display = '';
-		calcModalOpen();
-		calculate();
-		requestAnimationFrame(() => initAllSliders(modal));
-	};
+	openImpl = openModal;
 }
 
 export function openTbPcCalc() {

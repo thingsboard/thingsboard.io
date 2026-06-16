@@ -4,10 +4,10 @@
 // ~20 KiB of calculator JS never lands on the critical path for users who
 // don't open it.
 
+import { makeModalController } from '@root/scripts/pricing/modal-controller';
+
 declare function sliderProgress(slider: HTMLInputElement): void;
 declare function initAllSliders(root?: HTMLElement | Document): void;
-declare function calcModalOpen(): void;
-declare function calcModalClose(): void;
 
 const SM_PLANS = {
 	mobileApp: 99, mobileAppSetup: 1000,
@@ -395,10 +395,14 @@ export function initTbPaygCalc() {
 	});
 
 	// ─── Modal ───
-	function closeModal() { calcModalClose(); setTimeout(() => { modal!.style.display = 'none'; }, 300); }
-	$('[data-calc-close]').addEventListener('click', closeModal);
-	modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
-	document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal.style.display !== 'none') closeModal(); });
+	const { open: openModal } = makeModalController({
+		modal,
+		onOpen: () => {
+			updateProgress();
+			requestAnimationFrame(() => initAllSliders(modal));
+			calculate();
+		},
+	});
 
 	// Build clipboard text from current state
 	function buildSummaryText(): string {
@@ -496,7 +500,7 @@ export function initTbPaygCalc() {
 
 	updateProgress(); calculate();
 	requestAnimationFrame(() => initAllSliders(modal));
-	openImpl = () => { modal.style.display = ''; calcModalOpen(); updateProgress(); requestAnimationFrame(() => initAllSliders(modal)); calculate(); };
+	openImpl = openModal;
 }
 
 export function openTbPaygCalc() {
