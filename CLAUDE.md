@@ -116,6 +116,8 @@ src/content/docs/docs/{path}/{page}.mdx         ← CE stub (passes Products.CE)
 src/content/docs/docs/pe/{path}/{page}.mdx      ← PE stub (passes Products.PE)
 ```
 
+**Product-conditional content:** wrap it in `<ShowFor product={props.product} show={[Products.PE]}>…</ShowFor>` and write **normal Markdown** inside (`**bold**`, `-`/`1.` lists, `` `code` ``, `<Tabs>`/`<Aside>`/`<Code>` components). Do **not** use `{props.product === … && (<>…</>)}` with hand-written `<p>`/`<ul>`/`<li>`/`<code>` HTML — a JSX `{…}` expression disables Markdown parsing, forcing ugly raw HTML; `<ShowFor>` does not. The one exception: headings inside still use `<ConditionalHeading … showFor="…">` (not `##`), because the TOC plugin needs that metadata to add them conditionally.
+
 See the `edit-doc` skill for detailed _includes rules, conditional rendering patterns, and common pitfalls.
 
 ### Version Constants
