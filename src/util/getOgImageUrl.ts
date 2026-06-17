@@ -4,7 +4,6 @@ import {
 	getIotHubCardInputs,
 	getCaseStudyCardInputs,
 	getUseCaseCardInputs,
-	getDeviceCardInputs,
 	getMarketingCardInputs,
 	getPartnerCardInputs,
 	getCareerCardInputs,
@@ -16,7 +15,6 @@ const COLLECTION_INDEX_URLS: Record<string, string> = {
 	'docs-index':           '/docs',
 	'case-studies-index':   '/case-studies',
 	'use-cases-index':      '/use-cases',
-	'device-library-index': '/device-library',
 };
 
 /** A pathname → OG-image-pathname mapping derived from one CardInput list. */
@@ -36,7 +34,6 @@ const routeIndex = new Map<string, string>([
 	...fromInputs(await getBlogCardInputs(),       (s) => (s === 'index' ? '/blog' : `/blog/${s}`), '/open-graph/blog'),
 	...fromInputs(await getCaseStudyCardInputs(),  (s) => `/case-studies/${s}`,                    '/open-graph/case-studies'),
 	...fromInputs(await getUseCaseCardInputs(),    (s) => `/use-cases/${s}`,                       '/open-graph/use-cases'),
-	...fromInputs(await getDeviceCardInputs(),     (s) => `/device-library/${s}`,                  '/open-graph/device-library'),
 	// Homepage marketing card has slug 'index' — key it at '' so trailing-slash
 	// strip turns the `/` lookup into '' and matches.
 	...fromInputs(await getMarketingCardInputs(),  (s) => (s === 'index' ? '' : `/${s}`),          '/open-graph/pages'),

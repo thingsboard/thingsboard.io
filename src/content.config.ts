@@ -5,7 +5,6 @@ import { z } from 'astro/zod';
 import { file, glob } from 'astro/loaders';
 import { logoKeys } from '@data/logos';
 import { Products } from '@models/site.models';
-import { PLATFORM_VALUES, type DevicePlatform } from '@util/device-platform';
 import {
 	IOT_HUB_API_URL,
 	IOT_HUB_CATEGORIES,
@@ -16,9 +15,6 @@ import {
 	type ListingDetail,
 } from '@models/iot-hub';
 import { fetchWithRetry } from '@util/fetch-utils';
-
-export { PLATFORM_VALUES };
-export type { DevicePlatform };
 
 export const baseSchema = z.object({
 	type: z.literal('base').optional().default('base'),
@@ -102,34 +98,6 @@ export const recipeSchema = baseSchema.extend({
 	type: z.literal('recipe'),
 	description: z.string(),
 	altTitle: z.string().optional(),
-});
-
-export const deviceSchema = z.object({
-	title: z.string(),
-	description: z.string(),
-	vendor: z.string().optional(),
-	deviceImageFileName: z.string().default('placeholder.svg'),
-	hardwareType: z.string().default('Other devices'),
-	connectivity: z
-		.array(z.string())
-		.or(z.string())
-		.transform((v) => (Array.isArray(v) ? v : [v]))
-		.default([]),
-	industry: z
-		.array(z.string())
-		.or(z.string())
-		.transform((v) => (Array.isArray(v) ? v : [v]))
-		.default([]),
-	useCase: z
-		.array(z.string())
-		.or(z.string())
-		.transform((v) => (Array.isArray(v) ? v : [v]))
-		.default([]),
-	chip: z.string().optional(),
-	category: z.string().optional(),
-	platforms: z
-		.array(z.enum(PLATFORM_VALUES))
-		.default(['ThingsBoard']),
 });
 
 export const blogSchema = z.object({
@@ -322,18 +290,6 @@ export const collections = {
 		},
 		schema: z.object({ avatar_url: z.string() }),
 	}),
-	devices: defineCollection({
-		loader: glob({
-			pattern: '**/*.mdx',
-			base: './src/content/devices',
-			// Preserve filename case in the generated id so device URLs match the
-			// source filename (e.g. `raspberry-pi-3-model-B-plus`). The default
-			// `generateId` lowercases via github-slugger, which collides with the
-			// legacy redirect targets that use the original casing.
-			generateId: ({ entry }) => entry.replace(/\.mdx$/, ''),
-		}),
-		schema: deviceSchema,
-	}),  
 	iotHubCategories: defineCollection({
 		loader: async () => {
 			type ListingPage = {
