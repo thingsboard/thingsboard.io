@@ -179,40 +179,6 @@ Key dirs: `src/data/case-studies/`, `src/components/CaseStudy/`, `src/pages/case
 
 Data-driven page at `/clients-feedback/`. Key dirs: `src/data/clients-feedback/`, `src/components/Feedback/`, `src/pages/clients-feedback/`.
 
-### Device Library
-
-Catalog of supported hardware + integration guides at `/device-library/` (index) and `/device-library/{slug}/` (detail pages). **Flat slug**, not product-prefixed — one URL per device regardless of platform. Platform context rides on a `?platform=` query parameter that the detail page reads client-side to activate the right CE/PE branch and swap hostname sentinels (`YOUR_TB_HOST` → actual platform host) in code snippets.
-
-Content lives in the `devices` collection, not `docs`:
-
-```
-src/content/devices/en/{slug}.mdx       ← device guides (EN-only; no i18n for this collection)
-src/content.config.ts                   ← `deviceSchema` + `PLATFORM_VALUES` allow-list
-src/util/device-platform.ts             ← platform metadata, sentinel map, query → variant mapping
-src/util/device-images.ts               ← asset-pipeline resolver for catalog thumbnails + hero images
-```
-
-Presentation uses `StarlightPage` with `template: 'doc'` so guide bodies get the same Starlight typography as real docs pages, wrapped in the chrome components under `src/components/DeviceLibrary/`:
-
-```
-DeviceLibrary.astro        ← index: search + filter sidebar + paginated grid (client-side)
-DeviceCard.astro           ← catalog thumbnail card
-DeviceInfoCard.astro       ← detail page hero (product image + spec sheet + CTA)
-PlatformContent.astro      ← wraps `<PlatformContent variant="ce|pe">…</PlatformContent>` blocks
-PlatformToggle.astro       ← CE/PE segmented control (role="group" + aria-pressed)
-DeviceCTAFooter.astro      ← detail page CTA footer
-FilterSidebar.astro        ← search + filter sidebar (reused)
-```
-
-Chrome components all carry `.not-content` so Starlight's markdown flow/typography rules don't apply to them, while the MDX body inside `<Content />` does get full Starlight styling.
-
-**Assets:**
-- `src/assets/devices/{filename}` — catalog thumbnails (referenced by `deviceImageFileName:` frontmatter)
-- `src/assets/devices-library/**` — body content images (screenshots, diagrams, galleries)
-- Both go through Astro's asset pipeline (content-hashed URLs, WebP re-encoding, intrinsic `width`/`height`)
-
-**Redirects:** `scripts/device-library-redirects.json` maps every legacy URL shape (`/docs/devices-library/{slug}/`, `/docs/pe/devices-library/{slug}/`, `/device-library/{platform}/{slug}/`, and the `guides/` variants) to `/device-library/{slug}/?platform={platform}`. Imported at build time by `astro.redirects.ts`. Covers 983/983 inbound URLs from the legacy site.
-
 ## Redirects
 
 **Single source of truth:** `src/data/redirects.ts`. Four exports, chosen by pattern shape:
@@ -253,7 +219,7 @@ Per-page OG cards (1200×630 PNG) are generated at build time by Satori + Resvg.
 - `src/pages/open-graph/_shared/render.ts` — Satori → Resvg pipeline + content-hash cache
 - `src/pages/open-graph/_shared/page-data.ts` — collection enumerators
 - `src/pages/open-graph/_shared/jsx-runtime.ts` — minimal Satori-shaped JSX shim (no React)
-- `src/pages/open-graph/{collection}/[…].png.ts` — six static endpoints (docs, blog, case-studies, use-cases, device-library, pages)
+- `src/pages/open-graph/{collection}/[…].png.ts` — static endpoints (docs, blog, case-studies, use-cases, careers, iot-hub, partners, pages)
 - `src/util/ogContext.ts` — eyebrow / label helpers + `MARKETING_ALLOWLIST`
 - `src/util/getOgImageUrl.ts` — pathname → OG PNG URL aggregator
 
