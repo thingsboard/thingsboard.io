@@ -1,4 +1,13 @@
-import type { CarouselItem } from '../components/Landing/DashboardSlide.astro';
+export interface CarouselItem {
+	src: string;
+	alt: string;
+	title: string;
+	description: string;
+	linkLabel: string;
+	href: string;
+	width: string | number;
+	height: string | number;
+}
 
 export const homeCarouselItems: CarouselItem[] = [
 	{
