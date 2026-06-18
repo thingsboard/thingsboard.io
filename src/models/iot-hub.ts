@@ -17,8 +17,7 @@ declare global {
 		__IOT_HUB_API_URL?: string;
 	}
 }
-const BUILD_TIME_IOT_HUB_API_URL =
-	import.meta.env.IOT_HUB_API_URL ?? 'https://iot-hub.tbqa.cloud';
+const BUILD_TIME_IOT_HUB_API_URL = import.meta.env.IOT_HUB_API_URL ?? 'https://iot-hub.thingsboard.io';
 export const IOT_HUB_API_URL =
 	typeof window !== 'undefined' && window.__IOT_HUB_API_URL
 		? window.__IOT_HUB_API_URL
@@ -28,68 +27,97 @@ export const IOT_HUB_CATEGORIES = [
 	{
 		slug: 'devices',
 		itemType: 'DEVICE',
-		label: 'Devices',
+		label: 'IoT Devices',
+		singularLabel: 'Device',
 		tileLabel: 'Device Library',
+		heroTitle: 'IoT Device Library',
 		card: 'big',
 		tileColor: '#ccd5ff',
 		tileColorDark: '#4c63cc',
 		heroDescription:
 			'Explore the device library to find pre-configured connectivity templates you can deploy in minutes to connect your hardware instantly.',
+		seoDescription:
+			'Connect your hardware in one step. Install ready-made IoT device profiles for MQTT, Modbus, and OPC UA from the ThingsBoard IoT Hub.',
+		guideHref: '/docs/iot-hub/guides/device/',
+		ctaTitle: 'Add your device',
+		ctaDescription:
+			'Submit your devices to the ThingsBoard IoT Hub to showcase them to our global community and make it way easier for your clients.',
 	},
 	{
 		slug: 'solution-templates',
 		itemType: 'SOLUTION_TEMPLATE',
 		label: 'Solution Templates',
+		singularLabel: 'Solution Template',
 		tileLabel: 'Solution Templates',
+		heroTitle: 'IoT Solution Templates',
 		card: 'big',
 		tileColor: '#b8d9ff',
 		tileColorDark: '#2c6cb4',
 		heroDescription:
 			'Complete IoT solution packages with dashboards, rule chains, and device configurations. Get started with proven architectures.',
+		seoDescription:
+			'Start from a working solution. Install ready-made IoT solution templates for retail, fleet, energy, and SCADA from the ThingsBoard IoT Hub.',
+		guideHref: '/docs/iot-hub/guides/solution-template/',
 	},
 	{
 		slug: 'widgets',
 		itemType: 'WIDGET',
 		label: 'Widgets',
+		singularLabel: 'Widget',
 		tileLabel: 'Widgets',
 		card: 'big',
 		tileColor: '#a3ffc3',
 		tileColorDark: '#2c9755',
 		heroDescription:
 			'Jumpstart your IoT journey with pre-configured widgets designed for your industry. Deploy proven architectures instantly and focus your energy on what matters: your unique business logic.',
+		seoDescription:
+			'Build dashboards faster with ready-to-use IoT widgets. Install charts, gauges, maps, and control cards from the ThingsBoard IoT Hub.',
+		guideHref: '/docs/iot-hub/guides/widget/',
 	},
 	{
 		slug: 'calculated-fields',
 		itemType: 'CALCULATED_FIELD',
 		label: 'Calculated Fields',
+		singularLabel: 'Calculated Field',
 		tileLabel: 'Calculated Fields',
 		card: 'small',
 		tileColor: '#bdedff',
 		tileColorDark: '#3db5e0',
 		heroDescription:
 			'Use pre-configured Calculated Fields to automate complex metrics like fuel efficiency or power factor. Skip the manual logic and keep your dashboards clean and actionable.',
+		seoDescription:
+			'Compute metrics automatically. Install ready-made IoT calculated fields for fuel efficiency, power factor, aggregations, and geofencing from the ThingsBoard IoT Hub.',
+		guideHref: '/docs/iot-hub/guides/calculated-field/',
 	},
 	{
 		slug: 'alarm-rules',
 		itemType: 'ALARM_RULE',
 		label: 'Alarm Rules',
+		singularLabel: 'Alarm Rule',
 		tileLabel: 'Alarm Rules',
 		card: 'small',
 		tileColor: '#ffe6cc',
 		tileColorDark: '#d7702f',
 		heroDescription:
 			'Use pre-built Alarm Rule templates to detect critical conditions like low battery, threshold breaches, or devices going offline. Skip writing the rule logic and start reacting to incidents the moment they happen.',
+		seoDescription:
+			'Catch problems before they escalate. Install ready-made IoT alarm rules for low battery, threshold breaches, and offline devices from the ThingsBoard IoT Hub.',
+		guideHref: '/docs/iot-hub/guides/alarm-rule/',
 	},
 	{
 		slug: 'rule-chains',
 		itemType: 'RULE_CHAIN',
 		label: 'Rule Chains',
+		singularLabel: 'Rule Chain',
 		tileLabel: 'Rule Chains',
 		card: 'small',
 		tileColor: '#ecd1ff',
 		tileColorDark: '#bb7ce9',
 		heroDescription:
 			'From sophisticated data processing to seamless API integrations, Rule Chain templates provide the architectural foundation you need to scale without building from scratch.',
+		seoDescription:
+			'Automate your IoT data flows. Install ready-made IoT rule chains for data processing, transformations, and API integrations from the ThingsBoard IoT Hub.',
+		guideHref: '/docs/iot-hub/guides/rule-chain/',
 	},
 ] as const;
 
@@ -459,10 +487,10 @@ export const getCreatorHref = (creatorId: string): string =>
 // rule identical across every route that applies it.
 export const isNumericSlug = (slug: string): boolean => /^\d+$/.test(slug);
 
-// Display label for the website button — strip the protocol only (mirrors the
-// upstream `getWebsiteLabel()`), keeping any `www.` and trailing slash.
+// Display label for the website button — strip the protocol and any trailing
+// slash, keeping any `www.`.
 export const getWebsiteLabel = (website: string): string =>
-	website.replace(/^https?:\/\//, '');
+	website.replace(/^https?:\/\//, '').replace(/\/+$/, '');
 
 // First-letter initials (max 2) for the avatar fallback. Mirrors the inline
 // logic already in DetailMeta.astro.

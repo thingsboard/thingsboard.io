@@ -344,12 +344,6 @@ export const partnersSubmenu: SubMenu = {
 					heading: 'Distributors',
 					linkClass: 'small-link',
 				},
-				{
-					href: '/partners/marketplace/',
-					icon: '/src/assets/images/landings/nav/marketplace-s-icon.svg',
-					heading: 'Marketplace',
-					linkClass: 'small-link',
-				},
 			],
 		},
 	],

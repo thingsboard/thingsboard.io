@@ -1,5 +1,7 @@
 import DocLink from '@components/DocLink.astro';
-import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import ConditionalHeading from '@components/ConditionalHeading.astro';
+import ShowFor from '@components/ShowFor.astro';
+import { Aside, Code, Tabs, TabItem } from '@astrojs/starlight/components';
 import { Products } from '~/models/site.models';
 
 ## Possible Performance Issues
@@ -345,6 +347,224 @@ Sometimes after configuring OAuth you cannot see the button for logging in with 
 </Aside>
 
 For OAuth2 configuration, see <DocLink product={props.product} path="user-guide/security/oauth-2-support">OAuth 2.0 Support</DocLink>.
+
+## Forgot Password
+
+There are cases when the “Forgot my password” email is not sent. This can happen for one of the following reasons:
+- **User is not activated:** If the user account is not activated, the “Forgot my password” email will not be sent. You must <DocLink product={props.product} path="user-guide/users/#create-a-new-user" useTbDocs>activate the user</DocLink> first.
+- **SMTP is not configured:** If SMTP is not set up on your ThingsBoard instance, password recovery emails cannot be delivered. <DocLink product={props.product} path="user-guide/ui/mail-settings" useTbDocs>Make sure SMTP is configured correctly.</DocLink>
+- **Case sensitivity of email login:** By default, email login in ThingsBoard is case-sensitive for security reasons. To disable case sensitivity,
+update the <DocLink product={props.product} path="reference/configuration/core-rule-engine-config/#security-parameters" useTbDocs>SECURITY_USER_LOGIN_CASE_SENSITIVE</DocLink> 
+parameter to **false** in your <DocLink product={props.product} path="reference/configuration/how-to-change-config" useTbDocs>configuration</DocLink> file. After that, you must restart your ThingsBoard service to apply the changes.
+
+<ShowFor product={props.product} show={[Products.PE]}>
+
+<ConditionalHeading level={2} id="dashboard-export-tb-web-report" showFor="pe">Dashboard Export (tb-web-report)</ConditionalHeading>
+
+The **Export Dashboard** feature relies on **tb-web-report** — a service that runs a headless Chromium browser to render dashboards and capture them as PDF or PNG.
+Most issues with the Dashboard export process are caused by timeout values that are too low for the complexity of the dashboard being rendered.
+
+<Aside type="caution">
+  **tb-web-report is a legacy component.** For better performance and reliability, we recommend migrating to the new Reporting feature with Report Templates, introduced in ThingsBoard 4.2. See the <DocLink product={Products.PE} path="user-guide/reporting/getting-started/">Reporting documentation</DocLink> for details.
+</Aside>
+
+<ConditionalHeading level={3} id="reading-tb-web-report-logs" showFor="pe">Reading tb-web-report logs</ConditionalHeading>
+
+Before diagnosing an issue, check where logs are written for your deployment.
+
+<Tabs>
+  <TabItem label="Linux (native)">
+
+Log files are written to:
+
+<Code code="/var/log/tb-web-report/tb-web-report-<YYYY-MM-DD-HH>.log" lang="bash" />
+
+Files rotate hourly and are compressed after rotation. To view recent entries:
+
+<Code code="tail -200 /var/log/tb-web-report/tb-web-report-*.log" lang="bash" />
+
+  </TabItem>
+  <TabItem label="Docker">
+
+Logs go to stdout. No log file is written when `DOCKER_MODE=true`. To view recent log entries:
+
+<Code code="docker logs <container-name> --tail 200" lang="bash" />
+
+  </TabItem>
+</Tabs>
+
+The default log level is `info`. To increase verbosity, set `LOGGER_LEVEL` to `debug`:
+
+<Tabs>
+  <TabItem label="Linux (native)">
+
+Edit `/etc/tb-web-report/conf/tb-web-report.conf` and set:
+
+<Code code="export LOGGER_LEVEL=debug" lang="bash" />
+
+  </TabItem>
+  <TabItem label="Docker">
+
+Add or update in the `environment` section of your `docker-compose.yml`:
+
+<Code code="- LOGGER_LEVEL=debug" lang="yaml" />
+
+  </TabItem>
+</Tabs>
+
+Available levels from least to most verbose: `error` → `warn` → `info` → `http` → `verbose` → `debug` → `silly`
+
+Remember to set the level back to `info` after diagnosing, then restart tb-web-report.
+
+For the full reference of Report Service configuration parameters, see the <DocLink product={Products.PE} path="reference/configuration/report-service-config">Report Service configuration reference</DocLink>.
+
+<ConditionalHeading level={3} id="symptom-failed-to-load-dashboard-page" showFor="pe">Symptom: "Failed to load dashboard page: page.goto: Timeout 10000ms exceeded"</ConditionalHeading>
+
+This is the most common Dashboard Export error.
+
+**In the tb-web-report log:**
+
+<Code code="Failed to load dashboard page: page.goto: Timeout 10000ms exceeded" lang="text" />
+
+**In the ThingsBoard UI or API response:** The export request fails with a 503 error.
+
+This error typically means tb-web-report did not have enough time to render the dashboard before the timeout expired.
+
+**Common causes:**
+
+- The dashboard has many widgets, or widgets that fetch large amounts of data.
+- The configured time range covers a long period.
+- `LOAD_DASHBOARD_RESOURCES_TIMEOUT` is set too low (default: 10,000 ms).
+
+**How to resolve:**
+
+**1. Increase the tb-web-report timeouts.**
+
+<Tabs>
+  <TabItem label="Linux (native)">
+
+Edit `/etc/tb-web-report/conf/tb-web-report.conf` and add or update:
+
+<Code code={`export LOAD_DASHBOARD_RESOURCES_TIMEOUT=180000
+export DASHBOARD_IDLE_WAIT_TIME=20000
+export GENERATE_REPORT_TIMEOUT=180000`} lang="bash" />
+
+  </TabItem>
+  <TabItem label="Docker">
+
+Add or update in the `environment` section of your `docker-compose.yml`:
+
+<Code code={`- LOAD_DASHBOARD_RESOURCES_TIMEOUT=180000
+- DASHBOARD_IDLE_WAIT_TIME=20000
+- GENERATE_REPORT_TIMEOUT=180000`} lang="yaml" />
+
+  </TabItem>
+</Tabs>
+
+**2. Increase the ThingsBoard server-side timeout.**
+
+<Tabs>
+  <TabItem label="Linux (native)">
+
+Edit `/etc/thingsboard/conf/thingsboard.conf` and add or update:
+
+<Code code="export SPRING_MVC_ASYNC_REQUEST_TIMEOUT=60000" lang="bash" />
+
+  </TabItem>
+  <TabItem label="Docker">
+
+Add or update in the `environment` section of your ThingsBoard container in `docker-compose.yml`:
+
+<Code code="- SPRING_MVC_ASYNC_REQUEST_TIMEOUT=60000" lang="yaml" />
+
+  </TabItem>
+</Tabs>
+
+**3. Restart both services** (tb-web-report and ThingsBoard).
+
+**4. If the timeout persists,** review the dashboard complexity. The more widgets and data a dashboard loads, the longer rendering takes. Consider:
+
+- Reducing the number of widgets on dashboards used for reports.
+- Narrowing the default time range.
+- Using aggregated data rather than raw telemetry where possible.
+
+<ConditionalHeading level={3} id="symptom-report-generates-empty" showFor="pe">Symptom: Report generates but is empty or shows no data</ConditionalHeading>
+
+The PDF or image file is produced, but all widgets appear blank.
+
+**In the tb-web-report log:** No error is logged — the export completes successfully from the service's perspective.
+
+**In the exported file:** Widgets are visible but show no data, or the dashboard appears empty.
+
+**Cause:** tb-web-report takes a snapshot immediately after the page finishes loading. If widgets fetch telemetry asynchronously, the data may not have arrived yet when the snapshot is taken.
+
+**How to resolve:**
+
+Set `DASHBOARD_IDLE_WAIT_TIME` to add an extra delay after page load before the snapshot is taken. Start with 5,000 ms (5 seconds) and increase if widgets are still blank.
+
+<Tabs>
+  <TabItem label="Linux (native)">
+
+Edit `/etc/tb-web-report/conf/tb-web-report.conf`:
+
+<Code code="export DASHBOARD_IDLE_WAIT_TIME=5000" lang="bash" />
+
+  </TabItem>
+  <TabItem label="Docker">
+
+Add or update in the `environment` section of your `docker-compose.yml`:
+
+<Code code="- DASHBOARD_IDLE_WAIT_TIME=5000" lang="yaml" />
+
+  </TabItem>
+</Tabs>
+
+Restart tb-web-report after changing this value.
+
+<ConditionalHeading level={3} id="symptom-export-request-times-out" showFor="pe">Symptom: Export request times out at the ThingsBoard level</ConditionalHeading>
+
+The export request times out before tb-web-report finishes rendering.
+
+**In the ThingsBoard log (not the tb-web-report log):** An async request timeout error appears. There is no corresponding error in the tb-web-report log.
+
+**In the UI or API response:** "504 Gateway Timeout" (if behind a reverse proxy), or a timeout error returned from ThingsBoard without any error in the tb-web-report log.
+
+**Cause:** `SPRING_MVC_ASYNC_REQUEST_TIMEOUT` on the ThingsBoard side is shorter than the time tb-web-report needs to generate the export.
+
+**How to resolve:**
+
+Set `SPRING_MVC_ASYNC_REQUEST_TIMEOUT` to match or exceed your `GENERATE_REPORT_TIMEOUT` value in tb-web-report (default: 30,000 ms). The value is in milliseconds.
+
+<Tabs>
+  <TabItem label="Linux (native)">
+
+Edit `/etc/thingsboard/conf/thingsboard.conf` and add or update:
+
+<Code code="export SPRING_MVC_ASYNC_REQUEST_TIMEOUT=60000" lang="bash" />
+
+  </TabItem>
+  <TabItem label="Docker">
+
+Add or update in the `environment` section of your ThingsBoard container in `docker-compose.yml`:
+
+<Code code="- SPRING_MVC_ASYNC_REQUEST_TIMEOUT=60000" lang="yaml" />
+
+  </TabItem>
+</Tabs>
+
+Restart ThingsBoard after changing this value.
+
+<ConditionalHeading level={3} id="dashboard-export-configuration" showFor="pe">Configuration</ConditionalHeading>
+
+All environment variable names are case-sensitive. An incorrectly spelled variable name is silently ignored — the service falls back to the default value without any warning or error message.
+
+<Aside type="caution">
+  `DASHBOARD_LOAD_WAIT_TIME` is **not** a valid variable name. The correct name is `DASHBOARD_IDLE_WAIT_TIME`.
+</Aside>
+
+For the full reference of Report Service configuration parameters, see the <DocLink product={Products.PE} path="reference/configuration/report-service-config">Report Service configuration reference</DocLink>.
+
+</ShowFor>
 
 ## Getting Help
 

@@ -3,38 +3,486 @@ import ImageGallery from '~/components/ImageGallery.astro';
 import DocImage from '~/components/DocImage.astro';
 import Banner from '~/components/Banner.astro';
 import { Steps, Aside } from '@astrojs/starlight/components';
+import { Products } from '~/models/site.models';
 import Tabs from '@components/Tabs.astro';
 import TabItem from '@components/TabItem.astro';
+import ConfigureDownlinkRuleChain from '@includes/docs/user-guide/integrations/_configure-downlink-rule-chain.mdx';
 
-<Banner variant="peFeature" product={props.product} path="user-guide/integrations/mqtt" />
+<Banner variant="peFeature" product={props.product} path="installation/" />
 
-HTTP Integration converts existing protocols and payload formats to ThingsBoard message format. Common deployment scenarios:
+HTTP Integration is an entry point for data from any HTTP-capable source — devices, cloud services, custom backends, or third-party services — via standard HTTP `POST` requests. ThingsBoard creates a unique endpoint for the integration. The platform:
 
-- Stream device or asset data from an external system, IoT platform, or connectivity provider back-end.
-- Stream data from a custom cloud application.
-- Connect an existing device with a custom HTTP-based protocol to ThingsBoard.
+- passes each request through the Uplink Converter (JavaScript or TBEL),
+- decodes the payload and maps it to ThingsBoard telemetry and attributes,
+- auto-creates devices on the first uplink (when **Allow create devices or assets** is enabled).
 
-<DocImage src="/src/assets/images/user-guide/integrations/http-integration.svg" alt="HTTP integration architecture" product={props.product} />
+**When to use HTTP Integration:**
 
-## ThingsBoard integration setup
+- Device or gateway supports HTTP/HTTPS but not MQTT or CoAP.
+- Third-party service sends a webhook (payment systems, monitoring, CRM).
+- Custom backend needs a simple REST interface to push data into ThingsBoard.
+- A quick prototype without an MQTT broker is needed.
 
-### Create an uplink converter
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/http-integration-architecture.svg', alt: 'HTTP integration architecture', caption: 'HTTP integration architecture' },
+]} />
 
-The uplink converter decodes the incoming HTTP request body and maps it to the ThingsBoard data model. The decoder receives:
-- `payload` — raw bytes of the HTTP request body
-- `metadata` — HTTP request headers (as `Header:{name}` keys, e.g. `Header:content-type`) and `integrationName`
+## Prerequisites
 
-It must return `deviceName`, `deviceType`, `attributes`, and `telemetry`. Both are flat key-value maps — nested objects are not supported. For the full decoder API, see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">Uplink data converter</DocLink>.
+Before creating the integration, ensure:
 
-<Aside type="tip" title="TBEL">
-  We recommend using <DocLink product={props.product} path="user-guide/tbel">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
+- You have access to {props.product !== Products.PAAS && props.product !== Products.PAAS_EU && <><DocLink product={Products.PE} path="installation/" target="_blank">ThingsBoard PE</DocLink> or </>}<a href="/installations/?product=thingsboard-cloud" target="_blank"><strong>ThingsBoard Cloud</strong></a> with integration functionality enabled for your tenant.
+- You have permissions to create integrations and data converters.
+- You know the structure of the incoming HTTP payload.
+
+## Create HTTP Uplink Data Converter
+
+The uplink converter decodes the HTTP request payload — received as an array of bytes — and maps it to ThingsBoard's data model: it resolves the target device and extracts fields into telemetry and attributes. 
+
+You can write your own decoder or pick a ready-made template from the <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#converters-library" target="_blank">Converters library</DocLink>.  
+For the full decoder function reference — all input parameters and output fields — see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#decoder-function" target="_blank">Uplink data converter</DocLink>.
+
+<Steps>
+1. Go to <strong>Integrations center &#8702; Data converters</strong>.
+2. Click <strong>+ Add data converter &#8702; Create new converter</strong>.
+</Steps>
+
+In the **Add data converter** dialog:
+
+<Steps>
+  <ol start="3">
+    <li><strong>Converter type</strong> — leave <strong>Uplink</strong> (selected by default).</li>
+    <li><strong>Integration type</strong> — in the search field, enter <code>HTTP</code> and select <strong>HTTP</strong> from the list.</li>
+    <li><strong>Name</strong> — enter a converter name, for example <code>HTTP Uplink Converter</code>.</li>
+    <li>
+      <p><strong>Main decoding configuration</strong> — a code editor with the function signature <code>function decoder(payload, metadata) &#123;</code>.<br />By default it opens in TBEL; use the <strong>TBEL / JS</strong> toggle (upper right) to switch languages.</p>
+
+      <p><strong>Basic converter template:</strong> a full working template for JSON payloads. Adapt field names to match your device.</p>
+
+<Aside type="caution">
+  Both `attributes` and `telemetry` must be flat key-value maps. Nested objects are not supported — extract the values you need explicitly.
 </Aside>
 
-**The decoder function used in this tutorial:**
+<Aside type="tip" title="TBEL">
+  We recommend using <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
+</Aside>
 
 <Tabs>
-<TabItem label="TBEL (Recommended)">
-```js maxLines=15 collapsible
+  <TabItem label="TBEL (Recommended)">
+    ```js maxLines=15 collapsible
+    // Decode an uplink message from a buffer
+    // payload - array of bytes
+    // metadata - key/value object
+
+    /** Decoder **/
+
+    // decode payload to JSON
+    var data = decodeToJson(payload);
+
+    // --- Device name and type ---
+    var deviceName = data.deviceName != null ? data.deviceName : 'Unknown Device';
+    var deviceType = data.deviceType != null ? data.deviceType : 'default';
+    // var customerName = 'Customer C';
+    // var groupName = 'thermostat devices';
+
+    // use assetName and assetType instead of deviceName and deviceType
+    // to automatically create assets instead of devices.
+    // var assetName = 'Asset A';
+    // var assetType = 'building';
+
+    // --- Timestamp parsing ---
+    var timestamp = -1;
+    if (data.ts != null) {
+      timestamp = data.ts;
+    } else if (data.timestamp != null) {
+      timestamp = new Date(data.timestamp).getTime();
+    }
+    if (timestamp == -1) {
+      timestamp = Date.now();
+    }
+
+    // --- Telemetry and attributes ---
+    var telemetry = {};
+    var attributes = {
+      model: 'Model A',
+      serialNumber: 'SN111',
+      integrationName: metadata['integrationName'],
+    };
+
+    // Keys to exclude from telemetry (already used or non-telemetry fields)
+    var excludeFromTelemetryList = ["deviceName", "deviceType", "ts", "timestamp"];
+
+    // Parse all remaining JSON fields as telemetry
+    telemetry.putAll(toFlatMap(data, excludeFromTelemetryList, true));
+
+    // Result object with device attributes/telemetry data
+    var result = {
+      deviceName: deviceName,
+      deviceType: deviceType,
+    // customerName: customerName,
+    // groupName: groupName,
+    // assetName: assetName,
+    // assetType: assetType,
+      attributes: attributes,
+      telemetry: {
+        ts: timestamp,
+        values: telemetry
+      }
+    };
+
+    /** Helper functions 'decodeToString', 'decodeToJson' and 'toFlatMap' are already built-in **/
+
+    return result;
+    ```
+  </TabItem>
+  <TabItem label="JavaScript">
+    ```js maxLines=15 collapsible
+    // Decode an uplink message from a buffer
+    // payload - array of bytes
+    // metadata - key/value object
+
+    /** Decoder **/
+
+    // decode payload to JSON
+    var data = decodeToJson(payload);
+
+    // --- Device name and type ---
+    var deviceName = data.deviceName != null ? data.deviceName : 'Unknown Device';
+    var deviceType = data.deviceType != null ? data.deviceType : 'default';
+    // var customerName = 'Customer C';
+    // var groupName = 'thermostat devices';
+
+    // use assetName and assetType instead of deviceName and deviceType
+    // to automatically create assets instead of devices.
+    // var assetName = 'Asset A';
+    // var assetType = 'building';
+
+    // --- Timestamp parsing ---
+    var timestamp = -1;
+    if (data.ts != null) {
+      timestamp = data.ts;
+    } else if (data.timestamp != null) {
+      timestamp = new Date(data.timestamp).getTime();
+    }
+    if (timestamp == -1) {
+      timestamp = Date.now();
+    }
+
+    // --- Telemetry and attributes ---
+    var telemetry = {};
+    var attributes = {
+      model: 'Model A',
+      serialNumber: 'SN111',
+      integrationName: metadata['integrationName'],
+    };
+
+    // Keys to exclude from telemetry (already used or non-telemetry fields)
+    var excludeFromTelemetryList = ["deviceName", "deviceType", "ts", "timestamp"];
+
+    // Parse all remaining JSON fields as telemetry
+    toFlatMap(data, telemetry, excludeFromTelemetryList);
+
+    // Result object with device attributes/telemetry data
+    var result = {
+      deviceName: deviceName,
+      deviceType: deviceType,
+      // customerName: customerName,
+      // groupName: groupName,
+      // assetName: assetName,
+      // assetType: assetType,
+      attributes: attributes,
+      telemetry: {
+        ts: timestamp,
+        values: telemetry
+      }
+    };
+
+    /** Helper functions **/
+
+    function decodeToString(payload) {
+      return String.fromCharCode.apply(String, payload);
+    }
+
+    function decodeToJson(payload) {
+      var str = decodeToString(payload);
+      return JSON.parse(str);
+    }
+
+    function toFlatMap(obj, result, excludeList, prefix) {
+      prefix = prefix || '';
+        for (var key in obj) {
+          if (excludeList.indexOf(key) !== -1) continue;
+          var value = obj[key];
+          var fullKey = prefix ? prefix + '.' + key : key;
+          if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+            toFlatMap(value, result, excludeList, fullKey);
+          } else {
+            result[fullKey] = value;
+        }
+      }
+    }
+
+    return result;
+    ```
+  </TabItem>
+</Tabs>
+
+    </li>
+    <li>Click <strong>Add</strong>.</li>
+  </ol>
+</Steps>
+
+<h4>Converter input variables</h4>
+
+ThingsBoard passes two variables to the decoder. Function signature: `function decoder(payload, metadata): object | object[]`
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `payload` | byte array | The body of the HTTP request. HTTP Integration determines the content type based on request headers — JSON, TEXT, or BINARY depending on `Content-Type`. The type is a hint for debug events and does not affect function execution. |
+| `metadata` | `{[key: string]: string}` | Key/value map with integration-specific fields: `integrationName`, `includeGatewayInfo`, etc. Additional fields can be configured in the integration details. |
+
+To work with the payload, use the built-in helper functions:
+
+| Function | Result |
+|----------|--------|
+| `decodeToJson(payload)` | Parse bytes as JSON &#8702; return a JS object |
+| `decodeToString(payload)` | Convert bytes to a string (UTF-8) |
+| `toFlatMap(obj, excludeKeys, flatNested)` | **TBEL built-in.** Flatten `obj` into a flat key/value map; keys in `excludeKeys` are skipped; when `flatNested` is `true`, nested objects produce dot-separated keys. Returns the flat map — assign with `result.putAll(...)`. The JS tab defines its own `toFlatMap(obj, result, excludeList)` helper with a different signature — it writes directly into the `result` map passed as the second argument. |
+
+For common scripting patterns — renaming fields, extracting nested values, normalizing data, and handling non-JSON payloads — see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#common-scripting-patterns" target="_blank">Uplink data converter: Common scripting patterns</DocLink>.
+
+<h4>Testing the converter in the editor</h4>
+
+Click the **Test decoder function** button below the editor — the **Test decoder function (TBEL)** dialog opens with four panels:
+
+Fill in the fields:
+
+**Payload content type:** Json
+
+**Payload content:**
+
+```json
+{
+  "deviceName": "Thermometer",
+  "deviceType": "thermostat",
+  "humidity": 50,
+  "temperature": 21
+}
+```
+
+**Metadata** — two rows (key / value):
+
+| Key | Value |
+|-----|-------|
+| `integrationName` | `HTTP integration` |
+| `includeGatewayInfo` | `false` |
+
+Click **Test** — in the **Output** panel you should see:
+
+```json
+{
+  "deviceName": "Thermometer",
+  "deviceType": "thermostat",
+  "attributes": {
+    "model": "Model A",
+    "serialNumber": "SN111",
+    "integrationName": "HTTP integration"
+  },
+  "telemetry": {
+    "ts": 1780055515934,
+    "values": {
+      "humidity": 50,
+      "temperature": 21
+    }
+  }
+}
+```
+
+Make sure `deviceName` is not empty and `telemetry.values` contains the expected keys. If Output is empty or shows an error, check the converter code in the **Decoder** panel.
+
+After a successful test, click **Add** to save the converter.
+
+## Create HTTP Integration
+
+<Steps>
+  <ol start="1">
+    <li>Go to <strong>Integrations center &#8702; Integrations</strong> and click <strong>+ Add integration</strong>.</li>
+    <li>
+      <span><strong>Basic settings:</strong></span>
+      <ul>
+        <li>Select <strong>HTTP</strong> as the <strong>integration type</strong>.</li>
+        <li>Enter a <strong>Name</strong> for the integration, or keep the default <code>HTTP integration</code>.</li>
+        <li><strong>Enable integration</strong> and <strong>Allow create devices or assets</strong> are enabled by default.</li>
+        <li>Click <strong>Next</strong>.</li>
+      </ul>
+    </li>
+    <li>
+      <span><strong>Uplink data converter:</strong></span>
+      <ul>
+        <li>Click <strong>Select existing</strong> and choose the <a href="#create-http-uplink-data-converter"><strong>HTTP Uplink Converter</strong></a> created in the previous step.</li>
+        <li>Alternatively, click <strong>Create new</strong> to define the decoder inline, or use <strong>Library</strong> to load a vendor-provided preset.</li>
+        <li>Click <strong>Next</strong>.</li>
+      </ul>
+    </li>
+    <li>
+      <span><strong>Downlink data converter:</strong></span>
+      <ul>
+        <li>Click <strong>Skip</strong> — a downlink converter is only needed when ThingsBoard must send data back to the device (e.g., RPC commands or shared attribute updates). It can be configured later.</li>
+      </ul>
+    </li>
+    <li>
+      <span><strong>Connection:</strong></span>
+      <ul>
+        <li>Copy the auto-generated <strong>HTTP endpoint URL</strong> — you will use it to send uplink messages.</li>
+        <li>In <strong>Advanced settings</strong>, enable <strong>Replace response status from "No-Content" to "OK"</strong> if your device or client requires a <code>200 OK</code> response — by default the integration returns <code>204 No Content</code>.</li>
+      </ul>
+      <span>Read more about each parameter in <a href="#connection-settings"><strong>Connection Settings</strong></a>.</span>
+    </li>
+    <li>Click <strong>Add</strong> to complete the integration setup.</li>
+  </ol>
+</Steps>
+
+### Connection Settings
+
+<h4>Base URL</h4>
+
+The base address of the ThingsBoard server, used to construct the HTTP endpoint URL.
+
+Example: `https://thingsboard.cloud`
+
+<h4>HTTP endpoint URL</h4>
+
+Auto-generated endpoint for this integration. Accepted methods:
+
+- `POST` / `PUT` — submit an uplink message
+- `GET` — status check; returns `200 OK` when the integration is reachable
+
+Format: `{baseUrl}/api/v1/integrations/http/{integrationKey}`
+
+The `integrationKey` is a UUID assigned at creation time, visible in the **Connection** step of the wizard.
+
+<h4>Enable security (Headers filter)</h4>
+
+When enabled, ThingsBoard validates each incoming request against a list of required HTTP header name/value pairs. Requests missing any configured header are rejected.
+
+| Field | Description |
+|-------|-------------|
+| **Header** | Name of the required HTTP header (e.g. `Authorization`, `X-API-Key`) |
+| **Value** | Required value for that header (e.g. `Bearer my-token`) |
+
+Multiple header filters can be added. All configured headers must be present in every request.
+
+<h4>Execute remotely</h4>
+
+When enabled, ThingsBoard generates an **Integration key** and **Integration secret**. These credentials allow the integration to run as a separate process outside the ThingsBoard cluster — useful when the integration must reach services not accessible from the ThingsBoard server (e.g., in a DMZ or on-premises environment).
+
+<h4>Advanced settings</h4>
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| **Replace response status from "No-Content" to "OK"** | off | Controls the response code when an uplink produces data and no downlink is queued: `204 No Content` (off) or `200 OK` (on). Two cases override this setting: if the converter returns an empty result (`{}` or `[]`), the integration always responds with `204` regardless; if a downlink is queued, the integration always responds with `200 OK` and the downlink payload regardless. |
+
+<h4>Metadata</h4>
+
+Optional key–value pairs attached to the integration. These values are injected into every message processed by the integration and are accessible in converter scripts via the `metadata` object.
+
+## Test the Integration
+
+After the integration is created, send a test uplink and confirm that ThingsBoard received the message, decoded it correctly, and provisioned the device.
+
+<Aside type="note">
+  Before sending a test uplink, ensure that **Debug** mode with the **All messages** option is enabled for both the integration and the converter. This allows you to view received messages and conversion results on the corresponding **Events** tabs.
+</Aside>
+
+### Send Test Uplink
+
+Test the integration using `curl` or any HTTP client by sending a test message. Replace `$YOUR_HTTP_ENDPOINT_URL` with the HTTP endpoint URL you copied during setup.
+
+```bash
+curl -v -X POST -d '{"deviceName":"Thermometer A","deviceType":"thermostat","temperature":33}' $YOUR_HTTP_ENDPOINT_URL -H "Content-Type:application/json"
+```
+
+Expected response depends on the **Replace response status** setting in Advanced settings:
+
+| Setting | Response |
+|---------|----------|
+| Off (default) | `HTTP/2 204` |
+| On | `HTTP/2 200` |
+
+<Aside type="note">HTTP/2 connections (e.g. ThingsBoard Cloud) return `HTTP/2 204` or `HTTP/2 200` without status message text. HTTP/1.1 connections return `HTTP/1.1 204 No Content` or `HTTP/1.1 200 OK`. Both 204 and 200 indicate the uplink was accepted successfully.</Aside>
+
+### Verify Integration Events
+
+Go to **Integrations center &#8702; Integrations**, open **HTTP integration**, and click the **Events** tab.
+Each successfully processed uplink appears as a row with status **OK**.
+
+### Verify Converter Events
+
+To inspect converter processing, go to **Integrations center &#8702; Data converters**, click **HTTP Uplink Converter**, and open its **Events** tab:
+- **In** shows the raw payload passed to the converter
+- **Out** shows the decoded result (`deviceName`, `deviceType`, `attributes`, `telemetry`)
+- **Metadata** contains the HTTP request headers and integration name
+
+### Verify Device Provisioning
+
+Go to **Entities &#8702; Devices** — device **Thermometer A** is provisioned automatically by the integration. Click it and open the **Latest telemetry** tab to confirm `temperature = 33`.
+
+## Secure HTTP Integration with Header Filters
+
+A header filter protects the integration endpoint by requiring every incoming HTTP request to include one or more specific headers with exact values. Requests missing a required header or sending the wrong value are rejected with `403 Unauthorized` before reaching the converter.
+
+Use this to prevent unauthorized systems from pushing arbitrary data to your ThingsBoard endpoint.
+
+<Steps>
+1. Open the HTTP integration and click **Toggle edit mode** (pencil icon, top right).
+2. Enable **Enable security (Headers filter)**.
+3. Click **Add** to add a row. Enter the **Header** name and its expected **Value**, then click **Add** to confirm.
+4. Repeat to add more headers if needed — all configured headers must be present in every request.
+5. Click **Apply changes**.
+</Steps>
+
+**Header filter fields:**
+
+| Field | Description |
+|-------|-------------|
+| **Header** | HTTP header name ThingsBoard checks on each incoming request |
+| **Value** | Exact value required in that header |
+
+**Example: Authorization header**
+
+A common pattern is to protect the endpoint with a bearer token. Set **Header** to `Authorization` and **Value** to `Bearer my-secret-token`, then include the header in every uplink request. Replace `$YOUR_HTTP_ENDPOINT_URL` with the HTTP endpoint URL copied during setup:
+
+```bash
+curl -v -X POST \
+  -d '{"deviceName":"Thermometer A","deviceType":"thermostat","temperature":33,"model":"SN-001"}' \
+  $YOUR_HTTP_ENDPOINT_URL \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer my-secret-token"
+```
+
+Any request without the correct `Authorization` header is rejected.
+
+## Converter Examples by Payload Type
+
+<h4>Scenario A: Simple JSON — explicit telemetry fields</h4>
+
+Use when the payload structure is well known and has few fields — each telemetry field is mapped explicitly.
+
+**Input payload:**
+
+```json
+{
+  "deviceName": "Thermometer A",
+  "deviceType": "thermostat",
+  "model": "SN-001",
+  "param2": "SN-12345",
+  "temperature": 25.0
+}
+```
+
+**Converter:**
+
+```js
 /** Decoder **/
 
 // Decode JSON body
@@ -60,47 +508,8 @@ var result = {
 
 return result;
 ```
-</TabItem>
-<TabItem label="JavaScript">
-```js maxLines=15 collapsible
-/** Decoder **/
 
-// Decode JSON body
-var data = decodeToJson(payload);
-
-var deviceName = data.deviceName;
-var deviceType = data.deviceType;
-
-// Result object with device attributes/telemetry data
-var result = {
-   deviceName: deviceName,
-   deviceType: deviceType,
-   attributes: {
-       model: data.model,
-       serialNumber: data.param2,  // renamed: param2 → serialNumber
-   },
-   telemetry: {
-       temperature: data.temperature
-   }
-};
-
-/** Helper functions **/
-
-function decodeToString(payload) {
-   return String.fromCharCode.apply(String, payload);
-}
-function decodeToJson(payload) {
-   var str = decodeToString(payload);
-   var data = JSON.parse(str);
-   return data;
-}
-
-return result;
-```
-</TabItem>
-</Tabs>
-
-The decoder expects a flat JSON body and maps its fields to ThingsBoard:
+**Field mapping:**
 
 | JSON field | Output field | Type | Notes |
 |------------|--------------|------|-------|
@@ -110,14 +519,19 @@ The decoder expects a flat JSON body and maps its fields to ThingsBoard:
 | `param2` | `serialNumber` | attribute | Field is renamed in the output |
 | `temperature` | `temperature` | telemetry | |
 
-For request body `{"deviceName":"Thermometer A","deviceType":"thermostat","model":"N001","param2":"SN-12345","temperature":25.0}` the decoder produces:
+For request body `{"deviceName":"Thermometer A","deviceType":"thermostat","model":"SN-001","param2":"SN-12345","temperature":25.0}` the decoder produces:
 
 ```json
 {
   "deviceName": "Thermometer A",
   "deviceType": "thermostat",
-  "attributes": { "model": "N001", "serialNumber": "SN-12345" },
-  "telemetry": { "temperature": 25.0 }
+  "attributes": {
+    "model": "SN-001",
+    "serialNumber": "SN-12345"
+  },
+  "telemetry": {
+    "temperature": 25.0
+  }
 }
 ```
 
@@ -129,214 +543,318 @@ For request body `{"deviceName":"Thermometer A","deviceType":"thermostat","model
 - **Different telemetry or attribute fields** — add, remove, or rename entries in the `telemetry` and `attributes` blocks.
 - **Non-JSON payload** — replace `decodeToJson(payload)` with `decodeToString(payload)` and parse the string manually.
 
-**Import the uplink converter:**
+---
 
-<Steps>
-  <ol start="1">
-    <li>Download the uplink converter file:</li>
-  </ol>
-</Steps>
+<h4>Scenario B: Array of readings in one request (multiple devices)</h4>
 
-<Tabs>
-  <TabItem label="TBEL (Recommended)">
-    <a href="/resources/docs/integrations/http/http_tbel_uplink_converter.json" download="http_tbel_uplink_converter.json"><strong>http_tbel_uplink_converter.json</strong></a>
-  </TabItem>
-  <TabItem label="JavaScript">
-    <a href="/resources/docs/integrations/http/http_javascript_uplink_converter.json" download="http_javascript_uplink_converter.json"><strong>http_javascript_uplink_converter.json</strong></a>
-  </TabItem>
-</Tabs>
+Use when a gateway or aggregator collects data from multiple nodes and sends them in a single HTTP request. The converter iterates over the array and returns one result object per device. ThingsBoard processes each element independently — creating or updating each device separately.
 
-<Steps>
-  <ol start="2">
-    <li>Go to **Integrations center &#8702; Data converters**.</li>
-    <li>Click **+ Add data converter &#8702; Import converter**.</li>
-    <li>Drag and drop the downloaded JSON file into the **Import converter** window.</li>
-    <li>Click **Import**.</li>
-  </ol>
-</Steps>
+**Input payload:**
 
-### Create the integration
-
-<Steps>
-  <ol start="1">
-    <li>Go to <strong>Integrations center &#8702; Integrations</strong> and click <strong>+ Add integration</strong>.</li>
-    <li>
-      <span><strong>Basic settings:</strong></span>
-      <ul>
-        <li>Set <strong>Integration type</strong> to <strong>HTTP</strong>.</li>
-        <li><strong>Enable integration</strong> and <strong>Allow create devices or assets</strong> are on by default.</li>
-        <li>Click <strong>Next</strong>.</li>
-      </ul>
-    </li>
-    <li>
-      <span><strong>Uplink data converter:</strong></span>
-      <ul>
-        <li><strong>Select existing</strong> — choose a <a href="#create-an-uplink-converter">previously created</a> <code>HTTP Uplink Converter</code> from the list.</li>
-        <li>Click <strong>Next</strong>.</li>
-      </ul>
-    </li>
-    <li>
-      <span><strong>Downlink data converter:</strong></span>
-      <ul>
-        <li>Click <strong>Skip</strong> — the downlink converter is only required for RPC and can be added later.</li>
-      </ul>
-    </li>
-    <li>
-      <span><strong>Connection:</strong></span>
-      <ul>
-        <li>Copy the <strong>HTTP endpoint URL</strong> — you will use it to send uplink messages.</li>
-        <li>In <strong>Advanced settings</strong> enable <strong>Replace response status from 'No-Content' to 'OK'</strong>.</li>
-      </ul>
-      <span>Read more about each parameter in <a href="#connection-settings">connection settings</a>.</span>
-    </li>
-    <li>Click <strong>Add</strong> to complete the integration setup.</li>
-  </ol>
-</Steps>
-
-<ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/http/http-add-integration-1.png', alt: 'Add integration wizard — Basic settings: Integration type set to HTTP', caption: 'Go to Integrations center → Integrations (1) and click + Add integration (2). Set Integration type to HTTP (3) and click Next (4)' },
-  { src: '/src/assets/images/user-guide/integrations/http/http-add-integration-2.png', alt: 'Add integration wizard — Uplink data converter: HTTP Uplink Converter selected', caption: 'Click Select existing (5), choose HTTP Uplink Converter from the list, and click Next (6)' },
-  { src: '/src/assets/images/user-guide/integrations/http/http-add-integration-3.png', alt: 'Add integration wizard — Downlink data converter step with Skip selected', caption: 'Click Skip (7) on the Downlink data converter step' },
-  { src: '/src/assets/images/user-guide/integrations/http/http-add-integration-4.png', alt: 'Add integration wizard — Connection step: HTTP endpoint URL and Advanced settings', caption: 'Copy the HTTP endpoint URL (8), expand Advanced settings and enable Replace response status from No-Content to OK (9), then click Add (10)' },
-]} />
-
-#### Connection settings
-
-<h4>Base URL</h4>
-
-The base address of the ThingsBoard server, used to construct the HTTP endpoint URL.
-
-Example: `https://thingsboard.cloud`
-
-<h4>HTTP endpoint URL</h4>
-
-Auto-generated endpoint for this integration. External systems must send HTTP `POST` requests to this URL.
-
-Format: `{baseUrl}/api/v1/integrations/http/{integrationId}`
-
-The `integrationId` is a UUID assigned at creation time, visible in the **Connection** step of the wizard.
-
-<h4>Enable security (Headers filter)</h4>
-
-When enabled, ThingsBoard validates each incoming request against a list of required HTTP header name/value pairs. Requests missing any configured header are rejected.
-
-| Field | Description |
-|-------|-------------|
-| **Header** | Name of the required HTTP header (e.g. `Authorization`, `X-API-Key`) |
-| **Secret** | Required value for that header (e.g. `Bearer my-token`) |
-
-Multiple header filters can be added. All configured headers must be present in every request.
-
-<h4>Execute remotely</h4>
-
-When enabled, ThingsBoard generates an **Integration key** and **Integration secret**. These credentials allow the integration to run as a separate process outside the ThingsBoard cluster — useful when the integration must reach services not accessible from the ThingsBoard server (e.g., in a DMZ or on-premises environment).
-
-<h4>Advanced settings</h4>
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| **Replace response status from "No-Content" to "OK"** | off | When off, the integration returns `204 No Content` after processing the uplink. When on, returns `200 OK`. Enable this for devices or systems that require a `200` status. Note: when a downlink is queued, the integration always returns `200 OK` with the downlink payload regardless of this setting |
-
-<h4>Metadata</h4>
-
-Optional key–value pairs attached to the integration. These values are injected into every message processed by the integration and are accessible in converter scripts as `integrationMetadata`.
-
-## Send an uplink message
-
-Send a test message by running the command below, replacing `$YOUR_HTTP_ENDPOINT_URL` with the HTTP endpoint URL copied during setup.
-
-```bash
-curl -v -X POST -d '{"deviceName":"Thermometer A","deviceType":"thermostat","temperature":33,"model":"N001"}' $YOUR_HTTP_ENDPOINT_URL -H "Content-Type:application/json"
+```json
+{
+  "gateway": "gw-01",
+  "readings": [
+    { "device": "node-1", "temp": 21.0, "ts": 1700000001000 },
+    { "device": "node-2", "temp": 19.5, "ts": 1700000001000 }
+  ]
+}
 ```
 
-<ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/http/http-send-uplink-message-1.png', alt: 'Send uplink via curl', caption: 'Send uplink via curl' },
-]} />
+**Converter:**
 
-Go to **Entities &#8702; Devices** — device *Thermometer A* is provisioned automatically by the integration. Click it and open the **Latest Telemetry** tab to confirm `temperature = 33`.
-
-<ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/http/http-integration-go-to-devices-1.png', alt: 'Entities → Devices (1): Thermometer A auto-created by the integration (2); Latest telemetry tab (3) shows temperature = 33', caption: 'Go to Entities → Devices (1) — Thermometer A is auto-created on the first uplink (2). Open Latest telemetry (3) to confirm temperature = 33' },
-]} />
-
-<Aside type="note">
-  If the "Allow create devices or assets" checkbox is unchecked in the integration settings, devices or assets referenced in incoming messages will not be created automatically if they don't already exist.
-</Aside>
-
-Go to **Integrations center &#8702; Integrations**, click **HTTP integration**, and open the **Events** tab. You should see one event with status "OK":
-
-<ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/http/http-send-uplink-message-2.png', alt: 'Integration event — OK', caption: 'Integration event — OK' },
-]} />
-
-To inspect converter processing, go to **Integrations center &#8702; Data converters**, click **Uplink data converter for HTTP integration**, and open its **Events** tab:
-- **In** shows the raw payload passed to the converter
-- **Out** shows the decoded result (deviceName, deviceType, attributes, telemetry)
-- **Metadata** contains the HTTP request headers and integration name
-
-<ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/http/http-send-uplink-message-3.png', alt: 'Converter Events tab showing one Uplink event', caption: 'Events tab of the uplink converter — one Uplink event recorded' },
-  { src: '/src/assets/images/user-guide/integrations/http/http-send-uplink-message-4.png', alt: 'Converter event In — raw JSON payload', caption: 'In: raw JSON payload received by the converter' },
-  { src: '/src/assets/images/user-guide/integrations/http/http-send-uplink-message-5.png', alt: 'Converter event Out — decoded result with deviceName, attributes, telemetry', caption: 'Out: decoded result with deviceName, deviceType, attributes, and telemetry' },
-  { src: '/src/assets/images/user-guide/integrations/http/http-send-uplink-message-6.png', alt: 'Converter event Metadata — HTTP request headers and integration name', caption: 'Metadata: HTTP request headers and integration name passed to the converter' },
-]} />
-
-Use <DocLink product={props.product} path="user-guide/dashboards">Dashboards</DocLink> to visualize the received data. ThingsBoard provides **Solution Templates** with pre-built dashboards for common use cases.
-
-## Restrict access with a header filter
-
-Require a specific HTTP header on every incoming request — requests without it are rejected.
-
-<Steps>
-1. Open the HTTP integration, click **Toggle edit mode** (pencil icon, top right).
-2. Enable the **Enable security (Headers filter)** toggle, enter a header name (e.g. `test-header`) and value (e.g. `secret`), click **Add**, then click **Apply changes**.
-</Steps>
-
-<ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/http/http-enable-security-1.png', alt: 'Integration details in read-only mode — click Toggle edit mode pencil button', caption: 'Open the HTTP integration and click Toggle edit mode (pencil button, top right)' },
-  { src: '/src/assets/images/user-guide/integrations/http/http-enable-security-2.png', alt: 'Enable security toggle on — test-header and secret values entered', caption: 'Enable security, enter a header name and value, click Add, then Apply changes' },
-]} />
-
-Once configured, add the required header to every uplink request with `-H "$HEADER:$VALUE"`.
-
-Run the command below, replacing `$YOUR_HTTP_ENDPOINT_URL`, `$HEADER`, and `$VALUE` with your values:
-
-```bash
-curl -v -X POST -d '{"deviceName":"Thermometer A","deviceType":"thermostat","temperature":33,"model":"N001"}' $YOUR_HTTP_ENDPOINT_URL -H "Content-Type:application/json" -H "$HEADER:$VALUE"
+```js
+/** Decoder **/
+ 
+var data   = decodeToJson(payload);
+var result = [];
+ 
+for (var i = 0; i < data.readings.length; i++) {
+    var r = data.readings[i];
+    result.push({
+        deviceName: r.device,
+        deviceType: 'node-sensor',
+        attributes: {
+            gateway:         data.gateway,
+            integrationName: metadata['integrationName']
+        },
+        telemetry: {
+            ts:     r.ts,
+            values: { temperature: r.temp }
+        }
+    });
+}
+ 
+/** Helper functions 'decodeToString', 'decodeToJson' and 'toFlatMap' are already built-in **/
+ 
+return result;
 ```
 
-<ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/http/http-enable-security-4.png', alt: 'Terminal showing curl command with security header being sent', caption: 'Send the uplink message with the security header' },
-  { src: '/src/assets/images/user-guide/integrations/http/http-enable-security-3.png', alt: 'Curl command with -H test-header:secret header alongside the integration settings showing the same header configured', caption: 'The header in the curl command (-H "test-header:secret") must match the one configured in the integration' },
-]} />
+**Field mapping:**
 
-## Configure downlink
+| JSON field | Output field | Type | Notes |
+|------------|--------------|------|-------|
+| `readings[i].device` | `deviceName` | — | Each array element creates or updates a separate device |
+| `'node-sensor'` | `deviceType` | — | Hardcoded device profile shared by all nodes |
+| `gateway` | `gateway` | attribute | Top-level field applied to every device in the array |
+| `readings[i].ts` | `ts` | — | Per-reading timestamp in milliseconds |
+| `readings[i].temp` | `temperature` | telemetry | Field is renamed in the output |
 
-The downlink converter (encoder) transforms a Rule Engine message into the HTTP response body returned to the device. For the full encoder function reference, see <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter">Downlink data converter</DocLink>.
+<Aside type="note">When the converter returns an array, ThingsBoard processes each element as a separate device.</Aside>
 
-HTTP downlinks are not pushed — they are delivered as the response body to the device's **next uplink request**. When a downlink is queued, the integration returns `200 OK` with the encoded payload instead of `204 No Content`.
+For the payload above the decoder produces:
 
-The encoder function receives `msg`, `metadata`, and `msgType`, and must return an object with:
-- `contentType` — `JSON`, `TEXT`, or `BINARY` (`BINARY` expects a Base64-encoded string)
-- `data` — the response body string
-- `metadata` — optional key-value pairs
+```json
+[
+  {
+    "deviceName": "node-1",
+    "deviceType": "node-sensor",
+    "attributes": {
+      "gateway": "gw-01",
+      "integrationName": "Test HTTP"
+    },
+    "telemetry": {
+      "ts": 1700000001000,
+      "values": { "temperature": 21.0 }
+    }
+  },
+  {
+    "deviceName": "node-2",
+    "deviceType": "node-sensor",
+    "attributes": {
+      "gateway": "gw-01",
+      "integrationName": "Test HTTP"
+    },
+    "telemetry": {
+      "ts": 1700000001000,
+      "values": { "temperature": 19.5 }
+    }
+  }
+]
+```
 
-<Aside type="note">
-A downlink converter is required only when the integration sends messages back to devices (RPCs, attribute updates). For uplink-only use cases it can be skipped.
-</Aside>
+**To adapt this converter to your device:**
 
-### Add a downlink converter
+- **Different array field name** — replace `data.readings` with the name of the array in your payload (e.g. `data.messages`, `data.sensors`).
+- **Device name from a different field** — replace `r.device` with the field inside each array element that carries the device identifier (e.g. `r.id`, `r.serialNumber`).
+- **Multiple telemetry fields per reading** — extend the `values` object with additional fields from each element (e.g. `humidity: r.hum`, `battery: r.bat`).
+- **Timestamp in seconds** — convert to milliseconds: `ts: r.ts * 1000`.
+- **No timestamp in readings** — replace `ts: r.ts` with `ts: Date.now()` to use server time.
+- **Per-device type** — replace the hardcoded `'node-sensor'` with `r.type` if each reading carries its own device profile.
+
+---
+
+<h4>Scenario C: Nested JSON + toFlatMap for automatic flattening</h4>
+
+Use when the payload has a deeply nested structure and you want to automatically map all remaining fields to telemetry without listing each one explicitly. `toFlatMap` traverses the object recursively and produces dot-separated keys for nested fields (`sensors.co2`, `sensors.pm25`). Fields listed in `excludeKeys` are skipped — use this to separate device identity and metadata from measurements.
+
+**Input payload:**
+
+```json
+{
+  "deviceName": "air-monitor-X",
+  "deviceType": "air-quality",
+  "meta": { "source": "cloud", "version": "2.0" },
+  "sensors": {
+    "co2": 412,
+    "pm25": 8.2,
+    "voc": 0.3
+  },
+  "location": {
+    "lat": 50.45,
+    "lon": 30.52
+  },
+  "ts": 1700000000000
+}
+```
+
+**Converter:**
+
+```js
+/** Decoder **/
+ 
+var data = decodeToJson(payload);
+ 
+// Fields to exclude from telemetry — used as device identity, attributes, or timestamp
+var excludeKeys = ['deviceName', 'deviceType', 'ts', 'meta', 'location'];
+ 
+// Flatten all remaining fields into telemetry (nested objects become dot-separated keys)
+var telemetry = {};
+telemetry.putAll(toFlatMap(data, excludeKeys, true));
+ 
+var result = {
+    deviceName: data.deviceName,
+    deviceType: data.deviceType,
+    attributes: {
+        latitude:        data.location.lat,
+        longitude:       data.location.lon,
+        source:          data.meta.source,
+        integrationName: metadata['integrationName']
+    },
+    telemetry: {
+        ts:     data.ts != null ? data.ts : Date.now(),
+        values: telemetry
+    }
+};
+ 
+/** Helper functions 'decodeToString', 'decodeToJson' and 'toFlatMap' are already built-in **/
+ 
+return result;
+```
+
+**Field mapping:**
+
+| JSON field | Output field | Type | Notes |
+|------------|--------------|------|-------|
+| `deviceName` | `deviceName` | — | Device identifier; excluded from telemetry via `excludeKeys` |
+| `deviceType` | `deviceType` | — | Device profile name; excluded from telemetry via `excludeKeys` |
+| `location.lat` | `latitude` | attribute | Extracted manually before flattening |
+| `location.lon` | `longitude` | attribute | Extracted manually before flattening |
+| `meta.source` | `source` | attribute | Extracted manually before flattening |
+| `sensors.co2` | `sensors.co2` | telemetry | Auto-mapped by `toFlatMap` |
+| `sensors.pm25` | `sensors.pm25` | telemetry | Auto-mapped by `toFlatMap` |
+| `sensors.voc` | `sensors.voc` | telemetry | Auto-mapped by `toFlatMap` |
+| `ts` | `ts` | — | Timestamp in milliseconds; excluded from telemetry via `excludeKeys` |
+
+For the payload above the decoder produces:
+
+```json
+{
+  "deviceName": "air-monitor-X",
+  "deviceType": "air-quality",
+  "attributes": {
+    "latitude": 50.45,
+    "longitude": 30.52,
+    "source": "cloud",
+    "integrationName": "Test HTTP"
+  },
+  "telemetry": {
+    "ts": 1700000000000,
+    "values": {
+      "sensors.co2": 412,
+      "sensors.pm25": 8.2,
+      "sensors.voc": 0.3
+    }
+  }
+}
+```
+
+**To adapt this converter to your device:**
+
+- **Different nested structure** — update `excludeKeys` to include any top-level fields you do not want in telemetry (identity fields, metadata objects, timestamp keys).
+- **Rename auto-mapped keys** — `toFlatMap` uses dot-separated paths as-is; to rename a key, extract it manually before calling `toFlatMap` and add it to `excludeKeys` so it is not duplicated.
+- **Extract more attributes** — pull additional fields from nested objects explicitly (e.g. `firmwareVersion: data.meta.version`) and add the parent key to `excludeKeys`.
+- **No timestamp in payload** — remove the `data.ts != null` check and use `ts: Date.now()` directly.
+- **Timestamp in seconds** — convert before assigning: `ts: data.ts * 1000`.
+
+---
+
+<h4>Scenario D: String payload (not JSON)</h4>
+
+Use when the device sends raw text instead of JSON — for example a semicolon-delimited string or a custom binary-encoded message. `decodeToString` converts the byte array to a UTF-8 string; the converter then parses it manually using `split` or any other string method.
+
+**Input payload (text/plain):**
+
+```
+sensor-001;23.5;60;87
+```
+
+**Converter:**
+
+```js
+/** Decoder **/
+ 
+// Decode bytes to a UTF-8 string and split by delimiter
+var raw   = decodeToString(payload);
+var parts = raw.trim().split(';');
+ 
+// parts[0] = device name
+// parts[1] = temperature
+// parts[2] = humidity
+// parts[3] = battery
+ 
+var result = {
+    deviceName: parts[0],
+    deviceType: 'csv-sensor',
+    attributes: {
+        integrationName: metadata['integrationName']
+    },
+    telemetry: {
+        ts: Date.now(),
+        values: {
+            temperature: parseFloat(parts[1]),
+            humidity:    parseFloat(parts[2]),
+            battery:     parseInt(parts[3])
+        }
+    }
+};
+ 
+/** Helper functions 'decodeToString', 'decodeToJson' and 'toFlatMap' are already built-in **/
+ 
+return result;
+```
+
+**Field mapping:**
+
+| Position | Output field | Type | Notes |
+|----------|--------------|------|-------|
+| `parts[0]` | `deviceName` | — | First segment used as the device identifier |
+| `'csv-sensor'` | `deviceType` | — | Hardcoded device profile |
+| `parts[1]` | `temperature` | telemetry | Parsed as float |
+| `parts[2]` | `humidity` | telemetry | Parsed as float |
+| `parts[3]` | `battery` | telemetry | Parsed as integer |
+
+For the payload `sensor-001;23.5;60;87` the decoder produces:
+
+```json
+{
+  "deviceName": "sensor-001",
+  "deviceType": "csv-sensor",
+  "attributes": {
+    "integrationName": "Test HTTP"
+  },
+  "telemetry": {
+    "ts": 1780299924174,
+    "values": {
+      "temperature": 23.5,
+      "humidity": 60.0,
+      "battery": 87
+    }
+  }
+}
+```
+
+**To adapt this converter to your device:**
+
+- **Different delimiter** — replace `';'` in `split(';')` with the delimiter your device uses (e.g. `','`, `'|'`, `' '`).
+- **Device name not in the payload** — replace `parts[0]` with a hardcoded string or `metadata['deviceName']` if the device identifier is passed via integration metadata.
+- **Different field order** — update the index for each field to match the position in your string (e.g. if temperature is the second segment, use `parts[1]`).
+- **Timestamp in the string** — parse it from the appropriate position and assign to `ts` (e.g. `ts: parseInt(parts[4])`); convert to milliseconds if the device sends seconds.
+- **Fewer or more fields** — add or remove entries in the `values` object and update the comments to document the position of each field.
+
+---
+
+## Configure Downlink
+
+Downlink allows ThingsBoard to send commands back to the device in response to a request or trigger. HTTP downlinks are not pushed to the device — they are delivered as the response body to the device's **next uplink request**. When a downlink is queued, the integration returns `200 OK` with the encoded payload instead of `204 No Content`.
+
+The downlink converter transforms a <DocLink product={props.product} path="user-guide/rule-engine" target="_blank">Rule Engine</DocLink> message into the HTTP response body. For the full encoder function reference, see <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink data converter</DocLink>.
+
+<h4>When downlink is needed</h4>
+
+- The device polls — it sends a POST and expects a command in the response.
+- You need to confirm receipt of data with a configuration payload.
+
+### Add Downlink Converter
 
 <Steps>
-  1. Go to **Integrations center &#8702; Integrations** and open the HTTP Integration.
-  2. Click **Toggle edit mode**.
+  1. Go to **Integrations center &#8702; Integrations** and open the HTTP integration.
+  2. Click the **pencil** icon to enter edit mode.
   3. In the **Downlink data converter** field, click **Create new**.
-  4. In the **Add data converter** dialog, enter a name, and write or paste the encoder script.
+  4. Enter a name, paste the encoder script shown after these steps, then click **Add**.
 </Steps>
 
-<Tabs>
-<TabItem label="TBEL (Recommended)">
-```js maxLines=15 collapsible
+```js
 /** Encoder **/
 
 var result = {
@@ -347,24 +865,11 @@ var result = {
 
 return result;
 ```
-</TabItem>
-<TabItem label="JavaScript">
-```js maxLines=15 collapsible
-/** Encoder **/
-
-var result = {
-    contentType: "JSON",        // JSON, TEXT, or BINARY (base64)
-    data: JSON.stringify(msg),  // encode the full message as the response body
-    metadata: {}
-};
-
-return result;
-```
-</TabItem>
-</Tabs>
 
 <Steps>
-  5. Click **Add**, then click **Apply changes**.
+  <ol start="5">
+    <li>Click <strong>Apply changes</strong>.</li>
+  </ol>
 </Steps>
 
 <ImageGallery images={[
@@ -374,19 +879,29 @@ return result;
   { src: '/src/assets/images/user-guide/integrations/http/http-add-downlink-converter-4.png', alt: 'Integration in edit mode with HTTP Downlink Converter assigned — Apply changes button visible', caption: 'Downlink converter assigned — click Apply changes to save' },
 ]} />
 
-### Configure the Root Rule Chain
+### Configure Root Rule Chain
 
 <ConfigureDownlinkRuleChain integrationName="HTTP" />
 
-import ConfigureDownlinkRuleChain from '@includes/docs/user-guide/integrations/_configure-downlink-rule-chain.mdx';
-
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/http/http-integration-configure-rule-chain-1.png', alt: 'Root Rule Chain editor — integration downlink node in the node panel', caption: 'Open the Root Rule Chain and drag the integration downlink node onto the canvas' },
-  { src: '/src/assets/images/user-guide/integrations/http/http-integration-configure-rule-chain-2.png', alt: 'Add rule node dialog — name set to HTTP Integration Downlink, integration set to HTTP integration', caption: 'Set the node name, select HTTP integration, then click Add' },
-  { src: '/src/assets/images/user-guide/integrations/http/http-integration-configure-rule-chain-3.png', alt: 'Rule chain with integration downlink node connected to Attributes Updated output', caption: 'Connect the node to the Attributes Updated / Post attributes output and click Apply changes' },
+  {
+    src: '/src/assets/images/user-guide/integrations/http/integration-configure-rule-chain-1.png',
+    alt: 'Root Rule Chain editor with integration downlink node available in the node palette',
+    caption: 'Open the <strong>Root Rule Chain</strong>, locate the <strong>integration downlink</strong> node in the node palette and drag it onto the rule chain canvas.',
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/http/http-integration-configure-rule-chain-2.png',
+    alt: 'Add rule node dialog configured for HTTP integration downlink',
+    caption: 'Enter a node name, select the target <strong>HTTP integration</strong>, and click <strong>Add</strong>.',
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/http/http-integration-configure-rule-chain-3.png',
+    alt: 'Rule chain with integration downlink node connected to Attributes Updated flow',
+    caption: 'Connect the <strong>message type switch</strong> node to the newly created <strong>integration downlink</strong> node using the <strong>Post attributes</strong> and <strong>Attributes Updated</strong> relation types to trigger downlinks whenever shared attributes are created or updated.',
+  },
 ]} />
 
-### Test the downlink
+### Test Downlink
 
 When a shared attribute is created or updated, the Rule Engine routes the event to the integration, which queues the encoded payload as the response to the device's next uplink.
 
@@ -408,7 +923,7 @@ Send the uplink message again. ThingsBoard returns the downlink payload in the H
   { src: '/src/assets/images/user-guide/integrations/http/http-send-downlink-message-3.png', alt: 'Terminal — HTTP/2 200 response with {"powerState":"on"} body', caption: 'Response body contains the downlink payload: {"powerState":"on"}' },
 ]} />
 
-The sent and received data can be viewed in the downlink converter's **Events** tab — the **In** block shows the input data, the **Out** block shows the encoded message sent to the device, and **Metadata** shows the request headers:
+To inspect the exchange, open the downlink converter's **Events** tab — **In** shows the Rule Engine message, **Out** shows the encoded response, **Metadata** shows the request headers.
 
 <ImageGallery images={[
   { src: '/src/assets/images/user-guide/integrations/http/http-send-downlink-message-4.png', alt: 'Downlink converter Events tab showing one Downlink event', caption: 'Events tab of the downlink converter — one Downlink event recorded' },
@@ -417,10 +932,34 @@ The sent and received data can be viewed in the downlink converter's **Events** 
   { src: '/src/assets/images/user-guide/integrations/http/http-send-downlink-message-7.png', alt: 'Downlink converter event Metadata — HTTP request headers', caption: 'Metadata: HTTP request headers passed to the downlink converter' },
 ]} />
 
-## See also
+## Troubleshooting
 
-- <DocLink product={props.product} path="user-guide/integrations">Integration overview</DocLink>
-- <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter">Uplink data converter</DocLink>
-- <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter">Downlink data converter</DocLink>
-- <DocLink product={props.product} path="user-guide/rule-engine">Rule Engine</DocLink>
-- <DocLink product={props.product} path="user-guide/integrations/remote">Remote Integration</DocLink>
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `400 Bad Request` | Invalid JSON in body | Check payload syntax |
+| `403 Unauthorized` | Request is missing a required security header or the value is wrong | Verify the header name and value match the **Headers filter** configuration in the integration settings |
+| `404 Not Found` | Wrong routing key in URL | Copy the URL from the integration settings |
+| Device not created | `deviceName` is empty or `undefined` | Check in **Debug Events → Out** what the converter returns; make sure the field exists in the payload |
+| Telemetry not saved | Converter returns `{}` or `[]` | Make sure `values` contains at least one field |
+| `Error in converter` | JavaScript exception | Open **Events → Error** and inspect the stack trace |
+| Data present but timestamp is wrong | Device sends `ts` in seconds | Convert: `ts: data.ts * 1000` |
+
+<h4>How to read Debug Events</h4>
+
+<Steps>
+1. Go to **Integrations center &#8702; Integrations**, open your integration, and click the **Events** tab. Filter by **Uplink**.
+2. Click on an event to inspect:
+</Steps>
+
+- **In** — what the integration received (headers, body)
+- **Out** — what the converter returned
+- **Error** — error text, if any
+
+## See Also
+
+- <DocLink product={props.product} path="user-guide/integrations" target="_blank">Integrations Overview</DocLink> — how ThingsBoard connects to external platforms and how uplink/downlink flow works
+- <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">Uplink Data Converter</DocLink> — full decoder function reference: input parameters, output fields, and scripting patterns
+- <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink Data Converter</DocLink> — full encoder function reference for sending commands to devices
+- <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink> — run the integration outside the ThingsBoard server to reach endpoints in a private network
+- <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL scripting reference</DocLink> — built-in functions and operators for writing converter scripts
+- <DocLink product={props.product} path="user-guide/rule-engine" target="_blank">Rule Engine</DocLink> — how uplink messages are processed after the converter

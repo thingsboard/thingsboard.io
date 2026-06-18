@@ -6,39 +6,47 @@ import { Steps, Aside } from '@astrojs/starlight/components';
 import { Products } from '~/models/site.models';
 import Tabs from '@components/Tabs.astro';
 import TabItem from '@components/TabItem.astro';
+import ConfigureDownlinkRuleChain from '@includes/docs/user-guide/integrations/_configure-downlink-rule-chain.mdx';
 
-<Banner variant="peFeature" product={props.product} path="user-guide/integrations/udp" />
+<Banner variant="peFeature" product={props.product} path="installation/" />
 
-UDP Integration allows you to stream data from devices using the UDP protocol to ThingsBoard and convert device payloads to the ThingsBoard format.
+UDP Integration connects ThingsBoard to devices that communicate over raw **User Datagram Protocol (UDP)** sockets. It binds to a configured port, receives discrete UDP datagrams from devices, decodes each message through the Uplink Converter, and maps the result to ThingsBoard telemetry and attributes. It also supports downlink — sending response datagrams back to the source device address.
 
-<Aside type="note">
-  UDP Integration can only run as a <DocLink product={props.product} path="user-guide/integrations/remote/" target="_blank">remote integration</DocLink>. It can run on the same machine as your ThingsBoard instance, or on a separate machine with network access to ThingsBoard.
-</Aside>
+**When to use UDP Integration:**
 
-<DocImage src="/src/assets/images/user-guide/integrations/udp/udp-integration.svg" alt="UDP integration overview diagram" />
+- Devices use a custom binary or text protocol over a raw UDP socket.
+- Firmware transmits fire-and-forget datagrams to a fixed host and port.
+- Low-overhead, connectionless transport is preferred over TCP (e.g., battery-powered sensors, high-frequency telemetry streams).
+- You need to bridge an existing UDP-based device protocol with ThingsBoard without re-flashing firmware.
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/udp-integration-architecture.svg', alt: 'UDP integration overview diagram', caption: 'UDP integration architecture diagram' },
+]} />
 
 ## Prerequisites
 
-This tutorial uses:
+Before creating the integration, ensure:
 
-- A ThingsBoard Professional Edition instance running locally.
-- UDP Integration running as a remote integration connected to the ThingsBoard instance.
-- The `echo` command to produce a line of text, piped to `netcat` (`nc`) to send it over UDP.
+- You have access to a <DocLink product={Products.PE} path="installation/" target="_blank">ThingsBoard Professional Edition</DocLink> instance with integration functionality enabled for your tenant.
+- You have <DocLink product={props.product} path="user-guide/roles/" target="_blank">permissions</DocLink> to create integrations and data converters.
+- You know the payload format your UDP devices use.
+- Port **11560** (or whichever port you configure) must be open for incoming UDP traffic on the machine running the UDP Integration process. The remote process also needs outbound access to ThingsBoard's gRPC port **9090**.
+- The `echo` command piped to `netcat` (`nc`) is available for sending test UDP datagrams.
 
-The example sensor device **SN-001** publishes temperature and humidity readings to UDP Integration on port **11560**.
+In this tutorial, device **SN-003** sends temperature and humidity readings to the UDP Integration server on port `11560`.
 
-Four payload formats are demonstrated. Select the one that matches your device:
+The integration accepts four payload formats. Select the one that matches your device:
 
 <Tabs>
 <TabItem label="Text">
 ```
-SN-001,default,temperature,25.7,humidity,69
+SN-003,default,temperature,25.7,humidity,69
 ```
 </TabItem>
 <TabItem label="JSON">
 ```json
 {
-  "deviceName": "SN-001",
+  "deviceName": "SN-003",
   "deviceType": "default",
   "temperature": 25.7,
   "humidity": 69
@@ -48,44 +56,55 @@ SN-001,default,temperature,25.7,humidity,69
 <TabItem label="Binary">
 The binary payload is 19 bytes:
 ```
-\x53\x4e\x2d\x30\x30\x31\x64\x65\x66\x61\x75\x6c\x74\x32\x35\x2e\x37\x36\x39
+\x53\x4e\x2d\x30\x30\x33\x64\x65\x66\x61\x75\x6c\x74\x32\x35\x2e\x37\x36\x39
 ```
 
 Byte layout:
 
-- **Bytes 0–5** (`\x53\x4e\x2d\x30\x30\x31`) — device name: `SN-001`.
+- **Bytes 0–5** (`\x53\x4e\x2d\x30\x30\x33`) — device name: `SN-003`.
 - **Bytes 6–12** (`\x64\x65\x66\x61\x75\x6c\x74`) — device type: `default`.
 - **Bytes 13–16** (`\x32\x35\x2e\x37`) — temperature: `25.7`.
 - **Bytes 17–18** (`\x36\x39`) — humidity: `69`.
 </TabItem>
 <TabItem label="Hex">
+A hex-encoded string representation of the binary payload above, converted to bytes using `xxd -r -p` before sending:
 ```
-534e2d30303164656661756c7432352e373639
+534e2d30303364656661756c7432352e373639
 ```
-This is the hex-encoded form of the binary payload above, converted to bytes using `xxd -r -p` before sending.
+
+| Hex segment | Value |
+|-------------|-------|
+| `534e2d303033` | Device name: `SN-003` |
+| `64656661756c74` | Device type: `default` |
+| `32352e37` | Temperature: `25.7` |
+| `3639` | Humidity: `69` |
 </TabItem>
 </Tabs>
 
-## ThingsBoard integration setup
+## Create UDP Uplink Data Converter
 
-### Create an uplink converter
+The decoder function receives the raw UDP datagram body as a `payload` byte array. It must return an object with at least `deviceName` and `deviceType`. Optionally, it can include `telemetry` (time-series measurements) and `attributes` (device properties) as flat key-value maps.
 
-UDP uses a <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter">generic uplink converter</DocLink>. The decoder function receives the raw UDP datagram as a `payload` byte array. It must return an object with at least `deviceName` and `deviceType`. Optionally, it can include `telemetry` (time-series measurements) and `attributes` (device properties) as flat key-value maps.
-
-Unlike HTTP or MQTT integrations, UDP provides no transport-level metadata — device identity must come entirely from the payload itself.
+For the full decoder function reference — all input parameters and output fields — see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#generic-uplink-converter" target="_blank">Uplink data converter</DocLink>.
 
 <Steps>
-1. Go to **Integrations center &#8702; Data converters**.
-2. Click **+ Add data converter** and select **Create new converter**.
-3. Set **Converter type** to **Uplink** (default).
-4. Select **Integration type**: **UDP**.
-5. Enter a name, e.g. `UDP Uplink Converter`.
-6. Select **TBEL** (recommended) or **JavaScript**.
-7. Clear the default script and paste the decoder function below.
+  1. Go to **Integrations center &#8702; Data converters**.
+  2. Click **+ Add data converter &#8702; Create new converter**.
+</Steps>
+
+In the **Add data converter** dialog:
+
+<Steps>
+  <ol start="3">
+    <li><strong>Converter type</strong> — leave <strong>Uplink</strong> (selected by default).</li>
+    <li><strong>Integration type</strong> — in the search field, enter <code>UDP</code> and select <strong>UDP</strong> from the list.</li>
+    <li><strong>Name</strong> — enter a converter name, for example <code>UDP Uplink Converter</code>.</li>
+    <li><strong>Main decoding configuration</strong> — paste the decoder function from the appropriate tab below, then continue with step 7.</li>
+  </ol>
 </Steps>
 
 <Aside type="tip" title="TBEL">
-  We recommend using <DocLink product={props.product} path="user-guide/tbel">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
+  We recommend using <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
 </Aside>
 
 Select the tab matching your payload type:
@@ -399,15 +418,17 @@ The decoder interprets the payload as a JSON envelope, extracts a hex-encoded da
 </Tabs>
 
 <Steps>
-6. Optionally, click **Test decoder function** to validate.
-7. Click **Add**.
+  <ol start="7">
+    <li>Click <strong>Test payload decoder</strong> to verify your script. Paste a sample payload matching your format, then click <strong>Test</strong> and confirm the result contains the expected <code>deviceName</code>, <code>deviceType</code>, and <code>telemetry</code> fields.</li>
+    <li>Click <strong>Add</strong> to save the converter.</li>
+  </ol>
 </Steps>
 
-<Aside type="caution">
-  Debug mode is useful during development, but leaving it on in production significantly increases disk usage. Disable it once you have finished testing.
-</Aside>
+## Create UDP Integration
 
-### Create the integration
+<Aside type="note">
+  UDP Integration always runs as a <DocLink product={props.product} path="user-guide/integrations/remote/" target="_blank">remote integration</DocLink> — a standalone process that binds the UDP port and forwards messages to ThingsBoard over gRPC. It can run on the same machine as the ThingsBoard server or on a separate host. The wizard will generate an **Integration key** and **Integration secret** in the Connection settings step — you will need them to start the remote process.
+</Aside>
 
 <Steps>
   <ol start="1">
@@ -415,7 +436,8 @@ The decoder interprets the payload as a JSON envelope, extracts a hex-encoded da
     <li>
       <span><strong>Basic settings:</strong></span>
       <ul>
-        <li>Set <strong>Integration type</strong> to <strong>UDP</strong>.</li>
+        <li>Select <strong>UDP</strong> as the <strong>integration type</strong>.</li>
+        <li>Enter a name — for example, <code>UDP integration</code>.</li>
         <li><strong>Enable integration</strong> and <strong>Allow create devices or assets</strong> are on by default.</li>
         <li>Click <strong>Next</strong>.</li>
       </ul>
@@ -423,23 +445,24 @@ The decoder interprets the payload as a JSON envelope, extracts a hex-encoded da
     <li>
       <span><strong>Uplink data converter:</strong></span>
       <ul>
-        <li>Select existing — choose the <a href="#create-an-uplink-converter">UDP Uplink Converter</a> created above.</li>
+        <li>Click <strong>Select existing</strong> and choose the <a href="#create-udp-uplink-data-converter"><strong>UDP Uplink Converter</strong></a> created in the previous step, or click <strong>Create new</strong> to define the decoder inline.</li>
         <li>Click <strong>Next</strong>.</li>
       </ul>
     </li>
     <li>
-      <span><strong>Downlink data converter:</strong></span>
+      <strong>Downlink data converter:</strong>
       <ul>
-        <li>Click <strong>Skip</strong> — the downlink converter can be added later.</li>
+        <li>Click <strong>Skip</strong> for now. You can add a downlink converter later.</li>
       </ul>
     </li>
     <li>
       <span><strong>Connection settings:</strong></span>
       <ul>
-        <li><strong>Port</strong> — <code>11560</code> by default; change if needed.</li>
-        <li>Copy the <strong>Integration key</strong> and <strong>Integration secret</strong> — required when configuring the remote UDP Integration service.</li>
-        <li>Select your payload type and configure the handler — see <a href="#connection-settings">Connection settings</a> below.</li>
+        <li>Set the <strong>Port</strong> — default is <code>11560</code>. This port must be open on the machine running the UDP Integration process.</li>
+        <li>The <strong>Execute remotely</strong> option is always enabled for UDP. Copy the <strong>Integration key</strong> and <strong>Integration secret</strong> — you will need them to <a href="#install-and-run-remote-udp-integration"><strong>start the remote integration process</strong></a>.</li>
+        <li>Configure the <strong>Handler Configuration</strong> — select the message framing strategy that matches your device protocol. See <a href="#handler-configuration"><strong>Handler Configuration</strong></a> below.</li>
       </ul>
+      <span>Read more about each parameter in <a href="#connection-settings"><strong>Connection Settings</strong></a>.</span>
     </li>
     <li>Click <strong>Add</strong> to save the integration.</li>
   </ol>
@@ -452,83 +475,87 @@ The decoder interprets the payload as a JSON envelope, extracts a hex-encoded da
   { src: '/src/assets/images/user-guide/integrations/udp/udp-create-integration-4.png', alt: 'Add integration wizard — Connection: port 11560, Execute remotely enabled, Integration key and secret, Handler Configuration BINARY', caption: 'Copy the Integration key and secret, set Handler Configuration to match your payload type, and click Add' },
 ]} />
 
-#### Connection settings
+### Connection Settings
 
-<h5>Handler configuration</h5>
+<h4>Port</h4>
 
-The handler determines how the integration interprets the incoming UDP datagram. Select the handler matching your payload format:
+UDP port the integration listens on for incoming datagrams. Must be unique per integration on a given host. Default: **11560**.
 
-<Tabs>
-<TabItem label="Text">
+<h4>Size of the buffer for inbound socket (in KB)</h4>
 
-<ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/udp/handler-configuration-text.png', alt: 'Handler Configuration — TEXT selected, Charset Name UTF-8', caption: 'Text handler: Charset Name UTF-8' },
-]} />
+Size of the receive buffer for the inbound UDP socket in kilobytes. Increase this value if datagrams are being dropped under high load. Default: **64**.
 
-| Parameter | Value | Description |
-|-----------|-------|-------------|
-| **Charset Name** | `UTF-8` | Encoding used to convert the datagram bytes to a string. |
+<h4>Enable broadcast</h4>
 
-</TabItem>
-<TabItem label="JSON">
+When enabled, the integration socket accepts broadcast UDP packets (destination `255.255.255.255` or a subnet broadcast address). Disable for unicast-only deployments. Enabled by default.
 
-<ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/udp/handler-configuration-json.png', alt: 'Handler Configuration — JSON selected', caption: 'JSON handler: no additional settings required' },
-]} />
+<h4>Execute remotely</h4>
 
-</TabItem>
-<TabItem label="Binary">
-
-<ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/udp/handler-configuration-binary.png', alt: 'Handler Configuration — BINARY selected', caption: 'Binary handler: no additional settings required' },
-]} />
-
-</TabItem>
-<TabItem label="Hex">
-
-<ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/udp/handler-configuration-hex.png', alt: 'Handler Configuration — HEX selected, Max Frame Length 128 bytes', caption: 'Hex handler: Max Frame Length 128 bytes' },
-]} />
-
-| Parameter | Value | Description |
-|-----------|-------|-------------|
-| **Max Frame Length (in bytes)** | `128` | Maximum byte length of an incoming UDP datagram. |
-
-</TabItem>
-</Tabs>
-
-<h5>Port</h5>
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| **Port** | `11560` | UDP port the integration listens on for incoming datagrams. |
-
-<h5>Integration key and secret</h5>
-
-Generated automatically — **Execute remotely** is always enabled for UDP Integration. Required when starting the remote UDP Integration service — copy both values before closing the wizard.
-
-<h5>Network settings</h5>
-
-| Parameter | Description |
-|-----------|-------------|
-| **Enable broadcast** | Accepts UDP packets sent to the broadcast address. Enabled by default. |
+Execute remotely is always enabled for UDP Integration.
+Copy the automatically generated **Integration key** and **Integration secret** values — credentials required to launch the UDP Integration as a standalone remote process. See <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink> for full setup instructions.
 
 <h5>Downlink cache</h5>
 
 | Parameter | Description |
 |-----------|-------------|
-| **Cache Size** | Maximum number of downlink messages stored per UDP client. |
-| **Cache time to live in minutes** | How long queued downlink messages are retained before being discarded. |
+| **Cache Size** | Maximum number of device source addresses remembered for downlink routing. When the limit is reached, the oldest entry is evicted. |
+| **Cache time to live in minutes** | How long a device's source address is retained. If a downlink is triggered after the entry expires, it cannot be delivered until the device sends another uplink. |
 
-## Install and run the remote UDP integration
+<h4>Advanced settings</h4>
 
-Refer to the <DocLink product={props.product} path="user-guide/integrations/remote/">remote integration guide</DocLink> to install and start the UDP Integration service.
+| Field | Description |
+|-------|-------------|
+| **Description** | Optional free-text description of the integration. |
+| **Metadata** | Optional key–value pairs injected into every message and accessible in converter scripts via the `metadata` object. Click **Add** to add a row. |
+
+### Handler Configuration
+
+Defines how the integration interprets the raw datagram bytes before passing them to the converter. Select the type that matches your device protocol:
+
+<Tabs>
+  <TabItem label="Text">
+    Interprets the datagram as a text string encoded in the specified character set. Suitable for devices that send CSV lines or human-readable payloads.
+
+    | Parameter | Description |
+    |-----------|-------------|
+    | **Charset Name** | Character encoding used to decode the datagram bytes into a string. Default: `UTF-8`. |
+
+  </TabItem>
+  <TabItem label="JSON">
+    Passes the raw datagram bytes to the converter without modification. The converter is responsible for parsing the JSON content. No additional parameters. Suitable when devices send a single JSON object per datagram.
+    
+  </TabItem>
+  <TabItem label="Binary">
+    Passes the raw datagram bytes directly to the converter without any framing or length-field parsing. Suitable for custom binary protocols where each UDP datagram is a complete, self-contained message.
+
+  </TabItem>
+  <TabItem label="Hex">
+    Interprets the datagram as a hex-encoded string. The raw bytes are converted to their hexadecimal string representation before being passed to the converter.
+
+  </TabItem>
+</Tabs>
+
+## Install and Run Remote UDP Integration
+
+Refer to the <DocLink product={props.product} path="user-guide/integrations/remote/" target="_blank">remote integration guide</DocLink> to install and start the UDP Integration service.
 
 Use the **Integration key** and **Integration secret** from the integration's **Connection settings** when configuring the service.
 
-## Test uplink
+## Test the Integration
 
-Once the UDP integration is active, the UDP server starts and waits for device data.
+After the integration is created, send a test uplink and confirm that ThingsBoard received the message, decoded it correctly, and provisioned the device.
+
+<Aside type="note">
+  Before sending a test uplink, ensure that **Debug** mode with the **All messages** option is enabled for both the integration and the converter. This allows you to view received messages and conversion results on the corresponding **Events** tabs.
+</Aside>
+
+### Send Test Uplink
+
+Once the UDP Integration process is running, the UDP socket is bound and ready to receive datagrams. Use `netcat` in UDP mode (`-u`) to simulate a device sending data.
+
+<Aside type="note">
+  Unlike TCP, UDP has no connection state. Each `nc -u` invocation sends a datagram and exits. To receive a downlink response in the same terminal session, use `nc -u -w1` (1-second timeout) or keep the socket open with `nc -u -l` in a second terminal.
+</Aside>
 
 Select your payload type:
 
@@ -536,110 +563,112 @@ Select your payload type:
 <TabItem label="Text">
 
 ```bash
-echo -e 'SN-001,default,temperature,25.7,humidity,69' | nc -w5 -u 127.0.0.1 11560
+echo -e 'SN-003,default,temperature,25.7,humidity,69' | nc -u -w5 localhost 11560
 ```
-
-<DocImage src="/src/assets/images/user-guide/integrations/udp/terminal-text.png" alt="Terminal — text payload sent to UDP integration on port 11560; no output indicates successful delivery" />
 
 </TabItem>
 <TabItem label="JSON">
 
 ```bash
-echo -e -n '{"deviceName": "SN-001", "deviceType": "default", "temperature": 25.7, "humidity": 69}' | nc -w5 -u 127.0.0.1 11560
+echo -e -n '{"deviceName": "SN-003", "deviceType": "default", "temperature": 25.7, "humidity": 69}' | nc -u -w5 localhost 11560
 ```
-
-<DocImage src="/src/assets/images/user-guide/integrations/udp/terminal-json.png" alt="Terminal — JSON payload sent to UDP integration on port 11560; no output indicates successful delivery" />
 
 </TabItem>
 <TabItem label="Binary">
 
 ```bash
-echo -e -n '\x53\x4e\x2d\x30\x30\x31\x64\x65\x66\x61\x75\x6c\x74\x32\x35\x2e\x37\x36\x39' | nc -w5 -u 127.0.0.1 11560
+echo -e -n '\x53\x4e\x2d\x30\x30\x33\x64\x65\x66\x61\x75\x6c\x74\x32\x35\x2e\x37\x36\x39' | nc -u -w5 localhost 11560
 ```
-
-<DocImage src="/src/assets/images/user-guide/integrations/udp/terminal-binary.png" alt="Terminal — binary payload sent to UDP integration on port 11560; no output indicates successful delivery" />
 
 </TabItem>
 <TabItem label="Hex">
 
 ```bash
-echo -e -n '534e2d30303164656661756c7432352e373639' | xxd -r -p | nc -w5 -u 127.0.0.1 11560
+echo -e -n '534e2d30303364656661756c7432352e373639' | xxd -r -p | nc -u -w5 localhost 11560
 ```
-
-<DocImage src="/src/assets/images/user-guide/integrations/udp/terminal-hex.png" alt="Terminal — hex payload sent to UDP integration on port 11560; no output indicates successful delivery" />
 
 </TabItem>
 </Tabs>
 
-Go to **Entities &#8702; Devices**. Device **SN-001** is auto-created on the first uplink. Open it and confirm the **Latest Telemetry** tab shows `temperature = 25.7` and `humidity = 69`.
+### Verify Integration Events
 
-<ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/udp/udp-integration-add-device.png', alt: 'Entities → Devices list with SN-001 auto-created; device details panel showing Latest Telemetry — humidity = 69, temperature = 25.7', caption: 'Device SN-001 is auto-created on the first uplink — open Latest Telemetry to confirm the received values' },
-]} />
+Go to **Integrations center &#8702; Integrations**, open **UDP integration**, and click the **Events** tab.
+Each successfully processed uplink appears as a row with status **OK**.
 
-## Configure and test downlink
+### Verify Converter Events
 
-To send messages from ThingsBoard back to a device, add a downlink converter to the integration and configure a rule chain.
+To inspect converter processing, go to **Integrations center &#8702; Data converters**, click **UDP Uplink Converter**, and open its **Events** tab:
 
-### Add a downlink converter
+- **In** — what the integration received (the raw datagram bytes)
+- **Out** — what the converter returned
+- **Error** — error text, if any
 
-The downlink converter encodes outgoing ThingsBoard messages into the format expected by the device.
+### Verify Device Provisioning
 
-<Aside type="tip" title="TBEL">
-  We recommend using <DocLink product={props.product} path="user-guide/tbel">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
+Go to **Entities &#8702; Devices**. Device **SN-003** is auto-created on the first uplink. Open it and confirm the **Latest Telemetry** tab shows `temperature = 25.7` and `humidity = 69`.
+
+## Configure Downlink
+
+Downlink allows ThingsBoard to send messages back to devices over UDP — for example, in response to an RPC call or a shared attribute update. The response datagram is sent to the **source IP address and port** of the most recent uplink datagram received from that device.
+
+<Aside type="note">
+  Because UDP is stateless, the device must send an uplink first so the integration can learn its address. Single-shot `echo ... | nc -u ...` sends from an ephemeral port that closes immediately — use a persistent socket or a proper device client to receive downlink responses.
 </Aside>
 
-**The encoder used in this tutorial:**
+The downlink converter transforms a <DocLink product={props.product} path="user-guide/rule-engine" target="_blank">Rule Engine</DocLink> message into the bytes sent back to the device.
 
-<Tabs>
-<TabItem label="TBEL (Recommended)">
-```js maxLines=15 collapsible
-// Result object with encoded downlink payload
-var result = {
-
-    // downlink data content type: JSON, TEXT or BINARY (base64 format)
-    contentType: "JSON",
-
-    // downlink data
-    data: JSON.stringify(msg),
-
-    // Optional metadata object presented in key/value format
-    metadata: {}
-
-};
-
-return result;
-```
-</TabItem>
-<TabItem label="JavaScript">
-```js maxLines=15 collapsible
-// Result object with encoded downlink payload
-var result = {
-
-    // downlink data content type: JSON, TEXT or BINARY (base64 format)
-    contentType: "JSON",
-
-    // downlink data
-    data: JSON.stringify(msg),
-
-    // Optional metadata object presented in key/value format
-    metadata: {}
-
-};
-
-return result;
-```
-</TabItem>
-</Tabs>
-
-To assign the downlink converter to the integration:
+### Add Downlink Converter
 
 <Steps>
-1. Go to **Integrations center &#8702; Integrations**, open the UDP integration, and click the edit (pencil) icon.
-2. In the **Downlink data converter** field, enter a name and click **Create new converter**.
-3. Paste the encoder script and click **Add**.
-4. Click **Apply changes**.
+  1. Go to **Integrations center &#8702; Integrations** and open the UDP integration.
+  2. Click the **pencil** icon to enter edit mode.
+  3. In the **Downlink data converter** field, click **Create new**.
+  4. Enter a name, paste the encoder script shown below, then click **Add**.
+  5. Click **Apply changes**.
 </Steps>
+
+Select your script language:
+
+<Tabs>
+  <TabItem label="TBEL (Recommended)">
+    ```js maxLines=15 collapsible
+    // Result object with encoded downlink payload
+    var result = {
+     
+      // downlink data content type: JSON, TEXT or BINARY (base64 format)
+      contentType: "JSON",
+         
+      // downlink data
+      data: JSON.stringify(msg),
+         
+      // Optional metadata object presented in key/value format
+      metadata: {}
+     
+    };
+       
+    return result;
+    ```
+  </TabItem>
+  <TabItem label="JavaScript">
+    ```js maxLines=15 collapsible
+    // Result object with encoded downlink payload
+    var result = {
+       
+      // downlink data content type: JSON, TEXT or BINARY (base64 format)
+      contentType: "JSON",
+         
+      // downlink data
+      data: JSON.stringify(msg),
+         
+      // Optional metadata object presented in key/value format
+      metadata: {}
+       
+    };
+       
+    return result;
+    ```
+  </TabItem>
+</Tabs>
 
 <ImageGallery images={[
   { src: '/src/assets/images/user-guide/integrations/udp/udp-add-downlink-converter-tbel-1.png', alt: 'Integrations center → Integrations list with UDP integration selected; details panel open, pencil icon highlighted', caption: 'Open the UDP integration details and click the pencil icon to enter edit mode' },
@@ -649,54 +678,84 @@ To assign the downlink converter to the integration:
 ]} />
 
 <Aside type="note">
-  The UDP integration supports optional **Cache Size** and **Cache time to live in minutes** settings for the downlink. **Cache Size** limits the number of stored messages per UDP client. **Cache time to live** controls how long messages are retained before being discarded.
+  The UDP integration uses a cache to remember each device's source address for downlink routing. **Cache Size** limits how many device addresses are remembered. **Cache time to live** controls how long an address stays valid — if it expires before a downlink fires, the downlink cannot be delivered until the device sends another uplink.
 </Aside>
 
-### Configure the Root Rule Chain
+### Configure Root Rule Chain
 
-<Steps>
-1. Go to **Rule chains** and open the **Root Rule Chain**.
-2. Find the **Integration Downlink** node, drag it onto the canvas, name it `UDP Downlink`, select the UDP integration, and click **Add**.
-3. Connect the **Message Type Switch** node to the **Integration Downlink** node using both **Attributes Updated** and **Post Attributes** relation types and click **Apply changes**.
-</Steps>
+<ConfigureDownlinkRuleChain integrationName="UDP" />
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/udp/rule-chain-downlink-1.png', alt: 'Root Rule Chain canvas — Integration Downlink node found in the sidebar, ready to drag onto the canvas', caption: 'Search for the Integration Downlink node and drag it onto the canvas' },
-  { src: '/src/assets/images/user-guide/integrations/udp/rule-chain-downlink-2.png', alt: 'Add rule node dialog — name: UDP Downlink, integration: UDP Integration, Add button highlighted', caption: 'Name the node UDP Downlink, select UDP Integration, and click Add' },
-  { src: '/src/assets/images/user-guide/integrations/udp/rule-chain-downlink-3.png', alt: 'Root Rule Chain — Message Type Switch connected to UDP Downlink node via Attributes Updated and Post Attributes; Apply changes highlighted', caption: 'Connect Message Type Switch to UDP Downlink via Attributes Updated and Post Attributes, then click Apply changes' },
+  {
+    src: '/src/assets/images/user-guide/integrations/http/integration-configure-rule-chain-1.png',
+    alt: 'Root Rule Chain editor with Integration Downlink node available in the node palette',
+    caption: 'Open the <strong>Root Rule Chain</strong>, locate the <strong>integration downlink</strong> node in the node palette and drag it onto the rule chain canvas.',
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/udp/udp-integration-configure-rule-chain-2.png',
+    alt: 'Add rule node dialog configured for a UDP integration downlink',
+    caption: 'Enter a node name, select the target <strong>UDP Integration</strong>, and click <strong>Add</strong>.',
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/udp/udp-integration-configure-rule-chain-3.png',
+    alt: 'Rule chain with Integration Downlink node connected to the Attributes Updated message flow',
+    caption: 'Connect the <strong>message type switch</strong> node to the newly created <strong>integration downlink</strong> node using the <strong>Post attributes</strong> and <strong>Attributes Updated</strong> relation types to trigger downlinks whenever shared attributes are created or updated.',
+  },
 ]} />
 
-### Test the downlink
+### Test Downlink
+
+<Aside type="note">
+  UDP downlink is sent to the source address of the last uplink datagram. To receive a response, keep a UDP socket open on the same port the device sends from. Use <code>nc -u -l -p &#60;port&#62;</code> in a second terminal to listen, and send the uplink from a separate terminal bound to the same source port. Downlinks are delivered immediately while the device's source address is cached — all pending messages are sent in sequence. After each downlink payload, the integration sends a second datagram containing the platform line separator (`\n` on Linux/macOS, `\r\n` on Windows) — device-side parsers should expect and strip this trailing datagram.
+</Aside>
+
+Trigger a downlink by adding a shared attribute to the device:
 
 <Steps>
-1. Go to **Entities &#8702; Devices**, open device **SN-001**, and click the **Attributes** tab.
-2. Switch to **Shared attributes** and click **+**.
-3. Enter an attribute key and value (e.g. key: `firmware`, value: `v1.1`) and click **Add**.
+  1. Go to **Entities &#8702; Devices**, open **SN-003**, and navigate to the **Attributes** tab.
+  2. Select **Shared attributes**, click **+** to add a new attribute.
+  3. Set the key (e.g. `powerState`) and value (e.g. `on`).
+  4. Click **Add**.
 </Steps>
-
-<ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/udp/udp-add-shared-attribute-1.png', alt: 'Device SN-001 — Attributes tab with Shared attributes filter selected, no attributes yet, + button highlighted', caption: 'Open device SN-001, go to the Attributes tab, select Shared attributes, and click +' },
-  { src: '/src/assets/images/user-guide/integrations/udp/udp-add-shared-attribute-2.png', alt: 'Add attribute dialog — key: firmware, type: String, value: v1.1, Add button highlighted', caption: 'Enter key firmware, value v1.1, and click Add' },
-  { src: '/src/assets/images/user-guide/integrations/udp/udp-add-shared-attribute-3.png', alt: 'Device SN-001 shared attributes — firmware = v1.1 row visible', caption: 'Shared attribute firmware = v1.1 saved — the Attributes Updated message triggers the downlink' },
-]} />
 
 To receive the downlink response, keep the connection open with `-w10` and send an uplink:
 
 ```bash
-echo -e 'SN-001,default,temperature,25.7,humidity,69' | nc -w10 -u 127.0.0.1 11560
+echo -e 'SN-003,default,temperature,25.7,humidity,69' | nc -w10 -u localhost 11560
 ```
 
-<DocImage src="/src/assets/images/user-guide/integrations/udp/terminal-add-attribute.png" alt='Terminal — uplink sent with nc -w10, downlink response {"firmware":"v1.1"} received' />
+The Rule Engine routes the attribute creation message to the **Integration Downlink** node, which encodes it and sends it to the device. The terminal will print:
+
+```bash
+{"powerState":"on"}
+```
 
 <Aside type="note">
-  When the UDP connection stays open for an extended time, only one downlink message is delivered immediately — subsequent messages are queued and sent on the next uplink.
+  When using the **JSON** or **Hex** handler, the downlink datagram is sent
+  correctly but may not appear in the `nc` terminal session. To confirm
+  delivery, check the downlink converter's **Events** tab — the **Out** field
+  shows the encoded payload that was dispatched to the device address.
 </Aside>
 
-## See also
+## Troubleshooting
 
-- <DocLink product={props.product} path="user-guide/integrations">Integration Overview</DocLink>
-- <DocLink product={props.product} path="user-guide/integrations">Remote Integrations</DocLink>
-- <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter">Uplink Converters</DocLink>
-- <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter">Downlink Converters</DocLink>
-- <DocLink product={props.product} path="user-guide/rule-engine">Rule Engine</DocLink>
-- <DocLink product={props.product} path="user-guide/tbel">ThingsBoard Expression Language (TBEL)</DocLink>
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| No device created after sending data | `deviceName` is empty or `undefined` | Check **Debug Events → Out** on the uplink converter; verify the decoder correctly extracts `deviceName` from the payload |
+| `Error in converter` | TBEL or JavaScript exception | Open **Events → Error** on the uplink converter and inspect the stack trace; use **Test payload decoder** to test against a sample payload |
+| Datagram not received by integration | UDP port blocked or wrong target host/port | Verify the integration process is running; confirm the UDP port is open in the firewall; check that `nc -u` is targeting the correct host and port |
+| Messages decoded incorrectly | Handler type mismatch | Verify the **Handler Configuration** tab matches your device's actual payload format; use a packet capture (`tcpdump -i lo udp port 11560`) to inspect raw datagrams |
+| Integration process fails to connect to ThingsBoard | Wrong host, port, key, or secret | Verify `host`, `port`, `routingKey`, and `secret` in `tb-remote-integration.yml`; ensure ThingsBoard gRPC port `9090` is reachable |
+| Port already in use | Another process or integration is using the same UDP port | Choose a different port in the integration Connection settings and update the configuration file accordingly |
+| Device does not receive downlink | Ephemeral source port changes between sends | Device must send from a fixed source port; single-shot `nc -u` uses a random ephemeral port — bind to a fixed port with `-p` or use a proper device client |
+| Data present but timestamp is wrong | Device sends `ts` in seconds | Convert before assigning: `ts: data.ts * 1000` |
+| Telemetry not saved | Converter returns `{}` or `[]` | Ensure `telemetry` contains at least one field |
+
+## See Also
+
+- <DocLink product={props.product} path="user-guide/integrations" target="_blank">Integrations Overview</DocLink> — how ThingsBoard connects to external platforms and how uplink/downlink flow works
+- <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">Uplink Data Converter</DocLink> — full decoder function reference: input parameters, output fields, and scripting patterns
+- <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink Data Converter</DocLink> — full encoder function reference for sending commands to devices
+- <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink> — run the integration as a standalone process outside the ThingsBoard server
+- <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL scripting reference</DocLink> — built-in functions and operators for writing converter scripts
+- <DocLink product={props.product} path="user-guide/rule-engine" target="_blank">Rule Engine</DocLink> — how uplink messages are processed after the converter

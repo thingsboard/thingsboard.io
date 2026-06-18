@@ -134,15 +134,15 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"microcontrollersGuides": [
 				{
 					"label": "ESP32 Dev Kit V1",
-					"href": "/device-library/esp32-dev-kit-v1/?platform=tb"
+					"href": "/iot-hub/devices/esp32-dev-kit-v1/"
 				},
 				{
 					"label": "ESP32 Dev Kit C V4",
-					"href": "/device-library/esp32-dev-kit-v4/?platform=tb"
+					"href": "/iot-hub/devices/esp32-dev-kit-v4/"
 				},
 				{
 					"label": "ESP32 PICO KIT",
-					"href": "/device-library/esp32-pico-kit/?platform=tb"
+					"href": "/iot-hub/devices/esp32-pico-kit/"
 				}
 			]
 		},
@@ -243,7 +243,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"generalGuide": [
 				{
 					"label": "Connect S26x LoRaWAN Temperature Sensor to ThingsBoard",
-					"href": "/device-library/s26x-lorawan-temperature-sensor/?platform=tb"
+					"href": "/iot-hub/devices/s26x-lorawan-temperature-sensor/"
 				}
 			]
 		},
@@ -293,17 +293,17 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"singleBoardComputersGuides": [
 				{
 					"label": "ODYSSEY STM32MP157C",
-					"href": "/device-library/odyssey-stm32mp157c/?platform=tb"
+					"href": "/iot-hub/devices/odyssey-stm32mp157c/"
 				}
 			],
 			"gatewayGuides": [
 				{
 					"label": "reComputer R1000",
-					"href": "/device-library/recomputer-r1000/?platform=edge"
+					"href": "/iot-hub/devices/recomputer-r1000/"
 				},
 				{
 					"label": "reComputer R1100",
-					"href": "/device-library/recomputer-r1100/?platform=edge"
+					"href": "/iot-hub/devices/recomputer-r1100/"
 				}
 			]
 		},
@@ -374,35 +374,35 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"sensorGuides": [
 				{
 					"label": "AM308 Lorawan 9-IN-1 IAQ Sensor",
-					"href": "/device-library/am308-sensor/?platform=tb"
+					"href": "/iot-hub/devices/am308-sensor/"
 				},
 				{
 					"label": "WS202 PIR & Light LoRaWAN® Sensor",
-					"href": "/device-library/ws202-pir-and-light-sensor/?platform=tb"
+					"href": "/iot-hub/devices/ws202-pir-and-light-sensor/"
 				}
 			],
 			"gatewayGuides": [
 				{
 					"label": "UG56 LoRaWAN® Gateway",
-					"href": "/device-library/ug56-lorawan-gateway/?platform=tb"
+					"href": "/iot-hub/devices/ug56-lorawan-gateway/"
 				},
 				{
 					"label": "UG65 LoRaWAN® Semi-Industrial Gateway",
-					"href": "/device-library/ug65-lorawan-gateway/?platform=tb"
+					"href": "/iot-hub/devices/ug65-lorawan-gateway/"
 				},
 				{
 					"label": "UG67 LoRaWAN® Gateway",
-					"href": "/device-library/ug67-lorawan-gateway/?platform=tb"
+					"href": "/iot-hub/devices/ug67-lorawan-gateway/"
 				}
 			],
 			"otherDevicesGuides": [
 				{
 					"label": "WS101 LoRaWAN® Smart Button",
-					"href": "/device-library/ws101-smart-button/?platform=tb"
+					"href": "/iot-hub/devices/ws101-smart-button/"
 				},
 				{
 					"label": "VS121 AI workplace sensor",
-					"href": "/device-library/vs-121/?platform=tb"
+					"href": "/iot-hub/devices/vs-121/"
 				}
 			]
 		},
@@ -442,27 +442,27 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"sensorGuides": [
 				{
 					"label": "Electricity Three Phase Smart Meter \"Smartico E307\"",
-					"href": "/device-library/smartico-e307/"
+					"href": "/iot-hub/devices/smartico-e307/"
 				},
 				{
 					"label": "Smart Gas Meter \"Smartico G-1.6\"",
-					"href": "/device-library/smartico-g-1-6/"
+					"href": "/iot-hub/devices/smartico-g-1-6/"
 				},
 				{
 					"label": "Gas Shutoff Valve LoRaWAN \"Smartico V-LR\"",
-					"href": "/device-library/smartico-v-lr/"
+					"href": "/iot-hub/devices/smartico-v-lr/"
 				},
 				{
 					"label": "Leaks Detector LoRaWAN \"Smartico L2-LR\"",
-					"href": "/device-library/smartico-l2-lr/"
+					"href": "/iot-hub/devices/smartico-l2-lr/"
 				},
 				{
 					"label": "Pulse Sensor LoRaWAN \"Smartico P22-LR\"",
-					"href": "/device-library/smartico-p22-lr/"
+					"href": "/iot-hub/devices/smartico-p22-lr/"
 				},
 				{
 					"label": "Wireless M-BUS reader LoRaWAN \"Smartico WM-LR\"",
-					"href": "/device-library/smartico-wm-lr/"
+					"href": "/iot-hub/devices/smartico-wm-lr/"
 				}
 			]
 		},
@@ -517,7 +517,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"gatewayGuides": [
 				{
 					"label": "Syrus 4 IoT Telematics Gateway",
-					"href": "/device-library/syrus-4g-iot-telematics-gateway/"
+					"href": "/iot-hub/devices/syrus-4g-iot-telematics-gateway/"
 				}
 			]
 		},
@@ -559,7 +559,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"generalGuides": [
 				{
 					"label": "RTU-X",
-					"href": "/device-library/rtu-x/"
+					"href": "/iot-hub/devices/rtu-x/"
 				}
 			]
 		},
@@ -601,7 +601,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"gatewayGuides": [
 				{
 					"label": "ADAM-6717",
-					"href": "/device-library/adam-6717/"
+					"href": "/iot-hub/devices/adam-6717/"
 				}
 			]
 		},
@@ -777,7 +777,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"singleBoardComputersGuides": [
 				{
 					"label": "Connect Sensy32 to ThingsBoard",
-					"href": "/device-library/sensy32/?platform=tb"
+					"href": "/iot-hub/devices/sensy32/"
 				}
 			]
 		},
@@ -872,7 +872,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"sensorGuides": [
 				{
 					"label": "COMFORT v2 LoRaWAN® Leak Detection Sensor",
-					"href": "/device-library/comfort-v2-lorawan-leak-detection-sensor/"
+					"href": "/iot-hub/devices/comfort-v2-lorawan-leak-detection-sensor/"
 				}
 			]
 		},
@@ -1009,11 +1009,11 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"generalGuides": [
 				{
 					"label": "Connect RN172plus series to ThingBoard",
-					"href": "/device-library/rn172wcd/?platform=tb"
+					"href": "/iot-hub/devices/rn172wcd/"
 				},
 				{
 					"label": "Connect RN-320 BTH LoRaWAN Temperature and Humidity sensor to ThingBoard",
-					"href": "/device-library/rn320bth/?platform=tb"
+					"href": "/iot-hub/devices/rn320bth/"
 				}
 			]
 		},
@@ -1158,11 +1158,11 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"gatewayGuides": [
 				{
 					"label": "VIBit integration guide",
-					"href": "/device-library/vibit/?platform=tb"
+					"href": "/iot-hub/devices/vibit/"
 				},
 				{
 					"label": "VIBit-BP integration guide",
-					"href": "/device-library/vibit-bp/?platform=tb"
+					"href": "/iot-hub/devices/vibit-bp/"
 				}
 			]
 		},
@@ -1199,27 +1199,27 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"sensorGuides": [
 				{
 					"label": "AmpSense Smart current Sensor",
-					"href": "/device-library/ampsense-smart-current-sensor/"
+					"href": "/iot-hub/devices/ampsense-smart-current-sensor/"
 				},
 				{
 					"label": "Carbonless CO2 temperature and humidity Sensor",
-					"href": "/device-library/carbonless-co2-temperature-and-humidity-sensor/"
+					"href": "/iot-hub/devices/carbonless-co2-temperature-and-humidity-sensor/"
 				},
 				{
 					"label": "TempHu Temperature and Humidity Sensor",
-					"href": "/device-library/temphu-temperature-and-humidity-sensor/"
+					"href": "/iot-hub/devices/temphu-temperature-and-humidity-sensor/"
 				},
 				{
 					"label": "Vapeless Gas detection indoor Sensor",
-					"href": "/device-library/vapeless-gas-detection-indoor-sensor/"
+					"href": "/iot-hub/devices/vapeless-gas-detection-indoor-sensor/"
 				},
 				{
 					"label": "Vapeless Pro Gas detection indoor Sensor",
-					"href": "/device-library/vapeless-pro-gas-detection-indoor-sensor/"
+					"href": "/iot-hub/devices/vapeless-pro-gas-detection-indoor-sensor/"
 				},
 				{
 					"label": "Vocless VOC temperature and humidity Sensor",
-					"href": "/device-library/vocless-voc-temperature-and-humidity-sensor/"
+					"href": "/iot-hub/devices/vocless-voc-temperature-and-humidity-sensor/"
 				}
 			]
 		},
@@ -1250,15 +1250,15 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"gatewayGuides": [
 				{
 					"label": "Connect the MClimate 16A Switch & Power Meter compact 16A relay and electricity meter to ThingsBoard",
-					"href": "/device-library/16a-switch-and-power-meter-compact-16a-relay-and-electricity-meter/?platform=tb"
+					"href": "/iot-hub/devices/16a-switch-and-power-meter-compact-16a-relay-and-electricity-meter/"
 				},
 				{
 					"label": "Connect the MClimate CO2 Display lite to ThingsBoard",
-					"href": "/device-library/co2-display-lite-temperature-and-humidity-sensor/?platform=tb"
+					"href": "/iot-hub/devices/co2-display-lite-temperature-and-humidity-sensor/"
 				},
 				{
 					"label": "Connect the MClimate Vicki Smart Radiator Thermostat to ThingsBoard",
-					"href": "/device-library/vicki-smart-radiator-thermostat/?platform=tb"
+					"href": "/iot-hub/devices/vicki-smart-radiator-thermostat/"
 				}
 			]
 		},
@@ -1311,7 +1311,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"sensorGuides": [
 				{
 					"label": "ORB-C1-G",
-					"href": "/device-library/orb-c1-g/"
+					"href": "/iot-hub/devices/orb-c1-g/"
 				}
 			]
 		},
@@ -1362,7 +1362,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"gatewayGuides": [
 				{
 					"label": "DSGW-210 Smart Gateway Hub",
-					"href": "/device-library/dsgw-210-iot-gateway-hub/?platform=tb"
+					"href": "/iot-hub/devices/dsgw-210-iot-gateway-hub/"
 				}
 			]
 		},
@@ -1407,7 +1407,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"trackersGuides": [
 				{
 					"label": "LPWA GPS Tracker",
-					"href": "/device-library/monozero-bg96-v2/"
+					"href": "/iot-hub/devices/monozero-bg96-v2/"
 				}
 			]
 		},
@@ -1447,7 +1447,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"gatewayGuides": [
 				{
 					"label": "EXXN IoT Gateway",
-					"href": "/device-library/iot-gateway-cell-1024/"
+					"href": "/iot-hub/devices/iot-gateway-cell-1024/"
 				}
 			]
 		},
@@ -1492,7 +1492,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"otherDevicesGuides": [
 				{
 					"label": "FDQ-99900 MI-8",
-					"href": "/device-library/fusiondaq-fdq-99900-mi-8/"
+					"href": "/iot-hub/devices/fusiondaq-fdq-99900-mi-8/"
 				}
 			]
 		},
@@ -1628,7 +1628,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 				},
 				{
 					"label": "How to connect LW001-BG PRO LoRaWAN Tracker to ThingsBoard?",
-					"href": "/device-library/lw001-bg-pro/?platform=tb"
+					"href": "/iot-hub/devices/lw001-bg-pro/"
 				}
 			]
 		},
@@ -1722,7 +1722,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"sensorGuides": [
 				{
 					"label": "NCD Vibration Temperature Sensor",
-					"href": "/device-library/ncd-vibration-temperature-sensor/?platform=tb"
+					"href": "/iot-hub/devices/ncd-vibration-temperature-sensor/"
 				}
 			]
 		},
@@ -1766,11 +1766,11 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"otherDevicesGuides": [
 				{
 					"label": "Temco T3E-6CT",
-					"href": "/device-library/temco-controls-t3e-6ct-and-hum-w1/?platform=tb"
+					"href": "/iot-hub/devices/temco-controls-t3e-6ct-and-hum-w1/"
 				},
 				{
 					"label": "Temco Tstat10",
-					"href": "/device-library/temco-controls-tstat-10-and-hum-w1/?platform=tb"
+					"href": "/iot-hub/devices/temco-controls-tstat-10-and-hum-w1/"
 				}
 			]
 		},
@@ -1807,11 +1807,11 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"sensorGuides": [
 				{
 					"label": "LRS10701 LoRaWAN IAQ Sensor",
-					"href": "/device-library/lrs10701/?platform=tb"
+					"href": "/iot-hub/devices/lrs10701/"
 				},
 				{
 					"label": "LRS20100 LoRaWAN Temperature and Humidity Sensor",
-					"href": "/device-library/lrs20100/?platform=tb"
+					"href": "/iot-hub/devices/lrs20100/"
 				}
 			]
 		},
@@ -1905,7 +1905,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"generalGuides": [
 				{
 					"label": "4G Router DRN 500",
-					"href": "/device-library/drn-500/"
+					"href": "/iot-hub/devices/drn-500/"
 				}
 			]
 		},
@@ -2026,119 +2026,119 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"sensorGuides": [
 				{
 					"label": "Asset Management Tracker",
-					"href": "/device-library/asset-management-tracker/?platform=tb"
+					"href": "/iot-hub/devices/asset-management-tracker/"
 				},
 				{
 					"label": "Helmet Sensor",
-					"href": "/device-library/helmet-sensor/?platform=tb"
+					"href": "/iot-hub/devices/helmet-sensor/"
 				},
 				{
 					"label": "Temperature and Humidity Sensor",
-					"href": "/device-library/temperature-humidity-sensor/?platform=tb"
+					"href": "/iot-hub/devices/temperature-humidity-sensor/"
 				},
 				{
 					"label": "Valve Positioning Sensor",
-					"href": "/device-library/valve-positioning-sensor/?platform=tb"
+					"href": "/iot-hub/devices/valve-positioning-sensor/"
 				}
 			],
 			"trackersGuides": [
 				{
 					"label": "Badge Tracker",
-					"href": "/device-library/badge-tracker/?platform=tb"
+					"href": "/iot-hub/devices/badge-tracker/"
 				},
 				{
 					"label": "Cat-1 Badge Tracker",
-					"href": "/device-library/cat1-badge-tracker/?platform=tb"
+					"href": "/iot-hub/devices/cat1-badge-tracker/"
 				},
 				{
 					"label": "Cat-1 Container Tracker",
-					"href": "/device-library/cat1-container-tracker/?platform=tb"
+					"href": "/iot-hub/devices/cat1-container-tracker/"
 				},
 				{
 					"label": "Cat-1 Macro Tracker",
-					"href": "/device-library/cat1-macro-tracker/?platform=tb"
+					"href": "/iot-hub/devices/cat1-macro-tracker/"
 				},
 				{
 					"label": "Contact Tracing Badge",
-					"href": "/device-library/contact-tracing-badge/?platform=tb"
+					"href": "/iot-hub/devices/contact-tracing-badge/"
 				},
 				{
 					"label": "Container Tracker",
-					"href": "/device-library/container-tracker/?platform=tb"
+					"href": "/iot-hub/devices/container-tracker/"
 				},
 				{
 					"label": "Macro Tracker",
-					"href": "/device-library/macro-tracker/?platform=tb"
+					"href": "/iot-hub/devices/macro-tracker/"
 				},
 				{
 					"label": "Solar Tracker",
-					"href": "/device-library/solar-tracker/?platform=tb"
+					"href": "/iot-hub/devices/solar-tracker/"
 				},
 				{
 					"label": "Tracking Label",
-					"href": "/device-library/tracking-label/?platform=tb"
+					"href": "/iot-hub/devices/tracking-label/"
 				},
 				{
 					"label": "UWB Asset Management Tracker",
-					"href": "/device-library/uwb-asset-management-tracker/?platform=tb"
+					"href": "/iot-hub/devices/uwb-asset-management-tracker/"
 				},
 				{
 					"label": "UWB Anchor",
-					"href": "/device-library/uwb-anchor/?platform=tb"
+					"href": "/iot-hub/devices/uwb-anchor/"
 				},
 				{
 					"label": "UWB Badge Tracker",
-					"href": "/device-library/uwb-badge-tracker/?platform=tb"
+					"href": "/iot-hub/devices/uwb-badge-tracker/"
 				},
 				{
 					"label": "UWB Container Tracker",
-					"href": "/device-library/uwb-container-tracker/?platform=tb"
+					"href": "/iot-hub/devices/uwb-container-tracker/"
 				}
 			],
 			"gatewayGuides": [
 				{
 					"label": "Cat-1 Compact Bluetooth Gateway",
-					"href": "/device-library/cat1-compact-bluetooth-gateway/?platform=tb"
+					"href": "/iot-hub/devices/cat1-compact-bluetooth-gateway/"
 				},
 				{
 					"label": "Cat-1 Macro Bluetooth Gateway",
-					"href": "/device-library/cat1-macro-bluetooth-gateway/?platform=tb"
+					"href": "/iot-hub/devices/cat1-macro-bluetooth-gateway/"
 				},
 				{
 					"label": "Cat-1 Solar Bluetooth Gateway",
-					"href": "/device-library/cat1-solar-bluetooth-gateway/?platform=tb"
+					"href": "/iot-hub/devices/cat1-solar-bluetooth-gateway/"
 				},
 				{
 					"label": "Compact Bluetooth Gateway",
-					"href": "/device-library/compact-bluetooth-gateway/?platform=tb"
+					"href": "/iot-hub/devices/compact-bluetooth-gateway/"
 				},
 				{
 					"label": "Indoor Bluetooth Gateway",
-					"href": "/device-library/indoor-bluetooth-gateway/?platform=tb"
+					"href": "/iot-hub/devices/indoor-bluetooth-gateway/"
 				},
 				{
 					"label": "Macro Bluetooth Gateway",
-					"href": "/device-library/macro-bluetooth-gateway/?platform=tb"
+					"href": "/iot-hub/devices/macro-bluetooth-gateway/"
 				},
 				{
 					"label": "Macro Proximity Gateway",
-					"href": "/device-library/macro-proximity-gateway/?platform=tb"
+					"href": "/iot-hub/devices/macro-proximity-gateway/"
 				},
 				{
 					"label": "Micro Bluetooth Gateway",
-					"href": "/device-library/micro-bluetooth-gateway/?platform=tb"
+					"href": "/iot-hub/devices/micro-bluetooth-gateway/"
 				},
 				{
 					"label": "Socketsync Bluetooth Gateway",
-					"href": "/device-library/socketsync-bluetooth-gateway/?platform=tb"
+					"href": "/iot-hub/devices/socketsync-bluetooth-gateway/"
 				},
 				{
 					"label": "Socketsync Proximity Gateway",
-					"href": "/device-library/socketsync-proximity-gateway/?platform=tb"
+					"href": "/iot-hub/devices/socketsync-proximity-gateway/"
 				},
 				{
 					"label": "Solar Bluetooth Gateway",
-					"href": "/device-library/solar-bluetooth-gateway/?platform=tb"
+					"href": "/iot-hub/devices/solar-bluetooth-gateway/"
 				}
 			]
 		},
@@ -2194,7 +2194,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"gatewayGuides": [
 				{
 					"label": "Industrial Raspberry Pi EG500",
-					"href": "/device-library/raspberry-pi-cm4/?platform=tb"
+					"href": "/iot-hub/devices/raspberry-pi-cm4/"
 				}
 			]
 		},
@@ -2350,7 +2350,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"gatewayGuides": [
 				{
 					"label": "ALPON X4 Edge Computer",
-					"href": "/device-library/alpon-x4/?platform=tb"
+					"href": "/iot-hub/devices/alpon-x4/"
 				}
 			]
 		},
@@ -2387,13 +2387,13 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"trackersGuides": [
 				{
 					"label": "ioTracker Multi-sensor tracker",
-					"href": "/device-library/iotracker-multi-sensor-tracker/?platform=tb"
+					"href": "/iot-hub/devices/iotracker-multi-sensor-tracker/"
 				}
 			],
 			"otherDevicesGuides": [
 				{
 					"label": "ioButton Panic button",
-					"href": "/device-library/iobutton-panic-button/?platform=tb"
+					"href": "/iot-hub/devices/iobutton-panic-button/"
 				}
 			]
 		},
@@ -2434,7 +2434,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"gatewayGuides": [
 				{
 					"label": "Connect ACE MQTT 4G GPS Gateway",
-					"href": "/device-library/ace-iot-gateway-and-siemens-logo/?platform=tb"
+					"href": "/iot-hub/devices/ace-iot-gateway-and-siemens-logo/"
 				}
 			]
 		},
@@ -2471,15 +2471,15 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"sensorGuides": [
 				{
 					"label": "AgroSense Air Temperature and Humidity Sensor",
-					"href": "/device-library/air-temperature-and-humidity-sensor/?platform=tb"
+					"href": "/iot-hub/devices/air-temperature-and-humidity-sensor/"
 				},
 				{
 					"label": "AgroSense Positioning Water Leak Sensor",
-					"href": "/device-library/positioning-water-leak-sensor/?platform=tb"
+					"href": "/iot-hub/devices/positioning-water-leak-sensor/"
 				},
 				{
 					"label": "AgroSense Soil Moisture Sensor",
-					"href": "/device-library/soil-moisture-sensor/?platform=tb"
+					"href": "/iot-hub/devices/soil-moisture-sensor/"
 				}
 			]
 		},
@@ -2532,7 +2532,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"gatewayGuides": [
 				{
 					"label": "Connect EG8200 Gateway",
-					"href": "/device-library/eg8200-gateway/?platform=tb"
+					"href": "/iot-hub/devices/eg8200-gateway/"
 				}
 			]
 		},
@@ -2585,7 +2585,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"otherDevicesGuides": [
 				{
 					"label": "Connect KNX IP Multi IO 580",
-					"href": "/device-library/knx-ip-multi-io-580/?platform=tb"
+					"href": "/iot-hub/devices/knx-ip-multi-io-580/"
 				}
 			]
 		},

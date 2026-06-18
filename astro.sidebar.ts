@@ -725,6 +725,7 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 						`${prefix}/widgets/cards/markdown-html-card`,
 						`${prefix}/widgets/cards/progress-bar`,
 						`${prefix}/widgets/cards/value-card`,
+						`${prefix}/widgets/cards/html-container`,
 					],
 				},
 				{
@@ -762,6 +763,7 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 						`${prefix}/widgets/html-widgets/html-card`,
 						`${prefix}/widgets/html-widgets/html-value-card`,
 						`${prefix}/widgets/html-widgets/markdown-html-card`,
+						`${prefix}/widgets/html-widgets/html-container`,
 					],
 				},
 				{
@@ -1310,6 +1312,7 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 						`${prefix}/widgets/cards/markdown-html-card`,
 						`${prefix}/widgets/cards/progress-bar`,
 						`${prefix}/widgets/cards/value-card`,
+						`${prefix}/widgets/cards/html-container`,
 					],
 				},
 				{
@@ -1349,6 +1352,7 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 						`${prefix}/widgets/html-widgets/html-card`,
 						`${prefix}/widgets/html-widgets/html-value-card`,
 						`${prefix}/widgets/html-widgets/markdown-html-card`,
+						`${prefix}/widgets/html-widgets/html-container`,
 					],
 				},
 				{
@@ -4159,12 +4163,12 @@ export const iotHubSidebar: SidebarConfig = [
 	{
 		label: 'Contribution guides',
 		items: [
-			{ label: 'Alarm rule', slug: 'docs/iot-hub/guides/alarm-rule' },
-			{ label: 'Calculated fields', slug: 'docs/iot-hub/guides/calculated-field' },
-			{ label: 'Device', slug: 'docs/iot-hub/guides/device' },
-			{ label: 'Rule chain', slug: 'docs/iot-hub/guides/rule-chain' },
-			{ label: 'Solution template', slug: 'docs/iot-hub/guides/solution-template' },
+			{ label: 'Device Library', slug: 'docs/iot-hub/guides/device' },
+			{ label: 'Solution Templates', slug: 'docs/iot-hub/guides/solution-template' },
 			{ label: 'Widgets', slug: 'docs/iot-hub/guides/widget' },
+			{ label: 'Calculated Fields', slug: 'docs/iot-hub/guides/calculated-field' },
+			{ label: 'Alarm Rules', slug: 'docs/iot-hub/guides/alarm-rule' },
+			{ label: 'Rule Chains', slug: 'docs/iot-hub/guides/rule-chain' },
 		],
 	},
 ];
@@ -4272,7 +4276,7 @@ export const licenseSidebarTabLinks: SidebarTabLinks = {
 };
 export const iotHubSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/iot-hub/',
-	'Contribution guides': '/docs/iot-hub/guides/alarm-rule/',
+	'Contribution guides': '/docs/iot-hub/guides/device/',
 };
 
 /**

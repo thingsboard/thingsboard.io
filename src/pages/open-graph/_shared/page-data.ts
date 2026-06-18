@@ -191,28 +191,6 @@ export async function getUseCaseCardInputs(): Promise<CardInput[]> {
 	);
 }
 
-/** devices collection */
-export async function getDeviceCardInputs(): Promise<CardInput[]> {
-	const devices = await getCollection('devices');
-	return devices.map((device) => {
-		const [, ...slugParts] = device.id.split('/');
-		const slug = slugParts.join('/');
-		const vendor = device.data.vendor;
-		const hardware = (device.data as { hardwareType?: string }).hardwareType;
-		const eyebrowParts = [vendor, hardware].filter((s): s is string => Boolean(s));
-		return {
-			slug,
-			props: {
-				variant: 'logo' as const,
-				sectionName: 'Device Library',
-				sectionTight: true,
-				eyebrow: eyebrowParts.length > 0 ? eyebrowParts.join(' · ') : 'Hardware',
-				title: truncate(device.data.title, TITLE_MAX),
-			},
-		};
-	});
-}
-
 /** Marketing landings — allowlist of /src/pages/*.astro routes. */
 export async function getMarketingCardInputs(): Promise<CardInput[]> {
 	const root = path.resolve('src/pages');
@@ -295,16 +273,6 @@ export async function getCollectionIndexInputs(): Promise<CardInput[]> {
 				title: 'ThingsBoard Use Cases',
 			},
 		},
-		{
-			slug: 'device-library-index',
-			props: {
-				variant: 'logo' as const,
-				sectionName: 'Device Library',
-				sectionTight: true,
-				eyebrow: 'Supported hardware',
-				title: 'ThingsBoard Device Library',
-			},
-		},
 	];
 }
 
@@ -346,7 +314,7 @@ function walkAstroPages(
 	out: Array<{ slug: string; pathname: string }>
 ): void {
 	const SKIP_DIRS = new Set([
-		'open-graph', 'docs', 'blog', 'case-studies', 'use-cases', 'device-library', 'iot-hub',
+		'open-graph', 'docs', 'blog', 'case-studies', 'use-cases', 'iot-hub',
 	]);
 	const dir = path.join(root, rel);
 	let entries: fs.Dirent[];
