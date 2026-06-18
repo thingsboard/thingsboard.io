@@ -13,6 +13,7 @@ import {
 import { bindListingCard } from './iot-hub-listing-card-bind';
 import { getKnownSlugs } from './iot-hub-known-slugs';
 import { updatePagination } from '@components/Pagination/pagination-client';
+import { setPerPageValue } from '@components/Pagination/per-page-client';
 
 // Host-visible "N results" line next to the pagination.
 function updateResultsCount(countEl: HTMLElement, totalResults: number): void {
@@ -139,6 +140,10 @@ export function setupDynamicSearch(): void {
 	const resultsContainer = root.querySelector<HTMLElement>('[data-search-results]');
 	const itemsWrap = root.querySelector<HTMLElement>('[data-search-items]');
 	const paginationNav = root.querySelector<HTMLElement>('[data-tb-pagination]');
+	// The bar wraps the nav + the items-per-page selector. Error/no-data states
+	// hide the whole bar; a single page of results hides only the nav (via
+	// updatePagination's hideOnSinglePage) so the per-page control stays usable.
+	const paginationBar = root.querySelector<HTMLElement>('[data-tb-pagination-bar]');
 	const countEl = root.querySelector<HTMLElement>('[data-search-count]');
 	const noResults = root.querySelector<HTMLElement>('[data-iot-hub-no-results]');
 	const fetchError = root.querySelector<HTMLElement>('[data-iot-hub-fetch-error]');
@@ -188,9 +193,11 @@ export function setupDynamicSearch(): void {
 		if (show) {
 			resultsContainer!.replaceChildren();
 			noResults!.hidden = true;
-			if (paginationNav) paginationNav.hidden = true;
-		} else if (paginationNav) {
-			paginationNav.hidden = false;
+			// Hide the whole bar (nav + per-page) on error; the success path
+			// re-shows it and updatePagination re-applies the single-page rule.
+			if (paginationBar) paginationBar.hidden = true;
+		} else if (paginationBar) {
+			paginationBar.hidden = false;
 		}
 	}
 
@@ -234,19 +241,7 @@ export function setupDynamicSearch(): void {
 
 	function applyPageSizeToUi(size: number): void {
 		const perPageRoot = root!.querySelector<HTMLElement>('[data-per-page-root]');
-		if (!perPageRoot) return;
-		const target = perPageRoot.querySelector<HTMLButtonElement>(
-			`[data-per-page-option][data-per-page-value="${size}"]`
-		);
-		if (!target) return;
-		perPageRoot.querySelectorAll<HTMLButtonElement>('[data-per-page-option]').forEach((opt) => {
-			const isSelected = opt === target;
-			opt.classList.toggle('tb-pagination__per-page-option--selected', isSelected);
-			opt.setAttribute('aria-pressed', String(isSelected));
-		});
-		const labelEl = perPageRoot.querySelector<HTMLElement>('[data-per-page-label]');
-		if (labelEl) labelEl.textContent = String(size);
-		perPageRoot.dataset.perPage = String(size);
+		if (perPageRoot) setPerPageValue(perPageRoot, size);
 	}
 
 	// --- DOM builders ------------------------------------------------------
@@ -374,7 +369,11 @@ export function setupDynamicSearch(): void {
 			showFetchError(false);
 			renderResults(items);
 			if (paginationNav) {
-				updatePagination(paginationNav, { currentPage, totalPages });
+				// Hide the page-number nav when a filter narrows results to a
+				// single page, matching the other surfaces. Safe here because the
+				// per-page selector lives in the bar (sibling of the nav), so it
+				// stays visible — letting the user lower the page size again.
+				updatePagination(paginationNav, { currentPage, totalPages, hideOnSinglePage: true });
 			}
 			updateResultsCount(countEl!, body.totalElements ?? 0);
 		} catch (err) {

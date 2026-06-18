@@ -72,12 +72,17 @@ function capturedFocusRole(nav: HTMLElement): string | null {
 
 function restoreFocus(nav: HTMLElement, role: string | null): void {
 	if (!role) return;
-	const visible = (el: HTMLElement) => el.offsetParent !== null;
+	// Skip `.is-disabled` controls: navigating to the first/last page rebuilds
+	// that boundary chevron as disabled, and focusing it would park focus on a
+	// control the user can no longer activate. Falling through to the
+	// current-page button keeps focus on a live, meaningful target.
+	const focusable = (el: HTMLElement) =>
+		el.offsetParent !== null && !el.classList.contains('is-disabled');
 	const candidates = [
 		...nav.querySelectorAll<HTMLElement>(`[data-nav-role="${role}"]`),
 		nav.querySelector<HTMLElement>('.tb-pagination__page.is-current'),
 	].filter((el): el is HTMLElement => !!el);
-	candidates.find(visible)?.focus();
+	candidates.find(focusable)?.focus();
 }
 
 function dispatchPageChange(el: HTMLElement, page: number): void {

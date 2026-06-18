@@ -19,11 +19,9 @@ export function buildPages(current: number, total: number): PageItem[] {
 	return result;
 }
 
-// Same geometry as Chevron.astro (24px viewBox, 2px round stroke).
-export const CHEVRON_PATHS = {
-	left: 'm15 6-6 6 6 6',
-	right: 'm9 6 6 6-6 6',
-} as const;
+// Re-exported so pagination-client.ts gets the chevron geometry from the same
+// source as the build-time <Chevron> renders — no second copy to drift.
+export { CHEVRON_PATHS } from '@components/chevron-paths';
 
 export function formatPageSummary(current: number, total: number): string {
 	return `Page ${current} of ${total}`;
