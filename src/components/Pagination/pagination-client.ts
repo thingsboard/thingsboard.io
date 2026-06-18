@@ -72,8 +72,12 @@ function capturedFocusRole(nav: HTMLElement): string | null {
 
 function restoreFocus(nav: HTMLElement, role: string | null): void {
 	if (!role) return;
-	// Skip `.is-disabled` controls: navigating to the first/last page rebuilds
-	// that boundary chevron as disabled, and focusing it would park focus on a
+	// Pick the visible row's control. `offsetParent === null` detects hidden
+	// here only because the numbers/compact rows are toggled with
+	// `display: none` (media query) — a row hidden via visibility/opacity/clip
+	// would slip through, so that toggle must stay on `display`.
+	// Also skip `.is-disabled`: navigating to the first/last page rebuilds that
+	// boundary chevron as disabled, and focusing it would park focus on a
 	// control the user can no longer activate. Falling through to the
 	// current-page button keeps focus on a live, meaningful target.
 	const focusable = (el: HTMLElement) =>

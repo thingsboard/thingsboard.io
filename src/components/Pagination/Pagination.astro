@@ -4,47 +4,67 @@
 //     (clicks as navigations in link mode, events in interactive mode) —
 //     URL state, scrolling, data fetching, and persistence belong to the
 //     consumer. Keep them there.
-//   - Surface-specific extras compose in via the "controls" slot from the
-//     consumer's own files (so their script/styles ship only where used).
-//     A surface-specific prop on this component is a signal to fork the
-//     shell instead (keep pagination-shared.ts + pagination-client.ts).
-//   - Shared by: /blog, /case-studies, /device-library, /partners/hardware,
-//     and the /iot-hub category/search/creator pages — when changing this
-//     file, spot-check more than one of them.
+//   - Two modes, picked by the required `mode` prop (a discriminated union, so
+//     the type only permits each mode's own props):
+//       * mode="link"        — real <a> anchors; `basePath` required.
+//       * mode="interactive" — event-emitting <button>s; `hidden` allowed;
+//         pagination-client.ts's updatePagination() rebuilds the list.
+//   - Shared by: /blog, /case-studies, /partners/hardware (interactive) and
+//     the /iot-hub category/search/creator pages via PaginationBar (link at
+//     SSR, interactive at runtime). When changing this file, spot-check more
+//     than one of them.
 import PaginationChevron from './PaginationChevron.astro';
 import { buildPages, formatPageSummary, PAGINATION_STRINGS } from './pagination-shared';
 
-interface Props {
+// Props common to both modes, intersected with one of the two mode arms. The
+// discriminated union means `astro check` rejects illegal combos at build time:
+// `basePath` in interactive mode, `hidden` in link mode, or a missing `mode`.
+type Props = {
 	currentPage?: number;
 	totalPages?: number;
-	/**
-	 * Link mode: when set, page numbers render as real anchors — page 1 is
-	 * `basePath` itself, page N is `${basePath}N/`. When absent the component
-	 * renders in interactive mode: buttons that dispatch bubbling
-	 * `tb-pagination:page-change` { page } events (see pagination-client.ts,
-	 * whose `updatePagination()` rebuilds this markup after every change).
-	 */
-	basePath?: string;
-	/** Render hidden — for client-driven surfaces that unhide via JS. */
-	hidden?: boolean;
 	ariaLabel?: string;
 	prevLabel?: string;
 	nextLabel?: string;
 	class?: string;
-}
+} & (
+	| {
+			/**
+			 * Link mode: page numbers render as real anchors — page 1 is
+			 * `basePath`, page N is `${basePath}N/`. Crawlable, rel=prev/next, SSG.
+			 */
+			mode: 'link';
+			basePath: string;
+			hidden?: never;
+	  }
+	| {
+			/**
+			 * Interactive mode: buttons that dispatch bubbling
+			 * `tb-pagination:page-change` { page } events (see pagination-client.ts,
+			 * whose `updatePagination()` rebuilds this markup after every change).
+			 */
+			mode: 'interactive';
+			basePath?: never;
+			/** Render hidden — for client-driven surfaces that unhide via JS. */
+			hidden?: boolean;
+	  }
+);
 
+// Narrow on `Astro.props.mode` directly — TS can't narrow a union through
+// destructuring, and basePath/hidden each live on only one arm.
+const props = Astro.props;
 const {
 	currentPage = 1,
 	totalPages = 1,
-	basePath,
-	hidden = false,
 	ariaLabel = PAGINATION_STRINGS.ariaLabel,
 	prevLabel = PAGINATION_STRINGS.prevPageAriaLabel,
 	nextLabel = PAGINATION_STRINGS.nextPageAriaLabel,
 	class: className = '',
-} = Astro.props;
+} = props;
 
-const isLinkMode = typeof basePath === 'string';
+const isLinkMode = props.mode === 'link';
+const basePath = props.mode === 'link' ? props.basePath : undefined;
+const hidden = props.mode === 'interactive' ? (props.hidden ?? false) : false;
+
 // Only meaningful in link mode; interactive callers pass the result as an
 // unused href, so return '' there rather than building a `undefined2/` string.
 const pageUrl = (n: number): string =>

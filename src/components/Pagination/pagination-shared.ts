@@ -24,7 +24,9 @@ export function buildPages(current: number, total: number): PageItem[] {
 export { CHEVRON_PATHS } from '@components/chevron-paths';
 
 export function formatPageSummary(current: number, total: number): string {
-	return `Page ${current} of ${total}`;
+	return PAGINATION_STRINGS.pageSummary
+		.replace('{current}', String(current))
+		.replace('{total}', String(total));
 }
 
 export const PAGINATION_STRINGS = {
@@ -32,4 +34,8 @@ export const PAGINATION_STRINGS = {
 	prevPageAriaLabel: 'Previous page',
 	nextPageAriaLabel: 'Next page',
 	perPageLabel: 'Items per page:',
+	// {current}/{total} placeholders so the compact summary stays a single
+	// translatable phrase (word order varies by language) and lives with the
+	// other labels rather than as an inline string in formatPageSummary.
+	pageSummary: 'Page {current} of {total}',
 } as const;
