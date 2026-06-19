@@ -24,18 +24,21 @@ export const data: UseCaseData = {
 			{
 				src: '/src/assets/images/usecases/scada-drilling-system/scada-drilling-overview-1.webp',
 				alt: 'Main state of SCADA drilling system dashboard',
+				title: 'Main mimic diagram: rig, pumps, mud tanks and flow',
 				width: 1310,
 				height: 679,
 			},
 			{
 				src: '/src/assets/images/usecases/scada-drilling-system/scada-drilling-overview-2.webp',
 				alt: 'SCADA drilling system dashboard small screen responsiveness',
+				title: 'Responsive SCADA layout on tablet and phone',
 				width: 1310,
 				height: 679,
 			},
 			{
 				src: '/src/assets/images/usecases/scada-drilling-system/scada-drilling-overview-3.webp',
 				alt: 'Data state of SCADA drilling system dashboard',
+				title: 'Live drill-bit, rotor, drawwork and mud readings',
 				width: 1310,
 				height: 679,
 			},
