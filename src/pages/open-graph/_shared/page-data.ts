@@ -141,8 +141,7 @@ export async function getIotHubCardInputs(): Promise<CardInput[]> {
 				variant: 'logo' as const,
 				sectionName: SECTION,
 				eyebrow: 'Category',
-				// Bare label "Devices" is too generic for a shared OG card.
-				title: cat.slug === 'devices' ? 'IoT Devices' : cat.label,
+				title: cat.label,
 			},
 		});
 	}

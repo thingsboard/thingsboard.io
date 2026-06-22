@@ -27,7 +27,7 @@ export const IOT_HUB_CATEGORIES = [
 	{
 		slug: 'devices',
 		itemType: 'DEVICE',
-		label: 'IoT Devices',
+		label: 'Devices',
 		singularLabel: 'Device',
 		tileLabel: 'Device Library',
 		heroTitle: 'IoT Device Library',

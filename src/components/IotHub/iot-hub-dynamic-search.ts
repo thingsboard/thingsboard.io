@@ -258,13 +258,22 @@ export function setupDynamicSearch(): void {
 		items: ListingView[]
 	): HTMLElement {
 		const section = sectionTmpl!.content.firstElementChild!.cloneNode(true) as HTMLElement;
-		const header = section.querySelector<HTMLAnchorElement>(
-			'[data-category-section-header]'
+		const headingLink = section.querySelector<HTMLAnchorElement>(
+			'[data-category-section-heading]'
+		);
+		const exploreLink = section.querySelector<HTMLAnchorElement>(
+			'[data-category-section-explore]'
 		);
 		const labelEl = section.querySelector<HTMLElement>('[data-category-section-label]');
+		const exploreLabel = section.querySelector<HTMLElement>(
+			'[data-category-section-explore-label]'
+		);
 		const grid = section.querySelector<HTMLElement>('[data-category-section-grid]');
-		if (header) header.href = `/iot-hub/${slug}/`;
+		const href = `/iot-hub/${slug}/`;
+		if (headingLink) headingLink.href = href;
+		if (exploreLink) exploreLink.href = href;
 		if (labelEl) labelEl.textContent = label;
+		if (exploreLabel) exploreLabel.textContent = label.toLowerCase();
 		if (grid) {
 			const variant = getCardVariant(items[0]?.itemType ?? 'WIDGET');
 			grid.classList.add(`iot-hub-grid--${variant}`);
