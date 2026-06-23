@@ -5,8 +5,8 @@ export interface CarouselItem {
 	description: string;
 	linkLabel: string;
 	href: string;
-	width: number;
-	height: number;
+	width: string | number;
+	height: string | number;
 }
 
 export const homeCarouselItems: CarouselItem[] = [

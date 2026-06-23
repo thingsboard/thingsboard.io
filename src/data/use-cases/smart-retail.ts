@@ -17,6 +17,65 @@ export const data: UseCaseData = {
 			'https://thingsboard.cloud/dashboard/551d4ca0-8b54-11ec-98f9-ff45c37940c6?publicId=4978baf0-8a92-11ec-98f9-ff45c37940c6',
 		demoButtonId: 'UseCases_SmartRetail_ViewLiveDemo',
 	},
+	overview: {
+		type: 'carousel',
+		carouselImages: [
+			{
+				src: '/src/assets/images/usecases/smart-retail/smart-retail-1.webp',
+				alt:
+					'ThingsBoard dashboard displaying supermarket locations and active critical alarms on the map',
+				title: 'Overview of supermarket monitoring with critical and major alerts',
+				width: 1819,
+				height: 966,
+			},
+			{
+				src: '/src/assets/images/usecases/smart-retail/smart-retail-2.webp',
+				alt:
+					'Critical motion sensor and list of active alarms for Supermarket S1 in ThingsBoard interface',
+				title: 'Device and alarm status for Supermarket S1',
+				width: 1819,
+				height: 966,
+			},
+			{
+				src: '/src/assets/images/usecases/smart-retail/smart-retail-3.webp',
+				alt:
+					'ThingsBoard interface showing Supermarket S1 floor plan with critical motion sensor alerts and alarm chart',
+				title: 'Floor plan of Supermarket S1 with device states and motion sensor data',
+				width: 1819,
+				height: 966,
+			},
+			{
+				src: '/src/assets/images/usecases/smart-retail/smart-retail-4.webp',
+				alt: 'Dashboard view of Supermarket S2 with critical door sensor and major chiller alarm',
+				title: 'Device overview and alarms in Supermarket S2',
+				width: 1819,
+				height: 966,
+			},
+			{
+				src: '/src/assets/images/usecases/smart-retail/smart-retail-5.webp',
+				alt: 'Supermarket S2 layout with freezer temperature monitoring and no active alarms',
+				title: 'Temperature graph for freezer in Supermarket S2',
+				width: 1819,
+				height: 966,
+			},
+			{
+				src: '/src/assets/images/usecases/smart-retail/smart-retail-6.webp',
+				alt:
+					'Critical door sensor and multiple major temperature alarms in Supermarket S3 on ThingsBoard',
+				title: 'Supermarket S3 device list and alarm summary',
+				width: 1819,
+				height: 966,
+			},
+			{
+				src: '/src/assets/images/usecases/smart-retail/smart-retail-7.webp',
+				alt:
+					'Dashboard showing temperature fluctuations of chiller in Supermarket S3 on ThingsBoard',
+				title: 'Supermarket S3 floor plan and temperature trend for chiller',
+				width: 1819,
+				height: 966,
+			},
+		],
+	},
 	solutionStructure: {
 		title: 'Solution structure of smart retail',
 		shortText:

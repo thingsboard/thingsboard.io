@@ -13,8 +13,7 @@ const MQ_T_MARKS = [100, 1000, 2000, 5000, 10000, 20000, 1000000];
 export function initTbmqPaygCalc() {
 	const c = document.getElementById('tbmq-payg-calc');
 	// Idempotent: skip if this container already has listeners bound. Prevents
-	// duplicates when astro:page-load fires against persisted DOM nodes (or when
-	// `pricing:product-activated` fires multiple times before a navigation).
+	// duplicates when `pricing:product-activated` fires multiple times.
 	if (!c || c.dataset.inited === 'true') return;
 	c.dataset.inited = 'true';
 	const $ = (s: string) => c.querySelector(s) as HTMLElement;
