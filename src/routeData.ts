@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { APIContext } from 'astro';
 import { defineRouteMiddleware, type StarlightRouteData } from '@astrojs/starlight/route-data';
 import { tutorialPages as pages } from '~/content';
@@ -19,6 +20,8 @@ import { getCanonicalPathname } from '~/util/canonical';
 import { DOCS_SUFFIX, formatDocsTitle, TITLE_SEPARATOR } from '~/consts';
 import { getOgImageUrl } from '~/util/getOgImageUrl';
 import { getTutorialPages } from '~/util/getTutorialPages';
+// No alias covers `config/`; relative import is the only option here.
+import { getSitemapSourceRegistry, normalizeSitemapPath } from '../config/sitemap-source-registry';
 
 /**
  * Display names for `/reference/<api>-api/` sub-sections, used to build unique
@@ -52,42 +55,114 @@ const sidebarLinkMatchCache = new Map<string, boolean>();
 const EDIT_BASE_URL = 'https://github.com/thingsboard/thingsboard.io/edit/main';
 const INCLUDES_IMPORT_REGEX = /^\s*import\s+\w+\s+from\s+['"]@includes\/([^'"]+)['"]/gm;
 const JSX_COMPONENT_REGEX = /^\s*<[A-Z][A-Za-z0-9]*\b/gm;
-const editUrlOverrideCache = new Map<string, URL | null>();
+/** filePath → include path relative to `_includes/` (e.g. `docs/introduction.mdx`), or `null`. */
+const stubIncludeRelCache = new Map<string, string | null>();
 
 export const onRequest = defineRouteMiddleware((context) => {
 	const starlightRoute = context.locals.starlightRoute;
 	const isTutorial = isTutorialEntry(starlightRoute.entry);
 	updateHead(context, isTutorial);
 	rewriteStubEditUrl(starlightRoute);
+	recordSitemapSources(context, starlightRoute);
 	filterSidebarByVersionAndLanguage(starlightRoute);
 	markParentSidebarItemAsCurrent(starlightRoute, context.url.pathname);
 	filterPaginationByVersion(starlightRoute);
 	if (isTutorial) updateTutorialPagination(starlightRoute);
 });
 
-/** Thin stubs (1 `@includes` import + 1 JSX call) point "Edit page" at the include, not the stub. */
-function rewriteStubEditUrl(starlightRoute: StarlightRouteData) {
-	if (!starlightRoute.editUrl) return;
-	const filePath = (starlightRoute.entry as { filePath?: string }).filePath;
-	if (!filePath) return;
-
-	let override = editUrlOverrideCache.get(filePath);
-	if (override === undefined) {
-		override = null;
+/**
+ * A thin stub is a wrapper page whose body is exactly 1 `@includes` import + 1
+ * JSX component call — the real content lives in the include. Returns the
+ * include path relative to `src/content/_includes/`, or `null` for non-stubs.
+ * Shared by the "Edit page" link rewrite and the sitemap `lastmod` computation
+ * so both attribute changes to the same underlying source file.
+ */
+function getStubIncludeRel(filePath: string): string | null {
+	let rel = stubIncludeRelCache.get(filePath);
+	if (rel === undefined) {
+		rel = null;
 		try {
 			const source = readFileSync(filePath, 'utf8');
 			const includeMatches = [...source.matchAll(INCLUDES_IMPORT_REGEX)];
 			const jsxMatches = [...source.matchAll(JSX_COMPONENT_REGEX)];
 			if (includeMatches.length === 1 && jsxMatches.length === 1) {
-				override = new URL(`${EDIT_BASE_URL}/src/content/_includes/${includeMatches[0]![1]}`);
+				rel = includeMatches[0]![1] ?? null;
 			}
 		} catch {
-			// Source file unreadable — keep the stub edit URL.
+			// Source file unreadable — treat as a non-stub.
 		}
-		editUrlOverrideCache.set(filePath, override);
+		stubIncludeRelCache.set(filePath, rel);
 	}
+	return rel;
+}
 
-	if (override) starlightRoute.editUrl = override;
+/** Thin stubs point "Edit page" at the include, not the stub. */
+function rewriteStubEditUrl(starlightRoute: StarlightRouteData) {
+	if (!starlightRoute.editUrl) return;
+	const filePath = (starlightRoute.entry as { filePath?: string }).filePath;
+	if (!filePath) return;
+
+	const rel = getStubIncludeRel(filePath);
+	if (rel) starlightRoute.editUrl = new URL(`${EDIT_BASE_URL}/src/content/_includes/${rel}`);
+}
+
+/**
+ * Record the repo-relative source file(s) for a real docs content page so the
+ * sitemap integration can derive `<lastmod>` from git history. Only genuine
+ * content-collection pages run this middleware with a real on-disk
+ * `entry.filePath`; every other page (marketing, blog, dynamic docs rendered via
+ * the `<StarlightPage>` component or a non-Starlight layout) does NOT reach this
+ * middleware and is resolved by the integration from the build's route table.
+ *
+ * Pages the sitemap would drop (noindex, canonical-to-elsewhere) are skipped so
+ * the registry doesn't carry entries the sitemap never reads.
+ */
+function recordSitemapSources(context: APIContext, starlightRoute: StarlightRouteData) {
+	const filePath = (starlightRoute.entry as { filePath?: string }).filePath;
+	if (!filePath) return;
+	const wrapperRel = toRepoRelative(filePath);
+	// Synthetic StarlightPage entries point at a non-existent `src/content/docs/<slug>.md`;
+	// only record when the content file actually exists on disk.
+	if (!wrapperRel || !existsSync(join(repoRoot(), wrapperRel))) return;
+	if (!isIndexableSelfCanonical(context, starlightRoute)) return;
+
+	const sources = [wrapperRel];
+	const includeRel = getStubIncludeRel(filePath);
+	if (includeRel) sources.push(`src/content/_includes/${includeRel}`);
+	getSitemapSourceRegistry().set(normalizeSitemapPath(context.url.pathname), sources);
+}
+
+/** Absolute source path → repo-relative (`src/...`), or `null` if not under `src/`. */
+function toRepoRelative(filePath: string): string | null {
+	const marker = filePath.indexOf('/src/');
+	if (marker >= 0) return filePath.slice(marker + 1);
+	return filePath.startsWith('src/') ? filePath : null;
+}
+
+let cachedRepoRoot: string | null = null;
+/** Build cwd is the project root; cache it for on-disk lookups during recording. */
+function repoRoot(): string {
+	return (cachedRepoRoot ??= process.cwd());
+}
+
+/** True when the computed head has no `noindex` and any canonical points at the page itself. */
+function isIndexableSelfCanonical(context: APIContext, starlightRoute: StarlightRouteData): boolean {
+	const selfPath = normalizeSitemapPath(context.url.pathname);
+	for (const item of starlightRoute.head) {
+		if (item.tag === 'meta' && item.attrs?.name === 'robots') {
+			const content = item.attrs.content;
+			if (typeof content === 'string' && /\bnoindex\b/i.test(content)) return false;
+		} else if (item.tag === 'link' && item.attrs?.rel === 'canonical') {
+			const href = item.attrs.href;
+			if (typeof href !== 'string') continue;
+			try {
+				if (normalizeSitemapPath(new URL(href).pathname) !== selfPath) return false;
+			} catch {
+				// Unparseable canonical — keep the page rather than silently dropping it.
+			}
+		}
+	}
+	return true;
 }
 
 /**

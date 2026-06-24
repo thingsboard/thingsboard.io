@@ -419,6 +419,7 @@ export const listingViewSchema = z.object({
 	tags: z.array(z.string()).default([]),
 	installCount: z.number().default(0),
 	createdTime: z.number().nullable().default(null),
+	updatedTime: z.number().nullable().default(null),
 	publishedTime: z.number().nullable(),
 	creatorDisplayName: z.string().nullable(),
 	creatorAvatarUrl: z.string().nullable(),
