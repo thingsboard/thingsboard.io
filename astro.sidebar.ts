@@ -4157,18 +4157,27 @@ export const licenseSidebar: SidebarConfig = [
 /** IoT Hub sidebar (pages at /docs/iot-hub/) */
 export const iotHubSidebar: SidebarConfig = [
 	{
-		label: 'Getting Started',
-		items: [{ label: 'Overview', slug: 'docs/iot-hub' }],
+		label: 'User Guides',
+		items: [
+			{ label: 'IoT Device Library', slug: 'docs/iot-hub/user-guides/device-library' },
+			{ label: 'IoT Solution Templates', slug: 'docs/iot-hub/user-guides/solution-templates' },
+			{ label: 'Widgets', slug: 'docs/iot-hub/user-guides/widgets' },
+			{ label: 'Calculated Fields', slug: 'docs/iot-hub/user-guides/calculated-fields' },
+			{ label: 'Alarm Rules', slug: 'docs/iot-hub/user-guides/alarm-rules' },
+			{ label: 'Rule Chains', slug: 'docs/iot-hub/user-guides/rule-chains' },
+			{ label: 'FAQ', slug: 'docs/iot-hub/user-guides/faq' },
+		],
 	},
 	{
-		label: 'Contribution guides',
+		label: 'Contribution Guides',
 		items: [
-			{ label: 'Device Library', slug: 'docs/iot-hub/guides/device' },
-			{ label: 'Solution Templates', slug: 'docs/iot-hub/guides/solution-template' },
-			{ label: 'Widgets', slug: 'docs/iot-hub/guides/widget' },
-			{ label: 'Calculated Fields', slug: 'docs/iot-hub/guides/calculated-field' },
-			{ label: 'Alarm Rules', slug: 'docs/iot-hub/guides/alarm-rule' },
-			{ label: 'Rule Chains', slug: 'docs/iot-hub/guides/rule-chain' },
+			{ label: 'IoT Device Library', slug: 'docs/iot-hub/contribution-guides/device' },
+			{ label: 'IoT Solution Templates', slug: 'docs/iot-hub/contribution-guides/solution-template' },
+			{ label: 'Widgets', slug: 'docs/iot-hub/contribution-guides/widget' },
+			{ label: 'Calculated Fields', slug: 'docs/iot-hub/contribution-guides/calculated-field' },
+			{ label: 'Alarm Rules', slug: 'docs/iot-hub/contribution-guides/alarm-rule' },
+			{ label: 'Rule Chains', slug: 'docs/iot-hub/contribution-guides/rule-chain' },
+			{ label: 'FAQ', slug: 'docs/iot-hub/contribution-guides/faq' },
 		],
 	},
 ];
@@ -4275,8 +4284,8 @@ export const licenseSidebarTabLinks: SidebarTabLinks = {
 	'Account & Billing': '/docs/license-server/billing-info/',
 };
 export const iotHubSidebarTabLinks: SidebarTabLinks = {
-	'Getting Started': '/docs/iot-hub/',
-	'Contribution guides': '/docs/iot-hub/guides/device/',
+	'User Guides': '/docs/iot-hub/user-guides/',
+	'Contribution Guides': '/docs/iot-hub/contribution-guides/',
 };
 
 /**

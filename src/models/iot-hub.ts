@@ -38,7 +38,7 @@ export const IOT_HUB_CATEGORIES = [
 			'Explore the device library to find pre-configured connectivity templates you can deploy in minutes to connect your hardware instantly.',
 		seoDescription:
 			'Connect your hardware in one step. Install ready-made IoT device profiles for MQTT, Modbus, and OPC UA from the ThingsBoard IoT Hub.',
-		guideHref: '/docs/iot-hub/guides/device/',
+		guideHref: '/docs/iot-hub/contribution-guides/device/',
 		ctaTitle: 'Add your device',
 		ctaDescription:
 			'Submit your devices to the ThingsBoard IoT Hub to showcase them to our global community and make it way easier for your clients.',
@@ -57,7 +57,7 @@ export const IOT_HUB_CATEGORIES = [
 			'Complete IoT solution packages with dashboards, rule chains, and device configurations. Get started with proven architectures.',
 		seoDescription:
 			'Start from a working solution. Install ready-made IoT solution templates for retail, fleet, energy, and SCADA from the ThingsBoard IoT Hub.',
-		guideHref: '/docs/iot-hub/guides/solution-template/',
+		guideHref: '/docs/iot-hub/contribution-guides/solution-template/',
 	},
 	{
 		slug: 'widgets',
@@ -72,7 +72,7 @@ export const IOT_HUB_CATEGORIES = [
 			'Jumpstart your IoT journey with pre-configured widgets designed for your industry. Deploy proven architectures instantly and focus your energy on what matters: your unique business logic.',
 		seoDescription:
 			'Build dashboards faster with ready-to-use IoT widgets. Install charts, gauges, maps, and control cards from the ThingsBoard IoT Hub.',
-		guideHref: '/docs/iot-hub/guides/widget/',
+		guideHref: '/docs/iot-hub/contribution-guides/widget/',
 	},
 	{
 		slug: 'calculated-fields',
@@ -87,7 +87,7 @@ export const IOT_HUB_CATEGORIES = [
 			'Use pre-configured Calculated Fields to automate complex metrics like fuel efficiency or power factor. Skip the manual logic and keep your dashboards clean and actionable.',
 		seoDescription:
 			'Compute metrics automatically. Install ready-made IoT calculated fields for fuel efficiency, power factor, aggregations, and geofencing from the ThingsBoard IoT Hub.',
-		guideHref: '/docs/iot-hub/guides/calculated-field/',
+		guideHref: '/docs/iot-hub/contribution-guides/calculated-field/',
 	},
 	{
 		slug: 'alarm-rules',
@@ -102,7 +102,7 @@ export const IOT_HUB_CATEGORIES = [
 			'Use pre-built Alarm Rule templates to detect critical conditions like low battery, threshold breaches, or devices going offline. Skip writing the rule logic and start reacting to incidents the moment they happen.',
 		seoDescription:
 			'Catch problems before they escalate. Install ready-made IoT alarm rules for low battery, threshold breaches, and offline devices from the ThingsBoard IoT Hub.',
-		guideHref: '/docs/iot-hub/guides/alarm-rule/',
+		guideHref: '/docs/iot-hub/contribution-guides/alarm-rule/',
 	},
 	{
 		slug: 'rule-chains',
@@ -117,7 +117,7 @@ export const IOT_HUB_CATEGORIES = [
 			'From sophisticated data processing to seamless API integrations, Rule Chain templates provide the architectural foundation you need to scale without building from scratch.',
 		seoDescription:
 			'Automate your IoT data flows. Install ready-made IoT rule chains for data processing, transformations, and API integrations from the ThingsBoard IoT Hub.',
-		guideHref: '/docs/iot-hub/guides/rule-chain/',
+		guideHref: '/docs/iot-hub/contribution-guides/rule-chain/',
 	},
 ] as const;
 

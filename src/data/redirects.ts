@@ -1241,6 +1241,15 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'reference/edge', target: '/docs/edge/' },
 	{ oldPath: 'user-guide/middleware', target: '/docs/user-guide/' },
 	{ oldPath: 'user-guide/ui', target: '/docs/user-guide/' },
+	{ oldPath: 'iot-hub/guides/device', target: '/docs/iot-hub/contribution-guides/device/' },
+	{ oldPath: 'iot-hub/guides/solution-template', target: '/docs/iot-hub/contribution-guides/solution-template/' },
+	{ oldPath: 'iot-hub/guides/widget', target: '/docs/iot-hub/contribution-guides/widget/' },
+	{ oldPath: 'iot-hub/guides/calculated-field', target: '/docs/iot-hub/contribution-guides/calculated-field/' },
+	{ oldPath: 'iot-hub/guides/alarm-rule', target: '/docs/iot-hub/contribution-guides/alarm-rule/' },
+	{ oldPath: 'iot-hub/guides/rule-chain', target: '/docs/iot-hub/contribution-guides/rule-chain/' },
+	{ oldPath: 'iot-hub/user-guides/getting-started', target: '/docs/iot-hub/user-guides/' },
+	{ oldPath: 'iot-hub/user-guides/install-items', target: '/docs/iot-hub/user-guides/' },
+	{ oldPath: 'iot-hub/user-guides/manage-items', target: '/docs/iot-hub/user-guides/' },
 ];
 
 /**
@@ -1322,7 +1331,7 @@ export const NON_DOCS_REDIRECTS: Record<string, string> = {
 	'/device-library/paas/raspberry-pi-3-model-B-plus/': '/iot-hub/devices/raspberry-pi-3-model-b-plus/',
 	'/device-library/paas-eu/raspberry-pi-3-model-B-plus/': '/iot-hub/devices/raspberry-pi-3-model-b-plus/',
 	'/device-library/': '/iot-hub/devices/',
-	'/device-library/guidelines/': '/docs/iot-hub/guides/device/',
+	'/device-library/guidelines/': '/docs/iot-hub/contribution-guides/device/',
 
 	'/services/consulting/': '/services/development-services/'
 };
