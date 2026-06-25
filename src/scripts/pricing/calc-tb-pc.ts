@@ -2,6 +2,12 @@
 // See `calc-tb-payg.ts` for the lazy-load pattern rationale.
 
 import { makeModalController, portalToBody } from '@root/scripts/pricing/modal-controller';
+import {
+	makeInteractionPusher,
+	pushCalculatorEvent,
+	bindCtaTracking,
+	pushExport,
+} from '@root/scripts/pricing/calc-analytics';
 
 declare function sliderProgress(slider: HTMLInputElement): void;
 declare function initTickMarks(container: HTMLElement): void;
@@ -72,47 +78,50 @@ const state = {
 	clipboardMsg: '',
 };
 
-let _pcGtmTimer: ReturnType<typeof setTimeout> | null = null;
-function sendPcGTM() {
-	if (_pcGtmTimer) clearTimeout(_pcGtmTimer);
-	_pcGtmTimer = setTimeout(() => {
-		const inp = pcGetInputs?.();
-		if (!inp) return;
-		const gtm: Record<string, any> = {
-			event: 'calculator_interaction',
-			calculator_devices: inp.totalDevices,
-			calculator_plan: state.currentPlan?.name || '',
-			calculator_instances: null,
-			calculator_addon_dev_area: state.addons.devqa.on,
-			calculator_addon_trendz_bot_area: state.addons.trendz.on,
-			calculator_addon_bot_area: state.addons.edge.on,
-			calculator_messages: null,
-			calculator_messages_unit: null,
-			calculator_instances_monthly: null,
-			calculator_extra_storage_cost: null,
-		};
-		if (state.currentPlan) {
-			const plan = state.currentPlan;
-			const storageGB = inp.profiles.reduce((acc: number, p: any) => {
-				const retMin = p.retention * 30 * 24 * 60;
-				return acc + (plan.bytesPerDataPoint * retMin * p.dataPointsPerMinute * plan.replicationFactor) / 1073741824;
-			}, 0);
-			const extraStorageGB = Math.max(0, storageGB - plan.storage);
-			gtm.calculator_extra_storage_cost = extraStorageGB * PLANS_DATA.extraStorageCostPerGB;
-		}
-		for (let i = 0; i <= 9; i++) gtm[`calculator_profile_${i}_json`] = null;
-		state.profiles.forEach((p: any, i: number) => {
-			if (i > 9) return;
-			gtm[`calculator_profile_${i}_json`] = JSON.stringify({
-				devices: p.devices || 0,
-				msgs: p.messages || 0,
-				unit: (p.messageUnit || 'minute').charAt(0),
-				points: p.dataPoints || 0,
-				retention: p.retention || 0,
-			});
+// Last settled total + plan, captured wherever sendPcGTM is called, so the
+// footer CTA click reports the value showing at click time.
+let _pcLastTotal: number | null = null;
+let _pcLastPlan = '';
+
+const calcAnalytics = makeInteractionPusher();
+function sendPcGTM(total: number | null) {
+	const inp = pcGetInputs?.();
+	if (!inp) return;
+	const gtm: Record<string, any> = {
+		event: 'calculator_interaction',
+		calculator_type: 'tb_pc',
+		calculator_devices: inp.totalDevices,
+		calculator_plan: _pcLastPlan,
+		calculator_instances: null,
+		calculator_addon_dev_area: state.addons.devqa.on,
+		calculator_addon_trendz_bot_area: state.addons.trendz.on,
+		calculator_addon_bot_area: state.addons.edge.on,
+		calculator_extra_storage_cost: null,
+		calculator_total: total,
+		calculator_profile_count: state.profiles.length,
+		calculator_profile_truncated: state.profiles.length > 10,
+	};
+	if (state.currentPlan) {
+		const plan = state.currentPlan;
+		const storageGB = inp.profiles.reduce((acc: number, p: any) => {
+			const retMin = p.retention * 30 * 24 * 60;
+			return acc + (plan.bytesPerDataPoint * retMin * p.dataPointsPerMinute * plan.replicationFactor) / 1073741824;
+		}, 0);
+		const extraStorageGB = Math.max(0, storageGB - plan.storage);
+		gtm.calculator_extra_storage_cost = extraStorageGB * PLANS_DATA.extraStorageCostPerGB;
+	}
+	for (let i = 0; i <= 9; i++) gtm[`calculator_profile_${i}_json`] = null;
+	state.profiles.forEach((p: any, i: number) => {
+		if (i > 9) return;
+		gtm[`calculator_profile_${i}_json`] = JSON.stringify({
+			devices: p.devices || 0,
+			msgs: p.messages || 0,
+			unit: (p.messageUnit || 'minute').charAt(0),
+			points: p.dataPoints || 0,
+			retention: p.retention || 0,
 		});
-		window.dataLayer?.push(gtm);
-	}, 3000);
+	});
+	calcAnalytics.push(gtm);
 }
 
 let pcGetInputs: (() => any) | null = null;
@@ -486,13 +495,16 @@ export function initTbPcCalc() {
 		requestAnimationFrame(() => { _calcQueued = false; calculate(); });
 	}
 
-	function calculate() {
+	function calculate(opts?: { track?: boolean }) {
+		const track = opts?.track !== false;
 		const inp = getInputs();
 		const matching = PLANS_DATA.plans.filter(p => inp.totalDP <= p.maxMsgPerMin);
 
 		if (matching.length === 0) {
 			displayEnterprise(inp);
-			sendPcGTM();
+			_pcLastTotal = null;
+			_pcLastPlan = 'Enterprise';
+			if (track) sendPcGTM(null);
 			return;
 		}
 
@@ -549,12 +561,18 @@ export function initTbPcCalc() {
 
 		if (best.total > 10000) {
 			displayEnterprise(inp);
-			sendPcGTM();
+			_pcLastTotal = null;
+			_pcLastPlan = 'Enterprise';
+			if (track) sendPcGTM(null);
 			return;
 		}
 
+		const isAnnual = state.billingPeriod === 'annual';
+		const finalTotal = isAnnual ? best.total * 0.9 : best.total;
 		displayResults(best, inp);
-		sendPcGTM();
+		_pcLastTotal = finalTotal;
+		_pcLastPlan = best.plan.name;
+		if (track) sendPcGTM(finalTotal);
 	}
 
 	function displayResults(r: any, inp: any) {
@@ -764,12 +782,17 @@ export function initTbPcCalc() {
 	const { open: openModal } = makeModalController({
 		modal,
 		onOpen: () => {
-			calculate();
+			pushCalculatorEvent({ event: 'calculator_open', calculator_type: 'tb_pc' });
+			calculate({ track: false });
 			requestAnimationFrame(() => initAllSliders(modal));
 		},
 		// Hide the payload sub-modal too — it's portaled to <body> as a sibling,
-		// so closing the main modal must not leave it orphaned.
-		onClose: closePayloadModal,
+		// so closing the main modal must not leave it orphaned. Flush any pending
+		// interaction so the final config isn't lost in the debounce window.
+		onClose: () => {
+			closePayloadModal();
+			calcAnalytics.flush();
+		},
 		// Escape closes the top layer first: the payload sub-modal, then the modal.
 		onEscape: () => {
 			if (payloadModal.style.display !== 'none') {
@@ -788,6 +811,7 @@ export function initTbPcCalc() {
 			setTimeout(() => btn.classList.remove('copied'), 2000);
 		};
 		navigator.clipboard.writeText(text).then(flashCopied).catch(() => {});
+		pushExport('tb_pc', 'copy', { calculator_total: _pcLastTotal, calculator_plan: _pcLastPlan });
 	});
 
 	modal.querySelector('[data-calc-download]')?.addEventListener('click', () => {
@@ -798,7 +822,12 @@ export function initTbPcCalc() {
 		a.download = 'private-cloud-calculation.txt';
 		a.click();
 		URL.revokeObjectURL(url);
+		pushExport('tb_pc', 'download', { calculator_total: _pcLastTotal, calculator_plan: _pcLastPlan });
 	});
+
+	// Track footer conversion CTAs. The footer re-renders on every recalc, so
+	// delegate one listener on the stable modal element (bound once in init).
+	bindCtaTracking(modal, 'tb_pc', () => ({ calculator_total: _pcLastTotal, calculator_plan: _pcLastPlan }));
 
 	// ─── Render footer once ───
 	footer.innerHTML = `
@@ -843,7 +872,7 @@ export function initTbPcCalc() {
 		edgeDecBtn.disabled = true;
 		devDecBtn.disabled = true;
 		addProfile(true);
-		calculate();
+		calculate({ track: false });
 	});
 
 	// ─── Init ───

@@ -3,6 +3,8 @@
 // The loader in `TbmqPaygCalculator.astro` dynamically imports this module on
 // the first `pricing:product-activated` event whose detail is 'tbmq'.
 
+import { makeInteractionPusher, bindCtaTracking, pushExport } from '@root/scripts/pricing/calc-analytics';
+
 declare function sliderProgress(slider: HTMLInputElement): void;
 declare function initAllSliders(root?: HTMLElement | Document): void;
 
@@ -24,6 +26,8 @@ export function initTbmqPaygCalc() {
 	const wl = $('#mq-wl-toggle') as HTMLInputElement, hd = $('#mq-hd-toggle') as HTMLInputElement;
 
 	let st = { sessions: 100, throughput: 100, prod: 1, dev: 0, wl: false, hd: false };
+	// Last computed total — settled value pushed with footer CTA clicks.
+	let lastTotal: number | null = null;
 
 	const isBaseOnly = () =>
 		!st.wl && !st.hd &&
@@ -49,7 +53,25 @@ export function initTbmqPaygCalc() {
 		requestAnimationFrame(() => { _calcQueued = false; calc(); });
 	}
 
-	function calc() {
+	// Debounced GTM push — mirrors the ThingsBoard calculators' 3s settle so one
+	// configuration counts once, not per slider tick. Marketing owns the GTM
+	// trigger + GA4 tag (event `calculator_interaction`).
+	const calcAnalytics = makeInteractionPusher();
+	function sendGTM(total: number) {
+		calcAnalytics.push({
+			event: 'calculator_interaction',
+			calculator_type: 'tbmq_payg',
+			calculator_sessions: st.sessions,
+			calculator_throughput: st.throughput,
+			calculator_prod_instances: st.prod,
+			calculator_dev_instances: st.dev,
+			calculator_addon_white_labeling: st.wl,
+			calculator_addon_priority_help_desk: st.hd,
+			calculator_total: total,
+		});
+	}
+
+	function calc(opts?: { track?: boolean }) {
 		let total = MQ_PLAN.basePrice;
 		const eS = Math.max(0, st.sessions - MQ_PLAN.includedSessions); const sCost = eS * MQ_PLAN.extraSessionsPrice; total += sCost;
 		const eT = Math.max(0, st.throughput - MQ_PLAN.includedThroughput); const tCost = eT * MQ_PLAN.extraThroughputPrice; total += tCost;
@@ -122,7 +144,13 @@ export function initTbmqPaygCalc() {
 		if (mqFpr) mqCtaUrl += '&fpr=' + encodeURIComponent(mqFpr);
 
 		foot.innerHTML = `<div class="calc-total-row"><span class="calc-total-label">Total</span><span class="calc-total-amount">${totalHtml}${tip(totalTip)}</span></div><a class="calc-cta" href="${mqCtaUrl}" target="_blank" rel="noopener noreferrer">${baseOnly ? 'Try 30 days for free' : 'Get started'}</a>`;
+
+		lastTotal = total;
+		if (opts?.track !== false) sendGTM(total);
 	}
+
+	// Footer CTA tracking — bound once on the stable container `c`.
+	bindCtaTracking(c, 'tbmq_payg', () => ({ calculator_total: lastTotal }));
 
 	// Delegated handler for [data-enable-mq-addon] buttons rendered inside the
 	// results panel. Bound once instead of per-button on every calc().
@@ -196,6 +224,7 @@ export function initTbmqPaygCalc() {
 			setTimeout(() => btn.classList.remove('copied'), 2000);
 		};
 		navigator.clipboard.writeText(text).then(flashCopied).catch(() => {});
+		pushExport('tbmq_payg', 'copy', { calculator_total: lastTotal });
 	});
 
 	c.querySelector('[data-calc-download]')?.addEventListener('click', () => {
@@ -206,6 +235,7 @@ export function initTbmqPaygCalc() {
 		a.download = 'tbmq-payg-calculation.txt';
 		a.click();
 		URL.revokeObjectURL(url);
+		pushExport('tbmq_payg', 'download', { calculator_total: lastTotal });
 	});
 
 	$('[data-calc-reset]').addEventListener('click', () => {
@@ -215,10 +245,10 @@ export function initTbmqPaygCalc() {
 		$('#mq-wl-card').classList.remove('active'); $('#mq-hd-card').classList.remove('active');
 		($('#mq-prod-stepper').querySelector('[data-action="decrement"]') as HTMLButtonElement).disabled = true;
 		($('#mq-dev-stepper').querySelector('[data-action="decrement"]') as HTMLButtonElement).disabled = true;
-		sliderProgress(sS); sliderProgress(tS); calc();
+		sliderProgress(sS); sliderProgress(tS); calc({ track: false });
 		requestAnimationFrame(() => { if (c) initAllSliders(c); });
 	});
 
-	sliderProgress(sS); sliderProgress(tS); calc();
+	sliderProgress(sS); sliderProgress(tS); calc({ track: false });
 	requestAnimationFrame(() => { if (c) initAllSliders(c); });
 }

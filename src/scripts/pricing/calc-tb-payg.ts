@@ -5,6 +5,7 @@
 // don't open it.
 
 import { makeModalController } from '@root/scripts/pricing/modal-controller';
+import { makeInteractionPusher, pushCalculatorEvent, bindCtaTracking, pushExport } from '@root/scripts/pricing/calc-analytics';
 
 declare function sliderProgress(slider: HTMLInputElement): void;
 declare function initAllSliders(root?: HTMLElement | Document): void;
@@ -60,27 +61,25 @@ export function initTbPaygCalc() {
 
 	let state = { devices: 10, prodInstances: 1, devInstances: 0, addons: { edge: { on: false, count: 1 }, trendz: { on: false }, mobile: { on: false } } };
 
-	let _smGtmTimer: ReturnType<typeof setTimeout> | null = null;
-	function sendSmGTM() {
-		if (_smGtmTimer) clearTimeout(_smGtmTimer);
-		_smGtmTimer = setTimeout(() => {
-			const plan = getPlan(state.devices);
-			const gtm: Record<string, any> = {
-				event: 'calculator_interaction',
-				calculator_devices: state.devices,
-				calculator_plan: plan.name,
-				calculator_instances: state.prodInstances,
-				calculator_addon_dev_area: state.devInstances > 0,
-				calculator_addon_trendz_bot_area: state.addons.trendz.on,
-				calculator_addon_bot_area: state.addons.edge.on,
-				calculator_messages: null,
-				calculator_messages_unit: null,
-				calculator_instances_monthly: null,
-				calculator_extra_storage_cost: null,
-			};
-			for (let i = 0; i <= 9; i++) gtm[`calculator_profile_${i}_json`] = null;
-			window.dataLayer?.push(gtm);
-		}, 3000);
+	// Last settled total + plan, updated wherever sendSmGTM runs, read by the
+	// footer CTA click handler so it reports the value live at click time.
+	let lastTotal: number | null = null;
+	let lastPlan = '';
+
+	const calcAnalytics = makeInteractionPusher();
+	function sendSmGTM(total: number | null) {
+		const isEnterprise = state.devices >= SM_ENTERPRISE;
+		calcAnalytics.push({
+			event: 'calculator_interaction',
+			calculator_type: 'tb_payg',
+			calculator_devices: state.devices,
+			calculator_plan: isEnterprise ? 'Enterprise' : getPlan(state.devices).name,
+			calculator_instances: state.prodInstances,
+			calculator_addon_dev_area: state.devInstances > 0,
+			calculator_addon_trendz_bot_area: state.addons.trendz.on,
+			calculator_addon_bot_area: state.addons.edge.on,
+			calculator_total: isEnterprise ? null : total,
+		});
 	}
 
 	const fmt = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/,/g, ' ');
@@ -163,8 +162,8 @@ export function initTbPaygCalc() {
 		}
 	}
 
-	function calculate() {
-		if (state.devices >= SM_ENTERPRISE) { renderEnterprise(); return; }
+	function calculate(opts?: { track?: boolean }) {
+		if (state.devices >= SM_ENTERPRISE) { lastTotal = null; lastPlan = 'Enterprise'; renderEnterprise(); if (opts?.track !== false) sendSmGTM(null); return; }
 		const plan = getPlan(state.devices);
 		updateUI(plan);
 
@@ -290,7 +289,8 @@ export function initTbPaygCalc() {
 
 		footer.innerHTML = `<div class="calc-total-row"><span class="calc-total-label">Total</span><span class="calc-total-amount">${fmt(total)}/month${tip(totalParts.join(' + '))}</span></div><a class="calc-cta" href="${ctaUrl}" target="_blank" rel="noopener noreferrer">Get started</a>`;
 
-		sendSmGTM();
+		lastTotal = total; lastPlan = plan.name;
+		if (opts?.track !== false) sendSmGTM(total);
 	}
 
 	// Delegated handler for [data-enable-addon] buttons rendered inside the
@@ -307,6 +307,11 @@ export function initTbPaygCalc() {
 		cards[key as keyof typeof cards].classList.add('active');
 		calculate();
 	});
+
+	// Footer CTA tracking. Footer re-renders every recalc, so delegate one click
+	// listener on the stable modal element. lastTotal/lastPlan are the settled
+	// values at click time.
+	bindCtaTracking(modal, 'tb_payg', () => ({ calculator_total: lastTotal, calculator_plan: lastPlan }));
 
 	function renderEnterprise() {
 		let html = `<div class="calc-optimal-plan"><span class="calc-optimal-label">Deployment Summary</span></div>`;
@@ -398,10 +403,12 @@ export function initTbPaygCalc() {
 	const { open: openModal } = makeModalController({
 		modal,
 		onOpen: () => {
+			pushCalculatorEvent({ event: 'calculator_open', calculator_type: 'tb_payg' });
 			updateProgress();
 			requestAnimationFrame(() => initAllSliders(modal));
-			calculate();
+			calculate({ track: false });
 		},
+		onClose: () => calcAnalytics.flush(),
 	});
 
 	// Build clipboard text from current state
@@ -466,6 +473,7 @@ export function initTbPaygCalc() {
 	modal.querySelector('[data-calc-copy]')?.addEventListener('click', (e) => {
 		const btn = e.currentTarget as HTMLElement;
 		const text = buildSummaryText();
+		pushExport('tb_payg', 'copy', { calculator_total: lastTotal, calculator_plan: lastPlan });
 		const flashCopied = () => {
 			btn.classList.add('copied');
 			setTimeout(() => btn.classList.remove('copied'), 2000);
@@ -477,6 +485,7 @@ export function initTbPaygCalc() {
 
 	// Download
 	modal.querySelector('[data-calc-download]')?.addEventListener('click', () => {
+		pushExport('tb_payg', 'download', { calculator_total: lastTotal, calculator_plan: lastPlan });
 		const blob = new Blob([buildSummaryText()], { type: 'text/plain' });
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement('a');
@@ -495,10 +504,10 @@ export function initTbPaygCalc() {
 		edgeCounter.classList.add('hidden');
 		edgeCount.value = '1';
 		($('#sm-edge-stepper').querySelector('[data-action="decrement"]') as HTMLButtonElement).disabled = true;
-		updateProgress(); calculate();
+		updateProgress(); calculate({ track: false });
 	});
 
-	updateProgress(); calculate();
+	updateProgress(); calculate({ track: false });
 	requestAnimationFrame(() => initAllSliders(modal));
 	openImpl = openModal;
 }
