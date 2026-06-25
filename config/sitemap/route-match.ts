@@ -38,6 +38,8 @@ export function matchRouteComponent(pathname: string): string | null {
 	const key = normalizeSitemapPath(pathname);
 	const exact = staticRouteComponents.get(key);
 	if (exact) return exact;
+	// `patternRegex`'s expected trailing-slash shape depends on Astro's config, so
+	// try the raw, stripped, and single-trailing-slash forms to match either way.
 	const noTrailing = pathname.replace(/\/+$/, '');
 	for (const route of dynamicRouteComponents) {
 		if (route.regex.test(pathname) || route.regex.test(noTrailing) || route.regex.test(key)) {

@@ -9,7 +9,8 @@ const GIT_LOG_MAX_BUFFER = 256 * 1024 * 1024;
  * pass instead of one subprocess per file. Commits are newest-first, so a path's
  * first appearance is its latest commit. The `\x1f` prefix marks date lines (file
  * paths never contain it). Scoped to `src/`, where every sitemap source lives, to
- * keep the output and map small.
+ * keep the output and map small. `core.quotePath=false` keeps non-ASCII/spaced
+ * paths unquoted so they match the unquoted keys in the source registry.
  */
 let gitDateMap: Map<string, number> | null = null;
 export function getGitDateMap(): Map<string, number> {
@@ -18,7 +19,16 @@ export function getGitDateMap(): Map<string, number> {
 	try {
 		const out = execFileSync(
 			'git',
-			['log', '--no-renames', '--format=\x1f%cI', '--name-only', '--', 'src/'],
+			[
+				'-c',
+				'core.quotePath=false',
+				'log',
+				'--no-renames',
+				'--format=\x1f%cI',
+				'--name-only',
+				'--',
+				'src/',
+			],
 			{
 				encoding: 'utf8',
 				maxBuffer: GIT_LOG_MAX_BUFFER,

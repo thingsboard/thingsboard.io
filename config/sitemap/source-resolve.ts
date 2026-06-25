@@ -14,6 +14,10 @@ import { matchRouteComponent } from './route-match';
  * Slug → the data file holding a page's content, for collections rendered by a
  * shared `[slug].astro`. Pointing at the per-item file means editing one item
  * moves only its `<lastmod>`, not every sibling's.
+ *
+ * These paths mirror the current data/content layout by hand. A folder rename or
+ * a new data-driven collection must be reflected here — otherwise the page
+ * silently falls back to dating the shared `.astro` template, with no build error.
  */
 const SITEMAP_DATA_RULES: { re: RegExp; file: (slug: string) => string }[] = [
 	{ re: /^\/use-cases\/([^/]+)\/$/, file: (s) => `src/data/use-cases/${s}.ts` },
@@ -100,6 +104,8 @@ function dataSpecToRepoRel(spec: string, dir: string): string[] {
 	let base: string | null = null;
 	if (spec.startsWith('@data/')) base = aliasToSrc(spec, '@data/', 'data/');
 	else if (spec.startsWith('~/data/')) base = aliasToSrc(spec, '~/data/', 'data/');
+	// `@root/` maps to `src/`, so strip only `@root/` and keep the spec's own
+	// `data/` segment (the rows above strip `data/` and re-add it).
 	else if (spec.startsWith('@root/data/')) base = aliasToSrc(spec, '@root/', '');
 	else if (spec.startsWith('./') || spec.startsWith('../')) {
 		const resolved = join(dir, spec);

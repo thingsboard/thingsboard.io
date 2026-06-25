@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import {
 	getSitemapLastmodRegistry,
 	getSitemapSourceRegistry,
+	maxEpochToIso,
 	normalizeSitemapPath,
 } from '../sitemap-source-registry';
 import { getGitDateMap } from '../sitemap/git-date';
@@ -121,10 +122,5 @@ function getLastmod(url: string): string | null {
 	if (sources.length === 0) return null;
 
 	const dates = getGitDateMap();
-	let latest = 0;
-	for (const rel of sources) {
-		const epoch = dates.get(rel);
-		if (epoch && epoch > latest) latest = epoch;
-	}
-	return latest > 0 ? new Date(latest).toISOString() : null;
+	return maxEpochToIso(sources.map((rel) => dates.get(rel)));
 }
