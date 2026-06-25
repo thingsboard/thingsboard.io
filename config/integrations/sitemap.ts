@@ -5,9 +5,11 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+	getRepoRoot,
 	getSitemapLastmodRegistry,
 	getSitemapSourceRegistry,
 	normalizeSitemapPath,
+	toRepoRelative,
 } from '../sitemap-source-registry';
 
 /**
@@ -158,14 +160,12 @@ function getLastmod(url: string): string | null {
 	}
 	const key = normalizeSitemapPath(pathname);
 
-	// Explicit, build-data-derived dates win over git (e.g. IoT Hub pages, whose
-	// freshness is the API's per-listing `updatedTime`, invisible to git).
+	// Explicit build-data dates (IoT Hub `updatedTime`) win over git.
 	const explicit = getSitemapLastmodRegistry().get(key);
 	if (explicit) return explicit;
 
-	// Docs come from the route-middleware registry (wrapper + include); everything
-	// else (marketing, blog, data-driven slug pages, dynamic docs) is resolved here
-	// from the route table, since those pages never run the route middleware.
+	// Docs come from the route-middleware registry; non-docs are resolved here
+	// (they never run the middleware).
 	const sources = getSitemapSourceRegistry().get(key) ?? resolveNonDocSources(pathname);
 	if (sources.length === 0) return null;
 
@@ -176,13 +176,6 @@ function getLastmod(url: string): string | null {
 		if (epoch && epoch > latest) latest = epoch;
 	}
 	return latest > 0 ? new Date(latest).toISOString() : null;
-}
-
-/** Absolute (or already-relative) source path → repo-relative (`src/...`), or `null`. */
-function toRepoRelative(filePath: string): string | null {
-	const marker = filePath.indexOf('/src/');
-	if (marker >= 0) return filePath.slice(marker + 1);
-	return filePath.startsWith('src/') ? filePath : null;
 }
 
 /**
@@ -208,7 +201,12 @@ const SITEMAP_DATA_RULES: { re: RegExp; file: (slug: string) => string }[] = [
 function resolveNonDocSources(pathname: string): string[] {
 	for (const rule of SITEMAP_DATA_RULES) {
 		const match = pathname.match(rule.re);
-		if (match) return [rule.file(match[1] ?? '')];
+		if (!match) continue;
+		const file = rule.file(match[1] ?? '');
+		// Trust the rule only if its file exists; greedy rules also match sibling
+		// URLs (e.g. `/blog/page/N/`), which fall through to the route component.
+		if (existsSync(join(getRepoRoot(), file))) return [file];
+		break;
 	}
 	const component = matchRouteComponent(pathname);
 	if (!component) return [];
@@ -260,12 +258,20 @@ function scanContentImports(templateRel: string, descend = true): string[] {
 	return result;
 }
 
+/** Module extensions a data import may already carry. */
+const DATA_FILE_EXTS = ['.json', '.ts', '.js', '.mjs'];
+
+/** Strip an alias prefix and re-root under `src/` — offset derived, never hand-counted. */
+function aliasToSrc(spec: string, alias: string, srcSub: string): string {
+	return `src/${srcSub}${spec.slice(alias.length)}`;
+}
+
 /** Map a `@data`/`~/data`/relative/`.json` import to repo-relative candidate paths. */
 function dataSpecToRepoRel(spec: string, dir: string): string[] {
 	let base: string | null = null;
-	if (spec.startsWith('@data/')) base = `src/data/${spec.slice(6)}`;
-	else if (spec.startsWith('~/data/')) base = `src/data/${spec.slice(7)}`;
-	else if (spec.startsWith('@root/data/')) base = `src/${spec.slice(6)}`;
+	if (spec.startsWith('@data/')) base = aliasToSrc(spec, '@data/', 'data/');
+	else if (spec.startsWith('~/data/')) base = aliasToSrc(spec, '~/data/', 'data/');
+	else if (spec.startsWith('@root/data/')) base = aliasToSrc(spec, '@root/', '');
 	else if (spec.startsWith('./') || spec.startsWith('../')) {
 		const resolved = join(dir, spec);
 		if (resolved.startsWith('src/data/') || resolved.startsWith('src/content/')) base = resolved;
@@ -273,7 +279,7 @@ function dataSpecToRepoRel(spec: string, dir: string): string[] {
 		else return [];
 	} else return [];
 
-	if (/\.(json|ts|js|mjs)$/.test(base)) return [base];
+	if (DATA_FILE_EXTS.some((ext) => base!.endsWith(ext))) return [base];
 	// Extensionless module: a file or a directory index.
 	return [`${base}.ts`, `${base}/index.ts`];
 }
@@ -283,7 +289,10 @@ function uiSpecToRepoRel(spec: string, dir: string): string | null {
 	let rel: string | null = null;
 	for (const prefix of LOCAL_UI_PREFIXES) {
 		if (spec.startsWith(prefix)) {
-			rel = spec.startsWith('@root/') ? `src/${spec.slice(6)}` : `src/${spec.slice(1)}`;
+			// `@root/x` → `src/x`; `@components/x`/`@layouts/x` → `src/components|layouts/x`.
+			rel = spec.startsWith('@root/')
+				? `src/${spec.slice('@root/'.length)}`
+				: `src/${spec.slice('@'.length)}`;
 			break;
 		}
 	}
@@ -295,37 +304,30 @@ function uiSpecToRepoRel(spec: string, dir: string): string | null {
 	return existsSync(join(getRepoRoot(), rel)) ? rel : null;
 }
 
-let repoRoot: string | null = null;
-function getRepoRoot(): string {
-	if (repoRoot === null) {
-		try {
-			repoRoot = execFileSync('git', ['rev-parse', '--show-toplevel'], {
-				encoding: 'utf8',
-			}).trim();
-		} catch {
-			repoRoot = process.cwd();
-		}
-	}
-	return repoRoot;
-}
+/** Generous ceiling for the one-shot `git log` buffer (output is a few MB for `src/`). */
+const GIT_LOG_MAX_BUFFER = 256 * 1024 * 1024;
 
 /**
- * Map of repo-relative path → last-commit epoch (ms), built in a single
- * `git log` pass instead of one subprocess per file. `git log` lists commits
- * newest-first, so the first time a path appears is its latest commit. A `\x1f`
- * (unit separator) prefix marks commit-date lines, distinguishing them from the
- * file paths that follow — paths never contain that control character.
+ * Map of repo-relative path → last-commit epoch (ms), from a single `git log`
+ * pass instead of one subprocess per file. Commits are newest-first, so a path's
+ * first appearance is its latest commit. The `\x1f` prefix marks date lines (file
+ * paths never contain it). Scoped to `src/`, where every sitemap source lives, to
+ * keep the output and map small.
  */
 let gitDateMap: Map<string, number> | null = null;
 function getGitDateMap(): Map<string, number> {
 	if (gitDateMap !== null) return gitDateMap;
 	const dates = new Map<string, number>();
 	try {
-		const out = execFileSync('git', ['log', '--no-renames', '--format=\x1f%cI', '--name-only'], {
-			encoding: 'utf8',
-			maxBuffer: 512 * 1024 * 1024,
-			cwd: getRepoRoot(),
-		});
+		const out = execFileSync(
+			'git',
+			['log', '--no-renames', '--format=\x1f%cI', '--name-only', '--', 'src/'],
+			{
+				encoding: 'utf8',
+				maxBuffer: GIT_LOG_MAX_BUFFER,
+				cwd: getRepoRoot(),
+			}
+		);
 		let current = 0;
 		for (const line of out.split('\n')) {
 			if (line.startsWith('\x1f')) {

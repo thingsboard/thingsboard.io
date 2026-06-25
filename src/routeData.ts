@@ -21,7 +21,12 @@ import { DOCS_SUFFIX, formatDocsTitle, TITLE_SEPARATOR } from '~/consts';
 import { getOgImageUrl } from '~/util/getOgImageUrl';
 import { getTutorialPages } from '~/util/getTutorialPages';
 // No alias covers `config/`; relative import is the only option here.
-import { getSitemapSourceRegistry, normalizeSitemapPath } from '../config/sitemap-source-registry';
+import {
+	getRepoRoot,
+	getSitemapSourceRegistry,
+	normalizeSitemapPath,
+	toRepoRelative,
+} from '../config/sitemap-source-registry';
 
 /**
  * Display names for `/reference/<api>-api/` sub-sections, used to build unique
@@ -108,14 +113,10 @@ function rewriteStubEditUrl(starlightRoute: StarlightRouteData) {
 
 /**
  * Record the repo-relative source file(s) for a real docs content page so the
- * sitemap integration can derive `<lastmod>` from git history. Only genuine
- * content-collection pages run this middleware with a real on-disk
- * `entry.filePath`; every other page (marketing, blog, dynamic docs rendered via
- * the `<StarlightPage>` component or a non-Starlight layout) does NOT reach this
- * middleware and is resolved by the integration from the build's route table.
- *
- * Pages the sitemap would drop (noindex, canonical-to-elsewhere) are skipped so
- * the registry doesn't carry entries the sitemap never reads.
+ * sitemap integration can derive `<lastmod>` from git. Only content-collection
+ * pages reach this middleware with a real on-disk `entry.filePath`; everything
+ * else is resolved by the integration from the route table. Pages the sitemap
+ * would drop (noindex, canonical-to-elsewhere) are skipped.
  */
 function recordSitemapSources(context: APIContext, starlightRoute: StarlightRouteData) {
 	const filePath = (starlightRoute.entry as { filePath?: string }).filePath;
@@ -123,26 +124,13 @@ function recordSitemapSources(context: APIContext, starlightRoute: StarlightRout
 	const wrapperRel = toRepoRelative(filePath);
 	// Synthetic StarlightPage entries point at a non-existent `src/content/docs/<slug>.md`;
 	// only record when the content file actually exists on disk.
-	if (!wrapperRel || !existsSync(join(repoRoot(), wrapperRel))) return;
+	if (!wrapperRel || !existsSync(join(getRepoRoot(), wrapperRel))) return;
 	if (!isIndexableSelfCanonical(context, starlightRoute)) return;
 
 	const sources = [wrapperRel];
 	const includeRel = getStubIncludeRel(filePath);
 	if (includeRel) sources.push(`src/content/_includes/${includeRel}`);
 	getSitemapSourceRegistry().set(normalizeSitemapPath(context.url.pathname), sources);
-}
-
-/** Absolute source path → repo-relative (`src/...`), or `null` if not under `src/`. */
-function toRepoRelative(filePath: string): string | null {
-	const marker = filePath.indexOf('/src/');
-	if (marker >= 0) return filePath.slice(marker + 1);
-	return filePath.startsWith('src/') ? filePath : null;
-}
-
-let cachedRepoRoot: string | null = null;
-/** Build cwd is the project root; cache it for on-disk lookups during recording. */
-function repoRoot(): string {
-	return (cachedRepoRoot ??= process.cwd());
 }
 
 /** True when the computed head has no `noindex` and any canonical points at the page itself. */

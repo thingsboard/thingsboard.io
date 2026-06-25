@@ -1,51 +1,42 @@
 /**
- * Shared, process-wide registry mapping a built docs page's pathname to the
- * repo-relative source file(s) it was rendered from (the content wrapper plus,
- * for thin stubs, its `_includes` file). Populated by the Starlight route
- * middleware (`src/routeData.ts`) while real content-collection pages render at
- * build time — those are the only pages that actually run the route middleware.
- * Consumed afterwards by the sitemap integration (`config/integrations/sitemap.ts`)
- * to derive `<lastmod>` from git history; the integration resolves every NON-docs
- * page (marketing, blog, dynamic docs) itself from the build's route table, so it
- * does not rely on this registry for them.
+ * State shared between the two halves of the sitemap feature — the route
+ * middleware (`src/routeData.ts`) that records docs sources, and the integration
+ * (`config/integrations/sitemap.ts`) that derives `<lastmod>`. They live in
+ * different Vite module graphs, so a module-level `Map` would be duplicated;
+ * anchoring on `globalThis` via `Symbol.for` gives one instance per `astro build`.
  *
- * The two consumers live in different Vite module graphs (config loader vs. the
- * SSR app bundle), so a plain module-level `Map` would be duplicated — each side
- * would see its own empty copy. Anchoring the Map on `globalThis` via a
- * `Symbol.for` (a realm-global, shared symbol) guarantees both sides resolve the
- * exact same instance within the single Node process that `astro build` uses.
- *
- * Stored paths are relative to the repo root (e.g. `src/content/docs/...mdx`),
- * matching the keys emitted by `git log --name-only`, so the sitemap can look
- * them up directly.
+ * Stored paths are repo-relative (e.g. `src/content/docs/...mdx`), matching the
+ * keys from `git log --name-only` so the sitemap can look them up directly.
  */
+
+import { execFileSync } from 'node:child_process';
+
+/** Lazily create-or-fetch a `globalThis`-anchored `Map` for the given shared symbol. */
+function globalMap<K, V>(key: symbol): Map<K, V> {
+	const store = globalThis as Record<symbol, unknown>;
+	if (!store[key]) store[key] = new Map<K, V>();
+	return store[key] as Map<K, V>;
+}
 
 const REGISTRY_KEY = Symbol.for('thingsboard.sitemap.source-registry');
 
 /** Repo-relative source file paths a page is built from, e.g. `[wrapper, include?]`. */
 export type SitemapSources = string[];
 
-type Registry = Map<string, SitemapSources>;
-
-export function getSitemapSourceRegistry(): Registry {
-	const store = globalThis as Record<symbol, unknown>;
-	if (!store[REGISTRY_KEY]) store[REGISTRY_KEY] = new Map<string, SitemapSources>();
-	return store[REGISTRY_KEY] as Registry;
+export function getSitemapSourceRegistry(): Map<string, SitemapSources> {
+	return globalMap<string, SitemapSources>(REGISTRY_KEY);
 }
 
 /**
- * Companion registry of EXPLICIT `<lastmod>` values (ISO strings) keyed by
- * pathname, for pages whose freshness comes from data the build fetched rather
- * than git — e.g. IoT Hub catalog pages, where each listing carries an API
- * `updatedTime`. Written by `src/util/sitemap-lastmod.ts` during page render and
- * read by the sitemap integration, which prefers it over any git-derived date.
+ * Companion registry of EXPLICIT `<lastmod>` ISO strings, for pages whose
+ * freshness comes from build-time data rather than git (IoT Hub listings'
+ * `updatedTime`). Written by `src/util/sitemap-lastmod.ts`; the integration
+ * prefers it over any git-derived date.
  */
 const LASTMOD_REGISTRY_KEY = Symbol.for('thingsboard.sitemap.lastmod-registry');
 
 export function getSitemapLastmodRegistry(): Map<string, string> {
-	const store = globalThis as Record<symbol, unknown>;
-	if (!store[LASTMOD_REGISTRY_KEY]) store[LASTMOD_REGISTRY_KEY] = new Map<string, string>();
-	return store[LASTMOD_REGISTRY_KEY] as Map<string, string>;
+	return globalMap<string, string>(LASTMOD_REGISTRY_KEY);
 }
 
 /** Canonical key shape: always a single leading and trailing slash. */
@@ -54,4 +45,29 @@ export function normalizeSitemapPath(pathname: string): string {
 	if (!p.startsWith('/')) p = '/' + p;
 	if (!p.endsWith('/')) p = p + '/';
 	return p;
+}
+
+/** Absolute (or already-relative) source path → repo-relative (`src/...`), or `null`. */
+export function toRepoRelative(filePath: string): string | null {
+	const marker = filePath.indexOf('/src/');
+	if (marker >= 0) return filePath.slice(marker + 1);
+	return filePath.startsWith('src/') ? filePath : null;
+}
+
+/**
+ * Repo root, resolved once via `git rev-parse` (cwd fallback when git is absent).
+ * Shared so both consumers anchor repo-relative paths to the same root.
+ */
+let cachedRepoRoot: string | null = null;
+export function getRepoRoot(): string {
+	if (cachedRepoRoot === null) {
+		try {
+			cachedRepoRoot = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+				encoding: 'utf8',
+			}).trim();
+		} catch {
+			cachedRepoRoot = process.cwd();
+		}
+	}
+	return cachedRepoRoot;
 }
