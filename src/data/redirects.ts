@@ -1250,6 +1250,11 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'iot-hub/user-guides/getting-started', target: '/docs/iot-hub/user-guides/' },
 	{ oldPath: 'iot-hub/user-guides/install-items', target: '/docs/iot-hub/user-guides/' },
 	{ oldPath: 'iot-hub/user-guides/manage-items', target: '/docs/iot-hub/user-guides/' },
+	// Recipes landing pages removed — redirect to the matching Guides root
+	{ oldPath: 'recipes', target: '/docs/user-guide/' },
+	{ oldPath: 'pe/recipes', target: '/docs/pe/user-guide/' },
+	{ oldPath: 'paas/recipes', target: '/docs/paas/user-guide/' },
+	{ oldPath: 'paas/eu/recipes', target: '/docs/paas/eu/user-guide/' },
 ];
 
 /**
