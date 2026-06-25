@@ -13,17 +13,14 @@ import { captureRoutes } from '../sitemap/route-match';
 import { resolveNonDocSources } from '../sitemap/source-resolve';
 
 /**
- * Sitemap filter driven by the built HTML itself: a page is included only when
- * it is indexable (no `<meta name="robots" content="noindex">`) and canonical
- * (any `<link rel="canonical">` resolves to the page's own URL). One rule —
- * no parallel allow/deny lists to drift from the actual output.
+ * Sitemap integration. Includes a page only when its built HTML is indexable
+ * (no `noindex`) and self-canonical — reading the real output instead of keeping
+ * allow/deny lists that drift from it — and adds a `<lastmod>` per entry.
  */
 export function sitemap(): AstroIntegration {
-	// Populated by our `astro:build:done` wrapper below, before we delegate to
-	// @astrojs/sitemap's own hook (the only place that invokes `filter`). If
-	// a future upgrade ever calls the filter from an earlier hook, the explicit
-	// throw below makes the broken assumption loud instead of silently letting
-	// every page through.
+	// Set by our `astro:build:done` wrapper before @astrojs/sitemap's own hook
+	// (the only caller of `filter`). The throw guards a future version that calls
+	// `filter` earlier — better loud than letting every page through.
 	let outDir: string | null = null;
 	const integration = AstroSitemap({
 		filter: (page) => {
@@ -100,15 +97,10 @@ function getCanonicalHref(head: string): string | null {
 }
 
 /**
- * `<lastmod>` for a sitemap entry, derived from git history of the page's source
- * file(s). The route middleware records, per page, the repo-relative sources it
- * was built from — the docs wrapper plus its `_includes` file (the same source
- * the "Edit page" link targets), or the data/MDX file for marketing pages. We
- * take the most recent commit date across them, so a content edit in the include
- * or a frontmatter edit in the wrapper both move the date.
- *
- * Returns `null` (entry left without `<lastmod>`) when no source was recorded or
- * none is tracked in git.
+ * `<lastmod>` for an entry: the newest git commit date across the page's source
+ * file(s) — so editing the wrapper, its `_includes`, or a marketing page's data
+ * file all move the date. Returns `null` (no `<lastmod>`) when nothing maps or
+ * the sources aren't in git.
  */
 function getLastmod(url: string): string | null {
 	let pathname: string;

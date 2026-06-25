@@ -25,8 +25,8 @@ export function captureRoutes(routes: ResolvedPageRoute[]): void {
 	for (const route of routes) {
 		if (route.type !== 'page' || !route.isPrerendered) continue;
 		const component = toRepoRelative(route.entrypoint);
-		// Only real page components; Starlight's content route resolves elsewhere
-		// (handled by the middleware-populated registry) and yields a non-src entry.
+		// Only real page components — Starlight's content route yields a non-src
+		// entry and is handled by the registry instead.
 		if (!component || !component.startsWith('src/pages/')) continue;
 		if (route.pathname) staticRouteComponents.set(normalizeSitemapPath(route.pathname), component);
 		else dynamicRouteComponents.push({ regex: route.patternRegex, component });

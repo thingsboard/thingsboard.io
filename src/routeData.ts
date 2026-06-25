@@ -122,8 +122,8 @@ function recordSitemapSources(context: APIContext, starlightRoute: StarlightRout
 	const filePath = (starlightRoute.entry as { filePath?: string }).filePath;
 	if (!filePath) return;
 	const wrapperRel = toRepoRelative(filePath);
-	// Synthetic StarlightPage entries point at a non-existent `src/content/docs/<slug>.md`;
-	// only record when the content file actually exists on disk.
+	// Synthetic StarlightPage entries point at a non-existent file; record only
+	// when the content file actually exists on disk.
 	if (!wrapperRel || !existsSync(join(getRepoRoot(), wrapperRel))) return;
 	if (!isIndexableSelfCanonical(context, starlightRoute)) return;
 

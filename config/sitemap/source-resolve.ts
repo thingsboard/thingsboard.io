@@ -11,10 +11,9 @@ import { matchRouteComponent } from './route-match';
  */
 
 /**
- * Per-collection slug → data-file rules for pages whose content lives outside a
- * Starlight content entry. We point at the file that actually holds the item's
- * content — editing one item should move only that page's `<lastmod>`, not every
- * sibling's (the shared `[slug].astro` template imports the whole collection).
+ * Slug → the data file holding a page's content, for collections rendered by a
+ * shared `[slug].astro`. Pointing at the per-item file means editing one item
+ * moves only its `<lastmod>`, not every sibling's.
  */
 const SITEMAP_DATA_RULES: { re: RegExp; file: (slug: string) => string }[] = [
 	{ re: /^\/use-cases\/([^/]+)\/$/, file: (s) => `src/data/use-cases/${s}.ts` },
@@ -52,11 +51,9 @@ const LOCAL_UI_PREFIXES = ['@components/', '@layouts/', '@root/components/', '@r
 const contentImportCache = new Map<string, string[]>();
 
 /**
- * Repo-relative data/JSON files a page renders, so a content edit there moves the
- * page's `<lastmod>` even though the content lives outside the `.astro` template.
- * Scans the template's own imports plus those of the components/layouts it imports
- * directly (one level deep). Limitation: content loaded via `getCollection()` is
- * not traced — only static `import` specifiers are.
+ * Data/JSON files a page imports for content, so editing them moves its
+ * `<lastmod>`. Scans the template plus the components/layouts it imports (one
+ * level deep). Only static `import`s — `getCollection()` content isn't traced.
  */
 function scanContentImports(templateRel: string, descend = true): string[] {
 	const cacheKey = `${descend ? 'd' : 's'}:${templateRel}`;
