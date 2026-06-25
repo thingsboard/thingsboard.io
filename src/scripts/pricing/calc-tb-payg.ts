@@ -5,7 +5,7 @@
 // don't open it.
 
 import { makeModalController } from '@root/scripts/pricing/modal-controller';
-import { makeInteractionPusher, pushCalculatorEvent, bindCtaTracking, pushExport } from '@root/scripts/pricing/calc-analytics';
+import { makeInteractionPusher, pushCalculatorOpen, bindCtaTracking, bindExportButtons, type CalculatorType } from '@root/scripts/pricing/calc-analytics';
 
 declare function sliderProgress(slider: HTMLInputElement): void;
 declare function initAllSliders(root?: HTMLElement | Document): void;
@@ -37,6 +37,8 @@ const SM_DESCS: Record<string, { prod: string; dev: string }> = {
 // `openTbPaygCalc` work without re-running the (idempotent) init body.
 let openImpl: (() => void) | null = null;
 
+const CALC_TYPE: CalculatorType = 'tb_payg';
+
 export function initTbPaygCalc() {
 	if (openImpl) return;
 	const modal = document.getElementById('tb-payg-calc');
@@ -66,12 +68,11 @@ export function initTbPaygCalc() {
 	let lastTotal: number | null = null;
 	let lastPlan = '';
 
-	const calcAnalytics = makeInteractionPusher();
+	const calcAnalytics = makeInteractionPusher(CALC_TYPE);
 	function sendSmGTM(total: number | null) {
 		const isEnterprise = state.devices >= SM_ENTERPRISE;
 		calcAnalytics.push({
 			event: 'calculator_interaction',
-			calculator_type: 'tb_payg',
 			calculator_devices: state.devices,
 			calculator_plan: isEnterprise ? 'Enterprise' : getPlan(state.devices).name,
 			calculator_instances: state.prodInstances,
@@ -311,7 +312,7 @@ export function initTbPaygCalc() {
 	// Footer CTA tracking. Footer re-renders every recalc, so delegate one click
 	// listener on the stable modal element. lastTotal/lastPlan are the settled
 	// values at click time.
-	bindCtaTracking(modal, 'tb_payg', () => ({ calculator_total: lastTotal, calculator_plan: lastPlan }));
+	bindCtaTracking(modal, CALC_TYPE, () => ({ calculator_total: lastTotal, calculator_plan: lastPlan }));
 
 	function renderEnterprise() {
 		let html = `<div class="calc-optimal-plan"><span class="calc-optimal-label">Deployment Summary</span></div>`;
@@ -403,7 +404,7 @@ export function initTbPaygCalc() {
 	const { open: openModal } = makeModalController({
 		modal,
 		onOpen: () => {
-			pushCalculatorEvent({ event: 'calculator_open', calculator_type: 'tb_payg' });
+			pushCalculatorOpen(CALC_TYPE);
 			updateProgress();
 			requestAnimationFrame(() => initAllSliders(modal));
 			calculate({ track: false });
@@ -467,32 +468,11 @@ export function initTbPaygCalc() {
 		return msg;
 	}
 
-	// Copy. Capture currentTarget BEFORE the promise — browsers null
-	// `e.currentTarget` once the click handler returns synchronously, so
-	// reading it inside `.then()` throws TypeError on `classList`.
-	modal.querySelector('[data-calc-copy]')?.addEventListener('click', (e) => {
-		const btn = e.currentTarget as HTMLElement;
-		const text = buildSummaryText();
-		pushExport('tb_payg', 'copy', { calculator_total: lastTotal, calculator_plan: lastPlan });
-		const flashCopied = () => {
-			btn.classList.add('copied');
-			setTimeout(() => btn.classList.remove('copied'), 2000);
-		};
-		// Swallow rejections (e.g. Safari/Firefox `NotAllowedError: Document is not focused`)
-		// so they don't surface as unhandled promise rejections; silent failure is intentional.
-		navigator.clipboard.writeText(text).then(flashCopied).catch(() => {});
-	});
-
-	// Download
-	modal.querySelector('[data-calc-download]')?.addEventListener('click', () => {
-		pushExport('tb_payg', 'download', { calculator_total: lastTotal, calculator_plan: lastPlan });
-		const blob = new Blob([buildSummaryText()], { type: 'text/plain' });
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = 'self-managed-calculation.txt';
-		a.click();
-		URL.revokeObjectURL(url);
+	// Copy + download export buttons.
+	bindExportButtons(modal, CALC_TYPE, {
+		buildText: buildSummaryText,
+		filename: 'self-managed-calculation.txt',
+		getExtra: () => ({ calculator_total: lastTotal, calculator_plan: lastPlan }),
 	});
 
 	// Reset

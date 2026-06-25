@@ -2,7 +2,7 @@
 // Inline calculator (rendered inside the TBMQ product tab). See
 // `calc-tbmq-payg.ts` for the lazy-load pattern rationale.
 
-import { makeInteractionPusher, bindCtaTracking, pushExport } from '@root/scripts/pricing/calc-analytics';
+import { makeInteractionPusher, bindCtaTracking, bindExportButtons, type CalculatorType } from '@root/scripts/pricing/calc-analytics';
 
 declare function sliderProgress(slider: HTMLInputElement): void;
 declare function initAllSliders(root?: HTMLElement | Document): void;
@@ -15,6 +15,7 @@ export function initMqpcCalc() {
 	const c = document.getElementById('tbmq-pc-calc');
 	if (!c || c.dataset.inited === 'true') return;
 	c.dataset.inited = 'true';
+	const CALC_TYPE: CalculatorType = 'tbmq_pc';
 	const $ = (s: string) => c.querySelector(s) as HTMLElement;
 	const $$ = (s: string) => c.querySelectorAll(s);
 	const sI = $('#mqpc-sessions') as HTMLInputElement, sS = $('#mqpc-sessions-slider') as HTMLInputElement;
@@ -40,7 +41,7 @@ export function initMqpcCalc() {
 
 	// Last computed total, captured where sendGTM is called so it's the settled
 	// value when a footer CTA is clicked.
-	let _lastTotal: number | null = null;
+	let lastTotal: number | null = null;
 
 	let _calcQueued = false;
 	function scheduleCalc() {
@@ -52,11 +53,10 @@ export function initMqpcCalc() {
 	// Debounced GTM push — mirrors the ThingsBoard calculators' 3s settle so one
 	// configuration counts once, not per slider tick. Marketing owns the GTM
 	// trigger + GA4 tag (event `calculator_interaction`).
-	const calcAnalytics = makeInteractionPusher();
+	const calcAnalytics = makeInteractionPusher(CALC_TYPE);
 	function sendGTM(total: number) {
 		calcAnalytics.push({
 			event: 'calculator_interaction',
-			calculator_type: 'tbmq_pc',
 			calculator_sessions: st.sessions,
 			calculator_throughput: st.throughput,
 			calculator_billing_period: st.billingPeriod,
@@ -155,7 +155,7 @@ export function initMqpcCalc() {
 		const ctaEl = foot.querySelector('.calc-cta') as HTMLAnchorElement | null;
 		if (ctaEl) ctaEl.href = `/contact-us/?subject=${encodeURIComponent('TBMQ')}&message=${encodeURIComponent(buildSummary())}`;
 
-		_lastTotal = finalTotal;
+		lastTotal = finalTotal;
 		if (opts?.track !== false) sendGTM(finalTotal);
 
 		// SLA upgrade button — must rebind because the row containing it is
@@ -197,7 +197,7 @@ export function initMqpcCalc() {
 
 	// Footer conversion CTAs re-render on every recalc, so bind once on the
 	// stable container and read state at click.
-	bindCtaTracking(c, 'tbmq_pc', () => ({ calculator_total: _lastTotal }));
+	bindCtaTracking(c, CALC_TYPE, () => ({ calculator_total: lastTotal }));
 
 	function bindSlider(sl: HTMLInputElement, inp: HTMLInputElement, marks: number[], key: 'sessions' | 'throughput') {
 		sl.addEventListener('input', () => { (st as any)[key] = s2v(parseFloat(sl.value), marks); inp.value = String((st as any)[key]); sliderProgress(sl); scheduleCalc(); });
@@ -300,26 +300,10 @@ export function initMqpcCalc() {
 		return msg;
 	}
 
-	c.querySelector('[data-calc-copy]')?.addEventListener('click', (e) => {
-		const btn = e.currentTarget as HTMLElement;
-		const text = buildSummary();
-		const flashCopied = () => {
-			btn.classList.add('copied');
-			setTimeout(() => btn.classList.remove('copied'), 2000);
-		};
-		navigator.clipboard.writeText(text).then(flashCopied).catch(() => {});
-		pushExport('tbmq_pc', 'copy', { calculator_total: _lastTotal });
-	});
-
-	c.querySelector('[data-calc-download]')?.addEventListener('click', () => {
-		const blob = new Blob([buildSummary()], { type: 'text/plain' });
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = 'tbmq-private-cloud-calculation.txt';
-		a.click();
-		URL.revokeObjectURL(url);
-		pushExport('tbmq_pc', 'download', { calculator_total: _lastTotal });
+	bindExportButtons(c, CALC_TYPE, {
+		buildText: buildSummary,
+		filename: 'tbmq-private-cloud-calculation.txt',
+		getExtra: () => ({ calculator_total: lastTotal }),
 	});
 
 	$('[data-calc-reset]').addEventListener('click', () => {

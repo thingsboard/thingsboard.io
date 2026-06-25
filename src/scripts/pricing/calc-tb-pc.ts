@@ -4,9 +4,10 @@
 import { makeModalController, portalToBody } from '@root/scripts/pricing/modal-controller';
 import {
 	makeInteractionPusher,
-	pushCalculatorEvent,
 	bindCtaTracking,
-	pushExport,
+	bindExportButtons,
+	pushCalculatorOpen,
+	type CalculatorType,
 } from '@root/scripts/pricing/calc-analytics';
 
 declare function sliderProgress(slider: HTMLInputElement): void;
@@ -78,20 +79,21 @@ const state = {
 	clipboardMsg: '',
 };
 
+const CALC_TYPE: CalculatorType = 'tb_pc';
+
 // Last settled total + plan, captured wherever sendPcGTM is called, so the
 // footer CTA click reports the value showing at click time.
-let _pcLastTotal: number | null = null;
-let _pcLastPlan = '';
+let lastTotal: number | null = null;
+let lastPlan = '';
 
-const calcAnalytics = makeInteractionPusher();
+const calcAnalytics = makeInteractionPusher(CALC_TYPE);
 function sendPcGTM(total: number | null) {
 	const inp = pcGetInputs?.();
 	if (!inp) return;
 	const gtm: Record<string, any> = {
 		event: 'calculator_interaction',
-		calculator_type: 'tb_pc',
 		calculator_devices: inp.totalDevices,
-		calculator_plan: _pcLastPlan,
+		calculator_plan: lastPlan,
 		calculator_instances: null,
 		calculator_addon_dev_area: state.addons.devqa.on,
 		calculator_addon_trendz_bot_area: state.addons.trendz.on,
@@ -502,8 +504,8 @@ export function initTbPcCalc() {
 
 		if (matching.length === 0) {
 			displayEnterprise(inp);
-			_pcLastTotal = null;
-			_pcLastPlan = 'Enterprise';
+			lastTotal = null;
+			lastPlan = 'Enterprise';
 			if (track) sendPcGTM(null);
 			return;
 		}
@@ -561,8 +563,8 @@ export function initTbPcCalc() {
 
 		if (best.total > 10000) {
 			displayEnterprise(inp);
-			_pcLastTotal = null;
-			_pcLastPlan = 'Enterprise';
+			lastTotal = null;
+			lastPlan = 'Enterprise';
 			if (track) sendPcGTM(null);
 			return;
 		}
@@ -570,8 +572,8 @@ export function initTbPcCalc() {
 		const isAnnual = state.billingPeriod === 'annual';
 		const finalTotal = isAnnual ? best.total * 0.9 : best.total;
 		displayResults(best, inp);
-		_pcLastTotal = finalTotal;
-		_pcLastPlan = best.plan.name;
+		lastTotal = finalTotal;
+		lastPlan = best.plan.name;
 		if (track) sendPcGTM(finalTotal);
 	}
 
@@ -782,7 +784,7 @@ export function initTbPcCalc() {
 	const { open: openModal } = makeModalController({
 		modal,
 		onOpen: () => {
-			pushCalculatorEvent({ event: 'calculator_open', calculator_type: 'tb_pc' });
+			pushCalculatorOpen(CALC_TYPE);
 			calculate({ track: false });
 			requestAnimationFrame(() => initAllSliders(modal));
 		},
@@ -803,31 +805,15 @@ export function initTbPcCalc() {
 		},
 	});
 
-	modal.querySelector('[data-calc-copy]')?.addEventListener('click', (e) => {
-		const btn = e.currentTarget as HTMLElement;
-		const text = state.clipboardMsg;
-		const flashCopied = () => {
-			btn.classList.add('copied');
-			setTimeout(() => btn.classList.remove('copied'), 2000);
-		};
-		navigator.clipboard.writeText(text).then(flashCopied).catch(() => {});
-		pushExport('tb_pc', 'copy', { calculator_total: _pcLastTotal, calculator_plan: _pcLastPlan });
-	});
-
-	modal.querySelector('[data-calc-download]')?.addEventListener('click', () => {
-		const blob = new Blob([state.clipboardMsg], { type: 'text/plain' });
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = 'private-cloud-calculation.txt';
-		a.click();
-		URL.revokeObjectURL(url);
-		pushExport('tb_pc', 'download', { calculator_total: _pcLastTotal, calculator_plan: _pcLastPlan });
+	bindExportButtons(modal, CALC_TYPE, {
+		buildText: () => state.clipboardMsg,
+		filename: 'private-cloud-calculation.txt',
+		getExtra: () => ({ calculator_total: lastTotal, calculator_plan: lastPlan }),
 	});
 
 	// Track footer conversion CTAs. The footer re-renders on every recalc, so
 	// delegate one listener on the stable modal element (bound once in init).
-	bindCtaTracking(modal, 'tb_pc', () => ({ calculator_total: _pcLastTotal, calculator_plan: _pcLastPlan }));
+	bindCtaTracking(modal, CALC_TYPE, () => ({ calculator_total: lastTotal, calculator_plan: lastPlan }));
 
 	// ─── Render footer once ───
 	footer.innerHTML = `

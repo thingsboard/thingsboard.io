@@ -3,7 +3,9 @@
 // The loader in `TbmqPaygCalculator.astro` dynamically imports this module on
 // the first `pricing:product-activated` event whose detail is 'tbmq'.
 
-import { makeInteractionPusher, bindCtaTracking, pushExport } from '@root/scripts/pricing/calc-analytics';
+import { makeInteractionPusher, bindCtaTracking, bindExportButtons, type CalculatorType } from '@root/scripts/pricing/calc-analytics';
+
+const CALC_TYPE: CalculatorType = 'tbmq_payg';
 
 declare function sliderProgress(slider: HTMLInputElement): void;
 declare function initAllSliders(root?: HTMLElement | Document): void;
@@ -56,11 +58,10 @@ export function initTbmqPaygCalc() {
 	// Debounced GTM push — mirrors the ThingsBoard calculators' 3s settle so one
 	// configuration counts once, not per slider tick. Marketing owns the GTM
 	// trigger + GA4 tag (event `calculator_interaction`).
-	const calcAnalytics = makeInteractionPusher();
+	const calcAnalytics = makeInteractionPusher(CALC_TYPE);
 	function sendGTM(total: number) {
 		calcAnalytics.push({
 			event: 'calculator_interaction',
-			calculator_type: 'tbmq_payg',
 			calculator_sessions: st.sessions,
 			calculator_throughput: st.throughput,
 			calculator_prod_instances: st.prod,
@@ -150,7 +151,7 @@ export function initTbmqPaygCalc() {
 	}
 
 	// Footer CTA tracking — bound once on the stable container `c`.
-	bindCtaTracking(c, 'tbmq_payg', () => ({ calculator_total: lastTotal }));
+	bindCtaTracking(c, CALC_TYPE, () => ({ calculator_total: lastTotal }));
 
 	// Delegated handler for [data-enable-mq-addon] buttons rendered inside the
 	// results panel. Bound once instead of per-button on every calc().
@@ -216,26 +217,10 @@ export function initTbmqPaygCalc() {
 		return msg;
 	}
 
-	c.querySelector('[data-calc-copy]')?.addEventListener('click', (e) => {
-		const btn = e.currentTarget as HTMLElement;
-		const text = buildSummary();
-		const flashCopied = () => {
-			btn.classList.add('copied');
-			setTimeout(() => btn.classList.remove('copied'), 2000);
-		};
-		navigator.clipboard.writeText(text).then(flashCopied).catch(() => {});
-		pushExport('tbmq_payg', 'copy', { calculator_total: lastTotal });
-	});
-
-	c.querySelector('[data-calc-download]')?.addEventListener('click', () => {
-		const blob = new Blob([buildSummary()], { type: 'text/plain' });
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = 'tbmq-payg-calculation.txt';
-		a.click();
-		URL.revokeObjectURL(url);
-		pushExport('tbmq_payg', 'download', { calculator_total: lastTotal });
+	bindExportButtons(c, CALC_TYPE, {
+		buildText: buildSummary,
+		filename: 'tbmq-payg-calculation.txt',
+		getExtra: () => ({ calculator_total: lastTotal }),
 	});
 
 	$('[data-calc-reset]').addEventListener('click', () => {

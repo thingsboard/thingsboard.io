@@ -2,7 +2,7 @@
 // Inline calculator (rendered inside the TBMQ product tab). See
 // `calc-tbmq-payg.ts` for the lazy-load pattern rationale.
 
-import { makeInteractionPusher, bindCtaTracking, pushExport } from '@root/scripts/pricing/calc-analytics';
+import { makeInteractionPusher, bindCtaTracking, bindExportButtons, type CalculatorType } from '@root/scripts/pricing/calc-analytics';
 
 declare function sliderProgress(slider: HTMLInputElement): void;
 declare function initAllSliders(root?: HTMLElement | Document): void;
@@ -35,15 +35,13 @@ export function initMqpCalc() {
 	// Debounced GTM push — mirrors the ThingsBoard calculators' 3s settle so one
 	// configuration counts once, not per slider tick. Marketing owns the GTM
 	// trigger + GA4 tag (event `calculator_interaction`).
-	const calcAnalytics = makeInteractionPusher();
+	const CALC_TYPE: CalculatorType = 'tbmq_perp';
+	const calcAnalytics = makeInteractionPusher(CALC_TYPE);
 	// Last computed one-time license price, captured for the footer CTA push.
-	let _lastTotal: number | null = null;
-	function sendGTM(total: number, track = true) {
-		_lastTotal = total;
-		if (!track) return;
+	let lastTotal: number | null = null;
+	function sendGTM(total: number) {
 		calcAnalytics.push({
 			event: 'calculator_interaction',
-			calculator_type: 'tbmq_perp',
 			calculator_sessions: st.sessions,
 			calculator_throughput: st.throughput,
 			calculator_prod_instances: st.prod,
@@ -84,7 +82,8 @@ export function initMqpCalc() {
 		if (dCost > 0) totalParts.push(`${fmt(dCost)} (dev instances)`);
 		foot.innerHTML = `<div class="calc-total-row"><span class="calc-total-label">Total</span><span class="calc-total-amount">${fmt(total)}${tip(totalParts.join(' + '))}</span></div><a class="calc-cta" href="/contact-us/?subject=${encodeURIComponent('TBMQ')}&message=${encodeURIComponent(`Sessions: ${fN(st.sessions)}, Throughput: ${fN(st.throughput)} msg/sec, Prod: ${st.prod}, Dev: ${st.dev}, Total: ${fmt(total)}`)}" target="_blank" rel="noopener noreferrer">Contact Us</a>`;
 
-		sendGTM(total, opts?.track !== false);
+		lastTotal = total;
+		if (opts?.track !== false) sendGTM(total);
 	}
 
 	function bindSlider(sl: HTMLInputElement, inp: HTMLInputElement, key: 'sessions' | 'throughput', max: number) {
@@ -124,26 +123,10 @@ export function initMqpCalc() {
 		return msg;
 	}
 
-	c.querySelector('[data-calc-copy]')?.addEventListener('click', (e) => {
-		const btn = e.currentTarget as HTMLElement;
-		const text = buildSummary();
-		const flashCopied = () => {
-			btn.classList.add('copied');
-			setTimeout(() => btn.classList.remove('copied'), 2000);
-		};
-		navigator.clipboard.writeText(text).then(flashCopied).catch(() => {});
-		pushExport('tbmq_perp', 'copy', { calculator_total: _lastTotal });
-	});
-
-	c.querySelector('[data-calc-download]')?.addEventListener('click', () => {
-		const blob = new Blob([buildSummary()], { type: 'text/plain' });
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = 'tbmq-perpetual-calculation.txt';
-		a.click();
-		URL.revokeObjectURL(url);
-		pushExport('tbmq_perp', 'download', { calculator_total: _lastTotal });
+	bindExportButtons(c, CALC_TYPE, {
+		buildText: buildSummary,
+		filename: 'tbmq-perpetual-calculation.txt',
+		getExtra: () => ({ calculator_total: lastTotal }),
 	});
 
 	$('[data-calc-reset]').addEventListener('click', () => {
@@ -157,7 +140,7 @@ export function initMqpCalc() {
 	});
 	// Footer re-renders on every recalc, so delegate one CTA click listener on
 	// the stable container, bound once in init.
-	bindCtaTracking(c, 'tbmq_perp', () => ({ calculator_total: _lastTotal }));
+	bindCtaTracking(c, CALC_TYPE, () => ({ calculator_total: lastTotal }));
 
 	sliderProgress(sS); sliderProgress(tS); calc({ track: false });
 	requestAnimationFrame(() => { if (c) initAllSliders(c); });
