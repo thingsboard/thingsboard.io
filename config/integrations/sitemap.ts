@@ -1,16 +1,16 @@
 import AstroSitemap from '@astrojs/sitemap';
 import type { AstroIntegration } from 'astro';
-import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-	getRepoRoot,
 	getSitemapLastmodRegistry,
 	getSitemapSourceRegistry,
 	normalizeSitemapPath,
-	toRepoRelative,
 } from '../sitemap-source-registry';
+import { getGitDateMap } from '../sitemap/git-date';
+import { captureRoutes } from '../sitemap/route-match';
+import { resolveNonDocSources } from '../sitemap/source-resolve';
 
 /**
  * Sitemap filter driven by the built HTML itself: a page is included only when
@@ -56,47 +56,6 @@ export function sitemap(): AstroIntegration {
 			},
 		},
 	};
-}
-
-type ResolvedPageRoute = {
-	type: string;
-	isPrerendered: boolean;
-	pathname?: string | null;
-	patternRegex: RegExp;
-	entrypoint: string;
-};
-
-/** Static URL → component (`src/pages/...`). */
-const staticRouteComponents = new Map<string, string>();
-/** Dynamic routes, matched by pattern when no static URL hits. */
-const dynamicRouteComponents: { regex: RegExp; component: string }[] = [];
-
-function captureRoutes(routes: ResolvedPageRoute[]): void {
-	staticRouteComponents.clear();
-	dynamicRouteComponents.length = 0;
-	for (const route of routes) {
-		if (route.type !== 'page' || !route.isPrerendered) continue;
-		const component = toRepoRelative(route.entrypoint);
-		// Only real page components; Starlight's content route resolves elsewhere
-		// (handled by the middleware-populated registry) and yields a non-src entry.
-		if (!component || !component.startsWith('src/pages/')) continue;
-		if (route.pathname) staticRouteComponents.set(normalizeSitemapPath(route.pathname), component);
-		else dynamicRouteComponents.push({ regex: route.patternRegex, component });
-	}
-}
-
-/** Repo-relative `.astro` component that renders `pathname`, or `null`. */
-function matchRouteComponent(pathname: string): string | null {
-	const key = normalizeSitemapPath(pathname);
-	const exact = staticRouteComponents.get(key);
-	if (exact) return exact;
-	const noTrailing = pathname.replace(/\/+$/, '');
-	for (const route of dynamicRouteComponents) {
-		if (route.regex.test(pathname) || route.regex.test(noTrailing) || route.regex.test(key)) {
-			return route.component;
-		}
-	}
-	return null;
 }
 
 function isIndexableCanonicalPage(outDir: string, pageUrl: string): boolean {
@@ -176,170 +135,4 @@ function getLastmod(url: string): string | null {
 		if (epoch && epoch > latest) latest = epoch;
 	}
 	return latest > 0 ? new Date(latest).toISOString() : null;
-}
-
-/**
- * Per-collection slug → data-file rules for pages whose content lives outside a
- * Starlight content entry. We point at the file that actually holds the item's
- * content — editing one item should move only that page's `<lastmod>`, not every
- * sibling's (the shared `[slug].astro` template imports the whole collection).
- */
-const SITEMAP_DATA_RULES: { re: RegExp; file: (slug: string) => string }[] = [
-	{ re: /^\/use-cases\/([^/]+)\/$/, file: (s) => `src/data/use-cases/${s}.ts` },
-	{ re: /^\/case-studies\/([^/]+)\/$/, file: (s) => `src/data/case-studies/${s}.ts` },
-	{ re: /^\/blog\/(.+)\/$/, file: (s) => `src/content/blog/${s}.mdx` },
-	// Careers detail pages all live in one aggregated data file.
-	{ re: /^\/careers\/([^/]+)\/$/, file: () => `src/data/careers/jobs.ts` },
-	{ re: /^\/clients-feedback\/$/, file: () => `src/data/clients-feedback/index.ts` },
-];
-
-/**
- * Repo-relative source file(s) for a non-docs page. A per-slug data rule pins the
- * item's content file; otherwise the route's `.astro` component plus the
- * data/JSON it imports for content. `[]` (→ no `<lastmod>`) when nothing maps.
- */
-function resolveNonDocSources(pathname: string): string[] {
-	for (const rule of SITEMAP_DATA_RULES) {
-		const match = pathname.match(rule.re);
-		if (!match) continue;
-		const file = rule.file(match[1] ?? '');
-		// Trust the rule only if its file exists; greedy rules also match sibling
-		// URLs (e.g. `/blog/page/N/`), which fall through to the route component.
-		if (existsSync(join(getRepoRoot(), file))) return [file];
-		break;
-	}
-	const component = matchRouteComponent(pathname);
-	if (!component) return [];
-	return [component, ...scanContentImports(component)];
-}
-
-const IMPORT_FROM_REGEX = /\bfrom\s+['"]([^'"]+)['"]/g;
-const BARE_IMPORT_REGEX = /^\s*import\s+['"]([^'"]+)['"]/gm;
-/** Local component/layout imports worth descending into (one level) for their data. */
-const LOCAL_UI_PREFIXES = ['@components/', '@layouts/', '@root/components/', '@root/layouts/'];
-const contentImportCache = new Map<string, string[]>();
-
-/**
- * Repo-relative data/JSON files a page renders, so a content edit there moves the
- * page's `<lastmod>` even though the content lives outside the `.astro` template.
- * Scans the template's own imports plus those of the components/layouts it imports
- * directly (one level deep). Limitation: content loaded via `getCollection()` is
- * not traced — only static `import` specifiers are.
- */
-function scanContentImports(templateRel: string, descend = true): string[] {
-	const cacheKey = `${descend ? 'd' : 's'}:${templateRel}`;
-	const cached = contentImportCache.get(cacheKey);
-	if (cached) return cached;
-
-	let source: string;
-	try {
-		source = readFileSync(join(getRepoRoot(), templateRel), 'utf8');
-	} catch {
-		contentImportCache.set(cacheKey, []);
-		return [];
-	}
-
-	const dir = templateRel.slice(0, templateRel.lastIndexOf('/'));
-	const specs = new Set<string>();
-	for (const m of source.matchAll(IMPORT_FROM_REGEX)) specs.add(m[1]!);
-	for (const m of source.matchAll(BARE_IMPORT_REGEX)) specs.add(m[1]!);
-
-	const out = new Set<string>();
-	for (const spec of specs) {
-		for (const dataPath of dataSpecToRepoRel(spec, dir)) out.add(dataPath);
-		if (descend) {
-			const ui = uiSpecToRepoRel(spec, dir);
-			if (ui) for (const nested of scanContentImports(ui, false)) out.add(nested);
-		}
-	}
-
-	const result = [...out];
-	contentImportCache.set(cacheKey, result);
-	return result;
-}
-
-/** Module extensions a data import may already carry. */
-const DATA_FILE_EXTS = ['.json', '.ts', '.js', '.mjs'];
-
-/** Strip an alias prefix and re-root under `src/` — offset derived, never hand-counted. */
-function aliasToSrc(spec: string, alias: string, srcSub: string): string {
-	return `src/${srcSub}${spec.slice(alias.length)}`;
-}
-
-/** Map a `@data`/`~/data`/relative/`.json` import to repo-relative candidate paths. */
-function dataSpecToRepoRel(spec: string, dir: string): string[] {
-	let base: string | null = null;
-	if (spec.startsWith('@data/')) base = aliasToSrc(spec, '@data/', 'data/');
-	else if (spec.startsWith('~/data/')) base = aliasToSrc(spec, '~/data/', 'data/');
-	else if (spec.startsWith('@root/data/')) base = aliasToSrc(spec, '@root/', '');
-	else if (spec.startsWith('./') || spec.startsWith('../')) {
-		const resolved = join(dir, spec);
-		if (resolved.startsWith('src/data/') || resolved.startsWith('src/content/')) base = resolved;
-		else if (resolved.endsWith('.json')) base = resolved;
-		else return [];
-	} else return [];
-
-	if (DATA_FILE_EXTS.some((ext) => base!.endsWith(ext))) return [base];
-	// Extensionless module: a file or a directory index.
-	return [`${base}.ts`, `${base}/index.ts`];
-}
-
-/** Map a local component/layout import to its repo-relative `.astro` path, else `null`. */
-function uiSpecToRepoRel(spec: string, dir: string): string | null {
-	let rel: string | null = null;
-	for (const prefix of LOCAL_UI_PREFIXES) {
-		if (spec.startsWith(prefix)) {
-			// `@root/x` → `src/x`; `@components/x`/`@layouts/x` → `src/components|layouts/x`.
-			rel = spec.startsWith('@root/')
-				? `src/${spec.slice('@root/'.length)}`
-				: `src/${spec.slice('@'.length)}`;
-			break;
-		}
-	}
-	if (!rel && (spec.startsWith('./') || spec.startsWith('../'))) {
-		const resolved = join(dir, spec);
-		if (resolved.startsWith('src/')) rel = resolved;
-	}
-	if (!rel || !rel.endsWith('.astro')) return null;
-	return existsSync(join(getRepoRoot(), rel)) ? rel : null;
-}
-
-/** Generous ceiling for the one-shot `git log` buffer (output is a few MB for `src/`). */
-const GIT_LOG_MAX_BUFFER = 256 * 1024 * 1024;
-
-/**
- * Map of repo-relative path → last-commit epoch (ms), from a single `git log`
- * pass instead of one subprocess per file. Commits are newest-first, so a path's
- * first appearance is its latest commit. The `\x1f` prefix marks date lines (file
- * paths never contain it). Scoped to `src/`, where every sitemap source lives, to
- * keep the output and map small.
- */
-let gitDateMap: Map<string, number> | null = null;
-function getGitDateMap(): Map<string, number> {
-	if (gitDateMap !== null) return gitDateMap;
-	const dates = new Map<string, number>();
-	try {
-		const out = execFileSync(
-			'git',
-			['log', '--no-renames', '--format=\x1f%cI', '--name-only', '--', 'src/'],
-			{
-				encoding: 'utf8',
-				maxBuffer: GIT_LOG_MAX_BUFFER,
-				cwd: getRepoRoot(),
-			}
-		);
-		let current = 0;
-		for (const line of out.split('\n')) {
-			if (line.startsWith('\x1f')) {
-				current = Date.parse(line.slice(1));
-			} else if (line && current > 0 && !dates.has(line)) {
-				dates.set(line, current);
-			}
-		}
-	} catch {
-		// git unavailable (e.g. shallow CI checkout without history) — leave empty;
-		// every entry then renders without <lastmod> rather than failing the build.
-	}
-	gitDateMap = dates;
-	return gitDateMap;
 }
