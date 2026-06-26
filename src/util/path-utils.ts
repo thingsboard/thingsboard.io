@@ -174,6 +174,9 @@ export function getSectionFromPath(pathname: string): string | undefined {
 export function getVersionBaseURL(version: Products, lang: SupportedLanguage = 'en'): string {
 	const langPrefix = getLanguagePrefix(lang);
 	const versionPrefix = getVersionPrefix(version);
+	if (version === Products.IOT_HUB) {
+		return `/${langPrefix}docs/${versionPrefix}user-guides/`;
+	}
 	return `/${langPrefix}docs/${versionPrefix}`;
 }
 

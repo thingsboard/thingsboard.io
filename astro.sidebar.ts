@@ -2,7 +2,9 @@ import type { StarlightUserConfig } from '@astrojs/starlight/types';
 
 type SidebarConfig = NonNullable<StarlightUserConfig['sidebar']>;
 
-const guideItems = (prefix: string, { isPE = false } = {}) => [
+const guideItems = (prefix: string, { isPE = false } = {}) => {
+	const rp = prefix.replace('/user-guide', '/recipes');
+	return [
 	{
 		label: 'Digital Twins',
 		collapsed: true,
@@ -44,6 +46,30 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 			`${prefix}/scada`,
 			`${prefix}/units`,
 			`${prefix}/advanced-data-key-configuration`,
+			...(isPE ? [{
+				label: 'Solution Templates',
+				collapsed: true,
+				items: [
+					{ label: 'Overview', slug: `${rp}/solution-templates/overview` },
+					`${rp}/solution-templates/temperature-humidity-sensors`,
+					`${rp}/solution-templates/smart-office`,
+					`${rp}/solution-templates/site-fleet-tracking`,
+					`${rp}/solution-templates/fuel-level-monitoring`,
+					`${rp}/solution-templates/swimming-pool-scada-system`,
+					`${rp}/solution-templates/scada-drilling-system`,
+					`${rp}/solution-templates/scada-energy-management`,
+					`${rp}/solution-templates/air-quality-monitoring`,
+					`${rp}/solution-templates/water-metering`,
+					`${rp}/solution-templates/smart-retail`,
+					`${rp}/solution-templates/smart-irrigation`,
+					`${rp}/solution-templates/assisted-living`,
+					`${rp}/solution-templates/waste-management`,
+				],
+			}, {
+				label: 'Walkthroughs',
+				collapsed: true,
+				items: [`${prefix}/advanced-guides-for-working-with-dashboard`],
+			}] : []),
 		],
 	},
 	{
@@ -61,7 +87,28 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 	{
 		label: 'Alarms & Notifications',
 		collapsed: true,
-		items: [`${prefix}/alarms`, `${prefix}/alarm-rules`, `${prefix}/notifications`],
+		items: [
+			`${prefix}/alarms`,
+			`${prefix}/alarm-rules`,
+			`${prefix}/notifications`,
+			{
+				label: 'Recipes',
+				collapsed: true,
+				items: [
+					`${rp}/alarm-rule-tutorials`,
+					`${rp}/create-clear-alarms`,
+					`${rp}/device-inactivity-alarm`,
+					`${rp}/enrich-alarms-with-details`,
+					`${rp}/send-email-alarm`,
+					`${rp}/send-sms-alarm`,
+					`${rp}/send-slack-alarm`,
+					`${rp}/send-mobile-app-alarm`,
+					`${rp}/send-microsoft-teams-alarm`,
+					`${rp}/send-alarm-email-to-customer`,
+					`${rp}/telegram-alarm-notification`,
+				],
+			},
+		],
 	},
 	{
 		label: 'Data Processing',
@@ -84,6 +131,17 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 						label: 'Time Series Aggregation',
 						slug: `${prefix}/calculated-fields/time-series-data-aggregation`,
 					},
+					{
+						label: 'Examples',
+						collapsed: true,
+						items: [
+							`${rp}/aggregate-related-entities`,
+							`${rp}/average-temperature-related-devices`,
+							`${rp}/water-consumption-hourly-delta`,
+							`${rp}/telemetry-delta-two-devices`,
+							`${rp}/telemetry-delta-calculation`,
+						],
+					},
 				],
 			},
 			{
@@ -93,9 +151,28 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 					{ label: 'Overview', slug: `${prefix}/rule-engine` },
 					{ label: 'Queues', slug: `${prefix}/rule-engine/queues` },
 					{ label: 'Monitoring', slug: `${prefix}/rule-engine/monitoring` },
+					{
+						label: 'Recipes',
+						collapsed: true,
+						items: [
+							`${rp}/python-telemetry`,
+							`${rp}/trigger-related-entities-via-relation`,
+							`${rp}/rpc-reply-with-related-telemetry`,
+							`${rp}/send-rpc-to-related-device`,
+							`${rp}/fetch-weather-data`,
+							`${rp}/validate-incoming-telemetry`,
+							`${rp}/websocket-live-telemetry`,
+							...(isPE ? [`${rp}/add-devices-to-group`] : []),
+						],
+					},
 				],
 			},
 			`${prefix}/rule-nodes`,
+			{
+				label: 'Storage & Retention',
+				collapsed: true,
+				items: [`${rp}/configure-telemetry-ttl`],
+			},
 		],
 	},
 	{
@@ -109,6 +186,16 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 			`${prefix}/reporting/notifications`,
 			`${prefix}/reporting/charts`,
 			`${prefix}/reporting/dashboards`,
+			...(isPE ? [{
+				label: 'Recipes',
+				collapsed: true,
+				items: [
+					`${rp}/reporting-embed-dashboard`,
+					`${rp}/reporting-line-chart-temperature`,
+					`${rp}/reporting-subreport-daily-alarms`,
+					`${rp}/reporting-alarm-notification`,
+				],
+			}] : []),
 		],
 	},
 	{
@@ -120,6 +207,14 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 			`${prefix}/integrations/uplink-data-converter`,
 			`${prefix}/integrations/downlink-data-converter`,
 			`${prefix}/integrations/remote`,
+			...(isPE ? [{
+				label: 'Recipes',
+				collapsed: true,
+				items: [
+					`${rp}/mqtt-one-way-rpc`,
+					`${rp}/mqtt-two-way-rpc`,
+				],
+			}] : []),
 		],
 	},
 	{
@@ -131,6 +226,15 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 			{ label: 'Mail Templates', slug: `${prefix}/white-labeling-mail` },
 			{ label: 'Custom Translation', slug: `${prefix}/white-labeling-translation` },
 			{ label: 'Custom Menu', slug: `${prefix}/white-labeling-menu` },
+			...(isPE ? [{
+				label: 'Recipes',
+				collapsed: true,
+				items: [
+					`${rp}/white-labeling-translate-dashboard`,
+					`${rp}/white-labeling-html-value-card`,
+					`${rp}/white-labeling-post-processing`,
+				],
+			}] : []),
 		],
 	},
 	{
@@ -188,6 +292,17 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 					`${prefix}/security/secrets-storage`,
 				],
 			},
+			...(isPE ? [{
+				label: 'Recipes',
+				collapsed: true,
+				items: [
+					`${rp}/rbac-read-only-analyst`,
+					`${rp}/rbac-customer-scoped-access`,
+					`${rp}/rbac-generic-role-scope`,
+					`${rp}/rbac-isolated-device-groups`,
+					`${rp}/rbac-smart-buildings`,
+				],
+			}] : []),
 		],
 	},
 	{
@@ -234,7 +349,8 @@ const guideItems = (prefix: string, { isPE = false } = {}) => [
 		],
 	},
 	{ label: 'Troubleshooting', slug: `${prefix.replace('/user-guide', '')}/troubleshooting` },
-];
+	];
+};
 
 const edgeInstallationItems = (prefix: string) => {
 	const isPE = prefix.includes('/pe');
@@ -1641,7 +1757,8 @@ const mainSidebarItems = (
 	prefix: string,
 	extraRecipeItems: SidebarConfig = [],
 	referenceConfigItems: SidebarConfig = [],
-	extraProcessingItems: string[] = []
+	extraProcessingItems: string[] = [],
+	{ includeRecipes = true }: { includeRecipes?: boolean } = {}
 ): SidebarConfig => [
 	{
 		label: 'Getting Started',
@@ -1707,12 +1824,12 @@ const mainSidebarItems = (
 			},
 		],
 	},
-	{
+	...(includeRecipes ? [{
 		label: 'Recipes',
 		collapsed: true,
 		translations: { uk: 'Рецепти' },
 		items: [...recipeItems(`${prefix}/recipes`, extraProcessingItems), ...extraRecipeItems],
-	},
+	}] : []),
 	{
 		label: 'Installation',
 		collapsed: true,
@@ -1731,78 +1848,18 @@ const mainSidebarItems = (
 	},
 ];
 
-export const opensourceSidebar: SidebarConfig = mainSidebarItems('docs', [], []);
+export const opensourceSidebar: SidebarConfig = mainSidebarItems('docs', [], [], [], { includeRecipes: false });
 
 /** Professional Edition documentation sidebar (pages at /docs/pe/) */
 export const peSidebar: SidebarConfig = mainSidebarItems(
 	'docs/pe',
-	[
-		{
-			label: 'Reporting',
-			collapsed: true,
-			items: [
-				'docs/pe/recipes/reporting-embed-dashboard',
-				'docs/pe/recipes/reporting-line-chart-temperature',
-				'docs/pe/recipes/reporting-subreport-daily-alarms',
-				'docs/pe/recipes/reporting-alarm-notification',
-			],
-		},
-		{
-			label: 'Access Control',
-			collapsed: true,
-			items: [
-				'docs/pe/recipes/rbac-read-only-analyst',
-				'docs/pe/recipes/rbac-customer-scoped-access',
-				'docs/pe/recipes/rbac-generic-role-scope',
-				'docs/pe/recipes/rbac-isolated-device-groups',
-				'docs/pe/recipes/rbac-smart-buildings',
-			],
-		},
-		{
-			label: 'UI Customization',
-			collapsed: true,
-			items: [
-				'docs/pe/recipes/white-labeling-translate-dashboard',
-				'docs/pe/recipes/white-labeling-html-value-card',
-				'docs/pe/recipes/white-labeling-post-processing',
-			],
-		},
-		{
-			label: 'Integrations',
-			collapsed: true,
-			items: ['docs/pe/recipes/mqtt-one-way-rpc', 'docs/pe/recipes/mqtt-two-way-rpc'],
-		},
-		{
-			label: 'Walkthroughs',
-			collapsed: true,
-			items: ['docs/pe/user-guide/advanced-guides-for-working-with-dashboard'],
-		},
-		{
-			label: 'Solution Templates',
-			collapsed: true,
-			items: [
-				'docs/pe/recipes/solution-templates/overview',
-				'docs/pe/recipes/solution-templates/temperature-humidity-sensors',
-				'docs/pe/recipes/solution-templates/smart-office',
-				'docs/pe/recipes/solution-templates/site-fleet-tracking',
-				'docs/pe/recipes/solution-templates/fuel-level-monitoring',
-				'docs/pe/recipes/solution-templates/swimming-pool-scada-system',
-				'docs/pe/recipes/solution-templates/scada-drilling-system',
-				'docs/pe/recipes/solution-templates/scada-energy-management',
-				'docs/pe/recipes/solution-templates/air-quality-monitoring',
-				'docs/pe/recipes/solution-templates/water-metering',
-				'docs/pe/recipes/solution-templates/smart-retail',
-				'docs/pe/recipes/solution-templates/smart-irrigation',
-				'docs/pe/recipes/solution-templates/assisted-living',
-				'docs/pe/recipes/solution-templates/waste-management',
-			],
-		},
-	],
+	[],
 	[
 		'docs/pe/reference/configuration/ie-executor-config',
 		'docs/pe/reference/configuration/report-service-config',
 	],
-	['docs/pe/recipes/add-devices-to-group']
+	[],
+	{ includeRecipes: false }
 );
 
 /** Cloud (PaaS) documentation sidebar (pages at /docs/paas/) */
@@ -1878,6 +1935,31 @@ export const paasSidebar: SidebarConfig = [
 					'docs/paas/user-guide/scada',
 					'docs/paas/user-guide/units',
 					'docs/paas/user-guide/advanced-data-key-configuration',
+					{
+						label: 'Solution Templates',
+						collapsed: true,
+						items: [
+							{ label: 'Overview', slug: 'docs/paas/recipes/solution-templates/overview' },
+							'docs/paas/recipes/solution-templates/temperature-humidity-sensors',
+							'docs/paas/recipes/solution-templates/smart-office',
+							'docs/paas/recipes/solution-templates/site-fleet-tracking',
+							'docs/paas/recipes/solution-templates/fuel-level-monitoring',
+							'docs/paas/recipes/solution-templates/swimming-pool-scada-system',
+							'docs/paas/recipes/solution-templates/scada-drilling-system',
+							'docs/paas/recipes/solution-templates/scada-energy-management',
+							'docs/paas/recipes/solution-templates/air-quality-monitoring',
+							'docs/paas/recipes/solution-templates/water-metering',
+							'docs/paas/recipes/solution-templates/smart-retail',
+							'docs/paas/recipes/solution-templates/smart-irrigation',
+							'docs/paas/recipes/solution-templates/assisted-living',
+							'docs/paas/recipes/solution-templates/waste-management',
+						],
+					},
+					{
+						label: 'Walkthroughs',
+						collapsed: true,
+						items: ['docs/paas/user-guide/advanced-guides-for-working-with-dashboard'],
+					},
 				],
 			},
 			{
@@ -1898,6 +1980,23 @@ export const paasSidebar: SidebarConfig = [
 					'docs/paas/user-guide/alarms',
 					'docs/paas/user-guide/alarm-rules',
 					'docs/paas/user-guide/notifications',
+					{
+						label: 'Recipes',
+						collapsed: true,
+						items: [
+							'docs/paas/recipes/alarm-rule-tutorials',
+							'docs/paas/recipes/create-clear-alarms',
+							'docs/paas/recipes/device-inactivity-alarm',
+							'docs/paas/recipes/enrich-alarms-with-details',
+							'docs/paas/recipes/send-email-alarm',
+							'docs/paas/recipes/send-sms-alarm',
+							'docs/paas/recipes/send-slack-alarm',
+							'docs/paas/recipes/send-mobile-app-alarm',
+							'docs/paas/recipes/send-microsoft-teams-alarm',
+							'docs/paas/recipes/send-alarm-email-to-customer',
+							'docs/paas/recipes/telegram-alarm-notification',
+						],
+					},
 				],
 			},
 			{
@@ -1921,6 +2020,17 @@ export const paasSidebar: SidebarConfig = [
 								label: 'Time Series Aggregation',
 								slug: 'docs/paas/user-guide/calculated-fields/time-series-data-aggregation',
 							},
+							{
+								label: 'Examples',
+								collapsed: true,
+								items: [
+									'docs/paas/recipes/aggregate-related-entities',
+									'docs/paas/recipes/average-temperature-related-devices',
+									'docs/paas/recipes/water-consumption-hourly-delta',
+									'docs/paas/recipes/telemetry-delta-two-devices',
+									'docs/paas/recipes/telemetry-delta-calculation',
+								],
+							},
 						],
 					},
 					{
@@ -1930,9 +2040,28 @@ export const paasSidebar: SidebarConfig = [
 							{ label: 'Overview', slug: 'docs/paas/user-guide/rule-engine' },
 							{ label: 'Queues', slug: 'docs/paas/user-guide/rule-engine/queues' },
 							{ label: 'Monitoring', slug: 'docs/paas/user-guide/rule-engine/monitoring' },
+							{
+								label: 'Recipes',
+								collapsed: true,
+								items: [
+									'docs/paas/recipes/python-telemetry',
+									'docs/paas/recipes/trigger-related-entities-via-relation',
+									'docs/paas/recipes/rpc-reply-with-related-telemetry',
+									'docs/paas/recipes/send-rpc-to-related-device',
+									'docs/paas/recipes/fetch-weather-data',
+									'docs/paas/recipes/validate-incoming-telemetry',
+									'docs/paas/recipes/websocket-live-telemetry',
+									'docs/paas/recipes/add-devices-to-group',
+								],
+							},
 						],
 					},
 					'docs/paas/user-guide/rule-nodes',
+					{
+						label: 'Storage & Retention',
+						collapsed: true,
+						items: ['docs/paas/recipes/configure-telemetry-ttl'],
+					},
 				],
 			},
 			{
@@ -1946,6 +2075,16 @@ export const paasSidebar: SidebarConfig = [
 					'docs/paas/user-guide/reporting/notifications',
 					'docs/paas/user-guide/reporting/charts',
 					'docs/paas/user-guide/reporting/dashboards',
+					{
+						label: 'Recipes',
+						collapsed: true,
+						items: [
+							'docs/paas/recipes/reporting-embed-dashboard',
+							'docs/paas/recipes/reporting-line-chart-temperature',
+							'docs/paas/recipes/reporting-subreport-daily-alarms',
+							'docs/paas/recipes/reporting-alarm-notification',
+						],
+					},
 				],
 			},
 			{
@@ -1968,6 +2107,15 @@ export const paasSidebar: SidebarConfig = [
 					{ label: 'Mail Templates', slug: 'docs/paas/user-guide/white-labeling-mail' },
 					{ label: 'Custom Translation', slug: 'docs/paas/user-guide/white-labeling-translation' },
 					{ label: 'Custom Menu', slug: 'docs/paas/user-guide/white-labeling-menu' },
+					{
+						label: 'Recipes',
+						collapsed: true,
+						items: [
+							'docs/paas/recipes/white-labeling-translate-dashboard',
+							'docs/paas/recipes/white-labeling-html-value-card',
+							'docs/paas/recipes/white-labeling-post-processing',
+						],
+					},
 				],
 			},
 			{
@@ -2022,6 +2170,17 @@ export const paasSidebar: SidebarConfig = [
 							'docs/paas/user-guide/security/domains',
 							'docs/paas/user-guide/security/audit-log',
 							'docs/paas/user-guide/security/secrets-storage',
+						],
+					},
+					{
+						label: 'Recipes',
+						collapsed: true,
+						items: [
+							'docs/paas/recipes/rbac-read-only-analyst',
+							'docs/paas/recipes/rbac-customer-scoped-access',
+							'docs/paas/recipes/rbac-generic-role-scope',
+							'docs/paas/recipes/rbac-isolated-device-groups',
+							'docs/paas/recipes/rbac-smart-buildings',
 						],
 					},
 				],
@@ -2089,69 +2248,6 @@ export const paasSidebar: SidebarConfig = [
 				items: [
 					'docs/paas/user-guide/mcp-server',
 					'docs/paas/user-guide/n8n-node',
-				],
-			},
-		],
-	},
-	{
-		label: 'Recipes',
-		collapsed: true,
-		translations: { uk: 'Рецепти' },
-		items: [
-			...recipeItems('docs/paas/recipes', ['docs/paas/recipes/add-devices-to-group']),
-			{
-				label: 'Reporting',
-				collapsed: true,
-				items: [
-					'docs/paas/recipes/reporting-embed-dashboard',
-					'docs/paas/recipes/reporting-line-chart-temperature',
-					'docs/paas/recipes/reporting-subreport-daily-alarms',
-					'docs/paas/recipes/reporting-alarm-notification',
-				],
-			},
-			{
-				label: 'Access Control',
-				collapsed: true,
-				items: [
-					'docs/paas/recipes/rbac-read-only-analyst',
-					'docs/paas/recipes/rbac-customer-scoped-access',
-					'docs/paas/recipes/rbac-generic-role-scope',
-					'docs/paas/recipes/rbac-isolated-device-groups',
-					'docs/paas/recipes/rbac-smart-buildings',
-				],
-			},
-			{
-				label: 'UI Customization',
-				collapsed: true,
-				items: [
-					'docs/paas/recipes/white-labeling-translate-dashboard',
-					'docs/paas/recipes/white-labeling-html-value-card',
-					'docs/paas/recipes/white-labeling-post-processing',
-				],
-			},
-			{
-				label: 'Walkthroughs',
-				collapsed: true,
-				items: ['docs/paas/user-guide/advanced-guides-for-working-with-dashboard'],
-			},
-			{
-				label: 'Solution Templates',
-				collapsed: true,
-				items: [
-					'docs/paas/recipes/solution-templates/overview',
-					'docs/paas/recipes/solution-templates/temperature-humidity-sensors',
-					'docs/paas/recipes/solution-templates/smart-office',
-					'docs/paas/recipes/solution-templates/site-fleet-tracking',
-					'docs/paas/recipes/solution-templates/fuel-level-monitoring',
-					'docs/paas/recipes/solution-templates/swimming-pool-scada-system',
-					'docs/paas/recipes/solution-templates/scada-drilling-system',
-					'docs/paas/recipes/solution-templates/scada-energy-management',
-					'docs/paas/recipes/solution-templates/air-quality-monitoring',
-					'docs/paas/recipes/solution-templates/water-metering',
-					'docs/paas/recipes/solution-templates/smart-retail',
-					'docs/paas/recipes/solution-templates/smart-irrigation',
-					'docs/paas/recipes/solution-templates/assisted-living',
-					'docs/paas/recipes/solution-templates/waste-management',
 				],
 			},
 		],
@@ -2240,6 +2336,31 @@ export const paasEuSidebar: SidebarConfig = [
 					'docs/paas/eu/user-guide/scada',
 					'docs/paas/eu/user-guide/units',
 					'docs/paas/eu/user-guide/advanced-data-key-configuration',
+					{
+						label: 'Solution Templates',
+						collapsed: true,
+						items: [
+							{ label: 'Overview', slug: 'docs/paas/eu/recipes/solution-templates/overview' },
+							'docs/paas/eu/recipes/solution-templates/temperature-humidity-sensors',
+							'docs/paas/eu/recipes/solution-templates/smart-office',
+							'docs/paas/eu/recipes/solution-templates/site-fleet-tracking',
+							'docs/paas/eu/recipes/solution-templates/fuel-level-monitoring',
+							'docs/paas/eu/recipes/solution-templates/swimming-pool-scada-system',
+							'docs/paas/eu/recipes/solution-templates/scada-drilling-system',
+							'docs/paas/eu/recipes/solution-templates/scada-energy-management',
+							'docs/paas/eu/recipes/solution-templates/air-quality-monitoring',
+							'docs/paas/eu/recipes/solution-templates/water-metering',
+							'docs/paas/eu/recipes/solution-templates/smart-retail',
+							'docs/paas/eu/recipes/solution-templates/smart-irrigation',
+							'docs/paas/eu/recipes/solution-templates/assisted-living',
+							'docs/paas/eu/recipes/solution-templates/waste-management',
+						],
+					},
+					{
+						label: 'Walkthroughs',
+						collapsed: true,
+						items: ['docs/paas/eu/user-guide/advanced-guides-for-working-with-dashboard'],
+					},
 				],
 			},
 			{
@@ -2260,6 +2381,23 @@ export const paasEuSidebar: SidebarConfig = [
 					'docs/paas/eu/user-guide/alarms',
 					'docs/paas/eu/user-guide/alarm-rules',
 					'docs/paas/eu/user-guide/notifications',
+					{
+						label: 'Recipes',
+						collapsed: true,
+						items: [
+							'docs/paas/eu/recipes/alarm-rule-tutorials',
+							'docs/paas/eu/recipes/create-clear-alarms',
+							'docs/paas/eu/recipes/device-inactivity-alarm',
+							'docs/paas/eu/recipes/enrich-alarms-with-details',
+							'docs/paas/eu/recipes/send-email-alarm',
+							'docs/paas/eu/recipes/send-sms-alarm',
+							'docs/paas/eu/recipes/send-slack-alarm',
+							'docs/paas/eu/recipes/send-mobile-app-alarm',
+							'docs/paas/eu/recipes/send-microsoft-teams-alarm',
+							'docs/paas/eu/recipes/send-alarm-email-to-customer',
+							'docs/paas/eu/recipes/telegram-alarm-notification',
+						],
+					},
 				],
 			},
 			{
@@ -2286,6 +2424,17 @@ export const paasEuSidebar: SidebarConfig = [
 								label: 'Time Series Aggregation',
 								slug: 'docs/paas/eu/user-guide/calculated-fields/time-series-data-aggregation',
 							},
+							{
+								label: 'Examples',
+								collapsed: true,
+								items: [
+									'docs/paas/eu/recipes/aggregate-related-entities',
+									'docs/paas/eu/recipes/average-temperature-related-devices',
+									'docs/paas/eu/recipes/water-consumption-hourly-delta',
+									'docs/paas/eu/recipes/telemetry-delta-two-devices',
+									'docs/paas/eu/recipes/telemetry-delta-calculation',
+								],
+							},
 						],
 					},
 					{
@@ -2295,9 +2444,28 @@ export const paasEuSidebar: SidebarConfig = [
 							{ label: 'Overview', slug: 'docs/paas/eu/user-guide/rule-engine' },
 							{ label: 'Queues', slug: 'docs/paas/eu/user-guide/rule-engine/queues' },
 							{ label: 'Monitoring', slug: 'docs/paas/eu/user-guide/rule-engine/monitoring' },
+							{
+								label: 'Recipes',
+								collapsed: true,
+								items: [
+									'docs/paas/eu/recipes/python-telemetry',
+									'docs/paas/eu/recipes/trigger-related-entities-via-relation',
+									'docs/paas/eu/recipes/rpc-reply-with-related-telemetry',
+									'docs/paas/eu/recipes/send-rpc-to-related-device',
+									'docs/paas/eu/recipes/fetch-weather-data',
+									'docs/paas/eu/recipes/validate-incoming-telemetry',
+									'docs/paas/eu/recipes/websocket-live-telemetry',
+									'docs/paas/eu/recipes/add-devices-to-group',
+								],
+							},
 						],
 					},
 					'docs/paas/eu/user-guide/rule-nodes',
+					{
+						label: 'Storage & Retention',
+						collapsed: true,
+						items: ['docs/paas/eu/recipes/configure-telemetry-ttl'],
+					},
 				],
 			},
 			{
@@ -2311,6 +2479,16 @@ export const paasEuSidebar: SidebarConfig = [
 					'docs/paas/eu/user-guide/reporting/notifications',
 					'docs/paas/eu/user-guide/reporting/charts',
 					'docs/paas/eu/user-guide/reporting/dashboards',
+					{
+						label: 'Recipes',
+						collapsed: true,
+						items: [
+							'docs/paas/eu/recipes/reporting-embed-dashboard',
+							'docs/paas/eu/recipes/reporting-line-chart-temperature',
+							'docs/paas/eu/recipes/reporting-subreport-daily-alarms',
+							'docs/paas/eu/recipes/reporting-alarm-notification',
+						],
+					},
 				],
 			},
 			{
@@ -2336,6 +2514,15 @@ export const paasEuSidebar: SidebarConfig = [
 						slug: 'docs/paas/eu/user-guide/white-labeling-translation',
 					},
 					{ label: 'Custom Menu', slug: 'docs/paas/eu/user-guide/white-labeling-menu' },
+					{
+						label: 'Recipes',
+						collapsed: true,
+						items: [
+							'docs/paas/eu/recipes/white-labeling-translate-dashboard',
+							'docs/paas/eu/recipes/white-labeling-html-value-card',
+							'docs/paas/eu/recipes/white-labeling-post-processing',
+						],
+					},
 				],
 			},
 			{
@@ -2390,6 +2577,17 @@ export const paasEuSidebar: SidebarConfig = [
 							'docs/paas/eu/user-guide/security/domains',
 							'docs/paas/eu/user-guide/security/audit-log',
 							'docs/paas/eu/user-guide/security/secrets-storage',
+						],
+					},
+					{
+						label: 'Recipes',
+						collapsed: true,
+						items: [
+							'docs/paas/eu/recipes/rbac-read-only-analyst',
+							'docs/paas/eu/recipes/rbac-customer-scoped-access',
+							'docs/paas/eu/recipes/rbac-generic-role-scope',
+							'docs/paas/eu/recipes/rbac-isolated-device-groups',
+							'docs/paas/eu/recipes/rbac-smart-buildings',
 						],
 					},
 				],
@@ -2460,69 +2658,6 @@ export const paasEuSidebar: SidebarConfig = [
 				items: [
 					'docs/paas/eu/user-guide/mcp-server',
 					'docs/paas/eu/user-guide/n8n-node',
-				],
-			},
-		],
-	},
-	{
-		label: 'Recipes',
-		collapsed: true,
-		translations: { uk: 'Рецепти' },
-		items: [
-			...recipeItems('docs/paas/eu/recipes', ['docs/paas/eu/recipes/add-devices-to-group']),
-			{
-				label: 'Reporting',
-				collapsed: true,
-				items: [
-					'docs/paas/eu/recipes/reporting-embed-dashboard',
-					'docs/paas/eu/recipes/reporting-line-chart-temperature',
-					'docs/paas/eu/recipes/reporting-subreport-daily-alarms',
-					'docs/paas/eu/recipes/reporting-alarm-notification',
-				],
-			},
-			{
-				label: 'Access Control',
-				collapsed: true,
-				items: [
-					'docs/paas/eu/recipes/rbac-read-only-analyst',
-					'docs/paas/eu/recipes/rbac-customer-scoped-access',
-					'docs/paas/eu/recipes/rbac-generic-role-scope',
-					'docs/paas/eu/recipes/rbac-isolated-device-groups',
-					'docs/paas/eu/recipes/rbac-smart-buildings',
-				],
-			},
-			{
-				label: 'UI Customization',
-				collapsed: true,
-				items: [
-					'docs/paas/eu/recipes/white-labeling-translate-dashboard',
-					'docs/paas/eu/recipes/white-labeling-html-value-card',
-					'docs/paas/eu/recipes/white-labeling-post-processing',
-				],
-			},
-			{
-				label: 'Walkthroughs',
-				collapsed: true,
-				items: ['docs/paas/eu/user-guide/advanced-guides-for-working-with-dashboard'],
-			},
-			{
-				label: 'Solution Templates',
-				collapsed: true,
-				items: [
-					'docs/paas/eu/recipes/solution-templates/overview',
-					'docs/paas/eu/recipes/solution-templates/temperature-humidity-sensors',
-					'docs/paas/eu/recipes/solution-templates/smart-office',
-					'docs/paas/eu/recipes/solution-templates/site-fleet-tracking',
-					'docs/paas/eu/recipes/solution-templates/fuel-level-monitoring',
-					'docs/paas/eu/recipes/solution-templates/swimming-pool-scada-system',
-					'docs/paas/eu/recipes/solution-templates/scada-drilling-system',
-					'docs/paas/eu/recipes/solution-templates/scada-energy-management',
-					'docs/paas/eu/recipes/solution-templates/air-quality-monitoring',
-					'docs/paas/eu/recipes/solution-templates/water-metering',
-					'docs/paas/eu/recipes/solution-templates/smart-retail',
-					'docs/paas/eu/recipes/solution-templates/smart-irrigation',
-					'docs/paas/eu/recipes/solution-templates/assisted-living',
-					'docs/paas/eu/recipes/solution-templates/waste-management',
 				],
 			},
 		],
@@ -4157,18 +4292,27 @@ export const licenseSidebar: SidebarConfig = [
 /** IoT Hub sidebar (pages at /docs/iot-hub/) */
 export const iotHubSidebar: SidebarConfig = [
 	{
-		label: 'Getting Started',
-		items: [{ label: 'Overview', slug: 'docs/iot-hub' }],
+		label: 'User Guides',
+		items: [
+			{ label: 'IoT Device Library', slug: 'docs/iot-hub/user-guides/device-library' },
+			{ label: 'IoT Solution Templates', slug: 'docs/iot-hub/user-guides/solution-templates' },
+			{ label: 'Widgets', slug: 'docs/iot-hub/user-guides/widgets' },
+			{ label: 'Calculated Fields', slug: 'docs/iot-hub/user-guides/calculated-fields' },
+			{ label: 'Alarm Rules', slug: 'docs/iot-hub/user-guides/alarm-rules' },
+			{ label: 'Rule Chains', slug: 'docs/iot-hub/user-guides/rule-chains' },
+			{ label: 'FAQ', slug: 'docs/iot-hub/user-guides/faq' },
+		],
 	},
 	{
-		label: 'Contribution guides',
+		label: 'Contribution Guides',
 		items: [
-			{ label: 'Device Library', slug: 'docs/iot-hub/guides/device' },
-			{ label: 'Solution Templates', slug: 'docs/iot-hub/guides/solution-template' },
-			{ label: 'Widgets', slug: 'docs/iot-hub/guides/widget' },
-			{ label: 'Calculated Fields', slug: 'docs/iot-hub/guides/calculated-field' },
-			{ label: 'Alarm Rules', slug: 'docs/iot-hub/guides/alarm-rule' },
-			{ label: 'Rule Chains', slug: 'docs/iot-hub/guides/rule-chain' },
+			{ label: 'IoT Device Library', slug: 'docs/iot-hub/contribution-guides/device' },
+			{ label: 'IoT Solution Templates', slug: 'docs/iot-hub/contribution-guides/solution-template' },
+			{ label: 'Widgets', slug: 'docs/iot-hub/contribution-guides/widget' },
+			{ label: 'Calculated Fields', slug: 'docs/iot-hub/contribution-guides/calculated-field' },
+			{ label: 'Alarm Rules', slug: 'docs/iot-hub/contribution-guides/alarm-rule' },
+			{ label: 'Rule Chains', slug: 'docs/iot-hub/contribution-guides/rule-chain' },
+			{ label: 'FAQ', slug: 'docs/iot-hub/contribution-guides/faq' },
 		],
 	},
 ];
@@ -4179,7 +4323,6 @@ export const opensourceSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/',
 	Guides: '/docs/user-guide/',
 	'Build with AI': '/docs/iot-solutions-with-ai/',
-	Recipes: '/docs/recipes/',
 	Installation: '/docs/installation/',
 	'APIs & SDKs': '/docs/apis-and-sdks/',
 	Reference: '/docs/reference/',
@@ -4188,7 +4331,6 @@ export const peSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/pe/',
 	Guides: '/docs/pe/user-guide/',
 	'Build with AI': '/docs/pe/iot-solutions-with-ai/',
-	Recipes: '/docs/pe/recipes/',
 	Installation: '/docs/pe/installation/',
 	'APIs & SDKs': '/docs/pe/apis-and-sdks/',
 	Reference: '/docs/pe/reference/',
@@ -4198,7 +4340,6 @@ export const paasSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/paas/',
 	Guides: '/docs/paas/user-guide/',
 	'Build with AI': '/docs/paas/iot-solutions-with-ai/',
-	Recipes: '/docs/paas/recipes/',
 	'APIs & SDKs': '/docs/paas/apis-and-sdks/',
 	Reference: '/docs/paas/reference/',
 };
@@ -4206,7 +4347,6 @@ export const paasEuSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/paas/eu/',
 	Guides: '/docs/paas/eu/user-guide/',
 	'Build with AI': '/docs/paas/eu/iot-solutions-with-ai/',
-	Recipes: '/docs/paas/eu/recipes/',
 	'APIs & SDKs': '/docs/paas/eu/apis-and-sdks/',
 	Reference: '/docs/paas/eu/reference/',
 };
@@ -4275,8 +4415,8 @@ export const licenseSidebarTabLinks: SidebarTabLinks = {
 	'Account & Billing': '/docs/license-server/billing-info/',
 };
 export const iotHubSidebarTabLinks: SidebarTabLinks = {
-	'Getting Started': '/docs/iot-hub/',
-	'Contribution guides': '/docs/iot-hub/guides/device/',
+	'User Guides': '/docs/iot-hub/user-guides/',
+	'Contribution Guides': '/docs/iot-hub/contribution-guides/',
 };
 
 /**

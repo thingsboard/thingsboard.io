@@ -711,10 +711,10 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'pe/user-guide/widgets/map-widgets', target: '/docs/pe/reference/widgets/maps/map/' },
 	{ oldPath: 'paas/user-guide/widgets/map-widgets', target: '/docs/paas/reference/widgets/maps/map/' },
 	{ oldPath: 'paas/eu/user-guide/widgets/map-widgets', target: '/docs/paas/eu/reference/widgets/maps/map/' },
-	{ oldPath: 'guides', target: '/docs/recipes/' },
-	{ oldPath: 'pe/guides', target: '/docs/pe/recipes/' },
-	{ oldPath: 'paas/guides', target: '/docs/paas/recipes/' },
-	{ oldPath: 'paas/eu/guides', target: '/docs/paas/eu/recipes/' },
+	{ oldPath: 'guides', target: '/docs/user-guide/' },
+	{ oldPath: 'pe/guides', target: '/docs/pe/user-guide/' },
+	{ oldPath: 'paas/guides', target: '/docs/paas/user-guide/' },
+	{ oldPath: 'paas/eu/guides', target: '/docs/paas/eu/user-guide/' },
 	{ oldPath: 'user-guide/integrations/decode', target: '/docs/user-guide/integrations/' },
   { oldPath: 'user-guide/integrations/remote-integrations', target: '/docs/user-guide/integrations/' },
 	{ oldPath: 'paas/user-guide/integrations/remote-integrations', target: '/docs/paas/user-guide/integrations/' },
@@ -765,7 +765,7 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'paas/user-guide/rule-engine-2-0/re-getting-started', target: '/docs/paas/user-guide/rule-engine/' },
 	{ oldPath: 'paas/eu/user-guide/rule-engine-2-0/re-getting-started', target: '/docs/paas/eu/user-guide/rule-engine/' },
 	{ oldPath: 'getting-started-guides/helloworld-pe', target: '/docs/pe/getting-started/' },
-	{ oldPath: 'iot-video-tutorials', target: '/docs/pe/recipes/' },
+	{ oldPath: 'iot-video-tutorials', target: '/docs/pe/user-guide/' },
 	{ oldPath: 'reference/mqtt-api', target: '/docs/reference/mqtt-api/getting-connected/' },
 	{ oldPath: 'pe/reference/mqtt-api', target: '/docs/pe/reference/mqtt-api/getting-connected/' },
 	{ oldPath: 'paas/reference/mqtt-api', target: '/docs/paas/reference/mqtt-api/getting-connected/' },
@@ -1241,6 +1241,11 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'reference/edge', target: '/docs/edge/' },
 	{ oldPath: 'user-guide/middleware', target: '/docs/user-guide/' },
 	{ oldPath: 'user-guide/ui', target: '/docs/user-guide/' },
+	// Recipes landing pages removed — redirect to the matching Guides root
+	{ oldPath: 'recipes', target: '/docs/user-guide/' },
+	{ oldPath: 'pe/recipes', target: '/docs/pe/user-guide/' },
+	{ oldPath: 'paas/recipes', target: '/docs/paas/user-guide/' },
+	{ oldPath: 'paas/eu/recipes', target: '/docs/paas/eu/user-guide/' },
 ];
 
 /**
@@ -1322,7 +1327,7 @@ export const NON_DOCS_REDIRECTS: Record<string, string> = {
 	'/device-library/paas/raspberry-pi-3-model-B-plus/': '/iot-hub/devices/raspberry-pi-3-model-b-plus/',
 	'/device-library/paas-eu/raspberry-pi-3-model-B-plus/': '/iot-hub/devices/raspberry-pi-3-model-b-plus/',
 	'/device-library/': '/iot-hub/devices/',
-	'/device-library/guidelines/': '/docs/iot-hub/guides/device/',
+	'/device-library/guidelines/': '/docs/iot-hub/contribution-guides/device/',
 
 	'/services/consulting/': '/services/development-services/'
 };
