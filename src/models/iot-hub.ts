@@ -35,13 +35,16 @@ export const IOT_HUB_CATEGORIES = [
 		tileColor: '#ccd5ff',
 		tileColorDark: '#4c63cc',
 		heroDescription:
-			'Explore the device library to find pre-configured connectivity templates you can deploy in minutes to connect your hardware instantly.',
+			'Connect your IoT hardware in one step. Find ready-to-use device profiles — sensors, gateways, controllers, meters, and trackers — with connection config and telemetry mapping built in.',
 		seoDescription:
-			'Connect your hardware in one step. Install ready-made IoT device profiles for MQTT, Modbus, and OPC UA from the ThingsBoard IoT Hub.',
+			'Connect your hardware in one step. Install ready-made IoT device profiles for LoRaWAN, NB-IoT, Modbus, and more from the ThingsBoard IoT Hub.',
 		guideHref: '/docs/iot-hub/guides/device/',
-		ctaTitle: 'Add your device',
+		// Intentionally worded differently from the other categories.
+		ctaTitle: 'Add Your Device to the Community',
 		ctaDescription:
-			'Submit your devices to the ThingsBoard IoT Hub to showcase them to our global community and make it way easier for your clients.',
+			'Built or ship IoT hardware? Package your device as a ZIP and publish it to the IoT Hub so users can provision it in one click.',
+		ctaPrimaryLabel: 'Contribute a Device',
+		ctaSecondaryLabel: 'Read the contribution guide',
 	},
 	{
 		slug: 'solution-templates',
@@ -54,10 +57,15 @@ export const IOT_HUB_CATEGORIES = [
 		tileColor: '#b8d9ff',
 		tileColorDark: '#2c6cb4',
 		heroDescription:
-			'Complete IoT solution packages with dashboards, rule chains, and device configurations. Get started with proven architectures.',
+			'Install a complete IoT solution in one step — from simple monitoring to full SCADA. Each template bundles dashboards, rule chains, and device profiles, and ships with working demo data so dashboards are never empty.',
 		seoDescription:
-			'Start from a working solution. Install ready-made IoT solution templates for retail, fleet, energy, and SCADA from the ThingsBoard IoT Hub.',
+			'Install complete IoT solution templates — dashboards, rule chains, and device profiles bundled — for energy, fleet, SCADA, and more from the IoT Hub.',
 		guideHref: '/docs/iot-hub/guides/solution-template/',
+		ctaTitle: 'Share Your Solution with the Community',
+		ctaDescription:
+			'Built a complete IoT solution? Package it as a ZIP archive — dashboards, rule chains, profiles, calculated fields, devices, and emulators — and publish it to the IoT Hub so others can deploy your architecture in one click.',
+		ctaPrimaryLabel: 'Contribute a Solution Template',
+		ctaSecondaryLabel: 'Read the contribution guide',
 	},
 	{
 		slug: 'widgets',
@@ -65,14 +73,21 @@ export const IOT_HUB_CATEGORIES = [
 		label: 'Widgets',
 		singularLabel: 'Widget',
 		tileLabel: 'Widgets',
+		heroTitle: 'IoT Dashboard Widgets',
 		card: 'big',
 		tileColor: '#a3ffc3',
 		tileColorDark: '#2c9755',
 		heroDescription:
-			'Jumpstart your IoT journey with pre-configured widgets designed for your industry. Deploy proven architectures instantly and focus your energy on what matters: your unique business logic.',
+			'Install reusable charts, gauges, maps, controls, and custom UI components to visualize telemetry and build more effective IoT dashboards.',
 		seoDescription:
 			'Build dashboards faster with ready-to-use IoT widgets. Install charts, gauges, maps, and control cards from the ThingsBoard IoT Hub.',
 		guideHref: '/docs/iot-hub/guides/widget/',
+		ctaTitle: 'Share Your Widget with the Community',
+		ctaDescription:
+			'Built a custom widget? Export it as a JSON from ThingsBoard and publish it to the IoT Hub through a simple 4-step wizard (Upload, Listing, Readme, Review & Submit). Share it with thousands of ThingsBoard developers worldwide and get featured in the catalog.',
+		// Intentionally worded differently from the other categories.
+		ctaPrimaryLabel: 'Submit Your Widget',
+		ctaSecondaryLabel: 'Read the Contributor Guide',
 	},
 	{
 		slug: 'calculated-fields',
@@ -80,14 +95,20 @@ export const IOT_HUB_CATEGORIES = [
 		label: 'Calculated Fields',
 		singularLabel: 'Calculated Field',
 		tileLabel: 'Calculated Fields',
+		heroTitle: 'IoT Calculated Fields',
 		card: 'small',
 		tileColor: '#bdedff',
 		tileColorDark: '#3db5e0',
 		heroDescription:
-			'Use pre-configured Calculated Fields to automate complex metrics like fuel efficiency or power factor. Skip the manual logic and keep your dashboards clean and actionable.',
+			'Install ready-made formulas in one click — turn raw telemetry into the metrics you monitor, like fuel efficiency or power factor, without building the logic by hand.',
 		seoDescription:
-			'Compute metrics automatically. Install ready-made IoT calculated fields for fuel efficiency, power factor, aggregations, and geofencing from the ThingsBoard IoT Hub.',
+			'Compute metrics automatically. Install ready-made IoT calculated fields for fuel efficiency, power factor, aggregations, and geofencing.',
 		guideHref: '/docs/iot-hub/guides/calculated-field/',
+		ctaTitle: 'Share Your Calculated Field with the Community',
+		ctaDescription:
+			'Built a useful data transformation? Export it as a JSON from ThingsBoard and publish it to the IoT Hub. Share it with thousands of ThingsBoard developers worldwide.',
+		ctaPrimaryLabel: 'Contribute a Calculated Field',
+		ctaSecondaryLabel: 'Read the contribution guide',
 	},
 	{
 		slug: 'alarm-rules',
@@ -95,14 +116,20 @@ export const IOT_HUB_CATEGORIES = [
 		label: 'Alarm Rules',
 		singularLabel: 'Alarm Rule',
 		tileLabel: 'Alarm Rules',
+		heroTitle: 'IoT Alarm Rules',
 		card: 'small',
 		tileColor: '#ffe6cc',
 		tileColorDark: '#d7702f',
 		heroDescription:
-			'Use pre-built Alarm Rule templates to detect critical conditions like low battery, threshold breaches, or devices going offline. Skip writing the rule logic and start reacting to incidents the moment they happen.',
+			'Install ready-to-use alarm rules in one click — detect threshold breaches, offline devices, and equipment faults, and start reacting the moment they happen.',
 		seoDescription:
-			'Catch problems before they escalate. Install ready-made IoT alarm rules for low battery, threshold breaches, and offline devices from the ThingsBoard IoT Hub.',
+			'Install ready-to-use IoT alarm rules for threshold breaches, offline devices, and equipment health — on a device, asset, or profile in one step.',
 		guideHref: '/docs/iot-hub/guides/alarm-rule/',
+		ctaTitle: 'Share Your Alarm Rule with the Community',
+		ctaDescription:
+			'Built a reliable alarm rule? Export it as a JSON from ThingsBoard and publish it to the IoT Hub. Share it with thousands of ThingsBoard developers and help the community react to incidents faster.',
+		ctaPrimaryLabel: 'Contribute an Alarm Rule',
+		ctaSecondaryLabel: 'Read the contribution guide',
 	},
 	{
 		slug: 'rule-chains',
@@ -110,14 +137,21 @@ export const IOT_HUB_CATEGORIES = [
 		label: 'Rule Chains',
 		singularLabel: 'Rule Chain',
 		tileLabel: 'Rule Chains',
+		heroTitle: 'IoT Rule Chains',
+		seoTitleStem: 'IoT Rule Chains | IoT Automation',
 		card: 'small',
 		tileColor: '#ecd1ff',
 		tileColorDark: '#bb7ce9',
 		heroDescription:
-			'From sophisticated data processing to seamless API integrations, Rule Chain templates provide the architectural foundation you need to scale without building from scratch.',
+			'Install ready-made automation logic in one click — alerting, data processing, device lifecycle, and external integrations you plug into your existing rule chain.',
 		seoDescription:
-			'Automate your IoT data flows. Install ready-made IoT rule chains for data processing, transformations, and API integrations from the ThingsBoard IoT Hub.',
+			'Install ready-made IoT rule chains for alerting, data processing, and integrations — plug them into ThingsBoard as a sub-chain in one step.',
 		guideHref: '/docs/iot-hub/guides/rule-chain/',
+		ctaTitle: 'Share Your Rule Chain with the Community',
+		ctaDescription:
+			'Built a useful automation workflow? From a simple alarm recipe to a complex multi-cloud integration — publish it to the IoT Hub. Share it with thousands of ThingsBoard developers.',
+		ctaPrimaryLabel: 'Contribute a Rule Chain',
+		ctaSecondaryLabel: 'Read the contribution guide',
 	},
 ] as const;
 
