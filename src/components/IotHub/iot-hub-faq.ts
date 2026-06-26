@@ -7,25 +7,31 @@ export function initIotHubFaq(): void {
 	const root = document.querySelector<HTMLElement>('[data-iot-hub-faq]');
 	if (!root) return;
 
+	const copyFaqLink = (copyLink: HTMLElement): void => {
+		const faqId = copyLink.dataset.faqId;
+		if (!faqId?.trim()) return;
+		const url = new URL(window.location.href);
+		url.hash = faqId;
+		navigator.clipboard
+			.writeText(url.toString())
+			.then(() => {
+				copyLink.classList.add('copied');
+				setTimeout(() => copyLink.classList.remove('copied'), 2000);
+			})
+			.catch(() => {});
+	};
+
 	root.addEventListener('click', (e) => {
-		const target = e.target as HTMLElement;
+		// `e.target` can be a non-Element (e.g. a Text node); `.closest()` only
+		// exists on Element, so bail out otherwise.
+		if (!(e.target instanceof Element)) return;
+		const target = e.target;
 
 		// Copy link to a question
 		const copyLink = target.closest<HTMLElement>('.faq-copy-link');
 		if (copyLink) {
 			e.stopPropagation();
-			const faqId = copyLink.dataset.faqId;
-			if (faqId?.trim()) {
-				const url = new URL(window.location.href);
-				url.hash = faqId;
-				navigator.clipboard
-					.writeText(url.toString())
-					.then(() => {
-						copyLink.classList.add('copied');
-						setTimeout(() => copyLink.classList.remove('copied'), 2000);
-					})
-					.catch(() => {});
-			}
+			copyFaqLink(copyLink);
 			return;
 		}
 
@@ -70,6 +76,17 @@ export function initIotHubFaq(): void {
 			}
 			return;
 		}
+	});
+
+	// The copy-link is a span[role="button"][tabindex="0"]; mirror native button
+	// keyboard activation (Enter/Space) so it's operable without a pointer.
+	root.addEventListener('keydown', (e) => {
+		if (e.key !== 'Enter' && e.key !== ' ') return;
+		if (!(e.target instanceof Element)) return;
+		const copyLink = e.target.closest<HTMLElement>('.faq-copy-link');
+		if (!copyLink) return;
+		e.preventDefault();
+		copyFaqLink(copyLink);
 	});
 
 	// Deep-link: open the FAQ item referenced by the URL hash.

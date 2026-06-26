@@ -145,7 +145,7 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 					{
 						id: 'faq-how-do-i-contribute-an-alarm-rule',
 						question: 'How do I contribute an alarm rule?',
-						answer: `Check out the <a href="/docs/iot-hub/guides/alarm-rule/">contribution guide</a> that describes the process of adding an alarm rule. You can also contact <a href="mailto:yhavrysh@thingsboard.io">yhavrysh@thingsboard.io</a> for help.`,
+						answer: `Check out the <a href="/docs/iot-hub/contribution-guides/alarm-rule/">contribution guide</a> that describes the process of adding an alarm rule. You can also contact <a href="mailto:yhavrysh@thingsboard.io">yhavrysh@thingsboard.io</a> for help.`,
 					},
 					{
 						id: 'faq-are-alarm-rules-free',
@@ -297,7 +297,7 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 					{
 						id: 'faq-widget-contribute-custom',
 						question: 'How do I contribute a custom widget?',
-						answer: 'Check out the <a href="/docs/iot-hub/guides/widget/">contribution guide</a> that describes the process of adding a widget. You can also contact <a href="mailto:yhavrysh@thingsboard.io">yhavrysh@thingsboard.io</a> for help.',
+						answer: 'Check out the <a href="/docs/iot-hub/contribution-guides/widget/">contribution guide</a> that describes the process of adding a widget. You can also contact <a href="mailto:yhavrysh@thingsboard.io">yhavrysh@thingsboard.io</a> for help.',
 					},
 					{
 						id: 'faq-widget-free-to-use',
@@ -476,7 +476,7 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 					{
 						id: 'faq-rc-how-to-contribute',
 						question: 'How do I contribute a rule chain?',
-						answer: 'Check out the <a href="/docs/iot-hub/guides/rule-chain/">contribution guide</a> that describes the process of adding a rule chain. You can also contact <a href="mailto:yhavrysh@thingsboard.io">yhavrysh@thingsboard.io</a> for help.',
+						answer: 'Check out the <a href="/docs/iot-hub/contribution-guides/rule-chain/">contribution guide</a> that describes the process of adding a rule chain. You can also contact <a href="mailto:yhavrysh@thingsboard.io">yhavrysh@thingsboard.io</a> for help.',
 					},
 					{
 						id: 'faq-rc-external-services',
@@ -614,7 +614,7 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 					{
 						id: 'faq-st-how-do-i-contribute',
 						question: 'How do I contribute a solution template?',
-						answer: 'Check out the <a href="/docs/iot-hub/guides/solution-template/">contribution guide</a> that describes the process of adding a solution template. You can also contact <a href="mailto:yhavrysh@thingsboard.io">yhavrysh@thingsboard.io</a> for help.',
+						answer: 'Check out the <a href="/docs/iot-hub/contribution-guides/solution-template/">contribution guide</a> that describes the process of adding a solution template. You can also contact <a href="mailto:yhavrysh@thingsboard.io">yhavrysh@thingsboard.io</a> for help.',
 					},
 					{
 						id: 'faq-st-are-templates-free',
@@ -751,7 +751,7 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 					{
 						id: 'add-device',
 						question: 'How can I add my device to the ThingsBoard IoT Device Library?',
-						answer: 'Follow the <a href="/docs/iot-hub/guides/device/">submission guidelines</a> — they cover the required guide structure, supported formats, and how to submit. Hardware vendors publish and maintain their own device profiles.',
+						answer: 'Follow the <a href="/docs/iot-hub/contribution-guides/device/">submission guidelines</a> — they cover the required guide structure, supported formats, and how to submit. Hardware vendors publish and maintain their own device profiles.',
 					},
 					{
 						id: 'how-organized',
@@ -782,7 +782,7 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 					{
 						id: 'connect-existing-device',
 						question: 'How do I connect an existing device or sensor to ThingsBoard if it\'s not in the hub?',
-						answer: 'Check out the <a href="/docs/iot-hub/guides/device/">connectivity guides</a> that describe the process of connecting devices. You can also submit a request to add a device by emailing <a href="mailto:yhavrysh@thingsboard.io">yhavrysh@thingsboard.io</a>',
+						answer: 'Check out the <a href="/docs/iot-hub/contribution-guides/device/">connectivity guides</a> that describe the process of connecting devices. You can also submit a request to add a device by emailing <a href="mailto:yhavrysh@thingsboard.io">yhavrysh@thingsboard.io</a>',
 					},
 					{
 						id: 'try-without-hardware',
@@ -905,7 +905,7 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 						description: 'Download JSON, import into entity/profile, map telemetry keys.',
 					},
 				],
-				cta: { label: 'Learn More About Calculated Fields', href: '/docs/iot-hub/guides/calculated-field/#calculated-field-categories' },
+				cta: { label: 'Learn More About Calculated Fields', href: '/docs/iot-hub/contribution-guides/calculated-field/#calculated-field-categories' },
 			},
 		],
 		faq: [
@@ -968,7 +968,7 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 					{
 						id: 'how-do-i-contribute',
 						question: 'How do I contribute?',
-						answer: 'Check out the <a href="/docs/iot-hub/guides/calculated-field/">contribution guides</a> that describe the process of adding a calculated field. You can also contact <a href="mailto:yhavrysh@thingsboard.io">yhavrysh@thingsboard.io</a> for help.',
+						answer: 'Check out the <a href="/docs/iot-hub/contribution-guides/calculated-field/">contribution guides</a> that describe the process of adding a calculated field. You can also contact <a href="mailto:yhavrysh@thingsboard.io">yhavrysh@thingsboard.io</a> for help.',
 					},
 					{
 						id: 'are-they-free',
@@ -1086,7 +1086,7 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 					{
 						id: 'faq-hub-how-to-contribute',
 						question: 'How can I contribute my solution?',
-						answer: 'You can add your component via the ThingsBoard Creator Portal. Detailed instructions are available at the <a href="/docs/iot-hub/">link</a>. You can also ask for help by email <a href="mailto:yhavrysh@thingsboard.io">yhavrysh@thingsboard.io</a>',
+						answer: 'You can add your component via the ThingsBoard Creator Portal. Detailed instructions are available in the <a href="/docs/iot-hub/">IoT Hub documentation</a>. You can also ask for help by email <a href="mailto:yhavrysh@thingsboard.io">yhavrysh@thingsboard.io</a>',
 					},
 					{
 						id: 'faq-hub-contributions-accepted',

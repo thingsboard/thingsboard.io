@@ -226,6 +226,7 @@ export const IOT_HUB_STRINGS = {
 		resultPlural: 'results',
 	},
 	emptyState: 'No items available yet.',
+	faqHeading: 'Frequently Asked Questions',
 	fetchError: {
 		heading: 'Network or server unavailable',
 		subtitle: 'We couldn’t reach the catalog. Please try again in a moment.',
