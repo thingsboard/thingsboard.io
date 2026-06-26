@@ -1086,7 +1086,7 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 					{
 						id: 'faq-hub-how-to-contribute',
 						question: 'How can I contribute my solution?',
-						answer: 'You can add your component via the ThingsBoard Creator Portal. Detailed instructions are available in the <a href="/docs/iot-hub/">IoT Hub documentation</a>. You can also ask for help by email <a href="mailto:yhavrysh@thingsboard.io">yhavrysh@thingsboard.io</a>',
+						answer: 'You can add your component via the ThingsBoard Creator Portal. Detailed instructions are available in the <a href="/docs/iot-hub/contribution-guides/">contribution guides</a>. You can also ask for help by email <a href="mailto:yhavrysh@thingsboard.io">yhavrysh@thingsboard.io</a>',
 					},
 					{
 						id: 'faq-hub-contributions-accepted',
