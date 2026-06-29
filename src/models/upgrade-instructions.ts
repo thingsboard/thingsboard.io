@@ -78,7 +78,6 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 	},
 	{
 		version: '4.3.1.2',
-		vulnerable: true,
 		displayVersion: '4.3.1.2',
 		family: '4.3',
 		baseVersion: '4.3.1',
@@ -92,6 +91,7 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 		manualVersionUpgrade: false,
 		windowsZip: true,
 		anchor: 'v4-3-1-2',
+		vulnerable: true,
 	},
 	{
 		version: '4.3.1.1',
