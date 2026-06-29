@@ -7,7 +7,7 @@
  */
 
 /** Community Edition */
-export const CE_FULL_VER = '4.3.1.2';
+export const CE_FULL_VER = '4.3.1.3';
 
 export const TB_VER = CE_FULL_VER;
 
@@ -26,7 +26,7 @@ export const CE_BRANCH = 'release-4.3';
  * For package filenames (.deb/.rpm/.zip/.exe on dist.thingsboard.io), use
  * {@link PE_PKG_VER} — the dist host serves PE packages with lowercase `pe`.
  */
-export const PE_FULL_VER = '4.3.1.2PE';
+export const PE_FULL_VER = '4.3.1.3PE';
 
 /**
  * Professional Edition — package filename suffix (dist.thingsboard.io).

@@ -41,7 +41,24 @@ export function getFamilySlug(family: string): string {
 
 export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 	{
+		version: '4.3.1.3',
+		displayVersion: '4.3.1.3',
+		family: '4.3',
+		baseVersion: '4.3.1',
+		releaseDate: 'Jul 1 2026',
+		upgradableFrom: '4.2.1.x',
+		prevVersionAnchor: 'v4-3-0-1',
+		lts: true,
+		patch: true,
+		x: true,
+		upgrade: true,
+		manualVersionUpgrade: false,
+		windowsZip: true,
+		anchor: 'v4-3-1-3',
+	},
+	{
 		version: '4.3.1.2',
+		vulnerable: true,
 		displayVersion: '4.3.1.2',
 		family: '4.3',
 		baseVersion: '4.3.1',
