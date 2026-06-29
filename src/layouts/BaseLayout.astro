@@ -1,30 +1,39 @@
 ---
-import Header from '../components/Landing/Header.astro';
-import PromoBanner from '../components/PromoBanner.astro';
-import Footer from '../components/Landing/Footer.astro';
-import CookieBanner from '../components/CookieBanner.astro';
-import UtmTracker from '../components/UtmTracker.astro';
-import GtmNoscript from '../components/GtmNoscript.astro';
-import ThirdPartyScripts from '../components/ThirdPartyScripts.astro';
-import SeoMeta from '../components/SeoMeta.astro';
-import ThemeProvider from '@astrojs/starlight/components/ThemeProvider.astro';
-import { formatMarketingTitle } from '~/consts';
-import { getSectionFromPath } from '~/util/path-utils';
-import { getOgImageUrl } from '~/util/getOgImageUrl';
-import '../styles/global.scss';
-import 'node_modules/@astrojs/starlight/style/props.css';
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import CookieBanner from '@components/CookieBanner.astro';
+import UtmTracker from '@components/UtmTracker.astro';
+import { formatMarketingTitle, SITE_NAME } from '@root/consts.ts';
+import { getOgImageUrl } from '@util/getOgImageUrl';
+import { getSectionFromPath } from '@util/path-utils';
+import { resolveHeaderConfig, type HeaderVariant, type HeaderCta } from '@util/header-config';
+
+// BaseLayout — site-wide marketing layout backed by `<StarlightPage>`.
+// The body content is copied verbatim into the page's default slot
+// (Starlight wraps it in its <main>); SEO + head tags are configured
+// via `frontmatter.head` plus a small Astro.locals bridge for the bits
+// the Starlight head pipeline doesn't expose directly (the marketing
+// title format and the optional `noCanonical` strip).
 
 interface Props {
 	title: string;
 	description?: string;
-	pageId?: string;
 	customTitle?: boolean;
-	githubLink?: string;
-	githubLabel?: string;
-	platformQuery?: string;
 	noCanonical?: boolean;
-	gitHubPlatform?: import('../models/site.models').Products;
+	/**
+	 * Forwarded to the Starlight Header override via `Astro.locals.bslGitHubPlatform`
+	 * so the GitHub button in the chrome targets the right repo. The override
+	 * falls back to URL-based detection when this prop is omitted.
+	 */
+	gitHubPlatform?: import('@models/site.models').Products;
 	forceLightTheme?: boolean;
+	/** Marketing-header appearance. Defaults to the docs look. */
+	headerVariant?: HeaderVariant;
+	/** Pricing/Try button shape. Defaults per variant (solid-shadow → marketing). */
+	headerCta?: HeaderCta;
+	/** Override search-icon visibility (defaults to the variant default). */
+	showSearch?: boolean;
+	/** Override theme-toggle visibility (defaults to the variant default). */
+	showThemeToggle?: boolean;
 	ogImage?: string;
 	ogType?: string;
 	ogImageAlt?: string;
@@ -44,16 +53,16 @@ interface Props {
 const {
 	title,
 	description,
-	pageId = 'common',
 	customTitle = false,
-	githubLink = 'https://github.com/thingsboard/thingsboard',
-	githubLabel = 'Star thingsboard/thingsboard on GitHub',
-	platformQuery = '',
 	noCanonical = false,
 	gitHubPlatform,
 	forceLightTheme = false,
+	headerVariant,
+	headerCta,
+	showSearch,
+	showThemeToggle,
 	ogImage: ogImageProp,
-	ogType,
+	ogType = 'website',
 	ogImageAlt,
 	publishedTime,
 	modifiedTime,
@@ -66,104 +75,141 @@ const canonicalUrl = new URL(Astro.url.pathname, Astro.site).href;
 const section = getSectionFromPath(Astro.url.pathname);
 const pageTitle = customTitle ? title : formatMarketingTitle(title, section);
 const ogImage = ogImageProp ?? getOgImageUrl(Astro.url.pathname);
+
+// Resolve the OG image against the request origin so dev hosts and the
+// production origin both produce correct absolute URLs (mirrors SeoMeta).
+const DEFAULT_OG_IMAGE = '/thingsboard-og.png';
+let ogImagePath = ogImage ?? DEFAULT_OG_IMAGE;
+if (import.meta.env.DEV && /\.png$/.test(ogImagePath) && ogImagePath !== DEFAULT_OG_IMAGE) {
+	ogImagePath = ogImagePath + '/';
+}
+const ogImageUrl = new URL(ogImagePath, Astro.url.origin).href;
+
+// Bridges consumed by the Starlight overrides:
+//   * bsl — generic marker so Header / Footer / PageTitle / … can branch
+//     when the page is rendered through this layout.
+//   * bslTitle — replaces Starlight's auto-generated `<title>` content
+//     (which is "<frontmatter.title> | <siteTitle>") with our
+//     marketing-formatted version. (Read by `starlight/Head.astro`.)
+//   * bslNoCanonical — when true, strips the auto-emitted
+//     <link rel="canonical"> entry from the route's head array.
+//   * bslGitHubPlatform — overrides the URL-based platform detection in
+//     `starlight/Header.astro` so the chrome's GitHub button targets the
+//     repo the page actually relates to.
+const locals = Astro.locals as unknown as Record<string, unknown>;
+locals.bsl = true;
+locals.bslTitle = pageTitle;
+locals.bslNoCanonical = noCanonical;
+locals.bslForceLight = forceLightTheme;
+if (gitHubPlatform !== undefined) locals.bslGitHubPlatform = gitHubPlatform;
+
+// Resolve the header appearance and bridge it to the Starlight Header override.
+// Unconfigured pages default to the `common` variant (docs chrome, search hidden).
+const headerConfig = resolveHeaderConfig({
+	variant: headerVariant ?? 'common',
+	cta: headerCta,
+	forceLight: forceLightTheme,
+	showSearch,
+	showThemeToggle,
+});
+locals.bslHeaderConfig = headerConfig;
+
+type HeadEntry = {
+	tag: 'title' | 'base' | 'link' | 'style' | 'meta' | 'script' | 'noscript' | 'template';
+	attrs?: Record<string, string | boolean | undefined>;
+	content?: string;
+};
+
+const head: HeadEntry[] = [
+	{ tag: 'meta', attrs: { name: 'cf-2fa-verify', content: 'a08672380de15e9' } },
+	// Establish TLS to GTM origin early — tags loaded via GTM (FB, LinkedIn,
+	// etc.) stay lazy by design.
+	{ tag: 'link', attrs: { rel: 'preconnect', href: 'https://www.googletagmanager.com' } },
+	// Override Starlight's default favicon with the site SVG.
+	{ tag: 'link', attrs: { rel: 'shortcut icon', href: '/favicon.svg', type: 'image/svg+xml' } },
+	// SeoMeta-equivalent OG / Twitter tags. Starlight emits its own
+	// defaults for some of these; the head merge logic dedupes by
+	// `property` / `name`, so the values declared here win.
+	{ tag: 'meta', attrs: { property: 'og:type', content: ogType } },
+	{ tag: 'meta', attrs: { property: 'og:url', content: canonicalUrl } },
+	{ tag: 'meta', attrs: { property: 'og:locale', content: 'en_US' } },
+	{ tag: 'meta', attrs: { property: 'og:site_name', content: SITE_NAME } },
+	{ tag: 'meta', attrs: { property: 'og:image', content: ogImageUrl } },
+	{ tag: 'meta', attrs: { property: 'og:image:width', content: '1200' } },
+	{ tag: 'meta', attrs: { property: 'og:image:height', content: '630' } },
+	{ tag: 'meta', attrs: { name: 'twitter:card', content: 'summary_large_image' } },
+	{ tag: 'meta', attrs: { name: 'twitter:site', content: '@thingsboard' } },
+];
+if (preloadLcpImage) {
+	head.push({
+		tag: 'link',
+		attrs: { rel: 'preload', as: 'image', href: preloadLcpImage, fetchpriority: 'high' },
+	});
+}
+if (ogImageAlt) {
+	head.push({ tag: 'meta', attrs: { property: 'og:image:alt', content: ogImageAlt } });
+}
+if (publishedTime) {
+	head.push({
+		tag: 'meta',
+		attrs: { property: 'article:published_time', content: publishedTime },
+	});
+}
+if (modifiedTime) {
+	head.push({
+		tag: 'meta',
+		attrs: { property: 'article:modified_time', content: modifiedTime },
+	});
+}
+if (noIndex) {
+	head.push({ tag: 'meta', attrs: { name: 'robots', content: 'noindex, follow' } });
+}
+if (jsonLd) {
+	head.push({
+		tag: 'script',
+		attrs: { type: 'application/ld+json' },
+		content: JSON.stringify(jsonLd),
+	});
+}
 ---
 
-<!doctype html>
-<html id={pageId} lang="en" data-theme="light" data-force-light={forceLightTheme ? 'true' : undefined}>
-	<head>
-		<meta charset="utf-8" />
-		<meta name="cf-2fa-verify" content="a08672380de15e9" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
+<StarlightPage
+	frontmatter={{
+		title: pageTitle,
+		description,
+		template: 'splash',
+		pagefind: true,
+		// Empty `hero` flips Starlight's `Page.astro` to its hero
+		// branch — `<PageTitle />` is skipped and the slot ends up
+		// inside a single ContentPanel. The Hero override (`starlight/
+		// Hero.astro`) proxies to nothing for BSL pages, so no hero
+		// chrome is rendered either; only the slot remains.
+		hero: {},
+		head,
+	}}
+	hasSidebar={false}
+>
+	<!-- Header is rendered by Starlight's chrome (configured in the site's
+	     Starlight `components` map → `src/components/starlight/Header.astro`).
+	     `gitHubPlatform` is forwarded via `Astro.locals.bslGitHubPlatform`.
+	     The GTM <noscript> fallback is rendered by `starlight/SkipLink.astro`. -->
+	<CookieBanner />
+	<UtmTracker />
 
-		<!-- Establish TLS to GTM origin early; tags loaded via GTM (FB, LinkedIn, etc.) stay lazy by design. -->
-		<link rel="preconnect" href="https://www.googletagmanager.com" />
+	<slot />
 
-		{preloadLcpImage && <link rel="preload" as="image" href={preloadLcpImage} fetchpriority="high" />}
+	<!-- Footer is rendered by Starlight's chrome — `src/components/starlight/
+	     Footer.astro` swaps in `Landing/Footer` when `Astro.locals.bsl` is set. -->
 
-		<title>{pageTitle}</title>
-
-		<SeoMeta
-			title={pageTitle}
-			description={description}
-			canonicalUrl={canonicalUrl}
-			noCanonical={noCanonical}
-			ogImage={ogImage}
-			ogType={ogType}
-			ogImageAlt={ogImageAlt}
-			publishedTime={publishedTime}
-			modifiedTime={modifiedTime}
-			noIndex={noIndex}
-			jsonLd={jsonLd}
-		/>
-
-		<link rel="shortcut icon" type="image/svg+xml" href="/favicon.svg" />
-
-		<ThemeProvider />
-		<script is:inline>
-			// Pages with data-force-light stay light regardless of user preference.
-			// All other pages respect the theme set by ThemeProvider (from localStorage / OS).
-			if (document.documentElement.dataset.forceLight === 'true') {
-				document.documentElement.dataset.theme = 'light';
-			}
-		</script>
-
-		<ThirdPartyScripts />
-		<slot name="head" />
-	</head>
-
-	<body>
-		<GtmNoscript />
-
-		{/* Sticky unit: banner scrolls away, header pins. See `.tb-topbar` in HeaderContent. */}
-		<div class="tb-topbar">
-			<PromoBanner />
-			<Header githubLink={githubLink} githubLabel={githubLabel} platformQuery={platformQuery} gitHubPlatform={gitHubPlatform} />
-		</div>
-		<CookieBanner />
-		<UtmTracker />
-
-		<slot />
-
-		<Footer />
-
-		<!-- flip-nav sentinel: toggles `flip-nav` at ~10px scroll so transparent-header
-		     pages turn opaque early. (The banner hides via CSS in the .tb-topbar unit.) -->
-		<div id="flip-nav-sentinel" aria-hidden="true"></div>
-		<style is:inline>
-			#flip-nav-sentinel {
-				position: absolute;
-				top: 10px;
-				left: 0;
-				width: 1px;
-				height: 1px;
-				pointer-events: none;
-				visibility: hidden;
-			}
-		</style>
-		<script is:inline>
-			(function () {
-				const html = document.documentElement;
-				const pagesWithTransparentHeader = [
-					'home',
-					'thingsboard-paas',
-					'thingsboard-pe',
-					'thingsboard-edge',
-					'mqtt-broker',
-					'pricing',
-					'affiliate',
-				];
-				if (!pagesWithTransparentHeader.includes(html.id)) return;
-
-				const sentinel = document.getElementById('flip-nav-sentinel');
-				if (!sentinel) return;
-
-				new IntersectionObserver(
-					function (entries) {
-						html.classList.toggle('flip-nav', !entries[0].isIntersecting);
-					},
-					{ threshold: 0 }
-				).observe(sentinel);
-			})();
-		</script>
-	</body>
-</html>
+	<style is:global lang="scss">
+		@use '../styles/variables' as *;
+		:root {
+			--sl-main-pad: 0;
+			--__sl-font: #{$font-family-base};
+			--sl-line-height: 1.5;
+		}
+		[data-has-hero] .main-pane {
+			background: none;
+		}
+	</style>
+</StarlightPage>

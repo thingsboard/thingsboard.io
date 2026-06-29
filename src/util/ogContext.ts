@@ -1,4 +1,4 @@
-import { getProductTitleName, getVersionFromSlug } from '~/util/path-utils';
+import { getProductTitleName, getVersionFromSlug } from '@util/path-utils';
 
 /**
  * SEO product label used in the eyebrow line.
@@ -21,7 +21,7 @@ export function getSectionLabel(slug: string): string {
 	const versionPrefixes = [
 		'pe/', 'paas/eu/', 'paas/', 'edge/pe/', 'edge/',
 		'trendz/', 'iot-gateway/', 'mqtt-broker/pe/', 'mqtt-broker/',
-		'mobile/pe/', 'mobile/', 'license-server/',
+		'mobile/pe/', 'mobile/', 'license-server/', 'iot-hub/',
 	];
 	for (const prefix of versionPrefixes) {
 		if (path.startsWith(prefix)) {

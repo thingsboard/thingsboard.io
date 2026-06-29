@@ -1,0 +1,836 @@
+---
+import Chevron from '@components/Chevron.astro';
+import {
+	getSubtypeLabel,
+	IOT_HUB_STRINGS,
+	type ItemTypeFilterInfo,
+	type FilterParamInfo,
+	type IotHubItemType,
+} from '@models/iot-hub';
+
+const T = IOT_HUB_STRINGS.filterPanel;
+
+interface Props {
+	itemType: IotHubItemType;
+	filterInfo: ItemTypeFilterInfo;
+}
+
+interface SectionOption {
+	key: string;
+	label: string;
+}
+
+interface SectionGroup {
+	label: string | null;
+	options: SectionOption[];
+}
+
+interface Section {
+	key: string;
+	label: string;
+	groups: SectionGroup[];
+	totalOptions: number;
+	searchable: boolean;
+	open: boolean;
+}
+
+const SEARCH_THRESHOLD = 10;
+const OVERFLOW_THRESHOLD = 8;
+const GROUPING_THRESHOLD = 11;
+const POPULAR_LIMIT = 10;
+
+const SUBTYPE_ITEM_TYPES: ReadonlySet<IotHubItemType> = new Set([
+	'WIDGET',
+	'CALCULATED_FIELD',
+	'RULE_CHAIN',
+]);
+
+const { itemType, filterInfo } = Astro.props;
+
+const isSearchable = (n: number): boolean => n >= SEARCH_THRESHOLD;
+const passthrough = (opts: FilterParamInfo[]): SectionOption[] =>
+	opts.map((o) => ({ key: o.key, label: o.key }));
+
+const buildFlatSection = (
+	key: string,
+	label: string,
+	options: SectionOption[],
+	open: boolean
+): Section => ({
+	key,
+	label,
+	groups: [{ label: null, options }],
+	totalOptions: options.length,
+	searchable: isSearchable(options.length),
+	open,
+});
+
+const buildPopularitySection = (
+	key: string,
+	label: string,
+	opts: FilterParamInfo[],
+	open: boolean
+): Section => {
+	const options = passthrough(opts);
+	if (opts.length < GROUPING_THRESHOLD) {
+		return buildFlatSection(key, label, options, open);
+	}
+	const topKeys = new Set(
+		[...opts]
+			.sort((a, b) => b.totalInstallCount - a.totalInstallCount)
+			.slice(0, POPULAR_LIMIT)
+			.map((o) => o.key)
+	);
+	const popular = options.filter((o) => topKeys.has(o.key));
+	const rest = options.filter((o) => !topKeys.has(o.key));
+	const groups: SectionGroup[] = [];
+	if (popular.length) groups.push({ label: T.mostPopular, options: popular });
+	if (rest.length) groups.push({ label: T.all, options: rest });
+	return {
+		key,
+		label,
+		groups,
+		totalOptions: opts.length,
+		searchable: isSearchable(opts.length),
+		open,
+	};
+};
+
+const sections: Section[] = [];
+
+if (itemType === 'DEVICE') {
+	if (filterInfo.vendors.length > 0) {
+		sections.push(
+			buildPopularitySection('vendor', T.sections.vendor, filterInfo.vendors, true)
+		);
+	}
+	if (filterInfo.hardwareTypes.length > 0) {
+		sections.push(
+			buildFlatSection(
+				'hardwareType',
+				T.sections.hardwareType,
+				passthrough(filterInfo.hardwareTypes),
+				true
+			)
+		);
+	}
+	const connectivityGroups: SectionGroup[] = Object.entries(filterInfo.connectivities)
+		.map(([label, options]) => ({ label, options: passthrough(options) }))
+		.filter((g) => g.options.length > 0);
+	if (connectivityGroups.length > 0) {
+		const totalConnectivity = connectivityGroups.reduce(
+			(sum, g) => sum + g.options.length,
+			0
+		);
+		sections.push({
+			key: 'connectivity',
+			label: T.sections.connectivity,
+			groups: connectivityGroups,
+			totalOptions: totalConnectivity,
+			searchable: isSearchable(totalConnectivity),
+			open: false,
+		});
+	}
+} else {
+	if (filterInfo.types.length > 0 && SUBTYPE_ITEM_TYPES.has(itemType)) {
+		sections.push(
+			buildFlatSection(
+				'type',
+				T.sections.type,
+				filterInfo.types.map((o) => ({
+					key: o.key,
+					label: getSubtypeLabel(itemType, o.key),
+				})),
+				true
+			)
+		);
+	}
+	if (filterInfo.categories.length > 0) {
+		sections.push(
+			buildFlatSection(
+				'category',
+				T.sections.category,
+				passthrough(filterInfo.categories),
+				true
+			)
+		);
+	}
+}
+
+if (filterInfo.useCases.length > 0) {
+	sections.push(
+		buildPopularitySection('useCase', T.sections.useCase, filterInfo.useCases, false)
+	);
+}
+---
+
+<aside
+	id="iot-hub-filter-panel"
+	class="iot-hub-filter-panel"
+	data-iot-hub-filter-panel
+	data-open="false"
+	aria-label={T.landmarkLabel}
+>
+	<div class="iot-hub-filter-panel__inner">
+		<header class="iot-hub-filter-panel__header">
+			<p class="iot-hub-filter-panel__title">{T.title}</p>
+			<button
+				type="button"
+				class="iot-hub-filter-panel__close"
+				aria-label={T.closeAriaLabel}
+				data-iot-hub-filter-close
+			>
+				<svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+					<path
+						d="M6 6l12 12M18 6L6 18"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"></path>
+				</svg>
+			</button>
+		</header>
+		<div class="iot-hub-filter-panel__sections">
+			{
+				sections.map((section) => (
+					<section
+						class="iot-hub-filter-section"
+						data-iot-hub-filter-section
+						data-open={section.open ? 'true' : 'false'}
+					>
+						<button
+							type="button"
+							class="iot-hub-filter-section__header"
+							aria-expanded={section.open ? 'true' : 'false'}
+							data-iot-hub-filter-section-toggle
+						>
+							<span class="iot-hub-filter-section__label">{section.label}</span>
+							<Chevron
+								direction="down"
+								class="iot-hub-filter-section__chevron"
+							/>
+						</button>
+						{section.searchable && (
+							<div class="iot-hub-filter-section__search">
+								<span
+									class="iot-hub-filter-section__search-icon"
+									aria-hidden="true"
+								/>
+								<input
+									class="iot-hub-filter-section__search-input"
+									type="search"
+									placeholder={T.searchPlaceholder}
+									aria-label={`${T.searchAriaPrefix} ${section.label}`}
+									autocomplete="off"
+									data-filter-search-input
+								/>
+								<button
+									class="iot-hub-filter-section__search-clear"
+									type="button"
+									aria-label="Clear search"
+									data-filter-search-clear
+								>
+									<svg
+										width="18"
+										height="18"
+										viewBox="0 0 24 24"
+										fill="none"
+										aria-hidden="true"
+									>
+										<path
+											d="M5 5 19 19M19 5 5 19"
+											stroke="currentColor"
+											stroke-width="2"
+											stroke-linecap="round"></path>
+									</svg>
+								</button>
+							</div>
+						)}
+						<div
+							class="iot-hub-filter-section__body"
+							data-overflow={section.totalOptions > OVERFLOW_THRESHOLD ? 'true' : 'false'}
+						>
+							{section.groups.map((group) => (
+								<div class="iot-hub-filter-section__group">
+									{group.label && (
+										<p class="iot-hub-filter-section__group-label">{group.label}</p>
+									)}
+									<ul class="iot-hub-filter-section__list">
+										{group.options.map((opt) => (
+											<li class="iot-hub-filter-option">
+												<label class="iot-hub-filter-option__label">
+													<span class="iot-hub-filter-option__check-wrap">
+														<input
+															class="iot-hub-filter-option__input"
+															type="checkbox"
+															name={section.key}
+															value={opt.key}
+														/>
+														<span
+															class="iot-hub-filter-option__check"
+															aria-hidden="true"
+														>
+															<svg
+																width="18"
+																height="18"
+																viewBox="0 0 18 18"
+																fill="none"
+															>
+																<path
+																	d="M3 9l4 4 8-8"
+																	stroke="currentColor"
+																	stroke-width="2"
+																	stroke-linecap="round"
+																	stroke-linejoin="round"
+																/>
+															</svg>
+														</span>
+													</span>
+													<span class="iot-hub-filter-option__text">{opt.label}</span>
+												</label>
+											</li>
+										))}
+									</ul>
+								</div>
+							))}
+						</div>
+					</section>
+				))
+			}
+		</div>
+	</div>
+</aside>
+
+<style lang="scss">
+	@use '../../styles/_variables.scss' as *;
+
+	.iot-hub-filter-panel {
+		--iot-hub-panel-bg: #ffffff;
+		--iot-hub-panel-border: var(--hairline---sl-color-hairline, #edeef3);
+		--iot-hub-panel-section-border: var(--hairline---sl-color-hairline-light, #edeef3);
+		--iot-hub-panel-hover-bg: #f5f6f8;
+		--iot-hub-panel-check-border: var(--neutral---sl-color-gray-4, #888c96);
+
+		// `position: relative` + absolutely-positioned `__inner` lets the
+		// flex row stretch the panel to the listings sibling's height
+		// without the inner content contributing to that height — a tall
+		// filter list scrolls internally instead of pushing the page taller.
+		position: relative;
+		display: block;
+		width: 280px;
+		flex-shrink: 0;
+		background: var(--iot-hub-panel-bg);
+		border-right: 1px solid var(--iot-hub-panel-border);
+		align-self: stretch;
+
+		:global([data-theme='dark']) & {
+			--iot-hub-panel-bg: var(--neutral---sl-color-black, #17181c);
+			--iot-hub-panel-border: var(--hairline---sl-color-hairline, #23262f);
+			--iot-hub-panel-section-border: var(--hairline---sl-color-hairline-light, #353841);
+			--iot-hub-panel-hover-bg: var(--neutral---sl-color-gray-7, #23262f);
+			--iot-hub-panel-check-border: var(--neutral---sl-color-gray-4, #555962);
+		}
+
+		&[data-open='false'] {
+			display: none;
+		}
+
+		// Desktop open/close: animate the panel width so the listings grid
+		// reflows smoothly instead of snapping. `overflow` stays visible so
+		// the inner's `position: sticky` keeps working.
+		@include media-up(lg) {
+			transition: width 200ms ease;
+
+			&[data-open='false'] {
+				display: block; // override the base `display: none`
+				width: 0;
+				border-right-width: 0;
+
+				.iot-hub-filter-panel__inner {
+					opacity: 0;
+				}
+			}
+		}
+
+		@include media-down(lg) {
+			position: fixed;
+			// Start below the FULL chrome (header + promo banner), tracking the
+			// live banner offset. Using the bare `$header-height` constant ignored
+			// the banner, so the panel overlapped the header and the header painted
+			// over its close button (z-index 100 < header's 8888).
+			inset: var(--sl-nav-height) auto 0 0;
+			width: min(360px, calc(100vw - 32px));
+			z-index: 100;
+			border-right: 1px solid var(--iot-hub-panel-border);
+			border-left: none;
+			box-shadow: 8px 0 24px rgba(0, 0, 0, 0.08);
+			transform: translateX(-100%);
+			// `data-mounted` is set after first paint by the inline script
+			// so the initial position doesn't animate from the browser
+			// default `translateX(0)` on page load.
+			&[data-mounted='true'] {
+				transition: transform 200ms ease;
+			}
+
+			&[data-open='false'] {
+				display: flex;
+				pointer-events: none;
+			}
+
+			&[data-open='true'] {
+				transform: translateX(0);
+			}
+		}
+	}
+
+	.iot-hub-filter-panel__inner {
+		position: sticky;
+		inset: 80px 0 0 0;
+		max-height: calc(100vh - 80px);
+		display: flex;
+		flex-direction: column;
+		overflow-y: auto;
+		overflow-x: hidden;
+		transition: opacity 150ms ease;
+
+		// Only one scrollbar visible at a time: by default the outer one
+		// shows; hovering a section body that actually overflows hides
+		// the outer so the inner takes over. `data-overflow` gates the
+		// swap so hovering a short section doesn't leave NO scrollbar
+		// visible at all.
+		scrollbar-width: thin;
+		scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+
+		@include media-down(lg) {
+			position: absolute;
+			inset: 0;
+			max-height: unset;
+		}
+
+		&::-webkit-scrollbar {
+			width: 6px;
+		}
+		&::-webkit-scrollbar-track {
+			background-color: rgba(0, 0, 0, 0.04);
+		}
+		&::-webkit-scrollbar-thumb {
+			background-color: rgba(0, 0, 0, 0.2);
+			border-radius: 3px;
+		}
+
+		&:has(.iot-hub-filter-section__body[data-overflow='true']:hover) {
+			scrollbar-color: transparent transparent;
+
+			&::-webkit-scrollbar-track {
+				background-color: transparent;
+			}
+			&::-webkit-scrollbar-thumb {
+				background-color: transparent;
+			}
+		}
+	}
+
+	.iot-hub-filter-panel__header {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 8px 8px 8px 16px;
+		border-bottom: 1px solid var(--iot-hub-panel-border);
+		position: sticky;
+		top: 0;
+		background: var(--iot-hub-panel-bg);
+		z-index: 1;
+	}
+
+	.iot-hub-filter-panel__title {
+		flex: 1;
+		margin: 0;
+		font-size: 18px;
+		font-weight: $font-weight-semibold;
+		line-height: 32px;
+		color: var(--color-text);
+	}
+
+	.iot-hub-filter-panel__close {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: 8px;
+		border: none;
+		background: transparent;
+		border-radius: 8px;
+		color: var(--color-text);
+		cursor: pointer;
+		transition: background $transition-fast;
+
+		&:hover {
+			background: var(--iot-hub-panel-hover-bg);
+		}
+
+		svg {
+			display: block;
+		}
+	}
+
+	.iot-hub-filter-panel__sections {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.iot-hub-filter-section {
+		border-bottom: 1px solid var(--iot-hub-panel-section-border);
+		overflow: hidden;
+
+		&[data-open='false'] .iot-hub-filter-section__body,
+		&[data-open='false'] .iot-hub-filter-section__search {
+			display: none;
+		}
+
+		&[data-open='true'] .iot-hub-filter-section__chevron {
+			transform: rotate(180deg);
+		}
+	}
+
+	.iot-hub-filter-section__header {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		width: 100%;
+		padding: 8px 16px;
+		border: none;
+		background: transparent;
+		font-family: inherit;
+		font-size: 14px;
+		font-weight: $font-weight-semibold;
+		line-height: 24px;
+		color: var(--color-text);
+		cursor: pointer;
+		text-align: left;
+		transition: background $transition-fast;
+
+		&:hover {
+			background: var(--iot-hub-panel-hover-bg);
+		}
+	}
+
+	.iot-hub-filter-section__label {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.iot-hub-filter-section__chevron {
+		flex-shrink: 0;
+		color: var(--color-text);
+		transition: transform $transition-fast;
+	}
+
+	.iot-hub-filter-section__search {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		height: 40px;
+		padding: 8px 12px;
+		margin: 4px 16px 8px;
+		border: 1px solid var(--color-border);
+		border-radius: 8px;
+		background: var(--color-bg-surface);
+
+		:global([data-theme='dark']) & {
+			border-color: #353841;
+		}
+	}
+
+	.iot-hub-filter-section__search-icon {
+		flex-shrink: 0;
+		display: block;
+		width: 20px;
+		height: 20px;
+		// CSS-mask + `background-color: currentColor` so the shared SVG
+		// asset can inherit text color per theme.
+		background-color: var(--color-text-secondary);
+		-webkit-mask: url('/icons/iot-hub-search.svg') center / contain no-repeat;
+		mask: url('/icons/iot-hub-search.svg') center / contain no-repeat;
+	}
+
+	.iot-hub-filter-section__search-input {
+		flex: 1 1 0;
+		min-width: 0;
+		border: none;
+		outline: none;
+		padding: 0;
+		font-family: inherit;
+		font-size: 14px;
+		font-weight: $font-weight-normal;
+		line-height: 20px;
+		letter-spacing: 0.2px;
+		color: var(--color-text);
+		background: transparent;
+
+		&::placeholder {
+			color: var(--color-text-secondary);
+		}
+
+		// Hide the UA `×` so only the custom clear button below shows.
+		&::-webkit-search-cancel-button,
+		&::-webkit-search-decoration {
+			-webkit-appearance: none;
+			appearance: none;
+		}
+	}
+
+	.iot-hub-filter-section__search-clear {
+		flex-shrink: 0;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 20px;
+		height: 20px;
+		padding: 0;
+		border: none;
+		background: transparent;
+		color: var(--color-text-secondary);
+		cursor: pointer;
+		transition: color $transition-fast;
+
+		&:hover,
+		&:focus-visible {
+			color: var(--color-text);
+		}
+
+		svg { display: block; }
+	}
+
+	// Hide the clear button when input is empty (placeholder showing). The
+	// glyph stays on the left always — clear button appears on the right
+	// only once there's text to clear.
+	.iot-hub-filter-section__search-input:placeholder-shown ~ .iot-hub-filter-section__search-clear {
+		display: none;
+	}
+
+	.iot-hub-filter-section__body {
+		max-height: 340px;
+		overflow-y: auto;
+		padding-bottom: 8px;
+
+		scrollbar-width: thin;
+		scrollbar-color: transparent transparent;
+
+		&::-webkit-scrollbar {
+			width: 6px;
+		}
+		&::-webkit-scrollbar-track {
+			background-color: transparent;
+		}
+		&::-webkit-scrollbar-thumb {
+			background-color: transparent;
+			border-radius: 3px;
+		}
+
+		&[data-overflow='true']:hover {
+			scrollbar-color: rgba(0, 0, 0, 0.2) rgba(0, 0, 0, 0.04);
+
+			&::-webkit-scrollbar-track {
+				background-color: rgba(0, 0, 0, 0.04);
+			}
+			&::-webkit-scrollbar-thumb {
+				background-color: rgba(0, 0, 0, 0.2);
+			}
+		}
+	}
+
+	.iot-hub-filter-section__group {
+		& + & {
+			margin-top: 4px;
+		}
+	}
+
+	.iot-hub-filter-section__group-label {
+		margin: 0;
+		padding: 12px 16px 4px;
+		font-size: 14px;
+		font-weight: $font-weight-medium;
+		line-height: 24px;
+		letter-spacing: 0.5px;
+		color: var(--color-text-secondary);
+	}
+
+	.iot-hub-filter-section__list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+
+	.iot-hub-filter-option__label {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 8px 16px;
+		font-size: 14px;
+		font-weight: $font-weight-normal;
+		line-height: 24px;
+		color: var(--color-text);
+		cursor: pointer;
+		transition: background $transition-fast;
+
+		&:hover {
+			background: var(--iot-hub-panel-hover-bg);
+		}
+	}
+
+	.iot-hub-filter-option__check-wrap {
+		position: relative;
+		display: inline-flex;
+		width: 24px;
+		height: 24px;
+		flex-shrink: 0;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.iot-hub-filter-option__input {
+		position: absolute;
+		inset: 0;
+		opacity: 0;
+		margin: 0;
+		cursor: inherit;
+	}
+
+	.iot-hub-filter-option__check {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 20px;
+		height: 20px;
+		border-radius: 4px;
+		border: 2px solid var(--iot-hub-panel-check-border);
+		background: transparent;
+		color: transparent;
+		transition: background $transition-fast, border-color $transition-fast,
+			color $transition-fast;
+
+		svg {
+			display: block;
+		}
+	}
+
+	// `var(--color-primary)` already theme-shifts via Starlight's accent
+	// token (~`#b3c7ff` in dark); only the inverted text needs an override.
+	.iot-hub-filter-option__input:checked + .iot-hub-filter-option__check {
+		background: var(--color-primary);
+		border-color: var(--color-primary);
+		color: #ffffff;
+
+		:global([data-theme='dark']) & {
+			color: var(--neutral---sl-color-black, #17181c);
+		}
+	}
+
+	.iot-hub-filter-option__text {
+		flex: 1;
+		min-width: 0;
+		word-break: break-word;
+	}
+</style>
+
+<script>
+	// Snapshot of every currently-checked option in the panel, grouped by
+	// section key (the checkbox's `name` attribute — `vendor`, `category`,
+	// `connectivity`, `useCase`, …). Each entry carries both the API
+	// `value` (for the query string) and the human `label` (for chips /
+	// status text) so consumers don't need to walk back into the panel.
+	type FilterEntry = { value: string; label: string };
+	function collectFilters(panel: HTMLElement): Record<string, FilterEntry[]> {
+		const filters: Record<string, FilterEntry[]> = {};
+		const inputs = panel.querySelectorAll<HTMLInputElement>(
+			'.iot-hub-filter-option__input:checked'
+		);
+		for (const input of inputs) {
+			const key = input.name;
+			if (!key) continue;
+			const labelEl = input
+				.closest('.iot-hub-filter-option')
+				?.querySelector<HTMLElement>('.iot-hub-filter-option__text');
+			const label = labelEl?.textContent?.trim() || input.value;
+			(filters[key] ??= []).push({ value: input.value, label });
+		}
+		return filters;
+	}
+
+	// Per-section client-side filter: as the user types in the section's
+	// search input, hide options whose label doesn't contain the query
+	// (case-insensitive). Groups with no surviving options collapse so the
+	// "Most popular" / "All" headers don't dangle above empty lists.
+	function applySectionFilter(section: HTMLElement): void {
+		const input = section.querySelector<HTMLInputElement>('[data-filter-search-input]');
+		if (!input) return;
+		const needle = input.value.trim().toLowerCase();
+		const groups = section.querySelectorAll<HTMLElement>('.iot-hub-filter-section__group');
+		for (const group of groups) {
+			const options = group.querySelectorAll<HTMLElement>('.iot-hub-filter-option');
+			let anyVisible = false;
+			for (const opt of options) {
+				const label =
+					opt.querySelector<HTMLElement>('.iot-hub-filter-option__text')?.textContent ?? '';
+				const visible = !needle || label.toLowerCase().includes(needle);
+				opt.hidden = !visible;
+				if (visible) anyVisible = true;
+			}
+			group.hidden = !anyVisible;
+		}
+	}
+
+	document.querySelectorAll<HTMLElement>('[data-iot-hub-filter-panel]').forEach((panel) => {
+		requestAnimationFrame(() => {
+			panel.dataset.mounted = 'true';
+		});
+
+		// Wire each section search input + clear button.
+		panel.querySelectorAll<HTMLElement>('[data-iot-hub-filter-section]').forEach((section) => {
+			const input = section.querySelector<HTMLInputElement>('[data-filter-search-input]');
+			const clear = section.querySelector<HTMLButtonElement>('[data-filter-search-clear]');
+			if (!input) return;
+			input.addEventListener('input', () => applySectionFilter(section));
+			if (clear) {
+				clear.addEventListener('click', () => {
+					input.value = '';
+					applySectionFilter(section);
+					input.focus();
+				});
+			}
+		});
+
+		panel.addEventListener('click', (e) => {
+			const target = e.target as Element;
+
+			const toggle = target.closest<HTMLButtonElement>(
+				'[data-iot-hub-filter-section-toggle]'
+			);
+			if (toggle) {
+				const section = toggle.closest<HTMLElement>('[data-iot-hub-filter-section]');
+				if (!section) return;
+				const open = section.dataset.open === 'true';
+				section.dataset.open = open ? 'false' : 'true';
+				toggle.setAttribute('aria-expanded', open ? 'false' : 'true');
+				return;
+			}
+
+			if (target.closest('[data-iot-hub-filter-close]')) {
+				panel.dispatchEvent(new CustomEvent('iot-hub-filter-close', { bubbles: true }));
+			}
+		});
+
+		// Checkbox toggles → emit a bubbling snapshot of the current
+		// selection state so the host page (dynamic-search pipeline) can
+		// rebuild its API query.
+		panel.addEventListener('change', (e) => {
+			const target = e.target as Element;
+			if (!target.matches('.iot-hub-filter-option__input')) return;
+			panel.dispatchEvent(
+				new CustomEvent('iot-hub-filter:change', {
+					detail: { filters: collectFilters(panel) },
+					bubbles: true,
+				})
+			);
+		});
+	});
+</script>

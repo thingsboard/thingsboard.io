@@ -2,6 +2,8 @@
 // Inline calculator (rendered inside the TBMQ product tab). See
 // `calc-tbmq-payg.ts` for the lazy-load pattern rationale.
 
+import { makeInteractionPusher, bindCtaTracking, bindExportButtons, type CalculatorType } from '@root/scripts/pricing/calc-analytics';
+
 declare function sliderProgress(slider: HTMLInputElement): void;
 declare function initAllSliders(root?: HTMLElement | Document): void;
 
@@ -13,6 +15,7 @@ export function initMqpcCalc() {
 	const c = document.getElementById('tbmq-pc-calc');
 	if (!c || c.dataset.inited === 'true') return;
 	c.dataset.inited = 'true';
+	const CALC_TYPE: CalculatorType = 'tbmq_pc';
 	const $ = (s: string) => c.querySelector(s) as HTMLElement;
 	const $$ = (s: string) => c.querySelectorAll(s);
 	const sI = $('#mqpc-sessions') as HTMLInputElement, sS = $('#mqpc-sessions-slider') as HTMLInputElement;
@@ -36,6 +39,10 @@ export function initMqpcCalc() {
 	function tip(t: string) { return ` <span class="calc-tooltip">${infoSvg}<span class="calc-tooltip-text"><span class="calc-tooltip-arrow"></span><span class="calc-tooltip-body">${t}</span></span></span>`; }
 	function row(l: string, v: string, t?: string) { return `<div class="calc-result-row"><span class="calc-row-label">${l}:</span><span class="calc-row-value">${v}${t ? tip(t) : ''}</span></div>`; }
 
+	// Last computed total, captured where sendGTM is called so it's the settled
+	// value when a footer CTA is clicked.
+	let lastTotal: number | null = null;
+
 	let _calcQueued = false;
 	function scheduleCalc() {
 		if (_calcQueued) return;
@@ -43,7 +50,26 @@ export function initMqpcCalc() {
 		requestAnimationFrame(() => { _calcQueued = false; calc(); });
 	}
 
-	function calc() {
+	// Debounced GTM push — mirrors the ThingsBoard calculators' 3s settle so one
+	// configuration counts once, not per slider tick. Marketing owns the GTM
+	// trigger + GA4 tag (event `calculator_interaction`).
+	const calcAnalytics = makeInteractionPusher(CALC_TYPE);
+	function sendGTM(total: number) {
+		calcAnalytics.push({
+			event: 'calculator_interaction',
+			calculator_sessions: st.sessions,
+			calculator_throughput: st.throughput,
+			calculator_billing_period: st.billingPeriod,
+			calculator_dev_instances: st.devqa.on ? st.devqa.count : 0,
+			calculator_addon_dev_qa: st.devqa.on,
+			calculator_addon_multi_az: st.multiaz,
+			calculator_addon_network_traffic: st.traffic.on,
+			calculator_extra_traffic_gb: st.traffic.on ? st.traffic.extraGB : 0,
+			calculator_total: total,
+		});
+	}
+
+	function calc(opts?: { track?: boolean }) {
 		const isAnnual = st.billingPeriod === 'annual';
 		let total = MQPC.basePrice;
 		const eS = Math.max(0, st.sessions - MQPC.includedSessions), sCost = eS * MQPC.extraSessionsPrice; total += sCost;
@@ -129,6 +155,9 @@ export function initMqpcCalc() {
 		const ctaEl = foot.querySelector('.calc-cta') as HTMLAnchorElement | null;
 		if (ctaEl) ctaEl.href = `/contact-us/?subject=${encodeURIComponent('TBMQ')}&message=${encodeURIComponent(buildSummary())}`;
 
+		lastTotal = finalTotal;
+		if (opts?.track !== false) sendGTM(finalTotal);
+
 		// SLA upgrade button — must rebind because the row containing it is
 		// re-rendered on every calc(). Cheap (1 button) so no need to delegate.
 		const slaBtn = res.querySelector('#mqpc-sla-upgrade');
@@ -165,6 +194,10 @@ export function initMqpcCalc() {
 		if (key === 'traffic') { st.traffic.on = true; trafficToggle.checked = true; $('#mqpc-traffic-card').classList.add('active'); trafficCounter.classList.remove('hidden'); }
 		calc();
 	});
+
+	// Footer conversion CTAs re-render on every recalc, so bind once on the
+	// stable container and read state at click.
+	bindCtaTracking(c, CALC_TYPE, () => ({ calculator_total: lastTotal }));
 
 	function bindSlider(sl: HTMLInputElement, inp: HTMLInputElement, marks: number[], key: 'sessions' | 'throughput') {
 		sl.addEventListener('input', () => { (st as any)[key] = s2v(parseFloat(sl.value), marks); inp.value = String((st as any)[key]); sliderProgress(sl); scheduleCalc(); });
@@ -267,24 +300,10 @@ export function initMqpcCalc() {
 		return msg;
 	}
 
-	c.querySelector('[data-calc-copy]')?.addEventListener('click', (e) => {
-		const btn = e.currentTarget as HTMLElement;
-		const text = buildSummary();
-		const flashCopied = () => {
-			btn.classList.add('copied');
-			setTimeout(() => btn.classList.remove('copied'), 2000);
-		};
-		navigator.clipboard.writeText(text).then(flashCopied).catch(() => {});
-	});
-
-	c.querySelector('[data-calc-download]')?.addEventListener('click', () => {
-		const blob = new Blob([buildSummary()], { type: 'text/plain' });
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = 'tbmq-private-cloud-calculation.txt';
-		a.click();
-		URL.revokeObjectURL(url);
+	bindExportButtons(c, CALC_TYPE, {
+		buildText: buildSummary,
+		filename: 'tbmq-private-cloud-calculation.txt',
+		getExtra: () => ({ calculator_total: lastTotal }),
 	});
 
 	$('[data-calc-reset]').addEventListener('click', () => {
@@ -300,10 +319,10 @@ export function initMqpcCalc() {
 		trafficCard.classList.add('hidden');
 		if (billingToggle) billingToggle.checked = false;
 		foot.querySelectorAll('.calc-billing-label').forEach(l => l.classList.toggle('active', (l as HTMLElement).dataset.billing === 'monthly'));
-		sliderProgress(sS); sliderProgress(tS); calc();
+		sliderProgress(sS); sliderProgress(tS); calc({ track: false });
 		requestAnimationFrame(() => { if (c) initAllSliders(c); });
 	});
 
-	sliderProgress(sS); sliderProgress(tS); calc();
+	sliderProgress(sS); sliderProgress(tS); calc({ track: false });
 	requestAnimationFrame(() => { if (c) initAllSliders(c); });
 }

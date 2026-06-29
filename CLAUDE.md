@@ -50,7 +50,24 @@ All documentation lives in `src/content/docs/{lang}/` as `.mdx` files with YAML 
 
 ### Path Alias
 
-`~/*` maps to `./src/*` (configured in tsconfig.json).
+**Always use the `@`-prefixed path aliases for local imports** — never relative paths (`../../`) and never the legacy `~/*` alias for new code. Aliases are configured in `tsconfig.json`:
+
+| Alias | Maps to |
+|-------|---------|
+| `@models/*` | `src/models/*` |
+| `@components/*` | `src/components/*` |
+| `@layouts/*` | `src/layouts/*` |
+| `@styles/*` | `src/styles/*` |
+| `@data/*` | `src/data/*` |
+| `@util/*` | `src/util/*` |
+| `@includes/*` | `src/content/_includes/*` |
+| `@root/*` | `src/*` (catch-all for paths without a dedicated alias, e.g. `@root/consts`, `@root/pages/...`) |
+
+Prefer the most specific alias whenever one matches the target folder; fall back to `@root/*` only for `src/` paths no other alias covers.
+
+Example: `import { foo } from '@util/fetch-utils';` (not `~/util/fetch-utils` or `../../util/fetch-utils`).
+
+`~/*` (maps to `./src/*`) still exists for legacy code, but always prefer an `@` alias. SCSS `@use`/`@import` use **relative paths** (e.g., `@use '../../styles/_variables.scss' as *;`); inside `src/styles/` use sibling imports like `@use 'variables' as *;`.
 
 ### Starlight Customization
 
@@ -162,40 +179,6 @@ Key dirs: `src/data/case-studies/`, `src/components/CaseStudy/`, `src/pages/case
 
 Data-driven page at `/clients-feedback/`. Key dirs: `src/data/clients-feedback/`, `src/components/Feedback/`, `src/pages/clients-feedback/`.
 
-### Device Library
-
-Catalog of supported hardware + integration guides at `/device-library/` (index) and `/device-library/{slug}/` (detail pages). **Flat slug**, not product-prefixed — one URL per device regardless of platform. Platform context rides on a `?platform=` query parameter that the detail page reads client-side to activate the right CE/PE branch and swap hostname sentinels (`YOUR_TB_HOST` → actual platform host) in code snippets.
-
-Content lives in the `devices` collection, not `docs`:
-
-```
-src/content/devices/en/{slug}.mdx       ← device guides (EN-only; no i18n for this collection)
-src/content.config.ts                   ← `deviceSchema` + `PLATFORM_VALUES` allow-list
-src/util/device-platform.ts             ← platform metadata, sentinel map, query → variant mapping
-src/util/device-images.ts               ← asset-pipeline resolver for catalog thumbnails + hero images
-```
-
-Presentation uses `StarlightPage` with `template: 'doc'` so guide bodies get the same Starlight typography as real docs pages, wrapped in the chrome components under `src/components/DeviceLibrary/`:
-
-```
-DeviceLibrary.astro        ← index: search + filter sidebar + paginated grid (client-side)
-DeviceCard.astro           ← catalog thumbnail card
-DeviceInfoCard.astro       ← detail page hero (product image + spec sheet + CTA)
-PlatformContent.astro      ← wraps `<PlatformContent variant="ce|pe">…</PlatformContent>` blocks
-PlatformToggle.astro       ← CE/PE segmented control (role="group" + aria-pressed)
-DeviceCTAFooter.astro      ← detail page CTA footer
-FilterSidebar.astro        ← search + filter sidebar (reused)
-```
-
-Chrome components all carry `.not-content` so Starlight's markdown flow/typography rules don't apply to them, while the MDX body inside `<Content />` does get full Starlight styling.
-
-**Assets:**
-- `src/assets/devices/{filename}` — catalog thumbnails (referenced by `deviceImageFileName:` frontmatter)
-- `src/assets/devices-library/**` — body content images (screenshots, diagrams, galleries)
-- Both go through Astro's asset pipeline (content-hashed URLs, WebP re-encoding, intrinsic `width`/`height`)
-
-**Redirects:** `scripts/device-library-redirects.json` maps every legacy URL shape (`/docs/devices-library/{slug}/`, `/docs/pe/devices-library/{slug}/`, `/device-library/{platform}/{slug}/`, and the `guides/` variants) to `/device-library/{slug}/?platform={platform}`. Imported at build time by `astro.redirects.ts`. Covers 983/983 inbound URLs from the legacy site.
-
 ## Redirects
 
 **Single source of truth:** `src/data/redirects.ts`. Four exports, chosen by pattern shape:
@@ -236,7 +219,7 @@ Per-page OG cards (1200×630 PNG) are generated at build time by Satori + Resvg.
 - `src/pages/open-graph/_shared/render.ts` — Satori → Resvg pipeline + content-hash cache
 - `src/pages/open-graph/_shared/page-data.ts` — collection enumerators
 - `src/pages/open-graph/_shared/jsx-runtime.ts` — minimal Satori-shaped JSX shim (no React)
-- `src/pages/open-graph/{collection}/[…].png.ts` — six static endpoints (docs, blog, case-studies, use-cases, device-library, pages)
+- `src/pages/open-graph/{collection}/[…].png.ts` — static endpoints (docs, blog, case-studies, use-cases, careers, iot-hub, partners, pages)
 - `src/util/ogContext.ts` — eyebrow / label helpers + `MARKETING_ALLOWLIST`
 - `src/util/getOgImageUrl.ts` — pathname → OG PNG URL aggregator
 
@@ -261,6 +244,7 @@ Use the `release` skill for the full checklist. Key files:
 - Tabs for indentation in code files; spaces for JSON, Markdown, MDX, YAML, TOML
 - Prettier with `prettier-plugin-astro`, printWidth 100, single quotes, trailing commas
 - ESLint flat config with TypeScript and Astro plugins
+- **No Figma references in comments.** Don't write "Figma", "Figma node 1234:5678", or any tool-specific node IDs in source comments — they're meaningless to anyone without access to the Figma file and rot fast. Refer to the visual spec as "the design" (or "per the design", "matches the design") and describe what's actually being implemented (sizes, colors, behaviors) so the comment stands on its own.
 
 ## CI Checks
 

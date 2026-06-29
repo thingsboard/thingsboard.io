@@ -1,6 +1,6 @@
 import { getCollection } from 'astro:content';
-import { isRecipeEntry, isTutorialEntry } from './content.config';
-import { getLanguageFromSlug } from '~/util/path-utils';
+import { isRecipeEntry, isTutorialEntry } from '@root/content.config';
+import { getLanguageFromSlug } from '@util/path-utils';
 
 export const allPages = await getCollection('docs');
 

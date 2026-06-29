@@ -4,10 +4,10 @@
 // name. Used for blog, marketing landings, case studies, use cases, device library.
 
 import { html } from 'satori-html';
-import { TB_STACKED_LOGO } from '../_assets/icons';
-import { Background } from './Background';
-import { Slab } from './Slab';
-import { pickTitleSize } from './text-block';
+import { TB_STACKED_LOGO } from '@root/pages/open-graph/_assets/icons';
+import { Background } from '@root/pages/open-graph/_shared/Background';
+import { Slab } from '@root/pages/open-graph/_shared/Slab';
+import { pickTitleSize } from '@root/pages/open-graph/_shared/text-block';
 
 const TEXT_COLOR = '#ffffff';
 const URL_COLOR = 'rgba(255,255,255,0.62)';
@@ -18,7 +18,8 @@ export interface LogoCardProps {
 	sectionName?: string;
 	/** Use 22 px / 0.14em "tight" version (for two-word labels). */
 	sectionTight?: boolean;
-	eyebrow: string;
+	/** Optional uppercase line above the title. Omit for self-explanatory titles. */
+	eyebrow?: string;
 	title: string;
 	/** Optional small line below the title — used for blog "By {Author}". */
 	authorLine?: string;
@@ -102,17 +103,19 @@ export function LogoCard({ sectionName, sectionTight, eyebrow, title, authorLine
 					flexDirection: 'column',
 				}}
 			>
-				<div
-					style={{
-						fontSize: 21,
-						fontWeight: 700,
-						letterSpacing: '0.16em',
-						textTransform: 'uppercase',
-						opacity: 0.82,
-					}}
-				>
-					{eyebrow}
-				</div>
+				{eyebrow && (
+					<div
+						style={{
+							fontSize: 21,
+							fontWeight: 700,
+							letterSpacing: '0.16em',
+							textTransform: 'uppercase',
+							opacity: 0.82,
+						}}
+					>
+						{eyebrow}
+					</div>
+				)}
 				<div
 					style={{
 						fontSize: titleSize,

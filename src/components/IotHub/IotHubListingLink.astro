@@ -1,0 +1,319 @@
+---
+import {
+	getCardVariant,
+	getPlaceholderIcon,
+	resolveImage,
+	type ListingView,
+} from '@models/iot-hub';
+import IotHubIcon from './IotHubIcon.astro';
+import { getListingBySlug } from './iot-hub-listing-link-cache';
+import {
+	TYPE_FALLBACK_ICON,
+	getListingHref,
+} from './iot-hub-listing-link-bind';
+
+// Inline card linking to another IoT Hub listing.
+//
+// THREE rendering paths share one markup blueprint (Pattern C):
+//   1. `slug=…`   — fetch the detail at build time and render the card.
+//   2. `item=…`   — render straight from an already-loaded ListingView.
+//   3. no props   — render an empty card with all data-listing-link-*
+//                   slots in place; used by IotHubListingLinkTemplate to
+//                   provide a runtime clone source for the search popup
+//                   (and any future dynamic listing-card use case).
+//
+// All three paths produce identical DOM shape and class names, so the JS
+// binder in iot-hub-listing-link-bind.ts can mutate clones from path (3)
+// to match paths (1) and (2). The thumb icon is itself a Pattern C
+// component (IotHubIcon) so MDI icons render correctly in both contexts.
+//
+// `variant`:
+//   - 'card' (default) — 360px fixed-width bordered card with margin.
+//     Used by the readme `${listing-link:<slug>}` placeholder.
+//   - 'row' — full-width unbordered row with hover background. Used by the
+//     search popup so cloned cards span the popup body width.
+
+interface Props {
+	slug?: string;
+	item?: ListingView;
+	variant?: 'card' | 'row';
+}
+
+const { slug, item: propItem, variant = 'card' } = Astro.props;
+
+// Resolution order: explicit `item` wins (skip the network), else fetch
+// from `slug`, else `null` (template / empty mode).
+const item = propItem ?? (slug ? await getListingBySlug(slug) : null);
+
+// Slug was supplied but the fetch came back empty → render the "Listing
+// unavailable" variant. Static-only branch; template mode never hits it.
+const isUnavailable = !!slug && !item;
+
+// Pre-compute the same fields the JS binder would set at runtime so the
+// static render mirrors the dynamic render branch-for-branch.
+const isCompact = item ? getCardVariant(item.itemType) === 'small' : false;
+const imageUrl = item ? resolveImage(item.image) : null;
+const fallbackTypeIcon = item ? TYPE_FALLBACK_ICON[item.itemType] ?? 'category' : '';
+const href = item ? getListingHref(item) : '#';
+const showImg = !!item && !isCompact && imageUrl !== null;
+const showIcon = !!item && (isCompact || (!isCompact && !imageUrl));
+const thumbIconName = !item
+	? undefined // template mode — IotHubIcon renders empty
+	: isCompact
+		? getPlaceholderIcon(item)
+		: fallbackTypeIcon;
+const thumbIconSize = isCompact ? 28 : 24;
+const thumbStyle = isCompact && item?.color ? `background:${item.color};` : undefined;
+
+const rootClasses = ['iot-hub-listing-link', variant === 'row' && 'iot-hub-listing-link--row'];
+const thumbClasses = [
+	'iot-hub-listing-link__thumb',
+	isCompact && 'iot-hub-listing-link__thumb--compact',
+];
+---
+
+{
+	isUnavailable ? (
+		<div
+			class:list={[
+				'iot-hub-listing-link',
+				'iot-hub-listing-link--unavailable',
+				variant === 'row' && 'iot-hub-listing-link--row',
+			]}
+			aria-label="Listing unavailable"
+		>
+			<div
+				class="iot-hub-listing-link__thumb iot-hub-listing-link__thumb--unavailable"
+				aria-hidden="true"
+			>
+				<IotHubIcon icon="link_off" size={28} />
+			</div>
+			<div class="iot-hub-listing-link__text">
+				<span class="iot-hub-listing-link__name">Listing unavailable</span>
+			</div>
+		</div>
+	) : (
+		<a
+			href={href}
+			class:list={rootClasses}
+			data-listing-link-root
+		>
+			<span
+				class:list={thumbClasses}
+				style={thumbStyle}
+				data-listing-link-thumb
+				aria-hidden="true"
+			>
+				<img
+					class="iot-hub-listing-link__thumb-img"
+					data-listing-link-thumb-img
+					src={showImg ? imageUrl : undefined}
+					alt=""
+					loading="lazy"
+					decoding="async"
+					hidden={!showImg}
+				/>
+				<IotHubIcon
+					icon={thumbIconName}
+					size={thumbIconSize}
+					class="iot-hub-listing-link__thumb-icon"
+					hidden={!showIcon}
+				/>
+			</span>
+			<span class="iot-hub-listing-link__text">
+				<span
+					class="iot-hub-listing-link__name"
+					data-listing-link-name
+				>{item?.name ?? ''}</span>
+				<span
+					class="iot-hub-listing-link__author"
+					data-listing-link-author
+					hidden={!item?.creatorDisplayName}
+				>
+					<IotHubIcon
+						icon={item?.creatorVerified ? 'verified' : 'person'}
+						size={16}
+						class={
+							item?.creatorVerified
+								? 'iot-hub-listing-link__author-icon iot-hub-listing-link__author-icon--verified'
+								: 'iot-hub-listing-link__author-icon'
+						}
+					/>
+					<span
+						class="iot-hub-listing-link__author-text"
+						data-listing-link-author-text
+					>{item?.creatorDisplayName ?? ''}</span>
+				</span>
+			</span>
+		</a>
+	)
+}
+
+<style lang="scss">
+	@use '../../styles/_variables.scss' as *;
+
+	// --- Card surface --------------------------------------------------------
+
+	.iot-hub-listing-link {
+		display: inline-flex;
+		align-items: center;
+		gap: 12px;
+		width: 360px;
+		max-width: 100%;
+		padding: 8px 12px;
+		margin: 12px 0;
+		border: 1px solid var(--iot-hub-hairline, rgba(0, 0, 0, 0.08));
+		border-radius: 8px;
+		background: var(--sl-color-bg, #fff);
+		color: var(--sl-color-text, #17181c);
+		text-decoration: none;
+		transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+
+		&:hover:not(.iot-hub-listing-link--unavailable) {
+			background: rgba(4, 138, 211, 0.04);
+			border-color: rgba(4, 138, 211, 0.32);
+			box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+			text-decoration: none;
+
+			.iot-hub-listing-link__name,
+			.iot-hub-listing-link__author-text {
+				text-decoration: underline;
+			}
+		}
+
+		:global([data-theme='dark']) &:hover:not(.iot-hub-listing-link--unavailable) {
+			background: rgba(4, 138, 211, 0.12);
+		}
+
+		&--unavailable {
+			opacity: 0.6;
+			cursor: default;
+		}
+	}
+
+	// `row` variant — full-width row, no border, hover background. Used by
+	// the search popup so cards span the popup body width.
+	.iot-hub-listing-link--row {
+		width: 100%;
+		max-width: none;
+		padding: 8px 16px;
+		margin: 0;
+		border: none;
+		border-radius: 0;
+		background: transparent;
+
+		&:hover:not(.iot-hub-listing-link--unavailable) {
+			background: var(--color-bg-light, rgba(0, 0, 0, 0.04));
+			border: none;
+			box-shadow: none;
+
+			// The card variant underlines name + author on hover; row
+			// hover is just a background tint, so suppress the underline
+			// here. Same specificity as the base rule (0,4,0); later in
+			// source order, so it wins.
+			.iot-hub-listing-link__name,
+			.iot-hub-listing-link__author-text {
+				text-decoration: none;
+			}
+		}
+
+		// Row variant reads against the regular page surface, so the name
+		// uses the standard body text colour rather than the accent that
+		// the card variant uses, and a slightly heavier weight to read
+		// well against the surrounding muted text.
+		.iot-hub-listing-link__name {
+			color: var(--color-text);
+			font-weight: $font-weight-semibold;
+		}
+	}
+
+	// --- Thumb tile ----------------------------------------------------------
+
+	.iot-hub-listing-link__thumb {
+		flex-shrink: 0;
+		width: 99px;
+		height: 56px;
+		border-radius: 4px;
+		border: 1px solid var(--iot-hub-hairline, rgba(0, 0, 0, 0.12));
+		background: rgba(0, 0, 0, 0.04);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		overflow: hidden;
+
+		:global([data-theme='dark']) & {
+			background: rgba(255, 255, 255, 0.04);
+		}
+
+		&--compact {
+			width: 56px;
+			height: 56px;
+			border: none;
+			border-radius: 4.667px;
+			color: #fff;
+		}
+
+		&--unavailable {
+			width: 56px;
+			height: 56px;
+			border: none;
+			color: var(--sl-color-gray-3, rgba(0, 0, 0, 0.45));
+		}
+	}
+
+	.iot-hub-listing-link__thumb-img {
+		width: 100%;
+		height: 100%;
+		object-fit: contain;
+		display: block;
+
+		// Specificity guard — without this, the `display: block` above
+		// beats the browser's `[hidden] { display: none }` (both 0,1,0,
+		// page styles win). The combined selector is 0,2,0 and hides.
+		&[hidden] {
+			display: none;
+		}
+	}
+
+	// Non-compact fallback icon reads on a neutral background — muted gray
+	// rather than the compact `#fff` colour.
+	.iot-hub-listing-link__thumb:not(.iot-hub-listing-link__thumb--compact) {
+		.iot-hub-listing-link__thumb-icon {
+			color: var(--sl-color-gray-3, rgba(0, 0, 0, 0.45));
+		}
+	}
+
+	// --- Text column ---------------------------------------------------------
+
+	.iot-hub-listing-link__text {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+		gap: 2px;
+	}
+
+	.iot-hub-listing-link__name {
+		font-size: 14px;
+		font-weight: $font-weight-medium;
+		line-height: 1.3;
+		color: var(--sl-color-text-accent);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.iot-hub-listing-link__author {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		font-size: 12px;
+		font-weight: 500;
+		color: var(--sl-color-gray-3, rgba(0, 0, 0, 0.6));
+	}
+
+	// Verified creators get the brand-accent badge icon instead of the
+	// neutral person silhouette.
+	.iot-hub-listing-link__author-icon--verified {
+		color: var(--color-primary);
+	}
+</style>
