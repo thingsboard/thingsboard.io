@@ -6,6 +6,7 @@ import {
 	IOT_HUB_STRINGS,
 	buildInstallUrl,
 	getInstallVerb,
+	isInstanceAvailable,
 	stripScheme,
 	stripTrailingSlash,
 	type InstallInstance,
@@ -91,16 +92,27 @@ function rowMarkup(inst: InstallInstance): string {
 				<p class="iot-hub-install-dialog__error" id="${errorId}" data-error hidden>${S.invalidUrl}</p>
 			</div>`
 		: '';
-	return `<li class="iot-hub-install-dialog__row" data-instance="${inst.key}">
+	// Instances with a future `availableFrom` aren't live yet — show a
+	// "coming soon" badge instead of the copy + action buttons.
+	const available = isInstanceAvailable(inst);
+	const actions = available
+		? `<div class="iot-hub-install-dialog__row-actions">
+				<button type="button" class="iot-hub-install-dialog__icon-btn" data-copy aria-label="${S.copy}">${icon('copy', 24)}</button>
+				<a class="iot-hub-install-dialog__action" data-open target="_blank" rel="noopener"><span data-verb></span>${icon('external-link', 20)}</a>
+			</div>`
+		: `<div class="iot-hub-install-dialog__row-actions">
+				<span class="iot-hub-install-dialog__badge">${S.comingSoonBadge}</span>
+			</div>`;
+	const rowClass = available
+		? 'iot-hub-install-dialog__row'
+		: 'iot-hub-install-dialog__row iot-hub-install-dialog__row--coming-soon';
+	return `<li class="${rowClass}" data-instance="${inst.key}">
 			<span class="iot-hub-install-dialog__row-icon" aria-hidden="true">${icon(inst.icon, 32)}</span>
 			<div class="iot-hub-install-dialog__row-main">
 				<span class="iot-hub-install-dialog__row-label">${inst.label}</span>
 				<div class="iot-hub-install-dialog__row-host"><span data-host></span>${editBtn}</div>
 			</div>
-			<div class="iot-hub-install-dialog__row-actions">
-				<button type="button" class="iot-hub-install-dialog__icon-btn" data-copy aria-label="${S.copy}">${icon('copy', 24)}</button>
-				<a class="iot-hub-install-dialog__action" data-open target="_blank" rel="noopener"><span data-verb></span>${icon('external-link', 20)}</a>
-			</div>
+			${actions}
 			${editCluster}
 		</li>`;
 }
