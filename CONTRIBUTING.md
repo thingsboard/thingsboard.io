@@ -93,17 +93,19 @@ Do not hand-edit `public/_redirects` or `public/redirects.json` directly — the
 
 ### Regenerate configuration reference pages
 
-When ThingsBoard's upstream `*.yml` config files change, regenerate the configuration reference MDX pages with `scripts/generate_config_pages.py`. Clone the upstream ThingsBoard repo as a sibling of this one, then from this repo's root:
+When ThingsBoard's upstream `*.yml` config files change, regenerate the configuration reference MDX pages with `scripts/generate_config_pages.py`. The script fetches the upstream config files directly from GitHub via the [`gh` CLI](https://cli.github.com/) — no local checkout needed. Run `gh auth login` once (required for the private PE / Edge-PE / TBMQ-PE repos), then from this repo's root:
 
 ```bash
-python3 scripts/generate_config_pages.py <repo_type> <relative_path_to_upstream>
+python3 scripts/generate_config_pages.py <repo_type> <branch>
 ```
 
-`<repo_type>` is one of: `ce`, `pe`, `tbmq`, `tbmq-pe`, `edge`, `edge-pe`. For example, to regenerate CE pages from a `thingsboard` checkout next to this repo:
+`<repo_type>` is one of: `ce`, `pe`, `tbmq`, `tbmq-pe`, `edge`, `edge-pe`. `<branch>` is the upstream branch to read the config files from. For example, to regenerate CE pages from the `master` branch:
 
 ```bash
-python3 scripts/generate_config_pages.py ce ../../thingsboard
+python3 scripts/generate_config_pages.py ce master
 ```
+
+Each `<repo_type>` maps to a fixed upstream repo (`ce` → `thingsboard/thingsboard`, `pe` → `thingsboard/thingsboard-pe`, `tbmq` → `thingsboard/tbmq`, `tbmq-pe` → `thingsboard/tbmq-pe`, `edge` → `thingsboard/thingsboard-edge`, `edge-pe` → `thingsboard/thingsboard-edge-pe`).
 
 Commit the regenerated files (under `src/content/docs/docs/.../reference/configuration/` for CE / PE, or the equivalent path for TBMQ / Edge).
 
