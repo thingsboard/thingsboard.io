@@ -5,8 +5,8 @@
 // canvas base colour #171a23. Children render in a centred column inside the
 // solid (non-feathered) 65 % portion.
 
-import type { SatoriNode } from './jsx-runtime';
-import { slabBackground, type SlabClass } from './colors';
+import type { SatoriNode } from '@root/pages/open-graph/_shared/jsx-runtime';
+import { slabBackground, type SlabClass } from '@root/pages/open-graph/_shared/colors';
 
 const PANEL_BASE = '#171a23';
 

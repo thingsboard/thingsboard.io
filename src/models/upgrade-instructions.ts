@@ -39,7 +39,43 @@ export function getFamilySlug(family: string): string {
 	return 'v' + family.replace(/\./g, '-') + '-x';
 }
 
+/**
+ * Versions to render on an upgrade-instruction page (optionally scoped to a
+ * family). Only the newest patch of each `baseVersion` is kept — e.g. for 4.3
+ * just 4.3.1.3 (latest 4.3.1) and 4.3.0.1 (latest 4.3.0). Older patches within
+ * the same baseline only duplicate the same steps, so they are dropped even
+ * when superseded by a security patch. Entries without a `baseVersion`
+ * (non-patch releases like 4.2.0 or any 3.x) are always kept. Input is assumed
+ * newest-first, matching the ordering of `UPGRADE_VERSIONS`.
+ */
+export function getUpgradeStepVersions(family?: string): UpgradeVersion[] {
+	const scoped = family ? UPGRADE_VERSIONS.filter((v) => v.family === family) : UPGRADE_VERSIONS;
+	const seenBaselines = new Set<string>();
+	return scoped.filter((v) => {
+		if (!v.baseVersion) return true;
+		if (seenBaselines.has(v.baseVersion)) return false;
+		seenBaselines.add(v.baseVersion);
+		return true;
+	});
+}
+
 export const UPGRADE_VERSIONS: UpgradeVersion[] = [
+	{
+		version: '4.3.1.3',
+		displayVersion: '4.3.1.3',
+		family: '4.3',
+		baseVersion: '4.3.1',
+		releaseDate: 'Jul 1 2026',
+		upgradableFrom: '4.2.1.x',
+		prevVersionAnchor: 'v4-3-0-1',
+		lts: true,
+		patch: true,
+		x: true,
+		upgrade: true,
+		manualVersionUpgrade: false,
+		windowsZip: true,
+		anchor: 'v4-3-1-3',
+	},
 	{
 		version: '4.3.1.2',
 		displayVersion: '4.3.1.2',
@@ -55,6 +91,7 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 		manualVersionUpgrade: false,
 		windowsZip: true,
 		anchor: 'v4-3-1-2',
+		vulnerable: true,
 	},
 	{
 		version: '4.3.1.1',
@@ -108,6 +145,22 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 		vulnerable: true,
 	},
 	{
+		version: '4.2.2.3',
+		displayVersion: '4.2.2.3',
+		family: '4.2',
+		baseVersion: '4.2.2',
+		releaseDate: 'Jul 1 2026',
+		upgradableFrom: '4.2.0',
+		prevVersionAnchor: 'v4-2-1-2',
+		lts: true,
+		patch: true,
+		x: true,
+		upgrade: true,
+		manualVersionUpgrade: false,
+		windowsZip: true,
+		anchor: 'v4-2-2-3',
+	},
+	{
 		version: '4.2.2.2',
 		displayVersion: '4.2.2.2',
 		family: '4.2',
@@ -122,6 +175,7 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 		manualVersionUpgrade: false,
 		windowsZip: true,
 		anchor: 'v4-2-2-2',
+		vulnerable: true,
 	},
 	{
 		version: '4.2.2.1',

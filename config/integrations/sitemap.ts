@@ -3,19 +3,25 @@ import type { AstroIntegration } from 'astro';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+	getSitemapLastmodRegistry,
+	getSitemapSourceRegistry,
+	maxEpochToIso,
+	normalizeSitemapPath,
+} from '../sitemap-source-registry';
+import { getGitDateMap } from '../sitemap/git-date';
+import { captureRoutes } from '../sitemap/route-match';
+import { resolveNonDocSources } from '../sitemap/source-resolve';
 
 /**
- * Sitemap filter driven by the built HTML itself: a page is included only when
- * it is indexable (no `<meta name="robots" content="noindex">`) and canonical
- * (any `<link rel="canonical">` resolves to the page's own URL). One rule —
- * no parallel allow/deny lists to drift from the actual output.
+ * Sitemap integration. Includes a page only when its built HTML is indexable
+ * (no `noindex`) and self-canonical — reading the real output instead of keeping
+ * allow/deny lists that drift from it — and adds a `<lastmod>` per entry.
  */
 export function sitemap(): AstroIntegration {
-	// Populated by our `astro:build:done` wrapper below, before we delegate to
-	// @astrojs/sitemap's own hook (the only place that invokes `filter`). If
-	// a future upgrade ever calls the filter from an earlier hook, the explicit
-	// throw below makes the broken assumption loud instead of silently letting
-	// every page through.
+	// Set by our `astro:build:done` wrapper before @astrojs/sitemap's own hook
+	// (the only caller of `filter`). The throw guards a future version that calls
+	// `filter` earlier — better loud than letting every page through.
 	let outDir: string | null = null;
 	const integration = AstroSitemap({
 		filter: (page) => {
@@ -24,12 +30,24 @@ export function sitemap(): AstroIntegration {
 			}
 			return isIndexableCanonicalPage(outDir, page);
 		},
+		serialize: (item) => {
+			const lastmod = getLastmod(item.url);
+			if (lastmod) item.lastmod = lastmod;
+			return item;
+		},
 	});
 	const innerHook = integration.hooks['astro:build:done'];
+	const innerRoutesHook = integration.hooks['astro:routes:resolved'];
 	return {
 		...integration,
 		hooks: {
 			...integration.hooks,
+			// Capture the route table so non-docs pages (which never run the Starlight
+			// route middleware) can be mapped from their URL to a source `.astro` file.
+			'astro:routes:resolved': async (params) => {
+				captureRoutes(params.routes);
+				if (innerRoutesHook) await innerRoutesHook(params);
+			},
 			'astro:build:done': async (params) => {
 				outDir = fileURLToPath(params.dir);
 				if (innerHook) await innerHook(params);
@@ -77,4 +95,32 @@ function getCanonicalHref(head: string): string | null {
 		if (href) return href[1] ?? null;
 	}
 	return null;
+}
+
+/**
+ * `<lastmod>` for an entry: the newest git commit date across the page's source
+ * file(s) — so editing the wrapper, its `_includes`, or a marketing page's data
+ * file all move the date. Returns `null` (no `<lastmod>`) when nothing maps or
+ * the sources aren't in git.
+ */
+function getLastmod(url: string): string | null {
+	let pathname: string;
+	try {
+		pathname = new URL(url).pathname;
+	} catch {
+		return null;
+	}
+	const key = normalizeSitemapPath(pathname);
+
+	// Explicit build-data dates (IoT Hub `updatedTime`) win over git.
+	const explicit = getSitemapLastmodRegistry().get(key);
+	if (explicit) return explicit;
+
+	// Docs come from the route-middleware registry; non-docs are resolved here
+	// (they never run the middleware).
+	const sources = getSitemapSourceRegistry().get(key) ?? resolveNonDocSources(pathname);
+	if (sources.length === 0) return null;
+
+	const dates = getGitDateMap();
+	return maxEpochToIso(sources.map((rel) => dates.get(rel)));
 }

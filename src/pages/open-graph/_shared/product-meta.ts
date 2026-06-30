@@ -4,15 +4,15 @@
 // Driven by the existing `getVersionFromSlug` + `Products` enum in path-utils.ts —
 // same source of truth as the docs URL routing.
 
-import { Products } from '~/models/site.models';
-import { getVersionFromSlug } from '~/util/path-utils';
-import type { SlabClass } from './colors';
+import { Products } from '@models/site.models';
+import { getVersionFromSlug } from '@util/path-utils';
+import type { SlabClass } from '@root/pages/open-graph/_shared/colors';
 
 export type IconKey =
 	| 'cm' | 'p' | 'c' | 'e'
 	| 'tbmq' | 'trendz'
 	| 'mobile' | 'pe-mobile'
-	| 'gateway' | 'license';
+	| 'gateway' | 'license' | 'iot-hub';
 
 export interface DocsProductMeta {
 	slabClass: SlabClass;
@@ -39,6 +39,7 @@ const META_BY_PRODUCT: Record<Products, DocsProductMeta> = {
 	[Products.MOBILE_PE]: { slabClass: 'mobile',  iconKey: 'pe-mobile', primaryLabel: 'Mobile', secondaryLabel: 'Professional' },
 	[Products.GW]:        { slabClass: 'gateway', iconKey: 'gateway',   primaryLabel: 'IoT Gateway', tight: true },
 	[Products.LICENSE]:   { slabClass: 'license', iconKey: 'license',   primaryLabel: 'License', secondaryLabel: 'Server' },
+	[Products.IOT_HUB]:   { slabClass: 'brand',   iconKey: 'iot-hub',   primaryLabel: 'IoT Hub' },
 };
 
 /** Resolve docs slug (e.g. 'docs/pe/getting-started/quickstart') to product meta. */

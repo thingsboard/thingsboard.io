@@ -1,0 +1,401 @@
+---
+import '@astrojs/starlight/style/markdown.css';
+import 'node_modules/@astrojs/starlight/style/asides.css';
+import { Aside, Code, Icon, LinkButton } from '@astrojs/starlight/components';
+import ImageGallery from '@components/ImageGallery.astro';
+import IotHubListingLink from '@components/IotHub/IotHubListingLink.astro';
+import { resolveImage, type ListingDetail } from '@models/iot-hub';
+import { getMarkdownProcessor } from '@util/markdown-processor';
+
+// Renders IoT Hub listing readme markdown. Plain prose flows through the
+// shared markdown processor and renders via set:html; fenced code blocks
+// (and any future registered patterns) are extracted *before* processing
+// and rendered with their matching Astro component instead — see the
+// `Slot` registry below.
+//
+// To add a new pattern:
+//   1. Add a `kind` + `props` shape to the `Slot` union.
+//   2. Write a detector that scans the raw markdown, pushes a slot per
+//      match, and replaces the matched text with `slotComment(i)`.
+//   3. Add a case to the render switch in the template below.
+
+interface Props {
+	markdown: string | null | undefined;
+	/** Optional listing context — passed in by detail-page renders so future
+	 *  detectors can resolve variables / per-listing values from the same DTO
+	 *  the rest of the page sees. */
+	listingDetail?: ListingDetail;
+}
+
+const { markdown, listingDetail } = Astro.props;
+
+// Registry of slot kinds we know how to render. Each slot stores the
+// props the matching Astro component will be invoked with.
+type CodeSlotProps = { code: string; lang?: string; meta?: string };
+type GalleryImage = { src: string; alt: string; caption?: string };
+type GallerySlotProps = { images: GalleryImage[] };
+type AsideType = 'note' | 'caution' | 'danger';
+type AsideSlotProps = { type: AsideType; content: string };
+type IconName = Parameters<typeof Icon>[0]['name'];
+type DocLinkSlotProps = { href: string; label: string; icon: IconName };
+type ListingLinkSlotProps = { slug: string };
+type Slot =
+	| { kind: 'code'; props: CodeSlotProps }
+	| { kind: 'gallery'; props: GallerySlotProps }
+	| { kind: 'aside'; props: AsideSlotProps }
+	| { kind: 'docLink'; props: DocLinkSlotProps }
+	| { kind: 'listingLink'; props: ListingLinkSlotProps };
+
+// Sentinel: HTML comments survive markdown→HTML conversion unmodified, so
+// we can splice slots back into the rendered HTML by plain string matching.
+const SENTINEL_PREFIX = 'ih-slot-';
+const slotComment = (i: number) => `<!--${SENTINEL_PREFIX}${i}-->`;
+const SLOT_RE = new RegExp(`<!--${SENTINEL_PREFIX}(\\d+)-->`, 'g');
+
+// --- Detectors ---------------------------------------------------------------
+
+// Fenced code blocks (```lang …meta\n…\n```). Tilde fences accepted too.
+// The opening fence string is back-referenced (`\2`) so the closing fence has
+// to match it exactly — keeps nested-fence outer blocks intact.
+const FENCED_CODE_RE = /^([ \t]*)(`{3,}|~{3,})[ \t]*([^\n`]*?)\n([\s\S]*?)\n\1\2[ \t]*$/gm;
+// Kramdown attribute-list residue from the legacy docs site — used there to
+// attach a `copy-code` class to the preceding block. Meaningless here, so we
+// scrub it from extracted code bodies (both on its own line and inline).
+const COPY_CODE_LINE_RE = /^[ \t]*\{:copy-code}[ \t]*\n?/gm;
+const COPY_CODE_INLINE_RE = /[ \t]*\{:copy-code}/g;
+function cleanCodeContent(code: string): string {
+	return code.replace(COPY_CODE_LINE_RE, '').replace(COPY_CODE_INLINE_RE, '');
+}
+function extractCodeBlocks(src: string, slots: Slot[]): string {
+	return src.replace(FENCED_CODE_RE, (_full, _indent, _fence, info: string, code: string) => {
+		const trimmed = (info ?? '').trim();
+		const spaceIdx = trimmed.search(/\s/);
+		const lang = (spaceIdx === -1 ? trimmed : trimmed.slice(0, spaceIdx)) || 'plaintext';
+		const userMeta = spaceIdx === -1 ? '' : trimmed.slice(spaceIdx + 1).trim();
+		const cleaned = cleanCodeContent(code);
+		// Always cap to 20 lines via expressive-code's maxLines meta token, and
+		// add line numbers for multi-line snippets. Author-supplied meta tokens
+		// (e.g. `title="…"`) come first so they aren't overridden.
+		const tokens: string[] = [];
+		if (userMeta) tokens.push(userMeta);
+		tokens.push('maxLines=20');
+		const meta = tokens.join(' ');
+		const i = slots.push({ kind: 'code', props: { code: cleaned, lang, meta } }) - 1;
+		// Blank lines around the comment so markdown parses it as its own block.
+		return `\n\n${slotComment(i)}\n\n`;
+	});
+}
+
+// Rewrite relative `/api/resources/…` paths (the IoT Hub API uses these for
+// listing-uploaded images) into absolute URLs. The lookbehind skips paths
+// already part of an absolute URL like `https://host/api/resources/…`.
+const RESOURCE_PATH_RE = /(?<![:\w])(\/api\/resources\/[^\s)"'>]+)/g;
+function rewriteResourceUrls(src: string): string {
+	return src.replace(RESOURCE_PATH_RE, (_m, path: string) => resolveImage(path) ?? path);
+}
+
+// Image galleries: `${images.gallery({src:'…',alt:'…',caption:'…'}, {src:'…'}, …)}`.
+// The per-field regexes capture the opening quote so single- and
+// double-quoted values both work. Runs AFTER rewriteResourceUrls so any
+// `/api/resources/…` paths inside `src:` are already absolute by then.
+const GALLERY_RE = /\$\{\s*images\.gallery\(([\s\S]*?)\)\s*}/g;
+const GALLERY_OBJ_RE = /\{[\s\S]*?}/g;
+const GALLERY_SRC_RE = /src\s*:\s*(['"])((?:(?!\1).)*)\1/;
+const GALLERY_ALT_RE = /alt\s*:\s*(['"])((?:(?!\1).)*)\1/;
+const GALLERY_CAPTION_RE = /caption\s*:\s*(['"])((?:(?!\1).)*)\1/;
+function extractImageGalleries(src: string, slots: Slot[]): string {
+	return src.replace(GALLERY_RE, (_full, inner: string) => {
+		const objects = inner.match(GALLERY_OBJ_RE) ?? [];
+		const images: GalleryImage[] = [];
+		for (const obj of objects) {
+			const imgSrc = obj.match(GALLERY_SRC_RE)?.[2] ?? '';
+			if (!imgSrc) continue;
+			const item: GalleryImage = {
+				src: imgSrc,
+				alt: obj.match(GALLERY_ALT_RE)?.[2] ?? '',
+			};
+			const caption = obj.match(GALLERY_CAPTION_RE)?.[2];
+			if (caption) item.caption = caption;
+			images.push(item);
+		}
+		// Drop the marker entirely if no valid images were found, rather than
+		// rendering an empty gallery surface.
+		if (images.length === 0) return '';
+		const i = slots.push({ kind: 'gallery', props: { images } }) - 1;
+		return `\n\n${slotComment(i)}\n\n`;
+	});
+}
+
+// Callouts: `${note(…)}`, `${warn(…)}`, `${error(…)}` → Starlight <Aside>
+// with type note / caution / danger. Bodies are markdown — rendered in the
+// pipeline below, then spliced into the Aside via set:html. Lazy `[\s\S]*?`
+// paired with `\)\s*}` skips over nested `(…)` parens.
+const CALLOUT_RE = /\$\{(note|warn|error)\(([\s\S]*?)\)\s*}/g;
+const CALLOUT_TYPE_TO_ASIDE: Record<string, AsideType> = {
+	note: 'note',
+	warn: 'caution',
+	error: 'danger',
+};
+function extractCallouts(src: string, slots: Slot[]): string {
+	return src.replace(CALLOUT_RE, (_full, key: string, content: string) => {
+		const type = CALLOUT_TYPE_TO_ASIDE[key];
+		if (!type) return _full;
+		const i = slots.push({ kind: 'aside', props: { type, content } }) - 1;
+		return `\n\n${slotComment(i)}\n\n`;
+	});
+}
+
+// Documentation link buttons: `${product.button}` and `${datasheet.button}`,
+// resolved against the listing's `dataDescriptor.{productURL,datasheetURL}`.
+// A placeholder whose URL isn't set is dropped from the output instead of
+// rendering an empty button.
+type DataDescriptor = { productURL?: string | null; datasheetURL?: string | null };
+const PRODUCT_BUTTON_RE = /\$\{product\.button}/g;
+const DATASHEET_BUTTON_RE = /\$\{datasheet\.button}/g;
+// Listing-link cards: `${listing-link:<slug>}` → IotHubListingLink, which
+// fetches the referenced listing at build time and renders a thumb / name /
+// creator card. Slug accepts the same `[\w-]` shape as the route param.
+const LISTING_LINK_RE = /\$\{listing-link:([a-zA-Z0-9_-]+)}/g;
+function extractListingLinks(src: string, slots: Slot[]): string {
+	return src.replace(LISTING_LINK_RE, (_full, linkSlug: string) => {
+		const i = slots.push({ kind: 'listingLink', props: { slug: linkSlug } }) - 1;
+		return `\n\n${slotComment(i)}\n\n`;
+	});
+}
+
+function extractDocLinks(src: string, slots: Slot[], detail: ListingDetail | undefined): string {
+	const dd = (detail?.dataDescriptor ?? null) as DataDescriptor | null;
+	const name = detail?.name ?? '';
+	const pushButton = (href: string, label: string, icon: IconName): string => {
+		const i = slots.push({ kind: 'docLink', props: { href, label, icon } }) - 1;
+		return `\n\n${slotComment(i)}\n\n`;
+	};
+	return src
+		.replace(PRODUCT_BUTTON_RE, () =>
+			dd?.productURL ? pushButton(dd.productURL, `${name} Product page`, 'external') : ''
+		)
+		.replace(DATASHEET_BUTTON_RE, () =>
+			dd?.datasheetURL ? pushButton(dd.datasheetURL, `${name} Datasheet`, 'document') : ''
+		);
+}
+
+// --- Pipeline ----------------------------------------------------------------
+
+const slots: Slot[] = [];
+const parts: Array<{ kind: 'html'; html: string } | { kind: 'slot'; slot: Slot }> = [];
+
+if (markdown && markdown.trim().length > 0) {
+	// 1. Extract code blocks first so later detectors and the URL rewrite
+	//    below can't accidentally reach into code bodies.
+	let src = markdown;
+	src = extractCodeBlocks(src, slots);
+
+	// 2. Rewrite IoT Hub resource URLs in the surviving prose. Done BEFORE
+	//    gallery extraction so any `/api/resources/…` paths inside gallery
+	//    `src:` fields are already absolute by the time we parse them.
+	src = rewriteResourceUrls(src);
+
+	// 3. Extract any remaining patterns. Add new detectors here.
+	src = extractImageGalleries(src, slots);
+	src = extractCallouts(src, slots);
+	src = extractDocLinks(src, slots, listingDetail);
+	src = extractListingLinks(src, slots);
+
+	// 4. Markdown → HTML. The processor's rehype plugin normalizes absolute
+	//    `https://thingsboard.io/...` URLs (listing readmes use them — the same
+	//    content renders inside the platform too) to site-relative form.
+	const processor = await getMarkdownProcessor();
+	const { code: html } = await processor.render(src);
+
+	// Callout bodies were extracted before the main render, so run them through
+	// the same processor — markdown works and hrefs get the same normalization.
+	await Promise.all(
+		slots.map(async (slot) => {
+			if (slot.kind !== 'aside') return;
+			slot.props.content = (await processor.render(slot.props.content)).code;
+		})
+	);
+
+	// 5. Walk the HTML, alternating between html chunks and slot invocations.
+	SLOT_RE.lastIndex = 0;
+	let last = 0;
+	let m: RegExpExecArray | null;
+	while ((m = SLOT_RE.exec(html))) {
+		if (m.index > last) parts.push({ kind: 'html', html: html.slice(last, m.index) });
+		const slot = slots[Number(m[1])];
+		if (slot) parts.push({ kind: 'slot', slot });
+		last = m.index + m[0].length;
+	}
+	if (last < html.length) parts.push({ kind: 'html', html: html.slice(last) });
+}
+---
+
+{
+	parts.length > 0 && (
+		<div class="sl-markdown-content">
+			{parts.map((p) => {
+				if (p.kind === 'html') return <Fragment set:html={p.html} />;
+				switch (p.slot.kind) {
+					case 'code':
+						return <Code {...p.slot.props} />;
+					case 'gallery':
+						return <ImageGallery images={p.slot.props.images} />;
+					case 'aside':
+						return (
+							<Aside type={p.slot.props.type}>
+								<Fragment set:html={p.slot.props.content} />
+							</Aside>
+						);
+					case 'docLink':
+						return (
+							<LinkButton
+								href={p.slot.props.href}
+								icon={p.slot.props.icon}
+								variant="secondary"
+								iconPlacement="start"
+								target="_blank"
+								rel="noopener noreferrer"
+							>
+								{p.slot.props.label}
+							</LinkButton>
+						);
+					case 'listingLink':
+						return <IotHubListingLink slug={p.slot.props.slug} />;
+					// Future: more cases here.
+					default:
+						return null;
+				}
+			})}
+		</div>
+	)
+}
+
+<style lang="scss">
+	@use '../../styles/_variables.scss' as *;
+
+	@layer reset {
+		.sl-markdown-content {
+			:global(p) {
+				line-height: var(--sl-line-height);
+				-webkit-font-smoothing: antialiased;
+				color: var(--sl-color-text);
+				font-size: var(--sl-font-size);
+			}
+		}
+	}
+
+	@layer starlight.content {
+		.sl-markdown-content {
+			line-height: var(--sl-line-height);
+			-webkit-font-smoothing: antialiased;
+			color: var(--sl-color-text);
+			background-color: var(--sl-color-bg);
+
+			:global(h1) {
+				font-size: 32px;
+				line-height: 48px;
+				padding-right: 0;
+			}
+
+			:global(ul) {
+				:global(li) {
+					list-style: disc;
+				}
+			}
+
+			:global(ol) {
+				:global(li) {
+					list-style: decimal;
+				}
+			}
+
+			:global(:is(dir, menu, ol, ul)) {
+				:global(ul) {
+					:global(li) {
+						list-style: circle;
+					}
+				}
+			}
+
+			:global(> p), :global(> div) {
+				padding-left: 0;
+				padding-right: 0;
+			}
+
+			:global(p + p) {
+				margin-top: 8px;
+			}
+
+			:global(h1 + p), :global(h2 + p), :global(h3 + p),
+			:global(h1 + ul), :global(h2 + ul), :global(h3 + ul),
+			:global(h1 + ol), :global(h2 + ol), :global(h3 + ol) {
+				margin-top: 8px;
+			}
+
+			:global(ul, ol) {
+				padding-left: 21px;
+				padding-right: 0;
+				margin: 0;
+				font-size: 16px;
+				line-height: 24px;
+				letter-spacing: 0.2px;
+
+				:global(+ h1), :global(+ h2), :global(+ h3), :global(+ h4), :global(+ h5), :global(+ h6) {
+					padding-top: 0;
+					margin-top: 20px;
+				}
+			}
+
+			:global(ul) {
+				margin-top: 8px;
+				margin-bottom: 8px;
+			}
+
+			:global(img) {
+				max-width: 100%;
+			}
+
+			:global(li > p) {
+				margin: 0;
+			}
+
+			:global(table:not(:where(.not-content *))) {
+				display: block;
+				overflow-x: auto;
+				border-collapse: collapse;
+			}
+
+			:global(:is(th, td):not(:where(.not-content *))) {
+				border: 1px solid var(--sl-color-hairline-light);
+				padding: 0.5rem 1rem;
+			}
+
+			:global(:is(th:first-child, td:first-child):not(:where(.not-content *))) {
+				padding-inline-start: 1rem;
+			}
+
+			:global(:is(th:last-child, td:last-child):not(:where(.not-content *))) {
+				padding-inline-end: 1rem;
+			}
+
+			:global(thead tr:not(:where(.not-content *))) {
+				background-color: var(--sl-color-gray-7, var(--sl-color-gray-6));
+			}
+
+			:global(tbody) {
+				:global(tr:nth-child(even):not(:where(.not-content *))) {
+					background-color: var(--sl-color-gray-7, var(--sl-color-gray-6));
+				}
+			}
+
+			:global(.starlight-aside) {
+				:global(tbody) {
+					:global(tr:nth-child(odd):not(:where(.not-content *))) {
+						background-color: var(--sl-color-bg);
+					}
+				}
+			}
+		}
+	}	
+
+</style>
