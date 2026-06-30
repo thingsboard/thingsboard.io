@@ -247,7 +247,7 @@ export const IOT_HUB_STRINGS = {
 		cancel: 'Cancel',
 		invalidUrl: 'Enter a valid URL, e.g. http://localhost:8080',
 		// Paired with IOT_HUB_CLOUD_AVAILABLE_FROM — keep the date in sync.
-		comingSoonBadge: 'Will be available July 2nd',
+		comingSoonBadge: 'Coming July 2',
 	},
 	creatorPage: {
 		breadcrumbRoot: 'IoT Hub',
@@ -627,7 +627,7 @@ export interface InstallInstance {
  * dialog enables them automatically. To go live early/late, change this one
  * value (and the matching `comingSoonBadge` copy below).
  */
-export const IOT_HUB_CLOUD_AVAILABLE_FROM = '2026-07-02';
+export const IOT_HUB_CLOUD_AVAILABLE_FROM = '2026-07-03';
 
 // Order matches the design: NA, EU, Local.
 export const INSTALL_INSTANCES: readonly InstallInstance[] = [
