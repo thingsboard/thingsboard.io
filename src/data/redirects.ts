@@ -266,6 +266,10 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'paas/user-guide/customization', target: '/docs/paas/user-guide/' },
 	{ oldPath: 'paas/eu/user-guide/customization', target: '/docs/paas/eu/user-guide/' },
 	{ oldPath: 'edge/api', target: '/docs/edge/reference/apis-and-sdks/' },
+	{
+		oldPath: 'edge/reference/apis-and-sdks/device-api',
+		target: '/docs/edge/reference/apis-and-sdks/overview/',
+	},
 	{ oldPath: 'pe/edge/api', target: '/docs/edge/pe/reference/apis-and-sdks/' },
 	{ oldPath: 'edge/config/create-device', target: '/docs/edge/user-guide/device-management/' },
 	{ oldPath: 'pe/edge/config/create-device', target: '/docs/edge/pe/user-guide/device-management/' },
