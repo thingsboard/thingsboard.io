@@ -18,6 +18,11 @@ import { bindIotHubIcon } from './iot-hub-icon-bind';
 // Sync for everything except the compact thumb glyph, which delegates to
 // bindIotHubIcon (async for MDI). Callers don't await — the icon wrapper
 // stays in its reset state until the SVG arrives.
+//
+// Runtime caller: iot-hub-dynamic-search.ts buildCardNode() binds every cloned
+// result card on the search / category / creator listing pages. (The
+// commented-out line in ListingCardTemplate.astro is an illustrative example,
+// not the live call site.)
 
 export function bindListingCard(
 	root: HTMLElement,
