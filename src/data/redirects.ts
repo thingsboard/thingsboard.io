@@ -292,6 +292,16 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'edge/config/provision-user', target: '/docs/edge/user-guide/provision-customers-and-users/' },
 	{ oldPath: 'edge/config/subscribe-to-attribute', target: '/docs/edge/user-guide/attribute-sync/' },
 	{ oldPath: 'pe/edge/config/subscribe-to-attribute', target: '/docs/edge/pe/user-guide/attribute-sync/' },
+	// Orphan Edge user-guide pages removed — redirect to their live replacements.
+	{ oldPath: 'edge/user-guide/provision-customer', target: '/docs/edge/user-guide/provision-customers-and-users/' },
+	{ oldPath: 'pe/edge/user-guide/provision-customer', target: '/docs/edge/pe/user-guide/provision-customers-and-users/' },
+	{ oldPath: 'edge/user-guide/provision-user', target: '/docs/edge/user-guide/provision-customers-and-users/' },
+	{ oldPath: 'pe/edge/user-guide/provision-user', target: '/docs/edge/pe/user-guide/provision-customers-and-users/' },
+	{ oldPath: 'edge/user-guide/provision-dashboard', target: '/docs/edge/user-guide/dashboards/' },
+	{ oldPath: 'pe/edge/user-guide/provision-dashboard', target: '/docs/edge/pe/user-guide/dashboards/' },
+	{ oldPath: 'edge/user-guide/edge-proxy', target: '/docs/edge/user-guide/edge-proxy/debian/' },
+	{ oldPath: 'pe/edge/user-guide/edge-proxy', target: '/docs/edge/pe/user-guide/edge-proxy/debian/' },
+	{ oldPath: 'pe/reference/configuration-reference', target: '/docs/pe/reference/' },
 	{ oldPath: 'edge/edge-architecture', target: '/docs/edge/reference/architecture/' },
 	{ oldPath: 'pe/edge/edge-architecture', target: '/docs/edge/pe/reference/architecture/' },
 	{ oldPath: 'edge/faq', target: '/docs/edge/why-thingsboard-edge/' },
@@ -1265,6 +1275,9 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
  * literal `?query` strings (no placeholder substitution).
  */
 export const NON_DOCS_REDIRECTS: Record<string, string> = {
+	// Removed marketing page
+	'/community/': '/',
+
 	// Services
 	'/services/support/': '/services/',
 
