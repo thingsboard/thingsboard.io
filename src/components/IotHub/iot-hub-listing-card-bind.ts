@@ -27,8 +27,10 @@ export function bindListingCard(
 ): void {
 	const variant = getCardVariant(item.itemType);
 
-	// Root href.
-	root.setAttribute('href', `/iot-hub/${categorySlug}/${item.slug}/`);
+	// Root href. An empty categorySlug (item type with no public category, e.g.
+	// a type the site doesn't surface) would yield `/iot-hub//slug/` — guard it
+	// to '#' instead, matching getListingHref.
+	root.setAttribute('href', categorySlug ? `/iot-hub/${categorySlug}/${item.slug}/` : '#');
 
 	// DEVICE cards get a white preview background (vs the light gray default).
 	root.classList.toggle('iot-hub-card--device', item.itemType === 'DEVICE');

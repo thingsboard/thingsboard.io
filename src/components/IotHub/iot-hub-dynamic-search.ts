@@ -340,7 +340,10 @@ export function setupDynamicSearch(): void {
 			// Single-category context (category page) — emit a flat grid
 			// without a section header, matching the static SSR shape.
 			const cat = ITEM_TYPE_BY_TYPE.get(itemType as IotHubItemType);
-			const categorySlug = cat?.slug ?? '';
+			// Unknown item type has no public category — skip rather than emit
+			// cards with a `/iot-hub//slug/` href (matches groupResults).
+			if (!cat) return;
+			const categorySlug = cat.slug;
 			const variant = getCardVariant(itemType);
 			const grid = document.createElement('div');
 			grid.className = `iot-hub-grid iot-hub-grid--${variant}`;
