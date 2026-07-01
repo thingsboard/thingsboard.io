@@ -18,6 +18,11 @@ import { bindIotHubIcon } from './iot-hub-icon-bind';
 // Sync for everything except the compact thumb glyph, which delegates to
 // bindIotHubIcon (async for MDI). Callers don't await — the icon wrapper
 // stays in its reset state until the SVG arrives.
+//
+// Runtime caller: iot-hub-dynamic-search.ts buildCardNode() binds every cloned
+// result card on the search / category / creator listing pages. (The
+// commented-out line in ListingCardTemplate.astro is an illustrative example,
+// not the live call site.)
 
 export function bindListingCard(
 	root: HTMLElement,
@@ -27,8 +32,10 @@ export function bindListingCard(
 ): void {
 	const variant = getCardVariant(item.itemType);
 
-	// Root href.
-	root.setAttribute('href', `/iot-hub/${categorySlug}/${item.slug}/`);
+	// Root href. An empty categorySlug (item type with no public category, e.g.
+	// a type the site doesn't surface) would yield `/iot-hub//slug/` — guard it
+	// to '#' instead, matching getListingHref.
+	root.setAttribute('href', categorySlug ? `/iot-hub/${categorySlug}/${item.slug}/` : '#');
 
 	// DEVICE cards get a white preview background (vs the light gray default).
 	root.classList.toggle('iot-hub-card--device', item.itemType === 'DEVICE');

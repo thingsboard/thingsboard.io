@@ -164,6 +164,20 @@ export const getCardVariant = (itemType: string): IotHubCardVariant => {
 	return cat?.card ?? 'big';
 };
 
+// Single source of truth for resolving a listing's itemType to its IoT Hub
+// category. Returns undefined when the type has no public category — a type the
+// site doesn't surface (e.g. DASHBOARD). Callers building a URL fall back to
+// '#'; callers rendering a grid/section skip the item. Map-backed so per-item
+// hot loops (grouping search results) stay O(1).
+const CATEGORY_BY_ITEM_TYPE = new Map(
+	IOT_HUB_CATEGORIES.map((c) => [c.itemType, c] as const)
+);
+
+export const getCategoryForItemType = (
+	itemType: string
+): (typeof IOT_HUB_CATEGORIES)[number] | undefined =>
+	CATEGORY_BY_ITEM_TYPE.get(itemType as IotHubItemType);
+
 // Default `cfType` → Material icon name.
 const CF_TYPE_ICONS: Record<string, string> = {
 	SIMPLE: 'calculate',
