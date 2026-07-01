@@ -4,15 +4,13 @@
 
 ```
 src/styles/
-├── _variables.scss    # Design system: colors, typography, spacing, mixins
-├── _reset.scss        # CSS reset/normalize
-├── _base.scss         # Base element styles (body, links, buttons)
-├── _utilities.scss    # Utility classes (display, flex, spacing, text)
-├── _layout.scss       # Layout system (containers, grid, sections)
-├── _header.scss       # Header/navigation styles
-├── _footer.scss       # Footer styles
-├── _home.scss         # Home page specific styles
-└── global.scss        # Main entry point (imports all partials)
+├── _variables.scss          # Design system: colors, typography, spacing, mixins
+├── _theme.scss              # CSS custom properties for :root + [data-theme] tokens
+├── _starlight-overrides.scss # Loaded via Starlight's customCss — emits the theme
+│                              # and overrides Starlight's tokens for every route
+├── _iot-hub.scss            # IoT Hub section mixins
+├── _iot-article.scss        # IoT article (blog-style) layout helpers
+└── landing.scss             # Marketing landing typography layer
 ```
 
 ## Naming Conventions

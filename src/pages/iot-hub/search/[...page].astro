@@ -1,0 +1,175 @@
+---
+import type { GetStaticPaths } from 'astro';
+import { getCollection } from 'astro:content';
+import {
+	IOT_HUB_CATEGORIES,
+	IOT_HUB_STRINGS,
+	SEARCH_PAGE_SIZE,
+	isNumericSlug,
+	type ListingView,
+} from '@models/iot-hub';
+import BaseLayout from '@layouts/BaseLayout.astro';
+import CategorySection from '@components/IotHub/CategorySection.astro';
+import CategorySectionTemplate from '@components/IotHub/CategorySectionTemplate.astro';
+import Breadcrumbs from '@components/Breadcrumbs.astro';
+import IotHubFetchError from '@components/IotHub/IotHubFetchError.astro';
+import IotHubNoResults from '@components/IotHub/IotHubNoResults.astro';
+import IotHubRuntimeConfig from '@components/IotHub/IotHubRuntimeConfig.astro';
+import IotHubSearchLoading from '@components/IotHub/IotHubSearchLoading.astro';
+import ListingCardTemplate from '@components/IotHub/ListingCardTemplate.astro';
+import SearchFilterBar from '@components/IotHub/SearchFilterBar.astro';
+
+const T = IOT_HUB_STRINGS.searchPage;
+
+interface SearchGroup {
+	slug: string;
+	label: string;
+	items: ListingView[];
+}
+
+export const getStaticPaths = (async () => {
+	const categories = await getCollection('iotHubCategories');
+	const byId = new Map(categories.map((c) => [c.id, c.data]));
+
+	type SearchItem = { item: ListingView; categorySlug: string; categoryLabel: string };
+	const allItems: SearchItem[] = [];
+	for (const cat of IOT_HUB_CATEGORIES) {
+		const items = byId.get(cat.slug)?.items ?? [];
+		for (const item of items) {
+			if (isNumericSlug(item.slug)) continue;
+			allItems.push({ item, categorySlug: cat.slug, categoryLabel: cat.label });
+		}
+	}
+	// Match the backend's order for `?sortProperty=installCount&sortOrder=DESC`
+	// — installCount DESC, then createdTime DESC as tie-break — so the static
+	// build and runtime refetches surface items in the same order.
+	allItems.sort((a, b) => {
+		const ic = (b.item.installCount ?? 0) - (a.item.installCount ?? 0);
+		if (ic !== 0) return ic;
+		return (b.item.createdTime ?? 0) - (a.item.createdTime ?? 0);
+	});
+
+	const total = allItems.length;
+	const totalPages = Math.max(1, Math.ceil(total / SEARCH_PAGE_SIZE));
+
+	return Array.from({ length: totalPages }, (_, i) => {
+		const currentPage = i + 1;
+		const slice = allItems.slice(i * SEARCH_PAGE_SIZE, currentPage * SEARCH_PAGE_SIZE);
+		const groups: SearchGroup[] = IOT_HUB_CATEGORIES.map((cat) => ({
+			slug: cat.slug,
+			label: cat.label,
+			items: slice.filter((s) => s.categorySlug === cat.slug).map((s) => s.item),
+		})).filter((g) => g.items.length > 0);
+		return {
+			params: { page: currentPage === 1 ? undefined : String(currentPage) },
+			props: { groups, currentPage, totalPages, total },
+		};
+	});
+}) satisfies GetStaticPaths;
+
+interface Props {
+	groups: SearchGroup[];
+	currentPage: number;
+	totalPages: number;
+	total: number;
+}
+
+const { groups, currentPage, totalPages, total } = Astro.props as Props;
+const searchText = '';
+const basePath = '/iot-hub/search/';
+const title = 'Search | IoT Hub | ThingsBoard';
+const description =
+	'Search the ThingsBoard IoT Hub catalogue of devices, widgets, rule chains and more.';
+---
+
+<BaseLayout title={title} description={description} noIndex>
+	<main
+		class="iot-hub-search"
+		data-iot-hub-search-root
+		data-base-path="/iot-hub/search/"
+		data-page-size={SEARCH_PAGE_SIZE}
+	>
+		<div class="iot-hub-search__center">
+			<div class="iot-hub-search__container">
+				<div class="iot-hub-search__breadcrumb">
+					<Breadcrumbs
+						items={[
+							{ label: T.breadcrumbRoot, href: '/iot-hub/' },
+							{ label: T.breadcrumbCurrent },
+						]}
+					/>
+				</div>
+				<div class="iot-hub-search__items" data-search-items>
+					<SearchFilterBar
+						heading={T.headingEmpty}
+						headingPrefix={T.headingPrefix}
+						searchText={searchText}
+						searchPlaceholder={T.searchPlaceholder}
+						totalResults={total}
+						currentPage={currentPage}
+						totalPages={totalPages}
+						basePath={basePath}
+					/>
+					<div class="iot-hub-search__results-container">
+						<div class="iot-hub-search__results" data-search-results>
+							{groups.map((g) => (
+								<CategorySection
+									categorySlug={g.slug}
+									categoryLabel={g.label}
+									items={g.items}
+									showCreator={true}
+								/>
+							))}
+						</div>
+						<IotHubNoResults />
+						<IotHubFetchError />
+						<IotHubSearchLoading />
+					</div>
+				</div>
+			</div>
+		</div>
+		<ListingCardTemplate variant="big" />
+		<ListingCardTemplate variant="compact" />
+		<CategorySectionTemplate />
+		<IotHubRuntimeConfig />
+	</main>
+</BaseLayout>
+
+<style lang="scss">
+	@use '../../../styles/_variables.scss' as *;
+	@use '../../../styles/_iot-hub.scss' as *;
+
+	.iot-hub-search {
+		@include iot-hub-hairline-token;
+	}
+
+	.iot-hub-search__center {
+		@include iot-hub-center;
+	}
+
+	.iot-hub-search__container {
+		@include iot-hub-container;
+	}
+
+	.iot-hub-search__breadcrumb {
+		padding: calc(#{$header-height} + 40px) 16px 0;
+
+		@include media-down(sm) {
+			padding: calc(#{$header-height} + 40px) 12px 0;
+		}
+	}
+
+	.iot-hub-search__items {
+		padding-bottom: 16px;
+		position: relative;
+	}
+
+	.iot-hub-search__results-container {
+		position: relative;
+	}
+</style>
+
+<script>
+	import { initDynamicSearch } from '@components/IotHub/iot-hub-dynamic-search';
+	initDynamicSearch();
+</script>

@@ -2,21 +2,22 @@
 import { getCollection } from 'astro:content';
 import fs from 'node:fs';
 import path from 'node:path';
-import { allPages } from '~/content';
+import { allPages } from '@root/content';
 import {
 	formatBlogDate,
 	getSectionLabel,
 	isAllowlistedMarketingPath,
 	truncate,
-} from '~/util/ogContext';
-import { getLanguageFromSlug } from '~/util/path-utils';
-import type { CardProps } from './Card';
-import { getDocsProductMeta } from './product-meta';
-import { getMarketingOverride, getMarketingSection } from './marketing-meta';
-import { BLOG_AUTHORS } from '~/data/blog/authors';
-import { CATEGORY_LABELS } from '~/data/blog/categories';
-import { HARDWARE_PARTNERS } from '~/data/partners/hardware-partners';
-import { jobs } from '~/data/careers/jobs';
+} from '@util/ogContext';
+import { getLanguageFromSlug } from '@util/path-utils';
+import type { CardProps } from '@root/pages/open-graph/_shared/Card';
+import { getDocsProductMeta } from '@root/pages/open-graph/_shared/product-meta';
+import { getMarketingOverride, getMarketingSection } from '@root/pages/open-graph/_shared/marketing-meta';
+import { BLOG_AUTHORS } from '@data/blog/authors';
+import { CATEGORY_LABELS } from '@data/blog/categories';
+import { HARDWARE_PARTNERS } from '@data/partners/hardware-partners';
+import { jobs } from '@data/careers/jobs';
+import { IOT_HUB_CATEGORIES } from '@models/iot-hub';
 
 export interface CardInput {
 	/** URL-shaped slug used as the path parameter in the endpoint */
@@ -60,7 +61,7 @@ function authorName(slug: string): string {
 
 /** blog collection — posts + index + author landings + category landings. */
 export async function getBlogCardInputs(): Promise<CardInput[]> {
-	const posts = await getCollection('blog', ({ data }) => !data.draft);
+	const posts = await getCollection('blog');
 	const inputs: CardInput[] = [];
 
 	// /blog/{post-slug}/
@@ -120,6 +121,45 @@ export async function getBlogCardInputs(): Promise<CardInput[]> {
 	return inputs;
 }
 
+export async function getIotHubCardInputs(): Promise<CardInput[]> {
+	const SECTION = 'IoT Hub';
+	const inputs: CardInput[] = [
+		{
+			slug: 'index',
+			props: {
+				variant: 'logo' as const,
+				sectionName: SECTION,
+				title: 'ThingsBoard IoT Hub',
+			},
+		},
+	];
+
+	for (const cat of IOT_HUB_CATEGORIES) {
+		inputs.push({
+			slug: cat.slug,
+			props: {
+				variant: 'logo' as const,
+				sectionName: SECTION,
+				eyebrow: 'Category',
+				title: cat.label,
+			},
+		});
+	}
+
+	inputs.push(
+		{
+			slug: 'search',
+			props: { variant: 'logo' as const, sectionName: SECTION, title: 'Search results' },
+		},
+		{
+			slug: 'creator',
+			props: { variant: 'logo' as const, sectionName: SECTION, title: 'Creators' },
+		},
+	);
+
+	return inputs;
+}
+
 /** case-studies — sourced from per-slug data files under src/data/case-studies/ */
 export async function getCaseStudyCardInputs(): Promise<CardInput[]> {
 	const modules = import.meta.glob<Record<string, unknown>>('/src/data/case-studies/*.ts', { eager: true });
@@ -148,28 +188,6 @@ export async function getUseCaseCardInputs(): Promise<CardInput[]> {
 			title: truncate(data.pageTitle ?? data.title, TITLE_MAX),
 		}),
 	);
-}
-
-/** devices collection */
-export async function getDeviceCardInputs(): Promise<CardInput[]> {
-	const devices = await getCollection('devices');
-	return devices.map((device) => {
-		const [, ...slugParts] = device.id.split('/');
-		const slug = slugParts.join('/');
-		const vendor = device.data.vendor;
-		const hardware = (device.data as { hardwareType?: string }).hardwareType;
-		const eyebrowParts = [vendor, hardware].filter((s): s is string => Boolean(s));
-		return {
-			slug,
-			props: {
-				variant: 'logo' as const,
-				sectionName: 'Device Library',
-				sectionTight: true,
-				eyebrow: eyebrowParts.length > 0 ? eyebrowParts.join(' · ') : 'Hardware',
-				title: truncate(device.data.title, TITLE_MAX),
-			},
-		};
-	});
 }
 
 /** Marketing landings — allowlist of /src/pages/*.astro routes. */
@@ -254,16 +272,6 @@ export async function getCollectionIndexInputs(): Promise<CardInput[]> {
 				title: 'ThingsBoard Use Cases',
 			},
 		},
-		{
-			slug: 'device-library-index',
-			props: {
-				variant: 'logo' as const,
-				sectionName: 'Device Library',
-				sectionTight: true,
-				eyebrow: 'Supported hardware',
-				title: 'ThingsBoard Device Library',
-			},
-		},
 	];
 }
 
@@ -305,7 +313,7 @@ function walkAstroPages(
 	out: Array<{ slug: string; pathname: string }>
 ): void {
 	const SKIP_DIRS = new Set([
-		'open-graph', 'docs', 'blog', 'case-studies', 'use-cases', 'device-library',
+		'open-graph', 'docs', 'blog', 'case-studies', 'use-cases', 'iot-hub',
 	]);
 	const dir = path.join(root, rel);
 	let entries: fs.Dirent[];

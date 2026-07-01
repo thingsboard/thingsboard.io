@@ -3,6 +3,10 @@
 // The loader in `TbmqPaygCalculator.astro` dynamically imports this module on
 // the first `pricing:product-activated` event whose detail is 'tbmq'.
 
+import { makeInteractionPusher, bindCtaTracking, bindExportButtons, type CalculatorType } from '@root/scripts/pricing/calc-analytics';
+
+const CALC_TYPE: CalculatorType = 'tbmq_payg';
+
 declare function sliderProgress(slider: HTMLInputElement): void;
 declare function initAllSliders(root?: HTMLElement | Document): void;
 
@@ -24,6 +28,8 @@ export function initTbmqPaygCalc() {
 	const wl = $('#mq-wl-toggle') as HTMLInputElement, hd = $('#mq-hd-toggle') as HTMLInputElement;
 
 	let st = { sessions: 100, throughput: 100, prod: 1, dev: 0, wl: false, hd: false };
+	// Last computed total — settled value pushed with footer CTA clicks.
+	let lastTotal: number | null = null;
 
 	const isBaseOnly = () =>
 		!st.wl && !st.hd &&
@@ -49,7 +55,24 @@ export function initTbmqPaygCalc() {
 		requestAnimationFrame(() => { _calcQueued = false; calc(); });
 	}
 
-	function calc() {
+	// Debounced GTM push — mirrors the ThingsBoard calculators' 3s settle so one
+	// configuration counts once, not per slider tick. Marketing owns the GTM
+	// trigger + GA4 tag (event `calculator_interaction`).
+	const calcAnalytics = makeInteractionPusher(CALC_TYPE);
+	function sendGTM(total: number) {
+		calcAnalytics.push({
+			event: 'calculator_interaction',
+			calculator_sessions: st.sessions,
+			calculator_throughput: st.throughput,
+			calculator_prod_instances: st.prod,
+			calculator_dev_instances: st.dev,
+			calculator_addon_white_labeling: st.wl,
+			calculator_addon_priority_help_desk: st.hd,
+			calculator_total: total,
+		});
+	}
+
+	function calc(opts?: { track?: boolean }) {
 		let total = MQ_PLAN.basePrice;
 		const eS = Math.max(0, st.sessions - MQ_PLAN.includedSessions); const sCost = eS * MQ_PLAN.extraSessionsPrice; total += sCost;
 		const eT = Math.max(0, st.throughput - MQ_PLAN.includedThroughput); const tCost = eT * MQ_PLAN.extraThroughputPrice; total += tCost;
@@ -122,7 +145,13 @@ export function initTbmqPaygCalc() {
 		if (mqFpr) mqCtaUrl += '&fpr=' + encodeURIComponent(mqFpr);
 
 		foot.innerHTML = `<div class="calc-total-row"><span class="calc-total-label">Total</span><span class="calc-total-amount">${totalHtml}${tip(totalTip)}</span></div><a class="calc-cta" href="${mqCtaUrl}" target="_blank" rel="noopener noreferrer">${baseOnly ? 'Try 30 days for free' : 'Get started'}</a>`;
+
+		lastTotal = total;
+		if (opts?.track !== false) sendGTM(total);
 	}
+
+	// Footer CTA tracking — bound once on the stable container `c`.
+	bindCtaTracking(c, CALC_TYPE, () => ({ calculator_total: lastTotal }));
 
 	// Delegated handler for [data-enable-mq-addon] buttons rendered inside the
 	// results panel. Bound once instead of per-button on every calc().
@@ -188,24 +217,10 @@ export function initTbmqPaygCalc() {
 		return msg;
 	}
 
-	c.querySelector('[data-calc-copy]')?.addEventListener('click', (e) => {
-		const btn = e.currentTarget as HTMLElement;
-		const text = buildSummary();
-		const flashCopied = () => {
-			btn.classList.add('copied');
-			setTimeout(() => btn.classList.remove('copied'), 2000);
-		};
-		navigator.clipboard.writeText(text).then(flashCopied).catch(() => {});
-	});
-
-	c.querySelector('[data-calc-download]')?.addEventListener('click', () => {
-		const blob = new Blob([buildSummary()], { type: 'text/plain' });
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = 'tbmq-payg-calculation.txt';
-		a.click();
-		URL.revokeObjectURL(url);
+	bindExportButtons(c, CALC_TYPE, {
+		buildText: buildSummary,
+		filename: 'tbmq-payg-calculation.txt',
+		getExtra: () => ({ calculator_total: lastTotal }),
 	});
 
 	$('[data-calc-reset]').addEventListener('click', () => {
@@ -215,10 +230,10 @@ export function initTbmqPaygCalc() {
 		$('#mq-wl-card').classList.remove('active'); $('#mq-hd-card').classList.remove('active');
 		($('#mq-prod-stepper').querySelector('[data-action="decrement"]') as HTMLButtonElement).disabled = true;
 		($('#mq-dev-stepper').querySelector('[data-action="decrement"]') as HTMLButtonElement).disabled = true;
-		sliderProgress(sS); sliderProgress(tS); calc();
+		sliderProgress(sS); sliderProgress(tS); calc({ track: false });
 		requestAnimationFrame(() => { if (c) initAllSliders(c); });
 	});
 
-	sliderProgress(sS); sliderProgress(tS); calc();
+	sliderProgress(sS); sliderProgress(tS); calc({ track: false });
 	requestAnimationFrame(() => { if (c) initAllSliders(c); });
 }

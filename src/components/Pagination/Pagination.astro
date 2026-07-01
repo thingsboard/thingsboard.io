@@ -1,0 +1,306 @@
+---
+// Site-wide pagination. Design contract:
+//   - This component renders the pagination UI and reports interactions
+//     (clicks as navigations in link mode, events in interactive mode) —
+//     URL state, scrolling, data fetching, and persistence belong to the
+//     consumer. Keep them there.
+//   - Two modes, picked by the required `mode` prop (a discriminated union, so
+//     the type only permits each mode's own props):
+//       * mode="link"        — real <a> anchors; `basePath` required.
+//       * mode="interactive" — event-emitting <button>s; `hidden` allowed;
+//         pagination-client.ts's updatePagination() rebuilds the list.
+//   - Shared by: /blog, /case-studies, /partners/hardware (interactive) and
+//     the /iot-hub category/search/creator pages via PaginationBar (link at
+//     SSR, interactive at runtime). When changing this file, spot-check more
+//     than one of them.
+import PaginationChevron from './PaginationChevron.astro';
+import { buildPages, formatPageSummary, PAGINATION_STRINGS } from './pagination-shared';
+
+// Props common to both modes, intersected with one of the two mode arms. The
+// discriminated union means `astro check` rejects illegal combos at build time:
+// `basePath` in interactive mode, `hidden` in link mode, or a missing `mode`.
+type Props = {
+	currentPage?: number;
+	totalPages?: number;
+	ariaLabel?: string;
+	prevLabel?: string;
+	nextLabel?: string;
+	class?: string;
+} & (
+	| {
+			/**
+			 * Link mode: page numbers render as real anchors — page 1 is
+			 * `basePath`, page N is `${basePath}N/`. Crawlable, rel=prev/next, SSG.
+			 */
+			mode: 'link';
+			basePath: string;
+			hidden?: never;
+	  }
+	| {
+			/**
+			 * Interactive mode: buttons that dispatch bubbling
+			 * `tb-pagination:page-change` { page } events (see pagination-client.ts,
+			 * whose `updatePagination()` rebuilds this markup after every change).
+			 */
+			mode: 'interactive';
+			basePath?: never;
+			/** Render hidden — for client-driven surfaces that unhide via JS. */
+			hidden?: boolean;
+	  }
+);
+
+// Narrow on `Astro.props.mode` directly — TS can't narrow a union through
+// destructuring, and basePath/hidden each live on only one arm.
+const props = Astro.props;
+const {
+	currentPage = 1,
+	totalPages = 1,
+	ariaLabel = PAGINATION_STRINGS.ariaLabel,
+	prevLabel = PAGINATION_STRINGS.prevPageAriaLabel,
+	nextLabel = PAGINATION_STRINGS.nextPageAriaLabel,
+	class: className = '',
+} = props;
+
+const isLinkMode = props.mode === 'link';
+const basePath = props.mode === 'link' ? props.basePath : undefined;
+const hidden = props.mode === 'interactive' ? (props.hidden ?? false) : false;
+
+// Only meaningful in link mode; interactive callers pass the result as an
+// unused href, so return '' there rather than building a `undefined2/` string.
+const pageUrl = (n: number): string =>
+	isLinkMode ? (n === 1 ? basePath! : `${basePath}${n}/`) : '';
+
+const items = buildPages(currentPage, totalPages);
+const hasPrev = currentPage > 1;
+const hasNext = currentPage < totalPages;
+
+---
+
+<nav
+	class:list={['tb-pagination', className]}
+	aria-label={ariaLabel}
+	data-tb-pagination
+	data-prev-label={prevLabel}
+	data-next-label={nextLabel}
+	hidden={hidden}
+>
+	<div class="tb-pagination__pages-wrap">
+		<ul class="tb-pagination__pages tb-pagination__pages--numbers">
+			<li>
+				<PaginationChevron
+					direction="left"
+					isLinkMode={isLinkMode}
+					enabled={hasPrev}
+					href={pageUrl(currentPage - 1)}
+					rel="prev"
+					label={prevLabel}
+					navRole="prev"
+				/>
+			</li>
+			{
+				items.map((item) =>
+					item === 'ellipsis' ? (
+						<li class="tb-pagination__ellipsis" aria-hidden="true">
+							…
+						</li>
+					) : (
+						<li>
+							{isLinkMode ? (
+								<a
+									class={`tb-pagination__page${item === currentPage ? ' is-current' : ''}`}
+									href={pageUrl(item)}
+									aria-current={item === currentPage ? 'page' : undefined}
+								>
+									{item}
+								</a>
+							) : (
+								<button
+									type="button"
+									class={`tb-pagination__page${item === currentPage ? ' is-current' : ''}`}
+									aria-current={item === currentPage ? 'page' : undefined}
+									data-nav-role={`page-${item}`}
+								>
+									{item}
+								</button>
+							)}
+						</li>
+					)
+				)
+			}
+			<li>
+				<PaginationChevron
+					direction="right"
+					isLinkMode={isLinkMode}
+					enabled={hasNext}
+					href={pageUrl(currentPage + 1)}
+					rel="next"
+					label={nextLabel}
+					navRole="next"
+				/>
+			</li>
+		</ul>
+		<div class="tb-pagination__pages tb-pagination__pages--compact">
+			<PaginationChevron
+				direction="left"
+				isLinkMode={isLinkMode}
+				enabled={hasPrev}
+				href={pageUrl(currentPage - 1)}
+				rel="prev"
+				label={prevLabel}
+				navRole="prev"
+				interactiveButton={false}
+			/>
+			<span class="tb-pagination__summary">{formatPageSummary(currentPage, totalPages)}</span>
+			<PaginationChevron
+				direction="right"
+				isLinkMode={isLinkMode}
+				enabled={hasNext}
+				href={pageUrl(currentPage + 1)}
+				rel="next"
+				label={nextLabel}
+				navRole="next"
+				interactiveButton={false}
+			/>
+		</div>
+	</div>
+</nav>
+
+{/* Global by necessity: runtime-built buttons (pagination-client.ts) can't
+    carry Astro's scoped attributes, so static and dynamic markup share these
+    class-based styles. The `tb-pagination` prefix is the leakage guard. */}
+<style is:global lang="scss">
+	@use '../../styles/_variables.scss' as *;
+
+	.tb-pagination {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0 16px;
+		min-height: 40px;
+
+		@include media-down(sm) {
+			padding: 0 12px;
+		}
+
+		&[hidden] {
+			display: none;
+		}
+	}
+
+	.tb-pagination__pages-wrap {
+		display: flex;
+		justify-content: center;
+		flex: 1 1 0;
+	}
+
+	.tb-pagination__pages {
+		display: flex;
+		align-items: center;
+		gap: 1px;
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+
+	.tb-pagination__pages--compact {
+		display: none;
+		gap: 8px;
+	}
+
+	@include media-down(lg) {
+		.tb-pagination__pages--numbers {
+			display: none;
+		}
+
+		.tb-pagination__pages--compact {
+			display: flex;
+		}
+	}
+
+	// Mixin (not %placeholder + @extend) because @extend doesn't reliably
+	// reach across `:global()` selectors after Astro's SCSS pipeline rewrites
+	// them. `font-family: inherit` / `appearance: none` / `cursor: pointer`
+	// are explicit so runtime <button> elements render visually identical to
+	// build-time <a> counterparts without UA defaults leaking in.
+	@mixin tb-pagination-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 40px;
+		height: 40px;
+		padding: 8px;
+		border: none;
+		border-radius: 8px;
+		font-family: inherit;
+		font-size: 14px;
+		font-weight: $font-weight-semibold;
+		line-height: 24px;
+		text-decoration: none;
+		color: var(--color-text-secondary);
+		background: transparent;
+		appearance: none;
+		cursor: pointer;
+		transition: background $transition-fast, color $transition-fast;
+
+		svg {
+			display: block;
+		}
+	}
+
+	.tb-pagination__chevron {
+		@include tb-pagination-btn;
+
+		&:hover,
+		&:focus-visible {
+			background: var(--color-bg-light);
+			color: var(--color-text);
+		}
+
+		&.is-disabled {
+			opacity: 0.4;
+			pointer-events: none;
+		}
+	}
+
+	.tb-pagination__page {
+		@include tb-pagination-btn;
+		padding: 8px 16px;
+		color: var(--color-text);
+
+		&:hover,
+		&:focus-visible {
+			background: var(--color-bg-light);
+		}
+
+		&.is-current {
+			background: var(--color-brand);
+			color: var(--color-brand-contrast);
+			pointer-events: none;
+		}
+	}
+
+	.tb-pagination__ellipsis {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 40px;
+		height: 40px;
+		padding: 8px 16px;
+		font-size: 14px;
+		font-weight: $font-weight-semibold;
+		line-height: 24px;
+		color: var(--sl-color-gray-5);
+	}
+
+	.tb-pagination__summary {
+		display: inline-flex;
+		align-items: center;
+		height: 40px;
+		font-size: 14px;
+		font-weight: $font-weight-semibold;
+		line-height: 24px;
+		color: var(--color-text);
+		white-space: nowrap;
+	}
+
+</style>

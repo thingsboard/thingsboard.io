@@ -3,11 +3,11 @@
 // Variant A: docs cards. Slab carries a per-product icon + edition label.
 
 import { html } from 'satori-html';
-import { ICONS } from '../_assets/icons';
-import { Background } from './Background';
-import { Slab } from './Slab';
-import type { DocsProductMeta } from './product-meta';
-import { pickTitleSize } from './text-block';
+import { ICONS } from '@root/pages/open-graph/_assets/icons';
+import { Background } from '@root/pages/open-graph/_shared/Background';
+import { Slab } from '@root/pages/open-graph/_shared/Slab';
+import type { DocsProductMeta } from '@root/pages/open-graph/_shared/product-meta';
+import { pickTitleSize } from '@root/pages/open-graph/_shared/text-block';
 
 const TEXT_COLOR = '#ffffff';
 const URL_COLOR = 'rgba(255,255,255,0.62)';

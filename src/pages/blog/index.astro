@@ -1,8 +1,9 @@
 ---
 import BlogLayout from '../../layouts/BlogLayout.astro';
+import Pagination from '@components/Pagination/Pagination.astro';
 import Carousel from '@components/Carousel/Carousel.astro';
 import CarouselSlide from '@components/Carousel/CarouselSlide.astro';
-import { getCollection } from 'astro:content';
+import { getSortedBlogPosts } from '@data/blog/posts';
 import { getAuthor } from '~/data/blog/authors';
 import { Icon } from 'astro-icon/components';
 import {
@@ -10,15 +11,18 @@ import {
 	CATEGORY_LABELS,
 	type BlogCategory,
 } from '~/data/blog/categories';
-import type { z } from 'astro/zod';
-import type { blogSchema } from '~/content.config';
+import { recordSitemapLastmod } from '@util/sitemap-lastmod';
+const posts = await getSortedBlogPosts();
 
-type BlogData = z.infer<typeof blogSchema>;
-type BlogPost = { id: string; data: BlogData; collection: 'blog' };
+recordSitemapLastmod(
+	'/blog/',
+	posts.map((p) => (p.data.updatedDate ?? p.data.date).valueOf()),
+);
 
-const allPosts = (await getCollection('blog', ({ data }) => !(data as BlogData).draft)) as unknown as BlogPost[];
-const posts = allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
-const featuredPosts = posts.filter((p) => !p.data.excludeFromCarousel).slice(0, 5);
+const featuredPosts = posts
+	.filter((p) => !p.data.excludeFromCarousel)
+	.sort((a, b) => Number(b.data.pinned) - Number(a.data.pinned))
+	.slice(0, 5);
 
 const siteOrigin = new URL(Astro.site!).origin;
 const blogUrl = new URL('/blog/', Astro.site).href;
@@ -224,16 +228,20 @@ const blogUrl = new URL('/blog/', Astro.site).href;
 			</div>
 
 			{/* ── Pagination ── */}
-			<nav class="pagination" id="pagination" aria-label="Blog pagination"></nav>
+			<div class="blog-pagination">
+				<Pagination mode="interactive" hidden ariaLabel="Blog pagination" />
+			</div>
 		</div>
 	</main>
 </BlogLayout>
 
 <script>
+	import { updatePagination } from '@components/Pagination/pagination-client';
+
 	const POSTS_PER_PAGE = 6;
 
 	const gridTop = document.getElementById('post-grid-top')!;
-	const pagination = document.getElementById('pagination')!;
+	const paginationNav = document.querySelector<HTMLElement>('[data-tb-pagination]')!;
 	const noPostsMsg = document.getElementById('no-posts')!;
 	const categoryChips = document.querySelectorAll('.category-chip') as NodeListOf<HTMLAnchorElement>;
 	const clearAll = document.getElementById('clear-all')!;
@@ -268,39 +276,6 @@ const blogUrl = new URL('/blog/', Astro.site).href;
 		);
 	}
 
-	function renderPagination(totalItems: number) {
-		const totalPages = Math.ceil(totalItems / POSTS_PER_PAGE);
-		if (totalPages <= 1) { pagination.innerHTML = ''; return; }
-
-		const pages: (number | '...')[] = [];
-		if (totalPages <= 7) {
-			for (let i = 1; i <= totalPages; i++) pages.push(i);
-		} else {
-			pages.push(1);
-			if (currentPage > 3) pages.push('...');
-			for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) pages.push(i);
-			if (currentPage < totalPages - 2) pages.push('...');
-			pages.push(totalPages);
-		}
-
-		let html = '<div class="pagination__pages">';
-		for (const p of pages) {
-			if (p === '...') html += `<span class="pagination__ellipsis">&hellip;</span>`;
-			else if (p === currentPage) html += `<span class="pagination__page pagination__page--active">${p}</span>`;
-			else html += `<button class="pagination__page" data-page="${p}">${p}</button>`;
-		}
-		html += '</div>';
-
-		pagination.innerHTML = html;
-		pagination.querySelectorAll('[data-page]').forEach((btn) => {
-			btn.addEventListener('click', () => {
-				currentPage = parseInt((btn as HTMLElement).dataset.page!, 10);
-				render();
-				window.scrollTo({ top: gridTop.offsetTop - 120, behavior: 'smooth' });
-			});
-		});
-	}
-
 	function render() {
 		const filtered = getFilteredItems();
 		const total = filtered.length;
@@ -320,9 +295,15 @@ const blogUrl = new URL('/blog/', Astro.site).href;
 		categoryChips.forEach((chip) => chip.classList.toggle('active', (chip.dataset.category || '') === currentCategory));
 		clearAll.style.display = currentCategory ? '' : 'none';
 
-		renderPagination(total);
+		updatePagination(paginationNav, { currentPage, totalPages, hideOnSinglePage: true });
 		updateUrl();
 	}
+
+	paginationNav.addEventListener('tb-pagination:page-change', (e) => {
+		currentPage = (e as CustomEvent<{ page: number }>).detail.page;
+		render();
+		window.scrollTo({ top: gridTop.offsetTop - 120, behavior: 'smooth' });
+	});
 
 	categoryChips.forEach((chip) => {
 		chip.addEventListener('click', (e) => {
@@ -408,10 +389,9 @@ const blogUrl = new URL('/blog/', Astro.site).href;
 </script>
 
 <style lang="scss" is:global>
-	@use '~/styles/_variables.scss' as *;
+	@use '../../styles/_variables.scss' as *;
 
 	.blog-page {
-		padding: #{$header-height} 0 0;
 		position: relative;
 		overflow: hidden;
 	}
@@ -899,50 +879,11 @@ const blogUrl = new URL('/blog/', Astro.site).href;
 
 	// ── Pagination ──
 
-	.pagination {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: var(--spacing-2);
+	// Outer spacing lives on the wrapper so it persists even when the shared
+	// nav hides itself on single-page results (matches the old empty-nav gap).
+	.blog-pagination {
 		margin-top: var(--spacing-10);
 		padding: 0 var(--spacing-5) var(--spacing-10);
-	}
-
-	.pagination__pages {
-		display: flex;
-		align-items: center;
-		gap: 2px;
-	}
-
-	.pagination__page {
-		font-size: $font-size-sm;
-		color: var(--color-text-secondary);
-		background: none;
-		border: none;
-		cursor: pointer;
-		width: 36px;
-		height: 36px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		border-radius: $radius-sm;
-		transition: all 0.15s;
-		appearance: none;
-		font-family: inherit;
-		&:hover { background: color-mix(in srgb, var(--color-primary) 6%, transparent); color: var(--color-primary); }
-	}
-
-	.pagination__page--active {
-		background: var(--color-primary) !important;
-		color: var(--sl-color-black) !important;
-		font-weight: $font-weight-medium;
-		cursor: default;
-	}
-
-	.pagination__ellipsis {
-		width: 36px;
-		text-align: center;
-		color: var(--color-text-muted);
 	}
 
 	// ── Community CTA ──
