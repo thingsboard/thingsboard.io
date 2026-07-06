@@ -1,0 +1,289 @@
+import { Aside, Steps } from '@astrojs/starlight/components';
+import Tabs from '@components/Tabs.astro';
+import TabItem from '@components/TabItem.astro';
+import DocLink from '@components/DocLink.astro';
+import ImageGallery from '@components/ImageGallery.astro';
+import Banner from '~/components/Banner.astro';
+import { Products } from '~/models/site.models';
+
+<Banner variant="peFeature" product={props.product}>Extensions work only with <DocLink product={Products.PE} path="reference/extensions/development-workflow" target="_blank">ThingsBoard Professional</DocLink> and <a href="/installations/?product=thingsboard-cloud" target="_blank" rel="noopener noreferrer" class="tb-banner-ext"><b>ThingsBoard Cloud</b></a> version **4.3.1.3** or later.</Banner>
+
+{props.product !== Products.CE && (
+  <Banner variant="cloud">Available from ThingsBoard PE/Cloud <strong>4.3.1.3</strong> and later.</Banner>
+)}
+
+The <DocLink product={props.product} path='reference/extensions/quickstart'>Quickstart</DocLink> deploys the starter project as it is. This page shows the full path for a real feature: how to plan it, write the code, test it on your machine, deploy it, and ship updates after the first release.
+
+One example runs through the whole page: a **weather extension**. It reads a device's `latitude`/`longitude` attributes, calls a public weather API ([Open-Meteo](https://open-meteo.com/)), and writes the outside temperature back as telemetry. It has REST endpoints and a scheduled task — the two most common building blocks.
+
+<ImageGallery images={[{ src: '/src/assets/schemas/extension-dev-workflow.svg', alt: 'ThingsBoard extension development workflow: create the project, write the code, build and test locally in a loop, then push the image, deploy it, and iterate on the running extension with a new image tag', caption: 'The development loop. You create the project once. Then you repeat two cycles: the fast local cycle (code → build → run) and the release cycle (push → deploy → verify). Every update is a new image tag deployed to the same extension.' }]} />
+
+## Plan the feature first
+
+Write a short plan before you write code. Five lines are enough. For the weather extension:
+
+- **Endpoints:** `GET /api/extension/weather/{deviceId}` returns the current outside temperature; `POST /api/extension/weather/refresh/{deviceId}` also writes it as telemetry.
+- **Scheduled task:** every 60 seconds, refresh every device that has coordinates.
+- **External service:** Open-Meteo (no API key needed).
+- **Data:** read the `latitude`/`longitude` server attributes; write `outsideTemp` telemetry.
+- **Callers:** a dashboard button (JWT) and the scheduled task (configured API key).
+
+Decide the endpoint paths now. Dashboards and rule chains will call these URLs, so renaming them later means updating every caller. Also keep external API limits in mind: the scheduled task calls the weather API once per device per cycle, so a short interval with many devices can exhaust a free quota.
+
+## Create the project
+
+Run this inside a ThingsBoard project — `tb init` in an empty folder creates one (`mkdir weather && cd weather && tb init`). One command then unpacks a ready-to-run service with Docker files, authentication, and worked examples into an `extension/` folder. All file paths on this page are relative to that folder:
+
+<Tabs defaultTab="java" urlParam="lang">
+  <TabItem label="Java" id="java" icon="tabler:coffee">
+  ```bash
+  tb extension new --lang java --name weather
+  ```
+
+  A Spring Boot project. Your code goes into `extension/src/main/java/` as `@RestController` classes and `@Scheduled` components.
+  </TabItem>
+  <TabItem label="Python" id="python" icon="tabler:brand-python">
+  ```bash
+  tb extension new --lang python --name weather
+  ```
+
+  A FastAPI project. Your code goes into `app/extension/` as routers; background loops start from the app lifespan.
+  </TabItem>
+</Tabs>
+
+Before you start your own feature, read the `examples/` folder. It contains small, complete patterns, including a no-auth transformer, an API-key billing hook, a JWT report endpoint, and a scheduled health check. Copy the pattern that matches your feature, then remove the examples — in the Java starter, follow the **Removing Examples** section of the starter README (deleting the folder alone breaks the Maven build); in the Python starter, deleting the `examples/` folder is enough.
+
+## Write the code
+
+Every endpoint lives under `/api/extension/...`. The starter already handles authentication: your handler receives a ThingsBoard client that acts **as the caller**, so tenant isolation and permissions work without extra code.
+
+The core of the weather feature is one endpoint that reads attributes, calls the external API, and writes telemetry:
+
+<Tabs defaultTab="java" urlParam="lang">
+  <TabItem label="Java" id="java" icon="tabler:coffee">
+  ```java
+  // extension/src/main/java/org/thingsboard/extension/weather/WeatherController.java
+  package org.thingsboard.extension.weather;
+
+  import com.fasterxml.jackson.databind.JsonNode;
+  import org.springframework.web.bind.annotation.PathVariable;
+  import org.springframework.web.bind.annotation.PostMapping;
+  import org.springframework.web.bind.annotation.RequestMapping;
+  import org.springframework.web.bind.annotation.RestController;
+  import org.springframework.web.client.RestClient;
+  import org.thingsboard.client.ThingsboardClient;
+  import org.thingsboard.client.model.AttributeData;
+
+  import java.util.HashMap;
+  import java.util.Map;
+
+  @RestController
+  @RequestMapping("/api/extension/weather")
+  public class WeatherController {
+
+      @PostMapping("/refresh/{deviceId}")
+      public Map<String, Object> refresh(@PathVariable String deviceId,
+                                         ThingsboardClient tb) throws Exception {
+          Map<String, Object> attrs = new HashMap<>();
+          for (AttributeData a : tb.getAttributesByScope(
+                  "DEVICE", deviceId, "SERVER_SCOPE", "latitude,longitude", null)) {
+              attrs.put(a.getKey(), a.getValue());
+          }
+          double outsideTemp = fetchOutsideTemp(attrs.get("latitude"), attrs.get("longitude"));
+          tb.saveEntityTelemetry("DEVICE", deviceId, "ANY",
+                  "{\"outsideTemp\": " + outsideTemp + "}");
+          return Map.of("deviceId", deviceId, "outsideTemp", outsideTemp, "written", true);
+      }
+
+      private double fetchOutsideTemp(Object lat, Object lon) {
+          JsonNode json = RestClient.create().get()
+                  .uri("https://api.open-meteo.com/v1/forecast"
+                          + "?latitude={lat}&longitude={lon}&current=temperature_2m", lat, lon)
+                  .retrieve().body(JsonNode.class);
+          return json.get("current").get("temperature_2m").asDouble();
+      }
+  }
+  ```
+
+  The `ThingsboardClient tb` argument is resolved per request from the caller's `X-Authorization` header.
+  </TabItem>
+  <TabItem label="Python" id="python" icon="tabler:brand-python">
+  ```python
+  # app/extension/weather.py
+  import json
+  from typing import Annotated
+
+  import httpx
+  from fastapi import APIRouter, Depends
+  from tb_pe_client.client import ThingsboardClient
+
+  from app.security import tb_client_dep
+
+  router = APIRouter()
+
+
+  def fetch_outside_temp(lat: float, lon: float) -> float:
+      r = httpx.get(
+          "https://api.open-meteo.com/v1/forecast",
+          params={"latitude": lat, "longitude": lon, "current": "temperature_2m"},
+          timeout=10,
+      )
+      r.raise_for_status()
+      return r.json()["current"]["temperature_2m"]
+
+
+  @router.post("/weather/refresh/{device_id}")
+  def refresh(
+      device_id: str,
+      client: Annotated[ThingsboardClient, Depends(tb_client_dep)],
+  ) -> dict:
+      attrs = {
+          a.key: a.value
+          for a in client.telemetry_controller.get_attributes_by_scope(
+              "DEVICE", device_id, "SERVER_SCOPE", keys="latitude,longitude"
+          )
+      }
+      outside_temp = fetch_outside_temp(attrs["latitude"], attrs["longitude"])
+      client.telemetry_controller.save_entity_telemetry(
+          "DEVICE", device_id, "ANY", json.dumps({"outsideTemp": outside_temp})
+      )
+      return {"deviceId": device_id, "outsideTemp": outside_temp, "written": True}
+  ```
+
+  Register the router in `app/extension/__init__.py`:
+
+  ```python
+  from app.extension import weather
+  router.include_router(weather.router)
+  ```
+
+  Also add `httpx` to the `dependencies` list in `pyproject.toml`. The starter ships it only in the `dev` group for tests, so the image built by `tb extension build` does not include it — without this change the container fails at startup with `ModuleNotFoundError`.
+  </TabItem>
+</Tabs>
+
+**The scheduled task** repeats the same work on a timer, without a caller. It uses a service credential from an environment variable (`TB_AUTH_API_KEY`, or a username and password) instead of a request header. Follow the health-check example in the starter: `DeviceHealthCheckTask.java` (Java) or `examples/tasks/device_health_check.py` (Python). Read the interval from an environment variable — you can then tune it at deploy time without a rebuild. The examples hardcode 60 seconds, so change them: in Java, use `@Scheduled(fixedRateString = "${WEATHER_ENRICH_INTERVAL_SECONDS:60}", timeUnit = TimeUnit.SECONDS)`; in Python, read `int(os.environ.get("WEATHER_ENRICH_INTERVAL_SECONDS", "60"))` and pass it to the loop.
+
+## Test on your machine
+
+This is the fast inner loop from the diagram. One thing to set up first: the local container checks credentials and reads data from a **real ThingsBoard instance**. Copy `.env.example` to `.env` in the `extension/` folder and set `THINGSBOARD_URL` (for example `https://thingsboard.cloud`). The default, `http://host.docker.internal:8080`, works only when ThingsBoard runs on your own machine.
+
+Then repeat the loop until the feature works:
+
+<Steps>
+
+1. **Build and run the container locally.**
+
+   ```bash
+   tb extension build
+   tb extension run
+   ```
+
+2. **Call your endpoint.**
+
+   ```bash
+   curl -X POST http://localhost:8090/api/extension/weather/refresh/<deviceId> \
+     -H 'X-Authorization: Bearer <jwt>'
+   ```
+
+   To get a JWT, call `POST {BASE_URL}/api/auth/login` with your username and password. An <DocLink product={props.product} path='user-guide/security/api-keys' useTbDocs>API key</DocLink> works too: `-H 'X-Authorization: ApiKey <key>'`.
+
+3. **Read the logs, fix the code, and go back to step 1.**
+
+   ```bash
+   tb extension logs
+   ```
+
+</Steps>
+
+Stop the local container with `tb extension stop` when you are done. The starter also ships unit tests (`mvn test` / `pytest`) — keep them green while you work; they catch broken authentication and routing early.
+
+## Deploy for the first time
+
+When the feature works locally, release it. Give the image a real version tag from day one — updates will be much easier to track than with `latest`:
+
+<Steps>
+
+1. **Push the image to your registry.**
+
+   ```bash
+   tb extension build --image-tag 1.0.0
+   tb extension push --image-name myorg/weather --image-tag 1.0.0
+   ```
+
+2. **Deploy it.**
+
+   The scheduled task needs a service credential, so pass an <DocLink product={props.product} path='user-guide/security/api-keys' useTbDocs>API key</DocLink> as an environment variable:
+
+   ```bash
+   tb extension deploy --image-name myorg/weather --image-tag 1.0.0 \
+     --env TB_AUTH_API_KEY=<key> \
+     --env WEATHER_ENRICH_INTERVAL_SECONDS=60
+   ```
+
+   The CLI waits until the extension is `ACTIVE` and prints its URL and slug (for example `weather-9f3a`).
+
+3. **Verify.**
+
+   ```bash
+   tb extension deployments status weather-9f3a
+   tb extension deployments logs weather-9f3a
+   ```
+
+   Open the API docs at `{BASE_URL}/api/ext/weather-9f3a/swagger-ui/index.html` (Java) or `{BASE_URL}/api/ext/weather-9f3a/docs` (Python) and try the endpoints.
+
+   Then connect the real callers. In a rule chain, add a **REST API call** node with the URL `{BASE_URL}/api/ext/weather-9f3a/api/extension/weather/refresh/{deviceId}` and the header `X-Authorization: ApiKey <key>`. For a dashboard button, call the same URL with the current user's session token: `X-Authorization: Bearer <token>`. Every call must carry this header — the router rejects requests without a valid credential.
+
+</Steps>
+
+## Ship updates
+
+An extension is not finished after the first deploy. The outer loop from the diagram is the normal life of the project: change the code, release a new image tag, deploy it to the same extension.
+
+<Steps>
+
+1. **Change the code and pass the local loop again** (build → run → test).
+
+2. **Build and push a new tag.**
+
+   ```bash
+   tb extension build --image-tag 1.1.0
+   tb extension push --image-name myorg/weather --image-tag 1.1.0
+   ```
+
+   When `--image-tag` is set, `push` also updates `:latest` in the registry to the same build. Pass `--no-latest` to skip that — for example, for a release candidate that should not become the new `latest`.
+
+3. **Deploy the new tag to the same extension.**
+
+   ```bash
+   tb extension deploy --image-name myorg/weather --image-tag 1.1.0
+   ```
+
+   The environment variables and the registry credentials are kept from the current deployment, so you do not repeat the `--env` flags — only the new tag is needed. The running extension is not stopped. Its state shows **Updating** while the new version rolls out; replicas that are already ready keep serving traffic. The slug and the URL never change, so dashboards and rule chains keep working.
+
+   <Aside type="caution">
+   Passing one `--env` replaces the **whole set** — the values are not merged. When you change one variable, repeat all the others too; for the weather extension, a deploy with only `--env WEATHER_ENRICH_INTERVAL_SECONDS=30` would drop `TB_AUTH_API_KEY` and stop the scheduled task. `--replicas` and `--port` are not kept either: an update without them goes back to the defaults (1 replica, port 8090), so repeat them if you changed them. To remove all environment variables on purpose, pass `--clear-env`.
+   </Aside>
+
+4. **Watch the rollout.**
+
+   ```bash
+   tb extension deployments status weather-9f3a
+   ```
+
+</Steps>
+
+If the new version fails to start, the extension moves to **Failed** and the last error is shown in the status. The entity and the slug survive — fix the code and deploy again. To roll back fast, deploy the previous tag:
+
+```bash
+tb extension deploy --image-name myorg/weather --image-tag 1.0.0
+```
+
+<Aside type="tip">
+The project's `thingsboard.json` remembers the extension name, image, slug, and size — you can omit `--image-name` after the first deploy. The environment variables and the registry credentials are kept from the current deployment on the server. Only the image tag is not remembered: pass `--image-tag` on each deploy, or the CLI deploys `latest`.
+</Aside>
+
+## Next steps
+
+- <DocLink product={props.product} path='reference/extensions/cli-deployment'>Deploy with the CLI</DocLink> — every flag of `tb extension deploy`, resource sizes, and the `deployments` commands.
+- <DocLink product={props.product} path='reference/extensions/deployment-api'>Deployment REST API</DocLink> — run the same release cycle from CI, without the CLI.
+- <DocLink product={props.product} path='reference/extensions/overview'>Extensions overview</DocLink> — architecture, routing, authentication, and the lifecycle states.

@@ -598,6 +598,17 @@ const apisAndSdksItems = (prefix: string) => [
 		],
 	},
 	{
+		label: 'Extensions',
+		collapsed: true,
+		items: [
+			`${prefix}/reference/extensions/overview`,
+			`${prefix}/reference/extensions/quickstart`,
+			`${prefix}/reference/extensions/development-workflow`,
+			`${prefix}/reference/extensions/cli-deployment`,
+			`${prefix}/reference/extensions/deployment-api`,
+		],
+	},
+	{
 		label: 'Mobile',
 		collapsed: true,
 		items: [`${prefix}/reference/dart-client`, `${prefix}/reference/mobile-app`],

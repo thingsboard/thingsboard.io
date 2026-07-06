@@ -1,0 +1,137 @@
+import { Aside } from '@astrojs/starlight/components';
+import DocLink from '@components/DocLink.astro';
+import HostCode from '~/components/HostCode.astro';
+import Banner from '~/components/Banner.astro';
+import { Products } from '~/models/site.models';
+
+<Banner variant="peFeature" product={props.product}>Extensions work only with <DocLink product={Products.PE} path="reference/extensions/deployment-api" target="_blank">ThingsBoard Professional</DocLink> and <a href="/installations/?product=thingsboard-cloud" target="_blank" rel="noopener noreferrer" class="tb-banner-ext"><b>ThingsBoard Cloud</b></a> version **4.3.1.3** or later.</Banner>
+
+{props.product !== Products.CE && (
+  <Banner variant="cloud">Available from ThingsBoard PE/Cloud <strong>4.3.1.3</strong> and later.</Banner>
+)}
+
+The deployment API lets you provision and control extensions with plain REST calls. The <DocLink product={props.product} path='reference/extensions/cli-deployment'>ThingsBoard CLI</DocLink> uses these same endpoints under the hood. Use the API directly when you want to deploy from CI, a script, or your own tool without the CLI.
+
+A typical script does three steps:
+
+1. `POST /api/extension` — create the extension. Save the `id` and the `slug` from the response.
+2. Poll `GET /api/extension/{extensionId}/status` until the `state` is `ACTIVE`.
+3. Call the extension at `{BASE_URL}/api/ext/{slug}/...`.
+
+To update the extension later, send `POST /api/extension` again with the same `id` — this is what a repeated `tb extension deploy` does.
+
+<Aside type="note">
+All endpoints require a **tenant administrator** login. Authenticate the same way as any other <DocLink product={props.product} path='reference/rest-api'>REST API</DocLink> call — with a JWT or an <DocLink product={props.product} path='user-guide/security/api-keys' useTbDocs>API key</DocLink> in the `X-Authorization` header. The examples below use `$TB_TOKEN` for that value.
+</Aside>
+
+## Endpoints
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `POST` | `/api/extension` | Create or update an extension |
+| `GET` | `/api/extension/{extensionId}` | Get one extension, including its `env` |
+| `GET` | `/api/tenant/extensions` | List the tenant's extensions (paged) |
+| `GET` | `/api/extension/resourceSizes` | List the available resource sizes |
+| `GET` | `/api/extension/{extensionId}/status` | Live state, replicas, and URL |
+| `GET` | `/api/extension/{extensionId}/logs?lines=200` | Tail the container logs |
+| `POST` | `/api/extension/{extensionId}/restart` | Roll out a restart |
+| `POST` | `/api/extension/{extensionId}/stop` | Scale to zero, keep the entity |
+| `POST` | `/api/extension/{extensionId}/start` | Resume to the desired replicas |
+| `DELETE` | `/api/extension/{extensionId}` | Tear down the extension |
+
+`{extensionId}` is the extension's UUID. In the create response and in the list results, the `id` field is an object (`{"entityType": "EXTENSION", "id": "<uuid>"}`) — use the nested `id.id` value.
+
+Write actions (`POST`, `DELETE`, `restart`, `stop`, `start`) return **202 Accepted**; the create or update response also contains the saved extension. The work runs in the background — check `status` until the state stops changing.
+
+<Aside type="note">
+These management endpoints are part of the ThingsBoard REST API. They are not related to the `/api/extension/...` paths that your own code serves **inside** the container.
+</Aside>
+
+## Create or update an extension
+
+`POST /api/extension` both creates and updates. Send a body **without** an `id` to create a new extension; include the existing `id` to update one.
+
+An update **replaces** the extension — the fields are not merged. The new `containerSpec` fully overwrites the old one. To change only the image tag from a script, do a read-modify-write: `GET /api/extension/{extensionId}` to read the current entity (this response includes `env`), change `containerSpec.tag`, and send the whole entity back. If your update body has no `env`, every environment variable is removed from the running extension. Do not build the body from the list endpoint — the list omits `env` for safety. The CLI does this read-modify-write for you: on an update, `tb extension deploy` keeps the server's `env` and `registryAuth` unless you replace or clear them.
+
+<HostCode product={props.product} lang="bash" meta="maxLines=25 collapsible" code={`curl -X POST "{BASE_URL}/api/extension" \\
+  -H "Content-Type: application/json" \\
+  -H "X-Authorization: Bearer $TB_TOKEN" \\
+  -d '{
+    "name": "acme-billing",
+    "slugBase": "acme-billing",
+    "containerSpec": {
+      "image": "myorg/acme-billing",
+      "tag": "1.0",
+      "replicas": 1,
+      "port": 8090,
+      "env": { "LOG_LEVEL": "info" },
+      "resources": { "size": "SMALL" }
+    }
+  }'`} />
+
+The response is the saved extension. Its `state` starts at `PROVISIONING`, and its read-only `slug` is set — for example `acme-billing-9f3a`.
+
+Two top-level fields describe the extension itself: `name` is the human-readable name, and `slugBase` is the base for the generated slug (when omitted, it is derived from the name).
+
+### Container spec fields
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `image` | — | Registry image repository, **without a tag** |
+| `tag` | — | Image tag |
+| `replicas` | `1` | Number of replicas (1–20) |
+| `port` | `8090` | Port the container listens on |
+| `env` | — | Map of environment variables |
+| `resources.size` | `SMALL` | Resource size — the same tiers as the CLI's `--size`, written in upper case; see `GET /api/extension/resourceSizes` |
+| `registryAuth` | — | Credentials for a private registry — see below |
+
+For a **private registry**, set `registryAuth` with three fields: `registry` (optional — derived from the image reference when omitted), `username`, and `password`. The password must be a reference to a ThingsBoard Secret, for example `"${secret:acme-registry;type:TEXT}"` — a plain-text password is rejected. Create the secret under your tenant first (the **Secrets** page in the ThingsBoard UI, or `POST /api/secret`). ThingsBoard resolves the reference at deploy time and creates the runtime pull secret itself; the value is never returned by the API. The CLI builds this field for you from its registry flags — see <DocLink product={props.product} path='reference/extensions/cli-deployment#private-registry'>Private registry</DocLink>.
+
+<Aside type="caution">
+Environment variable names starting with `TB_EXT_`, and the key `THINGSBOARD_URL`, are reserved by the platform — ThingsBoard sets them itself. A secret value can be referenced instead of stored in plain text — for example `"${secret:myKey;type:TEXT}"`. `env` is never returned in list results or audit logs.
+</Aside>
+
+## Read status
+
+Poll the live status after a create, update, or control action:
+
+<HostCode product={props.product} lang="bash" code={`curl "{BASE_URL}/api/extension/{extensionId}/status" \\
+  -H "X-Authorization: Bearer $TB_TOKEN"`} />
+
+The response reports the `state` (`PROVISIONING`, `ACTIVE`, `UPDATING`, `DEGRADED`, `STOPPED`, or `FAILED`), the ready and desired replicas, the public `url`, and a `lastError` with the last failure reason (cleared while the state is `ACTIVE`).
+
+The state comes from a background health check, so a change can take a short time to appear — keep polling until it settles.
+
+## List extensions
+
+`GET /api/tenant/extensions` returns a paged list. It omits `env` for safety; fetch a single extension by id when you need its full spec.
+
+<HostCode product={props.product} lang="bash" code={`curl "{BASE_URL}/api/tenant/extensions?pageSize=100&page=0" \\
+  -H "X-Authorization: Bearer $TB_TOKEN"`} />
+
+## Control and remove
+
+<HostCode product={props.product} lang="bash" meta="maxLines=20 collapsible" code={`# Restart
+curl -X POST "{BASE_URL}/api/extension/{extensionId}/restart" \\
+  -H "X-Authorization: Bearer $TB_TOKEN"
+
+# Stop (scale to zero, keep the entity)
+curl -X POST "{BASE_URL}/api/extension/{extensionId}/stop" \\
+  -H "X-Authorization: Bearer $TB_TOKEN"
+
+# Start (resume to the desired replicas)
+curl -X POST "{BASE_URL}/api/extension/{extensionId}/start" \\
+  -H "X-Authorization: Bearer $TB_TOKEN"
+
+# Delete (tear down the extension)
+curl -X DELETE "{BASE_URL}/api/extension/{extensionId}" \\
+  -H "X-Authorization: Bearer $TB_TOKEN"`} />
+
+## Routing and access
+
+Once an extension is `ACTIVE`, clients reach it at `{BASE_URL}/api/ext/{slug}/...`. ThingsBoard checks every call against the caller's `X-Authorization` header before forwarding it — see the <DocLink product={props.product} path='reference/extensions/overview'>overview</DocLink> for the full request flow.
+
+## Next steps
+
+- <DocLink product={props.product} path='reference/extensions/cli-deployment'>Deploy with the CLI</DocLink> — the same actions from the command line.
+- <DocLink product={props.product} path='reference/rest-api'>REST API</DocLink> — authentication and the rest of the ThingsBoard API.

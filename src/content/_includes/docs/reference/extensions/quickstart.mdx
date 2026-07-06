@@ -1,0 +1,160 @@
+import { Aside, Steps } from '@astrojs/starlight/components';
+import Tabs from '@components/Tabs.astro';
+import TabItem from '@components/TabItem.astro';
+import DocLink from '@components/DocLink.astro';
+import Banner from '~/components/Banner.astro';
+import { Products } from '~/models/site.models';
+
+<Banner variant="peFeature" product={props.product}>Extensions work only with <DocLink product={Products.PE} path="reference/extensions/quickstart" target="_blank">ThingsBoard Professional</DocLink> and <a href="/installations/?product=thingsboard-cloud" target="_blank" rel="noopener noreferrer" class="tb-banner-ext"><b>ThingsBoard Cloud</b></a> version **4.3.1.3** or later.</Banner>
+
+{props.product !== Products.CE && (
+  <Banner variant="cloud">Available from ThingsBoard PE/Cloud <strong>4.3.1.3</strong> and later.</Banner>
+)}
+
+This guide builds and deploys a first extension end to end. You will create a project, build the Docker image, push it to a registry, and let ThingsBoard run it. The same steps work for **Java** and **Python** — only the first command changes. They also work the same on **ThingsBoard Cloud** and on **your own ThingsBoard PE** — the CLI profile decides where the extension is deployed.
+
+New here? Read the <DocLink product={props.product} path='reference/extensions/overview'>Extensions overview</DocLink> first to see how the pieces fit together.
+
+## Prerequisites
+
+- The <DocLink product={props.product} path='user-guide/cli'>ThingsBoard CLI</DocLink> is installed and a profile points at your ThingsBoard Cloud or PE instance (`tb config`).
+- **Docker** is installed and running — the CLI builds the image with Docker.
+- A **container registry** you can push to (Docker Hub, GitHub Container Registry, or a private registry). ThingsBoard must be able to pull from it — for a private registry, pass pull credentials at deploy time (see <DocLink product={props.product} path='reference/extensions/cli-deployment#private-registry'>Private registry</DocLink>). Log in on your machine first (for example `docker login`) — `tb extension push` uses your local Docker credentials and does not log in for you.
+- An <DocLink product={props.product} path='user-guide/security/api-keys' useTbDocs>API key</DocLink> for your tenant (the CLI uses it to talk to ThingsBoard).
+
+## Build and deploy
+
+<Steps>
+
+1. **Create the project.**
+
+   `tb extension` commands run inside a ThingsBoard project — a folder with a `thingsboard.json` file. If you do not have one yet, create it first:
+
+   ```bash
+   mkdir acme-billing && cd acme-billing
+   tb init
+   ```
+
+   Then pick the language. The command unpacks a ready-to-run starter into an `extension/` folder, including a set of small, complete examples.
+
+   <Tabs defaultTab="java" urlParam="lang">
+     <TabItem label="Java" id="java" icon="tabler:coffee">
+     ```bash
+     tb extension new --lang java --name acme-billing
+     ```
+
+     A Spring Boot service. You add endpoints as `@RestController` classes under `/api/extension/...`.
+     </TabItem>
+     <TabItem label="Python" id="python" icon="tabler:brand-python">
+     ```bash
+     tb extension new --lang python --name acme-billing
+     ```
+
+     A FastAPI service. You add endpoints as an `APIRouter` in `app/extension/`, kept under `/api/extension/...`.
+     </TabItem>
+   </Tabs>
+
+   `--name` sets the local image name. You can change it later with `tb extension rename`.
+
+2. **Look at the examples (optional).**
+
+   The starter ships complete examples that show the common patterns — a no-auth unit converter (the endpoint ignores the caller's identity; when deployed, the router still checks the credential), an API-key billing hook, a JWT tenant report, and a scheduled health check. Read them, keep what you need, and remove them when you start your own code. In the Java starter, follow the **Removing Examples** section of the starter README — deleting the folder alone breaks the Maven build. In the Python starter, deleting the `examples/` folder is enough.
+
+3. **Build the image.**
+
+   ```bash
+   tb extension build
+   ```
+
+   This produces a local Docker image tagged with your extension name. The build targets `linux/amd64` by default, so the image runs on common Linux hosts.
+
+4. **Run it locally to test (optional).**
+
+   ```bash
+   tb extension run
+   ```
+
+   In another terminal, check that the service is up:
+
+   <Tabs defaultTab="java" urlParam="lang">
+     <TabItem label="Java" id="java" icon="tabler:coffee">
+     The Java starter serves the examples out of the box. Call the sample unit-conversion endpoint:
+
+     ```bash
+     curl -X POST http://localhost:8090/api/extension/transform/telemetry \
+       -H 'Content-Type: application/json' \
+       -d '{"temperature_f": 77.0, "pressure_psi": 14.7}'
+     # {"temperature_c":25.0,"pressure_bar":1.01}
+     ```
+     </TabItem>
+     <TabItem label="Python" id="python" icon="tabler:brand-python">
+     The Python starter does not mount the examples by default, so call the health endpoint:
+
+     ```bash
+     curl http://localhost:8090/api/health
+     ```
+
+     To try an example endpoint, copy it into your app first — for instance, copy `examples/routers/telemetry_unit_conversion.py` into `app/extension/`, register its router in `app/extension/__init__.py` (each example's docstring shows the two lines to add), and rebuild.
+     </TabItem>
+   </Tabs>
+
+   Stop it with `tb extension stop` when you are done (this stops only the local container, not a deployed one).
+
+5. **Push the image to a registry.**
+
+   ThingsBoard runs the image from a registry, not from your machine. Push it first:
+
+   ```bash
+   tb extension push --image-name myorg/acme-billing
+   ```
+
+   Use the full publish target, including any registry or organization prefix (for example `myorg/acme-billing` or `registry.example.com/team/acme-billing`).
+
+6. **Deploy it to ThingsBoard.**
+
+   ```bash
+   tb extension deploy --image-name myorg/acme-billing --image-tag latest
+   ```
+
+   `latest` is fine for this first test. For a real project, use a version tag such as `1.0.0` — see the <DocLink product={props.product} path='reference/extensions/development-workflow'>Development workflow</DocLink>.
+
+   The CLI shows a confirmation panel, sends the deployment to ThingsBoard, and waits until the extension is `ACTIVE`:
+
+   ```text
+   OK Deployed 'acme-billing' → acme-billing-9f3a   (1/1 replicas ready)
+     URL:  https://thingsboard.cloud/api/ext/acme-billing-9f3a
+   ```
+
+7. **Verify.**
+
+   ```bash
+   tb extension deployments status acme-billing-9f3a
+   ```
+
+   Open the interactive API docs in a browser to try the endpoints. The path depends on the language:
+
+   - Java: `https://thingsboard.cloud/api/ext/acme-billing-9f3a/swagger-ui/index.html`
+   - Python: `https://thingsboard.cloud/api/ext/acme-billing-9f3a/docs`
+
+   The docs page itself opens without a token — it is public on purpose. Calling any endpoint from it still needs a valid credential in the `X-Authorization` header.
+
+8. **Clean up (optional).**
+
+   Remove the deployment and its entity when you no longer need it:
+
+   ```bash
+   tb extension undeploy acme-billing-9f3a
+   ```
+
+</Steps>
+
+<Aside type="tip">
+The slug (`acme-billing-9f3a` above) is assigned by ThingsBoard and is unique. Use it — or the extension UUID — as the reference in every `deployments` command.
+</Aside>
+
+## What to read next
+
+- <DocLink product={props.product} path='reference/extensions/development-workflow'>Development workflow</DocLink> — the full path of a real project: plan, code, test, deploy, and ship updates.
+- <DocLink product={props.product} path='reference/extensions/cli-deployment'>Deploy with the CLI</DocLink> — every flag of `tb extension deploy`, resource sizes, environment variables, and the `deployments` commands.
+- <DocLink product={props.product} path='reference/extensions/deployment-api'>Deployment REST API</DocLink> — do the same from CI or a script, without the CLI.
+- <DocLink product={props.product} path='reference/extensions/overview'>Extensions overview</DocLink> — architecture, routing, and authentication.
