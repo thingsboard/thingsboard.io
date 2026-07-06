@@ -12,6 +12,28 @@ export const CE_FULL_VER = '4.3.1.3';
 export const TB_VER = CE_FULL_VER;
 
 /**
+ * Artifact/package version for dist filenames and the CE GitHub release tag.
+ *
+ * A GA release (exactly `X.Y.0`) drops the trailing `.0` in artifact filenames,
+ * the CE git tag, and the PE package label (e.g. `4.4.0` → `4.4`, tag `v4.4`,
+ * `4.4pe`). Patches (`X.Y.Z`, Z > 0) and GA hotfixes (`X.Y.0.P`) keep the full
+ * version everywhere, so this equals the input for them. Docker image tags and
+ * the pom/Maven version ({@link CE_FULL_VER} / {@link PE_FULL_VER} /
+ * {@link TB_VER}) always keep the full `X.Y.0` — do NOT use this for those.
+ */
+const artifactVersion = (v: string): string => (/^\d+\.\d+\.0$/.test(v) ? v.slice(0, -2) : v);
+
+/**
+ * Community Edition — package filename / download-tag version.
+ *
+ * Derived from {@link CE_FULL_VER} so a single source of truth bumps both Docker
+ * tags and package URLs on release, dropping the trailing `.0` for a GA (see
+ * {@link artifactVersion}). Used for `thingsboard-${CE_PKG_VER}.deb` / `.rpm`
+ * and `releases/download/v${CE_PKG_VER}/…`.
+ */
+export const CE_PKG_VER = artifactVersion(CE_FULL_VER);
+
+/**
  * Community Edition release branch (X.Y format) — only for repos branched per
  * minor release: `thingsboard`, `rule-node-examples`. For k8s repos use
  * `k8sCloneCmd` from `~/util/install-commands`.
@@ -31,13 +53,14 @@ export const PE_FULL_VER = '4.3.1.3PE';
 /**
  * Professional Edition — package filename suffix (dist.thingsboard.io).
  *
- * Derived from {@link PE_FULL_VER} via `.toLowerCase()` so a single source
- * of truth bumps both Docker tags and package URLs on release. Used for
- * `thingsboard-${PE_PKG_VER}.deb`, `.rpm`, `tb-web-report-${PE_PKG_VER}.deb`,
- * `thingsboard-windows-${PE_PKG_VER}.zip`, and any other dist asset URL —
- * the dist host serves PE packages with lowercase `pe`.
+ * Derived from {@link CE_FULL_VER} so a single source of truth bumps both
+ * Docker tags and package URLs on release, dropping the trailing `.0` for a GA
+ * (see {@link artifactVersion}) and appending the lowercase `pe` suffix the
+ * dist host serves PE packages with. Used for `thingsboard-${PE_PKG_VER}.deb`,
+ * `.rpm`, `tb-web-report-${PE_PKG_VER}.deb`, `thingsboard-windows-${PE_PKG_VER}.zip`,
+ * and any other dist asset URL. (For a patch this equals `PE_FULL_VER.toLowerCase()`.)
  */
-export const PE_PKG_VER = PE_FULL_VER.toLowerCase();
+export const PE_PKG_VER = `${artifactVersion(CE_FULL_VER)}pe`;
 
 /** Trendz Analytics */
 export const TRENDZ_VER = '1.15.2';
