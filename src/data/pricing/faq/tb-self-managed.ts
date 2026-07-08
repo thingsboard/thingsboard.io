@@ -270,7 +270,9 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 				answer: '<p>Yes, the Maker plan ($10/month) is a low-cost way to explore the platform. It also includes trial license for Edge and Trendz products, so you can fully test the ThingsBoard ecosystem.</p>',
 			},
 			{
-				id: 'pe-pay-as-you-go-cancel-subscription',
+				// Not 'pe-pay-as-you-go-cancel-subscription': that id belongs to the
+				// "Billing & Payments" item above, and item ids are DOM ids.
+				id: 'pe-pay-as-you-go-cancel-consequences',
 				question: 'What happens if I cancel my subscription?',
 				answer: '<p>Your license will become inactive, and your ThingsBoard instance will be stopped.</p>',
 			},
