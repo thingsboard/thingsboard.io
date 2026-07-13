@@ -77,10 +77,10 @@ const cardLogoHeights: Record<string, number> = {
 // ── Auto-discovered case-study data ───────────────────────────────────────────
 // Every {slug}.ts file in this folder exports `const data: CaseStudyData`.
 // Vite's import.meta.glob pulls them in at build time; we look them up by slug.
-const dataModules = import.meta.glob<CaseStudyData>(['./*.ts', '!./index.ts', '!./types.ts'], {
-	eager: true,
-	import: 'data',
-});
+const dataModules = import.meta.glob<CaseStudyData>(
+	['./*.ts', '!./index.ts', '!./types.ts'],
+	{ eager: true, import: 'data' },
+);
 
 export const caseStudyBySlug: Record<string, CaseStudyData> = {};
 for (const d of Object.values(dataModules)) {
@@ -97,14 +97,14 @@ const FEATURED_ONLY_SLUGS = new Set(['schwarz']);
 for (const slug of caseStudyOrder) {
 	if (!caseStudyBySlug[slug]) {
 		console.warn(
-			`[case-studies] caseStudyOrder lists "${slug}" but no matching data file exists in src/data/case-studies/.`
+			`[case-studies] caseStudyOrder lists "${slug}" but no matching data file exists in src/data/case-studies/.`,
 		);
 	}
 }
 for (const slug of Object.keys(caseStudyBySlug)) {
 	if (!caseStudyOrder.includes(slug) && !FEATURED_ONLY_SLUGS.has(slug)) {
 		console.warn(
-			`[case-studies] data file "${slug}.ts" exists but is not in caseStudyOrder — its detail page builds, but it won't appear in the catalog. Add the slug to caseStudyOrder, or add it to FEATURED_ONLY_SLUGS if that's intentional.`
+			`[case-studies] data file "${slug}.ts" exists but is not in caseStudyOrder — its detail page builds, but it won't appear in the catalog. Add the slug to caseStudyOrder, or add it to FEATURED_ONLY_SLUGS if that's intentional.`,
 		);
 	}
 }
@@ -136,7 +136,8 @@ export const caseStudyContactBanner = {
 
 export const caseStudyServicesBanner = {
 	title: 'Want to achieve similarly impactful results?',
-	subtitle: 'Find your development partner for scalable solutions delivered fast and on a fixed timeline.',
+	subtitle:
+		'Find your development partner for scalable solutions delivered fast and on a fixed timeline.',
 	iconSrc: '/images/usecases/services-icon.svg',
 	iconAlt: 'Services icon',
 	buttons: [{ label: 'Explore our service', href: '/services/' }],
@@ -158,7 +159,7 @@ const FEATURED_DESCRIPTION =
 const featuredData = caseStudyBySlug[FEATURED_SLUG];
 if (!featuredData) {
 	throw new Error(
-		`[case-studies] Featured slug "${FEATURED_SLUG}" has no matching data file in src/data/case-studies/.`
+		`[case-studies] Featured slug "${FEATURED_SLUG}" has no matching data file in src/data/case-studies/.`,
 	);
 }
 

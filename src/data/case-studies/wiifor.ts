@@ -4,13 +4,13 @@ export const data: CaseStudyData = {
 	title: 'Driving Innovation: Spreading the Potential of ThingsBoard in IoT | Wiifor',
 	pageTitle: 'Driving Innovation: Spreading the Potential of IoT — Wiifor',
 	description:
-		'Wiifor delivers end-to-end IoT solutions for the building, healthcare, smart city, and industrial sectors on ThingsBoard — from universal device connectivity and multi-service platforms to resilient Edge deployments and mobile apps.',
+		'Wiifor delivers IoT solutions for buildings, healthcare, smart cities, and industry on ThingsBoard — from device connectivity to resilient Edge and mobile apps.',
 	pageSlug: 'wiifor',
-	breadcrumb: 'Wiifor — Smart IoT Solution',
+	breadcrumb: 'Wiifor — Smart IoT Solutions',
 	categories: ['Smart IoT solution'],
 
 	hero: {
-		category: 'SMART IOT SOLUTION',
+		category: 'SMART IOT SOLUTIONS',
 		heading: 'Driving Innovation: Spreading the Potential of ThingsBoard in IoT',
 		paragraphs: [
 			'Wiifor is a French technology company founded in 2018, driven by a passion for innovation and connected systems. We design, integrate, and deliver end-to-end IoT solutions that transform how organizations operate and grow.',
@@ -70,7 +70,7 @@ export const data: CaseStudyData = {
 			},
 			{
 				title: 'An integrated Edge solution for resilient IoT deployments',
-				text: 'Some Wiifor clients operate in environments where connectivity cannot be always guaranteed. This is especially critical for healthcare facilities, senior residences, connected hotels, and remote sites such as overseas territories, where network interruptions can directly affect service continuity and data quality.<br/><br/>ThingsBoard Edge allows Wiifor to deploy resilient local IoT systems that continue operating even when the connection to the central platform is temporarily unavailable. Data can still be collected, processed, visualized, and synchronized once connectivity is restored. This is particularly valuable for use cases such as HVAC control in healthcare buildings, connected hotel operations, or nurse call systems in senior facilities, where the system must remain functional even during network outages.',
+				text: 'Some Wiifor clients operate in environments where connectivity cannot always be guaranteed. This is especially critical for healthcare facilities, senior residences, connected hotels, and remote sites such as overseas territories, where network interruptions can directly affect service continuity and data quality.<br/><br/>ThingsBoard Edge allows Wiifor to deploy resilient local IoT systems that continue operating even when the connection to the central platform is temporarily unavailable. Data can still be collected, processed, visualized, and synchronized once connectivity is restored. This is particularly valuable for use cases such as HVAC control in healthcare buildings, connected hotel operations, or nurse call systems in senior facilities, where the system must remain functional even during network outages.',
 				image: '/images/case-studies/wiifor-3.webp',
 				imageAlt: 'An integrated Edge solution for resilient IoT deployments',
 			},
@@ -170,7 +170,7 @@ export const data: CaseStudyData = {
 				],
 				images: [
 					{
-						src: 'https://img.thingsboard.io/case-studies/entities-table.webp',
+						src: 'https://img.thingsboard.io/case-studies/entities-table-3.webp',
 						alt: 'ThingsBoard entities table widget',
 						title: 'ThingsBoard entities table widget',
 					},
