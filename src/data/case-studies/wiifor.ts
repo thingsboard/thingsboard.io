@@ -2,7 +2,7 @@ import type { CaseStudyData } from './types';
 
 export const data: CaseStudyData = {
 	title: 'Driving Innovation: Spreading the Potential of ThingsBoard in IoT | Wiifor',
-	pageTitle: 'Driving Innovation: Spreading the Potential of ThingsBoard in IoT — Wiifor',
+	pageTitle: 'Driving Innovation: Spreading the Potential of IoT — Wiifor',
 	description:
 		'Wiifor delivers end-to-end IoT solutions for the building, healthcare, smart city, and industrial sectors on ThingsBoard — from universal device connectivity and multi-service platforms to resilient Edge deployments and mobile apps.',
 	pageSlug: 'wiifor',
@@ -91,7 +91,7 @@ export const data: CaseStudyData = {
 
 	fullWidthImage: {
 		src: '/images/case-studies/wiifor-full.webp',
-		alt: 'Smart city IoT connectivity powered by Wiifor and ThingsBoard',
+		alt: 'Global IoT connectivity powered by Wiifor and ThingsBoard',
 	},
 
 	help: {
