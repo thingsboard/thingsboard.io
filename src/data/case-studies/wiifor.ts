@@ -17,11 +17,11 @@ export const data: CaseStudyData = {
 			'We create smart solutions for the building, healthcare, smart cities, and industrial sectors, mastering the entire IoT value chain: from sensor integration and connectivity management to the tailored development of the ThingsBoard IoT platform. Every solution is carefully adapted to the unique challenges and requirements of each client and industry.',
 			'Our mission is to combine IoT expertise with bespoke, scalable solutions that empower our clients with greater security, full traceability, and measurable gains in performance and cost efficiency.',
 		],
-		logo: 'https://img.thingsboard.io/case-studies/wiifor-logo.png',
+		logo: '/images/case-studies/wiifor-logo.png',
 		logoAlt: 'Wiifor logo',
 		logoWidth: 129,
 		logoHeight: 56,
-		backgroundImage: 'https://img.thingsboard.io/case-studies/wiifor.webp',
+		backgroundImage: '/images/case-studies/wiifor.webp',
 	},
 
 	statistics: [
@@ -59,25 +59,25 @@ export const data: CaseStudyData = {
 			{
 				title: 'Universal device connectivity for heterogeneous IoT environments',
 				text: 'Each of our projects has specific business requirements and technical constraints. They often involve many types of sensors, gateways, and communication networks, including private/public LoRaWAN networks (ChirpStack, LiveObjects, Netmore, Actility…) or other third-party systems, but also various protocols such as MQTT, CoAP, HTTP, FTP…<br/><br/>ThingsBoard enables Wiifor to integrate almost any type of sensor or connected device through native transports, platform integrations, and the ThingsBoard IoT Gateway, extending connectivity to devices using local and industrial protocols. This flexibility allows clients to avoid managing multiple disconnected platforms for different device families or connectivity providers.',
-				image: 'https://img.thingsboard.io/case-studies/wiifor-1.webp',
+				image: '/images/case-studies/wiifor-1.webp',
 				imageAlt: 'Universal device connectivity for heterogeneous IoT environments',
 			},
 			{
 				title: 'A multi-service platform for multiple business use cases and topologies',
 				text: 'Thanks to ThingsBoard’s advanced RBAC capabilities, Wiifor provides each client, user, or site with controlled access to the right services, dashboards, entities, and data. The platform enables the centralization of business services while supporting administration, management, and supervision capabilities through the IoT management tools developed by Wiifor.<br/><br/>Beyond business applications, Wiifor extends the platform with operational services such as LNS supervision integration and an installer dashboard designed to simplify deployment and configuration tasks for field technicians without requiring advanced IoT expertise. Clients can subscribe only to the services they need while benefiting from a single secure entry point, unified authentication, and SSO integration, creating a unified digital environment where services and IoT operations can coexist securely and efficiently.',
-				image: 'https://img.thingsboard.io/case-studies/wiifor-2.webp',
+				image: '/images/case-studies/wiifor-2.webp',
 				imageAlt: 'A multi-service platform for multiple business use cases and topologies',
 			},
 			{
 				title: 'An integrated Edge solution for resilient IoT deployments',
 				text: 'Some Wiifor clients operate in environments where connectivity cannot be always guaranteed. This is especially critical for healthcare facilities, senior residences, connected hotels, and remote sites such as overseas territories, where network interruptions can directly affect service continuity and data quality.<br/><br/>ThingsBoard Edge allows Wiifor to deploy resilient local IoT systems that continue operating even when the connection to the central platform is temporarily unavailable. Data can still be collected, processed, visualized, and synchronized once connectivity is restored. This is particularly valuable for use cases such as HVAC control in healthcare buildings, connected hotel operations, or nurse call systems in senior facilities, where the system must remain functional even during network outages.',
-				image: 'https://img.thingsboard.io/case-studies/wiifor-3.webp',
+				image: '/images/case-studies/wiifor-3.webp',
 				imageAlt: 'An integrated Edge solution for resilient IoT deployments',
 			},
 			{
 				title: 'Ready-to-use mobile applications for customer services',
 				text: 'Wiifor clients can also benefit from dedicated mobile applications connected to their ThingsBoard-based services. These applications can be customized for each project or customer environment, providing a branded and user-friendly mobile experience without the need for a full custom mobile development project.<br/><br/>The ThingsBoard PE Mobile Application makes it possible to deliver cross-platform applications for both Android and iOS, with customized navigation, access to dashboards, device data, alarms, and mobile push notifications. For Wiifor clients, this means faster deployment of mobile services, easier access to operational information in the field, and real-time notifications when important events or alarms occur.',
-				image: 'https://img.thingsboard.io/case-studies/wiifor-4.webp',
+				image: '/images/case-studies/wiifor-4.webp',
 				imageAlt: 'Ready-to-use mobile applications for customer services',
 			},
 		],
@@ -90,7 +90,7 @@ export const data: CaseStudyData = {
 	},
 
 	fullWidthImage: {
-		src: 'https://img.thingsboard.io/case-studies/wiifor-full.webp',
+		src: '/images/case-studies/wiifor-full.webp',
 		alt: 'Smart city IoT connectivity powered by Wiifor and ThingsBoard',
 	},
 
@@ -189,11 +189,11 @@ export const data: CaseStudyData = {
 		author: 'Elie Taillardat',
 		role: 'Platform & IoT Solutions Manager, Software Engineer',
 		company: 'Wiifor',
-		photo: 'https://img.thingsboard.io/case-studies/elie-taillardat.webp',
+		photo: '/images/case-studies/elie-taillardat.webp',
 	},
 
 	contact: {
-		companyLogo: 'https://img.thingsboard.io/case-studies/wiifor-logo.png',
+		companyLogo: '/images/case-studies/wiifor-logo.png',
 		companyLogoAlt: 'Wiifor logo',
 		companyLogoWidth: 129,
 		companyLogoHeight: 56,
