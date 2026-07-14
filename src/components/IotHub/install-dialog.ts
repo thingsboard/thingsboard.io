@@ -15,14 +15,16 @@ import { lockScroll, unlockScroll } from '@util/scroll-lock';
 
 const S = IOT_HUB_STRINGS.installDialog;
 
-interface OpenContext {
+export interface OpenContext {
 	slug: string;
 	itemType: string;
 	affiliateId: string | null;
 }
 
 let dialog: HTMLDialogElement | null = null;
-let localBase = INSTALL_LOCAL_DEFAULT;
+// Reading storage at module scope is already lazy: the only consumer is the
+// boot module's dynamic import(), so evaluation happens on first trigger click.
+let localBase = readLocalBase();
 let current: OpenContext | null = null;
 let copyResetTimer: number | undefined;
 let flashedCopyBtn: HTMLElement | null = null;
@@ -320,48 +322,17 @@ function saveEdit(): void {
 
 // --- Open + global wiring ------------------------------------------------
 
-function open(ctx: OpenContext): void {
+// Entry point invoked by install-dialog-boot on the first trigger click.
+export function openFor(ctx: OpenContext): void {
 	if (!ctx.slug) return;
 	if (!dialog) dialog = buildDialog();
+	// Two rapid clicks can race the dynamic import and both reach here —
+	// showModal() on an already-open dialog throws.
+	if (dialog.open) return;
 	window.clearTimeout(unlockTimer);
 	current = ctx;
 	cancelEdit();
 	refresh();
 	lockScroll();
 	dialog.showModal();
-}
-
-function onDocClick(e: MouseEvent): void {
-	const trigger = (e.target as Element).closest<HTMLElement>(
-		'[data-iot-hub-install-trigger]'
-	);
-	if (!trigger) return;
-	// The card button is nested inside the card's <a> — block navigation.
-	e.preventDefault();
-	e.stopPropagation();
-	open({
-		slug: trigger.dataset.slug ?? '',
-		itemType: trigger.dataset.itemType ?? '',
-		affiliateId: trigger.dataset.affiliateId || null,
-	});
-}
-
-function init(): void {
-	localBase = readLocalBase();
-	document.addEventListener('click', onDocClick);
-}
-
-declare global {
-	interface Window {
-		__tbInstallDialogInit?: boolean;
-	}
-}
-
-if (typeof window !== 'undefined' && !window.__tbInstallDialogInit) {
-	window.__tbInstallDialogInit = true;
-	if (document.readyState === 'loading') {
-		document.addEventListener('DOMContentLoaded', init, { once: true });
-	} else {
-		init();
-	}
 }

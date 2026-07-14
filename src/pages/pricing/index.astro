@@ -43,6 +43,14 @@ import cloudIcon from '../../assets/pricing/cloud-icon.svg?raw';
 import pcIcon from '../../assets/pricing/private-cloud-icon.svg?raw';
 import smIcon from '../../assets/pricing/self-icon.svg?raw';
 
+// Exactly one FAQPage schema block per page — emitted for the default tab's
+// context (Public Cloud). This is a per-page cap, not a visibility filter: the
+// emitted block intentionally includes items behind inactive category tabs and
+// "Load more" (also display:none at load, both click-reachable). Don't "fix"
+// this by adding the other seven product contexts, nor by trimming to the
+// first category's visible items.
+const FAQ_JSONLD_CONTEXT = 'thingsboard-cloud';
+
 // Build a faqId → answer lookup from all FAQ data (strip HTML, truncate for tooltip)
 const faqAnswerMap = new Map<string, string>();
 for (const section of pricingFaqData) {
@@ -516,7 +524,12 @@ const tbmqSubTabs = enrichTabs([
 				pricingFaqData.map((faq) => (
 					<div class="pricing-faq-block" data-faq-context={faq.contextId}>
 						<h2 class="faq-main-title">{faq.title}</h2>
-						<FaqSection contextId={faq.contextId} categories={faq.categories} />
+						<FaqSection
+							contextId={faq.contextId}
+							categories={faq.categories}
+							analytics
+							jsonLd={faq.contextId === FAQ_JSONLD_CONTEXT}
+						/>
 					</div>
 				))
 			}
@@ -827,12 +840,13 @@ const tbmqSubTabs = enrichTabs([
 
 		// `.sub-tab` click is delegated above on `main.pricing-page`.
 
-		// ─── Helper: scroll to FAQ item (handles hidden, category, expand) ───
+		// ─── Helper: scroll to FAQ item (activates the owning pricing tab first) ───
 		function scrollToFaqItem(faqId: string) {
 			const targetItem = document.getElementById(faqId);
 			if (!targetItem?.classList.contains('faq-item')) return;
 
-			// Activate the sub-tab whose FAQ context contains this item
+			// Activate the sub-tab whose FAQ context contains this item — the
+			// FAQ block is display:none until its owning tab is active.
 			const faqBlock = targetItem.closest('.pricing-faq-block') as HTMLElement;
 			if (faqBlock) {
 				const ctx = faqBlock.dataset.faqContext;
@@ -852,35 +866,20 @@ const tbmqSubTabs = enrichTabs([
 				}
 			}
 
-			const faqSection = targetItem.closest('.faq-section') as HTMLElement;
-			const catContent = targetItem.closest('.faq-category-content') as HTMLElement;
-			if (!faqSection || !catContent) return;
-
-			// Activate the right FAQ category tab
-			const catId = catContent.dataset.faqCatContent;
-			if (catId) {
-				$$('.faq-cat-tab', faqSection).forEach((t) =>
-					t.classList.toggle('active', (t as HTMLElement).dataset.faqCat === catId)
-				);
-				$$('.faq-category-content', faqSection).forEach((c) =>
-					c.classList.toggle('active', (c as HTMLElement).dataset.faqCatContent === catId)
+			// The shared FaqSection script owns category-tab activation, hidden
+			// reveal, expand, and scroll. Module eval order between this script
+			// and the component's isn't guaranteed during load, so the initial
+			// deep-link falls back to an idle retry.
+			if (window.__tbFaqOpen) {
+				window.__tbFaqOpen(faqId);
+			} else {
+				(window.requestIdleCallback || ((cb: () => void) => setTimeout(cb, 200)))(
+					() => {
+						window.__tbFaqOpen?.(faqId);
+					},
+					{ timeout: 2000 }
 				);
 			}
-
-			// Reveal if hidden behind "Show more"
-			if (targetItem.classList.contains('faq-item--hidden')) {
-				$$('.faq-item--hidden', catContent).forEach((el) => el.classList.remove('faq-item--hidden'));
-				const loadMoreBtn = catContent.querySelector('.faq-load-more');
-				if (loadMoreBtn) loadMoreBtn.classList.add('faq-load-more--used');
-			}
-
-			// Expand and scroll
-			targetItem.classList.add('expanded');
-			const questionBtn = targetItem.querySelector('.faq-question');
-			if (questionBtn) questionBtn.setAttribute('aria-expanded', 'true');
-			// Track FAQ open from deep link (same event as accordion-open handler).
-			window.dataLayer?.push({ event: 'faq_node_interaction', faq_node_id: targetItem.id });
-			setTimeout(() => targetItem.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
 		}
 
 		// `.sub-tab-info` click (FAQ scroll) is delegated above on `main.pricing-page`.
@@ -1221,7 +1220,11 @@ const tbmqSubTabs = enrichTabs([
 		// `.plan-card-cta[data-product-id][data-plan-id]` click is delegated above.
 		// `.topup-header` click (accordion) is delegated above.
 
-		// ─── FAQ — single delegated listener for all FAQ interactions ───
+		// ─── FAQ answers: calculator-open links ───
+		// Generic FAQ behavior (accordion, category tabs, copy-link, load-more,
+		// hash deep-link) lives in the shared FaqSection component script; only
+		// the pricing-specific calculator links inside answer HTML are handled
+		// here (they replace a former inline onclick).
 		// Guard: register this document-level listener only once. initPricing()
 		// runs a single time per page load (no ClientRouter / View Transitions),
 		// but the flag keeps registration idempotent if it's ever invoked again —
@@ -1230,56 +1233,6 @@ const tbmqSubTabs = enrichTabs([
 			(window as any)._pricingClickInit = true;
 			document.addEventListener('click', (e) => {
 				const target = e.target as HTMLElement;
-
-				// FAQ copy link (check BEFORE question toggle — it's nested inside .faq-question)
-				const copyLink = target.closest('.faq-copy-link') as HTMLElement | null;
-				if (copyLink) {
-					e.stopPropagation();
-					e.preventDefault();
-					const faqId = copyLink.dataset.faqId;
-					if (!faqId?.trim()) return;
-					// Track copy-link clicks (GTM trigger + GA4 tag owned by marketing).
-					window.dataLayer?.push({ event: 'faq_copy_link', faq_node_id: copyLink.dataset.faqId });
-					const url = new URL(window.location.href);
-					url.hash = faqId;
-					navigator.clipboard
-						.writeText(url.toString())
-						.then(() => {
-							copyLink.classList.add('copied');
-							setTimeout(() => copyLink.classList.remove('copied'), 2000);
-						})
-						.catch(() => {});
-					return;
-				}
-
-				// FAQ accordion toggle
-				const question = target.closest('.faq-question') as HTMLElement | null;
-				if (question) {
-					const item = question.closest('.faq-item');
-					if (item) {
-						const nowExpanded = item.classList.toggle('expanded');
-						question.setAttribute('aria-expanded', String(nowExpanded));
-						// Track FAQ opens only (not collapses). Marketing owns the
-						// GTM trigger + GA4 tag (event `faq_node_interaction`).
-						if (nowExpanded && item.id) {
-							window.dataLayer?.push({ event: 'faq_node_interaction', faq_node_id: item.id });
-						}
-					}
-					return;
-				}
-
-				// FAQ "Show more"
-				const loadMore = target.closest('.faq-load-more') as HTMLElement | null;
-				if (loadMore) {
-					const content = loadMore.closest('.faq-category-content');
-					if (content) {
-						$$('.faq-item--hidden', content).forEach((el) => el.classList.remove('faq-item--hidden'));
-						loadMore.classList.add('faq-load-more--used');
-					}
-					return;
-				}
-
-				// FAQ calculator-open link (replaces former inline onclick in FAQ HTML)
 				const calcLink = target.closest('[data-open-calc]') as HTMLElement | null;
 				if (calcLink) {
 					e.preventDefault();
@@ -1287,33 +1240,14 @@ const tbmqSubTabs = enrichTabs([
 					const fnName = which === 'pc' ? 'openTbPcCalc' :  'openTbPaygCalc';
 					(window as any)[fnName]?.();
 					window.scrollTo({ top: 0, behavior: 'smooth' });
-					return;
-				}
-
-				// FAQ category tabs
-				const catTab = target.closest('.faq-cat-tab') as HTMLElement | null;
-				if (catTab) {
-					const section = catTab.closest('.faq-section');
-					if (section) {
-						const catId = catTab.dataset.faqCat;
-						$$('.faq-cat-tab', section).forEach((t) => {
-							const isActive = (t as HTMLElement).dataset.faqCat === catId;
-							t.classList.toggle('active', isActive);
-							t.setAttribute('aria-current', isActive ? 'true' : 'false');
-						});
-						$$('.faq-category-content', section).forEach((c) =>
-							c.classList.toggle('active', (c as HTMLElement).dataset.faqCatContent === catId)
-						);
-					}
-					return;
 				}
 			});
 		}
 
 		// ─── FAQ category from URL (?faqSection=…) ───
 		// Deferred to idle — activating a category tab below the fold isn't
-		// LCP-critical. The hash-based deep-link below stays SYNCHRONOUS so
-		// `/pricing/#faq-foo` URLs land on the right item without jank.
+		// LCP-critical. The hash-based deep-link below reads the hash
+		// SYNCHRONOUSLY (updateUrl() strips it during init).
 		const faqSectionParam = params.get('faqSection');
 		if (faqSectionParam) {
 			const activateFaqCategory = () => {
@@ -1327,30 +1261,15 @@ const tbmqSubTabs = enrichTabs([
 			(window.requestIdleCallback || ((cb: () => void) => setTimeout(cb, 200)))(activateFaqCategory, { timeout: 2000 });
 		}
 
-		// ─── FAQ deep-link on load (synchronous — preserves /pricing/#faq-id) ───
+		// ─── FAQ deep-link on load ───
+		// The hash is read synchronously — updateUrl()'s replaceState strips it
+		// from the address bar during init, so a deferred read would find
+		// nothing. scrollToFaqItem activates the owning product/sub-tab here,
+		// then hands off to the shared FaqSection script for reveal + scroll.
 		const hash = window.location.hash.slice(1);
 		if (hash) {
 			const targetItem = document.getElementById(hash);
 			if (targetItem?.classList.contains('faq-item')) {
-				// Find which FAQ section this belongs to and activate the right product/sub-tab
-				const faqBlock = targetItem.closest('.pricing-faq-block') as HTMLElement;
-				if (faqBlock) {
-					const ctx = faqBlock.dataset.faqContext;
-					if (ctx) {
-						for (const [tabId, contexts] of Object.entries(faqContextMap)) {
-							if (contexts.includes(ctx)) {
-								if (tabId.startsWith('tbmq')) {
-									activateProductTab('tbmq');
-								} else {
-									activateProductTab('thingsboard');
-								}
-								activateSubTab(tabId);
-								break;
-							}
-						}
-					}
-				}
-				// scrollToFaqItem handles category tab, hidden reveal, expand, and scroll
 				scrollToFaqItem(hash);
 			}
 
