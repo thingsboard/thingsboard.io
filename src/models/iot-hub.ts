@@ -164,6 +164,20 @@ export const getCardVariant = (itemType: string): IotHubCardVariant => {
 	return cat?.card ?? 'big';
 };
 
+// Single source of truth for resolving a listing's itemType to its IoT Hub
+// category. Returns undefined when the type has no public category — a type the
+// site doesn't surface (e.g. DASHBOARD). Callers building a URL fall back to
+// '#'; callers rendering a grid/section skip the item. Map-backed so per-item
+// hot loops (grouping search results) stay O(1).
+const CATEGORY_BY_ITEM_TYPE = new Map(
+	IOT_HUB_CATEGORIES.map((c) => [c.itemType, c] as const)
+);
+
+export const getCategoryForItemType = (
+	itemType: string
+): (typeof IOT_HUB_CATEGORIES)[number] | undefined =>
+	CATEGORY_BY_ITEM_TYPE.get(itemType as IotHubItemType);
+
 // Default `cfType` → Material icon name.
 const CF_TYPE_ICONS: Record<string, string> = {
 	SIMPLE: 'calculate',
@@ -246,8 +260,6 @@ export const IOT_HUB_STRINGS = {
 		save: 'Save',
 		cancel: 'Cancel',
 		invalidUrl: 'Enter a valid URL, e.g. http://localhost:8080',
-		// Paired with IOT_HUB_CLOUD_AVAILABLE_FROM — keep the date in sync.
-		comingSoonBadge: 'Coming July 2',
 	},
 	creatorPage: {
 		breadcrumbRoot: 'IoT Hub',
@@ -610,24 +622,9 @@ export interface InstallInstance {
 	icon: string;
 	/** Cloud rows append `?fpr=<affiliateId>` when one is available. */
 	referral?: boolean;
-	/**
-	 * ISO date (YYYY-MM-DD) before which this instance is not yet live: the
-	 * install dialog shows a "coming soon" badge in place of the action button.
-	 * Once the date passes it auto-enables at runtime (client-side check) — no
-	 * rebuild or redeploy needed. Omit for always-available instances.
-	 */
-	availableFrom?: string;
 	/** Local row: user-editable + persisted to localStorage. */
 	editable?: boolean;
 }
-
-/**
- * IoT Hub launches on ThingsBoard Cloud on this date. Until then the two cloud
- * rows show a "coming soon" badge instead of Connect/Install; on this date the
- * dialog enables them automatically. To go live early/late, change this one
- * value (and the matching `comingSoonBadge` copy below).
- */
-export const IOT_HUB_CLOUD_AVAILABLE_FROM = '2026-07-03';
 
 // Order matches the design: NA, EU, Local.
 export const INSTALL_INSTANCES: readonly InstallInstance[] = [
@@ -637,7 +634,6 @@ export const INSTALL_INSTANCES: readonly InstallInstance[] = [
 		base: 'https://thingsboard.cloud',
 		icon: 'cloud',
 		referral: true,
-		availableFrom: IOT_HUB_CLOUD_AVAILABLE_FROM,
 	},
 	{
 		key: 'eu',
@@ -645,7 +641,6 @@ export const INSTALL_INSTANCES: readonly InstallInstance[] = [
 		base: 'https://eu.thingsboard.cloud',
 		icon: 'cloud',
 		referral: true,
-		availableFrom: IOT_HUB_CLOUD_AVAILABLE_FROM,
 	},
 	{
 		key: 'local',
@@ -655,16 +650,6 @@ export const INSTALL_INSTANCES: readonly InstallInstance[] = [
 		editable: true,
 	},
 ];
-
-/**
- * Whether an instance's action is live yet. True unless it has a future
- * `availableFrom` date. Evaluated client-side, so it flips on its own once the
- * date arrives. `now` is injectable for testing.
- */
-export const isInstanceAvailable = (
-	inst: InstallInstance,
-	now: number = Date.now()
-): boolean => !inst.availableFrom || now >= Date.parse(inst.availableFrom);
 
 export const stripTrailingSlash = (s: string): string =>
 	s.endsWith('/') ? s.slice(0, -1) : s;

@@ -5,6 +5,7 @@ import {
 	SEARCH_PAGE_SIZE,
 	DEFAULT_IOT_HUB_SORT_ID,
 	getCardVariant,
+	getCategoryForItemType,
 	getIotHubSortOption,
 	type IotHubItemType,
 	type ListingView,
@@ -61,7 +62,6 @@ function updateResultsCount(countEl: HTMLElement, totalResults: number): void {
 // (SearchFilterBar input, IotHubSort selection, Pagination per-page).
 
 const DEBOUNCE_MS = 300;
-const ITEM_TYPE_BY_TYPE = new Map(IOT_HUB_CATEGORIES.map((c) => [c.itemType, c]));
 
 // FilterPanel section keys are translated to API/URL params here.
 // `type` resolves to one of three names depending on the page's itemType
@@ -194,7 +194,7 @@ export function setupDynamicSearch(): void {
 			lastTrackedQuery = null;
 			return;
 		}
-		const key = `${term} ${activeFilters}`;
+		const key = `${term} ${activeFilters}`;
 		if (key === lastTrackedQuery) return;
 		lastTrackedQuery = key;
 		window.dataLayer?.push({
@@ -318,7 +318,7 @@ export function setupDynamicSearch(): void {
 	): Array<{ slug: string; label: string; items: ListingView[] }> {
 		const byType = new Map<IotHubItemType, ListingView[]>();
 		for (const it of items) {
-			const cat = ITEM_TYPE_BY_TYPE.get(it.itemType as IotHubItemType);
+			const cat = getCategoryForItemType(it.itemType);
 			if (!cat) continue;
 			const list = byType.get(cat.itemType) ?? [];
 			list.push(it);
@@ -339,8 +339,11 @@ export function setupDynamicSearch(): void {
 		if (itemType) {
 			// Single-category context (category page) — emit a flat grid
 			// without a section header, matching the static SSR shape.
-			const cat = ITEM_TYPE_BY_TYPE.get(itemType as IotHubItemType);
-			const categorySlug = cat?.slug ?? '';
+			const cat = getCategoryForItemType(itemType);
+			// Unknown item type has no public category — skip rather than emit
+			// cards with a `/iot-hub//slug/` href (matches groupResults).
+			if (!cat) return;
+			const categorySlug = cat.slug;
 			const variant = getCardVariant(itemType);
 			const grid = document.createElement('div');
 			grid.className = `iot-hub-grid iot-hub-grid--${variant}`;

@@ -3,8 +3,8 @@
 // module-level counter would leak across pages).
 //
 // The first content image on a docs page is its most likely LCP element, so
-// the claimer renders it eager + fetchpriority=high while everything after
-// stays lazy.
+// the claimer renders it eager while everything after stays lazy. Deliberately
+// no fetchpriority boost — see the consumers (DocImage, ImageGallery) for why.
 
 declare global {
 	// eslint-disable-next-line @typescript-eslint/no-namespace

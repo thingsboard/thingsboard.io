@@ -32,9 +32,13 @@ function onTriggerClick(e: MouseEvent): void {
 			})
 		)
 		.catch((err: unknown) => {
-			// Navigation was already prevented, so surface the failure instead
-			// of silently swallowing the click.
+			// A failed module fetch is cached by the browser's module map, so a
+			// later click would reject instantly too — this isn't a transient
+			// miss. Navigation was already prevented; fall back to the card's
+			// link so the click still lands somewhere instead of dying silently.
 			console.error('install dialog failed to load', err);
+			const href = trigger.closest('a')?.href;
+			if (href) window.location.assign(href);
 		});
 }
 

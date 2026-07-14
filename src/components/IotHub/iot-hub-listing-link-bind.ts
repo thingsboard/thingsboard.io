@@ -1,5 +1,5 @@
 import {
-	IOT_HUB_CATEGORIES,
+	getCategoryForItemType,
 	getCardVariant,
 	getPlaceholderIcon,
 	resolveImage,
@@ -19,11 +19,10 @@ export const TYPE_FALLBACK_ICON: Record<string, string> = {
 	DEVICE: 'memory',
 };
 
-// Build the `/iot-hub/{category}/{slug}/` href for a listing, falling back
-// to `#` when the itemType isn't in IOT_HUB_CATEGORIES (defensive — every
-// known item type is registered).
+// Build the `/iot-hub/{category}/{slug}/` href for a listing, falling back to
+// `#` when the itemType has no public category (see getCategoryForItemType).
 export function getListingHref(item: ListingView): string {
-	const cat = IOT_HUB_CATEGORIES.find((c) => c.itemType === item.itemType);
+	const cat = getCategoryForItemType(item.itemType);
 	return cat ? `/iot-hub/${cat.slug}/${item.slug}/` : '#';
 }
 

@@ -63,7 +63,6 @@ const PREFIX_RULES: PrefixRule[] = [
 	{ prefix: '/services/',         section: { sectionName: 'Services' } },
 	{ prefix: '/careers/',          section: { sectionName: 'Careers' } },
 	{ prefix: '/partners/',         section: { sectionName: 'Partners' } },
-	{ prefix: '/community/',        section: { sectionName: 'Community' } },
 	{ prefix: '/company/',          section: { sectionName: 'Company' } },
 	{ prefix: '/clients-feedback/', section: { sectionName: 'Customers' } },
 	{ prefix: '/contact-us/',       section: { sectionName: 'Contact' } },
