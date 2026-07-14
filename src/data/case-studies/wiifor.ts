@@ -54,7 +54,7 @@ export const data: CaseStudyData = {
 	},
 
 	power: {
-		companyName: 'Wiifor’s customers',
+		companyName: 'Wiifor',
 		blocks: [
 			{
 				title: 'Universal device connectivity for heterogeneous IoT environments',
