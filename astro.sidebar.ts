@@ -207,14 +207,15 @@ const guideItems = (prefix: string, { isPE = false } = {}) => {
 			`${prefix}/integrations/uplink-data-converter`,
 			`${prefix}/integrations/downlink-data-converter`,
 			`${prefix}/integrations/remote`,
-			...(isPE ? [{
+			{
 				label: 'Recipes',
 				collapsed: true,
 				items: [
 					`${rp}/mqtt-one-way-rpc`,
 					`${rp}/mqtt-two-way-rpc`,
+					`${rp}/opc-ua-airconditioner-monitoring`,
 				],
-			}] : []),
+			},
 		],
 	},
 	{
@@ -2096,6 +2097,11 @@ export const paasSidebar: SidebarConfig = [
 					'docs/paas/user-guide/integrations/uplink-data-converter',
 					'docs/paas/user-guide/integrations/downlink-data-converter',
 					'docs/paas/user-guide/integrations/remote',
+					{
+						label: 'Recipes',
+						collapsed: true,
+						items: ['docs/paas/recipes/mqtt-one-way-rpc', 'docs/paas/recipes/mqtt-two-way-rpc'],
+					},
 				],
 			},
 			{
@@ -2500,6 +2506,14 @@ export const paasEuSidebar: SidebarConfig = [
 					'docs/paas/eu/user-guide/integrations/uplink-data-converter',
 					'docs/paas/eu/user-guide/integrations/downlink-data-converter',
 					'docs/paas/eu/user-guide/integrations/remote',
+					{
+						label: 'Recipes',
+						collapsed: true,
+						items: [
+							'docs/paas/eu/recipes/mqtt-one-way-rpc',
+							'docs/paas/eu/recipes/mqtt-two-way-rpc',
+						],
+					},
 				],
 			},
 			{
