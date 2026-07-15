@@ -9,170 +9,328 @@ import TabItem from '@components/TabItem.astro';
 
 <Banner variant="peFeature" product={props.product} path="installation/" />
 
-**OPC-UA** (Open Platform Communications Unified Architecture, IEC 62541) is a platform-independent industrial M2M protocol designed for reliable, secure data exchange in automation and IoT environments. The ThingsBoard OPC-UA integration connects to an OPC-UA server, subscribes to configured device nodes, decodes node values via an uplink converter, and pushes telemetry and attributes to the platform. In the reverse direction, it encodes Rule Engine messages via a downlink converter and delivers them to OPC-UA nodes as write operations or method calls.
+**OPC-UA** (Open Platform Communications Unified Architecture, IEC 62541) is a platform-independent industrial M2M protocol for reliable, secure data exchange in automation and IoT systems. The ThingsBoard **OPC-UA Integration** connects to an OPC-UA server, subscribes to the device nodes you configure, decodes their values with an <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter">uplink converter</DocLink>, and pushes the resulting telemetry and attributes into the platform. In the reverse direction it can encode Rule Engine messages with a <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter">downlink converter</DocLink> and deliver them to OPC-UA nodes as write operations or method calls.
+
+Use this integration whenever your data lives on an OPC-UA server — a PLC, SCADA gateway, historian, or any OPC-UA-capable device — and you want ThingsBoard to collect that data, create devices for it, and optionally control it.
+
+**Data flow:** the OPC-UA server exposes nodes &#8702; the integration subscribes to the nodes matched by your mapping &#8702; node values are packed into a message and passed to the uplink converter &#8702; the converter returns a device name, telemetry, and attributes &#8702; ThingsBoard stores the telemetry and creates or updates the matching device.
+
+In this guide the OPC-UA server is the **public Prosys OPC UA demo server** (`opc.tcp://uademo.prosysopc.com:53530/OPCUA/SimulationServer`) — a free, internet-hosted instance of the <a href="https://www.prosysopc.com/products/opc-ua-simulation-server/" target="_blank"><strong>Prosys OPC UA Simulation Server</strong></a>. It is always running, exposes a ready-to-use address space with continuously changing simulated values, and requires no installation, so you can follow the example on any operating system without setting up a server.
+
+<Aside type="caution">
+  The Prosys demo server is a shared, best-effort service intended for learning and testing only. Availability is not guaranteed, it accepts **unsecured (`None`) connections only**, and its data is shared with everyone. Do not use it for production or for anything sensitive. For a private or hardened setup, run your own <a href="https://www.prosysopc.com/products/opc-ua-simulation-server/" target="_blank">Prosys OPC UA Simulation Server</a> locally and substitute its address.
+</Aside>
 
 ## Prerequisites
 
-Download and install the <a href="https://www.unified-automation.com/downloads/opc-ua-servers.html" target="_blank">OPC UA C++ Demo Server</a> (Windows only).
+- You have access to {props.product !== Products.PAAS && props.product !== Products.PAAS_EU && <><DocLink product={Products.PE} path="installation/" target="_blank">ThingsBoard PE</DocLink> or </>}<a href="/installations/?product=thingsboard-cloud" target="_blank"><strong>ThingsBoard Cloud</strong></a> with integration functionality enabled for your tenant.
+- You have permissions to create integrations and data converters.
+- Outbound network access from the integration to the public demo server: the machine running the integration (the ThingsBoard cluster, or a Remote Integration host) must be able to open a TCP connection to `uademo.prosysopc.com` on port `53530`. If outbound traffic is restricted, run the integration as a <DocLink product={props.product} path="user-guide/integrations/remote/" target="_blank">Remote Integration</DocLink> from a host that has internet access.
+- The connection details used below: endpoint `opc.tcp://uademo.prosysopc.com:53530/OPCUA/SimulationServer`, security mode `None`, and `Anonymous` user authentication.
 
-<Steps>
-1. Launch **UA Admin Dialog** and note the **Hostname / IP** and **Port** values — you will enter them in the ThingsBoard integration.
-2. Launch **UaCPPServer** — the console window confirms the server is running and displays the endpoint URL in `opc.tcp://host:port` format.
-</Steps>
+## The Public Prosys Demo Server
 
-<ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/opc-ua/opc-ua-server-config.png', alt: 'UA Admin Dialog — hostname and port configuration', caption: 'UA Admin Dialog — note the Hostname / IP (e.g. 10.7.3.145) and Port (e.g. 48010) values; you will enter them in the ThingsBoard integration connection step' },
-  { src: '/src/assets/images/user-guide/integrations/opc-ua/opc-ua-server-config-2.png', alt: 'UaCPPServer console showing endpoint URLs', caption: 'UaCPPServer console confirms the server is running and listening — the endpoint URL follows the opc.tcp://host:port format' },
-]} />
+You do not install anything — the server is already running on the internet. Everything the integration needs is summarized here.
 
-## ThingsBoard integration setup
+- **Endpoint** — `opc.tcp://uademo.prosysopc.com:53530/OPCUA/SimulationServer`, which splits into **Host** `uademo.prosysopc.com`, **Port** `53530`, and **Endpoint path** `/OPCUA/SimulationServer`.
+- **Security** — `None` only. The public server does not allow `Sign` or `Sign&Encrypt`; use a self-hosted server if you need a secure connection.
+- **Authentication** — `Anonymous`; no username or password.
+- **Simulation** — always on. Values change continuously on the server side; there is nothing to start or stop.
 
-### Create an uplink converter
+**Example nodes.** The server exposes the standard Prosys Simulation Server address space. This guide reads the sample device **MyDevice**:
 
-OPC-UA uses a <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter">generic uplink converter</DocLink>. The uplink converter decodes incoming OPC-UA node values and maps them to the ThingsBoard data model.
+- Full path (FQN): `Objects.MyObjects.MyDevice`
+- **MyLevel** — a `Double` variable holding a simulated level measurement that changes continuously (read as telemetry).
+- **MySwitch** — a `Boolean` variable (read as an attribute).
+- **MyMethod** — a callable sample method.
 
-The decoder function receives:
-- `payload` — JSON object with node values, e.g. `{"temperature": "72.15819999999641"}`
-- `metadata` — node metadata: `opcUaNode_name`, `opcUaNode_namespaceIndex`, `opcUaNode_identifier`, `opcUaNode_fqn`, `integrationName`
+The **Simulation** folder on the same server also contains additional ready-made changing signals that you can add later as extra subscription tags.
 
-**Sample payload:**
-```json
-{
-    "temperature": "72.15819999999641"
-}
-```
-
-**Sample metadata:**
-```json
-{
-    "opcUaNode_namespaceIndex": "3",
-    "opcUaNode_name": "AirConditioner_1",
-    "integrationName": "OPC-UA Airconditioners",
-    "opcUaNode_identifier": "AirConditioner_1",
-    "opcUaNode_fqn": "Objects.BuildingAutomation.AirConditioner_1"
-}
-```
-
-For the full decoder function reference, see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">Uplink data converter</DocLink>.
-
-<h4>Import the uplink converter</h4>
-
-<Aside type="tip" title="TBEL">
-  We recommend using <DocLink product={props.product} path="user-guide/tbel">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
+<Aside type="tip">
+  To inspect the address space visually before configuring the integration, open the free <a href="https://www.prosysopc.com/products/opc-ua-browser/" target="_blank"><strong>Prosys OPC UA Browser</strong></a> — it is preconfigured to connect to this same UADEMO server and lets you browse `MyObjects &#8702; MyDevice` and watch `MyLevel` update.
 </Aside>
 
+## Create OPC-UA Uplink Data Converter
+
+The uplink converter decodes the raw OPC-UA message and maps it to the ThingsBoard data model (device identity, telemetry, and attributes). It receives:
+
+- `payload` — a JSON object keyed by your subscription-tag **Keys**, e.g. `{"level": "42.17", "switchState": "true"}` (values arrive as strings).
+- `metadata` — node metadata: `opcUaNode_name`, `opcUaNode_namespaceIndex`, `opcUaNode_identifier`, `opcUaNode_fqn`, and `integrationName`.
+**Sample input**
+
+```json
+{
+  "payload": {
+    "level": "42.17",
+    "switchState": "true"
+  },
+  "metadata": {
+    "opcUaNode_name": "MyDevice",
+    "opcUaNode_namespaceIndex": "3",
+    "opcUaNode_identifier": "MyDevice",
+    "opcUaNode_fqn": "Objects.MyObjects.MyDevice",
+    "integrationName": "OPC-UA integration"
+  }
+}
+```
+
+<Aside type="tip" title="TBEL">
+  We recommend <DocLink product={props.product} path="user-guide/tbel">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
+</Aside>
+
+**Create the converter**
+
+The quickest path is inline in the integration wizard: on the **Uplink data converter** step (shown bottom), keep **Create new** and paste the decoder below into the **Main decoding configuration** editor, leaving the language toggle on **TBEL**. To create it as a reusable converter instead:
+
 <Steps>
-  <ol start="1">
-    <li>Download the uplink converter file:</li>
-  </ol>
+  1. Go to **Integrations center &#8702; Data converters** and click **+ Add data converter &#8702; Create new converter**.
+  2. Set **Converter type** to **Uplink**.
+  3. Enter a name, e.g. `OPC-UA Uplink Converter`.
+  4. Paste the decoder function below into the editor.
+  5. Optionally click **Test decoder function** with the sample input above to validate, then click **Add**. Select it later on the wizard's Uplink step via **Select existing**.
 </Steps>
 
 <Tabs>
   <TabItem label="TBEL (Recommended)">
-    <a href="/resources/docs/integrations/opc-ua/opc-ua_tbel_uplink_converter.json" download="opc-ua_tbel_uplink_converter.json"><strong>opc-ua_tbel_uplink_converter.json</strong></a>
+    ```js maxLines=20 collapsible
+    // The device name comes from the matched OPC-UA node name (e.g. "MyDevice")
+    var data = decodeToJson(payload);
+    var deviceName = metadata['opcUaNode_name'];
+    var deviceType = 'opc-ua-device';
+    
+    var result = {
+      deviceName: deviceName,
+      deviceType: deviceType,
+      telemetry: {},
+      attributes: {
+        namespaceIndex: metadata['opcUaNode_namespaceIndex'],
+        nodeFqn: metadata['opcUaNode_fqn']
+      }
+    };
+
+    // MyLevel -> telemetry (Double), rounded to 2 decimals
+    if (data.level != null) {
+      result.telemetry.level = toFixed(data.level, 2);
+    }
+
+    // MySwitch -> attribute (Boolean); values may arrive as "true"/"false" or "1"/"0"
+    if (data.switchState != null) {
+      result.attributes.switchState = (data.switchState == 'true' || data.switchState == '1');
+    }
+
+    /** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
+
+    return result;
+    ```
   </TabItem>
   <TabItem label="JavaScript">
-    <a href="/resources/docs/integrations/opc-ua/opc-ua_javascript_uplink_converter.json" download="opc-ua_javascript_uplink_converter.json"><strong>opc-ua_javascript_uplink_converter.json</strong></a>
+    ```js maxLines=20 collapsible
+    // The device name comes from the matched OPC-UA node name (e.g. "MyDevice")
+    var data = decodeToJson(payload);
+    var deviceName = metadata['opcUaNode_name'];
+    var deviceType = 'opc-ua-device';
+
+    var result = {
+      deviceName: deviceName,
+      deviceType: deviceType,
+      telemetry: {},
+      attributes: {
+        namespaceIndex: metadata['opcUaNode_namespaceIndex'],
+        nodeFqn: metadata['opcUaNode_fqn']
+      }
+    };
+
+    // MyLevel -> telemetry (Double), rounded to 2 decimals
+    if (data.level !== undefined && data.level !== null) {
+      result.telemetry.level = Number(Number(data.level).toFixed(2));
+    }
+
+    // MySwitch -> attribute (Boolean); values may arrive as "true"/"false" or "1"/"0"
+    if (data.switchState !== undefined && data.switchState !== null) {
+      result.attributes.switchState = (data.switchState === 'true' || data.switchState === '1');
+    }
+
+    function decodeToString(payload) {
+      return String.fromCharCode.apply(String, payload);
+    }
+
+    function decodeToJson(payload) {
+      var str = decodeToString(payload);
+      return JSON.parse(str);
+    }
+
+    return result;
+    ```
   </TabItem>
 </Tabs>
+**Expected ThingsBoard output**
+
+```json
+{
+  "deviceName": "MyDevice",
+  "deviceType": "opc-ua-device",
+  "telemetry": {
+    "level": 42.17
+  },
+  "attributes": {
+    "namespaceIndex": "3",
+    "nodeFqn": "Objects.MyObjects.MyDevice",
+    "switchState": true
+  }
+}
+```
+
+**Adapting the converter:** to read different or additional nodes, add matching subscription tags in the mapping (each new **Key** appears as a field in `payload`) and add a corresponding `if (data.<key> != null)` block that assigns it to `telemetry` or `attributes`. Change `deviceType` to whatever profile you want, or derive `deviceName` from `metadata['opcUaNode_fqn']` when a single folder holds many devices. For the full function reference see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">Uplink data converter</DocLink>.
+
+---
+
+## Create OPC UA Integration
 
 <Steps>
-  <ol start="2">
-    <li>Go to **Integrations center &#8702; Data converters**.</li>
-    <li>Click **+ Add data converter &#8702; Import converter**.</li>
-    <li>Drag and drop the downloaded JSON file into the **Import converter** window.</li>
-    <li>Click **Import**.</li>
+  <ol start="1">
+    <li>Go to <strong>Integrations center &#8702; Integrations</strong> and click <strong>+ Add integration</strong>.</li>
+    <li>
+      <span><strong>Basic settings:</strong></span>
+      <ul>
+        <li>Set <strong>integration type</strong> to <strong>OPC-UA</strong>.</li>
+        <li>Enter a <strong>Name</strong> for the integration, or keep the default <code>OPC-UA integration</code>.</li>
+        <li>Leave <strong>Enable integration</strong> and <strong>Allow create devices or assets</strong> on so the device is created automatically on first data.</li>
+        <li>Click <strong>Next</strong>.</li>
+      </ul>
+    </li>
   </ol>
 </Steps>
 
-**The decoder function used in this tutorial:**
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/opc-ua/opc-ua-create-integration-1.png', alt: 'Add integration wizard — Basic settings step with Integration type OPC-UA', caption: 'Basic settings: set Integration type to OPC-UA, name the integration, keep Enable integration and Allow create devices or assets on, then click Next' },
+]} />
 
-<Tabs>
-<TabItem label="TBEL (Recommended)">
-```js maxLines=15 collapsible
-var data = decodeToJson(payload);
-var deviceName = metadata['opcUaNode_name'];
-var namespaceIndex = metadata['opcUaNode_namespaceIndex'];
-var deviceType = 'airconditioner';
+<Steps>
+  <ol start="3">
+    <li>
+      <span><strong>Uplink data converter:</strong></span>
+      <ul>
+        <li>Click <strong>Select existing</strong> and choose the <a href="#create-opc-ua-uplink-data-converter"><strong>OPC-UA Uplink Converter</strong></a> created in the previous step, or click <strong>Create new</strong> to define the decoder inline.</li>
+        <li>Click <strong>Next</strong>.</li>
+      </ul>
+    </li>
+  </ol>
+</Steps>
 
-var result = {
-   deviceName: deviceName,
-   deviceType: deviceType,
-   telemetry: {
-   },
-   attributes: {
-       namespaceIndex: namespaceIndex
-   }
-};
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/opc-ua/opc-ua-create-integration-2.png', alt: 'Add integration wizard — Uplink data converter step with Create new selected and the TBEL editor open', caption: 'Uplink data converter: with Create new selected, paste the decoder into the Main decoding configuration editor (TBEL recommended), then click Next' },
+]} />
 
-if (data.temperature != null) {
-    result.telemetry.temperature = toFixed(data.temperature, 2);
-}
+<Steps>
+  <ol start="4">
+    <li>
+      <span><strong>Downlink data converter:</strong></span>
+      <ul>
+        <li>Click <strong>Skip</strong> — a downlink converter is only needed when ThingsBoard must send data back to the device (e.g. RPC commands or shared attribute updates). It can be configured later.</li>
+      </ul>
+    </li>
+  </ol>
+</Steps>
 
-if (data.humidity != null) {
-   result.telemetry.humidity = toFixed(data.humidity, 2);
-}
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/opc-ua/opc-ua-create-integration-3.png', alt: 'Add integration wizard — Downlink data converter step with Skip selected', caption: 'Downlink data converter: click Skip — downlink is optional and not needed to read telemetry' },
+]} />
 
-if (data.powerConsumption != null) {
-   result.telemetry.powerConsumption = toFixed(data.powerConsumption, 2);
-}
+<Steps>
+  <ol start="5">
+    <li>
+      <span><strong>Configure the OPC UA Server Connection:</strong></span>
+      <p>On the <strong>Connection</strong> step, map the public demo endpoint (<code>opc.tcp://uademo.prosysopc.com:53530/OPCUA/SimulationServer</code>) to the fields below.</p>
+      <ul>
+        <li><strong>Host</strong> — <code>uademo.prosysopc.com</code></li>
+        <li><strong>Port</strong> — the field is pre-filled with <code>49320</code>; <strong>change it to</strong> <code>53530</code>.</li>
+        <li><strong>Endpoint</strong> — <code>/OPCUA/SimulationServer</code> (the path from the demo address). Enter it exactly, including the leading slash.</li>
+        <li><strong>Security</strong> — <code>None</code>. The public demo server accepts unsecured connections only.</li>
+        <li><strong>Identity</strong> — <code>Anonymous</code>. The demo server does not provide user accounts.</li>
+      </ul>
+    </li>
+  </ol>
+</Steps>
 
-if (data.state != null) {
-   result.attributes.state = data.state == '1' ? true : false;
-}
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/opc-ua/opc-ua-create-integration-4.png', alt: 'Add integration wizard — Connection step showing Host, Port, Endpoint, Security None, Identity Anonymous', caption: 'Connection: set Host to uademo.prosysopc.com, change the pre-filled Port from 49320 to 53530, set Endpoint to /OPCUA/SimulationServer, and keep Security None and Identity Anonymous' },
+]} />
 
-/** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
+<Steps>
+  <ol start="6">
+    <li>
+      <span><strong>Configure Node Mapping:</strong></span>
+      <p>The mapping tells ThingsBoard <strong>which nodes are devices</strong> and <strong>which child values to read</strong> from each device node. ThingsBoard browses the server address space, selects the nodes matching your pattern, and subscribes to the child nodes you list as subscription tags. Configure the following in the <strong>Mapping</strong> section of the wizard:</p>
+      <ul>
+        <li><strong>Mapping type</strong> — <code>Fully Qualified Name</code>. Nodes are matched by their full browse path (for example <code>Objects.MyObjects.MyDevice</code>). Choose <code>ID</code> instead to match by namespace index and node identifier; an additional <strong>Namespace</strong> field then appears.</li>
+        <li><strong>Device Node Pattern</strong> — a regular expression applied to node paths (or IDs) to select device nodes. For the single Prosys sample device use:</li>
+            ```
+            Objects\.MyObjects\.MyDevice$
+            ```
 
-return result;
-```
-</TabItem>
-<TabItem label="JavaScript">
-```js maxLines=15 collapsible
-var data = decodeToJson(payload);
-var deviceName = metadata['opcUaNode_name'];
-var deviceType = 'airconditioner';
+            Only nodes matching this expression are subscribed to.
+        <li><strong>Subscription tags</strong> — the child values read from each matched device node. Each tag has a <strong>Key</strong> (the field name in the message payload) and a <strong>Path</strong> (the child node path relative to the device node):</li>
 
-var result = {
-   deviceName: deviceName,
-   deviceType: deviceType,
-   telemetry: {
-   },
-   attributes: {
-   }
-};
 
-if (data.temperature) {
-    result.telemetry.temperature = Number(Number(data.temperature).toFixed(2));
-}
+            | Key | Path | Description |
+            |-----|------|-------------|
+            | <code>level</code> | <code>MyLevel</code> | Simulated level measurement (Double) |
+            | <code>switchState</code> | <code>MySwitch</code> | Switch state (Boolean) |
+    
+            Mark a tag <strong>Required</strong> only if a missing value should prevent the whole message from being processed. Use <strong>Add subscription tag</strong> for each value and <strong>Add mapping element</strong> to define a second, differently-patterned device group.
+      </ul>
+    </li>
+  </ol>
+</Steps>
 
-if (data.humidity) {
-    result.telemetry.humidity = Number(Number(data.humidity).toFixed(2));
-}
+<Aside type="note">
+  The **Device Node Pattern** field is pre-filled with the example `Channel1\.Device\d+$`. Replace it with the pattern that matches your Prosys nodes (`Objects\.MyObjects\.MyDevice$`).
+</Aside>
 
-if (data.powerConsumption) {
-    result.telemetry.powerConsumption = Number(Number(data.powerConsumption).toFixed(2));
-}
+**How devices are created:** for each matched node the integration builds a message and hands it to the uplink converter. The converter returns a `deviceName` and `deviceType`; ThingsBoard creates a device with that name/type on first data (because **Allow create devices** is on) or matches an existing one. In this example the converter uses the OPC-UA node name, so a single device named **MyDevice** is created.
 
-if (data.state !== undefined) {
-    result.attributes.state = data.state === '1' ? true : false;
-}
+Click **Add** to finish creating the integration.
 
-function decodeToString(payload) {
-   return String.fromCharCode.apply(String, payload);
-}
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/opc-ua/opc-ua-create-integration-5.png', alt: 'Add integration wizard — Identity set to Username, showing Username and Password fields', caption: 'Identity: the Username option exposes Username and Password fields — not used with the public demo server, which is Anonymous only' },
+]} />
 
-function decodeToJson(payload) {
-   var str = decodeToString(payload);
-   var data = JSON.parse(str);
-   return data;
-}
+Scroll down for the remaining connection options:
 
-return result;
-```
-</TabItem>
-</Tabs>
+- **Execute remotely** — enable to run the integration as a separate <DocLink product={props.product} path="user-guide/integrations/remote/">Remote Integration</DocLink> process; ThingsBoard then issues an **Integration key** and **secret**. Useful when your ThingsBoard cluster cannot reach the internet but a Remote Integration host can.
+- **Scan period in seconds** — how often ThingsBoard polls the server for updated values (default `10`).
+- **Timeout in milliseconds** — connection and request timeout (default `5000`).
+- **Application name / Application URI** — the OPC-UA client identity sent during session setup; the URI must be globally unique.
+- **Metadata** — optional key-value pairs injected into every uplink message (available as `integrationMetadata` in converter scripts).
 
-### Create a downlink converter
+---
+
+## Test the Integration
+
+After the integration is created, no server action is needed — the public demo server is always running and `MyLevel` is always changing.
+
+<h3>Verify Integration Events</h3>
+
+Open the integration and check its **Events** tab. Successful **Uplink** events confirm the integration connected and received data; error events show the reason a connection or decode failed.
+
+<h3>Verify Converter Events</h3>
+
+To inspect converter processing, go to **Integrations center &#8702; Data converters**, click **OPC-UA Uplink Converter**, and open its **Events** tab:
+
+- **In** shows the raw payload passed to the converter
+- **Out** shows the decoded result (`deviceName`, `deviceType`, `telemetry`, `attributes`)
+- **Metadata** contains the integration name, `opcUaNode_fqn`, `opcUaNode_identifier`, `opcUaNode_name`, and `opcUaNode_namespaceIndex`.
+
+<h3>Verify Device Provisioning</h3>
+
+Go to **Entities &#8702; Devices** — a device named **MyDevice** (type `opc-ua-device`) is created automatically after the first successful uplink.
+Open it and check the **Latest telemetry** — its shows a `level` value; **Attributes** show `switchState`, `namespaceIndex`, and `nodeFqn`, and the `level` value refreshes on each scan period as the demo server updates it.
+
+---
+
+## Configure Downlink
+
+### Add Downlink Converter
 
 The downlink converter encodes RPC commands from ThingsBoard into OPC-UA write operations or method calls. 
 
@@ -340,7 +498,7 @@ return result;
 </Steps>
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/opc-ua/opc-ua-create-integration-1.png', alt: 'Add integration wizard — Basic settings: Integration type set to OPC-UA', caption: 'Go to Integrations center → Integrations (1) and click + Add integration (2). Set Integration type to OPC-UA (3) and click Next (4)' },
+  { src: '/src/assets/images/user-guide/integrations/opc-ua/opc-ua-create-integration-1.png', alt: 'Add integration wizard — Basic settings: Integration type set to OPC-UA', caption: 'Go to Integrations center &#8702; Integrations (1) and click + Add integration (2). Set Integration type to OPC-UA (3) and click Next (4)' },
   { src: '/src/assets/images/user-guide/integrations/opc-ua/opc-ua-create-integration-2.png', alt: 'Add integration wizard — Uplink data converter: OPC-UA Uplink Converter selected via Select existing', caption: 'Click Select existing (5), choose OPC-UA Uplink Converter from the list, and click Next (6)' },
   { src: '/src/assets/images/user-guide/integrations/opc-ua/opc-ua-create-integration-3.png', alt: 'Add integration wizard — Downlink data converter: OPC-UA Downlink Converter selected via Select existing', caption: 'Click Select existing (7), choose OPC-UA Downlink Converter from the list, and click Next (8)' },
   { src: '/src/assets/images/user-guide/integrations/opc-ua/opc-ua-create-integration-4.png', alt: 'Add integration wizard — Connection step: Host and Port (9), Security set to None (10), Identity set to Anonymous (11); Mapping section visible below', caption: 'Connection: enter Host and Port (9), set Security to None (10) and Identity to Anonymous (11); scroll down to configure the Mapping section' },
@@ -483,7 +641,7 @@ The dashboard displays real-time Temperature, Humidity, and Power Consumption gr
 After switching off, the status indicator turns grey, temperature and humidity begin to rise, and power consumption drops to zero.
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/opc-ua/opc-ua-dashboard-1.png', alt: 'Dashboards page — Import dashboard dialog with airconditioners_dashboard.json', caption: 'Go to Dashboards (1), click + Add dashboard (2) → Import dashboard (3), drop the JSON file into the dialog (4), and click Import' },
+  { src: '/src/assets/images/user-guide/integrations/opc-ua/opc-ua-dashboard-1.png', alt: 'Dashboards page — Import dashboard dialog with airconditioners_dashboard.json', caption: 'Go to Dashboards (1), click + Add dashboard (2) &#8702; Import dashboard (3), drop the JSON file into the dialog (4), and click Import' },
   { src: '/src/assets/images/user-guide/integrations/opc-ua/opc-ua-dashboard-2.png', alt: 'Airconditioners dashboard — Temperature, Humidity, Power Consumption graphs and Entities table', caption: 'Airconditioners dashboard shows real-time telemetry graphs — click the Open airconditioner details icon (5) in the Entities widget to navigate to a device details page' },
   { src: '/src/assets/images/user-guide/integrations/opc-ua/opc-ua-dashboard-4.png', alt: 'AirConditioner_1 details page — status light green, Round switch in ON position', caption: 'AirConditioner details page — Airconditioner status is green (on); click the Round switch (6) to send an RPC command and turn the device off' },
   { src: '/src/assets/images/user-guide/integrations/opc-ua/opc-ua-dashboard-5.png', alt: 'AirConditioner_1 details page — status light grey, temperature and humidity rising, power consumption stopped', caption: 'After switching off — Airconditioner status turns grey, temperature and humidity trend upward, and power consumption drops to zero' },
