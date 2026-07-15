@@ -1,4 +1,6 @@
-import { assertNewestFirst, latestPatchPerBaseline } from '~/models/upgrade-shared';
+// Relative import on purpose: this module is pulled into the Astro config
+// chain (astro.redirects.ts), which loads before tsconfig path aliases apply.
+import { assertNewestFirst, latestPatchPerBaseline } from './upgrade-shared.ts';
 
 export interface UpgradeVersion {
 	/** Raw version string from the YAML key, e.g. "4.3.0.1", "3.4", "3.3" */

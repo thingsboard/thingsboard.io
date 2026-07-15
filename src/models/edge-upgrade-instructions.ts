@@ -1,4 +1,6 @@
-import { assertNewestFirst, latestPatchPerBaseline } from '~/models/upgrade-shared';
+// Relative import on purpose: keeps this module loadable from the Astro
+// config chain, which resolves modules before tsconfig path aliases apply.
+import { assertNewestFirst, latestPatchPerBaseline } from './upgrade-shared.ts';
 
 export interface EdgeUpgradeVersion {
 	/** Raw version string, e.g. "4.3.0.1", "4.2.0", "3.9.1" */

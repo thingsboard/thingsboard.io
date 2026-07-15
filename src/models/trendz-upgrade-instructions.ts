@@ -1,4 +1,6 @@
-import { assertNewestFirst, latestPatchPerBaseline } from '~/models/upgrade-shared';
+// Relative import on purpose: keeps this module loadable from the Astro
+// config chain, which resolves modules before tsconfig path aliases apply.
+import { assertNewestFirst, latestPatchPerBaseline } from './upgrade-shared.ts';
 
 export interface TrendzUpgradeVersion {
 	/** Raw version string, e.g. "1.15.0.4", "1.13.2", "1.10.3-HF7" */
