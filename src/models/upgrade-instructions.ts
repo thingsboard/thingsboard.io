@@ -1,3 +1,5 @@
+import { assertNewestFirst, latestPatchPerBaseline } from '~/models/upgrade-shared';
+
 export interface UpgradeVersion {
 	/** Raw version string from the YAML key, e.g. "4.3.0.1", "3.4", "3.3" */
 	version: string;
@@ -13,7 +15,7 @@ export interface UpgradeVersion {
 	releaseDatePe?: string;
 	/** "upgradable-from" value, e.g. "4.2.1.x" or "4.1.0" */
 	upgradableFrom: string;
-	/** Optional override for the in-family patch label used in "or any X patch" text and the "from version X" upgrade-script note. When unset, templates fall back to baseVersion (and baseVersion.x for the script note). */
+	/** Optional override for the in-family patch label, e.g. "4.3.x". Read by patchFamilyLabel() / patchScriptLabel() (upgrade-shared), which fall back to baseVersion / baseVersion.x when unset. */
 	patchableFrom?: string;
 	/** Anchor of the upgradable-from version on the same platform page */
 	prevVersionAnchor?: string;
@@ -52,13 +54,7 @@ export function getFamilySlug(family: string): string {
  */
 export function getUpgradeStepVersions(family?: string): UpgradeVersion[] {
 	const scoped = family ? UPGRADE_VERSIONS.filter((v) => v.family === family) : UPGRADE_VERSIONS;
-	const seenBaselines = new Set<string>();
-	return scoped.filter((v) => {
-		if (!v.baseVersion) return true;
-		if (seenBaselines.has(v.baseVersion)) return false;
-		seenBaselines.add(v.baseVersion);
-		return true;
-	});
+	return latestPatchPerBaseline(scoped);
 }
 
 /**
@@ -69,8 +65,7 @@ export function getUpgradeStepVersions(family?: string): UpgradeVersion[] {
  *   - UPGRADE_FAMILIES dedups by position to derive family order
  *   - UpgradeTable renders rows in array order
  *   - getUpgradeStepVersions treats the first entry per baseVersion as the latest
- * An out-of-order insert silently renders the wrong patch on upgrade pages and
- * visibly reorders the upgrade table.
+ * The assertNewestFirst() call below fails the build on an out-of-order insert.
  */
 export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 	{
@@ -776,6 +771,8 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 		anchor: 'v3-0',
 	},
 ];
+
+assertNewestFirst(UPGRADE_VERSIONS, 'UPGRADE_VERSIONS');
 
 /** Unique version families in order, e.g. ["4.3", "4.2", "4.1", ...] */
 export const UPGRADE_FAMILIES: string[] = [...new Set(UPGRADE_VERSIONS.map((v) => v.family))];

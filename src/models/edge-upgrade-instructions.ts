@@ -1,3 +1,5 @@
+import { assertNewestFirst, latestPatchPerBaseline } from '~/models/upgrade-shared';
+
 export interface EdgeUpgradeVersion {
 	/** Raw version string, e.g. "4.3.0.1", "4.2.0", "3.9.1" */
 	version: string;
@@ -11,6 +13,8 @@ export interface EdgeUpgradeVersion {
 	patch: boolean;
 	/** "upgradable-from" value, e.g. "4.2.1.x" or "4.2.0" */
 	upgradableFrom: string;
+	/** Optional override for the in-family patch label, e.g. "4.3.x". Read by patchScriptLabel() (upgrade-shared), which falls back to baseVersion.x when unset. */
+	patchableFrom?: string;
 	/** Anchor of the upgradable-from version on the same platform page */
 	prevVersionAnchor?: string;
 	/** false = no upgrade script needed */
@@ -54,6 +58,19 @@ export function getFamilySlug(family: string): string {
 	return 'v' + family.replace(/\./g, '-') + '-x';
 }
 
+/**
+ * Versions to render on an Edge upgrade-instruction page (optionally scoped to
+ * a family). Only the newest patch of each `baseVersion` is kept; entries
+ * without a `baseVersion` are always kept. Input is assumed newest-first,
+ * matching the ordering of `EDGE_UPGRADE_VERSIONS`.
+ */
+export function getEdgeUpgradeStepVersions(family?: string): EdgeUpgradeVersion[] {
+	const scoped = family
+		? EDGE_UPGRADE_VERSIONS.filter((v) => v.family === family)
+		: EDGE_UPGRADE_VERSIONS;
+	return latestPatchPerBaseline(scoped);
+}
+
 /** CE GitHub download URL for a Linux .deb or .rpm package */
 export function cePkgDownloadUrl(v: EdgeUpgradeVersion, ext: 'deb' | 'rpm'): string {
 	const tag = v.ceGhTagOverride ?? v.linuxPkgSuffix;
@@ -75,6 +92,13 @@ export function peDockerTag(v: EdgeUpgradeVersion): string {
 	return `${v.version}EDGEPE`;
 }
 
+/**
+ * All Edge upgrade-eligible versions, newest-first. Ordering is load-bearing:
+ * EDGE_UPGRADE_FAMILIES dedups by position, steps render in array order, and
+ * getEdgeUpgradeStepVersions treats the first entry per baseVersion as the
+ * latest. The assertNewestFirst() call below fails the build on an
+ * out-of-order insert.
+ */
 export const EDGE_UPGRADE_VERSIONS: EdgeUpgradeVersion[] = [
 	{
 		version: '4.3.1.1',
@@ -83,6 +107,7 @@ export const EDGE_UPGRADE_VERSIONS: EdgeUpgradeVersion[] = [
 		baseVersion: '4.3.1',
 		patch: true,
 		upgradableFrom: '4.2.1.x',
+		patchableFrom: '4.3.x',
 		prevVersionAnchor: 'v4-3-0-1',
 		upgrade: true,
 		manualVersionUpgrade: false,
@@ -405,6 +430,8 @@ export const EDGE_UPGRADE_VERSIONS: EdgeUpgradeVersion[] = [
 		lts: false,
 	},
 ];
+
+assertNewestFirst(EDGE_UPGRADE_VERSIONS, 'EDGE_UPGRADE_VERSIONS');
 
 export const EDGE_UPGRADE_FAMILIES = [...new Set(EDGE_UPGRADE_VERSIONS.map((v) => v.family))];
 

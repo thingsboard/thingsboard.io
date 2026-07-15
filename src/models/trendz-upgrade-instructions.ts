@@ -1,3 +1,5 @@
+import { assertNewestFirst, latestPatchPerBaseline } from '~/models/upgrade-shared';
+
 export interface TrendzUpgradeVersion {
 	/** Raw version string, e.g. "1.15.0.4", "1.13.2", "1.10.3-HF7" */
 	version: string;
@@ -45,7 +47,26 @@ export function getTrendzFamilySlug(family: string): string {
 	return 'v' + family.replace(/\./g, '-') + '-x';
 }
 
-/** All Trendz versions available for upgrade (newest first, non-vulnerable) */
+/**
+ * Versions to render on a Trendz upgrade-instruction page (optionally scoped
+ * to a family). Only the newest patch of each `baseVersion` is kept; entries
+ * without a `baseVersion` are always kept. Input is assumed newest-first,
+ * matching the ordering of `TRENDZ_UPGRADE_VERSIONS`.
+ */
+export function getTrendzUpgradeStepVersions(family?: string): TrendzUpgradeVersion[] {
+	const scoped = family
+		? TRENDZ_UPGRADE_VERSIONS.filter((v) => v.family === family)
+		: TRENDZ_UPGRADE_VERSIONS;
+	return latestPatchPerBaseline(scoped);
+}
+
+/**
+ * All Trendz versions available for upgrade (non-vulnerable), newest-first.
+ * Ordering is load-bearing: TRENDZ_UPGRADE_FAMILIES dedups by position, steps
+ * render in array order, and getTrendzUpgradeStepVersions treats the first
+ * entry per baseVersion as the latest. The assertNewestFirst() call below
+ * fails the build on an out-of-order insert.
+ */
 export const TRENDZ_UPGRADE_VERSIONS: TrendzUpgradeVersion[] = [
 	{
 		version: '1.15.2.1',
@@ -264,6 +285,8 @@ export const TRENDZ_UPGRADE_VERSIONS: TrendzUpgradeVersion[] = [
 		fromVersion: '1.7.0',
 	},
 ];
+
+assertNewestFirst(TRENDZ_UPGRADE_VERSIONS, 'TRENDZ_UPGRADE_VERSIONS');
 
 /** Unique family strings derived from TRENDZ_UPGRADE_VERSIONS (insertion order = newest first) */
 export const TRENDZ_UPGRADE_FAMILIES: string[] = [
