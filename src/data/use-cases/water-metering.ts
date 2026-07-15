@@ -17,6 +17,46 @@ export const data: UseCaseData = {
 			'https://thingsboard.cloud/dashboard/aff5f200-8b48-11ec-a344-c767c1ab1bb8?publicId=4978baf0-8a92-11ec-98f9-ff45c37940c6',
 		demoButtonId: 'UseCases_WaterMeter_ViewLiveDemo',
 	},
+	overview: {
+		type: 'carousel',
+		carouselImages: [
+			{
+				src: '/src/assets/images/usecases/water-metering/water-metering-1.webp',
+				alt: 'ThingsBoard water-metering dashboard: weekly consumption, active-device counts, a meter map of Santa Monica, the meter table and active alarms',
+				title: 'Fleet overview: consumption, meter map and active alarms',
+				width: 1819,
+				height: 967,
+			},
+			{
+				src: '/src/assets/images/usecases/water-metering/water-metering-2.webp',
+				alt: 'ThingsBoard dashboard charting current-week water consumption against the previous week alongside the water-meter list',
+				title: 'Weekly consumption vs the previous week',
+				width: 1819,
+				height: 967,
+			},
+			{
+				src: '/src/assets/images/usecases/water-metering/water-metering-3.webp',
+				alt: 'ThingsBoard single water-meter view: weekly and all-time consumption, temperature, battery, consumption history, location map, meter details and a device photo',
+				title: 'Single meter: usage, status, location and details',
+				width: 1819,
+				height: 967,
+			},
+			{
+				src: '/src/assets/images/usecases/water-metering/water-metering-4.webp',
+				alt: 'ThingsBoard alarms table listing critical daily and weekly consumption-threshold alarms across the water meters',
+				title: 'Consumption-threshold alarms across the fleet',
+				width: 1819,
+				height: 967,
+			},
+			{
+				src: '/src/assets/images/usecases/water-metering/water-metering-5.webp',
+				alt: 'ThingsBoard settings tab configuring system alarm thresholds and SMS and email notifications',
+				title: 'Alarm thresholds and notification settings',
+				width: 1819,
+				height: 967,
+			},
+		],
+	},
 	solutionStructure: {
 		title: 'Solution structure of water metering use case',
 		shortText:

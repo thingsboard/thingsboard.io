@@ -1,24 +1,40 @@
 ---
-import { Icon } from 'astro-icon/components';
 import type { FaqCategory } from '@data/pricing/types.ts';
+import { buildFaqPageSchema, serializeJsonLd } from '@util/faq-schema';
+import FaqItem from '@components/Pricing/FaqItem.astro';
+
+// Self-contained FAQ section: markup, styles, and behavior (accordion, category
+// tabs, "Load more", copy-link, hash deep-link) all live here. Page scripts may
+// still target the `.faq-*` markup contract (the pricing page activates its
+// product tabs around it and calls `window.__tbFaqOpen`), so keep the class
+// names / data attributes stable, or update those consumers too.
 
 interface Props {
 	contextId: string;
 	categories: FaqCategory[];
 	/** Number of items visible per category before "Load more" (default: 6) */
 	visibleCount?: number;
+	/** Push `faq_*` events to the GTM dataLayer on interaction (marketing-owned). */
+	analytics?: boolean;
+	/** Emit a schema.org FAQPage block for this section. At most one per page. */
+	jsonLd?: boolean;
 }
 
-const { contextId, categories, visibleCount = 6 } = Astro.props;
+const { contextId, categories, visibleCount = 6, analytics = false, jsonLd = false } = Astro.props;
 ---
 
-<div class={`faq-section ${categories.length > 1 ? 'faq-section--with-sidebar' : ''}`} data-faq-context={contextId}>
+<div
+	class={`faq-section ${categories.length > 1 ? 'faq-section--with-sidebar' : ''}`}
+	data-faq-context={contextId}
+	data-faq-analytics={analytics ? '' : undefined}
+>
 	{categories.length > 1 && (
 		<div class="faq-cat-sidebar">
 			{categories.map((cat, i) => (
 				<button
 					type="button"
 					class={`faq-cat-tab ${i === 0 ? 'active' : ''}`}
+					aria-current={i === 0 ? 'true' : 'false'}
 					data-faq-cat={cat.id}
 				>
 					{cat.label}
@@ -36,23 +52,7 @@ const { contextId, categories, visibleCount = 6 } = Astro.props;
 					class={`faq-category-content ${i === 0 ? 'active' : ''}`}
 					data-faq-cat-content={cat.id}
 				>
-					{visible.map((item) => (
-						<div class="faq-item" id={item.id}>
-							<button type="button" class="faq-question" aria-expanded="false">
-								<h3 class="faq-question-text">{item.question}
-									<span class="faq-copy-link" data-faq-id={item.id} role="button" tabindex="0" aria-label={`Copy link to: ${item.question}`}>
-										<Icon name="tabler:link" class="faq-copy-icon" />
-									</span>
-								</h3>
-								<Icon name="tabler:chevron-down" class="faq-chevron" />
-							</button>
-							<div class="faq-answer">
-								<div class="faq-answer-overflow">
-									<div class="faq-answer-content" set:html={item.answer} />
-								</div>
-							</div>
-						</div>
-					))}
+					{visible.map((item) => <FaqItem item={item} />)}
 
 					{overflow.length > 0 && (
 						<button type="button" class="faq-load-more">
@@ -60,28 +60,164 @@ const { contextId, categories, visibleCount = 6 } = Astro.props;
 						</button>
 					)}
 
-					{overflow.map((item) => (
-						<div class="faq-item faq-item--hidden" id={item.id}>
-							<button type="button" class="faq-question" aria-expanded="false">
-								<h3 class="faq-question-text">{item.question}
-									<span class="faq-copy-link" data-faq-id={item.id} role="button" tabindex="0" aria-label={`Copy link to: ${item.question}`}>
-										<Icon name="tabler:link" class="faq-copy-icon" />
-									</span>
-								</h3>
-								<Icon name="tabler:chevron-down" class="faq-chevron" />
-							</button>
-							<div class="faq-answer">
-								<div class="faq-answer-overflow">
-									<div class="faq-answer-content" set:html={item.answer} />
-								</div>
-							</div>
-						</div>
-					))}
+					{overflow.map((item) => <FaqItem item={item} hidden />)}
 				</div>
 			);
 		})}
 	</div>
 </div>
+
+{jsonLd && (
+	<script
+		type="application/ld+json"
+		set:html={serializeJsonLd(buildFaqPageSchema(categories))}
+		is:inline
+	/>
+)}
+
+<script>
+	// Runs once per page (Astro dedupes the bundled module) and drives every
+	// `.faq-section` instance via document-level delegation — the pricing page
+	// renders eight at once. All branches require a `.faq-section` ancestor:
+	// other pages (partners, Trendz) reuse `.faq-*` class names with their own
+	// incompatible markup and must stay untouched.
+
+	declare global {
+		interface Window {
+			/** Open + scroll to a FAQ item by id (used by the pricing page). */
+			__tbFaqOpen?: (faqId: string) => void;
+		}
+	}
+
+	const trackFaq = (event: string, faqId: string, origin: Element): void => {
+		// Marketing owns the GTM triggers + GA4 tags for these events; only
+		// sections that opt in via the `analytics` prop push them.
+		if (origin.closest('.faq-section[data-faq-analytics]')) {
+			window.dataLayer?.push({ event, faq_node_id: faqId });
+		}
+	};
+
+	const copyFaqLink = (copyLink: HTMLElement): void => {
+		const faqId = copyLink.dataset.faqId;
+		if (!faqId?.trim()) return;
+		trackFaq('faq_copy_link', faqId, copyLink);
+		const url = new URL(window.location.href);
+		url.hash = faqId;
+		navigator.clipboard
+			.writeText(url.toString())
+			.then(() => {
+				copyLink.classList.add('copied');
+				setTimeout(() => copyLink.classList.remove('copied'), 2000);
+			})
+			.catch(() => {});
+	};
+
+	const activateCategoryTab = (section: Element, catId: string | undefined): void => {
+		if (!catId) return;
+		section.querySelectorAll<HTMLElement>('.faq-cat-tab').forEach((tab) => {
+			const isActive = tab.dataset.faqCat === catId;
+			tab.classList.toggle('active', isActive);
+			tab.setAttribute('aria-current', isActive ? 'true' : 'false');
+		});
+		section
+			.querySelectorAll<HTMLElement>('.faq-category-content')
+			.forEach((c) => c.classList.toggle('active', c.dataset.faqCatContent === catId));
+	};
+
+	const setExpanded = (item: Element, expanded: boolean): void => {
+		item.classList.toggle('expanded', expanded);
+		item.querySelector('.faq-question-toggle')?.setAttribute('aria-expanded', String(expanded));
+	};
+
+	const revealCategoryOverflow = (content: Element): void => {
+		content
+			.querySelectorAll('.faq-item--hidden')
+			.forEach((el) => el.classList.remove('faq-item--hidden'));
+		content.querySelector('.faq-load-more')?.classList.add('faq-load-more--used');
+	};
+
+	const openFaqItem = (faqId: string): void => {
+		const item = document.getElementById(faqId);
+		if (!item?.classList.contains('faq-item')) return;
+		const section = item.closest('.faq-section');
+		const content = item.closest<HTMLElement>('.faq-category-content');
+		if (!section || !content) return;
+		activateCategoryTab(section, content.dataset.faqCatContent);
+		if (item.classList.contains('faq-item--hidden')) revealCategoryOverflow(content);
+		if (!item.classList.contains('expanded')) {
+			setExpanded(item, true);
+			trackFaq('faq_node_interaction', faqId, item);
+		}
+		// Let the expand animation start so centering lands on the final layout.
+		setTimeout(() => item.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+	};
+	window.__tbFaqOpen = openFaqItem;
+
+	document.addEventListener('click', (e) => {
+		// `e.target` can be a non-Element (e.g. a Text node); `.closest()` only
+		// exists on Element, so bail out otherwise.
+		if (!(e.target instanceof Element)) return;
+		const target = e.target;
+
+		// Every interactive control below lives inside a `.faq-section`. Enforce
+		// that invariant once here — so no branch has to re-check it, and a
+		// future branch can't forget to (which would let clicks in an unrelated
+		// `.faq-*` implementation leak into this handler).
+		const section = target.closest('.faq-section');
+		if (!section) return;
+
+		const copyLink = target.closest<HTMLElement>('.faq-copy-link');
+		if (copyLink) {
+			copyFaqLink(copyLink);
+			return;
+		}
+
+		const toggle = target.closest<HTMLElement>('.faq-question-toggle');
+		if (toggle) {
+			const item = toggle.closest('.faq-item');
+			if (item) {
+				const nowExpanded = !item.classList.contains('expanded');
+				setExpanded(item, nowExpanded);
+				// Track opens only (not collapses).
+				if (nowExpanded && item.id) trackFaq('faq_node_interaction', item.id, item);
+			}
+			return;
+		}
+
+		const loadMore = target.closest<HTMLElement>('.faq-load-more');
+		if (loadMore) {
+			const content = loadMore.closest('.faq-category-content');
+			if (content) revealCategoryOverflow(content);
+			return;
+		}
+
+		const catTab = target.closest<HTMLElement>('.faq-cat-tab');
+		if (catTab) {
+			activateCategoryTab(section, catTab.dataset.faqCat);
+		}
+	});
+
+	// Deep-link: open the FAQ item referenced by the URL hash. Deferred to idle
+	// (bounded — a late scrollIntoView is jarring) so the walk never blocks
+	// first paint. Skips items a page script already opened via __tbFaqOpen.
+	const performHashWalk = (): void => {
+		const hash = window.location.hash.slice(1);
+		if (!hash) return;
+		const item = document.getElementById(hash);
+		if (!item?.classList.contains('faq-item') || !item.closest('.faq-section')) return;
+		if (item.classList.contains('expanded')) return;
+		openFaqItem(hash);
+	};
+	// Only deep-link visits need the walk at all — skip scheduling (and the
+	// deferred scroll jump) entirely when there's no hash.
+	if (window.location.hash) {
+		if ('requestIdleCallback' in window) {
+			requestIdleCallback(performHashWalk, { timeout: 500 });
+		} else {
+			setTimeout(performHashWalk, 200);
+		}
+	}
+</script>
 
 <style lang="scss" is:global>
 	@use '../../styles/variables' as *;
@@ -187,58 +323,142 @@ const { contextId, categories, visibleCount = 6 } = Astro.props;
 	}
 
 	// ─── Question row ───
+	// The row is a plain div; the heading wraps ONLY the toggle so its
+	// accessible name is just the question. The toggle's stretched ::after
+	// overlay makes the whole row clickable while the copy-link stays a real
+	// sibling button — no interactive nesting.
 	.faq-question {
-		width: 100%;
+		position: relative;
 		display: flex;
 		align-items: center;
 		gap: $spacing-4;
-		padding: $spacing-4 $spacing-5;
-		border: none;
-		background: none;
-		cursor: pointer;
-		text-align: left;
-		color: var(--color-text);
-
-		&:hover .faq-question-text {
-			color: var(--color-primary);
-		}
-	}
-
-	.faq-question-text {
-		// Element is h3 for SEO — reset browser defaults to keep original row styling.
-		flex: 1;
 		margin: 0;
+		padding: $spacing-4 $spacing-5;
 		font-size: $font-size-base;
 		font-weight: $font-weight-medium;
 		line-height: 1.5;
 		color: var(--color-text);
-		transition: color 0.15s ease;
+		cursor: pointer;
+
+		&:hover .faq-question-toggle {
+			color: var(--color-primary);
+		}
 	}
 
+	.faq-question-heading {
+		flex: 1;
+		min-width: 0;
+		margin: 0;
+		font: inherit;
+	}
+
+	.faq-question-toggle {
+		width: 100%;
+		padding: 0;
+		border: none;
+		background: none;
+		font: inherit;
+		color: inherit;
+		text-align: left;
+		cursor: pointer;
+		transition: color 0.15s ease;
+
+		// Stretch the hit area over the whole question row.
+		&::after {
+			content: '';
+			position: absolute;
+			inset: 0;
+		}
+
+		&:focus-visible {
+			outline: none;
+
+			&::after {
+				outline: 2px solid var(--color-primary);
+				outline-offset: -2px;
+				border-radius: $radius-lg;
+			}
+		}
+	}
+
+	// Drawn as CSS masks so ~500 FAQ rows share one icon definition instead of
+	// one inline SVG each; `currentColor` keeps the existing theming. One
+	// variable per icon — mask and -webkit-mask must stay identical.
+	$faq-chevron-icon: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='none' stroke='black' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m6 9l6 6l6-6'/></svg>");
+	$faq-link-icon: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='none' stroke='black' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m9 15l6-6m-4-3l.463-.536a5 5 0 0 1 7.071 7.072L18 13m-5 5l-.397.534a5.07 5.07 0 0 1-7.127 0a4.97 4.97 0 0 1 0-7.071L6 11'/></svg>");
+
 	.faq-chevron {
+		display: block;
 		width: 18px;
 		height: 18px;
 		color: var(--color-text-secondary);
+		background-color: currentColor;
+		mask: $faq-chevron-icon no-repeat center / contain;
+		-webkit-mask: $faq-chevron-icon no-repeat center / contain;
 		flex-shrink: 0;
+		// Clicks fall through to the toggle's stretched hit-area overlay.
+		pointer-events: none;
 		transition: transform 0.25s ease;
 	}
 
-	// ─── Copy link (inline right after question text) ───
+	// ─── Copy link (right rail, before the chevron) ───
 	.faq-copy-link {
 		position: relative;
+		// Above the toggle's stretched hit-area overlay.
+		z-index: 1;
 		display: inline-flex;
-		vertical-align: baseline;
-		margin-left: 6px;
+		flex-shrink: 0;
+		padding: 0;
+		border: none;
+		background: none;
 		cursor: pointer;
 		opacity: 0;
-		transition: opacity 0.15s ease;
+		// Hidden until revealed (hover/focus), and non-interactive while hidden:
+		// it sits above the toggle's hit-area in the right rail, so an invisible
+		// tap target here would silently copy a link the user never sees instead
+		// of expanding the row. Coarse pointers (no hover) get a persistent
+		// visible affordance instead — see the @media (pointer: coarse) block.
+		pointer-events: none;
+		color: var(--color-primary);
+		transition:
+			opacity 0.15s ease,
+			color 0.15s ease;
+
+		// The link glyph, masked from a shared definition (same reason as
+		// .faq-chevron). The tooltip already occupies ::after.
+		&::before {
+			content: '';
+			display: block;
+			width: 14px;
+			height: 14px;
+			background-color: currentColor;
+			mask: $faq-link-icon no-repeat center / contain;
+			-webkit-mask: $faq-link-icon no-repeat center / contain;
+		}
 
 		.faq-question:hover & {
 			opacity: 0.6;
+			pointer-events: auto;
 		}
 
 		&:hover {
 			opacity: 1 !important;
+		}
+
+		&:focus-visible {
+			opacity: 1;
+			pointer-events: auto;
+			outline: 2px solid currentColor;
+			outline-offset: 2px;
+			border-radius: 2px;
+		}
+
+		// Touch/coarse pointers have no hover to reveal the button, so show it
+		// persistently and keep it interactive. Being visible, it now reads as
+		// its own control rather than an invisible trap beside the chevron.
+		@media (pointer: coarse) {
+			opacity: 0.6;
+			pointer-events: auto;
 		}
 
 		// Tooltip
@@ -267,10 +487,7 @@ const { contextId, categories, visibleCount = 6 } = Astro.props;
 		// Copied state
 		&.copied {
 			opacity: 1;
-
-			.faq-copy-icon {
-				color: var(--color-success);
-			}
+			color: var(--color-success);
 
 			&::after {
 				content: 'Copied!';
@@ -280,11 +497,14 @@ const { contextId, categories, visibleCount = 6 } = Astro.props;
 		}
 	}
 
-	.faq-copy-icon {
-		width: 14px;
-		height: 14px;
-		color: var(--color-primary);
-		transition: color 0.15s ease;
+	// Forced-colors palettes override background-color in ways that can blank
+	// mask-drawn glyphs (inline SVGs used to get forced stroke colors); pin
+	// the icons to the system text color so they stay visible.
+	@media (forced-colors: active) {
+		.faq-chevron,
+		.faq-copy-link::before {
+			background-color: CanvasText;
+		}
 	}
 
 	// ─── Answer (smooth expand via grid trick) ───

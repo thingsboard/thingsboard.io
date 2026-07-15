@@ -1,0 +1,253 @@
+---
+import type { GetStaticPaths } from 'astro';
+import { getCollection } from 'astro:content';
+import {
+	IOT_HUB_API_URL,
+	IOT_HUB_CATEGORIES,
+	IOT_HUB_STRINGS,
+	CREATOR_PAGE_SIZE,
+	creatorViewSchema,
+	isNumericSlug,
+	resolveAvatar,
+	type CreatorView,
+	type ListingView,
+} from '@models/iot-hub';
+import BaseLayout from '@layouts/BaseLayout.astro';
+import CategorySection from '@components/IotHub/CategorySection.astro';
+import CategorySectionTemplate from '@components/IotHub/CategorySectionTemplate.astro';
+import CreatorHero from '@components/IotHub/CreatorHero.astro';
+import IotHubFetchError from '@components/IotHub/IotHubFetchError.astro';
+import IotHubNoResults from '@components/IotHub/IotHubNoResults.astro';
+import IotHubRuntimeConfig from '@components/IotHub/IotHubRuntimeConfig.astro';
+import IotHubSearchLoading from '@components/IotHub/IotHubSearchLoading.astro';
+import ListingCardTemplate from '@components/IotHub/ListingCardTemplate.astro';
+import SearchFilterBar from '@components/IotHub/SearchFilterBar.astro';
+import { fetchWithRetry } from '@util/fetch-utils';
+import { recordSitemapLastmod } from '@util/sitemap-lastmod';
+
+interface CreatorGroup {
+	slug: string;
+	label: string;
+	items: ListingView[];
+}
+
+export const getStaticPaths = (async () => {
+	// Defined inside getStaticPaths: Astro extracts and runs getStaticPaths in
+	// an isolated scope, so it can only reference module imports — NOT other
+	// frontmatter declarations.
+	const loadProfile = async (id: string): Promise<CreatorView | null> => {
+		try {
+			const res = await fetchWithRetry(`${IOT_HUB_API_URL}/api/creators/${id}/profile`);
+			return creatorViewSchema.parse(await res.json());
+		} catch (e) {
+			if (import.meta.env.DEV) {
+				const msg = e instanceof Error ? e.message : String(e);
+				console.warn(`[iot-hub] creator profile fetch failed in dev for ${id}: ${msg}`);
+				return null;
+			}
+			throw e;
+		}
+	};
+
+	const categories = await getCollection('iotHubCategories');
+	const byId = new Map(categories.map((c) => [c.id, c.data]));
+
+	// Re-shape the per-category collection into a flat per-creator stream —
+	// the loader already fetches the full catalog (loops until hasNext is
+	// false), so no additional API call is needed. Each entry carries the
+	// item plus the category slug it belongs to so we can re-group later.
+	// Pure-numeric slugs excluded to mirror [slug].astro.
+	type CreatorItem = { item: ListingView; categorySlug: string; categoryLabel: string };
+	const byCreator = new Map<string, CreatorItem[]>();
+	for (const cat of IOT_HUB_CATEGORIES) {
+		const items = byId.get(cat.slug)?.items ?? [];
+		for (const item of items) {
+			if (isNumericSlug(item.slug)) continue;
+			if (!item.creatorId) continue;
+			const arr = byCreator.get(item.creatorId) ?? [];
+			arr.push({ item, categorySlug: cat.slug, categoryLabel: cat.label });
+			byCreator.set(item.creatorId, arr);
+		}
+	}
+	// Sort each creator's flat list by installCount DESC. Items inside each
+	// category arrived already sorted by the loader; re-sorting once we've
+	// merged across categories gives a single global ranking that
+	// pagination can slice.
+	for (const arr of byCreator.values()) {
+		arr.sort((a, b) => (b.item.installCount ?? 0) - (a.item.installCount ?? 0));
+	}
+
+	const ids = [...byCreator.keys()];
+	// One profile fetch per creator, reused across that creator's pages.
+	const profiles = new Map<string, CreatorView | null>();
+	await Promise.all(
+		ids.map(async (id) => {
+			profiles.set(id, await loadProfile(id));
+		})
+	);
+
+	// Pagination is over the creator's WHOLE catalogue: each page renders
+	// CREATOR_PAGE_SIZE items total, then those items get grouped back by
+	// category for display (in IOT_HUB_CATEGORIES priority order).
+	return ids.flatMap((id) => {
+		const allItems = byCreator.get(id)!;
+		const total = allItems.length;
+		const totalPages = Math.max(1, Math.ceil(total / CREATOR_PAGE_SIZE));
+		const profile = profiles.get(id) ?? null;
+		const presentSlugs = new Set(allItems.map((s) => s.categorySlug));
+		const categoryLabels = IOT_HUB_CATEGORIES.filter((c) => presentSlugs.has(c.slug)).map(
+			(c) => c.label
+		);
+		return Array.from({ length: totalPages }, (_, i) => {
+			const currentPage = i + 1;
+			const slice = allItems.slice(i * CREATOR_PAGE_SIZE, currentPage * CREATOR_PAGE_SIZE);
+			const groups: CreatorGroup[] = IOT_HUB_CATEGORIES.map((cat) => ({
+				slug: cat.slug,
+				label: cat.label,
+				items: slice.filter((s) => s.categorySlug === cat.slug).map((s) => s.item),
+			})).filter((g) => g.items.length > 0);
+			return {
+				params: { id, page: currentPage === 1 ? undefined : String(currentPage) },
+				props: { profile, groups, currentPage, totalPages, total, categoryLabels },
+			};
+		});
+	});
+}) satisfies GetStaticPaths;
+
+interface Props {
+	profile: CreatorView | null;
+	groups: CreatorGroup[];
+	currentPage: number;
+	totalPages: number;
+	total: number;
+	categoryLabels: string[];
+}
+
+const { profile, groups, currentPage, totalPages, total, categoryLabels } =
+	Astro.props as Props;
+const { id } = Astro.params;
+
+// <lastmod> from the most recent API `updatedTime` among this page's listings.
+recordSitemapLastmod(
+	Astro.url.pathname,
+	groups.flatMap((g) => g.items.map((item) => item.updatedTime))
+);
+
+const first = groups[0]?.items[0];
+const name = profile?.displayName ?? first?.creatorDisplayName ?? 'ThingsBoard';
+const avatarUrl = resolveAvatar(profile?.avatarUrl ?? first?.creatorAvatarUrl ?? null);
+const verified = profile?.verified ?? first?.creatorVerified ?? false;
+const count = profile?.publishedListingCount ?? total;
+const basePath = `/iot-hub/creator/${id}/`;
+
+const title = `${name} | IoT Hub | ThingsBoard`;
+const categoryList =
+	categoryLabels.length > 0
+		? new Intl.ListFormat('en', { type: 'conjunction' }).format(categoryLabels)
+		: '';
+const verifiedNote = verified ? ' Verified creator profile.' : '';
+const description = categoryList
+	? `Explore ${name}'s IoT components on the ThingsBoard IoT Hub — ${categoryList}.${verifiedNote}`
+	: `Explore ${name}'s IoT solution components on the ThingsBoard IoT Hub.${verifiedNote}`;
+---
+
+<BaseLayout title={title} description={description}>
+	<main
+		class="iot-hub-creator"
+		data-iot-hub-search-root
+		data-creator-id={id}
+		data-base-path={basePath}
+		data-page-size={CREATOR_PAGE_SIZE}
+	>
+		<div class="iot-hub-creator__center">
+			<div class="iot-hub-creator__container">
+				<CreatorHero
+					name={name}
+					avatarUrl={avatarUrl}
+					verified={verified}
+					bio={profile?.description}
+					website={profile?.website}
+					email={profile?.contactEmail}
+					github={profile?.githubUrl}
+					linkedin={profile?.linkedinUrl}
+					twitter={profile?.twitterUrl}
+				/>
+			</div>
+		</div>
+		<div class="iot-hub-creator__divider"></div>
+		<div class="iot-hub-creator__center">
+			<div class="iot-hub-creator__container">
+				<div class="iot-hub-creator__items" data-search-items>
+					<SearchFilterBar
+						heading={`${IOT_HUB_STRINGS.creatorPage.publishedItems} (${count})`}
+						searchPlaceholder={IOT_HUB_STRINGS.creatorPage.searchPlaceholder}
+						perPage={CREATOR_PAGE_SIZE}
+						totalResults={total}
+						currentPage={currentPage}
+						totalPages={totalPages}
+						basePath={basePath}
+					/>
+					<div class="iot-hub-creator__results-container">
+						<div class="iot-hub-creator__results" data-search-results>
+							{groups.map((g) => (
+								<CategorySection
+									categorySlug={g.slug}
+									categoryLabel={g.label}
+									items={g.items}
+									showCreator={false}
+								/>
+							))}
+						</div>
+						<IotHubNoResults clearHref={basePath} />
+						<IotHubFetchError />
+						<IotHubSearchLoading />
+					</div>
+				</div>
+			</div>
+		</div>
+		<ListingCardTemplate variant="big" />
+		<ListingCardTemplate variant="compact" />
+		<CategorySectionTemplate />
+		<IotHubRuntimeConfig />
+	</main>
+</BaseLayout>
+
+<style lang="scss">
+	@use '../../../../styles/_variables.scss' as *;
+	@use '../../../../styles/_iot-hub.scss' as *;
+
+	.iot-hub-creator {
+		@include iot-hub-hairline-token;
+	}
+
+	.iot-hub-creator__center {
+		@include iot-hub-center;
+	}
+
+	.iot-hub-creator__container {
+		@include iot-hub-container;
+	}
+
+	.iot-hub-creator__divider {
+		@include iot-hub-divider;
+	}
+
+	.iot-hub-creator__items {
+		// Plain block (NOT flex) so each CategorySection's `margin: 4rem 0`
+		// collapses with its neighbour to a 64px section gap. A flex column would
+		// suppress collapsing and double the gap to 128px. The 16px bottom padding
+		// keeps the last section's margin from collapsing through to the divider.
+		padding-bottom: 16px;
+		// Positioned ancestor for the absolute loading overlay below.
+		position: relative;
+	}
+
+	.iot-hub-creator__results-container {
+		position: relative;
+	}
+</style>
+
+<script>
+	import { initDynamicSearch } from '@components/IotHub/iot-hub-dynamic-search';
+	initDynamicSearch();
+</script>

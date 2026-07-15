@@ -17,6 +17,39 @@ export const data: UseCaseData = {
 			'https://thingsboard.cloud/dashboard/ec564620-82b2-11ed-a624-8360a2a6cb0e?publicId=4978baf0-8a92-11ec-98f9-ff45c37940c6',
 		demoButtonId: 'UseCases_AirQM_ViewLiveDemo',
 	},
+	overview: {
+		type: 'carousel',
+		carouselImages: [
+			{
+				src: '/src/assets/images/usecases/air-quality/aiq-1.webp',
+				alt: 'Interactive AQI heatmap of Los Angeles on the ThingsBoard IoT Platform',
+				title: 'AQI map of Los Angeles monitored via ThingsBoard',
+				width: 1302,
+				height: 699,
+			},
+			{
+				src: '/src/assets/images/usecases/air-quality/aiq-2.webp',
+				alt: 'Live PM10 air quality metrics for Beverly Hills on ThingsBoard dashboard',
+				title: 'PM10 air quality levels in Beverly Hills displayed in ThingsBoard',
+				width: 1302,
+				height: 699,
+			},
+			{
+				src: '/src/assets/images/usecases/air-quality/aiq-4.webp',
+				alt: 'IoT air quality sensors and alerts visualized on ThingsBoard map dashboard',
+				title: 'Live air quality sensors and alerts across LA in ThingsBoard',
+				width: 1302,
+				height: 699,
+			},
+			{
+				src: '/src/assets/images/usecases/air-quality/aiq-5.webp',
+				alt: 'Sensor metrics for Beverly Hills including AQI and battery on ThingsBoard',
+				title: 'Sensor data for Beverly Hills – AQI, battery and status',
+				width: 1302,
+				height: 699,
+			},
+		],
+	},
 	solutionStructure: {
 		title: 'Solution structure of air quality monitoring',
 		shortText:

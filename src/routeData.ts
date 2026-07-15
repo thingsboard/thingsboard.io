@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { APIContext } from 'astro';
 import { defineRouteMiddleware, type StarlightRouteData } from '@astrojs/starlight/route-data';
 import { tutorialPages as pages } from '~/content';
@@ -19,6 +20,13 @@ import { getCanonicalPathname } from '~/util/canonical';
 import { DOCS_SUFFIX, formatDocsTitle, TITLE_SEPARATOR } from '~/consts';
 import { getOgImageUrl } from '~/util/getOgImageUrl';
 import { getTutorialPages } from '~/util/getTutorialPages';
+// No alias covers `config/`; relative import is the only option here.
+import {
+	getRepoRoot,
+	getSitemapSourceRegistry,
+	normalizeSitemapPath,
+	toRepoRelative,
+} from '../config/sitemap-source-registry';
 
 /**
  * Display names for `/reference/<api>-api/` sub-sections, used to build unique
@@ -52,42 +60,97 @@ const sidebarLinkMatchCache = new Map<string, boolean>();
 const EDIT_BASE_URL = 'https://github.com/thingsboard/thingsboard.io/edit/main';
 const INCLUDES_IMPORT_REGEX = /^\s*import\s+\w+\s+from\s+['"]@includes\/([^'"]+)['"]/gm;
 const JSX_COMPONENT_REGEX = /^\s*<[A-Z][A-Za-z0-9]*\b/gm;
-const editUrlOverrideCache = new Map<string, URL | null>();
+/** filePath → include path relative to `_includes/` (e.g. `docs/introduction.mdx`), or `null`. */
+const stubIncludeRelCache = new Map<string, string | null>();
 
 export const onRequest = defineRouteMiddleware((context) => {
 	const starlightRoute = context.locals.starlightRoute;
 	const isTutorial = isTutorialEntry(starlightRoute.entry);
 	updateHead(context, isTutorial);
 	rewriteStubEditUrl(starlightRoute);
+	recordSitemapSources(context, starlightRoute);
 	filterSidebarByVersionAndLanguage(starlightRoute);
 	markParentSidebarItemAsCurrent(starlightRoute, context.url.pathname);
 	filterPaginationByVersion(starlightRoute);
 	if (isTutorial) updateTutorialPagination(starlightRoute);
 });
 
-/** Thin stubs (1 `@includes` import + 1 JSX call) point "Edit page" at the include, not the stub. */
-function rewriteStubEditUrl(starlightRoute: StarlightRouteData) {
-	if (!starlightRoute.editUrl) return;
-	const filePath = (starlightRoute.entry as { filePath?: string }).filePath;
-	if (!filePath) return;
-
-	let override = editUrlOverrideCache.get(filePath);
-	if (override === undefined) {
-		override = null;
+/**
+ * A thin stub is a wrapper page whose body is exactly 1 `@includes` import + 1
+ * JSX component call — the real content lives in the include. Returns the
+ * include path relative to `src/content/_includes/`, or `null` for non-stubs.
+ * Shared by the "Edit page" link rewrite and the sitemap `lastmod` computation
+ * so both attribute changes to the same underlying source file.
+ */
+function getStubIncludeRel(filePath: string): string | null {
+	let rel = stubIncludeRelCache.get(filePath);
+	if (rel === undefined) {
+		rel = null;
 		try {
 			const source = readFileSync(filePath, 'utf8');
 			const includeMatches = [...source.matchAll(INCLUDES_IMPORT_REGEX)];
 			const jsxMatches = [...source.matchAll(JSX_COMPONENT_REGEX)];
 			if (includeMatches.length === 1 && jsxMatches.length === 1) {
-				override = new URL(`${EDIT_BASE_URL}/src/content/_includes/${includeMatches[0]![1]}`);
+				rel = includeMatches[0]![1] ?? null;
 			}
 		} catch {
-			// Source file unreadable — keep the stub edit URL.
+			// Source file unreadable — treat as a non-stub.
 		}
-		editUrlOverrideCache.set(filePath, override);
+		stubIncludeRelCache.set(filePath, rel);
 	}
+	return rel;
+}
 
-	if (override) starlightRoute.editUrl = override;
+/** Thin stubs point "Edit page" at the include, not the stub. */
+function rewriteStubEditUrl(starlightRoute: StarlightRouteData) {
+	if (!starlightRoute.editUrl) return;
+	const filePath = (starlightRoute.entry as { filePath?: string }).filePath;
+	if (!filePath) return;
+
+	const rel = getStubIncludeRel(filePath);
+	if (rel) starlightRoute.editUrl = new URL(`${EDIT_BASE_URL}/src/content/_includes/${rel}`);
+}
+
+/**
+ * Record the repo-relative source file(s) for a real docs content page so the
+ * sitemap integration can derive `<lastmod>` from git. Only content-collection
+ * pages reach this middleware with a real on-disk `entry.filePath`; everything
+ * else is resolved by the integration from the route table. Pages the sitemap
+ * would drop (noindex, canonical-to-elsewhere) are skipped.
+ */
+function recordSitemapSources(context: APIContext, starlightRoute: StarlightRouteData) {
+	const filePath = (starlightRoute.entry as { filePath?: string }).filePath;
+	if (!filePath) return;
+	const wrapperRel = toRepoRelative(filePath);
+	// Synthetic StarlightPage entries point at a non-existent file; record only
+	// when the content file actually exists on disk.
+	if (!wrapperRel || !existsSync(join(getRepoRoot(), wrapperRel))) return;
+	if (!isIndexableSelfCanonical(context, starlightRoute)) return;
+
+	const sources = [wrapperRel];
+	const includeRel = getStubIncludeRel(filePath);
+	if (includeRel) sources.push(`src/content/_includes/${includeRel}`);
+	getSitemapSourceRegistry().set(normalizeSitemapPath(context.url.pathname), sources);
+}
+
+/** True when the computed head has no `noindex` and any canonical points at the page itself. */
+function isIndexableSelfCanonical(context: APIContext, starlightRoute: StarlightRouteData): boolean {
+	const selfPath = normalizeSitemapPath(context.url.pathname);
+	for (const item of starlightRoute.head) {
+		if (item.tag === 'meta' && item.attrs?.name === 'robots') {
+			const content = item.attrs.content;
+			if (typeof content === 'string' && /\bnoindex\b/i.test(content)) return false;
+		} else if (item.tag === 'link' && item.attrs?.rel === 'canonical') {
+			const href = item.attrs.href;
+			if (typeof href !== 'string') continue;
+			try {
+				if (normalizeSitemapPath(new URL(href).pathname) !== selfPath) return false;
+			} catch {
+				// Unparseable canonical — keep the page rather than silently dropping it.
+			}
+		}
+	}
+	return true;
 }
 
 /**
@@ -143,6 +206,7 @@ function linkMatchesVersion(href: string, version: Products): boolean {
 	if (version === Products.MOBILE)
 		return path.startsWith('mobile/') && !path.startsWith('mobile/pe/');
 	if (version === Products.LICENSE) return path.startsWith('license-server/');
+	if (version === Products.IOT_HUB) return path.startsWith('iot-hub/');
 	// CE: everything that doesn't belong to other products
 	return (
 		!path.startsWith('pe/') &&
@@ -152,7 +216,8 @@ function linkMatchesVersion(href: string, version: Products): boolean {
 		!path.startsWith('iot-gateway/') &&
 		!path.startsWith('mqtt-broker/') &&
 		!path.startsWith('mobile/') &&
-		!path.startsWith('license-server/')
+		!path.startsWith('license-server/') &&
+		!path.startsWith('iot-hub/')
 	);
 }
 
@@ -228,10 +293,12 @@ function updateHead(context: APIContext, isTutorial: boolean) {
 	);
 	const { head, entry } = starlightRoute;
 
-	// Single pass collecting all head entries we will mutate later (avoids separate find() walks).
+	// Single pass collecting all head entries we will mutate or test later
+	// (avoids separate find()/some() walks).
 	let title: (typeof head)[number] | undefined;
 	let ogTitle: (typeof head)[number] | undefined;
 	let ogUrl: (typeof head)[number] | undefined;
+	let ogImage: (typeof head)[number] | undefined;
 	let canonical: (typeof head)[number] | undefined;
 	for (const item of head) {
 		if (item.tag === 'title') {
@@ -240,6 +307,7 @@ function updateHead(context: APIContext, isTutorial: boolean) {
 			const property = item.attrs?.property;
 			if (property === 'og:title') ogTitle = item;
 			else if (property === 'og:url') ogUrl = item;
+			else if (property === 'og:image') ogImage = item;
 		} else if (item.tag === 'link' && item.attrs?.rel === 'canonical') {
 			canonical = item;
 		}
@@ -255,11 +323,16 @@ function updateHead(context: APIContext, isTutorial: boolean) {
 	}
 
 	const pathname = context.url.pathname;
-	const product = getVersionFromURL(pathname);
-	const lang = getLanguageFromURL(pathname);
-	const pageSlug = getPageSlugFromURL(pathname);
+	// Title formatting and canonical consolidation only apply to real `/docs/`
+	// pages. Marketing pages render through `StarlightPage` too, so gate the
+	// docs-only work here to skip their per-page version/slug/canonical lookups.
+	const isDocs = docsPathRegex.test(pathname);
 
-	if (title && title.content && docsPathRegex.test(pathname)) {
+	if (isDocs && title && title.content) {
+		const product = getVersionFromURL(pathname);
+		const lang = getLanguageFromURL(pathname);
+		const pageSlug = getPageSlugFromURL(pathname);
+
 		// Per-page `customDocsTitle` frontmatter overrides the auto-formatted
 		// docs title entirely. Used by product index pages that want a
 		// non-default <title> (e.g. "Docs | ThingsBoard Professional Edition").
@@ -286,18 +359,22 @@ function updateHead(context: APIContext, isTutorial: boolean) {
 		if (ogTitle) ogTitle.attrs!['content'] = title.content;
 	}
 
-	const ogImageUrl = getOgImageUrl(pathname);
-	let imageSrc = ogImageUrl ?? '/thingsboard-og.png';
-	// Astro dev with `trailingSlash: 'always'` requires dynamic-route URLs to end with '/'
-	// even when they have a file extension. Production (Cloudflare Pages serving static files)
-	// needs the clean .png URL with no trailing slash.
-	if (import.meta.env.DEV && /\.png$/.test(imageSrc) && imageSrc !== '/thingsboard-og.png') {
-		imageSrc = imageSrc + '/';
-	}
-	// Use request origin so dev shows localhost; in static build it equals context.site origin.
-	const canonicalImageSrc = new URL(imageSrc, context.url.origin).href;
+	// Marketing pages author their own `og:image` in frontmatter; only emit ours
+	// when none is present, else BaseLayout pages get a duplicate `og:image`.
+	if (!ogImage) {
+		const ogImageUrl = getOgImageUrl(pathname);
+		let imageSrc = ogImageUrl ?? '/thingsboard-og.png';
+		// Astro dev with `trailingSlash: 'always'` requires dynamic-route URLs to end with '/'
+		// even when they have a file extension. Production (Cloudflare Pages serving static files)
+		// needs the clean .png URL with no trailing slash.
+		if (import.meta.env.DEV && /\.png$/.test(imageSrc) && imageSrc !== '/thingsboard-og.png') {
+			imageSrc = imageSrc + '/';
+		}
+		// Use request origin so dev shows localhost; in static build it equals context.site origin.
+		const canonicalImageSrc = new URL(imageSrc, context.url.origin).href;
 
-	head.push({ tag: 'meta', attrs: { property: 'og:image', content: canonicalImageSrc } });
+		head.push({ tag: 'meta', attrs: { property: 'og:image', content: canonicalImageSrc } });
+	}
 
 	// Search pages render a search widget with no indexable content. Keep them
 	// out of search results (consistent with the sitemap exclusion).
@@ -305,24 +382,21 @@ function updateHead(context: APIContext, isTutorial: boolean) {
 		head.push({ tag: 'meta', attrs: { name: 'robots', content: 'noindex, follow' } });
 	}
 
-	// IoT Hub docs are work-in-progress contribution guides — keep the entire
-	// section out of search results until content stabilizes.
-	if (/^\/(uk\/)?docs\/iot-hub(\/|$)/.test(pathname)) {
-		head.push({ tag: 'meta', attrs: { name: 'robots', content: 'noindex, follow' } });
-	}
-
 	// Canonical: free product versions → professional equivalents, plus explicit
 	// frontmatter overrides. See `getCanonicalPathname` — also drives sitemap
-	// exclusion so the two stay in lockstep.
-	const canonicalPathname = getCanonicalPathname(
-		entry.id,
-		entry.data as { selfCanonical?: boolean; canonicalUrl?: string }
-	);
-	const selfPathname = pathname.endsWith('/') ? pathname : pathname + '/';
-	if (canonicalPathname !== selfPathname) {
-		const targetCanonical = new URL(canonicalPathname, context.site).href;
-		if (canonical) canonical.attrs!['href'] = targetCanonical;
-		if (ogUrl) ogUrl.attrs!['content'] = targetCanonical;
+	// exclusion so the two stay in lockstep. Docs-only: a marketing page's
+	// synthetic `entry.id` would default to CE and rewrite e.g. `/` → `/docs/pe/`.
+	if (isDocs) {
+		const canonicalPathname = getCanonicalPathname(
+			entry.id,
+			entry.data as { selfCanonical?: boolean; canonicalUrl?: string }
+		);
+		const selfPathname = pathname.endsWith('/') ? pathname : pathname + '/';
+		if (canonicalPathname !== selfPathname) {
+			const targetCanonical = new URL(canonicalPathname, context.site).href;
+			if (canonical) canonical.attrs!['href'] = targetCanonical;
+			if (ogUrl) ogUrl.attrs!['content'] = targetCanonical;
+		}
 	}
 }
 

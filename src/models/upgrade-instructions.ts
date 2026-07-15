@@ -42,17 +42,54 @@ export function getFamilySlug(family: string): string {
 }
 
 /**
+ * Versions to render on an upgrade-instruction page (optionally scoped to a
+ * family). Only the newest patch of each `baseVersion` is kept — e.g. for 4.3
+ * just 4.3.1.3 (latest 4.3.1) and 4.3.0.1 (latest 4.3.0). Older patches within
+ * the same baseline only duplicate the same steps, so they are dropped even
+ * when superseded by a security patch. Entries without a `baseVersion`
+ * (non-patch releases like 4.2.0 or any 3.x) are always kept. Input is assumed
+ * newest-first, matching the ordering of `UPGRADE_VERSIONS`.
+ */
+export function getUpgradeStepVersions(family?: string): UpgradeVersion[] {
+	const scoped = family ? UPGRADE_VERSIONS.filter((v) => v.family === family) : UPGRADE_VERSIONS;
+	const seenBaselines = new Set<string>();
+	return scoped.filter((v) => {
+		if (!v.baseVersion) return true;
+		if (seenBaselines.has(v.baseVersion)) return false;
+		seenBaselines.add(v.baseVersion);
+		return true;
+	});
+}
+
+/**
  * All upgrade-eligible versions, newest-first.
  *
  * ORDERING IS LOAD-BEARING — keep entries in descending version order, and within
  * a baseVersion group list the newest patch first. Consumers rely on array position:
  *   - UPGRADE_FAMILIES dedups by position to derive family order
- *   - UpgradeTable / *UpgradeSteps render rows in array order
- *   - LATEST_PATCH_VERSIONS treats the first entry per baseVersion as the latest
- * An out-of-order insert silently mislabels "(latest patch)" and visibly reorders
- * the upgrade table and steps.
+ *   - UpgradeTable renders rows in array order
+ *   - getUpgradeStepVersions treats the first entry per baseVersion as the latest
+ * An out-of-order insert silently renders the wrong patch on upgrade pages and
+ * visibly reorders the upgrade table.
  */
 export const UPGRADE_VERSIONS: UpgradeVersion[] = [
+	{
+		version: '4.3.1.3',
+		displayVersion: '4.3.1.3',
+		family: '4.3',
+		baseVersion: '4.3.1',
+		releaseDate: 'Jul 1 2026',
+		upgradableFrom: '4.2.1.x',
+		patchableFrom: '4.3.x',
+		prevVersionAnchor: 'v4-3-0-1',
+		lts: true,
+		patch: true,
+		x: true,
+		upgrade: true,
+		manualVersionUpgrade: false,
+		windowsZip: true,
+		anchor: 'v4-3-1-3',
+	},
 	{
 		version: '4.3.1.2',
 		displayVersion: '4.3.1.2',
@@ -69,6 +106,7 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 		manualVersionUpgrade: false,
 		windowsZip: true,
 		anchor: 'v4-3-1-2',
+		vulnerable: true,
 	},
 	{
 		version: '4.3.1.1',
@@ -124,6 +162,22 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 		vulnerable: true,
 	},
 	{
+		version: '4.2.2.3',
+		displayVersion: '4.2.2.3',
+		family: '4.2',
+		baseVersion: '4.2.2',
+		releaseDate: 'Jul 1 2026',
+		upgradableFrom: '4.2.0',
+		prevVersionAnchor: 'v4-2-1-2',
+		lts: true,
+		patch: true,
+		x: true,
+		upgrade: true,
+		manualVersionUpgrade: false,
+		windowsZip: true,
+		anchor: 'v4-2-2-3',
+	},
+	{
 		version: '4.2.2.2',
 		displayVersion: '4.2.2.2',
 		family: '4.2',
@@ -138,6 +192,7 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 		manualVersionUpgrade: false,
 		windowsZip: true,
 		anchor: 'v4-2-2-2',
+		vulnerable: true,
 	},
 	{
 		version: '4.2.2.1',
@@ -724,21 +779,3 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 
 /** Unique version families in order, e.g. ["4.3", "4.2", "4.1", ...] */
 export const UPGRADE_FAMILIES: string[] = [...new Set(UPGRADE_VERSIONS.map((v) => v.family))];
-
-/**
- * Version strings that are the newest patch within their baseVersion family.
- * Relies on UPGRADE_VERSIONS being newest-first per baseVersion (see note there) —
- * the first entry seen for each baseVersion is taken as the latest.
- */
-export const LATEST_PATCH_VERSIONS: Set<string> = (() => {
-	const seen = new Set<string>();
-	const latest = new Set<string>();
-	for (const v of UPGRADE_VERSIONS) {
-		if (!v.patch || !v.baseVersion) continue;
-		if (!seen.has(v.baseVersion)) {
-			seen.add(v.baseVersion);
-			latest.add(v.version);
-		}
-	}
-	return latest;
-})();

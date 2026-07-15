@@ -192,7 +192,7 @@ export const tbCloudData: CloudRegionData = {
 				ctaText: 'Start Free',
 				ctaHref: 'https://eu.thingsboard.cloud/signup',
 				ctaPrimary: false,
-				gtmId: 'Pricing_PE_Cloud_Maker',
+				gtmId: 'Pricing_PE_Cloud_Maker_EU',
 				features: [
 					{ text: '5 devices' },
 					{ text: '5 assets' },
@@ -221,7 +221,7 @@ export const tbCloudData: CloudRegionData = {
 				ctaText: 'Get started',
 				ctaHref: 'https://eu.thingsboard.cloud/signup',
 				ctaPrimary: false,
-				gtmId: 'Pricing_PE_Cloud_Prototype',
+				gtmId: 'Pricing_PE_Cloud_Prototype_EU',
 				features: [
 					{ text: '50 devices' },
 					{ text: '50 assets' },
@@ -251,7 +251,7 @@ export const tbCloudData: CloudRegionData = {
 				ctaHref: 'https://eu.thingsboard.cloud/signup',
 				ctaPrimary: true,
 				popular: true,
-				gtmId: 'Pricing_PE_Cloud_Pilot',
+				gtmId: 'Pricing_PE_Cloud_Pilot_EU',
 				features: [
 					{ text: '100 devices' },
 					{ text: '100 assets' },
@@ -284,7 +284,7 @@ export const tbCloudData: CloudRegionData = {
 				ctaText: 'Get started',
 				ctaHref: 'https://eu.thingsboard.cloud/signup',
 				ctaPrimary: false,
-				gtmId: 'Pricing_PE_Cloud_Startup',
+				gtmId: 'Pricing_PE_Cloud_Startup_EU',
 				features: [
 					{ text: '500 devices' },
 					{ text: '500 assets' },
@@ -319,7 +319,7 @@ export const tbCloudData: CloudRegionData = {
 				ctaText: 'Get started',
 				ctaHref: 'https://eu.thingsboard.cloud/signup',
 				ctaPrimary: false,
-				gtmId: 'Pricing_PE_Cloud_Business',
+				gtmId: 'Pricing_PE_Cloud_Business_EU',
 				features: [
 					{ text: '1,000 devices' },
 					{ text: '1,000 assets' },

@@ -6,6 +6,7 @@ import { redirects } from './astro.redirects';
 import { sidebar } from './astro.sidebar';
 import { devServerFileWatcher } from './config/integrations/dev-server-file-watcher';
 import { sitemap } from './config/integrations/sitemap';
+import { rehypeBlogImages } from './config/plugins/rehype-blog-images';
 import { rehypeMdxIncludeHeadings } from './config/plugins/rehype-mdx-include-headings';
 import { rehypeTasklistEnhancer } from './config/plugins/rehype-tasklist-enhancer';
 import { PROD_ORIGIN } from './src/consts';
@@ -29,7 +30,6 @@ const site =
 	NETLIFY_PREVIEW_SITE ||
 	`${PROD_ORIGIN}/`;
 
-// https://astro.build/config
 export default defineConfig({
     site,
     base: '/',
@@ -39,37 +39,13 @@ export default defineConfig({
     },
     redirects,
     vite: {
-        resolve: {
-            alias: {
-                '~': fileURLToPath(new URL('./src', import.meta.url)),
-                '@starlight/icons': fileURLToPath(
-                    new URL('./node_modules/@astrojs/starlight/components-internals/Icons.ts', import.meta.url)
-                ),
-                '@starlight/rehype-tabs': fileURLToPath(
-                    new URL(
-                        './node_modules/@astrojs/starlight/user-components/rehype-tabs.ts',
-                        import.meta.url
-                    )
-                ),
-            },
-        },
-        css: {
-            preprocessorOptions: {
-                scss: {
-                    importers: [
-                        {
-                            findFileUrl(url: string) {
-                                if (!url.startsWith('~/')) return null;
-                                return new URL(
-                                    url.slice(2),
-                                    new URL('./src/', import.meta.url)
-                                );
-                            },
-                        },
-                    ],
-                },
-            },
-        },
+				resolve: {
+						alias: {
+								'@starlight/rehype-tabs': fileURLToPath(
+										new URL('./node_modules/@astrojs/starlight/user-components/rehype-tabs.ts', import.meta.url),
+								),
+						},
+				},
         optimizeDeps: {
             include: ['photoswipe', 'photoswipe/lightbox'],
         },
@@ -94,23 +70,20 @@ export default defineConfig({
                         name: 'preset-default',
                         params: {
                             overrides: {
-                                // Вимикаємо видалення viewBox (щоб не зламати aspect-ratio)
-                                removeViewBox: false,
-                                // Вимикаємо очистку ID (щоб не зламати анімації)
-                                cleanupIds: false,
+                                removeViewBox: false, // preserve aspect-ratio
+                                cleanupIds: false, // preserve animation hooks
                             },
                         },
                     },
-                    // Додаткові плагіни, які ми хочемо увімкнути:
                     'removeXMLNS',
-                    'prefixIds', // Допомагає уникнути конфліктів ID між різними SVG
+                    'prefixIds', // avoid ID collisions between SVGs
                 ],
             }),
         ],
     },
     integrations: [icon(), devServerFileWatcher([
-        './config/**', // Custom plugins and integrations
-        './astro.sidebar.ts', // Sidebar configuration file
+        './config/**',
+        './astro.sidebar.ts',
 		]), starlight({
         title: 'Docs',
         markdown: {
@@ -119,10 +92,12 @@ export default defineConfig({
         tableOfContents: { minHeadingLevel: 2, maxHeadingLevel: 4 },
         components: {
             EditLink: './src/components/starlight/EditLink.astro',
+            ContentPanel: './src/components/starlight/ContentPanel.astro',
             Hero: './src/components/starlight/Hero.astro',
             Head: './src/components/starlight/Head.astro',
             Header: './src/components/starlight/Header.astro',
             SkipLink: './src/components/starlight/SkipLink.astro',
+            ThemeProvider: './src/components/starlight/ThemeProvider.astro',
             MarkdownContent: './src/components/starlight/MarkdownContent.astro',
             MobileTableOfContents: './src/components/starlight/MobileTableOfContents.astro',
             TableOfContents: './src/components/starlight/TableOfContents.astro',
@@ -176,7 +151,7 @@ export default defineConfig({
             // @ts-expect-error — `remark-smartypants` type is not matching Astro's for some reason even though they both use unified's `Plugin` type
             [remarkSmartypants, { dashes: false }],
         ],
-        rehypePlugins: [rehypeSlug, rehypeTasklistEnhancer(), rehypeMdxIncludeHeadings()],
+        rehypePlugins: [rehypeSlug, rehypeTasklistEnhancer(), rehypeMdxIncludeHeadings(), rehypeBlogImages()],
     },
     image: {
         domains: ['avatars.githubusercontent.com'],

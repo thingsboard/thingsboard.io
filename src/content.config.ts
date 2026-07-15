@@ -3,12 +3,18 @@ import { docsSchema, i18nSchema } from '@astrojs/starlight/schema';
 import { defineCollection, type CollectionEntry } from 'astro:content';
 import { z } from 'astro/zod';
 import { file, glob } from 'astro/loaders';
-import { logoKeys } from './data/logos';
-import { Products } from './models/site.models';
-import { PLATFORM_VALUES, type DevicePlatform } from './util/device-platform';
-
-export { PLATFORM_VALUES };
-export type { DevicePlatform };
+import { logoKeys } from '@data/logos';
+import { Products } from '@models/site.models';
+import {
+	IOT_HUB_API_URL,
+	IOT_HUB_CATEGORIES,
+	API_FETCH_PAGE_SIZE,
+	iotHubCategorySchema,
+	itemTypeFilterInfoSchema,
+	type ItemTypeFilterInfo,
+	type ListingDetail,
+} from '@models/iot-hub';
+import { fetchWithRetry } from '@util/fetch-utils';
 
 export const baseSchema = z.object({
 	type: z.literal('base').optional().default('base'),
@@ -94,34 +100,6 @@ export const recipeSchema = baseSchema.extend({
 	altTitle: z.string().optional(),
 });
 
-export const deviceSchema = z.object({
-	title: z.string(),
-	description: z.string(),
-	vendor: z.string().optional(),
-	deviceImageFileName: z.string().default('placeholder.svg'),
-	hardwareType: z.string().default('Other devices'),
-	connectivity: z
-		.array(z.string())
-		.or(z.string())
-		.transform((v) => (Array.isArray(v) ? v : [v]))
-		.default([]),
-	industry: z
-		.array(z.string())
-		.or(z.string())
-		.transform((v) => (Array.isArray(v) ? v : [v]))
-		.default([]),
-	useCase: z
-		.array(z.string())
-		.or(z.string())
-		.transform((v) => (Array.isArray(v) ? v : [v]))
-		.default([]),
-	chip: z.string().optional(),
-	category: z.string().optional(),
-	platforms: z
-		.array(z.enum(PLATFORM_VALUES))
-		.default(['ThingsBoard']),
-});
-
 export const blogSchema = z.object({
 	title: z.string(),
 	description: z.string(),
@@ -134,8 +112,8 @@ export const blogSchema = z.object({
 		.transform((v) => (Array.isArray(v) ? v : [v])),
 	featuredImage: z.string(),
 	featuredImageAlt: z.string().default(''),
-	draft: z.boolean().default(false),
 	excludeFromCarousel: z.boolean().default(false),
+	pinned: z.boolean().default(false),
 });
 
 export const docsCollectionSchema = z.union([
@@ -312,16 +290,86 @@ export const collections = {
 		},
 		schema: z.object({ avatar_url: z.string() }),
 	}),
-	devices: defineCollection({
-		loader: glob({
-			pattern: '**/*.mdx',
-			base: './src/content/devices',
-			// Preserve filename case in the generated id so device URLs match the
-			// source filename (e.g. `raspberry-pi-3-model-B-plus`). The default
-			// `generateId` lowercases via github-slugger, which collides with the
-			// legacy redirect targets that use the original casing.
-			generateId: ({ entry }) => entry.replace(/\.mdx$/, ''),
-		}),
-		schema: deviceSchema,
+	iotHubCategories: defineCollection({
+		loader: async () => {
+			type ListingPage = {
+				data: ListingDetail[];
+				totalPages: number;
+				totalElements: number;
+				hasNext: boolean;
+			};
+			const fetchPage = async (itemType: string, page: number): Promise<ListingPage> => {
+				const url =
+					`${IOT_HUB_API_URL}/api/listings/published/details` +
+					`?pageSize=${API_FETCH_PAGE_SIZE}&page=${page}` +
+					`&type=${itemType}` +
+					`&sortProperty=installCount&sortOrder=DESC`;
+				const res = await fetchWithRetry(url);
+				return (await res.json()) as ListingPage;
+			};
+			const fetchCategory = async (itemType: string): Promise<ListingDetail[]> => {
+				// Fetch page 0 first to learn totalPages, then fan out the
+				// remaining pages in parallel instead of awaiting them serially.
+				const first = await fetchPage(itemType, 0);
+				const items: ListingDetail[] = [...first.data];
+				if (first.totalPages > 1) {
+					const rest = await Promise.all(
+						Array.from({ length: first.totalPages - 1 }, (_, i) => fetchPage(itemType, i + 1))
+					);
+					for (const p of rest) items.push(...p.data);
+				}
+				return items;
+			};
+			// Filter facet counts can't be derived from the per-page
+			// listing payload — they aggregate across the whole catalog.
+			// Empty facets (totalItems === 0) are dropped so the FilterPanel
+			// never renders checkboxes that would yield zero results.
+			const fetchFilterInfo = async (itemType: string): Promise<ItemTypeFilterInfo> => {
+				const url = `${IOT_HUB_API_URL}/api/item-listing/listingFilterInfo/${itemType}`;
+				const res = await fetchWithRetry(url);
+				const body = await res.json();
+				const parsed = itemTypeFilterInfoSchema.parse(body);
+				const nonEmpty = (list: typeof parsed.types) =>
+					list.filter((entry) => entry.totalItems > 0);
+				return {
+					types: nonEmpty(parsed.types),
+					categories: nonEmpty(parsed.categories),
+					useCases: nonEmpty(parsed.useCases),
+					vendors: nonEmpty(parsed.vendors),
+					hardwareTypes: nonEmpty(parsed.hardwareTypes),
+					connectivities: Object.fromEntries(
+						Object.entries(parsed.connectivities)
+							.map(([bucket, entries]) => [bucket, nonEmpty(entries)] as const)
+							.filter(([, entries]) => entries.length > 0)
+					),
+				};
+			};
+			try {
+				// One entry per category, keyed by slug. See `iotHubCategorySchema`.
+				const [perCategoryItems, perCategoryFilters] = await Promise.all([
+					Promise.all(IOT_HUB_CATEGORIES.map((cat) => fetchCategory(cat.itemType))),
+					Promise.all(IOT_HUB_CATEGORIES.map((cat) => fetchFilterInfo(cat.itemType))),
+				]);
+				return IOT_HUB_CATEGORIES.map((cat, i) => ({
+					id: cat.slug,
+					itemType: cat.itemType,
+					label: cat.label,
+					items: perCategoryItems[i],
+					filterInfo: perCategoryFilters[i],
+				}));
+			} catch (e) {
+				const isProductionBuild = process.argv.includes('build');
+				if (!isProductionBuild) {
+					const command = process.argv[2] ?? 'unknown';
+					const msg = e instanceof Error ? e.message : String(e);
+					console.warn(
+						`[iot-hub] loader failed in ${command} mode, using empty collection: ${msg}`
+					);
+					return [];
+				}
+				throw e;
+			}
+		},
+		schema: iotHubCategorySchema,
 	}),
 };

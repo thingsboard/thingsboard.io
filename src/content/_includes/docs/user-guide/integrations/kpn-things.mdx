@@ -1,17 +1,154 @@
 import DocLink from '@components/DocLink.astro';
 import ImageGallery from '~/components/ImageGallery.astro';
-import DocImage from '~/components/DocImage.astro';
 import Banner from '~/components/Banner.astro';
 import { Steps, Aside } from '@astrojs/starlight/components';
+import Tabs from '@components/Tabs.astro';
+import TabItem from '@components/TabItem.astro';
 import { Products } from '~/models/site.models';
 
 <Banner variant="peFeature" product={props.product} path="user-guide/integrations/kpn-things" />
 
 KPN Things is an IoT platform provided by KPN, a Dutch telecommunications company.
 It supports a range of IoT connectivity types — including LoRa, LTE-M, and mobile data — and lets users connect, manage, and route device data to cloud destinations via a concept called **Flows**.
-After integrating KPN Things with ThingsBoard, you can connect, communicate, process, and visualize data from your devices in the ThingsBoard IoT platform.
+After integrating KPN Things with ThingsBoard, device data flows from the KPN Things platform directly into ThingsBoard for processing, monitoring, and visualization.
 
-## Create the KPN Things integration in ThingsBoard
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/user-guide/integrations/kpn-things-integration-architecture.svg',
+    alt: 'KPN Things integration architecture diagram showing uplink and downlink data flow',
+    caption: 'KPN Things integration architecture — devices send uplink messages through KPN Things to ThingsBoard; downlink messages flow back through the KPN Things API.',
+  },
+]} />
+
+## Prerequisites
+
+Before creating the integration, ensure:
+
+- You have access to {props.product !== Products.PAAS && props.product !== Products.PAAS_EU && <><DocLink product={Products.PE} path="installation/" target="_blank">ThingsBoard PE</DocLink> or </>}<a href="/installations/?product=thingsboard-cloud" target="_blank"><strong>ThingsBoard Cloud</strong></a> with integration functionality enabled for your tenant.
+- You have permissions to create integrations and data converters in ThingsBoard.
+- You have a <a href="https://portal.kpnthings.com/" target="_blank" rel="noopener noreferrer nofollow"><strong>KPN Things portal</strong></a> account with administrative access.
+- You have at least one IoT device created and registered in the KPN Things platform.
+- Your device is linked to a **Flow** in KPN Things — devices must be assigned to a flow to send or receive data.
+- Optional: For testing downlink functionality, you will need API credentials from KPN Things (see <a href="#obtain-kpn-things-api-credentials"><strong>Obtain KPN Things API Credentials</strong></a> section).
+
+<Aside type="note">
+  The KPN Things platform uses a **Flows** concept for organizing data routes. Each device must be assigned to a flow before it can send or receive data through ThingsBoard.
+</Aside>
+
+## Create KPN Things Uplink Data Converter
+
+The uplink converter receives each HTTP message sent by KPN Things, parses the JSON payload, and returns a structured object that ThingsBoard uses to create or update a device and store its telemetry and attributes.
+
+KPN Things pre-decodes device data to SenML format before forwarding it to ThingsBoard (enabled in the **[Enable Data Processing](#enable-data-processing)** step). Because of this, the default converter passes the incoming JSON through without modification — no custom byte decoding is needed. You can extend it to rename fields, filter values, or derive additional attributes.
+
+For the full decoder function reference — all input parameters and output fields — see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">Uplink data converter</DocLink>.
+
+<Steps>
+  1. Go to **Integrations center &#8702; Data converters**.
+  2. Click **+ Add data converter &#8702; Create new converter**.
+</Steps>
+
+In the **Add data converter** dialog:
+
+<Steps>
+  <ol start="3">
+    <li><strong>Converter type</strong> — leave <strong>Uplink</strong> (selected by default).</li>
+    <li><strong>Integration type</strong> — in the search field, enter <code>KPN</code> and select <strong>KPN Things</strong> from the list.</li>
+    <li><strong>Name</strong> — enter a converter name, for example <code>KPN Things Uplink Converter</code>.</li>
+    <li>
+      <span>Configure the decoder:</span>
+      <ul>
+        <li>The default decoder is pre-filled. Leave it unchanged for this guide.<br/>By default the editor opens in TBEL; use the <strong>TBEL / JS</strong> toggle (upper right) to switch languages.</li>
+      </ul>
+      <Aside type="tip" title="TBEL">
+        We recommend using <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
+      </Aside>
+
+      <Tabs>
+        <TabItem label="TBEL (Recommended)">
+          ```js
+          /*
+          * By default, we receive a message that is already correctly formatted.
+          * But you can change the code for your purposes.
+          */
+          return decodeToJson(payload);
+          ```
+        </TabItem>
+        <TabItem label="JavaScript">
+          ```js
+          /** Decoder **/
+
+          /*
+          By default, KPN Things sends a message that is already formatted
+          according to the ThingsBoard uplink converter output structure.
+          The JavaScript converter receives the payload as a byte array and parses it as JSON.
+          */
+          var data = decodePayloadToJson(payload);
+
+          return data;
+
+          /** Helper functions **/
+
+          function decodePayloadToString(payload) {
+            var str = '';
+
+            for (var i = 0; i < payload.length; i++) {
+              str += String.fromCharCode(payload[i]);
+            }
+
+            return str;
+          }
+
+          function decodePayloadToJson(payload) {
+            return JSON.parse(decodePayloadToString(payload));
+          }
+          ```
+        </TabItem>
+      </Tabs>
+    </li>
+    <li>Click <strong>Add</strong>.</li>
+  </ol>
+</Steps>
+
+<h4>What the Converter Receives</h4>
+
+ThingsBoard passes two variables to the decoder function:
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `payload` | byte array | The raw bytes of the HTTP request body sent by KPN Things. Call `decodeToJson(payload)` to parse it into a structured object. |
+| `metadata` | object | Key-value map populated from HTTP request headers and the integration's configured metadata (see **Advanced settings** in the integration). |
+
+The decoded payload returned by `decodeToJson(payload)` has the following structure:
+
+```json
+{
+  "deviceName": "urn:dev:DVNUUID:d74df9c0-c343-4879-9e4d-20483ff1b56d:",
+  "deviceLabel": "My KPN Device",
+  "deviceType": "DeviceSimulator(MobilePhoneapp)",
+  "telemetry": [{
+    "ts": 1703251120000,
+    "values": {
+      "battery": "34.0",
+      "temperature": 22.5
+    }
+  }]
+}
+```
+
+ThingsBoard reads `deviceName` to identify or create the device, `deviceType` to assign the device profile, and the `telemetry` array to store time-series data. To rename or filter fields before storage, transform these values in the decoder before returning.
+
+<h4>Device Identifier</h4>
+
+KPN Things identifies each device using a **URN (Uniform Resource Name)** as the `deviceName`. The URN follows the format:
+
+`urn:dev:DVNUUID:{UUID}:`
+
+For example: `urn:dev:DVNUUID:d74df9c0-c343-4879-9e4d-20483ff1b56d:`
+
+On the first uplink, ThingsBoard creates a new device using this URN as its name. Subsequent messages from the same device update the existing device. The URN is stable for the lifetime of the device registration in KPN Things.
+
+## Create KPN Things Integration in ThingsBoard
 
 <Steps>
   <ol start="1">
@@ -27,34 +164,33 @@ After integrating KPN Things with ThingsBoard, you can connect, communicate, pro
     <li>
       <span><strong>Uplink data converter:</strong></span>
       <ul>
-        <li>Choose <strong>Create new</strong>. The default converter uses <code>decodeToJson(payload)</code> — KPN Things sends data pre-formatted in a structure ThingsBoard already understands, so no custom decoding is needed unless you want to transform the fields further.</li>
+        <li>Click <strong>Select existing</strong> and choose the <a href="#create-kpn-things-uplink-data-converter"><strong>KPN Things Uplink Converter</strong></a> created in the previous step.</li>
         <li>Click <strong>Next</strong>.</li>
       </ul>
     </li>
     <li>
       <span><strong>Downlink data converter:</strong></span>
       <ul>
-        <li>Leave the <strong>Downlink data converter</strong> field empty for now.</li>
-        <li>Click <strong>Skip</strong>.</li>
+        <li>Click <strong>Skip</strong> — the downlink converter can be configured later if needed.</li>
       </ul>
     </li>
     <li>
       <span><strong>Connection:</strong></span>
       <ul>
         <li>Specify your <strong>Base URL</strong>.</li>
-        <li>Copy the <strong>HTTP endpoint URL</strong> — you will need it when configuring the KPN Things destination.</li>
+        <li>Copy the <strong>HTTP endpoint URL</strong> — you will need it when <a href="#create-a-thingsboard-destination"><strong>configuring the KPN Things destination</strong></a>.</li>
       </ul>
-      <span>See <a href="#connection-settings">Connection settings</a> for a full description of each parameter.</span>
+      <span>See <a href="#connection-settings"><strong>Connection settings</strong></a> for a full description of each parameter.</span>
     </li>
     <li>Click <strong>Add</strong>.</li>
   </ol>
 </Steps>
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-add-integration-1.png', alt: 'Add integration wizard — Basic settings: Integration type set to KPN Things', caption: 'Go to Integrations center → Integrations, click + Add integration, set Integration type to KPN Things, and click Next' },
-  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-add-integration-2.png', alt: 'Add integration wizard — Uplink data converter: Create new selected with default decodeToJson decoder', caption: 'Choose Create new — the default decoder passes the pre-formatted KPN Things payload through without modification; click Next' },
-  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-add-integration-3.png', alt: 'Add integration wizard — Downlink data converter: field empty, Skip button highlighted', caption: 'Leave the Downlink data converter empty and click Skip' },
-  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-add-integration-4.png', alt: 'Add integration wizard — Connection: Base URL filled in, HTTP endpoint URL shown with copy button', caption: 'Specify Base URL and copy the HTTP endpoint URL — you will paste it into the KPN Things destination; click Add' },
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-add-integration-1.png', alt: 'Add integration wizard — Basic settings step: Integration type set to KPN Things, name field showing KPN Things integration, Enable integration and Allow create devices or assets toggles enabled', caption: 'Go to <strong>Integrations center → Integrations</strong> and click <strong>+ Add integration</strong>. Set <strong>Integration type</strong> to <strong>KPN Things</strong>, enter a name, and click <strong>Next</strong>' },
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-add-integration-2.png', alt: 'Add integration wizard — Uplink data converter step: Select existing tab active, KPN Things Uplink Converter selected in the field', caption: 'Click <strong>Select existing</strong> and choose the <strong>KPN Things Uplink Converter</strong> created in the previous step, then click <strong>Next</strong>' },
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-add-integration-3.png', alt: 'Add integration wizard — Downlink data converter step: Skip button highlighted', caption: 'Click <strong>Skip</strong> — the downlink converter can be configured later if needed' },
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-add-integration-4.png', alt: 'Add integration wizard — Connection step: Base URL set to https://thingsboard.cloud, HTTP endpoint URL shown with a copy button, Add button visible', caption: 'Enter your <strong>Base URL</strong>, copy the <strong>HTTP endpoint URL</strong> to paste into the KPN Things destination, and click <strong>Add</strong>' },
 ]} />
 
 ### Connection settings
@@ -65,7 +201,7 @@ The base address of the ThingsBoard server, used to construct the HTTP endpoint 
 
 <h4>Destination shared secret</h4>
 
-Optional secret token used to authenticate KPN Things requests arriving at ThingsBoard. Click the generate icon to create a value, then configure KPN Things to include it in outgoing requests so ThingsBoard can verify the source.
+Optional secret token used to authenticate KPN Things requests arriving at ThingsBoard. <a href="https://docs.kpnthings.com/kpn-things/building-blocks/destinations/https-destination" target="_blank" rel="noopener noreferrer nofollow"><strong>Learn how to implement the shared secret</strong></a>.
 
 <h4>HTTP endpoint URL</h4>
 
@@ -73,150 +209,616 @@ Auto-generated endpoint for this integration. Paste this URL into the KPN Things
 
 <h4>Allow downlink</h4>
 
-Enable to allow ThingsBoard to send commands back to devices via KPN Things. When toggled on, additional **Credentials** fields appear:
+Enable to allow ThingsBoard to send commands back to devices via KPN Things. When toggled on, a **Credentials** section appears with two fields:
 
-- **GRP tenant id** — the KPN Things tenant identifier
-- **API id** — the API client ID used to authenticate ThingsBoard against the KPN Things API
+- **API ID** — the API key ID used to authenticate ThingsBoard against the KPN Things API
 - **API Key** — the corresponding API secret key
 
 <h4>Enable security (Headers filter)</h4>
 
-Enable to restrict incoming requests to those carrying a specific HTTP header with a matching value. Click **Add** to define one or more **Header** / **Value** pairs. Requests missing any listed header or carrying an incorrect value are rejected. Use this to validate the `X-Things-Secret` header generated by KPN Things — see [Update integration with security header](#update-integration-with-security-header).
+Enable to restrict incoming requests to those carrying a specific HTTP header with a matching value. When toggled on, the section shows **No headers filter** — click **Add** to add a **Header** / **Value** row. Requests missing any listed header or carrying an incorrect value are rejected. Use this to validate the `X-Things-Secret` header generated by KPN Things — see **[Configure KPN Things Webhook Security](#configure-kpn-things-webhook-security)**.
 
 <h4>Execute remotely</h4>
 
-When enabled, ThingsBoard generates an **Integration key** and **Integration secret** that allow the integration to run as a separate process outside the ThingsBoard cluster — useful when the integration must reach services not accessible from the ThingsBoard server.
+When enabled, ThingsBoard generates an **Integration key** and **Integration secret** (both copyable) that allow the integration to run as a separate process outside the ThingsBoard cluster — useful when the integration must reach services not accessible from the ThingsBoard server.
 
 <h4>Advanced settings</h4>
 
-- **Description** — optional text description for this integration
-- **Metadata** — key-value pairs injected into every uplink message as `integrationMetadata` in converter scripts
+- **Description** — optional free-text description for this integration
+- **Metadata** — key-value pairs injected into every uplink message as `integrationMetadata` in converter scripts; click **Add** to define entries
 
-## KPN Things setup
+## KPN Things Platform Setup
 
-Open the <a href="https://portal.kpnthings.com/" target="_blank">KPN Things Portal</a> and log in to your account.
+With the ThingsBoard integration created and the HTTP endpoint URL in hand, set up your device and data routes in the <a href="https://portal.kpnthings.com/" target="_blank" rel="noopener noreferrer nofollow"><strong>KPN Things Portal</strong></a>. This section guides you through device creation, flow configuration, and destination setup.
 
-<Aside type="note">
-The KPN Things Portal interface may change in the future.
+### Create and Register a Device
+
+KPN Things supports multiple device types. For this guide, we use the **Device Simulator** (Web app) to test without physical hardware — no physical IoT device is required.
+
+<Steps>
+  <ol start="1">
+    <li>Go to <strong>Things Manager</strong> and click <strong>My first project</strong> to open the project overview.</li>
+    <li>In the <strong>Devices</strong> row, click <strong>Add Device</strong>.</li>
+    <li>Select your device type — for this guide, choose <strong>Device Simulator (Web app)</strong>.</li>
+    <li>Enter a device name — for example, <code>My KPN Device</code> — and click <strong>Add Device</strong>.</li>
+    <li>The device is created — the <strong>KPN Internet Network is created</strong> toast confirms the setup. Use the browser link or scan the QR code to open the Device Simulator.</li>
+  </ol>
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-1-pe.png', alt: 'KPN IoT portal — Things Manager Projects page showing My first project with Freemium subscription and LoRa connectivity provider', caption: 'Go to <strong>Things Manager</strong> and click <strong>My first project</strong>' },
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-2-pe.png', alt: 'KPN IoT portal — My first project overview showing Devices row with Add Device button', caption: 'In the <strong>Devices</strong> row, click <strong>Add Device</strong>' },
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-3-pe.png', alt: 'KPN IoT portal Add Device — device type grid with Device Simulator (Web app) selected', caption: 'Select <strong>Device Simulator (Web app)</strong> as the device type' },
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-4-pe.png', alt: 'KPN IoT portal Add Device — Name field showing My KPN Device, Barcode field, Add Device button', caption: 'Enter a device name — for example, <code>My KPN Device</code> — and click <strong>Add Device</strong>' },
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-5-pe.png', alt: 'KPN IoT portal Device Details page for My KPN Device — KPN Internet Network is created success toast, Open the application section with browser link and QR code', caption: 'The device is created — <strong>KPN Internet Network is created</strong> toast confirms the setup; open the Device Simulator in your browser or scan the QR code' },
+]} />
+
+### Create a Flow
+
+Flows in KPN Things define how devices route their data. Each device must be assigned to a flow to send and receive data.
+
+<Steps>
+  <ol start="1">
+    <li>Go to <strong>Flows</strong> in the left menu and click <strong>My first flow</strong>.</li>
+    <li>In the <strong>Devices</strong> row, click <strong>Link Device</strong>.</li>
+    <li>Click <strong>Link</strong> next to the device you created.</li>
+    <li>The device is successfully linked to the flow.</li>
+  </ol>
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-6-pe.png', alt: 'KPN IoT portal — Flows in My first project page showing My first flow row with 0 Devices, 0 Processors, and 0 Destinations', caption: 'Go to <strong>Flows</strong> in the left menu and click <strong>My first flow</strong>' },
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-7-pe.png', alt: 'KPN IoT portal — My first flow details page showing Devices row with Link Device button, Data Processing row, and Destinations row', caption: 'In the <strong>Devices</strong> row, click <strong>Link Device</strong>' },
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-8-pe.png', alt: 'KPN IoT portal — Choose a Device to link page showing My KPN Device with Device Simulator type and Active status, Link button highlighted', caption: 'Click <strong>Link</strong> next to the device you created' },
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-9-pe.png', alt: 'KPN IoT portal — Devices in My first flow page showing My KPN Device added just now, success toast: The Device has been successfully linked to the Flow', caption: 'The device has been successfully linked to the flow' },
+]} />
+
+### Enable Data Processing
+
+For ThingsBoard to properly decode device payloads, enable the data processing decoder in KPN Things. This converts device-specific formats into standard SenML (Sensor Markup Language) that ThingsBoard understands.
+
+<Steps>
+  <ol start="1">
+    <li>In the <strong>Devices in My first flow</strong> list, click <strong>My KPN Device</strong> to open Device Details.</li>
+    <li>Go to the <strong>Flows</strong> tab to view the flow diagram.</li>
+    <li>In the <strong>Decoders</strong> section, enable the <strong>Decoded ThingsML and raw SenML data</strong> toggle. Changes are saved automatically.</li>
+  </ol>
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-10-pe.png', alt: 'KPN IoT portal — Devices in My first flow list showing My KPN Device with Device Simulator type and Active status', caption: 'In the <strong>Devices in My first flow</strong> list, click <strong>My KPN Device</strong>' },
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-11-pe.png', alt: 'KPN IoT portal — Device Details Flows tab showing flow diagram with Decoders section: Decoded ThingsML and raw SenML data toggle disabled, Encoders section: SenML data toggle enabled', caption: 'Go to the <strong>Flows</strong> tab — the <strong>Decoded ThingsML and raw SenML data</strong> decoder is disabled by default' },
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-12-pe.png', alt: 'KPN IoT portal — Device Details Flows tab showing flow diagram with Decoded ThingsML and raw SenML data toggle now enabled', caption: 'Enable the <strong>Decoded ThingsML and raw SenML data</strong> toggle — changes are saved automatically' },
+]} />
+
+### Create a ThingsBoard Destination
+
+A destination in KPN Things specifies where to route device data. Create a ThingsBoard destination directly from the flow diagram — it will be linked to the flow automatically.
+
+<Steps>
+  <ol start="1">
+    <li>On the <strong>Flows</strong> tab of <strong>My KPN Device</strong>, click <strong>Connect destination</strong> in the flow diagram.</li>
+    <li>Click <strong>+ Add new Destination</strong> — the destination list is empty.</li>
+    <li>Find <strong>ThingsBoard</strong> in the destination type grid and click <strong>Choose ThingsBoard</strong>.</li>
+    <li>Enter a <strong>Destination Name</strong> — for example, <code>My ThingsBoard Instance</code>.</li>
+    <li>
+      <span>Fill in <strong>Connection Details</strong>:</span>
+      <ul>
+        <li>Paste the <strong>HTTP endpoint URL</strong> copied from the ThingsBoard integration.</li>
+        <li>In the <strong>Security Header</strong> section, the <strong>Header</strong> is pre-filled as <code>X-Things-Secret</code> — click <strong>Generate</strong> to create the token value. Save this value — you will need it when configuring the ThingsBoard integration security header.</li>
+      </ul>
+    </li>
+    <li>Click <strong>Add ThingsBoard Destination</strong> — the destination is created and automatically linked to the flow.</li>
+    <li>Return to the <strong>Flows</strong> tab of <strong>My KPN Device</strong> to verify the complete pipeline — the flow diagram now shows the device, the enabled decoder, and the active ThingsBoard destination all connected.</li>
+  </ol>
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-14-pe.png', alt: 'KPN IoT portal — Device Details Flows tab showing flow diagram with Decoded ThingsML decoder enabled and No destinations connected panel with Connect destination link', caption: 'On the <strong>Flows</strong> tab, click <strong>Connect destination</strong> in the flow diagram' },
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-15-pe.png', alt: 'KPN IoT portal — Choose a Destination to link page showing empty state with Add new Destination button', caption: 'No destinations exist yet — click <strong>+ Add new Destination</strong>' },
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-16-pe.png', alt: 'KPN IoT portal — destination type grid showing ThingsBoard card with Choose ThingsBoard button highlighted', caption: 'Find <strong>ThingsBoard</strong> in the destination type grid and click <strong>Choose ThingsBoard</strong>' },
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-17-pe.png', alt: 'KPN IoT portal — Configure your ThingsBoard Destination form showing Destination Name field and Connection Details section with HTTP endpoint URL field and Security Header section', caption: 'Enter a <strong>Destination Name</strong> and paste the <strong>HTTP endpoint URL</strong> from the ThingsBoard integration' },
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-18-pe.png', alt: 'KPN IoT portal — ThingsBoard Destination form showing Security Header section with X-Things-Secret header pre-filled, generated token value, Generate button, and Add ThingsBoard Destination button', caption: 'The <strong>Header</strong> is pre-filled as <code>X-Things-Secret</code> — click <strong>Generate</strong> to create the token, save it, then click <strong>Add ThingsBoard Destination</strong>' },
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-19-pe.png', alt: 'KPN IoT portal — My ThingsBoard Instance destination detail page showing Processing Active status, Flows linked to My first flow, and success toast: The Destination has been successfully linked to the Flow', caption: 'The destination is created and automatically linked to the flow — status shows <strong>Active</strong>' },
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-20-pe.png', alt: 'KPN IoT portal — Device Details Flows tab showing complete pipeline: My KPN Device connected through Decoded ThingsML and raw SenML data decoder to My ThingsBoard Instance destination, all Active', caption: 'The complete flow — device, decoder, and ThingsBoard destination are all connected and active' },
+]} />
+
+## Configure KPN Things Webhook Security
+
+To authenticate incoming messages from KPN Things, add the generated security header to your ThingsBoard integration. This prevents unauthorized devices from sending data to your integration.
+
+<Steps>
+  <ol start="1">
+    <li>In ThingsBoard, go to <strong>Integrations center &#8702; Integrations</strong> and open the KPN Things integration.</li>
+    <li>Click the <strong>pencil</strong> icon to enter edit mode.</li>
+    <li>Scroll to <strong>Enable security (Headers filter)</strong> and toggle it <strong>On</strong>.</li>
+    <li>Click <strong>Add</strong>.</li>
+    <li>In the <strong>Header</strong> field, enter <code>X-Things-Secret</code>.</li>
+    <li>In the <strong>Value</strong> field, paste the security token generated in KPN Things (from the destination configuration earlier).</li>
+    <li>Click <strong>Apply changes</strong>.</li>
+  </ol>
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-add-integration-5.png', alt: 'ThingsBoard — KPN Things integration details page showing integration name, uplink converter, base URL, HTTP endpoint URL, and collapsed Enable security (Headers filter) section', caption: 'Open the KPN Things integration and enter edit mode' },
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-add-integration-6.png', alt: 'ThingsBoard — KPN Things integration edit mode with Enable security (Headers filter) toggle enabled, X-Things-Secret header name and generated token value filled in, Add button visible', caption: 'Enable <strong>Enable security (Headers filter)</strong>, enter <code>X-Things-Secret</code> as the header, paste the generated token as the value, click <strong>Add</strong>, then click <strong>Apply changes</strong>' },
+]} />
+
+<Aside type="caution" title="Keeping the Token Secure">
+  The security token should be kept confidential. If compromised, any system with the token can send data to your integration. Regenerate it in KPN Things if you suspect it has been exposed.
 </Aside>
 
-### Add a new device
+## Test the Integration
+
+After the integration is created, send a test uplink from the KPN Things Device Simulator and confirm that ThingsBoard received the message, decoded it correctly, and provisioned the device.
+
+<Aside type="note">
+  Before sending a test uplink, ensure that **Debug** mode with the **All messages** option is enabled for both the integration and the converter. This allows you to view received messages and conversion results on the corresponding **Events** tabs.
+</Aside>
+
+### Send Test Uplink
+
+Open the <a href="https://docs.kpnthings.com/kpn-things/getting-started/quickstart/device-simulator-web-app" target="_blank" rel="noopener noreferrer nofollow"><strong>KPN Things Device Simulator</strong></a> web app in your internet browser to send a test message to ThingsBoard.
 
 <Steps>
-1. Go to the **Things Manager** tab and click **Add new Device**.
-2. Choose **Device Simulator**, set a name for your device, and click **Add Device**.
-3. Install the **KPN Things Device Simulator** app on your phone. Scan the QR code displayed on screen with the app. Note that the **Shared Secret** is only visible at this step — save it in a secure place. Click **Add Network Info**.
-4. KPN Internet Network is created. Click **Finish**.
+  1. In the KPN Things portal, open **My KPN Device** and go to the **Application** tab.
+  2. Under **Open the application**, click **Open the Device Simulator application in a new tab**.
+  3. In the Device Simulator, select the data to send — for example, enable **Battery level**, **Temperature**, and **Location** — and adjust the values if needed.
+  4. Click **Send data now**. A **Simulated device data updated successfully** toast confirms the message was forwarded to ThingsBoard.
 </Steps>
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-1-pe.png', alt: 'KPN Things Manager Home — Add new Device button', caption: 'Go to the Things Manager tab and click Add new Device' },
-  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-2-pe.png', alt: 'KPN Things Add Device — Device Simulator selected, device name entered', caption: 'Select Device Simulator, enter a name, and click Add Device' },
-  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-3-pe.png', alt: 'KPN Things Add Device — QR code and Add Network Info button; Shared Secret warning visible', caption: 'Scan the QR code with the KPN Things Device Simulator app — the Shared Secret is only visible at this step, save it securely; then click Add Network Info' },
-  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-4-pe.png', alt: 'KPN Things — KPN Internet Network is created toast, Finish button', caption: 'KPN Internet Network is created — click Finish' },
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-test-1-pe.png', alt: 'KPN IoT portal — My KPN Device Application tab showing Open the application section with Open the Device Simulator application in a new tab button and QR code', caption: 'Open <strong>My KPN Device</strong> and click <strong>Open the Device Simulator application in a new tab</strong>' },
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-test-2-pe.png', alt: 'KPN Things Device Simulator web app — Select data to send screen showing Battery level 34%, Temperature 16.5°C, and Location fields enabled, with Send data now button', caption: 'Select the data fields to send and click <strong>Send data now</strong>' },
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-test-3-pe.png', alt: 'KPN Things Device Simulator web app — Simulated device data updated successfully toast notification', caption: '<strong>Simulated device data updated successfully</strong> — the message was sent to KPN Things and forwarded to ThingsBoard' },
 ]} />
 
-### Link the device to the flow
+### Verify Integration Events
+
+Go to **Integrations center &#8702; Integrations**, open the **KPN Things integration**, and click the **Events** tab.
+Each successfully processed uplink appears as a row with **Type: Uplink** and **Status: OK**.
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-test-4-pe.png', alt: 'ThingsBoard — KPN Things integration Events tab in Debug mode showing an Uplink event with status OK', caption: 'Open the <strong>Events</strong> tab of the KPN Things integration — each received uplink appears with <strong>Type: Uplink</strong> and <strong>Status: OK</strong>' },
+]} />
+
+### Verify Converter Events
+
+Go to **Integrations center &#8702; Data converters**, open **KPN Things Uplink Converter**, and click the **Events** tab.
+Click an event row to inspect:
+- **In** — the decoded JSON payload received from KPN Things: `deviceName`, `deviceLabel`, `deviceType`, and a `telemetry` array with values such as `battery`, `temperature`, `latitude`, `longitude`, and `orientation`.
+- **Out** — the converter output passed to ThingsBoard. For the default pass-through converter the output is identical to the input.
+- **Metadata** — HTTP request headers forwarded by KPN Things, including `x-things-secret` and `things-message-token`.
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-test-5-pe.png', alt: 'ThingsBoard — KPN Things Uplink Converter Events tab in Debug mode showing an Uplink event row', caption: 'Open the <strong>Events</strong> tab of the uplink converter to inspect individual message processing results' },
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-test-6-pe.png', alt: 'KPN Things Uplink Converter In payload — decoded JSON with deviceName, deviceLabel, deviceType, and telemetry values including battery, temperature, latitude, longitude, and orientation', caption: 'The <strong>In</strong> view shows the decoded payload received from KPN Things before it is passed to ThingsBoard' },
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-test-7-pe.png', alt: 'KPN Things Uplink Converter Out payload — same decoded JSON structure passed through to ThingsBoard unchanged', caption: 'The <strong>Out</strong> view shows the converter output — for the default pass-through converter the output is identical to the input' },
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-test-8-pe.png', alt: 'KPN Things Uplink Converter Metadata — HTTP request headers including x-things-secret, things-message-token, and things-plug-uuid', caption: 'The <strong>Metadata</strong> view shows the HTTP headers forwarded by KPN Things, including the security token and message identifiers' },
+]} />
+
+### Verify Device Provisioning
+
+Go to **Entities &#8702; Devices**. ThingsBoard automatically provisions a new device using the identifier from the uplink payload as the device name on the first message received. Open the device and click the **Latest Telemetry** tab — you should see the values sent by the simulator, such as `battery`, `temperature`, `latitude`, `longitude`, and `orientation`.
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-test-9-pe.png', alt: 'ThingsBoard Devices page showing auto-provisioned KPN device with Latest Telemetry tab displaying battery, latitude, longitude, orientation, and temperature values received from the Device Simulator', caption: 'ThingsBoard automatically creates the device on the first uplink — open the <strong>Latest Telemetry</strong> tab to verify that the simulator data was received and stored' },
+]} />
+
+## Configure Downlink
+
+Downlink allows ThingsBoard to push commands to KPN Things devices. To enable it, obtain API credentials from the KPN Zakelijk portal, configure the integration for outbound calls, create a downlink converter, and wire up the Rule Chain.
+
+### Obtain KPN Things API Credentials
+
+ThingsBoard needs API credentials to authenticate against the KPN Things API when sending downlink messages. Obtain these from the KPN Things portal:
 
 <Steps>
-1. Go to **Flows** in the left menu and click the **My first flow** row.
-2. Click **Link Device** in the **Devices** row.
-3. Click **Link** next to the device you created.
-4. The device is successfully linked to the flow.
+  <ol start="1">
+    <li>Log in to <a href="https://mijnzakelijk.kpn.com/" target="_blank" rel="noopener noreferrer nofollow"><strong>KPN Zakelijk portal</strong></a>.</li>
+    <li>In the left menu, click <strong>API keys</strong>.</li>
+    <li>Click <strong>Add API key</strong>.</li>
+    <li>Enter a display name (e.g., <code>ThingsBoard Downlink</code>).</li>
+    <li>Click <strong>Add API key</strong>.</li>
+    <li>
+      <span><strong>Copy and save securely</strong>:</span>
+      <ul>
+        <li><strong>ID</strong> (e.g., <code>bvr1quripwp951d3boos6la5jou7wtqq</code>)</li>
+        <li><strong>Secret key</strong> (e.g., <code>9ff04a263f6abca124c8ed131615e7...</code>)</li>
+      </ul>
+    </li>
+    <li>Switch to the <strong>Services and roles</strong> tab and click <strong>Add service</strong>.</li>
+    <li>Select <strong>KPN Things</strong>, then check <strong>Things Creator - Admin</strong> and <strong>Things Manager - Admin</strong>.</li>
+    <li>Click <strong>Add</strong>, then click <strong>Save changes</strong> to apply the roles to the API key.</li>
+  </ol>
 </Steps>
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-5-pe.png', alt: 'KPN Things Flows page — My first flow row highlighted', caption: 'Go to Flows and click the My first flow row' },
-  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-6-pe.png', alt: 'KPN Things Flow Overview — Link Device button in the Devices row', caption: 'Flow overview — click Link Device in the Devices row' },
-  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-7-pe.png', alt: 'KPN Things Link Device to Flow — Link button next to My Device', caption: 'Click Link next to your device' },
-  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-8-pe.png', alt: 'KPN Things — Device has been successfully linked to the Flow toast, device shown in list', caption: 'The device has been successfully linked to the flow' },
+  {
+    src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-downlink-1.png',
+    alt: 'KPN Things admin portal homepage',
+    caption: 'Sign in to the <strong>KPN Things</strong> admin portal, then click <strong>API keys</strong> in the left navigation menu.',
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-downlink-2.png',
+    alt: 'API Keys page with Add API key button',
+    caption: 'On the <strong>API Keys</strong> page, click <strong>Add API key</strong> to create a new API key.',
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-downlink-3.png',
+    alt: 'Add API key dialog',
+    caption: 'Enter a display name, for example <strong>ThingsBoard Downlink</strong>, optionally provide a description, and click <strong>Add API key</strong>.',
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-downlink-4.png',
+    alt: 'API key General tab',
+    caption: 'Verify that <strong>Activate API Key</strong> is enabled, then copy the generated <strong>ID</strong> and <strong>Secret key</strong>. These values will be used later in the ThingsBoard integration configuration.',
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-downlink-5.png',
+    alt: 'Services and roles tab',
+    caption: 'Open the <strong>Services and roles</strong> tab and click <strong>Add service</strong>.',
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-downlink-6.png',
+    alt: 'Add services and roles dialog',
+    caption: 'Select the <strong>KPN Things</strong> service, assign the required roles (<strong>Things Creator - Admin</strong> and <strong>Things Manager - Admin</strong>), then click <strong>Add</strong>.',
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-downlink-7.png',
+    alt: 'Configured API key with assigned services and roles',
+    caption: 'Confirm that the required service and roles have been added, then click <strong>Save changes</strong> to finish configuring the API key.',
+  },
 ]} />
 
-### Enable data processing
+### Configure API Credentials in ThingsBoard Integration
+
+Update the KPN Things integration with the API credentials:
 
 <Steps>
-1. Click the **My Device** row to open the Device & Connectivity detail page.
-2. Go to the **Flows** tab and click the **My first flow** row.
-3. Click **Data Processing** to open the Data Processing details page.
-4. Enable the **Decoded ThingsML and raw SenML data** decoder toggle. Your change is saved automatically.
+  <ol start="1">
+    <li>In ThingsBoard, go to <strong>Integrations center &#8702; Integrations</strong>.</li>
+    <li>Open the KPN Things integration and click the <strong>Edit</strong> icon.</li>
+    <li>Scroll down to <strong>Allow downlink</strong> and toggle it <strong>On</strong>. Additional <strong>Credentials</strong> fields appear.</li>
+    <li>
+      <span>In the <strong>Credentials</strong> section:</span>
+      <ul>
+        <li><strong>API ID</strong>: Paste the ID from Step 1</li>
+        <li><strong>API Key</strong>: Paste the Secret key from Step 1</li>
+      </ul>
+    </li>
+    <li>Click <strong>Apply changes</strong>.</li>
+  </ol>
 </Steps>
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-9-pe.png', alt: 'KPN Things Devices in My first flow — My Device row highlighted', caption: 'Devices in My first flow — click the My Device row to open its connectivity details' },
-  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-10-pe.png', alt: 'KPN Things Device & Connectivity detail — Flows tab with My first flow row', caption: 'Device & Connectivity detail page — go to the Flows tab and click My first flow' },
-  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-11-pe.png', alt: 'KPN Things My first flow overview — Data Processing row highlighted', caption: 'My first flow overview — click Data Processing to open the details page' },
-  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-12-pe.png', alt: 'KPN Things Data Processing page — Decoded ThingsML and raw SenML data decoder toggle disabled', caption: 'Data Processing page — enable the Decoded ThingsML and raw SenML data decoder toggle' },
-  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-13-pe.png', alt: 'KPN Things Data Processing page — Decoded ThingsML and raw SenML data decoder enabled, change saved', caption: 'Decoder enabled and change saved — ThingsML and SenML data will now be forwarded to destinations' },
+  {
+    src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-downlink-8.png',
+    alt: 'KPN Things integration details page',
+    caption: 'Open the <strong>KPN Things integration</strong>, then click the pencil icon to enter edit mode.',
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-downlink-9.png',
+    alt: 'KPN Things integration in edit mode with Allow downlink enabled',
+    caption: 'Enable and configure the <strong>Allow downlink</strong> option.',
+  },
 ]} />
 
-### Add a new destination
+### Add Downlink Converter
+
+The downlink converter transforms ThingsBoard commands into the SenML format that KPN Things expects.
+
+The converter output must be a JSON object with the following structure:
+
+```json
+{
+  "contentType": "JSON",
+  "data": "[{\"bn\":\"urn:dev:DVNUUID:c837f568-38e3-4425-b39f-d1a63848414b:\",\"n\":\"temperature\",\"v\":25.0}]",
+  "metadata": {
+    "topic": "devices/urn:dev:DVNUUID:c837f568-38e3-4425-b39f-d1a63848414b:/downlink",
+    "FPort": 1
+  }
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `contentType` | Encoding of the `data` field: `TEXT`, `JSON`, or `BINARY`. |
+| `data` | SenML JSON array serialized as a string. Each entry contains a base name (`bn`) set to the device URN, a measurement name (`n`), and a value (`v`). |
+| `metadata.topic` | KPN Things downlink topic constructed from the device URN. |
+| `metadata.FPort` | Port identifier sent with the downlink instruction. For LoRaWAN devices this maps to the LoRa frame port; for other device types it may be ignored. |
+
+For the full encoder function reference, see <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink data converter</DocLink>.
+
+<br/>
 
 <Steps>
-1. Go to **Destinations** in the left menu and click **Add new Destination**.
-2. Find the **ThingsBoard** destination type and click **Choose ThingsBoard**.
-3. Enter a name for your destination.
-4. Paste the **HTTP endpoint URL** copied from the ThingsBoard integration into the **HTTP endpoint URL** field.
-5. In the **Security Header** section, the **Header** name is pre-filled as `X-Things-Secret`. Click **Generate** to create the token value and save it — you will add it to ThingsBoard in the next step to authenticate incoming requests.
-6. Click **Add ThingsBoard Destination**.
+  <ol start="1">
+    <li>Go to <strong>Integrations center &#8702; Integrations</strong> and open the KPN Things integration.</li>
+    <li>Click the pencil icon to enter edit mode.</li>
+    <li>In the <strong>Downlink data converter</strong> field, click <strong>Create new</strong>.</li>
+    <li>
+      <span>Configure the converter:</span>
+      <ul>
+        <li><strong>Name</strong>: Enter <code>KPN Things Downlink Converter</code></li>
+        <li><strong>Script language</strong>: leave TBEL selected (recommended).</li>
+      </ul>
+    </li>
+    <li>In the converter editor, paste the encoder script below, and click <strong>Add</strong>.</li>
+    <li>Click <strong>Apply changes</strong>.</li>
+  </ol>
+</Steps>
+
+```js maxLines=20 collapsible
+/** Encoder **/
+
+// Create an empty SenML pack for the downlink payload.
+var senmlPack = [];
+
+// Get the device URN from metadata.
+// The deviceName must contain the full KPN Things device URN.
+var deviceUrn = metadata['deviceName'];
+
+// Add the temperature value to the SenML pack if it is present in the message.
+if (msg.temperature != null) {
+    senmlPack.push({
+        "bn": deviceUrn,
+        "n": "temperature",
+        "v": parseFloat(msg.temperature)
+    });
+}
+
+// Return the encoded downlink payload and metadata for the integration.
+var result = {
+    contentType: "JSON",
+    data: JSON.stringify(senmlPack),
+    metadata: {
+        topic: "devices/" + deviceUrn + "/downlink",
+        FPort: 1
+    }
+};
+
+return result;
+```
+
+<Aside type="note">
+The converter above sends the `temperature` attribute. To send a different attribute, replace `msg.temperature` with `msg.yourAttributeKey` and update the `"n"` field in the SenML entry accordingly.
+</Aside>
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-downlink-10.png',
+    alt: 'KPN Things integration details page',
+    caption: 'Open the <strong>KPN Things integration</strong>, then click the pencil icon to enter edit mode.',
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-downlink-11.png',
+    alt: 'KPN Things integration in edit mode',
+    caption: 'Enable the <strong>Allow downlink</strong> option, then click <strong>Create new</strong> in the <strong>Downlink data converter</strong> field.',
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-downlink-12.png',
+    alt: 'Add KPN Things downlink data converter dialog',
+    caption: 'The converter type is automatically set to <strong>Downlink</strong>. Enter a name, for example <strong>KPN Things Downlink Converter</strong>, paste the encoder function, and click <strong>Add</strong>.',
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-downlink-13.png',
+    alt: 'KPN Things integration configured for downlink',
+    caption: 'Verify that the <strong>Downlink data converter</strong> is assigned, enter the <strong>API ID</strong> and <strong>API Key</strong> from the KPN Things admin portal, then click <strong>Apply changes</strong>.',
+  },
+]} />
+
+### Configure the Root Rule Chain
+
+Configure the Root Rule Chain to forward device attribute updates to the KPN Things integration.
+
+Two rule nodes are needed: an **originator fields** node that reads the device name from ThingsBoard and injects it into message metadata, and an **integration downlink** node that sends the message to the integration.
+
+<Steps>
+  1. Open **Rule Chains &#8702; Root Rule Chain**.
+  2. In the node panel, search for **originator fields** and drag it onto the canvas. Configure the node:
+      - **Name** — e.g. `Retrieve Device Name`.
+      - Under **Originator fields mapping**, set **Source field** to `Name` and **Target key** to `deviceName`.
+      - Click **Add**.
+  3. In the node panel, search for **integration downlink** and drag it onto the canvas. Configure the node:
+      - **Name** — e.g. `Downlink to KPN Things`.
+      - **Integration** — select **KPN Things integration**.
+      - Click **Add**.
+  4. Connect the **message type switch** node to the **originator fields** node using the **Attributes Updated** relation.
+  5. Connect the **originator fields** node to the **integration downlink** node using the **Success** relation.
+  6. Click **Apply changes**.
 </Steps>
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-14-pe.png', alt: 'KPN Things Destinations page — Add new Destination button', caption: 'Go to Destinations and click Add new Destination' },
-  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-15-pe.png', alt: 'KPN Things Add Destination — destination type selection with ThingsBoard highlighted', caption: 'Select ThingsBoard as the destination type and click Choose ThingsBoard' },
-  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-16-pe.png', alt: 'KPN Things Configure ThingsBoard Destination — name, HTTP endpoint URL, Security Header with X-Things-Secret pre-filled and generated token', caption: 'Enter a name and paste the HTTP endpoint URL; the Security Header name X-Things-Secret is pre-filled — click Generate to create the token value and save it; then click Add ThingsBoard Destination' },
+  {
+    src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-downlink-14-pe.png',
+    alt: 'Root Rule Chain node panel with originator fields search result highlighted under Enrichment category',
+    caption: 'In the <strong>Root Rule Chain</strong> edit view, type <strong>originator fields</strong> in the node search panel and locate it under the <strong>Enrichment</strong> category.',
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-downlink-15-pe.png',
+    alt: 'Add rule node originator fields dialog with name Retrieve Device Name, Source field Name, and Target key deviceName',
+    caption: 'Set the node name to <strong>Retrieve Device Name</strong>, map <strong>Source field</strong> <code>Name</code> to <strong>Target key</strong> <code>deviceName</code>, and click <strong>Add</strong>.',
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-downlink-16-pe.png',
+    alt: 'Root Rule Chain node panel with integration downlink search result highlighted under Action category',
+    caption: 'Type <strong>integration downlink</strong> in the node search panel and locate it under the <strong>Action</strong> category.',
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-downlink-17-pe.png',
+    alt: 'Add rule node integration downlink dialog with name Downlink to KPN Things and KPN Things integration selected',
+    caption: 'Set the node name to <strong>Downlink to KPN Things</strong>, select <strong>KPN Things integration</strong> in the <strong>Integration</strong> field, and click <strong>Add</strong>.',
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-downlink-18-pe.png',
+    alt: 'Completed Root Rule Chain with Retrieve Device Name and Downlink to KPN Things nodes connected via Attributes Updated and Success relations',
+    caption: 'Connect the <strong>message type switch</strong> node to <strong>Retrieve Device Name</strong> via <strong>Attributes Updated</strong>, then <strong>Retrieve Device Name</strong> to <strong>Downlink to KPN Things</strong> via <strong>Success</strong>. Click <strong>Apply changes</strong>.',
+  },
 ]} />
 
-### Link the destination to the flow
+### Test the Downlink
+
+Trigger a downlink by adding a shared attribute to the device provisioned in **[Send Test Uplink](#send-test-uplink)**:
 
 <Steps>
-1. Go to **Flows &#8702; My first flow** and click **Link Destination** in the **Destinations** row.
-2. Click **Link** next to the destination you created.
-3. The destination is successfully linked to the flow and its status changes to **Active**.
+  <ol>
+    <li>In ThingsBoard, go to <strong>Entities &#8702; Devices</strong>.</li>
+    <li>Select a KPN device.</li>
+    <li>Go to the <strong>Attributes</strong> tab.</li>
+    <li>Click <strong>+</strong> in the <strong>Shared attributes</strong> section.</li>
+    <li>
+      <span>Add a test attribute:</span>
+      <ul>
+        <li><strong>Key</strong>: <code>temperature</code></li>
+        <li><strong>Type</strong>: <code>Integer</code></li>
+        <li><strong>Value</strong>: <code>25</code></li>
+      </ul>
+    </li>
+    <li>Click <strong>Add</strong>. The Rule Chain triggers and sends a downlink message to KPN Things.</li>
+  </ol>
 </Steps>
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-17-pe.png', alt: 'KPN Things My first flow overview — Link Destination button in the Destinations row', caption: 'Go to Flows → My first flow and click Link Destination in the Destinations row' },
-  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-18-pe.png', alt: 'KPN Things Link Destination to Flow — ThingsBoard destination with Link button', caption: 'Click Link next to the ThingsBoard destination' },
-  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-configure-19-pe.png', alt: 'KPN Things Destinations in My first flow — ThingsBoard destination listed as Active, success toast visible', caption: 'Destination successfully linked — the ThingsBoard destination is now Active in the flow' },
+  {
+    src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-downlink-19-pe.png',
+    alt: 'ThingsBoard device Shared attributes dialog with temperature attribute set to 25',
+    caption: 'Open the device, switch to the <strong>Shared attributes</strong> scope, and add the <code>temperature</code> attribute with the value <code>25</code>. This triggers the downlink converter and sends the SenML payload to KPN Things.',
+  },
 ]} />
 
-## Update integration with security header
+### Verify Downlink Delivery
 
-To authenticate incoming requests from KPN Things, add the generated `X-Things-Secret` token as a security header in the ThingsBoard integration.
+**Check integration events**
 
-<Steps>
-1. Go to **Integrations center &#8702; Integrations**, open the KPN Things integration, and click the edit icon.
-2. Expand **Enable security (Headers filter)** and click **Add**.
-3. Enter `X-Things-Secret` in the **Header** field and paste the generated token into the **Value** field. Click **Apply changes**.
-</Steps>
+Go to **Integrations center &#8702; Integrations**, open the KPN Things integration, and click the **Events** tab. A `Downlink` event confirms that ThingsBoard forwarded the message to KPN Things.
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-add-integration-5.png', alt: 'KPN Things integration detail — view mode with edit icon highlighted', caption: 'Open the KPN Things integration and click the edit icon' },
-  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-add-integration-6.png', alt: 'KPN Things integration edit mode — Enable security (Headers filter) toggle on, Add button visible', caption: 'Toggle Enable security (Headers filter) on and click Add' },
-  { src: '/src/assets/images/user-guide/integrations/kpn/kpn-add-integration-7.png', alt: 'KPN Things integration — Headers filter with X-Things-Secret header and token value, Apply changes button highlighted', caption: 'Set Header to X-Things-Secret and paste the generated token in Value, then click Apply changes' },
+  {
+    src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-downlink-20-pe.png',
+    alt: 'KPN Things integration Events tab showing a Downlink event and an ATTRIBUTES_UPDATED event with OK status',
+    caption: 'The <strong>Events</strong> tab shows a <strong>Downlink</strong> event alongside the <strong>ATTRIBUTES_UPDATED</strong> trigger — both with <strong>OK</strong> status, confirming the downlink was dispatched.',
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-downlink-21-pe.png',
+    alt: 'Integration event message detail showing the ATTRIBUTES_UPDATED message payload with temperature value',
+    caption: 'Click the event row to inspect the message detail — the <code>temperature</code> attribute update that triggered the downlink is visible in the payload.',
+  },
 ]} />
 
-## Validation
+**Check downlink converter events**
 
-### Send an uplink message
+Go to **Integrations center &#8702; Data converters**, open **KPN Things Downlink Converter**, and click the **Events** tab. Click an event row to inspect:
 
-Use the <a href="https://docs.kpnthings.com/kpn-things/getting-started/quickstart/device-simulator-web-app" target="_blank">KPN Things Device Simulator</a> app on your phone to send a message to ThingsBoard. Tap **Send data now** in the app.
+- **In** — the Rule Engine message received by the converter: `msg` contains the attribute payload and `metadata.deviceName` carries the device URN injected by the originator fields node.
+- **Out** — the encoded SenML output sent to KPN Things: a JSON array with the device URN as base name and the temperature value.
+- **Metadata** — integration and user context injected alongside the message.
 
-<DocImage src="/src/assets/images/user-guide/integrations/kpn/kpn-send-data-now.png" alt="KPN Things Device Simulator app — Send data now button" />
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-downlink-22-pe.png',
+    alt: 'Data converters list with KPN Things Downlink Converter selected, Events tab showing one Downlink event',
+    caption: 'Open the <strong>KPN Things Downlink Converter</strong> and click the <strong>Events</strong> tab — a Downlink event confirms the converter was triggered.',
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-downlink-23-pe.png',
+    alt: 'Downlink converter In panel showing the Rule Engine input message with temperature value and ATTRIBUTES_UPDATED message type',
+    caption: 'The <strong>In</strong> panel shows the input message: <code>msg.temperature</code> contains the attribute value and <code>metadata.deviceName</code> carries the device URN.',
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-downlink-24-pe.png',
+    alt: 'Downlink converter Out panel showing the encoded SenML JSON array with device URN and temperature value',
+    caption: 'The <strong>Out</strong> panel shows the SenML payload ready to be sent to KPN Things: a JSON array with the device URN as base name and the temperature measurement.',
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-downlink-25-pe.png',
+    alt: 'Downlink converter Metadata panel showing integration name, username, and device URN context',
+    caption: 'The <strong>Metadata</strong> panel shows the integration context — integration name, user, and the device URN injected by the Originator fields node.',
+  },
+]} />
 
-After sending, ThingsBoard automatically creates a new device. Go to **Entities &#8702; Devices** — the new KPN device appears with its latest telemetry (e.g. `accelerationX`, `battery`) received from the simulator.
+**Check delivery on KPN Things**
 
-<DocImage src="/src/assets/images/user-guide/integrations/kpn/kpn-things-device-1-pe.png" alt="ThingsBoard Devices page — KPN Device selected with Latest Telemetry tab showing accelerationX and battery values" />
+Open the KPN Things portal, navigate to **Things Manager &#8702; Devices**, and open your device. Click the **Send instruction** tab and scroll down to the **Status Downlink** section — the Temperature message with status **EXECUTING** confirms the downlink reached the device.
 
-### Check integration events
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-downlink-26-pe.png',
+    alt: 'KPN Things portal device Send instruction tab showing the HTTP protocol and SenML message type options',
+    caption: 'Open your device in <strong>Things Manager &#8702; Devices</strong> and click the <strong>Send instruction</strong> tab.',
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/kpn/kpn-things-downlink-27-pe.png',
+    alt: 'KPN Things portal Status Downlink section showing Temperature: 25 with EXECUTING status and a timestamp',
+    caption: 'The <strong>Status Downlink</strong> section shows the <strong>Temperature: 25</strong> message with <strong>EXECUTING</strong> status — the downlink reached KPN Things and was forwarded to the device.',
+  },
+]} />
 
-Go to **Integrations center &#8702; Integrations**, select the KPN Things integration, and open the **Events** tab to see the messages consumed by the integration.
+## Troubleshooting
 
-<DocImage src="/src/assets/images/user-guide/integrations/kpn/kpn-things-uplink-1-pe.png" alt="KPN Things integration Events tab — uplink message with device name, type, and telemetry values" />
+This section covers the most common problems encountered when setting up and running the KPN Things integration. Each entry describes the symptom, the most likely cause, and the steps to resolve it.
 
-## See also
+<h4>No Uplinks in ThingsBoard</h4>
 
-- <DocLink product={props.product} path="user-guide/integrations">Integration Overview</DocLink>
-- <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter">Uplink Converters</DocLink>
-- <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter">Downlink Converters</DocLink>
-- <DocLink product={props.product} path="user-guide/rule-engine">Rule Engine</DocLink>
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| No events on the integration **Events** tab | KPN Things destination is not linked to the flow | In the KPN Things portal, open **Flows &#8702; My first flow** and confirm your ThingsBoard destination appears under **Destinations**. If it is missing, click **Link Destination** and link it. |
+| No events on the integration **Events** tab | Device is not linked to the flow | Open **Flows &#8702; My first flow &#8702; Devices** and confirm your device appears. If it is missing, click **Link Device**. |
+| No events on the integration **Events** tab | HTTP endpoint URL in the KPN Things destination is incorrect | Open the KPN Things destination configuration and confirm the endpoint URL matches the **HTTP endpoint URL** shown in the ThingsBoard integration settings. Copy-paste the value to avoid typos. |
+| No events on the integration **Events** tab | Integration is disabled | Open the KPN Things integration in ThingsBoard, click the **Edit** icon, and confirm **Enable integration** is on. |
+
+<h4>Uplink Received but Device Not Created</h4>
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Event appears on the integration **Events** tab but no device in **Entities &#8702; Devices** | **Allow create devices or assets** is disabled | Open the integration, click the **Edit** icon, and enable **Allow create devices or assets** in the **Basic settings** step. |
+| Integration event shows an error | Uplink converter error | Go to **Integrations center &#8702; Data converters**, open **KPN Things Uplink Converter**, and click the **Events** tab. Inspect the **Error** column of a recent event and fix the converter script accordingly. |
+
+<h4>Device Created but No Telemetry</h4>
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Device exists, **Latest Telemetry** tab is empty | **Decoded ThingsML and raw SenML data** decoder is not enabled in KPN Things | In the KPN Things portal, open your device, go to the **Flows** tab, and enable the **Decoded ThingsML and raw SenML data** toggle in the **Decoders** section. Without this, KPN Things forwards raw SenML fields instead of the structured JSON that ThingsBoard expects. |
+| Device exists, telemetry keys look like `n`, `u`, or `bn` | **Decoded ThingsML and raw SenML data** decoder is not enabled in KPN Things | Same as above. When the decoder is off, raw SenML field names appear as telemetry keys instead of human-readable names such as `temperature` or `battery`. |
+| Device exists, events appear, but no telemetry is stored | Uplink converter returns an unexpected structure | Open **KPN Things Uplink Converter &#8702; Events** and inspect the **Out** panel of a recent event. Confirm the output contains a `telemetry` array with the expected keys. If the converter was customized, compare it against the default pass-through script. |
+
+<h4>Downlink Not Delivered</h4>
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Downlink converter **Events** tab is empty after updating a shared attribute | Rule Chain is not configured | In the Root Rule Chain, confirm the **message type switch** node connects to the **Retrieve Device Name** (originator fields) node via the **Attributes Updated** relation, and that **Retrieve Device Name** connects to the **Downlink to KPN Things** (integration downlink) node via **Success**. |
+| Converter is triggered but the downlink does not reach KPN Things | **Allow downlink** is off | Open the integration, click the **Edit** icon, and enable **Allow downlink**. |
+| Converter is triggered but the downlink does not reach KPN Things | API credentials are wrong or missing the required roles | Open the integration in edit mode, expand **Allow downlink**, and verify the **API ID** and **API Key** match the credentials from the KPN Zakelijk portal. Confirm the API key has the **Things Creator - Admin** and **Things Manager - Admin** roles assigned under **Services and roles**. |
+| Downlink converter **Events** tab shows an error | Converter script error | Open **KPN Things Downlink Converter &#8702; Events**, click a failed event, and fix the script based on the error message shown. |
+
+<h4>Security Header Validation Failures</h4>
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Integration events show authorization errors or uplinks stop after enabling the security filter | Header name or value does not match | Open the integration in edit mode, expand **Enable security (Headers filter)**, and confirm the header name is exactly `X-Things-Secret`. The value must match the token from the KPN Things destination configuration character-for-character — copy-paste it rather than typing manually. |
+| Security errors appear after reconfiguring the KPN Things destination | Destination token was regenerated | Clicking **Generate** again in the KPN Things destination issues a new token. Copy the new token and update the **Value** field in the **Enable security (Headers filter)** section of the ThingsBoard integration. |
+
+<h4>How to Read Debug Events</h4>
+
+<Steps>
+  1. Go to **Integrations center &#8702; Integrations**, open the **KPN Things integration**, and click the **Events** tab.
+  2. Click an event row to inspect:
+</Steps>
+
+- **In** — the raw HTTP request body received from KPN Things before processing.
+- **Out** — what the converter returned: device name, attributes, and telemetry values passed to ThingsBoard.
+- **Error** — error text and stack trace, if processing failed.
+
+Enable **Debug** mode on both the integration and the uplink converter to capture all incoming messages and conversion results. Starting from ThingsBoard 3.9, full debug events are stored only during the first hour — afterward, only error events are retained. Disable debug mode once the issue is identified.
+
+<Aside type="note" title="Debug mode and disk usage">
+  Disable debug mode in production. When active, every processed message is written to the database. Switch back to **Failures** mode once setup is confirmed.
+</Aside>
+
+## See Also
+
+- <DocLink product={props.product} path="user-guide/integrations" target="_blank">Integration Overview</DocLink>
+- <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">Uplink Converters</DocLink>
+- <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink Converters</DocLink>
+- <DocLink product={props.product} path="user-guide/rule-engine" target="_blank">Rule Engine</DocLink>
+- <DocLink product={props.product} path="user-guide/tbel" target="_blank">ThingsBoard Expression Language (TBEL)</DocLink>

@@ -1,6 +1,7 @@
 ---
 import { getImage } from 'astro:assets';
 import type { ImageMetadata } from 'astro';
+import { claimFirstContentImage } from '@util/first-content-image';
 import { Products } from '~/models/site.models';
 import 'photoswipe/style.css';
 
@@ -32,6 +33,7 @@ const productSuffix: Record<Products, string> = {
 	[Products.EDGE_PE]: 'edge-pe',
 	[Products.GW]: 'gw',
 	[Products.LICENSE]: 'license',
+	[Products.IOT_HUB]: 'iot-hub',
 	[Products.TRENDZ]: 'trendz',
 	[Products.MOBILE]: 'mobile',
 	[Products.MOBILE_PE]: 'mobile-pe',
@@ -260,6 +262,13 @@ const processed = await Promise.all(
 );
 
 const isSingle = processed.length === 1;
+
+// This gallery's leading thumb is the page's likely LCP element when it is
+// the first content image on the page — load it eagerly (a `hasDark` pair
+// eager-loads both variants; a display:none <img> is still fetched when
+// eager). Deliberately no fetchpriority boost — see DocImage for why.
+const isFirstContentImage = processed.length > 0 && claimFirstContentImage(Astro.locals);
+const thumbLoading = (i: number) => (i === 0 && isFirstContentImage ? 'eager' : 'lazy');
 const useCardMode = cardMode && isSingle;
 ---
 
@@ -301,7 +310,7 @@ const useCardMode = cardMode && isSingle;
 							alt={processed[0].alt}
 							width={processed[0].fullWidth}
 							height={processed[0].fullHeight}
-							loading="lazy"
+							loading={thumbLoading(0)}
 							decoding="async"
 						/>
 						{processed[0].hasDark && (
@@ -311,7 +320,7 @@ const useCardMode = cardMode && isSingle;
 								alt={processed[0].alt}
 								width={processed[0].fullWidth}
 								height={processed[0].fullHeight}
-								loading="lazy"
+								loading={thumbLoading(0)}
 								decoding="async"
 							/>
 						)}
@@ -320,7 +329,7 @@ const useCardMode = cardMode && isSingle;
 			</figure>
 		) : (
 			<div class="gallery-grid">
-				{processed.map((img) => (
+				{processed.map((img, i) => (
 					<a
 						class="gallery-thumb"
 						href={img.fullSrc}
@@ -336,7 +345,7 @@ const useCardMode = cardMode && isSingle;
 								class:list={[{ 'light-only': img.hasDark }]}
 								src={img.thumbSrc}
 								alt={img.alt}
-								loading="lazy"
+								loading={thumbLoading(i)}
 								decoding="async"
 							/>
 							{img.hasDark && (
@@ -344,7 +353,7 @@ const useCardMode = cardMode && isSingle;
 									class="dark-only"
 									src={img.darkThumbSrc}
 									alt={img.alt}
-									loading="lazy"
+									loading={thumbLoading(i)}
 									decoding="async"
 								/>
 							)}
@@ -528,9 +537,9 @@ const useCardMode = cardMode && isSingle;
 	import PhotoSwipeLightbox from 'photoswipe/lightbox';
 	import type PhotoSwipe from 'photoswipe';
 	import type { SlideData } from 'photoswipe';
+	import { lockScroll, unlockScroll } from '@util/scroll-lock';
 
-	// Tear down on re-init so View Transitions (when enabled) don't accumulate
-	// duplicate click handlers / observers across navigations.
+	// Destroyed and rebuilt on each init() to avoid duplicate handlers / observers.
 	let currentLb: PhotoSwipeLightbox | undefined;
 
 	// CDN images skip the asset pipeline → no build-time dims. Use the visible
@@ -631,79 +640,6 @@ const useCardMode = cardMode && isSingle;
 		let pswp: PhotoSwipe | undefined;
 		let themeObserver: MutationObserver | null = null;
 
-		// PhotoSwipe v5 does NOT lock document scroll itself. We lock `<html>`
-		// and compensate fixed widgets so they don't jump when the scrollbar hides.
-		let headerOriginalPadding = '';
-		let htmlOriginalPadding = '';
-		let yourgptOriginalPositionX = '';
-		// Per-element flags — restore only what this open cycle actually
-		// modified (handles the case where scrollbar disappears between opens,
-		// e.g. window resize).
-		let headerCompensated = false;
-		let chatCompensated = false;
-		function lockScroll() {
-			const sw = window.innerWidth - document.documentElement.clientWidth;
-			htmlOriginalPadding = document.documentElement.style.paddingRight;
-			if (sw > 0) {
-				document.documentElement.style.paddingRight = sw + 'px';
-
-				// Full-width fixed header: pad from the inside.
-				const header = document.querySelector<HTMLElement>('header.header');
-				if (header) {
-					const cur = parseFloat(getComputedStyle(header).paddingRight) || 0;
-					headerOriginalPadding = header.style.paddingRight;
-					header.style.transition = 'none';
-					header.style.paddingRight = cur + sw + 'px';
-					requestAnimationFrame(() =>
-						requestAnimationFrame(() => {
-							header.style.transition = '';
-						})
-					);
-					headerCompensated = true;
-				}
-
-				// yourgpt chat widget uses a CSS variable for its right offset —
-				// inline-override it (wins over the class declaration).
-				const chat = document.querySelector<HTMLElement>('.ygpt-chatbot');
-				if (chat) {
-					yourgptOriginalPositionX = chat.style.getPropertyValue('--yourgptChatbotPositionX');
-					const currentX =
-						parseFloat(getComputedStyle(chat).getPropertyValue('--yourgptChatbotPositionX')) || 0;
-					chat.style.setProperty('--yourgptChatbotPositionX', currentX + sw + 'px');
-					chatCompensated = true;
-				}
-			}
-			document.documentElement.classList.add('gallery-scroll-locked');
-		}
-		function unlockScroll() {
-			document.documentElement.classList.remove('gallery-scroll-locked');
-			document.documentElement.style.paddingRight = htmlOriginalPadding;
-			if (headerCompensated) {
-				const header = document.querySelector<HTMLElement>('header.header');
-				if (header) {
-					header.style.transition = 'none';
-					header.style.paddingRight = headerOriginalPadding;
-					requestAnimationFrame(() =>
-						requestAnimationFrame(() => {
-							header.style.transition = '';
-						})
-					);
-				}
-				headerCompensated = false;
-			}
-			if (chatCompensated) {
-				const chat = document.querySelector<HTMLElement>('.ygpt-chatbot');
-				if (chat) {
-					if (yourgptOriginalPositionX) {
-						chat.style.setProperty('--yourgptChatbotPositionX', yourgptOriginalPositionX);
-					} else {
-						chat.style.removeProperty('--yourgptChatbotPositionX');
-					}
-				}
-				chatCompensated = false;
-			}
-		}
-
 		lb.on('beforeOpen', lockScroll);
 
 		lb.on('afterInit', () => {
@@ -762,7 +698,6 @@ const useCardMode = cardMode && isSingle;
 	}
 
 	init();
-	document.addEventListener('astro:page-load', init);
 </script>
 
 <style is:global>
@@ -790,11 +725,6 @@ const useCardMode = cardMode && isSingle;
 		/* Pre-allocate the blur compositing layer so it appears in sync with
 		   the bg opacity fade-in. */
 		will-change: backdrop-filter !important;
-	}
-
-	/* PhotoSwipe v5 doesn't lock document scroll itself. */
-	html.gallery-scroll-locked {
-		overflow: hidden !important;
 	}
 
 	.pswp__img {

@@ -17,6 +17,43 @@ export const data: UseCaseData = {
 			'https://demo.thingsboard.io/dashboard/3a1026e0-83f6-11e7-b56d-c7f326cba909?publicId=322a2330-7c36-11e7-835d-c7f326cba909',
 		demoButtonId: 'UseCases_SmartMetering_ViewLiveDemo',
 	},
+	overview: {
+		type: 'carousel',
+		carouselImages: [
+			{
+				src: '/src/assets/images/usecases/smart-metering/smart-metering-1.webp',
+				alt: 'ThingsBoard dashboard showing energy and water consumption, district map, and critical alarm for District B in San Francisco',
+				title:
+					'ThingsBoard dashboard – energy and water monitoring, map and alarms for San Francisco districts',
+				width: 2048,
+				height: 1090,
+			},
+			{
+				src: '/src/assets/images/usecases/smart-metering/smart-metering-2.webp',
+				alt: 'ThingsBoard dashboard displaying District A buildings on the map, energy and water consumption, and a critical high temperature alarm',
+				title:
+					'ThingsBoard dashboard – monitoring buildings in District A with real-time energy, water usage, and critical alarms',
+				width: 2048,
+				height: 1090,
+			},
+			{
+				src: '/src/assets/images/usecases/smart-metering/smart-metering-3.webp',
+				alt: 'ThingsBoard dashboard with apartment layout of Building A1, showing energy and water usage for Apartments A1-1 and A1-2, and a critical temperature alarm',
+				title:
+					'ThingsBoard dashboard – apartment-level monitoring in Building A1 with real-time energy, water consumption, and alarms',
+				width: 2048,
+				height: 1090,
+			},
+			{
+				src: '/src/assets/images/usecases/smart-metering/smart-metering-4.webp',
+				alt: 'ThingsBoard dashboard showing thermostat readings, real-time temperature control, a critical high temperature alarm, and historical temperature graph for Apartment A1-1',
+				title:
+					'ThingsBoard dashboard – thermostat monitoring and control with temperature history and alarm for Apartment A1-1',
+				width: 2048,
+				height: 1090,
+			},
+		],
+	},
 	solutionStructure: {
 		title: 'Solution structure of smart metering',
 		shortText:
