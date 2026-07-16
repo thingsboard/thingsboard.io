@@ -406,29 +406,24 @@ Open it and check:
 
 ## Configure Downlink
 
-To write values back to the server or call OPC-UA methods, attach a downlink converter to the integration. Its encoder returns a single object:
+Downlink lets ThingsBoard write back to the server. The Rule Engine turns an RPC (or shared-attribute update) into a message, routes it through an **Integration Downlink** rule node to the downlink converter, and the converter encodes it into OPC-UA write operations or method calls.
 
-- `contentType` — `JSON`
+<Aside type="caution">
+  The public demo server is shared and read-oriented — writes affect every user and may be rejected or reset. **Test downlink only against your own self-hosted Prosys server**, where you can safely write to `MySwitch` and watch it change. Point the integration's **Host** at your local server for this part.
+</Aside>
+The encoder must return an object with:
+
+- `contentType` — `JSON`.
 - `data` — a JSON string with two optional arrays:
   - `writeValues` — `{nodeId, value}` pairs. NodeId format: `ns=<namespaceIndex>;<type>=<identifier>`, where `<type>` is `s` (string), `i` (numeric), `g` (GUID), or `b` (byte string).
   - `callMethods` — `{objectId, methodId, args}` objects.
 - `metadata` — must be an empty object `{}` for OPC-UA.
-For example, to flip **MySwitch**, write a Boolean to its node:
 
-```json
-{
-  "writeValues": [
-    { "nodeId": "ns=<index>;s=<MySwitch NodeId>", "value": true }
-  ],
-  "callMethods": []
-}
-```
+The converter below reacts to an RPC named `setSwitch` carrying a boolean parameter and writes it to the device's **MySwitch** node.
 
 Read the exact NodeId of **MySwitch** by browsing the server with the <a href="https://www.prosysopc.com/products/opc-ua-browser/" target="_blank"><strong>Prosys OPC UA Browser</strong></a> rather than assuming a namespace index. For the complete encoder reference and testing tools see <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink data converter</DocLink>.
 
-<Aside type="caution">
-  The public demo server is shared and writes affect every user, so downlink is best tested against your own self-hosted Prosys server rather than the UADEMO instance. Writes to the public server may also be rejected or reset at any time.
-</Aside>
+For a method call instead of a write (e.g. `MyMethod`), leave `writeValues` empty and push to `callMethods` a `{ objectId, methodId, args }` object, reading both NodeIds from the server. See <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink data converter</DocLink> for the full encoder reference.
 
 ### Add Downlink Converter
 
@@ -456,11 +451,11 @@ Read the exact NodeId of **MySwitch** by browsing the server with the <a href="h
     };
     
     if (msgType == 'RPC_CALL_FROM_SERVER_TO_DEVICE' && msg.method == 'setSwitch') {
-      // deviceName comes from the message metadata (device originator).
       // cs_namespaceIndex is the client attribute 'namespaceIndex' pulled into metadata
       // by the 'originator attributes' rule node (cs_ = client-scope prefix).
-      // VERIFY the MySwitch identifier against your server (Prosys OPC UA Browser).
-      var nodeId = 'ns=' + metadata['cs_namespaceIndex'] + ';s=' + metadata['deviceName'] + '.MySwitch';
+      // The identifier is just 'MySwitch' on this server — VERIFY yours with the
+      // Prosys OPC UA Browser rather than assuming it's prefixed with the device name.
+      var nodeId = 'ns=' + metadata['cs_namespaceIndex'] + ';s=MySwitch';
   
       // Normalize the RPC parameter to a real Boolean
       var value = (msg.params == true || msg.params == 'true' || msg.params == 1 || msg.params == '1');
@@ -488,9 +483,11 @@ Read the exact NodeId of **MySwitch** by browsing the server with the <a href="h
 
     if (msgType === 'RPC_CALL_FROM_SERVER_TO_DEVICE' && msg.method === 'setSwitch') {
       // cs_namespaceIndex = client attribute 'namespaceIndex' added to metadata by the
-      // 'originator attributes' node; verify the MySwitch identifier against your server.
-      var nodeId = 'ns=' + metadata['cs_namespaceIndex'] + ';s=' + metadata['deviceName'] + '.MySwitch';
+      // 'originator attributes' node. The identifier is just 'MySwitch' on this server —
+      // verify yours with the Prosys OPC UA Browser rather than assuming a device-name prefix.
+      var nodeId = 'ns=' + metadata['cs_namespaceIndex'] + ';s=MySwitch';
       var value = (msg.params === true || msg.params === 'true' || msg.params === 1 || msg.params === '1');
+    
       data.writeValues.push({ nodeId: nodeId, value: value });
     }
 
@@ -505,19 +502,57 @@ Read the exact NodeId of **MySwitch** by browsing the server with the <a href="h
   </TabItem>
 </Tabs>
 
-<Steps>
-  <ol start="7">
-    <li>Optionally, click <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter/#test-encoder-function" target="_blank">**Test encoder function**</DocLink> to validate.</li>
-    <li>Click **Add**.</li>
-  </ol>
-</Steps>
-
 ### Configure the Root Rule Chain
 
-Go to **Rule chains** and open the **Root Rule Chain** (or a dedicated chain):
-      - Add an **originator fields** node and map the originator **Name** to metadata key `deviceName` (the converter reads `metadata['deviceName']`).
-      - Add an **integration downlink** node and set its **Integration** to your OPC-UA integration.
-      - Connect the **Message Type Switch** output **RPC Request to Device** → **originator fields**, then its **Success** → **integration downlink**. Save.
+Configure the Root Rule Chain to forward RPC requests to the OPC-UA integration.
+
+Two rule nodes are needed: an <strong>originator attributes</strong> node that reads the device's <code>namespaceIndex</code> client attribute and injects it into message metadata (the downlink converter reads it as <code>cs_namespaceIndex</code> to build the NodeId), and an <strong>integration downlink</strong> node that sends the message to the integration.
+
+<Steps>
+  1. Go to <strong>Rule chains &#8702; Root Rule Chain</strong>.
+  2. In the <strong>Enrichment</strong> section of the node library, find the <strong>originator attributes</strong> node and drag it onto the canvas.
+  3. Configure the node:
+      - <strong>Name</strong> — e.g. <code>Retrieve namespaceIndex</code>.
+      - Under <strong>Client attributes</strong>, add <code>namespaceIndex</code>.
+      - Set <strong>Add originator attributes to</strong> to <strong>Metadata</strong>.
+      - Click <strong>Add</strong>.
+  4. In the node panel, search for <strong>integration downlink</strong> and drag it onto the canvas.
+  5. Configure the node:
+      - <strong>Name</strong> — e.g. <code>Downlink to OPC-UA</code>.
+      - Under <strong>Integration</strong> — select <strong>OPC-UA integration</strong>.
+      - Click <strong>Add</strong>.
+  6. Connect the <strong>message type switch</strong> node to the <strong>originator attributes</strong> node using the <strong>RPC Request to Device</strong> relation.
+  7. Connect the <strong>originator attributes</strong> node to the <strong>integration downlink</strong> node using the <strong>Success</strong> relation.
+  8. Click <strong>Apply changes</strong>.
+</Steps>
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/user-guide/integrations/opc-ua/opc-ua-root-rule-chain-1.png',
+    alt: 'Searching for originator attributes node in the Root Rule Chain node panel',
+    caption: 'In the <strong>Rule chains &#8702; Root Rule Chain</strong> edit view, type <strong>originator attributes</strong> in the node search panel and locate it under the <strong>Enrichment</strong> category.',
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/opc-ua/opc-ua-root-rule-chain-2.png',
+    alt: 'Configuring the originator attributes rule node with name Retrieve namespaceIndex and namespaceIndex client attribute added to Metadata',
+    caption: 'Set the node name to <strong>Retrieve namespaceIndex</strong>, add <code>namespaceIndex</code> under <strong>Client attributes</strong>, set <strong>Add originator attributes to</strong> to <strong>Metadata</strong>, and click <strong>Add</strong>.',
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/opc-ua/opc-ua-root-rule-chain-3.png',
+    alt: 'Searching for integration downlink node in the Root Rule Chain node panel',
+    caption: 'Type <strong>integration downlink</strong> in the node search panel and locate it under the <strong>Action</strong> category.',
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/opc-ua/opc-ua-root-rule-chain-4.png',
+    alt: 'Configuring the integration downlink rule node with name Downlink to OPC-UA and OPC-UA integration selected',
+    caption: 'Set the node name to <strong>Downlink to OPC-UA</strong>, select <strong>OPC-UA integration</strong> in the <strong>Integration</strong> field, and click <strong>Add</strong>.',
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/opc-ua/opc-ua-root-rule-chain-5.png',
+    alt: 'Completed Root Rule Chain showing originator attributes and integration downlink nodes connected in sequence, with Apply changes button highlighted',
+    caption: 'Connect the <strong>message type switch</strong> node to <strong>Retrieve namespaceIndex</strong> via the <strong>RPC Request to Device</strong> relation, then <strong>Retrieve namespaceIndex</strong> to <strong>Downlink to OPC-UA</strong> via <strong>Success</strong>. Click <strong>Apply changes</strong> to save.',
+  },
+]} />
 
 ### Test Downlink
 
@@ -532,8 +567,18 @@ curl -X POST "https://<your-thingsboard-host>/api/rpc/oneway/<DEVICE_ID>" \
 
 ### Verify Downlink Converter Events
 
-- In the integration's **Events** tab, filter to **Downlink** — a new event shows the encoded `writeValues` with your NodeId and value.
-- In the Prosys server, select **MySwitch** and confirm its value flipped to what you sent.
+Go to **Integrations center &#8702; Data converters**, open **OPC-UA Downlink Converter**, and click the **Events** tab.
+Click an event row to inspect:
+- **In** — the Rule Engine message received by the converter: `msg` contains the RPC `method` and `params`; `metadata.cs_namespaceIndex` and `metadata.deviceName` are injected by the **originator attributes** node.
+- **Out** — the encoded output sent to the integration: a JSON `writeValues` array with your NodeId and value.
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/opc-ua/opc-ua-validate-downlink-event-1.png', alt: 'Data converters list with OPC-UA Downlink Converter selected, Events tab showing one Downlink event', caption: 'Open the downlink data converter and click the Events tab — a Downlink event confirms the converter was triggered.' },
+  { src: '/src/assets/images/user-guide/integrations/opc-ua/opc-ua-validate-downlink-event-2.png', alt: 'Downlink event In panel showing the Rule Engine input message with msg.method, msg.params, and metadata.cs_namespaceIndex fields', caption: 'The In panel shows the input message: msg contains the RPC method and params, and metadata carries cs_namespaceIndex and deviceName injected by the originator attributes node.' },
+  { src: '/src/assets/images/user-guide/integrations/opc-ua/opc-ua-validate-downlink-event-3.png', alt: 'Downlink event Out panel showing the encoded JSON output with a writeValues array containing the NodeId and value', caption: 'The Out panel shows the converter output: a JSON writeValues array with the NodeId and value ready to be sent to the OPC-UA server.' },
+]} />
+
+In the Prosys server, select **MySwitch** and confirm its value flipped to what you sent.
 
 **Expected result:** the RPC reaches the integration, the downlink converter emits a `writeValues` entry, and **MySwitch** on the server changes to the sent boolean. If you also added a `switchState → MySwitch` subscription tag, the new value flows back into ThingsBoard as an attribute on the next scan.
 
