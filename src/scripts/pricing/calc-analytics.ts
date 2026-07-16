@@ -3,9 +3,9 @@
 // flush(), so the final — most complete — config isn't lost when the user
 // closes the modal or leaves the page within the 3s debounce window.
 
-// The 5 pricing calculators. Threaded through the helpers so a mistyped value
+// The 6 pricing calculators. Threaded through the helpers so a mistyped value
 // fails to compile instead of silently mis-bucketing in GA4.
-export type CalculatorType = 'tb_payg' | 'tb_pc' | 'tbmq_payg' | 'tbmq_pc' | 'tbmq_perp';
+export type CalculatorType = 'tb_payg' | 'tb_pc' | 'tb_perp' | 'tbmq_payg' | 'tbmq_pc' | 'tbmq_perp';
 
 // Debounce settle for calculator_interaction — single home for the value.
 const SETTLE_MS = 3000;
@@ -90,7 +90,7 @@ export function pushExport(
 	});
 }
 
-// Calculator-open event (the 2 modal calculators).
+// Calculator-open event (the 3 modal calculators).
 export function pushCalculatorOpen(calculatorType: CalculatorType): void {
 	pushCalculatorEvent({ event: 'calculator_open', calculator_type: calculatorType });
 }
