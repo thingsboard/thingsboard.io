@@ -57,7 +57,7 @@ export const data: CaseStudyData = {
 		blocks: [
 			{
 				title: 'Comprehensive Reporting & Analytics',
-				text: 'Generate daily & monthly reports, showcasing operational and energy management insights. Moreover, showing important information such as the temperature of devices throughout the day and any alarms that were triggered.',
+				text: 'Generate daily & monthly reports, showcasing operational and energy management insights. Moreover, the reports show important information such as the temperature of devices throughout the day and any alarms that were triggered.',
 				image: '/images/case-studies/acte-technology-1.webp',
 				imageAlt: 'Daily and monthly operational and energy management reports',
 			},
@@ -89,7 +89,7 @@ export const data: CaseStudyData = {
 	},
 
 	help: {
-		industryName: 'power and improve datacenter operations',
+		industryName: 'datacenter operators power and improve their operations',
 		blocks: [
 			{
 				title: 'Rule Engine and calculated fields',

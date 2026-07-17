@@ -47,17 +47,17 @@ export const data: CaseStudyData = {
 
 	power: {
 		companyName: 'IBT Systems',
-		heading: 'How IBT Systems is supporting academic research in Precision Livestock Farming?',
+		heading: 'How IBT Systems supports academic research in Precision Livestock Farming?',
 		blocks: [
 			{
 				title: 'ThingsBoard allowed very fast prototyping',
-				text: 'Thanks to its intuitive and well documented structure, ThingsBoard allowed a small team of young engineers to design and implement an eye-catching prototype of a complete dashboard in a short time, while maintaining a clear control on the service costs.',
+				text: 'Thanks to its intuitive and well-documented structure, ThingsBoard allowed a small team of young engineers to design and implement an eye-catching prototype of a complete dashboard in a short time, while maintaining a clear control on the service costs.',
 				image: '/images/case-studies/ibt-systems-1.webp',
 				imageAlt: 'ThingsBoard barn monitoring dashboard built by IBT Systems',
 			},
 			{
 				title: 'Fast integration with IoT devices',
-				text: 'The prototype was right away used to start the integration of several different types of IoT data sources. The flexibility of input gateways and the variety of supported protocols allowed to easily adapt to the peculiar data structures needed by the in-field system.',
+				text: 'The prototype was right away used to start the integration of several different types of IoT data sources. The flexibility of input gateways and the variety of supported protocols allowed us to easily adapt to the peculiar data structures needed by the in-field system.',
 				image: '/images/case-studies/ibt-systems-2.webp',
 				imageAlt: 'Oscilloscope used during the integration of IoT devices',
 			},
@@ -77,7 +77,7 @@ export const data: CaseStudyData = {
 	},
 
 	help: {
-		industryName: 'Precision Livestock Farming improve operations with IoT',
+		industryName: 'Precision Livestock Farming researchers improve operations with IoT',
 		blocks: [
 			{
 				title: 'Protocol integration',
@@ -97,7 +97,7 @@ export const data: CaseStudyData = {
 			},
 			{
 				title: 'Simple processing',
-				text: 'The combination of powerful rule chain blocks with custom scripting allows to implement most of typical data processing directly within ThingsBoard without the need of external data processing services.',
+				text: 'The combination of powerful rule chain blocks with custom scripting allows implementing most of the typical data processing directly within ThingsBoard without the need for external data processing services.',
 				images: [
 					{
 						src: 'https://img.thingsboard.io/case-studies/tables.webp',
