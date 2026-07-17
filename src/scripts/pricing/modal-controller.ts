@@ -1,5 +1,5 @@
-// Shared open/close controller for the pricing calculator modals
-// (TB Private Cloud + PAYG). Encapsulates the choreography both modals share:
+// Shared open/close controller for the pricing calculator modals.
+// Encapsulates the choreography the modals share:
 //   • portal the fixed overlay to <body> so it escapes Starlight's
 //     `.main-pane { isolation: isolate }` and paints above the site header;
 //   • lock page scroll (scrollbar-width compensated) while open;

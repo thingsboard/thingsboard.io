@@ -23,6 +23,11 @@ const PERP = {
 	customPricingFrom: 24998,
 };
 
+// Default helper under the Production Instances stepper. The SSR markup in
+// TbPerpetualCalculator.astro carries the same sentence as the pre-JS
+// placeholder — keep the two in sync when editing.
+const PROD_DESC_DEFAULT = '1 included. Add a 2nd for high availability (HA). Each purchased instance includes 5,000 devices; every full 5,000 extra devices adds one production instance at no charge.';
+
 const PERP_SLIDER_BP = 20000;
 const PERP_SLIDER_MAX = 25000;
 const PERP_REAL_MAX = 1000000;
@@ -32,11 +37,6 @@ const realToSlider = (v: number) => v <= PERP_SLIDER_BP ? v : PERP_SLIDER_BP + (
 let openImpl: (() => void) | null = null;
 
 const CALC_TYPE: CalculatorType = 'tb_perp';
-
-// Above the custom-pricing threshold every dollar amount is suppressed — the
-// configuration stays visible, the prices don't. Single home for that rule;
-// used by both the results renderer and the contact-message builder.
-const moneyGate = (isCustom: boolean) => (v: string) => (isCustom ? '' : v);
 
 export function initTbPerpCalc() {
 	if (openImpl) return;
@@ -64,10 +64,11 @@ export function initTbPerpCalc() {
 	// full 5,000 purchased extra devices unlocks 1 complimentary instance.
 	// State therefore tracks what the user *buys*; the device field and the
 	// instance stepper both display the resulting entitlement.
-	let st = {
+	const initialState = () => ({
 		extraDevices: 0, instances: 0, dev: 0, aiPacks: PERP.includedAiCreditPacks,
-		addons: { edge: { on: false, count: 2 }, trendz: { on: false }, offline: { on: false } }
-	};
+		addons: { edge: { on: false, count: PERP.edgeInstancesIncluded }, trendz: { on: false }, offline: { on: false } }
+	});
+	let st = initialState();
 
 	const deviceFloor = () => PERP.includedDevices + st.instances * PERP.devicesPerInstance;
 	const deviceQuota = () => deviceFloor() + st.extraDevices;
@@ -76,21 +77,22 @@ export function initTbPerpCalc() {
 	const extraAiPacks = () => Math.max(0, st.aiPacks - PERP.includedAiCreditPacks);
 
 	let lastTotal: number | null = null;
+	// Single home for the plan label derivation (null total = contact-sales tier).
+	const planLabel = () => (lastTotal === null ? 'Custom' : 'Platform');
 
 	const calcAnalytics = makeInteractionPusher(CALC_TYPE);
-	const lastPlan = () => (lastTotal === null ? 'Custom' : 'Platform');
-	function sendPerpGTM(total: number | null) {
+	function sendPerpGTM() {
 		calcAnalytics.push({
 			event: 'calculator_interaction',
 			calculator_devices: deviceQuota(),
-			calculator_plan: total === null ? 'Custom' : 'Platform',
+			calculator_plan: planLabel(),
 			calculator_instances: totalInstances(),
 			calculator_ai_credits: st.aiPacks,
 			calculator_addon_dev_area: st.dev > 0,
 			calculator_addon_trendz_bot_area: st.addons.trendz.on,
 			calculator_addon_bot_area: st.addons.edge.on,
 			calculator_addon_offline: st.addons.offline.on,
-			calculator_total: total,
+			calculator_total: lastTotal,
 		});
 	}
 
@@ -124,7 +126,7 @@ export function initTbPerpCalc() {
 		devicesDesc.textContent = devParts.join(' + ');
 
 		if (comp === 0 && st.instances === 0) {
-			prodDesc.textContent = '1 included. Add a 2nd for high availability (HA). Each purchased instance includes 5,000 devices; every full 5,000 extra devices adds one production instance at no charge.';
+			prodDesc.textContent = PROD_DESC_DEFAULT;
 		} else {
 			const h = ['1 included'];
 			if (comp > 0) h.push(`${comp} complimentary for ${fN(comp * PERP.devicesPerInstance)} extra devices`);
@@ -184,7 +186,7 @@ export function initTbPerpCalc() {
 		else renderPriced(c);
 
 		lastTotal = c.isCustom ? null : c.total;
-		if (opts?.track !== false) sendPerpGTM(lastTotal);
+		if (opts?.track !== false) sendPerpGTM();
 	}
 
 	const tagSvg = '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.5 7.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M3 6v5.172a2 2 0 0 0 .586 1.414l7.71 7.71a2.41 2.41 0 0 0 3.408 0l5.592 -5.592a2.41 2.41 0 0 0 0 -3.408l-7.71 -7.71a2 2 0 0 0 -1.414 -.586h-5.172a3 3 0 0 0 -3 3z"/></svg>';
@@ -258,7 +260,7 @@ export function initTbPerpCalc() {
 			html += `<div class="calc-addon-result"><span class="calc-addon-result-name">Offline Mode</span><button type="button" class="calc-addon-result-action" data-enable-perp-addon="offline">Add (${fmt(PERP.offlineModePrice)})</button></div>`;
 		}
 
-		const _st = results.parentElement?.scrollTop || 0; results.innerHTML = html; if (results.parentElement) results.parentElement.scrollTop = _st;
+		const _scroll = results.parentElement?.scrollTop || 0; results.innerHTML = html; if (results.parentElement) results.parentElement.scrollTop = _scroll;
 
 		const totalParts = [`${fmt(PERP.price)} (base)`];
 		if (c.extraDevCost > 0) totalParts.push(`${fmt(c.extraDevCost)} (extra devices)`);
@@ -284,7 +286,9 @@ export function initTbPerpCalc() {
 
 	function buildSummary(c: Costs): string {
 		const comp = getComplimentary();
-		const money = moneyGate(c.isCustom);
+		// Above the custom-pricing threshold the message carries the
+		// configuration without any dollar amounts.
+		const money = (v: string) => (c.isCustom ? '' : v);
 
 		let msg = c.isCustom ? `Perpetual License request\n\n` : `Perpetual License: ThingsBoard PE\n\n`;
 
@@ -326,6 +330,29 @@ export function initTbPerpCalc() {
 		requestAnimationFrame(() => { _calcQueued = false; calculate(); });
 	}
 
+	// Generic stepper wiring for the simple counters (dev / AI / edge): +/- with
+	// a minimum clamp, live typing that clamps state (never the field) so the
+	// debounced GTM push can't report a sub-minimum configuration, and blur
+	// normalization of the field. The production-instances stepper stays
+	// hand-rolled — it edits purchases while displaying the derived total.
+	function bindStepper(stepper: HTMLElement, inp: HTMLInputElement, dec: HTMLButtonElement, min: number, get: () => number, set: (v: number) => void) {
+		// A typed "0" is a legitimate live value only where 0 is purchasable
+		// (dev instances); on min>0 steppers it stays inert until blur so a
+		// transient keystroke doesn't yank the state below the user's choice.
+		const typingFloor = min > 0 ? 1 : 0;
+		stepper.querySelectorAll('.calc-stepper-btn').forEach(btn => {
+			btn.addEventListener('click', () => {
+				if ((btn as HTMLButtonElement).disabled) return;
+				set((btn as HTMLElement).dataset.action === 'increment' ? Math.max(min, get()) + 1 : Math.max(min, get() - 1));
+				inp.value = String(get());
+				dec.disabled = get() <= min;
+				calculate();
+			});
+		});
+		inp.addEventListener('input', () => { const v = parseInt(inp.value); if (!isNaN(v) && v >= typingFloor) { set(Math.max(min, v)); dec.disabled = get() <= min; scheduleCalculate(); } });
+		inp.addEventListener('blur', () => { const v = Math.max(min, parseInt(inp.value) || min); set(v); inp.value = String(v); dec.disabled = v <= min; calculate(); });
+	}
+
 	// ─── Devices slider + input ───
 	// Both edit the *purchased extras* on top of the entitlement floor
 	// (5,000 base + 5,000 per purchased instance); the field itself always
@@ -343,7 +370,9 @@ export function initTbPerpCalc() {
 	});
 	slider.addEventListener('change', () => { syncDevicesControls(); calculate(); });
 	devInput.addEventListener('input', () => { const v = parseInt(devInput.value); if (!isNaN(v) && v > 0) { st.extraDevices = Math.max(0, Math.min(PERP_REAL_MAX, v) - deviceFloor()); syncDevicesControls(); scheduleCalculate(); } });
-	devInput.addEventListener('blur', () => { const v = parseInt(devInput.value) || 0; st.extraDevices = Math.max(0, Math.min(PERP_REAL_MAX, v) - deviceFloor()); syncDevicesControls(); calculate(); });
+	// An emptied field keeps the current configuration instead of discarding
+	// it — same contract as the instances field below.
+	devInput.addEventListener('blur', () => { const v = parseInt(devInput.value); if (!isNaN(v)) st.extraDevices = Math.max(0, Math.min(PERP_REAL_MAX, v) - deviceFloor()); syncDevicesControls(); calculate(); });
 
 	// ─── Production instances stepper ───
 	// Displays the total entitlement (included + purchased + complimentary);
@@ -361,59 +390,22 @@ export function initTbPerpCalc() {
 	// An emptied field keeps the current purchases instead of discarding them.
 	prodInp.addEventListener('blur', () => { const v = parseInt(prodInp.value); if (!isNaN(v)) st.instances = Math.max(0, v - PERP.includedProdInstances - getComplimentary()); syncDevicesControls(); calculate(); });
 
-	// ─── Dev instances stepper ───
+	// ─── Dev / AI credits / Edge steppers ───
 	const devInp = $('#perp-dev') as HTMLInputElement;
 	const devStepper = $('#perp-dev-stepper');
 	const devDec = devStepper.querySelector('[data-action="decrement"]') as HTMLButtonElement;
-	devStepper.querySelectorAll('.calc-stepper-btn').forEach(btn => {
-		btn.addEventListener('click', () => {
-			if ((btn as HTMLButtonElement).disabled) return;
-			st.dev = (btn as HTMLElement).dataset.action === 'increment' ? st.dev + 1 : Math.max(0, st.dev - 1);
-			devInp.value = String(st.dev);
-			devDec.disabled = st.dev <= 0;
-			calculate();
-		});
-	});
-	devInp.addEventListener('input', () => { const v = parseInt(devInp.value); if (!isNaN(v) && v >= 0) { st.dev = v; devDec.disabled = v <= 0; scheduleCalculate(); } });
-	devInp.addEventListener('blur', () => { const v = Math.max(0, parseInt(devInp.value) || 0); st.dev = v; devInp.value = String(v); devDec.disabled = v <= 0; calculate(); });
+	bindStepper(devStepper, devInp, devDec, 0, () => st.dev, (v) => { st.dev = v; });
 
-	// ─── AI credits stepper ───
 	const aiInp = $('#perp-ai') as HTMLInputElement;
 	const aiStepper = $('#perp-ai-stepper');
 	const aiDec = aiStepper.querySelector('[data-action="decrement"]') as HTMLButtonElement;
-	aiStepper.querySelectorAll('.calc-stepper-btn').forEach(btn => {
-		btn.addEventListener('click', () => {
-			if ((btn as HTMLButtonElement).disabled) return;
-			const min = PERP.includedAiCreditPacks;
-			st.aiPacks = (btn as HTMLElement).dataset.action === 'increment' ? Math.max(min, st.aiPacks) + 1 : Math.max(min, st.aiPacks - 1);
-			aiInp.value = String(st.aiPacks);
-			aiDec.disabled = st.aiPacks <= min;
-			calculate();
-		});
-	});
-	// State never dips below the included packs even mid-typing — the settled
-	// GTM push must not report a sub-minimum configuration; the field itself
-	// is only normalized on blur.
-	aiInp.addEventListener('input', () => { const v = parseInt(aiInp.value); if (!isNaN(v) && v >= 1) { st.aiPacks = Math.max(PERP.includedAiCreditPacks, v); aiDec.disabled = st.aiPacks <= PERP.includedAiCreditPacks; scheduleCalculate(); } });
-	aiInp.addEventListener('blur', () => { const min = PERP.includedAiCreditPacks; const v = Math.max(min, parseInt(aiInp.value) || min); st.aiPacks = v; aiInp.value = String(v); aiDec.disabled = v <= min; calculate(); });
+	bindStepper(aiStepper, aiInp, aiDec, PERP.includedAiCreditPacks, () => st.aiPacks, (v) => { st.aiPacks = v; });
 
-	// ─── Edge stepper ───
 	const edgeInp = $('#perp-edge') as HTMLInputElement;
 	const edgeCounter = $('#perp-edge-counter');
 	const edgeStepper = $('#perp-edge-stepper');
 	const edgeDec = edgeStepper.querySelector('[data-action="decrement"]') as HTMLButtonElement;
-	edgeStepper.querySelectorAll('.calc-stepper-btn').forEach(btn => {
-		btn.addEventListener('click', () => {
-			if ((btn as HTMLButtonElement).disabled) return;
-			const min = PERP.edgeInstancesIncluded;
-			st.addons.edge.count = (btn as HTMLElement).dataset.action === 'increment' ? st.addons.edge.count + 1 : Math.max(min, st.addons.edge.count - 1);
-			edgeInp.value = String(st.addons.edge.count);
-			edgeDec.disabled = st.addons.edge.count <= min;
-			calculate();
-		});
-	});
-	edgeInp.addEventListener('input', () => { const v = parseInt(edgeInp.value); if (!isNaN(v) && v >= 1) { st.addons.edge.count = v; edgeDec.disabled = v <= PERP.edgeInstancesIncluded; scheduleCalculate(); } });
-	edgeInp.addEventListener('blur', () => { const min = PERP.edgeInstancesIncluded; const v = Math.max(min, parseInt(edgeInp.value) || min); st.addons.edge.count = v; edgeInp.value = String(v); edgeDec.disabled = v <= min; calculate(); });
+	bindStepper(edgeStepper, edgeInp, edgeDec, PERP.edgeInstancesIncluded, () => st.addons.edge.count, (v) => { st.addons.edge.count = v; });
 
 	// ─── Addon toggles ───
 	toggles.edge.addEventListener('change', () => {
@@ -431,12 +423,12 @@ export function initTbPerpCalc() {
 	bindExportButtons(modal, CALC_TYPE, {
 		buildText: () => buildSummary(computeCosts()),
 		filename: 'perpetual-license-calculation.txt',
-		getExtra: () => ({ calculator_total: lastTotal, calculator_plan: lastPlan() }),
+		getExtra: () => ({ calculator_total: lastTotal, calculator_plan: planLabel() }),
 	});
 
 	// Footer CTA tracking. Footer re-renders every recalc, so delegate one
 	// click listener on the stable modal element.
-	bindCtaTracking(modal, CALC_TYPE, () => ({ calculator_total: lastTotal, calculator_plan: lastPlan() }));
+	bindCtaTracking(modal, CALC_TYPE, () => ({ calculator_total: lastTotal, calculator_plan: planLabel() }));
 
 	// ─── Modal ───
 	const { open: openModal } = makeModalController({
@@ -452,10 +444,10 @@ export function initTbPerpCalc() {
 
 	// ─── Reset ───
 	$('[data-calc-reset]').addEventListener('click', () => {
-		st = { extraDevices: 0, instances: 0, dev: 0, aiPacks: PERP.includedAiCreditPacks, addons: { edge: { on: false, count: 2 }, trendz: { on: false }, offline: { on: false } } };
+		st = initialState();
 		devInp.value = '0';
 		aiInp.value = String(PERP.includedAiCreditPacks);
-		edgeInp.value = '2';
+		edgeInp.value = String(PERP.edgeInstancesIncluded);
 		toggles.edge.checked = false; toggles.trendz.checked = false; toggles.offline.checked = false;
 		cards.edge.classList.remove('active'); cards.trendz.classList.remove('active'); cards.offline.classList.remove('active');
 		edgeCounter.classList.add('hidden');
