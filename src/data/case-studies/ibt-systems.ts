@@ -71,7 +71,7 @@ export const data: CaseStudyData = {
 				title: 'Comply with regulations',
 				text: 'As public institutions, Italian universities and zooprophylactic institutes must comply with various legal requirements related to both software licensing models and the geographic location of their services and data. The ease of migrating ThingsBoard applications from the cloud-based solution to a fully on-premises implementation has made it possible to easily deploy the final solution while meeting all the regulatory requirements of this specific sector.',
 				image: '/images/case-studies/ibt-systems-4.webp',
-				imageAlt: 'Letter tiles spelling out compliance with regulations',
+				imageAlt: 'Hand presenting a compliance checkmark surrounded by legal and security icons',
 			},
 		],
 	},
