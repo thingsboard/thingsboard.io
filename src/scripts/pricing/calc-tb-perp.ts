@@ -15,8 +15,8 @@ const PERP = {
 	// Extra packs have no public list price (priced per-plan on the License
 	// Portal), so requesting them routes to the custom-pricing wall.
 	includedAiCreditPacks: 5,
-	edgeMonthPrice: 849, edgeInstancesIncluded: 2, extraEdgePrice: 399,
-	trendzMonthPrice: 1499, trendzExtraDevicePrice: 0.3,
+	edgeBasePrice: 849, edgeInstancesIncluded: 2, extraEdgePrice: 399,
+	trendzBasePrice: 1499, trendzExtraDevicePrice: 0.3,
 	offlineModePrice: 19999,
 	// From this total onward we stop quoting a number and route to sales
 	// (matches the License Portal calculator threshold).
@@ -31,6 +31,9 @@ const PROD_DESC_DEFAULT = '1 included. Add a 2nd for high availability (HA). Eac
 const PERP_SLIDER_BP = 20000;
 const PERP_SLIDER_MAX = 25000;
 const PERP_REAL_MAX = 1000000;
+// Purchased instances alone must not push the quota past the 1M device cap:
+// 5,000 base + MAX_INSTANCES × 5,000 = PERP_REAL_MAX exactly.
+const MAX_INSTANCES = (PERP_REAL_MAX - 5000) / 5000;
 const sliderToReal = (v: number) => v <= PERP_SLIDER_BP ? v : Math.round(PERP_SLIDER_BP + (v - PERP_SLIDER_BP) * ((PERP_REAL_MAX - PERP_SLIDER_BP) / (PERP_SLIDER_MAX - PERP_SLIDER_BP)));
 const realToSlider = (v: number) => v <= PERP_SLIDER_BP ? v : PERP_SLIDER_BP + (v - PERP_SLIDER_BP) * ((PERP_SLIDER_MAX - PERP_SLIDER_BP) / (PERP_REAL_MAX - PERP_SLIDER_BP));
 
@@ -43,7 +46,7 @@ export function initTbPerpCalc() {
 	const modal = document.getElementById('tb-perp-calc');
 	if (!modal) return;
 	const $ = (s: string) => modal.querySelector(s) as HTMLElement;
-	const devInput = $('#perp-devices') as HTMLInputElement;
+	const devicesInput = $('#perp-devices') as HTMLInputElement;
 	const slider = $('#perp-devices-slider') as HTMLInputElement;
 	const results = $('[data-calc-results]');
 	const footer = $('[data-calc-footer]');
@@ -109,14 +112,16 @@ export function initTbPerpCalc() {
 	// same state so they always stay in sync (e.g. "5 000 included + 5 000
 	// included from instance").
 	function updateEntitlementUI() {
-		// Purchased instances raise the entitlement floor, so re-clamp the extras
-		// against the device cap here — every state mutation funnels through this.
+		// Purchased instances raise the entitlement floor, so re-clamp both the
+		// instances and the extras against the device cap here — every state
+		// mutation funnels through this.
+		st.instances = Math.min(st.instances, MAX_INSTANCES);
 		st.extraDevices = Math.max(0, Math.min(st.extraDevices, Math.max(0, PERP_REAL_MAX - deviceFloor())));
 		const comp = getComplimentary();
 		// Don't rewrite a field the user is currently typing in — the state is
 		// normalized and the field re-synced on blur.
-		if (document.activeElement !== devInput) devInput.value = String(deviceQuota());
-		devInput.min = String(deviceFloor());
+		if (document.activeElement !== devicesInput) devicesInput.value = String(deviceQuota());
+		devicesInput.min = String(deviceFloor());
 		if (document.activeElement !== prodInp) prodInp.value = String(totalInstances());
 		prodDec.disabled = st.instances <= 0;
 
@@ -158,8 +163,8 @@ export function initTbPerpCalc() {
 		// Add-ons scale with every device beyond the base 5,000 — purchased
 		// extras and instance-granted devices alike.
 		const extraDevTotal = deviceQuota() - PERP.includedDevices;
-		const edgeCost = st.addons.edge.on ? PERP.edgeMonthPrice + Math.max(0, st.addons.edge.count - PERP.edgeInstancesIncluded) * PERP.extraEdgePrice : 0;
-		const trendzCost = st.addons.trendz.on ? PERP.trendzMonthPrice + extraDevTotal * PERP.trendzExtraDevicePrice : 0;
+		const edgeCost = st.addons.edge.on ? PERP.edgeBasePrice + Math.max(0, st.addons.edge.count - PERP.edgeInstancesIncluded) * PERP.extraEdgePrice : 0;
+		const trendzCost = st.addons.trendz.on ? PERP.trendzBasePrice + extraDevTotal * PERP.trendzExtraDevicePrice : 0;
 		const offlineCost = st.addons.offline.on ? PERP.offlineModePrice : 0;
 		const licenseTotal = PERP.price + extraDevCost + instCost + devCost;
 		const total = licenseTotal + edgeCost + trendzCost + offlineCost;
@@ -226,31 +231,31 @@ export function initTbPerpCalc() {
 		// Edge
 		if (st.addons.edge.on) {
 			const extraEdges = Math.max(0, st.addons.edge.count - PERP.edgeInstancesIncluded);
-			html += `<div class="calc-addon-active"><div class="calc-addon-result"><span class="calc-addon-result-name">Edge Computing</span><span class="calc-section-price">${fmt(c.edgeCost)}${tip(`Total one-time Edge Computing cost. Calculation: ${fmt(c.edgeCost)} = ${fmt(PERP.edgeMonthPrice)} (base) + ${fmt(extraEdges * PERP.extraEdgePrice)} (extra edges)`)}</span></div>`;
+			html += `<div class="calc-addon-active"><div class="calc-addon-result"><span class="calc-addon-result-name">Edge Computing</span><span class="calc-section-price">${fmt(c.edgeCost)}${tip(`Total one-time Edge Computing cost. Calculation: ${fmt(c.edgeCost)} = ${fmt(PERP.edgeBasePrice)} (base) + ${fmt(extraEdges * PERP.extraEdgePrice)} (extra edges)`)}</span></div>`;
 			html += row('Included Edges', fN(PERP.edgeInstancesIncluded), 'Number of Edge instances covered by the Edge Computing add-on base price.');
-			html += row('Add-on Base Price', fmt(PERP.edgeMonthPrice), 'One-time base fee for the Edge Computing add-on.');
+			html += row('Add-on Base Price', fmt(PERP.edgeBasePrice), 'One-time base fee for the Edge Computing add-on.');
 			if (extraEdges > 0) {
 				html += row('Extra Edges', fN(extraEdges));
 				html += row('Extra Edges Cost', fmt(extraEdges * PERP.extraEdgePrice), `${fN(extraEdges)} × ${fmt(PERP.extraEdgePrice)}`);
 			}
 			html += `</div>`;
 		} else {
-			html += `<div class="calc-addon-result"><span class="calc-addon-result-name">Edge Computing</span><button type="button" class="calc-addon-result-action" data-enable-perp-addon="edge">Add (${fmt(PERP.edgeMonthPrice)})</button></div>`;
+			html += `<div class="calc-addon-result"><span class="calc-addon-result-name">Edge Computing</span><button type="button" class="calc-addon-result-action" data-enable-perp-addon="edge">Add (${fmt(PERP.edgeBasePrice)})</button></div>`;
 		}
 
 		// Trendz
 		if (st.addons.trendz.on) {
 			const trendzExtra = c.extraDevTotal * PERP.trendzExtraDevicePrice;
-			html += `<div class="calc-addon-active"><div class="calc-addon-result"><span class="calc-addon-result-name">Trendz Analytics</span><span class="calc-section-price">${fmt(c.trendzCost)}${tip(`Total one-time Trendz cost. ${fmt(c.trendzCost)} = ${fmt(PERP.trendzMonthPrice)} (base price) + ${fmt(trendzExtra)} (extra devices)`)}</span></div>`;
+			html += `<div class="calc-addon-active"><div class="calc-addon-result"><span class="calc-addon-result-name">Trendz Analytics</span><span class="calc-section-price">${fmt(c.trendzCost)}${tip(`Total one-time Trendz cost. ${fmt(c.trendzCost)} = ${fmt(PERP.trendzBasePrice)} (base price) + ${fmt(trendzExtra)} (extra devices)`)}</span></div>`;
 			html += row('Included Devices', fN(PERP.includedDevices), 'Number of devices covered by the Trendz perpetual license base price.');
-			html += row('Add-on Base Price', fmt(PERP.trendzMonthPrice), 'Base cost for the Trendz Analytics add-on.');
+			html += row('Add-on Base Price', fmt(PERP.trendzBasePrice), 'Base cost for the Trendz Analytics add-on.');
 			if (c.extraDevTotal > 0) {
 				html += row('Extra Devices', fN(c.extraDevTotal));
 				html += row('Extra Devices Cost', fmt(trendzExtra), `${fN(c.extraDevTotal)} × ${fmt(PERP.trendzExtraDevicePrice)}`);
 			}
 			html += `</div>`;
 		} else {
-			html += `<div class="calc-addon-result"><span class="calc-addon-result-name">Trendz Analytics</span><button type="button" class="calc-addon-result-action" data-enable-perp-addon="trendz">Add (${fmt(PERP.trendzMonthPrice)})</button></div>`;
+			html += `<div class="calc-addon-result"><span class="calc-addon-result-name">Trendz Analytics</span><button type="button" class="calc-addon-result-action" data-enable-perp-addon="trendz">Add (${fmt(PERP.trendzBasePrice)})</button></div>`;
 		}
 
 		// Offline
@@ -364,15 +369,15 @@ export function initTbPerpCalc() {
 		// instances raised it — snap it back so thumb, field and results agree.
 		if (real < floor) slider.value = String(Math.min(PERP_SLIDER_MAX, realToSlider(floor)));
 		st.extraDevices = Math.max(0, real - floor);
-		devInput.value = String(deviceQuota());
+		devicesInput.value = String(deviceQuota());
 		sliderProgress(slider);
 		scheduleCalculate();
 	});
 	slider.addEventListener('change', () => { syncDevicesControls(); calculate(); });
-	devInput.addEventListener('input', () => { const v = parseInt(devInput.value); if (!isNaN(v) && v > 0) { st.extraDevices = Math.max(0, Math.min(PERP_REAL_MAX, v) - deviceFloor()); syncDevicesControls(); scheduleCalculate(); } });
+	devicesInput.addEventListener('input', () => { const v = parseInt(devicesInput.value); if (!isNaN(v) && v > 0) { st.extraDevices = Math.max(0, Math.min(PERP_REAL_MAX, v) - deviceFloor()); syncDevicesControls(); scheduleCalculate(); } });
 	// An emptied field keeps the current configuration instead of discarding
 	// it — same contract as the instances field below.
-	devInput.addEventListener('blur', () => { const v = parseInt(devInput.value); if (!isNaN(v)) st.extraDevices = Math.max(0, Math.min(PERP_REAL_MAX, v) - deviceFloor()); syncDevicesControls(); calculate(); });
+	devicesInput.addEventListener('blur', () => { const v = parseInt(devicesInput.value); if (!isNaN(v)) st.extraDevices = Math.max(0, Math.min(PERP_REAL_MAX, v) - deviceFloor()); syncDevicesControls(); calculate(); });
 
 	// ─── Production instances stepper ───
 	// Displays the total entitlement (included + purchased + complimentary);
@@ -391,10 +396,10 @@ export function initTbPerpCalc() {
 	prodInp.addEventListener('blur', () => { const v = parseInt(prodInp.value); if (!isNaN(v)) st.instances = Math.max(0, v - PERP.includedProdInstances - getComplimentary()); syncDevicesControls(); calculate(); });
 
 	// ─── Dev / AI credits / Edge steppers ───
-	const devInp = $('#perp-dev') as HTMLInputElement;
+	const devInstInput = $('#perp-dev') as HTMLInputElement;
 	const devStepper = $('#perp-dev-stepper');
 	const devDec = devStepper.querySelector('[data-action="decrement"]') as HTMLButtonElement;
-	bindStepper(devStepper, devInp, devDec, 0, () => st.dev, (v) => { st.dev = v; });
+	bindStepper(devStepper, devInstInput, devDec, 0, () => st.dev, (v) => { st.dev = v; });
 
 	const aiInp = $('#perp-ai') as HTMLInputElement;
 	const aiStepper = $('#perp-ai-stepper');
@@ -445,7 +450,7 @@ export function initTbPerpCalc() {
 	// ─── Reset ───
 	$('[data-calc-reset]').addEventListener('click', () => {
 		st = initialState();
-		devInp.value = '0';
+		devInstInput.value = '0';
 		aiInp.value = String(PERP.includedAiCreditPacks);
 		edgeInp.value = String(PERP.edgeInstancesIncluded);
 		toggles.edge.checked = false; toggles.trendz.checked = false; toggles.offline.checked = false;
