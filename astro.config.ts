@@ -5,6 +5,7 @@ import remarkSmartypants from 'remark-smartypants';
 import { redirects } from './astro.redirects';
 import { sidebar } from './astro.sidebar';
 import { devServerFileWatcher } from './config/integrations/dev-server-file-watcher';
+import { imageGalleryLightbox } from './config/integrations/image-gallery-lightbox';
 import { sitemap } from './config/integrations/sitemap';
 import { rehypeBlogImages } from './config/plugins/rehype-blog-images';
 import { rehypeMdxIncludeHeadings } from './config/plugins/rehype-mdx-include-headings';
@@ -81,7 +82,7 @@ export default defineConfig({
             }),
         ],
     },
-    integrations: [icon(), devServerFileWatcher([
+    integrations: [icon(), imageGalleryLightbox(), devServerFileWatcher([
         './config/**',
         './astro.sidebar.ts',
 		]), starlight({
