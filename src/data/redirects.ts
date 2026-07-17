@@ -1227,6 +1227,8 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'paas/eu/devices-library/raspberry-pi-3-model-B-plus', target: '/iot-hub/devices/raspberry-pi-3-model-b-plus/' },
 
 	// Trendz — pages consolidated into monitoring / aggregation / tasks-service
+	{ oldPath: 'trendz/calculated-fields', target: '/docs/trendz/calculations/overview/' },
+	{ oldPath: 'trendz/anomaly/anomaly-detection-overview', target: '/docs/trendz/anomaly/overview/' },
 	{ oldPath: 'trendz/anomaly/alarms', target: '/docs/trendz/anomaly/monitoring/' },
 	{ oldPath: 'trendz/anomaly/refresh-reprocess', target: '/docs/trendz/anomaly/monitoring/' },
 	{ oldPath: 'trendz/anomaly/save-to-tb', target: '/docs/trendz/anomaly/monitoring/' },
