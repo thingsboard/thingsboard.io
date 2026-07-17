@@ -21,6 +21,7 @@ export const caseStudyCategories = [
 //      `cardLogoHeights` below.
 export const caseStudyOrder: string[] = [
 	'ibt-systems',
+	'acte-technology',
 	'wiifor',
 	'ariot',
 	'super-bock',
