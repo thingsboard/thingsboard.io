@@ -11,10 +11,9 @@ const PERP = {
 	price: 4999, includedDevices: 5000, extraDevicePrice: 1,
 	includedProdInstances: 1, extraProdInstancePrice: 4999, devicesPerInstance: 5000,
 	devQaExtraInstancePrice: 999,
-	// 1 AI credit pack = 1,000,000 credits; 5 packs come with the license.
-	// Extra packs have no public list price (priced per-plan on the License
-	// Portal), so requesting them routes to the custom-pricing wall.
-	includedAiCreditPacks: 5,
+	// 1 AI credit pack = 1,000,000 credits; 5 packs come with the license,
+	// extra packs are a one-time fee each (matches the License Portal).
+	includedAiCreditPacks: 5, extraAiCreditPackPrice: 5,
 	edgeBasePrice: 849, edgeInstancesIncluded: 2, extraEdgePrice: 399,
 	trendzBasePrice: 1499, trendzExtraDevicePrice: 0.3,
 	offlineModePrice: 19999,
@@ -150,7 +149,7 @@ export function initTbPerpCalc() {
 	function row(l: string, v: string, t?: string) { return `<div class="calc-result-row"><span class="calc-row-label">${l}:</span><span class="calc-row-value">${v}${t ? tip(t) : ''}</span></div>`; }
 
 	type Costs = {
-		extraDevCost: number; instCost: number; devCost: number;
+		extraDevCost: number; instCost: number; devCost: number; aiCost: number;
 		edgeCost: number; trendzCost: number; offlineCost: number;
 		licenseTotal: number; total: number; isCustom: boolean;
 		extraDevTotal: number;
@@ -160,18 +159,17 @@ export function initTbPerpCalc() {
 		const extraDevCost = st.extraDevices * PERP.extraDevicePrice;
 		const instCost = st.instances * PERP.extraProdInstancePrice;
 		const devCost = st.dev * PERP.devQaExtraInstancePrice;
+		const aiCost = extraAiPacks() * PERP.extraAiCreditPackPrice;
 		// Add-ons scale with every device beyond the base 5,000 — purchased
 		// extras and instance-granted devices alike.
 		const extraDevTotal = deviceQuota() - PERP.includedDevices;
 		const edgeCost = st.addons.edge.on ? PERP.edgeBasePrice + Math.max(0, st.addons.edge.count - PERP.edgeInstancesIncluded) * PERP.extraEdgePrice : 0;
 		const trendzCost = st.addons.trendz.on ? PERP.trendzBasePrice + extraDevTotal * PERP.trendzExtraDevicePrice : 0;
 		const offlineCost = st.addons.offline.on ? PERP.offlineModePrice : 0;
-		const licenseTotal = PERP.price + extraDevCost + instCost + devCost;
+		const licenseTotal = PERP.price + extraDevCost + instCost + devCost + aiCost;
 		const total = licenseTotal + edgeCost + trendzCost + offlineCost;
-		// Extra AI credit packs have no public list price — any amount beyond
-		// the included 5 packs routes to the custom-pricing wall.
-		const isCustom = total >= PERP.customPricingFrom || extraAiPacks() > 0;
-		return { extraDevCost, instCost, devCost, edgeCost, trendzCost, offlineCost, licenseTotal, total, isCustom, extraDevTotal };
+		const isCustom = total >= PERP.customPricingFrom;
+		return { extraDevCost, instCost, devCost, aiCost, edgeCost, trendzCost, offlineCost, licenseTotal, total, isCustom, extraDevTotal };
 	}
 
 	// "Get a personal price" (without "for these numbers") when Offline Mode is
@@ -215,10 +213,12 @@ export function initTbPerpCalc() {
 		if (comp > 0) html += row('Complimentary Prod Instances', fN(comp), '1 Production Instance provided at no charge for every 5,000 extra devices.');
 		if (st.instances > 0) html += row('Purchased Prod Instances', fN(st.instances), 'Additional production instances; each includes 5,000 devices.');
 		html += row('Included AI Credits', `${PERP.includedAiCreditPacks}M`, '5,000,000 AI credits included for AI-powered platform features.');
+		if (extraAiPacks() > 0) html += row('Extra AI Credits', `${extraAiPacks()}M`, 'Additional AI credits beyond those included with the license.');
 		html += row('White Labeling', '<span class="calc-result-badge">Enabled</span>', 'Customization of the platform interface with your corporate branding.');
 		html += row('Base Price', fmt(PERP.price), 'One-time license fee before extras and add-ons.');
 		if (st.extraDevices > 0) html += row('Extra Devices Cost', fmt(c.extraDevCost), `${fN(st.extraDevices)} × ${fmt(PERP.extraDevicePrice)}`);
 		if (st.instances > 0) html += row('Prod Instances Cost', fmt(c.instCost), `${fN(st.instances)} × ${fmt(PERP.extraProdInstancePrice)}, each incl. 5,000 devices`);
+		if (extraAiPacks() > 0) html += row('Extra AI Credits Cost', fmt(c.aiCost), `${extraAiPacks()} × ${fmt(PERP.extraAiCreditPackPrice)}`);
 		if (st.dev > 0) {
 			html += row('Extra Dev Instances', fN(st.dev));
 			html += row('Extra Dev Instances Cost', fmt(c.devCost), `${fN(st.dev)} × ${fmt(PERP.devQaExtraInstancePrice)}`);
@@ -271,6 +271,7 @@ export function initTbPerpCalc() {
 		if (c.extraDevCost > 0) totalParts.push(`${fmt(c.extraDevCost)} (extra devices)`);
 		if (c.instCost > 0) totalParts.push(`${fmt(c.instCost)} (prod instances)`);
 		if (c.devCost > 0) totalParts.push(`${fmt(c.devCost)} (dev)`);
+		if (c.aiCost > 0) totalParts.push(`${fmt(c.aiCost)} (AI credits)`);
 		if (c.edgeCost > 0) totalParts.push(`${fmt(c.edgeCost)} (Edge)`);
 		if (c.trendzCost > 0) totalParts.push(`${fmt(c.trendzCost)} (Trendz)`);
 		if (c.offlineCost > 0) totalParts.push(`${fmt(c.offlineCost)} (Offline)`);
@@ -306,7 +307,7 @@ export function initTbPerpCalc() {
 		if (comp > 0) msg += `- Complimentary Prod Instances: ${fN(comp)}\n`;
 		if (st.instances > 0) msg += `- Purchased Prod Instances: ${fN(st.instances)}${money(` (${fmt(c.instCost)})`)}\n`;
 		msg += `- Included AI Credits: ${PERP.includedAiCreditPacks}M\n`;
-		if (extraAiPacks() > 0) msg += `- Extra AI Credits: ${extraAiPacks()}M\n`;
+		if (extraAiPacks() > 0) msg += `- Extra AI Credits: ${extraAiPacks()}M${money(` (${fmt(c.aiCost)})`)}\n`;
 		msg += `- White Labeling: Enabled\n`;
 		msg += money(`- Base Price: ${fmt(PERP.price)}\n`);
 		if (st.dev > 0) msg += `- Extra Dev Instances: ${fN(st.dev)}${money(` (${fmt(c.devCost)})`)}\n`;
