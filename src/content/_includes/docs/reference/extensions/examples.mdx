@@ -1,0 +1,105 @@
+import { Aside } from '@astrojs/starlight/components';
+import DocLink from '@components/DocLink.astro';
+import Banner from '~/components/Banner.astro';
+import { Products } from '~/models/site.models';
+
+<Banner variant="peFeature" product={props.product}>Extensions work only with <DocLink product={Products.PE} path="reference/extensions/examples" target="_blank">ThingsBoard Professional</DocLink> and <a href="/installations/?product=thingsboard-cloud" target="_blank" rel="noopener noreferrer" class="tb-banner-ext"><b>ThingsBoard Cloud</b></a> version **4.3.1.3** or later.</Banner>
+
+{props.product !== Products.CE && (
+  <Banner variant="cloud">Available from ThingsBoard PE/Cloud <strong>4.3.1.3</strong> and later.</Banner>
+)}
+
+The [**ThingsBoard Extension Examples**](https://github.com/thingsboard/thingsboard-extension-examples) repository holds complete, working extensions you can read, build, and deploy. Each one is a real feature — REST endpoints, a scheduled task or a rule-chain hook, tests, Docker deploy files, and a dashboard — built on the <DocLink product={props.product} path='user-guide/cli'>ThingsBoard CLI</DocLink> scaffold (Spring Boot for Java, FastAPI for Python).
+
+Use them in two ways: read the source to learn a pattern, or clone the repo and deploy an example as-is to see it run.
+
+New here? Start with the <DocLink product={props.product} path='reference/extensions/overview'>Extensions overview</DocLink> and the <DocLink product={props.product} path='reference/extensions/quickstart'>Quickstart</DocLink> first.
+
+## Repository layout
+
+Every example uses the same folder layout:
+
+```text
+<name>-<language>/
+  thingsboard.json     # tb project marker
+  dashboards/          # ThingsBoard dashboard JSON (import with `tb dashboard save`)
+  extension/           # the extension source (build and run notes in its own README)
+  README.md            # what the feature does, endpoints, and wiring
+```
+
+## Available examples
+
+There are two features, each written twice — once in Java and once in Python. The Java and Python versions of a feature do the same thing and share the same dashboard, so pick the language you prefer.
+
+| Example | Language | What it does |
+|---|---|---|
+| [weather-python](https://github.com/thingsboard/thingsboard-extension-examples/tree/main/weather-python) | Python (FastAPI) | Enriches devices with live outside temperature and US AQI from Open-Meteo |
+| [weather-java](https://github.com/thingsboard/thingsboard-extension-examples/tree/main/weather-java) | Java (Spring Boot) | Same feature, Java version |
+| [geofence-python](https://github.com/thingsboard/thingsboard-extension-examples/tree/main/geofence-python) | Python (FastAPI) | Checks device positions against zone polygons and raises or clears alarms |
+| [geofence-java](https://github.com/thingsboard/thingsboard-extension-examples/tree/main/geofence-java) | Java (Spring Boot) | Same feature, Java version |
+
+Between them, the two features cover the whole extension surface: a **scheduled task** and dashboard-triggered **REST endpoints** (weather), plus a **rule-chain hook** and the **alarm API** (geofence).
+
+## Weather — scheduled task and REST
+
+The weather extension reads the `latitude` and `longitude` server attributes of each device and calls [Open-Meteo](https://open-meteo.com/) (no API key needed) to fetch the current outside air temperature and the US Air Quality Index. It writes `outsideTemp`, `aqi`, and `tempDelta` (sensor temperature minus outside temperature) back as telemetry.
+
+It shows the two most common building blocks:
+
+- **Scheduled task** — every 60 seconds (set with `WEATHER_ENRICH_INTERVAL_SECONDS`) it refreshes every device that has coordinates.
+- **REST endpoints** — a dashboard button triggers an on-demand refresh.
+
+| Method | Path | Returns |
+|--------|------|---------|
+| GET | `/api/extension/weather/{deviceId}` | current outside temperature and AQI (no write) |
+| POST | `/api/extension/weather/refresh/{deviceId}` | outside temperature and AQI, written back as telemetry |
+| POST | `/api/extension/weather/refresh-all` | count of updated and skipped devices |
+
+**Dashboard:** `dashboards/weather.json` — a device table with the outside temperature, AQI, and the difference from the sensor reading, plus a **Refresh all** button.
+
+Source: [weather-python](https://github.com/thingsboard/thingsboard-extension-examples/tree/main/weather-python) · [weather-java](https://github.com/thingsboard/thingsboard-extension-examples/tree/main/weather-java).
+
+## Geofence — rule chain and alarms
+
+The geofence extension watches device positions and raises an alarm when a device leaves its allowed zones. The rule chain sends position telemetry to the extension, which runs a point-in-polygon check against the zones. When the device is outside every zone, it creates a `CRITICAL` alarm of type `GeofenceViolation` on the device; when the device is back inside a zone, it clears that alarm. It also writes the zone state (`zoneStatus`, `insideZones`, `insideZoneCount`) back as telemetry.
+
+A zone is a tenant asset of type `geofence-zone` with a `perimeter` server attribute — a JSON array of `[lat, lon]` points.
+
+It shows the other half of the extension surface:
+
+- **Rule-chain hook** — a **REST API Call** node on the *Post telemetry* path posts the position to the extension.
+- **Alarm API** — the extension creates and clears alarms on the device through the ThingsBoard REST client.
+
+| Method | Path | Returns |
+|--------|------|---------|
+| POST | `/api/extension/geofence/check?deviceName=...` | zone check result; writes telemetry and syncs the alarm |
+| POST | `/api/extension/geofence/evaluate/{deviceId}` | same check, using the device's latest position telemetry |
+| GET | `/api/extension/geofence/status/{deviceId}` | read-only check; no write, no alarm change |
+| GET | `/api/extension/geofence/zones` | list of the configured zones |
+
+**Dashboard:** `dashboards/geofence.json` — an OpenStreetMap map with the zone polygons and the device marker, zone-status cards, an alarm table, and an **Evaluate now** button.
+
+Source: [geofence-python](https://github.com/thingsboard/thingsboard-extension-examples/tree/main/geofence-python) · [geofence-java](https://github.com/thingsboard/thingsboard-extension-examples/tree/main/geofence-java).
+
+<Aside type="tip">
+Each example's own `README.md` lists the full request and response shapes, the exact rule-chain wiring steps, and the source-file map.
+</Aside>
+
+## Build and run an example
+
+Each example folder is a ready ThingsBoard project. Clone the repo, enter an example, then build and run it with the same CLI commands as any other extension:
+
+```bash
+git clone https://github.com/thingsboard/thingsboard-extension-examples.git
+cd thingsboard-extension-examples/weather-python
+tb extension build   # build the Docker image
+tb extension run     # run it locally
+```
+
+To run the tests, use `cd extension && uv run pytest` (Python) or `cd extension && mvn -pl extension test` (Java). To deploy an example to ThingsBoard, follow the <DocLink product={props.product} path='reference/extensions/quickstart'>Quickstart</DocLink>.
+
+## Next steps
+
+- <DocLink product={props.product} path='reference/extensions/quickstart'>Quickstart</DocLink> — build and deploy your first extension in Java or Python.
+- <DocLink product={props.product} path='reference/extensions/development-workflow'>Development workflow</DocLink> — the full loop: plan, code, test, deploy, and ship updates.
+- <DocLink product={props.product} path='reference/extensions/overview'>Extensions overview</DocLink> — architecture, routing, and authentication.
