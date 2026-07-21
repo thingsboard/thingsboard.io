@@ -25,17 +25,43 @@ Before creating the integration, ensure:
 - You have access to {props.product !== Products.PAAS && props.product !== Products.PAAS_EU && <><DocLink product={Products.PE} path="installation/" target="_blank">ThingsBoard PE</DocLink> or </>}<a href="/installations/?product=thingsboard-cloud" target="_blank"><strong>ThingsBoard Cloud</strong></a> with integration functionality enabled for your tenant.
 - You have permissions to create integrations and data converters.
 - You have an Actility ThingPark account with a <a href="https://thingparkenterprise.eu.actility.com/tpe/#/login" target="_blank" rel="noopener noreferrer"><strong>ThingPark Wireless OSS</strong></a> instance.
-- You have at least one LoRaWAN device registered in ThingPark, with its **DevEUI** and **AppEUI** on hand — see **[ThingPark Setup](#thingpark-setup)** below if you don't have one yet.
+- You have at least one LoRaWAN device registered in ThingPark, with its **DevEUI** and **AppEUI** on hand.
 
 ## Create ThingPark Uplink Data Converter
 
-The uplink converter decodes the incoming ThingPark message and maps it to the ThingsBoard data model — it resolves the target device and extracts fields into telemetry and attributes. For the full decoder function reference, see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" bold={true} target="_blank">Uplink data converter</DocLink>. 
+The uplink converter decodes the incoming ThingPark message (JSON containing `DevEUI_uplink`) and maps it to the ThingsBoard data model — it resolves the target device and extracts fields into telemetry and attributes. For the full decoder function reference, see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" bold={true} target="_blank">Uplink data converter</DocLink>. 
 
 If your device is in the built-in catalog, use the **Library** tab — see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#converters-library" bold={true} target="_blank">Converters library</DocLink> for ready-to-use decoder functions for over 100 devices.
 
-<Aside type="tip" title="TBEL">
-  We recommend <DocLink product={props.product} path="user-guide/tbel" bold={false} target="_blank">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
-</Aside>
+**Sample payload:**
+
+```json
+{
+  "DevEUI_uplink": {
+    "Time": "2024-01-15T10:30:00.000+00:00",
+    "DevEUI": "0018B20000000123",
+    "FPort": 1,
+    "FCntUp": 42,
+    "ADRbit": 1,
+    "MType": 4,
+    "FCntDn": 5,
+    "payload_hex": "0364011a",
+    "mic_hex": "a1b2c3d4",
+    "Lrcid": "00000065",
+    "LrrRSSI": -85.0,
+    "LrrSNR": 7.25,
+    "SpFact": 7,
+    "SubBand": "G0",
+    "Channel": "LC1",
+    "Lrrid": "FF0000C8",
+    "Late": 0,
+    "LrrLAT": 48.8566,
+    "LrrLON": 2.3522
+  }
+}
+```
+
+`DevEUI` identifies the device. `payload_hex` contains the raw application payload. `LrrRSSI` and `LrrSNR` are radio quality metrics from the receiving gateway.
 
 <Steps>
   <ol>
@@ -57,6 +83,10 @@ If your device is in the built-in catalog, use the **Library** tab — see <DocL
 </Steps>
 
 The decoder below handles both message formats ThingPark can send: a pre-decoded JSON payload (`payloadFormat` is `JSON`) or a raw hex payload (`payloadFormat` is `BINARY`). Adapt the binary field offsets to match your device protocol.
+
+<Aside type="tip" title="TBEL">
+  We recommend <DocLink product={props.product} path="user-guide/tbel" bold={false} target="_blank">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
+</Aside>
 
 <Tabs>
   <TabItem label="TBEL (Recommended)">
@@ -288,12 +318,13 @@ This `metadata` object — available to the decoder script as `metadata.xxx` —
     <li>
       <span><strong>Downlink data converter:</strong></span>
       <ul>
-        <li>Click <strong>Skip</strong> — a downlink converter is only needed when ThingsBoard must send commands back to devices. It can be added later.</li>
+        <li>Click <strong>Skip</strong> — a downlink converter is only needed when ThingsBoard must send commands back to devices. See <a href="#configure-and-test-downlink"><strong>Configure and Test Downlink</strong></a> to add one later.</li>
       </ul>
     </li>
     <li>
       <span><strong>Connection:</strong></span>
       <ul>
+        <li><strong>Base URL</strong> — pre-filled with your ThingsBoard instance URL (for example, <strong><code>https://thingsboard.cloud</code></strong>).</li>
         <li>Copy the <strong>HTTP endpoint URL</strong> — paste this into your ThingPark application as the destination routing address so Actility forwards uplinks to ThingsBoard.</li>
       </ul>
       <li>Click <strong>Add</strong> to finish creating the integration.</li>
@@ -510,6 +541,10 @@ The encoder output must include two fields in `metadata` required for delivery:
   </TabItem>
 </Tabs>
 
+<Aside type="note">
+  The **Downlink URL** (e.g. `https://api.thingpark.com/thingpark/lrc/rest/downlink`) must be set in the **Advanced settings** of the integration connection for downlinks to be delivered to devices — see <a href="#connection-settings">Connection Settings</a>.
+</Aside>
+
 ### Configure the Root Rule Chain
 
 To trigger a downlink when an attribute changes (for example, a shared attribute update), add two nodes to the Root Rule Chain: an **Originator attributes** node (Enrichment category) that reads the device `eui` and `fPort` client attributes into message metadata, and an **Integration Downlink** node (Action category) that forwards the encoded message to the ThingPark integration.
@@ -519,21 +554,31 @@ To trigger a downlink when an attribute changes (for example, a shared attribute
 </Aside>
 
 <Steps>
-  1. Open **Rule Chains &#8702; Root Rule Chain**.
-  2. In the node panel, search for **originator attributes** — it appears under the **Enrichment** category. Drag it onto the canvas.
-  3. Configure the node:
-      - **Name** — `Fetch eui and fPort`.
-      - Under **Client attributes**, add two keys: `eui` and `fPort`.
-      - Set **Add originator attributes to** to **Metadata**.
-      - Click **Add**.
-  4. In the node panel, search for **integration downlink** — it appears under the **Action** category. Drag it onto the canvas.
-  5. Configure the node:
-      - **Name** — `Downlink to ThingPark`.
-      - **Integration** — select your **ThingPark integration**.
-      - Click **Add**.
-  6. Connect the **Message Type Switch** node to the **Fetch eui and fPort** node via the **Post attributes / Attributes Updated** relations.
-  7. Connect the **Fetch eui and fPort** node to the **Downlink to ThingPark** node via the **Success** relation.
-  8. Click **Apply changes**.
+  <ol>
+    <li>Open <strong>Rule Chains &#8702; Root Rule Chain</strong>.</li>
+    <li>In the node panel, search for <strong>originator attributes</strong>. The node appears under the <strong>Enrichment</strong> category. Drag it onto the canvas.</li>
+    <li>
+      <span><strong>Configure the node:</strong></span>
+      <ul>
+        <li><strong>Name</strong> — <code>Fetch eui and fPort</code>.</li>
+        <li>Under <strong>Client attributes</strong>, add the following keys: <code>eui</code> and <code>fPort</code>.</li>
+        <li>Set <strong>Add originator attributes to</strong> to <strong>Metadata</strong>.</li>
+        <li>Click <strong>Add</strong>.</li>
+      </ul>
+    </li>
+    <li>In the node panel, search for <strong>integration downlink</strong>. The node appears under the <strong>Action</strong> category. Drag it onto the canvas.</li>
+    <li>
+      <span><strong>Configure the node:</strong></span>
+      <ul>
+        <li><strong>Name</strong> — <code>Downlink to ThingPark</code>.</li>
+        <li><strong>Integration</strong> — select your <strong>ThingPark integration</strong>.</li>
+        <li>Click <strong>Add</strong>.</li>
+      </ul>
+    </li>
+    <li>Connect the <strong>Message Type Switch</strong> node to the <strong>Fetch eui and fPort</strong> node using the <strong>Post attributes</strong> and <strong>Attributes Updated</strong> relations.</li>
+    <li>Connect the <strong>Fetch eui and fPort</strong> node to the <strong>Downlink to ThingPark</strong> node using the <strong>Success</strong> relation.</li>
+    <li>Click <strong>Apply changes</strong>.</li>
+  </ol>
 </Steps>
 
 ### Send Test Downlink
