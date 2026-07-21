@@ -20,6 +20,8 @@ export const caseStudyCategories = [
 //   3. (Optional) If the card needs a custom logo height, add an entry to
 //      `cardLogoHeights` below.
 export const caseStudyOrder: string[] = [
+	'ibt-systems',
+	'acte-technology',
 	'wiifor',
 	'ariot',
 	'super-bock',

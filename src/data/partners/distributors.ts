@@ -530,13 +530,6 @@ export const DISTRIBUTORS: Distributor[] = [
 		website: "spectrum.co.ae",
 	},
 	{
-		name: "StarLinking Networks Co., Ltd.",
-		regions: ["Asia"],
-		countries: ["Taiwan"],
-		email: "star@starlinking.com",
-		website: "starlinking.com",
-	},
-	{
 		name: "Kar-Tel LLP",
 		regions: ["Asia","Europe","Middle East"],
 		countries: ["Kazakhstan","Uzbekistan","Turkmenistan","Tajikistan","Kyrgyzstan","Armenia","Azerbaijan","Moldova","Belarus"],
