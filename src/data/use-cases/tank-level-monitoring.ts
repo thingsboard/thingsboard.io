@@ -53,7 +53,7 @@ export const data: UseCaseData = {
 	solutionStructure: {
 		title: 'Solution structure of tank level monitoring',
 		shortText:
-			'The <a href="/docs/pe/recipes/solution-templates/fuel-level-monitoring/">tank level monitoring</a> solution integrates IoT sensors — such as level, temperature, and battery — with the ThingsBoard platform. Data is transmitted via standard protocols: MQTT for real-time telemetry, HTTP for periodic updates, and CoAP for low-power environments. This ensures reliable, efficient communication across a wide range of devices and conditions.',
+			'The <a href="/iot-hub/solution-templates/fuel-level-monitoring/">tank level monitoring</a> solution integrates IoT sensors — such as level, temperature, and battery — with the ThingsBoard platform. Data is transmitted via standard protocols: MQTT for real-time telemetry, HTTP for periodic updates, and CoAP for low-power environments. This ensures reliable, efficient communication across a wide range of devices and conditions.',
 		longText: [
 			'Once collected, the data is transmitted to ThingsBoard for processing, aggregation, and visualization. The platform offers historical data storage, advanced alarm rule configuration, and remote device management. Incoming data is presented through interactive dashboards that display all metrics in user-friendly formats: graphs, maps, tables, and status widgets.',
 		],
