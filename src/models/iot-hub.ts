@@ -389,8 +389,7 @@ export const CREATOR_PAGE_SIZE = 16;
 // without disturbing the creator route.
 export const SEARCH_PAGE_SIZE = 16;
 export const HOME_PER_CATEGORY = 4;
-// Landing "Recently added" strip: newest listings across all categories.
-// 8 = two full rows in the 4-column compact grid on desktop.
+// "Recently added" strip: 8 = two full rows of the 4-column desktop grid.
 export const HOME_RECENT_COUNT = 8;
 export const API_FETCH_PAGE_SIZE = 128;
 
