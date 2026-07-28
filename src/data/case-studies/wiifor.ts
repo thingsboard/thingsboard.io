@@ -22,9 +22,6 @@ export const data: CaseStudyData = {
 		logoWidth: 129,
 		logoHeight: 56,
 		backgroundImage: '/images/case-studies/wiifor.webp',
-		selfBrandedArtwork: true,
-		backgroundImageAlt:
-			'Wiifor IoT offering: IoT platform, IoT solutions for cities, healthcare and industry, and IoT design office',
 	},
 
 	statistics: [

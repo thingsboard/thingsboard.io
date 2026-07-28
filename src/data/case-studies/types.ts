@@ -60,11 +60,6 @@ export interface CaseStudyData {
 		logoWidth?: number;
 		logoHeight?: number;
 		backgroundImage: string;
-		// Set when backgroundImage is partner artwork that already carries the
-		// company logo, so the hero skips its own centred logo overlay. The
-		// artwork then needs its own description, since no logo <img> is rendered.
-		selfBrandedArtwork?: boolean;
-		backgroundImageAlt?: string;
 	};
 
 	statistics?: StatisticItem[];
@@ -132,5 +127,4 @@ export interface CaseStudyCard {
 	logoAlt: string;
 	logoHeight?: number;
 	backgroundImage: string;
-	scrimOpacity?: number;
 }

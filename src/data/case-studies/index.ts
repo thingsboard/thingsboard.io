@@ -76,13 +76,6 @@ const cardLogoHeights: Record<string, number> = {
 	tektelic: 56,
 };
 
-// Card-only scrim overrides. Cards darken their background so the white logo,
-// category chip and title stay legible; light backgrounds need more than the
-// 0.3 default to clear the contrast bar.
-const cardScrimOpacity: Record<string, number> = {
-	wiifor: 0.55,
-};
-
 // ── Auto-discovered case-study data ───────────────────────────────────────────
 // Every {slug}.ts file in this folder exports `const data: CaseStudyData`.
 // Vite's import.meta.glob pulls them in at build time; we look them up by slug.
@@ -128,7 +121,6 @@ function toCard(d: CaseStudyData): CaseStudyCard {
 		logoAlt: d.hero.logoAlt,
 		logoHeight: cardLogoHeights[d.pageSlug],
 		backgroundImage: d.hero.backgroundImage,
-		scrimOpacity: cardScrimOpacity[d.pageSlug],
 	};
 }
 
