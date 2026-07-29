@@ -9,196 +9,324 @@ import TabItem from '@components/TabItem.astro';
 
 <Banner variant="peFeature" product={props.product} path="installation/" />
 
-Sigfox Integration connects ThingsBoard to the Sigfox Backend via HTTP callbacks, receiving device payloads and converting them into ThingsBoard telemetry and attributes.
+The <a href="https://www.sigfox.com/" target="_blank" rel="noopener noreferrer nofollow"><strong>Sigfox</strong></a> integration connects ThingsBoard to the Sigfox Backend over HTTP. Use it to bring data from Sigfox-connected devices into ThingsBoard for monitoring and rule-based automation — including sending commands back to those devices.
 
-<DocImage src="/src/assets/images/user-guide/integrations/sigfox/sigfox-integration.svg" alt="Sigfox integration overview diagram" />
+## Architecture
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/sigfox-integration-architecture.svg', alt: 'Sigfox integration architecture diagram showing uplink data flowing from a Sigfox device through the Sigfox Backend to the ThingsBoard uplink converter and Core Service, and downlink commands flowing back through the downlink converter and the Sigfox Backend', caption: 'Sigfox integration architecture — uplink and downlink data flow between the Sigfox Backend and ThingsBoard.' },
+]} />
+
+A Sigfox device transmits an uplink to the Sigfox Backend, which forwards it over HTTP to the integration's endpoint through a custom callback. The uplink converter decodes the payload into telemetry and attributes, and the ThingsBoard Core Service stores the data, creating the device automatically on first contact. For downlink, the Rule Engine hands a message to the integration; the downlink converter encodes it, and the Sigfox Backend delivers it to the device.
+
+<Aside type="note">
+  Sigfox and the generic HTTP integration cannot push downlink messages asynchronously. Because of the underlying HTTP request/response model, a downlink is only delivered synchronously in reply to an uplink — and only when the device's firmware sets a downlink-request flag on that uplink; ThingsBoard cannot create a downlink opportunity on its own. ThingsBoard stores the most recent downlink for each device and sends it the next time the Sigfox Backend requests one in reply to such an uplink.
+</Aside>
 
 ## Prerequisites
 
-- A ThingsBoard PE account with permission to create integrations.
-- A <a href="https://www.sigfox.com/" target="_blank">Sigfox account</a> with a registered device.
+Before creating the integration, ensure:
 
-In this tutorial, device **Sigfox-2216792** is a Sigfox Airwits CO2 sensor that publishes `temperature`, `humidity`, `co2`, and `co2Baseline` readings encoded as a binary hex string.
+- You have access to {props.product !== Products.PAAS && props.product !== Products.PAAS_EU && <><DocLink product={Products.PE} path="installation/" target="_blank">ThingsBoard PE</DocLink> or </>}<a href="/installations/?product=thingsboard-cloud" target="_blank" rel="noopener noreferrer"><strong>ThingsBoard Cloud</strong></a> with integration functionality enabled for your tenant.
+- You have permissions to create integrations and data converters in ThingsBoard.
+- You have a <a href="https://www.sigfox.com/" target="_blank" rel="noopener noreferrer nofollow"><strong>Sigfox Backend</strong></a> account with administrative access to your device type.
+- You have at least one Sigfox device registered in the Sigfox Backend.
+- Your ThingsBoard integration's HTTP endpoint is reachable from the public internet over HTTPS — the Sigfox Backend must be able to reach it to deliver callbacks. If your instance isn't directly reachable, use <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink> instead.
 
-## ThingsBoard integration setup
-
-### Create an uplink converter
-
-The uplink converter transforms incoming Sigfox payloads into the ThingsBoard data format. Sigfox uses a <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter">generic uplink converter</DocLink>. ThingsBoard provides a pre-built converter for Sigfox — import the JSON file and customize the decoder function to match your device payload structure.
-
-<Aside type="tip" title="TBEL">
-  We recommend using <DocLink product={props.product} path="user-guide/tbel">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
+<Aside type="tip">
+  This guide uses device **Sigfox-1CB0F1**, a Sigfox Airwits CO2 sensor that publishes `temperature`, `humidity`, `co2`, and `co2Baseline` readings encoded as a binary hex string. Adapt the device name, payload layout, and decoder logic to match your own hardware.
 </Aside>
 
-**Sample payload from a Sigfox device:**
+## Create Sigfox Uplink Data Converter
+
+The uplink converter decodes the incoming Sigfox callback message (JSON with the `device`, `time`, and `data` fields you define in the callback body) and maps it to the ThingsBoard data model — it resolves the target device and extracts fields into telemetry and attributes. For the full decoder function reference, see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" bold={true} target="_blank">Uplink data converter</DocLink>.
+
+<Aside type="tip">
+  We recommend using <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL</DocLink> for converter scripts — it executes far more efficiently than JavaScript inside ThingsBoard.
+</Aside>
+
+A Sigfox uplink message delivered to the ThingsBoard endpoint looks like this:
 
 ```json
 {
-  "device": "BF1327",
+  "device": "1CB0F1",
   "time": "1661868952",
   "data": "2502af2102462a",
   "seqNumber": "3737"
 }
 ```
 
-The `device` field maps to the device name. The `data` field is a hex-encoded sensor reading — each byte pair encodes a measurement: bytes 1–2 = temperature (offset −40, scale ÷10), byte 3 = humidity, bytes 4–5 = CO₂, byte 6 = CO₂ baseline. The first byte encodes device configuration flags (autoCalibration, transmitPower, etc.) stored as attributes.
+The `device` field identifies the transmitting device and maps to the device name. The `time` field is the Unix timestamp (seconds). The `data` field is a hex-encoded sensor reading whose byte layout is device-specific — in this example the first byte holds configuration flags (stored as attributes) and the remaining bytes encode temperature, humidity, CO₂, and the CO₂ baseline.
 
 <Steps>
-  <ol>
-    <li>
-      <span>Download the uplink converter file:</span>
-      <Tabs>
-        <TabItem label="TBEL (Recommended)">
-          <a href="/resources/docs/integrations/sigfox/sigfox_tbel_uplink_converter.json" download="sigfox_tbel_uplink_converter.json"><strong>sigfox_tbel_uplink_converter.json</strong></a>
-        </TabItem>
-        <TabItem label="JavaScript">
-          <a href="/resources/docs/integrations/sigfox/sigfox_javascript_uplink_converter.json" download="sigfox_javascript_uplink_converter.json"><strong>sigfox_javascript_uplink_converter.json</strong></a>
-        </TabItem>
-      </Tabs>
-    </li>
-    <li>Go to **Integrations center &#8702; Data converters**.</li>
-    <li>Click **+ Add data converter &#8702; Import converter**.</li>
-    <li>Drag and drop the downloaded JSON file into the **Import converter** window and click **Import**.</li>
+  <ol start="1">
+    <li>Go to <strong>Integrations center &#8702; Data converters</strong>.</li>
+    <li>Click <strong>+ Add data converter &#8702; Create new converter</strong>.</li>
   </ol>
 </Steps>
+
+In the **Add data converter** dialog:
+
+<Steps>
+  <ol start="3">
+    <li><strong>Converter type</strong> — leave <strong>Uplink</strong> (selected by default).</li>
+    <li><strong>Integration type</strong> — in the search field, enter <code>SigFox</code> and select <strong>SigFox</strong> from the list.</li>
+    <li><strong>Name</strong> — enter a converter name, for example <code>SigFox Uplink Converter</code>.</li>
+    <li><strong>Main decoding configuration</strong> — a code editor with the function signature <code>function decoder(payload, metadata) &#123;</code>. Paste the decoder function shown below. By default the editor opens in TBEL; use the <strong>TBEL / JS</strong> toggle (upper right) to switch languages.</li>
+    <li>Click <strong>Add</strong>.</li>
+  </ol>
+</Steps>
+
+The decoder below parses the callback JSON, resolves the device name from the Sigfox device ID, and decodes the hex `data` field into telemetry. Adapt the byte offsets and scaling to match your device protocol.
+
+<Aside type="tip" title="TBEL">
+  We recommend <DocLink product={props.product} path="user-guide/tbel" bold={false} target="_blank">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
+</Aside>
 
 **The decoder function used in this tutorial:**
 
 <Tabs>
 <TabItem label="TBEL (Recommended)">
-```js maxLines=30 collapsible
-/** Decoder **/
+  ```js maxLines=15 collapsible
+  /** Decoder **/
 
-// decode payload to string
-var json = decodeToJson(payload);
-var deviceName = 'Sigfox-' + json.device;
-var deviceType = 'Sigfox Airwits CO2';
-var groupName = 'UC-0023 Sigfox Airwits CO2';
+  // Decode payload to json
+  var payloadStr = decodeToJson(payload);
 
-var attrByte = parseInt(json.data.substring(0, 2), 16);
-var autoCalibration = (attrByte & 0x1) === 1 ? "on" : "off";
-var zeroPointAdjusted = ((attrByte & 0x2) >> 1) === 1 ? true : false;
-var transmitPower = ((attrByte & 0x4) >> 2) === 1 ? "full" : "low";
-var powerControl = ((attrByte & 0x8) >> 3) === 1 ? "on" : "off";
-var firmwareVersion = attrByte >> 4;
+  // Set general device information
+  var deviceName = 'Sigfox-' + payloadStr.device;
+  var deviceType = 'Sigfox device';
+  var groupName = 'Control room devices';
+  // var customerName = 'Customer A';
+  // use assetName and assetType instead of deviceName and deviceType
+  // to automatically create assets instead of devices.
+  // var assetName = 'Asset A';
+  // var assetType = 'building';
 
-var temperature = parseInt(json.data.substring(2, 6), 16) / 10.0 - 40;
-var humidity = parseInt(json.data.substring(6, 8), 16);
-var co2 = parseInt(json.data.substring(8, 12), 16);
+  // Parse specific device information, it may be different, depends on device type
+  var attrByte = parseInt(payloadStr.data.substring(0, 2), 16); // force TBEL to convert to INT
+  var autoCalibration = (attrByte & 0x1) === 1 ? "on" : "off"; // bitmask for first bit
+  var zeroPointAdjusted = ((attrByte & 0x2) >> 1) === 1 ? true : false; // bitmask for second bit; right shift one bit to get second bit to the LSB position
+  var transmitPower = ((attrByte & 0x4) >> 2) === 1 ? "full" : "low"; // bitmask for third bit; right shift two bits to get third bit to the LSB position
+  var powerControl = ((attrByte & 0x8) >> 3) === 1 ? "on" : "off"; // bitmask for third bit; right shift three bits to get fourth bit to the LSB position
+  var firmwareVersion = attrByte >> 4; // shift right to bring the nibble down to the first four bits; result is INT
 
-var co2Baseline = 0;
-var co2BaselineN = parseInt(json.data.substring(12, 14), 16);
-if (co2BaselineN === 0) {
-    co2Baseline = 400;
-} else {
-    co2Baseline = co2BaselineN * 10;
-}
+  var data = payloadStr.data;
 
-var result = {
+  var temperature = null;
+  var humidity = null;
+  var co2 = null;
+  var co2Baseline = null;
+
+  if (data != null) {
+    if (data.length() >= 6) {
+      temperature = toFixed(parseInt(payloadStr.data.substring(2, 6), 16) / 10.0 - 40, 1);
+    }
+    if (data.length() >= 8) {
+      humidity = parseInt(payloadStr.data.substring(6, 8), 16);
+    }
+    if (data.length() >= 12) {
+      co2 = parseInt(payloadStr.data.substring(8, 12), 16);
+    }
+
+    if (data.length() >= 14) {
+      var co2BaselineN = parseInt(payloadStr.data.substring(12, 14), 16);
+      if (co2BaselineN === 0) {
+        co2Baseline = 400;
+      } else {
+        co2Baseline = co2BaselineN * 10;
+      }
+    }
+  }
+
+  var result = {
+    // Use deviceName and deviceType or assetName and assetType, but not both.
     deviceName: deviceName,
     deviceType: deviceType,
+    //  assetName: assetName,
+    //  assetType: assetType,
+    //  customerName: customerName,
     groupName: groupName,
-    telemetry: {
-        ts: json.time + "000",
-        values: {
-            temperature: toFixed(temperature, 1),
-            humidity: humidity,
-            co2: co2,
-            co2Baseline: co2Baseline
-        }
-    },
     attributes: {
-        sigfox_id: json.device,
-        autoCalibration: autoCalibration,
-        zeroPointAdjusted: zeroPointAdjusted,
-        transmitPower: transmitPower,
-        powerControl: powerControl,
-        fwVersion: firmwareVersion
+      sigfoxId: payloadStr.device,
+      deviceTypeId: payloadStr.deviceTypeId,
+      autoCalibration: autoCalibration,
+      zeroPointAdjusted: zeroPointAdjusted,
+      transmitPower: transmitPower,
+      powerControl: powerControl,
+      fwVersion: firmwareVersion
+    },
+    telemetry: {
+      ts: parseLong("" + payloadStr.time + "000"),
+      values: {
+        temperature: temperature,
+        humidity: humidity,
+        co2: co2,
+        co2Baseline: co2Baseline,
+        customData1: payloadStr["customData#int1"],
+        customData2: payloadStr["customData#int2"]
+      }
     }
-};
+  };
 
-/** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
-
-return result;
-```
+  return result;
+  ```
 </TabItem>
 <TabItem label="JavaScript">
-```js maxLines=35 collapsible
-/** Decoder **/
+  ```js maxLines=15 collapsible
+  /** Decoder **/
 
-// decode payload to string
-var json = decodeToJson(payload);
-var deviceName = 'Sigfox-' + json.device;
-var deviceType = 'Sigfox Airwits CO2';
-var groupName = 'UC-0023 Sigfox Airwits CO2';
+  // Decode the incoming byte array into a JSON object.
+  var payloadStr = decodeToJson(payload);
 
-var attrByte = parseInt(json.data.substring(0, 2), 16);
-var autoCalibration = (attrByte & 0x1) === 1 ? "on" : "off";
-var zeroPointAdjusted = ((attrByte & 0x2) >> 1) === 1 ? true : false;
-var transmitPower = ((attrByte & 0x4) >> 2) === 1 ? "full" : "low";
-var powerControl = ((attrByte & 0x8) >> 3) === 1 ? "on" : "off";
-var firmwareVersion = attrByte >> 4;
+  // Set general device information.
+  var deviceName = "Sigfox-" + payloadStr.device;
+  var deviceType = "Sigfox device";
+  var groupName = "Control room devices";
+  // var customerName = "Customer A";
+  // Use assetName and assetType instead of deviceName and deviceType
+  // to automatically create an asset instead of a device.
+  // var assetName = "Asset A";
+  // var assetType = "building";
 
-var temperature = parseInt(json.data.substring(2, 6), 16) / 10 - 40;
-var humidity = parseInt(json.data.substring(6, 8), 16);
-var co2 = parseInt(json.data.substring(8, 12), 16);
+  // Sigfox device payload represented as a hexadecimal string.
+  var data = payloadStr.data;
 
-var co2Baseline = 0;
-var co2BaselineN = parseInt(json.data.substring(12, 14), 16);
-if (co2BaselineN === 0) {
-    co2Baseline = 400;
-} else {
-    co2Baseline = co2BaselineN * 10;
-}
+  // Initialize decoded attributes.
+  var autoCalibration = null;
+  var zeroPointAdjusted = null;
+  var transmitPower = null;
+  var powerControl = null;
+  var firmwareVersion = null;
 
-var result = {
+  // Initialize decoded telemetry values.
+  var temperature = null;
+  var humidity = null;
+  var co2 = null;
+  var co2Baseline = null;
+
+  if (data != null && data.length >= 2) {
+    // Decode the first byte containing configuration flags
+    // and the firmware version.
+    var attrByte = parseInt(data.substring(0, 2), 16);
+  
+    // Bit 0: automatic calibration status.
+    autoCalibration = (attrByte & 0x01) === 1 ? "on" : "off";
+  
+    // Bit 1: zero-point adjustment status.
+    zeroPointAdjusted = ((attrByte & 0x02) >> 1) === 1;
+  
+    // Bit 2: transmission power mode.
+    transmitPower = ((attrByte & 0x04) >> 2) === 1 ? "full" : "low";
+  
+    // Bit 3: power control status.
+    powerControl = ((attrByte & 0x08) >> 3) === 1 ? "on" : "off";
+  
+    // Bits 4–7: firmware version.
+    firmwareVersion = attrByte >> 4;
+  }
+
+  if (data != null) {
+    // Bytes 2–3: temperature in 0.1 °C units with a -40 °C offset.
+    if (data.length >= 6) {
+      var rawTemperature = parseInt(data.substring(2, 6), 16);
+      temperature = Math.round((rawTemperature / 10.0 - 40) * 10) / 10;
+    }
+
+    // Byte 4: relative humidity.
+    if (data.length >= 8) {
+      humidity = parseInt(data.substring(6, 8), 16);
+    }
+
+    // Bytes 5–6: CO2 concentration.
+    if (data.length >= 12) {
+      co2 = parseInt(data.substring(8, 12), 16);
+    }
+
+    // Byte 7: CO2 baseline.
+    if (data.length >= 14) {
+      var rawCo2Baseline = parseInt(data.substring(12, 14), 16);
+      co2Baseline = rawCo2Baseline === 0 ? 400 : rawCo2Baseline * 10;
+    }
+  }
+
+  var result = {
+    // Use deviceName and deviceType or assetName and assetType, but not both.
     deviceName: deviceName,
     deviceType: deviceType,
+  
+    // assetName: assetName,
+    // assetType: assetType,
+    // customerName: customerName,
+  
     groupName: groupName,
-    telemetry: {
-        ts: json.time + "000",
-        values: {
-            temperature: parseFloat(temperature.toFixed(1)),
-            humidity: parseFloat(humidity),
-            co2: co2,
-            co2Baseline: co2Baseline
-        }
-    },
+
     attributes: {
-        sigfox_id: json.device,
-        autoCalibration: autoCalibration,
-        zeroPointAdjusted: zeroPointAdjusted,
-        transmitPower: transmitPower,
-        powerControl: powerControl,
-        fwVersion: firmwareVersion
+      sigfoxId: payloadStr.device,
+      deviceTypeId: payloadStr.deviceTypeId,
+      autoCalibration: autoCalibration,
+      zeroPointAdjusted: zeroPointAdjusted,
+      transmitPower: transmitPower,
+      powerControl: powerControl,
+      fwVersion: firmwareVersion
+    },
+
+    telemetry: {
+      // Convert the Unix timestamp from seconds to milliseconds.
+      ts: parseInt(payloadStr.time, 10) * 1000,
+
+        values: {
+        temperature: temperature,
+        humidity: humidity,
+        co2: co2,
+        co2Baseline: co2Baseline,
+        customData1: payloadStr["customData#int1"],
+        customData2: payloadStr["customData#int2"]
+      }
     }
-};
+  };
 
-/** Helper functions **/
+  /** Helper functions **/
 
-function decodeToString(payload) {
+  // Convert the incoming byte array into a string.
+  function decodeToString(payload) {
     return String.fromCharCode.apply(String, payload);
-}
+  }
 
-function decodeToJson(payload) {
-    var str = decodeToString(payload);
-    var data = JSON.parse(str);
-    return data;
-}
+  // Convert the incoming byte array into a JSON object.
+  function decodeToJson(payload) {
+    return JSON.parse(decodeToString(payload));
+  }
 
-return result;
-```
+  return result;
+  ```
 </TabItem>
 </Tabs>
 
-**To adapt this converter to your device:**
 
-- **Different device name** — change `'Sigfox-' + json.device` to any identifier present in your payload.
-- **Different payload encoding** — update the `substring` ranges and arithmetic to match your device's byte layout.
-- **Additional telemetry** — add more keys to `telemetry.values` (e.g. `pressure: ...`).
-- **Attributes** — the first byte of `json.data` is decoded into device attributes; update the bit-mask logic to match your device's configuration byte structure.
+<h4>What the Converter Receives</h4>
 
-### Create the integration
+ThingsBoard passes two variables to the decoder:
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `payload` | byte array | The raw bytes of the HTTP callback body posted by the Sigfox Backend — the JSON template you define when creating the callback (see **[Configure Sigfox Backend](#configure-sigfox-backend)**). Use `decodeToJson(payload)` to parse it into an object. |
+| `metadata` | object | Key-value map with integration-level context, such as `ts` and `integrationName`, plus any **Metadata** entries defined on the integration and matched request headers. |
+
+This `metadata` object — available to the decoder script as `metadata.xxx` — is separate from the **Metadata** column shown on the integration and converter **Events** tabs (see **[Verify Converter Events](#verify-converter-events)**), which displays integration-level context rather than per-message fields.
+
+<h4>Adapting the Decoder to Your Device</h4>
+
+- **Device name** — change `'Sigfox-' + payloadStr.device` to any identifier present in your payload.
+- **Payload encoding** — update the `substring` ranges and arithmetic to match your device's byte layout. Refer to the device datasheet for the field order, scaling factors, and offsets.
+- **Telemetry** — add or remove keys under `telemetry.values` (for example, `pressure: ...`).
+- **Attributes** — the first byte of `payloadStr.data` is decoded into device attributes. Update the bit-mask logic to match your device's configuration-byte structure, or remove the block if your device sends no configuration flags.
+- **Match your payload structure** — update the byte offsets, lengths, scaling, and field names to match your device's binary specification. The `data` field carries up to 12 bytes.
+- **Add or remove fields** — add more `parseInt(json.data.substring(start, end), 16)` calls (or bit-mask logic, string extraction, etc.) for additional sensors; remove entries your device does not transmit.
+- **Add more callback fields** — if you include extra Sigfox variables in the callback body (for example `station`, `lat`, `lng`, or `avgSnr`), read them from the parsed object as `data.<field>`.
+- **Override device identity from the payload** — set `result.deviceName`, `result.deviceType`, `result.group`, or `result.customer` to derive device identity from payload content rather than the Sigfox device ID.
+
+## Create Sigfox Integration
 
 <Steps>
   <ol start="1">
@@ -207,77 +335,97 @@ return result;
       <span><strong>Basic settings:</strong></span>
       <ul>
         <li>Set <strong>Integration type</strong> to <strong>SigFox</strong>.</li>
-        <li><strong>Enable integration</strong> and <strong>Allow create devices or assets</strong> are on by default.</li>
+        <li>Enter a <strong>Name</strong> for the integration, or keep the default <code>SigFox integration</code>.</li>
+        <li>Leave <strong>Enable integration</strong> and <strong>Allow create devices or assets</strong> on so a device is created automatically on first message.</li>
         <li>Click <strong>Next</strong>.</li>
       </ul>
     </li>
     <li>
       <span><strong>Uplink data converter:</strong></span>
       <ul>
-        <li>Click <strong>Select existing</strong> and choose the <a href="#create-an-uplink-converter">previously created</a> <code>SigFox Uplink Converter</code>.</li>
+        <li>Click <strong>Select existing</strong> and choose the <a href="#create-sigfox-uplink-data-converter"><strong>Sigfox Uplink Converter</strong></a> created above, or click <strong>Create new</strong> to define the decoder inline.</li>
         <li>Click <strong>Next</strong>.</li>
       </ul>
     </li>
     <li>
       <span><strong>Downlink data converter:</strong></span>
       <ul>
-        <li>Leave empty and click <strong>Skip</strong> — the downlink converter can be added later.</li>
+        <li>Click <strong>Skip</strong> — a downlink converter is only needed when ThingsBoard must send commands back to devices. See <a href="#configure-and-test-downlink"><strong>Configure and Test Downlink</strong></a> to add one later.</li>
       </ul>
     </li>
     <li>
-      <span><strong>Connection settings:</strong></span>
+      <span><strong>Connection:</strong></span>
       <ul>
-        <li>Copy the generated <strong>HTTP endpoint URL</strong> — you will need it when configuring the Sigfox Backend callback.</li>
-        <li>Enable <strong>Security (Headers filter)</strong> and add a header key-value pair to restrict access to this endpoint.</li>
-        <li>Click <strong>Add</strong> to save the integration.</li>
+        <li>Copy the generated <strong>HTTP endpoint URL</strong> — you will paste it into the Sigfox Backend callback's <strong>URL pattern</strong> field.</li>
+        <li>Optionally, enable <strong>Security (Headers filter)</strong> and add a header key-value pair to restrict access to this endpoint.</li>
       </ul>
+      <span>Read more about each parameter in <a href="#connection-settings"><strong>Connection settings</strong></a>.</span>
     </li>
+    <li>Click <strong>Add</strong> to complete the integration setup.</li>
   </ol>
 </Steps>
 
-<Aside type="note">
-  If **Allow create devices or assets** is unchecked, ThingsBoard will not automatically create a device when a message arrives for an unknown device ID.
-</Aside>
-
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-integration-setup-1.png', alt: 'Add integration wizard — Basic settings: Integration type SigFox, name SigFox Integration, Enable integration and Allow create devices or assets toggled on', caption: 'Set Integration type to SigFox, enter a name, and click Next' },
+  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-integration-setup-1.png', alt: 'Add integration wizard — Basic settings: Integration type SigFox, name SigFox Integration, Enable integration and Allow create devices or assets toggled on', caption: 'Set Integration type to SigFox, enter a Name, leave both toggles on, and click Next' },
   { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-integration-setup-2.png', alt: 'Add integration wizard — Uplink data converter step: Select existing tab active with SigFox Uplink Converter selected', caption: 'Click Select existing, choose SigFox Uplink Converter, and click Next' },
-  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-integration-setup-3.png', alt: 'Add integration wizard — Downlink data converter step with Skip button highlighted', caption: 'Leave the downlink converter empty and click Skip' },
+  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-integration-setup-3.png', alt: 'Add integration wizard — Downlink data converter step with Skip button highlighted', caption: 'Click Skip — the downlink converter can be configured later' },
   { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-integration-setup-4.png', alt: 'Add integration wizard — Connection step: HTTP endpoint URL shown, Security enabled with test-header key-value pair', caption: 'Copy the HTTP endpoint URL; optionally enable Security to add a header filter, and click Add' },
 ]} />
 
-#### Connection settings
+#### Connection Settings
 
-<h5>HTTP endpoint URL</h5>
+<h5>Base URL</h5>
 
-ThingsBoard generates a unique HTTP endpoint URL for each integration. Copy this URL and paste it into the **URL pattern** field in your Sigfox Backend callback. The URL is stable as long as the integration exists.
+The base address of the ThingsBoard server, used to construct the **HTTP endpoint URL** below. Pre-filled with the current server address — change it only if the Sigfox Backend must reach ThingsBoard through a different address (for example, a reverse proxy or load balancer).
 
-<h5 id="sigfox-security">Security (Headers filter)</h5>
+Example: `https://thingsboard.cloud`
 
-When enabled, ThingsBoard validates every incoming request against the configured header name-value pairs — requests missing the expected header are rejected. Add the same header key-value pair to the Sigfox Backend callback **Headers** field to authenticate requests.
+<h4>HTTP Endpoint URL</h4>
 
-<h5>Execute remotely</h5>
+The auto-generated webhook address for this integration, in the form:
 
-When enabled, ThingsBoard generates an **Integration key** and **Integration secret** that allow the integration to run as a separate process outside the ThingsBoard cluster — useful when your ThingsBoard instance is in a private network not reachable from the Sigfox cloud.
+```
+https://{base-url}/api/v1/integrations/sigfox/{integration-id}
+```
 
-<h5>Advanced settings</h5>
+Paste this URL into the **URL pattern** field of the Sigfox callback (see **[Configure Sigfox Backend](#configure-sigfox-backend)**) so the Sigfox Backend forwards device uplink messages to ThingsBoard. The URL is stable for the lifetime of the integration.
+
+<h4 id="sigfox-security">Enable Security (Headers filter)</h4>
+
+When enabled, ThingsBoard validates every incoming request against the header name-value pairs you configure and rejects requests that are missing them. 
+
+| Field | Description |
+|-------|-------------|
+| **Header** | Name of the required HTTP header |
+| **Value** | Required value for that header |
+
+Add the same header to the callback's **Headers** field so the Sigfox Backend authenticates against the endpoint.
+
+<h4>Execute Remotely</h4>
+
+When enabled, ThingsBoard generates an **Integration key** and **Integration secret** for running the integration outside the ThingsBoard cluster — useful when ThingsBoard is not publicly reachable from the internet. See <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink>.
+
+<h4>Advanced Settings</h4>
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
+| **Replace response status from "No-Content" to "OK"** | off | Controls the response code returned to the Sigfox Backend callback: `204 No Content` (off) or `200 OK` (on). |
 | **Description** | — | Optional text description for the integration. |
-| **Metadata** | — | Key-value pairs injected into every message as `integrationMetadata` in the converter script. |
+| **Metadata** | — | Key-value pairs available to converter scripts — merged into the `metadata` parameter for the uplink decoder, or passed separately as the `integrationMetadata` parameter for the downlink encoder. |
 
 ## Configure Sigfox Backend
 
-Configure your Sigfox account to forward device messages to ThingsBoard.
+Configure your Sigfox account to forward device messages to the ThingsBoard HTTP endpoint.
+
+Configure your Sigfox device type to route uplink messages to the ThingsBoard **HTTP endpoint URL** copied in <a href="#create-sigfox-integration"><strong>Create Sigfox Integration</strong></a>. In the Sigfox Backend, this is done by creating a **custom callback** on the device type.
 
 ### Configure the device type
 
 <Steps>
-1. In your Sigfox Backend, go to **Device type** and locate the device type associated with your device (e.g. `thermostats`).
-2. Click the row's context menu and select **Edit**.
-3. In the **Downlink data** section, set **Downlink mode** to `CALLBACK`.
-4. Click **Ok** to save.
+  1. In the Sigfox Backend, go to **Device type** and locate the device type associated with your device (for example, `thermostats`).
+  2. Open the row's context menu and select **Edit**.
+  3. In the **Downlink data** section, set **Downlink mode** to `CALLBACK`. This lets the Sigfox Backend request the downlink payload from ThingsBoard in reply to each uplink.
+  4. Click **Ok** to save.
 </Steps>
 
 <ImageGallery images={[
@@ -285,27 +433,22 @@ Configure your Sigfox account to forward device messages to ThingsBoard.
   { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-device-edit-device-type-2.png', alt: 'Sigfox Backend — Device type thermostats edition page with Downlink mode set to CALLBACK', caption: 'Set Downlink mode to CALLBACK in the Downlink data section and click Ok' },
 ]} />
 
-### Create a custom callback
+### Create a Custom Callback
 
 <Steps>
-1. Go to the **Callbacks** tab of the device type and click **New** in the upper right corner.
-2. Select **Custom callback**.
-3. Configure the callback:
-   - **Type**: `DATA`, **Channel**: `URL`, **Subtype**: `BIDIR` (required for downlink support).
-   - **Custom payload config**: enter the format string for your device (e.g. `int1: sint.8 #0;`).
-   - **URL pattern**: paste the ThingsBoard **HTTP endpoint URL** copied from the integration.
-   - **Headers**: if Security is enabled on the integration, add the same header key-value pair here.
-   - **Content type**: `application/json`.
-4. Enter the message body below and click **Ok**.
+  1. In the Sigfox Backend, open **Device type** and select the device type associated with your device.
+  2. Open the **Callbacks** tab and click **New &#8702; Custom callback**.
+  3. Configure the callback:
+      - **Type**: `DATA`, **Channel**: `URL`, **Subtype**: `BIDIR` (required for downlink support).
+      - **Custom payload config** — the format string that decodes the raw Sigfox frame into named variables for your device (for example, `int1::uint:8`). Leave the raw `data` field untouched if you decode entirely in the ThingsBoard uplink converter.
+      - **URL pattern** — paste the ThingsBoard **HTTP endpoint URL** copied from the integration.
+      - **HTTP method**: `POST`.
+      - **Headers** — if Security is enabled on the integration, add the same header key-value pair here.
+      - **Content type**: `application/json`.
+  4. Enter the message body below and click **Ok**.
 </Steps>
 
-<ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-device-callbacks-2.png', alt: 'Sigfox Backend — Device type thermostats Callbacks tab, empty list with New button in upper right', caption: 'Sigfox Backend — Callbacks tab: click New to create a callback' },
-  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-device-callbacks-4.png', alt: 'Sigfox Backend — New Callback type selection page with Custom callback highlighted', caption: 'Select Custom callback' },
-  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-device-callbacks-1.png', alt: 'Sigfox Backend — Custom callback configuration: Type DATA BIDIR, URL pattern set to ThingsBoard endpoint, header filter added, JSON message body', caption: 'Paste the ThingsBoard endpoint URL into URL pattern, add the security header, set the JSON message body, and click Ok' },
-]} />
-
-**Callback message body:**
+**Callback body:**
 
 ```json
 {
@@ -316,139 +459,350 @@ Configure your Sigfox account to forward device messages to ThingsBoard.
 }
 ```
 
-### Activate the downlink callback
+The tokens in braces (`{device}`, `{time}`, `{data}`, `{seqNumber}`) are Sigfox Backend variables and are case-sensitive. The resulting JSON must match the fields your uplink converter reads. Add more variables here — such as `{rssi}`, `{snr}`, or `{station}` — if your converter needs them.
 
-After creating the callback, click the circle in the **Downlink** column to designate it as the active downlink handler. The circle turns solid (filled) to indicate active status.
+<Aside type="note">
+  If **Security (Headers filter)** is enabled on the ThingsBoard integration, the callback must send the matching header — requests with a missing or mismatched header are rejected.
+</Aside>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-device-callbacks-2.png', alt: 'Sigfox Backend — Device type thermostats Callbacks tab, empty list with New button in upper right', caption: 'Sigfox Backend — Callbacks tab: click New to create a callback' },
+  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-device-callbacks-4.png', alt: 'Sigfox Backend — New Callback type selection page with Custom callback highlighted', caption: 'Select Custom callback' },
+  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-device-callbacks-1.png', alt: 'Sigfox Backend — Custom callback configuration: Type DATA BIDIR, URL pattern set to ThingsBoard endpoint, header filter added, JSON message body', caption: 'Paste the ThingsBoard endpoint URL into URL pattern, add the security header, set the JSON message body, and click Ok' },
+]} />
+
+### Activate the Downlink Callback
+
+After creating the callback, click the circle in the **Downlink** column to designate it as the active downlink handler. The circle turns solid to indicate active status. Only one callback per device type can act as the downlink handler.
 
 <ImageGallery images={[
   { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-device-callbacks-3.png', alt: 'Sigfox Backend — Callbacks list showing the custom callback row with the Downlink toggle being clicked to activate it', caption: 'Click the circle in the Downlink column to make this callback the active downlink handler' },
 ]} />
 
-## Test uplink
 
-Send an uplink message from your Sigfox device. ThingsBoard automatically creates the device and sends a notification. Click the **bell** icon and then **Go to device** to open the provisioned device.
+## Test the Integration
+
+After the integration and converter are configured, and the device is transmitting through the Sigfox Backend, confirm that ThingsBoard receives, decodes, and stores the data correctly.
+
+<Aside type="note">
+  Before testing, ensure that **Debug** mode with the **All messages** option is enabled for both the integration and the converter. This lets you inspect received messages and conversion results on the corresponding **Events** tabs.
+</Aside>
+
+### Send Test Uplink
+
+Wait for your device to transmit an uplink through the Sigfox Backend, or emulate one by sending an HTTP request directly to the ThingsBoard endpoint with curl — bypassing Sigfox entirely. This is useful to verify the integration and converter before connecting real hardware.
+
+Replace `$HTTP_ENDPOINT_URL` with the **HTTP endpoint URL** copied in **[Create Sigfox Integration](#create-sigfox-integration)**:
+
+```bash
+curl -v \
+  -H "Content-Type: application/json" \
+  -d '{"device":"1CB0F1","time":"1742481772","seqNumber":"512","data":"2502af2102462a","rssi":"-98.00","snr":"18.10"}' \
+  "$HTTP_ENDPOINT_URL"
+```
+
+The `data` value `2502af2102462a` decodes to `temperature = 28.7`, `humidity = 33`, `co2 = 582`, and `co2Baseline = 420` — see **Verify Converter Events** below.
+
+### Verify Integration Events
+
+Go to **Integrations center &#8702; Integrations**, open the Sigfox integration, and click the **Events** tab. With **Event type** set to **Debug**, a row appears with **Type: Uplink** and **Status: OK**.  
+Click **…** in the **Message** column to inspect the raw JSON body received from the Sigfox Backend.
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-integration-create-device-3.png', alt: 'ThingsBoard notification panel showing device Sigfox-2216792 became active with Go to device button', caption: 'ThingsBoard notification confirming device Sigfox-2216792 was provisioned — click Go to device to open it' },
+  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-test-integration-events-1.png', alt: 'SigFox integration Events tab — Debug event type, one row with Type Uplink and Status OK', caption: 'Integration Events tab — the test uplink appears with Type Uplink and Status OK' },
+  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-test-integration-events-2.png', alt: 'Message dialog showing the raw JSON body received from the Sigfox Backend: device, time, seqNumber, data, rssi, snr fields', caption: 'Click … in the Message column to inspect the raw JSON body received by the integration' },
 ]} />
 
-Open the device to review its data:
+### Verify Converter Events
+
+Go to **Integrations center &#8702; Data converters**, open the uplink converter you configured for this integration, and click its **Events** tab.  
+Click **…** in each column to inspect:
+- **In** — the raw callback JSON payload received by the converter.
+- **Out** — the decoded result produced by the script: `deviceName`, `deviceType`, `groupName`, `attributes` (`sigfoxId`, `autoCalibration`, `zeroPointAdjusted`, `transmitPower`, `powerControl`, `fwVersion`), and `telemetry.values` (`temperature`, `humidity`, `co2`, `co2Baseline`).
+- **Metadata** — integration-level context, including `integrationName`.
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-integration-create-device-1.png', alt: 'Device Latest Telemetry tab showing co2=0, co2Baseline=400, humidity=0, temperature=-35.2', caption: 'Latest Telemetry tab showing the decoded sensor values: co2, co2Baseline, humidity, and temperature' },
-  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-integration-create-device-2.png', alt: 'Device Attributes tab showing autoCalibration, fwVersion, powerControl, sigfox_id, transmitPower, zeroPointAdjusted', caption: 'Attributes tab showing device attributes decoded from the first byte of the payload' },
+  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-test-converter-events-1.png', alt: 'SigFox Uplink Converter Events tab — Debug event type, one row with Type Uplink', caption: 'Converter Events tab — the same uplink processed by the SigFox Uplink Converter' },
+  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-test-converter-events-2.png', alt: 'In dialog showing the raw callback JSON payload received by the converter: device, time, seqNumber, data, rssi, snr fields', caption: 'Click … in the In column to inspect the raw payload the converter received' },
+  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-test-converter-events-3.png', alt: 'Out dialog showing the decoded result: deviceName Sigfox-1CB0F1, deviceType Sigfox device, groupName Control room devices, attributes with sigfoxId autoCalibration zeroPointAdjusted transmitPower powerControl fwVersion, and telemetry values temperature humidity co2 co2Baseline', caption: 'Click … in the Out column to inspect the decoded result — device identity, attributes, and telemetry values' },
 ]} />
 
-You can also inspect the raw and decoded data in the uplink converter's **Events** tab:
+### Verify Device Provisioning
+
+Go to **Entities &#8702; Devices**. ThingsBoard automatically provisions a new device named `Sigfox-<device ID>` (e.g. `Sigfox-1CB0F1`) on the first uplink, provided **Allow create devices or assets** is enabled. Open the device and check:
+- **Latest telemetry** — `temperature`, `humidity`, `co2`, and `co2Baseline` decoded by the script.
+- **Client attributes** — `sigfoxId`, `autoCalibration`, `zeroPointAdjusted`, `transmitPower`, `powerControl`, and `fwVersion` set by the script.
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-uplink-converter-events-in.png', alt: 'Uplink converter Events tab — In block showing raw Sigfox JSON message with device, time, data, seqNumber fields', caption: 'Events tab — In block showing the raw Sigfox message received by ThingsBoard' },
-  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-uplink-converter-events-out.png', alt: 'Uplink converter Events tab — Out block showing decoded deviceName, deviceType, telemetry values, and attributes', caption: 'Events tab — Out block showing the decoded telemetry and attributes' },
+  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-test-device-attributes.png', alt: 'Device Sigfox-1CB0F1 Attributes tab — Client attributes: autoCalibration on, fwVersion 2, powerControl off, sigfoxId 1CB0F1, transmitPower full, zeroPointAdjusted false', caption: 'Device Client attributes — set by the uplink converter on first contact' },
+  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-test-device-telemetry.png', alt: 'Device Sigfox-1CB0F1 Latest telemetry tab — co2 582, co2Baseline 420, humidity 33, temperature 28.7', caption: 'Device Latest telemetry — decoded values from the test uplink' },
 ]} />
 
-## Configure and test downlink
+Expected result: the device appears in **Entities &#8702; Devices** within seconds of the uplink, with telemetry and attributes matching the values above.
 
-To send messages from ThingsBoard back to a Sigfox device, create a downlink converter and configure a rule chain. For the full encoder reference, see <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter">Downlink data converter</DocLink>.
+## Configure and Test Downlink
+
+To send messages from ThingsBoard back to a Sigfox device, create a downlink converter, assign it to the integration, and add an **Integration Downlink** node to the Root Rule Chain. For the full encoder reference, see <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink data converter</DocLink>.
+
+### Add Downlink Converter
+
+Data converters translate between ThingsBoard's data model and the Sigfox message format. The **uplink converter** (configured above) decodes incoming device payloads into telemetry and attributes; the **downlink converter** does the reverse — it encodes an outgoing Rule Engine message into the hex payload and target device ID the Sigfox Backend expects, ready to be queued for delivery.
+
+<Steps>
+  1. Go to **Integrations center &#8702; Integrations** and open the **SigFox integration**.
+  2. Click the **pencil** icon to enter edit mode.
+  3. In the **Downlink data converter** field, click **Create new**.
+  4. In the **Add data converter** dialog:
+      - Enter a name for the converter, for example, `SigFox Downlink Converter`.
+      - Use the default encoder script or replace it with your own implementation.
+      - Click **Add**.
+  5. Click **Apply changes** to save the integration.
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-downlink-converter-setup-1.png', alt: 'SigFox integration Details tab in view mode — Uplink data converter assigned, Downlink data converter empty, Toggle edit mode button in the top right', caption: 'Open the SigFox integration — the Downlink data converter field is empty; click Toggle edit mode' },
+  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-downlink-converter-setup-2.png', alt: 'SigFox integration in edit mode — Downlink data converter field empty with a Create new link', caption: 'In edit mode, click Create new in the Downlink data converter field' },
+  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-downlink-converter-setup-3.png', alt: 'Add data converter dialog — Downlink type, Integration type SigFox, name SigFox Downlink Converter, Main encoding configuration showing the encoder function', caption: 'Enter the converter name, review the encoder script, and click Add' },
+  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-downlink-converter-setup-4.png', alt: 'SigFox integration in edit mode — SigFox Downlink Converter now assigned in the Downlink data converter field, Apply changes button highlighted', caption: 'SigFox Downlink Converter is now assigned — click Apply changes to save' },
+]} />
 
 **The encoder function used in this tutorial:**
 
 <Tabs>
-<TabItem label="TBEL (Recommended)">
-```js maxLines=15 collapsible
-// Encode downlink data from incoming Rule Engine message
-var result = {
-    // downlink data content type: JSON, TEXT or BINARY (base64 format)
-    contentType: "TEXT",
-    // downlink data
-    data: msg.test,
-    // Optional metadata object presented in key/value format
-    metadata: {
-        "device": "2203961"
+  <TabItem label="TBEL (Recommended)">
+    ```js maxLines=15 collapsible
+    // Encode downlink data from the incoming Rule Engine message.
+    // msg - JSON message payload, e.g. { "downlink": "0000780001900000" }
+    // msgType - message type, e.g. "ATTRIBUTES_UPDATED".
+    // metadata.cs_sigfoxId - Sigfox device ID stored on first uplink, e.g. "1CB0F1".
+
+    var deviceId = metadata.cs_sigfoxId;
+    var payload = msg.downlink;
+
+    if (deviceId == null) {
+      raiseError("Sigfox device ID is missing (expected metadata.cs_sigfoxId).");
     }
-};
-return result;
-```
-</TabItem>
-<TabItem label="JavaScript">
-```js maxLines=15 collapsible
-// Encode downlink data from incoming Rule Engine message
-var result = {
-    // downlink data content type: JSON, TEXT or BINARY (base64 format)
-    contentType: "TEXT",
-    // downlink data
-    data: msg.test,
-    // Optional metadata object presented in key/value format
-    metadata: {
-        "device": "2203961"
+
+    if (payload == null) {
+      raiseError("Downlink payload is missing (expected msg.downlink).");
     }
-};
-return result;
-```
-</TabItem>
+
+    // Convert the payload to a string and restore omitted leading zeros.
+    payload = "" + payload;
+
+    while (payload.length() < 16) {
+      payload = "0" + payload;
+    }
+
+    if (payload.length() > 16) {
+      raiseError("Sigfox downlink payload must not exceed 16 hexadecimal characters.");
+    }
+
+    return {
+      contentType: "TEXT",
+      data: payload,
+      metadata: {
+        device: deviceId
+      }
+    };
+    ```
+  </TabItem>
+  <TabItem label="JavaScript">
+    ```js maxLines=15 collapsible
+    // Encode downlink data from the incoming Rule Engine message.
+    // msg - JSON message payload, e.g. { "downlink": "0000780001900000" }
+    // msgType - message type, e.g. "ATTRIBUTES_UPDATED".
+    // metadata.cs_sigfoxId - Sigfox device ID stored on first uplink, e.g. "1CB0F1".
+
+    var deviceId = metadata.cs_sigfoxId;
+    var payload = msg.downlink;
+
+    if (deviceId == null) {
+      throw new Error("Sigfox device ID is missing (expected metadata.cs_sigfoxId).");
+    }
+
+    if (payload == null) {
+      throw new Error("Downlink payload is missing (expected msg.downlink).");
+    }
+
+    // Convert the payload to a string and restore omitted leading zeros.
+    payload = String(payload);
+
+    while (payload.length < 16) {
+      payload = "0" + payload;
+    }
+
+    if (payload.length > 16) {
+      throw new Error("Sigfox downlink payload must not exceed 16 hexadecimal characters.");
+    }
+
+    return {
+      contentType: "TEXT",
+      data: payload,
+      metadata: {
+        device: deviceId
+      }
+    };
+    ```
+  </TabItem>
 </Tabs>
+
+<Aside type="note">
+  The downlink is only delivered when the device's firmware requests one on an uplink (a downlink-request flag set by the device — not something ThingsBoard can trigger), and the payload must be exactly 8 bytes. ThingsBoard queues the most recent command per device until such an uplink arrives.
+</Aside>
 
 **To adapt this encoder to your use case:**
 
-- **`data`** — replace `msg.test` with the field from the Rule Engine message that carries the value to send (e.g. `msg["base-key"]` when the triggering shared attribute is named `base-key`). The Sigfox network supports up to 8 bytes of downlink payload.
+- **`msg.downlink`** — replace with the Rule Engine message field that carries the value to send (for example, `msg["base-key"]` when the triggering shared attribute is named `base-key`).
+- **Leading-zero padding** — the script left-pads `payload` with `"0"` up to 16 hex characters (8 bytes) before sending it. This guards against ThingsBoard coercing a purely numeric attribute value into a JSON number and silently dropping leading zeros (see **[Test Downlink](#test-downlink)**). Remove this block only if your payload is never numeric-looking, or if you cast it to a string yourself upstream.
+- **Length check** — the script rejects payloads longer than 16 hex characters with `raiseError`/`throw`, since the Sigfox network supports up to **8 bytes** of downlink payload. Adjust the `16` limit if your device's downlink protocol uses a shorter fixed length.
 - **`contentType`** — use `TEXT` for a plain string, `JSON` for a JSON object, or `BINARY` for a base64-encoded binary payload.
-- **`metadata.device`** — replace the hardcoded device ID with the Sigfox device ID (without the `Sigfox-` prefix) that should receive the downlink message.
-
-### Assign the downlink converter to the integration
-
-<Steps>
-1. Go to **Integrations center &#8702; Integrations** and open **SigFox Integration**.
-2. Click **Toggle edit mode**.
-3. In the **Downlink data converter** field, click **Create new**.  
-4. In the **Add data converter** dialog, enter a name, and paste the encoder function from <a href="#configure-and-test-downlink">above</a> into the editor and click the **Add** button.
-5. Click **Apply changes**.
-</Steps>
-
-<ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-add-downlink-converter-1.png', alt: 'SigFox Integration details panel in view mode — uplink converter assigned, downlink converter field empty, Toggle edit mode button in the top right', caption: 'Open the SigFox Integration — the Downlink data converter field is empty; click Toggle edit mode' },
-  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-add-downlink-converter-2.png', alt: 'SigFox Integration in edit mode — Downlink data converter field empty with Create new button visible', caption: 'Integration in edit mode — click Create new in the Downlink data converter field' },
-  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-add-downlink-converter-3.png', alt: 'Add data converter dialog — Downlink type selected, name SigFox Downlink Converter, TBEL editor showing the encoder function', caption: 'Enter the converter name, paste the encoder function in the TBEL editor, and click Add' },
-  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-add-downlink-converter-4.png', alt: 'SigFox Integration in edit mode — SigFox Downlink Converter now assigned in the Downlink data converter field, Apply changes button highlighted', caption: 'SigFox Downlink Converter is now assigned — click Apply changes to save' },
-]} />
+- **`metadata.device`** — populated from `metadata.cs_sigfoxId`, which the **Fetch sigfoxId** node injects (see **[Configure the Root Rule Chain](#configure-the-root-rule-chain)**). Change this only if you route the target device ID through a different metadata key.
 
 ### Configure the Root Rule Chain
 
+To trigger a downlink when an attribute changes (for example, a shared attribute update), add two nodes to the Root Rule Chain: an **Originator attributes** node (Enrichment category) that reads the device `sigfoxId` client attribute into message metadata, and an **Integration Downlink** node (Action category) that forwards the encoded message to the Sigfox integration.
+
+<Aside type="note" title="Why these nodes are required">
+  The <strong>Originator attributes</strong> node injects the <code>sigfoxId</code> client attribute into message metadata with the <code>cs_</code> prefix — the downlink converter reads <code>metadata.cs_sigfoxId</code> to build the Sigfox delivery target. Without this node, the field is absent and the converter cannot route the downlink.
+</Aside>
+
 <Steps>
-1. Go to **Rule chains** and open the **Root Rule Chain**.
-2. Find the **Integration Downlink** node, drag it onto the canvas, name it `SigFox integration downlink`, select the SigFox integration, and click **Add**.
-3. Connect the **Message Type Switch** node to the **Integration Downlink** node using both **Attributes Updated** and **Post Attributes** relation types.
-4. Save the rule chain.
+  <ol>
+    <li>Open <strong>Rule Chains &#8702; Root Rule Chain</strong>.</li>
+    <li>In the node panel, search for <strong>originator attributes</strong>. The node appears under the <strong>Enrichment</strong> category. Drag it onto the canvas.</li>
+    <li>
+      <span><strong>Configure the node:</strong></span>
+      <ul>
+        <li><strong>Name</strong> — <code>Fetch sigfoxId</code>.</li>
+        <li>Under <strong>Client attributes</strong>, add the key <code>sigfoxId</code>.</li>
+        <li>Set <strong>Add originator attributes to</strong> to <strong>Metadata</strong>.</li>
+        <li>Click <strong>Add</strong>.</li>
+      </ul>
+    </li>
+    <li>In the node panel, search for <strong>integration downlink</strong>. The node appears under the <strong>Action</strong> category. Drag it onto the canvas.</li>
+    <li>
+      <span><strong>Configure the node:</strong></span>
+      <ul>
+        <li><strong>Name</strong> — <code>Downlink to Sigfox</code>.</li>
+        <li><strong>Integration</strong> — select your <strong>Sigfox integration</strong>.</li>
+        <li>Click <strong>Add</strong>.</li>
+      </ul>
+    </li>
+    <li>Connect the <strong>Message Type Switch</strong> node to the <strong>Fetch sigfoxId</strong> node using the <strong>Post attributes</strong> and <strong>Attributes Updated</strong> relations.</li>
+    <li>Connect the <strong>Fetch sigfoxId</strong> node to the <strong>Downlink to Sigfox</strong> node using the <strong>Success</strong> relation.</li>
+    <li>Click <strong>Apply changes</strong>.</li>
+  </ol>
 </Steps>
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-rule-chain-downlink-1.png', alt: 'Root Rule Chain — Add rule node dialog with name SigFox integration downlink and SigFox Integration selected', caption: 'Name the node SigFox integration downlink, select SigFox Integration, and click Add' },
-  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-rule-chain-downlink-2.png', alt: 'Root Rule Chain canvas with Message Type Switch connected to Integration Downlink node via Attributes Updated and Post Attributes links', caption: 'Connect Message Type Switch → Attributes Updated and Post Attributes → SigFox integration downlink, then save' },
+  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-downlink-rule-chain-1.png', alt: 'Root Rule Chain node panel — searching originator attributes, tooltip describing the node under the Enrichment category', caption: 'Search for originator attributes in the node panel — it appears under Enrichment' },
+  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-downlink-rule-chain-2.png', alt: 'Add rule node: originator attributes dialog — name Fetch sigfoxId, Client attributes key sigfoxId, Add originator attributes to set to Metadata', caption: 'Name the node Fetch sigfoxId, add sigfoxId under Client attributes, set the target to Metadata, and click Add' },
+  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-downlink-rule-chain-3.png', alt: 'Add rule node: integration downlink dialog — name Downlink to Sigfox, Integration set to SigFox integration', caption: 'Name the node Downlink to Sigfox, select the SigFox integration, and click Add' },
+  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-downlink-rule-chain-4.png', alt: 'Root Rule Chain canvas — Message Type Switch connected to Fetch sigfoxId via Attributes Updated / Post attributes, Fetch sigfoxId connected to Downlink to Sigfox via Success', caption: 'The finished wiring: Message Type Switch → Fetch sigfoxId → Downlink to Sigfox. Click Apply changes to save' },
 ]} />
 
-### Test the downlink
+### Test Downlink
 
-Adding or updating a shared attribute triggers the **Attributes Updated** relation in the rule chain, which forwards the change to the SigFox integration downlink node. ThingsBoard encodes the value using the downlink converter and sends it to Sigfox via the Cloud API. Sigfox queues the message and delivers it on the device's next uplink transmission.
+Adding or updating a shared attribute triggers the **Attributes Updated** relation, which forwards the change through **Fetch sigfoxId** to **Downlink to Sigfox**. ThingsBoard encodes the value with the downlink converter and queues it for delivery — the Sigfox Backend receives it the next time the device transmits an uplink that requests a downlink (a flag the device firmware sets; ThingsBoard cannot trigger this on its own).
 
 <Steps>
-1. Go to **Entities &#8702; Devices** and open your device.
-2. Click the **Attributes** tab and switch to **Shared attributes**.
-3. Click **+**, enter a key (e.g. `base-key`) and a string value (e.g. `74524517`), and click **Add**.
+  1. Go to **Entities &#8702; Devices** and open your device.
+  2. Open the **Attributes** tab and switch to **Shared attributes**.
+  3. Click **+**, enter a key (for example, `downlink`) and a string value (for example, `0000780001900000`), then click **Add**.
 </Steps>
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-create-shared-attribute.png', alt: 'Device Attributes tab — Shared attributes selected, Add attribute dialog open with key base-key and value 74524517', caption: 'Device Shared attributes tab — add a shared attribute with a string value to trigger the downlink' },
+  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-test-downlink-attribute.png', alt: 'Add attribute dialog — key downlink, type String, value 0000780001900000', caption: 'Add a shared attribute with the downlink hex payload as its value' },
 ]} />
 
-After the device sends its next uplink, the downlink is delivered. In your Sigfox Backend, go to the device **Messages** tab to confirm the downlink was acknowledged, and check the device type **Statistics** tab to see it reflected in the message chart.
+**Example: increased interval (every 120 minutes) for maximum savings.** Intended for sensors in long-term archives or warehouses, where readings change slowly. Sending every 2 hours instead of the default 30 minutes lets the Airwits battery last as long as possible.
+
+HEX code: `0000780001900000`
+
+| Bytes | Meaning |
+|-------|---------|
+| `00` | Byte 0 — Transmit Power Mode 1 not enabled (`0x00`) |
+| `00 78` | Bytes 1–2 — new interval: `0x0078` = 120 minutes (2 hours) |
+| `00 01 90 00 00` | Bytes 3–7 — CO₂ baseline calibration `0x0190` = 400 ppm, and zeros filling out the packet length |
+
+<Aside type="caution">
+  If the value you enter parses as a valid JSON number — either all digits, or digits combined with an `e`/`E` exponent marker like the example above — ThingsBoard may store and forward it as a number rather than a literal string, which can alter the hex payload (for example, dropping leading zeros or misreading the `E` as scientific notation).
+</Aside>
+
+Saving the attribute immediately logs an **ATTRIBUTES_UPDATED** downlink event on the integration — but this only means the payload was *encoded and queued*, not delivered. The **SigFox Downlink Converter**'s own Events tab stays empty at this point, since the converter only runs again once the Sigfox Backend actually requests the downlink.
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-downlink-message-2.png', alt: 'Sigfox Backend — device Messages tab showing Downlink status Acked with hex data 74524517', caption: 'Sigfox Backend — device Messages tab confirming the downlink was acknowledged with the transmitted hex data' },
+  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-test-downlink-integration-events-before.png', alt: 'SigFox integration Events tab — a single row, Downlink ATTRIBUTES_UPDATED, Status OK', caption: 'Right after saving the attribute — only the ATTRIBUTES_UPDATED event exists so far' },
+  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-test-downlink-integration-message.png', alt: 'Message dialog for the ATTRIBUTES_UPDATED event — rule-engine message including metadata.cs_sigfoxId', caption: 'Click … in the Message column — metadata.cs_sigfoxId was already injected by Fetch sigfoxId' },
+]} />
+
+#### Resend a Test Uplink
+
+The downlink is only handed to the Sigfox Backend in reply to an uplink that requests one. Wait for the device's next such transmission, or trigger one immediately by resending the same test request from **[Send Test Uplink](#send-test-uplink)**:
+
+<Aside type="note">
+  This curl request bypasses Sigfox's own downlink-request-flag mechanism entirely — it verifies ThingsBoard's side of the pipeline (converter, Rule Chain, response), not whether a real device would receive the downlink over the air.
+</Aside>
+
+```bash
+curl -v \
+  -H "Content-Type: application/json" \
+  -d '{"device":"1CB0F1","time":"1742481772","seqNumber":"512","data":"2502af2102462a","rssi":"-98.00","snr":"18.10"}' \
+  "$HTTP_ENDPOINT_URL"
+```
+
+The response body now carries the queued downlink for the device:
+
+```json
+{"1CB0F1":{"downlinkData":"0000780001900000"}}
+```
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-test-downlink-resend-curl.png', alt: 'Terminal showing curl response HTTP/2 200 with body {"1CB0F1":{"downlinkData":"0000780001900000"}}', caption: 'The full 16-character hex payload comes back in the response — the encoder’s leading-zero padding restored it' },
+]} />
+
+#### Confirm Delivery in Integration Events
+
+Go to **Integrations center &#8702; Integrations**, open the SigFox integration, and click the **Events** tab again. Alongside the earlier **ATTRIBUTES_UPDATED** event, an **Uplink** / **Downlink** pair now appears from the resent request — all with **Status: OK**.
+
+#### Confirm Delivery in Converter Events
+
+Go to **Integrations center &#8702; Data converters**, open the **SigFox Downlink Converter**, and click its **Events** tab — the row that was missing before now appears:
+
+- **In** — the Rule Engine message and metadata, including `metadata.cs_sigfoxId` set by the **Fetch sigfoxId** node.
+- **Out** — the encoded result: `contentType`, the `data` payload, and `metadata.device`.
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-test-downlink-converter-events.png', alt: 'SigFox Downlink Converter Events tab — one row with Type Downlink, present after resending the uplink', caption: 'The converter only logs an event once the queued downlink is actually delivered' },
+  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-test-downlink-converter-in.png', alt: 'In dialog showing the message the converter received: msg.downlink 780001900000 and metadata including cs_sigfoxId', caption: 'In — msg.downlink arrives as 780001900000 (leading zeros dropped), metadata.cs_sigfoxId is 1CB0F1' },
+  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-test-downlink-converter-out.png', alt: 'Out dialog showing the encoded result: contentType TEXT, data 0000780001900000, metadata.device 1CB0F1', caption: 'Out — the encoder restores the full 16-character payload before it reaches the Sigfox Backend' },
+]} />
+
+In the Sigfox Backend, open the device **Messages** tab to confirm the downlink was acknowledged, and check the device type **Statistics** tab to see it reflected on the message chart.
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-downlink-message-2.png', alt: 'Sigfox Backend — device Messages tab showing Downlink status Acked with hex data 74524517', caption: 'Sigfox Backend — device Messages tab confirming the downlink was acknowledged' },
   { src: '/src/assets/images/user-guide/integrations/sigfox/sigfox-statistics-1.png', alt: 'Sigfox Backend — device type Statistics tab showing uplink (green) and downlink (blue) message traffic on the chart', caption: 'Sigfox Backend — device type Statistics tab showing uplink and downlink message traffic' },
 ]} />
 
-## See also
+## Troubleshooting
 
-- <DocLink product={props.product} path="user-guide/integrations">Integration Overview</DocLink>
-- <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter">Uplink Converters</DocLink>
-- <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter">Downlink Converters</DocLink>
-- <DocLink product={props.product} path="user-guide/rule-engine">Rule Engine</DocLink>
-- <DocLink product={props.product} path="user-guide/tbel">ThingsBoard Expression Language (TBEL)</DocLink>
+| Issue | Likely cause | Resolution |
+| --- | --- | --- |
+| No device created after uplink | **Allow create devices or assets** is disabled, or the callback never reached ThingsBoard | Enable device creation on the integration; verify the callback **URL pattern** matches the integration's HTTP endpoint URL and that the callback status in the Sigfox Backend shows a `2xx` response. |
+| Callback returns `401` / `403` | Security is enabled on the integration but the callback sends no matching header | Add the same header key-value pair to the callback's **Headers** field, or disable Security on the integration. |
+| Uplink received but no telemetry | Converter error, or the payload field names do not match the decoder | Enable **Debug mode** and check the converter **Events** tab; confirm the callback message body keys (`device`, `time`, `data`) match the fields the decoder reads. |
+| Telemetry values look wrong | The `substring` ranges, scaling, or offsets do not match the device's byte layout | Verify the byte layout against the device datasheet and adjust the decoder arithmetic. |
+| Downlink never delivered | **Downlink mode** is not `CALLBACK`, the callback subtype is not `BIDIR`, or the callback is not activated as the downlink handler | Set **Downlink mode** to `CALLBACK`, set the callback subtype to `BIDIR`, and activate it in the **Downlink** column. Remember the downlink is delivered only on the device's next uplink. |
+| Downlink sent to the wrong device | `metadata.device` in the encoder points to a different Sigfox ID | Set `metadata.device` to the target device's Sigfox ID (without the `Sigfox-` prefix). |
+| Downlink rejected as too large | Payload exceeds the Sigfox limit | Keep the downlink payload within **8 bytes**. |
+
+## See Also
+
+- <DocLink product={props.product} path="user-guide/integrations" target="_blank">Integrations overview</DocLink> — integration events, debug, and Remote Integration setup.
+- <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">Uplink data converter</DocLink> — full decoder reference: input parameters, output fields, and scripting patterns.
+- <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink data converter</DocLink> — full encoder reference and testing.
+- <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink> — run the integration as a standalone process outside the ThingsBoard server.
+- <DocLink product={props.product} path="user-guide/rule-engine" target="_blank">Rule Engine</DocLink> — how uplink messages are processed after the converter.
+- <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL</DocLink> — the recommended converter scripting language.
