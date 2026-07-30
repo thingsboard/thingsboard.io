@@ -6,36 +6,93 @@ import { Products } from '~/models/site.models';
 import Tabs from '@components/Tabs.astro';
 import TabItem from '@components/TabItem.astro';
 
-<Banner variant="peFeature" product={props.product} path="user-guide/integrations/iotcreators" />
+<Banner variant="peFeature" product={props.product} path="installation/" />
 
-**IoT Creators Integration** connects ThingsBoard to <a href="https://www.iotcreators.com/" target="_blank" rel="noopener noreferrer">IoT Creators</a> (Deutsche Telekom's NB-IoT and LTE-M connectivity platform, also marketed as T-Mobile IoT CDP). When a device sends an uplink, IoT Creators forwards the data to ThingsBoard via an HTTP subscription callback, where it is decoded and stored as device telemetry and attributes.
+The <strong>iotcreators.com (T-Mobile &#8211; IoT CDP)</strong> integration connects ThingsBoard to the <a href="https://www.iotcreators.com/" target="_blank" rel="noopener noreferrer"><strong>IoT Creators platform</strong></a> — the NB-IoT and LTE-M connectivity platform operated by T-Mobile / Deutsche Telekom. Use it to bring telemetry from cellular IoT devices already provisioned in IoT Creators into ThingsBoard for monitoring and rule-based automation.
+
+## Architecture
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/iotcreators-integration-architecture.svg', alt: 'IoT Creators integration architecture diagram showing uplink data flowing from an NB-IoT/LTE-M device through the IoT Creators platform to the ThingsBoard uplink converter and Core Service, and downlink commands flowing back to the device', caption: 'IoT Creators integration architecture — uplink and downlink data flow between the IoT Creators platform and ThingsBoard.' },
+]} />
+
+An NB-IoT / LTE-M device sends an uplink over UDP or CoAP to the IoT Creators platform, which forwards it over HTTP (a JSON body containing a `reports` array) to the integration's endpoint. The uplink converter decodes each report's payload into telemetry and attributes, and the ThingsBoard Core Service stores the data, creating the device automatically on first contact. Downlink to cellular devices is handled by the IoT Creators platform itself — see <a href="#downlink-to-devices"><strong>Downlink to Devices</strong></a>.
 
 ## Prerequisites
 
-- A ThingsBoard PE or Cloud account with permission to create integrations.
-- An <a href="https://www.iotcreators.com/" target="_blank" rel="noopener noreferrer">IoT Creators</a> account with at least one registered NB-IoT or LTE-M device.
+Before creating the integration, ensure:
 
-## ThingsBoard integration setup
+- You have access to {props.product !== Products.PAAS && props.product !== Products.PAAS_EU && <><DocLink product={Products.PE} path="installation/" target="_blank">ThingsBoard PE</DocLink> or </>}<a href="/installations/?product=thingsboard-cloud" target="_blank" rel="noopener noreferrer"><strong>ThingsBoard Cloud</strong></a> with integration functionality enabled for your tenant.
+- You have permissions to create integrations and data converters.
+- You have an <a href="https://www.iotcreators.com/" target="_blank" rel="noopener noreferrer"><strong>IoT Creators</strong></a> account with at least one project and a Starterkit / SIM card.
+- You have at least one NB-IoT or LTE-M device that sends its payload to the IoT Creators UDP/CoAP server, with its **IMEI** on hand.
 
-### Uplink decoder
+## Create IoT Creators Uplink Data Converter
 
-The decoder receives the full IoT Creators subscription notification as `payload` and converts it into the ThingsBoard data model.
+The uplink converter decodes the incoming IoT Creators message (JSON containing a `reports` array) and maps it to the ThingsBoard data model — it resolves the target device from the report `serialNumber` (IMEI) and extracts fields into telemetry and attributes. For the full decoder function reference, see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" bold={true} target="_blank">Uplink data converter</DocLink>.
+
+As an example, this integration uses a real <a href="https://docs.iotcreators.com/docs/imbuildings-comfort-sensor" target="_blank" rel="noopener noreferrer"><strong>IMBUILDINGS Comfort Sensor</strong></a>, officially listed in the IoT Creators documentation. It measures temperature, humidity, CO₂, battery voltage, and presence. IoT Creators forwards the sensor payload as a hex string in the `reports[0].value` field.
 
 **Sample payload:**
 
 ```json
 {
-  "deviceId": "352656100301398",
-  "timestamp": 1710495000000,
-  "temperature": 23.5,
-  "humidity": 60,
-  "battery": 3.7,
-  "rssi": -85,
-  "snr": 5.2
+  "reports": [
+    {
+      "serialNumber": "IMEI:866425033313638",
+      "timestamp": 1600439712734,
+      "subscriptionId": "fa37d89c-a7e2-4f3d-b12f-6002a3642b4c",
+      "resourcePath": "uplinkMsg/0/data",
+      "value": "0101d880396f026e000158a50a4b121503d301"
+    }
+  ],
+  "registrations": [],
+  "deregistrations": [],
+  "updates": [],
+  "expirations": [],
+  "responses": []
 }
 ```
 
-`deviceId` is the device IMEI. Sensor readings are flat JSON fields. `rssi` and `snr` are radio quality metrics reported by the NB-IoT/LTE-M network.
+This is a real subscription callback payload from the IoT Creators documentation. The `reports[0].value` hex string decodes to:
+
+```json
+{
+  "status": 0,
+  "batteryVoltage": 3.44,
+  "temperature": 26.35,
+  "humidity": 46.29,
+  "co2": 979,
+  "presence": true
+}
+```
+
+The byte layout and decoding logic are described in the official IMBUILDINGS Comfort Sensor documentation.
+
+<Steps>
+  <ol>
+    <li>Go to <strong>Integrations center &#8702; Data converters</strong>.</li>
+    <li>Click <strong>+ Add data converter &#8702; Create new converter</strong>.</li>
+    <li><strong>Converter type</strong> — leave <strong>Uplink</strong> (selected by default).</li>
+    <li><strong>Integration type</strong> — in the search field, enter <code>iotcreators</code> and select <strong>iotcreators.com (T-Mobile &#8211; IoT CDP)</strong> from the list.</li>
+    <li><strong>Name</strong> — enter a converter name, for example <code>IoT Creators Uplink Converter</code>.</li>
+    <li>
+      <span>In <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#main-decoding-configuration" target="_blank">Main decoding configuration</DocLink>:</span>
+      <ul>
+        <li>The default decoder is pre-filled. Leave it unchanged for this guide, or paste the decoder function below.</li>
+        <li>Because a single message may contain reports for several devices, the device name is set inside the decoder from each report's <code>serialNumber</code>, rather than by a global device name pattern.</li>
+      </ul>
+    </li>
+    <li>Enable <strong>Debug mode</strong> so you can inspect incoming and decoded messages on the <strong>Events</strong> tab while setting up.</li>
+    <li>Click <strong>Add</strong>.</li>
+  </ol>
+</Steps>
+
+The decoder below parses the forwarded JSON, uses the report's `serialNumber` (with the `IMEI:` prefix stripped) as the device name, and decodes the hex `value` field byte-by-byte into telemetry according to the IMBUILDINGS Comfort Sensor payload specification. Adapt the hex field offsets to match your device protocol.
+
+<Aside type="tip" title="TBEL">
+  We recommend <DocLink product={props.product} path="user-guide/tbel" bold={false} target="_blank">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
+</Aside>
 
 **The decoder function used in this tutorial:**
 
@@ -48,37 +105,59 @@ The decoder receives the full IoT Creators subscription notification as `payload
 
     /** Decoder **/
 
-    var json = decodeToJson(payload);
+    var data = decodeToJson(payload);
 
-    // Use IMEI as the device name
-    var deviceName = 'NB-IoT-' + json.deviceId;
-    var deviceType = 'NB-IoT Sensor';
+    // The example notification contains one sensor report.
+    var report = data.reports[0];
 
-    // Telemetry from sensor fields
-    var telemetry = {
-    temperature: json.temperature,
-    humidity: json.humidity,
-    battery: json.battery
-  };
+    // IoT Creators identifies the device using a serial number
+    // with the "IMEI:" prefix.
+    var serialNumber = "" + report.serialNumber;
+    var imei = serialNumber.replace("IMEI:", "");
 
-    // Radio quality metrics as device attributes
-    var attributes = {
-    integrationName: metadata['integrationName']
-  };
-    if (json.rssi != null) { attributes.rssi = json.rssi; }
-    if (json.snr != null) { attributes.snr = json.snr; }
+    // The Comfort Sensor payload is provided as a hex string.
+    var bytes = hexToBytes(report.value);
 
+    // Decode the measurement values according to the
+    // Comfort Sensor payload specification.
+    var status = bytes[8] & 0xFF;
+
+    var batteryVoltage = (((bytes[9] & 0xFF) << 8) | (bytes[10] & 0xFF)) / 100.0;
+
+    var temperature = (((bytes[12] & 0xFF) << 8) | (bytes[13] & 0xFF)) / 100.0;
+
+    var humidity = (((bytes[14] & 0xFF) << 8) | (bytes[15] & 0xFF)) / 100.0;
+
+    var co2 = ((bytes[16] & 0xFF) << 8) | (bytes[17] & 0xFF);
+
+    var presence = (bytes[18] & 0xFF) == 1;
+
+    // Result object with the decoded device data.
     var result = {
-    deviceName: deviceName,
-    deviceType: deviceType,
-    attributes: attributes,
-    telemetry: {
-    ts: json.timestamp,
-    values: telemetry
-  }
-  };
+      deviceName: "NB-IoT-" + imei,
+      deviceType: "NB-IoT sensor",
+    
+      attributes: {
+        serialNumber: serialNumber,
+        subscriptionId: report.subscriptionId,
+        resourcePath: report.resourcePath,
+        model: "Comfort Sensor"
+      },
+    
+      telemetry: {
+        ts: report.timestamp,
+        values: {
+          status: status,
+          batteryVoltage: batteryVoltage,
+          temperature: temperature,
+          humidity: humidity,
+          co2: co2,
+          presence: presence
+        }
+      }
+    };
 
-    /** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
+    /** Helper functions 'decodeToString', 'decodeToJson' and 'hexToBytes' are already built-in **/
 
     return result;
     ```
@@ -91,45 +170,59 @@ The decoder receives the full IoT Creators subscription notification as `payload
 
     /** Decoder **/
 
-    var json = decodeToJson(payload);
+    var data = decodeToJson(payload);
 
-    // Use IMEI as the device name
-    var deviceName = 'NB-IoT-' + json.deviceId;
-    var deviceType = 'NB-IoT Sensor';
+    // The example notification contains one sensor report.
+    var report = data.reports[0];
 
-    // Telemetry from sensor fields
-    var telemetry = {
-    temperature: json.temperature,
-    humidity: json.humidity,
-    battery: json.battery
-  };
+    // IoT Creators identifies the device using a serial number
+    // with the "IMEI:" prefix.
+    var serialNumber = String(report.serialNumber);
+    var imei = serialNumber.replace("IMEI:", "");
 
-    // Radio quality metrics as device attributes
-    var attributes = {
-    integrationName: metadata['integrationName']
-  };
-    if (json.rssi != null) { attributes.rssi = json.rssi; }
-    if (json.snr != null) { attributes.snr = json.snr; }
+    // The Comfort Sensor payload is provided as a hex string.
+    var bytes = hexToBytes(report.value);
 
+    // Decode the measurement values according to the
+    // Comfort Sensor payload specification.
+    var status = bytes[8] & 0xFF;
+
+    var batteryVoltage = (((bytes[9] & 0xFF) << 8) | (bytes[10] & 0xFF)) / 100;
+
+    var temperature = (((bytes[12] & 0xFF) << 8) | (bytes[13] & 0xFF)) / 100;
+
+    var humidity = (((bytes[14] & 0xFF) << 8) | (bytes[15] & 0xFF)) / 100;
+
+    var co2 = ((bytes[16] & 0xFF) << 8) | (bytes[17] & 0xFF);
+
+    var presence = (bytes[18] & 0xFF) === 1;
+
+    // Result object with the decoded device data.
     var result = {
-    deviceName: deviceName,
-    deviceType: deviceType,
-    attributes: attributes,
-    telemetry: {
-    ts: json.timestamp,
-    values: telemetry
-  }
-  };
+      deviceName: "NB-IoT-" + imei,
+      deviceType: "NB-IoT sensor",
+      
+      attributes: {
+        serialNumber: serialNumber,
+        subscriptionId: report.subscriptionId,
+        resourcePath: report.resourcePath,
+        model: "Comfort Sensor"
+      },
+    
+      telemetry: {
+        ts: report.timestamp,
+        values: {
+          status: status,
+          batteryVoltage: batteryVoltage,
+          temperature: temperature,
+          humidity: humidity,
+          co2: co2,
+          presence: presence
+        }
+      }
+    };
 
-    /** Helper functions **/
-
-    function decodeToString(payload) {
-    return String.fromCharCode.apply(String, payload);
-  }
-
-    function decodeToJson(payload) {
-    return JSON.parse(decodeToString(payload));
-  }
+    /** Helper functions 'decodeToJson' and 'hexToBytes' are already built-in **/
 
     return result;
     ```
@@ -138,32 +231,45 @@ The decoder receives the full IoT Creators subscription notification as `payload
 
 **To adapt this converter to your device:**
 
-- **Device name** — replace `'NB-IoT-' + json.deviceId` with any identifier present in your payload (e.g. a device label sent by the application layer).
-- **Telemetry fields** — list the specific fields your device sends, or use `toFlatMap` to map all remaining fields automatically.
-- **Timestamp** — the decoder uses `json.timestamp` as Unix milliseconds. If the timestamp is an ISO 8601 string, use `new Date(json.timestamp).getTime()` instead.
-- **Binary NIDD payload** — if your device sends raw bytes (base64-encoded in the notification), decode with `base64ToBytes(json.data)` in TBEL and parse the byte array according to your device protocol.
+- **Device name** — replace `"NB-IoT-" + imei` with any identifier present in your payload (e.g. a device label sent by the application layer).
+- **Multiple reports per message** — a single IoT Creators notification can contain more than one entry in `reports`. Loop over `data.reports` and return an array of result objects if your subscription forwards several devices per callback.
+- **Byte offsets and scaling** — the offsets into `bytes` (`8`, `9`–`10`, `12`–`13`, and so on) and the `/ 100` scaling factors are specific to the IMBUILDINGS Comfort Sensor. Adjust them to match your device's payload specification.
+- **Timestamp** — the decoder uses `report.timestamp` as Unix milliseconds. If the timestamp is an ISO 8601 string, use `new Date(report.timestamp).getTime()` instead.
+- **Base64 payload** — if your device sends raw bytes as base64 (instead of hex), decode with `base64ToBytes(report.value)` instead of `hexToBytes`.
 - **Attributes** — add or remove fields from `attributes` as required. Store frequently changing values as telemetry, and static device properties as attributes.
 
-### Create the integration
+## Create IoT Creators Integration
 
 The IoT Creators integration wizard creates the uplink converter inline — you write the decoder function in step 2 of the wizard without leaving the dialog.
 
 <Steps>
-1. Go to **Integrations center &#8702; Integrations** and click **+ Add integration**.
-2. **Basic settings:**
-   - Set **Integration type** to **iotcreators.com (T-Mobile – IoT CDP)**.
-   - Enter a name (e.g. `IoT Creators Integration`).
-   - **Enable integration** and **Allow create devices or assets** are on by default.
-   - Click **Next**.
-3. **Uplink data converter:**
-   - Select **Create new**. A name is pre-filled — change it if needed.
-   - Replace the default decoder with the function from the tab below.
-   - Click **Next**.
-4. **Connection:**
-   - **Base URL** is pre-filled with your ThingsBoard instance URL.
-   - Copy the generated **HTTP export URL** — you will configure IoT Creators to POST to this address.
-   - Optionally, expand **Advanced settings** to add metadata or a description.
-   - Click **Add** to save the integration.
+  <ol>
+    <li>Go to <strong>Integrations center &#8702; Integrations</strong> and click <strong>+ Add integration</strong>.</li>
+    <li>
+      <span><strong>Basic settings:</strong></span>
+      <ul>
+        <li>Set <strong>Integration type</strong> to <strong>iotcreators.com (T-Mobile &#8211; IoT CDP)</strong>.</li>
+        <li>Enter a <strong>Name</strong>, or keep the default <code>iotcreators.com (T-Mobile &#8211; IoT CDP) integration</code>.</li>
+        <li>Leave <strong>Enable integration</strong> and <strong>Allow create devices or assets</strong> enabled so that devices are created automatically when data is received for the first time.</li>
+        <li>Click <strong>Next</strong>.</li>
+      </ul>
+    </li>
+    <li>
+      <span><strong>Uplink data converter:</strong></span>
+      <ul>
+        <li>Click <strong>Select existing</strong> and choose the <a href="#create-iot-creators-uplink-data-converter"><strong>IoT Creators Uplink Converter</strong></a> created above, or click <strong>Create new</strong> to define the decoder inline.</li>
+        <li>Click <strong>Next</strong>.</li>
+      </ul>
+    </li>
+    <li>
+      <span><strong>Connection:</strong></span>
+      <ul>
+        <li><strong>Base URL</strong> — pre-filled with your ThingsBoard instance URL (for example, <strong><code>https://thingsboard.cloud</code></strong>).</li>
+        <li>Copy the <strong>HTTP endpoint URL</strong> — you will paste this into the IoT Creators portal as the callback address so the platform forwards uplinks to ThingsBoard.</li>
+      </ul>
+    </li>
+    <li>Click <strong>Add</strong> to finish creating the integration.</li>
+  </ol>
 </Steps>
 
 <ImageGallery images={[
@@ -179,60 +285,149 @@ The IoT Creators integration wizard creates the uplink converter inline — you 
   },
   {
     src: '/src/assets/images/user-guide/integrations/iotcreators/iotcreators-create-integration-3.png',
-    alt: 'Add integration wizard — Connection step: Base URL set to https://thingsboard.cloud, HTTP export URL generated, Execute remotely toggle, Advanced settings collapsed',
-    caption: 'Connection — copy the HTTP export URL. ThingsBoard will receive IoT Creators subscription notifications at this address. Click Add to save.'
+    alt: 'Add integration wizard — Connection step: Base URL set to https://thingsboard.cloud, HTTP endpoint URL generated, Execute remotely toggle, Advanced settings collapsed',
+    caption: 'Connection — copy the HTTP endpoint URL. ThingsBoard will receive IoT Creators subscription notifications at this address. Click Add to save.'
   },
 ]} />
 
-#### Connection settings
+### Connection Settings
 
 <h5>Base URL</h5>
 
-Your ThingsBoard instance base URL (e.g. `https://thingsboard.cloud`). This is pre-filled automatically and is used to construct the HTTP export URL.
+Your ThingsBoard instance base URL (e.g. `https://thingsboard.cloud`). This is pre-filled automatically and is used to construct the HTTP endpoint URL.
 
-<h5>HTTP export URL</h5>
+<h5>HTTP endpoint URL</h5>
 
-The unique endpoint generated by ThingsBoard for this integration. Copy this URL and configure your IoT Creators subscription to POST device uplinks to it. The URL is stable as long as the integration exists.
+The auto-generated webhook address for this integration, in the form:
+
+```
+https://{base-url}/api/v1/integrations/tmobile_iot_cdp/{integration-id}
+```
+
+Paste this URL into the IoT Creators portal as the callback address so the platform forwards device uplink messages to ThingsBoard.
+
+<Aside type="note">
+  Treat the HTTP endpoint URL as a secret — the `integration-id` in the path is unguessable and acts as the shared credential for this webhook. Anyone who knows the full URL can post data to it, so do not publish it.
+</Aside>
 
 <h5>Execute remotely</h5>
 
-When enabled, ThingsBoard generates an **Integration key** and **Integration secret** that allow the integration to run outside the ThingsBoard cluster — useful when your ThingsBoard instance is not publicly reachable. See <DocLink product={props.product} path="user-guide/integrations/remote">Remote Integration</DocLink>.
+When enabled, ThingsBoard generates an **Integration key** and **Integration secret** for running the integration outside the ThingsBoard cluster — useful when ThingsBoard is not publicly reachable from the IoT Creators platform. See <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink>.
+
+<h5>Advanced Settings</h5>
+
+- **Replace response status from 'No-Content' to 'OK'** — makes ThingsBoard answer with HTTP `200 OK` instead of `204 No Content`. **Enable this**: the IoT Creators portal sends an empty test request when you save the callback URL and refuses to save it unless the endpoint returns `200`.
+- **Description** — optional free-text description for this integration.
+- **Metadata** — key-value pairs injected into every uplink message as `integrationMetadata` in converter scripts; click **Add** to define entries.
 
 ## Configure IoT Creators
 
-Create a subscription in the IoT Creators portal to push device uplinks to the ThingsBoard endpoint.
+Configure your IoT Creators project to forward uplink messages to the ThingsBoard **HTTP endpoint URL** copied in <a href="#create-iot-creators-integration"><strong>Create IoT Creators Integration</strong></a>.
 
 <Steps>
-1. Log in to the <a href="https://portal.iotcreators.com/login" target="_blank" rel="noopener noreferrer">IoT Creators portal</a>.
-2. Go to **Subscriptions** and click **+ Add subscription**.
-3. Set the **URL** to the **HTTP export URL** copied from the ThingsBoard integration.
-4. Set **Method** to `POST` and **Content type** to `application/json`.
-5. Configure the subscription **body** to include at minimum `deviceId`, `timestamp`, and your sensor fields.
-6. Under **Device filter**, select the specific device or choose **All devices** to forward uplinks from the entire account.
-7. Click **Save** to activate the subscription.
+  <ol>
+    <li>Sign in to the <a href="https://portal.iotcreators.com/" target="_blank" rel="noopener noreferrer"><strong>IoT Creators portal</strong></a>.</li>
+    <li>Open <strong>Projects</strong>, select your project, and switch to the <strong>Your application server</strong> tab.</li>
+    <li>Paste the ThingsBoard <strong>HTTP endpoint URL</strong> into the <strong>Callback URL</strong> field.</li>
+    <li>Make sure the endpoint toggle is <strong>ON</strong>, then click <strong>Save</strong>.</li>
+  </ol>
 </Steps>
 
 <Aside type="note">
-  A single IoT Creators subscription can cover multiple devices. ThingsBoard distinguishes them by `deviceId` and provisions a separate device for each unique value.
+  On <strong>Save</strong>, IoT Creators sends an empty test request to the callback URL and expects HTTP <code>200</code>. If it does not receive <code>200</code>, the URL is not saved — enable <a href="#connection-settings"><strong>Replace response status from &#39;No-Content&#39; to &#39;OK&#39;</strong></a> in Advanced settings.
 </Aside>
 
-## Verify in ThingsBoard
+<Aside type="note">
+  A single callback URL forwards uplinks from every device in the project. ThingsBoard distinguishes them by each report's `serialNumber` (IMEI) and provisions a separate device for each unique value.
+</Aside>
 
-After your NB-IoT or LTE-M device sends an uplink:
+## Register the device in IoT Creators Portal
 
-**Device** — go to **Entities &#8702; Devices**. A device named `NB-IoT-<IMEI>` is automatically provisioned on the first message. Open it and check:
-- **Latest telemetry** — `temperature`, `humidity`, and `battery` should reflect the values from the uplink.
-- **Attributes** — `rssi`, `snr`, and `integrationName` are set from the subscription notification.
+<Aside type="caution" title="Register before powering on">
+  Register your device in the IoT Creators project (by IMEI) <strong>before</strong> switching it on. A device that transmits before it is registered is added to the platform blacklist and can only be removed through IoT Creators support.
+</Aside>
 
-**Integration events** — go to **Integrations center &#8702; Integrations**, open **IoT Creators Integration**, and check the **Events** tab. An **Uplink** event with **Status: OK** confirms the message was processed. Click **…** in the **Message** column to inspect the raw payload received from IoT Creators.
+<Steps>
+  1. Log in to the <a href="https://portal.iotcreators.com/login" target="_blank" rel="noopener noreferrer"><strong>IoT Creators portal</strong></a>.
+  2. Open your project (e.g. **Starterkit**) from **PROJECTS**.
+  3. On the project page, the **Devices** tab is selected by default. Click **REGISTER DEVICE** above the devices table.
+  4. In the **Register device** dialog, enter the device's **IMEI**.
+  5. Click **REGISTER DEVICE** to confirm.
+</Steps>
 
-**Converter events** — go to **Integrations center &#8702; Data converters**, open the uplink converter, and click the **Events** tab. Inspect the **In** (raw payload), **Out** (decoded result), and **Metadata** columns to verify the decoder output.
+The device now appears in the devices table with **IMEI**, **IMSI**, **Last message**, and **Payload** columns — the last two stay empty until the device sends its first uplink.
+
+## Test the Integration
+
+After the integration and converter are configured, and the device is transmitting through IoT Creators, confirm that ThingsBoard receives, decodes, and stores the data correctly.
+
+<Aside type="note">
+  Before testing, ensure that **Debug** mode with the **All messages** option is enabled for both the integration and the converter. This lets you inspect received messages and conversion results on the corresponding **Events** tabs.
+</Aside>
+
+### Send Test Uplink
+
+Wait for your NB-IoT or LTE-M device to transmit an uplink through IoT Creators, or emulate one by sending an HTTP request directly to the ThingsBoard endpoint with curl — bypassing IoT Creators entirely. This is useful to verify the integration and converter before connecting real hardware.
+
+Replace `$HTTP_ENDPOINT_URL` with the **HTTP endpoint URL** copied in **[Create IoT Creators Integration](#create-iot-creators-integration)**:
+
+```bash
+curl -v \
+  -H "Content-Type: application/json" \
+  -d '{"reports":[{"serialNumber":"IMEI:866425033313638","timestamp":1600439712734,"subscriptionId":"fa37d89c-a7e2-4f3d-b12f-6002a3642b4c","resourcePath":"uplinkMsg/0/data","value":"0101d880396f026e000158a50a4b121503d301"}],"registrations":[],"deregistrations":[],"updates":[],"expirations":[],"responses":[]}' \
+  "$HTTP_ENDPOINT_URL"
+```
+
+The `value` matches the byte layout from the uplink converter and decodes to `status = 0`, `batteryVoltage = 3.44`, `temperature = 26.35`, `humidity = 46.29`, `co2 = 979`, `presence = true`.
+
+### Verify Integration Events
+
+Go to **Integrations center &#8702; Integrations**, open **iotcreators.com (T-Mobile – IoT CDP) integration**, and check the **Events** tab (**Event type**: **Debug**). 
+An **Uplink** event with **Status: OK** confirms the message was processed. Click **…** in the **Message** column to open the raw payload received from IoT Creators.
+
+### Verify Converter Events
+
+Go to **Integrations center &#8702; Data converters**, open the uplink converter you configured for this integration, and click its **Events** tab.  
+Click **…** in each column to inspect:
+- **In** — the raw `{ "reports": [ ... ] }` JSON body received by the converter.
+- **Out** — the decoded result produced by the script: `telemetry.values` (`batteryVoltage`, `temperature`, `humidity`, `status`) and `attributes` (`serialNumber`, `subscriptionId`, `resourcePath`, `model`).
+- **Metadata** — integration-level context, including `integrationName`.
+
+### Verify Device Provisioning
+
+Go to **Entities &#8702; Devices**. A device named `NB-IoT-<IMEI>` is automatically provisioned on the first uplink, provided **Allow create devices or assets** is enabled. Open it and check:
+- **Latest telemetry** — `status`, `batteryVoltage`, `temperature`, `humidity`, `co2`, and `presence` should reflect the values decoded from the uplink.
+- **Attributes** (**Client attributes** scope) — `serialNumber`, `subscriptionId`, `resourcePath`, and `model` are set from the subscription notification.
+
+## Downlink to Devices
+
+Unlike LoRaWAN network servers, the IoT Creators integration is **uplink-oriented** — the Connection step exposes no downlink URL, and the Add integration wizard has no downlink converter step. Downlink to NB-IoT / LTE-M devices is handled by the IoT Creators platform itself, through its own downlink API — a write to the device's `downlinkMsg/0/data` resource.
+
+<Aside type="note">
+  NB-IoT / LTE-M devices do not receive downlinks instantly. Because of the PSM and eDRX power-saving modes, a device only accepts a queued command when it next opens a receive window (typically right after its own uplink).
+</Aside>
+
+To drive commands from ThingsBoard, add a <DocLink product={props.product} path="user-guide/rule-engine" target="_blank">Rule Engine</DocLink> flow that calls the IoT Creators downlink API (for example, a **REST API Call** node triggered by a shared-attribute update), passing the device IMEI and the encoded payload. Refer to the <a href="https://docs.iotcreators.com/reference/send-standard-downlink" target="_blank" rel="noopener noreferrer"><strong>IoT Creators API documentation</strong></a> for the downlink request format.
 
 ## Example
 
 The <a href="/partners/hardware/sodaq/samples/sodaq-universal-tracker/" target="_blank" rel="noopener noreferrer">SODAQ Universal Tracker</a> guide demonstrates an end-to-end IoT Creators setup: a NB-IoT tracker sends hex-encoded GPS and sensor data over T-Mobile, the uplink converter decodes it into ThingsBoard telemetry, and a Tracker Alarms rule chain fires alerts based on configurable speed, voltage, and temperature thresholds.
 
-## See also
+## Troubleshooting
+
+| Symptom | Likely Cause | Fix |
+|---|---|---|
+| Callback URL cannot be saved in the IoT Creators portal | The endpoint does not return HTTP `200` on the empty test request | Enable **Replace response status from 'No-Content' to 'OK'** in the integration's Advanced settings. |
+| No uplinks received | Incorrect callback URL in IoT Creators | Re-copy the **HTTP endpoint URL** from the integration (toggle edit mode → Connection) and confirm it is set as the callback in the project's **Your application server** tab. |
+| No uplinks received | Integration disabled | Open the integration, click the edit icon, and confirm **Enable integration** is on. |
+| Uplinks received but device not created | **Allow create devices or assets** is disabled | Open the integration, click the edit icon, and enable **Allow create devices or assets** in Basic settings. |
+| Uplinks received but device not created | Converter returns empty output or the device name is not resolved | Go to **Data converters**, open the uplink converter, and inspect **Events → Out**; confirm `deviceName` is set from `report.serialNumber`. |
+| Uplink received but telemetry is empty | The hex layout in the decoder does not match the actual `value` | Inspect **Events → In** on the converter, read the actual `value`, then align the offsets in `decodePayload`. |
+| Only the first message of a batch is decoded | The decoder reads `reports[0]` instead of iterating | Loop over the entire `body.reports` array. |
+| Device not registering / blacklisted | The device transmitted before being registered in IoT Creators | Contact IoT Creators support to remove it from the blacklist, then register before powering on. |
+| `Error in converter` | TBEL or JavaScript exception | Open **Events → Error** on the uplink converter and inspect the stack trace. |
+
+## See Also
 
 - <DocLink product={props.product} path="user-guide/integrations">Integration Overview</DocLink>
 - <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter">Uplink Converters</DocLink>
