@@ -516,6 +516,13 @@ export const DISTRIBUTORS: Distributor[] = [
 		website: "softone.hu",
 	},
 	{
+		name: "SoftVerx",
+		regions: ["Asia"],
+		countries: ["Pakistan"],
+		email: "info@softverx.com",
+		website: "www.softverx.com",
+	},
+	{
 		name: "Solu Filantropi Teknologi",
 		regions: ["Asia"],
 		countries: ["Indonesia"],
