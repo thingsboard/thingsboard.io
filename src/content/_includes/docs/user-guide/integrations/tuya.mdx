@@ -9,9 +9,9 @@ import TabItem from '@components/TabItem.astro';
 
 <Banner variant="peFeature" product={props.product} path="installation/" />
 
-The <strong>Tuya</strong> integration connects ThingsBoard to the <a href="https://iot.tuya.com/" target="_blank" rel="noopener noreferrer nofollow"><strong>Tuya IoT Platform (Tuya Cloud)</strong></a>. Use it to bring telemetry from Tuya smart devices already registered in the Smart Life / Tuya Smart app into ThingsBoard for monitoring and rule-based automation — including sending commands back to those devices. 
+The <strong>Tuya</strong> integration connects ThingsBoard to the <a href="https://iot.tuya.com/" target="_blank" rel="noopener noreferrer nofollow"><strong>Tuya IoT Platform (Tuya Cloud)</strong></a>. Use it to bring telemetry from Tuya smart devices already registered in the Smart Life / Tuya Smart app into ThingsBoard for monitoring and rule-based automation — including sending commands back to those devices.
 
-This guide walks through an end-to-end integration using a Tuya **Smart Plug**; a <a href="https://developer.tuya.com/en/docs/iot/manage-virtual-devices?id=Ka4725tiyfhg0" target="_blank"><strong>virtual Tuya device</strong></a> can also be used for testing.
+This guide walks through an end-to-end integration using a Tuya **Smart Plug**; a <a href="https://developer.tuya.com/en/docs/iot/manage-virtual-devices?id=Ka4725tiyfhg0" target="_blank" rel="noopener noreferrer nofollow"><strong>virtual Tuya device</strong></a> can also be used for testing.
 
 ## Architecture
 
@@ -200,100 +200,128 @@ The uplink converter decodes the Tuya `statusReport` payload. Tuya uses a <DocLi
 
 <Tabs>
   <TabItem label="TBEL (Recommended)">
-  ```js maxLines=25 collapsible
+  ```js maxLines=15 collapsible
   /** Decoder **/
-
-  // decode payload to JSON
+  
+  // Parse the incoming payload (byte array) into a JSON object.
+  // decodeToJson is a built-in TBEL helper — no need to declare it.
   var data = decodeToJson(payload);
-
+  // Some Tuya Message Service versions wrap the report under { data: {...} }.
+  if (data.?data != null) {
+    data = data.data;
+  }
+  
+  // Resolve the device name.
+  // Try bizData.devId first (present in some Tuya message types);
+  // fall back to devId otherwise. The .? operator safely returns null
+  // if an intermediate field is missing (won't throw an error).
   var deviceName = data.?bizData.?devId != null ? data.?bizData.?devId : data.?devId;
+  
+  // Fixed device type — used to create the Device Profile in ThingsBoard.
   var deviceType = 'Tuya device';
-
-  // Tuya reports changed data points as an array: [{code, value, t}, ...].
-  // Scaling is device-specific — verify it in Device Debugging / Instruction Set.
+  
+  // Array that will hold the telemetry (key-value pairs).
   var telemetry = [];
+  
+  // Tuya's main data arrives in the status array. Make sure it exists.
   if (data.status != null) {
+    // Iterate over each element of the status array.
     for (var i = 0; i < data.status.length; i++) {
-      var res = {};
-      var code = data.status[i].code;
-      var value = data.status[i].value;
+      var res = {};                       // temp object for a single data point
+      var code = data.status[i].code;     // parameter name, e.g. "cur_voltage"
+      var value = data.status[i].value;   // raw value from the device
+    
+      // Tuya sends some values as integers without a decimal point.
+      // Divide voltage and power by 10 to get real units (V, W).
       if (code == "cur_voltage" || code == "cur_power") {
-        value = data.status[i].value / 10;    // V, W
+        value = data.status[i].value / 10;
+      // Divide current by 100 (to get A).
       } else if (code == "cur_current") {
-        value = data.status[i].value / 100;   // A
-      } else if (code == "add_ele") {
-        value = data.status[i].value / 100;   // kWh (accumulated energy)
+        value = data.status[i].value / 100;
       }
-      var res = {};
-      res[code] = value;                      // keep the original Tuya code as the key
-      telemetry.push(res);
+      res[code] = value;   // build a pair, e.g. { "cur_voltage": 231 }
+      telemetry.push(res);  // add it to the telemetry array
     }
   } else {
+    // If there is no status array, return the payload as-is (fallback).
     telemetry = data;
   }
-
+  
+  // Build the result in the format ThingsBoard expects.
   var result = {
-    deviceName: deviceName,
-    deviceType: deviceType,
-    attributes: { productKey: data.productKey },
-    telemetry: telemetry
+    deviceName: deviceName,   // device is created/matched by this name
+    deviceType: deviceType,   // device profile
+    attributes: {},           // attributes (empty here)
+    telemetry: telemetry      // time-series data
   };
-
+  
   /** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
-
+  
   return result;
   ```
   </TabItem>
   <TabItem label="JavaScript">
-  ```js maxLines=35 collapsible
-/** Decoder **/
+  ```js maxLines=15 collapsible
+  /** Decoder **/
 
-// decode payload to JSON
-var data = decodeToJson(payload);
+  // In JS the helpers are NOT built-in, so we declare them ourselves.
+  // Convert a byte array into a string.
+  function decodeToString(payload) {
+    return String.fromCharCode.apply(String, payload);
+  }
 
-var deviceName = data.devId;
-var deviceType = 'Tuya device';
+  // Convert a byte array into JSON: first to a string, then parse it.
+  function decodeToJson(payload) {
+    var str = decodeToString(payload);
+    var data = JSON.parse(str);
+    return data;
+  }
 
-var telemetry = [];
-if (data.status != null) {
+  // Parse the incoming payload into a JSON object.
+  var data = decodeToJson(payload);
+
+  // Device name: use bizData.devId if present, otherwise devId.
+  // JS has no .? operator, so we check existence with && .
+  var deviceName = (data.bizData && data.bizData.devId) ? data.bizData.devId : data.devId;
+
+  // Fixed device type (profile).
+  var deviceType = 'Tuya device';
+
+  // Array for telemetry.
+  var telemetry = [];
+
+  // Tuya data lives in the status array.
+  if (data.status != null) {
     for (var i = 0; i < data.status.length; i++) {
-        var res = {};
-        var code = data.status[i].code;
-        var value = data.status[i].value;
-        if (code == "cur_voltage" || code == "cur_power") {
-            value = data.status[i].value / 10;
-        } else if (code == "cur_current") {
-            value = data.status[i].value / 100;
-        }
-        res[code] = value;
-        telemetry.push(res);
+      var res = {};                       // a single data point
+      var code = data.status[i].code;     // parameter name
+      var value = data.status[i].value;   // raw value
+  
+      // Unit scaling for the Smart Plug.
+      if (code == "cur_voltage" || code == "cur_power") {
+        value = data.status[i].value / 10;   // voltage/power ÷10
+      } else if (code == "cur_current") {
+        value = data.status[i].value / 100;  // current ÷100
+      }
+
+      res[code] = value;    // e.g. { "cur_power": 15 }
+      telemetry.push(res);   // add to the array
     }
-} else {
-    telemetry = data;
-}
+  } else {
+    telemetry = data;  // fallback if status is missing
+  }
 
-var result = {
-   deviceName: deviceName,
-   deviceType: deviceType,
-   attributes: { productKey: data.productKey },
-   telemetry: telemetry
-};
+  // Result for ThingsBoard.
+  var result = {
+    deviceName: deviceName,
+    deviceType: deviceType,
+    attributes: {},
+    telemetry: telemetry
+  };
 
-/** Helper functions **/
-
-function decodeToString(payload) {
-   return String.fromCharCode.apply(String, payload);
-}
-
-function decodeToJson(payload) {
-   var str = decodeToString(payload);
-   var data = JSON.parse(str);
-   return data;
-}
-
-return result;
-```
-</TabItem>
+  return result;
+  ```
+  </TabItem>
 </Tabs>
 
 
@@ -331,7 +359,7 @@ The decoder keeps each Tuya DP **code** as the telemetry key and applies device-
 | `add_ele` | `add_ele` | `dp.value / 100` | kWh — energy consumption, not instantaneous; whether it's a running total or a per-interval delta varies by model, see below |
 | _any other code_ | _same code_ | `dp.value` | Passed through raw so nothing is lost |
 
-The attribute `productKey` (device model key) is stored from `data.productKey`. `deviceName` is set to the raw `devId` — no prefix.
+The attribute `productKey` (device model key) is stored from `data.productKey`. `deviceName` is set to the raw `devId` — no prefix. If your device reports `add_ele`, make sure your decoder applies the same `÷ 100` scaling (you may need to add this branch to the JavaScript example above).
 
 <Aside type="note" title="Instantaneous vs accumulated, and when they arrive">
   `cur_voltage` / `cur_power` / `cur_current` are **instantaneous** readings, reported only when a load is drawing current. `add_ele` reports energy consumption (kWh), but its exact semantics are **model-dependent** — on some devices it's a running total that only increases, on others it's the energy consumed since the previous report. Confirm which behavior your device follows in **Device Debugging / Instruction Set** before using it for cumulative totals. If you see only `switch_1` and no measurements, the plug is idle: connect a load and wait for the next report.
@@ -420,49 +448,67 @@ The tutorial encoder below maps `msg.method` to the Tuya command `code` and `msg
 
 <Tabs>
 <TabItem label="TBEL (Recommended)">
-```js maxLines=20 collapsible
-/** Encoder **/
+  ```js maxLines=20 collapsible
+  /** Encoder **/
 
-var command = {};
-command["code"] = msg.method;
-if (msg.params == "false" || msg.params == "true") {
+  // The command object we will send to the Tuya device.
+  var command = {};
+
+  // msg.method — the RPC method name from ThingsBoard. Becomes the Tuya
+  // command code, e.g. "switch_1", "bright_value", etc.
+  command["code"] = msg.method;
+
+  // msg.params — the command value.
+  // If it is the string "true"/"false", convert it to a real boolean
+  // (needed for switches, e.g. turning the plug on/off).
+  if (msg.params == "false" || msg.params == "true") {
     command["value"] = Boolean.valueOf(msg.params);
-} else {
+  } else {
+  // Otherwise pass it as-is (number, string, e.g. brightness level).
     command["value"] = msg.params;
-}
+  }
 
-var result = {
-    contentType: "JSON",
-    data: JSON.stringify(command),
+  // Build the result for the integration.
+  var result = {
+    contentType: "JSON",                  // command body is JSON
+    data: JSON.stringify(command),        // serialize { code, value } to a string
     metadata: {
-        deviceId: metadata.deviceName
+      deviceId: metadata.deviceName     // which device to send the command to
     }
-};
+  };
 
-return result;
-```
-</TabItem>
-<TabItem label="JavaScript">
-```js maxLines=20 collapsible
-/** Encoder **/
+  return result;
+  ```
+  </TabItem>
+  <TabItem label="JavaScript">
+  ```js maxLines=20 collapsible
+  /** Encoder **/
 
-const command = {
+  // Build the command object.
+  const command = {
+    // Tuya command code = RPC method name from ThingsBoard.
     code: msg.method,
+    // Command value:
+    // if msg.params is "true"/"false", convert it to a boolean (true/false),
+    // otherwise keep the value as-is.
     value:
-        msg.params === "false" || msg.params === "true"
-            ? msg.params === "true"
-            : msg.params
-};
-const result = {
-    contentType: "JSON",
-    data: JSON.stringify(command),
+      msg.params === "false" || msg.params === "true"
+        ? msg.params === "true"
+        : msg.params
+  };
+
+  // Result to send through the integration.
+  const result = {
+    contentType: "JSON",                // body is JSON
+    data: JSON.stringify(command),      // serialize { code, value }
     metadata: {
-        deviceId: metadata.deviceName
+      deviceId: metadata.deviceName   // target device
     }
-};
-return result;
-```
-</TabItem>
+  };
+
+  return result;
+  ```
+  </TabItem>
 </Tabs>
 
 <Aside type="caution" title="'data' must carry a command">
