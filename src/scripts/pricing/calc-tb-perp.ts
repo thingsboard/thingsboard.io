@@ -196,7 +196,7 @@ export function initTbPerpCalc() {
 
 	function renderCustom(c: Costs) {
 		results.classList.add('calc-results--custom');
-		results.innerHTML = `<div class="calc-custom-banner"><span class="calc-custom-banner-icon">${tagSvg}</span><span class="calc-custom-banner-title">${isOfflineOnly() ? 'Get a personal price' : 'Get a personal price for these numbers'}</span><p class="calc-custom-banner-text">Send us a request, and we’ll prepare a personal quote based on your setup.</p></div>`;
+		results.innerHTML = `<div class="calc-custom-banner"><span class="calc-custom-banner-icon">${tagSvg}</span><span class="calc-custom-banner-title">${isOfflineOnly() ? 'Get a personal price' : 'Get a personal price for these numbers'}</span><p class="calc-custom-banner-text">Send us a request, and we'll prepare the most cost-effective quote for you</p></div>`;
 		footer.innerHTML = `<div class="calc-total-row"><span class="calc-total-label">Total</span><span class="calc-total-amount">Custom</span></div><a class="calc-cta" href="/contact-us/?subject=${encodeURIComponent('ThingsBoard Products')}&message=${encodeURIComponent(buildSummary(c))}" target="_blank" rel="noopener noreferrer">Send request</a>`;
 	}
 
