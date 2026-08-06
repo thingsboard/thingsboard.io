@@ -7,35 +7,303 @@ import { Products } from '~/models/site.models';
 import Tabs from '@components/Tabs.astro';
 import TabItem from '@components/TabItem.astro';
 
-<Banner variant="peFeature" product={props.product} path="user-guide/integrations/kafka" />
+<Banner variant="peFeature" product={props.product} path="installation/" />
+The <a href="https://kafka.apache.org/" target="_blank" rel="noopener noreferrer nofollow"><strong>Apache Kafka</strong></a> integration connects ThingsBoard to Apache Kafka message brokers. Use it to consume records that producers — devices, IoT platforms, connectivity providers, or your own applications — publish to Kafka topics, and bring them into ThingsBoard as telemetry and attributes for monitoring and rule-based automation — including publishing commands back to Kafka.
 
-Kafka Integration connects ThingsBoard to <a href="https://kafka.apache.org/" target="_blank">Apache Kafka</a> message brokers. It subscribes to one or more Kafka topics, consumes incoming messages, and transforms them into ThingsBoard telemetry and attributes via an uplink converter.
+## Architecture
 
-<DocImage src="/src/assets/images/user-guide/integrations/kafka/Kafka_main.png" alt="Kafka Integration architecture diagram — devices and IoT platforms publish messages to Kafka brokers; the Kafka Integration consumes topics, passes payloads through an uplink converter, and pushes telemetry and attributes to ThingsBoard; a separate Kafka Rule Node handles downlink" />
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/user-guide/integrations/kafka-integration-architecture.svg',
+    alt: 'Kafka integration architecture diagram showing uplink data flowing from a producer through Kafka brokers to the ThingsBoard Kafka Integration, the uplink converter, and Core Service, and downlink flowing back from the Rule Engine to Kafka via the Kafka Rule Node',
+    caption: 'Kafka integration architecture — uplink and downlink data flow between Kafka and ThingsBoard.',
+  },
+]} />
+
+A producer publishes a record to a Kafka topic. The Kafka Integration, acting as a Kafka consumer, subscribes to the topic and polls the broker for new records. The uplink converter decodes the record value into telemetry and attributes, and the ThingsBoard Core Service stores the data, creating the device automatically on first contact. For downlink, the Rule Engine hands a message to a Kafka Rule Node, which publishes it to a separate Kafka topic; external consumers then read it. The Kafka Integration has no dedicated downlink converter.
 
 ## Prerequisites
 
-A running Kafka broker is required before creating the integration.
+Before creating the integration, ensure:
 
-Use a local installation or a cloud-managed cluster such as <a href="https://www.confluent.io/" target="_blank">Confluent Cloud</a>.
+- You have access to {props.product !== Products.PAAS && props.product !== Products.PAAS_EU && <><DocLink product={Products.PE} path="installation/" target="_blank">ThingsBoard PE</DocLink> or </>}<a href="/installations/?product=thingsboard-cloud" target="_blank" rel="noopener noreferrer"><strong>ThingsBoard Cloud</strong></a> with integration functionality enabled for your tenant.
+- You have permissions to create integrations and data converters.
+- You have a running <a href="https://kafka.apache.org/" target="_blank" rel="noopener noreferrer nofollow"><strong>Apache Kafka</strong></a> broker — either a local installation or a cloud-managed cluster such as <a href="https://www.confluent.io/" target="_blank" rel="noopener noreferrer nofollow"><strong>Confluent Cloud</strong></a>. If you do not have a cluster yet, follow the **[Kafka Setup](#kafka-setup)** step below.
 
-## ThingsBoard integration setup
+<Aside type="note" title="Setup used in this guide">
+  This guide assumes a **self-hosted ThingsBoard PE deployed locally** and an **Apache Kafka broker installed on the same machine**. Because both run on the same host, the integration reaches the broker at `localhost:9092`. If ThingsBoard and Kafka run on different hosts — or you use ThingsBoard Cloud — replace `localhost` with the broker's reachable address and set the broker's `advertised.listeners` accordingly (see the note under [Required Connection Details](#required-connection-details)).
+</Aside>
 
-### Create an uplink converter
+## Kafka Setup
 
-The uplink converter decodes the Kafka message body and maps it to the ThingsBoard data model. Kafka uses a <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter">generic uplink converter</DocLink>.
+The Kafka Integration connects ThingsBoard to an existing Apache Kafka broker as a consumer. The steps below stand up a minimal **single-node broker in KRaft mode (no ZooKeeper)**, which is enough to test the integration. If you use a managed cluster (Confluent Cloud, Amazon MSK, Aiven, Redpanda Cloud, and others), skip to [Required Connection Details](#required-connection-details) and obtain the values from your provider instead.
 
-The decoder function receives:
-- `payload` — raw bytes of the Kafka message value
-- `metadata` — `integrationName` and any key-value pairs configured in the integration's Metadata settings
+### Run a Single-Node Broker (KRaft)
 
-It must return `deviceName`, `deviceType`, `telemetry`, and `attributes`. Both `telemetry` and `attributes` are flat key-value maps — nested objects are not supported.
+KRaft is Kafka's built-in consensus protocol; since Kafka 4.0 it fully replaces ZooKeeper, so one process acts as both controller and broker. Kafka 4.x requires **Java 17+**, and formatting storage is a **required, explicit step** before the first start. The commands below were verified on Ubuntu with Kafka 4.3.1 — adjust the version and paths for your environment.
+
+**1. Install Java and download Kafka:**
+
+```bash
+sudo apt update
+sudo apt install -y openjdk-17-jre-headless curl
+java -version
+ 
+cd /tmp
+curl -fLO https://downloads.apache.org/kafka/4.3.1/kafka_2.13-4.3.1.tgz
+sudo tar -xzf kafka_2.13-4.3.1.tgz -C /opt
+sudo ln -s /opt/kafka_2.13-4.3.1 /opt/kafka
+sudo chown -R "$USER":"$USER" /opt/kafka_2.13-4.3.1
+cd /opt/kafka
+```
+
+**2. Initialize KRaft storage** (run once per broker):
+
+```bash
+KAFKA_CLUSTER_ID="$(bin/kafka-storage.sh random-uuid)"
+bin/kafka-storage.sh format \
+  --standalone \
+  --cluster-id "$KAFKA_CLUSTER_ID" \
+  --config config/server.properties
+```
+
+**3. Start the broker:**
+
+```bash
+bin/kafka-server-start.sh config/server.properties
+```
+
+<Aside type="note" title="No ZooKeeper in Kafka 4.x">
+  KRaft mode has no ZooKeeper. Admin and console commands use `--bootstrap-server` — the `--zookeeper` flag was already removed from these tools back in Kafka 3.0 (well before ZooKeeper itself was removed from the broker in 4.0). If a guide references `config/kraft/server.properties`, note that in Kafka 4.x the KRaft configuration was consolidated into `config/server.properties`.
+</Aside>
+
+### Create a Topic
+
+Create the uplink topic the integration will subscribe to (or enable **Auto create topics** in the integration to have ThingsBoard create it on subscribe). Run the command from the Kafka install directory (e.g. `/opt/kafka`):
+
+```bash
+bin/kafka-topics.sh --create \
+  --topic my-topic \
+  --bootstrap-server localhost:9092 \
+  --partitions 1 \
+  --replication-factor 1
+```
+
+Verify it exists (optional):
+
+```bash
+bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
+```
+
+### Required Connection Details
+
+Collect these values for the integration's **Connection** step. For the single-node broker above, they are:
+
+| Field | Value for this setup | Description |
+|-------|----------------------|-------------|
+| **Group ID** | you define, e.g. `thingsboard-kafka-group` | Kafka consumer group name |
+| **Client ID** | you define, e.g. `thingsboard-kafka-client-01` | consumer client identifier |
+| **Bootstrap servers** | `localhost:9092` (or the broker host IP) | broker `host:port` address |
+| **Poll interval** | `5000` | poll frequency in milliseconds |
+| **Topics** | `my-topic` | comma-separated topic(s) to subscribe to |
+
+<Aside type="caution" title="The broker must be reachable from ThingsBoard">
+  `localhost:9092` works **only when ThingsBoard runs on the same host** as the broker. If ThingsBoard is on another host — or on **ThingsBoard Cloud** — set **Bootstrap servers** to the broker's reachable IP/hostname **and** set the broker's `advertised.listeners` to that same address; otherwise the consumer connects to the broker but then fails to fetch records. Alternatively, run the integration in **Execute remotely** mode next to the broker.
+</Aside>
+
+### Authentication (Secured Brokers)
+
+If the broker requires authentication — most managed and cloud brokers do — you also need credentials, typically a **username/password** or an **API key/secret**, together with the security protocol (e.g. `SASL_SSL`). These are entered under **Advanced settings &#8702; Other properties** as SASL/SSL parameters (see the **Other Properties** row under [Connection Settings](#connection-settings)). For an open or local broker without authentication, no credentials are needed — leave these empty.
+
+## Create Kafka Uplink Data Converter
+
+The uplink converter receives each consumed Kafka record, decodes the record value, and returns a structured object that ThingsBoard uses to create or update a device and store its telemetry and attributes.
+For the full decoder function reference — all input parameters and output fields — see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">Uplink Data Converter</DocLink>.
+
+Kafka uses a **generic** uplink converter. These converters decode a JSON message received from a Kafka topic and transform it into the ThingsBoard integration data format.
+
+<Steps>
+  <ol start="1">
+    <li>Go to <strong>Integrations center &#8702; Data converters</strong>.</li>
+    <li>Click <strong>+ Add data converter &#8702; Create new converter</strong>.</li>
+  </ol>
+</Steps>
+
+In the **Add data converter** dialog:
+
+<Steps>
+  <ol start="3">
+    <li><strong>Converter type</strong> — leave <strong>Uplink</strong> (selected by default).</li>
+    <li><strong>Integration type</strong> — in the search field, enter <code>Kafka</code> and select <strong>Kafka</strong> from the list.</li>
+    <li><strong>Name</strong> — enter a converter name, for example <code>Kafka Uplink Converter</code>.</li>
+    <li><strong>Main decoding configuration</strong> — a code editor with the function signature <code>function decoder(payload, metadata) &#123;</code>. Paste the decoder function shown below. By default the editor opens in TBEL; use the <strong>TBEL / JS</strong> toggle (upper right) to switch languages.</li>
+    <li>Click <strong>Add</strong>.</li>
+  </ol>
+</Steps>
 
 <Aside type="tip">
   Use <DocLink product={props.product} path="user-guide/tbel">TBEL</DocLink> for converter scripts — it executes significantly faster than plain JavaScript inside ThingsBoard.
 </Aside>
 
-In this example, device **43T1YH-REE** sends a JSON payload where telemetry readings are packed as a 4-byte hex string in the `data` field:
+<Tabs>
+  <TabItem label="TBEL (Recommended)">
+    ```js maxLines=15 collapsible
+    /** Decoder **/
+
+    // Decode the Kafka message payload into a JSON object.
+    var payloadJson = decodeToJson(payload);
+
+    // Use the EUI value as the ThingsBoard device name.
+    var deviceName = payloadJson.EUI;
+
+    // Assign the same device type to all devices created by this integration.
+    var deviceType = 'Monitoring sensor';
+
+    // Build the object expected by the ThingsBoard integration.
+    var result = {
+      deviceName: deviceName,
+      deviceType: deviceType,
+
+      // No device attributes are extracted from the incoming message.
+      attributes: {},
+
+      // Create a timestamped telemetry entry.
+      telemetry: {
+        // Use the timestamp provided in the Kafka message.
+        ts: payloadJson.ts,
+
+        values: {
+          // Read the first byte from the hexadecimal data field.
+          Temperature: hexToInt(payloadJson.data.substring(0, 2)),
+
+          // Read the second byte from the hexadecimal data field.
+          Humidity: hexToInt(payloadJson.data.substring(2, 4)),
+
+          // Read the third byte from the hexadecimal data field.
+          Fan: hexToInt(payloadJson.data.substring(4, 6)),
+
+          // Copy message metadata directly to telemetry.
+          Port: payloadJson.port,
+          Freq: payloadJson.freq,
+
+          // Read the fourth byte from the hexadecimal data field.
+          Pressure: hexToInt(payloadJson.data.substring(6, 8)),
+
+          // Copy signal strength and serial number to telemetry.
+          rssi: payloadJson.rssi,
+          serial: payloadJson.serial
+        }
+      }
+    };
+
+    // Converts a hexadecimal string into an integer.
+    function hexToInt(hex) {
+      return parseInt(hex, 16);
+    }
+
+    /** Helper function 'decodeToJson' is already built-in **/
+
+    return result;
+    ```
+    </TabItem>
+    <TabItem label="JavaScript">
+    ```js maxLines=15 collapsible
+    /** Decoder **/
+
+    // Decode the Kafka message payload into a JSON object.
+    var payloadJson = decodeToJson(payload);
+
+    // Use the EUI value as the ThingsBoard device name.
+    var deviceName = payloadJson.EUI;
+
+    // Assign the same device type to all devices created by this integration.
+    var deviceType = 'Monitoring sensor';
+
+    // Build the object expected by the ThingsBoard integration.
+    var result = {
+      deviceName: deviceName,
+      deviceType: deviceType,
+
+      // No device attributes are extracted from the incoming message.
+      attributes: {},
+
+      // Create a timestamped telemetry entry.
+      telemetry: {
+        // Use the timestamp provided in the Kafka message.
+        ts: payloadJson.ts,
+        
+        values: {
+          // Read the first byte from the hexadecimal data field.
+          Temperature: hexToInt(payloadJson.data.substring(0, 2)),
+
+          // Read the second byte from the hexadecimal data field.
+          Humidity: hexToInt(payloadJson.data.substring(2, 4)),
+
+          // Read the third byte from the hexadecimal data field.
+          Fan: hexToInt(payloadJson.data.substring(4, 6)),
+
+          // Copy message metadata directly to telemetry.
+          Port: payloadJson.port,
+          Freq: payloadJson.freq,
+
+          // Read the fourth byte from the hexadecimal data field.
+          Pressure: hexToInt(payloadJson.data.substring(6, 8)),
+
+          // Copy signal strength and serial number to telemetry.
+          rssi: payloadJson.rssi,
+          serial: payloadJson.serial
+        }
+      }
+    };
+
+    /** Helper functions **/
+
+    // Converts the incoming byte array into a UTF-8-compatible string.
+    function decodeToString(payload) {
+      return String.fromCharCode.apply(String, payload);
+    }
+
+    // Converts the incoming byte array into a string and parses it as a JSON object.
+    function decodeToJson(payload) {
+      var str = decodeToString(payload);
+      return JSON.parse(str);
+    }
+
+    // Converts a hexadecimal string into an integer. Matches the TBEL tab —
+    // both read a single byte (2 hex characters) at a time, so no byte-order
+    // reversal is needed. If you extend this to multi-byte fields, decide on
+    // endianness explicitly and keep both tabs consistent.
+    function hexToInt(hex) {
+      return parseInt(hex, 16);
+    }
+
+    return result;
+    ```
+  </TabItem>
+</Tabs>
+
+<h4>What the Converter Receives</h4>
+
+ThingsBoard passes two variables to the decoder function:
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `payload` | byte array | The raw bytes of the Kafka **record value**. |
+| `metadata` | object | Key-value map containing `integrationName`, any pairs configured in the integration's **Metadata** settings, and likely Kafka-specific fields such as `topic`, `partition`, and `offset` (the same fields the outbound Kafka Rule Node adds to its own metadata — see [Configure Downlink](#configure-downlink)). Open the uplink converter's **Events** tab and inspect a real **Metadata** panel to confirm exactly which fields your setup receives. |
+
+<Aside type="note" title="JSON payloads">
+  If the record value is a JSON document, use the built-in `decodeToJson(payload)` helper to parse it into an object before mapping fields.
+</Aside>
+
+<h4>Example: JSON Payload Decoded</h4>
+
+Apache Kafka does not impose an application-level schema on a record’s value. The value is stored as bytes and may contain JSON, Avro, Protobuf, plain text, or any other format selected by the producer.
+
+This example models a typical IoT data flow in which a LoRaWAN Network Server, or an intermediate service, publishes device uplink events to Kafka. Therefore, the sample message contains LoRaWAN-related fields such as a device EUI, frame port, frequency, and RSSI rather than Kafka-specific fields.
+
+Note that the field names and message structure used in this example are not defined by Kafka or standardized across all LoRaWAN Network Servers. Each producer may use a different schema, naming convention, nesting structure, or serialization format. Update the uplink converter and decoder to match the exact message format produced by your system.
+
+In this example, the device `43T1YH-REE` publishes a JSON record to Kafka. The sensor readings are encoded as a 4-byte hexadecimal string in the `data` field, and the incoming message is expected to contain the following fields:
 
 ```json
 {
@@ -49,314 +317,381 @@ In this example, device **43T1YH-REE** sends a JSON payload where telemetry read
 }
 ```
 
-`EUI` is used as the device name. Each 2-character hex segment of `data` encodes one sensor reading:
-- `3d` &#8702; Temperature
-- `1f` &#8702; Humidity
-- `00` &#8702; Fan speed
-- `59` &#8702; Pressure
+The `data` field must contain at least eight hexadecimal characters. Each pair of characters represents one telemetry value:
 
-<Tabs>
-<TabItem label="TBEL (Recommended)">
+| Character positions | Telemetry key | Raw hex | Decoded value |
+| ------------------- | ------------- | ------- | ------------- |
+| `0–1`               | `Temperature` | `3d`    | `61`          |
+| `2–3`               | `Humidity`    | `1f`    | `31`          |
+| `4–5`               | `Fan`         | `00`    | `0`           |
+| `6–7`               | `Pressure`    | `59`    | `89`          |
 
-```js maxLines=35 collapsible
-/** Decoder **/
+The converter returns:
 
-var payloadJson = decodeToJson(payload);
-var deviceName = payloadJson.EUI;
-var deviceType = 'Monitoring-sensor';
-
-var result = {
-    deviceName: deviceName,
-    deviceType: deviceType,
-    attributes: {},
-    telemetry: {
-        ts: payloadJson.ts,
-        values: {
-            Temperature: hexToInt(payloadJson.data.substring(0, 2)),
-            Humidity: hexToInt(payloadJson.data.substring(2, 4)),
-            Fan: hexToInt(payloadJson.data.substring(4, 6)),
-            Port: payloadJson.port,
-            Freq: payloadJson.freq,
-            Pressure: hexToInt(payloadJson.data.substring(6, 8)),
-            rssi: payloadJson.rssi,
-            serial: payloadJson.serial
-        }
+```json
+{
+  "deviceName": "43T1YH-REE",
+  "deviceType": "Monitoring sensor",
+  "attributes": {},
+  "telemetry": {
+    "ts": 1638876127000,
+    "values": {
+      "Temperature": 61,
+      "Humidity": 31,
+      "Fan": 0,
+      "Port": 10,
+      "Freq": 24300,
+      "Pressure": 89,
+      "rssi": -130,
+      "serial": "230165HRT"
     }
-};
-
-function hexToInt(hex) {
-    return parseInt(hex, 16);
+  }
 }
-
-/** Helper function 'decodeToJson' is already built-in **/
-
-return result;
 ```
 
-</TabItem>
-<TabItem label="JavaScript">
+In short:
 
-```js maxLines=50 collapsible
-/** Decoder **/
+* `deviceName`: the value of the `EUI` field;
+* `deviceType`: the static `Monitoring sensor` device type;
+* `attributes`: an empty object because the message does not contain attribute data;
+* `telemetry`: timestamped telemetry values extracted from the message.
 
-var payloadJson = decodeToJson(payload);
-var deviceName = payloadJson.EUI;
-var deviceType = 'Monitoring-sensor';
+<Aside type="note">
+  The hexadecimal values are converted to unsigned integers without applying scaling or unit conversion.
+</Aside>
 
-var result = {
-    deviceName: deviceName,
-    deviceType: deviceType,
-    attributes: {},
-    telemetry: {
-        ts: payloadJson.ts,
-        values: {
-            Temperature: hexToInt(payloadJson.data.substring(0, 2)),
-            Humidity: hexToInt(payloadJson.data.substring(2, 4)),
-            Fan: hexToInt(payloadJson.data.substring(4, 6)),
-            Port: payloadJson.port,
-            Freq: payloadJson.freq,
-            Pressure: hexToInt(payloadJson.data.substring(6, 8)),
-            rssi: payloadJson.rssi,
-            serial: payloadJson.serial
-        }
-    }
-};
-
-/** Helper functions **/
-
-function decodeToString(payload) {
-    return String.fromCharCode.apply(String, payload);
-}
-
-function decodeToJson(payload) {
-    var str = decodeToString(payload);
-    return JSON.parse(str);
-}
-
-function hexToInt(value) {
-    return parseInt('0x' + value.match(/../g).reverse().join(''));
-}
-
-return result;
-```
-
-</TabItem>
-</Tabs>
-
-### Create the Kafka integration
+## Create Kafka Integration
 
 <Steps>
-1. Go to **Integrations center → Integrations** and click **+ Add integration**.
-2. **Basic settings:**
-    - Set **Integration type** to **Kafka** and enter a name (e.g. "Kafka integration").
-    - **Enable integration** and **Allow create devices or assets** are on by default.
-    - Click **Next**.
-</Steps>
-
-<ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/kafka/kafka-add-integration-1.png', alt: 'Add integration wizard — Basic settings step: Integration type Kafka, name "Kafka integration", Enable integration and Allow create devices or assets toggles on, Next button', caption: 'Basic settings: set Integration type to Kafka, enter a name, verify both toggles are on, click Next' },
-]} />
-
-<Steps>
-  <ol start="3">
+  <ol start="1">
+    <li>Go to <strong>Integrations center &#8702; Integrations</strong> and click <strong>+ Add integration</strong>.</li>
     <li>
-      <span><strong>Uplink data converter:</strong></span>
+      <span><strong>Basic settings:</strong></span>
       <ul>
-        <li>Click <strong>Create new</strong>, enter a name, and paste the decoder script from the section above. Alternatively, click <strong>Select existing</strong> to reuse a previously created converter.</li>
+        <li>Set <strong>Integration type</strong> to <strong>Kafka</strong>.</li>
+        <li>Enter a <strong>Name</strong> for the integration, or keep the default <code>Kafka integration</code>.</li>
+        <li>Leave <strong>Enable integration</strong> and <strong>Allow create devices or assets</strong> on so a device is created automatically on first message.</li>
         <li>Click <strong>Next</strong>.</li>
       </ul>
     </li>
-  </ol>
-</Steps>
-
-<ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/kafka/kafka-add-integration-2.png', alt: 'Add integration wizard — Uplink data converter step: converter name entered, decoder script visible in TBEL mode, Test decoder function button at the bottom', caption: 'Enter a converter name, paste the decoder script, then click Test decoder function to verify the output before proceeding' },
-  { src: '/src/assets/images/user-guide/integrations/kafka/kafka_uplink_test_decoder.png', alt: 'Test decoder function dialog — sample JSON payload entered in the Payload field on the left, decoded output on the right showing deviceName, deviceType, telemetry with Temperature, Humidity, Fan, Pressure, and other fields', caption: 'Test decoder function: paste the sample payload on the left and click Test — the decoded result appears on the right' },
-]} />
-
-<Steps>
-  <ol start="4">
+    <li>
+      <span><strong>Uplink data converter:</strong></span>
+      <ul>
+        <li>Click <strong>Select existing</strong> and choose the <a href="#create-kafka-uplink-data-converter"><strong>Kafka Uplink Converter</strong></a> created above, or click <strong>Create new</strong> to define the decoder inline.</li>
+        <li>Click <strong>Next</strong>.</li>
+      </ul>
+    </li>
     <li>
       <span><strong>Connection:</strong></span>
       <ul>
-        <li>Fill in <strong>Group ID</strong>, <strong>Client ID</strong>, <strong>Bootstrap servers</strong>, <strong>Poll interval</strong>, and <strong>Topics</strong>.</li>
+        <li>Fill in <strong>Group ID</strong>, <strong>Client ID</strong>, <strong>Bootstrap servers</strong>, <strong>Poll interval</strong>, and <strong>Topics</strong> — see <a href="#required-connection-details"><strong>Required Connection Details</strong></a> for the values to use.</li>
         <li>Toggle <strong>Auto create topics</strong> if the topic does not exist yet.</li>
-        <li>For Confluent Cloud or other secured brokers, expand <strong>Advanced settings</strong> and add SASL/SSL properties under <strong>Other properties</strong>.</li>
+        <li>For a secured broker, expand <strong>Advanced settings</strong> and add SASL/SSL properties under <strong>Other properties</strong>.</li>
       </ul>
-      <span>Read more about each parameter in <a href="#connection-settings">connection settings</a>.</span>
+      <span>Read more about each parameter in <a href="#connection-settings"><strong>connection settings</strong></a>.</span>
     </li>
     <li>Click <strong>Add</strong>.</li>
   </ol>
 </Steps>
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/kafka/kafka-add-integration-3.png', alt: 'Add integration wizard — Connection step: Group ID, Client ID, Bootstrap servers (YOUR_KAFKA_DOMAIN:9092), Poll interval 5000, Topics (my-topic), Auto create topics toggle off, Execute remotely collapsed, Add button', caption: 'Connection: fill in Group ID, Client ID, Bootstrap servers, Poll interval, and Topics, then click Add' },
+  { src: '/src/assets/images/user-guide/integrations/kafka/kafka-add-integration-1.png', alt: 'Add integration wizard — Basic settings step: Integration type Kafka, name Kafka integration, Enable integration and Allow create devices or assets toggled on', caption: 'Set Integration type to Kafka, enter a name, and click Next' },
+  { src: '/src/assets/images/user-guide/integrations/kafka/kafka-add-integration-2.png', alt: 'Add integration wizard — Uplink data converter step: Select existing active with Kafka Uplink Converter selected', caption: 'Click Select existing, choose Kafka Uplink Converter, and click Next' },
+  { src: '/src/assets/images/user-guide/integrations/kafka/kafka-add-integration-3.png', alt: 'Add integration wizard — Connection step: Group ID, Client ID, Bootstrap servers, Poll interval, and Topics fields filled in', caption: 'Fill in Group ID, Client ID, Bootstrap servers, Poll interval, and Topics, then click Add' },
 ]} />
 
 <Aside type="note">
 Enable **Debug mode** during initial setup to inspect all incoming messages and converter execution logs on the integration's **Events** tab. Disable it in production — debug events are stored in the database and can quickly consume disk space.
 </Aside>
 
-#### Connection settings
+### Connection Settings
 
-<h4>Group ID</h4>
+| Parameter | Description |
+|-----------|-------------|
+| **Group ID** | A string you define; identifies the consumer group this integration belongs to (e.g. `thingsboard-kafka-group`). All instances sharing the same Group ID split the partition load, so each record is delivered to only one instance. |
+| **Client ID** | A string you define; labels this consumer client for monitoring and logging (e.g. `thingsboard-kafka-client-01`). Must be unique per running consumer if you need to distinguish instances in Kafka metrics. |
+| **Bootstrap Servers** | Comma-separated list of Kafka broker addresses in `host:port` format, e.g. `localhost:9092`. Used to establish the initial connection to the cluster. |
+| **Poll Interval** | How often the integration polls Kafka for new records, in milliseconds. Default: `5000`. |
+| **Topics** | Comma-separated list of Kafka topics to subscribe to, e.g. `my-topic`. |
+| **Auto Create Topics** | When enabled, ThingsBoard automatically creates any subscribed topics that do not already exist on the broker. |
+| **Other Properties** | Additional Kafka consumer properties as key-value pairs. Use this for security configuration such as SASL/SSL when connecting to a secured broker. The exact keys and values depend on your broker/provider — consult its documentation. |
+| **Execute Remotely** | When enabled, ThingsBoard generates an **Integration key** and **Integration secret**, letting the integration run as a separate process outside the ThingsBoard cluster — useful when it must reside in a DMZ or on an on-premises gateway. |
 
-A string you define — it identifies the consumer group this integration belongs to. You can use any value (e.g. `tb-kafka-group`). All integration instances sharing the same Group ID form a consumer group and split the partition load, so each message is delivered to only one instance.
+## Test the Integration
 
-<h4>Client ID</h4>
+Publish a test record to the topic the integration subscribes to, then optionally confirm it landed on the topic. Run the commands from the Kafka install directory (e.g. `/opt/kafka`).
 
-A string you define — it labels this consumer client for monitoring and logging purposes (e.g. `tb-kafka-client`). Must be unique per running consumer if you need to distinguish instances in Kafka metrics.
+<Aside type="note">
+  Enable **Debug mode** on the integration during setup to inspect all incoming records and converter output. Disable it in production — debug events are stored in the database and can quickly consume disk space.
+</Aside>
 
-<h4>Bootstrap servers</h4>
+### Produce a Test Record
 
-Comma-separated list of Kafka broker addresses in `host:port` format, e.g. `localhost:9092`. Used to establish the initial connection to the cluster.
-
-<h4>Poll interval (ms)</h4>
-
-How often the integration polls Kafka for new messages. Default: `5000` ms.
-
-<h4>Topics</h4>
-
-Comma-separated list of Kafka topics to subscribe to, e.g. `my-topic`.
-
-<h4>Auto create topics</h4>
-
-When enabled, ThingsBoard automatically creates any subscribed topics that do not already exist on the broker.
-
-<h4 id="other-properties">Other properties</h4>
-
-Additional Kafka consumer properties as key-value pairs. Use this for security configuration such as SASL/SSL when connecting to Confluent Cloud or other secured brokers.
-
-For **Confluent Cloud**, add the following four entries:
-
-| Key | Value |
-|-----|-------|
-| `ssl.endpoint.identification.algorithm` | `https` |
-| `sasl.mechanism` | `PLAIN` |
-| `sasl.jaas.config` | `org.apache.kafka.common.security.plain.PlainLoginModule required username="CLUSTER_API_KEY" password="CLUSTER_API_SECRET";` |
-| `security.protocol` | `SASL_SSL` |
-
-Replace `CLUSTER_API_KEY` and `CLUSTER_API_SECRET` with the API key and secret from your Confluent Cloud cluster's **Data integration → API keys** section.
-
-<h4>Execute remotely</h4>
-
-When enabled, ThingsBoard generates an **Integration key** and **Integration secret**. These credentials allow the integration to run as a separate process outside the ThingsBoard cluster — useful for deployments where the integration must reside in a DMZ or on-premises gateway.
-
-## Confluent Cloud setup
-
-<Steps>
-1. **Get the Bootstrap server address.**
-   Open your Confluent Cloud environment, click the cluster to enter it, then open **Cluster settings → General**. Copy the **Bootstrap server** value (`YOUR_DOMAIN.confluent.cloud:9092`) — paste it into the **Bootstrap servers** field in ThingsBoard.
-</Steps>
-
-<ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/kafka/confluent/create_integration/kafka_work_with_cluster_0.png', alt: 'Confluent Cloud — environment page listing cluster "cluster_TB" (Running, Azure, westeurope)', caption: 'Open your Confluent Cloud environment and click the cluster' },
-  { src: '/src/assets/images/user-guide/integrations/kafka/confluent/create_integration/kafka_work_with_cluster_1.png', alt: 'Side-by-side: Confluent Cloud Cluster settings showing Bootstrap server highlighted, and ThingsBoard integration Connection step with Bootstrap servers field filled from the same value', caption: 'Copy the Bootstrap server from Cluster settings and paste it into the Bootstrap servers field in ThingsBoard' },
-]} />
-
-<Steps>
-  <ol start="2">
-    <li>
-      <strong>Create an API key.</strong>
-      Go to <strong>Data integration → API keys</strong> and click <strong>Create key</strong>. Select <strong>Global access</strong> (development) or <strong>Granular access</strong> (production), complete the wizard, then copy the generated <strong>key</strong> and <strong>secret</strong>. Use them in <code>sasl.jaas.config</code>:
-      <Code code={'org.apache.kafka.common.security.plain.PlainLoginModule required username="YOUR_KEY" password="YOUR_SECRET";'} lang="text" wrap />
-    </li>
-  </ol>
-</Steps>
-
-<ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/kafka/confluent/create_integration/kafka_integration_properties_API_keys_1.png', alt: 'Confluent Cloud — Data integration → API keys page with no keys yet and Create key button highlighted', caption: 'Navigate to Data integration → API keys and click Create key' },
-  { src: '/src/assets/images/user-guide/integrations/kafka/confluent/create_integration/kafka_integration_properties_API_keys_2.png', alt: 'Confluent Cloud — Create key wizard step 1: select scope — Global access (recommended for development) or Granular access (recommended for production)', caption: 'Select Global access for development or Granular access for production, then click Next' },
-]} />
-
-<Steps>
-  <ol start="3">
-    <li>
-      <strong>Create a topic.</strong>
-      Go to <strong>Topics</strong> and click <strong>Create topic</strong>. Enter a topic name (e.g. <code>my-topic</code>) and click <strong>Create with defaults</strong>. Use this name in the ThingsBoard integration <strong>Topics</strong> field.
-    </li>
-  </ol>
-</Steps>
-
-<ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/kafka/confluent/create_integration/kafka_confluent_create_topic_0.png', alt: 'Confluent Cloud — Topics page with no topics yet and Create topic button highlighted', caption: 'Navigate to Topics and click Create topic' },
-  { src: '/src/assets/images/user-guide/integrations/kafka/confluent/create_integration/kafka_confluent_create_topic_1.png', alt: 'Confluent Cloud — New topic form: topic name "my-topic", 6 partitions, Create with defaults button highlighted; Topic Summary panel on the right shows default settings', caption: 'Enter the topic name (e.g. my-topic) and click Create with defaults' },
-]} />
-
-<Steps>
-  <ol start="4">
-    <li>
-      <strong>Add SASL/SSL properties in ThingsBoard.</strong>
-      In the integration <strong>Connection</strong> step, expand <strong>Other properties</strong> and add the four entries from the <a href="#other-properties">table above</a>, replacing <code>CLUSTER_API_KEY</code> and <code>CLUSTER_API_SECRET</code> with the values from step 2.
-    </li>
-  </ol>
-</Steps>
-
-<ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/kafka/confluent/create_integration/kafka_integration_properties_1.png', alt: 'ThingsBoard Kafka integration Connection step — Other properties section expanded showing all four SASL/SSL key-value pairs: ssl.endpoint.identification.algorithm https, sasl.mechanism PLAIN, sasl.jaas.config with credentials, security.protocol SASL_SSL', caption: 'Expand Other properties in the Connection step and add all four SASL/SSL entries, replacing the placeholder credentials with your Confluent Cloud API key and secret' },
-]} />
-
-## Send uplink message
-
-<Tabs>
-<TabItem label="Standard Kafka">
-
-Use `kafka-console-producer.sh` to publish a test message. Replace `URL_OF_YOUR_BOOTSTRAP_SERVER` with your broker address and `my-topic` with your configured topic:
+Use `kafka-console-producer.sh` to publish a test message. Replace `localhost:9092` with your broker address and `my-topic` with your configured topic if they differ:
 
 ```bash
-echo "{\"EUI\":\"43T1YH-REE\",\"ts\":1638876127000,\"data\":\"3d1f0059\",\"port\":10,\"freq\":24300,\"rssi\":-130,\"serial\":\"230165HRT\"}" | \
-  /usr/local/kafka/bin/kafka-console-producer.sh \
-  --broker-list URL_OF_YOUR_BOOTSTRAP_SERVER:9092 \
+echo '{"EUI":"43T1YH-REE","ts":1638876127000,"data":"3d1f0059","port":10,"freq":24300,"rssi":-130,"serial":"230165HRT"}' | \
+  bin/kafka-console-producer.sh \
+  --bootstrap-server localhost:9092 \
   --topic my-topic > /dev/null
 ```
 
-</TabItem>
-<TabItem label="Confluent Cloud">
-
-In the Confluent Cloud web UI, open your topic and use the **Produce a new message** button on the **Messages** tab:
-
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/kafka/confluent/create_integration/kafka_confluent_send_payload_to_tb_0.png', alt: 'Confluent Cloud — topic Messages tab with Produce a new message button visible', caption: 'Open the topic Messages tab and click Produce a new message' },
-  { src: '/src/assets/images/user-guide/integrations/kafka/confluent/create_integration/kafka_confluent_send_payload_to_tb_1.png', alt: 'Confluent Cloud — produce message form expanded on the topic Messages tab: JSON payload entered in the Value field, Produce button highlighted', caption: 'Paste the JSON payload into the Value field and click Produce' },
-  { src: '/src/assets/images/user-guide/integrations/kafka/confluent/create_integration/kafka_confluent_send_payload_to_tb_2.png', alt: 'Confluent Cloud — message successfully produced confirmation', caption: 'Message produced — ThingsBoard will consume it within the next poll interval' },
+  { src: '/src/assets/images/user-guide/integrations/kafka/kafka-produce-test-record-1.png', alt: 'Terminal running kafka-console-producer.sh, piping a JSON test record to the my-topic topic on localhost:9092', caption: 'Publish the test record with kafka-console-producer.sh' },
 ]} />
 
-</TabItem>
-</Tabs>
+<h4>Verify the Record on the Topic (Optional)</h4>
 
-Device **43T1YH-REE** is auto-created on the first uplink. Go to **Entities &#8702; Devices**, open the device, and check the **Latest telemetry** tab to confirm all decoded fields arrived correctly.
+```bash
+bin/kafka-console-consumer.sh \
+  --bootstrap-server localhost:9092 \
+  --topic my-topic \
+  --from-beginning
+```
+
+You should see the record echoed back:
+
+```json
+{"EUI":"43T1YH-REE","ts":1638876127000,"data":"3d1f0059","port":10,"freq":24300,"rssi":-130,"serial":"230165HRT"}
+```
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/kafka/kafka_integration_test_send_msg_result.png', alt: 'ThingsBoard Devices page — device 43T1YH-REE selected with Latest telemetry tab showing decoded values: Temperature, Humidity, Fan, Pressure, Port, Freq, rssi, and serial', caption: 'ThingsBoard auto-creates device 43T1YH-REE on the first message — open the device to confirm all decoded telemetry keys are present on the Latest telemetry tab' },
+  { src: '/src/assets/images/user-guide/integrations/kafka/kafka-produce-test-record-2.png', alt: 'Terminal running kafka-console-consumer.sh with --from-beginning, echoing back the published JSON test record', caption: 'kafka-console-consumer.sh echoes back the published record' },
 ]} />
 
-## Downlink
-
-The Kafka Integration does not have a dedicated downlink converter. To publish messages from ThingsBoard back to a Kafka topic, use the <DocLink product={props.product} path="reference/rule-engine/nodes/external/kafka">Kafka Rule Node</DocLink> in the rule engine.
-
-<Aside type="caution">
-Do not subscribe the integration and the Kafka Rule Node to the **same topic** — this creates a message loop where each consumed message triggers another publish to the same topic, causing runaway processing.
+<Aside type="note" title="Kafka 4.x console tools">
+  Use `--bootstrap-server` with the console producer and consumer — the older `--broker-list` and `--zookeeper` flags no longer exist in current Kafka tools (`--zookeeper` was removed from these commands back in Kafka 3.0, separate from ZooKeeper's later removal from the broker itself in 4.0). If the consumer prints `UNKNOWN_TOPIC_OR_PARTITION`, the topic name is wrong or the topic does not exist yet: create it (see [Create a Topic](#create-a-topic)) or enable **Auto create topics** in the integration.
 </Aside>
 
-Configure the Kafka Rule Node with the same bootstrap servers and security properties as the integration, but point it to a **separate downlink topic**.
+### Verify Integration Events
+
+Go to **Integrations center &#8702; Integrations**, open **Kafka integration**, and click the **Events** tab. With **Debug mode** on, each consumed record appears as an event with **Type**: **Uplink** and **Status**: **OK**. Click the **&#8942;** icon in the **Message** column to inspect the raw record the integration received from Kafka.
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/kafka/confluent/downlink/kafka_confluent_downlink_node_0.png', alt: 'ThingsBoard rule chain editor — Kafka external rule node added at the end of the Monitoring-sensor rule chain, connected via Success relation after the TB Response node', caption: 'Add the Kafka rule node to the device rule chain and connect it after the node that produces the outgoing message' },
-  { src: '/src/assets/images/user-guide/integrations/kafka/confluent/downlink/kafka_confluent_downlink_node_1.png', alt: 'ThingsBoard Kafka Downlink rule node configuration — Details tab showing topic pattern, bootstrap servers, key and value serializers, and Other properties section with all four SASL/SSL entries filled in', caption: 'Configure the node: set the downlink topic, bootstrap servers, serializers, and SASL/SSL Other properties for Confluent Cloud' },
+  { src: '/src/assets/images/user-guide/integrations/kafka/kafka-verify-integration-events-1.png', alt: 'Kafka integration Events tab — Debug event type showing one Uplink event with status OK', caption: 'Integration → Events — confirm the Uplink event with Status OK' },
+  { src: '/src/assets/images/user-guide/integrations/kafka/kafka-verify-integration-events-2.png', alt: 'Message dialog showing the raw Kafka record — EUI, ts, data, port, freq, rssi, and serial', caption: 'Click the Message column to inspect the raw record' },
 ]} />
 
-Enable **Debug mode** on the node. To verify messages are being published, open the node's **Events** tab — each processed message appears as a Debug entry. Expand an entry to inspect the payload. The Confluent Cloud topic Metrics will show a Production throughput spike when messages arrive.
+### Verify Converter Events
+
+Go to **Integrations center &#8702; Data converters**, open **Kafka Uplink Converter**, and click the **Events** tab. Click **In** to see the raw Kafka record the decoder received (`EUI`, `ts`, `data`, `port`, `freq`, `rssi`, `serial`), and **Out** to see the decoded `deviceName`, `deviceType`, `attributes`, and `telemetry` it produced.
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/kafka/confluent/downlink/kafka_confluent_downlink_node_2.png', alt: 'ThingsBoard Kafka Downlink rule node — Events tab with Debug filter active showing POST_TELEMETRY Success entries; Data popup open displaying the published JSON payload with deviceName, temperature, humidity, and other fields', caption: 'Kafka Downlink node Events tab — expand a Debug entry to view the published message payload' },
-  { src: '/src/assets/images/user-guide/integrations/kafka/confluent/downlink/kafka_confluent_downlink_result_0.png', alt: 'ThingsBoard Kafka Downlink rule node — Events tab showing multiple POST_TELEMETRY Debug events; Data popup open with the full JSON payload including device name and telemetry values', caption: 'Multiple Debug events confirm the node is publishing messages — open any entry to inspect the exact payload sent to Confluent Cloud' },
-  { src: '/src/assets/images/user-guide/integrations/kafka/confluent/downlink/kafka_confluent_downlink_result_1.png', alt: 'Confluent Cloud — RESPONSE topic Metrics page, Production tab showing a throughput spike in the bytes-produced-per-second chart at the time ThingsBoard published the downlink messages', caption: 'Confluent Cloud RESPONSE topic Metrics — a spike in the Production throughput chart confirms the downlink messages arrived on the separate topic' },
+  { src: '/src/assets/images/user-guide/integrations/kafka/kafka-verify-converter-events-1.png', alt: 'Kafka Uplink Converter Events tab — Debug event type showing one Uplink event with In, Out, and Metadata columns', caption: 'Data converter → Events — one row per consumed record' },
+  { src: '/src/assets/images/user-guide/integrations/kafka/kafka-verify-converter-events-2.png', alt: 'In dialog showing the raw Kafka record passed into the decoder — EUI, ts, data, port, freq, rssi, and serial', caption: 'Click In to see the raw record the decoder received' },
+  { src: '/src/assets/images/user-guide/integrations/kafka/kafka-verify-converter-events-3.png', alt: 'Out dialog showing the decoded payload — deviceName, deviceType Monitoring sensor, empty attributes, and telemetry values for Temperature, Humidity, Fan, Port, Freq, Pressure, rssi, and serial', caption: 'Click Out to see the decoded deviceName, deviceType, and telemetry values' },
 ]} />
 
-## See also
+### Verify Device Provisioning
 
-- <DocLink product={props.product} path="user-guide/integrations">Integration Overview</DocLink>
-- <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter">Uplink Converters</DocLink>
-- <DocLink product={props.product} path="user-guide/rule-engine">Rule Engine</DocLink>
-- <DocLink product={props.product} path="reference/rule-engine/nodes/external/kafka">Kafka Rule Node</DocLink>
-- <DocLink product={props.product} path="user-guide/tbel">ThingsBoard Expression Language (TBEL)</DocLink>
+Go to **Entities &#8702; Devices** — device `43T1YH-REE` (Device profile: `Monitoring sensor`) is auto-created on the first record. Open it and check the **Latest telemetry** tab — you should see all 8 decoded keys: `Temperature`, `Humidity`, `Fan`, `Port`, `Freq`, `Pressure`, `rssi`, and `serial`.
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/kafka/kafka-verify-device-provisioning-1.png', alt: 'ThingsBoard device 43T1YH-REE Latest telemetry tab showing 8 decoded keys — Fan, Freq, Humidity, Port, Pressure, rssi, serial, and Temperature', caption: 'Device → Latest telemetry — all 8 decoded keys reported' },
+]} />
+
+## Configure Downlink
+
+The Kafka Integration has **no dedicated downlink converter**. To publish messages from ThingsBoard back to Kafka, use the <DocLink product={props.product} path="reference/rule-engine/nodes/external/kafka" target="_blank">Kafka Rule Node</DocLink> in the Rule Engine. The node takes the message payload, publishes it as the Kafka record value, and on broker acknowledgment adds `offset`, `partition`, and `topic` to the message metadata.
+
+The steps below test downlink entirely on the local setup — self-hosted ThingsBoard PE and the Kafka broker on the same machine. The idea: add a Kafka rule node that publishes to a **separate** downlink topic, then trigger it by updating a **shared attribute** on device `43T1YH-REE` and confirm the value with a console consumer.
+
+<Aside type="caution" title="Avoid message loops">
+  Do not subscribe the integration and the Kafka Rule Node to the **same topic** — each consumed record would trigger another publish to the same topic, causing runaway processing. Use a **separate downlink topic**.
+</Aside>
+
+### Prepare the Downlink Topic
+
+<h5>1. Create a Separate Downlink Topic</h5>
+
+Run from the Kafka install directory (e.g. `/opt/kafka`):
+
+```bash
+bin/kafka-topics.sh --create \
+  --topic my-topic-downlink \
+  --bootstrap-server localhost:9092 \
+  --partitions 1 \
+  --replication-factor 1
+```
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/kafka/kafka-create-downlink-topic-1.png', alt: 'Terminal running kafka-topics.sh --create for topic my-topic-downlink, confirming Created topic my-topic-downlink', caption: 'kafka-topics.sh --create confirms the my-topic-downlink topic was created' },
+]} />
+
+<h5>2. Start a Consumer on the Downlink Topic</h5>
+
+In a **second terminal**, leave a consumer running so you can watch messages arrive:
+
+```bash
+bin/kafka-console-consumer.sh \
+  --bootstrap-server localhost:9092 \
+  --topic my-topic-downlink \
+  --from-beginning
+```
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/kafka/kafka-start-downlink-consumer-1.png', alt: 'Terminal running kafka-console-consumer.sh with --from-beginning on topic my-topic-downlink, waiting for messages', caption: 'Leave this consumer running to watch for messages on my-topic-downlink' },
+]} />
+
+### Configure the Root Rule Chain
+
+<h5>Add and Configure the <DocLink product={props.product} path="reference/rule-engine/nodes/external/kafka" target="_blank">Kafka Rule Node</DocLink>:</h5>
+
+<Steps>
+  <ol>
+    <li>Go to <strong>Rule chains</strong> and open the <strong>Root Rule Chain</strong> (the chain that processes your device's messages).</li>
+    <li>
+      In the node palette on the left, search for <strong>kafka</strong> — it appears under the <strong>External</strong> category — and drag it onto the canvas. In the node dialog, set:
+      <table>
+        <thead>
+          <tr><th>Field</th><th>Value for this setup</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Name</strong></td><td><code>Kafka Downlink</code></td></tr>
+          <tr><td><strong>Topic pattern</strong></td><td><code>my-topic-downlink</code></td></tr>
+          <tr><td><strong>Key pattern</strong></td><td><em>(leave empty)</em></td></tr>
+          <tr><td><strong>Bootstrap servers</strong></td><td><code>localhost:9092</code></td></tr>
+          <tr><td><strong>Automatically retry times if fails</strong></td><td><code>0</code> (or default)</td></tr>
+          <tr><td><strong>Produces batch size in bytes</strong></td><td><code>16384</code> (default)</td></tr>
+          <tr><td><strong>Time to buffer locally (ms)</strong></td><td>default</td></tr>
+          <tr><td><strong>Client buffer max size in bytes</strong></td><td>default</td></tr>
+          <tr><td><strong>Number of acknowledgments</strong></td><td>default</td></tr>
+          <tr><td><strong>Other properties</strong></td><td><em>(leave empty — local <code>PLAINTEXT</code> broker needs no auth)</em></td></tr>
+        </tbody>
+      </table>
+    </li>
+    <li>Click <strong>Add</strong>. The <strong>Topic pattern</strong> supports templates (e.g. <code>$&#123;deviceType&#125;-downlink</code>), but a static name is fine for testing.</li>
+  </ol>
+</Steps>
+
+<h5>Wire the Node into the Rule Chain:</h5>
+
+The Kafka node publishes whatever message reaches it, so connect it to a message flow. For a quick end-to-end test, reuse the uplink you already have working:
+
+<Steps>
+  1. On the canvas, drag a connection from the **Message Type Switch** node to the new **Kafka** node.
+  2. In the relation dialog, select the **Attributes Updated** label and confirm.
+  3. Click **Apply changes** (top-right) to save the rule chain.
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/kafka/kafka-configure-rule-chain-1.png', alt: 'Root Rule Chain node palette searched for kafka, showing the kafka node under External with its description tooltip mentioning offset, partition, and topic response fields', caption: 'Search for kafka in the node palette — it appears under External' },
+  { src: '/src/assets/images/user-guide/integrations/kafka/kafka-configure-rule-chain-2.png', alt: 'Add rule node: kafka dialog with Name Kafka Downlink, Topic pattern my-topic-downlink, Bootstrap servers localhost:9092, and default values for the remaining fields', caption: 'Add rule node: kafka — Name, Topic pattern, and Bootstrap servers filled in' },
+  { src: '/src/assets/images/user-guide/integrations/kafka/kafka-configure-rule-chain-3.png', alt: 'Root Rule Chain canvas showing the Message Type Switch node connected to the kafka Kafka Downlink node via the Attributes Updated relation, with Apply changes highlighted', caption: 'Message Type Switch connected to Kafka Downlink via Attributes Updated' },
+]} />
+
+Now, whenever a shared attribute is updated on a device, its value is published to `my-topic-downlink`.
+
+<Aside type="note" title="Restrict to shared scope (optional)">
+  `ATTRIBUTES_UPDATED` fires for both **shared** and **server** scope. If you want only shared-attribute changes, add a **script filter** node before the Kafka node that passes messages whose metadata `scope` equals `SHARED_SCOPE`. For a simple test you can skip this and just update shared attributes.
+</Aside>
+
+### Trigger a Downlink
+
+Update a shared attribute on device `43T1YH-REE`:
+
+<Steps>
+  1. Go to **Entities &#8702; Devices** and open **43T1YH-REE**.
+  2. Open the **Attributes** tab and set the scope selector to **Shared attributes**.
+  3. Click **+**, enter key `powerState`, value `on` (type String), and click **Add**.
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/kafka/kafka-trigger-downlink-1.png', alt: 'Add attribute dialog on device 43T1YH-REE — Entity attributes scope set to Shared attributes, Key powerState, type String, value on', caption: 'Add attribute — scope Shared attributes, key powerState, value on' },
+]} />
+
+The attribute update flows through the rule chain, and the Kafka node publishes it to the downlink topic.
+
+### Verify Kafka Delivery
+
+Switch to the consumer terminal from **Start a Consumer on the Downlink Topic** — the record should appear on `my-topic-downlink`:
+
+```json
+{"powerState":"on"}
+```
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/kafka/kafka-verify-kafka-delivery-1.png', alt: 'Terminal running kafka-console-consumer.sh on my-topic-downlink, echoing back the published record powerState on', caption: 'kafka-console-consumer.sh echoes back the published record on my-topic-downlink' },
+]} />
+
+### Verify Rule Node Events
+
+Open the Root Rule Chain, click the **Kafka Downlink** node, and open its **Events** tab. Each trigger produces two events — an **IN** event (**Relation Type**: Attributes Updated) for the message entering the node, and an **OUT** event (**Relation Type**: Success) for the published record. Click **Data** on the **OUT** event to see the published payload (e.g. `{"powerState":"on"}`), and **Metadata** to see the publish result — `offset`, `partition`, `topic`, the attribute `scope` (`SHARED_SCOPE`), and the user who made the change.
+
+<Aside type="note" title="Enable Debug mode on the node">
+  The **Events** tab only logs entries while **Debug mode** is on for this specific node.
+</Aside>
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/user-guide/integrations/kafka/kafka-downlink-node-events-1.png',
+    alt: 'Kafka Downlink rule node Events tab showing an IN event with Relation Type Attributes Updated and an OUT event with Relation Type Success',
+    caption: 'The Kafka Downlink node Events tab — one IN and one OUT event per trigger',
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/kafka/kafka-downlink-node-events-2.png',
+    alt: 'Data dialog showing the published payload — powerState on',
+    caption: 'Click Data on the OUT event to see the published payload',
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/kafka/kafka-downlink-node-events-3.png',
+    alt: 'Metadata dialog showing offset, partition, scope SHARED_SCOPE, topic my-topic-downlink, and the user who made the change',
+    caption: 'Click Metadata to see the publish result — offset, partition, topic, and scope',
+  },
+]} />
+
+## Troubleshooting
+
+This section covers the most common problems encountered when setting up and running the Kafka integration. Each entry describes the symptom, the most likely cause, and the steps to resolve it.
+
+<h4>No Records Consumed</h4>
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| No records consumed in ThingsBoard | Wrong **Bootstrap servers** | Open the integration and confirm the broker `host:port` values match your cluster. |
+| No records consumed | Wrong **Topics** | Confirm the producer publishes to the same topic name configured in the integration. |
+| No records consumed | Topic does not exist | Enable **Auto create topics**, or create the topic on the broker manually. |
+| No records consumed | SASL/SSL misconfigured | For a secured broker, verify the **Other properties** entries (security protocol, SASL mechanism, credentials) match what your broker/provider requires. |
+| No records consumed | Integration is disabled | Open the integration and confirm **Enable integration** is on. |
+
+<h4>Record Consumed but Device Not Created</h4>
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Record consumed, no device in ThingsBoard | **Allow create devices or assets** is disabled | Open the integration, click the pencil icon, and enable **Allow create devices or assets** in the Basic settings step. |
+| Record consumed, no device in ThingsBoard | Converter returns an empty device name | Open the uplink converter **Events** tab and inspect the **Out** panel — confirm `deviceName` is present and non-empty. |
+| Record consumed, converter shows error | TBEL or JavaScript exception in the decoder | Open the uplink converter **Events** tab, filter by **Error**, and inspect the stack trace. Common causes: wrong byte offset, malformed JSON, or undefined field. |
+
+<h4>Downlink Not Published</h4>
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Kafka Rule Node Events tab is empty | Rule chain path never reaches the node | Confirm the node is connected after the node that produces the outgoing message via the correct relation. |
+| Runaway processing / message loop | Integration and Rule Node use the same topic | Point the Kafka Rule Node to a **separate downlink topic**. |
+| Node runs but nothing on the broker | Wrong bootstrap servers or serializers | Open the node's **Events → Out** panel and verify the topic, bootstrap servers, and serializers. |
+| Authentication errors to a secured broker | Missing/invalid SASL/SSL properties | Add the required SASL/SSL entries to the node's **Other properties** and verify the credentials against your broker/provider's documentation. |
+
+<h4>How to Read Debug Events</h4>
+
+<Steps>
+  1. Go to **Integrations center &#8702; Integrations**, open **Kafka integration**, and click the **Events** tab.
+  2. Click an event row to inspect:
+</Steps>
+
+- **In** — the raw record value received from Kafka before processing.
+- **Out** — what the converter returned: device name, attributes, and telemetry values passed to ThingsBoard.
+- **Error** — error text and stack trace, if processing failed.
+Enable **Debug mode** on the integration to capture all raw input/output events. Starting from ThingsBoard 3.9, full debug events are stored only during the first hour — afterwards, only error events are retained. Disable debug mode once the issue is identified.
+
+<Aside type="note" title="Debug mode causes high disk usage">
+  Disable debug mode in production. When active, every processed record is written to the database. Switch back to **Failures** mode once setup is confirmed.
+</Aside>
+
+## See Also
+
+- <DocLink product={props.product} path="user-guide/integrations" target="_blank">Integrations Overview</DocLink> — how ThingsBoard connects to external platforms and how uplink/downlink flow works
+- <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">Uplink Data Converter</DocLink> — full decoder function reference: input parameters, output fields, and scripting patterns
+- <DocLink product={props.product} path="reference/rule-engine/nodes/external/kafka" target="_blank">Kafka Rule Node</DocLink> — publish messages from the Rule Engine back to a Kafka topic (downlink)
+- <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink> — run the integration outside the ThingsBoard server to reach a broker on a private network
+- <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL scripting reference</DocLink> — built-in functions and operators for writing converter scripts
+- <DocLink product={props.product} path="user-guide/rule-engine" target="_blank">Rule Engine</DocLink> — how the rule chain routes messages to the Kafka Rule Node
