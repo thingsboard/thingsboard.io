@@ -213,8 +213,11 @@ export const tbPerpetualHero: CommunityEditionData = {
 		'Your financial model favors a one-time capital investment (CAPEX) over recurring expenses.',
 		'Your business needs a unique, tailored solution, not a one-size-fits-all subscription.',
 	],
-	ctaText: 'Contact Us',
-	ctaHref: '/contact-us/?subject=ThingsBoard%20Products&message=I%20am%20interested%20in%20Self-managed%20perpetual%20license',
+	ctaText: 'Estimate your cost',
+	ctaHref: '#',
+	ctaOnclick: 'window.openTbPerpCalc?.()',
+	secondaryCtaText: 'Contact Us',
+	secondaryCtaHref: '/contact-us/?subject=ThingsBoard%20Products&message=I%20am%20interested%20in%20Self-managed%20perpetual%20license',
 };
 
 export const tbSelfManagedAddOns: AddOnItem[] = [
