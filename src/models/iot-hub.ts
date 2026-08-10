@@ -290,6 +290,10 @@ export const IOT_HUB_STRINGS = {
 		singular: 'install',
 		plural: 'installs',
 	},
+	builtIn: {
+		/** Badge label shown in place of the Install CTA. */
+		label: 'Built-in',
+	},
 } as const;
 
 // Shared formatting helpers, used by both the static (SSR) markup and the
@@ -469,6 +473,11 @@ export const listingViewSchema = z.object({
 	connectivity: z.array(z.string()).default([]),
 	tags: z.array(z.string()).default([]),
 	installCount: z.number().default(0),
+	// Server-owned and read-only: true when the content already ships inside
+	// ThingsBoard itself (a bundled widget, a SCADA symbol) rather than being
+	// something the Hub installs. A listing is built-in exactly when its member
+	// items are. Absent on older API builds, hence the default.
+	builtIn: z.boolean().default(false),
 	createdTime: z.number().nullable().default(null),
 	updatedTime: z.number().nullable().default(null),
 	publishedTime: z.number().nullable(),

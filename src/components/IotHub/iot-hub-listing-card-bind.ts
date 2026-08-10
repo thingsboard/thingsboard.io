@@ -44,11 +44,17 @@ export function bindListingCard(
 	const title = root.querySelector<HTMLElement>('[data-card-title]');
 	if (title) title.textContent = item.name;
 
-	// Install count.
+	// Install count — dropped for built-in content (it ships with ThingsBoard,
+	// so the counter says nothing useful), along with its leading separator.
 	const installs = root.querySelector<HTMLElement>('[data-card-installs]');
 	if (installs) installs.textContent = formatInstallCount(item.installCount);
 	const installsWrap = root.querySelector<HTMLElement>('[data-card-installs-wrap]');
-	if (installsWrap) installsWrap.title = formatInstalls(item.installCount);
+	if (installsWrap) {
+		installsWrap.title = formatInstalls(item.installCount);
+		installsWrap.hidden = item.builtIn;
+	}
+	const authorDot = root.querySelector<HTMLElement>('[data-card-author-dot]');
+	if (authorDot) authorDot.hidden = item.builtIn;
 
 	// Variant-specific thumb.
 	if (variant === 'big') {
@@ -60,7 +66,8 @@ export function bindListingCard(
 	// Author row.
 	bindAuthor(root, item, showCreator);
 
-	// Install button.
+	// Install button — swapped for the built-in badge when the item ships
+	// with ThingsBoard.
 	bindInstallButton(root, item);
 }
 
@@ -128,8 +135,12 @@ function bindAuthor(root: HTMLElement, item: ListingView, showCreator: boolean):
 }
 
 function bindInstallButton(root: HTMLElement, item: ListingView): void {
+	const badge = root.querySelector<HTMLElement>('[data-iot-hub-builtin]');
+	if (badge) badge.hidden = !item.builtIn;
+
 	const btn = root.querySelector<HTMLButtonElement>('[data-iot-hub-install-trigger]');
 	if (!btn) return;
+	btn.hidden = item.builtIn;
 	btn.dataset.slug = item.slug;
 	btn.dataset.itemType = item.itemType;
 	if (item.creatorAffiliateId) {
