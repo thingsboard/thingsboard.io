@@ -481,8 +481,10 @@ export const listingViewSchema = z.object({
 	// Server-owned and read-only: true when the content already ships inside
 	// ThingsBoard itself (a bundled widget, a SCADA symbol) rather than being
 	// something the Hub installs. A listing is built-in exactly when its member
-	// items are. Absent on older API builds, hence the default.
-	builtIn: z.boolean().default(false),
+	// items are. `.catch` (not `.default`) so an absent *or* null field lands on
+	// false — Astro applies this schema after the loader returns, outside the
+	// try/catch in content.config.ts that would otherwise contain the throw.
+	builtIn: z.boolean().catch(false),
 	createdTime: z.number().nullable().default(null),
 	updatedTime: z.number().nullable().default(null),
 	publishedTime: z.number().nullable(),
