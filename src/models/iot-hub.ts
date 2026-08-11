@@ -249,10 +249,15 @@ export const IOT_HUB_STRINGS = {
 	installDialog: {
 		title: 'Install item',
 		titleConnect: 'Connect item',
+		// Built-in content is already present in every ThingsBoard instance, so
+		// the dialog opens it rather than installing a duplicate.
+		titleOpen: 'Open item',
 		// `\n` is a hard line break, rendered via `white-space: pre-line` to match
 		// the two-line layout in the design.
 		subtitle:
 			'Choose a ThingsBoard instance to install this item into.\nCopy the install link or open it directly in a new tab.',
+		subtitleOpen:
+			'Choose a ThingsBoard instance to open this item in.\nCopy the link or open it directly in a new tab.',
 		closeAriaLabel: 'Close',
 		copy: 'Copy link',
 		copied: 'Copied',
@@ -291,7 +296,7 @@ export const IOT_HUB_STRINGS = {
 		plural: 'installs',
 	},
 	builtIn: {
-		/** Badge label shown in place of the Install CTA. */
+		/** Appended to the supported-version chip in the detail hero's meta row. */
 		label: 'Built-in',
 	},
 } as const;
@@ -686,5 +691,15 @@ export const buildInstallUrl = (
 
 // `itemType` is `string` (not `IotHubItemType`) because one caller passes a raw
 // value read from a DOM data-attribute.
-export const getInstallVerb = (itemType: string, variant = 'card'): string =>
-	itemType === 'DEVICE' ? (variant === 'hero' ? 'Connect device' : 'Connect') : 'Install';
+//
+// Built-in content already exists in every ThingsBoard instance, so the CTA
+// opens it there instead of installing a second copy — the dialog itself is
+// unchanged, only the wording.
+export const getInstallVerb = (itemType: string, variant = 'card', builtIn = false): string =>
+	builtIn
+		? 'Open'
+		: itemType === 'DEVICE'
+			? variant === 'hero'
+				? 'Connect device'
+				: 'Connect'
+			: 'Install';

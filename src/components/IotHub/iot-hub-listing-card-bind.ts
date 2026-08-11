@@ -66,8 +66,7 @@ export function bindListingCard(
 	// Author row.
 	bindAuthor(root, item, showCreator);
 
-	// Install button — swapped for the built-in badge when the item ships
-	// with ThingsBoard.
+	// Install button — reads "Open" for content that ships with ThingsBoard.
 	bindInstallButton(root, item);
 }
 
@@ -135,12 +134,8 @@ function bindAuthor(root: HTMLElement, item: ListingView, showCreator: boolean):
 }
 
 function bindInstallButton(root: HTMLElement, item: ListingView): void {
-	const badge = root.querySelector<HTMLElement>('[data-iot-hub-builtin]');
-	if (badge) badge.hidden = !item.builtIn;
-
 	const btn = root.querySelector<HTMLButtonElement>('[data-iot-hub-install-trigger]');
 	if (!btn) return;
-	btn.hidden = item.builtIn;
 	btn.dataset.slug = item.slug;
 	btn.dataset.itemType = item.itemType;
 	if (item.creatorAffiliateId) {
@@ -148,7 +143,13 @@ function bindInstallButton(root: HTMLElement, item: ListingView): void {
 	} else {
 		delete btn.dataset.affiliateId;
 	}
-	const label = getInstallVerb(item.itemType, 'card');
+	// Read back by the install dialog to pick its "open" wording.
+	if (item.builtIn) {
+		btn.dataset.builtIn = 'true';
+	} else {
+		delete btn.dataset.builtIn;
+	}
+	const label = getInstallVerb(item.itemType, 'card', item.builtIn);
 	btn.setAttribute('aria-label', `${label} ${item.name}`);
 	const labelSpan = btn.querySelector('span');
 	if (labelSpan) labelSpan.textContent = label;
