@@ -246,6 +246,19 @@ const guideItems = (prefix: string, { isPE = false } = {}) => {
 		collapsed: true,
 		items: [`${prefix}/add-ons`, `${prefix}/edge-computing`, `${prefix}/trendz-analytics`],
 	},
+	...(isPE ? [{
+		label: 'Docker Agents',
+		collapsed: true,
+		items: [
+			{ label: 'Overview', slug: `${prefix}/agents` },
+			`${prefix}/agents/installation`,
+			`${prefix}/agents/agent-profiles`,
+			`${prefix}/agents/applications`,
+			`${prefix}/agents/application-profiles`,
+			`${prefix}/agents/upgrades`,
+			`${prefix}/agents/bulk-actions`,
+		],
+	}] : []),
 	{
 		label: 'Security',
 		collapsed: true,
@@ -353,6 +366,7 @@ const edgeInstallationItems = (prefix: string) => {
 			label: 'Cluster',
 			items: [`${prefix}/installation/docker-compose-setup`],
 		},
+		...(isPE ? [{ label: 'ThingsBoard Agent', slug: `${prefix}/installation/agent` }] : []),
 		...(isPE
 			? []
 			: [{ label: 'Building from Sources', slug: `${prefix}/installation/building-from-source` }]),
@@ -2118,6 +2132,19 @@ export const paasSidebar: SidebarConfig = [
 				],
 			},
 			{
+				label: 'Docker Agents',
+				collapsed: true,
+				items: [
+					{ label: 'Overview', slug: 'docs/paas/user-guide/agents' },
+					'docs/paas/user-guide/agents/installation',
+					'docs/paas/user-guide/agents/agent-profiles',
+					'docs/paas/user-guide/agents/applications',
+					'docs/paas/user-guide/agents/application-profiles',
+					'docs/paas/user-guide/agents/upgrades',
+					'docs/paas/user-guide/agents/bulk-actions',
+				],
+			},
+			{
 				label: 'Security',
 				collapsed: true,
 				items: [
@@ -2511,6 +2538,19 @@ export const paasEuSidebar: SidebarConfig = [
 					'docs/paas/eu/user-guide/add-ons',
 					'docs/paas/eu/user-guide/edge-computing',
 					'docs/paas/eu/user-guide/trendz-analytics',
+				],
+			},
+			{
+				label: 'Docker Agents',
+				collapsed: true,
+				items: [
+					{ label: 'Overview', slug: 'docs/paas/eu/user-guide/agents' },
+					'docs/paas/eu/user-guide/agents/installation',
+					'docs/paas/eu/user-guide/agents/agent-profiles',
+					'docs/paas/eu/user-guide/agents/applications',
+					'docs/paas/eu/user-guide/agents/application-profiles',
+					'docs/paas/eu/user-guide/agents/upgrades',
+					'docs/paas/eu/user-guide/agents/bulk-actions',
 				],
 			},
 			{
@@ -3497,6 +3537,7 @@ export const gwSidebar: SidebarConfig = [
 		label: 'Installation',
 		translations: { uk: 'Встановлення' },
 		items: [
+			'docs/iot-gateway/installation/agent-installation',
 			'docs/iot-gateway/installation/deb-installation',
 			'docs/iot-gateway/installation/docker-installation',
 			'docs/iot-gateway/installation/docker-windows',

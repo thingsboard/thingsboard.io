@@ -1,0 +1,98 @@
+import DocLink from '@components/DocLink.astro';
+import ImageGallery from '@components/ImageGallery.astro';
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+An **agent profile** defines how a fleet of agents is provisioned and what applications those agents run. Instead of creating each agent by hand, you create one profile, copy its provisioning command, and run that same command on every target machine. ThingsBoard registers each machine as a new agent and, depending on the provisioning strategy, installs applications on it automatically.
+
+Agent profiles are also where you run <DocLink product={props.product} path='user-guide/agents/bulk-actions'>bulk actions</DocLink>: fleet-wide restarts, updates, upgrades, and deletes of every application that matches an assigned application profile.
+
+## Provisioning strategies
+
+Each agent profile has a provisioning strategy that controls what happens when a new agent registers with the profile's credentials:
+
+| Strategy | Behavior |
+|---|---|
+| **Disabled** | The profile rejects provisioning requests. Agents can only be created manually. |
+| **Provision agents only** | New agents are registered, but no applications are installed. |
+| **One application per type** | New agents are registered, and at most one application of each type (Edge, Gateway) is installed from the assigned application profiles. |
+| **One application per assigned profile** | New agents are registered, and one application is installed for every assigned application profile. |
+
+## Create an agent profile
+
+<Steps>
+  <ol>
+    <li>
+      Go to **Edge management > Profiles > Agent profiles** and click **Add** (+).
+    </li>
+    <li>
+      Pick a preset: **Edge**, **Gateway**, **Edge + Gateway**, or **Advanced**. The Edge, Gateway, and Edge + Gateway presets assign the latest application profiles for the selected types and set the **One application per type** provisioning strategy; **Advanced** lets you set a provisioning strategy and pick or create application profiles yourself.
+    </li>
+    <li>
+      Enter the profile name and click **Add**. The **Agent profile created** dialog shows the provisioning command for this profile.
+    </li>
+  </ol>
+</Steps>
+
+The profile details page shows the provisioning strategy, the generated **Docker run command**, and the assigned application profiles. You can mark one profile as the default for the tenant.
+
+## Auto-provision an agent
+
+<Steps>
+  <ol>
+    <li>
+      Go to **Edge management > Agents** and click **Auto-provision**.
+    </li>
+    <li>
+      Select an existing agent profile or create a new one, then go to the **Provisioning script** step.
+    </li>
+    <li>
+      Copy the generated command and run it on the target machine:
+
+      ```bash
+      docker run -d \
+        --name=tb-agent \
+        --restart=always \
+        -v /var/run/docker.sock:/var/run/docker.sock:ro \
+        -v tb-agent-data:/root/.tb-agent \
+        -v /:/host:ro \
+        -e TB_SERVER_ADDR=<thingsboard-host>:7070 \
+        -e AUTO_PROVISION=true \
+        -e TB_PROVISION_KEY=<provision-key> \
+        -e TB_PROVISION_SECRET=<provision-secret> \
+        thingsboard/tb-agent:latest
+      ```
+    </li>
+    <li>
+      Verify the result. A new agent named `Agent-<first 8 characters of the routing key>` appears in the Agents list, and the applications defined by the provisioning strategy start installing.
+    </li>
+  </ol>
+</Steps>
+
+The same command works on every machine in the fleet: the provision key and secret identify the profile, not an individual agent.
+
+### How provisioning works
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/schemas/agent-provisioning-flow.svg',
+    alt: 'ThingsBoard Agent provisioning flow: the agent sends a provision request, the server validates it against the agent profile, creates the agent entity, and returns routing credentials; the agent persists them, reconnects, and receives application installs per the provisioning strategy',
+    caption: 'The agent contacts the server with the profile provision key and secret, receives its own routing credentials, and reconnects; the server then installs applications per the provisioning strategy.',
+  },
+]} />
+
+The agent stores the received credentials in its data volume (`credentials.json`, file mode `0600`) and uses them directly on every subsequent start; no provisioning request is repeated. To force re-provisioning, delete the file from the `tb-agent-data` volume or recreate the volume.
+
+## Assign application profiles
+
+The **Application profiles & bulk actions** tab of the agent profile lists the assigned <DocLink product={props.product} path='user-guide/agents/application-profiles'>application profiles</DocLink>. For each assignment you can:
+
+- **Relate on Auto-Discovery:** Automatically assigns this application profile to applications that agents discover on their hosts, when the application's Edge or Gateway image matches the profile's template. Use it to bring an existing fleet under profile management. See <DocLink product={props.product} path='user-guide/agents/application-profiles'>Application profiles and templates</DocLink> for the matching rules and cautions.
+- **Run bulk actions:** Restart, update, upgrade, or delete every matching application across the fleet. See <DocLink product={props.product} path='user-guide/agents/bulk-actions'>Bulk actions</DocLink>.
+
+<Aside type="danger" title="Relate on Auto-Discovery overrides the host configuration">
+With **Relate on Auto-Discovery** enabled, relating happens immediately: as soon as a discovered application's main Edge or Gateway image matches the profile's template version (like a host running `thingsboard-edge:4.3` and a profile whose template version is `thingsboard-edge:4.3`), the profile's Docker Compose configuration **overrides** the Docker Compose project on the host right away. Before enabling the toggle, make sure the profile matches the running deployments exactly, including environment variables and volume names.
+</Aside>
+
+<Aside type="tip">
+Assign application profiles before machines come online. With the **One application per assigned profile** strategy, each new host receives its full application set the moment the agent connects.
+</Aside>
