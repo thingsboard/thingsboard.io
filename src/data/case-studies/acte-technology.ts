@@ -4,7 +4,7 @@ export const data: CaseStudyData = {
 	title: 'How ACTE Technology helps monitor and control with ThingsBoard to optimize efficiencies',
 	pageTitle: 'How ACTE Technology helps monitor and control to optimize efficiencies',
 	description:
-		'ACTE Technology uses ThingsBoard to monitor and automate the Chaktomuk datacenter — real-time alarms, rule engine, and dashboards that optimize efficiency.',
+		'ACTE Technology uses ThingsBoard to monitor and automate the Chaktomuk data center — real-time alarms, rule engine, and dashboards that optimize efficiency.',
 	pageSlug: 'acte-technology',
 	breadcrumb: 'ACTE Technology — Industrial Control System',
 	categories: ['Industry 4.0'],
