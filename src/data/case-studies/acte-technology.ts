@@ -1,19 +1,19 @@
 import type { CaseStudyData } from './types';
 
 export const data: CaseStudyData = {
-	title: 'How ACTE Technology helps monitor and control with ThingsBoard to optimise efficiencies',
-	pageTitle: 'How ACTE Technology helps monitor and control to optimise efficiencies',
+	title: 'How ACTE Technology helps monitor and control with ThingsBoard to optimize efficiencies',
+	pageTitle: 'How ACTE Technology helps monitor and control to optimize efficiencies',
 	description:
-		'ACTE Technology uses ThingsBoard to monitor and automate the Chaktomuk datacenter — real-time alarms, rule engine, and dashboards that optimise efficiency.',
+		'ACTE Technology uses ThingsBoard to monitor and automate the Chaktomuk data center — real-time alarms, rule engine, and dashboards that optimize efficiency.',
 	pageSlug: 'acte-technology',
 	breadcrumb: 'ACTE Technology — Industrial Control System',
 	categories: ['Industry 4.0'],
 
 	hero: {
 		category: 'INDUSTRIAL CONTROL SYSTEM',
-		heading: 'How ACTE Technology helps monitor and control with ThingsBoard to optimise efficiencies',
+		heading: 'How ACTE Technology helps monitor and control with ThingsBoard to optimize efficiencies',
 		paragraphs: [
-			'ACTE Technology, headquartered across Vietnam and Singapore, specialises in Industrial Control, Building Automation, SCADA, IIoT, and Electronics, delivering end-to-end solutions that help clients control, monitor, automate, and optimise operations while meeting compliance requirements. With flexible usability of most hardware devices (e.g. Schneider), ACTE works across a broad range of devices and platforms.',
+			'ACTE Technology, headquartered across Vietnam and Singapore, specializes in Industrial Control, Building Automation, SCADA, IIoT, and Electronics, delivering end-to-end solutions that help clients control, monitor, automate, and optimize operations while meeting compliance requirements. With flexible usability of most hardware devices (e.g. Schneider), ACTE works across a broad range of devices and platforms.',
 			'With over 10 years of experience, the company has served 30+ clients and delivered 100+ projects within the datacenter, electronics, oil & gas, and industrial industries, backed by strategic partnerships with ThingsBoard and Proxmox.',
 		],
 		logo: '/images/case-studies/acte-technology-logo.png',
@@ -24,7 +24,7 @@ export const data: CaseStudyData = {
 	},
 
 	statistics: [
-		{ value: 10, suffix: '+', label: 'Years of experience in Efficiency Performance & Environmental compliance' },
+		{ value: 10, suffix: '+', label: 'Years of experience' },
 		{ value: 30, label: 'Number of clients' },
 		{ value: 100, suffix: '+', label: 'Number of projects' },
 	],
@@ -141,7 +141,7 @@ export const data: CaseStudyData = {
 			},
 			{
 				title: 'Role-Based Access Control (RBAC)',
-				text: 'To maintain high security, we utilised ThingsBoard Professional Edition, which allows us to customise role-based access to define what different team members can see and do. This ensures that while managers have full oversight, external contractors or junior staff only access the specific dashboards they need. It protects sensitive data center configurations from accidental or unauthorized changes.',
+				text: 'To maintain high security, we utilized ThingsBoard Professional Edition, which allows us to customize role-based access to define what different team members can see and do. This ensures that while managers have full oversight, external contractors or junior staff only access the specific dashboards they need. It protects sensitive data center configurations from accidental or unauthorized changes.',
 				images: [
 					{
 						src: 'https://img.thingsboard.io/case-studies/hierarchy-widget.webp',

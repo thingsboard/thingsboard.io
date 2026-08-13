@@ -418,6 +418,13 @@ export const DISTRIBUTORS: Distributor[] = [
 		website: "qnectd.com",
 	},
 	{
+		name: "Quantova",
+		regions: ["Asia","Middle East"],
+		countries: ["United Arab Emirates"],
+		email: "info@quantova.com",
+		website: "quantova.com",
+	},
+	{
 		name: "RFID Solutions AS",
 		regions: ["Europe"],
 		countries: ["Norway"],

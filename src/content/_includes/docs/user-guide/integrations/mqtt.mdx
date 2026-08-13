@@ -30,7 +30,7 @@ MQTT Integration connects ThingsBoard to any MQTT broker — cloud or on-premise
 ## Architecture
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/mqtt-integration-architecture.svg', alt: 'MQTT integration architecture diagram showing uplink data flowing from a device through an MQTT broker to the ThingsBoard uplink converter and Core Service, and downlink commands flowing back through the downlink converter and the same broker', caption: 'MQTT integration architecture — uplink and downlink data flow between the MQTT broker and ThingsBoard.' },
+  { src: '/src/assets/images/user-guide/integrations/mqtt-integration-architecture.svg', alt: 'MQTT integration architecture showing uplink and downlink message flow between an MQTT broker and ThingsBoard', caption: 'MQTT integration architecture. Uplink messages are received from the MQTT broker, converted by the uplink data converter, and forwarded to the ThingsBoard Core Service. Downlink messages are encoded by the downlink data converter and published back to the MQTT broker.' },
 ]} />
 
 A device publishes a message to a topic on the MQTT broker; ThingsBoard subscribes to that topic and receives the message. The uplink converter decodes the payload into telemetry and attributes, and the ThingsBoard Core Service stores the data, creating the device automatically on first contact. For downlink, the Rule Engine hands a message to the integration; the downlink converter encodes it, and ThingsBoard publishes it back to the broker on a downlink topic for the device to consume.
@@ -569,6 +569,120 @@ Go to **Entities &#8702; Devices** — device **SN-001** is provisioned automati
   Device auto-creation depends on the <DocLink product={props.product} path="user-guide/provisioning" target="_blank">Provisioning</DocLink> strategy configured in the device profile. By default, new devices are created automatically when the uplink converter returns a valid `deviceName`.
 </Aside>
 
+## Configure Downlink
+
+Downlink allows ThingsBoard to send commands back to the device over MQTT in response to a Rule Engine event — for example, when a shared attribute is updated. ThingsBoard publishes the encoded payload to the topic defined by the **Downlink topic pattern** in the integration's Advanced settings (default: `${topic}`, resolved from `metadata.topic` in the downlink converter output).
+
+The downlink converter transforms a Rule Engine message into an MQTT payload. For the full encoder function reference, see <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter">Downlink data converter</DocLink>.
+
+<h4>When downlink is needed</h4>
+
+- You need to send configuration updates or commands to the device (e.g., set a threshold, change a polling interval).
+- You want to acknowledge received data with a control response published to a device-specific topic.
+
+### Add Downlink Converter
+
+The encoder receives `msg`, `metadata`, and `msgType`, and must return:
+- `contentType` — `JSON`, `TEXT`, or `BINARY`
+- `data` — the payload string to publish
+- `metadata.topic` — when the integration's **Downlink topic pattern** is `${topic}`, the integration publishes to this topic
+
+For RPC commands, `msg.method` and `msg.params` are available. `msg.params` is always a string — use `parseFloat(msg.params)` or `JSON.parse(msg.params)` when a numeric or structured value is needed. See the <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink data converter</DocLink> reference for the full encoder API.
+
+<Steps>
+  1. Go to **Integrations center &#8702; Integrations** and open the **MQTT integration**.
+  2. Click the **pencil** icon to enter edit mode.
+  3. In the **Downlink data converter** field, click **Create new**.
+  4. In the **Add data converter** dialog:
+      - Enter a name for the converter, for example, `MQTT Downlink Converter`.
+      - Use the default encoder script or replace it with your own implementation.
+      - Click **Add**.
+  5. Click **Apply changes** to save the integration.
+</Steps>
+
+**The encoder function used in this tutorial:**
+
+```js
+/** Encoder **/
+// Publish the ThingsBoard message as JSON to the device command topic.
+// metadata.topic is read by the integration when Downlink topic pattern is ${topic}.
+
+var result = {
+  // Specify the downlink payload format: JSON, TEXT, or BINARY.
+  contentType: "JSON",
+
+  // Serialize the incoming message and use it as the MQTT payload.
+  data: JSON.stringify(msg),
+
+  // Build the MQTT topic from the device type and device name.
+  // The integration uses this value when the Downlink topic pattern is ${topic}.
+  metadata: {
+    topic: metadata['deviceType'] + '/' + metadata['deviceName'] + '/upload'
+  }
+};
+
+return result;
+```
+
+### Configure the Root Rule Chain
+
+To ensure the downlink converter has access to device information, we enrich message metadata with the device name and device profile name. These values are later used by the MQTT integration downlink converter to dynamically build the MQTT topic (for example, `thermostat/SN-001/upload`) and other payload fields.
+
+<Steps>
+  1. Go to <strong>Rule chains &#8702; Root Rule Chain</strong>.
+  2. In the <strong>Enrichment</strong> section of the node library, find the <strong>originator fields</strong> node and drag it onto the canvas.
+  3. In the <strong>originator fields</strong> node configuration, map the source fields:
+      - <strong>Name &#8702; deviceName</strong>
+      - <strong>Profile name &#8702; deviceType</strong>
+      - Then click <strong>Add</strong>.
+  4. Connect the <strong>message type switch</strong> node to the <strong>originator fields</strong> node using the <strong>Attributes Updated</strong> and <strong>Post attributes</strong> link types.
+  5. In the node library, find the <strong>integration downlink</strong> node and drag it onto the canvas.
+  6. In the node configuration, set a name (e.g., <strong>MQTT integration</strong>) and select your <strong>MQTT integration</strong>. Click <strong>Add</strong>.
+  7. Connect the <strong>originator fields</strong> node to the <strong>integration downlink</strong> node using the <strong>Success</strong> relation.
+  8. Click <strong>Apply changes</strong>.
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/mqtt/mqtt-integration-configure-rule-chain-1.png', alt: 'Originator fields node in the enrichment section', caption: 'In the Enrichment section, locate the Originator fields node.' },
+  { src: '/src/assets/images/user-guide/integrations/mqtt/mqtt-integration-configure-rule-chain-2.png', alt: 'Originator fields node configuration', caption: 'Configure the Originator fields node. Map Name to deviceName and Profile name to deviceType, then click Add.' },
+  { src: '/src/assets/images/user-guide/integrations/mqtt/mqtt-integration-configure-rule-chain-3.png', alt: 'Originator fields node added to the rule chain', caption: 'Connect the Message Type Switch node to the new Originator fields node using the Attributes Updated and Post attributes links.' },
+  { src: '/src/assets/images/user-guide/integrations/mqtt/mqtt-integration-configure-rule-chain-4.png', alt: 'Integration downlink node in the action section', caption: 'In the Action section, locate the Integration downlink node.' },
+  { src: '/src/assets/images/user-guide/integrations/mqtt/mqtt-integration-configure-rule-chain-5.png', alt: 'Integration downlink node configuration for MQTT integration', caption: 'Configure the Integration downlink node. Enter the name, select MQTT integration, and click Add.' },
+  { src: '/src/assets/images/user-guide/integrations/mqtt/mqtt-integration-configure-rule-chain-6.png', alt: 'Originator fields node connected to integration downlink node', caption: 'Connect the Originator fields node to the Integration downlink node.' },
+]} />
+
+### Test Downlink
+
+When a shared attribute is created or updated, the Rule Engine routes the event to the integration, which publishes the encoded payload to the downlink topic.
+
+Subscribe to the downlink topic with your MQTT client to verify receipt:
+
+```shell
+mosquitto_sub -h demo.tbmq.io -p 1883 -t "thermostat/SN-001/upload" -u "demo" -P "demo"
+```
+
+Trigger a downlink by adding a shared attribute to the device:
+
+<Steps>
+1. Go to **Entities &#8702; Devices**, open **SN-001**, and navigate to the **Attributes** tab.
+2. Select **Shared attributes**, click **+** to add a new attribute.
+3. Set the key (e.g. `powerState`) and value (e.g. `on`).
+4. Click **Add**.
+</Steps>
+
+The Rule Engine routes the attribute update to the integration downlink node, which passes it to the encoder. The terminal subscribed to `SN-001/commands` will print the downlink payload:
+
+```json
+{"powerState":"on"}
+```
+
+### Verify Downlink Converter Events
+
+Go to **Integrations center &#8702; Data converters**, open **MQTT Downlink Converter**, and click the **Events** tab — a **Downlink** event should appear in the list.
+- **In** shows the Rule Engine message
+- **Out** shows the encoded MQTT payload
+- **Metadata** shows the topic and integration name.
+
 ## Converter Examples by Payload Type
 
 <h4>Scenario A: Device name and type from JSON payload</h4>
@@ -964,120 +1078,6 @@ For the payload `sensor-001;23.5;60;87` the decoder produces:
 - **Fewer or more fields** — add or remove entries in the `values` object and update the index comments.
 
 ---
-
-## Configure Downlink
-
-Downlink allows ThingsBoard to send commands back to the device over MQTT in response to a Rule Engine event — for example, when a shared attribute is updated. ThingsBoard publishes the encoded payload to the topic defined by the **Downlink topic pattern** in the integration's Advanced settings (default: `${topic}`, resolved from `metadata.topic` in the downlink converter output).
-
-The downlink converter transforms a Rule Engine message into an MQTT payload. For the full encoder function reference, see <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter">Downlink data converter</DocLink>.
-
-<h4>When downlink is needed</h4>
-
-- You need to send configuration updates or commands to the device (e.g., set a threshold, change a polling interval).
-- You want to acknowledge received data with a control response published to a device-specific topic.
-
-### Add Downlink Converter
-
-The encoder receives `msg`, `metadata`, and `msgType`, and must return:
-- `contentType` — `JSON`, `TEXT`, or `BINARY`
-- `data` — the payload string to publish
-- `metadata.topic` — when the integration's **Downlink topic pattern** is `${topic}`, the integration publishes to this topic
-
-For RPC commands, `msg.method` and `msg.params` are available. `msg.params` is always a string — use `parseFloat(msg.params)` or `JSON.parse(msg.params)` when a numeric or structured value is needed. See the <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink data converter</DocLink> reference for the full encoder API.
-
-<Steps>
-  1. Go to **Integrations center &#8702; Integrations** and open the **MQTT integration**.
-  2. Click the **pencil** icon to enter edit mode.
-  3. In the **Downlink data converter** field, click **Create new**.
-  4. In the **Add data converter** dialog:
-      - Enter a name for the converter, for example, `MQTT Downlink Converter`.
-      - Use the default encoder script or replace it with your own implementation.
-      - Click **Add**.
-  5. Click **Apply changes** to save the integration.
-</Steps>
-
-**The encoder function used in this tutorial:**
-
-```js
-/** Encoder **/
-// Publish the ThingsBoard message as JSON to the device command topic.
-// metadata.topic is read by the integration when Downlink topic pattern is ${topic}.
-
-var result = {
-  // Specify the downlink payload format: JSON, TEXT, or BINARY.
-  contentType: "JSON",
-
-  // Serialize the incoming message and use it as the MQTT payload.
-  data: JSON.stringify(msg),
-
-  // Build the MQTT topic from the device type and device name.
-  // The integration uses this value when the Downlink topic pattern is ${topic}.
-  metadata: {
-    topic: metadata['deviceType'] + '/' + metadata['deviceName'] + '/upload'
-  }
-};
-
-return result;
-```
-
-### Configure the Root Rule Chain
-
-To ensure the downlink converter has access to device information, we enrich message metadata with the device name and device profile name. These values are later used by the MQTT integration downlink converter to dynamically build the MQTT topic (for example, `thermostat/SN-001/upload`) and other payload fields.
-
-<Steps>
-  1. Go to <strong>Rule chains &#8702; Root Rule Chain</strong>.
-  2. In the <strong>Enrichment</strong> section of the node library, find the <strong>originator fields</strong> node and drag it onto the canvas.
-  3. In the <strong>originator fields</strong> node configuration, map the source fields:
-      - <strong>Name &#8702; deviceName</strong>
-      - <strong>Profile name &#8702; deviceType</strong>
-      - Then click <strong>Add</strong>.
-  4. Connect the <strong>message type switch</strong> node to the <strong>originator fields</strong> node using the <strong>Attributes Updated</strong> and <strong>Post attributes</strong> link types.
-  5. In the node library, find the <strong>integration downlink</strong> node and drag it onto the canvas.
-  6. In the node configuration, set a name (e.g., <strong>MQTT integration</strong>) and select your <strong>MQTT integration</strong>. Click <strong>Add</strong>.
-  7. Connect the <strong>originator fields</strong> node to the <strong>integration downlink</strong> node using the <strong>Success</strong> relation.
-  8. Click <strong>Apply changes</strong>.
-</Steps>
-
-<ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/mqtt/mqtt-integration-configure-rule-chain-1.png', alt: 'Originator fields node in the enrichment section', caption: 'In the Enrichment section, locate the Originator fields node.' },
-  { src: '/src/assets/images/user-guide/integrations/mqtt/mqtt-integration-configure-rule-chain-2.png', alt: 'Originator fields node configuration', caption: 'Configure the Originator fields node. Map Name to deviceName and Profile name to deviceType, then click Add.' },
-  { src: '/src/assets/images/user-guide/integrations/mqtt/mqtt-integration-configure-rule-chain-3.png', alt: 'Originator fields node added to the rule chain', caption: 'Connect the Message Type Switch node to the new Originator fields node using the Attributes Updated and Post attributes links.' },
-  { src: '/src/assets/images/user-guide/integrations/mqtt/mqtt-integration-configure-rule-chain-4.png', alt: 'Integration downlink node in the action section', caption: 'In the Action section, locate the Integration downlink node.' },
-  { src: '/src/assets/images/user-guide/integrations/mqtt/mqtt-integration-configure-rule-chain-5.png', alt: 'Integration downlink node configuration for MQTT integration', caption: 'Configure the Integration downlink node. Enter the name, select MQTT integration, and click Add.' },
-  { src: '/src/assets/images/user-guide/integrations/mqtt/mqtt-integration-configure-rule-chain-6.png', alt: 'Originator fields node connected to integration downlink node', caption: 'Connect the Originator fields node to the Integration downlink node.' },
-]} />
-
-### Test Downlink
-
-When a shared attribute is created or updated, the Rule Engine routes the event to the integration, which publishes the encoded payload to the downlink topic.
-
-Subscribe to the downlink topic with your MQTT client to verify receipt:
-
-```shell
-mosquitto_sub -h demo.tbmq.io -p 1883 -t "thermostat/SN-001/upload" -u "demo" -P "demo"
-```
-
-Trigger a downlink by adding a shared attribute to the device:
-
-<Steps>
-1. Go to **Entities &#8702; Devices**, open **SN-001**, and navigate to the **Attributes** tab.
-2. Select **Shared attributes**, click **+** to add a new attribute.
-3. Set the key (e.g. `powerState`) and value (e.g. `on`).
-4. Click **Add**.
-</Steps>
-
-The Rule Engine routes the attribute update to the integration downlink node, which passes it to the encoder. The terminal subscribed to `SN-001/commands` will print the downlink payload:
-
-```json
-{"powerState":"on"}
-```
-
-### Verify Downlink Converter Events
-
-Go to **Integrations center &#8702; Data converters**, open **MQTT Downlink Converter**, and click the **Events** tab — a **Downlink** event should appear in the list.
-- **In** shows the Rule Engine message
-- **Out** shows the encoded MQTT payload
-- **Metadata** shows the topic and integration name.
 
 ## Troubleshooting
 
