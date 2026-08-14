@@ -603,10 +603,9 @@ const apisAndSdksItems = (prefix: string) => [
 		items: [
 			`${prefix}/reference/extensions/overview`,
 			`${prefix}/reference/extensions/quickstart`,
+			`${prefix}/reference/extensions/architecture`,
 			`${prefix}/reference/extensions/development-workflow`,
-			`${prefix}/reference/extensions/examples`,
 			`${prefix}/reference/extensions/cli-deployment`,
-			`${prefix}/reference/extensions/deployment-api`,
 		],
 	},
 	{

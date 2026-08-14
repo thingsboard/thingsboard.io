@@ -1,15 +1,17 @@
 import { Aside } from '@astrojs/starlight/components';
 import DocLink from '@components/DocLink.astro';
+import ImageGallery from '@components/ImageGallery.astro';
 import Banner from '~/components/Banner.astro';
 import { Products } from '~/models/site.models';
+import ShowFor from '@components/ShowFor.astro';
 
-<Banner variant="peFeature" product={props.product}>Extensions work only with <DocLink product={Products.PE} path="reference/extensions/cli-deployment" target="_blank">ThingsBoard Professional</DocLink> and <a href="/installations/?product=thingsboard-cloud" target="_blank" rel="noopener noreferrer" class="tb-banner-ext"><b>ThingsBoard Cloud</b></a> version **4.3.1.3** or later.</Banner>
+<Banner variant="peFeature" product={props.product}>Extensions work only with <DocLink product={Products.PE} path="reference/extensions/cli-deployment" target="_blank">ThingsBoard Professional</DocLink> and <a href="/installations/?product=thingsboard-cloud" target="_blank" rel="noopener noreferrer" class="tb-banner-ext"><b>ThingsBoard Cloud</b></a> version **4.4.0** or later.</Banner>
 
 {props.product !== Products.CE && (
-  <Banner variant="cloud">Available from ThingsBoard PE/Cloud <strong>4.3.1.3</strong> and later.</Banner>
+  <Banner variant="cloud">Available from ThingsBoard PE/Cloud <strong>4.4.0</strong> and later.</Banner>
 )}
 
-The <DocLink product={props.product} path='user-guide/cli'>ThingsBoard CLI</DocLink> is the easiest way to run an extension inside ThingsBoard Cloud or PE. This page is the reference for the `tb extension deploy` command and the `tb extension deployments` control commands. For a full walkthrough, see the <DocLink product={props.product} path='reference/extensions/quickstart'>Quickstart</DocLink>.
+The <DocLink product={props.product} path='user-guide/cli'>ThingsBoard CLI</DocLink> is the easiest way to run an extension inside ThingsBoard Cloud or PE. This page is the reference for the `tb extension deploy` command and the `tb extension deployments` control commands. For the walkthrough that leads up to a deploy, see the <DocLink product={props.product} path='reference/extensions/development-workflow'>Development workflow</DocLink>.
 
 <Aside type="note">
 Deploying is different from the local dev loop (`tb extension build` / `run` / `logs` / `stop`), which runs the container on your own machine. **Deploy** provisions the container **server-side**, and ThingsBoard keeps it running.
@@ -25,9 +27,42 @@ tb extension push --image-name myorg/acme-billing
 
 When you push a version tag (`--image-tag 1.1.0`), the CLI also pushes the same build as `:latest`, replacing the registry's current `latest`. Pass `--no-latest` to skip that — for example, for release candidates.
 
-Authentication uses your active profile. Override it per command with `--profile <name>`, or with `--url` and `--api-key`. The profile also decides **where** the extension runs — ThingsBoard Cloud or your own PE installation (see <DocLink product={props.product} path='reference/extensions/overview#where-extensions-run'>Where extensions run</DocLink>).
+Authentication uses your active profile. Override it per command with `--profile <name>`, or with `--url` and `--api-key`. The profile also decides **where** the extension runs — ThingsBoard Cloud or your own PE installation (see <DocLink product={props.product} path='reference/extensions/architecture#where-extensions-run'>Where extensions run</DocLink>).
 
 The registry must be reachable from the ThingsBoard instance that pulls the image: the public internet for ThingsBoard Cloud, or your own network for a private PE installation. For a private registry, ThingsBoard needs pull credentials — pass them with the registry flags of `deploy` (see [Private registry](#private-registry)).
+
+## Root and solution extensions
+
+A project can hold more than one extension:
+
+- one at the project root: `extension/`
+- one per solution: `solutions/<name>/extension/`
+
+Every `tb extension` command picks its target the same way:
+
+1. `--solution <name>` targets that solution's extension.
+2. Without the flag, a shell inside `solutions/<name>/` targets that solution. The command prints the scope it picked.
+3. Anywhere else, the project-root extension is used.
+
+Each extension keeps its own block in `thingsboard.json` (see [Deployment state in the project](#deployment-state-in-the-project)), so names, images, and deployment state never mix. For example, deploy a solution's extension with:
+
+```bash
+tb extension deploy --solution smart-building --image-name myorg/smart-building-ext
+```
+
+A solution directory has to exist before you can put an extension in it:
+
+```bash
+tb solution new smart-building
+tb extension new --solution smart-building --lang python
+```
+
+Prefer the flag over changing directory. It names the extension you mean, whatever your shell is. If the solution is not there, the CLI stops and asks you to run `tb solution new <name>` first.
+
+Two limits apply once a project holds several extensions:
+
+- **Locally**, only one of them runs at a time, because they share the same port. Stop the other one first: `tb extension stop --solution <name>`.
+- **Deployed**, each one takes a part of the tenant quota — extension count, CPU, and memory. The Extensions page shows what is left (see <DocLink product={props.product} path='reference/extensions/overview#what-it-looks-like'>What it looks like</DocLink>).
 
 ## Commands at a glance
 
@@ -63,7 +98,7 @@ tb extension deploy --image-name myorg/acme-billing --image-tag 1.0 --replicas 2
 ╰────────────────────────────────────────────────────╯
 Proceed? [y/N]: y
 OK Deployed 'acme-billing' → acme-billing-9f3a   (2/2 replicas ready)
-  URL:  https://thingsboard.cloud/api/ext/acme-billing-9f3a
+  URL:  https://thingsboard.cloud/api/extension/route/acme-billing-9f3a
 ```
 
 ### Flags
@@ -74,17 +109,18 @@ OK Deployed 'acme-billing' → acme-billing-9f3a   (2/2 replicas ready)
 | `--image-tag` | `latest` | Image tag |
 | `--name` | saved extension name | Human-readable extension name (from `thingsboard.json`, set by `tb extension new` or `rename`) |
 | `--slug-base` | from name | Base for the generated slug |
-| `--replicas` | `1` | Number of replicas (1–20) |
-| `--port` | `8090` | Port the container listens on |
+| `--replicas` | current deployment → saved value → `1` | Number of replicas (1–20) |
+| `--port` | current deployment → saved value → `8090` | Port the container listens on |
 | `--env KEY=VALUE` | — | Environment variable; repeat for more than one. Names starting with `TB_EXT_`, and the key `THINGSBOARD_URL`, are reserved |
-| `--size` | `small` | Resource size — run `tb extension sizes` to list the options |
+| `--size` | saved size → `small` | Resource size — run `tb extension sizes` to list the options |
 | `--registry` | from image | Private registry host. When omitted, ThingsBoard derives it from the image reference |
 | `--registry-user` | — | Username (or robot account) for a private registry — see [Private registry](#private-registry) |
 | `--registry-password-secret` | — | Name of a ThingsBoard Secret that holds the registry password — see [Private registry](#private-registry) |
 | `--clear-registry-auth` | — | On an update, remove the stored registry credentials instead of keeping them |
 | `--clear-env` | — | On an update, remove all environment variables instead of keeping them |
-| `--wait` / `--no-wait` | `--wait` | Wait until `ACTIVE`/`FAILED`, or return at once |
+| `--wait` / `--no-wait` | `--wait` | Wait until the deployment settles (see [Wait outcomes](#wait-outcomes)), or return at once |
 | `--timeout` | `180` | Wait timeout, in seconds |
+| `--solution` | auto | Target a solution's extension instead of the project-root one — see [Root and solution extensions](#root-and-solution-extensions) |
 | `-y` / `--yes` | — | Skip the confirmation prompt |
 
 <Aside type="caution">
@@ -106,6 +142,18 @@ With `--no-wait`, the command returns immediately and the state updates in the b
 OK Provisioned 'acme-billing' → acme-billing-9f3a (state will converge; use deployments status)
 ```
 
+### Wait outcomes
+
+With `--wait` (the default), the command polls the extension state and reacts to each state differently. Only `ACTIVE` counts as success; every other outcome exits with a non-zero code and a message that names the real state:
+
+| Final state | What the CLI does |
+|-------------|-------------------|
+| `ACTIVE` | Success: `Deployed '…' → <slug>  (n/n replicas ready)`. |
+| `FAILED` | Stops at once and prints the `lastError` (for example, an image pull failure). |
+| `STOPPED`, `DELETING` | Stops at once — someone stopped or deleted the extension while the CLI was waiting (for example, from the UI). The message names the state instead of reporting a timeout. |
+| `DEGRADED` at the timeout | Keeps polling while `DEGRADED` — the extension may still recover. If `--timeout` runs out in this state, the CLI reports the ready/desired replicas and the `lastError`. |
+| `PROVISIONING` / `UPDATING` at the timeout | Reports that the extension did not become `ACTIVE` in time. It may still be converging — check `tb extension deployments status <slug>`. |
+
 ### Private registry
 
 ThingsBoard pulls the image on the server side, so it needs its own pull credentials — your local `docker login` does not help here. The CLI never sends the password itself. Instead, it sends a reference to a ThingsBoard Secret:
@@ -117,13 +165,26 @@ ThingsBoard pulls the image on the server side, so it needs its own pull credent
 tb extension deploy --registry-user robot-acme --registry-password-secret acme-registry
 ```
 
-`--registry-user` and `--registry-password-secret` are required together. `--registry` is optional: when omitted, ThingsBoard takes the registry host from the image reference. Under the hood, the CLI fills the `registryAuth` field of the <DocLink product={props.product} path='reference/extensions/deployment-api'>deployment API</DocLink> and sends the password as a `${secret:acme-registry;type:TEXT}` reference. You can also pass a full `${secret:…}` reference as the flag value — the CLI keeps it as is.
+`--registry-user` and `--registry-password-secret` are required together. `--registry` is optional: when omitted, ThingsBoard takes the registry host from the image reference. Under the hood, the CLI fills the `registryAuth` field of the deployment request and sends the password as a `${secret:acme-registry;type:TEXT}` reference. You can also pass a full `${secret:…}` reference as the flag value — the CLI keeps it as is.
 
 You set the registry flags once. On later updates, the CLI keeps the credentials from the current deployment — you do not repeat the flags. Pass new values to replace them, or `--clear-registry-auth` to remove them.
 
 ## Resource sizes
 
-Run `tb extension sizes` to list the resource tiers and the CPU and memory each one maps to. Pass the chosen tier to `deploy` with `--size` (for example `xsmall`, `small`, `medium`, `large`). Start small and move up only if the extension needs more.
+Run `tb extension sizes` to list the resource tiers and the CPU and memory each one maps to. There are six: `xsmall`, `small`, `medium`, `large`, `xlarge`, and `xxlarge`. Pass the chosen tier to `deploy` with `--size`. Start small and move up only if the extension needs more.
+
+Without `--size`, a new deployment gets `small`. Keep it there for a Java extension: `xsmall` gives the container 128 MB, which is not enough for a JVM, so the process is killed before Spring finishes starting.
+
+<Aside type="note" title="Tenant quota">
+  The size you pick, multiplied by `--replicas`, must fit the CPU and memory your tenant may still use for extensions. The number of extensions is limited as well. Check the **Available resources** line under the table on the **Data processing → Extensions** page before you deploy: it shows the used and the total amount, and how many extensions of each size still fit.
+
+  <ShowFor product={props.product} show={[Products.PE]}>
+    A system administrator sets these limits in the <DocLink product={props.product} path="user-guide/tenant-profiles#extension-limits">tenant profile</DocLink>. A tenant cannot change them.
+  </ShowFor>
+  <ShowFor product={props.product} show={[Products.PAAS, Products.PAAS_EU]}>
+    On ThingsBoard Cloud these limits come from your plan. A tenant cannot change them.
+  </ShowFor>
+</Aside>
 
 ## `tb extension undeploy [ref]`
 
@@ -144,9 +205,13 @@ tb extension deployments stop acme-billing-9f3a     # scale to zero, keep the en
 tb extension deployments start acme-billing-9f3a    # resume to the desired replicas
 ```
 
-`list` prints one row per extension: name, slug, state, resource size, image, and the Swagger path.
+`list` prints one row per extension: name, slug, state, resource size, image, and the docs path. The docs path (Swagger UI for Java, `/docs` for Python) is filled only for extensions deployed from the current project — for those, the CLI knows the language from `thingsboard.json`. For extensions deployed elsewhere the cell stays empty instead of guessing a link that may not exist.
 
-`status` shows the live state, ready and desired replicas, the public URL, and the Swagger path. It adds a **Last error** row only when the extension reports one.
+`status` shows the live state, ready and desired replicas, and the public URL, plus a **Docs** row when the extension was deployed from the current project. It adds a **Last error** row only when the extension reports one.
+
+The same information is in the UI, under **Data processing → Extensions**. `logs` and the **Show logs** button read the same container log:
+
+<ImageGallery images={[{ src: '/src/assets/images/reference/extensions/extension-logs.png', alt: 'The extension logs dialog in ThingsBoard showing the service starting and the requests that arrived through the router', caption: 'tb extension deployments logs and the Show logs button read the same container log. Auto refresh keeps the dialog live.' }]} />
 
 ## Deployment state in the project
 
@@ -165,7 +230,9 @@ After a successful deploy, the CLI saves the deployment details in the project's
 }
 ```
 
-Because of this, a later `tb extension deploy` with no flags **updates** the same extension using the saved image, slug, and size — you do not have to repeat them. The environment variables and the private-registry credentials are also kept on an update: the CLI copies them from the current deployment on the server. Pass `--env` or the registry flags to replace them, or `--clear-env` / `--clear-registry-auth` to remove them. Note that `--env` replaces the whole set — repeat every variable you want to keep. Only the image tag is **not** reused: `lastTag` is informational, and without `--image-tag` the CLI deploys `latest`. So pass `--image-tag` on every update.
+A solution's extension saves the same block under its own solution instead — `solutions.<name>.extension.deployment` — so the root extension and every solution extension track their deployments separately.
+
+Because of this, a later `tb extension deploy` with no flags **updates** the same extension using the saved image, slug, and size — you do not have to repeat them. The replica count, the port, the environment variables, and the private-registry credentials are kept too: the CLI reads them from the current deployment on the server, so a scale you made in the UI survives the next CLI deploy. Pass the matching flag to replace any of them, or `--clear-env` / `--clear-registry-auth` to remove them. Note that `--env` replaces the whole set — repeat every variable you want to keep. Only the image tag is **not** reused: `lastTag` is informational, and without `--image-tag` the CLI deploys `latest`. So pass `--image-tag` on every update.
 
 ## Deploy from CI
 
@@ -180,10 +247,9 @@ tb extension deploy --image-name myorg/acme-billing --image-tag "$CI_COMMIT_TAG"
 `TB_URL` sets the instance, `TB_API_KEY` supplies the key, `-y` skips the prompt, and `--no-wait` returns at once.
 
 <Aside type="note">
-These two variables configure the **CLI**. They are not the same as `TB_AUTH_API_KEY`, which is a runtime credential **inside the extension container** — see the <DocLink product={props.product} path='reference/extensions/overview'>overview</DocLink>.
+These two variables configure the **CLI**. They are not the same as `TB_AUTH_API_KEY`, which is a runtime credential **inside the extension container** — see <DocLink product={props.product} path='reference/extensions/architecture#authentication'>Authentication</DocLink>.
 </Aside>
 
 ## Next steps
 
-- <DocLink product={props.product} path='reference/extensions/deployment-api'>Deployment REST API</DocLink> — the endpoints the CLI calls, for use without the CLI.
-- <DocLink product={props.product} path='reference/extensions/quickstart'>Quickstart</DocLink> — the full build-and-deploy walkthrough.
+- <DocLink product={props.product} path='reference/extensions/development-workflow'>Development workflow</DocLink> — the full build-and-deploy walkthrough for your own extension.
