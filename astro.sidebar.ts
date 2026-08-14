@@ -247,7 +247,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => {
 		items: [`${prefix}/add-ons`, `${prefix}/edge-computing`, `${prefix}/trendz-analytics`],
 	},
 	...(isPE ? [{
-		label: 'Docker Agents',
+		label: 'Remote Agents',
 		collapsed: true,
 		items: [
 			{ label: 'Overview', slug: `${prefix}/agents` },
@@ -255,7 +255,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => {
 			`${prefix}/agents/agent-profiles`,
 			`${prefix}/agents/applications`,
 			`${prefix}/agents/application-profiles`,
-			`${prefix}/agents/upgrades`,
+			`${prefix}/agents/application-actions`,
 			`${prefix}/agents/bulk-actions`,
 		],
 	}] : []),
@@ -2132,7 +2132,7 @@ export const paasSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'Docker Agents',
+				label: 'Remote Agents',
 				collapsed: true,
 				items: [
 					{ label: 'Overview', slug: 'docs/paas/user-guide/agents' },
@@ -2140,7 +2140,7 @@ export const paasSidebar: SidebarConfig = [
 					'docs/paas/user-guide/agents/agent-profiles',
 					'docs/paas/user-guide/agents/applications',
 					'docs/paas/user-guide/agents/application-profiles',
-					'docs/paas/user-guide/agents/upgrades',
+					'docs/paas/user-guide/agents/application-actions',
 					'docs/paas/user-guide/agents/bulk-actions',
 				],
 			},
@@ -2541,7 +2541,7 @@ export const paasEuSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'Docker Agents',
+				label: 'Remote Agents',
 				collapsed: true,
 				items: [
 					{ label: 'Overview', slug: 'docs/paas/eu/user-guide/agents' },
@@ -2549,7 +2549,7 @@ export const paasEuSidebar: SidebarConfig = [
 					'docs/paas/eu/user-guide/agents/agent-profiles',
 					'docs/paas/eu/user-guide/agents/applications',
 					'docs/paas/eu/user-guide/agents/application-profiles',
-					'docs/paas/eu/user-guide/agents/upgrades',
+					'docs/paas/eu/user-guide/agents/application-actions',
 					'docs/paas/eu/user-guide/agents/bulk-actions',
 				],
 			},
