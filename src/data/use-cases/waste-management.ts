@@ -61,7 +61,7 @@ export const data: UseCaseData = {
 	solutionStructure: {
 		title: 'Solution structure of waste management',
 		shortText:
-			'The ThingsBoard-powered <a href="/docs/pe/recipes/solution-templates/waste-management/">waste management solution</a> begins at the edge — where IoT sensors installed in bins monitor fill levels and battery status in real time. These devices send telemetry data to ThingsBoard using supported protocols such as MQTT, CoAP, or HTTP. Thanks to ThingsBoard gateway and built-in integration capabilities, even legacy systems and non-IP sensors can be seamlessly connected.',
+			'The ThingsBoard-powered <a href="/iot-hub/solution-templates/waste-monitoring/">waste management solution</a> begins at the edge — where IoT sensors installed in bins monitor fill levels and battery status in real time. These devices send telemetry data to ThingsBoard using supported protocols such as MQTT, CoAP, or HTTP. Thanks to ThingsBoard gateway and built-in integration capabilities, even legacy systems and non-IP sensors can be seamlessly connected.',
 		longText: [
 			'Once the data reaches the platform, it is processed and stored in a time-series database. Rule Engine chains trigger alarms based on predefined conditions such as low battery or bins nearing capacity. Finally, this structured information is presented on interactive dashboards, allowing operators to make timely decisions and optimize collection routes. All of this can be managed in a multi-tenant environment, enabling smart city operators, private contractors, and utility providers to co-manage waste operations securely.',
 		],

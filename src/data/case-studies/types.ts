@@ -76,6 +76,8 @@ export interface CaseStudyData {
 	power: {
 		badge?: string;
 		companyName: string;
+		/** Overrides the default "How ThingsBoard powers {companyName}?" section heading. */
+		heading?: string;
 		blocks: PowerBlock[];
 	};
 

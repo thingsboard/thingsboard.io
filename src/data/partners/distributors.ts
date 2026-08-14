@@ -418,6 +418,13 @@ export const DISTRIBUTORS: Distributor[] = [
 		website: "qnectd.com",
 	},
 	{
+		name: "Quantova",
+		regions: ["Asia","Middle East"],
+		countries: ["United Arab Emirates"],
+		email: "info@quantova.com",
+		website: "quantova.com",
+	},
+	{
 		name: "RFID Solutions AS",
 		regions: ["Europe"],
 		countries: ["Norway"],
@@ -516,6 +523,13 @@ export const DISTRIBUTORS: Distributor[] = [
 		website: "softone.hu",
 	},
 	{
+		name: "SoftVerx",
+		regions: ["Asia"],
+		countries: ["Pakistan"],
+		email: "info@softverx.com",
+		website: "www.softverx.com",
+	},
+	{
 		name: "Solu Filantropi Teknologi",
 		regions: ["Asia"],
 		countries: ["Indonesia"],
@@ -528,13 +542,6 @@ export const DISTRIBUTORS: Distributor[] = [
 		countries: ["United Arab Emirates"],
 		email: "salem@spectrum.co.ae",
 		website: "spectrum.co.ae",
-	},
-	{
-		name: "StarLinking Networks Co., Ltd.",
-		regions: ["Asia"],
-		countries: ["Taiwan"],
-		email: "star@starlinking.com",
-		website: "starlinking.com",
 	},
 	{
 		name: "Kar-Tel LLP",

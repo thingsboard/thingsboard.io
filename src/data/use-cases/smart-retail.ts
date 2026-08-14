@@ -10,7 +10,7 @@ export const data: UseCaseData = {
 		shortText:
 			'Smart retail solution by ThingsBoard is a powerful platform that helps retailers gain full visibility into store infrastructure, automate data collection, respond to incidents in real time, and make informed decisions. Leveraging the flexibility of ThingsBoard, retailers can integrate a wide range of sensors and devices, visualize key metrics through custom dashboards, and implement intelligent analytics.',
 		longText: [
-			'The <a href="/docs/pe/recipes/solution-templates/smart-retail/">smart retail solution</a> template represents a flexible, ready-to-use structure for building intelligent retail infrastructures using the ThingsBoard IoT platform. As a solution provider, you can provision multiple customers and assign each one a dedicated pool of IoT devices to monitor key assets across their supermarkets. Customers can easily upload custom floor plans, install devices on-site, and place them logically within the dashboard layout to reflect the physical environment.',
+			'The <a href="/iot-hub/solution-templates/smart-retail/">smart retail solution</a> template represents a flexible, ready-to-use structure for building intelligent retail infrastructures using the ThingsBoard IoT platform. As a solution provider, you can provision multiple customers and assign each one a dedicated pool of IoT devices to monitor key assets across their supermarkets. Customers can easily upload custom floor plans, install devices on-site, and place them logically within the dashboard layout to reflect the physical environment.',
 			'With built-in alarm logic and fully configurable thresholds per device, users can detect anomalies such as temperature fluctuations or unauthorized access without needing a complex setup. The template also includes interactive dashboards that allow both providers and customers to monitor the current and historical state of their supermarkets\u2014empowering data-driven decisions, operational efficiency, and a higher standard of safety and service.',
 		],
 		demoUrl:
@@ -92,7 +92,7 @@ export const data: UseCaseData = {
 	dashboardStructure: {
 		title: 'Smart retail dashboard structure',
 		subtitle:
-			'<a href="/docs/pe/recipes/solution-templates/smart-retail/">Smart retail solution</a> dashboards in ThingsBoard are designed to give retail operators full situational awareness, from high-level monitoring of multiple store locations down to detailed insights into individual devices. Each dashboard state provides a specific layer of visibility to support operational efficiency and safety.',
+			'<a href="/iot-hub/solution-templates/smart-retail/">Smart retail solution</a> dashboards in ThingsBoard are designed to give retail operators full situational awareness, from high-level monitoring of multiple store locations down to detailed insights into individual devices. Each dashboard state provides a specific layer of visibility to support operational efficiency and safety.',
 		panels: [
 			{
 				title: 'Supermarket map overview state',
