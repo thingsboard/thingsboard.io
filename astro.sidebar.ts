@@ -588,7 +588,6 @@ const apisAndSdksItems = (prefix: string) => [
 			`${prefix}/reference/extensions/quickstart`,
 			`${prefix}/reference/extensions/architecture`,
 			`${prefix}/reference/extensions/development-workflow`,
-			`${prefix}/reference/extensions/cli-deployment`,
 		],
 	},
 	{
@@ -1795,6 +1794,7 @@ const mainSidebarItems = (
 				items: [
 					`${prefix}/user-guide/cli`,
 					`${prefix}/user-guide/cli-solutions`,
+					`${prefix}/user-guide/cli-extensions`,
 				],
 			},
 			`${prefix}/user-guide/ai-solution-creator`,
@@ -2209,6 +2209,7 @@ export const paasSidebar: SidebarConfig = [
 				items: [
 					'docs/paas/user-guide/cli',
 					'docs/paas/user-guide/cli-solutions',
+					'docs/paas/user-guide/cli-extensions',
 				],
 			},
 			'docs/paas/user-guide/ai-solution-creator',
@@ -2608,6 +2609,7 @@ export const paasEuSidebar: SidebarConfig = [
 				items: [
 					'docs/paas/eu/user-guide/cli',
 					'docs/paas/eu/user-guide/cli-solutions',
+					'docs/paas/eu/user-guide/cli-extensions',
 				],
 			},
 			'docs/paas/eu/user-guide/ai-solution-creator',
