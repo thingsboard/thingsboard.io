@@ -366,7 +366,7 @@ const edgeInstallationItems = (prefix: string) => {
 			label: 'Cluster',
 			items: [`${prefix}/installation/docker-compose-setup`],
 		},
-		...(isPE ? [{ label: 'ThingsBoard Agent', slug: `${prefix}/installation/agent` }] : []),
+		...(isPE ? [{ label: 'Remote Agent', slug: `${prefix}/installation/agent` }] : []),
 		...(isPE
 			? []
 			: [{ label: 'Building from Sources', slug: `${prefix}/installation/building-from-source` }]),
