@@ -19,9 +19,21 @@
  *   ```json download='config.json'
  *   ```                          ← download button appears next to the copy button
  *
+ * maxLines clamps height from EC's own type tokens via calc(), and the
+ * Expand button is rendered into the HAST — so nothing measures layout at
+ * runtime and blocks inside still-hidden tab panels are already correct.
+ *
+ * Two mechanisms hide overflow, and which one is load-bearing depends on the
+ * block. With `collapsible`, the lines past the cap sit in a hidden wrapper and
+ * are out of layout entirely, so the clamp and `overflow-y` are inert until the
+ * user expands — such a block is no longer scroll-to-read. Without it, the
+ * clamp is the only thing hiding anything and the block stays scrollable.
+ *
  * Notes on HAST conventions:
  *   - Classes → properties.className (array), NOT properties.class
- *   - Data attrs → camelCase: dataMaxLines → data-max-lines in HTML → el.dataset.maxLines in JS
+ *   - Data attrs → camelCase: dataEcDownload → data-ec-download in HTML
+ *   - The line budget travels as the --tb-ec-max-lines custom property, not a
+ *     data attribute: the clamp is pure CSS and nothing reads it back from JS.
  *
  * Plugin hook order (built-ins run first):
  *   pluginShiki → pluginTextMarkers → pluginFrames (wraps blockAst in <figure.frame>)
@@ -39,14 +51,109 @@ function appendClassName(node, name) {
 	node.properties.className = list;
 }
 
+function appendStyle(node, decl) {
+	const existing = node.properties.style;
+	node.properties.style = existing ? String(existing).replace(/;\s*$/, '') + ';' + decl : decl;
+}
+
+/** figure > pre > code — the element whose children are the .ec-line divs. */
+function findCodeEl(blockAst) {
+	const pre = blockAst.children.find((c) => c.type === 'element' && c.tagName === 'pre');
+	const code = pre?.children.find((c) => c.type === 'element' && c.tagName === 'code');
+	return code ?? null;
+}
+
+/**
+ * Move every line past `maxLines` into a `hidden="until-found"` wrapper so the
+ * browser skips styling and laying them out. Supporting browsers still find
+ * them with in-page search and reveal them automatically; the Expand button
+ * clears the attribute for everyone else.
+ */
+function hideOverflowLines(blockAst, maxLines) {
+	const code = findCodeEl(blockAst);
+	if (!code) return 0;
+
+	// Count .ec-line DESCENDANTS: pluginCollapsibleSections runs first and wraps
+	// ranges in <details>, so a top-level child count would be wrong for any
+	// block using both `collapse=` and `collapsible`.
+	const lineCount = (node) => {
+		if (node.type !== 'element') return 0;
+		const cls = node.properties?.className;
+		const list = Array.isArray(cls) ? cls.map(String) : cls ? [String(cls)] : [];
+		if (list.includes('ec-line')) return 1;
+		return (node.children ?? []).reduce((n, c) => n + lineCount(c), 0);
+	};
+
+	let seen = 0;
+	let splitAt = -1;
+	for (let i = 0; i < code.children.length; i++) {
+		seen += lineCount(code.children[i]);
+		if (seen >= maxLines) {
+			splitAt = i + 1;
+			break;
+		}
+	}
+	if (splitAt < 0 || splitAt >= code.children.length) return false;
+
+	const overflow = code.children.splice(splitAt);
+	if (!overflow.some((c) => lineCount(c) > 0)) {
+		// Nothing but whitespace past the cap — put it back untouched.
+		code.children.push(...overflow);
+		return false;
+	}
+
+	code.children.push({
+		type: 'element',
+		tagName: 'div',
+		properties: { className: ['ec-overflow'], hidden: 'until-found' },
+		children: overflow,
+	});
+	return true;
+}
+
 export function pluginMaxLines() {
 	return {
 		name: 'Max Lines',
 
 		baseStyles: `
-			/* maxLines: height-limited scrollable block */
+			/* maxLines: height-limited scrollable block.
+			   Height comes from EC's own type tokens rather than a measured
+			   line box, so no JS ever reads layout. --ec-codeLineHt is a
+			   unitless multiplier, --ec-codeFontSize a length. */
 			.ec-max-lines pre {
 				overflow-y: auto;
+				/* EC puts padding on 'pre > code', not on 'pre', so the clamp has
+				   to add it back or the last visible line is cut mid-glyph.
+				   The --ec-* names are EC internals (verified against 0.42.0);
+				   the fallbacks keep the clamp working if they ever change,
+				   since an unresolvable var() would drop max-height entirely. */
+				max-height: calc(
+					var(--ec-codeLineHt, 1.65) * var(--ec-codeFontSize, 0.85rem) *
+						var(--tb-ec-max-lines) + 2 * var(--ec-codePadBlk, 0.75rem)
+				);
+			}
+
+			/* EC clears room for the copy button with
+			   ':nth-child(1 of .ec-line) .code'. That matches within any parent,
+			   so the first line inside the overflow wrapper picks it up too once
+			   expanded — an early wrap under 'wrap', extra scroll width without. */
+			.ec-overflow > .ec-line:first-child .code {
+				padding-inline-end: var(--ec-codePadInl, 1rem);
+			}
+
+			.ec-max-lines.is-expanded pre {
+				max-height: none;
+			}
+
+			/* Browsers that support the value apply 'content-visibility: hidden'
+			   (per the HTML rendering spec, [hidden] only collapses to
+			   'display: none' when the value is NOT "until-found"), so this
+			   override changes nothing for them and layout is still skipped.
+			   Browsers without it collapse to 'display: none' and would drop the
+			   lines out of in-page search — here they render normally instead and
+			   the max-height clamp does the hiding. */
+			.ec-overflow[hidden] {
+				display: block;
 			}
 
 			/* Hide the default browser scrollbar-corner box where the
@@ -84,70 +191,36 @@ export function pluginMaxLines() {
 
 		jsModules: [
 			`
-			// Guard against double-registration: Astro view transitions can re-run
-			// this module, which would stack another set of document-level
-			// listeners on every navigation.
+			// The clamp height and the Expand button are both produced at build
+			// time, so there is no per-block init pass and nothing here reads
+			// layout. One delegated listener handles every block on the page,
+			// including blocks inside tab panels that are still hidden.
 			if (!window.__ecMaxLinesInit) {
 				window.__ecMaxLinesInit = true;
 
-				function initMaxLines() {
-					document.querySelectorAll('.ec-max-lines[data-max-lines]').forEach((el) => {
-						if (el.dataset.mlInit) return;
-
-						const maxLines = parseInt(el.dataset.maxLines, 10);
-						const pre = el.querySelector('pre');
-						if (!pre) return;
-
-						const firstLine = pre.querySelector('.ec-line');
-						const lineH = firstLine ? firstLine.getBoundingClientRect().height : 20;
-						const maxH = Math.round(maxLines * lineH);
-
-						// Hidden tab panels report scrollHeight as 0 — skip and retry when visible
-						if (pre.scrollHeight <= maxH + lineH) return;
-
-						el.dataset.mlInit = '1';
-						pre.style.maxHeight = maxH + 'px';
-
-						// Expand/Collapse button — only when the collapsible attribute is set
-						if (!el.classList.contains('ec-collapsible')) return;
-
-						const btn = document.createElement('button');
-						btn.className = 'ec-expand-btn';
-						btn.setAttribute('type', 'button');
-						btn.setAttribute('aria-expanded', 'false');
-						btn.innerHTML = '&#9660;&nbsp;Expand';
-						el.appendChild(btn);
-
-						btn.addEventListener('click', () => {
-							const expanded = el.classList.toggle('is-expanded');
-							if (expanded) {
-								pre.style.maxHeight = '';
-								btn.setAttribute('aria-expanded', 'true');
-								btn.innerHTML = '&#9650;&nbsp;Collapse';
-							} else {
-								pre.style.maxHeight = maxH + 'px';
-								btn.setAttribute('aria-expanded', 'false');
-								btn.innerHTML = '&#9660;&nbsp;Expand';
-								el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-							}
-						});
-					});
-				}
-
-				initMaxLines();
-				document.addEventListener('astro:page-load', initMaxLines);
-
-				// Re-run when a tab becomes visible — hidden panels have scrollHeight 0
 				document.addEventListener('click', (e) => {
-					if (e.target && e.target.closest('[role="tab"]')) {
-						requestAnimationFrame(initMaxLines);
-					}
-				});
+					const btn = e.target instanceof Element && e.target.closest('.ec-expand-btn');
+					if (!btn) return;
 
-				// Device-library PlatformToggle dispatches this when it swaps the
-				// visible variant. Double RAF so layout settles after display: block.
-				document.addEventListener('dl-variant-change', () => {
-					requestAnimationFrame(() => requestAnimationFrame(initMaxLines));
+					const el = btn.closest('.ec-max-lines');
+					if (!el) return;
+
+					const expanded = el.classList.toggle('is-expanded');
+					btn.setAttribute('aria-expanded', String(expanded));
+					const glyph = btn.querySelector('.ec-expand-btn__glyph');
+					const label = btn.querySelector('.ec-expand-btn__label');
+					if (glyph) glyph.textContent = expanded ? '\\u25B2' : '\\u25BC';
+					if (label) label.textContent = expanded ? 'Collapse' : 'Expand';
+
+					// Clearing the attribute is what actually reveals the overflow
+					// lines; the class only lifts the height clamp.
+					const overflow = el.querySelector('.ec-overflow');
+					if (overflow) {
+						if (expanded) overflow.removeAttribute('hidden');
+						else overflow.setAttribute('hidden', 'until-found');
+					}
+
+					if (!expanded) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 				});
 			}
 			`,
@@ -161,14 +234,49 @@ export function pluginMaxLines() {
 				const lineCount = codeBlock.code.split('\n').length;
 				if (lineCount <= maxLines) return;
 
-				appendClassName(renderData.blockAst, 'ec-max-lines');
-				renderData.blockAst.properties['dataMaxLines'] = maxLines;
+				const blockAst = renderData.blockAst;
+				appendClassName(blockAst, 'ec-max-lines');
+				// The line budget travels as a custom property because the clamp
+				// is pure CSS — nothing reads it back from JS.
+				appendStyle(blockAst, '--tb-ec-max-lines:' + maxLines);
 
-				// collapsible is a boolean flag — adds the Expand/Collapse button
+				// collapsible is a boolean flag — adds the Expand/Collapse button.
+				// Without it the block is merely scrollable, so the overflow lines
+				// must stay rendered or scrolling would reveal nothing.
 				const collapsible = codeBlock.metaOptions.getBoolean('collapsible');
-				if (collapsible) {
-					appendClassName(renderData.blockAst, 'ec-collapsible');
-				}
+				if (!collapsible) return;
+				appendClassName(blockAst, 'ec-collapsible');
+
+				hideOverflowLines(blockAst, maxLines);
+
+				// Rendered here rather than injected on load, so it is present at
+				// first paint and costs no post-parse layout.
+				blockAst.children.push({
+					type: 'element',
+					tagName: 'button',
+					properties: {
+						type: 'button',
+						className: ['ec-expand-btn'],
+						ariaExpanded: 'false',
+					},
+					// Glyph and word as separate spans: one representation shared with the
+					// runtime toggle, and it lets the button's flex gap do its job rather
+					// than relying on a non-breaking space.
+					children: [
+						{
+							type: 'element',
+							tagName: 'span',
+							properties: { className: ['ec-expand-btn__glyph'], ariaHidden: 'true' },
+							children: [{ type: 'text', value: '▼' }],
+						},
+						{
+							type: 'element',
+							tagName: 'span',
+							properties: { className: ['ec-expand-btn__label'] },
+							children: [{ type: 'text', value: 'Expand' }],
+						},
+					],
+				});
 			},
 		},
 	};
@@ -215,7 +323,7 @@ export function pluginDownload() {
 
 		jsModules: [
 			`
-			// Guard against double-registration on view transitions, same as pluginMaxLines.
+			// Guard against double-registration if the module is ever evaluated twice.
 			if (!window.__ecDownloadInit) {
 				window.__ecDownloadInit = true;
 
@@ -263,7 +371,6 @@ export function pluginDownload() {
 				}
 
 				initDownload();
-				document.addEventListener('astro:page-load', initDownload);
 
 				// Re-run when tabs become visible (hidden panels load after click)
 				document.addEventListener('click', (e) => {
