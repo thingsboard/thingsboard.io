@@ -171,6 +171,18 @@ export function pluginMaxLines() {
 				content-visibility: hidden;
 			}
 
+			/* With the overflow lines out of layout there is nothing left to scroll,
+			   and the clamp turns harmful: max-height is border-box, so the pre's
+			   border and any horizontal scrollbar eat into the very lines it was
+			   sized for — 15 lines became 14.3 on a block with long lines. Dropping
+			   it lets the block size itself to exactly maxLines, with the scrollbar
+			   added outside rather than taken out of the text. Scoped to blocks that
+			   really have a hidden wrapper, so non-collapsible ones keep the clamp
+			   they still need to scroll. */
+			html.tb-until-found .ec-max-lines.ec-collapsible pre {
+				max-height: none;
+			}
+
 			/* Hide the default browser scrollbar-corner box where the
 			   horizontal and vertical scrollbar tracks meet — without this
 			   it renders as a white square in the bottom-right of the block. */
@@ -284,6 +296,10 @@ export function pluginMaxLines() {
 
 				// No wrapper means nothing to reveal — the clamp alone hides the tail.
 				if (!hideOverflowLines(blockAst, maxLines)) return;
+
+				// Marks "has a hidden wrapper and a button", which is what lets the
+				// max-height override in baseStyles drop the clamp.
+				appendClassName(blockAst, 'ec-collapsible');
 
 				// Rendered here rather than injected on load, so it is present at
 				// first paint and costs no post-parse layout.
