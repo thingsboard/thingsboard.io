@@ -29,11 +29,12 @@
  * user expands — such a block is no longer scroll-to-read. Without it, the
  * clamp is the only thing hiding anything and the block stays scrollable.
  *
+ * The line budget travels as the --tb-ec-max-lines custom property, not a data
+ * attribute: the clamp is pure CSS and nothing reads it back.
+ *
  * Notes on HAST conventions:
  *   - Classes → properties.className (array), NOT properties.class
  *   - Data attrs → camelCase: dataEcDownload → data-ec-download in HTML
- *   - The line budget travels as the --tb-ec-max-lines custom property, not a
- *     data attribute: the clamp is pure CSS and nothing reads it back from JS.
  *
  * Plugin hook order (built-ins run first):
  *   pluginShiki → pluginTextMarkers → pluginFrames (wraps blockAst in <figure.frame>)
@@ -68,26 +69,28 @@ function findCodeEl(blockAst) {
  * browser skips styling and laying them out. Supporting browsers still find
  * them with in-page search and reveal them automatically; the Expand button
  * clears the attribute for everyone else.
+ *
+ * Returns whether a wrapper was created — the caller skips the button if not.
  */
 function hideOverflowLines(blockAst, maxLines) {
 	const code = findCodeEl(blockAst);
-	if (!code) return 0;
+	if (!code) return false;
 
-	// Count .ec-line DESCENDANTS: pluginCollapsibleSections runs first and wraps
-	// ranges in <details>, so a top-level child count would be wrong for any
-	// block using both `collapse=` and `collapsible`.
-	const lineCount = (node) => {
+	// Descendants, not element children: pluginCollapsibleSections runs first and
+	// wraps ranges in <details>. The split boundary below is still a top-level
+	// index, so it can't land inside one — unreached, nothing uses `collapse=`.
+	const countEcLines = (node) => {
 		if (node.type !== 'element') return 0;
 		const cls = node.properties?.className;
 		const list = Array.isArray(cls) ? cls.map(String) : cls ? [String(cls)] : [];
 		if (list.includes('ec-line')) return 1;
-		return (node.children ?? []).reduce((n, c) => n + lineCount(c), 0);
+		return (node.children ?? []).reduce((n, c) => n + countEcLines(c), 0);
 	};
 
 	let seen = 0;
 	let splitAt = -1;
 	for (let i = 0; i < code.children.length; i++) {
-		seen += lineCount(code.children[i]);
+		seen += countEcLines(code.children[i]);
 		if (seen >= maxLines) {
 			splitAt = i + 1;
 			break;
@@ -96,7 +99,7 @@ function hideOverflowLines(blockAst, maxLines) {
 	if (splitAt < 0 || splitAt >= code.children.length) return false;
 
 	const overflow = code.children.splice(splitAt);
-	if (!overflow.some((c) => lineCount(c) > 0)) {
+	if (!overflow.some((c) => countEcLines(c) > 0)) {
 		// Nothing but whitespace past the cap — put it back untouched.
 		code.children.push(...overflow);
 		return false;
@@ -122,13 +125,14 @@ export function pluginMaxLines() {
 			   unitless multiplier, --ec-codeFontSize a length. */
 			.ec-max-lines pre {
 				overflow-y: auto;
-				/* EC puts padding on 'pre > code', not on 'pre', so the clamp has
-				   to add it back or the last visible line is cut mid-glyph.
-				   The --ec-* names are EC internals (verified against 0.42.0);
-				   the fallbacks keep the clamp working if they ever change,
-				   since an unresolvable var() would drop max-height entirely. */
+				/* EC puts padding on 'pre > code', not on 'pre', so the clamp adds
+				   it back or the last visible line is cut mid-glyph.
+				   The --ec-* names are EC 0.42.0 internals; the fallbacks matter
+				   because an unresolvable var() drops max-height entirely. They
+				   mirror Starlight's overrides, NOT @expressive-code/core's
+				   defaults — core's 1.65/0.85rem would clamp ~8% short per line. */
 				max-height: calc(
-					var(--ec-codeLineHt, 1.65) * var(--ec-codeFontSize, 0.85rem) *
+					var(--ec-codeLineHt, 1.75) * var(--ec-codeFontSize, 0.875rem) *
 						var(--tb-ec-max-lines) + 2 * var(--ec-codePadBlk, 0.75rem)
 				);
 			}
@@ -191,12 +195,31 @@ export function pluginMaxLines() {
 
 		jsModules: [
 			`
-			// The clamp height and the Expand button are both produced at build
-			// time, so there is no per-block init pass and nothing here reads
-			// layout. One delegated listener handles every block on the page,
-			// including blocks inside tab panels that are still hidden.
+			// Delegated listeners only: there is no per-block init pass, so blocks
+			// inside tab panels that are still hidden are already correct.
 			if (!window.__ecMaxLinesInit) {
 				window.__ecMaxLinesInit = true;
+
+				// The class lifts the clamp, the attribute reveals the lines, the button
+				// describes the result — all three move together, from here or beforematch.
+				const setExpanded = (el, expanded) => {
+					el.classList.toggle('is-expanded', expanded);
+
+					const btn = el.querySelector('.ec-expand-btn');
+					if (btn) {
+						btn.setAttribute('aria-expanded', String(expanded));
+						const glyph = btn.querySelector('.ec-expand-btn__glyph');
+						const label = btn.querySelector('.ec-expand-btn__label');
+						if (glyph) glyph.textContent = expanded ? '\\u25B2' : '\\u25BC';
+						if (label) label.textContent = expanded ? 'Collapse' : 'Expand';
+					}
+
+					const overflow = el.querySelector('.ec-overflow');
+					if (overflow) {
+						if (expanded) overflow.removeAttribute('hidden');
+						else overflow.setAttribute('hidden', 'until-found');
+					}
+				};
 
 				document.addEventListener('click', (e) => {
 					const btn = e.target instanceof Element && e.target.closest('.ec-expand-btn');
@@ -205,22 +228,19 @@ export function pluginMaxLines() {
 					const el = btn.closest('.ec-max-lines');
 					if (!el) return;
 
-					const expanded = el.classList.toggle('is-expanded');
-					btn.setAttribute('aria-expanded', String(expanded));
-					const glyph = btn.querySelector('.ec-expand-btn__glyph');
-					const label = btn.querySelector('.ec-expand-btn__label');
-					if (glyph) glyph.textContent = expanded ? '\\u25B2' : '\\u25BC';
-					if (label) label.textContent = expanded ? 'Collapse' : 'Expand';
-
-					// Clearing the attribute is what actually reveals the overflow
-					// lines; the class only lifts the height clamp.
-					const overflow = el.querySelector('.ec-overflow');
-					if (overflow) {
-						if (expanded) overflow.removeAttribute('hidden');
-						else overflow.setAttribute('hidden', 'until-found');
-					}
-
+					const expanded = !el.classList.contains('is-expanded');
+					setExpanded(el, expanded);
 					if (!expanded) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+				});
+
+				// Find-in-page drops the attribute itself; without this the lines would
+				// show while the button still read "Expand". beforematch bubbles.
+				document.addEventListener('beforematch', (e) => {
+					const overflow = e.target instanceof Element && e.target.closest('.ec-overflow');
+					if (!overflow) return;
+
+					const el = overflow.closest('.ec-max-lines');
+					if (el) setExpanded(el, true);
 				});
 			}
 			`,
@@ -231,13 +251,11 @@ export function pluginMaxLines() {
 				const maxLines = codeBlock.metaOptions.getInteger('maxLines');
 				if (!maxLines) return;
 
-				const lineCount = codeBlock.code.split('\n').length;
-				if (lineCount <= maxLines) return;
+				const sourceLineCount = codeBlock.code.split('\n').length;
+				if (sourceLineCount <= maxLines) return;
 
 				const blockAst = renderData.blockAst;
 				appendClassName(blockAst, 'ec-max-lines');
-				// The line budget travels as a custom property because the clamp
-				// is pure CSS — nothing reads it back from JS.
 				appendStyle(blockAst, '--tb-ec-max-lines:' + maxLines);
 
 				// collapsible is a boolean flag — adds the Expand/Collapse button.
@@ -245,9 +263,9 @@ export function pluginMaxLines() {
 				// must stay rendered or scrolling would reveal nothing.
 				const collapsible = codeBlock.metaOptions.getBoolean('collapsible');
 				if (!collapsible) return;
-				appendClassName(blockAst, 'ec-collapsible');
 
-				hideOverflowLines(blockAst, maxLines);
+				// No wrapper means nothing to reveal — the clamp alone hides the tail.
+				if (!hideOverflowLines(blockAst, maxLines)) return;
 
 				// Rendered here rather than injected on load, so it is present at
 				// first paint and costs no post-parse layout.
