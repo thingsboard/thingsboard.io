@@ -149,15 +149,26 @@ export function pluginMaxLines() {
 				max-height: none;
 			}
 
-			/* Browsers that support the value apply 'content-visibility: hidden'
-			   (per the HTML rendering spec, [hidden] only collapses to
-			   'display: none' when the value is NOT "until-found"), so this
-			   override changes nothing for them and layout is still skipped.
-			   Browsers without it collapse to 'display: none' and would drop the
-			   lines out of in-page search — here they render normally instead and
-			   the max-height clamp does the hiding. */
+			/* [hidden] would collapse the wrapper to 'display: none', dropping the
+			   lines out of in-page search. Render it and let the clamp hide them. */
 			.ec-overflow[hidden] {
 				display: block;
+			}
+
+			/* Re-declared because EC resets every descendant of .expressive-code
+			   with 'all: revert', discarding the UA sheet's content-visibility for
+			   [hidden="until-found"] — without this the lines stay in layout.
+
+			   Gated on .tb-until-found (set from jsModules below) because this
+			   selector matches an attribute present in every browser: where the
+			   value is unsupported, skipping layout would also make the lines
+			   unfindable, leaving Expand as the only way in.
+
+			   'html' is required, not stylistic: EC scopes baseStyles under
+			   '.expressive-code' and only un-scopes selectors containing :root,
+			   html or body. */
+			html.tb-until-found .ec-overflow[hidden='until-found'] {
+				content-visibility: hidden;
 			}
 
 			/* Hide the default browser scrollbar-corner box where the
@@ -199,6 +210,13 @@ export function pluginMaxLines() {
 			// inside tab panels that are still hidden are already correct.
 			if (!window.__ecMaxLinesInit) {
 				window.__ecMaxLinesInit = true;
+
+				// Gates the content-visibility rule in baseStyles. onbeforematch is the
+				// proxy for hidden="until-found" support, which is an HTML attribute
+				// behaviour that @supports cannot test. Landing after first paint costs
+				// no layout shift — the clamp pins the pre's height either way.
+				if ('onbeforematch' in document.documentElement)
+					document.documentElement.classList.add('tb-until-found');
 
 				// The class lifts the clamp, the attribute reveals the lines, the button
 				// describes the result — all three move together, from here or beforematch.
