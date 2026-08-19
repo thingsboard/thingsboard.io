@@ -26,6 +26,7 @@ pnpm lint:eslint      # ESLint
 pnpm lint:linkcheck   # Link validation (runs build first)
 pnpm lint:linkcheck:nobuild  # Link validation (skip build)
 pnpm lint:slugcheck   # Validate slugs match across languages
+pnpm lint:dualrender  # Validate IoT Hub server/client card render parity (needs a build)
 pnpm format           # Format with Prettier
 ```
 
@@ -251,3 +252,5 @@ Use the `release` skill for the full checklist. Key files:
 GitHub Actions runs: `astro check`, `eslint`, `slugcheck`.
 
 `lint:linkcheck` runs in a separate CI pipeline (not GitHub Actions) because it needs a full build. It must also pass before a PR can merge — so run it locally before requesting review, especially when adding, renaming, or removing pages, changing redirects, or editing internal links. Use `pnpm lint:linkcheck` for a clean check, or `pnpm lint:linkcheck:nobuild` if you already produced a build in this session and just want to re-validate links.
+
+`lint:dualrender` also needs a build and is **not wired into any pipeline yet** — run `pnpm lint:dualrender` by hand after a build when touching IoT Hub listing cards, their clone templates, or `iot-hub-listing-card-bind.ts`. It checks that the server render and the client-cloned render of a card still agree; breaking that is silent, since the page builds, typechecks and lints clean and only renders wrong once results come back from the API.
