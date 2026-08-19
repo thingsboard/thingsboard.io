@@ -1,6 +1,34 @@
 ---
 import BaseLayout from '@layouts/BaseLayout.astro';
 import { DISTRIBUTORS, REGIONS } from '~/data/partners/distributors';
+import { REGION_MEMBERSHIP } from '@data/partners/regions';
+
+const uncovered = DISTRIBUTORS.filter((d) => !d.regionWide && d.countries.length === 0);
+if (uncovered.length > 0) {
+	throw new Error(
+		`Distributors with no countries must set regionWide, or they drop out of every country filter: ${uncovered
+			.map((d) => d.name)
+			.join(', ')}`,
+	);
+}
+
+// Fail closed: an unclassified country would quietly narrow a region-wide
+// partner's coverage instead of erroring.
+const classified = new Set(Object.values(REGION_MEMBERSHIP).flat());
+const unclassified = Array.from(new Set(DISTRIBUTORS.flatMap((d) => d.countries))).filter(
+	(c) => !classified.has(c),
+);
+if (unclassified.length > 0) {
+	throw new Error(`Countries missing from REGION_MEMBERSHIP: ${unclassified.join(', ')}`);
+}
+
+const regionMismatch = [
+	...Object.keys(REGION_MEMBERSHIP).filter((r) => !REGIONS.includes(r)),
+	...REGIONS.filter((r) => !REGION_MEMBERSHIP[r]),
+];
+if (regionMismatch.length > 0) {
+	throw new Error(`REGION_MEMBERSHIP keys must match REGIONS: ${regionMismatch.join(', ')}`);
+}
 
 const regionCountries: Record<string, string[]> = {};
 REGIONS.forEach((region) => {
@@ -16,6 +44,12 @@ REGIONS.forEach((region) => {
 const allCountries = Array.from(new Set(DISTRIBUTORS.flatMap((d) => d.countries))).sort();
 
 const distributors = DISTRIBUTORS.map((d) => {
+	// Region-wide partners list no countries of their own, so match them against every
+	// country their regions contain. Deliberately not fed into allCountries above:
+	// expansion widens what an existing dropdown option matches, it adds no options.
+	const filterCountries = d.regionWide
+		? Array.from(new Set([...d.countries, ...d.regions.flatMap((r) => REGION_MEMBERSHIP[r] ?? [])])).sort()
+		: d.countries;
 	const websiteCleaned = d.website.replace(/^https?:\/\//, '');
 	const websiteHref = websiteCleaned ? `https://${websiteCleaned}` : '';
 	const websiteLabel = websiteCleaned.replace(/^www\./, '');
@@ -23,6 +57,7 @@ const distributors = DISTRIBUTORS.map((d) => {
 	const mailHref = isEmail ? `mailto:${d.email}?subject=Introduction request` : '';
 	return {
 		...d,
+		filterCountries,
 		websiteHref,
 		websiteLabel,
 		isEmail,
@@ -74,7 +109,7 @@ const distributors = DISTRIBUTORS.map((d) => {
 					<div id="results-grid" class="results-grid">
 						{
 							distributors.map((d) => (
-								<div class="distributor-box" data-regions={d.regions.join('|')} data-countries={d.countries.join('|')}>
+								<div class="distributor-box" data-regions={d.regions.join('|')} data-countries={d.filterCountries.join('|')}>
 									<p class="dist-title">{d.name}</p>
 									{d.email && (
 										<div class="dist-field">

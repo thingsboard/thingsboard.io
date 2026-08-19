@@ -33,6 +33,8 @@ export interface Distributor {
 	name: string;
 	regions: string[];
 	countries: string[];
+	/** Serves every country in its regions; leave countries empty. */
+	regionWide?: boolean;
 	email: string;
 	website: string;
 }
