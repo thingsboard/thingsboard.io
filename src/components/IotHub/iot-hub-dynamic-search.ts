@@ -313,12 +313,9 @@ export function setupDynamicSearch(): void {
 		showNoResults(false);
 		resultsContainer!.replaceChildren();
 
-		// Single-category page: one pinned slug, itemType-driven card variant.
-		// Mixed page (search / creator): a flat `--big` grid of generic cards,
-		// each linking into its own category.
-		// Pinned page: one slug for every card. Mixed page: resolved per item
-		// below, skipping types with no public category rather than emitting a
-		// `/iot-hub//slug/` href.
+		// Pinned page: one category slug for every card. Mixed page (search /
+		// creator): resolved per item below, skipping types with no public category
+		// rather than emitting a `/iot-hub//slug/` href.
 		const cat = itemType ? getCategoryForItemType(itemType) : null;
 
 		const gridVariant = itemType ? getCardVariant(itemType) : 'big';

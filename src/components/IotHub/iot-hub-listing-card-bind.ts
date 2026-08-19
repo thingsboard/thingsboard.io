@@ -98,9 +98,9 @@ function bindPreview(root: HTMLElement, item: ListingView, imageUrl: string | nu
 }
 
 /**
- * Colour tile with a centred glyph. Serves both tile shapes: the compact card's
- * 32px thumb and the generic card's 48px preview — same markup, different host
- * element and glyph size.
+ * Colour tile with a centred glyph. Serves both tile-bearing shapes: the
+ * compact card's 32px glyph and the tile card's 48px glyph — same markup,
+ * different host element and glyph size.
  */
 function bindIconTile(
 	root: HTMLElement,

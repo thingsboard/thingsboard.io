@@ -408,11 +408,11 @@ export interface PageData<T> {
 }
 
 export const PAGE_SIZE = 12;
-// Creator profile page paginates each category's items at 16/page.
+// Creator profile page — a flat 16 items per page.
 export const CREATOR_PAGE_SIZE = 16;
-// Search results page — same default as the creator page; kept separate so
-// the eventual dynamic page-size control on the search bar can vary it
-// without disturbing the creator route.
+// Search results page — same default as the creator page, kept separate so the
+// two routes can diverge; the per-page control in PaginationBar overrides it
+// at runtime on both.
 export const SEARCH_PAGE_SIZE = 16;
 export const HOME_PER_CATEGORY = 4;
 // "Recently added" strip: 8 = two full rows of the 4-column desktop grid.
