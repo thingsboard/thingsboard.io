@@ -159,6 +159,23 @@ export type IotHubCategorySlug = (typeof IOT_HUB_CATEGORIES)[number]['slug'];
 export type IotHubItemType = (typeof IOT_HUB_CATEGORIES)[number]['itemType'];
 export type IotHubCardVariant = 'big' | 'small';
 
+/**
+ * A listing paired with the category collection it was loaded from. The slug
+ * is authoritative for the card's href — deriving one from itemType would work
+ * today (the mapping is bijective) but adds a step that can drift.
+ */
+export interface GridEntry {
+	item: ListingView;
+	categorySlug: string;
+}
+
+/**
+ * Fallback tile colour when a listing declares none. Server render
+ * (ListingCard) and client binder must agree byte-for-byte, or a dynamically
+ * rendered tile differs from its static twin.
+ */
+export const DEFAULT_TILE_COLOR = '#4caf50';
+
 export const getCardVariant = (itemType: string): IotHubCardVariant => {
 	const cat = IOT_HUB_CATEGORIES.find((c) => c.itemType === itemType);
 	return cat?.card ?? 'big';
