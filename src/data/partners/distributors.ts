@@ -33,11 +33,11 @@ export const DISTRIBUTORS: Distributor[] = [
 		website: "acorde.com",
 	},
 	{
-		name: "AppBuilder (Pty.) Ltd.",
-		regions: ["Africa"],
-		countries: ["South Africa"],
-		email: "tshepo@appbuilder.africa",
-		website: "appbuilder.africa",
+		name: "ACP IT Solutions AG",
+		regions: ["Europe","Middle East","Africa"],
+		countries: [],
+		email: "development.hzb@acp.de",
+		website: "acp-gruppe.com/de-at",
 	},
 	{
 		name: "Appomax",
@@ -563,6 +563,13 @@ export const DISTRIBUTORS: Distributor[] = [
 		countries: ["Lietuvos Respublika"],
 		email: "mail@technopyne.lt",
 		website: "technopyne.lt",
+	},
+	{
+		name: "Tektonics Systems",
+		regions: ["Africa"],
+		countries: ["South Africa"],
+		email: "tshepo@tektonics.africa",
+		website: "tektonics.africa",
 	},
 	{
 		name: "Tesla Water",
