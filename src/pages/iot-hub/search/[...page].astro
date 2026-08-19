@@ -6,39 +6,27 @@ import {
 	IOT_HUB_STRINGS,
 	SEARCH_PAGE_SIZE,
 	isNumericSlug,
-	type ListingView,
+	type GridEntry,
 } from '@models/iot-hub';
 import BaseLayout from '@layouts/BaseLayout.astro';
-import CategorySection from '@components/IotHub/CategorySection.astro';
-import CategorySectionTemplate from '@components/IotHub/CategorySectionTemplate.astro';
+import FlatResultsPanel from '@components/IotHub/FlatResultsPanel.astro';
 import Breadcrumbs from '@components/Breadcrumbs.astro';
-import IotHubFetchError from '@components/IotHub/IotHubFetchError.astro';
-import IotHubNoResults from '@components/IotHub/IotHubNoResults.astro';
 import IotHubRuntimeConfig from '@components/IotHub/IotHubRuntimeConfig.astro';
-import IotHubSearchLoading from '@components/IotHub/IotHubSearchLoading.astro';
-import ListingCardTemplate from '@components/IotHub/ListingCardTemplate.astro';
 import SearchFilterBar from '@components/IotHub/SearchFilterBar.astro';
 import { recordSitemapLastmod } from '@util/sitemap-lastmod';
 
 const T = IOT_HUB_STRINGS.searchPage;
 
-interface SearchGroup {
-	slug: string;
-	label: string;
-	items: ListingView[];
-}
-
 export const getStaticPaths = (async () => {
 	const categories = await getCollection('iotHubCategories');
 	const byId = new Map(categories.map((c) => [c.id, c.data]));
 
-	type SearchItem = { item: ListingView; categorySlug: string; categoryLabel: string };
-	const allItems: SearchItem[] = [];
+	const allItems: GridEntry[] = [];
 	for (const cat of IOT_HUB_CATEGORIES) {
 		const items = byId.get(cat.slug)?.items ?? [];
 		for (const item of items) {
 			if (isNumericSlug(item.slug)) continue;
-			allItems.push({ item, categorySlug: cat.slug, categoryLabel: cat.label });
+			allItems.push({ item, categorySlug: cat.slug });
 		}
 	}
 	// Match the backend's order for `?sortProperty=installCount&sortOrder=DESC`
@@ -55,34 +43,31 @@ export const getStaticPaths = (async () => {
 
 	return Array.from({ length: totalPages }, (_, i) => {
 		const currentPage = i + 1;
-		const slice = allItems.slice(i * SEARCH_PAGE_SIZE, currentPage * SEARCH_PAGE_SIZE);
-		const groups: SearchGroup[] = IOT_HUB_CATEGORIES.map((cat) => ({
-			slug: cat.slug,
-			label: cat.label,
-			items: slice.filter((s) => s.categorySlug === cat.slug).map((s) => s.item),
-		})).filter((g) => g.items.length > 0);
+		// Each item keeps the slug of the collection it was loaded from, which is
+		// authoritative for the card's href.
+		const items = allItems.slice(i * SEARCH_PAGE_SIZE, currentPage * SEARCH_PAGE_SIZE);
 		return {
 			params: { page: currentPage === 1 ? undefined : String(currentPage) },
-			props: { groups, currentPage, totalPages, total },
+			props: { items, currentPage, totalPages, total },
 		};
 	});
 }) satisfies GetStaticPaths;
 
 interface Props {
-	groups: SearchGroup[];
+	items: GridEntry[];
 	currentPage: number;
 	totalPages: number;
 	total: number;
 }
 
-const { groups, currentPage, totalPages, total } = Astro.props as Props;
+const { items, currentPage, totalPages, total } = Astro.props as Props;
 const searchText = '';
 const basePath = '/iot-hub/search/';
 
 // <lastmod> from the newest listing `updatedTime` on this page.
 recordSitemapLastmod(
 	Astro.url.pathname,
-	groups.flatMap((g) => g.items.map((item) => item.updatedTime))
+	items.map((entry) => entry.item.updatedTime)
 );
 
 // Distinct title/description on pages 2+ to avoid duplicate metadata.
@@ -120,31 +105,18 @@ const description = isFirstPage ? baseDescription : `${baseDescription} (page ${
 						searchText={searchText}
 						searchPlaceholder={T.searchPlaceholder}
 						totalResults={total}
+					/>
+					<FlatResultsPanel
+						items={items}
 						currentPage={currentPage}
 						totalPages={totalPages}
 						basePath={basePath}
+						perPage={SEARCH_PAGE_SIZE}
+						titleAs="h2"
 					/>
-					<div class="iot-hub-search__results-container">
-						<div class="iot-hub-search__results" data-search-results>
-							{groups.map((g) => (
-								<CategorySection
-									categorySlug={g.slug}
-									categoryLabel={g.label}
-									items={g.items}
-									showCreator={true}
-								/>
-							))}
-						</div>
-						<IotHubNoResults />
-						<IotHubFetchError />
-						<IotHubSearchLoading />
-					</div>
 				</div>
 			</div>
 		</div>
-		<ListingCardTemplate variant="big" />
-		<ListingCardTemplate variant="compact" />
-		<CategorySectionTemplate />
 		<IotHubRuntimeConfig />
 	</main>
 </BaseLayout>
@@ -174,13 +146,9 @@ const description = isFirstPage ? baseDescription : `${baseDescription} (page ${
 	}
 
 	.iot-hub-search__items {
-		padding-bottom: 16px;
-		position: relative;
+		@include iot-hub-listing-column;
 	}
 
-	.iot-hub-search__results-container {
-		position: relative;
-	}
 </style>
 
 <script>
