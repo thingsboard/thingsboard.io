@@ -19,6 +19,8 @@ export interface OpenContext {
 	slug: string;
 	itemType: string;
 	affiliateId: string | null;
+	/** Built-in content: the dialog opens the item rather than installing it. */
+	builtIn: boolean;
 }
 
 let dialog: HTMLDialogElement | null = null;
@@ -117,7 +119,7 @@ function buildDialog(): HTMLDialogElement {
 				<h2 class="iot-hub-install-dialog__title" data-title></h2>
 				<button type="button" class="iot-hub-install-dialog__close" data-close aria-label="${S.closeAriaLabel}">${icon('x', 24)}</button>
 			</header>
-			<p class="iot-hub-install-dialog__subtitle">${S.subtitle}</p>
+			<p class="iot-hub-install-dialog__subtitle" data-subtitle></p>
 			<ul class="iot-hub-install-dialog__rows" role="list">${INSTALL_INSTANCES.map(rowMarkup).join('')}</ul>
 		</div>`;
 
@@ -179,9 +181,19 @@ function refresh(): void {
 	if (!dialog || !current) return;
 	window.clearTimeout(copyResetTimer);
 	flashedCopyBtn = null;
-	const verb = getInstallVerb(current.itemType);
+	const verb = getInstallVerb(current.itemType, 'card', current.builtIn);
 	const title = dialog.querySelector('[data-title]');
-	if (title) title.textContent = verb === 'Connect' ? S.titleConnect : S.title;
+	if (title) {
+		title.textContent = current.builtIn
+			? S.titleOpen
+			: verb === 'Connect'
+				? S.titleConnect
+				: S.title;
+	}
+	// Set per-open rather than baked into the shell: one dialog instance serves
+	// every trigger on the page, built-in or not.
+	const subtitle = dialog.querySelector('[data-subtitle]');
+	if (subtitle) subtitle.textContent = current.builtIn ? S.subtitleOpen : S.subtitle;
 
 	for (const inst of INSTALL_INSTANCES) {
 		const row = dialog.querySelector<HTMLElement>(`[data-instance="${inst.key}"]`);
