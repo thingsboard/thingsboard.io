@@ -8,30 +8,54 @@ import { Products } from '~/models/site.models';
 import Tabs from '@components/Tabs.astro';
 import TabItem from '@components/TabItem.astro';
 
-<Banner variant="peFeature" product={props.product} path="user-guide/integrations/aws-iot" />
+<Banner variant="peFeature" product={props.product} path="installation/" />
+<a href="https://aws.amazon.com/iot/" target="_blank" rel="noopener noreferrer"><strong>AWS IoT Core</strong></a> is a managed cloud service that acts as an MQTT message broker between IoT devices and the applications that consume their data.
+AWS IoT Integration connects ThingsBoard to AWS IoT Core over MQTT as a mutually authenticated client: it subscribes to a topic filter, decodes every message with an uplink converter, and stores the resulting telemetry and attributes in ThingsBoard.
 
-The AWS IoT integration streams data from <a href="https://aws.amazon.com/iot/" target="_blank">AWS IoT Core</a> to ThingsBoard. AWS IoT Core acts as an MQTT broker — IoT devices publish messages to topics, and ThingsBoard subscribes to them. The connection uses mutual TLS: ThingsBoard authenticates with a client certificate and private key issued by AWS IoT, while AWS IoT validates the server identity using a Root CA certificate. Incoming messages are decoded by an uplink converter and stored as device telemetry and attributes in ThingsBoard.
+## Architecture
 
-<DocImage src="/src/assets/images/user-guide/integrations/aws-iot-integration.svg" alt="AWS IoT integration architecture" product={props.product} />
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/aws-iot-integration-architecture.svg', alt: 'AWS IoT integration architecture showing message flow from AWS IoT Core to ThingsBoard', caption: 'AWS IoT integration architecture. Messages are received from AWS IoT Core over MQTT, converted by the AWS IoT Integration using the uplink data converter, and forwarded to the ThingsBoard Core Services.' },
+]} />
 
-## AWS IoT setup
+ThingsBoard connects to AWS IoT Core as an MQTT client, authenticating with a client certificate and private key issued by AWS IoT. It subscribes to the topic filter configured on the integration and receives every message that devices publish under it; the uplink converter decodes each message into telemetry and attributes, and ThingsBoard provisions the target device automatically on the first message. If a downlink converter is configured, the Rule Engine can also push messages back through that same connection.
 
-You need an <a href="https://aws.amazon.com/iot/" target="_blank">AWS account</a> with IoT Core enabled. The setup involves creating an IoT policy, a thing (device), and a certificate that ThingsBoard will use to authenticate with AWS IoT Core.
+<Aside type="note">
+  AWS IoT Core is a general-purpose MQTT broker, not a per-device bridge. A single integration can therefore serve many devices at once:
+  - **Uplink** — devices publish to topics under the subscribed filter (e.g. `tb/aws/iot/#`), and ThingsBoard receives every matching message through one MQTT subscription.
+  - **Downlink** — ThingsBoard publishes to the topic built from the integration's **Downlink topic pattern** (e.g. `tb/aws/iot/commands/${deviceName}`); any device subscribed to that topic receives the command.
+  Because one MQTT subscription can carry data for many devices, the uplink converter's `deviceName` output fans that single stream out into as many ThingsBoard devices as your payloads describe — for example, extracting `freezer-432` from the topic `tb/aws/iot/sensors/freezer-432`.
+</Aside>
 
-### Create a policy
+<Aside type="tip">
+  Scope the AWS IoT **policy** and the integration **topic filter** to a dedicated namespace (e.g. everything under `tb/aws/iot/`) rather than granting broad `topic/*` access. This keeps ThingsBoard traffic isolated from the rest of your AWS IoT topics and makes the policy easier to audit.
+  - To route AWS IoT messages through other AWS services (Lambda, SNS, SQS) instead of subscribing directly, use an <a href="https://docs.aws.amazon.com/iot/latest/developerguide/iot-rules.html" target="_blank" rel="noopener noreferrer">AWS IoT rule</a> on the AWS side and one of ThingsBoard's corresponding integrations.
+</Aside>
 
-A policy defines which IoT operations (connect, publish, subscribe, receive) are permitted.
+## Prerequisites
+
+Before creating the integration, ensure:
+
+- You have access to {props.product !== Products.PAAS && props.product !== Products.PAAS_EU && <><DocLink product={Products.PE} path="installation/" target="_blank">ThingsBoard PE</DocLink> or </>}<a href="/installations/?product=thingsboard-cloud" target="_blank" rel="noopener noreferrer"><strong>ThingsBoard Cloud</strong></a> with integration functionality enabled for your tenant.
+- You have permissions to create integrations and data converters.
+- You have an <a href="https://aws.amazon.com/iot/" target="_blank" rel="noopener noreferrer">AWS account</a> with **AWS IoT Core** enabled.
+- Your account has permissions to create IoT policies, things, and certificates in that account.
+- Outbound TCP port **8883** is open from the ThingsBoard server to your AWS IoT endpoint (`*.iot.{region}.amazonaws.com`).
+
+## Configure AWS IoT
+
+Prepare the policy, thing, and certificates in the <a href="https://console.aws.amazon.com/iot" target="_blank" rel="noopener noreferrer">AWS IoT console</a> before creating the integration in ThingsBoard. The connection uses mutual TLS: ThingsBoard authenticates with a client certificate and private key, and validates the broker with the Amazon Root CA certificate.
+
+### Create a Policy
+
+A policy defines which IoT operations (`Connect`, `Publish`, `Subscribe`, `Receive`) the certificate is permitted to perform. See AWS's <a href="https://docs.aws.amazon.com/iot/latest/developerguide/iot-policies.html" target="_blank" rel="noopener noreferrer">IoT policies</a> documentation for details.
 
 <Steps>
-1. In the AWS IoT console, go to **Security &#8702; Policies** and click **Create policy**.
-2. Enter a **Policy name** and click **JSON** to switch the editor to JSON mode.
-3. Paste the policy document below, replacing `YOUR_REGION` and `YOUR_AWS_ID` with your values.
-4. Click **Create**.
+  1. In the AWS IoT console, go to **Security &#8702; Policies** and click **Create policy**.
+  2. Enter a **Policy name** (e.g. `tb_policy`), then click **JSON** to switch the document editor to JSON mode.
+  3. Paste the policy document below, replacing `YOUR_REGION` and `YOUR_AWS_ID` with your values.
+  4. Click **Create**.
 </Steps>
-
-<Aside type="caution">
-Replace <code>YOUR_REGION</code> and <code>YOUR_AWS_ID</code> with your actual AWS region and account ID — for example, <code>eu-west-1</code> and <code>111197721064</code>. Your region is visible in the AWS console URL: <code>https://<b>eu-west-1</b>.console.aws.amazon.com</code>.
-</Aside>
 
 ```json
 {
@@ -63,25 +87,29 @@ Replace <code>YOUR_REGION</code> and <code>YOUR_AWS_ID</code> with your actual A
   { src: '/src/assets/images/user-guide/integrations/aws-iot/create_policies_3.png', alt: 'Policies list with success banner confirming policy created', caption: 'Policy created successfully — it now appears in the policies list' },
 ]} />
 
-### Create a thing and certificates
+<Aside type="caution">
+  Replace <code>YOUR_REGION</code> and <code>YOUR_AWS_ID</code> with your actual AWS region and account ID — for example, <code>eu-west-1</code> and <code>111197721064</code>. Your region is visible in the AWS console URL: <code>https://<b>eu-west-1</b>.console.aws.amazon.com</code>.
+</Aside>
 
-A "thing" is the digital representation of a physical device in AWS IoT.
+
+### Create a Thing and Certificates
+
+A **thing** is the digital representation of a physical device in AWS IoT. ThingsBoard authenticates with the certificate attached to it. See AWS's <a href="https://docs.aws.amazon.com/iot/latest/developerguide/create-iot-resources.html" target="_blank" rel="noopener noreferrer">Create AWS IoT resources</a> documentation for details.
 
 <Steps>
-1. Go to **All devices &#8702; Things** and click **Create things**.
-2. Select **Create single thing** and click **Next**.
-3. Enter a **Name** for the device and click **Next**.
-4. Select **Auto-generate a new certificate (recommended)** and click **Next**.
-5. Attach the policy you created and click **Create thing**.
-6. Download the required files:
-   - **Device certificate** (`*.pem.crt`)
-   - **Private key** (`*-private.pem.key`) — shown only once, save it immediately
-   - **Root CA certificate** — download **Amazon Root CA 1** (`AmazonRootCA1.pem`)
-7. Click **Done**.
+  1. Go to **All devices &#8702; Things** and click **Create things**.
+  2. Select **Create single thing** and click **Next**.
+  3. Enter a **Name** for the thing (e.g. `tb-bridge-01`) and click **Next**.
+  4. Select **Auto-generate a new certificate (recommended)** and click **Next**.
+  5. Attach the policy you created and click **Create thing**.
+  6. Download the required files:
+      - **Device certificate** (`*.pem.crt`)
+      - **Private key** (`*-private.pem.key`)
+      - **Root CA certificate** — download **Amazon Root CA 1** (`AmazonRootCA1.pem`)
+  7. Click **Done**.
 </Steps>
-
 <Aside type="caution">
-The private key and public key files can only be downloaded at this step. Once you leave this page they cannot be retrieved — store them securely.
+  The private key can be downloaded **only at this step** — once you leave the page it cannot be retrieved. Store the certificate and key in <DocLink product={props.product} path="user-guide/security/secrets-storage" target="_blank">Secret storage</DocLink> rather than pasting them into shared configuration.
 </Aside>
 
 <ImageGallery images={[
@@ -93,98 +121,223 @@ The private key and public key files can only be downloaded at this step. Once y
   { src: '/src/assets/images/user-guide/integrations/aws-iot/save_certificates.png', alt: 'Download certificates and keys dialog — device certificate, private key, and Root CA download buttons', caption: 'Download the device certificate, private key, and Amazon Root CA 1 — the private key is only available here; click Done when finished' },
 ]} />
 
-### AWS IoT endpoint
 
-Each AWS account has a unique device data endpoint — the MQTT broker hostname that ThingsBoard will connect to. Copy it from the console under **Settings &#8702; Device data endpoint**; you will paste it into the ThingsBoard integration connection settings.
+### Get the Device Data Endpoint
+
+Each AWS account has a unique **device data endpoint** — the MQTT broker hostname ThingsBoard connects to.
+
+<Steps>
+  1. In the AWS IoT console, click **Settings** in the left navigation sidebar.
+  2. In the **Device data endpoint** section, copy the endpoint URL (e.g. `a2ljyhf3dvidme-ats.iot.us-east-1.amazonaws.com`) — you will need it when creating the integration.
+</Steps>
 
 <ImageGallery images={[
   { src: '/src/assets/images/user-guide/integrations/aws-iot/aws_endpoint_0.png', alt: 'AWS IoT console — Settings link highlighted in the left navigation sidebar', caption: 'In the AWS IoT console, click Settings in the left navigation sidebar' },
   { src: '/src/assets/images/user-guide/integrations/aws-iot/aws_endpoint_1.png', alt: 'AWS IoT Settings page — Device data endpoint section with endpoint URL highlighted', caption: 'Copy the endpoint URL from the Device data endpoint section — you will need it in the ThingsBoard integration' },
 ]} />
 
-## ThingsBoard integration setup
 
-### Create an uplink converter
+### Required Connection Details
 
-The AWS IoT integration uses a <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter">generic uplink converter</DocLink>. The decoder function receives `payload` (JSON object decoded from the MQTT message) and `metadata` (includes `topic` and `integrationName`), and must return an object with `deviceName`, `deviceType`, and optionally `attributes` and `telemetry`.
+Collect the values below before creating the ThingsBoard integration.
 
-<Aside type="tip" title="TBEL">
-  We recommend using <DocLink product={props.product} path="user-guide/tbel">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
-</Aside>
+| Field | Value for this setup | Description |
+|-------|----------------------|-------------|
+| **Endpoint** | `a2ljyhf3dvidme-ats.iot.us-east-1.amazonaws.com` — from **Settings &#8702; Device data endpoint** | AWS IoT MQTT broker hostname |
+| **CA certificate** | `AmazonRootCA1.pem` | Amazon Root CA 1, used to validate the broker |
+| **Device certificate** | `*.pem.crt` | client certificate ThingsBoard authenticates with |
+| **Private key** | `*-private.pem.key` | private key for the device certificate |
+| **Topic filter** | `tb/aws/iot/#` | MQTT topic ThingsBoard subscribes to for incoming messages |
+
+## Set Up the AWS IoT Integration
+
+To set up the AWS IoT integration, first create an uplink data converter to process incoming messages, then create and configure the integration.
+
+### Create the Uplink Data Converter
+
+The uplink converter decodes incoming AWS IoT messages and maps them to the ThingsBoard data model. AWS IoT uses a <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">generic uplink converter</DocLink>.
+
+The decoder function receives:
+- `payload` — the JSON object decoded from the MQTT message
+- `metadata` — `integrationName`, the MQTT `topic` the message arrived on, and any key-value pairs configured in the integration's Metadata settings
+**Sample payload** (published to topic `tb/aws/iot/sensors/freezer-432`):
+
+```json
+{
+    "ts": 1718020800000,
+    "temperature": 25.3,
+    "humidity": 62.8,
+    "battery": 78.5,
+    "fwVersion": "1.4.2",
+    "location": {
+        "latitude": 37.7749,
+        "longitude": -122.4194
+    }
+}
+```
 
 <Steps>
-1. Go to **Integrations center &#8702; Data converters**.
-2. Click **+ Add data converter &#8702; Create new converter**.
-3. Set the type to **Uplink** and enter a name.
-4. Paste the decoder script and click **Add**.
+  <ol start="1">
+    <li>Go to <strong>Integrations center &#8702; Data converters</strong>.</li>
+    <li>Click <strong>+ Add data converter &#8702; Create new converter</strong>.</li>
+  </ol>
 </Steps>
 
-The example decoder below uses the topic `tb/aws/iot/sensors/freezer-432` — it extracts `deviceType` from segment 4 (`sensors`) and `deviceName` from segment 5 (`freezer-432`), and maps the four payload fields to one attribute and three telemetry keys:
+In the **Add data converter** dialog:
+
+<Steps>
+  <ol start="3">
+    <li><strong>Converter type</strong> — leave <strong>Uplink</strong> (selected by default).</li>
+    <li><strong>Integration type</strong> — in the search field, enter <code>AWS IoT</code> and select <strong>AWS IoT</strong> from the list.</li>
+    <li><strong>Name</strong> — enter a converter name, for example <code>AWS IoT Uplink Converter</code>.</li>
+    <li><strong>Main decoding configuration</strong> — a code editor with the function signature <code>function decoder(payload, metadata) &#123;</code>. Paste the decoder function shown below. By default the editor opens in TBEL; use the <strong>TBEL / JS</strong> toggle (upper right) to switch languages.</li>
+    <li>Click <strong>Add</strong>.</li>
+  </ol>
+</Steps>
+
+<Aside type="tip">
+  Use <DocLink product={props.product} path="user-guide/tbel">TBEL</DocLink> for converter scripts — it executes significantly faster than plain JavaScript inside ThingsBoard.
+</Aside>
+
+**The decoder function used in this tutorial** derives `deviceType` and `deviceName` from the **last two** MQTT topic segments (here `sensors` and `freezer-432`), so it works for any topic depth, then maps the payload to `fwVersion`/location attributes and temperature/humidity/battery telemetry:
 
 <Tabs>
 <TabItem label="TBEL (Recommended)">
-```js
-var data = decodeToJson(payload);
-var topicParts = metadata.topic.split("/");
-var deviceType = topicParts[3];
-var deviceName = topicParts[4];
+  ```js maxLines=15 collapsible
+  // AWS IoT devices publish to an MQTT topic, which the integration always
+  // provides in metadata. This example derives identity from the LAST two
+  // topic segments, so it works for any topic depth:
+  //
+  //   tb/aws/iot/sensors/freezer-432
+  //              ^^^^^^^ ^^^^^^^^^^
+  //              type    name
+  //
+  // Extract device information from the last two MQTT topic segments.
+  var topicParts = metadata.topic.split("/");
+  var n = topicParts.length;
 
-var result = {
-    deviceName: deviceName,
-    deviceType: deviceType,
-    attributes: {
-        state: data.val0,
-    },
-    telemetry: {
-        temperature: data.val1,
-        fan_ins: data.val2,
-        fan_out: data.val3,
-    }
-};
+  // Use fallback values if the topic does not contain enough segments.
+  var deviceName = n > 0 ? topicParts[n - 1] : "AWS IoT Device";
+  var deviceType = n > 1 ? topicParts[n - 2] : "default";
 
-return result;
-```
+  // Decode the incoming payload to a JSON object.
+  var data = decodeToJson(payload);
 
+  // Use the device timestamp if provided; otherwise, use the current server time.
+  var ts = data.ts != null ? data.ts : Date.now();
+
+  // Map device properties to ThingsBoard attributes.
+  var attributes = {
+      fwVersion: data.fwVersion
+  };
+
+  // Add location attributes if available.
+  if (data.location != null) {
+      attributes.latitude = data.location.latitude;
+      attributes.longitude = data.location.longitude;
+  }
+
+  // Map device measurements to ThingsBoard telemetry.
+  var telemetry = {
+      temperature: data.temperature,
+      humidity: data.humidity,
+      battery: data.battery
+  };
+
+  // Return the converted uplink message.
+  return {
+      deviceName: deviceName,
+      deviceType: deviceType,
+      attributes: attributes,
+      telemetry: {
+          ts: ts,
+          values: telemetry
+      }
+  };
+  ```
 </TabItem>
 <TabItem label="JavaScript">
-```js
-var payloadStr = decodeToString(payload);
-var data = JSON.parse(payloadStr);
-var topicParts = metadata.topic.split("/");
-var deviceType = topicParts[3];
-var deviceName = topicParts[4];
+  ```js maxLines=15 collapsible
+  // AWS IoT devices publish to an MQTT topic, which the integration always
+  // provides in metadata. This example derives identity from the LAST two
+  // topic segments, so it works for any topic depth:
+  //
+  //   tb/aws/iot/sensors/freezer-432
+  //              ^^^^^^^ ^^^^^^^^^^
+  //              type    name
+  //
+  // Extract device information from the last two MQTT topic segments.
+  var topicParts = metadata.topic.split("/");
+  var n = topicParts.length;
 
-var result = {
-    deviceName: deviceName,
-    deviceType: deviceType,
-    attributes: {
-        state: data.val0,
-    },
-    telemetry: {
-        temperature: data.val1,
-        fan_ins: data.val2,
-        fan_out: data.val3,
-    }
-};
+  // Use fallback values if the topic does not contain enough segments.
+  var deviceName = n > 0 ? topicParts[n - 1] : "AWS IoT Device";
+  var deviceType = n > 1 ? topicParts[n - 2] : "default";
 
-function decodeToString(payload) {
-    return String.fromCharCode.apply(String, payload);
-}
+  // Decode the incoming payload to a JSON object.
+  var data = decodeToJson(payload);
 
-return result;
-```
+  // Use the device timestamp if provided; otherwise, use the current server time.
+  var ts = data.ts != null ? data.ts : Date.now();
 
+  // Map device properties to ThingsBoard attributes.
+  var attributes = {
+      fwVersion: data.fwVersion
+  };
+
+  // Add location attributes if available.
+  if (data.location != null) {
+      attributes.latitude = data.location.latitude;
+      attributes.longitude = data.location.longitude;
+  }
+
+  // Map device measurements to ThingsBoard telemetry.
+  var telemetry = {
+      temperature: data.temperature,
+      humidity: data.humidity,
+      battery: data.battery
+  };
+
+  // Build the converted uplink message.
+  var result = {
+      deviceName: deviceName,
+      deviceType: deviceType,
+      attributes: attributes,
+      telemetry: {
+          ts: ts,
+          values: telemetry
+      }
+  };
+
+  // Convert the incoming byte array to a string.
+  function decodeToString(payload) {
+      return String.fromCharCode.apply(String, payload);
+  }
+
+  // Convert the incoming payload to a JSON object.
+  function decodeToJson(payload) {
+      return JSON.parse(decodeToString(payload));
+  }
+
+  // Return the converted uplink message.
+  return result;
+  ```
 </TabItem>
 </Tabs>
 
-**Adapting the decoder to your device:**
+<Aside type="note">
+  The sample payload carries no timestamp, so the converter falls back to the current server time — the `ts` value differs on every run. Use **Test decoder function** below the script to verify the output against your own payload before saving.
+</Aside>
+
+**To adapt this converter to your device:**
 
 - **Different topic structure** — change the segment indices in `metadata.topic.split("/")` to match the position of the device type and name in your topic path.
-- **Device name from payload** — replace `topicParts[4]` with a payload field (e.g. `data.deviceId`) if the device name is in the message body rather than the topic.
+- **Device name from payload** — replace `topicParts[4]` with a payload field (e.g. `data.deviceId`) if the device name is carried in the message body rather than the topic.
 - **Different telemetry fields** — add or rename keys in the `telemetry` object to match your payload structure.
-- **Update only keys** — in <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#advanced-decoding-parameters">Advanced decoding parameters</DocLink>, add attribute keys that should only be written when their value changes.
+- **Static attributes** — add device properties from your payload to the `attributes` object, for example `firmwareVersion: data.fw`.
+- **Update-only keys** — in <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">Advanced decoding parameters</DocLink>, add attribute keys that should only be written when their value changes.
 
-### Create the integration
+### Create the AWS IoT Integration
 
 <Steps>
   <ol>
@@ -199,21 +352,28 @@ return result;
     <li>
       <span><strong>Uplink data converter:</strong></span>
       <ul>
-        <li><strong>Select existing</strong> — choose the <a href="#create-an-uplink-converter">previously created</a> <strong>AWS IoT Uplink Converter</strong> from the list.</li>
+        <li>Click <strong>Select existing</strong> and choose the <a href="#create-the-uplink-data-converter">previously created</a> <code>AWS IoT Uplink Converter</code> from the list.</li>
         <li>Click <strong>Next</strong>.</li>
       </ul>
     </li>
     <li>
       <span><strong>Downlink data converter:</strong></span>
       <ul>
-        <li>Click <strong>Skip</strong> — the downlink converter is only needed for sending commands to devices and can be added later.</li>
+        <li>Leave empty and click <strong>Skip</strong> — the downlink converter can be added later if needed.</li>
       </ul>
     </li>
     <li>
-      <span><strong>Connection:</strong></span>
+      <span><strong>Connection settings:</strong></span>
       <ul>
-        <li>Enter the <a href="#aws-iot-endpoint">AWS IoT endpoint</a>.</li>
-        <li>Upload the <strong>CA certificate</strong> (<code>AmazonRootCA1.pem</code>), <strong>Device certificate</strong> (<code>&#42;.pem.crt</code>), and <strong>Private key</strong> (<code>&#42;-private.pem.key</code>). Leave <strong>Private key password</strong> blank unless the key is encrypted.</li>
+        <li><strong>AWS IoT Endpoint</strong> — your AWS IoT device data endpoint (e.g. <code>a2ljyhf3dvidme-ats.iot.us-east-1.amazonaws.com</code>).</li>
+        <li>
+          <span><strong>Credentials</strong> — for each file, click <strong>Browse file</strong> to upload it, or <strong>Use Secret storage</strong> to reference a stored secret:</span>
+          <ul>
+            <li><strong>CA certificate file</strong> — <code>AmazonRootCA1.pem</code>.</li>
+            <li><strong>Certificate file</strong> — the device certificate (<code>\*.pem.crt</code>).</li>
+            <li><strong>Private key file</strong> — the private key (<code>\*-private.pem.key</code>). Leave <strong>Private key password</strong> blank unless the key is encrypted.</li>
+          </ul>
+        </li>
         <li>Add a <strong>Topic filter</strong> (e.g. <code>tb/aws/iot/#</code>) — the <code>#</code> wildcard matches all sub-topics. Select QoS level (default: <strong>At most once</strong>).</li>
       </ul>
     </li>
@@ -229,51 +389,153 @@ return result;
   { src: '/src/assets/images/user-guide/integrations/aws-iot/aws-iot-add-integration-5.png', alt: 'Add integration wizard — Connection continued: topic filter tb/aws/iot/# with QoS At most once, Add button', caption: 'Add the topic filter (e.g. tb/aws/iot/#), set QoS, and click Add to create the integration' },
 ]} />
 
-## Test uplink
+#### Credentials
 
-Use the AWS IoT **MQTT test client** to send a test message:
+AWS IoT authentication is always certificate-based (mutual TLS). Each file can be supplied with **Browse file** or referenced from <DocLink product={props.product} path="user-guide/security/secrets-storage" target="_blank">Secret storage</DocLink> with **Use Secret storage**:
 
-<Steps>
-1. Go to **MQTT test client** &#8702; **Publish to a topic**.
-2. Enter the topic `tb/aws/iot/sensors/freezer-432` and paste the payload below.
-3. Click **Publish**.
-</Steps>
+- **CA certificate file** — the **Amazon Root CA 1** (`AmazonRootCA1.pem`) certificate ThingsBoard uses to validate the AWS IoT broker.
+- **Certificate file** — the device certificate (`*.pem.crt`) issued when you created the thing.
+- **Private key file** — the private key (`*-private.pem.key`) for that certificate.
+- **Private key password** — optional password, only if the private key is encrypted.
+The certificate must have the policy attached and its status must be **Active** in the AWS IoT console. See AWS's <a href="https://docs.aws.amazon.com/iot/latest/developerguide/x509-client-certs.html" target="_blank" rel="noopener noreferrer">X.509 client certificates</a> documentation for details.
 
-```json
-{
-    "val0": "loaded",
-    "val1": -18,
-    "val2": 1785,
-    "val3": 548
-}
-```
+#### Connection Settings
+
+<h5>AWS IoT Endpoint</h5>
+
+Your AWS IoT device data endpoint in the format `{prefix}-ats.iot.{region}.amazonaws.com`. Find it in the AWS IoT console under **Settings &#8702; Device data endpoint**. ThingsBoard connects to it over MQTT on port 8883.
+
+<h5>Credentials</h5>
+
+The client certificate, private key, and Amazon Root CA certificate used for the mutual-TLS MQTT connection. See <a href="#credentials">Credentials</a> above.
+
+<h5 id="topic-filters">Topic Filters</h5>
+
+The MQTT topics ThingsBoard subscribes to for incoming messages. Each topic filter has its own **QoS**, and you can add several with **Add topic filter**. Two wildcard types are supported:
+
+- Single-level `+` — matches one topic level, e.g. `tb/aws/iot/+/telemetry`.
+- Multi-level `#` — replaces the rest of the topic and must be the last symbol, e.g. `tb/aws/iot/#`.
+Use a namespace dedicated to ThingsBoard rather than a bare `#`, so the integration only receives the traffic it should:
+
+| Topic | Description |
+|-------|-------------|
+| `tb/aws/iot/#` | All messages published under the `tb/aws/iot/` namespace |
+| `tb/aws/iot/sensors/#` | Only messages from devices of type `sensors` |
+
+See AWS's <a href="https://docs.aws.amazon.com/iot/latest/developerguide/topics.html" target="_blank" rel="noopener noreferrer">MQTT topics</a> documentation for details.
+
+<h5>QoS</h5>
+
+The MQTT quality of service level for each topic filter:
+
+- `0 - At most once` — default; fire-and-forget delivery, no acknowledgement.
+- `1 - At least once` — the broker redelivers until acknowledged; messages may be duplicated.
+AWS IoT Core does not support QoS 2.
+
+<h5>Execute Remotely</h5>
+
+When enabled, ThingsBoard generates an **Integration key** and **Integration secret** that allow the integration to run as a separate process outside the ThingsBoard cluster — useful when the AWS IoT endpoint is only reachable from a restricted network.
+
+<h5>Advanced Settings</h5>
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| **Protocol version** | `MQTT 3.1.1` | MQTT protocol version used for the broker connection. |
+| **Client ID** | — | Optional. Leave empty for an auto-generated client ID. Most MQTT brokers reject multiple connections that share a client ID, so if you set one, make it unique. |
+| **Max bytes in message** | `32368` | Maximum message payload size in bytes. Messages exceeding this limit are dropped. |
+| **Connection timeout (sec)** | `10` | Seconds ThingsBoard waits for a broker response before marking the connection as failed. |
+| **Downlink topic pattern** | `${topic}` | Topic the integration publishes downlinks to. Supports `${...}` substitution from message metadata. See <a href="#configure-downlink">Configure Downlink</a>. |
+| **Description** | — | Optional text description for the integration. |
+| **Metadata** | — | Key-value pairs injected into every message as `integrationMetadata` in the converter script. |
+
+## Test Uplink
+
+<Aside type="note">
+  Before testing, ensure **Debug** mode with the **All messages** option is enabled for both the integration and the converter, so you can inspect received messages and conversion results on the **Events** tabs.
+</Aside>
+
+### Send Test Uplink
+
+Publish a message to the subscribed topic using the AWS IoT **MQTT test client** or the AWS CLI.
+
+<Tabs>
+  <TabItem label="MQTT test client">
+    <Steps>
+      1. In the AWS IoT console, go to **MQTT test client &#8702; Publish to a topic**.
+      2. Enter the topic `tb/aws/iot/sensors/freezer-432`.
+      3. Paste the JSON payload into the message body.
+      4. Click **Publish**.
+    </Steps>
+    ```json
+    {
+      "ts": 1718020800000,
+      "temperature": 25.3,
+      "humidity": 62.8,
+      "battery": 78.5,
+      "fwVersion": "1.4.2",
+      "location": {
+        "latitude": 37.7749,
+        "longitude": -122.4194
+      }
+    }
+    ```
+  </TabItem>
+  <TabItem label="AWS CLI">
+    Requires the <a href="https://docs.aws.amazon.com/cli/latest/reference/iot-data/publish.html" target="_blank" rel="noopener noreferrer">aws iot-data</a> command. Replace the endpoint and topic if they differ:
+    ```bash
+    aws iot-data publish \
+    --topic "tb/aws/iot/sensors/freezer-432" \
+    --cli-binary-format raw-in-base64-out \
+    --payload '{"ts":1718020800000,"temperature":25.3,"humidity":62.8,"battery":78.5,"fwVersion":"1.4.2","location":{"latitude":37.7749,"longitude":-122.4194}}'
+    ```
+  </TabItem>
+</Tabs>
 
 <ImageGallery images={[
   { src: '/src/assets/images/user-guide/integrations/aws-iot/send_uplink_0.png', alt: 'AWS MQTT test client — Publish to a topic tab with topic and payload entered', caption: 'In the Publish to a topic tab, enter the topic (tb/aws/iot/sensors/freezer-432) and payload, then click Publish' },
 ]} />
 
-After publishing, go to **Entities &#8702; Devices** — a new device named `freezer-432` of type `sensors` is automatically created. Open it and check the **Latest telemetry** tab to see the decoded `temperature`, `fan_ins`, and `fan_out` values, and the **Attributes** tab for the `state` attribute.
+### Verify Integration Events
 
-Go to **Integrations center &#8702; Integrations**, open the AWS IoT integration, and check the **Events** tab to verify the message was received:
+Go to **Integrations center &#8702; Integrations**, open the **AWS IoT integration**, and check the **Events** tab. One **Uplink** event appears with status **OK**. Click **…** in the **Message** column to inspect the raw payload and the topic received from the broker.
 
-<ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/aws-iot/send_uplink_1.png', alt: 'ThingsBoard — AWS IoT integration Events tab showing two uplink events with status OK', caption: 'The Events tab shows the uplink events with status OK' },
-  { src: '/src/assets/images/user-guide/integrations/aws-iot/send_uplink_2.png', alt: 'ThingsBoard — Message popup showing topic tb/aws/iot/sensors/freezer-432 and payload with val0–val3', caption: 'Click the message icon to inspect the full uplink payload — topic and decoded values are shown' },
-]} />
+### Verify Converter Events
 
-## Configure and test downlink
+Go to **Integrations center &#8702; Data converters**, click the uplink converter, and open its **Events** tab. Click **…** in the respective column to inspect each field:
+- **In** — the raw payload passed to the converter.
+- **Out** — the decoded result: `deviceName`, `deviceType`, `attributes` (`fwVersion`, and `latitude`/`longitude` when the payload includes a `location`), and `telemetry` (temperature, humidity, battery).
+- **Metadata** — `integrationName` and the MQTT `topic` the message arrived on.
 
-To send messages from ThingsBoard to devices via AWS IoT, create a downlink converter and configure a rule chain.
+### Verify Device Provisioning
 
-### Add a downlink converter
+Go to **Entities &#8702; Devices**. The device **freezer-432** of type **sensors** is automatically provisioned on the first message. Open it and check the **Latest telemetry** tab — you should see `temperature`, `humidity`, and `battery` — and the **Attributes** tab for `fwVersion` (and `latitude`/`longitude` if the payload included a `location`).
+
+## Configure Downlink
+
+A downlink sends a Rule Engine message — a shared attribute update, an RPC command, or any other message you route to the integration — from ThingsBoard to AWS IoT. The integration publishes it to the downlink topic configured on the converter, where any subscribed device receives it.
+
+<Aside type="note">
+  The publish topic comes from the **Downlink topic pattern** in the integration's **Advanced settings** (Connection step), not from the ThingsBoard device name. The pattern supports `${...}` substitution from message metadata: the default `${topic}` reuses the `topic` field returned by the encoder, while a pattern such as `tb/aws/iot/commands/${deviceName}` builds a per-device topic from the message metadata. Carry the ThingsBoard device identity inside the payload as well, as the encoder below does.
+</Aside>
+
+### Create the Downlink Converter
+
+The downlink converter encodes a Rule Engine message into the payload published to AWS IoT. AWS IoT uses a <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">generic downlink converter</DocLink>.
+
+The encoder function receives:
+- `msg` — the JSON message payload from the Rule Engine
+- `msgType` — the Rule Engine message type, e.g. `ATTRIBUTES_UPDATED` or `POST_TELEMETRY_REQUEST`
+- `metadata` — key-value pairs with additional message data
+- `integrationMetadata` — key-value pairs from the integration's Metadata settings
 
 <Steps>
-  1. Go to **Integrations center &#8702; Integrations** and open the AWS IoT integration.
-  2. Click **Toggle edit mode**.
-  3. In the **Downlink data converter** field, click **Create new**.
-  4. Enter a name, paste the encoder script, and click **Add**.
-  5. In **Advanced settings**, set the **Downlink topic pattern** to `down/test`.
-  6. Click **Apply changes**.
+  1. Go to **Integrations center &#8702; Data converters**.
+  2. Click **+ Add data converter &#8702; Create new converter**.
+  3. **Converter type** — switch the toggle to **Downlink**.
+  4. **Integration type** — enter `AWS IoT` in the search field and select it from the list.
+  5. **Name** — enter a converter name, for example `AWS IoT Downlink Converter`.
+  6. **Main encoding configuration** — paste the encoder function shown below.
+  7. Click **Add**.
 </Steps>
 
 <Tabs>
@@ -287,6 +549,7 @@ To send messages from ThingsBoard to devices via AWS IoT, create a downlink conv
   // integrationMetadata - list of key-value pairs with additional data defined in Integration executing this converter
 
   /** Encoder **/
+    
   var data = {};
 
   // Process data from incoming message and metadata
@@ -305,6 +568,7 @@ To send messages from ThingsBoard to devices via AWS IoT, create a downlink conv
     type: "sensors/device/upload"
     }
   };
+    
   return result;
   ```
   </TabItem>
@@ -318,6 +582,7 @@ To send messages from ThingsBoard to devices via AWS IoT, create a downlink conv
   // integrationMetadata - list of key-value pairs with additional data defined in Integration executing this converter
 
   /** Encoder **/
+    
   var data = {};
 
   // Process data from incoming message and metadata
@@ -336,27 +601,65 @@ To send messages from ThingsBoard to devices via AWS IoT, create a downlink conv
     type: "sensors/device/upload"
     }
   };
+    
   return result;
   ```
   </TabItem>
 </Tabs>
 
-### Configure the Root Rule Chain
+**To adapt this converter to your consumer:**
 
-<ConfigureDownlinkRuleChain integrationName="AWS IoT" />
+- **Different envelope** — replace the `data` object with whatever structure the device expects; only `contentType` and `data` are required in the result.
+- **Pass the payload through unchanged** — return `data: JSON.stringify(msg)` and drop the field mapping.
+- **Non-JSON payload** — set `contentType` to `TEXT` for a plain string, or `BINARY` with a Base64-encoded string for raw bytes.
+- **Extra message types** — branch on `msgType` to handle other <DocLink product={props.product} path="reference/rule-engine/message-types" target="_blank">Rule Engine message types</DocLink> you route to the integration.
 
-### Test the downlink
+### Assign the Downlink Converter
 
 <Steps>
-1. In the AWS IoT **MQTT test client**, go to **Subscribe to a topic**, enter `down/test`, and click **Subscribe**.
-2. In ThingsBoard, go to **Entities &#8702; Devices**, open device `freezer-432`, switch to the **Attributes** tab, and select scope **Shared attributes**.
-3. Enter the key `powerState` and value `on`, then click **Add** to trigger the downlink.
+  1. Go to **Integrations center &#8702; Integrations** and open the **AWS IoT integration**.
+  2. Click **Toggle edit mode**.
+  3. In the **Downlink data converter** field, select `AWS IoT Downlink Converter`.
+  4. Expand the connection **Advanced settings** and set the **Downlink topic pattern** to `tb/aws/iot/commands/${deviceName}` — this publishes each command to a per-device topic under the same namespace as the uplink.
+  5. Click **Apply changes**.
 </Steps>
+
+### Configure the Root Rule Chain
+
+The integration does not send anything on its own — a rule chain must forward messages to it.
+
+<Steps>
+  1. Go to **Rule chains** and open the **Root Rule Chain**.
+  2. In the node palette on the left, search for **integration downlink** (under **Action**) and drag it onto the canvas.
+  3. In the **Add rule node** dialog, enter a **Name** (e.g. `Downlink to AWS IoT integration`), select your **AWS IoT integration**, and click **Add**.
+  4. Connect the **Message Type Switch** node to the new node using the **Post attributes** and **Attributes Updated** relations, so downlinks trigger whenever shared attributes are created or updated.
+  5. Click **Apply changes**.
+</Steps>
+
+### Trigger a Downlink
+
+<Steps>
+  1. In the AWS IoT console, go to **MQTT test client &#8702; Subscribe to a topic**, enter `tb/aws/iot/commands/#`, and click **Subscribe**.
+  2. In ThingsBoard, go to **Entities &#8702; Devices** and open `freezer-432`.
+  3. Open the **Attributes** tab, set the scope to **Shared attributes**, and click **+**.
+  4. Enter key `powerState`, keep type **String**, enter value `on`, and click **Add**.
+</Steps>
+Adding the attribute generates an **Attributes Updated** message that reaches the **integration downlink** node. The encoded payload appears on the `tb/aws/iot/commands/freezer-432` topic in the MQTT test client within a second or two.
 
 <ImageGallery images={[
   { src: '/src/assets/images/user-guide/integrations/aws-iot/aws-iot-downlink-verified-1.png', alt: 'AWS MQTT test client — Subscribe to a topic tab with down/test topic entered and subscribed', caption: 'In the AWS MQTT test client, enter down/test in the Subscribe to a topic tab and click Subscribe' },
   { src: '/src/assets/images/user-guide/integrations/aws-iot/aws-iot-downlink-verified-2.png', alt: 'ThingsBoard — device freezer-432 Attributes tab, Shared attributes scope, state attribute being edited to idle', caption: 'Open device freezer-432, go to Attributes &#8702; Shared attributes, and update the state attribute to idle — this triggers the downlink' },
 ]} />
+
+### Verify Downlink Delivery
+
+<h4>Check Downlink Converter Events</h4>
+
+Go to **Integrations center &#8702; Data converters**, open the downlink converter, and check its **Events** tab. Click **…** in the respective column to inspect each field:
+- **In** — the Rule Engine message passed to the encoder.
+- **Out** — the encoded result: `contentType`, `data`, and `metadata`.
+
+<h4>Check Downlink Subscribed Topic</h4>
 
 Check the subscribed topic in the AWS MQTT test client — the downlink payload should appear:
 
@@ -364,9 +667,28 @@ Check the subscribed topic in the AWS MQTT test client — the downlink payload 
   { src: '/src/assets/images/user-guide/integrations/aws-iot/aws-iot-downlink-verified-3.png', alt: 'AWS MQTT test client — down/test subscription showing received payload with v0 idle and m0 att_upd_success', caption: 'The downlink message arrives on the down/test topic — payload contains v0 (the updated state value) and m0 (the confirmation flag)' },
 ]} />
 
-## See also
+## Troubleshooting
 
-- <DocLink product={props.product} path="user-guide/integrations">Integration Overview</DocLink>
-- <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter">Uplink Converters</DocLink>
-- <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter">Downlink Converters</DocLink>
-- <DocLink product={props.product} path="user-guide/rule-engine">Rule Engine</DocLink>
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| Integration status is not **Active** | Wrong **Endpoint** | Confirm it matches the AWS IoT device data endpoint exactly, in the form `{prefix}-ats.iot.{region}.amazonaws.com`. |
+| Integration status is not **Active** | Certificate or private key mismatch | Verify the uploaded device certificate and private key belong together and match the thing in the AWS IoT console. |
+| Integration status is not **Active** | Certificate inactive or policy not attached | In the AWS IoT console, confirm the certificate status is **Active** and the policy is attached to it. |
+| Integration status is not **Active** | Port 8883 blocked | Open outbound TCP 8883 to `*.iot.{region}.amazonaws.com`, or run the integration remotely — see <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink>. |
+| Messages published in AWS never arrive | Topic filter does not match | Ensure the integration's topic filter covers the published topic — e.g. `tb/aws/iot/#` matches `tb/aws/iot/sensors/freezer-432`. |
+| Messages published in AWS never arrive | Policy denies `Subscribe` / `Receive` | Confirm the policy allows `iot:Subscribe` and `iot:Receive` for the relevant topic filters. |
+| Messages received but not decoded | Converter does not match the payload | Inspect **Converter Events → In** and adjust the decoder — especially the topic segment indices — to the actual message format. |
+| Large messages dropped | **Max bytes in message** limit | Raise the limit in **Advanced settings**, keeping the AWS IoT 128 KB message ceiling in mind. |
+| Device not created | **Allow create devices or assets** disabled | Open the integration, click the edit icon, and enable **Allow create devices or assets**. |
+| Downlink produces no event | Rule chain never reaches the node | Check the relation feeding the **integration downlink** node and enable rule chain debug mode to trace the message. |
+| Downlink encoded but nothing in AWS | Wrong **Downlink topic pattern** or subscription | Confirm the integration's Downlink topic pattern resolves to the topic subscribed to in the MQTT test client (e.g. `tb/aws/iot/commands/${deviceName}` &#8594; `tb/aws/iot/commands/freezer-432`). |
+
+## See Also
+
+- <DocLink product={props.product} path="user-guide/integrations" target="_blank">Integrations Overview</DocLink> — how ThingsBoard connects to external platforms and how uplink/downlink flow works
+- <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">Uplink Data Converter</DocLink> — full decoder function reference: input parameters, output fields, and scripting patterns
+- <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink Data Converter</DocLink> — full encoder function reference
+- <DocLink product={props.product} path="reference/rule-engine/nodes/action/integration-downlink" target="_blank">Integration Downlink Rule Node</DocLink> — forward Rule Engine messages to an integration
+- <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink> — run the integration outside the ThingsBoard server to reach a broker on a restricted network
+- <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL scripting reference</DocLink> — built-in functions and operators for writing converter scripts
+- <DocLink product={props.product} path="user-guide/rule-engine" target="_blank">Rule Engine</DocLink> — how rule chains route messages to nodes like the Integration Downlink node

@@ -1,14 +1,6 @@
+import { assertDistributorData } from './coverage.ts';
+import { REGION_MEMBERSHIP } from './regions.ts';
 import type { Distributor } from './types';
-
-export const REGIONS: string[] = [
-	"Africa",
-	"Asia",
-	"Australia and Oceania",
-	"Europe",
-	"Middle East",
-	"North America",
-	"South America",
-];
 
 export const DISTRIBUTORS: Distributor[] = [
 	{
@@ -33,11 +25,11 @@ export const DISTRIBUTORS: Distributor[] = [
 		website: "acorde.com",
 	},
 	{
-		name: "AppBuilder (Pty.) Ltd.",
-		regions: ["Africa"],
-		countries: ["South Africa"],
-		email: "tshepo@appbuilder.africa",
-		website: "appbuilder.africa",
+		name: "ACP IT Solutions AG",
+		regions: ["Europe","Middle East","Africa"],
+		countries: "region-wide",
+		email: "development.hzb@acp.de",
+		website: "acp-gruppe.com/de-at",
 	},
 	{
 		name: "Appomax",
@@ -252,7 +244,7 @@ export const DISTRIBUTORS: Distributor[] = [
 	{
 		name: "Halley Technologies SA",
 		regions: ["Europe"],
-		countries: ["Swizerland"],
+		countries: ["Switzerland"],
 		email: "Haithem.bouajila@halley-technologies.ch",
 		website: "halley-technologies.ch",
 	},
@@ -287,7 +279,7 @@ export const DISTRIBUTORS: Distributor[] = [
 	{
 		name: "IoT Squad P.S.A.",
 		regions: ["Europe","North America"],
-		countries: ["Åland Islands","Albania","Andorra","Austria","Belarus","Belgium","Bosnia and Herzegovina","Bulgaria","Croatia","Cyprus","Czech Republic","Denmark","Estonia","Faroe Islands","Finland","France","Germany","Gibraltar","Greece","Hungary","Iceland","Ireland","Isle of Man","Italy","Jersey","Kingdom of the Netherlands","Kosovo","Latvia","Liechtenstein","Lietuvos Respublika","Lithuania","Luxembourg","Malta","Moldova","Monaco","Montenegro","Netherlands","North Macedonia","Norway","Poland","Portugal","Romania","San Marino","Serbia","Slovakia","Slovenia","Spain","Svalbard and Jan Mayen","Sweden","Switzerland","Ukraine","United Kingdom","Vatican City","Anguilla","Antigua and Barbuda","Barbados","Belize","British Virgin Islands","Canada","Cayman Islands","Costa Rica","Cuba","Dominica","Dominican Republic","El Salvador","Greenland","Grenada","Guadeloupe","Guatemala","Haiti","Honduras","Jamaica","Martinique","Mexico","Montserrat","Nicaragua","Panama","Puerto Rico","Saint Barthélemy","Saint Kitts and Nevis","Saint Lucia","Saint Martin","Saint Pierre and Miquelon","Saint Vincent and the Grenadines","Sint Maarten","The Bahamas","Turks and Caicos Islands","U.S. Virgin Islands","United States of America","United States Minor Outlying Islands"],
+		countries: ["Åland Islands","Albania","Andorra","Austria","Belarus","Belgium","Bosnia and Herzegovina","Bulgaria","Croatia","Cyprus","Czech Republic","Denmark","Estonia","Faroe Islands","Finland","France","Germany","Gibraltar","Greece","Hungary","Iceland","Ireland","Isle of Man","Italy","Jersey","Kosovo","Latvia","Liechtenstein","Lithuania","Luxembourg","Malta","Moldova","Monaco","Montenegro","Netherlands","North Macedonia","Norway","Poland","Portugal","Romania","San Marino","Serbia","Slovakia","Slovenia","Spain","Svalbard and Jan Mayen","Sweden","Switzerland","Ukraine","United Kingdom","Vatican City","Anguilla","Antigua and Barbuda","Barbados","Belize","British Virgin Islands","Canada","Cayman Islands","Costa Rica","Cuba","Dominica","Dominican Republic","El Salvador","Greenland","Grenada","Guadeloupe","Guatemala","Haiti","Honduras","Jamaica","Martinique","Mexico","Montserrat","Nicaragua","Panama","Puerto Rico","Saint Barthélemy","Saint Kitts and Nevis","Saint Lucia","Saint Martin","Saint Pierre and Miquelon","Saint Vincent and the Grenadines","Sint Maarten","The Bahamas","Turks and Caicos Islands","U.S. Virgin Islands","United States of America","United States Minor Outlying Islands"],
 		email: "info@iotsquad.tech",
 		website: "iotsquad.tech",
 	},
@@ -560,9 +552,16 @@ export const DISTRIBUTORS: Distributor[] = [
 	{
 		name: "Techno Pynė",
 		regions: ["Europe"],
-		countries: ["Lietuvos Respublika"],
+		countries: ["Lithuania"],
 		email: "mail@technopyne.lt",
 		website: "technopyne.lt",
+	},
+	{
+		name: "Tektonics Systems",
+		regions: ["Africa"],
+		countries: ["South Africa"],
+		email: "tshepo@tektonics.africa",
+		website: "tektonics.africa",
 	},
 	{
 		name: "Tesla Water",
@@ -705,3 +704,6 @@ export const DISTRIBUTORS: Distributor[] = [
 		website: "n2m.co.kr",
 	},
 ];
+
+// Throws if this data and REGION_MEMBERSHIP disagree — see ./coverage.ts.
+assertDistributorData(DISTRIBUTORS, REGION_MEMBERSHIP);

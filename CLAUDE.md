@@ -180,6 +180,12 @@ Key dirs: `src/data/case-studies/`, `src/components/CaseStudy/`, `src/pages/case
 
 Data-driven page at `/clients-feedback/`. Key dirs: `src/data/clients-feedback/`, `src/components/Feedback/`, `src/pages/clients-feedback/`.
 
+### Distributor Finder
+
+Data-driven page at `/partners/distributors/`. Import distributor data from `@data/partners` — it exports the derived selectors the page renders from (`OFFERED_COUNTRIES`, `REGION_OFFERED_COUNTRIES`, `getCoverage`). Distributor-scoped: hardware partners live in `@data/partners/hardware-partners` and are imported directly.
+
+A distributor either lists the countries it covers or sets `countries: 'region-wide'` to cover every country in its `regions`, expanded from `REGION_MEMBERSHIP` in `src/data/partners/regions.ts`. That table and the countries distributors name must stay in step, so adding a country to a distributor means classifying it there too. `distributors.ts` asserts this as it loads (via `coverage.ts`), so any import path — the barrel or the data file directly — fails the build until you do.
+
 ## Redirects
 
 **Single source of truth:** `src/data/redirects.ts`. Four exports, chosen by pattern shape:
@@ -243,7 +249,7 @@ Use the `release` skill for the full checklist. Key files:
 ## Code Style
 
 - Tabs for indentation in code files; spaces for JSON, Markdown, MDX, YAML, TOML
-- Prettier with `prettier-plugin-astro`, printWidth 100, single quotes, trailing commas
+- Prettier with `prettier-plugin-astro`, printWidth 120, single quotes, ES5 trailing commas (see `.prettierrc`)
 - ESLint flat config with TypeScript and Astro plugins
 - **No Figma references in comments.** Don't write "Figma", "Figma node 1234:5678", or any tool-specific node IDs in source comments — they're meaningless to anyone without access to the Figma file and rot fast. Refer to the visual spec as "the design" (or "per the design", "matches the design") and describe what's actually being implemented (sizes, colors, behaviors) so the comment stands on its own.
 

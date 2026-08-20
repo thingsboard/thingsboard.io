@@ -5,7 +5,7 @@
 
 // The pricing calculators. Threaded through the helpers so a mistyped value
 // fails to compile instead of silently mis-bucketing in GA4.
-export type CalculatorType = 'tb_payg' | 'tb_pc' | 'tb_perp' | 'tbmq_payg' | 'tbmq_pc' | 'tbmq_perp';
+export type CalculatorType = 'tb_payg' | 'tb_pc' | 'tbmq_payg' | 'tbmq_pc' | 'tbmq_perp';
 
 // Debounce settle for calculator_interaction — single home for the value.
 const SETTLE_MS = 3000;

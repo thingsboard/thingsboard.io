@@ -73,14 +73,6 @@ export interface CommunityEditionData {
 	features: string[];
 	ctaText: string;
 	ctaHref: string;
-	/** Optional onclick for the main CTA (overrides href navigation) */
-	ctaOnclick?: string;
-	/** Optional secondary button */
-	secondaryCtaText?: string;
-	/** Navigation target for the secondary button (preferred — keeps middle-click / new-tab working) */
-	secondaryCtaHref?: string;
-	/** Onclick handler for the secondary button — only use for non-navigation actions (e.g. opening a modal) */
-	secondaryCtaOnclick?: string;
 	/** Optional price display (e.g., "Starting from $4,999") */
 	priceLabel?: string;
 }
@@ -137,7 +129,7 @@ export interface AddOnItem {
 	id: string;
 	name: string;
 	icon?: string;
-	priceUsd: number | string;
+	priceUsd?: number | string;
 	priceEur?: number | string;
 	setupFee?: number;
 	setupFeeCurrency?: string;
@@ -145,6 +137,7 @@ export interface AddOnItem {
 	description?: string;
 	/** Show "Starting from" prefix before price */
 	startingFrom?: boolean;
+	priceNote?: string;
 	faqId?: string;
 	faqTooltip?: string;
 }
