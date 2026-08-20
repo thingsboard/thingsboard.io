@@ -129,7 +129,7 @@ export interface AddOnItem {
 	id: string;
 	name: string;
 	icon?: string;
-	priceUsd: number | string;
+	priceUsd?: number | string;
 	priceEur?: number | string;
 	setupFee?: number;
 	setupFeeCurrency?: string;
@@ -137,6 +137,7 @@ export interface AddOnItem {
 	description?: string;
 	/** Show "Starting from" prefix before price */
 	startingFrom?: boolean;
+	priceNote?: string;
 	faqId?: string;
 	faqTooltip?: string;
 }
