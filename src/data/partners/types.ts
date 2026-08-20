@@ -33,11 +33,11 @@ export interface HardwarePartner {
 
 export interface Distributor {
 	name: string;
-	regions: Region[];
+	/** Regions served. Non-empty: no regions means the card matches no filter. */
+	regions: [Region, ...Region[]];
 	/**
-	 * Countries this distributor covers, or 'region-wide' to cover every country
-	 * in `regions`. Non-empty by construction: an empty list would drop the card
-	 * out of every country filter.
+	 * Countries covered, or 'region-wide' for every country in `regions`.
+	 * Non-empty: an empty list drops the card out of every country filter.
 	 */
 	countries: [string, ...string[]] | 'region-wide';
 	email: string;

@@ -1,3 +1,5 @@
+import { assertDistributorData } from './coverage.ts';
+import { REGION_MEMBERSHIP } from './regions.ts';
 import type { Distributor } from './types';
 
 export const DISTRIBUTORS: Distributor[] = [
@@ -702,3 +704,6 @@ export const DISTRIBUTORS: Distributor[] = [
 		website: "n2m.co.kr",
 	},
 ];
+
+// Throws if this data and REGION_MEMBERSHIP disagree — see ./coverage.ts.
+assertDistributorData(DISTRIBUTORS, REGION_MEMBERSHIP);

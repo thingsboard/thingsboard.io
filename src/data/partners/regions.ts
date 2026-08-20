@@ -17,10 +17,9 @@ export type Region = (typeof REGIONS)[number];
  * Drives coverage for distributors that serve a whole region instead of an
  * enumerated country list (`countries: 'region-wide'`).
  *
- * This table and the distributor data describe the same set of countries.
- * `src/data/partners/index.ts` throws when they diverge in either direction, so
- * adding a country to any distributor means classifying it here too — the build
- * and `pnpm lint:distributors` both fail until you do.
+ * This table and the distributor data describe the same set of countries;
+ * `./distributors.ts` throws when they diverge. Adding a country to a
+ * distributor means classifying it here too, or the build fails.
  *
  * Conventions:
  * - "Middle East" is its own region, not a subset of Asia — a distributor

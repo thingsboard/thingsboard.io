@@ -27,7 +27,6 @@ pnpm lint:linkcheck   # Link validation (runs build first)
 pnpm lint:linkcheck:nobuild  # Link validation (skip build)
 pnpm lint:slugcheck   # Validate slugs match across languages
 pnpm lint:dualrender  # Validate IoT Hub server/client card render parity (needs a build)
-pnpm lint:distributors # Validate distributor regions and country coverage
 pnpm format           # Format with Prettier
 ```
 
@@ -183,9 +182,9 @@ Data-driven page at `/clients-feedback/`. Key dirs: `src/data/clients-feedback/`
 
 ### Distributor Finder
 
-Data-driven page at `/partners/distributors/`. Import from `@data/partners` rather than the individual data files — that module validates the dataset as it loads and exports the derived selectors the page renders from.
+Data-driven page at `/partners/distributors/`. Import distributor data from `@data/partners` — it exports the derived selectors the page renders from (`OFFERED_COUNTRIES`, `REGION_OFFERED_COUNTRIES`, `getCoverage`). Distributor-scoped: hardware partners live in `@data/partners/hardware-partners` and are imported directly.
 
-A distributor either lists the countries it covers or sets `countries: 'region-wide'` to cover every country in its `regions`, expanded from `REGION_MEMBERSHIP` in `src/data/partners/regions.ts`. That table and the countries distributors name must stay in step, so adding a country to a distributor means classifying it there too — `pnpm lint:distributors` fails otherwise.
+A distributor either lists the countries it covers or sets `countries: 'region-wide'` to cover every country in its `regions`, expanded from `REGION_MEMBERSHIP` in `src/data/partners/regions.ts`. That table and the countries distributors name must stay in step, so adding a country to a distributor means classifying it there too. `distributors.ts` asserts this as it loads (via `coverage.ts`), so any import path — the barrel or the data file directly — fails the build until you do.
 
 ## Redirects
 
@@ -250,13 +249,13 @@ Use the `release` skill for the full checklist. Key files:
 ## Code Style
 
 - Tabs for indentation in code files; spaces for JSON, Markdown, MDX, YAML, TOML
-- Prettier with `prettier-plugin-astro`, printWidth 100, single quotes, trailing commas
+- Prettier with `prettier-plugin-astro`, printWidth 120, single quotes, ES5 trailing commas (see `.prettierrc`)
 - ESLint flat config with TypeScript and Astro plugins
 - **No Figma references in comments.** Don't write "Figma", "Figma node 1234:5678", or any tool-specific node IDs in source comments — they're meaningless to anyone without access to the Figma file and rot fast. Refer to the visual spec as "the design" (or "per the design", "matches the design") and describe what's actually being implemented (sizes, colors, behaviors) so the comment stands on its own.
 
 ## CI Checks
 
-GitHub Actions runs: `astro check`, `eslint`, `slugcheck`, `lint:distributors`.
+GitHub Actions runs: `astro check`, `eslint`, `slugcheck`.
 
 `lint:linkcheck` runs in a separate CI pipeline (not GitHub Actions) because it needs a full build. It must also pass before a PR can merge — so run it locally before requesting review, especially when adding, renaming, or removing pages, changing redirects, or editing internal links. Use `pnpm lint:linkcheck` for a clean check, or `pnpm lint:linkcheck:nobuild` if you already produced a build in this session and just want to re-validate links.
 
