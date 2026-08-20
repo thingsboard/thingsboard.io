@@ -1,10 +1,26 @@
+/** The regions the distributor finder can filter by. */
+export const REGIONS = [
+	"Africa",
+	"Asia",
+	"Australia and Oceania",
+	"Europe",
+	"Middle East",
+	"North America",
+	"South America",
+] as const;
+
+export type Region = (typeof REGIONS)[number];
+
 /**
- * Which countries each region on the distributor finder contains.
+ * Which countries each region contains.
  *
  * Drives coverage for distributors that serve a whole region instead of an
- * enumerated country list (`regionWide` on `Distributor`). Only countries the
- * finder can actually offer need an entry here, and the distributors page fails
- * the build when a distributor introduces one that is missing.
+ * enumerated country list (`countries: 'region-wide'`).
+ *
+ * This table and the distributor data describe the same set of countries.
+ * `src/data/partners/index.ts` throws when they diverge in either direction, so
+ * adding a country to any distributor means classifying it here too — the build
+ * and `pnpm lint:distributors` both fail until you do.
  *
  * Conventions:
  * - "Middle East" is its own region, not a subset of Asia — a distributor
@@ -13,7 +29,7 @@
  *   counts as Europe and Middle East, and Georgia as Europe and Asia.
  * - Caribbean and Central American territories count as North America.
  */
-export const REGION_MEMBERSHIP: Record<string, string[]> = {
+export const REGION_MEMBERSHIP: Record<Region, string[]> = {
 	Africa: [
 		"Libya",
 		"Mauritius",

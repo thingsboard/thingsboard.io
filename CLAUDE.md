@@ -26,6 +26,7 @@ pnpm lint:eslint      # ESLint
 pnpm lint:linkcheck   # Link validation (runs build first)
 pnpm lint:linkcheck:nobuild  # Link validation (skip build)
 pnpm lint:slugcheck   # Validate slugs match across languages
+pnpm lint:distributors # Validate distributor regions and country coverage
 pnpm format           # Format with Prettier
 ```
 
@@ -179,6 +180,12 @@ Key dirs: `src/data/case-studies/`, `src/components/CaseStudy/`, `src/pages/case
 
 Data-driven page at `/clients-feedback/`. Key dirs: `src/data/clients-feedback/`, `src/components/Feedback/`, `src/pages/clients-feedback/`.
 
+### Distributor Finder
+
+Data-driven page at `/partners/distributors/`. Import from `@data/partners` rather than the individual data files — that module validates the dataset as it loads and exports the derived selectors the page renders from.
+
+A distributor either lists the countries it covers or sets `countries: 'region-wide'` to cover every country in its `regions`, expanded from `REGION_MEMBERSHIP` in `src/data/partners/regions.ts`. That table and the countries distributors name must stay in step, so adding a country to a distributor means classifying it there too — `pnpm lint:distributors` fails otherwise.
+
 ## Redirects
 
 **Single source of truth:** `src/data/redirects.ts`. Four exports, chosen by pattern shape:
@@ -248,6 +255,6 @@ Use the `release` skill for the full checklist. Key files:
 
 ## CI Checks
 
-GitHub Actions runs: `astro check`, `eslint`, `slugcheck`.
+GitHub Actions runs: `astro check`, `eslint`, `slugcheck`, `lint:distributors`.
 
 `lint:linkcheck` runs in a separate CI pipeline (not GitHub Actions) because it needs a full build. It must also pass before a PR can merge — so run it locally before requesting review, especially when adding, renaming, or removing pages, changing redirects, or editing internal links. Use `pnpm lint:linkcheck` for a clean check, or `pnpm lint:linkcheck:nobuild` if you already produced a build in this session and just want to re-validate links.

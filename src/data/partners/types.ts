@@ -1,3 +1,5 @@
+import type { Region } from '@data/partners/regions';
+
 export interface PartnerLink {
 	label: string;
 	href: string;
@@ -31,10 +33,13 @@ export interface HardwarePartner {
 
 export interface Distributor {
 	name: string;
-	regions: string[];
-	countries: string[];
-	/** Serves every country in its regions; leave countries empty. */
-	regionWide?: boolean;
+	regions: Region[];
+	/**
+	 * Countries this distributor covers, or 'region-wide' to cover every country
+	 * in `regions`. Non-empty by construction: an empty list would drop the card
+	 * out of every country filter.
+	 */
+	countries: [string, ...string[]] | 'region-wide';
 	email: string;
 	website: string;
 }

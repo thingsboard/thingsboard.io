@@ -1,15 +1,5 @@
 import type { Distributor } from './types';
 
-export const REGIONS: string[] = [
-	"Africa",
-	"Asia",
-	"Australia and Oceania",
-	"Europe",
-	"Middle East",
-	"North America",
-	"South America",
-];
-
 export const DISTRIBUTORS: Distributor[] = [
 	{
 		name: "Absolute Motion",
@@ -35,8 +25,7 @@ export const DISTRIBUTORS: Distributor[] = [
 	{
 		name: "ACP IT Solutions AG",
 		regions: ["Europe","Middle East","Africa"],
-		countries: [],
-		regionWide: true,
+		countries: "region-wide",
 		email: "development.hzb@acp.de",
 		website: "acp-gruppe.com/de-at",
 	},
