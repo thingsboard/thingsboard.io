@@ -7,161 +7,233 @@ import { Products } from '~/models/site.models';
 import Tabs from '@components/Tabs.astro';
 import TabItem from '@components/TabItem.astro';
 
-<Banner variant="peFeature" product={props.product} path="user-guide/integrations/custom" />
+<Banner variant="peFeature" product={props.product} path="installation/" />
 
-Custom integrations always execute <DocLink product={props.product} path="user-guide/integrations/remote/" target="_blank">remotely</DocLink> from the main ThingsBoard instance and can use any transport protocol to communicate with devices. This guide demonstrates how to build a TCP-based custom integration that receives comma-separated sensor readings, converts them using an uplink data converter, and pushes the result to ThingsBoard.
+**Custom Integration** connects ThingsBoard to devices, gateways, or external systems that use a protocol without a built-in connector — TCP, UDP, a proprietary binary protocol, a vendor SDK, or any other transport your use case requires. You implement the transport layer in a standalone Java application by extending `AbstractIntegration`, which runs as a <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank"><strong>Remote Integration</strong></DocLink> next to your devices and connects to ThingsBoard over gRPC; ThingsBoard handles payload conversion, device provisioning, Rule Engine processing, telemetry storage, and sending commands back to those devices.
+
+This guide uses the official <a href="https://github.com/thingsboard/remote-integration-example" target="_blank" rel="noopener noreferrer"><strong>remote-integration-example</strong></a> as a reference. The example implements a simple TCP server that receives comma-separated sensor readings and forwards them to ThingsBoard.
+
+## Architecture
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/custom-integration-architecture.svg', alt: 'Custom integration architecture diagram showing uplink data flowing from a device through the remotely executed custom integration and the uplink converter to the ThingsBoard Core Services, and downlink commands flowing back through the downlink converter and the integration', caption: 'Custom integration architecture — uplink and downlink data flow between a device and ThingsBoard through a remotely executed integration.' },
+]} />
+
+A device transmits an uplink to the custom integration over the transport you implement. The integration parses the raw payload and hands it to the uplink converter, which decodes it into telemetry and attributes; the ThingsBoard Core Services store the data, creating the device automatically on first contact. For downlink, the Rule Engine hands a message to the integration; the downlink converter encodes it, and the integration delivers it to the device. The integration process runs remotely and streams data to ThingsBoard over gRPC.
+
+<Aside type="note">
+  Custom integrations always execute **remotely** from the main ThingsBoard instance — the **Execute remotely** option is enabled automatically and cannot be disabled. Because a custom integration typically starts its own transport server (for example, a TCP server bound to a port), it cannot run inside the multi-tenant ThingsBoard core, where tenant ports would collide. The remote process buffers messages on the local file system and streams them to ThingsBoard over gRPC.
+</Aside>
 
 ## Prerequisites
 
-- A ThingsBoard PE instance (v2.4.1 or later) with Tenant Administrator access.
-- Java 11+ and Maven installed locally to build the sample application.
+Before creating the integration, ensure:
 
-## ThingsBoard integration setup
+- You have access to {props.product !== Products.PAAS && props.product !== Products.PAAS_EU && <><DocLink product={Products.PE} path="installation/" target="_blank">ThingsBoard PE</DocLink> or </>}<a href="/installations/?product=thingsboard-cloud" target="_blank" rel="noopener noreferrer"><strong>ThingsBoard Cloud</strong></a> with integration functionality enabled for your tenant.
+- You have permissions to create integrations and data converters in ThingsBoard.
+- **Java 17** and Maven are installed on the machine where you will build the Custom Integration application. The current reference project targets Java 17 (`maven.compiler.source`/`target`); verify your JDK with `java -version`, and if you build a branch that matches an older ThingsBoard deployment, use the Java version that branch requires.
+- The machine running the remote integration can reach the ThingsBoard gRPC endpoint. The standard configuration uses port `9090`.
+- Any ports required by your custom device-facing protocol are open on the remote integration host.
 
-### Create an uplink converter
+<Aside type="tip">
+  This guide uses a **TCP-based** example integration that receives a comma-separated string `SN-12345,thermostat,25,40,94` — serial number, device type, `temperature`, `humidity`, and `batteryLevel`. Adapt the device name, payload layout, transport, and decoder logic to match your own hardware.
+</Aside>
 
-Custom integrations use a <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">generic uplink converter</DocLink>. The uplink converter parses incoming device messages and maps them to ThingsBoard telemetry. In this example, a device transmits three readings as a comma-separated string (`"25,40,94"` — temperature, humidity, and battery level). The decoder splits the string and converts each value to a number.
+## Set Up the Custom Integration
+
+To set up the **Custom** integration, first create an uplink data converter to process incoming messages, then create and configure the integration.
+
+### Create the Uplink Data Converter
+
+The uplink converter parses the raw payload the integration receives from the device and maps it to the ThingsBoard data model — it resolves the target device and extracts fields into telemetry and attributes. For the full decoder function reference, see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" bold={true} target="_blank">Uplink data converter</DocLink>.
+
+A device message delivered to the integration looks like this:
+
+```
+SN-12345,thermostat,25,40,94
+```
+
+The first value is the device serial number and maps to the device name. The second value is the device type. The remaining values are the sensor readings — temperature, humidity, and battery level, respectively.
+
+<Steps>
+  <ol start="1">
+    <li>Go to <strong>Integrations center &#8702; Data converters</strong>.</li>
+    <li>Click <strong>+ Add data converter &#8702; Create new converter</strong>.</li>
+  </ol>
+</Steps>
+
+In the **Add data converter** dialog:
+
+<Steps>
+  <ol start="3">
+    <li><strong>Converter type</strong> — leave <strong>Uplink</strong> selected.</li>
+    <li><strong>Integration type</strong> — select <strong>Custom</strong>.</li>
+    <li><strong>Name</strong> — enter a converter name, for example <code>Custom Uplink Converter</code>.</li>
+    <li><strong>Main decoding configuration</strong> — paste the decoder function shown below.</li>
+    <li>Click <strong>Add</strong>.</li>
+  </ol>
+</Steps>
+
+The decoder below decodes the raw bytes to a string, splits it on commas, resolves the device name and type, and maps the readings to telemetry. Adapt the field order and parsing to match your device protocol.
 
 <Aside type="tip" title="TBEL">
-  We recommend using <DocLink product={props.product} path="user-guide/tbel">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
+  We recommend <DocLink product={props.product} path="user-guide/tbel" bold={false} target="_blank">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
 </Aside>
 
 **The decoder function used in this tutorial:**
 
 <Tabs>
-<TabItem label="TBEL (Recommended)">
-```js maxLines=25 collapsible
-/** Decoder **/
+  <TabItem label="TBEL (Recommended)">
+    ```js maxLines=20 collapsible
+    /** Decoder **/
 
-// decode payload to string
-var decodedString = decodeToString(payload);
-// remove unnecessary ["] and split by [,] to get an array
-var payloadArray = decodedString.replace(/"/g, "").split(',');
-var result = {
-    deviceName: "Device A",
-    deviceType: "type",
-    telemetry: {
-        // get each reading from the array and convert the string value to a number
-        temperature: toInt(payloadArray[0]),
-        humidity: toInt(payloadArray[1]),
-        batteryLevel: toInt(payloadArray[2])
-    },
-    attributes: {}
-};
+    // Decode the incoming payload to a string.
+    var decodedString = decodeToString(payload);
 
-/** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
+    // Split the payload into individual values.
+    var payloadArray = decodedString.split(',');
 
-return result;
-```
-</TabItem>
-<TabItem label="JavaScript">
-```js maxLines=35 collapsible
-/** Decoder **/
+    // Build the message that will be sent to ThingsBoard.
+    var result = {
+      // Extract device information from the payload.
+      deviceName: payloadArray[0],
+      deviceType: payloadArray[1],
+  
+      // Map device measurements to ThingsBoard telemetry.
+      telemetry: {
+        temperature: toInt(payloadArray[2]),
+        humidity: toInt(payloadArray[3]),
+        batteryLevel: toInt(payloadArray[4])
+      },
 
-// decode payload to string
-var decodedString = decodeToString(payload);
-// remove unnecessary ["] and split by [,] to get an array
-var payloadArray = decodedString.replace(/"/g, "").split(',');
-var result = {
-    deviceName: "Device A",
-    deviceType: "type",
-    telemetry: {
-        // get each reading from the array and convert the string value to a number
-        temperature: Number(payloadArray[0]),
-        humidity: Number(payloadArray[1]),
-        batteryLevel: Number(payloadArray[2])
-    },
-    attributes: {}
-};
+      // No attributes are provided in this payload.
+      attributes: {}
+    };
 
-/** Helper functions **/
+    // Return the converted uplink message.
+    return result;
+    ```
+  </TabItem>
 
-function decodeToString(payload) {
-    return String.fromCharCode.apply(String, payload);
-}
+  <TabItem label="JavaScript">
+    ```js maxLines=25 collapsible
+    /** Decoder **/
 
-function decodeToJson(payload) {
-    // convert payload to string.
-    var str = decodeToString(payload);
-    // parse string to JSON
-    var data = JSON.parse(str);
-    return data;
-}
+    // Decode the incoming payload to a string.
+    var decodedString = decodeToString(payload);
 
-return result;
-```
-</TabItem>
+    // Split the payload into individual values.
+    var payloadArray = decodedString.trim().split(',');
+
+    // Build the message that will be sent to ThingsBoard.
+    var result = {
+      // Extract device information from the payload.
+      deviceName: payloadArray[0],
+      deviceType: payloadArray[1],
+  
+      // Map device measurements to ThingsBoard telemetry.
+      telemetry: {
+        temperature: Number(payloadArray[2]),
+        humidity: Number(payloadArray[3]),
+        batteryLevel: Number(payloadArray[4])
+      },
+
+      // No attributes are provided in this payload.
+      attributes: {}
+    };
+
+    /** Helper functions **/
+
+    function decodeToString(payload) {
+      return String.fromCharCode.apply(String, payload);
+    }
+
+    // Return the converted uplink message.
+    return result;
+    ```
+  </TabItem>
 </Tabs>
 
-### Create a downlink converter
+The converter returns:
 
-The downlink converter encodes a Rule Engine message — such as an RPC command or shared attribute update — into the payload format expected by your custom integration. It is optional: skip it if the integration only ingests data into ThingsBoard.
-
-The encoder function receives four parameters and must return a result object:
-
-| Parameter | Description |
-|---|---|
-| `msg` | JSON payload of the Rule Engine message |
-| `msgType` | Message type, e.g. `ATTRIBUTES_UPDATED`, `POST_TELEMETRY_REQUEST` |
-| `metadata` | Key-value pairs with additional data about the message |
-| `integrationMetadata` | Key-value pairs defined in the integration configuration |
-
-The returned object must contain:
-- `contentType` — `JSON`, `TEXT`, or `BINARY` (Base64-encoded string)
-- `data` — the encoded payload string
-- `metadata` — optional key-value pairs forwarded to the integration
-
-**Encoder function example:**
-
-```js
-function encoder(msg, metadata, msgType, integrationMetadata) {
-  // Encode downlink data from incoming Rule Engine message
-
-  /** Encoder **/
-
-  // Process data from incoming message and metadata
-  var data = {};
-  data.tmpFreq = msg.temperatureUploadFrequency;
-  data.humFreq = msg.humidityUploadFrequency;
-  data.deviceSerialNumber = metadata['ss_serialNumber'];
-
-  // Result object with encoded downlink payload
-  var result = {
-    // downlink data content type: JSON, TEXT or BINARY (base64 format)
-    contentType: 'JSON',
-
-    // downlink data
-    data: JSON.stringify(data),
-
-    // Optional metadata object presented in key/value format
-    metadata: {
-      topic: metadata['deviceType'] + '/' + metadata['deviceName'] + '/upload'
-    }
-  };
-
-  return result;
+```json
+{
+  "deviceName": "SN-12345",
+  "deviceType": "thermostat",
+  "telemetry": {
+    "temperature": 25,
+    "humidity": 40,
+    "batteryLevel": 94
+  },
+  "attributes": {}
 }
 ```
 
-For the full downlink converter reference — including the Library catalog, test function, and rule chain setup — see <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink data converter</DocLink>.
+<h4>Converter Input</h4>
 
-### Create the integration
+ThingsBoard passes two variables to the decoder:
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `payload` | byte array | The raw bytes the integration received from the device over the transport — here, the ASCII comma-separated string. Use `decodeToString(payload)` to read it as text, or `decodeToJson(payload)` if your device sends JSON. |
+| `metadata` | object | Key-value map with integration-level context, such as `ts` and `integrationName`, plus any **Metadata** entries defined on the integration. |
+
+This `metadata` object — available to the decoder script as `metadata.xxx` — is separate from the **Metadata** column shown on the integration and converter **Events** tabs (see **[Verify Converter Events](#verify-converter-events)**), which displays integration-level context rather than per-message fields.
+
+<h4>Adapt the Decoder to Your Device</h4>
+
+- **Device name** — change `payloadArray[0]` to whichever field of your payload identifies the device.
+- **Payload encoding** — update the parsing to match your device's format. Use `decodeToJson(payload)` for JSON payloads, or `substring`/bit-mask arithmetic for a binary hex string.
+- **Telemetry** — add or remove keys under `telemetry` (for example, `pressure: toInt(payloadArray[5])`).
+- **Attributes** — populate the `attributes` object to store device metadata (firmware version, configuration flags, and so on) rather than time-series values.
+- **Add or remove fields** — add more array entries (or parsing calls) for additional sensors; remove entries your device does not transmit.
+- **Override device identity from the payload** — set `result.deviceName`, `result.deviceType`, `result.groupName`, or `result.customerName` to derive device identity from payload content.
+
+### Create the Custom Integration
 
 <Steps>
-1. Go to **Integrations center &#8702; Integrations** and click **+ Add integration**. Set type to **Custom**, enter a name, and click **Next**.
-2. **Uplink data converter:** click **Create new**, enter a converter name, paste the decoder function from the <a href="#create-an-uplink-converter">section above</a>, and click **Next**. Use the **Test decoder function** button to validate the decoder output before proceeding.
-3. **Downlink data converter:** click **Skip** if you do not need to send commands to devices. To enable downlinks, click **Create new** instead, enter a name, and implement the encoder function (<a href="#create-a-downlink-converter">see template above</a>).
-4. **Connection:** enter the **Integration class** and **Integration JSON configuration** (see values below), then click **Add**. Once saved, copy the **Integration Key** and **Integration Secret** — you will need them to configure the remote integration application.
+  <ol start="1">
+    <li>Go to <strong>Integrations center &#8702; Integrations</strong> and click <strong>+ Add integration</strong>.</li>
+    <li>
+      <span><strong>Basic settings:</strong></span>
+      <ul>
+        <li>Set <strong>Integration type</strong> to <strong>Custom</strong>.</li>
+        <li>Enter a <strong>Name</strong> for the integration, for example <code>Custom TCP Integration</code>.</li>
+        <li>Leave <strong>Enable integration</strong> enabled.</li>
+        <li>Leave <strong>Allow create devices or assets</strong> enabled if ThingsBoard should create a device automatically when the first message from an unknown device arrives.</li>
+        <li>Click <strong>Next</strong>.</li>
+      </ul>
+    </li>
+    <li>
+      <span><strong>Uplink data converter:</strong></span>
+      <ul>
+        <li>Click <strong>Select existing</strong> and choose the <a href="#create-the-uplink-data-converter"><strong>Custom Uplink Converter</strong></a> created above.</li>
+        <li>Alternatively, click <strong>Create new</strong> to define the decoder directly in the integration wizard.</li>
+        <li>Click <strong>Next</strong>.</li>
+      </ul>
+    </li>
+    <li>
+      <span><strong>Downlink data converter:</strong></span>
+      <ul>
+        <li>Click <strong>Skip</strong> for now if the integration only receives data.</li>
+        <li>If ThingsBoard must send commands to the external device or system, configure a downlink converter as described in <a href="#configure-downlink"><strong>Configure Downlink</strong></a>.</li>
+      </ul>
+    </li>
+    <li>
+      <span><strong>Connection:</strong></span>
+      <ul>
+        <li>Set <strong>Integration class</strong> to <code>org.thingsboard.integration.custom.basic.CustomIntegration</code>.</li>
+        <li>Enter the <strong>Integration JSON configuration</strong> shown below.</li>
+        <li>Copy the generated <strong>Integration key</strong> and <strong>Integration secret</strong>. You will use these credentials to configure the remote application.</li>
+      </ul>
+      <span>Read more about these parameters in <a href="#connection-settings"><strong>Connection Settings</strong></a>.</span>
+    </li>
+    <li>Click <strong>Add</strong> to complete the ThingsBoard-side configuration.</li>
+  </ol>
 </Steps>
 
-Use the following values in the **Connection** step:
+Use the following **Integration JSON configuration** for the official example:
 
-**Integration class:**
-```
-org.thingsboard.integration.custom.basic.CustomIntegration
-```
-
-**Integration JSON configuration:**
 ```json
 {
   "port": 5555,
@@ -169,44 +241,281 @@ org.thingsboard.integration.custom.basic.CustomIntegration
 }
 ```
 
-- `port` — TCP port the integration will bind to.
-- `msgGenerationIntervalMs` — interval (in milliseconds) at which the built-in client emulator sends test messages.
-
-<Aside type="note">
-  **Execute remotely** is enabled automatically for Custom integrations and cannot be disabled.
-</Aside>
-
-<Aside type="caution">
-  **Debug mode** stores every processed message in the database. Disable it in production to avoid excessive disk usage.
-</Aside>
-
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/custom/custom-add-integration-1.png', alt: 'Add integration wizard — Basic settings: Integration type Custom, name Custom Integration, Enable integration and Allow create devices or assets toggled on', caption: 'Set Integration type to Custom, enter a name, and click Next' },
+  { src: '/src/assets/images/user-guide/integrations/custom/custom-add-integration-1.png', alt: 'Add integration wizard — Basic settings: Integration type Custom, name Custom TCP Integration, Enable integration and Allow create devices or assets toggled on', caption: 'Set Integration type to Custom, enter a name, and click Next' },
   { src: '/src/assets/images/user-guide/integrations/custom/custom-add-integration-2.png', alt: 'Add integration wizard — Uplink data converter step: Create new selected, name pre-filled, TBEL decoder editor open with Test decoder function button', caption: 'Click Create new, paste the decoder function, use Test decoder function to validate, then click Next' },
   { src: '/src/assets/images/user-guide/integrations/custom/custom-add-integration-3.png', alt: 'Add integration wizard — Downlink data converter step: Create new and Skip options shown', caption: 'Click Skip to omit downlink, or Create new to add a downlink encoder' },
   { src: '/src/assets/images/user-guide/integrations/custom/custom-add-integration-4.png', alt: 'Add integration wizard — Connection step: Integration class and JSON configuration filled, Execute remotely enabled, Integration Key and Integration Secret fields shown', caption: 'Enter Integration class and JSON configuration; copy Integration Key and Secret for the remote app, then click Add' },
 ]} />
 
-## Build and run the integration application
+#### Connection Settings
 
-The sample application is available on GitHub at <a href="https://github.com/thingsboard/remote-integration-example" target="_blank" rel="noopener noreferrer">github.com/thingsboard/remote-integration-example</a>. It uses Netty for TCP communication and gRPC to connect to ThingsBoard.
+<h5>Integration Class</h5>
 
-**Maven dependencies:**
+The fully qualified Java class that implements the custom integration.
+
+For the official example:
+
+```text
+org.thingsboard.integration.custom.basic.CustomIntegration
+```
+
+The class extends `AbstractIntegration` from the ThingsBoard Remote Integration API.
+
+When developing your own implementation, replace this value with the fully qualified class name of your integration.
+
+For example:
+
+```text
+com.example.integration.MyCustomIntegration
+```
+
+<h5>Integration JSON Configuration</h5>
+
+JSON configuration passed from ThingsBoard to the Custom Integration implementation during initialization.
+
+The sample uses:
+
+```json
+{
+  "port": 5555,
+  "msgGenerationIntervalMs": 5000
+}
+```
+
+| Parameter | Description |
+| --- | --- |
+| `port` | TCP port on which the sample Custom Integration starts its server |
+| `msgGenerationIntervalMs` | Interval, in milliseconds, at which the built-in client emulator generates test sensor readings |
+
+The JSON schema is defined by your implementation. A production integration can expose any protocol-specific parameters it requires.
+
+For example:
+
+```json
+{
+  "bindAddress": "0.0.0.0",
+  "port": 7001,
+  "readTimeoutMs": 30000,
+  "maxConnections": 1000,
+  "protocolVersion": 2
+}
+```
+
+<h5>Execute Remotely</h5>
+
+Custom Integration always executes remotely. The option is enabled automatically and cannot be disabled.
+
+The standalone process establishes an outbound gRPC connection to ThingsBoard and can run:
+
+- on the same machine as ThingsBoard;
+- on another server;
+- inside the device LAN;
+- at an edge site close to the data source.
+
+For more information, see <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink>.
+
+<h5>Integration Key and Integration Secret</h5>
+
+ThingsBoard generates an **Integration key** and **Integration secret** for the remote process.
+
+The remote application uses these values to identify and authenticate the integration when connecting to ThingsBoard.
+
+<Aside type="caution">
+  Treat the <strong>Integration secret</strong> as a service credential. Do not commit it to a public repository or hardcode it into application source code. Use environment variables or another secure configuration mechanism in production.
+</Aside>
+
+<h5>Advanced Settings</h5>
+
+| Parameter | Description |
+| --- | --- |
+| **Description** | Optional description of the integration |
+| **Metadata** | Optional key-value pairs available during message conversion |
+
+Use integration metadata for configuration values that should be available to converters but do not belong to the device payload itself.
+
+## Build and Run the Integration Application
+
+The ThingsBoard-side configuration defines the integration and converters, while the custom transport runs in a standalone Java application. The official reference project is available at <a href="https://github.com/thingsboard/remote-integration-example" target="_blank" rel="noopener noreferrer nofollow"><strong>github.com/thingsboard/remote-integration-example</strong></a>. It uses Netty for its sample TCP transport and gRPC for communication with ThingsBoard.
+
+Clone the project:
+
+```bash
+git clone https://github.com/thingsboard/remote-integration-example.git
+cd remote-integration-example
+```
+
+<Aside type="note" title="Tutorial modification">
+  The upstream sample identifies the device during its TCP handshake and generates payloads that contain only sensor values. This tutorial intentionally changes that behavior: <code>deviceName</code> and <code>deviceType</code> are moved into every uplink payload so the uplink converter resolves the complete device identity from the message itself.
+</Aside>
+
+### Update the Sample Client
+
+Open the client emulator:
+
+```text
+nano src/main/java/org/thingsboard/integration/custom/client/CustomClient.java
+```
+
+**1. Simplify the handshake message.** Inside the `init()` method, at the end where the client connects to the server, the emulator sends a handshake that embeds the device name in square brackets. Locate this line:
+
+```java
+// Find (in init(), right after bootstrap.connect(...).sync().channel()):
+clientChannel.writeAndFlush("Hello to ThingsBoard! My name is [Device B]");
+```
+
+Change it so the handshake only opens the session — the device name no longer travels in the handshake:
+
+```java
+// Change to:
+clientChannel.writeAndFlush("Hello to ThingsBoard!");
+```
+
+**2. Put the device identity into every payload.** Near the bottom of the class, the `generateData()` method builds the message the emulator sends on each cycle. Update `generateData()` so the generated payload includes the device name and type before the sensor readings:
+
+```java
+// Change to:
+private String generateData() {
+    int temperature = generateValue(10, 40);
+    int humidity = generateValue(0, 100);
+    int batteryLevel = generateValue(0, 100);
+ 
+    return "SN-12345,thermostat,"
+            + temperature + ","
+            + humidity + ","
+            + batteryLevel;
+}
+```
+
+The generated messages now carry the device identity in every message, with telemetry values changing on each cycle:
+
+```text
+SN-12345,thermostat,25,40,94
+SN-12345,thermostat,19,54,87
+SN-12345,thermostat,31,48,82
+```
+
+### Update the Integration Implementation
+
+Open the integration class:
+
+```text
+nano src/main/java/org/thingsboard/integration/custom/basic/CustomIntegration.java
+```
+
+The upstream sample extracts `deviceName` from the handshake and later overrides the device name returned by the uplink converter. In this tutorial the converter resolves both `deviceName` and `deviceType` from the payload, so three edits are needed.
+
+**1. Add the `StandardCharsets` import.** At the top of the file, in the import block (near the other `java.util` imports), add:
+
+```java
+import java.nio.charset.StandardCharsets;
+```
+
+**2. Stop reading the device name from the handshake.** Inside the `init()` method there is an anonymous Netty handler; find its `channelRead0(...)` method. In the `if (msg.startsWith("Hello to ThingsBoard!"))` branch, the first line parses the device name out of the brackets:
+
+```java
+// Find (inside channelRead0, the handshake branch):
+if (msg.startsWith("Hello to ThingsBoard!")) {
+    deviceName = msg.substring(msg.indexOf("[") + 1, msg.indexOf("]"));
+    ctx.writeAndFlush("Hello from ThingsBoard!");
+    initialized = true;
+} else {
+```
+
+Delete the `deviceName = ...` line so the handshake only initializes the session (leave the `else` branch untouched):
+
+```java
+// Change to:
+if (msg.startsWith("Hello to ThingsBoard!")) {
+    ctx.writeAndFlush("Hello from ThingsBoard!");
+    initialized = true;
+} else {
+```
+
+**3. Pass the raw payload and drop the device-name override.** Find the `doProcess(String msg)` method:
+
+```java
+// Find (the whole doProcess method):
+private String doProcess(String msg) throws Exception {
+    byte[] data = mapper.writeValueAsBytes(msg);
+    Map<String, String> metadataMap = new HashMap<>(metadataTemplate.getKvMap());
+    List<UplinkData> uplinkDataList = convertToUplinkDataList(context, data, new UplinkMetaData(getUplinkContentType(), metadataMap));
+    if (uplinkDataList != null && !uplinkDataList.isEmpty()) {
+        for (UplinkData uplinkData : uplinkDataList) {
+            UplinkData uplinkDataResult = UplinkData.builder()
+                    .deviceName(deviceName)
+                    .deviceType(uplinkData.getDeviceType())
+                    .telemetry(uplinkData.getTelemetry())
+                    .attributesUpdate(uplinkData.getAttributesUpdate())
+                    .customerName(uplinkData.getCustomerName())
+                    .build();
+            processUplinkData(context, uplinkDataResult);
+        }
+        return "OK";
+    }
+    return "No Content";
+}
+```
+
+Make two changes inside it — swap the first line to send raw UTF-8 bytes, and submit the converter's `UplinkData` directly instead of rebuilding it with the handshake `deviceName`:
+
+```java
+// Change to:
+private String doProcess(String msg) throws Exception {
+    byte[] data = msg.getBytes(StandardCharsets.UTF_8);
+    Map<String, String> metadataMap = new HashMap<>(metadataTemplate.getKvMap());
+    List<UplinkData> uplinkDataList = convertToUplinkDataList(context, data, new UplinkMetaData(getUplinkContentType(), metadataMap));
+    if (uplinkDataList != null && !uplinkDataList.isEmpty()) {
+        for (UplinkData uplinkData : uplinkDataList) {
+            processUplinkData(context, uplinkData);
+        }
+        return "OK";
+    }
+    return "No Content";
+}
+```
+
+<Aside type="tip" title="Why swap writeValueAsBytes for getBytes">
+  <code>mapper.writeValueAsBytes(msg)</code> serializes the Java <code>String</code> as a JSON value, which wraps it in double quotes — the converter would receive <code>"SN-12345,thermostat,25,40,94"</code> (with the quotes), so <code>split(',')</code> would yield <code>"SN-12345</code> as the device name. <code>msg.getBytes(StandardCharsets.UTF_8)</code> passes the raw text unchanged, so the decoder reads <code>SN-12345</code> cleanly.
+</Aside>
+
+<Aside type="note">
+  After these edits the <code>deviceName</code> field is no longer assigned or read, so you can remove its declaration to avoid an unused-field warning.
+</Aside>
+
+The resulting processing flow is:
+
+```text
+TCP  ──►  CustomIntegration  ──►  Uplink Converter  ──►  UplinkData  ──►  ThingsBoard
+          (raw UTF-8 bytes)       deviceName = SN-12345
+                                  deviceType = thermostat
+                                  temperature = 25, humidity = 40, batteryLevel = 94
+```
+
+<Aside type="note">
+  This separation is important: the transport implementation is responsible for receiving the protocol message, while the uplink converter determines how that message maps to ThingsBoard entities, telemetry, and attributes. Keeping the field mapping in the converter lets you change telemetry and attribute mappings without rebuilding the remote application.
+</Aside>
+
+### Project Dependencies
+
+The project uses the ThingsBoard Remote Integration API, plus Netty for the sample TCP transport and gRPC for the connection to ThingsBoard:
 
 ```xml
-<!-- API ThingsBoard provides to create custom integration -->
+<!-- API ThingsBoard provides to create a custom integration -->
 <dependency>
     <groupId>org.thingsboard.common.integration</groupId>
     <artifactId>remote-integration-api</artifactId>
     <version>${thingsboard.version}</version>
 </dependency>
-<!-- Netty for TCP client-server implementation -->
+ 
+<!-- Netty for the sample TCP client-server implementation -->
 <dependency>
     <groupId>io.netty</groupId>
     <artifactId>netty-all</artifactId>
     <version>${netty.version}</version>
 </dependency>
-<!-- gRPC transport between remote integration and ThingsBoard -->
+ 
+<!-- gRPC transport between the remote integration and ThingsBoard -->
 <dependency>
     <groupId>io.grpc</groupId>
     <artifactId>grpc-netty</artifactId>
@@ -214,46 +523,382 @@ The sample application is available on GitHub at <a href="https://github.com/thi
 </dependency>
 ```
 
-Clone the repository, then build:
+### Adapt to Your Own Protocol
+
+Your own implementation can replace the TCP-specific transport with whatever library your protocol requires. The integration class extends `AbstractIntegration` and implements three lifecycle methods:
+
+```java
+public class MyCustomIntegration
+        extends AbstractIntegration<MyIntegrationMessage> {
+ 
+    @Override
+    public void init(TbIntegrationInitParams params) throws Exception {
+        super.init(params);
+        // Read the Integration JSON configuration.
+        // Initialize the protocol client or server, open ports/connections.
+    }
+ 
+    @Override
+    public void process(MyIntegrationMessage message) {
+        // Validate the incoming protocol message.
+        // Prepare the raw payload and metadata, apply the uplink converter,
+        // and submit the converted UplinkData to ThingsBoard.
+    }
+ 
+    @Override
+    public void destroy() {
+        // Close connections, stop workers, release network and thread resources.
+    }
+}
+```
+
+Keep protocol parsing and connection management in the Java integration, and keep ThingsBoard field mapping in the data converter. Typical transport choices:
+
+| Protocol or interface | Typical implementation |
+| --- | --- |
+| TCP | Netty or Java NIO |
+| UDP | Netty or Java NIO |
+| WebSocket | WebSocket client/server library |
+| Serial | Serial communication library |
+| Proprietary binary protocol | Custom frame decoder and encoder |
+| Vendor API | Vendor-provided SDK |
+| Custom backend | HTTP, gRPC, or vendor SDK |
+
+### Configure the Remote Process
+
+Configure the standalone application with the **Integration key** and **Integration secret** copied from ThingsBoard, plus the address of your ThingsBoard instance.
+
+The cloned reference project uses `tb-remote-integration.yml`, a configuration file located at:
+
+```text
+nano ~/remote-integration-example/src/main/resources/tb-remote-integration.yml
+```
+
+Open the file and find the `integration`, `rpc`, and `service` blocks. Each value uses the Spring placeholder syntax `"${ENV_VAR:default}"` — the part before the colon is the environment variable name, the part after the colon is the default used when that variable is not set:
+
+```yaml
+integration:
+  routingKey: "${INTEGRATION_ROUTING_KEY:PUT_YOUR_ROUTING_KEY_HERE}"
+  secret: "${INTEGRATION_SECRET:PUT_YOUR_SECRET_HERE}"
+ 
+rpc:
+  host: "${RPC_HOST:thingsboard.cloud}"
+  port: "${RPC_PORT:9090}"
+  timeout: "${RPC_TIMEOUT:5}"
+ 
+service:
+  type: "${TB_SERVICE_TYPE:tb-integration}"
+```
+
+You have two ways to set the values — pick one:
+
+**Option A — edit the defaults in the file.** Replace the text after each colon:
+
+- `PUT_YOUR_ROUTING_KEY_HERE` &#8594; your **Integration key**;
+- `PUT_YOUR_SECRET_HERE` &#8594; your **Integration secret**;
+- `thingsboard.cloud` &#8594; the hostname of your ThingsBoard instance (keep `thingsboard.cloud` if you use ThingsBoard Cloud).
+
+<Aside type="note" title="Rebuild after editing the file">
+  This file is bundled into the JAR at build time. If you edit it and run a packaged JAR, rebuild with <code>mvn clean install</code> first. When you run the project directly from your IDE, the change is picked up without rebuilding.
+</Aside>
+
+**Option B — leave the file unchanged and pass the values as environment variables.** Export them in the same terminal session you launch from, right before the run command in **[Build and Run the Application](#build-and-run-the-application)** — Spring reads them at startup and substitutes them into `${RPC_HOST:…}` and the others. No rebuild is needed: the JAR keeps the placeholders and the values are resolved at runtime.
+
+```bash
+export INTEGRATION_ROUTING_KEY="<integration-key>"
+export INTEGRATION_SECRET="<integration-secret>"
+export RPC_HOST="<thingsboard-host>"   # e.g. thingsboard.cloud
+export RPC_PORT="9090"
+```
+
+<Aside type="note">
+  Use the configuration file and <code>remote-integration-api</code> version from the branch or release that matches your ThingsBoard deployment — configuration property names and runtime requirements may differ between ThingsBoard versions.
+</Aside>
+
+### Build and Run the Application
+
+With the code changes and the configuration in place, build the project — this produces a JAR that already contains both your edits and the connection settings:
 
 ```bash
 mvn clean install
 ```
 
-Before starting the application, set the **Integration Key** and **Integration Secret** (copied from the Connection step) in `tb-remote-integration.yml`:
+The build produces two JARs in the `target/` directory. The **executable** one carries a `tb-` prefix and a `-boot` suffix — for the current reference project (version `3.0.0`) that is `target/tb-remote-integration-example-3.0.0-boot.jar` (~87 MB). The plain `tb-remote-integration-example-3.0.0.jar` (a few KB) is the "thin" JAR without bundled dependencies and will **not** run on its own.
 
-```yaml
-integration:
-  routingKey: "${TB_INTEGRATION_ROUTING_KEY:YOUR_ROUTING_KEY}"
-  secret: "${TB_INTEGRATION_SECRET:YOUR_SECRET}"
+Start it in one of two ways:
 
-thingsboard:
-  host: "${THINGSBOARD_GW_HOST:localhost}"
-  port: "${THINGSBOARD_GW_PORT:9090}"
-```
+<Tabs>
+  <TabItem label="Run the built JAR">
+    From the project root, run the `-boot.jar`:
 
-**How the integration works:**
+    ```bash
+    java -jar target/tb-remote-integration-example-3.0.0-boot.jar
+    ```
 
-<Steps>
-1. The integration starts a TCP server on the configured port.
-2. A built-in client emulator connects and sends `Hello to ThingsBoard!` with the device name.
-3. The server responds with `Hello from ThingsBoard!` and marks the session as initialized.
-4. The emulator starts sending auto-generated comma-separated readings every `msgGenerationIntervalMs` milliseconds.
-5. Each message is passed to the uplink converter, and the resulting telemetry is pushed to ThingsBoard.
-</Steps>
-  
-<Aside type="caution" title="Configuration required for ThingsBoard 3.3.1+">
-  Add the following property to `tb-remote-integration.yml` before starting the integration:
+    Don't guess the filename — list the artifacts and pick the executable one (the largest, ending in `-boot.jar`):
 
-  ```yaml
-  service:
-    type: "${TB_SERVICE_TYPE:tb-integration}"
-  ```
+    ```bash
+    ls -l target/*.jar
+    ```
+
+    Adjust the version if your branch differs (check <code>&#60;version&#62;</code> in `pom.xml`). If you chose **Option B** (environment variables) in the previous step, export them in the same shell before this command.
+
+    <Aside type="caution" title="Two common mistakes">
+      <ul>
+        <li><strong>Wrong directory</strong> — the relative path <code>target/...</code> only works from the project root. Running it from your home directory gives <code>Unable to access jarfile</code>. <code>cd</code> into <code>remote-integration-example</code> first, or use an absolute path.</li>
+        <li><strong>Wrong JAR</strong> — running the small plain JAR (without <code>-boot</code>) fails with <code>no main manifest attribute</code> or <code>NoClassDefFoundError</code>, because it has no bundled dependencies. Always run the <code>-boot.jar</code>.</li>
+      </ul>
+    </Aside>
+
+    To keep it running after you close the terminal, start it as a background process (`nohup java -jar target/tb-remote-integration-example-3.0.0-boot.jar &`) or install it as a system service.
+  </TabItem>
+
+  <TabItem label="Run with Maven">
+    This launches the app in place using the config in `src/main/resources`, which is handy while iterating:
+
+    ```bash
+    mvn spring-boot:run
+    ```
+
+    If you chose <strong>Option B</strong> (environment variables) in the previous step, export them in the same shell before this command.
+  </TabItem>
+</Tabs>
+
+On startup you should see INFO log messages reporting that the process connected to ThingsBoard and received the latest integration configuration. The application keeps running in the foreground — press `Ctrl+C` to stop it.
+
+<Aside type="note" title="Java version">
+  The current reference project (version <code>3.0.0</code>) targets <strong>Java 17</strong>. If you build a branch that matches an older ThingsBoard deployment, use the Java version that branch requires. Verify with <code>java -version</code> before running.
 </Aside>
 
-## See also
+### How the Integration Works
 
-- <DocLink product={props.product} path="user-guide/integrations">Integration Overview</DocLink>
-- <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter">Uplink Converters</DocLink>
-- <DocLink product={props.product} path="user-guide/rule-engine">Rule Engine</DocLink>
-- <DocLink product={props.product} path="user-guide/tbel">ThingsBoard Expression Language (TBEL)</DocLink>
+After the modified sample application starts:
+
+<Steps>
+  1. The remote process connects to ThingsBoard over gRPC using the **Integration key** and **Integration secret**.
+  2. ThingsBoard provides the Custom integration configuration to the remote process.
+  3. `CustomIntegration.init(...)` reads the Integration JSON configuration.
+  4. The application starts a TCP server on the configured `port` (`5555`).
+  5. The built-in client emulator connects and sends `Hello to ThingsBoard!`.
+  6. The server replies with `Hello from ThingsBoard!` and marks the session as initialized.
+  7. The emulator generates a payload every `msgGenerationIntervalMs` milliseconds — each one includes the device identity and sensor values, for example `SN-12345,thermostat,25,40,94`.
+  8. The integration passes the raw UTF-8 payload to the configured uplink converter.
+  9. The converter extracts `deviceName` (`SN-12345`), `deviceType` (`thermostat`), `temperature`, `humidity`, and `batteryLevel`.
+  10. The resulting `UplinkData` is submitted to ThingsBoard.
+  11. If the device does not exist and **Allow create devices or assets** is enabled, ThingsBoard creates it automatically.
+</Steps>
+
+```text
+Built-in client emulator
+        |  Hello to ThingsBoard!
+        v
+Custom Integration ── Hello from ThingsBoard! ──► session initialized
+        |  SN-12345,thermostat,25,40,94
+        v
+Uplink Converter
+        +-- deviceName: SN-12345
+        +-- deviceType: thermostat
+        +-- telemetry: temperature 25, humidity 40, batteryLevel 94
+        |
+        v  gRPC
+   ThingsBoard
+```
+
+## Test Uplink
+
+After the integration and converter are configured and the remote application is running, confirm that ThingsBoard receives, decodes, and stores the data correctly.
+
+<Aside type="note">
+  Before testing, ensure that **Debug** mode with the **All messages** option is enabled for both the integration and the converter. This lets you inspect received messages and conversion results on the corresponding **Events** tabs.
+</Aside>
+
+### Send Test Uplink
+
+As soon as the remote process starts, its built-in client emulator opens a TCP connection, completes the `Hello to ThingsBoard!` handshake, and then sends an uplink every `msgGenerationIntervalMs` milliseconds (5 seconds by default). Each message carries the device identity followed by freshly generated readings, for example:
+
+```text
+SN-12345,thermostat,40,24,93
+```
+
+Within a few seconds ThingsBoard provisions the device `SN-12345` and telemetry begins to flow — see **[Verify Device Provisioning](#verify-device-provisioning)**. Because the emulator generates the readings randomly, the values change on every cycle.
+
+<Aside type="tip" title="Sending a specific payload (optional)">
+  To push a controlled value — or to test from a real device instead of the emulator — open a TCP connection to the integration port and send the payload yourself. While the emulator is running the session is already initialized, so send just the data line on its own connection. Replace `$INTEGRATION_HOST` with the machine running the integration (`localhost` if `nc` runs there) and `5555` with your configured `port`:
+  ```bash
+  printf 'SN-12345,thermostat,25,40,94' | nc $INTEGRATION_HOST 5555
+  ```
+
+  This payload decodes to device `SN-12345` of type `thermostat`, with `temperature = 25`, `humidity = 40`, and `batteryLevel = 94`. The trailing `\n` matters — without it the line is never framed and nothing is processed.
+</Aside>
+
+### Verify Integration Events
+
+Go to **Integrations center &#8702; Integrations**, open the Custom integration, and click the **Events** tab. With **Event type** set to **Debug**, a row appears with **Type: Uplink** and **Status: OK**.
+Click **…** in the **Message** column to inspect the raw payload received by the integration.
+
+### Verify Converter Events
+
+Go to **Integrations center &#8702; Data converters**, open the uplink converter you configured for this integration, and click its **Events** tab.
+Click **…** in each column to inspect:
+- **In** — the raw payload received by the converter.
+- **Out** — the decoded result produced by the script: `deviceName`, `deviceType`, and `telemetry` (`temperature`, `humidity`, `batteryLevel`).
+- **Metadata** — integration-level context, including `integrationName`.
+
+### Verify Device Provisioning
+
+Go to **Entities &#8702; Devices**. ThingsBoard automatically provisions a new device named after the payload serial number (`SN-12345`) on the first uplink, provided **Allow create devices or assets** is enabled. Open the device and check:
+- **Latest telemetry** — `temperature`, `humidity`, and `batteryLevel` decoded by the script.
+
+Expected result: the device appears in **Entities &#8702; Devices** within seconds of the uplink, with telemetry refresh on every emulator cycle (or matching the values in your payload).
+
+## Configure Downlink
+
+To send messages from ThingsBoard back to a device, create a downlink converter, assign it to the integration, and add an **Integration Downlink** node to the Root Rule Chain. For the full encoder reference, see <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink data converter</DocLink>.
+
+### Create and Assign the Downlink Converter
+
+Data converters translate between ThingsBoard's data model and your device's message format. The **uplink converter** (configured above) decodes incoming device payloads into telemetry and attributes; the **downlink converter** does the reverse — it encodes an outgoing Rule Engine message into the payload your integration expects.
+
+<Steps>
+  1. Go to **Integrations center &#8702; Integrations** and open the **Custom integration**.
+  2. Click the **pencil** icon to enter edit mode.
+  3. In the **Downlink data converter** field, click **Create new**.
+  4. In the **Add data converter** dialog:
+      - Enter a name for the converter, for example, `Custom Downlink Converter`.
+      - Use the default encoder script or replace it with your own implementation.
+      - Click **Add**.
+  5. Click **Apply changes** to save the integration.
+</Steps>
+
+The encoder function receives four parameters:
+
+| Parameter | Description |
+|---|---|
+| `msg` | the Rule Engine message payload; for an RPC this holds `method` and `params` |
+| `msgType` | Message type, e.g. `ATTRIBUTES_UPDATED`, `POST_TELEMETRY_REQUEST`; here `RPC_CALL_FROM_SERVER_TO_DEVICE` |
+| `metadata` | Key-value pairs with additional data about the message, including `deviceName` |
+| `integrationMetadata` | key-value pairs configured on the integration |
+
+When an RPC widget or the REST API issues a command, ThingsBoard generates a `RPC_CALL_FROM_SERVER_TO_DEVICE` message whose `data` carries the RPC `method` and `params`. The encoder below builds the device command from them. The same script runs in both <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL</DocLink> and JavaScript.
+
+**The encoder function used in this tutorial:**
+
+```js maxLines=15 collapsible
+/** Encoder **/
+// Encode the server-side RPC command into the payload your device expects.
+// msg.method / msg.params carry the RPC command issued from ThingsBoard.
+// msgType is 'RPC_CALL_FROM_SERVER_TO_DEVICE'.
+// metadata includes deviceName, requestId, expirationTime, oneway.
+ 
+var result = {
+    // Response body format: JSON, TEXT, or BINARY.
+    contentType: "JSON",
+    // Build the device command from the RPC method and params.
+    data: JSON.stringify({
+        method: msg.method,
+        params: msg.params
+    }),
+    // Optional routing hints for the integration.
+    metadata: {}
+};
+ 
+// Return the encoded downlink message.
+return result;
+```
+
+**To adapt this encoder to your use case:**
+
+- **`data`** — shape the payload exactly as your device expects. Read `msg.method` and `msg.params` and build a string, hex, or object; use `TEXT` or `BINARY` `contentType` for non-JSON protocols.
+- **`metadata`** — populate it with routing hints your integration needs to deliver the command (target device ID, address, or topic). Values reach your Java code as message metadata; `metadata.deviceName` identifies the originating device.
+- **`msgType`** — branch on the type if the same converter must also handle other triggers.
+- **`integrationMetadata`** — read values defined under the integration's **Metadata** advanced setting when the command must be parameterized per integration.
+
+### Configure the Root Rule Chain
+
+To trigger a downlink, route the RPC message to an <DocLink product={props.product} path="reference/rule-engine/nodes/action/integration-downlink" target="_blank">Integration Downlink</DocLink> node (Action category) of the Root Rule Chain. The node forwards the message to the Custom integration, where the downlink converter encodes it.
+
+<Aside type="note" title="Passing device identity to the integration">
+  The default encoder forwards the message as-is with empty <code>metadata</code>. If your integration needs the device identity (or other routing data) to deliver the command, add an <strong>Originator attributes</strong> node (Enrichment category) before the <strong>Integration Downlink</strong> node to inject the required device attributes into message metadata, and read them in a customized encoder.
+</Aside>
+
+<Steps>
+  <ol>
+    <li>Open <strong>Rule Chains &#8702; Root Rule Chain</strong>.</li>
+    <li>In the node panel, search for <strong>integration downlink</strong>. The node appears under the <strong>Action</strong> category. Drag it onto the canvas.</li>
+    <li>
+      <span><strong>Configure the node:</strong></span>
+      <ul>
+        <li><strong>Name</strong> — <code>RPC to device</code>.</li>
+        <li><strong>Integration</strong> — select your <strong>Custom integration</strong>.</li>
+        <li>Click <strong>Add</strong>.</li>
+      </ul>
+    </li>
+    <li>Connect the <strong>Message Type Switch</strong> node to the <strong>RPC to device</strong> node using the <strong>RPC Request to Device</strong> relation.</li>
+    <li>Click <strong>Apply changes</strong>.</li>
+  </ol>
+</Steps>
+
+### Test Downlink
+
+Trigger a downlink with an RPC control widget on a dashboard, or — for a quick check without a dashboard — a one-way RPC through the REST API. Either way, ThingsBoard generates a `RPC_CALL_FROM_SERVER_TO_DEVICE` message, routes it through **RPC to device**, and the converter encodes it.
+
+<Tabs>
+  <TabItem label="Dashboard widget">
+    Create a control widget that sends `on` and `off` via the `setState` RPC method:
+
+    <Steps>
+      1. Open a dashboard, click **Edit mode**, then click **+ Add widget**.
+      2. In the **Control widgets** bundle, select **Switch Control**.
+      3. On the **Data** tab, set **Target device** to **Device** and select the provisioned **SN-12345** device.
+      4. Open the **Appearance** tab.
+      5. Set **Retrieve value using method** to **Don't retrieve**.
+      6. Set **RPC set value method** to `setState`.
+      7. Paste the following into the **Convert value function** field, then click **Add**:
+          ```js
+          return value ? "on" : "off";
+          ```
+      8. Save the dashboard and exit edit mode, then toggle the control.
+    </Steps>
+  </TabItem>
+
+  <TabItem label="REST API (curl)">
+    A one-way RPC expects no device response, so it won't wait or time out — ideal for confirming the downlink path without a dashboard. Replace `$YOUR_TB_HOST` with your ThingsBoard host (e.g. `thingsboard.cloud`), `$JWT` with your bearer token, and `$DEVICE_ID` with the device's ID (copy it from the device details):
+
+    ```bash
+    curl -X POST "https://$YOUR_TB_HOST/api/plugins/rpc/oneway/$DEVICE_ID" \
+      -H "X-Authorization: Bearer $JWT" \
+      -H "Content-Type: application/json" \
+      -d '{"method":"setState","params":{"value":true}}'
+    ```
+  </TabItem>
+</Tabs>
+
+### Verify the Downlink
+
+A **Downlink** row with **Status: OK** on the integration's **Events** tab, and the encoded `{method, params}` in the **Out** column of the **Custom Downlink Converter**'s **Events** tab (**In** shows the RPC message and its metadata).
+
+<Aside type="note" title="Actually delivering the command (and two-way RPC)">
+  The sample integration does not send downlinks to the device — it only implements the uplink path. To deliver the encoded command, override the downlink handling in your Java integration (take the <code>DownlinkData</code> the converter produced and write it to the device over your transport). For a <strong>two-way</strong> RPC, also return the device's reply to ThingsBoard so the call resolves before it times out; a <strong>one-way</strong> RPC (as above) needs no reply.
+</Aside> 
+
+## Troubleshooting
+
+| Issue | Likely cause | Resolution |
+| --- | --- | --- |
+| Remote integration won't connect | Wrong Integration key/secret, or ThingsBoard gRPC host/port unreachable | Verify `routingKey`/`secret` in `tb-remote-integration.yml` match the Connection step, and that the configured `rpc.host:rpc.port` (or `RPC_HOST:RPC_PORT`, port `9090` by default) is reachable from the integration host. |
+| Connection drops right after startup | Version mismatch, or the `service.type` property is missing on ThingsBoard 3.3.1+ | Add `service.type: tb-integration` to the configuration and confirm the integration build matches your ThingsBoard version. |
+| No device created after uplink | **Allow create devices or assets** is disabled, or the message never reached the integration | Enable device creation on the integration; confirm the device can reach the integration's transport port and that the integration log shows the incoming message. |
+| Uplink received but no telemetry | Converter error, or the payload does not match the decoder | Enable **Debug mode** and check the converter **Events** tab; verify the field order and delimiter with the **Test decoder function** button. |
+| Telemetry values look wrong | Parsing, indexes, or scaling do not match the payload layout | Adjust the array indexes and numeric conversion in the decoder to match your payload. |
+| DNS errors in the log (`cannot unmarshal DNS message`) | Host DNS resolver issue | Configure the host to use Google public DNS servers. |
+| Downlink never delivered | No downlink converter assigned, the Integration Downlink node is not wired, or your integration's `doProcess` does not deliver commands | Assign the downlink converter, wire the Root Rule Chain nodes, and confirm your Java integration sends the encoded payload to the device. |
+
+## See Also
+
+- <DocLink product={props.product} path="user-guide/integrations" target="_blank">Integrations overview</DocLink> — integration events, debug, and Remote Integration setup.
+- <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">Uplink data converter</DocLink> — full decoder reference: input parameters, output fields, and scripting patterns.
+- <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink data converter</DocLink> — full encoder reference and testing.
+- <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink> — run the integration as a standalone process outside the ThingsBoard server.
+- <DocLink product={props.product} path="user-guide/rule-engine" target="_blank">Rule Engine</DocLink> — how uplink messages are processed after the converter.
+- <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL</DocLink> — the recommended converter scripting language.
+- <a href="https://github.com/thingsboard/remote-integration-example" target="_blank" rel="noopener noreferrer nofollow">thingsboard/remote-integration-example</a> — the sample custom integration application.

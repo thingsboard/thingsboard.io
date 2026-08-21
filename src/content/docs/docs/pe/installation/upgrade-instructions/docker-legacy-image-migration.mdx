@@ -1,0 +1,152 @@
+---
+title: Migrating from the legacy all-in-one tb-pe image
+description: "How to move a ThingsBoard PE Docker deployment from the legacy all-in-one tb-pe image to the tb-pe-node + tb-pe-web-report layout before upgrading."
+sidebar:
+  label: "Legacy tb-pe image"
+tableOfContents: false
+---
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+Older ThingsBoard PE Docker deployments run a single all-in-one container image (`thingsboard/tb-pe`) that bundles the core platform and the report engine together. Current installations and the version upgrade steps assume the split layout — `thingsboard/tb-pe-node` (core platform) and `thingsboard/tb-pe-web-report` (report engine) as two separate services.
+
+## Who needs this guide
+
+`thingsboard/tb-pe` was published up to `4.2.1PE` (2025-10-14) and stopped there, while `thingsboard/tb-pe-node` continued through `4.2.1.1PE`, `4.2.2.x`, and all of `4.3.x`. You need this guide if your `docker-compose.yml` still references `thingsboard/tb-pe:<current-tag>` as a single service, with no separate report container:
+
+<details>
+<summary>Full example of the old docker-compose.yml</summary>
+
+```yaml
+services:
+  mytbpe:
+    restart: always
+    image: "thingsboard/tb-pe:4.2.0PE"
+    ports:
+      - "8080:8080"
+      - "1883:1883"
+      - "8883:8883"
+    environment:
+      TB_QUEUE_TYPE: in-memory
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/thingsboard
+      TB_LICENSE_SECRET: PUT_YOUR_LICENSE_SECRET_HERE
+      TB_LICENSE_INSTANCE_DATA_FILE: /data/license.data
+    volumes:
+      - /path/to/thingsboard/.mytbpe-data:/data
+      - /path/to/thingsboard/.mytbpe-logs:/var/log/thingsboard
+  postgres:
+    restart: always
+    image: "postgres:15"
+    ports:
+      - "5432"
+    environment:
+      POSTGRES_DB: thingsboard
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - /path/to/thingsboard/.mytbpe-data/db:/var/lib/postgresql/data
+```
+
+</details>
+
+Switch to the split layout **before** starting any version upgrade — the per-version steps don't apply to the all-in-one image as-is.
+
+<Aside type="note">
+Keep your existing volume or bind-mount declarations unchanged when you switch the image below — that carries over both your database connection and your `/data` mount (which holds your license file), so no data copying is required. If you'd also like to move from local folder bind mounts to Docker named volumes at the same time, see the optional section at the end of this page.
+</Aside>
+
+<Aside type="caution">
+This is a production system change. If possible, test the container-layout switch against a copy of your database first to confirm the swap is clean before touching the live instance.
+</Aside>
+
+<Steps>
+
+1. Note your current PE version tag (the tag after `thingsboard/tb-pe:`) — you'll reuse it for both new services below without changing the version yet.
+
+2. Change your existing service's image from `thingsboard/tb-pe:<current-tag>` to `thingsboard/tb-pe-node:<current-tag>`.
+
+3. Add `REPORTS_SERVER_ENDPOINT_URL: http://tb-web-report:8383` to that service's `environment:` block. Keep all your other existing environment variables (license, MQTT/CoAP/LWM2M settings, etc.) unchanged.
+
+4. Add a new `tb-web-report` service under `services:`. This is the minimum working definition — the reference compose file in the Docker installation guide additionally sets logging and report timeout options you can copy across if you want to match it exactly:
+
+   ```yaml
+   tb-web-report:
+     restart: always
+     image: "thingsboard/tb-pe-web-report:<current-tag>"
+     depends_on:
+       - <your-thingsboard-service-name>
+     environment:
+       HTTP_BIND_ADDRESS: 0.0.0.0
+       HTTP_BIND_PORT: 8383
+       DOCKER_MODE: true
+   ```
+
+   <Aside type="note">
+   Port 8383 is called only by the ThingsBoard node container over the Docker Compose network — it does not need to be published to a host port or reachable from a public IP.
+   </Aside>
+
+5. Pull the new images and restart:
+
+   ```bash
+   docker pull thingsboard/tb-pe-node:<current-tag>
+   docker pull thingsboard/tb-pe-web-report:<current-tag>
+   docker compose up -d
+   ```
+
+6. Confirm the platform comes up cleanly on your current version with the new two-container layout — same data, same license, same dashboards and devices — before proceeding to the version upgrade steps.
+
+   <Aside type="note">
+   The version-upgrade commands on the Docker upgrade instructions page (`docker compose stop thingsboard-pe`, `docker compose run --rm -e UPGRADE_TB=true thingsboard-pe`) assume a service named `thingsboard-pe`. Substitute your own service name (`<your-thingsboard-service-name>` above) when you run them.
+   </Aside>
+
+</Steps>
+
+## Optional: moving from local folder bind mounts to Docker named volumes
+
+The steps above only require touching the image and adding the report service — your existing volumes stay as-is. If you'd also like to match the current reference compose file's use of Docker named volumes instead of local folder bind mounts, do this as a **separate step**, after confirming the image-split switch works:
+
+<Aside type="caution">
+If you're also changing the PostgreSQL image's major version as part of adopting the reference compose file, treat that as its own maintenance task with a proper backup/restore or `pg_upgrade` procedure — don't bundle a Postgres major-version bump into this migration.
+</Aside>
+
+<Steps>
+
+1. Stop the stack before copying any data — copying a live PostgreSQL data directory can produce a corrupt snapshot:
+
+   ```bash
+   docker compose stop
+   ```
+
+2. Create named volumes for your database and license data:
+
+   ```bash
+   docker volume create --name tb-postgres-data
+   docker volume create --name tb-pe-license-data
+   ```
+
+3. Copy your existing bind-mounted data into the new volumes (adjust the source paths to match your current `docker-compose.yml`; `799` is the user ID of the ThingsBoard non-root Docker user):
+
+   ```bash
+   docker run --rm -v /path/to/thingsboard/.mytbpe-data/db:/source -v tb-postgres-data:/destination alpine sh -c "cp -a /source/. /destination/"
+   docker run --rm -v /path/to/thingsboard/.mytbpe-data:/source -v tb-pe-license-data:/destination alpine sh -c "cp -a /source/license.data /destination/ && chown 799:799 /destination/license.data"
+   ```
+
+   Your `/var/log/thingsboard` (or `.mytbpe-logs`) bind mount doesn't need this treatment — leave it as a local folder mount, or drop it entirely and rely on the Docker logging driver, as the reference compose file does.
+
+4. Update your `docker-compose.yml`: reference the named volumes on the services (`postgres-data:/var/lib/postgresql/data` on postgres, `license-data:/data` on the ThingsBoard node), and declare them at the top level with pinned names so Compose reuses the volumes created above instead of creating new project-prefixed ones:
+
+   ```yaml
+   volumes:
+     postgres-data:
+       name: tb-postgres-data
+       driver: local
+     license-data:
+       name: tb-pe-license-data
+       driver: local
+   ```
+
+5. Restart:
+
+   ```bash
+   docker compose up -d
+   ```
+
+</Steps>

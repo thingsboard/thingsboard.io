@@ -439,6 +439,7 @@ const installationItems = (prefix: string) => {
 						items: [
 							`${prefix}/installation/upgrade-instructions`,
 							`${prefix}/installation/upgrade-from-ce`,
+							`${prefix}/installation/upgrade-instructions/docker-legacy-image-migration`,
 						],
 					},
 				]
