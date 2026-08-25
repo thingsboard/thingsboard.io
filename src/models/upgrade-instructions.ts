@@ -71,6 +71,23 @@ export function getUpgradeStepVersions(family?: string): UpgradeVersion[] {
  */
 export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 	{
+		version: '4.3.1.4',
+		displayVersion: '4.3.1.4',
+		family: '4.3',
+		baseVersion: '4.3.1',
+		releaseDate: 'Aug 27 2026',
+		upgradableFrom: '4.2.1.x',
+		patchableFrom: '4.3.x',
+		prevVersionAnchor: 'v4-3-0-1',
+		lts: true,
+		patch: true,
+		x: true,
+		upgrade: true,
+		manualVersionUpgrade: false,
+		windowsZip: true,
+		anchor: 'v4-3-1-4',
+	},
+	{
 		version: '4.3.1.3',
 		displayVersion: '4.3.1.3',
 		family: '4.3',
@@ -86,6 +103,7 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 		manualVersionUpgrade: false,
 		windowsZip: true,
 		anchor: 'v4-3-1-3',
+		vulnerable: true,
 	},
 	{
 		version: '4.3.1.2',
@@ -159,6 +177,22 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 		vulnerable: true,
 	},
 	{
+		version: '4.2.2.4',
+		displayVersion: '4.2.2.4',
+		family: '4.2',
+		baseVersion: '4.2.2',
+		releaseDate: 'Aug 27 2026',
+		upgradableFrom: '4.2.0',
+		prevVersionAnchor: 'v4-2-1-2',
+		lts: true,
+		patch: true,
+		x: true,
+		upgrade: true,
+		manualVersionUpgrade: false,
+		windowsZip: true,
+		anchor: 'v4-2-2-4',
+	},
+	{
 		version: '4.2.2.3',
 		displayVersion: '4.2.2.3',
 		family: '4.2',
@@ -173,6 +207,7 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 		manualVersionUpgrade: false,
 		windowsZip: true,
 		anchor: 'v4-2-2-3',
+		vulnerable: true,
 	},
 	{
 		version: '4.2.2.2',
