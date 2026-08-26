@@ -11,9 +11,9 @@ export interface DataTableColumn {
 	 * containing a percentage is silently dropped on `<col>`.
 	 */
 	width?: string;
-	/** Class on the `<col>`, for skins that key widths or column paint off it. */
+	/** Class on the `<col>`, for callers that key widths or column paint off it. */
 	colClass?: string;
-	/** Class on the `<th scope="col">`, e.g. to neutralise an inherited `thead th` skin. */
+	/** Class on the `<th scope="col">`, e.g. to neutralise an inherited `thead th` rule. */
 	thClass?: string;
 	/** Inline declarations on the `<th scope="col">`, e.g. per-column custom properties. */
 	thStyle?: string;
