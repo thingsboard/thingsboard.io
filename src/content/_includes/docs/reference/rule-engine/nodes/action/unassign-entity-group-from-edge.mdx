@@ -1,0 +1,135 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="note">
+  This node requires **ThingsBoard PE** or **ThingsBoard Cloud**.
+</Aside>
+
+Use this node on a cloud instance to remove entity groups from an edge from a rule chain — for example, revoking a site's dashboards and operators when the site is decommissioned, or narrowing what an edge receives after a change of ownership. Group type and group name both support <DocLink product={props.product} path="reference/rule-engine/templatization">templatization</DocLink>.
+
+<Aside type="caution">
+  Unassigning a group is destructive on the edge side: once the group is removed, the edge deletes the group and the entities it contained from its local database. Data already reported by those entities to the cloud is unaffected.
+</Aside>
+
+## Configuration
+
+- **Edge** — required. How the target edge is resolved:
+  - **Message originator** — the originator must be an `EDGE` entity. Any other originator type routes via `Failure`.
+  - **Edge name pattern** — resolves the edge by name within the tenant. Required when this option is selected. Supports templatization, so the edge can be named by the message itself.
+- **Entity groups** — required, at least one row. Each row is a group type and a group name:
+  - **Group type** — one of `Device`, `Asset`, `Entity View`, `Dashboard`, `User`. These are the only group types an edge can synchronise.
+  - **Group name** — name of the group to unassign. Matching is case-sensitive.
+  - Both fields support templatization.
+
+This node never creates entity groups. A group that cannot be resolved routes via `Failure`, since that is indistinguishable from a misconfigured name.
+
+<Aside type="note">
+  The platform-managed `All` and `[Edge] … All` groups cannot be unassigned. They are rejected when the node is saved, and again at runtime if a pattern resolves to one.
+</Aside>
+
+## Usage
+
+The edge resolution modes, the guarding patterns, and the message-rate considerations are the same as for <DocLink product={props.product} path="reference/rule-engine/nodes/action/assign-entity-group-to-edge">assign entity group to edge</DocLink>.
+
+One difference matters when wiring this node: unassigning is destructive on the edge side, so a pattern that resolves to an unintended group name removes real data from that edge's local database. Guard the node with a <DocLink product={props.product} path="reference/rule-engine/nodes/filter/check-fields-presence">check fields presence</DocLink> node, connect the `Failure` output, and prefer literal group names over patterns unless the chain genuinely needs them.
+
+## Message processing algorithm
+
+1. Resolve the target edge, either from the message originator or from the edge name pattern.
+2. For each configured row, resolve the group type and the group name from message data and metadata.
+3. Look the group up by type and name, starting at the edge's owner and walking up the ownership hierarchy to the tenant.
+4. Deduplicate the resolved groups by id, so two patterns that resolve to the same group produce a single unassignment.
+5. Check each resolved group against the edge. Groups that are not currently assigned are skipped.
+6. Unassign the remaining groups in configured row order.
+7. Route the unchanged message via `Success`.
+
+Every row is resolved before anything is unassigned, so a misconfigured row is caught before the first write.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Every configured group is unassigned from the edge, or was not assigned to begin with. |
+| `Failure` | Originator is not an `EDGE` entity, the edge was not found, a pattern resolved to an empty or unsupported value, a group was not found, a reserved group name was used, or an unexpected error. |
+
+## Examples
+
+### Example 1 — Unassign a device group from the originating edge
+
+**Originator**: an `EDGE` entity.
+
+```json maxLines=20 collapsible
+{
+  "edgeSource": "MESSAGE_ORIGINATOR",
+  "edgeNamePattern": null,
+  "entityGroups": [
+    { "groupType": "DEVICE", "groupName": "Site Devices" }
+  ]
+}
+```
+
+**State**: `Site Devices` is currently assigned to the edge. **Result**: the group is unassigned; the edge removes the group and its devices locally.
+
+---
+
+### Example 2 — Decommission a site across group types
+
+```json maxLines=20 collapsible
+{
+  "edgeSource": "EDGE_NAME_PATTERN",
+  "edgeNamePattern": "${siteEdge}",
+  "entityGroups": [
+    { "groupType": "DASHBOARD", "groupName": "Site Dashboards" },
+    { "groupType": "USER", "groupName": "Site Operators" }
+  ]
+}
+```
+
+**Metadata**: `{ "siteEdge": "Warehouse edge" }`
+
+**Result**: both groups are unassigned from `Warehouse edge`, in the order listed.
+
+---
+
+### Example 3 — Group already unassigned
+
+```json maxLines=20 collapsible
+{
+  "edgeSource": "MESSAGE_ORIGINATOR",
+  "edgeNamePattern": null,
+  "entityGroups": [
+    { "groupType": "DEVICE", "groupName": "Site Devices" }
+  ]
+}
+```
+
+**State**: `Site Devices` exists but is not assigned to the edge. **Result**: nothing is written, no edge event is produced, and the message is routed via `Success`. Re-running the same chain is safe.
+
+## JSON schema
+
+```json maxLines=25 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbUnassignEntityGroupFromEdgeNodeConfiguration",
+  "type": "object",
+  "required": ["edgeSource", "entityGroups"],
+  "additionalProperties": false,
+  "properties": {
+    "edgeSource": { "enum": ["MESSAGE_ORIGINATOR", "EDGE_NAME_PATTERN"] },
+    "edgeNamePattern": { "type": ["string", "null"] },
+    "entityGroups": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["groupType", "groupName"],
+        "additionalProperties": false,
+        "properties": {
+          "groupType": { "type": "string" },
+          "groupName": { "type": "string" }
+        }
+      }
+    }
+  }
+}
+```
