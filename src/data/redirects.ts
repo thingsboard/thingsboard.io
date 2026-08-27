@@ -15,6 +15,10 @@
  *   SINGLE         — one page moved to a different path
  *   GONE           — page removed, redirect to fallback
  */
+// TBMQ origin and docs-URL helper live in src/models/tbmq.ts (single source of
+// truth, DNS-cutover note included). Relative import on purpose: node scripts
+// import this file directly and cannot resolve the `@models` alias.
+import { TBMQ_ORIGIN, tbmqDocsUrl } from '../models/tbmq.ts';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -146,17 +150,6 @@ export const CATCH_ALL_REDIRECTS: CatchAllRedirect[] = [
 		newPrefix: 'iot-gateway/installation',
 		entries: [], // PREFIX_RENAME — splat rule in _redirects; rpi/windows overrides in SINGLE_REDIRECTS
 	},
-	// TBMQ install: mqtt-broker/install/* → mqtt-broker/installation/*
-	{
-		oldPrefix: 'mqtt-broker/install',
-		newPrefix: 'mqtt-broker/installation',
-		entries: [], // PREFIX_RENAME — splat rule in _redirects
-	},
-	{
-		oldPrefix: 'mqtt-broker/pe/install',
-		newPrefix: 'mqtt-broker/pe/installation',
-		entries: [],
-	},
 	// Trendz install: trendz/install/* → trendz/installation/*
 	{
 		oldPrefix: 'trendz/install',
@@ -179,10 +172,9 @@ export const CATCH_ALL_REDIRECTS: CatchAllRedirect[] = [
 		excludeSlugs: ['user-guide/cli', 'reference/java-client', 'reference/python-client'],
 	},
 	{ oldPrefix: 'pe/mobile', newPrefix: 'mobile/pe', entries: [] },
-	// TBMQ PE Jekyll URLs — must come before `pe/mqtt-broker` so install/* maps directly
-	// to mqtt-broker/pe/installation/* (Cloudflare doesn't chain redirects)
-	{ oldPrefix: 'pe/mqtt-broker/install', newPrefix: 'mqtt-broker/pe/installation', entries: [] },
-	{ oldPrefix: 'pe/mqtt-broker', newPrefix: 'mqtt-broker/pe', entries: [] },
+	// TBMQ prefixes (mqtt-broker/install, mqtt-broker/pe/install, pe/mqtt-broker/…)
+	// are cross-origin now — `newPrefix` can only express a local prefix, so they
+	// live in the TBMQ cutover group of DYNAMIC_REDIRECTS below.
 	{
 		oldPrefix: 'user-guide/install/upgrade-instructions',
 		entries: buildUpgradeRedirectEntries('installation/upgrade-instructions'),
@@ -1119,33 +1111,33 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'samples/analytics/ollama/nginx', target: '/docs/user-guide/local-ai-ollama/' },
 	{ oldPath: 'samples/analytics/spark-integration-with-thingsboard', target: '/docs/user-guide/ai-models/' },
 	// TBMQ CE redirects
-	{ oldPath: 'mqtt-broker/api', target: '/docs/mqtt-broker/rest-api/' },
-	{ oldPath: 'mqtt-broker/faq', target: '/docs/mqtt-broker/why-tbmq/' },
-	{ oldPath: 'mqtt-broker/getting-started-guides/what-is-thingsboard-mqtt-broker', target: '/docs/mqtt-broker/why-tbmq/' },
-	{ oldPath: 'mqtt-broker/image-gallery', target: '/docs/mqtt-broker/pe/image-gallery/' },
-	{ oldPath: 'mqtt-broker/install/cluster/helm-cluster-setup-options', target: '/docs/mqtt-broker/installation/' },
-	{ oldPath: 'mqtt-broker/install/installation-options', target: '/docs/mqtt-broker/installation/' },
-	{ oldPath: 'mqtt-broker/install/cluster/helm-cluster-upgrading-options', target: '/docs/mqtt-broker/installation/upgrade-instructions/' },
-	{ oldPath: 'mqtt-broker/install/cluster/resources/upgrade-options/docker-compose-upgrade-tbmq-with-from-version', target: '/docs/mqtt-broker/installation/upgrade-instructions/' },
-	{ oldPath: 'mqtt-broker/install/cluster/resources/upgrade-options/docker-compose-upgrade-tbmq-without-from-version', target: '/docs/mqtt-broker/installation/upgrade-instructions/' },
-	{ oldPath: 'mqtt-broker/install/cluster/resources/upgrade-options/k8s-upgrade-tbmq-with-from-version', target: '/docs/mqtt-broker/installation/upgrade-instructions/' },
-	{ oldPath: 'mqtt-broker/subscription', target: '/docs/mqtt-broker/pe/subscription/' },
-	{ oldPath: 'mqtt-broker/troubleshooting', target: '/docs/mqtt-broker/help/' },
-	{ oldPath: 'mqtt-broker/user-guide/ui/mail-server', target: '/docs/mqtt-broker/user-guide/ui/settings/' },
-	{ oldPath: 'mqtt-broker/white-labeling', target: '/docs/mqtt-broker/pe/white-labeling/' },
+	{ oldPath: 'mqtt-broker/api', target: tbmqDocsUrl('rest-api/') },
+	{ oldPath: 'mqtt-broker/faq', target: tbmqDocsUrl('why-tbmq/') },
+	{ oldPath: 'mqtt-broker/getting-started-guides/what-is-thingsboard-mqtt-broker', target: tbmqDocsUrl('why-tbmq/') },
+	{ oldPath: 'mqtt-broker/image-gallery', target: tbmqDocsUrl('pe/image-gallery/') },
+	{ oldPath: 'mqtt-broker/install/cluster/helm-cluster-setup-options', target: tbmqDocsUrl('installation/') },
+	{ oldPath: 'mqtt-broker/install/installation-options', target: tbmqDocsUrl('installation/') },
+	{ oldPath: 'mqtt-broker/install/cluster/helm-cluster-upgrading-options', target: tbmqDocsUrl('installation/upgrade-instructions/') },
+	{ oldPath: 'mqtt-broker/install/cluster/resources/upgrade-options/docker-compose-upgrade-tbmq-with-from-version', target: tbmqDocsUrl('installation/upgrade-instructions/') },
+	{ oldPath: 'mqtt-broker/install/cluster/resources/upgrade-options/docker-compose-upgrade-tbmq-without-from-version', target: tbmqDocsUrl('installation/upgrade-instructions/') },
+	{ oldPath: 'mqtt-broker/install/cluster/resources/upgrade-options/k8s-upgrade-tbmq-with-from-version', target: tbmqDocsUrl('installation/upgrade-instructions/') },
+	{ oldPath: 'mqtt-broker/subscription', target: tbmqDocsUrl('pe/subscription/') },
+	{ oldPath: 'mqtt-broker/troubleshooting', target: tbmqDocsUrl('help/') },
+	{ oldPath: 'mqtt-broker/user-guide/ui/mail-server', target: tbmqDocsUrl('user-guide/ui/settings/') },
+	{ oldPath: 'mqtt-broker/white-labeling', target: tbmqDocsUrl('pe/white-labeling/') },
 	// TBMQ PE redirects
-	{ oldPath: 'pe/mqtt-broker/api', target: '/docs/mqtt-broker/pe/rest-api/' },
-	{ oldPath: 'pe/mqtt-broker/faq', target: '/docs/mqtt-broker/pe/why-tbmq/' },
-	{ oldPath: 'pe/mqtt-broker/getting-started-guides/what-is-thingsboard-mqtt-broker', target: '/docs/mqtt-broker/pe/why-tbmq/' },
-	{ oldPath: 'pe/mqtt-broker/image-gallery', target: '/docs/mqtt-broker/pe/image-gallery/' },
-	{ oldPath: 'pe/mqtt-broker/install/cluster/helm-cluster-setup-options', target: '/docs/mqtt-broker/pe/installation/' },
-	{ oldPath: 'pe/mqtt-broker/install/installation-options', target: '/docs/mqtt-broker/pe/installation/' },
-	{ oldPath: 'pe/mqtt-broker/install/cluster/helm-cluster-upgrading-options', target: '/docs/mqtt-broker/pe/installation/upgrade-instructions/' },
-	{ oldPath: 'pe/mqtt-broker/install/cluster/resources/upgrade-options/docker-compose-upgrade-tbmq-with-from-version', target: '/docs/mqtt-broker/pe/installation/upgrade-instructions/' },
-	{ oldPath: 'pe/mqtt-broker/install/cluster/resources/upgrade-options/docker-compose-upgrade-tbmq-without-from-version', target: '/docs/mqtt-broker/pe/installation/upgrade-instructions/' },
-	{ oldPath: 'pe/mqtt-broker/install/cluster/resources/upgrade-options/k8s-upgrade-tbmq-with-from-version', target: '/docs/mqtt-broker/pe/installation/upgrade-instructions/' },
-	{ oldPath: 'pe/mqtt-broker/troubleshooting', target: '/docs/mqtt-broker/pe/help/' },
-	{ oldPath: 'pe/mqtt-broker/user-guide/ui/mail-server', target: '/docs/mqtt-broker/pe/user-guide/ui/settings/' },
+	{ oldPath: 'pe/mqtt-broker/api', target: tbmqDocsUrl('pe/rest-api/') },
+	{ oldPath: 'pe/mqtt-broker/faq', target: tbmqDocsUrl('pe/why-tbmq/') },
+	{ oldPath: 'pe/mqtt-broker/getting-started-guides/what-is-thingsboard-mqtt-broker', target: tbmqDocsUrl('pe/why-tbmq/') },
+	{ oldPath: 'pe/mqtt-broker/image-gallery', target: tbmqDocsUrl('pe/image-gallery/') },
+	{ oldPath: 'pe/mqtt-broker/install/cluster/helm-cluster-setup-options', target: tbmqDocsUrl('pe/installation/') },
+	{ oldPath: 'pe/mqtt-broker/install/installation-options', target: tbmqDocsUrl('pe/installation/') },
+	{ oldPath: 'pe/mqtt-broker/install/cluster/helm-cluster-upgrading-options', target: tbmqDocsUrl('pe/installation/upgrade-instructions/') },
+	{ oldPath: 'pe/mqtt-broker/install/cluster/resources/upgrade-options/docker-compose-upgrade-tbmq-with-from-version', target: tbmqDocsUrl('pe/installation/upgrade-instructions/') },
+	{ oldPath: 'pe/mqtt-broker/install/cluster/resources/upgrade-options/docker-compose-upgrade-tbmq-without-from-version', target: tbmqDocsUrl('pe/installation/upgrade-instructions/') },
+	{ oldPath: 'pe/mqtt-broker/install/cluster/resources/upgrade-options/k8s-upgrade-tbmq-with-from-version', target: tbmqDocsUrl('pe/installation/upgrade-instructions/') },
+	{ oldPath: 'pe/mqtt-broker/troubleshooting', target: tbmqDocsUrl('pe/help/') },
+	{ oldPath: 'pe/mqtt-broker/user-guide/ui/mail-server', target: tbmqDocsUrl('pe/user-guide/ui/settings/') },
 
 	// Services (docs → non-docs)
 	{ oldPath: 'services', target: '/services/' },
@@ -1318,7 +1310,7 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'user-guide/install', target: '/docs/installation/' },
 	{ oldPath: 'user-guide/install/openbsd', target: '/docs/installation/' },
 	{ oldPath: 'user-guide/install-and-use/install', target: '/docs/installation/' },
-	{ oldPath: 'mqtt-broker/security', target: '/docs/mqtt-broker/security/overview/' },
+	{ oldPath: 'mqtt-broker/security', target: tbmqDocsUrl('security/overview/') },
 	{ oldPath: 'reference/apis', target: '/docs/apis-and-sdks/' },
 	{ oldPath: 'reference/device-connectivity-api', target: '/docs/apis-and-sdks/' },
 	{ oldPath: 'reference/edge', target: '/docs/edge/' },
@@ -1349,6 +1341,17 @@ export const NON_DOCS_REDIRECTS: Record<string, string> = {
 
 	// Services
 	'/services/support/': '/services/',
+
+	// TBMQ — moved to tbmq.io, whose site root is the product landing. The old
+	// landing page file and its subtree (MqttBroker components, tbmqNews data,
+	// landing images) are deleted; this rule serves old bookmarks and inbound
+	// links in every mode. The legal pages moved too, under a /product/ prefix
+	// that doesn't match the old path, so they need their own rules.
+	'/products/mqtt-broker/': `${TBMQ_ORIGIN}/`,
+	'/products/mqtt-broker/privacy-policy/': `${TBMQ_ORIGIN}/product/privacy-policy/`,
+	'/products/mqtt-broker/terms-of-use/': `${TBMQ_ORIGIN}/product/terms-of-use/`,
+	// Demo CA cert removed with the TBMQ docs; the TBMQ site serves its own copy
+	'/resources/tbmq-demo-root-ca.pem': `${TBMQ_ORIGIN}/resources/tbmq-demo-root-ca.pem`,
 
 	// Trendz
 	'/products/trendz/trndz-request-demo/': '/products/trendz/request-demo/',
@@ -1475,6 +1478,28 @@ export const DYNAMIC_REDIRECTS: DynamicRedirectGroup[] = [
 		entries: [
 			{ source: '/docs/gw/*', target: '/docs/iot-gateway/:splat' },
 			{ source: '/docs/license/*', target: '/docs/license-server/:splat' },
+		],
+	},
+	{
+		comment:
+			'TBMQ cutover — the docs tree moved to tbmq.io, which carries no mqtt-broker/ ' +
+			'segment, so the segment is stripped here and every URL resolves in one hop. ' +
+			'Jekyll-era install/ renames precede the generic splats: Cloudflare takes the ' +
+			'first match and never chains. These five splats are edge-only: Astro does ' +
+			'not substitute params into external redirect targets, so astro.redirects.ts ' +
+			'cannot express them and a hand-typed old TBMQ doc URL 404s in `pnpm dev` ' +
+			'while 301-ing in production. ' +
+			'That is acceptable because no local page depends on them: every local ' +
+			'/docs/mqtt-broker/… link (nav, docs selector, installations, pricing, blog ' +
+			'posts) points straight at tbmq.io. Caveat: lint-linkcheck replays _redirects ' +
+			'before its on-disk lookup, so any future /docs/mqtt-broker/… link would ' +
+			'resolve off-origin unchecked — grep for the prefix before adding one.',
+		entries: [
+			{ source: '/docs/mqtt-broker/pe/install/*', target: tbmqDocsUrl('pe/installation/:splat') },
+			{ source: '/docs/pe/mqtt-broker/install/*', target: tbmqDocsUrl('pe/installation/:splat') },
+			{ source: '/docs/mqtt-broker/install/*', target: tbmqDocsUrl('installation/:splat') },
+			{ source: '/docs/pe/mqtt-broker/*', target: tbmqDocsUrl('pe/:splat') },
+			{ source: '/docs/mqtt-broker/*', target: tbmqDocsUrl(':splat') },
 		],
 	},
 	{

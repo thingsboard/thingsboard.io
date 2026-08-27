@@ -85,12 +85,3 @@ export const EDGE_PE_PKG_VER = `${EDGE_PKG_VER}pe`;
 
 /** Edge PE release branch (for git clone, X.Y.Z format) */
 export const EDGE_PE_BRANCH = 'release-4.3.0';
-
-/** TBMQ Broker */
-export const TBMQ_VER = '2.3.0';
-
-/** TBMQ Broker Professional Edition */
-export const TBMQ_PE_VER = '2.3.0PE';
-
-/** TBMQ Broker release branch (for installation scripts) */
-export const TBMQ_BRANCH = 'release-2.3.0';

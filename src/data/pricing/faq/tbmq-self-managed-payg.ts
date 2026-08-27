@@ -1,4 +1,5 @@
 import type { FaqCategory } from '../types';
+import { TBMQ_CONTACT_US_URL, tbmqDocsUrl } from '@models/tbmq';
 
 export const tbmqSelfManagedPaygFaq: FaqCategory[] = [
 	{
@@ -13,12 +14,12 @@ export const tbmqSelfManagedPaygFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-payg-buy',
 				question: 'How can I buy a self-managed subscription?',
-				answer: `<p>To purchase a self-managed subscription, you can acquire a license through your <a target="_blank" href="https://license.thingsboard.io/" rel="noopener noreferrer">License Server</a> account. Each license comes with a unique activation key, which allows you to deploy and run the system by following our detailed <a target="_blank" href="/docs/mqtt-broker/installation/" rel="noopener noreferrer">installation guides</a>.</p>`,
+				answer: `<p>To purchase a self-managed subscription, you can acquire a license through your <a target="_blank" href="https://license.thingsboard.io/" rel="noopener noreferrer">License Server</a> account. Each license comes with a unique activation key, which allows you to deploy and run the system by following our detailed <a target="_blank" href="${tbmqDocsUrl('installation/')}" rel="noopener noreferrer">installation guides</a>.</p>`,
 			},
 			{
 				id: 'tbmq-payg-license-meaning',
 				question: 'What does it mean to get the license?',
-				answer: `<p>Licensing is applicable to self-hosted platform versions only. Each license comes with a unique license key (activation code) that is automatically generated in your <a target="_blank" href="https://license.thingsboard.io/" rel="noopener noreferrer">License Server</a> account. Using this license key, you can deploy and run the system by following our detailed <a target="_blank" href="/docs/mqtt-broker/installation/" rel="noopener noreferrer">installation guides</a>.</p>`,
+				answer: `<p>Licensing is applicable to self-hosted platform versions only. Each license comes with a unique license key (activation code) that is automatically generated in your <a target="_blank" href="https://license.thingsboard.io/" rel="noopener noreferrer">License Server</a> account. Using this license key, you can deploy and run the system by following our detailed <a target="_blank" href="${tbmqDocsUrl('installation/')}" rel="noopener noreferrer">installation guides</a>.</p>`,
 			},
 			{
 				id: 'tbmq-payg-plans',
@@ -97,12 +98,12 @@ export const tbmqSelfManagedPaygFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-payg-wire',
 				question: 'I cannot pay by card, may we use wire instead?',
-				answer: `<p>Sure. In this case, you must reach out to our sales team via <a target="_blank" href="/contact-us/" rel="noopener noreferrer">contact us</a>. If you have ongoing communication with the account manager or success manager on our end, please refer your request to that person.</p>`,
+				answer: `<p>Sure. In this case, you must reach out to our sales team via <a target="_blank" href="${TBMQ_CONTACT_US_URL}" rel="noopener noreferrer">contact us</a>. If you have ongoing communication with the account manager or success manager on our end, please refer your request to that person.</p>`,
 			},
 			{
 				id: 'tbmq-payg-annual',
 				question: 'Do you offer an annual payment option?',
-				answer: `<p>We currently offer only a monthly subscription with automatic payments via Stripe. For annual payments, please <a target="_blank" href="/contact-us/" rel="noopener noreferrer">contact</a> our team to arrange a wire transfer invoice.</p>`,
+				answer: `<p>We currently offer only a monthly subscription with automatic payments via Stripe. For annual payments, please <a target="_blank" href="${TBMQ_CONTACT_US_URL}" rel="noopener noreferrer">contact</a> our team to arrange a wire transfer invoice.</p>`,
 			},
 			{
 				id: 'tbmq-payg-failed-payment',
@@ -127,7 +128,7 @@ export const tbmqSelfManagedPaygFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-payg-discounts',
 				question: 'Do you offer discounts for multiple licenses?',
-				answer: `<p>Contact our <a target="_blank" href="/contact-us/" rel="noopener noreferrer">sales team</a> for bulk pricing options.</p>`,
+				answer: `<p>Contact our <a target="_blank" href="${TBMQ_CONTACT_US_URL}" rel="noopener noreferrer">sales team</a> for bulk pricing options.</p>`,
 			},
 			{
 				id: 'tbmq-payg-renew-fail',
@@ -230,7 +231,7 @@ export const tbmqSelfManagedPaygFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-payg-offline',
 				question: 'Can I run offline?',
-				answer: `<p>By default, the platform requires active Internet access or at least access to license portal from your host machine. If Offline access is a must, please <a target="_blank" href="/contact-us/" rel="noopener noreferrer">contact us</a> to discuss options.</p>`,
+				answer: `<p>By default, the platform requires active Internet access or at least access to license portal from your host machine. If Offline access is a must, please <a target="_blank" href="${TBMQ_CONTACT_US_URL}" rel="noopener noreferrer">contact us</a> to discuss options.</p>`,
 			},
 			{
 				id: 'tbmq-payg-cloud-agnostic',
@@ -277,7 +278,7 @@ export const tbmqSelfManagedPaygFaq: FaqCategory[] = [
 				id: 'tbmq-payg-vulnerability-matrix',
 				question:
 					'Where can I find the logged vulnerability fixes matrix: version + list of fixes?',
-				answer: `<p>Please stay tuned with our <a target="_blank" href="/docs/mqtt-broker/pe/releases/" rel="noopener noreferrer">Release notes</a>. Critical vulnerabilities or security issues are mentioned in separate line items. Less threatful vulnerabilities appear as a single record (“Vulnerability fixes”) stating that, at the release date, the version is free of known HIGH and some MEDIUM CVEs.</p>`,
+				answer: `<p>Please stay tuned with our <a target="_blank" href="${tbmqDocsUrl('pe/releases/')}" rel="noopener noreferrer">Release notes</a>. Critical vulnerabilities or security issues are mentioned in separate line items. Less threatful vulnerabilities appear as a single record (“Vulnerability fixes”) stating that, at the release date, the version is free of known HIGH and some MEDIUM CVEs.</p>`,
 			},
 		],
 	},
@@ -319,12 +320,12 @@ export const tbmqSelfManagedPaygFaq: FaqCategory[] = [
 			{
 				id: 'tbmq-payg-support-247',
 				question: 'Do you offer 24/7 support?',
-				answer: `<p>Yes, we can provide 24/7 support as part of our managed services with an additional signed SLA. Please <a target="_blank" href="/contact-us/" rel="noopener noreferrer">contact us</a> for more details.</p>`,
+				answer: `<p>Yes, we can provide 24/7 support as part of our managed services with an additional signed SLA. Please <a target="_blank" href="${TBMQ_CONTACT_US_URL}" rel="noopener noreferrer">contact us</a> for more details.</p>`,
 			},
 			{
 				id: 'tbmq-payg-install-help',
 				question: 'How can I get help with installation and setup?',
-				answer: `<p>If your subscription includes response time support and you have access to the Support Portal, the TBMQ support team can assist with system deployment as part of the subscription. However, this applies only if you follow recommended installation methods and architecture. Custom installation scripts or non-recommended deployment scenarios are not covered under included support. If your subscription plan does not include support, then we recommend using our documentation, tutorials, and optional professional services. To discuss options, please <a target="_blank" href="/contact-us/" rel="noopener noreferrer">contact us</a>.</p>`,
+				answer: `<p>If your subscription includes response time support and you have access to the Support Portal, the TBMQ support team can assist with system deployment as part of the subscription. However, this applies only if you follow recommended installation methods and architecture. Custom installation scripts or non-recommended deployment scenarios are not covered under included support. If your subscription plan does not include support, then we recommend using our documentation, tutorials, and optional professional services. To discuss options, please <a target="_blank" href="${TBMQ_CONTACT_US_URL}" rel="noopener noreferrer">contact us</a>.</p>`,
 			},
 			{
 				id: 'tbmq-payg-contact-support',

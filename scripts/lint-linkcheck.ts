@@ -108,7 +108,6 @@ const linkChecker = new LinkChecker({
 		{ from: '/docs/', to: '/docs/pe/' },
 		// Sub-products: free → professional
 		{ from: '/docs/edge/', to: '/docs/edge/pe/' },
-		{ from: '/docs/mqtt-broker/', to: '/docs/mqtt-broker/pe/' },
 		{ from: '/docs/mobile/', to: '/docs/mobile/pe/' },
 		{ from: '/docs/edge/pe/reference/', to: '/docs/pe/reference/' },
 		{ from: '/docs/edge/reference/', to: '/docs/pe/reference/' },
