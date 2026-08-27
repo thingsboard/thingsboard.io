@@ -31,8 +31,6 @@ const PRODUCT_OVERRIDES: Record<string, MarketingOverride> = {
 	'/products/paas/terms-of-use/':            { eyebrow: 'ThingsBoard Cloud',         title: 'Terms of Use' },
 	'/products/paas/eu/privacy-policy/':       { eyebrow: 'ThingsBoard Cloud — Europe', title: 'Privacy Policy' },
 	'/products/paas/eu/terms-of-use/':         { eyebrow: 'ThingsBoard Cloud — Europe', title: 'Terms of Use' },
-	'/products/mqtt-broker/privacy-policy/':   { eyebrow: 'TBMQ',                      title: 'Privacy Policy' },
-	'/products/mqtt-broker/terms-of-use/':     { eyebrow: 'TBMQ',                      title: 'Terms of Use' },
 	'/products/trendz/':                       { eyebrow: 'Trendz Analytics',          title: 'IoT anomaly detection and predictive maintenance with AI' },
 	'/products/trendz/request-demo/':          { eyebrow: 'Trendz Analytics',          title: 'Request a personalized demo' },
 	'/products/mobile/':                       { eyebrow: 'ThingsBoard Mobile',        title: 'Build your own IoT mobile app with minimal coding' },
