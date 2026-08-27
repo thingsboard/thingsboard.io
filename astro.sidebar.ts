@@ -665,6 +665,7 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 							items: [
 								{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/action` },
 								`${prefix}/rule-engine/nodes/action/add-to-group`,
+								`${prefix}/rule-engine/nodes/action/assign-entity-group-to-edge`,
 								`${prefix}/rule-engine/nodes/action/assign-to-customer`,
 								`${prefix}/rule-engine/nodes/action/calculated-fields`,
 								`${prefix}/rule-engine/nodes/action/change-owner`,
@@ -694,6 +695,7 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 								`${prefix}/rule-engine/nodes/action/save-attributes`,
 								`${prefix}/rule-engine/nodes/action/save-timeseries`,
 								`${prefix}/rule-engine/nodes/action/save-to-custom-table`,
+								`${prefix}/rule-engine/nodes/action/unassign-entity-group-from-edge`,
 								`${prefix}/rule-engine/nodes/action/unassign-from-customer`,
 							],
 						},
@@ -1252,6 +1254,7 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 							items: [
 								{ label: 'Overview', slug: `${prefix}/rule-engine/nodes/action` },
 								`${prefix}/rule-engine/nodes/action/add-to-group`,
+								`${prefix}/rule-engine/nodes/action/assign-entity-group-to-edge`,
 								`${prefix}/rule-engine/nodes/action/assign-to-customer`,
 								`${prefix}/rule-engine/nodes/action/calculated-fields`,
 								`${prefix}/rule-engine/nodes/action/change-owner`,
@@ -1281,6 +1284,7 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 								`${prefix}/rule-engine/nodes/action/save-attributes`,
 								`${prefix}/rule-engine/nodes/action/save-timeseries`,
 								`${prefix}/rule-engine/nodes/action/save-to-custom-table`,
+								`${prefix}/rule-engine/nodes/action/unassign-entity-group-from-edge`,
 								`${prefix}/rule-engine/nodes/action/unassign-from-customer`,
 							],
 						},
