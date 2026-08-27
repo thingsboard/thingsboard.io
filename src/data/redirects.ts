@@ -1345,9 +1345,11 @@ export const NON_DOCS_REDIRECTS: Record<string, string> = {
 	// TBMQ — moved to tbmq.io, whose site root is the product landing. The old
 	// landing page file and its subtree (MqttBroker components, tbmqNews data,
 	// landing images) are deleted; this rule serves old bookmarks and inbound
-	// links in every mode. Its legal children (privacy-policy/, terms-of-use/)
-	// stay on thingsboard.io on purpose — tbmq.io has no equivalents for them yet.
+	// links in every mode. The legal pages moved too, under a /product/ prefix
+	// that doesn't match the old path, so they need their own rules.
 	'/products/mqtt-broker/': `${TBMQ_ORIGIN}/`,
+	'/products/mqtt-broker/privacy-policy/': `${TBMQ_ORIGIN}/product/privacy-policy/`,
+	'/products/mqtt-broker/terms-of-use/': `${TBMQ_ORIGIN}/product/terms-of-use/`,
 	// Demo CA cert removed with the TBMQ docs; the TBMQ site serves its own copy
 	'/resources/tbmq-demo-root-ca.pem': `${TBMQ_ORIGIN}/resources/tbmq-demo-root-ca.pem`,
 
