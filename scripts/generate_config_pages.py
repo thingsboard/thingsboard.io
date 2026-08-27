@@ -5,13 +5,12 @@ import sys
 import os
 
 
-# repo_type -> GitHub <owner>/<repo>. PE / Edge-PE / TBMQ-PE are private;
-# fetching relies on the caller's `gh auth login` session.
+# repo_type -> GitHub <owner>/<repo>. PE / Edge-PE are private; fetching
+# relies on the caller's `gh auth login` session. TBMQ config pages moved to
+# tbmq.io with the rest of the TBMQ docs, so the tbmq/tbmq-pe repo types are gone.
 REPOS = {
     'ce': 'thingsboard/thingsboard',
     'pe': 'thingsboard/thingsboard-pe',
-    'tbmq': 'thingsboard/tbmq',
-    'tbmq-pe': 'thingsboard/tbmq-pe',
     'edge': 'thingsboard/thingsboard-edge',
     'edge-pe': 'thingsboard/thingsboard-edge-pe',
 }
@@ -398,18 +397,6 @@ PAGES = {
          'src/content/docs/docs/pe/reference/configuration/ie-executor-config.mdx', 'Integration Executor'),
         ('yml', 'report/src/main/resources/tb-report.yml',
          'src/content/docs/docs/pe/reference/configuration/report-service-config.mdx', 'Report Service'),
-    ],
-    'tbmq': [
-        ('yml', 'application/src/main/resources/thingsboard-mqtt-broker.yml',
-         'src/content/docs/docs/mqtt-broker/installation/config.mdx', 'TBMQ'),
-        ('yml', 'integration/executor/src/main/resources/tbmq-integration-executor.yml',
-         'src/content/docs/docs/mqtt-broker/installation/ie-config.mdx', 'Integration Executor'),
-    ],
-    'tbmq-pe': [
-        ('yml', 'application/src/main/resources/thingsboard-mqtt-broker.yml',
-         'src/content/docs/docs/mqtt-broker/pe/installation/config.mdx', 'TBMQ'),
-        ('yml', 'integration/executor/src/main/resources/tbmq-integration-executor.yml',
-         'src/content/docs/docs/mqtt-broker/pe/installation/ie-config.mdx', 'Integration Executor'),
     ],
     'edge': [
         ('yml', 'application/src/main/resources/tb-edge.yml',

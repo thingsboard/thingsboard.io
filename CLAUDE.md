@@ -119,7 +119,6 @@ src/content/docs/docs/
   ├── edge/              ← Edge pages
   ├── trendz/            ← Trendz pages
   ├── iot-gateway/       ← IoT Gateway pages
-  ├── mqtt-broker/       ← TBMQ pages
   ├── mobile/            ← Mobile pages
   └── license-server/    ← License Server pages
 ```
@@ -142,7 +141,7 @@ See the `edit-doc` skill for detailed _includes rules, conditional rendering pat
 
 `src/data/versions.ts` — centralized product version strings. **Never hardcode version strings** in Docker image tags, download URLs, or code blocks. Import from `~/data/versions`.
 
-Available: `CE_FULL_VER`, `PE_FULL_VER`, `TRENDZ_VER`, `EDGE_VER`, `EDGE_PE_VER`, `TBMQ_VER`, `TBMQ_PE_VER`.
+Available: `CE_FULL_VER`, `PE_FULL_VER`, `TRENDZ_VER`, `EDGE_VER`, `EDGE_PE_VER`.
 
 ### Custom Plugins
 

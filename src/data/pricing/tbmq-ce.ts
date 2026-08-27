@@ -1,4 +1,5 @@
 import type { CommunityEditionData } from './types';
+import { tbmqDocsUrl } from '@models/tbmq';
 
 export const tbmqCeData: CommunityEditionData = {
 	title: 'Your free ticket to IoT',
@@ -12,5 +13,5 @@ export const tbmqCeData: CommunityEditionData = {
 		'Community support',
 	],
 	ctaText: 'Install',
-	ctaHref: '/docs/mqtt-broker/installation/',
+	ctaHref: tbmqDocsUrl('installation/'),
 };
