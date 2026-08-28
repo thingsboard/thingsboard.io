@@ -66,6 +66,13 @@ export const DISTRIBUTORS: Distributor[] = [
 		email: "sales@basarimuhendislik.com",
 		website: "basarimuhendislik.com",
 	},
+		{
+		name: "Bridges of Advanced Technoligies",
+		regions: ["Middle East"],
+		countries: ["Iraq"],
+		email: "info@bridgescons.com",
+		website: "bridgescons.com",
+	},
 	{
 		name: "Bhavamish Solution",
 		regions: ["Asia"],
