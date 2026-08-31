@@ -1403,8 +1403,10 @@ export const NON_DOCS_REDIRECTS: Record<string, string> = {
 	'/iot-use-cases/': '/use-cases/',
 	'/support-ukraine/': 'https://u24.gov.ua/',
 
-	// Careers — job listings moved to PeopleForce; job-page splats live in DYNAMIC_REDIRECTS.
+	// Careers — moved to PeopleForce. One landing + one job page is every careers
+	// URL this site ever served, so the set is static — no splat needed.
 	'/careers/': CAREERS_URL,
+	'/careers/middle-java-developer/': CAREERS_URL,
 
 	// Device Library → IoT Hub. Bulk shapes collapse via splats in
 	// DYNAMIC_REDIRECTS; the static slug aliases below must win over them.
@@ -1453,12 +1455,6 @@ export const DYNAMIC_REDIRECTS: DynamicRedirectGroup[] = [
 		comment: 'Industries — per-industry page → clients-feedback filtered by category',
 		entries: [
 			{ source: '/industries/:category/', target: '/clients-feedback/?category=:category' },
-		],
-	},
-	{
-		comment: 'Careers — the whole tree moved to PeopleForce; job slugs collapse to the listing',
-		entries: [
-			{ source: '/careers/*', target: CAREERS_URL },
 		],
 	},
 	{

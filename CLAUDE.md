@@ -225,7 +225,7 @@ Per-page OG cards (1200×630 PNG) are generated at build time by Satori + Resvg.
 - `src/pages/open-graph/_shared/render.ts` — Satori → Resvg pipeline + content-hash cache
 - `src/pages/open-graph/_shared/page-data.ts` — collection enumerators
 - `src/pages/open-graph/_shared/jsx-runtime.ts` — minimal Satori-shaped JSX shim (no React)
-- `src/pages/open-graph/{collection}/[…].png.ts` — static endpoints (docs, blog, case-studies, use-cases, careers, iot-hub, partners, pages)
+- `src/pages/open-graph/{collection}/[…].png.ts` — static endpoints (docs, blog, case-studies, use-cases, iot-hub, partners, pages)
 - `src/util/ogContext.ts` — eyebrow / label helpers + `MARKETING_ALLOWLIST`
 - `src/util/getOgImageUrl.ts` — pathname → OG PNG URL aggregator
 
