@@ -16,7 +16,6 @@ import { getMarketingOverride, getMarketingSection } from '@root/pages/open-grap
 import { BLOG_AUTHORS } from '@data/blog/authors';
 import { CATEGORY_LABELS } from '@data/blog/categories';
 import { HARDWARE_PARTNERS } from '@data/partners/hardware-partners';
-import { jobs } from '@data/careers/jobs';
 import { IOT_HUB_CATEGORIES } from '@models/iot-hub';
 
 export interface CardInput {
@@ -223,19 +222,6 @@ export async function getPartnerCardInputs(): Promise<CardInput[]> {
 			sectionName: 'Partners',
 			eyebrow: 'Hardware Partner',
 			title: truncate(partner.name, TITLE_MAX),
-		},
-	}));
-}
-
-/** careers — `/careers/{slug}/` driven by `jobs` in src/data/careers/jobs.ts. */
-export async function getCareerCardInputs(): Promise<CardInput[]> {
-	return jobs.map((job) => ({
-		slug: job.slug,
-		props: {
-			variant: 'logo' as const,
-			sectionName: 'Careers',
-			eyebrow: job.location || 'Open Position',
-			title: truncate(job.position, TITLE_MAX),
 		},
 	}));
 }

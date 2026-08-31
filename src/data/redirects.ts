@@ -19,6 +19,7 @@
 // truth, DNS-cutover note included). Relative import on purpose: node scripts
 // import this file directly and cannot resolve the `@models` alias.
 import { TBMQ_ORIGIN, tbmqDocsUrl } from '../models/tbmq.ts';
+import { CAREERS_URL } from '../models/careers.ts';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -1401,6 +1402,11 @@ export const NON_DOCS_REDIRECTS: Record<string, string> = {
 	'/installations/forever-free-cloud/': '/installations/choose-region/',
 	'/iot-use-cases/': '/use-cases/',
 	'/support-ukraine/': 'https://u24.gov.ua/',
+
+	// Careers — moved to PeopleForce. One landing + one job page is every careers
+	// URL this site ever served, so the set is static — no splat needed.
+	'/careers/': CAREERS_URL,
+	'/careers/middle-java-developer/': CAREERS_URL,
 
 	// Device Library → IoT Hub. Bulk shapes collapse via splats in
 	// DYNAMIC_REDIRECTS; the static slug aliases below must win over them.

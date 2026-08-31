@@ -186,14 +186,36 @@ def escape_cell(text):
     return ''.join(result)
 
 
+_SENTENCE_END = ('.', '!', '?', ':')
+
+
+def _join_description_lines(description):
+    """Join a section's comment lines into banner text.
+
+    Keeps the <br /> that makes multi-paragraph banners readable, but rejoins a
+    sentence the upstream YAML merely soft-wrapped. A line continues the
+    previous one only when it starts lowercase and the previous line did not
+    already end a sentence.
+    """
+    lines = description.split('\n')
+    joined = lines[0]
+    for line in lines[1:]:
+        stripped = line.strip()
+        continues = (
+            stripped[:1].islower()
+            and not joined.rstrip().endswith(_SENTENCE_END)
+        )
+        joined += (' ' + stripped) if continues else ('<br />' + line)
+    return joined
+
+
 def generate_section(table_name, rows, product='ce'):
     if not any(row[1] for row in rows):
         return ''
     html = f'## {table_name.strip()}\n\n'
     table_description = rows[0][5].strip() if rows and len(rows[0]) > 5 else ''
     if table_description:
-        # Preserve multi-line descriptions as <br /> so multi-paragraph banners stay readable
-        table_description = table_description.replace('\n', '<br />')
+        table_description = _join_description_lines(table_description)
         html += f'<Banner variant="{product}">{escape_cell(table_description)}</Banner>\n\n'
     html += '<div class="config-def-list">\n'
     for row in rows:
