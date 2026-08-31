@@ -226,6 +226,14 @@ export const CATCH_ALL_REDIRECTS: CatchAllRedirect[] = [
  * Add entries here for one-off page renames or removed pages.
  */
 export const SINGLE_REDIRECTS: SingleRedirect[] = [
+	// Extensions CLI reference moved under the ThingsBoard CLI group
+	{ oldPath: 'reference/extensions/cli-deployment', target: '/docs/user-guide/cli-extensions/' },
+	{ oldPath: 'pe/reference/extensions/cli-deployment', target: '/docs/pe/user-guide/cli-extensions/' },
+	{ oldPath: 'paas/reference/extensions/cli-deployment', target: '/docs/paas/user-guide/cli-extensions/' },
+	{
+		oldPath: 'paas/eu/reference/extensions/cli-deployment',
+		target: '/docs/paas/eu/user-guide/cli-extensions/',
+	},
 	{ oldPath: 'iot-gateway/configuration', target: '/docs/iot-gateway/config/general/' },
 	{ oldPath: 'iot-gateway/how-device-removing-renaming-works', target: '/docs/iot-gateway/features/device-renaming/' },
 	{ oldPath: 'iot-gateway/guides/how-to-configure-gateway-using-configurator', target: '/docs/iot-gateway/config/general/' },
