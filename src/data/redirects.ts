@@ -19,6 +19,7 @@
 // truth, DNS-cutover note included). Relative import on purpose: node scripts
 // import this file directly and cannot resolve the `@models` alias.
 import { TBMQ_ORIGIN, tbmqDocsUrl } from '../models/tbmq.ts';
+import { CAREERS_URL } from '../models/careers.ts';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -1402,6 +1403,9 @@ export const NON_DOCS_REDIRECTS: Record<string, string> = {
 	'/iot-use-cases/': '/use-cases/',
 	'/support-ukraine/': 'https://u24.gov.ua/',
 
+	// Careers — job listings moved to PeopleForce; job-page splats live in DYNAMIC_REDIRECTS.
+	'/careers/': CAREERS_URL,
+
 	// Device Library → IoT Hub. Bulk shapes collapse via splats in
 	// DYNAMIC_REDIRECTS; the static slug aliases below must win over them.
 	'/device-library/pe/tecmo-controls-t3e-6ct-and-hum-w1/': '/iot-hub/devices/temco-controls-t3e-6ct-and-hum-w1/',
@@ -1449,6 +1453,12 @@ export const DYNAMIC_REDIRECTS: DynamicRedirectGroup[] = [
 		comment: 'Industries — per-industry page → clients-feedback filtered by category',
 		entries: [
 			{ source: '/industries/:category/', target: '/clients-feedback/?category=:category' },
+		],
+	},
+	{
+		comment: 'Careers — the whole tree moved to PeopleForce; job slugs collapse to the listing',
+		entries: [
+			{ source: '/careers/*', target: CAREERS_URL },
 		],
 	},
 	{

@@ -1,4 +1,5 @@
 import { TBMQ_DOCS_URL, TBMQ_SITE_URL } from '@models/tbmq';
+import { CAREERS_URL } from '@models/careers';
 
 export interface NavItem {
 	label: string;
@@ -311,7 +312,7 @@ export const companySubmenu: SubMenu = {
 					linkClass: 'small-link',
 				},
 				{
-					href: '/careers/',
+					href: CAREERS_URL,
 					icon: '/src/assets/images/landings/nav/careers-s-icon.svg',
 					heading: 'Careers',
 					linkClass: 'small-link',

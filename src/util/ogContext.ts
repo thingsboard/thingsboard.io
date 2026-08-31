@@ -72,7 +72,6 @@ export const MARKETING_ALLOWLIST: ReadonlyArray<string> = [
 	'/industries/*',
 	'/partners/*',
 	'/services/*',
-	'/careers/*',
 	'/clients-feedback/',
 	'/mediakit/',
 	'/contact-us/',
