@@ -1,10 +1,10 @@
 /**
- * Keeps scrollable-region tab stops honest. The markup ships tabindex="0" so a
- * keyboard user can scroll the region even without JS; this removes the stop
- * whenever the region does not actually overflow — an always-focusable
- * non-interactive box is announced on every page for no benefit. Watches both
- * the region and its content, since a font swap can change scrollWidth without
- * moving the region's own box.
+ * Keeps scrollable regions honest. The markup ships tabindex="0" and
+ * role="region" so a keyboard user can scroll the region even without JS; this
+ * removes both whenever the region does not actually overflow — a region that
+ * cannot scroll is a needless tab stop, and with an accessible name it also
+ * clutters the landmark list. Watches both the region and its content, since a
+ * font swap can change scrollWidth without moving the region's own box.
  */
 export function initScrollRegionTabindex(): void {
 	const regions = document.querySelectorAll<HTMLElement>('[data-scroll-region]');
@@ -13,8 +13,10 @@ export function initScrollRegionTabindex(): void {
 	const sync = (el: HTMLElement): void => {
 		if (el.scrollWidth > el.clientWidth) {
 			el.setAttribute('tabindex', '0');
+			el.setAttribute('role', 'region');
 		} else {
 			el.removeAttribute('tabindex');
+			el.removeAttribute('role');
 		}
 	};
 

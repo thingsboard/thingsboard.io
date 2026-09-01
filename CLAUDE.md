@@ -91,6 +91,8 @@ Use the `edit-doc` skill for full props, usage examples, and authoring rules for
 - **InstallationCardGrid** — installation option card grid
 - **RuleNodeCardGrid** — rule node category card grid
 - **DocLink** — product-aware internal links (always use instead of bare markdown links)
+- **DataTable** — semantic shell for comparison tables (caption → colgroup → `th scope="col"` header → tbody slot); callers pass `<tr>` rows whose first cell is `<th scope="row">`. Styling contract: the caller's `<style>` must be `is:global`, nested under the caller's own class — scoped rules cannot match the shell DataTable renders
+- **DataTableValue** — one comparison cell's value, always as text; icons are decorative, an empty value fails the build
 - **Code blocks** — `maxLines`, `collapsible`, `wrap`, `download='file.ext'` meta options; `<Code>` component for dynamic code
 
 ### Product System
