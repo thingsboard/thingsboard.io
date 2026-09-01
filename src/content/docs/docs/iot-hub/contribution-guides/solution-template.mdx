@@ -23,14 +23,15 @@ Create a free **Creator account** on the <a href="https://iot-hub.thingsboard.io
 
 When a user clicks **Install** on your solution template in IoT Hub:
 
-1. They review the **description** (from `description.md`), the preview gallery (from `imageUrls` in `solution.json`), and the list of **[related items](#related-items)** the template pulls in.
+1. They review the **description** (from `description.md`) and preview gallery (from `imageUrls` in `solution.json`).
 2. They confirm installation — the platform atomically provisions every entity in your template:
-    - Related IoT Hub widgets used by your dashboards (first, so the dashboards render)
-    - Device profiles, asset profiles, rule chains, calculated fields (next, so references resolve)
+    - Device profiles, asset profiles, rule chains, calculated fields (first, so references resolve)
     - Devices, assets, customers, dashboards (next, referencing the profiles)
     - Device emulators (last, seeded with telemetry)
 3. They are redirected to the **main dashboard** with live data already flowing.
 4. The **post-install instructions** (from `instructions.md`) are shown alongside the dashboard — telling them how to inspect the setup, connect real hardware, customize widgets, and so on.
+
+Any IoT Hub widget your dashboards use is installed along with the template — see **[Related items](#related-items)**.
 
 Your job as a creator is to describe the complete solution declaratively in the archive so that a single installation produces a working end-to-end demo.
 
@@ -430,42 +431,54 @@ The `entityNameFilter` must exactly match a device `name` from `entities/devices
 
 ## Related Items
 
-Solution template dashboards often use widgets that are not part of ThingsBoard's built-in widget bundles — widgets published to IoT Hub by you or by other contributors. IoT Hub tracks those dependencies for you as **related items**.
+Dashboards in a solution template often use widgets that do not ship with ThingsBoard — **IoT Hub widgets** published by you or by another contributor. IoT Hub derives those dependencies from your package and stores them on the version as **related items**, so they install together with the template.
+
+In the upload wizard and in the version drawer, this step (and the corresponding tab) is called **Required items**.
 
 ### How the Check Works
 
-When you upload the ZIP, IoT Hub parses every dashboard in `dashboards/`, collects the widget `fqn` of every widget placed on it, and compares each one against the list of ThingsBoard system widget bundles:
+When you upload the ZIP, IoT Hub scans the archive:
 
-| FQN resolves to | What IoT Hub does |
-|---|---|
-| A **system** widget bundle | Nothing — the widget ships with ThingsBoard and is available on every instance |
-| A **published IoT Hub widget** | Records a relation between this solution template version and that widget |
-| **Nothing** | Reports a validation error — see [Unknown FQNs Block the Upload](#unknown-fqns-block-the-upload) |
+<Steps>
+1. It collects every `typeFullFqn` value found in **any** `.json` file in the package — not only the files under `dashboards/`. `typeFullFqn` is the key a ThingsBoard export writes a widget type reference under, so a reference sitting in a rule chain export or in `entities/dashboards.json` is picked up the same way.
+2. It drops every FQN starting with `system.` — those widgets ship with ThingsBoard, exist on every instance, and are never a marketplace dependency.
+3. It looks the remaining FQNs up in the IoT Hub catalog in a single request. A dashboard export scopes a widget type by its owner (`tenant.john_doe.air_quality_card`) while IoT Hub stores the bare FQN (`john_doe.air_quality_card`), so both readings are tried.
+</Steps>
+
+Every FQN that resolves to a published IoT Hub widget is recorded as a related item of this template version. Every FQN that does not resolve is reported as a missing widget.
 
 <Aside type="note">
-You never declare related items yourself. There is no field for them in `solution.json` or `entities/*.json` — every relation is derived from the dashboard exports and created automatically on upload.
+You never declare related items yourself. There is no field for them in `solution.json` or `entities/*.json` — the list is derived from the archive and recomputed every time the package is replaced.
 </Aside>
 
-### Unknown FQNs Block the Upload
+<Aside type="caution">
+The system-widget test is a spelling test on the FQN, not a lookup against the widget bundles. An FQN hand-edited to start with `system.` is accepted silently and installs as a broken widget.
+</Aside>
 
-If a dashboard uses a widget FQN that is neither a system widget nor a published IoT Hub widget, the upload wizard reports an error listing the unresolved FQNs and keeps the remaining steps disabled. A package in that state cannot be saved or submitted, so a template whose dashboards would render broken widgets never reaches the catalog.
+### If an FQN Does Not Resolve
 
-There are three ways to resolve it:
+The **Required items** step lists the unresolved FQNs and explains that the dashboards use custom widgets that are not published in IoT Hub, so anyone installing the solution would get broken widgets. Whether that blocks you depends on where you hit it:
+
+| Where | Behavior |
+|---|---|
+| Create item / add version wizard | The step is invalid: the stepper will not advance and the version cannot be created until every FQN resolves |
+| Replacing the package on an existing version | The new package is saved with the dependencies actually detected and the missing widgets show up as a warning — **submitting for review is not blocked** |
+
+Treat the wizard as a guard rather than a guarantee: a version whose package was replaced can reach review with unresolved widgets, so fix them before you submit. A scan that fails outright — an unreadable archive, or the catalog not answering — does not block anything either; IoT Hub says which of the two happened and keeps the previous dependency list instead of replacing it with an empty one.
+
+There are three ways to resolve a missing widget:
 
 - **Publish the widget to IoT Hub first.** Upload it as a separate IoT Hub item and wait for its version to be **approved** — a version still pending review does not resolve the FQN. See the <a href="/docs/iot-hub/contribution-guides/widget/" target="_blank" rel="noopener noreferrer"><strong>IoT Widget Contribution Guide</strong></a>. Then re-upload the template ZIP.
-- **Swap it for a system widget.** Rebuild that part of the dashboard with a built-in ThingsBoard widget and re-export the dashboard.
+- **Swap it for a system widget.** Rebuild that part of the dashboard with a widget bundled with ThingsBoard and re-export the dashboard.
 - **Remove the widget from the dashboard** and re-export the dashboard.
 
-Any approved IoT Hub widget resolves — it does not have to be one of your own.
+Any published IoT Hub widget resolves — it does not have to be one of your own. The one exception is a widget whose creator has since been suspended: it stops resolving even though its version is still approved.
 
-### What Users Get
+### What Gets Installed
 
-Related items make the dependency both visible and self-installing:
+Installing the template installs its related items too, so users never have to track down a missing widget or repair a dashboard afterwards.
 
-- The public solution template page lists the related widgets, so users see what the template pulls in **before** they install it.
-- On install, IoT Hub installs those widgets together with the template. Users never have to track down a missing widget or repair a dashboard afterwards.
-
-A relation points at the widget item rather than at a pinned widget version, so every installation gets the latest approved version of each related widget. Keep your own published widgets backward compatible: a breaking change to a widget also changes how it behaves inside every solution template that references it.
+A related item points at the widget **item**, not at a specific widget version, so your template never pins a widget version — each installation picks up whatever version IoT Hub serves for that widget at the time. Keep your published widgets backward compatible: a breaking change to a widget also changes how it behaves inside every solution template that references it.
 
 ## Device Profiles and Asset Profiles
 
@@ -639,7 +652,7 @@ These placeholders are resolved at install time:
 | `${MAIN_DASHBOARD_URL}`    | Deep link to the solution's main dashboard                                                                                                                                 |
 | `${DOCKER_CONFIG}`         | Full `docker-compose.yml` content for the gateway, pre-filled with host, port, and token. Usually wrapped in a `bash` code block                                           |
 | `${DOCS_BASE_URL}`         | Base URL of the ThingsBoard documentation — use for links that should work on both ThingsBoard Cloud and on-prem                                                           |
-| `${item-link:<item-uuid>}` | Renders a link card pointing at another IoT Hub item (widget, dashboard, rule chain, etc.) the user can install in one click. Use for dependencies your template relies on |
+| `${item-link:<item-uuid>}` | Renders a link card pointing at another IoT Hub item the user can install in one click. Use for dependencies the platform cannot derive from your package — widgets are handled automatically, see **[Related items](#related-items)** |
 
 ### Code Block Tags
 
@@ -658,13 +671,15 @@ docker run --pull always --rm -d --name tb-modbus-pool-emulator \
 A good `instructions.md` follows this flow:
 
 1. **Welcome** — one-line orientation.
-2. **Prerequisites** — what the user needs (Docker, network access, accounts). If your solution template depends on another IoT Hub item you have published (e.g. a custom widget, dashboard, or rule chain), reference it here with `${item-link:<item-uuid>}`. The platform replaces the placeholder with a link card pointing at that IoT Hub item so users can install the dependency in one click. Example:
+2. **Prerequisites** — what the user needs (Docker, network access, accounts). If your solution template depends on another IoT Hub item you have published, reference it here with `${item-link:<item-uuid>}`. The platform replaces the placeholder with a link card pointing at that IoT Hub item so users can install the dependency in one click. Example:
 
    ```markdown
-   This solution uses our custom Air Quality widget. Install it first:
+   This solution pairs with our Predictive Maintenance rule chain. Install it first:
 
    ${item-link:d93b9a1a-1c07-408c-bb86-743bbcb36832}
    ```
+
+   Widgets are the exception: the widgets your dashboards use are detected and installed automatically as **[related items](#related-items)**, so they need no `${item-link}` card.
 
 3. **Launch the emulator** — copy-paste Docker commands.
 4. **Launch the gateway** — use `${DOCKER_CONFIG}` to give them a ready-to-run config.
@@ -753,7 +768,7 @@ Every upload creates a new version of your template. Bump the version in the upl
 - [ ] No hardcoded UUIDs remain in any `singleEntity.id` or similar references
 - [ ] Dashboard titles match the names in `entities/dashboards.json`
 - [ ] Every widget displays data from a telemetry key that an emulator actually produces — nothing should be empty after installation
-- [ ] Every non-system widget used on a dashboard is already published to IoT Hub with an **approved** version, so its FQN resolves as a **[related item](#related-items)**
+- [ ] Every widget that does not ship with ThingsBoard is already published to IoT Hub with an **approved** version, so its `typeFullFqn` resolves as a **[related item](#related-items)** — search the dashboard export for `typeFullFqn` to enumerate them
 
 ### Device Profiles and Asset Profiles
 
