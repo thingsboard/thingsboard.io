@@ -52,7 +52,7 @@ Every device in ThingsBoard is an actor in the core service, holding its session
 
 Two things parallelise their creation, and they compose. Devices are routed to core instances by device id, and **each core instance runs its own tenant actor**, so a single tenant's fleet already comes up in parallel across the cluster. Tenants multiply that again, because each tenant is a separate serialised stream on every instance. Six core instances across five tenants is thirty concurrent creation streams instead of one.
 
-{/* DIAGRAM 1 (to draw): cold-start parallelism — tenant actors as a 6 x 5 grid, each creating device actors serially; 30 streams vs 1 */}
+![Device-actor creation across six core instances and five tenants — thirty independent streams](/images/blog/commanding-the-fleet-how-we-delivered-500k-guaranteed-commands-per-minute/actor-creation-parallelism.svg)
 
 That is why the core tier is six instances and the fleet is split five ways — both chosen for start-up, not for steady state. The cost lands on a cold start: a first boot, or a cluster brought back up after being stopped. A rolling restart is far cheaper — partitions migrate to the surviving instances, where the cache is already warm and the per-device lookup is negligible. In these runs the full fleet of 100,000 gateways and 500,000 devices was connected, announced and ready in about five minutes.
 
@@ -64,20 +64,19 @@ One advantage of the ThingsBoard microservice architecture is that you scale the
 - **6 Core instances** — device state, session routing, and the command lifecycle
 - **3 Rule Engine instances** — command dispatch and telemetry routing
 - **3 Kafka brokers**, replication factor 3, one per availability zone
+- **6 Valkey nodes** (3 primary, 3 replica) — the session and credential cache, with a primary and its replica never in the same zone
 - **6 × `r8g.xlarge` nodes** (4 vCPU / 32 GiB) plus 2 small monitoring nodes
-- **1 × `db.m7g.xlarge` Multi-AZ PostgreSQL instance**, 400 GiB `gp3`
+- **1 × `db.m7g.xlarge` Multi-AZ PostgreSQL instance**, 100 GiB `gp3`
 
 {/* DIAGRAM 2 (to draw): the cluster — tiers, Kafka RF3 one broker per zone, Valkey, RDS Multi-AZ, across 3 AZs */}
 
-**Four vCPU per node was a measurement, not a guess.** The first configuration used eight-vCPU nodes and showed the cluster memory-bound with CPU nearly idle — cores at 1–7% while heap sat near its limit. So we halved the vCPU while holding memory constant, and peak node CPU during the validated run was 69%. Heap stayed the tightest resource in every tier, transport peaking at 84.5%, so this is a workload to size on memory first.
+We did not start from a blank sheet. Our standard Private Cloud sizing is tested to 100,000 devices; this fleet is 100,000 *connections* with 600,000 device actors behind them, so the node class was the first thing to re-derive.
+
+Measurement, not estimate, decided it. On eight-vCPU nodes the cluster was **memory-bound with CPU nearly idle** — cores at 1–7% while heap sat near 90% of its limit — so vCPU was halved while memory was held constant. Peak node CPU stayed under 76%, with no measured loss of performance, and heap remained the tightest resource in every tier. This is a workload to size on memory first.
 
 ![JVM heap by tier — the tightest resource in the cluster](/images/blog/commanding-the-fleet-how-we-delivered-500k-guaranteed-commands-per-minute/heap-by-tier.png)
 
 ![Node CPU and memory during the run](/images/blog/commanding-the-fleet-how-we-delivered-500k-guaranteed-commands-per-minute/node-cpu-memory.png)
-
-**The database is sized for throughput, not capacity.** An hour at this rate consumes about 19 GiB, so space was never the constraint. But a PostgreSQL `gp3` volume gives no throughput control below 400 GiB — below that it is fixed at 3,000 IOPS and 125 MB/s, whatever you request. At 400 GiB the included baseline becomes **12,000 IOPS and 500 MB/s**.
-
-![Database write throughput across the run](/images/blog/commanding-the-fleet-how-we-delivered-500k-guaranteed-commands-per-minute/rds-write-throughput.png)
 
 **What we tuned.** Nothing here is exotic, but none of it is default either. These are the settings a deployment carrying this shape of load should decide rather than inherit.
 
@@ -104,6 +103,7 @@ So we set two checkpoints against the same fleet, changing only the cycle:
 | | Checkpoint 1 | Checkpoint 2 |
 |---|---|---|
 | gateways / devices | 100,000 / 500,000 | 100,000 / 500,000 |
+| tenants | 5, each with 20,000 gateways / 100,000 devices | 5, each with 20,000 gateways / 100,000 devices |
 | connections | 100,000, held open for the full run | 100,000, held open for the full run |
 | connection mode | One-way TLS | One-way TLS |
 | per device, per cycle | 1 telemetry message + 1 two-way command | 1 telemetry message + 1 two-way command |
@@ -126,15 +126,27 @@ Both passed, with the full fleet and the full hour.
 
 ## What the faster rate took
 
-The faster run demanded one thing the slower one did not, and we found it while the run was still going.
+The slower cadence passed on the configuration above, unchanged. Five times the rate demanded two more things.
 
-Every status change rewrites a row, and PostgreSQL leaves the old version behind for autovacuum to reclaim. Watching the database during the run, we could see the table gaining dead rows faster than cleanup was clearing them — each pass reclaimed about 1.7 million while 3.1 million more arrived. Left alone, that trend ends in a table that is mostly garbage, with latency climbing as the database works through it.
+**Storage throughput, not capacity.** The five-minute cadence ran on a 100 GiB `gp3` volume at its default 125 MB/s and never came close to the ceiling. At five times the rate it binds — and a PostgreSQL `gp3` volume gives no throughput control below 400 GiB, so the only way up is to grow the volume. At 400 GiB the included baseline becomes **12,000 IOPS and 500 MB/s**. Capacity was never the reason to do it: an hour at this rate consumes about 19 GiB.
 
-The limit was a rate cap rather than a shortage of capacity: autovacuum ships with a cost delay that holds it to roughly 32 MB/s. Lifting it while the run was still going dropped a cleanup pass from 227 seconds to about 50, and dead rows fell from 33.9% of the table to 0.9% within three minutes.
+The dashed line on the chart below is that default ceiling. Steady state sits at about 70% of it, and the peak goes 1.6× over — on the default tier, both would have been throttled.
 
-![Database write latency across the run](/images/blog/commanding-the-fleet-how-we-delivered-500k-guaranteed-commands-per-minute/rds-write-latency.png)
+![Database write throughput against the 125 MB/s default gp3 ceiling](/images/blog/commanding-the-fleet-how-we-delivered-500k-guaranteed-commands-per-minute/rds-write-throughput.png)
 
-This is a deployment setting rather than platform behaviour, and it is the one to get right wherever high-volume persistent RPC is the main workload.
+**Cleanup that keeps up.** Every status change rewrites a row, and PostgreSQL leaves the old version behind for autovacuum to reclaim. Watching the database during the run, we could see the table gaining dead rows faster than cleanup was clearing them — each pass reclaimed about 1.7 million while 3.1 million more arrived. Left alone, that trend ends in a table that is mostly garbage, with latency climbing as the database works through it.
+
+The limit was a rate cap rather than a shortage of capacity: autovacuum ships with a cost delay that holds it to roughly 32 MB/s. We lifted it while the run was still going, and a cleanup pass went from 227 seconds to about 50. Dead rows fell from 6.1 million to 147,000 — 33.9% of the table to under 1% — in under four minutes.
+
+The catch-up itself is the spike in the middle of the chart below: clearing a backlog that size costs write throughput while it runs. What matters is where it lands afterwards.
+
+![Database write latency, annotated at the moment the autovacuum rate cap was lifted](/images/blog/commanding-the-fleet-how-we-delivered-500k-guaranteed-commands-per-minute/rds-write-latency.png)
+
+Database CPU makes the same point from a different angle. It had been climbing for twenty minutes **at a constant command rate** — the signature of work accumulating rather than load increasing — and after the change it flattened and stayed flat for the rest of the run.
+
+![Database CPU utilisation, annotated at the same moment](/images/blog/commanding-the-fleet-how-we-delivered-500k-guaranteed-commands-per-minute/rds-cpu-utilization.png)
+
+Both are deployment settings rather than platform behaviour, and both are worth deciding deliberately wherever high-volume persistent RPC is the main workload.
 
 ## The takeaway
 
