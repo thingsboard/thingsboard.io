@@ -1,178 +1,152 @@
 ---
-title: 'Commanding the Fleet. How We Delivered 500,000 Guaranteed Commands per Minute'
-description: 'Performance test results: 500,000 guaranteed remote commands per minute to a fleet of 100,000 MQTT gateways and 500,000 devices, with zero lost commands and a 364 ms p99 round trip.'
+title: 'Commanding the Gateway Fleet: How We Scaled Persistent RPC to 500K Calls per Minute'
+description: 'Performance test results: 500,000 guaranteed remote commands per minute to a fleet of 100,000 MQTT gateways and 500,000 devices, with zero commands lost and 99% delivered inside 400 ms.'
 date: 2026-09-02
 updatedDate: 2026-09-02
 author: dmytro-shvaika
 categories: ['tech', 'use-cases']
-featuredImage: '/images/blog/commanding-the-fleet-how-we-delivered-500k-guaranteed-commands-per-minute/cover.png'
-featuredImageAlt: 'Commanding a fleet of 500,000 devices'
+featuredImage: '/thingsboard-og.png'
+featuredImageAlt: 'ThingsBoard'
 draft: true
 ---
 
+import BlogCTA from '~/components/Blog/BlogCTA.astro'
+
 How many commands can an IoT platform push out to real hardware at once — and still guarantee that every single one of them arrives?
 
-We put a number on it. A fleet of **100,000 MQTT gateways** fronting **500,000 devices**, every device receiving a remote command and reporting telemetry on a fixed cycle. Two checkpoints: one command per device every five minutes, then one command per device every minute.
+A startup preparing to launch on the **ThingsBoard MQTT Gateway API** asked us exactly that, and gave us the shape of the answer: a baseline fleet of **100,000 gateways and 500,000 devices**, held at two command rates — one command per device every five minutes, then one every minute.
 
-At the second checkpoint the platform delivered **500,000 commands every minute — 27.5 million over the hour — with none lost, none expired, and a 99th-percentile round trip of 364 milliseconds** against a ten-second delivery budget.
+So we put a number on it. At the faster rate the platform delivered **500,000 commands every minute — 27.5 million over the hour — with none lost, none expired, and 99% of commands reaching their gateway inside 400 ms**.
 
-This is the story of that test, and of what it takes to make command delivery both guaranteed and fast.
+A story of measurement over assumption — and proof that data collection is only half of what ThingsBoard does well.
 
-## The gap we set out to close
+## Why commands need their own benchmark
 
-Look at how IoT platforms are usually benchmarked — including by us — and you will find telemetry. Messages per second in, data points per second persisted, devices connected. That is the right measurement for most deployments, and our [published performance benchmarks](/docs/reference/architecture/performance/) cover it: up to a million devices and 33,333 data points per second on a single cluster.
+Ask how an IoT platform performs and the answer comes back in one of two forms: telemetry throughput, or the number of connections it can hold at once. That is the right measurement for most deployments, and our [published performance benchmarks](/docs/reference/architecture/performance/) cover it in depth.
 
-What that record does not cover is traffic in the **other** direction: the platform reaching back out to the hardware, at scale, with a delivery guarantee attached.
+Those numbers measure ingestion. They say nothing about how the platform performs when it has to send remote commands back to the hardware.
 
-That matters because the two failure modes are not comparable. A dropped telemetry message is a data-quality problem — a gap in a chart, a slightly less accurate average. A dropped **command** is an operational one: a curtailment that never happened, a valve that stayed open, a firmware rollout that silently skipped nine hundred devices. Systems that act on the physical world need the second guarantee, not just the first.
+The two are not the same, because the failure modes are not comparable. Most telemetry pipelines are built to tolerate the occasional lost message, and for good reason — one missing reading is a gap in a chart, a slightly less accurate average, and the next reading is already on its way. A dropped command has no equivalent. It is a machine that never stopped, a valve that stayed open, a firmware rollout that silently skipped part of the fleet. That is why command delivery needs a guarantee telemetry can live without.
 
-There was a second gap too. Our public benchmarks exercise the [MQTT Device API](/docs/reference/mqtt-api/getting-connected/), where each device holds its own connection. This test deliberately used the [MQTT Gateway API](/docs/reference/gateway-api/overview/) instead, where one gateway session multiplexes many devices behind it. That is how industrial and energy fleets are actually built, and it puts a very different shape of load on the platform: far fewer connections, far more per-device state behind each one.
+## The challenge
 
-## A fast-moving startup, and a requirement that could not slip
+The challenge was not just measuring command delivery alongside telemetry ingestion. Three things made it harder than a throughput run.
 
-The team that brought us this problem was a startup growing quickly on the [ThingsBoard Gateway API](/docs/reference/gateway-api/overview/), with a fleet built at a **1:5 ratio** — one gateway for every five devices behind it. 100,000 gateways. 500,000 devices.
+**Four database writes per command.** Less a challenge than a bottleneck, but it set the ceiling. A persistent command is a row that moves through QUEUED, SENT, DELIVERED and SUCCESSFUL — one insert and three updates. At half a million commands a minute that is **two million row writes a minute**, and originally every one of them was committed synchronously on the thread handling the command.
 
-Their requirement was not throughput for its own sake. Every device had to be reachable with a command, on a fixed cycle, and every command had to be accounted for — delivered, or explicitly reported as failed. Never quietly lost. And the round trip had to stay fast enough that an operator issuing a fleet-wide action sees it complete, not sees it queue.
+**Sizing for the fleet, not just for the message rate.** A gateway is a device too, so this fleet is **600,000 actors** in the core service — 100,000 gateways and the 500,000 devices behind them — and they are not created for free: each one is created inside its tenant's actor, one at a time. A steady-state message rate tells you nothing about this. It is the part of scale that shows up when the fleet comes *up* rather than while it is running — at first boot, and again whenever the cluster is brought up from stopped.
+
+**A deployment that can lose a zone.** Every tier spread across three availability zones, with Kafka replicating across all of them — no two brokers share a zone, so every message crosses a boundary. A latency figure from a single-zone cluster tells you nothing about a cluster that survives losing a zone, so the numbers below are measured on the topology a production fleet would actually run.
+
+## Solution strategy
+
+#### Taking the commit off the command path
+
+[Persistent RPC](/docs/user-guide/command-and-control/) is what stands behind the guarantee: a command is a row before it is sent anywhere, and every step of its life is written too. A separate synchronous write per state was a fine trade when commands were occasional — a firmware trigger, a setpoint change, a reboot — which is what persistent RPC was built for.
+
+So we changed it before running anything. Inserts and status updates are now grouped into **batches** and written off the message-processing threads: the same rows, the same durability, without a database commit standing in the path of every command.
+
+#### Parallelising fleet start-up
+
+Every device in ThingsBoard is an actor in the core service, holding its session routing and the set of commands in flight for it — and since a gateway is itself a device, this fleet is 600,000 actors rather than 500,000. That is why the workload is bound by memory rather than by CPU.
+
+Two things parallelise their creation, and they compose. Devices are routed to core instances by device id, and **each core instance runs its own tenant actor**, so a single tenant's fleet already comes up in parallel across the cluster. Tenants multiply that again, because each tenant is a separate serialised stream on every instance. Six core instances across five tenants is thirty concurrent creation streams instead of one.
+
+{/* DIAGRAM 1 (to draw): cold-start parallelism — tenant actors as a 6 x 5 grid, each creating device actors serially; 30 streams vs 1 */}
+
+That is why the core tier is six instances and the fleet is split five ways — both chosen for start-up, not for steady state. The cost lands on a cold start: a first boot, or a cluster brought back up after being stopped. A rolling restart is far cheaper — partitions migrate to the surviving instances, where the cache is already warm and the per-device lookup is negligible. In these runs the full fleet of 100,000 gateways and 500,000 devices was connected, announced and ready in about five minutes.
+
+#### An architecture that can lose a zone
+
+One advantage of the ThingsBoard microservice architecture is that you scale the tier under pressure, not the whole cluster. The fleet ran on a deliberately modest footprint, every tier spread across three availability zones:
+
+- **6 MQTT Transport instances** — 100,000 gateway sessions, TLS, and the telemetry stream
+- **6 Core instances** — device state, session routing, and the command lifecycle
+- **3 Rule Engine instances** — command dispatch and telemetry routing
+- **3 Kafka brokers**, replication factor 3, one per availability zone
+- **6 × `r8g.xlarge` nodes** (4 vCPU / 32 GiB) plus 2 small monitoring nodes
+- **1 × `db.m7g.xlarge` Multi-AZ PostgreSQL instance**, 400 GiB `gp3`
+
+{/* DIAGRAM 2 (to draw): the cluster — tiers, Kafka RF3 one broker per zone, Valkey, RDS Multi-AZ, across 3 AZs */}
+
+**Four vCPU per node was a measurement, not a guess.** The first configuration used eight-vCPU nodes and showed the cluster memory-bound with CPU nearly idle — cores at 1–7% while heap sat near its limit. So we halved the vCPU while holding memory constant, and peak node CPU during the validated run was 69%. Heap stayed the tightest resource in every tier, transport peaking at 84.5%, so this is a workload to size on memory first.
+
+![JVM heap by tier — the tightest resource in the cluster](/images/blog/commanding-the-fleet-how-we-delivered-500k-guaranteed-commands-per-minute/heap-by-tier.png)
+
+![Node CPU and memory during the run](/images/blog/commanding-the-fleet-how-we-delivered-500k-guaranteed-commands-per-minute/node-cpu-memory.png)
+
+**The database is sized for throughput, not capacity.** An hour at this rate consumes about 19 GiB, so space was never the constraint. But a PostgreSQL `gp3` volume gives no throughput control below 400 GiB — below that it is fixed at 3,000 IOPS and 125 MB/s, whatever you request. At 400 GiB the included baseline becomes **12,000 IOPS and 500 MB/s**.
+
+![Database write throughput across the run](/images/blog/commanding-the-fleet-how-we-delivered-500k-guaranteed-commands-per-minute/rds-write-throughput.png)
+
+**What we tuned.** Nothing here is exotic, but none of it is default either. These are the settings a deployment carrying this shape of load should decide rather than inherit.
+
+| setting | default | ours | why |
+|---|---|---|---|
+| `transport.sessions.report_timeout` | 3 s | 90 s | every live session is checked at the end of each period |
+| `actors.system.device_dispatcher_pool_size` | 4 | 10 | device actors carry the command lifecycle, and there are 500,000 of them |
+| `actors.system.rule_dispatcher_pool_size` | 8 | 32 | every command is dispatched through the rule engine |
+| `actors.system.tenant_dispatcher_pool_size` | 2 | 5 | one thread per tenant |
+| `queue.core.partitions` | 10 | 12 | two partitions per core instance |
+| `spring.datasource.maximumPoolSize` | 16 | 72 | batch writers each hold a connection while flushing |
+| Kafka producer | — | lz4, `acks=1`, `linger.ms=5`, 64 KiB batches | fewer and fuller requests, rather than fewer messages |
+
+The first one is worth explaining. Session activity is reported on a fixed period rather than per message, and at the end of every period the transport examines **every** live session, not only the ones that were active. Those states are held in memory, and at 100,000 sessions the three-second default means each transport instance walks every session it holds, twenty times a minute. Raising the period to 90 seconds cuts that by thirty times, and coalesces several activities from one device into a single update.
+
+## The benchmark, and what it showed
+
+The fleet connects through the [MQTT Gateway API](/docs/reference/gateway-api/overview/) rather than the [Device API](/docs/reference/mqtt-api/getting-connected/) our published figures use — one gateway session carrying many devices behind it, the way industrial fleets are actually built. It is a very different shape of load: far fewer connections, far more per-device state behind each one.
+
+Telemetry from all 500,000 devices was ingested through the Gateway API and forwarded to Kafka for downstream consumption, one of the standard ThingsBoard integration patterns. Time-series storage throughput is already well covered by the published benchmarks linked above, so it was deliberately left outside this exercise.
 
 So we set two checkpoints against the same fleet, changing only the cycle:
 
 | | Checkpoint 1 | Checkpoint 2 |
 |---|---|---|
 | gateways / devices | 100,000 / 500,000 | 100,000 / 500,000 |
-| connections | persistent MQTTS | persistent MQTTS |
+| connections | 100,000, held open for the full run | 100,000, held open for the full run |
+| connection mode | One-way TLS | One-way TLS |
 | per device, per cycle | 1 telemetry message + 1 two-way command | 1 telemetry message + 1 two-way command |
+| telemetry delivery | MQTT QoS 0 | MQTT QoS 0 |
+| command delivery | MQTT QoS 1, persistent RPC | MQTT QoS 1, persistent RPC |
 | cycle | every 5 minutes | **every minute** |
 | commands per minute | 100,000 | **500,000** |
 | duration | 1 hour | 1 hour |
 
-Both ran on a genuine **three availability-zone deployment** — every tier spread across zones, Kafka with a replication factor of three and one broker per zone — because a delivery guarantee that only holds while all three zones are healthy is not much of a guarantee.
+Both passed, with the full fleet and the full hour.
 
-Telemetry from all 500,000 devices was ingested through the Gateway API and forwarded to Kafka for downstream consumption, one of the standard ThingsBoard integration patterns. Time-series storage throughput is already well covered by the published benchmarks linked above, so it was deliberately left outside this exercise: every millisecond of latency reported below belongs to the command path, not to a database write on the telemetry side.
-
-## What "guaranteed" actually means
-
-The commands in this test were **persistent RPC**, and that word carries specific mechanics rather than good intentions.
-
-When a command is issued, ThingsBoard writes it to PostgreSQL before it goes anywhere. The command then moves through a lifecycle — queued, sent, delivered, and finally successful or expired — and each transition is persisted. Delivery to the gateway uses **MQTT QoS 1** over the [Gateway API RPC topics](/docs/reference/gateway-api/rpc/), so the broker keeps re-sending until the gateway acknowledges receipt.
-
-The consequence is the part that matters: a command that has been accepted cannot simply evaporate. It exists as a row with a status, and something has to move it to a terminal state. If the gateway is briefly offline, the command waits. If it cannot be delivered before its expiration, it is recorded as expired rather than forgotten.
-
-That guarantee also has to survive the platform restarting underneath it. A ThingsBoard core node holds the actor state for each device, and during a rolling update those actors migrate to other nodes. The transport-level identity of every in-flight command is persisted alongside it, so when an actor is recreated elsewhere it rebuilds the set of commands still awaiting a reply — and a reply that arrives after the move is still matched to its request.
-
-{/* TODO: link the dedicated RPC page once it is published, and reuse rpc-delivery-lifecycle.svg there. Path below is a placeholder to confirm. */}
-The full lifecycle, including the recovery path during a rolling restart, is described in the [persistent RPC guide](/docs/user-guide/rpc/).
-
-## Built for volume before the volume arrived
-
-There is one platform change worth calling out, because it is the difference between a guarantee that works and a guarantee that works fast.
-
-When persistent RPC was first built, it was designed for what remote commands were then: occasional and high-value, issued one at a time — a firmware trigger, a setpoint change, a reboot. Writing each command to the database synchronously was the right trade for that shape. Durability mattered; volume did not.
-
-A fleet that commands every device every minute is a different shape entirely, and a synchronous write per command is the first thing to give way under it. So we moved RPC persistence onto a **batched, asynchronous write path** — commands and their status transitions are grouped and written off the message-processing threads, while still preserving per-command ordering so a command's status can never be written before the command itself.
-
-That change was in place before the first of these two checkpoints ran. It is also why guaranteed delivery and low latency stopped being a trade-off: nothing on the command path waits for a database commit.
-
-## Checkpoint one: a command every five minutes
-
-The first checkpoint passed on the first attempt, with the full fleet and the full hour.
-
-**5,500,000 commands delivered. Zero expired. Zero failed.** Average round trip 200–233 ms, 99th percentile 330–376 ms. No queue recorded a timeout or a failure, consumer lag stayed bounded and drained to zero on every cycle, and not one telemetry publish failed.
-
-100,000 gateway sessions were established and held for the entire run, spread across six MQTT transport instances to within **±1.1%** of an even split.
-
-## Checkpoint two: a command every minute
-
-Then we multiplied the message rate by five and ran it again.
-
-**27,496,000 commands delivered. Zero expired. Zero failed. Zero redelivered.**
-
-![Command outcomes by status — every command successful](/images/blog/commanding-the-fleet-how-we-delivered-500k-guaranteed-commands-per-minute/rpc-outcome-by-status.png)
-
-The striking part is not the total. It is the latency: average 203–254 ms, 99th percentile **317–364 ms** — statistically level with the five-minute checkpoint, at five times the load, and more than **27× inside** the ten-second budget.
+- **5,500,000 commands** delivered at the five-minute cadence and **27.5 million** at one minute — none lost, none expired.
+- **Delivery time did not move.** Average 200–233 ms at the slower cadence against 203–254 ms at the faster one; 99th percentile 330–376 ms against 317–364 ms. Five times the load, the same latency.
+- **100,000 sessions held for the entire hour**, spread across the six transport instances to within ±1.1% and ±1.3% of an even split.
+- **No queue recorded a timeout or a failure**, consumer lag stayed bounded and drained to zero on every cycle, and not one telemetry publish failed.
 
 ![100,000 gateway connections held flat for the full hour](/images/blog/commanding-the-fleet-how-we-delivered-500k-guaranteed-commands-per-minute/connections.png)
 
-100,000 sessions again, flat for the hour, this time within ±1.3% across the six transport instances.
-
-And the command path itself stayed clean under the whole run — no failures, no timeouts, on any queue:
-
 ![Command queue outcomes — no failures, no timeouts](/images/blog/commanding-the-fleet-how-we-delivered-500k-guaranteed-commands-per-minute/command-queue-outcomes.png)
 
-#### Where the load does show
+## What the faster rate took
 
-Being honest about a benchmark means pointing at the place it is tightest, not only the place it looks best.
+The faster run demanded one thing the slower one did not, and we found it while the run was still going.
 
-Commands in this test were dispatched as a **synchronized burst** — every device in the fleet commanded at the top of each cycle, rather than smoothly spread across it. That is the harder pattern, and it is the realistic one for fleet-wide actions like a coordinated curtailment or a mass configuration push.
+Every status change rewrites a row, and PostgreSQL leaves the old version behind for autovacuum to reclaim. Watching the database during the run, we could see the table gaining dead rows faster than cleanup was clearing them — each pass reclaimed about 1.7 million while 3.1 million more arrived. Left alone, that trend ends in a table that is mostly garbage, with latency climbing as the database works through it.
 
-In those burst windows the round trip rises to roughly one second on average, with a 99th percentile of 2.76 seconds. Still comfortably inside the ten-second budget — around 3.6× headroom rather than 27× — and that window is the number we would watch first if the workload grew. The steady-state figure is the level one; the burst figure is where five times the load becomes visible.
-
-#### An efficiency result we did not expect
-
-At the higher rate, Kafka moved **235,000 messages per second** — 3.4× the volume of the first checkpoint — while using slightly *less* CPU.
-
-The reason is that Kafka's cost is dominated by request handling rather than message count. At the higher rate each produce request carried 3.4× more messages within the same batching window, and consumers received fuller batches per poll. The result: 3.4× the messages moved with **21% fewer requests**. Message throughput, in other words, is not what makes a Kafka tier expensive.
-
-## What the second checkpoint took
-
-The first checkpoint passed unchanged. The second took three attempts, and each failure pointed at something worth knowing for any high-volume deployment.
-
-#### Storage throughput, not storage capacity
-
-One attempt reached the full target rate, held it for about ten minutes, and then collapsed. Write throughput had saturated the volume's limit, write latency went from 23 ms to 171 ms, and the disk queue depth went from 9 to 50.
-
-The cause was a tier boundary rather than a sizing mistake. On AWS, a PostgreSQL `gp3` volume gives no throughput control below 400 GiB — below that it is fixed at 3,000 IOPS and 125 MB/s, no matter what you ask for. Growing the volume to 400 GiB raised the included baseline to **12,000 IOPS and 500 MB/s** and the ceiling disappeared.
-
-Worth stressing: capacity was never the issue. A one-hour run at this rate consumes about 19 GiB, so the original 100 GiB was ample on space and hopeless on throughput.
-
-![Database write throughput across the run](/images/blog/commanding-the-fleet-how-we-delivered-500k-guaranteed-commands-per-minute/rds-write-throughput.png)
+The limit was a rate cap rather than a shortage of capacity: autovacuum ships with a cost delay that holds it to roughly 32 MB/s. Lifting it while the run was still going dropped a cleanup pass from 227 seconds to about 50, and dead rows fell from 33.9% of the table to 0.9% within three minutes.
 
 ![Database write latency across the run](/images/blog/commanding-the-fleet-how-we-delivered-500k-guaranteed-commands-per-minute/rds-write-latency.png)
 
-#### Write amplification on a status column
+This is a deployment setting rather than platform behaviour, and it is the one to get right wherever high-volume persistent RPC is the main workload.
 
-With the storage ceiling lifted, the next attempt still failed — at only 28% of the new throughput ceiling, so storage was demonstrably no longer the constraint.
-
-The cause was subtler. PostgreSQL can often update a row in place without touching its indexes, which keeps the write cost of a status change small. But it treats a column named in a **partial index predicate** as an indexed column — and there was such an index whose predicate referenced the command's `status`.
-
-A command's lifecycle is nothing but a sequence of status transitions. So every transition was disqualified from the cheap in-place path, and each one wrote a new row version plus entries in every index on the table. Removing that index brought in-place updates back to 52.5% of writes, halving the garbage generated.
-
-#### Cleanup that could keep up
-
-Even then, dead row versions accumulated, because PostgreSQL's autovacuum was running with its default rate limit — roughly 32 MB/s. Each pass reclaimed about 1.7 million dead rows while 3.1 million more arrived.
-
-Lifting the rate limit dropped a cleanup pass from 227 seconds to about 50, and dead rows fell from 33.9% of the table to 0.9% within three minutes. The run finished with 740 dead rows — 0.0% of the table.
-
-Both of these are deployment-level settings rather than platform behaviour, and both are worth applying deliberately in any deployment where high-volume persistent RPC is the primary workload.
-
-## What it runs on
-
-One of the advantages of the ThingsBoard microservice architecture is that you scale the tier under pressure, not the whole cluster. The fleet above ran on a deliberately modest footprint:
-
-- **6 MQTT Transport instances** — 100,000 persistent gateway sessions, TLS, and the telemetry stream.
-- **6 Core instances** — device state, session routing, and the command lifecycle.
-- **3 Rule Engine instances** — command dispatch and telemetry routing.
-- **3 Kafka brokers**, replication factor 3, one per availability zone.
-- **6 × `r8g.xlarge` compute nodes** (4 vCPU / 32 GiB) plus 2 small monitoring nodes.
-- **One `db.m7g.xlarge` Multi-AZ PostgreSQL instance**, 400 GiB `gp3`.
-
-That is four vCPU per node carrying 500,000 devices and half a million commands a minute.
-
-The reason it is four and not eight is a measurement rather than a guess. The first configuration used eight-vCPU nodes and showed the cluster **memory-bound with CPU nearly idle** — cores at 1–7% while heap sat near its limit. So we halved the vCPU while holding memory constant, and peak node CPU during the validated run was 69%, with no measured loss of performance.
-
-![JVM heap by tier — the tightest resource in the cluster](/images/blog/commanding-the-fleet-how-we-delivered-500k-guaranteed-commands-per-minute/heap-by-tier.png)
-
-![Node CPU and memory during the run](/images/blog/commanding-the-fleet-how-we-delivered-500k-guaranteed-commands-per-minute/node-cpu-memory.png)
-
-**The practical lesson: size this workload on heap first.** Across both checkpoints, JVM heap was the tightest resource in every tier — transport peaking at 84.5% — while CPU had room to spare everywhere. Garbage collection consumed under 1% of wall time, so heap was not under pressure; it was simply the dimension with the least headroom, and the one to grow first as a fleet expands.
-
-## What this means for your fleet
+## The takeaway
 
 Command and control has been the quiet half of IoT platform benchmarking. It is also the half that carries operational consequences: the fleet-wide firmware push, the demand-response signal, the emergency shutdown. Those are the moments where "we processed 99.9% of messages" is not an acceptable answer.
 
-What these two checkpoints establish is that guaranteed delivery and low latency are not a trade-off on ThingsBoard. Half a million commands a minute, to half a million devices behind 100,000 gateways, across three availability zones — every one persisted, every one accounted for, and a 99th-percentile round trip well under half a second.
+What these two checkpoints establish is that guaranteed delivery and low latency are not a trade-off on ThingsBoard. Half a million commands a minute, to half a million devices behind 100,000 gateways, across three availability zones — every one persisted, every one accounted for, and a 99th-percentile delivery time well under half a second. On six four-vCPU nodes and a single database instance.
 
-They also establish something about cost shape. This ran on six four-vCPU nodes and a single database instance. Scaling command volume did not require scaling the cluster; it required knowing which two or three settings actually bind.
-
-If you are building a fleet where the platform has to reach back out to the hardware — reliably, at volume, with an audit trail for every command — that is exactly the workload [ThingsBoard Professional Edition](/products/thingsboard-pe/) is built for. Our team runs tests like this one as part of [our engineering services](/services/development-services/), against your fleet shape and your delivery guarantees rather than a generic benchmark.
-
-Ready to find out what your fleet can actually do?
+<BlogCTA
+  title="Planning a fleet the platform has to command, not just collect from?"
+  description="We run benchmarks like this one against your fleet shape and your delivery guarantees, before you commit to an architecture."
+  buttons={[
+    { text: "Explore ThingsBoard PE", href: "/products/thingsboard-pe/" },
+    { text: "Talk to our team", href: "/contact-us/?subject=Performance%20Testing", variant: "outline" }
+  ]}
+/>
