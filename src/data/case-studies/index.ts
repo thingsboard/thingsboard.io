@@ -20,7 +20,6 @@ export const caseStudyCategories = [
 //   3. (Optional) If the card needs a custom logo height, add an entry to
 //      `cardLogoHeights` below.
 export const caseStudyOrder: string[] = [
-	'cuba-iot-platform',
 	'ibt-systems',
 	'acte-technology',
 	'wiifor',
@@ -30,6 +29,8 @@ export const caseStudyOrder: string[] = [
 	'onedata',
 	'lumen',
 	'solandtec',
+	// Intentionally out of newest-first order: opens catalog page 2 (9 cards per page).
+	'cuba-iot-platform',
 	'tjk-solutions',
 	'energenix',
 	'energroup',
