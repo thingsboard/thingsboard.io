@@ -122,6 +122,7 @@ function toCard(d: CaseStudyData): CaseStudyCard {
 		logo: d.hero.logo,
 		logoAlt: d.hero.logoAlt,
 		logoHeight: cardLogoHeights[d.pageSlug],
+		logoUnfiltered: d.logoUnfiltered,
 		backgroundImage: d.hero.backgroundImage,
 	};
 }

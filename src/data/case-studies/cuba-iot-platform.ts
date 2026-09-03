@@ -8,6 +8,7 @@ export const data: CaseStudyData = {
 	pageSlug: 'cuba-iot-platform',
 	breadcrumb: 'CUBA IoT Platform — Facility Management',
 	categories: ['Facility management'],
+	logoUnfiltered: true,
 
 	hero: {
 		category: 'FACILITY MANAGEMENT',
@@ -177,6 +178,5 @@ export const data: CaseStudyData = {
 		companyLogoAlt: 'CUBA IoT Platform logo',
 		companyLogoWidth: 240,
 		companyLogoHeight: 91,
-		companyLogoUnfiltered: true,
 	},
 };
