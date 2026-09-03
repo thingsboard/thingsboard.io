@@ -14,6 +14,7 @@ import type { CardProps } from '@root/pages/open-graph/_shared/Card';
 import { getDocsProductMeta } from '@root/pages/open-graph/_shared/product-meta';
 import { getMarketingOverride, getMarketingSection } from '@root/pages/open-graph/_shared/marketing-meta';
 import { BLOG_AUTHORS } from '@data/blog/authors';
+import { getAuthorsWithPosts } from '@data/blog/posts';
 import { CATEGORY_LABELS } from '@data/blog/categories';
 import { HARDWARE_PARTNERS } from '@data/partners/hardware-partners';
 import { IOT_HUB_CATEGORIES } from '@models/iot-hub';
@@ -91,8 +92,8 @@ export async function getBlogCardInputs(): Promise<CardInput[]> {
 		},
 	});
 
-	// /blog/author/{author-slug}/
-	for (const author of BLOG_AUTHORS) {
+	// /blog/author/{author-slug}/ — only authors that still have posts get a route
+	for (const author of await getAuthorsWithPosts()) {
 		inputs.push({
 			slug: `author/${author.slug}`,
 			props: {
