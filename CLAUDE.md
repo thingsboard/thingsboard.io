@@ -27,6 +27,7 @@ pnpm lint:linkcheck   # Link validation (runs build first)
 pnpm lint:linkcheck:nobuild  # Link validation (skip build)
 pnpm lint:slugcheck   # Validate slugs match across languages
 pnpm lint:dualrender  # Validate IoT Hub server/client card render parity (needs a build)
+pnpm lint:landmarks   # One <main> per page + marketing table integrity (needs a build)
 pnpm format           # Format with Prettier
 ```
 
@@ -90,6 +91,8 @@ Use the `edit-doc` skill for full props, usage examples, and authoring rules for
 - **InstallationCardGrid** — installation option card grid
 - **RuleNodeCardGrid** — rule node category card grid
 - **DocLink** — product-aware internal links (always use instead of bare markdown links)
+- **DataTable** — semantic shell for comparison tables (caption → optional colgroup → `th scope="col"` header → tbody slot); callers pass `<tr>` rows whose first cell is `<th scope="row">`. `scrollable` wraps the table in a `role="region"` named from the caption, which `initScrollRegions` drops again on viewports where the table does not overflow. Styling contract: the caller's `<style>` must be `is:global`, nested under the caller's own class — scoped rules cannot match the shell DataTable renders
+- **DataTableValue** — one comparison cell's value, always as text; icons are decorative, an empty value fails the build
 - **Code blocks** — `maxLines`, `collapsible`, `wrap`, `download='file.ext'` meta options; `<Code>` component for dynamic code
 
 ### Product System
@@ -259,3 +262,5 @@ GitHub Actions runs: `astro check`, `eslint`, `slugcheck`.
 `lint:linkcheck` runs in a separate CI pipeline (not GitHub Actions) because it needs a full build. It must also pass before a PR can merge — so run it locally before requesting review, especially when adding, renaming, or removing pages, changing redirects, or editing internal links. Use `pnpm lint:linkcheck` for a clean check, or `pnpm lint:linkcheck:nobuild` if you already produced a build in this session and just want to re-validate links.
 
 `lint:dualrender` also needs a build and is **not wired into any pipeline yet** — run `pnpm lint:dualrender` by hand after a build when touching IoT Hub listing cards, their clone templates, or `iot-hub-listing-card-bind.ts`. It checks that the server render and the client-cloned render of a card still agree; breaking that is silent, since the page builds, typechecks and lints clean and only renders wrong once results come back from the API.
+
+`lint:landmarks` also needs a build and is not wired into a pipeline yet — run `pnpm lint:landmarks` by hand after a build when adding pages or layouts, or touching the marketing comparison tables. It asserts exactly one `<main>` per built page (Starlight emits one; a page-level `<main>` is always a nested duplicate) and that the marketing tables keep captions and carry every value as text. Both defects are silent: the page builds, typechecks and lints clean.
