@@ -710,6 +710,20 @@ export const DISTRIBUTORS: Distributor[] = [
 		email: "delee@n2m.co.kr",
 		website: "n2m.co.kr",
 	},
+	{
+		name: "Okiff",
+		regions: ["North America"],
+		countries: ["Canada"],
+		email: "thingsboard@okiff.com",
+		website: "okiff.com",
+	},
+	{
+		name: "GREENNET",
+		regions: ["Europe"],
+		countries: ["Ukraine","Poland","Georgia"],
+		email: "info@greennet.ua",
+		website: "greennet.ua",
+	},
 ];
 
 // Throws if this data and REGION_MEMBERSHIP disagree — see ./coverage.ts.
