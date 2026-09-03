@@ -105,6 +105,8 @@ export interface CaseStudyData {
 		companyLogoAlt: string;
 		companyLogoWidth?: number;
 		companyLogoHeight?: number;
+		/** Skip the white-flatten filter — for logos that ship their own dark-background treatment. */
+		companyLogoUnfiltered?: boolean;
 	};
 }
 

@@ -177,5 +177,6 @@ export const data: CaseStudyData = {
 		companyLogoAlt: 'CUBA IoT Platform logo',
 		companyLogoWidth: 240,
 		companyLogoHeight: 91,
+		companyLogoUnfiltered: true,
 	},
 };
