@@ -719,7 +719,7 @@ export const DISTRIBUTORS: Distributor[] = [
 	},
 	{
 		name: "GREENNET",
-		regions: ["Europe"],
+		regions: ["Europe","Asia"],
 		countries: ["Ukraine","Poland","Georgia"],
 		email: "info@greennet.ua",
 		website: "greennet.ua",

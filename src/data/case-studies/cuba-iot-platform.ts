@@ -2,11 +2,11 @@ import type { CaseStudyData } from './types';
 
 export const data: CaseStudyData = {
 	title: 'Backup power IoT in Kazakhstan: how CUBA IoT Platform monitors diesel generators with ThingsBoard',
-	pageTitle: 'Backup Power IoT in Kazakhstan: How CUBA IoT Platform Monitors Diesel Generators',
+	pageTitle: 'How CUBA IoT Platform Monitors Diesel Generators',
 	description:
 		'CUBA IoT Platform connects diesel generator controllers to ThingsBoard via CUBA RePort gateways: fleet dashboards, alarms, fuel and readiness monitoring.',
 	pageSlug: 'cuba-iot-platform',
-	breadcrumb: 'CUBA IoT Platform — Diesel Generator Monitoring',
+	breadcrumb: 'CUBA IoT Platform — Facility Management',
 	categories: ['Facility management'],
 
 	hero: {
@@ -18,8 +18,6 @@ export const data: CaseStudyData = {
 		],
 		logo: '/images/case-studies/cuba-iot-platform-logo.png',
 		logoAlt: 'CUBA IoT Platform logo',
-		logoWidth: 240,
-		logoHeight: 91,
 		backgroundImage: '/images/case-studies/cuba-iot-platform.webp',
 	},
 
@@ -160,7 +158,7 @@ export const data: CaseStudyData = {
 				text: 'ThingsBoard sends alerts through configured notification channels when critical events occur. This reduces response time and allows service teams to act before the backup power system becomes unavailable.',
 				images: [
 					{
-						src: 'https://img.thingsboard.io/case-studies/alarms-table.webp',
+						src: 'https://img.thingsboard.io/case-studies/alarms-table-2.webp',
 						alt: 'ThingsBoard alarms table widget',
 						title: 'ThingsBoard alarms table widget',
 					},
