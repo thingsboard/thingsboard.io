@@ -46,7 +46,7 @@ the first using built-in converters, the second using a custom converter class:
       ],
       "serverSideRpcRequests": [
         { "requestFilter": "setData",      "method": "set",      "oid": "1.3.6.1.2.1.1.1.0" },
-        { "requestFilter": "multiSetData", "method": "multiset" },
+        { "requestFilter": "dataToMultiSet", "method": "multiset", "mappings": [{ "oid": "1.3.6.1.4.1.99999.1.1.0", "type": "INTEGER", "value": "${params.temperature}" }] },
         { "requestFilter": "getData",      "method": "get",      "oid": "1.3.6.1.2.1.1.1.0" },
         { "requestFilter": "runBulkWalk",  "method": "bulkwalk", "oid": ["1.3.6.1.2.1.1.1.0","1.3.6.1.2.1.1.2.0"] }
       ]
@@ -114,13 +114,15 @@ The “attributeUpdateRequests” configuration allows configuring the format of
 | `method` | SNMP write method: `set` or `multiset` |
 | `oid` | Object identifier to write to (used with `set`) |
 | `mappings` | OID-to-value map (used with `multiset`); values may reference `${attribute}` |
+| `type` | SNMP data type for value encoding (see [Supported data types](#supported-data-types)) — **required only for `set` and `multiset` methods** |
 
 ```json
 "attributeUpdateRequests": [
   {
     "attributeFilter": "dataToSet",
     "method": "set",
-    "oid": "1.3.6.1.2.1.1.1.0"
+    "oid": "1.3.6.1.2.1.1.1.0",
+    "type": "INTEGER"
   },
   {
     "attributeFilter": "dataToMultiSet",
@@ -128,7 +130,8 @@ The “attributeUpdateRequests” configuration allows configuring the format of
     "mappings": {
       "1.2.3": "10",
       "2.3.4": "${attribute}"
-    }
+    },
+    "type": "OCTETSTRING"
   }
 ]
 ```
@@ -157,9 +160,53 @@ Configuration, provided in this section is used for sending RPC requests from Th
 
 ```json
 "serverSideRpcRequests": [
-  { "requestFilter": "setData",      "method": "set",      "oid": "1.3.6.1.2.1.1.1.0" },
-  { "requestFilter": "multiSetData", "method": "multiset" },
-  { "requestFilter": "getData",      "method": "get",      "oid": "1.3.6.1.2.1.1.1.0" },
+  {
+    "requestFilter": "setData",
+    "method": "set",
+    "oid": "1.3.6.1.2.1.1.1.0",
+    "type": "IPADDRESS"
+  },
+  {
+    "requestFilter": "dataToMultiSet",
+    "method": "multiset",
+    "mappings": [
+      {
+        "oid": "1.3.6.1.2.1.1.9.0",
+        "value": "44"
+      },
+      {
+        "oid": "1.3.6.1.2.1.1.10.0",
+        "type": "INTEGER",
+        "value": "${params.temperature}"
+      },
+      {
+        "oid": "1.3.6.1.2.1.1.11.0",
+        "type": "GAUGE",
+        "value": "${params.pressure}"
+      }
+    ],
+    "type": "INTEGER"
+  },
+  {
+    "requestFilter": "dataToMultiSetBroadcast",
+    "method": "multiset",
+    "mappings": [
+      {
+        "oid": "1.3.6.1.2.1.1.12.0",
+        "value": "${params}"
+      },
+      {
+        "oid": "1.3.6.1.2.1.1.13.0",
+        "value": "${params}"
+      }
+    ],
+    "type": "INTEGER"
+  },
+  {
+    "requestFilter": "getData",      
+    "method": "get",      
+    "oid": "1.3.6.1.2.1.1.1.0" 
+  },
   {
     "requestFilter": "runBulkWalk",
     "method": "bulkwalk",
@@ -180,8 +227,8 @@ Configuration, provided in this section is used for sending RPC requests from Th
 | `bulkwalk` | Walk multiple subtrees using BULK requests | Yes | — |
 | `table` | Read an SNMP table | No | — |
 | `bulkget` | Read scalars and repeating objects in one BULK request | — | `scalarOid`, `repeatingOid`, `maxListSize` |
-| `set` | Write a value to a single object | No | — |
-| `multiset` | Write values to multiple objects | — | `mappings` |
+| `set` | Write a value to a single object | No | `type` |
+| `multiset` | Write values to multiple objects | — | `mappings`, `type` |
 
 ### get
 
@@ -345,22 +392,27 @@ Writes a value to a single SNMP object. Used in `attributeUpdateRequests` and `s
 | Parameter | Description |
 |-----------|-------------|
 | `oid` | Object identifier to write to |
+| `type` | SNMP data type for value encoding — see [Supported data types](#supported-data-types) |
 
 ```json
 {
   "attributeFilter": "dataToSet",
   "method": "set",
-  "oid": "1.3.6.1.2.1.1.1.0"
+  "oid": "1.3.6.1.2.1.1.1.0",
+  "type": "GAUGE"
 }
 ```
 
 ### multiset
 
-Writes values to multiple SNMP objects in a single operation.
+Writes values to multiple SNMP objects in a single operation. The shape of `mappings` depends on where the method is used.
+
+**In `attributeUpdateRequests`** — `mappings` is an object mapping OIDs directly to values:
 
 | Parameter | Description |
 |-----------|-------------|
 | `mappings` | Object mapping OIDs to values; values may use `${attribute}` to reference the incoming attribute value |
+| `type` | SNMP data type for value encoding — see [Supported data types](#supported-data-types) |
 
 ```json
 {
@@ -369,6 +421,62 @@ Writes values to multiple SNMP objects in a single operation.
   "mappings": {
     "1.2.3": "10",
     "2.3.4": "${attribute}"
-  }
+  },
+  "type": "COUNTER"
 }
 ```
+
+**In `serverSideRpcRequests`** — `mappings` is an array of objects, each with its own `oid` and `value`, and an optional per-mapping `type` override:
+
+| Parameter | Description |
+|-----------|-------------|
+| `mappings` | Array of `{ oid, value, type }` objects |
+| `mappings[].oid` | Object identifier to write to |
+| `mappings[].value` | Value to write to the OID; use a JSON-path expression to extract data packed in the RPC call's `params` object, or just a constant value |
+| `mappings[].type` | *(Optional)* Per-mapping SNMP data type override — see [Supported data types](#supported-data-types) |
+| `type` | Default SNMP data type applied to mappings that don't specify their own `type` — see [Supported data types](#supported-data-types); *(Optional)* if `type` is set on every mapping |
+
+```json
+{
+  "requestFilter": "dataToMultiSet",
+  "method": "multiset",
+  "mappings": [
+    {
+      "oid": "1.3.6.1.2.1.1.9.0",
+      "value": "62"
+    },
+    {
+      "oid": "1.3.6.1.2.1.1.10.0",
+      "type": "INTEGER",
+      "value": "${params.temperature}"
+    },
+    {
+      "oid": "1.3.6.1.2.1.1.11.0",
+      "type": "GAUGE",
+      "value": "${params.pressure}"
+    }
+  ],
+  "type": "INTEGER"
+}
+```
+
+<Aside type="note">
+  A `value` such as `${params.temperature}` is a JSON-path expression that extracts a named field from the incoming RPC call's `params` object. For example, calling `dataToMultiSet` with `{"temperature": 22, "pressure": 1013}` makes `${params.temperature}` resolve to `22` and `${params.pressure}` resolve to `1013`, letting one `multiset` request write several independent values from a single RPC call. If the RPC call sends a single, unnamed value, use `${params}` to reference it directly.
+</Aside>
+
+## Supported data types
+
+
+| Type | Description | Example |
+|------|-------------|---------|
+| `INTEGER` | Whole number (positive or negative) | `42`, `-100` |
+| `COUNTER` | Non-negative integer that monotonically increases until reaching 4,294,967,295, then wraps to zero | `1500` |
+| `COUNTER64` | 64-bit non-negative integer that monotonically increases until reaching 18,446,744,073,709,551,615, then wraps to zero | `9223372036854775807` |
+| `GAUGE` | Non-negative integer for gauges and measurements that can increase or decrease | `75` |
+| `TIMETICKS` | Time value in units of 0.01 seconds (hundredths of a second) | `12345678` |
+| `OCTETSTRING` | String of bytes (octets) | `"hello"`|
+| `IPADDRESS` | IPv4 address in dotted-decimal notation | `"192.168.1.1"` |
+
+<Aside type="note">
+  Data type specification via the `type` field is **required for `set` and `multiset` methods** in both `attributeUpdateRequests` and `serverSideRpcRequests`.
+</Aside>
