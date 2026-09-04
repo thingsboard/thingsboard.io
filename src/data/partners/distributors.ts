@@ -236,7 +236,7 @@ export const DISTRIBUTORS: Distributor[] = [
 	},
 	{
 		name: "HADEX",
-		regions: ["Asia"],
+		regions: ["Asia","Middle East"],
 		countries: ["Syria"],
 		email: "havalbajary@gmail.com",
 		website: "hadex.nicepage.io",
@@ -656,7 +656,7 @@ export const DISTRIBUTORS: Distributor[] = [
 	},
 	{
 		name: "Vehi.kz LLP",
-		regions: ["Asia"],
+		regions: ["Asia","Europe"],
 		countries: ["Kazakhstan","Uzbekistan","Turkmenistan","Tajikistan","Kyrgyzstan","Armenia","Azerbaijan","Moldova","Belarus"],
 		email: "partner@vehi.kz",
 		website: "vehi.kz",
@@ -709,6 +709,20 @@ export const DISTRIBUTORS: Distributor[] = [
 		countries: ["South Korea"],
 		email: "delee@n2m.co.kr",
 		website: "n2m.co.kr",
+	},
+	{
+		name: "Okiff",
+		regions: ["North America"],
+		countries: ["Canada"],
+		email: "thingsboard@okiff.com",
+		website: "okiff.com",
+	},
+	{
+		name: "GREENNET",
+		regions: ["Europe","Asia"],
+		countries: ["Ukraine","Poland","Georgia"],
+		email: "info@greennet.ua",
+		website: "greennet.ua",
 	},
 ];
 

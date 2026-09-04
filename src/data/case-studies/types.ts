@@ -50,6 +50,12 @@ export interface CaseStudyData {
 	pageSlug: string;
 	breadcrumb: string;
 	categories: string[];
+	/**
+	 * The company logo already ships light-on-dark artwork (e.g. a shaded
+	 * white-on-transparent mark or a tinted SVG). Surfaces that normally
+	 * white-flatten logos (catalog card, contact CTA) render it as-is instead.
+	 */
+	logoIsLightOnDark?: boolean;
 
 	hero: {
 		category: string;
@@ -126,5 +132,7 @@ export interface CaseStudyCard {
 	logo: string;
 	logoAlt: string;
 	logoHeight?: number;
+	/** See CaseStudyData.logoIsLightOnDark. */
+	logoIsLightOnDark?: boolean;
 	backgroundImage: string;
 }
