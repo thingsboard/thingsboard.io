@@ -79,7 +79,7 @@ export const data: CaseStudyData = {
 				imageAlt: 'Historical charts of fuel level, coolant temperature, oil pressure, and power',
 			},
 			{
-				title: 'ThingsBoard & ThingsBoard Edge Implementation',
+				title: 'ThingsBoard implementation',
 				text: 'CUBA deployed ThingsBoard as the central monitoring layer for diesel generator assets. CUBA RePort gateways poll generator controllers over industrial protocols and publish structured telemetry to the platform. ThingsBoard stores telemetry, manages assets and dashboards, processes alarm rules, and sends notifications to responsible users.',
 				image: '/images/case-studies/cuba-iot-platform-5.webp',
 				imageAlt: 'Mains and generator current and power charts in ThingsBoard',
