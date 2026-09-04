@@ -1,5 +1,7 @@
 import type { CaseStudyCard, CaseStudyData, FeaturedCard } from './types';
 
+export { CASE_STUDY_PAGE_SIZE } from './constants';
+
 export const caseStudyCategories = [
 	'Industry 4.0',
 	'Smart energy',
@@ -19,6 +21,9 @@ export const caseStudyCategories = [
 //   2. Add the slug to this array in the position you want it displayed.
 //   3. (Optional) If the card needs a custom logo height, add an entry to
 //      `cardLogoHeights` below.
+//   4. (Optional) If the logo already ships light-on-dark artwork (shaded white
+//      mark, tinted SVG), set `logoIsLightOnDark: true` in the data file so the
+//      catalog card and contact CTA don't flatten it to solid white.
 export const caseStudyOrder: string[] = [
 	'ibt-systems',
 	'acte-technology',
@@ -29,7 +34,9 @@ export const caseStudyOrder: string[] = [
 	'onedata',
 	'lumen',
 	'solandtec',
-	// Intentionally out of newest-first order: opens catalog page 2 (9 cards per page).
+	// Intentionally out of newest-first order: the first catalog page keeps its
+	// current lineup, so this study opens page 2 (index CASE_STUDY_PAGE_SIZE).
+	// Moving it up is a content decision, not a tidy-up.
 	'cuba-iot-platform',
 	'tjk-solutions',
 	'energenix',
@@ -63,7 +70,8 @@ export const caseStudyOrder: string[] = [
 
 // Card-only logo height overrides. The hero on the detail page may want a
 // different intrinsic size than the catalog card, so we keep the card override
-// here rather than on the data itself.
+// here rather than on the data itself. Sizing is per surface; the logo's
+// treatment (`logoIsLightOnDark`) spans surfaces, so that one lives on the data.
 const cardLogoHeights: Record<string, number> = {
 	ariot: 75,
 	iioote: 35,
@@ -82,7 +90,7 @@ const cardLogoHeights: Record<string, number> = {
 // Every {slug}.ts file in this folder exports `const data: CaseStudyData`.
 // Vite's import.meta.glob pulls them in at build time; we look them up by slug.
 const dataModules = import.meta.glob<CaseStudyData>(
-	['./*.ts', '!./index.ts', '!./types.ts'],
+	['./*.ts', '!./index.ts', '!./types.ts', '!./constants.ts'],
 	{ eager: true, import: 'data' },
 );
 
@@ -122,7 +130,7 @@ function toCard(d: CaseStudyData): CaseStudyCard {
 		logo: d.hero.logo,
 		logoAlt: d.hero.logoAlt,
 		logoHeight: cardLogoHeights[d.pageSlug],
-		logoUnfiltered: d.logoUnfiltered,
+		logoIsLightOnDark: d.logoIsLightOnDark,
 		backgroundImage: d.hero.backgroundImage,
 	};
 }

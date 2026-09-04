@@ -8,7 +8,7 @@ export const data: CaseStudyData = {
 	pageSlug: 'cuba-iot-platform',
 	breadcrumb: 'CUBA IoT Platform — Facility Management',
 	categories: ['Facility management'],
-	logoUnfiltered: true,
+	logoIsLightOnDark: true,
 
 	hero: {
 		category: 'FACILITY MANAGEMENT',
@@ -23,15 +23,15 @@ export const data: CaseStudyData = {
 	},
 
 	statistics: [
-		{ value: 100, suffix: '+', label: 'Monitored generator nodes in production experience' },
-		{ value: 74, suffix: '+', label: 'Telemetry and alarm parameters per generator profile' },
-		{ value: 4, suffix: '+', label: 'Supported generator controller/OEM families' },
+		{ value: 100, suffix: '+', label: 'monitored generator nodes in production' },
+		{ value: 74, suffix: '+', label: 'telemetry and alarm parameters per generator profile' },
+		{ value: 4, suffix: '+', label: 'supported generator controller/OEM families' },
 	],
 
 	quote: {
-		text: 'With ThingsBoard and CUBA RePort gateways, diesel generators are no longer rarely inspected backup assets. Operators can see low fuel, discharged batteries, abnormal temperatures, fault states, missed test runs, and maintenance needs before they become outages',
+		text: 'With ThingsBoard and CUBA RePort gateways, diesel generators are no longer rarely inspected backup assets. Operators can see low fuel, discharged batteries, abnormal temperatures, fault states, missed test runs, and maintenance needs before they become outages.',
 		author: 'Dmitry Shkunov',
-		role: 'CTO in Skif Trade LLP (SMALL, SPAR supermarkets)',
+		role: 'CTO at Skif Trade LLP (SMALL, SPAR supermarkets)',
 	},
 
 	problem: {
@@ -46,7 +46,7 @@ export const data: CaseStudyData = {
 		results: [
 			'Continuous monitoring of fuel level, battery voltage, oil pressure, coolant temperature, generator/mains electrical parameters, runtime, start count, operating mode, and alarms',
 			'Centralized fleet table with sorting by site, generator type, operating status, fuel level, alarm count, coolant temperature, and control mode',
-			'Rule-based alarm activation and instant notifications through Telegram, SMS, and e-mail',
+			'Rule-based alarm activation and instant notifications through Telegram, SMS, and email',
 			'Historical trends for outage investigation, fuel refill tracking, generator start/stop analysis, maintenance planning, and operational reporting',
 		],
 	},
@@ -64,17 +64,17 @@ export const data: CaseStudyData = {
 				title: 'Unified asset model and dashboards',
 				text: 'ThingsBoard is configured around generator assets, sites, telemetry streams, alarms, and operator dashboards. Dispatchers can start from a fleet-level table, sort assets by status or alarm count, and drill down to a detailed generator page. The detailed panel consolidates engine state, generator electrical parameters, mains parameters, breaker states, runtime, and control mode.',
 				image: '/images/case-studies/cuba-iot-platform-2.webp',
-				imageAlt: 'Generator telemetry charts in a ThingsBoard dashboard',
-			},
-			{
-				title: 'Rule Engine alarms and operational notifications',
-				text: 'Rule chains process controller alarms, fuel level, battery voltage, coolant temperature, oil pressure, operating mode, and generator/mains state. Notifications are routed to responsible users through Telegram, SMS, and e-mail. Each event can include the site, generator, source gateway, parameter, value, and timestamp, reducing the need for manual dashboard checks.',
-				image: '/images/case-studies/cuba-iot-platform-3.webp',
 				imageAlt: 'CUBA RePort generator monitoring dashboard with engine, generator, and mains panels',
 			},
 			{
+				title: 'Rule Engine alarms and operational notifications',
+				text: 'Rule chains process controller alarms, fuel level, battery voltage, coolant temperature, oil pressure, operating mode, and generator/mains state. Notifications are routed to responsible users through Telegram, SMS, and email. Each event can include the site, generator, source gateway, parameter, value, and timestamp, reducing the need for manual dashboard checks.',
+				image: '/images/case-studies/cuba-iot-platform-3.webp',
+				imageAlt: 'Generator and mains telemetry charts in a ThingsBoard dashboard',
+			},
+			{
 				title: 'Historical analytics and service workflows',
-				text: 'Time-series widgets show current and historical data for any selected period. Operators can analyze mains outage, generator start, fuel refill, engine stop, voltage, current, power, oil pressure, coolant temperature, and battery behavior. This supports readiness proof, outage investigation, fuel theft detection, and maintenance planning by actual runtime.',
+				text: 'Time-series widgets show current and historical data for any selected period. Operators can analyze mains outages, generator starts, fuel refills, engine stops, voltage, current, power, oil pressure, coolant temperature, and battery behavior. This supports readiness proof, outage investigation, fuel theft detection, and maintenance planning based on actual runtime.',
 				image: '/images/case-studies/cuba-iot-platform-4.webp',
 				imageAlt: 'Historical charts of fuel level, coolant temperature, oil pressure, and power',
 			},
@@ -88,7 +88,7 @@ export const data: CaseStudyData = {
 	},
 
 	help: {
-		industryName: 'Backup Power Operations Improve Reliability with IoT',
+		industryName: 'backup power operations improve reliability with IoT',
 		blocks: [
 			{
 				title: 'Early detection of generator issues',

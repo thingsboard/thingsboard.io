@@ -51,11 +51,11 @@ export interface CaseStudyData {
 	breadcrumb: string;
 	categories: string[];
 	/**
-	 * The company logo ships its own dark-background treatment (e.g. a shaded
-	 * white-on-transparent mark). Surfaces that normally white-flatten logos
-	 * (catalog card, contact CTA) render it as-is instead.
+	 * The company logo already ships light-on-dark artwork (e.g. a shaded
+	 * white-on-transparent mark or a tinted SVG). Surfaces that normally
+	 * white-flatten logos (catalog card, contact CTA) render it as-is instead.
 	 */
-	logoUnfiltered?: boolean;
+	logoIsLightOnDark?: boolean;
 
 	hero: {
 		category: string;
@@ -132,7 +132,7 @@ export interface CaseStudyCard {
 	logo: string;
 	logoAlt: string;
 	logoHeight?: number;
-	/** See CaseStudyData.logoUnfiltered. */
-	logoUnfiltered?: boolean;
+	/** See CaseStudyData.logoIsLightOnDark. */
+	logoIsLightOnDark?: boolean;
 	backgroundImage: string;
 }
