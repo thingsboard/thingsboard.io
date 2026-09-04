@@ -1,8 +1,8 @@
 ---
 title: 'Commanding the Gateway Fleet: How We Scaled Persistent RPC to 500K Calls per Minute'
-description: 'Performance test results: 500,000 guaranteed remote commands per minute to a fleet of 100,000 MQTT gateways and 500,000 devices, with zero commands lost and 99% delivered inside 400 ms.'
-date: 2026-09-02
-updatedDate: 2026-09-02
+description: 'ThingsBoard persistent RPC benchmark: 500K commands a minute to 500K devices behind 100K MQTT gateways, 99% inside 400 ms of multi-AZ latency.'
+date: 2026-09-04
+updatedDate: 2026-09-04
 author: dmytro-shvaika
 categories: ['tech', 'use-cases']
 featuredImage: '/thingsboard-og.png'
@@ -181,21 +181,21 @@ That message points in one direction, at the database, and the database confirme
 
 We also had a second suspicion, because a persistent command is four writes rather than one. Each state change writes a new copy of the row and leaves the old copy for a background job, autovacuum, to remove, so at half a million commands a minute those old copies arrive very fast. The plan was to see whether the extra IOPS were enough on their own, and to watch the old copies while we did.
 
-**Cleanup was too slow.** About half an hour into the run the slowdown returned, and this time the commands were delayed by it. The old copies were the reason. Each pass cleaned about 1.7 million of them while 3.1 million more arrived. Autovacuum is rate-limited by default, to roughly 32 MB/s, so that it never competes with live work, and that is too slow for a table changing this fast. We changed two settings on it while the run was going. The pause between cleanup steps went from 2 ms to none, and the point where cleanup starts moved from 10% of the table to 4%.
+**Cleanup was too slow.** About half an hour into the next run the slowdown returned, and this time the commands were delayed by it. The old copies were the reason. Each pass cleaned about 1.7 million of them while 3.1 million more arrived. Autovacuum is rate-limited by default, to roughly 32 MB/s, so that it never competes with live work, and that is too slow for a table changing this fast. We changed two settings on it while the run was going. The pause between cleanup steps went from 2 ms to none, and the point where cleanup starts moved from 10% of the table to 4%.
 
 ```sql
 ALTER TABLE rpc SET (autovacuum_vacuum_cost_delay = 0, autovacuum_vacuum_scale_factor = 0.04);
 ```
 
-One cleanup pass went from 227 seconds to about 50, and the old copies fell from a third of the table to less than 1% in under four minutes. The command queue drained with them, back to its usual few thousand messages within three minutes. The chart below shows the whole shape of it. Write throughput had been climbing while the backlog grew, because each pass had more to clear than the one before. It peaked at 198 MB/s as the catch-up ran, 1.6 times above what the old volume allowed, and then settled at 87 MB/s for the rest of the run. Even that steady level is about 70% of the old 125 MB/s limit.
+One cleanup pass went from 227 seconds to about 50, and the old copies fell from a third of the table to less than 1% in under four minutes. The chart below shows the whole shape of it. Write throughput had been climbing while the backlog grew, because each pass had more to clear than the one before. It peaked at 198 MB/s as the catch-up ran, 1.6 times above what the old volume allowed, and then settled at 87 MB/s for the rest of the run. Even that steady level is about 70% of the old 125 MB/s limit.
 
 ![Database write throughput against the 125 MB/s default gp3 ceiling](/images/blog/commanding-the-fleet-how-we-delivered-500k-guaranteed-commands-per-minute/rds-write-throughput.png)
 
-The write operations tell the same story from the other side, and they are the number that had run out. With cleanup keeping up, the run settled at about 2,000 a second, two thirds of what the original 100 GiB volume allowed. The only thing that needed more was the catch-up, which touched 7,010.
+The write operations show it from the other side, and they are the number that had run out. With cleanup keeping up, the run settled at about 2,000 a second, two thirds of what the original 100 GiB volume allowed. The only thing that needed more was the catch-up, which touched 7,010.
 
 ![Database write IOPS against the 3,000 limit of a 100 GiB gp3 volume](/images/blog/commanding-the-fleet-how-we-delivered-500k-guaranteed-commands-per-minute/rds-write-iops.png)
 
-Write latency shows the change most clearly.
+Write latency shows the change most plainly of all, from 171 ms at the worst of it to between 4 and 8 ms once cleanup was winning.
 
 ![Database write latency, annotated at the moment the autovacuum rate cap was lifted](/images/blog/commanding-the-fleet-how-we-delivered-500k-guaranteed-commands-per-minute/rds-write-latency.png)
 
@@ -207,7 +207,7 @@ Database CPU tells the same story. It had been growing for twenty minutes while 
 
 Here is what this hour of the run produced.
 
-- **27,496,000 commands over the hour**, none lost and none expired.
+- **27.5 million commands over the hour**, none lost and none expired.
 - **Delivery time did not move.** It averaged 203–254 ms against 200–233 ms in the first run, with a 99th percentile of 317–364 ms against 330–376 ms. Five times the load, the same latency.
 - **100,000 connections stayed up for the entire hour** again, spread across the six transport instances to within ±1.3% of an even split.
 - **175,000 telemetry data points a second** ingested alongside the commands, with not one publish failure.
