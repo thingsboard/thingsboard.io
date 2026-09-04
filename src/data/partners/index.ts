@@ -19,12 +19,19 @@ export const OFFERED_COUNTRIES: string[] = Array.from(new Set(DISTRIBUTORS.flatM
 
 /**
  * Countries each region offers in its dropdown — names distributors list, not
- * their coverage, so a region-wide entry adds no options of its own.
+ * their coverage, so a region-wide entry adds no options of its own. Only the
+ * region's own countries qualify: a multi-region distributor must not drag its
+ * other regions' countries into this one's list.
  */
 const regionOffered = {} as Record<Region, string[]>;
 for (const region of REGIONS) {
+	const members = new Set(REGION_MEMBERSHIP[region]);
 	regionOffered[region] = Array.from(
-		new Set(DISTRIBUTORS.filter((d) => d.regions.includes(region)).flatMap(getNamedCountries))
+		new Set(
+			DISTRIBUTORS.filter((d) => d.regions.includes(region))
+				.flatMap(getNamedCountries)
+				.filter((c) => members.has(c))
+		)
 	).sort();
 }
 export const REGION_OFFERED_COUNTRIES: Record<Region, string[]> = regionOffered;

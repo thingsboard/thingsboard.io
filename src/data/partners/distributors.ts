@@ -236,7 +236,7 @@ export const DISTRIBUTORS: Distributor[] = [
 	},
 	{
 		name: "HADEX",
-		regions: ["Asia"],
+		regions: ["Asia","Middle East"],
 		countries: ["Syria"],
 		email: "havalbajary@gmail.com",
 		website: "hadex.nicepage.io",
@@ -656,7 +656,7 @@ export const DISTRIBUTORS: Distributor[] = [
 	},
 	{
 		name: "Vehi.kz LLP",
-		regions: ["Asia"],
+		regions: ["Asia","Europe"],
 		countries: ["Kazakhstan","Uzbekistan","Turkmenistan","Tajikistan","Kyrgyzstan","Armenia","Azerbaijan","Moldova","Belarus"],
 		email: "partner@vehi.kz",
 		website: "vehi.kz",

@@ -19,9 +19,13 @@ export function getCoverage(d: Distributor): string[] {
 }
 
 /**
- * The region table and the distributor data must describe the same countries.
+ * The region table and the distributor data must describe the same countries,
+ * and every distributor must declare each region it names a country in.
  * A named country the table doesn't classify silently narrows region-wide
- * coverage; a classified country nobody covers is dead weight that hides typos.
+ * coverage; a classified country nobody covers is dead weight that hides typos;
+ * a named country outside the declared regions is unreachable in the finder,
+ * whose dropdown only offers a region's own countries and whose cards only
+ * match regions they declare.
  */
 function findCoverageErrors(distributors: Distributor[], membership: Record<Region, string[]>): string[] {
 	const named = new Set(distributors.flatMap(getNamedCountries));
@@ -32,6 +36,20 @@ function findCoverageErrors(distributors: Distributor[], membership: Record<Regi
 	if (missing.length > 0) {
 		errors.push(
 			`countries named by a distributor but not classified in REGION_MEMBERSHIP — add them to a region in src/data/partners/regions.ts: ${missing.join(', ')}`
+		);
+	}
+
+	const unreachable = distributors
+		.map((d) => ({
+			name: d.name,
+			countries: getNamedCountries(d).filter(
+				(c) => classified.has(c) && !d.regions.some((r) => membership[r].includes(c))
+			),
+		}))
+		.filter((d) => d.countries.length > 0);
+	if (unreachable.length > 0) {
+		errors.push(
+			`countries named outside every region their distributor declares — add the region to the entry in src/data/partners/distributors.ts: ${unreachable.map((d) => `${d.name} (${d.countries.join(', ')})`).join('; ')}`
 		);
 	}
 

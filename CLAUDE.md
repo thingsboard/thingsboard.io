@@ -186,7 +186,7 @@ Data-driven page at `/clients-feedback/`. Key dirs: `src/data/clients-feedback/`
 
 Data-driven page at `/partners/distributors/`. Import distributor data from `@data/partners` — it exports the derived selectors the page renders from (`OFFERED_COUNTRIES`, `REGION_OFFERED_COUNTRIES`, `getCoverage`). Distributor-scoped: hardware partners live in `@data/partners/hardware-partners` and are imported directly.
 
-A distributor either lists the countries it covers or sets `countries: 'region-wide'` to cover every country in its `regions`, expanded from `REGION_MEMBERSHIP` in `src/data/partners/regions.ts`. That table and the countries distributors name must stay in step, so adding a country to a distributor means classifying it there too. `distributors.ts` asserts this as it loads (via `coverage.ts`), so any import path — the barrel or the data file directly — fails the build until you do.
+A distributor either lists the countries it covers or sets `countries: 'region-wide'` to cover every country in its `regions`, expanded from `REGION_MEMBERSHIP` in `src/data/partners/regions.ts`. That table and the countries distributors name must stay in step, so adding a country to a distributor means classifying it there too — and declaring every region the country falls under, because the finder only offers a region's own countries in its dropdown and a card only matches regions it declares. `distributors.ts` asserts both as it loads (via `coverage.ts`), so any import path — the barrel or the data file directly — fails the build until you do.
 
 ## Redirects
 
