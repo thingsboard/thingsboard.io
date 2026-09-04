@@ -282,7 +282,7 @@ function enumerateDataModules<T extends { title: string }>(
 	const out: CardInput[] = [];
 	for (const [filePath, mod] of Object.entries(modules)) {
 		const baseName = filePath.split('/').pop()!.replace(/\.ts$/, '');
-		if (baseName === 'index' || baseName === 'types' || baseName === 'constants') continue;
+		if (baseName === 'index' || baseName === 'types') continue;
 		const data = Object.values(mod).find(
 			(v): v is T => typeof v === 'object' && v !== null && 'title' in v,
 		);

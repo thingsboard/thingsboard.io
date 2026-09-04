@@ -27,6 +27,9 @@ export type Region = (typeof REGIONS)[number];
  * - Transcontinental countries appear under every region they span, so Turkey
  *   counts as Europe and Middle East, and Georgia as Europe and Asia.
  * - Caribbean and Central American territories count as North America.
+ * - A distributor must declare every region its named countries fall under:
+ *   the finder offers a region only its own countries and a card only matches
+ *   regions it declares, so `coverage.ts` fails the build otherwise.
  */
 export const REGION_MEMBERSHIP: Record<Region, string[]> = {
 	Africa: [

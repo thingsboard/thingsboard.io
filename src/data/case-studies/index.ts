@@ -1,7 +1,5 @@
 import type { CaseStudyCard, CaseStudyData, FeaturedCard } from './types';
 
-export { CASE_STUDY_PAGE_SIZE } from './constants';
-
 export const caseStudyCategories = [
 	'Industry 4.0',
 	'Smart energy',
@@ -21,9 +19,7 @@ export const caseStudyCategories = [
 //   2. Add the slug to this array in the position you want it displayed.
 //   3. (Optional) If the card needs a custom logo height, add an entry to
 //      `cardLogoHeights` below.
-//   4. (Optional) If the logo already ships light-on-dark artwork (shaded white
-//      mark, tinted SVG), set `logoIsLightOnDark: true` in the data file so the
-//      catalog card and contact CTA don't flatten it to solid white.
+//   4. (Optional) Logo already light-on-dark? Set `logoIsLightOnDark: true` in the data file.
 export const caseStudyOrder: string[] = [
 	'ibt-systems',
 	'acte-technology',
@@ -34,9 +30,7 @@ export const caseStudyOrder: string[] = [
 	'onedata',
 	'lumen',
 	'solandtec',
-	// Intentionally out of newest-first order: the first catalog page keeps its
-	// current lineup, so this study opens page 2 (index CASE_STUDY_PAGE_SIZE).
-	// Moving it up is a content decision, not a tidy-up.
+	// Intentionally out of newest-first order: first card of catalog page 2.
 	'cuba-iot-platform',
 	'tjk-solutions',
 	'energenix',
@@ -90,7 +84,7 @@ const cardLogoHeights: Record<string, number> = {
 // Every {slug}.ts file in this folder exports `const data: CaseStudyData`.
 // Vite's import.meta.glob pulls them in at build time; we look them up by slug.
 const dataModules = import.meta.glob<CaseStudyData>(
-	['./*.ts', '!./index.ts', '!./types.ts', '!./constants.ts'],
+	['./*.ts', '!./index.ts', '!./types.ts'],
 	{ eager: true, import: 'data' },
 );
 
