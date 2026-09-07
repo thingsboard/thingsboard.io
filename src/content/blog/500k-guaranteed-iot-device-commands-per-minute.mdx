@@ -13,47 +13,53 @@ draft: true
 import BlogCTA from '~/components/Blog/BlogCTA.astro'
 import ImageGallery from '@components/ImageGallery.astro'
 
-How many commands can an IoT platform push out to real hardware at once — and still guarantee that every single one of them arrives?
+Every platform evaluation reaches the point where telemetry throughput and the number of connections a platform can hold stop being enough. An enterprise partner preparing to launch reached it with three questions.
 
-An enterprise partner preparing to launch on the [MQTT Gateway API](/docs/reference/gateway-api/overview/) asked us exactly that, and gave us the shape of the answer: a baseline fleet of 100,000 gateways and 500,000 devices, five behind every gateway, at two command rates — one command per device every five minutes, then one every minute.
+- How many commands can the platform push out to real hardware at once, and still guarantee that every single one of them arrives?
+- How well does the platform carry that when one MQTT session speaks for five devices instead of one?
+- And what does delivery latency look like in a high-availability deployment, where the services talk to each other across availability zones?
 
-So we put a number on it. At the faster rate the platform delivered **500,000 commands every minute**, **27.5 million over the hour**, with none lost and none expired. 99% of them reached their gateway inside 400 ms, including the cross-zone traffic between services.
+All three had to be answered on a fleet that keeps sending telemetry at the same time, because that is what production looks like. A story of measurement over assumption, and proof that data collection is only half of what ThingsBoard does well.
 
-A story of measurement over assumption — and proof that data collection is only half of what ThingsBoard does well.
+## Why these questions matter
 
-## Why commands need their own benchmark
+**Commands vs telemetry.** The failure modes are not comparable. Most telemetry pipelines are built to tolerate the occasional lost message, and for good reason — one missing reading is a gap in a chart, and the next reading is already on its way. A dropped command has no equivalent. It is a machine that never stopped, a valve that stayed open, a firmware rollout that silently skipped part of the fleet. That is why command delivery needs a guarantee telemetry can live without.
 
-Ask how an IoT platform performs and the answer comes back in one of two forms: telemetry throughput, or the number of connections it can hold at once. That is the right measurement for most deployments, and our [published performance benchmarks](/docs/reference/architecture/performance/) cover it in depth, measured over the [Device API](/docs/reference/mqtt-api/getting-connected/) with one connection per device.
+**Gateways vs one connection per device.** Our [published performance benchmarks](/docs/reference/architecture/performance/) measure the [Device API](/docs/reference/mqtt-api/getting-connected/), where every device holds a session of its own. A [Gateway API](/docs/reference/gateway-api/overview/) session speaks for many devices at once, so the platform keeps state for far more devices than it holds connections, and every command has to reach the right device behind the right session. A fleet of gateways is what a large deployment really looks like, and it is the harder shape to serve.
 
-Those numbers measure ingestion. They say nothing about how the platform performs when it has to send remote commands back to the hardware.
+**Three zones vs one.** ThingsBoard services talk to each other through Kafka, and a command makes several hops on its way to a gateway. Spread across three availability zones the way a production fleet is deployed, one broker per zone, most of those hops cross a zone boundary and pay for it. A latency figure measured inside a single zone does not include that delay, so it says nothing about what a three-zone production deployment really sees.
 
-The two are not the same, because the failure modes are not comparable. Most telemetry pipelines are built to tolerate the occasional lost message, and for good reason — one missing reading is a gap in a chart, a slightly less accurate average, and the next reading is already on its way. A dropped command has no equivalent. It is a machine that never stopped, a valve that stayed open, a firmware rollout that silently skipped part of the fleet. That is why command delivery needs a guarantee telemetry can live without.
+## What we ran
 
-## What we ran, and on what
+The partner set the fleet and both command rates, so what the cluster had to carry was fixed before anything was deployed. Both runs used the same fleet. In the second one the cycle repeated five times as often, so the commands and the telemetry both rose with it.
 
-The fleet and the cluster were fixed before the first command was sent, and both runs used the same ones. Only the command rate changed between them.
+| | first run | second run |
+|---|---|---|
+| MQTT connections | 100,000, open for the full run | 100,000, open for the full run |
+| gateway to device ratio | 1:5 | 1:5 |
+| total devices, gateways included | 600,000 | 600,000 |
+| tenants | 5 | 5 |
+| connection security | one-way TLS | one-way TLS |
+| per device, per cycle | 1 telemetry message and 1 two-way command | 1 telemetry message and 1 two-way command |
+| telemetry delivery | MQTT QoS 0, 21 metric keys per message | MQTT QoS 0, 21 metric keys per message |
+| command delivery | MQTT QoS 1, persistent RPC | MQTT QoS 1, persistent RPC |
+| duration | 1 hour | 1 hour |
+| cycle | every 5 minutes | **every minute** |
+| dispatch | batches of 500 commands per API call, ~3 calls a second | batches of 500 commands per API call, **~17 calls a second** |
 
-Our standard ThingsBoard Private Cloud environments are tuned and tested to support up to 100,000 devices, on six MQTT transport instances with three monolith ThingsBoard nodes behind them. This fleet holds the same number of connections, but every one of them is a gateway, so 600,000 device actors sit behind them.
+## How we sized the cluster
 
-So the core and the rule engine were split into separate services, which is what lets either of them be scaled, restarted or sized without touching the other. The core tier was scaled out from three instances to **six**, both to hold those actors and to onboard them quickly. The rule engine stayed at three.
+We did not start from a blank sheet. Our standard ThingsBoard Private Cloud environments are tuned and tested for up to 100,000 devices, on six MQTT transport instances with three monolith ThingsBoard nodes behind them. This fleet opens the same 100,000 connections, so at first glance the standard cluster should have been enough.
 
-Every tier is then spread across three availability zones, so losing a zone costs a share of capacity rather than the cluster. The price shows up in latency, because a command's Kafka hops now cross zone boundaries, and that cost sits inside all the figures below.
+The count that matters is not the connections. Every device behind a gateway is a session in its own right, with its own routing and its own activity state, so the core service tracks 600,000 devices instead of 100,000, and every command is addressed to one of the 500,000 that sit behind the gateways. All of that is state in memory, and it is what the sizing had to answer for. The transport tier stayed at six instances, exactly as the standard sizing has it, because connections are what it carries and there were no more of them than before. The pressure landed on the core.
 
-ThingsBoard services talk to each other through Kafka: transport, core and rule engine each hand the message on, and a command makes several of those hops on its way to a gateway. Spread across three availability zones the way a production fleet is deployed, one broker per zone, most of those hops cross a zone boundary and pay for it. Delivery latency had to be measured with that cost present, because a single-zone figure does not carry over to the cluster anyone would really run.
+More core instances was the obvious answer, and it was also the reason the monolith had to go. In a monolith node the core and the rule engine share one process and one set of resources, so growing one grows the other whether it needs it or not. Here only the core needed to grow. The rule engine was comfortable at three instances and stayed there.
 
 ![Three availability zones, two nodes each running one MQTT transport, one core and one Valkey pod, with a rule engine and a Kafka broker per zone, in front of a Multi-AZ PostgreSQL instance](/images/blog/500k-guaranteed-iot-device-commands-per-minute/cluster-three-zone-topology.svg)
 
-| | |
-|---|---|
-| fleet | 100,000 gateways and 500,000 devices, five behind every gateway |
-| tenants | 5, each with 20,000 gateways and 100,000 devices |
-| connections | 100,000, one-way TLS, open for the full run |
-| dispatch | batches of 500 devices per call |
-| per device, per cycle | 1 telemetry message and 1 two-way command |
-| telemetry delivery | MQTT QoS 0, 21 metric keys per message |
-| command delivery | MQTT QoS 1, persistent RPC |
-| cycle | every 5 minutes, then every minute |
-| duration | 1 hour at each rate |
+Splitting them bought more than the right instance counts. Each service is now scaled, restarted and sized on its own, neither one competes with the other for CPU or heap, and taking one side down for a rolling update leaves the other serving traffic, which is what a high-availability deployment asks for in the first place. The core tier went to six instances, both to hold that state and to bring the fleet online quickly.
+
+Every tier is then spread across three availability zones, so losing a zone costs a share of capacity rather than the cluster, and the latency it costs sits inside every figure below.
 
 ## The results
 
@@ -97,9 +103,7 @@ So we changed it. Inserts and status updates are grouped into **batches** and wr
 
 #### Onboarding 600,000 device actors
 
-Every device in ThingsBoard is an actor in the core service, holding its session routing and the set of commands in flight for it. That is what makes this workload bound by memory rather than by CPU.
-
-A gateway is a device too, so this fleet is **600,000 actors** in the core service — 100,000 gateways and the 500,000 devices behind them — and they are not created for free. Each one is created inside its tenant's actor, one at a time. A steady-state message rate tells you nothing about how long that takes. The requirement was that the fleet comes online quickly — from a cold cluster, after a full restart, and as new sets of gateways and their devices are added.
+Those actors are not created for free, and a steady-state message rate tells you nothing about how long it takes to bring them up. The requirement was that the fleet comes online quickly, from a cold cluster, after a full restart, and as new sets of gateways and their devices are added.
 
 A device actor is created the first time its gateway connects or announces it, and inside a tenant's actor those creations happen strictly one at a time — each device has to be looked up before its actor can exist. The first lookup goes to PostgreSQL. From then on the device is in the Valkey cache, and the next one costs a fraction of that.
 
@@ -123,7 +127,7 @@ Sizing every tier to divide evenly is the principle worth carrying away, and par
 
 #### The first run: one command per device every five minutes
 
-The first run used the cluster described above, at the slower of the two command rates. Every five minutes each of the 500,000 devices sent one telemetry message and received one two-way command, a command it had to answer rather than merely receive. That works out to 500,000 telemetry messages and 500,000 commands a cycle, or **100,000 commands a minute**, sustained for an hour. The telemetry went through the Gateway API to the rule engine, which forwarded it to Kafka for the partner's own downstream systems, one of the standard ThingsBoard integration patterns.
+Every five minutes each of the 500,000 devices sent one telemetry message and received one two-way command, a command it had to answer rather than merely receive. That works out to 500,000 telemetry messages and 500,000 commands a cycle, or **100,000 commands a minute**, sustained for an hour. The telemetry went through the Gateway API to the rule engine, which forwarded it to Kafka for the partner's own downstream systems, one of the standard ThingsBoard integration patterns.
 
 <ImageGallery images={[
   {
@@ -176,13 +180,6 @@ The first run used the cluster described above, at the slower of the two command
 #### The second run: five times the rate
 
 The first run finished with room to spare, and the tightest resource in it, heap in the transport tier, is driven mostly by the 100,000 connections rather than by how often commands are sent. Sending them five times more often should not move it much, so we ran the second one on the same infrastructure and changed only the cycle, from five minutes to one. Every other figure below follows from that one change. The point was to find what gave way first.
-
-| | first run | second run |
-|---|---|---|
-| cycle | every 5 minutes | **every minute** |
-| dispatch | ~3 calls a second | **~17 calls a second** |
-| commands | 100,000 a minute | **500,000 a minute** |
-| telemetry | ~35,000 data points a second | **~175,000 data points a second** |
 
 **It did not hold.** The run reached the target rate and stayed there for about ten minutes. Then the core service started to report that the rows waiting to be written were growing faster than the writer threads could clear them.
 
