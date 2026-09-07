@@ -13,12 +13,13 @@ export const caseStudyCategories = [
 	'Telecom',
 ] as const;
 
-// ── Display order (newest first). ─────────────────────────────────────────────
+// ── Display order: page 1 is a curated lineup; later pages run newest first. ──
 // Adding a case study?
 //   1. Drop a {slug}.ts data file in this folder (export const data: CaseStudyData = …).
 //   2. Add the slug to this array in the position you want it displayed.
 //   3. (Optional) If the card needs a custom logo height, add an entry to
 //      `cardLogoHeights` below.
+//   4. (Optional) Logo already light-on-dark? Set `logoIsLightOnDark: true` in the data file.
 export const caseStudyOrder: string[] = [
 	'ibt-systems',
 	'acte-technology',
@@ -29,6 +30,9 @@ export const caseStudyOrder: string[] = [
 	'onedata',
 	'lumen',
 	'solandtec',
+	// Not newest-first on purpose: the first catalog page is a curated lineup, so
+	// this study opens page 2 rather than displacing one of those cards.
+	'cuba-iot-platform',
 	'tjk-solutions',
 	'energenix',
 	'energroup',
@@ -61,7 +65,8 @@ export const caseStudyOrder: string[] = [
 
 // Card-only logo height overrides. The hero on the detail page may want a
 // different intrinsic size than the catalog card, so we keep the card override
-// here rather than on the data itself.
+// here rather than on the data itself. Sizing is per surface; the logo's
+// treatment (`logoIsLightOnDark`) spans surfaces, so that one lives on the data.
 const cardLogoHeights: Record<string, number> = {
 	ariot: 75,
 	iioote: 35,
@@ -120,6 +125,7 @@ function toCard(d: CaseStudyData): CaseStudyCard {
 		logo: d.hero.logo,
 		logoAlt: d.hero.logoAlt,
 		logoHeight: cardLogoHeights[d.pageSlug],
+		logoIsLightOnDark: d.logoIsLightOnDark,
 		backgroundImage: d.hero.backgroundImage,
 	};
 }

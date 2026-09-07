@@ -33,7 +33,10 @@ export interface HardwarePartner {
 
 export interface Distributor {
 	name: string;
-	/** Regions served. Non-empty: no regions means the card matches no filter. */
+	/**
+	 * Regions served. Non-empty: no regions means the card matches no filter.
+	 * A region none of the named `countries` falls in counts as covered in full.
+	 */
 	regions: [Region, ...Region[]];
 	/**
 	 * Countries covered, or 'region-wide' for every country in `regions`.

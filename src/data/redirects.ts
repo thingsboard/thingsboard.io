@@ -492,6 +492,7 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'samples/nettrartu-x/tutorial', target: '/iot-hub/devices/rtu-x/' },
 	{ oldPath: 'samples/nettrartu+/rtu_temp_sensor', target: '/iot-hub/devices/rtu-x/' },
 	{ oldPath: 'samples/moko-smart/moko-smart-guide', target: '/partners/hardware/mokosmart/samples/lorawan-device-and-thingsboard/' },
+	{ oldPath: 'samples/dusun/DSGW-210_Edge_computing_gateway', target: '/iot-hub/devices/dsgw-210-iot-gateway-hub/' },
 	{ oldPath: 'samples/senquip', target: '/iot-hub/devices/orb-c1-g/' },
 	{ oldPath: 'samples/smartico', target: '/partners/hardware/smartico/' },
 	{ oldPath: 'samples/smartico/elec-meter-lorawan/Electricity_Meter_LoRaWAN', target: '/iot-hub/devices/smartico-e307/' },
@@ -549,6 +550,10 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'paas/eu/user-guide/rule-engine-2-0/tutorials/integration-with-telegram-bot', target: '/docs/paas/eu/recipes/telegram-alarm-notification/' },
 	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/send-email-html', target: '/docs/reference/rule-engine/nodes/transformation/to-email/#example-2--html-body-with-dynamic-recipient-and-body-type-selection' },
 	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/transform-telemetry-using-previous-record', target: '/docs/recipes/water-consumption-hourly-delta/' },
+	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/transform-incoming-telemetry', target: '/docs/user-guide/calculated-fields/script/#example-1-fahrenheit-to-celsius' },
+	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/send-email', target: '/docs/reference/rule-engine/nodes/external/send-email/' },
+	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/create-clear-alarms', target: '/docs/recipes/create-clear-alarms/' },
+	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/validate-incoming-telemetry', target: '/docs/recipes/validate-incoming-telemetry/' },
 	{ oldPath: 'pe/user-guide/rule-engine-2-0/tutorials/transform-incoming-telemetry', target: '/docs/pe/user-guide/calculated-fields/script/#example-1-fahrenheit-to-celsius' },
 	{ oldPath: 'paas/user-guide/rule-engine-2-0/tutorials/transform-incoming-telemetry', target: '/docs/paas/user-guide/calculated-fields/script/#example-1-fahrenheit-to-celsius' },
 	{ oldPath: 'paas/eu/user-guide/rule-engine-2-0/tutorials/transform-incoming-telemetry', target: '/docs/paas/eu/user-guide/calculated-fields/script/#example-1-fahrenheit-to-celsius' },
@@ -1376,6 +1381,7 @@ export const NON_DOCS_REDIRECTS: Record<string, string> = {
 	'/products/paas/what-is-thingsboard-cloud/': '/docs/paas/why-thingsboard/',
 	'/products/thingsboard-pe/install/': '/docs/pe/installation/',
 	'/products/thingsboard-pe/install/aws/': '/docs/pe/installation/aws-marketplace/',
+	'/products/thingsboard-pe/aws': '/docs/pe/installation/aws-marketplace/',
 	'/products/thingsboard-pe/install-thanks/': '/contact-us-thanks/',
 
 	// License Server
@@ -1385,6 +1391,11 @@ export const NON_DOCS_REDIRECTS: Record<string, string> = {
 	'/products/license-server/perpetual/': '/docs/license-server/perpetual/',
 	'/products/license-server/instance/': '/docs/license-server/instance/',
 	'/products/license-server/user/': '/docs/license-server/user/',
+
+	// Blog attachments rehosted from the WordPress uploads folder
+	'/blog/wp-content/uploads/2024/03/tb_dynamic_button_states.json': '/resources/blog/tb_dynamic_button_states.json',
+	'/blog/wp-content/uploads/2024/03/button_use_cases.json': '/resources/blog/button_use_cases.json',
+	'/blog/wp-content/uploads/2024/03/command_buttons.json': '/resources/blog/command_buttons.json',
 
 	// Use Cases
 	'/use-cases/fleet-tracking/': '/use-cases/site-fleet-tracking/',
