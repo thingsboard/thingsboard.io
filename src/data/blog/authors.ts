@@ -8,11 +8,6 @@ export interface BlogAuthor {
 
 export const BLOG_AUTHORS: BlogAuthor[] = [
 	{
-		slug: 'alex-doan',
-		name: 'PR Team',
-		avatar: 'https://secure.gravatar.com/avatar/fb8c4c6319f9a7c6ed932120cd37b992?s=96&d=mm&r=g',
-	},
-	{
 		slug: 'anastasia-antoniuk',
 		name: 'Anastasia Antoniuk',
 		avatar: 'https://secure.gravatar.com/avatar/9896ae08f45e7f4eecd95b3fc656aac0?s=96&d=mm&r=g',
@@ -58,11 +53,6 @@ export const BLOG_AUTHORS: BlogAuthor[] = [
 		avatar: 'https://secure.gravatar.com/avatar/c6569a7824a5532b5b4ac920a163c417?s=96&d=mm&r=g',
 	},
 	{
-		slug: 'marichka-kovalyk',
-		name: 'Vitaliy Paromskiy',
-		avatar: 'https://secure.gravatar.com/avatar/8bcf288df8a8c14bfe1b0af972e21ddd?s=96&d=mm&r=g',
-	},
-	{
 		slug: 'mariia-naida',
 		name: 'Mariia Naida',
 		avatar: 'https://secure.gravatar.com/avatar/a3943357abe98fde87650378eb223cbe?s=96&d=mm&r=g',
@@ -78,9 +68,19 @@ export const BLOG_AUTHORS: BlogAuthor[] = [
 		avatar: 'https://secure.gravatar.com/avatar/dc90b5503779dccb8df48e2e964a3e83?s=96&d=mm&r=g',
 	},
 	{
+		slug: 'pr-team',
+		name: 'PR Team',
+		avatar: 'https://secure.gravatar.com/avatar/fb8c4c6319f9a7c6ed932120cd37b992?s=96&d=mm&r=g',
+	},
+	{
 		slug: 'valeriia-koriavikova',
 		name: 'Valeriia Koriavikova',
 		avatar: 'https://secure.gravatar.com/avatar/04b9ee24b1df742aff5297aa3236cf20?s=96&d=mm&r=g',
+	},
+	{
+		slug: 'vitaliy-paromskiy',
+		name: 'Vitaliy Paromskiy',
+		avatar: 'https://secure.gravatar.com/avatar/8bcf288df8a8c14bfe1b0af972e21ddd?s=96&d=mm&r=g',
 	},
 	{
 		slug: 'volodymyr-babak',
