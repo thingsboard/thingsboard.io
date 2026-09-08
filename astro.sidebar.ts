@@ -252,6 +252,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => {
 		items: [
 			{ label: 'Overview', slug: `${prefix}/agents` },
 			`${prefix}/agents/installation`,
+			`${prefix}/agents/self-upgrade`,
 			`${prefix}/agents/agent-profiles`,
 			`${prefix}/agents/applications`,
 			`${prefix}/agents/application-profiles`,
@@ -2137,6 +2138,7 @@ export const paasSidebar: SidebarConfig = [
 				items: [
 					{ label: 'Overview', slug: 'docs/paas/user-guide/agents' },
 					'docs/paas/user-guide/agents/installation',
+					'docs/paas/user-guide/agents/self-upgrade',
 					'docs/paas/user-guide/agents/agent-profiles',
 					'docs/paas/user-guide/agents/applications',
 					'docs/paas/user-guide/agents/application-profiles',
@@ -2546,6 +2548,7 @@ export const paasEuSidebar: SidebarConfig = [
 				items: [
 					{ label: 'Overview', slug: 'docs/paas/eu/user-guide/agents' },
 					'docs/paas/eu/user-guide/agents/installation',
+					'docs/paas/eu/user-guide/agents/self-upgrade',
 					'docs/paas/eu/user-guide/agents/agent-profiles',
 					'docs/paas/eu/user-guide/agents/applications',
 					'docs/paas/eu/user-guide/agents/application-profiles',
