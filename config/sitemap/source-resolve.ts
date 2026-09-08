@@ -23,8 +23,6 @@ const SITEMAP_DATA_RULES: { re: RegExp; file: (m: RegExpMatchArray) => string }[
 	{ re: /^\/use-cases\/([^/]+)\/$/, file: (m) => `src/data/use-cases/${m[1]}.ts` },
 	{ re: /^\/case-studies\/([^/]+)\/$/, file: (m) => `src/data/case-studies/${m[1]}.ts` },
 	{ re: /^\/blog\/(.+)\/$/, file: (m) => `src/content/blog/${m[1]}.mdx` },
-	// Careers detail pages all live in one aggregated data file.
-	{ re: /^\/careers\/([^/]+)\/$/, file: () => `src/data/careers/jobs.ts` },
 	{ re: /^\/clients-feedback\/$/, file: () => `src/data/clients-feedback/index.ts` },
 	// Release-notes table: per-version notes include (globbed, so scanner-blind).
 	{

@@ -1,17 +1,17 @@
 import {
 	IOT_HUB_API_URL,
-	IOT_HUB_CATEGORIES,
 	IOT_HUB_STRINGS,
 	SEARCH_PAGE_SIZE,
 	DEFAULT_IOT_HUB_SORT_ID,
 	getCardVariant,
 	getCategoryForItemType,
 	getIotHubSortOption,
-	type IotHubItemType,
+	resolvePreviewImage,
 	type ListingView,
 	type PageData,
 } from '@models/iot-hub';
 import { bindListingCard } from './iot-hub-listing-card-bind';
+import type { CardShape } from './listing-card-hooks';
 import { getKnownSlugs } from './iot-hub-known-slugs';
 import { updatePagination } from '@components/Pagination/pagination-client';
 import { setPerPageValue } from '@components/Pagination/per-page-client';
@@ -152,16 +152,26 @@ export function setupDynamicSearch(): void {
 	);
 	if (!input || !resultsContainer || !itemsWrap || !countEl || !noResults) return;
 
-	const bigTmpl = document.querySelector<HTMLTemplateElement>(
-		'[data-listing-card-tmpl][data-variant="big"]'
+	const previewTmpl = document.querySelector<HTMLTemplateElement>(
+		'[data-listing-card-tmpl][data-variant="preview"]'
 	);
 	const compactTmpl = document.querySelector<HTMLTemplateElement>(
 		'[data-listing-card-tmpl][data-variant="compact"]'
 	);
-	const sectionTmpl = document.querySelector<HTMLTemplateElement>(
-		'[data-category-section-tmpl]'
+	const tileTmpl = document.querySelector<HTMLTemplateElement>(
+		'[data-listing-card-tmpl][data-variant="tile"]'
 	);
-	if (!bigTmpl || !compactTmpl || !sectionTmpl) return;
+	// A mixed grid (search / creator) forces one layout on every card and picks
+	// the clone by image presence, so it needs `preview` + `tile`. A grid pinned
+	// to one item type clones per item, so it needs `preview` + `compact`.
+	// Require only what this page uses: the flag above is already set, so an
+	// over-strict guard here kills dynamic search with no way to retry.
+	const mixedGrid = !itemType;
+	const alt = mixedGrid ? tileTmpl : compactTmpl;
+	if (!previewTmpl || !alt) return;
+	// Bind the narrowed values so buildCardNode needs no assertions.
+	const previewTemplate = previewTmpl;
+	const altTemplate = alt;
 
 	let searchText = '';
 	let sortId: string = DEFAULT_IOT_HUB_SORT_ID;
@@ -276,57 +286,23 @@ export function setupDynamicSearch(): void {
 	// --- DOM builders ------------------------------------------------------
 
 	function buildCardNode(item: ListingView, categorySlug: string): HTMLElement {
-		const variant = getCardVariant(item.itemType);
-		const tmpl = variant === 'big' ? bigTmpl! : compactTmpl!;
+		// Resolve the preview once: it decides the shape here, and the binder
+		// reuses the URL rather than deriving it again. Shape is passed rather
+		// than inferred — on a mixed grid it turns on image presence, not on
+		// item type, so the binder could not work it out from the item alone.
+		const previewUrl = resolvePreviewImage(item.image);
+		const shape: CardShape = mixedGrid
+			? previewUrl
+				? 'preview'
+				: 'tile'
+			: getCardVariant(item.itemType) === 'big'
+				? 'preview'
+				: 'compact';
+
+		const tmpl = shape === 'preview' ? previewTemplate : altTemplate;
 		const card = tmpl.content.firstElementChild!.cloneNode(true) as HTMLElement;
-		bindListingCard(card, item, categorySlug, showCreator);
+		bindListingCard(card, item, categorySlug, { shape, showCreator, previewUrl });
 		return card;
-	}
-
-	function buildSectionNode(
-		slug: string,
-		label: string,
-		items: ListingView[]
-	): HTMLElement {
-		const section = sectionTmpl!.content.firstElementChild!.cloneNode(true) as HTMLElement;
-		const headingLink = section.querySelector<HTMLAnchorElement>(
-			'[data-category-section-heading]'
-		);
-		const exploreLink = section.querySelector<HTMLAnchorElement>(
-			'[data-category-section-explore]'
-		);
-		const labelEl = section.querySelector<HTMLElement>('[data-category-section-label]');
-		const exploreLabel = section.querySelector<HTMLElement>(
-			'[data-category-section-explore-label]'
-		);
-		const grid = section.querySelector<HTMLElement>('[data-category-section-grid]');
-		const href = `/iot-hub/${slug}/`;
-		if (headingLink) headingLink.href = href;
-		if (exploreLink) exploreLink.href = href;
-		if (labelEl) labelEl.textContent = label;
-		if (exploreLabel) exploreLabel.textContent = label.toLowerCase();
-		if (grid) {
-			const variant = getCardVariant(items[0]?.itemType ?? 'WIDGET');
-			grid.classList.add(`iot-hub-grid--${variant}`);
-			for (const item of items) grid.appendChild(buildCardNode(item, slug));
-		}
-		return section;
-	}
-
-	function groupResults(
-		items: ListingView[]
-	): Array<{ slug: string; label: string; items: ListingView[] }> {
-		const byType = new Map<IotHubItemType, ListingView[]>();
-		for (const it of items) {
-			const cat = getCategoryForItemType(it.itemType);
-			if (!cat) continue;
-			const list = byType.get(cat.itemType) ?? [];
-			list.push(it);
-			byType.set(cat.itemType, list);
-		}
-		return IOT_HUB_CATEGORIES
-			.filter((c) => byType.has(c.itemType))
-			.map((c) => ({ slug: c.slug, label: c.label, items: byType.get(c.itemType)! }));
 	}
 
 	function renderResults(items: ListingView[]): void {
@@ -336,24 +312,27 @@ export function setupDynamicSearch(): void {
 		}
 		showNoResults(false);
 		resultsContainer!.replaceChildren();
-		if (itemType) {
-			// Single-category context (category page) — emit a flat grid
-			// without a section header, matching the static SSR shape.
-			const cat = getCategoryForItemType(itemType);
-			// Unknown item type has no public category — skip rather than emit
-			// cards with a `/iot-hub//slug/` href (matches groupResults).
-			if (!cat) return;
-			const categorySlug = cat.slug;
-			const variant = getCardVariant(itemType);
-			const grid = document.createElement('div');
-			grid.className = `iot-hub-grid iot-hub-grid--${variant}`;
-			for (const item of items) grid.appendChild(buildCardNode(item, categorySlug));
-			resultsContainer!.appendChild(grid);
+
+		// Pinned page: one category slug for every card. Mixed page (search /
+		// creator): resolved per item below, skipping types with no public category
+		// rather than emitting a `/iot-hub//slug/` href.
+		const cat = itemType ? getCategoryForItemType(itemType) : null;
+
+		const gridVariant = itemType ? getCardVariant(itemType) : 'big';
+		const grid = document.createElement('div');
+		grid.className = `iot-hub-grid iot-hub-grid--${gridVariant}`;
+
+		for (const item of items) {
+			const slug = cat ? cat.slug : getCategoryForItemType(item.itemType)?.slug;
+			if (!slug) continue;
+			grid.appendChild(buildCardNode(item, slug));
+		}
+
+		if (!grid.childElementCount) {
+			showNoResults(true);
 			return;
 		}
-		for (const group of groupResults(items)) {
-			resultsContainer!.appendChild(buildSectionNode(group.slug, group.label, group.items));
-		}
+		resultsContainer!.appendChild(grid);
 	}
 
 	// --- Fetch -------------------------------------------------------------

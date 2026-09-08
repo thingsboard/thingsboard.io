@@ -73,6 +73,17 @@ export function assertNewestFirst(versions: readonly { version: string }[], list
 }
 
 /**
+ * True when `version` sorts at or after `minVersion`
+ * (e.g. versionAtLeast('4.2.1.2', '4.2') / versionAtLeast('4.3', '4.3')).
+ * Backs every "is this at least version X" gate in the upgrade-instructions
+ * components so they share one comparator instead of each re-parsing
+ * `major.minor` by hand.
+ */
+export function versionAtLeast(version: string, minVersion: string): boolean {
+	return compareVersions(version, minVersion) >= 0;
+}
+
+/**
  * Segment-wise numeric version compare; missing segments count as 0, so
  * "4.3.1.1" > "4.3.1". Hotfix suffixes sort as an extra segment, so
  * "1.10.3-HF7" > "1.10.3" (Trendz).

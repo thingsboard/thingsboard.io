@@ -21,7 +21,6 @@ export const devFallbackRedirects: Record<string, string> = {
 	'/docs/license/search/': '/docs/license-server/search/',
 	'/docs/pe/edge/search/': '/docs/edge/pe/search/',
 	'/docs/pe/mobile/search/': '/docs/mobile/pe/search/',
-	'/docs/pe/mqtt-broker/search/': '/docs/mqtt-broker/pe/search/',
 };
 const INDUSTRY_SLUGS = feedbackCategories.map((c) => c.key);
 for (const slug of INDUSTRY_SLUGS) {

@@ -159,6 +159,23 @@ export type IotHubCategorySlug = (typeof IOT_HUB_CATEGORIES)[number]['slug'];
 export type IotHubItemType = (typeof IOT_HUB_CATEGORIES)[number]['itemType'];
 export type IotHubCardVariant = 'big' | 'small';
 
+/**
+ * A listing paired with the category collection it was loaded from. The slug
+ * is authoritative for the card's href — deriving one from itemType would work
+ * today (the mapping is bijective) but adds a step that can drift.
+ */
+export interface GridEntry {
+	item: ListingView;
+	categorySlug: string;
+}
+
+/**
+ * Fallback tile colour when a listing declares none. Server render
+ * (ListingCard) and client binder must agree byte-for-byte, or a dynamically
+ * rendered tile differs from its static twin.
+ */
+export const DEFAULT_TILE_COLOR = '#4caf50';
+
 export const getCardVariant = (itemType: string): IotHubCardVariant => {
 	const cat = IOT_HUB_CATEGORIES.find((c) => c.itemType === itemType);
 	return cat?.card ?? 'big';
@@ -249,10 +266,15 @@ export const IOT_HUB_STRINGS = {
 	installDialog: {
 		title: 'Install item',
 		titleConnect: 'Connect item',
+		// Built-in content is already present in every ThingsBoard instance, so
+		// the dialog opens it rather than installing a duplicate.
+		titleOpen: 'Open item',
 		// `\n` is a hard line break, rendered via `white-space: pre-line` to match
 		// the two-line layout in the design.
 		subtitle:
 			'Choose a ThingsBoard instance to install this item into.\nCopy the install link or open it directly in a new tab.',
+		subtitleOpen:
+			'Choose a ThingsBoard instance to open this item in.\nCopy the link or open it directly in a new tab.',
 		closeAriaLabel: 'Close',
 		copy: 'Copy link',
 		copied: 'Copied',
@@ -289,6 +311,10 @@ export const IOT_HUB_STRINGS = {
 	installs: {
 		singular: 'install',
 		plural: 'installs',
+	},
+	builtIn: {
+		/** Appended to the supported-version chip in the detail hero's meta row. */
+		label: 'Built-in',
 	},
 } as const;
 
@@ -382,11 +408,11 @@ export interface PageData<T> {
 }
 
 export const PAGE_SIZE = 12;
-// Creator profile page paginates each category's items at 16/page.
+// Creator profile page — a flat 16 items per page.
 export const CREATOR_PAGE_SIZE = 16;
-// Search results page — same default as the creator page; kept separate so
-// the eventual dynamic page-size control on the search bar can vary it
-// without disturbing the creator route.
+// Search results page — same default as the creator page, kept separate so the
+// two routes can diverge; the per-page control in PaginationBar overrides it
+// at runtime on both.
 export const SEARCH_PAGE_SIZE = 16;
 export const HOME_PER_CATEGORY = 4;
 // "Recently added" strip: 8 = two full rows of the 4-column desktop grid.
@@ -469,6 +495,13 @@ export const listingViewSchema = z.object({
 	connectivity: z.array(z.string()).default([]),
 	tags: z.array(z.string()).default([]),
 	installCount: z.number().default(0),
+	// Server-owned and read-only: true when the content already ships inside
+	// ThingsBoard itself (a bundled widget, a SCADA symbol) rather than being
+	// something the Hub installs. A listing is built-in exactly when its member
+	// items are. `.catch` (not `.default`) so an absent *or* null field lands on
+	// false — Astro applies this schema after the loader returns, outside the
+	// try/catch in content.config.ts that would otherwise contain the throw.
+	builtIn: z.boolean().catch(false),
 	createdTime: z.number().nullable().default(null),
 	updatedTime: z.number().nullable().default(null),
 	publishedTime: z.number().nullable(),
@@ -677,5 +710,15 @@ export const buildInstallUrl = (
 
 // `itemType` is `string` (not `IotHubItemType`) because one caller passes a raw
 // value read from a DOM data-attribute.
-export const getInstallVerb = (itemType: string, variant = 'card'): string =>
-	itemType === 'DEVICE' ? (variant === 'hero' ? 'Connect device' : 'Connect') : 'Install';
+//
+// Built-in content already exists in every ThingsBoard instance, so the CTA
+// opens it there instead of installing a second copy — the dialog itself is
+// unchanged, only the wording.
+export const getInstallVerb = (itemType: string, variant = 'card', builtIn = false): string =>
+	builtIn
+		? 'Open'
+		: itemType === 'DEVICE'
+			? variant === 'hero'
+				? 'Connect device'
+				: 'Connect'
+			: 'Install';

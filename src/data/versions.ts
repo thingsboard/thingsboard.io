@@ -7,7 +7,7 @@
  */
 
 /** Community Edition */
-export const CE_FULL_VER = '4.3.1.3';
+export const CE_FULL_VER = '4.3.1.4';
 
 export const TB_VER = CE_FULL_VER;
 
@@ -40,7 +40,7 @@ export const CE_BRANCH = 'release-4.3';
  * For package filenames (.deb/.rpm/.zip/.exe on dist.thingsboard.io), use
  * {@link PE_PKG_VER} — the dist host serves PE packages with lowercase `pe`.
  */
-export const PE_FULL_VER = '4.3.1.3PE';
+export const PE_FULL_VER = '4.3.1.4PE';
 
 /**
  * PE package filename version (dist.thingsboard.io) — {@link CE_PKG_VER} plus
@@ -85,12 +85,3 @@ export const EDGE_PE_PKG_VER = `${EDGE_PKG_VER}pe`;
 
 /** Edge PE release branch (for git clone, X.Y.Z format) */
 export const EDGE_PE_BRANCH = 'release-4.3.0';
-
-/** TBMQ Broker */
-export const TBMQ_VER = '2.3.0';
-
-/** TBMQ Broker Professional Edition */
-export const TBMQ_PE_VER = '2.3.0PE';
-
-/** TBMQ Broker release branch (for installation scripts) */
-export const TBMQ_BRANCH = 'release-2.3.0';

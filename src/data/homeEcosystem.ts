@@ -1,3 +1,5 @@
+import { TBMQ_SITE_URL } from '@models/tbmq';
+
 export interface EcosystemItem {
 	name: string;
 	description: string;
@@ -22,7 +24,7 @@ export const homeEcosystem: EcosystemItem[] = [
 		name: 'MQTT Broker',
 		description: 'Connect MQTT clients',
 		icon: '/src/assets/images/landings/ce/tbmq-icon.svg',
-		href: '/products/mqtt-broker/',
+		href: TBMQ_SITE_URL,
 	},
 	{
 		name: 'Trendz Analytics',
