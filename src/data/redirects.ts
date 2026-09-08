@@ -133,17 +133,74 @@ export const CATCH_ALL_REDIRECTS: CatchAllRedirect[] = [
 	{
 		oldPrefix: 'pe/solution-templates',
 		newPrefix: 'pe/recipes/solution-templates',
-		entries: [], // PREFIX_RENAME — splat rule in _redirects, enumerated by [..slug].astro
+		entries: [
+			// The intermediate recipes tree is retired except for `overview`, so these
+			// entries carry the final targets — the generator enumerates them as static
+			// rules and emits no splat, which is what kept the old prefix double-hopping.
+			{ slug: '', target: '/docs/pe/recipes/solution-templates/overview/' },
+			{ slug: 'overview', target: '/docs/pe/recipes/solution-templates/overview/' },
+			{ slug: 'air-quality-monitoring', target: '/iot-hub/solution-templates/air-quality-index/' },
+			{ slug: 'assisted-living', target: '/iot-hub/solution-templates/assisted-living/' },
+			{ slug: 'fuel-level-monitoring', target: '/iot-hub/solution-templates/fuel-level-monitoring/' },
+			{ slug: 'scada-drilling-system', target: '/iot-hub/solution-templates/scada-drilling-system/' },
+			{ slug: 'scada-energy-management', target: '/iot-hub/solution-templates/scada-energy-management/' },
+			{ slug: 'site-fleet-tracking', target: '/iot-hub/solution-templates/fleet-tracking/' },
+			{ slug: 'smart-irrigation', target: '/iot-hub/solution-templates/smart-irrigation/' },
+			{ slug: 'smart-office', target: '/iot-hub/solution-templates/smart-office/' },
+			{ slug: 'smart-retail', target: '/iot-hub/solution-templates/smart-retail/' },
+			{ slug: 'swimming-pool-scada-system', target: '/iot-hub/solution-templates/swimming-pool-scada-system/' },
+			{ slug: 'temperature-humidity-sensors', target: '/iot-hub/solution-templates/temperature-sensors/' },
+			{ slug: 'waste-management', target: '/iot-hub/solution-templates/waste-monitoring/' },
+			{ slug: 'water-metering', target: '/iot-hub/solution-templates/water-metering/' },
+		],
 	},
 	{
 		oldPrefix: 'paas/solution-templates',
 		newPrefix: 'paas/recipes/solution-templates',
-		entries: [],
+		entries: [
+			// The intermediate recipes tree is retired except for `overview`, so these
+			// entries carry the final targets — the generator enumerates them as static
+			// rules and emits no splat, which is what kept the old prefix double-hopping.
+			{ slug: '', target: '/docs/paas/recipes/solution-templates/overview/' },
+			{ slug: 'overview', target: '/docs/paas/recipes/solution-templates/overview/' },
+			{ slug: 'air-quality-monitoring', target: '/iot-hub/solution-templates/air-quality-index/' },
+			{ slug: 'assisted-living', target: '/iot-hub/solution-templates/assisted-living/' },
+			{ slug: 'fuel-level-monitoring', target: '/iot-hub/solution-templates/fuel-level-monitoring/' },
+			{ slug: 'scada-drilling-system', target: '/iot-hub/solution-templates/scada-drilling-system/' },
+			{ slug: 'scada-energy-management', target: '/iot-hub/solution-templates/scada-energy-management/' },
+			{ slug: 'site-fleet-tracking', target: '/iot-hub/solution-templates/fleet-tracking/' },
+			{ slug: 'smart-irrigation', target: '/iot-hub/solution-templates/smart-irrigation/' },
+			{ slug: 'smart-office', target: '/iot-hub/solution-templates/smart-office/' },
+			{ slug: 'smart-retail', target: '/iot-hub/solution-templates/smart-retail/' },
+			{ slug: 'swimming-pool-scada-system', target: '/iot-hub/solution-templates/swimming-pool-scada-system/' },
+			{ slug: 'temperature-humidity-sensors', target: '/iot-hub/solution-templates/temperature-sensors/' },
+			{ slug: 'waste-management', target: '/iot-hub/solution-templates/waste-monitoring/' },
+			{ slug: 'water-metering', target: '/iot-hub/solution-templates/water-metering/' },
+		],
 	},
 	{
 		oldPrefix: 'paas/eu/solution-templates',
 		newPrefix: 'paas/eu/recipes/solution-templates',
-		entries: [],
+		entries: [
+			// The intermediate recipes tree is retired except for `overview`, so these
+			// entries carry the final targets — the generator enumerates them as static
+			// rules and emits no splat, which is what kept the old prefix double-hopping.
+			{ slug: '', target: '/docs/paas/eu/recipes/solution-templates/overview/' },
+			{ slug: 'overview', target: '/docs/paas/eu/recipes/solution-templates/overview/' },
+			{ slug: 'air-quality-monitoring', target: '/iot-hub/solution-templates/air-quality-index/' },
+			{ slug: 'assisted-living', target: '/iot-hub/solution-templates/assisted-living/' },
+			{ slug: 'fuel-level-monitoring', target: '/iot-hub/solution-templates/fuel-level-monitoring/' },
+			{ slug: 'scada-drilling-system', target: '/iot-hub/solution-templates/scada-drilling-system/' },
+			{ slug: 'scada-energy-management', target: '/iot-hub/solution-templates/scada-energy-management/' },
+			{ slug: 'site-fleet-tracking', target: '/iot-hub/solution-templates/fleet-tracking/' },
+			{ slug: 'smart-irrigation', target: '/iot-hub/solution-templates/smart-irrigation/' },
+			{ slug: 'smart-office', target: '/iot-hub/solution-templates/smart-office/' },
+			{ slug: 'smart-retail', target: '/iot-hub/solution-templates/smart-retail/' },
+			{ slug: 'swimming-pool-scada-system', target: '/iot-hub/solution-templates/swimming-pool-scada-system/' },
+			{ slug: 'temperature-humidity-sensors', target: '/iot-hub/solution-templates/temperature-sensors/' },
+			{ slug: 'waste-management', target: '/iot-hub/solution-templates/waste-monitoring/' },
+			{ slug: 'water-metering', target: '/iot-hub/solution-templates/water-metering/' },
+		],
 	},
 	// IoT Gateway install: iot-gateway/install/* → iot-gateway/installation/*
 	{
