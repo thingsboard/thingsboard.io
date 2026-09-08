@@ -1334,8 +1334,11 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
  * /services/*, /industries/*, and external targets. These are ALSO consumed by
  * astro.redirects.ts so Astro applies them in dev mode and at build time.
  *
- * Add entries here for any non-/docs/ path rename. Do NOT add /docs/ entries
- * here — those belong in CATCH_ALL_REDIRECTS / SINGLE_REDIRECTS / DYNAMIC_REDIRECTS.
+ * Add entries here for any non-/docs/ path rename. Do NOT add /docs/ *page*
+ * entries here — those belong in CATCH_ALL_REDIRECTS / SINGLE_REDIRECTS /
+ * DYNAMIC_REDIRECTS. The one exception is a /docs/ **file asset** (.pdf, .json,
+ * …): those arrays append a trailing slash to every oldPath, which a file URL
+ * must not have, so a moved file can only be expressed here.
  *
  * All entries render as static 301 rules in public/_redirects and are spread
  * verbatim into astro.redirects.ts for dev-mode parity. Targets may include
@@ -1391,6 +1394,10 @@ export const NON_DOCS_REDIRECTS: Record<string, string> = {
 	'/products/license-server/perpetual/': '/docs/license-server/perpetual/',
 	'/products/license-server/instance/': '/docs/license-server/instance/',
 	'/products/license-server/user/': '/docs/license-server/user/',
+
+	// Partner sample moved from the retired /docs/samples/ tree into the
+	// hardware-partners asset folder, where every other partner's files live.
+	'/docs/samples/sensiedge/connect_sensi_ble.pdf': '/partners/hardware/sensiedge/samples/connect_sensi_ble.pdf',
 
 	// Blog attachments rehosted from the WordPress uploads folder
 	'/blog/wp-content/uploads/2024/03/tb_dynamic_button_states.json': '/resources/blog/tb_dynamic_button_states.json',
