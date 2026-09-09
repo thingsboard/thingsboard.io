@@ -411,9 +411,9 @@ import Banner from '~/components/Banner.astro';
   </div>
 </div>
 
-## Database telemetry parameters
+## Database parameters
 
-<Banner variant="pe">Selects the storage backend (SQL, Cassandra, or TimescaleDB) for time-series and latest telemetry data, and sets the maximum query intervals.</Banner>
+<Banner variant="pe">Selects the storage backend (SQL, Cassandra, or TimescaleDB) for time-series and latest telemetry data and the maximum query intervals, and configures optional Citus (distributed PostgreSQL) support.</Banner>
 
 <div class="config-def-list">
   <div class="config-def-item">
@@ -427,6 +427,42 @@ import Banner from '~/components/Banner.astro';
   <div class="config-def-item">
     <p class="config-def-meta"><code class="config-def-env">DATABASE&#95;TS&#95;LATEST&#95;TYPE</code> · <span class="config-def-label">Default</span> <code>sql</code></p>
     <p class="config-def-desc">cassandra, sql, or timescale (for hybrid mode, DATABASE&#95;TS&#95;TYPE value should be cassandra, or timescale)</p>
+  </div>
+  <div class="config-def-item">
+    <p class="config-def-meta"><code class="config-def-env">DATABASE&#95;CITUS&#95;ENABLED</code> · <span class="config-def-label">Default</span> <code>false</code></p>
+    <p class="config-def-desc">Enable optional Citus (distributed PostgreSQL) support. PE only. Default: plain PostgreSQL.  This is far more than distributing attribute&#95;kv and ts&#95;kv&#95;latest: enabling it hash-distributes device, asset, entity&#95;view (by id) and  alarm, entity&#95;alarm (by originator&#95;id), rewrites the alarm-group primary keys to include the distribution column, drops the  unique constraints that are incompatible with the chosen distribution, and converts ~25 dimension tables (relation, key&#95;dictionary,  device/asset profiles, etc.) into replicated reference tables. See CitusTables for the authoritative list of distributed/reference tables.  Because the distribution is applied to live schema, this is effectively a one-way switch: plan to (re)create the database with Citus in mind.</p>
+  </div>
+  <div class="config-def-item">
+    <p class="config-def-meta"><code class="config-def-env">DATABASE&#95;CITUS&#95;SHARD&#95;COUNT</code> · <span class="config-def-label">Default</span> <code>32</code></p>
+    <p class="config-def-desc">Number of Citus shards for the hash-distributed tables. Fixed at distribution time; size &gt;= max expected worker count, ideally a multiple of it.  CONNECTION POOL SIZING: with Citus enabled, the attribute&#95;kv and ts&#95;kv&#95;latest write queues each use shard&#95;count writer threads  (one queue per shard, so each batch targets a single shard) INSTEAD OF sql.attributes.batch&#95;threads / sql.ts&#95;latest.batch&#95;threads.  That is 2 &#42; shard&#95;count KV-writer threads in total, each borrowing a coordinator JDBC connection while draining its batch (one shard  per batch =&gt; one worker connection per flush). The default spring.datasource.hikari.maximumPoolSize of 16 is undersized for Citus and  will stall writes: raise it via SPRING&#95;DATASOURCE&#95;MAXIMUM&#95;POOL&#95;SIZE. At peak all 2 &#42; shard&#95;count writer threads can flush at once, so to  guarantee writers never wait, size maximumPoolSize &gt;= 2 &#42; shard&#95;count + headroom for the rest of the app (entity DAO, rule engine, REST,  EDQS) — e.g. ~64 + ~16 = ~80 for shard&#95;count=32. Each thread holds a connection only briefly while flushing its batch, so a smaller pool  often suffices in practice; tune it down/up by watching the HikariCP pending-connection count under peak ingestion. Also ensure the Citus  workers' connection limits accommodate maximumPoolSize &#42; worker&#95;count.  Note that each of the two KV queues spawns exactly one flush thread per shard bucket, so both writer-thread count and peak connection  demand scale as 2 &#42; shard&#95;count per app instance. Raising shard&#95;count for finer rebalance granularity therefore also multiplies KV writer  threads and their connection footprint; a bounded flush pool decoupling thread count from shard&#95;count is a possible future optimization.  When smart&#95;routing.enabled=true (the default when Citus is on), the KV read+write path shifts OFF the coordinator pool onto the per-worker  pools (smart&#95;routing.worker&#95;pool&#95;size), so the coordinator maximumPoolSize pressure from the KV path is correspondingly reduced — but each  worker now needs its own pool sized for the shards it owns (see the worker&#95;pool&#95;size comment below).</p>
+  </div>
+  <div class="config-def-item">
+    <p class="config-def-meta"><code class="config-def-env">DATABASE&#95;CITUS&#95;SMART&#95;ROUTING&#95;ENABLED</code> · <span class="config-def-label">Default</span> <code>$&#123;DATABASE&#95;CITUS&#95;ENABLED:false&#125;</code></p>
+    <p class="config-def-desc">Connect directly to the Citus worker owning a shard for single-shard KV ops instead of routing via the coordinator. Defaults to database.citus.enabled.</p>
+  </div>
+  <div class="config-def-item">
+    <p class="config-def-meta"><code class="config-def-env">DATABASE&#95;CITUS&#95;SMART&#95;ROUTING&#95;WORKER&#95;HOST&#95;OVERRIDES</code></p>
+    <p class="config-def-desc">Optional comma-separated nodename=host:port overrides for worker reachability (e.g. docker/NAT). Empty =&gt; use addresses reported by Citus.</p>
+  </div>
+  <div class="config-def-item">
+    <p class="config-def-meta"><code class="config-def-env">DATABASE&#95;CITUS&#95;SMART&#95;ROUTING&#95;WORKER&#95;POOL&#95;SIZE</code> · <span class="config-def-label">Default</span> <code>8</code></p>
+    <p class="config-def-desc">Per-worker Hikari pool size for direct worker connections. Small pools for short single-shard ops.  SIZING: a single worker owns roughly shard&#95;count / worker&#95;count shards, and up to that many per-shard write-queue threads can flush to that  one worker concurrently. If worker&#95;pool&#95;size is smaller, concurrent flushes wait up to worker&#95;connection&#95;timeout&#95;ms and, on timeout, the  routed flush FAILS (no fallback). Size worker&#95;pool&#95;size &gt;= ceil(shard&#95;count / min&#95;expected&#95;worker&#95;count) plus headroom for the single-entity  routed reads. Tradeoff: total worker connection budget is worker&#95;pool&#95;size &#42; worker&#95;count &#42; app&#95;instances connections landing on each  worker's max&#95;connections, so do not oversize. Default 8 suits shard&#95;count=32 with &gt;=6 workers; raise it for fewer/heavier-loaded workers.  READ SIZING: single-entity routed reads (rule-engine attribute/latest lookups) share this same per-worker pool with up to  2 &#42; shard&#95;count / worker&#95;count concurrent write flushes for that worker. A read that cannot borrow within worker&#95;connection&#95;timeout&#95;ms  FAILS outright (there is no coordinator fallback for a routed read), so size the pool for read bursts riding on top of the flush bursts.</p>
+  </div>
+  <div class="config-def-item">
+    <p class="config-def-meta"><code class="config-def-env">DATABASE&#95;CITUS&#95;SMART&#95;ROUTING&#95;PLACEMENT&#95;REFRESH&#95;INTERVAL&#95;MS</code> · <span class="config-def-label">Default</span> <code>300000</code></p>
+    <p class="config-def-desc">How often (ms) to refresh shard placements (bucket-&gt;worker). Placements move on rebalance; a stale placement is correctness-safe (Citus MX forwards to the true owner).  The same cadence also drives worker-pool reconciliation: adding pools for newly seen workers, retiring pools for departed ones, and the  endpoint-drift self-heal that rebuilds a worker's pool after it re-addresses (e.g. a worker IP change). Lower this to speed recovery after a worker re-address.</p>
+  </div>
+  <div class="config-def-item">
+    <p class="config-def-meta"><code class="config-def-env">DATABASE&#95;CITUS&#95;SMART&#95;ROUTING&#95;WORKER&#95;CONNECTION&#95;TIMEOUT&#95;MS</code> · <span class="config-def-label">Default</span> <code>10000</code></p>
+    <p class="config-def-desc">Connection timeout (ms) for direct worker pools; bounds the boot reachability probe and runtime borrow-wait — keep short for fail-fast.</p>
+  </div>
+  <div class="config-def-item">
+    <p class="config-def-meta"><code class="config-def-env">DATABASE&#95;CITUS&#95;SMART&#95;ROUTING&#95;FAILOVER&#95;REFRESH&#95;DEBOUNCE&#95;MS</code> · <span class="config-def-label">Default</span> <code>10000</code></p>
+    <p class="config-def-desc">FAILOVER STORY (HA workers, e.g. Patroni leader+replica pairs): when a worker leader is demoted, the HA manager rewrites pg&#95;dist&#95;node to the  new leader and the pools self-heal without waiting for the scheduled refresh tick. Worker pools are unconditionally hardened against  non-writable (standby / read-only) servers: pool URLs pin targetServerType=primary (the driver refuses to connect to a read-only server) and  pooled connections are write-validated at borrow, so connections pinned to a demoted leader are evicted immediately. On top of that, the  first routed operation failing with a failover signature (SQLSTATE 25006 "read-only transaction", or a worker connection-acquisition failure)  triggers an immediate asynchronous catalog refresh + pool reconcile. This knob debounces that trigger: at most one error-triggered refresh  runs per window, so a burst of failing operations collapses into a single refresh and there is no refresh storm while the catalog has not  flipped to the new leader yet (the scheduled placement&#95;refresh&#95;interval&#95;ms tick remains the backstop).</p>
+  </div>
+  <div class="config-def-item">
+    <p class="config-def-meta"><code class="config-def-env">DATABASE&#95;CITUS&#95;RELATION&#95;QUERY&#95;MAX&#95;RESOLVED&#95;ENTITIES</code> · <span class="config-def-label">Default</span> <code>1000000</code></p>
+    <p class="config-def-desc">Citus-only defensive cap on how many entity ids a relation/reference recursion may materialize on the coordinator heap before binding.  A breach fails the query with an error naming this property instead of risking a coordinator out-of-memory condition.</p>
   </div>
 </div>
 
@@ -664,7 +700,7 @@ import Banner from '~/components/Banner.astro';
   </div>
   <div class="config-def-item">
     <p class="config-def-meta"><code class="config-def-env">SQL&#95;ATTRIBUTES&#95;BATCH&#95;THREADS</code> · <span class="config-def-label">Default</span> <code>3</code></p>
-    <p class="config-def-desc">batch thread count has to be a prime number like 3 or 5 to gain perfect hash distribution</p>
+    <p class="config-def-desc">batch thread count has to be a prime number like 3 or 5 to gain perfect hash distribution. When database.citus.enabled=true this is overridden by database.citus.shard&#95;count (see that property for pool sizing)</p>
   </div>
   <div class="config-def-item">
     <p class="config-def-meta"><code class="config-def-env">SQL&#95;ATTRIBUTES&#95;VALUE&#95;NO&#95;XSS&#95;VALIDATION</code> · <span class="config-def-label">Default</span> <code>false</code></p>
@@ -708,7 +744,7 @@ import Banner from '~/components/Banner.astro';
   </div>
   <div class="config-def-item">
     <p class="config-def-meta"><code class="config-def-env">SQL&#95;TS&#95;LATEST&#95;BATCH&#95;THREADS</code> · <span class="config-def-label">Default</span> <code>3</code></p>
-    <p class="config-def-desc">batch thread count has to be a prime number like 3 or 5 to gain perfect hash distribution</p>
+    <p class="config-def-desc">batch thread count has to be a prime number like 3 or 5 to gain perfect hash distribution. When database.citus.enabled=true this is overridden by database.citus.shard&#95;count (see that property for pool sizing)</p>
   </div>
   <div class="config-def-item">
     <p class="config-def-meta"><code class="config-def-env">SQL&#95;TS&#95;UPDATE&#95;BY&#95;LATEST&#95;TIMESTAMP</code> · <span class="config-def-label">Default</span> <code>true</code></p>
@@ -1282,12 +1318,20 @@ import Banner from '~/components/Banner.astro';
     <p class="config-def-desc">max pool size to process futures that call the external cache</p>
   </div>
   <div class="config-def-item">
+    <p class="config-def-meta"><code class="config-def-env">CACHE&#95;KEY&#95;PREFIX</code></p>
+    <p class="config-def-desc">Prefix prepended to every Redis cache key by the transactional cache base. Empty by default.  Useful when several environments share one Redis instance (e.g. a Redis Cluster where the redis.db logical-database isolation is unavailable) and must not collide on cache keys.</p>
+  </div>
+  <div class="config-def-item">
     <p class="config-def-meta"><code class="config-def-env">CACHE&#95;ATTRIBUTES&#95;ENABLED</code> · <span class="config-def-label">Default</span> <code>true</code></p>
     <p class="config-def-desc">make sure that if cache.type is 'redis' and cache.attributes.enabled is 'true' if you change 'maxmemory-policy' Redis config property to 'allkeys-lru', 'allkeys-lfu' or 'allkeys-random'</p>
   </div>
   <div class="config-def-item">
     <p class="config-def-meta"><code class="config-def-env">CACHE&#95;TS&#95;LATEST&#95;ENABLED</code> · <span class="config-def-label">Default</span> <code>true</code></p>
     <p class="config-def-desc">Will enable cache-aside strategy for SQL timeseries latest DAO.  make sure that if cache.type is 'redis' and cache.ts&#95;latest.enabled is 'true' if you change 'maxmemory-policy' Redis config property to 'allkeys-lru', 'allkeys-lfu' or 'allkeys-random'</p>
+  </div>
+  <div class="config-def-item">
+    <p class="config-def-meta"><code class="config-def-env">CACHE&#95;ALARMS&#95;MAX&#95;ALARM&#95;TYPE&#95;NAMES&#95;PER&#95;TENANT</code> · <span class="config-def-label">Default</span> <code>1000</code></p>
+    <p class="config-def-desc">Max per-tenant alarm type names kept in the in-memory registration cache (see BaseAlarmService for the rationale).</p>
   </div>
   <div class="config-def-item">
     <p class="config-def-meta"><code class="config-def-env">CACHE&#95;SPECS&#95;RELATIONS&#95;TTL</code> · <span class="config-def-label">Default</span> <code>1440</code></p>
@@ -1555,6 +1599,14 @@ import Banner from '~/components/Banner.astro';
   </div>
   <div class="config-def-item">
     <p class="config-def-meta"><code class="config-def-env">CACHE&#95;SPECS&#95;ALARM&#95;TYPES&#95;MAX&#95;SIZE</code> · <span class="config-def-label">Default</span> <code>10000</code></p>
+    <p class="config-def-desc">0 means the cache is disabled</p>
+  </div>
+  <div class="config-def-item">
+    <p class="config-def-meta"><code class="config-def-env">CACHE&#95;SPECS&#95;ALARM&#95;TYPE&#95;NAMES&#95;TTL</code> · <span class="config-def-label">Default</span> <code>60</code></p>
+    <p class="config-def-desc">Alarm type names cache TTL</p>
+  </div>
+  <div class="config-def-item">
+    <p class="config-def-meta"><code class="config-def-env">CACHE&#95;SPECS&#95;ALARM&#95;TYPE&#95;NAMES&#95;MAX&#95;SIZE</code> · <span class="config-def-label">Default</span> <code>10000</code></p>
     <p class="config-def-desc">0 means the cache is disabled</p>
   </div>
   <div class="config-def-item">
@@ -1931,7 +1983,7 @@ import Banner from '~/components/Banner.astro';
 
 ## Spring CORS configuration parameters.
 
-<Banner variant="pe">Controls the Access-Control-Allow-Origin and Access-Control-Allow-Credentials response headers.<br /> WARNING: The default configuration allows cross-origin requests from ANY domain with credentials.<br /> This means any website can make API requests on behalf of an authenticated user if the token<br /> is accessible (e.g., via XSS). For production deployments, restrict to your domain(s):<br />   TB&#95;CORS&#95;ALLOWED&#95;ORIGIN&#95;PATTERNS={'https://your-domain.com'}<br /> For multi-domain deployments, list all allowed domains comma-separated:<br />   TB&#95;CORS&#95;ALLOWED&#95;ORIGIN&#95;PATTERNS={'https://domain1.com,https://domain2.com'}</Banner>
+<Banner variant="pe">Controls the Access-Control-Allow-Origin and Access-Control-Allow-Credentials response headers.<br /> WARNING: The default configuration allows cross-origin requests from ANY domain with credentials.<br /> This means any website can make API requests on behalf of an authenticated user if the token is accessible (e.g., via XSS). For production deployments, restrict to your domain(s):<br />   TB&#95;CORS&#95;ALLOWED&#95;ORIGIN&#95;PATTERNS={'https://your-domain.com'}<br /> For multi-domain deployments, list all allowed domains comma-separated:<br />   TB&#95;CORS&#95;ALLOWED&#95;ORIGIN&#95;PATTERNS={'https://domain1.com,https://domain2.com'}</Banner>
 
 <div class="config-def-list">
   <div class="config-def-item">

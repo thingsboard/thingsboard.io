@@ -66,6 +66,13 @@ export const DISTRIBUTORS: Distributor[] = [
 		email: "sales@basarimuhendislik.com",
 		website: "basarimuhendislik.com",
 	},
+		{
+		name: "Bridges of Advanced Technoligies",
+		regions: ["Middle East","Asia"],
+		countries: ["Iraq"],
+		email: "info@bridgescons.com",
+		website: "bridgescons.com",
+	},
 	{
 		name: "Bhavamish Solution",
 		regions: ["Asia"],
@@ -229,7 +236,7 @@ export const DISTRIBUTORS: Distributor[] = [
 	},
 	{
 		name: "HADEX",
-		regions: ["Asia"],
+		regions: ["Middle East","Asia"],
 		countries: ["Syria"],
 		email: "havalbajary@gmail.com",
 		website: "hadex.nicepage.io",
@@ -320,7 +327,7 @@ export const DISTRIBUTORS: Distributor[] = [
 	},
 	{
 		name: "LTS-Connecting Things",
-		regions: ["Asia","Middle East"],
+		regions: ["Middle East","Asia"],
 		countries: ["Saudi Arabia"],
 		email: "info@ltsrv.com",
 		website: "www.lts.sa",
@@ -411,7 +418,7 @@ export const DISTRIBUTORS: Distributor[] = [
 	},
 	{
 		name: "Quantova",
-		regions: ["Asia","Middle East"],
+		regions: ["Middle East","Asia"],
 		countries: ["United Arab Emirates"],
 		email: "info@quantova.com",
 		website: "quantova.com",
@@ -530,7 +537,7 @@ export const DISTRIBUTORS: Distributor[] = [
 	},
 	{
 		name: "Spectrum Smart Solutions Systems LLC",
-		regions: ["Asia","Middle East"],
+		regions: ["Middle East","Asia"],
 		countries: ["United Arab Emirates"],
 		email: "salem@spectrum.co.ae",
 		website: "spectrum.co.ae",
@@ -579,7 +586,7 @@ export const DISTRIBUTORS: Distributor[] = [
 	},
 	{
 		name: "IoT Experts",
-		regions: ["Asia","Middle East"],
+		regions: ["Middle East","Asia"],
 		countries: ["Israel"],
 		email: "",
 		website: "iot-experts.net",
@@ -649,7 +656,7 @@ export const DISTRIBUTORS: Distributor[] = [
 	},
 	{
 		name: "Vehi.kz LLP",
-		regions: ["Asia"],
+		regions: ["Asia","Europe"],
 		countries: ["Kazakhstan","Uzbekistan","Turkmenistan","Tajikistan","Kyrgyzstan","Armenia","Azerbaijan","Moldova","Belarus"],
 		email: "partner@vehi.kz",
 		website: "vehi.kz",
@@ -702,6 +709,20 @@ export const DISTRIBUTORS: Distributor[] = [
 		countries: ["South Korea"],
 		email: "delee@n2m.co.kr",
 		website: "n2m.co.kr",
+	},
+	{
+		name: "Okiff",
+		regions: ["North America"],
+		countries: ["Canada"],
+		email: "thingsboard@okiff.com",
+		website: "okiff.com",
+	},
+	{
+		name: "GREENNET",
+		regions: ["Europe","Asia"],
+		countries: ["Ukraine","Poland","Georgia"],
+		email: "info@greennet.ua",
+		website: "greennet.ua",
 	},
 ];
 

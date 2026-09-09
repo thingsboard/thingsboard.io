@@ -19,6 +19,7 @@
 // truth, DNS-cutover note included). Relative import on purpose: node scripts
 // import this file directly and cannot resolve the `@models` alias.
 import { TBMQ_ORIGIN, tbmqDocsUrl } from '../models/tbmq.ts';
+import { CAREERS_URL } from '../models/careers.ts';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -132,17 +133,74 @@ export const CATCH_ALL_REDIRECTS: CatchAllRedirect[] = [
 	{
 		oldPrefix: 'pe/solution-templates',
 		newPrefix: 'pe/recipes/solution-templates',
-		entries: [], // PREFIX_RENAME — splat rule in _redirects, enumerated by [..slug].astro
+		entries: [
+			// The intermediate recipes tree is retired except for `overview`, so these
+			// entries carry the final targets — the generator enumerates them as static
+			// rules and emits no splat, which is what kept the old prefix double-hopping.
+			{ slug: '', target: '/docs/pe/recipes/solution-templates/overview/' },
+			{ slug: 'overview', target: '/docs/pe/recipes/solution-templates/overview/' },
+			{ slug: 'air-quality-monitoring', target: '/iot-hub/solution-templates/air-quality-index/' },
+			{ slug: 'assisted-living', target: '/iot-hub/solution-templates/assisted-living/' },
+			{ slug: 'fuel-level-monitoring', target: '/iot-hub/solution-templates/fuel-level-monitoring/' },
+			{ slug: 'scada-drilling-system', target: '/iot-hub/solution-templates/scada-drilling-system/' },
+			{ slug: 'scada-energy-management', target: '/iot-hub/solution-templates/scada-energy-management/' },
+			{ slug: 'site-fleet-tracking', target: '/iot-hub/solution-templates/fleet-tracking/' },
+			{ slug: 'smart-irrigation', target: '/iot-hub/solution-templates/smart-irrigation/' },
+			{ slug: 'smart-office', target: '/iot-hub/solution-templates/smart-office/' },
+			{ slug: 'smart-retail', target: '/iot-hub/solution-templates/smart-retail/' },
+			{ slug: 'swimming-pool-scada-system', target: '/iot-hub/solution-templates/swimming-pool-scada-system/' },
+			{ slug: 'temperature-humidity-sensors', target: '/iot-hub/solution-templates/temperature-sensors/' },
+			{ slug: 'waste-management', target: '/iot-hub/solution-templates/waste-monitoring/' },
+			{ slug: 'water-metering', target: '/iot-hub/solution-templates/water-metering/' },
+		],
 	},
 	{
 		oldPrefix: 'paas/solution-templates',
 		newPrefix: 'paas/recipes/solution-templates',
-		entries: [],
+		entries: [
+			// The intermediate recipes tree is retired except for `overview`, so these
+			// entries carry the final targets — the generator enumerates them as static
+			// rules and emits no splat, which is what kept the old prefix double-hopping.
+			{ slug: '', target: '/docs/paas/recipes/solution-templates/overview/' },
+			{ slug: 'overview', target: '/docs/paas/recipes/solution-templates/overview/' },
+			{ slug: 'air-quality-monitoring', target: '/iot-hub/solution-templates/air-quality-index/' },
+			{ slug: 'assisted-living', target: '/iot-hub/solution-templates/assisted-living/' },
+			{ slug: 'fuel-level-monitoring', target: '/iot-hub/solution-templates/fuel-level-monitoring/' },
+			{ slug: 'scada-drilling-system', target: '/iot-hub/solution-templates/scada-drilling-system/' },
+			{ slug: 'scada-energy-management', target: '/iot-hub/solution-templates/scada-energy-management/' },
+			{ slug: 'site-fleet-tracking', target: '/iot-hub/solution-templates/fleet-tracking/' },
+			{ slug: 'smart-irrigation', target: '/iot-hub/solution-templates/smart-irrigation/' },
+			{ slug: 'smart-office', target: '/iot-hub/solution-templates/smart-office/' },
+			{ slug: 'smart-retail', target: '/iot-hub/solution-templates/smart-retail/' },
+			{ slug: 'swimming-pool-scada-system', target: '/iot-hub/solution-templates/swimming-pool-scada-system/' },
+			{ slug: 'temperature-humidity-sensors', target: '/iot-hub/solution-templates/temperature-sensors/' },
+			{ slug: 'waste-management', target: '/iot-hub/solution-templates/waste-monitoring/' },
+			{ slug: 'water-metering', target: '/iot-hub/solution-templates/water-metering/' },
+		],
 	},
 	{
 		oldPrefix: 'paas/eu/solution-templates',
 		newPrefix: 'paas/eu/recipes/solution-templates',
-		entries: [],
+		entries: [
+			// The intermediate recipes tree is retired except for `overview`, so these
+			// entries carry the final targets — the generator enumerates them as static
+			// rules and emits no splat, which is what kept the old prefix double-hopping.
+			{ slug: '', target: '/docs/paas/eu/recipes/solution-templates/overview/' },
+			{ slug: 'overview', target: '/docs/paas/eu/recipes/solution-templates/overview/' },
+			{ slug: 'air-quality-monitoring', target: '/iot-hub/solution-templates/air-quality-index/' },
+			{ slug: 'assisted-living', target: '/iot-hub/solution-templates/assisted-living/' },
+			{ slug: 'fuel-level-monitoring', target: '/iot-hub/solution-templates/fuel-level-monitoring/' },
+			{ slug: 'scada-drilling-system', target: '/iot-hub/solution-templates/scada-drilling-system/' },
+			{ slug: 'scada-energy-management', target: '/iot-hub/solution-templates/scada-energy-management/' },
+			{ slug: 'site-fleet-tracking', target: '/iot-hub/solution-templates/fleet-tracking/' },
+			{ slug: 'smart-irrigation', target: '/iot-hub/solution-templates/smart-irrigation/' },
+			{ slug: 'smart-office', target: '/iot-hub/solution-templates/smart-office/' },
+			{ slug: 'smart-retail', target: '/iot-hub/solution-templates/smart-retail/' },
+			{ slug: 'swimming-pool-scada-system', target: '/iot-hub/solution-templates/swimming-pool-scada-system/' },
+			{ slug: 'temperature-humidity-sensors', target: '/iot-hub/solution-templates/temperature-sensors/' },
+			{ slug: 'waste-management', target: '/iot-hub/solution-templates/waste-monitoring/' },
+			{ slug: 'water-metering', target: '/iot-hub/solution-templates/water-metering/' },
+		],
 	},
 	// IoT Gateway install: iot-gateway/install/* → iot-gateway/installation/*
 	{
@@ -491,6 +549,7 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'samples/nettrartu-x/tutorial', target: '/iot-hub/devices/rtu-x/' },
 	{ oldPath: 'samples/nettrartu+/rtu_temp_sensor', target: '/iot-hub/devices/rtu-x/' },
 	{ oldPath: 'samples/moko-smart/moko-smart-guide', target: '/partners/hardware/mokosmart/samples/lorawan-device-and-thingsboard/' },
+	{ oldPath: 'samples/dusun/DSGW-210_Edge_computing_gateway', target: '/iot-hub/devices/dsgw-210-iot-gateway-hub/' },
 	{ oldPath: 'samples/senquip', target: '/iot-hub/devices/orb-c1-g/' },
 	{ oldPath: 'samples/smartico', target: '/partners/hardware/smartico/' },
 	{ oldPath: 'samples/smartico/elec-meter-lorawan/Electricity_Meter_LoRaWAN', target: '/iot-hub/devices/smartico-e307/' },
@@ -548,6 +607,10 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'paas/eu/user-guide/rule-engine-2-0/tutorials/integration-with-telegram-bot', target: '/docs/paas/eu/recipes/telegram-alarm-notification/' },
 	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/send-email-html', target: '/docs/reference/rule-engine/nodes/transformation/to-email/#example-2--html-body-with-dynamic-recipient-and-body-type-selection' },
 	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/transform-telemetry-using-previous-record', target: '/docs/recipes/water-consumption-hourly-delta/' },
+	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/transform-incoming-telemetry', target: '/docs/user-guide/calculated-fields/script/#example-1-fahrenheit-to-celsius' },
+	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/send-email', target: '/docs/reference/rule-engine/nodes/external/send-email/' },
+	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/create-clear-alarms', target: '/docs/recipes/create-clear-alarms/' },
+	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/validate-incoming-telemetry', target: '/docs/recipes/validate-incoming-telemetry/' },
 	{ oldPath: 'pe/user-guide/rule-engine-2-0/tutorials/transform-incoming-telemetry', target: '/docs/pe/user-guide/calculated-fields/script/#example-1-fahrenheit-to-celsius' },
 	{ oldPath: 'paas/user-guide/rule-engine-2-0/tutorials/transform-incoming-telemetry', target: '/docs/paas/user-guide/calculated-fields/script/#example-1-fahrenheit-to-celsius' },
 	{ oldPath: 'paas/eu/user-guide/rule-engine-2-0/tutorials/transform-incoming-telemetry', target: '/docs/paas/eu/user-guide/calculated-fields/script/#example-1-fahrenheit-to-celsius' },
@@ -1328,8 +1391,11 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
  * /services/*, /industries/*, and external targets. These are ALSO consumed by
  * astro.redirects.ts so Astro applies them in dev mode and at build time.
  *
- * Add entries here for any non-/docs/ path rename. Do NOT add /docs/ entries
- * here — those belong in CATCH_ALL_REDIRECTS / SINGLE_REDIRECTS / DYNAMIC_REDIRECTS.
+ * Add entries here for any non-/docs/ path rename. Do NOT add /docs/ *page*
+ * entries here — those belong in CATCH_ALL_REDIRECTS / SINGLE_REDIRECTS /
+ * DYNAMIC_REDIRECTS. The one exception is a /docs/ **file asset** (.pdf, .json,
+ * …): those arrays append a trailing slash to every oldPath, which a file URL
+ * must not have, so a moved file can only be expressed here.
  *
  * All entries render as static 301 rules in public/_redirects and are spread
  * verbatim into astro.redirects.ts for dev-mode parity. Targets may include
@@ -1345,11 +1411,23 @@ export const NON_DOCS_REDIRECTS: Record<string, string> = {
 	// TBMQ — moved to tbmq.io, whose site root is the product landing. The old
 	// landing page file and its subtree (MqttBroker components, tbmqNews data,
 	// landing images) are deleted; this rule serves old bookmarks and inbound
-	// links in every mode. Its legal children (privacy-policy/, terms-of-use/)
-	// stay on thingsboard.io on purpose — tbmq.io has no equivalents for them yet.
+	// links in every mode. The legal pages moved too, under a /product/ prefix
+	// that doesn't match the old path, so they need their own rules.
 	'/products/mqtt-broker/': `${TBMQ_ORIGIN}/`,
+	'/products/mqtt-broker/privacy-policy/': `${TBMQ_ORIGIN}/product/privacy-policy/`,
+	'/products/mqtt-broker/terms-of-use/': `${TBMQ_ORIGIN}/product/terms-of-use/`,
 	// Demo CA cert removed with the TBMQ docs; the TBMQ site serves its own copy
 	'/resources/tbmq-demo-root-ca.pem': `${TBMQ_ORIGIN}/resources/tbmq-demo-root-ca.pem`,
+	// TBMQ blog posts moved to tbmq.io with the same slugs; the local .mdx files
+	// (and their public/images/blog/ dirs) are deleted. Author pages are built only
+	// for authors with remaining posts, so the now-postless ones drop out unredirected.
+	'/blog/1-million-reasons-to-choose-tbmq-as-high-performance-mqtt-broker/': `${TBMQ_ORIGIN}/blog/1-million-reasons-to-choose-tbmq-as-high-performance-mqtt-broker/`,
+	'/blog/introducing-tbmq-professional-edition-the-mqtt-broker-for-enterprise-needs/': `${TBMQ_ORIGIN}/blog/introducing-tbmq-professional-edition-the-mqtt-broker-for-enterprise-needs/`,
+	'/blog/tbmq-1-3-0-release-websocket-client-advanced-mqtt-5-features-and-more/': `${TBMQ_ORIGIN}/blog/tbmq-1-3-0-release-websocket-client-advanced-mqtt-5-features-and-more/`,
+	'/blog/tbmq-2-0-migration-to-redis-mqtt-5-0-support-and-more/': `${TBMQ_ORIGIN}/blog/tbmq-2-0-migration-to-redis-mqtt-5-0-support-and-more/`,
+	'/blog/tbmq-2-1-new-chapter-in-mqtt-messaging-with-embedded-integrations/': `${TBMQ_ORIGIN}/blog/tbmq-2-1-new-chapter-in-mqtt-messaging-with-embedded-integrations/`,
+	'/blog/tbmq-2-2-strengthening-mqtt-security-with-jwt-and-client-blocking/': `${TBMQ_ORIGIN}/blog/tbmq-2-2-strengthening-mqtt-security-with-jwt-and-client-blocking/`,
+	'/blog/tbmq-2-3-external-authentication-bulk-provisioning-and-enterprise-audit-trails/': `${TBMQ_ORIGIN}/blog/tbmq-2-3-external-authentication-bulk-provisioning-and-enterprise-audit-trails/`,
 
 	// Trendz
 	'/products/trendz/trndz-request-demo/': '/products/trendz/request-demo/',
@@ -1363,6 +1441,7 @@ export const NON_DOCS_REDIRECTS: Record<string, string> = {
 	'/products/paas/what-is-thingsboard-cloud/': '/docs/paas/why-thingsboard/',
 	'/products/thingsboard-pe/install/': '/docs/pe/installation/',
 	'/products/thingsboard-pe/install/aws/': '/docs/pe/installation/aws-marketplace/',
+	'/products/thingsboard-pe/aws': '/docs/pe/installation/aws-marketplace/',
 	'/products/thingsboard-pe/install-thanks/': '/contact-us-thanks/',
 
 	// License Server
@@ -1372,6 +1451,15 @@ export const NON_DOCS_REDIRECTS: Record<string, string> = {
 	'/products/license-server/perpetual/': '/docs/license-server/perpetual/',
 	'/products/license-server/instance/': '/docs/license-server/instance/',
 	'/products/license-server/user/': '/docs/license-server/user/',
+
+	// Partner sample moved from the retired /docs/samples/ tree into the
+	// hardware-partners asset folder, where every other partner's files live.
+	'/docs/samples/sensiedge/connect_sensi_ble.pdf': '/partners/hardware/sensiedge/samples/connect_sensi_ble.pdf',
+
+	// Blog attachments rehosted from the WordPress uploads folder
+	'/blog/wp-content/uploads/2024/03/tb_dynamic_button_states.json': '/resources/blog/tb_dynamic_button_states.json',
+	'/blog/wp-content/uploads/2024/03/button_use_cases.json': '/resources/blog/button_use_cases.json',
+	'/blog/wp-content/uploads/2024/03/command_buttons.json': '/resources/blog/command_buttons.json',
 
 	// Use Cases
 	'/use-cases/fleet-tracking/': '/use-cases/site-fleet-tracking/',
@@ -1399,6 +1487,11 @@ export const NON_DOCS_REDIRECTS: Record<string, string> = {
 	'/installations/forever-free-cloud/': '/installations/choose-region/',
 	'/iot-use-cases/': '/use-cases/',
 	'/support-ukraine/': 'https://u24.gov.ua/',
+
+	// Careers — moved to PeopleForce. One landing + one job page is every careers
+	// URL this site ever served, so the set is static — no splat needed.
+	'/careers/': CAREERS_URL,
+	'/careers/middle-java-developer/': CAREERS_URL,
 
 	// Device Library → IoT Hub. Bulk shapes collapse via splats in
 	// DYNAMIC_REDIRECTS; the static slug aliases below must win over them.

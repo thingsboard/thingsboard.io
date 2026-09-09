@@ -14,17 +14,20 @@ export { DISTRIBUTORS, REGION_MEMBERSHIP, REGIONS };
 export { getCoverage } from './coverage.ts';
 export type { Distributor, Region };
 
+// Alphabetical for readers, so "Åland Islands" files under A rather than after Z.
+const byName = new Intl.Collator('en').compare;
+
 /** Countries the finder offers as filter options — the ones distributors name. */
-export const OFFERED_COUNTRIES: string[] = Array.from(new Set(DISTRIBUTORS.flatMap(getNamedCountries))).sort();
+export const OFFERED_COUNTRIES: string[] = Array.from(new Set(DISTRIBUTORS.flatMap(getNamedCountries))).sort(byName);
 
 /**
- * Countries each region offers in its dropdown — names distributors list, not
- * their coverage, so a region-wide entry adds no options of its own.
+ * Countries each region offers in its dropdown — the region's own countries that
+ * a distributor declaring the region names. Region-wide entries name nothing, so
+ * they add no options; a multi-region distributor's other countries stay out.
  */
 const regionOffered = {} as Record<Region, string[]>;
 for (const region of REGIONS) {
-	regionOffered[region] = Array.from(
-		new Set(DISTRIBUTORS.filter((d) => d.regions.includes(region)).flatMap(getNamedCountries))
-	).sort();
+	const named = new Set(DISTRIBUTORS.filter((d) => d.regions.includes(region)).flatMap(getNamedCountries));
+	regionOffered[region] = REGION_MEMBERSHIP[region].filter((c) => named.has(c)).sort(byName);
 }
 export const REGION_OFFERED_COUNTRIES: Record<Region, string[]> = regionOffered;
