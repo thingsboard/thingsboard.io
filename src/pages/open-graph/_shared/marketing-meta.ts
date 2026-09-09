@@ -32,7 +32,6 @@ const PRODUCT_OVERRIDES: Record<string, MarketingOverride> = {
 	'/products/paas/eu/privacy-policy/':       { eyebrow: 'ThingsBoard Cloud — Europe', title: 'Privacy Policy' },
 	'/products/paas/eu/terms-of-use/':         { eyebrow: 'ThingsBoard Cloud — Europe', title: 'Terms of Use' },
 	'/products/trendz/':                       { eyebrow: 'Trendz Analytics',          title: 'IoT anomaly detection and predictive maintenance with AI' },
-	'/products/trendz/request-demo/':          { eyebrow: 'Trendz Analytics',          title: 'Request a personalized demo' },
 	'/products/mobile/':                       { eyebrow: 'ThingsBoard Mobile',        title: 'Build your own IoT mobile app with minimal coding' },
 	'/products/mobile-pe/':                    { eyebrow: 'ThingsBoard Mobile PE',     title: 'Build your own advanced IoT mobile app' },
 	'/products/iot-hub/terms-of-use/':         { eyebrow: 'ThingsBoard IoT Hub',       title: 'Terms of Use' },
