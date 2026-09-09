@@ -369,6 +369,19 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
                             <p>If your usage exceeds the limit of your current plan, a mandatory upgrade will be required to maintain service stability and SLA guarantees. Data points throughput is actively monitored by the ThingsBoard team.</p>`,
 			},
 			{
+				id: 'tb-private-cloud-how-many-ai-credits-are-included',
+				question: 'How many AI credits are included, and why does the platform show \u221E?',
+				answer: `<p>Each Private Cloud plan includes a monthly AI credit allowance, consumed by the AI Assistant and other AI-powered features. The number of credits per request varies with its complexity.</p>
+                            <ul>
+                                <li>Launch: 20M AI credits per month</li>
+                                <li>Growth: 25M AI credits per month</li>
+                                <li>Scale: 30M AI credits per month</li>
+                                <li>Enterprise: agreed individually</li>
+                            </ul>
+                            <p><b>Why the API Usage page shows \u221E:</b> on Private Cloud the allowance is granted per instance, so every tenant on your cluster draws from the same pool. The API Usage page can only display limits configured for an individual tenant, and no such per-tenant cap is set \u2014 so the AI credits row falls back to \u221E. This does not mean the allowance is unlimited: the figures above still apply, and AI requests are rejected once the instance-wide allowance is used up.<br><br></p>
+                            <p>Consumption shown on that page is accurate \u2014 the hourly, daily and monthly charts reflect real usage, so you can track them against your plan's allowance. For your current remaining balance, contact your account manager or open a support ticket. Full details are published <a target="_blank" href="/docs/private-cloud/subscription/#ai-credits" rel="noopener noreferrer">on the Private Cloud subscription page</a>.</p>`,
+			},
+			{
 				id: 'tb-private-cloud-what-are-the-database-options-in-each-plan',
 				question: 'What is the underlying database structure?',
 				answer: `<p>Launch, Growth, and Scale plans use PostgreSQL (SQL) with replication factor of 2 for entities storage and NoSQL (Cassandra) with a replication factor of 3 to store time-series data. Cassandra storage is more efficient—each data point occupies on average five times less space before replication. The Enterprise plan database structure is tailored to the customer's workload and may use a different combination of storage backends.<br><br></p>
