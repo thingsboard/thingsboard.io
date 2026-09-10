@@ -319,11 +319,11 @@ export const IOT_HUB_STRINGS = {
 	searchPage: {
 		breadcrumbRoot: 'IoT Hub',
 		// What the page calls itself with no query: it is the whole catalogue,
-		// browsable by Type / Category / Use Case without leaving. "Search
-		// results" would announce a search nobody performed. Used for the crumb
-		// and as the heading until the visitor types something.
-		breadcrumbCurrent: 'All items',
-		headingEmpty: 'All items',
+		// browsable by Type / Category / Use Case without leaving, so "Search
+		// results" would announce a search nobody performed. One constant, used
+		// by the crumb, the <h1>, the <title> and the OG card — two would let
+		// the heading drift away from the other three.
+		catalogueName: 'All items',
 		// `headingPrefix` + the user's query in typographic quotes ("…").
 		headingPrefix: 'Search results for',
 		searchPlaceholder: 'Search in IoT Hub...',
@@ -709,9 +709,9 @@ export interface ItemTypeTotals {
  * `itemType` the API's `type` param expects. Types with no items are dropped
  * so the panel never offers a checkbox that yields nothing.
  *
- * Both totals are real, matching what `listingFilterInfo` reports for every
- * other facet — the panel groups long lists by install count, so a facet that
- * reported zero would sort wrong the day it grows past the grouping threshold.
+ * Both totals are real, so the facet carries the same `FilterParamInfo` shape
+ * the API serves for every other one. Nothing reads `totalInstallCount` here —
+ * this facet is always flat, with one option per public category.
  */
 export const buildItemTypeFacet = (
 	totalsByItemType: ReadonlyMap<string, ItemTypeTotals>

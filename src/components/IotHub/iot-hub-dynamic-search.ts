@@ -6,6 +6,7 @@ import {
 	getCardVariant,
 	getCategoryForItemType,
 	getIotHubSortOption,
+	isNumericSlug,
 	resolvePreviewImage,
 	type ListingView,
 	type PageData,
@@ -69,16 +70,10 @@ const DEBOUNCE_MS = 300;
 const NR = IOT_HUB_STRINGS.noResults;
 
 // Panel section key → the heading the visitor saw above those checkboxes, so
-// the empty state names the filter the same way the panel does.
-const SECTION_LABELS: Record<string, string> = {
-	itemType: IOT_HUB_STRINGS.filterPanel.sections.itemType,
-	type: IOT_HUB_STRINGS.filterPanel.sections.type,
-	category: IOT_HUB_STRINGS.filterPanel.sections.category,
-	vendor: IOT_HUB_STRINGS.filterPanel.sections.vendor,
-	hardwareType: IOT_HUB_STRINGS.filterPanel.sections.hardwareType,
-	connectivity: IOT_HUB_STRINGS.filterPanel.sections.connectivity,
-	useCase: IOT_HUB_STRINGS.filterPanel.sections.useCase,
-};
+// the empty state names the filter the same way the panel does. Indexed
+// straight off the panel's own strings, so a new facet is named here the
+// moment it has a heading there.
+const SECTION_LABELS = IOT_HUB_STRINGS.filterPanel.sections as Record<string, string>;
 
 // FilterPanel section keys are translated to API/URL params here.
 // `type` resolves to one of three names depending on the page's itemType
@@ -452,10 +447,17 @@ export function setupDynamicSearch(): void {
 				return;
 			}
 			const body = (await res.json()) as PageData<ListingView>;
-			// Drop listings published after the last deploy — no static
-			// detail page exists for them yet. Trade-off: a page may show
-			// < pageSize items until the next rebuild.
-			const items = (body.data ?? []).filter((item) => knownSlugs.has(item.slug));
+			// Drop listings with no static detail page to click through to:
+			// ones published after the last deploy (absent from the slug
+			// manifest), and numeric slugs, which `[category]/[slug].astro`
+			// excludes but the manifest still lists — without this the card
+			// would link to `/iot-hub/devices/2/`, page 2 of the listing.
+			// Same rule `getStaticPaths` applies, so the static first render
+			// and every refetch agree. Trade-off: a page may show < pageSize
+			// items until the next rebuild.
+			const items = (body.data ?? []).filter(
+				(item) => knownSlugs.has(item.slug) && !isNumericSlug(item.slug)
+			);
 			const totalPages = Math.max(1, body.totalPages || 1);
 			// Only a successful response is allowed to take the error
 			// panel down — every other refetch trigger leaves it alone.

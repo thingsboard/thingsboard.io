@@ -154,7 +154,7 @@ export async function getIotHubCardInputs(): Promise<CardInput[]> {
 			props: {
 				variant: 'logo' as const,
 				sectionName: SECTION,
-				title: IOT_HUB_STRINGS.searchPage.breadcrumbCurrent,
+				title: IOT_HUB_STRINGS.searchPage.catalogueName,
 			},
 		},
 		{
