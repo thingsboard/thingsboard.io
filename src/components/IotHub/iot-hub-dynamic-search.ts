@@ -47,6 +47,9 @@ function updateResultsCount(countEl: HTMLElement, totalResults: number): void {
 //   connectivity      → connectivity
 //   category          → categories
 //   useCase           → useCases
+//   itemType          → type  (catalogue only — the page is not pinned to
+//                       one type, so the visitor picks them; the API takes a
+//                       comma-separated list)
 //   type              → widgetTypes / cfTypes / ruleChainTypes
 //                       (resolved from `data-item-type`)
 //
@@ -63,6 +66,20 @@ function updateResultsCount(countEl: HTMLElement, totalResults: number): void {
 
 const DEBOUNCE_MS = 300;
 
+const NR = IOT_HUB_STRINGS.noResults;
+
+// Panel section key → the heading the visitor saw above those checkboxes, so
+// the empty state names the filter the same way the panel does.
+const SECTION_LABELS: Record<string, string> = {
+	itemType: IOT_HUB_STRINGS.filterPanel.sections.itemType,
+	type: IOT_HUB_STRINGS.filterPanel.sections.type,
+	category: IOT_HUB_STRINGS.filterPanel.sections.category,
+	vendor: IOT_HUB_STRINGS.filterPanel.sections.vendor,
+	hardwareType: IOT_HUB_STRINGS.filterPanel.sections.hardwareType,
+	connectivity: IOT_HUB_STRINGS.filterPanel.sections.connectivity,
+	useCase: IOT_HUB_STRINGS.filterPanel.sections.useCase,
+};
+
 // FilterPanel section keys are translated to API/URL params here.
 // `type` resolves to one of three names depending on the page's itemType
 // (widgets / calculated fields / rule chains each have their own param).
@@ -72,6 +89,9 @@ const FILTER_KEY_TO_PARAM: Record<string, string> = {
 	connectivity: 'connectivity',
 	category: 'categories',
 	useCase: 'useCases',
+	// Catalogue only. `type` is the same param a pinned page sets from
+	// `data-item-type`, which is why the two can never both be in play.
+	itemType: 'type',
 };
 
 function filterParamName(filterKey: string, itemType: string): string {
@@ -101,6 +121,7 @@ const PARAM_TO_FILTER_KEY: Record<string, string> = {
 	widgetTypes: 'type',
 	cfTypes: 'type',
 	ruleChainTypes: 'type',
+	type: 'itemType',
 };
 const FILTER_PARAM_NAMES = Object.keys(PARAM_TO_FILTER_KEY);
 
@@ -146,11 +167,23 @@ export function setupDynamicSearch(): void {
 	const paginationBar = root.querySelector<HTMLElement>('[data-tb-pagination-bar]');
 	const countEl = root.querySelector<HTMLElement>('[data-search-count]');
 	const noResults = root.querySelector<HTMLElement>('[data-iot-hub-no-results]');
+	const noResultsReason = root.querySelector<HTMLElement>(
+		'[data-iot-hub-no-results-reason]'
+	);
 	const fetchError = root.querySelector<HTMLElement>('[data-iot-hub-fetch-error]');
 	const retryBtn = root.querySelector<HTMLButtonElement>(
 		'[data-iot-hub-fetch-error-retry]'
 	);
 	if (!input || !resultsContainer || !itemsWrap || !countEl || !noResults) return;
+
+	// Whether this page lets the visitor choose item types. Only the catalogue
+	// panel renders that facet: a category page's type is fixed by its route,
+	// and the creator page has no panel at all. It gates `type` as a *filter*
+	// — without it a stray `?type=WIDGET` on one of those URLs would silently
+	// narrow the list with no chip or checkbox to undo it.
+	const hasItemTypeFacet = !!document.querySelector(
+		'[data-iot-hub-filter-panel] .iot-hub-filter-option__input[name="itemType"]'
+	);
 
 	const previewTmpl = document.querySelector<HTMLTemplateElement>(
 		'[data-listing-card-tmpl][data-variant="preview"]'
@@ -181,8 +214,13 @@ export function setupDynamicSearch(): void {
 	let debounceTimer: number | undefined;
 	let retryTimer: number | undefined;
 	// FilterPanel selections keyed by section key (vendor, useCase, …).
-	// Values are the raw checkbox values; labels live with the chips.
+	// Values are the raw checkbox values — what the API wants.
 	let filters: Record<string, string[]> = {};
+	// The same selection as the panel labelled it, used to name the active
+	// filters in the empty state. Best-effort: a selection restored from the
+	// URL has no labels until the panel echoes it back, so the reason falls
+	// back to the raw values.
+	let filterLabels: Record<string, string[]> = {};
 	// Last refetch options, replayed when the user clicks "Try again"
 	// after a fetch error. resetPage=false keeps the page index the user
 	// was on when the failure happened.
@@ -221,9 +259,36 @@ export function setupDynamicSearch(): void {
 		itemsWrap!.classList.toggle('is-loading', loading);
 	}
 
+	// "Type: Devices and Category: Energy" — the clauses that narrowed the list,
+	// in the order the visitor meets them (search box first, then the panel's
+	// sections). Empty when nothing is narrowing it.
+	function activeNarrowingSummary(): string {
+		const clauses: string[] = [];
+		const trimmed = searchText.trim();
+		if (trimmed) clauses.push(`${NR.reasonSearch} \u201c${trimmed}\u201d`);
+		for (const [key, values] of Object.entries(filters)) {
+			if (values.length === 0) continue;
+			if (key === 'itemType' && !hasItemTypeFacet) continue;
+			const sectionLabel = SECTION_LABELS[key] ?? key;
+			const labels = filterLabels[key] ?? values;
+			clauses.push(`${sectionLabel}: ${labels.join(', ')}`);
+		}
+		if (clauses.length === 0) return '';
+		if (clauses.length === 1) return clauses[0];
+		// "a, b and c" — the last pair joined by the conjunction.
+		return `${clauses.slice(0, -1).join(', ')} ${NR.reasonAnd} ${clauses[clauses.length - 1]}`;
+	}
+
 	function showNoResults(show: boolean): void {
 		noResults!.hidden = !show;
-		if (show) resultsContainer!.replaceChildren();
+		if (!show) return;
+		resultsContainer!.replaceChildren();
+		if (noResultsReason) {
+			const summary = activeNarrowingSummary();
+			noResultsReason.textContent = summary
+				? `${NR.reasonPrefix} ${summary}`
+				: NR.subtitle;
+		}
 	}
 
 	function showFetchError(show: boolean): void {
@@ -242,6 +307,20 @@ export function setupDynamicSearch(): void {
 
 	// --- URL state sync ---------------------------------------------------
 
+	// The active selection as `[param, value]` pairs, shared by the URL sync and
+	// the API query so the two can never drift. An `itemType` selection is kept
+	// only where the facet exists; elsewhere it would collide with the `type`
+	// a pinned page already sends from `data-item-type`.
+	function activeFilterParams(): Array<[string, string]> {
+		const pairs: Array<[string, string]> = [];
+		for (const [key, values] of Object.entries(filters)) {
+			if (values.length === 0) continue;
+			if (key === 'itemType' && !hasItemTypeFacet) continue;
+			pairs.push([filterParamName(key, itemType), values.join(',')]);
+		}
+		return pairs;
+	}
+
 	function syncUrl(): void {
 		const params = new URLSearchParams();
 		const trimmed = searchText.trim();
@@ -249,10 +328,7 @@ export function setupDynamicSearch(): void {
 		if (sortId !== DEFAULT_IOT_HUB_SORT_ID) params.set('sort', sortId);
 		if (currentPage > 1) params.set('page', String(currentPage));
 		if (pageSize !== initialPageSize) params.set('pageSize', String(pageSize));
-		for (const [key, values] of Object.entries(filters)) {
-			if (values.length === 0) continue;
-			params.set(filterParamName(key, itemType), values.join(','));
-		}
+		for (const [param, value] of activeFilterParams()) params.set(param, value);
 		const query = params.toString();
 		const next = basePath + (query ? `?${query}` : '') + location.hash;
 		if (next !== location.pathname + location.search + location.hash) {
@@ -359,10 +435,7 @@ export function setupDynamicSearch(): void {
 		if (trimmed) params.set('textSearch', trimmed);
 		if (creatorId) params.set('creatorId', creatorId);
 		if (itemType) params.set('type', itemType);
-		for (const [key, values] of Object.entries(filters)) {
-			if (values.length === 0) continue;
-			params.set(filterParamName(key, itemType), values.join(','));
-		}
+		for (const [param, value] of activeFilterParams()) params.set(param, value);
 
 		try {
 			const [res, knownSlugs] = await Promise.all([
@@ -440,6 +513,8 @@ export function setupDynamicSearch(): void {
 	}
 
 	for (const paramName of FILTER_PARAM_NAMES) {
+		// Only the catalogue can show `type` back to the visitor as a filter.
+		if (paramName === 'type' && !hasItemTypeFacet) continue;
 		const value = urlParams.get(paramName);
 		if (!value) continue;
 		const key = PARAM_TO_FILTER_KEY[paramName];
@@ -536,9 +611,16 @@ export function setupDynamicSearch(): void {
 			Array<{ value: string; label: string }>
 		>;
 		const next: Record<string, string[]> = {};
+		const nextLabels: Record<string, string[]> = {};
 		for (const [key, entries] of Object.entries(incoming)) {
-			if (entries.length > 0) next[key] = entries.map((entry) => entry.value);
+			if (entries.length === 0) continue;
+			next[key] = entries.map((entry) => entry.value);
+			nextLabels[key] = entries.map((entry) => entry.label);
 		}
+		// Labels are display-only, so they are refreshed even when the values
+		// match what the URL restore already reconstructed — that synthetic
+		// emit is exactly where the missing labels arrive.
+		filterLabels = nextLabels;
 		if (filtersEqual(filters, next)) return;
 		filters = next;
 		void refetch({ resetPage: true });
