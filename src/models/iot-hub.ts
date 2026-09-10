@@ -241,6 +241,11 @@ export const IOT_HUB_STRINGS = {
 		mostPopular: 'Most popular',
 		all: 'All',
 		sections: {
+			// `type` is the per-item-type *subtype* facet (widget type, rule
+			// chain type, …); `itemType` is the catalogue-wide facet that picks
+			// Devices / Widgets / … Two keys, because a page can only ever show
+			// one of them and their API params differ.
+			itemType: 'Type',
 			type: 'Type',
 			category: 'Category',
 			vendor: 'Vendor',
@@ -257,6 +262,20 @@ export const IOT_HUB_STRINGS = {
 		resultPlural: 'results',
 	},
 	emptyState: 'No items available yet.',
+	noResults: {
+		heading: 'No items found',
+		// Shown when nothing is narrowing the list — there is no filter to name.
+		subtitle: 'Try adjusting your search or filters',
+		// Shown instead when filters are active: the reason is spelled out so the
+		// visitor knows which choice emptied the list. `${prefix} ${summary}` —
+		// e.g. "No items match Type: Devices and Category: Energy".
+		reasonPrefix: 'No items match',
+		// Joins the last two clauses of the summary; the rest use ", ".
+		reasonAnd: 'and',
+		// Prefixes the summary clause for the search box, e.g. `search "foo"`.
+		reasonSearch: 'search',
+		clearLabel: 'Clear all filters',
+	},
 	faqHeading: 'Frequently Asked Questions',
 	fetchError: {
 		heading: 'Network or server unavailable',
@@ -299,8 +318,12 @@ export const IOT_HUB_STRINGS = {
 	},
 	searchPage: {
 		breadcrumbRoot: 'IoT Hub',
-		breadcrumbCurrent: 'Search results',
-		headingEmpty: 'Search results',
+		// What the page calls itself with no query: it is the whole catalogue,
+		// browsable by Type / Category / Use Case without leaving, so "Search
+		// results" would announce a search nobody performed. One constant, used
+		// by the crumb, the <h1>, the <title> and the OG card — two would let
+		// the heading drift away from the other three.
+		catalogueName: 'All items',
 		// `headingPrefix` + the user's query in typographic quotes ("…").
 		headingPrefix: 'Search results for',
 		searchPlaceholder: 'Search in IoT Hub...',
@@ -636,6 +659,75 @@ export type ListingDetail = z.infer<typeof listingDetailSchema>;
 export type IotHubCategoryData = z.infer<typeof iotHubCategorySchema>;
 export type FilterParamInfo = z.infer<typeof filterParamInfoSchema>;
 export type ItemTypeFilterInfo = z.infer<typeof itemTypeFilterInfoSchema>;
+
+/**
+ * Union of several per-item-type facet sets into the one the catalogue page
+ * shows. `listingFilterInfo` is served per item type, so the same category or
+ * use case appears once per type that uses it; merging sums the counts so the
+ * "Most popular" grouping still ranks by real catalogue-wide weight.
+ *
+ * Only the facets the catalogue renders are merged. Vendor / hardware type /
+ * connectivity are device-only and stay out — the catalogue mixes types, where
+ * they would apply to a fraction of the results.
+ */
+export const mergeFilterInfo = (infos: ItemTypeFilterInfo[]): ItemTypeFilterInfo => {
+	const mergeFacet = (pick: (i: ItemTypeFilterInfo) => FilterParamInfo[]): FilterParamInfo[] => {
+		const byKey = new Map<string, FilterParamInfo>();
+		for (const info of infos) {
+			for (const entry of pick(info)) {
+				const seen = byKey.get(entry.key);
+				if (seen) {
+					seen.totalItems += entry.totalItems;
+					seen.totalInstallCount += entry.totalInstallCount;
+				} else {
+					byKey.set(entry.key, { ...entry });
+				}
+			}
+		}
+		// Alphabetical: the panel's own "Most popular" split re-ranks by
+		// install count, and a stable order keeps the static HTML diffable.
+		return [...byKey.values()].sort((a, b) => a.key.localeCompare(b.key));
+	};
+	return {
+		types: [],
+		categories: mergeFacet((i) => i.categories),
+		useCases: mergeFacet((i) => i.useCases),
+		vendors: [],
+		hardwareTypes: [],
+		connectivities: {},
+	};
+};
+
+/** What one item type contributes to the catalogue, as counted by the caller. */
+export interface ItemTypeTotals {
+	items: number;
+	installs: number;
+}
+
+/**
+ * The catalogue's Type facet: one option per public category, keyed by the
+ * `itemType` the API's `type` param expects. Types with no items are dropped
+ * so the panel never offers a checkbox that yields nothing.
+ *
+ * Both totals are real, so the facet carries the same `FilterParamInfo` shape
+ * the API serves for every other one. Nothing reads `totalInstallCount` here —
+ * this facet is always flat, with one option per public category.
+ */
+export const buildItemTypeFacet = (
+	totalsByItemType: ReadonlyMap<string, ItemTypeTotals>
+): FilterParamInfo[] =>
+	IOT_HUB_CATEGORIES.map((cat) => {
+		const totals = totalsByItemType.get(cat.itemType);
+		return {
+			key: cat.itemType,
+			totalItems: totals?.items ?? 0,
+			totalInstallCount: totals?.installs ?? 0,
+		};
+	}).filter((entry) => entry.totalItems > 0);
+
+/** Plural display label for an item type, e.g. `WIDGET` → "Widgets". */
+export const getItemTypeLabel = (itemType: string): string =>
+	getCategoryForItemType(itemType)?.label ?? itemType;
 
 // --- Install / Connect dialog -------------------------------------------
 // URL logic ported from the upstream Angular preview-links-dialog

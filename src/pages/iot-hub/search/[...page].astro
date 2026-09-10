@@ -5,10 +5,17 @@ import {
 	IOT_HUB_CATEGORIES,
 	IOT_HUB_STRINGS,
 	SEARCH_PAGE_SIZE,
+	buildItemTypeFacet,
 	isNumericSlug,
+	mergeFilterInfo,
+	type FilterParamInfo,
 	type GridEntry,
+	type ItemTypeFilterInfo,
+	type ItemTypeTotals,
 } from '@models/iot-hub';
 import BaseLayout from '@layouts/BaseLayout.astro';
+import FilterPanel from '@components/IotHub/FilterPanel.astro';
+import FilterBackdrop from '@components/IotHub/FilterBackdrop.astro';
 import FlatResultsPanel from '@components/IotHub/FlatResultsPanel.astro';
 import Breadcrumbs from '@components/Breadcrumbs.astro';
 import IotHubRuntimeConfig from '@components/IotHub/IotHubRuntimeConfig.astro';
@@ -22,11 +29,20 @@ export const getStaticPaths = (async () => {
 	const byId = new Map(categories.map((c) => [c.id, c.data]));
 
 	const allItems: GridEntry[] = [];
+	// Counted from the items this page can actually show, not from the API's
+	// totals, which include the numeric slugs skipped below. Nothing renders
+	// these numbers; `totalItems` only decides whether a type gets a checkbox
+	// at all, and a type whose every item was skipped should not get one.
+	const totalsByItemType = new Map<string, ItemTypeTotals>();
 	for (const cat of IOT_HUB_CATEGORIES) {
 		const items = byId.get(cat.slug)?.items ?? [];
 		for (const item of items) {
 			if (isNumericSlug(item.slug)) continue;
 			allItems.push({ item, categorySlug: cat.slug });
+			const totals = totalsByItemType.get(cat.itemType) ?? { items: 0, installs: 0 };
+			totals.items += 1;
+			totals.installs += item.installCount ?? 0;
+			totalsByItemType.set(cat.itemType, totals);
 		}
 	}
 	// Match the backend's order for `?sortProperty=installCount&sortOrder=DESC`
@@ -38,6 +54,15 @@ export const getStaticPaths = (async () => {
 		return (b.item.createdTime ?? 0) - (a.item.createdTime ?? 0);
 	});
 
+	// This page mixes every item type, so its Category / Use Case facets are
+	// the union of the per-type ones the API serves.
+	const filterInfo = mergeFilterInfo(
+		IOT_HUB_CATEGORIES.map((cat) => byId.get(cat.slug)?.filterInfo).filter(
+			(info): info is ItemTypeFilterInfo => !!info
+		)
+	);
+	const itemTypeOptions = buildItemTypeFacet(totalsByItemType);
+
 	const total = allItems.length;
 	const totalPages = Math.max(1, Math.ceil(total / SEARCH_PAGE_SIZE));
 
@@ -48,7 +73,7 @@ export const getStaticPaths = (async () => {
 		const items = allItems.slice(i * SEARCH_PAGE_SIZE, currentPage * SEARCH_PAGE_SIZE);
 		return {
 			params: { page: currentPage === 1 ? undefined : String(currentPage) },
-			props: { items, currentPage, totalPages, total },
+			props: { items, currentPage, totalPages, total, filterInfo, itemTypeOptions },
 		};
 	});
 }) satisfies GetStaticPaths;
@@ -58,9 +83,12 @@ interface Props {
 	currentPage: number;
 	totalPages: number;
 	total: number;
+	filterInfo: ItemTypeFilterInfo;
+	itemTypeOptions: FilterParamInfo[];
 }
 
-const { items, currentPage, totalPages, total } = Astro.props as Props;
+const { items, currentPage, totalPages, total, filterInfo, itemTypeOptions } =
+	Astro.props as Props;
 const searchText = '';
 const basePath = '/iot-hub/search/';
 
@@ -72,11 +100,16 @@ recordSitemapLastmod(
 
 // Distinct title/description on pages 2+ to avoid duplicate metadata.
 const isFirstPage = currentPage === 1;
+// The page names itself for what it is with no query — the whole catalogue,
+// narrowable in place — rather than for the search box it happens to carry.
+// Same string as the crumb, the <h1> and the OG card, so the four can't drift.
 const title = isFirstPage
-	? 'Search | IoT Hub | ThingsBoard'
-	: `Search | Page ${currentPage} | IoT Hub | ThingsBoard`;
+	? `${T.catalogueName} | IoT Hub | ThingsBoard`
+	: `${T.catalogueName} | Page ${currentPage} | IoT Hub | ThingsBoard`;
 const baseDescription =
-	'Search the ThingsBoard IoT Hub catalogue of devices, widgets, rule chains and more.';
+	'Browse the full ThingsBoard IoT Hub catalogue — devices, widgets, rule chains, ' +
+	'calculated fields, alarm rules and solution templates. Filter by type, category ' +
+	'and use case.';
 const description = isFirstPage ? baseDescription : `${baseDescription} (page ${currentPage})`;
 ---
 
@@ -93,27 +126,41 @@ const description = isFirstPage ? baseDescription : `${baseDescription} (page ${
 					<Breadcrumbs
 						items={[
 							{ label: T.breadcrumbRoot, href: '/iot-hub/' },
-							{ label: T.breadcrumbCurrent },
+							{ label: T.catalogueName },
 						]}
 					/>
 				</div>
-				<div class="iot-hub-search__items" data-search-items>
-					<SearchFilterBar
-						headingAs="h1"
-						heading={T.headingEmpty}
-						headingPrefix={T.headingPrefix}
-						searchText={searchText}
-						searchPlaceholder={T.searchPlaceholder}
-						totalResults={total}
+				<div
+					class="iot-hub-search__listings-wrap"
+					data-iot-hub-listings-wrap
+					data-filter-open="false"
+				>
+					<FilterPanel
+						itemType={null}
+						filterInfo={filterInfo}
+						itemTypeOptions={itemTypeOptions}
 					/>
-					<FlatResultsPanel
-						items={items}
-						currentPage={currentPage}
-						totalPages={totalPages}
-						basePath={basePath}
-						perPage={SEARCH_PAGE_SIZE}
-						titleAs="h2"
-					/>
+					<FilterBackdrop />
+					<div class="iot-hub-search__items" data-search-items>
+						<SearchFilterBar
+							headingAs="h1"
+							heading={T.catalogueName}
+							headingPrefix={T.headingPrefix}
+							searchText={searchText}
+							searchPlaceholder={T.searchPlaceholder}
+							totalResults={total}
+							showFilters
+						/>
+						<FlatResultsPanel
+							items={items}
+							currentPage={currentPage}
+							totalPages={totalPages}
+							basePath={basePath}
+							perPage={SEARCH_PAGE_SIZE}
+							titleAs="h2"
+							clearHref={basePath}
+						/>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -145,13 +192,23 @@ const description = isFirstPage ? baseDescription : `${baseDescription} (page ${
 		}
 	}
 
+	.iot-hub-search__listings-wrap {
+		@include iot-hub-filter-row;
+	}
+
 	.iot-hub-search__items {
 		@include iot-hub-listing-column;
+		// Sits beside the filter panel, so it also needs to flex within that row.
+		flex: 1 1 0;
+		min-width: 0;
 	}
 
 </style>
 
 <script>
 	import { initDynamicSearch } from '@components/IotHub/iot-hub-dynamic-search';
+	import { initFilterDrawer } from '@components/IotHub/iot-hub-filter-drawer';
+
 	initDynamicSearch();
+	initFilterDrawer();
 </script>
