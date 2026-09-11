@@ -321,8 +321,9 @@ export const IOT_HUB_STRINGS = {
 		// What the page calls itself with no query: it is the whole catalogue,
 		// browsable by Type / Category / Use Case without leaving, so "Search
 		// results" would announce a search nobody performed. One constant, used
-		// by the crumb, the <h1>, the <title> and the OG card — two would let
-		// the heading drift away from the other three.
+		// by the crumb, the <h1>, the <title>, the OG card, and `data-back-label`
+		// — the name a detail page's parent crumb shows when the visitor came
+		// from here. Splitting it would let one drift away from the rest.
 		catalogueName: 'All items',
 		// `headingPrefix` + the user's query in typographic quotes ("…").
 		headingPrefix: 'Search results for',
