@@ -10,18 +10,7 @@
 // So the list records where the visitor was standing when they opened a card,
 // and the detail page retargets its parent crumb at that exact URL.
 //
-// The recorded item path is the correctness guard. The crumb is retargeted
-// only when the stored entry belongs to the item currently on screen — exact,
-// survives a reload of the detail page, and unable to point someone at a list
-// the item isn't in. A `document.referrer` check (the approach in
-// CaseStudyLayout.astro) gives up all three.
-//
-// Two things the recording deliberately narrows:
-//   * Only clicks that actually open the item count. A card also holds an
-//     install button and a creator link, both of which navigate elsewhere.
-//   * Only the params the list itself owns are stored. A campaign tag the
-//     visitor arrived with is not list state and must not be replayed into
-//     the crumb, where it would re-trigger attribution.
+// Why each guard is shaped the way it is sits at the guard itself.
 //
 // Accepted limitation: an entry is replaced or dropped only by another card
 // click on a list, so reaching the same item later by some other route (the
@@ -94,10 +83,17 @@ export function recordListOrigin(root: HTMLElement, stateParams: readonly string
 		// for …", so the build-time label would name the whole catalogue while
 		// linking at the narrowed list. Take the name off the live heading in
 		// that case — it is the page's own answer to what it currently is.
-		// Lists without a heading of their own (the category pages) fall back.
-		const searchHeading = state.has('q')
-			? root.querySelector<HTMLElement>('[data-search-heading]')?.textContent?.trim()
-			: '';
+		//
+		// Gated on the bar, not on the URL: a bar rewrites its heading only when
+		// it was given a prefix, which is the same condition
+		// iot-hub-search-bar-init.ts checks. The creator page renders a heading
+		// without one ("Published Items (57)"), and reading that would replace
+		// the creator's name with a section title and a build-time count.
+		const bar = root.querySelector<HTMLElement>('[data-iot-hub-search-bar]');
+		const searchHeading =
+			bar?.dataset.headingPrefix && state.has('q')
+				? bar.querySelector<HTMLElement>('[data-search-heading]')?.textContent?.trim()
+				: '';
 		const label = searchHeading || root.dataset.backLabel;
 		if (!label) return;
 
@@ -151,10 +147,12 @@ export function applyListOrigin(): void {
 		return;
 	}
 
-	// Recorded for a different item: the visitor reached this page some other
-	// way, so leave its crumb static. The entry itself stays — it is still the
-	// way back for the item it names, and this equality check is what keeps it
-	// from retargeting anything else.
+	// This equality is the whole correctness guard: retarget only when the
+	// stored entry names the item on screen. Exact, survives a reload of this
+	// page, and cannot send anyone to a list the item isn't in — a
+	// `document.referrer` check (what CaseStudyLayout.astro does) gives up all
+	// three. The entry itself stays: it is still the way back for the item it
+	// names, and this check is what keeps it off every other item.
 	if (origin?.itemPath !== location.pathname) return;
 	if (!origin.listUrl || !origin.label) return;
 
