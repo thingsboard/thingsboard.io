@@ -1,0 +1,116 @@
+import DocLink from '@components/DocLink.astro';
+import ImageGallery from '@components/ImageGallery.astro';
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+Remote Agent can upgrade itself. On command from ThingsBoard, the agent pulls a new agent image, starts a replacement container from it, hands the host over, and removes the container it was running in. You never open an SSH session or run a Docker command on the host, and the <DocLink product={props.product} path='user-guide/agents/applications'>applications</DocLink> the agent manages keep running: a self-upgrade replaces the agent container only.
+
+## When an upgrade is available
+
+On every connect, the agent reports the image reference it runs. ThingsBoard looks that tag up among the published agent images and follows the upgrade chain to the newest one. The list of published images is refreshed hourly from the ThingsBoard update server, so a new agent release becomes available for upgrade without a platform update.
+
+Two places show that a newer image exists:
+
+- **Edge management > Agents:** the **Upgrade agent** row action becomes active. It stays disabled while the agent already runs the newest known image.
+- The agent's **Applications** page: the **IMAGE** chip shows the image and tag the agent runs right now, and an **Upgrade to** chip appears next to it.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/agent/user-guide/self-upgrade/1-agent-upgrade-available.webp',
+    alt: 'The Agents table with the Upgrade agent row action active and its tooltip shown, and the note that the arrow is active only when a newer agent image is available',
+    caption: 'The <strong>Upgrade agent</strong> action is active only when a newer agent image is available.',
+  },
+  {
+    src: '/src/assets/images/agent/user-guide/self-upgrade/2-agent-image-upgrade-available.webp',
+    alt: 'The agent Applications page with the IMAGE chip showing the image and tag the agent runs now and the Upgrade to 1.0.0 chip next to it, with the tooltip that a newer agent image has been published',
+    caption: '<strong>IMAGE</strong> is the image the agent runs now; <strong>Upgrade to</strong> appears when a newer one is published.',
+  },
+]} />
+
+<Aside type="note">
+An agent that runs the floating `latest` tag or a digest-pinned image reports no upgrade: what such a reference resolves to cannot be derived from the reference itself. The chip stays **Up to date** and the row action stays disabled.
+</Aside>
+
+## Start the upgrade
+
+<Steps>
+  <ol>
+    <li>
+      Click **Upgrade agent** in the **Agents** table, or the **Upgrade to** chip on the agent's **Applications** page. The **Upgrade agent** dialog opens.
+    </li>
+    <li>
+      Check **Target image**. It is pre-filled with the newest published image; replace it with another tag or a digest-pinned reference to upgrade to a different version. **Current image** is read-only.
+    </li>
+    <li>
+      Click **Upgrade agent**. The **Event progress** dialog opens and tracks both upgrade steps. Reopen it later from the **Events** tab.
+    </li>
+  </ol>
+</Steps>
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/agent/user-guide/self-upgrade/3-agent-upgrade-target-image.webp',
+    alt: 'The Upgrade agent dialog with the read-only current image, the target image pre-filled with the newest published version, the hint that a tag or a digest-pinned reference is accepted, and the Upgrade agent button',
+    caption: '<strong>Target image</strong> is pre-filled with the newest published version. Edit it to upgrade to a different tag or digest.',
+  },
+]} />
+
+<Aside type="caution">
+The agent must run as a standalone container, the way the install and provisioning commands start it. An agent that belongs to a Docker Compose project fails the first step with an error instead of replacing a container the Compose project owns.
+</Aside>
+
+## How the upgrade runs
+
+The upgrade is a single event with two steps, both shown in the **Event progress** dialog:
+
+| Step | What the agent does |
+|---|---|
+| **Prepare replacement container** | Pulls the target image and clones the running container: the same environment variables, volume mounts, and networks, with only the image replaced. The clone is created but not started, and ThingsBoard records both container ids. |
+| **Hand over and remove the previous container** | The running agent starts the clone and stands by. The clone connects, claims the handover, removes the container it replaced, and takes over its name. |
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/agent/user-guide/self-upgrade/4-agent-upgrade-progress.webp',
+    alt: 'The Event progress dialog of an agent upgrade event with the first step Prepare replacement container in the Processing state and the second step Hand over and remove the previous container in the Waiting state',
+    caption: 'The <strong>Event progress</strong> dialog tracks both steps: prepare the replacement container, then hand the host over.',
+  },
+]} />
+
+Both containers receive the same second step and tell themselves apart by their own container id. ThingsBoard grants the handover to exactly one of them, and the winner is the only container authorized to remove the other, so the host never ends up running two agents or none. The replacement container is created with the `no` restart policy and switches to `always` only after it wins the handover, before it removes the previous container.
+
+The previous agent suspends its reconnects while it stands by, so the two containers never compete for the session, and it waits for in-flight application steps to finish before it hands the host over. Nothing about the agent entity changes: the routing key, the agent state volume, and the managed applications carry over untouched.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/schemas/agent-self-upgrade-flow.svg',
+    alt: 'Remote Agent self-upgrade sequence, successful handover: ThingsBoard sends step 1 to the previous agent container, which pulls the target image and creates a stopped replacement container and reports both container ids; ThingsBoard then sends step 2 with a handover deadline, the previous container waits for its in-flight application steps to finish, starts the replacement and stands by, the replacement connects and claims the handover, ThingsBoard grants it, the replacement removes the previous container and reports the step as finished',
+    caption: 'The successful handover: the replacement claims it, removes the previous container, and reports the upgrade as finished.',
+  },
+]} />
+
+## After the upgrade
+
+The replacement container keeps the name of the container it replaced, so the host looks exactly as it did before, on the new image. The **IMAGE** chip shows the new tag, and the chip next to it reads **Up to date** until a newer image is published. The **Events** tab keeps the record of the upgrade.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/agent/user-guide/self-upgrade/5-agent-up-to-date.webp',
+    alt: 'The agent Applications page after the upgrade: the IMAGE chip shows the new tag and the chip next to it reads Up to date, with the tooltip that no newer agent image is known',
+    caption: 'After the upgrade the <strong>IMAGE</strong> chip shows the new tag and the chip next to it reads <strong>Up to date</strong>.',
+  },
+]} />
+
+## When the handover does not complete
+
+Nothing on the host changes until the previous container is removed, so a failed upgrade needs no rollback: the agent keeps serving on the image it already runs. An upgrade stops short in one of these ways:
+
+- **The first step fails.** A pull or create error marks the event as failed, and nothing on the host has changed.
+- **The replacement never takes over.** If it does not claim the handover before the deadline, five minutes by default, the running agent reclaims the upgrade, removes the replacement container, and reports the step as failed.
+- **Both containers lose the connection.** ThingsBoard ends the event a grace period after the deadline, so the agent is never left blocked. If the handover did complete while the connection was down, the surviving container reports its image on the next connect and ThingsBoard reconciles the event.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/schemas/agent-self-upgrade-reclaim.svg',
+    alt: 'Remote Agent self-upgrade sequence, handover does not complete: the previous agent container starts the replacement and stands by, the replacement never connects and so never claims the handover, the handover deadline expires, the previous container reclaims the handover and is granted it because nobody claimed in time, removes the replacement container, and reports the step as failed while it keeps serving on the previous image',
+    caption: 'The handover does not complete: the previous container reclaims the upgrade, removes the replacement, and keeps serving.',
+  },
+]} />
