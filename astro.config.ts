@@ -120,7 +120,7 @@ export default defineConfig({
             // uk: { label: 'Українська', lang: 'uk' }, // temporarily disabled — no translations yet
         },
         sidebar,
-        customCss: ['./src/styles/_starlight-overrides.scss'],
+        customCss: ['./src/styles/_starlight-overrides.scss', './src/styles/_print.scss'],
         pagefind: false,
         head: [
             {

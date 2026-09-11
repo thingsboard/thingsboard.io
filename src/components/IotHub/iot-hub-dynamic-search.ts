@@ -14,6 +14,7 @@ import {
 import { bindListingCard } from './iot-hub-listing-card-bind';
 import type { CardShape } from './listing-card-hooks';
 import { getKnownSlugs } from './iot-hub-known-slugs';
+import { recordListOrigin } from './iot-hub-list-origin';
 import { updatePagination } from '@components/Pagination/pagination-client';
 import { setPerPageValue } from '@components/Pagination/per-page-client';
 
@@ -38,6 +39,10 @@ function updateResultsCount(countEl: HTMLElement, totalResults: number): void {
 //   * `data-page-size`   — initial page size; falls back to SEARCH_PAGE_SIZE.
 //   * `data-base-path`   — root path used by `history.replaceState` when
 //                          syncing URL state; falls back to `location.pathname`.
+//   * `data-back-label`  — what this list calls itself. Recorded with the
+//                          list URL when a card is opened, so the detail
+//                          page's parent crumb can name and link back to it
+//                          (see iot-hub-list-origin.ts).
 //
 // FilterPanel integration: when the page renders a FilterPanel, this
 // pipeline listens for `iot-hub-filter:change` and adds the selected
@@ -120,6 +125,18 @@ const PARAM_TO_FILTER_KEY: Record<string, string> = {
 };
 const FILTER_PARAM_NAMES = Object.keys(PARAM_TO_FILTER_KEY);
 
+// Every param `syncUrl` below can write, and so everything that counts as this
+// list's own state. Handed to recordListOrigin, which stores these and drops
+// the rest — anything else in the address belongs to how the visitor arrived,
+// not to the list. Keep in step with `syncUrl`.
+const STATE_PARAM_NAMES: readonly string[] = [
+	'q',
+	'sort',
+	'page',
+	'pageSize',
+	...FILTER_PARAM_NAMES,
+];
+
 function filtersEqual(
 	a: Record<string, string[]>,
 	b: Record<string, string[]>
@@ -142,6 +159,11 @@ export function setupDynamicSearch(): void {
 	if (!root) return;
 	if (root.dataset.dynamicSearchInited) return;
 	root.dataset.dynamicSearchInited = 'true';
+
+	// Ahead of every other guard below: a page whose templates are missing
+	// still renders its static first page of cards, and its URL may still
+	// carry sort + filters worth carrying over.
+	recordListOrigin(root, STATE_PARAM_NAMES);
 
 	const creatorId = root.dataset.creatorId ?? '';
 	const itemType = root.dataset.itemType ?? '';
