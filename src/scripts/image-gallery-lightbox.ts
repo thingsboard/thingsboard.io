@@ -2,7 +2,7 @@
 // loader in config/integrations/image-gallery-lightbox.ts.
 import PhotoSwipeLightbox from 'photoswipe/lightbox';
 import type PhotoSwipe from 'photoswipe';
-import type { SlideData } from 'photoswipe';
+import type { SlideData, ZoomLevelOption } from 'photoswipe';
 import { lockScroll, unlockScroll } from '@util/scroll-lock';
 
 // Destroyed and rebuilt on each init() to avoid duplicate handlers / observers.
@@ -29,6 +29,34 @@ function syncCdnAnchorDims(anchor: HTMLElement) {
 	else img.addEventListener('load', apply, { once: true });
 }
 
+// Share of the pan area a CDN image is allowed to take. Short of 1 on purpose:
+// it keeps a strip of backdrop on every side, so the picture never runs under
+// the close button and there is always somewhere to click to dismiss.
+const CDN_VIEWPORT_FILL = 0.86;
+// PhotoSwipe's 'fit' never scales past 1:1, so an image smaller than the
+// viewport opens as a small rectangle marooned on a large screen. Pipeline
+// images are wide enough for that to be the right call; CDN images are not —
+// an IoT Hub widget preview is often ~800px — so scale those up too, capped
+// so a small source doesn't smear into mush.
+const MAX_CDN_UPSCALE = 2;
+
+// PhotoSwipe exports the option union but not the object its function form
+// receives, and the class isn't reachable through the package exports map —
+// so pull the parameter type back out of the union.
+type ZoomLevelArg<T> = T extends (zoomLevelObject: infer Z) => number ? Z : never;
+type ZoomLevel = ZoomLevelArg<ZoomLevelOption>;
+
+function fitCdnImage(zoomLevel: ZoomLevel): number {
+	const { panAreaSize, elementSize } = zoomLevel;
+	const el = zoomLevel.itemData?.element as HTMLElement | undefined;
+	if (el?.dataset.pswpCdn !== 'true' || !panAreaSize || !elementSize?.x || !elementSize.y) {
+		return zoomLevel.fit;
+	}
+	const fitRatio =
+		Math.min(panAreaSize.x / elementSize.x, panAreaSize.y / elementSize.y) * CDN_VIEWPORT_FILL;
+	return Math.min(fitRatio, MAX_CDN_UPSCALE);
+}
+
 function init() {
 	currentLb?.destroy();
 	currentLb = undefined;
@@ -48,6 +76,7 @@ function init() {
 		wheelToZoom: true,
 		loop: false,
 		zoom: false,
+		initialZoomLevel: fitCdnImage,
 	});
 
 	// Anchors inside interactive SVG thumbs navigate natively; lightbox stays closed.
