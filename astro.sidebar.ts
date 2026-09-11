@@ -3520,6 +3520,7 @@ export const gwSidebar: SidebarConfig = [
 			'docs/iot-gateway/config/modbus',
 			'docs/iot-gateway/config/opc-ua',
 			'docs/iot-gateway/config/bacnet',
+			'docs/iot-gateway/config/s7',
 			'docs/iot-gateway/config/rest',
 			'docs/iot-gateway/config/request',
 			'docs/iot-gateway/config/ble',
