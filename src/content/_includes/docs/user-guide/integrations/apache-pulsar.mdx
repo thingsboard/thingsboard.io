@@ -22,29 +22,19 @@ Before creating the integration, prepare the following:
   Start a Pulsar standalone broker in Docker:
 
   ```bash
-  docker run -it --rm --name pulsar \
-    -p 6650:6650 -p 8080:8080 \
-    apachepulsar/pulsar:3.3.0 bin/pulsar standalone
+  docker run -d --name pulsar -p 6650:6650 -p 8080:8080 apachepulsar/pulsar:3.3.0 bin/pulsar standalone
   ```
 
   The broker listens on `pulsar://localhost:6650`. Topics are created automatically on first use.
 </Aside>
 
-## ThingsBoard integration setup
-
-The Apache Pulsar integration wizard creates the uplink converter inline — you write the decoder function in step 2 of the wizard without leaving the dialog.
-
-### Uplink decoder
+## Create Apache Pulsar Uplink Data Converter
 
 The uplink converter decodes incoming Pulsar messages and maps them to the ThingsBoard data model. Apache Pulsar uses a <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter">generic uplink converter</DocLink>.
 
 The decoder function receives:
 - `payload` — raw Pulsar message body as a UTF-8 byte array
 - `metadata` — `integrationName` and any key-value pairs configured in the integration's Metadata settings
-
-<Aside type="tip">
-  Use <DocLink product={props.product} path="user-guide/tbel">TBEL</DocLink> for converter scripts — it executes significantly faster than plain JavaScript inside ThingsBoard.
-</Aside>
 
 **Sample payload:**
 
@@ -56,6 +46,26 @@ The decoder function receives:
   "humidity": 60
 }
 ```
+
+<Steps>
+  1. Go to **Integrations center &#8702; Data converters**.
+  2. Click **+ Add data converter &#8702; Create new converter**.
+</Steps>
+
+In the **Add data converter** dialog:
+
+<Steps>
+  <ol start="3">
+    <li><strong>Converter type</strong> — leave <strong>Uplink</strong> (selected by default).</li>
+    <li><strong>Integration type</strong> — in the search field, enter <code>Apache Pulsar</code> and select <strong>Apache Pulsar</strong> from the list.</li>
+    <li><strong>Name</strong> — enter a converter name, for example <code>Apache Pulsar Uplink Converter</code>.</li>
+    <li><strong>Main decoding configuration</strong> — paste the decoder function from the appropriate tab below, then continue with step 7.</li>
+  </ol>
+</Steps>
+
+<Aside type="tip" title="TBEL">
+  We recommend using <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
+</Aside>
 
 **The decoder function used in this tutorial:**
 
@@ -167,6 +177,13 @@ The decoder function receives:
   </TabItem>
 </Tabs>
 
+<Steps>
+  <ol start="7">
+    <li>Optionally, click <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#testing-the-decoder" target="_blank"><strong>Test payload decoder</strong></DocLink> to validate the script against a sample payload.</li>
+    <li>Click <strong>Add</strong>.</li>
+  </ol>
+</Steps>
+
 **To adapt this converter to your device:**
 
 - **Different device name / type fields** — replace `data.deviceName` and `data.deviceType` with the field names your device sends.
@@ -175,17 +192,16 @@ The decoder function receives:
 - **Static attributes** — add device properties (e.g. firmware version, location) to the `attributes` object.
 - **Assets instead of devices** — use `assetName` / `assetType` instead of `deviceName` / `deviceType`.
 
-### Create the integration
+## Create Apache Pulsar Integration
 
 <Steps>
 1. Go to **Integrations center &#8702; Integrations** and click **+ Add integration**.
 2. **Basic settings:**
    - Set **Integration type** to **Apache Pulsar** and enter a name (e.g. `Apache Pulsar Integration`).
-   - **Enable integration** and **Allow create devices or assets** are on by default.
+   - Leave **Enable integration** and **Allow create devices or assets** on so the device is created automatically on first data.
    - Click **Next**.
 3. **Uplink data converter:**
-   - Select **Create new**. A name is pre-filled — change it if needed.
-   - Replace the default decoder with the function from the [Uplink decoder](#uplink-decoder) section above.
+   - Click **Select existing** and choose the [Apache Pulsar Uplink Converter](#create-apache-pulsar-uplink-data-converter) created in the previous step, or click **Create new** to define the decoder inline.
    - Click **Next**.
 4. **Connection:**
    - Fill in **Service URL**, **Topic**, **Subscription name**, and the remaining parameters.
@@ -212,14 +228,14 @@ The decoder function receives:
   },
 ]} />
 
-#### Connection settings
+### Connection settings
 
 <h5>Service URL</h5>
 
 The Pulsar broker endpoint. Use `pulsar://` for plain connections (default port `6650`) and `pulsar+ssl://` for TLS-encrypted connections (default port `6651`).
 
 Examples:
-- Local: `pulsar://localhost:6650`
+- Plain: `pulsar://YOUR_PULSAR_DOMAIN:6650`
 - TLS / managed: `pulsar+ssl://broker.example.com:6651`
 
 <h5>Topic</h5>
@@ -253,7 +269,15 @@ Consumer receive timeout — how long the client waits for a message before retu
 
 When enabled, ThingsBoard generates an **Integration key** and **Integration secret** that allow the integration to run as a separate process outside the ThingsBoard cluster — useful when the broker is only reachable from a restricted network. See <DocLink product={props.product} path="user-guide/integrations/remote">Remote Integration</DocLink>.
 
-## Send a test uplink
+## Test the Integration
+
+After the integration is created, send a test uplink and confirm that ThingsBoard received the message, decoded it correctly, and provisioned the device.
+
+<Aside type="note">
+  Before sending a test uplink, ensure that **Debug** mode with the **All messages** option is enabled for both the integration and the converter. This allows you to view received messages and conversion results on the corresponding **Events** tabs.
+</Aside>
+
+### Send Test Uplink
 
 Publish a test message to the Pulsar topic using the `pulsar-client` CLI tool.
 
@@ -262,9 +286,14 @@ Publish a test message to the Pulsar topic using the `pulsar-client` CLI tool.
     If your broker is running in Docker, exec into the container and use the built-in CLI:
 
     ```bash
-    docker exec -it pulsar bin/pulsar-client produce my-topic \
-      --num-produce 1 \
-      --messages '{"deviceName":"Sensor A1","deviceType":"thermostat","temperature":23.5,"humidity":60}'
+    docker exec pulsar bash -c 'printf "%s" "{\"deviceName\":\"Sensor A1\",\"deviceType\":\"thermostat\",\"timestamp\":\"2026-04-09T13:25:00Z\",\"temperature\":23.5,\"humidity\":60}" > /tmp/msg.txt && bin/pulsar-client produce my-topic -f /tmp/msg.txt'
+    ```
+  </TabItem>
+  <TabItem label="Windows">
+    If your broker is running in Docker and you're on Windows, run this from PowerShell:
+
+    ```powershell
+    '{"deviceName":"Sensor A1","deviceType":"thermostat","temperature":23.5,"humidity":60}' | docker exec -i pulsar sh -c "cat > /tmp/msg.json && bin/pulsar-client produce my-topic -f /tmp/msg.json"
     ```
   </TabItem>
   <TabItem label="CLI (local install)">
@@ -301,17 +330,23 @@ Publish a test message to the Pulsar topic using the `pulsar-client` CLI tool.
   </TabItem>
 </Tabs>
 
-## Verify in ThingsBoard
+### Verify Integration Events
 
-**Device** — go to **Entities &#8702; Devices**. The device **Sensor A1** is automatically provisioned on the first message. Open it and check the **Latest telemetry** tab — `temperature` and `humidity` should reflect the published values.
+Go to **Integrations center &#8702; Integrations**, open **Apache Pulsar Integration**, and check the **Events** tab. An **Uplink** event with **Status: OK** confirms the message was processed. Click **…** in the **Message** column to inspect the raw payload.
 
-**Integration events** — go to **Integrations center &#8702; Integrations**, open **Apache Pulsar Integration**, and check the **Events** tab. An **Uplink** event with **Status: OK** confirms the message was processed. Click **…** in the **Message** column to inspect the raw payload.
+### Verify Converter Events
 
-**Converter events** — go to **Integrations center &#8702; Data converters**, open the uplink converter, and click the **Events** tab. Inspect the **In** (raw payload), **Out** (decoded result), and **Metadata** columns to verify the decoder output.
+Go to **Integrations center &#8702; Data converters**, open the uplink converter, and click the **Events** tab. Inspect the **In** (raw payload), **Out** (decoded result), and **Metadata** columns to verify the decoder output.
 
-## See also
+### Verify Device Provisioning
 
-- <DocLink product={props.product} path="user-guide/integrations">Integration Overview</DocLink>
-- <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter">Uplink Converters</DocLink>
-- <DocLink product={props.product} path="user-guide/rule-engine">Rule Engine</DocLink>
-- <DocLink product={props.product} path="user-guide/tbel">ThingsBoard Expression Language (TBEL)</DocLink>
+Go to **Entities &#8702; Devices**. The device **Sensor A1** is automatically provisioned on the first message. Open it and check the **Latest telemetry** tab — `temperature` and `humidity` should reflect the published values.
+
+## See Also
+
+- <DocLink product={props.product} path="user-guide/integrations" target="_blank">Integrations Overview</DocLink> — how ThingsBoard connects to external platforms and how uplink/downlink flow works
+- <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">Uplink Data Converter</DocLink> — full decoder function reference: input parameters, output fields, and scripting patterns
+- <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink Data Converter</DocLink> — full encoder function reference: input parameters, output fields, and scripting patterns
+- <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink> — run the integration outside the ThingsBoard server to reach Apache Pulsar from a private network
+- <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL scripting reference</DocLink> — built-in functions and operators for writing converter scripts
+- <DocLink product={props.product} path="user-guide/rule-engine" target="_blank">Rule Engine</DocLink> — how the Root Rule Chain routes shared attribute updates to the downlink converter

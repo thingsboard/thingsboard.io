@@ -14,10 +14,10 @@ import type { CardProps } from '@root/pages/open-graph/_shared/Card';
 import { getDocsProductMeta } from '@root/pages/open-graph/_shared/product-meta';
 import { getMarketingOverride, getMarketingSection } from '@root/pages/open-graph/_shared/marketing-meta';
 import { BLOG_AUTHORS } from '@data/blog/authors';
+import { getAuthorsWithPosts } from '@data/blog/posts';
 import { CATEGORY_LABELS } from '@data/blog/categories';
 import { HARDWARE_PARTNERS } from '@data/partners/hardware-partners';
-import { jobs } from '@data/careers/jobs';
-import { IOT_HUB_CATEGORIES } from '@models/iot-hub';
+import { IOT_HUB_CATEGORIES, IOT_HUB_STRINGS } from '@models/iot-hub';
 
 export interface CardInput {
 	/** URL-shaped slug used as the path parameter in the endpoint */
@@ -92,8 +92,8 @@ export async function getBlogCardInputs(): Promise<CardInput[]> {
 		},
 	});
 
-	// /blog/author/{author-slug}/
-	for (const author of BLOG_AUTHORS) {
+	// /blog/author/{author-slug}/ — only authors that still have posts get a route
+	for (const author of await getAuthorsWithPosts()) {
 		inputs.push({
 			slug: `author/${author.slug}`,
 			props: {
@@ -149,7 +149,13 @@ export async function getIotHubCardInputs(): Promise<CardInput[]> {
 	inputs.push(
 		{
 			slug: 'search',
-			props: { variant: 'logo' as const, sectionName: SECTION, title: 'Search results' },
+			// Same string the page's own crumb and <h1> use, so the social card
+			// can't drift back to calling the catalogue a search.
+			props: {
+				variant: 'logo' as const,
+				sectionName: SECTION,
+				title: IOT_HUB_STRINGS.searchPage.catalogueName,
+			},
 		},
 		{
 			slug: 'creator',
@@ -223,19 +229,6 @@ export async function getPartnerCardInputs(): Promise<CardInput[]> {
 			sectionName: 'Partners',
 			eyebrow: 'Hardware Partner',
 			title: truncate(partner.name, TITLE_MAX),
-		},
-	}));
-}
-
-/** careers — `/careers/{slug}/` driven by `jobs` in src/data/careers/jobs.ts. */
-export async function getCareerCardInputs(): Promise<CardInput[]> {
-	return jobs.map((job) => ({
-		slug: job.slug,
-		props: {
-			variant: 'logo' as const,
-			sectionName: 'Careers',
-			eyebrow: job.location || 'Open Position',
-			title: truncate(job.position, TITLE_MAX),
 		},
 	}));
 }

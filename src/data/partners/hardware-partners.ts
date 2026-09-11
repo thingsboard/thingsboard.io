@@ -2527,7 +2527,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"Other devices"
 		],
 		"logo": "/images/partners/iotrouter-logo.png",
-		"website": "http://www.iotrouter.com/",
+		"website": "https://www.iotrouter.com/",
 		"links": {
 			"gatewayGuides": [
 				{

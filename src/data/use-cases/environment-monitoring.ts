@@ -10,7 +10,7 @@ export const data: UseCaseData = {
 		shortText:
 			'Environment monitoring plays a vital role in ensuring safety, comfort, and operational efficiency across all types of facilities — from office buildings to industrial sites. ThingsBoard is perfectly suited to address these challenges.',
 		longText: [
-			'ThingsBoard provides a scalable, reliable, and secure platform for <a href="/docs/pe/recipes/solution-templates/temperature-humidity-sensors/">environment monitoring</a>. With built-in support for LoRaWAN, NB-IoT, and Sigfox, it enables efficient integration of numerous low-power sensors over long distances, minimizing infrastructure complexity. The platform supports standard IoT protocols like HTTP, MQTT, CoAP, and LwM2M, making it easy to connect a wide range of devices and scale with your project.',
+			'ThingsBoard provides a scalable, reliable, and secure platform for <a href="/iot-hub/solution-templates/temperature-sensors/">environment monitoring</a>. With built-in support for LoRaWAN, NB-IoT, and Sigfox, it enables efficient integration of numerous low-power sensors over long distances, minimizing infrastructure complexity. The platform supports standard IoT protocols like HTTP, MQTT, CoAP, and LwM2M, making it easy to connect a wide range of devices and scale with your project.',
 			'Automated features—from real-time alerts on critical changes to forwarding data into external analytics tools—ensure proactive monitoring. Intuitive dashboards, customizable logic, and seamless integrations turn raw environmental data into actionable insights, enabling smarter and faster decisions.',
 		],
 		demoUrl:

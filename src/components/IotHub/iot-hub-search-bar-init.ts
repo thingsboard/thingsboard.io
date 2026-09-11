@@ -77,5 +77,4 @@ export function initSearchBars(): void {
 	} else {
 		run();
 	}
-	document.addEventListener('astro:page-load', run);
 }

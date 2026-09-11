@@ -1,24 +1,31 @@
 import { Aside, Steps } from '@astrojs/starlight/components';
 import ImageGallery from '~/components/ImageGallery.astro';
 import DocImage from '~/components/DocImage.astro';
+import Tabs from '@components/Tabs.astro';
+import TabItem from '@components/TabItem.astro';
 
 ## Introduction
 
-<a href="https://sodaq.com/" target="_blank" rel="noopener noreferrer">SODAQ</a> NB-IoT Trackers collect GPS location and sensor data and transmit it over the T-Mobile NB-IoT network. This guide walks through connecting a SODAQ NB-IoT Tracker to ThingsBoard PE using the T-Mobile IoT CDP integration, setting up a data converter, importing alarm rule chains, and visualizing data on a dashboard.
+<a href="https://sodaq.com/" target="_blank" rel="noopener noreferrer"><strong>SODAQ</strong></a> NB-IoT Trackers collect GPS location and sensor data and transmit it over the T-Mobile NB-IoT network. This guide walks through connecting a SODAQ NB-IoT Tracker to ThingsBoard PE using the IoT Creators integration, setting up a data converter, importing alarm rule chains, and visualizing data on a dashboard.
 
 <DocImage src="/src/assets/devices-library/sodaq/sodaq-demo-dashboard.gif" alt="SODAQ tracker dashboard demo" width="100%" />
 
 ## Prerequisites
 
+- You have access to <a href="/docs/pe/installation/" target="_blank" rel="noopener noreferrer"><strong>ThingsBoard PE</strong></a> or <a href="/installations/choose-region/" target="_blank" rel="noopener noreferrer"><strong>ThingsBoard Cloud</strong></a> with integration functionality enabled for your tenant.
+- You have permissions to create integrations and data converters.
+- You have an <a href="https://www.iotcreators.com/" target="_blank" rel="noopener noreferrer"><strong>IoT Creators</strong></a> account with at least one project and a Starterkit / SIM card.
 - SODAQ NB-IoT Tracker connected to the T-Mobile NB-IoT network
-- <a href="/docs/pe/installation/" target="_blank" rel="noopener noreferrer">ThingsBoard PE server</a> or a free <a href="/installations/choose-region/" target="_blank" rel="noopener noreferrer">ThingsBoard Cloud</a> account
-- Basic ThingsBoard knowledge — complete the <a href="/docs/pe/getting-started/" target="_blank" rel="noopener noreferrer">Getting Started</a> guide before proceeding
 
-## Step 1. Data converter configuration
+<Aside type="caution" title="Register before powering on">
+  Register the tracker's IMEI in the IoT Creators portal (**Projects &#8702; your project &#8702; Devices &#8702; REGISTER DEVICE**) **before** switching it on. A device that transmits before it is registered is added to the platform blacklist and can only be removed through IoT Creators support.
+</Aside>
 
-The uplink data converter decodes the incoming hex-encoded payload from T-Mobile NB-IoT into the ThingsBoard telemetry format.
+## Step 1: Data Converter Configuration
 
-**Input payload from T-Mobile NB-IoT platform:**
+The uplink data converter decodes the incoming hex-encoded payload from IoT Creators into the ThingsBoard telemetry format.
+
+**Input payload from IoT Creators:**
 
 ```json
 {
@@ -48,7 +55,7 @@ The uplink data converter decodes the incoming hex-encoded payload from T-Mobile
             "altitude": 6,
             "speed": 86,
             "satellitesObserved": 208,
-            "timetToFirstFix": 4
+            "timeToFirstFix": 4
         }
     }]
 }
@@ -72,13 +79,13 @@ The following table shows each encoded field's position and byte length in the h
 | altitude | 30 | 2 |
 | speed | 32 | 2 |
 | satellitesObserved | 35 | 1 |
-| timetToFirstFix | 36 | 1 |
+| timeToFirstFix | 36 | 1 |
 
-### Import uplink converter
+### Import Uplink Converter
 
 <Steps>
-  1. Download <a href="/partners/hardware/sodaq/samples/sodaq-universal-tracker/resources/sodaq_uplink_data_converter.json" download="sodaq_uplink_data_converter.json">sodaq_uplink_data_converter.json</a>.
-  2. Go to **Integrations center &#8702; Data converters** and click **+ Add data converter > Import converter**.
+  1. Download <a href="/partners/hardware/sodaq/samples/sodaq-universal-tracker/resources/sodaq_uplink_data_converter.json" download="sodaq_uplink_data_converter.json"><strong>sodaq_uplink_data_converter.json</strong></a>.
+  2. Go to **Integrations center &#8702; Data converters** and click **+ Add data converter &#8702; Import converter**.
   3. Drag and drop the downloaded `sodaq_uplink_data_converter.json` file.
   4. Click **Import**.
 </Steps>
@@ -96,104 +103,310 @@ The following table shows each encoded field's position and byte length in the h
   }
 ]} />
 
+<Aside type="tip" title="TBEL">
+  We recommend <a href="/docs/pe/user-guide/tbel/" target="_blank" rel="noopener noreferrer"><strong>TBEL</strong></a> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
+</Aside>
+
 **Decoder function:**
 
-```js maxLines=10 collapsible
-// Decode an uplink message from a buffer
-// payload - array of bytes
-// metadata - key/value object
+<Tabs>
+  <TabItem label="TBEL (Recommended)">
+    ```js maxLines=15 collapsible
+    // Decode an IoT Creators uplink message.
+    //
+    // payload  - incoming HTTP request body represented as an array of bytes.
+    //            IoT Creators sends a JSON object containing the "reports" array.
+    // metadata - key-value pairs with additional integration metadata.
 
-/** Decoder **/
+    /** Decoder **/
 
-// decode payload to JSON
-var data = decodeToJson(payload);
+    // Convert the incoming byte array to a JSON object.
+    var data = decodeToJson(payload);
 
-var reports = data.reports;
-var deviceName = data.devName;
+    // Each item in "reports" represents an uplink message received
+    // from a registered IoT Creators device.
+    var reports = data.reports;
 
-// Result object
-var result = {
-   deviceName: {},
-   deviceType: "tracker",
-   telemetry: []
-};
+    // A valid uplink message must contain at least one report.
+    if (reports == null || reports.length == 0) {
+        raiseError("No reports found in the incoming payload.");
+    }
 
-for (var i = 0; i < reports.length; i++) {
+    // One converter execution must return data for one ThingsBoard entity.
+    //
+    // Use the IMEI from the first report as the ThingsBoard device name.
+    // IoT Creators provides the serial number in the "IMEI:<value>" format,
+    // therefore the "IMEI:" prefix is removed.
+    var result = {
+        deviceName: reports[0].serialNumber.replace("IMEI:", ""),
+        deviceType: "SODAQ Universal Tracker",
 
-   result.deviceName = reports[i].serialNumber.replace("IMEI:", "");
+        // Each report will be added as a separate telemetry entry
+        // with its own device timestamp.
+        telemetry: []
+    };
 
-   var telemetryObj = {
-       ts: {},
-       values: {}
-   };
+    // Process all reports included in the IoT Creators request.
+    for (var i = 0; i < reports.length; i++) {
+        // The "value" field contains the tracker payload encoded
+        // as a hexadecimal string.
+        var value = reports[i].value;
 
-   var timestamp = stringToInt(reports[i].value.substring(32, 40)) * 1000;
-   var v = stringToInt(reports[i].value.substring(40, 42)) / 100 + 3;
-   var t = stringToInt(reports[i].value.substring(42, 44));
-   var lat = stringToInt(reports[i].value.substring(44, 52)) / 10000000;
-   var lon = stringToInt(reports[i].value.substring(52, 60)) / 10000000;
-   var alt = stringToInt(reports[i].value.substring(60, 64));
-   var speed = stringToInt(reports[i].value.substring(64, 68));
-   var sat = stringToInt(reports[i].value.substring(68, 70));
-   var ttf = stringToInt(reports[i].value.substring(70, 72));
+        // Decode the device timestamp from bytes 16-19.
+        // The tracker stores multi-byte numeric values in little-endian order.
+        // Convert seconds to milliseconds because ThingsBoard timestamps
+        // are represented in milliseconds.
+        var timestamp =
+            Long.parseLong("" + parseHexToInt(value.substring(32, 40), false)) * 1000;
 
-   telemetryObj.ts = timestamp;
-   telemetryObj.values.batteryVoltage = v;
-   telemetryObj.values.temperature = t;
+        // Decode the battery voltage from byte 20.
+        // The encoded value represents the voltage above 3 V
+        // in increments of 0.01 V.
+        var batteryVoltage =
+            parseHexToInt(value.substring(40, 42), false) / 100.0 + 3.0;
 
-   if (lat !== 0) {
-       telemetryObj.values.latitude = lat;
-   }
-   if (lon !== 0) {
-       telemetryObj.values.longitude = lon;
-   }
-   if (alt !== 0) {
-       telemetryObj.values.altitude = alt;
-   }
+        // Decode the temperature from byte 21.
+        var temperature =
+            parseHexToInt(value.substring(42, 44), false);
 
-   telemetryObj.values.speed = speed;
-   telemetryObj.values.satellitesObserved = sat;
-   telemetryObj.values.timetToFirstFix = ttf;
+        // Decode latitude from bytes 22-25.
+        // The raw integer is divided by 10,000,000 to obtain decimal degrees.
+        var latitude =
+            parseHexToInt(value.substring(44, 52), false) / 10000000.0;
 
-   result.telemetry.push(telemetryObj);
-}
+        // Decode longitude from bytes 26-29.
+        // The raw integer is divided by 10,000,000 to obtain decimal degrees.
+        var longitude =
+            parseHexToInt(value.substring(52, 60), false) / 10000000.0;
 
-/** Helper functions **/
+        // Decode altitude from bytes 30-31.
+        var altitude =
+            parseHexToInt(value.substring(60, 64), false);
 
-function stringToInt(hex) {
-    return parseInt('0x' + hex.match(/../g).reverse().join(''));
-}
+        // Decode speed from bytes 32-33.
+        var speed =
+            parseHexToInt(value.substring(64, 68), false);
 
-function decodeToString(payload) {
-   return String.fromCharCode.apply(String, payload);
-}
+        // Decode the number of observed GNSS satellites from byte 34.
+        var satellitesObserved =
+            parseHexToInt(value.substring(68, 70), false);
 
-function decodeToJson(payload) {
-   var str = decodeToString(payload);
-   return JSON.parse(str);
-}
+        // Decode the GNSS time to first fix from byte 35.
+        var timeToFirstFix =
+            parseHexToInt(value.substring(70, 72), false);
 
-return result;
-```
+        // Create the telemetry values associated with the decoded timestamp.
+        var values = {
+            batteryVoltage: batteryVoltage,
+            temperature: temperature,
+            speed: speed,
+            satellitesObserved: satellitesObserved,
+            timeToFirstFix: timeToFirstFix
+        };
 
-## Step 2. Integration configuration
+        // Do not send location coordinates when the tracker reports zero,
+        // because zero may indicate that no valid GNSS position is available.
+        if (latitude != 0) {
+            values.latitude = latitude;
+        }
+
+        if (longitude != 0) {
+            values.longitude = longitude;
+        }
+
+        if (altitude != 0) {
+            values.altitude = altitude;
+        }
+
+        // Add the decoded report as timestamped telemetry.
+        result.telemetry.push({
+            ts: timestamp,
+            values: values
+        });
+    }
+
+    return result;
+    ```
+  </TabItem>
+  <TabItem label="JavaScript">
+    ```js maxLines=15 collapsible
+    // Decode an IoT Creators uplink message.
+    //
+    // payload  - incoming HTTP request body represented as an array of bytes.
+    //            IoT Creators sends a JSON object containing the "reports" array.
+    // metadata - key-value pairs with additional integration metadata.
+
+    /** Decoder **/
+
+    // Convert the incoming byte array to a JSON object.
+    var data = decodeToJson(payload);
+
+    // Each item in "reports" represents an uplink message received
+    // from a registered IoT Creators device.
+    var reports = data.reports;
+
+    // A valid uplink message must contain at least one report.
+    if (reports == null || reports.length === 0) {
+        throw new Error("No reports found in the incoming payload.");
+    }
+
+    // One converter execution must return data for one ThingsBoard entity.
+    //
+    // Use the IMEI from the first report as the ThingsBoard device name.
+    // IoT Creators provides the serial number in the "IMEI:<value>" format,
+    // therefore the "IMEI:" prefix is removed.
+    var result = {
+        deviceName: reports[0].serialNumber.replace("IMEI:", ""),
+        deviceType: "SODAQ Universal Tracker",
+
+        // Each report will be added as a separate telemetry entry
+        // with its own device timestamp.
+        telemetry: []
+    };
+
+    // Process all reports included in the IoT Creators request.
+    for (var i = 0; i < reports.length; i++) {
+        // The "value" field contains the tracker payload encoded
+        // as a hexadecimal string.
+        var value = reports[i].value;
+
+        // Decode the device timestamp from bytes 16-19.
+        // The tracker stores multi-byte numeric values in little-endian order.
+        // Convert seconds to milliseconds because ThingsBoard timestamps
+        // are represented in milliseconds.
+        var timestamp =
+            littleEndianHexToInt(value.substring(32, 40)) * 1000;
+
+        // Decode the battery voltage from byte 20.
+        // The encoded value represents the voltage above 3 V
+        // in increments of 0.01 V.
+        var batteryVoltage =
+            littleEndianHexToInt(value.substring(40, 42)) / 100 + 3;
+
+        // Decode the temperature from byte 21.
+        var temperature =
+            littleEndianHexToInt(value.substring(42, 44));
+
+        // Decode latitude from bytes 22-25.
+        // The raw integer is divided by 10,000,000 to obtain decimal degrees.
+        var latitude =
+            littleEndianHexToInt(value.substring(44, 52)) / 10000000;
+
+        // Decode longitude from bytes 26-29.
+        // The raw integer is divided by 10,000,000 to obtain decimal degrees.
+        var longitude =
+            littleEndianHexToInt(value.substring(52, 60)) / 10000000;
+
+        // Decode altitude from bytes 30-31.
+        var altitude =
+            littleEndianHexToInt(value.substring(60, 64));
+
+        // Decode speed from bytes 32-33.
+        var speed =
+            littleEndianHexToInt(value.substring(64, 68));
+
+        // Decode the number of observed GNSS satellites from byte 34.
+        var satellitesObserved =
+            littleEndianHexToInt(value.substring(68, 70));
+
+        // Decode the GNSS time to first fix from byte 35.
+        var timeToFirstFix =
+            littleEndianHexToInt(value.substring(70, 72));
+
+        // Create the telemetry values associated with the decoded timestamp.
+        var values = {
+            batteryVoltage: batteryVoltage,
+            temperature: temperature,
+            speed: speed,
+            satellitesObserved: satellitesObserved,
+            timeToFirstFix: timeToFirstFix
+        };
+
+        // Do not send location coordinates when the tracker reports zero,
+        // because zero may indicate that no valid GNSS position is available.
+        if (latitude !== 0) {
+            values.latitude = latitude;
+        }
+
+        if (longitude !== 0) {
+            values.longitude = longitude;
+        }
+
+        if (altitude !== 0) {
+            values.altitude = altitude;
+        }
+
+        // Add the decoded report as timestamped telemetry.
+        result.telemetry.push({
+            ts: timestamp,
+            values: values
+        });
+    }
+
+    /** Helper functions **/
+
+    // Convert a little-endian hexadecimal string to an integer.
+    //
+    // For example, "78563412" is converted to "12345678"
+    // before it is parsed as a hexadecimal number.
+    function littleEndianHexToInt(hex) {
+        var bytes = hex.match(/../g);
+
+        if (bytes == null) {
+            throw new Error("Invalid hexadecimal value: " + hex);
+        }
+
+        return parseInt(bytes.reverse().join(""), 16);
+    }
+
+    // Convert the incoming byte array to a UTF-8-compatible string.
+    function decodeToString(payload) {
+        return String.fromCharCode.apply(String, payload);
+    }
+
+    // Parse the incoming JSON request body.
+    function decodeToJson(payload) {
+        return JSON.parse(decodeToString(payload));
+    }
+
+    return result;
+    ```
+  </TabItem>
+</Tabs>
+
+## Step 2: Integration Configuration
 
 <Steps>
-1. Go to <strong>Integrations center &#8702; Integrations</strong> and click <strong>+ Add integration</strong>.
-2. <strong>Basic settings:</strong>
-    - Set <strong>Integration type</strong> to <strong>iotcreators.com (T-Mobile – IoT CDP)</strong>.
-    - **Enable integration** and <strong>Allow create devices or assets</strong> are on by default.
-    - Click <strong>Next</strong>.
-3. <strong>Uplink data converter:</strong>
-    - <strong>Select existing</strong> — choose the previously created <code>SODAQ Uplink data converter</code> from the list.
-    - Click <strong>Next</strong>.
-4. <strong>Connection:</strong>
-    - <strong>Base URL</strong> is pre-filled with your ThingsBoard instance URL.
-    - Copy the generated <strong>HTTP export URL</strong> — you will configure IoT Creators to POST to this address.
-    - Click <strong>Add</strong> to save the integration.
+  <ol>
+    <li>Go to <strong>Integrations center &#8702; Integrations</strong> and click <strong>+ Add integration</strong>.</li>
+    <li>
+      <span><strong>Basic settings:</strong></span>
+      <ul>
+        <li>Set <strong>Integration type</strong> to <strong>iotcreators.com (T-Mobile &#8211; IoT CDP)</strong>.</li>
+        <li>Enter a <strong>Name</strong>, or keep the default <code>iotcreators.com (T-Mobile &#8211; IoT CDP) integration</code>.</li>
+        <li>Leave <strong>Enable integration</strong> and <strong>Allow create devices or assets</strong> enabled so that devices are created automatically when data is received for the first time.</li>
+        <li>Click <strong>Next</strong>.</li>
+      </ul>
+    </li>
+    <li>
+      <span><strong>Uplink data converter:</strong></span>
+      <ul>
+        <li><strong>Select existing</strong> — choose the previously created <code>SODAQ Uplink data converter</code> from the list.</li>
+        <li>Click <strong>Next</strong>.</li>
+      </ul>
+    </li>
+    <li>
+      <span><strong>Connection:</strong></span>
+      <ul>
+        <li><strong>Base URL</strong> — pre-filled with your ThingsBoard instance URL (for example, <strong><code>https://thingsboard.cloud</code></strong>).</li>
+        <li>Copy the <strong>HTTP endpoint URL</strong> — you will paste this into the IoT Creators portal as the callback address so the platform forwards uplinks to ThingsBoard.</li>
+      </ul>
+    </li>
+    <li>Click <strong>Add</strong> to finish creating the integration.</li>
+  </ol>
 </Steps>
 
-For more information about MQTT integrations in ThingsBoard, see the <a href="/docs/pe/user-guide/integrations/iotcreators/" target="_blank" rel="noopener noreferrer">IoT Creators integration documentation</a>.
+For more information about the IoT Creators integration in ThingsBoard, see the <a href="/docs/pe/user-guide/integrations/iotcreators/" target="_blank" rel="noopener noreferrer"><strong>IoT Creators integration documentation</strong></a>.
 
 <ImageGallery images={[
   {
@@ -213,12 +426,12 @@ For more information about MQTT integrations in ThingsBoard, see the <a href="/d
   }
 ]} />
 
-## Step 3. Post telemetry and verify the integration
+## Step 3: Post Telemetry and Verify the Integration
 
-Before configuring the T-Mobile platform, verify that ThingsBoard is correctly configured by sending a test message with cURL.
+Before configuring IoT Creators, verify that ThingsBoard is correctly configured by sending a test message with cURL.
 
 <Steps>
-1. Download the test data file: <a href="/partners/hardware/sodaq/samples/sodaq-universal-tracker/resources/telemetry-data.json" download="telemetry-data.json">telemetry-data.json</a>.
+1. Download the test data file: <a href="/partners/hardware/sodaq/samples/sodaq-universal-tracker/resources/telemetry-data.json" download="telemetry-data.json"><strong>telemetry-data.json</strong></a>.
 2. Run the following command, replacing `$HTTP_ENDPOINT_URL` with the copied **endpoint URL** from the integration:
 
     ```bash
@@ -227,8 +440,8 @@ Before configuring the T-Mobile platform, verify that ThingsBoard is correctly c
     <ImageGallery images={[
       {
         src: '/src/assets/devices-library/sodaq/sodaq-post-telemetry.png',
-        alt: 'Add IoT Creators integration - basic settings',
-        caption: 'Click <strong>Add integration</strong>, select <strong>iotcreators.com (T-Mobile – IoT CDP)</strong>, enter a name, and click <strong>Next</strong>.',
+        alt: 'Terminal output showing the curl command posting test telemetry to the ThingsBoard HTTP endpoint',
+        caption: 'Run the <strong>curl</strong> command with the sample telemetry file to send a test uplink to the ThingsBoard HTTP endpoint.',
       },
     ]} />
 </Steps>
@@ -245,9 +458,9 @@ Go to **Entities &#8702; Devices** — device **0123456789** is provisioned auto
   },
 ]} />
 
-## Step 4. T-Mobile NB-IoT platform callback configuration
+## Step 4: IoT Creators Callback Configuration
 
-In the T-Mobile IoT CDP platform, configure the callback URL to the HTTP endpoint URL from Step 2. Use the image below as a reference:
+In the IoT Creators portal, configure the callback URL to the HTTP endpoint URL from Step 2. Use the image below as a reference:
 
 <ImageGallery images={[
   {
@@ -257,7 +470,7 @@ In the T-Mobile IoT CDP platform, configure the callback URL to the HTTP endpoin
   },
 ]} />
 
-## Step 5. Check integration debug events
+## Step 5: Check Integration Debug Events
 
 To trace the message through the integration, go to **Integrations center &#8702; Integrations**, click **iotcreators.com (T-Mobile – IoT CDP) integration**, open the **Events** tab, and set **Event type** to **Debug**. Click **...** in the Message column to see the reports received by the integration.
 
@@ -274,18 +487,17 @@ To trace the message through the integration, go to **Integrations center &#8702
   },
 ]} />
 
-## Step 6. Rule chain import
+## Step 6: Rule Chain Import
 
 This guide uses a modified **Root Rule Chain** and a new **Tracker Alarms** rule chain. The rule chain forwards telemetry to the Tracker Alarms chain, which evaluates individual alarm threshold parameters configured in the dashboard.
 
-Download and <a href="/docs/pe/user-guide/rule-engine/#import-a-rule-chain" target="_blank" rel="noopener noreferrer">import</a> the Tracker Alarms rule chain:
-<a href="/partners/hardware/sodaq/samples/sodaq-universal-tracker/resources/tracker-alarms.json" download="tracker-alarms.json">tracker-alarms.json</a>.
+Download <a href="/partners/hardware/sodaq/samples/sodaq-universal-tracker/resources/tracker-alarms.json" download="tracker-alarms.json"><strong>tracker-alarms.json</strong></a> and <a href="/docs/pe/user-guide/rule-engine/#import-a-rule-chain" target="_blank" rel="noopener noreferrer"><strong>import</strong></a> it as the Tracker Alarms rule chain.
 
 <ImageGallery images={[
   {
     src: '/src/assets/devices-library/sodaq/sodaq-configure-rule-chains-1.png',
     alt: 'Import rule chain dialog in ThingsBoard',
-    caption: 'Go to <strong>Rule chains</strong>, click <strong>Add rule chain</strong> → <strong>Import rule chain</strong>, then upload the provided JSON file (e.g., tracker-alarms.json).',
+    caption: 'Go to <strong>Rule chains</strong>, click <strong>Add rule chain</strong> &#8702; <strong>Import rule chain</strong>, then upload the provided JSON file (e.g., tracker-alarms.json).',
   },
   {
     src: '/src/assets/devices-library/sodaq/sodaq-configure-rule-chains-2.png',
@@ -304,15 +516,15 @@ Download and <a href="/docs/pe/user-guide/rule-engine/#import-a-rule-chain" targ
   }
 ]} />
 
-## Step 7. Dashboard import
+## Step 7: Dashboard Import
 
-Download <a href="/partners/hardware/sodaq/samples/sodaq-universal-tracker/resources/sodaq-dashboard.json" download="sodaq-dashboard.json">sodaq-dashboard.json</a> and import it in **Dashboards**. See the <a href="/docs/user-guide/dashboards/#import-dashboard" target="_blank" rel="noopener noreferrer">dashboard import instructions</a>.
+Download <a href="/partners/hardware/sodaq/samples/sodaq-universal-tracker/resources/sodaq-dashboard.json" download="sodaq-dashboard.json"><strong>sodaq-dashboard.json</strong></a> and import it in **Dashboards**. See the <a href="/docs/pe/user-guide/dashboards/#import-dashboard" target="_blank" rel="noopener noreferrer"><strong>dashboard import instructions</strong></a>.
 
 <ImageGallery images={[
   {
     src: '/src/assets/devices-library/sodaq/sodaq-import-dashboard-1.png',
     alt: 'Import dashboard dialog in ThingsBoard',
-    caption: 'Go to <strong>Dashboards</strong>, click <strong>Add dashboard</strong> → <strong>Import dashboard</strong>, then upload the provided JSON file.',
+    caption: 'Go to <strong>Dashboards</strong>, click <strong>Add dashboard</strong> &#8702; <strong>Import dashboard</strong>, then upload the provided JSON file.',
   },
   {
     src: '/src/assets/devices-library/sodaq/sodaq-import-dashboard-2.png',
@@ -330,15 +542,15 @@ After importing the dashboard, navigate to the **Tracker details** state and set
 
 Once the rule chains and dashboard are configured, trigger the device to post real data and verify that the integration and rule chains work as expected.
 
-## Advanced configuration (optional)
+## Advanced Configuration (Optional)
 
 The following sections explain how the rule chains work and how to recreate them from scratch. These steps are optional — beginners can skip this section.
 
 ### Security
 
-You can add additional HTTP headers with unique parameters to secure the integration. Add a custom header (like `MY-INTEGRATION-AUTH-HEADER` with a random string value) to both the integration configuration (Step 2) and the T-Mobile platform configuration (Step 4). The header values must match for data to flow correctly.
+You can add additional HTTP headers with unique parameters to secure the integration. Add a custom header (like `MY-INTEGRATION-AUTH-HEADER` with a random string value) to both the integration configuration (Step 2) and the IoT Creators callback configuration (Step 4). The header values must match for data to flow correctly.
 
-### Message flow
+### Message Flow
 
 The **Tracker Alarms** rule chain uses the following nodes:
 
@@ -348,16 +560,16 @@ The **Tracker Alarms** rule chain uses the following nodes:
 - **Nodes G, I, K, M: Clear alarm** — clear the alarm when the corresponding filter script returns `false`.
 - **Node O: Rule Chain** — forwards incoming messages to the **Tracker Alarms** rule chain.
 
-### Create the Tracker Alarms rule chain
+### Create the Tracker Alarms Rule Chain
 
 <Steps>
 
-1. Go to **Rule Chains → Add new Rule Chain**. Enter the name **Tracker Alarms** and click **Add**.
+1. Go to **Rule Chains &#8702; Add new Rule Chain**. Enter the name **Tracker Alarms** and click **Add**.
 
    <ImageGallery images={[{
      src: '/src/assets/devices-library/sodaq/sodaq-add-chain.png',
      alt: 'Add new Rule Chain dialog',
-     caption: 'Go to <strong>Rule Chains → Add new Rule Chain</strong>, enter the name <strong>Tracker Alarms</strong>, and click <strong>Add</strong>.',
+     caption: 'Go to <strong>Rule Chains &#8702; Add new Rule Chain</strong>, enter the name <strong>Tracker Alarms</strong>, and click <strong>Add</strong>.',
    }]} />
 
 2. Open the rule chain and click **Edit**. Add 13 nodes as described below.
@@ -430,7 +642,7 @@ The **Tracker Alarms** rule chain uses the following nodes:
 
 </Steps>
 
-### Modify the root rule chain
+### Modify the Root Rule Chain
 
 Add two nodes to the existing **Root Rule Chain**:
 

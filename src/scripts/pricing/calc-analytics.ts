@@ -3,7 +3,7 @@
 // flush(), so the final — most complete — config isn't lost when the user
 // closes the modal or leaves the page within the 3s debounce window.
 
-// The 5 pricing calculators. Threaded through the helpers so a mistyped value
+// The pricing calculators. Threaded through the helpers so a mistyped value
 // fails to compile instead of silently mis-bucketing in GA4.
 export type CalculatorType = 'tb_payg' | 'tb_pc' | 'tbmq_payg' | 'tbmq_pc' | 'tbmq_perp';
 
@@ -76,7 +76,7 @@ export function bindCtaTracking(
 	});
 }
 
-// Copy/Download summary export event — one shape for all 5 calculators.
+// Copy/Download summary export event — one shape for all calculators.
 export function pushExport(
 	calculatorType: CalculatorType,
 	method: 'copy' | 'download',
@@ -90,7 +90,7 @@ export function pushExport(
 	});
 }
 
-// Calculator-open event (the 2 modal calculators).
+// Calculator-open event (the modal calculators).
 export function pushCalculatorOpen(calculatorType: CalculatorType): void {
 	pushCalculatorEvent({ event: 'calculator_open', calculator_type: calculatorType });
 }

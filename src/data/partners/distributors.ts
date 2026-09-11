@@ -1,14 +1,6 @@
+import { assertDistributorData } from './coverage.ts';
+import { REGION_MEMBERSHIP } from './regions.ts';
 import type { Distributor } from './types';
-
-export const REGIONS: string[] = [
-	"Africa",
-	"Asia",
-	"Australia and Oceania",
-	"Europe",
-	"Middle East",
-	"North America",
-	"South America",
-];
 
 export const DISTRIBUTORS: Distributor[] = [
 	{
@@ -33,11 +25,11 @@ export const DISTRIBUTORS: Distributor[] = [
 		website: "acorde.com",
 	},
 	{
-		name: "AppBuilder (Pty.) Ltd.",
-		regions: ["Africa"],
-		countries: ["South Africa"],
-		email: "tshepo@appbuilder.africa",
-		website: "appbuilder.africa",
+		name: "ACP IT Solutions AG",
+		regions: ["Europe","Middle East","Africa"],
+		countries: "region-wide",
+		email: "development.hzb@acp.de",
+		website: "acp-gruppe.com/de-at",
 	},
 	{
 		name: "Appomax",
@@ -73,6 +65,13 @@ export const DISTRIBUTORS: Distributor[] = [
 		countries: ["Turkey","Georgia","Kazakhstan","Azerbaijan","Tajikistan","Turkmenistan","Uzbekistan","Kyrgyzstan","Tunisia","Libya","Iraq","Albania","Montenegro","Bosnia and Herzegovina"],
 		email: "sales@basarimuhendislik.com",
 		website: "basarimuhendislik.com",
+	},
+		{
+		name: "Bridges of Advanced Technoligies",
+		regions: ["Middle East","Asia"],
+		countries: ["Iraq"],
+		email: "info@bridgescons.com",
+		website: "bridgescons.com",
 	},
 	{
 		name: "Bhavamish Solution",
@@ -237,7 +236,7 @@ export const DISTRIBUTORS: Distributor[] = [
 	},
 	{
 		name: "HADEX",
-		regions: ["Asia"],
+		regions: ["Middle East","Asia"],
 		countries: ["Syria"],
 		email: "havalbajary@gmail.com",
 		website: "hadex.nicepage.io",
@@ -252,7 +251,7 @@ export const DISTRIBUTORS: Distributor[] = [
 	{
 		name: "Halley Technologies SA",
 		regions: ["Europe"],
-		countries: ["Swizerland"],
+		countries: ["Switzerland"],
 		email: "Haithem.bouajila@halley-technologies.ch",
 		website: "halley-technologies.ch",
 	},
@@ -287,7 +286,7 @@ export const DISTRIBUTORS: Distributor[] = [
 	{
 		name: "IoT Squad P.S.A.",
 		regions: ["Europe","North America"],
-		countries: ["Åland Islands","Albania","Andorra","Austria","Belarus","Belgium","Bosnia and Herzegovina","Bulgaria","Croatia","Cyprus","Czech Republic","Denmark","Estonia","Faroe Islands","Finland","France","Germany","Gibraltar","Greece","Hungary","Iceland","Ireland","Isle of Man","Italy","Jersey","Kingdom of the Netherlands","Kosovo","Latvia","Liechtenstein","Lietuvos Respublika","Lithuania","Luxembourg","Malta","Moldova","Monaco","Montenegro","Netherlands","North Macedonia","Norway","Poland","Portugal","Romania","San Marino","Serbia","Slovakia","Slovenia","Spain","Svalbard and Jan Mayen","Sweden","Switzerland","Ukraine","United Kingdom","Vatican City","Anguilla","Antigua and Barbuda","Barbados","Belize","British Virgin Islands","Canada","Cayman Islands","Costa Rica","Cuba","Dominica","Dominican Republic","El Salvador","Greenland","Grenada","Guadeloupe","Guatemala","Haiti","Honduras","Jamaica","Martinique","Mexico","Montserrat","Nicaragua","Panama","Puerto Rico","Saint Barthélemy","Saint Kitts and Nevis","Saint Lucia","Saint Martin","Saint Pierre and Miquelon","Saint Vincent and the Grenadines","Sint Maarten","The Bahamas","Turks and Caicos Islands","U.S. Virgin Islands","United States of America","United States Minor Outlying Islands"],
+		countries: ["Åland Islands","Albania","Andorra","Austria","Belarus","Belgium","Bosnia and Herzegovina","Bulgaria","Croatia","Cyprus","Czech Republic","Denmark","Estonia","Faroe Islands","Finland","France","Germany","Gibraltar","Greece","Hungary","Iceland","Ireland","Isle of Man","Italy","Jersey","Kosovo","Latvia","Liechtenstein","Lithuania","Luxembourg","Malta","Moldova","Monaco","Montenegro","Netherlands","North Macedonia","Norway","Poland","Portugal","Romania","San Marino","Serbia","Slovakia","Slovenia","Spain","Svalbard and Jan Mayen","Sweden","Switzerland","Ukraine","United Kingdom","Vatican City","Anguilla","Antigua and Barbuda","Barbados","Belize","British Virgin Islands","Canada","Cayman Islands","Costa Rica","Cuba","Dominica","Dominican Republic","El Salvador","Greenland","Grenada","Guadeloupe","Guatemala","Haiti","Honduras","Jamaica","Martinique","Mexico","Montserrat","Nicaragua","Panama","Puerto Rico","Saint Barthélemy","Saint Kitts and Nevis","Saint Lucia","Saint Martin","Saint Pierre and Miquelon","Saint Vincent and the Grenadines","Sint Maarten","The Bahamas","Turks and Caicos Islands","U.S. Virgin Islands","United States of America","United States Minor Outlying Islands"],
 		email: "info@iotsquad.tech",
 		website: "iotsquad.tech",
 	},
@@ -328,7 +327,7 @@ export const DISTRIBUTORS: Distributor[] = [
 	},
 	{
 		name: "LTS-Connecting Things",
-		regions: ["Asia","Middle East"],
+		regions: ["Middle East","Asia"],
 		countries: ["Saudi Arabia"],
 		email: "info@ltsrv.com",
 		website: "www.lts.sa",
@@ -416,6 +415,13 @@ export const DISTRIBUTORS: Distributor[] = [
 		countries: ["Canada","United States of America"],
 		email: "sales@qnectd.com",
 		website: "qnectd.com",
+	},
+	{
+		name: "Quantova",
+		regions: ["Middle East","Asia"],
+		countries: ["United Arab Emirates"],
+		email: "info@quantova.com",
+		website: "quantova.com",
 	},
 	{
 		name: "RFID Solutions AS",
@@ -516,6 +522,13 @@ export const DISTRIBUTORS: Distributor[] = [
 		website: "softone.hu",
 	},
 	{
+		name: "SoftVerx",
+		regions: ["Asia"],
+		countries: ["Pakistan"],
+		email: "info@softverx.com",
+		website: "www.softverx.com",
+	},
+	{
 		name: "Solu Filantropi Teknologi",
 		regions: ["Asia"],
 		countries: ["Indonesia"],
@@ -524,17 +537,10 @@ export const DISTRIBUTORS: Distributor[] = [
 	},
 	{
 		name: "Spectrum Smart Solutions Systems LLC",
-		regions: ["Asia","Middle East"],
+		regions: ["Middle East","Asia"],
 		countries: ["United Arab Emirates"],
 		email: "salem@spectrum.co.ae",
 		website: "spectrum.co.ae",
-	},
-	{
-		name: "StarLinking Networks Co., Ltd.",
-		regions: ["Asia"],
-		countries: ["Taiwan"],
-		email: "star@starlinking.com",
-		website: "starlinking.com",
 	},
 	{
 		name: "Kar-Tel LLP",
@@ -553,9 +559,16 @@ export const DISTRIBUTORS: Distributor[] = [
 	{
 		name: "Techno Pynė",
 		regions: ["Europe"],
-		countries: ["Lietuvos Respublika"],
+		countries: ["Lithuania"],
 		email: "mail@technopyne.lt",
 		website: "technopyne.lt",
+	},
+	{
+		name: "Tektonics Systems",
+		regions: ["Africa"],
+		countries: ["South Africa"],
+		email: "tshepo@tektonics.africa",
+		website: "tektonics.africa",
 	},
 	{
 		name: "Tesla Water",
@@ -573,7 +586,7 @@ export const DISTRIBUTORS: Distributor[] = [
 	},
 	{
 		name: "IoT Experts",
-		regions: ["Asia","Middle East"],
+		regions: ["Middle East","Asia"],
 		countries: ["Israel"],
 		email: "",
 		website: "iot-experts.net",
@@ -643,7 +656,7 @@ export const DISTRIBUTORS: Distributor[] = [
 	},
 	{
 		name: "Vehi.kz LLP",
-		regions: ["Asia"],
+		regions: ["Asia","Europe"],
 		countries: ["Kazakhstan","Uzbekistan","Turkmenistan","Tajikistan","Kyrgyzstan","Armenia","Azerbaijan","Moldova","Belarus"],
 		email: "partner@vehi.kz",
 		website: "vehi.kz",
@@ -697,4 +710,21 @@ export const DISTRIBUTORS: Distributor[] = [
 		email: "delee@n2m.co.kr",
 		website: "n2m.co.kr",
 	},
+	{
+		name: "Okiff",
+		regions: ["North America"],
+		countries: ["Canada"],
+		email: "thingsboard@okiff.com",
+		website: "okiff.com",
+	},
+	{
+		name: "GREENNET",
+		regions: ["Europe","Asia"],
+		countries: ["Ukraine","Poland","Georgia"],
+		email: "info@greennet.ua",
+		website: "greennet.ua",
+	},
 ];
+
+// Throws if this data and REGION_MEMBERSHIP disagree — see ./coverage.ts.
+assertDistributorData(DISTRIBUTORS, REGION_MEMBERSHIP);

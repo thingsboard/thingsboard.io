@@ -1,14 +1,18 @@
 ---
-// Inlines a navigation icon SVG so its `currentColor` fills can be themed
-// from CSS (e.g. menu primary in dark mode). Replacing `<img>` here is what
-// allows `color:` to flow into the SVG — `<img src="...svg">` is opaque to
-// CSS color rules, so we read the SVG content at build time and emit it
-// directly into the DOM.
-const icons = import.meta.glob<string>('/src/assets/images/landings/nav/*.svg', {
-	eager: true,
-	query: '?raw',
-	import: 'default',
-});
+// Navigation icon rendered as a same-origin sprite reference. The mega-menu
+// carries 50+ icons on every page; referencing `public/nav-sprite.svg` via
+// `<use>` keeps that markup out of the HTML stream (one cached file instead)
+// while `currentColor` still inherits into the sprite content, so CSS
+// `color:` theming (e.g. menu primary in dark mode) keeps working.
+//
+// Symbol id and viewBox come from the manifest that is generated TOGETHER
+// with the sprite (scripts/generate-nav-sprite.mjs, run automatically before
+// builds), so the reference and the geometry can't drift apart. After adding
+// or editing an icon in dev, re-run `pnpm generate:nav-sprite`.
+//
+// Sizing matches the previous inline rendering: `width` is set, height is
+// left to the browser to compute from the icon's viewBox aspect ratio.
+import spriteManifest from '@root/assets/images/landings/nav-sprite.manifest.json';
 
 interface Props {
 	src: string | undefined;
@@ -18,35 +22,30 @@ interface Props {
 
 const { src, size = 32, alt } = Astro.props;
 
-/** Escape a string for safe interpolation into an HTML attribute value. */
-const attr = (s: string) =>
-	s
-		.replace(/&/g, '&amp;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;')
-		.replace(/"/g, '&quot;')
-		.replace(/'/g, '&#39;');
+const name = src?.split('/').pop()?.replace(/\.svg$/, '') ?? '';
+const entry = (spriteManifest.icons as Record<string, { id: string; viewBox: string }>)[name];
 
-let svg = '';
-if (src && icons[src]) {
-	svg = icons[src];
-	// Strip XML declaration if present
-	svg = svg.replace(/<\?xml[^>]*\?>\s*/, '');
-	// Match the previous `<img width=N height=N>` + CSS `height: fit-content`
-	// rendering. The old `<img>` was constrained to `size` wide by the
-	// `width=` attribute, but `height: fit-content` made the height fall
-	// back to the SVG's intrinsic height — so a 34×44 viewBox icon was
-	// drawn in a `size`-wide × intrinsic-tall box, with content scaled
-	// to fit (preserveAspectRatio default = xMidYMid meet). Replicating
-	// here: strip the SVG's own width/height, set our `width="${size}"`,
-	// and DON'T set height — the inline svg then computes height from
-	// viewBox + width via the intrinsic aspect ratio.
-	svg = svg.replace(/<svg([^>]*)>/, (_match, attrs: string) => {
-		const cleaned = attrs.replace(/\s*(width|height)="[^"]*"/g, '').trim();
-		const ariaAttrs = alt ? ` role="img" aria-label="${attr(alt)}"` : ' aria-hidden="true"';
-		return `<svg ${cleaned} class="nav-icon" width="${size}"${ariaAttrs}>`;
-	});
+// A missing entry renders nothing, which is invisible in the menu — make the
+// most likely workflow mistake (new icon without regenerating the sprite, or
+// a typoed path) loud in the build/dev-server log instead.
+if (src && !entry) {
+	console.warn(
+		`[NavIcon] no sprite manifest entry for "${name}" (src: ${src}) — run \`pnpm generate:nav-sprite\`?`
+	);
 }
 ---
 
-{svg && <Fragment set:html={svg} />}
+{
+	entry && (
+		<svg
+			class="nav-icon"
+			width={size}
+			viewBox={entry.viewBox}
+			role={alt ? 'img' : undefined}
+			aria-label={alt || undefined}
+			aria-hidden={alt ? undefined : 'true'}
+		>
+			<use href={`/nav-sprite.svg#${entry.id}`} />
+		</svg>
+	)
+}

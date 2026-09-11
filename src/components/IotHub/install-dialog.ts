@@ -6,7 +6,6 @@ import {
 	IOT_HUB_STRINGS,
 	buildInstallUrl,
 	getInstallVerb,
-	isInstanceAvailable,
 	stripScheme,
 	stripTrailingSlash,
 	type InstallInstance,
@@ -16,14 +15,18 @@ import { lockScroll, unlockScroll } from '@util/scroll-lock';
 
 const S = IOT_HUB_STRINGS.installDialog;
 
-interface OpenContext {
+export interface OpenContext {
 	slug: string;
 	itemType: string;
 	affiliateId: string | null;
+	/** Built-in content: the dialog opens the item rather than installing it. */
+	builtIn: boolean;
 }
 
 let dialog: HTMLDialogElement | null = null;
-let localBase = INSTALL_LOCAL_DEFAULT;
+// Reading storage at module scope is already lazy: the only consumer is the
+// boot module's dynamic import(), so evaluation happens on first trigger click.
+let localBase = readLocalBase();
 let current: OpenContext | null = null;
 let copyResetTimer: number | undefined;
 let flashedCopyBtn: HTMLElement | null = null;
@@ -92,21 +95,11 @@ function rowMarkup(inst: InstallInstance): string {
 				<p class="iot-hub-install-dialog__error" id="${errorId}" data-error hidden>${S.invalidUrl}</p>
 			</div>`
 		: '';
-	// Instances with a future `availableFrom` aren't live yet — show a
-	// "coming soon" badge instead of the copy + action buttons.
-	const available = isInstanceAvailable(inst);
-	const actions = available
-		? `<div class="iot-hub-install-dialog__row-actions">
+	const actions = `<div class="iot-hub-install-dialog__row-actions">
 				<button type="button" class="iot-hub-install-dialog__icon-btn" data-copy aria-label="${S.copy}">${icon('copy', 24)}</button>
 				<a class="iot-hub-install-dialog__action" data-open target="_blank" rel="noopener"><span data-verb></span>${icon('external-link', 20)}</a>
-			</div>`
-		: `<div class="iot-hub-install-dialog__row-actions">
-				<span class="iot-hub-install-dialog__badge">${S.comingSoonBadge}</span>
 			</div>`;
-	const rowClass = available
-		? 'iot-hub-install-dialog__row'
-		: 'iot-hub-install-dialog__row iot-hub-install-dialog__row--coming-soon';
-	return `<li class="${rowClass}" data-instance="${inst.key}">
+	return `<li class="iot-hub-install-dialog__row" data-instance="${inst.key}">
 			<span class="iot-hub-install-dialog__row-icon" aria-hidden="true">${icon(inst.icon, 32)}</span>
 			<div class="iot-hub-install-dialog__row-main">
 				<span class="iot-hub-install-dialog__row-label">${inst.label}</span>
@@ -126,7 +119,7 @@ function buildDialog(): HTMLDialogElement {
 				<h2 class="iot-hub-install-dialog__title" data-title></h2>
 				<button type="button" class="iot-hub-install-dialog__close" data-close aria-label="${S.closeAriaLabel}">${icon('x', 24)}</button>
 			</header>
-			<p class="iot-hub-install-dialog__subtitle">${S.subtitle}</p>
+			<p class="iot-hub-install-dialog__subtitle" data-subtitle></p>
 			<ul class="iot-hub-install-dialog__rows" role="list">${INSTALL_INSTANCES.map(rowMarkup).join('')}</ul>
 		</div>`;
 
@@ -188,9 +181,19 @@ function refresh(): void {
 	if (!dialog || !current) return;
 	window.clearTimeout(copyResetTimer);
 	flashedCopyBtn = null;
-	const verb = getInstallVerb(current.itemType);
+	const verb = getInstallVerb(current.itemType, 'card', current.builtIn);
 	const title = dialog.querySelector('[data-title]');
-	if (title) title.textContent = verb === 'Connect' ? S.titleConnect : S.title;
+	if (title) {
+		title.textContent = current.builtIn
+			? S.titleOpen
+			: verb === 'Connect'
+				? S.titleConnect
+				: S.title;
+	}
+	// Set per-open rather than baked into the shell: one dialog instance serves
+	// every trigger on the page, built-in or not.
+	const subtitle = dialog.querySelector('[data-subtitle]');
+	if (subtitle) subtitle.textContent = current.builtIn ? S.subtitleOpen : S.subtitle;
 
 	for (const inst of INSTALL_INSTANCES) {
 		const row = dialog.querySelector<HTMLElement>(`[data-instance="${inst.key}"]`);
@@ -331,48 +334,17 @@ function saveEdit(): void {
 
 // --- Open + global wiring ------------------------------------------------
 
-function open(ctx: OpenContext): void {
+// Entry point invoked by install-dialog-boot on the first trigger click.
+export function openFor(ctx: OpenContext): void {
 	if (!ctx.slug) return;
 	if (!dialog) dialog = buildDialog();
+	// Two rapid clicks can race the dynamic import and both reach here —
+	// showModal() on an already-open dialog throws.
+	if (dialog.open) return;
 	window.clearTimeout(unlockTimer);
 	current = ctx;
 	cancelEdit();
 	refresh();
 	lockScroll();
 	dialog.showModal();
-}
-
-function onDocClick(e: MouseEvent): void {
-	const trigger = (e.target as Element).closest<HTMLElement>(
-		'[data-iot-hub-install-trigger]'
-	);
-	if (!trigger) return;
-	// The card button is nested inside the card's <a> — block navigation.
-	e.preventDefault();
-	e.stopPropagation();
-	open({
-		slug: trigger.dataset.slug ?? '',
-		itemType: trigger.dataset.itemType ?? '',
-		affiliateId: trigger.dataset.affiliateId || null,
-	});
-}
-
-function init(): void {
-	localBase = readLocalBase();
-	document.addEventListener('click', onDocClick);
-}
-
-declare global {
-	interface Window {
-		__tbInstallDialogInit?: boolean;
-	}
-}
-
-if (typeof window !== 'undefined' && !window.__tbInstallDialogInit) {
-	window.__tbInstallDialogInit = true;
-	if (document.readyState === 'loading') {
-		document.addEventListener('DOMContentLoaded', init, { once: true });
-	} else {
-		init();
-	}
 }

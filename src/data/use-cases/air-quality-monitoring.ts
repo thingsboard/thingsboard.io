@@ -53,7 +53,7 @@ export const data: UseCaseData = {
 	solutionStructure: {
 		title: 'Solution structure of air quality monitoring',
 		shortText:
-			'An <a href="/docs/pe/recipes/solution-templates/air-quality-monitoring/">air quality monitoring solution</a> powered by ThingsBoard consists of IoT sensors that collect real-time data on pollutants such as PM2.5, PM10, CO, SO₂, NO₂, and O₃. These devices transmit telemetry to the platform via industry-standard communication protocols, including MQTT, HTTP/HTTPS, CoAP, and LwM2M — enabling flexible integration across sectors.',
+			'An <a href="/iot-hub/solution-templates/air-quality-index/">air quality monitoring solution</a> powered by ThingsBoard consists of IoT sensors that collect real-time data on pollutants such as PM2.5, PM10, CO, SO₂, NO₂, and O₃. These devices transmit telemetry to the platform via industry-standard communication protocols, including MQTT, HTTP/HTTPS, CoAP, and LwM2M — enabling flexible integration across sectors.',
 		longText: [
 			'Once received by ThingsBoard, the data is processed, stored in a time-series database, and visualized via interactive dashboards. Custom rule chains allow the generation of automated alarms when AQI thresholds are breached or sensor battery levels drop below critical levels.',
 		],

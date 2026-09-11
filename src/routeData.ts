@@ -376,9 +376,8 @@ function updateHead(context: APIContext, isTutorial: boolean) {
 		head.push({ tag: 'meta', attrs: { property: 'og:image', content: canonicalImageSrc } });
 	}
 
-	// Search pages render a search widget with no indexable content. Keep them
-	// out of search results (consistent with the sitemap exclusion).
-	if (pathname.endsWith('/search/')) {
+	// noindex docs search widgets. IoT Hub search is an indexable listing.
+	if (isDocs && pathname.endsWith('/search/')) {
 		head.push({ tag: 'meta', attrs: { name: 'robots', content: 'noindex, follow' } });
 	}
 

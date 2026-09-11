@@ -6,7 +6,6 @@ import {
 	getUseCaseCardInputs,
 	getMarketingCardInputs,
 	getPartnerCardInputs,
-	getCareerCardInputs,
 	getCollectionIndexInputs,
 	type CardInput,
 } from '@root/pages/open-graph/_shared/page-data';
@@ -38,7 +37,6 @@ const routeIndex = new Map<string, string>([
 	// strip turns the `/` lookup into '' and matches.
 	...fromInputs(await getMarketingCardInputs(),  (s) => (s === 'index' ? '' : `/${s}`),          '/open-graph/pages'),
 	...fromInputs(await getPartnerCardInputs(),    (s) => `/partners/hardware/${s}`,               '/open-graph/partners'),
-	...fromInputs(await getCareerCardInputs(),     (s) => `/careers/${s}`,                         '/open-graph/careers'),
 	...fromInputs(await getCollectionIndexInputs(),(s) => COLLECTION_INDEX_URLS[s] ?? `/${s}`,     '/open-graph/pages'),
 	...fromInputs(await getIotHubCardInputs(),     (s) => (s === 'index' ? '/iot-hub' : `/iot-hub/${s}`), '/open-graph/iot-hub'),
 ]);
