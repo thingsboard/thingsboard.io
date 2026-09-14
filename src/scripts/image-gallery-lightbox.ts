@@ -29,10 +29,13 @@ function syncCdnAnchorDims(anchor: HTMLElement) {
 	else img.addEventListener('load', apply, { once: true });
 }
 
-// Share of the pan area a CDN image is allowed to take. Short of 1 on purpose:
-// it keeps a strip of backdrop on every side, so the picture never runs under
-// the close button and there is always somewhere to click to dismiss.
-const CDN_VIEWPORT_FILL = 0.86;
+// Share of the pan area a CDN image is allowed to take, so the picture never runs
+// under the close button and there is always backdrop left to click to dismiss.
+// Two values because the two cases need different amounts of it: a picture being
+// shrunk to fit is large and can spare the room, while one being enlarged is
+// short of size in the first place and only needs the close button kept clear.
+const CDN_SHRINK_FILL = 0.86;
+const CDN_GROW_FILL = 0.95;
 // PhotoSwipe's 'fit' never scales past 1:1, so an image smaller than the
 // viewport opens as a small rectangle marooned on a large screen. Pipeline
 // images are wide enough for that to be the right call; CDN images are not —
@@ -52,9 +55,11 @@ function fitCdnImage(zoomLevel: ZoomLevel): number {
 	if (el?.dataset.pswpCdn !== 'true' || !panAreaSize || !elementSize?.x || !elementSize.y) {
 		return zoomLevel.fit;
 	}
-	const fitRatio =
-		Math.min(panAreaSize.x / elementSize.x, panAreaSize.y / elementSize.y) * CDN_VIEWPORT_FILL;
-	return Math.min(fitRatio, MAX_CDN_UPSCALE);
+	const fitRatio = Math.min(panAreaSize.x / elementSize.x, panAreaSize.y / elementSize.y);
+	if (fitRatio <= 1) {
+		return fitRatio * CDN_SHRINK_FILL;
+	}
+	return Math.min(fitRatio * CDN_GROW_FILL, MAX_CDN_UPSCALE);
 }
 
 type LightboxSlide = PhotoSwipeEventsMap['slideActivate']['slide'];
@@ -117,7 +122,12 @@ function init() {
 		pswpModule: () => import('photoswipe'),
 		showHideAnimationType: 'zoom',
 		bgOpacity: 1,
-		padding: { top: 24, bottom: 64, left: 24, right: 24 },
+		// Symmetric on purpose: PhotoSwipe centres the image inside the padded box,
+		// so an uneven top/bottom pushes it off the middle of the screen — and up
+		// under the close button, once an undersized image is allowed to grow into
+		// the space. The caption floats over the bottom padding rather than
+		// reserving any.
+		padding: { top: 64, bottom: 64, left: 24, right: 24 },
 		wheelToZoom: true,
 		loop: false,
 		zoom: false,
