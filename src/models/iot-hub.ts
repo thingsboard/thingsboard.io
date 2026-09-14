@@ -387,8 +387,8 @@ export const ITEM_SUBTYPE_LABELS: Partial<Record<IotHubItemType, Record<string, 
 // params it maps to (`sortProperty` + `sortOrder`), so consumers can spread
 // them straight into the listings request without a second lookup.
 
-export type IotHubSortId = 'most-installed' | 'newest' | 'name-asc';
-export type IotHubSortProperty = 'installCount' | 'publishedTime' | 'name';
+export type IotHubSortId = 'most-relevant' | 'most-installed' | 'newest' | 'name-asc';
+export type IotHubSortProperty = 'relevance' | 'installCount' | 'publishedTime' | 'name';
 export type IotHubSortDirection = 'ASC' | 'DESC';
 
 export interface IotHubSortOption {
@@ -399,16 +399,50 @@ export interface IotHubSortOption {
 }
 
 export const IOT_HUB_SORT_OPTIONS: ReadonlyArray<IotHubSortOption> = [
+	{ id: 'most-relevant',  label: 'Most Relevant',  sortProperty: 'relevance',     sortOrder: 'DESC' },
 	{ id: 'most-installed', label: 'Most Installed', sortProperty: 'installCount',  sortOrder: 'DESC' },
 	{ id: 'newest',         label: 'Newest',         sortProperty: 'publishedTime', sortOrder: 'DESC' },
 	{ id: 'name-asc',       label: 'Name (A-Z)',     sortProperty: 'name',          sortOrder: 'ASC'  },
 ];
 
-export const DEFAULT_IOT_HUB_SORT_ID: IotHubSortId = 'most-installed';
+// Relevance is the default in BOTH states, which is why nothing here switches on
+// whether the search field has text. With text it ranks the answer; without it the
+// backend substitutes the install count — measured identical, row for row, across
+// all 665 listings — so a visitor who never touches the control sees the order they
+// always saw while browsing, and the best matches once they type.
+//
+// The alternative was to default to 'most-installed' and have the control flip to
+// 'most-relevant' by itself while the field had text. Rejected: the flip happens
+// without anyone asking for it. The cost accepted instead is that on a query-less
+// page the label says "Most Relevant" over an install-ordered list, and switching
+// to "Most Installed" there changes nothing visible.
+export const DEFAULT_IOT_HUB_SORT_ID: IotHubSortId = 'most-relevant';
+
+// Resolved by id, not by position, so the default survives a reordering of the
+// options array — the list is written best-first for the menu, which is a
+// presentation decision and not one this fallback should depend on.
+const DEFAULT_IOT_HUB_SORT_OPTION: IotHubSortOption =
+	IOT_HUB_SORT_OPTIONS.find((o) => o.id === DEFAULT_IOT_HUB_SORT_ID) ?? IOT_HUB_SORT_OPTIONS[0];
 
 export function getIotHubSortOption(id: string | null | undefined): IotHubSortOption {
-	return IOT_HUB_SORT_OPTIONS.find((o) => o.id === id) ?? IOT_HUB_SORT_OPTIONS[0];
+	return IOT_HUB_SORT_OPTIONS.find((o) => o.id === id) ?? DEFAULT_IOT_HUB_SORT_OPTION;
 }
+
+// --- Grouped search ----------------------------------------------------------
+
+// Section order in the hero popup — the only surface here that groups. Must equal
+// the platform's TYPE_ORDER in
+// iot-hub-search.component.ts — the same query answered by the two clients must lay
+// out the same way. IOT_HUB_CATEGORIES happens to agree today; this constant is what
+// keeps it true when someone reorders that registry for a navigation reason.
+export const IOT_HUB_TYPE_ORDER: ReadonlyArray<IotHubItemType> = [
+	'DEVICE',
+	'SOLUTION_TEMPLATE',
+	'WIDGET',
+	'CALCULATED_FIELD',
+	'ALARM_RULE',
+	'RULE_CHAIN',
+];
 
 export const getSubtypeLabel = (itemType: IotHubItemType, key: string): string =>
 	ITEM_SUBTYPE_LABELS[itemType]?.[key] ?? key;
@@ -534,6 +568,13 @@ export const listingViewSchema = z.object({
 	creatorVerified: z.boolean().default(false),
 	creatorAffiliateId: z.string().nullable().default(null),
 	screenshots: z.array(screenshotResourceSchema).default([]),
+	// Total rows of this item's type behind a grouped response — the section's
+	// "+N more" is derived from it. Only a `grouped=true` response carries a number:
+	// a flat read projects the column as NULL and Jackson serialises it, so the field
+	// arrives as `null` rather than absent. Hence nullable AND optional — the static
+	// content collections are built from flat fetches, and `z.number().optional()`
+	// alone failed every one of their rows at sync time.
+	typeTotal: z.number().nullable().optional(),
 });
 
 export const listingDetailSchema = listingViewSchema.extend({
