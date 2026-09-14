@@ -66,6 +66,14 @@ type LightboxSlide = PhotoSwipeEventsMap['slideActivate']['slide'];
 
 function syncSlideToImage(slide: LightboxSlide | undefined) {
 	if (!slide) return;
+	// CDN images only. Their declared dimensions are the markup's placeholder, so the
+	// loaded image is the better source. A pipeline image's are authoritative, and
+	// per theme variant: ImageGallery declares the light asset's size while the dark
+	// one is a separate file. Measuring there would write the showing theme's
+	// dimensions onto the anchor, and the theme observer's refreshSlideContent would
+	// then re-derive the other theme's image from them — wrong from that point on.
+	const anchor = slide.data.element;
+	if (anchor?.dataset.pswpCdn !== 'true') return;
 	const content = slide.content;
 	if (!content) return;
 	const img = content.element;
@@ -87,11 +95,8 @@ function syncSlideToImage(slide: LightboxSlide | undefined) {
 	// and the zoom-from-thumbnail animation — start from the real ratio.
 	slide.data.width = naturalWidth;
 	slide.data.height = naturalHeight;
-	const anchor = slide.data.element;
-	if (anchor) {
-		anchor.dataset.pswpWidth = String(naturalWidth);
-		anchor.dataset.pswpHeight = String(naturalHeight);
-	}
+	anchor.dataset.pswpWidth = String(naturalWidth);
+	anchor.dataset.pswpHeight = String(naturalHeight);
 	// Re-lay the slide out from the corrected size. Deliberately not
 	// `slide.resize()`: when the dimensions land mid opening-animation — the
 	// common case, since that is when the image finishes loading — its current
@@ -229,9 +234,17 @@ function init() {
 			},
 		});
 
-		// Preload neighbours so swipe is instant.
+		// Preload neighbours so swipe is instant, and let a host that shows the same
+		// images itself — the IoT Hub carousel — follow along. Without that it stays
+		// on the slide the lightbox was opened from: the closing zoom animates
+		// towards whichever thumbnail PhotoSwipe re-measures at close time, which by
+		// then has scrolled out of the carousel's viewport.
 		pswp.on('change', () => {
 			if (!pswp) return;
+			const el = pswp.currSlide?.data.element;
+			el?.closest('.image-gallery')?.dispatchEvent(
+				new CustomEvent('tb-lightbox-slide-change', { detail: pswp.currIndex })
+			);
 			const cur = pswp.currIndex;
 			[cur - 1, cur + 1].forEach((i) => {
 				const data = pswp!.getItemData(i);
