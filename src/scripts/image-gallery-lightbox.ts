@@ -2,7 +2,7 @@
 // loader in config/integrations/image-gallery-lightbox.ts.
 import PhotoSwipeLightbox from 'photoswipe/lightbox';
 import type PhotoSwipe from 'photoswipe';
-import type { SlideData, ZoomLevelOption } from 'photoswipe';
+import type { PhotoSwipeEventsMap, SlideData, ZoomLevelOption } from 'photoswipe';
 import { lockScroll, unlockScroll } from '@util/scroll-lock';
 
 // Destroyed and rebuilt on each init() to avoid duplicate handlers / observers.
@@ -55,6 +55,51 @@ function fitCdnImage(zoomLevel: ZoomLevel): number {
 	const fitRatio =
 		Math.min(panAreaSize.x / elementSize.x, panAreaSize.y / elementSize.y) * CDN_VIEWPORT_FILL;
 	return Math.min(fitRatio, MAX_CDN_UPSCALE);
+}
+
+type LightboxSlide = PhotoSwipeEventsMap['slideActivate']['slide'];
+
+function syncSlideToImage(slide: LightboxSlide | undefined) {
+	if (!slide) return;
+	const content = slide.content;
+	if (!content) return;
+	const img = content.element;
+	if (!(img instanceof HTMLImageElement)) return;
+
+	const { naturalWidth, naturalHeight } = img;
+	if (!naturalWidth || !naturalHeight) {
+		// Still decoding — measure it when it lands.
+		img.addEventListener('load', () => syncSlideToImage(slide), { once: true });
+		return;
+	}
+	if (slide.width === naturalWidth && slide.height === naturalHeight) return;
+
+	content.width = naturalWidth;
+	content.height = naturalHeight;
+	slide.width = naturalWidth;
+	slide.height = naturalHeight;
+	// Keep the item data and the anchor in step too, so reopening the gallery —
+	// and the zoom-from-thumbnail animation — start from the real ratio.
+	slide.data.width = naturalWidth;
+	slide.data.height = naturalHeight;
+	const anchor = slide.data.element;
+	if (anchor) {
+		anchor.dataset.pswpWidth = String(naturalWidth);
+		anchor.dataset.pswpHeight = String(naturalHeight);
+	}
+	// Re-lay the slide out from the corrected size. Deliberately not
+	// `slide.resize()`: when the dimensions land mid opening-animation — the
+	// common case, since that is when the image finishes loading — its current
+	// zoom level does not yet equal the initial one, so it takes the branch that
+	// only readjusts panning and never re-sizes the element, leaving the picture
+	// in its stretched box. This is that method's other branch, forced. Resetting
+	// the zoom is correct regardless: the level it would preserve was computed
+	// from the wrong dimensions.
+	slide.calculateSize();
+	slide.currentResolution = 0;
+	slide.zoomAndPanToInitial();
+	slide.applyCurrentZoomPan();
+	slide.updateContentSize(true);
 }
 
 function init() {
@@ -130,6 +175,23 @@ function init() {
 		const isDark = document.documentElement.dataset.theme === 'dark';
 		const selector = isDark ? 'img:not(.light-only)' : 'img:not(.dark-only)';
 		return (el?.querySelector<HTMLImageElement>(selector) ?? thumbnail ?? el) as HTMLElement;
+	});
+
+	// A CDN thumbnail that hasn't loaded yet leaves its anchor on the placeholder
+	// dimensions, and PhotoSwipe sizes the slide from those — so the picture
+	// opens stretched to the placeholder's 16:9 and stays that way, because
+	// nothing re-measures it once the full image arrives. Carousel slides load
+	// lazily, so the last one regularly hasn't loaded by the time it is clicked.
+	//
+	// `slideActivate` covers the slide that was clicked: the lightbox preloads
+	// its image before a Slide exists, so `loadComplete` is never dispatched for
+	// it — only for the neighbours it preloads afterwards. Between the two hooks
+	// every slide is measured from the image PhotoSwipe actually loaded. For a
+	// pipeline image, whose build-time dimensions are already right, both are
+	// no-ops.
+	lb.on('slideActivate', ({ slide }) => syncSlideToImage(slide));
+	lb.on('loadComplete', ({ slide, isError }) => {
+		if (!isError) syncSlideToImage(slide);
 	});
 
 	let pswp: PhotoSwipe | undefined;
