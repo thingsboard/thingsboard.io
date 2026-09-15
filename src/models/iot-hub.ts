@@ -392,8 +392,8 @@ export const ITEM_SUBTYPE_LABELS: Partial<Record<IotHubItemType, Record<string, 
 // params it maps to (`sortProperty` + `sortOrder`), so consumers can spread
 // them straight into the listings request without a second lookup.
 
-export type IotHubSortId = 'most-installed' | 'newest' | 'name-asc';
-export type IotHubSortProperty = 'installCount' | 'publishedTime' | 'name';
+export type IotHubSortId = 'most-relevant' | 'most-installed' | 'newest' | 'name-asc';
+export type IotHubSortProperty = 'relevance' | 'installCount' | 'publishedTime' | 'name';
 export type IotHubSortDirection = 'ASC' | 'DESC';
 
 export interface IotHubSortOption {
@@ -404,15 +404,45 @@ export interface IotHubSortOption {
 }
 
 export const IOT_HUB_SORT_OPTIONS: ReadonlyArray<IotHubSortOption> = [
+	{ id: 'most-relevant',  label: 'Most Relevant',  sortProperty: 'relevance',     sortOrder: 'DESC' },
 	{ id: 'most-installed', label: 'Most Installed', sortProperty: 'installCount',  sortOrder: 'DESC' },
 	{ id: 'newest',         label: 'Newest',         sortProperty: 'publishedTime', sortOrder: 'DESC' },
 	{ id: 'name-asc',       label: 'Name (A-Z)',     sortProperty: 'name',          sortOrder: 'ASC'  },
 ];
 
-export const DEFAULT_IOT_HUB_SORT_ID: IotHubSortId = 'most-installed';
+// Relevance is the default in BOTH states, which is why nothing here switches on
+// whether the search field has text. With text it ranks the answer; without it the
+// backend substitutes the install count — measured identical, row for row, across
+// all 665 listings — so a visitor who never touches the control sees the order they
+// always saw while browsing, and the best matches once they type.
+//
+// The alternative was to default to 'most-installed' and have the control flip to
+// 'most-relevant' by itself while the field had text. Rejected: the flip happens
+// without anyone asking for it. The cost accepted instead is that on a query-less
+// page the label says "Most Relevant" over an install-ordered list, and switching
+// to "Most Installed" there changes nothing visible.
+export const DEFAULT_IOT_HUB_SORT_ID: IotHubSortId = 'most-relevant';
+
+// Resolved by id, not by position, so the default survives a reordering of the
+// options array — the list is written best-first for the menu, which is a
+// presentation decision and not one this fallback should depend on.
+const DEFAULT_IOT_HUB_SORT_OPTION: IotHubSortOption =
+	IOT_HUB_SORT_OPTIONS.find((o) => o.id === DEFAULT_IOT_HUB_SORT_ID) ?? IOT_HUB_SORT_OPTIONS[0];
 
 export function getIotHubSortOption(id: string | null | undefined): IotHubSortOption {
-	return IOT_HUB_SORT_OPTIONS.find((o) => o.id === id) ?? IOT_HUB_SORT_OPTIONS[0];
+	return IOT_HUB_SORT_OPTIONS.find((o) => o.id === id) ?? DEFAULT_IOT_HUB_SORT_OPTION;
+}
+
+// --- Grouped search ----------------------------------------------------------
+
+// A grouped search answers with one section per item type, in the server's order —
+// the same order the platform's popup gets, which is the point of it being the
+// server's. The site renders what it is given rather than re-sorting.
+export interface IotHubSearchSection {
+	itemType: IotHubItemType;
+	/** Rows of this type the search matched, which is at least what the section carries. */
+	total: number;
+	items: ListingView[];
 }
 
 export const getSubtypeLabel = (itemType: IotHubItemType, key: string): string =>
