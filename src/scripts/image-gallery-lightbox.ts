@@ -49,17 +49,44 @@ const MAX_CDN_UPSCALE = 2;
 type ZoomLevelArg<T> = T extends (zoomLevelObject: infer Z) => number ? Z : never;
 type ZoomLevel = ZoomLevelArg<ZoomLevelOption>;
 
-function fitCdnImage(zoomLevel: ZoomLevel): number {
+// Scale that puts a CDN image inside the pan area, above 1 when the image is
+// smaller than the area. `null` for anything this override does not own — a
+// pipeline image, or a slide PhotoSwipe has not measured yet.
+function cdnFitRatio(zoomLevel: ZoomLevel): number | null {
 	const { panAreaSize, elementSize } = zoomLevel;
 	const el = zoomLevel.itemData?.element as HTMLElement | undefined;
 	if (el?.dataset.pswpCdn !== 'true' || !panAreaSize || !elementSize?.x || !elementSize.y) {
+		return null;
+	}
+	return Math.min(panAreaSize.x / elementSize.x, panAreaSize.y / elementSize.y);
+}
+
+function fitCdnImage(zoomLevel: ZoomLevel): number {
+	const fitRatio = cdnFitRatio(zoomLevel);
+	if (fitRatio === null) {
 		return zoomLevel.fit;
 	}
-	const fitRatio = Math.min(panAreaSize.x / elementSize.x, panAreaSize.y / elementSize.y);
 	if (fitRatio <= 1) {
 		return fitRatio * CDN_SHRINK_FILL;
 	}
 	return Math.min(fitRatio * CDN_GROW_FILL, MAX_CDN_UPSCALE);
+}
+
+// The level a click or double-tap toggles to. PhotoSwipe's 'zoom-or-close'
+// action reads `secondary !== initial` as "this image can be zoomed" and
+// toggles; only when the two are equal does it fall through to
+// clickToCloseNonZoomable and dismiss. Its own secondary never exceeds 1:1,
+// so an image we open *above* that would shrink on click — and on double-tap,
+// where the gesture means magnify — instead of closing. Pin it to the initial
+// level for those. Every other image returns 0, which PhotoSwipe reads as "not
+// set" and answers with its own default, so a large screenshot opened shrunk
+// still zooms to full resolution on click.
+function secondaryCdnZoom(zoomLevel: ZoomLevel): number {
+	const fitRatio = cdnFitRatio(zoomLevel);
+	if (fitRatio === null || fitRatio <= 1) {
+		return 0;
+	}
+	return fitCdnImage(zoomLevel);
 }
 
 type LightboxSlide = PhotoSwipeEventsMap['slideActivate']['slide'];
@@ -81,8 +108,13 @@ function syncSlideToImage(slide: LightboxSlide | undefined) {
 
 	const { naturalWidth, naturalHeight } = img;
 	if (!naturalWidth || !naturalHeight) {
-		// Still decoding — measure it when it lands.
-		img.addEventListener('load', () => syncSlideToImage(slide), { once: true });
+		// Still decoding — measure it when it lands. An image that is already
+		// complete without intrinsic dimensions (an SVG carrying only a viewBox,
+		// or a src that failed) has had its `load` and will never fire another,
+		// so there is nothing to wait for: leave the slide on its declared size.
+		if (!img.complete) {
+			img.addEventListener('load', () => syncSlideToImage(slide), { once: true });
+		}
 		return;
 	}
 	if (slide.width === naturalWidth && slide.height === naturalHeight) return;
@@ -137,6 +169,7 @@ function init() {
 		loop: false,
 		zoom: false,
 		initialZoomLevel: fitCdnImage,
+		secondaryZoomLevel: secondaryCdnZoom,
 	});
 
 	// Anchors inside interactive SVG thumbs navigate natively; lightbox stays closed.
