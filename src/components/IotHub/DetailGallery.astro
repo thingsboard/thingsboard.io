@@ -1,50 +1,67 @@
 ---
-import { IOT_HUB_API_URL } from '@models/iot-hub';
+import PhotoSwipeStyles from '@components/PhotoSwipeStyles.astro';
 
-// Interactive image carousel for solution-template screenshots. Drop-in
-// for the detail hero's preview slot when a listing has multiple
-// screenshots — single-screenshot listings get a still image rendered by
-// DetailHero directly. Scoped Astro markup + a small is:inline script for
-// prev/next + dot navigation and gentle auto-advance; no carousel library.
+// Interactive image carousel for a listing's images, whatever its item type.
+// Drop-in for the detail hero's preview slot whenever a listing ships
+// screenshots; a listing without them keeps the still `detail.image` that
+// DetailHero renders directly. A dumb renderer — the caller resolves the URLs
+// and decides the order (preview image first, then screenshots). Prev/next and
+// the dots only appear from the second image on. Scoped Astro markup + a small
+// is:inline script for prev/next + dot navigation and gentle auto-advance; no
+// carousel library. Each slide is also a `.gallery-thumb` inside an
+// `.image-gallery` root, the markup contract the site-wide PhotoSwipe loader
+// looks for — clicking an image opens the whole set full screen, starting on
+// that slide.
 
 interface Props {
-	screenshots: Array<{ id: string }>;
+	images: Array<{ src: string; alt: string }>;
 	listingName: string;
 }
 
-const { screenshots, listingName } = Astro.props;
-const resourceUrl = (id: string) => `${IOT_HUB_API_URL}/api/resources/${id}`;
+const { images, listingName } = Astro.props;
 ---
 
 {
-	screenshots.length > 0 && (
+	images.length > 0 && (
 		<div
-			class="iot-hub-gallery"
+			class="iot-hub-gallery image-gallery"
 			role="region"
 			aria-roledescription="carousel"
-			aria-label={`${listingName} screenshots`}
+			aria-label={`${listingName} images`}
 			data-iot-hub-gallery
 		>
 			<div class="iot-hub-gallery__viewport">
 				<ul class="iot-hub-gallery__track" data-track>
-					{screenshots.map((s, i) => (
+					{images.map((image, i) => (
 						<li
 							class="iot-hub-gallery__slide"
 							role="group"
 							aria-roledescription="slide"
-							aria-label={`${i + 1} of ${screenshots.length}`}
+							aria-label={`${i + 1} of ${images.length}`}
 						>
-							<img
-								src={resourceUrl(s.id)}
-								alt={`${listingName} screenshot ${i + 1}`}
-								loading={i === 0 ? 'eager' : 'lazy'}
-								decoding="async"
-							/>
+							{/* Hub images come from the API, so their dimensions are
+							    unknown at build time — `data-pswp-cdn` tells the lightbox
+							    to read naturalWidth/Height off the rendered <img>. */}
+							<a
+								class="gallery-thumb"
+								href={image.src}
+								data-pswp-width="1600"
+								data-pswp-height="900"
+								data-pswp-cdn="true"
+								aria-label={`View full size: ${image.alt}`}
+							>
+								<img
+									src={image.src}
+									alt={image.alt}
+									loading={i === 0 ? 'eager' : 'lazy'}
+									decoding="async"
+								/>
+							</a>
 						</li>
 					))}
 				</ul>
 			</div>
-			{screenshots.length > 1 && (
+			{images.length > 1 && (
 				<div class="iot-hub-gallery__controls">
 					<button
 						type="button"
@@ -63,7 +80,7 @@ const resourceUrl = (id: string) => `${IOT_HUB_API_URL}/api/resources/${id}`;
 						</svg>
 					</button>
 					<div class="iot-hub-gallery__dots" role="group" aria-label="Select slide">
-						{screenshots.map((_, i) => (
+						{images.map((_, i) => (
 							<button
 								type="button"
 								class="iot-hub-gallery__dot"
@@ -95,6 +112,8 @@ const resourceUrl = (id: string) => `${IOT_HUB_API_URL}/api/resources/${id}`;
 		</div>
 	)
 }
+
+<PhotoSwipeStyles />
 
 <style lang="scss">
 	@use '../../styles/_variables.scss' as *;
@@ -155,6 +174,21 @@ const resourceUrl = (id: string) => `${IOT_HUB_API_URL}/api/resources/${id}`;
 		align-items: center;
 		justify-content: center;
 		overflow: hidden;
+
+		// The lightbox trigger fills the slide box so the whole frame is
+		// clickable, not just the letterboxed picture inside it.
+		.gallery-thumb {
+			display: block;
+			width: 100%;
+			height: 100%;
+			cursor: zoom-in;
+			-webkit-user-drag: none;
+
+			&:focus-visible {
+				outline: 2px solid var(--color-primary);
+				outline-offset: -2px;
+			}
+		}
 
 		img {
 			width: 100%;
@@ -282,6 +316,7 @@ const resourceUrl = (id: string) => `${IOT_HUB_API_URL}/api/resources/${id}`;
 			if (!track || total <= 1) return;
 
 			const dots = gallery.querySelectorAll('[data-dot]');
+			const thumbs = track.querySelectorAll('.gallery-thumb');
 			const prevBtn = gallery.querySelector('[data-prev]');
 			const nextBtn = gallery.querySelector('[data-next]');
 
@@ -295,6 +330,13 @@ const resourceUrl = (id: string) => `${IOT_HUB_API_URL}/api/resources/${id}`;
 					if (i === idx) dots[i].setAttribute('aria-current', 'true');
 					else dots[i].removeAttribute('aria-current');
 				}
+				// Only the visible screenshot is a tab stop. Off-screen slides stay
+				// in the DOM (PhotoSwipe reads the whole set from there), but
+				// focusing one would make the browser scroll the viewport sideways
+				// and fight the track's translateX.
+				for (let i = 0; i < thumbs.length; i++) {
+					thumbs[i].tabIndex = i === idx ? 0 : -1;
+				}
 			}
 
 			function go(n) {
@@ -307,7 +349,11 @@ const resourceUrl = (id: string) => `${IOT_HUB_API_URL}/api/resources/${id}`;
 				// doubles as the one-shot guard for both start triggers below.
 				if (reduceMotion || timer) return;
 				timer = window.setInterval(function () {
-					if (!paused) go(idx + 1);
+					// Hold while the lightbox is up: focus has left the gallery, so the
+					// focusout pause no longer applies, and advancing underneath would
+					// leave a different slide behind the overlay than the one focus
+					// returns to on close.
+					if (!paused && !document.querySelector('.pswp--open')) go(idx + 1);
 				}, AUTOPLAY_MS);
 			}
 
@@ -315,6 +361,13 @@ const resourceUrl = (id: string) => `${IOT_HUB_API_URL}/api/resources/${id}`;
 			if (nextBtn) nextBtn.addEventListener('click', function () { go(idx + 1); });
 			dots.forEach(function (d, i) {
 				d.addEventListener('click', function () { go(i); });
+			});
+
+			// The lightbox shows this same set; follow whichever slide it moves to, so
+			// closing it lands back on the image that was on screen — and so its
+			// zoom-out animates towards a thumbnail that is actually in view.
+			gallery.addEventListener('tb-lightbox-slide-change', function (e) {
+				if (typeof e.detail === 'number') go(e.detail);
 			});
 
 			gallery.addEventListener('mouseenter', function () { paused = true; });
@@ -350,7 +403,30 @@ const resourceUrl = (id: string) => `${IOT_HUB_API_URL}/api/resources/${id}`;
 				let dragDelta = 0;
 				let viewportWidth = 0;
 				let dragPointerId = -1;
+				// Swallows the click the browser fires after a drag, so a swipe
+				// never opens the lightbox. Capture phase, so the swallowed click
+				// never reaches PhotoSwipe's own listener on the gallery root.
+				let suppressClick = false;
+				let suppressClickAt = 0;
 				const DRAG_THRESHOLD_PX = 10;
+				// The compatibility click follows its pointerup immediately; a flag
+				// older than this belongs to a gesture that never produced one, and
+				// must not be spent on an unrelated later click.
+				const SUPPRESS_CLICK_MS = 500;
+
+				// On `window`, not on the viewport: capture is only taken once the
+				// gesture passes the drag threshold, so a drag released over the
+				// controls row can have its click dispatched at the common ancestor
+				// of press and release — the gallery root, above the viewport. A
+				// listener there would never see it, leaving the flag armed to eat
+				// the next keyboard activation of a thumbnail.
+				window.addEventListener('click', function (e) {
+					if (!suppressClick) return;
+					suppressClick = false;
+					if (Date.now() - suppressClickAt > SUPPRESS_CLICK_MS) return;
+					e.preventDefault();
+					e.stopPropagation();
+				}, true);
 
 				viewport.addEventListener('pointerdown', function (e) {
 					// Only react to the primary pointer (left mouse / first
@@ -361,6 +437,9 @@ const resourceUrl = (id: string) => `${IOT_HUB_API_URL}/api/resources/${id}`;
 
 					dragging = true;
 					dragRecognized = false;
+					// A swipe that ends without a click (touch) would otherwise leave
+					// the flag armed and eat the next real tap.
+					suppressClick = false;
 					dragStartX = e.clientX;
 					dragDelta = 0;
 					viewportWidth = viewport.offsetWidth;
@@ -369,7 +448,13 @@ const resourceUrl = (id: string) => `${IOT_HUB_API_URL}/api/resources/${id}`;
 					// otherwise a drag that starts mid-transition would jump.
 					track.style.transition = 'none';
 					track.style.setProperty('--idx', String(idx));
-					try { viewport.setPointerCapture(e.pointerId); } catch { /* pointer capture unsupported */ }
+					// Pointer capture is deliberately NOT taken here. Chrome
+					// retargets the compatibility `click` to the capture element,
+					// so capturing on every press would turn a plain click on a
+					// screenshot into a click on the viewport <div> — and the
+					// lightbox, which maps the click target back to a slide,
+					// would never open. It is taken in pointermove instead, once
+					// the gesture is actually a drag.
 				});
 
 				viewport.addEventListener('pointermove', function (e) {
@@ -377,6 +462,11 @@ const resourceUrl = (id: string) => `${IOT_HUB_API_URL}/api/resources/${id}`;
 					dragDelta = e.clientX - dragStartX;
 					if (!dragRecognized && Math.abs(dragDelta) > DRAG_THRESHOLD_PX) {
 						dragRecognized = true;
+						// Now that it is a drag, keep receiving moves and the
+						// release even if the pointer leaves the viewport. From
+						// here the click is ours to swallow anyway, so the
+						// retargeting capture causes no longer matters.
+						try { viewport.setPointerCapture(e.pointerId); } catch { /* pointer capture unsupported */ }
 					}
 					if (!dragRecognized || viewportWidth === 0) return;
 					// Fractional --idx: dragging right (positive delta) reveals
@@ -392,6 +482,11 @@ const resourceUrl = (id: string) => `${IOT_HUB_API_URL}/api/resources/${id}`;
 					// Restore the smooth transition so the snap animates.
 					track.style.transition = '';
 					if (dragRecognized) {
+						// The press moved far enough to drag the track, so the
+						// click that follows is part of that gesture, not a click
+						// on the screenshot.
+						suppressClick = true;
+						suppressClickAt = Date.now();
 						const threshold = Math.max(50, viewportWidth * 0.15);
 						if (dragDelta < -threshold) idx = (idx + 1) % total;
 						else if (dragDelta > threshold) idx = ((idx - 1) % total + total) % total;
@@ -400,6 +495,14 @@ const resourceUrl = (id: string) => `${IOT_HUB_API_URL}/api/resources/${id}`;
 				}
 				viewport.addEventListener('pointerup', endDrag);
 				viewport.addEventListener('pointercancel', endDrag);
+				// Also on window, because capture is only taken once the gesture
+				// passes the drag threshold: a press released outside the viewport
+				// before that never delivers pointerup here, and `dragging` would
+				// stay set — the track would then follow the pointer with no button
+				// held. With capture active the viewport handler runs first and
+				// these find the drag already ended.
+				window.addEventListener('pointerup', endDrag);
+				window.addEventListener('pointercancel', endDrag);
 			}
 
 			render();

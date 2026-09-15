@@ -1,6 +1,7 @@
 ---
 import {
 	DEFAULT_TILE_COLOR,
+	IOT_HUB_API_URL,
 	IOT_HUB_CATEGORIES,
 	IOT_HUB_STRINGS,
 	formatInstalls,
@@ -16,6 +17,7 @@ import { ORIGIN_CRUMB_ID } from './iot-hub-list-origin';
 import IotHubIcon from './IotHubIcon.astro';
 import DetailGallery from './DetailGallery.astro';
 import IotHubMarkdown from '@components/IotHub/IotHubMarkdown.astro';
+import PhotoSwipeStyles from '@components/PhotoSwipeStyles.astro';
 
 interface Props {
 	detail: ListingDetail;
@@ -32,14 +34,40 @@ const categoryLabel =
 	categorySlug;
 const isCompact = getCardVariant(detail.itemType) === 'small';
 
-// SOLUTION_TEMPLATE listings ship multiple screenshots — render the gallery
-// in the preview slot instead of a single image (DEVICE / WIDGET fall back
-// to `detail.image`).
-const showGallery =
-	!isCompact &&
-	detail.itemType === 'SOLUTION_TEMPLATE' &&
-	detail.screenshots.length > 0;
-const heroImg = !isCompact && !showGallery ? resolveImage(detail.image) : null;
+// Any listing may ship screenshots — render the gallery in the preview slot
+// instead of the single `detail.image`. Compact types are excluded because
+// their slot holds a colored icon tile, not an image; a big-card listing with
+// no screenshots still falls back to the still `detail.image` below.
+// The preview leads the gallery: it is the image the listing is recognised by
+// on cards and in search, so dropping it in favour of the screenshots alone
+// would hide the picture users arrived from. `detail.image` is a resource path
+// (`/api/resources/<id>?v=…`) while screenshots are bare ids, so match on the
+// id to avoid showing the same resource twice when a creator uses one of the
+// screenshots as the preview.
+const previewImg = isCompact ? null : resolveImage(detail.image);
+const previewResourceId = detail.image?.match(/\/api\/resources\/([^/?#]+)/)?.[1] ?? null;
+const galleryImages = isCompact
+	? []
+	: [
+			...(previewImg ? [{ src: previewImg, alt: `${detail.name} preview` }] : []),
+			// Numbered before the dedupe, so a creator who reused screenshot 2 as the
+			// preview still sees the rest announced by the position they uploaded them in.
+			...detail.screenshots
+				.map((s, i) => ({
+					id: s.id,
+					src: `${IOT_HUB_API_URL}/api/resources/${s.id}`,
+					alt: `${detail.name} screenshot ${i + 1}`,
+				}))
+				.filter((s) => s.id !== previewResourceId)
+				.map(({ src, alt }) => ({ src, alt })),
+		];
+// One image is not a carousel: it renders as the still preview below, which is
+// what a listing without screenshots has always looked like. Reading the still
+// image off the same list rather than off `detail.image` keeps the two in step
+// — a listing with no image and one screenshot shows that screenshot instead of
+// falling through to the colored placeholder.
+const showGallery = galleryImages.length > 1;
+const heroImg = showGallery ? null : (galleryImages[0]?.src ?? null);
 // Compact variants render a colored icon tile next to the title (same as
 // the compact ListingCard renderer, but at 80x80 to match the design).
 // IotHubIcon handles the `mdi:`-prefix branching internally.
@@ -124,6 +152,8 @@ const tbVersionMetaLabel = [tbVersionLabel, isBuiltIn ? IOT_HUB_STRINGS.builtIn.
 	.filter(Boolean)
 	.join(' | ');
 ---
+
+<PhotoSwipeStyles />
 
 <header class="iot-hub-detail-hero">
 	<Breadcrumbs
@@ -347,15 +377,28 @@ const tbVersionMetaLabel = [tbVersionLabel, isBuiltIn ? IOT_HUB_STRINGS.builtIn.
 						class:list={[
 							'iot-hub-detail-hero__preview',
 							showGallery && 'iot-hub-detail-hero__preview--gallery',
+							// Lightbox host for the still-image branch only — DetailGallery
+							// carries its own `.image-gallery` root, and nesting the two
+							// would make PhotoSwipe register the slides twice.
+							heroImg && 'image-gallery',
 						]}
 					>
 						{showGallery ? (
-							<DetailGallery
-								screenshots={detail.screenshots}
-								listingName={detail.name}
-							/>
+							<DetailGallery images={galleryImages} listingName={detail.name} />
 						) : heroImg ? (
-							<img src={heroImg} alt={detail.name} loading="eager" decoding="async" />
+							/* Hub images come from the API, so their dimensions are unknown
+							   at build time — `data-pswp-cdn` tells the lightbox to read
+							   naturalWidth/Height off the rendered <img> instead. */
+							<a
+								class="gallery-thumb"
+								href={heroImg}
+								data-pswp-width="1600"
+								data-pswp-height="900"
+								data-pswp-cdn="true"
+								aria-label={`View full size: ${detail.name}`}
+							>
+								<img src={heroImg} alt={detail.name} loading="eager" decoding="async" />
+							</a>
 						) : (
 							<div
 								class="iot-hub-detail-hero__preview-fallback"
@@ -524,6 +567,23 @@ const tbVersionMetaLabel = [tbVersionLabel, isBuiltIn ? IOT_HUB_STRINGS.builtIn.
 			max-height: 257px;
 			object-fit: contain;
 			display: block;
+		}
+
+		// Lightbox trigger wrapping the still image — shrink-wraps the <img>
+		// (the sizing rule above still applies, it matches any descendant) so
+		// the anchor's focus ring hugs the picture rather than the column.
+		.gallery-thumb {
+			display: block;
+			max-width: 100%;
+			line-height: 0;
+			cursor: zoom-in;
+			border-radius: 4px;
+			-webkit-user-drag: none;
+
+			&:focus-visible {
+				outline: 2px solid var(--color-primary);
+				outline-offset: 4px;
+			}
 		}
 
 		// Gallery variant — DetailGallery brings its own framed thumbnails,
