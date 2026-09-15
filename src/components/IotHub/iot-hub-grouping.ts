@@ -1,7 +1,7 @@
 import {
-	IOT_HUB_TYPE_ORDER,
 	getCategoryForItemType,
 	type IotHubItemType,
+	type IotHubSearchSection,
 	type ListingView,
 } from '@models/iot-hub';
 
@@ -22,8 +22,9 @@ export interface GroupedSectionOptions {
 }
 
 /**
- * Turns one grouped response into the sections the hero popup renders:
- * type order, labels, "+N more" arithmetic and the header href.
+ * Turns the API's sections into the ones the hero popup renders: labels, the
+ * "+N more" arithmetic and the header href. The type order is the server's and
+ * is kept as given, so the site and the platform lay the same query out alike.
  *
  * The popup is the only caller. `/iot-hub/search/`, the creator profile and the
  * type pages stay flat and paginated — a filtered catalogue with shareable page
@@ -33,45 +34,32 @@ export interface GroupedSectionOptions {
  * the backend applied: rows published since the last deploy have no static detail
  * page and are filtered out by `getKnownSlugs()` before this runs. Counting from
  * the cap instead would leave a section showing three cards under a header
- * promising "+3 more" while `typeTotal` says seven exist — the two numbers on
- * screen have to add up to the one the header is quoting.
+ * promising "+3 more" while `total` says seven exist — the two numbers on screen
+ * have to add up to the one the header is quoting.
  *
  * A section whose rows were all dropped does not render at all — an empty section
  * under a populated header is worse than the section being absent.
  */
 export function toGroupedSections(
-	items: ListingView[],
+	sections: IotHubSearchSection[],
 	opts: GroupedSectionOptions = {}
 ): GroupedSection[] {
-	const byType = new Map<IotHubItemType, ListingView[]>();
-	const totals = new Map<IotHubItemType, number>();
-	for (const item of items) {
-		const cat = getCategoryForItemType(item.itemType);
+	return sections.flatMap((section) => {
+		const category = getCategoryForItemType(section.itemType);
 		// A type the site has no category for (a backend type it doesn't surface)
 		// cannot be laid out, so it is skipped rather than rendered headerless.
-		if (!cat) continue;
-		const type = cat.itemType;
-		const list = byType.get(type) ?? [];
-		list.push(item);
-		byType.set(type, list);
-		// Every row of a type carries the same typeTotal; the fallback keeps a
-		// non-grouped response rendering as plain sections with no "+N more".
-		// `??` rather than `||` because a flat read sends the field as null, not
-		// absent, and 0 is a value this must not swallow.
-		totals.set(type, item.typeTotal ?? list.length);
-	}
-
-	return IOT_HUB_TYPE_ORDER.filter((type) => (byType.get(type)?.length ?? 0) > 0).map((type) => {
-		const sectionItems = byType.get(type)!;
-		const total = Math.max(totals.get(type) ?? sectionItems.length, sectionItems.length);
-		return {
-			itemType: type,
-			label: getCategoryForItemType(type)?.label ?? type,
-			items: sectionItems,
-			total,
-			remaining: Math.max(0, total - sectionItems.length),
-			href: sectionHref(type, opts),
-		};
+		if (!category || section.items.length === 0) return [];
+		const total = Math.max(section.total, section.items.length);
+		return [
+			{
+				itemType: section.itemType,
+				label: category.label,
+				items: section.items,
+				total,
+				remaining: Math.max(0, total - section.items.length),
+				href: sectionHref(section.itemType, opts),
+			},
+		];
 	});
 }
 

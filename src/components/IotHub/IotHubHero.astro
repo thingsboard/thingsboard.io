@@ -696,11 +696,11 @@ const highlights = [
 </script>
 
 <script>
-	// Hero search popup. Opens on focus, asks /api/listings/published for a
-	// GROUPED answer — the server returns the best few of each item type,
-	// already capped, each row carrying `typeTotal` — and renders one section
-	// per type: a header linking to that type page, a "+N more" chip for the
-	// rest, and the rows. The footer keeps its href in sync with the input so it
+	// Hero search popup. Opens on focus, asks the grouped listings endpoint for
+	// the best few of each item type — the server returns one section per type,
+	// already capped and ordered, each carrying the total behind it — and renders
+	// one section per type: a header linking to that type page, a "+N more" chip
+	// for the rest, and the rows. The footer keeps its href in sync with the input so it
 	// always jumps to the same query as the submit button would.
 	//
 	// It used to ask for a flat 10-row page and group that. Ten rows cannot show
@@ -725,7 +725,7 @@ const highlights = [
 	import {
 		IOT_HUB_API_URL,
 		DEFAULT_IOT_HUB_SORT_ID,
-		type ListingView,
+		type IotHubSearchSection,
 	} from '@models/iot-hub';
 	import { bindListingLink } from './iot-hub-listing-link-bind';
 	import { toGroupedSections, type GroupedSection } from './iot-hub-grouping';
@@ -739,7 +739,7 @@ const highlights = [
 		return q ? `${SEARCH_PATH}?q=${encodeURIComponent(q)}` : SEARCH_PATH;
 	}
 
-	async function fetchListings(text: string, signal: AbortSignal): Promise<ListingView[]> {
+	async function fetchSections(text: string, signal: AbortSignal): Promise<IotHubSearchSection[]> {
 		const trimmed = text.trim();
 		// The grouped endpoint takes the filters and a sort key, and nothing else: it
 		// sizes its own answer, so there is no page or page size to send, and each
@@ -759,10 +759,16 @@ const highlights = [
 			getKnownSlugs(),
 		]);
 		if (!res.ok) throw new Error(`HTTP ${res.status}`);
-		const body = (await res.json()) as { data: ListingView[] };
+		const sections = (await res.json()) as IotHubSearchSection[];
 		// Drop listings whose detail pages don't exist statically — the
-		// portal may have published them since the last deploy.
-		return (body.data ?? []).filter((item) => knownSlugs.has(item.slug));
+		// portal may have published them since the last deploy. The section's own
+		// total is left alone: it counts what the search matched, not what this
+		// build can link to, and toGroupedSections() does the "+N more" arithmetic
+		// against the rows that survived.
+		return (sections ?? []).map((section) => ({
+			...section,
+			items: section.items.filter((item) => knownSlugs.has(item.slug)),
+		}));
 	}
 
 	function getCardTemplate(): HTMLTemplateElement | null {
@@ -913,11 +919,14 @@ const highlights = [
 			abort = new AbortController();
 			showLoading(text);
 			updateFooter(text);
-			fetchListings(text, abort.signal)
-				.then((items) => {
+			fetchSections(text, abort.signal)
+				.then((fetched) => {
 					isLoading = false;
-					trackQuery(text, items.length);
-					const sections = toGroupedSections(items, { query: text });
+					const sections = toGroupedSections(fetched, { query: text });
+					trackQuery(
+						text,
+						sections.reduce((count, section) => count + section.items.length, 0)
+					);
 					if (sections.length === 0) renderState(body!, 'empty', text);
 					else renderGroups(body!, sections);
 				})

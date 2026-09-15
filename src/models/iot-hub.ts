@@ -430,19 +430,15 @@ export function getIotHubSortOption(id: string | null | undefined): IotHubSortOp
 
 // --- Grouped search ----------------------------------------------------------
 
-// Section order in the hero popup — the only surface here that groups. Must equal
-// the platform's TYPE_ORDER in
-// iot-hub-search.component.ts — the same query answered by the two clients must lay
-// out the same way. IOT_HUB_CATEGORIES happens to agree today; this constant is what
-// keeps it true when someone reorders that registry for a navigation reason.
-export const IOT_HUB_TYPE_ORDER: ReadonlyArray<IotHubItemType> = [
-	'DEVICE',
-	'SOLUTION_TEMPLATE',
-	'WIDGET',
-	'CALCULATED_FIELD',
-	'ALARM_RULE',
-	'RULE_CHAIN',
-];
+// A grouped search answers with one section per item type, in the server's order —
+// the same order the platform's popup gets, which is the point of it being the
+// server's. The site renders what it is given rather than re-sorting.
+export interface IotHubSearchSection {
+	itemType: IotHubItemType;
+	/** Rows of this type the search matched, which is more than the section carries. */
+	total: number;
+	items: ListingView[];
+}
 
 export const getSubtypeLabel = (itemType: IotHubItemType, key: string): string =>
 	ITEM_SUBTYPE_LABELS[itemType]?.[key] ?? key;
@@ -568,13 +564,6 @@ export const listingViewSchema = z.object({
 	creatorVerified: z.boolean().default(false),
 	creatorAffiliateId: z.string().nullable().default(null),
 	screenshots: z.array(screenshotResourceSchema).default([]),
-	// Total rows of this item's type behind a grouped response — the section's
-	// "+N more" is derived from it. Only the grouped endpoint carries a number:
-	// a flat read projects the column as NULL and Jackson serialises it, so the field
-	// arrives as `null` rather than absent. Hence nullable AND optional — the static
-	// content collections are built from flat fetches, and `z.number().optional()`
-	// alone failed every one of their rows at sync time.
-	typeTotal: z.number().nullable().optional(),
 });
 
 export const listingDetailSchema = listingViewSchema.extend({
