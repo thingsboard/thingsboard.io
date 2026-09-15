@@ -22,7 +22,7 @@ export interface GroupedSectionOptions {
 }
 
 /**
- * Turns one `grouped=true` response into the sections the hero popup renders:
+ * Turns one grouped response into the sections the hero popup renders:
  * type order, labels, "+N more" arithmetic and the header href.
  *
  * The popup is the only caller. `/iot-hub/search/`, the creator profile and the

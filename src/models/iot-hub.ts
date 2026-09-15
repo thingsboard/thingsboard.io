@@ -569,7 +569,7 @@ export const listingViewSchema = z.object({
 	creatorAffiliateId: z.string().nullable().default(null),
 	screenshots: z.array(screenshotResourceSchema).default([]),
 	// Total rows of this item's type behind a grouped response — the section's
-	// "+N more" is derived from it. Only a `grouped=true` response carries a number:
+	// "+N more" is derived from it. Only the grouped endpoint carries a number:
 	// a flat read projects the column as NULL and Jackson serialises it, so the field
 	// arrives as `null` rather than absent. Hence nullable AND optional — the static
 	// content collections are built from flat fetches, and `z.number().optional()`
