@@ -1,0 +1,177 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="note">
+  This node requires **ThingsBoard PE** or **ThingsBoard Cloud**.
+</Aside>
+
+Use this node on a cloud instance to assign entity groups to an edge from a rule chain — for example, provisioning a newly created edge with its `Site Devices` and `Site Dashboards` groups as soon as it reports for the first time. An entity group is the only way devices, assets, entity views, dashboards, and users reach an edge, so this node is what turns edge onboarding into an automated flow instead of a manual assignment. Group type and group name both support <DocLink product={props.product} path="reference/rule-engine/templatization">templatization</DocLink>.
+
+<Aside type="caution">
+  `Success` indicates the group assignment was persisted and the corresponding edge event was written, **not** that the edge has finished downloading the group's entities. Delivery to the edge is asynchronous.
+</Aside>
+
+## Configuration
+
+- **Edge** — required. How the target edge is resolved:
+  - **Message originator** — the originator must be an `EDGE` entity. Any other originator type routes via `Failure`.
+  - **Edge name pattern** — resolves the edge by name within the tenant. Required when this option is selected. Supports templatization, so the edge can be named by the message itself.
+- **Entity groups** — required, at least one row. Each row is a group type and a group name:
+  - **Group type** — one of `Device`, `Asset`, `Entity View`, `Dashboard`, `User`. These are the only group types an edge can synchronise.
+  - **Group name** — name of the group to assign. Matching is case-sensitive.
+  - Both fields support templatization, so one node can serve every group type present in a provisioning payload.
+- **Create new group if not exists** — when enabled, a group that is not found anywhere in the ownership hierarchy is created under the edge's owner. When disabled, a group that cannot be found routes via `Failure`.
+
+<Aside type="note">
+  The platform-managed `All` and `[Edge] … All` groups cannot be assigned. They are rejected when the node is saved, and again at runtime if a pattern resolves to one.
+</Aside>
+
+## Usage
+
+**Message originator** suits chains where the message is already about the edge — an edge lifecycle event, or an attribute update on the edge itself. The originator must be an `EDGE` entity; any other originator type routes via `Failure`.
+
+**Edge name pattern** suits chains where the message comes from somewhere else and names the edge it targets. That mode needs the edge name to be present in the message by the time this node runs, and there are three usual ways to arrange that:
+
+1. **The payload already carries it.** A provisioning request submitted through `POST /api/rule-engine/` with a body such as `{ "edgeName": "WH-14 edge" }` needs nothing extra — set the pattern to `$[edgeName]`. This is the most direct use of the mode.
+2. **The edge name is stored as an attribute.** Put an <DocLink product={props.product} path="reference/rule-engine/nodes/enrichment/originator-attributes">originator attributes</DocLink> node ahead of this one to copy a server attribute such as `assignedEdge` into metadata, then use `${assignedEdge}`. <DocLink product={props.product} path="reference/rule-engine/nodes/enrichment/related-entity-data">Related entity data</DocLink> does the same job when the name lives on a related asset rather than the originator.
+3. **The edge name has to be derived.** Only this case genuinely needs a <DocLink product={props.product} path="reference/rule-engine/nodes/transformation/script">script</DocLink> node — compute the name into metadata and let this node read it.
+
+### Guarding the node
+
+A pattern that fails to resolve routes via `Failure` rather than being skipped: a missing metadata key looks exactly like a typo in the key name, so the node reports it instead of ignoring the message. Put a <DocLink product={props.product} path="reference/rule-engine/nodes/filter/check-fields-presence">check fields presence</DocLink> node ahead of it, configured with the message field or metadata key the pattern reads, so only messages that can be acted on ever arrive. That is configuration only — no script required.
+
+**Connect the `Failure` output.** An unconnected `Failure` drops the message, which turns a mistyped edge name into silence. Route it to a <DocLink product={props.product} path="reference/rule-engine/nodes/action/log">log</DocLink> node or raise an alarm so bad provisioning data stays visible.
+
+### Handling both modes in one chain
+
+When a single chain receives both edge-originated messages and messages that name an edge, put an <DocLink product={props.product} path="reference/rule-engine/nodes/filter/entity-type-switch">entity type switch</DocLink> node in front and use two instances of this node: send the `Edge` branch to an instance configured with **Message originator**, and the remaining branches to an instance configured with **Edge name pattern**.
+
+### Message rate
+
+Every message that reaches the node resolves its configured rows and checks each resolved group against the edge, whether or not anything changes. Groups already assigned are skipped, so re-running a chain is harmless — but the lookups still happen on every message. Keep this node on a provisioning or lifecycle path rather than on raw telemetry, and place a filter ahead of it when the chain carries high-rate traffic.
+
+## Message processing algorithm
+
+1. Resolve the target edge, either from the message originator or from the edge name pattern.
+2. For each configured row, resolve the group type and the group name from message data and metadata.
+3. Look the group up by type and name, starting at the edge's owner and walking up the ownership hierarchy to the tenant. A group owned above the edge's owner is reused rather than duplicated.
+4. If the group is not found and **Create new group if not exists** is enabled, create it under the edge's owner — the narrowest scope the edge can see.
+5. Deduplicate the resolved groups by id, so two patterns that resolve to the same group produce a single assignment.
+6. Check each resolved group against the edge. Groups that are already assigned are skipped.
+7. Assign the remaining groups in configured row order.
+8. Route the unchanged message via `Success`.
+
+Every row is resolved before anything is assigned, so a misconfigured row is caught before the first write.
+
+Skipping already-assigned groups is not only an optimisation: a redundant assignment re-publishes the `ASSIGNED_TO_EDGE` event, which makes the edge request every entity in the group again.
+
+## Output connections
+
+| Connection | Condition |
+|------------|-----------|
+| `Success` | Every configured group is assigned to the edge, or was already assigned. |
+| `Failure` | Originator is not an `EDGE` entity, the edge was not found, a pattern resolved to an empty or unsupported value, a group was not found while creation is disabled, a reserved group name was used, or an unexpected error. |
+
+## Examples
+
+### Example 1 — Assign a device group to the originating edge
+
+**Originator**: an `EDGE` entity.
+
+```json maxLines=20 collapsible
+{
+  "edgeSource": "MESSAGE_ORIGINATOR",
+  "edgeNamePattern": null,
+  "entityGroups": [
+    { "groupType": "DEVICE", "groupName": "Site Devices" }
+  ],
+  "createGroupIfNotExists": false
+}
+```
+
+**State**: `Site Devices` exists under the tenant and is not yet assigned. **Result**: the group is assigned to the originating edge; the edge starts syncing its devices.
+
+---
+
+### Example 2 — Assign several group types at once
+
+```json maxLines=20 collapsible
+{
+  "edgeSource": "MESSAGE_ORIGINATOR",
+  "edgeNamePattern": null,
+  "entityGroups": [
+    { "groupType": "DEVICE", "groupName": "Site Devices" },
+    { "groupType": "DASHBOARD", "groupName": "Site Dashboards" },
+    { "groupType": "USER", "groupName": "Site Operators" }
+  ],
+  "createGroupIfNotExists": false
+}
+```
+
+**Result**: all three groups are assigned, in the order listed.
+
+---
+
+### Example 3 — Resolve the edge and the group from the message
+
+**Data**: `{ "edgeName": "Warehouse edge", "siteCode": "WH-14" }`
+
+```json maxLines=20 collapsible
+{
+  "edgeSource": "EDGE_NAME_PATTERN",
+  "edgeNamePattern": "$[edgeName]",
+  "entityGroups": [
+    { "groupType": "DEVICE", "groupName": "$[siteCode] devices" }
+  ],
+  "createGroupIfNotExists": false
+}
+```
+
+**Result**: the edge `Warehouse edge` is resolved by name, and the group `WH-14 devices` is assigned to it. The originator is ignored on this path, so the message can come from any entity.
+
+---
+
+### Example 4 — Provision a group that does not exist yet
+
+```json maxLines=20 collapsible
+{
+  "edgeSource": "MESSAGE_ORIGINATOR",
+  "edgeNamePattern": null,
+  "entityGroups": [
+    { "groupType": "DEVICE", "groupName": "Provisioned Devices" }
+  ],
+  "createGroupIfNotExists": true
+}
+```
+
+**State**: no `Provisioned Devices` device group exists in the edge's ownership hierarchy. **Result**: the group is created under the edge's owner and assigned to the edge.
+
+## JSON schema
+
+```json maxLines=25 collapsible
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TbAssignEntityGroupToEdgeNodeConfiguration",
+  "type": "object",
+  "required": ["edgeSource", "entityGroups", "createGroupIfNotExists"],
+  "additionalProperties": false,
+  "properties": {
+    "edgeSource": { "enum": ["MESSAGE_ORIGINATOR", "EDGE_NAME_PATTERN"] },
+    "edgeNamePattern": { "type": ["string", "null"] },
+    "entityGroups": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["groupType", "groupName"],
+        "additionalProperties": false,
+        "properties": {
+          "groupType": { "type": "string" },
+          "groupName": { "type": "string" }
+        }
+      }
+    },
+    "createGroupIfNotExists": { "type": "boolean" }
+  }
+}
+```
