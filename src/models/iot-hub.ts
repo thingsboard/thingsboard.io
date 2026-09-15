@@ -435,7 +435,7 @@ export function getIotHubSortOption(id: string | null | undefined): IotHubSortOp
 // server's. The site renders what it is given rather than re-sorting.
 export interface IotHubSearchSection {
 	itemType: IotHubItemType;
-	/** Rows of this type the search matched, which is more than the section carries. */
+	/** Rows of this type the search matched, which is at least what the section carries. */
 	total: number;
 	items: ListingView[];
 }
