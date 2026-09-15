@@ -228,6 +228,11 @@ export const getPlaceholderIcon = (item: IconableListing): string => {
 	}
 };
 
+// The subject must match an <option> in ContactForm.astro; the prefill no-ops on unknown values.
+export const IOT_HUB_CONTACT_US_URL = '/contact-us/?subject=IoT%20Hub';
+
+export const IOT_HUB_CONTACT_EMAIL = 'iothub@thingsboard.io';
+
 // User-facing UI strings used by IoT Hub components. Centralized so they're
 // easy to find, audit, and swap for a `t(...)` call if marketing-side i18n
 // ever lands (the site's existing i18n machinery only covers Starlight docs).
