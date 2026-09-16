@@ -9,11 +9,19 @@ type HastNode = {
 	children?: HastNode[];
 };
 
-// Hub images are served from the API and have no dimensions at build time. The
-// lightbox reads the real ones off the loaded image (`data-pswp-cdn`); these are
-// just the shape PhotoSwipe insists on having up front.
-const PLACEHOLDER_WIDTH = '1600';
-const PLACEHOLDER_HEIGHT = '900';
+/**
+ * Dimensions a lightbox thumbnail declares before anything has measured its
+ * image. PhotoSwipe insists on having a size up front, and an image served from
+ * the Hub API has none at build time — so a thumbnail marked `data-pswp-cdn`
+ * ships these and the lightbox replaces them with the real ones once the image
+ * loads. `<ImageGallery>` uses them as its fallback for the same reason, when an
+ * asset's dimensions are missing.
+ *
+ * Shared so the ratio lives in one place: a thumbnail declaring a different one
+ * opens at the wrong shape until its image lands, which nothing would catch.
+ */
+export const PSWP_PLACEHOLDER_WIDTH = 1600;
+export const PSWP_PLACEHOLDER_HEIGHT = 900;
 
 /**
  * Wraps one `<img>` in the markup the site-wide PhotoSwipe loader looks for:
@@ -42,8 +50,8 @@ function wrapImage(node: HastNode): HastNode | null {
 				properties: {
 					className: ['gallery-thumb'],
 					href: src,
-					dataPswpWidth: PLACEHOLDER_WIDTH,
-					dataPswpHeight: PLACEHOLDER_HEIGHT,
+					dataPswpWidth: String(PSWP_PLACEHOLDER_WIDTH),
+					dataPswpHeight: String(PSWP_PLACEHOLDER_HEIGHT),
 					dataPswpCdn: 'true',
 					ariaLabel: alt ? `View full size: ${alt}` : 'View full size',
 				},
