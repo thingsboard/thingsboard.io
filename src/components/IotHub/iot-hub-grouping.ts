@@ -1,5 +1,6 @@
 import {
 	getCategoryForItemType,
+	type IotHubCategorySlug,
 	type IotHubItemType,
 	type IotHubSearchSection,
 	type ListingView,
@@ -11,7 +12,7 @@ export interface GroupedSection {
 	items: ListingView[];
 	/** Rows of this type behind the response, before the backend's per-type cap. */
 	total: number;
-	/** total - items.length, floored at 0. Zero means "no +N more link". */
+	/** Rows of this type the header's "+N more" chip offers. Zero renders no chip. */
 	remaining: number;
 	/** Type page for this section, already carrying the current query. */
 	href: string;
@@ -49,6 +50,8 @@ export function toGroupedSections(
 		// A type the site has no category for (a backend type it doesn't surface)
 		// cannot be laid out, so it is skipped rather than rendered headerless.
 		if (!category || section.items.length === 0) return [];
+		// Floors the server's count at what the section actually carries, which is
+		// what lets `remaining` below subtract without a second guard.
 		const total = Math.max(section.total, section.items.length);
 		return [
 			{
@@ -56,16 +59,14 @@ export function toGroupedSections(
 				label: category.label,
 				items: section.items,
 				total,
-				remaining: Math.max(0, total - section.items.length),
-				href: sectionHref(section.itemType, opts),
+				remaining: total - section.items.length,
+				href: sectionHref(category.slug, opts),
 			},
 		];
 	});
 }
 
-function sectionHref(type: IotHubItemType, opts: GroupedSectionOptions): string {
-	const slug = getCategoryForItemType(type)?.slug;
-	if (!slug) return '#';
+function sectionHref(slug: IotHubCategorySlug, opts: GroupedSectionOptions): string {
 	const q = opts.query?.trim();
 	return `/iot-hub/${slug}/${q ? `?q=${encodeURIComponent(q)}` : ''}`;
 }
