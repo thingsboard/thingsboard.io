@@ -8,6 +8,8 @@ import {
 	getIotHubSortOption,
 	isNumericSlug,
 	resolvePreviewImage,
+	VERIFIED_CREATORS_KEY,
+	VERIFIED_CREATORS_VALUE,
 	type ListingView,
 	type PageData,
 } from '@models/iot-hub';
@@ -56,6 +58,10 @@ function updateResultsCount(countEl: HTMLElement, totalResults: number): void {
 //   itemType          → type  (catalogue only — the page is not pinned to
 //                       one type, so the visitor picks them; the API takes a
 //                       comma-separated list)
+//   creatorVerified   → creatorVerified  (the standalone "Verified creators
+//                       only" control; only ever sent when checked — see the
+//                       key's definition in @models/iot-hub for why `false`
+//                       must never go on the wire)
 //   type              → widgetTypes / cfTypes / ruleChainTypes
 //                       (resolved from `data-item-type`)
 //
@@ -80,6 +86,11 @@ const NR = IOT_HUB_STRINGS.noResults;
 // moment it has a heading there.
 const SECTION_LABELS = IOT_HUB_STRINGS.filterPanel.sections as Record<string, string>;
 
+// The verified control's own text, which stands in for the heading it does
+// not have. Read from the same string the panel renders, so the empty state
+// can never name it differently.
+const VERIFIED_CREATORS_LABEL = IOT_HUB_STRINGS.filterPanel.verifiedCreators;
+
 // FilterPanel section keys are translated to API/URL params here.
 // `type` resolves to one of three names depending on the page's itemType
 // (widgets / calculated fields / rule chains each have their own param).
@@ -92,6 +103,9 @@ const FILTER_KEY_TO_PARAM: Record<string, string> = {
 	// Catalogue only. `type` is the same param a pinned page sets from
 	// `data-item-type`, which is why the two can never both be in play.
 	itemType: 'type',
+	// Panel key and API param are the same string; listed anyway so both
+	// directions stay readable side by side.
+	[VERIFIED_CREATORS_KEY]: VERIFIED_CREATORS_KEY,
 };
 
 function filterParamName(filterKey: string, itemType: string): string {
@@ -122,6 +136,7 @@ const PARAM_TO_FILTER_KEY: Record<string, string> = {
 	cfTypes: 'type',
 	ruleChainTypes: 'type',
 	type: 'itemType',
+	[VERIFIED_CREATORS_KEY]: VERIFIED_CREATORS_KEY,
 };
 const FILTER_PARAM_NAMES = Object.keys(PARAM_TO_FILTER_KEY);
 
@@ -200,6 +215,22 @@ export function setupDynamicSearch(): void {
 	// narrow the list with no chip or checkbox to undo it.
 	const hasItemTypeFacet = !!document.querySelector(
 		'[data-iot-hub-filter-panel] .iot-hub-filter-option__input[name="itemType"]'
+	);
+
+	// Same rule for the verified control, and for the same reason: the creator
+	// page runs this pipeline with no panel, so a stray `?creatorVerified=true`
+	// there would empty an unverified creator's own list and leave nothing on
+	// screen to switch off. Every surface that renders the panel renders this
+	// control, so the flag is only ever false where there is no panel at all.
+	//
+	// Gating the restore loop alone is enough, unlike `itemType`, which is
+	// also gated in `activeFilterParams` (where it would collide with the
+	// `type` a pinned page sends) and in `activeNarrowingSummary`. The URL is
+	// the only way this key can enter `filters` without a rendered checkbox —
+	// the other writer is the panel's own change event — so a gate further
+	// down the pipeline would be unreachable.
+	const hasVerifiedFacet = !!document.querySelector(
+		`[data-iot-hub-filter-panel] .iot-hub-filter-option__input[name="${VERIFIED_CREATORS_KEY}"]`
 	);
 
 	const previewTmpl = document.querySelector<HTMLTemplateElement>(
@@ -286,6 +317,13 @@ export function setupDynamicSearch(): void {
 		for (const [key, values] of Object.entries(filters)) {
 			if (values.length === 0) continue;
 			if (key === 'itemType' && !hasItemTypeFacet) continue;
+			// The verified control has no section heading to name it, so its
+			// own text is the whole clause — "No items match Verified
+			// creators only", not "…match creatorVerified: true".
+			if (key === VERIFIED_CREATORS_KEY) {
+				clauses.push(VERIFIED_CREATORS_LABEL);
+				continue;
+			}
 			const sectionLabel = SECTION_LABELS[key] ?? key;
 			const labels = filterLabels[key] ?? values;
 			clauses.push(`${sectionLabel}: ${labels.join(', ')}`);
@@ -539,11 +577,19 @@ export function setupDynamicSearch(): void {
 	for (const paramName of FILTER_PARAM_NAMES) {
 		// Only the catalogue can show `type` back to the visitor as a filter.
 		if (paramName === 'type' && !hasItemTypeFacet) continue;
+		if (paramName === VERIFIED_CREATORS_KEY && !hasVerifiedFacet) continue;
 		const value = urlParams.get(paramName);
 		if (!value) continue;
 		const key = PARAM_TO_FILTER_KEY[paramName];
 		if (!key) continue;
-		const values = value.split(',').filter(Boolean);
+		let values = value.split(',').filter(Boolean);
+		// The verified control offers exactly one value. A hand-typed
+		// `?creatorVerified=false` would otherwise be forwarded to the API,
+		// which reads it as "only *un*verified" — narrowing the list with no
+		// checkbox ticked and no chip to undo it.
+		if (paramName === VERIFIED_CREATORS_KEY) {
+			values = values.filter((v) => v === VERIFIED_CREATORS_VALUE);
+		}
 		if (values.length === 0) continue;
 		// Merge so the three `type` aliases collapse into one section if
 		// they ever appear together in a URL.
