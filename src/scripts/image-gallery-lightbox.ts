@@ -2,7 +2,7 @@
 // loader in config/integrations/image-gallery-lightbox.ts.
 import PhotoSwipeLightbox from 'photoswipe/lightbox';
 import type PhotoSwipe from 'photoswipe';
-import type { SlideData } from 'photoswipe';
+import type { PhotoSwipeEventsMap, SlideData, ZoomLevelOption } from 'photoswipe';
 import { lockScroll, unlockScroll } from '@util/scroll-lock';
 
 // Destroyed and rebuilt on each init() to avoid duplicate handlers / observers.
@@ -29,6 +29,121 @@ function syncCdnAnchorDims(anchor: HTMLElement) {
 	else img.addEventListener('load', apply, { once: true });
 }
 
+// Share of the pan area a CDN image is allowed to take, so the picture never runs
+// under the close button and there is always backdrop left to click to dismiss.
+// Two values because the two cases need different amounts of it: a picture being
+// shrunk to fit is large and can spare the room, while one being enlarged is
+// short of size in the first place and only needs the close button kept clear.
+const CDN_SHRINK_FILL = 0.86;
+const CDN_GROW_FILL = 0.95;
+// PhotoSwipe's 'fit' never scales past 1:1, so an image smaller than the
+// viewport opens as a small rectangle marooned on a large screen. Pipeline
+// images are wide enough for that to be the right call; CDN images are not —
+// an IoT Hub widget preview is often ~800px — so scale those up too, capped
+// so a small source doesn't smear into mush.
+const MAX_CDN_UPSCALE = 2;
+
+// PhotoSwipe exports the option union but not the object its function form
+// receives, and the class isn't reachable through the package exports map —
+// so pull the parameter type back out of the union.
+type ZoomLevelArg<T> = T extends (zoomLevelObject: infer Z) => number ? Z : never;
+type ZoomLevel = ZoomLevelArg<ZoomLevelOption>;
+
+// Scale that puts a CDN image inside the pan area, above 1 when the image is
+// smaller than the area. `null` for anything this override does not own — a
+// pipeline image, or a slide PhotoSwipe has not measured yet.
+function cdnFitRatio(zoomLevel: ZoomLevel): number | null {
+	const { panAreaSize, elementSize } = zoomLevel;
+	const el = zoomLevel.itemData?.element as HTMLElement | undefined;
+	if (el?.dataset.pswpCdn !== 'true' || !panAreaSize || !elementSize?.x || !elementSize.y) {
+		return null;
+	}
+	return Math.min(panAreaSize.x / elementSize.x, panAreaSize.y / elementSize.y);
+}
+
+function fitCdnImage(zoomLevel: ZoomLevel): number {
+	const fitRatio = cdnFitRatio(zoomLevel);
+	if (fitRatio === null) {
+		return zoomLevel.fit;
+	}
+	if (fitRatio <= 1) {
+		return fitRatio * CDN_SHRINK_FILL;
+	}
+	return Math.min(fitRatio * CDN_GROW_FILL, MAX_CDN_UPSCALE);
+}
+
+// The level a click or double-tap toggles to. PhotoSwipe's 'zoom-or-close'
+// action reads `secondary !== initial` as "this image can be zoomed" and
+// toggles; only when the two are equal does it fall through to
+// clickToCloseNonZoomable and dismiss. Its own secondary never exceeds 1:1,
+// so an image we open *above* that would shrink on click — and on double-tap,
+// where the gesture means magnify — instead of closing. Pin it to the initial
+// level for those. Every other image returns 0, which PhotoSwipe reads as "not
+// set" and answers with its own default, so a large screenshot opened shrunk
+// still zooms to full resolution on click.
+function secondaryCdnZoom(zoomLevel: ZoomLevel): number {
+	const fitRatio = cdnFitRatio(zoomLevel);
+	if (fitRatio === null || fitRatio <= 1) {
+		return 0;
+	}
+	return fitCdnImage(zoomLevel);
+}
+
+type LightboxSlide = PhotoSwipeEventsMap['slideActivate']['slide'];
+
+function syncSlideToImage(slide: LightboxSlide | undefined) {
+	if (!slide) return;
+	// CDN images only. Their declared dimensions are the markup's placeholder, so the
+	// loaded image is the better source. A pipeline image's are authoritative, and
+	// per theme variant: ImageGallery declares the light asset's size while the dark
+	// one is a separate file. Measuring there would write the showing theme's
+	// dimensions onto the anchor, and the theme observer's refreshSlideContent would
+	// then re-derive the other theme's image from them — wrong from that point on.
+	const anchor = slide.data.element;
+	if (anchor?.dataset.pswpCdn !== 'true') return;
+	const content = slide.content;
+	if (!content) return;
+	const img = content.element;
+	if (!(img instanceof HTMLImageElement)) return;
+
+	const { naturalWidth, naturalHeight } = img;
+	if (!naturalWidth || !naturalHeight) {
+		// Still decoding — measure it when it lands. An image that is already
+		// complete without intrinsic dimensions (an SVG carrying only a viewBox,
+		// or a src that failed) has had its `load` and will never fire another,
+		// so there is nothing to wait for: leave the slide on its declared size.
+		if (!img.complete) {
+			img.addEventListener('load', () => syncSlideToImage(slide), { once: true });
+		}
+		return;
+	}
+	if (slide.width === naturalWidth && slide.height === naturalHeight) return;
+
+	content.width = naturalWidth;
+	content.height = naturalHeight;
+	slide.width = naturalWidth;
+	slide.height = naturalHeight;
+	// Keep the item data and the anchor in step too, so reopening the gallery —
+	// and the zoom-from-thumbnail animation — start from the real ratio.
+	slide.data.width = naturalWidth;
+	slide.data.height = naturalHeight;
+	anchor.dataset.pswpWidth = String(naturalWidth);
+	anchor.dataset.pswpHeight = String(naturalHeight);
+	// Re-lay the slide out from the corrected size. Deliberately not
+	// `slide.resize()`: when the dimensions land mid opening-animation — the
+	// common case, since that is when the image finishes loading — its current
+	// zoom level does not yet equal the initial one, so it takes the branch that
+	// only readjusts panning and never re-sizes the element, leaving the picture
+	// in its stretched box. This is that method's other branch, forced. Resetting
+	// the zoom is correct regardless: the level it would preserve was computed
+	// from the wrong dimensions.
+	slide.calculateSize();
+	slide.currentResolution = 0;
+	slide.zoomAndPanToInitial();
+	slide.applyCurrentZoomPan();
+	slide.updateContentSize(true);
+}
+
 function init() {
 	currentLb?.destroy();
 	currentLb = undefined;
@@ -44,10 +159,17 @@ function init() {
 		pswpModule: () => import('photoswipe'),
 		showHideAnimationType: 'zoom',
 		bgOpacity: 1,
-		padding: { top: 24, bottom: 64, left: 24, right: 24 },
+		// Symmetric on purpose: PhotoSwipe centres the image inside the padded box,
+		// so an uneven top/bottom pushes it off the middle of the screen — and up
+		// under the close button, once an undersized image is allowed to grow into
+		// the space. The caption floats over the bottom padding rather than
+		// reserving any.
+		padding: { top: 64, bottom: 64, left: 24, right: 24 },
 		wheelToZoom: true,
 		loop: false,
 		zoom: false,
+		initialZoomLevel: fitCdnImage,
+		secondaryZoomLevel: secondaryCdnZoom,
 	});
 
 	// Anchors inside interactive SVG thumbs navigate natively; lightbox stays closed.
@@ -103,6 +225,23 @@ function init() {
 		return (el?.querySelector<HTMLImageElement>(selector) ?? thumbnail ?? el) as HTMLElement;
 	});
 
+	// A CDN thumbnail that hasn't loaded yet leaves its anchor on the placeholder
+	// dimensions, and PhotoSwipe sizes the slide from those — so the picture
+	// opens stretched to the placeholder's 16:9 and stays that way, because
+	// nothing re-measures it once the full image arrives. Carousel slides load
+	// lazily, so the last one regularly hasn't loaded by the time it is clicked.
+	//
+	// `slideActivate` covers the slide that was clicked: the lightbox preloads
+	// its image before a Slide exists, so `loadComplete` is never dispatched for
+	// it — only for the neighbours it preloads afterwards. Between the two hooks
+	// every slide is measured from the image PhotoSwipe actually loaded. For a
+	// pipeline image, whose build-time dimensions are already right, both are
+	// no-ops.
+	lb.on('slideActivate', ({ slide }) => syncSlideToImage(slide));
+	lb.on('loadComplete', ({ slide, isError }) => {
+		if (!isError) syncSlideToImage(slide);
+	});
+
 	let pswp: PhotoSwipe | undefined;
 	let themeObserver: MutationObserver | null = null;
 
@@ -128,9 +267,17 @@ function init() {
 			},
 		});
 
-		// Preload neighbours so swipe is instant.
+		// Preload neighbours so swipe is instant, and let a host that shows the same
+		// images itself — the IoT Hub carousel — follow along. Without that it stays
+		// on the slide the lightbox was opened from: the closing zoom animates
+		// towards whichever thumbnail PhotoSwipe re-measures at close time, which by
+		// then has scrolled out of the carousel's viewport.
 		pswp.on('change', () => {
 			if (!pswp) return;
+			const el = pswp.currSlide?.data.element;
+			el?.closest('.image-gallery')?.dispatchEvent(
+				new CustomEvent('tb-lightbox-slide-change', { detail: pswp.currIndex })
+			);
 			const cur = pswp.currIndex;
 			[cur - 1, cur + 1].forEach((i) => {
 				const data = pswp!.getItemData(i);
