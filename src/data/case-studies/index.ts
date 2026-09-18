@@ -29,10 +29,12 @@ export const caseStudyOrder: string[] = [
 	'kiotera',
 	'onedata',
 	'lumen',
-	'solandtec',
+	'seymour-ag-instruments',
 	// Not newest-first on purpose: the first catalog page is a curated lineup, so
 	// this study opens page 2 rather than displacing one of those cards.
 	'cuba-iot-platform',
+	// Bumped off page 1 to make room for seymour-ag-instruments.
+	'solandtec',
 	'tjk-solutions',
 	'energenix',
 	'energroup',
