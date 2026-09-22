@@ -1,5 +1,5 @@
 import { Products } from '@models/site.models.ts';
-import { TBMQ_DOCS_URL } from '@models/tbmq';
+import { TBMQ_PE_DOCS_URL } from '@models/tbmq';
 
 /**
  * Data behind the docs product selector (VersionSwitcher.astro), extracted so
@@ -111,7 +111,7 @@ export const FAMILIES: Family[] = [
 		name: 'MQTT Broker',
 		tagline: 'Reliable messaging for massive fleets',
 		iconId: 'tbmq',
-		externalUrl: TBMQ_DOCS_URL,
+		externalUrl: TBMQ_PE_DOCS_URL,
 	},
 	{
 		kind: 'local',

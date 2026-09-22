@@ -197,7 +197,7 @@ A distributor either lists the countries it covers or sets `countries: 'region-w
 | `SINGLE_REDIRECTS` | one-off `/docs/*` page rename | `{ oldPath: 'pe/user-guide/roadmap', target: '/docs/pe/releases/roadmap/' }` |
 | `CATCH_ALL_REDIRECTS` | `/docs/*` prefix rename (whole tree renamed 1:1) | `{ oldPrefix: 'pe/edge', entries: [] }` → `/docs/pe/edge/* → /docs/edge/pe/:splat` |
 | `DYNAMIC_REDIRECTS` | splat / `:placeholder` patterns that aren't a simple prefix rename | `/blog/category/:category/page/* → /blog/?category=:category` |
-| `NON_DOCS_REDIRECTS` | everything outside `/docs/*` (marketing, `/products/*`, `/industries/*`, external targets) | `/iot-use-cases/` → `/use-cases/` |
+| `NON_DOCS_REDIRECTS` | everything outside `/docs/*` (marketing, `/products/*`, `/industries/*`, external targets), plus `/docs/*` **file assets** — the other exports append a trailing slash, which a file URL must not have | `/iot-use-cases/` → `/use-cases/` |
 
 **Workflow to add a redirect:**
 

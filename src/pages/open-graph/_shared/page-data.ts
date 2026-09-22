@@ -17,7 +17,7 @@ import { BLOG_AUTHORS } from '@data/blog/authors';
 import { getAuthorsWithPosts } from '@data/blog/posts';
 import { CATEGORY_LABELS } from '@data/blog/categories';
 import { HARDWARE_PARTNERS } from '@data/partners/hardware-partners';
-import { IOT_HUB_CATEGORIES } from '@models/iot-hub';
+import { IOT_HUB_CATEGORIES, IOT_HUB_STRINGS } from '@models/iot-hub';
 
 export interface CardInput {
 	/** URL-shaped slug used as the path parameter in the endpoint */
@@ -149,7 +149,13 @@ export async function getIotHubCardInputs(): Promise<CardInput[]> {
 	inputs.push(
 		{
 			slug: 'search',
-			props: { variant: 'logo' as const, sectionName: SECTION, title: 'Search results' },
+			// Same string the page's own crumb and <h1> use, so the social card
+			// can't drift back to calling the catalogue a search.
+			props: {
+				variant: 'logo' as const,
+				sectionName: SECTION,
+				title: IOT_HUB_STRINGS.searchPage.catalogueName,
+			},
 		},
 		{
 			slug: 'creator',
