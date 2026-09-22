@@ -35,3 +35,10 @@ export const tbmqDocsUrl = (path: string): string => `${TBMQ_DOCS_URL}${path}`;
  * unknown values.
  */
 export const TBMQ_CONTACT_US_URL = '/contact-us/?subject=TBMQ';
+
+/**
+ * TBMQ PE documentation root. The PE docs tree lives under a `pe/` segment on
+ * tbmq.io; use this for edition-agnostic entry points (nav, version switcher)
+ * that should land on PE.
+ */
+export const TBMQ_PE_DOCS_URL = tbmqDocsUrl('pe/');
