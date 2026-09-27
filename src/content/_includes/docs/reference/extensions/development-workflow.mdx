@@ -1,0 +1,389 @@
+import { Aside, Steps } from '@astrojs/starlight/components';
+import Tabs from '@components/Tabs.astro';
+import TabItem from '@components/TabItem.astro';
+import DocLink from '@components/DocLink.astro';
+import ImageGallery from '@components/ImageGallery.astro';
+import HostCode from '~/components/HostCode.astro';
+import Banner from '~/components/Banner.astro';
+import { Products } from '~/models/site.models';
+
+<Banner variant="peFeature" product={props.product}>Extensions work only with <DocLink product={Products.PE} path="reference/extensions/development-workflow" target="_blank">ThingsBoard Professional</DocLink> and <a href="/installations/?product=thingsboard-cloud" target="_blank" rel="noopener noreferrer" class="tb-banner-ext"><b>ThingsBoard Cloud</b></a> version **4.4.0** or later.</Banner>
+
+{props.product !== Products.CE && (
+  <Banner variant="cloud">Available from ThingsBoard PE/Cloud <strong>4.4.0</strong> and later.</Banner>
+)}
+
+The <DocLink product={props.product} path='reference/extensions/quickstart'>Quickstart</DocLink> deploys a ready extension in five minutes. This page is about building your own: how to plan the feature, generate the code, test it on your machine, deploy it, and ship updates after the first release.
+
+One example runs through the whole page: **User Profiles**, the extension that ships with the ThingsBoard CLI. It adds reusable access templates. A profile — "Manager", "Technician", "Auditor" — names a whole set of rights: a user group, shared dashboards and devices, roles, and a default start page. One call gives a user that set; one call takes it back.
+
+<Aside type="note">
+The finished version of this feature is ready to run: the <DocLink product={props.product} path='reference/extensions/quickstart'>Quickstart</DocLink> deploys it with one command and points you at <DocLink product={props.product} path='reference/extensions/quickstart#complete-example-user-profiles'>its code</DocLink>. This page builds the same feature from an empty folder, so every step of the loop is visible.
+</Aside>
+
+<ImageGallery images={[{ src: '/src/assets/schemas/extension-dev-workflow.svg', alt: 'ThingsBoard extension development workflow: create the project, generate the code with Claude Code, build and test locally in a loop, then push the image, deploy it, and iterate on the running extension with a new image tag', caption: 'The development loop. You create the project once. Then you repeat two cycles: the fast local cycle (generate → build → run) and the release cycle (push → deploy → verify). Every update is a new image tag deployed to the same extension.' }]} />
+
+## Before you start
+
+Unlike the Quickstart demo, a project of your own needs a build toolchain and a place to publish the image:
+
+- The <DocLink product={props.product} path='user-guide/cli'>ThingsBoard CLI</DocLink>, with a profile that points at your ThingsBoard Cloud or PE instance:
+
+  <HostCode product={props.product} lang="bash" code={`tb config add mytb --url {BASE_URL} --api-key <tenant api key>\ntb config use mytb`} />
+
+  An <DocLink product={props.product} path='user-guide/security/api-keys' useTbDocs>API key</DocLink> for your tenant is enough. The profile also decides **where** the extension is deployed — ThingsBoard Cloud or your own PE installation.
+- **Docker**, installed and running — the CLI builds the image with it.
+- A **container registry** you can push to (Docker Hub, GitHub Container Registry, or a private one). ThingsBoard must be able to pull from it; for a private registry, pass pull credentials at deploy time — see <DocLink product={props.product} path='user-guide/cli-extensions#private-registry'>Private registry</DocLink>. Log in on your machine first (for example `docker login`): `tb extension push` uses your local Docker credentials and does not log in for you.
+
+The steps below work the same for **Java** and **Python** — only the first command changes — and the same on ThingsBoard Cloud and on your own PE.
+
+## Plan the feature first
+
+Write a short plan before you generate any code. Five lines are enough. For the User Profiles extension:
+
+- **Endpoints:** `GET /userProfiles` lists the profiles as a page; `POST /userProfile/name/{name}/assign/{userId}` applies one to a user; `DELETE` on that same path takes it back.
+- **Data:** the profiles live as `SERVER_SCOPE` attributes of one tenant asset called `user-profiles`. Assign also writes a `userProfile` attribute on the user, so a dashboard table can show the current profile in a column.
+- **Callers:** a dashboard button (JWT) and a rule chain node or an HR webhook (API key).
+- **Rules:** resolve every name to an id **before** the first write; undo what was already written when a later write fails.
+- **Not needed:** no external service, no scheduled task, no environment variables.
+
+Decide the endpoint paths now. Dashboards and rule chains will call these URLs, so renaming them later means updating every caller. Your endpoints live at the service root; the router adds the public `{BASE_URL}/api/extension/route/{slug}` prefix in front of them.
+
+**Shape them like the ThingsBoard API.** Your extension sits next to the platform API. Someone who knows `/api/device` should be able to guess your endpoints:
+
+| Action | Use | The ThingsBoard endpoint to copy |
+|---|---|---|
+| Create **or** update | `POST /<feature>` — the whole object in the body | `POST /api/device` |
+| Read one | `GET /<feature>/{id}` | `GET /api/device/{deviceId}` |
+| Read a list | `GET /<feature>s?pageSize=&page=` → a `PageData` | `GET /api/tenant/devices` |
+| Delete | `DELETE /<feature>/{id}` | `DELETE /api/device/{deviceId}` |
+| Link A to B | `POST /<feature>/{id}/assign/{targetId}` | `POST /api/alarm/{alarmId}/assign/{assigneeId}` |
+| Unlink A from B | `DELETE /<feature>/{id}/assign/{targetId}` | `DELETE /api/alarm/{alarmId}/assign` |
+
+Three rules come from that table. All three are easy to get wrong:
+
+- **Do not use `PUT` to save an object.** ThingsBoard saves with `POST` and puts the object in the body. It has only a few `PUT` endpoints, and each one writes a **single field** of an object that already exists, like `PUT /api/secret/{id}/value`.
+- **Do not add a verb to the path** when the HTTP method already says it. `POST /thing/{id}/unassign/{userId}` is wrong. `DELETE /thing/{id}/assign/{userId}` is right.
+- **Use camelCase path segments** — `userProfile`, not `user-profile` — matching `deviceProfile`, `entityGroup`, and `schedulerEvent`.
+
+Lists return ThingsBoard's `PageData`: `{"data": [], "totalPages": 0, "totalElements": 0, "hasNext": false}`. They also take `pageSize` and `page` as required query parameters. A dashboard table can then read the answer directly.
+
+Plan the moving parts of your own feature the same way. A scheduled task needs a service credential in an environment variable. An external API has rate limits, so a short interval with many devices can exhaust a free quota.
+
+## Create the project
+
+Run this inside a ThingsBoard project — `tb init` in an empty folder creates one (`mkdir user-profile && cd user-profile && tb init`). One command then unpacks a ready-to-run service with Docker files and authentication into an `extension/` folder. All file paths on this page are relative to that folder:
+
+<Tabs defaultTab="java" urlParam="lang">
+  <TabItem label="Java" id="java" icon="tabler:coffee">
+  ```bash
+  tb extension new --lang java --name user-profile
+  ```
+
+  A Spring Boot project. Your code goes into `extension/src/main/java/` as `@RestController` classes and `@Service` components.
+  </TabItem>
+  <TabItem label="Python" id="python" icon="tabler:brand-python">
+  ```bash
+  tb extension new --lang python --name user-profile
+  ```
+
+  A FastAPI project. Your code goes into `app/extension/` as routers; background loops start from the app lifespan.
+  </TabItem>
+</Tabs>
+
+`--name` sets the local image name. You can change it later with `tb extension rename`.
+
+Check that the starter runs before you add anything to it:
+
+```bash
+tb extension build
+tb extension run -d
+curl http://localhost:8090/api/health
+tb extension stop
+```
+
+`build` produces a local Docker image tagged with your extension name, targeting `linux/amd64` by default, so the image runs on common Linux hosts.
+
+`run -d` starts the container in the background and gives the prompt back. Plain `tb extension run` keeps the terminal, tails the container log until you press Ctrl-C, and shuts the container down when you do — good for watching one request, wrong for a script.
+
+<Aside type="note">
+A project can hold more than one extension: one at the project root (`extension/`) and one per solution (`solutions/<name>/extension/`). Add `--solution <name>` to any `tb extension` command to target a solution's extension — `new`, `build`, `run`, `test`, `logs`, `stop`, `push`, and `deploy` all accept it. Without the flag, the command uses the project root, or the solution your shell is currently inside. See <DocLink product={props.product} path='user-guide/cli-extensions#root-and-solution-extensions'>Root and solution extensions</DocLink>.
+</Aside>
+
+What you get is deliberately empty of business logic: `GET /api/health`, the authentication plumbing, the error contract, the Docker and deploy files, and a test suite that already passes. There is no sample feature to delete before you start.
+
+The starter's README lists the four **auth patterns** — which header each kind of caller sends, and how to write the endpoint for it. Pick one before you write anything; it decides whether your endpoint takes a client argument, and which role check guards it. The full rules the generated code must follow — the REST shape, the `PageData` list format, the shared error body — live in `.claude/extension-conventions.md`, which `tb init` puts in the project.
+
+## AI-assisted development (optional)
+
+This section is a shortcut, not a step. Writing the endpoints yourself in your usual editor is a first-class path: the starter, the tests, and the whole `build → run → push → deploy` loop below work the same either way. Skip to <a href="#test-on-your-machine">Test on your machine</a> if you write the code by hand.
+
+If you do want the help: `tb init` puts a `.claude/` folder in the project with skills and agents that know the extension starter — its layout, its authentication contract, and the ThingsBoard client API. Open the project in <a href="https://docs.anthropic.com/en/docs/claude-code/overview" target="_blank" rel="noopener noreferrer nofollow">Claude Code</a> and describe the feature in plain English:
+
+```bash
+cd user-profile
+claude
+```
+
+```text
+> /create-extension Store named access profiles as SERVER_SCOPE attributes of
+  a tenant asset. A profile names a user group, shared dashboard and device
+  groups, roles, and a default dashboard. Add endpoints to list the profiles,
+  to apply one to a user, and to take it back. Resolve every name to an id
+  before the first write, and undo what was already written when a later
+  write fails.
+```
+
+Your plan from the previous section is the prompt. Write it in plain English — the endpoints, the data, the callers, and the rules — and leave the framework details out. The skill knows them.
+
+What happens next:
+
+<Steps>
+
+1. **The skill prepares the project.** It checks that you are inside a `tb` project, resolves the edition (PE for a self-hosted instance, PaaS for ThingsBoard Cloud) from your CLI profile, and runs `tb extension new` when the `extension/` folder does not exist yet. Add `--lang python` to your request if you want the Python starter instead of the Java default.
+
+2. **The `extension-builder` agent writes the code.** It reads the starter conventions, asks about the business details it cannot guess (entity names, error codes, who may call what), then generates the endpoints, the service class, and the tests. It builds the project and fixes its own compile errors before returning.
+
+3. **You get the auth setup.** The skill prints exactly what the feature needs to run — an API key for a rule-chain caller, nothing for a dashboard widget, or `TB_AUTH_API_KEY` in `deploy/.env` for a scheduled task.
+
+4. **You review, test, and deploy.** The result is normal source code in your project. Read it, run the tests, then continue with the `build → run → push → deploy` loop below.
+
+</Steps>
+
+### What the generated code looks like
+
+The generated code is ordinary Spring Boot or FastAPI code. The endpoints of the User Profiles extension look like this:
+
+<Tabs defaultTab="java" urlParam="lang">
+  <TabItem label="Java" id="java" icon="tabler:coffee">
+  ```java
+  // extension/src/main/java/org/thingsboard/extension/userprofile/UserProfileController.java
+  @RestController
+  public class UserProfileController {
+
+      private final UserProfileService service;
+
+      public UserProfileController(UserProfileService service) {
+          this.service = service;
+      }
+
+      /** List profiles as a ThingsBoard PageData. pageSize and page are mandatory. */
+      @PreAuthorize("hasAuthority('TENANT_ADMIN')")
+      @GetMapping("/userProfiles")
+      public Map<String, Object> listProfiles(@RequestParam int pageSize,
+                                              @RequestParam int page,
+                                              @RequestParam(required = false) String textSearch,
+                                              ThingsboardClient tb) throws ApiException {
+          return service.listProfiles(tb, pageSize, page, textSearch);
+      }
+
+      /** Apply the profile to a user: read, resolve names, write + record. */
+      @PreAuthorize("hasAuthority('TENANT_ADMIN')")
+      @PostMapping("/userProfile/name/{name}/assign/{userId}")
+      public Map<String, Object> assign(@PathVariable String name, @PathVariable String userId,
+                                        @RequestParam(defaultValue = "false") boolean force,
+                                        ThingsboardClient tb) throws ApiException {
+          return service.assign(tb, name, userId, force);
+      }
+  }
+  ```
+  </TabItem>
+  <TabItem label="Python" id="python" icon="tabler:brand-python">
+  ```python
+  # app/extension/user_profile.py
+  from typing import Annotated
+
+  from fastapi import APIRouter, Depends
+  from tb_pe_client.client import ThingsboardClient
+
+  from app.security import require_authority
+
+  router = APIRouter()
+
+  TbClient = Annotated[ThingsboardClient, Depends(require_authority("TENANT_ADMIN"))]
+
+
+  @router.get("/userProfiles")
+  def list_profiles(client: TbClient, pageSize: int, page: int, textSearch: str | None = None) -> dict:
+      ...
+
+
+  @router.post("/userProfile/name/{name}/assign/{user_id}")
+  def assign_profile(name: str, user_id: str, client: TbClient, force: bool = False) -> dict:
+      ...
+  ```
+
+  The router is registered in `app/extension/__init__.py`:
+
+  ```python
+  from app.extension import user_profile
+  router.include_router(user_profile.router)
+  ```
+  </TabItem>
+</Tabs>
+
+### Review what you got
+
+The code is yours now, so read it before you deploy:
+
+- The endpoint paths match your plan. Changing them later means changing every caller.
+- The error codes are the ones you want. The generated tests show them.
+- The tests pass: `mvn test` (Java) or `pytest` (Python). Keep them green while you work — they catch broken authentication and routing early.
+
+<Aside type="tip">
+`.claude/` is regenerated by the CLI on each launch, so do not commit it. The same folder holds the skills for the rest of the platform — dashboards, entities, alarms, and calculated fields. See <DocLink product={props.product} path='user-guide/cli-solutions'>Build IoT Solutions with ThingsBoard CLI</DocLink>.
+</Aside>
+
+## Four rules every extension follows
+
+These hold whether you generated the code or wrote it yourself:
+
+- **The client acts as the caller.** The `ThingsboardClient` argument is resolved per request from the caller's `X-Authorization` header. Every read and write it makes respects that user's tenant and permissions, so you never store an admin password inside the extension.
+- **Paths are relative to the service root.** `POST /userProfile/name/{name}/assign/{userId}` is served publicly as `{BASE_URL}/api/extension/route/{slug}/userProfile/name/{name}/assign/{userId}`.
+- **The caller can be narrowed further.** The router already checks that the caller belongs to the tenant that owns the extension. `@PreAuthorize` in Java and `require_authority` in Python add your own rule on top — for example, tenant administrators only.
+- **Errors already use the ThingsBoard body.** Both starters answer every failure with `{"status": …, "message": …, "errorCode": …, "timestamp": …}`. This is the same shape the platform API uses. It covers login failures, bad request values, and errors that came back from ThingsBoard itself. To report an error, raise `ResponseStatusException` (Java) or `HTTPException` (Python) and let the starter build the body. Do not add your own error handler. With two error shapes, a widget reads one field and loses the message for every error that took the other path.
+
+<Aside type="caution">
+A scheduled task **silently does nothing** when no service credential is set: without `TB_AUTH_API_KEY` (or `TB_AUTH_USERNAME` and `TB_AUTH_PASSWORD`), the ThingsBoard client bean is not created and the timer never fires. The container starts cleanly and logs no error. Set the credential in `deploy/.env` for a local run, and pass it with `--env` when you deploy. The User Profiles feature has no scheduled task, so it needs neither.
+</Aside>
+
+## Test on your machine
+
+This is the fast inner loop from the diagram. One thing to set up first: the local container checks credentials and reads data from a **real ThingsBoard instance**. Copy `.env.example` to `.env` in the `extension/` folder and set `THINGSBOARD_URL` (for example `https://thingsboard.cloud`). The default, `http://host.docker.internal:8080`, works only when ThingsBoard runs on your own machine.
+
+Then repeat the loop until the feature works:
+
+<Steps>
+
+1. **Build and run the container locally.**
+
+   ```bash
+   tb extension build
+   tb extension run -d
+   ```
+
+2. **Call your endpoint.** Locally there is no router in front, so use the path as your code defines it:
+
+   ```bash
+   curl -X POST http://localhost:8090/userProfile/name/Technician/assign/<userId> \
+     -H 'X-Authorization: Bearer <jwt>'
+   ```
+
+   To get a JWT, call `POST {BASE_URL}/api/auth/login` with your username and password. An <DocLink product={props.product} path='user-guide/security/api-keys' useTbDocs>API key</DocLink> works too: `-H 'X-Authorization: ApiKey <key>'`.
+
+3. **Read the logs, fix the code, and go back to step 1.**
+
+   ```bash
+   tb extension logs
+   ```
+
+   Small fixes are quicker by hand. For a bigger change, describe it to Claude Code again — the project and its `.claude/` skills are still there.
+
+</Steps>
+
+Stop the local container with `tb extension stop` when you are done.
+
+## Deploy for the first time
+
+When the feature works locally, release it. Give the image a real version tag from day one — updates will be much easier to track than with `latest`:
+
+<Steps>
+
+1. **Push the image to your registry.**
+
+   ```bash
+   tb extension build --image-tag 1.0.0
+   tb extension push --image-name myorg/user-profile --image-tag 1.0.0
+   ```
+
+   ThingsBoard runs the image from a registry, not from your machine. Use the full publish target, including any registry or organization prefix — `myorg/user-profile` or `registry.example.com/team/user-profile`.
+
+2. **Deploy it.**
+
+   ```bash
+   tb extension deploy --image-name myorg/user-profile --image-tag 1.0.0
+   ```
+
+   The CLI waits until the extension is `ACTIVE` and prints its URL and slug (for example `user-profile-9f3a`).
+
+   This feature needs no environment variables: every endpoint uses the caller's own credential. A feature with a scheduled task does — pass the service credential with `--env TB_AUTH_API_KEY=<key>`, and any tuning value the same way.
+
+3. **Verify.**
+
+   ```bash
+   tb extension deployments status user-profile-9f3a
+   tb extension deployments logs user-profile-9f3a
+   ```
+
+   <ImageGallery images={[{ src: '/src/assets/images/reference/extensions/extension-details.png', alt: 'The extension details panel in ThingsBoard: deployment status with the state Active and one ready replica, and the configuration with the Docker image, port, replicas and resource size', caption: 'The same state in the UI: Data processing → Extensions, then click the row. Show logs opens the container log.' }]} />
+
+   Open the API docs at `{BASE_URL}/api/extension/route/user-profile-9f3a/swagger-ui/index.html` (Java) or `{BASE_URL}/api/extension/route/user-profile-9f3a/docs` (Python) and try the endpoints.
+
+   The docs page itself opens without a token — it is public on purpose. Calling any endpoint from it still needs a valid credential in the `X-Authorization` header.
+
+   Then connect the real callers. In a rule chain, add a **REST API call** node with the URL `{BASE_URL}/api/extension/route/user-profile-9f3a/userProfile/name/Technician/assign/{userId}` and the header `X-Authorization: ApiKey <key>`. For a dashboard button, call the same URL with the current user's session token: `X-Authorization: Bearer <token>`. Every call must carry this header — the router rejects requests without a valid credential.
+
+4. **Remove it when you no longer need it (optional).**
+
+   ```bash
+   tb extension undeploy user-profile-9f3a
+   ```
+
+</Steps>
+
+<Aside type="tip">
+The slug (`user-profile-9f3a` above) is assigned by ThingsBoard and is unique. Use it — or the extension UUID — as the reference in every `deployments` command.
+</Aside>
+
+## Ship updates
+
+An extension is not finished after the first deploy. The outer loop from the diagram is the normal life of the project: change the code, release a new image tag, deploy it to the same extension.
+
+<Steps>
+
+1. **Change the code and pass the local loop again** (build → run → test).
+
+2. **Build and push a new tag.**
+
+   ```bash
+   tb extension build --image-tag 1.1.0
+   tb extension push --image-name myorg/user-profile --image-tag 1.1.0
+   ```
+
+   When `--image-tag` is set, `push` also updates `:latest` in the registry to the same build. Pass `--no-latest` to skip that — for example, for a release candidate that should not become the new `latest`.
+
+3. **Deploy the new tag to the same extension.**
+
+   ```bash
+   tb extension deploy --image-name myorg/user-profile --image-tag 1.1.0
+   ```
+
+   The environment variables and the registry credentials are kept from the current deployment, so you do not repeat the `--env` flags — only the new tag is needed. The running extension is not stopped. Its state shows **Updating** while the new version rolls out; replicas that are already ready keep serving traffic. The slug and the URL never change, so dashboards and rule chains keep working.
+
+   <Aside type="caution">
+   Passing one `--env` replaces the **whole set** — the values are not merged. When you change one variable, repeat all the others too: a deploy with only `--env REPORT_INTERVAL_SECONDS=30` would drop `TB_AUTH_API_KEY` and stop the scheduled task that needs it. To remove all environment variables on purpose, pass `--clear-env`. `--replicas` and `--port` behave the other way round: an update keeps the values of the running deployment, so a scale you made in the UI is not undone. Pass the flag only when you want to change them.
+   </Aside>
+
+4. **Watch the rollout.**
+
+   ```bash
+   tb extension deployments status user-profile-9f3a
+   ```
+
+</Steps>
+
+If the new version fails to start, the extension moves to **Failed** and the last error is shown in the status. The entity and the slug survive — fix the code and deploy again. To roll back fast, deploy the previous tag:
+
+```bash
+tb extension deploy --image-name myorg/user-profile --image-tag 1.0.0
+```
+
+<Aside type="tip">
+The project's `thingsboard.json` remembers the extension name, image, slug, and size — you can omit `--image-name` after the first deploy. The environment variables and the registry credentials are kept from the current deployment on the server. Only the image tag is not remembered: pass `--image-tag` on each deploy, or the CLI deploys `latest`.
+</Aside>
+
+## Next steps
+
+- <DocLink product={props.product} path='user-guide/cli-extensions'>Deploy with the CLI</DocLink> — every flag of `tb extension deploy`, resource sizes, and the `deployments` commands.
+- <DocLink product={props.product} path='reference/extensions/quickstart#complete-example-user-profiles'>Complete example: User Profiles</DocLink> — the finished extension: run it, read its code, and change it into your own.
+- <DocLink product={props.product} path='reference/extensions/architecture'>Architecture</DocLink> — routing, authentication, extension states, and the three ways to run an extension.
