@@ -1,4 +1,5 @@
 import { z } from 'astro/zod';
+import { SOURCE_AVAILABLE_FROM_VER } from '@data/versions';
 
 // `IOT_HUB_API_URL` resolution differs by context:
 //
@@ -344,6 +345,15 @@ export const IOT_HUB_STRINGS = {
 	builtIn: {
 		/** Appended to the supported-version chip in the detail hero's meta row. */
 		label: 'Built-in',
+	},
+	peOnly: {
+		/**
+		 * Edition chip for `peOnly` listings. From {@link SOURCE_AVAILABLE_FROM_VER}
+		 * CE and PE merge into one edition, so these items run on either.
+		 */
+		label: `PE or ${SOURCE_AVAILABLE_FROM_VER}+`,
+		/** The chip links to the relicensing post that explains the merge. */
+		href: '/blog/one-thingsboard-source-available/',
 	},
 } as const;
 
