@@ -352,8 +352,6 @@ export const IOT_HUB_STRINGS = {
 		 * CE and PE merge into one edition, so these items run on either.
 		 */
 		label: `PE or ${SOURCE_AVAILABLE_FROM_VER}+`,
-		/** The chip links to the relicensing post that explains the merge. */
-		href: '/blog/one-thingsboard-source-available/',
 	},
 } as const;
 
