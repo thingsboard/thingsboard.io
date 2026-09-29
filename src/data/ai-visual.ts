@@ -43,7 +43,7 @@ export const AI_COLUMNS: { assistant: AiColumn; cli: AiColumn } = {
 export const AI_CTA = {
 	assistant: {
 		text: 'Try for free',
-		href: 'https://thingsboard.cloud/signup',
+		href: '/installations/choose-region/',
 		icon: 'tabler:cloud',
 		line: 'Sign up for ThingsBoard Cloud and describe your first solution — nothing to install.',
 	},
