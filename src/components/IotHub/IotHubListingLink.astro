@@ -1,6 +1,7 @@
 ---
 import {
 	getCardVariant,
+	getCategoryForItemType,
 	getPlaceholderIcon,
 	resolveImage,
 	type ListingView,
@@ -9,7 +10,9 @@ import IotHubIcon from './IotHubIcon.astro';
 import { getListingBySlug } from './iot-hub-listing-link-cache';
 import {
 	TYPE_FALLBACK_ICON,
+	TYPE_MARKER_ICON,
 	getListingHref,
+	getThumbIconSize,
 } from './iot-hub-listing-link-bind';
 
 // Inline card linking to another IoT Hub listing.
@@ -32,14 +35,20 @@ import {
 //     Used by the readme `${listing-link:<slug>}` placeholder.
 //   - 'row' — full-width unbordered row with hover background. Used by the
 //     search popup so cloned cards span the popup body width.
+//
+// `showType` puts the item's type (icon + type name, in the type's colour) at
+// the start of the meta row, so a list mixing item types (the search popup)
+// says what each row is. Off by default: every other card sits in a context that
+// already names its type.
 
 interface Props {
 	slug?: string;
 	item?: ListingView;
 	variant?: 'card' | 'row';
+	showType?: boolean;
 }
 
-const { slug, item: propItem, variant = 'card' } = Astro.props;
+const { slug, item: propItem, variant = 'card', showType = false } = Astro.props;
 
 // Resolution order: explicit `item` wins (skip the network), else fetch
 // from `slug`, else `null` (template / empty mode).
@@ -62,10 +71,14 @@ const thumbIconName = !item
 	: isCompact
 		? getPlaceholderIcon(item)
 		: fallbackTypeIcon;
-const thumbIconSize = isCompact ? 28 : 24;
-const thumbStyle = isCompact && item?.color ? `background:${item.color};` : undefined;
+const isRow = variant === 'row';
+const thumbIconSize = getThumbIconSize(isCompact, isRow);
+// The colour goes in a custom property, not `background`, so each variant decides which box
+// wears it: the thumb itself on a card, the tile inside it on a row (see the styles below).
+const thumbStyle = isCompact && item?.color ? `--iot-hub-listing-link-tile-color:${item.color};` : undefined;
+const category = item ? getCategoryForItemType(item.itemType) : undefined;
 
-const rootClasses = ['iot-hub-listing-link', variant === 'row' && 'iot-hub-listing-link--row'];
+const rootClasses = ['iot-hub-listing-link', isRow && 'iot-hub-listing-link--row'];
 const thumbClasses = [
 	'iot-hub-listing-link__thumb',
 	isCompact && 'iot-hub-listing-link__thumb--compact',
@@ -113,36 +126,50 @@ const thumbClasses = [
 					decoding="async"
 					hidden={!showImg}
 				/>
-				<IotHubIcon
-					icon={thumbIconName}
-					size={thumbIconSize}
-					class="iot-hub-listing-link__thumb-icon"
-					hidden={!showIcon}
-				/>
+				<span class="iot-hub-listing-link__thumb-tile" hidden={!showIcon}>
+					<IotHubIcon
+						icon={thumbIconName}
+						size={thumbIconSize}
+						class="iot-hub-listing-link__thumb-icon"
+					/>
+				</span>
 			</span>
 			<span class="iot-hub-listing-link__text">
 				<span
 					class="iot-hub-listing-link__name"
 					data-listing-link-name
 				>{item?.name ?? ''}</span>
-				<span
-					class="iot-hub-listing-link__author"
-					data-listing-link-author
-					hidden={!item?.creatorDisplayName}
-				>
-					<IotHubIcon
-						icon={item?.creatorVerified ? 'verified' : 'person'}
-						size={16}
-						class={
-							item?.creatorVerified
-								? 'iot-hub-listing-link__author-icon iot-hub-listing-link__author-icon--verified'
-								: 'iot-hub-listing-link__author-icon'
-						}
-					/>
+				<span class="iot-hub-listing-link__meta">
+					{showType && (
+						<span
+							class="iot-hub-listing-link__type"
+							data-listing-link-type
+							style={category ? `--iot-hub-listing-link-type-color:${category.tileColorDark};` : undefined}
+							hidden={!!item && !category}
+						>
+							<IotHubIcon icon={item ? TYPE_MARKER_ICON[item.itemType] : undefined} size={14} />
+							<span data-listing-link-type-label>{category?.singularLabel ?? ''}</span>
+						</span>
+					)}
 					<span
-						class="iot-hub-listing-link__author-text"
-						data-listing-link-author-text
-					>{item?.creatorDisplayName ?? ''}</span>
+						class="iot-hub-listing-link__author"
+						data-listing-link-author
+						hidden={!item?.creatorDisplayName}
+					>
+						<IotHubIcon
+							icon={item?.creatorVerified ? 'verified' : 'person'}
+							size={16}
+							class={
+								item?.creatorVerified
+									? 'iot-hub-listing-link__author-icon iot-hub-listing-link__author-icon--verified'
+									: 'iot-hub-listing-link__author-icon'
+							}
+						/>
+						<span
+							class="iot-hub-listing-link__author-text"
+							data-listing-link-author-text
+						>{item?.creatorDisplayName ?? ''}</span>
+					</span>
 				</span>
 			</span>
 		</a>
@@ -251,6 +278,7 @@ const thumbClasses = [
 			height: 56px;
 			border: none;
 			border-radius: 4.667px;
+			background: var(--iot-hub-listing-link-tile-color, #048ad3);
 			color: #fff;
 		}
 
@@ -273,6 +301,39 @@ const thumbClasses = [
 		// page styles win). The combined selector is 0,2,0 and hides.
 		&[hidden] {
 			display: none;
+		}
+	}
+
+	// Box around the thumb icon. On a card it only centres the icon; the row variant below turns
+	// it into the coloured tile. Present on every card so the binder sees one DOM shape.
+	.iot-hub-listing-link__thumb-tile {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+
+		&[hidden] {
+			display: none;
+		}
+	}
+
+	// Row variant: an item without a screenshot sits in the same grey 99×56 frame a screenshot
+	// gets, with its colour and icon as a tile centred inside. A bare 56px tile beside 99px
+	// frames starts the names at two different positions down one list.
+	.iot-hub-listing-link--row .iot-hub-listing-link__thumb--compact {
+		width: 99px;
+		border: 1px solid var(--iot-hub-hairline, rgba(0, 0, 0, 0.12));
+		border-radius: 4px;
+		background: rgba(0, 0, 0, 0.04);
+
+		:global([data-theme='dark']) & {
+			background: rgba(255, 255, 255, 0.04);
+		}
+
+		.iot-hub-listing-link__thumb-tile {
+			width: 36px;
+			height: 36px;
+			border-radius: 6px;
+			background: var(--iot-hub-listing-link-tile-color, #048ad3);
 		}
 	}
 
@@ -307,9 +368,64 @@ const thumbClasses = [
 		display: inline-flex;
 		align-items: center;
 		gap: 4px;
+		min-width: 0;
 		font-size: 12px;
 		font-weight: 500;
 		color: var(--sl-color-gray-3, rgba(0, 0, 0, 0.6));
+
+		// Same guard as the thumb image: `display: inline-flex` would otherwise beat the
+		// browser's `[hidden]` rule and leave a bare icon for a listing with no author.
+		&[hidden] {
+			display: none;
+		}
+	}
+
+	// Shares the meta row with the item type, so a long name is cut rather than overflowing.
+	.iot-hub-listing-link__author-text {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	// Meta row: the item type (when enabled), then the author.
+	.iot-hub-listing-link__meta {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		min-width: 0;
+	}
+
+	// Type label: icon and type name in the type's colour, no pill, then a middle dot before the
+	// author — the meta row reads "Widget · pinkevych.d".
+	.iot-hub-listing-link__type {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		flex-shrink: 0;
+		font-size: 12px;
+		font-weight: 500;
+		line-height: 16px;
+		// Darkened so the paler type colours (rule chain, calculated field) stay legible as text.
+		color: color-mix(in srgb, var(--iot-hub-listing-link-type-color, #5f6368) 75%, #000);
+
+		:global([data-theme='dark']) & {
+			color: color-mix(in srgb, var(--iot-hub-listing-link-type-color, #5f6368) 70%, #fff);
+		}
+
+		&::after {
+			content: '·';
+			font-weight: 700;
+			color: var(--sl-color-gray-3, rgba(0, 0, 0, 0.45));
+		}
+
+		// No author to separate from.
+		&:has(+ .iot-hub-listing-link__author[hidden])::after {
+			content: none;
+		}
+
+		&[hidden] {
+			display: none;
+		}
 	}
 
 	// Verified creators get the brand-accent badge icon instead of the
