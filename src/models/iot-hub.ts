@@ -347,10 +347,7 @@ export const IOT_HUB_STRINGS = {
 		label: 'Built-in',
 	},
 	peOnly: {
-		/**
-		 * Edition chip for `peOnly` listings. From {@link SOURCE_AVAILABLE_FROM_VER}
-		 * CE and PE merge into one edition, so these items run on either.
-		 */
+		/** From 4.4 CE and PE merge into one edition, so `peOnly` items run on either. */
 		label: `PE or ${SOURCE_AVAILABLE_FROM_VER}+`,
 	},
 } as const;
