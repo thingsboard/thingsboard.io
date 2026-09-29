@@ -90,7 +90,7 @@ export const onPremBenefits: Benefit[] = [
 	},
 	{
 		icon: 'tabler:server',
-		color: '#1f8b4d',
+		color: '#178649',
 		title: 'Runs where you choose',
 		description:
 			'Your own data centre, your AWS, Azure or GCP account, or a Kubernetes cluster — including fully air-gapped environments with no internet connection at all.',

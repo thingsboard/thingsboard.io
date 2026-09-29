@@ -69,7 +69,7 @@ export const homeEcosystem: EcosystemItem[] = [
 		icon: 'thingsboard-mark',
 		href: '/products/mobile/',
 		action: 'Tour the app',
-		accent: '#1f8b4d',
+		accent: '#178649',
 		wide: true,
 		layout: { cols3: 'flip', cols2: 'flip' },
 		video: {
