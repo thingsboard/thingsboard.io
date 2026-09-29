@@ -236,7 +236,14 @@ export const CATCH_ALL_REDIRECTS: CatchAllRedirect[] = [
 		// /docs/pe/edge/{…} URL ever pointed at them.
 		excludeSlugs: ['user-guide/cli', 'reference/java-client', 'reference/python-client'],
 	},
-	{ oldPrefix: 'pe/mobile', newPrefix: 'mobile/pe', entries: [] },
+	{
+		oldPrefix: 'pe/mobile',
+		newPrefix: 'mobile/pe',
+		entries: [],
+		// Added after the prefix split — no legacy /docs/pe/mobile/{…} URL ever
+		// pointed at them.
+		excludeSlugs: ['compatibility', 'live-location-tracking', 'releases'],
+	},
 	// TBMQ prefixes (mqtt-broker/install, mqtt-broker/pe/install, pe/mqtt-broker/…)
 	// are cross-origin now — `newPrefix` can only express a local prefix, so they
 	// live in the TBMQ cutover group of DYNAMIC_REDIRECTS below.
@@ -1468,6 +1475,8 @@ export const NON_DOCS_REDIRECTS: Record<string, string> = {
 	// The License Portal legal documents were superseded by the /legal/ set.
 	'/products/license-server/terms-of-use/': '/legal/terms-of-use/',
 	'/products/license-server/privacy-policy/': '/legal/privacy-policy/',
+	// /legal/ has no index page of its own; the license text is its landing.
+	'/legal/': '/legal/busl/',
 
 	// Partner sample moved from the retired /docs/samples/ tree into the
 	// hardware-partners asset folder, where every other partner's files live.
