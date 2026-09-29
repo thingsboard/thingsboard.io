@@ -3,6 +3,7 @@ import {
 	getCardVariant,
 	getPlaceholderIcon,
 	resolveImage,
+	type IotHubItemType,
 	type ListingView,
 } from '@models/iot-hub';
 import { bindIotHubIcon } from './iot-hub-icon-bind';
@@ -19,25 +20,46 @@ export const TYPE_FALLBACK_ICON: Record<string, string> = {
 	DEVICE: 'memory',
 };
 
-// Icon size inside the thumb. A row draws a compact item's icon in a 36px tile rather than
-// across the whole 56px thumb, so it gets a smaller glyph than the card does.
-export function getThumbIconSize(isCompact: boolean, isRow: boolean): number {
-	if (!isCompact) return 24;
-	return isRow ? 22 : 28;
-}
+// Icon size inside the thumb. The pixel values live in IotHubListingLink.astro's
+// styles, next to the boxes they have to fit (the 56px thumb, the 36px row tile),
+// and IotHubIcon takes any CSS length, so the markup and this binder both pass
+// the variable rather than a number of their own.
+export const THUMB_ICON_SIZE = 'var(--iot-hub-listing-link-thumb-icon-size)';
 
 // Icon that marks an item's type next to the item, wherever a list mixes types
 // (the search popup). The IoT Hub's type dictionary — the same icons the
 // platform uses — rather than the thumbnail placeholders above, which picture
-// the content and not the type.
-export const TYPE_MARKER_ICON: Record<string, string> = {
+// the content and not the type. `satisfies` makes a type added to
+// IOT_HUB_CATEGORIES without an icon here a compile error.
+const TYPE_MARKER_ICON = {
 	DEVICE: 'devices_other',
 	SOLUTION_TEMPLATE: 'apps',
 	WIDGET: 'widgets',
 	CALCULATED_FIELD: 'mdi:function-variant',
 	ALARM_RULE: 'mdi:bell-cog',
 	RULE_CHAIN: 'settings_ethernet',
-};
+} satisfies Record<IotHubItemType, string>;
+
+export const TYPE_MARKER_ICON_SIZE = 14;
+
+export interface TypeMarker {
+	icon: string;
+	/** The type's colour; the styles pull it toward the text colour for legibility. */
+	color: string;
+	label: string;
+}
+
+// What the type marker shows for an item, for the markup and the binder alike.
+// Null for a type the site has no category for, which renders no marker.
+export function getTypeMarker(itemType: string): TypeMarker | null {
+	const category = getCategoryForItemType(itemType);
+	if (!category) return null;
+	return {
+		icon: TYPE_MARKER_ICON[category.itemType],
+		color: category.tileColorDark,
+		label: category.singularLabel,
+	};
+}
 
 // Build the `/iot-hub/{category}/{slug}/` href for a listing, falling back to
 // `#` when the itemType has no public category (see getCategoryForItemType).
@@ -65,19 +87,20 @@ export function bindListingLink(root: HTMLElement, item: ListingView): void {
 
 	const thumb = root.querySelector<HTMLElement>('[data-listing-link-thumb]');
 	const thumbImg = root.querySelector<HTMLImageElement>('[data-listing-link-thumb-img]');
-	const thumbTile = thumb?.querySelector<HTMLElement>('.iot-hub-listing-link__thumb-tile');
+	const thumbTile = thumb?.querySelector<HTMLElement>('[data-listing-link-thumb-tile]');
 	const thumbIconWrap = thumbTile?.querySelector<HTMLElement>('[data-icon-root]');
 	if (!thumb || !thumbImg || !thumbTile || !thumbIconWrap) return;
-	const isRow = root.classList.contains('iot-hub-listing-link--row');
-	const thumbIconSize = getThumbIconSize(isCompact, isRow);
 
 	if (isCompact) {
 		thumb.classList.add('iot-hub-listing-link__thumb--compact');
-		thumb.style.setProperty('--iot-hub-listing-link-tile-color', item.color ?? '#048ad3');
+		// Set only when the item has a colour, as the markup does; the default is the
+		// stylesheet's fallback.
+		if (item.color) thumb.style.setProperty('--iot-hub-listing-link-tile-color', item.color);
+		else thumb.style.removeProperty('--iot-hub-listing-link-tile-color');
 		thumbImg.removeAttribute('src');
 		thumbImg.hidden = true;
 		thumbTile.hidden = false;
-		void bindIotHubIcon(thumbIconWrap, compactIcon, thumbIconSize);
+		void bindIotHubIcon(thumbIconWrap, compactIcon, THUMB_ICON_SIZE);
 	} else {
 		thumb.classList.remove('iot-hub-listing-link__thumb--compact');
 		thumb.style.removeProperty('--iot-hub-listing-link-tile-color');
@@ -85,12 +108,12 @@ export function bindListingLink(root: HTMLElement, item: ListingView): void {
 			thumbImg.src = imageUrl;
 			thumbImg.hidden = false;
 			thumbTile.hidden = true;
-			void bindIotHubIcon(thumbIconWrap, null, thumbIconSize);
+			void bindIotHubIcon(thumbIconWrap, null, THUMB_ICON_SIZE);
 		} else {
 			thumbImg.removeAttribute('src');
 			thumbImg.hidden = true;
 			thumbTile.hidden = false;
-			void bindIotHubIcon(thumbIconWrap, fallbackTypeIcon, thumbIconSize);
+			void bindIotHubIcon(thumbIconWrap, fallbackTypeIcon, THUMB_ICON_SIZE);
 		}
 	}
 
@@ -98,13 +121,13 @@ export function bindListingLink(root: HTMLElement, item: ListingView): void {
 	const typeMarker = root.querySelector<HTMLElement>('[data-listing-link-type]');
 	const typeMarkerIcon = typeMarker?.querySelector<HTMLElement>('[data-icon-root]');
 	if (typeMarker && typeMarkerIcon) {
-		const category = getCategoryForItemType(item.itemType);
-		typeMarker.hidden = !category;
-		if (category) typeMarker.style.setProperty('--iot-hub-listing-link-type-color', category.tileColorDark);
+		const marker = getTypeMarker(item.itemType);
+		typeMarker.hidden = !marker;
+		if (marker) typeMarker.style.setProperty('--iot-hub-listing-link-type-color', marker.color);
 		else typeMarker.style.removeProperty('--iot-hub-listing-link-type-color');
 		const typeLabel = typeMarker.querySelector<HTMLElement>('[data-listing-link-type-label]');
-		if (typeLabel) typeLabel.textContent = category?.singularLabel ?? '';
-		void bindIotHubIcon(typeMarkerIcon, category ? TYPE_MARKER_ICON[item.itemType] : null, 14);
+		if (typeLabel) typeLabel.textContent = marker?.label ?? '';
+		void bindIotHubIcon(typeMarkerIcon, marker?.icon ?? null, TYPE_MARKER_ICON_SIZE);
 	}
 
 	const name = root.querySelector<HTMLElement>('[data-listing-link-name]');
