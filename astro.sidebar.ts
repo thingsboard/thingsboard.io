@@ -238,7 +238,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => {
 			`${prefix}/entity-views`,
 			`${prefix}/scheduler`,
 			`${prefix}/csv-xls-data-export`,
-			...(isPE ? [`${prefix}/file-storage`] : []),
+			...(isPE ? [`${prefix}/file-storage`, `${prefix}/location-tracking`] : []),
 		],
 	},
 	{
@@ -371,7 +371,7 @@ const edgeInstallationItems = (prefix: string) => {
 		...(isPE
 			? []
 			: [{ label: 'Building from Sources', slug: `${prefix}/installation/building-from-source` }]),
-		{ label: 'Upgrade instructions', slug: `${prefix}/installation/upgrade-instructions` },
+		{ label: 'Upgrade Instructions', slug: `${prefix}/installation/upgrade-instructions` },
 	];
 };
 
@@ -454,7 +454,7 @@ const installationItems = (prefix: string) => {
 					},
 				]
 			: [
-					{ label: 'Upgrade instructions', slug: `${prefix}/installation/upgrade-instructions` },
+					{ label: 'Upgrade Instructions', slug: `${prefix}/installation/upgrade-instructions` },
 					`${prefix}/installation/register-community-grant`,
 				]),
 	];
@@ -2118,6 +2118,7 @@ export const paasSidebar: SidebarConfig = [
 					'docs/paas/user-guide/scheduler',
 					'docs/paas/user-guide/csv-xls-data-export',
 					'docs/paas/user-guide/file-storage',
+					'docs/paas/user-guide/location-tracking',
 				],
 			},
 			{
@@ -2528,6 +2529,7 @@ export const paasEuSidebar: SidebarConfig = [
 					'docs/paas/eu/user-guide/scheduler',
 					'docs/paas/eu/user-guide/csv-xls-data-export',
 					'docs/paas/eu/user-guide/file-storage',
+					'docs/paas/eu/user-guide/location-tracking',
 				],
 			},
 			{
@@ -3679,6 +3681,7 @@ export const mobilePeSidebar: SidebarConfig = [
 				collapsed: true,
 				items: [
 					'docs/mobile/pe/mobile-actions',
+					'docs/mobile/pe/live-location-tracking',
 					'docs/mobile/pe/oauth2',
 					'docs/mobile/pe/self-registration',
 					'docs/mobile/pe/qr-code-settings',

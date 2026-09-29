@@ -41,7 +41,7 @@ export const homeProducts: ProductChoice[] = [
 		description: [
 			'You host it in your cloud, data center, or fully air-gapped, so data location and compliance stay in your hands. We ship LTS releases and security patches.',
 		],
-		badgeFill: '#1f8b4d',
+		badgeFill: '#178649',
 		nameHighlight: 'On-premises',
 		action: { label: 'Install for free', href: '/installations/', icon: 'tabler:server' },
 		href: '/products/thingsboard-pe/',
