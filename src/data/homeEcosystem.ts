@@ -47,7 +47,7 @@ export const homeEcosystem: EcosystemItem[] = [
 		icon: '/src/assets/images/landings/ce/thingsboard-e-icon.svg',
 		href: '/products/thingsboard-edge/',
 		action: 'See how Edge works',
-		accent: '#0f9b8e',
+		accent: '#008478',
 		addOn: true,
 	},
 	{
@@ -114,6 +114,6 @@ export const homeEcosystem: EcosystemItem[] = [
 		icon: '/src/assets/images/landings/ce/tbmq-icon.svg',
 		href: TBMQ_SITE_URL,
 		action: 'Go to tbmq.io',
-		accent: '#1f9d55',
+		accent: '#008741',
 	},
 ];

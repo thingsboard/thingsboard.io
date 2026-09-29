@@ -8,7 +8,7 @@ export const homeHeroCtas: Cta[] = [
 		href: '/installations/choose-region/',
 		icon: 'tabler:cloud-filled',
 		variant: 'brand',
-		ariaLabel: 'Try ThingsBoard Cloud for free',
+		ariaLabel: 'Try for free on ThingsBoard Cloud',
 		cloudAuth: 'signup',
 	},
 	{
