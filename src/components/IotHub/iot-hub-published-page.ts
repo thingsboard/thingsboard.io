@@ -1,0 +1,76 @@
+import {
+	IOT_HUB_API_URL,
+	getIotHubSortOption,
+	isNumericSlug,
+	type ListingView,
+	type PageData,
+} from '@models/iot-hub';
+import { getKnownSlugs } from './iot-hub-known-slugs';
+
+// One page of the published catalogue, as every runtime search surface reads it:
+// the search page (iot-hub-dynamic-search.ts) and the hero popup (IotHubHero.astro).
+// Both go through here so they send the same request and drop the same rows, which
+// is what lets the popup promise it previews the page "See results for …" opens on.
+
+export interface PublishedPageQuery {
+	text: string;
+	/** 0-based, as the backend counts. */
+	page: number;
+	pageSize: number;
+	sortId: string;
+	/** Surface-specific filters (type, creator, facets), set after the shared ones. */
+	params?: Iterable<[string, string]>;
+}
+
+export interface PublishedPage {
+	/** The rows this build can open, in the server's order. */
+	items: ListingView[];
+	/** Everything the search matched. What analytics reports. */
+	matchedCount: number;
+	/**
+	 * What a visitor is told the search found: the match count less the rows this
+	 * page dropped. Only this page's drops are known, so a row on another page that
+	 * the site cannot open is still counted.
+	 */
+	openableCount: number;
+	totalPages: number;
+}
+
+/** Throws on a network failure, an abort, or a non-2xx answer. */
+export async function fetchPublishedPage(
+	query: PublishedPageQuery,
+	signal: AbortSignal
+): Promise<PublishedPage> {
+	const sort = getIotHubSortOption(query.sortId);
+	const params = new URLSearchParams({
+		pageSize: String(query.pageSize),
+		page: String(query.page),
+		sortProperty: sort.sortProperty,
+		sortOrder: sort.sortOrder,
+	});
+	const trimmed = query.text.trim();
+	if (trimmed) params.set('textSearch', trimmed);
+	for (const [param, value] of query.params ?? []) params.set(param, value);
+
+	const [res, knownSlugs] = await Promise.all([
+		fetch(`${IOT_HUB_API_URL}/api/listings/published?${params.toString()}`, { signal }),
+		getKnownSlugs(),
+	]);
+	if (!res.ok) throw new Error(`HTTP ${res.status}`);
+	const body = (await res.json()) as PageData<ListingView>;
+	const data = body.data ?? [];
+	// Drop listings with no static detail page to click through to: ones published
+	// after the last deploy (absent from the slug manifest), and numeric slugs, which
+	// `[category]/[slug].astro` excludes but the manifest still lists — without this
+	// the card would link to `/iot-hub/devices/2/`, page 2 of the listing. Same rule
+	// `getStaticPaths` applies, so a static first render and every refetch agree.
+	// Nothing is fetched to replace them: a page shows fewer rows until the next rebuild.
+	const items = data.filter((item) => knownSlugs.has(item.slug) && !isNumericSlug(item.slug));
+	const matchedCount = body.totalElements ?? 0;
+	return {
+		items,
+		matchedCount,
+		openableCount: Math.max(items.length, matchedCount - (data.length - items.length)),
+		totalPages: Math.max(1, body.totalPages || 1),
+	};
+}

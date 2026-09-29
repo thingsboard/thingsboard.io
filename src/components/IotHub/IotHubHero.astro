@@ -667,16 +667,9 @@ const highlights = [
 	// IotHubRuntimeConfig.astro publishes from the server-side env value
 	// before bundled modules evaluate. See @models/iot-hub.ts for the
 	// resolution logic.
-	import {
-		IOT_HUB_API_URL,
-		DEFAULT_IOT_HUB_SORT_ID,
-		getIotHubSortOption,
-		isNumericSlug,
-		type ListingView,
-		type PageData,
-	} from '@models/iot-hub';
+	import { DEFAULT_IOT_HUB_SORT_ID, type ListingView } from '@models/iot-hub';
 	import { bindListingLink } from './iot-hub-listing-link-bind';
-	import { getKnownSlugs } from './iot-hub-known-slugs';
+	import { fetchPublishedPage, type PublishedPage } from './iot-hub-published-page';
 
 	const DEBOUNCE_MS = 300;
 	const SEARCH_PATH = '/iot-hub/search/';
@@ -687,46 +680,14 @@ const highlights = [
 		return q ? `${SEARCH_PATH}?q=${encodeURIComponent(q)}` : SEARCH_PATH;
 	}
 
-	interface PopupResults {
-		items: ListingView[];
-		/** Rows the search matched, before the static-page filter below. */
-		totalElements: number;
-		/** Rows the site can open: the match count less the rows this page had to drop. */
-		reachable: number;
-	}
-
-	async function fetchResults(text: string, signal: AbortSignal): Promise<PopupResults> {
-		const trimmed = text.trim();
-		// The search page's default sort, not a popup-specific one: with text it
-		// ranks by relevance, without it the backend substitutes the install count.
-		const sort = getIotHubSortOption(DEFAULT_IOT_HUB_SORT_ID);
-		const params = new URLSearchParams({
-			pageSize: String(PAGE_SIZE),
-			page: '0',
-			sortProperty: sort.sortProperty,
-			sortOrder: sort.sortOrder,
-		});
-		if (trimmed) params.set('textSearch', trimmed);
-		const [res, knownSlugs] = await Promise.all([
-			fetch(`${IOT_HUB_API_URL}/api/listings/published?${params.toString()}`, { signal }),
-			getKnownSlugs(),
-		]);
-		if (!res.ok) throw new Error(`HTTP ${res.status}`);
-		const body = (await res.json()) as PageData<ListingView>;
-		const data = body.data ?? [];
-		// Drop listings with no static detail page to click through to — the same
-		// rule the search page applies. Nothing is fetched to replace them: the
-		// popup shows fewer rows until the next rebuild, which is rare.
-		const items = data.filter((item) => knownSlugs.has(item.slug) && !isNumericSlug(item.slug));
-		const totalElements = body.totalElements ?? 0;
-		return {
-			items,
-			totalElements,
-			// Only this page's drops are known, so a row beyond it that the site cannot
-			// open is still counted. The footer's "all" count uses this, so a popup that
-			// shows every row it can open never claims more.
-			reachable: Math.max(items.length, totalElements - (data.length - items.length)),
-		};
+	// Page 0 of the search page's own request, under the search page's default
+	// sort: with text it ranks by relevance, without it the backend substitutes
+	// the install count.
+	function fetchResults(text: string, signal: AbortSignal): Promise<PublishedPage> {
+		return fetchPublishedPage(
+			{ text, page: 0, pageSize: PAGE_SIZE, sortId: DEFAULT_IOT_HUB_SORT_ID },
+			signal
+		);
 	}
 
 	function getCardTemplate(): HTMLTemplateElement | null {
@@ -854,16 +815,16 @@ const highlights = [
 			showLoading(text);
 			updateFooter(text);
 			fetchResults(text, abort.signal)
-				.then(({ items, totalElements, reachable }) => {
+				.then(({ items, matchedCount, openableCount }) => {
 					// The visitor typed on after this request went out, and the debounced
 					// runSearch already queued owns the popup now. Painting this answer would
 					// put the footer back on the old query while the field shows the new one.
 					if (text !== input!.value) return;
 					isLoading = false;
-					// What the search matched, not what fits on screen — the same
-					// `totalElements` the search page reports.
-					trackQuery(text, totalElements);
-					updateFooter(text, { shown: items.length, total: reachable });
+					// Analytics gets what the search matched, as the search page reports it;
+					// the footer the count the search page shows.
+					trackQuery(text, matchedCount);
+					updateFooter(text, { shown: items.length, total: openableCount });
 					if (items.length === 0) renderState(body!, 'empty', text);
 					else renderList(body!, items);
 				})
