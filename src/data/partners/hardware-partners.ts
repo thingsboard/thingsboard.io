@@ -2622,7 +2622,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 				}
 			]
 		},
-		"description": "Option™ combines 5G technology from its engineering services division with distinctive RF antenna design capabilities to provide solutions and services deployed in reliable (private) IoT networks. Option™ with its CloudGate platform, has powerful open interfaces for aggregating (sensor) data to (Cloud) environments and has developed a successful innovative proprietary LoRa platform specifically designed for Smart Building applications."
+		"description": "Option™ combines 5G technology from its engineering services division with distinctive RF antenna design capabilities to provide solutions and services deployed in reliable (private) IoT networks. Option™ with its CloudGate platform has powerful open interfaces for aggregating (sensor) data to (Cloud) environments and has developed a successful innovative proprietary LoRa platform specifically designed for Smart Building applications."
 	}
 ];
 
