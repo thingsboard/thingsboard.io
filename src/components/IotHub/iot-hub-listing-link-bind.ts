@@ -37,7 +37,7 @@ const TYPE_MARKER_ICON = {
 
 export const TYPE_MARKER_ICON_SIZE = 14;
 
-export interface TypeMarker {
+interface TypeMarker {
 	icon: string;
 	/** The type's colour; the styles pull it toward the text colour for legibility. */
 	color: string;
@@ -85,31 +85,18 @@ export function bindListingLink(root: HTMLElement, item: ListingView): void {
 	const thumbIconWrap = thumbTile?.querySelector<HTMLElement>('[data-icon-root]');
 	if (!thumb || !thumbImg || !thumbTile || !thumbIconWrap) return;
 
-	if (isCompact) {
-		thumb.classList.add('iot-hub-listing-link__thumb--compact');
-		// Set only when the item has a colour, as the markup does; otherwise the default
-		// declared on `.iot-hub-listing-link__thumb` in IotHubListingLink.astro applies.
-		if (item.color) thumb.style.setProperty('--iot-hub-listing-link-tile-color', item.color);
-		else thumb.style.removeProperty('--iot-hub-listing-link-tile-color');
-		thumbImg.removeAttribute('src');
-		thumbImg.hidden = true;
-		thumbTile.hidden = false;
-		void bindIotHubIcon(thumbIconWrap, compactIcon, THUMB_ICON_SIZE);
-	} else {
-		thumb.classList.remove('iot-hub-listing-link__thumb--compact');
-		thumb.style.removeProperty('--iot-hub-listing-link-tile-color');
-		if (imageUrl) {
-			thumbImg.src = imageUrl;
-			thumbImg.hidden = false;
-			thumbTile.hidden = true;
-			void bindIotHubIcon(thumbIconWrap, null, THUMB_ICON_SIZE);
-		} else {
-			thumbImg.removeAttribute('src');
-			thumbImg.hidden = true;
-			thumbTile.hidden = false;
-			void bindIotHubIcon(thumbIconWrap, fallbackTypeIcon, THUMB_ICON_SIZE);
-		}
-	}
+	const shownImage = isCompact ? null : imageUrl;
+	thumb.classList.toggle('iot-hub-listing-link__thumb--compact', isCompact);
+	// Set only when the item has a colour, as the markup does; otherwise the default
+	// declared on `.iot-hub-listing-link__thumb` in IotHubListingLink.astro applies.
+	if (isCompact && item.color) thumb.style.setProperty('--iot-hub-listing-link-tile-color', item.color);
+	else thumb.style.removeProperty('--iot-hub-listing-link-tile-color');
+	if (shownImage) thumbImg.src = shownImage;
+	else thumbImg.removeAttribute('src');
+	thumbImg.hidden = !shownImage;
+	thumbTile.hidden = !!shownImage;
+	const thumbIcon = isCompact ? compactIcon : shownImage ? null : fallbackTypeIcon;
+	void bindIotHubIcon(thumbIconWrap, thumbIcon, THUMB_ICON_SIZE);
 
 	// Present only on cards cloned from a template rendered with `showType`.
 	const typeMarker = root.querySelector<HTMLElement>('[data-listing-link-type]');

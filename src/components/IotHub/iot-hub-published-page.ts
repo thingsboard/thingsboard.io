@@ -59,14 +59,13 @@ export async function fetchPublishedPage(
 	]);
 	if (!res.ok) throw new Error(`HTTP ${res.status}`);
 	const body = (await res.json()) as PageData<ListingView>;
-	const data = body.data ?? [];
 	// Drop listings with no static detail page to click through to: ones published
 	// after the last deploy (absent from the slug manifest), and numeric slugs, which
 	// `[category]/[slug].astro` excludes but the manifest still lists — without this
 	// the card would link to `/iot-hub/devices/2/`, page 2 of the listing. Same rule
 	// `getStaticPaths` applies, so a static first render and every refetch agree.
 	// Nothing is fetched to replace them: a page shows fewer rows until the next rebuild.
-	const items = data.filter((item) => knownSlugs.has(item.slug) && !isNumericSlug(item.slug));
+	const items = (body.data ?? []).filter((item) => knownSlugs.has(item.slug) && !isNumericSlug(item.slug));
 	return {
 		items,
 		matchedCount: body.totalElements ?? 0,
