@@ -447,7 +447,7 @@ export function setupDynamicSearch(): void {
 		try {
 			// A non-2xx answer throws like a network error does, so the user gets the
 			// recoverable "Try again" path below instead of stale data.
-			const { items, matchedCount, openableCount, totalPages } = await fetchPublishedPage(
+			const { items, matchedCount, totalPages } = await fetchPublishedPage(
 				{ text: searchText, page: currentPage - 1, pageSize, sortId, params },
 				abort.signal
 			);
@@ -463,7 +463,7 @@ export function setupDynamicSearch(): void {
 				updatePagination(paginationNav, { currentPage, totalPages, hideOnSinglePage: true });
 			}
 			// The count the hero popup's footer promises, so "See all N results" lands on N.
-			updateResultsCount(countEl!, openableCount);
+			updateResultsCount(countEl!, matchedCount);
 			trackQuery(trimmed, matchedCount);
 		} catch (err) {
 			// Aborts happen on every superseding fetch — don't treat them

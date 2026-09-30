@@ -11,14 +11,14 @@ import { bindIotHubIcon } from './iot-hub-icon-bind';
 // Type-fallback icon map used when getPlaceholderIcon doesn't supply
 // anything (or the supplied name fails to resolve) for the non-compact
 // branch where the listing image is missing.
-export const TYPE_FALLBACK_ICON: Record<string, string> = {
+export const TYPE_FALLBACK_ICON = {
 	WIDGET: 'widgets',
 	SOLUTION_TEMPLATE: 'integration_instructions',
 	CALCULATED_FIELD: 'functions',
 	ALARM_RULE: 'notification_important',
 	RULE_CHAIN: 'account_tree',
 	DEVICE: 'memory',
-};
+} satisfies Record<IotHubItemType, string>;
 
 // Icon size inside the thumb. The pixel values live in IotHubListingLink.astro's
 // styles, next to the boxes they have to fit (the 56px thumb, the 36px row tile),
@@ -93,8 +93,8 @@ export function bindListingLink(root: HTMLElement, item: ListingView): void {
 
 	if (isCompact) {
 		thumb.classList.add('iot-hub-listing-link__thumb--compact');
-		// Set only when the item has a colour, as the markup does; the default is the
-		// stylesheet's fallback.
+		// Set only when the item has a colour, as the markup does; otherwise the default
+		// declared on `.iot-hub-listing-link__thumb` in IotHubListingLink.astro applies.
 		if (item.color) thumb.style.setProperty('--iot-hub-listing-link-tile-color', item.color);
 		else thumb.style.removeProperty('--iot-hub-listing-link-tile-color');
 		thumbImg.removeAttribute('src');

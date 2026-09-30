@@ -25,14 +25,16 @@ export interface PublishedPageQuery {
 export interface PublishedPage {
 	/** The rows this build can open, in the server's order. */
 	items: ListingView[];
-	/** Everything the search matched. What analytics reports. */
-	matchedCount: number;
 	/**
-	 * What a visitor is told the search found: the match count less the rows this
-	 * page dropped. Only this page's drops are known, so a row on another page that
-	 * the site cannot open is still counted.
+	 * Everything the search matched, which every surface shows and analytics reports.
+	 *
+	 * Known gap, accepted: rows dropped below are still counted, so between a Hub
+	 * publish and the next site build a count can promise a row the site cannot open.
+	 * Only the fetched page's drops are known, and discounting them made the count
+	 * change from page to page. It goes away once detail pages render dynamically and
+	 * nothing has to be dropped.
 	 */
-	openableCount: number;
+	matchedCount: number;
 	totalPages: number;
 }
 
@@ -50,7 +52,10 @@ export async function fetchPublishedPage(
 	});
 	const trimmed = query.text.trim();
 	if (trimmed) params.set('textSearch', trimmed);
-	for (const [param, value] of query.params ?? []) params.set(param, value);
+	// A caller adds filters; it cannot override the request this function owns.
+	for (const [param, value] of query.params ?? []) {
+		if (!params.has(param)) params.set(param, value);
+	}
 
 	const [res, knownSlugs] = await Promise.all([
 		fetch(`${IOT_HUB_API_URL}/api/listings/published?${params.toString()}`, { signal }),
@@ -66,11 +71,9 @@ export async function fetchPublishedPage(
 	// `getStaticPaths` applies, so a static first render and every refetch agree.
 	// Nothing is fetched to replace them: a page shows fewer rows until the next rebuild.
 	const items = data.filter((item) => knownSlugs.has(item.slug) && !isNumericSlug(item.slug));
-	const matchedCount = body.totalElements ?? 0;
 	return {
 		items,
-		matchedCount,
-		openableCount: Math.max(items.length, matchedCount - (data.length - items.length)),
+		matchedCount: body.totalElements ?? 0,
 		totalPages: Math.max(1, body.totalPages || 1),
 	};
 }
