@@ -60,8 +60,11 @@ function parsePage(pathname: string, options: LinkCheckerOptions): HtmlPage {
 
 		return htmlPage;
 	} catch (err: unknown) {
-		throw new Error(dedentMd`Error parsing HTML file "${htmlFilePath}"
-			referenced by build output: ${err instanceof Error ? err.message : err}`);
+		throw new Error(
+			dedentMd`Error parsing HTML file "${htmlFilePath}"
+			referenced by build output: ${err instanceof Error ? err.message : err}`,
+			{ cause: err }
+		);
 	}
 }
 

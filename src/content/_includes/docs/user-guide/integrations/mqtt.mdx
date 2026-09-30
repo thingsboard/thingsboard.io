@@ -1,12 +1,8 @@
 import DocLink from '@components/DocLink.astro';
 import ImageGallery from '~/components/ImageGallery.astro';
-import DocImage from '~/components/DocImage.astro';
-import Banner from '~/components/Banner.astro';
-import YouTubeVideo from '~/components/YouTubeVideo.astro';
-import { Steps, Aside, Code } from '@astrojs/starlight/components';
+import { Aside, Code, Steps } from '@astrojs/starlight/components';
 import { Products } from '~/models/site.models';
 import { TBMQ_DOCS_URL, TBMQ_SITE_URL } from '@models/tbmq';
-import ConfigureDownlinkRuleChain from '@includes/docs/user-guide/integrations/_configure-downlink-rule-chain.mdx';
 import Tabs from '@components/Tabs.astro';
 import TabItem from '@components/TabItem.astro';
 
@@ -16,8 +12,6 @@ export const retransmissionYaml = `mqtt:
       max_attempts: "\${TB_MQTT_CLIENT_RETRANSMISSION_MAX_ATTEMPTS:3}"
       initial_delay_millis: "\${TB_MQTT_CLIENT_RETRANSMISSION_INITIAL_DELAY_MILLIS:5000}"
       jitter_factor: "\${TB_MQTT_CLIENT_RETRANSMISSION_JITTER_FACTOR:0.15}"`;
-
-<Banner variant="peFeature" product={props.product} path="installation/" />
 
 MQTT Integration connects ThingsBoard to any MQTT broker — cloud or on-premises. Use it to bring telemetry from devices already publishing to an existing MQTT broker into ThingsBoard for monitoring and rule-based automation — including sending commands back to devices via MQTT downlink topics.
 
@@ -60,7 +54,7 @@ The uplink converter decodes each MQTT message payload — received as an array 
 For the full decoder function reference — all input parameters and output fields — see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#decoder-function" target="_blank">Uplink data converter</DocLink>.
 
 <Steps>
-  1. Go to <strong>Integrations center &#8702; Data converters</strong>.
+  1. Go to <strong>Integrations &#8702; Data converters</strong>.
   2. Click <strong>+ Add data converter &#8702; Create new converter</strong>.
 </Steps>
 
@@ -87,23 +81,25 @@ In the **Add data converter** dialog:
   <TabItem label="TBEL (Recommended)">
     ```js maxLines=15 collapsible
     // Decode an uplink message from a buffer
-    // payload - array of bytes
-    // metadata - key/value object
+    // payload - byte array
+    // metadata - key-value object
 
     /** Decoder **/
 
-    // decode payload to JSON
+    // Decode the payload into a JSON object
     var data = decodeToJson(payload);
 
     // --- Device name and type ---
+    
     // Extract from MQTT topic (e.g. "my/topic/deviceType/deviceName")
     var topicParts = metadata['topic'] != null ? metadata['topic'].split('/') : null;
 
     var deviceName = data.deviceName != null ? data.deviceName :
-    (topicParts != null && topicParts.length > 0 ? topicParts[topicParts.length - 1] : 'Unknown Device');
+      (topicParts != null && topicParts.length > 0 ? topicParts[topicParts.length - 1] : 'Unknown Device');
 
     var deviceType = data.deviceType != null ? data.deviceType :
-    (topicParts != null && topicParts.length > 1 ? topicParts[topicParts.length - 2] : 'default');
+      (topicParts != null && topicParts.length > 1 ? topicParts[topicParts.length - 2] : 'default');
+    
     // var customerName = 'Customer C';
     // var groupName = 'thermostat devices';
 
@@ -113,44 +109,63 @@ In the **Add data converter** dialog:
     // var assetType = 'building';
 
     // --- Timestamp parsing ---
+    
     var timestamp = -1;
+    
     if (data.ts != null) {
-    timestamp = data.ts;
-  } else if (data.timestamp != null) {
-    timestamp = new Date(data.timestamp).getTime();
-  }
+      timestamp = data.ts;
+    } else if (data.timestamp != null) {
+      timestamp = new Date(data.timestamp).getTime();
+    }
+    
     if (timestamp == -1) {
-    timestamp = Date.now();
-  }
+      timestamp = Date.now();
+    }
 
     // --- Telemetry and attributes ---
+    
     var telemetry = {};
-    var attributes = {
-    model: 'Model A',
-    serialNumber: 'SN111',
-    integrationName: metadata['integrationName'],
-  };
+    var attributes = {};
+    
+    // Keys from the payload that should be stored as attributes instead of telemetry
+    var attributeKeyList = ["serialNumber"];
 
-    // Keys to exclude from telemetry (already used or non-telemetry fields)
+    // Add the payload keys that match the attribute key list to attributes
+    for (var i = 0; i < attributeKeyList.size(); i++) {
+      var attributeKey = attributeKeyList[i];
+      if (data[attributeKey] != null) {
+        attributes[attributeKey] = data[attributeKey];
+      }
+    }
+
+    // Keys to exclude from telemetry (device info, attributes and non-telemetry fields)
     var excludeFromTelemetryList = ["deviceName", "deviceType", "ts", "timestamp"];
+    
+    excludeFromTelemetryList.addAll(attributeKeyList);
 
     // Parse all remaining JSON fields as telemetry
     telemetry.putAll(toFlatMap(data, excludeFromTelemetryList, true));
 
     // Result object with device attributes/telemetry data
     var result = {
-    deviceName: deviceName,
-    deviceType: deviceType,
-    // customerName: customerName,
-    // groupName: groupName,
-    // assetName: assetName,
-    // assetType: assetType,
-    attributes: attributes,
-    telemetry: {
-    ts: timestamp,
-    values: telemetry
-  }
-  };
+      deviceName: deviceName,
+      deviceType: deviceType
+      // customerName: customerName,
+      // groupName: groupName,
+      // assetName: assetName,
+      // assetType: assetType,
+    };
+
+    // Add attributes to the result only if at least one matching key was found
+    if (attributes.size() > 0) {
+      result.put("attributes", attributes);
+    }
+
+    // Add telemetry with an explicit timestamp.
+    result.put("telemetry", {
+      ts: timestamp,
+      values: telemetry
+    });
 
     /** Helper functions 'decodeToString', 'decodeToJson' and 'toFlatMap' are already built-in **/
 
@@ -159,96 +174,115 @@ In the **Add data converter** dialog:
   </TabItem>
   <TabItem label="JavaScript">
     ```js maxLines=15 collapsible
-    // Decode an uplink message from a buffer
-    // payload - array of bytes
-    // metadata - key/value object
+    // Decode an uplink message from a buffer.
+    // payload - byte array
+    // metadata - key-value object
 
     /** Decoder **/
 
-    // decode payload to JSON
+    // Decode the payload into a JSON object.
     var data = decodeToJson(payload);
 
     // --- Device name and type ---
-    // Extract from MQTT topic (e.g. "my/topic/deviceType/deviceName")
+
+    // Extract the device name and type from the payload or MQTT topic
+    // (for example, "my/topic/deviceType/deviceName").
     var topicParts = metadata['topic'] != null ? metadata['topic'].split('/') : null;
 
     var deviceName = data.deviceName != null ? data.deviceName :
-    (topicParts != null && topicParts.length > 0 ? topicParts[topicParts.length - 1] : 'Unknown Device');
+      (topicParts != null && topicParts.length > 0 ? topicParts[topicParts.length - 1] : 'Unknown Device');
 
     var deviceType = data.deviceType != null ? data.deviceType :
-    (topicParts != null && topicParts.length > 1 ? topicParts[topicParts.length - 2] : 'default');
+      (topicParts != null && topicParts.length > 1 ? topicParts[topicParts.length - 2] : 'default');
+
     // var customerName = 'Customer C';
     // var groupName = 'thermostat devices';
 
-    // use assetName and assetType instead of deviceName and deviceType
+    // Use assetName and assetType instead of deviceName and deviceType
     // to automatically create assets instead of devices.
     // var assetName = 'Asset A';
     // var assetType = 'building';
 
     // --- Timestamp parsing ---
+
     var timestamp = -1;
+
     if (data.ts != null) {
-    timestamp = data.ts;
-  } else if (data.timestamp != null) {
-    timestamp = new Date(data.timestamp).getTime();
-  }
-    if (timestamp == -1) {
-    timestamp = Date.now();
-  }
+      timestamp = Number(data.ts);
+    } else if (data.timestamp != null) {
+      timestamp = new Date(data.timestamp).getTime();
+    }
+
+    if (timestamp === -1 || isNaN(timestamp)) {
+      timestamp = Date.now();
+    }
 
     // --- Telemetry and attributes ---
-    var telemetry = {};
-    var attributes = {
-    model: 'Model A',
-    serialNumber: 'SN111',
-    integrationName: metadata['integrationName'],
-  };
 
-    // Keys to exclude from telemetry (already used or non-telemetry fields)
-    var excludeFromTelemetryList = ["deviceName", "deviceType", "ts", "timestamp"];
+    var telemetry = {};
+    var attributes = {};
+
+    // Define payload keys that should be stored as attributes instead of telemetry
+    var attributeKeyList = ["serialNumber"];
+
+    // Add matching payload fields to attributes
+    for (var i = 0; i < attributeKeyList.length; i++) {
+      var attributeKey = attributeKeyList[i];
+      if (data[attributeKey] != null) {
+        attributes[attributeKey] = data[attributeKey];
+      }
+    }
+
+    // Exclude entity identification, timestamp, and attribute fields from telemetry.
+    var excludeFromTelemetryList = ["deviceName", "deviceType", "ts", "timestamp"].concat(attributeKeyList);
 
     // Parse all remaining JSON fields as telemetry
     toFlatMap(data, telemetry, excludeFromTelemetryList);
 
     // Result object with device attributes/telemetry data
     var result = {
-    deviceName: deviceName,
-    deviceType: deviceType,
-    // customerName: customerName,
-    // groupName: groupName,
-    // assetName: assetName,
-    // assetType: assetType,
-    attributes: attributes,
-    telemetry: {
-    ts: timestamp,
-    values: telemetry
-  }
-  };
+      deviceName: deviceName,
+      deviceType: deviceType
+      // customerName: customerName,
+      // groupName: groupName,
+      // assetName: assetName,
+      // assetType: assetType,
+    };
+
+    // Add attributes to the result only if at least one matching key was found
+    if (Object.keys(attributes).length > 0) {
+      result.attributes = attributes;
+    }
+
+    result.telemetry = {
+      ts: timestamp,
+      values: telemetry
+    };
 
     /** Helper functions **/
 
     function decodeToString(payload) {
-    return String.fromCharCode.apply(String, payload);
-  }
+      return String.fromCharCode.apply(String, payload);
+    }
 
     function decodeToJson(payload) {
-    var str = decodeToString(payload);
-    return JSON.parse(str);
-  }
+      var str = decodeToString(payload);
+      return JSON.parse(str);
+    }
 
     function toFlatMap(obj, result, excludeList, prefix) {
-    prefix = prefix || '';
-    for (var key in obj) {
-    if (excludeList.indexOf(key) !== -1) continue;
-    var value = obj[key];
-    var fullKey = prefix ? prefix + '.' + key : key;
-    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-    toFlatMap(value, result, excludeList, fullKey);
-  } else {
-    result[fullKey] = value;
-  }
-  }
-  }
+      prefix = prefix || '';
+      for (var key in obj) {
+        if (excludeList.indexOf(key) !== -1) continue;
+        var value = obj[key];
+        var fullKey = prefix ? prefix + '.' + key : key;
+        if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+          toFlatMap(value, result, excludeList, fullKey);
+        } else {
+          result[fullKey] = value;
+        }
+      }
+    }
 
     return result;
     ```
@@ -317,11 +351,6 @@ Click **Test** — in the **Output** panel you should see:
 {
   "deviceName": "SN-001",
   "deviceType": "thermostat",
-  "attributes": {
-    "model": "Model A",
-    "serialNumber": "SN111",
-    "integrationName": "MQTT integration"
-  },
   "telemetry": {
     "ts": 1780055515934,
     "values": {
@@ -340,7 +369,7 @@ After a successful test, click **Add** to save the converter.
 
 <Steps>
   <ol start="1">
-    <li>Go to <strong>Integrations center &#8702; Integrations</strong> and click <strong>+ Add integration</strong>.</li>
+    <li>Go to <strong>Integrations &#8702; Integrations</strong> and click <strong>+ Add integration</strong>.</li>
     <li>
       <span><strong>Basic settings:</strong></span>
       <ul>
@@ -376,15 +405,6 @@ After a successful test, click **Add** to save the converter.
     <li>Click <strong>Check connection</strong> to verify the broker is reachable, then click <strong>Add</strong> to complete the integration setup.</li>
   </ol>
 </Steps>
-
-<ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/mqtt/adding-mqtt-integration-1.png', alt: 'Add integration wizard — Basic settings: Integration type set to MQTT', caption: 'Go to Integrations center → Integrations, click + Add integration, set Integration type to MQTT, and click Next' },
-  { src: '/src/assets/images/user-guide/integrations/mqtt/adding-mqtt-integration-2.png', alt: 'Add integration wizard — Uplink data converter: MQTT Uplink Converter selected via Select existing', caption: 'Click Select existing, choose MQTT Uplink Converter from the list, and click Next' },
-  { src: '/src/assets/images/user-guide/integrations/mqtt/adding-mqtt-integration-3.png', alt: 'Add integration wizard — Downlink data converter: Skip button highlighted', caption: 'Click Skip — a downlink converter is only needed for RPC and can be added later' },
-  { src: '/src/assets/images/user-guide/integrations/mqtt/adding-mqtt-integration-4.png', alt: 'Add integration wizard — Connection: Host demo.tbmq.io, Port 1883, Credentials type Basic with username demo, topic filter tb/sensors/thermostat/SN-001 with QoS 0 At most once', caption: 'Set Host and Port, choose Credentials type, add a topic filter with QoS. Click Add topic filter to subscribe to additional topics' },
-  { src: '/src/assets/images/user-guide/integrations/mqtt/adding-mqtt-integration-5.png', alt: 'Add integration wizard — Connection Advanced settings: Protocol version MQTT 3.1.1, Clean session on, Retained off, Downlink topic pattern ${topic}, Check connection button', caption: 'Advanced settings: configure protocol version, session behavior, client ID, and message limits. Downlink topic pattern defaults to ${topic} — the downlink converter sets the actual topic via metadata.topic. Click Check connection' },
-  { src: '/src/assets/images/user-guide/integrations/mqtt/adding-mqtt-integration-6.png', alt: 'Add integration wizard — Check connection: green checkmark with Connected status, Add button', caption: 'Check connection shows Connected. Click Add to finish creating the integration' },
-]} />
 
 #### Connection Settings
 
@@ -553,14 +573,14 @@ mosquitto_pub -h YOUR_BROKER_HOST -p 1883 \
 
 ### Verify Integration Events
 
-Go to **Integrations center &#8702; Integrations**, open **MQTT integration**, and click the **Events** tab.
+Go to **Integrations &#8702; Integrations**, open **MQTT integration**, and click the **Events** tab.
 Each successfully processed uplink appears as a row with status **OK**.
 
 Click <code>**&#8901;&#8901;&#8901;**</code> in the Message column to see the raw MQTT topic and payload received by the integration.
 
 ### Verify Converter Events
 
-To inspect converter processing, go to **Integrations center &#8702; Data converters**, click **MQTT Uplink Converter**, and open its **Events** tab:
+To inspect converter processing, go to **Integrations &#8702; Data converters**, click **MQTT Uplink Converter**, and open its **Events** tab:
 
 - **In** shows the raw payload passed to the converter, including the MQTT topic in metadata
 - **Out** shows the decoded result (`deviceName`, `deviceType`, `attributes`, `telemetry`)
@@ -568,7 +588,7 @@ To inspect converter processing, go to **Integrations center &#8702; Data conver
 
 ### Verify Device Provisioning
 
-Go to **Entities &#8702; Devices** — device **SN-001** is provisioned automatically on the first uplink. Open it and check the **Latest telemetry** tab to confirm `temperature = 25.1`.
+Go to **Devices & assets &#8702; Devices** — device **SN-001** is provisioned automatically on the first uplink. Open it and check the **Latest telemetry** tab to confirm `temperature = 25.1`.
 
 <Aside type="note">
   Device auto-creation depends on the <DocLink product={props.product} path="user-guide/provisioning" target="_blank">Provisioning</DocLink> strategy configured in the device profile. By default, new devices are created automatically when the uplink converter returns a valid `deviceName`.
@@ -595,7 +615,7 @@ The encoder receives `msg`, `metadata`, and `msgType`, and must return:
 For RPC commands, `msg.method` and `msg.params` are available. `msg.params` is always a string — use `parseFloat(msg.params)` or `JSON.parse(msg.params)` when a numeric or structured value is needed. See the <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink data converter</DocLink> reference for the full encoder API.
 
 <Steps>
-  1. Go to **Integrations center &#8702; Integrations** and open the **MQTT integration**.
+  1. Go to **Integrations &#8702; Integrations** and open the **MQTT integration**.
   2. Click the **pencil** icon to enter edit mode.
   3. In the **Downlink data converter** field, click **Create new**.
   4. In the **Add data converter** dialog:
@@ -634,27 +654,18 @@ return result;
 To ensure the downlink converter has access to device information, we enrich message metadata with the device name and device profile name. These values are later used by the MQTT integration downlink converter to dynamically build the MQTT topic (for example, `thermostat/SN-001/upload`) and other payload fields.
 
 <Steps>
-  1. Go to <strong>Rule chains &#8702; Root Rule Chain</strong>.
+  1. Go to <strong>Data processing &#8702; Rule chains &#8702; Root Rule Chain</strong>.
   2. In the <strong>Enrichment</strong> section of the node library, find the <strong>originator fields</strong> node and drag it onto the canvas.
-  3. In the <strong>originator fields</strong> node configuration, map the source fields:
+  3. In the <strong>originator fields</strong> node configuration, enter a <strong>Name</strong> (e.g., <code>Retrieve device name</code>) and map the source fields:
       - <strong>Name &#8702; deviceName</strong>
       - <strong>Profile name &#8702; deviceType</strong>
       - Then click <strong>Add</strong>.
   4. Connect the <strong>message type switch</strong> node to the <strong>originator fields</strong> node using the <strong>Attributes Updated</strong> and <strong>Post attributes</strong> link types.
-  5. In the node library, find the <strong>integration downlink</strong> node and drag it onto the canvas.
-  6. In the node configuration, set a name (e.g., <strong>MQTT integration</strong>) and select your <strong>MQTT integration</strong>. Click <strong>Add</strong>.
+  5. In the <strong>Action</strong> section of the node library, find the <strong>integration downlink</strong> node and drag it onto the canvas.
+  6. In the node configuration, enter a <strong>Name</strong> (e.g., <code>Downlink to MQTT integration</code>), select your <strong>MQTT integration</strong> in the <strong>Integration</strong> field, then click <strong>Add</strong>.
   7. Connect the <strong>originator fields</strong> node to the <strong>integration downlink</strong> node using the <strong>Success</strong> relation.
   8. Click <strong>Apply changes</strong>.
 </Steps>
-
-<ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/mqtt/mqtt-integration-configure-rule-chain-1.png', alt: 'Originator fields node in the enrichment section', caption: 'In the Enrichment section, locate the Originator fields node.' },
-  { src: '/src/assets/images/user-guide/integrations/mqtt/mqtt-integration-configure-rule-chain-2.png', alt: 'Originator fields node configuration', caption: 'Configure the Originator fields node. Map Name to deviceName and Profile name to deviceType, then click Add.' },
-  { src: '/src/assets/images/user-guide/integrations/mqtt/mqtt-integration-configure-rule-chain-3.png', alt: 'Originator fields node added to the rule chain', caption: 'Connect the Message Type Switch node to the new Originator fields node using the Attributes Updated and Post attributes links.' },
-  { src: '/src/assets/images/user-guide/integrations/mqtt/mqtt-integration-configure-rule-chain-4.png', alt: 'Integration downlink node in the action section', caption: 'In the Action section, locate the Integration downlink node.' },
-  { src: '/src/assets/images/user-guide/integrations/mqtt/mqtt-integration-configure-rule-chain-5.png', alt: 'Integration downlink node configuration for MQTT integration', caption: 'Configure the Integration downlink node. Enter the name, select MQTT integration, and click Add.' },
-  { src: '/src/assets/images/user-guide/integrations/mqtt/mqtt-integration-configure-rule-chain-6.png', alt: 'Originator fields node connected to integration downlink node', caption: 'Connect the Originator fields node to the Integration downlink node.' },
-]} />
 
 ### Test Downlink
 
@@ -669,7 +680,7 @@ mosquitto_sub -h demo.tbmq.io -p 1883 -t "thermostat/SN-001/upload" -u "demo" -P
 Trigger a downlink by adding a shared attribute to the device:
 
 <Steps>
-1. Go to **Entities &#8702; Devices**, open **SN-001**, and navigate to the **Attributes** tab.
+1. Go to **Devices & assets &#8702; Devices**, open **SN-001**, and navigate to the **Attributes** tab.
 2. Select **Shared attributes**, click **+** to add a new attribute.
 3. Set the key (e.g. `powerState`) and value (e.g. `on`).
 4. Click **Add**.
@@ -683,7 +694,7 @@ The Rule Engine routes the attribute update to the integration downlink node, wh
 
 ### Verify Downlink Converter Events
 
-Go to **Integrations center &#8702; Data converters**, open **MQTT Downlink Converter**, and click the **Events** tab — a **Downlink** event should appear in the list.
+Go to **Integrations &#8702; Data converters**, open **MQTT Downlink Converter**, and click the **Events** tab — a **Downlink** event should appear in the list.
 - **In** shows the Rule Engine message
 - **Out** shows the encoded MQTT payload
 - **Metadata** shows the topic and integration name.
@@ -1102,7 +1113,7 @@ For the payload `sensor-001;23.5;60;87` the decoder produces:
 <h4>How to Read Debug Events</h4>
 
 <Steps>
-  1. Go to **Integrations center &#8702; Integrations**, open your integration, and click the **Events** tab. Filter by **Uplink**.
+  1. Go to **Integrations &#8702; Integrations**, open your integration, and click the **Events** tab. Filter by **Uplink**.
   2. Click on an event to inspect:
 </Steps>
 
@@ -1118,5 +1129,5 @@ For the payload `sensor-001;23.5;60;87` the decoder produces:
 - <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink> — run the integration outside the ThingsBoard server to reach MQTT brokers in a private network
 - <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL scripting reference</DocLink> — built-in functions and operators for writing converter scripts
 - <DocLink product={props.product} path="user-guide/rule-engine" target="_blank">Rule Engine</DocLink> — how uplink messages are processed after the converter
-- <DocLink product={props.product === Products.CE ? Products.PE : props.product} path="recipes/mqtt-one-way-rpc" target="_blank">MQTT one-way RPC</DocLink> — send a one-way RPC command from ThingsBoard to a device over MQTT with no response expected
-- <DocLink product={props.product === Products.CE ? Products.PE : props.product} path="recipes/mqtt-two-way-rpc" target="_blank">MQTT two-way RPC</DocLink> — send an RPC command from ThingsBoard to a device over MQTT and receive the response back
+- <DocLink product={props.product} path="recipes/mqtt-one-way-rpc" target="_blank">MQTT one-way RPC</DocLink> — send a one-way RPC command from ThingsBoard to a device over MQTT with no response expected
+- <DocLink product={props.product} path="recipes/mqtt-two-way-rpc" target="_blank">MQTT two-way RPC</DocLink> — send an RPC command from ThingsBoard to a device over MQTT and receive the response back

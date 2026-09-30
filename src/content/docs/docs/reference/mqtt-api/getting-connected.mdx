@@ -2,7 +2,354 @@
 title: Getting Connected
 description: Connect to the ThingsBoard MQTT broker using Access Token, MQTT Basic, or X.509 credentials.
 ---
-import PageComponent from '@includes/docs/reference/mqtt-api/getting-connected.mdx'
-import { Products } from '~/models/site.models'
 
-<PageComponent product={Products.CE}/>
+import DocLink from '@components/DocLink.astro';
+import { Aside, Steps } from '@astrojs/starlight/components';
+import HostCode from '@components/HostCode.astro';
+import { Products } from '@models/site.models';
+
+ThingsBoard acts as a standard MQTT broker. Any MQTT v3.1, v3.1.1, or v5.0 client can connect — firmware libraries (Paho, MQTT.js, arduino-mqtt), integration tools, or the **mosquitto** command-line client used in examples throughout this section.
+
+## Connection Parameters
+
+| Parameter | Value |
+|-----------|-------|
+| Host | Your ThingsBoard hostname |
+| Port | `1883` (plain) · `8883` (TLS) |
+| Protocol | MQTT v3.1, v3.1.1, **v5.0** |
+| QoS | 0 (at most once) · 1 (at least once) |
+
+## Command-Line Tools
+
+Examples in this section use **mosquitto_pub** and **mosquitto_sub**. Install the mosquitto client package for your OS from [mosquitto.org/download](https://mosquitto.org/download/) or your system package manager, then verify with `mosquitto_pub --version`.
+
+## Credential Types
+
+Choose the credential type that fits your device's security requirements. Configure it per device under **Manage credentials** — see <DocLink product={Products.CE} path='user-guide/devices'>Devices</DocLink>.
+
+| Type | MQTT Username | MQTT Password | MQTT Client ID |
+|------|--------------|---------------|----------------|
+| **Access Token** | Device access token | *(empty)* | *(any)* |
+| **MQTT Basic** | Custom username *(optional)* | Custom password *(optional)* | Custom client ID *(optional)* |
+| **X.509 Certificate** | *(empty)* | *(empty)* | *(any)* — mutual TLS only |
+
+---
+
+### Access Token
+
+The simplest credential type. The token acts as the MQTT username; no password is required.
+
+Replace `$ACCESS_TOKEN` in the commands below with your device's actual access token.
+
+**Plain MQTT (port 1883):**
+
+<HostCode product={Products.CE} lang="bash" code={`mosquitto_pub -d -q 1 -h "{MQTT_HOST}" -p 1883 -t "v2/t" -u "$ACCESS_TOKEN" -m '{"temperature": 25}'`} />
+
+**MQTT over TLS (port 8883) — one-way SSL:**
+
+The client verifies the server's identity using a CA root certificate.
+
+Download `ca-root.pem` from the **Check connectivity** dialog on the device page.
+
+<HostCode product={Products.CE} lang="bash" code={`mosquitto_pub -d -q 1 --cafile {CA_CERT} -h "{MQTT_HOST}" -p 8883 -t "v2/t" -u "$ACCESS_TOKEN" -m '{"temperature": 25}'`} />
+
+---
+
+### MQTT Basic
+
+Replaces the access token with a custom `clientId`, `username`, and `password`. All three fields are optional — use whichever combination your firmware supports.
+
+<Aside type="note">
+  The combination of `clientId`, `username`, and `password` must be unique across the entire ThingsBoard installation. ThingsBoard uses these values to identify which device is connecting.
+</Aside>
+
+| Authentication scheme | Required fields |
+|-----------------------|----------------|
+| Client ID only | `clientId` |
+| Username + Password | `username`, `password` |
+| All three combined | `clientId`, `username`, `password` |
+
+**Plain MQTT (port 1883):**
+
+<HostCode product={Products.CE} lang="bash" code={`mosquitto_pub -d -q 1 -h "{MQTT_HOST}" -p 1883 -t "v2/t" -i "$CLIENT_ID" -u "$USERNAME" -P "$PASSWORD" -m '{"temperature": 25}'`} />
+
+**MQTT over TLS (port 8883) — one-way SSL:**
+
+<HostCode product={Products.CE} lang="bash" code={`mosquitto_pub -d -q 1 --cafile {CA_CERT} -h "{MQTT_HOST}" -p 8883 -t "v2/t" -i "$CLIENT_ID" -u "$USERNAME" -P "$PASSWORD" -m '{"temperature": 25}'`} />
+
+---
+
+### X.509 Certificate
+
+Mutual TLS: both the server and the device authenticate each other with certificates. Always uses port 8883. Two strategies are available.
+
+#### Individual Certificate
+
+Each device has its own certificate registered directly on the device record.
+
+<Steps>
+1. Generate a certificate and private key:
+   ```bash
+   # RSA
+   openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -sha256 -days 365 -nodes
+   # or EC (smaller, faster)
+   openssl ecparam -out key.pem -name prime256v1 -genkey
+   openssl req -new -key key.pem -x509 -nodes -days 365 -out cert.pem
+   ```
+2. Register the certificate in ThingsBoard: **Entities &#8702; Devices &#8702; \[device\] &#8702; Manage credentials &#8702; X.509 Certificate**, paste `cert.pem`, save.
+3. Connect using the certificate and key:
+   <HostCode product={Products.CE} lang="bash" code={`mosquitto_pub --cafile {CA_CERT} -d -q 1 -h "{MQTT_HOST}" -p 8883 -t "v2/t" --key key.pem --cert cert.pem -m '{"temperature": 25}'`} />
+</Steps>
+
+#### Certificate Chain (Recommended for fleets)
+
+Register one intermediate CA certificate in the device profile instead of one certificate per device. ThingsBoard extracts the device name from the certificate's Common Name using a configurable regex and can auto-provision new devices when their certificate is first seen.
+
+<Steps>
+1. Generate the certificate hierarchy (root &#8702; intermediate &#8702; device):
+   ```bash
+   # Root CA
+   openssl req -x509 -newkey rsa:4096 -keyout rootKey.pem -out rootCert.pem -sha256 -days 365 -nodes
+
+   # Intermediate CA
+   openssl req -new -newkey rsa:4096 -keyout intermediateKey.pem -out intermediate.csr -sha256 -nodes
+   echo basicConstraints=CA:TRUE > ca-ext.txt
+   openssl x509 -req -in intermediate.csr -out intermediateCert.pem -CA rootCert.pem -CAkey rootKey.pem -days 365 -sha256 -CAcreateserial -extfile ca-ext.txt
+
+   # Device certificate
+   openssl req -new -newkey rsa:4096 -keyout deviceKey.pem -out device.csr -sha256 -nodes
+   openssl x509 -req -in device.csr -out deviceCert.pem -CA intermediateCert.pem -CAkey intermediateKey.pem -days 365 -sha256 -CAcreateserial
+
+   # Build the chain sent by the device
+   cat deviceCert.pem intermediateCert.pem rootCert.pem > chain.pem
+   ```
+2. Register the intermediate certificate in ThingsBoard: **Profiles &#8702; Device profiles &#8702; \[profile\] &#8702; Device Provisioning &#8702; X.509 Certificate Chain**. Paste `intermediateCert.pem`, configure the CN regex for device name extraction, and optionally enable auto-provisioning.
+3. Connect using the chain and device key:
+   <HostCode product={Products.CE} lang="bash" code={`mosquitto_pub --cafile {CA_CERT} -d -q 1 -h "{MQTT_HOST}" -p 8883 -t "v2/t" --key deviceKey.pem --cert chain.pem -m '{"temperature": 25}'`} />
+</Steps>
+
+<Aside type="tip">
+  Use `--insecure` in mosquitto commands only during development when the server uses a self-signed certificate. Never use it in production.
+</Aside>
+
+---
+
+## MQTT over TLS
+
+Most deployments terminate TLS at a load balancer or reverse proxy (HAProxy, nginx, AWS ALB). The platform receives plain MQTT internally. This is simpler to configure but does not support two-way (mutual) TLS, because client certificate details are not forwarded from the load balancer to the platform.
+
+To enable TLS directly on the ThingsBoard MQTT transport (required for two-way SSL), set these environment variables:
+
+```bash
+MQTT_SSL_ENABLED=true
+MQTT_SSL_CREDENTIALS_TYPE=PEM
+MQTT_SSL_PEM_CERT=server.pem
+MQTT_SSL_PEM_KEY=server_key.pem
+MQTT_SSL_PEM_KEY_PASSWORD=secret
+```
+
+| Variable | Description |
+|----------|-------------|
+| `MQTT_SSL_ENABLED` | Enable or disable SSL |
+| `MQTT_SSL_CREDENTIALS_TYPE` | `PEM` (certificate file) or `KEYSTORE` (Java keystore) |
+| `MQTT_SSL_PEM_CERT` | Path to server certificate or certificate chain. May also include the private key. |
+| `MQTT_SSL_PEM_KEY` | Path to private key file. Required if the key is not in the certificate file. |
+| `MQTT_SSL_PEM_KEY_PASSWORD` | Private key password (optional) |
+
+Additional tuning variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MQTT_SSL_BIND_ADDRESS` | `0.0.0.0` | Bind address for the MQTT SSL server |
+| `MQTT_SSL_BIND_PORT` | `8883` | Bind port for the MQTT SSL server |
+| `MQTT_SSL_PROTOCOL` | `TLSv1.2` | TLS protocol version |
+| `MQTT_SSL_SKIP_VALIDITY_CHECK_FOR_CLIENT_CERT` | `false` | Skip validity check for client certificates |
+
+Restart the ThingsBoard server after changing these variables.
+
+<Aside type="note" title="Generating self-signed certificates">
+  To generate self-signed certificates for local or testing setups, see <DocLink product={Products.CE} path="user-guide/security/self-signed-ecc" target="_blank">Generating self-signed certificates</DocLink>.
+</Aside>
+
+---
+
+## Topic Formats
+
+ThingsBoard supports two MQTT topic formats. Both are equivalent — they accept the same payloads and produce the same result.
+
+| Format | Prefix | Example (telemetry) |
+|--------|--------|---------------------|
+| **Short** | `v2/` | `v2/t` |
+| **Standard** | `v1/devices/me/` | `v1/devices/me/telemetry` |
+
+Short topics are available since ThingsBoard 3.5. They reduce bandwidth for constrained devices and support an optional serialization suffix: `/j` for JSON or `/p` for Protobuf. Without a suffix, the format configured in the device profile is used.
+
+**Complete topic mapping:**
+
+| Operation | Short | Standard |
+|-----------|-------|--------|
+| Publish telemetry | `v2/t` | `v1/devices/me/telemetry` |
+| Publish client attributes | `v2/a` | `v1/devices/me/attributes` |
+| Subscribe to shared attribute updates | `v2/a` | `v1/devices/me/attributes` |
+| Request attribute values | `v2/a/req/$id` | `v1/devices/me/attributes/request/$id` |
+| Receive attribute response | `v2/a/res/+` | `v1/devices/me/attributes/response/+` |
+| Subscribe to server-side RPC | `v2/r/req/+` | `v1/devices/me/rpc/request/+` |
+| Respond to server-side RPC | `v2/r/res/$id` | `v1/devices/me/rpc/response/$id` |
+| Send client-side RPC request | `v2/r/req/$id` | `v1/devices/me/rpc/request/$id` |
+| Receive client-side RPC response | `v2/r/res/+` | `v1/devices/me/rpc/response/+` |
+| Publish claim request | `v2/c` | `v1/devices/me/claim` |
+
+<Aside type="tip">
+To use Protobuf with the short format, append `/p` — e.g. `v2/t/p` for telemetry. To force JSON explicitly, append `/j` — e.g. `v2/t/j`.
+</Aside>
+
+## MQTT Transport Configuration
+
+When you set the transport type to **MQTT** in a <DocLink product={Products.CE} path='user-guide/device-profiles'>device profile</DocLink>, additional settings become available under **Transport configuration**. These settings apply to all devices using the profile.
+
+### Custom topic filters
+
+You can override the default topics that ThingsBoard listens on for telemetry and attributes:
+
+| Filter | Default | Description |
+|--------|---------|-------------|
+| Telemetry topic filter | `v1/devices/me/telemetry` | Topic the platform listens on for incoming telemetry |
+| Attributes publish topic filter | `v1/devices/me/attributes` | Topic for client-side attribute publishes |
+| Attributes subscribe topic filter | `v1/devices/me/attributes` | Topic for shared attribute update subscriptions |
+
+MQTT wildcards are supported:
+- `+` matches a single topic level — e.g. `v1/devices/+/telemetry` or `+/devices/+/attributes`
+- `#` matches the rest of the topic and must be the last character — e.g. `#` or `v1/devices/me/#`
+
+<Aside type="note">
+Short topics (`v2/t`, `v2/a`, etc.) are always handled by the platform regardless of these filter settings. Custom topic filters only apply to standard-format topics.
+</Aside>
+
+### Payload format
+
+Choose the serialization format for MQTT messages:
+
+| Format | Description |
+|--------|-------------|
+| **JSON** | Default. Devices send plain JSON payloads as shown in the telemetry, attributes, and RPC examples. |
+| **Protobuf** | Devices send binary Protocol Buffers messages. You define the `.proto` schemas per profile. |
+
+#### JSON options
+
+**Send PUBACK on PUBLISH message validation failure** — by default, ThingsBoard closes the MQTT session when it receives a message that fails validation (e.g. malformed JSON). Enable this option to send a PUBACK acknowledgment instead, so the device stays connected. Useful for devices that cannot handle unexpected disconnects gracefully.
+
+#### Protobuf configuration
+
+When Protobuf is selected, you define four `.proto` schemas in the device profile — one for each message type:
+
+**Telemetry proto schema:**
+
+```proto
+syntax = "proto3";
+package telemetry;
+
+message SensorDataReading {
+  optional double temperature = 1;
+  optional double humidity = 2;
+  InnerObject innerObject = 3;
+
+  message InnerObject {
+    optional string key1 = 1;
+    optional bool key2 = 2;
+    optional double key3 = 3;
+    optional int32 key4 = 4;
+    optional string key5 = 5;
+  }
+}
+```
+
+**Attributes proto schema:**
+
+```proto
+syntax = "proto3";
+package attributes;
+
+message SensorConfiguration {
+  optional string firmwareVersion = 1;
+  optional string serialNumber = 2;
+}
+```
+
+**RPC request proto schema** (server-side RPC commands sent to the device):
+
+```proto
+syntax = "proto3";
+package rpc;
+
+message RpcRequestMsg {
+  optional string method = 1;
+  optional int32 requestId = 2;
+  optional string params = 3;
+}
+```
+
+**RPC response proto schema** (device replies to two-way RPC):
+
+```proto
+syntax = "proto3";
+package rpc;
+
+message RpcResponseMsg {
+  optional string payload = 1;
+}
+```
+
+Customize these schemas to match your device's data model. Field names in the telemetry and attributes schemas become the ThingsBoard telemetry keys and attribute keys respectively.
+
+<Aside type="note">
+  The four schemas above cover telemetry, attributes, and RPC — messages where you control the binary format. Other operations (claiming, attribute requests, client-side RPC) use fixed Protobuf schemas that cannot be customized. See each API page for the exact schema definition.
+</Aside>
+
+**Enable compatibility with other payload formats** — when enabled, the platform tries to parse messages as Protobuf first, then falls back to JSON if parsing fails. This is useful during firmware upgrades when older devices still send JSON while newer ones send Protobuf. The compatibility mode introduces slight performance overhead, so disable it once all devices are updated.
+
+**Send PUBACK on PUBLISH message validation failure** — same behavior as for JSON: sends a PUBACK instead of closing the session on validation failure.
+
+### MQTT Sparkplug B
+
+Check **MQTT Sparkplug B Edge of Network (EoN) node** to treat connected devices as Sparkplug B nodes. See the <DocLink product={Products.CE} path='reference/sparkplug-api'>Sparkplug API</DocLink> reference for details.
+
+## Connection Response Codes
+
+| Code | Meaning |
+|------|---------|
+| `0x00` | Connected successfully |
+| `0x01` | Unacceptable protocol version — the server doesn't support the requested MQTT protocol level |
+| `0x02` | Identifier rejected — for plain (non-TLS) connections, the Client ID was empty or malformed. For a client connecting over the X.509 SSL port, this code is also returned when **no client certificate reached the server during the TLS handshake** — see the note below before assuming your Client ID or certificate CN is the problem |
+| `0x03` | Server unavailable — the server is not currently able to accept connections |
+| `0x04` | Bad username or password — access token missing or malformed |
+| `0x05` | Not authorized — access token invalid or device disabled. Over the X.509 SSL port, this code also covers a client certificate that **was** received but whose fingerprint doesn't match any registered device credential |
+
+<Aside type="note" title="X.509: telling code 2 and code 5 apart">
+  ThingsBoard's MQTT SSL listener accepts the TLS handshake even if the client never presents a certificate — mutual TLS is optional at the handshake level, not enforced. That means:
+
+  - **Code 2 (Identifier Rejected)** means no client certificate arrived at all. The connection silently fell back to plain Client-ID-based authentication and failed. This is a TLS/client configuration issue, not a Client ID or Common Name mismatch — check whether your client is actually configured to present its certificate during the handshake.
+  - **Code 5 (Not authorized)** means a certificate *was* received, but ThingsBoard couldn't find a matching device. How that match happens depends on which X.509 method you're using: with the **Individual Certificate** method, matching is based entirely on the certificate's content, never on its Common Name or the MQTT Client ID — ThingsBoard computes a SHA3-256 hash of the certificate (markers and line breaks stripped) and looks up a device credential with that exact fingerprint. With the **Certificate Chain** method, the device is instead identified by extracting its name from the certificate's Common Name via the configured regex (see [Certificate Chain](#certificate-chain-recommended-for-fleets) above) — so a CN/regex mismatch there is a valid thing to check.
+
+  If you see code 2, first confirm your client is sending its certificate at all (a TLS trace or your MQTT library's debug logging will show this). Only look at Client ID or CN once you've confirmed a certificate is actually being sent — but even then, the certificate's content, not the CN, is what determines the device match for the Individual Certificate method.
+</Aside>
+
+## MQTT v5.0 error codes
+
+MQTT v5.0 clients receive numeric error codes in CONNACK, PUBACK, PUBREC, SUBACK, UNSUBACK, and DISCONNECT packets. The table below lists every code ThingsBoard may return.
+
+| Code | Name | Packets | Description |
+|------|------|---------|-------------|
+| 128 | Unspecified error | CONNACK, PUBACK, PUBREC, SUBACK, UNSUBACK, DISCONNECT | An unspecified error occurred. |
+| 129 | Malformed packet | CONNACK, DISCONNECT | The received packet cannot be parsed according to the MQTT specification. |
+| 130 | Protocol error | CONNACK, DISCONNECT | The packet is structurally valid but contains data or behavior that violates the protocol. |
+| 131 | Implementation-specific error | CONNACK, PUBACK, PUBREC, SUBACK, UNSUBACK, DISCONNECT | The packet is valid but not accepted by the current receiver's implementation. |
+| 132 | Unsupported protocol version | CONNACK | The requested MQTT protocol version is not supported. |
+| 133 | Client identifier not valid | CONNACK | The client ID is well-formed but not accepted by the server (like exceeding the maximum length). |
+| 134 | Bad username or password | CONNACK | The client provided an incorrect username or password. |
+| 135 | Not authorized | CONNACK, PUBACK, PUBREC, SUBACK, UNSUBACK, DISCONNECT | The operation is not authorized (like publishing to a topic the client has no permission for). |
+| 136 | Server unavailable | CONNACK | The server is currently unavailable. |
+| 143 | Topic filter invalid | PUBACK, PUBREC, DISCONNECT | The topic filter format is correct but not accepted by the server. |
+| 144 | Topic name invalid | PUBACK, PUBREC, DISCONNECT | The topic name format is correct but not accepted by the client or server. |
+| 149 | Packet too large | CONNACK, DISCONNECT | The packet exceeds the maximum size agreed upon during connection. |
+| 151 | Quota exceeded | CONNACK, PUBACK, PUBREC, SUBACK, DISCONNECT | An administratively imposed limit has been exceeded. |
+| 153 | Payload format invalid | PUBACK, PUBREC, DISCONNECT | The payload does not match the format indicated by the Payload Format Indicator property. |

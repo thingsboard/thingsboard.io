@@ -1,5 +1,5 @@
 import { PROD_ORIGIN } from '../src/consts.ts';
-import { LinkCheckerState, type LinkCheckerOptions } from './lib/linkcheck/base/base.ts';
+import { type LinkCheckerOptions, LinkCheckerState } from './lib/linkcheck/base/base.ts';
 import { CanonicalUrl } from './lib/linkcheck/checks/canonical-url.ts';
 import { GoodLabels } from './lib/linkcheck/checks/good-link-label.ts';
 import { RelativeUrl } from './lib/linkcheck/checks/relative-url.ts';
@@ -93,9 +93,11 @@ const linkChecker = new LinkChecker({
 	pageSourceDir: './src/content/docs',
 	// SEO canonical consolidation: pages in "free" versions whose content is ~95% identical
 	// to the "professional" equivalent have their <link rel="canonical"> rewritten to the PE
-	// URL (see `src/routeData.ts`). Edition-specific pages (installation/*, install/*,
-	// getting-started/*) and stubs with `selfCanonical: true` in frontmatter are self-canonical
-	// instead. These patterns tell the link checker which URL pairs count as consolidation —
+	// URL (see `src/routeData.ts`). The exceptions are narrower than a whole tree: the
+	// `selfCanonicalSegments` list in `canonical.ts` (currently just
+	// `installation/upgrade-instructions`, whose steps genuinely differ per edition) and
+	// pages carrying `selfCanonical: true` in frontmatter. Other `installation/*` pages do
+	// consolidate. These patterns tell the link checker which URL pairs count as consolidation —
 	// runtime still filters per page via `isConsolidationCanonical` (which returns false when
 	// canonical === pathname), so self-canonical pages fall through automatically. Effect:
 	// `[can]` does not fire for links to the actual pathname of a consolidation source, and
@@ -113,7 +115,6 @@ const linkChecker = new LinkChecker({
 		{ from: '/docs/edge/reference/', to: '/docs/pe/reference/' },
 		{ from: '/docs/edge/pe/user-guide/', to: '/docs/pe/user-guide/' },
 		{ from: '/docs/edge/user-guide/', to: '/docs/pe/user-guide/' },
-		{ from: '/docs/pe/installation/building-from-source/', to: '/docs/installation/building-from-source/' },
 	],
 	checks: [
 		new TargetExists({

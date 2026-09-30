@@ -7,7 +7,7 @@
  */
 import { getNamedCountries } from './coverage.ts';
 import { DISTRIBUTORS } from './distributors.ts';
-import { REGION_MEMBERSHIP, REGIONS, type Region } from './regions.ts';
+import { type Region, REGION_MEMBERSHIP, REGIONS } from './regions.ts';
 import type { Distributor } from './types.ts';
 
 export { DISTRIBUTORS, REGION_MEMBERSHIP, REGIONS };

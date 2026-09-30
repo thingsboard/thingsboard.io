@@ -21,29 +21,32 @@ export interface CardItem {
 	description: string;
 	badge?: string; // Badge label shown in the top-right corner of the image area
 	badgeVariant?: 'default' | 'note' | 'tip' | 'caution' | 'danger' | 'success';
+	span?: 1 | 2; // Columns the card occupies on desktop. Defaults to 1; 2 makes it a wide card
 }
 
 interface Props {
 	items: CardItem[];
 	/** Heading level for each card title. Defaults to 3. Use 2 when the grid sits at the top of a page without any ## sections above it. */
 	headingLevel?: 2 | 3 | 4 | 5 | 6;
+	/** Desktop column count. Defaults to 3; use 2 for four cards or for wide card images. */
+	columns?: 2 | 3;
 }
 
-const { items, headingLevel = 3 } = Astro.props;
+const { items, headingLevel = 3, columns = 3 } = Astro.props;
 const HeadingTag = `h${headingLevel}` as 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
 
 type OptimizedImage = Awaited<ReturnType<typeof getImage>>;
 
 interface ProcessedItem extends CardItem {
 	optimized: OptimizedImage | null; // Processed raster image; null when no image or path not found
+	optimizedDark: OptimizedImage | null; // Processed `{base}-dark{ext}` variant when one exists next to the image
 	iconSrc: string | null; // Resolved SVG src URL; null when no icon or path not found
 }
 
 // Eager globs — all paths resolved at build time by Vite
-const assetModules = import.meta.glob<{ default: ImageMetadata }>(
-	'/src/assets/**/*.{png,jpg,jpeg,webp,gif}',
-	{ eager: true }
-);
+const assetModules = import.meta.glob<{ default: ImageMetadata }>('/src/assets/**/*.{png,jpg,jpeg,webp,gif}', {
+	eager: true,
+});
 
 const svgModules = import.meta.glob<{ default: ImageMetadata }>('/src/assets/**/*.svg', {
 	eager: true,
@@ -53,42 +56,54 @@ const svgModules = import.meta.glob<{ default: ImageMetadata }>('/src/assets/**/
 const processedItems: ProcessedItem[] = await Promise.all(
 	items.map(async (item) => {
 		let optimized: OptimizedImage | null = null;
+		let optimizedDark: OptimizedImage | null = null;
+		const width = item.span === 2 ? 960 : 480;
 		if (item.image) {
 			const mod = assetModules[item.image];
-			if (mod)
-				optimized = await getImage({ src: mod.default, format: 'webp', quality: 85, width: 480 });
+			if (mod) optimized = await getImage({ src: mod.default, format: 'webp', quality: 85, width });
+			const darkPath = item.image.replace(/(\.[a-z0-9]+)$/i, '-dark$1');
+			const darkMod = assetModules[darkPath];
+			if (mod && darkMod) optimizedDark = await getImage({ src: darkMod.default, format: 'webp', quality: 85, width });
 		}
 		const iconSrc = item.icon ? (svgModules[item.icon]?.default?.src ?? null) : null;
-		return { ...item, optimized, iconSrc };
+		return { ...item, optimized, optimizedDark, iconSrc };
 	})
 );
 ---
 
-<ul class="rn-grid">
+<ul class:list={['rn-grid', { 'rn-grid--two': columns === 2 }]}>
 	{
 		processedItems.map((item) => (
-			<li class="rn-card">
+			<li class:list={['rn-card', { 'rn-card--wide': item.span === 2 }]}>
 				<a href={item.href} class="rn-card__anchor">
 					{/* Image area — shows optimised screenshot or SVG icon placeholder */}
 					<div class="rn-card__img-wrap">
 						{item.optimized ? (
-							<img
-								src={item.optimized.src}
-								alt={item.alt ?? item.title}
-								width={item.optimized.attributes.width}
-								height={item.optimized.attributes.height}
-								loading="lazy"
-								decoding="async"
-							/>
-						) : (
-							<div class="rn-card__placeholder" aria-hidden="true">
-								{item.iconSrc && (
+							<>
+								<img
+									src={item.optimized.src}
+									alt={item.alt ?? item.title}
+									width={item.optimized.attributes.width}
+									height={item.optimized.attributes.height}
+									class:list={[{ 'rn-card__img--light': item.optimizedDark }]}
+									loading="lazy"
+									decoding="async"
+								/>
+								{item.optimizedDark && (
 									<img
-										src={item.iconSrc}
-										alt={item.alt ?? ''}
-										class="rn-card__placeholder-icon"
+										src={item.optimizedDark.src}
+										alt={item.alt ?? item.title}
+										width={item.optimizedDark.attributes.width}
+										height={item.optimizedDark.attributes.height}
+										class="rn-card__img--dark"
+										loading="lazy"
+										decoding="async"
 									/>
 								)}
+							</>
+						) : (
+							<div class="rn-card__placeholder" aria-hidden="true">
+								{item.iconSrc && <img src={item.iconSrc} alt={item.alt ?? ''} class="rn-card__placeholder-icon" />}
 							</div>
 						)}
 						{/* Badge — absolute-positioned in the top-right corner of the image area */}
@@ -121,20 +136,57 @@ const processedItems: ProcessedItem[] = await Promise.all(
 		gap: 1rem;
 	}
 
+	.rn-grid--two {
+		grid-template-columns: repeat(2, 1fr);
+	}
+
+	.rn-card--wide {
+		grid-column: span 2;
+	}
+
+	/* Height is one column's 16:9, (width − gap) / 2 × 9/16, so titles in a row line up with the narrow cards */
+	.rn-card--wide .rn-card__img-wrap {
+		aspect-ratio: auto;
+		height: calc((100cqw - 1rem) * 0.28125);
+	}
+
 	@media (max-width: 900px) {
 		.rn-grid {
 			grid-template-columns: repeat(2, 1fr);
 		}
 	}
 
+	/* Dark variant swap follows the theme attribute on <html> */
+	.rn-card__img--dark {
+		display: none;
+	}
+
+	:global([data-theme='dark']) .rn-card__img--light {
+		display: none;
+	}
+
+	:global([data-theme='dark']) .rn-card__img--dark {
+		display: block;
+	}
+
 	@media (max-width: 480px) {
 		.rn-grid {
 			grid-template-columns: 1fr;
+		}
+
+		.rn-card--wide {
+			grid-column: auto;
+		}
+
+		.rn-card--wide .rn-card__img-wrap {
+			aspect-ratio: 16 / 9;
+			height: auto;
 		}
 	}
 
 	/* Card */
 	.rn-card {
+		container-type: inline-size;
 		height: 100%;
 		margin-top: 0;
 		border: 1px solid var(--sl-color-gray-5);

@@ -1,8 +1,9 @@
 ---
 import { Code } from '@astrojs/starlight/components';
 import { UPGRADE_VERSIONS, getFamilySlug, getUpgradeStepVersions } from '~/models/upgrade-instructions';
-import { getUpgradeHeading, patchFamilyLabel, patchScriptLabel, versionAtLeast } from '~/models/upgrade-shared';
+import { getUpgradeHeading, isLegacyPe, patchFamilyLabel, patchScriptLabel, productName, versionAtLeast } from '~/models/upgrade-shared';
 import type { Products } from '~/models/site.models';
+import { getVersionPrefix } from '@util/path-utils';
 import AlarmMigrationNote from '@components/upgrade-instructions/AlarmMigrationNote.astro';
 import PrepareSection from './PrepareSection.astro';
 import ConfigFileNote from './ConfigFileNote.astro';
@@ -14,7 +15,7 @@ interface Props {
 }
 
 const { product, platform, filterFamily } = Astro.props;
-const versions = getUpgradeStepVersions(filterFamily);
+const versions = getUpgradeStepVersions(product, filterFamily);
 
 const isPE = product === 'PE';
 const isUbuntu = platform === 'ubuntu';
@@ -23,19 +24,25 @@ const installCmd = isUbuntu ? 'dpkg -i' : 'rpm -Uvh';
 const webReportLink = isUbuntu
 	? '/docs/pe/installation/ubuntu/'
 	: '/docs/pe/installation/rhel/';
-const javaGuideLink = isUbuntu
-	? '/docs/installation/ubuntu/#step-1-install-java-openjdk'
-	: '/docs/installation/rhel/#step-1-install-java-openjdk';
-const cassandraGuideLink = isUbuntu
-	? '/docs/installation/ubuntu/?database=hybrid#step-3-configure-database'
-	: '/docs/installation/rhel/?database=hybrid#step-3-configure-database';
+// Follow the reader's own edition: this component renders on both the CE and PE
+// upgrade routes, so a hardcoded prefix sends half the readers to the other
+// edition's install guide. (`webReportLink` above is deliberately always PE.)
+// The prefix comes from the product model rather than a local ternary, so a new
+// edition is a model change instead of a grep through these components.
+const docsPrefix = `/docs/${getVersionPrefix(product)}`;
+const installPrefix = `${docsPrefix}installation`;
+const installPage = isUbuntu ? 'ubuntu' : 'rhel';
+// "Install Java" is step 1 and "Configure Database" is step 3 in both editions.
+const javaGuideLink = `${installPrefix}/${installPage}/#step-1-install-java-openjdk`;
+const cassandraGuideLink = `${installPrefix}/${installPage}/#step-3-configure-database`;
+const tbelDateFormattingLink = `${docsPrefix}user-guide/tbel/#date-formatting-changes-in-thingsboard-44`;
 
 function pkgName(ver: string): string {
-	return isPE ? `thingsboard-${ver}pe.${pkgExt}` : `thingsboard-${ver}.${pkgExt}`;
+	return isLegacyPe(isPE, ver) ? `thingsboard-${ver}pe.${pkgExt}` : `thingsboard-${ver}.${pkgExt}`;
 }
 
 function downloadUrl(ver: string): string {
-	if (isPE) {
+	if (isLegacyPe(isPE, ver)) {
 		return `https://dist.thingsboard.io/${pkgName(ver)}`;
 	}
 	return `https://github.com/thingsboard/thingsboard/releases/download/v${ver}/${pkgName(ver)}`;
@@ -55,8 +62,8 @@ function needsCompatibilityCheck(version: string): boolean {
 {versions.map((v) => {
 	const newer = isNewerVersionScheme(v.version);
 	const needsCompat = needsCompatibilityCheck(v.version);
-	const heading = getUpgradeHeading(v, isPE ? 'ThingsBoard PE' : 'ThingsBoard');
-	const prevDisplayLabel = isPE ? `${v.upgradableFrom} PE` : v.upgradableFrom;
+	const heading = getUpgradeHeading(v, productName(isPE, v.version));
+	const prevDisplayLabel = isLegacyPe(isPE, v.upgradableFrom) ? `${v.upgradableFrom} PE` : v.upgradableFrom;
 	const prevVersionEntry = v.prevVersionAnchor
 		? UPGRADE_VERSIONS.find((v2) => v2.anchor === v.prevVersionAnchor)
 		: undefined;
@@ -122,7 +129,7 @@ function needsCompatibilityCheck(version: string): boolean {
 							) : (
 								prevDisplayLabel
 							)}{v.patch ? <>{' '}or any {patchFamilyLabel(v)} patch</> : ''}.{' '}
-							In order to upgrade to <strong>{isPE ? `${v.displayVersion}PE` : v.displayVersion}</strong> you need to{' '}
+							In order to upgrade to <strong>{isLegacyPe(isPE, v.version) ? `${v.displayVersion}PE` : v.displayVersion}</strong> you need to{' '}
 							{prevHref ? (
 								<><a href={prevHref}><strong>upgrade to {prevDisplayLabel} first</strong></a>.</>
 							) : (
@@ -136,12 +143,34 @@ function needsCompatibilityCheck(version: string): boolean {
 				</aside>
 			)}
 
+			{v.version === '4.4.0' && (
+				<>
+					<aside class="starlight-aside starlight-aside--caution">
+						<p class="starlight-aside__title" aria-hidden="true">Important note before upgrading to ThingsBoard 4.4</p>
+						<div class="starlight-aside__content">
+							<p>ThingsBoard backend was migrated to <strong>Java 25</strong>. Install JDK 25 and make it the system's default Java version <strong>before</strong> upgrading.</p>
+							<p>Please refer to Step 1 of the corresponding installation guide for detailed instructions: <a href={javaGuideLink}>{isUbuntu ? 'Ubuntu' : 'CentOS/RHEL'}</a></p>
+						</div>
+					</aside>
+
+					<aside class="starlight-aside starlight-aside--note">
+						<p class="starlight-aside__title" aria-hidden="true">TBEL date formatting changes</p>
+						<div class="starlight-aside__content">
+							<p>ThingsBoard 4.4 runs on Java 25, whose updated Unicode CLDR data changes the locale-formatted strings produced by <code>TbDate</code> methods: <code>toLocaleString()</code>, <code>toLocaleDateString()</code>, <code>toLocaleTimeString()</code>, <code>toString()</code>, <code>toDateString()</code>, <code>toTimeString()</code> and <code>toUTCString()</code>. Scripts that string-match or split formatted dates may behave differently after the upgrade. <code>toISOString()</code>, <code>toJSON()</code>, <code>getTime()</code> and the numeric getters are unaffected.</p>
+							<p>See <a href={tbelDateFormattingLink}>Date formatting changes in ThingsBoard 4.4+</a> for examples and recommendations.</p>
+						</div>
+					</aside>
+				</>
+			)}
+
 			{v.version === '3.7.0' && (
 				<aside class="starlight-aside starlight-aside--caution">
 					<p class="starlight-aside__title" aria-hidden="true">Important note before upgrading to ThingsBoard 3.7</p>
 					<div class="starlight-aside__content">
-						<p>ThingsBoard backend was migrated to Java 17. Install JDK 17 and ensure that system's default Java version is set to 17.</p>
-						<p>Please refer to Step 1 of the corresponding installation guide for detailed instructions: <a href={javaGuideLink}>{isUbuntu ? 'Ubuntu' : 'CentOS/RHEL'}</a></p>
+						<p>ThingsBoard backend was migrated to Java 17. Install JDK 17 and ensure that the system's default Java version is set to 17.</p>
+						<Code code={isUbuntu ? 'sudo apt update && sudo apt install openjdk-17-jdk-headless' : 'sudo dnf install java-17-openjdk-headless'} lang="bash" />
+						<p>Then select Java 17 as the system default:</p>
+						<Code code="sudo update-alternatives --config java" lang="bash" />
 					</div>
 				</aside>
 			)}
@@ -163,10 +192,10 @@ function needsCompatibilityCheck(version: string): boolean {
 				</>
 			)}
 
-			<h4>ThingsBoard{isPE ? ' PE' : ''} package download</h4>
+			<h4>ThingsBoard{isLegacyPe(isPE, v.version) ? ' PE' : ''} package download</h4>
 			<Code code={`wget ${dlUrl}`} lang="bash" />
 
-			<h4>ThingsBoard{isPE ? ' PE' : ''} service upgrade</h4>
+			<h4>{productName(isPE, v.version)} service upgrade</h4>
 
 			<ul>
 				<li>Stop ThingsBoard service if it is running.</li>
@@ -212,7 +241,7 @@ function needsCompatibilityCheck(version: string): boolean {
 					<p class="starlight-aside__title" aria-hidden="true">Note</p>
 					<div class="starlight-aside__content">
 						<p><strong>In case Cassandra is installed</strong>, ensure that a proper <strong>JAVA_HOME</strong> parameter is set for <em>cassandra.in.sh</em> include file. As of 3.7.0 release, latest stable Cassandra version does not support Java 17 yet.</p>
-						<p>In case action is required, you can refer to the <em>"you will need to install Java..."</em> section of the <a href={cassandraGuideLink}>Cassandra installation guide</a>.</p>
+						<p>In case action is required, refer to the <strong>Hybrid (PostgreSQL + Cassandra)</strong> tab of <a href={cassandraGuideLink}>Step 3 of the installation guide</a>.</p>
 					</div>
 				</aside>
 			)}
@@ -223,7 +252,7 @@ function needsCompatibilityCheck(version: string): boolean {
 				<aside class="starlight-aside starlight-aside--note">
 					<p class="starlight-aside__title" aria-hidden="true">Note</p>
 					<div class="starlight-aside__content">
-						<p>Update the JWT signing key if you use the default one "thingsboardDefaultSigningKey" on production environments. See <a href="/docs/user-guide/security/#jwt-security-settings">JWT security settings</a> for details.</p>
+						<p>Update the JWT signing key if you use the default one "thingsboardDefaultSigningKey" on production environments. See <a href={`${docsPrefix}user-guide/security/#jwt-security-settings`}>JWT security settings</a> for details.</p>
 					</div>
 				</aside>
 			)}

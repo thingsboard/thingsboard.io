@@ -5,6 +5,10 @@ export interface NavItem {
 	label: string;
 	href?: string;
 	submenuId?: string;
+	/** DOM id on the rendered link — analytics hooks (`Menu_Pricing`) and in-page scripts (`use-cases-link`). */
+	id?: string;
+	/** Extra class on the rendered link, e.g. `gtm_button` for GTM tracking. */
+	linkClass?: string;
 	items?: SubMenuItem[];
 }
 
@@ -17,7 +21,13 @@ export interface SubMenuItem {
 }
 
 export interface SubMenuGroup {
+	/** Column heading, shown above the first column only. Omit for an unlabelled group. */
 	name?: string;
+	/**
+	 * Items per column. The renderer caps the result at three columns and folds any
+	 * overflow into the last one. Omit to put every item in a single column.
+	 */
+	perColumn?: number;
 	items: SubMenuItem[];
 }
 
@@ -31,13 +41,14 @@ export interface SubMenu {
 export const mainNavItems: NavItem[] = [
 	{ label: 'Products', submenuId: 'nav-products' },
 	{ label: 'Services', submenuId: 'nav-services' },
-	{ label: 'Use Cases', href: '/use-cases/', submenuId: 'nav-cases' },
+	{ label: 'Use Cases', href: '/use-cases/', submenuId: 'nav-cases', id: 'use-cases-link' },
 	{ label: 'Customers', submenuId: 'nav-customers' },
 	{ label: 'Company', submenuId: 'nav-company' },
 	{ label: 'Partners', submenuId: 'nav-partners' },
 	{ label: 'Docs', submenuId: 'nav-docs' },
 	{ label: 'IoT Hub', href: '/iot-hub/' },
 	{ label: 'Blog', href: '/blog/' },
+	{ label: 'Pricing', href: '/pricing/', id: 'Menu_Pricing', linkClass: 'gtm_button' },
 ];
 
 // Products submenu
@@ -46,31 +57,28 @@ export const productsSubmenu: SubMenu = {
 	className: 'products',
 	groups: [
 		{
+			name: 'IoT platforms',
+			perColumn: 1,
 			items: [
-				{
-					href: '/',
-					icon: '/src/assets/images/landings/nav/thingsboard-cm-icon.svg',
-					heading: 'Community Edition',
-					description: 'Open-source platform',
-					linkClass: 'com-lnk',
-				},
 				{
 					href: '/products/thingsboard-pe/',
 					icon: '/src/assets/images/landings/nav/thingsboard-p-icon.svg',
-					heading: 'Professional Edition',
-					description: 'Advanced IoT platform',
+					heading: 'ThingsBoard',
+					description: 'On-premises IoT Platform',
 					linkClass: 'prof-lnk',
 				},
 				{
 					href: '/products/paas/',
 					icon: '/src/assets/images/landings/nav/thingsboard-c-icon.svg',
-					heading: 'Cloud',
-					description: 'Platform as a service',
+					heading: 'ThingsBoard Cloud',
+					description: 'Platform-as-a-Service',
 					linkClass: 'cloud-lnk',
 				},
 			],
 		},
 		{
+			name: 'Product ecosystem',
+			perColumn: 2,
 			items: [
 				{
 					href: '/products/thingsboard-edge/',
@@ -92,13 +100,6 @@ export const productsSubmenu: SubMenu = {
 					heading: 'Mobile Application',
 					description: 'IoT mobile product',
 					linkClass: 'mobile-lnk',
-				},
-				{
-					href: '/products/mobile-pe/',
-					icon: '/src/assets/images/landings/nav/tb-pe-mobile-icon.svg',
-					heading: 'PE Mobile Application',
-					description: 'Advanced IoT mobile product',
-					linkClass: 'mobile-pe-lnk',
 				},
 				{
 					href: TBMQ_SITE_URL,
@@ -155,6 +156,7 @@ export const useCasesSubmenu: SubMenu = {
 	className: 'cases',
 	groups: [
 		{
+			perColumn: 5,
 			items: [
 				{
 					href: '/use-cases/smart-energy/',
@@ -238,6 +240,7 @@ export const useCasesSubmenu: SubMenu = {
 		},
 		{
 			name: 'SCADA',
+			perColumn: 1,
 			items: [
 				{
 					href: '/use-cases/scada/',
@@ -358,31 +361,29 @@ export const docsSubmenu: SubMenu = {
 	className: 'products',
 	groups: [
 		{
+			name: 'IoT platforms',
+			perColumn: 1,
 			items: [
 				{
-					href: '/docs/',
-					heading: 'Community Edition',
-					description: 'Open-source platform',
-					linkClass: 'com-lnk',
-				},
-				{
 					href: '/docs/pe/',
-					heading: 'Professional Edition',
-					description: 'Advanced IoT platform',
+					heading: 'ThingsBoard',
+					description: 'On-premises IoT Platform',
 					linkClass: 'prof-lnk',
 				},
 				{
 					href: '/docs/paas/',
-					heading: 'Cloud',
-					description: 'Platform as a service',
+					heading: 'ThingsBoard Cloud',
+					description: 'Platform-as-a-Service',
 					linkClass: 'cloud-lnk',
 				},
 			],
 		},
 		{
+			name: 'Product ecosystem',
+			perColumn: 2,
 			items: [
 				{
-					href: '/docs/edge/',
+					href: '/docs/edge/pe/',
 					heading: 'Edge',
 					description: 'Edge computing',
 					linkClass: 'edge-lnk',
@@ -394,15 +395,9 @@ export const docsSubmenu: SubMenu = {
 					linkClass: 'gateway-lnk',
 				},
 				{
-					href: '/docs/mobile/',
+					href: '/docs/mobile/pe/',
 					heading: 'Mobile Application',
 					description: 'IoT mobile product',
-					linkClass: 'mobile-lnk',
-				},
-				{
-					href: '/docs/mobile/pe/',
-					heading: 'PE Mobile Application',
-					description: 'Advanced IoT mobile product',
 					linkClass: 'mobile-pe-lnk',
 				},
 				{
@@ -431,4 +426,18 @@ export const allSubmenus: SubMenu[] = [
 	companySubmenu,
 	partnersSubmenu,
 	docsSubmenu,
+];
+
+/**
+ * The footer link row, shared by the marketing footer (Landing/Footer.astro) and the docs
+ * footer (starlight/DocFooter.astro). The two components keep their own markup and scoped
+ * styles; only the link list is shared, so a link change is one edit rather than two.
+ */
+export const footerNavItems: { href: string; label: string }[] = [
+	{ href: '/docs/pe/getting-started/', label: 'Get Started' },
+	{ href: '/docs/pe/', label: 'Documentation' },
+	{ href: '/use-cases/', label: 'Use cases' },
+	{ href: '/blog/', label: 'Blog' },
+	{ href: '/services/', label: 'Services' },
+	{ href: '/contact-us/', label: 'Contact us' },
 ];

@@ -34,9 +34,9 @@ export const data: CaseStudyData = {
 			'Smooth transition from concept testing to commercial operations',
 		],
 		results: [
-			'Fast launch of early prototypes using ThingsBoard Community Edition',
+			'Fast launch of early prototypes using ThingsBoard',
 			'Seamless integration of sensors and real-time dashboards',
-			'Migration to ThingsBoard Professional Edition to support growing customer base',
+			'Upgraded ThingsBoard to support growing customer base',
 			'Platform flexibility enabled commercial IoT services',
 			'Scalable architecture ready for multiserver deployments',
 		],
@@ -46,16 +46,16 @@ export const data: CaseStudyData = {
 		companyName: 'iiOOTE',
 		blocks: [
 			{
-				title: 'Rapid prototyping with Community Edition',
-				text: 'ThingsBoard CE allowed iiOOTE to quickly launch IoT proof-of-concepts. Thanks to built-in protocol support and drag-and-drop dashboards, they accelerated initial development without writing custom code.',
+				title: 'Rapid prototyping with ThingsBoard',
+				text: 'ThingsBoard allowed iiOOTE to quickly launch IoT proof-of-concepts. Thanks to built-in protocol support and drag-and-drop dashboards, they accelerated initial development without writing custom code.',
 				image: 'https://img.thingsboard.io/case-studies/iioote-1.webp',
-				imageAlt: 'Rapid prototyping with Community Edition',
+				imageAlt: 'Rapid prototyping with ThingsBoard',
 			},
 			{
-				title: 'Scalable migration to Professional Edition',
-				text: 'As customer demand grew, iiOOTE upgraded to ThingsBoard PE, unlocking multi-tenancy, access control, and advanced features critical for managing commercial IoT services at scale.',
+				title: 'Scalable growth with ThingsBoard',
+				text: 'As customer demand grew, iiOOTE upgraded ThingsBoard, unlocking multi-tenancy, access control, and advanced features critical for managing commercial IoT services at scale.',
 				image: 'https://img.thingsboard.io/case-studies/iioote-2.webp',
-				imageAlt: 'Scalable migration to Professional Edition',
+				imageAlt: 'Scalable growth with ThingsBoard',
 			},
 			{
 				title: 'Centralized LPWAN data aggregation',
@@ -176,7 +176,7 @@ export const data: CaseStudyData = {
 	},
 
 	authoredQuote: {
-		text: '"During our evaluation of several different IoT platforms we decided using ThingsBoard Community Edition to quickly get started with testing of our concept solutions. Since it offers an easy way to get access to data from all our sensors and supports building dashboards for visualization. However, we soon discovered that ThingsBoard also fulfilled our need to build commercial services. With increasing number of sensors..."',
+		text: '"During our evaluation of several different IoT platforms we decided using ThingsBoard to quickly get started with testing of our concept solutions. Since it offers an easy way to get access to data from all our sensors and supports building dashboards for visualization. However, we soon discovered that ThingsBoard also fulfilled our need to build commercial services. With increasing number of sensors..."',
 		author: 'Bertil Moberg',
 		role: 'Co-Founder & Head of IoT Solutions',
 		company: 'iiOOTE',

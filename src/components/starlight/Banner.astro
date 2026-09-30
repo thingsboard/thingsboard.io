@@ -1,0 +1,320 @@
+---
+import Icon from '@components/starlight/Icon.astro';
+import type { Announcement } from '@models/announcement';
+
+/**
+ * Route-level announcement banner — Starlight's `Banner` slot override.
+ *
+ * Injected per route by `src/routeData.ts` from `@data/docsAnnouncements`, or
+ * by a page's own `announcement:` frontmatter.
+ *
+ * Sibling component: `src/components/Banner.astro` is the in-content product
+ * callout authors drop into MDX (peFeature / ce / pe / cloud / trendz). This one
+ * is never authored inline — it is chrome the route decides on. The two share a
+ * visual language (variant-driven accent, tinted wash, accent CTA); keep them in
+ * step when either is restyled.
+ *
+ * Overriding this slot also replaces Starlight's native `banner:` frontmatter
+ * feature, which this site deliberately does not use — see `astro.config.ts`.
+ *
+ * The `aria-label` is taken from the announcement's own `title` so the
+ * complementary landmark is named after what it actually says — a hardcoded label
+ * would either misdescribe the next campaign or, if kept generic, tell a reader
+ * navigating by landmark nothing at all. `title` is optional in the schema, hence
+ * the fallback.
+ *
+ * i18n: the strings here and in the announcement copy are English-only, matching
+ * the docs. When translation resumes they belong in the `i18nSchema` dictionary
+ * (`content.config.ts`) and should be read through `Astro.locals.t`.
+ *
+ * The banner renders **visible**, so a reader with no JavaScript still gets the
+ * notice; the dismissal script only takes it back down for a recorded one.
+ *
+ * That script is `is:inline` on purpose — a bundled module script is deferred
+ * and would hide the banner after first paint, flashing it at every reader who
+ * already dismissed it. Being inline it ships on every announced page, so keep
+ * it terse and put the reasoning here rather than in the script body.
+ */
+const { announcement } = Astro.locals.starlightRoute.entry.data as {
+	announcement?: Announcement;
+};
+
+/** Variant → icon. `warning` and `danger` deliberately share one glyph. */
+const VARIANT_ICON: Record<Announcement['variant'], string> = {
+	info: 'tabler:info-circle',
+	notice: 'tabler:alert-circle',
+	warning: 'tabler:alert-triangle',
+	danger: 'tabler:alert-triangle',
+};
+---
+
+{
+	announcement && (
+		<div class="tb-docs-banner-wrap">
+		<aside
+			class="tb-docs-banner"
+			data-variant={announcement.variant}
+			data-banner-id={announcement.id}
+			data-banner-version={String(announcement.version)}
+			aria-label={announcement.title ?? 'Important notice'}
+		>
+			<div class="tb-docs-banner__inner">
+				<Icon name={VARIANT_ICON[announcement.variant]} class="tb-docs-banner__icon" />
+				<div class="tb-docs-banner__content">
+					{announcement.title && (
+						<strong class="tb-docs-banner__title">{announcement.title}</strong>
+					)}
+					<span class="tb-docs-banner__message" set:html={announcement.message} />
+					{announcement.cta && (
+						<a class="tb-docs-banner__cta" href={announcement.cta.href}>
+							{announcement.cta.text}
+							{/* Decorative: kept out of the link's accessible name. */}
+							<svg
+								class="tb-docs-banner__arrow"
+								width="16"
+								height="16"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								aria-hidden="true"
+								focusable="false"
+							>
+								<path d="M5 12h14" />
+								<path d="m12 5 7 7-7 7" />
+							</svg>
+						</a>
+					)}
+				</div>
+				{announcement.dismissible && (
+					<button type="button" class="tb-docs-banner__close" aria-label="Dismiss notice">
+						<Icon name="tabler:x" />
+					</button>
+				)}
+			</div>
+		</aside>
+		</div>
+	)
+}
+
+{
+	announcement?.dismissible && (
+		<script is:inline>
+			(() => {
+				const el = document.querySelector('.tb-docs-banner');
+				if (!el) return;
+				const id = el.dataset.bannerId;
+				const version = Number(el.dataset.bannerVersion);
+				const KEY = 'tb-docs-banner-dismissed';
+				let store = {};
+				try {
+					store = JSON.parse(localStorage.getItem(KEY) || '{}');
+				} catch {
+					/* unreadable — treat as not dismissed */
+				}
+				if (id && Number.isFinite(version) && store[id] >= version) {
+					el.hidden = true;
+					return;
+				}
+				const closeBtn = el.querySelector('.tb-docs-banner__close');
+				if (!closeBtn) return;
+				closeBtn.addEventListener('click', () => {
+					el.hidden = true;
+					// Keep focus in the document — it sat on the button we just hid.
+					const heading = document.querySelector('main h1');
+					if (heading) {
+						heading.setAttribute('tabindex', '-1');
+						heading.focus();
+					}
+					try {
+						store[id] = version;
+						localStorage.setItem(KEY, JSON.stringify(store));
+					} catch {
+						/* unwritable — dismissal is in-page only */
+					}
+				});
+			})();
+		</script>
+	)
+}
+
+<style>
+	/*
+	 * Line the banner up with the page's content column instead of the full
+	 * pane. The banner renders in Starlight's Banner slot — a sibling of
+	 * `.content-panel`, so it misses that panel's horizontal padding; this
+	 * wrapper supplies it. The rules below then mirror `ContentPanel.astro`'s
+	 * own `.sl-container` declarations, which is what makes this track the
+	 * templates for free — `--sl-content-width` is already 45rem on doc pages
+	 * and 72rem on hero pages, and `TwoColumnContent.astro` sets
+	 * `--sl-content-margin-inline: auto 0` to seat the column beside the TOC.
+	 * Hero pages are the exception: `DocHero.astro` sets that variable to 0
+	 * because their `.sl-container` runs full width and the centring happens on
+	 * `.hero-content` instead, so they need plain `auto`. Keep the 72rem
+	 * breakpoint in step with Starlight's — below it nothing is offset.
+	 */
+	.tb-docs-banner-wrap {
+		padding-inline: var(--sl-content-pad-x);
+		/* Contain the banner's top margin instead of letting it collapse out
+		   through this wrapper, so the offset below is what actually applies.
+		   Stays zero-height when the banner is dismissed, unlike padding. */
+		display: flow-root;
+	}
+
+	.tb-docs-banner {
+		--banner-color: var(--color-warning);
+		position: relative;
+		border: 1px solid color-mix(in srgb, var(--banner-color) 20%, transparent);
+		background: color-mix(in srgb, var(--banner-color) 10%, transparent);
+		border-radius: var(--radius-md);
+		display: flex;
+		flex-direction: column;
+		padding: 0.5rem 0.75rem;
+		/* Reserve room on the end so text/CTA never slide under the corner close. */
+		padding-inline-end: 2.25rem;
+		/* 1rem matches the sidebar's own top padding, so the banner's top edge
+		   lines up with the product selector card beside it. Inline margin is set
+		   at the breakpoint below; keeping the vertical offset a margin (not
+		   wrapper padding) means a dismissed banner leaves no gap. */
+		margin: 1rem 0 0;
+		max-width: var(--sl-content-width);
+		font-size: var(--sl-text-sm);
+		line-height: 1.5;
+		color: var(--color-text);
+	}
+
+	/* The dismissal script hides via the `hidden` attribute; the UA's
+	   `[hidden] { display: none }` loses to any author `display`, so the
+	   flex above must re-assert it (same pattern as ReleasesTable). */
+	.tb-docs-banner[hidden] {
+		display: none;
+	}
+
+	@media (min-width: 72rem) {
+		.tb-docs-banner {
+			margin-inline: var(--sl-content-margin-inline, auto);
+		}
+
+		:global([data-has-hero]) .tb-docs-banner {
+			margin-inline: auto;
+		}
+	}
+
+	.tb-docs-banner[data-variant='info'] {
+		--banner-color: var(--color-primary);
+	}
+
+	.tb-docs-banner[data-variant='danger'] {
+		--banner-color: var(--color-danger);
+	}
+
+	/* Opaque fill: a translucent amber over the hero's tinted gradient turns muddy. */
+	.tb-docs-banner[data-variant='notice'] {
+		--banner-color: var(--color-notice);
+		border-color: color-mix(in srgb, var(--banner-color) 32%, transparent);
+		background: var(--color-notice-fill);
+	}
+
+	.tb-docs-banner[data-variant='notice'] .tb-docs-banner__message {
+		color: var(--color-text-secondary);
+	}
+
+	.tb-docs-banner[data-variant='notice'] .tb-docs-banner__message :global(a) {
+		font-weight: 500;
+		color: var(--color-text);
+		text-decoration-color: color-mix(in srgb, var(--color-text) 45%, transparent);
+		text-decoration-thickness: 1px;
+		text-underline-offset: 3px;
+	}
+
+	.tb-docs-banner[data-variant='notice'] .tb-docs-banner__message :global(a:hover),
+	.tb-docs-banner[data-variant='notice'] .tb-docs-banner__message :global(a:focus-visible) {
+		text-decoration-color: currentColor;
+	}
+
+	.tb-docs-banner__inner {
+		display: flex;
+		/* The copy is a single wrapping line, so the icon sits beside its first row. */
+		align-items: flex-start;
+		gap: 0.5rem;
+		flex: 1;
+	}
+
+	.tb-docs-banner__icon {
+		/* Nudge down so the glyph optically aligns with the title's cap height. */
+		margin-top: 0.1rem;
+		color: var(--banner-color);
+		font-size: 1.125rem;
+		flex: 0 0 auto;
+	}
+
+	.tb-docs-banner__content {
+		display: flex;
+		/* One line: title, message, then the link, reading as a single sentence. Wraps
+		   rather than overflowing once the viewport cannot hold all three. */
+		flex-direction: row;
+		flex-wrap: wrap;
+		align-items: baseline;
+		column-gap: 0.4rem;
+		row-gap: 0.2rem;
+		flex: 1 1 auto;
+		min-width: 0;
+	}
+
+	.tb-docs-banner__title {
+		font-weight: 600;
+		color: var(--color-text);
+	}
+
+	.tb-docs-banner__cta {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.15em;
+		color: var(--banner-color);
+		font-weight: 500;
+		text-decoration: none;
+	}
+
+	.tb-docs-banner__cta:hover {
+		text-decoration: underline;
+		text-decoration-color: color-mix(in srgb, var(--banner-color) 60%, transparent);
+		text-underline-offset: 2px;
+	}
+
+	.tb-docs-banner__arrow {
+		width: 1em;
+		height: 1em;
+	}
+
+	.tb-docs-banner__close {
+		position: absolute;
+		top: 0.35rem;
+		inset-inline-end: 0.35rem;
+		appearance: none;
+		background: transparent;
+		border: 0;
+		padding: 0.25rem;
+		color: var(--color-text-secondary);
+		cursor: pointer;
+		line-height: 0;
+		border-radius: var(--radius-sm);
+	}
+
+	.tb-docs-banner__close:hover {
+		color: var(--color-text);
+		background: var(--color-bg-muted);
+	}
+
+	.tb-docs-banner__close:focus-visible {
+		outline: 2px solid var(--banner-color);
+		outline-offset: 2px;
+	}
+
+	@media (max-width: 30rem) {
+		.tb-docs-banner {
+			margin-block-start: 0.5rem;
+		}
+	}
+</style>

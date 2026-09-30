@@ -1,12 +1,12 @@
 import {
-	IOT_HUB_STRINGS,
-	SEARCH_PAGE_SIZE,
 	DEFAULT_IOT_HUB_SORT_ID,
 	getCardVariant,
 	getCategoryForItemType,
 	getIotHubSortOption,
-	resolvePreviewImage,
+	IOT_HUB_STRINGS,
 	type ListingView,
+	resolvePreviewImage,
+	SEARCH_PAGE_SIZE,
 } from '@models/iot-hub';
 import { bindListingCard } from './iot-hub-listing-card-bind';
 import type { CardShape } from './listing-card-hooks';

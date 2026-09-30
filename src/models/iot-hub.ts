@@ -1,4 +1,5 @@
 import { z } from 'astro/zod';
+import { SOURCE_AVAILABLE_FROM_VER } from '@data/versions';
 
 // `IOT_HUB_API_URL` resolution differs by context:
 //
@@ -344,6 +345,10 @@ export const IOT_HUB_STRINGS = {
 	builtIn: {
 		/** Appended to the supported-version chip in the detail hero's meta row. */
 		label: 'Built-in',
+	},
+	peOnly: {
+		/** From 4.4 CE and PE merge into one edition, so `peOnly` items run on either. */
+		label: `PE or ${SOURCE_AVAILABLE_FROM_VER}+`,
 	},
 } as const;
 

@@ -1,0 +1,413 @@
+---
+import { Icon } from 'astro-icon/components';
+import mark from '@root/icons/thingsboard-mark.svg?raw';
+import { CLOUD_REGIONS, cloudRegionGtmId, cloudRegionHref, type CloudFlow } from '@util/cloud-regions';
+
+/** ThingsBoard Cloud region chooser for both flows; any `data-cloud-auth="<flow>"` link opens it on that flow. */
+
+interface Props {
+	/** See `BaseLayout`'s `ownsCloudSignupIds`. */
+	signupIds: boolean;
+}
+
+const { signupIds } = Astro.props;
+
+const FLOWS = (['signup', 'signin'] as CloudFlow[]).map((flow) => {
+	const signin = flow === 'signin';
+	return {
+		flow,
+		signin,
+		title: signin ? 'Choose the region your account is in' : 'Choose your data region',
+		regions: CLOUD_REGIONS.map((r) => ({
+			...r,
+			note: signin ? r.host : r.note,
+			href: cloudRegionHref(r, flow),
+			gtmId: signin || signupIds ? cloudRegionGtmId(r, flow) : undefined,
+		})),
+	};
+});
+---
+
+<dialog class="crd" aria-labelledby="cloud-signup-title" data-cloud-dialog>
+	<div class="crd__panel">
+		<span class="crd__badge" aria-hidden="true" set:html={mark} />
+
+		<form method="dialog">
+			<button type="submit" class="crd__close" aria-label="Close">
+				<Icon name="tabler:x" size="20" aria-hidden="true" />
+			</button>
+		</form>
+
+		<p class="crd__eyebrow">ThingsBoard Cloud</p>
+
+		{FLOWS.map(({ flow, signin, title, regions }) => (
+			<div data-flow={flow} hidden={signin}>
+				<h2 class="crd__title" id={`cloud-${flow}-title`}>
+					{title}
+				</h2>
+				{!signin && (
+					<p class="crd__lede">
+						Your data stays in the region you choose, for residency and compliance. No credit card required.
+					</p>
+				)}
+
+				<div class="crd__regions">
+					{regions.map((r) => (
+						<a
+							class="crd__region gtm_button"
+							href={r.href}
+							id={r.gtmId}
+							data-region={r.id}
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							<span class="crd__globe" style={`--region: ${r.hue}`}>
+								<Icon name="tabler:world" size="22" aria-hidden="true" />
+							</span>
+							<span class="crd__rname">
+								<span class="crd__rlabel">{r.name}</span>
+								<span class="crd__chip" hidden>
+									{signin ? 'Last visited' : 'Nearest to you'}
+								</span>
+							</span>
+							<span class="crd__rnote">{r.note}</span>
+							<Icon name="tabler:chevron-right" size="20" class="crd__go" aria-hidden="true" />
+						</a>
+					))}
+				</div>
+
+				<p class="crd__alt">
+					{signin ? (
+						<>
+							New to ThingsBoard?
+							<a href="/installations/choose-region/" data-cloud-auth="signup">
+								Start for free
+								<Icon name="tabler:chevron-right" size="16" class="crd__alt-go" aria-hidden="true" />
+							</a>
+						</>
+					) : (
+						<>
+							Rather run it yourself?
+							<a href="/installations/">
+								<Icon name="tabler:server-2" size="20" class="crd__alt-icon" aria-hidden="true" />
+								Install on your own servers
+								<Icon name="tabler:chevron-right" size="16" class="crd__alt-go" aria-hidden="true" />
+							</a>
+						</>
+					)}
+				</p>
+			</div>
+		))}
+	</div>
+</dialog>
+
+<script>
+	import { lockScroll, unlockScroll } from '@util/scroll-lock';
+	import { nearestCloudRegion, readLastRegion, writeLastRegion, type CloudRegionId } from '@util/cloud-regions';
+
+	const dlg = document.querySelector<HTMLDialogElement>('dialog[data-cloud-dialog]')!;
+	const flows = dlg.querySelectorAll<HTMLElement>('[data-flow]');
+	// Must match the dialog's transition below: the page scrollbar comes back once it has faded out.
+	const FADE_MS = 200;
+	let unlockTimer = 0;
+
+	// Also switches flows in place: sign-in's "Start for free" lands here with the dialog open.
+	function open(flow: string) {
+		const nearest = nearestCloudRegion();
+		const marked = flow === 'signin' ? readLastRegion() : nearest;
+		let focus: HTMLElement | undefined;
+		for (const section of flows) {
+			section.hidden = section.dataset.flow !== flow;
+			if (section.hidden) continue;
+			for (const card of section.querySelectorAll<HTMLElement>('[data-region]')) {
+				card.querySelector<HTMLElement>('.crd__chip')!.hidden = card.dataset.region !== marked;
+				if (card.dataset.region === (marked ?? nearest)) focus = card;
+			}
+		}
+		dlg.setAttribute('aria-labelledby', `cloud-${flow}-title`);
+		clearTimeout(unlockTimer);
+		if (!dlg.open) {
+			// The burger drawer holds the same single-flag scroll lock and carries the header's triggers:
+			// closed first, so the dialog is the lock's only holder and its close can release it.
+			if (document.querySelector('header.header')?.classList.contains('opened-burger')) {
+				(window as { Burger?: () => void }).Burger?.();
+			}
+			dlg.showModal();
+			lockScroll();
+		}
+		// `showModal` lands on the close button; the likeliest answer takes the focus instead.
+		focus?.focus();
+	}
+
+	dlg.addEventListener('close', () => {
+		unlockTimer = window.setTimeout(unlockScroll, FADE_MS);
+	});
+	dlg.addEventListener('click', (e) => {
+		// The panel fills the dialog box, so a click on the dialog element itself landed on the backdrop.
+		if (e.target === dlg) return dlg.close();
+		// Cloud opens in a new tab, so the dialog closes behind it.
+		const card = (e.target as Element).closest<HTMLElement>('[data-region]');
+		if (!card) return;
+		writeLastRegion(card.dataset.region as CloudRegionId);
+		dlg.close();
+	});
+
+	for (const trigger of document.querySelectorAll<HTMLElement>('[data-cloud-auth]')) {
+		trigger.setAttribute('aria-haspopup', 'dialog');
+		trigger.addEventListener('click', (e) => {
+			if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+			e.preventDefault();
+			open(trigger.dataset.cloudAuth!);
+		});
+	}
+</script>
+
+<style lang="scss">
+	@use '../../styles/variables' as *;
+	@use '../../styles/home-card' as *;
+
+	// A transparent viewport-filling box: a modal dialog clips its overflow and the badge hangs above the
+	// panel. The UA hides a closed dialog with `display: none`, so `display` is set on `[open]` only.
+	.crd {
+		width: 100%;
+		height: 100%;
+		max-width: none;
+		max-height: none;
+		margin: 0;
+		padding: 0;
+		border: 0;
+		background: transparent;
+		place-items: center;
+		opacity: 0;
+		transition:
+			opacity 0.2s ease,
+			display 0.2s ease allow-discrete,
+			overlay 0.2s ease allow-discrete;
+
+		&[open] {
+			display: grid;
+			opacity: 1;
+
+			@starting-style {
+				opacity: 0;
+			}
+		}
+
+		&::backdrop {
+			background-color: transparent;
+			transition:
+				background-color 0.2s ease,
+				display 0.2s ease allow-discrete,
+				overlay 0.2s ease allow-discrete;
+		}
+
+		&[open]::backdrop {
+			background-color: rgb(0 0 0 / 50%);
+
+			@starting-style {
+				background-color: transparent;
+			}
+		}
+
+		@include media-down(sm) {
+			place-items: end center;
+		}
+
+		:where(p, h2) {
+			margin: 0;
+		}
+	}
+
+	.crd__panel {
+		@include home-card;
+		@include home-card-glow(var(--color-product-cloud));
+		width: min(560px, calc(100vw - 32px));
+		padding: calc($home-card-badge / 2 + #{$spacing-6}) $spacing-8 $spacing-8;
+		border-radius: $radius-xl;
+		box-shadow:
+			0 1px 2px rgb(23 24 28 / 12%),
+			0 24px 64px rgb(23 24 28 / 24%);
+
+		@include media-down(sm) {
+			width: 100vw;
+			padding: calc($home-card-badge / 2 + #{$spacing-5}) $spacing-4 $spacing-8;
+			border-radius: $radius-xl $radius-xl 0 0;
+		}
+	}
+
+	.crd__badge {
+		@include home-card-badge;
+		background-color: var(--color-product-cloud);
+		background-image: linear-gradient(150deg, rgb(255 255 255 / 24%), rgb(255 255 255 / 0%) 62%);
+		box-shadow: 0 6px 18px rgb(0 0 0 / 12%);
+		color: $color-white;
+
+		:global(svg) {
+			display: block;
+			width: 60%;
+			height: auto;
+		}
+	}
+
+	.crd__close {
+		position: absolute;
+		top: $spacing-4;
+		right: $spacing-4;
+		display: grid;
+		place-items: center;
+		width: 36px;
+		height: 36px;
+		padding: 0;
+		border: 0;
+		border-radius: 50%;
+		background: transparent;
+		color: var(--color-text-secondary);
+		cursor: pointer;
+
+		&:hover {
+			background: color-mix(in srgb, currentColor 10%, transparent);
+			color: var(--color-text);
+		}
+
+		&:focus-visible {
+			outline: 2px solid var(--color-primary);
+			outline-offset: 2px;
+		}
+	}
+
+	.crd__eyebrow {
+		@include home-card-eyebrow;
+		margin-bottom: 6px;
+		color: var(--color-primary);
+	}
+
+	.crd__title {
+		@include card-title;
+		margin-bottom: $spacing-2;
+		font-weight: $font-weight-bold;
+		text-wrap: balance;
+
+		[data-flow='signin'] & {
+			margin-bottom: $spacing-6;
+		}
+	}
+
+	.crd__lede {
+		@include home-card-copy;
+		max-width: 44ch;
+		margin-bottom: $spacing-6;
+	}
+
+	.crd__regions {
+		display: grid;
+		gap: $spacing-3;
+		margin-bottom: $spacing-5;
+		text-align: left;
+	}
+
+	.crd__region {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr) auto;
+		column-gap: 14px;
+		align-items: center;
+		padding: $spacing-4;
+		border-radius: $radius-lg;
+		background-color: var(--color-bg-surface);
+		box-shadow:
+			0 1px 2px rgb(0 0 0 / 6%),
+			0 10px 20px -8px rgb(0 0 0 / 10%);
+		color: inherit;
+		text-decoration: none;
+		transition: box-shadow 0.18s ease;
+
+		&:hover,
+		&:focus-visible {
+			box-shadow: 0 12px 28px rgb(0 0 0 / 7%);
+
+			.crd__rlabel {
+				text-decoration: underline;
+				text-underline-offset: 3px;
+			}
+		}
+
+		&:focus-visible {
+			outline: 2px solid var(--color-primary);
+			outline-offset: 3px;
+		}
+	}
+
+	.crd__globe {
+		grid-column: 1;
+		grid-row: 1 / 3;
+		display: grid;
+		place-items: center;
+		width: 40px;
+		height: 40px;
+		border-radius: 50%;
+		background: color-mix(in srgb, var(--region) 12%, transparent);
+		color: var(--region);
+	}
+
+	.crd__rname {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 4px $spacing-2;
+		@include text-tab;
+		font-weight: $font-weight-bold;
+	}
+
+	.crd__rnote {
+		@include text-s;
+		line-height: 1.4;
+		color: var(--color-text-secondary);
+	}
+
+	.crd__chip {
+		@include text-xs;
+		padding: 2px $spacing-2;
+		border-radius: 999px;
+		background: color-mix(in srgb, var(--color-brand) 10%, transparent);
+		color: var(--color-brand);
+		white-space: nowrap;
+	}
+
+	.crd__go {
+		grid-column: 3;
+		grid-row: 1 / 3;
+		color: var(--color-text-muted);
+	}
+
+	// Flex, so the link's text lines up with the question rather than with the icons' baseline.
+	.crd__alt {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		align-items: center;
+		gap: 4px $spacing-2;
+		@include text-s;
+		line-height: 1.5;
+		color: var(--color-text-secondary);
+
+		a {
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+			color: var(--color-text);
+			font-weight: $font-weight-medium;
+			text-decoration: none;
+
+			&:hover {
+				text-decoration: underline;
+			}
+		}
+	}
+
+	.crd__alt-icon {
+		color: var(--brand-pe);
+	}
+
+	.crd__alt-go {
+		margin-left: -3px;
+	}
+</style>

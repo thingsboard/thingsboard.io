@@ -2,7 +2,555 @@
 title: REST API
 description: "ThingsBoard REST API reference — Swagger UI, authentication, and client libraries."
 ---
-import RestApi from '@includes/docs/reference/rest-api.mdx'
-import { Products } from '~/models/site.models'
 
-<RestApi product={Products.CE}/>
+import { Aside } from '@astrojs/starlight/components';
+import DocLink from '@components/DocLink.astro';
+import HostCode from '@components/HostCode.astro';
+import SwaggerLink from '@components/SwaggerLink.astro';
+import { Products } from '@models/site.models';
+
+ThingsBoard provides a REST API for managing platform entities, integrations, device provisioning, and building custom applications.
+The API is available on every ThingsBoard instance and documented interactively via Swagger UI.
+
+All examples on this page use `$TB_URL` for the ThingsBoard base URL (e.g. `https://thingsboard.cloud`) and `$AUTH` for the authorization header value (e.g. `ApiKey YOUR_KEY`).
+
+## Swagger UI
+
+Swagger UI lets you browse all available REST API endpoints, inspect request and response schemas, and test API calls directly in your browser.
+
+Access it at:
+
+<HostCode product={Products.CE} lang="" code={`{BASE_URL}/swagger-ui.html`} />
+
+If you are already logged into the ThingsBoard UI, Swagger UI authenticates automatically using your session.
+
+## Authentication
+
+### API key (recommended)
+
+<Aside type="tip">
+Available since ThingsBoard 4.3. See the <DocLink product={Products.CE} path='user-guide/security/api-keys'>API Keys</DocLink> guide to create and manage keys.
+</Aside>
+
+Pass the API key in the `X-Authorization` header:
+
+```
+X-Authorization: ApiKey YOUR_API_KEY_VALUE
+```
+
+Example request:
+
+```bash
+curl -X GET -H 'X-Authorization: ApiKey YOUR_API_KEY_VALUE' \
+  '$TB_URL/api/auth/user'
+```
+
+API keys are long-lived, require no login, and can be revoked through the ThingsBoard UI.
+
+### JWT token (deprecated)
+
+Obtain an access token by sending credentials to the login endpoint:
+
+```bash
+curl -X POST -H 'Content-Type: application/json' \
+  -d '{"username":"[email protected]", "password":"tenant"}' \
+  '$TB_URL/api/auth/login'
+```
+
+Response:
+
+```json
+{"token":"YOUR_JWT_TOKEN", "refreshToken":"YOUR_JWT_REFRESH_TOKEN"}
+```
+
+Use the token in subsequent requests:
+
+```
+X-Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+Access tokens are valid for 2.5 hours; refresh tokens for 1 week.
+
+<Aside type="note">
+If both API key and JWT are provided, the JWT token takes priority.
+</Aside>
+
+## REST API clients
+
+ThingsBoard provides language-specific client libraries that simplify REST API usage:
+
+- <DocLink product={Products.CE} path='reference/java-client'>Java REST Client</DocLink> — manage entities from Java applications
+- <DocLink product={Products.CE} path='reference/python-client'>Python REST Client</DocLink> — manage entities from Python scripts
+
+## Finding entity IDs
+
+Most API calls require an entity ID (UUID). You can find it in the ThingsBoard UI (it appears in the URL when you open an entity), or fetch it via REST.
+
+**List devices** — returns paginated devices with their IDs:
+
+```bash
+curl -H 'X-Authorization: $AUTH' \
+  '$TB_URL/api/tenant/devices?pageSize=10&page=0'
+```
+
+Response (abbreviated):
+
+```json
+{
+  "data": [
+    {
+      "id": {"entityType": "DEVICE", "id": "784f394c-42b6-435a-983c-b7beff2784f9"},
+      "name": "Thermostat A1",
+      "type": "thermostat"
+    }
+  ],
+  "totalElements": 3
+}
+```
+
+Use the `id` value (`784f394c-...`) in the `{deviceId}` placeholder in all subsequent examples. The same pattern applies to other entity types — use `/api/tenant/assets`, `/api/customers`, etc.
+
+## Attributes API
+
+The Attributes API lets you create, read, and delete <DocLink product={Products.CE} path='user-guide/digital-twins/attributes'>attributes</DocLink> on any entity. Attributes are organized into scopes:
+
+| Scope | Description | Writable via REST |
+|-------|-------------|:-:|
+| `SERVER_SCOPE` | Set by server-side applications | Yes |
+| `SHARED_SCOPE` | Set by server, readable by devices | Yes |
+| `CLIENT_SCOPE` | Reported by devices | No (device-only) |
+
+### Save attributes
+
+Create or update attributes in a given scope. The request body is a JSON object with key-value pairs.
+
+```bash
+curl -X POST -H 'Content-Type: application/json' \
+  -H 'X-Authorization: $AUTH' \
+  -d '{"firmware":"1.2.3", "batchSize":100}' \
+  '$TB_URL/api/plugins/telemetry/DEVICE/{deviceId}/attributes/SERVER_SCOPE'
+```
+
+Works for any entity type — replace `DEVICE/{deviceId}` with `ASSET/{assetId}`, etc.
+
+### Read attributes
+
+**All scopes** — returns attributes from every scope merged together:
+
+```bash
+curl -H 'X-Authorization: $AUTH' \
+  '$TB_URL/api/plugins/telemetry/DEVICE/{deviceId}/values/attributes'
+```
+
+**Specific scope** with optional key filter:
+
+```bash
+curl -H 'X-Authorization: $AUTH' \
+  '$TB_URL/api/plugins/telemetry/DEVICE/{deviceId}/values/attributes/SERVER_SCOPE?keys=firmware,batchSize'
+```
+
+Response:
+
+```json
+[
+  {"lastUpdateTs": 1709912345000, "key": "firmware", "value": "1.2.3"},
+  {"lastUpdateTs": 1709912345000, "key": "batchSize", "value": 100}
+]
+```
+
+### List attribute keys
+
+```bash
+# All scopes
+curl -H 'X-Authorization: $AUTH' \
+  '$TB_URL/api/plugins/telemetry/DEVICE/{deviceId}/keys/attributes'
+
+# Specific scope
+curl -H 'X-Authorization: $AUTH' \
+  '$TB_URL/api/plugins/telemetry/DEVICE/{deviceId}/keys/attributes/SERVER_SCOPE'
+```
+
+Response: `["firmware", "batchSize"]`
+
+### Delete attributes
+
+```bash
+curl -X DELETE -H 'X-Authorization: $AUTH' \
+  '$TB_URL/api/plugins/telemetry/DEVICE/{deviceId}/SERVER_SCOPE?keys=firmware,batchSize'
+```
+
+## Time Series API
+
+The Time Series API lets you save, query, and delete <DocLink product={Products.CE} path='user-guide/digital-twins/time-series-data'>time series data</DocLink> for any entity.
+
+### Save time series
+
+**Simple format** — the server assigns the current timestamp:
+
+```bash
+curl -X POST -H 'Content-Type: application/json' \
+  -H 'X-Authorization: $AUTH' \
+  -d '{"temperature": 22.5, "humidity": 58}' \
+  '$TB_URL/api/plugins/telemetry/DEVICE/{deviceId}/timeseries/ANY'
+```
+
+**With explicit timestamp** (milliseconds since epoch):
+
+```bash
+curl -X POST -H 'Content-Type: application/json' \
+  -H 'X-Authorization: $AUTH' \
+  -d '{"ts": 1709912345000, "values": {"temperature": 22.5, "humidity": 58}}' \
+  '$TB_URL/api/plugins/telemetry/DEVICE/{deviceId}/timeseries/ANY'
+```
+
+**Multiple data points** with different timestamps:
+
+```bash
+curl -X POST -H 'Content-Type: application/json' \
+  -H 'X-Authorization: $AUTH' \
+  -d '[
+    {"ts": 1709912340000, "values": {"temperature": 22.3}},
+    {"ts": 1709912345000, "values": {"temperature": 22.5}}
+  ]' \
+  '$TB_URL/api/plugins/telemetry/DEVICE/{deviceId}/timeseries/ANY'
+```
+
+<Aside type="tip">
+The `scope` path parameter (e.g. `ANY`) is reserved for backward compatibility and not used — you can pass any value.
+</Aside>
+
+**With TTL** — data expires after the specified number of seconds:
+
+```bash
+curl -X POST -H 'Content-Type: application/json' \
+  -H 'X-Authorization: $AUTH' \
+  -d '{"temperature": 22.5}' \
+  '$TB_URL/api/plugins/telemetry/DEVICE/{deviceId}/timeseries/ANY/86400'
+```
+
+### Get latest values
+
+Returns the most recent value for each requested key:
+
+```bash
+curl -H 'X-Authorization: $AUTH' \
+  '$TB_URL/api/plugins/telemetry/DEVICE/{deviceId}/values/timeseries?keys=temperature,humidity'
+```
+
+Response:
+
+```json
+{
+  "temperature": [{"ts": 1709912345000, "value": "22.5"}],
+  "humidity": [{"ts": 1709912345000, "value": "58"}]
+}
+```
+
+### Get time series range
+
+Returns historical data points within a time window. Supports aggregation.
+
+```bash
+curl -H 'X-Authorization: $AUTH' \
+  '$TB_URL/api/plugins/telemetry/DEVICE/{deviceId}/values/timeseries?keys=temperature&startTs=1709900000000&endTs=1709999999999&limit=100&agg=NONE&orderBy=ASC'
+```
+
+**Parameters:**
+
+| Parameter | Required | Description |
+|-----------|:--------:|-------------|
+| `keys` | Yes | Comma-separated telemetry key names |
+| `startTs` | Yes | Start of time range (ms since epoch) |
+| `endTs` | Yes | End of time range (ms since epoch) |
+| `limit` | No | Max data points per key (default 100) |
+| `agg` | No | Aggregation: `NONE`, `AVG`, `MIN`, `MAX`, `SUM`, `COUNT` |
+| `interval` | No | Aggregation interval in ms (required when `agg` is not `NONE`) |
+| `orderBy` | No | `ASC` or `DESC` (default `DESC`) |
+
+**Aggregated example** — hourly averages:
+
+```bash
+curl -H 'X-Authorization: $AUTH' \
+  '$TB_URL/api/plugins/telemetry/DEVICE/{deviceId}/values/timeseries?keys=temperature&startTs=1709900000000&endTs=1709999999999&agg=AVG&interval=3600000'
+```
+
+### List time series keys
+
+```bash
+curl -H 'X-Authorization: $AUTH' \
+  '$TB_URL/api/plugins/telemetry/DEVICE/{deviceId}/keys/timeseries'
+```
+
+Response: `["temperature", "humidity", "speed"]`
+
+### Delete time series
+
+```bash
+curl -X DELETE -H 'X-Authorization: $AUTH' \
+  '$TB_URL/api/plugins/telemetry/DEVICE/{deviceId}/timeseries/delete?keys=temperature&deleteAllDataForKeys=true'
+```
+
+**Parameters:**
+
+| Parameter | Description |
+|-----------|-------------|
+| `keys` | Comma-separated key names to delete |
+| `deleteAllDataForKeys` | `true` to delete all data; `false` to use time range |
+| `startTs` / `endTs` | Time range (required when `deleteAllDataForKeys=false`) |
+| `deleteLatest` | `true` to also delete the latest value (default `false`) |
+| `rewriteLatestIfDeleted` | `true` to recalculate latest from remaining data |
+
+## RPC API
+
+The RPC API lets server-side applications send <DocLink product={Products.CE} path='user-guide/command-and-control'>commands</DocLink> to devices. The device must be online (or persistent RPC must be used).
+
+### One-way RPC
+
+Sends a command without waiting for a response from the device:
+
+```bash
+curl -X POST -H 'Content-Type: application/json' \
+  -H 'X-Authorization: $AUTH' \
+  -d '{"method": "setGpio", "params": {"pin": 4, "value": 1}}' \
+  '$TB_URL/api/rpc/oneway/{deviceId}'
+```
+
+Returns HTTP 200 with empty body on success.
+
+### Two-way RPC
+
+Sends a command and waits for the device to respond:
+
+```bash
+curl -X POST -H 'Content-Type: application/json' \
+  -H 'X-Authorization: $AUTH' \
+  -d '{"method": "getState", "params": {}}' \
+  '$TB_URL/api/rpc/twoway/{deviceId}'
+```
+
+Returns the device response as JSON. If the device does not respond within the timeout, returns HTTP 504.
+
+**Request body:**
+
+| Field | Required | Description |
+|-------|:--------:|-------------|
+| `method` | Yes | RPC method name — the device must handle this method |
+| `params` | Yes | Parameters passed to the device (any JSON) |
+| `timeout` | No | Timeout in ms (default: 10000) |
+| `persistent` | No | `true` to store the RPC and deliver when the device connects |
+| `retries` | No | Number of retries for persistent RPC |
+| `additionalInfo` | No | Arbitrary metadata stored with persistent RPC |
+
+### Persistent RPC
+
+When `"persistent": true`, the platform stores the RPC request and delivers it when the device comes online.
+
+**Query persistent RPCs for a device:**
+
+```bash
+curl -H 'X-Authorization: $AUTH' \
+  '$TB_URL/api/rpc/persistent/device/{deviceId}?pageSize=10&page=0&rpcStatus=QUEUED&sortProperty=createdTime&sortOrder=ASC'
+```
+
+**Get a specific RPC by ID:**
+
+```bash
+curl -H 'X-Authorization: $AUTH' \
+  '$TB_URL/api/rpc/persistent/{rpcId}'
+```
+
+**Delete a persistent RPC:**
+
+```bash
+curl -X DELETE -H 'X-Authorization: $AUTH' \
+  '$TB_URL/api/rpc/persistent/{rpcId}'
+```
+
+## API controllers reference
+
+The table below lists all REST API controller groups available in Swagger UI. Each controller groups related endpoints.
+
+### Core Entities
+
+| Controller | Description |
+|------------|-------------|
+| <SwaggerLink product={Products.CE} controller="device-controller" /> | CRUD operations on devices, assign to customers/tenants, search |
+| <SwaggerLink product={Products.CE} controller="asset-controller" /> | CRUD operations on assets, assign to customers, search |
+| <SwaggerLink product={Products.CE} controller="entity-view-controller" /> | Create and manage entity views (filtered projections of devices/assets) |
+| <SwaggerLink product={Products.CE} controller="entity-relation-controller" /> | Create, query, and delete relations between entities |
+| <SwaggerLink product={Products.CE} controller="customer-controller" /> | Create and manage customers, assign sub-entities |
+| <SwaggerLink product={Products.CE} controller="user-controller" /> | Manage users, settings, activation links |
+| <SwaggerLink product={Products.CE} controller="dashboard-controller" /> | CRUD operations on dashboards, assign to customers, import/export |
+| <SwaggerLink product={Products.CE} controller="device-profile-controller" /> | Manage device profiles (transport, alarm rules, provisioning) |
+| <SwaggerLink product={Products.CE} controller="asset-profile-controller" /> | Manage asset profiles |
+
+### Telemetry & Attributes
+
+| Controller | Description |
+|------------|-------------|
+| <SwaggerLink product={Products.CE} controller="telemetry-controller" /> | Save/read/delete attributes and time series for any entity |
+| <SwaggerLink product={Products.CE} controller="entity-query-controller" /> | Query entities with filters, pagination, and data aggregation — see <DocLink product={Products.CE} path='reference/data-query-api'>Entity Data Query API</DocLink> |
+
+### Alarms
+
+| Controller | Description |
+|------------|-------------|
+| <SwaggerLink product={Products.CE} controller="alarm-controller" /> | Create, acknowledge, clear, assign, and query alarms |
+| <SwaggerLink product={Products.CE} controller="alarm-query-controller" /> | Query alarms with entity filters, severity, status, and time range — see <DocLink product={Products.CE} path='reference/alarm-query-api'>Alarm Query API</DocLink> |
+| <SwaggerLink product={Products.CE} controller="alarm-comment-controller" /> | Add, update, and delete comments on alarms |
+
+### RPC
+
+| Controller | Description |
+|------------|-------------|
+| <SwaggerLink product={Products.CE} controller="rpc-v-2-controller" /> | Send one-way/two-way RPC to devices, manage persistent RPCs |
+| <SwaggerLink product={Products.CE} controller="rpc-v-1-controller" /> | Deprecated — use `rpc-v-2-controller` |
+
+### Rule Engine
+
+| Controller | Description |
+|------------|-------------|
+| <SwaggerLink product={Products.CE} controller="rule-chain-controller" /> | CRUD for rule chains, import/export, set root chain |
+| <SwaggerLink product={Products.CE} controller="rule-engine-controller" /> | Push messages to the rule engine for a specific entity |
+
+### Administration
+
+| Controller | Description |
+|------------|-------------|
+| <SwaggerLink product={Products.CE} controller="admin-controller" /> | System settings (mail, SMS, general), updates check |
+| <SwaggerLink product={Products.CE} controller="tenant-controller" /> | Manage tenants |
+| <SwaggerLink product={Products.CE} controller="tenant-profile-controller" /> | Manage tenant profiles (rate limits, quotas) |
+| <SwaggerLink product={Products.CE} controller="auth-controller" /> | Password reset, change password, user activation |
+| <SwaggerLink product={Products.CE} controller="login-endpoint" /> | Login (JWT), token refresh |
+| <SwaggerLink product={Products.CE} controller="queue-controller" /> | Manage processing queues |
+| <SwaggerLink product={Products.CE} controller="queue-stats-controller" /> | View queue statistics |
+| <SwaggerLink product={Products.CE} controller="audit-log-controller" /> | Query audit logs (by user, entity, or tenant) |
+| <SwaggerLink product={Products.CE} controller="usage-info-controller" /> | Get tenant API usage info |
+
+### Security
+
+| Controller | Description |
+|------------|-------------|
+| <SwaggerLink product={Products.CE} controller="api-key-controller" /> | Create, enable/disable, and delete API keys |
+| <SwaggerLink product={Products.CE} controller="two-factor-auth-controller" /> | 2FA verification (send/check codes, login with 2FA) |
+| <SwaggerLink product={Products.CE} controller="two-factor-auth-config-controller" /> | Configure 2FA providers and account settings |
+| <SwaggerLink product={Products.CE} controller="o-auth-2-controller" /> | Manage OAuth2 clients and login settings |
+| <SwaggerLink product={Products.CE} controller="domain-controller" /> | Manage custom domains and OAuth2 client assignments |
+| <SwaggerLink product={Products.CE} controller="secret-controller" /> | Store and manage secrets (passwords, tokens) |
+
+### Notifications
+
+| Controller | Description |
+|------------|-------------|
+| <SwaggerLink product={Products.CE} controller="notification-controller" /> | Send notifications, mark as read, get notification feed |
+| <SwaggerLink product={Products.CE} controller="notification-rule-controller" /> | Manage notification rules (triggers) |
+| <SwaggerLink product={Products.CE} controller="notification-target-controller" /> | Manage notification targets (recipients) |
+| <SwaggerLink product={Products.CE} controller="notification-template-controller" /> | Manage notification templates |
+
+### Device Connectivity
+
+| Controller | Description |
+|------------|-------------|
+| <SwaggerLink product={Products.CE} controller="device-connectivity-controller" /> | Get connectivity commands and download certificates |
+| <SwaggerLink product={Products.CE} controller="lwm-2m-controller" /> | LwM2M bootstrap security info |
+
+### OTA Updates & Resources
+
+| Controller | Description |
+|------------|-------------|
+| <SwaggerLink product={Products.CE} controller="ota-package-controller" /> | Upload and manage firmware/software OTA packages |
+| <SwaggerLink product={Products.CE} controller="tb-resource-controller" /> | Upload and manage platform resources (images, files, LwM2M models) |
+| <SwaggerLink product={Products.CE} controller="image-controller" /> | Upload, update, and serve images |
+
+### Widgets & UI
+
+| Controller | Description |
+|------------|-------------|
+| <SwaggerLink product={Products.CE} controller="widgets-bundle-controller" /> | Manage widget bundles |
+| <SwaggerLink product={Products.CE} controller="widget-type-controller" /> | Manage individual widget types |
+| <SwaggerLink product={Products.CE} controller="ui-settings-controller" /> | Get UI configuration (help base URL) |
+
+### Version Control & Solutions
+
+| Controller | Description |
+|------------|-------------|
+| <SwaggerLink product={Products.CE} controller="entities-version-control-controller" /> | Save/load entity versions, compare, list branches |
+| <SwaggerLink product={Products.CE} controller="solution-controller" /> | Install and manage solution templates |
+
+### Edge
+
+| Controller | Description |
+|------------|-------------|
+| <SwaggerLink product={Products.CE} controller="edge-controller" /> | Manage edge instances, assign entities to edges |
+| <SwaggerLink product={Products.CE} controller="edge-event-controller" /> | Query edge sync events |
+
+### Integrations & Converters (PE)
+
+| Controller | Description | PE only |
+|------------|-------------|:-------:|
+| <SwaggerLink product={Products.CE} controller="integration-controller" /> | Manage platform integrations | Yes |
+| <SwaggerLink product={Products.CE} controller="converter-controller" /> | Manage uplink/downlink converters | Yes |
+| <SwaggerLink product={Products.CE} controller="converter-library-controller" /> | Browse converter library by vendor/model | Yes |
+
+### Groups & Permissions (PE)
+
+| Controller | Description | PE only |
+|------------|-------------|:-------:|
+| <SwaggerLink product={Products.CE} controller="entity-group-controller" /> | Create and manage entity groups, share with users | Yes |
+| <SwaggerLink product={Products.CE} controller="group-permission-controller" /> | Manage group-level permissions | Yes |
+| <SwaggerLink product={Products.CE} controller="role-controller" /> | Manage roles (generic, group) | Yes |
+
+### Scheduling & Reporting (PE)
+
+| Controller | Description | PE only |
+|------------|-------------|:-------:|
+| <SwaggerLink product={Products.CE} controller="scheduler-event-controller" /> | Create and manage scheduled events | Yes |
+| <SwaggerLink product={Products.CE} controller="report-controller" /> | Generate and download dashboard reports | Yes |
+| <SwaggerLink product={Products.CE} controller="report-template-controller" /> | Manage report templates | Yes |
+| <SwaggerLink product={Products.CE} controller="dashboard-report-controller" /> | Download dashboard reports (legacy) | Yes |
+
+### White Labeling & Custom UI (PE)
+
+| Controller | Description | PE only |
+|------------|-------------|:-------:|
+| <SwaggerLink product={Products.CE} controller="white-labeling-controller" /> | Customize branding (logo, colors, login page) | Yes |
+| <SwaggerLink product={Products.CE} controller="custom-menu-controller" /> | Manage custom menu items | Yes |
+| <SwaggerLink product={Products.CE} controller="custom-translation-controller" /> | Manage custom UI translations | Yes |
+
+### Calculated Fields
+
+| Controller | Description |
+|------------|-------------|
+| <SwaggerLink product={Products.CE} controller="calculated-field-controller" /> | Create and manage calculated fields, test expressions |
+
+### Mobile
+
+| Controller | Description |
+|------------|-------------|
+| <SwaggerLink product={Products.CE} controller="mobile-app-controller" /> | Manage mobile app configurations |
+| <SwaggerLink product={Products.CE} controller="mobile-app-bundle-controller" /> | Manage mobile app bundles |
+| <SwaggerLink product={Products.CE} controller="qr-code-settings-controller" /> | Manage QR code and mobile app settings |
+
+### AI (PE)
+
+| Controller | Description | PE only |
+|------------|-------------|:-------:|
+| <SwaggerLink product={Products.CE} controller="ai-model-controller" /> | Manage AI model configurations | Yes |
+| <SwaggerLink product={Products.CE} controller="ai-chat-controller" /> | AI chat sessions | Yes |
+
+### Other
+
+| Controller | Description |
+|------------|-------------|
+| <SwaggerLink product={Products.CE} controller="component-descriptor-controller" /> | Browse available rule node components |
+| <SwaggerLink product={Products.CE} controller="blob-entity-controller" /> | Upload and download binary entities |
+| <SwaggerLink product={Products.CE} controller="event-controller" /> | Query rule engine events (errors, debug, lifecycle) |
+| <SwaggerLink product={Products.CE} controller="owner-controller" /> | Change entity ownership (tenant ↔ customer) |
+| <SwaggerLink product={Products.CE} controller="self-registration-controller" /> | Manage self-registration settings |
+
+## See also
+
+- <DocLink product={Products.CE} path='reference/data-query-api'>Entity Data Query API</DocLink> — advanced entity search with filters, used by `entity-query-controller` and WebSocket `ENTITY_DATA`
+- <DocLink product={Products.CE} path='reference/alarm-query-api'>Alarm Query API</DocLink> — alarm search with severity, status, and time filters, used by `alarm-query-controller` and WebSocket `ALARM_DATA`
+- <DocLink product={Products.CE} path='reference/websocket-api'>WebSocket API</DocLink> — real-time subscriptions for telemetry, alarms, and notifications
+- <DocLink product={Products.CE} path='apis-and-sdks'>APIs & SDKs</DocLink> — all available APIs and client libraries

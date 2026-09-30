@@ -1,0 +1,566 @@
+---
+import { Icon } from 'astro-icon/components';
+import { SOLUTION_CASES, SOLUTION_RAIL, SPARK_WINDOW } from '@data/solution-flow';
+import { sparkPaths } from '@util/sparkline';
+
+/**
+ * The customer's app as a small window, rotating through the use cases under different brands.
+ * Sized in SolutionFlow's `--u`.
+ */
+
+const SWAP_MS = 5200;
+const VIEW = { w: 100, h: 28, pad: 3 };
+
+const prepared = SOLUTION_CASES.map(({ brand, metricLabel, unit, decimals, series, alarms, domain }) => ({
+	name: brand.name,
+	accent: brand.accent,
+	host: brand.host,
+	metricLabel,
+	unit,
+	decimals,
+	series,
+	alarms,
+	domain,
+}));
+
+const first = prepared[0];
+const win = Math.min(SPARK_WINDOW, first.series.length);
+
+const firstValues = Array.from({ length: win + 1 }, (_, i) => first.series[i % first.series.length]);
+const paths = sparkPaths(firstValues, first.domain, VIEW, win);
+
+const reading = `${first.series[win - 1].toFixed(first.decimals)}${first.unit}`;
+const alarmText = (n: number) => (n > 0 ? `${n} ${n === 1 ? 'alarm' : 'alarms'}` : 'No alarms');
+---
+
+<div
+	class="shell"
+	style={`--flow-accent: ${first.accent};`}
+	data-shell
+	data-rotate={SWAP_MS}
+	data-view={`${VIEW.w},${VIEW.h},${VIEW.pad}`}
+	data-window={win}
+>
+	<script is:inline type="application/json" data-shell-cases set:html={JSON.stringify(prepared)}></script>
+	<p class="shell__chrome" aria-hidden="true">
+		<i class="shell__chrome-dot"></i>
+		<span class="shell__chrome-url shell__swap" data-shell-host>
+			{first.host}
+		</span>
+	</p>
+
+	{/* Every brand's glyph is rendered and one shown, so a swap only toggles a class. */}
+	<p class="shell__topbar">
+		<span class="shell__mark shell__swap" aria-hidden="true">
+			{SOLUTION_CASES.map((c, i) => (
+				<Icon name={c.brand.icon} class={i === 0 ? 'is-active' : undefined} data-shell-mark={i} />
+			))}
+		</span>
+		<span class="shell__swap" data-shell-name>
+			{first.name}
+		</span>
+	</p>
+
+	<div class="shell__lower">
+		<nav class="shell__rail" aria-hidden="true">
+			{SOLUTION_RAIL.map((item) => (
+				<span class:list={['shell__rail-item', item.active && 'is-active']}>
+					<Icon name={item.icon} />
+				</span>
+			))}
+		</nav>
+
+		<div class="shell__body">
+			<p class="shell__metric-label shell__swap" data-shell-metric>
+				{first.metricLabel}
+			</p>
+			<p class="shell__reading shell__swap" data-shell-value>
+				{reading}
+			</p>
+			<svg
+				class="shell__spark shell__swap"
+				viewBox={`0 0 ${VIEW.w} ${VIEW.h}`}
+				preserveAspectRatio="none"
+				aria-hidden="true"
+			>
+				<g data-shell-plot>
+					<path class="shell__spark-area" d={paths.area} data-shell-area></path>
+					<path class="shell__spark-line" d={paths.line} data-shell-line></path>
+				</g>
+			</svg>
+
+			<p class:list={['shell__alarm-banner', 'shell__swap', first.alarms > 0 && 'is-active']} data-shell-alarm>
+				<Icon class="shell__alarm-ok" name="tabler:check" aria-hidden="true" />
+				<Icon class="shell__alarm-warn" name="tabler:alert-triangle" aria-hidden="true" />
+				<span data-shell-alarm-text>{alarmText(first.alarms)}</span>
+			</p>
+		</div>
+	</div>
+</div>
+
+<script>
+	import { sparkPaths, segmentWidth } from '@util/sparkline';
+
+	/**
+	 * Slides the history one point per reading, tweens the number and rotates the brand. Frames run
+	 * only during a step; off-screen shells do nothing.
+	 */
+	type Case = {
+		name: string;
+		accent: string;
+		host: string;
+		metricLabel: string;
+		unit: string;
+		decimals: number;
+		series: number[];
+		alarms: number;
+		domain: [number, number];
+	};
+
+	type Shell = {
+		el: HTMLElement;
+		nameEl: HTMLElement;
+		hostEl: HTMLElement;
+		metricEl: HTMLElement;
+		valueEl: HTMLElement;
+		alarmEl: HTMLElement;
+		alarmTextEl: HTMLElement;
+		marks: HTMLElement[];
+		plot: SVGGElement;
+		line: SVGPathElement;
+		area: SVGPathElement;
+		cases: Case[];
+		view: { w: number; h: number; pad: number };
+		window: number;
+		rotateMs: number;
+		caseIdx: number;
+		/** Index into the loop of the first point in the window. */
+		head: number;
+		tween: { from: number; to: number; started: number } | null;
+		swapping: boolean;
+		announced: boolean;
+		lastStep: number;
+		lastSwap: number;
+	};
+
+	const STEP_MS = 2200;
+	const TWEEN_MS = 700;
+	// Must match the `.is-swapping` transition-duration in the styles below.
+	const FADE_OUT = 110;
+	// How far ahead of a swap `solution-swap-soon` fires; SolutionFlow runs its pulse on it.
+	const LEAD_MS = 1000;
+
+	const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+	const current = (s: Shell) => s.cases[s.caseIdx];
+	const at = (c: Case, i: number) => c.series[i % c.series.length];
+	const alarmText = (n: number) => (n > 0 ? `${n} ${n === 1 ? 'alarm' : 'alarms'}` : 'No alarms');
+
+	function drawWindow(s: Shell) {
+		const c = current(s);
+		const values = Array.from({ length: s.window + 1 }, (_, i) => at(c, s.head + i));
+		const p = sparkPaths(values, c.domain, s.view, s.window);
+		s.line.setAttribute('d', p.line);
+		s.area.setAttribute('d', p.area);
+		s.plot.removeAttribute('transform');
+		s.valueEl.textContent = `${at(c, s.head + s.window - 1).toFixed(c.decimals)}${c.unit}`;
+	}
+
+	function applyCase(s: Shell) {
+		const c = current(s);
+		s.head = 0;
+		s.el.style.setProperty('--flow-accent', c.accent);
+		s.nameEl.textContent = c.name;
+		s.hostEl.textContent = c.host;
+		s.metricEl.textContent = c.metricLabel;
+		s.marks.forEach((m) => m.classList.toggle('is-active', Number(m.dataset.shellMark) === s.caseIdx));
+		s.alarmEl.classList.toggle('is-active', c.alarms > 0);
+		s.alarmTextEl.textContent = alarmText(c.alarms);
+		drawWindow(s);
+	}
+
+	function announce(s: Shell) {
+		s.announced = true;
+		s.el.dispatchEvent(new CustomEvent('solution-swap-soon', { bubbles: true, detail: { in: LEAD_MS } }));
+	}
+
+	function beginSwap(s: Shell, now: number) {
+		s.swapping = true;
+		s.announced = false;
+		s.tween = null;
+		s.lastSwap = now;
+		s.el.classList.add('is-swapping');
+		setTimeout(() => {
+			s.caseIdx = (s.caseIdx + 1) % s.cases.length;
+			applyCase(s);
+			s.el.classList.remove('is-swapping');
+			s.swapping = false;
+			// The first step waits for the return, so the new brand is seen at rest first.
+			s.lastStep = performance.now() + FADE_OUT;
+			wake();
+		}, FADE_OUT);
+	}
+
+	function beginStep(s: Shell, now: number) {
+		const c = current(s);
+		s.tween = { from: at(c, s.head + s.window - 1), to: at(c, s.head + s.window), started: now };
+		s.lastStep = now;
+	}
+
+	function progressStep(s: Shell, now: number) {
+		const tw = s.tween;
+		if (!tw) return;
+		const c = current(s);
+		const t = Math.min(1, (now - tw.started) / TWEEN_MS);
+		if (t >= 1) {
+			s.head = (s.head + 1) % c.series.length;
+			s.tween = null;
+			drawWindow(s);
+			return;
+		}
+		const e = 1 - Math.pow(1 - t, 3);
+		s.plot.setAttribute('transform', `translate(${(-segmentWidth(s.window, s.view) * e).toFixed(3)} 0)`);
+		s.valueEl.textContent = `${(tw.from + (tw.to - tw.from) * e).toFixed(c.decimals)}${c.unit}`;
+	}
+
+	function setup(now: number): Shell[] {
+		const out: Shell[] = [];
+		document.querySelectorAll<HTMLElement>('[data-shell]').forEach((el) => {
+			const q = <T extends Element>(sel: string) => el.querySelector<T>(sel);
+			const json = q<HTMLElement>('[data-shell-cases]');
+			const nameEl = q<HTMLElement>('[data-shell-name]');
+			const hostEl = q<HTMLElement>('[data-shell-host]');
+			const metricEl = q<HTMLElement>('[data-shell-metric]');
+			const valueEl = q<HTMLElement>('[data-shell-value]');
+			const alarmEl = q<HTMLElement>('[data-shell-alarm]');
+			const alarmTextEl = q<HTMLElement>('[data-shell-alarm-text]');
+			const plot = q<SVGGElement>('[data-shell-plot]');
+			const line = q<SVGPathElement>('[data-shell-line]');
+			const area = q<SVGPathElement>('[data-shell-area]');
+			if (!json || !nameEl || !hostEl || !metricEl || !valueEl || !alarmEl || !alarmTextEl || !plot || !line || !area)
+				return;
+
+			let cases: Case[];
+			try {
+				cases = JSON.parse(json.textContent ?? '[]');
+			} catch {
+				return;
+			}
+			if (!cases.length) return;
+
+			const [w, h, pad] = (el.dataset.view ?? '100,28,3').split(',').map(Number);
+			out.push({
+				el,
+				nameEl,
+				hostEl,
+				metricEl,
+				valueEl,
+				alarmEl,
+				alarmTextEl,
+				marks: Array.from(el.querySelectorAll<HTMLElement>('[data-shell-mark]')),
+				plot,
+				line,
+				area,
+				cases,
+				view: { w, h, pad },
+				window: Number(el.dataset.window ?? 32),
+				rotateMs: Number(el.dataset.rotate ?? 0),
+				caseIdx: 0,
+				head: 0,
+				tween: null,
+				swapping: false,
+				announced: false,
+				lastStep: now,
+				lastSwap: now,
+			});
+		});
+		return out;
+	}
+
+	const shells = reduce ? [] : setup(performance.now());
+	const visible = new Set<HTMLElement>();
+	let raf = 0;
+	let timer = 0;
+
+	function wake() {
+		if (!raf) raf = requestAnimationFrame(frame);
+	}
+
+	function armTimer(now: number) {
+		let due = Infinity;
+		shells.forEach((s) => {
+			if (!visible.has(s.el) || s.swapping) return;
+			due = Math.min(due, s.lastStep + STEP_MS);
+			if (s.rotateMs) due = Math.min(due, s.lastSwap + s.rotateMs - (s.announced ? 0 : LEAD_MS));
+		});
+		clearTimeout(timer);
+		if (due < Infinity) timer = window.setTimeout(wake, Math.max(0, due - now));
+	}
+
+	function frame(now: number) {
+		raf = 0;
+		let busy = false;
+		shells.forEach((s) => {
+			if (!visible.has(s.el) || s.swapping) return;
+
+			if (s.rotateMs && now - s.lastSwap >= s.rotateMs) {
+				beginSwap(s, now);
+				return;
+			}
+			if (s.rotateMs && !s.announced && now - s.lastSwap >= s.rotateMs - LEAD_MS) announce(s);
+
+			if (!s.tween && now - s.lastStep >= STEP_MS) beginStep(s, now);
+			if (s.tween) {
+				progressStep(s, now);
+				busy = true;
+			}
+		});
+
+		if (busy) raf = requestAnimationFrame(frame);
+		else armTimer(now);
+	}
+
+	if (shells.length) {
+		const io = new IntersectionObserver(
+			(entries) => {
+				entries.forEach((e) =>
+					e.isIntersecting ? visible.add(e.target as HTMLElement) : visible.delete(e.target as HTMLElement)
+				);
+				wake();
+			},
+			{ rootMargin: '80px' }
+		);
+		shells.forEach((s) => io.observe(s.el));
+	}
+</script>
+
+<style lang="scss">
+	@use '../../styles/variables' as *;
+
+	@function u($n) {
+		@return calc(#{$n} * var(--u));
+	}
+
+	.shell {
+		display: flex;
+		overflow: hidden;
+		flex-direction: column;
+		border-radius: u(8);
+		box-shadow:
+			0 1px 2px rgba(16, 24, 40, 0.04),
+			0 #{u(12)} #{u(28)} #{u(-8)} rgba(16, 24, 40, 0.12);
+	}
+
+	.shell__chrome {
+		display: flex;
+		align-items: center;
+		gap: u(8);
+		margin: 0;
+		padding: u(5.5) u(12);
+		background: #1b1e27;
+	}
+
+	.shell__chrome-dot {
+		display: block;
+		flex: none;
+		width: u(6);
+		height: u(6);
+		border-radius: 50%;
+		background: rgba(255, 255, 255, 0.35);
+	}
+
+	.shell__chrome-url {
+		--swap-i: 0;
+		min-width: 0;
+		font-family: $font-family-mono;
+		font-size: u(12);
+		line-height: u(15);
+		white-space: nowrap;
+		color: rgba(255, 255, 255, 0.62);
+	}
+
+	.shell__topbar {
+		display: flex;
+		align-items: center;
+		gap: u(8);
+		margin: 0;
+		padding: u(8) u(14);
+		font-size: u(15);
+		font-weight: $font-weight-semibold;
+		line-height: u(19);
+		color: var(--color-white, #fff);
+		background: var(--flow-accent);
+		transition: background-color 400ms ease;
+	}
+
+	.shell__mark {
+		display: flex;
+		flex: none;
+
+		[data-icon] {
+			display: none;
+			width: u(16);
+			height: u(16);
+			color: rgba(255, 255, 255, 0.95);
+		}
+
+		[data-icon].is-active {
+			display: block;
+		}
+	}
+
+	.shell__lower {
+		display: flex;
+		flex: 1;
+		background: var(--color-white, #fff);
+	}
+
+	.shell__rail {
+		display: flex;
+		flex: none;
+		flex-direction: column;
+		gap: u(4);
+		padding: u(8);
+		color: var(--color-text-secondary, #5b616e);
+		background: var(--color-bg-light, #f7f9fc);
+	}
+
+	.shell__rail-item {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: u(4);
+		border-radius: u(4);
+
+		[data-icon] {
+			width: u(22);
+			height: u(22);
+		}
+	}
+
+	.shell__rail-item.is-active {
+		color: var(--flow-accent);
+		background: color-mix(in srgb, var(--flow-accent) 12%, transparent);
+		transition:
+			color 400ms ease,
+			background-color 400ms ease;
+	}
+
+	.shell__body {
+		display: flex;
+		flex: 1;
+		min-width: 0;
+		flex-direction: column;
+		padding: u(13) u(16);
+	}
+
+	.shell__metric-label {
+		--swap-i: 2;
+		margin: 0;
+		font-size: u(14);
+		line-height: u(20);
+		color: var(--color-text-secondary, #5b616e);
+	}
+
+	// `nowrap`: the longest reading, `10 µg/m³`, must stay on one line.
+	.shell__reading {
+		--swap-i: 3;
+		margin: 0;
+		font-size: u(32);
+		font-weight: $font-weight-normal;
+		line-height: $line-height-tight;
+		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
+		color: var(--color-text);
+	}
+
+	// Clipped left and right only: the incoming point is drawn past the right edge and slides in.
+	.shell__spark {
+		--swap-i: 4;
+		width: 100%;
+		height: u(28);
+		margin-top: u(6);
+		overflow: visible;
+		clip-path: inset(u(-4) 0);
+	}
+
+	.shell__spark-area {
+		fill: var(--flow-accent);
+		opacity: 0.12;
+		transition: fill 400ms ease;
+	}
+
+	.shell__spark-line {
+		fill: none;
+		stroke: var(--flow-accent);
+		stroke-width: max(1px, u(2));
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		// preserveAspectRatio="none" stretches the box, which would stretch the stroke with it.
+		vector-effect: non-scaling-stroke;
+		transition: stroke 400ms ease;
+	}
+
+	// Severity colours are fixed, never the brand accent.
+	.shell__alarm-banner {
+		--swap-i: 5;
+		display: flex;
+		align-items: center;
+		gap: u(8);
+		margin: u(10) 0 0;
+		padding: u(8) u(12);
+		border-radius: u(6);
+		font-size: u(14);
+		font-weight: $font-weight-normal;
+		line-height: u(24);
+		color: var(--color-text-secondary, #5b616e);
+		background: var(--color-bg-light, #f7f9fc);
+	}
+
+	.shell__alarm-banner [data-icon] {
+		flex: none;
+		width: u(20);
+		height: u(20);
+	}
+
+	.shell__alarm-ok {
+		color: var(--color-success, #178649);
+	}
+
+	.shell__alarm-warn {
+		display: none;
+		color: var(--color-warning, #ff3d00);
+	}
+
+	.shell__alarm-banner.is-active .shell__alarm-ok {
+		display: none;
+	}
+
+	.shell__alarm-banner.is-active .shell__alarm-warn {
+		display: block;
+	}
+
+	// Out fast and together; back in staggered in reading order. The delay sits on the resting state
+	// only, so it applies to the return and never to the exit.
+	.shell__swap {
+		transition:
+			opacity 200ms ease-out,
+			transform 200ms ease-out;
+		transition-delay: calc(var(--swap-i, 0) * 28ms);
+	}
+
+	// The 110ms must match `FADE_OUT` in the script.
+	.shell.is-swapping .shell__swap {
+		opacity: 0;
+		transform: translateY(#{u(-2)});
+		transition-duration: 110ms;
+		transition-timing-function: ease-in;
+		transition-delay: 0ms;
+	}
+
+	// The order the panel comes back in, read top to bottom.
+	.shell__mark,
+	.shell__topbar .shell__swap {
+		--swap-i: 1;
+	}
+</style>

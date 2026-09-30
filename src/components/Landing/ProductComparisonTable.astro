@@ -1,0 +1,348 @@
+---
+/**
+ * Column-vs-column comparison for a product landing page (Public vs Private
+ * Cloud on /products/paas/, ThingsBoard vs a custom stack on
+ * /products/thingsboard-pe/).
+ *
+ * Built on DataTable rather than ComparisonMatrix: cells may be prose, and
+ * ComparisonMatrix pins its column backgrounds to a fixed 64px row height that
+ * wrapped text would detach. Category rows are `<th scope="colgroup">` inside
+ * the table so the page outline stays a single H2.
+ *
+ * Every cell names the column it belongs to, in screen-reader text where the
+ * design shows only an icon. That text is also what keeps the table readable to
+ * `pnpm lint:landmarks`.
+ */
+import { Icon } from 'astro-icon/components';
+import DataTable from '@components/DataTable.astro';
+import SectionHeader from '@components/Landing/SectionHeader.astro';
+import DataTableValue from '@components/DataTableValue.astro';
+import type { ComparisonColumn, ComparisonGroup } from '@models/product-comparison';
+import type { DataTableColumn } from '@models/data-table';
+
+interface Props {
+	id: string;
+	title: string;
+	titleLead?: string;
+	subtitle: string;
+	/** Table caption (visually hidden by DataTable); say what is compared and on which dimensions. */
+	caption: string;
+	labelHeading?: string;
+	columns: readonly ComparisonColumn[];
+	groups: ComparisonGroup[];
+}
+
+const { id, title, titleLead, subtitle, caption, labelHeading = 'Feature', columns: columnLabels, groups } = Astro.props;
+
+// Arity can't be typed — `columns` is a runtime prop — and a miscounted row
+// renders silently wrong: `lint:landmarks` catches empty cells, not missing or
+// extra ones.
+for (const group of groups) {
+	for (const row of group.rows) {
+		if (row.values.length !== columnLabels.length) {
+			throw new Error(
+				`ProductComparisonTable "${caption}": row "${row.label}" has ${row.values.length} cell(s), expected ${columnLabels.length}`
+			);
+		}
+	}
+}
+
+// The value columns split the rest half evenly and half by how much text each holds.
+const rows = groups.flatMap((group) => group.rows);
+const lengths = columnLabels.map((_, i) =>
+	rows.reduce((n, row) => {
+		const cell = row.values[i];
+		return n + (cell.kind === 'text' ? cell.value.length : 1);
+	}, 0)
+);
+const total = lengths.reduce((a, b) => a + b, 0);
+const valueWidth = (i: number) => `${Math.floor(70 * (0.5 / columnLabels.length + (0.5 * lengths[i]) / total))}%`;
+const columns: DataTableColumn[] = [
+	{ label: labelHeading, width: '30%' },
+	...columnLabels.map((column, i) => ({ label: column.name, icon: column.icon, width: valueWidth(i) })),
+];
+
+// Stacked, the cell-label track fits the longest column name so a row's values line up.
+const cellLabelWidth = `${Math.max(...columnLabels.map((column) => column.name.length))}ch`;
+
+// Column count including the row-header column — the category rows span it.
+const span = columns.length;
+---
+
+<section {id} class="product-compare" style={`--cell-label-w: ${cellLabelWidth}`}>
+	<SectionHeader {title} {titleLead} {subtitle} />
+	<DataTable
+		class="product-compare__table"
+		caption={caption}
+		columns={columns}
+		scrollable
+		scrollClass="product-compare__scroll"
+	>
+		{
+			groups.map((group) => (
+				<>
+					{group.label && (
+						<tr class="product-compare__group">
+							<th scope="colgroup" colspan={span}>
+								<span class="product-compare__group-head">
+									{group.mark && (
+										<Icon
+											name={group.mark.icon}
+											class="product-compare__group-mark"
+											style={`background-color: ${group.mark.color}`}
+											aria-hidden="true"
+										/>
+									)}
+									{group.label}
+								</span>
+							</th>
+						</tr>
+					)}
+					{group.rows.map((row) => (
+						<tr>
+							<th scope="row">{row.label}</th>
+							{row.values.map((cell, i) => {
+								const column = columnLabels[i].name;
+								return (
+									<td>
+										{/* Not aria-hidden: the stacked layout hides `thead`, so this is the cell's only column name. */}
+										<span class="product-compare__cell-label">
+											{column}
+										</span>
+										{cell.kind === 'text' ? (
+											<DataTableValue value={cell.value} />
+										) : (
+											<DataTableValue
+												value={false}
+												noIcon="tabler:minus"
+												noClass="product-compare__dash"
+												noText={`Not included in ${column}`}
+											/>
+										)}
+									</td>
+								);
+							})}
+						</tr>
+					))}
+				</>
+			))
+		}
+	</DataTable>
+</section>
+
+<style lang="scss" is:global>
+	@use '../../styles/variables' as *;
+
+	// Global, nested under the section class: the table shell is DataTable's, so a
+	// scoped `tbody th` here would carry this component's hash and never match.
+	.product-compare {
+		padding: $spacing-20 var(--band-gutter);
+
+		@include media-down(md) {
+			padding-block: $spacing-12;
+		}
+
+		// The table keeps its own width and scrolls rather than wrapping prose onto four lines.
+		&__scroll {
+			overflow-x: auto;
+
+			// `position: sticky` resolves against the nearest scrollport, and a horizontal scroller is
+			// one on both axes — inside it the header row would pin to a box that never scrolls
+			// vertically. Above this width the table fits, so the page's own scrollport takes over.
+			@media (min-width: 880px) {
+				overflow: visible;
+			}
+		}
+
+		&__table {
+			width: 100%;
+			min-width: 820px;
+			// `separate`, not `collapse`: collapsed borders belong to the table, so a sticky header
+			// cell would leave its borders behind. `border-spacing: 0` keeps the grid tight.
+			border-collapse: separate;
+			border-spacing: 0;
+			// Column widths come from the `<col>`s; `fixed` makes them exact.
+			table-layout: fixed;
+			text-align: left;
+
+			thead th,
+			tbody th[scope='row'],
+			tbody td {
+				@include text-m;
+				padding: $spacing-3 $spacing-4;
+				line-height: 1.5;
+			}
+
+			tbody th[scope='row'],
+			tbody td {
+				color: var(--color-text-secondary);
+				vertical-align: top;
+			}
+
+			// The pinned row-label column; each pinned cell needs an opaque ground or values read through it.
+			thead th:first-child,
+			tbody th[scope='row'] {
+				position: sticky;
+				left: 0;
+				z-index: 1;
+				background-color: #fff;
+				// A shadow, not a border: it sits outside the cell box and cannot shift the column.
+				box-shadow: 1px 0 0 rgb(15 23 42 / 8%);
+			}
+
+			// Pinned under the fixed header as one rounded bar. `:first-child` is restated so it outranks
+			// the pinned-column rule above, which would repaint it with the body's ground.
+			thead th,
+			thead th:first-child {
+				position: sticky;
+				top: calc(var(--sl-nav-height, #{$header-height}) + #{$spacing-2});
+				z-index: 3;
+				font-weight: $font-weight-medium;
+				background-color: var(--table-sticky-band, #eef0ff);
+				box-shadow: 0 1px 2px rgb(15 23 42 / 6%);
+			}
+
+			thead th:first-child {
+				// Pinned on both axes, so above the rest of its row.
+				z-index: 4;
+				border-radius: $radius-full 0 0 $radius-full;
+			}
+
+			thead th:last-child {
+				border-radius: 0 $radius-full $radius-full 0;
+			}
+
+			// Text on a light ground: an accent chosen as a fill under white may not read as ink.
+			thead th:not(:first-child) {
+				color: var(--page-accent-ink, #{$color-brand});
+			}
+
+			tbody th[scope='row'] {
+				font-weight: $font-weight-medium;
+			}
+
+			// On the cells rather than the row — see `border-collapse` above.
+			tbody tr:not(.product-compare__group) > * {
+				border-bottom: 1px solid rgb(15 23 42 / 8%);
+			}
+		}
+
+		// Flex, not inline: an inline glyph sits on the baseline and the descender space under it
+		// adds 7px to the header row.
+		.dt-col {
+			display: flex;
+			align-items: center;
+			gap: $spacing-2;
+		}
+
+		.dt-col__mark {
+			flex: none;
+			width: 24px;
+			height: 24px;
+		}
+
+		&__group th {
+			padding: $spacing-8 $spacing-4 $spacing-3;
+			font-size: $font-size-xl;
+			font-weight: $font-weight-bold;
+			line-height: 1.3;
+			color: var(--color-text);
+		}
+
+		// The text is pinned, not the cell: a cell spanning every column has nowhere to stick. `inline-flex`
+		// keeps the box narrower than the cell.
+		&__group-head {
+			position: sticky;
+			left: $spacing-4;
+			display: inline-flex;
+			align-items: center;
+			gap: $spacing-3;
+		}
+
+		&__group-mark {
+			@include icon-tile;
+		}
+
+		&__dash {
+			width: 24px;
+			height: 24px;
+			vertical-align: middle;
+			color: rgb(15 23 42 / 40%);
+		}
+
+		&__cell-label {
+			display: none;
+		}
+
+		// Stacked: the header row is hidden and every cell names its own column.
+		@media (max-width: 879px) {
+			padding-bottom: $spacing-12;
+
+			&__table {
+				display: block;
+				min-width: 0;
+
+				thead {
+					display: none;
+				}
+
+				tbody,
+				tr,
+				th,
+				td {
+					display: block;
+					width: auto;
+				}
+
+				// The pinning goes with the scrolling that needed it.
+				thead th:first-child,
+				tbody th[scope='row'] {
+					position: static;
+					box-shadow: none;
+				}
+
+				tbody th[scope='row'] {
+					padding: 0 0 $spacing-2;
+					font-weight: $font-weight-bold;
+					color: var(--color-text);
+				}
+
+				tbody tr:not(.product-compare__group) {
+					padding: $spacing-4 0;
+					border-bottom: 1px solid rgb(15 23 42 / 8%);
+				}
+
+				tbody tr:not(.product-compare__group) > * {
+					border-bottom: 0;
+				}
+
+				tbody td {
+					display: grid;
+					grid-template-columns: min(var(--cell-label-w), 45%) minmax(0, 1fr);
+					gap: $spacing-3;
+					padding: $spacing-1 0;
+
+					@include media-down(sm) {
+						grid-template-columns: minmax(0, 1fr);
+						gap: 0;
+						padding-block: $spacing-2 0;
+					}
+				}
+			}
+
+			&__cell-label {
+				display: block;
+				font-weight: $font-weight-medium;
+				color: var(--page-accent-ink, #{$color-brand});
+			}
+
+			&__group th {
+				padding: $spacing-8 0 $spacing-2;
+			}
+
+			&__group-head {
+				position: static;
+			}
+		}
+	}
+</style>

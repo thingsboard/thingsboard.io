@@ -20,11 +20,6 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 						answer: `Click Install and pick the target — a device, an asset, or a device/asset profile — in the install dialog. The rule is created there and starts evaluating live telemetry immediately. A profile-level install covers every entity of that type, including ones added later.`,
 					},
 					{
-						id: 'faq-alarm-rule-editions',
-						question: 'Are alarm rules compatible with all ThingsBoard editions?',
-						answer: `Most rules work on CE and PE. Rules that rely on owner-hierarchy propagation are Professional Edition only. Each listing shows an edition badge and the minimum ThingsBoard version.`,
-					},
-					{
 						id: 'faq-alarm-rule-thresholds',
 						question: 'Do I need to configure thresholds before it works?',
 						answer: `Usually not. Well-built rules read thresholds from server attributes with sensible defaults, so they fire correctly out of the box. You can override the value per entity by setting the attribute — no need to edit the rule.`,
@@ -80,11 +75,6 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 						id: 'faq-widget-what-are-iot-widgets',
 						question: 'What are IoT widgets?',
 						answer: 'Widgets are self-contained UI components that connect to device data and render it visually on ThingsBoard dashboards. ThingsBoard ships with 300+ built-in widgets across 34 bundles, and the IoT Hub extends this with community-contributed components.',
-					},
-					{
-						id: 'faq-widget-editions-compatible',
-						question: 'Which editions are widgets compatible with?',
-						answer: 'Each widget shows its edition badge and minimum ThingsBoard version. Most widgets work across all editions; some may use PE-only features. Check the badge on the widget page before installing.',
 					},
 					{
 						id: 'faq-widget-how-to-install',
@@ -154,11 +144,6 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 						answer: 'The rule engine is the ThingsBoard component that processes incoming messages in real time. It runs your rule chains — every device message passes through the rule engine, which routes it through the chain\'s nodes to filter, transform, store, raise alarms, or trigger external actions. Rule chains from the IoT Hub run on this same engine.',
 					},
 					{
-						id: 'faq-rc-edition-compatibility',
-						question: 'Are rule chains compatible with all ThingsBoard editions?',
-						answer: 'Most rule chains work on CE. However, chains using Analytics nodes (Aggregate Latest, Aggregate Stream) or certain Integration nodes require PE. Each chain in the Catalog displays edition badges. Chains using PE-only nodes are clearly marked.',
-					},
-					{
 						id: 'faq-rc-how-to-install',
 						question: 'How do I install a rule chain?',
 						answer: 'Open the rule chain page and click Install. In the dialog you can import the chain on its own, or set it as the default rule chain for a device or asset profile (with a confirmation if that profile already has one). The chain then appears in your Rule Chains list and starts receiving messages as soon as it\'s wired in or bound to a profile. You can also download the JSON and import it manually via Rule Chains → Import rule chain.',
@@ -187,7 +172,7 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 					{
 						id: 'faq-rc-node-categories',
 						question: 'What node categories exist?',
-						answer: 'Seven categories: Filter (route by conditions), Enrichment (add context), Transformation (modify payload), Action (save/alarm/RPC), External (integrate with external systems), Flow (connect sub-chains), and Analytics (aggregate data — PE only).',
+						answer: 'Seven categories: Filter (route by conditions), Enrichment (add context), Transformation (modify payload), Action (save/alarm/RPC), External (integrate with external systems), Flow (connect sub-chains), and Analytics (aggregate data).',
 					},
 					{
 						id: 'faq-rc-organized-in-hub',
@@ -234,11 +219,6 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 						id: 'faq-st-how-do-i-install',
 						question: 'How do I install an IoT solutions template?',
 						answer: 'Click Install, review the description and preview gallery, and confirm. The platform atomically provisions every entity and redirects you to the main dashboard with simulated data already flowing.',
-					},
-					{
-						id: 'faq-st-compatible-all-editions',
-						question: 'Are solution templates compatible with all editions?',
-						answer: 'Each template targets Community Edition (CE), Professional Edition (PE), or both. CE templates use only CE features; PE templates may use RBAC, white-labeling, advanced integrations, and reporting. The catalog shows an edition badge and the minimum ThingsBoard version.',
 					},
 					{
 						id: 'faq-st-demo-use-real-data',
@@ -375,11 +355,6 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 						answer: 'Calculated fields are server-side data transformations that run automatically when new data arrives. They combine telemetry, attributes, or historical data into derived values, stored as new time series or attributes. Introduced in ThingsBoard 4.0, they simplify logic that previously lived in rule chains.',
 					},
 					{
-						id: 'compatible-with-all-editions',
-						question: 'Are they compatible with all ThingsBoard editions?',
-						answer: 'Available in CE, PE, and Cloud since v4.0. Data reprocessing (historical recalculation) is PE-only. Each library entry displays edition badges and minimum version requirements.',
-					},
-					{
 						id: 'how-do-i-import',
 						question: 'How do I import a calculated field?',
 						answer: 'Click Install on the calculated field’s page and pick the target — a device, asset, or device/asset profile — in the install dialog. The field is created on that target and immediately starts computing from live telemetry, saving the result as a new time series key or attribute. You can also download the JSON and import it manually from the Calculated Fields tab.',
@@ -484,7 +459,7 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 					{
 						id: 'faq-hub-account-needed',
 						question: 'Do I need a ThingsBoard account to access resources?',
-						answer: 'You can discover the IoT Hub components without an account. To install a component, you sign in to your ThingsBoard instance — Community Edition, Professional Edition, or Cloud — and install it there in one step.',
+						answer: 'You can discover the IoT Hub components without an account. To install a component, you sign in to your ThingsBoard instance and install it there in one step.',
 					},
 				],
 			},
@@ -509,8 +484,8 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 					},
 					{
 						id: 'faq-hub-editions-supported',
-						question: 'What platform editions are supported?',
-						answer: 'The IoT Hub is available on every ThingsBoard edition — Community Edition, Professional Edition (Self-Managed), and Cloud (PaaS). The implementation context of every component should be indicated on the relevant category or resource page.',
+						question: 'Which ThingsBoard deployments are supported?',
+						answer: 'The IoT Hub is available on every ThingsBoard deployment: on-premises and cloud (both public and private). The implementation context of every component should be indicated on the relevant category or resource page.',
 					},
 				],
 			},

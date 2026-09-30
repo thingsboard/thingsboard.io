@@ -1,27 +1,7 @@
 ---
-import { defaultCustomersLogos, type CustomerLogo } from '../../data/customersLogo';
+import { defaultCustomersLogos } from '@data/customersLogo';
 
-interface Props {
-	/**
-	 * Product tag for styling: 'ce' | 'pe' | 'paas' | 'edge' | etc.
-	 */
-	productTag?: string;
-	/**
-	 * Custom logos array. If not provided, uses default logos.
-	 */
-	logos?: CustomerLogo[];
-}
-
-const { productTag = 'ce', logos = defaultCustomersLogos } = Astro.props;
-
-const filterMap: Record<string, string> = {
-	ce: 'invert(86%) sepia(5%) saturate(530%) hue-rotate(171deg) brightness(237%) contrast(86%)',
-	pe: 'invert(79%) sepia(25%) saturate(246%) hue-rotate(93deg) brightness(185%) contrast(82%)',
-	paas: 'invert(87%) sepia(3%) saturate(664%) hue-rotate(176deg) brightness(237%) contrast(82%)',
-	edge: 'invert(79%) sepia(25%) saturate(246%) hue-rotate(130deg) brightness(185%) contrast(82%)',
-};
-const imgFilter = filterMap[productTag] ?? '';
-
+/** The customer strip under the homepage hero: white marks on black, looping when the row overflows. */
 const LOCAL_PREFIX = '/src/assets/images/';
 const svgUrls = import.meta.glob<string>('/src/assets/images/**/*.svg', {
 	query: '?url',
@@ -29,31 +9,56 @@ const svgUrls = import.meta.glob<string>('/src/assets/images/**/*.svg', {
 });
 
 const resolvedLogos = await Promise.all(
-	logos.map(async (logo) => {
-		if (logo.src.startsWith(LOCAL_PREFIX)) {
-			const loader = svgUrls[logo.src];
-			return { ...logo, src: loader ? await loader() : logo.src };
-		}
-		return logo;
+	defaultCustomersLogos.map(async (logo) => {
+		if (!logo.src.startsWith(LOCAL_PREFIX)) return logo;
+		const loader = svgUrls[logo.src];
+		return { ...logo, src: loader ? await loader() : logo.src };
 	})
 );
+
+// Optical sizing: `k` scales each mark to the area of a 4:1 mark of the reference height; `units` is its
+// width in reference heights, summed so the CSS can fit the row.
+const REF_RATIO = 4;
+const sizedLogos = resolvedLogos.map((logo) => {
+	const ratio = logo.width / logo.height;
+	const k = Math.sqrt(REF_RATIO / ratio);
+	return { ...logo, k, units: k * ratio };
+});
+const rowVars = [
+	`--logo-count: ${sizedLogos.length}`,
+	`--logo-units: ${sizedLogos.reduce((sum, logo) => sum + logo.units, 0).toFixed(3)}`,
+	`--logo-units-min: ${Math.min(...sizedLogos.map((logo) => logo.units)).toFixed(3)}`,
+	`--logo-units-max: ${Math.max(...sizedLogos.map((logo) => logo.units)).toFixed(3)}`,
+].join('; ');
 ---
 
-<section id="tb-customers" class="customers-logo">
+<section id="tb-customers" class="customers-logo" style={rowVars} data-logo-strip>
 	<div class="customers-logo__content">
-		{
-			resolvedLogos.map((logo) => (
-				<a href={logo.href} class="customers-logo__item">
-					<img
-						src={logo.src}
-						alt={logo.ariaLabel}
-						width={logo.width}
-						height={logo.height}
-						style={imgFilter ? `filter:${imgFilter}` : undefined}
-					/>
-				</a>
-			))
-		}
+		<div class="customers-logo__track">
+			{
+				/* Twice for a seamless loop (the script adds copies if needed). Copies show only while looping,
+				   are `aria-hidden` and hold no links, so each logo is announced and tabbed to once. */
+				[false, true].map((isCopy) => (
+					<div class="customers-logo__set" aria-hidden={isCopy ? 'true' : undefined}>
+						{sizedLogos.map((logo) => {
+							const img = (
+								<img src={logo.src} alt={isCopy ? '' : logo.ariaLabel} width={logo.width} height={logo.height} />
+							);
+							const style = `--k: ${logo.k.toFixed(4)}`;
+							return logo.href && !isCopy ? (
+								<a href={logo.href} class="customers-logo__item" style={style}>
+									{img}
+								</a>
+							) : (
+								<span class="customers-logo__item" style={style}>
+									{img}
+								</span>
+							);
+						})}
+					</div>
+				))
+			}
+		</div>
 	</div>
 </section>
 
@@ -61,35 +66,177 @@ const resolvedLogos = await Promise.all(
 	@use '../../styles/variables' as *;
 
 	.customers-logo {
-		max-width: 1800px;
-		margin: 0 auto;
-		padding: $spacing-12 0;
-		text-align: justify;
-		text-align-last: justify;
-		display: none;
+		--mark-min-w: 56px;
+		--mark-max-w: 120px;
+		--logo-gap-min: #{$spacing-6};
+		--logo-gap-fit: #{$spacing-10};
+		--ribbon-pad: clamp(20px, calc(0.5rem + 2vw), 56px);
 
-		@include media-up(lg) {
-			display: block;
-		}
-
-		img {
-			height: 36px;
-			width: auto;
-		}
+		padding-block: clamp(#{$spacing-6}, 2.5vw, 36px);
+		background-color: #000;
 
 		&__content {
+			// Query container for the `100cqi` in `--h0`.
+			container-type: inline-size;
+			max-width: calc(960px + var(--ribbon-pad) * 2);
+			margin: 0 auto;
+			padding-inline: var(--ribbon-pad);
+			overflow-x: auto;
+			overscroll-behavior-x: contain;
+			scroll-snap-type: x proximity;
+			scroll-padding-inline: var(--ribbon-pad);
+			scrollbar-width: none;
+
+			&::-webkit-scrollbar {
+				display: none;
+			}
+
+			// Covers only the padding: nothing while the row fits, the edge mark once it overflows.
+			--fade-mask: linear-gradient(
+				to right,
+				transparent,
+				#000 var(--ribbon-pad),
+				#000 calc(100% - var(--ribbon-pad)),
+				transparent
+			);
+			-webkit-mask-image: var(--fade-mask);
+			mask-image: var(--fade-mask);
+		}
+
+		// At least the row's width, so a set that fits can spread across it.
+		&__track {
 			display: flex;
-			flex-direction: row;
-			flex-wrap: wrap;
-			justify-content: space-around;
-			gap: $spacing-12;
-			width: 100%;
+			width: max-content;
+			min-width: 100%;
+		}
+
+		// A gap's worth of padding plus `space-evenly` spaces the ends like the gaps between marks.
+		&__set {
+			display: flex;
+			flex: 1 0 auto;
 			align-items: center;
-			padding: 0 60px;
+			justify-content: space-evenly;
+			gap: var(--logo-gap-min);
+			padding-inline: var(--logo-gap-min);
+
+			&[aria-hidden='true'] {
+				display: none;
+			}
 		}
 
 		&__item {
+			flex: 0 0 auto;
+			scroll-snap-align: start;
+
+			// The height that fits the row at `--logo-gap-fit`, bounded by the narrowest and widest mark widths.
+			--h0: clamp(
+				var(--mark-min-w) / var(--logo-units-min),
+				(100cqi - (var(--logo-count) + 1) * var(--logo-gap-fit)) / var(--logo-units),
+				var(--mark-max-w) / var(--logo-units-max)
+			);
+		}
+
+		img {
 			display: block;
+			width: auto;
+			height: calc(var(--h0) * var(--k));
+			filter: brightness(0) invert(1);
+			-webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.62), rgba(0, 0, 0, 0.38));
+			mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.62), rgba(0, 0, 0, 0.38));
+		}
+
+		a:hover img,
+		a:focus-visible img {
+			-webkit-mask-image: none;
+			mask-image: none;
+		}
+
+		// Set by the script, with `--marquee-distance` and `--marquee-duration`, when the row overflows.
+		&[data-marquee] {
+			.customers-logo__content {
+				overflow-x: hidden;
+				scroll-snap-type: none;
+			}
+
+			// The start padding is the seam to the previous set, so no mark moves as the loop starts.
+			.customers-logo__set {
+				padding-inline-end: 0;
+			}
+
+			.customers-logo__set[aria-hidden='true'] {
+				display: flex;
+			}
+
+			.customers-logo__track {
+				animation: customers-logo-loop var(--marquee-duration) linear infinite;
+			}
+		}
+
+		&[data-held],
+		&[data-offscreen],
+		&__content:focus-within {
+			.customers-logo__track {
+				animation-play-state: paused;
+			}
+		}
+
+		@media (hover: hover) {
+			&__content:hover .customers-logo__track {
+				animation-play-state: paused;
+			}
+		}
+	}
+
+	@keyframes customers-logo-loop {
+		to {
+			transform: translateX(calc(-1 * var(--marquee-distance)));
 		}
 	}
 </style>
+
+<script>
+	import { pauseOffscreen } from '@util/pause-offscreen';
+
+	// Loops the strip when the row overflows, which CSS cannot detect; without it the row just scrolls.
+	const SPEED = 20; // px per second
+	const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+
+	for (const strip of document.querySelectorAll<HTMLElement>('[data-logo-strip]')) {
+		const viewport = strip.querySelector<HTMLElement>('.customers-logo__content');
+		const track = strip.querySelector<HTMLElement>('.customers-logo__track');
+		const [set, copy] = strip.querySelectorAll<HTMLElement>('.customers-logo__set');
+		if (!viewport || !track || !set || !copy) continue;
+
+		const items = [...set.children];
+		const gap = parseFloat(getComputedStyle(set).columnGap);
+		let room = 0;
+
+		const update = () => {
+			// Measured at minimum spacing (a set that fits is spread out); start padding included, so this is
+			// exactly one loop step.
+			const distance = items.reduce((sum, item) => sum + item.getBoundingClientRect().width, 0) + gap * items.length;
+			const loop = !reduce.matches && distance + gap > room + 1;
+			if (loop) {
+				strip.style.setProperty('--marquee-distance', `${distance}px`);
+				strip.style.setProperty('--marquee-duration', `${(distance / SPEED).toFixed(2)}s`);
+				// One set more than spans the strip, so it never runs short of marks.
+				const sets = Math.ceil(viewport.clientWidth / distance) + 1;
+				while (track.children.length < sets) track.append(copy.cloneNode(true));
+			}
+			if (loop !== strip.hasAttribute('data-marquee')) viewport.scrollLeft = 0;
+			strip.toggleAttribute('data-marquee', loop);
+		};
+
+		new ResizeObserver(([entry]) => {
+			room = entry.contentRect.width;
+			update();
+		}).observe(viewport);
+		reduce.addEventListener('change', update);
+
+		for (const type of ['pointerdown', 'pointerup', 'pointercancel', 'pointerleave']) {
+			viewport.addEventListener(type, () => strip.toggleAttribute('data-held', type === 'pointerdown'));
+		}
+	}
+
+	pauseOffscreen('[data-logo-strip]');
+</script>

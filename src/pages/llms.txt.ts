@@ -6,7 +6,7 @@ const SITE_URL = 'https://thingsboard.io';
 
 const HEADER = `# ThingsBoard
 
-> ThingsBoard is an open-source IoT platform for device management, data collection, processing, and visualization.
+> ThingsBoard is an IoT platform for device management, data collection, processing, and visualization.
 
 - ThingsBoard supports device connectivity via MQTT, CoAP, HTTP, LwM2M, SNMP, OPC-UA, and Modbus protocols.
 - The platform provides a powerful rule engine for real-time data processing, transformation, and automated actions on IoT telemetry.

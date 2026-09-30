@@ -824,7 +824,7 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			"otherDevicesGuides": [
 				{
 					"label": "Decode DL28",
-					"href": "/docs/user-guide/integrations/"
+					"href": "/docs/pe/user-guide/integrations/"
 				}
 			]
 		},

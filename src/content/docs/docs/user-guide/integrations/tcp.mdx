@@ -2,7 +2,703 @@
 title: TCP Integration
 description: Connect TCP devices to ThingsBoard to stream and visualize IoT sensor data in real time.
 ---
-import PageComponent from '@includes/docs/user-guide/integrations/tcp.mdx'
-import { Products } from '~/models/site.models'
+import DocLink from '@components/DocLink.astro';
+import ImageGallery from '@components/ImageGallery.astro';
+import DocImage from '@components/DocImage.astro';
+import Banner from '@components/Banner.astro';
+import { Aside, Steps } from '@astrojs/starlight/components';
+import { Products } from '@models/site.models';
+import Tabs from '@components/Tabs.astro';
+import TabItem from '@components/TabItem.astro';
+import ConfigureDownlinkRuleChain from '@includes/docs/user-guide/integrations/_configure-downlink-rule-chain.mdx';
 
-<PageComponent product={Products.CE}/>
+<Banner variant="peFeature" product={Products.CE} path="installation/" />
+
+TCP Integration connects ThingsBoard to devices that communicate over raw TCP sockets. Use it to bridge an existing TCP-based device protocol into ThingsBoard for monitoring and rule-based automation — including sending commands back to devices over the same connection.
+
+**When to use TCP Integration:**
+
+- Devices use a custom binary or text protocol over a raw TCP socket.
+- Firmware already opens a TCP connection to a configurable host and port.
+- You need a persistent, connection-oriented channel for both telemetry and commands.
+
+## Architecture
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/tcp-integration-architecture.svg', alt: 'TCP integration architecture diagram — device connects over TCP to the remote TCP Integration process, which frames the stream, decodes payloads via the uplink converter, and pushes telemetry and attributes to ThingsBoard; downlink messages flow back over the same connection', caption: 'TCP integration architecture — the remote process frames the byte stream, decodes payloads via the uplink converter, and forwards telemetry to ThingsBoard; downlink messages travel back over the same connection' },
+]} />
+
+A device opens a TCP connection to the TCP Integration process listening on the configured port. The integration frames the incoming byte stream into discrete messages, and the uplink converter decodes each one into telemetry and attributes; the ThingsBoard Core Service stores the data, creating the device automatically on first contact. For downlink, the Rule Engine hands a message to the integration; the downlink converter encodes it, and the integration sends it back to the device over the same TCP connection.
+
+## Prerequisites
+
+Before creating the integration, ensure:
+
+- You have access to <DocLink product={Products.PE} path="installation/" target="_blank">ThingsBoard PE</DocLink> or <a href="/installations/?product=thingsboard-cloud" target="_blank"><strong>ThingsBoard Cloud</strong></a> with integration functionality enabled for your tenant.
+- You have <DocLink product={Products.CE} path="user-guide/roles/" target="_blank">permissions</DocLink> to create integrations and data converters.
+- You know the payload format and framing protocol your TCP devices use.
+- Port **10560** (or whichever port you configure) must be open for incoming TCP connections on the machine running the TCP Integration process. The remote process also needs outbound access to ThingsBoard's gRPC port **9090**.
+- The `echo` command piped to `netcat` (`nc`) is available for sending test data over TCP.
+
+In this tutorial, device **SN-002** sends temperature and humidity readings to the TCP Integration server on port `10560`.
+
+The integration accepts three payload formats:
+
+<Tabs>
+<TabItem label="Text">
+```
+SN-002,default,temperature,25.7\nSN-002,default,humidity,69
+```
+</TabItem>
+<TabItem label="JSON">
+```json
+[
+  {
+    "deviceName": "SN-002",
+    "deviceType": "default",
+    "temperature": 25.7,
+    "humidity": 69
+  }
+]
+```
+</TabItem>
+<TabItem label="Binary">
+The binary payload is 25 bytes:
+```
+\x30\x30\x30\x30\x11\x53\x4e\x2d\x30\x30\x32\x64\x65\x66\x61\x75\x6c\x74\x32\x35\x2e\x37\x00\x00\x00
+```
+
+Byte layout:
+
+| Bytes | Hex | Value |
+|-------|-----|-------|
+| 0–3 | `\x30\x30\x30\x30` | Frame length prefix (4 bytes) |
+| 4 | `\x11` | Message type: telemetry |
+| 5–10 | `\x53\x4e\x2d\x30\x30\x32` | Device name: `SN-002` |
+| 11–17 | `\x64\x65\x66\x61\x75\x6c\x74` | Device type: `default` |
+| 18–21 | `\x32\x35\x2e\x37` | Temperature: `25.7` |
+| 22–24 | `\x00\x00\x00` | Reserved / padding (ignored) |
+</TabItem>
+</Tabs>
+
+## Set Up the TCP Integration
+
+To set up the **TCP** integration, first create an uplink data converter to process incoming messages, then create and configure the integration.
+
+### Create the Uplink Data Converter
+
+The decoder function receives the raw TCP message bytes as a `payload` byte array — already extracted from the byte stream by the handler configured in the Connection settings, with framing bytes stripped. It must return an object with at least `deviceName` and `deviceType`. Optionally, it can include `telemetry` (time-series measurements) and `attributes` (device properties) as flat key-value maps.
+
+For the full decoder function reference — all input parameters and output fields — see <DocLink product={Products.CE} path="user-guide/integrations/uplink-data-converter/#generic-uplink-converter" target="_blank">Uplink data converter</DocLink>.
+
+<Steps>
+  1. Go to **Integrations center &#8702; Data converters**.
+  2. Click **+ Add data converter &#8702; Create new converter**.
+</Steps>
+
+In the **Add data converter** dialog:
+
+<Steps>
+  <ol start="3">
+    <li><strong>Converter type</strong> — leave <strong>Uplink</strong> (selected by default).</li>
+    <li><strong>Integration type</strong> — in the search field, enter <code>TCP</code> and select <strong>TCP</strong> from the list.</li>
+    <li><strong>Name</strong> — enter a converter name, for example <code>TCP Uplink Converter</code>.</li>
+    <li><strong>Main decoding configuration</strong> — paste the decoder function from the appropriate tab below, then continue with step 7.</li>
+  </ol>
+</Steps>
+
+<Aside type="tip" title="TBEL">
+  We recommend using <DocLink product={Products.CE} path="user-guide/tbel" target="_blank">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
+</Aside>
+
+Select the tab matching your payload type:
+
+<Tabs>
+<TabItem label="Text">
+<Tabs>
+<TabItem label="TBEL (Recommended)">
+```js maxLines=20 collapsible
+/** Decoder **/
+
+// decode payload to string
+var strArray = decodeToString(payload);
+var payloadArray = strArray.replaceAll("\"", "").replaceAll("\\n", "").split(',');
+
+var telemetryPayload = {};
+for (var i = 2; i < payloadArray.length; i = i + 2) {
+    var telemetryKey = payloadArray[i];
+    var telemetryValue = parseFloat(payloadArray[i + 1]);
+    telemetryPayload[telemetryKey] = telemetryValue;
+}
+
+// Result object with device attributes/telemetry data
+var result = {
+    deviceName: payloadArray[0],
+    deviceType: payloadArray[1],
+    telemetry: telemetryPayload,
+    attributes: {}
+};
+
+/** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
+
+return result;
+```
+</TabItem>
+<TabItem label="JavaScript">
+```js maxLines=25 collapsible
+/** Decoder **/
+
+// decode payload to string
+var strArray = decodeToString(payload);
+var payloadArray = strArray.replace(/"/g, "").replace(/\s/g, "").split(',');
+
+var telemetryKey = payloadArray[2];
+var telemetryValue = payloadArray[3];
+
+var telemetryPayload = {};
+telemetryPayload[telemetryKey] = telemetryValue;
+
+// Result object with device attributes/telemetry data
+var result = {
+    deviceName: payloadArray[0],
+    deviceType: payloadArray[1],
+    telemetry: telemetryPayload,
+    attributes: {}
+};
+
+/** Helper functions **/
+
+function decodeToString(payload) {
+    return String.fromCharCode.apply(String, payload);
+}
+
+return result;
+```
+</TabItem>
+</Tabs>
+
+The handler delivers one logical record per decoder invocation (split by the configured message separator). The decoder expects a comma-separated string: position 0 is the device name, position 1 is the device type, followed by alternating telemetry key/value pairs.
+
+**To adapt this converter to your device:**
+- Change the separator by replacing `split(',')` with your delimiter (e.g. `split(';')`).
+- If the device name or type is at a different position, adjust the `payloadArray[0]` / `payloadArray[1]` index.
+- If telemetry keys are fixed rather than embedded in the payload, replace the loop with explicit assignments: `telemetryPayload['temperature'] = parseFloat(payloadArray[2]);`.
+- To extract attributes instead of telemetry, move fields from the `telemetry` map to the `attributes` map.
+
+</TabItem>
+<TabItem label="JSON">
+<Tabs>
+<TabItem label="TBEL (Recommended)">
+```js maxLines=20 collapsible
+/** Decoder **/
+
+// decode payload to JSON
+var data = decodeToJson(payload);
+
+var deviceName = data.deviceName;
+var deviceType = data.deviceType;
+var result = {
+    deviceName: deviceName,
+    deviceType: deviceType,
+    attributes: {},
+    telemetry: {
+        temperature: data.temperature,
+        humidity: data.humidity
+    }
+};
+
+/** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
+
+return result;
+```
+</TabItem>
+<TabItem label="JavaScript">
+```js maxLines=30 collapsible
+/** Decoder **/
+
+// decode payload to JSON
+var data = decodeToJson(payload);
+
+var deviceName = data.deviceName;
+var deviceType = data.deviceType;
+var result = {
+    deviceName: deviceName,
+    deviceType: deviceType,
+    attributes: {},
+    telemetry: {
+        temperature: data.temperature,
+        humidity: data.humidity
+    }
+};
+
+/** Helper functions **/
+
+function decodeToString(payload) {
+    return String.fromCharCode.apply(String, payload);
+}
+
+function decodeToJson(payload) {
+    var str = decodeToString(payload);
+    var data = JSON.parse(str);
+    return data;
+}
+
+return result;
+```
+</TabItem>
+</Tabs>
+
+The decoder parses the payload as a JSON object and maps fields directly to `deviceName`, `deviceType`, and telemetry keys.
+
+**To adapt this converter to your device:**
+- Replace `data.deviceName` / `data.deviceType` with the actual field names your device sends (e.g. `data.id`, `data.model`).
+- Add or remove telemetry fields to match your sensor output: `pressure: data.pressure, co2: data.co2`.
+- Move fields to `attributes` if they represent device properties rather than time-series data (e.g. `firmware: data.fw`).
+
+</TabItem>
+<TabItem label="Binary">
+<Tabs>
+<TabItem label="TBEL (Recommended)">
+```js maxLines=20 collapsible
+/** Decoder **/
+
+// decode payload to string
+var payloadStr = decodeToString(payload);
+
+var deviceName = payloadStr.substring(0, 6);
+var deviceType = payloadStr.substring(6, 13);
+
+// Result object with device/asset attributes/telemetry data
+var result = {
+    deviceName: deviceName,
+    deviceType: deviceType,
+    attributes: {},
+    telemetry: {
+        temperature: parseFloat(payloadStr.substring(13, 17))
+    }
+};
+
+/** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
+
+return result;
+```
+</TabItem>
+<TabItem label="JavaScript">
+```js maxLines=30 collapsible
+/** Decoder **/
+
+// decode payload to string
+var payloadStr = decodeToString(payload);
+
+var deviceName = payloadStr.substring(0, 6);
+var deviceType = payloadStr.substring(6, 13);
+
+// Result object with device/asset attributes/telemetry data
+var result = {
+   deviceName: deviceName,
+   deviceType: deviceType,
+   attributes: {},
+   telemetry: {
+       temperature: parseFloat(payloadStr.substring(13, 17))
+   }
+};
+
+/** Helper functions **/
+
+function decodeToString(payload) {
+   return String.fromCharCode.apply(String, payload);
+}
+
+function decodeToJson(payload) {
+   var str = decodeToString(payload);
+   var data = JSON.parse(str);
+   return data;
+}
+
+return result;
+```
+</TabItem>
+</Tabs>
+
+The handler strips the framing bytes (dummy prefix and length field) before passing the payload to the decoder. The decoder then reads device identity and sensor values from fixed byte offsets of the remaining data.
+
+**To adapt this converter to your device:**
+- Adjust the `substring(start, end)` offsets to match your device's byte layout after framing bytes are stripped.
+- Update the **Number of first bytes to strip** in the handler settings to match the number of framing bytes your protocol uses.
+- For integer fields stored as raw bytes (not ASCII digits), use `parseBytesToInt(payload, offset, length, bigEndian)` instead of `parseFloat(payloadStr.substring(...))`. For example: `temperature: parseBytesToInt(payload, 13, 2, true) / 100.0`.
+- Add more telemetry fields by reading additional byte ranges and adding them to the `telemetry` map.
+
+</TabItem>
+</Tabs>
+
+<Steps>
+  <ol start="7">
+    <li>Optionally, click <DocLink product={Products.CE} path="user-guide/integrations/uplink-data-converter/#testing-the-decoder" target="_blank"><strong>Test payload decoder</strong></DocLink> to validate the script against a sample payload.</li>
+    <li>Click <strong>Add</strong>.</li>
+  </ol>
+</Steps>
+
+### Create the TCP Integration
+
+<Aside type="note">
+  TCP Integration always runs as a <DocLink product={Products.CE} path="user-guide/integrations/remote/" target="_blank">remote integration</DocLink> — it executes as a standalone process outside the ThingsBoard server, either on the same machine or on a separate host with network access. The remote process binds the TCP port and forwards messages to ThingsBoard over gRPC.
+</Aside>
+
+<Steps>
+  <ol start="1">
+    <li>Go to <strong>Integrations center &#8702; Integrations</strong> and click <strong>+ Add integration</strong>.</li>
+    <li>
+      <strong>Basic settings:</strong>
+      <ul>
+        <li>Set <strong>integration type</strong> to <strong>TCP</strong>.</li>
+        <li>Enter a name — for example, <code>TCP integration</code>.</li>
+        <li>Leave <strong>Enable integration</strong> and <strong>Allow create devices or assets</strong> on so the device is created automatically on first data.</li>
+        <li>Click <strong>Next</strong>.</li>
+      </ul>
+    </li>
+    <li>
+      <span><strong>Uplink data converter:</strong></span>
+      <ul>
+        <li>Click <strong>Select existing</strong> and choose the <a href="#create-the-uplink-data-converter"><strong>TCP Uplink Converter</strong></a> created in the previous step, or click <strong>Create new</strong> to define the decoder inline.</li>
+        <li>Click <strong>Next</strong>.</li>
+      </ul>
+    </li>
+    <li>
+      <strong>Downlink data converter:</strong>
+      <ul>
+        <li>Click <strong>Skip</strong> for now. You can add a downlink converter later.</li>
+      </ul>
+    </li>
+    <li>
+      <strong>Connection settings:</strong>
+      <ul>
+        <li>Set the <strong>Port</strong> — default is <code>10560</code>. This port must be open on the machine running the TCP Integration process.</li>
+        <li>The <strong>Execute remotely</strong> option is always enabled for TCP. Copy the <strong>Integration key</strong> and <strong>Integration secret</strong> — you will need them to <a href="#install-and-run-remote-tcp-integration"><strong>start the remote integration process</strong></a>.</li>
+        <li>Configure the <strong>Handler Configuration</strong> — select the message framing strategy that matches your device protocol. See <a href="#handler-configuration"><strong>Handler Configuration</strong></a> below.</li>
+      </ul>
+      <span>Read more about each parameter in <a href="#connection-settings"><strong>Connection Settings</strong></a>.</span>
+    </li>
+    <li>Click <strong>Add</strong>.</li>
+  </ol>
+</Steps>
+
+#### Connection Settings
+
+<h4>Port</h4>
+
+The TCP port the integration server will bind to. Default: `10560`. The port must be open on the machine running the TCP Integration process and must not be shared with another integration in the same ThingsBoard tenant environment.
+
+<h4>Max number of pending connects on the socket</h4>
+
+The maximum length of the queue for incoming connections that have not yet been accepted. Default: `128`. Increase this value under high connection concurrency.
+
+<h4>Size of the buffer for inbound / outbound socket (in KB)</h4>
+
+The socket receive and send buffer sizes in kilobytes. Default: `64` KB each. Increase for high-throughput devices that send large payloads.
+
+<h4>Enable sending of keep-alive messages on connection-oriented sockets</h4>
+
+When enabled, the OS sends TCP keep-alive probes to detect dead connections. Disabled by default. Enable when devices maintain long-lived connections that may silently drop.
+
+<h4>Forces a socket to send the data without buffering (disable Nagle's algorithm)</h4>
+
+When enabled, sends each write immediately rather than batching small packets. Enabled by default. Disable only if you send many small messages in rapid succession and want to reduce the number of TCP segments.
+
+<h4>Execute Remotely</h4>
+
+Always enabled for TCP Integration. Shows the **Integration key** and **Integration secret** — credentials required to launch the TCP Integration as a standalone remote process. See <DocLink product={Products.CE} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink> for full setup instructions.
+
+<h4>Advanced Settings</h4>
+
+| Field | Description |
+|-------|-------------|
+| **Description** | Optional free-text description of the integration. |
+| **Metadata** | Optional key–value pairs injected into every message and accessible in converter scripts via the `metadata` object. Click **Add** to add a row. |
+
+#### Handler Configuration
+
+Because TCP is a stream protocol with no built-in message boundaries, the integration must be told how to split the stream into individual messages. Select the handler that matches your device protocol:
+
+<Tabs>
+<TabItem label="Text">
+
+Splits the stream into messages using a text delimiter. Suitable for devices that send human-readable strings — CSV, JSON strings, or plain text lines.
+
+| Parameter | Description |
+|-----------|-------------|
+| **Max Frame Length (in bytes)** | Maximum allowed message size. Messages exceeding this size raise an exception. Default: `128`. |
+| **Strip delimiter** | When enabled (default), the delimiter itself is removed before passing the payload to the converter. |
+| **Message separator type** | How messages are delimited: **System line separator** (`\n` / `\r\n`), **Nul delimiter** (`\0`), or **Custom separator** (enter any string in the Separator field). |
+| **Charset name** | Character encoding used to decode the text stream. Default: `UTF-8`. Set to the encoding your device uses (e.g. `ISO-8859-1`) if non-ASCII characters appear garbled. |
+
+</TabItem>
+<TabItem label="JSON">
+
+Parses the stream as a sequence of JSON objects. The integration reads bytes until a complete, syntactically valid JSON object is detected and then passes it to the converter. No explicit delimiter is required. Suitable when devices send newline-separated or back-to-back JSON objects.
+
+</TabItem>
+<TabItem label="Binary">
+
+Splits the stream using a length field embedded in a header prefix. Suitable for binary protocols where each message starts with a header containing its own length.
+
+| Parameter | Description |
+|-----------|-------------|
+| **Max Frame Length (in bytes)** | Maximum allowed frame size. Frames exceeding this raise an exception (configurable below). Default: `128`. |
+| **Length Field Offset** | Byte offset of the length field from the start of the frame. Default: `0`. |
+| **Length Field Length** | Size of the length field in bytes (`1`, `2`, `3`, `4`, or `8`). Default: `2`. |
+| **Length Adjustment** | Value added to the length field value to compute the total frame length. Use negative values when the length field includes the header itself. Default: `0`. |
+| **Number of first bytes to strip out from the decoded frame** | Bytes removed from the beginning of the frame before the payload is passed to the converter. Use to strip the header. Default: `0`. |
+| **Byte Order of the length field** | **Little Endian** or **Big Endian** byte order for interpreting the length field value. |
+| **Thrown exception soon as the decoder notices the length of the frame will exceed max size** | When enabled, raises an exception as soon as the decoded length field indicates the frame would exceed Max Frame Length, rather than waiting until all bytes are received. |
+
+</TabItem>
+</Tabs>
+
+## Install and Run Remote TCP Integration
+
+Follow the <DocLink product={Products.CE} path="user-guide/integrations/remote/" target="_blank">remote integration guide</DocLink> to install and start the TCP Integration service.
+
+Use the **Integration key** and **Integration secret** from the connection settings step above.
+
+## Test Uplink
+
+After the integration is created, send a test uplink and confirm that ThingsBoard received the message, decoded it correctly, and provisioned the device.
+
+<Aside type="note">
+  Before sending a test uplink, ensure that **Debug** mode with the **All messages** option is enabled for both the integration and the converter. This allows you to view received messages and conversion results on the corresponding **Events** tabs.
+</Aside>
+
+### Send Test Uplink
+
+Once the TCP Integration process is running, the TCP server starts and listens for device connections. Use `netcat` (`nc`) to simulate a device sending data.
+
+<Aside type="note">
+  Use `nc -q0` or `nc -q1` to control how long `nc` waits before closing — `-q0` closes immediately after sending, `-q1` waits 1 second. To receive a downlink response, keep the connection open with `-w60` (60-second timeout) or by omitting the `-q` flag entirely.
+</Aside>
+
+Select your payload type:
+
+<Tabs>
+<TabItem label="Text">
+
+Send a message:
+
+```bash
+echo -e 'SN-002,default,temperature,25.7' | nc -q0 localhost 10560
+```
+
+<DocImage src="/src/assets/images/user-guide/integrations/tcp/tcp-terminal-text-add-attribute-1.png" alt="Terminal — single text message sent to the TCP integration; no output indicates successful delivery" />
+
+Multiple messages (newline-delimited):
+
+```bash
+echo -e 'SN-002,default,temperature,25.7\nSN-002,default,humidity,69' | nc -q1 -w1 localhost 10560
+```
+
+<DocImage src="/src/assets/images/user-guide/integrations/tcp/tcp-terminal-text-add-attribute-2.png" alt="Terminal — two newline-delimited text messages sent; connection closes after 1 s" />
+
+To receive a downlink response, keep the connection open:
+
+```bash
+echo -e 'SN-002,default,temperature,25.7' | nc localhost 10560
+```
+
+<DocImage src="/src/assets/images/user-guide/integrations/tcp/tcp-terminal-text-downlink-message-1.png" alt="Terminal — single text message sent; connection kept open to receive a downlink response" />
+
+Multiple messages with open connection:
+
+```bash
+echo -e 'SN-002,default,temperature,25.7\nSN-002,default,humidity,69' | nc -w60 localhost 10560
+```
+
+<DocImage src="/src/assets/images/user-guide/integrations/tcp/tcp-terminal-text-downlink-message-2.png" alt="Terminal — two text messages sent; connection kept open with -w60 to receive a downlink response" />
+
+</TabItem>
+<TabItem label="JSON">
+
+Send a message:
+
+```bash
+echo -e '{"deviceName": "SN-002", "deviceType": "default", "temperature": 25.7, "humidity": 69}' | nc -q1 -w1 localhost 10560
+```
+
+<DocImage src="/src/assets/images/user-guide/integrations/tcp/tcp-terminal-json-uplink-message-1.png" alt="Terminal — JSON message sent to the TCP integration; no output indicates successful delivery" />
+
+To receive a downlink response, keep the connection open:
+
+```bash
+echo -e '{"deviceName": "SN-002", "deviceType": "default", "temperature": 25.7, "humidity": 69}' | nc -w60 localhost 10560
+```
+
+<DocImage src="/src/assets/images/user-guide/integrations/tcp/tcp-terminal-json-downlink-message-1.png" alt="Terminal — JSON message sent; connection kept open with -w60 to receive a downlink response" />
+
+</TabItem>
+<TabItem label="Binary">
+
+The binary payload used in this tutorial requires the following **Handler Configuration (Binary)** settings in the integration's Connection settings:
+
+| Parameter | Value |
+|-----------|-------|
+| **Max Frame Length (in bytes)** | `128` |
+| **Length Field Offset** | `4` |
+| **Length Field Length** | `1` |
+| **Length Adjustment** | `0` |
+| **Number of first bytes to strip out from the decoded frame** | `5` |
+| **Byte Order of the length field** | Little Endian |
+
+Send a message:
+
+```bash
+echo -e -n '\x30\x30\x30\x30\x11\x53\x4e\x2d\x30\x30\x32\x64\x65\x66\x61\x75\x6c\x74\x32\x35\x2e\x37\x00\x00\x00' | nc -q1 -w1 localhost 10560
+```
+
+<DocImage src="/src/assets/images/user-guide/integrations/tcp/tcp-terminal-binary-uplink-message-1.png" alt="Terminal — binary message sent to the TCP integration; no output indicates successful delivery" />
+
+To receive a downlink response, keep the connection open:
+
+```bash
+echo -e -n '\x30\x30\x30\x30\x11\x53\x4e\x2d\x30\x30\x32\x64\x65\x66\x61\x75\x6c\x74\x32\x35\x2e\x37\x00\x00\x00' | nc -w60 localhost 10560
+```
+
+<DocImage src="/src/assets/images/user-guide/integrations/tcp/tcp-terminal-binary-downlink-message-1.png" alt="Terminal — binary message sent; connection kept open with -w60 to receive a downlink response" />
+
+</TabItem>
+</Tabs>
+
+### Verify Integration Events
+
+Go to **Integrations center &#8702; Integrations**, open **TCP integration**, and click the **Events** tab.
+Each successfully processed uplink appears as a row with status **OK**.
+
+### Verify Converter Events
+
+To inspect converter processing, go to **Integrations center &#8702; Data converters**, click **TCP Uplink Converter**, and open its **Events** tab:
+
+- **In** — what the integration received (the raw payload bytes)
+- **Out** — what the converter returned
+- **Error** — error text, if any
+
+### Verify Device Provisioning
+
+Go to **Entities &#8702; Devices**. Device **SN-002** is auto-created on the first uplink. Open the **Latest telemetry** tab to confirm `temperature = 25.7`.
+
+## Configure Downlink
+
+Downlink allows ThingsBoard to send messages back to devices over TCP — for example, in response to an RPC call or a shared attribute update. The message is delivered over the **same TCP connection** the device used to send its last uplink.
+
+<Aside type="note">
+  The device must keep the connection open to receive downlink messages. A single-shot `echo ... | nc ...` closes immediately after sending — use a persistent connection or a proper device client when testing downlink.
+</Aside>
+
+The downlink converter transforms a <DocLink product={Products.CE} path="user-guide/rule-engine" target="_blank">Rule Engine</DocLink> message into the bytes sent back to the device. The integration appends a `\n` newline after every downlink payload — device-side parsers should expect and strip this trailing byte.
+
+### Create and Assign the Downlink Converter
+
+<Steps>
+  1. Go to **Integrations center &#8702; Integrations** and open the **TCP integration**.
+  2. Click the **pencil** icon to enter edit mode.
+  3. In the **Downlink data converter** field, click **Create new**.
+  4. In the **Add data converter** dialog:
+      - Enter a name for the converter, for example, `TCP Downlink Converter`.
+      - Use the default encoder script or replace it with your own implementation.
+      - Click **Add**.
+  5. Click **Apply changes** to save the integration.
+</Steps>
+
+**The encoder function used in this tutorial:**
+
+```js
+/** Encoder **/
+
+// Encode downlink data from the incoming Rule Engine message.
+// msg: JSON message payload.
+// msgType: message type, e.g. 'ATTRIBUTES_UPDATED', 'POST_TELEMETRY_REQUEST', etc.
+// metadata: key-value pairs containing additional message data.
+// integrationMetadata: key-value pairs configured in the integration.
+
+var result = {
+    // Specify the response body format: JSON, TEXT, or BINARY.
+    contentType: "JSON",
+
+    // Serialize the incoming message and use it as the TCP payload.
+    data: JSON.stringify(msg),
+
+    // Add optional metadata when required by the integration.
+    metadata: {}
+};
+
+return result;
+```
+
+### Configure the Root Rule Chain
+
+<ConfigureDownlinkRuleChain integrationName="TCP" />
+
+### Test Downlink
+
+<Aside type="note">
+  The example below applies to the **Text** handler configuration. With Binary or JSON handlers, the uplink must match the configured framing and the downlink response arrives in the same encoded format — it will not display as readable text in the terminal.
+</Aside>
+
+Open a persistent TCP connection to receive the downlink and keep it open:
+
+```bash
+nc localhost 10560
+```
+
+Then type uplink manually and press **Enter**:
+
+```bash
+SN-002,default,temperature,25.7
+```
+
+Do not close the terminal.
+
+Trigger a downlink by adding a shared attribute to the device:
+
+<Steps>
+  1. Go to **Entities &#8702; Devices**, open **SN-002**, and navigate to the **Attributes** tab.
+  2. Select **Shared attributes**, click **+** to add a new attribute.
+  3. Set the key (e.g. `powerState`) and value (e.g. `on`).
+  4. Click **Add**.
+</Steps>
+
+The Rule Engine routes the attribute creation message to the **Integration Downlink** node, which encodes it and sends it to the device. The terminal will print:
+
+```bash
+john@doe:~$ nc localhost 10560
+SN-002,default,temperature,25.7
+{"powerState":"on"}
+```
+
+To inspect the exchange, open the downlink converter's **Events** tab:
+- **In** shows the Rule Engine message
+- **Out** shows the encoded payload sent to the device
+- **Metadata** shows additional context
+
+<Aside type="note">
+  Downlinks are delivered immediately over the live TCP connection — all pending messages are flushed in sequence. If the device is not currently connected, the downlink is queued and flushed on the next uplink.
+</Aside>
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| No device created after sending data | `deviceName` is empty or `undefined` | Check **Events → Out** on the uplink converter; verify the decoder correctly extracts `deviceName` from the payload |
+| `Error in converter` | TBEL or JavaScript exception | Open **Events → Error** on the uplink converter and inspect the stack trace; use **Test payload decoder** to validate against a sample payload |
+| Messages split or merged incorrectly | Handler type mismatch | Verify the **Handler Configuration** matches your device's framing protocol; use a packet capture to inspect raw TCP bytes |
+| Integration process fails to connect to ThingsBoard | Wrong host, port, key, or secret | Verify `host`, `port`, `routingKey`, and `secret` in `tb-remote-integration.yml`; ensure ThingsBoard gRPC port `9090` is reachable from the remote integration host |
+| Port already in use | Another process is using the same port | Choose a different port in Connection settings and restart the remote integration process |
+| Device does not receive downlink | Connection closed after uplink | The device must keep the TCP connection open; single-shot `nc` closes immediately — use `-w60` or a persistent client for testing |
+| Data present but timestamp is wrong | Device sends `ts` in seconds | Convert before assigning: `ts: data.ts * 1000` |
+| Telemetry not saved | Converter returns `{}` or `[]` | Ensure `telemetry` contains at least one key-value pair |
+
+## See Also
+
+- <DocLink product={Products.CE} path="user-guide/integrations" target="_blank">Integrations Overview</DocLink> — how ThingsBoard connects to external platforms and how uplink/downlink flow works
+- <DocLink product={Products.CE} path="user-guide/integrations/uplink-data-converter" target="_blank">Uplink Data Converter</DocLink> — full decoder function reference: input parameters, output fields, and scripting patterns
+- <DocLink product={Products.CE} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink Data Converter</DocLink> — full encoder function reference for sending commands to devices
+- <DocLink product={Products.CE} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink> — install and run the TCP Integration as a standalone process outside the ThingsBoard server
+- <DocLink product={Products.CE} path="user-guide/tbel" target="_blank">TBEL scripting reference</DocLink> — built-in functions and operators for writing converter scripts
+- <DocLink product={Products.CE} path="user-guide/rule-engine" target="_blank">Rule Engine</DocLink> — how uplink messages are processed after the converter runs
+

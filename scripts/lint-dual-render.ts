@@ -33,9 +33,9 @@ import { join, relative } from 'node:path';
 
 import {
 	CARD_HOOKS,
-	HOOKS_BY_SHAPE,
 	type CardHook,
 	type CardShape,
+	HOOKS_BY_SHAPE,
 } from '../src/components/IotHub/listing-card-hooks.ts';
 
 

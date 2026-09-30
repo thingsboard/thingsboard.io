@@ -1,0 +1,606 @@
+---
+import { Icon } from 'astro-icon/components';
+import TwinUnit from '@components/Landing/TwinUnit.astro';
+import { DIGITAL_TWIN_STAGES, PHYSICAL_ASSET, TWIN, TWIN_FLOWS, TWIN_HISTORY } from '@data/digital-twin-visual';
+import { segmentWidth, sparkPaths, sparkY } from '@util/sparkline';
+
+/**
+ * The digital twin visual: a cold storage unit nested in its warehouse and zone on the left, its twin
+ * with the same hierarchy as a path on the right, and telemetry and commands running between them.
+ */
+
+const SITE = { name: PHYSICAL_ASSET.path[0], icon: 'tabler:building-warehouse' };
+const ZONE = { name: PHYSICAL_ASSET.path[1], icon: 'tabler:map-pin' };
+
+const PATH = ['Acme Inc', ...PHYSICAL_ASSET.path];
+
+/** Picked by label, in the twin's row order, so a rename in the data file fails loudly. */
+const DEVICE_ORDER = ['Temp probe', 'Power meter', 'Door sensor'];
+const UNIT = {
+	name: PHYSICAL_ASSET.name,
+	icon: PHYSICAL_ASSET.icon,
+	devices: DEVICE_ORDER.map((label) => {
+		const device = PHYSICAL_ASSET.devices.find((d) => d.label === label);
+		if (!device) throw new Error(`TwinCorridor: no device named "${label}" in PHYSICAL_ASSET`);
+		return device;
+	}),
+};
+
+const telemetry = TWIN_FLOWS.find((f) => f.to === 'twin');
+const commands = TWIN_FLOWS.find((f) => f.to === 'physical');
+
+const attr = (key: string) => TWIN.attributes.find((a) => a.key === key)?.value ?? '';
+
+// 24 hours of half-hourly samples; power and door state derive from the temperature series.
+
+const TAU = Math.PI * 2;
+const STEP_H = 0.5;
+const STEPS = TWIN_HISTORY.hours / STEP_H;
+
+// Starts an hour in so the window ends mid compressor run.
+const START_H = 1;
+
+const bump = (t: number) => Math.pow(Math.max(0, Math.sin((TAU * t) / 6)), 6);
+const tempAt = (t: number) =>
+	-18.3 + 0.9 * Math.sin((TAU * t) / 9 + 0.6) + 0.3 * Math.sin((TAU * t) / 2.3) + 1.1 * bump(t);
+
+const SERIES = Array.from({ length: STEPS + 1 }, (_, i) => Math.round(tempAt(START_H + i * STEP_H) * 100) / 100);
+
+/** The compressor runs while the box is getting colder, read off a 5-sample mean. */
+const WINDOW = 5;
+const smooth = (i: number) => {
+	const lo = Math.max(0, i - (WINDOW >> 1));
+	const hi = Math.min(SERIES.length - 1, i + (WINDOW >> 1));
+	let sum = 0;
+	for (let j = lo; j <= hi; j++) sum += SERIES[j];
+	return sum / (hi - lo + 1);
+};
+const RUNNING = Array.from({ length: STEPS }, (_, i) => smooth(i + 1) < smooth(i));
+
+const IDLE_KW = 0.35;
+const RUN_KW = 2.4;
+const POWER = Array.from({ length: STEPS + 1 }, (_, i) => {
+	const on = RUNNING[Math.min(i, STEPS - 1)];
+	return Math.round(((on ? RUN_KW : IDLE_KW) + 0.05 * Math.sin(i * 1.7)) * 100) / 100;
+});
+
+/** The door is open across every other warm excursion; the rest are defrost cycles. */
+const DOOR_OPEN = Array.from({ length: STEPS }, (_, i) => {
+	const t = START_H + i * STEP_H;
+	return bump(t) > 0.55 && Math.floor(t / 6) % 2 === 1;
+});
+
+const spans = (flags: boolean[]) => {
+	const out: { x: number; w: number }[] = [];
+	for (let i = 0; i < flags.length; i++) {
+		if (!flags[i]) continue;
+		const start = i;
+		while (flags[i + 1]) i++;
+		out.push({ x: (start / flags.length) * 100, w: ((i - start + 1) / flags.length) * 100 });
+	}
+	return out;
+};
+
+const DOOR_SPANS = spans(DOOR_OPEN);
+
+const CHART_H = 30;
+const BAND_H = 12;
+
+const TEMP_VIEW = { w: 100, h: CHART_H, pad: 0 };
+const temp = sparkPaths(SERIES, TWIN_HISTORY.domain, TEMP_VIEW);
+
+// Straight segments: a spline through a switching signal would round and overshoot every edge.
+const POWER_VIEW = { w: 100, h: CHART_H, pad: 0 };
+const POWER_DOMAIN: [number, number] = [0, 3];
+const POWER_SEG = segmentWidth(POWER.length, POWER_VIEW);
+const powerPts = POWER.map((v, i) => `${(i * POWER_SEG).toFixed(2)},${sparkY(v, POWER_DOMAIN, POWER_VIEW).toFixed(2)}`);
+const power = {
+	line: `M ${powerPts.join(' L ')}`,
+	area: `M ${powerPts.join(' L ')} L ${POWER_VIEW.w},${POWER_VIEW.h} L 0,${POWER_VIEW.h} Z`,
+};
+
+const NATIVE = 558;
+const COL = { site: 258, gut: 18, twin: 282 };
+const BODY = 338;
+
+const FRAME_PAD = 12;
+const HEAD_H = 24;
+
+// TwinUnit's metrics, mirrored so the arrows can be aimed: a 12 + 22 + 12 head, 8 + 22 + 8 rows.
+const UNIT_HEAD_H = 46;
+const UNIT_ROW_H = 38;
+const UNIT_H = UNIT_HEAD_H + UNIT.devices.length * UNIT_ROW_H;
+
+const TWIN_HEAD_PAD = 12;
+const PATH_H = 18;
+const PATH_GAP = 14;
+const NAME_H = 22;
+const TWIN_HEAD_H = TWIN_HEAD_PAD + PATH_H + PATH_GAP + NAME_H + 14;
+
+const ZONE_TOP = 72;
+const ZONE_PAD = 8;
+const ZONE_HEAD = 22;
+const ZONE_GAP = 8;
+const ZONE_FOOT = 6;
+const ZONE_H = BODY - ZONE_FOOT - ZONE_TOP;
+
+const INNER_TOP = FRAME_PAD + HEAD_H;
+const UNIT_TOP = ZONE_TOP + ZONE_PAD + ZONE_HEAD + ZONE_GAP;
+const UNIT_BOT = UNIT_TOP + UNIT_H;
+const BLOCK_GAP = ZONE_TOP - INNER_TOP;
+
+// Telemetry lands on the twin's name; commands leave from under the unit.
+const UP_Y = TWIN_HEAD_PAD + PATH_H + PATH_GAP + NAME_H;
+const DOWN_Y = UNIT_BOT + 28;
+
+const LABEL_GAP = 16;
+
+const UNIT_X = FRAME_PAD + (COL.site - FRAME_PAD * 2) / 2;
+const TWIN_X = COL.site + COL.gut;
+
+const LABEL_X = (UNIT_X + COL.site) / 2;
+
+const R = 12;
+const HEAD = 8;
+const WING = 5;
+
+const wires = {
+	up: `M ${UNIT_X},${UNIT_TOP} L ${UNIT_X},${UP_Y + R} Q ${UNIT_X},${UP_Y} ${UNIT_X + R},${UP_Y} L ${TWIN_X},${UP_Y}`,
+	upHead: `M ${TWIN_X - HEAD},${UP_Y - WING} L ${TWIN_X},${UP_Y} L ${TWIN_X - HEAD},${UP_Y + WING}`,
+	down: `M ${TWIN_X},${DOWN_Y} L ${UNIT_X + R},${DOWN_Y} Q ${UNIT_X},${DOWN_Y} ${UNIT_X},${DOWN_Y - R} L ${UNIT_X},${UNIT_BOT}`,
+	downHead: `M ${UNIT_X - WING},${UNIT_BOT + HEAD} L ${UNIT_X},${UNIT_BOT} L ${UNIT_X + WING},${UNIT_BOT + HEAD}`,
+};
+
+// Padding under the twin's last row, so the rows sum to BODY.
+const CARD_PAD_B = 14;
+
+const ROWS = [
+	{ key: 'temperature', value: attr('temperature'), h: 90, kind: 'spline', accent: '#0e7490' },
+	{
+		key: 'power',
+		value: `${POWER[POWER.length - 1].toFixed(1)} kW`,
+		h: 90,
+		kind: 'steps',
+		accent: '#b45309',
+	},
+	{ key: 'door', value: attr('door'), h: 64, kind: 'band', accent: '#b23c33' },
+];
+
+/** As a share of the body's box, so a name tracks the drawing and not the grid. */
+const at = (x: number, y: number) => `--x: ${((x / NATIVE) * 100).toFixed(3)}%; --y: ${((y / BODY) * 100).toFixed(3)}%`;
+
+const vars = [
+	`--tc-u: clamp(0.45px, calc(100cqw / ${NATIVE}), 1.15px)`,
+	`--tc-native: ${NATIVE}`,
+	`--tc-site: ${COL.site}`,
+	`--tc-gut: ${COL.gut}`,
+	`--tc-twin: ${COL.twin}`,
+	`--tc-body: ${BODY}`,
+	`--tc-pad: ${FRAME_PAD}`,
+	`--tc-pad-b: ${ZONE_FOOT}`,
+	`--tc-path-h: ${PATH_H}`,
+	`--tc-path-gap: ${PATH_GAP}`,
+	`--tc-name-h: ${NAME_H}`,
+	`--tc-head-pad: ${TWIN_HEAD_PAD}`,
+	`--tc-head: ${HEAD_H}`,
+	`--tc-block-gap: ${BLOCK_GAP}`,
+	`--tc-zone-gap: ${ZONE_GAP}`,
+	`--tc-zone-pad: ${ZONE_PAD}`,
+	`--tc-zone-head: ${ZONE_HEAD}`,
+	`--tc-zone-h: ${ZONE_H}`,
+	`--tc-twin-head: ${TWIN_HEAD_H}`,
+	`--tc-unit-h: ${UNIT_H}`,
+	`--tc-chart-h: ${CHART_H}`,
+	`--tc-band-h: ${BAND_H}`,
+	`--tc-card-pad-b: ${CARD_PAD_B}`,
+].join(';');
+---
+
+<div class="tc-fit">
+	<div class="tc" style={vars} data-twin-corridor>
+		<p class="tc__stage">{DIGITAL_TWIN_STAGES.physical}</p>
+		<p class="tc__stage tc__stage--right">{DIGITAL_TWIN_STAGES.twin}</p>
+
+		<div class="tc__body">
+			<div class="tc__site">
+				<p class="tc__site-name">
+					<Icon name={SITE.icon} aria-hidden="true" />
+					<span>{SITE.name}</span>
+				</p>
+				<div class="tc__zone">
+					<p class="tc__zone-name">
+						<Icon name={ZONE.icon} aria-hidden="true" />
+						<span>{ZONE.name}</span>
+					</p>
+					<TwinUnit unit={UNIT} class="tc__unit" />
+				</div>
+			</div>
+
+			<div class="tc__card">
+				<header class="tc__head">
+					<p class="tc__path">
+						{PATH.map((step, i) => (
+							<Fragment>
+								{i > 0 && (
+									<span class="tc__sep" aria-hidden="true">
+										›
+									</span>
+								)}
+								<span>{step}</span>
+							</Fragment>
+						))}
+					</p>
+					<p class="tc__name">
+						<Icon name="tabler:box-model" aria-hidden="true" />
+						<span>{TWIN.name}</span>
+					</p>
+				</header>
+
+				<ul class="tc__attrs" role="list">
+					{ROWS.map((row) => (
+						<li class="tc__attr" style={`--h: ${row.h}; --accent: ${row.accent}`} data-twin-attr={row.key}>
+							<span class="tc__k">{row.key}</span>
+							<span class="tc__v">{row.value}</span>
+
+							{row.kind === 'band' ? (
+								<span class="tc__band">
+									<svg viewBox={`0 0 100 ${BAND_H}`} preserveAspectRatio="none" aria-hidden="true">
+										<rect class="tc__band-off" x="0" y="0" width="100" height={BAND_H} />
+										{DOOR_SPANS.map((s) => (
+											<rect class="tc__band-on" x={s.x} y="0" width={s.w} height={BAND_H} />
+										))}
+									</svg>
+								</span>
+							) : (
+								<span class="tc__chart">
+									<svg viewBox={`0 0 100 ${CHART_H}`} preserveAspectRatio="none" aria-hidden="true">
+										<path class="tc__chart-area" d={row.kind === 'steps' ? power.area : temp.area} />
+										<path class="tc__chart-line" d={row.kind === 'steps' ? power.line : temp.line} />
+									</svg>
+								</span>
+							)}
+						</li>
+					))}
+				</ul>
+			</div>
+
+			{/* One layer over the whole body, so the paths are written in the composition's own coordinates. */}
+			<svg
+				class="tc__wires"
+				viewBox={`0 0 ${NATIVE} ${BODY}`}
+				preserveAspectRatio="none"
+				aria-hidden="true"
+				focusable="false"
+			>
+				<path class="tc__wire" d={wires.up}></path>
+				<path class="tc__wire tc__wire--head" d={wires.upHead}></path>
+				<path class="tc__wire" d={wires.down}></path>
+				<path class="tc__wire tc__wire--head" d={wires.downHead}></path>
+			</svg>
+
+			<span class="tc__flow-name" style={at(LABEL_X, UP_Y - LABEL_GAP)}>
+				{telemetry?.label}
+			</span>
+			<span class="tc__flow-name" style={at(LABEL_X, DOWN_Y + LABEL_GAP)}>
+				{commands?.label}
+			</span>
+		</div>
+	</div>
+</div>
+
+<script>
+	const BEAT_MS = 3000;
+	const TEMPS = [-18.4, -18.2, -18.6, -18.3, -18.7, -18.1];
+	const KW = [2.4, 2.3, 2.5, 2.4, 2.6, 2.3];
+
+	const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+	document.querySelectorAll<HTMLElement>('[data-twin-corridor]').forEach((root) => {
+		if (reduce) return;
+		const temp = root.querySelector<HTMLElement>('[data-twin-attr="temperature"] .tc__v');
+		const power = root.querySelector<HTMLElement>('[data-twin-attr="power"] .tc__v');
+		if (!temp || !power) return;
+
+		let beat = 0;
+		let visible = false;
+		let timer = 0;
+
+		const tick = () => {
+			if (!visible) return;
+			beat++;
+			temp.textContent = `−${Math.abs(TEMPS[beat % TEMPS.length]).toFixed(1)} °C`;
+			power.textContent = `${KW[beat % KW.length].toFixed(1)} kW`;
+			timer = window.setTimeout(tick, BEAT_MS);
+		};
+
+		new IntersectionObserver(
+			(entries) => {
+				visible = entries.some((e) => e.isIntersecting);
+				clearTimeout(timer);
+				if (visible) timer = window.setTimeout(tick, BEAT_MS);
+			},
+			{ rootMargin: '80px' }
+		).observe(root);
+	});
+</script>
+
+<style lang="scss">
+	@use '../../styles/variables' as *;
+
+	@function u($n) {
+		@return calc(#{$n} * var(--u));
+	}
+
+	:global([data-theme='dark']) .tc {
+		--tc-shade: rgba(255, 255, 255, 0.08);
+	}
+
+	.tc-fit {
+		container-type: inline-size;
+	}
+
+	.tc {
+		--u: var(--tc-u);
+		// A shade rather than a grey, so it takes the hue of whatever row it sits on.
+		--tc-shade: rgba(0, 0, 0, 0.06);
+		// The site frame's border, which the risers cross and the geometry above cannot see.
+		--tc-stroke: 2px;
+		display: grid;
+		grid-template-columns: u(var(--tc-site)) u(var(--tc-gut)) u(var(--tc-twin));
+		justify-content: center;
+		max-width: u(var(--tc-native));
+		margin: 0 auto;
+	}
+
+	.tc__stage {
+		grid-column: 1;
+		min-height: u(24);
+		margin: 0 0 u(8);
+		font-size: u(16);
+		line-height: u(24);
+		text-align: center;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		white-space: nowrap;
+		color: var(--color-text-secondary, #5b616e);
+	}
+
+	.tc__stage--right {
+		grid-column: 3;
+	}
+
+	// The wire layer covers exactly this box, so a path coordinate and a grid column are the same.
+	.tc__body {
+		position: relative;
+		display: grid;
+		grid-column: 1 / -1;
+		grid-template-columns: u(var(--tc-site)) u(var(--tc-gut)) u(var(--tc-twin));
+		height: u(var(--tc-body));
+	}
+
+	.tc__site {
+		grid-column: 1;
+		height: u(var(--tc-body));
+		padding: u(var(--tc-pad)) u(var(--tc-pad)) u(var(--tc-pad-b));
+		border: var(--tc-stroke) solid var(--tc-shade);
+		border-radius: u(8);
+	}
+
+	.tc__site-name,
+	.tc__zone-name {
+		display: flex;
+		align-items: center;
+		gap: u(8);
+		margin: 0;
+		font-size: u(15);
+		font-weight: $font-weight-medium;
+		line-height: u(22);
+		white-space: nowrap;
+		color: var(--color-text-secondary, #5b616e);
+
+		[data-icon] {
+			flex: none;
+			width: u(18);
+			height: u(18);
+		}
+	}
+
+	.tc__site-name {
+		height: u(var(--tc-head));
+	}
+
+	.tc__unit {
+		height: u(var(--tc-unit-h));
+	}
+
+	.tc__zone {
+		height: calc(#{u(var(--tc-zone-h))} - 2 * var(--tc-stroke));
+		margin-top: u(var(--tc-block-gap));
+		padding: u(var(--tc-zone-pad));
+		border-radius: u(8);
+		background: repeating-linear-gradient(45deg, var(--tc-shade) 0 #{u(12)}, transparent #{u(12)} #{u(20)});
+	}
+
+	.tc__zone-name {
+		height: u(var(--tc-zone-head));
+	}
+
+	.tc__zone > .tc__unit {
+		margin-top: u(var(--tc-zone-gap));
+	}
+
+	.tc__card {
+		grid-column: 3;
+		display: flex;
+		overflow: hidden;
+		flex-direction: column;
+		height: u(var(--tc-body));
+		padding-bottom: u(var(--tc-card-pad-b));
+		border-radius: u(8);
+		background: var(--color-bg-surface, #fff);
+		box-shadow:
+			0 1px 2px rgba(16, 24, 40, 0.04),
+			0 #{u(5)} #{u(12)} #{u(-6)} rgba(16, 24, 40, 0.1);
+	}
+
+	.tc__head {
+		display: flex;
+		flex-direction: column;
+		height: u(var(--tc-twin-head));
+		padding: u(var(--tc-head-pad)) u(16) u(14);
+		background: var(--color-bg-light, #f7f9fc);
+	}
+
+	.tc__path {
+		margin: 0 0 u(var(--tc-path-gap));
+		font-size: u(14);
+		line-height: u(var(--tc-path-h));
+		white-space: nowrap;
+		color: var(--color-text-secondary, #5b616e);
+	}
+
+	// Line height 0, so the larger glyph cannot push the line it sits on.
+	.tc__sep {
+		display: inline-block;
+		margin: 0 u(6);
+		font-size: u(19);
+		line-height: 0;
+		vertical-align: -0.08em;
+		opacity: 0.55;
+	}
+
+	.tc__name {
+		display: flex;
+		align-items: center;
+		gap: u(8);
+		margin: 0;
+		font-size: u(16);
+		font-weight: $font-weight-semibold;
+		line-height: u(var(--tc-name-h));
+		white-space: nowrap;
+
+		[data-icon] {
+			flex: none;
+			width: u(18);
+			height: u(18);
+			color: var(--color-text-secondary, #5b616e);
+		}
+	}
+
+	.tc__attrs {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.tc__attr {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr);
+		align-items: baseline;
+		height: u(var(--h));
+		padding: u(10) u(16) 0;
+		gap: 0 u(12);
+		font-size: u(15);
+		line-height: u(24);
+
+		& + & {
+			border-top: 1px solid var(--color-border, #ebebeb);
+		}
+	}
+
+	.tc__k {
+		color: var(--color-text-secondary, #5b616e);
+	}
+
+	.tc__v {
+		justify-self: end;
+		font-weight: $font-weight-medium;
+		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
+		color: var(--color-text);
+	}
+
+	.tc__chart,
+	.tc__band {
+		grid-column: 1 / -1;
+		margin-top: u(6);
+
+		svg {
+			display: block;
+			width: 100%;
+			height: 100%;
+		}
+	}
+
+	.tc__chart {
+		height: u(var(--tc-chart-h));
+
+		svg {
+			overflow: visible;
+		}
+	}
+
+	// Rounded on the wrapper, not on the rects: the box is stretched, so a rect radius would be oval.
+	.tc__band {
+		overflow: hidden;
+		height: u(var(--tc-band-h));
+		border-radius: u(3);
+	}
+
+	.tc__chart-area,
+	.tc__band-off {
+		fill: var(--accent);
+		opacity: 0.1;
+	}
+
+	.tc__band-on {
+		fill: var(--accent);
+	}
+
+	.tc__chart-line {
+		fill: none;
+		stroke: var(--accent);
+		stroke-width: max(1px, #{u(2)});
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		vector-effect: non-scaling-stroke;
+	}
+
+	.tc__wires {
+		position: absolute;
+		z-index: 2;
+		top: 0;
+		left: 0;
+		// It covers both cards; without this it would swallow text selection.
+		pointer-events: none;
+		// Compensates for the site frame's border, in pixels because the border is.
+		transform: translateY(var(--tc-stroke));
+		width: u(var(--tc-native));
+		height: u(var(--tc-body));
+		overflow: visible;
+	}
+
+	.tc__wire {
+		fill: none;
+		stroke: var(--color-primary, #3d50f5);
+		stroke-width: max(1px, #{u(2)});
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		vector-effect: non-scaling-stroke;
+	}
+
+	.tc__flow-name {
+		position: absolute;
+		z-index: 3;
+		top: var(--y);
+		left: var(--x);
+		// Same nudge as the wire layer, so the names stay aligned with their runs.
+		transform: translate(-50%, -50%) translateY(var(--tc-stroke));
+		font-size: u(16);
+		line-height: u(19);
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		white-space: nowrap;
+		color: var(--color-primary, #3d50f5);
+	}
+</style>

@@ -1,8 +1,9 @@
 ---
 import { Code } from '@astrojs/starlight/components';
 import { UPGRADE_VERSIONS, getFamilySlug, getUpgradeStepVersions } from '~/models/upgrade-instructions';
-import { getUpgradeHeading, patchFamilyLabel, patchScriptLabel, versionAtLeast } from '~/models/upgrade-shared';
+import { getUpgradeHeading, isLegacyPe, patchFamilyLabel, patchScriptLabel, productName, versionAtLeast } from '~/models/upgrade-shared';
 import type { Products } from '~/models/site.models';
+import { getVersionPrefix } from '@util/path-utils';
 import AlarmMigrationNote from '@components/upgrade-instructions/AlarmMigrationNote.astro';
 
 interface Props {
@@ -11,21 +12,23 @@ interface Props {
 }
 
 const { product, filterFamily } = Astro.props;
-const versions = getUpgradeStepVersions(filterFamily);
+const versions = getUpgradeStepVersions(product, filterFamily);
 const isPE = product === 'PE';
+// Edition prefix from the product model rather than a local ternary, so a new
+// edition is a model change instead of a grep through these components.
+const docsPrefix = `/docs/${getVersionPrefix(product)}`;
+const tbelDateFormattingLink = `${docsPrefix}user-guide/tbel/#date-formatting-changes-in-thingsboard-44`;
 
 function pkgFileName(ver: string, zip: boolean): string {
-	if (isPE) {
-		return zip
-			? `thingsboard-windows-${ver}pe.zip`
-			: `thingsboard-windows-setup-${ver}pe.exe`;
-	}
-	return `thingsboard-windows-${ver}.zip`;
+	const suffix = isLegacyPe(isPE, ver) ? 'pe' : '';
+	return zip || !isPE
+		? `thingsboard-windows-${ver}${suffix}.zip`
+		: `thingsboard-windows-setup-${ver}${suffix}.exe`;
 }
 
 function downloadUrl(ver: string, zip: boolean): string {
 	const filename = pkgFileName(ver, zip);
-	if (isPE) {
+	if (isLegacyPe(isPE, ver)) {
 		return `https://dist.thingsboard.io/${filename}`;
 	}
 	return `https://github.com/thingsboard/thingsboard/releases/download/v${ver}/${filename}`;
@@ -43,8 +46,8 @@ function needsCompatibilityCheck(version: string): boolean {
 {versions.map((v) => {
 	const newer = isNewerVersionScheme(v.version);
 	const needsCompat = needsCompatibilityCheck(v.version);
-	const heading = getUpgradeHeading(v, isPE ? 'ThingsBoard PE' : 'ThingsBoard');
-	const prevDisplayLabel = isPE ? `${v.upgradableFrom} PE` : v.upgradableFrom;
+	const heading = getUpgradeHeading(v, productName(isPE, v.version));
+	const prevDisplayLabel = isLegacyPe(isPE, v.upgradableFrom) ? `${v.upgradableFrom} PE` : v.upgradableFrom;
 	const prevVersionEntry = v.prevVersionAnchor
 		? UPGRADE_VERSIONS.find((v2) => v2.anchor === v.prevVersionAnchor)
 		: undefined;
@@ -110,7 +113,7 @@ function needsCompatibilityCheck(version: string): boolean {
 								<a href={prevHref}>{prevDisplayLabel}</a>
 							) : prevDisplayLabel}
 							{v.patch && <>{' '}or any {patchFamilyLabel(v)} patch</>}.{' '}
-							In order to upgrade to <strong>{isPE ? `${v.displayVersion}PE` : v.displayVersion}</strong> you need to{' '}
+							In order to upgrade to <strong>{isLegacyPe(isPE, v.version) ? `${v.displayVersion}PE` : v.displayVersion}</strong> you need to{' '}
 							{prevHref ? (
 								<><a href={prevHref}><strong>upgrade to {prevDisplayLabel} first</strong></a>.</>
 							) : (
@@ -121,11 +124,32 @@ function needsCompatibilityCheck(version: string): boolean {
 				</aside>
 			)}
 
+			{v.version === '4.4.0' && (
+				<>
+					<aside class="starlight-aside starlight-aside--caution">
+						<p class="starlight-aside__title" aria-hidden="true">Important note before upgrading to ThingsBoard 4.4</p>
+						<div class="starlight-aside__content">
+							<p>ThingsBoard backend was migrated to <strong>Java 25</strong>. Install JDK 25 and make it the system's default Java version <strong>before</strong> upgrading.</p>
+							<p>Download OpenJDK from <a href="https://adoptium.net/temurin/releases/" target="_blank" rel="noopener noreferrer">Adoptium</a>: Operating System <strong>Windows</strong>, Architecture <strong>x64</strong>, Version <strong>25 - LTS</strong>, package <strong>JDK</strong> (<code>.msi</code>). During installation, select <strong>Add to PATH</strong> and <strong>Set JAVA_HOME variable</strong>.</p>
+						</div>
+					</aside>
+
+					<aside class="starlight-aside starlight-aside--note">
+						<p class="starlight-aside__title" aria-hidden="true">TBEL date formatting changes</p>
+						<div class="starlight-aside__content">
+							<p>ThingsBoard 4.4 runs on Java 25, whose updated Unicode CLDR data changes the locale-formatted strings produced by <code>TbDate</code> methods: <code>toLocaleString()</code>, <code>toLocaleDateString()</code>, <code>toLocaleTimeString()</code>, <code>toString()</code>, <code>toDateString()</code>, <code>toTimeString()</code> and <code>toUTCString()</code>. Scripts that string-match or split formatted dates may behave differently after the upgrade. <code>toISOString()</code>, <code>toJSON()</code>, <code>getTime()</code> and the numeric getters are unaffected.</p>
+							<p>See <a href={tbelDateFormattingLink}>Date formatting changes in ThingsBoard 4.4+</a> for examples and recommendations.</p>
+						</div>
+					</aside>
+				</>
+			)}
+
 			{v.version === '3.7.0' && (
 				<aside class="starlight-aside starlight-aside--caution">
 					<p class="starlight-aside__title" aria-hidden="true">Important note before upgrading to ThingsBoard 3.7</p>
 					<div class="starlight-aside__content">
-						<p>ThingsBoard backend was migrated to Java 17. Install JDK 17 and ensure that system's default Java version is set to 17.</p>
+						<p>ThingsBoard backend was migrated to Java 17. Install JDK 17 and ensure that the system's default Java version is set to 17.</p>
+						<p>Download OpenJDK from <a href="https://adoptium.net/temurin/releases/" target="_blank" rel="noopener noreferrer">Adoptium</a>: Operating System <strong>Windows</strong>, Architecture <strong>x64</strong>, Version <strong>17 - LTS</strong>, package <strong>JDK</strong> (<code>.msi</code>). During installation, select <strong>Add to PATH</strong> and <strong>Set JAVA_HOME variable</strong>.</p>
 					</div>
 				</aside>
 			)}
@@ -140,14 +164,14 @@ function needsCompatibilityCheck(version: string): boolean {
 				</aside>
 			)}
 
-			<h4>ThingsBoard{isPE ? ' PE' : ''} package download</h4>
-			{isPE ? (
+			<h4>ThingsBoard{isLegacyPe(isPE, v.version) ? ' PE' : ''} package download</h4>
+			{isLegacyPe(isPE, v.version) ? (
 				<p>Download ThingsBoard PE installation package for Windows: <a href={dlUrl}>{filename}</a>.</p>
 			) : (
 				<p>Download ThingsBoard installation file for Windows: <a href={dlUrl}>{filename}</a>.</p>
 			)}
 
-			<h4>ThingsBoard{isPE ? ' PE' : ''} service upgrade</h4>
+			<h4>{productName(isPE, v.version)} service upgrade</h4>
 
 			<ul>
 				<li>Stop ThingsBoard service if it is running.</li>
@@ -155,7 +179,7 @@ function needsCompatibilityCheck(version: string): boolean {
 			<Code code="net stop thingsboard" lang="powershell" />
 
 			<ul>
-				<li>Make a backup of previous ThingsBoard{isPE ? ' PE' : ''} configuration located in <code>\{'<ThingsBoard install dir>\\conf'}</code> (for example, <code>C:\thingsboard\conf</code>).</li>
+				<li>Make a backup of previous {productName(isPE, v.version)} configuration located in <code>\{'<ThingsBoard install dir>\\conf'}</code> (for example, <code>C:\thingsboard\conf</code>).</li>
 				{isPE && useZip && (
 					<li>Copy content of <strong>{filename}</strong> to the same location.</li>
 				)}
@@ -208,7 +232,7 @@ function needsCompatibilityCheck(version: string): boolean {
 				<aside class="starlight-aside starlight-aside--note">
 					<p class="starlight-aside__title" aria-hidden="true">Note</p>
 					<div class="starlight-aside__content">
-						<p>Update the JWT signing key if you use the default one "thingsboardDefaultSigningKey" on production environments. See <a href="/docs/user-guide/security/#jwt-security-settings">JWT security settings</a> for details.</p>
+						<p>Update the JWT signing key if you use the default one "thingsboardDefaultSigningKey" on production environments. See <a href={`${docsPrefix}user-guide/security/#jwt-security-settings`}>JWT security settings</a> for details.</p>
 					</div>
 				</aside>
 			)}

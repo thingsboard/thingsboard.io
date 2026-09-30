@@ -17,6 +17,13 @@ export interface MobileRelease {
 
 export const MOBILE_RELEASES: MobileRelease[] = [
 	{
+		version: '1.9.0',
+		date: 'Sep 29, 2026',
+		ceTag: 'v.1.9.0',
+		peTag: 'v1.9.0',
+		highlights: 'Navigation, login, notification & dashboard image fixes',
+	},
+	{
 		version: '1.8.1',
 		date: 'May 18, 2026',
 		ceTag: 'v.1.8.1',

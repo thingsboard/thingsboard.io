@@ -4,7 +4,7 @@ import HeaderScrollWatch from '@components/Landing/HeaderScrollWatch.astro';
 import HeaderIcons from '@components/Landing/HeaderIcons.astro';
 import GitHubButton from '@components/Landing/GitHubButton.astro';
 import NButton from '@components/Landing/NButton.astro';
-import SmartImage from '@components/SmartImage.astro';
+import CloudRegionDialog from '@components/Landing/CloudRegionDialog.astro';
 import { Icon } from 'astro-icon/components';
 import { Products } from '@models/site.models';
 import type { HeaderConfig } from '@util/header-config';
@@ -16,46 +16,52 @@ interface Props {
 }
 
 const { gitHubPlatform, headerConfig } = Astro.props;
-const { variant, cta, showSearch, showThemeToggle } = headerConfig;
+const { variant, showSearch, showThemeToggle } = headerConfig;
 
 // Ship the scroll-flip script only on the variants that go transparent.
 const needsScrollState = variant === 'transparent' || variant === 'transparent-hover';
 ---
 
-<div class="logo-burger" data-header-variant={variant} data-header-cta={cta}>
-	<a href="https://u24.gov.ua/" target="_blank" class="support-ukraine">
-		<SmartImage
-			src="/src/assets/images/support-ukraine-banner.webp"
-			alt="Stand with Ukraine flag"
-			width="48"
-			height="31"
-		/>
-	</a>
+<div class="logo-burger" data-header-variant={variant}>
 	<a href="/" class="logo" aria-label="Link to homepage"></a>
-	<div class="burger-group">
-		<HeaderIcons showSearch={showSearch} showThemeToggle={showThemeToggle} />
-		<button onclick="Burger()" class="burger" aria-label="Burger menu">
-			<Icon name="tabler:menu-2" class="icon-open" />
-			<Icon name="tabler:x" class="icon-close" />
-		</button>
-	</div>
-	<GitHubButton platform={gitHubPlatform} />
 </div>
 
-<!-- head-buttons is rendered BEFORE Navigation in the source so it parses
-     and paints quickly. <Navigation> ships ~125 KiB of inline submenu
-     markup; with that between <nav> and the right-side buttons, slow CPUs
-     paint the centred nav before head-buttons exists, which made flexbox
-     `space-between` pin the nav to the right edge and shift it left once
-     head-buttons finally arrived (≈0.012 CLS). Visual order is restored
-     with `order` in the header layout below. -->
-<div class="head-buttons" data-header-variant={variant} data-header-cta={cta}>
+{/* Before <Navigation> on purpose: its ~125 KiB of markup shifted the centred nav (≈0.012 CLS); `order` restores the visual order. */}
+<div class="head-buttons" data-header-variant={variant}>
 	<HeaderIcons showSearch={showSearch} showThemeToggle={showThemeToggle} />
-	<NButton id="Menu_Pricing" href="/pricing/" variant="text" class="price gtm_button">Pricing</NButton>
-	<NButton id="Menu_TryItNow" href="/installations/" variant="filled" class="try gtm_button">Try it now</NButton>
+	<GitHubButton platform={gitHubPlatform} />
+	{/* Both open the `CloudRegionDialog`; the hrefs are the no-script fallback. */}
+	<a
+		class="region-signin__trigger"
+		href="https://thingsboard.cloud/login"
+		target="_blank"
+		rel="noopener noreferrer"
+		data-cloud-auth="signin"
+	>
+		Sign in
+	</a>
+	<NButton
+		id="Menu_TryItNow"
+		href="/installations/choose-region/"
+		variant="filled"
+		class="try gtm_button"
+		data-cloud-auth="signup"
+	>
+		Try for free
+	</NButton>
+	<button onclick="Burger()" class="burger" aria-expanded="false">
+		<Icon name="tabler:menu-2" class="icon-open" aria-hidden="true" />
+		<Icon name="tabler:x" class="icon-close" aria-hidden="true" />
+		<span class="burger__label">
+			<span class="label-open">Menu</span>
+			<span class="label-close">Close</span>
+		</span>
+	</button>
 </div>
 
 <Navigation />
+
+<CloudRegionDialog signupIds={headerConfig.cloudSignupIds} />
 
 {needsScrollState && <HeaderScrollWatch />}
 
@@ -75,6 +81,10 @@ const needsScrollState = variant === 'transparent' || variant === 'transparent-h
 			header?.classList.add('opened-burger');
 			lockScroll();
 		}
+
+		// Read back from the class, so the swipe gestures that also toggle the drawer keep it right.
+		const open = header?.classList.contains('opened-burger') ?? false;
+		header?.querySelector('.burger')?.setAttribute('aria-expanded', String(open));
 	}
 
 	// Make function available globally
@@ -92,8 +102,14 @@ const needsScrollState = variant === 'transparent' || variant === 'transparent-h
 		let startY = 0;
 		let tracking: 'sidebar' | 'burger' | null = null;
 
+		// Starlight drops the sidebar's `popover` attribute on desktop viewports, where the sidebar
+		// is always shown; `togglePopover()` throws on an element without it.
+		function isSidebarDrawer() {
+			return !!document.getElementById('starlight__sidebar')?.popover;
+		}
+
 		function isSidebarOpen() {
-			return document.body.hasAttribute('data-mobile-menu-expanded');
+			return !!document.getElementById('starlight__sidebar')?.matches(':popover-open');
 		}
 
 		function isBurgerOpen() {
@@ -101,7 +117,7 @@ const needsScrollState = variant === 'transparent' || variant === 'transparent-h
 		}
 
 		function triggerSidebar() {
-			(document.querySelector('starlight-menu-button button') as HTMLElement)?.click();
+			document.getElementById('starlight__sidebar')?.togglePopover();
 		}
 
 		function triggerBurger() {
@@ -115,9 +131,11 @@ const needsScrollState = variant === 'transparent' || variant === 'transparent-h
 				startX = t.clientX;
 				startY = t.clientY;
 
-				if (isSidebarOpen()) tracking = 'sidebar';
+				// A modal dialog owns the page: a drawer toggled under it would fight it for the scroll lock.
+				if (document.querySelector('dialog[open]')) tracking = null;
+				else if (isSidebarOpen()) tracking = 'sidebar';
 				else if (isBurgerOpen()) tracking = 'burger';
-				else if (startX <= OPEN_EDGE) tracking = 'sidebar';
+				else if (startX <= OPEN_EDGE && isSidebarDrawer()) tracking = 'sidebar';
 				else if (startX >= window.innerWidth - OPEN_EDGE) tracking = 'burger';
 				else tracking = null;
 			},
@@ -158,31 +176,77 @@ const needsScrollState = variant === 'transparent' || variant === 'transparent-h
 <style lang="scss" is:global>
 	@use '../../styles/variables' as *;
 
-	// Bordered Pricing button — used on marketing and scrolled-transparent headers,
-	// where the rest-state white Pricing text would vanish on the solid surface.
-	@mixin marketing-price {
-		&.price {
-			border: 1px solid var(--color-border);
-			color: var(--color-text);
-			background-color: transparent;
+	// Wordmark, the page's icons and Menu; the account pair moves into the drawer.
+	@mixin compact-bar {
+		&:not(.opened-burger) .head-buttons {
+			.region-signin__trigger,
+			.n-button {
+				display: none;
+			}
+		}
 
-			&:hover {
-				border: 2px solid var(--color-text);
+		// It separated the icons from controls the compact bar no longer carries.
+		.divider {
+			display: none;
+		}
+
+		// Icon only: a square reads the same in both states, so nothing shifts.
+		.burger {
+			width: 40px;
+			padding: 0;
+
+			// Still the button's accessible name, so hidden visually rather than with `display: none`.
+			.burger__label {
+				@include visually-hidden;
+			}
+		}
+
+		&.opened-burger {
+			.head-buttons {
+				position: static;
+				order: 0;
+				height: auto;
+				// 20px on the header's gutter lines this row up with the nav below.
+				padding: 10px 0 2px 20px;
+				// Hidden in the closed bar, so it arrives rather than travels.
+				transform: none;
+				transition: none;
+			}
+
+			.head-menu {
+				order: 1;
+			}
+
+			// The bar's row holds still; the icons clear Close's 40px square plus the gap.
+			.burger,
+			.icon-buttons {
+				position: absolute;
+				top: calc((#{$header-height} - 40px) / 2);
+				z-index: 1;
+			}
+
+			.burger {
+				right: var(--tb-bar-right);
+			}
+
+			.icon-buttons {
+				right: calc(var(--tb-bar-right) + 48px);
+				height: 40px;
 			}
 		}
 	}
 
 	header.header {
+		// The gutter the hero's text column uses, so the wordmark lines up with the headline.
+		--tb-bar-inset: #{$bar-inset};
+		// For absolute children: their padding box sees neither gutter nor scroll-lock.
+		--tb-bar-right: calc(var(--tb-bar-inset) + var(--tb-scrollbar-comp, 0px));
 		position: fixed;
 		// Sits below the promo banner; tracks the live offset so it slides to
 		// top:0 as the banner collapses on scroll (--promo-cur → 0).
 		top: var(--promo-cur, var(--promo-h, 0px));
 		left: 0;
-		// No `filter` here: the header itself never gets one (only .logo/.burger
-		// do), and a filter would make it the containing block for the fixed promo
-		// banner inside it, breaking the banner's viewport anchoring on docs.
-		// Transition is scoped to the flip properties only — a blanket `all` would
-		// also ease `top`, making the header lag behind the scroll-tied offset.
+		// No `filter`: it would become the containing block for the fixed promo banner.
 		transition:
 			background-color 0.3s ease,
 			box-shadow 0.3s ease;
@@ -207,6 +271,7 @@ const needsScrollState = variant === 'transparent' || variant === 'transparent-h
 			height: 100%;
 			align-items: center;
 			gap: 0.875rem;
+			padding-left: calc(var(--tb-bar-inset) - 20px);
 		}
 
 		.head-buttons {
@@ -214,10 +279,11 @@ const needsScrollState = variant === 'transparent' || variant === 'transparent-h
 			// the centred-nav layout shift on slow CPUs. `order: 1` keeps it
 			// visually after the nav (which keeps the default order: 0).
 			order: 1;
+			padding-right: calc(var(--tb-bar-inset) - 20px);
 			display: flex;
 			flex-direction: row;
 			align-items: center;
-			gap: 0.875rem;
+			gap: 8px;
 
 			.icon-buttons {
 				display: flex;
@@ -236,26 +302,25 @@ const needsScrollState = variant === 'transparent' || variant === 'transparent-h
 			}
 
 			.n-button {
-				width: 90px;
-				padding: 0;
+				min-width: 90px;
+				// Match the 40px sign-in control beside it; the `md` ramp is 47px.
+				height: 40px;
+				min-height: 40px;
+				padding: 0 18px;
+				font-size: 14px;
 				display: flex;
 				align-items: center;
 				justify-content: center;
 
 				@media screen and (min-width: 1500px) {
-					width: 110px;
+					min-width: 110px;
 				}
 
-				&.price {
-					color: var(--sl-color-white);
-					border: 1px solid transparent;
-				}
-
-				// Brand-indigo "Try it now" — one fill everywhere; hover darkens via
-				// NButton's filled overlay, like the pricing "Get started" buttons.
+				// One fill everywhere; hover darkens via NButton's filled overlay.
 				&.try {
 					background-color: var(--color-brand);
 					color: var(--color-brand-contrast);
+					font-weight: $font-weight-bold;
 
 					&:hover {
 						color: var(--color-brand-contrast);
@@ -264,26 +329,36 @@ const needsScrollState = variant === 'transparent' || variant === 'transparent-h
 			}
 		}
 
-		.support-ukraine {
-			display: flex;
+		.region-signin__trigger {
+			display: inline-flex;
 			align-items: center;
-			img {
-				height: 31px;
-				width: auto;
-			}
+			height: 40px;
+			padding: 0 16px;
+			border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+			border-radius: 4px;
+			color: inherit;
+			font-size: 14px;
+			line-height: 1;
+			white-space: nowrap;
+			text-decoration: none;
+			transition:
+				background-color 0.15s ease,
+				border-color 0.15s ease;
 
-			// Laptop widths — shrink the flag so the nav row doesn't wrap.
-			@media screen and (min-width: 1281px) and (max-width: 1599px) {
-				img {
-					height: 20px;
-				}
+			&:hover,
+			&:focus-visible {
+				background-color: color-mix(in srgb, currentColor 12%, transparent);
+				border-color: color-mix(in srgb, currentColor 55%, transparent);
 			}
 		}
 
 		.logo {
 			position: relative;
 			display: block;
-			width: 140px;
+			// Only `width`: `contain` derives the height from the 168x44 wordmark.
+			width: 180px;
+			// The SVG has a left margin; this puts the glyph, not the box, on the inset.
+			transform: translateX(-3.571%);
 			height: 60px;
 			background-image: url(../../assets/images/landings/thingsboard-logo.svg);
 			background-size: contain;
@@ -294,67 +369,59 @@ const needsScrollState = variant === 'transparent' || variant === 'transparent-h
 				filter: invert(100%) sepia(68%) saturate(0%) hue-rotate(350deg) brightness(113%) contrast(101%);
 			}
 
-			@media screen and (min-width: 1025px) {
-				width: 180px;
-			}
-
-			// Laptop widths — smaller logo to keep the nav row from wrapping.
-			@media screen and (min-width: 1281px) and (max-width: 1599px) {
-				width: 120px;
-			}
-
-			// Small phones — shrink so the wordmark doesn't collide with the icons.
-			@media screen and (max-width: 480px) {
-				width: 110px;
+			@media screen and (max-width: 559px) {
+				width: 152px;
 			}
 		}
 	}
 
-	.burger-group {
-		position: absolute;
-		top: 50%;
-		transform: translateY(-50%);
-		right: 0;
-		display: none;
-		align-items: center;
-		gap: 0.875rem;
-
-		.icon-buttons {
-			display: flex;
-			align-items: center;
-		}
-
-		.divider {
-			width: 1px;
-			height: 32px;
-			background-color: var(--sl-color-hairline-light);
-			flex-shrink: 0;
-		}
-	}
-
+	// Same pill as the sign-in control beside it, so the cluster reads as one row.
 	.burger {
 		display: none;
-		border: none;
-		background: none;
-		padding: 0;
-		cursor: pointer;
-		color: inherit;
-		width: 32px;
-		height: 32px;
 		align-items: center;
 		justify-content: center;
+		gap: 8px;
+		height: 40px;
+		padding: 0 14px;
+		border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+		border-radius: 4px;
+		background: none;
+		color: inherit;
+		font: inherit;
+		font-size: 14px;
+		line-height: 1;
+		white-space: nowrap;
+		cursor: pointer;
+		transition:
+			background-color 0.15s ease,
+			border-color 0.15s ease;
+
+		&:hover,
+		&:focus-visible {
+			background-color: color-mix(in srgb, currentColor 12%, transparent);
+			border-color: color-mix(in srgb, currentColor 55%, transparent);
+		}
 
 		svg {
-			width: 28px;
-			height: 28px;
+			width: 20px;
+			height: 20px;
 		}
 
 		.icon-close {
 			display: none;
 		}
 
-		&:focus {
-			outline: none;
+		// One shared cell, so the box is as wide as the longer word in either state.
+		.burger__label {
+			display: grid;
+
+			> * {
+				grid-area: 1 / 1;
+			}
+		}
+
+		.label-close {
+			visibility: hidden;
 		}
 	}
 
@@ -365,6 +432,14 @@ const needsScrollState = variant === 'transparent' || variant === 'transparent-h
 
 		.icon-close {
 			display: block;
+		}
+
+		.label-open {
+			visibility: hidden;
+		}
+
+		.label-close {
+			visibility: visible;
 		}
 	}
 
@@ -398,22 +473,7 @@ const needsScrollState = variant === 'transparent' || variant === 'transparent-h
 				.head-buttons {
 					display: flex;
 					flex-shrink: 0;
-					gap: 0.875rem;
 					padding: 20px 0;
-
-					.icon-buttons {
-						display: none;
-					}
-
-					.divider {
-						display: none;
-					}
-
-					.n-button {
-						display: flex;
-						margin: 0;
-						width: 110px;
-					}
 				}
 
 				// Slide + fade the drawer content in on open. The bar (.logo-burger)
@@ -443,21 +503,52 @@ const needsScrollState = variant === 'transparent' || variant === 'transparent-h
 				}
 			}
 
-			.burger-group {
-				display: flex;
-			}
-
 			.burger {
 				display: flex;
 			}
 
-			.head-buttons {
-				display: none;
+			&:not(.opened-burger) {
+				display: flex;
+				align-items: center;
+
+				// Scoped away from the open state, a column where this would grow downward.
+				.logo-burger {
+					flex: 1;
+				}
 			}
 
-			.n-button {
+			// The nav list flows down the drawer; the cluster stays pinned over the bar.
+			&.opened-burger .head-buttons {
+				position: absolute;
+				top: 0;
+				// Not `right: 0`: the padding box ignores the header's own 20px gutter.
+				right: var(--tb-bar-right);
+				z-index: 1;
+				height: $header-height;
+				padding: 0;
+				transform: none;
+				transition: none;
+			}
+		}
+	}
+
+	// These pages carry ~88px more, so the star and then the account pair give way.
+	header.header:has(.icon-buttons) {
+		@include media-down(2xl) {
+			.gh-wrap {
 				display: none;
 			}
+		}
+
+		@include media-down(md) {
+			@include compact-bar;
+		}
+	}
+
+	// 152 + 78 + 110 + 94, two 24px insets and three 8px gaps: 534 is the floor.
+	@media screen and (max-width: 559px) {
+		header.header {
+			@include compact-bar;
 		}
 	}
 
@@ -480,37 +571,23 @@ const needsScrollState = variant === 'transparent' || variant === 'transparent-h
 		background-color: transparent;
 		box-shadow: none;
 
-		.logo,
-		.burger {
+		.logo {
 			filter: invert(100%) sepia(68%) saturate(0%) hue-rotate(350deg) brightness(113%) contrast(101%);
 		}
 
-		.burger {
-			color: $color-black;
+		// Only the unscrolled, unopened bar is over the hero. The star widget draws itself in
+		// `currentColor`, so it follows this line rather than carrying a second set of colours.
+		&:not(.opened-burger):not([data-header-scrolled]) {
+			.region-signin__trigger,
+			.burger,
+			.gh-button {
+				color: $color-white;
+			}
 		}
 
 		.n-button {
-			width: 110px;
-
-			// Translucent Pricing button unique to the transparent (over-hero) header.
-			&.price {
-				color: $color-white;
-				transition-duration: 0s;
-				border: none;
-				background-color: rgba(255, 255, 255, 0.05);
-
-				&:hover {
-					text-decoration: none;
-					color: var(--color-text);
-					background-color: var(--color-bg-surface);
-				}
-			}
+			min-width: 110px;
 		}
-	}
-
-	// Marketing CTA buttons (`cta='marketing'` — solid-shadow pages + services).
-	header.header:has([data-header-cta='marketing']) .n-button {
-		@include marketing-price;
 	}
 
 	// Transparent header overlays the hero → no header clearance, BUT still
@@ -537,9 +614,13 @@ const needsScrollState = variant === 'transparent' || variant === 'transparent-h
 
 	// Scrolled transparent header: un-invert the logo/burger.
 	header.header[data-header-scrolled]:has([data-header-variant='transparent']) {
-		.logo,
-		.burger {
+		.logo {
 			filter: none;
+		}
+
+		.region-signin__trigger,
+		.burger {
+			color: var(--color-text);
 		}
 	}
 
@@ -550,17 +631,6 @@ const needsScrollState = variant === 'transparent' || variant === 'transparent-h
 		transition: all 0.12s ease;
 		background-color: var(--color-bg-surface);
 		box-shadow: var(--shadow-header);
-	}
-
-	// Scrolled onto the solid surface: give the Pricing button a readable border
-	// (its rest-state white text would vanish on the light bg). Transparent also
-	// elevates the Try button.
-	header.header[data-header-scrolled]:has([data-header-variant='transparent']) .n-button {
-		@include marketing-price;
-	}
-
-	header.header[data-header-scrolled]:has([data-header-variant='transparent-hover']) .n-button {
-		@include marketing-price;
 	}
 
 	// Mobile burger drawer — identical on every page. `--color-bg-light` is the
@@ -575,8 +645,7 @@ const needsScrollState = variant === 'transparent' || variant === 'transparent-h
 		background-color: var(--color-bg-light);
 		box-shadow: var(--shadow-header);
 
-		.logo,
-		.burger {
+		.logo {
 			filter: none;
 		}
 
@@ -602,10 +671,6 @@ const needsScrollState = variant === 'transparent' || variant === 'transparent-h
 				}
 			}
 		}
-
-		.n-button {
-			@include marketing-price;
-		}
 	}
 
 	// Docs / 404 default header — hairline bottom border.
@@ -620,23 +685,23 @@ const needsScrollState = variant === 'transparent' || variant === 'transparent-h
 			width: 90%;
 		}
 
-		starlight-menu-button button {
+		.sl-menu-button {
 			inset-inline-end: auto;
 			inset-inline-start: var(--sl-nav-pad-x);
 			// Just below the header bottom (= --promo-cur + header height); tracks the banner up as it hides.
 			top: calc(var(--promo-cur, var(--promo-h, 0px)) + var(--header-height) + 0.75rem);
 		}
 
-		starlight-menu-button[aria-expanded='true'] button {
+		.sl-menu-button:has(~ :popover-open) {
 			inset-inline-start: 90%;
 		}
 
 		// On pages with a TOC, the sidebar toggle is embedded inside the TOC bar
-		html[data-has-toc] starlight-menu-button button {
+		html[data-has-toc] .sl-menu-button {
 			display: none;
 		}
 		// But when the sidebar is open it covers the TOC bar, so restore the close button
-		html[data-has-toc] starlight-menu-button[aria-expanded='true'] button {
+		html[data-has-toc] .sl-menu-button:has(~ :popover-open) {
 			display: flex;
 		}
 	}
@@ -695,8 +760,6 @@ const needsScrollState = variant === 'transparent' || variant === 'transparent-h
 			background: none;
 			box-shadow: none;
 
-			.support-ukraine,
-			.burger-group,
 			.gh-wrap,
 			.head-buttons,
 			nav.head-menu {

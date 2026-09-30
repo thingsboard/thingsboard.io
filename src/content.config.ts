@@ -5,6 +5,7 @@ import { z } from 'astro/zod';
 import { file, glob } from 'astro/loaders';
 import { logoKeys } from '@data/logos';
 import { Products } from '@models/site.models';
+import { announcementSchema } from '@models/announcement';
 import {
 	IOT_HUB_API_URL,
 	IOT_HUB_CATEGORIES,
@@ -44,6 +45,7 @@ export const baseSchema = z.object({
 				.optional(),
 		})
 		.optional(),
+	announcement: announcementSchema.optional(),
 });
 
 // Third-party guide schemas (deploy, backend, cms, media)
@@ -228,8 +230,6 @@ export const collections = {
 				'deploy.ssrTag': z.string().default('SSR'),
 				'media.navTitle': z.string().default('More media guides'),
 				'migration.navTitle': z.string().default('More migration guides'),
-				'install.autoTab': z.string().default('Automatic CLI'),
-				'install.manualTab': z.string().default('Manual Setup'),
 				'starlight.title': z.string().default('Wanna build docs?'),
 				'starlight.description': z.string().default('Grab our Starlight template to get started.'),
 				'upgrade.implementationPR': z.string().default('Implementation PR: '),

@@ -1,8 +1,9 @@
 ---
 import { Code } from '@astrojs/starlight/components';
 import { UPGRADE_VERSIONS, getFamilySlug, getUpgradeStepVersions } from '~/models/upgrade-instructions';
-import { getUpgradeHeading, patchFamilyLabel, patchScriptLabel, versionAtLeast } from '~/models/upgrade-shared';
+import { getUpgradeHeading, isLegacyPe, patchFamilyLabel, patchScriptLabel, productName, versionAtLeast } from '~/models/upgrade-shared';
 import type { Products } from '~/models/site.models';
+import { getVersionPrefix } from '@util/path-utils';
 import AlarmMigrationNote from '@components/upgrade-instructions/AlarmMigrationNote.astro';
 
 interface Props {
@@ -11,8 +12,10 @@ interface Props {
 }
 
 const { product, filterFamily } = Astro.props;
-const versions = getUpgradeStepVersions(filterFamily);
+const versions = getUpgradeStepVersions(product, filterFamily);
 const isPE = product === 'PE';
+// Edition prefix from the product model, so CE and PE readers each get their own TBEL page.
+const tbelDateFormattingLink = `/docs/${getVersionPrefix(product)}user-guide/tbel/#date-formatting-changes-in-thingsboard-44`;
 
 function isNewerVersionScheme(version: string): boolean {
 	return versionAtLeast(version, '4.2');
@@ -23,7 +26,7 @@ function needsCompatibilityCheck(version: string): boolean {
 }
 
 function versionTag(ver: string): string {
-	return isPE ? `${ver}PE` : ver;
+	return isLegacyPe(isPE, ver) ? `${ver}PE` : ver;
 }
 
 // PE versions whose `release-*` branch was deleted from
@@ -52,8 +55,8 @@ function repoLink(ver: string): string | null {
 {versions.map((v) => {
 	const newer = isNewerVersionScheme(v.version);
 	const needsCompat = needsCompatibilityCheck(v.version);
-	const heading = getUpgradeHeading(v, isPE ? 'ThingsBoard PE' : 'ThingsBoard');
-	const prevDisplayLabel = isPE ? `${v.upgradableFrom} PE` : v.upgradableFrom;
+	const heading = getUpgradeHeading(v, productName(isPE, v.version));
+	const prevDisplayLabel = isLegacyPe(isPE, v.upgradableFrom) ? `${v.upgradableFrom} PE` : v.upgradableFrom;
 	const prevVersionEntry = v.prevVersionAnchor
 		? UPGRADE_VERSIONS.find((v2) => v2.anchor === v.prevVersionAnchor)
 		: undefined;
@@ -113,13 +116,32 @@ function repoLink(ver: string): string | null {
 								<a href={prevHref}>{prevDisplayLabel}</a>
 							) : prevDisplayLabel}
 							{v.patch && <>{' '}or any {patchFamilyLabel(v)} patch</>}.{' '}
-							In order to upgrade to <strong>{isPE ? `${v.displayVersion}PE` : v.displayVersion}</strong> you need to{' '}
+							In order to upgrade to <strong>{isLegacyPe(isPE, v.version) ? `${v.displayVersion}PE` : v.displayVersion}</strong> you need to{' '}
 							{prevHref ? (
 								<><a href={prevHref}><strong>upgrade to {prevDisplayLabel} first</strong></a>.</>
 							) : (
 								<>upgrade to {prevDisplayLabel} first.</>
 							)}
 						</p>
+					</div>
+				</aside>
+			)}
+
+			{isPE && v.version === '4.4.0' && (
+				<aside class="starlight-aside starlight-aside--caution">
+					<p class="starlight-aside__title" aria-hidden="true">Docker image names change in 4.4</p>
+					<div class="starlight-aside__content">
+						<p>Starting with 4.4, ThingsBoard Docker images no longer carry <code>pe</code> in their name or tag: <code>thingsboard/tb-pe-node:{prevVersionEntry ? `${prevVersionEntry.version}PE` : "<version>PE"}</code> becomes <code>thingsboard/tb-node:{v.version}</code>. Changing <code>TB_VERSION</code> alone is not enough — update your deployment manifests to the 4.4 release first, so every service references the new image names.</p>
+					</div>
+				</aside>
+			)}
+
+			{v.version === '4.4.0' && (
+				<aside class="starlight-aside starlight-aside--note">
+					<p class="starlight-aside__title" aria-hidden="true">TBEL date formatting changes</p>
+					<div class="starlight-aside__content">
+						<p>ThingsBoard 4.4 runs on Java 25, whose updated Unicode CLDR data changes the locale-formatted strings produced by <code>TbDate</code> methods: <code>toLocaleString()</code>, <code>toLocaleDateString()</code>, <code>toLocaleTimeString()</code>, <code>toString()</code>, <code>toDateString()</code>, <code>toTimeString()</code> and <code>toUTCString()</code>. Scripts that string-match or split formatted dates may behave differently after the upgrade. <code>toISOString()</code>, <code>toJSON()</code>, <code>getTime()</code> and the numeric getters are unaffected.</p>
+						<p>See <a href={tbelDateFormattingLink}>Date formatting changes in ThingsBoard 4.4+</a> for examples and recommendations.</p>
 					</div>
 				</aside>
 			)}
@@ -142,7 +164,7 @@ function repoLink(ver: string): string | null {
 				</div>
 			</aside>
 
-			<h4>ThingsBoard{isPE ? ' PE' : ''} service upgrade</h4>
+			<h4>{productName(isPE, v.version)} service upgrade</h4>
 
 			<p>Change the parameter <code>TB_VERSION</code> in the <code>.env</code> file:</p>
 			<Code code={`TB_VERSION=${tag}`} lang="bash" />

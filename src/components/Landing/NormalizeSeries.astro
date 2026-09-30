@@ -1,0 +1,653 @@
+---
+import {
+	NORMALIZE_CASES,
+	NORMALIZE_NODE,
+	NORMALIZE_STAGES,
+	NORMALIZE_WINDOW,
+	canonical,
+	payloadTokens,
+	readingText,
+	seedSeries,
+	sparkDomain,
+} from '@data/normalize-visual';
+import { sparkPaths } from '@util/sparkline';
+import mark from '@root/icons/thingsboard-mark.svg?raw';
+
+/** Mixed device payloads flowing through the platform into one data model, each plotted live. */
+
+const BADGE = 104;
+const COL = { in: 144, gut: 70, node: BADGE, out: 186 };
+const NATIVE = COL.in + COL.gut + COL.node + COL.gut + COL.out;
+
+// Chip pitch and row pitch give both columns the same height, so the node sits on both centre lines.
+const CHIP = { h: 44, gap: 16 };
+const ROW_H = 56;
+const BODY_H = NORMALIZE_CASES.length * CHIP.h + (NORMALIZE_CASES.length - 1) * CHIP.gap;
+const MID = BODY_H / 2;
+
+const chipCy = NORMALIZE_CASES.map((_, i) => CHIP.h / 2 + i * (CHIP.h + CHIP.gap));
+const rowCy = NORMALIZE_CASES.map((_, i) => ROW_H / 2 + i * ROW_H);
+
+const LEAD = 12;
+const span = COL.gut - LEAD * 2;
+const bend = LEAD + span / 2;
+const converge = chipCy.map(
+	(cy) =>
+		`M 0,${cy} L ${LEAD},${cy} C ${bend},${cy} ${COL.gut - bend},${MID} ${COL.gut - LEAD},${MID} L ${COL.gut},${MID}`
+);
+const diverge = rowCy.map(
+	(cy) =>
+		`M 0,${MID} L ${LEAD},${MID} C ${bend},${MID} ${COL.gut - bend},${cy} ${COL.gut - LEAD},${cy} L ${COL.gut},${cy}`
+);
+
+const head = (y: number) => `M ${COL.gut - 6},${y - 4} L ${COL.gut},${y} L ${COL.gut - 6},${y + 4}`;
+
+const VIEW = { w: 100, h: 24, pad: 3 };
+
+// Reporting interval; shared by CSS and script so the pip lands as the number changes.
+const STEP_MS = 2600;
+// Pip speed comes from the dash pattern: the pip is on the path only for the path's share of it.
+const TRAVEL_TARGET_MS = 620;
+const DASH = 8;
+const PATTERN = Math.round((100 * STEP_MS) / TRAVEL_TARGET_MS);
+// The travel the rounding actually gives; the delays are wound from it so the pip lands on the beat.
+const TRAVEL_MS = (STEP_MS * 100) / PATTERN;
+const STAGGER_MS = 130;
+const REACT_MS = 150;
+
+// Seeded history per device plus the incoming point, drawn past the right edge and clipped.
+const plots = NORMALIZE_CASES.map((c, i) => {
+	const series = seedSeries(c, i, NORMALIZE_WINDOW + 1);
+	const shown = series[NORMALIZE_WINDOW - 1];
+	return {
+		series,
+		domain: sparkDomain(c),
+		shown,
+		paths: sparkPaths(
+			series.map((v) => canonical(c, v)),
+			sparkDomain(c),
+			VIEW,
+			NORMALIZE_WINDOW
+		),
+	};
+});
+---
+
+<div class="norm-fit">
+	<div
+		class="norm"
+		data-norm
+		data-step={STEP_MS}
+		data-stagger={STAGGER_MS}
+		data-react={REACT_MS}
+		data-view={`${VIEW.w},${VIEW.h},${VIEW.pad}`}
+		data-window={NORMALIZE_WINDOW}
+		style={[
+			// A ceiling and no floor, so the width is exactly 100cqw at every size below the cap.
+			`--norm-u: min(1.15px, calc(100cqw / ${NATIVE}))`,
+			`--norm-native: ${NATIVE}`,
+			`--norm-col-in: ${COL.in}`,
+			`--norm-col-gut: ${COL.gut}`,
+			`--norm-col-node: ${COL.node}`,
+			`--norm-badge: ${BADGE}`,
+			`--norm-col-out: ${COL.out}`,
+			`--norm-body-h: ${BODY_H}`,
+			`--norm-row-h: ${ROW_H}`,
+			`--norm-chip-h: ${CHIP.h}`,
+			`--norm-chip-gap: ${CHIP.gap}`,
+			`--norm-beat: ${STEP_MS}ms`,
+			`--norm-travel: ${TRAVEL_MS}ms`,
+			`--norm-stagger: ${STAGGER_MS}ms`,
+			`--norm-dash: ${DASH} ${PATTERN - DASH}`,
+			`--norm-pattern: ${PATTERN}`,
+		].join('; ')}
+	>
+		<script
+			is:inline
+			type="application/json"
+			data-norm-plots
+			set:html={JSON.stringify(plots.map((p) => ({ series: p.series.map((v) => +v.toFixed(3)), domain: p.domain })))}
+		></script>
+		<p class="norm__label norm__label--in">{NORMALIZE_STAGES.in}</p>
+		<p class="norm__label norm__label--out">{NORMALIZE_STAGES.out}</p>
+
+		<ul class="norm__payloads" role="list">
+			{NORMALIZE_CASES.map((c, i) => (
+				<li title={c.note}>
+					{payloadTokens(c, plots[i].shown).map((t) => (
+						<span class={`norm__t norm__t--${t.role}`} data-norm-tok={t.role === 'num' ? String(i) : undefined}>
+							{t.t}
+						</span>
+					))}
+				</li>
+			))}
+		</ul>
+
+		{/* `pathLength` normalises every curve to 100, so one dash pattern serves all four pips. */}
+		<svg class="norm__gut norm__gut--in" viewBox={`0 0 ${COL.gut} ${BODY_H}`} aria-hidden="true">
+			{converge.map((d) => (
+				<path class="norm__curve" d={d} />
+			))}
+			{converge.map((d, i) => (
+				<path class="norm__pip" d={d} pathLength="100" style={`--i: ${i}`} />
+			))}
+			<path class="norm__head" d={head(MID)}></path>
+		</svg>
+
+		<div class="norm__node">
+			<span class="norm__badge" aria-hidden="true" set:html={mark} />
+			<span class="norm__node-label">{NORMALIZE_NODE.label}</span>
+		</div>
+
+		<svg class="norm__gut norm__gut--out" viewBox={`0 0 ${COL.gut} ${BODY_H}`} aria-hidden="true">
+			{diverge.map((d) => (
+				<path class="norm__curve" d={d} />
+			))}
+			{diverge.map((d, i) => (
+				<path class="norm__pip norm__pip--out" d={d} pathLength="100" style={`--i: ${i}`} />
+			))}
+			{rowCy.map((cy) => (
+				<path class="norm__head" d={head(cy)} />
+			))}
+		</svg>
+
+		<div class="norm__model">
+			<ul class="norm__rows" role="list">
+				{NORMALIZE_CASES.map((c, i) => (
+					<li class="norm__row">
+						<svg class="norm__spark" viewBox={`0 0 ${VIEW.w} ${VIEW.h}`} preserveAspectRatio="none" aria-hidden="true">
+							<g data-norm-plot={String(i)}>
+								<path class="norm__spark-area" d={plots[i].paths.area} />
+								<path class="norm__spark-line" d={plots[i].paths.line} />
+							</g>
+						</svg>
+						<span class="norm__val" data-norm-read={String(i)}>
+							{readingText(c, plots[i].shown)}
+						</span>
+					</li>
+				))}
+			</ul>
+		</div>
+	</div>
+</div>
+
+<script>
+	import {
+		NORMALIZE_CASES,
+		NORMALIZE_WINDOW,
+		canonical,
+		nextCelsius,
+		payloadTokens,
+		readingText,
+	} from '@data/normalize-visual';
+	import { segmentWidth, sparkPaths, type Domain, type SparkView } from '@util/sparkline';
+
+	const STEP_FALLBACK = 2600;
+	const TWEEN_MS = 600;
+
+	const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+	type Plot = {
+		num: HTMLElement | null;
+		read: HTMLElement | null;
+		row: HTMLElement | null;
+		/** How long after a step this row moves: the moment its pip lands, plus the react delay. */
+		offset: number;
+		startAt: number | null;
+		/** The last strings actually painted, so a frame formatting to the same text touches no DOM. */
+		lastNum: string | null;
+		lastRead: string | null;
+		g: SVGGElement | null;
+		line: SVGPathElement | null;
+		area: SVGPathElement | null;
+		domain: Domain;
+		hist: number[];
+		pending: number;
+	};
+
+	type Live = {
+		root: HTMLElement;
+		step: number;
+		origin: number;
+		/** The pip's animation: its `currentTime` is the beat, and it freezes while paused off screen. */
+		clock: Animation | null;
+		view: SparkView;
+		window: number;
+		plots: Plot[];
+		started: number;
+		lastStep: number;
+	};
+
+	function draw(p: Plot, i: number, live: Live) {
+		if (!p.line || !p.area) return;
+		const c = NORMALIZE_CASES[i];
+		const d = sparkPaths(
+			[...p.hist, p.pending].map((v) => canonical(c, v)),
+			p.domain,
+			live.view,
+			live.window
+		);
+		p.line.setAttribute('d', d.line);
+		p.area.setAttribute('d', d.area);
+	}
+
+	function paint(p: Plot, i: number, celsius: number) {
+		const c = NORMALIZE_CASES[i];
+		const num = payloadTokens(c, celsius).find((t) => t.role === 'num');
+		if (num && p.num && num.t !== p.lastNum) {
+			p.num.textContent = num.t;
+			p.lastNum = num.t;
+		}
+		const r = readingText(c, celsius);
+		if (p.read && r !== p.lastRead) {
+			p.read.textContent = r;
+			p.lastRead = r;
+		}
+	}
+
+	function setup(now: number): Live[] {
+		return Array.from(document.querySelectorAll<HTMLElement>('[data-norm]')).map((root) => {
+			const [w, h, pad] = (root.dataset.view ?? '100,24,3').split(',').map(Number);
+			const win = Number(root.dataset.window ?? NORMALIZE_WINDOW);
+			const stagger = Number(root.dataset.stagger) || 0;
+			const react = Number(root.dataset.react) || 0;
+			// `startTime` is on the document timeline, which shares its origin with `performance.now()`.
+			const pip = root.querySelector<SVGPathElement>('.norm__pip');
+			const clock = pip?.getAnimations?.()[0];
+			const origin = clock?.startTime != null ? Number(clock.startTime) : now;
+			const seeded: { series: number[]; domain: Domain }[] = JSON.parse(
+				root.querySelector('[data-norm-plots]')?.textContent ?? '[]'
+			);
+			return {
+				root,
+				origin,
+				clock: clock ?? null,
+				step: Number(root.dataset.step) || STEP_FALLBACK,
+				view: { w, h, pad },
+				window: win,
+				started: 0,
+				lastStep: origin,
+				plots: NORMALIZE_CASES.map((_, i) => {
+					const g = root.querySelector<SVGGElement>(`[data-norm-plot="${i}"]`);
+					const s = seeded[i];
+					return {
+						num: root.querySelector<HTMLElement>(`[data-norm-tok="${i}"]`),
+						read: root.querySelector<HTMLElement>(`[data-norm-read="${i}"]`),
+						row: root.querySelectorAll<HTMLElement>('.norm__row')[i] ?? null,
+						offset: i * stagger + react,
+						startAt: null,
+						lastNum: null,
+						lastRead: null,
+						g,
+						line: g?.querySelector<SVGPathElement>('.norm__spark-line') ?? null,
+						area: g?.querySelector<SVGPathElement>('.norm__spark-area') ?? null,
+						domain: s?.domain ?? ([0, 1] as Domain),
+						hist: s ? s.series.slice(0, win) : [],
+						pending: s ? s.series[win] : 0,
+					};
+				}),
+			};
+		});
+	}
+
+	const t0 = performance.now();
+	const all = reduce ? [] : setup(t0);
+
+	if (all.length) {
+		const visible = new Set<HTMLElement>();
+		let running = false;
+
+		const frame = (now: number) => {
+			all.forEach((l) => {
+				if (!visible.has(l.root)) return;
+
+				if (now - l.lastStep >= l.step) {
+					// Snapped to the current beat of the pip's own clock rather than replaying missed ones.
+					const ct = l.clock?.currentTime;
+					l.lastStep =
+						ct != null ? now - (Number(ct) % l.step) : l.origin + Math.floor((now - l.origin) / l.step) * l.step;
+					l.plots.forEach((p) => (p.startAt = l.lastStep + p.offset));
+					l.started = now;
+				}
+				if (!l.started) return;
+
+				const seg = segmentWidth(l.window, l.view);
+
+				l.plots.forEach((p, i) => {
+					if (p.startAt === null || now < p.startAt) return;
+
+					const t = Math.min(1, (now - p.startAt) / TWEEN_MS);
+					const e = 1 - Math.pow(1 - t, 3);
+					const from = p.hist[p.hist.length - 1] ?? p.pending;
+					paint(p, i, from + (p.pending - from) * e);
+
+					if (t < 1) {
+						p.g?.setAttribute('transform', `translate(${(-seg * e).toFixed(3)} 0)`);
+						p.row?.classList.add('is-live');
+						return;
+					}
+					p.hist.shift();
+					p.hist.push(p.pending);
+					p.pending = nextCelsius(NORMALIZE_CASES[i], p.pending);
+					p.g?.setAttribute('transform', 'translate(0 0)');
+					draw(p, i, l);
+					p.row?.classList.remove('is-live');
+					p.startAt = null;
+				});
+
+				if (l.plots.every((p) => p.startAt === null)) l.started = 0;
+			});
+
+			if (visible.size) requestAnimationFrame(frame);
+			else running = false;
+		};
+
+		const io = new IntersectionObserver(
+			(entries) => {
+				entries.forEach((e) => {
+					const root = e.target as HTMLElement;
+					if (e.isIntersecting) visible.add(root);
+					else visible.delete(root);
+					root.style.setProperty('--norm-play', e.isIntersecting ? 'running' : 'paused');
+				});
+
+				if (visible.size && !running) {
+					running = true;
+					requestAnimationFrame(frame);
+				}
+			},
+			{ rootMargin: '80px' }
+		);
+		all.forEach((l) => io.observe(l.root));
+
+		running = true;
+		requestAnimationFrame(frame);
+	}
+</script>
+
+<style lang="scss">
+	@use '../../styles/variables' as *;
+
+	@function u($n) {
+		@return calc(#{$n} * var(--u));
+	}
+
+	.norm-fit {
+		container-type: inline-size;
+	}
+
+	.norm {
+		--u: var(--norm-u);
+		--norm-rail-color: var(--color-primary, #3d50f5);
+		--norm-rail-w: max(1px, #{u(2)});
+		// Near white but not white: a white pip reads as a gap travelling down the rail.
+		--norm-signal-color: color-mix(in srgb, var(--color-primary, #3d50f5) 28%, #fff);
+
+		--norm-syn-key: #d2a8ff;
+		--norm-syn-num: #ffb86b;
+		--norm-syn-unit: #7ee787;
+		--norm-syn-punct: #9aa4b2;
+		display: grid;
+		grid-template-columns:
+			u(var(--norm-col-in))
+			u(var(--norm-col-gut))
+			u(var(--norm-col-node))
+			u(var(--norm-col-gut))
+			u(var(--norm-col-out));
+		grid-template-rows: auto u(var(--norm-body-h));
+		grid-template-areas:
+			'label-in .      .    .       label-out'
+			'payloads gut-in node gut-out model';
+		align-items: center;
+		max-width: u(var(--norm-native));
+		margin: 0 auto;
+	}
+
+	.norm__label {
+		min-height: u(24);
+		margin: 0 0 u(8);
+		font-size: u(15);
+		line-height: u(24);
+		text-align: center;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		white-space: nowrap;
+		color: var(--color-text-secondary, #5b616e);
+	}
+
+	.norm__label--in {
+		grid-area: label-in;
+	}
+
+	.norm__label--out {
+		grid-area: label-out;
+	}
+
+	.norm__payloads {
+		grid-area: payloads;
+		display: flex;
+		flex-direction: column;
+		gap: u(var(--norm-chip-gap));
+		margin: 0;
+		padding: 0;
+		list-style: none;
+		position: relative;
+		z-index: 1;
+
+		li {
+			display: flex;
+			align-items: center;
+			width: 100%;
+			height: u(var(--norm-chip-h));
+			padding: 0 u(14);
+			border-radius: u(8);
+			font-family: $font-family-mono;
+			// 15, not the design's 18: sized to this site's mono stack, whose advance is 0.6em where the
+			// design was drawn against Ubuntu Mono's 0.5em. `TEMP_K=291.2` is the longest payload at 12
+			// characters, so it paints 108 of the 116 units the chip leaves inside its padding.
+			font-size: u(15);
+			font-weight: $font-weight-bold;
+			color: #fff;
+			background: #1b1e27;
+			box-shadow:
+				0 1px 2px rgba(16, 24, 40, 0.08),
+				0 #{u(14)} #{u(32)} #{u(-10)} rgba(16, 24, 40, 0.28);
+		}
+	}
+
+	.norm__t--key {
+		color: var(--norm-syn-key);
+	}
+
+	.norm__t--num {
+		color: var(--norm-syn-num);
+	}
+
+	.norm__t--unit {
+		color: var(--norm-syn-unit);
+	}
+
+	.norm__t--punct {
+		color: var(--norm-syn-punct);
+	}
+
+	// Badge height, so centring it centres the badge on the curves' meeting point.
+	.norm__node {
+		grid-area: node;
+		position: relative;
+		z-index: 1;
+		display: flex;
+		justify-content: center;
+		height: u(var(--norm-badge));
+	}
+
+	.norm__badge {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: u(var(--norm-badge));
+		height: u(var(--norm-badge));
+		padding: u(16);
+		border-radius: 32%;
+		// Same tile and ink as `.hub__badge` (ConnectHub) and `.plat__core-badge` (PlatformOverview).
+		color: #111318;
+		background: linear-gradient(155deg, #fff 35%, color-mix(in srgb, var(--color-primary, #3d50f5) 5%, #fff) 100%);
+		box-shadow:
+			0 1px 2px rgba(16, 24, 40, 0.06),
+			0 #{u(7)} #{u(16)} #{u(-5)} rgba(16, 24, 40, 0.22);
+	}
+
+	// The badge is `aria-hidden`, so this is the node's only accessible name.
+	.norm__node-label {
+		@include visually-hidden;
+	}
+
+	.norm__gut {
+		width: 100%;
+		height: 100%;
+		overflow: visible;
+	}
+
+	.norm__gut--in {
+		grid-area: gut-in;
+	}
+
+	.norm__gut--out {
+		grid-area: gut-out;
+	}
+
+	.norm__curve,
+	.norm__head {
+		fill: none;
+		stroke: var(--norm-rail-color);
+		stroke-width: var(--norm-rail-w);
+		// The box is scaled by the design unit, so the stroke would scale with it otherwise.
+		vector-effect: non-scaling-stroke;
+	}
+
+	.norm__curve {
+		stroke-linecap: round;
+	}
+
+	.norm__head {
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+
+	// Linear, so the pip lands exactly `--norm-travel` after it enters the curve.
+	.norm__pip {
+		fill: none;
+		stroke: var(--norm-signal-color);
+		stroke-width: var(--norm-rail-w);
+		stroke-linecap: round;
+		vector-effect: non-scaling-stroke;
+		stroke-dasharray: var(--norm-dash);
+		animation: norm-pip var(--norm-beat) linear infinite;
+		animation-play-state: var(--norm-play, running);
+		// Offset from the beat: the pip crosses two gutters before its row reacts.
+		animation-delay: calc(var(--i) * var(--norm-stagger) + var(--norm-beat) - 2 * var(--norm-travel));
+	}
+
+	.norm__pip--out {
+		animation-delay: calc(var(--i) * var(--norm-stagger) + var(--norm-beat) - var(--norm-travel));
+	}
+
+	@keyframes norm-pip {
+		from {
+			stroke-dashoffset: var(--norm-pattern);
+		}
+
+		to {
+			stroke-dashoffset: 0;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.norm__pip {
+			display: none;
+		}
+	}
+
+	.norm__model {
+		grid-area: model;
+		position: relative;
+		z-index: 1;
+		display: flex;
+		overflow: hidden;
+		flex-direction: column;
+		margin: 0;
+		border: 1px solid var(--color-border, #ebebeb);
+		border-radius: u(8);
+		background: var(--color-bg-surface, #fff);
+	}
+
+	.norm__rows {
+		display: flex;
+		flex: 1;
+		flex-direction: column;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.norm__row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: u(12);
+		height: u(var(--norm-row-h));
+		padding: 0 u(16);
+
+		& + & {
+			border-top: 1px solid var(--color-border, #ebebeb);
+		}
+	}
+
+	// `min-width: 0` stops the row's min-content width pushing the number out of the card.
+	.norm__spark {
+		flex: 1;
+		min-width: 0;
+		height: u(28);
+		// Clipped left and right only: the incoming point slides in from past the right edge.
+		overflow: visible;
+		clip-path: inset(u(-4) 0);
+	}
+
+	.norm__spark-area {
+		fill: var(--color-primary, #3d50f5);
+		opacity: 0.1;
+		transition: opacity 560ms ease-out;
+	}
+
+	.norm__spark-line {
+		fill: none;
+		stroke: var(--color-primary, #3d50f5);
+		stroke-width: max(1px, #{u(2)});
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		// preserveAspectRatio="none" stretches the box, which would stretch the stroke with it.
+		vector-effect: non-scaling-stroke;
+	}
+
+	.norm__val {
+		font-size: u(16);
+		font-weight: $font-weight-medium;
+		line-height: u(22);
+		white-space: nowrap;
+		font-variant-numeric: tabular-nums;
+		color: var(--color-text);
+		transition: color 560ms ease-out;
+	}
+
+	.norm__row.is-live {
+		.norm__val {
+			color: var(--color-primary, #3d50f5);
+			transition-duration: 120ms;
+		}
+
+		.norm__spark-area {
+			opacity: 0.2;
+			transition-duration: 120ms;
+		}
+	}
+</style>

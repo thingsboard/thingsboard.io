@@ -1,13 +1,18 @@
 ---
 interface Props {
 	srcMp4: string;
-	srcWebm?: string; // optional, but preferred for Chrome
-	poster?: string; // placeholder image
+	/** Lighter than MP4, so it is listed first for the browsers that play it. */
+	srcWebm?: string;
+	poster?: string;
 	width?: string | number;
 	height?: string | number;
-	threshold?: number; // when to start (0.1 = 10%, 0.5 = 50%)
-	className?: string; // extra CSS classes
-	alt?: string; // Accessible name for the video (set as aria-label)
+	/** Share of the video that must be visible before it loads and plays. */
+	threshold?: number;
+	/** `false` leaves loading and playback to the caller, e.g. play on hover. */
+	autoplay?: boolean;
+	className?: string;
+	/** Accessible name, set as `aria-label`. */
+	alt?: string;
 }
 
 const {
@@ -17,6 +22,7 @@ const {
 	width = '100%',
 	height = 'auto',
 	threshold = 0.5,
+	autoplay = true,
 	className = '',
 	alt,
 } = Astro.props;
@@ -31,85 +37,37 @@ const {
 	loop
 	muted
 	playsinline
-	data-threshold={threshold}
+	data-threshold={autoplay ? threshold : undefined}
 	style="display: block;"
 >
-	{/* WebM first since it's lighter (preferred for Chrome/Android) */}
 	{srcWebm && <source data-src={srcWebm} type="video/webm" />}
-
-	{/* MP4 fallback for Safari/iOS */}
 	<source data-src={srcMp4} type="video/mp4" />
 </video>
 
 <script>
-	// Init function so it works on first load and on navigation
-	const initLazyGifs = () => {
-		// Check API support
-		if (!('IntersectionObserver' in window)) return;
+	// Sets `src` from `data-src` the first time a video is visible, then plays it only while on screen.
+	const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+	// An observer's threshold is fixed at construction, so there is one per distinct value.
+	const observers = new Map<number, IntersectionObserver>();
 
-		const videos = document.querySelectorAll<HTMLVideoElement>('.lazy-gif-video');
+	const onChange = (entries: IntersectionObserverEntry[]) =>
+		entries.forEach(({ target, isIntersecting }) => {
+			const video = target as HTMLVideoElement;
+			if (!isIntersecting) return video.pause();
 
-		const observerMap = new Map(); // keep one observer per threshold
-
-		videos.forEach((video) => {
-			// Skip videos already being handled
-			if (video.classList.contains('js-initialized')) return;
-			video.classList.add('js-initialized');
-
-			// Read the trigger threshold from the attribute (default 0.5)
-			const threshold = parseFloat(video.dataset.threshold || '0.5');
-
-			// Create or reuse the observer for this threshold
-			let observer = observerMap.get(threshold);
-
-			if (!observer) {
-				observer = new IntersectionObserver(
-					(entries) => {
-						entries.forEach((entry) => {
-							const vid = entry.target as HTMLVideoElement;
-
-							if (entry.isIntersecting) {
-								// 1. VIDEO ENTERED THE VIEWPORT
-
-								// Load sources on first entry
-								const sources = vid.querySelectorAll('source');
-								let sourceChanged = false;
-								sources.forEach((source) => {
-									if (source.dataset.src) {
-										source.src = source.dataset.src;
-										delete source.dataset.src;
-										sourceChanged = true;
-									}
-								});
-
-								if (sourceChanged) {
-									vid.load();
-								}
-
-								// Play
-								const playPromise = vid.play();
-								if (playPromise !== undefined) {
-									playPromise.catch((error) => {
-										console.log('Auto-play was prevented:', error);
-									});
-								}
-							} else {
-								// 2. VIDEO LEFT THE VIEWPORT -> PAUSE
-								if (!vid.paused) {
-									vid.pause();
-								}
-							}
-						});
-					},
-					{ threshold: threshold }
-				);
-
-				observerMap.set(threshold, observer);
-			}
-
-			observer.observe(video);
+			const pending = video.querySelectorAll<HTMLSourceElement>('source[data-src]');
+			pending.forEach((source) => {
+				source.src = source.dataset.src!;
+				source.removeAttribute('data-src');
+			});
+			if (pending.length) video.load();
+			if (!reduce) video.play().catch(() => {});
 		});
-	};
 
-	document.addEventListener('DOMContentLoaded', initLazyGifs);
+	document.querySelectorAll<HTMLVideoElement>('video.lazy-gif-video[data-threshold]').forEach((video) => {
+		const threshold = Number(video.dataset.threshold);
+		let io = observers.get(threshold);
+		if (!io) observers.set(threshold, (io = new IntersectionObserver(onChange, { threshold })));
+		io.observe(video);
+	});
 </script>

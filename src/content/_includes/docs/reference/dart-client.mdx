@@ -1,321 +1,417 @@
-import { Aside } from '@astrojs/starlight/components';
-import DocLink from '@components/DocLink.astro';
+import { Aside, Code } from '@astrojs/starlight/components';
 import HostCode from '~/components/HostCode.astro';
+import { DART_CLIENT_VER } from '@data/versions';
+import { Products } from '~/models/site.models';
 
-The Dart ThingsBoard API Client provides model objects and services to communicate with ThingsBoard using REST APIs and WebSocket protocol.
-Use it to manage entities, query telemetry data, and receive real-time updates from Dart or Flutter applications.
+export const clientPackage = (product) =>
+  product === Products.PE
+    ? 'thingsboard_pe_client'
+    : product === Products.PAAS || product === Products.PAAS_EU
+      ? 'thingsboard_paas_client'
+      : 'thingsboard_ce_client';
+
+export const clientEdition = (product) => clientPackage(product).replace('thingsboard_', '').replace('_client', '');
+
+export const clientVersion = (product) => DART_CLIENT_VER[clientEdition(product)];
+
+The Dart ThingsBoard API Client lets Dart and Flutter applications manage ThingsBoard entities, work with telemetry, and receive real-time updates over WebSocket.
+It is auto-generated from the ThingsBoard OpenAPI specification, so every REST endpoint and model of the platform is available as a typed API class.
+A handwritten runtime facade on top of the generated code handles JWT authentication with automatic token refresh, API key authentication, WebSocket telemetry subscriptions with auto-reconnect, and typed error handling.
+
+The client is published as one package per ThingsBoard edition. Each package version tracks the ThingsBoard server version it targets:
+
+| Package | Edition | Version |
+|---|---|---|
+| [thingsboard_ce_client](https://pub.dev/packages/thingsboard_ce_client) | Community Edition | {DART_CLIENT_VER.ce} |
+| [thingsboard_pe_client](https://pub.dev/packages/thingsboard_pe_client) | Professional Edition | {DART_CLIENT_VER.pe} |
+| [thingsboard_paas_client](https://pub.dev/packages/thingsboard_paas_client) | ThingsBoard Cloud | {DART_CLIENT_VER.paas} |
+
+The examples on this page use <code>{clientPackage(props.product)}</code>. All three packages share the same runtime facade and usage patterns; they differ only in the set of API classes and models generated from each edition's REST API.
 
 <Aside type="tip">
-Source code and additional examples are available in the [dart_thingsboard_client](https://github.com/thingsboard/dart_thingsboard_client) GitHub repository.
+Source code, generated API reference and runnable examples are available in the [thingsboard-dart-client](https://github.com/thingsboard/thingsboard-dart-client) GitHub repository.
 </Aside>
 
 ## Installation
 
-```bash
-dart pub add thingsboard_client
+Add the package to your project:
+
+<Code lang="bash" code={`dart pub add ${clientPackage(props.product)}
 # or for Flutter projects
-flutter pub add thingsboard_client
-```
+flutter pub add ${clientPackage(props.product)}`} />
 
 This adds to `pubspec.yaml`:
 
-```yaml
-dependencies:
-  thingsboard_client: ^4.1.0
-```
+<Code lang="yaml" code={`dependencies:
+  ${clientPackage(props.product)}: ^${clientVersion(props.product)}`} />
 
-Import in Dart code:
+The client requires Dart SDK 3.2 or later and targets ThingsBoard {clientVersion(props.product)} or later. It runs on Flutter mobile (iOS, Android), Flutter Web, and plain Dart.
 
-```dart
-import 'package:thingsboard_client/thingsboard_client.dart';
-```
+Import the package in Dart code:
+
+<Code lang="dart" code={`import 'package:${clientPackage(props.product)}/${clientPackage(props.product)}.dart' hide LoginRequest;
+import 'package:${clientPackage(props.product)}/src/model/login_models.dart' show LoginRequest;`} />
+
+<Aside type="note">
+The package's main library exports both the generated OpenAPI models and the handwritten runtime facade. The generated `LoginRequest` model (the raw REST payload) shares its name with the facade's `LoginRequest` that `tbClient.login()` expects, so hide the generated one and import the facade's directly, as shown above. The second import is only needed in files that call `login()`.
+</Aside>
 
 ## Getting started
 
-Create a client instance, log in, fetch user details, and log out:
+Create a client instance, log in, inspect the authenticated user, and log out:
 
-<HostCode product={props.product} lang="dart" code={`import 'package:thingsboard_client/thingsboard_client.dart';
+<HostCode product={props.product} lang="dart" code={`import 'package:${clientPackage(props.product)}/${clientPackage(props.product)}.dart' hide LoginRequest;
+import 'package:${clientPackage(props.product)}/src/model/login_models.dart' show LoginRequest;
 
 const thingsBoardApiEndpoint = '{BASE_URL}';
 
 void main() async {
+  final tbClient = ThingsboardClient(thingsBoardApiEndpoint);
   try {
-    var tbClient = ThingsboardClient(thingsBoardApiEndpoint);
-
-    await tbClient.login(LoginRequest('[email protected]', 'tenant'));
-
+    await tbClient.login(LoginRequest(
+      userName: 'tenant@thingsboard.org',
+      password: 'tenant',
+    ));
     print('isAuthenticated=\${tbClient.isAuthenticated()}');
-    print('authUser: \${tbClient.getAuthUser()}');
 
-    var currentUserDetails = await tbClient.getUserService().getUser();
-    print('currentUserDetails: $currentUserDetails');
+    final authUser = tbClient.getAuthUser();
+    print('authUser: \${authUser?.userId} (\${authUser?.authority})');
 
     await tbClient.logout();
-  } catch (e, s) {
-    print('Error: $e');
-    print('Stack: $s');
+  } catch (e) {
+    final error = toThingsboardError(e);
+    print('ThingsBoard error: \${error.message} (\${error.errorCode})');
   }
 }`} />
 
+`ThingsboardClient` accepts optional named parameters:
+
+- `storage` — a `TbStorage` implementation that persists the JWT and refresh tokens between runs. `InMemoryStorage` is the default; `LocalFileStorage` is also bundled. Call `tbClient.init()` at startup to restore a stored session and refresh the token if it has expired.
+- `apiKey` — authenticate with an API key instead of a user session (see below).
+- `onUserLoaded`, `onMfaAuth`, `onMfaForce`, `onError`, `onLoadStarted`, `onLoadFinished` — callbacks for the authentication lifecycle, two-factor authentication prompts, request errors, and request activity.
+- `debugMode` — logs every request and response to the console.
+
 ## API key authentication
 
-Starting from ThingsBoard 4.3, you can authenticate with an API key instead of username/password:
+You can authenticate with an API key instead of a username and password. Pass the key to the constructor; every request is then signed with it and no `login()` call is needed:
 
-<HostCode product={props.product} lang="dart" code={`const thingsBoardApiEndpoint = '{BASE_URL}';
+<HostCode product={props.product} lang="dart" code={`import 'package:${clientPackage(props.product)}/${clientPackage(props.product)}.dart';
+
+const thingsBoardApiEndpoint = '{BASE_URL}';
 const apiKey = 'tb_your_api_key';
 
 void main() async {
+  final tbClient = ThingsboardClient(thingsBoardApiEndpoint, apiKey: apiKey);
   try {
-    final tbClient = ThingsboardClient(thingsBoardApiEndpoint, apiKey: apiKey);
-
-    var device = Device('myDevice', 'default');
-    device.additionalInfo = {'description': 'My test device!'};
-    var savedDevice = await tbClient.getDeviceService().saveDevice(device);
-    print('savedDevice: $savedDevice');
-  } catch (e, s) {
-    print('Error: $e');
-    print('Stack: $s');
+    final device = Device((b) => b
+      ..name = 'myDevice'
+      ..type = 'default');
+    final savedDevice = await tbClient.getDeviceControllerApi().saveDevice(device: device);
+    print('savedDevice: \${savedDevice.data?.name} (\${savedDevice.data?.id?.id})');
+  } catch (e) {
+    final error = toThingsboardError(e);
+    print('ThingsBoard error: \${error.message} (\${error.errorCode})');
   }
 }`} />
 
 ## Fetch tenant devices
 
+Generated API classes are grouped by REST controller and obtained from the client with `getXxxControllerApi()` methods.
+List endpoints take `pageSize` and `page` arguments and return the page wrapped in a Dio `Response`; the payload is in `response.data`.
 Paginate through all devices belonging to the current tenant:
 
-<HostCode product={props.product} lang="dart" meta="maxLines=20 collapsible" code={`import 'package:thingsboard_client/thingsboard_client.dart';
+<HostCode product={props.product} lang="dart" meta="maxLines=20 collapsible" code={`import 'package:${clientPackage(props.product)}/${clientPackage(props.product)}.dart' hide LoginRequest;
+import 'package:${clientPackage(props.product)}/src/model/login_models.dart' show LoginRequest;
 
 const thingsBoardApiEndpoint = '{BASE_URL}';
 
 void main() async {
+  final tbClient = ThingsboardClient(thingsBoardApiEndpoint);
   try {
-    var tbClient = ThingsboardClient(thingsBoardApiEndpoint);
-    await tbClient.login(LoginRequest('[email protected]', 'tenant'));
+    await tbClient.login(LoginRequest(userName: 'tenant@thingsboard.org', password: 'tenant'));
 
-    var pageLink = PageLink(10);
-    PageData<DeviceInfo> devices;
+    final deviceApi = tbClient.getDeviceControllerApi();
+    var page = 0;
+    PageDataDevice? devices;
     do {
-      devices = await tbClient.getDeviceService().getTenantDeviceInfos(pageLink);
-      print('devices: $devices');
-      pageLink = pageLink.nextPageLink();
-    } while (devices.hasNext);
+      final response = await deviceApi.getTenantDevices(pageSize: 10, page: page);
+      devices = response.data;
+      for (final device in devices?.data ?? <Device>[]) {
+        print('\${device.name} (\${device.type})');
+      }
+      page++;
+    } while (devices?.hasNext ?? false);
 
     await tbClient.logout();
-  } catch (e, s) {
-    print('Error: $e');
-    print('Stack: $s');
+  } catch (e) {
+    final error = toThingsboardError(e);
+    print('ThingsBoard error: \${error.message} (\${error.errorCode})');
   }
 }`} />
 
 ## Fetch tenant dashboards
 
-<HostCode product={props.product} lang="dart" meta="maxLines=20 collapsible" code={`import 'package:thingsboard_client/thingsboard_client.dart';
+<HostCode product={props.product} lang="dart" meta="maxLines=20 collapsible" code={`import 'package:${clientPackage(props.product)}/${clientPackage(props.product)}.dart' hide LoginRequest;
+import 'package:${clientPackage(props.product)}/src/model/login_models.dart' show LoginRequest;
 
 const thingsBoardApiEndpoint = '{BASE_URL}';
 
 void main() async {
+  final tbClient = ThingsboardClient(thingsBoardApiEndpoint);
   try {
-    var tbClient = ThingsboardClient(thingsBoardApiEndpoint);
-    await tbClient.login(LoginRequest('[email protected]', 'tenant'));
+    await tbClient.login(LoginRequest(userName: 'tenant@thingsboard.org', password: 'tenant'));
 
-    var pageLink = PageLink(10);
-    PageData<DashboardInfo> dashboards;
+    final dashboardApi = tbClient.getDashboardControllerApi();
+    var page = 0;
+    PageDataDashboardInfo? dashboards;
     do {
-      dashboards = await tbClient.getDashboardService().getTenantDashboards(pageLink);
-      print('dashboards: $dashboards');
-      pageLink = pageLink.nextPageLink();
-    } while (dashboards.hasNext);
+      final response = await dashboardApi.getTenantDashboards(pageSize: 10, page: page);
+      dashboards = response.data;
+      for (final dashboard in dashboards?.data ?? <DashboardInfo>[]) {
+        print('\${dashboard.title} (\${dashboard.id?.id})');
+      }
+      page++;
+    } while (dashboards?.hasNext ?? false);
 
     await tbClient.logout();
-  } catch (e, s) {
-    print('Error: $e');
-    print('Stack: $s');
+  } catch (e) {
+    final error = toThingsboardError(e);
+    print('ThingsBoard error: \${error.message} (\${error.errorCode})');
   }
 }`} />
 
 ## Count and query entities
 
-Use the Entity Data Query API to count devices by status and query active devices:
+Models are immutable [built_value](https://pub.dev/packages/built_value) classes created through a builder.
+Polymorphic models such as entity filters and key filter predicates carry a `type` discriminator that you set explicitly.
+Use the Entity Data Query API to count all devices and then only the active ones:
 
-<HostCode product={props.product} lang="dart" meta="maxLines=40 collapsible" code={`import 'package:thingsboard_client/thingsboard_client.dart';
+<HostCode product={props.product} lang="dart" meta="maxLines=40 collapsible" code={`import 'package:${clientPackage(props.product)}/${clientPackage(props.product)}.dart' hide LoginRequest;
+import 'package:${clientPackage(props.product)}/src/model/login_models.dart' show LoginRequest;
 
 const thingsBoardApiEndpoint = '{BASE_URL}';
 
 void main() async {
+  final tbClient = ThingsboardClient(thingsBoardApiEndpoint);
   try {
-    var tbClient = ThingsboardClient(thingsBoardApiEndpoint);
-    await tbClient.login(LoginRequest('[email protected]', 'tenant'));
+    await tbClient.login(LoginRequest(userName: 'tenant@thingsboard.org', password: 'tenant'));
 
-    // Create entity filter to get all devices
-    var entityFilter = EntityTypeFilter(entityType: EntityType.DEVICE);
-    var devicesQuery = EntityCountQuery(entityFilter: entityFilter);
+    final entityQueryApi = tbClient.getEntityQueryControllerApi();
 
-    // Total device count
-    var totalDevicesCount =
-        await tbClient.getEntityQueryService().countEntitiesByQuery(devicesQuery);
-    print('Total devices: $totalDevicesCount');
+    // Entity filter that selects all devices
+    final allDevicesQuery = EntityCountQuery((b) => b
+      ..entityFilter = EntityTypeFilter((f) => f
+        ..type = 'entityType'
+        ..entityType = EntityType.DEVICE));
 
-    // Active devices count
-    var activeDeviceKeyFilter = KeyFilter(
-        key: EntityKey(type: EntityKeyType.ATTRIBUTE, key: 'active'),
-        valueType: EntityKeyValueType.BOOLEAN,
-        predicate: BooleanFilterPredicate(
-            operation: BooleanOperation.EQUAL,
-            value: FilterPredicateValue(true)));
-    devicesQuery.keyFilters = [activeDeviceKeyFilter];
+    final totalDevices = await entityQueryApi.countEntitiesByQuery(entityCountQuery: allDevicesQuery);
+    print('Total devices: \${totalDevices.data}');
 
-    var activeDevicesCount =
-        await tbClient.getEntityQueryService().countEntitiesByQuery(devicesQuery);
-    print('Active devices: $activeDevicesCount');
+    // Same filter plus a key filter on the "active" attribute
+    final activeDevicesQuery = allDevicesQuery.rebuild((b) => b
+      ..keyFilters.add(KeyFilter((k) => k
+        ..key.type = EntityKeyType.ATTRIBUTE
+        ..key.key = 'active'
+        ..valueType = EntityKeyValueType.BOOLEAN
+        ..predicate = BooleanFilterPredicate((p) => p
+          ..type = 'BOOLEAN'
+          ..operation = BooleanOperation.EQUAL
+          ..value.defaultValue = true))));
 
-    // Inactive devices count
-    var inactiveDeviceKeyFilter = KeyFilter(
-        key: EntityKey(type: EntityKeyType.ATTRIBUTE, key: 'active'),
-        valueType: EntityKeyValueType.BOOLEAN,
-        predicate: BooleanFilterPredicate(
-            operation: BooleanOperation.EQUAL,
-            value: FilterPredicateValue(false)));
-    devicesQuery.keyFilters = [inactiveDeviceKeyFilter];
-
-    var inactiveDevicesCount =
-        await tbClient.getEntityQueryService().countEntitiesByQuery(devicesQuery);
-    print('Inactive devices: $inactiveDevicesCount');
+    final activeDevices = await entityQueryApi.countEntitiesByQuery(entityCountQuery: activeDevicesQuery);
+    print('Active devices: \${activeDevices.data}');
 
     await tbClient.logout();
-  } catch (e, s) {
-    print('Error: $e');
-    print('Stack: $s');
+  } catch (e) {
+    final error = toThingsboardError(e);
+    print('ThingsBoard error: \${error.message} (\${error.errorCode})');
   }
 }`} />
 
 ## Manage devices
 
-Create a device, save and read attributes, then delete it:
+Create a device, save and read shared attributes through the Telemetry controller, then delete the device.
+Attribute and telemetry payloads are passed as JSON strings, exactly as the REST API expects them:
 
-<HostCode product={props.product} lang="dart" meta="maxLines=30 collapsible" code={`import 'package:thingsboard_client/thingsboard_client.dart';
+<HostCode product={props.product} lang="dart" meta="maxLines=40 collapsible" code={`import 'dart:convert';
+import 'package:${clientPackage(props.product)}/${clientPackage(props.product)}.dart' hide LoginRequest;
+import 'package:${clientPackage(props.product)}/src/model/login_models.dart' show LoginRequest;
 
 const thingsBoardApiEndpoint = '{BASE_URL}';
 
 void main() async {
+  final tbClient = ThingsboardClient(thingsBoardApiEndpoint);
   try {
-    var tbClient = ThingsboardClient(thingsBoardApiEndpoint);
-    await tbClient.login(LoginRequest('[email protected]', 'tenant'));
+    await tbClient.login(LoginRequest(userName: 'tenant@thingsboard.org', password: 'tenant'));
 
-    var device = Device('My test device', 'default');
-    device.additionalInfo = {'description': 'My test device!'};
+    final deviceApi = tbClient.getDeviceControllerApi();
+    final telemetryApi = tbClient.getTelemetryControllerApi();
 
-    var savedDevice = await tbClient.getDeviceService().saveDevice(device);
-    print('savedDevice: $savedDevice');
+    final device = Device((b) => b
+      ..name = 'My test device'
+      ..type = 'default'
+      ..label = 'Created from Dart');
+    final savedDevice = (await deviceApi.saveDevice(device: device)).data!;
+    final deviceId = savedDevice.id!.id;
+    print('savedDevice: \${savedDevice.name} ($deviceId)');
 
-    var foundDevice =
-        await tbClient.getDeviceService().getDeviceInfo(savedDevice.id!.id!);
-    print('foundDevice: $foundDevice');
+    final foundDevice = (await deviceApi.getDeviceInfoById(deviceId: deviceId)).data;
+    print('foundDevice: \${foundDevice?.name}');
 
     // Save shared attributes
-    var res = await tbClient.getAttributeService().saveEntityAttributesV2(
-        foundDevice!.id!,
-        AttributeScope.SHARED_SCOPE.toShortString(),
-        {'targetTemperature': 22.4, 'targetHumidity': 57.8});
-    print('Save attributes result: $res');
+    await telemetryApi.saveEntityAttributesV2(
+      entityType: 'DEVICE',
+      entityId: deviceId,
+      scope: 'SHARED_SCOPE',
+      body: jsonEncode({'targetTemperature': 22.4, 'targetHumidity': 57.8}),
+    );
 
-    // Get shared attributes
-    var attributes = await tbClient.getAttributeService().getAttributesByScope(
-        foundDevice.id!,
-        AttributeScope.SHARED_SCOPE.toShortString(),
-        ['targetTemperature', 'targetHumidity']);
-    print('Found device attributes: $attributes');
+    // Read shared attributes back
+    final attributes = await telemetryApi.getAttributesByScope(
+      entityType: 'DEVICE',
+      entityId: deviceId,
+      scope: 'SHARED_SCOPE',
+      keys: 'targetTemperature,targetHumidity',
+    );
+    for (final attribute in attributes.data ?? <AttributeData>[]) {
+      print('\${attribute.key} = \${attribute.value}');
+    }
 
     // Delete device
-    await tbClient.getDeviceService().deleteDevice(savedDevice.id!.id!);
+    await deviceApi.deleteDevice(deviceId: deviceId);
 
     await tbClient.logout();
-  } catch (e, s) {
-    print('Error: $e');
-    print('Stack: $s');
+  } catch (e) {
+    final error = toThingsboardError(e);
+    print('ThingsBoard error: \${error.message} (\${error.errorCode})');
   }
 }`} />
 
 ## WebSocket subscriptions
 
-Subscribe to real-time telemetry updates using WebSocket API:
+`tbClient.getTelemetryService()` returns the WebSocket telemetry service. Wrap one or more subscription commands in a `TelemetrySubscriber`, listen to its stream, and call `subscribe()`.
+The subscriber reconnects automatically if the connection drops.
 
-<HostCode product={props.product} lang="dart" meta="maxLines=40 collapsible" code={`import 'dart:math';
-import 'package:thingsboard_client/thingsboard_client.dart';
+The example subscribes to the latest `temperature` and `humidity` telemetry of a device, then posts sample values through the REST API so the updates arrive over WebSocket.
+The subscription helpers use the facade's own `EntityId` and `EntityType` types, which share their names with generated models, so hide the generated ones and import the facade's directly:
+
+<HostCode product={props.product} lang="dart" meta="maxLines=40 collapsible" code={`import 'dart:convert';
+import 'dart:math';
+import 'package:${clientPackage(props.product)}/${clientPackage(props.product)}.dart'
+    hide LoginRequest, EntityId, EntityType;
+import 'package:${clientPackage(props.product)}/src/model/login_models.dart' show LoginRequest;
+import 'package:${clientPackage(props.product)}/src/model/id/entity_id.dart' show EntityId;
+import 'package:${clientPackage(props.product)}/src/model/id/entity_type_models.dart' show EntityType;
 
 const thingsBoardApiEndpoint = '{BASE_URL}';
 
 void main() async {
+  final tbClient = ThingsboardClient(thingsBoardApiEndpoint);
   try {
-    var tbClient = ThingsboardClient(thingsBoardApiEndpoint);
-    await tbClient.login(LoginRequest('[email protected]', 'tenant'));
+    await tbClient.login(LoginRequest(userName: 'tenant@thingsboard.org', password: 'tenant'));
 
-    var device = Device('My test device', 'default');
-    device.additionalInfo = {'description': 'My test device!'};
-    var savedDevice = await tbClient.getDeviceService().saveDevice(device);
+    final deviceApi = tbClient.getDeviceControllerApi();
+    final telemetryApi = tbClient.getTelemetryControllerApi();
 
-    // Create entity query for the device
-    var entityFilter = EntityNameFilter(
-        entityType: EntityType.DEVICE, entityNameFilter: 'My test device');
-    var deviceFields = <EntityKey>[
-      EntityKey(type: EntityKeyType.ENTITY_FIELD, key: 'name'),
-      EntityKey(type: EntityKeyType.ENTITY_FIELD, key: 'type'),
-      EntityKey(type: EntityKeyType.ENTITY_FIELD, key: 'createdTime')
-    ];
-    var deviceTelemetry = <EntityKey>[
-      EntityKey(type: EntityKeyType.TIME_SERIES, key: 'temperature'),
-      EntityKey(type: EntityKeyType.TIME_SERIES, key: 'humidity')
-    ];
-    var devicesQuery = EntityDataQuery(
-        entityFilter: entityFilter,
-        entityFields: deviceFields,
-        latestValues: deviceTelemetry,
-        pageLink: EntityDataPageLink(
-            pageSize: 10,
-            sortOrder: EntityDataSortOrder(
-                key: EntityKey(
-                    type: EntityKeyType.ENTITY_FIELD, key: 'createdTime'),
-                direction: EntityDataSortOrderDirection.DESC)));
+    final device = Device((b) => b
+      ..name = 'My test device'
+      ..type = 'default');
+    final savedDevice = (await deviceApi.saveDevice(device: device)).data!;
+    final deviceId = savedDevice.id!.id;
 
-    // Subscribe to last hour of telemetry with real-time updates
-    var currentTime = DateTime.now().millisecondsSinceEpoch;
-    var timeWindow = Duration(hours: 1).inMilliseconds;
-    var tsCmd = TimeSeriesCmd(
-        keys: ['temperature', 'humidity'],
-        startTs: currentTime - timeWindow,
-        timeWindow: timeWindow);
-
-    var cmd = EntityDataCmd(query: devicesQuery, tsCmd: tsCmd);
-    var telemetryService = tbClient.getTelemetryService();
-    var subscription = TelemetrySubscriber(telemetryService, [cmd]);
-
-    subscription.entityDataStream.listen((entityDataUpdate) {
-      print('Received entity data update: $entityDataUpdate');
+    // Subscribe to the latest telemetry of the device
+    final subscriber = TelemetrySubscriber.createEntityAttributesSubscription(
+      telemetryService: tbClient.getTelemetryService(),
+      entityId: EntityId.fromTypeAndUuid(EntityType.DEVICE, deviceId),
+      attributeScope: 'LATEST_TELEMETRY',
+      keys: ['temperature', 'humidity'],
+    );
+    subscriber.dataStream.listen((update) {
+      update.data.forEach((key, values) {
+        for (final value in values) {
+          print('\$key = \${value.value} at \${value.ts}');
+        }
+      });
     });
-    subscription.subscribe();
+    subscriber.subscribe();
 
     // Post sample telemetry
-    var rng = Random();
+    final rng = Random();
     for (var i = 0; i < 5; i++) {
-      await Future.delayed(Duration(seconds: 1));
-      var telemetryRequest = {
-        'temperature': 10 + 20 * rng.nextDouble(),
-        'humidity': 30 + 40 * rng.nextDouble()
-      };
-      print('Save telemetry request: $telemetryRequest');
-      await tbClient.getAttributeService().saveEntityTelemetry(
-          savedDevice.id!, 'TELEMETRY', telemetryRequest);
+      await Future.delayed(const Duration(seconds: 1));
+      await telemetryApi.saveEntityTelemetry(
+        entityType: 'DEVICE',
+        entityId: deviceId,
+        scope: 'ANY',
+        body: jsonEncode({
+          'temperature': 10 + 20 * rng.nextDouble(),
+          'humidity': 30 + 40 * rng.nextDouble(),
+        }),
+      );
     }
 
-    await Future.delayed(Duration(seconds: 2));
-    subscription.unsubscribe();
+    await Future.delayed(const Duration(seconds: 2));
+    subscriber.unsubscribe();
 
-    await tbClient.getDeviceService().deleteDevice(savedDevice.id!.id!);
+    await deviceApi.deleteDevice(deviceId: deviceId);
     await tbClient.logout();
-  } catch (e, s) {
-    print('Error: $e');
-    print('Stack: $s');
+  } catch (e) {
+    final error = toThingsboardError(e);
+    print('ThingsBoard error: \${error.message} (\${error.errorCode})');
   }
 }`} />
 
+Other subscription types follow the same pattern. Pass the matching command to `TelemetrySubscriber` and listen to the corresponding stream:
+
+- `TimeseriesSubscriptionCmd` and `AttributesSubscriptionCmd` — `dataStream` (used by `createEntityAttributesSubscription` above)
+- `EntityDataCmd` — `entityDataStream`, entity data query results with live telemetry updates
+- `AlarmDataCmd` — `alarmDataStream`
+- `EntityCountCmd` — `entityCountStream`
+- `createNotificationsSubscription()` and `createNotificationCountSubscription()` — `notificationStream` and `notificationCountStream`
+- `reconnectStream` fires after the WebSocket connection has been re-established
+
+## Error handling
+
+Failed requests surface as a `ThingsboardError` with a `message`, an `errorCode` from the `ThingsBoardErrorCode` enum (for example `authentication`, `jwtTokenExpired`, `permissionDenied`, `itemNotFound`, `tooManyRequests`), and the HTTP `status` when available.
+Facade methods such as `login()` throw it directly; generated API classes throw a Dio `DioException` that carries the `ThingsboardError` in its `error` field.
+`toThingsboardError()` normalizes either form, so a single `catch` block covers both:
+
+<Code lang="dart" code={`try {
+  await tbClient.getDeviceControllerApi().getDeviceById(deviceId: 'missing-id');
+} catch (e) {
+  final error = toThingsboardError(e);
+  switch (error.errorCode) {
+    case ThingsBoardErrorCode.itemNotFound:
+      print('No such device');
+    case ThingsBoardErrorCode.permissionDenied:
+      print('Not allowed: \${error.message}');
+    default:
+      print('Request failed (\${error.status}): \${error.message}');
+  }
+}`} />
+
+The `onError` constructor callback receives the same `ThingsboardError` for every failed request, which is convenient for global handling such as redirecting to the login screen when the session expires.
+
+## Migrating from the legacy client
+
+The auto-generated client (`thingsboard_ce_client` {DART_CLIENT_VER.ce}, `thingsboard_pe_client` {DART_CLIENT_VER.pe}, `thingsboard_paas_client` {DART_CLIENT_VER.paas}) replaces the hand-written [dart_thingsboard_client](https://github.com/thingsboard/dart_thingsboard_client) (`thingsboard_client`) and [dart_thingsboard_pe_client](https://github.com/thingsboard/dart_thingsboard_pe_client) (`thingsboard_pe_client`) packages, whose last release is 4.2.1.
+The main differences:
+
+| Legacy client (up to 4.2.1) | Auto-generated client |
+|---|---|
+| `thingsboard_client` (CE), `thingsboard_pe_client` (PE) | `thingsboard_ce_client`, `thingsboard_pe_client`, `thingsboard_paas_client` |
+| Hand-written services: `tbClient.getDeviceService()` | One generated class per REST controller: `tbClient.getDeviceControllerApi()` |
+| `getTenantDevices(PageLink(10))` | `getTenantDevices(pageSize: 10, page: 0)` |
+| Methods return the model directly | Methods return a Dio `Response<T>`; the model is in `response.data` |
+| Mutable models: `Device('name', 'default')` | Immutable `built_value` models: `Device((b) => b..name = 'name'..type = 'default')` |
+| `LoginRequest('user', 'password')` | `LoginRequest(userName: 'user', password: 'password')` from `src/model/login_models.dart` |
+| `saveEntityAttributesV2(entityId, scope, {...})` | `saveEntityAttributesV2(entityType: 'DEVICE', entityId: id, scope: 'SHARED_SCOPE', body: jsonEncode({...}))` |
+| Requires ThingsBoard 3.6.3 or later | Requires ThingsBoard {clientVersion(props.product)} or later |
+
+The WebSocket layer (`TelemetrySubscriber`, subscription commands and streams) and the `ThingsboardError` type are carried over from the legacy client and work the same way.
+
 ## More examples
 
-Additional examples are available in the [dart_thingsboard_client](https://github.com/thingsboard/dart_thingsboard_client/tree/master/example) GitHub repository.
+- Runnable example: <a href={`https://github.com/thingsboard/thingsboard-dart-client/tree/master/${clientEdition(props.product)}/example`}>{clientEdition(props.product)}/example</a>
+- Generated API reference for every controller and model: <a href={`https://github.com/thingsboard/thingsboard-dart-client/tree/master/${clientEdition(props.product)}/doc`}>{clientEdition(props.product)}/doc</a>
+- Legacy client examples: [dart_thingsboard_client/example](https://github.com/thingsboard/dart_thingsboard_client/tree/master/example)

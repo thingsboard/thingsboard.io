@@ -1,11 +1,9 @@
 ---
-import { Products } from '@models/site.models.ts';
+import { Products, isCommunityProduct } from '@models/site.models.ts';
 import { externalLinkAttrs, newTabLinkLabel } from '@util/external-links';
 import { FAMILIES, SECTIONS, localFamilies, preferredOf, type Edition } from '@components/version-switcher.data';
-import { allPages } from '~/content';
 import { getVersionFromURL, switchVersionWithFallback } from '~/util/path-utils';
-import { RELEASE_FAMILIES, familySlug } from '~/models/releases-table';
-import { UPGRADE_FAMILIES, getFamilySlug } from '~/models/upgrade-instructions';
+import { docsPageIds } from '@util/docs-page-ids';
 
 // Inline SVGs as raw strings so their `currentColor` flows from the parent's CSS `color`.
 const iconSources = import.meta.glob<string>('/src/assets/images/docs/product-selector/*.svg', {
@@ -24,23 +22,7 @@ const currentFamily =
 	// If currentProduct is a region variant (PAAS_EU), find the family by region match
 	localFamilies.find((f) => f.regions?.options.some((r) => r.product === currentProduct))!;
 
-// Build the existing-pages set used by switchVersionWithFallback (incl. dynamic pages).
-const existingPageIds = new Set(allPages.map((p) => p.id));
-for (const f of RELEASE_FAMILIES) {
-	const slug = familySlug(f.family);
-	existingPageIds.add(`docs/releases/releases-table/${slug}`);
-	existingPageIds.add(`docs/pe/releases/releases-table/${slug}`);
-}
-const upgradePlatforms = ['ubuntu', 'centos', 'windows', 'docker', 'docker-compose'];
-for (const fam of UPGRADE_FAMILIES) {
-	const slug = getFamilySlug(fam);
-	for (const platform of upgradePlatforms) {
-		existingPageIds.add(`docs/installation/upgrade-instructions/${platform}/${slug}`);
-		existingPageIds.add(`docs/pe/installation/upgrade-instructions/${platform}/${slug}`);
-	}
-}
-
-const href = (target: Products) => switchVersionWithFallback(Astro.url.pathname, target, existingPageIds);
+const href = (target: Products) => switchVersionWithFallback(Astro.url.pathname, target, docsPageIds);
 
 // Edition pill is "active" if its product matches current OR if it's the
 // regional trigger and current is one of its region variants (so the Cloud
@@ -55,6 +37,14 @@ const isEditionActive = (e: Edition): boolean => {
 
 // Region row: shown only when family has regions AND current edition is a region variant.
 const activeRegion = currentFamily.regions?.options.find((r) => r.product === currentProduct) ?? null;
+
+// Hides Community per `isCommunityProduct` — except the edition being read, so a reader who
+// lands on a Community page keeps a second pill and therefore a route to the paid edition.
+// Filter here, never in FAMILIES: `currentFamily` is resolved from it by product.
+const visibleEditions = currentFamily.editions.filter(
+	(e) => !isCommunityProduct(e.product) || e.product === currentProduct
+);
+const showEditionSwitch = visibleEditions.length > 1;
 ---
 
 <product-selector data-family={currentFamily.id} data-edition={currentProduct}>
@@ -79,11 +69,15 @@ const activeRegion = currentFamily.regions?.options.find((r) => r.product === cu
 			</svg>
 		</button>
 
-		<!-- Edition switch: rendered when family has multiple editions -->
+		<!-- Edition switch: rendered when the family has more than one *visible* edition -->
 		{
-			currentFamily.editions.length > 1 && (
-				<div class="ps-switch" role="group" aria-label="Edition">
-					{currentFamily.editions.map((e) => (
+			showEditionSwitch && (
+				<div
+					class:list={['ps-switch', { 'ps-switch--equal': visibleEditions.length <= 2 }]}
+					role="group"
+					aria-label="Edition"
+				>
+					{visibleEditions.map((e) => (
 						<a
 							class:list={['ps-pill', { 'is-active': isEditionActive(e) }]}
 							href={href(e.product)}
@@ -444,12 +438,22 @@ const activeRegion = currentFamily.regions?.options.find((r) => r.product === cu
 	}
 
 	// ─── Edition switch ─────────────────────────────────────────────────────
-	// Content-sized pills with `flex: 0 1 auto` — each pill is sized to its
-	// own text (so "Professional" has natural padding, doesn't fill the cell
-	// edge-to-edge), and `space-evenly` distributes whatever room is left.
-	// If the sidebar narrows enough that pills can't fit, flex-shrink kicks
-	// in and the pills ellipsize (overflow:hidden + text-overflow:ellipsis)
-	// instead of overflowing the .ps-card.
+	// Two layout modes, chosen by how many editions are visible.
+	//
+	// Two options (`.ps-switch--equal`): pills share the row evenly, so the
+	// segmented control reads as one unit instead of a wide "On-premises"
+	// beside a narrow "Cloud". This is the common case now that Community is
+	// hidden — most families drop to one option and hide the row entirely,
+	// and the rest show exactly two.
+	//
+	// Three options: content-sized pills, the original behaviour. Equal
+	// thirds of the ~230px sidebar are narrower than "On-premises" needs, so
+	// forcing them even would ellipsize the label. Reachable on Community
+	// pages, where the core family still offers Community/On-premises/Cloud.
+	//
+	// Both modes keep nowrap + ellipsis as the backstop: if the sidebar
+	// narrows past what the pills need, they shrink and clip rather than
+	// overflowing the .ps-card.
 	.ps-switch {
 		display: flex;
 		justify-content: space-evenly;
@@ -458,6 +462,11 @@ const activeRegion = currentFamily.regions?.options.find((r) => r.product === cu
 		background: var(--sl-color-gray-7);
 		border: 1px solid var(--sl-color-hairline-light);
 		border-radius: 8px;
+	}
+
+	.ps-switch--equal .ps-pill {
+		// `0` basis, not `auto`: widths come from the shared row, not the label.
+		flex: 1 1 0;
 	}
 
 	.ps-pill {

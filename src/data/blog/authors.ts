@@ -15,7 +15,9 @@ export const BLOG_AUTHORS: BlogAuthor[] = [
 	{
 		slug: 'andrew-shvaika',
 		name: 'Andrew Shvaika',
-		avatar: 'https://secure.gravatar.com/avatar/1e5a609c8d5b265cd9317f43bf4df549?s=96&d=mm&r=g',
+		// The Our Company portrait, recropped to the face — every other author
+		// here is a 96px Gravatar, so this one is served locally.
+		avatar: '/images/blog/authors/andrew-shvaika.webp',
 	},
 	{
 		slug: 'andrii-ponomarov',

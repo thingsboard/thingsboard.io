@@ -76,7 +76,7 @@ export const data: CaseStudyData = {
 			},
 			{
 				title: 'Ready-to-use mobile applications for customer services',
-				text: 'Wiifor clients can also benefit from dedicated mobile applications connected to their ThingsBoard-based services. These applications can be customized for each project or customer environment, providing a branded and user-friendly mobile experience without the need for a full custom mobile development project.<br/><br/>The ThingsBoard PE Mobile Application makes it possible to deliver cross-platform applications for both Android and iOS, with customized navigation, access to dashboards, device data, alarms, and mobile push notifications. For Wiifor clients, this means faster deployment of mobile services, easier access to operational information in the field, and real-time notifications when important events or alarms occur.',
+				text: 'Wiifor clients can also benefit from dedicated mobile applications connected to their ThingsBoard-based services. These applications can be customized for each project or customer environment, providing a branded and user-friendly mobile experience without the need for a full custom mobile development project.<br/><br/>The ThingsBoard Mobile Application Builder makes it possible to deliver cross-platform applications for both Android and iOS, with customized navigation, access to dashboards, device data, alarms, and mobile push notifications. For Wiifor clients, this means faster deployment of mobile services, easier access to operational information in the field, and real-time notifications when important events or alarms occur.',
 				image: '/images/case-studies/wiifor-4.webp',
 				imageAlt: 'Ready-to-use mobile applications for customer services',
 			},
@@ -84,7 +84,7 @@ export const data: CaseStudyData = {
 	},
 
 	customerQuote: {
-		text: 'The richness of their open-source IoT platform (ThingsBoard), together with their ability to develop IoT electronic systems and custom web applications, were key factors in our decision to select Wiifor as our partner for this project.',
+		text: 'The richness of their IoT platform (ThingsBoard), together with their ability to develop IoT electronic systems and custom web applications, were key factors in our decision to select Wiifor as our partner for this project.',
 		author: 'Philippe Junca',
 		role: 'Co-founder & CEO, IoTOPICS',
 	},
@@ -185,7 +185,7 @@ export const data: CaseStudyData = {
 	},
 
 	authoredQuote: {
-		text: '"Since my early days at Wiifor, I have been working with ThingsBoard, and choosing this platform to develop our IoT offerings has proven to be the right decision.<br/><br/>ThingsBoard stands out from other IoT platforms on the market thanks to its open-source approach, which is a key differentiator, as well as its ability to support virtually any type of sensor, connectivity protocol, data processing logic, use case, and customer topology.<br/><br/>Its software architecture has been designed in a broad, flexible, and generic way, making it possible to address a wide variety of IoT ecosystems and to adapt quickly to the constant changes shaping the IoT landscape.<br/><br/>Thanks to ThingsBoard, we are able to help our customers optimize their operations and costs, while improving comfort and delivering better experiences for their end users.<br/><br/>This is precisely why ThingsBoard has become a strong technology partner for Wiifor in building scalable, adaptable, and future-ready IoT solutions."',
+		text: '"Since my early days at Wiifor, I have been working with ThingsBoard, and choosing this platform to develop our IoT offerings has proven to be the right decision.<br/><br/>ThingsBoard stands out from other IoT platforms on the market thanks to its ability to support virtually any type of sensor, connectivity protocol, data processing logic, use case, and customer topology.<br/><br/>Its software architecture has been designed in a broad, flexible, and generic way, making it possible to address a wide variety of IoT ecosystems and to adapt quickly to the constant changes shaping the IoT landscape.<br/><br/>Thanks to ThingsBoard, we are able to help our customers optimize their operations and costs, while improving comfort and delivering better experiences for their end users.<br/><br/>This is precisely why ThingsBoard has become a strong technology partner for Wiifor in building scalable, adaptable, and future-ready IoT solutions."',
 		author: 'Elie Taillardat',
 		role: 'Platform & IoT Solutions Manager, Software Engineer',
 		company: 'Wiifor',

@@ -2,7 +2,723 @@
 title: Google Cloud Pub/Sub Integration
 description: Connect Google Cloud Pub/Sub to ThingsBoard to ingest device telemetry from Pub/Sub pull subscriptions.
 ---
-import PageComponent from '@includes/docs/user-guide/integrations/pub-sub.mdx'
-import { Products } from '~/models/site.models'
+import DocLink from '@components/DocLink.astro';
+import Banner from '@components/Banner.astro';
+import ImageGallery from '@components/ImageGallery.astro';
+import { Aside, Steps } from '@astrojs/starlight/components';
+import { Products } from '@models/site.models';
+import Tabs from '@components/Tabs.astro';
+import TabItem from '@components/TabItem.astro';
 
-<PageComponent product={Products.CE}/>
+<Banner variant="peFeature" product={Products.CE} path="installation/" />
+<a href="https://cloud.google.com/pubsub" target="_blank" rel="noopener noreferrer"><strong>Google Cloud Pub/Sub</strong></a> is a fully managed publish/subscribe messaging service. The ThingsBoard Pub/Sub integration connects to a GCP **pull subscription** as a subscriber: it reads messages published to a topic, decodes them with an uplink converter, and stores the resulting telemetry and attributes in ThingsBoard.
+
+## Architecture
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/pub-sub-integration-architecture.svg', alt: 'Google Cloud Pub/Sub integration architecture showing message flow from a Pub/Sub subscription to ThingsBoard', caption: 'Google Cloud Pub/Sub integration architecture. Messages are consumed from a Pub/Sub subscription, converted by the Pub/Sub Integration using the uplink data converter, and forwarded to the ThingsBoard Core Service.' },
+]} />
+
+A device or cloud service publishes a message to a Pub/Sub topic, and the message is delivered to the pull subscription that ThingsBoard consumes. The integration reads the message and forwards it to the uplink converter, which decodes the payload into telemetry and attributes, and the ThingsBoard Core Service stores the data, provisioning the device automatically on the first message.
+
+<Aside type="note">
+  The Pub/Sub integration is **uplink-only** — it has no downlink converter. To publish messages from ThingsBoard back to a Pub/Sub topic, use the <DocLink product={Products.CE} path="reference/rule-engine/nodes/external/gcp-pubsub" bold={true} target="_blank">GCP Pub/Sub rule node</DocLink> — see <a href="#configure-downlink">Configure Downlink</a>.
+</Aside>
+
+## Prerequisites
+
+Before creating the integration, ensure:
+
+- You have access to <DocLink product={Products.PE} path="installation/" target="_blank">ThingsBoard PE</DocLink> or <a href="/installations/?product=thingsboard-cloud" target="_blank" rel="noopener noreferrer"><strong>ThingsBoard Cloud</strong></a> with integration functionality enabled for your tenant.
+- You have permissions to create integrations and data converters.
+- You have a Google Cloud project with the **Cloud Pub/Sub API** enabled.
+- You can create Pub/Sub topics, subscriptions, and service accounts in that project (or someone can provide them to you).
+
+## Set Up Google Cloud Pub/Sub
+
+Prepare the topic, subscription, and service account in the <a href="https://console.cloud.google.com" target="_blank" rel="noopener noreferrer">Google Cloud Console</a> before creating the integration in ThingsBoard.
+
+### Enable the Cloud Pub/Sub API
+
+<Steps>
+1. Open your GCP project and click **Search** in the top toolbar, then search for **Cloud Pub/Sub API**.
+2. Select **Cloud Pub/Sub API** from the search results.
+3. On the Cloud Pub/Sub API page, click **Enable** if not already enabled.
+4. Once enabled, the API details page shows **Status: Enabled**.
+</Steps>
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/user-guide/integrations/pub-sub/enable-pub-sub-api-1.png',
+    alt: 'GCP project dashboard with the Search field in the top toolbar',
+    caption: 'Open your GCP project and click Search in the top toolbar.'
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/pub-sub/enable-pub-sub-api-2.png',
+    alt: 'GCP search results showing Cloud Pub/Sub API under Top results',
+    caption: 'Search for "Cloud Pub/Sub API" and select it from the results.'
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/pub-sub/enable-pub-sub-api-3.png',
+    alt: 'Cloud Pub/Sub API product details page with Enable button',
+    caption: 'Click Enable to activate the Cloud Pub/Sub API for your project.'
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/pub-sub/enable-pub-sub-api-4.png',
+    alt: 'Cloud Pub/Sub API details page showing Status: Enabled',
+    caption: 'Once enabled, the API details page shows Status: Enabled.'
+  },
+]} />
+
+### Create the Uplink Topic and Subscription
+
+<Steps>
+1. Click **Search** in the top toolbar, search for **Pub/Sub**, and select **Pub/Sub** from the results.
+2. Go to the **Topics** page and click **Create topic**.
+3. Enter a **Topic ID** (e.g. `tb-uplink`) and keep **Add a default subscription** checked — this creates a pull subscription together with the topic.
+4. Scroll down and click **Create**.
+5. GCP creates the topic and its subscription (e.g. `tb-uplink-sub`) together, listed in the topic's **Subscriptions** tab.
+6. Open the subscription to confirm its **Subscription state** is **active** and it uses **Pull** delivery.
+</Steps>
+
+<Aside type="note">
+  ThingsBoard uses pull subscriptions to read messages. Push subscriptions are not supported by the integration.
+</Aside>
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/user-guide/integrations/pub-sub/create-topic-and-subscription-1.png',
+    alt: 'GCP search results for "Pub/Sub" showing Topics and Subscriptions product pages',
+    caption: 'Click Search in the top toolbar, search for "Pub/Sub", and select Topics.'
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/pub-sub/create-topic-and-subscription-2.png',
+    alt: 'GCP Pub/Sub Topics list page with Create topic button',
+    caption: 'Go to the Topics page and click Create topic.'
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/pub-sub/create-topic-and-subscription-3.png',
+    alt: 'Create topic form with Topic ID field set to tb-uplink and Add a default subscription checked',
+    caption: 'Enter a Topic ID (e.g. tb-uplink) and keep Add a default subscription checked.'
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/pub-sub/create-topic-and-subscription-4.png',
+    alt: 'Create topic form scrolled down to the Create button',
+    caption: 'Scroll down and click Create.'
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/pub-sub/create-topic-and-subscription-5.png',
+    alt: 'Topic tb-uplink details page showing the Subscriptions tab with the automatically created tb-uplink-sub subscription',
+    caption: 'GCP creates the topic and its subscription (e.g. tb-uplink-sub) together.'
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/pub-sub/create-topic-and-subscription-6.png',
+    alt: 'Subscription tb-uplink-sub details page showing an active subscription state and Pull metrics',
+    caption: 'Open the subscription to confirm it is active and uses Pull delivery.'
+  },
+]} />
+
+### Create a Service Account and Download the Key
+
+ThingsBoard authenticates to GCP using a service account key. The account needs at least the **Pub/Sub Subscriber** role to receive uplink messages.
+
+<Steps>
+1. Click **Search** in the top toolbar, search for **Service Accounts**, and select it from the results.
+2. On the **Service accounts** page, click **Create service account**.
+3. Enter a name (e.g. `tb-pubsub`) and click **Create and continue**.
+4. In the **Permissions** step, search for the **Pub/Sub Subscriber** role and select it.
+5. With the role assigned, click **Continue**, then **Done**.
+6. The service account appears in the list with status **Enabled**. Click its email to open it.
+7. Go to the **Keys** tab and click **Add key &#8702; Create new key**.
+8. Select **JSON** as the key type and click **Create**.
+9. The private key file downloads automatically — store it securely; you will upload it to ThingsBoard when creating the integration.
+10. The key now appears as **Active** in the **Keys** tab.
+</Steps>
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/user-guide/integrations/pub-sub/create-service-account-1.png',
+    alt: 'GCP search results for "IAM & Admin Service Accounts" showing the Service Accounts product page',
+    caption: 'Click Search in the top toolbar, search for "Service Accounts", and select it from the results.'
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/pub-sub/create-service-account-2.png',
+    alt: 'GCP Service accounts page, empty list, with Create service account button',
+    caption: 'On the Service accounts page, click Create service account.'
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/pub-sub/create-service-account-3.png',
+    alt: 'Create service account — step 1: Service account name set to tb-pubsub',
+    caption: 'Enter a name (e.g. tb-pubsub) and click Create and continue.'
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/pub-sub/create-service-account-4.png',
+    alt: 'Create service account — Permissions step with role search showing Pub/Sub Subscriber',
+    caption: 'In the Permissions step, search for the Pub/Sub Subscriber role and select it.'
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/pub-sub/create-service-account-5.png',
+    alt: 'Create service account — Permissions step with Pub/Sub Subscriber role assigned and Continue button',
+    caption: 'With the role assigned, click Continue, then Done.'
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/pub-sub/create-service-account-6.png',
+    alt: 'Service accounts list showing tb-pubsub account with status Enabled',
+    caption: 'The service account appears in the list with status Enabled. Click its email to open it.'
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/pub-sub/create-service-account-7.png',
+    alt: 'Service account Keys tab with Add key dropdown showing Create new key and Upload existing key',
+    caption: 'Go to the Keys tab and click Add key → Create new key.'
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/pub-sub/create-service-account-8.png',
+    alt: 'Create private key dialog — JSON key type selected',
+    caption: 'Select JSON as the key type and click Create.'
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/pub-sub/create-service-account-9.png',
+    alt: 'Private key saved to computer confirmation dialog',
+    caption: 'The private key file downloads automatically — store it securely; you will upload it to ThingsBoard when creating the integration.'
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/pub-sub/create-service-account-10.png',
+    alt: 'Service account Keys tab showing the newly created JSON key with status Active',
+    caption: 'The key now appears as Active in the Keys tab.'
+  },
+]} />
+
+## Set Up the Pub/Sub Integration
+
+To set up the **Pub/Sub** integration, first create an uplink data converter to process incoming messages, then create and configure the integration.
+
+### Create the Uplink Data Converter
+
+The uplink converter decodes incoming Pub/Sub messages and maps them to the ThingsBoard data model. Pub/Sub uses a <DocLink product={Products.CE} path="user-guide/integrations/uplink-data-converter" target="_blank">generic uplink converter</DocLink>.
+
+The decoder function receives:
+- `payload` — the raw Pub/Sub message data as a UTF-8 byte array
+- `metadata` — `integrationName` and any key-value pairs configured in the integration's Metadata settings
+
+<Aside type="tip">
+  Use <DocLink product={Products.CE} path="user-guide/tbel">TBEL</DocLink> for converter scripts — it executes significantly faster than plain JavaScript inside ThingsBoard.
+</Aside>
+
+**Sample payload:**
+
+```json
+{
+  "deviceName": "Sensor A1",
+  "deviceType": "thermostat",
+  "temperature": 23.5,
+  "humidity": 60
+}
+```
+
+<Steps>
+  <ol start="1">
+    <li>Go to <strong>Integrations center &#8702; Data converters</strong>.</li>
+    <li>Click <strong>+ Add data converter &#8702; Create new converter</strong>.</li>
+  </ol>
+</Steps>
+
+In the **Add data converter** dialog:
+
+<Steps>
+  <ol start="3">
+    <li><strong>Converter type</strong> — leave <strong>Uplink</strong> (selected by default).</li>
+    <li><strong>Integration type</strong> — in the search field, enter <code>Pub/Sub</code> and select <strong>Pub/Sub</strong> from the list.</li>
+    <li><strong>Name</strong> — enter a converter name, for example <code>Pub/Sub Uplink Converter</code>.</li>
+    <li><strong>Main decoding configuration</strong> — a code editor with the function signature <code>function decoder(payload, metadata) &#123;</code>. Paste the decoder function shown below. By default the editor opens in TBEL; use the <strong>TBEL / JS</strong> toggle (upper right) to switch languages.</li>
+    <li>Click <strong>Add</strong>.</li>
+  </ol>
+</Steps>
+
+<Aside type="tip">
+  Use <DocLink product={Products.CE} path="user-guide/tbel">TBEL</DocLink> for converter scripts — it executes significantly faster than plain JavaScript inside ThingsBoard.
+</Aside>
+
+**The decoder function used in this tutorial:**
+
+<Tabs>
+  <TabItem label="TBEL (Recommended)">
+    ```js maxLines=15 collapsible
+    // Decode an uplink message from a buffer
+    // payload - array of bytes
+    // metadata - key/value object
+
+    /** Decoder **/
+
+    // decode payload to JSON
+    var data = decodeToJson(payload);
+
+    // --- Device name and type ---
+    var deviceName = data.deviceName != null ? data.deviceName : 'Unknown Device';
+    var deviceType = data.deviceType != null ? data.deviceType : 'default';
+    // var customerName = 'Customer C';
+    // var groupName = 'thermostat devices';
+
+    // use assetName and assetType instead of deviceName and deviceType
+    // to automatically create assets instead of devices.
+    // var assetName = 'Asset A';
+    // var assetType = 'building';
+
+    // --- Timestamp parsing ---
+    var timestamp = -1;
+    if (data.ts != null) {
+      timestamp = data.ts;
+    } else if (data.timestamp != null) {
+      timestamp = new Date(data.timestamp).getTime();
+    }
+      if (timestamp == -1) {
+      timestamp = Date.now();
+    }
+
+    // --- Telemetry and attributes ---
+    var telemetry = {};
+    var attributes = {
+      integrationName: metadata['integrationName'],
+    };
+
+    // Keys to exclude from telemetry (already used or non-telemetry fields)
+    var excludeFromTelemetryList = ["deviceName", "deviceType", "ts", "timestamp"];
+
+    // Parse all remaining JSON fields as telemetry
+    telemetry.putAll(toFlatMap(data, excludeFromTelemetryList, true));
+
+    // Result object with device attributes/telemetry data
+    var result = {
+      deviceName: deviceName,
+      deviceType: deviceType,
+      // customerName: customerName,
+      // groupName: groupName,
+      // assetName: assetName,
+      // assetType: assetType,
+      attributes: attributes,
+      telemetry: {
+        ts: timestamp,
+        values: telemetry
+      }
+    };
+
+    /** Helper functions 'decodeToString', 'decodeToJson' and 'toFlatMap' are already built-in **/
+
+    return result;
+    ```
+  </TabItem>
+  <TabItem label="JavaScript">
+    ```js maxLines=15 collapsible
+    // Decode an uplink message from a buffer
+    // payload - array of bytes
+    // metadata - key/value object
+
+    /** Decoder **/
+
+    // decode payload to JSON
+    var data = decodeToJson(payload);
+
+    // --- Device name and type ---
+    var deviceName = data.deviceName != null ? data.deviceName : 'Unknown Device';
+    var deviceType = data.deviceType != null ? data.deviceType : 'default';
+    // var customerName = 'Customer C';
+    // var groupName = 'thermostat devices';
+
+    // use assetName and assetType instead of deviceName and deviceType
+    // to automatically create assets instead of devices.
+    // var assetName = 'Asset A';
+    // var assetType = 'building';
+
+    // --- Timestamp parsing ---
+    var timestamp = -1;
+    if (data.ts != null) {
+      timestamp = data.ts;
+    } else if (data.timestamp != null) {
+      timestamp = new Date(data.timestamp).getTime();
+    }
+    if (timestamp == -1) {
+      timestamp = Date.now();
+    }
+
+    // --- Telemetry and attributes ---
+    var telemetry = {};
+    var attributes = {
+      integrationName: metadata['integrationName'],
+    };
+
+    // Keys to exclude from telemetry (already used or non-telemetry fields)
+    var excludeFromTelemetryList = ["deviceName", "deviceType", "ts", "timestamp"];
+
+    // Parse all remaining JSON fields as telemetry
+    toFlatMap(data, telemetry, excludeFromTelemetryList);
+
+    // Result object with device attributes/telemetry data
+    var result = {
+      deviceName: deviceName,
+      deviceType: deviceType,
+      // customerName: customerName,
+      // groupName: groupName,
+      // assetName: assetName,
+      // assetType: assetType,
+      attributes: attributes,
+      telemetry: {
+        ts: timestamp,
+        values: telemetry
+      }
+    };
+
+    /** Helper functions **/
+
+    function decodeToString(payload) {
+      return String.fromCharCode.apply(String, payload);
+    }
+
+    function decodeToJson(payload) {
+      var str = decodeToString(payload);
+      return JSON.parse(str);
+    }
+
+    function toFlatMap(obj, result, excludeList, prefix) {
+      prefix = prefix || '';
+      for (var key in obj) {
+        if (excludeList.indexOf(key) !== -1) continue;
+        var value = obj[key];
+        var fullKey = prefix ? prefix + '.' + key : key;
+        if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+          toFlatMap(value, result, excludeList, fullKey);
+        } else {
+          result[fullKey] = value;
+        }
+      }
+    }
+
+    return result;
+    ```
+  </TabItem>
+</Tabs>
+
+**To adapt this converter to your device:**
+
+- **Different device name / type fields** — replace `data.deviceName` and `data.deviceType` with the field names your device actually sends (e.g. `data.id`, `data.sensorType`).
+- **Timestamp** — if your payload includes a Unix millisecond timestamp, name the field `ts`; for an ISO 8601 string, name it `timestamp`. If neither is present, the converter falls back to the server receive time automatically.
+- **Telemetry fields** — all JSON fields not listed in `excludeFromTelemetryList` are mapped to telemetry automatically via `toFlatMap`. To exclude additional non-telemetry fields (e.g. a firmware version you want as an attribute), add their names to the exclude list.
+- **Static attributes** — replace `model` and `serialNumber` in the `attributes` object with the actual device properties from your payload or hard-coded values; remove the entries if not needed.
+- **Assets instead of devices** — uncomment `assetName` / `assetType` and comment out `deviceName` / `deviceType` to provision assets instead of devices.
+- **Customer or group assignment** — uncomment `customerName` or `groupName` and set the appropriate values to assign the device to a customer or device group.
+
+### Create the Pub/Sub Integration
+
+<Steps>
+  <ol start="1">
+    <li>Go to <strong>Integrations center &#8702; Integrations</strong> and click <strong>+ Add integration</strong>.</li>
+    <li>
+      <span><strong>Basic settings:</strong></span>
+      <ul>
+        <li>Set <strong>Integration type</strong> to <strong>Pub/Sub</strong>.</li>
+        <li>Enter a <strong>Name</strong> for the integration, or keep the default <code>Pub/Sub integration</code>.</li>
+        <li>Leave <strong>Enable integration</strong> and <strong>Allow create devices or assets</strong> on so a device is created automatically on first message.</li>
+        <li>Click <strong>Next</strong>.</li>
+      </ul>
+    </li>
+    <li>
+      <span><strong>Uplink data converter:</strong></span>
+      <ul>
+        <li>Click <strong>Select existing</strong> and choose the <a href="#create-the-uplink-data-converter"><strong>Pub/Sub Uplink Converter</strong></a> created above, or click <strong>Create new</strong> to define the decoder inline.</li>
+        <li>Click <strong>Next</strong>.</li>
+      </ul>
+    </li>
+    <li>
+      <span><strong>Connection:</strong></span>
+      <ul>
+        <li><strong>Project ID</strong> — your GCP project ID (e.g. <code>tb-pubsub-integration</code>).</li>
+        <li><strong>Subscription ID</strong> — the pull subscription name (e.g. <code>tb-uplink-sub</code>).</li>
+        <li><strong>Service account key</strong> — upload the JSON key file via <strong>Browse file</strong>, or click <strong>Use Secret storage</strong> to reference a stored secret.</li>
+      </ul>
+      <span>See <a href="#connection-settings"><strong>connection settings</strong></a> for a full description of each parameter.</span>
+    </li>
+    <li>Click <strong>Add</strong>.</li>
+  </ol>
+</Steps>
+
+<Aside type="note">
+  Enabling **Debug mode** stores all integration events in the database. Starting from ThingsBoard 3.9, full debug events are retained only for the first 15 minutes after the integration is created — afterward, only error events are stored.
+</Aside>
+
+
+#### Connection Settings
+
+<h5>Project ID</h5>
+
+Your Google Cloud project ID. Found in the project selector dropdown in the GCP Console or on the **Project info** card on the dashboard.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/user-guide/integrations/pub-sub/find-project-id.png',
+    alt: 'GCP project dashboard with the Project ID field highlighted',
+    caption: 'The Project ID is shown on the GCP project dashboard, next to the project number.'
+  },
+]} />
+
+<h5>Subscription ID</h5>
+
+The pull subscription name on the uplink topic (e.g. `tb-uplink-sub`). The subscription must exist in GCP before the integration is created. ThingsBoard reads messages through this subscription — it is already bound to the topic in GCP.
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/user-guide/integrations/pub-sub/find-subscription-id.png',
+    alt: 'GCP subscription details page showing the subscription name tb-uplink-sub',
+    caption: 'The Subscription ID is the last segment of the Subscription name on the subscription details page (e.g. tb-uplink-sub).'
+  },
+]} />
+
+<h5>Service Account Key</h5>
+
+The GCP service account key JSON file. The account must have at least `roles/pubsub.subscriber` on the uplink subscription. Upload the file using **Browse file**, or store it in ThingsBoard Secret storage and reference it via **Use Secret storage**.
+
+<h5>Execute Remotely</h5>
+
+When enabled, ThingsBoard generates an **Integration key** and **Integration secret** that allow the integration to run as a separate process outside the ThingsBoard cluster — useful when access to GCP is restricted to a specific network. See <DocLink product={Products.CE} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink>.
+
+<h5>Advanced Settings</h5>
+
+| Parameter | Description |
+|-----------|-------------|
+| **Description** | Optional text description for the integration. |
+| **Metadata** | Key-value pairs injected into every uplink message as `integrationMetadata` in the converter script. |
+
+<Aside type="note">
+  In addition to any custom metadata, ThingsBoard automatically injects `pubSubMsgId` — the unique message ID assigned by GCP Pub/Sub — into every uplink event. This can be used for deduplication or message tracing.
+</Aside>
+
+## Test Uplink
+
+<Aside type="note">
+  Before testing, ensure **Debug** mode with the **All messages** option is enabled for both the integration and the converter, so you can inspect received messages and conversion results on the **Events** tabs.
+</Aside>
+
+### Publish a Test Message to the Uplink Topic
+
+Publish a test message to the uplink topic using the `gcloud` CLI or the GCP Console.
+
+<Tabs>
+  <TabItem label="GCP Console">
+    <Steps>
+      1. Go to **Pub/Sub &#8702; Topics** and open the **tb-uplink** topic.
+      2. On the **Messages** tab, click **Publish message** under **Step 1**.
+      3. Paste the JSON payload into the **Message body** field and click **Publish**.
+      4. A **Message published** confirmation appears once the message is delivered.
+    </Steps>
+
+    ```
+    {
+      "deviceName":"Sensor A1",
+      "deviceType":"thermostat",
+      "temperature":23.5,
+      "humidity":60
+    }
+    ```
+
+    <ImageGallery images={[
+      {
+        src: '/src/assets/images/user-guide/integrations/pub-sub/send-test-uplink-1.png',
+        alt: 'GCP Pub/Sub Topics list with the tb-uplink topic',
+        caption: 'Go to Pub/Sub → Topics and open the tb-uplink topic.'
+      },
+      {
+        src: '/src/assets/images/user-guide/integrations/pub-sub/send-test-uplink-2.png',
+        alt: 'Topic tb-uplink Messages tab showing Step 1: Publish message button',
+        caption: 'On the Messages tab, click Publish message under Step 1.'
+      },
+      {
+        src: '/src/assets/images/user-guide/integrations/pub-sub/send-test-uplink-3.png',
+        alt: 'Publish message dialog with the test JSON payload in the Message body field',
+        caption: 'Paste the JSON payload into the Message body field and click Publish.'
+      },
+      {
+        src: '/src/assets/images/user-guide/integrations/pub-sub/send-test-uplink-4.png',
+        alt: 'Topic page showing a "Message published." confirmation toast',
+        caption: 'A Message published confirmation appears once the message is delivered.'
+      },
+    ]} />
+  </TabItem>
+  <TabItem label="gcloud CLI">
+  Replace `tb-uplink` with your topic name and `my-gcp-project` with your GCP project ID if they differ:
+
+  ```bash
+  gcloud pubsub topics publish tb-uplink \
+    --message='{"deviceName":"Sensor A1","deviceType":"thermostat","temperature":23.5,"humidity":60}' \
+    --project=my-gcp-project
+  ```
+  </TabItem>
+</Tabs>
+
+### Verify Integration Events
+
+Go to **Integrations center &#8702; Integrations**, open the **Pub/Sub integration**, and check the **Events** tab. One **Uplink** event appears with status **OK**. Click **…** in the **Message** column to inspect the raw payload pulled from the subscription.
+
+
+### Verify Converter Events
+
+Go to **Integrations center &#8702; Data converters**, click the uplink converter, and open its **Events** tab. Click **…** in the respective column to inspect each field:
+- **In** — the raw payload passed to the converter.
+- **Out** — the decoded result: `deviceName`, `deviceType`, `attributes`, and `telemetry` (temperature, humidity).
+- **Metadata** — `integrationName` and `pubSubMsgId` (the unique message ID assigned by GCP Pub/Sub).
+
+
+### Verify Device Provisioning
+
+Go to **Entities &#8702; Devices**. The device **Sensor A1** is automatically provisioned on the first message. Open it and check the **Latest telemetry** tab — `temperature` and `humidity` should reflect the published values.
+
+
+## Configure Downlink
+
+The Pub/Sub integration is uplink-only — it has no downlink converter. To publish messages from ThingsBoard back to a GCP Pub/Sub topic — for example, sending a command to a device or triggering a Cloud Function — add the <DocLink product={Products.CE} path="reference/rule-engine/nodes/external/gcp-pubsub" target="_blank">GCP Pub/Sub rule node</DocLink> directly to a <DocLink product={Products.CE} path="user-guide/rule-engine/#rule-chain" target="_blank">Rule Chain</DocLink>. It publishes the message payload it receives as-is, independent of the uplink integration.
+
+### Create the Downlink Topic
+
+In the GCP Console, create a separate topic for outgoing messages (e.g. `tb-downlink`) — do not reuse the uplink topic.
+
+<Steps>
+1. Go to **Pub/Sub &#8702; Topics** and click **Create topic**.
+2. Enter a **Topic ID** (e.g. `tb-downlink`). Keep **Add a default subscription** checked — it gives you a subscription (e.g. `tb-downlink-sub`) you can pull from later to verify published messages.
+3. Scroll down and click **Create**.
+4. GCP creates the topic and its subscription together, listed in the topic's **Subscriptions** tab.
+</Steps>
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/user-guide/integrations/pub-sub/publish-downlink-create-topic-1.png',
+    alt: 'GCP Pub/Sub Topics list with Create topic button',
+    caption: 'Go to Pub/Sub → Topics and click Create topic.'
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/pub-sub/publish-downlink-create-topic-2.png',
+    alt: 'Create topic form with Topic ID field set to tb-downlink and Add a default subscription checked',
+    caption: 'Enter a Topic ID (e.g. tb-downlink) and keep Add a default subscription checked.'
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/pub-sub/publish-downlink-create-topic-3.png',
+    alt: 'Create topic form scrolled down to the Create button',
+    caption: 'Scroll down and click Create.'
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/pub-sub/publish-downlink-create-topic-4.png',
+    alt: 'Topic tb-downlink details page showing the Subscriptions tab with the automatically created tb-downlink-sub subscription',
+    caption: 'GCP creates the topic and its subscription (e.g. tb-downlink-sub) together.'
+  },
+]} />
+
+### Grant Publish Access to the Service Account
+
+The service account created earlier (see <a href="#create-a-service-account-and-download-the-key"><strong>Create a Service Account and Download the Key</strong></a>) only has the **Pub/Sub Subscriber** role, which lets it *pull* messages — it cannot publish. Grant it **Pub/Sub Publisher** on the new topic, or the rule node fails with a `PERMISSION_DENIED` error.
+
+<Steps>
+1. Open the **tb-downlink** topic and go to its **Permissions** tab, then click **Add principal**.
+2. Under **New principals**, enter the service account's email (e.g. `tb-pubsub@tb-pubsub-integration.iam.gserviceaccount.com`).
+3. Under **Assign roles**, select **Pub/Sub Publisher**, then click **Save**.
+4. The topic's Permissions tab now lists **Pub/Sub Publisher** alongside the existing **Pub/Sub Subscriber** role.
+</Steps>
+
+<Aside type="tip">
+  To keep uplink and downlink credentials separate, you can instead create a dedicated service account with only the Publisher role on `tb-downlink` and use its key in the rule node below.
+</Aside>
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/user-guide/integrations/pub-sub/publish-downlink-grant-publisher-1.png',
+    alt: 'Grant access to tb-downlink panel with Assign roles search showing Pub/Sub Publisher',
+    caption: 'On the tb-downlink topic\'s Permissions tab, click Add principal and search for the Pub/Sub Publisher role.'
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/pub-sub/publish-downlink-grant-publisher-2.png',
+    alt: 'Grant access to tb-downlink panel with the service account email entered as a new principal and Pub/Sub Publisher role selected',
+    caption: 'Enter the service account email under New principals, select Pub/Sub Publisher, and click Save.'
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/pub-sub/publish-downlink-grant-publisher-3.png',
+    alt: 'tb-downlink topic Permissions tab listing Owner, Pub/Sub Publisher, and Pub/Sub Subscriber roles',
+    caption: 'The topic now grants the service account both Publisher and Subscriber roles.'
+  },
+]} />
+
+### Configure the Root Rule Chain
+
+<Steps>
+1. Go to **Rule chains** and open the **Root Rule Chain**.
+2. In the node palette on the left, search for **gcp pubsub** (under **External**) and drag it onto the canvas.
+3. In the **Add rule node** dialog, enter a **Name** (e.g. `PubSub Downlink`), the **GCP project ID** (e.g. `tb-pubsub-integration`), and the **Topic name** (e.g. `tb-downlink`).
+4. Upload the **GCP service account key file** — you can reuse the same key from the uplink service account now that it has the Publisher role.
+5. Optionally add **Message attributes** (Name/Value pairs using `${metadataKey}` for a value from message metadata, or `$[messageKey]` for a value from the message body) to pass extra context like `deviceName` as a Pub/Sub attribute rather than in the payload.
+6. Click **Add**, then connect the node's input to the **Message Type Switch** node's **Attributes Updated** relation (or another relation for whatever message type should trigger a downlink).
+7. Click **Apply changes**.
+</Steps>
+
+
+### Trigger a Downlink
+
+Trigger the rule node by adding an attribute to device `Sensor A1`:
+
+<Steps>
+1. Go to **Entities &#8702; Devices** and open `Sensor A1`.
+2. Open the **Attributes** tab and click **+**.
+3. Enter key `powerState`, keep type **String**, enter value `on`, and click **Add**.
+</Steps>
+
+
+<h4>Verify Rule Node Events</h4>
+
+Adding the attribute generates an **Attributes Updated** message that reaches the **gcp pubsub** node. Open the node's **Events** tab — a debug event with **Relation Type: Success** confirms the publish succeeded. Click **…** in the **Data** column to see the payload sent, and **…** in the **Metadata** column to see the `messageId` GCP assigned to the message.
+
+
+<Aside type="note">
+  On success, GCP Pub/Sub returns a `messageId` for the published message, added to the node's outbound message metadata — access it downstream with `metadata.messageId`.
+</Aside>
+
+<h4>Verify Delivery in Google Cloud Pub/Sub</h4>
+
+Pub/Sub has no "sent messages" log on the topic itself — read the message back through the subscription created earlier:
+
+<Steps>
+1. Go to **Pub/Sub &#8702; Subscriptions** and open **tb-downlink-sub**.
+2. Open the **Messages** tab and click **Pull**.
+3. The published message appears with its **Message body** — confirming it reached GCP.
+</Steps>
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/user-guide/integrations/pub-sub/publish-downlink-verify-gcp-1.png',
+    alt: 'Subscription tb-downlink-sub Messages tab before pulling, showing "No message found yet"',
+    caption: 'Open the tb-downlink-sub subscription\'s Messages tab.'
+  },
+  {
+    src: '/src/assets/images/user-guide/integrations/pub-sub/publish-downlink-verify-gcp-2.png',
+    alt: 'Subscription Messages tab after clicking Pull, showing a message with body {"powerState":"on"}',
+    caption: 'Click Pull to fetch and display the published message body.'
+  },
+]} />
+
+<Aside type="caution">
+  Pulling a message here only *views* it — it stays in the subscription's backlog for other consumers until acknowledged or until the retention window expires. This subscription exists purely for verification; if a real downstream service consumes `tb-downlink`, don't ack or purge messages it still needs.
+</Aside>
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| Integration status is not **Active** | Wrong **Project ID** or **Subscription ID** | Confirm both exactly match the values in the GCP Console. |
+| Integration status is not **Active** | Invalid or incomplete **Service account key** | Verify the JSON is complete and belongs to an active service account. |
+| Integration status is not **Active** | Missing subscriber role | Grant `roles/pubsub.subscriber` to the service account on the subscription. |
+| Integration status is not **Active** | Pub/Sub API disabled | Enable the **Cloud Pub/Sub API** in your GCP project. |
+| Messages not appearing in ThingsBoard | Processing errors | Check the integration **Events** tab for errors. |
+| Messages not appearing in ThingsBoard | Subscription unbound or deactivated | Confirm the pull subscription is attached to the correct topic and no expiration policy has deactivated it. |
+| Messages received but not decoded | Converter does not match the payload | Inspect **Converter Events → In** and adjust the decoder to the actual message format. |
+| Device not created | **Allow create devices or assets** disabled | Open the integration, click the edit icon, and enable **Allow create devices or assets**. |
+| Downlink not published to GCP | Wrong rule-node config or missing publisher role | Confirm the **GCP Pub/Sub** rule node has the correct Project ID, Topic name, and a key with `roles/pubsub.publisher`. |
+
+## See Also
+
+- <DocLink product={Products.CE} path="user-guide/integrations" target="_blank">Integrations Overview</DocLink> — how ThingsBoard connects to external platforms and how uplink/downlink flow works
+- <DocLink product={Products.CE} path="user-guide/integrations/uplink-data-converter" target="_blank">Uplink Data Converter</DocLink> — full decoder function reference: input parameters, output fields, and scripting patterns
+- <DocLink product={Products.CE} path="reference/rule-engine/nodes/external/gcp-pubsub">GCP Pub/Sub Rule Node</DocLink> — publish messages from the Rule Engine back to a GCP Pub/Sub topic (downlink)
+- <DocLink product={Products.CE} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink> — run the integration outside the ThingsBoard server to reach a broker on a private network
+- <DocLink product={Products.CE} path="user-guide/tbel" target="_blank">TBEL scripting reference</DocLink> — built-in functions and operators for writing converter scripts
+- <DocLink product={Products.CE} path="user-guide/rule-engine" target="_blank">Rule Engine</DocLink> — how rule chains route messages to nodes like the GCP Pub/Sub Rule Node

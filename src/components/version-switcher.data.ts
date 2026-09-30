@@ -7,6 +7,11 @@ import { TBMQ_PE_DOCS_URL } from '@models/tbmq';
  * once per build instead of once per docs-page render.
  *
  * Add or edit one FAMILIES entry to add/edit a product in the selector.
+ *
+ * Adding a Community/PE pair? Register the Community product in
+ * `professionalCounterpart` (@models/site.models) too — VersionSwitcher keys edition
+ * visibility off the product enum, not the `label: 'Community'` strings below, and
+ * nothing here enforces it.
  */
 
 export type Group = 'core' | 'addons' | 'ecosystem';
@@ -38,7 +43,8 @@ export interface LocalFamily extends FamilyBase {
 	 * matches one of `options[].product`. */
 	regions?: { options: Region[] };
 	/** Edition to land on when this family is picked from the product dropdown.
-	 * Defaults to `editions[editions.length - 1]` (Professional/Cloud first). */
+	 * Defaults to `editions[editions.length - 1]` — Cloud for the core family,
+	 * otherwise whichever paid edition is listed last. */
 	preferredEdition?: Products;
 }
 
@@ -62,7 +68,7 @@ export const FAMILIES: Family[] = [
 		iconId: 'tb-logo',
 		editions: [
 			{ product: Products.CE, label: 'Community' },
-			{ product: Products.PE, label: 'Professional' },
+			{ product: Products.PE, label: 'On-premises' },
 			{ product: Products.PAAS, label: 'Cloud' },
 		],
 		regions: {

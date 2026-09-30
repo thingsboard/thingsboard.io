@@ -35,7 +35,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => {
 		label: 'Data Visualization',
 		collapsed: true,
 		items: [
-			{ label: 'Key concepts', slug: `${prefix}/data-visualization` },
+			{ label: 'Key Concepts', slug: `${prefix}/data-visualization` },
 			`${prefix}/dashboards`,
 			`${prefix}/widgets`,
 			`${prefix}/time-window`,
@@ -238,7 +238,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => {
 			`${prefix}/entity-views`,
 			`${prefix}/scheduler`,
 			`${prefix}/csv-xls-data-export`,
-			...(isPE ? [`${prefix}/file-storage`] : []),
+			...(isPE ? [`${prefix}/file-storage`, `${prefix}/location-tracking`] : []),
 		],
 	},
 	{
@@ -246,6 +246,20 @@ const guideItems = (prefix: string, { isPE = false } = {}) => {
 		collapsed: true,
 		items: [`${prefix}/add-ons`, `${prefix}/edge-computing`, `${prefix}/trendz-analytics`],
 	},
+	...(isPE ? [{
+		label: 'Remote Agents',
+		collapsed: true,
+		items: [
+			{ label: 'Overview', slug: `${prefix}/agents` },
+			`${prefix}/agents/installation`,
+			`${prefix}/agents/self-upgrade`,
+			`${prefix}/agents/agent-profiles`,
+			`${prefix}/agents/applications`,
+			`${prefix}/agents/application-profiles`,
+			`${prefix}/agents/application-actions`,
+			`${prefix}/agents/bulk-actions`,
+		],
+	}] : []),
 	{
 		label: 'Security',
 		collapsed: true,
@@ -321,7 +335,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => {
 		collapsed: true,
 		items: [
 			{
-				label: 'Release policy',
+				label: 'Release Policy',
 				slug: `${prefix.replace('/user-guide', '/releases')}/release-policy`,
 			},
 			{
@@ -353,10 +367,11 @@ const edgeInstallationItems = (prefix: string) => {
 			label: 'Cluster',
 			items: [`${prefix}/installation/docker-compose-setup`],
 		},
+		...(isPE ? [{ label: 'Remote Agent', slug: `${prefix}/installation/agent` }] : []),
 		...(isPE
 			? []
 			: [{ label: 'Building from Sources', slug: `${prefix}/installation/building-from-source` }]),
-		{ label: 'Upgrade instructions', slug: `${prefix}/installation/upgrade-instructions` },
+		{ label: 'Upgrade Instructions', slug: `${prefix}/installation/upgrade-instructions` },
 	];
 };
 
@@ -364,33 +379,18 @@ const installationItems = (prefix: string) => {
 	const isPE = prefix.includes('/pe');
 	return [
 		{
-			label: 'On-premises',
+			label: 'Standalone',
 			collapsed: true,
 			items: [
-				{
-					label: 'Standalone',
-					collapsed: true,
-					items: [
-						`${prefix}/installation/docker`,
-						`${prefix}/installation/docker-windows`,
-						`${prefix}/installation/ubuntu`,
-						`${prefix}/installation/rhel`,
-						`${prefix}/installation/rpi`,
-					],
-				},
-				{
-					label: 'Cluster',
-					collapsed: true,
-					items: [
-						`${prefix}/installation/docker-compose-setup`,
-						`${prefix}/installation/minikube-cluster-setup`,
-						`${prefix}/installation/openshift-cluster-setup`,
-					],
-				},
+				`${prefix}/installation/docker`,
+				`${prefix}/installation/docker-windows`,
+				`${prefix}/installation/ubuntu`,
+				`${prefix}/installation/rhel`,
+				`${prefix}/installation/rpi`,
 			],
 		},
 		{
-			label: 'Cloud',
+			label: 'Cloud providers',
 			collapsed: true,
 			items: [
 				{
@@ -399,7 +399,6 @@ const installationItems = (prefix: string) => {
 					items: [
 						{ label: 'AWS Installation Options', slug: `${prefix}/installation/aws` },
 						`${prefix}/installation/aws-ec2`,
-						...(isPE ? [`${prefix}/installation/aws-marketplace`] : []),
 						`${prefix}/installation/aws-monolith`,
 						`${prefix}/installation/aws-microservices`,
 					],
@@ -410,7 +409,6 @@ const installationItems = (prefix: string) => {
 					items: [
 						{ label: 'GCP Installation Options', slug: `${prefix}/installation/gcp` },
 						`${prefix}/installation/gcp-vm`,
-						...(isPE ? [`${prefix}/installation/gcp-marketplace`] : []),
 						`${prefix}/installation/gcp-monolith`,
 						`${prefix}/installation/gcp-microservices`,
 					],
@@ -420,7 +418,6 @@ const installationItems = (prefix: string) => {
 					collapsed: true,
 					items: [
 						{ label: 'Azure Installation Options', slug: `${prefix}/installation/azure` },
-						...(isPE ? [`${prefix}/installation/azure-marketplace`] : []),
 						`${prefix}/installation/azure-monolith`,
 						`${prefix}/installation/azure-microservices`,
 					],
@@ -428,7 +425,17 @@ const installationItems = (prefix: string) => {
 				`${prefix}/installation/digital-ocean`,
 			],
 		},
-		`${prefix}/installation/haproxy`,
+		{
+			label: 'On-premises cluster',
+			collapsed: true,
+			items: [
+				`${prefix}/installation/docker-compose-setup`,
+				`${prefix}/installation/minikube-cluster-setup`,
+				`${prefix}/installation/openshift-cluster-setup`,
+				// The load balancer in front of a cluster, so it sits with the setups that need one.
+				`${prefix}/installation/haproxy`,
+			],
+		},
 		`${prefix}/installation/demo-account`,
 		{ label: 'Building from Sources', slug: `${prefix}/installation/building-from-source` },
 		...(isPE
@@ -438,12 +445,18 @@ const installationItems = (prefix: string) => {
 						collapsed: true,
 						items: [
 							`${prefix}/installation/upgrade-instructions`,
+							// Before upgrade-from-ce: the grant key is what licenses 4.4, so registering
+							// comes first in the sequence, not after it.
+							`${prefix}/installation/register-community-grant`,
 							`${prefix}/installation/upgrade-from-ce`,
 							`${prefix}/installation/upgrade-instructions/docker-legacy-image-migration`,
 						],
 					},
 				]
-			: [{ label: 'Upgrade instructions', slug: `${prefix}/installation/upgrade-instructions` }]),
+			: [
+					{ label: 'Upgrade Instructions', slug: `${prefix}/installation/upgrade-instructions` },
+					`${prefix}/installation/register-community-grant`,
+				]),
 	];
 };
 
@@ -833,7 +846,6 @@ const paasReferenceItems = (prefix: string): SidebarConfig => {
 					collapsed: true,
 					items: [
 						`${prefix}/widgets/charts/bar-chart`,
-						`${prefix}/widgets/charts/chart-widgets`,
 						`${prefix}/widgets/charts/line-chart`,
 						`${prefix}/widgets/charts/point-chart`,
 						`${prefix}/widgets/charts/state-chart`,
@@ -1420,7 +1432,6 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 					collapsed: true,
 					items: [
 						`${prefix}/widgets/charts/bar-chart`,
-						`${prefix}/widgets/charts/chart-widgets`,
 						`${prefix}/widgets/charts/line-chart`,
 						`${prefix}/widgets/charts/point-chart`,
 						`${prefix}/widgets/charts/state-chart`,
@@ -1754,11 +1765,11 @@ const mainSidebarItems = (
 				items: [
 					`${prefix}/why-thingsboard`,
 					`${prefix}/getting-started`,
-					{ label: 'Device connectivity', slug: `${prefix}/connect-iot-devices` },
+					{ label: 'Device Connectivity', slug: `${prefix}/connect-iot-devices` },
 				],
 			},
 			{
-				label: 'Key concepts',
+				label: 'Key Concepts',
 				translations: { uk: 'Новий проект' },
 				items: [
 					`${prefix}/concepts/multi-tenancy`,
@@ -1858,11 +1869,11 @@ export const paasSidebar: SidebarConfig = [
 				items: [
 					'docs/paas/why-thingsboard',
 					'docs/paas/getting-started',
-					{ label: 'Device connectivity', slug: 'docs/paas/connect-iot-devices' },
+					{ label: 'Device Connectivity', slug: 'docs/paas/connect-iot-devices' },
 				],
 			},
 			{
-				label: 'Key concepts',
+				label: 'Key Concepts',
 				translations: { uk: 'Новий проект' },
 				items: [
 					'docs/paas/concepts/multi-tenancy',
@@ -1908,7 +1919,7 @@ export const paasSidebar: SidebarConfig = [
 				label: 'Data Visualization',
 				collapsed: true,
 				items: [
-					{ label: 'Key concepts', slug: 'docs/paas/user-guide/data-visualization' },
+					{ label: 'Key Concepts', slug: 'docs/paas/user-guide/data-visualization' },
 					'docs/paas/user-guide/dashboards',
 					'docs/paas/user-guide/widgets',
 					'docs/paas/user-guide/time-window',
@@ -2107,6 +2118,7 @@ export const paasSidebar: SidebarConfig = [
 					'docs/paas/user-guide/scheduler',
 					'docs/paas/user-guide/csv-xls-data-export',
 					'docs/paas/user-guide/file-storage',
+					'docs/paas/user-guide/location-tracking',
 				],
 			},
 			{
@@ -2116,6 +2128,20 @@ export const paasSidebar: SidebarConfig = [
 					'docs/paas/user-guide/add-ons',
 					'docs/paas/user-guide/edge-computing',
 					'docs/paas/user-guide/trendz-analytics',
+				],
+			},
+			{
+				label: 'Remote Agents',
+				collapsed: true,
+				items: [
+					{ label: 'Overview', slug: 'docs/paas/user-guide/agents' },
+					'docs/paas/user-guide/agents/installation',
+					'docs/paas/user-guide/agents/self-upgrade',
+					'docs/paas/user-guide/agents/agent-profiles',
+					'docs/paas/user-guide/agents/applications',
+					'docs/paas/user-guide/agents/application-profiles',
+					'docs/paas/user-guide/agents/application-actions',
+					'docs/paas/user-guide/agents/bulk-actions',
 				],
 			},
 			{
@@ -2245,11 +2271,11 @@ export const paasEuSidebar: SidebarConfig = [
 				items: [
 					'docs/paas/eu/why-thingsboard',
 					'docs/paas/eu/getting-started',
-					{ label: 'Device connectivity', slug: 'docs/paas/eu/connect-iot-devices' },
+					{ label: 'Device Connectivity', slug: 'docs/paas/eu/connect-iot-devices' },
 				],
 			},
 			{
-				label: 'Key concepts',
+				label: 'Key Concepts',
 				translations: { uk: 'Новий проект' },
 				items: [
 					'docs/paas/eu/concepts/multi-tenancy',
@@ -2295,7 +2321,7 @@ export const paasEuSidebar: SidebarConfig = [
 				label: 'Data Visualization',
 				collapsed: true,
 				items: [
-					{ label: 'Key concepts', slug: 'docs/paas/eu/user-guide/data-visualization' },
+					{ label: 'Key Concepts', slug: 'docs/paas/eu/user-guide/data-visualization' },
 					'docs/paas/eu/user-guide/dashboards',
 					'docs/paas/eu/user-guide/widgets',
 					'docs/paas/eu/user-guide/time-window',
@@ -2503,6 +2529,7 @@ export const paasEuSidebar: SidebarConfig = [
 					'docs/paas/eu/user-guide/scheduler',
 					'docs/paas/eu/user-guide/csv-xls-data-export',
 					'docs/paas/eu/user-guide/file-storage',
+					'docs/paas/eu/user-guide/location-tracking',
 				],
 			},
 			{
@@ -2512,6 +2539,20 @@ export const paasEuSidebar: SidebarConfig = [
 					'docs/paas/eu/user-guide/add-ons',
 					'docs/paas/eu/user-guide/edge-computing',
 					'docs/paas/eu/user-guide/trendz-analytics',
+				],
+			},
+			{
+				label: 'Remote Agents',
+				collapsed: true,
+				items: [
+					{ label: 'Overview', slug: 'docs/paas/eu/user-guide/agents' },
+					'docs/paas/eu/user-guide/agents/installation',
+					'docs/paas/eu/user-guide/agents/self-upgrade',
+					'docs/paas/eu/user-guide/agents/agent-profiles',
+					'docs/paas/eu/user-guide/agents/applications',
+					'docs/paas/eu/user-guide/agents/application-profiles',
+					'docs/paas/eu/user-guide/agents/application-actions',
+					'docs/paas/eu/user-guide/agents/bulk-actions',
 				],
 			},
 			{
@@ -2647,7 +2688,7 @@ export const edgeSidebar: SidebarConfig = [
 				items: ['docs/edge/why-thingsboard-edge', 'docs/edge/getting-started'],
 			},
 			{
-				label: 'Key concepts',
+				label: 'Key Concepts',
 				items: [
 					'docs/edge/key-concepts/edge-instance',
 					'docs/edge/key-concepts/entities',
@@ -3054,7 +3095,7 @@ export const edgePeSidebar: SidebarConfig = [
 				items: ['docs/edge/pe/why-thingsboard-edge', 'docs/edge/pe/getting-started'],
 			},
 			{
-				label: 'Key concepts',
+				label: 'Key Concepts',
 				items: [
 					'docs/edge/pe/key-concepts/edge-instance',
 					'docs/edge/pe/key-concepts/entities',
@@ -3498,6 +3539,7 @@ export const gwSidebar: SidebarConfig = [
 		label: 'Installation',
 		translations: { uk: 'Встановлення' },
 		items: [
+			'docs/iot-gateway/installation/agent-installation',
 			'docs/iot-gateway/installation/deb-installation',
 			'docs/iot-gateway/installation/docker-installation',
 			'docs/iot-gateway/installation/docker-windows',
@@ -3639,6 +3681,7 @@ export const mobilePeSidebar: SidebarConfig = [
 				collapsed: true,
 				items: [
 					'docs/mobile/pe/mobile-actions',
+					'docs/mobile/pe/live-location-tracking',
 					'docs/mobile/pe/oauth2',
 					'docs/mobile/pe/self-registration',
 					'docs/mobile/pe/qr-code-settings',
@@ -3684,6 +3727,7 @@ export const trendzSidebar: SidebarConfig = [
 				items: [
 					'docs/trendz/concepts/business-entities',
 					'docs/trendz/telemetry-aggregation',
+					'docs/trendz/date-picker',
 					'docs/trendz/group-by-time',
 					'docs/trendz/group-by-category',
 					'docs/trendz/data-filtering',
@@ -3755,17 +3799,52 @@ export const trendzSidebar: SidebarConfig = [
 					'docs/trendz/calculations/batch',
 					'docs/trendz/calculations/native',
 					'docs/trendz/calculations/save-to-thingsboard',
-					'docs/trendz/calculations/time-to-value',
 				],
 			},
 			{
 				label: 'Prediction',
 				collapsed: true,
+				badge: { text: 'NEW', class: 'tb-badge' },
 				items: [
-					'docs/trendz/prediction',
-					'docs/trendz/predict-with-python-models',
-					'docs/trendz/predict-remaining-time',
-					'docs/trendz/prediction-save-to-tb',
+					{ slug: 'docs/trendz/prediction/overview', label: 'Overview' },
+					{ slug: 'docs/trendz/prediction/getting-started', label: 'Getting Started' },
+					{
+						label: 'Prediction Intents',
+						collapsed: true,
+						badge: { text: 'NEW', class: 'tb-badge' },
+						items: [
+							{ slug: 'docs/trendz/prediction/intents/forecast', label: 'Forecast' },
+							{ slug: 'docs/trendz/prediction/intents/time-to-threshold', label: 'Time to Threshold' },
+							{ slug: 'docs/trendz/prediction/intents/period-total', label: 'Period Total' },
+							{ slug: 'docs/trendz/prediction/intents/hit-target', label: 'Hit Target' },
+						],
+					},
+					{ slug: 'docs/trendz/prediction/interface', label: 'Interface Overview' },
+					{ slug: 'docs/trendz/prediction/models-and-accuracy', label: 'Models & Accuracy' },
+					{ slug: 'docs/trendz/prediction/monitoring', label: 'Monitoring & Alarms' },
+					{ slug: 'docs/trendz/prediction/visualization', label: 'Visualizations' },
+				],
+			},
+			{
+				label: 'Vibration Analysis',
+				collapsed: true,
+				badge: { text: 'NEW', class: 'tb-badge' },
+				items: [
+					{ slug: 'docs/trendz/vibration/overview', label: 'Overview' },
+					{ slug: 'docs/trendz/vibration/getting-started', label: 'Getting Started' },
+					{ slug: 'docs/trendz/vibration/basics', label: 'Vibration Analysis Basics' },
+					{
+						label: 'Interface Overview',
+						collapsed: true,
+						items: [
+							{ slug: 'docs/trendz/vibration/interface/workspace', label: 'Workspace' },
+							{ slug: 'docs/trendz/vibration/interface/overview-tab', label: 'Overview Tab' },
+							{ slug: 'docs/trendz/vibration/interface/monitoring-tab', label: 'Monitoring Tab' },
+							{ slug: 'docs/trendz/vibration/interface/analyzer-tab', label: 'Analyzer Tab' },
+							{ slug: 'docs/trendz/vibration/interface/properties-tab', label: 'Properties Tab' },
+						],
+					},
+					{ slug: 'docs/trendz/vibration/monitoring', label: 'Monitoring & Alarms' },
 				],
 			},
 			{

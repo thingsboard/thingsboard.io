@@ -63,7 +63,7 @@ export const data: CaseStudyData = {
 				title: 'Support that builds confidence',
 				text: 'Most importantly, the excellent support from the ThingsBoard team \u2014 from the first contact to ongoing collaboration \u2014 made a big difference. E2CBMS is now confident in scaling their solutions and offering even more value to their customers, all thanks to the capabilities and partnership provided by ThingsBoard.',
 				image: 'https://img.thingsboard.io/case-studies/e2cbms-3.webp',
-				imageAlt: 'Enterprise quality and open source flexibility combined',
+				imageAlt: 'Support that builds confidence',
 			},
 		],
 	},

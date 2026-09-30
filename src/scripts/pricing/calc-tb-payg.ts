@@ -10,27 +10,34 @@ import { makeInteractionPusher, pushCalculatorOpen, bindCtaTracking, bindExportB
 declare function sliderProgress(slider: HTMLInputElement): void;
 declare function initAllSliders(root?: HTMLElement | Document): void;
 
+// Paid tiers only. The BUSL repositioning replaced Maker/Prototype with a free
+// plan (see @data/pricing/tb-self-managed), and the free tier deliberately does
+// NOT appear here: the calculator prices add-on-laden configurations, and the
+// free plan's add-on/instance policy is undefined — every recommendation below
+// stays purchasable through the license portal CTA.
 const SM_PLANS = {
 	mobileApp: 99, mobileAppSetup: 1000,
 	plans: [
-		{ name: 'Maker', price: 10, includedDevices: 10, includedProdInstances: 1, extraProdInstancePrice: 100, devQaExtraInstancePrice: 50, edgeMonthPrice: 0, edgeInstancesIncluded: 1, trendzMonthPrice: 0, wl: false, productId: 'b5a35ce0-f5ea-11f0-8e58-abbac8d0a38a', planId: 'fe493b90-f5ea-11f0-8e58-abbac8d0a38a' },
-		{ name: 'Prototype', price: 39, includedDevices: 50, includedProdInstances: 1, extraProdInstancePrice: 100, devQaExtraInstancePrice: 50, edgeMonthPrice: 7, edgeInstancesIncluded: 1, extraEdgePrice: 39, trendzMonthPrice: 12, wl: false, productId: 'b5a35ce0-f5ea-11f0-8e58-abbac8d0a38a', planId: '648c95a0-f5eb-11f0-8e58-abbac8d0a38a' },
-		{ name: 'Pilot', price: 99, includedDevices: 100, includedProdInstances: 1, extraProdInstancePrice: 100, devQaExtraInstancePrice: 50, edgeMonthPrice: 19, edgeInstancesIncluded: 1, extraEdgePrice: 39, trendzMonthPrice: 29, wl: true, productId: 'b5a35ce0-f5ea-11f0-8e58-abbac8d0a38a', planId: '87f3b1e0-f5eb-11f0-8e58-abbac8d0a38a' },
-		{ name: 'Startup', price: 299, includedDevices: 500, includedProdInstances: 2, extraProdInstancePrice: 100, devQaExtraInstancePrice: 50, edgeMonthPrice: 49, edgeInstancesIncluded: 2, extraEdgePrice: 39, trendzMonthPrice: 89, wl: true, productId: 'b5a35ce0-f5ea-11f0-8e58-abbac8d0a38a', planId: 'b8ad2500-f5eb-11f0-8e58-abbac8d0a38a' },
-		{ name: 'Business', price: 499, includedDevices: 1000, extraDevicePrice: 0.1, includedProdInstances: 3, extraProdInstancePrice: 100, devQaExtraInstancePrice: 50, edgeMonthPrice: 89, edgeInstancesIncluded: 3, extraEdgePrice: 39, trendzMonthPrice: 149, trendzExtraDevicePrice: 0.03, wl: true, productId: 'b5a35ce0-f5ea-11f0-8e58-abbac8d0a38a', planId: 'f4b90050-f5eb-11f0-8e58-abbac8d0a38a' },
+		{ name: 'Pilot', price: 99, includedDevices: 100, includedProdInstances: 1, extraProdInstancePrice: 100, edgeMonthPrice: 19, edgeInstancesIncluded: 1, extraEdgePrice: 39, trendzMonthPrice: 29, wl: true, productId: 'b5a35ce0-f5ea-11f0-8e58-abbac8d0a38a', planId: '87f3b1e0-f5eb-11f0-8e58-abbac8d0a38a' },
+		{ name: 'Startup', price: 299, includedDevices: 500, includedProdInstances: 2, extraProdInstancePrice: 100, edgeMonthPrice: 49, edgeInstancesIncluded: 2, extraEdgePrice: 39, trendzMonthPrice: 89, wl: true, productId: 'b5a35ce0-f5ea-11f0-8e58-abbac8d0a38a', planId: 'b8ad2500-f5eb-11f0-8e58-abbac8d0a38a' },
+		{ name: 'Business', price: 499, includedDevices: 1000, extraDevicePrice: 0.1, includedProdInstances: 3, extraProdInstancePrice: 100, edgeMonthPrice: 89, edgeInstancesIncluded: 3, extraEdgePrice: 39, trendzMonthPrice: 149, trendzExtraDevicePrice: 0.03, wl: true, productId: 'b5a35ce0-f5ea-11f0-8e58-abbac8d0a38a', planId: 'f4b90050-f5eb-11f0-8e58-abbac8d0a38a' },
 	],
 };
 
-const SM_THRESHOLDS = [10, 50, 100, 500, 1000];
+// Slider detents = each subscription tier's included-device count, derived from
+// SM_PLANS so a tier change stays in sync automatically. The Maker/Prototype
+// stops (10 / 50 devices) left with the BUSL repositioning; the discrete stops
+// are now the three real plans, and everything past the last one is the
+// continuous "1,000 → enterprise" ramp.
+const SM_THRESHOLDS = SM_PLANS.plans.map((p) => p.includedDevices);
+const SM_LAST_TICK = SM_THRESHOLDS.length - 1;
 const SM_MAX = 150000;
 const SM_ENTERPRISE = 50000;
 
-const SM_DESCS: Record<string, { prod: string; dev: string }> = {
-	Maker: { prod: 'Maker includes 1 instance. Choose Prototype plan to add more for HA and reliability.', dev: 'Choose Prototype plan to add dev instances. Safely test new features without impacting your live data.' },
-	Prototype: { prod: 'Your plan includes 1 instance. Add a 2nd instance for HA to prevent downtime.', dev: 'Add dedicated instances for your dev, test, and CI/CD workflows.' },
-	Pilot: { prod: 'Your plan includes 1 instance. Add a 2nd instance for HA to prevent downtime.', dev: 'Add dedicated instances for your dev, test, and CI/CD workflows.' },
-	Startup: { prod: 'Your 2 instances provide HA. Add more to scale your application.', dev: 'Add dedicated instances for your dev, test, and CI/CD workflows.' },
-	Business: { prod: 'Your plan includes 3 instances for HA. Add more to horizontally scale.', dev: 'Add dedicated instances for your dev, test, and CI/CD workflows.' },
+const SM_DESCS: Record<string, { prod: string }> = {
+	Pilot: { prod: 'Your plan includes 1 instance. Add a 2nd instance for HA to prevent downtime.' },
+	Startup: { prod: 'Your 2 instances provide HA. Add more to scale your application.' },
+	Business: { prod: 'Your plan includes 3 instances for HA. Add more to horizontally scale.' },
 };
 
 // Module-scoped reference to the open function created during init. Lets
@@ -48,12 +55,10 @@ export function initTbPaygCalc() {
 	const devicesInput = $('#sm-devices') as HTMLInputElement;
 	const slider = $('#sm-slider') as HTMLInputElement;
 	const prodInput = $('#sm-prod') as HTMLInputElement;
-	const devInput = $('#sm-dev') as HTMLInputElement;
 	const edgeCount = $('#sm-edge-count') as HTMLInputElement;
 	const results = $('[data-calc-results]');
 	const footer = $('[data-calc-footer]');
 	const prodDesc = $('#sm-prod-desc');
-	const devDesc = $('#sm-dev-desc');
 	const edgeDesc = $('#sm-edge-desc');
 	const edgeCounter = $('#sm-edge-counter');
 	const wlPrompt = $('#sm-wl-prompt');
@@ -61,7 +66,7 @@ export function initTbPaygCalc() {
 	const toggles = { edge: $('#sm-edge-toggle') as HTMLInputElement, trendz: $('#sm-trendz-toggle') as HTMLInputElement, mobile: $('#sm-mobile-toggle') as HTMLInputElement };
 	const cards = { edge: $('#sm-edge-card'), trendz: $('#sm-trendz-card'), mobile: $('#sm-mobile-card') };
 
-	let state = { devices: 10, prodInstances: 1, devInstances: 0, addons: { edge: { on: false, count: 1 }, trendz: { on: false }, mobile: { on: false } } };
+	let state = { devices: 100, prodInstances: 1, addons: { edge: { on: false, count: 1 }, trendz: { on: false }, mobile: { on: false } } };
 
 	// Last settled total + plan, updated wherever sendSmGTM runs, read by the
 	// footer CTA click handler so it reports the value live at click time.
@@ -76,7 +81,6 @@ export function initTbPaygCalc() {
 			calculator_devices: state.devices,
 			calculator_plan: isEnterprise ? 'Enterprise' : getPlan(state.devices).name,
 			calculator_instances: state.prodInstances,
-			calculator_addon_dev_area: state.devInstances > 0,
 			calculator_addon_trendz_bot_area: state.addons.trendz.on,
 			calculator_addon_bot_area: state.addons.edge.on,
 			calculator_total: isEnterprise ? null : total,
@@ -87,31 +91,27 @@ export function initTbPaygCalc() {
 	const fmtN = (n: number) => n.toLocaleString('en-US').replace(/,/g, ' ');
 
 	function getPlan(d: number) {
-		if (d <= 10) return SM_PLANS.plans[0];
-		if (d <= 50) return SM_PLANS.plans[1];
-		if (d <= 100) return SM_PLANS.plans[2];
-		if (d <= 500) return SM_PLANS.plans[3];
-		return SM_PLANS.plans[4];
+		return SM_PLANS.plans.find((p) => d <= (p.includedDevices ?? Infinity)) ?? SM_PLANS.plans[SM_PLANS.plans.length - 1];
 	}
 
 	function sliderToDevices(v: number): number {
-		if (v <= 4) return SM_THRESHOLDS[Math.min(Math.round(v), SM_THRESHOLDS.length - 1)];
-		return Math.round(1000 + (v - 4) * (SM_MAX - 1000));
+		if (v <= SM_LAST_TICK) return SM_THRESHOLDS[Math.min(Math.round(v), SM_LAST_TICK)];
+		return Math.round(1000 + (v - SM_LAST_TICK) * (SM_MAX - 1000));
 	}
 
 	function devicesToSlider(d: number): number {
-		if (d <= 1000) { const idx = SM_THRESHOLDS.findIndex(t => d <= t); return idx !== -1 ? idx : 4; }
-		return 4 + (d - 1000) / (SM_MAX - 1000);
+		if (d <= 1000) { const idx = SM_THRESHOLDS.findIndex(t => d <= t); return idx !== -1 ? idx : SM_LAST_TICK; }
+		return SM_LAST_TICK + (d - 1000) / (SM_MAX - 1000);
 	}
 
 	function updateProgress() {
 		sliderProgress(slider);
 	}
 
-	function setStepper(container: HTMLElement, input: HTMLInputElement, value: number, min: number, disabled: boolean) {
-		(container.querySelector('[data-action="decrement"]') as HTMLButtonElement).disabled = disabled || value <= min;
-		(container.querySelector('[data-action="increment"]') as HTMLButtonElement).disabled = disabled;
-		input.disabled = disabled;
+	function setStepper(container: HTMLElement, input: HTMLInputElement, value: number, min: number) {
+		(container.querySelector('[data-action="decrement"]') as HTMLButtonElement).disabled = value <= min;
+		(container.querySelector('[data-action="increment"]') as HTMLButtonElement).disabled = false;
+		input.disabled = false;
 		input.value = String(value);
 	}
 
@@ -127,40 +127,29 @@ export function initTbPaygCalc() {
 	}
 
 	function updateUI(plan: any) {
-		const isMaker = plan.name === 'Maker';
 		const d = SM_DESCS[plan.name] || SM_DESCS.Business;
 		prodDesc.textContent = d.prod;
-		devDesc.textContent = d.dev;
 
-		if (isMaker) { state.prodInstances = 1; state.devInstances = 0; }
-		else { state.prodInstances = Math.max(state.prodInstances, plan.includedProdInstances); }
+		state.prodInstances = Math.max(state.prodInstances, plan.includedProdInstances);
 
-		setStepper($('#sm-prod-stepper'), prodInput, state.prodInstances, plan.includedProdInstances, isMaker);
-		setStepper($('#sm-dev-stepper'), devInput, state.devInstances, 0, isMaker);
+		setStepper($('#sm-prod-stepper'), prodInput, state.prodInstances, plan.includedProdInstances);
 		wlPrompt.classList.toggle('hidden', plan.wl === true);
-		updateAddons(plan, isMaker);
+		updateAddons(plan);
 	}
 
-	function updateAddons(plan: any, isMaker: boolean) {
-		if (isMaker) {
-			cards.edge.classList.add('addon-free', 'active'); toggles.edge.checked = true; toggles.edge.disabled = true;
-			edgeCounter.classList.add('hidden'); edgeDesc.textContent = 'Process data where it is collected.'; state.addons.edge.count = 1;
-			cards.trendz.classList.add('addon-free', 'active'); toggles.trendz.checked = true; toggles.trendz.disabled = true;
-			cards.mobile.classList.add('addon-disabled'); toggles.mobile.checked = false; toggles.mobile.disabled = true; state.addons.mobile.on = false;
-		} else {
-			cards.edge.classList.remove('addon-free'); toggles.edge.disabled = false; toggles.edge.checked = state.addons.edge.on;
-			cards.edge.classList.toggle('active', state.addons.edge.on);
-			if (state.addons.edge.on) {
-				state.addons.edge.count = Math.max(state.addons.edge.count, plan.edgeInstancesIncluded);
-				edgeCount.value = String(state.addons.edge.count); edgeCounter.classList.remove('hidden');
-				edgeDesc.textContent = `${plan.edgeInstancesIncluded} Edge instance${plan.edgeInstancesIncluded > 1 ? 's are' : ' is'} included.`;
-				($('#sm-edge-stepper').querySelector('[data-action="decrement"]') as HTMLButtonElement).disabled = state.addons.edge.count <= plan.edgeInstancesIncluded;
-			} else { edgeCounter.classList.add('hidden'); edgeDesc.textContent = 'Process data where it is collected.'; }
-			cards.trendz.classList.remove('addon-free'); toggles.trendz.disabled = false; toggles.trendz.checked = state.addons.trendz.on;
-			cards.trendz.classList.toggle('active', state.addons.trendz.on);
-			cards.mobile.classList.remove('addon-disabled'); toggles.mobile.disabled = false; toggles.mobile.checked = state.addons.mobile.on;
-			cards.mobile.classList.toggle('active', state.addons.mobile.on);
-		}
+	function updateAddons(plan: any) {
+		cards.edge.classList.remove('addon-free'); toggles.edge.disabled = false; toggles.edge.checked = state.addons.edge.on;
+		cards.edge.classList.toggle('active', state.addons.edge.on);
+		if (state.addons.edge.on) {
+			state.addons.edge.count = Math.max(state.addons.edge.count, plan.edgeInstancesIncluded);
+			edgeCount.value = String(state.addons.edge.count); edgeCounter.classList.remove('hidden');
+			edgeDesc.textContent = `${plan.edgeInstancesIncluded} Edge instance${plan.edgeInstancesIncluded > 1 ? 's are' : ' is'} included.`;
+			($('#sm-edge-stepper').querySelector('[data-action="decrement"]') as HTMLButtonElement).disabled = state.addons.edge.count <= plan.edgeInstancesIncluded;
+		} else { edgeCounter.classList.add('hidden'); edgeDesc.textContent = 'Process data where it is collected.'; }
+		cards.trendz.classList.remove('addon-free'); toggles.trendz.disabled = false; toggles.trendz.checked = state.addons.trendz.on;
+		cards.trendz.classList.toggle('active', state.addons.trendz.on);
+		cards.mobile.classList.remove('addon-disabled'); toggles.mobile.disabled = false; toggles.mobile.checked = state.addons.mobile.on;
+		cards.mobile.classList.toggle('active', state.addons.mobile.on);
 	}
 
 	function calculate(opts?: { track?: boolean }) {
@@ -168,7 +157,6 @@ export function initTbPaygCalc() {
 		const plan = getPlan(state.devices);
 		updateUI(plan);
 
-		const isMaker = plan.name === 'Maker';
 		const isBusiness = plan.name === 'Business';
 		let total = plan.price;
 
@@ -179,33 +167,26 @@ export function initTbPaygCalc() {
 			total += extraDevCost;
 		}
 
-		const extraProd = !isMaker ? Math.max(0, state.prodInstances - plan.includedProdInstances) : 0;
+		const extraProd = Math.max(0, state.prodInstances - plan.includedProdInstances);
 		const extraProdCost = extraProd * plan.extraProdInstancePrice;
 		total += extraProdCost;
 
-		const devCost = !isMaker ? state.devInstances * plan.devQaExtraInstancePrice : 0;
-		total += devCost;
-
 		let edgeCost = 0;
-		if (state.addons.edge.on || isMaker) {
-			if (!isMaker) {
-				const extraEdges = Math.max(0, state.addons.edge.count - plan.edgeInstancesIncluded);
-				edgeCost = plan.edgeMonthPrice + extraEdges * (plan.extraEdgePrice || 0);
-				total += edgeCost;
-			}
+		if (state.addons.edge.on) {
+			const extraEdges = Math.max(0, state.addons.edge.count - plan.edgeInstancesIncluded);
+			edgeCost = plan.edgeMonthPrice + extraEdges * (plan.extraEdgePrice || 0);
+			total += edgeCost;
 		}
 
 		let trendzCost = 0;
-		if (state.addons.trendz.on || isMaker) {
-			if (!isMaker) {
-				const trendzExtra = (isBusiness && extraDev > 0 && plan.trendzExtraDevicePrice) ? extraDev * plan.trendzExtraDevicePrice : 0;
-				trendzCost = plan.trendzMonthPrice + trendzExtra;
-				total += trendzCost;
-			}
+		if (state.addons.trendz.on) {
+			const trendzExtra = (isBusiness && extraDev > 0 && plan.trendzExtraDevicePrice) ? extraDev * plan.trendzExtraDevicePrice : 0;
+			trendzCost = plan.trendzMonthPrice + trendzExtra;
+			total += trendzCost;
 		}
 
 		let mobileCost = 0;
-		if (state.addons.mobile.on && !isMaker) { mobileCost = SM_PLANS.mobileApp; total += mobileCost; }
+		if (state.addons.mobile.on) { mobileCost = SM_PLANS.mobileApp; total += mobileCost; }
 
 		// Results
 
@@ -221,40 +202,36 @@ export function initTbPaygCalc() {
 		if (extraDevCost > 0) html += row('Extra Device Cost', fmt(extraDevCost), `${fmtN(extraDev)} extra devices × $${plan.extraDevicePrice}/device`);
 		if (extraProd > 0) html += row('Extra Prod Instances', fmtN(extraProd), 'Additional production instances beyond what’s included.');
 		if (extraProdCost > 0) html += row('Extra Prod Instances Cost', fmt(extraProdCost), `${fmtN(extraProd)} × ${fmt(plan.extraProdInstancePrice)}/instance`);
-		if (state.devInstances > 0) html += row('Extra Dev Instances', fmtN(state.devInstances), 'Development/QA instances for testing workflows.');
-		if (devCost > 0) html += row('Extra Dev Instances Cost', fmt(devCost), `${fmtN(state.devInstances)} × ${fmt(plan.devQaExtraInstancePrice)}/instance`);
 		html += `</div></div>`;
 
-		// Add-ons (skip for Maker — free add-ons don't need display)
-		if (!isMaker) {
-			html += `<div class="calc-addons-divider">Add-ons</div>`;
+		// Add-ons
+		html += `<div class="calc-addons-divider">Add-ons</div>`;
 
-			// Edge
-			if (state.addons.edge.on && edgeCost > 0) {
-				html += `<div class="calc-addon-active"><div class="calc-addon-result"><span class="calc-addon-result-name">Edge Computing</span><span class="calc-section-price">${fmt(edgeCost)}${tip('Edge Computing add-on total')}</span></div>`;
-				html += row('Add-on Base Price', fmt(plan.edgeMonthPrice), 'Monthly base price for Edge Computing');
-				html += row('Included Edges', fmtN(plan.edgeInstancesIncluded), 'Edge instances included with this plan');
-				const extraEdges = Math.max(0, state.addons.edge.count - plan.edgeInstancesIncluded);
-				html += row('Extra Edges', fmtN(extraEdges), 'Additional edge instances beyond included');
-				if (extraEdges > 0) html += row('Extra Edges Cost', fmt(extraEdges * (plan.extraEdgePrice || 0)), `${fmtN(extraEdges)} × ${fmt(plan.extraEdgePrice || 0)}`);
-				html += `</div>`;
-			} else {
-				html += `<div class="calc-addon-result"><span class="calc-addon-result-name">Edge Computing</span><button type="button" class="calc-addon-result-action" data-enable-addon="edge">Add (${fmt(plan.edgeMonthPrice)})</button></div>`;
-			}
+		// Edge
+		if (state.addons.edge.on && edgeCost > 0) {
+			html += `<div class="calc-addon-active"><div class="calc-addon-result"><span class="calc-addon-result-name">Edge Computing</span><span class="calc-section-price">${fmt(edgeCost)}${tip('Edge Computing add-on total')}</span></div>`;
+			html += row('Add-on Base Price', fmt(plan.edgeMonthPrice), 'Monthly base price for Edge Computing');
+			html += row('Included Edges', fmtN(plan.edgeInstancesIncluded), 'Edge instances included with this plan');
+			const extraEdges = Math.max(0, state.addons.edge.count - plan.edgeInstancesIncluded);
+			html += row('Extra Edges', fmtN(extraEdges), 'Additional edge instances beyond included');
+			if (extraEdges > 0) html += row('Extra Edges Cost', fmt(extraEdges * (plan.extraEdgePrice || 0)), `${fmtN(extraEdges)} × ${fmt(plan.extraEdgePrice || 0)}`);
+			html += `</div>`;
+		} else {
+			html += `<div class="calc-addon-result"><span class="calc-addon-result-name">Edge Computing</span><button type="button" class="calc-addon-result-action" data-enable-addon="edge">Add (${fmt(plan.edgeMonthPrice)})</button></div>`;
+		}
 
-			// Trendz
-			if (state.addons.trendz.on && trendzCost > 0) {
-				html += `<div class="calc-addon-result"><span class="calc-addon-result-name">Trendz Analytics</span><span class="calc-section-price">${fmt(trendzCost)}${tip('Trendz Analytics add-on total')}</span></div>`;
-			} else {
-				html += `<div class="calc-addon-result"><span class="calc-addon-result-name">Trendz Analytics</span><button type="button" class="calc-addon-result-action" data-enable-addon="trendz">Add (${fmt(plan.trendzMonthPrice)})</button></div>`;
-			}
+		// Trendz
+		if (state.addons.trendz.on && trendzCost > 0) {
+			html += `<div class="calc-addon-result"><span class="calc-addon-result-name">Trendz Analytics</span><span class="calc-section-price">${fmt(trendzCost)}${tip('Trendz Analytics add-on total')}</span></div>`;
+		} else {
+			html += `<div class="calc-addon-result"><span class="calc-addon-result-name">Trendz Analytics</span><button type="button" class="calc-addon-result-action" data-enable-addon="trendz">Add (${fmt(plan.trendzMonthPrice)})</button></div>`;
+		}
 
-			// Mobile
-			if (state.addons.mobile.on && mobileCost > 0) {
-				html += `<div class="calc-addon-result"><span class="calc-addon-result-name">White-labeled Mobile App</span><span class="calc-section-price">${fmt(mobileCost)}${tip(`Monthly: ${fmt(SM_PLANS.mobileApp)}<br>One-time setup: ${fmt(SM_PLANS.mobileAppSetup)}`)}</span></div>`;
-			} else {
-				html += `<div class="calc-addon-result"><span class="calc-addon-result-name">White-labeled Mobile App</span><button type="button" class="calc-addon-result-action" data-enable-addon="mobile">Add (${fmt(SM_PLANS.mobileApp)})</button></div>`;
-			}
+		// Mobile
+		if (state.addons.mobile.on && mobileCost > 0) {
+			html += `<div class="calc-addon-result"><span class="calc-addon-result-name">White-labeled Mobile App</span><span class="calc-section-price">${fmt(mobileCost)}${tip(`Monthly: ${fmt(SM_PLANS.mobileApp)}<br>One-time setup: ${fmt(SM_PLANS.mobileAppSetup)}`)}</span></div>`;
+		} else {
+			html += `<div class="calc-addon-result"><span class="calc-addon-result-name">White-labeled Mobile App</span><button type="button" class="calc-addon-result-action" data-enable-addon="mobile">Add (${fmt(SM_PLANS.mobileApp)})</button></div>`;
 		}
 
 		const _st2 = results.parentElement?.scrollTop || 0; results.innerHTML = html; if (results.parentElement) results.parentElement.scrollTop = _st2;
@@ -263,7 +240,6 @@ export function initTbPaygCalc() {
 		const totalParts = [`${fmt(plan.price)} (base plan)`];
 		if (extraDevCost > 0) totalParts.push(`${fmt(extraDevCost)} (extra devices)`);
 		if (extraProdCost > 0) totalParts.push(`${fmt(extraProdCost)} (extra prod instances)`);
-		if (devCost > 0) totalParts.push(`${fmt(devCost)} (dev instances)`);
 		if (edgeCost > 0) totalParts.push(`${fmt(edgeCost)} (Edge)`);
 		if (trendzCost > 0) totalParts.push(`${fmt(trendzCost)} (Trendz)`);
 		if (mobileCost > 0) totalParts.push(`${fmt(mobileCost)} (Mobile App)`);
@@ -272,7 +248,6 @@ export function initTbPaygCalc() {
 		const items: Record<string, any> = {};
 		if (extraDev > 0) items.extraDeviceCount = extraDev;
 		if (extraProd > 0) items.extraInstanceCount = extraProd;
-		if (state.devInstances > 0) items.extraDevInstanceCount = state.devInstances;
 		if (state.addons.edge.on) {
 			items.edgeEnabled = true;
 			const extraEdges = Math.max(0, state.addons.edge.count - plan.edgeInstancesIncluded);
@@ -319,14 +294,13 @@ export function initTbPaygCalc() {
 		html += `<p style="font-size:14px;color:var(--color-text-secondary);margin-bottom:16px;">You are building at an impressive scale.</p>`;
 		html += row('Devices', fmtN(state.devices));
 		html += row('Production Instances', fmtN(state.prodInstances));
-		html += row('Development Instances', fmtN(state.devInstances));
 		if (state.addons.edge.on) html += row('Edge Instances', fmtN(state.addons.edge.count));
 		if (state.addons.trendz.on) html += row('Trendz Analytics', 'Enabled');
 		if (state.addons.mobile.on) html += row('White-labeled Mobile App', 'Enabled');
 		html += `<p class="calc-enterprise-msg">You have reached a tier where economies of scale apply. Let’s talk about aligning our pricing with your specific rollout schedule and volume requirements.</p>`;
 		const _st2 = results.parentElement?.scrollTop || 0; results.innerHTML = html; if (results.parentElement) results.parentElement.scrollTop = _st2;
 
-		const msg = `Enterprise Request\n- Devices: ${fmtN(state.devices)}\n- Prod Instances: ${fmtN(state.prodInstances)}\n- Dev Instances: ${fmtN(state.devInstances)}` +
+		const msg = `Enterprise Request\n- Devices: ${fmtN(state.devices)}\n- Prod Instances: ${fmtN(state.prodInstances)}` +
 			(state.addons.edge.on ? `\n- Edge Instances: ${fmtN(state.addons.edge.count)}` : '') +
 			(state.addons.trendz.on ? `\n- Trendz Analytics: Enabled` : '') +
 			(state.addons.mobile.on ? `\n- Mobile App: Enabled` : '');
@@ -350,7 +324,7 @@ export function initTbPaygCalc() {
 	devicesInput.addEventListener('blur', () => { let d = Math.max(1, Math.min(SM_MAX, parseInt(devicesInput.value) || 1)); if (d <= 1000) d = SM_THRESHOLDS.find(t => d <= t) || 1000; state.devices = d; devicesInput.value = String(d); slider.value = String(devicesToSlider(d)); updateProgress(); calculate(); });
 
 	// ─── Steppers ───
-	function bindStepper(containerId: string, key: 'prod' | 'dev' | 'edge') {
+	function bindStepper(containerId: string, key: 'prod' | 'edge') {
 		const sInp = $(containerId).querySelector('input[type="number"]') as HTMLInputElement;
 		$(containerId).querySelectorAll('.calc-stepper-btn').forEach(btn => {
 			btn.addEventListener('click', () => {
@@ -358,7 +332,6 @@ export function initTbPaygCalc() {
 				const action = (btn as HTMLElement).dataset.action;
 				const plan = getPlan(state.devices);
 				if (key === 'prod') { state.prodInstances = action === 'increment' ? state.prodInstances + 1 : Math.max(plan.includedProdInstances, state.prodInstances - 1); }
-				else if (key === 'dev') { state.devInstances = action === 'increment' ? state.devInstances + 1 : Math.max(0, state.devInstances - 1); }
 				else if (key === 'edge') { const min = plan.edgeInstancesIncluded; state.addons.edge.count = action === 'increment' ? state.addons.edge.count + 1 : Math.max(min, state.addons.edge.count - 1); }
 				calculate();
 			});
@@ -367,7 +340,6 @@ export function initTbPaygCalc() {
 			const v = parseInt(sInp.value);
 			if (isNaN(v) || v < 0) return;
 			if (key === 'prod') state.prodInstances = v;
-			else if (key === 'dev') state.devInstances = v;
 			else if (key === 'edge') state.addons.edge.count = v;
 			scheduleCalculate();
 		});
@@ -375,14 +347,12 @@ export function initTbPaygCalc() {
 			const plan = getPlan(state.devices);
 			let v = parseInt(sInp.value) || 0;
 			if (key === 'prod') { v = Math.max(plan.includedProdInstances, v); state.prodInstances = v; }
-			else if (key === 'dev') { v = Math.max(0, v); state.devInstances = v; }
 			else if (key === 'edge') { v = Math.max(plan.edgeInstancesIncluded, v); state.addons.edge.count = v; }
 			sInp.value = String(v);
 			calculate();
 		});
 	}
 	bindStepper('#sm-prod-stepper', 'prod');
-	bindStepper('#sm-dev-stepper', 'dev');
 	bindStepper('#sm-edge-stepper', 'edge');
 
 	// ─── Addon toggles ───
@@ -415,35 +385,33 @@ export function initTbPaygCalc() {
 	// Build clipboard text from current state
 	function buildSummaryText(): string {
 		if (state.devices >= SM_ENTERPRISE) {
-			let msg = `Enterprise Request\n- Devices: ${fmtN(state.devices)}\n- Prod Instances: ${fmtN(state.prodInstances)}\n- Dev Instances: ${fmtN(state.devInstances)}`;
+			let msg = `Enterprise Request\n- Devices: ${fmtN(state.devices)}\n- Prod Instances: ${fmtN(state.prodInstances)}`;
 			if (state.addons.edge.on) msg += `\n- Edge Instances: ${fmtN(state.addons.edge.count)}`;
 			if (state.addons.trendz.on) msg += `\n- Trendz Analytics: Enabled`;
 			if (state.addons.mobile.on) msg += `\n- Mobile App: Enabled`;
 			return msg;
 		}
 		const plan = getPlan(state.devices);
-		const isMaker = plan.name === 'Maker';
 		const isBusiness = plan.name === 'Business';
 		let extraDev = 0, extraDevCost = 0;
 		if (isBusiness && state.devices > plan.includedDevices) {
 			extraDev = state.devices - plan.includedDevices;
 			extraDevCost = extraDev * (plan.extraDevicePrice || 0);
 		}
-		const extraProd = !isMaker ? Math.max(0, state.prodInstances - plan.includedProdInstances) : 0;
+		const extraProd = Math.max(0, state.prodInstances - plan.includedProdInstances);
 		const extraProdCost = extraProd * plan.extraProdInstancePrice;
-		const devCost = !isMaker ? state.devInstances * plan.devQaExtraInstancePrice : 0;
 		let edgeCost = 0;
-		if ((state.addons.edge.on || isMaker) && !isMaker) {
+		if (state.addons.edge.on) {
 			const extraEdges = Math.max(0, state.addons.edge.count - plan.edgeInstancesIncluded);
 			edgeCost = plan.edgeMonthPrice + extraEdges * (plan.extraEdgePrice || 0);
 		}
 		let trendzCost = 0;
-		if ((state.addons.trendz.on || isMaker) && !isMaker) {
+		if (state.addons.trendz.on) {
 			const trendzExtra = (isBusiness && extraDev > 0 && plan.trendzExtraDevicePrice) ? extraDev * plan.trendzExtraDevicePrice : 0;
 			trendzCost = plan.trendzMonthPrice + trendzExtra;
 		}
-		const mobileCost = (state.addons.mobile.on && !isMaker) ? SM_PLANS.mobileApp : 0;
-		const total = plan.price + extraDevCost + extraProdCost + devCost + edgeCost + trendzCost + mobileCost;
+		const mobileCost = state.addons.mobile.on ? SM_PLANS.mobileApp : 0;
+		const total = plan.price + extraDevCost + extraProdCost + edgeCost + trendzCost + mobileCost;
 
 		let msg = `Subscription Plan: ${plan.name} (${fmt(plan.price)})\n`;
 		msg += `- Devices: ${fmtN(state.devices)}\n`;
@@ -452,17 +420,13 @@ export function initTbPaygCalc() {
 		if (plan.wl) msg += `- White Labeling: Enabled\n`;
 		if (extraDev > 0) msg += `- Extra Devices: ${fmtN(extraDev)} (${fmt(extraDevCost)})\n`;
 		if (extraProd > 0) msg += `- Extra Prod Instances: ${fmtN(extraProd)} (${fmt(extraProdCost)})\n`;
-		if (state.devInstances > 0) msg += `- Dev Instances: ${fmtN(state.devInstances)} (${fmt(devCost)})\n`;
 
-		const hasAddons = edgeCost > 0 || trendzCost > 0 || mobileCost > 0 || isMaker;
+		const hasAddons = edgeCost > 0 || trendzCost > 0 || mobileCost > 0;
 		if (hasAddons) {
 			msg += `\nAdd-ons:\n`;
-			if (isMaker) { msg += `- Edge Computing: Free\n- Trendz Analytics: Free\n`; }
-			else {
-				if (edgeCost > 0) msg += `- Edge Computing: ${fmt(edgeCost)} (${fmtN(state.addons.edge.count)} instances)\n`;
-				if (trendzCost > 0) msg += `- Trendz Analytics: ${fmt(trendzCost)}\n`;
-				if (mobileCost > 0) msg += `- White-labeled Mobile App: ${fmt(mobileCost)} (one-time setup: ${fmt(SM_PLANS.mobileAppSetup)})\n`;
-			}
+			if (edgeCost > 0) msg += `- Edge Computing: ${fmt(edgeCost)} (${fmtN(state.addons.edge.count)} instances)\n`;
+			if (trendzCost > 0) msg += `- Trendz Analytics: ${fmt(trendzCost)}\n`;
+			if (mobileCost > 0) msg += `- White-labeled Mobile App: ${fmt(mobileCost)} (one-time setup: ${fmt(SM_PLANS.mobileAppSetup)})\n`;
 		}
 		msg += `\nTotal Monthly Cost: ${fmt(total)}`;
 		return msg;
@@ -477,8 +441,8 @@ export function initTbPaygCalc() {
 
 	// Reset
 	$('[data-calc-reset]').addEventListener('click', () => {
-		state = { devices: 10, prodInstances: 1, devInstances: 0, addons: { edge: { on: false, count: 1 }, trendz: { on: false }, mobile: { on: false } } };
-		devicesInput.value = '10'; slider.value = '0';
+		state = { devices: 100, prodInstances: 1, addons: { edge: { on: false, count: 1 }, trendz: { on: false }, mobile: { on: false } } };
+		devicesInput.value = '100'; slider.value = '0';
 		toggles.edge.checked = false; toggles.trendz.checked = false; toggles.mobile.checked = false;
 		cards.edge.classList.remove('active', 'addon-free'); cards.trendz.classList.remove('active', 'addon-free'); cards.mobile.classList.remove('active', 'addon-disabled');
 		edgeCounter.classList.add('hidden');

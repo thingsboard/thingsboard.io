@@ -37,7 +37,9 @@ function setPaddingInstant(el: HTMLElement, value: string): void {
 }
 
 // Full-width fixed bar: pad from the inside by the freed scrollbar width so its
-// centred/edge content stays put when the page scrollbar disappears. Returns the
+// centred/edge content stays put when the page scrollbar disappears. The width
+// also goes out as `--tb-scrollbar-comp`, which absolutely positioned children
+// need because their padding box never sees this padding. Returns the
 // compensation record to push onto `compensatedBars`, or null if the bar is
 // absent — so the caller never has to disambiguate null from an empty original.
 function compensateBar(selector: string, sw: number): { selector: string; original: string } | null {
@@ -46,12 +48,15 @@ function compensateBar(selector: string, sw: number): { selector: string; origin
 	const original = el.style.paddingRight;
 	const cur = parseFloat(getComputedStyle(el).paddingRight) || 0;
 	setPaddingInstant(el, `${cur + sw}px`);
+	el.style.setProperty('--tb-scrollbar-comp', `${sw}px`);
 	return { selector, original };
 }
 
 function restoreBar(selector: string, original: string): void {
 	const el = document.querySelector<HTMLElement>(selector);
-	if (el) setPaddingInstant(el, original);
+	if (!el) return;
+	el.style.removeProperty('--tb-scrollbar-comp');
+	setPaddingInstant(el, original);
 }
 
 export function lockScroll(): void {
@@ -61,6 +66,10 @@ export function lockScroll(): void {
 	const html = document.documentElement;
 	const sw = window.innerWidth - html.clientWidth;
 	htmlOriginalPadding = html.style.paddingRight;
+
+	// Padding and overflow change together, before the bars below read computed styles: a layout
+	// between the two lays the page out a scrollbar narrower and scroll anchoring shifts it.
+	html.classList.add(HTML_LOCK_CLASS);
 
 	if (sw > 0) {
 		html.style.paddingRight = `${sw}px`;
@@ -82,8 +91,6 @@ export function lockScroll(): void {
 			chatCompensated = true;
 		}
 	}
-
-	html.classList.add(HTML_LOCK_CLASS);
 }
 
 export function unlockScroll(): void {
