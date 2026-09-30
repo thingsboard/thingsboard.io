@@ -1309,6 +1309,16 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'trendz/releases', target: '/docs/trendz/releases/releases-table/' },
 	{ oldPath: 'trendz/view-builder', target: '/docs/trendz/telemetry-aggregation/' },
 
+	// Trendz prediction
+	{ oldPath: 'trendz/prediction', target: '/docs/trendz/prediction/overview/' },
+	{ oldPath: 'trendz/predict-with-python-models', target: '/docs/trendz/prediction/models-and-accuracy/' },
+	{ oldPath: 'trendz/predict-remaining-time', target: '/docs/trendz/prediction/intents/time-to-threshold/' },
+	{ oldPath: 'trendz/prediction-save-to-tb', target: '/docs/trendz/prediction/monitoring/' },
+	{ oldPath: 'trendz/prediction/custom-python-models', target: '/docs/trendz/prediction/models-and-accuracy/' },
+	{ oldPath: 'trendz/prediction/predict-remaining-time', target: '/docs/trendz/prediction/intents/time-to-threshold/' },
+	{ oldPath: 'trendz/prediction/save-to-thingsboard', target: '/docs/trendz/prediction/monitoring/' },
+	{ oldPath: 'trendz/calculations/time-to-value', target: '/docs/trendz/prediction/intents/time-to-threshold/' },
+
 	{
 		oldPath: 'pe/solution-templates/fleet-tracking',
 		target: '/iot-hub/solution-templates/fleet-tracking/',

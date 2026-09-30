@@ -301,7 +301,7 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'pe-pay-as-you-go-24-7-support',
 				question: 'Do you offer 24/7 support?',
-				answer: '<p>Yes, we can provide 24/7 support as part of our managed services with an additional signed SLA. Please <a target="_blank" href="/contact-us/" rel="noopener noreferrer">contact us</a> for more details.</p>',
+				answer: '<p>Yes, we can provide 24/7 support as part of our managed services under a separate support agreement. Please <a target="_blank" href="/contact-us/" rel="noopener noreferrer">contact us</a> for more details.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-installation-help',

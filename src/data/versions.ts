@@ -73,7 +73,7 @@ export const PE_RELEASE_URL = `https://github.com/thingsboard/thingsboard/releas
 export const PE_BRANCH = 'release-4.4';
 
 /** Trendz Analytics */
-export const TRENDZ_VER = '1.15.2.1';
+export const TRENDZ_VER = '1.16.0';
 
 /** Remote Agent — Docker image tag for `thingsboard/tb-remote-agent:${AGENT_VER}`. */
 export const AGENT_VER = '1.0.0';

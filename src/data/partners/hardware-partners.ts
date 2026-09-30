@@ -2590,6 +2590,39 @@ export const HARDWARE_PARTNERS: HardwarePartner[] = [
 			]
 		},
 		"description": "We develop, produce, and market complex software and hardware components for building system technology. Our focus lies in building networks based on the KNX standard. Because of this focus, we cover the KNX system with our products and solutions comprehensively. In addition, we offer gateways as well as software solutions for other standards."
+	},
+	{
+		"name": "Option NV",
+		"slug": "option",
+		"connectivity": [
+			"Wi-Fi",
+			"Bluetooth",
+			"LoRaWAN",
+			"5G",
+			"Ethernet"
+		],
+		"industry": [
+			"Smart Buildings"
+		],
+		"useCase": [
+			"Industrial Automation",
+			"Smart Building",
+			"Smart Energy"
+		],
+		"hardwareTypes": [
+			"Gateways"
+		],
+		"logo": "/images/partners/option-logo.webp",
+		"website": "https://www.option.com/",
+		"links": {
+			"gatewayGuides": [
+				{
+					"label": "CloudGate NXS",
+					"href": "/iot-hub/devices/cloudgate-nxs/"
+				}
+			]
+		},
+		"description": "Option™ combines 5G technology from its engineering services division with distinctive RF antenna design capabilities to provide solutions and services deployed in reliable (private) IoT networks. Option™ with its CloudGate platform has powerful open interfaces for aggregating (sensor) data to (Cloud) environments and has developed a successful innovative proprietary LoRa platform specifically designed for Smart Building applications."
 	}
 ];
 

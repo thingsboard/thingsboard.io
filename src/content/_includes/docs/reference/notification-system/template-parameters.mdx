@@ -1,4 +1,5 @@
 import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
 import { Products } from '~/models/site.models';
 
 Each notification template has a **type** that determines which parameters are available. The type must match the trigger you plan to use it with — for example, an **Alarm** template can only be used in an alarm notification rule. For an overview of templates and rules, see <DocLink product={props.product === Products.EDGE_PE ? Products.PE : props.product === Products.EDGE ? Products.CE : props.product} path="user-guide/notifications">Notification center</DocLink>.
@@ -47,6 +48,77 @@ Includes all [General](#general) parameters, plus:
 | `alarmOriginatorName` | Name of the alarm originator, like `Sensor T1`. |
 | `alarmOriginatorId` | Alarm originator entity ID (UUID). |
 | `alarmOriginatorLabel` | Label field of the alarm's originating entity. |
+| `details.<key>` | Any key from the alarm's `details` JSON, flattened with a `details.` prefix. See [Alarm Details](#alarm-details). |
+
+### Alarm Details
+
+The alarm's `details` JSON is flattened into separate parameters before the notification renders. Every key receives a `details.` prefix, and nested objects keep their full path:
+
+| Alarm `details` | Parameter |
+|-----------------|-----------|
+| `{"data": "RSSI -65"}` | `${details.data}` |
+| `{"sensor": {"rssi": -65}}` | `${details.sensor.rssi}` |
+
+A key whose value is a JSON array produces no parameter.
+
+<Aside type="caution">
+  `${details}` is not a parameter. The `details` object is never exposed as a whole, and an unrecognized parameter is delivered as literal text instead of raising an error:
+
+  | Template | Delivered to the recipient |
+  |----------|----------------------------|
+  | `${alarmStatus} ${details}` | `ACTIVE_UNACK ${details}` |
+  | `${alarmStatus} ${details.data}` | `ACTIVE_UNACK RSSI -65 dropped below the threshold -70` |
+</Aside>
+
+Which keys exist depends on how the alarm was created:
+
+| Alarm created by | Keys in `details` |
+|------------------|-------------------|
+| Alarm rule | `data` holding the rendered **Additional info** text, when that field is filled in, and `dashboardId` when the rule sets a mobile dashboard. A rule with neither creates the alarm with empty details, and keeps the existing details when it updates an active alarm |
+| **Create alarm** rule node | Every key returned by the alarm details script |
+| REST API | Every key of the `details` object in the request |
+
+The `details.<key>` parameters belong to the **Alarm** type only. [Alarm Comment](#alarm-comment) and [Alarm Assignment](#alarm-assignment) templates receive the alarm fields without its details.
+
+### Reference a Value That Triggered the Alarm
+
+A reading that caused the alarm, like a temperature or a signal level, is not a template parameter on its own. Store it in the alarm details first, then reference the key it lands under.
+
+In the <DocLink product={props.product === Products.EDGE || props.product === Products.EDGE_PE ? Products.PE : props.product} path="user-guide/alarm-rules">alarm rule</DocLink>, write **Additional info** as plain text with `${argumentName}` placeholders:
+
+```
+RSSI ${RSSI} dropped below the threshold ${rssiThreshold}
+```
+
+The rule renders that text and stores it under the `data` key:
+
+```json
+{
+  "data": "RSSI -65 dropped below the threshold -70"
+}
+```
+
+The template then reads that one key:
+
+```
+Subject: New ${alarmSeverity:upperCase} alarm: ${alarmType}
+Message: ${alarmOriginatorName}: ${details.data}
+```
+
+Renders as: *New CRITICAL alarm: Low Signal* / *Sensor T1: RSSI -65 dropped below the threshold -70.*
+
+<Aside type="caution">
+  **Additional info** is stored as text and never parsed as JSON. Whatever you type lands under the single `data` key:
+
+  | **Additional info** | `${details.data}` delivers |
+  |---------------------|----------------------------|
+  | `{"currentRssi": "${RSSI} is the RSSI"}` | `{"currentRssi": "-65 is the RSSI"}` |
+  | `RSSI ${RSSI} dropped below the threshold ${rssiThreshold}` | `RSSI -65 dropped below the threshold -70` |
+
+  In both cases `${details.currentRssi}` stays unresolved, because `currentRssi` never becomes a key of its own.
+</Aside>
+
+To address each value through its own parameter, create the alarm from a rule chain with the <DocLink product={props.product} path="reference/rule-engine/nodes/action/create-alarm">Create alarm</DocLink> node instead. Its details script returns an object whose keys are preserved, so a script returning `{"currentRssi": -65, "threshold": -70}` exposes `${details.currentRssi}` and `${details.threshold}`. For details, see <DocLink product={props.product === Products.EDGE_PE ? Products.PE : props.product === Products.EDGE ? Products.CE : props.product} path="recipes/enrich-alarms-with-details">Enrich alarms with details</DocLink>.
 
 ---
 
@@ -113,7 +185,7 @@ Message: ${userFirstName:capitalize} ${userLastName:capitalize} ${action} a comm
 
 Renders as: *New comment on "High Temperature" alarm* / *Jane Smith added a comment on the critical alarm for "Compressor RK-25": "Checked on-site — coolant level is low."*
 
-Includes all [Alarm](#alarm) parameters, plus:
+Includes all [Alarm](#alarm) parameters except `details.<key>`, plus:
 
 | Parameter | Description |
 |-----------|-------------|
@@ -138,7 +210,7 @@ Message: ${userEmail} assigned a ${alarmSeverity} alarm on "${alarmOriginatorNam
 
 Renders as: *Alarm "High Temperature" assigned to you* / *supervisor@company.io assigned a critical alarm on "Compressor BJ-66" to engineer@company.io.*
 
-Includes all [Alarm](#alarm) parameters, plus:
+Includes all [Alarm](#alarm) parameters except `details.<key>`, plus:
 
 | Parameter | Description |
 |-----------|-------------|

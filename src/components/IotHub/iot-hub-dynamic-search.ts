@@ -3,17 +3,14 @@ import {
 	getCardVariant,
 	getCategoryForItemType,
 	getIotHubSortOption,
-	IOT_HUB_API_URL,
 	IOT_HUB_STRINGS,
-	isNumericSlug,
 	type ListingView,
-	type PageData,
 	resolvePreviewImage,
 	SEARCH_PAGE_SIZE,
 } from '@models/iot-hub';
 import { bindListingCard } from './iot-hub-listing-card-bind';
 import type { CardShape } from './listing-card-hooks';
-import { getKnownSlugs } from './iot-hub-known-slugs';
+import { fetchPublishedPage } from './iot-hub-published-page';
 import { recordListOrigin } from './iot-hub-list-origin';
 import { updatePagination } from '@components/Pagination/pagination-client';
 import { setPerPageValue } from '@components/Pagination/per-page-client';
@@ -441,46 +438,19 @@ export function setupDynamicSearch(): void {
 		// loading overlay still runs on top so the user sees that the
 		// request is in flight.
 		setLoading(true);
-		const sort = getIotHubSortOption(sortId);
-		const params = new URLSearchParams({
-			pageSize: String(pageSize),
-			page: String(currentPage - 1), // backend is 0-based
-			sortProperty: sort.sortProperty,
-			sortOrder: sort.sortOrder,
-		});
 		const trimmed = searchText.trim();
-		if (trimmed) params.set('textSearch', trimmed);
-		if (creatorId) params.set('creatorId', creatorId);
-		if (itemType) params.set('type', itemType);
-		for (const [param, value] of activeFilterParams()) params.set(param, value);
+		const params: [string, string][] = [];
+		if (creatorId) params.push(['creatorId', creatorId]);
+		if (itemType) params.push(['type', itemType]);
+		params.push(...activeFilterParams());
 
 		try {
-			const [res, knownSlugs] = await Promise.all([
-				fetch(
-					`${IOT_HUB_API_URL}/api/listings/published?${params.toString()}`,
-					{ signal: abort.signal }
-				),
-				getKnownSlugs(),
-			]);
-			if (!res.ok) {
-				// 4xx/5xx — treat the same as a network error so the user
-				// gets a recoverable "Try again" path instead of stale data.
-				showFetchError(true);
-				return;
-			}
-			const body = (await res.json()) as PageData<ListingView>;
-			// Drop listings with no static detail page to click through to:
-			// ones published after the last deploy (absent from the slug
-			// manifest), and numeric slugs, which `[category]/[slug].astro`
-			// excludes but the manifest still lists — without this the card
-			// would link to `/iot-hub/devices/2/`, page 2 of the listing.
-			// Same rule `getStaticPaths` applies, so the static first render
-			// and every refetch agree. Trade-off: a page may show < pageSize
-			// items until the next rebuild.
-			const items = (body.data ?? []).filter(
-				(item) => knownSlugs.has(item.slug) && !isNumericSlug(item.slug)
+			// A non-2xx answer throws like a network error does, so the user gets the
+			// recoverable "Try again" path below instead of stale data.
+			const { items, matchedCount, totalPages } = await fetchPublishedPage(
+				{ text: searchText, page: currentPage - 1, pageSize, sortId, params },
+				abort.signal
 			);
-			const totalPages = Math.max(1, body.totalPages || 1);
 			// Only a successful response is allowed to take the error
 			// panel down — every other refetch trigger leaves it alone.
 			showFetchError(false);
@@ -492,8 +462,9 @@ export function setupDynamicSearch(): void {
 				// stays visible — letting the user lower the page size again.
 				updatePagination(paginationNav, { currentPage, totalPages, hideOnSinglePage: true });
 			}
-			updateResultsCount(countEl!, body.totalElements ?? 0);
-			trackQuery(trimmed, body.totalElements ?? 0);
+			// The count the hero popup's footer promises, so "See all N results" lands on N.
+			updateResultsCount(countEl!, matchedCount);
+			trackQuery(trimmed, matchedCount);
 		} catch (err) {
 			// Aborts happen on every superseding fetch — don't treat them
 			// as failures or the error panel would flash on every keystroke.

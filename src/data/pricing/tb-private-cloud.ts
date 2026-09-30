@@ -24,7 +24,7 @@ export const tbPrivateCloudData: PrivateCloudData = {
 			gtmId: 'Pricing_PE_PrivateCloud_Launch',
 			features: [
 				{ text: '5,000 devices included' },
-				{ text: '99.9% uptime guarantee' },
+				{ text: '99.9% uptime SLA' },
 				{
 					text: '50,000 msg/minute',
 					faqId: 'tb-private-cloud-how-are-datapoints-defined-and-metered',
@@ -61,7 +61,7 @@ export const tbPrivateCloudData: PrivateCloudData = {
 			gtmId: 'Pricing_PE_PrivateCloud_Growth',
 			features: [
 				{ text: '25,000 devices included' },
-				{ text: '99.9% uptime guarantee' },
+				{ text: '99.9% uptime SLA' },
 				{
 					text: '100,000 msg/minute',
 					faqId: 'tb-private-cloud-how-are-datapoints-defined-and-metered',
@@ -98,7 +98,7 @@ export const tbPrivateCloudData: PrivateCloudData = {
 			gtmId: 'Pricing_PE_PrivateCloud_Scale',
 			features: [
 				{ text: '50,000 devices included' },
-				{ text: '99.95% uptime guarantee' },
+				{ text: '99.95% uptime SLA' },
 				{
 					text: '500,000 msg/minute',
 					faqId: 'tb-private-cloud-how-are-datapoints-defined-and-metered',

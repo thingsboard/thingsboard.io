@@ -9,7 +9,7 @@ Use this node to convert a cumulative (ever-increasing) counter into a consumpti
 - **Output value key** — required. The key under which the calculated delta is added to the message data (e.g., `waterConsumption`).
 - **Number of digits after floating point** — optional. Rounds the delta to the specified number of decimal places.
 - **Tell Failure if delta is negative** — when enabled, a negative delta (e.g., after a meter reset) routes the message to `Failure` instead of `Success`.
-- **Use caching** — when enabled, the node keeps the last known value per originator in memory for faster processing without a database query. The cache is local and cleared on node restart.
+- **Use caching** — when enabled, the node keeps the last known value per originator in a soft-reference in-memory cache, local to whichever server currently runs this node instance. The JVM may reclaim it under memory pressure at any time, not just on a restart, and it isn't synchronized across a cluster — if an entity's partition moves to another server and back, the original server's stale cached value can resurface and produce an inflated delta. On a cache miss — or on every message when caching is disabled — the node falls back to reading the latest stored value of the **Input value key** from the database, which is only the correct previous reading if the raw counter hasn't been saved for the current message yet (see the placement warning below).
 - **Add the time difference between readings** — when enabled, also calculates the elapsed time (in milliseconds) between the current and previous messages and adds it to the message data.
 - **Period value key** — the key for the time difference value (required if the above is enabled).
 - **Exclude zero deltas from outbound message** — when enabled, messages that result in a delta of exactly zero are forwarded unchanged via `Success` without adding the output key to message data.
@@ -17,7 +17,7 @@ Use this node to convert a cumulative (ever-increasing) counter into a consumpti
 ## Message processing algorithm
 
 1. Check that the message type is `POST_TELEMETRY_REQUEST` and the **Input value key** exists in message data. If not, route via `Other`.
-2. Retrieve the previous value for this originator from cache (if enabled) or from the database. If no previous value exists, use `0`.
+2. Retrieve the previous value for this originator from cache (if enabled), or fall back to the **latest** stored value of the **Input value key** in the database. If no previous value exists, the delta (and the period, if enabled) is `0`.
 3. Calculate delta: `delta = currentValue - previousValue`.
 4. If **Tell Failure if delta is negative** is enabled and delta < 0, route via `Failure`.
 5. If **Exclude zero deltas** is enabled and delta = 0, route via `Success` without modifying the message.
@@ -25,6 +25,13 @@ Use this node to convert a cumulative (ever-increasing) counter into a consumpti
 7. Add the delta under **Output value key** to message data.
 8. If **Add the time difference between readings** is enabled, calculate elapsed time since the previous message and add it under **Period value key**.
 9. Route via `Success`.
+
+<Aside type="caution">
+  Place **Calculate Delta** *before* any **Save Time Series** node that persists the raw **Input value key** counter.
+  Otherwise, whenever the node reads the previous value from the database — on every message when **Use caching**
+  is disabled, or after a cache miss when it is enabled — it reads the value just saved for the current message,
+  and the delta silently comes out as `0`.
+</Aside>
 
 ## Output connections
 

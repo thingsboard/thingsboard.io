@@ -54,7 +54,7 @@ export const cloudComparison: ComparisonGroup[] = [
 		label: 'Reliability & operations',
 		mark: { icon: 'tabler:activity', color: '#047857' },
 		rows: [
-			{ label: 'Uptime SLA', values: [text('99.9%'), text('99.9% – 99.99% by plan')] },
+			{ label: 'Uptime SLA', values: [text('99.9%'), text('99.9%–99.99% by plan')] },
 			{
 				label: 'Backups',
 				values: [

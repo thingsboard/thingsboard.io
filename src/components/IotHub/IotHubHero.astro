@@ -110,7 +110,7 @@ const highlights = [
 			</div>
 		</form>
 	</div>
-	<IotHubListingLinkTemplate variant="row" />
+	<IotHubListingLinkTemplate variant="row" showType />
 	<IotHubRuntimeConfig />
 </section>
 
@@ -477,56 +477,11 @@ const highlights = [
 	// --- Popup body content (client-rendered) ---------------------------------
 	// Result cards themselves come from IotHubListingLinkTemplate (cloned at
 	// runtime by the popup script); their chrome lives in IotHubListingLink's
-	// own scoped styles. The rules below only cover the group header and
-	// the status/empty messages — bits that don't exist outside the popup.
+	// own scoped styles. The rules below only cover the list wrapper and the
+	// status/empty messages — bits that don't exist outside the popup.
 
-	:global(.iot-hub-hero__search-popup-group) {
-		padding-bottom: 4px;
-	}
-
-	:global(.iot-hub-hero__search-popup-group + .iot-hub-hero__search-popup-group) {
-		margin-top: 8px;
-	}
-
-	// The group header is a link to that type page, carrying the current query —
-	// it is the way out of the rows the popup shows and into the rest of the type.
-	// Rendered by the popup script, hence :global.
-	:global(.iot-hub-hero__search-popup-group-label) {
-		padding: 4px 16px;
-		min-height: 28px;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 8px;
-		font-size: 14px;
-		font-weight: $font-weight-medium;
-		line-height: 20px;
-		letter-spacing: 0.25px;
-		color: var(--color-text-muted);
-		text-decoration: none;
-
-		&:hover,
-		&:focus-visible {
-			color: var(--color-text);
-			text-decoration: none;
-		}
-	}
-
-	// "+N more ›": how many rows of this type the answer holds beyond the ones
-	// shown, plus the chevron that says the header is a link. The whole chip is
-	// absent when there are none — the header still links, but a chevron on a
-	// section that already shows everything would point at nothing.
-	:global(.iot-hub-hero__search-popup-group-more) {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.125rem;
-		flex-shrink: 0;
-		font-weight: $font-weight-semibold;
-		color: var(--color-primary);
-
-		:global([data-theme='dark']) & {
-			color: #b3c7ff;
-		}
+	:global(.iot-hub-hero__search-popup-list) {
+		padding: 4px 0;
 	}
 
 	:global(.iot-hub-hero__search-popup-status) {
@@ -696,21 +651,15 @@ const highlights = [
 </script>
 
 <script>
-	// Hero search popup. Opens on focus, asks the grouped listings endpoint for
-	// the best few of each item type — the server returns one section per type,
-	// already capped and ordered, each carrying the total behind it — and renders
-	// one section per type: a header linking to that type page, a "+N more" chip
-	// for the rest, and the rows. The footer keeps its href in sync with the input so it
-	// always jumps to the same query as the submit button would.
+	// Hero search popup. Opens on focus and shows the first page of the same
+	// request the search page makes for the typed text — same endpoint, same
+	// default sort — so the rows here are the rows "See results for …" opens on,
+	// in the same order. One flat list, ranked across every type: the best match
+	// leads whatever its type, and each row names its type next to the author.
+	// The footer keeps its href in sync with the input so it always jumps to the
+	// same query as the submit button would.
 	//
-	// There is no page size here, deliberately: the server sizes a sectioned
-	// answer itself, so a number here would be a second source of truth about
-	// its shape, and a thing to forget when a type is added.
-	//
-	// Labels and "+N more" arithmetic are toGroupedSections(), which also owns the
-	// note on why this is the only surface that groups.
-	//
-	// Result cards are cloned from <IotHubListingLinkTemplate variant="row" />
+	// Result cards are cloned from <IotHubListingLinkTemplate variant="row" showType />
 	// and bound via bindListingLink(), so the popup shares its visual
 	// definition with the build-time listing-card path — no duplicated card
 	// markup in this script.
@@ -718,53 +667,17 @@ const highlights = [
 	// IotHubRuntimeConfig.astro publishes from the server-side env value
 	// before bundled modules evaluate. See @models/iot-hub.ts for the
 	// resolution logic.
-	import {
-		IOT_HUB_API_URL,
-		DEFAULT_IOT_HUB_SORT_ID,
-		type IotHubSearchSection,
-	} from '@models/iot-hub';
+	import { DEFAULT_IOT_HUB_SORT_ID, type ListingView } from '@models/iot-hub';
 	import { bindListingLink } from './iot-hub-listing-link-bind';
-	import { toGroupedSections, type GroupedSection } from './iot-hub-grouping';
-	import { getKnownSlugs } from './iot-hub-known-slugs';
+	import { fetchPublishedPage } from './iot-hub-published-page';
 
 	const DEBOUNCE_MS = 300;
 	const SEARCH_PATH = '/iot-hub/search/';
+	const PAGE_SIZE = 10;
 
 	function buildSearchUrl(text: string): string {
 		const q = text.trim();
 		return q ? `${SEARCH_PATH}?q=${encodeURIComponent(q)}` : SEARCH_PATH;
-	}
-
-	async function fetchSections(text: string, signal: AbortSignal): Promise<IotHubSearchSection[]> {
-		const trimmed = text.trim();
-		// The grouped endpoint takes the filters and a sort key, and nothing else: it
-		// sizes its own answer, so there is no page or page size to send, and each
-		// key's direction is fixed, so there is no sortOrder either.
-		const params = new URLSearchParams({
-			// An empty field has nothing to be relevant to — the backend
-			// substitutes installCount there anyway, and sending the honest value
-			// keeps the request and what the popup is showing telling one story.
-			sortProperty: trimmed ? 'relevance' : 'installCount',
-		});
-		if (trimmed) params.set('textSearch', trimmed);
-		const [res, knownSlugs] = await Promise.all([
-			fetch(
-				`${IOT_HUB_API_URL}/api/listings/published/grouped?${params.toString()}`,
-				{ signal }
-			),
-			getKnownSlugs(),
-		]);
-		if (!res.ok) throw new Error(`HTTP ${res.status}`);
-		const sections = (await res.json()) as IotHubSearchSection[];
-		// Drop listings whose detail pages don't exist statically — the
-		// portal may have published them since the last deploy. The section's own
-		// total is left alone: it counts what the search matched, not what this
-		// build can link to, and toGroupedSections() does the "+N more" arithmetic
-		// against the rows that survived.
-		return (sections ?? []).map((section) => ({
-			...section,
-			items: (section.items ?? []).filter((item) => knownSlugs.has(item.slug)),
-		}));
 	}
 
 	function getCardTemplate(): HTMLTemplateElement | null {
@@ -809,45 +722,19 @@ const highlights = [
 		}
 	}
 
-	// One <a> header per section, carrying the type's label and — when the
-	// answer holds more of that type than the rows shown — a "+N more" chip.
-	// The header's href comes from the section (the type page, with the current
-	// query attached), so clicking a header is how the visitor reaches the rest.
-	function renderGroups(body: HTMLElement, sections: GroupedSection[]): void {
+	function renderList(body: HTMLElement, items: ListingView[]): void {
 		body.replaceChildren();
 		const tmpl = getCardTemplate();
-		if (!tmpl) return;
-		for (const section of sections) {
-			const group = document.createElement('div');
-			group.className = 'iot-hub-hero__search-popup-group';
-			const header = document.createElement('a');
-			header.className = 'iot-hub-hero__search-popup-group-label';
-			header.href = section.href;
-			const label = document.createElement('span');
-			label.textContent = section.label;
-			header.appendChild(label);
-			if (section.remaining > 0) {
-				const more = document.createElement('span');
-				more.className = 'iot-hub-hero__search-popup-group-more';
-				// `remaining` is a number, so the only interpolated value here cannot
-				// carry markup.
-				more.innerHTML =
-					`+${section.remaining} more` +
-					'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
-					'<path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" ' +
-					'stroke-linecap="round" stroke-linejoin="round"></path></svg>';
-				header.appendChild(more);
-			}
-			group.appendChild(header);
-			for (const item of section.items) {
-				const cardRoot = tmpl.content.firstElementChild;
-				if (!cardRoot) continue;
-				const clone = cardRoot.cloneNode(true) as HTMLElement;
-				bindListingLink(clone, item);
-				group.appendChild(clone);
-			}
-			body.appendChild(group);
+		const cardRoot = tmpl?.content.firstElementChild;
+		if (!cardRoot) return;
+		const list = document.createElement('div');
+		list.className = 'iot-hub-hero__search-popup-list';
+		for (const item of items) {
+			const clone = cardRoot.cloneNode(true) as HTMLElement;
+			bindListingLink(clone, item);
+			list.appendChild(clone);
 		}
+		body.appendChild(list);
 	}
 
 	function setupPopup(form: HTMLFormElement): void {
@@ -867,14 +754,15 @@ const highlights = [
 		let isLoading = false;
 		let lastQuery = '\0'; // sentinel: never matches a real first value
 
-		function updateFooter(q: string): void {
+		// `counts` is absent while loading. The footer names its destination, never an
+		// ordering: the page it opens has its own sort control. The count appears only
+		// when the popup shows fewer rows than matched.
+		function updateFooter(q: string, counts?: { shown: number; total: number }): void {
 			const trimmed = q.trim();
-			// The footer names its DESTINATION, never an ordering: the page it opens has
-			// a sort control of its own, and a label like "See most installed" would be
-			// promising an order that control can contradict. Empty field offers the
-			// catalogue the way that page names itself; with text, the same query on a
-			// surface that can show more of it.
-			footer!.textContent = trimmed ? `See results for "${trimmed}"` : 'See all items';
+			if (!trimmed) footer!.textContent = 'See all items';
+			else if (counts && counts.total > counts.shown)
+				footer!.textContent = `See all ${counts.total.toLocaleString('en-US')} results for "${trimmed}"`;
+			else footer!.textContent = `See results for "${trimmed}"`;
 			footer!.href = buildSearchUrl(q);
 		}
 
@@ -904,6 +792,15 @@ const highlights = [
 			});
 		}
 
+		// An answer for a query the field no longer holds is dropped: the debounced
+		// runSearch queued by that edit owns the popup. Clearing lastQuery lets that call
+		// run even when the field is back to `text` (a letter typed and deleted).
+		function isStale(text: string): boolean {
+			if (text === input!.value) return false;
+			lastQuery = '\0';
+			return true;
+		}
+
 		function runSearch(text: string, force = false): void {
 			if (!force && text === lastQuery) return;
 			lastQuery = text;
@@ -911,22 +808,19 @@ const highlights = [
 			abort = new AbortController();
 			showLoading(text);
 			updateFooter(text);
-			fetchSections(text, abort.signal)
-				.then((fetched) => {
+			// Page 0 of the search page's own request, under its default sort.
+			fetchPublishedPage({ text, page: 0, pageSize: PAGE_SIZE, sortId: DEFAULT_IOT_HUB_SORT_ID }, abort.signal)
+				.then(({ items, matchedCount }) => {
+					if (isStale(text)) return;
 					isLoading = false;
-					const sections = toGroupedSections(fetched, { query: text });
-					// What the search matched, not what fits on screen: the sections carry
-					// their own totals, and the flat surfaces report `totalElements`, so
-					// the field means the same thing wherever the event is pushed from.
-					trackQuery(
-						text,
-						sections.reduce((count, section) => count + section.total, 0)
-					);
-					if (sections.length === 0) renderState(body!, 'empty', text);
-					else renderGroups(body!, sections);
+					trackQuery(text, matchedCount);
+					updateFooter(text, { shown: items.length, total: matchedCount });
+					if (items.length === 0) renderState(body!, 'empty', text);
+					else renderList(body!, items);
 				})
 				.catch((err: unknown) => {
 					if (err instanceof DOMException && err.name === 'AbortError') return;
+					if (isStale(text)) return;
 					isLoading = false;
 					renderState(body!, 'error', text);
 				});

@@ -82,7 +82,7 @@ export const paasOnPremises: ChoiceNote = {
 
 export const paasChoice = {
 	title: 'Start free, or talk to us',
-	lead: 'ThingsBoard Cloud is self-serve and running in five minutes. Private Cloud is a dedicated cluster our team manages for you, with a stronger SLA and higher throughput.',
+	lead: 'ThingsBoard Cloud is self-serve and running in five minutes. Private Cloud is a dedicated cluster our team manages for you, with a stronger uptime SLA and higher throughput.',
 	options: [
 		{
 			icon: 'tabler:cloud',
@@ -106,11 +106,11 @@ export const paasChoice = {
 			name: 'Private Cloud',
 			price: 'From $1,499',
 			priceNote: 'Per month, 5,000 devices',
-			summary: 'A dedicated, isolated cluster with a stronger SLA.',
+			summary: 'A dedicated, isolated cluster with a stronger uptime SLA.',
 			points: [
 				'Dedicated, isolated Kubernetes cluster',
 				'Provisioned by our team in hours',
-				'99.9% – 99.99% uptime SLA',
+				'99.9%–99.99% uptime SLA',
 			],
 			cta: {
 				text: 'Contact us',

@@ -16,7 +16,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
 				answer: `<ul>
                                 <li>On-premises deployments live on infrastructure you operate; you gain total control and customisation, yet you also own every patch, backup and compliance task.</li>
                                 <li>ThingsBoard Cloud is the quickest way to try ThingsBoard: a SaaS environment that we maintain for you, but shared with other tenants.</li>
-                                <li>Private Cloud is a fully managed, isolated cluster run by the ThingsBoard team, with a contractual 99.9%–99.99% uptime SLA and your choice of region—ideal when you need zero DevOps and hard uptime guarantees.</li>
+                                <li>Private Cloud is a fully managed, isolated cluster run by the ThingsBoard team, with a contractual 99.9%–99.99% uptime SLA and your choice of region—ideal when you need zero DevOps and firm availability commitments.</li>
                             </ul>`,
 			},
 			{
@@ -39,7 +39,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
                             <p>We measure Downtime from incident detection to full service restoration. <br><br></p>
                             <p>Excluded from Downtime: <br></p>
                             <ul>
-                                <li>Scheduled maintenance announced ≥ 48 h in advance</li>
+                                <li>Scheduled maintenance announced at least 48 hours in advance</li>
                                 <li>Emergency security patches</li>
                                 <li>Force-majeure events or upstream cloud failures (e.g., cloud provider region outage)</li>
                                 <li>Issues caused by customer-side logic (mis-configured Rule Chains, custom JS, connector errors, abusive API use, edge gateways, etc.)</li>
@@ -112,7 +112,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
 				id: 'tb-private-cloud-how-can-i-get-my-data-in-line-with-gdpr-requirements',
 				question: 'How can I get my data in line with GDPR requirements?',
 				answer: `<p>You can request a complete encrypted database dump at any time. We generate a full PostgreSQL dump of all tenant-level tables (entities, telemetry, audit logs, custom metadata) and transfer it to you over a secure channel (SFTP or your own cloud bucket). <br><br></p>
-                            <p>Because the export is a raw DB dump, you retain 100 % data fidelity and can immediately restore it in another PostgreSQL instance or transform it into any machine-readable format you need. We normally fulfill export requests within 5 business days, and—in line with GDPR—can also execute verified deletion of all tenant data within 30 days of your erase request.</p>`,
+                            <p>Because the export is a raw DB dump, you retain 100% data fidelity and can immediately restore it in another PostgreSQL instance or transform it into any machine-readable format you need. We normally fulfill export requests within 5 business days, and—in line with GDPR—can also execute verified deletion of all tenant data within 30 days of your erase request.</p>`,
 			},
 			{
 				id: 'tb-private-cloud-is-your-private-cloud-service-gdpr-compliant',
@@ -122,7 +122,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-private-cloud-will-i-have-a-sysadmin-user',
 				question: 'Will I have a sysadmin user?',
-				answer: `<p>For security and SLA integrity we do not expose Sysadmin by default. If your workflow truly needs low-level access, we can provide read-only credentials to metrics/Kubernetes dashboards under an additional NDA.</p>`,
+				answer: `<p>For security and SLA compliance we do not expose Sysadmin by default. If your workflow truly needs low-level access, we can provide read-only credentials to metrics/Kubernetes dashboards under an additional NDA.</p>`,
 			},
 			{
 				id: 'tb-private-cloud-what-kind-of-security-measurements-do-you-provide',
@@ -197,7 +197,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
                                     </ul>
                                 </li>
                             </ul>
-                            <p>There are no data point rate overage fees—sustained traffic above plan limits requires an upgrade. Short-term bursts up to 20 % over the dp/minute ceiling for ≤ 15 min are tolerated. Sustained overages require a plan upgrade.</p>`,
+                            <p>There are no data point rate overage fees—sustained traffic above plan limits requires an upgrade. Short-term bursts up to 20% over the dp/minute ceiling for up to 15 minutes are tolerated. Sustained overages require a plan upgrade.</p>`,
 			},
 			{
 				id: 'tb-private-cloud-are-there-any-payment-processing-fees',
@@ -300,7 +300,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-private-cloud-how-long-is-telemetry-retained',
 				question: 'How long is telemetry retained?',
-				answer: `<p>Retention is 100 % customer-controlled through the built-in TTL settings or Rule Engine logic. Keep data for days or years—just remember that longer retention consumes more storage and may raise your bill.</p>`,
+				answer: `<p>Retention is 100% customer-controlled through the built-in TTL settings or Rule Engine logic. Keep data for days or years—just remember that longer retention consumes more storage and may raise your bill.</p>`,
 			},
 			{
 				id: 'tb-private-cloud-what-are-custom-data-retention-policies',
@@ -431,7 +431,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-private-cloud-can-i-get-a-custom-sla',
 				question: 'Can I get a custom SLA?',
-				answer: `<p>The Enterprise plan includes a default SLA with a guaranteed uptime of 99.95%, which already meets the needs of most mission-critical applications. While fully custom SLAs are typically not required, we are open to discussing specific availability or support requirements on a case-by-case basis to ensure alignment with your business expectations.</p>`,
+				answer: `<p>The Enterprise plan includes a default uptime SLA of 99.95%, which already meets the needs of most mission-critical applications. While fully custom SLAs are typically not required, we are open to discussing specific availability or support requirements on a case-by-case basis to ensure alignment with your business expectations.</p>`,
 			},
 			{
 				id: 'tb-private-cloud-how-is-the-pricing-determined-for-the-enterprise-plan',

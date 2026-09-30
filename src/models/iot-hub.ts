@@ -186,7 +186,7 @@ export const getCardVariant = (itemType: string): IotHubCardVariant => {
 // category. Returns undefined when the type has no public category — a type the
 // site doesn't surface (e.g. DASHBOARD). Callers building a URL fall back to
 // '#'; callers rendering a grid/section skip the item. Map-backed so per-item
-// hot loops (grouping search results) stay O(1).
+// hot loops (binding search result rows) stay O(1).
 const CATEGORY_BY_ITEM_TYPE = new Map(
 	IOT_HUB_CATEGORIES.map((c) => [c.itemType, c] as const)
 );
@@ -436,18 +436,6 @@ const DEFAULT_IOT_HUB_SORT_OPTION: IotHubSortOption =
 
 export function getIotHubSortOption(id: string | null | undefined): IotHubSortOption {
 	return IOT_HUB_SORT_OPTIONS.find((o) => o.id === id) ?? DEFAULT_IOT_HUB_SORT_OPTION;
-}
-
-// --- Grouped search ----------------------------------------------------------
-
-// A grouped search answers with one section per item type, in the server's order —
-// the same order the platform's popup gets, which is the point of it being the
-// server's. The site renders what it is given rather than re-sorting.
-export interface IotHubSearchSection {
-	itemType: IotHubItemType;
-	/** Rows of this type the search matched, which is at least what the section carries. */
-	total: number;
-	items: ListingView[];
 }
 
 export const getSubtypeLabel = (itemType: IotHubItemType, key: string): string =>
