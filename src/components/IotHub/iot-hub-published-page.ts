@@ -7,10 +7,9 @@ import {
 } from '@models/iot-hub';
 import { getKnownSlugs } from './iot-hub-known-slugs';
 
-// One page of the published catalogue, as every runtime search surface reads it:
-// the search page (iot-hub-dynamic-search.ts) and the hero popup (IotHubHero.astro).
-// Both go through here so they send the same request and drop the same rows, which
-// is what lets the popup promise it previews the page "See results for …" opens on.
+// One page of the published catalogue, shared by the search page
+// (iot-hub-dynamic-search.ts) and the hero popup so both send the same request
+// and drop the same rows.
 
 export interface PublishedPageQuery {
 	text: string;
@@ -27,12 +26,9 @@ export interface PublishedPage {
 	items: ListingView[];
 	/**
 	 * Everything the search matched, which every surface shows and analytics reports.
-	 *
-	 * Known gap, accepted: rows dropped below are still counted, so between a Hub
-	 * publish and the next site build a count can promise a row the site cannot open.
-	 * Only the fetched page's drops are known, and discounting them made the count
-	 * change from page to page. It goes away once detail pages render dynamically and
-	 * nothing has to be dropped.
+	 * Dropped rows are still counted, so between a Hub publish and the next site build
+	 * a count can include a row the site cannot open yet (accepted: it goes away once
+	 * detail pages render dynamically).
 	 */
 	matchedCount: number;
 	totalPages: number;

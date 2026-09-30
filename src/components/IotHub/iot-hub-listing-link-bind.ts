@@ -20,17 +20,12 @@ export const TYPE_FALLBACK_ICON = {
 	DEVICE: 'memory',
 } satisfies Record<IotHubItemType, string>;
 
-// Icon size inside the thumb. The pixel values live in IotHubListingLink.astro's
-// styles, next to the boxes they have to fit (the 56px thumb, the 36px row tile),
-// and IotHubIcon takes any CSS length, so the markup and this binder both pass
-// the variable rather than a number of their own.
+// The pixel sizes live in IotHubListingLink.astro's styles, next to the boxes
+// they have to fit.
 export const THUMB_ICON_SIZE = 'var(--iot-hub-listing-link-thumb-icon-size)';
 
-// Icon that marks an item's type next to the item, wherever a list mixes types
-// (the search popup). The IoT Hub's type dictionary — the same icons the
-// platform uses — rather than the thumbnail placeholders above, which picture
-// the content and not the type. `satisfies` makes a type added to
-// IOT_HUB_CATEGORIES without an icon here a compile error.
+// Type-marker icons: the IoT Hub type dictionary the platform uses, not the
+// thumbnail placeholders above, which picture the content rather than the type.
 const TYPE_MARKER_ICON = {
 	DEVICE: 'devices_other',
 	SOLUTION_TEMPLATE: 'apps',
@@ -49,8 +44,7 @@ export interface TypeMarker {
 	label: string;
 }
 
-// What the type marker shows for an item, for the markup and the binder alike.
-// Null for a type the site has no category for, which renders no marker.
+// Shared by the markup and the binder. Null for a type with no category: no marker.
 export function getTypeMarker(itemType: string): TypeMarker | null {
 	const category = getCategoryForItemType(itemType);
 	if (!category) return null;
