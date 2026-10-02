@@ -1,0 +1,373 @@
+---
+// Cookie consent banner + preferences dialog, mounted once per page from `starlight/SkipLink.astro`.
+// `GtmHead.astro` parses the stored choice into `window.tbConsent` before GTM loads: keep `CONSENT_COOKIE` /
+// `CONSENT_VERSION` in step with it.
+import NButton from '@components/Landing/NButton.astro';
+
+const categories = [
+	{
+		id: 'analytics',
+		title: 'Analytics',
+		description: 'Show us which pages people read and how they find the site, so we can improve it (Google Analytics).',
+	},
+	{
+		id: 'marketing',
+		title: 'Marketing',
+		description: 'Show us which of our ad campaigns bring visitors to the site (Google Ads).',
+	},
+];
+---
+
+<div id="cc-main" class="print:hidden" data-pagefind-ignore>
+	<section class="cm" aria-labelledby="cm-title" aria-describedby="cm-desc" hidden>
+		<p id="cm-title" class="cm__title">
+			We use cookies
+		</p>
+		<p id="cm-desc" class="cm__desc">
+			We use cookies to understand how our site is used and to improve it. We never sell your data. You can change your
+			choice anytime in Cookie settings. <a href="/cookie-policy/">Cookie Policy</a>
+		</p>
+		<div class="cm__btns">
+			<NButton data-cc="accept-all">Accept all</NButton>
+			<NButton variant="outlined" data-cc="reject-all">
+				Reject all
+			</NButton>
+		</div>
+		<NButton variant="text" size="sm" class="cm__manage" data-cc="show-preferences">
+			Manage preferences
+		</NButton>
+	</section>
+	<!-- Shown before first paint rather than from the module script, so it never lands late as the LCP element. -->
+	<script is:inline>
+		if (!window.tbConsent) document.currentScript.previousElementSibling.hidden = false;
+	</script>
+	<dialog class="pm" aria-labelledby="pm-title">
+		<div class="pm__header">
+			<h2 id="pm-title" class="pm__title">
+				Cookie preferences
+			</h2>
+			<form method="dialog">
+				<button type="submit" class="pm__close" aria-label="Close">
+					✕
+				</button>
+			</form>
+		</div>
+		<div class="pm__body">
+			<p class="pm__desc">
+				We use cookies for our own analytics and to see how our campaigns perform. We never sell your data. Necessary
+				cookies keep the site working and cannot be switched off. See our <a href="/cookie-policy/">Cookie Policy</a>
+				for details.
+			</p>
+			<div class="pm__section">
+				<label class="pm__section-head">
+					<span>Strictly necessary</span>
+					<input type="checkbox" role="switch" class="pm__switch" checked disabled />
+				</label>
+				<p class="pm__section-desc">Security, load balancing and remembering your cookie choice.</p>
+			</div>
+			{categories.map((c) => (
+				<div class="pm__section">
+					<label class="pm__section-head">
+						<span>{c.title}</span>
+						<input type="checkbox" role="switch" class="pm__switch" data-category={c.id} />
+					</label>
+					<p class="pm__section-desc">{c.description}</p>
+				</div>
+			))}
+		</div>
+		<div class="pm__footer">
+			<div class="cm__btns">
+				<NButton variant="outlined" data-cc="reject-all">
+					Reject all
+				</NButton>
+				<NButton data-cc="accept-all">Accept all</NButton>
+			</div>
+			<NButton variant="outlined" data-cc="save">
+				Save preferences
+			</NButton>
+		</div>
+	</dialog>
+</div>
+
+<script>
+	import { lockScroll, unlockScroll } from '@util/scroll-lock';
+
+	const CONSENT_COOKIE = 'tb_consent';
+	const CONSENT_VERSION = 1;
+	const MAX_AGE_SECONDS = 180 * 24 * 60 * 60;
+
+	const root = document.getElementById('cc-main')!;
+	const banner = root.querySelector<HTMLElement>('.cm')!;
+	const dialog = root.querySelector<HTMLDialogElement>('.pm')!;
+	const switches = [...dialog.querySelectorAll<HTMLInputElement>('input[data-category]')];
+
+	function saveConsent(analytics: boolean, marketing: boolean) {
+		const consent: TbConsent = { v: CONSENT_VERSION, analytics, marketing };
+		window.tbConsent = consent;
+		const secure = location.protocol === 'https:' ? '; Secure' : '';
+		document.cookie = `${CONSENT_COOKIE}=${encodeURIComponent(JSON.stringify(consent))}; max-age=${MAX_AGE_SECONDS}; path=/; SameSite=Lax${secure}`;
+
+		const ads = marketing ? 'granted' : 'denied';
+		window.gtag('consent', 'update', {
+			analytics_storage: analytics ? 'granted' : 'denied',
+			ad_storage: ads,
+			ad_user_data: ads,
+			// Never granted — see GtmHead.astro.
+			ad_personalization: 'denied',
+		});
+
+		banner.hidden = true;
+		if (dialog.open) dialog.close();
+	}
+
+	function showPreferences() {
+		const consent = window.tbConsent;
+		switches.forEach((s) => (s.checked = consent?.[s.dataset.category as 'analytics' | 'marketing'] ?? false));
+		dialog.showModal();
+		lockScroll();
+	}
+
+	const choice = (id: string) => switches.find((s) => s.dataset.category === id)?.checked ?? false;
+	const actions: Record<string, () => void> = {
+		'accept-all': () => saveConsent(true, true),
+		'reject-all': () => saveConsent(false, false),
+		save: () => saveConsent(choice('analytics'), choice('marketing')),
+		'show-preferences': showPreferences,
+	};
+
+	// Delegated on the document so footer "Cookie settings" buttons reach the dialog too.
+	document.addEventListener('click', (e) => {
+		const trigger = (e.target as Element).closest<HTMLElement>('[data-cc]');
+		const action = trigger && actions[trigger.dataset.cc!];
+		if (!action) return;
+		e.preventDefault();
+		action();
+	});
+
+	dialog.addEventListener('close', unlockScroll);
+
+	// A click on the dialog element itself landed on the backdrop.
+	dialog.addEventListener('click', (e) => {
+		if (e.target === dialog) dialog.close();
+	});
+</script>
+
+<style lang="scss" is:global>
+	@use '../styles/variables' as *;
+
+	// Link-styled "Cookie settings" trigger used in the footers and the Cookie Policy page.
+	.cookie-settings {
+		padding: 0;
+		font: inherit;
+		color: inherit;
+		text-decoration: underline;
+		background: none;
+		border: none;
+		cursor: pointer;
+	}
+
+	#cc-main {
+		.n-button {
+			white-space: nowrap;
+		}
+
+		.cm,
+		.pm {
+			color: var(--color-text);
+			background: var(--color-bg-surface);
+			border: 1px solid var(--color-border-light);
+			border-radius: 8px;
+			box-shadow:
+				0 1px 2px rgba(16, 24, 40, 0.06),
+				0 12px 32px -8px rgba(16, 24, 40, 0.24);
+		}
+
+		.cm {
+			position: fixed;
+			// Left corner: the bottom-right one is taken by a floating button.
+			left: 20px;
+			bottom: 20px;
+			z-index: $z-modal;
+			display: flex;
+			flex-direction: column;
+			gap: 12px;
+			width: min(340px, calc(100vw - 40px));
+			max-height: calc(100dvh - 40px);
+			overflow-y: auto;
+			padding: 20px 20px 12px;
+
+			&[hidden] {
+				display: none;
+			}
+		}
+
+		.cm__title {
+			margin: 0;
+			font-size: $font-size-lg;
+			font-weight: $font-weight-semibold;
+			line-height: 24px;
+		}
+
+		.cm__desc,
+		.pm__desc,
+		.pm__section-desc {
+			@include text-card-sm;
+			margin: 0;
+
+			a {
+				color: var(--color-text);
+				text-decoration: underline;
+			}
+		}
+
+		.pm__section-desc {
+			color: var(--color-text-secondary);
+		}
+
+		.cm__btns {
+			display: flex;
+			gap: 8px;
+			margin-top: 4px;
+
+			.n-button {
+				flex: 1;
+			}
+		}
+
+		.cm__manage {
+			align-self: center;
+		}
+
+		.pm {
+			width: min(36rem, calc(100vw - 2rem));
+			max-height: calc(100dvh - 2rem);
+			// The site's base styles zero `margin`, which un-centres a modal dialog.
+			margin: auto;
+			padding: 0;
+
+			&::backdrop {
+				background: rgba(0, 0, 0, 0.5);
+			}
+
+			&[open] {
+				display: flex;
+				flex-direction: column;
+			}
+		}
+
+		.pm__header {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			padding: 20px 24px 0;
+		}
+
+		.pm__title {
+			margin: 0;
+			font-size: $font-size-xl;
+			font-weight: $font-weight-semibold;
+			line-height: 28px;
+			color: var(--color-text);
+		}
+
+		.pm__close {
+			width: 32px;
+			height: 32px;
+			margin-right: -6px;
+			font-size: $font-size-base;
+			color: var(--color-text);
+			background: transparent;
+			border: none;
+			border-radius: $radius-sm;
+			cursor: pointer;
+
+			&:hover {
+				background: var(--color-bg-light);
+			}
+		}
+
+		.pm__body {
+			display: flex;
+			flex-direction: column;
+			gap: 10px;
+			padding: 16px 24px;
+			overflow-y: auto;
+		}
+
+		.pm__section {
+			display: flex;
+			flex-direction: column;
+			gap: 4px;
+			padding: 12px 16px;
+			background: var(--color-bg-light);
+			border-radius: $radius-md;
+		}
+
+		.pm__section-head {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 16px;
+			font-size: $font-size-sm;
+			font-weight: $font-weight-semibold;
+			line-height: 24px;
+			cursor: pointer;
+		}
+
+		.pm__switch {
+			flex-shrink: 0;
+			position: relative;
+			width: 36px;
+			height: 20px;
+			margin: 0;
+			appearance: none;
+			background: var(--color-text-light);
+			border-radius: 10px;
+			cursor: pointer;
+			transition: background-color 0.2s ease;
+
+			&::after {
+				content: '';
+				position: absolute;
+				top: 2px;
+				left: 2px;
+				width: 16px;
+				height: 16px;
+				background: var(--color-white);
+				border-radius: 50%;
+				transition: transform 0.2s ease;
+			}
+
+			&:checked {
+				background: var(--color-primary);
+
+				&::after {
+					transform: translateX(16px);
+				}
+			}
+
+			&:disabled {
+				opacity: 0.5;
+				cursor: not-allowed;
+			}
+
+			&:focus-visible {
+				outline: 2px solid var(--color-primary);
+				outline-offset: 2px;
+			}
+		}
+
+		.pm__footer {
+			display: flex;
+			flex-direction: column;
+			gap: 8px;
+			padding: 0 24px 20px;
+
+			@include media-up(sm) {
+				flex-direction: row;
+				align-items: center;
+				justify-content: space-between;
+			}
+		}
+	}
+</style>
