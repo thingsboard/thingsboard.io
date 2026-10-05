@@ -1,13 +1,4 @@
-// Minimal structural hast-node shape — enough for the walk below without
-// depending on the (transitive) `hast` types package. Mirrors the one in
-// `@util/site-links`.
-type HastNode = {
-	type: string;
-	tagName?: string;
-	properties?: Record<string, unknown>;
-	value?: string;
-	children?: HastNode[];
-};
+import type { HastNode } from '@util/site-links';
 
 /**
  * Dimensions a lightbox thumbnail declares before anything has measured its
