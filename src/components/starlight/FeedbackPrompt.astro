@@ -19,6 +19,11 @@ const questions = {
 } as const;
 
 const options = ['yes', 'no'] as const;
+
+const successText = {
+	sent: 'Thank you for your feedback!',
+	already: "You've already sent feedback for this page. Thank you!",
+};
 ---
 
 <div class="feedback-prompt not-content print:hidden" data-feedback-root data-endpoint={FORMSPREE_FEEDBACK}>
@@ -51,6 +56,7 @@ const options = ['yes', 'no'] as const;
 									name="reason"
 									value={value}
 									class="feedback-reason-input"
+									data-requires-comment={value.startsWith('other-') ? '' : undefined}
 								/>
 								<span class="feedback-reason-ring">
 									<span class="feedback-reason-dot" />
@@ -63,11 +69,16 @@ const options = ['yes', 'no'] as const;
 			))
 		}
 
-		<textarea
-			class="feedback-textarea"
-			name="info"
-			rows="2"
-			placeholder="Tell us more about your experience."></textarea>
+		<label class="feedback-comment">
+			<span class="sr-only">Comment</span>
+			<textarea
+				class="feedback-textarea"
+				name="info"
+				rows="2"
+				placeholder="Tell us more about your experience."
+				data-feedback-comment></textarea>
+		</label>
+		<p class="feedback-hint" data-feedback-hint hidden>A comment is required when you choose Other.</p>
 
 		<input
 			type="text"
@@ -79,58 +90,153 @@ const options = ['yes', 'no'] as const;
 		/>
 
 		<button type="submit" class="feedback-submit" disabled>Submit</button>
+
+		<p class="feedback-error" role="alert" data-feedback-error hidden>
+			<Icon name="tabler:alert-circle-filled" size="1.125rem" />
+			<span data-feedback-error-text></span>
+		</p>
 	</form>
 
-	<div class="feedback-success" data-feedback-success hidden>
-		<Icon name="tabler:circle-check-filled" size="1.125rem" />
-		<span>Thank you for your feedback!</span>
+	<div class="feedback-success" data-feedback-success tabindex="-1" hidden>
+		<Icon name="tabler:circle-check-filled" size="1.5rem" />
+		<span
+			data-feedback-success-text
+			data-sent={successText.sent}
+			data-already={successText.already}>{successText.sent}</span>
 	</div>
 
 	<div class="sr-only" role="status" aria-live="polite" data-feedback-announce></div>
 </div>
 
+<script is:inline>
+	// Before first paint, show the thank-you state for a page rated earlier (same key as below).
+	(() => {
+		const root = document.currentScript?.previousElementSibling;
+		const path = location.pathname.replace(/\/index\.html?$/, '/').replace(/\/{2,}/g, '/');
+		try {
+			if (localStorage.getItem(`feedback-submitted:${path.replace(/\/?$/, '/')}`) !== '1') return;
+		} catch {
+			return;
+		}
+		const title = root?.querySelector('[data-feedback-title]');
+		const buttons = root?.querySelector('[data-feedback-buttons]');
+		const success = root?.querySelector('[data-feedback-success]');
+		const text = root?.querySelector('[data-feedback-success-text]');
+		if (!title || !buttons || !success || !text) return;
+		root.dataset.feedbackState = 'success';
+		title.hidden = true;
+		buttons.hidden = true;
+		text.textContent = text.dataset.already;
+		success.hidden = false;
+	})();
+</script>
+
 <script>
 	type FeedbackOption = 'yes' | 'no';
+	type SuccessKind = 'sent' | 'already';
+	type Instance = { sync: () => void; setError: (shown: boolean) => void };
 
 	const STORAGE_PREFIX = 'feedback-submitted:';
 	const SUBMITTED_EVENT = 'feedback:submitted';
+	const SEND_TIMEOUT_MS = 15_000;
 
-	const isSubmitted = () => {
+	const MESSAGES = {
+		error: "Couldn't send your feedback. Please try again.",
+		commentMissing: 'Please add a comment before submitting.',
+		requiredPlaceholder: 'Tell us more (required).',
+		sending: 'Sending…',
+	};
+
+	// One key per page, with or without a trailing slash or index.html.
+	const normalizePath = (path: string) =>
+		path.replace(/\/index\.html?$/, '/').replace(/\/{2,}/g, '/').replace(/\/?$/, '/');
+
+	const storageKey = STORAGE_PREFIX + normalizePath(location.pathname);
+	// Raw-path per-tab flag written by older code; only read.
+	const legacyKey = STORAGE_PREFIX + location.pathname;
+
+	let submitted = false;
+	let sending = false;
+	let instanceCount = 0;
+	const instances: Instance[] = [];
+
+	const readFlag = (getStorage: () => Storage, key: string) => {
 		try {
-			return sessionStorage.getItem(STORAGE_PREFIX + location.pathname) === '1';
+			return getStorage().getItem(key) === '1';
 		} catch {
 			return false;
 		}
 	};
 
-	const markSubmitted = () => {
+	const writeFlag = (getStorage: () => Storage, key: string) => {
 		try {
-			sessionStorage.setItem(STORAGE_PREFIX + location.pathname, '1');
+			getStorage().setItem(key, '1');
+			return true;
 		} catch {
-			/* Storage may be disabled; in-page custom event still syncs siblings. */
+			return false;
 		}
+	};
+
+	const isSubmittedInSession = () =>
+		readFlag(() => sessionStorage, storageKey) || readFlag(() => sessionStorage, legacyKey);
+
+	const isSubmitted = () =>
+		submitted || readFlag(() => localStorage, storageKey) || isSubmittedInSession();
+
+	const markSubmitted = () => {
+		submitted = true;
+		if (!writeFlag(() => localStorage, storageKey)) writeFlag(() => sessionStorage, storageKey);
 		document.dispatchEvent(new CustomEvent(SUBMITTED_EVENT));
 	};
 
-	const showSuccessFor = (root: HTMLElement, announce: boolean) => {
+	const showSuccessFor = (root: HTMLElement, kind: SuccessKind) => {
+		if (root.dataset.feedbackState === 'success') return;
 		const title = root.querySelector<HTMLElement>('[data-feedback-title]');
 		const buttons = root.querySelector<HTMLElement>('[data-feedback-buttons]');
 		const form = root.querySelector<HTMLFormElement>('[data-feedback-form]');
 		const success = root.querySelector<HTMLElement>('[data-feedback-success]');
-		const announceEl = root.querySelector<HTMLElement>('[data-feedback-announce]');
-		if (!title || !buttons || !form || !success) return;
+		const text = root.querySelector<HTMLElement>('[data-feedback-success-text]');
+		if (!title || !buttons || !form || !success || !text) return;
+		root.dataset.feedbackState = 'success';
 		title.hidden = true;
 		buttons.hidden = true;
 		form.hidden = true;
+		text.textContent = text.dataset[kind] ?? '';
 		success.hidden = false;
-		if (announce && announceEl) announceEl.textContent = 'Thank you for your feedback!';
 	};
 
-	// Single module-scope listener that mirrors success state across sibling prompts.
-	document.addEventListener(SUBMITTED_EVENT, () => {
-		document
-			.querySelectorAll<HTMLElement>('[data-feedback-root]')
-			.forEach((root) => showSuccessFor(root, false));
+	// A prompt that held focus passes it to its success box instead of dropping it to the page.
+	const showSuccessEverywhere = (kind: SuccessKind) => {
+		const active = document.activeElement;
+		document.querySelectorAll<HTMLElement>('[data-feedback-root]').forEach((root) => {
+			const hadFocus = !!active && root.contains(active);
+			showSuccessFor(root, kind);
+			if (!hadFocus) return;
+			root.querySelector<HTMLElement>('[data-feedback-success]')?.focus({ preventScroll: true });
+		});
+	};
+
+	// Announce and focus only in the prompt the user submitted from.
+	const confirmIn = (root: HTMLElement) => {
+		const success = root.querySelector<HTMLElement>('[data-feedback-success]');
+		const text = root.querySelector<HTMLElement>('[data-feedback-success-text]');
+		const announceEl = root.querySelector<HTMLElement>('[data-feedback-announce]');
+		if (!success || success.hidden) return;
+		success.focus({ preventScroll: true });
+		success.scrollIntoView({ block: 'nearest' });
+		// The focused box is read out already; announce only when focus didn't land.
+		if (announceEl && document.activeElement !== success) announceEl.textContent = text?.textContent ?? '';
+	};
+
+	// Single module-scope listeners that mirror success state across prompts and tabs.
+	document.addEventListener(SUBMITTED_EVENT, () => showSuccessEverywhere('sent'));
+
+	window.addEventListener('storage', (e) => {
+		if (e.key === storageKey && e.newValue === '1') showSuccessEverywhere('already');
+	});
+
+	window.addEventListener('pageshow', (e) => {
+		if (e.persisted && isSubmitted()) showSuccessEverywhere('already');
 	});
 
 	function bind(root: HTMLElement) {
@@ -141,16 +247,81 @@ const options = ['yes', 'no'] as const;
 		const title = root.querySelector<HTMLElement>('[data-feedback-title]');
 		const buttons = root.querySelector<HTMLElement>('[data-feedback-buttons]');
 		const form = root.querySelector<HTMLFormElement>('[data-feedback-form]');
-		const success = root.querySelector<HTMLElement>('[data-feedback-success]');
 		const submit = form?.querySelector<HTMLButtonElement>('button[type="submit"]');
-		if (!endpoint || !title || !buttons || !form || !success || !submit) return;
-
-		if (isSubmitted()) {
-			showSuccessFor(root, false);
+		const comment = form?.querySelector<HTMLTextAreaElement>('[data-feedback-comment]');
+		const hint = form?.querySelector<HTMLElement>('[data-feedback-hint]');
+		const error = form?.querySelector<HTMLElement>('[data-feedback-error]');
+		const errorText = error?.querySelector<HTMLElement>('[data-feedback-error-text]');
+		const announceEl = root.querySelector<HTMLElement>('[data-feedback-announce]');
+		if (!endpoint || !title || !buttons || !form || !submit || !comment || !hint || !error || !errorText) {
 			return;
 		}
 
+		if (isSubmitted()) {
+			showSuccessFor(root, 'already');
+			return;
+		}
+
+		hint.id = `feedback-${++instanceCount}-hint`;
+		const submitLabel = submit.textContent ?? 'Submit';
+		const optionalPlaceholder = comment.placeholder;
+		const commentHint = hint.textContent ?? '';
 		let chosen: FeedbackOption | null = null;
+
+		// Only the visible list counts, never a radio the browser restored in the other one.
+		const selectedReason = () =>
+			chosen
+				? form.querySelector<HTMLInputElement>(
+						`[data-option-fieldset="${chosen}"] input[name="reason"]:checked`
+					)
+				: null;
+		const commentRequired = () => selectedReason()?.dataset.requiresComment !== undefined;
+		const hasComment = () => comment.value.trim() !== '';
+		const isValid = () => !!selectedReason() && (!commentRequired() || hasComment());
+		const isLocked = () => sending || submitted || root.dataset.feedbackState === 'success';
+		const announce = (message: string) => {
+			if (announceEl) announceEl.textContent = message;
+		};
+
+		const setCommentInvalid = (invalid: boolean) => {
+			hint.textContent = invalid ? MESSAGES.commentMissing : commentHint;
+			hint.classList.toggle('is-error', invalid);
+			if (invalid) comment.setAttribute('aria-invalid', 'true');
+			else comment.removeAttribute('aria-invalid');
+		};
+
+		// A closed form keeps its error hidden, so it can't surface on a later open.
+		const setError = (shown: boolean) => {
+			const visible = shown && !form.hidden;
+			error.hidden = !visible;
+			errorText.textContent = visible ? MESSAGES.error : '';
+		};
+
+		// `sending` is module-wide: one in-flight send locks every copy of the prompt.
+		const sync = () => {
+			submit.textContent = sending ? MESSAGES.sending : submitLabel;
+			if (sending) submit.setAttribute('aria-busy', 'true');
+			else submit.removeAttribute('aria-busy');
+			submit.disabled = isLocked() || !isValid();
+		};
+
+		const update = () => {
+			const required = commentRequired();
+			comment.required = required;
+			comment.placeholder = required ? MESSAGES.requiredPlaceholder : optionalPlaceholder;
+			hint.hidden = !required;
+			if (required) {
+				comment.setAttribute('aria-required', 'true');
+				comment.setAttribute('aria-describedby', hint.id);
+			} else {
+				comment.removeAttribute('aria-required');
+				comment.removeAttribute('aria-describedby');
+			}
+			if (!required || hasComment()) setCommentInvalid(false);
+			sync();
+		};
+
+		instances.push({ sync, setError });
 
 		buttons.addEventListener('click', (e) => {
 			const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-option]');
@@ -159,9 +330,17 @@ const options = ['yes', 'no'] as const;
 			title.textContent = chosen === 'yes' ? 'What did you like?' : 'What went wrong?';
 			buttons.hidden = true;
 			form.hidden = false;
-			root.querySelectorAll<HTMLElement>('[data-option-fieldset]').forEach((fs) => {
-				fs.hidden = fs.dataset.optionFieldset !== chosen;
+			root.querySelectorAll<HTMLFieldSetElement>('[data-option-fieldset]').forEach((fs) => {
+				const active = fs.dataset.optionFieldset === chosen;
+				fs.hidden = !active;
+				// Keeps the other list out of the payload and clears any restored pick in it.
+				fs.disabled = !active;
+				if (active) return;
+				fs.querySelectorAll<HTMLInputElement>('input[name="reason"]').forEach((input) => {
+					input.checked = false;
+				});
 			});
+			update();
 			root
 				.querySelector<HTMLInputElement>(
 					`[data-option-fieldset="${chosen}"] .feedback-reason-input`
@@ -169,14 +348,47 @@ const options = ['yes', 'no'] as const;
 				?.focus();
 		});
 
-		form.addEventListener('change', (e) => {
-			if ((e.target as HTMLInputElement).name === 'reason') submit.disabled = false;
-		});
+		const onEdit = () => {
+			instances.forEach((instance) => instance.setError(false));
+			update();
+		};
+		form.addEventListener('change', onEdit);
+		form.addEventListener('input', onEdit);
 
 		form.addEventListener('submit', async (e) => {
 			e.preventDefault();
-			if (!chosen) return;
-			submit.disabled = true;
+			if (!chosen || isLocked()) return;
+			if (isSubmitted()) {
+				showSuccessEverywhere('already');
+				confirmIn(root);
+				return;
+			}
+			setError(false);
+			if (!selectedReason()) {
+				root
+					.querySelector<HTMLInputElement>(
+						`[data-option-fieldset="${chosen}"] .feedback-reason-input`
+					)
+					?.focus();
+				return;
+			}
+			if (commentRequired() && !hasComment()) {
+				update();
+				setCommentInvalid(true);
+				comment.focus();
+				return;
+			}
+
+			const hadFocus = document.activeElement === submit;
+			sending = true;
+			instances.forEach((instance) => {
+				instance.setError(false);
+				instance.sync();
+			});
+			// Disabling the focused button drops focus, so its new label isn't read out.
+			announce(MESSAGES.sending);
+			const controller = new AbortController();
+			const timer = setTimeout(() => controller.abort(), SEND_TIMEOUT_MS);
 			let ok = false;
 			try {
 				const response = await fetch(endpoint, {
@@ -190,22 +402,41 @@ const options = ['yes', 'no'] as const;
 						option: chosen,
 						page: location.pathname,
 					}),
+					signal: controller.signal,
 				});
 				ok = response.ok;
 			} catch {
-				/* Network failure — fall through with ok=false. */
+				/* Network failure or timeout: reported below. */
+			} finally {
+				clearTimeout(timer);
 			}
-			if (!ok) {
-				submit.disabled = false;
+			sending = false;
+
+			if (ok) {
+				markSubmitted();
+				instances.forEach((instance) => instance.sync());
+				confirmIn(root);
 				return;
 			}
-			markSubmitted();
-			showSuccessFor(root, true);
+
+			instances.forEach((instance) => {
+				instance.sync();
+				instance.setError(true);
+			});
+			announce('');
+			// Restore focus for a keyboard retry.
+			if (hadFocus && document.activeElement === document.body) submit.focus({ preventScroll: true });
+			error.scrollIntoView({ block: 'nearest' });
 		});
 	}
 
-	const init = () =>
+	const init = () => {
+		// Carry a per-tab flag over so other tabs and later visits see it too.
+		if (isSubmittedInSession() && !readFlag(() => localStorage, storageKey)) {
+			writeFlag(() => localStorage, storageKey);
+		}
 		document.querySelectorAll<HTMLElement>('[data-feedback-root]').forEach(bind);
+	};
 
 	if (document.readyState !== 'loading') init();
 </script>
@@ -282,10 +513,11 @@ const options = ['yes', 'no'] as const;
 	}
 
 	.feedback-success :global(svg) {
-		width: 1.25rem;
-		height: 1.25rem;
-		font-size: 1.25rem;
+		width: 1.5rem;
+		height: 1.5rem;
+		font-size: 1.5rem;
 		flex-shrink: 0;
+		color: var(--sl-color-text-accent);
 	}
 
 	.feedback-form {
@@ -380,7 +612,12 @@ const options = ['yes', 'no'] as const;
 		line-height: 1.3;
 	}
 
+	.feedback-comment {
+		display: block;
+	}
+
 	.feedback-textarea {
+		display: block;
 		width: 100%;
 		padding: 0.5rem 0.75rem;
 		border: 1px solid var(--sl-color-hairline);
@@ -402,6 +639,25 @@ const options = ['yes', 'no'] as const;
 		outline: none;
 		border-color: var(--sl-color-text-accent);
 		box-shadow: 0 0 0 1px var(--sl-color-text-accent);
+	}
+
+	.feedback-textarea[aria-invalid='true'] {
+		border-color: var(--sl-color-red);
+	}
+
+	.feedback-textarea[aria-invalid='true']:focus {
+		box-shadow: 0 0 0 1px var(--sl-color-red);
+	}
+
+	.feedback-hint {
+		margin: 0;
+		font-size: 0.75rem;
+		line-height: 1.4;
+		color: var(--sl-color-gray-3);
+	}
+
+	.feedback-hint.is-error {
+		color: var(--sl-color-red-high);
 	}
 
 	.feedback-honeypot {
@@ -437,15 +693,49 @@ const options = ['yes', 'no'] as const;
 		cursor: not-allowed;
 	}
 
+	.feedback-submit[aria-busy='true']:disabled {
+		opacity: 1;
+		cursor: progress;
+	}
+
+	.feedback-error {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.5rem;
+		margin: 0;
+		padding: 0.5rem 0.75rem;
+		border: 1px solid var(--sl-color-red);
+		border-radius: 0.5rem;
+		background: var(--sl-color-red-low);
+		color: var(--sl-color-red-high);
+		font-size: 0.8125rem;
+		line-height: 1.4;
+	}
+
+	.feedback-error :global(svg) {
+		width: 1.125rem;
+		height: 1.125rem;
+		font-size: 1.125rem;
+		flex-shrink: 0;
+	}
+
 	.feedback-success {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: 0.625rem;
 		margin-top: 0.75rem;
-		padding: 0.625rem 0.75rem;
+		padding: 0.75rem 0.875rem;
+		border: 1px solid var(--sl-color-green);
 		border-radius: 0.5rem;
 		background: var(--sl-color-green-low);
 		color: var(--sl-color-green-high);
-		font-size: 0.8125rem;
+		font-size: 0.875rem;
+		font-weight: 600;
+		line-height: 1.4;
+	}
+
+	.feedback-success:focus-visible {
+		outline: 2px solid var(--sl-color-text-accent);
+		outline-offset: 2px;
 	}
 </style>

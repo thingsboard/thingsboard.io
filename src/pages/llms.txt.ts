@@ -12,7 +12,7 @@ const HEADER = `# ThingsBoard
 - The platform provides a powerful rule engine for real-time data processing, transformation, and automated actions on IoT telemetry.
 - ThingsBoard dashboards offer rich interactive widgets for data visualization, alarm management, and device control.
 - Multi-tenancy architecture supports isolated customer and tenant hierarchies with role-based access control.
-- ThingsBoard Professional Edition (PE) extends CE with white-labeling, solution templates, reporting, advanced RBAC, and integrations.
+- ThingsBoard is an all-in-one platform: white-labeling, solution templates, reporting, advanced RBAC, and integrations with third-party platforms and cloud services are built in.
 - ThingsBoard Cloud (PaaS) is a fully managed cloud offering; ThingsBoard Edge extends the platform to on-premises edge nodes.
 - Additional products: IoT Gateway (protocol bridge for industrial devices), Trendz Analytics (AI-driven analytics), Mobile SDK, License Server. The TBMQ MQTT broker is documented separately at https://tbmq.io.`;
 
@@ -25,8 +25,8 @@ interface KeyPage {
 const KEY_PAGES: KeyPage[] = [
 	{
 		slug: 'docs/pe',
-		title: 'ThingsBoard PE — Documentation home',
-		description: 'Top-level entry point for ThingsBoard Professional Edition documentation.',
+		title: 'ThingsBoard — Documentation home',
+		description: 'Top-level entry point for ThingsBoard documentation.',
 	},
 	{
 		slug: 'docs/pe/why-thingsboard',
@@ -35,7 +35,7 @@ const KEY_PAGES: KeyPage[] = [
 	},
 	{
 		slug: 'docs/pe/getting-started',
-		title: 'Getting Started with ThingsBoard PE',
+		title: 'Getting Started with ThingsBoard',
 		description: 'End-to-end setup: install, connect a device, build a dashboard.',
 	},
 	{
@@ -73,7 +73,7 @@ const KEY_PAGES: KeyPage[] = [
 	{
 		slug: 'docs/pe/installation',
 		title: 'Installation options',
-		description: 'Deployment topologies and installation paths for ThingsBoard PE.',
+		description: 'Deployment topologies and installation paths for ThingsBoard.',
 	},
 	{
 		slug: 'docs/pe/reference/rest-api',
@@ -87,12 +87,12 @@ const KEY_PAGES: KeyPage[] = [
 	},
 	{
 		slug: 'docs/edge/pe',
-		title: 'ThingsBoard Edge PE',
+		title: 'ThingsBoard Edge',
 		description: 'On-premises edge nodes that synchronize with a central ThingsBoard server.',
 	},
 	{
 		slug: 'docs/mobile/pe',
-		title: 'ThingsBoard Mobile PE',
+		title: 'ThingsBoard Mobile',
 		description: 'Customizable mobile application for end-user IoT solutions.',
 	},
 	{
@@ -148,8 +148,8 @@ export const GET: APIRoute = () => {
 
 	const notes = [
 		'- This catalog is auto-generated from the same source as https://thingsboard.io/docs/.',
-		'- ThingsBoard Cloud (PaaS) pages share content with the Professional Edition pages listed here; the catalog points at PE URLs to avoid duplication.',
-		'- Community Edition pages are intentionally omitted; PE is the canonical reference and is a strict superset.',
+		'- ThingsBoard Cloud (PaaS) docs under /docs/paas/ share their content with the pages listed here, so they are omitted to avoid duplication.',
+		'- The pages listed here are the canonical reference for each topic; docs pages at other URLs that repeat the same content are omitted.',
 	].join('\n');
 
 	const optional = OPTIONAL_LINKS.map(

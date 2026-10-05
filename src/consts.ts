@@ -35,8 +35,16 @@ export function formatMarketingTitle(title: string, section?: string): string {
 	return `${clean}${SEP}${section}${SEP}${SITE_NAME}`;
 }
 
-export function formatDocsTitle(pageTitle: string, productName: string, isIndex: boolean): string {
-	return isIndex
-		? `${DOCS_SUFFIX}${SEP}${productName}`
-		: `${pageTitle}${SEP}${DOCS_SUFFIX}${SEP}${productName}`;
+/**
+ * Docs <title>: "{Page} | {suffix}", or the suffix alone on a product index. The suffix is
+ * the product's own `docsTitle` brand when it has one, else "Docs | {productName}".
+ */
+export function formatDocsTitle(
+	pageTitle: string,
+	productName: string,
+	isIndex: boolean,
+	docsTitle?: string
+): string {
+	const suffix = docsTitle ?? `${DOCS_SUFFIX}${SEP}${productName}`;
+	return isIndex ? suffix : `${pageTitle}${SEP}${suffix}`;
 }

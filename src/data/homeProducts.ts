@@ -43,7 +43,7 @@ export const homeProducts: ProductChoice[] = [
 		],
 		badgeFill: '#178649',
 		nameHighlight: 'On-premises',
-		action: { label: 'Install for free', href: '/installations/', icon: 'tabler:server' },
+		action: { label: 'Install for free', href: '/docs/pe/installation/', icon: 'tabler:server' },
 		href: '/products/thingsboard-pe/',
 		link: 'Explore On-premises',
 	},

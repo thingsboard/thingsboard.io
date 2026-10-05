@@ -2,10 +2,10 @@ import type { CaseStudyData } from './types';
 
 export const data: CaseStudyData = {
 	title:
-		'Sense and Control on ThingsBoard PE: How Seymour Holds Greenhouses at 70% RH and Cuts Irrigation Water by 40%',
-	pageTitle: 'How Seymour Runs Greenhouses and Farms on ThingsBoard PE',
+		'Sense and Control on ThingsBoard: How Seymour Holds Greenhouses at 70% RH and Cuts Irrigation Water by 40%',
+	pageTitle: 'How Seymour Runs Greenhouses and Farms on ThingsBoard',
 	description:
-		'Seymour Ag Instruments runs greenhouses, fields and indoor farms on ThingsBoard PE: 1,000+ devices, 170+ farms, a 70 ±2% humidity target, 20–40% less water.',
+		'Seymour Ag Instruments runs greenhouses, fields and indoor farms on ThingsBoard: 1,000+ devices, 170+ farms, a 70 ±2% humidity target, 20–40% less water.',
 	pageSlug: 'seymour-ag-instruments',
 	breadcrumb: 'Seymour Ag Instruments — Smart Agriculture',
 	categories: ['Smart agriculture'],
@@ -13,9 +13,9 @@ export const data: CaseStudyData = {
 	hero: {
 		category: 'SMART AGRICULTURE',
 		heading:
-			'Sense and Control on ThingsBoard PE: How Seymour Holds Greenhouses at 70% RH and Cuts Irrigation Water by 40%',
+			'Sense and Control on ThingsBoard: How Seymour Holds Greenhouses at 70% RH and Cuts Irrigation Water by 40%',
 		paragraphs: [
-			'Seymour Ag Instruments builds sensing and control for agriculture. Founded in 2021, the four-person company makes a full hardware line: sensors for every environmental parameter a grower needs, plus controllers for climate, irrigation and fertilisation. Its farm-management software is built entirely on ThingsBoard Professional Edition. One application follows a crop from transplant to harvest, across greenhouses, open fields and indoor plant factories, in the grower’s own language.',
+			'Seymour Ag Instruments builds sensing and control for agriculture. Founded in 2021, the four-person company makes a full hardware line: sensors for every environmental parameter a grower needs, plus controllers for climate, irrigation and fertilisation. Its farm-management software is built entirely on ThingsBoard. One application follows a crop from transplant to harvest, across greenhouses, open fields and indoor plant factories, in the grower’s own language.',
 		],
 		logo: '/images/case-studies/seymour-ag-instruments-logo.png',
 		logoAlt: 'Seymour Ag Instruments logo',
@@ -29,7 +29,7 @@ export const data: CaseStudyData = {
 	],
 
 	quote: {
-		text: 'We are four people selling hardware and a farm-management product, and ThingsBoard PE is what makes that possible. The entity hierarchy, device profiles, calculated fields, alarms and rule engine are a backend we never had to build, so our engineering goes into the agronomy, as widgets on top of the platform. And when we hit something we cannot solve ourselves, Daniela Dodonova and the ThingsBoard team answer every time.',
+		text: 'We are four people selling hardware and a farm-management product, and ThingsBoard is what makes that possible. The entity hierarchy, device profiles, calculated fields, alarms and rule engine are a backend we never had to build, so our engineering goes into the agronomy, as widgets on top of the platform. And when we hit something we cannot solve ourselves, Daniela Dodonova and the ThingsBoard team answer every time.',
 		author: 'Tal Saadon',
 		role: 'Co-Founder & CEO, Seymour Ag Instruments',
 	},
@@ -42,7 +42,7 @@ export const data: CaseStudyData = {
 			'A four-person team cannot build and run a backend, authentication and time-series infrastructure and still ship hardware.',
 		],
 		results: [
-			'More than 1,000 devices on 170+ farms and about 6 million data points a day, on one PE tenant hosted and managed by the ThingsBoard team.',
+			'More than 1,000 devices on 170+ farms and about 6 million data points a day, on a single tenant hosted and managed by the ThingsBoard team.',
 			'Fog control on a 70 ±2% target: mean 70.3% across the 65.7 hours of fogging in a seven-day trial, 90% of raw samples within ±3%, canopy dry whenever the fog ran.',
 			'20–40% less irrigation water across deployments; 40% validated on a national forestry organisation’s managed-forest sites.',
 			'Seven production screens and a GACP-grade audit trail, delivered as 55 custom widgets in the ThingsBoard widget library — no separate backend.',
@@ -54,7 +54,7 @@ export const data: CaseStudyData = {
 		blocks: [
 			{
 				title: 'One data model for every farm',
-				text: 'Seymour has run on ThingsBoard PE since 2022. Each customer’s operation is modelled as assets — Farm, Plot, Unit — with devices at the unit level, and each customer sees only its own hierarchy. Device profiles cover the whole hardware line, from climate sensors and soil probes to runoff stations and controllers. Everything the grower touches is a Seymour widget: seven screens in the ThingsBoard widget library, in four languages, including a right-to-left layout.',
+				text: 'Seymour has run on ThingsBoard since 2022. Each customer’s operation is modelled as assets — Farm, Plot, Unit — with devices at the unit level, and each customer sees only its own hierarchy. Device profiles cover the whole hardware line, from climate sensors and soil probes to runoff stations and controllers. Everything the grower touches is a Seymour widget: seven screens in the ThingsBoard widget library, in four languages, including a right-to-left layout.',
 				image: '/images/case-studies/seymour-ag-instruments-1.webp',
 				imageAlt: 'Seymour overview dashboard on ThingsBoard comparing greenhouse and vineyard plots',
 			},

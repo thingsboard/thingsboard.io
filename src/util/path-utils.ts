@@ -10,16 +10,41 @@ export const supportedLanguages: Record<SupportedLanguage, { label: string; pref
 	uk: { label: 'Українська', prefix: 'uk/' },
 };
 
-/** Product version configuration (all products including variants).
- *  `label` is used in version-switcher UI; `titleName` is the SEO brand form used in <title> tags. */
-export const productVersions: Partial<Record<Products, { label: string; prefix: string; titleName: string }>> = {
-	[Products.CE]: { label: 'Community Edition', prefix: '', titleName: 'ThingsBoard' },
-	[Products.PE]: { label: 'Professional Edition', prefix: 'pe/', titleName: 'ThingsBoard PE' },
-	[Products.PAAS]: { label: 'Cloud', prefix: 'paas/', titleName: 'ThingsBoard Cloud' },
+interface ProductVersion {
+	/** Version-switcher UI label. */
+	label: string;
+	prefix: string;
+	/** SEO brand form of the product, used in the default docs <title> suffix. */
+	titleName: string;
+	/** Docs <title> brand that replaces the default "Docs | {titleName}" suffix. */
+	docsTitle?: string;
+}
+
+/** Product version configuration (all products including variants). */
+export const productVersions: Partial<Record<Products, ProductVersion>> = {
+	[Products.CE]: {
+		label: 'Community Edition',
+		prefix: '',
+		titleName: 'ThingsBoard',
+		docsTitle: 'ThingsBoard CE Docs',
+	},
+	[Products.PE]: {
+		label: 'Professional Edition',
+		prefix: 'pe/',
+		titleName: 'ThingsBoard PE',
+		docsTitle: 'ThingsBoard Docs',
+	},
+	[Products.PAAS]: {
+		label: 'Cloud',
+		prefix: 'paas/',
+		titleName: 'ThingsBoard Cloud',
+		docsTitle: 'ThingsBoard Cloud Docs',
+	},
 	[Products.PAAS_EU]: {
 		label: 'Cloud (EU)',
 		prefix: 'paas/eu/',
 		titleName: 'ThingsBoard Cloud (EU)',
+		docsTitle: 'ThingsBoard Cloud (EU) Docs',
 	},
 	[Products.EDGE]: { label: 'Edge', prefix: 'edge/', titleName: 'ThingsBoard Edge' },
 	[Products.EDGE_PE]: {
@@ -167,6 +192,11 @@ export function getVersionPrefix(version: Products): string {
 /** Get the SEO brand form of a product name, used in <title> tags. */
 export function getProductTitleName(version: Products): string {
 	return productVersions[version]?.titleName ?? SITE_NAME;
+}
+
+/** Get the product's own docs <title> brand (e.g. "ThingsBoard CE Docs"), if it has one. */
+export function getProductDocsTitle(version: Products): string | undefined {
+	return productVersions[version]?.docsTitle;
 }
 
 /** Return the marketing section label for a URL pathname, or undefined if the path

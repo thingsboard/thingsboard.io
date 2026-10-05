@@ -234,6 +234,15 @@ export const IOT_HUB_CONTACT_US_URL = '/contact-us/?subject=IoT%20Hub';
 
 export const IOT_HUB_CONTACT_EMAIL = 'iothub@thingsboard.io';
 
+// The "Verified creators only" control's checkbox `name`, and the API/URL
+// param it maps to 1:1. The API *matches* the value rather than treating it
+// as a switch (unlike `peOnly`/`ceOnly`), so `creatorVerified=false` means
+// "only *un*verified" — an unchecked control must omit the param entirely.
+export const VERIFIED_CREATORS_KEY = 'creatorVerified';
+
+/** The only value the control can contribute. */
+export const VERIFIED_CREATORS_VALUE = 'true';
+
 // User-facing UI strings used by IoT Hub components. Centralized so they're
 // easy to find, audit, and swap for a `t(...)` call if marketing-side i18n
 // ever lands (the site's existing i18n machinery only covers Starlight docs).
@@ -246,6 +255,9 @@ export const IOT_HUB_STRINGS = {
 		searchAriaPrefix: 'Search',
 		mostPopular: 'Most popular',
 		all: 'All',
+		// Standalone checkbox above the sections, with no heading of its own,
+		// so this text is also the chip and the empty-state reason.
+		verifiedCreators: 'Verified creators only',
 		sections: {
 			// `type` is the per-item-type *subtype* facet (widget type, rule
 			// chain type, …); `itemType` is the catalogue-wide facet that picks

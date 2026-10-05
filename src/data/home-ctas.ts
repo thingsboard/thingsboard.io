@@ -28,5 +28,5 @@ export const homeClosingCtas: Cta[] = [
 		target: '_blank',
 		cloudAuth: 'signup',
 	},
-	{ text: 'Install On-premises', href: '/installations/', icon: 'tabler:download', variant: 'outline' },
+	{ text: 'Install On-premises', href: '/docs/pe/installation/', icon: 'tabler:download', variant: 'outline' },
 ];

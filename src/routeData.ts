@@ -12,6 +12,7 @@ import {
 	getPageSlugFromURL,
 	getVersionPrefix,
 	getLanguagePrefix,
+	getProductDocsTitle,
 	getProductTitleName,
 	stripLanguagePrefix,
 	type SupportedLanguage,
@@ -331,6 +332,14 @@ const escapedSep = TITLE_SEPARATOR.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
 const docsSuffixMatcher = new RegExp(` ${escapedSep} ${DOCS_SUFFIX}$`);
 const apiPathMatcher = /^reference\/([^/]+)\//;
 
+/** A real content page (not a synthetic StarlightPage entry) with no professional twin. */
+function isTwinlessContentPage(entry: StarlightRouteData['entry']): boolean {
+	if (getProfessionalTwinPathname(entry.id)) return false;
+	const filePath = (entry as { filePath?: string }).filePath;
+	const rel = filePath ? toRepoRelative(filePath) : null;
+	return !!rel && existsSync(join(getRepoRoot(), rel));
+}
+
 function updateHead(context: APIContext, isTutorial: boolean) {
 	const starlightRoute = context.locals.starlightRoute;
 	starlightRoute.head = starlightRoute.head.filter(
@@ -380,12 +389,17 @@ function updateHead(context: APIContext, isTutorial: boolean) {
 
 		// Per-page `customDocsTitle` frontmatter overrides the auto-formatted
 		// docs title entirely. Used by product index pages that want a
-		// non-default <title> (e.g. "Docs | ThingsBoard Professional Edition").
+		// non-default <title> (e.g. "Docs | ThingsBoard Edge Professional Edition").
 		const customDocsTitle = (entry.data as { customDocsTitle?: string }).customDocsTitle;
 		if (customDocsTitle) {
 			title.content = customDocsTitle;
 		} else {
 			const productTitleName = getProductTitleName(product);
+			// Root pages with no PE twin (Private Cloud, utility pages) are CE only by
+			// URL default, so they take the unlabelled brand rather than "CE Docs".
+			const productDocsTitle = getProductDocsTitle(
+				product === Products.CE && isTwinlessContentPage(entry) ? Products.PE : product
+			);
 			const versionBase = `/${getLanguagePrefix(lang)}docs/${getVersionPrefix(product)}`;
 			const isIndex = pathname === versionBase;
 			let pageTitle = title.content.replace(docsSuffixMatcher, '');
@@ -399,7 +413,7 @@ function updateHead(context: APIContext, isTutorial: boolean) {
 				if (apiName) pageTitle = `${pageTitle} - ${apiName}`;
 			}
 
-			title.content = formatDocsTitle(pageTitle, productTitleName, isIndex);
+			title.content = formatDocsTitle(pageTitle, productTitleName, isIndex, productDocsTitle);
 		}
 		if (ogTitle) ogTitle.attrs!['content'] = title.content;
 	}

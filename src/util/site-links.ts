@@ -59,9 +59,12 @@ function rewriteSiteHrefs(html: string): string {
 	});
 }
 
-// Minimal structural hast-node shape — enough for the walk below without
-// depending on the (transitive) `hast` types package.
-type HastNode = {
+/**
+ * Minimal structural hast-node shape — enough for the walks in this file and in
+ * `@util/lightbox-images` without depending on the (transitive) `hast` types
+ * package. Exported so both rehype plugins stay on one shape.
+ */
+export type HastNode = {
 	type: string;
 	tagName?: string;
 	properties?: Record<string, unknown>;
