@@ -2,7 +2,7 @@ import type { AstroUserConfig } from 'astro';
 import { NON_DOCS_REDIRECTS } from './src/data/redirects.ts';
 import { BLOG_CATEGORIES } from './src/data/blog/categories.ts';
 import { feedbackCategories } from './src/data/clients-feedback/index.ts';
-import { UPGRADE_FAMILIES, getFamilySlug } from './src/models/upgrade-instructions.ts';
+import { getFamilySlug, UPGRADE_FAMILIES } from './src/models/upgrade-instructions.ts';
 import deviceLibraryRedirects from './scripts/device-library-redirects.json' with { type: 'json' };
 import docsRedirects from './public/redirects.json' with { type: 'json' };
 

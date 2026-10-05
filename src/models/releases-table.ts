@@ -49,13 +49,23 @@ export function patchSlug(version: string, date: string): string {
 
 export const RELEASE_FAMILIES: ReleaseFamily[] = [
 	{
+		family: '4.4',
+		lts: true,
+		releaseDate: 'Sep 29 2026',
+		latestPatch: 'v4.4.0',
+		latestPatchDate: 'Sep 29 2026',
+		highlightsCe: 'Java 25, UI Redesign & Remote Agents',
+		patches: [{ version: 'v4.4.0', date: 'Sep 29, 2026' }],
+	},
+	{
 		family: '4.3',
 		lts: true,
 		releaseDate: 'Jan 20 2026',
-		latestPatch: 'v4.3.1.5',
-		latestPatchDate: 'Sep 14 2026',
+		latestPatch: 'v4.3.1.6',
+		latestPatchDate: 'Sep 29 2026',
 		highlightsCe: 'Alarm Rules 2.0 & new Calculated Fields',
 		patches: [
+			{ version: 'v4.3.1.6', date: 'Sep 29, 2026' },
 			{ version: 'v4.3.1.5', date: 'Sep 14, 2026' },
 			{ version: 'v4.3.1.4', date: 'Aug 27, 2026' },
 			{ version: 'v4.3.1.3', date: 'Jul 1, 2026' },
@@ -70,11 +80,12 @@ export const RELEASE_FAMILIES: ReleaseFamily[] = [
 		family: '4.2',
 		lts: true,
 		releaseDate: 'Aug 15 2025',
-		latestPatch: 'v4.2.2.5',
-		latestPatchDate: 'Sep 14 2026',
+		latestPatch: 'v4.2.2.6',
+		latestPatchDate: 'Sep 29 2026',
 		highlightsCe: 'AI Rule Node & Security Fixes',
 		highlightsPe: 'Reporting 2.0, Secrets Storage, AI Rule Node',
 		patches: [
+			{ version: 'v4.2.2.6', date: 'Sep 29, 2026' },
 			{ version: 'v4.2.2.5', date: 'Sep 14, 2026' },
 			{ version: 'v4.2.2.4', date: 'Aug 27, 2026' },
 			{ version: 'v4.2.2.3', date: 'Jul 1, 2026' },

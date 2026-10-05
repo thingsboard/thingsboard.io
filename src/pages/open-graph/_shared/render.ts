@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import satori from 'satori';
-import { Resvg } from '@resvg/resvg-js';
+import { renderAsync } from '@resvg/resvg-js';
 import { Card, type CardProps } from './Card';
 
 /** Bump when the template, fonts, or rendering pipeline changes — invalidates cache. */
@@ -116,7 +116,12 @@ export async function renderCard(props: CardProps): Promise<Buffer> {
 		height: 630,
 		fonts: fonts.map(({ name, data, weight, style }) => ({ name, data, weight, style })),
 	});
-	const buf = Buffer.from(new Resvg(svg).render().asPng());
+	// Rasterise on the napi threadpool rather than blocking the main thread the way
+	// the synchronous `Resvg#render()` does. Rasterising is ~91 % of a card's cost
+	// (≈145 ms of 158 ms; satori itself is only ~13 ms), so this is what lets
+	// `build.concurrency` actually overlap renders: measured 158 → 36 ms per card,
+	// dropping the 3314-card OG phase from 8m13s to ~2m.
+	const buf = Buffer.from((await renderAsync(svg)).asPng());
 	await writeCache(key, buf);
 	return buf;
 }

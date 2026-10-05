@@ -1,5 +1,6 @@
 export interface FeatureItem {
-	icon: string;
+	/** Iconify icon name from the Tabler set (e.g., "tabler:palette") */
+	tablerIcon: string;
 	title: string;
 	href: string;
 	description: string;
@@ -7,101 +8,87 @@ export interface FeatureItem {
 
 export const homeFeatures: FeatureItem[] = [
 	{
-		icon: '/src/assets/images/landings/ce/telemetry-icon.svg',
-		title: 'Telemetry Data Collection',
-		href: '/docs/pe/user-guide/digital-twins/time-series-data/',
+		tablerIcon: 'tabler:chart-line',
+		title: 'Data visualization',
+		href: '/iot-data-visualization/',
 		description:
-			'Collect and store telemetry data in reliable way, surviving network and hardware failures. Access collected data using customizable web dashboards or server-side APIs.',
+			'600+ built-in widgets — charts, gauges, maps, SCADA-ready industrial control. Build custom widgets with the built-in editor. Real-time dashboards with role-based access, shareable with your team, customers, and their end users.',
 	},
 	{
-		icon: '/src/assets/images/landings/ce/tenancy-icon.svg',
+		tablerIcon: 'tabler:palette',
+		title: 'White-labeling',
+		href: '/docs/pe/user-guide/white-labeling/',
+		description:
+			'Ship branded IoT solutions under your name — no coding or service restart required. Multi-level white-labeling: your customers and their customers can brand their own interface.',
+	},
+	{
+		tablerIcon: 'tabler:users-group',
 		title: 'Multi-tenancy',
 		href: '/docs/pe/user-guide/multi-tenancy/',
 		description:
-			'Support multi-tenant installations out-of-the-box. Single tenant may have multiple tenant administrators and millions of devices and customers.',
+			'Multi-tenant installations out-of-the-box. Each tenant can have multiple administrators managing millions of devices and customers — with full data isolation between tenants.',
 	},
 	{
-		icon: '/src/assets/images/landings/ce/visualization-icon.svg',
-		title: 'Data Visualization',
-		href: '/iot-data-visualization/',
+		tablerIcon: 'tabler:sparkles',
+		title: 'Built-in AI',
+		href: '/docs/pe/iot-solutions-with-ai/',
 		description:
-			'Provides 30+ configurable widgets out-of-the-box and ability to create your own widgets using built-in editor. Built-in line-charts, digital and analog gauges, maps and much more.',
+			'Go from a plain-language prompt to a working solution — devices, dashboards and rules already wired together. Work with AI in the UI, or from your terminal with the CLI and your own coding agents.',
 	},
 	{
-		icon: '/src/assets/images/landings/ce/scalability-icon.svg',
+		tablerIcon: 'tabler:cpu',
+		title: 'Device emulators',
+		href: '/blog/from-zero-to-live-demo-how-to-simulate-real-world-iot-environments-instantly/',
+		description:
+			'Test your solution with realistic device data — no hardware needed. Prototype dashboards, tune rules, and validate at scale before your first device ships.',
+	},
+	{
+		tablerIcon: 'tabler:cloud-download',
+		title: 'OTA updates',
+		href: '/docs/pe/user-guide/ota-updates/',
+		description:
+			"Push firmware and software to a whole device profile at once. Upload a package, assign it, and watch each device's progress — no site visit required.",
+	},
+	{
+		tablerIcon: 'tabler:lock-access',
+		title: 'Fine-grained RBAC & SSO',
+		href: '/docs/pe/user-guide/roles/',
+		description:
+			'Roles and permissions down to the individual entity. Bring your own identity provider with OAuth 2.0 SSO and two-factor authentication, so every tenant, customer and end user sees exactly what they should.',
+	},
+	{
+		tablerIcon: 'tabler:certificate',
+		title: 'Security & compliance',
+		href: '/docs/pe/user-guide/security/',
+		description:
+			'Every LTS release receives regular security patches — reviewed and applied by our engineers, not left to the community — plus an independent third-party penetration test. ISO 27001 and ISO 9001 certified.',
+	},
+	{
+		tablerIcon: 'tabler:shield-lock',
+		title: 'Data sovereignty & air-gapped',
+		href: '/docs/pe/installation/',
+		description:
+			'Deploy in air-gapped environments with no internet connection. Your data stays where regulation, corporate policy, or operations require it — behind your firewall, in your data center, or in your cloud.',
+	},
+	{
+		tablerIcon: 'tabler:stack-2',
 		title: 'Horizontal scalability',
-		href: '/docs/pe/reference/architecture/#services',
+		href: '/docs/pe/reference/architecture/',
 		description:
-			'Amount of supported server-side requests and devices increase linearly as new thingsboard servers are added in clustering mode. No downtime, server restarts or application errors.',
+			'Start <a href="/docs/pe/reference/architecture/monolithic/">monolithic</a> for quick launches, move to <a href="/docs/pe/reference/architecture/microservices/">microservices</a> as load grows. Add instances of any service — no single point of failure, and no rewrite along the way.',
 	},
 	{
-		icon: '/src/assets/images/landings/ce/engine-icon.svg',
-		title: 'IoT Rule Engine',
-		href: '/docs/pe/user-guide/rule-engine/',
-		description:
-			'Process incoming device data with flexible rule chains based on entity attributes or message content. Forward data to external systems or trigger alarms using custom logic. Configure complex notification chains on alarms. Enrich server-side functionality or manipulate your devices with highly customizable rules. Define your application logic with drag-n-drop rule chain designer.',
-	},
-	{
-		icon: '/src/assets/images/landings/ce/integration-icon.svg',
-		title: 'Customization and Integration',
-		href: '/docs/user-guide/contribution/how-to-contribute/',
-		description:
-			'Extend default platform functionality using customizable <a href="/docs/pe/user-guide/rule-engine/">rule chains</a>, <a href="/docs/pe/reference/widgets/widget-library/">widgets</a> and <a href="/docs/pe/user-guide/connectivity-guide/">transport implementations</a>. In addition to MQTT, CoAP and HTTP support, ThingsBoard users can use their own transport implementations or customize behaviour of existing protocols. You can also take advantage of our <a href="/services/development-services/">IoT development services</a> to create tailored solutions for your needs.',
-	},
-	{
-		icon: '/src/assets/images/landings/ce/device-icon.svg',
-		title: 'Device Management',
-		href: '/docs/pe/user-guide/devices/',
-		description:
-			'Provides ability to register and manage devices. Allows to monitor client-side and provision server-side <a href="/docs/pe/user-guide/digital-twins/attributes/">device attributes</a>. Provides API for server-side applications to send <a href="/docs/pe/user-guide/command-and-control/">RPC commands</a> to devices.',
-	},
-	{
-		icon: '/src/assets/images/landings/ce/security-icon.svg',
-		title: 'Security',
-		href: '/docs/pe/user-guide/connectivity-guide/',
-		description:
-			'Supports transport encryption for both MQTT and HTTP(s) protocols. Supports device authentication and device credentials management.',
-	},
-	{
-		icon: '/src/assets/images/landings/ce/asset-icon.svg',
-		title: 'Asset Management',
-		href: '/docs/pe/user-guide/assets/',
-		description:
-			'Provides ability to register and manage assets. Allows to provision server-side <a href="/docs/pe/user-guide/digital-twins/attributes/">asset attributes</a> and monitor related <a href="/docs/pe/user-guide/alarms/">alarms</a>. Ability to build hierarchy of entities using <a href="/docs/pe/user-guide/digital-twins/entities/">relations</a>.',
-	},
-	{
-		icon: '/src/assets/images/landings/ce/tolerance-icon.svg',
-		title: 'Fault-tolerance',
-		href: '/docs/pe/reference/architecture/#services',
-		description:
-			'All thingsboard servers are identical. No master-workers or hot standby. Node failure is automatically detected. Failed nodes can be replaced without downtime.',
-	},
-	{
-		icon: '/src/assets/images/landings/ce/alarms-icon.svg',
-		title: 'Alarms Management',
-		href: '/docs/pe/user-guide/alarms/',
-		description:
-			'Provides ability to create and manage <a href="/docs/pe/user-guide/alarms/">alarms</a> related to your entities: devices, assets, customers, etc. Allows real-time alarms monitoring and alarms propagation to related entities hierarchy.',
-	},
-	{
-		icon: '/src/assets/images/landings/ce/opensource-icon.svg',
-		title: '100% Open-source',
-		href: 'https://github.com/thingsboard/thingsboard',
-		description:
-			'ThingsBoard is licensed under Apache License 2.0, so you can use it in your commercial products for free. You can even host it as a SaaS or PaaS solution.',
-	},
-	{
-		icon: '/src/assets/images/landings/ce/microservices-icon.svg',
-		title: 'Microservices or Monolithic',
-		href: '/docs/pe/reference/architecture/monolithic/',
-		description:
-			'Supports <a href="/docs/pe/reference/architecture/monolithic/">monolithic</a> deployment for getting started or small environments. Provides ability to upgrade to <a href="/docs/pe/reference/architecture/microservices/">microservices</a> for high availability and horizontal scalability.',
-	},
-	{
-		icon: '/src/assets/images/landings/ce/database-icon.svg',
-		title: 'SQL, NoSQL and Hybrid database',
+		tablerIcon: 'tabler:database',
+		title: 'SQL, NoSQL, or hybrid database',
 		href: '/docs/pe/reference/architecture/database/',
 		description:
-			'Supports various database options and ability to choose where to store main entities and where to store telemetry data.',
+			'Choose SQL, NoSQL, or run both side-by-side. Store main entities and telemetry data wherever fits your operational and cost profile.',
+	},
+	{
+		tablerIcon: 'tabler:source-code',
+		title: 'Source-available & customization',
+		href: 'https://github.com/thingsboard/thingsboard',
+		description:
+			'Full access to the source code — customize every part of your solution. Extend via APIs; integrate with any external system. Adapt the platform to your use case, not the other way around.',
 	},
 ];

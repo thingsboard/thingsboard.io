@@ -4,7 +4,7 @@ export const data: CaseStudyData = {
 	title: 'IoT-Powered Farming - How Keners Scaled with ThingsBoard',
 	pageTitle: 'IoT-Powered Farming — How Keners Scaled',
 	description:
-		'Discover how Keners boosted agricultural efficiency using ThingsBoard PE\u2014achieving scalable IoT, custom dashboards, and real-time automation with ease.',
+		'Discover how Keners boosted agricultural efficiency using ThingsBoard\u2014achieving scalable IoT, custom dashboards, and real-time automation with ease.',
 	pageSlug: 'keners',
 	breadcrumb: 'Keners — Smart Agriculture',
 	categories: ['Smart agriculture'],
@@ -23,7 +23,7 @@ export const data: CaseStudyData = {
 	},
 
 	quote: {
-		text: '\u201CWe started using the Thingsboard (TB) in 2017, and later switched to the professional edition (PE). We are very satisfied with the platform as it provides us with high flexibility and stability. We highly appreciate the visual editor for Rule engine new Multitenancy approach. The platform provides for us a unique possibility to create our own data connectors, which allow us to aggregate data from multiple sources and present them together in our custom dashboards.\u201D',
+		text: '\u201CWe started using the Thingsboard (TB) in 2017. We are very satisfied with the platform as it provides us with high flexibility and stability. We highly appreciate the visual editor for Rule engine new Multitenancy approach. The platform provides for us a unique possibility to create our own data connectors, which allow us to aggregate data from multiple sources and present them together in our custom dashboards.\u201D',
 		author: 'Miroslav Holubec, Director',
 	},
 
@@ -34,7 +34,7 @@ export const data: CaseStudyData = {
 			'Faced limitations in integrating multiple data sources and presenting them through dashboards.',
 		],
 		results: [
-			'Achieved high system reliability and flexibility after switching to ThingsBoard PE.',
+			'Achieved high system reliability and flexibility after upgrading ThingsBoard.',
 			'Simplified data flow management using the visual Rule Engine editor.',
 			'Built custom connectors and dashboards to aggregate and visualise diverse data sources.',
 		],
@@ -45,7 +45,7 @@ export const data: CaseStudyData = {
 		blocks: [
 			{
 				title: 'Scaling AgriTech with stability and support',
-				text: 'Keners s.r.o. began using ThingsBoard in 2017 and later transitioned to the Professional Edition to meet their growing needs. The platform offered the flexibility and stability they required to develop solutions for agriculture and environmental monitoring. With the visual Rule Engine editor, their team was able to configure data processing flows efficiently. The multitenancy capabilities allowed them to manage different clients and use cases independently. ThingsBoard also enabled them to create custom data connectors, which made it possible to integrate multiple data sources and display them through intuitive dashboards. Throughout the process, Keners greatly appreciated the responsiveness and support of the ThingsBoard team, which they described as excellent.',
+				text: 'Keners s.r.o. began using ThingsBoard in 2017 and later upgraded the platform to meet their growing needs. The platform offered the flexibility and stability they required to develop solutions for agriculture and environmental monitoring. With the visual Rule Engine editor, their team was able to configure data processing flows efficiently. The multitenancy capabilities allowed them to manage different clients and use cases independently. ThingsBoard also enabled them to create custom data connectors, which made it possible to integrate multiple data sources and display them through intuitive dashboards. Throughout the process, Keners greatly appreciated the responsiveness and support of the ThingsBoard team, which they described as excellent.',
 				image: 'https://img.thingsboard.io/case-studies/agriculture_green.webp',
 				imageAlt: 'Scaling AgriTech with stability and support',
 			},

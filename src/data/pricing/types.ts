@@ -2,19 +2,6 @@
 // Pricing Page — TypeScript Interfaces
 // ============================================
 
-/** Which top-level product tab is active */
-export type PricingProduct = 'thingsboard' | 'tbmq';
-
-/** Sub-tab within a product */
-export type TbSubTab = 'ce' | 'cloud' | 'private-cloud' | 'self-managed';
-export type TbmqSubTab = 'ce' | 'self-managed' | 'private-cloud';
-
-/** Region for Public Cloud pricing */
-export type CloudRegion = 'na' | 'eu';
-
-/** Billing model for Self-managed */
-export type BillingModel = 'payg' | 'perpetual';
-
 // ─── Plan cards ─────────────────────────────
 
 export interface PlanFeature {
@@ -63,9 +50,9 @@ export interface PlanCard {
 	gtmId?: string;
 }
 
-// ─── Community Edition ──────────────────────
+// ─── Promo hero card ────────────────────────
 
-export interface CommunityEditionData {
+export interface PromoHeroData {
 	title: string;
 	/** Optional subtitle (rendered bolder, before main description) */
 	subtitle?: string;
@@ -77,7 +64,7 @@ export interface CommunityEditionData {
 	priceLabel?: string;
 }
 
-// ─── Public Cloud ───────────────────────────
+// ─── Cloud ───────────────────────────
 
 export interface CloudPlansData {
 	sectionTitle: string;
@@ -157,45 +144,6 @@ export interface TopUpGroup {
 	items: TopUpItem[];
 }
 
-// ─── Upsell card ────────────────────────────
-
-export interface UpsellCardData {
-	heading: string;
-	ctaText: string;
-	/** Product sub-tab to switch to */
-	targetSection: string;
-}
-
-// ─── Calculator ─────────────────────────────
-
-export interface CalculatorPlan {
-	name: string;
-	price: number;
-	includedDevices?: number;
-	includedSessions?: number;
-	includedThroughput?: number;
-	includedProdInstances?: number;
-	extraProdInstancePrice?: number;
-	devQaExtraInstancePrice?: number;
-	extraDevicePrice?: number;
-	extraSessionPrice?: number;
-	extraThroughputPrice?: number;
-	edgeMonthPrice?: number;
-	edgeInstancesIncluded?: number;
-	trendzMonthPrice?: number;
-	wl?: boolean;
-	wlMonthPrice?: number;
-	wlSetupFee?: number;
-	productId?: string;
-	planId?: string;
-}
-
-export interface CalculatorData {
-	plans: CalculatorPlan[];
-	mobileApp?: number;
-	mobileAppSetup?: number;
-}
-
 // ─── FAQ ────────────────────────────────────
 
 export interface FaqItem {
@@ -203,6 +151,8 @@ export interface FaqItem {
 	question: string;
 	/** Answer as HTML string */
 	answer: string;
+	/** Render already expanded. Use on a category's first item only. */
+	defaultOpen?: boolean;
 }
 
 export interface FaqCategory {

@@ -47,6 +47,81 @@ TBEL delivers roughly **1 000× better performance** for typical transformation 
   TBEL covers the vast majority of IoT data transformation needs with lower resource overhead.
 </Aside>
 
+## Date formatting changes in ThingsBoard 4.4+
+
+ThingsBoard 4.4 runs on **Java 25**; 4.3 and earlier required Java 17 or higher.
+The JDK bundles the Unicode CLDR locale database, and the CLDR data shipped with **Java 21** changed the way a
+number of locales render dates and times. Because 4.4 jumps straight from Java 17 to Java 25, every deployment
+that upgrades inherits all of those changes at once. If you already run Java 21 — the release the 4.3
+install guides recommended — these strings are what you see today, and nothing changes for you.
+
+TBEL itself did not change — the `Date` methods simply return what the newer JDK formats. Scripts that treat a
+locale-formatted date as a stable string can therefore start behaving differently after the upgrade.
+
+### What changed
+
+| Method (locale) | ThingsBoard 4.3 (Java 17) | ThingsBoard 4.4+ (Java 25) | What is different |
+|---|---|---|---|
+| `toLocaleTimeString` (`en-US`) | `9:04:05 PM` | `9:04:05 PM` | The separator before `AM`/`PM` is a **narrow no-break space** (`U+202F`) instead of an ordinary space (`U+0020`). Nothing looks different. |
+| `toLocaleString`, full date and time (`en-US`) | `Tuesday, September 5, 2023 at 9:04:05 PM Eastern Daylight Time` | `Tuesday, September 5, 2023, 9:04:05 PM Eastern Daylight Time` | The literal `at` is replaced by a comma, and `PM` is again preceded by `U+202F`. |
+| `toLocaleDateString`, full date (`uk-UA`) | `середа, 6 вересня 2023 р.` | `середа, 6 вересня 2023 р.` | The space before `р.` is a narrow no-break space (`U+202F`). Nothing looks different. |
+| `toLocaleString`, full date and time (`uk-UA`) | `середа, 6 вересня 2023 р. о 04:04:05 за східноєвропейським літнім часом` | `середа, 6 вересня 2023 р., 04:04:05 за східноєвропейським літнім часом` | The literal `о` is replaced by a comma, and `р.` is preceded by `U+202F`. |
+| `toLocaleString` (`ar-EG`) | `5/9/2023, 9:04:05 م` | `5/9/2023، 9:04:05 م` | The ASCII comma becomes the **Arabic comma** (`U+060C`). In the full date and time form, the connector `في` is likewise replaced by `،`. |
+| `toTimeString`, locale `UTC` or `GMT`, zone `Europe/Kyiv` | `04:04:05 Eastern European Summer Time` | `04:04:05 Kyiv (+1)` | `UTC` and `GMT` are not language tags, so the first argument falls back to the root locale. There the descriptive zone name becomes a city name plus the **daylight-saving** indicator — `(+1)` while summer time is in effect, `(+0)` otherwise. It is not the UTC offset: `America/New_York` also reports `New York (+1)` for this instant. Passing a real locale such as `en-US` or `uk-UA` keeps the descriptive name. |
+
+<Aside type="caution">
+  Two of the rows above differ **only by an invisible character**. `9:04:05 PM` and `9:04:05 PM` are
+  indistinguishable on screen, in a log file and in a rule node debug event, yet they are not the same string:
+  one holds `U+0020` before `PM`, the other holds `U+202F`. A script that compares, matches or splits on that
+  space keeps compiling and silently starts returning the wrong answer.
+</Aside>
+
+### How a script can break
+
+```java
+var d = new Date(1693962245000);
+var time = d.toLocaleTimeString("en-US", "America/New_York");
+// 4.3: "9:04:05 PM"  - ordinary space before PM
+// 4.4: "9:04:05 PM"  - narrow no-break space (U+202F) before PM
+
+time.endsWith(" PM"); // 4.3: true; 4.4: false
+time.split(" ")[1];   // 4.3: "PM"; 4.4: fails, there is no ordinary space to split on
+```
+
+```java
+var options = '{"timeZone":"America/New_York","dateStyle":"full","timeStyle":"full"}';
+var full = d.toLocaleString("en-US", options);
+// 4.3: "Tuesday, September 5, 2023 at 9:04:05 PM Eastern Daylight Time"
+// 4.4: "Tuesday, September 5, 2023, 9:04:05 PM Eastern Daylight Time"
+
+full.split(" at ")[0]; // 4.3: "Tuesday, September 5, 2023"; 4.4: the whole string, " at " is gone
+```
+
+### Recommendations
+
+- **Store and compare dates in ISO 8601.** `toISOString()` and `toJSON()` follow the ISO standard rather than
+  locale data, so their output is byte-for-byte identical on Java 17 and Java 25.
+- **Ask for an explicit pattern whenever the layout matters.** A `pattern` in the options string is applied
+  literally, so separators and the `AM`/`PM` marker no longer depend on CLDR. Localized names produced by
+  pattern letters such as `MMMM` or `EEEE` still come from the JDK.
+- **Compare numbers, not formatted text.** Use the numeric getters instead of matching `"PM"`, `" at "` or a
+  localized month name.
+
+```java
+var d = new Date(1693962245000);
+
+d.toISOString(); // "2023-09-06T01:04:05Z" - identical on 4.3 and 4.4
+d.toLocaleString("en-US", '{"timeZone":"America/New_York","pattern":"yyyy-MM-dd hh:mm:ss a"}');
+d.getUTCHours() >= 12; // numeric check instead of matching "PM"
+```
+
+### Affected and unaffected methods
+
+| Methods | Status |
+|---|---|
+| `toLocaleString`, `toLocaleDateString`, `toLocaleTimeString`, `toString`, `toDateString`, `toTimeString`, `toUTCString` | **Affected** — the output comes from locale data |
+| `toISOString`, `toJSON`, `getTime`, `valueOf`, all numeric getters, and any call that supplies an explicit `pattern` | **Unaffected** — the output does not depend on locale data. An explicit `pattern` still renders localized names for letters such as `MMMM` and `EEEE`. |
+
 ## Next steps
 
 - <DocLink product={props.product} path="user-guide/tbel/language-guide">Language Guide</DocLink> — syntax, data types, collections, and control flow.

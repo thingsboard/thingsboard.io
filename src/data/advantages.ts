@@ -6,7 +6,7 @@ export const advantagesCards: AdvantageCard[] = [
 		color: 'blue',
 		title: 'Security',
 		description:
-			'ThingsBoard protects your data with industry-standard encryption algorithms like RSA and ECDSA. Secure communication is ensured via TLS (TCP) and DTLS (UDP). Role-based access control and audit logs further enhance platform security.',
+			'ThingsBoard has ISO 27001 and ISO 9001 certifications and protects your data with industry-standard encryption algorithms. Secure communication is ensured via TLS (TCP) and DTLS (UDP). Role-based access control and audit logs further enhance platform security.',
 		href: '/docs/pe/user-guide/security/overview/',
 		linkText: 'Learn more about security',
 	},
@@ -69,7 +69,7 @@ export const advantagesCards: AdvantageCard[] = [
 		color: 'purple',
 		title: 'Mobile application',
 		description:
-			'Build your own IoT mobile application with minimum coding efforts using ThingsBoard Mobile Application, an open-source project based on Flutter.',
+			'Build your own IoT mobile application with minimum coding effort using ThingsBoard Mobile Application Builder.',
 		href: '/docs/mobile/pe/',
 		linkText: 'Learn more about mobile application',
 	},

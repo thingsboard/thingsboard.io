@@ -1,62 +1,391 @@
 ---
-title: "Installing ThingsBoard PE on CentOS/RHEL"
-description: "Install and run ThingsBoard Professional Edition on CentOS/RHEL Server."
+title: "Installing ThingsBoard on CentOS/RHEL"
+description: "Install and run ThingsBoard on CentOS/RHEL Server."
 sidebar:
   label: "CentOS/RHEL"
 ---
-import RhelSection from '@includes/docs/installation/rhel.mdx';
-import { Products } from '~/models/site.models';
+import DocLink from '@components/DocLink.astro';
+import { Aside, Code, Tabs, TabItem } from '@astrojs/starlight/components';
+import { PE_FULL_VER, PE_PKG_VER, PE_RELEASE_URL } from '@data/versions';
+import { Products } from '@models/site.models';
+import QueueIntro from '@includes/docs/installation/queue-intro.mdx';
+import LicenseAndActivateSteps from '@components/InstallationDocSteps/LicenseAndActivateSteps.astro';
+import CreateAdminAccountSteps from '@components/InstallationDocSteps/CreateAdminAccountSteps.astro';
+import NextStepsLinks from '@components/InstallationDocSteps/NextStepsLinks.astro';
 
-<RhelSection section="intro" product={Products.PE} />
+export const peInstallFull = `wget ${PE_RELEASE_URL}/thingsboard-${PE_PKG_VER}.rpm\nsudo rpm -Uvh thingsboard-${PE_PKG_VER}.rpm`;
+export const peDownloadWebReport = `wget ${PE_RELEASE_URL}/tb-web-report-${PE_PKG_VER}.rpm`;
+
+export const setDbPassword = `TB_DB_PASSWORD=YOUR_PASSWORD`;
+export const alterPostgresPassword = `sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD '$TB_DB_PASSWORD';"`;
+export const createThingsboardDb = `sudo -u postgres psql -c "CREATE DATABASE thingsboard;"`;
+export const appendPgConf = `sudo tee -a /etc/thingsboard/conf/thingsboard.conf > /dev/null << EOF
+# DB Configuration
+export DATABASE_TS_TYPE=sql
+export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/thingsboard
+export SPRING_DATASOURCE_USERNAME=postgres
+export SPRING_DATASOURCE_PASSWORD=$TB_DB_PASSWORD
+EOF`;
+export const appendCassandraConf = `sudo tee -a /etc/thingsboard/conf/thingsboard.conf > /dev/null << EOF
+# DB Configuration
+export DATABASE_TS_TYPE=cassandra
+export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/thingsboard
+export SPRING_DATASOURCE_USERNAME=postgres
+export SPRING_DATASOURCE_PASSWORD=$TB_DB_PASSWORD
+EOF`;
+export const cassandraOptionalConf = `export CASSANDRA_CLUSTER_NAME="Thingsboard Cluster"\nexport CASSANDRA_KEYSPACE_NAME=thingsboard\nexport CASSANDRA_URL=127.0.0.1:9042\nexport CASSANDRA_USE_CREDENTIALS=false\nexport CASSANDRA_USERNAME=\nexport CASSANDRA_PASSWORD=`;
+
+export const installPostgresRhel9 = `sudo dnf -y install https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm`;
+export const installPostgresCommon = `sudo dnf -qy module disable postgresql
+sudo dnf -y install postgresql18 postgresql18-server postgresql18-contrib
+sudo /usr/pgsql-18/bin/postgresql-18-setup initdb
+sudo systemctl enable --now postgresql-18`;
+
+export const cassandraInstall = `sudo rpm --import https://downloads.apache.org/cassandra/KEYS
+sudo tee /etc/yum.repos.d/cassandra.repo > /dev/null <<'EOF'
+[cassandra]
+name=Apache Cassandra
+baseurl=https://redhat.cassandra.apache.org/50x/
+gpgcheck=1
+repo_gpgcheck=0
+gpgkey=https://downloads.apache.org/cassandra/KEYS
+EOF
+sudo dnf -y update && sudo dnf -y install cassandra cassandra-tools chkconfig
+sudo systemctl daemon-reexec
+sudo systemctl start cassandra.service
+sudo chkconfig cassandra on`;
+
+export const cassandraJava17 = `sudo dnf install -y java-17-openjdk-headless\necho "JAVA_HOME=/usr/lib/jvm/jre-17-openjdk" | sudo tee -a /etc/default/cassandra\nsudo systemctl restart cassandra`;
+
+export const kafkaConf = `sudo tee -a /etc/thingsboard/conf/thingsboard.conf > /dev/null << 'EOF'
+export TB_QUEUE_TYPE=kafka
+export TB_KAFKA_SERVERS=localhost:9092
+EOF`;
+
+export const confluentConf = `sudo tee -a /etc/thingsboard/conf/thingsboard.conf > /dev/null << 'EOF'
+export TB_QUEUE_TYPE=kafka
+export TB_QUEUE_KAFKA_USE_CONFLUENT_CLOUD=true
+export TB_KAFKA_SERVERS=localhost:9092
+export TB_QUEUE_KAFKA_REPLICATION_FACTOR=3
+export TB_QUEUE_KAFKA_CONFLUENT_SASL_JAAS_CONFIG='org.apache.kafka.common.security.plain.PlainLoginModule required username="CLUSTER_API_KEY" password="CLUSTER_API_SECRET";'
+export TB_QUEUE_CORE_POLL_INTERVAL_MS=1000
+export TB_QUEUE_CORE_PARTITIONS=2
+export TB_QUEUE_RULE_ENGINE_POLL_INTERVAL_MS=1000
+export TB_QUEUE_TRANSPORT_REQUEST_POLL_INTERVAL_MS=1000
+export TB_QUEUE_TRANSPORT_RESPONSE_POLL_INTERVAL_MS=1000
+export TB_QUEUE_TRANSPORT_NOTIFICATIONS_POLL_INTERVAL_MS=1000
+export TB_QUEUE_VC_INTERVAL_MS=1000
+export TB_QUEUE_VC_PARTITIONS=1
+EOF`;
+
+export const createKafkaCompose = `sudo tee ~/thingsboard/docker-compose-kafka.yml > /dev/null << 'EOF'
+services:
+  kafka:
+    restart: always
+    image: bitnamilegacy/kafka:4.0
+    ports:
+      - 9092:9092
+      - 9093
+      - 9094
+    environment:
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+      KAFKA_CFG_LISTENERS: "OUTSIDE://:9092,CONTROLLER://:9093,INSIDE://:9094"
+      KAFKA_CFG_ADVERTISED_LISTENERS: "OUTSIDE://localhost:9092,INSIDE://kafka:9094"
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: "INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT,CONTROLLER:PLAINTEXT"
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: "INSIDE"
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_CFG_PROCESS_ROLES: "controller,broker"
+      KAFKA_CFG_NODE_ID: "0"
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: "0@kafka:9093"
+    volumes:
+      - kafka-data:/bitnami
+volumes:
+  kafka-data:
+    driver: local
+EOF`;
+
+export const appendMemoryConf = `sudo tee -a /etc/thingsboard/conf/thingsboard.conf > /dev/null << 'EOF'
+# Maximum heap size — set to half of available RAM.
+# Example: 2G for a 4 GB server, 4G for an 8 GB server, 8G for a 16 GB server.
+export JAVA_OPTS="$JAVA_OPTS -Xms4G -Xmx4G -Xss512k -XX:+AlwaysPreTouch"
+EOF`;
+
+export const createWebReportCompose = `sudo tee ~/thingsboard/tb-web-report.yml > /dev/null << 'EOF'
+services:
+  tb-web-report:
+    container_name: tb-web-report
+    restart: always
+    image: "thingsboard/tb-web-report:${PE_FULL_VER}"
+    ports:
+      - "8383:8383"
+    environment:
+      HTTP_BIND_ADDRESS: "0.0.0.0"
+      HTTP_BIND_PORT: "8383"
+      LOGGER_LEVEL: "info"
+      LOG_FOLDER: "logs"
+      LOGGER_FILENAME: "tb-web-report-%DATE%.log"
+      DOCKER_MODE: "true"
+      DEFAULT_PAGE_NAVIGATION_TIMEOUT: "120000"
+      DASHBOARD_IDLE_WAIT_TIME: "3000"
+      USE_NEW_PAGE_FOR_REPORT: "true"
+EOF`;
+
+<p>This guide covers installing ThingsBoard on CentOS/RHEL Server, from a clean environment to a fully running instance. By the end, you will have a licensed, activated ThingsBoard instance — free, no credit card required — with a system administrator account and, optionally, a demo tenant.</p>
 
 ## Prerequisites
 
-<RhelSection section="prerequisites" product={Products.PE} />
+- RHEL 9, CentOS Stream 9, or derivatives (AlmaLinux, Rocky Linux, Oracle Linux, etc.). ThingsBoard requires Java 25, and the `java-25-openjdk` packages ship with RHEL 9.7 and newer.
+- A user account with `sudo` privileges
+- Outbound internet access to download packages and to reach the ThingsBoard License Portal during activation
+
+Ensure your server meets the minimum requirements:
+
+| Use case | CPU | RAM | Storage | Recommended services |
+|---|---|---|---|---|
+| Development / PoC | 1 core | 4 GB | 20 GB | ThingsBoard, PostgreSQL |
+| Production (small) | 2 cores | 8 GB | 100 GB SSD | ThingsBoard, PostgreSQL, Kafka |
+| Production (recommended) | 4+ cores | 16+ GB | 200+ GB SSD | ThingsBoard, PostgreSQL, Kafka, Cassandra |
+
+Install required tools:
+
+<Code code={`sudo dnf install -y wget\nsudo dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm`} lang="bash" />
 
 ## Step 1. Install Java (OpenJDK)
 
-<RhelSection section="java" product={Products.PE} />
+<p>ThingsBoard runs on the Java Virtual Machine and requires Java 25. Install OpenJDK 25:</p>
+<Code code="sudo dnf install -y java-25-openjdk-headless" lang="bash" />
+<p>Set OpenJDK 25 as the default Java version. Use the non-interactive command:</p>
+<Code code="sudo update-alternatives --set java /usr/lib/jvm/java-25-openjdk/bin/java" lang="bash" />
+<p>If you have multiple Java versions installed and prefer to choose interactively:</p>
+<Code code="sudo update-alternatives --config java" lang="bash" />
+<p>Verify the installation:</p>
+<Code code="java -version" lang="bash" />
+<p>The reported version must be 25.</p>
 
-## Step 2. Install ThingsBoard package
+## Step 2. Install ThingsBoard Package
 
-<RhelSection section="install-package" product={Products.PE} />
+<p>Install the font libraries required by the built-in reporting component:</p>
+<Code code="sudo dnf install -y harfbuzz fontconfig dejavu-sans-fonts" lang="bash" />
+<p>Download and install the ThingsBoard {PE_FULL_VER} package:</p>
+<Code code={peInstallFull} lang="bash" />
+<p>Verify the installation:</p>
+<Code code="rpm -qa | grep thingsboard" lang="bash" />
+<p>The installed package is listed in the output.</p>
 
-## Step 3. Obtain and configure license key
+## Step 3. Configure Database
 
-<RhelSection section="license-key" product={Products.PE} />
+<p>ThingsBoard stores two kinds of data: entities (devices, assets, dashboards, users) and time-series telemetry. Choose the database configuration that matches your expected load:</p>
+<ul>
+  <li><strong>PostgreSQL only</strong> — stores all data (entities and time-series) in PostgreSQL. Recommended for most deployments handling up to 5,000 messages per second. Simple to operate with minimal infrastructure requirements.</li>
+  <li><strong>Hybrid (PostgreSQL + Cassandra)</strong> — stores entities in PostgreSQL and time-series data in Cassandra. Designed for high-throughput deployments exceeding 5,000 messages per second or with millions of devices. Requires significant additional resources: at least 8 GB RAM, a dedicated multi-core CPU, and fast SSD storage for the Cassandra node.</li>
+</ul>
+<Tabs>
+  <TabItem label="PostgreSQL (recommended)">
+    <p>Install the PostgreSQL repository:</p>
+    <Code code={installPostgresRhel9} lang="bash" />
+    <p>Install and start PostgreSQL 18:</p>
+    <Code code={installPostgresCommon} lang="bash" />
+    <p>Export your PostgreSQL password as an environment variable — this value will be used in the following steps:</p>
+    <Code code={setDbPassword} lang="bash" />
+    <p>Set the password for the <code>postgres</code> user and create the ThingsBoard database:</p>
+    <Code code={alterPostgresPassword} lang="bash" />
+    <Code code={createThingsboardDb} lang="bash" />
+    <p>Add the database configuration to the ThingsBoard configuration file:</p>
+    <Code code={appendPgConf} lang="bash" />
+  </TabItem>
+  <TabItem label="Hybrid (PostgreSQL + Cassandra)">
+    <p>Install the PostgreSQL repository:</p>
+    <Code code={installPostgresRhel9} lang="bash" />
+    <p>Install and start PostgreSQL 18:</p>
+    <Code code={installPostgresCommon} lang="bash" />
+    <p>Export your PostgreSQL password as an environment variable — this value will be used in the following steps:</p>
+    <Code code={setDbPassword} lang="bash" />
+    <p>Set the password for the <code>postgres</code> user and create the ThingsBoard database:</p>
+    <Code code={alterPostgresPassword} lang="bash" />
+    <Code code={createThingsboardDb} lang="bash" />
+    <p>Install Cassandra:</p>
+    <Code code={cassandraInstall} lang="bash" />
+    <Aside type="caution">
+      Cassandra 5.0 supports only Java 11 and 17, but by default it starts with the system-default <code>java</code>, which is now Java 25. Install a Java 17 runtime and pin Cassandra to it via <code>/etc/default/cassandra</code>, which its init script reads:
+      <Code code={cassandraJava17} lang="bash" />
+    </Aside>
+    <p>Verify Cassandra is running:</p>
+    <Code code="nodetool status" lang="bash" />
+    <p>The status column should show <code>UN</code> (Up/Normal). Wait a few moments for Cassandra to initialize if needed.</p>
+    <p>Add the database configuration to the ThingsBoard configuration file:</p>
+    <Code code={appendCassandraConf} lang="bash" />
+    <p>If you are using an external Cassandra cluster, also add the following to <code>/etc/thingsboard/conf/thingsboard.conf</code>:</p>
+    <Code code={cassandraOptionalConf} lang="bash" />
+  </TabItem>
+</Tabs>
 
-## Step 4. Configure database
+## Step 4. Choose Queue Service
 
-<RhelSection section="configure-database" product={Products.PE} />
+<QueueIntro />
+<Tabs>
+  <TabItem label="In Memory (default)">
+    <p>In Memory queue is built-in and enabled by default. No configuration needed.</p>
+  </TabItem>
+  <TabItem label="Kafka">
+    <p>This example runs Kafka as a Docker container on the same host. If you already have a Kafka broker or use a managed service (e.g. <a href="https://aws.amazon.com/msk/" target="_blank">AWS MSK</a>), skip the Docker setup and point <code>TB_KAFKA_SERVERS</code> at your broker instead.</p>
+    <p><strong>Install Docker:</strong> see <a href="https://docs.docker.com/engine/install/centos/" target="_blank">Docker for CentOS/RHEL</a>.</p>
+    <Aside type="tip">
+      Add your user to the <code>docker</code> group so you can run commands without <code>sudo</code>. See <a href="https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user" target="_blank">Manage Docker as a non-root user</a>.
+    </Aside>
+    <p>Create a directory for your Docker Compose files and add the Kafka configuration:</p>
+    <Code code="mkdir -p ~/thingsboard" lang="bash" />
+    <Code code={createKafkaCompose} lang="bash" />
+    <p>Start Kafka:</p>
+    <Code code="docker compose -f ~/thingsboard/docker-compose-kafka.yml up -d" lang="bash" />
+    <p>Add the following configuration to <code>/etc/thingsboard/conf/thingsboard.conf</code>:</p>
+    <Code code={kafkaConf} lang="bash" />
+  </TabItem>
+  <TabItem label="Confluent Cloud">
+    <p>Create a <a href="https://confluent.cloud/login" target="_blank">Confluent Cloud account</a>, create a <a href="https://docs.confluent.io/current/quickstart/cloud-quickstart/index.html#step-1-create-a-ak-cluster-in-ccloud" target="_blank">Kafka cluster</a>, and obtain your <a href="https://docs.confluent.io/current/quickstart/cloud-quickstart/index.html#step-4-create-an-api-key" target="_blank">API Key</a>. Add the following lines to <code>/etc/thingsboard/conf/thingsboard.conf</code>, replacing <code>CLUSTER_API_KEY</code>, <code>CLUSTER_API_SECRET</code>, and <code>localhost:9092</code> with your Confluent Cloud values:</p>
+    <Code code={confluentConf} lang="bash" />
+    <p>You can adjust the default Rule Engine queue configuration later from the UI. See <DocLink product={Products.PE} path="user-guide/rule-engine/queues" target="_blank">Rule Engine Queues</DocLink> for details.</p>
+  </TabItem>
+</Tabs>
 
-## Step 5. Choose queue service
+## Step 5. [Optional] Memory Configuration
 
-<RhelSection section="choose-queue" product={Products.PE} />
+By default, ThingsBoard sets no explicit memory limit — the JVM can consume all available RAM, which may cause the OS to kill the process under memory pressure. On smaller machines, set the maximum heap size explicitly. The values below are approximate and suited for a single-node setup with In Memory queue and PostgreSQL database:
 
-## Step 6. [Optional] Memory configuration
+<Code code={appendMemoryConf} lang="bash" />
 
-<RhelSection section="memory-config" product={Products.PE} />
+We recommend adjusting these parameters depending on your server resources. Set it to at least 2G (gigabytes), and increase it if there is additional RAM available. Use half of your total RAM if you do not run any other memory-intensive processes (e.g. Cassandra), or one third otherwise.
 
-## Step 7. Run installation script
+## Step 6. Run Installation Script
 
-<RhelSection section="run-install" product={Products.PE} />
+Run the installation script to initialize the database schema:
 
-## Step 8. Start ThingsBoard
+```bash
+sudo /usr/share/thingsboard/bin/install/install.sh
+```
 
-<RhelSection section="start-platform" product={Products.PE} />
+## Step 7. Start ThingsBoard
 
-## Step 9. Install ThingsBoard WebReport component
+<p>Start the ThingsBoard service:</p>
+<Code code="sudo systemctl start thingsboard" lang="bash" />
+<p>Monitor the startup. The line confirming the platform is ready will be highlighted:</p>
+<Code code="tail -f /var/log/thingsboard/thingsboard.log | grep --line-buffered --color=always -E 'Started ThingsboardServerApplication|$'" lang="bash" />
 
-<RhelSection section="web-report" product={Products.PE} />
+### Configure Firewall
 
-## Configure HAProxy (HTTPS)
+<p>Open the required ports in your firewall so devices and users can reach the platform — expand the list below for the full set of ports and protocols.</p>
+<details>
+  <summary><strong>Full port list</strong></summary>
+  <table>
+    <thead>
+      <tr><th>Port</th><th>Protocol</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>8080</code></td><td>TCP</td><td>Web UI and REST API. Not required if using a load balancer.</td></tr>
+      <tr><td><code>1883</code></td><td>TCP</td><td>MQTT</td></tr>
+      <tr><td><code>8883</code></td><td>TCP</td><td>MQTT over SSL</td></tr>
+      <tr><td><code>5683</code></td><td>UDP</td><td>CoAP</td></tr>
+      <tr><td><code>5684</code></td><td>UDP</td><td>CoAP over DTLS</td></tr>
+      <tr><td><code>5685</code></td><td>UDP</td><td>LwM2M CoAP</td></tr>
+      <tr><td><code>5686</code></td><td>UDP</td><td>LwM2M CoAP over DTLS</td></tr>
+      <tr><td><code>5687</code></td><td>UDP</td><td>LwM2M (Bootstrap)</td></tr>
+      <tr><td><code>5688</code></td><td>UDP</td><td>LwM2M over DTLS (Bootstrap)</td></tr>
+      <tr><td><code>161</code></td><td>UDP</td><td>SNMP</td></tr>
+      <tr><td><code>7070</code></td><td>TCP</td><td>Edge RPC (gRPC)</td></tr>
+      <tr><td><code>9090</code></td><td>TCP</td><td>Remote Integration Executor (gRPC)</td></tr>
+    </tbody>
+  </table>
+</details>
 
-<RhelSection section="haproxy" product={Products.PE} />
+### Access ThingsBoard Web UI
 
-## Upgrading
+<p>Open ThingsBoard in a web browser:</p>
+<Code code="http://localhost:8080" lang="text" />
+<Aside type="note">If you are accessing the server remotely, use the server IP address or hostname: <Code code="http://<your-server-ip>:8080" lang="text" /></Aside>
+<p>On first launch you are greeted with the activation screen:</p>
+<Code code={`Welcome to ThingsBoard ${PE_FULL_VER}\nGet your free license and start building`} lang="text" class="no-copy" />
+<style>{`.no-copy .copy { display: none; }`}</style>
+<p>Continue with the next step to license and activate your instance.</p>
 
-<RhelSection section="upgrading" product={Products.PE} />
+## Step 8. License and Activate Your Instance
+
+<LicenseAndActivateSteps />
+
+## Step 9. Create Your Administrator Account
+
+<CreateAdminAccountSteps />
+
+## [Optional] Install ThingsBoard WebReport Component
+
+<p>The WebReport service renders dashboards into PDF and PNG reports. Install it if you need scheduled or on-demand dashboard reports. Choose one of the installation methods below:</p>
+<Tabs>
+  <TabItem label="Docker (recommended)">
+    <p><strong>Install Docker:</strong> see <a href="https://docs.docker.com/engine/install/centos/" target="_blank">Docker for CentOS/RHEL</a>.</p>
+    <Aside type="tip">
+      Add your user to the <code>docker</code> group so you can run commands without <code>sudo</code>. See <a href="https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user" target="_blank">Manage Docker as a non-root user</a>.
+    </Aside>
+    <p>Create the Docker Compose file <code>~/thingsboard/tb-web-report.yml</code>:</p>
+    <Code code="mkdir -p ~/thingsboard" lang="bash" />
+    <Code code={createWebReportCompose} lang="bash" />
+    <p>Start the WebReport service:</p>
+    <Code code="docker compose -f ~/thingsboard/tb-web-report.yml up -d" lang="bash" />
+    <p>Check the container logs:</p>
+    <Code code="docker logs -f tb-web-report" lang="bash" />
+  </TabItem>
+  <TabItem label="Service (manual)">
+    <p>Download the WebReport installation package:</p>
+    <Code code={peDownloadWebReport} lang="bash" />
+    <p>Install the required libraries:</p>
+    <Code code={`sudo dnf install -y pango.x86_64 libXcomposite.x86_64 libXcursor.x86_64 libXdamage.x86_64 libXext.x86_64 libXi.x86_64 libXtst.x86_64 cups-libs.x86_64 libXScrnSaver.x86_64 libXrandr.x86_64 GConf2.x86_64 alsa-lib.x86_64 atk.x86_64 gtk3.x86_64 ipa-gothic-fonts xorg-x11-fonts-100dpi xorg-x11-fonts-75dpi xorg-x11-utils xorg-x11-fonts-cyrillic xorg-x11-fonts-Type1 xorg-x11-fonts-misc unzip nss`} lang="bash" />
+    <p>Install the Roboto fonts:</p>
+    <Code code="sudo dnf install -y google-roboto-fonts" lang="bash" />
+    <p>Install and start the WebReport service:</p>
+    <Code code={`sudo rpm -Uvh tb-web-report-${PE_PKG_VER}.rpm\nsudo systemctl start tb-web-report`} lang="bash" />
+  </TabItem>
+</Tabs>
+
+## [Optional] Configure HTTPS
+
+Serving ThingsBoard over HTTPS encrypts the traffic between browsers and the server and prevents browser security warnings. HTTPS is handled by HAProxy: it accepts incoming traffic on ports 80 (HTTP) and 443 (HTTPS), terminates TLS with a trusted certificate from Let's Encrypt, and forwards requests to ThingsBoard.
+
+Before you start, make sure that:
+
+- a domain name is assigned to your server, and its DNS record points to the server's IP address;
+- ports 80 and 443 are reachable from the internet.
+
+Follow <DocLink product={Products.PE} path="installation/haproxy" target="_blank">Configure HAProxy on CentOS/RHEL</DocLink> to install HAProxy and generate the certificate.
 
 ## Troubleshooting
 
-<RhelSection section="troubleshooting" product={Products.PE} />
+Check the service status:
+
+```bash
+sudo systemctl status thingsboard
+```
+
+ThingsBoard logs are stored in `/var/log/thingsboard`. Check for errors:
+
+```bash
+grep ERROR /var/log/thingsboard/thingsboard.log
+```
+
+Monitor logs in real time:
+
+```bash
+tail -f /var/log/thingsboard/thingsboard.log
+```
+
+Or follow the service log through journald:
+
+```bash
+sudo journalctl -u thingsboard.service -f --no-pager
+```
+
+For more troubleshooting tips, see the <DocLink product={Products.PE} path="troubleshooting">Troubleshooting</DocLink> guide.
+
+## Next Steps
+
+<NextStepsLinks />

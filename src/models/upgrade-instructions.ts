@@ -1,5 +1,7 @@
 // Relative import on purpose: this module is pulled into the Astro config
 // chain (astro.redirects.ts), which loads before tsconfig path aliases apply.
+import { scopeToEdition } from './community-cutoff.ts';
+import type { Products } from './site.models.ts';
 import { assertNewestFirst, latestPatchPerBaseline } from './upgrade-shared.ts';
 
 export interface UpgradeVersion {
@@ -52,11 +54,12 @@ export function getFamilySlug(family: string): string {
  * the same baseline only duplicate the same steps, so they are dropped even
  * when superseded by a security patch. Entries without a `baseVersion`
  * (non-patch releases like 4.2.0 or any 3.x) are always kept. Input is assumed
- * newest-first, matching the ordering of `UPGRADE_VERSIONS`.
+ * newest-first, matching the ordering of `UPGRADE_VERSIONS`. Community products stop at
+ * the last Community release (see `community-cutoff.ts`).
  */
-export function getUpgradeStepVersions(family?: string): UpgradeVersion[] {
+export function getUpgradeStepVersions(product: Products, family?: string): UpgradeVersion[] {
 	const scoped = family ? UPGRADE_VERSIONS.filter((v) => v.family === family) : UPGRADE_VERSIONS;
-	return latestPatchPerBaseline(scoped);
+	return latestPatchPerBaseline(scopeToEdition(scoped, product));
 }
 
 /**
@@ -70,6 +73,38 @@ export function getUpgradeStepVersions(family?: string): UpgradeVersion[] {
  * The assertNewestFirst() call below fails the build on an out-of-order insert.
  */
 export const UPGRADE_VERSIONS: UpgradeVersion[] = [
+	{
+		version: '4.4.0',
+		displayVersion: '4.4',
+		family: '4.4',
+		releaseDate: 'Sep 29 2026',
+		upgradableFrom: '4.3.1.x',
+		prevVersionAnchor: 'v4-3-1-6',
+		lts: true,
+		patch: false,
+		x: true,
+		upgrade: true,
+		manualVersionUpgrade: false,
+		windowsZip: true,
+		anchor: 'v4-4-0',
+	},
+	{
+		version: '4.3.1.6',
+		displayVersion: '4.3.1.6',
+		family: '4.3',
+		baseVersion: '4.3.1',
+		releaseDate: 'Sep 29 2026',
+		upgradableFrom: '4.2.1.x',
+		patchableFrom: '4.3.x',
+		prevVersionAnchor: 'v4-3-0-1',
+		lts: true,
+		patch: true,
+		x: true,
+		upgrade: true,
+		manualVersionUpgrade: false,
+		windowsZip: true,
+		anchor: 'v4-3-1-6',
+	},
 	{
 		version: '4.3.1.5',
 		displayVersion: '4.3.1.5',
@@ -86,6 +121,7 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 		manualVersionUpgrade: false,
 		windowsZip: true,
 		anchor: 'v4-3-1-5',
+		vulnerable: true,
 	},
 	{
 		version: '4.3.1.4',
@@ -195,6 +231,22 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 		vulnerable: true,
 	},
 	{
+		version: '4.2.2.6',
+		displayVersion: '4.2.2.6',
+		family: '4.2',
+		baseVersion: '4.2.2',
+		releaseDate: 'Sep 29 2026',
+		upgradableFrom: '4.2.0',
+		prevVersionAnchor: 'v4-2-1-2',
+		lts: true,
+		patch: true,
+		x: true,
+		upgrade: true,
+		manualVersionUpgrade: false,
+		windowsZip: true,
+		anchor: 'v4-2-2-6',
+	},
+	{
 		version: '4.2.2.5',
 		displayVersion: '4.2.2.5',
 		family: '4.2',
@@ -209,6 +261,7 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 		manualVersionUpgrade: false,
 		windowsZip: true,
 		anchor: 'v4-2-2-5',
+		vulnerable: true,
 	},
 	{
 		version: '4.2.2.4',

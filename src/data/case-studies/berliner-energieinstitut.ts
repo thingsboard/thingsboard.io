@@ -4,7 +4,7 @@ export const data: CaseStudyData = {
 	title: 'Berliner Energieinstitut Modernizes Energy IoT with ThingsBoard',
 	pageTitle: 'Berliner Energieinstitut Modernizes Energy IoT',
 	description:
-		"Learn how Berliner Energieinstitut launched a fully custom energy IoT solution in weeks using ThingsBoard's open-source platform and rapid development support.",
+		"Learn how Berliner Energieinstitut launched a fully custom energy IoT solution in weeks using the ThingsBoard IoT platform and rapid development support.",
 	pageSlug: 'berliner-energieinstitut',
 	breadcrumb: 'Berliner Energieinstitut — Smart Energy',
 	categories: ['Smart energy'],
@@ -43,7 +43,7 @@ export const data: CaseStudyData = {
 			'Started Quickly: They began testing ThingsBoard right away, even though it was a brand-new platform (version 1.0).',
 			'High Satisfaction with Platform Capabilities: They were surprised by how complete, stable, and easy to use ThingsBoard was.',
 			'Fast Custom Development: All needed custom features were added within a few weeks.',
-			"Trust in Open Source Strength: With decades of OSS experience, the team acknowledged ThingsBoard's exceptional development speed and quality among OSS tools.",
+			"Fast, High-Quality Delivery: The team acknowledged ThingsBoard's exceptional development speed and quality.",
 		],
 	},
 
@@ -69,10 +69,10 @@ export const data: CaseStudyData = {
 				imageAlt: 'Custom features delivered with speed and precision',
 			},
 			{
-				title: 'Enterprise quality and open source flexibility combined',
-				text: "The quality of the implementation exceeded all expectations. The team at Berliner Energieinstitut, found themselves deeply impressed, not just by the platform's architecture but by the responsiveness, speed, and professional execution delivered by the ThingsBoard team. The combination of open-source flexibility with enterprise-grade support and delivery made ThingsBoard a clear and lasting choice.",
+				title: 'Enterprise quality and customization flexibility combined',
+				text: "The quality of the implementation exceeded all expectations. The team at Berliner Energieinstitut, found themselves deeply impressed, not just by the platform's architecture but by the responsiveness, speed, and professional execution delivered by the ThingsBoard team. The combination of customization flexibility with enterprise-grade support and delivery made ThingsBoard a clear and lasting choice.",
 				image: 'https://img.thingsboard.io/case-studies/berliner-energieinstitut-4.webp',
-				imageAlt: 'Enterprise quality and open source flexibility combined',
+				imageAlt: 'Enterprise quality and customization flexibility combined',
 			},
 		],
 	},

@@ -3,12 +3,7 @@ import { getCollection } from 'astro:content';
 import fs from 'node:fs';
 import path from 'node:path';
 import { allPages } from '@root/content';
-import {
-	formatBlogDate,
-	getSectionLabel,
-	isAllowlistedMarketingPath,
-	truncate,
-} from '@util/ogContext';
+import { formatBlogDate, getSectionLabel, isAllowlistedMarketingPath, truncate } from '@util/ogContext';
 import { getLanguageFromSlug } from '@util/path-utils';
 import type { CardProps } from '@root/pages/open-graph/_shared/Card';
 import { getDocsProductMeta } from '@root/pages/open-graph/_shared/product-meta';
@@ -200,7 +195,7 @@ export async function getUseCaseCardInputs(): Promise<CardInput[]> {
 export async function getMarketingCardInputs(): Promise<CardInput[]> {
 	const root = path.resolve('src/pages');
 	const candidates: Array<{ slug: string; pathname: string }> = [];
-	walkAstroPages(root, '', candidates);
+	walkMarketingPages(root, '', candidates);
 	return candidates
 		.filter(({ pathname }) => isAllowlistedMarketingPath(pathname))
 		.map(({ slug, pathname }) => {
@@ -213,7 +208,7 @@ export async function getMarketingCardInputs(): Promise<CardInput[]> {
 					variant: 'logo' as const,
 					sectionName: section.sectionName ?? undefined,
 					sectionTight: section.tight,
-					eyebrow: override?.eyebrow ?? (isHome ? 'Open-source IoT platform' : pathnameToSubtitle(pathname)),
+					eyebrow: override?.eyebrow ?? (isHome ? 'All-in-one IoT platform' : pathnameToSubtitle(pathname)),
 					title: override?.title ?? pathnameToTitle(pathname),
 				},
 			};
@@ -299,8 +294,8 @@ function enumerateDataModules<T extends { title: string }>(
 	return out;
 }
 
-/** Walk src/pages/ for .astro files, skipping dynamic [...] routes and known non-content dirs. */
-function walkAstroPages(
+/** Walk src/pages/ for .astro and .mdx files, skipping dynamic [...] routes and known non-content dirs. */
+function walkMarketingPages(
 	root: string,
 	rel: string,
 	out: Array<{ slug: string; pathname: string }>
@@ -319,11 +314,11 @@ function walkAstroPages(
 		if (entry.name.startsWith('[')) continue; // dynamic routes
 		if (entry.isDirectory()) {
 			if (SKIP_DIRS.has(entry.name)) continue;
-			walkAstroPages(root, path.join(rel, entry.name), out);
+			walkMarketingPages(root, path.join(rel, entry.name), out);
 			continue;
 		}
-		if (!entry.name.endsWith('.astro')) continue;
-		const baseName = entry.name.replace(/\.astro$/, '');
+		if (!/\.(astro|mdx)$/.test(entry.name)) continue;
+		const baseName = entry.name.replace(/\.(astro|mdx)$/, '');
 		const slug = baseName === 'index'
 			? rel.replace(/\\/g, '/')
 			: path.join(rel, baseName).replace(/\\/g, '/');
@@ -334,7 +329,7 @@ function walkAstroPages(
 
 /** Fallback: derive a marketing-page title from the URL pathname. */
 function pathnameToTitle(pathname: string): string {
-	if (pathname === '/') return 'Open-source IoT platform for device data collection';
+	if (pathname === '/') return 'Build, deploy, and scale IoT solutions';
 	const segs = pathname.split('/').filter(Boolean);
 	const last = segs[segs.length - 1] ?? '';
 	return last

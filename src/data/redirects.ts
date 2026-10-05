@@ -20,6 +20,7 @@
 // import this file directly and cannot resolve the `@models` alias.
 import { TBMQ_ORIGIN, tbmqDocsUrl } from '../models/tbmq.ts';
 import { CAREERS_URL } from '../models/careers.ts';
+import { getFamilySlug, UPGRADE_FAMILIES } from '../models/upgrade-instructions.ts';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -78,13 +79,19 @@ export interface DynamicRedirectGroup {
 // Helpers for generating upgrade instruction redirects
 // ---------------------------------------------------------------------------
 
-import { UPGRADE_FAMILIES, getFamilySlug } from '../models/upgrade-instructions.ts';
-
 const PLATFORMS = ['ubuntu', 'centos', 'windows', 'docker', 'docker-compose'];
+
+/**
+ * Newest family published on the legacy site. Families released after the
+ * migration (4.4+) never had a /docs/user-guide/install/… URL, so they get no
+ * redirect entries; the prefix splat in _redirects still catches strays.
+ */
+const LAST_LEGACY_FAMILY = '4.3';
+const LEGACY_UPGRADE_FAMILIES = UPGRADE_FAMILIES.slice(UPGRADE_FAMILIES.indexOf(LAST_LEGACY_FAMILY));
 
 function buildUpgradeRedirectEntries(newPrefix: string): RedirectEntry[] {
 	const entries: RedirectEntry[] = [];
-	for (const family of UPGRADE_FAMILIES) {
+	for (const family of LEGACY_UPGRADE_FAMILIES) {
 		const familySlug = getFamilySlug(family);
 		for (const platform of PLATFORMS) {
 			entries.push({
@@ -229,7 +236,14 @@ export const CATCH_ALL_REDIRECTS: CatchAllRedirect[] = [
 		// /docs/pe/edge/{…} URL ever pointed at them.
 		excludeSlugs: ['user-guide/cli', 'reference/java-client', 'reference/python-client'],
 	},
-	{ oldPrefix: 'pe/mobile', newPrefix: 'mobile/pe', entries: [] },
+	{
+		oldPrefix: 'pe/mobile',
+		newPrefix: 'mobile/pe',
+		entries: [],
+		// Added after the prefix split — no legacy /docs/pe/mobile/{…} URL ever
+		// pointed at them.
+		excludeSlugs: ['compatibility', 'live-location-tracking', 'releases'],
+	},
 	// TBMQ prefixes (mqtt-broker/install, mqtt-broker/pe/install, pe/mqtt-broker/…)
 	// are cross-origin now — `newPrefix` can only express a local prefix, so they
 	// live in the TBMQ cutover group of DYNAMIC_REDIRECTS below.
@@ -237,10 +251,9 @@ export const CATCH_ALL_REDIRECTS: CatchAllRedirect[] = [
 		oldPrefix: 'user-guide/install/upgrade-instructions',
 		entries: buildUpgradeRedirectEntries('installation/upgrade-instructions'),
 	},
-	{
-		oldPrefix: 'user-guide/install/pe/upgrade-instructions',
-		entries: buildUpgradeRedirectEntries('pe/installation/upgrade-instructions'),
-	},
+	// user-guide/install/pe/upgrade-instructions only ever had its index page on the
+	// legacy site (the versioned PE pages lived under pe/user-guide/…), so it gets
+	// no per-version entries — just the splat in DYNAMIC_REDIRECTS.
 	{
 		oldPrefix: 'pe/user-guide/install/upgrade-instructions',
 		entries: buildUpgradeRedirectEntries('pe/installation/upgrade-instructions'),
@@ -741,10 +754,14 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'pe/user-guide/ui/assets', target: '/docs/pe/user-guide/assets/' },
 	{ oldPath: 'paas/user-guide/ui/assets', target: '/docs/paas/user-guide/assets/' },
 	{ oldPath: 'paas/eu/user-guide/ui/assets', target: '/docs/paas/eu/user-guide/assets/' },
-	{ oldPath: 'user-guide/ui/chart-widget', target: '/docs/reference/widgets/charts/chart-widgets/' },
-	{ oldPath: 'pe/user-guide/ui/chart-widget', target: '/docs/pe/reference/widgets/charts/chart-widgets/' },
-	{ oldPath: 'paas/user-guide/ui/chart-widget', target: '/docs/paas/reference/widgets/charts/chart-widgets/' },
-	{ oldPath: 'paas/eu/user-guide/ui/chart-widget', target: '/docs/paas/eu/reference/widgets/charts/chart-widgets/' },
+	{ oldPath: 'user-guide/ui/chart-widget', target: '/docs/reference/widgets/widget-library/charts/' },
+	{ oldPath: 'pe/user-guide/ui/chart-widget', target: '/docs/pe/reference/widgets/widget-library/charts/' },
+	{ oldPath: 'paas/user-guide/ui/chart-widget', target: '/docs/paas/reference/widgets/widget-library/charts/' },
+	{ oldPath: 'paas/eu/user-guide/ui/chart-widget', target: '/docs/paas/eu/reference/widgets/widget-library/charts/' },
+	{ oldPath: 'reference/widgets/charts/chart-widgets', target: '/docs/reference/widgets/widget-library/charts/' },
+	{ oldPath: 'pe/reference/widgets/charts/chart-widgets', target: '/docs/pe/reference/widgets/widget-library/charts/' },
+	{ oldPath: 'paas/reference/widgets/charts/chart-widgets', target: '/docs/paas/reference/widgets/widget-library/charts/' },
+	{ oldPath: 'paas/eu/reference/widgets/charts/chart-widgets', target: '/docs/paas/eu/reference/widgets/widget-library/charts/' },
 	{ oldPath: 'user-guide/ui/customers', target: '/docs/user-guide/customers/' },
 	{ oldPath: 'pe/user-guide/ui/customers', target: '/docs/pe/user-guide/customers/' },
 	{ oldPath: 'paas/user-guide/ui/customers', target: '/docs/paas/user-guide/customers/' },
@@ -1036,7 +1053,7 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'paas/eu/user-guide/ssl/http-access-token', target: '/docs/paas/eu/reference/http-api/getting-connected/' },
 	{ oldPath: 'user-guide/ssl/http-transport-over-ssl', target: '/docs/reference/http-api/getting-connected/#https-tls' },
 	{ oldPath: 'pe/user-guide/ssl/http-transport-over-ssl', target: '/docs/pe/reference/http-api/getting-connected/#https-tls' },
-	{ oldPath: 'user-guide/ssl/lwm2m-over-dtls', target: '/docs/reference/lwm2m-api/getting-started/#dtls-server-configuration' },
+	{ oldPath: 'user-guide/ssl/lwm2m-over-dtls', target: '/docs/reference/lwm2m-api/getting-started/#lwm2m-over-dtls--server-configuration' },
 	{ oldPath: 'pe/user-guide/ssl/lwm2m-over-dtls', target: '/docs/pe/reference/lwm2m-api/getting-started/#dtls-server-configuration' },
 	{ oldPath: 'paas/user-guide/tenant-profiles', target: '/docs/paas/user-guide/multi-tenancy/' },
 	{ oldPath: 'paas/eu/user-guide/tenant-profiles', target: '/docs/paas/eu/user-guide/multi-tenancy/' },
@@ -1221,7 +1238,7 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	// Docs root — legacy paths that point off-docs
 	{ oldPath: 'contact-us', target: '/contact-us/' },
 	{ oldPath: 'contact-us-thanks', target: '/contact-us-thanks/' },
-	{ oldPath: 'user-guide/live-demo', target: '/docs/installation/?installationType=saas' },
+	{ oldPath: 'user-guide/live-demo', target: '/installations/' },
 
 	// PaaS/PaaS-EU — getting-started-guides renamed to /why-thingsboard/
 	{ oldPath: 'paas/getting-started-guides/what-is-thingsboard-cloud', target: '/docs/paas/why-thingsboard/' },
@@ -1291,6 +1308,16 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'trendz/data-grouping-aggregation', target: '/docs/trendz/telemetry-aggregation/' },
 	{ oldPath: 'trendz/releases', target: '/docs/trendz/releases/releases-table/' },
 	{ oldPath: 'trendz/view-builder', target: '/docs/trendz/telemetry-aggregation/' },
+
+	// Trendz prediction
+	{ oldPath: 'trendz/prediction', target: '/docs/trendz/prediction/overview/' },
+	{ oldPath: 'trendz/predict-with-python-models', target: '/docs/trendz/prediction/models-and-accuracy/' },
+	{ oldPath: 'trendz/predict-remaining-time', target: '/docs/trendz/prediction/intents/time-to-threshold/' },
+	{ oldPath: 'trendz/prediction-save-to-tb', target: '/docs/trendz/prediction/monitoring/' },
+	{ oldPath: 'trendz/prediction/custom-python-models', target: '/docs/trendz/prediction/models-and-accuracy/' },
+	{ oldPath: 'trendz/prediction/predict-remaining-time', target: '/docs/trendz/prediction/intents/time-to-threshold/' },
+	{ oldPath: 'trendz/prediction/save-to-thingsboard', target: '/docs/trendz/prediction/monitoring/' },
+	{ oldPath: 'trendz/calculations/time-to-value', target: '/docs/trendz/prediction/intents/time-to-threshold/' },
 
 	{
 		oldPath: 'pe/solution-templates/fleet-tracking',
@@ -1408,6 +1435,10 @@ export const NON_DOCS_REDIRECTS: Record<string, string> = {
 	// Services
 	'/services/support/': '/services/',
 
+	// The PE mobile landing folded into the single mobile page (its white-labeling and
+	// self-registration blocks moved there); the page file and its PE-only assets are deleted.
+	'/products/mobile-pe/': '/products/mobile/',
+
 	// TBMQ — moved to tbmq.io, whose site root is the product landing. The old
 	// landing page file and its subtree (MqttBroker components, tbmqNews data,
 	// landing images) are deleted; this rule serves old bookmarks and inbound
@@ -1451,6 +1482,11 @@ export const NON_DOCS_REDIRECTS: Record<string, string> = {
 	'/products/license-server/perpetual/': '/docs/license-server/perpetual/',
 	'/products/license-server/instance/': '/docs/license-server/instance/',
 	'/products/license-server/user/': '/docs/license-server/user/',
+	// The License Portal legal documents were superseded by the /legal/ set.
+	'/products/license-server/terms-of-use/': '/legal/terms-of-use/',
+	'/products/license-server/privacy-policy/': '/legal/privacy-policy/',
+	// /legal/ has no index page of its own; the license text is its landing.
+	'/legal/': '/legal/busl/',
 
 	// Partner sample moved from the retired /docs/samples/ tree into the
 	// hardware-partners asset folder, where every other partner's files live.
@@ -1549,6 +1585,15 @@ export const DYNAMIC_REDIRECTS: DynamicRedirectGroup[] = [
 			{ source: '/blog/2024/*', target: '/blog/' },
 			{ source: '/blog/2025/*', target: '/blog/' },
 			{ source: '/blog/2026/*', target: '/blog/' },
+		],
+	},
+	{
+		comment: 'Docs — PE upgrade instructions under the legacy user-guide/install/pe prefix',
+		entries: [
+			{
+				source: '/docs/user-guide/install/pe/upgrade-instructions/*',
+				target: '/docs/pe/installation/upgrade-instructions/:splat',
+			},
 		],
 	},
 	{

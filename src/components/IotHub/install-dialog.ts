@@ -1,14 +1,14 @@
 import {
+	buildInstallUrl,
+	getInstallVerb,
 	INSTALL_INSTANCES,
 	INSTALL_LOCAL_DEFAULT,
 	INSTALL_LOCAL_STORAGE_KEY,
 	INSTALL_LOCAL_URL_PATTERN,
+	type InstallInstance,
 	IOT_HUB_STRINGS,
-	buildInstallUrl,
-	getInstallVerb,
 	stripScheme,
 	stripTrailingSlash,
-	type InstallInstance,
 } from '@models/iot-hub';
 import './install-dialog.scss';
 import { lockScroll, unlockScroll } from '@util/scroll-lock';

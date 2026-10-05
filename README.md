@@ -1,6 +1,6 @@
 # ThingsBoard Docs
 
-Source for the documentation site at [thingsboard.io/docs](https://thingsboard.io/docs/), built with [Astro](https://astro.build/) and [Starlight](https://starlight.astro.build/).
+Source for the documentation site at [thingsboard.io/docs/pe](https://thingsboard.io/docs/pe/), built with [Astro](https://astro.build/) and [Starlight](https://starlight.astro.build/).
 
 ## Quickstart
 
@@ -28,7 +28,7 @@ See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for setup, the CI checks, content aut
 ## Links
 
 - [thingsboard.io](https://thingsboard.io/) — product homepage
-- [thingsboard.io/docs](https://thingsboard.io/docs/) — live documentation site
+- [thingsboard.io/docs/pe](https://thingsboard.io/docs/pe/) — live documentation site
 
 ## License
 

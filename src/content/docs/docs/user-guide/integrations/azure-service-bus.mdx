@@ -2,7 +2,361 @@
 title: Azure Service Bus Integration
 description: Connect Azure Service Bus to ThingsBoard to stream and visualize IoT device data in real time.
 ---
-import PageComponent from '@includes/docs/user-guide/integrations/azure-service-bus.mdx'
-import { Products } from '~/models/site.models'
+import DocLink from '@components/DocLink.astro';
+import ImageGallery from '@components/ImageGallery.astro';
+import DocImage from '~/components/DocImage.astro';
+import Banner from '@components/Banner.astro';
+import { Steps, Aside } from '@astrojs/starlight/components';
+import { Products } from '@models/site.models';
+import Tabs from '@components/Tabs.astro';
+import TabItem from '@components/TabItem.astro';
 
-<PageComponent product={Products.CE}/>
+<Banner variant="peFeature" product={Products.CE} path="user-guide/integrations/azure-service-bus" />
+
+**Azure Service Bus** is a fully managed enterprise message broker from Microsoft that supports queues and publish/subscribe topics. The ThingsBoard Azure Service Bus integration subscribes to a topic on your Service Bus namespace, receives device messages, decodes them via an uplink converter, and stores telemetry and attributes in ThingsBoard. In the reverse direction, it encodes Rule Engine messages via a downlink converter and publishes them to a dedicated downlink topic.
+
+<DocImage src="/src/assets/images/user-guide/integrations/azure-service-bus/azure-service-bus-overview.png" alt="Azure Service Bus integration overview diagram" />
+
+## Configure Azure Service Bus
+
+Before creating the integration in ThingsBoard, prepare the following in the <a href="https://portal.azure.com" target="_blank" rel="noopener noreferrer">Azure portal</a>:
+
+<Steps>
+1. Open your **Service Bus namespace** (or create one). A namespace is the scoping container for all messaging components and has a globally unique DNS name in the form `<namespace>.servicebus.windows.net`.
+2. Create a **topic** for uplink messages (e.g. `uplinktopic`). Topics implement the publish/subscribe pattern — multiple subscribers can independently consume the same messages.
+3. Create a **subscription** on that topic (e.g. `S1`). Each subscription maintains its own independent copy of every message published to the topic, so ThingsBoard consumes messages without affecting other consumers.
+4. Copy the **connection string** for the namespace — go to **Settings &#8702; Shared access policies**, open a policy (e.g. `RootManageSharedAccessKey`), and copy the **Primary Connection String**. It has the form `Endpoint=sb://<namespace>.servicebus.windows.net/;SharedAccessKeyName=<policy>;SharedAccessKey=<key>`.
+</Steps>
+
+<Aside type="note">
+  For downlink support, also create a dedicated downlink topic (e.g. `downlinktopic`) with its own subscription before configuring the integration.
+</Aside>
+
+## ThingsBoard integration setup
+
+### Create an uplink converter
+
+The uplink converter decodes incoming Azure Service Bus messages and maps them to the ThingsBoard data model. Azure Service Bus uses a <DocLink product={Products.CE} path="user-guide/integrations/uplink-data-converter">generic uplink converter</DocLink>.
+
+**Sample input message:**
+
+```json
+{
+  "devName": "Sensor A1",
+  "msg": {
+    "temp": 23,
+    "humidity": 40
+  }
+}
+```
+
+The `devName` field maps to `deviceName`. The nested `msg` object provides `temperature` and `humidity` telemetry.
+
+<h4>Import the uplink converter</h4>
+
+<Aside type="tip" title="TBEL">
+  We recommend using <DocLink product={Products.CE} path="user-guide/tbel">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
+</Aside>
+
+<Steps>
+  <ol start="1">
+    <li>Download the uplink converter file:</li>
+  </ol>
+</Steps>
+
+<Tabs>
+  <TabItem label="TBEL (Recommended)">
+    <a href="/resources/docs/integrations/azure-service-bus/azure_service_bus_tbel_uplink_converter.json" download="azure_service_bus_tbel_uplink_converter.json"><strong>azure_service_bus_tbel_uplink_converter.json</strong></a>
+  </TabItem>
+  <TabItem label="JavaScript">
+    <a href="/resources/docs/integrations/azure-service-bus/azure_service_bus_javascript_uplink_converter.json" download="azure_service_bus_javascript_uplink_converter.json"><strong>azure_service_bus_javascript_uplink_converter.json</strong></a>
+  </TabItem>
+</Tabs>
+
+<Steps>
+  <ol start="2">
+    <li>Go to **Integrations center &#8702; Data converters**.</li>
+    <li>Click **+ Add data converter &#8702; Import converter**.</li>
+    <li>Drag and drop the downloaded JSON file into the **Import converter** window and click **Import**.</li>
+  </ol>
+</Steps>
+
+**The decoder function used in this tutorial:**
+
+<Tabs>
+<TabItem label="TBEL (Recommended)">
+```js maxLines=15 collapsible
+var data = decodeToJson(payload);
+var deviceName = data.devName;
+var deviceType = 'thermostat';
+
+var result = {
+    deviceName: deviceName,
+    deviceType: deviceType,
+    telemetry: {
+        temperature: data.msg.temp,
+        humidity: data.msg.humidity
+    }
+};
+
+return result;
+```
+</TabItem>
+<TabItem label="JavaScript">
+```js maxLines=20 collapsible
+var data = decodeToJson(payload);
+var deviceName = data.devName;
+var deviceType = 'thermostat';
+
+var result = {
+    deviceName: deviceName,
+    deviceType: deviceType,
+    telemetry: {
+        temperature: data.msg.temp,
+        humidity: data.msg.humidity
+    }
+};
+
+function decodeToString(payload) {
+    return String.fromCharCode.apply(String, payload);
+}
+
+function decodeToJson(payload) {
+    var str = decodeToString(payload);
+    var data = JSON.parse(str);
+    return data;
+}
+
+return result;
+```
+</TabItem>
+</Tabs>
+
+### Create the integration
+
+<Steps>
+  <ol start="1">
+    <li>Go to <strong>Integrations center &#8702; Integrations</strong> and click <strong>+ Add integration</strong>.</li>
+    <li>
+      <span><strong>Basic settings:</strong></span>
+      <ul>
+        <li>Set <strong>Integration type</strong> to <strong>Azure Service Bus</strong>.</li>
+        <li>Enter a name for the integration.</li>
+        <li>Click <strong>Next</strong>.</li>
+      </ul>
+    </li>
+    <li>
+      <span><strong>Uplink data converter:</strong></span>
+      <ul>
+        <li><strong>Select existing</strong> — choose the <a href="#create-an-uplink-converter">previously created</a> <strong>Azure Service Bus Uplink Converter</strong> from the list.</li>
+        <li>Click <strong>Next</strong>.</li>
+      </ul>
+    </li>
+    <li>
+      <span><strong>Downlink data converter:</strong></span>
+      <ul>
+        <li>Leave the field empty for now and click <strong>Skip</strong>.</li>
+      </ul>
+    </li>
+    <li>
+      <span><strong>Connection:</strong></span>
+      <ul>
+        <li><strong>Connection string</strong> — the namespace connection string from Azure.</li>
+        <li><strong>Topic name</strong> — the name of the uplink topic (e.g. <code>uplinktopic</code>).</li>
+        <li><strong>Subscription name</strong> — the name of the subscription on that topic (e.g. <code>S1</code>).</li>
+      </ul>
+      <span>See <a href="#connection-settings">Connection settings</a> for a full description of each parameter.</span>
+    </li>
+    <li>Click <strong>Check connection</strong> to verify connectivity — the wizard shows <strong>Connected</strong> when successful.</li>
+    <li>Click <strong>Add</strong> to save the integration.</li>
+  </ol>
+</Steps>
+
+<Aside type="note">
+  Enabling **Debug mode** stores all integration events in the database. Starting from ThingsBoard 3.9, full debug events are retained only for the first 15 minutes after the integration is created — afterward, only error events are stored.
+</Aside>
+
+
+#### Connection settings
+
+<h4>Connection string</h4>
+
+The Azure Service Bus namespace connection string used to authenticate the integration. Found under **Settings &#8702; Shared access policies** in your namespace — copy the **Primary Connection String** of any policy that has `Listen` permission (e.g. `RootManageSharedAccessKey`). Format: `Endpoint=sb://<namespace>.servicebus.windows.net/;SharedAccessKeyName=<policy>;SharedAccessKey=<key>`.
+
+<h4>Topic name</h4>
+
+The name of the Azure Service Bus topic ThingsBoard subscribes to for uplink messages (e.g. `uplinktopic`).
+
+<h4>Subscription name</h4>
+
+The name of the subscription on the uplink topic that ThingsBoard consumes (e.g. `S1`). Each subscription receives an independent copy of every message published to the topic.
+
+<h4>Execute remotely</h4>
+
+When enabled, ThingsBoard generates an **Integration key** and **Integration secret** that allow the integration to run as a separate process outside the ThingsBoard cluster — useful when the Azure Service Bus endpoint is only reachable from a specific network.
+
+<h4>Advanced settings</h4>
+
+- **Downlink connection string** — the connection string for the namespace where the downlink topic resides (can be the same namespace as the uplink); requires `Send` permission
+- **Downlink topic name** — the name of the Azure Service Bus topic ThingsBoard publishes downlink messages to (e.g. `downlinktopic`)
+- **Description** — optional text description for this integration
+- **Metadata** — key-value pairs injected into every uplink message as `integrationMetadata` in converter scripts
+
+## Send a test uplink
+
+To test the integration, send a message to your Azure Service Bus topic using the **Service Bus Explorer** in the Azure portal:
+
+<Steps>
+1. In the Azure portal, open your Service Bus namespace and navigate to the uplink topic (e.g. `uplinktopic`).
+2. Click **Service Bus Explorer** in the left menu.
+3. Click **Send messages**, set **Content type** to `application/json`, and paste the payload below into the **Message Body** field.
+4. Click **Send**.
+</Steps>
+
+```json
+{
+  "devName": "Sensor A1",
+  "msg": {
+    "temp": 23,
+    "humidity": 40
+  }
+}
+```
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/azure-service-bus/azure-service-bus-integration-send-uplink-message-1.png', alt: 'Azure Service Bus Explorer — uplinktopic Send messages panel with application/json content type and JSON payload entered, Send button highlighted', caption: 'Azure Service Bus Explorer — uplinktopic Send messages panel with application/json content type and JSON payload entered, Send button highlighted' },
+]} />
+
+### Verify the uplink in ThingsBoard
+
+Go to **Integrations center &#8702; Integrations**, open the Azure Service Bus integration, and check the **Events** tab — you should see an **Uplink** event confirming that ThingsBoard received and processed the message.
+
+Received data can be viewed in the **Uplink converter**. In the **In** and **Out** blocks of the **Events** tab:  
+
+The device `Sensor A1` is created automatically on the first uplink. Click the notification bell at the top — ThingsBoard notifies you that the device has become active. Go to **Entities &#8702; Devices**, open `Sensor A1`, and navigate to the **Latest telemetry** tab to verify the received values.
+
+## Configure downlink
+
+To send messages from ThingsBoard back to Azure Service Bus, create a dedicated downlink topic in Azure, add a downlink converter, configure the integration's advanced settings, and wire the Root Rule Chain to forward attribute updates.
+
+### Create the downlink converter
+
+The downlink converter encodes Rule Engine messages into Azure Service Bus payloads. The output must include:
+- `contentType` — how data is encoded: `TEXT`, `JSON`, or `BINARY`
+- `data` — the payload to publish to the downlink topic
+- `metadata.deviceId` — identifier passed as a message property to route the message to the correct device
+
+<h4>Import the downlink converter</h4>
+
+<Aside type="tip" title="TBEL">
+  We recommend using <DocLink product={Products.CE} path="user-guide/tbel">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
+</Aside>
+
+<Steps>
+  <ol start="1">
+    <li>Download the downlink converter file:</li>
+  </ol>
+</Steps>
+
+<Tabs>
+  <TabItem label="TBEL (Recommended)">
+    <a href="/resources/docs/integrations/azure-service-bus/azure_service_bus_tbel_downlink_converter.json" download="azure_service_bus_tbel_downlink_converter.json"><strong>azure_service_bus_tbel_downlink_converter.json</strong></a>
+  </TabItem>
+  <TabItem label="JavaScript">
+    <a href="/resources/docs/integrations/azure-service-bus/azure_service_bus_javascript_downlink_converter.json" download="azure_service_bus_javascript_downlink_converter.json"><strong>azure_service_bus_javascript_downlink_converter.json</strong></a>
+  </TabItem>
+</Tabs>
+
+<Steps>
+  <ol start="2">
+    <li>Go to **Integrations center &#8702; Data converters**.</li>
+    <li>Click **+ Add data converter &#8702; Import converter**.</li>
+    <li>Drag and drop the downloaded JSON file into the **Import converter** window and click **Import**.</li>
+  </ol>
+</Steps>
+
+**The encoder function used in this tutorial:**
+
+<Tabs>
+<TabItem label="TBEL (Recommended)">
+```js maxLines=12 collapsible
+var result = {
+    contentType: "JSON",
+    data: JSON.stringify(msg),
+    metadata: {
+        deviceId: metadata.deviceName
+    }
+};
+
+return result;
+```
+</TabItem>
+<TabItem label="JavaScript">
+```js maxLines=12 collapsible
+var result = {
+    contentType: "JSON",
+    data: JSON.stringify(msg),
+    metadata: {
+        deviceId: metadata.deviceName
+    }
+};
+
+return result;
+```
+</TabItem>
+</Tabs>
+
+### Attach the downlink converter and configure the downlink topic
+
+<Steps>
+1. Go to **Integrations center &#8702; Integrations** and open the **Azure Service Bus** integration.
+2. Click the edit (pencil) icon.
+3. In the **Downlink data converter** field, select `Service Bus Downlink Converter`.
+4. Expand **Advanced settings** and fill in:
+    - **Downlink connection string** — the namespace connection string (copy from the uplink settings if you use the same namespace)
+    - **Downlink topic name** — the name of the downlink topic (e.g. `downlinktopic`)
+5. Click **Apply changes**.
+</Steps>
+
+
+### Update the Root Rule Chain
+
+Add an **Integration Downlink** node to the Root Rule Chain to forward attribute updates to Azure Service Bus.
+
+<Steps>
+1. Go to **Rule chains** and open the **Root Rule Chain**. Click the edit icon.
+2. Find **Integration Downlink** in the node panel and drag it onto the canvas.
+3. In the **Add rule node** dialog, enter a name (e.g. `Service Bus downlink node`), select **Azure Service Bus Integration**, and click **Add**.
+4. Connect the **Message Type Switch** node to the **Integration Downlink** node using both the **Post attributes** and **Attributes Updated** relations.
+5. Click **Apply changes**.
+</Steps>
+
+
+### Test the downlink
+
+Trigger a downlink by adding a shared attribute to device `Sensor A1`:
+
+<Steps>
+1. Go to **Entities &#8702; Devices** and open device `Sensor A1`.
+2. Navigate to the **Attributes** tab, switch to **Shared attributes**, and click **+**.
+3. Enter key `firmware` and value `01052020.v1.1`, then click **Add**.
+</Steps>
+
+
+Adding the attribute triggers the rule chain, which forwards the message to the Azure Service Bus integration. Go to **Integrations center &#8702; Integrations**, open the Azure Service Bus integration, and check the **Events** tab — a **Downlink** event appears with the payload sent to the downlink topic.
+
+
+To confirm the message reached Azure Service Bus, open the Azure portal, navigate to the downlink topic subscription (e.g. `downlinktopic / S2`), and use **Service Bus Explorer** to receive messages:
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/azure-service-bus/azure-service-bus-integration-send-uplink-message-2.png', alt: 'Azure Service Bus Explorer — downlinktopic subscription S2, Receive mode selected, Receive messages button highlighted', caption: 'Open the downlinktopic subscription in Service Bus Explorer (1), select Receive mode (3), and click Receive messages (4) to pull messages from the subscription' },
+  { src: '/src/assets/images/user-guide/integrations/azure-service-bus/azure-service-bus-integration-send-uplink-message-3.png', alt: 'Service Bus Explorer — received message with Message Text showing firmware value 01052020.v1.1', caption: 'The downlink message appears in the subscription — Message Text shows the firmware attribute value forwarded from ThingsBoard' },
+]} />
+
+## See also
+
+- <DocLink product={Products.CE} path="user-guide/integrations">Integration Overview</DocLink>
+- <DocLink product={Products.CE} path="user-guide/integrations/uplink-data-converter">Uplink Converters</DocLink>
+- <DocLink product={Products.CE} path="user-guide/integrations/downlink-data-converter">Downlink Converters</DocLink>
+- <DocLink product={Products.CE} path="user-guide/rule-engine">Rule Engine</DocLink>
+- <DocLink product={Products.CE} path="user-guide/tbel">ThingsBoard Expression Language (TBEL)</DocLink>

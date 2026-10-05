@@ -4,45 +4,432 @@ sidebar:
   label: "Docker (Linux, macOS)"
 description: "Install and run ThingsBoard Community Edition with Docker on Linux or macOS."
 ---
-import DockerSection from '@includes/docs/installation/docker.mdx';
-import { Products } from '~/models/site.models';
 
-<DockerSection section="intro" product={Products.CE} platform="linux" />
+import DocLink from '@components/DocLink.astro';
+import { Aside, Code, TabItem, Tabs } from '@astrojs/starlight/components';
+import { CE_FULL_VER } from '@data/versions';
+import { Products } from '@models/site.models';
+import QueueIntro from '@includes/docs/installation/queue-intro.mdx';
+
+export const ceInMemoryYaml = `services:
+  postgres:
+    restart: always
+    image: "postgres:18"
+    ports:
+      - "5432"
+    environment:
+      POSTGRES_DB: thingsboard
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d thingsboard"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+  thingsboard-ce:
+    restart: always
+    image: "thingsboard/tb-node:${CE_FULL_VER}"
+    ports:
+      - "8080:8080"
+      - "7070:7070"
+      - "1883:1883"
+      - "8883:8883"
+      - "5683-5688:5683-5688/udp"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "10"
+    environment:
+      TB_SERVICE_ID: tb-ce-node
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/thingsboard
+      SPRING_DATASOURCE_PASSWORD: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+volumes:
+  postgres-data:
+    name: tb-postgres-data
+    driver: local`;
+
+export const ceKafkaYaml = `services:
+  postgres:
+    restart: always
+    image: "postgres:18"
+    ports:
+      - "5432"
+    environment:
+      POSTGRES_DB: thingsboard
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d thingsboard"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+  kafka:
+    restart: always
+    image: bitnamilegacy/kafka:4.0
+    ports:
+      - 9092:9092
+      - 9093
+    environment:
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+      KAFKA_CFG_LISTENERS: "PLAINTEXT://:9092,CONTROLLER://:9093"
+      KAFKA_CFG_ADVERTISED_LISTENERS: "PLAINTEXT://:9092"
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_CFG_PROCESS_ROLES: "controller,broker"
+      KAFKA_CFG_NODE_ID: "0"
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: "0@kafka:9093"
+      KAFKA_CFG_LOG_RETENTION_MS: "300000"
+      KAFKA_CFG_SEGMENT_BYTES: "26214400"
+    volumes:
+      - kafka-data:/bitnami
+  thingsboard-ce:
+    restart: always
+    image: "thingsboard/tb-node:${CE_FULL_VER}"
+    ports:
+      - "8080:8080"
+      - "7070:7070"
+      - "1883:1883"
+      - "8883:8883"
+      - "5683-5688:5683-5688/udp"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "10"
+    environment:
+      TB_SERVICE_ID: tb-ce-node
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/thingsboard
+      SPRING_DATASOURCE_PASSWORD: postgres
+      TB_QUEUE_TYPE: kafka
+      TB_KAFKA_SERVERS: kafka:9092
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+volumes:
+  postgres-data:
+    name: tb-postgres-data
+    driver: local
+  kafka-data:
+    name: tb-ce-kafka-data
+    driver: local`;
+
+export const ceConfluentYaml = `services:
+  postgres:
+    restart: always
+    image: "postgres:18"
+    ports:
+      - "5432"
+    environment:
+      POSTGRES_DB: thingsboard
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d thingsboard"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+  thingsboard-ce:
+    restart: always
+    image: "thingsboard/tb-node:${CE_FULL_VER}"
+    ports:
+      - "8080:8080"
+      - "7070:7070"
+      - "1883:1883"
+      - "8883:8883"
+      - "5683-5688:5683-5688/udp"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "10"
+    environment:
+      TB_SERVICE_ID: tb-ce-node
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/thingsboard
+      SPRING_DATASOURCE_PASSWORD: postgres
+      TB_QUEUE_TYPE: kafka
+      TB_KAFKA_SERVERS: localhost:9092
+      TB_QUEUE_KAFKA_REPLICATION_FACTOR: 3
+      TB_QUEUE_KAFKA_USE_CONFLUENT_CLOUD: true
+      TB_QUEUE_KAFKA_CONFLUENT_SASL_JAAS_CONFIG: 'org.apache.kafka.common.security.plain.PlainLoginModule required username="CLUSTER_API_KEY" password="CLUSTER_API_SECRET";'
+      TB_QUEUE_CORE_POLL_INTERVAL_MS: 1000
+      TB_QUEUE_CORE_PARTITIONS: 2
+      TB_QUEUE_RULE_ENGINE_POLL_INTERVAL_MS: 1000
+      TB_QUEUE_TRANSPORT_REQUEST_POLL_INTERVAL_MS: 1000
+      TB_QUEUE_TRANSPORT_RESPONSE_POLL_INTERVAL_MS: 1000
+      TB_QUEUE_TRANSPORT_NOTIFICATIONS_POLL_INTERVAL_MS: 1000
+      TB_QUEUE_VC_INTERVAL_MS: 1000
+      TB_QUEUE_VC_PARTITIONS: 1
+    depends_on:
+      postgres:
+        condition: service_healthy
+volumes:
+  postgres-data:
+    name: tb-postgres-data
+    driver: local`;
+
+<p>This guide covers a single-node ThingsBoard Community Edition (CE) installation using Docker Compose on Linux or macOS. By the end, you will have a fully functional ThingsBoard instance running on your machine. For cluster setup, see <DocLink product={Products.CE} path="installation/docker-compose-setup">Cluster Setup with Docker Compose</DocLink>.</p>
 
 ## Prerequisites
 
-<DockerSection section="prerequisites" product={Products.CE} platform="linux" />
+Ensure your server meets the minimum requirements:
+
+| Use case | CPU | RAM | Recommended services |
+|---|---|---|---|
+| Development / PoC | 1 core | 4 GB | ThingsBoard, PostgreSQL |
+| Production (small) | 2 cores | 8 GB | ThingsBoard, PostgreSQL, Kafka |
+| Production (recommended) | 4+ cores | 16+ GB | ThingsBoard, PostgreSQL, Kafka, Cassandra |
+
+<p>Install Docker on your server:</p>
+<ul>
+  <li><a href="https://docs.docker.com/engine/install/ubuntu/" target="_blank">Docker for Ubuntu</a></li>
+  <li><a href="https://docs.docker.com/engine/install/centos/" target="_blank">Docker for CentOS</a></li>
+  <li><a href="https://docs.docker.com/desktop/setup/install/mac-install/" target="_blank">Docker Desktop for macOS</a></li>
+</ul>
+<Aside type="tip">
+  On Linux, add your user to the <code>docker</code> group to run Docker commands without <code>sudo</code>. See <a href="https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user" target="_blank">Manage Docker as a non-root user</a>.
+</Aside>
 
 ## Step 1. Create docker compose file
 
-<DockerSection section="compose-file" product={Products.CE} platform="linux" />
+<p>Create a dedicated directory for your ThingsBoard installation and navigate to it. All subsequent commands in this guide should be run from this directory.</p>
+<Code code="mkdir -p ~/thingsboard && cd ~/thingsboard" lang="bash" />
+<QueueIntro />
+<p>Create the <code>docker-compose.yml</code> file:</p>
+<Code code="nano docker-compose.yml" lang="bash" />
+<p>Paste one of the configurations below, save, and exit. Or use the download button to save the file directly.</p>
+<Tabs>
+  <TabItem label="In Memory (default)">
+    <Code code={ceInMemoryYaml} lang="yml" meta="maxLines=20 collapsible download='docker-compose.yml'" />
+    <p><strong>Services started:</strong></p>
+    <ul>
+      <li><code>postgres</code> — PostgreSQL database</li>
+      <li><code>thingsboard-ce</code> — ThingsBoard application node</li>
+    </ul>
+  </TabItem>
+  <TabItem label="Kafka">
+    <p>This example runs Kafka locally as a Docker container. If you already have a Kafka broker or use a managed service (e.g. <a href="https://aws.amazon.com/msk/" target="_blank">AWS MSK</a>), remove the <code>kafka</code> service and update <code>TB_KAFKA_SERVERS</code> to point to your broker.</p>
+    <Code code={ceKafkaYaml} lang="yml" meta="maxLines=20 collapsible download='docker-compose.yml'" />
+    <p><strong>Services started:</strong></p>
+    <ul>
+      <li><code>postgres</code> — PostgreSQL database</li>
+      <li><code>kafka</code> — Kafka broker (local, single-node)</li>
+      <li><code>thingsboard-ce</code> — ThingsBoard application node</li>
+    </ul>
+  </TabItem>
+  <TabItem label="Confluent Cloud">
+    <p>First <a href="https://confluent.cloud/login" target="_blank">create a Confluent Cloud account</a>, create a <a href="https://docs.confluent.io/current/quickstart/cloud-quickstart/index.html#step-1-create-a-ak-cluster-in-ccloud" target="_blank">Kafka cluster</a>, and obtain your <a href="https://docs.confluent.io/current/quickstart/cloud-quickstart/index.html#step-4-create-an-api-key" target="_blank">API Key</a>. Replace <code>CLUSTER_API_KEY</code>, <code>CLUSTER_API_SECRET</code>, and <code>localhost:9092</code> with your Confluent Cloud values:</p>
+    <Code code={ceConfluentYaml} lang="yml" meta="maxLines=20 collapsible download='docker-compose.yml'" />
+    <p><strong>Services started:</strong></p>
+    <ul>
+      <li><code>postgres</code> — PostgreSQL database</li>
+      <li><code>thingsboard-ce</code> — ThingsBoard application node</li>
+    </ul>
+    <p>You can update the default Rule Engine queue configuration using the UI. See <DocLink product={Products.CE} path="user-guide/rule-engine/queues">Rule Engine Queues</DocLink> for details.</p>
+  </TabItem>
+</Tabs>
 
 ### Docker compose parameters
 
-<DockerSection section="compose-params" product={Products.CE} platform="linux" />
+<details>
+  <summary><strong>Ports (host:container)</strong></summary>
+  <table>
+    <thead>
+      <tr><th>Port mapping</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>8080:8080</code></td><td>Web UI and REST API. The left value is the host port — change it if 8080 is already in use.</td></tr>
+      <tr><td><code>1883:1883</code></td><td>MQTT — plaintext IoT device connections</td></tr>
+      <tr><td><code>8883:8883</code></td><td>MQTT over TLS — encrypted IoT device connections</td></tr>
+      <tr><td><code>5683:5683/udp</code></td><td>CoAP — plaintext IoT protocol</td></tr>
+      <tr><td><code>5684:5684/udp</code></td><td>CoAP over DTLS — encrypted CoAP</td></tr>
+      <tr><td><code>5685:5685/udp</code></td><td>LwM2M CoAP — plaintext Lightweight M2M</td></tr>
+      <tr><td><code>5686:5686/udp</code></td><td>LwM2M CoAP over DTLS — encrypted LwM2M</td></tr>
+      <tr><td><code>5687:5687/udp</code></td><td>LwM2M — plaintext Lightweight M2M (Bootstrap)</td></tr>
+      <tr><td><code>5688:5688/udp</code></td><td>LwM2M over DTLS — encrypted Lightweight M2M (Bootstrap)</td></tr>
+      <tr><td><code>7070:7070</code></td><td>Edge RPC (gRPC) — connections from ThingsBoard Edge nodes</td></tr>
+    </tbody>
+  </table>
+</details>
+
+<details>
+  <summary><strong>Environment variables</strong></summary>
+  <table>
+    <thead>
+      <tr><th>Variable</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>POSTGRES_PASSWORD</code></td><td>Password for the PostgreSQL <code>postgres</code> user. Must match <code>SPRING_DATASOURCE_PASSWORD</code>. <strong>Change the default value in production.</strong></td></tr>
+      <tr><td><code>SPRING_DATASOURCE_URL</code></td><td>PostgreSQL JDBC connection URL. Specifies the host and database name. Default: <code>jdbc:postgresql://postgres:5432/thingsboard</code>.</td></tr>
+      <tr><td><code>SPRING_DATASOURCE_USERNAME</code></td><td>PostgreSQL username ThingsBoard connects as. Default: <code>postgres</code>.</td></tr>
+      <tr><td><code>SPRING_DATASOURCE_PASSWORD</code></td><td>PostgreSQL password ThingsBoard uses to connect. Must match <code>POSTGRES_PASSWORD</code>.</td></tr>
+      <tr><td><code>TB_QUEUE_TYPE</code></td><td>Message queue type. Options: <code>in-memory</code> (default, single-node only), <code>kafka</code>, <code>rabbitmq</code>.</td></tr>
+      <tr><td><code>TB_KAFKA_SERVERS</code></td><td>Kafka bootstrap servers. Required when <code>TB_QUEUE_TYPE=kafka</code>. Default: <code>localhost:9092</code>.</td></tr>
+    </tbody>
+  </table>
+</details>
+
+<details>
+  <summary><strong>Volumes</strong></summary>
+  <table>
+    <thead>
+      <tr><th>Volume</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>tb-postgres-data</code></td><td>Persists PostgreSQL data across container restarts and upgrades.</td></tr>
+      <tr><td><code>tb-ce-kafka-data</code></td><td>Persists Kafka data. Only present when <code>TB_QUEUE_TYPE=kafka</code>.</td></tr>
+    </tbody>
+  </table>
+</details>
+
+<p>For the full list of configuration parameters, see the <DocLink product={Products.CE} path="reference/configuration/core-rule-engine-config">Configuration Reference</DocLink>.</p>
 
 ## Step 2. Initialize database schema and system assets
 
-<DockerSection section="initialize" product={Products.CE} platform="linux" />
+<p>Before starting ThingsBoard, initialize the database schema and load built-in assets. Choose the option that matches your goal:</p>
+<ul>
+  <li><strong>With demo data</strong> — also loads a sample tenant account, pre-built dashboards, and demo devices. Useful for exploring the platform before deploying to production.</li>
+  <li><strong>Clean install</strong> — initializes the database with system data only (rule chains, widget bundles, system dashboards).</li>
+</ul>
+<Tabs>
+  <TabItem label="With demo data">
+    <Code code="docker compose run --rm -e INSTALL_TB=true -e LOAD_DEMO=true thingsboard-ce" lang="bash" />
+  </TabItem>
+  <TabItem label="Clean install">
+    <Code code="docker compose run --rm -e INSTALL_TB=true thingsboard-ce" lang="bash" />
+  </TabItem>
+</Tabs>
+<p>The container exits automatically once initialization is complete.</p>
 
 ## Step 3. Start the platform
 
-<DockerSection section="start-platform" product={Products.CE} platform="linux" />
+<p>Start all containers:</p>
+<Code code="docker compose up -d" lang="bash" />
+<p>Monitor the startup. The line confirming the platform is ready will be highlighted:</p>
+<Code code="docker compose logs -f thingsboard-ce | grep --line-buffered --color=always -E 'Started ThingsboardServerApplication|$'" lang="bash" />
+<p>Press <strong>Ctrl+C</strong> to detach from the log stream — containers will continue running in the background.</p>
+<p>Open <code>http://localhost:8080</code> in your browser. You should see the ThingsBoard login page. Use the following default credentials:</p>
+<table>
+  <thead>
+    <tr><th>Role</th><th>Email</th><th>Password</th><th>With demo data</th><th>Clean install</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>System Administrator</td><td>sysadmin@thingsboard.org</td><td>sysadmin</td><td>✅</td><td>✅</td></tr>
+    <tr><td>Tenant Administrator</td><td>tenant@thingsboard.org</td><td>tenant</td><td>✅</td><td>❌</td></tr>
+    <tr><td>Customer User</td><td>customer@thingsboard.org</td><td>customer</td><td>✅</td><td>❌</td></tr>
+  </tbody>
+</table>
+<Aside type="caution">
+  Change the default passwords before exposing ThingsBoard to a network or deploying to production.
+</Aside>
+<p>See <DocLink product={Products.CE} path="getting-started">Getting Started</DocLink> for your next steps after login.</p>
 
 ## Inspect logs and control containers
 
-<DockerSection section="inspect-logs" product={Products.CE} platform="linux" />
+<p>Stream the ThingsBoard container logs:</p>
+<Code code="docker compose logs -f thingsboard-ce" lang="bash" />
+<p>Stop all containers:</p>
+<Code code="docker compose down" lang="bash" />
+<p>Start all containers:</p>
+<Code code="docker compose up -d" lang="bash" />
 
 ## Upgrading
 
-<DockerSection section="upgrading" product={Products.CE} platform="linux" />
+When a new ThingsBoard release becomes available, update your installation to benefit from the latest features and security patches.
+
+<Aside type="note">
+To maintain database integrity and system stability, perform upgrades sequentially (e.g. v4.0.2 → v4.1.0 → v4.2.0).
+</Aside>
+
+See the <DocLink product={Products.CE} path="installation/upgrade-instructions">Upgrade Instructions</DocLink> for detailed steps.
 
 ## Troubleshooting
 
 ### DNS issues
 
-<DockerSection section="troubleshooting-dns" product={Products.CE} platform="linux" />
+If you observe errors related to DNS issues, for example:
+
+```bash
+127.0.1.1:53: cannot unmarshal DNS message
+```
+
+Configure your system to use Google public DNS servers. See <a href="https://developers.google.com/speed/public-dns/docs/using#linux" target="_blank">Linux</a> and <a href="https://developers.google.com/speed/public-dns/docs/using#mac_os" target="_blank">macOS</a> instructions.
 
 ### Connecting to PostgreSQL on the Docker host
 
-<DockerSection section="troubleshooting-db-connectivity" product={Products.CE} platform="linux" />
+Inside a container, `localhost` and `127.0.0.1` point to the container itself, not to the Docker host. A ThingsBoard container reaches a PostgreSQL instance installed on the host through a different address.
+
+**Set the database address**
+
+The value of `SPRING_DATASOURCE_URL` depends on where PostgreSQL runs:
+
+| PostgreSQL location | `SPRING_DATASOURCE_URL` |
+|---|---|
+| Service in the same compose file | `jdbc:postgresql://postgres:5432/thingsboard` |
+| Docker host | `jdbc:postgresql://host.docker.internal:5432/thingsboard` |
+| Another server | `jdbc:postgresql://SERVER_IP:5432/thingsboard` |
+
+On macOS, Docker Desktop resolves `host.docker.internal` to the host automatically. On Linux, map the alias to the host gateway in every ThingsBoard service that connects to the database:
+
+<Code code={`services:\n  thingsboard-ce:\n    extra_hosts:\n      - "host.docker.internal:host-gateway"`} lang="yml" />
+
+<Aside type="caution">
+Do not point `SPRING_DATASOURCE_URL` at the bridge gateway address (`172.17.0.1`, `172.18.0.1`, etc.). Docker assigns it from the default address pool when it creates the network, so it can change when the network is recreated. Use `host.docker.internal` instead.
+</Aside>
+
+**Allow the Docker subnet in PostgreSQL**
+
+A PostgreSQL instance running on the host accepts local connections only until you configure it otherwise. Find the subnet of your Docker network first:
+
+```bash
+docker network ls
+docker network inspect NETWORK_NAME --format '{{(index .IPAM.Config 0).Subnet}}'
+```
+
+Set the listen address in `postgresql.conf`:
+
+```properties
+listen_addresses = '*'
+```
+
+Add a matching client entry to `pg_hba.conf`. The database and user must match `SPRING_DATASOURCE_URL` and `SPRING_DATASOURCE_USERNAME`, and the subnet must be the one you found. The authentication method must match how the password is stored, so use `md5` instead of `scram-sha-256` on instances that still store MD5 passwords:
+
+```properties
+host    thingsboard    DB_USER    172.18.0.0/16    scram-sha-256
+```
+
+Restart PostgreSQL. A reload is enough for `pg_hba.conf`, but `listen_addresses` is applied at server start only:
+
+```bash
+sudo systemctl restart postgresql
+```
+
+**Verify the connection**
+
+Run `psql` from a temporary container. It takes the same network path as ThingsBoard, which separates a networking problem from a ThingsBoard configuration problem. Replace `DB_USER` and `DB_PASSWORD` with the values from `SPRING_DATASOURCE_USERNAME` and `SPRING_DATASOURCE_PASSWORD`:
+
+```bash
+docker run --rm --add-host=host.docker.internal:host-gateway postgres:18 \
+  psql "postgresql://DB_USER:DB_PASSWORD@host.docker.internal:5432/thingsboard" -c "SELECT 1;"
+```
+
+If this command succeeds and ThingsBoard still fails, the network path is fine and the problem is in the ThingsBoard configuration.
+
+<p><strong>Check for a host firewall</strong></p>
+<p>Docker maps its internal networks to the host with iptables rules. Additional firewall software can interfere with those rules and drop the traffic before it reaches PostgreSQL. If connections time out instead of being rejected, check whether a firewall like UFW or firewalld is installed and enabled on the host, and whether its configuration blocks traffic coming from the Docker networks.</p>

@@ -31,6 +31,7 @@ const TABLE_PAGES: { page: string; allowEmpty?: number }[] = [
 	{ page: 'products/thingsboard-pe' },
 	{ page: 'google-iot-core-alternative' },
 	{ page: 'ce-vs-pe-diff' },
+	{ page: 'community-grant-program' },
 	{ page: 'use-cases/scada' },
 	// The project timeline is a schedule, not a value matrix: a blank cell
 	// means the step is inactive that week, and every filled cell states its
