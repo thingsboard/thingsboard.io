@@ -3,6 +3,10 @@
  * models and *UpgradeSteps components.
  */
 
+// Relative import on purpose: this module is pulled into the Astro config chain,
+// which loads before tsconfig path aliases apply.
+import { SOURCE_AVAILABLE_FROM_VER } from '../data/versions.ts';
+
 /** Minimal shape of an upgrade-version entry needed by the label helpers. */
 export interface UpgradePatchInfo {
 	/** true = this is a patch release within a family */
@@ -81,6 +85,21 @@ export function assertNewestFirst(versions: readonly { version: string }[], list
  */
 export function versionAtLeast(version: string, minVersion: string): boolean {
 	return compareVersions(version, minVersion) >= 0;
+}
+
+/**
+ * True for PE releases published under the legacy PE names: `thingsboard/tb-pe-*`
+ * images tagged `<ver>PE`, `*pe` packages on dist.thingsboard.io, and the
+ * "ThingsBoard PE" product name. From {@link SOURCE_AVAILABLE_FROM_VER} all of these
+ * are neutral. Accepts family labels such as `4.3.1.x`.
+ */
+export function isLegacyPe(isPE: boolean, version: string): boolean {
+	return isPE && !versionAtLeast(version.replace(/\.x$/, ''), SOURCE_AVAILABLE_FROM_VER);
+}
+
+/** Product name for upgrade headings: "ThingsBoard PE" for legacy PE releases, else "ThingsBoard". */
+export function productName(isPE: boolean, version: string): string {
+	return isLegacyPe(isPE, version) ? 'ThingsBoard PE' : 'ThingsBoard';
 }
 
 /**

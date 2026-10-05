@@ -16,10 +16,12 @@ import {
 	stripLanguagePrefix,
 	type SupportedLanguage,
 } from '~/util/path-utils';
-import { getCanonicalPathname } from '~/util/canonical';
+import { getCanonicalPathname, getProfessionalTwinPathname } from '~/util/canonical';
 import { DOCS_SUFFIX, formatDocsTitle, TITLE_SEPARATOR } from '~/consts';
 import { getOgImageUrl } from '~/util/getOgImageUrl';
 import { getTutorialPages } from '~/util/getTutorialPages';
+import { isAnnouncementExpired, type Announcement } from '@models/announcement';
+import { docsAnnouncements } from '@data/docsAnnouncements';
 // No alias covers `config/`; relative import is the only option here.
 import {
 	getRepoRoot,
@@ -73,7 +75,50 @@ export const onRequest = defineRouteMiddleware((context) => {
 	markParentSidebarItemAsCurrent(starlightRoute, context.url.pathname);
 	filterPaginationByVersion(starlightRoute);
 	if (isTutorial) updateTutorialPagination(starlightRoute);
+	injectAnnouncement(starlightRoute, context.url.pathname);
 });
+
+/**
+ * Build-time instant, pinned once so a long build cannot straddle an
+ * `expiresAt` and emit a page-level announcement on only some pages.
+ */
+const BUILD_NOW = Date.now();
+
+function injectAnnouncement(starlightRoute: StarlightRouteData, pathname: string) {
+	// Docs-only, for the reason spelled out in `updateHead`: marketing pages
+	// render through `StarlightPage` too, and their synthetic `entry.id` has no
+	// product prefix, so they would inherit the Community Edition announcement.
+	if (!docsPathRegex.test(pathname)) return;
+
+	const data = starlightRoute.entry.data as { announcement?: Announcement };
+
+	// A page-level `announcement:` wins over the per-product entry. Per-product
+	// entries are expiry-filtered once at module load; only this path can carry
+	// a date the build has not already resolved.
+	if (data.announcement) {
+		if (isAnnouncementExpired(data.announcement, BUILD_NOW)) delete data.announcement;
+		return;
+	}
+
+	const announcement = docsAnnouncements[getVersionFromSlug(starlightRoute.id)];
+	if (!announcement) return;
+
+	// Having a supported twin is a filter, not the link target — the notice
+	// carries one shared guide link for every page. It stays because it is the
+	// test that separates genuine community pages from the twin-less pages
+	// `getVersionFromSlug` lumps into CE by default: without it the notice would
+	// claim the paid `docs/private-cloud/**` tree and one-off utility pages are
+	// community editions. Pages with a real PE counterpart — including
+	// `docs/search` and most of `docs/reference/**` — carry it, by design.
+	// Dynamic StarlightPage routes have synthetic ids this lookup cannot resolve;
+	// they opt in via page-level `announcement` frontmatter instead (see
+	// releases-table). Deep-cloned, not spread: the per-page field most likely to
+	// arrive is a `cta.href`, which is exactly the nested object a shallow copy
+	// would still share with every other announced page.
+	if (!getProfessionalTwinPathname(starlightRoute.id)) return;
+
+	data.announcement = structuredClone(announcement);
+}
 
 /**
  * A thin stub is a wrapper page whose body is exactly 1 `@includes` import + 1

@@ -1,13 +1,13 @@
 import {
-	getDocsCardInputs,
+	type CardInput,
 	getBlogCardInputs,
-	getIotHubCardInputs,
 	getCaseStudyCardInputs,
-	getUseCaseCardInputs,
+	getCollectionIndexInputs,
+	getDocsCardInputs,
+	getIotHubCardInputs,
 	getMarketingCardInputs,
 	getPartnerCardInputs,
-	getCollectionIndexInputs,
-	type CardInput,
+	getUseCaseCardInputs,
 } from '@root/pages/open-graph/_shared/page-data';
 
 const COLLECTION_INDEX_URLS: Record<string, string> = {

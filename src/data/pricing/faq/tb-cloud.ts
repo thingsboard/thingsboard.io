@@ -47,8 +47,8 @@ export const tbCloudFaq: FaqCategory[] = [
 			},
 			{
 				id: 'tb-cloud-vs-sm-subscription',
-				question: 'What the difference between ThingsBoard Cloud and self-managed subscriptions?',
-				answer: '<p>Self-managed subscription plans include only the license fees and do not provide hosting services. This means you need to deploy ThingsBoard on an external cloud platform (AWS, Azure, GCP, etc.) or a local server (on-premise). Additionally, you are responsible for managing the infrastructure and maintaining the ThingsBoard PE server.</p><p>On the other hand, ThingsBoard Cloud offers the ThingsBoard Professional Edition as a fully managed service, hosted on ThingsBoard\'s infrastructure. This eliminates the need for separate infrastructure costs and maintenance efforts.</p><p>For example, the self-managed Prototype subscription costs $99, whereas the ThingsBoard Cloud Prototype subscription is priced at $149. The price difference is due to the hosting fee included in the Cloud subscription.</p>',
+				question: "What's the difference between ThingsBoard Cloud and on-premises subscriptions?",
+				answer: '<p>On-premises subscription plans include only the license fees and do not provide hosting services. This means you need to deploy ThingsBoard on an external cloud platform (AWS, Azure, GCP, etc.) or a local server (on-premise). Additionally, you are responsible for managing the infrastructure and maintaining the ThingsBoard server.</p><p>On the other hand, ThingsBoard Cloud offers the same platform as a fully managed service, hosted on ThingsBoard\'s infrastructure. This eliminates the need for separate infrastructure costs and maintenance efforts.</p><p>For example, the on-premises Pilot subscription costs $99, whereas the ThingsBoard Cloud Pilot subscription is priced at $149. The price difference is due to the hosting fee included in the Cloud subscription.</p>',
 			},
 			{
 				id: 'tb-cloud-additional-costs',
@@ -77,13 +77,13 @@ export const tbCloudFaq: FaqCategory[] = [
 			},
 			{
 				id: 'migrate-cloud-to-sm',
-				question: 'How to migrate from the Cloud to a self-managed platform instance?',
-				answer: '<p>We recommend using the <a target="_blank" href="/docs/user-guide/version-control/" rel="noopener noreferrer">Version control</a> feature to migrate your configurations. Telemetry data export can be achieved via REST API. Please, <a target="_blank" href="/contact-us/" rel="noopener noreferrer">contact us</a> in case migration assistence needed.</p>',
+				question: 'How to migrate from the Cloud to an on-premises platform instance?',
+				answer: '<p>We recommend using the <a target="_blank" href="/docs/pe/user-guide/version-control/" rel="noopener noreferrer">Version control</a> feature to migrate your configurations. Telemetry data export can be achieved via REST API. Please, <a target="_blank" href="/contact-us/" rel="noopener noreferrer">contact us</a> in case migration assistance is needed.</p>',
 			},
 			{
 				id: 'tb-cloud-us-to-eu',
 				question: 'I need to move from US cloud to EU. How to achieve that?',
-				answer: '<p>Technically, you have to follow the same flow as for How to migrate from the Cloud to a self-service platform copy. Please, <a target="_blank" href="/contact-us/" rel="noopener noreferrer">contact us</a> in case migration assistence needed.</p>',
+				answer: '<p>Technically, you have to follow the same flow as for the migration from the Cloud to an on-premises platform instance. Please, <a target="_blank" href="/contact-us/" rel="noopener noreferrer">contact us</a> in case migration assistance is needed.</p>',
 			},
 			{
 				id: 'tb-cloud-what-is-included-in-the-white-labeled-mobile-app-add-on',
@@ -199,7 +199,7 @@ export const tbCloudFaq: FaqCategory[] = [
 			},
 			{
 				id: 'tb-cloud-migration-to-sm-support',
-				question: 'What support options are available for migrating to a self-managed system instead of switching to the Enterprise plan?',
+				question: 'What support options are available for migrating to an on-premises system instead of switching to the Enterprise plan?',
 				answer: '<p>You can perform the migration on your own using the Version Control feature to transfer your configurations. Telemetry data can be exported via the REST API. Alternatively, the ThingsBoard team can provide additional migration assistance. Please <a target="_blank" href="/contact-us/" rel="noopener noreferrer">contact us</a> for more details.</p>',
 			},
 			{
@@ -235,7 +235,7 @@ export const tbCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-cloud-tenant-uptime-tracking',
 				question: 'How can I track the uptime of my tenant?',
-				answer: '<p>The status page is in progress. While we continuously monitor system performance and strive to maintain SLA, our team remains dedicated to delivering high availability and reliability. Updates regarding service status will be available as we develop the status page further.</p>',
+				answer: '<p>The status page is in progress. While we continuously monitor system performance and strive to maintain our uptime SLA, our team remains dedicated to delivering high availability and reliability. Updates regarding service status will be available as we develop the status page further.</p>',
 			},
 		],
 	},
@@ -348,7 +348,7 @@ export const tbCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-cloud-support-response-times',
 				question: 'What response times can I expect for support tickets?',
-				answer: '<p>Response times vary by plan; Private Cloud customers receive better SLAs.</p>',
+				answer: '<p>Response times vary by plan; Private Cloud customers receive faster first-response targets.</p>',
 			},
 			{
 				id: 'tb-cloud-support-development-services',
@@ -399,7 +399,7 @@ export const tbCloudFaq: FaqCategory[] = [
 			{
 				id: 'trendz-free-trial',
 				question: 'Do you offer a free trial for Trendz?',
-				answer: '<p>ThingsBoard Public Cloud Free plan includes Trendz for free. If you need a free trial for other subscriptions, please <a target="_blank" href="/contact-us/" rel="noopener noreferrer">Contact us</a> for details.</p>',
+				answer: '<p>ThingsBoard Cloud Free plan includes Trendz for free. If you need a free trial for other subscriptions, please <a target="_blank" href="/contact-us/" rel="noopener noreferrer">Contact us</a> for details.</p>',
 			},
 			{
 				id: 'trendz-support-included',
@@ -415,7 +415,7 @@ export const tbCloudFaq: FaqCategory[] = [
 			{
 				id: 'edge-addon-cloud-what-is',
 				question: 'What is Edge Computing add-on?',
-				answer: '<p>The Edge Computing add-on enables local data processing at remote sites through ThingsBoard Edge PE instances. Edge runs independently with offline capability and automatically syncs with your central ThingsBoard PE Server when connectivity returns.</p><p>It is available for all ThingsBoard PE deployments: Cloud, Private Cloud, and self-managed.</p>',
+				answer: '<p>The Edge Computing add-on enables local data processing at remote sites through ThingsBoard Edge PE instances. Edge runs independently with offline capability and automatically syncs with your central ThingsBoard Server when connectivity returns.</p><p>It is available for all ThingsBoard deployments: Cloud, Private Cloud, and on-premises.</p>',
 			},
 			{
 				id: 'edge-addon-cloud-pricing-plans',
@@ -424,13 +424,13 @@ export const tbCloudFaq: FaqCategory[] = [
 			},
 			{
 				id: 'edge-addon-cloud-compatibility',
-				question: 'Does Edge work with both ThingsBoard PE and CE?',
-				answer: '<p>Edge edition must match your ThingsBoard Server edition:</p><ul><li><b>Edge PE</b> connects to ThingsBoard PE Server.</li><li><b>Edge CE</b> connects to ThingsBoard CE Server.</li></ul><p>Note: Community Editions are free and open-source.</p>',
+				question: 'Which ThingsBoard deployments does Edge work with?',
+				answer: '<p>Edge connects to your ThingsBoard Server on any deployment model — Cloud, Private Cloud, or on-premises. Running Edge instances requires the Edge Computing add-on.</p>',
 			},
 			{
 				id: 'edge-addon-cloud-standalone',
 				question: 'Can I use Edge without ThingsBoard?',
-				answer: '<p>No, Edge PE requires a ThingsBoard PE Server (Cloud, Private Cloud, or self-managed) to provision devices, sync configurations, and exchange data. However, it processes data locally and can operate offline when the connection drops.</p>',
+				answer: '<p>No, Edge PE requires a ThingsBoard Server (Cloud, Private Cloud, or on-premises) to provision devices, sync configurations, and exchange data. However, it processes data locally and can operate offline when the connection drops.</p>',
 			},
 			{
 				id: 'edge-addon-cloud-free-trial',
@@ -450,7 +450,7 @@ export const tbCloudFaq: FaqCategory[] = [
 			{
 				id: 'edge-addon-cloud-inclusions',
 				question: "What's included in the Edge Computing add-on price?",
-				answer: '<p>The Edge add-on includes: software license, software updates (duration varies by license type), and support level based on your ThingsBoard PE plan. Hardware and infrastructure are not included — you provide your own edge hardware.</p>',
+				answer: '<p>The Edge add-on includes: software license, software updates (duration varies by license type), and support level based on your ThingsBoard plan. Hardware and infrastructure are not included — you provide your own edge hardware.</p>',
 			},
 			{
 				id: 'edge-addon-cloud-activate-cancel',
@@ -493,14 +493,9 @@ export const tbCloudFaq: FaqCategory[] = [
 				answer: '<p>Your Edge instance will stop functioning when the license expires. You\'ll need to renew your Edge license to continue using the instance.</p><p>For <b>perpetual licenses</b>, only updates and support expire — the Edge instance continues running.</p>',
 			},
 			{
-				id: 'edge-addon-cloud-upgrade-ce-pe',
-				question: 'Can I upgrade from Edge CE to Edge PE?',
-				answer: '<p>Yes, but you\'ll need to upgrade your entire system: upgrade your ThingsBoard Server from CE to PE, purchase the Edge Computing add-on, and reinstall Edge using PE packages. Please <a target="_blank" href="/contact-us/" rel="noopener noreferrer">contact us</a> for migration assistance.</p>',
-			},
-			{
 				id: 'edge-addon-cloud-separate-license',
 				question: 'Do I need a separate license to use Edge Computing add-on?',
-				answer: '<p>No. Once you have an active ThingsBoard PE license (Cloud, Private Cloud, or self-managed), you can purchase and activate the Edge Computing add-on directly. The add-on itself serves as the license for your Edge instances. No additional licensing is required.</p>',
+				answer: '<p>No. Once you have an active ThingsBoard license (Cloud, Private Cloud, or on-premises), you can purchase and activate the Edge Computing add-on directly. The add-on itself serves as the license for your Edge instances. No additional licensing is required.</p>',
 			},
 		],
 	},

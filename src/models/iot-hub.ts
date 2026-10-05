@@ -1,4 +1,5 @@
 import { z } from 'astro/zod';
+import { SOURCE_AVAILABLE_FROM_VER } from '@data/versions';
 
 // `IOT_HUB_API_URL` resolution differs by context:
 //
@@ -185,7 +186,7 @@ export const getCardVariant = (itemType: string): IotHubCardVariant => {
 // category. Returns undefined when the type has no public category — a type the
 // site doesn't surface (e.g. DASHBOARD). Callers building a URL fall back to
 // '#'; callers rendering a grid/section skip the item. Map-backed so per-item
-// hot loops (grouping search results) stay O(1).
+// hot loops (binding search result rows) stay O(1).
 const CATEGORY_BY_ITEM_TYPE = new Map(
 	IOT_HUB_CATEGORIES.map((c) => [c.itemType, c] as const)
 );
@@ -227,6 +228,11 @@ export const getPlaceholderIcon = (item: IconableListing): string => {
 			return 'extension';
 	}
 };
+
+// The subject must match an <option> in ContactForm.astro; the prefill no-ops on unknown values.
+export const IOT_HUB_CONTACT_US_URL = '/contact-us/?subject=IoT%20Hub';
+
+export const IOT_HUB_CONTACT_EMAIL = 'iothub@thingsboard.io';
 
 // User-facing UI strings used by IoT Hub components. Centralized so they're
 // easy to find, audit, and swap for a `t(...)` call if marketing-side i18n
@@ -321,8 +327,9 @@ export const IOT_HUB_STRINGS = {
 		// What the page calls itself with no query: it is the whole catalogue,
 		// browsable by Type / Category / Use Case without leaving, so "Search
 		// results" would announce a search nobody performed. One constant, used
-		// by the crumb, the <h1>, the <title> and the OG card — two would let
-		// the heading drift away from the other three.
+		// by the crumb, the <h1>, the <title>, the OG card, and `data-back-label`
+		// — the name a detail page's parent crumb shows when the visitor came
+		// from here. Splitting it would let one drift away from the rest.
 		catalogueName: 'All items',
 		// `headingPrefix` + the user's query in typographic quotes ("…").
 		headingPrefix: 'Search results for',
@@ -338,6 +345,10 @@ export const IOT_HUB_STRINGS = {
 	builtIn: {
 		/** Appended to the supported-version chip in the detail hero's meta row. */
 		label: 'Built-in',
+	},
+	peOnly: {
+		/** From 4.4 CE and PE merge into one edition, so `peOnly` items run on either. */
+		label: `PE or ${SOURCE_AVAILABLE_FROM_VER}+`,
 	},
 } as const;
 
@@ -386,8 +397,8 @@ export const ITEM_SUBTYPE_LABELS: Partial<Record<IotHubItemType, Record<string, 
 // params it maps to (`sortProperty` + `sortOrder`), so consumers can spread
 // them straight into the listings request without a second lookup.
 
-export type IotHubSortId = 'most-installed' | 'newest' | 'name-asc';
-export type IotHubSortProperty = 'installCount' | 'publishedTime' | 'name';
+export type IotHubSortId = 'most-relevant' | 'most-installed' | 'newest' | 'name-asc';
+export type IotHubSortProperty = 'relevance' | 'installCount' | 'publishedTime' | 'name';
 export type IotHubSortDirection = 'ASC' | 'DESC';
 
 export interface IotHubSortOption {
@@ -398,15 +409,33 @@ export interface IotHubSortOption {
 }
 
 export const IOT_HUB_SORT_OPTIONS: ReadonlyArray<IotHubSortOption> = [
+	{ id: 'most-relevant',  label: 'Most Relevant',  sortProperty: 'relevance',     sortOrder: 'DESC' },
 	{ id: 'most-installed', label: 'Most Installed', sortProperty: 'installCount',  sortOrder: 'DESC' },
 	{ id: 'newest',         label: 'Newest',         sortProperty: 'publishedTime', sortOrder: 'DESC' },
 	{ id: 'name-asc',       label: 'Name (A-Z)',     sortProperty: 'name',          sortOrder: 'ASC'  },
 ];
 
-export const DEFAULT_IOT_HUB_SORT_ID: IotHubSortId = 'most-installed';
+// Relevance is the default in BOTH states, which is why nothing here switches on
+// whether the search field has text. With text it ranks the answer; without it the
+// backend substitutes the install count — measured identical, row for row, across
+// all 665 listings — so a visitor who never touches the control sees the order they
+// always saw while browsing, and the best matches once they type.
+//
+// The alternative was to default to 'most-installed' and have the control flip to
+// 'most-relevant' by itself while the field had text. Rejected: the flip happens
+// without anyone asking for it. The cost accepted instead is that on a query-less
+// page the label says "Most Relevant" over an install-ordered list, and switching
+// to "Most Installed" there changes nothing visible.
+export const DEFAULT_IOT_HUB_SORT_ID: IotHubSortId = 'most-relevant';
+
+// Resolved by id, not by position, so the default survives a reordering of the
+// options array — the list is written best-first for the menu, which is a
+// presentation decision and not one this fallback should depend on.
+const DEFAULT_IOT_HUB_SORT_OPTION: IotHubSortOption =
+	IOT_HUB_SORT_OPTIONS.find((o) => o.id === DEFAULT_IOT_HUB_SORT_ID) ?? IOT_HUB_SORT_OPTIONS[0];
 
 export function getIotHubSortOption(id: string | null | undefined): IotHubSortOption {
-	return IOT_HUB_SORT_OPTIONS.find((o) => o.id === id) ?? IOT_HUB_SORT_OPTIONS[0];
+	return IOT_HUB_SORT_OPTIONS.find((o) => o.id === id) ?? DEFAULT_IOT_HUB_SORT_OPTION;
 }
 
 export const getSubtypeLabel = (itemType: IotHubItemType, key: string): string =>

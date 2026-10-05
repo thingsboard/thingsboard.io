@@ -2,7 +2,181 @@
 title: Attributes
 description: Publish client-side attributes, request server and shared attribute values, and subscribe to attribute updates over MQTT.
 ---
-import PageComponent from '@includes/docs/reference/mqtt-api/attributes.mdx'
-import { Products } from '~/models/site.models'
 
-<PageComponent product={Products.CE}/>
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+import Tabs from '@components/Tabs.astro';
+import TabItem from '@components/TabItem.astro';
+import HostCode from '@components/HostCode.astro';
+import { Products } from '@models/site.models';
+
+The MQTT Attributes API covers three operations: publishing client-side attributes to ThingsBoard, requesting current attribute values from the server, and subscribing to server-pushed attribute updates. See <DocLink product={Products.CE} path='user-guide/digital-twins/attributes'>Attributes</DocLink> for the difference between client-side, server-side, and shared attributes, and <DocLink product={Products.CE} path='reference/mqtt-api/getting-connected'>Getting Connected</DocLink> for connection parameters and credential types.
+
+## Publish Client-Side Attributes
+
+Report device state (serial number, firmware version, hardware config) to ThingsBoard.
+
+| Format | Topic |
+|--------|-------|
+| Short | `v2/a` |
+| Standard | `v1/devices/me/attributes` |
+
+```json
+{"firmwareVersion": "2.1.0", "serialNumber": "SN-4A21F", "hardwareRevision": "B"}
+```
+
+<HostCode product={Products.CE} lang="bash" code={`mosquitto_pub -d -q 1 -h "{MQTT_HOST}" -p 1883 -t "v2/a" -u "$ACCESS_TOKEN" -m '{"firmwareVersion": "2.1.0", "serialNumber": "SN-4A21F"}'`} />
+
+## Request Attribute Values from Server
+
+Ask ThingsBoard for the current values of client-side or shared attributes. Useful on device boot to read back configuration stored in ThingsBoard.
+
+| Format | Subscribe to responses | Publish request to |
+|--------|----------------------|-------------------|
+| Short | `v2/a/res/+` | `v2/a/req/$request_id` |
+| Standard | `v1/devices/me/attributes/response/+` | `v1/devices/me/attributes/request/$request_id` |
+
+`$request_id` is any integer you choose; ThingsBoard echoes it in the response topic so you can match replies to requests.
+
+**Request and response payloads:**
+
+<Tabs>
+<TabItem label="JSON">
+
+**Request** — specify which keys you want:
+
+```json
+{"clientKeys": "firmwareVersion,serialNumber", "sharedKeys": "targetTemperature,enabled"}
+```
+
+**Response:**
+
+```json
+{
+  "client": {"firmwareVersion": "2.1.0", "serialNumber": "SN-4A21F"},
+  "shared": {"targetTemperature": 24, "enabled": true}
+}
+```
+
+</TabItem>
+<TabItem label="Protobuf">
+
+When the device profile payload type is set to Protobuf, or when using the short Protobuf topics, the following fixed schemas apply. These schemas cannot be customized in the device profile.
+
+**Request** — short Protobuf topic: `v2/a/req/$request_id/p`
+
+```proto
+syntax = "proto3";
+
+message AttributesRequest {
+  string clientKeys = 1;
+  string sharedKeys = 2;
+}
+```
+
+**Response** — the device receives a `GetAttributeResponseMsg` message. Short Protobuf topic: `v2/a/res/+/p`
+
+```proto maxLines=15 collapsible
+syntax = "proto3";
+
+enum KeyValueType {
+  BOOLEAN_V = 0;
+  LONG_V = 1;
+  DOUBLE_V = 2;
+  STRING_V = 3;
+  JSON_V = 4;
+}
+
+message KeyValueProto {
+  string key = 1;
+  KeyValueType type = 2;
+  bool bool_v = 3;
+  int64 long_v = 4;
+  double double_v = 5;
+  string string_v = 6;
+  string json_v = 7;
+}
+
+message TsKvProto {
+  int64 ts = 1;
+  KeyValueProto kv = 2;
+  optional int64 version = 3;
+}
+
+message GetAttributeResponseMsg {
+  int32 requestId = 1;
+  repeated TsKvProto clientAttributeList = 2;
+  repeated TsKvProto sharedAttributeList = 3;
+  string error = 5;
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Subscribe to Shared Attribute Updates
+
+Receive pushed notifications whenever a shared attribute is changed from the ThingsBoard side (e.g. an operator changes a setpoint in the dashboard).
+
+| Format | Subscribe to |
+|--------|-------------|
+| Short | `v2/a` |
+| Standard | `v1/devices/me/attributes` |
+
+ThingsBoard publishes only the changed keys, request:
+
+<HostCode product={Products.CE} lang="bash" code={`mosquitto_sub -d -q 1 -h "{MQTT_HOST}" -p 1883 -t "v2/a" -u "$ACCESS_TOKEN"`} />
+
+**Response:**
+
+<Tabs>
+<TabItem label="JSON">
+
+```json
+{"targetTemperature": 26}
+```
+
+</TabItem>
+<TabItem label="Protobuf">
+
+When the device profile payload type is set to Protobuf, or when subscribing to the short Protobuf topic (`v2/a/p`), the device receives an `AttributeUpdateNotificationMsg` message. This schema is fixed and cannot be customized in the device profile.
+
+```proto maxLines=15 collapsible
+syntax = "proto3";
+
+enum KeyValueType {
+  BOOLEAN_V = 0;
+  LONG_V = 1;
+  DOUBLE_V = 2;
+  STRING_V = 3;
+  JSON_V = 4;
+}
+
+message KeyValueProto {
+  string key = 1;
+  KeyValueType type = 2;
+  bool bool_v = 3;
+  int64 long_v = 4;
+  double double_v = 5;
+  string string_v = 6;
+  string json_v = 7;
+}
+
+message TsKvProto {
+  int64 ts = 1;
+  KeyValueProto kv = 2;
+  optional int64 version = 3;
+}
+
+message AttributeUpdateNotificationMsg {
+  repeated TsKvProto sharedUpdated = 1;
+  repeated string sharedDeleted = 2;
+}
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+  Subscribe to this topic at startup so the device immediately picks up any configuration changes made while it was offline.
+</Aside>

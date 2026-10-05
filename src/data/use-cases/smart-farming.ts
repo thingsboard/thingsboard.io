@@ -20,7 +20,13 @@ export const data: UseCaseData = {
 	overview: {
 		type: 'comparison',
 		baseImage: '/src/assets/images/usecases/smart-farming/smart-farming-2.webp',
+		baseImageAlt: 'ThingsBoard dashboard in dark theme showing silo monitoring data',
+		baseImageTitle:
+			'Smart farming dashboard in dark mode: a map of three silos, their crop level, temperature, and moisture, and active alarms',
 		overlayImage: '/src/assets/images/usecases/smart-farming/smart-farming-1.webp',
+		overlayImageAlt: 'ThingsBoard dashboard in light theme showing silo monitoring data',
+		overlayImageTitle:
+			'Smart farming dashboard in light mode: the same map of three silos, their crop level, temperature, and moisture, and active alarms',
 	},
 	solutionStructure: {
 		title: 'Solution structure of smart farming',

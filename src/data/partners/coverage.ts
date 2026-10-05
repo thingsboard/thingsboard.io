@@ -4,7 +4,7 @@
  * Separate from `index.ts` so `distributors.ts` can assert on itself without a
  * circular import.
  */
-import { REGION_MEMBERSHIP, type Region } from './regions.ts';
+import { type Region, REGION_MEMBERSHIP } from './regions.ts';
 import type { Distributor } from './types.ts';
 
 /** Countries a distributor names itself. Empty when it covers whole regions. */

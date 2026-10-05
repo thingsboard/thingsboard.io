@@ -18,8 +18,6 @@ export interface TrendzReleaseFamily {
 	latestPatchDate: string;
 	/** Short feature highlights */
 	highlights: string;
-	/** Minimum ThingsBoard version required for this Trendz release, e.g. "4.3" */
-	tbVersion: string;
 	/** All patches in this family, newest first */
 	patches: TrendzPatchEntry[];
 }
@@ -48,13 +46,21 @@ export function patchSlug(version: string, date: string): string {
 /** Trendz release families, newest first */
 export const TRENDZ_RELEASE_FAMILIES: TrendzReleaseFamily[] = [
 	{
+		family: '1.16',
+		lts: true,
+		releaseDate: 'Sep 30 2026',
+		latestPatch: 'v1.16.0',
+		latestPatchDate: 'Sep 30 2026',
+		highlights: 'Prediction Intents, Vibration Analysis',
+		patches: [{ version: 'v1.16.0', date: 'Sep 30, 2026' }],
+	},
+	{
 		family: '1.15',
 		lts: true,
 		releaseDate: 'Jan 20 2026',
 		latestPatch: 'v1.15.2.1',
 		latestPatchDate: 'Jun 24 2026',
 		highlights: 'Bidirectional TB Sync, Anomaly Wizard',
-		tbVersion: '4.3',
 		patches: [
 			{ version: 'v1.15.2.1', date: 'Jun 24, 2026' },
 			{ version: 'v1.15.2', date: 'May 15, 2026' },
@@ -71,7 +77,6 @@ export const TRENDZ_RELEASE_FAMILIES: TrendzReleaseFamily[] = [
 		latestPatch: 'v1.14.0',
 		latestPatchDate: 'Nov 6 2025',
 		highlights: 'Metric Explorer, AI Cards',
-		tbVersion: '4.2',
 		patches: [{ version: 'v1.14.0', date: 'Nov 6, 2025' }],
 	},
 	{
@@ -81,7 +86,6 @@ export const TRENDZ_RELEASE_FAMILIES: TrendzReleaseFamily[] = [
 		latestPatch: 'v1.13.2',
 		latestPatchDate: 'Jun 27 2025',
 		highlights: 'AI Assistant, Anomaly Alerts',
-		tbVersion: '4.0',
 		patches: [
 			{ version: 'v1.13.2', date: 'Jun 27, 2025' },
 			{ version: 'v1.13.1', date: 'May 2, 2025' },
@@ -95,7 +99,6 @@ export const TRENDZ_RELEASE_FAMILIES: TrendzReleaseFamily[] = [
 		latestPatch: 'v1.12.0',
 		latestPatchDate: 'Dec 31 2024',
 		highlights: 'Prediction Models, 2FA',
-		tbVersion: '3.9',
 		patches: [{ version: 'v1.12.0', date: 'Dec 31, 2024' }],
 	},
 	{
@@ -105,7 +108,6 @@ export const TRENDZ_RELEASE_FAMILIES: TrendzReleaseFamily[] = [
 		latestPatch: 'v1.11.2',
 		latestPatchDate: 'Nov 12 2024',
 		highlights: 'Calculation Fields, Scheduled Tasks',
-		tbVersion: '3.8',
 		patches: [
 			{ version: 'v1.11.2', date: 'Nov 12, 2024' },
 			{ version: 'v1.11.1', date: 'Nov 4, 2024' },
@@ -119,7 +121,6 @@ export const TRENDZ_RELEASE_FAMILIES: TrendzReleaseFamily[] = [
 		latestPatch: 'v1.10.3-HF7',
 		latestPatchDate: 'Feb 19 2024',
 		highlights: 'New UI, Dark Mode, Forecasting',
-		tbVersion: '3.5',
 		patches: [
 			{ version: 'v1.10.3-HF7', date: 'Feb 19, 2024' },
 			{ version: 'v1.10.3', date: 'Sep 27, 2023' },
@@ -135,7 +136,6 @@ export const TRENDZ_RELEASE_FAMILIES: TrendzReleaseFamily[] = [
 		latestPatch: 'v1.9.2-HF2',
 		latestPatchDate: 'Jan 10 2023',
 		highlights: 'View Templates, Alarm Reports',
-		tbVersion: '3.4',
 		patches: [
 			{ version: 'v1.9.2-HF2', date: 'Jan 10, 2023' },
 			{ version: 'v1.9.2', date: 'Nov 30, 2022' },
@@ -150,7 +150,6 @@ export const TRENDZ_RELEASE_FAMILIES: TrendzReleaseFamily[] = [
 		latestPatch: 'v1.8.2',
 		latestPatchDate: 'Dec 13 2021',
 		highlights: 'Persistent Cache, TB Widget Bundle',
-		tbVersion: '3.3',
 		patches: [
 			{ version: 'v1.8.2', date: 'Dec 13, 2021' },
 			{ version: 'v1.8.0', date: 'Aug 27, 2021' },

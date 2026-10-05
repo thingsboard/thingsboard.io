@@ -8,16 +8,15 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-private-cloud-what-does-thingsboard-private-cloud-stand-for',
 				question: 'What does “ThingsBoard Private Cloud” stand for?',
-				answer: `<p>ThingsBoard Private Cloud is a fully managed, isolated ThingsBoard Professional Edition cluster that our team deploys and operates for you. We provision the infrastructure, keep the platform patched and monitored 24×7, run automated backups, and provide an SLA-backed uptime guarantee (99%–99.99%, depending on plan). During onboarding, you choose the region that best fits your compliance or latency requirements—EU, North America, or APAC. All environments are hosted in ISO 27001/PCI-DSS-certified data centers. Your engineers can stay focused on building IoT applications instead of managing DevOps.</p>`,
+				answer: `<p>ThingsBoard Private Cloud is a fully managed, isolated ThingsBoard cluster that our team deploys and operates for you. We provision the infrastructure, keep the platform patched and monitored 24/7, run automated backups, and provide an uptime SLA of 99.9%–99.99%, depending on plan. During onboarding, you choose the region that best fits your compliance or latency requirements—EU, North America, or APAC. All environments are hosted in ISO 27001/PCI-DSS-certified data centers. Your engineers can stay focused on building IoT applications instead of managing DevOps.</p>`,
 			},
 			{
 				id: 'tb-private-cloud-how-does-private-cloud-compare-to-thingsboard-cloud-community-edition-and-self-managed',
-				question: 'How Private Cloud compares to ThingsBoard Cloud, Community Edition and Self-Managed?',
+				question: 'How Private Cloud compares to ThingsBoard Cloud and On-premises?',
 				answer: `<ul>
-                                <li>Community Edition itself is the open-source core—perfect for experiments and hobby projects, but offers less features and no SLA.</li>
-                                <li>Self-Managed deployments (using either the paid Professional Edition or free Community Edition) live on infrastructure you operate; you gain total control and customisation, yet you also own every patch, backup and compliance task.</li>
+                                <li>On-premises deployments live on infrastructure you operate; you gain total control and customisation, yet you also own every patch, backup and compliance task.</li>
                                 <li>ThingsBoard Cloud is the quickest way to try ThingsBoard: a SaaS environment that we maintain for you, but shared with other tenants.</li>
-                                <li>Private Cloud is a fully managed, isolated cluster run by the ThingsBoard team, with a contractual 99.9–99.99 % SLA and your choice of region—ideal when you need zero DevOps and hard uptime guarantees.</li>
+                                <li>Private Cloud is a fully managed, isolated cluster run by the ThingsBoard team, with a contractual 99.9%–99.99% uptime SLA and your choice of region—ideal when you need zero DevOps and firm availability commitments.</li>
                             </ul>`,
 			},
 			{
@@ -25,7 +24,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
 				question: 'What are the benefits of Private Cloud versus self-hosting?',
 				answer: `<ul>
                                 <li>Zero DevOps overhead – no servers to set up, patch or monitor.</li>
-                                <li>Guaranteed availability – written SLA of 99.9 – 99.99 %, with service-credit remedies.</li>
+                                <li>Guaranteed availability – written SLA of 99.9%–99.99%, with service-credit remedies.</li>
                                 <li>Faster time-to-market – we stand up production clusters in 1-2 hours, not weeks.</li>
                                 <li>Scalability – Kubernetes-based plans grow as device traffic spikes.</li>
                                 <li>Predictable cost – one all-inclusive monthly fee replaces cap-ex plus staffing.</li>
@@ -40,7 +39,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
                             <p>We measure Downtime from incident detection to full service restoration. <br><br></p>
                             <p>Excluded from Downtime: <br></p>
                             <ul>
-                                <li>Scheduled maintenance announced ≥ 48 h in advance</li>
+                                <li>Scheduled maintenance announced at least 48 hours in advance</li>
                                 <li>Emergency security patches</li>
                                 <li>Force-majeure events or upstream cloud failures (e.g., cloud provider region outage)</li>
                                 <li>Issues caused by customer-side logic (mis-configured Rule Chains, custom JS, connector errors, abusive API use, edge gateways, etc.)</li>
@@ -113,7 +112,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
 				id: 'tb-private-cloud-how-can-i-get-my-data-in-line-with-gdpr-requirements',
 				question: 'How can I get my data in line with GDPR requirements?',
 				answer: `<p>You can request a complete encrypted database dump at any time. We generate a full PostgreSQL dump of all tenant-level tables (entities, telemetry, audit logs, custom metadata) and transfer it to you over a secure channel (SFTP or your own cloud bucket). <br><br></p>
-                            <p>Because the export is a raw DB dump, you retain 100 % data fidelity and can immediately restore it in another PostgreSQL instance or transform it into any machine-readable format you need. We normally fulfill export requests within 5 business days, and—in line with GDPR—can also execute verified deletion of all tenant data within 30 days of your erase request.</p>`,
+                            <p>Because the export is a raw DB dump, you retain 100% data fidelity and can immediately restore it in another PostgreSQL instance or transform it into any machine-readable format you need. We normally fulfill export requests within 5 business days, and—in line with GDPR—can also execute verified deletion of all tenant data within 30 days of your erase request.</p>`,
 			},
 			{
 				id: 'tb-private-cloud-is-your-private-cloud-service-gdpr-compliant',
@@ -123,7 +122,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-private-cloud-will-i-have-a-sysadmin-user',
 				question: 'Will I have a sysadmin user?',
-				answer: `<p>For security and SLA integrity we do not expose Sysadmin by default. If your workflow truly needs low-level access, we can provide read-only credentials to metrics/Kubernetes dashboards under an additional NDA.</p>`,
+				answer: `<p>For security and SLA compliance we do not expose Sysadmin by default. If your workflow truly needs low-level access, we can provide read-only credentials to metrics/Kubernetes dashboards under an additional NDA.</p>`,
 			},
 			{
 				id: 'tb-private-cloud-what-kind-of-security-measurements-do-you-provide',
@@ -138,7 +137,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-private-cloud-can-i-upgrade-my-plan-at-any-time',
 				question: 'Can I upgrade my plan at any time?',
-				answer: `<p>Upgrades are possible at any time, but they are not initiated automatically. The ThingsBoard team continuously monitors your resource usage and data point throughput. If your consumption exceeds the thresholds defined for your current tier, our team will notify you and guide the process of upgrading to a higher plan. This ensures uninterrupted service and compliance with SLA guarantees. You can also request an upgrade proactively if you anticipate growth or require additional capabilities.</p>`,
+				answer: `<p>Upgrades are possible at any time, but they are not initiated automatically. The ThingsBoard team continuously monitors your resource usage and data point throughput. If your consumption exceeds the thresholds defined for your current tier, our team will notify you and guide the process of upgrading to a higher plan. This ensures uninterrupted service and SLA compliance. You can also request an upgrade proactively if you anticipate growth or require additional capabilities.</p>`,
 			},
 			{
 				id: 'tb-private-cloud-what-is-included-in-service-reviews-and-architecture-consultations',
@@ -177,7 +176,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-private-cloud-what-is-included-in-the-monthly-subscription-fee',
 				question: 'What is included in the monthly subscription fee?',
-				answer: `<p>The monthly subscription fee for Private Cloud covers the full provisioning and maintenance of your dedicated environment. This includes platform licensing, infrastructure and system monitoring, software updates, security patching, 24/7 availability monitoring, and SLA-backed support. Each plan tier comes with a predefined allocation of devices, storage, and data point rate capacity. Any usage beyond those included limits (e.g., additional devices, storage, or add-ons) is calculated on top of your regular subscription fee according to your selected plan.</p>`,
+				answer: `<p>The monthly subscription fee for Private Cloud covers the full provisioning and maintenance of your dedicated environment. This includes platform licensing, infrastructure and system monitoring, software updates, security patching, 24/7 availability monitoring, and priority support. Each plan tier comes with a predefined allocation of devices, storage, and data point rate capacity. Any usage beyond those included limits (e.g., additional devices, storage, or add-ons) is calculated on top of your regular subscription fee according to your selected plan.</p>`,
 			},
 			{
 				id: 'tb-private-cloud-are-there-any-setup-or-cancellation-fees',
@@ -198,7 +197,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
                                     </ul>
                                 </li>
                             </ul>
-                            <p>There are no data point rate overage fees—sustained traffic above plan limits requires an upgrade. Short-term bursts up to 20 % over the dp/minute ceiling for ≤ 15 min are tolerated. Sustained overages require a plan upgrade.</p>`,
+                            <p>There are no data point rate overage fees—sustained traffic above plan limits requires an upgrade. Short-term bursts up to 20% over the dp/minute ceiling for up to 15 minutes are tolerated. Sustained overages require a plan upgrade.</p>`,
 			},
 			{
 				id: 'tb-private-cloud-are-there-any-payment-processing-fees',
@@ -301,7 +300,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-private-cloud-how-long-is-telemetry-retained',
 				question: 'How long is telemetry retained?',
-				answer: `<p>Retention is 100 % customer-controlled through the built-in TTL settings or Rule Engine logic. Keep data for days or years—just remember that longer retention consumes more storage and may raise your bill.</p>`,
+				answer: `<p>Retention is 100% customer-controlled through the built-in TTL settings or Rule Engine logic. Keep data for days or years—just remember that longer retention consumes more storage and may raise your bill.</p>`,
 			},
 			{
 				id: 'tb-private-cloud-what-are-custom-data-retention-policies',
@@ -316,7 +315,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-private-cloud-are-there-limits-on-dashboards-widgets-rule-chains-or-alarms',
 				question: 'Are there limits on dashboards, widgets, rule chains, or alarms?',
-				answer: `<p>In practice no—you may create as many dashboards, widgets, rule chains, and alarms as your project needs. Keep in mind, though, that the msg/minute SLA applies only to the default rule-chain templates we provision. Heavy or inefficient custom logic can slow processing. <br><br></p>
+				answer: `<p>In practice no—you may create as many dashboards, widgets, rule chains, and alarms as your project needs. Keep in mind, though, that the msg/minute rate limit applies only to the default rule-chain templates we provision. Heavy or inefficient custom logic can slow processing. <br><br></p>
                             <p>To protect data integrity while you troubleshoot, every cluster ships with a Kafka buffer of up to 50 GB (roughly several hours of traffic, depending on throughput). Incoming telemetry is queued there until the Rule Engine catches up. If the buffer fills completely, the oldest data points are discarded first, so maintaining efficient rule chains is essential for uninterrupted data flow.</p>`,
 			},
 			{
@@ -358,7 +357,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-private-cloud-what-is-the-data-point-rate-limit-and-why-is-it-important',
 				question: 'What is the data point rate limit and why is it important?',
-				answer: `<p>Each Private Cloud plan includes a predefined data point rate limit measured in data points per minute. This is the most critical technical limit in our offering, as it defines how much telemetry and integration data your system can process without impacting performance or SLA. <br><br></p>
+				answer: `<p>Each Private Cloud plan includes a predefined data point rate limit measured in data points per minute. This is the most critical technical limit in our offering, as it defines how much telemetry and integration data your system can process without impacting performance or your uptime SLA. <br><br></p>
                             <p>The message rate limits per plan are:</p>
                             <ul>
                                 <li>Launch: up to 50,000 data points per minute</li>
@@ -366,7 +365,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
                                 <li>Scale: up to 200,000 data points per minute</li>
                                 <li>Enterprise: Unlimited</li>
                             </ul>
-                            <p>If your usage exceeds the limit of your current plan, a mandatory upgrade will be required to maintain service stability and SLA guarantees. Data points throughput is actively monitored by the ThingsBoard team.</p>`,
+                            <p>If your usage exceeds the limit of your current plan, a mandatory upgrade will be required to maintain service stability and SLA compliance. Data points throughput is actively monitored by the ThingsBoard team.</p>`,
 			},
 			{
 				id: 'tb-private-cloud-how-many-ai-credits-are-included',
@@ -432,7 +431,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-private-cloud-can-i-get-a-custom-sla',
 				question: 'Can I get a custom SLA?',
-				answer: `<p>The Enterprise plan includes a default SLA with a guaranteed uptime of 99.95%, which already meets the needs of most mission-critical applications. While fully custom SLAs are typically not required, we are open to discussing specific availability or support requirements on a case-by-case basis to ensure alignment with your business expectations.</p>`,
+				answer: `<p>The Enterprise plan includes a default uptime SLA of 99.95%, which already meets the needs of most mission-critical applications. While fully custom SLAs are typically not required, we are open to discussing specific availability or support requirements on a case-by-case basis to ensure alignment with your business expectations.</p>`,
 			},
 			{
 				id: 'tb-private-cloud-how-is-the-pricing-determined-for-the-enterprise-plan',
@@ -494,13 +493,13 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
 				question: 'Are high-availability services available as an add-on?',
 				answer: `<p>High-availability (HA) for ThingsBoard application services is built into the Scale and Enterprise plans, and is not offered separately as an add-on. The Launch and Growth plans run as a single-instance monolith and do not include application-level HA. Database durability across Availability Zones (Cassandra 3×, PostgreSQL 2×) applies to every plan, including Launch and Growth.<br><br></p>
                             <p>If your usage or operational requirements indicate the need for application-level HA, the ThingsBoard team will proactively recommend an upgrade to the appropriate tier.<br><br></p>
-                            <p>This approach ensures consistent architecture, SLA alignment, and reliability without complicating plan configurations.</p>`,
+                            <p>This approach ensures consistent architecture, SLA compliance, and reliability without complicating plan configurations.</p>`,
 			},
 			{
 				id: 'tb-private-cloud-edge-addon-cloud-what-is',
 				question: 'What is Edge Computing add-on?',
-				answer: `<p>The Edge Computing add-on enables local data processing at remote sites through ThingsBoard Edge PE instances. Edge runs independently with offline capability and automatically syncs with your central ThingsBoard PE Server when connectivity returns.</p>
-                            <p>It is available for all ThingsBoard PE deployments: Cloud, Private Cloud, and self-managed.</p>`,
+				answer: `<p>The Edge Computing add-on enables local data processing at remote sites through ThingsBoard Edge PE instances. Edge runs independently with offline capability and automatically syncs with your central ThingsBoard Server when connectivity returns.</p>
+                            <p>It is available for all ThingsBoard deployments: Cloud, Private Cloud, and on-premises.</p>`,
 			},
 			{
 				id: 'tb-private-cloud-edge-addon-cloud-pricing-plans',

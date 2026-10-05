@@ -24,7 +24,7 @@ const highlights = [
 <section class="iot-hub-hero">
 	{
 		highlights.map(({ slug, alt, cluster, clusterTop }) => (
-			<div class="iot-hub-hero__cluster" data-hl-cluster={slug} aria-hidden="true">
+			<div class="iot-hub-hero__cluster print:hidden" data-hl-cluster={slug} aria-hidden="true">
 				<img
 					class="iot-hub-hero__cluster-img"
 					src={cluster.src}
@@ -52,7 +52,7 @@ const highlights = [
 			<span class="iot-hub-hero__subtitle-trail">for IoT solutions</span>
 		</h2>
 		<form
-			class="iot-hub-hero__search"
+			class="iot-hub-hero__search print:hidden"
 			role="search"
 			action="/iot-hub/search/"
 			method="get"
@@ -104,18 +104,19 @@ const highlights = [
 					href="/iot-hub/search/"
 					data-popup-footer
 				>
-					See all results
+					{/* Reworded per state by updateFooter() below; the field starts empty. */}
+					See all items
 				</a>
 			</div>
 		</form>
 	</div>
-	<IotHubListingLinkTemplate variant="row" />
+	<IotHubListingLinkTemplate variant="row" showType />
 	<IotHubRuntimeConfig />
 </section>
 
 <style lang="scss">
-	@use '~/styles/_variables.scss' as *;
-	@use '~/styles/_iot-hub.scss' as *;
+	@use '../../styles/_variables.scss' as *;
+	@use '../../styles/_iot-hub.scss' as *;
 
 	.iot-hub-hero {
 		position: relative;
@@ -209,7 +210,6 @@ const highlights = [
 		@include media-down(sm) {
 			top: 10%;
 		}
-
 	}
 
 	.iot-hub-hero__title {
@@ -226,7 +226,6 @@ const highlights = [
 		@include media-down(sm) {
 			font-size: 28px;
 		}
-
 	}
 
 	.iot-hub-hero__subtitle {
@@ -388,7 +387,7 @@ const highlights = [
 
 	// --- Search popup ---------------------------------------------------------
 	// Dropped below the search input. Items are rendered client-side from the
-	// IoT Hub API (see <script> below); the body classes use :global so the
+	// IoT Hub API (see the inline script below); the body classes use :global so the
 	// JS-built DOM picks up these styles too.
 	.iot-hub-hero__search-popup {
 		position: absolute;
@@ -476,27 +475,11 @@ const highlights = [
 	// --- Popup body content (client-rendered) ---------------------------------
 	// Result cards themselves come from IotHubListingLinkTemplate (cloned at
 	// runtime by the popup script); their chrome lives in IotHubListingLink's
-	// own scoped styles. The rules below only cover the group header and
-	// the status/empty messages — bits that don't exist outside the popup.
+	// own scoped styles. The rules below only cover the list wrapper and the
+	// status/empty messages — bits that don't exist outside the popup.
 
-	:global(.iot-hub-hero__search-popup-group) {
-		padding-bottom: 4px;
-	}
-
-	:global(.iot-hub-hero__search-popup-group + .iot-hub-hero__search-popup-group) {
-		margin-top: 8px;
-	}
-
-	:global(.iot-hub-hero__search-popup-group-label) {
-		padding: 4px 16px;
-		min-height: 28px;
-		display: flex;
-		align-items: center;
-		font-size: 14px;
-		font-weight: $font-weight-medium;
-		line-height: 20px;
-		letter-spacing: 0.25px;
-		color: var(--color-text-muted);
+	:global(.iot-hub-hero__search-popup-list) {
+		padding: 4px 0;
 	}
 
 	:global(.iot-hub-hero__search-popup-status) {
@@ -552,6 +535,16 @@ const highlights = [
 		@include iot-hub-material-icon;
 		font-size: 24px;
 		line-height: 1;
+	}
+	@media print {
+		.iot-hub-hero {
+			padding-top: 24px;
+		}
+
+		.iot-hub-hero__hl,
+		.iot-hub-hero__hl.is-active {
+			color: var(--color-text);
+		}
 	}
 </style>
 
@@ -666,14 +659,15 @@ const highlights = [
 </script>
 
 <script>
-	// Hero search popup. Opens on focus, fetches /api/listings/published with
-	// installCount DESC + a 10-item page, groups results by category in
-	// IOT_HUB_CATEGORIES priority order, and renders each as a small card
-	// linking to the listing detail. "See all results" footer keeps its
-	// href in sync with the input so it always jumps to the same query as
-	// the submit button would.
+	// Hero search popup. Opens on focus and shows the first page of the same
+	// request the search page makes for the typed text — same endpoint, same
+	// default sort — so the rows here are the rows "See results for …" opens on,
+	// in the same order. One flat list, ranked across every type: the best match
+	// leads whatever its type, and each row names its type next to the author.
+	// The footer keeps its href in sync with the input so it always jumps to the
+	// same query as the submit button would.
 	//
-	// Result cards are cloned from <IotHubListingLinkTemplate variant="row" />
+	// Result cards are cloned from <IotHubListingLinkTemplate variant="row" showType />
 	// and bound via bindListingLink(), so the popup shares its visual
 	// definition with the build-time listing-card path — no duplicated card
 	// markup in this script.
@@ -681,67 +675,17 @@ const highlights = [
 	// IotHubRuntimeConfig.astro publishes from the server-side env value
 	// before bundled modules evaluate. See @models/iot-hub.ts for the
 	// resolution logic.
-	import {
-		IOT_HUB_API_URL,
-		IOT_HUB_CATEGORIES,
-		DEFAULT_IOT_HUB_SORT_ID,
-		type IotHubItemType,
-		type ListingView,
-	} from '@models/iot-hub';
+	import { DEFAULT_IOT_HUB_SORT_ID, type ListingView } from '@models/iot-hub';
 	import { bindListingLink } from './iot-hub-listing-link-bind';
-	import { getKnownSlugs } from './iot-hub-known-slugs';
+	import { fetchPublishedPage } from './iot-hub-published-page';
 
 	const DEBOUNCE_MS = 300;
-	const PAGE_SIZE = 10;
 	const SEARCH_PATH = '/iot-hub/search/';
-
-	const ITEM_TYPE_BY_CATEGORY = new Map(
-		IOT_HUB_CATEGORIES.map((c) => [c.itemType, c])
-	);
+	const PAGE_SIZE = 10;
 
 	function buildSearchUrl(text: string): string {
 		const q = text.trim();
 		return q ? `${SEARCH_PATH}?q=${encodeURIComponent(q)}` : SEARCH_PATH;
-	}
-
-	async function fetchListings(text: string, signal: AbortSignal): Promise<ListingView[]> {
-		const params = new URLSearchParams({
-			pageSize: String(PAGE_SIZE),
-			page: '0',
-			sortProperty: 'installCount',
-			sortOrder: 'DESC',
-		});
-		const trimmed = text.trim();
-		if (trimmed) params.set('textSearch', trimmed);
-		const [res, knownSlugs] = await Promise.all([
-			fetch(
-				`${IOT_HUB_API_URL}/api/listings/published?${params.toString()}`,
-				{ signal }
-			),
-			getKnownSlugs(),
-		]);
-		if (!res.ok) throw new Error(`HTTP ${res.status}`);
-		const body = (await res.json()) as { data: ListingView[] };
-		// Drop listings whose detail pages don't exist statically — the
-		// portal may have published them since the last deploy.
-		return (body.data ?? []).filter((item) => knownSlugs.has(item.slug));
-	}
-
-	// Group by itemType in IOT_HUB_CATEGORIES priority order. Items whose
-	// itemType isn't in the registry (defensive) are dropped.
-	type Group = { label: string; items: ListingView[] };
-	function groupByCategory(items: ListingView[]): Group[] {
-		const byType = new Map<IotHubItemType, ListingView[]>();
-		for (const it of items) {
-			const cat = ITEM_TYPE_BY_CATEGORY.get(it.itemType as IotHubItemType);
-			if (!cat) continue;
-			const list = byType.get(cat.itemType) ?? [];
-			list.push(it);
-			byType.set(cat.itemType, list);
-		}
-		return IOT_HUB_CATEGORIES
-			.filter((c) => byType.has(c.itemType))
-			.map((c) => ({ label: c.label, items: byType.get(c.itemType)! }));
 	}
 
 	function getCardTemplate(): HTMLTemplateElement | null {
@@ -786,26 +730,19 @@ const highlights = [
 		}
 	}
 
-	function renderGroups(body: HTMLElement, groups: Group[]): void {
+	function renderList(body: HTMLElement, items: ListingView[]): void {
 		body.replaceChildren();
 		const tmpl = getCardTemplate();
-		if (!tmpl) return;
-		for (const group of groups) {
-			const section = document.createElement('div');
-			section.className = 'iot-hub-hero__search-popup-group';
-			const label = document.createElement('div');
-			label.className = 'iot-hub-hero__search-popup-group-label';
-			label.textContent = group.label;
-			section.appendChild(label);
-			for (const item of group.items) {
-				const cardRoot = tmpl.content.firstElementChild;
-				if (!cardRoot) continue;
-				const clone = cardRoot.cloneNode(true) as HTMLElement;
-				bindListingLink(clone, item);
-				section.appendChild(clone);
-			}
-			body.appendChild(section);
+		const cardRoot = tmpl?.content.firstElementChild;
+		if (!cardRoot) return;
+		const list = document.createElement('div');
+		list.className = 'iot-hub-hero__search-popup-list';
+		for (const item of items) {
+			const clone = cardRoot.cloneNode(true) as HTMLElement;
+			bindListingLink(clone, item);
+			list.appendChild(clone);
 		}
+		body.appendChild(list);
 	}
 
 	function setupPopup(form: HTMLFormElement): void {
@@ -823,9 +760,17 @@ const highlights = [
 		// fetch resolves. The flag also lets fast typing skip a redundant
 		// re-render while loading is already visible.
 		let isLoading = false;
-		let lastQuery = ' '; // sentinel: never matches a real first value
+		let lastQuery = '\0'; // sentinel: never matches a real first value
 
-		function updateFooter(q: string): void {
+		// `counts` is absent while loading. The footer names its destination, never an
+		// ordering: the page it opens has its own sort control. The count appears only
+		// when the popup shows fewer rows than matched.
+		function updateFooter(q: string, counts?: { shown: number; total: number }): void {
+			const trimmed = q.trim();
+			if (!trimmed) footer!.textContent = 'See all items';
+			else if (counts && counts.total > counts.shown)
+				footer!.textContent = `See all ${counts.total.toLocaleString('en-US')} results for "${trimmed}"`;
+			else footer!.textContent = `See results for "${trimmed}"`;
 			footer!.href = buildSearchUrl(q);
 		}
 
@@ -855,6 +800,15 @@ const highlights = [
 			});
 		}
 
+		// An answer for a query the field no longer holds is dropped: the debounced
+		// runSearch queued by that edit owns the popup. Clearing lastQuery lets that call
+		// run even when the field is back to `text` (a letter typed and deleted).
+		function isStale(text: string): boolean {
+			if (text === input!.value) return false;
+			lastQuery = '\0';
+			return true;
+		}
+
 		function runSearch(text: string, force = false): void {
 			if (!force && text === lastQuery) return;
 			lastQuery = text;
@@ -862,15 +816,19 @@ const highlights = [
 			abort = new AbortController();
 			showLoading(text);
 			updateFooter(text);
-			fetchListings(text, abort.signal)
-				.then((items) => {
+			// Page 0 of the search page's own request, under its default sort.
+			fetchPublishedPage({ text, page: 0, pageSize: PAGE_SIZE, sortId: DEFAULT_IOT_HUB_SORT_ID }, abort.signal)
+				.then(({ items, matchedCount }) => {
+					if (isStale(text)) return;
 					isLoading = false;
-					trackQuery(text, items.length);
+					trackQuery(text, matchedCount);
+					updateFooter(text, { shown: items.length, total: matchedCount });
 					if (items.length === 0) renderState(body!, 'empty', text);
-					else renderGroups(body!, groupByCategory(items));
+					else renderList(body!, items);
 				})
 				.catch((err: unknown) => {
 					if (err instanceof DOMException && err.name === 'AbortError') return;
+					if (isStale(text)) return;
 					isLoading = false;
 					renderState(body!, 'error', text);
 				});

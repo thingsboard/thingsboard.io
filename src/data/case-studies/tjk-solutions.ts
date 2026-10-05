@@ -16,7 +16,7 @@ export const data: CaseStudyData = {
 		paragraphs: [
 			'TJK-Solutions is a German IoT and environmental technology company specializing in smart monitoring solutions for water management, weather observation, and critical infrastructure. Beyond these areas, the company is also deeply involved in projects related to IoT, LoRaWAN, and Smart Village / Smart City development, helping municipalities and organizations implement scalable, connected systems for digital transformation.',
 			'Driven by the need for resilient and self-sufficient communication systems, TJK-Solutions develops and operates self-managed IoT platforms that remain fully functional even when public infrastructure fails.',
-			'As part of a large-scale disaster management exercise conducted in the municipality of Am Mellensee (Brandenburg, Germany), TJK-Solutions deployed a Meshtastic-based emergency communication network to test how decentralized systems can ensure reliable information flow under crisis conditions. To maintain full visibility of this critical infrastructure, the company implemented ThingsBoard Professional Edition (PE) on local servers \u2014 enabling continuous real-time monitoring of nodes, routers, and connections essential for emergency coordination and disaster response.',
+			'As part of a large-scale disaster management exercise conducted in the municipality of Am Mellensee (Brandenburg, Germany), TJK-Solutions deployed a Meshtastic-based emergency communication network to test how decentralized systems can ensure reliable information flow under crisis conditions. To maintain full visibility of this critical infrastructure, the company implemented ThingsBoard on local servers \u2014 enabling continuous real-time monitoring of nodes, routers, and connections essential for emergency coordination and disaster response.',
 		],
 		logo: 'https://img.thingsboard.io/case-studies/tjk-solutions.svg',
 		logoAlt: 'TJK-solutions logo',
@@ -42,11 +42,11 @@ export const data: CaseStudyData = {
 			'With 33 active Meshtastic devices covering 104.4 km\u00B2 and serving 7 224 residents, manual monitoring was no longer feasible.',
 		],
 		results: [
-			'ThingsBoard PE provided a single real-time view of all 33 Meshtastic devices across 10 districts and 104.4 km\u00B2, replacing manual supervision with automated control.',
+			'ThingsBoard provided a single real-time view of all 33 Meshtastic devices across 10 districts and 104.4 km\u00B2, replacing manual supervision with automated control.',
 			'Continuous monitoring of battery voltage, connectivity, and signal strength ensures reliable communication even during outages.',
 			'Historical telemetry in ThingsBoard helps detect weak nodes early, enabling proactive maintenance and higher network reliability.',
 			'The Rule Engine sends instant notifications on device failures or voltage drops, ensuring rapid response to critical issues.',
-			'Local deployment of ThingsBoard PE keeps all monitoring operational during blackouts, securing data availability in crisis conditions.',
+			'Local deployment of ThingsBoard keeps all monitoring operational during blackouts, securing data availability in crisis conditions.',
 		],
 	},
 
@@ -73,7 +73,7 @@ export const data: CaseStudyData = {
 			},
 			{
 				title: 'Offline-resilient architecture',
-				text: 'By running ThingsBoard PE on local servers, TJK-Solutions ensures full operation even during blackouts. This guarantees data security, autonomy, and consistent monitoring for critical infrastructure.',
+				text: 'By running ThingsBoard on local servers, TJK-Solutions ensures full operation even during blackouts. This guarantees data security, autonomy, and consistent monitoring for critical infrastructure.',
 				image: 'https://img.thingsboard.io/case-studies/tjk-solutions-4.webp',
 				imageAlt: 'Real-time performance monitoring',
 			},
@@ -121,7 +121,7 @@ export const data: CaseStudyData = {
 			},
 			{
 				title: 'Local deployment & security',
-				text: "The self-managed PE setup ensures that all monitoring remains operational and confidential within the municipality's protected environment.<br/><br/>How It Works:",
+				text: "The on-premises ThingsBoard setup ensures that all monitoring remains operational and confidential within the municipality's protected environment.<br/><br/>How It Works:",
 				listItems: [
 					'Support for TLS, RBAC, and OAuth2 for SSO and fine-grained access control.',
 					'Set up HA clusters, regular backups, and custom firewall rules for disaster readiness.',

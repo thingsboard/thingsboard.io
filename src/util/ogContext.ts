@@ -83,7 +83,9 @@ export const MARKETING_ALLOWLIST: ReadonlyArray<string> = [
 	'/smart-farming-demo/',
 	'/google-iot-core-alternative/',
 	'/ce-vs-pe-diff/',
+	'/community-grant-program/',
 	'/cookie-policy/',
+	'/legal/*',
 	'/energy-management/',
 	'/company/*',
 ];

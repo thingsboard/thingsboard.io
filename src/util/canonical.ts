@@ -1,4 +1,4 @@
-import { Products } from '@models/site.models.ts';
+import { Products, professionalCounterpart } from '@models/site.models.ts';
 import { allPages } from '~/content';
 import { PROD_ORIGIN } from '~/consts';
 import {
@@ -14,14 +14,17 @@ import {
  * Pages in free versions have their <link rel="canonical"> rewritten to the
  * corresponding professional URL for SEO consolidation, IF the professional
  * equivalent exists. Both versions continue serving their own distinct content.
+ *
+ * Derived from `professionalCounterpart` so the Community↔Professional pairs live in one
+ * place; a new pair added there is consolidated here automatically. The two PaaS entries
+ * are local to this map on purpose — Cloud is a paid edition, not a Community one, and is
+ * folded into PE for SEO reasons only. It must stay out of the edition-visibility model,
+ * where treating it as Community would wrongly hide the Cloud option in the docs selector.
  */
 const canonicalConsolidationMap: Partial<Record<Products, Products>> = {
-	[Products.CE]: Products.PE,
+	...professionalCounterpart,
 	[Products.PAAS]: Products.PE,
 	[Products.PAAS_EU]: Products.PE,
-	[Products.EDGE]: Products.EDGE_PE,
-	[Products.TBMQ]: Products.TBMQ_PE,
-	[Products.MOBILE]: Products.MOBILE_PE,
 };
 
 /** Page-slug segments that opt out of canonical consolidation (edition-specific content). */
@@ -114,14 +117,48 @@ export function getCanonicalPathname(
 	);
 	if (isSelfCanonicalPath) return selfPathname;
 
-	const targetPageIds = canonicalTargetPageIds.get(targetVersion)!;
+	return resolveCounterpartPathname(id, version, targetVersion) ?? selfPathname;
+}
+
+/**
+ * Pathname of `id`'s equivalent page under `target`, or `undefined` when that
+ * page does not exist. Pure structure — no frontmatter overrides are consulted.
+ */
+function resolveCounterpartPathname(
+	id: string,
+	version: Products,
+	target: Products
+): string | undefined {
+	const targetPageIds = canonicalTargetPageIds.get(target);
+	if (!targetPageIds) return undefined;
+
+	const pageSlug = getPageSlugFromId(id, version);
 	const lang = getLanguageFromSlug(id);
 	const docsPrefix = lang === 'uk' ? 'uk/docs/' : 'docs/';
-	const targetPrefix = getVersionPrefix(targetVersion);
+	const targetPrefix = getVersionPrefix(target);
 	const targetContentId = `${docsPrefix}${targetPrefix}${pageSlug}`.replace(/\/$/, '');
-	if (!targetPageIds.has(targetContentId)) return selfPathname;
+	if (!targetPageIds.has(targetContentId)) return undefined;
 
 	const langPrefix = getLanguagePrefix(lang);
 	const slugSuffix = pageSlug ? `${pageSlug}/` : '';
 	return `/${langPrefix}docs/${targetPrefix}${slugSuffix}`;
+}
+
+/**
+ * Site-relative pathname of this page's professional counterpart, or
+ * `undefined` when it has none.
+ *
+ * Deliberately NOT `getCanonicalPathname`: that answers "what should this page's
+ * `<link rel="canonical">` point at", which diverges here. It short-circuits on
+ * `canonicalUrl` frontmatter — ~90 Edge CE pages fold their canonical into
+ * *core* PE for SEO, which would send an Edge reader out of the Edge tree — and
+ * it returns the page's own path for several unrelated reasons (`selfCanonical`,
+ * `selfCanonicalSegments`, an unparsable override), so "differs from self" is
+ * not a reliable "a twin exists" signal.
+ */
+export function getProfessionalTwinPathname(id: string): string | undefined {
+	const version = getVersionFromSlug(id);
+	const target = professionalCounterpart[version];
+	if (!target) return undefined;
+	return resolveCounterpartPathname(id, version, target);
 }

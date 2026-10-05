@@ -1,11 +1,11 @@
 import DocLink from '@components/DocLink.astro';
-import { Aside, Code, Tabs, TabItem, Steps } from '@astrojs/starlight/components';
-import { CE_FULL_VER, PE_FULL_VER, TRENDZ_VER } from '~/data/versions';
+import { Aside, Code, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+import { PE_FULL_VER, TRENDZ_VER } from '~/data/versions';
 import { Products } from '~/models/site.models';
 import DocSection from '~/components/DocSection.astro';
 import QueueIntro from '@includes/docs/installation/queue-intro.mdx';
 
-export const ceInMemoryYaml = `services:
+export const inMemoryYaml = `services:
   postgres:
     restart: always
     image: "postgres:18"
@@ -22,14 +22,15 @@ export const ceInMemoryYaml = `services:
       timeout: 5s
       retries: 5
       start_period: 10s
-  thingsboard-ce:
+  thingsboard:
     restart: always
-    image: "thingsboard/tb-node:${CE_FULL_VER}"
+    image: "thingsboard/tb-node:${PE_FULL_VER}"
     ports:
       - "8080:8080"
-      - "7070:7070"
       - "1883:1883"
       - "8883:8883"
+      - "9090:9090"
+      - "7070:7070"
       - "5683-5688:5683-5688/udp"
     logging:
       driver: "json-file"
@@ -37,18 +38,46 @@ export const ceInMemoryYaml = `services:
         max-size: "100m"
         max-file: "10"
     environment:
-      TB_SERVICE_ID: tb-ce-node
+      TB_SERVICE_ID: tb-node
+      # TB_LICENSE_SECRET: PUT_YOUR_LICENSE_SECRET_HERE
+      TB_LICENSE_INSTANCE_DATA_FILE: /data/license.data
+      REPORTS_SERVER_ENDPOINT_URL: http://tb-web-report:8383
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/thingsboard
       SPRING_DATASOURCE_PASSWORD: postgres
+      # Pre-configured for optional Trendz Analytics integration
+      DEFAULT_TRENDZ_URL: http://trendz:8888
+      DEFAULT_TB_URL: http://thingsboard:8080
+    volumes:
+      - license-data:/data
     depends_on:
       postgres:
         condition: service_healthy
+  tb-web-report:
+    restart: always
+    image: "thingsboard/tb-web-report:${PE_FULL_VER}"
+    ports:
+      - "8383"
+    depends_on:
+      - thingsboard
+    environment:
+      HTTP_BIND_ADDRESS: 0.0.0.0
+      HTTP_BIND_PORT: 8383
+      LOGGER_LEVEL: info
+      LOG_FOLDER: logs
+      LOGGER_FILENAME: tb-web-report-%DATE%.log
+      DOCKER_MODE: true
+      DEFAULT_PAGE_NAVIGATION_TIMEOUT: 120000
+      DASHBOARD_IDLE_WAIT_TIME: 3000
+      USE_NEW_PAGE_FOR_REPORT: true
 volumes:
   postgres-data:
     name: tb-postgres-data
+    driver: local
+  license-data:
+    name: tb-license-data
     driver: local`;
 
-export const ceKafkaYaml = `services:
+export const kafkaYaml = `services:
   postgres:
     restart: always
     image: "postgres:18"
@@ -89,115 +118,9 @@ export const ceKafkaYaml = `services:
       KAFKA_CFG_SEGMENT_BYTES: "26214400"
     volumes:
       - kafka-data:/bitnami
-  thingsboard-ce:
+  thingsboard:
     restart: always
-    image: "thingsboard/tb-node:${CE_FULL_VER}"
-    ports:
-      - "8080:8080"
-      - "7070:7070"
-      - "1883:1883"
-      - "8883:8883"
-      - "5683-5688:5683-5688/udp"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "100m"
-        max-file: "10"
-    environment:
-      TB_SERVICE_ID: tb-ce-node
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/thingsboard
-      SPRING_DATASOURCE_PASSWORD: postgres
-      TB_QUEUE_TYPE: kafka
-      TB_KAFKA_SERVERS: kafka:9092
-    depends_on:
-      postgres:
-        condition: service_healthy
-      kafka:
-        condition: service_started
-volumes:
-  postgres-data:
-    name: tb-postgres-data
-    driver: local
-  kafka-data:
-    name: tb-ce-kafka-data
-    driver: local`;
-
-export const ceConfluentYaml = `services:
-  postgres:
-    restart: always
-    image: "postgres:18"
-    ports:
-      - "5432"
-    environment:
-      POSTGRES_DB: thingsboard
-      POSTGRES_PASSWORD: postgres
-    volumes:
-      - postgres-data:/var/lib/postgresql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d thingsboard"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-  thingsboard-ce:
-    restart: always
-    image: "thingsboard/tb-node:${CE_FULL_VER}"
-    ports:
-      - "8080:8080"
-      - "7070:7070"
-      - "1883:1883"
-      - "8883:8883"
-      - "5683-5688:5683-5688/udp"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "100m"
-        max-file: "10"
-    environment:
-      TB_SERVICE_ID: tb-ce-node
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/thingsboard
-      SPRING_DATASOURCE_PASSWORD: postgres
-      TB_QUEUE_TYPE: kafka
-      TB_KAFKA_SERVERS: localhost:9092
-      TB_QUEUE_KAFKA_REPLICATION_FACTOR: 3
-      TB_QUEUE_KAFKA_USE_CONFLUENT_CLOUD: true
-      TB_QUEUE_KAFKA_CONFLUENT_SASL_JAAS_CONFIG: 'org.apache.kafka.common.security.plain.PlainLoginModule required username="CLUSTER_API_KEY" password="CLUSTER_API_SECRET";'
-      TB_QUEUE_CORE_POLL_INTERVAL_MS: 1000
-      TB_QUEUE_CORE_PARTITIONS: 2
-      TB_QUEUE_RULE_ENGINE_POLL_INTERVAL_MS: 1000
-      TB_QUEUE_TRANSPORT_REQUEST_POLL_INTERVAL_MS: 1000
-      TB_QUEUE_TRANSPORT_RESPONSE_POLL_INTERVAL_MS: 1000
-      TB_QUEUE_TRANSPORT_NOTIFICATIONS_POLL_INTERVAL_MS: 1000
-      TB_QUEUE_VC_INTERVAL_MS: 1000
-      TB_QUEUE_VC_PARTITIONS: 1
-    depends_on:
-      postgres:
-        condition: service_healthy
-volumes:
-  postgres-data:
-    name: tb-postgres-data
-    driver: local`;
-
-export const peInMemoryYaml = `services:
-  postgres:
-    restart: always
-    image: "postgres:18"
-    ports:
-      - "5432"
-    environment:
-      POSTGRES_DB: thingsboard
-      POSTGRES_PASSWORD: postgres
-    volumes:
-      - postgres-data:/var/lib/postgresql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d thingsboard"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-  thingsboard-pe:
-    restart: always
-    image: "thingsboard/tb-pe-node:${PE_FULL_VER}"
+    image: "thingsboard/tb-node:${PE_FULL_VER}"
     ports:
       - "8080:8080"
       - "1883:1883"
@@ -211,27 +134,31 @@ export const peInMemoryYaml = `services:
         max-size: "100m"
         max-file: "10"
     environment:
-      TB_SERVICE_ID: tb-pe-node
-      TB_LICENSE_SECRET: PUT_YOUR_LICENSE_SECRET_HERE
+      TB_SERVICE_ID: tb-node
+      # TB_LICENSE_SECRET: PUT_YOUR_LICENSE_SECRET_HERE
       TB_LICENSE_INSTANCE_DATA_FILE: /data/license.data
       REPORTS_SERVER_ENDPOINT_URL: http://tb-web-report:8383
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/thingsboard
       SPRING_DATASOURCE_PASSWORD: postgres
       # Pre-configured for optional Trendz Analytics integration
       DEFAULT_TRENDZ_URL: http://trendz:8888
-      DEFAULT_TB_URL: http://thingsboard-pe:8080
+      DEFAULT_TB_URL: http://thingsboard:8080
+      TB_QUEUE_TYPE: kafka
+      TB_KAFKA_SERVERS: kafka:9092
     volumes:
       - license-data:/data
     depends_on:
       postgres:
         condition: service_healthy
+      kafka:
+        condition: service_started
   tb-web-report:
     restart: always
-    image: "thingsboard/tb-pe-web-report:${PE_FULL_VER}"
+    image: "thingsboard/tb-web-report:${PE_FULL_VER}"
     ports:
       - "8383"
     depends_on:
-      - thingsboard-pe
+      - thingsboard
     environment:
       HTTP_BIND_ADDRESS: 0.0.0.0
       HTTP_BIND_PORT: 8383
@@ -247,113 +174,13 @@ volumes:
     name: tb-postgres-data
     driver: local
   license-data:
-    name: tb-pe-license-data
-    driver: local`;
-
-export const peKafkaYaml = `services:
-  postgres:
-    restart: always
-    image: "postgres:18"
-    ports:
-      - "5432"
-    environment:
-      POSTGRES_DB: thingsboard
-      POSTGRES_PASSWORD: postgres
-    volumes:
-      - postgres-data:/var/lib/postgresql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d thingsboard"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-  kafka:
-    restart: always
-    image: bitnamilegacy/kafka:4.0
-    ports:
-      - 9092:9092
-      - 9093
-    environment:
-      ALLOW_PLAINTEXT_LISTENER: "yes"
-      KAFKA_CFG_LISTENERS: "PLAINTEXT://:9092,CONTROLLER://:9093"
-      KAFKA_CFG_ADVERTISED_LISTENERS: "PLAINTEXT://:9092"
-      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
-      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
-      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "false"
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
-      KAFKA_CFG_PROCESS_ROLES: "controller,broker"
-      KAFKA_CFG_NODE_ID: "0"
-      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
-      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: "0@kafka:9093"
-      KAFKA_CFG_LOG_RETENTION_MS: "300000"
-      KAFKA_CFG_SEGMENT_BYTES: "26214400"
-    volumes:
-      - kafka-data:/bitnami
-  thingsboard-pe:
-    restart: always
-    image: "thingsboard/tb-pe-node:${PE_FULL_VER}"
-    ports:
-      - "8080:8080"
-      - "1883:1883"
-      - "8883:8883"
-      - "9090:9090"
-      - "7070:7070"
-      - "5683-5688:5683-5688/udp"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "100m"
-        max-file: "10"
-    environment:
-      TB_SERVICE_ID: tb-pe-node
-      TB_LICENSE_SECRET: PUT_YOUR_LICENSE_SECRET_HERE
-      TB_LICENSE_INSTANCE_DATA_FILE: /data/license.data
-      REPORTS_SERVER_ENDPOINT_URL: http://tb-web-report:8383
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/thingsboard
-      SPRING_DATASOURCE_PASSWORD: postgres
-      # Pre-configured for optional Trendz Analytics integration
-      DEFAULT_TRENDZ_URL: http://trendz:8888
-      DEFAULT_TB_URL: http://thingsboard-pe:8080
-      TB_QUEUE_TYPE: kafka
-      TB_KAFKA_SERVERS: kafka:9092
-    volumes:
-      - license-data:/data
-    depends_on:
-      postgres:
-        condition: service_healthy
-      kafka:
-        condition: service_started
-  tb-web-report:
-    restart: always
-    image: "thingsboard/tb-pe-web-report:${PE_FULL_VER}"
-    ports:
-      - "8383"
-    depends_on:
-      - thingsboard-pe
-    environment:
-      HTTP_BIND_ADDRESS: 0.0.0.0
-      HTTP_BIND_PORT: 8383
-      LOGGER_LEVEL: info
-      LOG_FOLDER: logs
-      LOGGER_FILENAME: tb-web-report-%DATE%.log
-      DOCKER_MODE: true
-      DEFAULT_PAGE_NAVIGATION_TIMEOUT: 120000
-      DASHBOARD_IDLE_WAIT_TIME: 3000
-      USE_NEW_PAGE_FOR_REPORT: true
-volumes:
-  postgres-data:
-    name: tb-postgres-data
-    driver: local
-  license-data:
-    name: tb-pe-license-data
+    name: tb-license-data
     driver: local
   kafka-data:
-    name: tb-pe-kafka-data
+    name: tb-kafka-data
     driver: local`;
 
-export const peConfluentYaml = `services:
+export const confluentYaml = `services:
   postgres:
     restart: always
     image: "postgres:18"
@@ -370,9 +197,9 @@ export const peConfluentYaml = `services:
       timeout: 5s
       retries: 5
       start_period: 10s
-  thingsboard-pe:
+  thingsboard:
     restart: always
-    image: "thingsboard/tb-pe-node:${PE_FULL_VER}"
+    image: "thingsboard/tb-node:${PE_FULL_VER}"
     ports:
       - "8080:8080"
       - "1883:1883"
@@ -386,15 +213,15 @@ export const peConfluentYaml = `services:
         max-size: "100m"
         max-file: "10"
     environment:
-      TB_SERVICE_ID: tb-pe-node
-      TB_LICENSE_SECRET: PUT_YOUR_LICENSE_SECRET_HERE
+      TB_SERVICE_ID: tb-node
+      # TB_LICENSE_SECRET: PUT_YOUR_LICENSE_SECRET_HERE
       TB_LICENSE_INSTANCE_DATA_FILE: /data/license.data
       REPORTS_SERVER_ENDPOINT_URL: http://tb-web-report:8383
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/thingsboard
       SPRING_DATASOURCE_PASSWORD: postgres
       # Pre-configured for optional Trendz Analytics integration
       DEFAULT_TRENDZ_URL: http://trendz:8888
-      DEFAULT_TB_URL: http://thingsboard-pe:8080
+      DEFAULT_TB_URL: http://thingsboard:8080
       TB_QUEUE_TYPE: kafka
       TB_KAFKA_SERVERS: localhost:9092
       TB_QUEUE_KAFKA_REPLICATION_FACTOR: 3
@@ -415,11 +242,11 @@ export const peConfluentYaml = `services:
         condition: service_healthy
   tb-web-report:
     restart: always
-    image: "thingsboard/tb-pe-web-report:${PE_FULL_VER}"
+    image: "thingsboard/tb-web-report:${PE_FULL_VER}"
     ports:
       - "8383"
     depends_on:
-      - thingsboard-pe
+      - thingsboard
     environment:
       HTTP_BIND_ADDRESS: 0.0.0.0
       HTTP_BIND_PORT: 8383
@@ -435,7 +262,7 @@ volumes:
     name: tb-postgres-data
     driver: local
   license-data:
-    name: tb-pe-license-data
+    name: tb-license-data
     driver: local`;
 
 export const trendzYaml = `services:
@@ -445,7 +272,7 @@ export const trendzYaml = `services:
     ports:
       - "8888:8888"
     environment:
-      TB_API_URL: http://thingsboard-pe:8080
+      TB_API_URL: http://thingsboard:8080
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/trendz
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
@@ -486,10 +313,12 @@ volumes:
     driver: local`;
 
 {props.section === 'intro' && (
-  <p>This guide covers a single-node ThingsBoard {props.product === Products.PE ? 'Professional Edition (PE)' : 'Community Edition (CE)'} installation using Docker Compose on {props.platform === 'windows' ? 'Windows' : 'Linux or macOS'}. By the end, you will have a fully functional ThingsBoard instance running on your machine. For cluster setup, see <DocLink product={props.product} path="installation/docker-compose-setup">Cluster Setup with Docker Compose</DocLink>.</p>
+  <p>This guide covers a single-node ThingsBoard installation using Docker Compose on {props.platform === 'windows' ? 'Windows' : 'Linux or macOS'}. By the end, you will have a licensed, activated ThingsBoard instance — free, no credit card required — with a system administrator account and, optionally, a demo tenant, running on your machine. For cluster setup, see <DocLink product={props.product} path="installation/docker-compose-setup" target="_blank">Cluster Setup with Docker Compose</DocLink>.</p>
 )}
 
 <DocSection id="prerequisites" current={props.section}>
+
+You'll need outbound internet access to pull Docker images and to reach the ThingsBoard License Portal during activation.
 
 Ensure your server meets the minimum requirements:
 
@@ -517,16 +346,6 @@ Ensure your server meets the minimum requirements:
 
 </DocSection>
 
-<DocSection id="license-key" current={props.section}>
-
-We assume you have already chosen your subscription plan or decided to purchase a perpetual license. If not, navigate to the <a href="/pricing/" target="_blank">pricing page</a> to select the best license option for your case. See <a href="https://www.youtube.com/watch?v=dK-QDFGxWek" target="_blank" rel="noopener noreferrer">How to get a pay-as-you-go subscription</a> or <a href="https://www.youtube.com/watch?v=GPe0lHolWek" target="_blank" rel="noopener noreferrer">How to get a perpetual license</a> for details.
-
-<Aside type="note">
-We will reference the license key you obtained in this step as `PUT_YOUR_LICENSE_SECRET_HERE` later in this guide.
-</Aside>
-
-</DocSection>
-
 {props.section === 'compose-file' && (
   <>
     <p>Create a dedicated directory for your ThingsBoard installation and navigate to it. All subsequent commands in this guide should be run from this directory.</p>
@@ -536,11 +355,7 @@ We will reference the license key you obtained in this step as `PUT_YOUR_LICENSE
       <Code code="mkdir -p ~/thingsboard && cd ~/thingsboard" lang="bash" />
     )}
     <QueueIntro />
-    {props.product === Products.PE ? (
-      <p>Create the <code>docker-compose.yml</code> file. Replace <code>PUT_YOUR_LICENSE_SECRET_HERE</code> with your license secret from Step 1:</p>
-    ) : (
-      <p>Create the <code>docker-compose.yml</code> file:</p>
-    )}
+    <p>Create the <code>docker-compose.yml</code> file:</p>
     {props.platform === 'windows' ? (
       <Code code="notepad docker-compose.yml" lang="powershell" />
     ) : (
@@ -549,49 +364,40 @@ We will reference the license key you obtained in this step as `PUT_YOUR_LICENSE
     <p>Paste one of the configurations below, save, and exit. Or use the download button to save the file directly.</p>
     <Tabs>
       <TabItem label="In Memory (default)">
-        {props.product === Products.PE ? (
-          <Code code={peInMemoryYaml} lang="yml" meta="maxLines=15 collapsible download='docker-compose.yml'" />
-        ) : (
-          <Code code={ceInMemoryYaml} lang="yml" meta="maxLines=20 collapsible download='docker-compose.yml'" />
-        )}
+        <Code code={inMemoryYaml} lang="yml" meta="maxLines=15 collapsible download='docker-compose.yml'" />
         <p><strong>Services started:</strong></p>
         <ul>
           <li><code>postgres</code> — PostgreSQL database</li>
-          <li><code>{props.product === Products.PE ? 'thingsboard-pe' : 'thingsboard-ce'}</code> — ThingsBoard application node</li>
-          {props.product === Products.PE && <li><code>tb-web-report</code> — reporting component for PDF/PNG dashboard exports</li>}
+          <li><code>thingsboard</code> — ThingsBoard application node</li>
+          <li><code>tb-web-report</code> — reporting component for PDF/PNG dashboard exports</li>
         </ul>
       </TabItem>
       <TabItem label="Kafka">
         <p>This example runs Kafka locally as a Docker container. If you already have a Kafka broker or use a managed service (e.g. <a href="https://aws.amazon.com/msk/" target="_blank">AWS MSK</a>), remove the <code>kafka</code> service and update <code>TB_KAFKA_SERVERS</code> to point to your broker.</p>
-        {props.product === Products.PE ? (
-          <Code code={peKafkaYaml} lang="yml" meta="maxLines=15 collapsible download='docker-compose.yml'" />
-        ) : (
-          <Code code={ceKafkaYaml} lang="yml" meta="maxLines=20 collapsible download='docker-compose.yml'" />
-        )}
+        <Code code={kafkaYaml} lang="yml" meta="maxLines=15 collapsible download='docker-compose.yml'" />
         <p><strong>Services started:</strong></p>
         <ul>
           <li><code>postgres</code> — PostgreSQL database</li>
           <li><code>kafka</code> — Kafka broker (local, single-node)</li>
-          <li><code>{props.product === Products.PE ? 'thingsboard-pe' : 'thingsboard-ce'}</code> — ThingsBoard application node</li>
-          {props.product === Products.PE && <li><code>tb-web-report</code> — reporting component for PDF/PNG dashboard exports</li>}
+          <li><code>thingsboard</code> — ThingsBoard application node</li>
+          <li><code>tb-web-report</code> — reporting component for PDF/PNG dashboard exports</li>
         </ul>
       </TabItem>
       <TabItem label="Confluent Cloud">
         <p>First <a href="https://confluent.cloud/login" target="_blank">create a Confluent Cloud account</a>, create a <a href="https://docs.confluent.io/current/quickstart/cloud-quickstart/index.html#step-1-create-a-ak-cluster-in-ccloud" target="_blank">Kafka cluster</a>, and obtain your <a href="https://docs.confluent.io/current/quickstart/cloud-quickstart/index.html#step-4-create-an-api-key" target="_blank">API Key</a>. Replace <code>CLUSTER_API_KEY</code>, <code>CLUSTER_API_SECRET</code>, and <code>localhost:9092</code> with your Confluent Cloud values:</p>
-        {props.product === Products.PE ? (
-          <Code code={peConfluentYaml} lang="yml" meta="maxLines=15 collapsible download='docker-compose.yml'" />
-        ) : (
-          <Code code={ceConfluentYaml} lang="yml" meta="maxLines=20 collapsible download='docker-compose.yml'" />
-        )}
+        <Code code={confluentYaml} lang="yml" meta="maxLines=15 collapsible download='docker-compose.yml'" />
         <p><strong>Services started:</strong></p>
         <ul>
           <li><code>postgres</code> — PostgreSQL database</li>
-          <li><code>{props.product === Products.PE ? 'thingsboard-pe' : 'thingsboard-ce'}</code> — ThingsBoard application node</li>
-          {props.product === Products.PE && <li><code>tb-web-report</code> — reporting component for PDF/PNG dashboard exports</li>}
+          <li><code>thingsboard</code> — ThingsBoard application node</li>
+          <li><code>tb-web-report</code> — reporting component for PDF/PNG dashboard exports</li>
         </ul>
         <p>You can update the default Rule Engine queue configuration using the UI. See <DocLink product={props.product} path="user-guide/rule-engine/queues">Rule Engine Queues</DocLink> for details.</p>
       </TabItem>
     </Tabs>
+    <Aside type="tip">
+      Already have a license key? Uncomment <code>TB_LICENSE_SECRET</code> in the <code>thingsboard</code> service and replace <code>PUT_YOUR_LICENSE_SECRET_HERE</code> with your key before you start the containers. Otherwise, leave the line commented out and activate your instance from the web UI in <a href="#step-4-license-and-activate-your-instance">Step 4</a>.
+    </Aside>
   </>
 )}
 
@@ -614,9 +420,7 @@ We will reference the license key you obtained in this step as `PUT_YOUR_LICENSE
       <tr><td><code>5687:5687/udp</code></td><td>LwM2M — plaintext Lightweight M2M (Bootstrap)</td></tr>
       <tr><td><code>5688:5688/udp</code></td><td>LwM2M over DTLS — encrypted Lightweight M2M (Bootstrap)</td></tr>
       <tr><td><code>7070:7070</code></td><td>Edge RPC (gRPC) — connections from ThingsBoard Edge nodes</td></tr>
-      {props.product === Products.PE && (
-        <tr><td><code>9090:9090</code></td><td>Remote Integration Executor (gRPC) — used by external integration services</td></tr>
-      )}
+      <tr><td><code>9090:9090</code></td><td>Remote Integration Executor (gRPC) — used by external integration services</td></tr>
     </tbody>
   </table>
 </details>
@@ -628,18 +432,19 @@ We will reference the license key you obtained in this step as `PUT_YOUR_LICENSE
       <tr><th>Variable</th><th>Description</th></tr>
     </thead>
     <tbody>
-      <tr><td><code>POSTGRES_PASSWORD</code></td><td>Password for the PostgreSQL <code>postgres</code> user. Must match <code>SPRING_DATASOURCE_PASSWORD</code>. <strong>Change the default value in production.</strong></td></tr>
+      <tr><td><code>TB_SERVICE_ID</code></td><td>Unique identifier of the ThingsBoard node. Default: <code>tb-node</code>.</td></tr>
+      <tr><td><code>TB_LICENSE_SECRET</code></td><td>Optional. Your ThingsBoard license key. Commented out by default. If you already have a key, uncomment the line and replace <code>PUT_YOUR_LICENSE_SECRET_HERE</code> with it during configuration. If you don't, leave it commented out and activate the instance from the web UI after the first start.</td></tr>
+      <tr><td><code>TB_LICENSE_INSTANCE_DATA_FILE</code></td><td>Path inside the container where the license instance data is stored. Default: <code>/data/license.data</code>, which is on the <code>tb-license-data</code> volume, so the activation survives container restarts and upgrades.</td></tr>
+      <tr><td><code>REPORTS_SERVER_ENDPOINT_URL</code></td><td>Address of the <code>tb-web-report</code> service used for PDF/PNG dashboard exports. Default: <code>http://tb-web-report:8383</code>.</td></tr>
+      <tr><td><code>POSTGRES_DB</code></td><td>Set on the <code>postgres</code> service. Name of the database created on first start. Default: <code>thingsboard</code>.</td></tr>
+      <tr><td><code>POSTGRES_PASSWORD</code></td><td>Set on the <code>postgres</code> service. Password for the PostgreSQL <code>postgres</code> user. Must match <code>SPRING_DATASOURCE_PASSWORD</code>. <strong>Change the default value in production.</strong></td></tr>
       <tr><td><code>SPRING_DATASOURCE_URL</code></td><td>PostgreSQL JDBC connection URL. Specifies the host and database name. Default: <code>jdbc:postgresql://postgres:5432/thingsboard</code>.</td></tr>
-      <tr><td><code>SPRING_DATASOURCE_USERNAME</code></td><td>PostgreSQL username ThingsBoard connects as. Default: <code>postgres</code>.</td></tr>
       <tr><td><code>SPRING_DATASOURCE_PASSWORD</code></td><td>PostgreSQL password ThingsBoard uses to connect. Must match <code>POSTGRES_PASSWORD</code>.</td></tr>
-      <tr><td><code>TB_QUEUE_TYPE</code></td><td>Message queue type. Options: <code>in-memory</code> (default, single-node only), <code>kafka</code>, <code>rabbitmq</code>.</td></tr>
-      <tr><td><code>TB_KAFKA_SERVERS</code></td><td>Kafka bootstrap servers. Required when <code>TB_QUEUE_TYPE=kafka</code>. Default: <code>localhost:9092</code>.</td></tr>
-      {props.product === Products.PE && (
-        <tr><td><code>TB_LICENSE_SECRET</code></td><td>ThingsBoard PE license secret key.</td></tr>
-      )}
-      {props.product === Products.PE && (
-        <tr><td><code>DEFAULT_TRENDZ_URL</code></td><td>Trendz Analytics endpoint — pre-configured for optional Trendz integration.</td></tr>
-      )}
+      <tr><td><code>TB_QUEUE_TYPE</code></td><td>Message queue type. Options: <code>in-memory</code> (default, single-node only), <code>kafka</code>, <code>rabbitmq</code>. Not set in the In Memory configuration, which uses the default.</td></tr>
+      <tr><td><code>TB_KAFKA_SERVERS</code></td><td>Kafka bootstrap servers. Required when <code>TB_QUEUE_TYPE=kafka</code>. Set to <code>kafka:9092</code> in the Kafka configuration (the local <code>kafka</code> service); replace <code>localhost:9092</code> with your Confluent Cloud bootstrap server in the Confluent Cloud configuration.</td></tr>
+      <tr><td><code>TB_QUEUE_KAFKA_*</code>, <code>TB_QUEUE_*_POLL_INTERVAL_MS</code>, <code>TB_QUEUE_*_PARTITIONS</code></td><td>Confluent Cloud configuration only. Enable Confluent Cloud, pass the SASL credentials (<code>CLUSTER_API_KEY</code>, <code>CLUSTER_API_SECRET</code>), and tune the replication factor, poll intervals and partition counts for a managed cluster.</td></tr>
+      <tr><td><code>DEFAULT_TRENDZ_URL</code></td><td>Trendz Analytics endpoint — pre-configured for optional Trendz integration. Default: <code>http://trendz:8888</code>.</td></tr>
+      <tr><td><code>DEFAULT_TB_URL</code></td><td>Address at which other services, such as Trendz, reach ThingsBoard inside the Compose network. Default: <code>http://thingsboard:8080</code>.</td></tr>
     </tbody>
   </table>
 </details>
@@ -652,33 +457,20 @@ We will reference the license key you obtained in this step as `PUT_YOUR_LICENSE
     </thead>
     <tbody>
       <tr><td><code>tb-postgres-data</code></td><td>Persists PostgreSQL data across container restarts and upgrades.</td></tr>
-      <tr><td><code>tb-{props.product === Products.PE ? 'pe' : 'ce'}-kafka-data</code></td><td>Persists Kafka data. Only present when <code>TB_QUEUE_TYPE=kafka</code>.</td></tr>
-      {props.product === Products.PE && (
-        <tr><td><code>tb-pe-license-data</code></td><td>Persists license instance data — prevents license re-activation on each restart.</td></tr>
-      )}
+      <tr><td><code>tb-kafka-data</code></td><td>Persists Kafka data. Only present when <code>TB_QUEUE_TYPE=kafka</code>.</td></tr>
+      <tr><td><code>tb-license-data</code></td><td>Persists license instance data — prevents license re-activation on each restart.</td></tr>
     </tbody>
   </table>
 </details>
 
-<p>For the full list of configuration parameters, see the <DocLink product={props.product} path="reference/configuration/core-rule-engine-config">Configuration Reference</DocLink>.</p>
+<p>For the full list of configuration parameters, see the <DocLink product={props.product} path="reference/configuration/core-rule-engine-config" target="_blank">Configuration Reference</DocLink>.</p>
 
 </DocSection>
 
 {props.section === 'initialize' && (
   <>
-    <p>Before starting ThingsBoard, initialize the database schema and load built-in assets. Choose the option that matches your goal:</p>
-    <ul>
-      <li><strong>With demo data</strong> — also loads a sample tenant account, pre-built dashboards, and demo devices. Useful for exploring the platform before deploying to production.</li>
-      <li><strong>Clean install</strong> — initializes the database with system data only (rule chains, widget bundles, system dashboards).</li>
-    </ul>
-    <Tabs>
-      <TabItem label="With demo data">
-        <Code code={`docker compose run --rm -e INSTALL_TB=true -e LOAD_DEMO=true ${props.product === Products.PE ? 'thingsboard-pe' : 'thingsboard-ce'}`} lang="bash" />
-      </TabItem>
-      <TabItem label="Clean install">
-        <Code code={`docker compose run --rm -e INSTALL_TB=true ${props.product === Products.PE ? 'thingsboard-pe' : 'thingsboard-ce'}`} lang="bash" />
-      </TabItem>
-    </Tabs>
+    <p>Before starting ThingsBoard, initialize the database schema:</p>
+    <Code code="docker compose run --rm -e INSTALL_TB=true thingsboard" lang="bash" />
     <p>The container exits automatically once initialization is complete.</p>
   </>
 )}
@@ -689,33 +481,29 @@ We will reference the license key you obtained in this step as `PUT_YOUR_LICENSE
     <Code code="docker compose up -d" lang="bash" />
     <p>Monitor the startup. The line confirming the platform is ready will be highlighted:</p>
     {props.platform === 'windows' ? (
-      <Code code={`docker compose logs -f ${props.product === Products.PE ? 'thingsboard-pe' : 'thingsboard-ce'}`} lang="bash" />
+      <Code code="docker compose logs -f thingsboard" lang="bash" />
     ) : (
-      <Code code={`docker compose logs -f ${props.product === Products.PE ? 'thingsboard-pe' : 'thingsboard-ce'} | grep --line-buffered --color=always -E 'Started ThingsboardServerApplication|$'`} lang="bash" />
+      <Code code="docker compose logs -f thingsboard | grep --line-buffered --color=always -E 'Started ThingsboardServerApplication|$'" lang="bash" />
     )}
     <p>Press <strong>Ctrl+C</strong> to detach from the log stream — containers will continue running in the background.</p>
-    <p>Open <code>http://localhost:8080</code> in your browser. You should see the ThingsBoard login page. Use the following default credentials:</p>
-    <table>
-      <thead>
-        <tr><th>Role</th><th>Email</th><th>Password</th><th>With demo data</th><th>Clean install</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>System Administrator</td><td>sysadmin@thingsboard.org</td><td>sysadmin</td><td>✅</td><td>✅</td></tr>
-        <tr><td>Tenant Administrator</td><td>tenant@thingsboard.org</td><td>tenant</td><td>✅</td><td>❌</td></tr>
-        <tr><td>Customer User</td><td>customer@thingsboard.org</td><td>customer</td><td>✅</td><td>❌</td></tr>
-      </tbody>
-    </table>
-    <Aside type="caution">
-      Change the default passwords before exposing ThingsBoard to a network or deploying to production.
-    </Aside>
-    <p>See <DocLink product={props.product} path="getting-started">Getting Started</DocLink> for your next steps after login.</p>
+  </>
+)}
+
+{props.section === 'access-thingsboard-web-ui' && (
+  <>
+    <p>Open ThingsBoard in a web browser:</p>
+    <Code code="http://localhost:8080" lang="text" />
+    <p>On first launch you are greeted with the activation screen:</p>
+    <Code code={`Welcome to ThingsBoard ${PE_FULL_VER}\nGet your free license and start building`} lang="text" class="no-copy" />
+    <style>{`.no-copy .copy { display: none; }`}</style>
+    <p>Continue with the next step to license and activate your instance.</p>
   </>
 )}
 
 {props.section === 'inspect-logs' && (
   <>
     <p>Stream the ThingsBoard container logs:</p>
-    <Code code={`docker compose logs -f ${props.product === Products.PE ? 'thingsboard-pe' : 'thingsboard-ce'}`} lang="bash" />
+    <Code code="docker compose logs -f thingsboard" lang="bash" />
     <p>Stop all containers:</p>
     <Code code="docker compose down" lang="bash" />
     <p>Start all containers:</p>
@@ -725,7 +513,7 @@ We will reference the license key you obtained in this step as `PUT_YOUR_LICENSE
 
 <DocSection id="trendz-intro" current={props.section}>
 
-You may optionally install <DocLink product={Products.TRENDZ} path="what-is-trendz">Trendz Analytics</DocLink> at any time. The Trendz compose file extends the main `docker-compose.yml` — always run them together.
+You may optionally install <DocLink product={Products.TRENDZ} path="what-is-trendz" target="_blank">Trendz Analytics</DocLink> at any time. The Trendz compose file extends the main `docker-compose.yml` — always run them together.
 
 <Steps>
 
@@ -756,14 +544,14 @@ You may optionally install <DocLink product={Products.TRENDZ} path="what-is-tren
 {props.section === 'trendz-start' && (
   <>
     <p>Bring up all containers (including Trendz) as a single Compose project:</p>
-    <Code code={`docker compose -f docker-compose.yml -f docker-compose-trendz.yml up -d\ndocker compose -f docker-compose.yml -f docker-compose-trendz.yml logs -f thingsboard-pe`} lang="bash" />
+    <Code code={`docker compose -f docker-compose.yml -f docker-compose-trendz.yml up -d\ndocker compose -f docker-compose.yml -f docker-compose-trendz.yml logs -f thingsboard`} lang="bash" />
   </>
 )}
 
 {props.section === 'trendz-logs' && (
   <>
     <p>Stream ThingsBoard logs:</p>
-    <Code code="docker compose -f docker-compose.yml -f docker-compose-trendz.yml logs -f thingsboard-pe" lang="bash" />
+    <Code code="docker compose -f docker-compose.yml -f docker-compose-trendz.yml logs -f thingsboard" lang="bash" />
     <p>Stream Trendz logs:</p>
     <Code code="docker compose -f docker-compose.yml -f docker-compose-trendz.yml logs -f trendz" lang="bash" />
     <p>Stop all containers:</p>
@@ -773,6 +561,14 @@ You may optionally install <DocLink product={Products.TRENDZ} path="what-is-tren
   </>
 )}
 
+
+<DocSection id="upgrading-trendz" current={props.section}>
+
+Trendz Analytics has a different version system and should be updated separately from the ThingsBoard platform. See <DocLink product={Products.TRENDZ} path="installation/upgrade-instructions" target="_blank">Trendz Docker Upgrade</DocLink>.
+
+</DocSection>
+
+
 <DocSection id="upgrading" current={props.section}>
 
 When a new ThingsBoard release becomes available, update your installation to benefit from the latest features and security patches.
@@ -781,7 +577,7 @@ When a new ThingsBoard release becomes available, update your installation to be
 To maintain database integrity and system stability, perform upgrades sequentially (e.g. v4.0.2 → v4.1.0 → v4.2.0).
 </Aside>
 
-See the <DocLink product={props.product} path="installation/upgrade-instructions">Upgrade Instructions</DocLink> for detailed steps.
+See the <DocLink product={props.product} path="installation/upgrade-instructions" target="_blank">Upgrade Instructions</DocLink> for detailed steps.
 
 </DocSection>
 
@@ -822,7 +618,7 @@ The value of `SPRING_DATASOURCE_URL` depends on where PostgreSQL runs:
 )}
 
 {props.platform !== 'windows' && (
-  <Code code={`services:\n  ${props.service ?? (props.product === Products.PE ? 'thingsboard-pe' : 'thingsboard-ce')}:\n    extra_hosts:\n      - "host.docker.internal:host-gateway"`} lang="yml" />
+  <Code code={`services:\n  ${props.service ?? (props.product === Products.PE ? 'thingsboard' : 'thingsboard-ce')}:\n    extra_hosts:\n      - "host.docker.internal:host-gateway"`} lang="yml" />
 )}
 
 <Aside type="caution">

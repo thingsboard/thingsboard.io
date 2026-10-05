@@ -1,176 +1,159 @@
-import type { SelfManagedData, AddOnItem, CommunityEditionData } from './types';
+import type { AddOnItem, PlanCard, PromoHeroData, SelfManagedData } from './types';
 
 import edgeIcon from '../../assets/pricing/edge-add-on-icon.svg?raw';
 import trendzIcon from '../../assets/pricing/trendz-add-on-icon.svg?raw';
 import mobileIcon from '../../assets/pricing/wl-add-on-icon.svg?raw';
 import offlineIcon from '../../assets/pricing/offline-add-on-icon.svg?raw';
 
+// \u2500\u2500\u2500 Shared feature tooltips \u2500\u2500\u2500
+const SINGLE_INSTANCE_TOOLTIP =
+	'A single production node to run your solution. Perfect for getting to market quickly. Can be easily expanded into a cluster.';
+const COMMUNITY_SUPPORT_TOOLTIP =
+	'Leverage the collective expertise of the ThingsBoard community. Report bugs, request features, and find technical solutions alongside thousands of developers on our <a href="https://github.com/thingsboard/thingsboard/issues" target="_blank" rel="noopener noreferrer">GitHub Issues page</a>.';
+
+// \u2500\u2500\u2500 Individual plan cards \u2500\u2500\u2500
+// Hoisted out of the plan list below for readability. Every card carries exactly 6 feature
+// rows (spacers included) \u2014 PlanCard renders with `grid-template-rows: subgrid`,
+// so a card with a different row count breaks the whole row's alignment.
+
+// The free tier that replaced Maker ($10) and Prototype ($39) under the BUSL
+// repositioning: free with limits, commercial use allowed. Card copy is a
+// DRAFT \u2014 marketing texts are expected to replace it. No productId/planId:
+// like the Cloud Free card, the CTA is a plain signup link, not a getLicense()
+// route.
+const freePlan: PlanCard = {
+	name: 'Free',
+	description: 'Start exploring features',
+	price: 0,
+	currency: '$',
+	period: '/month',
+	ctaText: 'Get started',
+	ctaHref: 'https://license.thingsboard.io/signup',
+	ctaPrimary: false,
+	gtmId: 'Pricing_PE_SM_Free',
+	features: [
+		{ text: '100 devices' },
+		{ text: '100 assets' },
+		{
+			text: '1 production instance',
+			faqId: 'pe-pay-as-you-go-production-instances',
+			faqTooltip: SINGLE_INSTANCE_TOOLTIP,
+		},
+		{
+			text: 'Community support',
+			faqId: 'pe-pay-as-you-go-support-included',
+			faqTooltip: COMMUNITY_SUPPORT_TOOLTIP,
+		},
+		{ text: '', noIcon: true },
+		{ text: '', noIcon: true },
+	],
+};
+
+const pilotPlan: PlanCard = {
+	name: 'Pilot',
+	description: 'For upcoming IoT Unicorns',
+	price: 99,
+	currency: '$',
+	period: '/month',
+	ctaText: 'Get started',
+	ctaHref: 'https://license.thingsboard.io/signup',
+	ctaPrimary: true,
+	popular: true,
+	gtmId: 'Pricing_PE_SM_Pilot',
+	features: [
+		{ text: '100 devices' },
+		{ text: '100 assets' },
+		{
+			text: '1 production instance',
+			faqId: 'pe-pay-as-you-go-production-instances',
+			faqTooltip: SINGLE_INSTANCE_TOOLTIP,
+		},
+		{
+			text: 'Help desk',
+			faqId: 'pe-pay-as-you-go-support-included',
+			faqTooltip:
+				'Official technical support channel for priority assistance. Get expert guidance to accelerate your rollout and optimize platform usage.',
+		},
+		{ text: 'White labeling', highlight: true },
+		{ text: '', noIcon: true },
+	],
+	productId: 'b5a35ce0-f5ea-11f0-8e58-abbac8d0a38a',
+	planId: '87f3b1e0-f5eb-11f0-8e58-abbac8d0a38a',
+};
+
+const startupPlan: PlanCard = {
+	name: 'Startup',
+	description: 'Defined long term projects',
+	price: 299,
+	currency: '$',
+	period: '/month',
+	ctaText: 'Get started',
+	ctaHref: 'https://license.thingsboard.io/signup',
+	ctaPrimary: false,
+	gtmId: 'Pricing_PE_SM_Startup',
+	features: [
+		{ text: '500 devices' },
+		{ text: '500 assets' },
+		{
+			text: '2 production instances',
+			faqId: 'pe-pay-as-you-go-production-instances',
+			faqTooltip:
+				'Enables a basic cluster configuration. Running two nodes provides High Availability (HA) and redundancy, ensuring your platform stays online if one node fails.',
+		},
+		{
+			text: 'Priority help desk',
+			faqId: 'pe-pay-as-you-go-support-included',
+			faqTooltip:
+				'Get priority handling in the support desk \u2014 faster response, faster resolution, and fewer blockers as you scale and run production workloads.',
+		},
+		{ text: 'White labeling', highlight: true },
+		{ text: '', noIcon: true },
+	],
+	productId: 'b5a35ce0-f5ea-11f0-8e58-abbac8d0a38a',
+	planId: 'b8ad2500-f5eb-11f0-8e58-abbac8d0a38a',
+};
+
+const businessPlan: PlanCard = {
+	name: 'Business',
+	description: 'Built for scalable IoT growth',
+	price: 499,
+	currency: '$',
+	period: '/month',
+	ctaText: 'Get started',
+	ctaHref: 'https://license.thingsboard.io/signup',
+	ctaPrimary: false,
+	gtmId: 'Pricing_PE_SM_Business',
+	features: [
+		{ text: '1,000 devices' },
+		{ text: '1,000 assets' },
+		{
+			text: '3 production instances',
+			faqId: 'pe-pay-as-you-go-production-instances',
+			faqTooltip:
+				'Supports a robust High Availability (HA) cluster. Three nodes allow for superior horizontal scaling and load balancing, designed for high-traffic environments and maximum uptime.',
+		},
+		{
+			text: 'Priority help desk',
+			faqId: 'pe-pay-as-you-go-support-included',
+			faqTooltip:
+				'Get priority handling in the support desk \u2014 faster response, faster resolution, and fewer blockers as you scale and run production workloads.',
+		},
+		{ text: 'White labeling', highlight: true },
+		{
+			text: '$0.1 /extra device',
+			highlight: true,
+			plusIcon: true,
+		},
+	],
+	productId: 'b5a35ce0-f5ea-11f0-8e58-abbac8d0a38a',
+	planId: 'f4b90050-f5eb-11f0-8e58-abbac8d0a38a',
+};
+
 export const tbSelfManagedData: SelfManagedData = {
 	payg: {
 		sectionTitle: 'Pay-as-you-go plans',
 		sectionSubtitle: 'Flexible monthly licensing for your own infrastructure.',
-		plans: [
-			{
-				name: 'Maker',
-				description: 'Start exploring features',
-				price: 10,
-				currency: '$',
-				period: '/month',
-				ctaText: 'Get started',
-				ctaHref: 'https://license.thingsboard.io/signup',
-				ctaPrimary: false,
-				gtmId: 'Pricing_PE_SM_Maker',
-				features: [
-					{ text: '10 devices' },
-					{ text: '10 assets' },
-					{
-						text: '1 production instance',
-						faqId: 'pe-pay-as-you-go-production-instances',
-						faqTooltip:
-							'A single production node to run your solution. Perfect for getting to market quickly. Can be easily expanded into a cluster.',
-					},
-					{
-						text: 'Community support',
-						faqId: 'pe-pay-as-you-go-support-included',
-						faqTooltip:
-							'Leverage the collective expertise of the ThingsBoard community. Report bugs, request features, and find technical solutions alongside thousands of developers on our <a href="https://github.com/thingsboard/thingsboard/issues" target="_blank" rel="noopener noreferrer">GitHub Issues page</a>.',
-					},
-					{ text: '', noIcon: true },
-					{ text: '', noIcon: true },
-				],
-				productId: 'b5a35ce0-f5ea-11f0-8e58-abbac8d0a38a',
-				planId: 'fe493b90-f5ea-11f0-8e58-abbac8d0a38a',
-			},
-			{
-				name: 'Prototype',
-				description: 'For PoCs and MVPs',
-				price: 39,
-				currency: '$',
-				period: '/month',
-				ctaText: 'Get started',
-				ctaHref: 'https://license.thingsboard.io/signup',
-				ctaPrimary: false,
-				gtmId: 'Pricing_PE_SM_Prototype',
-				features: [
-					{ text: '50 devices' },
-					{ text: '50 assets' },
-					{
-						text: '1 production instance',
-						faqId: 'pe-pay-as-you-go-production-instances',
-						faqTooltip:
-							'A single production node to run your solution. Perfect for getting to market quickly. Can be easily expanded into a cluster.',
-					},
-					{
-						text: 'Community support',
-						faqId: 'pe-pay-as-you-go-support-included',
-						faqTooltip:
-							'Leverage the collective expertise of the ThingsBoard community. Report bugs, request features, and find technical solutions alongside thousands of developers on our <a href="https://github.com/thingsboard/thingsboard/issues" target="_blank" rel="noopener noreferrer">GitHub Issues page</a>.',
-					},
-					{ text: '', noIcon: true },
-					{ text: '', noIcon: true },
-				],
-				productId: 'b5a35ce0-f5ea-11f0-8e58-abbac8d0a38a',
-				planId: '648c95a0-f5eb-11f0-8e58-abbac8d0a38a',
-			},
-			{
-				name: 'Pilot',
-				description: 'For upcoming IoT Unicorns',
-				price: 99,
-				currency: '$',
-				period: '/month',
-				ctaText: 'Get started',
-				ctaHref: 'https://license.thingsboard.io/signup',
-				ctaPrimary: true,
-				popular: true,
-				gtmId: 'Pricing_PE_SM_Pilot',
-				features: [
-					{ text: '100 devices' },
-					{ text: '100 assets' },
-					{
-						text: '1 production instance',
-						faqId: 'pe-pay-as-you-go-production-instances',
-						faqTooltip:
-							'A single production node to run your solution. Perfect for getting to market quickly. Can be easily expanded into a cluster.',
-					},
-					{
-						text: 'Help desk',
-						faqId: 'pe-pay-as-you-go-support-included',
-						faqTooltip:
-							'Official technical support channel for priority assistance. Get expert guidance to accelerate your rollout and optimize platform usage.',
-					},
-					{ text: 'White labeling', highlight: true },
-					{ text: '', noIcon: true },
-				],
-				productId: 'b5a35ce0-f5ea-11f0-8e58-abbac8d0a38a',
-				planId: '87f3b1e0-f5eb-11f0-8e58-abbac8d0a38a',
-			},
-			{
-				name: 'Startup',
-				description: 'Defined long term projects',
-				price: 299,
-				currency: '$',
-				period: '/month',
-				ctaText: 'Get started',
-				ctaHref: 'https://license.thingsboard.io/signup',
-				ctaPrimary: false,
-				gtmId: 'Pricing_PE_SM_Startup',
-				features: [
-					{ text: '500 devices' },
-					{ text: '500 assets' },
-					{
-						text: '2 production instances',
-						faqId: 'pe-pay-as-you-go-production-instances',
-						faqTooltip:
-							'Enables a basic cluster configuration. Running two nodes provides High Availability (HA) and redundancy, ensuring your platform stays online if one node fails.',
-					},
-					{
-						text: 'Priority help desk',
-						faqId: 'pe-pay-as-you-go-support-included',
-						faqTooltip:
-							'Get priority handling in the support desk \u2014 faster response, faster resolution, and fewer blockers as you scale and run production workloads.',
-					},
-					{ text: 'White labeling', highlight: true },
-					{ text: '', noIcon: true },
-				],
-				productId: 'b5a35ce0-f5ea-11f0-8e58-abbac8d0a38a',
-				planId: 'b8ad2500-f5eb-11f0-8e58-abbac8d0a38a',
-			},
-			{
-				name: 'Business',
-				description: 'Built for scalable IoT growth',
-				price: 499,
-				currency: '$',
-				period: '/month',
-				ctaText: 'Get started',
-				ctaHref: 'https://license.thingsboard.io/signup',
-				ctaPrimary: false,
-				gtmId: 'Pricing_PE_SM_Business',
-				features: [
-					{ text: '1,000 devices' },
-					{ text: '1,000 assets' },
-					{
-						text: '3 production instances',
-						faqId: 'pe-pay-as-you-go-production-instances',
-						faqTooltip:
-							'Supports a robust High Availability (HA) cluster. Three nodes allow for superior horizontal scaling and load balancing, designed for high-traffic environments and maximum uptime.',
-					},
-					{
-						text: 'Priority help desk',
-						faqId: 'pe-pay-as-you-go-support-included',
-						faqTooltip:
-							'Get priority handling in the support desk \u2014 faster response, faster resolution, and fewer blockers as you scale and run production workloads.',
-					},
-					{ text: 'White labeling', highlight: true },
-					{
-						text: '$0.1 /extra device',
-						highlight: true,
-						plusIcon: true,
-					},
-				],
-				productId: 'b5a35ce0-f5ea-11f0-8e58-abbac8d0a38a',
-				planId: 'f4b90050-f5eb-11f0-8e58-abbac8d0a38a',
-			},
-		],
+		plans: [freePlan, pilotPlan, startupPlan, businessPlan],
 	},
 	perpetual: {
 		sectionTitle: 'Perpetual license',
@@ -189,7 +172,7 @@ export const tbSelfManagedData: SelfManagedData = {
 			},
 			{
 				icon: 'tabler:server',
-				title: 'On-Premises & Offline Mode',
+				title: 'On-premises & Offline Mode',
 				description: 'Deploy anywhere, including fully offline or isolated networks for 100% data sovereignty.',
 			},
 			{
@@ -201,7 +184,7 @@ export const tbSelfManagedData: SelfManagedData = {
 	},
 };
 
-export const tbPerpetualHero: CommunityEditionData = {
+export const tbPerpetualHero: PromoHeroData = {
 	title: 'Own Your IoT Solution. Perpetually.',
 	subtitle:
 		'The one-time, enterprise-grade license for maximum security, permanent data control, and predictable costs.',
@@ -214,7 +197,7 @@ export const tbPerpetualHero: CommunityEditionData = {
 		'Your business needs a unique, tailored solution, not a one-size-fits-all subscription.',
 	],
 	ctaText: 'Contact Us',
-	ctaHref: '/contact-us/?subject=ThingsBoard%20Products&message=I%20am%20interested%20in%20Self-managed%20perpetual%20license',
+	ctaHref: '/contact-us/?subject=ThingsBoard%20Products&message=I%20am%20interested%20in%20On-premises%20perpetual%20license',
 };
 
 export const tbSelfManagedAddOns: AddOnItem[] = [
@@ -271,9 +254,6 @@ export const tbPerpetualAddOns: AddOnItem[] = [
 		name: 'Trendz Analytics',
 		description: 'Advanced analytics for your solution.',
 		icon: trendzIcon,
-		priceUsd: 1499,
-		period: '',
-		startingFrom: true,
 		faqId: 'trendz-payg-what-is',
 		faqTooltip: 'Advanced analytics for data insights, custom dashboards, and trend discovery.',
 	},

@@ -43,7 +43,7 @@ export const courses: Course[] = [
 					{ textContent: 'Manage core entities like Devices, Assets, and Entity Views.' },
 					{
 						textContent:
-							'Learn how to group Devices and Assets for better scalability (PE Feature).',
+							'Learn how to group Devices and Assets for better scalability.',
 					},
 					{
 						textContent:

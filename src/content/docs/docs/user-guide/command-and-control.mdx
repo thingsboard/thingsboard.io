@@ -2,7 +2,109 @@
 title: Command & Control
 description: Send commands to devices and receive responses using server-side and client-side RPC over MQTT, HTTP, CoAP, and LwM2M.
 ---
-import PageComponent from '@includes/docs/user-guide/command-and-control.mdx'
-import { Products } from '~/models/site.models'
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+import ImageGallery from '@components/ImageGallery.astro';
+import { Products } from '@models/site.models';
 
-<PageComponent product={Products.CE}/>
+ThingsBoard RPC (Remote Procedure Call) enables bidirectional command exchange between the platform and devices. Commands can flow in either direction: the platform sends instructions to a device (**server-side RPC**), or a device asks the platform for data (**client-side RPC**).
+
+## Server-Side RPC
+
+The platform sends a command to a device — turn a relay on, change a setpoint, trigger a reboot. Commands can be sent from a dashboard <DocLink product={Products.CE} path='user-guide/widgets' target="_blank"> widget</DocLink>, the <DocLink product={Products.CE} path='user-guide/rule-engine' target="_blank">Rule Engine</DocLink>, or directly via REST API.
+
+### One-Way vs. Two-Way
+
+| | One-Way | Two-Way |
+|-|---------|---------|
+| **Device reply** | Not expected | Required within timeout |
+| **Use case** | Fire-and-forget commands (turn on LED) | Commands that need confirmation or a result |
+| **REST response** | `200 OK` when ThingsBoard sent the command to the device — no visibility into whether the device processed it or succeeded | Device's reply payload |
+
+### Lightweight vs. Persistent
+
+**Lightweight RPC** is short-lived and memory-resident. If the device is offline when the command is sent, the command is lost. Good for real-time control of always-connected devices.
+
+**Persistent RPC** is stored in the database with a configurable TTL. If the device is offline, the command waits until the device reconnects. Good for devices with intermittent connectivity or power-saving modes.
+
+### How It Works
+
+<ImageGallery images={[{ src: '/src/assets/schemas/lightweight-vs-persistent.svg', alt: 'Lightweight vs persistent RPC diagram', caption: 'Lightweight RPC is memory-resident and lost if the device is offline. Persistent RPC is stored in the database and delivered when the device reconnects.' }]} />
+
+### Request Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `method` | Yes | Command name, e.g. `setTemperature` |
+| `params` | Yes | JSON parameters. Use `{}` if none. |
+| `timeout` | No | Milliseconds to wait for delivery (default: 10 000, min: 5 000) |
+| `expirationTime` | No | Epoch ms timestamp — overrides `timeout` |
+| `persistent` | No | `true` to store in DB and survive device offline (default: `false`) |
+| `retries` | No | Retry attempts for persistent RPC on timeout |
+| `additionalInfo` | No | Metadata attached to persistent RPC Rule Engine events |
+
+### Persistent RPC States
+
+Persistent commands move through a state machine. Each transition fires a Rule Engine event you can use to track commands in external systems.
+
+| State | Meaning |
+|-------|---------|
+| `QUEUED` | Saved; awaiting delivery |
+| `SENT` | Platform sent to device |
+| `DELIVERED` | Device acknowledged (terminal for one-way) |
+| `SUCCESSFUL` | Device replied (terminal for two-way) |
+| `TIMEOUT` | Delivery timed out; retrying if retries remain |
+| `EXPIRED` | TTL elapsed before delivery |
+| `FAILED` | All retries exhausted |
+
+<Aside type="caution">
+  Enabling `ACTORS_RPC_SEQUENTIAL=true` delivers commands to a device one at a time. Combined with high retry counts and long expiration times, a stuck two-way RPC can block all subsequent commands to that device.
+</Aside>
+
+## Client-Side RPC
+
+A device initiates a request to the platform — for example to fetch the current time, get a weather forecast, or query an access control decision. The platform processes it through the <DocLink product={Products.CE} path='user-guide/rule-engine'>Rule Engine</DocLink> and replies.
+
+### How It Works
+
+<ImageGallery images={[{ src: '/src/assets/schemas/client-side-rpc.svg', alt: 'Client-side RPC diagram', caption: 'The device sends an RPC request to ThingsBoard. The Rule Engine processes it and replies through the RPC Call Reply node.' }]} />
+
+Each request carries a `method` string and a `params` JSON object. The Rule Engine message includes a `requestId` UUID in metadata, which the RPC Call Reply node uses to route the response back to the correct device.
+
+<Aside type="note">
+  Client-side RPC is supported over MQTT, CoAP, and HTTP. LwM2M and SNMP do not support it.
+</Aside>
+
+## Sending Commands from Dashboards
+
+<DocLink product={Products.CE} path='user-guide/widgets'>Control widgets</DocLink> (RPC Button, Round Switch, Knob Control, etc.) send server-side RPC commands using the same REST API under the hood. You configure the method name and parameters directly in the widget settings — no code required.
+
+## Configuration Reference
+
+<table>
+  <thead>
+    <tr>
+      <th>Environment Variable</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><code>ACTORS_RPC_MAX_RETRIES</code></td><td><code>5</code></td><td>Max delivery retries for persistent RPC</td></tr>
+    <tr><td><code>ACTORS_RPC_SEQUENTIAL</code></td><td><code>false</code></td><td>Deliver commands to each device one at a time</td></tr>
+    <tr><td><code>MQTT_TIMEOUT</code></td><td><code>10000</code></td><td>MQTT delivery timeout (ms)</td></tr>
+    <tr><td><code>COAP_TIMEOUT</code></td><td><code>10000</code></td><td>CoAP delivery timeout (ms)</td></tr>
+    <tr><td><code>LWM2M_TIMEOUT</code></td><td><code>120000</code></td><td>LwM2M delivery timeout (ms)</td></tr>
+    <tr><td><code>SQL_TTL_RPC_ENABLED</code></td><td><code>true</code></td><td>Enable automatic cleanup of expired persistent RPCs</td></tr>
+    <tr><td><code>SQL_RPC_TTL_CHECKING_INTERVAL</code></td><td><code>7200000</code></td><td>How often expired RPCs are cleaned up (ms)</td></tr>
+  </tbody>
+</table>
+
+## Protocol References
+
+See the transport-specific guides for exact topics, subscribe paths, and request/response examples:
+
+- <DocLink product={Products.CE} path='reference/mqtt-api/rpc'>MQTT RPC API</DocLink>
+- <DocLink product={Products.CE} path='reference/http-api/rpc'>HTTP RPC API</DocLink>
+- <DocLink product={Products.CE} path='reference/coap-api/rpc'>CoAP RPC API</DocLink>
+- <DocLink product={Products.CE} path='reference/lwm2m-api/rpc-commands'>LwM2M RPC</DocLink> — server-side only

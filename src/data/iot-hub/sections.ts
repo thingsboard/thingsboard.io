@@ -1,3 +1,4 @@
+import { IOT_HUB_CONTACT_EMAIL, IOT_HUB_CONTACT_US_URL } from '@models/iot-hub';
 import type { FaqGroup, IotHubCategorySections } from '@models/iot-hub-sections';
 
 // Below-hero content per category slug. Pages without an entry render no extra sections.
@@ -17,11 +18,6 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 						id: 'faq-how-do-i-install-an-alarm-rule',
 						question: 'How do I install an alarm rule?',
 						answer: `Click Install and pick the target — a device, an asset, or a device/asset profile — in the install dialog. The rule is created there and starts evaluating live telemetry immediately. A profile-level install covers every entity of that type, including ones added later.`,
-					},
-					{
-						id: 'faq-alarm-rule-editions',
-						question: 'Are alarm rules compatible with all ThingsBoard editions?',
-						answer: `Most rules work on CE and PE. Rules that rely on owner-hierarchy propagation are Professional Edition only. Each listing shows an edition badge and the minimum ThingsBoard version.`,
 					},
 					{
 						id: 'faq-alarm-rule-thresholds',
@@ -58,7 +54,7 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 					{
 						id: 'faq-how-do-i-contribute-an-alarm-rule',
 						question: 'How do I contribute an alarm rule?',
-						answer: `Check the <a href="/docs/iot-hub/contribution-guides/alarm-rule/">IoT Alarm Rule Contribution Guide</a> that describes the process of adding alarm rules. You can also contact <a href="mailto:iothub@thingsboard.io">iothub@thingsboard.io</a> for help.`,
+						answer: `Check the <a href="/docs/iot-hub/contribution-guides/alarm-rule/">IoT Alarm Rule Contribution Guide</a> that describes the process of adding alarm rules. You can also <a target="_blank" href="${IOT_HUB_CONTACT_US_URL}" rel="noopener noreferrer">contact us</a> or email <a href="mailto:${IOT_HUB_CONTACT_EMAIL}">${IOT_HUB_CONTACT_EMAIL}</a> for help.`,
 					},
 					{
 						id: 'faq-are-alarm-rules-free',
@@ -79,11 +75,6 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 						id: 'faq-widget-what-are-iot-widgets',
 						question: 'What are IoT widgets?',
 						answer: 'Widgets are self-contained UI components that connect to device data and render it visually on ThingsBoard dashboards. ThingsBoard ships with 300+ built-in widgets across 34 bundles, and the IoT Hub extends this with community-contributed components.',
-					},
-					{
-						id: 'faq-widget-editions-compatible',
-						question: 'Which editions are widgets compatible with?',
-						answer: 'Each widget shows its edition badge and minimum ThingsBoard version. Most widgets work across all editions; some may use PE-only features. Check the badge on the widget page before installing.',
 					},
 					{
 						id: 'faq-widget-how-to-install',
@@ -125,7 +116,7 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 					{
 						id: 'faq-widget-contribute-custom',
 						question: 'How do I contribute a custom widget?',
-						answer: 'Check the <a href="/docs/iot-hub/contribution-guides/widget/">IoT Widget Contribution Guide</a> that describes the process of adding an IoT widget. You can also contact <a href="mailto:iothub@thingsboard.io">iothub@thingsboard.io</a> for help.',
+						answer: `Check the <a href="/docs/iot-hub/contribution-guides/widget/">IoT Widget Contribution Guide</a> that describes the process of adding an IoT widget. You can also <a target="_blank" href="${IOT_HUB_CONTACT_US_URL}" rel="noopener noreferrer">contact us</a> or email <a href="mailto:${IOT_HUB_CONTACT_EMAIL}">${IOT_HUB_CONTACT_EMAIL}</a> for help.`,
 					},
 					{
 						id: 'faq-widget-free-to-use',
@@ -151,11 +142,6 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 						id: 'faq-rc-what-is-rule-engine',
 						question: 'What is the ThingsBoard rule engine?',
 						answer: 'The rule engine is the ThingsBoard component that processes incoming messages in real time. It runs your rule chains — every device message passes through the rule engine, which routes it through the chain\'s nodes to filter, transform, store, raise alarms, or trigger external actions. Rule chains from the IoT Hub run on this same engine.',
-					},
-					{
-						id: 'faq-rc-edition-compatibility',
-						question: 'Are rule chains compatible with all ThingsBoard editions?',
-						answer: 'Most rule chains work on CE. However, chains using Analytics nodes (Aggregate Latest, Aggregate Stream) or certain Integration nodes require PE. Each chain in the Catalog displays edition badges. Chains using PE-only nodes are clearly marked.',
 					},
 					{
 						id: 'faq-rc-how-to-install',
@@ -186,7 +172,7 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 					{
 						id: 'faq-rc-node-categories',
 						question: 'What node categories exist?',
-						answer: 'Seven categories: Filter (route by conditions), Enrichment (add context), Transformation (modify payload), Action (save/alarm/RPC), External (integrate with external systems), Flow (connect sub-chains), and Analytics (aggregate data — PE only).',
+						answer: 'Seven categories: Filter (route by conditions), Enrichment (add context), Transformation (modify payload), Action (save/alarm/RPC), External (integrate with external systems), Flow (connect sub-chains), and Analytics (aggregate data).',
 					},
 					{
 						id: 'faq-rc-organized-in-hub',
@@ -207,7 +193,7 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 					{
 						id: 'faq-rc-how-to-contribute',
 						question: 'How do I contribute a rule chain?',
-						answer: 'Check the <a href="/docs/iot-hub/contribution-guides/rule-chain/">IoT Rule Chain Contribution Guide</a> that describes the process of adding rule chains. You can also contact <a href="mailto:iothub@thingsboard.io">iothub@thingsboard.io</a> for help.',
+						answer: `Check the <a href="/docs/iot-hub/contribution-guides/rule-chain/">IoT Rule Chain Contribution Guide</a> that describes the process of adding rule chains. You can also <a target="_blank" href="${IOT_HUB_CONTACT_US_URL}" rel="noopener noreferrer">contact us</a> or email <a href="mailto:${IOT_HUB_CONTACT_EMAIL}">${IOT_HUB_CONTACT_EMAIL}</a> for help.`,
 					},
 					{
 						id: 'faq-rc-external-services',
@@ -233,11 +219,6 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 						id: 'faq-st-how-do-i-install',
 						question: 'How do I install an IoT solutions template?',
 						answer: 'Click Install, review the description and preview gallery, and confirm. The platform atomically provisions every entity and redirects you to the main dashboard with simulated data already flowing.',
-					},
-					{
-						id: 'faq-st-compatible-all-editions',
-						question: 'Are solution templates compatible with all editions?',
-						answer: 'Each template targets Community Edition (CE), Professional Edition (PE), or both. CE templates use only CE features; PE templates may use RBAC, white-labeling, advanced integrations, and reporting. The catalog shows an edition badge and the minimum ThingsBoard version.',
 					},
 					{
 						id: 'faq-st-demo-use-real-data',
@@ -269,7 +250,7 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 					{
 						id: 'faq-st-how-do-i-contribute',
 						question: 'How do I contribute a solution template?',
-						answer: 'Check the <a href="/docs/iot-hub/contribution-guides/solution-template/">IoT Solution Template Contribution Guide</a> that describes the process of adding an IoT solution template. You can also contact <a href="mailto:iothub@thingsboard.io">iothub@thingsboard.io</a> for help.',
+						answer: `Check the <a href="/docs/iot-hub/contribution-guides/solution-template/">IoT Solution Template Contribution Guide</a> that describes the process of adding an IoT solution template. You can also <a target="_blank" href="${IOT_HUB_CONTACT_US_URL}" rel="noopener noreferrer">contact us</a> or email <a href="mailto:${IOT_HUB_CONTACT_EMAIL}">${IOT_HUB_CONTACT_EMAIL}</a> for help.`,
 					},
 					{
 						id: 'faq-st-are-templates-free',
@@ -304,7 +285,7 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 					{
 						id: 'contact-support',
 						question: 'Who can I contact for support or partnership inquiries?',
-						answer: 'For support, technical questions, or partnership opportunities, contact us at <a href="mailto:iothub@thingsboard.io">iothub@thingsboard.io</a>',
+						answer: `For support, technical questions, or partnership opportunities, please <a target="_blank" href="${IOT_HUB_CONTACT_US_URL}" rel="noopener noreferrer">contact us</a> or email <a href="mailto:${IOT_HUB_CONTACT_EMAIL}">${IOT_HUB_CONTACT_EMAIL}</a>.`,
 					},
 				],
 			},
@@ -320,7 +301,7 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 					{
 						id: 'connect-existing-device',
 						question: 'How do I connect an existing device or sensor to ThingsBoard if it\'s not in the hub?',
-						answer: 'Check out the <a href="/docs/iot-hub/contribution-guides/device/">connectivity guides</a> that describe the process of connecting devices. You can also submit a request to add a device by emailing <a href="mailto:iothub@thingsboard.io">iothub@thingsboard.io</a>',
+						answer: `Check out the <a href="/docs/iot-hub/contribution-guides/device/">connectivity guides</a> that describe the process of connecting devices. You can also submit a request to add a device via our <a target="_blank" href="${IOT_HUB_CONTACT_US_URL}" rel="noopener noreferrer">contact form</a> or by emailing <a href="mailto:${IOT_HUB_CONTACT_EMAIL}">${IOT_HUB_CONTACT_EMAIL}</a>.`,
 					},
 					{
 						id: 'try-without-hardware',
@@ -374,11 +355,6 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 						answer: 'Calculated fields are server-side data transformations that run automatically when new data arrives. They combine telemetry, attributes, or historical data into derived values, stored as new time series or attributes. Introduced in ThingsBoard 4.0, they simplify logic that previously lived in rule chains.',
 					},
 					{
-						id: 'compatible-with-all-editions',
-						question: 'Are they compatible with all ThingsBoard editions?',
-						answer: 'Available in CE, PE, and Cloud since v4.0. Data reprocessing (historical recalculation) is PE-only. Each library entry displays edition badges and minimum version requirements.',
-					},
-					{
 						id: 'how-do-i-import',
 						question: 'How do I import a calculated field?',
 						answer: 'Click Install on the calculated field’s page and pick the target — a device, asset, or device/asset profile — in the install dialog. The field is created on that target and immediately starts computing from live telemetry, saving the result as a new time series key or attribute. You can also download the JSON and import it manually from the Calculated Fields tab.',
@@ -423,7 +399,7 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 					{
 						id: 'how-do-i-contribute',
 						question: 'How do I contribute?',
-						answer: 'Check the <a href="/docs/iot-hub/contribution-guides/calculated-field/">IoT Calculated Field Contribution Guide</a> that describes the process of adding calculation fields. You can also contact <a href="mailto:iothub@thingsboard.io">iothub@thingsboard.io</a> for help.',
+						answer: `Check the <a href="/docs/iot-hub/contribution-guides/calculated-field/">IoT Calculated Field Contribution Guide</a> that describes the process of adding calculation fields. You can also <a target="_blank" href="${IOT_HUB_CONTACT_US_URL}" rel="noopener noreferrer">contact us</a> or email <a href="mailto:${IOT_HUB_CONTACT_EMAIL}">${IOT_HUB_CONTACT_EMAIL}</a> for help.`,
 					},
 					{
 						id: 'are-they-free',
@@ -483,7 +459,7 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 					{
 						id: 'faq-hub-account-needed',
 						question: 'Do I need a ThingsBoard account to access resources?',
-						answer: 'You can discover the IoT Hub components without an account. To install a component, you sign in to your ThingsBoard instance — Community Edition, Professional Edition, or Cloud — and install it there in one step.',
+						answer: 'You can discover the IoT Hub components without an account. To install a component, you sign in to your ThingsBoard instance and install it there in one step.',
 					},
 				],
 			},
@@ -508,8 +484,8 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 					},
 					{
 						id: 'faq-hub-editions-supported',
-						question: 'What platform editions are supported?',
-						answer: 'The IoT Hub is available on every ThingsBoard edition — Community Edition, Professional Edition (Self-Managed), and Cloud (PaaS). The implementation context of every component should be indicated on the relevant category or resource page.',
+						question: 'Which ThingsBoard deployments are supported?',
+						answer: 'The IoT Hub is available on every ThingsBoard deployment: on-premises and cloud (both public and private). The implementation context of every component should be indicated on the relevant category or resource page.',
 					},
 				],
 			},
@@ -541,7 +517,7 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 					{
 						id: 'faq-hub-how-to-contribute',
 						question: 'How can I contribute my solution?',
-						answer: 'You can add your component via the ThingsBoard Creator Portal. Detailed instructions are available here: <a href="/docs/iot-hub/contribution-guides/">How to contribute to IoT Hub</a>. You can also ask for help by email <a href="mailto:iothub@thingsboard.io">iothub@thingsboard.io</a>',
+						answer: `You can add your component via the ThingsBoard Creator Portal. Detailed instructions are available here: <a href="/docs/iot-hub/contribution-guides/">How to contribute to IoT Hub</a>. You can also <a target="_blank" href="${IOT_HUB_CONTACT_US_URL}" rel="noopener noreferrer">ask us for help</a> or email <a href="mailto:${IOT_HUB_CONTACT_EMAIL}">${IOT_HUB_CONTACT_EMAIL}</a>.`,
 					},
 					{
 						id: 'faq-hub-contributions-accepted',
