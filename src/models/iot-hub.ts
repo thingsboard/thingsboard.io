@@ -234,18 +234,13 @@ export const IOT_HUB_CONTACT_US_URL = '/contact-us/?subject=IoT%20Hub';
 
 export const IOT_HUB_CONTACT_EMAIL = 'iothub@thingsboard.io';
 
-// The "Verified creators only" control's checkbox `name`, which is also the
-// API/URL param it maps to 1:1. Shared so the panel that renders it and the
-// search pipeline that reads it can't drift.
-//
-// Boolean, and the API *matches* the value rather than treating it as a
-// switch (unlike `peOnly`/`ceOnly`): `creatorVerified=false` means "only
-// *un*verified". So an unchecked control must omit the param entirely and
-// never send `false` — `activeFilterParams` skips empty selections, which
-// is exactly that.
+// The "Verified creators only" control's checkbox `name`, and the API/URL
+// param it maps to 1:1. The API *matches* the value rather than treating it
+// as a switch (unlike `peOnly`/`ceOnly`), so `creatorVerified=false` means
+// "only *un*verified" — an unchecked control must omit the param entirely.
 export const VERIFIED_CREATORS_KEY = 'creatorVerified';
 
-/** The only value the control can contribute. Nothing else is accepted. */
+/** The only value the control can contribute. */
 export const VERIFIED_CREATORS_VALUE = 'true';
 
 // User-facing UI strings used by IoT Hub components. Centralized so they're
@@ -260,10 +255,8 @@ export const IOT_HUB_STRINGS = {
 		searchAriaPrefix: 'Search',
 		mostPopular: 'Most popular',
 		all: 'All',
-		// Standalone checkbox above the sections — it has no heading of its
-		// own, so this text carries the whole meaning and is also what the
-		// chip and the empty-state reason show. States what it filters (the
-		// creator's verification status), never a quality tier.
+		// Standalone checkbox above the sections, with no heading of its own,
+		// so this text is also the chip and the empty-state reason.
 		verifiedCreators: 'Verified creators only',
 		sections: {
 			// `type` is the per-item-type *subtype* facet (widget type, rule
