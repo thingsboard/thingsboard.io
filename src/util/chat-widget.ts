@@ -49,17 +49,22 @@ function whenChatLoaded(): Promise<YourGptApi> {
 }
 
 /**
- * Resolves once the bot has booted. A `widget:open` queued before the boot is replayed and then overwritten by
- * the bot's own initial state, closed, so commands wait for this. Polled: the boot has no event to wait on.
+ * Resolves once the bot has booted, rejects if it has not within 15s (their loader ran, the bot's own requests
+ * were blocked). A `widget:open` queued before the boot is replayed and then overwritten by the bot's own
+ * initial state, closed, so commands wait for this. Polled: the boot has no event to wait on.
  */
 function whenChatUp(): Promise<YourGptApi> {
 	up ??= whenChatLoaded().then(
 		(api) =>
-			new Promise((resolve) => {
+			new Promise((resolve, reject) => {
 				// Their root element exists before the boot; the rendered bot's own root does not.
 				const booted = () => !Array.isArray(window.$yourgptChatbot?.q) && document.querySelector('.yourgptChatbotRoot');
 				const check = (tries: number) => {
-					if (booted() || tries <= 0) return resolve(api);
+					if (booted()) return resolve(api);
+					if (tries <= 0) {
+						up = undefined;
+						return reject(new Error('YourGPT widget did not boot'));
+					}
 					setTimeout(() => check(tries - 1), 100);
 				};
 				check(150);
@@ -129,12 +134,15 @@ export function wireChatLauncher(launcher: HTMLButtonElement, status: HTMLElemen
 			// Closes from inside the window (its header button) come back through this.
 			if (!loaded) (await whenChatLoaded()).on('widget:popup', (state: unknown) => reflect(Boolean(state)));
 			const want = !open;
-			if (await settle(await whenChatUp(), want)) reflect(want);
+			const settled = await settle(await whenChatUp(), want);
+			// A first open that never shows is a failed load, and the next click is a first one again.
+			if (!settled && !ready) throw new Error('YourGPT window did not open');
+			if (settled) reflect(want);
 			if (!ready) report();
 			ready = true;
 			if (open) requestAnimationFrame(() => document.querySelector<HTMLElement>(`#${ROOT_ID} textarea`)?.focus());
 		} catch {
-			// Blocked or offline: the next click tries again.
+			// Blocked, offline, or booted nowhere: the next click tries again.
 			report('error');
 		} finally {
 			busy = false;

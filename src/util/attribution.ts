@@ -20,13 +20,19 @@ const USE_PAGE_VALUES_WITHOUT_CONSENT = false;
 // Read once at load: some pages rewrite their query string before a later Accept.
 const fromUrl = readUrl();
 
+// Only the five known tags, from the URL and from storage alike: a parameter name ends up in sign-up URLs.
+function pickUtm(source: (key: string) => unknown): Record<string, string> {
+	const utm: Record<string, string> = {};
+	UTM_KEYS.forEach((key) => {
+		const value = source(key);
+		if (typeof value === 'string' && value) utm[key] = value;
+	});
+	return utm;
+}
+
 function readUrl(): Attribution {
 	const params = new URLSearchParams(window.location.search);
-	const utm: Record<string, string> = {};
-	params.forEach((value, key) => {
-		if (key.startsWith('utm_') && value) utm[key] = value;
-	});
-	return { utm, fpr: params.get('fpr') || null };
+	return { utm: pickUtm((key) => params.get(key)), fpr: params.get('fpr') || null };
 }
 
 const EMPTY: Attribution = { utm: {}, fpr: null };
@@ -34,8 +40,8 @@ const hasMarketingConsent = () => window.tbConsent?.marketing === true;
 
 function readStored(): Attribution {
 	try {
-		const utm = JSON.parse(localStorage.getItem(UTM_STORAGE_KEY) ?? '{}') ?? {};
-		return { utm, fpr: localStorage.getItem(FPR_STORAGE_KEY) };
+		const stored = JSON.parse(localStorage.getItem(UTM_STORAGE_KEY) ?? '{}') ?? {};
+		return { utm: pickUtm((key) => stored[key]), fpr: localStorage.getItem(FPR_STORAGE_KEY) };
 	} catch {
 		return EMPTY;
 	}
@@ -68,9 +74,9 @@ function getAttribution(): Attribution {
 // `utm_*=…&fpr=…` for a sign-up URL, empty without attribution.
 export function attributionQuery(): string {
 	const { utm, fpr } = getAttribution();
-	const params = Object.keys(utm).map((key) => key + '=' + encodeURIComponent(utm[key]));
-	if (fpr) params.push('fpr=' + encodeURIComponent(fpr));
-	return params.join('&');
+	const params = new URLSearchParams(utm);
+	if (fpr) params.set('fpr', fpr);
+	return params.toString();
 }
 
 // Gated on consent, not on the cookie: returning visitors may carry a `_ga` set before the banner.

@@ -263,7 +263,9 @@ export function initTbPaygCalc() {
 		const attribution = attributionQuery();
 		if (attribution) ctaUrl += '&' + attribution;
 
-		footer.innerHTML = `<div class="calc-total-row"><span class="calc-total-label">Total</span><span class="calc-total-amount">${fmt(total)}/month${tip(totalParts.join(' + '))}</span></div><a class="calc-cta" href="${ctaUrl}" target="_blank" rel="noopener noreferrer">Get started</a>`;
+		footer.innerHTML = `<div class="calc-total-row"><span class="calc-total-label">Total</span><span class="calc-total-amount">${fmt(total)}/month${tip(totalParts.join(' + '))}</span></div><a class="calc-cta" target="_blank" rel="noopener noreferrer">Get started</a>`;
+		// Set as an attribute, never parsed as markup: the URL carries campaign tags from the visitor's own link.
+		footer.querySelector('.calc-cta')!.setAttribute('href', ctaUrl);
 
 		lastTotal = total; lastPlan = plan.name;
 		if (opts?.track !== false) sendSmGTM(total);

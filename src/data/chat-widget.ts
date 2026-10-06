@@ -17,6 +17,8 @@ const stops = AI_HUE_CYCLE.map(
  * window, which renders in the page's DOM. `animation: var(--chat-anim) var(--chat-cycle) linear infinite`.
  */
 export const CHAT_HUE_CSS = [
+	// `initial-value` takes no `var()` (the cycle's first colour is `var(--color-brand)`), so the brand blue,
+	// `$color-brand` in `styles/_variables.scss`, is written out.
 	`@property --chat-hue { syntax: '<color>'; inherits: true; initial-value: #3d50f5; }`,
 	`@keyframes chat-hues { ${stops.join(' ')} 100% { --chat-hue: var(--chat-hue-0); } }`,
 	`:root { ${AI_HUE_CYCLE.map((hue, i) => `--chat-hue-${i}: ${hue};`).join(' ')} --chat-anim: chat-hues; --chat-cycle: ${CHAT_HUE_LEG_S * AI_HUE_CYCLE.length}s; }`,
