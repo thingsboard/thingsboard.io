@@ -98,15 +98,16 @@ export const EDGE_BRANCH = 'release-4.3';
  * Hub publishes Edge PE tags with the `EDGEPE` suffix. For package filenames
  * on dist.thingsboard.io, use {@link EDGE_PE_PKG_VER}.
  */
-export const EDGE_PE_VER = '4.3.1.1EDGEPE';
+export const EDGE_PE_VER = '4.4.0EDGEPE';
 
 /**
- * Edge PE package filename version (dist.thingsboard.io) — {@link EDGE_PKG_VER}
- * plus the lowercase `pe` suffix. For `tb-edge-${EDGE_PE_PKG_VER}.deb` / `.rpm`,
+ * Edge PE package filename version (dist.thingsboard.io) — the Edge PE version with
+ * the GA `.0` dropped plus the lowercase `pe` suffix. For `tb-edge-${EDGE_PE_PKG_VER}.deb` / `.rpm`,
  * `tb-edge-windows-${EDGE_PE_PKG_VER}.zip`. NOT `EDGE_PE_VER.toLowerCase()` —
- * dist drops the `EDGE` prefix and shares the Community Edge version.
+ * dist drops the `EDGE` suffix. From 4.4 Edge PE is ahead of Community Edge (4.3.x),
+ * so this no longer derives from {@link EDGE_PKG_VER}.
  */
-export const EDGE_PE_PKG_VER = `${EDGE_PKG_VER}pe`;
+export const EDGE_PE_PKG_VER = `${artifactVersion(EDGE_PE_VER.replace('EDGEPE', ''))}pe`;
 
 /** Edge PE release branch (for git clone, X.Y.Z format) */
 export const EDGE_PE_BRANCH = 'release-4.3.0';
