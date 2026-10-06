@@ -187,3 +187,6 @@ export const AI_BADGE_CYCLE: readonly [string, string, string, string, string] =
 	rowColor('connect'),
 	rowColor('scale'),
 ];
+
+/** The AI mark's whole cycle, its own colour first: the homepage AI section and the chat launcher both run it. */
+export const AI_HUE_CYCLE: readonly string[] = [AI_COPY.badge.color, ...AI_BADGE_CYCLE];

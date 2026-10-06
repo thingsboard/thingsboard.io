@@ -11,5 +11,8 @@ out white and a drawing can ink it; the homepage visuals also import it raw for 
 brand SVGs and redrawn in `currentColor` so the database chips in `ScaleDuo` are all one kind
 of mark.
 
+`question-bold` is Ubuntu Bold's question mark, the site's own face, traced into a 24 box for the
+chat launcher, so the launcher does not wait on the webfont.
+
 The directory must exist even when empty — astro-icon aborts its whole setup step without it,
 including the icon type definitions it generates, and warns on every dev server start.
