@@ -5,7 +5,7 @@ import { Steps, Aside } from '@astrojs/starlight/components';
 ThingsBoard can run its relational database on <a href="https://www.citusdata.com/" target="_blank" rel="noopener noreferrer">Citus</a>, an open-source PostgreSQL extension that spreads tables across several PostgreSQL servers. With Citus, write capacity for device attributes and latest telemetry values grows by adding worker nodes instead of moving to a larger database server. This page explains how ThingsBoard places its data on a Citus cluster, how to install or convert a deployment, and how to size and operate the cluster.
 
 <Aside type="note">
-  Citus support is available in ThingsBoard 4.4 and in ThingsBoard Professional Edition 4.3.1.4 and later. ThingsBoard is tested with Citus 12.1.
+  Citus support is available in ThingsBoard 4.4 and in ThingsBoard Professional Edition 4.3.1.4 and later. ThingsBoard is tested with Citus 12.1, which supports PostgreSQL 14 to 16. For newer PostgreSQL major versions, use a Citus release that supports them, and check the <a href="https://docs.citusdata.com/" target="_blank" rel="noopener noreferrer">Citus documentation</a> for the compatible versions.
 </Aside>
 
 ## When to use Citus
@@ -45,7 +45,7 @@ Smart routing is on whenever `DATABASE_CITUS_ENABLED=true`. To use coordinator r
 
 With smart routing, each ThingsBoard node opens a connection pool to every worker. The pools use the same database name, username, and password as `SPRING_DATASOURCE_URL`. Worker addresses come from the coordinator's `pg_dist_node` catalog. At startup, ThingsBoard checks that every worker is reachable and fails to start if one is not.
 
-If the worker addresses registered in Citus are not reachable from ThingsBoard, like inside Docker networks or behind NAT, map them with `DATABASE_CITUS_SMART_ROUTING_WORKER_HOST_OVERRIDES` as comma-separated `nodename=host:port` pairs.
+Inside Docker networks or behind NAT, ThingsBoard may not reach the worker addresses registered in Citus. In that case, map them with `DATABASE_CITUS_SMART_ROUTING_WORKER_HOST_OVERRIDES` as comma-separated `nodename=host:port` pairs.
 
 ## Prepare the Citus cluster
 
@@ -53,9 +53,15 @@ Before you install ThingsBoard or convert an existing database, set up a Citus c
 
 <Steps>
 
-1. Deploy the coordinator and worker nodes with the Citus extension installed. The `citusdata/citus` Docker image includes it. For a package installation, follow the <a href="https://docs.citusdata.com/" target="_blank" rel="noopener noreferrer">Citus documentation</a>.
+1. Deploy the coordinator and worker nodes with the Citus extension installed. The `citusdata/citus` Docker image includes it and preloads it. For a package installation, install the Citus package that matches your PostgreSQL major version, add `citus` to `shared_preload_libraries` in `postgresql.conf`, and restart PostgreSQL. Without the preload, `CREATE EXTENSION citus` fails with `Citus can only be loaded via shared_preload_libraries`. See the <a href="https://docs.citusdata.com/" target="_blank" rel="noopener noreferrer">Citus documentation</a> for the packages.
 
-2. Create the `thingsboard` database on the coordinator and on every worker, with the same name and credentials on all nodes.
+2. Create the `thingsboard` database on the coordinator and on every worker, with the same name and credentials on all nodes, and enable the extension in it on every node:
+
+   ```sql
+   CREATE EXTENSION IF NOT EXISTS citus;
+   ```
+
+   With the `citusdata/citus` image, set `POSTGRES_DB=thingsboard` on every node instead. The image then creates the database and the extension on first start.
 
 3. Configure node-to-node authentication so the coordinator and workers can connect to each other. In the `citusdata/citus` image, set the `PGUSER` and `PGPASSWORD` environment variables on every node.
 
@@ -114,11 +120,23 @@ ThingsBoard converts an existing PostgreSQL database to Citus in place with a de
 
 2. Stop all ThingsBoard nodes and back up the database.
 
-3. Turn the existing PostgreSQL server into the Citus coordinator: install the Citus extension, add the workers, and register them as described in [Prepare the Citus cluster](#prepare-the-citus-cluster).
+3. Check for alarm index rows without an originator. After a rolling upgrade to 4.3.1.4, nodes that still ran an older version could insert `entity_alarm` rows with an empty `originator_id`, and the conversion refuses to run while any remain:
 
-4. Set `DATABASE_CITUS_ENABLED=true` and the other Citus parameters for the upgrade run and for every ThingsBoard node.
+   ```sql
+   SELECT count(*) FROM entity_alarm WHERE originator_id IS NULL;
+   ```
 
-5. Run the upgrade with `postgres-to-citus` as the source version. For a package installation:
+   If the count is not zero, fill them in from the `alarm` table:
+
+   ```sql
+   UPDATE entity_alarm ea SET originator_id = a.originator_id FROM alarm a WHERE a.id = ea.alarm_id AND ea.originator_id IS NULL;
+   ```
+
+4. Turn the existing PostgreSQL server into the Citus coordinator: install a Citus release that supports its PostgreSQL major version, add `citus` to `shared_preload_libraries` and restart PostgreSQL, then add the workers and register them as described in [Prepare the Citus cluster](#prepare-the-citus-cluster).
+
+5. Set `DATABASE_CITUS_ENABLED=true` and the other Citus parameters for the upgrade run and for every ThingsBoard node.
+
+6. Run the upgrade with `postgres-to-citus` as the source version. For a package installation:
 
    ```bash
    sudo /usr/share/thingsboard/bin/install/upgrade.sh --fromVersion=postgres-to-citus
@@ -126,7 +144,7 @@ ThingsBoard converts an existing PostgreSQL database to Citus in place with a de
 
    For Docker and Kubernetes deployments, pass the same `--fromVersion=postgres-to-citus` value to the upgrade script of your deployment. The log reports `PostgreSQL -> Citus conversion finished` when the conversion completes.
 
-6. Start the ThingsBoard nodes.
+7. Start the ThingsBoard nodes.
 
 </Steps>
 
@@ -145,9 +163,9 @@ The default `SPRING_DATASOURCE_MAXIMUM_POOL_SIZE` of `16` is too small for Citus
 | Pool | Parameter | Sizing guideline |
 |------|-----------|------------------|
 | Coordinator pool, per ThingsBoard node | `SPRING_DATASOURCE_MAXIMUM_POOL_SIZE` | `2 × shard_count` plus headroom for the rest of the application. Around `80` for `shard_count=32` |
-| Worker pool, per ThingsBoard node and worker | `DATABASE_CITUS_SMART_ROUTING_WORKER_POOL_SIZE` (default `8`) | At least `shard_count ÷ worker_count`, plus headroom for routed reads |
+| Worker pool, per ThingsBoard node and worker | `DATABASE_CITUS_SMART_ROUTING_WORKER_POOL_SIZE` (default `8`) | At least `2 × shard_count ÷ worker_count`, plus headroom for routed reads |
 
-With smart routing, attribute and latest-value traffic moves from the coordinator pool to the worker pools. A routed read or write that cannot get a worker connection within `DATABASE_CITUS_SMART_ROUTING_WORKER_CONNECTION_TIMEOUT_MS` fails without falling back to the coordinator. The default worker pool size of `8` suits `shard_count=32` with six or more workers. Increase it for fewer or more heavily loaded workers.
+With smart routing, attribute and latest-value traffic moves from the coordinator pool to the worker pools. Both write queues send their batches to the worker that owns the shard, so one ThingsBoard node can run up to `2 × shard_count ÷ worker_count` flushes against a worker at the same time. A routed read or write that cannot get a worker connection within `DATABASE_CITUS_SMART_ROUTING_WORKER_CONNECTION_TIMEOUT_MS` fails without falling back to the coordinator. With the default `shard_count=32`, the default worker pool size of `8` covers concurrent flushes only with eight or more workers. Increase it for fewer or more heavily loaded workers.
 
 Set `max_connections` on each worker to cover the worker pools of all ThingsBoard nodes: `worker_pool_size × number of ThingsBoard nodes`, plus the connections the coordinator opens to the worker. Watch the HikariCP pending-connection count under peak load and adjust the pool sizes.
 
@@ -165,7 +183,15 @@ You can run each worker as a primary with a standby, managed by a tool like Patr
 
 ### Backup and restore
 
-Back up the coordinator and every worker at the same point in time, and restore them together. A backup of the coordinator alone doesn't contain the distributed data.
+Back up the coordinator and every worker, and restore them together. A backup of the coordinator alone doesn't contain the distributed data.
+
+Independent dumps or disk snapshots of each node don't line up in time. To get a consistent cluster state, use point-in-time recovery (PITR) on every node and create a cluster-wide restore point on the coordinator:
+
+```sql
+SELECT citus_create_restore_point('before-upgrade');
+```
+
+Citus writes the named restore point on the coordinator and all workers. Restore every node to that same restore point.
 
 ## Behavior differences on Citus
 
