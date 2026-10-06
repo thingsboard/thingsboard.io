@@ -89,7 +89,7 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 					{
 						id: 'faq-widget-use-case-tags',
 						question: 'How do use-case tags work?',
-						answer: 'Each widget is tagged with shared IoT use cases, so browsing by one surfaces matching widgets, devices, and dashboards together. Tags include Air Quality, Environment Monitoring, Smart Building, Smart City, Smart Energy, Smart Metering, Tank Level Monitoring, Fleet Tracking, Industrial Automation, Predictive Maintenance, Smart Farming, Smart Retail, and Solar Monitoring — the full list is in the Use Case filter.',
+						answer: 'Each widget is tagged with shared IoT use cases, so browsing by one surfaces matching widgets and devices together. Tags include Air Quality, Environment Monitoring, Smart Building, Smart City, Smart Energy, Smart Metering, Tank Level Monitoring, Fleet Tracking, Industrial Automation, Predictive Maintenance, Smart Farming, Smart Retail, and Solar Monitoring — the full list is in the Use Case filter.',
 					},
 				],
 			},
@@ -182,7 +182,7 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 					{
 						id: 'faq-rc-use-case-tags',
 						question: 'How do use-case tags work?',
-						answer: 'Each rule chain is tagged with shared IoT use cases, so filtering by a use case surfaces matching chains, widgets, dashboards, and devices together. Popular use cases include Asset Tracking, Fleet Tracking, Industrial Automation, Predictive Maintenance, and Smart Farming; the full vocabulary is searchable in the Use Case filter.',
+						answer: 'Each rule chain is tagged with shared IoT use cases, so filtering by a use case surfaces matching chains, widgets, and devices together. Popular use cases include Asset Tracking, Fleet Tracking, Industrial Automation, Predictive Maintenance, and Smart Farming; the full vocabulary is searchable in the Use Case filter.',
 					},
 				],
 			},
@@ -239,7 +239,7 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 					{
 						id: 'faq-st-how-do-use-case-tags-work',
 						question: 'How do use-case tags work?',
-						answer: 'Each template is tagged with shared IoT use cases, so filtering by a use case surfaces matching solutions, widgets, dashboards, and devices together. Popular use cases include Air Quality Monitoring, Asset Tracking, Cold Chain, Environment Monitoring, Fleet Tracking, Health Care, Industrial Automation, and Smart Farming; the full vocabulary is searchable in the Use Case filter.',
+						answer: 'Each template is tagged with shared IoT use cases, so filtering by a use case surfaces matching solutions, widgets, and devices together. Popular use cases include Air Quality Monitoring, Asset Tracking, Cold Chain, Environment Monitoring, Fleet Tracking, Health Care, Industrial Automation, and Smart Farming; the full vocabulary is searchable in the Use Case filter.',
 					},
 				],
 			},
@@ -388,7 +388,7 @@ export const IOT_HUB_CATEGORY_SECTIONS: Record<string, IotHubCategorySections> =
 					{
 						id: 'how-use-case-tags-work',
 						question: 'How do use-case tags work?',
-						answer: 'Each calculated field is tagged with shared IoT use cases, so browsing by a use case surfaces matching fields, devices, dashboards, and widgets together. Popular use cases for calculated fields include Asset Tracking, Environment Monitoring, Fleet Tracking, Industrial Automation, Predictive Maintenance, Smart Building, and Smart City; the full marketplace vocabulary is searchable in the Use Case filter.',
+						answer: 'Each calculated field is tagged with shared IoT use cases, so browsing by a use case surfaces matching fields, devices, and widgets together. Popular use cases for calculated fields include Asset Tracking, Environment Monitoring, Fleet Tracking, Industrial Automation, Predictive Maintenance, Smart Building, and Smart City; the full marketplace vocabulary is searchable in the Use Case filter.',
 					},
 				],
 			},
