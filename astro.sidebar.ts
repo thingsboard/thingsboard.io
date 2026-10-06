@@ -1172,7 +1172,7 @@ const referenceItems = (prefix: string, extraConfigItems: SidebarConfig = []) =>
 				`${prefix}/architecture/actor-system`,
 				`${prefix}/architecture/caching`,
 				`${prefix}/architecture/database`,
-				...(prefix.startsWith('docs/pe') ? [`${prefix}/architecture/citus`] : []),
+				`${prefix}/architecture/citus`,
 				`${prefix}/architecture/deployment-scenarios`,
 				`${prefix}/architecture/performance`,
 			],
