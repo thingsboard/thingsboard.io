@@ -268,6 +268,8 @@ Use the `release` skill for the full checklist. Key files:
 - Prettier with `prettier-plugin-astro`, printWidth 120, single quotes, ES5 trailing commas (see `.prettierrc`)
 - ESLint flat config with TypeScript and Astro plugins
 - **No Figma references in comments.** Don't write "Figma", "Figma node 1234:5678", or any tool-specific node IDs in source comments — they're meaningless to anyone without access to the Figma file and rot fast. Refer to the visual spec as "the design" (or "per the design", "matches the design") and describe what's actually being implemented (sizes, colors, behaviors) so the comment stands on its own.
+- **`window` globals:** those set by `is:inline` or plain scripts and used site-wide (`dataLayer`, `gtag`, `tbConsent`, `tbCloudRegion`) are typed in `src/global.d.ts`. It stays ambient — no imports or exports; reference a module's type inline as `import('@util/…').Type`. A global only one component or module uses keeps a `declare global` next to its owner.
+- **Comments that would ship:** `<script is:inline>`, files inlined with `?raw` (e.g. `src/scripts/cloud-region.js`) and HTML `<!-- -->` comments reach the built HTML as written (`compressHTML: false`). Put the explanation in an Astro `{/* */}` comment or in the `.ts` that wraps the script; comments in bundled `<script>` and `.ts` are stripped.
 
 ## CI Checks
 
