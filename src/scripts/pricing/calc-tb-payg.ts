@@ -6,6 +6,8 @@
 
 import { makeModalController } from '@root/scripts/pricing/modal-controller';
 import { makeInteractionPusher, pushCalculatorOpen, bindCtaTracking, bindExportButtons, type CalculatorType } from '@root/scripts/pricing/calc-analytics';
+import { attributionQuery } from '@util/attribution';
+import { onConsentChange } from '@util/consent';
 
 declare function sliderProgress(slider: HTMLInputElement): void;
 declare function initAllSliders(root?: HTMLElement | Document): void;
@@ -258,10 +260,8 @@ export function initTbPaygCalc() {
 		let ctaUrl = `https://license.thingsboard.io/signup?createSubscription=true&productId=${plan.productId}&planId=${plan.planId}`;
 		const itemsStr = JSON.stringify(items);
 		if (itemsStr !== '{}') ctaUrl += '&items=' + encodeURIComponent(itemsStr);
-		const utmRaw = localStorage.getItem('utm');
-		if (utmRaw) { try { const u = JSON.parse(utmRaw); Object.keys(u).forEach(k => { ctaUrl += '&' + k + '=' + encodeURIComponent(u[k]); }); } catch { /* ignore malformed utm */ } }
-		const fpr = localStorage.getItem('fpr');
-		if (fpr) ctaUrl += '&fpr=' + encodeURIComponent(fpr);
+		const attribution = attributionQuery();
+		if (attribution) ctaUrl += '&' + attribution;
 
 		footer.innerHTML = `<div class="calc-total-row"><span class="calc-total-label">Total</span><span class="calc-total-amount">${fmt(total)}/month${tip(totalParts.join(' + '))}</span></div><a class="calc-cta" href="${ctaUrl}" target="_blank" rel="noopener noreferrer">Get started</a>`;
 
@@ -452,6 +452,8 @@ export function initTbPaygCalc() {
 	});
 
 	updateProgress(); calculate({ track: false });
+	// The CTA carries attribution, which a consent change adds or removes.
+	onConsentChange(() => calculate({ track: false }));
 	requestAnimationFrame(() => initAllSliders(modal));
 	openImpl = openModal;
 }
