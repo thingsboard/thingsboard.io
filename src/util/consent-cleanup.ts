@@ -1,8 +1,6 @@
 // Deletes the first-party cookies and storage of every consent category not granted (GDPR Art. 7(3)).
 // Third-party cookies (google.com `NID`, `.youtube.com`) belong to their own domains and cannot be deleted here.
 
-type ConsentCategory = Exclude<keyof TbConsent, 'v'>;
-
 interface CategoryStorage {
 	cookies: string[];
 	cookiePrefixes: string[];
@@ -10,7 +8,7 @@ interface CategoryStorage {
 }
 
 // Clarity, Meta and LinkedIn are not on the site now; their names are listed for when they return.
-const CATEGORY_STORAGE: Record<ConsentCategory, CategoryStorage> = {
+const CATEGORY_STORAGE: Record<TbConsentCategory, CategoryStorage> = {
 	analytics: {
 		// Google Analytics; Microsoft Clarity.
 		cookies: ['_ga', '_gid', '_gat', '_clck', '_clsk'],
@@ -49,7 +47,7 @@ function deleteCookie(name: string, domains: (string | null)[]): void {
 
 export function clearRefusedCategories(): void {
 	const consent = window.tbConsent;
-	const refused = (Object.keys(CATEGORY_STORAGE) as ConsentCategory[]).filter((c) => consent?.[c] !== true);
+	const refused = (Object.keys(CATEGORY_STORAGE) as TbConsentCategory[]).filter((c) => consent?.[c] !== true);
 	if (refused.length === 0) return;
 
 	const present = document.cookie

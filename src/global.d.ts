@@ -22,11 +22,24 @@ interface TbCloudRegion {
 	nearest(): CloudRegionId;
 }
 
+// Global Privacy Control, sent by Brave and Firefox; not in TypeScript's DOM types yet.
+interface Navigator {
+	readonly globalPrivacyControl?: boolean;
+}
+
 // An absent field reads as denied. Analytics and Marketing are absent until the cookie banner is answered, and
-// External media in choices saved before that category existed.
-interface TbConsent {
+// External media in choices saved before that category existed. `ts` is when the choice was saved (epoch seconds),
+// `gpc` that Global Privacy Control held Marketing off; older choices lack both.
+interface TbConsent extends TbConsentChoices {
 	v: number;
+	ts?: number;
+	gpc?: boolean;
+}
+
+interface TbConsentChoices {
 	analytics?: boolean;
 	marketing?: boolean;
 	media?: boolean;
 }
+
+type TbConsentCategory = keyof TbConsentChoices;

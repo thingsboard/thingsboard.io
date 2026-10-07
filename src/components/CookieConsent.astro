@@ -3,6 +3,7 @@
 // `GtmHead.astro` parses the stored choice into `window.tbConsent` before GTM loads: keep `CONSENT_COOKIE` /
 // `CONSENT_VERSION` in step with it.
 import NButton from '@components/Landing/NButton.astro';
+import { GPC_MARKETING_NOTE, PRIVACY_CHOICES_LABEL } from '@data/privacy';
 
 const categories = [
 	{
@@ -31,7 +32,7 @@ const categories = [
 		</p>
 		<p id="cm-desc" class="cm__desc">
 			We use cookies to understand how our site is used and to improve it. We never sell your data. You can change your
-			choice anytime in Cookie settings. <a href="/cookie-policy/">Cookie Policy</a>
+			choice anytime in {PRIVACY_CHOICES_LABEL} at the bottom of every page. <a href="/cookie-policy/">Cookie Policy</a>
 		</p>
 		<div class="cm__btns">
 			<NButton data-cc="accept-all">Accept all</NButton>
@@ -78,6 +79,11 @@ const categories = [
 						<input type="checkbox" role="switch" class="pm__switch" data-category={c.id} />
 					</label>
 					<p class="pm__section-desc">{c.description}</p>
+					{c.id === 'marketing' && (
+						<p id="pm-gpc-note" class="pm__section-desc" hidden>
+							{GPC_MARKETING_NOTE}
+						</p>
+					)}
 				</div>
 			))}
 		</div>
@@ -110,8 +116,26 @@ const categories = [
 	const dialog = root.querySelector<HTMLDialogElement>('.pm')!;
 	const switches = [...dialog.querySelectorAll<HTMLInputElement>('input[data-category]')];
 
+	// Global Privacy Control is an opt-out of Marketing (CCPA regs §7025), whatever is chosen; GtmHead.astro checks it too.
+	const gpc = navigator.globalPrivacyControl === true;
+	if (gpc) {
+		const marketingSwitch = switches.find((s) => s.dataset.category === 'marketing')!;
+		const note = dialog.querySelector<HTMLElement>('#pm-gpc-note')!;
+		marketingSwitch.disabled = true;
+		marketingSwitch.setAttribute('aria-describedby', note.id);
+		note.hidden = false;
+	}
+
 	function saveConsent(analytics: boolean | undefined, marketing: boolean | undefined, media: boolean) {
-		const consent: TbConsent = { v: CONSENT_VERSION, analytics, marketing, media };
+		if (gpc) marketing = false;
+		const consent: TbConsent = {
+			v: CONSENT_VERSION,
+			ts: Math.floor(Date.now() / 1000),
+			...(gpc && { gpc: true }),
+			analytics,
+			marketing,
+			media,
+		};
 		window.tbConsent = consent;
 		syncAttributionStorage();
 		clearRefusedCategories();
@@ -136,7 +160,7 @@ const categories = [
 
 	function showPreferences() {
 		const consent = window.tbConsent;
-		switches.forEach((s) => (s.checked = consent?.[s.dataset.category as Exclude<keyof TbConsent, 'v'>] ?? false));
+		switches.forEach((s) => (s.checked = consent?.[s.dataset.category as TbConsentCategory] ?? false));
 		dialog.showModal();
 		lockScroll();
 	}
@@ -151,7 +175,7 @@ const categories = [
 		'show-preferences': showPreferences,
 	};
 
-	// Delegated on the document so footer "Cookie settings" buttons reach the dialog too.
+	// Delegated on the document so the footer and in-page buttons reach the dialog too.
 	document.addEventListener('click', (e) => {
 		const trigger = (e.target as Element).closest<HTMLElement>('[data-cc]');
 		const action = trigger && actions[trigger.dataset.cc!];
@@ -178,7 +202,7 @@ const categories = [
 <style lang="scss" is:global>
 	@use '../styles/variables' as *;
 
-	// Link-styled "Cookie settings" trigger used in the footers and the Cookie Policy page.
+	// Link-styled dialog trigger used in the footers and in-page notices.
 	.cookie-settings {
 		padding: 0;
 		font: inherit;
