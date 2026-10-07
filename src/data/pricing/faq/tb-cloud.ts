@@ -26,14 +26,19 @@ export const tbCloudFaq: FaqCategory[] = [
 				answer: '<p>Yes, each plan includes specific API and rate limits. If needed, you can extend these limits by purchasing additional API call packs. Detailed limits for each plan are available on the <a class="pricing-paas-link" data-paas-path="/reference/subscriptions/" target="_blank" href="/docs/paas/reference/subscriptions/" rel="noopener noreferrer">subscription plans</a> page.</p>',
 			},
 			{
-				id: 'tb-cloud-free-trial',
-				question: 'Do you offer a free trial?',
-				answer: '<p>Yes, we offer a free 30-day trial to let you explore ThingsBoard Cloud before committing to a paid plan.</p>',
+				id: 'tb-cloud-free-plan',
+				question: 'Do you offer a Free plan?',
+				answer: '<p>Yes. ThingsBoard Cloud has a Free plan with no time limit—build, test, and run your solution for free, and move to a paid plan only when you need more capacity.</p>',
 			},
 			{
-				id: 'tb-cloud-what-included-in-free-trial',
-				question: 'What is included in the free trial?',
-				answer: '<p>The free trial includes access to all core features and Trendz Analytics tool with limited usage of devices, messages, and storage.</p>',
+				id: 'tb-cloud-what-included-in-free-plan',
+				question: 'What is included in the Free plan?',
+				answer: '<p>Up to 5 devices and 5 assets, and 1 million data points per month, with access to all core platform features and Community support. No credit card is required, and the plan never expires.</p>',
+			},
+			{
+				id: 'tb-cloud-free-plan-start',
+				question: 'How do I start on the Free plan?',
+				answer: '<p>Sign up for free—no credit card required (<a target="_blank" href="https://thingsboard.cloud/signup" rel="noopener noreferrer">North America</a> or <a target="_blank" href="https://eu.thingsboard.cloud/signup" rel="noopener noreferrer">EU</a>).</p>',
 			},
 			{
 				id: 'tb-cloud-upgrade-downgrade-plan',
@@ -282,23 +287,8 @@ export const tbCloudFaq: FaqCategory[] = [
 	},
 	{
 		id: 'trialsCancellationsAndRefunds',
-		label: 'Trials, Cancellations & Refunds',
+		label: 'Cancellations & Refunds',
 		items: [
-			{
-				id: 'tb-cloud-free-trial-start',
-				question: 'How do I start a free trial?',
-				answer: '<p>Simply sign up on our website—no credit card required (<a target="_blank" href="https://thingsboard.cloud/signup" rel="noopener noreferrer">North America</a> or <a target="_blank" href="https://eu.thingsboard.cloud/signup" rel="noopener noreferrer">EU</a>).</p>',
-			},
-			{
-				id: 'tb-cloud-free-trial-end',
-				question: 'What happens when my free trial ends?',
-				answer: '<p>Once your free trial ends, you will need to add billing details so the system can automatically charge you for the new monthly renewal period after the initial free month expires.</p>',
-			},
-			{
-				id: 'tb-cloud-trial-to-paid',
-				question: 'Can I switch from a free trial to a paid plan without losing my data?',
-				answer: '<p>Yes, all your data and configurations remain intact when upgrading.</p>',
-			},
 			{
 				id: 'tb-cloud-subscription-cancel',
 				question: 'How to cancel my subscription?',
