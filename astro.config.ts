@@ -13,7 +13,6 @@ import { satteriTasklistEnhancer } from './config/plugins/satteri-tasklist-enhan
 import { PROD_ORIGIN } from './src/consts';
 
 import icon from 'astro-icon';
-import svgo from 'vite-plugin-svgo';
 import { fileURLToPath } from 'node:url';
 
 /* Cloudflare Pages: https://developers.cloudflare.com/pages/configuration/build-configuration/#environment-variables */
@@ -104,21 +103,6 @@ export default defineConfig({
 					return fileURLToPath(new URL('./src/components/starlight/Icon.astro', import.meta.url));
 				},
 			},
-			svgo({
-				plugins: [
-					{
-						name: 'preset-default',
-						params: {
-							overrides: {
-								removeViewBox: false, // preserve aspect-ratio
-								cleanupIds: false, // preserve animation hooks
-							},
-						},
-					},
-					'removeXMLNS',
-					'prefixIds', // avoid ID collisions between SVGs
-				],
-			}),
 		],
 	},
 	integrations: [
