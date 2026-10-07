@@ -13,7 +13,7 @@ export const tbCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-cloud-pricing-plans',
 				question: 'What pricing plans does ThingsBoard Cloud offer?',
-				answer: '<p>ThingsBoard Cloud offers flexible monthly subscription plans, with tiers based on the number of devices and the volume of messages they generate. We support 5 predefined plans to cater to different needs. The beginner plan includes up to 5 devices and 10 million data points. For more details, visit the ThingsBoard Cloud <a target="_blank" href="/pricing/?product=thingsboard-cloud" rel="noopener noreferrer">pricing</a> page.</p>',
+				answer: '<p>ThingsBoard Cloud offers flexible monthly subscription plans, with tiers based on the number of devices and the volume of messages they generate. We support 5 predefined plans to cater to different needs. The Free plan includes up to 5 devices, 5 assets, and 1 million data points per month. For more details, visit the ThingsBoard Cloud <a target="_blank" href="/pricing/?product=thingsboard-cloud" rel="noopener noreferrer">pricing</a> page.</p>',
 			},
 			{
 				id: 'tb-cloud-pricing-structure',
@@ -33,11 +33,11 @@ export const tbCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-cloud-what-included-in-free-plan',
 				question: 'What is included in the Free plan?',
-				answer: '<p>Up to 5 devices and 5 assets, and 1 million data points per month, with access to all core platform features and Community support. No credit card is required, and the plan never expires.</p>',
+				answer: '<p>Up to 5 devices, 5 assets, and 1 million data points per month, with access to all core platform features, Trendz Analytics, and Community support. No credit card is required, and the plan never expires.</p>',
 			},
 			{
 				id: 'tb-cloud-free-plan-start',
-				question: 'How do I start on the Free plan?',
+				question: 'How do I get started with the Free plan?',
 				answer: '<p>Sign up for free—no credit card required (<a target="_blank" href="https://thingsboard.cloud/signup" rel="noopener noreferrer">North America</a> or <a target="_blank" href="https://eu.thingsboard.cloud/signup" rel="noopener noreferrer">EU</a>).</p>',
 			},
 			{

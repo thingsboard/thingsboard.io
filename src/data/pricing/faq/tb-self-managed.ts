@@ -33,7 +33,7 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'pe-pay-as-you-go-try-license',
 				question: 'Can I try an on-premises license before subscribing?',
-				answer: '<p>Yes, the Free plan is the best way to explore the platform. It also includes trial license for Edge and Trendz products, so you can fully test the ThingsBoard ecosystem.</p>',
+				answer: '<p>Yes, the Free plan is the best way to explore the platform. It also includes trial licenses for Edge and Trendz products, so you can fully test the ThingsBoard ecosystem.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-self-managed-differences',
