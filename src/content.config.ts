@@ -233,7 +233,6 @@ export const collections = {
 				'starlight.title': z.string().default('Wanna build docs?'),
 				'starlight.description': z.string().default('Grab our Starlight template to get started.'),
 				'upgrade.implementationPR': z.string().default('Implementation PR: '),
-				'leftSidebar.sponsoredBy': z.string().default('Sponsored by'),
 				'recipesLink.singular': z.string().default('Related recipe:'),
 				'recipesLink.plural': z.string().default('Related recipes:'),
 			}),
