@@ -22,7 +22,7 @@ import { DOCS_SUFFIX, formatDocsTitle, TITLE_SEPARATOR } from '~/consts';
 import { getOgImageUrl } from '~/util/getOgImageUrl';
 import { getTutorialPages } from '~/util/getTutorialPages';
 import { isAnnouncementExpired, type Announcement } from '@models/announcement';
-import { docsAnnouncements } from '@data/docsAnnouncements';
+import { docsAnnouncements, docsPathAnnouncement } from '@data/docsAnnouncements';
 // No alias covers `config/`; relative import is the only option here.
 import {
 	getRepoRoot,
@@ -98,6 +98,13 @@ function injectAnnouncement(starlightRoute: StarlightRouteData, pathname: string
 	// a date the build has not already resolved.
 	if (data.announcement) {
 		if (isAnnouncementExpired(data.announcement, BUILD_NOW)) delete data.announcement;
+		return;
+	}
+
+	// Path-scoped announcements (e.g. Remote Agent on Edge installation pages) win over per-product ones.
+	const pathAnnouncement = docsPathAnnouncement(starlightRoute.id);
+	if (pathAnnouncement) {
+		data.announcement = structuredClone(pathAnnouncement);
 		return;
 	}
 
