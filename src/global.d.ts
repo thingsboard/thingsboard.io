@@ -22,9 +22,11 @@ interface TbCloudRegion {
 	nearest(): CloudRegionId;
 }
 
+// An absent field reads as denied. Analytics and Marketing are absent until the cookie banner is answered, and
+// External media in choices saved before that category existed.
 interface TbConsent {
 	v: number;
-	analytics: boolean;
-	marketing: boolean;
+	analytics?: boolean;
+	marketing?: boolean;
 	media?: boolean;
 }
