@@ -7,10 +7,10 @@ import { Products } from '~/models/site.models';
 import Tabs from '@components/Tabs.astro';
 import TabItem from '@components/TabItem.astro';
 
-<a href="https://www.chirpstack.io/" target="_blank" rel="noopener noreferrer">ChirpStack</a> is an open-source LoRaWAN Network Server. After integrating it with **ThingsBoard Edge**, device data is processed and visualized locally at the edge — enabling low-latency insights and offline operation.
+<a href="https://www.chirpstack.io/" target="_blank" rel="noopener noreferrer">ChirpStack</a> is an open-source LoRaWAN network server. **ChirpStack Integration** receives the uplink messages ChirpStack forwards over HTTP, decodes them on the Edge, and lets you process and visualize LoRaWAN device data locally, with low latency and without a permanent connection to the server.
 
 <Aside type="note">
-  The Edge ChirpStack Integration works the same way as the standard ChirpStack Integration. The only difference is how it is created and deployed. Before proceeding, review the <DocLink product={Products.PE} path="user-guide/integrations/chirpstack" target="_blank">ChirpStack Integration</DocLink> documentation.
+  The Edge ChirpStack integration works the same way as the ChirpStack integration on the ThingsBoard server. Only the way it is created and deployed differs. For the full list of settings, see <DocLink product={Products.PE} path="user-guide/integrations/chirpstack" target="_blank">ChirpStack Integration</DocLink>.
 </Aside>
 
 <ImageGallery images={[
@@ -22,275 +22,159 @@ import TabItem from '@components/TabItem.astro';
 
 ## Prerequisites
 
-- ThingsBoard Edge Professional Edition, up and running.
-- ChirpStack Network Server installed via <a href="https://www.chirpstack.io/project/guides/docker-compose/" target="_blank" rel="noopener noreferrer">Docker Compose</a> or <a href="https://www.chirpstack.io/project/guides/debian-ubuntu/" target="_blank" rel="noopener noreferrer">Ubuntu</a>.
+- A ThingsBoard server with tenant administrator access. The templates are created there.
+- A ThingsBoard Edge PE instance connected to the server.
+- A ChirpStack network server, installed with <a href="https://www.chirpstack.io/project/guides/docker-compose/" target="_blank" rel="noopener noreferrer">Docker Compose</a> or on <a href="https://www.chirpstack.io/project/guides/debian-ubuntu/" target="_blank" rel="noopener noreferrer">Debian/Ubuntu</a>, that can reach the Edge over HTTP.
 - A LoRaWAN device connected to ChirpStack. See <a href="https://www.chirpstack.io/project/guides/connect-device/" target="_blank" rel="noopener noreferrer">Connect a device</a> in the ChirpStack docs.
 
-## Create converter and integration templates
+## Create converter template
 
-Integration templates are created on the **Cloud** (ThingsBoard PE server) — log in as Tenant administrator.
-
-### Basic settings
+The uplink converter decodes the ChirpStack payload into ThingsBoard telemetry and attributes. It is created on the server.
 
 <Steps>
 
-1. Go to **Edge management > Integration templates** and click **Add**. Select **ChirpStack** as the type and enter an integration name.
+1. On the server, go to **Edge management > Templates** and open the **Converter** tab. Click **Add data converter** and select **Create new converter**.
 
-2. Click **Next**.
+2. Set **Converter type** to **Uplink**, select **ChirpStack** as the **Integration type**, and enter the name `ChirpStack uplink converter`.
 
-</Steps>
+3. Decide how to get the decoder:
 
-<ImageGallery images={[
-  {
-    src: '/src/assets/images/docs/edge/user-guide/integrations/chirpstack/add-integration-1.webp',
-    alt: 'Select ChirpStack as integration type',
-    caption: 'Step 1: Select ChirpStack as the integration type.',
-  },
-  {
-    src: '/src/assets/images/docs/edge/user-guide/integrations/chirpstack/add-integration-2.webp',
-    alt: 'Enter integration name and click Next',
-    caption: 'Step 1: Enter the integration name and click Next.',
-  },
-]} />
+   - **Create new**: write or paste your own decoder (next steps).
+   - **Library**: select a **Vendor** and a device **Model**. ThingsBoard fills in a ready-made decoder for that device.
 
-<Aside type="note">
-  Debug mode is useful for development and troubleshooting. Starting from version 3.9, ThingsBoard stores debug events for integrations only during the first 15 minutes after enabling debug mode. After that, only failure events are retained.
-</Aside>
+4. In **Main decoding configuration**, keep **Entity type** at **Device** and set **Device name**, for example `Chirp Device $eui`. The `$eui` placeholder is replaced by the device EUI from the ChirpStack payload, so the test device in this guide becomes `Chirp Device 24e124538b223213`.
 
-### Uplink data converter
-
-The uplink converter decodes incoming ChirpStack payloads into ThingsBoard telemetry and attributes.
-
-<Steps>
-
-1. Select the **Create new** tab. Enter a converter name.
-
-2. In the **Main decoding configuration** block, select the **Entity type** (Device or Asset) and enter the entity name.
-
-   <Aside type="note">
-     `$eui` is a placeholder automatically replaced by the device's unique identifier from the ChirpStack payload. For example, an entity named `Chirp Device $eui` becomes `Chirp Device 70B3D57ED003B6F5`.
-   </Aside>
-
-3. Paste the decoder script into the **function payloadDecoder** field. For Edge version 3.9 and older:
+5. Select **TBEL** or **JS** and paste the decoder script into the `function payloadDecoder(payload, metadata)` editor. `payload` is the raw LoRaWAN payload (the base64-decoded `data` field) as a byte array. `metadata` holds the other ChirpStack fields, such as `eui`, `deviceName`, `rssi`, `snr`, and `ts` (the message time in milliseconds). The example decodes a payload with battery, PIR, and daylight channels.
 
    <Tabs>
-     <TabItem label="TBEL (Recommended)">
+     <TabItem label="TBEL (recommended)">
        ```js maxLines=10 collapsible
-       var data = decodeToJson(payload);
-       var deviceName = data.deviceInfo.deviceName;
-       var deviceType = data.deviceInfo.deviceProfileName;
-       var groupName = 'IAQ devices';
+       // payload  - raw LoRaWAN payload as bytes (the base64-decoded "data" field)
+       // metadata - the other ChirpStack fields, for example eui, deviceName, rssi, snr, ts
 
        function decodePayload(input) {
-         var output = { attributes:{}, telemetry: {} };
+           var result = { attributes: {}, telemetry: {} };
+           var values = { HEX_bytes: bytesToHex(input) };
 
-         output.telemetry.HEX_bytes = bytesToHex(input);
-
-         if (input.length > 0) {
-           for (var i = 0; i < input.length; ) {
-             var channel_id = input[i++];
-             if (i < input.length) {
-               var channel_type = input[i++];
-               if (channel_id === 0x01 && channel_type === 0x75) {
-                 output.telemetry.battery = input[i];
-                 i += 1;
-               } else if (channel_id === 0x03 && channel_type === 0x00) {
-                 output.telemetry.pir = input[i] === 0 ? "normal" : "trigger";
-                 i += 1;
-               } else if (channel_id === 0x04 && channel_type === 0x00) {
-                 output.telemetry.daylight = input[i] === 0 ? "dark" : "light";
-                 i += 1;
+           var i = 0;
+           while (i + 1 < input.length) {
+               var channelId = input[i++];
+               var channelType = input[i++];
+               if (channelId == 0x01 && channelType == 0x75) {
+                   values.battery = input[i++];
+               } else if (channelId == 0x03 && channelType == 0x00) {
+                   values.pir = input[i++] == 0 ? "normal" : "trigger";
+               } else if (channelId == 0x04 && channelType == 0x00) {
+                   values.daylight = input[i++] == 0 ? "dark" : "light";
+               } else {
+                   break;
                }
-             }
            }
-         }
-         return output;
+
+           result.telemetry = { ts: metadata.ts, values: values };
+           return result;
        }
 
-       var telemetry = {};
-       var attributes = {};
-
-       var dateString = data.time;
-       var timestamp = -1;
-       if (dateString != null) {
-         timestamp = new Date(dateString).getTime();
-         if (timestamp == -1) {
-           var secondsSeparatorIndex = dateString.lastIndexOf('.') + 1;
-           var millisecondsEndIndex = dateString.lastIndexOf('+');
-           if (millisecondsEndIndex == -1) { millisecondsEndIndex = dateString.lastIndexOf('Z'); }
-           if (millisecondsEndIndex == -1) { millisecondsEndIndex = dateString.lastIndexOf('-'); }
-           if (millisecondsEndIndex == -1) {
-             if (dateString.length >= secondsSeparatorIndex + 3) {
-               dateString = dateString.substring(0, secondsSeparatorIndex + 3);
-             }
-           } else {
-             dateString = dateString.substring(0, secondsSeparatorIndex + 3) +
-               dateString.substring(millisecondsEndIndex, dateString.length);
-           }
-           timestamp = new Date(dateString).getTime();
-         }
-       }
-       if (timestamp == -1) { timestamp = Date.now(); }
-
-       attributes.deduplicationId = data.deduplicationId;
-
-       var excludeFromAttributesList = ["deviceName", "rxInfo", "confirmed", "data",
-         "deduplicationId", "time", "adr", "dr", "fCnt"];
-       var excludeFromTelemetryList = ["data", "deviceInfo", "txInfo", "devAddr",
-         "adr", "time", "fPort", "region_common_name", "region_config_id", "deduplicationId"];
-
-       var telemetryData = toFlatMap(data, excludeFromTelemetryList, false);
-       var attributesData = toFlatMap(data, excludeFromAttributesList, false);
-
-       var customDecoding = decodePayload(base64ToBytes(data.data));
-
-       if (customDecoding.?telemetry.size() > 0) { telemetry.putAll(customDecoding.telemetry); }
-       if (customDecoding.?attributes.size() > 0) { attributes.putAll(customDecoding.attributes); }
-
-       telemetry.putAll(telemetryData);
-       attributes.putAll(attributesData);
-
-       var result = {
-         deviceName: deviceName,
-         deviceType: deviceType,
-         groupName: groupName,
-         attributes: attributes,
-         telemetry: { ts: timestamp, values: telemetry }
-       };
-
+       var result = decodePayload(payload);
        return result;
        ```
      </TabItem>
      <TabItem label="JavaScript">
        ```js maxLines=10 collapsible
-       var payloadStr = decodeToString(payload);
+       // payload  - raw LoRaWAN payload as bytes (the base64-decoded "data" field)
+       // metadata - the other ChirpStack fields, for example eui, deviceName, rssi, snr, ts
 
-       var deviceName = 'Device A';
-       var deviceType = 'thermostat';
-       var groupName = 'thermostat devices';
+       function decodePayload(input) {
+           var result = { attributes: {}, telemetry: {} };
+           var values = { HEX_bytes: bytesToHex(input) };
 
-       var result = {
-         deviceName: deviceName,
-         deviceType: deviceType,
-         groupName: groupName,
-         attributes: {
-           model: 'Model A',
-           serialNumber: 'SN111',
-           integrationName: metadata['integrationName']
-         },
-         telemetry: {
-           temperature: 42,
-           humidity: 80,
-           rawData: payloadStr
-         }
-       };
+           var i = 0;
+           while (i + 1 < input.length) {
+               var channelId = input[i++];
+               var channelType = input[i++];
+               if (channelId == 0x01 && channelType == 0x75) {
+                   values.battery = input[i++];
+               } else if (channelId == 0x03 && channelType == 0x00) {
+                   values.pir = input[i++] == 0 ? "normal" : "trigger";
+               } else if (channelId == 0x04 && channelType == 0x00) {
+                   values.daylight = input[i++] == 0 ? "dark" : "light";
+               } else {
+                   break;
+               }
+           }
 
-       function decodeToString(payload) {
-         return String.fromCharCode.apply(String, payload);
+           result.telemetry = { ts: metadata.ts, values: values };
+           return result;
        }
 
-       function decodeToJson(payload) {
-         var str = decodeToString(payload);
-         return JSON.parse(str);
+       function bytesToHex(bytes) {
+           var hex = '';
+           for (var j = 0; j < bytes.length; j++) {
+               hex += ('0' + (bytes[j] & 0xFF).toString(16)).slice(-2);
+           }
+           return hex;
        }
 
+       var result = decodePayload(payload);
        return result;
        ```
      </TabItem>
    </Tabs>
 
-4. Starting with **Edge version 4.0**, you can alternatively select the **Library** tab, choose a **Vendor**, and select the appropriate device **Model** from the drop-down menus — or use the default script provided in the converter.
+6. Optionally expand **Advanced decoding parameters**. **Device profile name**, **Device label**, **Customer name**, and **Device group name** accept the same `$`-placeholders as the device name. The **Telemetry** and **Attributes** lists choose which keys of the ChirpStack payload are saved. **Update only keys list** saves a key only when its value changed.
 
-5. In the **Advanced decoding parameters** block, optionally configure **Device profile**, **Device label**, **Customer name**, and **Device group name** (all support `$`-pattern placeholders). Set **Attributes** and **Telemetry** keys, and configure **Update only keys list** to save values only when they change.
-
-6. Click **Next**.
+7. Click **Add**.
 
 </Steps>
 
-<ImageGallery images={[
-  {
-    src: '/src/assets/images/docs/edge/user-guide/integrations/chirpstack/add-integration-4.webp',
-    alt: 'Uplink converter with decoder script',
-    caption: 'Step 3: Paste the decoder script into the function payloadDecoder field.',
-  },
-  {
-    src: '/src/assets/images/docs/edge/user-guide/integrations/chirpstack/add-integration-3.webp',
-    alt: 'Library tab — select vendor and model',
-    caption: 'Step 4: Select the Library tab and choose the vendor and model.',
-  },
-  {
-    src: '/src/assets/images/docs/edge/user-guide/integrations/chirpstack/add-integration-3.2.webp',
-    alt: 'Library tab with model selected',
-    caption: 'Step 4: The decoder script is populated automatically when a model is selected.',
-  },
-  {
-    src: '/src/assets/images/docs/edge/user-guide/integrations/chirpstack/add-integration-3.1.webp',
-    alt: 'Advanced decoding parameters',
-    caption: 'Step 5: Configure advanced decoding parameters as needed.',
-  },
-]} />
+<Aside type="note">
+  To see every processed message on the **Events** tab while you test, click the debug button in the dialog (it shows **Failures** by default) and select **All messages (15 min)**.
+</Aside>
 
-### Downlink data converter (optional)
-
-Configuring a downlink converter is optional. To skip it, select the **Skip** tab and click **Skip**.
-
-<ImageGallery images={[
-  {
-    src: '/src/assets/images/docs/edge/user-guide/integrations/chirpstack/add-integration-5.webp',
-    alt: 'Skip downlink converter',
-    caption: 'Select Skip if you do not need a downlink converter.',
-  },
-]} />
-
-### Connection
-
-Before configuring the connection in ThingsBoard, create an **Application server API Token** in the ChirpStack UI.
+## Create integration template
 
 <Steps>
 
-1. Open the ChirpStack UI at `http://chirpstack-server-ip:8080` and log in. Default credentials: username `admin`, password `admin`.
+1. On the server, go to **Edge management > Templates**, open the **Integration** tab, and click **Add integration**.
 
-2. Go to **Tenant > API Keys** and click **Add API Key**. Enter a name and click **Submit**. Copy the generated API key.
+2. On the **Basic settings** step, select **ChirpStack** as the **Integration type**. Keep the name `ChirpStack integration` or enter your own. Click **Next**.
 
-3. Back in ThingsBoard, fill in the **Connection** block:
+3. On the **Uplink data converter** step, select **Select existing**, choose `ChirpStack uplink converter`, and click **Next**.
+
+4. On the **Downlink data converter** step, keep **Skip** selected and click **Skip**. This guide does not send downlinks.
+
+5. On the **Connection** step, fill in the fields:
 
    | Field | Value |
    |---|---|
-   | **Base URL** | URL of your ThingsBoard Edge: `http://edge-ip:edge-port` |
-   | **HTTP endpoint URL** | Copy this value — you will need it when configuring the [ChirpStack application](#configure-the-chirpstack-application) |
-   | **Application server URL** | ChirpStack REST API address: `http://chirpstack-server-ip:8090` |
-   | **Application server API Token** | Paste the API token from ChirpStack |
+   | **Base URL** | The URL of the Edge, for example `http://10.7.3.0:8080`. The default is the server URL, so replace it. |
+   | **HTTP endpoint URL** | Built from the Base URL. Copy it; ChirpStack posts the uplinks to this URL. |
+   | **Use API for ChirpStack 4+** | Keep enabled for ChirpStack v4. |
+   | **Allow downlink** | Keep disabled. Enable it only if you want to send downlinks; it unlocks **Application server URL** (the ChirpStack REST API, for example `http://chirpstack-server-ip:8090`) and **Application server API Token** (an API key from **Tenant > API Keys** in the ChirpStack UI). |
 
-4. Click **Add**.
+6. Click **Add**.
 
 </Steps>
 
-<ImageGallery images={[
-  {
-    src: '/src/assets/images/docs/edge/user-guide/integrations/chirpstack/chirpstack-api-1.webp',
-    alt: 'ChirpStack UI — Tenant API Keys section',
-    caption: 'Step 2: Go to Tenant > API Keys and click Add API Key.',
-  },
-  {
-    src: '/src/assets/images/docs/edge/user-guide/integrations/chirpstack/chirpstack-api-2.webp',
-    alt: 'Enter API key name and submit',
-    caption: 'Step 2: Enter a name and click Submit.',
-  },
-  {
-    src: '/src/assets/images/docs/edge/user-guide/integrations/chirpstack/chirpstack-api-3.webp',
-    alt: 'Copy the generated API key',
-    caption: 'Step 2: Copy the generated API key before closing this dialog.',
-  },
-  {
-    src: '/src/assets/images/docs/edge/user-guide/integrations/chirpstack/add-integration-6.webp',
-    alt: 'Connection configuration block',
-    caption: 'Step 4: Fill in the Connection block and click Add.',
-  },
-]} />
+<Aside type="note">
+  If the Edges use different addresses, set **Base URL** to a placeholder such as `${{baseUrl}}` and add a `baseUrl` server attribute to each Edge. See <DocLink product={props.product} path="user-guide/integrations/overview#configuration-placeholders">Configuration placeholders</DocLink>. The debug button on the **Basic settings** step is set to **15 min** by default, so the **Events** tab shows all messages for the first 15 minutes; after that, only failures are stored.
+</Aside>
+
+## Assign the integration to the Edge
+
+<Steps>
+
+1. On the server, go to **Edge management > Edges** and click the Edge. On the **Details** tab, click **Manage integrations**.
+
+2. Click **Assign to edge** (+), select `ChirpStack integration`, and click **Assign**.
+
+3. Log in to the Edge and go to **Integrations > Integrations**. The ChirpStack integration is listed there. Open it to copy the **HTTP endpoint URL** if you have not done so yet.
+
+</Steps>
 
 ## Configure the ChirpStack application
 
-Log in to the ChirpStack UI at `http://chirpstack-server-ip:8080` to configure the application integration.
+Log in to the ChirpStack UI at `http://chirpstack-server-ip:8080`. The default user name and password are `admin` / `admin`.
 
 ### Add a device profile
 
@@ -306,156 +190,51 @@ Log in to the ChirpStack UI at `http://chirpstack-server-ip:8080` to configure t
    | **Region** | LoRaWAN regional parameters |
    | **MAC Version** | LoRaWAN MAC version the device uses |
    | **Regional parameters revision** | Parameter set version for your region |
-   | **ADR Algorithm** | Adaptive Data Rate logic |
+   | **ADR Algorithm** | Adaptive data rate logic |
    | **Expect uplink interval (secs)** | Expected interval between uplink messages |
 
 3. Click **Submit**.
 
 </Steps>
 
-<ImageGallery images={[
-  {
-    src: '/src/assets/images/docs/edge/user-guide/integrations/chirpstack/chirpstack-device-profile-1.webp',
-    alt: 'Add device profile in ChirpStack',
-    caption: 'Step 3: Go to Tenant > Device Profiles and click Add device profile.',
-  },
-  {
-    src: '/src/assets/images/docs/edge/user-guide/integrations/chirpstack/chirpstack-device-profile-2.webp',
-    alt: 'Device profile general settings',
-    caption: 'Step 3: Fill in the required fields and click Submit.',
-  },
-]} />
-
-### Add HTTP integration
+### Add the HTTP integration
 
 <Steps>
 
-1. Go to **Tenant > Applications** and click **Add application**. Enter an application name and click **Submit**.
+1. Go to **Tenant > Applications**, click **Add application**, enter a name, and click **Submit**.
 
-2. Select the **Integrations** tab. Find **HTTP** in the list and click **+**.
+2. Open the **Integrations** tab of the application. Find **HTTP** in the list and click **+**.
 
-3. Paste the **HTTP endpoint URL** from the ThingsBoard [Connection](#connection) step and click **Submit**.
+3. Keep **Payload encoding** at **JSON**. Paste the **HTTP endpoint URL** of the ThingsBoard integration into **Event endpoint URL(s)** and click **Submit**.
 
 </Steps>
-
-<ImageGallery images={[
-  {
-    src: '/src/assets/images/docs/edge/user-guide/integrations/chirpstack/chirpstack-applications-1.webp',
-    alt: 'Add application in ChirpStack',
-    caption: 'Step 1: Go to Tenant > Applications and click Add application.',
-  },
-  {
-    src: '/src/assets/images/docs/edge/user-guide/integrations/chirpstack/chirpstack-applications-2.webp',
-    alt: 'Enter application name',
-    caption: 'Step 1: Enter the application name and click Submit.',
-  },
-  {
-    src: '/src/assets/images/docs/edge/user-guide/integrations/chirpstack/chirpstack-applications-3.webp',
-    alt: 'Select Integrations tab and click + on HTTP',
-    caption: 'Step 2: Open the Integrations tab and add the HTTP integration.',
-  },
-  {
-    src: '/src/assets/images/docs/edge/user-guide/integrations/chirpstack/chirpstack-applications-4.webp',
-    alt: 'Paste HTTP endpoint URL',
-    caption: 'Step 3: Paste the HTTP endpoint URL from ThingsBoard.',
-  },
-  {
-    src: '/src/assets/images/docs/edge/user-guide/integrations/chirpstack/chirpstack-applications-5.webp',
-    alt: 'HTTP integration added successfully',
-    caption: 'Step 3: The HTTP integration is added to the application.',
-  },
-]} />
 
 ### Add the device
 
 <Steps>
 
-1. Select the **Devices** tab and click **Add device**.
+1. Open the **Devices** tab of the application and click **Add device**.
 
 2. On the **Device** tab, fill in the required fields:
 
    | Field | Description |
    |---|---|
    | **Name** | Device name |
-   | **Device EUI (EUI64)** | Unique 64-bit identifier assigned to the LoRaWAN device |
-   | **Byte order** | Byte order used to represent the DevEUI (MSB or LSB) |
-   | **Device profile** | Select the device profile created above |
+   | **Device EUI (EUI64)** | Unique 64-bit identifier of the LoRaWAN device |
+   | **Byte order** | Byte order of the DevEUI (MSB or LSB) |
+   | **Device profile** | The device profile created above |
 
 3. Click **Submit**.
 
 </Steps>
 
-<ImageGallery images={[
-  {
-    src: '/src/assets/images/docs/edge/user-guide/integrations/chirpstack/chirpstack-device-1.webp',
-    alt: 'Add device in ChirpStack',
-    caption: 'Step 1: Select the Devices tab and click Add device.',
-  },
-  {
-    src: '/src/assets/images/docs/edge/user-guide/integrations/chirpstack/chirpstack-device-2.webp',
-    alt: 'Fill in device fields',
-    caption: 'Step 3: Fill in the device fields and click Submit.',
-  },
-]} />
-
 ### Add the gateway (optional)
 
-In a testing environment, you can skip adding a gateway — the device itself sends data through the gateway. To add a gateway:
-
-<Steps>
-
-1. Go to **Tenant > Gateways** and click **Add gateway**.
-
-2. Enter the **gateway name**, **gateway ID**, and the **statistics interval** (in seconds).
-
-</Steps>
-
-<ImageGallery images={[
-  {
-    src: '/src/assets/images/docs/edge/user-guide/integrations/chirpstack/chirpstack-gw-1.webp',
-    alt: 'Add gateway in ChirpStack',
-    caption: 'Step 1: Go to Tenant > Gateways and click Add gateway.',
-  },
-  {
-    src: '/src/assets/images/docs/edge/user-guide/integrations/chirpstack/chirpstack-gw-2.webp',
-    alt: 'Fill in gateway details',
-    caption: 'Step 2: Enter the gateway name, ID, and statistics interval.',
-  },
-]} />
-
-## Assign integration to Edge
-
-<Steps>
-
-1. Go to **Edge management > Instances** and click **Manage edge integrations**.
-
-2. Click **Assign to edge**, select the ChirpStack integration from the drop-down, and click **Assign**.
-
-3. Log in to your ThingsBoard Edge instance and confirm the integration appears under **Integration center > Integrations**.
-
-</Steps>
-
-<ImageGallery images={[
-  {
-    src: '/src/assets/images/docs/edge/user-guide/integrations/chirpstack/assign-integration-1.webp',
-    alt: 'Click Manage edge integrations',
-    caption: 'Step 1: Go to Edge management > Instances and click Manage edge integrations.',
-  },
-  {
-    src: '/src/assets/images/docs/edge/user-guide/integrations/chirpstack/assign-integration-2.webp',
-    alt: 'Assign ChirpStack integration to Edge',
-    caption: 'Step 2: Click Assign to edge, select the integration, and click Assign.',
-  },
-  {
-    src: '/src/assets/images/docs/edge/user-guide/integrations/chirpstack/assign-integration-3-confirm.webp',
-    alt: 'ChirpStack integration confirmed on Edge',
-    caption: 'Step 3: The ChirpStack integration is visible on the Edge under Integration center.',
-  },
-]} />
+For a test setup you can skip this. To add a gateway, go to **Tenant > Gateways**, click **Add gateway**, fill in **Name**, **Gateway ID (EUI64)**, and **Stats interval (secs)**, and click **Submit**.
 
 ## Send an uplink message
 
-In production, devices send uplink messages automatically. For testing, you can use the <a href="https://github.com/brocaar/chirpstack-simulator" target="_blank" rel="noopener noreferrer">ChirpStack Device Simulator</a> or send an HTTP message directly to the ChirpStack Application Server:
+In production, ChirpStack forwards every uplink of the device to the integration. For a test, use the <a href="https://github.com/brocaar/chirpstack-simulator" target="_blank" rel="noopener noreferrer">ChirpStack device simulator</a>, or post a message in the ChirpStack format to the integration endpoint yourself:
 
 ```bash maxLines=10 collapsible
 curl -v -X POST -d '{
@@ -507,61 +286,26 @@ curl -v -X POST -d '{
 }'  $YOUR_HTTP_ENDPOINT_URL -H "Content-Type:application/json"
 ```
 
-Replace the following placeholders with your actual values:
+Replace these values with your own:
 
-| Placeholder | Description |
+| Value | Description |
 |---|---|
-| `deduplicationId` | Any valid UUID v4 (for testing) |
+| `deduplicationId` | Any UUID v4 |
 | `tenantId` | Your ChirpStack tenant ID |
-| `applicationId` | ChirpStack Application ID |
-| `applicationName` | ChirpStack Application name |
-| `deviceProfileId` | ChirpStack device profile ID |
-| `deviceProfileName` | ChirpStack device profile name |
-| `devEui` | Device EUI from the ChirpStack device |
+| `applicationId`, `applicationName` | ChirpStack application ID and name |
+| `deviceProfileId`, `deviceProfileName` | ChirpStack device profile ID and name |
+| `devEui` | Device EUI of the ChirpStack device |
 | `gatewayId` | ChirpStack gateway ID |
-| `$YOUR_HTTP_ENDPOINT_URL` | HTTP endpoint URL from the ThingsBoard integration |
+| `$YOUR_HTTP_ENDPOINT_URL` | **HTTP endpoint URL** of the ThingsBoard integration |
 
-After the message is sent, a new device is created in ThingsBoard Edge. To view its telemetry:
+Then check the result on the Edge:
 
 <Steps>
 
-1. Go to **Entities > Devices**, click the device, and select the **Latest telemetry** tab.
+1. Go to **Integrations > Integrations**, open the ChirpStack integration, and select the **Events** tab. An **Uplink** event with status **OK** appears. Click the three dots in the **Message** column to see the raw payload.
 
-2. Go to **Integration center > Integrations**, click the ChirpStack integration, and select the **Events** tab to view the received uplink message.
+2. The device **Chirp Device 24e124538b223213** is created automatically (`$eui` is replaced by the `devEui` of the payload). Go to **Devices & assets > Devices**, open it, and select the **Latest telemetry** tab. The test payload decodes to `battery` `61`, `pir` `trigger`, and `daylight` `light`. The keys from the **Telemetry** list, such as `rssi` and `snr`, are saved as well.
 
-3. To inspect how the uplink converter processed the message, go to **Integration center > Data converters**, open the uplink converter, and select the **Events** tab.
+3. To see how the converter processed the message, go to **Integrations > Data converters**, open `ChirpStack uplink converter`, and select the **Events** tab. The **In** column shows the raw payload, the **Out** column the decoded telemetry and attributes.
 
 </Steps>
-
-<ImageGallery images={[
-  {
-    src: '/src/assets/images/docs/edge/user-guide/integrations/chirpstack/device-1.webp',
-    alt: 'Device created in ThingsBoard Edge',
-    caption: 'Step 1: The device created by the uplink message.',
-  },
-  {
-    src: '/src/assets/images/docs/edge/user-guide/integrations/chirpstack/device-2.webp',
-    alt: 'Latest telemetry received from ChirpStack device',
-    caption: 'Step 1: Latest telemetry received from the ChirpStack device.',
-  },
-  {
-    src: '/src/assets/images/docs/edge/user-guide/integrations/chirpstack/integration-events-1.webp',
-    alt: 'ChirpStack integration Events tab',
-    caption: 'Step 2: The uplink message appears in the integration Events tab.',
-  },
-  {
-    src: '/src/assets/images/docs/edge/user-guide/integrations/chirpstack/uplink-events-1.webp',
-    alt: 'Uplink converter Events tab',
-    caption: 'Step 3: Open the uplink converter and select the Events tab.',
-  },
-  {
-    src: '/src/assets/images/docs/edge/user-guide/integrations/chirpstack/uplink-events-2.webp',
-    alt: 'Converter In message — raw ChirpStack payload',
-    caption: 'Step 3: Click the three dots in the In column to see the raw incoming payload.',
-  },
-  {
-    src: '/src/assets/images/docs/edge/user-guide/integrations/chirpstack/uplink-events-3.webp',
-    alt: 'Converter Out message — processed telemetry',
-    caption: 'Step 3: Click the three dots in the Out column to see the processed output.',
-  },
-]} />
