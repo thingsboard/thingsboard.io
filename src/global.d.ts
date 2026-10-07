@@ -26,4 +26,5 @@ interface TbConsent {
 	v: number;
 	analytics: boolean;
 	marketing: boolean;
+	media?: boolean;
 }
