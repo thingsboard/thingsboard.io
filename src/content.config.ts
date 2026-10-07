@@ -25,6 +25,7 @@ export const baseSchema = z.object({
 	customDocsTitle: z.string().optional(),
 	githubURL: z.url().optional(),
 	hasREADME: z.boolean().optional(),
+	feedback: z.boolean().optional(),
 	hero: z
 		.object({
 			gridVariant: z.enum(['lines', 'dots']).optional().default('lines'),
