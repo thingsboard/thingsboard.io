@@ -2,11 +2,10 @@
 import { Code } from '@astrojs/starlight/components';
 import {
 	EDGE_UPGRADE_VERSIONS,
-	ceDockerTag,
-	peDockerTag,
 	getFamilySlug,
 	getEdgeUpgradeStepVersions,
 } from '~/models/edge-upgrade-instructions';
+import { edgeDockerImage, edgeDockerTag, edgeProductName, edgeVersionLabel } from '~/models/edge-naming';
 import { getUpgradeHeading, patchScriptLabel } from '~/models/upgrade-shared';
 import type { Products } from '~/models/site.models';
 
@@ -16,20 +15,23 @@ interface Props {
 }
 
 const { product, filterFamily } = Astro.props;
-const versions = getEdgeUpgradeStepVersions(filterFamily);
+const versions = getEdgeUpgradeStepVersions(product, filterFamily);
 
 const isPE = product === 'EDGE_PE';
 ---
 
 {versions.map((v) => {
-	const heading = getUpgradeHeading(v, isPE ? 'Edge PE' : 'Edge');
-	const prevDisplayLabel = isPE ? `${v.upgradableFrom} PE` : v.upgradableFrom;
-	const newTag = isPE ? peDockerTag(v) : ceDockerTag(v);
-	const imageName = isPE ? 'thingsboard/tb-edge-pe' : 'thingsboard/tb-edge';
-	const prevTagSuffix = isPE ? 'EDGEPE' : 'EDGE';
+	const heading = getUpgradeHeading(v, edgeProductName(isPE, v.version));
+	const prevDisplayLabel = edgeVersionLabel(isPE, v.upgradableFrom);
 	const prevVersion = v.prevVersionAnchor
 		? v.prevVersionAnchor.slice(1).replace(/-/g, '.')
 		: v.upgradableFrom;
+	const imageName = edgeDockerImage(isPE, v.version);
+	const newTag = edgeDockerTag(isPE, v.version);
+	// The image is renamed on the release that drops the PE names, so the old
+	// reference is built from the previous version, not this one.
+	const prevImageRef = `${edgeDockerImage(isPE, prevVersion)}:${edgeDockerTag(isPE, prevVersion)}`;
+	const imageRenamed = edgeDockerImage(isPE, prevVersion) !== imageName;
 	const prevVersionEntry = v.prevVersionAnchor
 		? EDGE_UPGRADE_VERSIONS.find((v2) => v2.anchor === v.prevVersionAnchor)
 		: undefined;
@@ -81,8 +83,20 @@ const isPE = product === 'EDGE_PE';
 
 			<h3>Update the image version</h3>
 
-			<p>Update the <code>{imageName}</code> image tag in <code>docker-compose.yml</code> to <strong>{newTag}</strong>:</p>
-			<Code code={`sed -i 's|${imageName}:${prevVersion}${prevTagSuffix}|${imageName}:${newTag}|' docker-compose.yml`} lang="bash" />
+			{imageRenamed ? (
+				<>
+					<aside class="starlight-aside starlight-aside--caution">
+						<p class="starlight-aside__title" aria-hidden="true">Docker image name changes in {v.displayVersion}</p>
+						<div class="starlight-aside__content">
+							<p>Starting with {v.displayVersion}, the Edge Docker image no longer carries <code>pe</code> in its name or tag: <code>{prevImageRef}</code> becomes <code>{imageName}:{newTag}</code>. Update both the image name and the tag in your <code>docker-compose.yml</code>, not only the version.</p>
+						</div>
+					</aside>
+					<p>Replace the <code>{edgeDockerImage(isPE, prevVersion)}</code> image in <code>docker-compose.yml</code> with <code>{imageName}</code>, tag <strong>{newTag}</strong>:</p>
+				</>
+			) : (
+				<p>Update the <code>{imageName}</code> image tag in <code>docker-compose.yml</code> to <strong>{newTag}</strong>:</p>
+			)}
+			<Code code={`sed -i 's|${prevImageRef}|${imageName}:${newTag}|' docker-compose.yml`} lang="bash" />
 
 			{v.upgrade && (
 				<>

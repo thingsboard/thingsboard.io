@@ -1,6 +1,8 @@
 // Relative import on purpose: keeps this module loadable from the Astro
 // config chain, which resolves modules before tsconfig path aliases apply.
-import { assertNewestFirst, latestPatchPerBaseline } from './upgrade-shared.ts';
+import { EDGE_NEUTRAL_NAMES_FROM_VER } from '../data/versions.ts';
+import { isCommunityProduct, type Products } from './site.models.ts';
+import { assertNewestFirst, latestPatchPerBaseline, versionAtLeast } from './upgrade-shared.ts';
 
 export interface EdgeUpgradeVersion {
 	/** Raw version string, e.g. "4.3.0.1", "4.2.0", "3.9.1" */
@@ -61,37 +63,28 @@ export function getFamilySlug(family: string): string {
 }
 
 /**
+ * Drops Edge releases from {@link EDGE_NEUTRAL_NAMES_FROM_VER} on for Community Edge, whose
+ * last release predates it; Edge PE gets the full list. The cutoff falls inside the 4.4
+ * family, so unlike the ThingsBoard cutoff it compares versions, not families.
+ */
+export function scopeEdgeToEdition<T extends { version: string }>(rows: readonly T[], product: Products): T[] {
+	return isCommunityProduct(product)
+		? rows.filter((r) => !versionAtLeast(r.version, EDGE_NEUTRAL_NAMES_FROM_VER))
+		: [...rows];
+}
+
+/**
  * Versions to render on an Edge upgrade-instruction page (optionally scoped to
  * a family). Only the newest patch of each `baseVersion` is kept; entries
  * without a `baseVersion` are always kept. Input is assumed newest-first,
- * matching the ordering of `EDGE_UPGRADE_VERSIONS`.
+ * matching the ordering of `EDGE_UPGRADE_VERSIONS`. Community Edge stops at its
+ * last release (see {@link scopeEdgeToEdition}).
  */
-export function getEdgeUpgradeStepVersions(family?: string): EdgeUpgradeVersion[] {
+export function getEdgeUpgradeStepVersions(product: Products, family?: string): EdgeUpgradeVersion[] {
 	const scoped = family
 		? EDGE_UPGRADE_VERSIONS.filter((v) => v.family === family)
 		: EDGE_UPGRADE_VERSIONS;
-	return latestPatchPerBaseline(scoped);
-}
-
-/** CE GitHub download URL for a Linux .deb or .rpm package */
-export function cePkgDownloadUrl(v: EdgeUpgradeVersion, ext: 'deb' | 'rpm'): string {
-	const tag = v.ceGhTagOverride ?? v.linuxPkgSuffix;
-	return `https://github.com/thingsboard/thingsboard-edge/releases/download/v${tag}/tb-edge-${v.linuxPkgSuffix}.${ext}`;
-}
-
-/** PE dist URL for a Linux .deb or .rpm package */
-export function pePkgDownloadUrl(v: EdgeUpgradeVersion, ext: 'deb' | 'rpm'): string {
-	return `https://dist.thingsboard.io/tb-edge-${v.linuxPkgSuffix}pe.${ext}`;
-}
-
-/** CE Docker image tag, e.g. "4.3.0.1EDGE" */
-export function ceDockerTag(v: EdgeUpgradeVersion): string {
-	return `${v.version}EDGE`;
-}
-
-/** PE Docker image tag, e.g. "4.3.0.1EDGEPE" */
-export function peDockerTag(v: EdgeUpgradeVersion): string {
-	return `${v.version}EDGEPE`;
+	return latestPatchPerBaseline(scopeEdgeToEdition(scoped, product));
 }
 
 /**
