@@ -29,6 +29,7 @@ import { pcFeatureHeaders, pcFeatureRows } from '@data/pricing/tb-private-cloud-
 import type { PlanCard as PlanCardType } from '@data/pricing/types';
 import FaqSection from '../../components/Pricing/FaqSection.astro';
 import { pricingFaqData } from '@data/pricing/faq';
+import cloudRegionScript from '@root/scripts/cloud-region.js?raw';
 
 import cloudIcon from '../../assets/pricing/cloud-icon.svg?raw';
 import pcIcon from '../../assets/pricing/private-cloud-icon.svg?raw';
@@ -303,7 +304,13 @@ const validSubTabIds = tbSubTabs.map((t) => t.id);
 		    briefly before initPricing() swaps it post-parse.
 
 		    initPricing() later calls the same resolver — no-op for state that's
-		    already correct. */}
+		    already correct.
+
+		    The Cloud region without `?region=` is the visitor's Cloud account
+		    region, else the nearest one, from `scripts/cloud-region.js` (inlined
+		    first), which calls North America `us` where this page says `na`. Europe
+		    is applied here so its plans don't flash in after North America's. */}
+		<script is:inline set:html={cloudRegionScript} />
 		<script is:inline define:vars={{ _validSubTabs: validSubTabIds }}>
 			(function () {
 				// Single source of truth for the URL→state mapping. Defined on
@@ -345,7 +352,14 @@ const validSubTabIds = tbSubTabs.map((t) => t.id);
 						const sol = solutionParam.replace(/^pe-/, '');
 						if (sol === 'payg' || sol === 'perpetual') activeBilling = sol;
 					}
-					return { activeSubTab, activeBilling };
+					const regionParam = p.get('region');
+					const activeRegion = regionParam === 'na' || regionParam === 'eu' ? regionParam : null;
+					return { activeSubTab, activeBilling, activeRegion };
+				};
+
+				window.__pricingDefaultRegion = function () {
+					const region = window.tbCloudRegion.readLast() || window.tbCloudRegion.nearest();
+					return region === 'eu' ? 'eu' : 'na';
 				};
 
 				try {
@@ -372,6 +386,17 @@ const validSubTabIds = tbSubTabs.map((t) => t.id);
 							if (heading && heading.dataset.perpetualText) heading.textContent = heading.dataset.perpetualText;
 							const subtitle = document.querySelector('[data-billing-subtitle="' + toggleId + '"]');
 							if (subtitle && subtitle.dataset.perpetualText) subtitle.textContent = subtitle.dataset.perpetualText;
+						});
+					}
+
+					if ((state.activeRegion || window.__pricingDefaultRegion()) === 'eu') {
+						const regionCheckbox = document.getElementById('region-select');
+						if (regionCheckbox) regionCheckbox.checked = true;
+						document.querySelectorAll('[data-region-content]').forEach(function (el) {
+							el.style.display = el.dataset.regionContent === 'eu' ? '' : 'none';
+						});
+						document.querySelectorAll('.region-toggle-label').forEach(function (lbl) {
+							lbl.classList.toggle('active', lbl.dataset.region === 'eu');
 						});
 					}
 
@@ -432,6 +457,8 @@ const validSubTabIds = tbSubTabs.map((t) => t.id);
 
 <!-- ═══ URL state + tab/toggle logic ═══ -->
 <script>
+	import { attributionQuery } from '@util/attribution';
+
 	declare function gtag(...args: any[]): void;
 	declare function initAllSliders(root?: HTMLElement | Document): void;
 
@@ -467,6 +494,8 @@ const validSubTabIds = tbSubTabs.map((t) => t.id);
 		// remain valid even if the resolver is absent.
 		let activeSubTab: string | null = null;
 		let activeBilling: string | null = null;
+		// Set by `?region=` or the toggle; a region picked by default stays out of the URL.
+		let activeRegion: string | null = null;
 		// Guard the resolver call: __resolvePricingState is defined by the
 		// pre-paint is:inline script, which could fail to run (e.g. a CSP that
 		// blocks inline scripts, or a future syntax error in that block). Rather
@@ -477,7 +506,7 @@ const validSubTabIds = tbSubTabs.map((t) => t.id);
 		// fully interactive.
 		const resolvePricingState = (window as any).__resolvePricingState;
 		if (typeof resolvePricingState === 'function') {
-			({ activeSubTab, activeBilling } = resolvePricingState(window.location.search));
+			({ activeSubTab, activeBilling, activeRegion } = resolvePricingState(window.location.search));
 		}
 
 		// ─── Single delegated click listener on the pricing root ───
@@ -919,29 +948,22 @@ const validSubTabIds = tbSubTabs.map((t) => t.id);
 					lbl.classList.toggle('active', lbl.dataset.region === (isEu ? 'eu' : 'na'));
 				});
 
-				// Persist in cookie
-				try {
-					document.cookie = `cloudServer=${isEu ? 'eu' : 'na'};path=/;max-age=31536000`;
-				} catch {
-					/* ignore cookie write failure */
-				}
-
 				updatePaasLinks(isEu);
 			}
 
 			regionCheckbox.addEventListener('change', () => {
 				setRegion(regionCheckbox.checked);
+				activeRegion = regionCheckbox.checked ? 'eu' : 'na';
+				updateUrl();
 			});
 			// `.region-toggle-label` click is delegated above on `.pricing-page`;
 			// it flips `regionCheckbox.checked` and dispatches `change`, which
 			// the handler above picks up.
 
-			// Restore from cookie (supports both new "eu"/"na" and old "/docs/paas/eu/" format)
-			const cookieMatch = document.cookie.match(/cloudServer=([^;]+)/);
-			if (cookieMatch?.[1] === 'eu' || cookieMatch?.[1]?.includes('/eu')) {
-				regionCheckbox.checked = true;
-				setRegion(true);
-			}
+			const defaultRegion = (window as any).__pricingDefaultRegion;
+			const region = activeRegion ?? (typeof defaultRegion === 'function' ? defaultRegion() : 'na');
+			regionCheckbox.checked = region === 'eu';
+			setRegion(region === 'eu');
 		}
 
 		// ─── Billing toggles ───
@@ -1025,20 +1047,8 @@ const validSubTabIds = tbSubTabs.map((t) => t.id);
 			let url = 'https://license.thingsboard.io/signup?createSubscription=true';
 			url += '&productId=' + productId;
 			url += '&planId=' + planId;
-			// Append UTM params from localStorage
-			const utmRaw = localStorage.getItem('utm');
-			if (utmRaw) {
-				try {
-					const utm = JSON.parse(utmRaw);
-					Object.keys(utm).forEach((key) => {
-						url += '&' + key + '=' + encodeURIComponent(utm[key]);
-					});
-				} catch {
-					/* ignore malformed utm */
-				}
-			}
-			const fpr = localStorage.getItem('fpr');
-			if (fpr) url += '&fpr=' + encodeURIComponent(fpr);
+			const attribution = attributionQuery();
+			if (attribution) url += '&' + attribution;
 			reportPriceLink(url, productId + '/' + planId);
 			window.open(url, '_blank');
 		}
@@ -1160,9 +1170,12 @@ const validSubTabIds = tbSubTabs.map((t) => t.id);
 			if (activeBilling && activeBilling !== 'payg') {
 				p.set('solution', `pe-${activeBilling}`);
 			}
+			if (activeRegion && activeSubTab === 'thingsboard-cloud') {
+				p.set('region', activeRegion);
+			}
 			// `section=` is deliberately not written back: the lone surviving
 			// sectionMap entry is a read-side shim for old inbound links, so fresh
-			// outbound URLs carry only `product` (and `solution`) — which name what
+			// outbound URLs carry only `product` (and `solution`, `region`) — which name what
 			// the visitor is actually viewing. Emitting `thingsboard-pe-options` on
 			// every rewrite mislabelled Cloud / Private Cloud URLs as Self-managed.
 			const qs = p.toString();

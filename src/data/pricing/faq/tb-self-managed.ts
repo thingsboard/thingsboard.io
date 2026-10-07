@@ -200,7 +200,7 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'pe-pay-as-you-go-high-availability',
 				question: 'Does ThingsBoard support high-availability (HA) setups?',
-				answer: '<p>Yes, High Availability (HA) is supported and can be achieved through ThingsBoard services and database replication. Please note that each ThingsBoard replica will require a separate license.</p>',
+				answer: '<p>Yes, High Availability (HA) is supported and can be achieved through ThingsBoard services and database replication. Each ThingsBoard node counts as one production instance, so an HA cluster needs at least two production instances. You can add them to your existing license; a separate license is not required.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-backup',

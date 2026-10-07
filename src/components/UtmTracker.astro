@@ -1,72 +1,36 @@
 ---
+// Appends campaign and partner-referral attribution to Cloud / License Portal sign-up links.
 ---
 
-<script is:inline>
-	(function () {
-		try {
-			const url = new URL(window.location.href);
-			const params = {};
-			url.searchParams.forEach(function (value, key) {
-				if (key.startsWith('utm_')) {
-					params[key] = value;
-				}
-			});
-			if (Object.keys(params).length > 0) {
-				localStorage.setItem('utm', JSON.stringify(params));
-			}
-			const fpr = url.searchParams.get('fpr');
-			if (fpr) {
-				localStorage.setItem('fpr', fpr);
-			}
-		} catch { /* ignore */ }
+<script>
+	import { attributionQuery } from '@util/attribution';
+	import { CLOUD_REGIONS } from '@util/cloud-regions';
+	import { onConsentChange } from '@util/consent';
 
-		function patchLinks() {
-			let searchParams = [];
+	const ALLOWED_DOMAINS = [...CLOUD_REGIONS.map((r) => `https://${r.host}`), 'https://license.thingsboard.io'];
 
-			const utms = localStorage.getItem('utm');
-			if (utms) {
-				let utm = {};
-				try {
-					utm = JSON.parse(utms);
-				} catch { /* ignore */ }
-				searchParams = Object.keys(utm).map(function (key) {
-					return key + '=' + encodeURIComponent(utm[key]);
-				});
-			}
+	// Sign-up links in the page markup with their unpatched href, so a consent change re-patches from scratch.
+	// Links rendered later (the pricing calculator's CTA) add attribution themselves.
+	const originals = new Map<HTMLAnchorElement | HTMLAreaElement, string>();
 
-			const fpr = localStorage.getItem('fpr');
-			if (fpr) {
-				searchParams.push('fpr=' + encodeURIComponent(fpr));
-			}
+	function patchLinks() {
+		const search = attributionQuery();
+		originals.forEach((href, link) => {
+			const separator = href.includes('?') ? '&' : '?';
+			link.setAttribute('href', search ? href + separator + search : href);
+		});
+	}
 
-			const search = searchParams.join('&');
-			if (!search) return;
+	function collectAndPatch() {
+		Array.from(document.links).forEach((link) => {
+			const href = link.getAttribute('href');
+			if (href && ALLOWED_DOMAINS.some((d) => href.startsWith(d))) originals.set(link, href);
+		});
+		patchLinks();
+	}
 
-			const allowedDomains = [
-				'https://thingsboard.cloud',
-				'https://eu.thingsboard.cloud',
-				'https://license.thingsboard.io',
-			];
-
-			Array.from(document.links).forEach(function (link) {
-				const href = link.getAttribute('href');
-				if (href && allowedDomains.some(function (d) { return href.startsWith(d); })) {
-					const separator = href.includes('?') ? '&' : '?';
-					link.setAttribute('href', href + separator + search);
-				}
-			});
-		}
-
-		// Rewriting every outbound link is only needed by the time the user
-		// clicks one — run at idle, but bound the delay so a fast click can't
-		// beat the rewrite and drop attribution. (The 200ms fallback plays the
-		// role of a generous idle tick where requestIdleCallback is missing.)
-		const idle = window.requestIdleCallback || ((cb) => setTimeout(cb, 200));
-		const run = () => idle(patchLinks, { timeout: 1000 });
-		if (document.readyState === 'loading') {
-			document.addEventListener('DOMContentLoaded', run);
-		} else {
-			run();
-		}
-	})();
+	// At idle, bounded so a fast click can't beat the rewrite; the links are parsed by the time a module runs.
+	if ('requestIdleCallback' in window) requestIdleCallback(collectAndPatch, { timeout: 1000 });
+	else setTimeout(collectAndPatch, 200);
+	onConsentChange(patchLinks);
 </script>

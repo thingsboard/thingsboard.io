@@ -8,6 +8,16 @@ interface Window {
 	gtag: (...args: unknown[]) => void;
 	// Stored cookie-consent choice, parsed by `<GtmHead />`, updated by `<CookieConsent />`.
 	tbConsent: TbConsent | null;
+	// Cloud region memory and guess, defined by `scripts/cloud-region.js`; use it through `@util/cloud-regions`.
+	tbCloudRegion: TbCloudRegion;
+}
+
+type CloudRegionId = import('@util/cloud-regions').CloudRegionId;
+
+interface TbCloudRegion {
+	readLast(): CloudRegionId | null;
+	writeLast(id: CloudRegionId): void;
+	nearest(): CloudRegionId;
 }
 
 interface TbConsent {
