@@ -16,7 +16,7 @@ import { versionAtLeast } from './upgrade-shared.ts';
  * `thingsboard-edge-pe-docker-compose` setup and the "Edge PE" product name. Accepts
  * family labels such as `4.3.1.x`.
  */
-export function isLegacyEdgePe(isPE: boolean, version: string): boolean {
+function isLegacyEdgePe(isPE: boolean, version: string): boolean {
 	return isPE && !versionAtLeast(version.replace(/\.x$/, ''), EDGE_NEUTRAL_NAMES_FROM_VER);
 }
 
@@ -74,13 +74,13 @@ export const EDGE_IMAGE = `${edgeDockerImage(false, EDGE_VER)}:${edgeDockerTag(f
 const isLegacyCurrent = isLegacyEdgePe(true, EDGE_PE_FULL_VER);
 
 /** Docker image tag of the current Edge PE release, e.g. "4.3.1.1EDGEPE". */
-export const EDGE_PE_VER = edgeDockerTag(true, EDGE_PE_FULL_VER);
+const EDGE_PE_VER = edgeDockerTag(true, EDGE_PE_FULL_VER);
 
 /** Full image reference of the current Edge PE release, e.g. "thingsboard/tb-edge-pe:4.3.1.1EDGEPE". */
 export const EDGE_PE_IMAGE = `${edgeDockerImage(true, EDGE_PE_FULL_VER)}:${EDGE_PE_VER}`;
 
 /** Package version of the current Edge PE release (GA `.0` dropped). */
-export const EDGE_PE_PKG_VER = artifactVersion(EDGE_PE_FULL_VER);
+const EDGE_PE_PKG_VER = artifactVersion(EDGE_PE_FULL_VER);
 
 /** Package download URL of the current Edge PE release. */
 export function edgePePkgUrl(ext: 'deb' | 'rpm' | 'zip'): string {

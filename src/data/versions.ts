@@ -94,7 +94,7 @@ export const EDGE_BRANCH = 'release-4.3';
 /**
  * Edge Professional Edition — current release, plain version (e.g. `4.3.1.1`).
  * Image, tag, package and Docker Compose names derive from it in `@models/edge-naming`
- * (`EDGE_PE_VER`, `EDGE_PE_IMAGE`, `EDGE_PE_PKG_VER`, ...), since they depend on whether
+ * (`EDGE_PE_IMAGE`, `edgePePkgUrl()`, `EDGE_PE_COMPOSE_CLONE`, ...), since they depend on whether
  * the release predates {@link EDGE_NEUTRAL_NAMES_FROM_VER}.
  */
 export const EDGE_PE_FULL_VER = '4.4.0';
