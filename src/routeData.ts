@@ -396,7 +396,7 @@ function updateHead(context: APIContext, isTutorial: boolean) {
 
 		// Per-page `customDocsTitle` frontmatter overrides the auto-formatted
 		// docs title entirely. Used by product index pages that want a
-		// non-default <title> (e.g. "Docs | ThingsBoard Edge Professional Edition").
+		// non-default <title> (e.g. "Docs | ThingsBoard Trendz | IoT Data Analytics").
 		const customDocsTitle = (entry.data as { customDocsTitle?: string }).customDocsTitle;
 		if (customDocsTitle) {
 			title.content = customDocsTitle;
