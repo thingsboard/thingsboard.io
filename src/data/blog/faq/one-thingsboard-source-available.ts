@@ -62,7 +62,7 @@ export const buslFaq: FaqCategory[] = [
 				id: 'other-products-coverage',
 				question: 'Does the new license cover Trendz, Edge, Gateway, mobile apps, and TBMQ?',
 				answer:
-					'<p>No — the license covers <strong>only</strong> the platform repository. Software products we publish in separate repositories are licensed under their own terms.</p>',
+					'<p>The platform license covers <strong>only</strong> the platform repository. ThingsBoard Edge follows it from Edge 4.4: it is licensed under the Business Source License 1.1 with an Additional Use Grant of its own, published as the <a href="/legal/busl-edge/">ThingsBoard Edge license</a>, which permits production use of Edge instances registered to a licensed ThingsBoard deployment. Other software we publish in separate repositories is licensed under its own terms.</p>',
 			},
 			{
 				id: 'contributing-code',
