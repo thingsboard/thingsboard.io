@@ -67,6 +67,19 @@ export function edgePkgUrl(
 		: `https://github.com/thingsboard/thingsboard-edge/releases/download/v${tag}/${file}`;
 }
 
+/** First Edge release that runs on Java 25; earlier releases run on Java 17. */
+export const EDGE_JAVA_25_FROM_VER = '4.4';
+
+/** Java version an Edge release runs on, e.g. 17 for "4.3.1.6", 25 for "4.4.0". */
+export function edgeJavaVersion(version: string): 17 | 25 {
+	return versionAtLeast(version.replace(/\.x$/, ''), EDGE_JAVA_25_FROM_VER) ? 25 : 17;
+}
+
+/** Java version of the current release of an edition (install pages). */
+export function currentEdgeJavaVersion(isPE: boolean): 17 | 25 {
+	return edgeJavaVersion(isPE ? EDGE_PE_FULL_VER : EDGE_VER);
+}
+
 /** Full image reference of the current Community Edge release, e.g. "thingsboard/tb-edge:4.3.1.1EDGE". */
 export const EDGE_IMAGE = `${edgeDockerImage(false, EDGE_VER)}:${edgeDockerTag(false, EDGE_VER)}`;
 
