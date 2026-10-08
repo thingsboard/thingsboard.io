@@ -135,7 +135,7 @@ export const installProducts: InstallProduct[] = [
 			'Processes and visualizes data locally at the network edge, enabling autonomous operation during connectivity outages. Manage every remote edge location from one platform.',
 		icon: mark('ce/thingsboard-e-icon.svg'),
 		accent: '#0f9b8e',
-		primary: { label: 'Installation guide', href: '/docs/edge/installation/' },
+		primary: { label: 'Installation guide', href: '/docs/edge/pe/installation/' },
 		links: [
 			{ label: 'See plans', href: '/pricing/?active=thingsboard-edge' },
 			{ label: 'See how Edge works', href: '/products/thingsboard-edge/' },
@@ -144,19 +144,19 @@ export const installProducts: InstallProduct[] = [
 			{
 				title: 'Install on',
 				items: [
-					{ label: 'Ubuntu Server', logo: logo('ubuntu.svg'), href: '/docs/edge/installation/ubuntu/' },
-					{ label: 'CentOS / RHEL Server', logo: logo('cenos-rhel.svg'), href: '/docs/edge/installation/rhel/' },
+					{ label: 'Ubuntu Server', logo: logo('ubuntu.svg'), href: '/docs/edge/pe/installation/ubuntu/' },
+					{ label: 'CentOS / RHEL Server', logo: logo('cenos-rhel.svg'), href: '/docs/edge/pe/installation/rhel/' },
 					{
 						label: 'Docker',
 						note: 'Linux / macOS',
 						logo: logo('docker-linux-mac.svg'),
-						href: '/docs/edge/installation/docker/',
+						href: '/docs/edge/pe/installation/docker/',
 					},
 					{
 						label: 'Docker',
 						note: 'Windows',
 						logo: logo('docker-windows.svg'),
-						href: '/docs/edge/installation/docker-windows/',
+						href: '/docs/edge/pe/installation/docker-windows/',
 					},
 					{
 						label: 'Building from source',
@@ -166,7 +166,7 @@ export const installProducts: InstallProduct[] = [
 					{
 						label: 'Edge cluster setup',
 						logo: logo('docker-compose.svg'),
-						href: '/docs/edge/installation/docker-compose-setup/',
+						href: '/docs/edge/pe/installation/docker-compose-setup/',
 					},
 				],
 			},
