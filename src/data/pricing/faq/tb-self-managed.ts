@@ -31,6 +31,11 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 				answer: '<p>ThingsBoard offers flexible monthly subscription plans, with tiers based on the number of devices and assets. We support 4 predefined plans to cater to different needs. The Free plan includes support for up to 100 devices. For more details, visit the ThingsBoard <a target="_blank" href="/pricing/?product=thingsboard-pe" rel="noopener noreferrer">pricing page</a>.</p>',
 			},
 			{
+				id: 'pe-pay-as-you-go-try-license',
+				question: 'Can I try an on-premises license before subscribing?',
+				answer: '<p>Yes, the Free plan is the best way to explore the platform. It also includes trial licenses for Edge and Trendz products, so you can fully test the ThingsBoard ecosystem.</p>',
+			},
+			{
 				id: 'pe-pay-as-you-go-self-managed-differences',
 				question: 'How do the on-premises subscription plans differ?',
 				answer: '<p>Plans differ based on the number of devices, support level, and white-labeling availability.</p>',
@@ -263,13 +268,8 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 	},
 	{
 		id: 'trialsCancellationsAndRefunds',
-		label: 'Trials, Cancellations & Refunds',
+		label: 'Cancellations & Refunds',
 		items: [
-			{
-				id: 'pe-pay-as-you-go-try-license',
-				question: 'Can I try an on-premises license before subscribing?',
-				answer: '<p>Yes, the Free plan is the best way to explore the platform. It also includes trial license for Edge and Trendz products, so you can fully test the ThingsBoard ecosystem.</p>',
-			},
 			{
 				// Not 'pe-pay-as-you-go-cancel-subscription': that id belongs to the
 				// "Billing & Payments" item above, and item ids are DOM ids.

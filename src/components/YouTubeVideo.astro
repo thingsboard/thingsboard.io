@@ -1,4 +1,11 @@
 ---
+// Click-to-load YouTube embed. Before the click the page contacts neither YouTube nor Google: the poster is fetched at
+// build time and served from our origin. The click loads the youtube-nocookie.com player, which still sets YouTube
+// cookies, hence the notice under it.
+import { getImage } from 'astro:assets';
+import { VIDEO_LOCKED_NOTICE_TEXT, VIDEO_NOTICE_TEXT } from '@data/privacy';
+import { resolveYouTubePoster } from '@util/youtube-poster';
+
 interface Props {
 	videoId: string;
 	title?: string;
@@ -6,41 +13,280 @@ interface Props {
 
 const { videoId, title = 'YouTube video' } = Astro.props;
 
-// Use youtube-nocookie.com (YouTube's "Enhanced Privacy Mode" embed): same
-// player, but the embed doesn't fetch tracking telemetry until the user hits
-// play. That avoids the CORS / third-party-cookie warnings that show up in
-// modern Chrome when the regular www.youtube.com embed phones home on load.
-const src = `https://www.youtube-nocookie.com/embed/${videoId}?rel=0`;
+/** On: the poster stays locked until the visitor allows External media. Off: the legal team decided a click is enough. */
+const REQUIRE_MEDIA_CONSENT = false;
+
+const playLabel = `Play video: ${title}`;
+const lockedLabel = `Allow External media for the whole site and play video: ${title}`;
+const noticeId = `yt-notice-${videoId}-${Math.random().toString(36).slice(2, 8)}`;
+// The docs content column; the Trendz landing frame is narrower.
+const POSTER_SIZES = '(min-width: 50rem) 45rem, 100vw';
 const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
+
+// No poster found: the black 16:9 box with the play button, no image.
+const poster = await resolveYouTubePoster(videoId);
+const image =
+	poster &&
+	(await getImage({
+		src: poster.src,
+		// The largest width we ship, at the source's aspect ratio; never upscaled.
+		width: Math.min(960, poster.width),
+		height: Math.round((Math.min(960, poster.width) * poster.height) / poster.width),
+		widths: [480, 960].filter((w) => w <= poster.width),
+		sizes: POSTER_SIZES,
+		format: 'webp',
+		quality: 85,
+	}));
 ---
 
-<div class="yt-video print:hidden">
-	<iframe
-		src={src}
-		title={title}
-		loading="lazy"
-		referrerpolicy="strict-origin-when-cross-origin"
-		allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-		allowfullscreen></iframe>
+<div class="yt-video-wrap not-content print:hidden">
+	<div
+		class="yt-video"
+		data-yt-video={videoId}
+		data-yt-title={title}
+		data-yt-label={playLabel}
+		data-yt-label-locked={lockedLabel}
+		data-yt-gated={REQUIRE_MEDIA_CONSENT || undefined}
+	>
+		{image && (
+			<img
+				class="yt-video__poster"
+				src={image.src}
+				srcset={image.srcSet.attribute}
+				sizes={POSTER_SIZES}
+				alt=""
+				width="960"
+				height="540"
+				loading="lazy"
+				decoding="async"
+			/>
+		)}
+		<button type="button" class="yt-video__play" aria-label={playLabel} aria-describedby={noticeId} data-yt-play>
+			<svg class="yt-video__icon" viewBox="0 0 68 68" aria-hidden="true" focusable="false">
+				<circle cx="34" cy="34" r="34"></circle>
+				<path d="M27 21v26l20-13z"></path>
+			</svg>
+		</button>
+		{/* YouTube attribution (Developer Policies III.F). A link outside the play button, so it never starts the player. */}
+		<a
+			class="yt-video__logo"
+			href={watchUrl}
+			target="_blank"
+			rel="noopener noreferrer"
+			aria-label={`Watch on YouTube: ${title}`}
+		>
+			<svg viewBox="0 0 28.57 20" aria-hidden="true" focusable="false">
+				<path
+					fill="#f00"
+					d="M27.97 3.12C27.64 1.89 26.68.93 25.45.6 23.22 0 14.29 0 14.29 0S5.35 0 3.12.6C1.89.93.93 1.89.6 3.12 0 5.35 0 10 0 10s0 4.65.6 6.88c.33 1.23 1.29 2.19 2.52 2.52C5.35 20 14.29 20 14.29 20s8.93 0 11.16-.6c1.23-.33 2.19-1.29 2.52-2.52.6-2.23.6-6.88.6-6.88s0-4.65-.6-6.88Z"
+				></path>
+				<path fill="#fff" d="M11.43 14.29 18.85 10l-7.42-4.29v8.58Z"></path>
+			</svg>
+		</a>
+	</div>
+	{/* The Cookie Policy link is in both states: each state is a whole sentence, and only one is shown. */}
+	<p id={noticeId} class="yt-video__notice">
+		<span data-yt-notice-play>
+			{VIDEO_NOTICE_TEXT} See our <a href="/cookie-policy/">Cookie Policy</a>.
+		</span>
+		{REQUIRE_MEDIA_CONSENT && (
+			<span data-yt-notice-locked hidden>
+				{VIDEO_LOCKED_NOTICE_TEXT} Change it in{' '}
+				<button type="button" class="cookie-settings" data-cc="show-preferences">
+					Cookie settings
+				</button>{' '}
+				or see our <a href="/cookie-policy/">Cookie Policy</a>.
+			</span>
+		)}
+	</p>
 </div>
-<p class="print:only">Video: <a href={watchUrl}>{watchUrl}</a></p>
+<p class="print:only">
+	Video: <a href={watchUrl}>{watchUrl}</a>
+</p>
+
+<script>
+	import { onConsentChange } from '@util/consent';
+
+	const ROOT = '[data-yt-video]';
+	const ALLOW = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+
+	const hasMediaConsent = () => window.tbConsent?.media === true;
+
+	// The poster each playing video replaced, put back if External media is withdrawn while it plays.
+	const posters = new WeakMap<HTMLElement, Node[]>();
+
+	function play(root: HTMLElement) {
+		const iframe = document.createElement('iframe');
+		iframe.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(root.dataset.ytVideo!)}?rel=0&autoplay=1`;
+		iframe.title = root.dataset.ytTitle!;
+		iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+		iframe.allow = ALLOW;
+		iframe.allowFullscreen = true;
+		posters.set(root, [...root.childNodes]);
+		root.replaceChildren(iframe);
+		iframe.focus();
+	}
+
+	// Removing the iframe is what stops the player talking to YouTube.
+	function stop(root: HTMLElement) {
+		const poster = posters.get(root);
+		if (!poster) return;
+		posters.delete(root);
+		root.replaceChildren(...poster);
+	}
+
+	// Locked, the play button carries `data-cc="accept-media"`: the cookie dialog's handler grants External media.
+	function setLocked(root: HTMLElement, locked: boolean) {
+		const button = root.querySelector<HTMLButtonElement>('[data-yt-play]')!;
+		root.toggleAttribute('data-yt-locked', locked);
+		if (locked) button.dataset.cc = 'accept-media';
+		else delete button.dataset.cc;
+		button.setAttribute('aria-label', (locked ? root.dataset.ytLabelLocked : root.dataset.ytLabel)!);
+		// The notice sits below the poster, outside the part the player replaces.
+		const wrap = root.parentElement;
+		wrap?.querySelector('[data-yt-notice-play]')?.toggleAttribute('hidden', locked);
+		wrap?.querySelector('[data-yt-notice-locked]')?.toggleAttribute('hidden', !locked);
+	}
+
+	const sync = () => {
+		const locked = !hasMediaConsent();
+		document.querySelectorAll<HTMLElement>(`${ROOT}[data-yt-gated]`).forEach((root) => {
+			if (locked) stop(root);
+			else if (posters.has(root)) return; // Playing.
+			setLocked(root, locked);
+		});
+	};
+
+	// Clicking play on a locked poster is the visitor asking for that video: when the consent it grants arrives, the video
+	// plays. Other posters only unlock, and consent given anywhere else starts nothing. The click's user activation,
+	// which autoplay needs, lasts about 5 s; a consent later than that is no longer an answer to this click.
+	const PENDING_MS = 5000;
+	let pending: { root: HTMLElement; until: number } | null = null;
+
+	// Order-independent with the cookie dialog's click handler: if it runs first, the poster is already unlocked here and
+	// plays directly. A <button> turns Enter and Space into this same click.
+	document.addEventListener('click', (e) => {
+		const root = (e.target as Element).closest('[data-yt-play]')?.closest<HTMLElement>(ROOT);
+		if (!root) return;
+		if (root.hasAttribute('data-yt-locked')) pending = { root, until: Date.now() + PENDING_MS };
+		else play(root);
+	});
+
+	sync();
+	onConsentChange(() => {
+		sync();
+		if (pending && Date.now() < pending.until && hasMediaConsent()) play(pending.root);
+		pending = null;
+	});
+</script>
 
 <style>
+	.yt-video-wrap {
+		margin: 1.5rem 0;
+	}
+
 	.yt-video {
 		position: relative;
-		width: 100%;
 		aspect-ratio: 16 / 9;
-		margin: 1.5rem 0;
 		border-radius: 8px;
 		overflow: hidden;
 		background: #000;
 	}
 
-	.yt-video iframe {
+	/* Created by the script, so it carries no scope attribute. */
+	.yt-video :global(iframe) {
 		position: absolute;
 		inset: 0;
 		width: 100%;
 		height: 100%;
 		border: none;
+	}
+
+	/* Cover crops the black bars baked into the 4:3 hqdefault thumbnail. */
+	.yt-video__poster {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.yt-video__play {
+		position: absolute;
+		inset: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 100%;
+		padding: 0;
+		background: none;
+		border: none;
+		cursor: pointer;
+	}
+
+	.yt-video__play:focus-visible {
+		outline: none;
+	}
+
+	.yt-video__icon {
+		width: 4.25rem;
+		height: 4.25rem;
+		border-radius: 50%;
+		transition: transform 0.15s ease;
+	}
+
+	.yt-video__icon circle {
+		fill: rgb(0 0 0 / 0.72);
+		transition: fill 0.15s ease;
+	}
+
+	.yt-video__icon path {
+		fill: #fff;
+	}
+
+	.yt-video__play:hover .yt-video__icon {
+		transform: scale(1.06);
+	}
+
+	.yt-video__play:hover .yt-video__icon circle,
+	.yt-video__play:focus-visible .yt-video__icon circle {
+		fill: rgb(0 0 0 / 0.88);
+	}
+
+	/* Two-tone ring: visible over light and dark thumbnails alike. */
+	.yt-video__play:focus-visible .yt-video__icon {
+		outline: 3px solid #fff;
+		outline-offset: 2px;
+		box-shadow: 0 0 0 7px #000;
+	}
+
+	/* After the play button in the DOM, so it stacks above it and takes its own clicks. */
+	.yt-video__logo {
+		position: absolute;
+		top: 0.75rem;
+		right: 0.75rem;
+		display: flex;
+	}
+
+	.yt-video__logo svg {
+		width: 2rem;
+		height: auto;
+	}
+
+	.yt-video__logo:focus-visible {
+		outline: 2px solid #fff;
+		outline-offset: 2px;
+	}
+
+	.yt-video__notice {
+		margin: 0.5rem 0 0;
+		font-size: 0.8125rem;
+		line-height: 1.45;
+		color: var(--color-text-secondary);
+	}
+
+	.yt-video__notice a {
+		color: inherit;
+		text-decoration: underline;
 	}
 </style>

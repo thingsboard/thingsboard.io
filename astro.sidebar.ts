@@ -26,7 +26,14 @@ const guideItems = (prefix: string, { isPE = false } = {}) => {
 			`${prefix}/asset-profiles`,
 			`${prefix}/connectivity-status`,
 			`${prefix}/claiming`,
-			`${prefix}/provisioning`,
+			{
+				label: 'Provisioning',
+				collapsed: true,
+				items: [
+					{ label: 'Overview', slug: `${prefix}/provisioning` },
+					{ label: 'X.509 Certificate Chain', slug: `${prefix}/provisioning/x509-certificate-chain` },
+				],
+			},
 			`${prefix}/ota-updates`,
 			`${prefix}/command-and-control`,
 		],
@@ -1911,7 +1918,14 @@ export const paasSidebar: SidebarConfig = [
 					'docs/paas/user-guide/asset-profiles',
 					'docs/paas/user-guide/connectivity-status',
 					'docs/paas/user-guide/claiming',
-					'docs/paas/user-guide/provisioning',
+					{
+						label: 'Provisioning',
+						collapsed: true,
+						items: [
+							{ label: 'Overview', slug: 'docs/paas/user-guide/provisioning' },
+							{ label: 'X.509 Certificate Chain', slug: 'docs/paas/user-guide/provisioning/x509-certificate-chain' },
+						],
+					},
 					'docs/paas/user-guide/ota-updates',
 					'docs/paas/user-guide/command-and-control',
 				],
@@ -2313,7 +2327,14 @@ export const paasEuSidebar: SidebarConfig = [
 					'docs/paas/eu/user-guide/asset-profiles',
 					'docs/paas/eu/user-guide/connectivity-status',
 					'docs/paas/eu/user-guide/claiming',
-					'docs/paas/eu/user-guide/provisioning',
+					{
+						label: 'Provisioning',
+						collapsed: true,
+						items: [
+							{ label: 'Overview', slug: 'docs/paas/eu/user-guide/provisioning' },
+							{ label: 'X.509 Certificate Chain', slug: 'docs/paas/eu/user-guide/provisioning/x509-certificate-chain' },
+						],
+					},
 					'docs/paas/eu/user-guide/ota-updates',
 					'docs/paas/eu/user-guide/command-and-control',
 				],

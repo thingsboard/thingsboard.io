@@ -3,19 +3,13 @@
 // `GtmHead.astro` parses the stored choice into `window.tbConsent` before GTM loads: keep `CONSENT_COOKIE` /
 // `CONSENT_VERSION` in step with it.
 import NButton from '@components/Landing/NButton.astro';
-
-const categories = [
-	{
-		id: 'analytics',
-		title: 'Analytics',
-		description: 'Show us which pages people read and how they find the site, so we can improve it (Google Analytics).',
-	},
-	{
-		id: 'marketing',
-		title: 'Marketing',
-		description: 'Show us which of our ad campaigns bring visitors to the site (Google Ads).',
-	},
-];
+import {
+	CONSENT_BANNER_TEXT,
+	CONSENT_CATEGORIES,
+	CONSENT_DIALOG_INTRO,
+	GPC_MARKETING_NOTE,
+	NECESSARY_COOKIES_DESCRIPTION,
+} from '@data/privacy';
 ---
 
 <div id="cc-main" class="print:hidden" data-pagefind-ignore>
@@ -24,8 +18,7 @@ const categories = [
 			We use cookies
 		</p>
 		<p id="cm-desc" class="cm__desc">
-			We use cookies to understand how our site is used and to improve it. We never sell your data. You can change your
-			choice anytime in Cookie settings. <a href="/cookie-policy/">Cookie Policy</a>
+			{CONSENT_BANNER_TEXT} <a href="/cookie-policy/">Cookie Policy</a>
 		</p>
 		<div class="cm__btns">
 			<NButton data-cc="accept-all">Accept all</NButton>
@@ -37,9 +30,9 @@ const categories = [
 			Manage preferences
 		</NButton>
 	</section>
-	<!-- Shown before first paint rather than from the module script, so it never lands late as the LCP element. -->
+	{/* Shown before first paint rather than from the module script, so it never lands late as the LCP element. */}
 	<script is:inline>
-		if (!window.tbConsent) document.currentScript.previousElementSibling.hidden = false;
+		if (window.tbConsent?.analytics === undefined) document.currentScript.previousElementSibling.hidden = false;
 	</script>
 	<dialog class="pm" aria-labelledby="pm-title">
 		<div class="pm__header">
@@ -54,24 +47,28 @@ const categories = [
 		</div>
 		<div class="pm__body">
 			<p class="pm__desc">
-				We use cookies for our own analytics and to see how our campaigns perform. We never sell your data. Necessary
-				cookies keep the site working and cannot be switched off. See our <a href="/cookie-policy/">Cookie Policy</a>
-				for details.
+				{CONSENT_DIALOG_INTRO} See our <a href="/cookie-policy/">Cookie Policy</a> for details and our{' '}
+				<a href="/legal/privacy-policy/">Privacy Policy</a> for how we handle personal data.
 			</p>
 			<div class="pm__section">
 				<label class="pm__section-head">
 					<span>Strictly necessary</span>
 					<input type="checkbox" role="switch" class="pm__switch" checked disabled />
 				</label>
-				<p class="pm__section-desc">Security, load balancing and remembering your cookie choice.</p>
+				<p class="pm__section-desc">{NECESSARY_COOKIES_DESCRIPTION}</p>
 			</div>
-			{categories.map((c) => (
+			{CONSENT_CATEGORIES.map((c) => (
 				<div class="pm__section">
 					<label class="pm__section-head">
 						<span>{c.title}</span>
 						<input type="checkbox" role="switch" class="pm__switch" data-category={c.id} />
 					</label>
 					<p class="pm__section-desc">{c.description}</p>
+					{c.id === 'marketing' && (
+						<p id="pm-gpc-note" class="pm__section-desc" hidden>
+							{GPC_MARKETING_NOTE}
+						</p>
+					)}
 				</div>
 			))}
 		</div>
@@ -92,6 +89,7 @@ const categories = [
 <script>
 	import { syncAttributionStorage } from '@util/attribution';
 	import { notifyConsentChange } from '@util/consent';
+	import { clearRefusedCategories } from '@util/consent-cleanup';
 	import { lockScroll, unlockScroll } from '@util/scroll-lock';
 
 	const CONSENT_COOKIE = 'tb_consent';
@@ -103,10 +101,29 @@ const categories = [
 	const dialog = root.querySelector<HTMLDialogElement>('.pm')!;
 	const switches = [...dialog.querySelectorAll<HTMLInputElement>('input[data-category]')];
 
-	function saveConsent(analytics: boolean, marketing: boolean) {
-		const consent: TbConsent = { v: CONSENT_VERSION, analytics, marketing };
+	// Global Privacy Control is an opt-out of Marketing (CCPA regs §7025), whatever is chosen; GtmHead.astro checks it too.
+	const gpc = navigator.globalPrivacyControl === true;
+	if (gpc) {
+		const marketingSwitch = switches.find((s) => s.dataset.category === 'marketing')!;
+		const note = dialog.querySelector<HTMLElement>('#pm-gpc-note')!;
+		marketingSwitch.disabled = true;
+		marketingSwitch.setAttribute('aria-describedby', note.id);
+		note.hidden = false;
+	}
+
+	function saveConsent(analytics: boolean | undefined, marketing: boolean | undefined, media: boolean) {
+		if (gpc) marketing = false;
+		const consent: TbConsent = {
+			v: CONSENT_VERSION,
+			ts: Math.floor(Date.now() / 1000),
+			...(gpc && { gpc: true }),
+			analytics,
+			marketing,
+			media,
+		};
 		window.tbConsent = consent;
 		syncAttributionStorage();
+		clearRefusedCategories();
 		const secure = location.protocol === 'https:' ? '; Secure' : '';
 		document.cookie = `${CONSENT_COOKIE}=${encodeURIComponent(JSON.stringify(consent))}; max-age=${MAX_AGE_SECONDS}; path=/; SameSite=Lax${secure}`;
 
@@ -118,28 +135,32 @@ const categories = [
 			// Never granted — see GtmHead.astro.
 			ad_personalization: 'denied',
 		});
+		// After the update above, so the container starts from the granted state.
+		window.tbLoadGtm();
 
-		banner.hidden = true;
+		if (analytics !== undefined) banner.hidden = true;
 		if (dialog.open) dialog.close();
 		notifyConsentChange();
 	}
 
 	function showPreferences() {
 		const consent = window.tbConsent;
-		switches.forEach((s) => (s.checked = consent?.[s.dataset.category as 'analytics' | 'marketing'] ?? false));
+		switches.forEach((s) => (s.checked = consent?.[s.dataset.category as TbConsentCategory] ?? false));
 		dialog.showModal();
 		lockScroll();
 	}
 
 	const choice = (id: string) => switches.find((s) => s.dataset.category === id)?.checked ?? false;
 	const actions: Record<string, () => void> = {
-		'accept-all': () => saveConsent(true, true),
-		'reject-all': () => saveConsent(false, false),
-		save: () => saveConsent(choice('analytics'), choice('marketing')),
+		'accept-all': () => saveConsent(true, true, true),
+		'reject-all': () => saveConsent(false, false, false),
+		save: () => saveConsent(choice('analytics'), choice('marketing'), choice('media')),
+		// From an External media placeholder: allows that category only. Without an earlier answer the banner stays up.
+		'accept-media': () => saveConsent(window.tbConsent?.analytics, window.tbConsent?.marketing, true),
 		'show-preferences': showPreferences,
 	};
 
-	// Delegated on the document so footer "Cookie settings" buttons reach the dialog too.
+	// Delegated on the document so the footer and in-page buttons reach the dialog too.
 	document.addEventListener('click', (e) => {
 		const trigger = (e.target as Element).closest<HTMLElement>('[data-cc]');
 		const action = trigger && actions[trigger.dataset.cc!];
@@ -150,8 +171,9 @@ const categories = [
 
 	dialog.addEventListener('close', unlockScroll);
 
-	// On every page, so a refused or lapsed Marketing consent clears stored attribution.
+	// On every page, so a refused or lapsed consent clears stored attribution and the category's cookies.
 	syncAttributionStorage();
+	clearRefusedCategories();
 
 	// Written by older builds of /pricing/ for a year at most, read by nothing now. Remove after 2027-11-01.
 	document.cookie = 'cloudServer=; max-age=0; path=/';
@@ -165,7 +187,7 @@ const categories = [
 <style lang="scss" is:global>
 	@use '../styles/variables' as *;
 
-	// Link-styled "Cookie settings" trigger used in the footers and the Cookie Policy page.
+	// Link-styled dialog trigger used in the footers and in-page notices.
 	.cookie-settings {
 		padding: 0;
 		font: inherit;
@@ -206,6 +228,15 @@ const categories = [
 			overflow-y: auto;
 			padding: 20px 20px 12px;
 
+			@include media-down(md) {
+				left: 8px;
+				right: 8px;
+				bottom: 8px;
+				width: auto;
+				gap: 10px;
+				padding: 16px 16px 8px;
+			}
+
 			&[hidden] {
 				display: none;
 			}
@@ -232,6 +263,16 @@ const categories = [
 
 		.pm__section-desc {
 			color: var(--color-text-secondary);
+		}
+
+		// Scrolls on short screens and when zoomed, so the buttons below always stay in view.
+		.cm__desc {
+			max-height: 40vh;
+			overflow-y: auto;
+
+			@include media-down(md) {
+				line-height: 1.5;
+			}
 		}
 
 		.cm__btns {

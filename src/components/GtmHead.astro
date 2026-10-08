@@ -1,5 +1,11 @@
 ---
 ---
+
+{/*
+	Basic Consent Mode: gtm.js loads only after Analytics or Marketing is granted. `tbLoadGtm` runs for a choice
+	stored on an earlier visit (after `load`, below) and for one made on this page (CookieConsent.astro).
+	Global Privacy Control overrides a stored Marketing grant (CCPA regs §7025) for this page; the cookie is left as saved.
+*/}
 <!-- Google Tag Manager -->
 <script is:inline>
 	window.dataLayer = window.dataLayer || [];
@@ -20,6 +26,7 @@
 		} catch {
 			/**/
 		}
+		if (consent && navigator.globalPrivacyControl === true) consent.marketing = false;
 		// Read by CookieConsent.astro, so the cookie is parsed once per page.
 		window.tbConsent = consent;
 		const analytics = consent && consent.analytics ? 'granted' : 'denied';
@@ -37,30 +44,37 @@
 	})();
 
 	// Production host only, so other hosts never report into the live property;
-	// `?gtm_debug` (Tag Assistant preview) loads it anywhere.
+	// `?gtm_debug` (Tag Assistant preview) lifts the host check, not the consent one.
 	const gtmDebug = new URLSearchParams(location.search).has('gtm_debug');
-	if (location.hostname === 'thingsboard.io' || gtmDebug) {
-		const loadGtm = () => {
-			(function (w, d, s, l, i) {
-				w[l] = w[l] || [];
-				w[l].push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
-				const f = d.getElementsByTagName(s)[0];
-				const j = d.createElement(s);
-				const dl = l !== 'dataLayer' ? '&l=' + l : '';
-				j.async = true;
-				j.src = 'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
-				f.parentNode.insertBefore(j, f);
-			})(window, document, 'script', 'dataLayer', 'GTM-TGBNQXN');
-		};
+	let gtmLoaded = false;
+	window.tbLoadGtm = () => {
+		const consent = window.tbConsent;
+		if (gtmLoaded || !consent || !(consent.analytics || consent.marketing)) return;
+		if (location.hostname !== 'thingsboard.io' && !gtmDebug) return;
+		gtmLoaded = true;
+		(function (w, d, s, l, i) {
+			w[l] = w[l] || [];
+			w[l].push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
+			const f = d.getElementsByTagName(s)[0];
+			const j = d.createElement(s);
+			const dl = l !== 'dataLayer' ? '&l=' + l : '';
+			j.async = true;
+			j.src = 'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
+			f.parentNode.insertBefore(j, f);
+		})(window, document, 'script', 'dataLayer', 'GTM-TGBNQXN');
+	};
 
-		if (gtmDebug) {
-			loadGtm();
-		} else {
-			// 5s idle fallback (vs the 2.5s default) so tag-manager JS lands
-			// after the LCP paint window for visitors who never interact.
-			// Full tier schedule: DeferredLoadTrigger.astro.
-			(window.__deferOnInteraction || ((cb) => cb()))(loadGtm, 5000);
-		}
+	if (gtmDebug) {
+		window.tbLoadGtm();
+	} else {
+		// First idle moment after `load`, so the tags never compete with the page's own loading work.
+		// Safari has no requestIdleCallback.
+		const whenIdle = () =>
+			window.requestIdleCallback
+				? requestIdleCallback(window.tbLoadGtm, { timeout: 2000 })
+				: setTimeout(window.tbLoadGtm, 0);
+		if (document.readyState === 'complete') whenIdle();
+		else addEventListener('load', whenIdle, { once: true });
 	}
 </script>
 <!-- End Google Tag Manager -->
