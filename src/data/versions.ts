@@ -79,7 +79,7 @@ export const TRENDZ_VER = '1.16.0';
 export const AGENT_VER = '1.0.0';
 
 /** Edge */
-export const EDGE_VER = '4.3.1.1';
+export const EDGE_VER = '4.3.1.6';
 
 /**
  * Edge package filename / download-tag version — {@link EDGE_VER} with the GA
