@@ -159,7 +159,6 @@ export const data: UseCaseData = {
 				description:
 					'Track machines across loading, transport, and restricted zones using automated alarms and fuel analytics.',
 				desktopImage: '/src/assets/images/usecases/fleet-tracking/mining-1.svg',
-				mobileImage: '/src/assets/images/usecases/fleet-tracking/mining-2.svg',
 				imageAlt: 'Mining excavator',
 				imageTitle: 'Mining & quarrying',
 			},
@@ -168,7 +167,6 @@ export const data: UseCaseData = {
 				description:
 					'Automate alerts when haul trucks or loaders enter, leave, or overload in processing areas.',
 				desktopImage: '/src/assets/images/usecases/fleet-tracking/dumpsites-1.svg',
-				mobileImage: '/src/assets/images/usecases/fleet-tracking/dumpsites-2.svg',
 				imageAlt: 'Material yard',
 				imageTitle: 'Material yards & dumpsites',
 			},
@@ -177,7 +175,6 @@ export const data: UseCaseData = {
 				description:
 					'Monitor heavy machinery in temporary or mobile zones, ensuring route compliance and operational safety.',
 				desktopImage: '/src/assets/images/usecases/fleet-tracking/construction-1.svg',
-				mobileImage: '/src/assets/images/usecases/fleet-tracking/construction-2.svg',
 				imageAlt: 'Construction crane',
 				imageTitle: 'Construction sites',
 			},
@@ -186,7 +183,6 @@ export const data: UseCaseData = {
 				description:
 					'Gain visibility over fleet movement across bridges, tunnels, or time-sensitive zones during large-scale builds.',
 				desktopImage: '/src/assets/images/usecases/fleet-tracking/infrastructure-1.svg',
-				mobileImage: '/src/assets/images/usecases/fleet-tracking/infrastructure-2.svg',
 				imageAlt: 'Infrastructure project',
 				imageTitle: 'Infrastructure projects',
 			},
@@ -195,7 +191,6 @@ export const data: UseCaseData = {
 				description:
 					'Use geofencing to protect environmental boundaries and track equipment in remote forest sectors.',
 				desktopImage: '/src/assets/images/usecases/fleet-tracking/forest-1.svg',
-				mobileImage: '/src/assets/images/usecases/fleet-tracking/forest-2.svg',
 				imageAlt: 'Forestry equipment',
 				imageTitle: 'Forestry operations',
 			},
