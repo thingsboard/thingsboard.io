@@ -80,6 +80,11 @@ export const BLOG_AUTHORS: BlogAuthor[] = [
 		avatar: 'https://secure.gravatar.com/avatar/04b9ee24b1df742aff5297aa3236cf20?s=96&d=mm&r=g',
 	},
 	{
+		slug: 'viacheslav-klimov',
+		name: 'Viacheslav Klimov',
+		avatar: '/images/blog/authors/viacheslav-klimov.webp',
+	},
+	{
 		slug: 'vitaliy-paromskiy',
 		name: 'Vitaliy Paromskiy',
 		avatar: 'https://secure.gravatar.com/avatar/8bcf288df8a8c14bfe1b0af972e21ddd?s=96&d=mm&r=g',
