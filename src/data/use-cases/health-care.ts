@@ -176,7 +176,6 @@ export const data: UseCaseData = {
 				description:
 					"Real-time monitoring of patients' conditions, tracking vital signs, managing wards and departments, and setting up alerts for timely response by medical staff to any health deterioration.",
 				desktopImage: '/src/assets/images/usecases/health-care/hospital-1.svg',
-				mobileImage: '/src/assets/images/usecases/health-care/hospital-2.svg',
 				imageAlt: 'Hospital',
 				imageTitle: 'Hospitals and healthcare facilities',
 			},
@@ -185,7 +184,6 @@ export const data: UseCaseData = {
 				description:
 					'Monitoring the condition of patients undergoing rehabilitation after surgery or injuries. The system can track recovery progress, transmit data to doctors, and set reminders for physical therapy.',
 				desktopImage: '/src/assets/images/usecases/health-care/sport-complex-1.svg',
-				mobileImage: '/src/assets/images/usecases/health-care/sport-complex-2.svg',
 				imageAlt: 'Rehabilitation center',
 				imageTitle: 'Rehabilitation centers',
 			},
@@ -194,7 +192,6 @@ export const data: UseCaseData = {
 				description:
 					'Monitoring the health of inmates with vital sign tracking, smoke detectors, and access control systems. The system can also monitor movements and support facility security.',
 				desktopImage: '/src/assets/images/usecases/health-care/rehabilitation-center-1.svg',
-				mobileImage: '/src/assets/images/usecases/health-care/rehabilitation-center-2.svg',
 				imageAlt: 'Correctional facility',
 				imageTitle: 'Prisons and correctional facilities',
 			},
@@ -203,7 +200,6 @@ export const data: UseCaseData = {
 				description:
 					"Maintaining optimal conditions in gyms and locker rooms, monitoring the health of visitors (e.g., heart rate), and setting up emergency alerts if someone's health deteriorates during workouts.",
 				desktopImage: '/src/assets/images/usecases/health-care/factories-1.svg',
-				mobileImage: '/src/assets/images/usecases/health-care/factories-2.svg',
 				imageAlt: 'Sports complex',
 				imageTitle: 'Sports complexes and fitness centers',
 			},
@@ -212,7 +208,6 @@ export const data: UseCaseData = {
 				description:
 					'Ensuring employee safety by monitoring working conditions (temperature, gas emissions, noise, humidity) and controlling equipment status to respond promptly to emergency situations.',
 				desktopImage: '/src/assets/images/usecases/health-care/prison-1.svg',
-				mobileImage: '/src/assets/images/usecases/health-care/prison-2.svg',
 				imageAlt: 'Factory',
 				imageTitle: 'Factories and industrial sites',
 			},

@@ -143,7 +143,6 @@ export const data: UseCaseData = {
 				description:
 					'Energy consumption monitoring, climate automation in shopping areas, and lighting control.',
 				desktopImage: '/src/assets/images/usecases/smart-energy/malls-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-office/mall-2.svg',
 				imageAlt: 'Mall',
 				imageTitle: 'Smart retail',
 			},
@@ -151,7 +150,6 @@ export const data: UseCaseData = {
 				title: 'Manufacturing',
 				description: 'Energy audits, airflow monitoring, and smart overload notifications.',
 				desktopImage: '/src/assets/images/usecases/smart-office/manufacturing-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-office/manufacturing-2.svg',
 				imageAlt: 'Manufacturing',
 				imageTitle: 'Manufacturing',
 			},
@@ -160,7 +158,6 @@ export const data: UseCaseData = {
 				description:
 					'Microclimate control in patient rooms, occupancy monitoring, and tracking of CO\u2082 levels and temperature.',
 				desktopImage: '/src/assets/images/usecases/health-care/hospital-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-office/hospital-2.svg',
 				imageAlt: 'Hospital',
 				imageTitle: 'Healthcare',
 			},
@@ -169,7 +166,6 @@ export const data: UseCaseData = {
 				description:
 					'Room automation, personalized climate control, and monitoring of CO\u2082 levels and space occupancy.',
 				desktopImage: '/src/assets/images/usecases/smart-office/hospitality-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-office/hospitality-2.svg',
 				imageAlt: 'Hospitality',
 				imageTitle: 'Hospitality',
 			},
@@ -177,7 +173,6 @@ export const data: UseCaseData = {
 				title: 'Education',
 				description: 'Managing comfort and resource usage in educational facilities.',
 				desktopImage: '/src/assets/images/usecases/smart-energy/education-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-office/education-2.svg',
 				imageAlt: 'Education',
 				imageTitle: 'Education',
 			},
