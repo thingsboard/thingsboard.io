@@ -11,15 +11,17 @@ featuredImageAlt: 'Streams of device data flowing into four database shards, wit
 import BlogCTA from '@components/Blog/BlogCTA.astro';
 import BlogCallout from '@components/Blog/BlogCallout.astro';
 
-A customer came to us with almost 700,000 devices in production and a plan to reach five million within a few months. Many of the new devices were cameras, which send far more data than a typical sensor. They could not move the deadline, and the fleet kept growing while we worked.
+A customer came to us with almost 700,000 devices in production and a plan to reach five million within a few months. Their teams needed to find, filter and sort the whole fleet by each device's current readings.
 
-ThingsBoard deployments of this size have had a proven way to grow for years, with transport servers for device connections and Cassandra for the full telemetry history, both scaling by adding servers. At millions of devices, these deployments made one trade-off: they stored latest readings in PostgreSQL only for a subset of devices. The history was still recorded for every device, and customers accepted that dashboards didn't filter and sort the other devices by their current readings.
+ThingsBoard keeps two kinds of device data. The full history goes to Cassandra, which grows by adding servers. The latest value of each key goes to PostgreSQL, so dashboards can filter and sort by it. Every new message overwrites that value, and with one PostgreSQL server, every overwrite for every device lands on the same machine.
 
-This customer could not. Their teams needed to find and sort devices by current state across the whole fleet, so the latest readings had to stay current for all five million devices. What we needed was a relational database that grows by adding servers. In ThingsBoard 4.4, that's PostgreSQL running as a Citus cluster.
+At millions of devices, that one server becomes the limit. Large deployments worked around it by keeping latest values for only part of the fleet. This customer could not. So from ThingsBoard 4.4, PostgreSQL can run as a Citus cluster and grow by adding servers, like the rest of the platform.
+
+In our benchmark with five million devices, a single PostgreSQL server fell behind at 29,000–64,000 row updates a second. A larger server would not help: this one used only 3–6 of its 16 cores, because the writes waited for each other. A four-worker Citus cluster kept up with 134,000, with no backlog.
 
 <BlogCallout label="TL;DR">
 
-- From ThingsBoard 4.4 and Professional Edition 4.3.1.4, PostgreSQL can run as a Citus cluster, so the relational database scales by adding servers, like the rest of the platform. [What is Citus →](#what-is-citus-and-why-did-we-choose-it)
+- From ThingsBoard 4.4, PostgreSQL can run as a Citus cluster, so the relational database scales by adding servers, like the rest of the platform. [What is Citus →](#what-is-citus-and-why-did-we-choose-it)
 - Cassandra keeps the telemetry history, and PostgreSQL keeps the latest values, so dashboards, filters and the API can query current readings fast at any fleet size. [Why PostgreSQL →](#why-does-thingsboard-keep-latest-values-in-postgresql-not-cassandra)
 - With smart routing, ThingsBoard writes each device's attributes and latest values straight to the worker that holds the device. [How it works →](#how-does-thingsboard-connect-to-a-citus-cluster)
 - In our benchmark with 5 million devices, a four-worker cluster kept up with 134,000 latest-value updates a second, and every ThingsBoard write queue stayed at zero. [Benchmark →](#single-postgresql-instance-vs-citus-cluster)
@@ -51,7 +53,7 @@ Before distributing anything, we worked through the standard ways of making a si
 - **Data retention** removes old records. The latest-value table keeps exactly one row per device and key, so there is nothing in it to expire.
 - **Replication** keeps a standby copy of the database on another server, which protects you against losing the primary one.
 
-A larger instance is the one option that really raises write throughput, since the same server gets through the same updates faster. Horizontal scaling splits those updates across several servers instead. The difference shows up as more devices are provisioned. Doubling the device count doubles the updates arriving every second, and only spreading the writes lets you keep up by adding hardware rather than replacing it.
+A larger instance gives one server more cores, memory and storage throughput. That helps only while the hardware is the limit, and in our [benchmark](#single-postgresql-instance-vs-citus-cluster) it was not: the single instance used 3 to 6 of its 16 cores while its writes waited on each other. Horizontal scaling splits those updates across several servers instead. The difference shows up as more devices are provisioned. Doubling the device count doubles the updates arriving every second, and only spreading the writes lets you keep up by adding hardware rather than replacing it.
 
 Which resource you need more of first depends on the deployment. In write-heavy installations it's often storage: every change has to be recorded durably before the platform confirms it, and a cloud storage volume has a limit on read and write operations per second (IOPS). It can also be CPU. Either way, buying more for one machine is different from spreading the writes over several, and only the second keeps pace with a growing fleet.
 
@@ -192,7 +194,7 @@ Large deployments can now scale and filter dashboards by current readings across
 
 A well-tuned single database with room to spare is still the simplest setup. A cluster is the next step when the write load grows beyond it.
 
-Citus support is available in ThingsBoard 4.4 and in ThingsBoard Professional Edition 4.3.1.4 and later. The [documentation](/docs/pe/reference/architecture/citus/) covers the configuration in full.
+Citus support is available from ThingsBoard 4.4. The [documentation](/docs/pe/reference/architecture/citus/) covers the configuration in full.
 
 ## Let us run it for you on ThingsBoard Private Cloud
 
