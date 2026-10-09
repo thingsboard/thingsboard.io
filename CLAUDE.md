@@ -34,9 +34,12 @@ pnpm format           # Format with Prettier (format:code / format:imports / for
 # Generators
 pnpm generate:redirects   # Regenerate public/_redirects + public/redirects.json (see Redirects)
 pnpm generate:nav-sprite  # Rebuild the mega-menu icon sprite after editing an icon (builds run it automatically)
+pnpm optimize:svg         # Minify SVGs in place with SVGO (src/assets + public, or the paths given); safe to re-run
 ```
 
 **Build policy:** Before running any build, always ask the user: "Run `pnpm build:fast` to verify, or skip?"
+
+**SVG policy:** When a change adds or replaces `.svg` files under `src/assets/` or `public/`, offer to run `pnpm optimize:svg <those files>` before committing. Run it before `pnpm generate:nav-sprite` when the files are mega-menu icons (`src/assets/images/landings/nav/`). The script leaves downloads (`public/resources/`), `{{…}}` templates and animated SVGs untouched.
 
 ## Architecture
 
