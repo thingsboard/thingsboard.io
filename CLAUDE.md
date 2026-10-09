@@ -160,7 +160,7 @@ See the `edit-doc` skill for detailed _includes rules, conditional rendering pat
 
 `src/data/versions.ts` — centralized product version strings. **Never hardcode version strings** in Docker image tags, download URLs, or code blocks. Import from `@data/versions`.
 
-Nineteen constants are exported. CE, EDGE and EDGE_PE each have a version/package/branch triple (`CE_FULL_VER`, `CE_PKG_VER`, `CE_BRANCH`; `EDGE_VER`, `EDGE_PKG_VER`, `EDGE_BRANCH`; `EDGE_PE_VER`, `EDGE_PE_PKG_VER`, `EDGE_PE_BRANCH`), PE has `PE_FULL_VER`, `PE_PKG_VER`, `PE_RELEASE_URL` and `PE_BRANCH` (`PE_RELEASE_URL` is the GitHub Releases base for 4.4+ PE packages, while 4.3.x and older stay on dist.thingsboard.io and the upgrade components build their URLs; `PE_BRANCH` is `release-4.4` while `CE_BRANCH` stays on 4.3), and `TRENDZ_VER`, `AGENT_VER`, `TB_VER`, `SOURCE_AVAILABLE_FROM_VER`, `COMMUNITY_GRANT_FROM_VER` and `SOURCE_AVAILABLE_ANNOUNCEMENT_DATE` stand alone. Read the file rather than guessing which one a context needs.
+CE, EDGE and EDGE_PE each have a version/package/branch triple (`CE_FULL_VER`, `CE_PKG_VER`, `CE_BRANCH`; `EDGE_VER`, `EDGE_PKG_VER`, `EDGE_BRANCH`; `EDGE_PE_VER`, `EDGE_PE_PKG_VER`, `EDGE_PE_BRANCH`), PE has `PE_FULL_VER`, `PE_PKG_VER`, `PE_RELEASE_URL` and `PE_BRANCH` (`PE_RELEASE_URL` is the GitHub Releases base for 4.4+ PE packages, while 4.3.x and older stay on dist.thingsboard.io and the upgrade components build their URLs; `PE_BRANCH` is `release-4.4` while `CE_BRANCH` stays on 4.3), and `TRENDZ_VER`, `AGENT_VER`, `TB_VER`, `DART_CLIENT_VER`, `SOURCE_AVAILABLE_FROM_VER`, `COMMUNITY_GRANT_FROM_VER` and `SOURCE_AVAILABLE_ANNOUNCEMENT_DATE` stand alone. Read the file rather than guessing which one a context needs.
 
 ### Markdown pipeline
 
