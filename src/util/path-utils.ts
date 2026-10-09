@@ -46,11 +46,12 @@ export const productVersions: Partial<Record<Products, ProductVersion>> = {
 		titleName: 'ThingsBoard Cloud (EU)',
 		docsTitle: 'ThingsBoard Cloud (EU) Docs',
 	},
-	[Products.EDGE]: { label: 'Edge', prefix: 'edge/', titleName: 'ThingsBoard Edge' },
+	[Products.EDGE]: { label: 'Edge', prefix: 'edge/', titleName: 'ThingsBoard Edge', docsTitle: 'ThingsBoard Edge CE Docs' },
 	[Products.EDGE_PE]: {
 		label: 'Edge Professional',
 		prefix: 'edge/pe/',
-		titleName: 'ThingsBoard Edge PE',
+		titleName: 'ThingsBoard Edge',
+		docsTitle: 'ThingsBoard Edge Docs',
 	},
 	[Products.TRENDZ]: {
 		label: 'Trendz Analytics',

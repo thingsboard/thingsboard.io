@@ -2,7 +2,8 @@ import { allPages } from '~/content';
 import { hasCommunityRelease } from '@models/community-cutoff';
 import { RELEASE_FAMILIES, familySlug } from '@models/releases-table';
 import { UPGRADE_FAMILIES, getFamilySlug } from '@models/upgrade-instructions';
-import { EDGE_RELEASE_FAMILIES, getFamilySlug as getEdgeFamilySlug } from '@models/edge-upgrade-instructions';
+import { EDGE_RELEASE_FAMILIES, getFamilySlug as getEdgeFamilySlug, scopeEdgeFamiliesToEdition } from '@models/edge-upgrade-instructions';
+import { Products } from '@models/site.models';
 import { TRENDZ_RELEASE_FAMILIES, familySlug as trendzFamilySlug } from '@models/trendz-releases-table';
 import { TRENDZ_UPGRADE_FAMILIES, getTrendzFamilySlug } from '@models/trendz-upgrade-instructions';
 
@@ -35,10 +36,10 @@ function buildDocsPageIds(): ReadonlySet<string> {
 	}
 
 	// Edge release tables — src/pages/docs/edge[/pe]/releases/releases-table/[familySlug].astro
-	// Both routes map the same unfiltered EDGE_RELEASE_FAMILIES, so CE and PE slugs stay in step.
+	// The Community Edge route skips families without a Community Edge release, so its ids must too.
 	for (const f of EDGE_RELEASE_FAMILIES) {
 		const slug = getEdgeFamilySlug(f.family);
-		ids.add(`docs/edge/releases/releases-table/${slug}`);
+		if (scopeEdgeFamiliesToEdition([f], Products.EDGE).length) ids.add(`docs/edge/releases/releases-table/${slug}`);
 		ids.add(`docs/edge/pe/releases/releases-table/${slug}`);
 	}
 
