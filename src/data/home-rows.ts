@@ -17,13 +17,6 @@ export const HOME_ROWS: HomeRow[] = [
 		badge: { icon: 'tabler:plug-connected', color: '#007c7b' },
 	},
 	{
-		slug: 'build',
-		title: 'Build IoT solutions from device to end-user',
-		body: 'ThingsBoard enables development of the complete use-case and is white-labeled for your customers or your team: ship complete IoT applications, not just data pipelines.',
-		link: { text: 'Getting started tutorial', href: '/docs/pe/getting-started/' },
-		badge: { icon: 'tabler:tools', color: '#3d50f5' },
-	},
-	{
 		slug: 'twin',
 		title: 'Model your real world',
 		body: 'Organize devices, assets, customers, and hierarchies that match your case. Control data, permissions, and processing at every level — site, machine, or single sensor. Aggregate, transform, and act on data wherever it makes sense.',
@@ -36,6 +29,13 @@ export const HOME_ROWS: HomeRow[] = [
 		body: 'Normalize data from any device or protocol. Spot anomalies before they hit production. Filter signals from noise before alerts reach your team. Push data and notifications into your CRM, ERP, or other external app — your data, your workflows.',
 		link: { text: 'Data processing concepts', href: '/docs/pe/concepts/data-processing/' },
 		badge: { icon: 'tabler:binary-tree', color: '#b44100' },
+	},
+	{
+		slug: 'build',
+		title: 'Build IoT solutions from device to end-user',
+		body: 'ThingsBoard enables development of the complete use-case and is white-labeled for your customers or your team: ship complete IoT applications, not just data pipelines.',
+		link: { text: 'Getting started tutorial', href: '/docs/pe/getting-started/' },
+		badge: { icon: 'tabler:tools', color: '#3d50f5' },
 	},
 	{
 		slug: 'scale',
