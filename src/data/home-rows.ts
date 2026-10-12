@@ -47,4 +47,4 @@ export const HOME_ROWS: HomeRow[] = [
 ];
 
 /** The Dashboards section's mark, which has no row of its own. */
-export const DASHBOARDS_BADGE: HomeRow['badge'] = { icon: 'tabler:layout-dashboard', color: '#006bc7' };
+export const DASHBOARDS_BADGE: HomeRow['badge'] = { icon: 'tabler:layout-dashboard', color: '#b3268f' };

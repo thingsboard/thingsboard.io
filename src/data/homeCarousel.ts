@@ -8,6 +8,8 @@ export interface CarouselItem {
 	title: string;
 	description: string;
 	href: string;
+	/** The glow under the board while this case shows: a colour taken from its screenshot. */
+	tone: string;
 	width: string | number;
 	height: string | number;
 }
@@ -21,6 +23,7 @@ export const homeCarouselItems: CarouselItem[] = [
 		description:
 			'Deliver and store data from smart meters in reliable and fault-tolerant way, visualize real-time and historical energy consumption data on customizable end-user dashboards, integrate with third-party analytics frameworks and solutions.',
 		href: '/use-cases/smart-energy/',
+		tone: '#2f80ed',
 		width: 1920,
 		height: 866,
 	},
@@ -32,6 +35,7 @@ export const homeCarouselItems: CarouselItem[] = [
 		description:
 			'Collect important indicators for your agricultural production such as soil conditions or facilities state via IoT sensors and visualize them using end-user customizable dashboards provided by ThingsBoard platform.',
 		href: '/use-cases/smart-farming/',
+		tone: '#43a047',
 		width: 1920,
 		height: 866,
 	},
@@ -43,6 +47,7 @@ export const homeCarouselItems: CarouselItem[] = [
 		description:
 			'ThingsBoard platform allows to track vehicles state and alerts via various sensors, plot vehicle routes in real-time and browse their sensors reading history at the same time using customizable high quality widgets and dashboards.',
 		href: '/use-cases/site-fleet-tracking/',
+		tone: '#3b6fe0',
 		width: 1920,
 		height: 866,
 	},
@@ -54,6 +59,7 @@ export const homeCarouselItems: CarouselItem[] = [
 		description:
 			'Collect, store and aggregate data from smart meters in reliable and fault-tolerant way. Analyze resource consumption and raise alerts on leakage, anomaly or fraud. Present results of the analysis to end users.',
 		href: '/use-cases/smart-metering/',
+		tone: '#29a3d9',
 		width: 1920,
 		height: 866,
 	},
@@ -65,6 +71,7 @@ export const homeCarouselItems: CarouselItem[] = [
 		description:
 			'Monitor and analyze indoor and outdoor environments using a wide range of sensors. ThingsBoard supports data acquisition using modern connectivity technologies and protocols: NB IoT, LoRaWAN, SigFox, MQTT, CoAP, HTTP, LwM2M, and others.',
 		href: '/use-cases/environment-monitoring/',
+		tone: '#2aa198',
 		width: 1920,
 		height: 866,
 	},
@@ -76,6 +83,7 @@ export const homeCarouselItems: CarouselItem[] = [
 		description:
 			'Ensure employee health and safety to boost organization productivity. Optimize resource consumption by monitoring and control of the office indoor climate. ThingsBoard provides rich data visualization, powerful processing engine, remote control and OTA updates capabilities.',
 		href: '/use-cases/smart-office/',
+		tone: '#f26b38',
 		width: 1920,
 		height: 866,
 	},
@@ -87,6 +95,7 @@ export const homeCarouselItems: CarouselItem[] = [
 		description:
 			'Enable water consumption data collection, analysis and fraud detection using ThingsBoard. Use interactive dashboards that allow administrators and end-users to browse the state of the water meters and aggregated water consumption statistics.',
 		href: '/use-cases/water-metering/',
+		tone: '#4caf50',
 		width: 1920,
 		height: 866,
 	},
@@ -98,6 +107,7 @@ export const homeCarouselItems: CarouselItem[] = [
 		description:
 			'Control quality of food storage by monitoring chillers and freezers. Ensure availability of the goods using smart shelves. Ensure safety using motion detection and fire alarms.',
 		href: '/use-cases/smart-retail/',
+		tone: '#f07a2e',
 		width: 1920,
 		height: 866,
 	},
@@ -111,6 +121,7 @@ export const homeCarouselItems: CarouselItem[] = [
 		description:
 			'Valves, pumps, filters and tanks as live SCADA symbols. Watch the equipment run, catch alarms as they happen and control the process from the dashboard. Drag the slider to compare the traditional and high-performance styles.',
 		href: '/use-cases/scada/',
+		tone: '#2f9fca',
 		width: 2238,
 		height: 1207,
 	},
@@ -122,6 +133,7 @@ export const homeCarouselItems: CarouselItem[] = [
 		description:
 			'Track generation, distribution and consumption across a site. Meter readings, power quality and load are read in real time, with alarms raised when a line drifts out of range.',
 		href: '/use-cases/scada-energy-management/',
+		tone: '#e3a232',
 		width: 1286,
 		height: 660,
 	},
