@@ -1,0 +1,650 @@
+---
+import AlarmEntry from '@components/Landing/AlarmEntry.astro';
+import { ALARM_FIRED_AT, clock, FILTER_CHART, FILTER_HISTORY, FREEZER_ALARM, openFor } from '@data/automate-visual';
+import { alarmCount, filterChartFrames } from '@util/filter-chart-frames';
+import { renderId } from '@util/render-id';
+
+/**
+ * The Filter tab's drawing: the morning's door openings as bars against a draggable limit; the one
+ * still open climbs past it, turns red and raises the alarm (`AlarmEntry`).
+ */
+
+const NATIVE = 574;
+const H = 256;
+const PLOT = { x0: 56, x1: 558, top: 64, base: 214 };
+const ALARM_W = 236;
+const BAR_W = 18;
+const BAR_MIN = 3;
+/** The limit's drag range; `step` is the keyboard's step and the grid a dragged limit settles on. */
+const LIMIT = { min: 30, max: 5 * 60, step: 5 };
+/** The live bar peaks past the highest limit, so the rule fires wherever the limit is set. */
+const OVER = 15;
+const PEAK = LIMIT.max + OVER;
+const Y_MAX = PEAK + OVER;
+const DAY = { from: 7 * 60 + 30, to: 10 * 60 };
+
+const r2 = (v: number) => +v.toFixed(2);
+const xOfMin = (minAfter6: number) =>
+	r2(PLOT.x0 + ((minAfter6 + 6 * 60 - DAY.from) / (DAY.to - DAY.from)) * (PLOT.x1 - PLOT.x0));
+const yOf = (s: number) => r2(PLOT.base - (s / Y_MAX) * (PLOT.base - PLOT.top));
+const hhmm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+
+const bars = FILTER_HISTORY.map((o) => ({
+	cx: xOfMin(o.at),
+	x: r2(xOfMin(o.at) - BAR_W / 2),
+	y: Math.min(yOf(o.open), PLOT.base - BAR_MIN),
+	open: o.open,
+	start: 6 * 3600 + o.at * 60,
+}));
+const liveMin = FILTER_CHART.openedAt / 60 - 6 * 60;
+const liveX = xOfMin(liveMin);
+const limitY = yOf(FILTER_CHART.limit);
+
+const uid = renderId('fch');
+const frames = filterChartFrames(uid, FILTER_CHART.limit, PEAK, { base: PLOT.base, top: PLOT.top, yMax: Y_MAX });
+const liveTop = yOf(PEAK);
+const restCount =
+	FILTER_HISTORY.filter((o) => o.open > FILTER_CHART.limit).length + (PEAK > FILTER_CHART.limit ? 1 : 0);
+
+const ALARM_GAP = BAR_W / 2 + 17;
+const alarmX = r2(liveX + ALARM_GAP);
+/** The alarm's centre range: the card (~128 units tall) stays inside the frame and clear of the clock. */
+const ALARM_Y = { min: 66, max: H - 94 };
+if (alarmX + ALARM_W > PLOT.x1) {
+	throw new Error(`FilterChart: the alarm (${alarmX}–${alarmX + ALARM_W}) runs past the plot's edge at ${PLOT.x1}`);
+}
+
+const geo = {
+	peak: PEAK,
+	top: PLOT.top,
+	base: PLOT.base,
+	yMax: Y_MAX,
+	x1: PLOT.x1,
+	h: H,
+	alarmW: ALARM_W,
+	alarmGap: ALARM_GAP,
+	alarmY: ALARM_Y,
+	limit: LIMIT,
+	bars: [
+		...bars.map((b) => ({ x: b.cx, open: b.open, start: b.start })),
+		{ x: liveX, open: PEAK, start: FILTER_CHART.openedAt, live: true },
+	],
+};
+
+const chartLabel = `${FILTER_CHART.title}, since ${hhmm(DAY.from)}: ${FILTER_HISTORY.length} short openings, some only seconds, then one left open past the ${openFor(FILTER_CHART.limit)} limit, which raised a ${FREEZER_ALARM.severity.toLowerCase()} alarm, ${FREEZER_ALARM.name}, at ${ALARM_FIRED_AT}.`;
+---
+
+<style is:inline set:html={frames.css} data-fch-style={uid}></style>
+
+<div class="fch-fit">
+	<div
+		class="fch"
+		data-fch={uid}
+		data-fch-loop={frames.loop}
+		data-fch-climb={JSON.stringify(frames.climb)}
+		data-fch-geo={JSON.stringify(geo)}
+		data-flow="in"
+		style={[
+			`--u: min(1.15px, calc(100cqw / ${NATIVE}))`,
+			`--fch-native: ${NATIVE}`,
+			`--fch-h: ${H}`,
+			`--fch-alarm-x: ${alarmX}`,
+			`--fch-alarm-w: ${ALARM_W}`,
+			`--fch-limit-y: ${limitY}`,
+			`--fch-loop: ${frames.loop}s`,
+		].join('; ')}
+	>
+		<svg class="fch__chart" viewBox={`0 0 ${NATIVE} ${H}`} role="img" aria-label={chartLabel}>
+			<defs>
+				<linearGradient id={`${uid}-wash`} x1="0" y1="0" x2="0" y2="1">
+					<stop offset="0" stop-color="#fff" stop-opacity="1"></stop>
+					<stop offset="1" stop-color="#fff" stop-opacity="0"></stop>
+				</linearGradient>
+			</defs>
+
+			<rect x="0" y="0" width={NATIVE} height={PLOT.base} rx="8" fill={`url(#${uid}-wash)`}></rect>
+
+			<text class="fch__title" x="16" y="36">
+				{FILTER_CHART.title}
+			</text>
+
+			{[...bars.map((b) => b.x), r2(liveX - BAR_W / 2)].map((x) => (
+				<rect class="fch__track" x={x} y={limitY} width={BAR_W} height={r2(PLOT.base - limitY)} rx="1" />
+			))}
+
+			<line class="fch__limit" x1={PLOT.x0} y1={limitY} x2={PLOT.x1} y2={limitY}></line>
+
+			<line class="fch__base" x1={PLOT.x0} y1={PLOT.base} x2={PLOT.x1} y2={PLOT.base}></line>
+
+			<text class="fch__clock" x={liveX} y={H - 12} data-fch-clock>
+				{clock(FILTER_CHART.openedAt + PEAK)}
+			</text>
+
+			{bars.map((b) => (
+				<>
+					<rect class="fch__bar" x={b.x} y={b.y} width={BAR_W} height={r2(PLOT.base - b.y)} rx="1" />
+					<text class="fch__bar-label" x={b.cx} y={b.y - 8}>
+						{b.open}s
+					</text>
+				</>
+			))}
+
+			<rect
+				class="fch__live"
+				x={r2(liveX - BAR_W / 2)}
+				y={liveTop}
+				width={BAR_W}
+				height={r2(PLOT.base - liveTop)}
+				rx="1"
+			></rect>
+
+			<line class="fch__link" x1={liveX} y1={limitY} x2={alarmX} y2={limitY}></line>
+			<circle class="fch__fired" cx={liveX} cy={limitY} r="5"></circle>
+
+			<g class="fch__reading">
+				<text class="fch__readout" x={liveX} y={liveTop - 11} data-fch-readout>
+					{openFor(PEAK)}
+				</text>
+			</g>
+		</svg>
+
+		<button
+			type="button"
+			class="fch__handle"
+			role="slider"
+			aria-orientation="vertical"
+			aria-label="Alarm when the door stays open longer than"
+			aria-valuemin={LIMIT.min}
+			aria-valuemax={LIMIT.max}
+			aria-valuenow={FILTER_CHART.limit}
+			aria-valuetext={`${openFor(FILTER_CHART.limit)}, ${alarmCount(restCount)}`}
+			data-fch-handle
+		>
+			<span class="fch__grip" aria-hidden="true"></span>
+			<span data-fch-limit-text>{openFor(FILTER_CHART.limit)}</span>
+		</button>
+
+		<div class="fch__alarm-at fch__fade" aria-hidden="true">
+			<div class="fch__alarm-move">
+				<AlarmEntry />
+			</div>
+		</div>
+	</div>
+</div>
+
+<script>
+	import { clock, FILTER_CHART, openFor } from '@data/automate-visual';
+	import { alarmCount, FILTER_CHART_FADE_S, filterChartFrames } from '@util/filter-chart-frames';
+
+	interface Geo {
+		peak: number;
+		top: number;
+		base: number;
+		yMax: number;
+		x1: number;
+		h: number;
+		alarmW: number;
+		alarmGap: number;
+		alarmY: { min: number; max: number };
+		limit: { min: number; max: number; step: number };
+		bars: { x: number; open: number; start: number; live?: boolean }[];
+	}
+
+	const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+	document.querySelectorAll<HTMLElement>('[data-fch]').forEach((root) => {
+		const svg = root.querySelector<SVGSVGElement>('.fch__chart');
+		const handle = root.querySelector<HTMLButtonElement>('[data-fch-handle]');
+		const liveBar = root.querySelector<SVGRectElement>('.fch__live');
+		const readout = root.querySelector<SVGTextElement>('[data-fch-readout]');
+		if (!svg || !handle || !liveBar || !readout) return;
+		const geo = JSON.parse(root.dataset.fchGeo ?? '{}') as Geo;
+		const uid = root.dataset.fch ?? '';
+		const styleEl = document.querySelector<HTMLStyleElement>(`style[data-fch-style="${uid}"]`);
+		const panel = root.closest<HTMLElement>('.auto__panel');
+		const clockEl = root.querySelector<SVGTextElement>('[data-fch-clock]');
+		const reading = root.querySelector<SVGGElement>('.fch__reading');
+		const limitLine = root.querySelector<SVGLineElement>('.fch__limit');
+		const tracks = [...root.querySelectorAll<SVGRectElement>('.fch__track')];
+		const bars = [...root.querySelectorAll<SVGRectElement>('.fch__bar, .fch__live')];
+		const link = root.querySelector<SVGLineElement>('.fch__link');
+		const dot = root.querySelector<SVGCircleElement>('.fch__fired');
+		const alarmAt = root.querySelector<HTMLElement>('.fch__alarm-at');
+		const limitText = handle.querySelector<HTMLElement>('[data-fch-limit-text]');
+		const time = root.querySelector<HTMLElement>('.alarm-entry__time');
+		const yOf = (s: number) => geo.base - (s / geo.yMax) * (geo.base - geo.top);
+		const live = geo.bars.find((b) => b.live);
+
+		let climb = JSON.parse(root.dataset.fchClimb ?? '[]') as [number, number][];
+		let loop = Number(root.dataset.fchLoop) * 1000;
+		let limit = Number(handle.getAttribute('aria-valuenow'));
+
+		// The reading is taken from the live bar's own CSS animation, so the number and the bar cannot
+		// drift apart and both stop when the switch pauses the tab.
+		const valueAt = (pct: number) => {
+			if (pct <= climb[0][0]) return 0;
+			for (let k = 1; k < climb.length; k++) {
+				const [p0, s0] = climb[k - 1];
+				const [p1, s1] = climb[k];
+				if (pct <= p1) return s0 + ((pct - p0) / (p1 - p0)) * (s1 - s0);
+			}
+			return geo.peak;
+		};
+		let value = geo.peak;
+		let lastSec = -1;
+		let frame = 0;
+		const tick = () => {
+			frame = requestAnimationFrame(tick);
+			if (root.classList.contains('is-manual') || (panel && !panel.classList.contains('is-active'))) return;
+			const anim = liveBar.getAnimations()[0];
+			const pct = anim ? ((Number(anim.currentTime ?? 0) % loop) / loop) * 100 : 100;
+			value = valueAt(pct);
+			const sec = Math.floor(value);
+			if (sec === lastSec) return;
+			lastSec = sec;
+			readout.textContent = sec < 5 ? '' : openFor(sec);
+			if (clockEl) clockEl.textContent = clock(FILTER_CHART.openedAt + sec);
+		};
+		new IntersectionObserver(([entry]) => {
+			cancelAnimationFrame(frame);
+			if (entry.isIntersecting) frame = requestAnimationFrame(tick);
+		}).observe(root);
+
+		// The live bar is held at its value on the first change, not at pointerdown: it climbs on between
+		// the two, and a hold from pointerdown snapped it back.
+		let held = geo.peak;
+		const hold = () => {
+			if (!root.classList.contains('is-manual')) held = value;
+		};
+		const openOf = (b: Geo['bars'][number]) => (b.live ? held : b.open);
+
+		// NotifyFeed prints the same alarm, so it is told the new limit and time.
+		const placeAlarm = (bar: Geo['bars'][number], y: number) => {
+			const right = bar.x + geo.alarmGap + geo.alarmW <= geo.x1;
+			const ax = right ? bar.x + geo.alarmGap : bar.x - geo.alarmGap - geo.alarmW;
+			root.style.setProperty('--fch-alarm-x', String(ax));
+			root.style.setProperty('--fch-alarm-y', String(Math.min(geo.alarmY.max, Math.max(geo.alarmY.min, y))));
+			link?.setAttribute('x1', String(bar.x));
+			link?.setAttribute('x2', String(right ? ax : ax + geo.alarmW));
+			link?.setAttribute('y1', String(y));
+			link?.setAttribute('y2', String(y));
+			dot?.setAttribute('cx', String(bar.x));
+			dot?.setAttribute('cy', String(y));
+			const firedAt = clock(bar.start + limit);
+			if (time) time.textContent = firedAt;
+			root
+				.closest('[data-automate]')
+				?.dispatchEvent(new CustomEvent('automate:limit', { detail: { limit: openFor(limit), firedAt } }));
+		};
+
+		// On release the held picture fades out before the loop replays against the new limit; a cut
+		// to an empty chart reads as a flicker.
+		const clearing = [liveBar, reading, link, dot, alarmAt].filter((el): el is NonNullable<typeof el> => el !== null);
+		let fades: Animation[] = [];
+		let fadeGen = 0;
+		const cancelFade = () => {
+			fadeGen++;
+			fades.forEach((a) => a.cancel());
+			fades = [];
+		};
+
+		let testing = 0;
+		const test = () => {
+			if (!styleEl) return;
+			const f = filterChartFrames(uid, limit, geo.peak, geo);
+			styleEl.textContent = f.css;
+			climb = f.climb;
+			loop = f.loop * 1000;
+			root.style.setProperty('--fch-loop', f.loop + 's');
+			liveBar.style.removeProperty('transform');
+			liveBar.classList.remove('is-over');
+			reading?.style.removeProperty('transform');
+			root.classList.toggle('no-alarm', !f.fires);
+			if (f.fires && live) placeAlarm(live, yOf(limit));
+			root.classList.remove('is-manual');
+			lastSec = -1;
+			// Cancelled last, once the keyframes are at their start where nothing shows, so nothing flashes.
+			fades.forEach((a) => a.cancel());
+			fades = [];
+			requestAnimationFrame(() =>
+				root.getAnimations({ subtree: true }).forEach((a) => {
+					if (a instanceof CSSAnimation) a.currentTime = 0;
+				})
+			);
+		};
+		const testSoon = (ms: number) => {
+			clearTimeout(testing);
+			testing = window.setTimeout(() => {
+				if (reduced) return test();
+				const gen = ++fadeGen;
+				fades = clearing.map((el) =>
+					el.animate([{ opacity: getComputedStyle(el).opacity }, { opacity: 0 }], {
+						duration: FILTER_CHART_FADE_S * 1000,
+						easing: 'ease-out',
+						fill: 'forwards',
+					})
+				);
+				Promise.all(fades.map((a) => a.finished)).then(
+					() => {
+						if (gen === fadeGen) test();
+					},
+					() => {}
+				);
+			}, ms);
+		};
+
+		// `snap` is 1s while the pointer moves, so the line slides instead of clicking step to step.
+		const apply = (seconds: number, snap = geo.limit.step) => {
+			const { min, max } = geo.limit;
+			const next = Math.min(max, Math.max(min, Math.round(seconds / snap) * snap));
+			if (next === limit && root.classList.contains('is-manual')) return;
+			limit = next;
+			hold();
+			const y = yOf(limit);
+			const overCount = geo.bars.filter((b) => openOf(b) > limit).length;
+			svg.setAttribute(
+				'aria-label',
+				FILTER_CHART.title +
+					': the limit at ' +
+					openFor(limit) +
+					', ' +
+					(overCount
+						? overCount + (overCount > 1 ? ' openings' : ' opening') + ' over it, the latest raising the alarm.'
+						: 'no opening over it, so no alarm.')
+			);
+			root.classList.add('is-manual');
+			root.style.setProperty('--fch-limit-y', String(y));
+			limitLine?.setAttribute('y1', String(y));
+			limitLine?.setAttribute('y2', String(y));
+			tracks.forEach((t) => {
+				t.setAttribute('y', String(y));
+				t.setAttribute('height', String(Math.max(0, geo.base - y)));
+			});
+			liveBar.style.setProperty('transform', 'scaleY(' + held / geo.peak + ')');
+			reading?.style.setProperty('transform', 'translateY(' + (yOf(held) - yOf(geo.peak)) + 'px)');
+			readout.textContent = held < 5 ? '' : openFor(held);
+			if (clockEl) clockEl.textContent = clock(FILTER_CHART.openedAt + held);
+			lastSec = -1;
+			const over = geo.bars.map((b) => openOf(b) > limit);
+			bars.forEach((el, i) => el.classList.toggle('is-over', over[i]));
+			handle.setAttribute('aria-valuenow', String(limit));
+			handle.setAttribute('aria-valuetext', openFor(limit) + ', ' + alarmCount(overCount));
+			if (limitText) limitText.textContent = openFor(limit);
+
+			const last = geo.bars
+				.map((b, i) => (over[i] ? b : null))
+				.filter((b) => b !== null)
+				.pop();
+			root.classList.toggle('no-alarm', !last);
+			if (last) placeAlarm(last, y);
+		};
+
+		// Measured once per grab (and on scroll/resize), not per move: measuring between moves forced a
+		// layout every move.
+		let box = svg.getBoundingClientRect();
+		const measure = () => {
+			box = svg.getBoundingClientRect();
+		};
+		const pointerY = (e: PointerEvent) => ((e.clientY - box.top) / box.height) * geo.h;
+		let grab = 0;
+		let moved = false;
+
+		handle.addEventListener('pointerdown', (e) => {
+			clearTimeout(testing);
+			cancelFade();
+			measure();
+			window.addEventListener('scroll', measure, { capture: true, passive: true });
+			window.addEventListener('resize', measure);
+			handle.setPointerCapture(e.pointerId);
+			grab = pointerY(e) - yOf(limit);
+			moved = false;
+		});
+		handle.addEventListener('pointermove', (e) => {
+			if (!handle.hasPointerCapture(e.pointerId)) return;
+			const y = pointerY(e) - grab;
+			if (!moved && Math.abs(y - yOf(limit)) < 1) return;
+			moved = true;
+			apply(((geo.base - y) / (geo.base - geo.top)) * geo.yMax, 1);
+		});
+		const release = () => {
+			window.removeEventListener('scroll', measure, { capture: true });
+			window.removeEventListener('resize', measure);
+			if (root.classList.contains('is-manual')) {
+				apply(limit);
+				testSoon(150);
+			}
+			moved = false;
+		};
+		handle.addEventListener('pointerup', release);
+		handle.addEventListener('pointercancel', release);
+		handle.addEventListener('lostpointercapture', release);
+		handle.addEventListener('keydown', (e) => {
+			const { min, max, step } = geo.limit;
+			const by: Record<string, number> = {
+				ArrowUp: step,
+				ArrowRight: step,
+				ArrowDown: -step,
+				ArrowLeft: -step,
+				PageUp: step * 6,
+				PageDown: -step * 6,
+			};
+			if (!(e.key in by) && e.key !== 'Home' && e.key !== 'End') return;
+			clearTimeout(testing);
+			cancelFade();
+			if (e.key in by) apply(limit + by[e.key]);
+			else if (e.key === 'Home') apply(min);
+			else apply(max);
+			e.preventDefault();
+			testSoon(600);
+		});
+	});
+</script>
+
+<style lang="scss">
+	@use '../../styles/variables' as *;
+
+	@function u($n) {
+		@return calc(#{$n} * var(--u));
+	}
+
+	.fch-fit {
+		container-type: inline-size;
+	}
+
+	.fch {
+		--fch-grey: var(--color-text-secondary, #5b616e);
+		--fch-hue: var(--flow-rail);
+		--fch-alarm: #b23c33;
+
+		position: relative;
+		max-width: u(var(--fch-native));
+		height: u(var(--fch-h));
+		margin: 0 auto;
+	}
+
+	.fch__chart {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		overflow: visible;
+	}
+
+	.fch__title {
+		font-size: 19px;
+		font-weight: $font-weight-medium;
+		fill: var(--color-text, #17181c);
+	}
+
+	// SVG text sizes are in the viewBox's units, so these px scale with the frame.
+	.fch__clock {
+		font-family: $font-family-mono;
+		font-size: 18px;
+		font-variant-numeric: tabular-nums;
+		text-anchor: middle;
+		fill: var(--fch-grey);
+	}
+
+	.fch__base {
+		stroke: var(--color-text, #17181c);
+		stroke-opacity: 0.18;
+		vector-effect: non-scaling-stroke;
+	}
+
+	.fch__limit {
+		stroke: var(--fch-grey);
+		stroke-opacity: 0.55;
+		stroke-dasharray: 5 4;
+		vector-effect: non-scaling-stroke;
+	}
+
+	.fch__bar {
+		fill: var(--fch-hue);
+		opacity: 0.45;
+	}
+
+	// Red at rest: the resting picture is past the crossing.
+	.fch__live {
+		fill: var(--fch-alarm);
+		transform-box: fill-box;
+		transform-origin: bottom center;
+	}
+
+	.fch__link {
+		stroke: var(--fch-alarm);
+		stroke-width: max(1px, #{u(2)});
+		stroke-linecap: round;
+		vector-effect: non-scaling-stroke;
+		transform-box: fill-box;
+		transform-origin: left center;
+	}
+
+	.fch__fired {
+		fill: var(--fch-alarm);
+		stroke: var(--color-bg-surface, #fff);
+		stroke-width: 2;
+		transform-box: fill-box;
+		transform-origin: center;
+	}
+
+	.fch__readout {
+		font-family: $font-family-mono;
+		font-size: 18px;
+		font-weight: $font-weight-bold;
+		font-variant-numeric: tabular-nums;
+		text-anchor: middle;
+		fill: var(--fch-alarm);
+	}
+
+	// `--fch-alarm-y` is set by the script once the limit is dragged.
+	.fch__alarm-at {
+		position: absolute;
+		top: u(var(--fch-alarm-y, var(--fch-limit-y)));
+		left: u(var(--fch-alarm-x));
+		width: u(var(--fch-alarm-w));
+		transform: translateY(-50%);
+	}
+
+	.fch__track {
+		fill: var(--fch-hue);
+		opacity: 0.08;
+	}
+
+	.fch__bar-label {
+		font-family: $font-family-mono;
+		font-size: 18px;
+		text-anchor: middle;
+		fill: var(--fch-grey);
+	}
+
+	.fch__handle {
+		position: absolute;
+		top: u(var(--fch-limit-y));
+		left: 0;
+		display: flex;
+		align-items: center;
+		gap: u(7);
+		height: u(38);
+		padding: 0 u(12) 0 u(10);
+		border: 0;
+		border-radius: u(19);
+		font-family: $font-family-mono;
+		font-size: u(18);
+		font-weight: $font-weight-bold;
+		line-height: u(22);
+		color: var(--color-text, #17181c);
+		background: var(--color-bg-surface, #fff);
+		box-shadow:
+			0 1px 2px rgba(16, 24, 40, 0.12),
+			0 #{u(4)} #{u(10)} #{u(-4)} rgba(16, 24, 40, 0.3);
+		transform: translateY(-50%);
+		cursor: ns-resize;
+		touch-action: none;
+
+		// A larger target than it looks, for a finger.
+		&::before {
+			content: '';
+			position: absolute;
+			inset: u(-8) u(-6);
+		}
+
+		&:hover {
+			box-shadow:
+				0 1px 2px rgba(16, 24, 40, 0.14),
+				0 #{u(6)} #{u(14)} #{u(-4)} rgba(16, 24, 40, 0.36);
+		}
+
+		&:focus-visible {
+			outline: 2px solid var(--color-primary, #3d50f5);
+			outline-offset: 2px;
+		}
+	}
+
+	.fch__grip {
+		width: u(14);
+		height: u(11);
+		background: linear-gradient(var(--fch-grey), var(--fch-grey)) center / 100% max(1px, #{u(1.5)}) no-repeat;
+		border-top: max(1px, #{u(1.5)}) solid var(--fch-grey);
+		border-bottom: max(1px, #{u(1.5)}) solid var(--fch-grey);
+	}
+
+	.fch.is-manual {
+		:is(.fch__live, .fch__reading, .fch__readout, .fch__fade, .fch__fired, .fch__link, .fch__alarm-move) {
+			animation: none !important;
+		}
+
+		:is(.fch__link, .fch__fired, .fch__alarm-at) {
+			transition: opacity 150ms ease-out;
+		}
+
+		.fch__live {
+			fill: var(--fch-hue);
+		}
+
+		.fch__live.is-over {
+			fill: var(--fch-alarm);
+		}
+
+		.fch__readout {
+			fill: var(--fch-hue);
+		}
+
+		.fch__live.is-over ~ .fch__reading .fch__readout {
+			fill: var(--fch-alarm);
+		}
+	}
+
+	.fch__bar.is-over {
+		fill: var(--fch-alarm);
+		opacity: 1;
+	}
+
+	.fch.no-alarm :is(.fch__link, .fch__fired, .fch__alarm-at) {
+		opacity: 0;
+	}
+
+	// Rounds the keyframed ring (box-shadow) to the card's corners.
+	.fch__alarm-move {
+		border-radius: u(8);
+	}
+</style>
