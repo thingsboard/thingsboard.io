@@ -1,9 +1,9 @@
 /**
- * Content for the homepage's Automate switch: the Normalize, Filter and Notify drawings of one freezer alarm.
+ * Content for the homepage's Automate switch: the Normalize, Alert and Deliver drawings of one freezer alarm.
  */
 
 interface AutomateStage {
-	id: 'normalize' | 'filter' | 'notify';
+	id: 'normalize' | 'alert' | 'deliver';
 	/** One word: three share a pill that has to fit a phone. */
 	label: string;
 	icon: string;
@@ -16,14 +16,14 @@ export const AUTOMATE_STAGES: AutomateStage[] = [
 		icon: 'tabler:transform',
 	},
 	{
-		id: 'filter',
-		label: 'Filter',
-		icon: 'tabler:filter',
+		id: 'alert',
+		label: 'Alert',
+		icon: 'tabler:alert-triangle',
 	},
 	{
-		id: 'notify',
-		label: 'Notify',
-		icon: 'tabler:bell-ringing',
+		id: 'deliver',
+		label: 'Deliver',
+		icon: 'tabler:send',
 	},
 ];
 

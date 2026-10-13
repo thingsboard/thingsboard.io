@@ -18,7 +18,7 @@ export const TRUST_POINTS: TrustPoint[] = [
 	{
 		kind: 'security',
 		title: 'Secure and certified',
-		body: 'ISO 27001 and ISO 9001 certified, independently penetration-tested, and patched on every LTS release. SSO, two-factor sign-in, and permissions down to a single device.',
+		body: 'ISO 27001 and ISO 9001 certified, independently penetration-tested, and patched on every LTS release. SSO, two-factor sign-in, and RBAC.',
 		link: { text: 'Security overview', href: '/docs/pe/user-guide/security/' },
 	},
 	{
@@ -29,9 +29,9 @@ export const TRUST_POINTS: TrustPoint[] = [
 	},
 	{
 		kind: 'open',
-		title: 'Open at the core',
-		body: 'Source code on GitHub, open protocols for your devices, and REST and WebSocket APIs for everything else. Extend any part of the platform, or connect it to any system.',
-		link: { text: 'REST API reference', href: '/docs/pe/reference/rest-api/' },
+		title: 'Source-available',
+		body: 'Read the source on GitHub. Connect devices over open protocols. Use REST and WebSocket APIs and SDKs for everything else. Extend any part of the platform, or integrate it with any system.',
+		link: { text: 'APIs & SDKs', href: '/docs/pe/apis-and-sdks/' },
 	},
 ];
 

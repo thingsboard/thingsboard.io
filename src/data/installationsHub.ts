@@ -93,7 +93,7 @@ export const installProducts: InstallProduct[] = [
 		nameHighlight: 'On-premises',
 		label: 'Self-managed, on your infrastructure',
 		description:
-			'Run ThingsBoard on your own servers, in your own cloud account or fully offline, and keep your data on your infrastructure. Installation is free; licenses for the advanced features are on the pricing page.',
+			'Run ThingsBoard on your own servers, in a cloud account, or fully offline, and keep your data on your infrastructure. Installation is free; see the pricing page for licensing the advanced features.',
 		icon: TB_ICON,
 		badgeFill: 'var(--brand-pe)',
 		buttonIcon: 'tabler:server',
