@@ -40,9 +40,6 @@ export const TRUST_CERTS = ['27001', '9001'];
 
 export const TRUST_REPO = 'thingsboard/thingsboard';
 
-/** GitHub's star count for `TRUST_REPO`, updated by hand. */
-export const TRUST_REPO_STARS = 22530;
-
 interface TrustScaleStage {
 	mode: string;
 	devices: string;
