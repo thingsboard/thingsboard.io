@@ -1,11 +1,8 @@
 /**
- * Refreshes src/data/github-stars.json from the GitHub API.
+ * Refreshes src/data/github-stars.json from the GitHub API, rewriting it only when a shown count
+ * (formatStars) changes, so a few new stars leave the pages and the build cache untouched.
  *
- * The file is rewritten only when a count pages show changes (see formatStars), so a few new stars
- * leave the pages, and the build cache, untouched. Uses GITHUB_TOKEN when set; without one the
- * unauthenticated limit of 60 requests an hour is plenty for a handful of repos.
- *
- * Usage: pnpm update:stars
+ * Usage: pnpm update:stars (uses GITHUB_TOKEN when set)
  */
 
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -28,14 +25,9 @@ const fetchStars = async (repo: string): Promise<number> => {
 const repos = Object.keys(current);
 const fresh = Object.fromEntries(await Promise.all(repos.map(async (repo) => [repo, await fetchStars(repo)])));
 
-const changed = repos.filter((repo) => formatStars(fresh[repo]) !== formatStars(current[repo]));
-for (const repo of repos) {
-	console.log(`${repo}: ${current[repo]} → ${fresh[repo]}${changed.includes(repo) ? ' (shown count changed)' : ''}`);
-}
+for (const repo of repos) console.log(`${repo}: ${current[repo]} → ${fresh[repo]}`);
 
-if (changed.length) {
+if (repos.some((repo) => formatStars(fresh[repo]) !== formatStars(current[repo]))) {
 	writeFileSync(FILE, `${JSON.stringify(fresh, null, 2)}\n`);
-	console.log(`Updated ${changed.length} shown count(s).`);
-} else {
-	console.log('No shown count changed; file left as is.');
+	console.log('Shown counts changed; file updated.');
 }
