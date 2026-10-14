@@ -116,6 +116,20 @@ Commit the regenerated files (under `src/content/docs/docs/.../reference/configu
 3. Copy and translate the body; keep the frontmatter structure. Set `i18nReady: true` once the translation is ready to publish.
 4. Untranslated pages fall back to English automatically — do not stub-translate or leave English placeholders.
 
+## Which branch and label
+
+Pick the base branch and the label of your PR by what the change is:
+
+| The change is | Branch | Label |
+|---|---|---|
+| docs for a released feature | `main` | none |
+| docs for the next ThingsBoard release, not an LTS release | `develop` | none |
+| docs for a sub-product or an LTS release, not released yet | `main` | `awaiting-release` |
+| a blog post | `develop` | none |
+| a change that another person must review on a running site, when it cannot be shown in a local network | `develop` | none |
+
+If the feature is not merged into the product repository yet, also add the label `awaiting-product-merge`.
+
 ## Opening the PR
 
 - Branch naming is loose; descriptive is enough (`fix/mqtt-quickstart-typo`, `add/edge-installation-page`).

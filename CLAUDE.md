@@ -283,3 +283,5 @@ GitHub Actions runs: `astro check`, `eslint`, `slugcheck`.
 `lint:dualrender` also needs a build and is **not wired into any pipeline yet** — run `pnpm lint:dualrender` by hand after a build when touching IoT Hub listing cards, their clone templates, or `iot-hub-listing-card-bind.ts`. It checks that the server render and the client-cloned render of a card still agree; breaking that is silent, since the page builds, typechecks and lints clean and only renders wrong once results come back from the API.
 
 `lint:landmarks` also needs a build and is not wired into a pipeline yet — run `pnpm lint:landmarks` by hand after a build when adding pages or layouts, or touching the marketing comparison tables. It asserts exactly one `<main>` per built page (Starlight emits one; a page-level `<main>` is always a nested duplicate) and that the marketing tables keep captions and carry every value as text. Both defects are silent: the page builds, typechecks and lints clean.
+
+**PR base branch and labels:** pick them by the table in [Which branch and label](CONTRIBUTING.md#which-branch-and-label).
