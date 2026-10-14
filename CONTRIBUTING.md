@@ -23,27 +23,27 @@ Thanks for helping improve the ThingsBoard documentation. This repo holds the so
    ```
 4. Open <http://localhost:4321/docs/> in your browser.
 
-`pnpm dev` rebuilds incrementally and is the normal authoring loop. Before opening a PR, run `pnpm build:fast` for a full production build. It skips OG image generation for speed; CI runs the full `pnpm build`.
+`pnpm dev` rebuilds incrementally and is the normal authoring loop. Before opening a PR, run `pnpm build:fast` for a full production build. It skips OG image generation for speed.
 
 ## Before you open a PR
 
-CI runs four checks. All must pass for the PR to be merged. Run them locally first:
+CI runs four checks on every PR. All must pass for the PR to be merged. Run them locally first:
 
 - `pnpm check` — TypeScript and Astro type checking.
 - `pnpm lint:eslint` — ESLint.
 - `pnpm lint:slugcheck` — verifies slugs match across languages.
-- `pnpm build:fast` — production build (catches broken imports, missing assets, schema errors).
+- `pnpm lint:linkcheck` — full link validation (slow; builds the site first). If you already have a build, `pnpm lint:linkcheck:nobuild` re-checks the links only.
 
 Other commands worth knowing:
 
-- `pnpm lint:linkcheck` — full link validation (slow; runs a full build first).
+- `pnpm build:fast` — production build (catches broken imports, missing assets, schema errors).
 - `pnpm format` — Prettier formatting.
 
 ## Content authoring basics
 
 A 30-second orientation. For the full architecture (product system, schemas, redirects, OG cards), see [`CLAUDE.md`](./CLAUDE.md).
 
-**Where pages live.** Documentation pages are MDX files under `src/content/docs/{lang}/docs/...`. English (`en`) is canonical; other languages mirror the English structure and fall back to English automatically when untranslated.
+**Where pages live.** Documentation pages are MDX files under `src/content/docs/docs/...`. The site is English only.
 
 **The CE / PE three-tier pattern.** Pages that exist for both Community Edition (CE) and Professional Edition (PE) do not duplicate content. The actual content lives in a shared MDX file under `src/content/_includes/docs/{path}/{page}.mdx`. Two thin stub pages import it. The CE stub at `src/content/docs/docs/{path}/{page}.mdx` passes `Products.CE`; the PE stub at `src/content/docs/docs/pe/{path}/{page}.mdx` passes `Products.PE`:
 
@@ -51,15 +51,15 @@ A 30-second orientation. For the full architecture (product system, schemas, red
 ---
 title: My Page
 ---
-import Content from '~/content/_includes/docs/path/page.mdx';
-import { Products } from '~/models/site.models';
+import Content from '@includes/docs/path/page.mdx';
+import { Products } from '@models/site.models';
 
 <Content {...{ product: Products.CE }} />
 ```
 
-**Internal links.** Use the `<DocLink>` component, never bare Markdown links to other doc pages. Bare links break when language fallback kicks in or when product prefixes change.
+**Internal links.** Use the `<DocLink>` component, never bare Markdown links to other doc pages. Bare links break when product prefixes change.
 
-**Version strings.** Never hardcode ThingsBoard version numbers in Docker image tags, download URLs, or code samples. Import constants from `~/data/versions` (`CE_FULL_VER`, `PE_FULL_VER`, `TRENDZ_VER`, etc.).
+**Version strings.** Never hardcode ThingsBoard version numbers in Docker image tags, download URLs, or code samples. Import constants from `@data/versions` (`CE_FULL_VER`, `PE_FULL_VER`, `TRENDZ_VER`, etc.).
 
 **Sidebar.** When you add a new page, register it in `astro.sidebar.ts`. The shared helpers `guideItems(prefix)` and `installationItems(prefix)` cover both CE and PE — add the entry once and both products pick it up.
 
@@ -111,10 +111,7 @@ Commit the regenerated files (under `src/content/docs/docs/.../reference/configu
 
 ### Translate a page
 
-1. Find the English source under `src/content/docs/en/docs/...`.
-2. Create the file at the same path under `src/content/docs/{lang}/docs/...`.
-3. Copy and translate the body; keep the frontmatter structure. Set `i18nReady: true` once the translation is ready to publish.
-4. Untranslated pages fall back to English automatically — do not stub-translate or leave English placeholders.
+The site is English only for now. Translations are not accepted until a second language is enabled.
 
 ## Which branch and label
 
@@ -135,7 +132,6 @@ If the feature is not merged into the product repository yet, also add the label
 - Branch naming is loose; descriptive is enough (`fix/mqtt-quickstart-typo`, `add/edge-installation-page`).
 - Use imperative-mood commit messages. Keep the subject brief; add a body if the motivation isn't obvious from the diff.
 - The PR title should describe the change. The body should mention the affected pages and include screenshots if there's a visual change.
-- Every PR gets a preview deployment link in the PR conversation — use it to verify your change in a rendered context.
 - The four CI checks must pass before merge.
 
 ## Getting help
