@@ -29,11 +29,12 @@ pnpm lint:steps       # Catch <Steps> lists inside JSX {…} blocks (Markdown no
 pnpm lint:redirects   # Detect redirect chains in the redirect data
 pnpm lint:dualrender  # Validate IoT Hub server/client card render parity (needs a build)
 pnpm lint:landmarks   # One <main> per page + marketing table integrity (needs a build)
-pnpm format           # Format with Prettier (format:code / format:imports / format:ci are the parts)
+pnpm format           # Format with Prettier
 
 # Generators
 pnpm generate:redirects   # Regenerate public/_redirects + public/redirects.json (see Redirects)
 pnpm generate:nav-sprite  # Rebuild the mega-menu icon sprite after editing an icon (builds run it automatically)
+pnpm update:stars         # Refresh GitHub star counts in src/data/github-stars.json (a weekday workflow does this and opens a PR)
 pnpm optimize:svg         # Minify SVGs in place with SVGO (src/assets + public, or the paths given); safe to re-run
 ```
 
@@ -137,7 +138,7 @@ src/content/docs/docs/
   ├── mobile/            ← Mobile pages
   ├── license-server/    ← License Server pages
   ├── iot-hub/           ← IoT Hub docs (user and contribution guides)
-  └── private-cloud/     ← Private Cloud pages
+  └── private-cloud/     ← Private Cloud subscription page (standalone; no product prefix, resolves as CE)
 ```
 
 TBMQ (`mqtt-broker/`) has a prefix in the enum but no content directory yet.
@@ -283,3 +284,5 @@ GitHub Actions runs: `astro check`, `eslint`, `slugcheck`.
 `lint:dualrender` also needs a build and is **not wired into any pipeline yet** — run `pnpm lint:dualrender` by hand after a build when touching IoT Hub listing cards, their clone templates, or `iot-hub-listing-card-bind.ts`. It checks that the server render and the client-cloned render of a card still agree; breaking that is silent, since the page builds, typechecks and lints clean and only renders wrong once results come back from the API.
 
 `lint:landmarks` also needs a build and is not wired into a pipeline yet — run `pnpm lint:landmarks` by hand after a build when adding pages or layouts, or touching the marketing comparison tables. It asserts exactly one `<main>` per built page (Starlight emits one; a page-level `<main>` is always a nested duplicate) and that the marketing tables keep captions and carry every value as text. Both defects are silent: the page builds, typechecks and lints clean.
+
+**PR base branch and labels:** pick them by the table in [Which branch and label](CONTRIBUTING.md#which-branch-and-label).
