@@ -19,7 +19,7 @@ export const TRUST_POINTS: TrustPoint[] = [
 		kind: 'security',
 		title: 'Secure and certified',
 		body: 'ISO 27001 and ISO 9001 certified, independently penetration-tested, and patched on every LTS release. SSO, two-factor sign-in, and RBAC.',
-		link: { text: 'Security overview', href: '/docs/pe/user-guide/security/' },
+		link: { text: 'Trust Center', href: '/trust-center/' },
 	},
 	{
 		kind: 'scale',
