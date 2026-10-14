@@ -34,6 +34,7 @@ pnpm format           # Format with Prettier
 # Generators
 pnpm generate:redirects   # Regenerate public/_redirects + public/redirects.json (see Redirects)
 pnpm generate:nav-sprite  # Rebuild the mega-menu icon sprite after editing an icon (builds run it automatically)
+pnpm update:stars         # Refresh GitHub star counts in src/data/github-stars.json (a weekday workflow does this and opens a PR)
 pnpm optimize:svg         # Minify SVGs in place with SVGO (src/assets + public, or the paths given); safe to re-run
 ```
 
