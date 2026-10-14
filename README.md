@@ -8,7 +8,7 @@ Prerequisites: Node.js (any recent LTS) and [pnpm](https://pnpm.io/installation)
 
 ```bash
 pnpm install
-pnpm dev          # http://localhost:4321/docs/pe/
+pnpm dev          # http://localhost:4321/
 pnpm build:fast   # production build, skips OG image generation
 ```
 

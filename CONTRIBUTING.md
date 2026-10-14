@@ -21,7 +21,7 @@ Thanks for helping improve the ThingsBoard documentation. This repo holds the so
    pnpm install
    pnpm dev
    ```
-4. Open <http://localhost:4321/docs/pe/> in your browser.
+4. Open <http://localhost:4321/> in your browser.
 
 `pnpm dev` rebuilds incrementally and is the normal authoring loop. Before opening a PR, run `pnpm build:fast` for a full production build. It skips OG image generation for speed.
 
