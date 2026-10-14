@@ -29,7 +29,7 @@ pnpm lint:steps       # Catch <Steps> lists inside JSX {…} blocks (Markdown no
 pnpm lint:redirects   # Detect redirect chains in the redirect data
 pnpm lint:dualrender  # Validate IoT Hub server/client card render parity (needs a build)
 pnpm lint:landmarks   # One <main> per page + marketing table integrity (needs a build)
-pnpm format           # Format with Prettier (format:code / format:imports / format:ci are the parts)
+pnpm format           # Format with Prettier
 
 # Generators
 pnpm generate:redirects   # Regenerate public/_redirects + public/redirects.json (see Redirects)
