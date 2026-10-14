@@ -171,7 +171,7 @@ export const communityGrantFaq: FaqCategory[] = [
 			},
 			{
 				id: 'cg-internet-required',
-				question: 'Does my deployment need internet access?',
+				question: 'Does my deployment need internet access after the upgrade?',
 				answer: `<p>On a standard key, yes, for periodic license checks. The platform checks in with our license server periodically and tolerates interruptions of up to 72 hours. After that, the management interface locks until the next successful check. Your deployment keeps running: devices keep sending data, commands still reach them, and nothing is deleted. Full access comes back as soon as the connection does. ${contact('Contact us')} if your deployment can only run without external connectivity.</p>`,
 			},
 		],
