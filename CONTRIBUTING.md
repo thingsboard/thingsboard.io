@@ -1,6 +1,6 @@
 # Contributing to ThingsBoard Docs
 
-Thanks for helping improve the ThingsBoard documentation. This repo holds the source for [thingsboard.io/docs](https://thingsboard.io/docs/) — documentation content, the site code that renders it, redirects, and translations. Bugs and features in the ThingsBoard platform itself live in the [`thingsboard/thingsboard`](https://github.com/thingsboard/thingsboard) repo.
+Thanks for helping improve the ThingsBoard documentation. This repo holds the source for [thingsboard.io/docs/pe](https://thingsboard.io/docs/pe/) — documentation content, the site code that renders it, redirects, and translations. Bugs and features in the ThingsBoard platform itself live in the [`thingsboard/thingsboard`](https://github.com/thingsboard/thingsboard) repo.
 
 ## Prerequisites
 
@@ -21,7 +21,7 @@ Thanks for helping improve the ThingsBoard documentation. This repo holds the so
    pnpm install
    pnpm dev
    ```
-4. Open <http://localhost:4321/docs/> in your browser.
+4. Open <http://localhost:4321/docs/pe/> in your browser.
 
 `pnpm dev` rebuilds incrementally and is the normal authoring loop. Before opening a PR, run `pnpm build:fast` for a full production build. It skips OG image generation for speed.
 
@@ -137,5 +137,5 @@ If the feature is not merged into the product repository yet, also add the label
 ## Getting help
 
 - Found a documentation bug, broken link, or unclear page? [Open an issue](https://github.com/thingsboard/thingsboard.io/issues).
-- Read the live docs at [thingsboard.io/docs](https://thingsboard.io/docs/) to see what's already published.
+- Read the live docs at [thingsboard.io/docs/pe](https://thingsboard.io/docs/pe/) to see what's already published.
 - PRs are reviewed by the ThingsBoard docs team on a best-effort basis.
