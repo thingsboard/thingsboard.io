@@ -1,6 +1,6 @@
 # Contributing to ThingsBoard Docs
 
-Thanks for helping improve the ThingsBoard documentation. This repo holds the source for [thingsboard.io/docs/pe](https://thingsboard.io/docs/pe/) — documentation content, the site code that renders it, redirects, and translations. Bugs and features in the ThingsBoard platform itself live in the [`thingsboard/thingsboard`](https://github.com/thingsboard/thingsboard) repo.
+Thanks for helping improve the ThingsBoard documentation. This repo holds the source for the [ThingsBoard Docs](https://thingsboard.io/docs/pe/) and the rest of the thingsboard.io website (home, pricing, blog, use cases, partners, IoT Hub), along with the site code that renders them and the redirects. Bugs and feature requests for ThingsBoard products belong in each product's own repository: [New issue](https://github.com/thingsboard/thingsboard.io/issues/new/choose) lists where to report each one.
 
 ## Prerequisites
 
