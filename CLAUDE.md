@@ -137,7 +137,7 @@ src/content/docs/docs/
   ├── mobile/            ← Mobile pages
   ├── license-server/    ← License Server pages
   ├── iot-hub/           ← IoT Hub docs (user and contribution guides)
-  └── private-cloud/     ← Private Cloud pages
+  └── private-cloud/     ← Private Cloud subscription page (standalone; no product prefix, resolves as CE)
 ```
 
 TBMQ (`mqtt-broker/`) has a prefix in the enum but no content directory yet.
