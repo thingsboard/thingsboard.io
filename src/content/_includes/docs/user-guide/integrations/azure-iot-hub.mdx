@@ -86,14 +86,43 @@ Create the uplink converter, assign it to a new Azure IoT Hub integration, and s
 
 The uplink converter receives each message as a byte array plus its topic, resolves the target device, and returns its telemetry and attributes. Azure IoT Hub Integration uses the **Generic** converter: you write the decoder in TBEL or JavaScript. For converter types and the full decoder reference, see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#converter-types" target="_blank">Uplink data converter</DocLink>.
 
-This guide uses the following payload:
+This guide uses the sample payload that ThingsBoard provides for Azure IoT Hub converters, with a recent `timestamp`:
 
 ```json
 {
-  "devName": "T1",
-  "msg": {
-    "temp": 42,
-    "humidity": 77
+  "deviceId": "8F4A2C6D",
+  "deviceType": "Packing machine",
+  "temperature": 25.5,
+  "pressure": 1013.25,
+  "vibration": {
+    "x": 0.02,
+    "y": 0.03,
+    "z": 0.015
+  },
+  "location": {
+    "latitude": 37.7749,
+    "longitude": -122.4194,
+    "altitude": 10
+  },
+  "timestamp": "2026-10-14T10:30:00Z",
+  "status": "ALARM",
+  "alarms": [
+    {
+      "type": "temperature",
+      "severity": "high",
+      "message": "Temperature exceeds threshold."
+    },
+    {
+      "type": "vibration",
+      "severity": "critical",
+      "message": "Excessive vibration detected."
+    }
+  ],
+  "metadata": {
+    "version": 1,
+    "batteryLevel": 100,
+    "batteryStatus": "Charging",
+    "manufacturer": "Example corporation"
   }
 }
 ```
@@ -103,54 +132,118 @@ This guide uses the following payload:
 2. **Converter type** — keep **Uplink**.
 3. **Integration type** — select **Azure IoT Hub**.
 4. **Name** — enter a name, for example `Azure IoT Hub Uplink Converter`.
-5. **Main decoding configuration** — the editor opens with the default Azure IoT Hub template. It reads `deviceId`, `deviceType`, and `timestamp` from the payload and adds every device to the `Control room` group. Replace it with the decoder below, or adapt it to your payload. The editor opens in TBEL; use the **TBEL / JS** toggle to switch to JavaScript.
+5. **Main decoding configuration** — the editor opens with the default Azure IoT Hub template. Replace it with the decoder below. The decoder maps measurements and state to telemetry and static device properties to attributes. It also reads `timestamp`, `location`, and `vibration` when the payload carries them. The editor opens in TBEL; use the **TBEL / JS** toggle to switch to JavaScript.
    <Aside type="tip" title="TBEL">
      Use <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL</DocLink> for converter scripts — it runs much faster than JavaScript inside ThingsBoard.
    </Aside>
    <Tabs>
      <TabItem label="TBEL (Recommended)">
        ```js maxLines=15 collapsible
-       /** Decoder **/
-
        var data = decodeToJson(payload);
 
-       var result = {
-         deviceName: data.devName,
-         deviceType: 'thermostat',
-         telemetry: {
-           temperature: data.msg.temp,
-           humidity: data.msg.humidity
-         }
+       var deviceName = data.deviceId != null ? data.deviceId : "Device A";
+       var deviceType = data.deviceType != null ? data.deviceType : "default";
+
+       // ISO 8601 timestamp; fall back to server time.
+       var ts = data.timestamp != null ? new Date(data.timestamp).getTime() : Date.now();
+
+       // Static device properties become attributes.
+       var attributes = {};
+       if (data.location != null) {
+           attributes.latitude = data.location.latitude;
+           attributes.longitude = data.location.longitude;
+           attributes.altitude = data.location.altitude;
+       }
+       if (data.metadata != null) {
+           attributes.version = data.metadata.version;
+           attributes.manufacturer = data.metadata.manufacturer;
+       }
+
+       // Measurements and state become telemetry.
+       var telemetry = {
+           temperature: data.temperature,
+           pressure: data.pressure,
+           status: data.status,
+           receivedAlarms: data.alarms
        };
+       if (data.vibration != null) {
+           telemetry.vibrationX = data.vibration.x;
+           telemetry.vibrationY = data.vibration.y;
+           telemetry.vibrationZ = data.vibration.z;
+       }
+       if (data.metadata != null) {
+           telemetry.batteryLevel = data.metadata.batteryLevel;
+           telemetry.batteryStatus = data.metadata.batteryStatus;
+       }
 
-       /** Helper function 'decodeToJson' is already built-in **/
-
-       return result;
+       return {
+           deviceName: deviceName,
+           deviceType: deviceType,
+           attributes: attributes,
+           telemetry: {
+               ts: ts,
+               values: telemetry
+           }
+       };
        ```
      </TabItem>
      <TabItem label="JavaScript">
        ```js maxLines=15 collapsible
-       /** Decoder **/
-
        var data = decodeToJson(payload);
 
-       var result = {
-         deviceName: data.devName,
-         deviceType: 'thermostat',
-         telemetry: {
-           temperature: data.msg.temp,
-           humidity: data.msg.humidity
-         }
-       };
+       var deviceName = data.deviceId != null ? data.deviceId : "Device A";
+       var deviceType = data.deviceType != null ? data.deviceType : "default";
 
-       /** Helper functions **/
+       // ISO 8601 timestamp; fall back to server time.
+       var ts = data.timestamp != null ? new Date(data.timestamp).getTime() : Date.now();
 
-       function decodeToString(payload) {
-         return String.fromCharCode.apply(String, payload);
+       // Static device properties become attributes.
+       var attributes = {};
+       if (data.location != null) {
+           attributes.latitude = data.location.latitude;
+           attributes.longitude = data.location.longitude;
+           attributes.altitude = data.location.altitude;
+       }
+       if (data.metadata != null) {
+           attributes.version = data.metadata.version;
+           attributes.manufacturer = data.metadata.manufacturer;
        }
 
+       // Measurements and state become telemetry.
+       var telemetry = {
+           temperature: data.temperature,
+           pressure: data.pressure,
+           status: data.status,
+           receivedAlarms: data.alarms
+       };
+       if (data.vibration != null) {
+           telemetry.vibrationX = data.vibration.x;
+           telemetry.vibrationY = data.vibration.y;
+           telemetry.vibrationZ = data.vibration.z;
+       }
+       if (data.metadata != null) {
+           telemetry.batteryLevel = data.metadata.batteryLevel;
+           telemetry.batteryStatus = data.metadata.batteryStatus;
+       }
+
+       var result = {
+           deviceName: deviceName,
+           deviceType: deviceType,
+           attributes: attributes,
+           telemetry: {
+               ts: ts,
+               values: telemetry
+           }
+       };
+
+       // Convert the byte array to a string.
+       function decodeToString(payload) {
+           return String.fromCharCode.apply(String, payload);
+       }
+
+       // Convert the byte array to a JSON object.
        function decodeToJson(payload) {
-         return JSON.parse(decodeToString(payload));
+           return JSON.parse(decodeToString(payload));
        }
 
        return result;
@@ -159,10 +252,11 @@ This guide uses the following payload:
    </Tabs>
 
    **To adapt:**
-   - **Device name in another field** — replace `data.devName`, for example with `data.deviceId`.
-   - **Device profile from the payload** — replace `'thermostat'` with a field, for example `data.deviceType`.
-   - **Timestamp** — return `telemetry: { ts: data.ts, values: { ... } }`. Without `ts`, ThingsBoard uses the time the message is processed.
-   - **Device properties** — add an `attributes` object, for example `attributes: { firmware: data.fw }`.
+   - **Device name in another field** — replace `data.deviceId`, for example with `data.serialNumber`.
+   - **Optional fields** — remove the `location`, `vibration`, `status`, or `alarms` mappings your devices never send.
+   - **Other telemetry** — add keys to `telemetry`, for example `humidity: data.humidity`.
+   - **Other device properties** — add them to `attributes`, for example `model: data.model`.
+   - **Update-only keys** — for Azure IoT Hub, ThingsBoard pre-fills the **Update only keys list** in **Advanced decoding parameters** with `manufacturer`, `receivedAlarms`, `status`, `batteryLevel`, `batteryStatus`, and `version`. These keys are stored only when their value changes. Edit the list to match your keys.
 6. Click **Test decoder function** and check the result (see [Test the Decoder](#test-the-decoder)).
 7. Click **Add**.
 </Steps>
@@ -188,18 +282,48 @@ For field renaming, nested values, and non-JSON payloads, see <DocLink product={
 
 <h4 id="test-the-decoder">Test the Decoder</h4>
 
-Click **Test decoder function** below the editor, paste the sample payload into **Payload**, and click **Test**. The **Output** panel shows:
+Click **Test decoder function** below the editor. Replace the content of **Payload** with the sample payload. Click **Test**. The **Output** panel shows:
 
 ```json
 {
-  "deviceName": "T1",
-  "deviceType": "thermostat",
+  "deviceName": "8F4A2C6D",
+  "deviceType": "Packing machine",
+  "attributes": {
+    "latitude": 37.7749,
+    "longitude": -122.4194,
+    "altitude": 10,
+    "version": 1,
+    "manufacturer": "Example corporation"
+  },
   "telemetry": {
-    "temperature": 42,
-    "humidity": 77
+    "ts": 1791973800000,
+    "values": {
+      "temperature": 25.5,
+      "pressure": 1013.25,
+      "status": "ALARM",
+      "receivedAlarms": [
+        {
+          "type": "temperature",
+          "severity": "high",
+          "message": "Temperature exceeds threshold."
+        },
+        {
+          "type": "vibration",
+          "severity": "critical",
+          "message": "Excessive vibration detected."
+        }
+      ],
+      "vibrationX": 0.02,
+      "vibrationY": 0.03,
+      "vibrationZ": 0.015,
+      "batteryLevel": 100,
+      "batteryStatus": "Charging"
+    }
   }
 }
 ```
+
+`ts` is the payload's `timestamp`, `2026-10-14T10:30:00Z`, in milliseconds.
 
 Check that `deviceName` is set and `telemetry` holds the expected keys. If the output is empty or shows an error, fix the decoder and test again.
 
@@ -267,19 +391,55 @@ Send a cloud-to-device message to the integration's device identity, then confir
 
 ### Send a Test Uplink
 
+Send the sample payload without `timestamp`. The decoder then uses the current server time; with a fixed timestamp, the data would fall outside the recent time windows of your dashboards as time passes.
+
 <Tabs>
 <TabItem label="Azure portal">
 
 <Steps>
 1. In the hub, go to **Device management &#8702; Devices** and open `tb-bridge-01`.
 2. Click **Message to Device**.
-3. Paste the sample payload into **Message Body**.
+3. Paste the payload into **Message Body**:
+
+   ```json maxLines=15 collapsible
+   {
+     "deviceId": "8F4A2C6D",
+     "deviceType": "Packing machine",
+     "temperature": 25.5,
+     "pressure": 1013.25,
+     "vibration": {
+       "x": 0.02,
+       "y": 0.03,
+       "z": 0.015
+     },
+     "location": {
+       "latitude": 37.7749,
+       "longitude": -122.4194,
+       "altitude": 10
+     },
+     "status": "ALARM",
+     "alarms": [
+       {
+         "type": "temperature",
+         "severity": "high",
+         "message": "Temperature exceeds threshold."
+       },
+       {
+         "type": "vibration",
+         "severity": "critical",
+         "message": "Excessive vibration detected."
+       }
+     ],
+     "metadata": {
+       "version": 1,
+       "batteryLevel": 100,
+       "batteryStatus": "Charging",
+       "manufacturer": "Example corporation"
+     }
+   }
+   ```
 4. Click **Send Message**.
 </Steps>
-
-<ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/azure-iot-hub/azure-iot-hub-downlink-verified-1.png', alt: 'Azure portal — Message to device page with the JSON test payload in the Message Body field', caption: 'Azure portal — Message to device: enter the JSON payload in Message Body and click Send Message' },
-]} />
 
 </TabItem>
 <TabItem label="Azure CLI">
@@ -290,7 +450,7 @@ Install the <a href="https://learn.microsoft.com/en-us/cli/azure/iot" target="_b
 az iot device c2d-message send \
   --hub-name tb-iot-hub \
   --device-id tb-bridge-01 \
-  --data '{"devName":"T1","msg":{"temp":42,"humidity":77}}'
+  --data '{"deviceId":"8F4A2C6D","deviceType":"Packing machine","temperature":25.5,"pressure":1013.25,"vibration":{"x":0.02,"y":0.03,"z":0.015},"location":{"latitude":37.7749,"longitude":-122.4194,"altitude":10},"status":"ALARM","alarms":[{"type":"temperature","severity":"high","message":"Temperature exceeds threshold."},{"type":"vibration","severity":"critical","message":"Excessive vibration detected."}],"metadata":{"version":1,"batteryLevel":100,"batteryStatus":"Charging","manufacturer":"Example corporation"}}'
 ```
 
 </TabItem>
@@ -300,7 +460,7 @@ az iot device c2d-message send \
 
 - **Integration events** — go to **Integrations &#8702; Integrations**, open the integration, and click the **Events** tab. The uplink appears with status **OK**. Click <code>**&#8901;&#8901;&#8901;**</code> in the **Message** column to see the payload.
 - **Converter events** — open `Azure IoT Hub Uplink Converter` in **Integrations &#8702; Data converters** and click the **Events** tab. **In** shows the received payload, **Out** shows the decoded result, and **Metadata** shows the topic and integration name.
-- **Device** — go to **Devices & assets &#8702; Devices**. The integration has created **T1**. Open it and confirm `temperature = 42` and `humidity = 77` on the **Latest telemetry** tab.
+- **Device** — go to **Devices & assets &#8702; Devices**. The integration has created **8F4A2C6D** with the `Packing machine` profile. Open it and check the **Latest telemetry** tab for `temperature`, `pressure`, `status`, `receivedAlarms`, `vibrationX`–`vibrationZ`, `batteryLevel`, and `batteryStatus`, and the **Attributes** tab for `latitude`, `longitude`, `altitude`, `version`, and `manufacturer`.
 
 ## Configure Downlink
 
@@ -329,83 +489,53 @@ For RPC commands, `msg.method` and `msg.params` are available.
 6. Click **Add**, then **Apply changes**.
 </Steps>
 
-<Tabs>
-  <TabItem label="TBEL (Recommended)">
-    ```js maxLines=15 collapsible
-    /** Encoder **/
+Encoder used in this guide (TBEL and JavaScript):
 
-    var data = {
-      deviceName: metadata.deviceName,
-      ts: Date.now()
-    };
+```js maxLines=15 collapsible
+/** Encoder **/
 
-    if (msgType == 'RPC_CALL_FROM_SERVER_TO_DEVICE') {
-      data.method = msg.method;
-      data.params = msg.params;
-      data.requestId = metadata.requestId;
-    } else if (msgType == 'ATTRIBUTES_UPDATED' || msgType == 'POST_ATTRIBUTES_REQUEST') {
-      data.method = 'setSharedAttributes';
-      data.params = msg;
-    } else {
-      data.method = 'data';
-      data.params = msg;
-    }
+// Prepare the downlink payload.
+var data = {
+  deviceName: metadata.deviceName,
+  ts: Date.now()
+};
 
-    var result = {
-      // Downlink payload format: JSON, TEXT, or BINARY (Base64 string)
-      contentType: 'JSON',
-      data: JSON.stringify(data),
-      // The only topic IoT Hub accepts from a device. Use your Device ID.
-      metadata: {
-        topic: 'devices/tb-bridge-01/messages/events/'
-      }
-    };
+// Map Rule Engine messages to commands.
+if (msgType == 'RPC_CALL_FROM_SERVER_TO_DEVICE') {
+  // RPC request.
+  data.method = msg.method;
+  data.params = msg.params;
+  data.requestId = metadata.requestId;
+} else if (msgType == 'ATTRIBUTES_UPDATED' || msgType == 'POST_ATTRIBUTES_REQUEST') {
+  // Shared attribute update.
+  data.method = 'setSharedAttributes';
+  data.params = msg;
+} else {
+  // Other message types.
+  data.method = 'data';
+  data.params = msg;
+}
 
-    return result;
-    ```
-  </TabItem>
-  <TabItem label="JavaScript">
-    ```js maxLines=15 collapsible
-    /** Encoder **/
+// Return the encoded downlink payload.
+var result = {
+  // Payload content type: JSON, TEXT, or BINARY (Base64).
+  contentType: 'JSON',
+  data: JSON.stringify(data),
+  metadata: {
+    // Azure IoT Hub device-to-cloud MQTT topic.
+    topic: 'devices/tb-bridge-01/messages/events/'
+  }
+};
 
-    var data = {
-      deviceName: metadata.deviceName,
-      ts: Date.now()
-    };
+return result;
+```
 
-    if (msgType === 'RPC_CALL_FROM_SERVER_TO_DEVICE') {
-      data.method = msg.method;
-      data.params = msg.params;
-      data.requestId = metadata.requestId;
-    } else if (msgType === 'ATTRIBUTES_UPDATED' || msgType === 'POST_ATTRIBUTES_REQUEST') {
-      data.method = 'setSharedAttributes';
-      data.params = msg;
-    } else {
-      data.method = 'data';
-      data.params = msg;
-    }
-
-    var result = {
-      // Downlink payload format: JSON, TEXT, or BINARY (Base64 string)
-      contentType: 'JSON',
-      data: JSON.stringify(data),
-      // The only topic IoT Hub accepts from a device. Use your Device ID.
-      metadata: {
-        topic: 'devices/tb-bridge-01/messages/events/'
-      }
-    };
-
-    return result;
-    ```
-  </TabItem>
-</Tabs>
-
-To check the encoder, click **Test encoder function**, set **Message type** to `ATTRIBUTES_UPDATED`, **Message** to `{"temperatureUploadFrequency":60}`, and add the **Metadata** row `deviceName` = `T1`. Click **Test**. The **Output** shows:
+To check the encoder, click **Test encoder function**. **Message type** is already `ATTRIBUTES_UPDATED`. Set **Message** to `{"temperatureUploadFrequency":60}` and **deviceName** in **Metadata** to `8F4A2C6D`, if they differ, then click **Test**. The **Output** shows:
 
 ```json
 {
   "contentType": "JSON",
-  "data": "{\"deviceName\":\"T1\",\"ts\":1755422164000,\"method\":\"setSharedAttributes\",\"params\":{\"temperatureUploadFrequency\":60}}",
+  "data": "{\"deviceName\":\"8F4A2C6D\",\"ts\":1755422164000,\"method\":\"setSharedAttributes\",\"params\":{\"temperatureUploadFrequency\":60}}",
   "metadata": {
     "topic": "devices/tb-bridge-01/messages/events/"
   }
@@ -429,7 +559,7 @@ The encoder puts `deviceName` in the payload, so the rule chain first adds the d
    - **Name &#8702; deviceName**
    - **Add mapped originator fields to &#8702; Metadata**
    - Click **Add**.
-4. Connect the **message type switch** node to the **originator fields** node with the **Attributes Updated** and **Post attributes** relations.
+4. Connect the **message type switch** node to the **originator fields** node with the **Attributes Updated** relation.
 5. From the **Action** section, drag an **integration downlink** node onto the canvas.
 6. Enter a **Name** (for example, `Downlink to Azure IoT Hub`), select your Azure IoT Hub integration, and click **Add**.
 7. Connect the **originator fields** node to the **integration downlink** node with the **Success** relation.
@@ -447,7 +577,7 @@ IoT Hub does not keep a viewable history of device-to-cloud messages, so start m
    az iot hub monitor-events --hub-name tb-iot-hub --device-id tb-bridge-01
    ```
 
-2. Go to **Devices & assets &#8702; Devices**, select **T1**, and open the **Attributes** tab.
+2. Go to **Devices & assets &#8702; Devices**, select **8F4A2C6D**, and open the **Attributes** tab.
 3. Select **Shared attributes** and click **+**.
 4. Set **Key** to `temperatureUploadFrequency`, **Type** to **Integer**, **Value** to `60`, and click **Add**. ThingsBoard publishes the downlink.
 </Steps>
@@ -463,7 +593,7 @@ IoT Hub does not keep a viewable history of device-to-cloud messages, so start m
       "module": "",
       "interface": "",
       "component": "",
-      "payload": "{\"deviceName\":\"T1\",\"ts\":1755422164000,\"method\":\"setSharedAttributes\",\"params\":{\"temperatureUploadFrequency\":60}}"
+      "payload": "{\"deviceName\":\"8F4A2C6D\",\"ts\":1755422164000,\"method\":\"setSharedAttributes\",\"params\":{\"temperatureUploadFrequency\":60}}"
     }
   }
   ```
