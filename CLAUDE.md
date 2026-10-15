@@ -246,7 +246,7 @@ Per-page OG cards (1200×630 PNG) are generated at build time by Satori + Resvg.
 - `src/pages/open-graph/_shared/page-data.ts` — collection enumerators
 - `src/pages/open-graph/_shared/endpoint.ts` — `createOgEndpoint()` factory every endpoint uses
 - `src/pages/open-graph/_shared/jsx-runtime.ts` — minimal Satori-shaped JSX shim (no React)
-- `src/pages/open-graph/{collection}/[…].png.ts` — static endpoints (docs, blog, case-studies, use-cases, iot-hub, partners, pages)
+- `src/pages/open-graph/{collection}/[…].png.ts` — static endpoints (docs, blog, case-studies, use-cases, iot-hub, partners, trust-center, pages)
 - `src/util/ogContext.ts` — eyebrow / label helpers + `MARKETING_ALLOWLIST`
 - `src/util/getOgImageUrl.ts` — pathname → OG PNG URL aggregator
 
@@ -255,7 +255,6 @@ Per-page OG cards (1200×630 PNG) are generated at build time by Satori + Resvg.
 - `SKIP_OG=true` (used by `pnpm build:fast`) makes `renderCard` return the global fallback instead of running Satori — endpoints still register paths.
 - Pages outside `MARKETING_ALLOWLIST` (or otherwise unmapped) fall back to `/thingsboard-og.png` via `SeoMeta.astro`.
 - Roboto 400/500/700 (7 subsets each: latin, latin-ext, cyrillic, cyrillic-ext, greek, greek-ext, vietnamese) + Noto Sans Symbols 400 for arrows. CJK / Arabic / Hebrew not covered — render as `.notdef`. Site CSS uses an unrelated system font stack; no `FONT_CREDENTIALS` env var.
-- **Astro dev quirk:** `trailingSlash: 'always'` makes dev-server 404 dynamic-route URLs that end in `.png`. `SeoMeta.astro` and `routeData.ts` append `/` to `og:image` only when `import.meta.env.DEV` so dev links resolve to `localhost:.../foo.png/` while production HTML keeps the clean `.png` URL Cloudflare Pages serves directly.
 
 **To add a new marketing landing to OG generation:** add its pathname to `MARKETING_ALLOWLIST` in `src/util/ogContext.ts` and rebuild.
 

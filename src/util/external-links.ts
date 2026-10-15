@@ -36,3 +36,13 @@ export const newTabLinkLabel = (name: string, href?: string): string =>
 	href !== undefined && isExternalHref(href)
 		? `${name} (opens ${new URL(href).host} in a new tab)`
 		: `${name} (opens in a new tab)`;
+
+/**
+ * target/rel for a link declared off-site (an `external` prop) rather than derived from its href.
+ * A fresh object per call: Astro appends a scoped class onto the object it spreads.
+ */
+export const newTabAttrs = (open: boolean): { target?: '_blank'; rel?: string } =>
+	open ? { target: '_blank', ...relForTarget('_blank') } : {};
+
+/** Visually hidden text after a new-tab link's label. */
+export const NEW_TAB_NOTE = ' (opens in a new tab)';

@@ -1,0 +1,417 @@
+---
+import Button from '@components/ui/Button.astro';
+import Card from '@components/ui/Card.astro';
+import Field from '@components/ui/Field.astro';
+import Select from '@components/ui/Select.astro';
+import RequestDocuments from '@components/TrustCenter/RequestDocuments.astro';
+import { FORMSPREE_DOCUMENT_REQUESTS, FORMSPREE_TRUST_CENTER } from '@data/formspree';
+import { CONTACT_SENT_KEY, REQUEST_SENT_KEY, SECURITY_TOPICS, SECURITY_TOPIC_LIST } from '@data/trust-center/forms';
+import { IMS_EMAIL, SECURITY_EMAIL, WEBSITE_PRIVACY_HREF, tc } from '@data/trust-center/nav';
+
+/**
+ * The Trust Center's two forms: a message to the security team, with its topics, or a request for NDA
+ * documents to the IMS team. Each posts to its own Formspree form, then stores what was sent for its
+ * thank-you page and opens it.
+ */
+
+interface Props {
+	kind?: 'contact' | 'documents';
+}
+
+const { kind = 'contact' } = Astro.props;
+const documents = kind === 'documents';
+
+const FORM = documents
+	? {
+			endpoint: FORMSPREE_DOCUMENT_REQUESTS,
+			sentKey: REQUEST_SENT_KEY,
+			thanks: tc('documents/request/thanks'),
+			email: IMS_EMAIL,
+			title: 'Tell us what you need',
+			submit: 'Request documents',
+			noun: 'request',
+		}
+	: {
+			endpoint: FORMSPREE_TRUST_CENTER,
+			sentKey: CONTACT_SENT_KEY,
+			thanks: tc('contact/thanks'),
+			email: SECURITY_EMAIL,
+			title: 'Send us a message',
+			submit: 'Send message',
+			noun: 'message',
+		};
+
+const TOPIC_OPTIONS = SECURITY_TOPIC_LIST.map((t) => ({
+	value: t.value,
+	label: t.label,
+	selected: t === SECURITY_TOPICS.question,
+	attrs: { 'data-prompt': t.prompt, 'data-personal': t.personal ? '' : undefined },
+}));
+---
+
+<Card
+	as="form"
+	role="panel"
+	class="tc-contact"
+	attrs={{
+		id: 'tc-contact',
+		action: FORM.endpoint,
+		method: 'post',
+		novalidate: 'novalidate',
+		'data-tc-contact': kind,
+		'data-sent-key': FORM.sentKey,
+		'data-thanks-href': FORM.thanks,
+	}}
+>
+	<h2 class="tc-contact__title">{FORM.title}</h2>
+	<fieldset class="tc-contact__fields">
+		<legend class="ui-sr">{documents ? 'Your details and the documents you need' : 'Your details and message'}</legend>
+		<Field
+			name="firstName"
+			id="cf-first"
+			label="First name"
+			maxLength={50}
+			autocomplete="given-name"
+			attrs={{ autocapitalize: 'words' }}
+		/>
+		<Field
+			name="lastName"
+			id="cf-last"
+			label="Last name"
+			maxLength={50}
+			autocomplete="family-name"
+			attrs={{ autocapitalize: 'words' }}
+		/>
+		<Field
+			name="email"
+			id="cf-email"
+			label="Work email"
+			type="email"
+			maxLength={80}
+			autocomplete="email"
+			inputmode="email"
+			attrs={{ autocapitalize: 'off', spellcheck: 'false' }}
+		/>
+		<Field name="company" id="cf-company" label="Company" maxLength={80} autocomplete="organization" />
+
+		{documents ? (
+			<RequestDocuments class="tc-contact__full" />
+		) : (
+			<Select
+				name="subject"
+				id="cf-subject"
+				label="What’s it about?"
+				options={TOPIC_OPTIONS}
+				class="tc-contact__full"
+			/>
+		)}
+
+		{documents ? (
+			<Field
+				name="message"
+				id="cf-message"
+				label="What do you need them for?"
+				type="textarea"
+				placeholder="The project, or the vendor assessment the documents are for."
+				maxLength={3000}
+				counter
+				optional
+				class="tc-contact__full"
+			/>
+		) : (
+			<Field
+				name="message"
+				id="cf-message"
+				label="How can we help?"
+				type="textarea"
+				placeholder={SECURITY_TOPICS.question.prompt}
+				maxLength={3000}
+				counter
+				class="tc-contact__full"
+			/>
+		)}
+		<input type="text" name="_gotcha" class="tc-contact__trap" tabindex="-1" autocomplete="off" aria-hidden="true" />
+	</fieldset>
+
+	<div class="tc-contact__actions">
+		<Button type="submit" size="lg" attrs={{ style: '--btn-min-w: 200px' }}>
+			{FORM.submit}
+		</Button>
+		<p class="tc-contact__note">
+			We use these details only to answer your {FORM.noun}. See our <a href={WEBSITE_PRIVACY_HREF}>Privacy Policy</a>.
+		</p>
+		<p class="ui-field__error tc-contact__error" role="alert" data-send-error hidden>
+			<span>
+				We couldn’t send your {FORM.noun}. Try again, or email <a href={`mailto:${FORM.email}`}>{FORM.email}</a>.
+			</span>
+		</p>
+	</div>
+</Card>
+
+<script>
+	import { validateAll, wireCounter, wireValidation, type FieldControl, type Problem } from '@util/form-validate';
+	import { sendToFormspree } from '@util/formspree';
+	import { SENT_MAX_AGE_MS, type FormField, type SentForm } from '@data/trust-center/forms';
+
+	const isValidEmail = (email: string) => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/.test(email);
+	const XSS_PATTERN =
+		/<\s*\/?\s*(?:script|iframe|object|embed)\b|javascript\s*:|on(?:click|error|load|focus|blur|mouseover|mouseout|change|submit|input|toggle|animationend)\s*=/i;
+
+	const REQUIRED: Record<FormField, string> = {
+		firstName: 'Enter your first name.',
+		lastName: 'Enter your last name.',
+		email: 'Enter your email so we can reply.',
+		company: 'Enter your company. Working on your own? Your name is fine.',
+		message: 'Tell us a little about what you need.',
+	};
+
+	const FIELDS: FormField[] = ['firstName', 'lastName', 'email', 'company', 'message'];
+
+	document.querySelectorAll<HTMLFormElement>('form[data-tc-contact]').forEach((form) => {
+		const documents = form.dataset.tcContact === 'documents';
+		const sentKey = form.dataset.sentKey ?? '';
+		const select = form.querySelector<HTMLSelectElement>('#cf-subject');
+		const message = form.querySelector<HTMLTextAreaElement>('#cf-message');
+		const docs = form.querySelector<HTMLFieldSetElement>('[data-request-docs]');
+		const docsError = docs?.querySelector<HTMLElement>('.ui-field__error');
+		if (!message || (documents ? !docs || !docsError : !select)) return;
+		const boxes = [...(docs?.querySelectorAll<HTMLInputElement>('input[name="documents"]') ?? [])];
+
+		const option = () => select?.selectedOptions.item(0);
+		const control = (name: string) => form.elements.namedItem(name) as FieldControl | null;
+		const personal = () => option()?.dataset.personal !== undefined;
+
+		const optionalMark = (id: string, on: boolean) => {
+			const label = form.querySelector<HTMLLabelElement>(`label[for="${id}"]`);
+			if (!label) return;
+			let mark = label.querySelector<HTMLElement>('[data-optional]');
+			if (on && !mark) {
+				mark = document.createElement('span');
+				mark.className = 'ui-field__optional';
+				mark.dataset.optional = '';
+				mark.textContent = '(optional)';
+				label.append(' ', mark);
+			}
+			if (!on && mark) {
+				mark.previousSibling?.remove();
+				mark.remove();
+			}
+		};
+
+		const applyTopic = () => {
+			if (!select) return;
+			message.placeholder = option()?.dataset.prompt || '';
+			optionalMark('cf-company', personal());
+			const emailLabel = form.querySelector<HTMLLabelElement>('label[for="cf-email"]');
+			if (emailLabel?.firstChild) emailLabel.firstChild.textContent = personal() ? 'Email' : 'Work email';
+		};
+
+		const params = new URLSearchParams(window.location.search);
+		const subject = params.get('subject')?.trim().toLowerCase();
+		if (select && subject) {
+			const match = [...select.options].find((o) => o.value && o.value.toLowerCase() === subject);
+			if (match) select.value = match.value;
+		}
+		const asked = params.getAll('doc');
+		boxes.forEach((b) => {
+			if (asked.includes(b.value)) b.checked = true;
+		});
+		const prefilled = params.get('message');
+		if (prefilled) message.value = prefilled;
+
+		// `?resend` from the thank-you page restores the last one sent.
+		const readSent = (): SentForm | null => {
+			try {
+				const sent = JSON.parse(sessionStorage.getItem(sentKey) || 'null');
+				return sent && typeof sent.at === 'number' && Date.now() - sent.at <= SENT_MAX_AGE_MS ? sent : null;
+			} catch {
+				return null;
+			}
+		};
+		const restored = params.has('resend') ? readSent() : null;
+		if (restored) {
+			FIELDS.forEach((name) => {
+				const el = control(name);
+				if (el && typeof restored[name] === 'string') el.value = restored[name];
+			});
+			const wanted = select && [...select.options].find((o) => o.value === restored.subject);
+			if (select && wanted) select.value = wanted.value;
+			const ticked = Array.isArray(restored.docs) ? restored.docs.map((d) => d.value) : [];
+			boxes.forEach((b) => (b.checked = ticked.includes(b.value)));
+		}
+		applyTopic();
+		docs?.dispatchEvent(new Event('docs:sync'));
+		select?.addEventListener('change', applyTopic);
+		wireCounter(message);
+		if (restored) {
+			const email = form.querySelector<HTMLInputElement>('#cf-email');
+			email?.focus();
+			email?.select();
+		}
+
+		const fields = FIELDS.map(control).filter((el): el is FieldControl => !!el);
+
+		const check = (el: FieldControl): Problem => {
+			const val = el.value.trim();
+			if (val === '') {
+				if (el.name === 'message' && documents) return null;
+				if (el.name === 'company' && personal()) return null;
+				return { kind: 'required', message: REQUIRED[el.name as FormField] };
+			}
+			if (el.name === 'email' && !isValidEmail(val))
+				return { kind: 'format', message: 'Enter an email like name@company.com.' };
+			// Not on the message: a security report may quote markup, and the endpoint does the real escaping.
+			if (el.name !== 'message' && XSS_PATTERN.test(val))
+				return { kind: 'format', message: 'Remove any HTML or script tags.' };
+			return null;
+		};
+
+		const markAttempted = wireValidation(fields, check);
+		const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+		const sendError = form.querySelector<HTMLElement>('[data-send-error]');
+		let sending = false;
+
+		const checkDocs = (): boolean => {
+			if (!docs || !docsError) return true;
+			const ok = boxes.some((b) => b.checked);
+			docsError.textContent = ok ? '' : 'Choose at least one document.';
+			docsError.hidden = ok;
+			if (ok) docs.removeAttribute('aria-invalid');
+			else docs.setAttribute('aria-invalid', 'true');
+			return ok;
+		};
+
+		form.addEventListener('submit', async (event) => {
+			event.preventDefault();
+			if (sending) return;
+			markAttempted();
+			const fieldsOk = validateAll(fields, check);
+			const docsOk = checkDocs();
+			if (!fieldsOk) return;
+			if (!docsOk) {
+				boxes[0]?.focus();
+				return;
+			}
+
+			// Kept in sessionStorage, never in the URL.
+			const value = (name: string) => control(name)?.value.trim() ?? '';
+			// Where "Edit and send again" returns to.
+			const from = new URL(window.location.href);
+			from.searchParams.delete('resend');
+			const sent: SentForm = {
+				at: Date.now(),
+				firstName: value('firstName'),
+				lastName: value('lastName'),
+				email: value('email'),
+				company: value('company'),
+				message: value('message'),
+				subject: select?.value ?? '',
+				topicLabel: select?.value ? (option()?.textContent ?? '').trim() : '',
+				docs: boxes.filter((b) => b.checked).map((b) => ({ value: b.value, label: b.dataset.label ?? '' })),
+				from: `${from.pathname}${from.search}`,
+			};
+
+			sending = true;
+			if (submit) submit.disabled = true;
+			if (sendError) sendError.hidden = true;
+			const ok = await sendToFormspree(form.action, {
+				_subject: documents ? 'Trust Center: document request' : `Trust Center: ${sent.topicLabel || 'message'}`,
+				_gotcha: value('_gotcha'),
+				firstName: sent.firstName,
+				lastName: sent.lastName,
+				email: sent.email,
+				company: sent.company,
+				...(documents ? { documents: sent.docs.map((d) => d.label).join(', ') } : { topic: sent.topicLabel }),
+				message: sent.message,
+				page: sent.from,
+			});
+			sending = false;
+			if (submit) submit.disabled = false;
+			if (!ok) {
+				if (sendError) sendError.hidden = false;
+				return;
+			}
+
+			try {
+				sessionStorage.setItem(sentKey, JSON.stringify(sent));
+			} catch {
+				// Private mode or storage off: the thank-you page falls back to its generic words.
+			}
+			window.location.assign(form.dataset.thanksHref ?? '/');
+		});
+	});
+</script>
+
+<style lang="scss">
+	@use '../../styles/variables' as *;
+
+	.tc-contact {
+		margin: 0;
+
+		:where(p, h2) {
+			margin: 0;
+		}
+
+		:where(.tc-contact__note, .tc-contact__error) a {
+			color: var(--accent-ink);
+			text-underline-offset: 3px;
+		}
+	}
+
+	.tc-contact__title {
+		@include type-card;
+		margin-bottom: $spacing-5;
+		color: var(--color-text);
+	}
+
+	.tc-contact__fields {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: $spacing-4;
+		min-width: 0;
+		margin: 0;
+		padding: 0;
+		border: 0;
+
+		@include media-down(md) {
+			grid-template-columns: minmax(0, 1fr);
+		}
+	}
+
+	.tc-contact__full {
+		grid-column: 1 / -1;
+	}
+
+	.tc-contact__actions {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: $spacing-3 $spacing-5;
+		margin-top: $spacing-8;
+
+		@include media-down(md) {
+			flex-direction: column;
+			align-items: stretch;
+			text-align: center;
+		}
+	}
+
+	.tc-contact__note {
+		@include type-small;
+		color: var(--color-text-secondary);
+	}
+
+	.tc-contact__error {
+		flex-basis: 100%;
+	}
+
+	// Off-screen rather than `hidden`: bots skip hidden fields but fill this one.
+	.tc-contact__trap {
+		position: absolute;
+		left: -9999px;
+		width: 1px;
+		height: 1px;
+		opacity: 0;
+		pointer-events: none;
+	}
+</style>

@@ -1,0 +1,317 @@
+---
+import { Icon } from 'astro-icon/components';
+import Button from '@components/ui/Button.astro';
+import Chip from '@components/ui/Chip.astro';
+import Field from '@components/ui/Field.astro';
+import Select from '@components/ui/Select.astro';
+import { ACCESS, DOC_CATEGORIES } from '@data/trust-center/documents';
+import { tc } from '@data/trust-center/nav';
+
+/**
+ * The documents search. On the hub it submits to the Documents page; `live` (that page) adds the
+ * category and access filters, fills from the URL and emits `docsearch` for `DocLibrary` to filter.
+ * A `docsearch:reset` event on the form clears it.
+ */
+
+interface Props {
+	live?: boolean;
+}
+
+const { live = false } = Astro.props;
+const id = live ? 'tc-library' : 'tc-hub';
+const CATEGORY_OPTIONS = [
+	{ value: '', label: 'All categories' },
+	...DOC_CATEGORIES.map((c) => ({ value: c, label: c })),
+];
+const ACCESS_TOGGLES = [
+	{ value: 'public', label: ACCESS.public.cardLabel, icon: ACCESS.public.icon },
+	{ value: 'nda', label: ACCESS.nda.cardLabel, icon: ACCESS.nda.icon },
+] as const;
+---
+
+<form
+	class:list={['tc-docsearch', live && 'tc-docsearch--filters']}
+	action={tc('documents')}
+	method="get"
+	role="search"
+	data-doc-search
+	data-live={live ? '' : undefined}
+>
+	<Field
+		name="q"
+		id={`${id}-q`}
+		label="Search documents"
+		labelHidden
+		optional
+		placeholder="Search documents, e.g. backup policy"
+		size="md"
+		class="tc-docsearch__q"
+		attrs={{ autocomplete: 'off', 'data-doc-query': '' }}
+	>
+		<Icon slot="start" name="tabler:search" class="tc-docsearch__icon" aria-hidden="true" />
+		<button slot="end" type="button" class="tc-docsearch__clear" aria-label="Clear search" hidden data-doc-clear>
+			<Icon name="tabler:x" aria-hidden="true" />
+		</button>
+	</Field>
+	{live && (
+		<div class="tc-docsearch__filters">
+			<Select
+				name="category"
+				id={`${id}-category`}
+				label="Category"
+				labelHidden
+				size="md"
+				options={CATEGORY_OPTIONS}
+				class="tc-docsearch__category"
+				attrs={{ 'data-doc-category': '' }}
+			/>
+			<ul class="tc-docsearch__access" role="group" aria-label="Access">
+				{ACCESS_TOGGLES.map((a) => (
+					<li>
+						<Chip
+							kind="toggle"
+							icon={a.icon}
+							class={`tc-docsearch__toggle tc-docsearch__toggle--${a.value}`}
+							attrs={{ 'data-access-value': a.value }}
+						>
+							{a.label}
+						</Chip>
+					</li>
+				))}
+			</ul>
+			<input type="hidden" name="access" value="" disabled data-access-input />
+		</div>
+	)}
+	{!live && (
+		<Button type="submit" size="md" class="tc-docsearch__submit">
+			Search
+		</Button>
+	)}
+</form>
+
+<script>
+	document.querySelectorAll<HTMLFormElement>('[data-doc-search]').forEach((form) => {
+		const query = form.querySelector<HTMLInputElement>('[data-doc-query]');
+		const category = form.querySelector<HTMLSelectElement>('[data-doc-category]');
+		const toggles = [...form.querySelectorAll<HTMLButtonElement>('[data-access-value]')];
+		const access = form.querySelector<HTMLInputElement>('[data-access-input]');
+		const clear = form.querySelector<HTMLButtonElement>('[data-doc-clear]');
+		const syncClear = () => {
+			if (clear) clear.hidden = !query?.value;
+		};
+		const announce = () => {
+			syncClear();
+			form.dispatchEvent(new CustomEvent('docsearch'));
+		};
+
+		const setAccess = (value: string) => {
+			const known = toggles.some((b) => b.dataset.accessValue === value) ? value : '';
+			toggles.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.accessValue === known)));
+			if (access) {
+				access.value = known;
+				access.disabled = known === '';
+			}
+		};
+
+		if ('live' in form.dataset) {
+			const params = new URLSearchParams(window.location.search);
+			if (query) query.value = params.get('q') ?? '';
+			const cat = params.get('category') ?? '';
+			if (category && [...category.options].some((o) => o.value === cat)) category.value = cat;
+			setAccess(params.get('access') ?? '');
+		}
+
+		toggles.forEach((button) => {
+			button.addEventListener('click', () => {
+				setAccess(button.getAttribute('aria-pressed') === 'true' ? '' : (button.dataset.accessValue ?? ''));
+				announce();
+			});
+		});
+		clear?.addEventListener('click', () => {
+			if (query) {
+				query.value = '';
+				query.focus();
+			}
+			announce();
+		});
+		form.addEventListener('docsearch:reset', () => {
+			if (query) query.value = '';
+			if (category) category.value = '';
+			setAccess('');
+			announce();
+		});
+		category?.addEventListener('change', announce);
+		query?.addEventListener('input', announce);
+
+		// Live, the list already follows every change. Otherwise, empty fields stay out of the URL.
+		form.addEventListener('submit', (event) => {
+			if ('live' in form.dataset) {
+				event.preventDefault();
+				return;
+			}
+			if (query && !query.value.trim()) query.disabled = true;
+			if (category && !category.value) category.disabled = true;
+		});
+		window.addEventListener('pageshow', () => {
+			if (query) query.disabled = false;
+			if (category) category.disabled = false;
+		});
+		announce();
+	});
+</script>
+
+<style is:global lang="scss">
+	@use '../../styles/variables' as *;
+
+	.tc-docsearch {
+		display: grid;
+		grid-template-columns: minmax(0, 360px) auto;
+		grid-template-areas: 'q submit';
+		justify-content: start;
+		align-items: center;
+		gap: $spacing-3;
+		margin-bottom: $spacing-5;
+
+		.ui-field__foot {
+			display: none;
+		}
+	}
+
+	.tc-docsearch--filters {
+		grid-template-columns: minmax(0, 1fr);
+		grid-template-areas:
+			'q'
+			'filters';
+
+		@include media-up(md) {
+			grid-template-columns: minmax(0, 360px) auto;
+			grid-template-areas: 'q filters';
+		}
+	}
+
+	.tc-docsearch__q {
+		grid-area: q;
+
+		.ui-field__row {
+			position: relative;
+		}
+
+		.ui-field__control {
+			padding-right: 44px;
+			padding-left: 44px;
+
+			// The focus border is 1px wider: 1px less padding keeps the text still.
+			&:focus {
+				padding-right: 43px;
+				padding-left: 43px;
+			}
+		}
+	}
+
+	// Above the control, which the field raises to `z-index: 1` on focus.
+	.tc-docsearch__icon,
+	.tc-docsearch__clear {
+		position: absolute;
+		z-index: 2;
+		top: 50%;
+		transform: translateY(-50%);
+	}
+
+	.tc-docsearch__icon {
+		left: 14px;
+		width: 20px;
+		height: 20px;
+		color: var(--color-text-muted);
+		pointer-events: none;
+	}
+
+	.tc-docsearch__clear {
+		right: 8px;
+		display: grid;
+		place-items: center;
+		width: 32px;
+		height: 32px;
+		padding: 0;
+		border: 0;
+		border-radius: $radius-sm;
+		background: none;
+		color: var(--color-text-secondary);
+		cursor: pointer;
+
+		&[hidden] {
+			display: none;
+		}
+
+		&:hover {
+			color: var(--color-text);
+		}
+
+		&:focus-visible {
+			outline: 2px solid var(--accent-ink);
+			outline-offset: 0;
+		}
+
+		svg {
+			width: 18px;
+			height: 18px;
+		}
+	}
+
+	.tc-docsearch__submit {
+		grid-area: submit;
+	}
+
+	.tc-docsearch__filters {
+		display: flex;
+		flex-wrap: wrap;
+		grid-area: filters;
+		align-items: center;
+		gap: $spacing-3;
+	}
+
+	.tc-docsearch__category {
+		flex: 1 1 180px;
+
+		@include media-up(md) {
+			flex: 0 0 200px;
+		}
+	}
+
+	.tc-docsearch__access {
+		display: flex;
+		gap: $spacing-2;
+		padding: 0;
+		list-style: none;
+	}
+
+	.tc-docsearch__toggle.ui-chip--toggle {
+		--chip-h: 44px;
+
+		@include type-small-strong;
+
+		gap: 6px;
+
+		.ui-chip__icon {
+			width: 18px;
+			height: 18px;
+		}
+	}
+
+	.tc-docsearch__category .ui-select__control {
+		@include type-small;
+	}
+
+	.tc-docsearch__toggle--public:not([aria-pressed='true']) .ui-chip__icon {
+		color: var(--color-success);
+	}
+
+	.tc-docsearch__toggle--nda:not([aria-pressed='true']) .ui-chip__icon {
+		color: var(--color-text);
+	}
+
+	@media print {
+		.tc-docsearch {
+			display: none;
+		}
+	}
+</style>

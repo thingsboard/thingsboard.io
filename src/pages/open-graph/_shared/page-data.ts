@@ -12,6 +12,8 @@ import { BLOG_AUTHORS } from '@data/blog/authors';
 import { getAuthorsWithPosts } from '@data/blog/posts';
 import { CATEGORY_LABELS } from '@data/blog/categories';
 import { HARDWARE_PARTNERS } from '@data/partners/hardware-partners';
+import { SITE_PAGES, pageAt } from '@data/trust-center/pages';
+import { tc } from '@data/trust-center/nav';
 import { IOT_HUB_CATEGORIES, IOT_HUB_STRINGS } from '@models/iot-hub';
 
 export interface CardInput {
@@ -226,6 +228,37 @@ export async function getPartnerCardInputs(): Promise<CardInput[]> {
 			title: truncate(partner.name, TITLE_MAX),
 		},
 	}));
+}
+
+/**
+ * Trust Center — `/trust-center/**`, from its page registry (the walker skips its dynamic routes and
+ * would title them from the URL), plus the hub and the three form pages, which aren't in it. The slug
+ * is the path under `/trust-center/`; the hub's is `index`.
+ */
+export async function getTrustCenterCardInputs(): Promise<CardInput[]> {
+	const card = (slug: string, eyebrow: string, title: string): CardInput => ({
+		slug,
+		props: {
+			variant: 'logo' as const,
+			sectionName: 'Trust Center',
+			sectionTight: true,
+			eyebrow,
+			title: truncate(title, TITLE_MAX),
+		},
+	});
+	return [
+		card('index', 'Security, compliance and privacy', 'ThingsBoard Trust Center'),
+		card('contact', 'Trust Center', 'Contact our security team'),
+		card('report-vulnerability', 'Trust Center', 'Report a vulnerability'),
+		card('documents/request', 'Trust Center', 'Request documents'),
+		...SITE_PAGES.map((page) =>
+			card(
+				page.href.slice(tc().length, -1),
+				page.section ?? (page.parent && pageAt(page.parent)?.title) ?? 'Trust Center',
+				page.title,
+			),
+		),
+	];
 }
 
 /** Collection-landing cards that have neither a marketing .astro nor a per-collection detail. */
