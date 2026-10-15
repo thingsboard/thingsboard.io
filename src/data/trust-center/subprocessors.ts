@@ -33,7 +33,7 @@ const SUBPROCESSORS: Subprocessor[] = [
 
 // CLARIFY (Legal): whether the DPA gets a clause on notifying customers of sub-processor changes.
 export const SUBPROCESSORS_NOTE =
-	"Location means the hosting region for infrastructure providers and the country of the contracting entity for other vendors; exact data regions are set out in each vendor's DPA. We notify customers of material changes to this list.";
+	"Location means the hosting region for infrastructure providers and the country of the contracting entity for other vendors; exact data regions are set out in each vendor's DPA if applicable. We notify customers of material changes to this list.";
 
 /** The list as the page's table rows: the vendor, its purpose and location. */
 export const SUBPROCESSOR_ROWS: ComparisonRow[] = SUBPROCESSORS.map((s) => ({

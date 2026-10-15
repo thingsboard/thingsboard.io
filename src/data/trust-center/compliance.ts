@@ -99,7 +99,7 @@ export const PRIVACY = {
 	lead: 'We protect personal data under the GDPR and the CCPA through our own data protection program, backed by the same ISO 27001 controls.',
 	commitments: [
 		`Data stays in the EU on ThingsBoard Cloud’s <a href="${tc('cloud')}">EU region</a>, and never moves between regions.`,
-		`A <a href="${DPA_HREF}">Data Processing Agreement</a>, with standard contractual clauses for transfers outside the EU.`,
+		`Our <a href="${DPA_HREF}">DPA</a> includes standard-contractual-clause terms for transfers outside the EU (DPA §11).`,
 		`Published <a href="${tc('subprocessors')}">sub-processors</a>, with notice of material changes.`,
 		`<a href="${contactHref(SECURITY_TOPICS.dsr.value)}">Data subject requests</a> and breach notification as set out in our DPA.`,
 	],
@@ -108,7 +108,7 @@ export const PRIVACY = {
 			title: 'GDPR',
 			icon: 'eu-stars',
 			accent: 'brand',
-			text: 'For personal data of people in the EU. Transfers outside the EU are covered by standard contractual clauses.',
+			text: 'For personal data of people in the EU. Our DPA includes standard-contractual-clause terms for transfers outside the EU (DPA §11).',
 			href: tc('compliance/gdpr'),
 		},
 		{
@@ -184,7 +184,7 @@ export const CERT_PAGES: CertPage[] = [
 			},
 			{
 				label: 'International transfers',
-				html: `Our <a href="${DPA_HREF}">DPA</a> provides for standard contractual clauses for transfers of personal data outside the EU.`,
+				html: `Our <a href="${DPA_HREF}">DPA</a> includes standard-contractual-clause terms for transfers outside the EU (DPA §11).`,
 			},
 			{
 				label: 'Sub-processors',

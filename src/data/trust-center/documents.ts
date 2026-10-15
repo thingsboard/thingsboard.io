@@ -249,14 +249,6 @@ export const DOCS: TcDoc[] = [
 			'Contractual data protection terms: processor obligations, sub-processor rules, transfer mechanisms and breach notification.',
 	},
 	{
-		slug: 'dpa-private-cloud',
-		name: 'DPA for Private Cloud',
-		category: 'Legal',
-		access: 'nda',
-		owner: 'Legal Counsel',
-		description: 'The Data Processing Agreement for Private Cloud, which has its own privacy terms.',
-	},
-	{
 		slug: 'sub-processor-list',
 		url: tc('subprocessors'),
 		name: 'Sub-processor list',

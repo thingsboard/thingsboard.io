@@ -83,7 +83,7 @@ const CLOUD_COMPARE: ComparisonRow[] = [
 		'On Scale and Enterprise plans. Launch and Growth run as a single-node deployment.',
 	]),
 	row('Uptime', [
-		'Uptime SLA: 99.9%.',
+		'—',
 		'Contractual SLA: 99.9% on Launch and Growth, 99.95% on Scale and Enterprise, and a custom SLA on Enterprise on request. Monitored 24×7.',
 	]),
 	row('Data center certifications', [
@@ -139,7 +139,6 @@ export const PRIVATE_CLOUD_DOCS_INTRO = 'Same set as ThingsBoard Cloud; only the
 
 export const PRIVATE_CLOUD_DOCS: DocRow[] = [
 	docRow('private-cloud-sla', 'Private Cloud SLA and service description (uptime formula, exclusions)'),
-	docRow('dpa-private-cloud'),
 	docRow('private-cloud-architecture', 'Cluster architecture and read-only metrics'),
 	{
 		name: 'Data center certifications (ISO 27001, PCI DSS, SOC 2)',
