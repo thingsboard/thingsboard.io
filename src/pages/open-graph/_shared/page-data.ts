@@ -232,7 +232,7 @@ export async function getPartnerCardInputs(): Promise<CardInput[]> {
 
 /**
  * Trust Center — `/trust-center/**`, from its page registry (the walker skips its dynamic routes and
- * would title them from the URL), plus the hub and the two form pages, which aren't in it. The slug
+ * would title them from the URL), plus the hub and the three form pages, which aren't in it. The slug
  * is the path under `/trust-center/`; the hub's is `index`.
  */
 export async function getTrustCenterCardInputs(): Promise<CardInput[]> {
@@ -250,6 +250,7 @@ export async function getTrustCenterCardInputs(): Promise<CardInput[]> {
 		card('index', 'Security, compliance and privacy', 'ThingsBoard Trust Center'),
 		card('contact', 'Trust Center', 'Contact our security team'),
 		card('report-vulnerability', 'Trust Center', 'Report a vulnerability'),
+		card('documents/request', 'Trust Center', 'Request documents'),
 		...SITE_PAGES.map((page) =>
 			card(
 				page.href.slice(tc().length, -1),

@@ -1,11 +1,10 @@
 import { CERT_ISSUE, ISO_27001, ISO_9001 } from '@data/trust-center/compliance';
-import { SECURITY_TOPICS } from '@data/trust-center/forms';
 import {
 	DPA_HREF,
 	NDA_TURNAROUND,
 	PRIVACY_POLICY_HREF,
 	TERMS_OF_USE_HREF,
-	contactHref,
+	requestHref,
 	tc,
 } from '@data/trust-center/nav';
 import { isExternalHref } from '@util/external-links';
@@ -388,10 +387,10 @@ export const HUB_GROUPS = DOC_GROUPS.map((group) => ({
 /** The library's categories, in order of first appearance: the Documents page's filter. */
 export const DOC_CATEGORIES = [...new Set(LIBRARY_DOCS.map((d) => d.category))];
 
-/** A public document's file (else its page); an NDA one's request on the contact form; none if planned. */
+/** A public document's file (else its page); an NDA one's request form; none if planned. */
 export const docActionHref = (d: TcDoc): string | undefined => {
 	if (d.access === 'public') return d.file ?? d.url;
-	if (d.access === 'nda') return contactHref(SECURITY_TOPICS.documents.value, d.slug);
+	if (d.access === 'nda') return requestHref(d.slug);
 	return undefined;
 };
 

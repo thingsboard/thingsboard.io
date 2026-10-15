@@ -2,13 +2,11 @@ import { PE_FULL_VER } from '@data/versions';
 import { NDA_TURNAROUND, REPORT_REPLY_TIME } from '@data/trust-center/nav';
 
 /**
- * The contact form's topics, the hand-off to its thank-you page, and the vulnerability report template.
- *
- * INTEGRATION NOTE: the contact form is not connected; a valid submit only shows the thank-you page.
- * Before launch its topics must reach security@ (a routed CRM tag or an endpoint), not the sales pipeline.
+ * The contact form's topics, the document request's NDA steps, the hand-offs to their thank-you pages,
+ * and the vulnerability report template.
  */
 
-type SecurityTopicKey = 'documents' | 'questionnaire' | 'question' | 'dsr';
+type SecurityTopicKey = 'questionnaire' | 'question' | 'dsr';
 
 interface SecurityTopic {
 	/** What the form submits and `?subject=` matches. */
@@ -16,21 +14,11 @@ interface SecurityTopic {
 	label: string;
 	/** The message placeholder for this topic. */
 	prompt: string;
-	messageOptional?: boolean;
-	/** Shows the documents checklist and requires one. */
-	documents?: boolean;
 	/** "Email" instead of "Work email", and Company optional. */
 	personal?: boolean;
 }
 
 export const SECURITY_TOPICS: Record<SecurityTopicKey, SecurityTopic> = {
-	documents: {
-		value: 'Security Documents',
-		label: 'Request documents',
-		prompt: 'Optional: the project or vendor assessment you need them for.',
-		messageOptional: true,
-		documents: true,
-	},
 	questionnaire: {
 		value: 'Security Questionnaire',
 		label: 'Security questionnaire or vendor assessment',
@@ -52,20 +40,10 @@ export const SECURITY_TOPICS: Record<SecurityTopicKey, SecurityTopic> = {
 export const SECURITY_TOPIC_LIST: SecurityTopic[] = Object.values(SECURITY_TOPICS);
 
 /**
- * The thank-you page's words per topic, keyed by the topic's value: the lede around the reader's
- * email, and what a document request adds (its eyebrow, "request" for "message", the documents and
- * the NDA steps) or a data subject request (the identity note).
+ * The contact thank-you page's words per topic, keyed by the topic's value: the lede around the reader's
+ * email, and for a data subject request the identity note.
  */
-export const THANKS_BY_TOPIC: Record<
-	string,
-	{ lede: [string, string]; eyebrow?: string; noun?: string; documents?: true; identity?: true }
-> = {
-	[SECURITY_TOPICS.documents.value]: {
-		lede: ['We’ll email our mutual NDA to ', '.'],
-		eyebrow: 'Request sent',
-		noun: 'request',
-		documents: true,
-	},
+export const THANKS_BY_TOPIC: Record<string, { lede: [string, string]; identity?: true }> = {
 	[SECURITY_TOPICS.questionnaire.value]: {
 		lede: ['Our security team will read it and reply to ', ' about your questionnaire.'],
 	},
@@ -92,8 +70,9 @@ export const REPORT_TEMPLATE = [
 	'Credit: <your name or handle, or anonymous>',
 ].join('\n');
 
-/** sessionStorage hand-off from the contact form to its thank-you page; ignored once older than an hour. */
+/** sessionStorage hand-offs from the two forms to their thank-you pages; ignored once older than an hour. */
 export const CONTACT_SENT_KEY = 'tc-contact-sent';
+export const REQUEST_SENT_KEY = 'tc-request-sent';
 export const SENT_MAX_AGE_MS = 60 * 60 * 1000;
 
 /** CLARIFY: how the NDA is signed and how documents arrive is the team's process; confirm before adding detail. */

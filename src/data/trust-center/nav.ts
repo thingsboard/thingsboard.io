@@ -5,14 +5,12 @@ const TC_ROOT = '/trust-center/';
 /** `tc('compliance/gdpr')` → `/trust-center/compliance/gdpr/`; `tc()` is the hub. */
 export const tc = (path = ''): string => (path ? `${TC_ROOT}${path.replace(/^\/|\/$/g, '')}/` : TC_ROOT);
 
-/** The contact page, prefilled with a topic and a ticked document. */
-export const contactHref = (subject?: string, doc?: string): string => {
-	const params = new URLSearchParams();
-	if (subject) params.set('subject', subject);
-	if (doc) params.set('doc', doc);
-	const query = params.toString();
-	return `${tc('contact')}${query ? `?${query}` : ''}`;
-};
+/** The contact page, prefilled with a topic. */
+export const contactHref = (subject: string): string => `${tc('contact')}?${new URLSearchParams({ subject })}`;
+
+/** The document request page, with a document ticked. */
+export const requestHref = (doc?: string): string =>
+	doc ? `${tc('documents/request')}?${new URLSearchParams({ doc })}` : tc('documents/request');
 
 /** The colours the Trust Center's marks take (`ui/Mark`'s `accent`): the site's tokens. */
 export const MARK_COLOR = {
@@ -32,6 +30,7 @@ export const TC_OWNER = {
 };
 
 export const SECURITY_EMAIL = 'security@thingsboard.io';
+export const IMS_EMAIL = 'ims@thingsboard.io';
 export const DPA_HREF = '/products/paas/dpa/';
 export const PRIVACY_POLICY_HREF = '/products/paas/privacy-policy/';
 export const TERMS_OF_USE_HREF = '/products/paas/terms-of-use/';

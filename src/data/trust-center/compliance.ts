@@ -1,5 +1,5 @@
 import { SECURITY_TOPICS } from '@data/trust-center/forms';
-import { DPA_HREF, MARK_COLOR, SECURITY_EMAIL, contactHref, tc } from '@data/trust-center/nav';
+import { DPA_HREF, MARK_COLOR, SECURITY_EMAIL, contactHref, requestHref, tc } from '@data/trust-center/nav';
 import { formatDate } from '@util/format-date';
 
 /** The Compliance page, its four certificate pages, and the ISO certificates' facts. */
@@ -90,7 +90,7 @@ export const AUDIT = {
 	],
 	cta: {
 		label: 'Request the Statement of Applicability',
-		href: contactHref(SECURITY_TOPICS.documents.value, 'statement-of-applicability'),
+		href: requestHref('statement-of-applicability'),
 	},
 };
 
