@@ -102,7 +102,6 @@ export const data: UseCaseData = {
 				description:
 					'Monitor temperature, humidity, and gas levels in storage facilities to prevent spoilage and automate ventilation.',
 				desktopImage: '/src/assets/images/usecases/smart-farming/grain-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-farming/grain-2.svg',
 				imageAlt: 'Grain silo',
 				imageTitle: 'Grain & oilseed storage',
 			},
@@ -111,7 +110,6 @@ export const data: UseCaseData = {
 				description:
 					'Track microclimate data across vineyards and orchards to optimize irrigation, frost protection, and harvest timing.',
 				desktopImage: '/src/assets/images/usecases/smart-farming/orchards-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-farming/orchards-2.svg',
 				imageAlt: 'Vineyard',
 				imageTitle: 'Viticulture & orchards',
 			},
@@ -120,7 +118,6 @@ export const data: UseCaseData = {
 				description:
 					'Automated climate control in greenhouses using real-time sensor data to regulate temperature, humidity, CO\u2082, and lighting for year-round optimal growing conditions.',
 				desktopImage: '/src/assets/images/usecases/environment-monitoring/agriculture-1.svg',
-				mobileImage: '/src/assets/images/usecases/environment-monitoring/agriculture-2.svg',
 				imageAlt: 'Greenhouse',
 				imageTitle: 'Greenhouse farming',
 			},
@@ -129,7 +126,6 @@ export const data: UseCaseData = {
 				description:
 					'Monitor agricultural products during transport and storage for temperature compliance and farm-to-market traceability.',
 				desktopImage: '/src/assets/images/usecases/smart-farming/logistics-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-farming/logistics-2.svg',
 				imageAlt: 'Logistics truck',
 				imageTitle: 'Agri-logistics & cold chain',
 			},
@@ -138,7 +134,6 @@ export const data: UseCaseData = {
 				description:
 					'Monitoring animal health, barn climate conditions, and feed levels in real time. Automated alerts for abnormal behavior or environmental changes help prevent losses and improve animal welfare.',
 				desktopImage: '/src/assets/images/usecases/smart-farming/sheep-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-farming/sheep-2.svg',
 				imageAlt: 'Livestock',
 				imageTitle: 'Livestock farming',
 			},

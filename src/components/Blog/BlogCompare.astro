@@ -1,0 +1,226 @@
+---
+/**
+ * BlogCompare — a before/after slider over two screenshots of the same screen, `before` on top.
+ * A mouse drags anywhere, touch only from the handle so a swipe still scrolls the page; the
+ * keyboard uses the arrows, Home and End.
+ */
+import { Image } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+import { BLOG_IMAGE_SIZES, BLOG_IMAGE_WIDTHS } from '@components/Blog/blog-kit';
+
+interface Side {
+	src: ImageMetadata;
+	alt: string;
+	label: string;
+}
+
+interface Props {
+	before: Side;
+	after: Side;
+	vertical?: boolean;
+}
+
+const { before, after, vertical = false } = Astro.props;
+---
+
+<div class:list={['blog-compare', { vertical }]}>
+	<Image
+		src={after.src}
+		alt={after.alt}
+		widths={BLOG_IMAGE_WIDTHS}
+		sizes={BLOG_IMAGE_SIZES}
+		loading="lazy"
+		decoding="async"
+	/>
+	<div class="overlay">
+		<Image
+			src={before.src}
+			alt={before.alt}
+			widths={BLOG_IMAGE_WIDTHS}
+			sizes={BLOG_IMAGE_SIZES}
+			loading="lazy"
+			decoding="async"
+		/>
+	</div>
+	<div
+		class="handle"
+		role="slider"
+		tabindex="0"
+		aria-label={`Share of ${before.label} shown over ${after.label}`}
+		aria-orientation={vertical ? 'vertical' : 'horizontal'}
+		aria-valuemin="0"
+		aria-valuemax="100"
+		aria-valuenow="50"
+		aria-valuetext="50%"
+	></div>
+	<span class="tag before" aria-hidden="true">
+		{before.label}
+	</span>
+	<span class="tag after" aria-hidden="true">
+		{after.label}
+	</span>
+</div>
+
+<script>
+	for (const c of document.querySelectorAll<HTMLElement>('.blog-compare')) {
+		const overlay = c.querySelector<HTMLElement>('.overlay');
+		const handle = c.querySelector<HTMLElement>('.handle');
+		if (!overlay || !handle) continue;
+		const vertical = c.classList.contains('vertical');
+		let pos = 50;
+		let dragging = false;
+		// Measured once per drag: reading it on every move would force a layout after each `set()`
+		let rect: DOMRect;
+
+		const set = (value: number) => {
+			pos = Math.max(0, Math.min(100, value));
+			overlay.style.clipPath = vertical ? `inset(0 0 ${100 - pos}% 0)` : `inset(0 ${100 - pos}% 0 0)`;
+			handle.style[vertical ? 'top' : 'left'] = `${pos}%`;
+			handle.setAttribute('aria-valuenow', String(Math.round(pos)));
+			handle.setAttribute('aria-valuetext', `${Math.round(pos)}%`);
+		};
+		const fromPointer = (e: PointerEvent) =>
+			set(vertical ? ((e.clientY - rect.top) / rect.height) * 100 : ((e.clientX - rect.left) / rect.width) * 100);
+
+		c.addEventListener('pointerdown', (e) => {
+			// A touch that misses the handle is a scroll, not a drag
+			if (e.pointerType !== 'mouse' && e.target !== handle) return;
+			dragging = true;
+			rect = c.getBoundingClientRect();
+			c.setPointerCapture(e.pointerId);
+			fromPointer(e);
+		});
+		c.addEventListener('pointermove', (e) => {
+			if (dragging) fromPointer(e);
+		});
+		c.addEventListener('pointerup', () => (dragging = false));
+		c.addEventListener('pointercancel', () => (dragging = false));
+		handle.addEventListener('keydown', (e) => {
+			const next = { ArrowLeft: pos - 5, ArrowUp: pos - 5, ArrowRight: pos + 5, ArrowDown: pos + 5, Home: 0, End: 100 }[
+				e.key
+			];
+			if (next === undefined) return;
+			e.preventDefault();
+			set(next);
+		});
+	}
+</script>
+
+<style lang="scss">
+	@use '../../styles/variables' as *;
+	@use './blog-kit' as kit;
+
+	.blog-compare {
+		@include kit.media-frame;
+		overflow: hidden;
+		cursor: ew-resize;
+		user-select: none;
+	}
+
+	.handle:focus-visible {
+		outline: 2px solid var(--color-primary);
+		outline-offset: 2px;
+	}
+
+	/* outrank .blog-content img; pointer-events: none keeps the blog lightbox and native image drag off */
+	:global(.blog-content) .blog-compare :global(img) {
+		width: 100%;
+		margin: 0;
+		border-radius: 0;
+		pointer-events: none;
+	}
+
+	.overlay {
+		position: absolute;
+		inset: 0;
+		clip-path: inset(0 50% 0 0);
+	}
+
+	:global(.blog-content) .overlay :global(img) {
+		height: 100%;
+		object-fit: cover;
+		object-position: left top;
+	}
+
+	/* The handle and tags sit on a screenshot, so they keep fixed colours in both themes */
+	.handle {
+		position: absolute;
+		top: 0;
+		left: 50%;
+		z-index: 2;
+		width: 3px;
+		height: 100%;
+		background: #fff;
+		box-shadow: 0 0 10px rgba(0, 0, 0, 0.45);
+		transform: translateX(-50%);
+		/* a touch drag starts only here, so the image around it still scrolls the page */
+		touch-action: none;
+	}
+
+	.handle::before {
+		content: '';
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		width: 40px;
+		height: 40px;
+		border: 2px solid #212529;
+		border-radius: 50%;
+		background: #fff
+			url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23212529' stroke-width='2'%3E%3Cpath d='M18 8l4 4-4 4'/%3E%3Cpath d='M6 8l-4 4 4 4'/%3E%3C/svg%3E")
+			center / 24px no-repeat;
+		transform: translate(-50%, -50%);
+	}
+
+	.tag {
+		@include text-xs;
+		@include kit.overlay-pill;
+		position: absolute;
+		bottom: 12px;
+		z-index: 3;
+		padding: 4px 10px;
+		border-radius: var(--radius-full);
+		font-weight: $font-weight-bold;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		pointer-events: none;
+	}
+
+	.before {
+		left: 12px;
+	}
+
+	.after {
+		right: 12px;
+	}
+
+	.vertical {
+		cursor: ns-resize;
+	}
+
+	.vertical .overlay {
+		clip-path: inset(0 0 50% 0);
+	}
+
+	.vertical .handle {
+		top: 50%;
+		left: 0;
+		width: 100%;
+		height: 3px;
+		transform: translateY(-50%);
+	}
+
+	.vertical .handle::before {
+		transform: translate(-50%, -50%) rotate(90deg);
+	}
+
+	.vertical .before {
+		top: 12px;
+		bottom: auto;
+	}
+
+	.vertical .after {
+		right: auto;
+		left: 12px;
+	}
+</style>

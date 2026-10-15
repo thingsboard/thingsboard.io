@@ -188,7 +188,7 @@ export const buslFaq: FaqCategory[] = [
 				id: 'offline-air-gapped',
 				question: 'Can I run ThingsBoard fully offline / air-gapped?',
 				answer:
-					'<p>Yes. An offline key is available for a Perpetual License where your Order authorizes an Offline Deployment: it encodes your licensed scope in the key itself and needs no validation against our license server.</p><p>Get it from the License Portal on any machine with internet access, then activate your deployment with it. (An online key, by contrast, is validated periodically and tolerates interruptions of up to 48 hours. After that, the management interface locks until the next successful check. Connected devices keep sending data, and nothing is deleted.)</p>',
+					'<p>Yes. An offline key is available for a Perpetual License where your Order authorizes an Offline Deployment: it encodes your licensed scope in the key itself and needs no validation against our license server.</p><p>Get it from the License Portal on any machine with internet access, then activate your deployment with it. (An online key, by contrast, is validated periodically and tolerates interruptions of up to 72 hours. After that, the management interface locks until the next successful check. Connected devices keep sending data, commands still reach them, and nothing is deleted.)</p>',
 			},
 			{
 				id: 'what-data-is-sent',

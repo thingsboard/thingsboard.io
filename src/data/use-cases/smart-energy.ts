@@ -149,7 +149,6 @@ export const data: UseCaseData = {
 				description:
 					'Tracking energy usage of heavy machinery, identifying inefficiencies, and improving power distribution for safer and more cost-effective production processes.',
 				desktopImage: '/src/assets/images/usecases/smart-energy/factory-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-energy/factory-2.svg',
 				imageAlt: 'Factory',
 				imageTitle: 'Industrial facilities and factories',
 			},
@@ -158,7 +157,6 @@ export const data: UseCaseData = {
 				description:
 					'Optimizing HVAC, lighting, and equipment usage across floors and departments, with real-time monitoring to reduce energy waste and operational costs.',
 				desktopImage: '/src/assets/images/usecases/smart-energy/buildings-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-energy/buildings-2.svg',
 				imageAlt: 'Buildings',
 				imageTitle: 'Commercial buildings and offices',
 			},
@@ -167,7 +165,6 @@ export const data: UseCaseData = {
 				description:
 					'Controlling power consumption in classrooms, labs, and dormitories, scheduling energy use based on occupancy, and ensuring sustainability targets are met.',
 				desktopImage: '/src/assets/images/usecases/smart-energy/education-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-energy/education-2.svg',
 				imageAlt: 'School',
 				imageTitle: 'Educational institutions and campuses',
 			},
@@ -176,7 +173,6 @@ export const data: UseCaseData = {
 				description:
 					'Maintaining stable voltage, temperature, and load balancing to ensure uninterrupted operations while reducing electricity consumption and cooling costs.',
 				desktopImage: '/src/assets/images/usecases/smart-energy/data-centers-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-energy/data-centers-2.svg',
 				imageAlt: 'Data centers',
 				imageTitle: 'Data centers',
 			},
@@ -185,7 +181,6 @@ export const data: UseCaseData = {
 				description:
 					'Monitoring energy usage across multiple locations, managing peak hours, and controlling lighting and HVAC systems automatically for higher efficiency.',
 				desktopImage: '/src/assets/images/usecases/smart-energy/malls-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-energy/malls-2.svg',
 				imageAlt: 'Mall',
 				imageTitle: 'Shopping malls and retail chains',
 			},
