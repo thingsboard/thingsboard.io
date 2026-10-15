@@ -1,6 +1,7 @@
 import { CERT_ISSUE, ISO_27001, ISO_9001 } from '@data/trust-center/compliance';
 import { SECURITY_TOPICS } from '@data/trust-center/forms';
 import { DPA_HREF, NDA_TURNAROUND, PRIVACY_POLICY_HREF, contactHref, tc } from '@data/trust-center/nav';
+import { isExternalHref } from '@util/external-links';
 
 /**
  * The document library. `public`: View; `nda`: Request via the contact form; `pending`: planned, no action.
@@ -27,6 +28,8 @@ export interface TcDoc {
 	/** A page the document is: opened directly, no detail page. */
 	url?: string;
 }
+
+const LICENSE_AGREEMENT_HREF = '/legal/license-agreement/';
 
 const linkMissing = (d: TcDoc): boolean => d.access === 'public' && !d.file && !d.url;
 
@@ -83,7 +86,7 @@ export const DOCS: TcDoc[] = [
 		slug: 'iso-27001-certificate',
 		// The library opens the Compliance page; the action opens the file.
 		url: ISO_27001.href,
-		file: 'https://drive.google.com/file/d/1zvMo8-HRlJWvPNRMwr7He7iL-gu7zjuc/view',
+		file: '/trust-center/files/thingsboard-iso-27001-certificate.pdf',
 		name: 'ISO/IEC 27001:2022 certificate',
 		category: 'Compliance',
 		access: 'public',
@@ -95,7 +98,7 @@ export const DOCS: TcDoc[] = [
 	{
 		slug: 'iso-9001-certificate',
 		url: ISO_9001.href,
-		file: 'https://drive.google.com/file/d/1dwljuwvOWOQp3lXSCyfBIfRasdQi7AVM/view',
+		file: '/trust-center/files/thingsboard-iso-9001-certificate.pdf',
 		name: 'ISO 9001:2015 certificate',
 		category: 'Compliance',
 		access: 'public',
@@ -313,7 +316,7 @@ export const DOCS: TcDoc[] = [
 		owner: 'IMS Manager',
 		description: 'Our answers to the Standardized Information Gathering (Lite) questionnaire.',
 	},
-	// CLARIFY: the four below need an address (`url` or `file`); until then they show "Link needed".
+	// CLARIFY: needs an address (`url` or `file`); until then it shows "Link needed".
 	{
 		slug: 'private-cloud-sla',
 		name: 'Private Cloud SLA and service description',
@@ -323,6 +326,7 @@ export const DOCS: TcDoc[] = [
 	},
 	{
 		slug: 'license-server-network-requirements',
+		url: '/docs/license-server/what-is-license-server/#prerequisites',
 		name: 'License server network requirements',
 		category: 'Operations',
 		access: 'public',
@@ -330,6 +334,7 @@ export const DOCS: TcDoc[] = [
 	},
 	{
 		slug: 'eula',
+		url: LICENSE_AGREEMENT_HREF,
 		name: 'EULA and license terms',
 		category: 'Legal',
 		access: 'public',
@@ -337,6 +342,7 @@ export const DOCS: TcDoc[] = [
 	},
 	{
 		slug: 'support-policy',
+		url: `${LICENSE_AGREEMENT_HREF}#8-support-and-maintenance`,
 		name: 'Support policy',
 		category: 'Legal',
 		access: 'public',
@@ -373,6 +379,9 @@ export const docActionHref = (d: TcDoc): string | undefined => {
 	return undefined;
 };
 
+/** An off-site address or the document's own file (a PDF): either opens in a new tab. */
+export const opensInNewTab = (d: TcDoc, href: string): boolean => href === d.file || isExternalHref(href);
+
 const ndaDocs = LIBRARY_DOCS.filter((d) => d.access === 'nda');
 const ungrouped = ndaDocs.filter((d) => !DOC_GROUPS.some((g) => g.categories.includes(d.category)));
 if (ungrouped.length) throw new Error(`[trust-center] NDA documents in no group: ${ungrouped.map((d) => d.slug)}`);
@@ -386,6 +395,8 @@ export const REQUEST_GROUPS = DOC_GROUPS.map((g) => ({
 export interface DocAction {
 	label: string;
 	href: string;
+	/** Opens in a new tab: off-site, or the document's file. */
+	external?: boolean;
 	/** No address yet: "Link needed" in the action's place. */
 	missing?: boolean;
 }
@@ -396,7 +407,7 @@ export const docActions = (d: TcDoc): DocAction[] => {
 	const href = docActionHref(d);
 	if (!href) return [{ label: 'View', href: '#', missing: true }];
 	const label = ACCESS[d.access].listAction;
-	return label ? [{ label, href }] : [];
+	return label ? [{ label, href, external: opensInNewTab(d, href) }] : [];
 };
 
 /** A library document as a deployment page's row, optionally under another name. */
