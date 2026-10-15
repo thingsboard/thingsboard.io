@@ -29,8 +29,6 @@ export interface TcDoc {
 	url?: string;
 }
 
-const LICENSE_AGREEMENT_HREF = '/legal/license-agreement/';
-
 const linkMissing = (d: TcDoc): boolean => d.access === 'public' && !d.file && !d.url;
 
 /** The hub's groups and the contact form's checklist groups, by category. */
@@ -343,28 +341,29 @@ export const DOCS: TcDoc[] = [
 		description: 'The uptime formula, service credits and exclusions for Private Cloud.',
 	},
 	{
-		slug: 'license-server-network-requirements',
-		url: '/docs/license-server/what-is-license-server/#prerequisites',
-		name: 'License server network requirements',
+		slug: 'license-server',
+		url: '/docs/license-server/what-is-license-server/',
+		name: 'License server and client information',
 		category: 'Operations',
 		access: 'public',
-		description: 'The outbound connection to license.thingsboard.io that the hourly license check needs.',
+		description:
+			'How the license server and its client work: subscriptions, perpetual licenses, activation and the connection to license.thingsboard.io.',
 	},
 	{
-		slug: 'eula',
-		url: LICENSE_AGREEMENT_HREF,
-		name: 'EULA and license terms',
+		slug: 'license-agreement',
+		url: '/legal/license-agreement/',
+		name: 'ThingsBoard License Agreement (for on-premise deployed software)',
 		category: 'Legal',
 		access: 'public',
 		description: 'The license terms for ThingsBoard installed on-premises.',
 	},
 	{
-		slug: 'support-policy',
-		url: `${LICENSE_AGREEMENT_HREF}#8-support-and-maintenance`,
-		name: 'Support policy',
-		category: 'Legal',
+		slug: 'support-services',
+		url: '/services/',
+		name: 'Support services information',
+		category: 'Operations',
 		access: 'public',
-		description: 'How we support ThingsBoard.',
+		description: 'Our support and engineering services for ThingsBoard.',
 	},
 ];
 

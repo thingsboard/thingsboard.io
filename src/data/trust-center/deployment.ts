@@ -209,9 +209,9 @@ export const ONPREM_DOCS: DocRow[] = [
 	},
 	{ name: 'Release policy', access: 'public', actions: [{ label: 'View', href: '/docs/pe/releases/release-policy/' }] },
 	{ name: 'Release notes', access: 'public', actions: [{ label: 'View', href: '/docs/pe/releases/releases-table/' }] },
-	docRow('license-server-network-requirements'),
-	docRow('eula'),
-	docRow('support-policy'),
+	docRow('license-server'),
+	docRow('license-agreement'),
+	docRow('support-services'),
 ];
 
 export const PER_PRODUCT_NOTE = `ThingsBoard Edge, IoT Gateway, TBMQ, Trendz and the mobile apps split responsibility differently. <a href="${contactHref(SECURITY_TOPICS.question.value)}">Ask our security team</a> for a breakdown by product.`;
