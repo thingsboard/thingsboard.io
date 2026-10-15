@@ -1,6 +1,13 @@
 import type { FaqCategory } from '@data/pricing/types';
 import { CERT_ISSUE } from '@data/trust-center/compliance';
-import { NDA_TURNAROUND, REPORT_REPLY_TIME, SECURITY_EMAIL, tc } from '@data/trust-center/nav';
+import {
+	DPA_HREF,
+	NDA_TURNAROUND,
+	REPORT_REPLY_TIME,
+	SECURITY_EMAIL,
+	TERMS_OF_USE_HREF,
+	tc,
+} from '@data/trust-center/nav';
 
 /** The hub's FAQ, in Pricing's `FaqCategory` shape for `FaqSection`. */
 
@@ -51,7 +58,7 @@ export const TC_FAQ: FaqCategory[] = [
 				id: 'soc2',
 				question: 'Do you have a SOC 2 report?',
 				answer:
-					"<p>We don't have a SOC 2 report of our own; ThingsBoard is certified to ISO/IEC 27001 and ISO 9001. ThingsBoard Cloud runs on AWS, which publishes its SOC 2, ISO 27001 and PCI DSS attestations in AWS Artifact. Private Cloud runs in ISO 27001 and PCI DSS certified data centers.</p>",
+					'<p>ThingsBoard is certified to ISO/IEC 27001 and ISO 9001. The data centers behind ThingsBoard Cloud and Private Cloud hold SOC 2, ISO 27001 and PCI DSS attestations; AWS publishes them in AWS Artifact.</p>',
 			},
 			{
 				id: 'gdpr-ccpa',
@@ -86,7 +93,7 @@ export const TC_FAQ: FaqCategory[] = [
 				id: 'uptime',
 				question: 'What uptime do you commit to?',
 				answer:
-					'<p>Private Cloud has a contractual SLA: 99.9% on Launch and Growth, 99.95% on Scale and Enterprise, and a custom SLA on Enterprise on request. ThingsBoard Cloud status is live at status.thingsboard.cloud and status.eu.thingsboard.cloud.</p>',
+					'<p>ThingsBoard Cloud has an uptime SLA of 99.9%. Private Cloud has a contractual SLA: 99.9% on Launch and Growth, 99.95% on Scale and Enterprise, and a custom SLA on Enterprise on request.</p>',
 			},
 			{
 				id: 'staff',
@@ -157,8 +164,7 @@ export const TC_FAQ: FaqCategory[] = [
 			{
 				id: 'ai',
 				question: 'Is my data used to train AI models?',
-				answer:
-					'<p>No. We never use customer data to train models, and customer data never goes into public AI services. Our use of AI follows a dedicated policy aligned with GDPR, the EU AI Act and the NIST AI RMF.</p>',
+				answer: `<p>We don't use customer data to train or improve ThingsBoard's own AI models. ThingsBoard Cloud can use third-party AI services, for example for development automation and automated support. Data shared with them is used to provide the functionality you request, and the providers are bound by obligations no less strict than our <a href="${DPA_HREF}">DPA</a> (<a href="${TERMS_OF_USE_HREF}">Terms of Use</a>, 3.13). Our own use of AI follows a dedicated policy aligned with GDPR, the EU AI Act and the NIST AI RMF.</p>`,
 			},
 			{
 				id: 'subprocessors',

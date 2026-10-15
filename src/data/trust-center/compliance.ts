@@ -62,7 +62,7 @@ export const VERIFY = {
 export const CERT_DETAILS: Fact[] = [
 	{
 		label: 'Certification body',
-		html: `${CERT_ISSUE.body} (IAS-accredited, IAF MLA). Both certificates were issued on ${CERT_ISSUE.issued} and are valid until ${CERT_ISSUE.expires}, within a three-year cycle that runs to ${CERT_ISSUE.cycleEnds}, with a surveillance audit every year.`,
+		html: `${CERT_ISSUE.body} (IAS-accredited). Both certificates were issued on ${CERT_ISSUE.issued} and are valid until ${CERT_ISSUE.expires}, within a three-year cycle that runs to ${CERT_ISSUE.cycleEnds}, with a surveillance audit every year.`,
 	},
 	{
 		label: 'Certified scope',
@@ -74,13 +74,13 @@ export const CERT_DETAILS: Fact[] = [
 	},
 	{
 		label: 'Data centers',
-		html: 'ThingsBoard Cloud runs on AWS, whose data centers hold ISO 27001, PCI DSS and SOC 2 attestations. Private Cloud runs in ISO 27001 and PCI DSS certified data centers (AWS, Azure or GCP).',
+		html: 'ThingsBoard Cloud and Private Cloud run in data centers with ISO 27001, PCI DSS and SOC 2 attestations (AWS for ThingsBoard Cloud; AWS, Azure or GCP for Private Cloud).',
 	},
 ];
 
 export const AUDIT = {
 	title: 'Using our compliance in your audit',
-	text: 'You can certify the solution you build on ThingsBoard to ISO/IEC 27001 or another standard. Our certificates count as supplier evidence in your audit, and under NDA we share the Statement of Applicability and audit reports.',
+	text: 'You can certify the solution you build on ThingsBoard, for example to ISO/IEC 27001. Our ISO certificates count as supplier evidence in your audit, and under NDA we share the Statement of Applicability and audit reports.',
 	controlsLead: "The platform gives you the controls auditors look for, so you don't need to build them from scratch:",
 	controls: [
 		{ label: 'Access control', href: tc('access') },
@@ -101,7 +101,7 @@ export const PRIVACY = {
 		`Data stays in the EU on ThingsBoard Cloud’s <a href="${tc('cloud')}">EU region</a>, and never moves between regions.`,
 		`A <a href="${DPA_HREF}">Data Processing Agreement</a>, with standard contractual clauses for transfers outside the EU.`,
 		`Published <a href="${tc('subprocessors')}">sub-processors</a>, with notice of material changes.`,
-		`<a href="${contactHref(SECURITY_TOPICS.dsr.value)}">Data subject requests</a> and breach notification under documented procedures.`,
+		`<a href="${contactHref(SECURITY_TOPICS.dsr.value)}">Data subject requests</a> and breach notification as set out in our DPA.`,
 	],
 	laws: [
 		{
@@ -119,7 +119,7 @@ export const PRIVACY = {
 			href: tc('compliance/ccpa'),
 		},
 	],
-	note: 'We declare our GDPR and CCPA compliance ourselves, and commit to it contractually in our DPA.',
+	note: 'We declare our GDPR and CCPA compliance ourselves, and commit to GDPR contractually in our DPA.',
 };
 
 export interface CertPage {
@@ -172,7 +172,7 @@ export const CERT_PAGES: CertPage[] = [
 		facts: [
 			{
 				label: 'Scope of application',
-				html: 'We apply data minimization and storage limitation to all personal data we process, wherever the person lives.',
+				html: 'We apply data minimization to all personal data we process, wherever the person lives.',
 			},
 			{
 				label: 'Legal basis',
@@ -188,11 +188,11 @@ export const CERT_PAGES: CertPage[] = [
 			},
 			{
 				label: 'Sub-processors',
-				html: `Every vendor that may access personal data is listed on our <a href="${tc('subprocessors')}">Sub-processors</a> page; we notify customers of material changes, as the DPA sets out.`,
+				html: `Every vendor that may access personal data is listed on our <a href="${tc('subprocessors')}">Sub-processors</a> page; we notify customers of material changes.`,
 			},
 			{
 				label: 'Security of processing',
-				html: `Our information security controls are certified to <a href="${tc('compliance/iso-27001')}">ISO/IEC 27001:2022</a>.`,
+				html: `Our information security management system is certified to <a href="${tc('compliance/iso-27001')}">ISO/IEC 27001:2022</a>.`,
 			},
 			{
 				label: 'Data subject requests',

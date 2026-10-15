@@ -1,6 +1,13 @@
 import { CERT_ISSUE, ISO_27001, ISO_9001 } from '@data/trust-center/compliance';
 import { SECURITY_TOPICS } from '@data/trust-center/forms';
-import { DPA_HREF, NDA_TURNAROUND, PRIVACY_POLICY_HREF, contactHref, tc } from '@data/trust-center/nav';
+import {
+	DPA_HREF,
+	NDA_TURNAROUND,
+	PRIVACY_POLICY_HREF,
+	TERMS_OF_USE_HREF,
+	contactHref,
+	tc,
+} from '@data/trust-center/nav';
 import { isExternalHref } from '@util/external-links';
 
 /**
@@ -151,7 +158,7 @@ export const DOCS: TcDoc[] = [
 		category: 'Security',
 		access: 'nda',
 		version: 'v1.0',
-		owner: 'CTO',
+		owner: 'IMS Manager',
 		hub: true,
 		description:
 			'Security across the engineering lifecycle: mandatory review, separate environments, weekly code and dependency scanning, and change control.',
@@ -162,7 +169,7 @@ export const DOCS: TcDoc[] = [
 		category: 'Security',
 		access: 'nda',
 		version: 'v1.0',
-		owner: 'CTO',
+		owner: 'IMS Manager',
 		hub: true,
 		description: 'How a change reaches production: request, impact assessment, approval and tracking in Jira.',
 	},
@@ -209,7 +216,7 @@ export const DOCS: TcDoc[] = [
 	},
 	{
 		slug: 'terms-of-use',
-		url: '/products/paas/terms-of-use/',
+		url: TERMS_OF_USE_HREF,
 		name: 'Terms of Use (ThingsBoard Cloud)',
 		category: 'Legal',
 		access: 'public',
@@ -267,7 +274,7 @@ export const DOCS: TcDoc[] = [
 		category: 'Legal',
 		access: 'nda',
 		version: 'v1.0',
-		owner: 'Legal Counsel',
+		owner: 'IMS Manager',
 		hub: true,
 		description: 'Our internal rules for protecting personal data, including privacy by design.',
 	},
@@ -302,7 +309,7 @@ export const DOCS: TcDoc[] = [
 		owner: 'IMS Manager',
 		hub: true,
 		description:
-			'Continuity scenarios for ThingsBoard Cloud, the crisis team, recovery procedures and the measured results of the last exercise.',
+			'Continuity of company operations: crisis team, emergency response, alternate sites and the exercise program.',
 	},
 	{
 		slug: 'backup-policy',
@@ -332,13 +339,13 @@ export const DOCS: TcDoc[] = [
 		owner: 'IMS Manager',
 		description: 'Our answers to the Standardized Information Gathering (Lite) questionnaire.',
 	},
-	// CLARIFY: needs an address (`url` or `file`); until then it shows "Link needed".
 	{
 		slug: 'private-cloud-sla',
+		url: '/pricing/?product=thingsboard-private-cloud',
 		name: 'Private Cloud SLA and service description',
 		category: 'Legal',
 		access: 'public',
-		description: 'The uptime formula, service credits and exclusions for Private Cloud.',
+		description: 'The uptime formula and exclusions for Private Cloud, in the Private Cloud pricing FAQ.',
 	},
 	{
 		slug: 'license-server',
@@ -355,7 +362,7 @@ export const DOCS: TcDoc[] = [
 		name: 'ThingsBoard License Agreement (for on-premises deployed software)',
 		category: 'Legal',
 		access: 'public',
-		description: 'The license terms for ThingsBoard installed on-premises.',
+		description: 'The agreement governing paid commercial licenses to the ThingsBoard Software.',
 	},
 	{
 		slug: 'support-services',
@@ -363,7 +370,7 @@ export const DOCS: TcDoc[] = [
 		name: 'Support services information',
 		category: 'Operations',
 		access: 'public',
-		description: 'Our support and engineering services for ThingsBoard.',
+		description: 'Our support plans and response targets, managed platform operations and on-demand experts.',
 	},
 ];
 

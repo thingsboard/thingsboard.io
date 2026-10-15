@@ -1,5 +1,4 @@
 import { text, type ComparisonRow } from '@models/product-comparison';
-import { DPA_HREF } from '@data/trust-center/nav';
 
 /** The Sub-processors page's table and note. */
 
@@ -32,7 +31,9 @@ const SUBPROCESSORS: Subprocessor[] = [
 	{ vendor: 'Anthropic', purpose: 'AI services under the AI Services Policy', location: 'USA' },
 ];
 
-export const SUBPROCESSORS_NOTE = `Location means the hosting region for infrastructure providers and the country of the contracting entity for other vendors; exact data regions are set out in each vendor's DPA. We notify customers of material changes to this list, as set out in <a href="${DPA_HREF}">the DPA</a>.`;
+// CLARIFY (Legal): whether the DPA gets a clause on notifying customers of sub-processor changes.
+export const SUBPROCESSORS_NOTE =
+	"Location means the hosting region for infrastructure providers and the country of the contracting entity for other vendors; exact data regions are set out in each vendor's DPA. We notify customers of material changes to this list.";
 
 /** The list as the page's table rows: the vendor, its purpose and location. */
 export const SUBPROCESSOR_ROWS: ComparisonRow[] = SUBPROCESSORS.map((s) => ({

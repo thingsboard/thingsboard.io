@@ -71,7 +71,7 @@ const CLOUD_COMPARE: ComparisonRow[] = [
 		'TLS preconfigured: HTTPS on 443, MQTTS on 8883.',
 	]),
 	row('Network protection', [
-		'Cloudflare DDoS protection, with rate limits set by plan.',
+		'DNS by Cloudflare; rate limits set by plan.',
 		'Rate limits of 50 requests per second and 500 per minute per source IP. A dedicated VPN tunnel to your systems, depending on plan.',
 	]),
 	row('Backups', [
@@ -83,12 +83,12 @@ const CLOUD_COMPARE: ComparisonRow[] = [
 		'On Scale and Enterprise plans. Launch and Growth run as a single-node deployment.',
 	]),
 	row('Uptime', [
-		'Live status at status.thingsboard.cloud and status.eu.thingsboard.cloud, also shown to tenant administrators in the UI.',
+		'Uptime SLA: 99.9%.',
 		'Contractual SLA: 99.9% on Launch and Growth, 99.95% on Scale and Enterprise, and a custom SLA on Enterprise on request. Monitored 24×7.',
 	]),
 	row('Data center certifications', [
 		'AWS: ISO 27001, PCI DSS, SOC 2.',
-		'ISO 27001 and PCI DSS certified data centers.',
+		'ISO 27001, PCI DSS and SOC 2 certified data centers.',
 	]),
 	row('Data retention (TTL)', ['30 to 365 days, depending on plan.', '365 days by default; you can change it.']),
 	row('Infrastructure access', [
@@ -132,21 +132,17 @@ export const CLOUD_DOCS: DocRow[] = [
 		access: 'public',
 		actions: [{ label: 'View', href: 'https://aws.amazon.com/artifact/' }],
 	},
-	docRow('bcp-drp'),
 	docRow('backup-policy', 'Backup policy (frequency, retention)'),
 ];
 
 export const PRIVATE_CLOUD_DOCS_INTRO = 'Same set as ThingsBoard Cloud; only the differences are listed.';
 
 export const PRIVATE_CLOUD_DOCS: DocRow[] = [
-	docRow(
-		'private-cloud-sla',
-		'Private Cloud SLA and service description (uptime formula, service credits, exclusions)'
-	),
+	docRow('private-cloud-sla', 'Private Cloud SLA and service description (uptime formula, exclusions)'),
 	docRow('dpa-private-cloud'),
 	docRow('private-cloud-architecture', 'Cluster architecture and read-only metrics'),
 	{
-		name: 'Data center certifications (ISO 27001, PCI DSS)',
+		name: 'Data center certifications (ISO 27001, PCI DSS, SOC 2)',
 		access: 'public',
 		actions: [
 			{ label: 'AWS', href: 'https://aws.amazon.com/compliance/programs/' },
@@ -235,11 +231,11 @@ export const COMMITMENT_ROWS: CatalogRow[] = [
 			},
 			{
 				label: 'Private Cloud',
-				text: 'Support Portal on every plan; priority channel and engineering support on Scale and Enterprise; a dedicated customer success engineer on Enterprise.',
+				text: 'Support Portal on every plan; priority channel on Growth, Scale and Enterprise; engineering support and a dedicated customer success engineer on Enterprise.',
 			},
 			{
 				label: 'On-premises',
-				text: 'community support on Maker and Prototype; help desk on Pilot; priority help desk on Startup (replies within 36 hours) and Business (within 12 hours). Perpetual licenses include the first year of support.',
+				text: 'community support on Free; help desk on Pilot (replies within 36 hours); priority help desk on Startup (replies within 36 hours) and Business (within 12 hours). Perpetual licenses include the first year of support.',
 			},
 		],
 	},

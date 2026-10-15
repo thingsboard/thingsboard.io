@@ -53,7 +53,7 @@ const CAT_PRODUCT: CatalogRow[] = [
 const CAT_DATA: CatalogRow[] = [
 	{
 		title: 'Data ownership',
-		html: 'Customer data belongs to the customer. We process it on your behalf under the DPA and never use it to train AI models.',
+		html: "Customer data belongs to the customer. We process it on your behalf under the DPA and don't use it to train or improve ThingsBoard's own AI models.",
 	},
 	{
 		title: 'Tenant isolation',
@@ -69,7 +69,7 @@ const CAT_DATA: CatalogRow[] = [
 	{
 		title: 'Encryption in transit',
 		configurable: true,
-		html: 'Users and devices connect over TLS: HTTPS on 443, MQTTS on 8883, DTLS for CoAP and LwM2M. Unencrypted device connection is available by default for testing or PoC purposes and can be disabled.',
+		html: 'Users and devices connect over TLS: HTTPS on 443, MQTTS on 8883, DTLS for CoAP and LwM2M.',
 	},
 	{
 		title: 'Secrets and passwords',
@@ -136,7 +136,7 @@ const CAT_DATA: CatalogRow[] = [
 	},
 	{
 		title: 'Data center certifications',
-		html: 'ThingsBoard Cloud runs in AWS data centers with ISO 27001, PCI DSS and SOC 2 attestations; Private Cloud runs in ISO 27001 and PCI DSS certified data centers.',
+		html: 'ThingsBoard Cloud and Private Cloud run in data centers with ISO 27001, PCI DSS and SOC 2 attestations.',
 	},
 ];
 
@@ -168,7 +168,7 @@ const CAT_ACCESS: CatalogRow[] = [
 	},
 	{
 		title: 'Audit log',
-		html: 'The platform records user actions, and you can send the log to an external system such as your SIEM.',
+		html: 'The platform records user actions in an audit log. On-premises you can forward it to Elasticsearch; in every deployment you can read it through the REST API.',
 		docs: '/docs/pe/user-guide/security/audit-log/',
 	},
 	{
