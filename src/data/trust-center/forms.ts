@@ -6,8 +6,6 @@ import { NDA_TURNAROUND, REPORT_REPLY_TIME } from '@data/trust-center/nav';
  * and the vulnerability report template.
  */
 
-type SecurityTopicKey = 'questionnaire' | 'question' | 'dsr';
-
 interface SecurityTopic {
 	/** What the form submits and `?subject=` matches. */
 	value: string;
@@ -18,7 +16,7 @@ interface SecurityTopic {
 	personal?: boolean;
 }
 
-export const SECURITY_TOPICS: Record<SecurityTopicKey, SecurityTopic> = {
+export const SECURITY_TOPICS = {
 	questionnaire: {
 		value: 'Security Questionnaire',
 		label: 'Security questionnaire or vendor assessment',
@@ -35,7 +33,7 @@ export const SECURITY_TOPICS: Record<SecurityTopicKey, SecurityTopic> = {
 		prompt: 'Which account or data the request is about, and what you want us to do.',
 		personal: true,
 	},
-};
+} satisfies Record<string, SecurityTopic>;
 
 export const SECURITY_TOPIC_LIST: SecurityTopic[] = Object.values(SECURITY_TOPICS);
 
@@ -72,6 +70,18 @@ export const REPORT_TEMPLATE = [
 
 /** sessionStorage hand-offs from the two forms to their thank-you pages; ignored once older than an hour. */
 export const CONTACT_SENT_KEY = 'tc-contact-sent';
+
+export type FormField = 'firstName' | 'lastName' | 'email' | 'company' | 'message';
+
+/** What a form keeps for its thank-you page; `subject` and `topicLabel` are empty on a document request. */
+export interface SentForm extends Record<FormField, string> {
+	at: number;
+	subject: string;
+	topicLabel: string;
+	docs: { value: string; label: string }[];
+	from: string;
+}
+
 export const REQUEST_SENT_KEY = 'tc-request-sent';
 export const SENT_MAX_AGE_MS = 60 * 60 * 1000;
 

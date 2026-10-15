@@ -1,6 +1,5 @@
-/** Posts a form's fields to a Formspree endpoint as JSON; resolves false on an error, a timeout or no endpoint. */
+/** Posts a form's fields to a Formspree endpoint as JSON; resolves false on an error or a timeout. */
 export async function sendToFormspree(endpoint: string, fields: Record<string, unknown>, timeoutMs = 15000) {
-	if (!endpoint) return false;
 	const controller = new AbortController();
 	const timer = setTimeout(() => controller.abort(), timeoutMs);
 	try {

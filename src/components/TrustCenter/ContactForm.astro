@@ -55,7 +55,7 @@ const TOPIC_OPTIONS = SECURITY_TOPIC_LIST.map((t) => ({
 	class="tc-contact"
 	attrs={{
 		id: 'tc-contact',
-		action: FORM.endpoint || undefined,
+		action: FORM.endpoint,
 		method: 'post',
 		novalidate: 'novalidate',
 		'data-tc-contact': kind,
@@ -151,13 +151,13 @@ const TOPIC_OPTIONS = SECURITY_TOPIC_LIST.map((t) => ({
 <script>
 	import { validateAll, wireCounter, wireValidation, type FieldControl, type Problem } from '@util/form-validate';
 	import { sendToFormspree } from '@util/formspree';
-	import { SENT_MAX_AGE_MS } from '@data/trust-center/forms';
+	import { SENT_MAX_AGE_MS, type FormField, type SentForm } from '@data/trust-center/forms';
 
 	const isValidEmail = (email: string) => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/.test(email);
 	const XSS_PATTERN =
 		/<\s*\/?\s*(?:script|iframe|object|embed)\b|javascript\s*:|on(?:click|error|load|focus|blur|mouseover|mouseout|change|submit|input|toggle|animationend)\s*=/i;
 
-	const REQUIRED: Record<string, string> = {
+	const REQUIRED: Record<FormField, string> = {
 		firstName: 'Enter your first name.',
 		lastName: 'Enter your last name.',
 		email: 'Enter your email so we can reply.',
@@ -165,7 +165,7 @@ const TOPIC_OPTIONS = SECURITY_TOPIC_LIST.map((t) => ({
 		message: 'Tell us a little about what you need.',
 	};
 
-	const FIELDS = Object.keys(REQUIRED);
+	const FIELDS: FormField[] = ['firstName', 'lastName', 'email', 'company', 'message'];
 
 	document.querySelectorAll<HTMLFormElement>('form[data-tc-contact]').forEach((form) => {
 		const documents = form.dataset.tcContact === 'documents';
@@ -177,7 +177,8 @@ const TOPIC_OPTIONS = SECURITY_TOPIC_LIST.map((t) => ({
 		if (!message || (documents ? !docs || !docsError : !select)) return;
 		const boxes = [...(docs?.querySelectorAll<HTMLInputElement>('input[name="documents"]') ?? [])];
 
-		const option = () => select?.selectedOptions[0] as HTMLOptionElement | undefined;
+		const option = () => select?.selectedOptions.item(0);
+		const control = (name: string) => form.elements.namedItem(name) as FieldControl | null;
 		const personal = () => option()?.dataset.personal !== undefined;
 
 		const optionalMark = (id: string, on: boolean) => {
@@ -219,7 +220,7 @@ const TOPIC_OPTIONS = SECURITY_TOPIC_LIST.map((t) => ({
 		if (prefilled) message.value = prefilled;
 
 		// `?resend` from the thank-you page restores the last one sent.
-		const readSent = (): Record<string, unknown> | null => {
+		const readSent = (): SentForm | null => {
 			try {
 				const sent = JSON.parse(sessionStorage.getItem(sentKey) || 'null');
 				return sent && typeof sent.at === 'number' && Date.now() - sent.at <= SENT_MAX_AGE_MS ? sent : null;
@@ -230,12 +231,12 @@ const TOPIC_OPTIONS = SECURITY_TOPIC_LIST.map((t) => ({
 		const restored = params.has('resend') ? readSent() : null;
 		if (restored) {
 			FIELDS.forEach((name) => {
-				const el = form.elements.namedItem(name) as FieldControl | null;
-				if (el && typeof restored[name] === 'string') el.value = restored[name] as string;
+				const el = control(name);
+				if (el && typeof restored[name] === 'string') el.value = restored[name];
 			});
 			const wanted = select && [...select.options].find((o) => o.value === restored.subject);
 			if (select && wanted) select.value = wanted.value;
-			const ticked = Array.isArray(restored.docs) ? restored.docs.map((d: { value: string }) => d.value) : [];
+			const ticked = Array.isArray(restored.docs) ? restored.docs.map((d) => d.value) : [];
 			boxes.forEach((b) => (b.checked = ticked.includes(b.value)));
 		}
 		applyTopic();
@@ -248,16 +249,14 @@ const TOPIC_OPTIONS = SECURITY_TOPIC_LIST.map((t) => ({
 			email?.select();
 		}
 
-		const fields = FIELDS.map((name) => form.elements.namedItem(name) as FieldControl | null).filter(
-			(el): el is FieldControl => !!el
-		);
+		const fields = FIELDS.map(control).filter((el): el is FieldControl => !!el);
 
 		const check = (el: FieldControl): Problem => {
 			const val = el.value.trim();
 			if (val === '') {
 				if (el.name === 'message' && documents) return null;
 				if (el.name === 'company' && personal()) return null;
-				return { kind: 'required', message: REQUIRED[el.name] };
+				return { kind: 'required', message: REQUIRED[el.name as FormField] };
 			}
 			if (el.name === 'email' && !isValidEmail(val))
 				return { kind: 'format', message: 'Enter an email like name@company.com.' };
@@ -295,29 +294,34 @@ const TOPIC_OPTIONS = SECURITY_TOPIC_LIST.map((t) => ({
 			}
 
 			// Kept in sessionStorage, never in the URL.
-			const value = (name: string) => (form.elements.namedItem(name) as FieldControl | null)?.value.trim() ?? '';
-			const sent: Record<string, unknown> = { at: Date.now() };
-			FIELDS.forEach((name) => (sent[name] = value(name)));
-			sent.subject = select?.value ?? '';
-			sent.topicLabel = select?.value ? (option()?.textContent ?? '').trim() : '';
-			const picked = boxes.filter((b) => b.checked).map((b) => ({ value: b.value, label: b.dataset.label ?? '' }));
-			sent.docs = picked;
+			const value = (name: string) => control(name)?.value.trim() ?? '';
 			// Where "Edit and send again" returns to.
 			const from = new URL(window.location.href);
 			from.searchParams.delete('resend');
-			sent.from = `${from.pathname}${from.search}`;
+			const sent: SentForm = {
+				at: Date.now(),
+				firstName: value('firstName'),
+				lastName: value('lastName'),
+				email: value('email'),
+				company: value('company'),
+				message: value('message'),
+				subject: select?.value ?? '',
+				topicLabel: select?.value ? (option()?.textContent ?? '').trim() : '',
+				docs: boxes.filter((b) => b.checked).map((b) => ({ value: b.value, label: b.dataset.label ?? '' })),
+				from: `${from.pathname}${from.search}`,
+			};
 
 			sending = true;
 			if (submit) submit.disabled = true;
 			if (sendError) sendError.hidden = true;
-			const ok = await sendToFormspree(form.getAttribute('action') ?? '', {
+			const ok = await sendToFormspree(form.action, {
 				_subject: documents ? 'Trust Center: document request' : `Trust Center: ${sent.topicLabel || 'message'}`,
 				_gotcha: value('_gotcha'),
 				firstName: sent.firstName,
 				lastName: sent.lastName,
 				email: sent.email,
 				company: sent.company,
-				...(documents ? { documents: picked.map((d) => d.label).join(', ') } : { topic: sent.topicLabel }),
+				...(documents ? { documents: sent.docs.map((d) => d.label).join(', ') } : { topic: sent.topicLabel }),
 				message: sent.message,
 				page: sent.from,
 			});
