@@ -74,7 +74,7 @@ export const CERT_DETAILS: Fact[] = [
 	},
 	{
 		label: 'Data centers',
-		html: 'ThingsBoard Cloud and Private Cloud run in data centers with ISO 27001, PCI DSS and SOC 2 attestations (AWS for ThingsBoard Cloud; AWS, Azure or GCP for Private Cloud).',
+		html: 'ThingsBoard Cloud runs on AWS, whose data centers hold ISO 27001, PCI DSS and SOC 2 attestations. Private Cloud runs in ISO 27001 and PCI DSS certified data centers (AWS, Azure or GCP).',
 	},
 ];
 

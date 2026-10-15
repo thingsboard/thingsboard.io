@@ -136,7 +136,7 @@ const CAT_DATA: CatalogRow[] = [
 	},
 	{
 		title: 'Data center certifications',
-		html: 'ThingsBoard Cloud and Private Cloud run in data centers with ISO 27001, PCI DSS and SOC 2 attestations.',
+		html: 'ThingsBoard Cloud runs in AWS data centers with ISO 27001, PCI DSS and SOC 2 attestations; Private Cloud runs in ISO 27001 and PCI DSS certified data centers.',
 	},
 ];
 

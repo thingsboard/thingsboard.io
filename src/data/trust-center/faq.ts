@@ -51,7 +51,7 @@ export const TC_FAQ: FaqCategory[] = [
 				id: 'soc2',
 				question: 'Do you have a SOC 2 report?',
 				answer:
-					'<p>ThingsBoard is certified to ISO/IEC 27001 and ISO 9001. The data centers behind ThingsBoard Cloud and Private Cloud hold SOC 2, ISO 27001 and PCI DSS attestations; AWS publishes them in AWS Artifact.</p>',
+					"<p>We don't have a SOC 2 report of our own; ThingsBoard is certified to ISO/IEC 27001 and ISO 9001. ThingsBoard Cloud runs on AWS, which publishes its SOC 2, ISO 27001 and PCI DSS attestations in AWS Artifact. Private Cloud runs in ISO 27001 and PCI DSS certified data centers.</p>",
 			},
 			{
 				id: 'gdpr-ccpa',
