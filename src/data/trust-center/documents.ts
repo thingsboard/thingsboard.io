@@ -170,7 +170,8 @@ export const DOCS: TcDoc[] = [
 		version: 'v1.0',
 		owner: 'IMS Manager',
 		hub: true,
-		description: 'How a change reaches production: request, impact assessment, approval and tracking in Jira.',
+		description:
+			'How changes to our systems and processes are requested, assessed, approved, implemented and reviewed, tracked in Jira.',
 	},
 	{
 		slug: 'incident-management-procedure',
@@ -289,7 +290,7 @@ export const DOCS: TcDoc[] = [
 		owner: 'IMS Manager',
 		hub: true,
 		description:
-			'Full-scope audit of both standards by an independent contractor (30 June – 1 July 2026): no major and 3 minor nonconformities, with corrective actions and deadlines.',
+			'Full-scope audit of both standards by an independent contractor (30 June – 1 July 2026): no major and 3 minor nonconformities, with the deadline for corrective actions.',
 	},
 	{
 		slug: 'bcp-drp',

@@ -2,6 +2,7 @@ import type { FaqCategory } from '@data/pricing/types';
 import { CERT_ISSUE } from '@data/trust-center/compliance';
 import {
 	DPA_HREF,
+	IMS_EMAIL,
 	NDA_TURNAROUND,
 	REPORT_REPLY_TIME,
 	SECURITY_EMAIL,
@@ -19,7 +20,7 @@ export const TC_FAQ: FaqCategory[] = [
 			{
 				id: 'contact',
 				question: 'How do I contact ThingsBoard about security?',
-				answer: `<p>Email ${SECURITY_EMAIL} for security, compliance and privacy questions, document requests and vulnerability reports.</p>`,
+				answer: `<p>Email ${SECURITY_EMAIL} for security, compliance and privacy questions and vulnerability reports, and ${IMS_EMAIL} for document requests.</p>`,
 			},
 			{
 				id: 'nda-speed',

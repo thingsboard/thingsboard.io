@@ -9,7 +9,7 @@ export const OVERVIEW_LEDE =
 export const DEPLOYMENTS_LEAD =
 	'Whether you use ThingsBoard Cloud, Private Cloud or run the platform on-premises, you get the same security features and the same engineering practices behind every release.';
 
-/** A topic tile: its page's title, line (without the full stop), icon and address, and three points. */
+/** A topic tile: its page's title, line (without the full stop), icon and address, and its points. */
 const tile = (path: string, points: string[], title?: string) => {
 	const p = pageFor(path);
 	return { title: title ?? p.title, subtitle: p.line.replace(/\.$/, ''), icon: p.icon, href: p.href, points };
@@ -17,7 +17,12 @@ const tile = (path: string, points: string[], title?: string) => {
 
 export const TILES = [
 	tile('compliance', ['ISO/IEC 27001:2022 — certified', 'ISO 9001:2015 — certified', 'GDPR and CCPA, self-declared']),
-	tile('data', ['Tenant isolation by architecture', 'North America, EU or APAC', 'Export anytime via API, no lock-in']),
+	tile('data', [
+		'Tenant isolation by architecture',
+		'Encrypted in transit with TLS',
+		'Region of your choice: North America or EU (Cloud), plus APAC (Private Cloud)',
+		'Export anytime via API, no lock-in',
+	]),
 	tile('product', [
 		'Encrypted device connections',
 		'X.509 device credentials and mutual TLS',

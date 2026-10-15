@@ -44,7 +44,7 @@ const CAT_PRODUCT: CatalogRow[] = [
 		docs: '/docs/pe/reference/mqtt-api/getting-connected/',
 	},
 	{
-		title: 'Custom domains with automatic SSL',
+		title: 'Custom domains with automatic SSL (ThingsBoard Cloud, web UI)',
 		html: 'Bind your own domain name; the platform provisions the SSL certificate automatically.',
 		docs: '/docs/pe/user-guide/security/domains/',
 	},
@@ -205,7 +205,7 @@ const CAT_APPSEC: CatalogRow[] = [
 	},
 	{
 		title: 'Change management',
-		html: 'Every change goes through a request, an impact assessment and an approval, tracked in Jira.',
+		html: 'Changes are requested, assessed and approved and tracked in Jira; minor changes follow a shortened path.',
 	},
 	{
 		title: 'Independent penetration testing',
