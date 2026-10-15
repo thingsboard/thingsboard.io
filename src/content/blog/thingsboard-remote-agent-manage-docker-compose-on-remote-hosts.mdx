@@ -1,5 +1,5 @@
 ---
-title: 'Remote Agent: Manage Docker Compose on Remote Hosts Without SSH'
+title: 'Manage Remote Docker Environments from ThingsBoard in One Click'
 description: 'ThingsBoard Remote Agent deploys, upgrades and monitors Docker Compose apps on remote hosts from the ThingsBoard UI, with backups and automatic rollback.'
 date: 2026-10-09
 author: nikita-mazurenko
@@ -17,19 +17,23 @@ import fleetSvg from '@root/assets/images/blog/thingsboard-remote-agent/fleet-bu
 import provisioningSvg from '@root/assets/images/blog/thingsboard-remote-agent/agent-provisioning.svg?raw';
 import stagedSvg from '@root/assets/images/blog/thingsboard-remote-agent/staged-upgrade.svg?raw';
 
-Many ThingsBoard deployments reach well beyond the platform itself. A ThingsBoard Edge runs at every hotel, an IoT Gateway at every plant, often next to an MQTT broker or a local database, on hosts that sit behind NAT at the customer's site. Each of those hosts runs software that has to be installed, upgraded and watched, and as fleets grow to hundreds of sites, doing that host by host takes more and more of a team's time.
+A ThingsBoard deployment is often more than the platform. A hotel chain runs a ThingsBoard Edge in every hotel, a manufacturer runs an IoT Gateway in every plant, and an MQTT broker or a local database often runs on the same host, behind NAT at the customer's site.
 
-Remote Agent brings those hosts into ThingsBoard. A small container on each host connects outbound to the platform, and you deploy, upgrade and monitor its Docker Compose applications from the same UI that manages your devices. Remote Agent is available in [ThingsBoard](/docs/pe/user-guide/agents/) 4.4 and [ThingsBoard Cloud](/installations/choose-region/).
+Each of those hosts runs software you have to install, upgrade and monitor. With a few sites, that's routine. With hundreds, it means an SSH session to every host, configuration changed by hand, and the 2 a.m. "is it still running?" check.
+
+General-purpose tools such as Portainer or Watchtower manage the containers, but they don't know about ThingsBoard Edge or IoT Gateway versions, database migrations or the entities those applications connect to.
+
+Meet **Remote Agent**. A small container on each host connects outbound to ThingsBoard, and you deploy, upgrade and monitor its Docker Compose applications from the same UI that manages your devices. One host or hundreds: one click, no SSH. Remote Agent is available in [ThingsBoard](/docs/pe/user-guide/agents/) 4.4 and [ThingsBoard Cloud](/installations/choose-region/).
 
 {/* TODO: add the video once it is published: <YouTubeVideo videoId="..." title="ThingsBoard Remote Agent overview" /> (import YouTubeVideo from '@components/YouTubeVideo.astro') */}
 
-<BlogCallout label="TL;DR">
+<BlogCallout label="In short">
 
 - Remote Agent is a Docker Compose manager built into ThingsBoard. You run one small container per host and manage everything else from the ThingsBoard UI. [How it works →](#how-does-remote-agent-connect-to-a-remote-host)
 - On a single host, you deploy any Compose project, watch CPU, memory, disk and live container logs, and update or upgrade with volume backups and automatic rollback. [One host →](#how-do-you-manage-a-single-remote-host)
-- For ThingsBoard Edge and IoT Gateway, it finds new versions for you, runs the database migration on upgrade, and creates the Edge or Gateway entity with its credentials. [Upgrades →](#whats-the-difference-between-update-and-upgrade)
+- Built for ThingsBoard: it finds new ThingsBoard Edge and IoT Gateway versions for you, upgrades them with database migration and automatic rollback, and creates the Edge or Gateway entity with its credentials. [Upgrades →](#update-and-upgrade-with-automatic-rollback)
 - For a fleet, every host joins with the same provisioning command, installs its assigned applications on its own, and is upgraded with one bulk action. [Fleets →](#how-do-you-manage-a-fleet-with-one-configuration)
-- The agent connects outbound only, so hosts need no public IP, open ports or VPN. [What to plan for →](#what-to-plan-for)
+- The agent connects outbound only, so hosts need no public IP, open ports or VPN. [Requirements →](#inbound-ports)
 
 </BlogCallout>
 
@@ -42,8 +46,8 @@ The agent runs as a Docker container on the remote host. It opens an **outbound*
 Four design decisions make it a good fit for production hosts:
 
 - **Outbound connections only.** The agent opens no listening ports, so the host needs no public IP, port forwarding or VPN.
-- **Safe retries.** Every step is idempotent, and the agent records each finished step. The server watches every running operation and resends the current step when no progress arrives, so a dropped message only delays the work. After a reconnect or an agent restart, execution continues from the first unfinished step.
-- **Rollback to the last working version.** Before an update or upgrade, the agent snapshots the application and backs up the volumes you select. If a step fails on the host, the agent restores those volumes and the previous containers. If the operation fails on the server side, ThingsBoard sends the rollback itself. Either way, the application ends on its previous working version.
+- **Exactly-once execution.** Every step is idempotent, and the agent records each finished step. The server watches every running operation and resends the current step when no progress arrives, so a dropped message only delays the work. It never loses it or runs it twice. After a reconnect or an agent restart, execution continues from the first unfinished step.
+- **No half-finished upgrades.** Before an update or upgrade, the agent snapshots the application and backs up the volumes you select. If a step fails on the host, the agent restores those volumes and the previous containers. If the operation fails on the server side, ThingsBoard sends the rollback itself. Either way, the application ends on its previous working version instead of halfway in between.
 - **Plain Docker underneath.** The agent talks to the Docker Engine API directly, so the host needs only Docker, without the Compose CLI or Compose files. It uses the standard Docker Compose labels, so your applications remain ordinary Compose projects, and containers you started yourself can be taken over by labeling them.
 
 ## How do you manage a single remote host?
@@ -58,8 +62,8 @@ Start with one machine. In ThingsBoard, go to **Edge management > Agents**, clic
 
 Click **Add application** and pick a type:
 
-- **Edge:** a [ThingsBoard Edge](/docs/edge/pe/installation/agent/) instance, connected to its Edge entity and credentials automatically.
-- **Gateway:** a [ThingsBoard IoT Gateway](/docs/iot-gateway/installation/agent-installation/), connected to its gateway device the same way.
+- **Edge:** a [ThingsBoard Edge](/docs/edge/pe/installation/agent/) instance, linked to its Edge entity and credentials automatically.
+- **Gateway:** a [ThingsBoard IoT Gateway](/docs/iot-gateway/installation/agent-installation/), linked to its gateway device the same way.
 - **Generic:** any Docker Compose project, such as an MQTT broker, a database, a dashboard or your own service.
 
 Pick a predefined application profile for the version you want, adjust its Compose configuration if you need to, and click **Install**. You follow the install step by step as the agent pulls images and starts containers, and the application then appears in the list.
@@ -84,7 +88,7 @@ The **Units** tab lists the application's containers, volumes and networks with 
 
 ![Live container logs: the log icon on a container in the Units tab opens the log viewer, streaming the container's logs with a highlight filter, pause, copy, and download](/images/blog/thingsboard-remote-agent/container-logs.webp)
 
-### What's the difference between update and upgrade?
+### Update and upgrade with automatic rollback
 
 Two actions change a running application:
 
@@ -122,7 +126,7 @@ An **application profile** is a reusable application configuration: the type, a 
 
 ![Creating application profiles: the Quick start panel with predefined profiles created in one click, and Add application profile opening a custom Docker Compose configuration for a Mosquitto broker next to the template](/images/blog/thingsboard-remote-agent/application-profiles.webp)
 
-When you edit the profile, running applications stay as they are. Applications that no longer match are marked out of sync in the **In Sync With App Profile** column, and you choose when to apply the change. When a new Edge or Gateway version arrives, upgrading the profile shows a side-by-side merge of the new template into your configuration, so your customizations carry forward. It's the same side-by-side view as in the [upgrade above](#whats-the-difference-between-update-and-upgrade).
+When you edit the profile, running applications stay as they are. Applications that no longer match are marked out of sync in the **In Sync With App Profile** column, and you choose when to apply the change. When a new Edge or Gateway version arrives, upgrading the profile shows a side-by-side merge of the new template into your configuration, so your customizations carry forward. It's the same side-by-side view as in the [upgrade above](#update-and-upgrade-with-automatic-rollback).
 
 ### Agent profiles: provision a fleet with one command
 
@@ -172,13 +176,6 @@ One application profile can be assigned to several agent profiles, which makes s
 | Find sites that differ from the shared configuration | Compare hosts one by one | **In Sync With App Profile** column |
 
 </BlogCallout>
-
-## What to plan for
-
-- **Host requirements.** Each host needs Docker Engine on Linux (amd64 or arm64) and outbound access to the ThingsBoard gRPC port, the one ThingsBoard Edge uses (`7070` by default).
-- **Volumes to back up.** Rollback restores the volumes you select before an update or upgrade. Include every volume that holds data you want back after a failed step.
-- **Existing containers.** Discovery works with Compose projects. Containers started another way are picked up once they carry the standard Docker Compose project and service labels.
-- **The provisioning command.** It is the same for every host in an agent profile, so keep it where you keep other deployment secrets.
 
 ## Conclusion
 

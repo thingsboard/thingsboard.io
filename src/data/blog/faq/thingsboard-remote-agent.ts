@@ -72,7 +72,7 @@ export const remoteAgentFaq: FaqCategory[] = [
 <ul>
 <li><strong>Containers:</strong> <code>com.docker.compose.project=&lt;app&gt;</code> and <code>com.docker.compose.service=&lt;service&gt;</code> are required. Without the project label the container belongs to no application and isn't picked up; without the service label it's ignored. Optionally, <code>com.docker.compose.depends_on=&lt;service&gt;[,&lt;service&gt;…]</code> sets the start order.</li>
 <li><strong>Volumes:</strong> nothing is required. Any volume mounted by the application's containers is picked up under its Docker name; with <code>com.docker.compose.project=&lt;app&gt;</code> and <code>com.docker.compose.volume=&lt;short name&gt;</code> it's shown under the short name. Volumes no container mounts are ignored.</li>
-<li><strong>Networks:</strong> nothing is required. Unlabeled networks are treated as external: the agent attaches containers to them but never creates or deletes them. With <code>com.docker.compose.project=&lt;app&gt;</code> and <code>com.docker.compose.network=&lt;short name&gt;</code> the network belongs to the application and is removed with it. <code>bridge</code>, <code>host</code>, and <code>none</code> are ignored.</li>
+<li><strong>Networks:</strong> nothing is required. Unlabeled networks are shown as external under their Docker name: the agent attaches containers to them but never creates or deletes them. With <code>com.docker.compose.project=&lt;app&gt;</code> and <code>com.docker.compose.network=&lt;short name&gt;</code> the network belongs to the application and is removed with it. <code>bridge</code>, <code>host</code>, and <code>none</code> are ignored.</li>
 </ul>`,
 			},
 			{
