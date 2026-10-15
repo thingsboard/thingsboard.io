@@ -169,6 +169,9 @@ export const AI_AGENT_SESSION_WORDMARK: AgentStep[] = [
 export const AI_AGENT_LABEL =
 	'A coding agent in a terminal: asked in plain English to give each freezer its own alarm limit, it updates the solution, lists what changed, and the smart-retail solution is pushed to the dev profile.';
 
+// The platform drawing's blue: it has no badge of its own.
+const PLATFORM_HUE = '#006bc7';
+
 const rowColor = (slug: HomeRow['slug']) => {
 	const row = HOME_ROWS.find((r) => r.slug === slug);
 	if (!row) throw new Error(`AI_BADGE_CYCLE: no homepage row "${slug}".`);
@@ -182,10 +185,10 @@ const rowColor = (slug: HomeRow['slug']) => {
  */
 export const AI_BADGE_CYCLE: readonly [string, string, string, string, string] = [
 	rowColor('normalize'),
-	rowColor('twin'),
 	DASHBOARDS_BADGE.color,
+	rowColor('twin'),
+	PLATFORM_HUE,
 	rowColor('connect'),
-	rowColor('scale'),
 ];
 
 /** The AI mark's whole cycle, its own colour first: the homepage AI section and the chat launcher both run it. */

@@ -95,10 +95,11 @@ function syncSlideToImage(slide: LightboxSlide | undefined) {
 	if (!slide) return;
 	// CDN images only. Their declared dimensions are the markup's placeholder, so the
 	// loaded image is the better source. A pipeline image's are authoritative, and
-	// per theme variant: ImageGallery declares the light asset's size while the dark
-	// one is a separate file. Measuring there would write the showing theme's
-	// dimensions onto the anchor, and the theme observer's refreshSlideContent would
-	// then re-derive the other theme's image from them — wrong from that point on.
+	// per theme variant: ImageGallery declares the light asset's size in
+	// data-pswp-width/height and the dark one's in data-pswp-width-dark/height-dark.
+	// Measuring there would write the showing theme's dimensions onto the anchor,
+	// and the theme observer's refreshSlideContent would then re-derive the other
+	// theme's image from them — wrong from that point on.
 	const anchor = slide.data.element;
 	if (anchor?.dataset.pswpCdn !== 'true') return;
 	const content = slide.content;
@@ -200,7 +201,18 @@ function init() {
 		const isDark = document.documentElement.dataset.theme === 'dark';
 		if (isDark) {
 			const darkSrc = el.dataset.pswpSrcDark;
-			if (darkSrc) itemData.src = darkSrc;
+			if (darkSrc) {
+				itemData.src = darkSrc;
+				// The dark asset is a separate file and may not share the light one's
+				// aspect ratio, so it carries its own declared size. PhotoSwipe copies
+				// the size into the legacy w/h too and reads those first, so set both.
+				const darkWidth = parseInt(el.dataset.pswpWidthDark ?? '', 10);
+				const darkHeight = parseInt(el.dataset.pswpHeightDark ?? '', 10);
+				if (darkWidth && darkHeight) {
+					itemData.width = itemData.w = darkWidth;
+					itemData.height = itemData.h = darkHeight;
+				}
+			}
 			const darkThumb = el.querySelector<HTMLImageElement>('img.dark-only');
 			if (darkThumb?.src) itemData.msrc = darkThumb.src;
 		}
@@ -209,8 +221,9 @@ function init() {
 		if (el.dataset.pswpCdn === 'true') {
 			const img = getVisibleImg(el);
 			if (img?.naturalWidth && img.naturalHeight) {
-				itemData.width = img.naturalWidth;
-				itemData.height = img.naturalHeight;
+				// w/h too: PhotoSwipe reads the legacy pair first (see the dark size above).
+				itemData.width = itemData.w = img.naturalWidth;
+				itemData.height = itemData.h = img.naturalHeight;
 			}
 		}
 

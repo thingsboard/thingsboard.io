@@ -1,0 +1,1073 @@
+---
+import { Icon } from 'astro-icon/components';
+import { renderId } from '@util/render-id';
+import { ALARM_FIRED_AT, FILTER_CHART, FREEZER_ALARM, NOTIFY_FEED, openFor } from '@data/automate-visual';
+
+/** The homepage Automate switch's Notify panel: an alarm node fanning out to four channels that open in turn. */
+
+const NATIVE = 574;
+const H = 256;
+const MID = H / 2;
+const NODE_X = 40;
+const NODE = 44;
+const CURVE_X0 = 124;
+const CURVE_X1 = 172;
+const ROWS_X = 190;
+const HEAD = 36;
+const OPEN = 76;
+const GAP = 6;
+const STEP_S = 3;
+const LOOP_S = STEP_S * NOTIFY_FEED.length;
+const r2 = (v: number) => +v.toFixed(2);
+/** The loop starts this far in, so its first frame shows email settled. */
+const LEAD_S = r2(LOOP_S * 0.04);
+
+const n = NOTIFY_FEED.length;
+const top = (H - (n * HEAD + OPEN + (n - 1) * GAP)) / 2;
+/** Where row k's head is centred while row s is the one open. */
+const headY = (k: number, s: number) => top + k * (HEAD + GAP) + (s < k ? OPEN : 0) + HEAD / 2;
+/** A curve's vertical reach; never exactly 0, which would collapse its scale. */
+const reach = (k: number, s: number) => r2(headY(k, s) - MID) || 0.01;
+const curveW = CURVE_X1 - CURVE_X0;
+/** The curve runs on straight into its row in the same path, so there is no joint; in units scaled by curveW. */
+const REACH = ROWS_X - 3 - CURVE_X1 - 1;
+const CURVE_D = 'M 0,0 C 0.5,0 0.5,1 1,1 L ' + r2(1 + REACH / curveW) + ',1';
+/** The signal runs the bend only, so it never sits on the arrowhead. */
+const BEND_D = 'M 0,0 C 0.5,0 0.5,1 1,1';
+const curve = (k: number, s: number) =>
+	'translate(' + CURVE_X0 + 'px, ' + MID + 'px) scale(' + curveW + ', ' + reach(k, s) + ')';
+
+// Row s is held open over [s × 25 + 4, s × 25 + 25]% of the loop; must match the nf-open/nf-card keyframes.
+const held = (s: number): [number, number] => [s * 25 + 4, s * 25 + 25];
+const uid = renderId('nf');
+let keyframes = '';
+NOTIFY_FEED.forEach((_, k) => {
+	let move = '0% { transform: ' + curve(k, n - 1) + '; } ';
+	let lit = '0% { opacity: ' + (k === n - 1 ? 1 : 0) + '; } ';
+	for (let s = 0; s < n; s++) {
+		const [a, b] = held(s);
+		const end = s === n - 1 ? 100 : b;
+		move += a + '%, ' + end + '% { transform: ' + curve(k, s) + '; } ';
+		lit += a + '%, ' + end + '% { opacity: ' + (s === k ? 1 : 0) + '; } ';
+	}
+	keyframes += '@keyframes ' + uid + '-move-' + k + ' { ' + move + '} ';
+	keyframes += '@keyframes ' + uid + '-lit-' + k + ' { ' + lit + '} ';
+	keyframes +=
+		'@media (prefers-reduced-motion: no-preference) { [data-nf="' +
+		uid +
+		'"] .nf__curve--' +
+		k +
+		' { animation: ' +
+		uid +
+		'-move-' +
+		k +
+		' var(--nf-loop) var(--nf-ease) infinite; animation-delay: calc(-1 * var(--nf-lead)); animation-play-state: var(--flow-play, running); } [data-nf="' +
+		uid +
+		'"] .nf__lit--' +
+		k +
+		' { animation: ' +
+		uid +
+		'-move-' +
+		k +
+		' var(--nf-loop) var(--nf-ease) infinite, ' +
+		uid +
+		'-lit-' +
+		k +
+		' var(--nf-loop) var(--nf-ease) infinite; animation-delay: calc(-1 * var(--nf-lead)); animation-play-state: var(--flow-play, running); } } ';
+});
+
+// Non-scaling strokes put dashes in screen pixels, so the signal is sized in --u and travels each
+// curve's measured length.
+const PCT = 100 / LOOP_S;
+const CURVE_LEG = r2(0.4 * PCT);
+const TRUNK_LEG = r2(0.3 * PCT);
+/** Loop time to resume at after a click on channel i: i held open, just before its hand-off begins. */
+const RESUME_AT = NOTIFY_FEED.map((_, i) => r2((((i + 1) * 25 - CURVE_LEG - TRUNK_LEG) / 100) * LOOP_S));
+const DASH = 10;
+const TRUNK_X0 = NODE_X + NODE / 2 + 4;
+const TRUNK_LEN = CURVE_X0 - TRUNK_X0;
+const curveLen = (k: number, s: number) => {
+	const dy = reach(k, s);
+	const at = (t: number) => {
+		const m = 1 - t;
+		return [
+			3 * m * t * t * 0.5 * curveW + 3 * m * m * t * 0.5 * curveW + t * t * t * curveW,
+			(3 * m * t * t + t * t * t) * dy,
+		];
+	};
+	let len = 0;
+	let [px, py] = at(0);
+	for (let i = 1; i <= 48; i++) {
+		const [x, y] = at(i / 48);
+		len += Math.hypot(x - px, y - py);
+		[px, py] = [x, y];
+	}
+	return r2(len);
+};
+const hidden = 'stroke-dashoffset: calc(' + DASH + ' * var(--u));';
+NOTIFY_FEED.forEach((_, k) => {
+	const b = k === 0 ? 100 : k * 25;
+	const a = r2(b - CURVE_LEG);
+	// Hidden again at once on landing (a step): parked past its bend's end, it would show on a later, longer bend.
+	const past = 'stroke-dashoffset: calc(' + -curveLen(k, (k + n - 1) % n) + ' * var(--u));';
+	const frames =
+		b === 100
+			? '0%, ' + a + '% { ' + hidden + ' } 100% { ' + past + ' }'
+			: '0%, ' +
+				a +
+				'% { ' +
+				hidden +
+				' } ' +
+				b +
+				'% { ' +
+				past +
+				' animation-timing-function: step-start; } 100% { ' +
+				hidden +
+				' }';
+	keyframes += '@keyframes ' + uid + '-send-' + k + ' { ' + frames + ' } ';
+	keyframes +=
+		'@media (prefers-reduced-motion: no-preference) { [data-nf="' +
+		uid +
+		'"] .nf__signal--' +
+		k +
+		' { animation: ' +
+		uid +
+		'-move-' +
+		k +
+		' var(--nf-loop) var(--nf-ease) infinite, ' +
+		uid +
+		'-send-' +
+		k +
+		' var(--nf-loop) ease-in infinite; animation-delay: calc(-1 * var(--nf-lead)); animation-play-state: var(--flow-play, running); } } ';
+});
+{
+	const stepPct = (x: number) => r2((x / 25) * 100);
+	const b = stepPct(25 - CURVE_LEG);
+	const a = r2(b - stepPct(TRUNK_LEG));
+	keyframes +=
+		'@keyframes ' +
+		uid +
+		'-trunk { 0%, ' +
+		a +
+		'% { stroke-dashoffset: ' +
+		DASH +
+		'; } ' +
+		b +
+		'%, 100% { stroke-dashoffset: ' +
+		-TRUNK_LEN +
+		'; } } ';
+	keyframes +=
+		'@media (prefers-reduced-motion: no-preference) { [data-nf="' +
+		uid +
+		'"] .nf__signal--trunk { animation: ' +
+		uid +
+		'-trunk var(--nf-step) linear infinite; animation-delay: calc(-1 * var(--nf-lead)); animation-play-state: var(--flow-play, running); } } ';
+}
+
+const TINT: Record<string, string[]> = {
+	Email: ['#3d50f5'],
+	SMS: ['#1f8b4d'],
+	Slack: ['#4a154b'],
+	CRM: ['#00a1e0', '#ff7a59'],
+};
+
+// The values that follow FilterChart's limit, each in its own `[data-nf-value]` span the script updates.
+const VALUES: Record<string, string> = {
+	time: ALARM_FIRED_AT,
+	hhmm: ALARM_FIRED_AT.slice(0, 5),
+	limit: openFor(FILTER_CHART.limit),
+};
+/** A feed template split on its `{time}` / `{limit}` slots: the odd parts are the slots' names. */
+const parts = (text: string) => text.split(/\{(time|limit)\}/);
+---
+
+<style is:inline set:html={keyframes}></style>
+
+<div class="nf-fit">
+	<div
+		class="nf"
+		data-nf={uid}
+		data-nf-resume={JSON.stringify(RESUME_AT)}
+		data-nf-lead={LEAD_S}
+		data-flow="in"
+		style={[
+			`--nf-u: min(1.15px, calc(100cqw / ${NATIVE}))`,
+			`--nf-native: ${NATIVE}`,
+			`--nf-h: ${H}`,
+			`--nf-mid: ${MID}`,
+			`--nf-node-x: ${NODE_X}`,
+			`--nf-node: ${NODE}`,
+			`--nf-curve-x1: ${CURVE_X1}`,
+			`--nf-rows-x: ${ROWS_X}`,
+			`--nf-head: ${HEAD}`,
+			`--nf-open: ${OPEN}`,
+			`--nf-gap: ${GAP}`,
+			`--nf-top: ${top}`,
+			`--nf-loop: ${LOOP_S}s`,
+			`--nf-step: ${STEP_S}s`,
+			`--nf-lead: ${LEAD_S}s`,
+		].join('; ')}
+	>
+		<div class="nf__node">
+			<span class="nf__sign" aria-hidden="true">
+				<Icon name="tabler:alert-triangle-filled" />
+			</span>
+			<span class="nf__node-name">{FREEZER_ALARM.name}</span>
+			<span class="nf__node-time" data-nf-value="time">
+				{VALUES.time}
+			</span>
+		</div>
+
+		<svg class="nf__lines" viewBox={`0 0 ${NATIVE} ${H}`} aria-hidden="true">
+			{NOTIFY_FEED.map((_, k) => (
+				<path
+					class={`nf__curve nf__curve--${k}`}
+					d={CURVE_D}
+					transform={`translate(${CURVE_X0} ${MID}) scale(${curveW} ${reach(k, 0)})`}
+					data-states={JSON.stringify(NOTIFY_FEED.map((_, st) => curve(k, st)))}
+				/>
+			))}
+			{/* Over the grey curves, so the red is never under a grey. */}
+			<line class="nf__trunk" x1={NODE_X + NODE / 2 + 4} y1={MID} x2={CURVE_X0} y2={MID}></line>
+			{NOTIFY_FEED.map((_, k) => (
+				<path
+					class={`nf__lit nf__lit--${k}`}
+					d={CURVE_D}
+					transform={`translate(${CURVE_X0} ${MID}) scale(${curveW} ${reach(k, 0)})`}
+					style={k === 0 ? undefined : 'opacity: 0'}
+				/>
+			))}
+			<line
+				class="nf__signal nf__signal--trunk"
+				x1={NODE_X + NODE / 2 + 4}
+				y1={MID}
+				x2={CURVE_X0}
+				y2={MID}
+				style={`--nf-trunk-len: ${TRUNK_LEN}`}
+			></line>
+			{NOTIFY_FEED.map((_, k) => (
+				<path
+					class={`nf__signal nf__signal--${k}`}
+					d={BEND_D}
+					transform={`translate(${CURVE_X0} ${MID}) scale(${curveW} ${reach(k, 0)})`}
+					data-lengths={JSON.stringify(NOTIFY_FEED.map((_, st) => curveLen(k, st)))}
+				/>
+			))}
+		</svg>
+
+		<ul class="nf__rows" role="list">
+			{NOTIFY_FEED.map((m, i) => (
+				<li class="nf__row" style={`--nf-i: ${i}`}>
+					<span class="nf__stub" aria-hidden="true" />
+					<button type="button" class="nf__head" aria-controls={`${uid}-body-${i}`} data-nf-pick={i}>
+						<span class="nf__icons">
+							{m.icons.map((icon, j) => (
+								<Icon
+									name={icon}
+									class="nf__icon"
+									style={`color: ${TINT[m.channel]?.[j] ?? 'currentColor'}`}
+									aria-hidden="true"
+								/>
+							))}
+						</span>
+						<span class="nf__channel">{m.channel}</span>
+						<span class="nf__beside">
+							<span class="nf__dot" aria-hidden="true">
+								·
+							</span>
+							{m.address}
+						</span>
+					</button>
+					<span class="nf__body" id={`${uid}-body-${i}`}>
+						<span class="nf__inner">
+							{m.channel === 'Email' ? (
+								<span class="nf__email">
+									<span class="nf__email-subject">
+										<span class="nf__unread" aria-hidden="true" />
+										{m.text}
+									</span>
+									<span class="nf__email-line">
+										{parts(m.detail).map((p, i) => (i % 2 ? <span data-nf-value={p}>{VALUES[p]}</span> : p))}
+									</span>
+								</span>
+							) : m.channel === 'SMS' ? (
+								<span class="nf__sms">
+									<span class="nf__bubble">
+										{parts(m.text).map((p, i) => (i % 2 ? <span data-nf-value={p}>{VALUES[p]}</span> : p))}. {m.detail}.
+									</span>
+								</span>
+							) : m.channel === 'Slack' ? (
+								<span class="nf__post">
+									<span class="nf__avatar" aria-hidden="true">
+										<Icon name="tabler:alert-triangle-filled" />
+									</span>
+									<span class="nf__post-text">
+										<span class="nf__post-by">
+											<b>Alarms</b>
+											<span class="nf__app">APP</span>
+											<span class="nf__post-time" data-nf-value="hhmm">
+												{VALUES.hhmm}
+											</span>
+										</span>
+										<span class="nf__post-line">{m.text}</span>
+									</span>
+								</span>
+							) : (
+								<span class="nf__ticket">
+									<span class="nf__chips">
+										<span class="nf__chip nf__chip--status">{m.text}</span>
+										<span class="nf__chip nf__chip--critical">{FREEZER_ALARM.severity.toLowerCase()}</span>
+										<span class="nf__via">via n8n</span>
+									</span>
+									<span class="nf__ticket-title">{m.detail}</span>
+								</span>
+							)}
+						</span>
+					</span>
+				</li>
+			))}
+		</ul>
+	</div>
+</div>
+
+<script>
+	// A pick freezes the loop's computed values inline before switching to picked mode, so it eases rather than jumps.
+	const RESUME_MS = 4500;
+
+	document.querySelectorAll<HTMLElement>('[data-nf]').forEach((root) => {
+		const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		const rows = [...root.querySelectorAll<HTMLElement>('.nf__row')];
+		const curves = [...root.querySelectorAll<SVGPathElement>('.nf__curve')];
+		const lits = [...root.querySelectorAll<SVGPathElement>('.nf__lit')];
+		const trunkSignal = root.querySelector<SVGElement>('.nf__signal--trunk');
+		const signals = [...root.querySelectorAll<SVGPathElement>('.nf__signal:not(.nf__signal--trunk)')];
+		const resumeAt = JSON.parse(root.dataset.nfResume ?? '[]') as number[];
+		const lead = Number(root.dataset.nfLead) * 1000;
+		let opening = 0;
+		let resuming = 0;
+		let picked = 0;
+		const states = curves.map((c) => JSON.parse(c.dataset.states ?? '[]') as string[]);
+
+		const freeze = () => {
+			rows.forEach((row) => {
+				const cs = getComputedStyle(row);
+				row.style.backgroundColor = cs.backgroundColor;
+				row.style.boxShadow = cs.boxShadow;
+				const inner = row.querySelector<HTMLElement>('.nf__inner');
+				if (inner) inner.style.height = `${inner.getBoundingClientRect().height}px`;
+				row.querySelectorAll<HTMLElement>('.nf__head, .nf__stub').forEach((el) => {
+					el.style.color = getComputedStyle(el).color;
+				});
+			});
+			[...curves, ...lits].forEach((c) => {
+				const m = new DOMMatrix(getComputedStyle(c).transform);
+				c.style.transform = `translate(${m.e}px, ${m.f}px) scale(${m.a}, ${m.d || 0.01})`;
+			});
+			lits.forEach((l) => (l.style.opacity = getComputedStyle(l).opacity));
+		};
+
+		const current = () => {
+			const hs = rows.map((r) => r.getBoundingClientRect().height);
+			return hs.indexOf(Math.max(...hs));
+		};
+
+		const send = (i: number) => {
+			const lengths = JSON.parse(signals[i].dataset.lengths ?? '[]') as number[];
+			signals[i].style.setProperty('--nf-len', String(lengths[current()] ?? 100));
+			signals[i].style.transform = curves[i].style.transform;
+			[trunkSignal, signals[i]].forEach((el) => {
+				el?.classList.remove('is-sending');
+				void (el as unknown as HTMLElement | null)?.getBoundingClientRect();
+				el?.classList.add('is-sending');
+			});
+		};
+
+		const pick = (i: number) => {
+			if (!root.classList.contains('is-manual')) {
+				freeze();
+				root.classList.add('is-manual');
+				void root.offsetWidth;
+			}
+			clearTimeout(opening);
+			clearTimeout(resuming);
+			picked = i;
+			if (reduced) {
+				open(i);
+				return;
+			}
+			send(i);
+			opening = window.setTimeout(() => open(i), 320);
+			resuming = window.setTimeout(resume, RESUME_MS);
+		};
+
+		// Seek every loop animation to resumeAt[picked], folded into its own period so none is set before its start.
+		const resume = () => {
+			if (!root.classList.contains('is-manual')) return;
+			rows.forEach((row) => {
+				row.classList.remove('is-open');
+				row.style.backgroundColor = '';
+				row.style.boxShadow = '';
+				const inner = row.querySelector<HTMLElement>('.nf__inner');
+				if (inner) inner.style.height = '';
+				row.querySelectorAll<HTMLElement>('.nf__head, .nf__stub').forEach((el) => (el.style.color = ''));
+				row.querySelector('.nf__head')?.removeAttribute('aria-expanded');
+			});
+			[...curves, ...lits].forEach((c) => c.style.removeProperty('transform'));
+			lits.forEach((l) => l.style.removeProperty('opacity'));
+			signals.forEach((sg) => {
+				sg.style.removeProperty('transform');
+				sg.style.removeProperty('--nf-len');
+				sg.classList.remove('is-sending');
+			});
+			trunkSignal?.classList.remove('is-sending');
+			root.classList.remove('is-manual');
+			const at = (resumeAt[picked] ?? 0) * 1000 - lead;
+			root.getAnimations({ subtree: true }).forEach((a) => {
+				if (!(a instanceof CSSAnimation)) return;
+				const period = Number(a.effect?.getComputedTiming().duration);
+				if (!period) return;
+				a.currentTime = ((at % period) + period) % period;
+			});
+		};
+
+		const open = (i: number) => {
+			rows.forEach((row, k) => {
+				row.classList.toggle('is-open', k === i);
+				row.style.backgroundColor = '';
+				row.style.boxShadow = '';
+				const inner = row.querySelector<HTMLElement>('.nf__inner');
+				if (inner) inner.style.height = '';
+				row.querySelectorAll<HTMLElement>('.nf__head, .nf__stub').forEach((el) => (el.style.color = ''));
+				row.querySelector('.nf__head')?.setAttribute('aria-expanded', String(k === i));
+			});
+			curves.forEach((c, k) => {
+				c.style.transform = states[k][i];
+				lits[k].style.transform = states[k][i];
+				lits[k].style.opacity = k === i ? '1' : '0';
+			});
+		};
+
+		root
+			.querySelectorAll<HTMLButtonElement>('[data-nf-pick]')
+			.forEach((button) => button.addEventListener('click', () => pick(Number(button.dataset.nfPick))));
+
+		// Follows the limit dragged in FilterChart.
+		root.closest('[data-automate]')?.addEventListener('automate:limit', (e) => {
+			const { limit, firedAt } = (e as CustomEvent<{ limit: string; firedAt: string }>).detail;
+			const values: Record<string, string> = { time: firedAt, hhmm: firedAt.slice(0, 5), limit };
+			root
+				.querySelectorAll<HTMLElement>('[data-nf-value]')
+				.forEach((el) => (el.textContent = values[el.dataset.nfValue ?? '']));
+		});
+	});
+</script>
+
+<style lang="scss">
+	@use '../../styles/variables' as *;
+
+	@function u($n) {
+		@return calc(#{$n} * var(--u));
+	}
+
+	.nf-fit {
+		container-type: inline-size;
+	}
+
+	.nf {
+		--u: var(--nf-u);
+		--nf-grey: var(--color-text-secondary, #5b616e);
+		--nf-ink: var(--color-text, #17181c);
+		--nf-alarm: #b23c33;
+		// Opaque, so four curves over one another at the merge stay one grey rather than darkening.
+		--nf-line: color-mix(in srgb, var(--color-text, #17181c) 20%, #fff);
+		--nf-rail: max(1px, #{u(2)});
+		--nf-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+		position: relative;
+		max-width: u(var(--nf-native));
+		height: u(var(--nf-h));
+		margin: 0 auto;
+	}
+
+	// --- the node -------------------------------------------------------------------------
+
+	.nf__node {
+		position: absolute;
+		top: calc(#{u(var(--nf-mid))} - #{u(var(--nf-node))} / 2);
+		left: u(var(--nf-node-x));
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: u(2);
+		transform: translateX(-50%);
+		white-space: nowrap;
+	}
+
+	.nf__sign {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: u(var(--nf-node));
+		height: u(var(--nf-node));
+		margin-bottom: u(6);
+		border-radius: 28%;
+		color: var(--nf-alarm);
+		background: var(--color-bg-surface, #fff);
+		box-shadow:
+			0 1px 2px rgba(16, 24, 40, 0.08),
+			0 #{u(6)} #{u(14)} #{u(-6)} rgba(16, 24, 40, 0.3);
+
+		:global([data-icon]) {
+			width: u(24);
+			height: u(24);
+		}
+	}
+
+	.nf__node-name {
+		font-size: u(15);
+		font-weight: $font-weight-medium;
+		line-height: u(20);
+		color: var(--nf-ink);
+	}
+
+	.nf__node-time {
+		font-family: $font-family-mono;
+		font-size: u(15);
+		line-height: u(20);
+		color: var(--nf-grey);
+	}
+
+	// --- the lines ------------------------------------------------------------------------
+
+	.nf__lines {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		overflow: visible;
+	}
+
+	.nf__trunk,
+	.nf__curve,
+	.nf__lit {
+		fill: none;
+		stroke-width: 2;
+		stroke-linecap: round;
+		vector-effect: non-scaling-stroke;
+	}
+
+	.nf__trunk {
+		stroke: var(--nf-alarm);
+	}
+
+	.nf__curve {
+		stroke: var(--nf-line);
+	}
+
+	.nf__lit {
+		stroke: var(--nf-alarm);
+	}
+
+	// Parked before its path's start until it runs.
+	.nf__signal {
+		fill: none;
+		stroke: var(--nf-alarm);
+		stroke-width: 3;
+		stroke-linecap: round;
+		stroke-dasharray: calc(10 * var(--u)) 4000px;
+		stroke-dashoffset: calc(10 * var(--u));
+		vector-effect: non-scaling-stroke;
+	}
+
+	// No transform, so it keeps the drawing's own units.
+	.nf__signal--trunk {
+		stroke: color-mix(in srgb, var(--nf-alarm) 30%, #fff);
+		stroke-dasharray: 10 1000;
+		stroke-dashoffset: 10;
+		vector-effect: none;
+	}
+
+	// --- the rows -------------------------------------------------------------------------
+
+	.nf__rows {
+		position: absolute;
+		top: u(var(--nf-top));
+		right: 0;
+		left: u(var(--nf-rows-x));
+		display: flex;
+		flex-direction: column;
+		gap: u(var(--nf-gap));
+		padding: 0;
+		list-style: none;
+	}
+
+	.nf__row {
+		position: relative;
+		padding: 0 u(14);
+		border-radius: u(8);
+	}
+
+	.nf__stub {
+		position: absolute;
+		top: calc(#{u(var(--nf-head))} / 2 - #{u(1)});
+		left: calc(#{u(var(--nf-curve-x1))} - #{u(var(--nf-rows-x))});
+		width: calc(#{u(var(--nf-rows-x))} - #{u(var(--nf-curve-x1))} - #{u(3)});
+		height: var(--nf-rail);
+		color: var(--nf-line);
+
+		&::after {
+			content: '';
+			position: absolute;
+			top: 50%;
+			right: 0;
+			width: u(7);
+			height: u(7);
+			border-top: var(--nf-rail) solid currentColor;
+			border-right: var(--nf-rail) solid currentColor;
+			transform: translate(0, -50%) rotate(45deg);
+		}
+	}
+
+	.nf__head {
+		display: flex;
+		align-items: center;
+		gap: u(8);
+		width: 100%;
+		height: u(var(--nf-head));
+		padding: 0;
+		border: 0;
+		background: none;
+		text-align: left;
+		color: var(--nf-grey);
+		cursor: pointer;
+
+		&:hover {
+			color: var(--nf-ink);
+		}
+
+		&:focus-visible {
+			outline: 2px solid var(--color-primary, #3d50f5);
+			outline-offset: 2px;
+			border-radius: u(4);
+		}
+	}
+
+	.nf__icons {
+		display: flex;
+		gap: u(4);
+	}
+
+	.nf__icon {
+		flex: none;
+		width: u(20);
+		height: u(20);
+	}
+
+	.nf__channel {
+		font-size: u(15);
+		font-weight: $font-weight-medium;
+		line-height: u(20);
+	}
+
+	.nf__beside {
+		display: flex;
+		gap: u(8);
+		min-width: 0;
+		font-size: u(15);
+		line-height: u(20);
+		font-family: $font-family-mono;
+		white-space: nowrap;
+		color: var(--nf-grey);
+	}
+
+	.nf__dot {
+		font-family: $font-family-base;
+		opacity: 0.6;
+	}
+
+	.nf__via {
+		font-size: u(15);
+		line-height: u(22);
+		color: var(--nf-grey);
+	}
+
+	// Every open message is one height; the curves are computed from it.
+	.nf__body {
+		display: grid;
+		grid-template-rows: 0fr;
+	}
+
+	.nf__inner {
+		display: block;
+		min-height: 0;
+		overflow: hidden;
+	}
+
+	.nf__inner > * {
+		height: u(var(--nf-open));
+	}
+
+	// --- the messages, each as its channel shows it ---------------------------------------
+
+	.nf__email,
+	.nf__ticket {
+		display: flex;
+		flex-direction: column;
+		gap: u(4);
+		padding-top: u(2);
+	}
+
+	.nf__email-subject,
+	.nf__ticket-title {
+		display: flex;
+		align-items: center;
+		gap: u(8);
+		font-size: u(18);
+		font-weight: $font-weight-medium;
+		line-height: u(24);
+		color: var(--nf-ink);
+	}
+
+	.nf__unread {
+		flex: none;
+		width: u(9);
+		height: u(9);
+		border-radius: 50%;
+		background: #3d50f5;
+	}
+
+	.nf__email-line {
+		padding-left: u(17);
+		font-size: u(15);
+		line-height: u(20);
+		color: var(--nf-grey);
+	}
+
+	.nf__sms {
+		display: block;
+		padding-top: u(2);
+	}
+
+	.nf__bubble {
+		position: relative;
+		display: block;
+		width: fit-content;
+		max-width: u(290);
+		margin: 0 0 0 u(10);
+		padding: u(9) u(14);
+		border-radius: u(18) u(18) u(18) u(4);
+		font-size: u(16);
+		line-height: u(21);
+		color: #0f3d22;
+		background: #dcf3e4;
+
+		&::before {
+			content: '';
+			position: absolute;
+			bottom: 0;
+			left: u(-7);
+			width: u(12);
+			height: u(12);
+			background: #dcf3e4;
+			clip-path: polygon(100% 0, 100% 100%, 0 100%);
+		}
+	}
+
+	.nf__post {
+		display: flex;
+		gap: u(10);
+		padding-top: u(2);
+	}
+
+	.nf__avatar {
+		display: flex;
+		flex: none;
+		align-items: center;
+		justify-content: center;
+		width: u(36);
+		height: u(36);
+		border-radius: u(8);
+		color: var(--nf-alarm);
+		background: color-mix(in srgb, var(--nf-alarm) 12%, #fff);
+
+		:global([data-icon]) {
+			width: u(20);
+			height: u(20);
+		}
+	}
+
+	.nf__post-text {
+		display: flex;
+		flex-direction: column;
+		gap: u(2);
+		font-size: u(15);
+		line-height: u(20);
+		color: var(--nf-ink);
+	}
+
+	.nf__post-by {
+		display: flex;
+		align-items: center;
+		gap: u(6);
+
+		b {
+			font-weight: $font-weight-bold;
+		}
+	}
+
+	.nf__app {
+		padding: 0 u(4);
+		border-radius: u(3);
+		font-weight: $font-weight-medium;
+		line-height: u(18);
+		color: var(--nf-grey);
+		background: color-mix(in srgb, var(--nf-ink) 8%, #fff);
+	}
+
+	.nf__post-time {
+		color: var(--nf-grey);
+	}
+
+	.nf__post-line {
+		font-size: u(16);
+		line-height: u(22);
+	}
+
+	.nf__chips {
+		display: flex;
+		gap: u(6);
+	}
+
+	.nf__chip {
+		padding: 0 u(8);
+		border-radius: u(5);
+		font-size: u(15);
+		font-weight: $font-weight-medium;
+		line-height: u(22);
+	}
+
+	.nf__chip--status {
+		color: #92400e;
+		background: #fdf0d5;
+	}
+
+	.nf__chip--critical {
+		text-transform: capitalize;
+		color: var(--nf-alarm);
+		background: color-mix(in srgb, var(--nf-alarm) 12%, #fff);
+	}
+
+	// --- at rest: email open --------------------------------------------------------------
+
+	$card-shadow:
+		0 1px 2px rgba(16, 24, 40, 0.08),
+		0 #{u(8)} #{u(20)} #{u(-8)} rgba(16, 24, 40, 0.3);
+	$no-shadow:
+		0 1px 2px rgba(16, 24, 40, 0),
+		0 #{u(8)} #{u(20)} #{u(-8)} rgba(16, 24, 40, 0);
+
+	.nf:not(.is-manual) .nf__row:first-child {
+		background: var(--color-bg-surface, #fff);
+		box-shadow: $card-shadow;
+
+		.nf__head {
+			color: var(--nf-ink);
+		}
+
+		.nf__stub {
+			color: var(--nf-alarm);
+		}
+
+		.nf__body {
+			grid-template-rows: 1fr;
+		}
+	}
+
+	// --- picked: a channel chosen by click --------------------------------------------------
+	.nf.is-manual {
+		.nf__row,
+		.nf__body,
+		.nf__head,
+		.nf__stub,
+		.nf__curve,
+		.nf__lit,
+		.nf__signal {
+			animation: none !important;
+		}
+
+		.nf__signal--trunk.is-sending {
+			animation: nf-send-trunk 0.15s linear both !important;
+		}
+
+		.nf__signal.is-sending:not(.nf__signal--trunk) {
+			animation: nf-send 0.2s 0.15s ease-out both !important;
+		}
+
+		.nf__row {
+			transition:
+				background-color 0.3s var(--nf-ease),
+				box-shadow 0.3s var(--nf-ease);
+		}
+
+		.nf__head,
+		.nf__stub {
+			transition: color 0.2s ease;
+		}
+
+		.nf__curve,
+		.nf__lit {
+			transition:
+				transform 0.3s var(--nf-ease),
+				opacity 0.2s ease;
+		}
+
+		.nf__body {
+			display: block;
+		}
+
+		.nf__inner {
+			height: 0;
+			transition: height 0.3s var(--nf-ease);
+		}
+
+		.nf__row.is-open {
+			background-color: var(--color-bg-surface, #fff);
+			box-shadow: $card-shadow;
+
+			.nf__head {
+				color: var(--nf-ink);
+			}
+
+			.nf__stub {
+				color: var(--nf-alarm);
+			}
+
+			.nf__inner {
+				height: u(var(--nf-open));
+			}
+		}
+	}
+
+	// Hidden again at once on landing, or it would show on a longer bend drawn next.
+	@keyframes nf-send {
+		0% {
+			stroke-dashoffset: calc(10 * var(--u));
+		}
+
+		99% {
+			stroke-dashoffset: calc(-1 * var(--nf-len) * var(--u));
+			animation-timing-function: step-start;
+		}
+
+		100% {
+			stroke-dashoffset: calc(10 * var(--u));
+		}
+	}
+
+	@keyframes nf-send-trunk {
+		from {
+			stroke-dashoffset: 10;
+		}
+		to {
+			stroke-dashoffset: calc(-1 * var(--nf-trunk-len));
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.nf.is-manual :is(.nf__curve, .nf__lit, .nf__inner) {
+			transition: none;
+		}
+	}
+
+	// ── The loop ──────────────────────────────────────────────────────────
+	// Each channel owns a quarter: open over its first 4%, held to 25%, closing over the next 4%.
+	// Must match `held()` in the frontmatter.
+	@keyframes nf-open {
+		0% {
+			grid-template-rows: 0fr;
+		}
+		4%,
+		25% {
+			grid-template-rows: 1fr;
+		}
+		29%,
+		100% {
+			grid-template-rows: 0fr;
+		}
+	}
+
+	@keyframes nf-card {
+		0% {
+			background-color: transparent;
+			box-shadow: $no-shadow;
+		}
+		4%,
+		25% {
+			background-color: var(--color-bg-surface, #fff);
+			box-shadow: $card-shadow;
+		}
+		29%,
+		100% {
+			background-color: transparent;
+			box-shadow: $no-shadow;
+		}
+	}
+
+	@keyframes nf-lit {
+		0% {
+			color: var(--nf-grey);
+		}
+		4%,
+		25% {
+			color: var(--nf-ink);
+		}
+		29%,
+		100% {
+			color: var(--nf-grey);
+		}
+	}
+
+	@keyframes nf-arrow {
+		0% {
+			color: var(--nf-line);
+		}
+		4%,
+		25% {
+			color: var(--nf-alarm);
+		}
+		29%,
+		100% {
+			color: var(--nf-line);
+		}
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		.nf__row,
+		.nf__row .nf__body,
+		.nf__row .nf__head,
+		.nf__row .nf__stub {
+			animation-duration: var(--nf-loop);
+			animation-timing-function: var(--nf-ease);
+			animation-iteration-count: infinite;
+			animation-fill-mode: both;
+			animation-delay: calc((var(--nf-i) * var(--nf-step)) - var(--nf-loop) - var(--nf-lead));
+			animation-play-state: var(--flow-play, running);
+		}
+
+		.nf__row {
+			animation-name: nf-card;
+		}
+
+		.nf__row .nf__body {
+			animation-name: nf-open;
+		}
+
+		.nf__row .nf__head {
+			animation-name: nf-lit;
+		}
+
+		.nf__row .nf__stub {
+			animation-name: nf-arrow;
+		}
+	}
+</style>
