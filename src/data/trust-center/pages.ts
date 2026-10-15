@@ -1,5 +1,5 @@
 import { ISO_27001, ISO_9001 } from '@data/trust-center/compliance';
-import { DOCS_WITH_PAGE, type TcDoc } from '@data/trust-center/documents';
+import { ACCESS, DOCS_WITH_PAGE, type TcDoc } from '@data/trust-center/documents';
 import { CLOSING, DPA_HREF, PRIVACY_POLICY_HREF, tc } from '@data/trust-center/nav';
 
 /**
@@ -166,7 +166,7 @@ const docPage = (d: TcDoc): TcPage => ({
 	href: tc(`documents/${d.slug}`),
 	title: d.name,
 	parent: tc('documents'),
-	line: `${d.category} · ${d.access === 'nda' ? 'Under NDA' : d.access === 'pending' ? 'Planned' : 'Public'}`,
+	line: `${d.category} · ${ACCESS[d.access].cardLabel}`,
 	icon: d.access === 'public' ? 'tabler:file-text' : 'tabler:lock',
 });
 

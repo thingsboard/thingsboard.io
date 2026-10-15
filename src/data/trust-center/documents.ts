@@ -50,6 +50,8 @@ export const ACCESS: Record<
 	{
 		label: string;
 		hint: string;
+		/** The state on a document's card and in the library's access filter. */
+		cardLabel: string;
 		icon: string;
 		listAction?: string;
 		pageAction?: string;
@@ -57,17 +59,33 @@ export const ACCESS: Record<
 		note?: string;
 	}
 > = {
-	public: { label: 'Public', hint: 'Public', icon: 'tabler:world', listAction: 'View', pageAction: 'View', tone: 'ok' },
+	public: {
+		label: 'Public',
+		hint: 'Public',
+		cardLabel: 'Public',
+		icon: 'tabler:world',
+		listAction: 'View',
+		pageAction: 'View',
+		tone: 'ok',
+	},
 	nda: {
 		label: 'NDA',
 		hint: 'NDA required',
+		cardLabel: 'Under NDA',
 		icon: 'tabler:lock',
 		listAction: 'Request',
 		pageAction: 'Request via NDA',
 		tone: 'nda',
 		note: `Released after a mutual NDA, usually within ${NDA_TURNAROUND}.`,
 	},
-	pending: { label: 'Planned', hint: 'Planned', icon: 'tabler:clock', tone: 'flat', note: 'Not published yet.' },
+	pending: {
+		label: 'Planned',
+		hint: 'Planned',
+		cardLabel: 'Planned',
+		icon: 'tabler:clock',
+		tone: 'flat',
+		note: 'Not published yet.',
+	},
 };
 
 export const DOCS: TcDoc[] = [
