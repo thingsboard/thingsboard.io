@@ -352,7 +352,7 @@ export const DOCS: TcDoc[] = [
 	{
 		slug: 'license-agreement',
 		url: '/legal/license-agreement/',
-		name: 'ThingsBoard License Agreement (for on-premise deployed software)',
+		name: 'ThingsBoard License Agreement (for on-premises deployed software)',
 		category: 'Legal',
 		access: 'public',
 		description: 'The license terms for ThingsBoard installed on-premises.',
