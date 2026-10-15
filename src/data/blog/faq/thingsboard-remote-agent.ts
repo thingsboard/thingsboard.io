@@ -4,7 +4,7 @@ import type { FaqCategory } from '@data/pricing/types';
 // `src/content/blog/thingsboard-remote-agent-manage-docker-compose-on-remote-hosts.mdx`
 // by the shared `FaqSection`, which also emits the page's FAQPage structured data.
 // Questions are phrased the way people search for the problem.
-// Item ids are public anchors — do not renumber.
+// Item ids are public anchors; do not renumber.
 
 const DOCS = '/docs/pe/user-guide/agents';
 
@@ -17,7 +17,7 @@ export const remoteAgentFaq: FaqCategory[] = [
 				id: 'what-is-remote-agent',
 				question: 'What is ThingsBoard Remote Agent?',
 				defaultOpen: true,
-				answer: `<p>Remote Agent is a lightweight Docker container that runs on a remote host, connects outbound to ThingsBoard or ThingsBoard Cloud, and manages Docker Compose applications on that host. From the ThingsBoard UI you deploy, update, upgrade, restart, and delete those applications, watch host and container metrics, and stream live container logs — without SSH access to the machine. See the <a href="${DOCS}/">Remote Agent overview</a>.</p>`,
+				answer: `<p>Remote Agent is a lightweight Docker container that runs on a remote host, connects outbound to ThingsBoard or ThingsBoard Cloud, and manages Docker Compose applications on that host. From the ThingsBoard UI you deploy, update, upgrade, restart, and delete those applications, watch host and container metrics, and stream live container logs, without SSH access to the machine. See the <a href="${DOCS}/">Remote Agent overview</a>.</p>`,
 			},
 			{
 				id: 'what-can-it-run',
@@ -28,6 +28,11 @@ export const remoteAgentFaq: FaqCategory[] = [
 				id: 'which-versions',
 				question: 'Which ThingsBoard versions support Remote Agent?',
 				answer: `<p>Remote Agent is available in ThingsBoard 4.4 and later and in ThingsBoard Cloud. Agents are managed under <strong>Edge management &gt; Agents</strong>.</p>`,
+			},
+			{
+				id: 'vs-portainer',
+				question: 'How is Remote Agent different from Portainer or other Docker management tools?',
+				answer: `<p>General-purpose tools such as Portainer manage Docker containers on any host. Remote Agent manages Docker Compose applications too, and adds what is specific to ThingsBoard: it finds new ThingsBoard Edge and IoT Gateway versions, runs their database migrations on upgrade with automatic rollback, and creates the Edge or Gateway entity with its credentials. Hosts are managed from the same ThingsBoard UI as your devices, and fleets are provisioned and upgraded through agent and application profiles.</p>`,
 			},
 			{
 				id: 'docker-compose-cli',
@@ -43,7 +48,7 @@ export const remoteAgentFaq: FaqCategory[] = [
 			{
 				id: 'manage-docker-without-ssh',
 				question: 'How do I manage Docker containers on a remote server without SSH?',
-				answer: `<p>Install Remote Agent on the server with the <code>docker run</code> command that ThingsBoard generates for you. The agent connects back to ThingsBoard over an outbound gRPC stream; from then on every operation — install, update, upgrade, restart, delete, logs — is started from the ThingsBoard UI and executed by the agent locally. See <a href="${DOCS}/installation/">Install Remote Agent</a>.</p>`,
+				answer: `<p>Install Remote Agent on the server with the <code>docker run</code> command that ThingsBoard generates for you. The agent connects back to ThingsBoard over an outbound gRPC stream; from then on every operation (install, update, upgrade, restart, delete, logs) is started from the ThingsBoard UI and executed by the agent locally. See <a href="${DOCS}/installation/">Install Remote Agent</a>.</p>`,
 			},
 			{
 				id: 'inbound-ports',
@@ -58,7 +63,7 @@ export const remoteAgentFaq: FaqCategory[] = [
 			{
 				id: 'existing-containers',
 				question: 'Can Remote Agent manage containers that are already running on a host?',
-				answer: `<p>Yes. When the agent connects, it discovers the Docker Compose projects already running on the host and reports them as <strong>Discovered</strong> applications. You can manage them right away, and attach them to an application profile to bring an existing fleet under profile management and bulk actions — without redeploying anything.</p>`,
+				answer: `<p>Yes. When the agent connects, it discovers the Docker Compose projects already running on the host and reports them as <strong>Discovered</strong> applications. You can manage them right away, and attach them to an application profile to bring an existing fleet under profile management and bulk actions, without redeploying anything.</p>`,
 			},
 			{
 				id: 'without-compose-files',
@@ -67,7 +72,7 @@ export const remoteAgentFaq: FaqCategory[] = [
 <ul>
 <li><strong>Containers:</strong> <code>com.docker.compose.project=&lt;app&gt;</code> and <code>com.docker.compose.service=&lt;service&gt;</code> are required. Without the project label the container belongs to no application and isn't picked up; without the service label it's ignored. Optionally, <code>com.docker.compose.depends_on=&lt;service&gt;[,&lt;service&gt;…]</code> sets the start order.</li>
 <li><strong>Volumes:</strong> nothing is required. Any volume mounted by the application's containers is picked up under its Docker name; with <code>com.docker.compose.project=&lt;app&gt;</code> and <code>com.docker.compose.volume=&lt;short name&gt;</code> it's shown under the short name. Volumes no container mounts are ignored.</li>
-<li><strong>Networks:</strong> nothing is required. Unlabeled networks are treated as external: the agent attaches containers to them but never creates or deletes them. With <code>com.docker.compose.project=&lt;app&gt;</code> and <code>com.docker.compose.network=&lt;short name&gt;</code> the network belongs to the application and is removed with it. <code>bridge</code>, <code>host</code>, and <code>none</code> are ignored.</li>
+<li><strong>Networks:</strong> nothing is required. Unlabeled networks are shown as external under their Docker name: the agent attaches containers to them but never creates or deletes them. With <code>com.docker.compose.project=&lt;app&gt;</code> and <code>com.docker.compose.network=&lt;short name&gt;</code> the network belongs to the application and is removed with it. <code>bridge</code>, <code>host</code>, and <code>none</code> are ignored.</li>
 </ul>`,
 			},
 			{
@@ -105,12 +110,12 @@ export const remoteAgentFaq: FaqCategory[] = [
 			{
 				id: 'same-compose-many-servers',
 				question: 'How do I deploy the same Docker Compose configuration to many servers?',
-				answer: `<p>Create an application profile with the shared Compose configuration and assign it to an agent profile with an auto-install provisioning strategy. Run the agent profile's provisioning command on each server — it is the same command for every machine. Each server registers as a new agent and installs the assigned applications automatically. See <a href="${DOCS}/agent-profiles/">Agent profiles and auto-provisioning</a>.</p>`,
+				answer: `<p>Create an application profile with the shared Compose configuration and assign it to an agent profile with an auto-install provisioning strategy. Run the agent profile's provisioning command on each server. It is the same command for every machine. Each server registers as a new agent and installs the assigned applications automatically. See <a href="${DOCS}/agent-profiles/">Agent profiles and auto-provisioning</a>.</p>`,
 			},
 			{
 				id: 'update-many-hosts',
 				question: 'How do I update an application on hundreds of hosts at once?',
-				answer: `<p>Use a bulk action. On the agent profile, pick the application profile and run a bulk restart, update, upgrade, or delete. Every matching application gets its own tracked execution with its own backup and rollback, so a failure on one host never affects the others. See <a href="${DOCS}/bulk-actions/">Bulk actions</a>.</p>`,
+				answer: `<p>Use a bulk action. On the agent profile, pick the application profile and run a bulk restart, update, upgrade, or delete. Every matching application gets its own tracked execution with its own backup and rollback, so a failure on one host doesn't stop the rollout on the others. See <a href="${DOCS}/bulk-actions/">Bulk actions</a>.</p>`,
 			},
 			{
 				id: 'staged-rollout',
