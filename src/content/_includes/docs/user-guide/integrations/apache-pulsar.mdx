@@ -1,4 +1,5 @@
 import DocLink from '@components/DocLink.astro';
+import ImageGallery from '@components/ImageGallery.astro';
 import { Aside, Steps } from '@astrojs/starlight/components';
 import { Products } from '@models/site.models';
 import Tabs from '@components/Tabs.astro';
@@ -13,6 +14,14 @@ Use Apache Pulsar Integration when:
 The integration is uplink-only: it does not publish messages to Pulsar.
 
 ## Architecture
+
+<ImageGallery images={[
+  {
+    src: '/src/assets/images/user-guide/integrations/apache-pulsar-integration-architecture.svg',
+    alt: 'Apache Pulsar integration architecture: a producer publishes messages to a Pulsar topic, the Apache Pulsar Integration consumes them in batches through a subscription and acknowledges each batch, the uplink data converter decodes them, and ThingsBoard Core Services store and process the data',
+    caption: 'Apache Pulsar integration architecture. Messages flow from Pulsar through the integration and the uplink data converter into ThingsBoard. The integration acknowledges each batch to the subscription.',
+  },
+]} />
 
 1. **Receive data.** A producer publishes a message to a Pulsar topic. The integration consumes the topic through a named subscription and receives messages in batches.
 2. **Decode the payload.** The uplink converter decodes each message and returns the device name, telemetry, and attributes.
@@ -35,10 +44,10 @@ The integration is uplink-only: it does not publish messages to Pulsar.
 Start a standalone broker in Docker. A standalone broker runs all Pulsar components in one container and creates topics on first use. With a managed service, skip this step and take the service URL and token from your provider.
 
 ```bash
-docker run -d --name pulsar -p 6650:6650 -p 8080:8080 apachepulsar/pulsar:latest bin/pulsar standalone
+docker run -d --name pulsar -p 6650:6650 -p 8081:8080 apachepulsar/pulsar:latest bin/pulsar standalone --advertised-address localhost
 ```
 
-The broker accepts clients on `pulsar://localhost:6650`. The short topic name `my-topic` used in this guide resolves to `persistent://public/default/my-topic`.
+The broker accepts clients on `pulsar://localhost:6650`. `--advertised-address localhost` lets clients on the host, such as ThingsBoard, reach the broker. The Pulsar HTTP API is mapped to port `8081`, because self-hosted ThingsBoard uses `8080`. The short topic name `my-topic` used in this guide resolves to `persistent://public/default/my-topic`.
 
 ## Set Up Apache Pulsar Integration
 
@@ -46,18 +55,16 @@ Create the uplink converter, assign it to a new Apache Pulsar integration, and p
 
 ### Create the Uplink Data Converter
 
-The uplink converter receives each message as a byte array, resolves the target device, and returns its telemetry and attributes. Apache Pulsar Integration uses the **Generic** converter: you write the decoder in TBEL or JavaScript. For converter types and the full decoder reference, see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#converter-types" target="_blank">Uplink data converter</DocLink>.
+The uplink converter receives each message as a byte array, resolves the target device, and returns its telemetry and attributes. Apache Pulsar Integration uses the **Generic** converter: the decoder is a TBEL or JavaScript script. For converter types and the full decoder reference, see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#converter-types" target="_blank">Uplink data converter</DocLink>.
 
-This guide uses a self-describing JSON message: it carries its own device name, type, serial number, and timestamp.
+This guide uses the sample message that the **Test decoder function** dialog provides by default:
 
 ```json
 {
-  "deviceName": "Sensor A1",
-  "deviceType": "thermostat",
-  "serialNumber": "SN-2041",
-  "timestamp": "2026-10-14T10:30:00Z",
-  "temperature": 23.5,
-  "humidity": 60
+    "deviceName": "Thermometer",
+    "deviceType": "thermostat",
+    "serialNumber": "SN-12345",
+    "temperature": 25.5
 }
 ```
 
@@ -66,107 +73,183 @@ This guide uses a self-describing JSON message: it carries its own device name, 
 2. **Converter type** — keep **Uplink**.
 3. **Integration type** — select **Apache Pulsar**.
 4. **Name** — enter a name, for example `Apache Pulsar Uplink Converter`.
-5. **Main decoding configuration** — the editor opens with the generic default decoder. It already handles this message format. You can keep it, or replace it with the shorter decoder below, which does the same: it takes `deviceName` and `deviceType` from the message, the time from `ts` (milliseconds) or `timestamp` (ISO 8601), stores `serialNumber` as an attribute, and stores all other fields as telemetry. The editor opens in TBEL; use the **TBEL / JS** toggle to switch to JavaScript.
+5. **Main decoding configuration** — the editor opens with the default decoder below. It already handles this message format, so keep it. It takes `deviceName` and `deviceType` from the message, the time from `ts` (milliseconds) or `timestamp` (ISO 8601), stores the keys in `attributeKeyList` (here `serialNumber`) as attributes, and stores all other fields as telemetry. When the message has no time field, it uses the server time. The editor opens in TBEL; use the **TBEL / JS** toggle to switch to JavaScript.
    <Aside type="tip" title="TBEL">
      Use <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL</DocLink> for converter scripts — it runs much faster than JavaScript inside ThingsBoard.
    </Aside>
    <Tabs>
      <TabItem label="TBEL (Recommended)">
        ```js maxLines=15 collapsible
+       // Decode an uplink message from a buffer
+       // payload - array of bytes
+       // metadata - key/value object
+
        /** Decoder **/
 
-       // Decode the message to a JSON object.
+       // decode payload to JSON
        var data = decodeToJson(payload);
 
-       var deviceName = data.deviceName != null ? data.deviceName : "Unknown Device";
-       var deviceType = data.deviceType != null ? data.deviceType : "default";
+       // --- Device name and type ---
+       var deviceName = data.deviceName != null ? data.deviceName : 'Unknown Device';
+       var deviceType = data.deviceType != null ? data.deviceType : 'default';
+       // var customerName = 'Customer C';
+       // var groupName = 'thermostat devices';
 
-       // Use ts (ms) or timestamp (ISO 8601); otherwise, the server time.
-       var ts = Date.now();
+       // use assetName and assetType instead of deviceName and deviceType
+       // to automatically create assets instead of devices.
+       // var assetName = 'Asset A';
+       // var assetType = 'building';
+
+       // --- Timestamp parsing ---
+       var timestamp = -1;
        if (data.ts != null) {
-           ts = data.ts;
+           timestamp = data.ts;
        } else if (data.timestamp != null) {
-           ts = new Date(data.timestamp).getTime();
+           timestamp = new Date(data.timestamp).getTime();
+       }
+       if (timestamp == -1) {
+           timestamp = Date.now();
        }
 
-       // Device properties become attributes.
+       // --- Telemetry and attributes ---
+       var telemetry = {};
+
+       // Keys from the payload that should be stored as attributes instead of telemetry
+       var attributeKeyList = ["serialNumber"];
+
+       // Add the payload keys that match the attribute key list to attributes
        var attributes = {};
-       if (data.serialNumber != null) {
-           attributes.serialNumber = data.serialNumber;
+       for (var i = 0; i < attributeKeyList.size(); i++) {
+           var attributeKey = attributeKeyList[i];
+           if (data[attributeKey] != null) {
+               attributes[attributeKey] = data[attributeKey];
+           }
        }
 
-       // All other fields become telemetry; nested objects get dot-separated keys.
-       var exclude = ["deviceName", "deviceType", "ts", "timestamp", "serialNumber"];
-       var telemetry = toFlatMap(data, exclude, true);
+       // Keys to exclude from telemetry (device info, attributes and non-telemetry fields)
+       var excludeFromTelemetryList = ["deviceName", "deviceType", "ts", "timestamp"];
+       excludeFromTelemetryList.addAll(attributeKeyList);
 
-       return {
-           deviceName: deviceName,
-           deviceType: deviceType,
-           attributes: attributes,
-           telemetry: {
-               ts: ts,
-               values: telemetry
-           }
+       // Parse all remaining JSON fields as telemetry
+       telemetry.putAll(toFlatMap(data, excludeFromTelemetryList, true));
+
+       // Result object with device attributes/telemetry data
+       var result = {
+          deviceName: deviceName,
+          deviceType: deviceType,
+       // customerName: customerName,
+       // groupName: groupName,
+       // assetName: assetName,
+       // assetType: assetType,
        };
+
+       // Add attributes to the result only if at least one matching key was found
+       if (attributes.size() > 0) {
+          result.put("attributes", attributes);
+       }
+
+       result.put("telemetry", {
+          ts: timestamp,
+          values: telemetry
+       });
+
+       /** Helper functions 'decodeToString', 'decodeToJson' and 'toFlatMap' are already built-in **/
+
+       return result;
        ```
      </TabItem>
      <TabItem label="JavaScript">
        ```js maxLines=15 collapsible
+       // Decode an uplink message from a buffer
+       // payload - array of bytes
+       // metadata - key/value object
+
        /** Decoder **/
 
-       // Decode the message to a JSON object.
+       // decode payload to JSON
        var data = decodeToJson(payload);
 
-       var deviceName = data.deviceName != null ? data.deviceName : "Unknown Device";
-       var deviceType = data.deviceType != null ? data.deviceType : "default";
+       // --- Device name and type ---
+       var deviceName = data.deviceName != null ? data.deviceName : 'Unknown Device';
+       var deviceType = data.deviceType != null ? data.deviceType : 'default';
+       // var customerName = 'Customer C';
+       // var groupName = 'thermostat devices';
 
-       // Use ts (ms) or timestamp (ISO 8601); otherwise, the server time.
-       var ts = Date.now();
+       // use assetName and assetType instead of deviceName and deviceType
+       // to automatically create assets instead of devices.
+       // var assetName = 'Asset A';
+       // var assetType = 'building';
+
+       // --- Timestamp parsing ---
+       var timestamp = -1;
        if (data.ts != null) {
-           ts = data.ts;
+           timestamp = data.ts;
        } else if (data.timestamp != null) {
-           ts = new Date(data.timestamp).getTime();
+           timestamp = new Date(data.timestamp).getTime();
+       }
+       if (timestamp == -1) {
+           timestamp = Date.now();
        }
 
-       // Device properties become attributes.
-       var attributes = {};
-       if (data.serialNumber != null) {
-           attributes.serialNumber = data.serialNumber;
-       }
-
-       // All other fields become telemetry; nested objects get dot-separated keys.
-       var exclude = ["deviceName", "deviceType", "ts", "timestamp", "serialNumber"];
+       // --- Telemetry and attributes ---
        var telemetry = {};
-       toFlatMap(data, telemetry, exclude);
 
-       var result = {
-           deviceName: deviceName,
-           deviceType: deviceType,
-           attributes: attributes,
-           telemetry: {
-               ts: ts,
-               values: telemetry
+       // Keys from the payload that should be stored as attributes instead of telemetry
+       var attributeKeyList = ["serialNumber"];
+
+       // Add the payload keys that match the attribute key list to attributes
+       var attributes = {};
+       for (var i = 0; i < attributeKeyList.length; i++) {
+           var attributeKey = attributeKeyList[i];
+           if (data[attributeKey] != null) {
+               attributes[attributeKey] = data[attributeKey];
            }
+       }
+
+       // Keys to exclude from telemetry (device info, attributes and non-telemetry fields)
+       var excludeFromTelemetryList = ["deviceName", "deviceType", "ts", "timestamp"].concat(attributeKeyList);
+
+       // Parse all remaining JSON fields as telemetry
+       toFlatMap(data, telemetry, excludeFromTelemetryList);
+
+       // Result object with device attributes/telemetry data
+       var result = {
+          deviceName: deviceName,
+          deviceType: deviceType,
+       // customerName: customerName,
+       // groupName: groupName,
+       // assetName: assetName,
+       // assetType: assetType,
        };
 
-       // Convert the byte array to a string.
+       // Add attributes to the result only if at least one matching key was found
+       if (Object.keys(attributes).length > 0) {
+          result.attributes = attributes;
+       }
+
+       result.telemetry = {
+          ts: timestamp,
+          values: telemetry
+       };
+
+       /** Helper functions **/
+
        function decodeToString(payload) {
-           return String.fromCharCode.apply(String, payload);
+          return String.fromCharCode.apply(String, payload);
        }
 
-       // Convert the byte array to a JSON object.
        function decodeToJson(payload) {
-           return JSON.parse(decodeToString(payload));
+          var str = decodeToString(payload);
+          return JSON.parse(str);
        }
 
-       // Copy fields to result; nested objects get dot-separated keys.
        function toFlatMap(obj, result, excludeList, prefix) {
-           prefix = prefix || "";
+           prefix = prefix || '';
            for (var key in obj) {
                if (excludeList.indexOf(key) !== -1) continue;
                var value = obj[key];
-               var fullKey = prefix ? prefix + "." + key : key;
-               if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+               var fullKey = prefix ? prefix + '.' + key : key;
+               if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
                    toFlatMap(value, result, excludeList, fullKey);
                } else {
                    result[fullKey] = value;
@@ -182,8 +265,9 @@ This guide uses a self-describing JSON message: it carries its own device name, 
    **To adapt:**
 
    - **Device name in another field** — replace `data.deviceName` and `data.deviceType`, for example with `data.deviceId`.
-   - **Other device properties** — add them to `attributes` and to `exclude`, for example `firmwareVersion`.
-   - **Assets instead of devices** — return `assetName` and `assetType` instead of `deviceName` and `deviceType`.
+   - **Other device properties** — add their keys to `attributeKeyList`, for example `firmwareVersion`.
+   - **Assets instead of devices** — uncomment `assetName` and `assetType` and use them instead of `deviceName` and `deviceType`.
+   - **Customer or group** — uncomment `customerName` or `groupName` to assign the device to a customer or an entity group.
    - **Update-only keys** — in **Advanced decoding parameters**, add keys to the **Update only keys list** to store them only when their value changes, for example `serialNumber`.
 6. Click **Test decoder function** and check the result (see **[Test the Decoder](#test-the-decoder)**).
 7. Click **Add**.
@@ -202,26 +286,25 @@ The integration does not pass the topic, message key, or message properties to t
 
 <h4 id="test-the-decoder">Test the Decoder</h4>
 
-Click **Test decoder function** below the editor. Set **Payload content type** to **JSON**, replace the payload with the sample message, and click **Test**. The **Output** panel shows:
+Click **Test decoder function** below the editor. The **Payload** already holds the sample message. Click **Test**. The **Output** panel shows:
 
 ```json
 {
-  "deviceName": "Sensor A1",
-  "deviceType": "thermostat",
-  "attributes": {
-    "serialNumber": "SN-2041"
-  },
-  "telemetry": {
-    "ts": 1791973800000,
-    "values": {
-      "temperature": 23.5,
-      "humidity": 60
+    "deviceName": "Thermometer",
+    "deviceType": "thermostat",
+    "attributes": {
+        "serialNumber": "SN-12345"
+    },
+    "telemetry": {
+        "ts": 1792072084561,
+        "values": {
+            "temperature": 25.5
+        }
     }
-  }
 }
 ```
 
-`ts` is the message's `timestamp`, `2026-10-14T10:30:00Z`, in milliseconds.
+The message has no time field, so `ts` is the time of the test.
 
 ### Create the Integration
 
@@ -243,8 +326,6 @@ Click **Test decoder function** below the editor. Set **Payload content type** t
    - Leave the other parameters at their defaults. See **[Connection Settings](#connection-settings)** for details.
 5. Click **Add**.
 </Steps>
-
-The wizard has no downlink step: Apache Pulsar Integration does not publish messages to Pulsar.
 
 #### Connection Settings
 
@@ -280,19 +361,29 @@ Publish a message to `my-topic`, then confirm that ThingsBoard decoded it and cr
 
 Create the integration first. A new subscription starts from the latest message, so it skips messages published before it was created. After that, Pulsar keeps unread messages for the subscription while the integration is offline.
 
-Publish the sample message with the `pulsar-client` tool inside the broker container. The tool reads the message from a file, because its `--messages` option splits text at commas.
+Publish the sample message. The `pulsar-client` commands read it from a file, because the `--messages` option splits text at commas.
 
 <Tabs>
   <TabItem label="Linux and macOS">
     ```bash
-    echo '{"deviceName":"Sensor A1","deviceType":"thermostat","serialNumber":"SN-2041","timestamp":"2026-10-14T10:30:00Z","temperature":23.5,"humidity":60}' | \
+    echo '{"deviceName":"Thermometer","deviceType":"thermostat","serialNumber":"SN-12345","temperature":25.5}' | \
       docker exec -i pulsar sh -c 'cat > /tmp/msg.json && bin/pulsar-client produce my-topic -f /tmp/msg.json'
     ```
   </TabItem>
   <TabItem label="Windows (PowerShell)">
     ```powershell
-    '{"deviceName":"Sensor A1","deviceType":"thermostat","serialNumber":"SN-2041","timestamp":"2026-10-14T10:30:00Z","temperature":23.5,"humidity":60}' | docker exec -i pulsar sh -c "cat > /tmp/msg.json && bin/pulsar-client produce my-topic -f /tmp/msg.json"
+    '{"deviceName":"Thermometer","deviceType":"thermostat","serialNumber":"SN-12345","temperature":25.5}' | docker exec -i pulsar sh -c "cat > /tmp/msg.json && bin/pulsar-client produce my-topic -f /tmp/msg.json"
     ```
+  </TabItem>
+  <TabItem label="CLI (local install)">
+    If Pulsar is installed locally, run from the Pulsar directory:
+
+    ```bash
+    echo '{"deviceName":"Thermometer","deviceType":"thermostat","serialNumber":"SN-12345","temperature":25.5}' > /tmp/msg.json
+    bin/pulsar-client produce my-topic -f /tmp/msg.json
+    ```
+
+    For a remote broker, add `--url pulsar://your-broker-host:6650` before `produce`.
   </TabItem>
   <TabItem label="Python">
     Install the client with `pip install pulsar-client`, then run:
@@ -304,12 +395,10 @@ Publish the sample message with the `pulsar-client` tool inside the broker conta
     client = pulsar.Client("pulsar://localhost:6650")
     producer = client.create_producer("my-topic")
     producer.send(json.dumps({
-        "deviceName": "Sensor A1",
+        "deviceName": "Thermometer",
         "deviceType": "thermostat",
-        "serialNumber": "SN-2041",
-        "timestamp": "2026-10-14T10:30:00Z",
-        "temperature": 23.5,
-        "humidity": 60
+        "serialNumber": "SN-12345",
+        "temperature": 25.5
     }).encode("utf-8"))
     client.close()
     ```
@@ -320,7 +409,7 @@ Publish the sample message with the `pulsar-client` tool inside the broker conta
 
 - **Integration events** — go to **Integrations &#8702; Integrations**, open the integration, and click the **Events** tab. The uplink appears with status **OK**. The integration records the message body as Base64.
 - **Converter events** — open `Apache Pulsar Uplink Converter` in **Integrations &#8702; Data converters** and click the **Events** tab. **In** shows the message, **Out** shows the decoded result, and **Metadata** shows the integration name.
-- **Device** — go to **Devices & assets &#8702; Devices**. The integration has created **Sensor A1** with type **thermostat**. Open it and check `temperature` and `humidity` on the **Latest telemetry** tab, and `serialNumber` on the **Attributes** tab.
+- **Device** — go to **Devices & assets &#8702; Devices**. The integration has created **Thermometer** with type **thermostat**. Open it and check `temperature` on the **Latest telemetry** tab and `serialNumber` on the **Attributes** tab.
 
 ## Troubleshooting
 
