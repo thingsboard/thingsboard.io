@@ -75,6 +75,11 @@ export const BLOG_AUTHORS: BlogAuthor[] = [
 		avatar: 'https://secure.gravatar.com/avatar/dc90b5503779dccb8df48e2e964a3e83?s=96&d=mm&r=g',
 	},
 	{
+		slug: 'nikita-mazurenko',
+		name: 'Nikita Mazurenko',
+		avatar: '/images/blog/authors/nikita-mazurenko.webp',
+	},
+	{
 		slug: 'pr-team',
 		name: 'PR Team',
 		avatar: 'https://secure.gravatar.com/avatar/fb8c4c6319f9a7c6ed932120cd37b992?s=96&d=mm&r=g',
