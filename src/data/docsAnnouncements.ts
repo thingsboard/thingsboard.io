@@ -24,9 +24,9 @@ import { SOURCE_AVAILABLE_FROM_VER } from '@data/versions';
  */
 const sourceAvailable = {
 	id: 'community-edition-deprecated',
-	version: 3,
+	version: 4,
 	variant: 'notice',
-	title: `ThingsBoard ${SOURCE_AVAILABLE_FROM_VER} is source-available`,
+	title: `Starting with v${SOURCE_AVAILABLE_FROM_VER}, ThingsBoard and ThingsBoard Edge are source-available`,
 	// Both destinations live in the message so the banner reads as one line: the
 	// announcement for what changed, the programme for what to do about it. A
 	// separate `cta` would push the link onto a line of its own.
@@ -60,9 +60,7 @@ const ANNOUNCED: readonly Products[] = [Products.CE, Products.EDGE];
  */
 const entry = announcementSchema.parse(sourceAvailable);
 
-export const docsAnnouncements: Partial<Record<Products, Announcement>> = isAnnouncementExpired(
-	entry
-)
+export const docsAnnouncements: Partial<Record<Products, Announcement>> = isAnnouncementExpired(entry)
 	? {}
 	: Object.fromEntries(ANNOUNCED.map((product) => [product, entry]));
 

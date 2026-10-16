@@ -352,7 +352,7 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'edge-addon-payg-free-trial',
 				question: 'Do you offer a free trial for Edge?',
-				answer: '<p>You can start with the <b>Free</b> plan (limited to 10 devices) with the Edge Computing add-on permanently enabled. This lets you explore ThingsBoard Edge features at no cost.</p>\n<p>For larger deployments, you can upgrade to paid plans with higher device limits and additional features.</p>',
+				answer: '<p>You can start with the <b>Free</b> plan (up to 100 devices) with the Edge Computing add-on permanently enabled. This lets you explore ThingsBoard Edge features at no cost.</p>\n<p>For larger deployments, you can upgrade to paid plans with higher device limits and additional features.</p>',
 			},
 			{
 				id: 'edge-addon-payg-capacity',
