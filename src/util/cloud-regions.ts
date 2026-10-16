@@ -1,4 +1,9 @@
 /** ThingsBoard Cloud's regions and the one this browser last chose on the site. */
+// The last choice and the guess live in `scripts/cloud-region.js`, a plain script /pricing/ inlines (`?raw`) to
+// pick its region before first paint; inlined as is, so it carries no comments. It skips SSR, which imports this
+// module too. Its region ids must match `CLOUD_REGIONS`.
+import '@root/scripts/cloud-region.js';
+
 // The notes must match the Cloud FAQ, which names no country or datacentre.
 // `gtm` is part of the click ids the GTM funnel keys on.
 export const CLOUD_REGIONS = [
@@ -33,32 +38,13 @@ export const cloudRegionHref = (region: CloudRegion, flow: CloudFlow) =>
 export const cloudRegionGtmId = (region: CloudRegion, flow: CloudFlow) =>
 	`${flow === 'signin' ? 'SignIn' : 'TryItNow'}_Cloud_${region.gtm}`;
 
-const LAST_REGION_KEY = 'tb.site.lastSigninRegion';
+export const readLastRegion = (): CloudRegionId | null => window.tbCloudRegion.readLast();
 
-export function readLastRegion(): CloudRegionId | null {
-	try {
-		const value = localStorage.getItem(LAST_REGION_KEY);
-		return CLOUD_REGIONS.some((r) => r.id === value) ? (value as CloudRegionId) : null;
-	} catch {
-		return null;
-	}
-}
-
-export function writeLastRegion(value: CloudRegionId): void {
-	try {
-		localStorage.setItem(LAST_REGION_KEY, value);
-	} catch {
-		// No storage: the next visit simply has no "Last visited" chip.
-	}
-}
-
-const GREENLAND = /^America\/(Nuuk|Godthab|Scoresbysund|Danmarkshavn|Thule)$/;
+// Without storage the next visit simply has no "Last visited" chip.
+export const writeLastRegion = (id: CloudRegionId): void => window.tbCloudRegion.writeLast(id);
 
 /**
  * By hemisphere: UTC−2 and further west (the Americas) goes to North America; the rest, with Greenland
  * and the UTC−1 Atlantic islands (Azores, Cape Verde), to Europe.
  */
-export function nearestCloudRegion(): CloudRegionId {
-	const west = new Date().getTimezoneOffset() > 60;
-	return west && !GREENLAND.test(Intl.DateTimeFormat().resolvedOptions().timeZone) ? 'us' : 'eu';
-}
+export const nearestCloudRegion = (): CloudRegionId => window.tbCloudRegion.nearest();

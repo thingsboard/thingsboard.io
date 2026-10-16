@@ -1,0 +1,181 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside, Steps } from '@astrojs/starlight/components';
+import ImageGallery from '@components/ImageGallery.astro';
+import ShowFor from '@components/ShowFor.astro';
+import { Products } from '@models/site.models';
+
+**X.509 Certificate Chain** provisioning lets a fleet of devices authenticate with their own X.509 certificates without registering each certificate in ThingsBoard. You register one CA certificate on a device profile. Every device that connects over MQTT with mutual TLS, using a certificate issued by that CA, is recognized, bound to its device in ThingsBoard and, depending on the profile settings, created automatically.
+
+ThingsBoard **verifies** device certificates and **binds** them to devices. It does not issue, sign or deliver certificates: that is the job of your public key infrastructure (PKI). This page explains how the two fit together across the whole certificate lifecycle. For the other provisioning strategies, see <DocLink product={props.product} path='user-guide/provisioning'>Provisioning</DocLink>.
+
+## How it works
+
+<ImageGallery images={[{ src: '/src/assets/schemas/x509-chain-architecture.svg', alt: 'How a device gets its certificate from your PKI and uses it to connect to ThingsBoard', caption: 'The device generates its own key pair and sends a certificate signing request to your PKI, which returns the device certificate and the intermediate CA certificate. The device presents both when it connects; ThingsBoard verifies them against the CA registered on the device profile.' }]} />
+
+Three parties take part:
+
+- **Device** — generates its own key pair, keeps the private key, and stores its certificate together with the intermediate CA certificate.
+- **Your PKI** — an enrollment service (for example, an EST server as defined in [RFC 7030](https://www.rfc-editor.org/rfc/rfc7030.html)) and the certificate authority that signs device certificates.
+- **ThingsBoard** — holds the CA certificate on a device profile, verifies the chain a device presents, extracts the device name from the certificate's Common Name (CN), and binds the certificate to that device.
+
+## What happens when a device connects
+
+<ImageGallery images={[{ src: '/src/assets/schemas/x509-chain-connect-flow.svg', alt: 'Decision flow when a device connects with a certificate chain', caption: 'ThingsBoard first looks for a device already bound to the certificate, then for a profile that trusts a CA in the chain, and finally binds the certificate to the device named in the CN or creates that device.' }]} />
+
+When a device opens an MQTT connection over TLS and presents its certificate chain, ThingsBoard:
+
+<Steps>
+1. Looks for a device whose stored credentials match the device certificate. If one exists, the device is connected. This is the usual path once a certificate has been bound.
+2. Otherwise, looks for a device profile whose registered CA certificate is present in the chain. If there is none, the connection is rejected.
+3. Extracts the device name from the device certificate's CN using the profile's regular expression.
+4. If a device with that name exists in the profile and has **X.509** credentials, replaces its stored certificate with the presented one and connects it.
+5. If no device with that name exists and **Create new devices** is enabled, creates the device with the presented certificate and connects it. Otherwise, the connection is rejected.
+</Steps>
+
+Step 4 makes certificate renewal automatic: a device that presents a new certificate with the same CN, issued by the same CA, is re-bound without any action in ThingsBoard. It also means that a device whose credentials are not X.509, for example a device created with the default access token, is rejected even if its name matches.
+
+## Set up ThingsBoard
+
+### Server prerequisites
+
+<ShowFor product={props.product} show={[Products.PAAS, Products.PAAS_EU]}>
+
+ThingsBoard Cloud accepts MQTT over TLS with client certificates on port **8883**. No server-side setup is needed.
+
+</ShowFor>
+
+<ShowFor product={props.product} show={[Products.PE]}>
+
+Mutual TLS must terminate at the ThingsBoard MQTT transport, so that the client certificate reaches ThingsBoard. Enable TLS on the transport as described in <DocLink product={props.product} path='reference/mqtt-api/getting-connected#mqtt-over-tls'>MQTT over TLS</DocLink>, and expose port 8883 directly or through a TCP (layer 4) pass-through load balancer. A load balancer or reverse proxy that terminates TLS does not forward client certificates, and devices will be rejected.
+
+</ShowFor>
+
+### CA certificate
+
+- Register the CA certificate that signs your device certificates on the device profile. This is usually an **intermediate CA**. Whichever certificate you register must be included in the chain that devices present.
+- A CA certificate can be registered on only **one device profile across all tenants**. If you need several profiles, for example one per device type, issue a separate intermediate CA for each of them under a common root.
+- Well-known public root CAs cannot be registered.
+
+### Configure the device profile
+
+<Steps>
+1. Go to **Profiles &#8702; Device profiles**, open the profile your devices will use, and switch to the **Device provisioning** tab.
+2. Select the **X509 Certificates Chain** strategy.
+3. Fill in the fields described below and save the profile.
+</Steps>
+
+| Field | Description |
+|-------|-------------|
+| **Certificate in PEM format** | The CA certificate (usually the intermediate CA) that signs device certificates. |
+| **CN Regular Expression variable** | Regular expression that extracts the device name from the certificate's CN; the first capturing group is the device name. The default `(.*)` uses the whole CN. For example, `(.*)\.devices\.example\.com` turns the CN `esp32-0042.devices.example.com` into the device name `esp32-0042`. |
+| **Create new devices** | Whether a device is created automatically the first time a certificate for an unknown name is presented. See below. |
+
+### Create new devices: enabled or disabled
+
+- **Enabled** — the simplest setup. Any device with a valid certificate from your CA is created the first time it connects. You do not need to know device names in advance.
+- **Disabled** — only devices that you have registered in advance can connect. A certificate for an unknown name is rejected even if it is signed by your CA, so the list of registered devices acts as an allow-list. Choose this mode if you need to block individual devices later (see [Revocation](#revocation)).
+
+### Pre-register devices
+
+With **Create new devices** disabled, each device must exist in the profile with credentials of type **X.509** before its first connection. The credentials value is only a placeholder that the device's first real certificate replaces. It must be unique on the server, so use a random value such as a UUID. A device created with the default access token is not bound to a certificate and is rejected.
+
+Create devices with credentials of type X.509 in one of these ways:
+
+- **UI** — in the **Add new device** dialog, on the **Credentials** step, select **X.509** and enter the placeholder in **Certificate in PEM format**. For an existing device, open it and use **Manage credentials**.
+- **REST API** — `POST /api/device-with-credentials`:
+
+  ```json
+  {
+    "device": {
+      "name": "esp32-0042",
+      "deviceProfileId": { "id": "<device profile id>", "entityType": "DEVICE_PROFILE" }
+    },
+    "credentials": {
+      "credentialsType": "X509_CERTIFICATE",
+      "credentialsValue": "placeholder-6f1c2a9e-3b7d-4e58-9a0c-2d4b8e7f1a35"
+    }
+  }
+  ```
+
+- **Bulk import** — map a CSV column with unique placeholder values to the **X.509** credential column, and a **Type** column with the exact name of the X.509 device profile. Without a Type column, devices are created in the default profile; a misspelled name creates a new profile. See <DocLink product={props.product} path='user-guide/provisioning#bulk-provisioning'>Bulk Provisioning</DocLink>.
+
+## Prepare devices
+
+- **Present the full chain, device certificate first.** The device must send its own certificate followed by the intermediate CA certificate. If only the device certificate is sent, ThingsBoard cannot find the registered CA and rejects the connection. Keep sending the full chain after the first connection as well: a renewed certificate needs the CA in the chain to be re-bound.
+- **Keep the CN stable.** ThingsBoard matches the certificate to the device by the name extracted from the CN, so renewed certificates must keep the same CN.
+- **Protect the private key.** Generate it on the device and never export it. Use the secure storage your hardware provides.
+
+<Aside type="note" title="Example: ESP32">
+  With ESP-IDF, set the client certificate to a PEM bundle that contains the device certificate followed by the intermediate CA certificate; ESP-TLS sends every certificate in the bundle during the handshake. Enable [flash encryption](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/security/flash-encryption.html) to protect stored keys and certificates, and [Secure Boot](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/security/secure-boot-v2.html) to run only signed firmware. On chips with the [Digital Signature peripheral](https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/peripherals/ds.html) (ESP32-S2, S3, C3, C5, C6, H2 and P4), an RSA private key can be kept encrypted and used only by hardware, so the firmware never sees it in plain form — see [Digital Signature with ESP-TLS](https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/protocols/esp_tls.html#digital-signature-with-esp-tls).
+</Aside>
+
+## Certificate lifecycle
+
+<ImageGallery images={[{ src: '/src/assets/schemas/x509-chain-lifecycle.svg', alt: 'Device certificate lifecycle', caption: 'Certificates are issued and renewed by your PKI; ThingsBoard binds them on connection and re-binds renewed certificates automatically. Handling a compromised certificate is a manual procedure.' }]} />
+
+### Initial enrollment
+
+On first boot, the device generates a key pair and a certificate signing request (CSR) and enrolls with your PKI to obtain its unique certificate. EST ([RFC 7030](https://www.rfc-editor.org/rfc/rfc7030.html)) is a good fit, but any authenticated service that signs CSRs works: ThingsBoard only sees the resulting certificate.
+
+The first enrollment needs some way to authenticate the device before it has its own certificate. [RFC 7030, section 2.2](https://www.rfc-editor.org/rfc/rfc7030.html#section-2.2) lists the options: a previously installed certificate, a credential shared out of band, or a username and password. Common ways to apply them across a fleet, all of them decisions on the PKI side:
+
+- **Shared bootstrap certificate** — a certificate common to a production batch, accepted by your enrollment service for enrollment only and replaced by the unique device certificate. Issuing one per batch limits the impact if it leaks.
+- **Allow-list of expected identities** — your PKI issues certificates only for device names (CNs) it expects.
+- **One-time enrollment credentials** — a per-device one-time password used only for the first enrollment, as recommended in [RFC 7030, section 6](https://www.rfc-editor.org/rfc/rfc7030.html#section-6).
+- **Enrollment in a controlled environment** — the first enrollment happens on the production line or during commissioning by a trusted installer, before shared bootstrap material leaves your control.
+
+Devices may share trust — the CA certificate and a bootstrap credential — but each device must end up with its **own** certificate and private key. A certificate shared by several devices makes them indistinguishable and impossible to block individually.
+
+### Renewal
+
+Before the certificate expires, the device re-enrolls (for example with EST `/simplereenroll`), keeps the same CN, and reconnects with the new certificate and the intermediate CA. ThingsBoard re-binds the new certificate automatically, as described in [What happens when a device connects](#what-happens-when-a-device-connects). The stored certificate is replaced, but the previous certificate stays usable until it expires: if it is presented again, it is bound again in the same way. Short certificate lifetimes keep this window small (see [Revocation](#revocation)).
+
+### Expiry
+
+ThingsBoard checks the validity period of the device certificate on every connection, so an expired certificate is rejected.
+
+<ShowFor product={props.product} show={[Products.PE]}>
+
+This check can be turned off with `MQTT_SSL_SKIP_VALIDITY_CHECK_FOR_CLIENT_CERT=true` on the MQTT transport. Keep the default value, `false`: short certificate lifetimes are the main protection against leaked certificates, as described in [Revocation](#revocation).
+
+</ShowFor>
+
+## Revocation
+
+ThingsBoard verifies the signatures along the presented chain and the validity period of the device certificate, but it does not check certificate revocation lists (CRLs) or OCSP. With X.509 Certificate Chain provisioning, there is currently no way to revoke an individual certificate while keeping the device's identity: any valid certificate issued by your CA whose CN resolves to an existing device is accepted for that device. Resetting the device's credentials does not help, because the certificate is bound again on its next connection.
+
+<Aside type="note" title="Planned improvement">
+  Blocking an individual certificate in ThingsBoard for this provisioning strategy is planned. This section will be updated when it becomes available; until then, use the mitigations below.
+</Aside>
+
+To limit the impact of a leaked certificate:
+
+- **Use short certificate lifetimes**, so a leaked certificate stops working when it expires.
+- **Keep Create new devices disabled.** If a certificate leaks, move the device to a new identity:
+  1. Enroll the device again with a different CN. EST re-enrollment keeps the same subject ([RFC 7030, section 4.2.2](https://www.rfc-editor.org/rfc/rfc7030.html#section-4.2.2)), so this is a fresh enrollment.
+  2. Rename the device in ThingsBoard to the name extracted from the new CN.
+  3. Reset the device's credentials to a new X.509 placeholder.
+
+  The leaked certificate then matches no device and is rejected, while the device keeps its data. With **Create new devices** enabled this does not work, because a new device would be created for the old name.
+- **Revoke the certificate in your PKI** as well, so it cannot be used to obtain a new one.
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Connection rejected on first connect; the device sends only its own certificate | The registered CA is not in the presented chain | Send the device certificate followed by the intermediate CA certificate |
+| Pre-registered device rejected with code 5 (*Not authorized*) | The device was created with access-token credentials | Change its credentials to X.509 with a placeholder value (**Manage credentials** on the device) |
+| Unknown device rejected although its certificate is signed by your CA | **Create new devices** is disabled and the device is not pre-registered | Pre-register the device, or enable **Create new devices** |
+| Pre-registered device rejected although its name matches | The device belongs to a different device profile | Move the device to the profile that holds the CA certificate |
+| Renewed certificate rejected | The CN changed, or the CA is missing from the chain | Keep the CN and send the full chain |
+| Saving the device profile fails | The CA certificate is already registered on another profile, or it is a well-known public root CA | Use a dedicated intermediate CA for this profile |
+| Code 2 (*Identifier rejected*) on connect | No client certificate reached ThingsBoard | Check that the device sends its certificate and, on a self-hosted installation, that TLS is not terminated before the ThingsBoard MQTT transport |
+
+For the meaning of MQTT connection codes, see <DocLink product={props.product} path='reference/mqtt-api/getting-connected#connection-response-codes'>Connection Response Codes</DocLink>.
+
+## Related
+
+- <DocLink product={props.product} path='user-guide/provisioning'>Provisioning</DocLink>
+- <DocLink product={props.product} path='reference/mqtt-api/getting-connected#x509-certificate'>MQTT: X.509 Certificate</DocLink>
+- <DocLink product={props.product} path='user-guide/device-profiles'>Device Profiles</DocLink>
+- <DocLink product={props.product} path='user-guide/security/overview'>Security Overview</DocLink>

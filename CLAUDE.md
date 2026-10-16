@@ -29,14 +29,18 @@ pnpm lint:steps       # Catch <Steps> lists inside JSX {…} blocks (Markdown no
 pnpm lint:redirects   # Detect redirect chains in the redirect data
 pnpm lint:dualrender  # Validate IoT Hub server/client card render parity (needs a build)
 pnpm lint:landmarks   # One <main> per page + marketing table integrity (needs a build)
-pnpm format           # Format with Prettier (format:code / format:imports / format:ci are the parts)
+pnpm format           # Format with Prettier
 
 # Generators
 pnpm generate:redirects   # Regenerate public/_redirects + public/redirects.json (see Redirects)
 pnpm generate:nav-sprite  # Rebuild the mega-menu icon sprite after editing an icon (builds run it automatically)
+pnpm update:stars         # Refresh GitHub star counts in src/data/github-stars.json (a weekday workflow does this and opens a PR)
+pnpm optimize:svg         # Minify SVGs in place with SVGO (src/assets + public, or the paths given); safe to re-run
 ```
 
 **Build policy:** Before running any build, always ask the user: "Run `pnpm build:fast` to verify, or skip?"
+
+**SVG policy:** When a change adds or replaces `.svg` files under `src/assets/` or `public/`, offer to run `pnpm optimize:svg <those files>` before committing. Run it before `pnpm generate:nav-sprite` when the files are mega-menu icons (`src/assets/images/landings/nav/`). The script leaves downloads (`public/resources/`), `{{…}}` templates and animated SVGs untouched.
 
 ## Architecture
 
@@ -134,7 +138,7 @@ src/content/docs/docs/
   ├── mobile/            ← Mobile pages
   ├── license-server/    ← License Server pages
   ├── iot-hub/           ← IoT Hub docs (user and contribution guides)
-  └── private-cloud/     ← Private Cloud pages
+  └── private-cloud/     ← Private Cloud subscription page (standalone; no product prefix, resolves as CE)
 ```
 
 TBMQ (`mqtt-broker/`) has a prefix in the enum but no content directory yet.
@@ -157,7 +161,7 @@ See the `edit-doc` skill for detailed _includes rules, conditional rendering pat
 
 `src/data/versions.ts` — centralized product version strings. **Never hardcode version strings** in Docker image tags, download URLs, or code blocks. Import from `@data/versions`.
 
-Eighteen constants are exported. CE, EDGE and EDGE_PE each have a version/package/branch triple (`CE_FULL_VER`, `CE_PKG_VER`, `CE_BRANCH`; `EDGE_VER`, `EDGE_PKG_VER`, `EDGE_BRANCH`; `EDGE_PE_VER`, `EDGE_PE_PKG_VER`, `EDGE_PE_BRANCH`), PE has `PE_FULL_VER`, `PE_PKG_VER`, `PE_RELEASE_URL` and `PE_BRANCH` (`PE_RELEASE_URL` is the GitHub Releases base for 4.4+ PE packages, while 4.3.x and older stay on dist.thingsboard.io and the upgrade components build their URLs; `PE_BRANCH` is `release-4.4` while `CE_BRANCH` stays on 4.3), and `TRENDZ_VER`, `AGENT_VER`, `TB_VER`, `SOURCE_AVAILABLE_FROM_VER` and `SOURCE_AVAILABLE_ANNOUNCEMENT_DATE` stand alone. Read the file rather than guessing which one a context needs.
+CE, EDGE and EDGE_PE each have a version/package/branch triple (`CE_FULL_VER`, `CE_PKG_VER`, `CE_BRANCH`; `EDGE_VER`, `EDGE_PKG_VER`, `EDGE_BRANCH`; `EDGE_PE_VER`, `EDGE_PE_PKG_VER`, `EDGE_PE_BRANCH`), PE has `PE_FULL_VER`, `PE_PKG_VER`, `PE_RELEASE_URL` and `PE_BRANCH` (`PE_RELEASE_URL` is the GitHub Releases base for 4.4+ PE packages, while 4.3.x and older stay on dist.thingsboard.io and the upgrade components build their URLs; `PE_BRANCH` is `release-4.4` while `CE_BRANCH` stays on 4.3), and `TRENDZ_VER`, `AGENT_VER`, `TB_VER`, `DART_CLIENT_VER`, `SOURCE_AVAILABLE_FROM_VER`, `COMMUNITY_GRANT_FROM_VER` and `SOURCE_AVAILABLE_ANNOUNCEMENT_DATE` stand alone. Read the file rather than guessing which one a context needs.
 
 ### Markdown pipeline
 
@@ -268,6 +272,8 @@ Use the `release` skill for the full checklist. Key files:
 - Prettier with `prettier-plugin-astro`, printWidth 120, single quotes, ES5 trailing commas (see `.prettierrc`)
 - ESLint flat config with TypeScript and Astro plugins
 - **No Figma references in comments.** Don't write "Figma", "Figma node 1234:5678", or any tool-specific node IDs in source comments — they're meaningless to anyone without access to the Figma file and rot fast. Refer to the visual spec as "the design" (or "per the design", "matches the design") and describe what's actually being implemented (sizes, colors, behaviors) so the comment stands on its own.
+- **`window` globals:** those set by `is:inline` or plain scripts and used site-wide (`dataLayer`, `gtag`, `tbConsent`, `tbCloudRegion`) are typed in `src/global.d.ts`. It stays ambient — no imports or exports; reference a module's type inline as `import('@util/…').Type`. A global only one component or module uses keeps a `declare global` next to its owner.
+- **Comments that would ship:** `<script is:inline>`, files inlined with `?raw` (e.g. `src/scripts/cloud-region.js`) and HTML `<!-- -->` comments reach the built HTML as written (`compressHTML: false`). Put the explanation in an Astro `{/* */}` comment or in the `.ts` that wraps the script; comments in bundled `<script>` and `.ts` are stripped.
 
 ## CI Checks
 
@@ -278,3 +284,5 @@ GitHub Actions runs: `astro check`, `eslint`, `slugcheck`.
 `lint:dualrender` also needs a build and is **not wired into any pipeline yet** — run `pnpm lint:dualrender` by hand after a build when touching IoT Hub listing cards, their clone templates, or `iot-hub-listing-card-bind.ts`. It checks that the server render and the client-cloned render of a card still agree; breaking that is silent, since the page builds, typechecks and lints clean and only renders wrong once results come back from the API.
 
 `lint:landmarks` also needs a build and is not wired into a pipeline yet — run `pnpm lint:landmarks` by hand after a build when adding pages or layouts, or touching the marketing comparison tables. It asserts exactly one `<main>` per built page (Starlight emits one; a page-level `<main>` is always a nested duplicate) and that the marketing tables keep captions and carry every value as text. Both defects are silent: the page builds, typechecks and lints clean.
+
+**PR base branch and labels:** pick them by the table in [Which branch and label](CONTRIBUTING.md#which-branch-and-label).

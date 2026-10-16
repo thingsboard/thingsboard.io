@@ -158,6 +158,16 @@ const { mode = 'page' } = Astro.props;
 </script>
 
 <script>
+	import { bindTrackingFields, clearFieldError, guardSubmit, stampRenderedAt } from '@util/form-guard';
+
+	const FIELDS = [
+		{ name: 'firstName', label: 'First Name', type: 'text' },
+		{ name: 'lastName', label: 'Last Name', type: 'text' },
+		{ name: 'email', label: 'Email Address', type: 'email' },
+		{ name: 'company', label: 'Company', type: 'text' },
+		{ name: 'message', label: 'Message', type: 'textarea' },
+	] as const;
+
 	// ── Floating label: mark empty selects ──────────────────────────────────
 	function updateSelectEmpty(select: HTMLSelectElement) {
 		if (select.value === '') {
@@ -165,136 +175,6 @@ const { mode = 'page' } = Astro.props;
 		} else {
 			select.classList.remove('input--empty');
 		}
-	}
-
-	// ── Validation helpers ───────────────────────────────────────────────────
-	function isValidEmail(email: string) {
-		return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/.test(email);
-	}
-
-	// Block obvious XSS payloads BEFORE submitting to Formspree.
-	// Without this, the form can post a script-tag payload and Cloudflare's
-	// WAF returns "Sorry, you have been blocked" — a confusing dead-end for
-	// the user. Catch the common patterns client-side and show an inline
-	// error so the user knows what to fix. The pattern stays conservative
-	// (script / iframe / object / embed tags + javascript: URIs + DOM event
-	// handler attrs) so legitimate angle brackets in code snippets in a
-	// message field don't trigger false positives. svg-borne payloads with
-	// inline event handlers are still caught via the on*= alternation.
-	const XSS_PATTERN = /<\s*\/?\s*(?:script|iframe|object|embed)\b|javascript\s*:|on(?:click|error|load|focus|blur|mouseover|mouseout|change|submit|input|toggle|animationend)\s*=/i;
-	function containsXss(value: string) {
-		return XSS_PATTERN.test(value);
-	}
-
-	function clearError(el: HTMLElement) {
-		el.classList.remove('invalid-input');
-		el.setAttribute('aria-invalid', 'false');
-		el.removeAttribute('aria-describedby');
-		const label = el.closest('label');
-		if (label) {
-			const hint = label.nextElementSibling;
-			if (hint?.classList.contains('error-message-hint')) hint.remove();
-		}
-	}
-
-	function setError(el: HTMLElement, message: string) {
-		clearError(el);
-		el.classList.add('invalid-input');
-		el.setAttribute('aria-invalid', 'true');
-		const id = `error-hint-${el.id || el.getAttribute('name') || 'field'}`;
-		el.setAttribute('aria-describedby', id);
-		const hint = document.createElement('p');
-		hint.className = 'error-message-hint';
-		hint.id = id;
-		hint.textContent = message;
-		hint.setAttribute('role', 'alert');
-		el.closest('label')?.insertAdjacentElement('afterend', hint);
-	}
-
-	function validateForm(form: HTMLFormElement) {
-		const fields = [
-			{ name: 'firstName', label: 'First Name', type: 'text' },
-			{ name: 'lastName', label: 'Last Name', type: 'text' },
-			{ name: 'email', label: 'Email Address', type: 'email' },
-			{ name: 'company', label: 'Company', type: 'text' },
-			{ name: 'message', label: 'Message', type: 'textarea' },
-		];
-		let valid = true;
-
-		fields.forEach((f) => {
-			const el = form.elements.namedItem(f.name) as HTMLInputElement | HTMLTextAreaElement | null;
-			if (el) clearError(el);
-		});
-
-		fields.forEach((f) => {
-			const el = form.elements.namedItem(f.name) as HTMLInputElement | HTMLTextAreaElement | null;
-			if (!el) return;
-			const val = el.value.trim();
-			if (val === '') {
-				setError(el, `${f.label} is required.`);
-				valid = false;
-			} else if (f.type === 'email' && !isValidEmail(val)) {
-				setError(el, `Please enter a valid ${f.label.toLowerCase()}.`);
-				valid = false;
-			} else if (containsXss(val)) {
-				setError(el, `Please remove HTML or script tags from ${f.label.toLowerCase()}.`);
-				valid = false;
-			}
-		});
-
-		if (!valid) {
-			(form.querySelector('.invalid-input') as HTMLElement)?.focus();
-		}
-		return valid;
-	}
-
-	// ── UTM / tracking helpers ───────────────────────────────────────────────
-	function getURLParam(name: string) {
-		const match = new RegExp('[?&]' + name + '=([^&#]*)').exec(window.location.href);
-		return match ? decodeURIComponent(match[1].replace(/\+/g, ' ')) : null;
-	}
-
-	function populateTracking(form: HTMLFormElement) {
-		const utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
-		const utmData: Record<string, string> = {};
-
-		utmKeys.forEach((key) => {
-			let value = getURLParam(key);
-			if (value) {
-				localStorage.setItem(key, value);
-			} else {
-				value = localStorage.getItem(key);
-			}
-			if (value) {
-				utmData[key] = value;
-				const el = form.querySelector<HTMLInputElement>(`input[name="${key}"]`);
-				if (el) el.value = value;
-			}
-		});
-
-		const pathEl = form.querySelector<HTMLInputElement>('input[name="path"]');
-		if (pathEl) pathEl.value = window.location.pathname;
-
-		const gaCookie = document.cookie.split('; ').find((r) => r.startsWith('_ga='));
-		if (gaCookie) {
-			const parts = gaCookie.split('.');
-			if (parts.length >= 4) {
-				const clientId = parts[2] + '.' + parts[3];
-				utmData['client_id'] = clientId;
-				const el = form.querySelector<HTMLInputElement>('input[name="client_id"]');
-				if (el) el.value = clientId;
-			}
-		}
-
-		const fpr = localStorage.getItem('fpr');
-		if (fpr) {
-			utmData['fpr'] = fpr;
-			const el = form.querySelector<HTMLInputElement>('input[name="fpr"]');
-			if (el) el.value = fpr;
-		}
-
-		window.dataLayer = window.dataLayer || [];
-		window.dataLayer.push({ event: 'contact-us', ...utmData });
 	}
 
 	// ── Init ─────────────────────────────────────────────────────────────────
@@ -305,8 +185,7 @@ const { mode = 'page' } = Astro.props;
 		// Set Formspree action
 		form.action = 'https://formspree.io/f/xrbnqnna';
 
-		const renderedAt = form.querySelector<HTMLInputElement>('.form-rendered-at');
-		if (renderedAt) renderedAt.value = String(Math.floor(Date.now() / 1000));
+		stampRenderedAt(form);
 
 		// Init select empty state
 		const select = form.querySelector<HTMLSelectElement>('select[name="subject"]');
@@ -318,28 +197,18 @@ const { mode = 'page' } = Astro.props;
 		// Clear error on input
 		form.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('.form-control').forEach((el) => {
 			el.addEventListener('input', () => {
-				if (el.classList.contains('invalid-input')) clearError(el);
+				if (el.classList.contains('invalid-input')) clearFieldError(el);
 			});
 		});
 
 		// Submit handler
-		form.addEventListener('submit', (e) => {
-			if (!validateForm(form)) {
-				e.preventDefault();
-				return;
-			}
+		guardSubmit(form, FIELDS);
 
-			const renderedAt = form.querySelector<HTMLInputElement>('.form-rendered-at');
-			if (renderedAt && renderedAt.value) {
-				const tooFast = Math.floor(Date.now() / 1000) - parseInt(renderedAt.value, 10) < 3;
-				if (tooFast) {
-					e.preventDefault();
-					form.innerHTML = '<p>Thank you! Your message has been received.</p>';
-				}
-			}
-		});
+		const pathEl = form.querySelector<HTMLInputElement>('input[name="path"]');
+		if (pathEl) pathEl.value = window.location.pathname;
 
-		populateTracking(form);
+		window.dataLayer = window.dataLayer || [];
+		window.dataLayer.push({ event: 'contact-us', ...bindTrackingFields(form) });
 	});
 </script>
 

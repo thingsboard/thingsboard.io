@@ -20,6 +20,12 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
                             </ul>`,
 			},
 			{
+				id: 'tb-private-cloud-is-there-a-trial-option-for-private-cloud',
+				question: 'Is there a trial option for Private Cloud?',
+				answer: `<p>You can explore ThingsBoard on the Free plan of <a target="_blank" href="/installations/choose-region/" rel="noopener noreferrer">ThingsBoard Cloud</a>—it gives access to the core features and capabilities without setup overhead.</p>
+                            <p>For ThingsBoard Private Cloud, trials are not applicable due to the use of dedicated infrastructure and custom deployment.</p>`,
+			},
+			{
 				id: 'tb-private-cloud-what-are-the-benefits-of-private-cloud-versus-self-hosting',
 				question: 'What are the benefits of Private Cloud versus self-hosting?',
 				answer: `<ul>
@@ -449,14 +455,8 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
 	},
 	{
 		id: 'trialsCancellationsAndRefunds',
-		label: 'Trials, Cancellations & Refunds',
+		label: 'Cancellations & Refunds',
 		items: [
-			{
-				id: 'tb-private-cloud-is-there-a-trial-option-for-private-cloud',
-				question: 'Is there a trial option for Private Cloud?',
-				answer: `<p>Trial access is available on <a target="_blank" href="/installations/choose-region/" rel="noopener noreferrer">ThingsBoard Cloud</a>, which allows you to explore the core features and capabilities of ThingsBoard without setup overhead.</p>
-                            <p>For ThingsBoard Private Cloud, trials are not applicable due to the use of dedicated infrastructure and custom deployment.</p>`,
-			},
 			{
 				id: 'tb-private-cloud-can-i-downgrade-my-plan-later',
 				question: 'Can I downgrade my plan later?',

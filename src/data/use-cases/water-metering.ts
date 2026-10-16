@@ -174,7 +174,6 @@ export const data: UseCaseData = {
 				description:
 					'By using IoT-based water metering, municipalities can automate meter readings and billing processes, gain insight into consumption trends across entire cities, and react instantly to issues such as leaks or overuse.',
 				desktopImage: '/src/assets/images/usecases/scada/water-1.svg',
-				mobileImage: '/src/assets/images/usecases/scada/water-2.svg',
 				imageAlt: 'Water valve',
 			},
 			{
@@ -182,7 +181,6 @@ export const data: UseCaseData = {
 				description:
 					'Industries benefit from accurate water monitoring to stay compliant with strict environmental standards and to manage utility costs more effectively through predictive consumption insights.',
 				desktopImage: '/src/assets/images/usecases/water-metering/industrial-1.svg',
-				mobileImage: '/src/assets/images/usecases/water-metering/industrial-2.svg',
 				imageAlt: 'Industrial',
 			},
 			{
@@ -190,7 +188,6 @@ export const data: UseCaseData = {
 				description:
 					'Water metering in smart buildings enables facility managers to fine-tune plumbing infrastructure, minimize waste through real-time monitoring, and improve the overall experience and sustainability for occupants.',
 				desktopImage: '/src/assets/images/usecases/water-metering/smart-building-1.svg',
-				mobileImage: '/src/assets/images/usecases/water-metering/smart-building-2.svg',
 				imageAlt: 'Building',
 			},
 			{
@@ -198,7 +195,6 @@ export const data: UseCaseData = {
 				description:
 					'Hotels and resorts can monitor water usage across various zones or guest areas to implement sustainable practices, reduce operating costs, and engage guests in eco-conscious initiatives.',
 				desktopImage: '/src/assets/images/usecases/smart-office/hospitality-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-office/hospitality-2.svg',
 				imageAlt: 'Hospitality',
 			},
 			{
@@ -206,7 +202,6 @@ export const data: UseCaseData = {
 				description:
 					'Farmers can leverage real-time data to optimize irrigation schedules, reduce unnecessary water usage, and improve crop yields while maintaining environmental responsibility.',
 				desktopImage: '/src/assets/images/usecases/water-metering/irrigation-1.svg',
-				mobileImage: '/src/assets/images/usecases/water-metering/irrigation-2.svg',
 				imageAlt: 'Irrigation',
 			},
 		],

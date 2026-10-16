@@ -22,24 +22,24 @@ export const data: UseCaseData = {
 		carouselImages: [
 			{
 				src: '/src/assets/images/usecases/fleet-tracking/site-fleet-tracking-1.webp',
-				alt: 'ThingsBoard interface showing bus status, speed, fuel level, and location on the map',
-				title: 'Real-time excavator monitoring using ThingsBoard platform',
-				width: 1819,
-				height: 966,
+				alt: 'ThingsBoard mine site dashboard showing excavators and haul trucks on a satellite map with loading, unloading and restricted zones, plus zone, machine and alarm tables',
+				title: 'Mine site overview: machine locations, geofenced zones and alarms in ThingsBoard',
+				width: 1302,
+				height: 689,
 			},
 			{
 				src: '/src/assets/images/usecases/fleet-tracking/site-fleet-tracking-2.webp',
-				alt: 'ThingsBoard interface showing historical route and movement playback for Bus A on the map',
-				title: 'Bus A route playback and history visualization in ThingsBoard',
-				width: 1819,
-				height: 966,
+				alt: 'ThingsBoard dashboard for Haul truck A showing fuel consumption, fuel level, speed and load weight, route history playback on the site map, and its alarms',
+				title: 'Haul truck A telemetry and route history playback in ThingsBoard',
+				width: 1302,
+				height: 689,
 			},
 			{
 				src: '/src/assets/images/usecases/fleet-tracking/site-fleet-tracking-3.webp',
-				alt: 'ThingsBoard dashboard displaying real-time and historical data for Bus A, including speed, fuel level, route history, and critical events',
-				title: 'Real-time telemetry dashboard for Bus A in ThingsBoard',
-				width: 1819,
-				height: 966,
+				alt: 'ThingsBoard dashboard for unloading zone U1 showing the zone on the site map, the excavator inside it with fuel level and speed, and the zone alarms',
+				title: 'Zone U1 view: machines in the zone and their alarms in ThingsBoard',
+				width: 1302,
+				height: 689,
 			},
 		],
 	},
@@ -159,7 +159,6 @@ export const data: UseCaseData = {
 				description:
 					'Track machines across loading, transport, and restricted zones using automated alarms and fuel analytics.',
 				desktopImage: '/src/assets/images/usecases/fleet-tracking/mining-1.svg',
-				mobileImage: '/src/assets/images/usecases/fleet-tracking/mining-2.svg',
 				imageAlt: 'Mining excavator',
 				imageTitle: 'Mining & quarrying',
 			},
@@ -168,7 +167,6 @@ export const data: UseCaseData = {
 				description:
 					'Automate alerts when haul trucks or loaders enter, leave, or overload in processing areas.',
 				desktopImage: '/src/assets/images/usecases/fleet-tracking/dumpsites-1.svg',
-				mobileImage: '/src/assets/images/usecases/fleet-tracking/dumpsites-2.svg',
 				imageAlt: 'Material yard',
 				imageTitle: 'Material yards & dumpsites',
 			},
@@ -177,7 +175,6 @@ export const data: UseCaseData = {
 				description:
 					'Monitor heavy machinery in temporary or mobile zones, ensuring route compliance and operational safety.',
 				desktopImage: '/src/assets/images/usecases/fleet-tracking/construction-1.svg',
-				mobileImage: '/src/assets/images/usecases/fleet-tracking/construction-2.svg',
 				imageAlt: 'Construction crane',
 				imageTitle: 'Construction sites',
 			},
@@ -186,7 +183,6 @@ export const data: UseCaseData = {
 				description:
 					'Gain visibility over fleet movement across bridges, tunnels, or time-sensitive zones during large-scale builds.',
 				desktopImage: '/src/assets/images/usecases/fleet-tracking/infrastructure-1.svg',
-				mobileImage: '/src/assets/images/usecases/fleet-tracking/infrastructure-2.svg',
 				imageAlt: 'Infrastructure project',
 				imageTitle: 'Infrastructure projects',
 			},
@@ -195,7 +191,6 @@ export const data: UseCaseData = {
 				description:
 					'Use geofencing to protect environmental boundaries and track equipment in remote forest sectors.',
 				desktopImage: '/src/assets/images/usecases/fleet-tracking/forest-1.svg',
-				mobileImage: '/src/assets/images/usecases/fleet-tracking/forest-2.svg',
 				imageAlt: 'Forestry equipment',
 				imageTitle: 'Forestry operations',
 			},

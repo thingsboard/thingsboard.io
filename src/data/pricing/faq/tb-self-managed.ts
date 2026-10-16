@@ -31,6 +31,11 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 				answer: '<p>ThingsBoard offers flexible monthly subscription plans, with tiers based on the number of devices and assets. We support 4 predefined plans to cater to different needs. The Free plan includes support for up to 100 devices. For more details, visit the ThingsBoard <a target="_blank" href="/pricing/?product=thingsboard-pe" rel="noopener noreferrer">pricing page</a>.</p>',
 			},
 			{
+				id: 'pe-pay-as-you-go-try-license',
+				question: 'Can I try an on-premises license before subscribing?',
+				answer: '<p>Yes, the Free plan is the best way to explore the platform. It also includes trial licenses for Edge and Trendz products, so you can fully test the ThingsBoard ecosystem.</p>',
+			},
+			{
 				id: 'pe-pay-as-you-go-self-managed-differences',
 				question: 'How do the on-premises subscription plans differ?',
 				answer: '<p>Plans differ based on the number of devices, support level, and white-labeling availability.</p>',
@@ -185,7 +190,7 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'pe-pay-as-you-go-internet-requirement',
 				question: 'Do I need an internet connection to use the on-premises license?',
-				answer: '<p>Yes, an internet connection is required for periodic license verification. The system checks the license once per hour, and if the connection is not restored within 48 hours, the platform shuts down. This process ensures proper license management while allowing temporary connectivity issues. For more details, please refer to the license check <a target="_blank" href="/docs/license-server/what-is-license-server/" rel="noopener noreferrer">description</a>. Offline mode is also possible as an add-on to the Perpetual license. <a target="_blank" href="/contact-us/" rel="noopener noreferrer">Contact our sales team</a> to know more.</p>',
+				answer: '<p>Yes, an internet connection is required for periodic license verification. The system checks the license once per hour, and if the connection is not restored within 72 hours, the management interface locks until the next successful check. The platform itself keeps running: devices keep sending data, commands still reach them, and nothing is deleted. This process ensures proper license management while allowing temporary connectivity issues. For more details, please refer to the license check <a target="_blank" href="/docs/license-server/what-is-license-server/" rel="noopener noreferrer">description</a>. Offline mode is also possible as an add-on to the Perpetual license. <a target="_blank" href="/contact-us/" rel="noopener noreferrer">Contact our sales team</a> to know more.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-offline-access',
@@ -200,7 +205,7 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'pe-pay-as-you-go-high-availability',
 				question: 'Does ThingsBoard support high-availability (HA) setups?',
-				answer: '<p>Yes, High Availability (HA) is supported and can be achieved through ThingsBoard services and database replication. Please note that each ThingsBoard replica will require a separate license.</p>',
+				answer: '<p>Yes, High Availability (HA) is supported and can be achieved through ThingsBoard services and database replication. Each ThingsBoard node counts as one production instance, so an HA cluster needs at least two production instances. You can add them to your existing license; a separate license is not required.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-backup',
@@ -263,13 +268,8 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 	},
 	{
 		id: 'trialsCancellationsAndRefunds',
-		label: 'Trials, Cancellations & Refunds',
+		label: 'Cancellations & Refunds',
 		items: [
-			{
-				id: 'pe-pay-as-you-go-try-license',
-				question: 'Can I try an on-premises license before subscribing?',
-				answer: '<p>Yes, the Free plan is the best way to explore the platform. It also includes trial license for Edge and Trendz products, so you can fully test the ThingsBoard ecosystem.</p>',
-			},
 			{
 				// Not 'pe-pay-as-you-go-cancel-subscription': that id belongs to the
 				// "Billing & Payments" item above, and item ids are DOM ids.

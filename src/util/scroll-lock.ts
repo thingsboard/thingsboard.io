@@ -13,13 +13,14 @@ const HTML_LOCK_CLASS = 'tb-scroll-locked';
 // Full-width fixed bars padded from the inside to absorb the freed scrollbar
 // width. The promo banner sits above the site header; both compensate the same.
 const BAR_SELECTORS = ['#promo-banner', 'header.header'];
-const CHAT_SELECTOR = '.ygpt-chatbot';
+// Our launcher (`YourGptWidget.astro`) and, once loaded, the YourGPT window; both position by the same variable.
+const CHAT_SELECTOR = '.ygpt-chatbot, #chat-launcher';
 const CHAT_POSITION_VAR = '--yourgptChatbotPositionX';
 
 let locked = false;
 let htmlOriginalPadding = '';
-let chatOriginalX = '';
-let chatCompensated = false;
+// The chat elements compensated by the active lock + their pre-lock inline offset. Drained on unlock.
+const compensatedChats: { el: HTMLElement; original: string }[] = [];
 // Bars compensated by the active lock + their pre-lock inline padding, so
 // unlockScroll restores each exactly. Drained on unlock.
 const compensatedBars: { selector: string; original: string }[] = [];
@@ -81,14 +82,12 @@ export function lockScroll(): void {
 			if (bar) compensatedBars.push(bar);
 		}
 
-		// Chat widget pins itself with a CSS-variable offset — shift it too.
-		const chat = document.querySelector<HTMLElement>(CHAT_SELECTOR);
-		if (chat) {
-			chatOriginalX = chat.style.getPropertyValue(CHAT_POSITION_VAR);
-			const cur =
-				parseFloat(getComputedStyle(chat).getPropertyValue(CHAT_POSITION_VAR)) || 0;
-			chat.style.setProperty(CHAT_POSITION_VAR, `${cur + sw}px`);
-			chatCompensated = true;
+		// The chat pins itself with a CSS-variable offset — shift it too.
+		for (const el of document.querySelectorAll<HTMLElement>(CHAT_SELECTOR)) {
+			const original = el.style.getPropertyValue(CHAT_POSITION_VAR);
+			const cur = parseFloat(getComputedStyle(el).getPropertyValue(CHAT_POSITION_VAR)) || 0;
+			el.style.setProperty(CHAT_POSITION_VAR, `${cur + sw}px`);
+			compensatedChats.push({ el, original });
 		}
 	}
 }
@@ -106,12 +105,8 @@ export function unlockScroll(): void {
 		restoreBar(selector, original);
 	}
 
-	if (chatCompensated) {
-		const chat = document.querySelector<HTMLElement>(CHAT_SELECTOR);
-		if (chat) {
-			if (chatOriginalX) chat.style.setProperty(CHAT_POSITION_VAR, chatOriginalX);
-			else chat.style.removeProperty(CHAT_POSITION_VAR);
-		}
-		chatCompensated = false;
+	for (const { el, original } of compensatedChats.splice(0)) {
+		if (original) el.style.setProperty(CHAT_POSITION_VAR, original);
+		else el.style.removeProperty(CHAT_POSITION_VAR);
 	}
 }

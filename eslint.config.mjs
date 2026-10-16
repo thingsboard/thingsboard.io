@@ -38,4 +38,11 @@ export default defineConfig([
 			globals: globals.node,
 		},
 	},
+	// Set globals for plain browser scripts, which pages may inline as is.
+	{
+		files: ['src/scripts/**/*.js'],
+		languageOptions: {
+			globals: globals.browser,
+		},
+	},
 ]);

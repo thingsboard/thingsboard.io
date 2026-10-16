@@ -16,6 +16,12 @@ export const CE_FULL_VER = '4.3.1.6';
  */
 export const SOURCE_AVAILABLE_FROM_VER = '4.4';
 
+/**
+ * First Community Edition release that can register a deployment for the Community Grant Program.
+ * A policy boundary, not a release pointer — it does not move with each release.
+ */
+export const COMMUNITY_GRANT_FROM_VER = '4.3.1.6';
+
 /** Day the relicensing is announced — the date every Community Grant is measured against. */
 export const SOURCE_AVAILABLE_ANNOUNCEMENT_DATE = '2026-09-29';
 
@@ -73,7 +79,7 @@ export const PE_RELEASE_URL = `https://github.com/thingsboard/thingsboard/releas
 export const PE_BRANCH = 'release-4.4';
 
 /** Trendz Analytics */
-export const TRENDZ_VER = '1.16.0';
+export const TRENDZ_VER = '1.16.0.1';
 
 /** Remote Agent — Docker image tag for `thingsboard/tb-remote-agent:${AGENT_VER}`. */
 export const AGENT_VER = '1.0.0';

@@ -17,7 +17,6 @@ export interface ApplicationItem {
 	title: string;
 	description: string;
 	desktopImage: string;
-	mobileImage: string;
 	imageAlt: string;
 	imageTitle?: string;
 }

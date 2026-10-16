@@ -1,7 +1,8 @@
 ---
-import SmartImage from '../SmartImage.astro';
-import SectionBadge from '../SectionBadge.astro';
+import SmartImage from '@components/SmartImage.astro';
+import SectionBadge from '@components/SectionBadge.astro';
 import type { ApplicationItem } from '@data/use-cases/types.ts';
+import { ICON_RING_GEOMETRY } from '@components/UseCase/icon-ring-geometry.ts';
 
 interface Props {
 	title: string;
@@ -15,6 +16,59 @@ const { title, badge, subtitle, applications } = Astro.props;
 // Zigzag: odd-indexed items (0, 2, 4) text on top, even-indexed (1, 3) text on bottom
 const topApps = applications.filter((_, i) => i % 2 === 0);
 const bottomApps = applications.filter((_, i) => i % 2 !== 0);
+
+// Every application icon ships a `-dark.svg` sibling recoloured for dark mode
+// (brand indigo → #b3c7ff, CE navy → #78b4f5); the styles swap to it.
+// Only the keys are read (SmartImage resolves the URL), so the glob stays lazy and
+// shares SmartImage's own `?url` loaders instead of importing every icon up front.
+const darkVariants = import.meta.glob('/src/assets/images/usecases/**/*-dark.svg', {
+	query: '?url',
+	import: 'default',
+});
+const darkSrcFor = (src: string) => src.replace(/\.svg$/, '-dark.svg');
+
+// Every icon needs a ring-geometry entry (the desktop height and the mobile crop read it)
+// and a local `-dark.svg`. Name any that lack one, rather than failing on an undefined
+// entry or pointing the dark copy at a CDN fallback URL that does not exist.
+const noGeometry = applications.filter((app) => !ICON_RING_GEOMETRY[app.desktopImage]);
+const noDark = applications.filter((app) => !(darkSrcFor(app.desktopImage) in darkVariants));
+if (noGeometry.length > 0 || noDark.length > 0) {
+	const errors: string[] = [];
+	if (noGeometry.length > 0) {
+		errors.push(
+			`no ring geometry — add an entry to src/components/UseCase/icon-ring-geometry.ts: ${noGeometry.map((app) => app.desktopImage).join(', ')}`
+		);
+	}
+	if (noDark.length > 0) {
+		errors.push(
+			`no dark variant — add these files: ${noDark.map((app) => darkSrcFor(app.desktopImage)).join(', ')}`
+		);
+	}
+	throw new Error(`[use-cases] "${title}" application icons: ${errors.join(' | ')}`);
+}
+
+// Desktop icons are taller than wide; the real height keeps a not-yet-loaded copy
+// (e.g. the other theme's, fetched on a switch) at its final size.
+const DESKTOP_W = 180;
+const desktopHeight = (src: string) => Math.round(DESKTOP_W * ICON_RING_GEOMETRY[src].aspect);
+
+// Mobile "just circles": the desktop node SVG bakes in timeline connectors that
+// extend outside the ring. Instead of the (rotated) mobile variants, we reuse the
+// desktop icon and crop to the ring via a circular viewport — scaling so the ring
+// fills the viewport and translating so it centers (ring geometry differs per node
+// because of the zigzag). Returns the inline metrics.
+const MOBILE_D = 120; // circular viewport diameter (px)
+const MOBILE_FILL = 0.94; // ring fills 94% of the viewport, leaving a small margin
+const mobileCrop = (src: string) => {
+	const g = ICON_RING_GEOMETRY[src];
+	const imgW = (MOBILE_FILL * MOBILE_D) / (2 * g.r);
+	const imgH = imgW * g.aspect;
+	return {
+		width: Math.round(imgW),
+		height: Math.round(imgH),
+		style: `width:${imgW.toFixed(1)}px;height:${imgH.toFixed(1)}px;transform:translate(${(MOBILE_D / 2 - g.cx * imgW).toFixed(1)}px,${(MOBILE_D / 2 - g.cy * imgH).toFixed(1)}px)`,
+	};
+};
 ---
 
 <section class="uc-applications uc-section-padding">
@@ -43,16 +97,28 @@ const bottomApps = applications.filter((_, i) => i % 2 !== 0);
 
 		<div class="uc-images-row">
 			{
-				applications.map((app) => (
-					<div class="uc-app-image">
-						<SmartImage
-							src={app.desktopImage}
-							alt={app.imageAlt}
-							width={180}
-							height={180}
-						/>
-					</div>
-				))
+				applications.map((app) => {
+					const darkSrc = darkSrcFor(app.desktopImage);
+					const height = desktopHeight(app.desktopImage);
+					return (
+						<div class="uc-app-image">
+							<SmartImage
+								src={app.desktopImage}
+								alt={app.imageAlt}
+								width={DESKTOP_W}
+								height={height}
+								class="uc-ic uc-ic--light"
+							/>
+							<SmartImage
+								src={darkSrc}
+								alt={app.imageAlt}
+								width={DESKTOP_W}
+								height={height}
+								class="uc-ic uc-ic--dark"
+							/>
+						</div>
+					);
+				})
 			}
 		</div>
 
@@ -71,22 +137,39 @@ const bottomApps = applications.filter((_, i) => i % 2 !== 0);
 	{/* Mobile: alternating image-text blocks */}
 	<div class="uc-applications-small">
 		{
-			applications.map((app) => (
-				<div class="uc-app-block">
-					<div class="uc-app-block-image">
-						<SmartImage
-							src={app.mobileImage}
-							alt={app.imageAlt}
-							width={120}
-							height={120}
-						/>
+			applications.map((app) => {
+				// Mobile reuses the DESKTOP icon, cropped to the ring (no rotated variant).
+				const crop = mobileCrop(app.desktopImage);
+				const darkSrc = darkSrcFor(app.desktopImage);
+				return (
+					<div class="uc-app-block">
+						<div class="uc-app-block-image">
+							<div class="uc-circle-crop">
+								<SmartImage
+									src={app.desktopImage}
+									alt={app.imageAlt}
+									width={crop.width}
+									height={crop.height}
+									style={crop.style}
+									class="uc-crop-img uc-ic uc-ic--light"
+								/>
+								<SmartImage
+									src={darkSrc}
+									alt={app.imageAlt}
+									width={crop.width}
+									height={crop.height}
+									style={crop.style}
+									class="uc-crop-img uc-ic uc-ic--dark"
+								/>
+							</div>
+						</div>
+						<div class="uc-app-block-text">
+							<h3>{app.title}</h3>
+							<p>{app.description}</p>
+						</div>
 					</div>
-					<div class="uc-app-block-text">
-						<h3>{app.title}</h3>
-						<p>{app.description}</p>
-					</div>
-				</div>
-			))
+				);
+			})
 		}
 	</div>
 </section>
@@ -189,10 +272,24 @@ const bottomApps = applications.filter((_, i) => i % 2 !== 0);
 		text-align: center;
 		gap: $spacing-3;
 
+		// Cropped "just circles": circular viewport over the desktop icon.
 		.uc-app-block-image {
-			img {
+			width: 120px;
+			height: 120px;
+
+			.uc-circle-crop {
+				position: relative;
 				width: 120px;
-				height: auto;
+				height: 120px;
+				border-radius: 50%;
+				overflow: hidden;
+			}
+
+			.uc-crop-img {
+				position: absolute;
+				top: 0;
+				left: 0;
+				max-width: none; // width/transform come from the inline style
 			}
 		}
 
@@ -209,6 +306,24 @@ const bottomApps = applications.filter((_, i) => i % 2 !== 0);
 				@include text-card;
 				margin: 0;
 			}
+		}
+	}
+
+	// ── Dark mode ──────────────────────────────────
+	// Every application icon ships a `-dark.svg` sibling, recoloured to the dark
+	// token for its family (brand indigo → #b3c7ff, CE navy → #78b4f5); swap to it
+	// in dark mode.
+	.uc-ic--dark {
+		display: none;
+	}
+
+	[data-theme='dark'] {
+		.uc-ic--light {
+			display: none;
+		}
+		// Inline like the light copy, so the row keeps its height.
+		.uc-ic--dark {
+			display: inline;
 		}
 	}
 
