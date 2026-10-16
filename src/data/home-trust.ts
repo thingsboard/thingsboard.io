@@ -10,7 +10,7 @@ interface TrustPoint {
 }
 
 export const TRUST_HEADING = {
-	title: 'Safe to build on',
+	title: 'A trusted foundation for enterprise IoT',
 	subtitle: 'Certified, ready to scale and open to extend, whichever way you deploy it.',
 };
 

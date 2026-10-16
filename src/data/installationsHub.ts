@@ -65,7 +65,7 @@ export const installProducts: InstallProduct[] = [
 		nameHighlight: 'Cloud',
 		label: 'Fully managed, shared or dedicated',
 		description:
-			'Nothing to install. Pick the region your data lives in and start on a free plan; we run the servers, scaling, backups and upgrades.',
+			'Sign up and start in 5 minutes — we handle servers, scaling, backups, and upgrades. Start on the free plan and move to a paid subscription as you grow.',
 		icon: TB_ICON,
 		badgeFill: 'var(--color-product-cloud)',
 		links: [{ label: 'See plans', href: '/pricing/?product=thingsboard-cloud' }],
@@ -93,7 +93,7 @@ export const installProducts: InstallProduct[] = [
 		nameHighlight: 'On-premises',
 		label: 'Self-managed, on your infrastructure',
 		description:
-			'Run ThingsBoard on your own servers, in a cloud account, or fully offline, and keep your data on your infrastructure. Installation is free; see the pricing page for licensing the advanced features.',
+			'Run ThingsBoard on your own servers, in a cloud account, or fully offline, and keep your data on your infrastructure. Installation is free — you pay only when you scale beyond the free tier or need your own branding.',
 		icon: TB_ICON,
 		badgeFill: 'var(--brand-pe)',
 		buttonIcon: 'tabler:server',
@@ -203,9 +203,9 @@ export const installProducts: InstallProduct[] = [
 		id: 'trendz',
 		name: 'Trendz Analytics',
 		nameHighlight: 'Trendz',
-		label: 'Analytics & AI',
+		label: 'AI-Powered IoT Analytics',
 		description:
-			'Predictive analytics, anomaly detection and forecasting. Explore your data without code using natural-language queries, and run AI agents over it.',
+			'Turns telemetry into business KPIs and actionable insights — forecasting, anomaly detection, predictive maintenance. Build metrics and explore data without code.',
 		icon: { src: mark('ce/trendz-icon.svg'), view: 54, art: [0, 1, 54, 37.63] },
 		accent: '#1976d2',
 		primary: { label: 'Installation guide', href: '/docs/trendz/installation/' },
@@ -247,7 +247,7 @@ export const installProducts: InstallProduct[] = [
 		name: 'IoT Gateway',
 		label: 'Protocol bridge',
 		description:
-			'Brings legacy equipment online. Modbus, OPC UA, BACnet, SNMP, KNX and 25+ industrial protocols, translated to MQTT. Open-source, runs on a Raspberry Pi or industrial PC.',
+			'Brings legacy equipment online. Modbus, OPC UA, BACnet, SNMP, KNX and 25+ industrial protocols, translated to MQTT. Open-source, runs on any hardware.',
 		icon: { src: mark('ce/gateway-icon.svg'), view: 54, art: [6.33, 4.26, 41.34, 45.48] },
 		accent: '#7b3fe4',
 		primary: { label: 'Installation guide', href: '/docs/iot-gateway/installation/' },
