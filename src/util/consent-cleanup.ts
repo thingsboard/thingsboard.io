@@ -7,7 +7,6 @@ interface CategoryStorage {
 	localStorage: string[];
 }
 
-// Clarity, Meta and LinkedIn are not on the site now; their names are listed for when they return.
 const CATEGORY_STORAGE: Record<TbConsentCategory, CategoryStorage> = {
 	analytics: {
 		// Google Analytics; Microsoft Clarity.

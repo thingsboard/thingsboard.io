@@ -156,6 +156,5 @@ export const VOICES_STATS = [
 
 export const VOICES_COPY = {
 	title: 'Proven in production',
-	lede: 'Every one of these is a system someone’s business runs on.',
-	all: { text: 'Read all client feedback', href: '/clients-feedback/' },
+	lede: 'From small pilots to global enterprises — IoT projects running on ThingsBoard.',
 };

@@ -21,18 +21,18 @@ export const CONSENT_DIALOG_INTRO =
 
 export const NECESSARY_COOKIES_DESCRIPTION = 'Security, load balancing and remembering your cookie choice.';
 
-// Marketing becomes "(Google Ads, LinkedIn, Meta, partner program)" on the day LinkedIn and Meta return.
 export const CONSENT_CATEGORIES: { id: TbConsentCategory; title: string; description: string }[] = [
 	{
 		id: 'analytics',
 		title: 'Analytics',
-		description: 'Show us which pages people read and how they find the site, so we can improve it (Google Analytics).',
+		description:
+			'Show us which pages people read, how they find the site and where they get stuck, so we can improve it (Google Analytics, Microsoft Clarity).',
 	},
 	{
 		id: 'marketing',
 		title: 'Marketing',
 		description:
-			'Show us which of our ad campaigns bring visitors to the site and remember the campaign or partner link you arrived from (Google Ads, partner program). We do not use these cookies to build advertising profiles.',
+			'Show us which of our ad campaigns bring visitors to the site and remember the campaign or partner link you arrived from (Google Ads, LinkedIn, Meta, partner program). We do not use these cookies to build advertising profiles.',
 	},
 	{
 		id: 'media',
