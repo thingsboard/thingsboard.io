@@ -23,9 +23,14 @@ export function bindModalDialog(dialog: HTMLDialogElement, { fadeMs = 0 }: Modal
 	if (existing) return existing;
 	let unlockTimer = 0;
 
-	// A click on the dialog element itself landed on the backdrop: the panel fills the dialog box.
+	// The panel fills the dialog box, so a click on the dialog element itself landed on the backdrop. The press
+	// must have too: a text selection dragged out of a field ends with a click on the dialog.
+	let pressedBackdrop = false;
+	dialog.addEventListener('pointerdown', (e) => {
+		pressedBackdrop = e.target === dialog;
+	});
 	dialog.addEventListener('click', (e) => {
-		if (e.target === dialog) dialog.close();
+		if (e.target === dialog && pressedBackdrop) dialog.close();
 	});
 
 	dialog.addEventListener('close', () => {
