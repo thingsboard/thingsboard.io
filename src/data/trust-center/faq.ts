@@ -130,7 +130,7 @@ export const TC_FAQ: FaqCategory[] = [
 				id: 'fixes',
 				question: 'How do I get security fixes?',
 				answer:
-					'<p>Security fixes ship in patch releases that need no environment or database changes, so you can upgrade within the same maintenance line without downtime. Fixed CVE IDs are listed in the release notes. For production, use the latest LTS line and a three-part tag such as 4.2.1-latest to receive hotfixes automatically.</p>',
+					'<p>Security fixes ship in maintenance and patch releases of your release line. They need no upgrade script: ThingsBoard applies any database changes in the background after startup. Fixed CVE IDs are listed in the release notes. For production, use the latest LTS line and pin a tag such as 4.4.0-latest to receive patches automatically.</p>',
 			},
 			{
 				id: 'internet',

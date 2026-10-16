@@ -213,7 +213,7 @@ const CAT_APPSEC: CatalogRow[] = [
 	},
 	{
 		title: 'Security fixes and CVEs',
-		html: 'Security fixes ship in patch releases that need no environment or database changes. Fixed CVE IDs are listed in the Security section of the release notes.',
+		html: 'Security fixes ship in maintenance and patch releases, which need no upgrade script. Fixed CVE IDs are listed in the Security section of the release notes.',
 		docs: '/docs/pe/releases/releases-table/',
 	},
 	{

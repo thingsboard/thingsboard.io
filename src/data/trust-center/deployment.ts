@@ -167,7 +167,7 @@ export const ONPREM_FACTS: Fact[] = [
 	},
 	{
 		label: 'Security fixes',
-		html: 'Patch releases with no environment or database changes, so you can apply them without downtime. Fixed CVE IDs are listed in the release notes. Pin a three-part tag such as 4.2.1-latest to receive hotfixes automatically.',
+		html: 'Maintenance and patch releases of your release line, with no upgrade script: database changes apply in the background after startup. Fixed CVE IDs are listed in the release notes. Pin a tag such as 4.4.0-latest to receive patches automatically.',
 	},
 	{
 		label: 'Release support',

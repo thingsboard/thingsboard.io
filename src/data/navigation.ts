@@ -303,6 +303,12 @@ export const companySubmenu: SubMenu = {
 					linkClass: 'small-link',
 				},
 				{
+					href: '/trust-center/',
+					icon: '/src/assets/images/landings/nav/trust-s-icon.svg',
+					heading: 'Trust Center',
+					linkClass: 'small-link',
+				},
+				{
 					href: '/contact-us/',
 					icon: '/src/assets/images/landings/nav/contact-s-icon.svg',
 					heading: 'Contact us',
