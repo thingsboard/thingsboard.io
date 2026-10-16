@@ -31,8 +31,8 @@ Use AWS Kinesis Integration when:
 
 - Access to {props.product !== Products.PAAS && props.product !== Products.PAAS_EU && <><DocLink product={Products.PE} path="installation/" target="_blank">ThingsBoard</DocLink> or </>}<a href="/installations/?product=thingsboard-cloud" target="_blank"><strong>ThingsBoard Cloud</strong></a> with integrations enabled for your tenant.
 - Permission to create integrations and data converters, and to edit rule chains for downlink.
-- An <a href="https://aws.amazon.com/" target="_blank" rel="noopener noreferrer"><strong>AWS account</strong></a> with permission to create Kinesis data streams, IAM users, and IAM policies.
-- The <a href="https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html" target="_blank" rel="noopener noreferrer"><strong>AWS CLI</strong></a> version 2, configured with `aws configure` for the Region you use. This guide uses it to create the streams and send test records.
+- An <a href="https://aws.amazon.com/" target="_blank" rel="noopener noreferrer"><strong>AWS account</strong></a> on a paid plan, with permission to create Kinesis data streams, IAM users, and IAM policies. Kinesis Data Streams is not available on the AWS Free plan.
+- The <a href="https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html" target="_blank" rel="noopener noreferrer"><strong>AWS CLI</strong></a> version 2, configured with `aws configure` for the Region you use, or <a href="https://docs.aws.amazon.com/cloudshell/latest/userguide/welcome.html" target="_blank" rel="noopener noreferrer"><strong>AWS CloudShell</strong></a> in the AWS console, where the CLI is already configured for the console Region. This guide uses the CLI to create the streams and send test records.
 
 ## Prepare AWS Kinesis
 
@@ -47,23 +47,71 @@ aws kinesis create-stream --stream-name my-thingsboard --shard-count 1
 aws kinesis create-stream --stream-name tb-test-downlink --shard-count 1
 ```
 
-Wait until both streams are active. The command returns when `StreamStatus` is `ACTIVE`:
+On success, the commands print nothing. With `--shard-count`, each stream uses provisioned capacity with one shard.
+
+Wait until both streams are active. Each command returns without output when `StreamStatus` is `ACTIVE`, usually within a minute:
 
 ```bash
 aws kinesis wait stream-exists --stream-name my-thingsboard
 aws kinesis wait stream-exists --stream-name tb-test-downlink
 ```
 
+To check a stream, read its status, capacity mode, and shard count:
+
+```bash
+aws kinesis describe-stream-summary --stream-name my-thingsboard \
+  --query 'StreamDescriptionSummary.[StreamStatus,StreamModeDetails.StreamMode,OpenShardCount]'
+```
+
+The output lists `ACTIVE`, `PROVISIONED`, and `1`.
+
+<Aside type="caution" title="Streams cost money while they exist">
+  AWS bills a provisioned stream for every shard-hour, even when no records flow. Delete the test streams when you finish. See **[Clean Up](#clean-up)**.
+</Aside>
+
 ### Create IAM Credentials
 
 Besides Kinesis, the integration uses Amazon DynamoDB and Amazon CloudWatch. KCL creates three DynamoDB tables named after the **Application name** of the integration (by default, the stream name): a lease table with checkpoints, `<name>-CoordinatorState`, and `<name>-WorkerMetricStats`. KCL and KPL also publish metrics to CloudWatch.
 
 <Steps>
-1. In the AWS console, open **IAM &#8702; Users** and click **Create user**. Enter a name, for example `thingsboard-kinesis`, and complete the wizard.
-2. Open the user, go to the **Permissions** tab, and click **Add permissions &#8702; Create inline policy**.
-3. Select **JSON**, paste the policy below, replace `REGION` and `ACCOUNT_ID`, and save it.
-4. Open the **Security credentials** tab and click **Create access key**. Select a use case, for example **Application running outside AWS**, and click **Create access key**.
-5. Copy the **Access key** and **Secret access key**. AWS shows the secret only once.
+1. Create the user. In the AWS console, open **IAM &#8702; IAM users** and click **Create user**.
+   - **Specify user details** — enter a name, for example `thingsboard-kinesis`. Leave **Provide user access to the AWS Management Console** off: the integration needs only an access key.
+   - **Set permissions** — select no group and no policy. The user gets only the policy from step 3.
+   - **Review and create** — click **Create user**.
+
+   <ImageGallery images={[
+     { src: '/src/assets/images/user-guide/integrations/aws-kinesis/aws-kinesis-iam-user-1.png', alt: 'IAM Create user wizard, Specify user details step, with User name thingsboard-kinesis and console access turned off', caption: 'Enter the user name and leave console access off.' },
+     { src: '/src/assets/images/user-guide/integrations/aws-kinesis/aws-kinesis-iam-user-2.png', alt: 'IAM Create user wizard, Set permissions step, with no user group selected', caption: 'Select no group and no policy.' },
+     { src: '/src/assets/images/user-guide/integrations/aws-kinesis/aws-kinesis-iam-user-3.png', alt: 'IAM Create user wizard, Review and create step, with an empty permissions summary', caption: 'The permissions summary is empty. Click Create user.' },
+   ]} />
+2. The page of the new user opens. On the **Permissions** tab, click **Add permissions &#8702; Create inline policy**.
+
+   <ImageGallery cardMode images={[
+     { src: '/src/assets/images/user-guide/integrations/aws-kinesis/aws-kinesis-iam-policy-1.png', alt: 'IAM user thingsboard-kinesis, Permissions tab, Add permissions menu with Create inline policy', caption: 'Click Add permissions, then Create inline policy.' },
+   ]} />
+3. In the **Policy editor**, switch to **JSON** and replace the content with the policy below. Replace `REGION` and `ACCOUNT_ID` with your Region and AWS account ID. Click **Next**, enter a **Policy name**, for example `thingsboard-kinesis-policy`, and click **Create policy**.
+
+   <ImageGallery images={[
+     { src: '/src/assets/images/user-guide/integrations/aws-kinesis/aws-kinesis-iam-policy-2.png', alt: 'IAM Policy editor in JSON mode with the integration policy and no errors or warnings', caption: 'Paste the policy. The editor reports no errors or warnings.' },
+     { src: '/src/assets/images/user-guide/integrations/aws-kinesis/aws-kinesis-iam-policy-3.png', alt: 'IAM Create policy, Review and create step, with Policy name thingsboard-kinesis-policy and CloudWatch, DynamoDB, and Kinesis permissions', caption: 'Name the policy and check that it covers CloudWatch, DynamoDB, and Kinesis.' },
+     { src: '/src/assets/images/user-guide/integrations/aws-kinesis/aws-kinesis-iam-policy-4.png', alt: 'IAM user thingsboard-kinesis, Security credentials tab, with the Policy thingsboard-kinesis-policy created banner and the Create access key button', caption: 'The policy is created. Next, open the Security credentials tab and click Create access key.' },
+   ]} />
+4. Open the **Security credentials** tab and click **Create access key**. Select **Application running outside AWS** and click **Next**. AWS recommends temporary credentials instead; the integration needs an access key, so continue.
+
+   <ImageGallery cardMode images={[
+     { src: '/src/assets/images/user-guide/integrations/aws-kinesis/aws-kinesis-iam-access-key-1.png', alt: 'Create access key wizard with the use case Application running outside AWS selected', caption: 'Select Application running outside AWS.' },
+   ]} />
+5. Optionally, enter a **Description tag value**, for example `ThingsBoard Kinesis integration`, and click **Create access key**.
+
+   <ImageGallery cardMode images={[
+     { src: '/src/assets/images/user-guide/integrations/aws-kinesis/aws-kinesis-iam-access-key-2.png', alt: 'Create access key wizard, Set description tag step, with the value ThingsBoard Kinesis integration', caption: 'Optionally, describe the key.' },
+   ]} />
+6. On **Retrieve access keys**, copy the **Access key** and the **Secret access key**, or click **Download .csv file**. AWS shows the secret only once. Then click **Done**.
+
+   <ImageGallery images={[
+     { src: '/src/assets/images/user-guide/integrations/aws-kinesis/aws-kinesis-iam-access-key-3.png', alt: 'Create access key wizard, Retrieve access keys step, with the access key and the hidden secret access key', caption: 'Copy both keys or download the .csv file.' },
+     { src: '/src/assets/images/user-guide/integrations/aws-kinesis/aws-kinesis-iam-access-key-4.png', alt: 'IAM user thingsboard-kinesis, Access keys section with one active key and its description', caption: 'The user has one active access key.' },
+   ]} />
 </Steps>
 
 ```json maxLines=15 collapsible
@@ -129,21 +177,26 @@ Besides Kinesis, the integration uses Amazon DynamoDB and Amazon CloudWatch. KCL
   If you set a custom **Application name**, use it instead of `my-thingsboard` in the DynamoDB ARNs. For **Use Consumers with Enhanced Fan-Out**, also allow `kinesis:RegisterStreamConsumer` on the stream, and `kinesis:SubscribeToShard` and `kinesis:DescribeStreamConsumer` on `arn:aws:kinesis:REGION:ACCOUNT_ID:stream/my-thingsboard/consumer/*`. See <a href="https://docs.aws.amazon.com/streams/latest/dev/kcl-iam-permissions.html" target="_blank" rel="noopener noreferrer"><strong>IAM permissions for KCL consumers</strong></a>.
 </Aside>
 
+<Aside type="tip" title="ThingsBoard on Amazon EC2">
+  If ThingsBoard or the remote integration runs on Amazon EC2, skip the access key. Attach the policy to the IAM role of the instance and turn on **Use credentials from the Amazon EC2 Instance Metadata Service** in the integration.
+</Aside>
+
 ## Set Up AWS Kinesis Integration
 
 Create the uplink converter, assign it to a new AWS Kinesis integration, and write a test record.
 
 ### Create the Uplink Data Converter
 
-The uplink converter receives the data of each record as a byte array, resolves the target device, and returns its telemetry. AWS Kinesis Integration uses the **Generic** converter: you write the decoder in TBEL or JavaScript. For converter types and the full decoder reference, see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#converter-types" target="_blank">Uplink data converter</DocLink>.
+The uplink converter receives the data of each record as a byte array, resolves the target device, and returns its telemetry and attributes. AWS Kinesis Integration uses the **Generic** converter: the decoder is a TBEL or JavaScript script. For converter types and the full decoder reference, see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#converter-types" target="_blank">Uplink data converter</DocLink>.
 
-This guide uses a producer that writes records like this:
+Kinesis does not define a record format. This guide uses the sample record that the **Test decoder function** dialog provides by default:
 
 ```json
 {
-  "devName": "kitchen_thermostat",
-  "devType": "thermostat",
-  "temperature": 22
+    "deviceName": "Thermometer",
+    "deviceType": "thermostat",
+    "serialNumber": "SN-12345",
+    "temperature": 25.5
 }
 ```
 
@@ -152,50 +205,188 @@ This guide uses a producer that writes records like this:
 2. **Converter type** — keep **Uplink**.
 3. **Integration type** — select **AWS Kinesis**.
 4. **Name** — enter a name, for example `AWS Kinesis Uplink Converter`.
-5. **Main decoding configuration** — the editor opens with the generic decoder template. Replace it with the decoder below. It maps `devName` to the device name, `devType` to the device type, and `temperature` to telemetry. The editor opens in TBEL; use the **TBEL / JS** toggle to switch to JavaScript.
+5. **Main decoding configuration** — the editor opens with the default decoder below. It already handles this record format, so keep it. It takes `deviceName` and `deviceType` from the record, the time from `ts` (milliseconds) or `timestamp` (ISO 8601), stores the keys in `attributeKeyList` (here `serialNumber`) as attributes, and stores all other fields as telemetry. When the record has no time field, it uses the server time. The editor opens in TBEL; use the **TBEL / JS** toggle to switch to JavaScript.
    <Aside type="tip" title="TBEL">
      Use <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL</DocLink> for converter scripts — it runs much faster than JavaScript inside ThingsBoard.
    </Aside>
    <Tabs>
      <TabItem label="TBEL (Recommended)">
-       ```js
-       var data = decodeToJson(payload);
-       var deviceName = data.devName;
-       var deviceType = data.devType;
+       ```js maxLines=15 collapsible
+       // Decode an uplink message from a buffer
+       // payload - array of bytes
+       // metadata - key/value object
 
-       var result = {
-           deviceName: deviceName,
-           deviceType: deviceType,
-           telemetry: {
-               temperature: data.temperature
+       /** Decoder **/
+
+       // decode payload to JSON
+       var data = decodeToJson(payload);
+
+       // --- Device name and type ---
+       var deviceName = data.deviceName != null ? data.deviceName : 'Unknown Device';
+       var deviceType = data.deviceType != null ? data.deviceType : 'default';
+       // var customerName = 'Customer C';
+       // var groupName = 'thermostat devices';
+
+       // use assetName and assetType instead of deviceName and deviceType
+       // to automatically create assets instead of devices.
+       // var assetName = 'Asset A';
+       // var assetType = 'building';
+
+       // --- Timestamp parsing ---
+       var timestamp = -1;
+       if (data.ts != null) {
+           timestamp = data.ts;
+       } else if (data.timestamp != null) {
+           timestamp = new Date(data.timestamp).getTime();
+       }
+       if (timestamp == -1) {
+           timestamp = Date.now();
+       }
+
+       // --- Telemetry and attributes ---
+       var telemetry = {};
+
+       // Keys from the payload that should be stored as attributes instead of telemetry
+       var attributeKeyList = ["serialNumber"];
+
+       // Add the payload keys that match the attribute key list to attributes
+       var attributes = {};
+       for (var i = 0; i < attributeKeyList.size(); i++) {
+           var attributeKey = attributeKeyList[i];
+           if (data[attributeKey] != null) {
+               attributes[attributeKey] = data[attributeKey];
            }
+       }
+
+       // Keys to exclude from telemetry (device info, attributes and non-telemetry fields)
+       var excludeFromTelemetryList = ["deviceName", "deviceType", "ts", "timestamp"];
+       excludeFromTelemetryList.addAll(attributeKeyList);
+
+       // Parse all remaining JSON fields as telemetry
+       telemetry.putAll(toFlatMap(data, excludeFromTelemetryList, true));
+
+       // Result object with device attributes/telemetry data
+       var result = {
+          deviceName: deviceName,
+          deviceType: deviceType,
+       // customerName: customerName,
+       // groupName: groupName,
+       // assetName: assetName,
+       // assetType: assetType,
        };
+
+       // Add attributes to the result only if at least one matching key was found
+       if (attributes.size() > 0) {
+          result.put("attributes", attributes);
+       }
+
+       result.put("telemetry", {
+          ts: timestamp,
+          values: telemetry
+       });
+
+       /** Helper functions 'decodeToString', 'decodeToJson' and 'toFlatMap' are already built-in **/
 
        return result;
        ```
      </TabItem>
      <TabItem label="JavaScript">
        ```js maxLines=15 collapsible
-       var data = decodeToJson(payload);
-       var deviceName = data.devName;
-       var deviceType = data.devType;
+       // Decode an uplink message from a buffer
+       // payload - array of bytes
+       // metadata - key/value object
 
-       var result = {
-           deviceName: deviceName,
-           deviceType: deviceType,
-           telemetry: {
-               temperature: data.temperature
+       /** Decoder **/
+
+       // decode payload to JSON
+       var data = decodeToJson(payload);
+
+       // --- Device name and type ---
+       var deviceName = data.deviceName != null ? data.deviceName : 'Unknown Device';
+       var deviceType = data.deviceType != null ? data.deviceType : 'default';
+       // var customerName = 'Customer C';
+       // var groupName = 'thermostat devices';
+
+       // use assetName and assetType instead of deviceName and deviceType
+       // to automatically create assets instead of devices.
+       // var assetName = 'Asset A';
+       // var assetType = 'building';
+
+       // --- Timestamp parsing ---
+       var timestamp = -1;
+       if (data.ts != null) {
+           timestamp = data.ts;
+       } else if (data.timestamp != null) {
+           timestamp = new Date(data.timestamp).getTime();
+       }
+       if (timestamp == -1) {
+           timestamp = Date.now();
+       }
+
+       // --- Telemetry and attributes ---
+       var telemetry = {};
+
+       // Keys from the payload that should be stored as attributes instead of telemetry
+       var attributeKeyList = ["serialNumber"];
+
+       // Add the payload keys that match the attribute key list to attributes
+       var attributes = {};
+       for (var i = 0; i < attributeKeyList.length; i++) {
+           var attributeKey = attributeKeyList[i];
+           if (data[attributeKey] != null) {
+               attributes[attributeKey] = data[attributeKey];
            }
+       }
+
+       // Keys to exclude from telemetry (device info, attributes and non-telemetry fields)
+       var excludeFromTelemetryList = ["deviceName", "deviceType", "ts", "timestamp"].concat(attributeKeyList);
+
+       // Parse all remaining JSON fields as telemetry
+       toFlatMap(data, telemetry, excludeFromTelemetryList);
+
+       // Result object with device attributes/telemetry data
+       var result = {
+          deviceName: deviceName,
+          deviceType: deviceType,
+       // customerName: customerName,
+       // groupName: groupName,
+       // assetName: assetName,
+       // assetType: assetType,
        };
 
+       // Add attributes to the result only if at least one matching key was found
+       if (Object.keys(attributes).length > 0) {
+          result.attributes = attributes;
+       }
+
+       result.telemetry = {
+          ts: timestamp,
+          values: telemetry
+       };
+
+       /** Helper functions **/
+
        function decodeToString(payload) {
-           return String.fromCharCode.apply(String, payload);
+          return String.fromCharCode.apply(String, payload);
        }
 
        function decodeToJson(payload) {
-           var str = decodeToString(payload);
-           var data = JSON.parse(str);
-           return data;
+          var str = decodeToString(payload);
+          return JSON.parse(str);
+       }
+
+       function toFlatMap(obj, result, excludeList, prefix) {
+           prefix = prefix || '';
+           for (var key in obj) {
+               if (excludeList.indexOf(key) !== -1) continue;
+               var value = obj[key];
+               var fullKey = prefix ? prefix + '.' + key : key;
+               if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                   toFlatMap(value, result, excludeList, fullKey);
+               } else {
+                   result[fullKey] = value;
+               }
+           }
        }
 
        return result;
@@ -205,15 +396,14 @@ This guide uses a producer that writes records like this:
 
    **To adapt:**
 
-   - **Other field names** — replace `data.devName`, `data.devType`, and `data.temperature` with the fields of your records.
-   - **Other telemetry** — add keys to `telemetry`, for example `humidity: data.humidity`.
-   - **Device properties** — add an `attributes` object next to `telemetry`, for example `attributes: { model: data.model }`.
+   - **Device name in another field** — replace `data.deviceName` and `data.deviceType`, for example with `data.deviceId`.
    - **Device name from the partition key** — if producers use the device ID as the partition key, use `metadata.partitionKey`.
+   - **Other device properties** — add their keys to `attributeKeyList`, for example `firmwareVersion`.
+   - **Assets instead of devices** — uncomment `assetName` and `assetType` and use them instead of `deviceName` and `deviceType`.
+   - **Customer or group** — uncomment `customerName` or `groupName` to assign the device to a customer or an entity group.
 6. Click **Test decoder function** and check the result (see **[Test the Decoder](#test-the-decoder)**).
 7. Click **Add**.
 </Steps>
-
-To skip copying the code, click **+ Add data converter &#8702; Import converter** instead and import a file with the same decoder: <a href="/resources/docs/integrations/aws-kinesis/aws_kinesis_tbel_uplink_converter.json" download="aws_kinesis_tbel_uplink_converter.json"><strong>TBEL</strong></a> or <a href="/resources/docs/integrations/aws-kinesis/aws_kinesis_javascript_uplink_converter.json" download="aws_kinesis_javascript_uplink_converter.json"><strong>JavaScript</strong></a>.
 
 <h4>Decoder Inputs</h4>
 
@@ -228,17 +418,25 @@ For field renaming, nested values, and non-JSON payloads, see <DocLink product={
 
 <h4 id="test-the-decoder">Test the Decoder</h4>
 
-Click **Test decoder function** below the editor. Set **Payload content type** to **JSON**, paste the sample record, and click **Test**. The **Output** panel shows:
+Click **Test decoder function** below the editor. The **Payload** already holds the sample record. Click **Test**. The **Output** panel shows:
 
 ```json
 {
-  "deviceName": "kitchen_thermostat",
-  "deviceType": "thermostat",
-  "telemetry": {
-    "temperature": 22
-  }
+    "deviceName": "Thermometer",
+    "deviceType": "thermostat",
+    "attributes": {
+        "serialNumber": "SN-12345"
+    },
+    "telemetry": {
+        "ts": 1792072084561,
+        "values": {
+            "temperature": 25.5
+        }
+    }
 }
 ```
+
+The record has no time field, so `ts` is the time of the test.
 
 ### Create the Integration
 
@@ -257,7 +455,7 @@ Click **Test decoder function** below the editor. Set **Payload content type** t
    - Click **Skip**. Add a downlink converter later if you need to **[write records to a stream](#configure-downlink)**.
 5. **Connection:**
    - **Stream name** — `my-thingsboard`.
-   - **Region** — the Region of the stream, for example `eu-west-1`.
+   - **Region** — the code of the Region where you created the streams, for example `eu-north-1`.
    - **Initial position in stream** — select **Latest**.
    - **Access Key Id** and **Secret Access Key** — paste the access key of the IAM user.
    - Leave the other parameters at their defaults. See **[Connection Settings](#connection-settings)** for details.
@@ -269,7 +467,7 @@ Click **Test decoder function** below the editor. Set **Payload content type** t
 | Parameter | Description |
 |-----------|-------------|
 | **Stream name** | Stream the integration reads. Required. |
-| **Region** | AWS Region code of the stream, for example `us-east-1`. Required. The DynamoDB tables, CloudWatch metrics, and downlink stream use the same Region. |
+| **Region** | AWS Region code of the stream, for example `eu-north-1`, not the Region name shown in the console. Required. The DynamoDB tables, CloudWatch metrics, and downlink stream use the same Region. |
 | **Initial position in stream** | Where to start reading a shard that has no checkpoint yet. Required. **Latest** reads only records written after the integration starts. **Trim horizon** reads from the oldest record still retained in the stream. **At timestamp** is not supported: the integration fails to start with `Invalid InitialPosition: AT_TIMESTAMP`. |
 | **Use credentials from the Amazon EC2 Instance Metadata Service** | Takes credentials from the IAM role of the EC2 instance that runs ThingsBoard or the remote integration. Hides **Access Key Id** and **Secret Access Key**. Off by default. |
 | **Access Key Id** and **Secret Access Key** | Access key of the IAM user. Required unless the previous option is on. |
@@ -305,18 +503,24 @@ Run <a href="https://docs.aws.amazon.com/cli/latest/reference/kinesis/put-record
 ```bash
 aws kinesis put-record \
   --stream-name my-thingsboard \
-  --partition-key kitchen_thermostat \
+  --partition-key Thermometer \
   --cli-binary-format raw-in-base64-out \
-  --data '{"devName":"kitchen_thermostat","devType":"thermostat","temperature":22}'
+  --data '{"deviceName":"Thermometer","deviceType":"thermostat","serialNumber":"SN-12345","temperature":25.5}'
 ```
 
-With **Latest**, the integration skips records written before it started reading. Write the record after the integration is created.
+The command prints the `ShardId` and `SequenceNumber` of the new record. The integration reads it within a few seconds.
+
+<ImageGallery cardMode images={[
+  { src: '/src/assets/images/user-guide/integrations/aws-kinesis/aws-kinesis-test-uplink-put-record.png', alt: 'AWS CloudShell with the aws kinesis put-record command and its output: ShardId shardId-000000000000 and a SequenceNumber', caption: 'put-record returns the shard and the sequence number of the record.' },
+]} />
+
+With **Latest**, the integration skips records written before it started reading. Write the record after the integration is created. If no uplink arrives, write the record again.
 
 ### Verify the Result
 
 - **Integration events** — go to **Integrations &#8702; Integrations**, open the integration, and click the **Events** tab. The uplink appears with status **OK**. Click <code>&#8901;&#8901;&#8901;</code> in the **Message** column to see the shard ID, sequence number, partition key, and payload.
 - **Converter events** — open `AWS Kinesis Uplink Converter` in **Integrations &#8702; Data converters** and click the **Events** tab. **In** shows the record data, **Out** shows the decoded result, and **Metadata** shows the partition key, sequence number, and integration name.
-- **Device** — go to **Devices & assets &#8702; Devices**. The integration has created **kitchen_thermostat** with type **thermostat**. Open it and confirm `temperature` = `22` on the **Latest telemetry** tab.
+- **Device** — go to **Devices & assets &#8702; Devices**. The integration has created **Thermometer** with type **thermostat**. Open it and check `temperature` = `25.5` on the **Latest telemetry** tab and `serialNumber` on the **Attributes** tab.
 
 ## Configure Downlink
 
@@ -326,7 +530,7 @@ The downlink converter turns a <DocLink product={props.product} path="user-guide
 
 ### Create and Assign the Downlink Converter
 
-The encoder returns:
+Add a downlink converter to the integration. The encoder returns:
 
 | Field | Required | Description |
 |-------|----------|-------------|
@@ -347,93 +551,127 @@ The encoder returns:
 Encoder used in this guide (TBEL and JavaScript):
 
 ```js
-var data = {
-    devName: 'kitchen_thermostat',
-    version: msg.version
-};
+/** Encoder **/
 
+// Write the Rule Engine message data as the record data.
 var result = {
-    contentType: 'JSON',
-    data: JSON.stringify(data),
+    contentType: "JSON",
+    data: JSON.stringify(msg),
     metadata: {
-        streamName: 'tb-test-downlink',
-        partitionKey: '123'
+        // Target stream.
+        streamName: "tb-test-downlink",
+        // One partition key per device keeps its records in order.
+        // The originator fields node adds deviceName to the metadata.
+        partitionKey: metadata.deviceName
     }
 };
 
 return result;
 ```
 
-The same encoder is available for import: <a href="/resources/docs/integrations/aws-kinesis/aws_kinesis_tbel_downlink_converter.json" download="aws_kinesis_tbel_downlink_converter.json"><strong>TBEL</strong></a> or <a href="/resources/docs/integrations/aws-kinesis/aws_kinesis_javascript_downlink_converter.json" download="aws_kinesis_javascript_downlink_converter.json"><strong>JavaScript</strong></a>. Import it in **Integrations &#8702; Data converters**, then select it in the integration's **Downlink data converter** field.
-
 **To adapt:**
 
-- **Device name** — replace `'kitchen_thermostat'` with `metadata.deviceName` to address the device that triggered the message. Add an **originator fields** node before the **integration downlink** node if the message metadata has no `deviceName`.
-- **Partition key** — use a per-device value, for example the device name, to keep each device's records in order.
 - **Other stream** — change `streamName`. The IAM policy must allow `kinesis:PutRecords` on that stream.
-- **Other payload** — forward other attributes or RPC parameters instead of `msg.version`.
+- **Selected fields** — build `data` from the fields you need, for example `JSON.stringify({ interval: msg.temperatureUploadFrequency })`.
+- **Other message types** — branch on `msgType`, for example `RPC_CALL_FROM_SERVER_TO_DEVICE`.
 
 ### Configure the Root Rule Chain
 
+Attribute update messages carry no device name in their metadata. An **originator fields** node adds it, so the encoder can use it as the partition key.
+
 <Steps>
 1. Go to **Data processing &#8702; Rule chains** and open the **Root Rule Chain**.
-2. From the **Action** section, drag an **integration downlink** node onto the canvas.
-3. Enter a **Name** (for example, `Downlink to AWS Kinesis`), select your AWS Kinesis integration, and click **Add**.
-4. Connect the **message type switch** node to the **integration downlink** node with the **Attributes Updated** relation.
-5. Click **Apply changes**.
+2. From the **Enrichment** section, drag an **originator fields** node onto the canvas. Enter a **Name** (for example, `Add device name`). Under **Originator fields mapping**, map **Name** to the target key `deviceName`. Keep **Add mapped originator fields to** set to **Metadata**, and click **Add**.
+3. From the **Action** section, drag an **integration downlink** node onto the canvas. Enter a **Name** (for example, `Downlink to AWS Kinesis`), select your AWS Kinesis integration, and click **Add**.
+4. Connect the **message type switch** node to the **originator fields** node with the **Attributes Updated** relation.
+5. Connect the **originator fields** node to the **integration downlink** node with the **Success** relation.
+6. Click **Apply changes**.
 </Steps>
 
 ### Test Downlink
 
 <Steps>
-1. Go to **Devices & assets &#8702; Devices**, open `kitchen_thermostat`, and select the **Attributes** tab.
+1. Go to **Devices & assets &#8702; Devices**, open **Thermometer**, and select the **Attributes** tab.
 2. Select **Shared attributes** and click **+**.
-3. Set **Key** to `version`, **Type** to **String**, **Value** to `v.0.11`, and click **Add**. ThingsBoard writes the downlink record.
+3. Set **Key** to `temperatureUploadFrequency`, **Type** to **Integer**, **Value** to `60`, and click **Add**. ThingsBoard writes the downlink record.
 </Steps>
 
 ### Verify the Downlink
 
-- **ThingsBoard** — the integration's **Events** tab shows a **Downlink** event with the stream name, partition key, and payload.
-- **AWS** — read the downlink stream. Get a shard iterator:
+- **Converter events** — open the downlink converter's **Events** tab. **In** shows the Rule Engine message, and **Out** shows the encoded data with `streamName` and `partitionKey` = `Thermometer` in `metadata`.
+- **Integration events** — the integration's **Events** tab shows a **Downlink** event with the stream name, partition key, and payload.
+- **AWS** — read the downlink stream from its oldest record. The command gets a shard iterator and passes it to `get-records`:
 
   ```bash
-  aws kinesis get-shard-iterator \
+  ITER=$(aws kinesis get-shard-iterator \
     --stream-name tb-test-downlink \
     --shard-id shardId-000000000000 \
-    --shard-iterator-type TRIM_HORIZON
+    --shard-iterator-type TRIM_HORIZON \
+    --query ShardIterator --output text)
+  aws kinesis get-records --shard-iterator "$ITER"
   ```
 
-  Pass the returned `ShardIterator` to `get-records`:
-
-  ```bash
-  aws kinesis get-records --shard-iterator <ShardIterator>
-  ```
-
-  The response contains the record, with `Data` Base64-encoded:
+  A shard iterator expires after 5 minutes. If `Records` is empty, run `aws kinesis get-records --shard-iterator` with the returned `NextShardIterator` until the record appears. The record has `PartitionKey` = `Thermometer` and Base64-encoded `Data`:
 
   ```json
   {
     "Records": [
       {
-        "SequenceNumber": "49599912710236940383450082324919185009278025474345271298",
-        "ApproximateArrivalTimestamp": "2026-10-15T10:30:12.270000+00:00",
-        "Data": "eyJkZXZOYW1lIjoia2l0Y2hlbl90aGVybW9zdGF0IiwidmVyc2lvbiI6InYuMC4xMSJ9",
-        "PartitionKey": "123"
+        "SequenceNumber": "49679318713549456377638275380422332354075930242739863554",
+        "ApproximateArrivalTimestamp": "2026-10-16T14:28:39.979000+00:00",
+        "Data": "eyJ0ZW1wZXJhdHVyZVVwbG9hZEZyZXF1ZW5jeSI6NjB9",
+        "PartitionKey": "Thermometer"
       }
     ],
     "MillisBehindLatest": 0
   }
   ```
 
-  Decode `Data` to get the payload `{"devName":"kitchen_thermostat","version":"v.0.11"}`:
+  Decode `Data` to get the payload `{"temperatureUploadFrequency":60}`:
 
   ```bash
-  echo 'eyJkZXZOYW1lIjoia2l0Y2hlbl90aGVybW9zdGF0IiwidmVyc2lvbiI6InYuMC4xMSJ9' | base64 --decode
+  echo 'eyJ0ZW1wZXJhdHVyZVVwbG9hZEZyZXF1ZW5jeSI6NjB9' | base64 --decode
   ```
 
 <Aside type="note">
-  The KPL aggregates records written within a short interval into one Kinesis record. KCL-based consumers split them automatically; a consumer that reads with `GetRecords` directly must deaggregate them with the <a href="https://docs.aws.amazon.com/streams/latest/dev/kinesis-kpl-consumer-deaggregation.html" target="_blank" rel="noopener noreferrer"><strong>KCL deaggregation</strong></a> modules.
+  The KPL can aggregate records written within a short interval into one Kinesis record. KCL-based consumers split them automatically; a consumer that reads with `GetRecords` directly must deaggregate them with the <a href="https://docs.aws.amazon.com/streams/latest/dev/kinesis-kpl-consumer-deaggregation.html" target="_blank" rel="noopener noreferrer"><strong>KCL deaggregation</strong></a> modules.
 </Aside>
+
+## Clean Up
+
+Delete the test resources when you finish, because AWS bills the streams for every shard-hour.
+
+<Steps>
+1. In ThingsBoard, turn off **Enable integration** for the integration, or delete it. A running integration creates the DynamoDB tables again.
+2. Delete the streams and the DynamoDB tables. Use your **Application name** instead of `my-thingsboard` in the table names if you set one.
+
+   ```bash
+   aws kinesis delete-stream --stream-name my-thingsboard
+   aws kinesis delete-stream --stream-name tb-test-downlink
+   aws dynamodb delete-table --table-name my-thingsboard
+   aws dynamodb delete-table --table-name my-thingsboard-CoordinatorState
+   aws dynamodb delete-table --table-name my-thingsboard-WorkerMetricStats
+   ```
+
+3. Delete the IAM user. Its access keys and inline policy go first:
+
+   ```bash
+   for k in $(aws iam list-access-keys --user-name thingsboard-kinesis \
+       --query 'AccessKeyMetadata[].AccessKeyId' --output text); do
+     aws iam delete-access-key --user-name thingsboard-kinesis --access-key-id "$k"
+   done
+   aws iam delete-user-policy --user-name thingsboard-kinesis --policy-name thingsboard-kinesis-policy
+   aws iam delete-user --user-name thingsboard-kinesis
+   ```
+
+4. Check that nothing is left. `list-streams` and `list-tables` print `[]`, and `get-user` fails with `NoSuchEntity`:
+
+   ```bash
+   aws kinesis list-streams --query 'StreamNames'
+   aws dynamodb list-tables --query 'TableNames'
+   aws iam get-user --user-name thingsboard-kinesis
+   ```
+</Steps>
 
 ## Troubleshooting
 
@@ -447,8 +685,8 @@ The same encoder is available for import: <a href="/resources/docs/integrations/
 | Records processed twice after a restart | The integration saves checkpoints on a graceful stop. After an unexpected stop, it resumes from the last saved checkpoint. | Deduplicate in the Rule Engine where it matters, for example by `sequenceNumber`. |
 | Decoder error | The record data is not valid JSON. | Open the converter's **Events** tab and check **In**. Adapt the decoder to the producer's format. |
 | Device not created | `deviceName` is empty or undefined. | Check **Out** in the converter events. |
-| Downlink fails with stream `${streamName}` | The encoder's output `metadata` has no `streamName`, so the placeholder is not replaced. Same for `partitionKey`. | Set both keys in the encoder's `metadata`. |
-| Downlink not written | The rule chain does not reach the **integration downlink** node, or the IAM policy denies `kinesis:PutRecords` on the target stream. | Check the **Attributes Updated** relation and the policy. |
+| Downlink record has partition key `${partitionKey}` | The encoder's output `metadata` has no `partitionKey`, so the placeholder is not replaced. With this guide's encoder, the message metadata has no `deviceName`. The same applies to `streamName`. | Add the **originator fields** node from **[Configure the Root Rule Chain](#configure-the-root-rule-chain)**, or set both keys in the encoder. |
+| Downlink not written | The rule chain does not reach the **integration downlink** node, or the IAM policy denies `kinesis:PutRecords` on the target stream. | Check the **Attributes Updated** and **Success** relations and the policy. |
 
 To read debug events, open the integration or converter, click **Events**, and select an event: **In** is the received data, **Out** is the converter result, and **Error** holds the error text.
 
