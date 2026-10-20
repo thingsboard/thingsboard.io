@@ -67,7 +67,9 @@ export const TRENDZ_RELEASE_FAMILIES: TrendzReleaseFamily[] = [
 		patches: [
 			{ version: 'v1.15.2.1', date: 'Jun 24, 2026' },
 			{ version: 'v1.15.2', date: 'May 15, 2026' },
+			{ version: 'v1.15.1.1', date: 'Apr 28, 2026' },
 			{ version: 'v1.15.1', date: 'Apr 15, 2026' },
+			{ version: 'v1.15.0.6', date: 'Mar 25, 2026' },
 			{ version: 'v1.15.0.5', date: 'Feb 26, 2026' },
 			{ version: 'v1.15.0.4', date: 'Feb 9, 2026' },
 			{ version: 'v1.15.0', date: 'Jan 20, 2026' },

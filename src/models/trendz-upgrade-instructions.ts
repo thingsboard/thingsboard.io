@@ -1,6 +1,6 @@
 // Relative import on purpose: keeps this module loadable from the Astro
 // config chain, which resolves modules before tsconfig path aliases apply.
-import { assertNewestFirst, latestPatchPerBaseline } from './upgrade-shared.ts';
+import { assertNewestFirst } from './upgrade-shared.ts';
 
 export interface TrendzUpgradeVersion {
 	/** Raw version string, e.g. "1.15.0.4", "1.13.2", "1.10.3-HF7" */
@@ -52,24 +52,19 @@ export function getTrendzFamilySlug(family: string): string {
 }
 
 /**
- * Versions to render on a Trendz upgrade-instruction page (optionally scoped
- * to a family). Only the newest patch of each `baseVersion` is kept; entries
- * without a `baseVersion` are always kept. Input is assumed newest-first,
- * matching the ordering of `TRENDZ_UPGRADE_VERSIONS`.
+ * Versions to render on a Trendz upgrade-instruction page, optionally scoped
+ * to a family. Every listed version gets its own section, so a patch stays on
+ * the page after a newer patch of the same `baseVersion` ships.
  */
 export function getTrendzUpgradeStepVersions(family?: string): TrendzUpgradeVersion[] {
-	const scoped = family
-		? TRENDZ_UPGRADE_VERSIONS.filter((v) => v.family === family)
-		: TRENDZ_UPGRADE_VERSIONS;
-	return latestPatchPerBaseline(scoped);
+	return family ? TRENDZ_UPGRADE_VERSIONS.filter((v) => v.family === family) : TRENDZ_UPGRADE_VERSIONS;
 }
 
 /**
  * All Trendz versions available for upgrade (non-vulnerable), newest-first.
- * Ordering is load-bearing: TRENDZ_UPGRADE_FAMILIES dedups by position, steps
- * render in array order, and getTrendzUpgradeStepVersions treats the first
- * entry per baseVersion as the latest. The assertNewestFirst() call below
- * fails the build on an out-of-order insert.
+ * Ordering is load-bearing: TRENDZ_UPGRADE_FAMILIES dedups by position and
+ * steps render in array order. The assertNewestFirst() call below fails the
+ * build on an out-of-order insert.
  */
 export const TRENDZ_UPGRADE_VERSIONS: TrendzUpgradeVersion[] = [
 	{
@@ -121,6 +116,18 @@ export const TRENDZ_UPGRADE_VERSIONS: TrendzUpgradeVersion[] = [
 		haproxyNote: false,
 	},
 	{
+		version: '1.15.1.1',
+		displayVersion: '1.15.1.1',
+		family: '1.15',
+		baseVersion: '1.15.1',
+		releaseDate: 'Apr 28 2026',
+		lts: true,
+		patch: true,
+		anchor: 'v1-15-1-1',
+		// 1.15.x uses the new upgrade mechanism — no --fromVersion flag needed
+		haproxyNote: false,
+	},
+	{
 		version: '1.15.1',
 		displayVersion: '1.15.1',
 		family: '1.15',
@@ -130,6 +137,18 @@ export const TRENDZ_UPGRADE_VERSIONS: TrendzUpgradeVersion[] = [
 		anchor: 'v1-15-1',
 		// 1.15.x uses the new upgrade mechanism — no --fromVersion flag needed
 		haproxyNote: false,
+	},
+	{
+		version: '1.15.0.6',
+		displayVersion: '1.15.0.6',
+		family: '1.15',
+		baseVersion: '1.15.0',
+		releaseDate: 'Mar 25 2026',
+		lts: true,
+		patch: true,
+		anchor: 'v1-15-0-6',
+		// 1.15.x uses the new upgrade mechanism — no --fromVersion flag needed
+		haproxyNote: true,
 	},
 	{
 		version: '1.15.0.5',
