@@ -596,7 +596,7 @@ const apisAndSdksItems = (prefix: string) => [
 		items: [
 			// Using slug-based entries (not raw `link:`) so the per-version sidebar filter in
 			// routeData.ts keeps each entry inside its own sidebar only — avoids cross-sidebar duplication.
-			{ label: 'ThingsBoard CLI', link: `/${prefix}/user-guide/cli/` },
+			{ label: 'ThingsBoard CLI', link: '/docs/cli/', attrs: { 'data-sidebar-owner': `/${prefix}/` } },
 			`${prefix}/reference/java-client`,
 			`${prefix}/reference/python-client`,
 		],
@@ -1798,9 +1798,9 @@ const mainSidebarItems = (
 	{
 		label: 'Build with AI',
 		items: [
-			// The CLI is its own product (/docs/cli/). The old URL keeps the link inside this
-			// product's sidebar filter and redirects to /docs/cli/.
-			{ label: 'ThingsBoard CLI', link: `/${prefix}/user-guide/cli/` },
+			// The CLI is its own product (/docs/cli/). `data-sidebar-owner` keeps this cross-product
+			// link in this product's sidebar (see sidebarEntryMatchesVersionAndLanguage in routeData.ts).
+			{ label: 'ThingsBoard CLI', link: '/docs/cli/', attrs: { 'data-sidebar-owner': `/${prefix}/` } },
 			`${prefix}/user-guide/ai-solution-creator`,
 			`${prefix}/user-guide/ai-assistant`,
 			{
@@ -2229,8 +2229,8 @@ export const paasSidebar: SidebarConfig = [
 	{
 		label: 'Build with AI',
 		items: [
-			// The CLI is its own product (/docs/cli/); the old URL redirects there.
-			{ label: 'ThingsBoard CLI', link: '/docs/paas/user-guide/cli/' },
+			// The CLI is its own product (/docs/cli/); `data-sidebar-owner` keeps the link in this sidebar.
+			{ label: 'ThingsBoard CLI', link: '/docs/cli/', attrs: { 'data-sidebar-owner': '/docs/paas/' } },
 			'docs/paas/user-guide/ai-solution-creator',
 			'docs/paas/user-guide/ai-assistant',
 			{
@@ -2644,8 +2644,8 @@ export const paasEuSidebar: SidebarConfig = [
 	{
 		label: 'Build with AI',
 		items: [
-			// The CLI is its own product (/docs/cli/); the old URL redirects there.
-			{ label: 'ThingsBoard CLI', link: '/docs/paas/eu/user-guide/cli/' },
+			// The CLI is its own product (/docs/cli/); `data-sidebar-owner` keeps the link in this sidebar.
+			{ label: 'ThingsBoard CLI', link: '/docs/cli/', attrs: { 'data-sidebar-owner': '/docs/paas/eu/' } },
 			'docs/paas/eu/user-guide/ai-solution-creator',
 			'docs/paas/eu/user-guide/ai-assistant',
 			{
@@ -3999,7 +3999,7 @@ export const licenseSidebar: SidebarConfig = [
 export const cliSidebar: SidebarConfig = [
 	{
 		label: 'Getting Started',
-		items: ['docs/cli', 'docs/cli/quickstart', 'docs/cli/how-it-works'],
+		items: ['docs/cli/quickstart', 'docs/cli/how-it-works'],
 	},
 	{
 		label: 'Guides',

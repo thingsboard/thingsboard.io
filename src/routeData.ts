@@ -217,10 +217,14 @@ function sidebarEntryMatchesVersionAndLanguage(
 	lang: SupportedLanguage
 ): boolean {
 	if (entry.type === 'link') {
-		const key = `${version}|${lang}|${entry.href}`;
+		// A cross-product link (like the platform sidebars' "ThingsBoard CLI" → /docs/cli/) names
+		// the sidebar it belongs to in `data-sidebar-owner`; match on the owner, not the target.
+		const owner = entry.attrs?.['data-sidebar-owner'];
+		const href = typeof owner === 'string' ? owner : entry.href;
+		const key = `${version}|${lang}|${href}`;
 		const cached = sidebarLinkMatchCache.get(key);
 		if (cached !== undefined) return cached;
-		const match = linkMatchesVersion(entry.href, version) && linkMatchesLanguage(entry.href, lang);
+		const match = linkMatchesVersion(href, version) && linkMatchesLanguage(href, lang);
 		sidebarLinkMatchCache.set(key, match);
 		return match;
 	}
