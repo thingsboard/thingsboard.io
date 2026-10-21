@@ -3999,7 +3999,7 @@ export const licenseSidebar: SidebarConfig = [
 export const cliSidebar: SidebarConfig = [
 	{
 		label: 'Getting Started',
-		items: ['docs/cli/quickstart', 'docs/cli/how-it-works'],
+		items: ['docs/cli/getting-started', 'docs/cli/how-it-works'],
 	},
 	{
 		label: 'Guides',
