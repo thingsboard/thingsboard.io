@@ -14,7 +14,7 @@ export const data: UseCaseData = {
 			'By leveraging ThingsBoard, agribusinesses gain full control over assets and infrastructure — from temperature and humidity sensors to automated aeration systems. With real-time dashboards, rule-based alerts, and remote control features, the platform helps reduce waste, improve crop quality, and lower operational costs.',
 		],
 		demoUrl:
-			'https://demo.thingsboard.io/dashboard/1f9828d0-058e-11e7-87f7-bb0136cc33d0?publicId=963ab470-34c9-11e7-a7ce-bb0136cc33d0',
+			'https://thingsboard.cloud/dashboard/c77eed60-cc6a-11f1-adf1-29dbfc808686?publicId=7aa99e80-8acd-11ef-a59e-a9c993dbec14',
 		demoButtonId: 'UseCases_SmartFarming_ViewLiveDemo',
 	},
 	overview: {
@@ -88,7 +88,7 @@ export const data: UseCaseData = {
 			},
 		],
 		demoUrl:
-			'https://demo.thingsboard.io/dashboard/1f9828d0-058e-11e7-87f7-bb0136cc33d0?publicId=963ab470-34c9-11e7-a7ce-bb0136cc33d0',
+			'https://thingsboard.cloud/dashboard/c77eed60-cc6a-11f1-adf1-29dbfc808686?publicId=7aa99e80-8acd-11ef-a59e-a9c993dbec14',
 		demoButtonId: 'UseCases_SmartFarming_ViewLiveDemo',
 		contactUsId: 'UseCases_SmartFarming_ContactUs',
 	},

@@ -9,6 +9,7 @@ import {
 	pushCalculatorOpen,
 	type CalculatorType,
 } from '@root/scripts/pricing/calc-analytics';
+import { createRenderScheduler } from '@root/scripts/pricing/render-scheduler';
 
 declare function sliderProgress(slider: HTMLInputElement): void;
 declare function initTickMarks(container: HTMLElement): void;
@@ -225,7 +226,7 @@ export function initTbPcCalc() {
 		el.querySelector('.calc-slider')?.dispatchEvent(new Event('input'));
 		bindProfileEvents(el, p);
 		updateProfileUI();
-		if (!init) calculate();
+		if (!init) scheduleCalculate();
 	}
 
 	function removeProfile(id: number) {
@@ -235,7 +236,7 @@ export function initTbPcCalc() {
 		const el = container.querySelector(`[data-profile-id="${id}"]`);
 		el?.remove();
 		updateProfileUI();
-		calculate();
+		scheduleCalculate();
 	}
 
 	function updateProfileUI() {
@@ -268,14 +269,15 @@ export function initTbPcCalc() {
 			if (!isNaN(v) && v >= 0) { p.devices = v; slider.value = String(Math.min(SLIDER_MAX, realToSlider(Math.min(REAL_MAX, v)))); sliderProgress(slider); scheduleCalculate(); }
 		});
 		devInput?.addEventListener('blur', () => {
+			const prev = p.devices;
 			p.devices = Math.max(0, Number(devInput.value) || 0);
 			devInput.value = String(p.devices);
 			slider.value = String(Math.min(SLIDER_MAX, realToSlider(Math.min(REAL_MAX, p.devices))));
 			sliderProgress(slider);
-			calculate();
+			commitCalculate(p.devices !== prev);
 		});
 
-		msgSelect?.addEventListener('change', () => { p.messageUnit = msgSelect.value; calculate(); });
+		msgSelect?.addEventListener('change', () => { p.messageUnit = msgSelect.value; scheduleCalculate(); });
 
 		el.querySelectorAll('[data-input]').forEach(input => {
 			if ((input as HTMLInputElement).dataset.input === 'devices') return;
@@ -286,9 +288,10 @@ export function initTbPcCalc() {
 			});
 			input.addEventListener('blur', () => {
 				const field = (input as HTMLInputElement).dataset.input!;
+				const prev = (p as any)[field];
 				(p as any)[field] = Math.max(1, Number((input as HTMLInputElement).value) || 1);
 				(input as HTMLInputElement).value = String((p as any)[field]);
-				calculate();
+				commitCalculate((p as any)[field] !== prev);
 			});
 		});
 
@@ -304,7 +307,7 @@ export function initTbPcCalc() {
 				(p as any)[field] = v;
 				const stepper = btn.closest('.calc-stepper')!;
 				(stepper.querySelector('[data-action="decrement"]') as HTMLButtonElement).disabled = v <= min;
-				calculate();
+				scheduleCalculate();
 			});
 		});
 
@@ -379,7 +382,7 @@ export function initTbPcCalc() {
 		const inp = el?.querySelector('[data-input="dataPoints"]') as HTMLInputElement | null;
 		if (inp) inp.value = String(count);
 		closePayloadModal();
-		calculate();
+		scheduleCalculate();
 	});
 
 	document.getElementById('pc-payload-close')?.addEventListener('click', closePayloadModal);
@@ -415,7 +418,7 @@ export function initTbPcCalc() {
 				}
 			}
 			updateProfileUI();
-			calculate();
+			scheduleCalculate();
 		});
 	});
 
@@ -426,7 +429,7 @@ export function initTbPcCalc() {
 		if (key === 'edge') {
 			edgeCounter.classList.toggle('hidden', !on);
 			if (on) {
-				const plan = state.currentPlan || PLANS_DATA.plans[0];
+				const plan = renderedPlan();
 				state.addons.edge.count = Math.max(state.addons.edge.count, plan.edgeInstancesIncluded);
 				edgeCountInput.value = String(state.addons.edge.count);
 			}
@@ -435,7 +438,7 @@ export function initTbPcCalc() {
 			devqaCounter.classList.toggle('hidden', !on);
 			if (on) { state.addons.devqa.count = 1; devCountInput.value = '1'; }
 		}
-		calculate();
+		scheduleCalculate();
 	}
 
 	(['edge', 'trendz', 'mobile', 'devqa'] as const).forEach(key => {
@@ -446,16 +449,16 @@ export function initTbPcCalc() {
 	edgeStepper.querySelectorAll('.calc-stepper-btn').forEach(btn => {
 		btn.addEventListener('click', () => {
 			if ((btn as HTMLButtonElement).disabled) return;
-			const plan = state.currentPlan || PLANS_DATA.plans[0];
+			const plan = renderedPlan();
 			const min = plan.edgeInstancesIncluded;
 			state.addons.edge.count = (btn as HTMLElement).dataset.action === 'increment' ? state.addons.edge.count + 1 : Math.max(min, state.addons.edge.count - 1);
 			edgeCountInput.value = String(state.addons.edge.count);
 			edgeDecBtn.disabled = state.addons.edge.count <= min;
-			calculate();
+			scheduleCalculate();
 		});
 	});
 	edgeCountInput.addEventListener('input', () => { const v = parseInt(edgeCountInput.value); if (!isNaN(v) && v >= 1) { state.addons.edge.count = v; scheduleCalculate(); } });
-	edgeCountInput.addEventListener('blur', () => { const plan = state.currentPlan || PLANS_DATA.plans[0]; const min = plan.edgeInstancesIncluded; const v = Math.max(min, parseInt(edgeCountInput.value) || min); state.addons.edge.count = v; edgeCountInput.value = String(v); edgeDecBtn.disabled = v <= min; calculate(); });
+	edgeCountInput.addEventListener('blur', () => { const plan = renderedPlan(); const min = plan.edgeInstancesIncluded; const prev = state.addons.edge.count; const v = Math.max(min, parseInt(edgeCountInput.value) || min); state.addons.edge.count = v; edgeCountInput.value = String(v); edgeDecBtn.disabled = v <= min; commitCalculate(v !== prev); });
 
 	// DevQA stepper
 	devStepper.querySelectorAll('.calc-stepper-btn').forEach(btn => {
@@ -464,11 +467,11 @@ export function initTbPcCalc() {
 			state.addons.devqa.count = (btn as HTMLElement).dataset.action === 'increment' ? state.addons.devqa.count + 1 : Math.max(1, state.addons.devqa.count - 1);
 			devCountInput.value = String(state.addons.devqa.count);
 			devDecBtn.disabled = state.addons.devqa.count <= 1;
-			calculate();
+			scheduleCalculate();
 		});
 	});
 	devCountInput.addEventListener('input', () => { const v = parseInt(devCountInput.value); if (!isNaN(v) && v >= 1) { state.addons.devqa.count = v; scheduleCalculate(); } });
-	devCountInput.addEventListener('blur', () => { const v = Math.max(1, parseInt(devCountInput.value) || 1); state.addons.devqa.count = v; devCountInput.value = String(v); devDecBtn.disabled = v <= 1; calculate(); });
+	devCountInput.addEventListener('blur', () => { const prev = state.addons.devqa.count; const v = Math.max(1, parseInt(devCountInput.value) || 1); state.addons.devqa.count = v; devCountInput.value = String(v); devDecBtn.disabled = v <= 1; commitCalculate(v !== prev); });
 
 	// ═══════════════════════════════════════════
 	// CALCULATION
@@ -489,15 +492,23 @@ export function initTbPcCalc() {
 	}
 	pcGetInputs = getInputs;
 
-	// rAF-batch calculate() for continuous input events.
-	let _calcQueued = false;
-	function scheduleCalculate() {
-		if (_calcQueued) return;
-		_calcQueued = true;
-		requestAnimationFrame(() => { _calcQueued = false; calculate(); });
+	// Results renders are batched to one per frame; the rules live in render-scheduler.ts.
+	const {
+		schedule: scheduleCalculate,
+		commit: commitCalculate,
+		flush: flushCalculate,
+		cancel: cancelQueuedCalculate,
+	} = createRenderScheduler(() => calculate());
+
+	// The plan the last render chose, which sizes the Edge add-on. A queued
+	// render may switch it, so it is flushed first.
+	function renderedPlan() {
+		flushCalculate();
+		return state.currentPlan || PLANS_DATA.plans[0];
 	}
 
 	function calculate(opts?: { track?: boolean }) {
+		cancelQueuedCalculate();
 		const track = opts?.track !== false;
 		const inp = getInputs();
 		const matching = PLANS_DATA.plans.filter(p => inp.totalDP <= p.maxMsgPerMin);
@@ -556,6 +567,9 @@ export function initTbPcCalc() {
 			if (state.addons.edge.on && state.addons.edge.count < best.plan.edgeInstancesIncluded) {
 				state.addons.edge.count = best.plan.edgeInstancesIncluded;
 				edgeCountInput.value = String(state.addons.edge.count);
+				// Raising the count to the included one leaves extra and cost as
+				// they were; only the count the clipboard and Contact Us report moves.
+				if (best.ab.edge) best.ab.edge.total = state.addons.edge.count;
 			}
 			edgeDecBtn.disabled = state.addons.edge.count <= best.plan.edgeInstancesIncluded;
 		}
@@ -621,7 +635,9 @@ export function initTbPcCalc() {
 			return row('Extra Instances', fmtN(r.ab.devqa.instances), 'Number of dev/QA instances') + row('Extra Instances Cost', fmtC(r.ab.devqa.cost), `${fmtN(r.ab.devqa.instances)} × ${fmtC(r.ab.devqa.perInstance)}`);
 		});
 
-		const _st = results.parentElement?.scrollTop || 0; results.innerHTML = html; if (results.parentElement) results.parentElement.scrollTop = _st;
+		// The panel keeps its scroll position across the swap on its own. Saving
+		// and restoring scrollTop around it forced two full layouts per render.
+		results.innerHTML = html;
 
 		if (!footer.querySelector('.calc-billing-row')) {
 			footer.innerHTML = `
@@ -633,9 +649,9 @@ export function initTbPcCalc() {
 				<div class="calc-total-row"><span class="calc-total-label">Total</span><span class="calc-total-amount">$0/month</span></div>
 				<a class="calc-cta" href="/contact-us/" target="_blank" rel="noopener noreferrer">Contact Us</a>`;
 			const toggle = footer.querySelector('#pc-bill-toggle') as HTMLInputElement;
-			toggle?.addEventListener('change', () => { state.billingPeriod = toggle.checked ? 'annual' : 'monthly'; calculate(); });
+			toggle?.addEventListener('change', () => { state.billingPeriod = toggle.checked ? 'annual' : 'monthly'; scheduleCalculate(); });
 			footer.querySelectorAll('.calc-billing-label').forEach(l => {
-				l.addEventListener('click', () => { state.billingPeriod = (l as HTMLElement).dataset.billing === 'annual' ? 'annual' : 'monthly'; const t = footer.querySelector('#pc-bill-toggle') as HTMLInputElement; if (t) t.checked = state.billingPeriod === 'annual'; calculate(); });
+				l.addEventListener('click', () => { state.billingPeriod = (l as HTMLElement).dataset.billing === 'annual' ? 'annual' : 'monthly'; const t = footer.querySelector('#pc-bill-toggle') as HTMLInputElement; if (t) t.checked = state.billingPeriod === 'annual'; scheduleCalculate(); });
 			});
 		}
 
@@ -672,7 +688,7 @@ export function initTbPcCalc() {
 		html += row('Data Points Rate', `${fmtN(Math.round(inp.totalDP))} points/min`);
 		html += row('Estimated Storage', `${fmtN(totalStorage, 2)} GB`);
 		html += `<p class="calc-enterprise-msg">You have reached a tier where economies of scale apply. Let’s talk about aligning our pricing with your specific rollout schedule and volume requirements.</p>`;
-		const _st = results.parentElement?.scrollTop || 0; results.innerHTML = html; if (results.parentElement) results.parentElement.scrollTop = _st;
+		results.innerHTML = html;
 
 		let msg = `Enterprise Request\n- Devices: ${fmtN(inp.totalDevices)}\n- Data Points Rate: ${fmtN(Math.round(inp.totalDP))} points/min\n- Estimated Storage: ${fmtN(totalStorage, 2)} GB`;
 		if (state.addons.edge.on) msg += `\n- Edge Instances: ${fmtN(state.addons.edge.count)}`;
@@ -828,13 +844,13 @@ export function initTbPcCalc() {
 	const billingToggle = footer.querySelector('#pc-bill-toggle') as HTMLInputElement;
 	billingToggle?.addEventListener('change', () => {
 		state.billingPeriod = billingToggle.checked ? 'annual' : 'monthly';
-		calculate();
+		scheduleCalculate();
 	});
 	footer.querySelectorAll('.calc-billing-label').forEach(l => {
 		l.addEventListener('click', () => {
 			state.billingPeriod = (l as HTMLElement).dataset.billing === 'annual' ? 'annual' : 'monthly';
 			if (billingToggle) billingToggle.checked = state.billingPeriod === 'annual';
-			calculate();
+			scheduleCalculate();
 		});
 	});
 

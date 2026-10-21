@@ -1,6 +1,7 @@
 ---
 import SearchConsentNotice from '@components/SearchConsentNotice.astro';
 import { Products, productDocsPrefix } from '@models/site.models.ts';
+import '@components/google-cse.scss';
 
 // TBMQ docs moved off-site, so no `/docs/mqtt-broker/**` pages — and no search page —
 // exist here any more. The prefixes stay in `productDocsPrefix` for the links that still
@@ -50,6 +51,7 @@ const searchRoutes: [string, string][] = [
 
 <script>
 	import { onConsentChange } from '@util/consent';
+	import { lockScroll, unlockScroll } from '@util/scroll-lock';
 	import { hasSearchConsent, isCseLoaded, loadCse } from '@util/site-search';
 
 	// Guard: component renders twice (mobile + desktop header), script deduplicates — runs once.
@@ -93,12 +95,17 @@ const searchRoutes: [string, string][] = [
 		let modal: HTMLElement | null = null;
 		let loaderBar: HTMLElement | null = null;
 		let status: HTMLElement | null = null;
+		let opener: HTMLElement | null = null;
 
 		const close = () => {
 			if (!modal) return;
 			modal.classList.remove('open');
 			document.documentElement.classList.remove('tb-search-open');
+			unlockScroll();
 			stopFocusRetention();
+			// Back to the button that opened search, so keyboard users keep their place.
+			opener?.focus();
+			opener = null;
 		};
 
 		const buildModal = (): HTMLElement => {
@@ -106,6 +113,9 @@ const searchRoutes: [string, string][] = [
 			modal = document.createElement('div');
 			modal.id = 'tb-search-modal';
 			modal.className = 'print:hidden';
+			modal.setAttribute('role', 'dialog');
+			modal.setAttribute('aria-modal', 'true');
+			modal.setAttribute('aria-label', 'Search');
 			modal.innerHTML = `
 				<div class="tb-search-overlay"></div>
 				<div class="tb-search-box">
@@ -249,6 +259,7 @@ const searchRoutes: [string, string][] = [
 			init();
 			const m = modal!;
 			document.documentElement.classList.add('tb-search-open');
+			lockScroll();
 			m.classList.add('open');
 			showContent(m);
 		};
@@ -260,15 +271,28 @@ const searchRoutes: [string, string][] = [
 			if (modal.classList.contains('open')) showContent(modal);
 		});
 
-		// Esc to close — no-op when modal isn't built yet. Not from inside the cookie
-		// preferences dialog: that Esc closes the dialog and returns to the notice.
-		document.addEventListener('keydown', (e) => {
-			if (e.key === 'Escape' && !(e.target as Element).closest?.('dialog')) close();
-		});
+		const suggestionsOpen = () =>
+			[...document.querySelectorAll('.gssb_c')].some((el) => getComputedStyle(el).display !== 'none');
+
+		// Esc to close, in the capture phase: CSE's input stops it bubbling. Not an Esc
+		// that ends IME input, closes an open dialog or closes CSE's suggestions.
+		document.addEventListener(
+			'keydown',
+			(e) => {
+				if (e.key !== 'Escape' || e.isComposing || !modal?.classList.contains('open')) return;
+				if (document.querySelector('dialog[open]')) return;
+				if ((e.target as Element).matches?.('input.gsc-input') && suggestionsOpen()) return;
+				close();
+			},
+			true
+		);
 
 		// Attach to all search buttons via delegation
 		document.addEventListener('click', (e) => {
-			if ((e.target as Element).closest('search-button')) open();
+			const trigger = (e.target as Element).closest('search-button');
+			if (!trigger) return;
+			opener = trigger.querySelector('button');
+			open();
 		});
 	}
 </script>
@@ -291,18 +315,13 @@ const searchRoutes: [string, string][] = [
 		transition: opacity $transition-base;
 
 		&:hover { opacity: 0.7; }
-		&:focus { outline: none; }
+		&:focus:not(:focus-visible) { outline: none; }
 
 		svg { width: 20px; height: 20px; }
 	}
 </style>
 
 <style is:global>
-	html.tb-search-open {
-		overflow: hidden;
-		scrollbar-gutter: stable;
-	}
-
 	#tb-search-modal {
 		display: none;
 		position: fixed;
@@ -370,36 +389,6 @@ const searchRoutes: [string, string][] = [
 	   On regular pages, leave Google's default `position: absolute` alone so
 	   the dropdown tracks the input when the page scrolls. */
 	html.tb-search-open .gssb_c { position: fixed !important; }
-
-	/* Dark-theme the CSE autocomplete dropdown. It's rendered at body root
-	   (not inside .doc-search-widget or .tb-search-box) so we scope on the
-	   global [data-theme='dark'] selector and let the rule apply everywhere
-	   the dropdown can appear. */
-	[data-theme='dark'] .gssb_c {
-		background: var(--sl-color-bg) !important;
-		border: 1px solid var(--sl-color-hairline) !important;
-	}
-	[data-theme='dark'] .gssb_c table,
-	[data-theme='dark'] .gssb_c tbody,
-	[data-theme='dark'] .gssb_c tr,
-	[data-theme='dark'] .gssb_c td {
-		background: transparent !important;
-		color: var(--sl-color-text) !important;
-	}
-	[data-theme='dark'] .gssb_c .gssb_a,
-	[data-theme='dark'] .gssb_c .gsq_a,
-	[data-theme='dark'] .gssb_c .gssb_d {
-		color: var(--sl-color-text) !important;
-	}
-	[data-theme='dark'] .gssb_c .gssb_a:hover,
-	[data-theme='dark'] .gssb_c .gssb_i {
-		background: var(--sl-color-gray-6) !important;
-	}
-	/* Branding row ("Enhanced by Google") — keep readable but muted */
-	[data-theme='dark'] .gssb_c .gssb_p,
-	[data-theme='dark'] .gssb_c .gssb_e {
-		color: var(--sl-color-gray-3) !important;
-	}
 
 	.tb-search-status {
 		margin: 0;

@@ -10,7 +10,7 @@ interface TrustPoint {
 }
 
 export const TRUST_HEADING = {
-	title: 'Safe to build on',
+	title: 'A trusted foundation for enterprise IoT',
 	subtitle: 'Certified, ready to scale and open to extend, whichever way you deploy it.',
 };
 
@@ -51,11 +51,10 @@ interface TrustScaleStage {
 	stores: string[];
 }
 
-// Unverified in the docs: the monolith's 1–10K and the cluster's "Up to 5M" (only 1M is benchmarked).
 export const TRUST_SCALE_STAGES: TrustScaleStage[] = [
 	{
 		mode: 'Monolith',
-		devices: '1–10K devices',
+		devices: '1–100K devices',
 		span: 25,
 		hue: 'var(--color-primary, #3d50f5)',
 		cells: 1,
@@ -63,7 +62,7 @@ export const TRUST_SCALE_STAGES: TrustScaleStage[] = [
 	},
 	{
 		mode: 'Hybrid',
-		devices: '10K–1M devices',
+		devices: '100K–1M devices',
 		span: 25,
 		hue: '#007c7b',
 		cells: 1,
@@ -71,25 +70,25 @@ export const TRUST_SCALE_STAGES: TrustScaleStage[] = [
 	},
 	{
 		mode: 'Cluster',
-		devices: 'Up to 5M devices',
+		devices: '1M+ devices',
 		span: 50,
 		hue: 'var(--color-product-gw, #6d28d9)',
 		cells: 5,
-		stores: ['Citus', 'Kafka', 'Valkey'],
+		stores: ['PostgreSQL', 'Cassandra', 'Citus', 'Kafka', 'Valkey'],
 	},
 ];
 
 export const TRUST_STAGES_LABELS = {
 	security: 'Certified to ISO 27001 and ISO 9001.',
 	scale:
-		'As it grows: a monolith on PostgreSQL for 1 to 10 thousand devices, hybrid storage adding Cassandra beside PostgreSQL up to a million, and a cluster with Citus, Kafka and Valkey up to 5 million.',
+		'As it grows: a monolith on PostgreSQL for up to 100 thousand devices, hybrid storage adding Cassandra beside PostgreSQL up to a million, and a cluster adding Citus, Kafka and Valkey beyond a million.',
 };
 
 /** The scale card's stores and their icons, in display order. */
 export const TRUST_STORES: Record<string, string> = {
 	PostgreSQL: 'simple-icons:postgresql',
-	Citus: 'citus',
 	Cassandra: 'simple-icons:apachecassandra',
+	Citus: 'citus',
 	Kafka: 'simple-icons:apachekafka',
 	Valkey: 'valkey',
 };

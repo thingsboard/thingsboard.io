@@ -14,7 +14,7 @@ export const data: UseCaseData = {
 			'The ThingsBoard platform provides a powerful technology stack for building such systems. It supports data collection from various types of devices and protocols (MQTT, CoAP, HTTP, etc.), dashboard visualizations, and advanced automation through its rule engine and alerting system. This enables real-time energy monitoring and rapid response to anomalies, reducing costs and improving operational efficiency.',
 		],
 		demoUrl:
-			'https://demo.thingsboard.io/dashboard/e8e409c0-f2b5-11e6-a6ee-bb0136cc33d0?publicId=963ab470-34c9-11e7-a7ce-bb0136cc33d0',
+			'https://thingsboard.cloud/dashboard/d6a89f80-cc6e-11f1-8752-fd5e7804cfb4?publicId=7aa99e80-8acd-11ef-a59e-a9c993dbec14',
 		demoButtonId: 'UseCases_SmartEnergy_ViewLiveDemo',
 	},
 	overview: {
@@ -135,7 +135,7 @@ export const data: UseCaseData = {
 			},
 		],
 		demoUrl:
-			'https://demo.thingsboard.io/dashboard/e8e409c0-f2b5-11e6-a6ee-bb0136cc33d0?publicId=963ab470-34c9-11e7-a7ce-bb0136cc33d0',
+			'https://thingsboard.cloud/dashboard/d6a89f80-cc6e-11f1-8752-fd5e7804cfb4?publicId=7aa99e80-8acd-11ef-a59e-a9c993dbec14',
 		demoButtonId: 'UseCases_SmartEnergy_ViewLiveDemo',
 		contactUsId: 'UseCases_SmartEnergy_ContactUs',
 	},
