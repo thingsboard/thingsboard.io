@@ -81,6 +81,15 @@ export const FAMILIES: Family[] = [
 	},
 	{
 		kind: 'local',
+		id: Products.CLI,
+		group: 'addons',
+		name: 'ThingsBoard CLI',
+		tagline: 'Build IoT solutions with your AI agent',
+		iconId: 'cli',
+		editions: [{ product: Products.CLI, label: 'ThingsBoard CLI' }],
+	},
+	{
+		kind: 'local',
 		id: Products.EDGE,
 		group: 'addons',
 		name: 'Edge Computing',

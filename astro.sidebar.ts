@@ -596,7 +596,7 @@ const apisAndSdksItems = (prefix: string) => [
 		items: [
 			// Using slug-based entries (not raw `link:`) so the per-version sidebar filter in
 			// routeData.ts keeps each entry inside its own sidebar only — avoids cross-sidebar duplication.
-			`${prefix}/user-guide/cli`,
+			{ label: 'ThingsBoard CLI', link: `/${prefix}/user-guide/cli/` },
 			`${prefix}/reference/java-client`,
 			`${prefix}/reference/python-client`,
 		],
@@ -1798,14 +1798,9 @@ const mainSidebarItems = (
 	{
 		label: 'Build with AI',
 		items: [
-			{
-				label: 'ThingsBoard CLI',
-				collapsed: false,
-				items: [
-					`${prefix}/user-guide/cli`,
-					`${prefix}/user-guide/cli-solutions`,
-				],
-			},
+			// The CLI is its own product (/docs/cli/). The old URL keeps the link inside this
+			// product's sidebar filter and redirects to /docs/cli/.
+			{ label: 'ThingsBoard CLI', link: `/${prefix}/user-guide/cli/` },
 			`${prefix}/user-guide/ai-solution-creator`,
 			`${prefix}/user-guide/ai-assistant`,
 			{
@@ -2234,14 +2229,8 @@ export const paasSidebar: SidebarConfig = [
 	{
 		label: 'Build with AI',
 		items: [
-			{
-				label: 'ThingsBoard CLI',
-				collapsed: false,
-				items: [
-					'docs/paas/user-guide/cli',
-					'docs/paas/user-guide/cli-solutions',
-				],
-			},
+			// The CLI is its own product (/docs/cli/); the old URL redirects there.
+			{ label: 'ThingsBoard CLI', link: '/docs/paas/user-guide/cli/' },
 			'docs/paas/user-guide/ai-solution-creator',
 			'docs/paas/user-guide/ai-assistant',
 			{
@@ -2655,14 +2644,8 @@ export const paasEuSidebar: SidebarConfig = [
 	{
 		label: 'Build with AI',
 		items: [
-			{
-				label: 'ThingsBoard CLI',
-				collapsed: false,
-				items: [
-					'docs/paas/eu/user-guide/cli',
-					'docs/paas/eu/user-guide/cli-solutions',
-				],
-			},
+			// The CLI is its own product (/docs/cli/); the old URL redirects there.
+			{ label: 'ThingsBoard CLI', link: '/docs/paas/eu/user-guide/cli/' },
 			'docs/paas/eu/user-guide/ai-solution-creator',
 			'docs/paas/eu/user-guide/ai-assistant',
 			{
@@ -4012,6 +3995,22 @@ export const licenseSidebar: SidebarConfig = [
 	},
 ];
 
+/** ThingsBoard CLI sidebar (pages at /docs/cli/) */
+export const cliSidebar: SidebarConfig = [
+	{
+		label: 'Getting Started',
+		items: ['docs/cli', 'docs/cli/quickstart'],
+	},
+	{
+		label: 'Guides',
+		items: ['docs/cli/guides/build-with-your-agent'],
+	},
+	{
+		label: 'Reference',
+		items: ['docs/cli/reference/commands', 'docs/cli/reference/configuration'],
+	},
+];
+
 /** IoT Hub sidebar (pages at /docs/iot-hub/) */
 export const iotHubSidebar: SidebarConfig = [
 	{
@@ -4122,6 +4121,11 @@ export const licenseSidebarTabLinks: SidebarTabLinks = {
 	'License Management': '/docs/license-server/subscription/',
 	'Account & Billing': '/docs/license-server/billing-info/',
 };
+export const cliSidebarTabLinks: SidebarTabLinks = {
+	'Getting Started': '/docs/cli/',
+	Guides: '/docs/cli/guides/build-with-your-agent/',
+	Reference: '/docs/cli/reference/commands/',
+};
 export const iotHubSidebarTabLinks: SidebarTabLinks = {
 	'User Guides': '/docs/iot-hub/user-guides/',
 	'Contribution Guides': '/docs/iot-hub/contribution-guides/',
@@ -4143,6 +4147,7 @@ export const sidebarTabLinksByPrefix: ReadonlyArray<[string, SidebarTabLinks]> =
 	['/docs/iot-gateway/', gwSidebarTabLinks],
 	['/docs/license-server/', licenseSidebarTabLinks],
 	['/docs/iot-hub/', iotHubSidebarTabLinks],
+	['/docs/cli/', cliSidebarTabLinks],
 	['/docs/', opensourceSidebarTabLinks],
 ];
 
@@ -4164,4 +4169,5 @@ export const sidebar: SidebarConfig = [
 	...trendzSidebar,
 	...licenseSidebar,
 	...iotHubSidebar,
+	...cliSidebar,
 ];

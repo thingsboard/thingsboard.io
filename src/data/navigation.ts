@@ -115,6 +115,13 @@ export const productsSubmenu: SubMenu = {
 					description: 'Data analytics and Prediction',
 					linkClass: 'trendz-lnk',
 				},
+				{
+					href: '/docs/cli/',
+					icon: '/src/assets/images/landings/nav/cli-icon.svg',
+					heading: 'ThingsBoard CLI',
+					description: 'Build IoT solutions with AI agents',
+					linkClass: 'cli-lnk',
+				},
 			],
 		},
 	],
