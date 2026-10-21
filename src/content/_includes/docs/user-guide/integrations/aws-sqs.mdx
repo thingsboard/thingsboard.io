@@ -17,8 +17,8 @@ Use AWS SQS Integration when:
 <ImageGallery images={[
   {
     src: '/src/assets/images/user-guide/integrations/aws-sqs-integration-architecture.svg',
-    alt: 'AWS SQS integration architecture: a producer sends messages to the uplink queue in Amazon SQS, the AWS SQS Integration polls up to 10 messages at a time with the queue URL, Region, and access key, passes the message body with metadata to the uplink data converter, and deletes each message from the queue, and Processing & Storage runs the Rule Engine, stores the data, and feeds dashboards; the aws sqs rule node sends messages to an output queue',
-    caption: 'AWS SQS integration architecture. Messages flow from the queue through the integration and the uplink data converter into ThingsBoard. The integration deletes every received message, even if decoding fails. The aws sqs rule node sends Rule Engine messages to another queue.',
+    alt: 'AWS SQS integration architecture: a producer sends messages to the uplink queue in Amazon SQS, the AWS SQS Integration polls up to 10 messages at a time with the queue URL, Region, and access key, passes the message body with metadata to the uplink data converter, and deletes each message from the queue, and Processing & Storage looks up or creates the device, runs the Rule Engine, and saves the data; the aws sqs rule node sends messages to an output queue',
+    caption: 'AWS SQS integration architecture. Messages flow from the queue through the integration and the uplink data converter into ThingsBoard. The integration deletes every received message, even if decoding fails. The aws sqs rule node sends Rule Engine messages to a separate output queue.',
   },
 ]} />
 
@@ -27,7 +27,7 @@ Use AWS SQS Integration when:
 3. **Process the message.** ThingsBoard processes the converted data through the Rule Engine. If **Allow create devices or assets** is enabled, ThingsBoard creates an entity that does not exist yet.
 4. **Delete the message.** The integration deletes each message from the queue after processing it.
 
-To send data from ThingsBoard to an SQS queue, use the <DocLink product={props.product} path="reference/rule-engine/nodes/external/aws-sqs" target="_blank">aws sqs</DocLink> rule node.
+To send data from ThingsBoard to an SQS queue, use the <DocLink product={props.product} path="reference/rule-engine/nodes/external/aws-sqs" target="_blank">aws sqs</DocLink> rule node (see **[Send Data to AWS SQS](#send-data-to-aws-sqs)**).
 
 ## Prerequisites
 
@@ -502,17 +502,122 @@ For a FIFO queue, also pass `--message-group-id`, for example `--message-group-i
 - **Device** — go to **Devices & assets &#8702; Devices**. The integration has created **Thermometer** with the `thermostat` profile. Open it and confirm `serialNumber` = `SN-12345` on the **Attributes** tab (**Client attributes** scope) and `temperature` = `25.5` on the **Latest telemetry** tab.
 - **Queue** — in the SQS console, **Messages available** returns to `0`.
 
+## Send Data to AWS SQS
+
+AWS SQS Integration has no downlink. To send data from ThingsBoard to SQS, add an **aws sqs** rule node to a rule chain. The node sends the message data as the SQS message body. On success, it adds `messageId`, `requestId`, `messageBodyMd5`, and, when the message has attributes, `messageAttributesMd5` to the message metadata. On failure, it adds `error`. For all parameters, see the <DocLink product={props.product} path="reference/rule-engine/nodes/external/aws-sqs" target="_blank">aws sqs node</DocLink> reference.
+
+This section sends shared attribute updates of the device to a separate queue, `ThingsBoard-downlink`.
+
+<Aside type="caution" title="Use a separate queue">
+  Do not send to the queue that the integration reads. Each sent message would come back as an uplink. The integration would also try to decode it as device data.
+</Aside>
+
+### Prepare the Queue
+
+<Steps>
+1. In the Amazon SQS console, create a **Standard** queue named `ThingsBoard-downlink` with the default settings, as in **[Create a Queue](#create-a-queue)**.
+2. Copy its **URL** and **ARN**.
+   <ImageGallery cardMode images={[
+     { src: '/src/assets/images/user-guide/integrations/aws-sqs/aws-sqs-downlink-queue-1.png', alt: 'Queue ThingsBoard-downlink created, Details panel with the ARN arn:aws:sqs:eu-north-1:378560561651:ThingsBoard-downlink and the URL https://sqs.eu-north-1.amazonaws.com/378560561651/ThingsBoard-downlink', caption: 'Copy the URL and ARN of the queue.' },
+   ]} />
+3. Allow the IAM user to send to the queue. In **IAM &#8702; IAM users**, open `thingsboard-sqs`, select `thingsboard-sqs-policy` on the **Permissions** tab, click **Edit**, and add a second statement with your queue ARN:
+   ```json
+   {
+     "Sid": "AllowThingsBoardSqsPublish",
+     "Effect": "Allow",
+     "Action": "sqs:SendMessage",
+     "Resource": "arn:aws:sqs:eu-north-1:378560561651:ThingsBoard-downlink"
+   }
+   ```
+   Click **Next**, then **Save changes**.
+   <ImageGallery images={[
+     { src: '/src/assets/images/user-guide/integrations/aws-sqs/aws-sqs-downlink-policy-1.png', alt: 'IAM Policy editor in JSON mode with two statements: sqs:ReceiveMessage and sqs:DeleteMessage on the ThingsBoard queue, and sqs:SendMessage on the ThingsBoard-downlink queue', caption: 'Add the sqs:SendMessage statement for the downlink queue.' },
+     { src: '/src/assets/images/user-guide/integrations/aws-sqs/aws-sqs-downlink-policy-2.png', alt: 'IAM Edit policy, Review and save step, with SQS access level Limited: Read, Write on multiple resources', caption: 'Check the permissions and click Save changes.' },
+   ]} />
+</Steps>
+
+### Configure the Root Rule Chain
+
+The rule chain sends each shared attribute update to the queue. An **originator fields** node adds the device name to the message metadata, and an **aws sqs** node sends the message data as the SQS message body with the device name as a message attribute.
+
+<Steps>
+1. Go to **Data processing &#8702; Rule chains** and open the **Root Rule Chain**.
+2. From the **Enrichment** section, drag an **originator fields** node onto the canvas. Set:
+   - **Name** — `Add Device Name`.
+   - **Originator fields mapping** — **Source field** **Name**, **Target key** `deviceName`.
+   - **Add mapped originator fields to** — **Metadata**.
+   - Click **Add**.
+3. From the **External** section, drag an **aws sqs** node onto the canvas. Set:
+   - **Name** — `Publish to SQS`.
+   - **Queue type** — **Standard**.
+   - **Queue URL pattern** — the URL of `ThingsBoard-downlink`. The pattern also accepts `${metadataKey}` and `$[messageKey]` placeholders.
+   - **Delay (seconds)** — keep `0`.
+   - **Message attributes** — click **Add mapping** and set **Name** to `deviceName` and **Value** to `${deviceName}`.
+   - **AWS Access Key ID** and **AWS Secret Access Key** — the access key of `thingsboard-sqs`.
+   - **AWS Region** — replace the default `us-east-1` with the Region of the queue, for example `eu-north-1`.
+   - Click **Add**.
+4. Connect the nodes:
+   - **message type switch** &#8702; **Add Device Name** with the **Attributes Updated** relation.
+   - **Add Device Name** &#8702; **Publish to SQS** with the **Success** relation.
+5. Click **Apply changes**.
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/aws-sqs/aws-sqs-downlink-rule-chain-1.png', alt: 'Add rule node: originator fields dialog with the name Add Device Name, the mapping from Name to deviceName, and Metadata selected as the target', caption: 'Map the device name to the deviceName metadata key.' },
+  { src: '/src/assets/images/user-guide/integrations/aws-sqs/aws-sqs-downlink-rule-chain-2.png', alt: 'Add rule node: aws sqs dialog with the name Publish to SQS, queue type Standard, the queue URL of ThingsBoard-downlink, and delay 0', caption: 'Enter the URL of the downlink queue.' },
+  { src: '/src/assets/images/user-guide/integrations/aws-sqs/aws-sqs-downlink-rule-chain-3.png', alt: 'Add rule node: aws sqs dialog, lower part, with the message attribute deviceName set to ${deviceName}, the AWS access key fields, and the AWS Region field', caption: 'Add the deviceName message attribute and enter the access key and Region.' },
+  { src: '/src/assets/images/user-guide/integrations/aws-sqs/aws-sqs-downlink-rule-chain-4.png', alt: 'Root Rule Chain with the message type switch connected to the Add Device Name node by Attributes Updated, and Add Device Name connected to Publish to SQS by Success', caption: 'Attribute updates go through Add Device Name to Publish to SQS.' },
+]} />
+
+Message attribute names and values accept the same placeholders and are sent as attributes of type `String`. A placeholder whose key is not in the message is sent as written: without the **originator fields** node, the attribute value would be the text `${deviceName}`.
+
+### Test Data Sending
+
+<Steps>
+1. Go to **Devices & assets &#8702; Devices**, select **Thermometer**, and open the **Attributes** tab.
+2. Select **Shared attributes** and click **+**.
+3. Set **Key** to `temperatureUploadFrequency`, **Type** to **Integer**, **Value** to `60`, and click **Add**.
+</Steps>
+
+### Verify Sending
+
+<Steps>
+1. Open `ThingsBoard-downlink` in the Amazon SQS console and click **Send and receive messages**.
+2. Under **Receive messages**, click **Poll for messages**. The sent message appears in the **Messages** list.
+3. Click the message ID to open it:
+   - **Body** — the data of the Rule Engine message:
+
+     ```json
+     {"temperatureUploadFrequency":60}
+     ```
+
+   - **Attributes** — `deviceName` of type **String** with the value `Thermometer`.
+   - **Details** — the **Message ID**. It matches `messageId` in the metadata that the **aws sqs** node adds on success.
+4. Click **Done**.
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/aws-sqs/aws-sqs-downlink-verify-1.png', alt: 'Amazon SQS console, ThingsBoard-downlink queue page with the Send and receive messages button', caption: 'Click Send and receive messages.' },
+  { src: '/src/assets/images/user-guide/integrations/aws-sqs/aws-sqs-downlink-verify-2.png', alt: 'Send and receive messages page, Receive messages section with Messages available 1 and the Poll for messages button', caption: 'Click Poll for messages.' },
+  { src: '/src/assets/images/user-guide/integrations/aws-sqs/aws-sqs-downlink-verify-3.png', alt: 'Receive messages section with one received message of 60 bytes in the Messages list', caption: 'The message sent by ThingsBoard appears in the list.' },
+  { src: '/src/assets/images/user-guide/integrations/aws-sqs/aws-sqs-downlink-verify-4.png', alt: 'Received message dialog, Body tab with {"temperatureUploadFrequency":60}', caption: 'The body is the data of the Rule Engine message.' },
+  { src: '/src/assets/images/user-guide/integrations/aws-sqs/aws-sqs-downlink-verify-5.png', alt: 'Received message dialog, Attributes tab with deviceName of type String and the value Thermometer', caption: 'The deviceName attribute holds the device name.' },
+  { src: '/src/assets/images/user-guide/integrations/aws-sqs/aws-sqs-downlink-verify-6.png', alt: 'Received message dialog, Details tab with the message ID, the MD5 of the message body and attributes, and one message attribute', caption: 'The Details tab shows the message ID.' },
+]} />
+
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| **ERROR** events mentioning the queue | Wrong **SQS Queue URL**, or the **Region** differs from the Region in the URL. | Copy the URL from the queue page again. Set **Region** to the Region in the URL; the form defaults to `us-west-2`. |
+| **ERROR** events mentioning the queue | Wrong **SQS Queue URL**. | Copy the URL from the queue page again. |
 | **ERROR** events with `AccessDenied` | The access key is wrong or inactive, or the policy does not allow `sqs:ReceiveMessage` and `sqs:DeleteMessage` on the queue. | Check the access key and the queue ARN in the policy. For an SSE-KMS queue, allow `kms:Decrypt`. |
 | Messages stay in the queue | The integration is disabled, or every poll fails. | Enable the integration and check its **Events** tab for errors. |
 | Messages leave the queue, but no device appears | The decoder failed, or the body is not JSON. The integration deleted the messages anyway. | Check the **Error** column in the integration and converter events. Send JSON bodies only. |
 | Some messages arrive about 30 seconds late | A message in the same batch had a body that is not JSON. The integration stopped the batch, and the remaining messages came back after the queue's **Visibility timeout**. | Find the **ERROR** event with `JsonParseException` in the integration events and fix the producer so that it sends JSON only. |
 | Device not created | `deviceName` is empty or undefined. | Check **Out** in the converter events. |
 | Data arrives with a delay | A long **Polling period in seconds** on a mostly empty queue. | Lower the polling period, or set the queue's **Receive message wait time** to `20` seconds. |
+| The **aws sqs** node routes messages to **Failure** with `AccessDenied` in `error` | The IAM user has no `sqs:SendMessage` on the target queue. | Add the **[publish statement](#prepare-the-queue)** to the policy. |
+| A message attribute holds `${key}` as text | The key is not in the message metadata. | Add the key with an enrichment node, for example **[originator fields](#configure-the-root-rule-chain)**, or use a key that the message already has. |
 | Messages consumed by another reader | Another consumer reads the same queue. SQS delivers each message to one consumer only. | Use a dedicated queue for ThingsBoard, or fan out with Amazon SNS to several queues. |
 
 To read debug events, open the integration or converter, click **Events**, and select an event: **In** is the received data, **Out** is the converter result, and **Error** holds the error text.
@@ -522,6 +627,8 @@ To read debug events, open the integration or converter, click **Events**, and s
 - <DocLink product={props.product} path="user-guide/integrations" target="_blank">Integrations overview</DocLink> — how integrations, converters, uplinks, and downlinks fit together.
 - <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">Uplink data converter</DocLink> — decoder inputs, output format, and scripting patterns.
 - <DocLink product={props.product} path="reference/rule-engine/nodes/external/aws-sqs" target="_blank">aws sqs node</DocLink> — send Rule Engine messages to an SQS queue.
+- <DocLink product={props.product} path="reference/rule-engine/nodes/enrichment/originator-fields" target="_blank">originator fields node</DocLink> — add fields of the message originator, such as the device name, to the message or its metadata.
+- <DocLink product={props.product} path="reference/rule-engine/nodes/filter/message-type-switch" target="_blank">message type switch node</DocLink> — route messages by type, for example attribute updates.
 - <DocLink product={props.product} path="user-guide/integrations/aws-kinesis" target="_blank">AWS Kinesis Integration</DocLink> — read records from a Kinesis data stream.
 - <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink> — run the integration outside the ThingsBoard cluster.
 - <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL</DocLink> — built-in functions and syntax for converter scripts.
