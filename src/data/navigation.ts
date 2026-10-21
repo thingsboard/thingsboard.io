@@ -390,6 +390,12 @@ export const docsSubmenu: SubMenu = {
 			perColumn: 2,
 			items: [
 				{
+					href: '/docs/cli/',
+					heading: 'ThingsBoard CLI',
+					description: 'Build IoT solutions with AI agents',
+					linkClass: 'cli-lnk',
+				},
+				{
 					href: '/docs/edge/pe/',
 					heading: 'Edge',
 					description: 'Edge computing',
