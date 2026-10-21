@@ -2,7 +2,7 @@ import { docsLoader, i18nLoader } from '@astrojs/starlight/loaders';
 import { docsSchema, i18nSchema } from '@astrojs/starlight/schema';
 import { defineCollection, type CollectionEntry } from 'astro:content';
 import { z } from 'astro/zod';
-import { file, glob } from 'astro/loaders';
+import { glob } from 'astro/loaders';
 import { Products } from '@models/site.models';
 import { announcementSchema } from '@models/announcement';
 import {
@@ -30,18 +30,10 @@ export const baseSchema = z.object({
 			gridVariant: z.enum(['lines', 'dots']).optional().default('lines'),
 			variant: z.enum(['default', 'simple']).optional().default('default'),
 			activity: z
-				.discriminatedUnion('type', [
-					z.object({
-						type: z.literal('contributors'),
-						tagline: z.string(),
-						linkText: z.string(),
-						link: z.string(),
-					}),
-					z.object({
-						type: z.literal('dashboard'),
-						product: z.enum(Products),
-					}),
-				])
+				.object({
+					type: z.literal('dashboard'),
+					product: z.enum(Products),
+				})
 				.optional(),
 		})
 		.optional(),
@@ -70,11 +62,6 @@ export const blogSchema = z.object({
 });
 
 export const docsCollectionSchema = z.union([baseSchema, tutorialSchema]);
-
-const contributorSchema = z.object({
-	id: z.number(),
-	login: z.string(),
-});
 
 export type DocsEntryData = z.infer<typeof docsCollectionSchema>;
 
@@ -115,44 +102,14 @@ export const collections = {
 		schema: i18nSchema({
 			extend: z.object({
 				'checklist.or': z.string().default('or'),
-				'footer.contribute': z.string().default('Contribute'),
-				'footer.community': z.string().default('Community'),
-				'footer.sponsor': z.string().default('Sponsor'),
 				'footer.translatePage': z.string().default('Translate this page'),
-				'multipleChoice.defaultCorrect': z.string().default('Correct!'),
-				'multipleChoice.defaultIncorrect': z.string().default('Try again!'),
-				'multipleChoice.submitLabel': z.string().default('Submit'),
-				'tutorial.getReady': z.string().default('Get ready to…'),
 				'tutorial.trackerLabel': z.string().default('Tutorial Tracker'),
 				'tutorial.unit': z.string().default('Unit'),
 				'tutorial.title.prefix': z.string().default('Tutorial - {{title}}'),
 				'progress.todo': z.string().default('To do'),
 				'progress.done': z.string().default('Complete'),
-				'starlight.title': z.string().default('Wanna build docs?'),
-				'starlight.description': z.string().default('Grab our Starlight template to get started.'),
-				'upgrade.implementationPR': z.string().default('Implementation PR: '),
 			}),
 		}),
-	}),
-	contributors: defineCollection({
-		loader: file('src/data/contributors.json'),
-		schema: contributorSchema,
-	}),
-	astroContributors: defineCollection({
-		loader: async () => {
-			try {
-				const result = await fetch('https://astro.badg.es/api/v1/top-contributors.json').then(
-					(res) => res.json()
-				);
-				return result.data.map((contributor: any) => ({
-					id: contributor.username,
-					...contributor,
-				}));
-			} catch {
-				return [];
-			}
-		},
-		schema: z.object({ avatar_url: z.string() }),
 	}),
 	iotHubCategories: defineCollection({
 		loader: async () => {
