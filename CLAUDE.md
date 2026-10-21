@@ -48,7 +48,7 @@ pnpm optimize:svg         # Minify SVGs in place with SVGO (src/assets + public,
 
 All documentation lives in `src/content/docs/{lang}/` as `.mdx` files with YAML frontmatter. Content uses Astro's Content Collections with type-safe Zod schemas defined in `src/content.config.ts`.
 
-**Schema types** determine frontmatter shape: `base`, `deploy`, `backend`, `cms`, `media`, `integration`, `migration`, `tutorial`, `recipe`. The `type` frontmatter field selects the schema.
+**Schema types** determine frontmatter shape: `base` (the default) and `tutorial`. The `type` frontmatter field selects the schema.
 
 **Sidebar** is configured in `astro.sidebar.ts`. Each product has its own tab set, mapped from its URL prefix in `sidebarTabLinksByPrefix`; CE's is *Getting Started, Guides, Build with AI, Installation, APIs & SDKs, Reference*. The exported `sidebar` concatenates every product's items, and `src/routeData.ts` filters it down to the current product at request time.
 
