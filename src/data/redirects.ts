@@ -298,13 +298,13 @@ export const CATCH_ALL_REDIRECTS: CatchAllRedirect[] = [
 export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	// ThingsBoard CLI moved from the platform docs to its own product at /docs/cli/.
 	{ oldPath: 'user-guide/cli', target: '/docs/cli/' },
-	{ oldPath: 'user-guide/cli-solutions', target: '/docs/cli/guides/build-with-your-agent/' },
+	{ oldPath: 'user-guide/cli-solutions', target: '/docs/cli/guides/example-smart-retail/' },
 	{ oldPath: 'pe/user-guide/cli', target: '/docs/cli/' },
-	{ oldPath: 'pe/user-guide/cli-solutions', target: '/docs/cli/guides/build-with-your-agent/' },
+	{ oldPath: 'pe/user-guide/cli-solutions', target: '/docs/cli/guides/example-smart-retail/' },
 	{ oldPath: 'paas/user-guide/cli', target: '/docs/cli/' },
-	{ oldPath: 'paas/user-guide/cli-solutions', target: '/docs/cli/guides/build-with-your-agent/' },
+	{ oldPath: 'paas/user-guide/cli-solutions', target: '/docs/cli/guides/example-smart-retail/' },
 	{ oldPath: 'paas/eu/user-guide/cli', target: '/docs/cli/' },
-	{ oldPath: 'paas/eu/user-guide/cli-solutions', target: '/docs/cli/guides/build-with-your-agent/' },
+	{ oldPath: 'paas/eu/user-guide/cli-solutions', target: '/docs/cli/guides/example-smart-retail/' },
 	{ oldPath: 'iot-gateway/configuration', target: '/docs/iot-gateway/config/general/' },
 	{ oldPath: 'iot-gateway/how-device-removing-renaming-works', target: '/docs/iot-gateway/features/device-renaming/' },
 	{ oldPath: 'iot-gateway/guides/how-to-configure-gateway-using-configurator', target: '/docs/iot-gateway/config/general/' },

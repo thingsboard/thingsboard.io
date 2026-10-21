@@ -4004,12 +4004,12 @@ export const cliSidebar: SidebarConfig = [
 	{
 		label: 'Guides',
 		items: [
-			'docs/cli/guides/build-with-your-agent',
 			'docs/cli/guides/start-from-payload',
 			'docs/cli/guides/alarms',
 			'docs/cli/guides/deliver-to-customer',
 			'docs/cli/guides/import-existing-solution',
 			'docs/cli/guides/environments-and-ci',
+			'docs/cli/guides/example-smart-retail',
 		],
 	},
 	{
@@ -4134,7 +4134,7 @@ export const licenseSidebarTabLinks: SidebarTabLinks = {
 };
 export const cliSidebarTabLinks: SidebarTabLinks = {
 	'Getting Started': '/docs/cli/',
-	Guides: '/docs/cli/guides/build-with-your-agent/',
+	Guides: '/docs/cli/guides/start-from-payload/',
 	Reference: '/docs/cli/reference/commands/',
 };
 export const iotHubSidebarTabLinks: SidebarTabLinks = {
