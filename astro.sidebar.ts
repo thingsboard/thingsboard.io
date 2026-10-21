@@ -3999,15 +3999,26 @@ export const licenseSidebar: SidebarConfig = [
 export const cliSidebar: SidebarConfig = [
 	{
 		label: 'Getting Started',
-		items: ['docs/cli', 'docs/cli/quickstart'],
+		items: ['docs/cli', 'docs/cli/quickstart', 'docs/cli/how-it-works'],
 	},
 	{
 		label: 'Guides',
-		items: ['docs/cli/guides/build-with-your-agent'],
+		items: [
+			'docs/cli/guides/build-with-your-agent',
+			'docs/cli/guides/start-from-payload',
+			'docs/cli/guides/alarms',
+			'docs/cli/guides/deliver-to-customer',
+			'docs/cli/guides/import-existing-solution',
+			'docs/cli/guides/environments-and-ci',
+		],
 	},
 	{
 		label: 'Reference',
-		items: ['docs/cli/reference/commands', 'docs/cli/reference/configuration'],
+		items: [
+			'docs/cli/reference/commands',
+			'docs/cli/reference/configuration',
+			'docs/cli/reference/troubleshooting',
+		],
 	},
 ];
 
