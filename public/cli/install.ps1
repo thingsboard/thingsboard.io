@@ -10,9 +10,18 @@
 
 $ErrorActionPreference = 'Stop'
 
+# Windows PowerShell 5.1 turns each stderr line of a native command into an error record,
+# and 'Stop' then ends the script, even when the output is redirected. uv writes notices
+# to stderr (like "already in PATH"), so run native commands with 'Continue' and check
+# $LASTEXITCODE instead.
+function Invoke-Native([scriptblock]$Command) {
+    $ErrorActionPreference = 'Continue'
+    & $Command
+}
+
 if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
     Write-Host "Installing uv (Python package manager)..."
-    powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+    Invoke-Native { powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex" }
     # The uv installer puts uv in this folder; make it usable now.
     $env:Path = "$env:USERPROFILE\.local\bin;$env:Path"
     if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
@@ -22,11 +31,11 @@ if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
 }
 
 Write-Host "Installing ThingsBoard CLI..."
-uv tool install --upgrade --quiet thingsboard-cli
+Invoke-Native { uv tool install --upgrade --quiet thingsboard-cli }
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-uv tool update-shell *> $null
+Invoke-Native { uv tool update-shell *> $null }
 
-$tb = Join-Path ((uv tool dir --bin) | Out-String).Trim() "tb.exe"
+$tb = Join-Path ((Invoke-Native { uv tool dir --bin }) | Out-String).Trim() "tb.exe"
 Write-Host "OK ThingsBoard CLI installed"
 
 if ($env:TB_NO_INIT) {
