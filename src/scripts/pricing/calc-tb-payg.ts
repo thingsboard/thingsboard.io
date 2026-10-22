@@ -29,7 +29,7 @@ const CALC_TYPE: CalculatorType = 'tb_payg';
 export function initTbPaygCalc() {
 	if (openImpl) return;
 	const modal = document.getElementById('tb-payg-calc');
-	if (!modal) return;
+	if (!(modal instanceof HTMLDialogElement)) return;
 	const $ = (sel: string) => modal.querySelector(sel) as HTMLElement;
 
 	const devicesInput = $('#sm-devices') as HTMLInputElement;

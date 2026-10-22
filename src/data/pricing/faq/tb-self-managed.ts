@@ -337,7 +337,7 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'edge-addon-payg-pricing-plans',
 				question: 'What pricing plans does Edge Computing add-on offer?',
-				answer: '<p>Edge Computing add-on pricing depends on your ThingsBoard model. Check the relevant pricing in the <a href="#" data-open-calc="payg">Plan Calculator</a>.</p>',
+				answer: '<p>Edge Computing add-on pricing depends on your ThingsBoard model. Check the relevant pricing in the <a href="#" data-open-calc="payg" aria-haspopup="dialog">Plan Calculator</a>.</p>',
 			},
 			{
 				id: 'edge-addon-payg-compatibility',
@@ -423,12 +423,12 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'trendz-payg-what-is',
 				question: 'What is Trendz?',
-				answer: '<p>Trendz is an add-on for advanced IoT Data Analytics. It allows you to analyze, detect anomalies, and predict outcomes — all in one unified analytics workspace that works seamlessly with ThingsBoard. You can check pricing in the <a href="#" data-open-calc="payg">Plan Calculator</a>.</p>',
+				answer: '<p>Trendz is an add-on for advanced IoT Data Analytics. It allows you to analyze, detect anomalies, and predict outcomes — all in one unified analytics workspace that works seamlessly with ThingsBoard. You can check pricing in the <a href="#" data-open-calc="payg" aria-haspopup="dialog">Plan Calculator</a>.</p>',
 			},
 			{
 				id: 'trendz-payg-pricing-plans',
 				question: 'What pricing plans does Trendz offer?',
-				answer: '<p>Trendz pricing depends on your ThingsBoard model. You can check the relevant pricing in the <a href="#" data-open-calc="payg">Plan Calculator</a> on this page.</p>',
+				answer: '<p>Trendz pricing depends on your ThingsBoard model. You can check the relevant pricing in the <a href="#" data-open-calc="payg" aria-haspopup="dialog">Plan Calculator</a> on this page.</p>',
 			},
 			{
 				id: 'trendz-payg-activate-cancel',

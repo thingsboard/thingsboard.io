@@ -1,7 +1,7 @@
 // Lazy-loaded module for the ThingsBoard Private Cloud calculator.
 // See `calc-tb-payg.ts` for the lazy-load pattern rationale.
 
-import { makeModalController, portalToBody } from '@root/scripts/pricing/modal-controller';
+import { makeModalController } from '@root/scripts/pricing/modal-controller';
 import {
 	makeInteractionPusher,
 	bindCtaTracking,
@@ -10,6 +10,7 @@ import {
 	type CalculatorType,
 } from '@root/scripts/pricing/calc-analytics';
 import { createRenderScheduler } from '@root/scripts/pricing/render-scheduler';
+import { bindModalDialog } from '@util/modal-dialog';
 
 declare function sliderProgress(slider: HTMLInputElement): void;
 declare function initTickMarks(container: HTMLElement): void;
@@ -133,7 +134,7 @@ let openImpl: (() => void) | null = null;
 export function initTbPcCalc() {
 	if (openImpl) return;
 	const modal = document.getElementById('tb-pc-calc');
-	if (!modal) return;
+	if (!(modal instanceof HTMLDialogElement)) return;
 	const $ = (sel: string) => modal.querySelector(sel) as HTMLElement;
 	const $$ = (sel: string) => Array.from(modal.querySelectorAll(sel)) as HTMLElement[];
 	const container = $('#pc-profiles-container');
@@ -191,7 +192,7 @@ export function initTbPcCalc() {
 				<div class="calc-input-row">
 					<label class="calc-label">Data Points per Message <span class="calc-tooltip"><svg viewBox="0 0 24 24" width="12" height="12" data-icon><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0-18 0m9-3h.01"/><path d="M11 12h1v4h1"/></g></svg><span class="calc-tooltip-text"><span class="calc-tooltip-arrow"></span><span class="calc-tooltip-body">How many data points are included in each message</span></span></span></label>
 					<div class="calc-input-combo">
-						<button type="button" class="calc-payload-btn" data-payload-btn="${p.id}">Submit payload</button>
+						<button type="button" class="calc-payload-btn" data-payload-btn="${p.id}" aria-haspopup="dialog">Submit payload</button>
 						<div class="calc-stepper"><button type="button" class="calc-stepper-btn" data-action="decrement" data-field="dataPoints">&minus;</button><input type="number" class="calc-stepper-input" value="${p.dataPoints}" min="1" data-input="dataPoints" /><button type="button" class="calc-stepper-btn" data-action="increment" data-field="dataPoints">+</button></div>
 					</div>
 				</div>
@@ -330,7 +331,8 @@ export function initTbPcCalc() {
 	}
 
 	// ─── Payload modal ───
-	const payloadModal = document.getElementById('pc-payload-modal') as HTMLElement;
+	const payloadModal = document.getElementById('pc-payload-modal') as HTMLDialogElement;
+	const payloadDialog = bindModalDialog(payloadModal);
 	const jsonInput = document.getElementById('pc-json-input') as HTMLTextAreaElement;
 	const jsonError = document.getElementById('pc-json-error') as HTMLElement;
 	const jsonDpCount = document.getElementById('pc-json-dp-count') as HTMLElement;
@@ -341,15 +343,11 @@ export function initTbPcCalc() {
 		jsonInput.value = '';
 		jsonError.textContent = '';
 		jsonDpCount.textContent = '0';
-		// Re-parent to <body> alongside the main modal so this nested overlay
-		// (z-index 10001) escapes `.main-pane { isolation: isolate }` and paints
-		// above the now body-level main modal instead of being trapped behind it.
-		portalToBody(payloadModal);
-		payloadModal.style.display = '';
+		payloadDialog.open();
 	}
 
 	function closePayloadModal() {
-		payloadModal.style.display = 'none';
+		payloadDialog.close();
 	}
 
 	jsonInput?.addEventListener('input', () => {
@@ -386,7 +384,6 @@ export function initTbPcCalc() {
 	});
 
 	document.getElementById('pc-payload-close')?.addEventListener('click', closePayloadModal);
-	payloadModal?.addEventListener('click', (e) => { if (e.target === payloadModal) closePayloadModal(); });
 
 	// ─── Mode toggle ───
 	$$('.calc-mode-btn').forEach(btn => {
@@ -804,20 +801,11 @@ export function initTbPcCalc() {
 			calculate({ track: false });
 			requestAnimationFrame(() => initAllSliders(modal));
 		},
-		// Hide the payload sub-modal too — it's portaled to <body> as a sibling,
-		// so closing the main modal must not leave it orphaned. Flush any pending
+		// The editor is open here only if a script closed the calculator under it. Flush any pending
 		// interaction so the final config isn't lost in the debounce window.
 		onClose: () => {
 			closePayloadModal();
 			calcAnalytics.flush();
-		},
-		// Escape closes the top layer first: the payload sub-modal, then the modal.
-		onEscape: () => {
-			if (payloadModal.style.display !== 'none') {
-				closePayloadModal();
-				return true;
-			}
-			return false;
 		},
 	});
 

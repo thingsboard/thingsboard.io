@@ -15,6 +15,8 @@ export interface HeaderConfig {
 	showSearch: boolean;
 	showThemeToggle: boolean;
 	cloudSignupIds: boolean;
+	/** Logo and theme toggle only: no navigation, account controls or burger (campaign landings). */
+	minimal: boolean;
 }
 
 export interface HeaderConfigInput {
@@ -23,6 +25,7 @@ export interface HeaderConfigInput {
 	showSearch?: boolean;
 	showThemeToggle?: boolean;
 	cloudSignupIds?: boolean;
+	minimal?: boolean;
 }
 
 // Per-variant defaults for the two icons.
@@ -37,16 +40,19 @@ const VARIANT_DEFAULTS: Record<HeaderVariant, { showSearch: boolean; showThemeTo
 };
 
 // `forceLight` always wins over `showThemeToggle` — a locked-light page must
-// not offer a theme switch.
+// not offer a theme switch. `minimal` drops the search icon with the rest of the
+// navigation.
 export function resolveHeaderConfig(input: HeaderConfigInput = {}): HeaderConfig {
 	const variant = input.variant ?? 'docs';
 	const defaults = VARIANT_DEFAULTS[variant];
 	const forceLight = input.forceLight ?? false;
 	const showThemeToggle = forceLight ? false : (input.showThemeToggle ?? defaults.showThemeToggle);
+	const minimal = input.minimal ?? false;
 	return {
 		variant,
-		showSearch: input.showSearch ?? defaults.showSearch,
+		showSearch: minimal ? false : (input.showSearch ?? defaults.showSearch),
 		showThemeToggle,
 		cloudSignupIds: input.cloudSignupIds ?? true,
+		minimal,
 	};
 }

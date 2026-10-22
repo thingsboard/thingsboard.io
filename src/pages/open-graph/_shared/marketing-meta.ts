@@ -36,6 +36,7 @@ const PRODUCT_OVERRIDES: Record<string, MarketingOverride> = {
 	'/products/iot-hub/terms-of-use/':         { eyebrow: 'ThingsBoard IoT Hub',       title: 'Terms of Use' },
 	'/products/demo/privacy-policy/':          { eyebrow: 'Live Demo',                 title: 'Privacy Policy' },
 	'/services/':                              { eyebrow: 'ThingsBoard',               title: 'Support and Services' },
+	'/proof-of-concept/':                      { eyebrow: 'Proof of Concept',          title: 'A working IoT application in 10 business days — for a fixed price' },
 	'/legal/license-agreement/':               { eyebrow: 'ThingsBoard',               title: 'License Agreement' },
 	'/legal/community-grant-license-agreement/':{ eyebrow: 'Community Grant Program',  title: 'Community Grant License Agreement' },
 	'/legal/busl/':                            { eyebrow: 'ThingsBoard',               title: 'Business Source License 1.1' },
