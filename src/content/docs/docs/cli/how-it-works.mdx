@@ -1,0 +1,136 @@
+---
+title: How ThingsBoard CLI works
+description: Learn how projects, solutions, profiles, the agent kit, and push and pull work together in ThingsBoard CLI.
+sidebar:
+  label: How it works
+---
+import DocLink from '@components/DocLink.astro';
+import { Products } from '@models/site.models';
+import { Aside } from '@astrojs/starlight/components';
+
+ThingsBoard CLI keeps your ThingsBoard entities as JSON files in a folder on your computer. Your AI agent writes these files from your description. The CLI checks the files and sends them to ThingsBoard. This page explains the parts and how they work together. To try it first, see <DocLink product={Products.CLI} path="getting-started">Getting Started</DocLink>.
+
+## Project folder and solutions
+
+`tb init` creates a **project folder**. One project folder holds many solutions. A **solution** is one folder in `solutions/`. It contains the entities of one IoT application, like the devices and dashboards of an office.
+
+```text
+thingsboard-project/
+├── .claude/                    # agent kit for Claude Code (.agents/ and AGENTS.md for Antigravity)
+├── solutions/
+│   └── office-climate/
+│       ├── devices/
+│       │   └── office-sensor-1-<id>.json
+│       ├── device-profiles/
+│       ├── dashboards/
+│       ├── tasks/              # emulators and calculated field reprocessing
+│       └── design/             # the agent's design files, ignored by push
+├── thingsboard.json            # project settings
+├── README.md
+└── .gitignore
+```
+
+A solution can contain devices, device profiles, assets, dashboards, alarm rules, calculated fields, customers, users, roles, and entity groups. Each entity is one JSON file. An entity folder appears when the first entity of that type is saved.
+
+The agent creates solutions for you. To create an empty solution yourself, run `tb solution new <name>`.
+
+## Profiles
+
+A **profile** contains a ThingsBoard URL and the credentials of a user. Use an API key. The CLI uses the default profile, unless you add `--profile <name>` to a command. You can have one profile for each environment, like `dev`, `staging`, and `prod`. For details, see <DocLink product={Products.CLI} path="reference/configuration">Configuration</DocLink>.
+
+## Local and remote mode
+
+A project is in **local mode** by default. In local mode, commands like `tb device save` write files. Nothing changes in ThingsBoard until you run `tb push`. You can review the files, commit them to git, and push when you are ready.
+
+In **remote mode**, write commands send changes to ThingsBoard at once. To change the mode, run `tb config mode remote` or `tb config mode local`. Solutions work in local mode only.
+
+## Agent kit
+
+`tb init` installs the **agent kit** in the project folder. For Claude Code, the kit is in `.claude/`. For Antigravity, the kit is in `.agents/` and `AGENTS.md`. The kit contains the ThingsBoard skills and instructions. They tell the agent how to design a solution, write the entity files, and use the CLI.
+
+The agent loads the skills when it starts in the project folder. If you run `tb init` inside a running agent session, the agent does not see the new skills. Restart the agent in the project folder. In Claude Code, type `/exit`, then run `claude --continue`.
+
+## Describe, write files, validate, push
+
+Every build and every change follows the same loop:
+
+```text
+You describe the result
+        │
+        ▼
+The agent writes JSON files  ◄──── errors ────┐
+        │                                      │
+        ▼                                      │
+tb validate ───────────────────────────────────┘
+        │ OK
+        ▼
+tb push (after you approve)
+        │
+        ▼
+Entities in ThingsBoard
+```
+
+1. You describe what you need, like the data that a sensor sends.
+2. The agent writes the entity files in the solution folder.
+3. `tb validate` checks the files against your ThingsBoard. The agent fixes the errors.
+4. `tb push` sends the solution to ThingsBoard. The agent asks before it pushes.
+
+The agent changes ThingsBoard only when you approve the deployment. If your request already says to deploy, or to show the data on a dashboard, the agent deploys without a question.
+
+## External IDs and repeated pushes
+
+Each entity file contains an ID. ThingsBoard keeps this ID as the **external ID** of the entity. On each push, the CLI finds the entity by its external ID:
+
+- If the entity exists, the push updates it.
+- If the entity does not exist, the push creates it.
+
+Thus, you can push the same solution many times. The push never makes duplicates. The CLI writes no state files to the project.
+
+The same files can go to several ThingsBoard servers. Push them with a different profile each time:
+
+```bash
+tb push office-climate --profile staging
+```
+
+## Pull and git history
+
+`tb pull` does the opposite of push. It reads the entities from ThingsBoard and writes them to the files. Use it when someone changed an entity in the ThingsBoard UI. To import entities that already exist in ThingsBoard, run `tb pull -i`. It opens a picker where you select the entities.
+
+`tb init` creates a git repository for the project. The agent commits each step of its work, so you can see each change and go back to an earlier version. `tb pull` does not overwrite files that have uncommitted changes. Commit your changes first, or add `--force`.
+
+## Demo data
+
+The agent creates an **emulator** for each device that it builds. An emulator makes demo telemetry, so the dashboard shows data before you connect real devices. Alarm rules work on demo data too.
+
+There are two kinds of demo data:
+
+- **History:** `tb push <name> --run-tasks` writes the history one time. The design sets the length: seven days by default, 30 days for monthly patterns, up to 90 days. By default, there is one value every 30 minutes. The same command runs the reprocessing of calculated fields.
+- **Live data:** `tb emulator run` sends new values for a limited time. The default duration is 10 minutes, and the default interval is 5 seconds. Each device continues from its latest value.
+
+When you approve a deployment, the agent does both. It runs `tb push <name> --run-tasks`, then streams live data for 5 minutes.
+
+## Quick build and full design
+
+The agent selects one of two flows for a new solution:
+
+- **Quick build:** Your request describes one or two kinds of devices. It names no customers, users, roles, sites, hierarchy, or extension. The agent builds at once, with no interview and no approval stops. It tells you "Quick build: …".
+- **Full design:** For larger requests, or when you say "full solution", the agent first asks how you want to approve the work. It can ask some questions. Then it shows the design: profiles, relations, roles, alarms, and demo entities. Then it builds the entities, then the dashboards. Each step is a git commit.
+
+A quick build can grow later. When you add the first customer, user group, or role, the agent writes the full role design. For a hands-on example, see <DocLink product={Products.CLI} path="guides/example-smart-retail">Example: smart retail solution</DocLink>.
+
+## Dashboards
+
+On ThingsBoard 4.4.0.1 and later, the agent builds each dashboard screen as a custom HTML page. Maps and the alarm table stay standard widgets inside the page. On older servers, the agent uses grids of standard widgets. For the widget that hosts custom HTML, see <DocLink product={Products.PAAS} path="reference/widgets/html-widgets/html-container">HTML container widget</DocLink>.
+
+## Limitations
+
+- **No rollback:** If a push fails, ThingsBoard changes nothing. A push that succeeds has no automatic rollback. If a push sends a wrong change, fix the files and push again. Use git to find the earlier version of a file.
+- **UI changes are overwritten:** The next push replaces changes made in the ThingsBoard UI to entities in your project. Run `tb pull` before you push to keep them.
+
+## Next steps
+
+- <DocLink product={Products.CLI} path="guides/example-smart-retail">Example: smart retail solution</DocLink>: build and update a solution with prompts.
+- <DocLink product={Products.CLI} path="guides/import-existing-solution">Import an existing solution</DocLink>: bring entities from ThingsBoard into a project.
+- <DocLink product={Products.CLI} path="guides/environments-and-ci">Environments and CI</DocLink>: push one solution to dev, staging, and production.
+- <DocLink product={Products.CLI} path="reference/commands">Commands</DocLink>: run the CLI yourself.
+- <DocLink product={Products.CLI} path="reference/configuration">Configuration</DocLink>: profiles, API keys, and environment variables.

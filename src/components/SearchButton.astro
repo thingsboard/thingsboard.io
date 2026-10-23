@@ -96,6 +96,8 @@ const searchRoutes: [string, string][] = [
 		let loaderBar: HTMLElement | null = null;
 		let status: HTMLElement | null = null;
 		let opener: HTMLElement | null = null;
+		// True while a press inside the modal moves focus; see the focusout rescue.
+		let pressing = false;
 
 		const close = () => {
 			if (!modal) return;
@@ -140,6 +142,11 @@ const searchRoutes: [string, string][] = [
 
 			modal.querySelector('.tb-search-overlay')!.addEventListener('click', close);
 			modal.querySelector('.tb-search-close')!.addEventListener('click', close);
+			// The browser moves focus right after mousedown, in the same task; the timeout clears the flag after that.
+			modal.addEventListener('mousedown', () => {
+				pressing = true;
+				setTimeout(() => (pressing = false));
+			}, true);
 
 			const injectMoreLink = () => {
 				const branding = modal!.querySelector('.gcsc-more-maybe-branding-root');
@@ -173,9 +180,9 @@ const searchRoutes: [string, string][] = [
 			return modal;
 		};
 
-		const focusInput = (m: HTMLElement) => {
+		const focusInput = (m: HTMLElement, options?: FocusOptions) => {
 			const input = m.querySelector<HTMLInputElement>('input.gsc-input');
-			if (input && document.activeElement !== input) input.focus();
+			if (input && document.activeElement !== input) input.focus(options);
 		};
 
 		// Two complementary mechanisms keep the search input focused while
@@ -191,6 +198,10 @@ const searchRoutes: [string, string][] = [
 		//    by moving it to <body>/null — i.e. NOT to a specific element
 		//    the user clicked. We only restore when relatedTarget is null/
 		//    body so a legitimate user click outside the modal still wins.
+		//
+		// Neither scrolls: refocusing the input scrolls the results box to
+		// its top, moving whatever the visitor is pressing out from under
+		// the pointer, so the click never fires.
 		let focusObs: MutationObserver | null = null;
 		let focusOutHandler: ((e: FocusEvent) => void) | null = null;
 
@@ -198,7 +209,7 @@ const searchRoutes: [string, string][] = [
 			focusInput(m);
 
 			focusObs?.disconnect();
-			focusObs = new MutationObserver(() => focusInput(m));
+			focusObs = new MutationObserver(() => focusInput(m, { preventScroll: true }));
 			focusObs.observe(m, { childList: true, subtree: true });
 
 			if (focusOutHandler) m.removeEventListener('focusout', focusOutHandler);
@@ -212,10 +223,14 @@ const searchRoutes: [string, string][] = [
 				// Focus moving to a real element outside the modal — assume
 				// the user clicked there deliberately, don't fight them.
 				if (next && next !== document.body) return;
+				// A press inside the modal sends focus to body/null too: on a
+				// non-focusable spot, and in Safari on a link or button, which
+				// it doesn't focus on click. The visitor's own action — leave it.
+				if (pressing) return;
 				// Focus going to body/null — script-steal pattern. Restore on
 				// the next frame to avoid recursive blur/focus loops.
 				requestAnimationFrame(() => {
-					if (m.classList.contains('open')) input.focus();
+					if (m.classList.contains('open')) input.focus({ preventScroll: true });
 				});
 			};
 			m.addEventListener('focusout', focusOutHandler);

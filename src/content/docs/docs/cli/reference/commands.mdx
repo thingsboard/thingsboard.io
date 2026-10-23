@@ -1,0 +1,225 @@
+---
+title: ThingsBoard CLI commands
+description: The ThingsBoard CLI commands for projects, entities, solutions, push and pull, demo data, and help.
+sidebar:
+  label: Commands
+---
+import { Products } from '@models/site.models';
+import DocLink from '@components/DocLink.astro';
+import { Aside } from '@astrojs/starlight/components';
+import ImageGallery from '@components/ImageGallery.astro';
+
+This page shows the ThingsBoard CLI commands that you use most. For all commands and options, use the built-in help (see [Help](#help)). To connect the CLI to ThingsBoard, see <DocLink product={Products.CLI} path="reference/configuration">Configuration</DocLink>.
+
+## Create a project
+
+```bash
+tb init [FOLDER]
+```
+
+`tb init` prepares a project folder. It does not create a solution and does not change ThingsBoard.
+
+| Option | What it does |
+|---|---|
+| `FOLDER` | The project folder. The CLI creates it if it does not exist. Default: the current folder. |
+| `--agent-format claude\|antigravity\|both` | The agent kit to install. Default: the CLI finds the installed agents and asks. |
+| `--browser` | If the CLI is not connected, enter the ThingsBoard URL and API key on a local web page. Use it when an AI agent runs `tb init`. |
+| `--skip-config` | Do not check or set up the connection. |
+| `--guided` | Ask for the project folder and offer to start the agent. The installer uses this option. |
+
+`tb init` writes the agent kit (`.claude/`, or `.agents/` and `AGENTS.md`), `thingsboard.json`, `.gitignore`, and `README.md`. It creates a git repository if the folder is not in one. The CLI creates the entity folders when you save the first entity.
+
+## Help
+
+The built-in help always shows the current commands and options:
+
+```bash
+tb --help                # command groups
+tb device --help         # commands in a group
+tb device save --help    # options of one command
+```
+
+Commands that call a ThingsBoard API method also accept `-H` (or `--help-verbose`). It shows the full request schema, with the required fields and the read-only fields:
+
+```bash
+tb device save -H
+```
+
+## Local and remote mode
+
+The mode is a setting of the project:
+
+```bash
+tb config mode local     # default: commands save to project files; nothing reaches ThingsBoard until tb push
+tb config mode remote    # commands call the ThingsBoard API at once
+```
+
+To send one command to the API without a change of the project mode, add `--remote` to it.
+
+## Entities
+
+Each entity type has its own command group, like `tb device`, `tb dashboard`, `tb asset`, `tb customer`, `tb rule-chain`, and `tb calculated-field`. Most groups have the commands `list`, `get`, `save`, and `delete`.
+
+```bash
+# List devices
+tb device list
+
+# Create a device from a JSON body
+tb device save --json '{"name": "Sensor-01", "type": "Temperature Sensor"}'
+
+# Create a device with options for the common fields
+tb device save --name Sensor-02 --type "Temperature Sensor"
+
+# Save server-scope attributes on an entity
+tb attributes save DEVICE <entity-id> --scope SERVER_SCOPE --json '{"firmwareVersion": "1.0.3"}'
+```
+
+In local mode, `tb <entity> save` writes one JSON file for each entity to the matching entity folder. Nothing reaches ThingsBoard until you run `tb push`. In remote mode, the command saves the entity in ThingsBoard at once.
+
+## Solutions
+
+Each solution is a folder `solutions/<name>/`. You build solutions in local mode.
+
+```bash
+tb solution new smart-building     # create a solution
+tb solution list                   # list the solutions in the project
+tb device save --solution smart-building --name Sensor-01 --type "Temperature Sensor"
+```
+
+To save an entity to a solution, add `--solution <name>` to the command. This option works from all folders of the project. Without it, the CLI uses the solution of the current folder, or the project root.
+
+## Validate and push
+
+```bash
+tb validate                        # validate the root entities against ThingsBoard
+tb validate smart-building         # validate one solution
+tb push smart-building             # deploy a solution (omit the name to deploy the root entities)
+tb push smart-building --run-tasks # also write demo data and run calculated field reprocessing
+```
+
+| Option | What it does |
+|---|---|
+| `--profile`, `-p` | The profile to use. Default: the active profile. |
+| `--all` | Push the root entities and all solutions. |
+| `--skip-validate` | Do not validate before the push. |
+| `--run-tasks` | After the push, run the tasks of the solution (emulators and calculated field reprocessing). |
+| `--force-emulators` | Write the emulator data again, also for keys that already have data. This deletes the existing data of these keys first. Use it with `--run-tasks`. |
+| `--yes`, `-y` | Do not ask for confirmation of destructive actions, like `--force-emulators`. |
+
+`tb push --run-tasks` does the usual push. Then it does two more steps:
+
+- **Emulators.** The CLI writes demo telemetry for the devices that have emulators. The dashboards then show data.
+- **Calculated field reprocessing.** The CLI sends the earlier inputs through each calculated field again. The calculated values then cover the same time range as the demo data.
+
+You can use `--run-tasks` on each push. The emulators do not write data again for keys that already have data. Use `--force-emulators` to write the data again.
+
+<Aside>
+The agent creates emulators for the devices that it builds. If you use the CLI without an agent, add emulators with `tb emulator add` (see [Demo data](#demo-data)).
+</Aside>
+
+## Deploy to several environments
+
+To deploy the same solution to more than one ThingsBoard environment, push it with different profiles:
+
+```bash
+tb push smart-building --profile dev
+tb push smart-building --profile staging
+tb push smart-building --profile prod
+```
+
+The CLI writes no state files to your project. When you push to the same environment again, the CLI updates the existing entities. It does not create duplicates. Test on dev, then push the same files to staging and prod.
+
+<Aside type="caution">
+The next `tb push` overwrites changes that someone made in the ThingsBoard UI. Run `tb pull` first to get the UI changes into your files.
+</Aside>
+
+## Pull
+
+`tb pull` does the opposite of push. It gets the current entities from ThingsBoard and writes them to the matching JSON files. Use it in these cases:
+
+- Someone changed a dashboard in the UI.
+- You want a local copy of the entities on staging.
+- You want to add an entity that someone created in ThingsBoard to the project.
+
+```bash
+tb pull                            # refresh all local entities of the current solution
+tb pull --solution smart-building  # the same, for the named solution
+tb pull dashboard --all            # refresh all dashboards of the current solution
+tb pull device <uuid>              # get one entity by its internal ID on the server
+tb pull device <uuid1> <uuid2>     # get several entities
+```
+
+Use the ID form to get entities that are on the server but not in the project. The CLI writes a new file to the correct folder.
+
+| Option | What it does |
+|---|---|
+| `--solution`, `-s` | The solution. Default: the solution of the current folder, or the project root. |
+| `--dry-run` | Show the planned file changes (created, updated, renamed). Do not change files. |
+| `--with-credentials` | Add the device credentials to the files. Default: off. Use it only if you want the credentials in git. |
+| `--force` | Do not check for uncommitted git changes. |
+| `--interactive`, `-i` | Open a picker to select entities of all types. |
+
+`tb pull` does not overwrite files that have uncommitted changes. Commit or stash your changes, or add `--force`.
+
+To manage a solution that already runs in ThingsBoard, select its entities in the interactive pull:
+
+```bash
+tb pull -i
+```
+
+The CLI opens a picker in the terminal. It shows the entities of your tenant of all types, including entity groups. Select the entities and press **Enter** to import them.
+
+<ImageGallery product={Products.CLI} images={[
+  { src: '/src/assets/images/user-guide/cli-solutions/interactive-pull.png', alt: 'The interactive pull picker of ThingsBoard CLI', caption: 'The interactive pull: find, filter, and select the entities to import into your project.' },
+]} />
+
+- Press **Space** to select or clear the row.
+- Press **m** on a group row to select the group and all its members.
+- Press **a** to select all rows that match the search. Press it again to clear them.
+- Press **c** to clear all selections. Press **q** to quit without a pull.
+
+To filter, type `owner:<name>` in the search field to show the entities of one owner. Type `server:<query>` to search on the server. After the pull, the entities are in your project files. The next `tb push` updates them.
+
+## Demo data
+
+Emulators create demo telemetry for devices. The dashboards then show data before you connect real devices. The agent creates emulators for the devices that it builds.
+
+```bash
+tb emulator add --entity-type DEVICE --entity-id <uuid> --solution <name> --json '<profiles>'   # add an emulator
+tb emulator list --solution <name>                                                            # list the emulators
+tb push <name> --run-tasks                                                                    # write the demo history
+tb emulator run <name> --duration 5m                                                          # send live demo data
+```
+
+- `tb emulator add` saves the emulator in `solutions/<name>/tasks/emulators/`. Use `--days` to set the length of the history (default: 7). Use `--interval-ms` to set the time between values (default: 1800000, 30 minutes).
+- `tb push --run-tasks` writes the demo history one time. The charts then show data when you open the dashboard.
+- `tb emulator run` sends new values for a limited time. Use `--duration` to set the time (default: 10 minutes, maximum 24 hours). Use `--interval` to set the time between values (default: 5 seconds, minimum 1 second). Each device continues from its latest value. Press **Ctrl+C** to stop. The devices must be in ThingsBoard, so run `tb push` first. If the project has one solution with emulators, you can omit the solution name.
+
+## Feedback
+
+To tell us about your experience with the CLI, run:
+
+```bash
+tb feedback
+```
+
+## Shell completion
+
+Install the completion one time, then restart your terminal:
+
+```bash
+tb --install-completion bash    # bash
+tb --install-completion zsh     # zsh
+tb --install-completion fish    # fish
+```
+
+<Aside type="tip" title="Show the HTTP requests">
+Add `--debug` to a command, like `tb push smart-building --debug`. Or set `TB_DEBUG=1` in your environment. The CLI then shows each HTTP request and response. Add this output to a bug report.
+</Aside>
+
+## Limitations
+
+- `tb push` has **no automatic rollback**. If you push a solution with errors, fix it in the files and push again.
+- The CLI finds entities on the server by their **external ID**. The next `tb push` overwrites UI changes to these entities, unless you run `tb pull` first. You can also add new entities from ThingsBoard to the project with `tb pull`.
+
+For errors and their solutions, see <DocLink product={Products.CLI} path="reference/troubleshooting">Troubleshooting</DocLink>.

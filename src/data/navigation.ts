@@ -81,6 +81,13 @@ export const productsSubmenu: SubMenu = {
 			perColumn: 2,
 			items: [
 				{
+					href: '/docs/cli/',
+					icon: '/src/assets/images/landings/nav/cli-icon.svg',
+					heading: 'ThingsBoard CLI',
+					description: 'Build IoT solutions with AI agents',
+					linkClass: 'cli-lnk',
+				},
+				{
 					href: '/products/thingsboard-edge/',
 					icon: '/src/assets/images/landings/nav/thingsboard-e-icon.svg',
 					heading: 'Edge',
@@ -388,6 +395,12 @@ export const docsSubmenu: SubMenu = {
 			name: 'Product ecosystem',
 			perColumn: 2,
 			items: [
+				{
+					href: '/docs/cli/',
+					heading: 'ThingsBoard CLI',
+					description: 'Build IoT solutions with AI agents',
+					linkClass: 'cli-lnk',
+				},
 				{
 					href: '/docs/edge/pe/',
 					heading: 'Edge',

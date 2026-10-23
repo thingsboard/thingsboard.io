@@ -49,7 +49,7 @@ export const AI_CTA = {
 	},
 	cli: {
 		text: 'Set up the CLI',
-		href: '/docs/pe/user-guide/cli/',
+		href: '/docs/cli/',
 		line: 'Install the CLI, open a project folder, and hand your agent the first change.',
 	},
 };
