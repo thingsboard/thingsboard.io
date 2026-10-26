@@ -1517,15 +1517,11 @@ export const NON_DOCS_REDIRECTS: Record<string, string> = {
 	// hardware-partners asset folder, where every other partner's files live.
 	'/docs/samples/sensiedge/connect_sensi_ble.pdf': '/partners/hardware/sensiedge/samples/connect_sensi_ble.pdf',
 
-	// Device Library dashboard downloads that other sites still link to. The device's IoT Hub
-	// page installs the dashboard with the device package.
+	// Device Library dashboard still linked from the vendor's setup guide. The file was removed
+	// from /iot-hub/devices/resources/, where the devices-library/* splat sends it; the device's
+	// IoT Hub page installs the dashboard with the device package.
 	'/docs/devices-library/resources/dashboards/lrs10701/lrs10701_air_quality_monitor_dashboard.json':
 		'/iot-hub/devices/lrs10701/',
-	'/docs/devices-library/resources/dashboards/lrs20100/lrs20100_temperature_and_humidity_sensor_dashboard.json':
-		'/iot-hub/devices/lrs20100/',
-	'/docs/devices-library/resources/dashboards/lw001-bg-pro/lw001-bg_pro_lorawan_tracker_dashboard.json':
-		'/iot-hub/devices/lw001-bg-pro/',
-	'/docs/devices-library/resources/dashboards/sensy32/sensy32-demo-dashboard.json': '/iot-hub/devices/sensy32/',
 
 	// Blog attachments rehosted from the WordPress uploads folder
 	'/blog/wp-content/uploads/2024/03/tb_dynamic_button_states.json': '/resources/blog/tb_dynamic_button_states.json',
