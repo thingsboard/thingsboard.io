@@ -7,7 +7,7 @@
  */
 
 /** Community Edition */
-export const CE_FULL_VER = '4.3.1.7';
+export const CE_FULL_VER = '4.3.1.8';
 
 /**
  * First release line that ships under the source-available license, as stated in
