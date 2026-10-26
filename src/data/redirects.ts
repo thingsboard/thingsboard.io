@@ -1284,17 +1284,8 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'samples/raspberry/gpio-android-things', target: '/iot-hub/devices/raspberry-pi-4/' },
 	{ oldPath: 'samples/raspberry/temperature', target: '/iot-hub/devices/raspberry-pi-4/' },
 
-	// Device Library index pages. The devices-library/:slug/ rules in DYNAMIC_REDIRECTS
-	// need a slug, so the bare index is listed here.
-	{ oldPath: 'devices-library', target: '/iot-hub/devices/' },
-	{ oldPath: 'pe/devices-library', target: '/iot-hub/devices/' },
-	{ oldPath: 'paas/devices-library', target: '/iot-hub/devices/' },
-	{ oldPath: 'paas/eu/devices-library', target: '/iot-hub/devices/' },
-	{ oldPath: 'edge/devices-library', target: '/iot-hub/devices/' },
-	{ oldPath: 'pe/edge/devices-library', target: '/iot-hub/devices/' },
-
 	// Legacy /docs/[…]/devices-library/{slug} slug aliases that must win over the
-	// devices-library/:slug/ rules in DYNAMIC_REDIRECTS.
+	// devices-library/* splats in DYNAMIC_REDIRECTS.
 	{
 		oldPath: 'pe/devices-library/tecmo-controls-t3e-6ct-and-hum-w1',
 		target: '/iot-hub/devices/temco-controls-t3e-6ct-and-hum-w1/',
@@ -1698,9 +1689,7 @@ export const DYNAMIC_REDIRECTS: DynamicRedirectGroup[] = [
 	{
 		comment:
 			'Device Library → IoT Hub. Per-platform rules first; bare /device-library/* ' +
-			'last so it only catches flat slugs. Slug-rename/case aliases are static above. ' +
-			'The /docs/ rules take one segment (:slug), not a splat: every old docs page was ' +
-			'one level deep, and a splat would turn its resources/ files into 301 → 404.',
+			'last so it only catches flat slugs. Slug-rename/case aliases are static above.',
 		entries: [
 			{ source: '/device-library/ce/*', target: '/iot-hub/devices/:splat' },
 			{ source: '/device-library/pe/*', target: '/iot-hub/devices/:splat' },
@@ -1709,12 +1698,12 @@ export const DYNAMIC_REDIRECTS: DynamicRedirectGroup[] = [
 			{ source: '/device-library/edge/*', target: '/iot-hub/devices/:splat' },
 			{ source: '/device-library/pe-edge/*', target: '/iot-hub/devices/:splat' },
 			{ source: '/device-library/*', target: '/iot-hub/devices/:splat' },
-			{ source: '/docs/devices-library/:slug/', target: '/iot-hub/devices/:slug/' },
-			{ source: '/docs/pe/devices-library/:slug/', target: '/iot-hub/devices/:slug/' },
-			{ source: '/docs/paas/devices-library/:slug/', target: '/iot-hub/devices/:slug/' },
-			{ source: '/docs/paas/eu/devices-library/:slug/', target: '/iot-hub/devices/:slug/' },
-			{ source: '/docs/edge/devices-library/:slug/', target: '/iot-hub/devices/:slug/' },
-			{ source: '/docs/pe/edge/devices-library/:slug/', target: '/iot-hub/devices/:slug/' },
+			{ source: '/docs/devices-library/*', target: '/iot-hub/devices/:splat' },
+			{ source: '/docs/pe/devices-library/*', target: '/iot-hub/devices/:splat' },
+			{ source: '/docs/paas/devices-library/*', target: '/iot-hub/devices/:splat' },
+			{ source: '/docs/paas/eu/devices-library/*', target: '/iot-hub/devices/:splat' },
+			{ source: '/docs/edge/devices-library/*', target: '/iot-hub/devices/:splat' },
+			{ source: '/docs/pe/edge/devices-library/*', target: '/iot-hub/devices/:splat' },
 		],
 	},
 ];
