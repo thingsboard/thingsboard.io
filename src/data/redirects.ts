@@ -1526,9 +1526,8 @@ export const NON_DOCS_REDIRECTS: Record<string, string> = {
 	// hardware-partners asset folder, where every other partner's files live.
 	'/docs/samples/sensiedge/connect_sensi_ble.pdf': '/partners/hardware/sensiedge/samples/connect_sensi_ble.pdf',
 
-	// Device Library dashboard downloads. The /docs/devices-library/* splat would send these
-	// to a missing /iot-hub/devices/resources/… path; the device's IoT Hub page installs the
-	// dashboard with the device package instead.
+	// Device Library dashboard downloads that other sites still link to. The device's IoT Hub
+	// page installs the dashboard with the device package.
 	'/docs/devices-library/resources/dashboards/lrs10701/lrs10701_air_quality_monitor_dashboard.json':
 		'/iot-hub/devices/lrs10701/',
 	'/docs/devices-library/resources/dashboards/lrs20100/lrs20100_temperature_and_humidity_sensor_dashboard.json':
