@@ -21,6 +21,7 @@ import { getCanonicalPathname, getProfessionalTwinPathname } from '~/util/canoni
 import { DOCS_SUFFIX, formatDocsTitle, TITLE_SEPARATOR } from '~/consts';
 import { getOgImageUrl } from '~/util/getOgImageUrl';
 import { getTutorialPages } from '~/util/getTutorialPages';
+import { hasCurrentEntry, type SidebarEntry } from '@util/sidebar';
 import { isAnnouncementExpired, type Announcement } from '@models/announcement';
 import { docsAnnouncements } from '@data/docsAnnouncements';
 // No alias covers `config/`; relative import is the only option here.
@@ -273,42 +274,28 @@ function linkMatchesVersion(href: string, version: Products): boolean {
 	);
 }
 
+type SidebarLink = Extract<SidebarEntry, { type: 'link' }>;
+
 /**
  * When the current page is not a sidebar link (e.g. a dynamic sub-page like
  * /docs/pe/releases/releases-table/v4-3-x/), mark the closest ancestor
  * sidebar link as current so that collapsed groups containing it render open.
  */
 function markParentSidebarItemAsCurrent(starlightRoute: StarlightRouteData, pathname: string) {
-	// If any entry is already current, nothing to do
-	if (hasCurrent(starlightRoute.sidebar)) return;
-
-	// Find the sidebar link with the longest href that is a prefix of pathname
-	let bestEntry: { isCurrent: boolean } | null = null;
-	let bestLen = 0;
-
-	function walk(entries: StarlightRouteData['sidebar']) {
-		for (const entry of entries) {
-			if (entry.type === 'link') {
-				if (pathname.startsWith(entry.href) && entry.href.length > bestLen) {
-					bestLen = entry.href.length;
-					bestEntry = entry;
-				}
-			} else if (entry.type === 'group') {
-				walk(entry.entries);
-			}
-		}
-	}
-
-	walk(starlightRoute.sidebar);
-	if (bestEntry) (bestEntry as { isCurrent: boolean }).isCurrent = true;
+	if (hasCurrentEntry(starlightRoute.sidebar)) return;
+	const parent = findLongestPrefixLink(starlightRoute.sidebar, pathname);
+	if (parent) parent.isCurrent = true;
 }
 
-function hasCurrent(entries: StarlightRouteData['sidebar']): boolean {
+function findLongestPrefixLink(entries: SidebarEntry[], pathname: string): SidebarLink | undefined {
+	let best: SidebarLink | undefined;
 	for (const entry of entries) {
-		if (entry.type === 'link' && entry.isCurrent) return true;
-		if (entry.type === 'group' && hasCurrent(entry.entries)) return true;
+		const candidate = entry.type === 'group' ? findLongestPrefixLink(entry.entries, pathname) : entry;
+		if (candidate && pathname.startsWith(candidate.href) && candidate.href.length > (best?.href.length ?? 0)) {
+			best = candidate;
+		}
 	}
-	return false;
+	return best;
 }
 
 /**
