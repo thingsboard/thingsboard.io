@@ -64,7 +64,7 @@ The uplink converter receives each MQTT message as a byte array plus its topic, 
 2. **Converter type** — keep **Uplink**.
 3. **Integration type** — select **MQTT**.
 4. **Name** — enter a name, for example `MQTT Uplink Converter`.
-5. **Main decoding configuration** — the editor is pre-filled with the default MQTT decoder template. Use it as a starting point and, if needed, adapt the field names to your device. The template takes the device name and type from the payload; if they are missing, it uses the last two topic segments (`.../{deviceType}/{deviceName}`). The editor opens in TBEL; use the **TBEL / JS** toggle to switch to JavaScript.
+5. **Main decoding configuration** — the editor is pre-filled with the default MQTT decoder template. Use it as a starting point and, if needed, adapt it to your device. The editor opens in TBEL; use the **TBEL / JS** toggle to switch to JavaScript.
    <Aside type="tip" title="TBEL">
      Use <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL</DocLink> for converter scripts — it runs much faster than JavaScript inside ThingsBoard.
    </Aside>
@@ -72,24 +72,58 @@ The uplink converter receives each MQTT message as a byte array plus its topic, 
      <TabItem label="TBEL (Recommended)">
        ```js maxLines=15 collapsible
        // Decode an uplink message from a buffer
-       // payload - byte array
-       // metadata - key-value object
+       // payload - array of bytes
+       // metadata - key/value object
 
        /** Decoder **/
 
-       // Decode the payload into a JSON object
+       // decode payload to JSON
        var data = decodeToJson(payload);
+
+       // --- MQTT topic configuration ---
+
+       // Supported MQTT topic formats:
+       // tb/devices/{deviceType}/{deviceName}
+       // tb/devices/{deviceType}/{deviceName}/telemetry
+       // tb/sensors/{deviceType}/{deviceName}
+       // tb/sensors/{deviceType}/{deviceName}/telemetry
+       //
+       // Adjust these prefixes to match your MQTT topic layout.
+       // Each prefix must consist of exactly two topic levels, e.g. "factory/devices":
+       // {prefix}/{deviceType}/{deviceName}[/telemetry]
+       var topicPrefixes = ["tb/devices", "tb/sensors"];
 
        // --- Device name and type ---
 
-       // Extract from MQTT topic (e.g. "my/topic/deviceType/deviceName")
-       var topicParts = metadata['topic'] != null ? metadata['topic'].split('/') : null;
+       var topicParts = metadata != null && metadata['topic'] != null
+           ? metadata['topic'].split('/')
+           : null;
 
-       var deviceName = data.deviceName != null ? data.deviceName :
-         (topicParts != null && topicParts.length > 0 ? topicParts[topicParts.length - 1] : 'Unknown Device');
+       // Validate the supported topic structure.
+       var validTopic = topicParts != null &&
+           (topicParts.length == 4 || topicParts.length == 5) &&
+           topicPrefixes.indexOf(topicParts[0] + "/" + topicParts[1]) >= 0 &&
+           topicParts[2] != '' &&
+           topicParts[3] != '' &&
+           (topicParts.length == 4 || topicParts[4] == 'telemetry');
 
-       var deviceType = data.deviceType != null ? data.deviceType :
-         (topicParts != null && topicParts.length > 1 ? topicParts[topicParts.length - 2] : 'default');
+       // Prefer device information from the payload.
+       // Otherwise, extract it from the MQTT topic.
+       // If neither provides deviceType, it falls back to 'default'.
+       var deviceName = data.deviceName != null &&
+           data.deviceName.toString().trim() != ''
+           ? data.deviceName
+           : (validTopic ? topicParts[3] : null);
+
+       var deviceType = data.deviceType != null &&
+           data.deviceType.toString().trim() != ''
+           ? data.deviceType
+           : (validTopic ? topicParts[2] : 'default');
+
+       // Reject messages without a valid device name.
+       if (deviceName == null || deviceName.toString().trim() == '') {
+           raiseError("Device name is missing. Provide deviceName in the payload or use a supported MQTT topic format.");
+       }
 
        // var customerName = 'Customer C';
        // var groupName = 'thermostat devices';
@@ -100,38 +134,36 @@ The uplink converter receives each MQTT message as a byte array plus its topic, 
        // var assetType = 'building';
 
        // --- Timestamp parsing ---
-
+       // ts - Unix time in milliseconds (seconds are not converted).
+       // timestamp - ISO 8601 string, used only when ts is missing.
+       // If neither is provided, the current time is used.
        var timestamp = -1;
-
        if (data.ts != null) {
-         timestamp = data.ts;
+           timestamp = data.ts;
        } else if (data.timestamp != null) {
-         timestamp = new Date(data.timestamp).getTime();
+           timestamp = new Date(data.timestamp).getTime();
        }
-
        if (timestamp == -1) {
-         timestamp = Date.now();
+           timestamp = Date.now();
        }
 
        // --- Telemetry and attributes ---
-
        var telemetry = {};
-       var attributes = {};
 
        // Keys from the payload that should be stored as attributes instead of telemetry
        var attributeKeyList = ["serialNumber"];
 
        // Add the payload keys that match the attribute key list to attributes
+       var attributes = {};
        for (var i = 0; i < attributeKeyList.size(); i++) {
-         var attributeKey = attributeKeyList[i];
-         if (data[attributeKey] != null) {
-           attributes[attributeKey] = data[attributeKey];
-         }
+           var attributeKey = attributeKeyList[i];
+           if (data[attributeKey] != null) {
+               attributes[attributeKey] = data[attributeKey];
+           }
        }
 
        // Keys to exclude from telemetry (device info, attributes and non-telemetry fields)
        var excludeFromTelemetryList = ["deviceName", "deviceType", "ts", "timestamp"];
-
        excludeFromTelemetryList.addAll(attributeKeyList);
 
        // Parse all remaining JSON fields as telemetry
@@ -139,23 +171,22 @@ The uplink converter receives each MQTT message as a byte array plus its topic, 
 
        // Result object with device attributes/telemetry data
        var result = {
-         deviceName: deviceName,
-         deviceType: deviceType
-         // customerName: customerName,
-         // groupName: groupName,
-         // assetName: assetName,
-         // assetType: assetType,
+          deviceName: deviceName,
+          deviceType: deviceType,
+       // customerName: customerName,
+       // groupName: groupName,
+       // assetName: assetName,
+       // assetType: assetType,
        };
 
        // Add attributes to the result only if at least one matching key was found
        if (attributes.size() > 0) {
-         result.put("attributes", attributes);
+          result.put("attributes", attributes);
        }
 
-       // Add telemetry with an explicit timestamp.
        result.put("telemetry", {
-         ts: timestamp,
-         values: telemetry
+          ts: timestamp,
+          values: telemetry
        });
 
        /** Helper functions 'decodeToString', 'decodeToJson' and 'toFlatMap' are already built-in **/
@@ -165,66 +196,100 @@ The uplink converter receives each MQTT message as a byte array plus its topic, 
      </TabItem>
      <TabItem label="JavaScript">
        ```js maxLines=15 collapsible
-       // Decode an uplink message from a buffer.
-       // payload - byte array
-       // metadata - key-value object
+       // Decode an uplink message from a buffer
+       // payload - array of bytes
+       // metadata - key/value object
 
        /** Decoder **/
 
-       // Decode the payload into a JSON object.
+       // decode payload to JSON
        var data = decodeToJson(payload);
+
+       // --- MQTT topic configuration ---
+
+       // Supported MQTT topic formats:
+       // tb/devices/{deviceType}/{deviceName}
+       // tb/devices/{deviceType}/{deviceName}/telemetry
+       // tb/sensors/{deviceType}/{deviceName}
+       // tb/sensors/{deviceType}/{deviceName}/telemetry
+       //
+       // Adjust these prefixes to match your MQTT topic layout.
+       // Each prefix must consist of exactly two topic levels, e.g. "factory/devices":
+       // {prefix}/{deviceType}/{deviceName}[/telemetry]
+       var topicPrefixes = ["tb/devices", "tb/sensors"];
 
        // --- Device name and type ---
 
-       // Extract the device name and type from the payload or MQTT topic
-       // (for example, "my/topic/deviceType/deviceName").
-       var topicParts = metadata['topic'] != null ? metadata['topic'].split('/') : null;
+       var topic = metadata != null ? metadata['topic'] : null;
 
-       var deviceName = data.deviceName != null ? data.deviceName :
-         (topicParts != null && topicParts.length > 0 ? topicParts[topicParts.length - 1] : 'Unknown Device');
+       var topicParts = typeof topic === 'string'
+           ? topic.split('/')
+           : null;
 
-       var deviceType = data.deviceType != null ? data.deviceType :
-         (topicParts != null && topicParts.length > 1 ? topicParts[topicParts.length - 2] : 'default');
+       // Validate the supported topic structure.
+       var validTopic = topicParts != null &&
+           (topicParts.length === 4 || topicParts.length === 5) &&
+           topicPrefixes.indexOf(topicParts[0] + "/" + topicParts[1]) !== -1 &&
+           topicParts[2] !== '' &&
+           topicParts[3] !== '' &&
+           (topicParts.length === 4 || topicParts[4] === 'telemetry');
+
+       // Prefer device information from the payload.
+       // Otherwise, extract it from the MQTT topic.
+       // If neither provides deviceType, it falls back to 'default'.
+       var deviceName = data.deviceName != null &&
+           String(data.deviceName).trim() !== ''
+           ? data.deviceName
+           : (validTopic ? topicParts[3] : null);
+
+       var deviceType = data.deviceType != null &&
+           String(data.deviceType).trim() !== ''
+           ? data.deviceType
+           : (validTopic ? topicParts[2] : 'default');
+
+       // Reject messages without a valid device name.
+       if (deviceName == null || String(deviceName).trim() === '') {
+           throw new Error('Device name is missing. Provide deviceName in the payload or use a supported MQTT topic format.');
+       }
 
        // var customerName = 'Customer C';
        // var groupName = 'thermostat devices';
 
-       // Use assetName and assetType instead of deviceName and deviceType
+       // use assetName and assetType instead of deviceName and deviceType
        // to automatically create assets instead of devices.
        // var assetName = 'Asset A';
        // var assetType = 'building';
 
        // --- Timestamp parsing ---
-
+       // ts - Unix time in milliseconds (seconds are not converted).
+       // timestamp - ISO 8601 string, used only when ts is missing.
+       // If neither is provided, the current time is used.
        var timestamp = -1;
-
        if (data.ts != null) {
-         timestamp = Number(data.ts);
+           timestamp = data.ts;
        } else if (data.timestamp != null) {
-         timestamp = new Date(data.timestamp).getTime();
+           timestamp = new Date(data.timestamp).getTime();
        }
-
-       if (timestamp === -1 || isNaN(timestamp)) {
-         timestamp = Date.now();
+       if (timestamp == -1) {
+           timestamp = Date.now();
        }
 
        // --- Telemetry and attributes ---
-
        var telemetry = {};
-       var attributes = {};
 
-       // Define payload keys that should be stored as attributes instead of telemetry
+       // Keys from the payload that should be stored as attributes instead of telemetry
        var attributeKeyList = ["serialNumber"];
 
-       // Add matching payload fields to attributes
+       // Add the payload keys that match the attribute key list to attributes
+       var attributes = {};
        for (var i = 0; i < attributeKeyList.length; i++) {
-         var attributeKey = attributeKeyList[i];
-         if (data[attributeKey] != null) {
-           attributes[attributeKey] = data[attributeKey];
-         }
+           var attributeKey = attributeKeyList[i];
+           if (data[attributeKey] != null) {
+               attributes[attributeKey] = data[attributeKey];
+           }
        }
 
-       // Exclude entity identification, timestamp, and attribute fields from telemetry.
+       // Keys to exclude from telemetry (device info, attributes and non-telemetry fields)
        var excludeFromTelemetryList = ["deviceName", "deviceType", "ts", "timestamp"].concat(attributeKeyList);
 
        // Parse all remaining JSON fields as telemetry
@@ -232,47 +297,47 @@ The uplink converter receives each MQTT message as a byte array plus its topic, 
 
        // Result object with device attributes/telemetry data
        var result = {
-         deviceName: deviceName,
-         deviceType: deviceType
-         // customerName: customerName,
-         // groupName: groupName,
-         // assetName: assetName,
-         // assetType: assetType,
+          deviceName: deviceName,
+          deviceType: deviceType,
+       // customerName: customerName,
+       // groupName: groupName,
+       // assetName: assetName,
+       // assetType: assetType,
        };
 
        // Add attributes to the result only if at least one matching key was found
        if (Object.keys(attributes).length > 0) {
-         result.attributes = attributes;
+          result.attributes = attributes;
        }
 
        result.telemetry = {
-         ts: timestamp,
-         values: telemetry
+          ts: timestamp,
+          values: telemetry
        };
 
        /** Helper functions **/
 
        function decodeToString(payload) {
-         return String.fromCharCode.apply(String, payload);
+          return String.fromCharCode.apply(String, payload);
        }
 
        function decodeToJson(payload) {
-         var str = decodeToString(payload);
-         return JSON.parse(str);
+          var str = decodeToString(payload);
+          return JSON.parse(str);
        }
 
        function toFlatMap(obj, result, excludeList, prefix) {
-         prefix = prefix || '';
-         for (var key in obj) {
-           if (excludeList.indexOf(key) !== -1) continue;
-           var value = obj[key];
-           var fullKey = prefix ? prefix + '.' + key : key;
-           if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-             toFlatMap(value, result, excludeList, fullKey);
-           } else {
-             result[fullKey] = value;
+           prefix = prefix || '';
+           for (var key in obj) {
+               if (excludeList.indexOf(key) !== -1) continue;
+               var value = obj[key];
+               var fullKey = prefix ? prefix + '.' + key : key;
+               if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                   toFlatMap(value, result, excludeList, fullKey);
+               } else {
+                   result[fullKey] = value;
+               }
            }
-         }
        }
 
        return result;
@@ -290,7 +355,7 @@ The decoder signature is `function decoder(payload, metadata): object | object[]
 | Variable | Type | Content |
 |----------|------|---------|
 | `payload` | byte array | The MQTT message body. |
-| `metadata` | `{[key: string]: string}` | `topic` — the topic the message arrived on, for example `tb/sensors/thermostat/Thermometer-01`. Also `integrationName` and the key–value pairs from the integration's **Metadata** field. |
+| `metadata` | `{[key: string]: string}` | `topic` — the topic the message arrived on, for example `tb/devices/thermostat/Thermostat-01/telemetry`. Also `integrationName` and the key–value pairs from the integration's **Metadata** field. |
 
 With a wildcard topic filter, `topic` holds the actual topic of the message, not the filter. Split it with `metadata['topic'].split('/')` to read a device name or type from the path.
 
@@ -308,33 +373,51 @@ Built-in helpers:
 
 For field renaming, nested values, and non-JSON payloads, see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#common-scripting-patterns" target="_blank">Common scripting patterns</DocLink> and the **[converter examples](#converter-examples-by-payload-type)** below.
 
+<h4 id="device-name-and-type">Device Name and Type</h4>
+
+The default decoder resolves the device in this order:
+
+| Value | Source |
+|-------|--------|
+| `deviceName` | `deviceName` in the payload. Otherwise, the topic, if it has a supported format. |
+| `deviceType` | `deviceType` in the payload. Otherwise, the topic, if it has a supported format. Otherwise, `default`. |
+
+Supported topic formats:
+
+- `tb/devices/{deviceType}/{deviceName}`, optionally followed by `/telemetry`
+- `tb/sensors/{deviceType}/{deviceName}`, optionally followed by `/telemetry`
+
+If neither the payload nor the topic provides the device name, the decoder fails with `Device name is missing. Provide deviceName in the payload or use a supported MQTT topic format.`
+
+If your devices publish to other topics, change `topicPrefixes` at the start of the decoder, for example to `["factory/devices"]`. Each prefix must have exactly two topic levels: the decoder reads `{prefix}/{deviceType}/{deviceName}`, optionally followed by `/telemetry`.
+
 <h4 id="test-the-decoder">Test the Decoder</h4>
 
-Click **Test decoder function** below the editor. The dialog opens with a pre-filled **Metadata** row (`integrationName`), **Payload content type** set to **JSON**, and this sample payload:
+Click **Test decoder function** below the editor. The dialog opens with **Payload content type** set to **JSON** and this sample payload:
 
 ```json
 {
-  "serialNumber": "SN-12345",
+  "serialNumber": "SN-001",
   "temperature": 25.5,
   "humidity": 60,
   "battery": 95
 }
 ```
 
-A real MQTT message always carries the topic it arrived on. To simulate it, add a **Metadata** row:
+**Metadata** is pre-filled with `integrationName`, `includeGatewayInfo`, and the topic that a real MQTT message carries:
 
 | Key | Value |
 |-----|-------|
-| `topic` | `tb/sensors/thermostat/Thermometer-01` |
+| `topic` | `tb/devices/thermostat/Thermostat-01/telemetry` |
 
-Click **Test**. The payload has no `deviceName` or `deviceType`, so the decoder takes them from the last two segments of `topic`. The **Output** panel shows:
+Click **Test**. The payload has no `deviceName` or `deviceType`, so the decoder takes them from `topic`. The **Output** panel shows:
 
 ```json
 {
-  "deviceName": "Thermometer-01",
+  "deviceName": "Thermostat-01",
   "deviceType": "thermostat",
   "attributes": {
-    "serialNumber": "SN-12345"
+    "serialNumber": "SN-001"
   },
   "telemetry": {
     "ts": 1791873701196,
@@ -348,6 +431,8 @@ Click **Test**. The payload has no `deviceName` or `deviceType`, so the decoder 
 ```
 
 Check that `deviceName` is set and `telemetry.values` holds the expected keys. If the output is empty or shows an error, fix the decoder and test again.
+
+To see how the template handles a topic in another format, change `topic` to `sensors/Thermostat-01` and click **Test** again. The decoder fails with `Device name is missing. Provide deviceName in the payload or use a supported MQTT topic format.` Add `"deviceName": "Thermostat-01"` to the payload, and the test passes with the device type `default`.
 
 ### Create the Integration
 
@@ -367,7 +452,7 @@ Check that `deviceName` is set and `telemetry.values` holds the expected keys. I
 5. **Connection:**
    - **Host** and **Port** — enter the broker address. For a quick test, use the TBMQ demo broker: `demo.tbmq.io`, port `1883`.
    - **Credentials type** — select the type your broker requires. For the demo broker, select **Basic** with `demo` / `demo`.
-   - **Topic filters** — add at least one topic, for example `tb/sensors/thermostat/Thermometer-01`.
+   - **Topic filters** — replace the default `#` with `tb/devices/+/+/telemetry`. This filter matches the topic format of the default decoder for every device type and name. With `#`, the integration also receives every other message on the broker, including its own downlinks.
    - Leave the other parameters at their defaults. See **[Connection Settings](#connection-settings)** for details.
 6. Click **Check connection** to confirm that the broker is reachable, then click **Add**.
 </Steps>
@@ -429,7 +514,7 @@ The integration subscribes to all topic filters when it connects.
 
 | Wildcard | Matches | Example filter | Matching topics |
 |----------|---------|----------------|-----------------|
-| `+` | One level | `v1/devices/+/telemetry` | `v1/devices/Thermometer-01/telemetry`, `v1/devices/Thermometer-02/telemetry` |
+| `+` | One level | `tb/devices/+/+/telemetry` | `tb/devices/thermostat/Thermostat-01/telemetry`, `tb/devices/meter/Meter-02/telemetry` |
 | `#` | All remaining levels; must be last | `v1/devices/me/#` | `v1/devices/me/telemetry`, `v1/devices/me/attributes/request/1` |
 
 | QoS | Name | Delivery |
@@ -448,14 +533,14 @@ Publish a message to the broker, then confirm that ThingsBoard decoded it and cr
 
 ### Send a Test Uplink
 
-Publish a test message with **[`mosquitto_pub`](https://mosquitto.org/download/)** or any MQTT client. The payload has no `deviceName`, so the converter takes it from the topic (`Thermometer-01`).
+Publish a test message with **[`mosquitto_pub`](https://mosquitto.org/download/)** or any MQTT client. The payload has no `deviceName`, so the converter takes it from the topic (`Thermostat-01`).
 
 For the TBMQ demo broker:
 
 ```bash
 mosquitto_pub -h demo.tbmq.io -p 1883 \
   -u "demo" -P "demo" \
-  -t "tb/sensors/thermostat/Thermometer-01" \
+  -t "tb/devices/thermostat/Thermostat-01/telemetry" \
   -m '{"temperature":25.1}' -q 0
 ```
 
@@ -464,7 +549,7 @@ For your broker with Basic credentials:
 ```bash
 mosquitto_pub -h YOUR_BROKER_HOST -p 1883 \
   -u "YOUR_USERNAME" -P "YOUR_PASSWORD" \
-  -t "tb/sensors/thermostat/Thermometer-01" \
+  -t "tb/devices/thermostat/Thermostat-01/telemetry" \
   -m '{"temperature":25.1}' -q 0
 ```
 
@@ -472,7 +557,7 @@ For a broker without authentication:
 
 ```bash
 mosquitto_pub -h YOUR_BROKER_HOST -p 1883 \
-  -t "tb/sensors/thermostat/Thermometer-01" \
+  -t "tb/devices/thermostat/Thermostat-01/telemetry" \
   -m '{"temperature":25.1}' -q 0
 ```
 
@@ -480,7 +565,7 @@ mosquitto_pub -h YOUR_BROKER_HOST -p 1883 \
 
 - **Integration events** — go to **Integrations &#8702; Integrations**, open the integration, and click the **Events** tab. The uplink appears with status **OK**. Click <code>&#8901;&#8901;&#8901;</code> in the **Message** column to see the topic and payload.
 - **Converter events** — open `MQTT Uplink Converter` in **Integrations &#8702; Data converters** and click the **Events** tab. **In** shows the received payload, **Out** shows the decoded result, and **Metadata** shows the topic and integration name.
-- **Device** — go to **Devices & assets &#8702; Devices**. The integration has created **Thermometer-01**. Open it and confirm `temperature = 25.1` on the **Latest telemetry** tab.
+- **Device** — go to **Devices & assets &#8702; Devices**. The integration has created **Thermostat-01** with the device profile `thermostat`. Open it and confirm `temperature = 25.1` on the **Latest telemetry** tab.
 
 ## Message Retransmission
 
@@ -571,7 +656,7 @@ Subscribe to the downlink topic, then update a shared attribute to trigger a dow
 1. Subscribe to the downlink topic:
 
    ```shell
-   mosquitto_sub -h demo.tbmq.io -p 1883 -t "thermostat/Thermometer-01/upload" -u "demo" -P "demo"
+   mosquitto_sub -h demo.tbmq.io -p 1883 -t "thermostat/Thermostat-01/upload" -u "demo" -P "demo"
    ```
 
 2. Go to **Devices & assets &#8702; Devices**, select your device, and open the **Attributes** tab.
@@ -991,7 +1076,7 @@ return result;
 | Same, with TLS | **Enable SSL** does not match the broker. | Match **Enable SSL** and the port to the broker (`1883` plain, `8883` TLS). |
 | `Usage of local network host ... is not allowed` | ThingsBoard Cloud cannot connect to a private-network host. | Use a public broker address or a <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink>. |
 | No messages received | No topic filter matches the published topic. | Check the topic filters and wildcard syntax. |
-| Device not created | `deviceName` is empty or undefined. | Check **Out** in the converter events. Make sure the name is resolved from the payload or the topic. |
+| Device not created, the converter event has an error | The payload has no `deviceName`, and the topic does not match a format that the default decoder supports. The decoder fails with `Device name is missing. Provide deviceName in the payload or use a supported MQTT topic format.` | Add `deviceName` to the payload, publish to `tb/devices/{deviceType}/{deviceName}/telemetry`, or change `topicPrefixes` in the decoder to match your topics. |
 | Telemetry not saved | The decoder returns `{}`, `[]`, or empty `values`. | Make sure `values` holds at least one key. |
 | Decoder error | The TBEL or JavaScript code throws an exception. | Open the converter's **Events** tab and read the **Error** column. |
 | Wrong timestamp | The device sends `ts` in seconds. | Convert it: `ts: data.ts * 1000`. |
