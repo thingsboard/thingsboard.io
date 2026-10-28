@@ -197,8 +197,6 @@ function isIndexableSelfCanonical(context: APIContext, starlightRoute: Starlight
 	return true;
 }
 
-type SidebarEntry = StarlightRouteData['sidebar'][number];
-
 /**
  * Which entries of one sidebar level survive the filter: their indexes, each with the
  * mask of its group's children (`null` for a leaf). `length` is the level's entry count,
