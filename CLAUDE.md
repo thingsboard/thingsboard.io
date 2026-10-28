@@ -9,7 +9,8 @@ This is the **ThingsBoard documentation site**, built with **Astro + Starlight**
 ## Commands
 
 ```bash
-# Install dependencies (requires pnpm)
+# Install dependencies (requires pnpm). The Node.js version is `devEngines.runtime` in package.json:
+# pnpm downloads it and runs every script with it, whatever Node.js the machine or CI image has.
 pnpm install
 
 # Development
