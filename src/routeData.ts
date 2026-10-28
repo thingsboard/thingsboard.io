@@ -26,8 +26,8 @@ import { docsAnnouncements } from '@data/docsAnnouncements';
 // No alias covers `config/`; relative import is the only option here.
 import {
 	getRepoRoot,
-	getSitemapSourceRegistry,
 	normalizeSitemapPath,
+	setSitemapSources,
 	toRepoRelative,
 } from '../config/sitemap-source-registry';
 
@@ -176,7 +176,7 @@ function recordSitemapSources(context: APIContext, starlightRoute: StarlightRout
 	const sources = [wrapperRel];
 	const includeRel = getStubIncludeRel(filePath);
 	if (includeRel) sources.push(`src/content/_includes/${includeRel}`);
-	getSitemapSourceRegistry().set(normalizeSitemapPath(context.url.pathname), sources);
+	setSitemapSources(normalizeSitemapPath(context.url.pathname), sources);
 }
 
 /** True when the computed head has no `noindex` and any canonical points at the page itself. */

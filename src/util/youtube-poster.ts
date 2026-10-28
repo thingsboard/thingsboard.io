@@ -43,9 +43,27 @@ async function resolve(videoId: string): Promise<YouTubePoster | undefined> {
 	return undefined;
 }
 
+/**
+ * Results checked before the build renders, as JSON `{ [videoId]: YouTubePoster | null }`. Set by the
+ * `youtube-posters` integration; unset in `astro dev`, where every video is checked on first render.
+ */
+export const PRERESOLVED_POSTERS_ENV = 'TB_YOUTUBE_POSTERS';
+
+let preresolved: Record<string, YouTubePoster | null> | undefined;
+
+function getPreresolved(): Record<string, YouTubePoster | null> {
+	if (!preresolved) {
+		const raw = process.env[PRERESOLVED_POSTERS_ENV];
+		preresolved = raw ? (JSON.parse(raw) as Record<string, YouTubePoster | null>) : {};
+	}
+	return preresolved;
+}
+
 /** The best existing thumbnail for `videoId`, or `undefined` when there is none or YouTube can't be reached. */
 export function resolveYouTubePoster(videoId: string): Promise<YouTubePoster | undefined> {
 	if (!POSTERS_ENABLED) return Promise.resolve(undefined);
+	const known = getPreresolved();
+	if (Object.hasOwn(known, videoId)) return Promise.resolve(known[videoId] ?? undefined);
 	let poster = cache.get(videoId);
 	if (!poster) {
 		poster = resolve(videoId);

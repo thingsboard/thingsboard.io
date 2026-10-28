@@ -7,7 +7,9 @@ import {
 	getSitemapLastmodRegistry,
 	getSitemapSourceRegistry,
 	maxEpochToIso,
+	mergeWorkerSitemapRecords,
 	normalizeSitemapPath,
+	resetWorkerSitemapRecords,
 } from '../sitemap-source-registry';
 import { getGitDateMap } from '../sitemap/git-date';
 import { captureRoutes } from '../sitemap/route-match';
@@ -38,6 +40,7 @@ export function sitemap(): AstroIntegration {
 	});
 	const innerHook = integration.hooks['astro:build:done'];
 	const innerRoutesHook = integration.hooks['astro:routes:resolved'];
+	const innerBuildStartHook = integration.hooks['astro:build:start'];
 	return {
 		...integration,
 		hooks: {
@@ -48,8 +51,13 @@ export function sitemap(): AstroIntegration {
 				captureRoutes(params.routes);
 				if (innerRoutesHook) await innerRoutesHook(params);
 			},
+			'astro:build:start': async (params) => {
+				resetWorkerSitemapRecords();
+				if (innerBuildStartHook) await innerBuildStartHook(params);
+			},
 			'astro:build:done': async (params) => {
 				outDir = fileURLToPath(params.dir);
+				mergeWorkerSitemapRecords();
 				if (innerHook) await innerHook(params);
 			},
 		},
