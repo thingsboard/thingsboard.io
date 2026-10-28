@@ -1,6 +1,16 @@
 // Site-wide global type augmentations. No imports/exports → ambient.
 // Feature-specific Window globals stay co-located with their owner.
 
+// Per-render state on `Astro.locals`, one object per page render.
+declare namespace App {
+	interface Locals {
+		// Set once the page's first content image has claimed `loading="eager"`; see `@util/first-content-image`.
+		firstContentImageClaimed?: boolean;
+		// Per-prefix counters behind the page's render ids; see `@util/render-id`.
+		renderIdCounts?: Record<string, number>;
+	}
+}
+
 interface Window {
 	// Google Tag Manager data layer, bootstrapped by `<GtmHead />`.
 	dataLayer?: unknown[];

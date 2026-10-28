@@ -2,8 +2,6 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import satori from 'satori';
-import { renderAsync } from '@resvg/resvg-js';
 import { Card, type CardProps } from './Card';
 
 /** Bump when the template, fonts, or rendering pipeline changes — invalidates cache. */
@@ -95,6 +93,25 @@ function ensureCacheDir(): Promise<void> {
 	return cacheDirReady;
 }
 
+interface Renderers {
+	satori: typeof import('satori').default;
+	renderAsync: typeof import('@resvg/resvg-js').renderAsync;
+}
+
+let renderers: Promise<Renderers> | null = null;
+
+/**
+ * Imported on the first cache miss: loading resvg's native binding costs ~2 s per thread,
+ * and a warm cache or `SKIP_OG` never renders a card.
+ */
+function loadRenderers(): Promise<Renderers> {
+	renderers ??= Promise.all([import('satori'), import('@resvg/resvg-js')]).then(([s, r]) => ({
+		satori: s.default,
+		renderAsync: r.renderAsync,
+	}));
+	return renderers;
+}
+
 /**
  * Render a single OG card to PNG.
  * In SKIP_OG mode, returns the global fallback so endpoints can keep declaring
@@ -110,7 +127,7 @@ export async function renderCard(props: CardProps): Promise<Buffer> {
 	const hit = await readCache(key);
 	if (hit) return hit;
 
-	const fonts = await loadFonts();
+	const [fonts, { satori, renderAsync }] = await Promise.all([loadFonts(), loadRenderers()]);
 	const svg = await satori(Card(props) as never, {
 		width: 1200,
 		height: 630,

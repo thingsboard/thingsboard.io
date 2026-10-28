@@ -1,13 +1,15 @@
 import AstroSitemap from '@astrojs/sitemap';
 import type { AstroIntegration } from 'astro';
-import { existsSync, readFileSync } from 'node:fs';
+import { closeSync, existsSync, openSync, readSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
 	getSitemapLastmodRegistry,
 	getSitemapSourceRegistry,
 	maxEpochToIso,
+	mergeWorkerSitemapRecords,
 	normalizeSitemapPath,
+	resetWorkerSitemapRecords,
 } from '../sitemap-source-registry';
 import { getGitDateMap } from '../sitemap/git-date';
 import { captureRoutes } from '../sitemap/route-match';
@@ -38,6 +40,7 @@ export function sitemap(): AstroIntegration {
 	});
 	const innerHook = integration.hooks['astro:build:done'];
 	const innerRoutesHook = integration.hooks['astro:routes:resolved'];
+	const innerBuildStartHook = integration.hooks['astro:build:start'];
 	return {
 		...integration,
 		hooks: {
@@ -48,8 +51,13 @@ export function sitemap(): AstroIntegration {
 				captureRoutes(params.routes);
 				if (innerRoutesHook) await innerRoutesHook(params);
 			},
+			'astro:build:start': async (params) => {
+				resetWorkerSitemapRecords();
+				if (innerBuildStartHook) await innerBuildStartHook(params);
+			},
 			'astro:build:done': async (params) => {
 				outDir = fileURLToPath(params.dir);
+				mergeWorkerSitemapRecords();
 				if (innerHook) await innerHook(params);
 			},
 		},
@@ -60,9 +68,7 @@ function isIndexableCanonicalPage(outDir: string, pageUrl: string): boolean {
 	const { pathname } = new URL(pageUrl);
 	const htmlPath = join(outDir, pathname, 'index.html');
 	if (!existsSync(htmlPath)) return false;
-	const html = readFileSync(htmlPath, 'utf8');
-	const headEnd = html.indexOf('</head>');
-	const head = headEnd >= 0 ? html.slice(0, headEnd) : html;
+	const head = readHead(htmlPath);
 
 	if (hasNoindex(head)) return false;
 
@@ -76,6 +82,29 @@ function isIndexableCanonicalPage(outDir: string, pageUrl: string): boolean {
 		}
 	}
 	return true;
+}
+
+const HEAD_CHUNK_BYTES = 64 * 1024;
+const HEAD_END = Buffer.from('</head>');
+
+/** The document up to `</head>`, or all of it when there is none. Stops reading there: the body is most of a page. */
+function readHead(htmlPath: string): string {
+	const fd = openSync(htmlPath, 'r');
+	try {
+		let buf = Buffer.alloc(0);
+		const chunk = Buffer.alloc(HEAD_CHUNK_BYTES);
+		for (;;) {
+			const bytesRead = readSync(fd, chunk, 0, HEAD_CHUNK_BYTES, buf.length);
+			if (bytesRead === 0) return buf.toString('utf8');
+			// Search from just before the new bytes, in case `</head>` straddles two chunks.
+			const searchFrom = Math.max(0, buf.length - HEAD_END.length + 1);
+			buf = Buffer.concat([buf, chunk.subarray(0, bytesRead)]);
+			const end = buf.indexOf(HEAD_END, searchFrom);
+			if (end >= 0) return buf.subarray(0, end).toString('utf8');
+		}
+	} finally {
+		closeSync(fd);
+	}
 }
 
 function hasNoindex(head: string): boolean {

@@ -1,6 +1,13 @@
 ---
 import { getImage } from 'astro:assets';
-import type { ImageMetadata } from 'astro';
+import {
+	assetExists,
+	prepareInteractiveSvg,
+	rasterLoaders,
+	svgDimensions,
+	svgRawLoaders,
+	svgUrls,
+} from '@util/asset-modules';
 import { claimFirstContentImage } from '@util/first-content-image';
 import { Products } from '~/models/site.models';
 import PhotoSwipeStyles from '@components/PhotoSwipeStyles.astro';
@@ -56,32 +63,6 @@ const productFallback: Partial<Record<Products, Products[]>> = {
 	[Products.TBMQ_PE]: [Products.TBMQ],
 };
 
-const assetModules = import.meta.glob<{ default: ImageMetadata }>(
-	'/src/assets/**/*.{png,jpg,jpeg,webp,gif,svg}',
-	{ eager: true }
-);
-
-// Lazy raw SVG sources — used to inline SVGs with `<a>` so the anchors stay
-// clickable (browsers disable interactivity when SVG is loaded via `<img>`).
-const svgRawModules = import.meta.glob<string>(
-	'/src/assets/**/*.svg',
-	{ query: '?raw', import: 'default' }
-);
-
-// Add aria-label + force `target="_blank"` on every `<a>` inside an interactive SVG.
-function prepareInteractiveSvg(raw: string, alt: string): string {
-	let out = raw;
-	const escapedAlt = alt.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-	out = out.replace(/<svg\b/, `<svg aria-label="${escapedAlt}"`);
-	out = out.replace(/<a\b([^>]*)>/g, (_m, attrs) => {
-		const stripped = attrs
-			.replace(/\s+target="[^"]*"/g, '')
-			.replace(/\s+rel="[^"]*"/g, '');
-		return `<a${stripped} target="_blank" rel="noopener noreferrer">`;
-	});
-	return out;
-}
-
 // CDN fallback for images hosted outside the local assets pipeline.
 const CDN_BASE = 'https://img.thingsboard.io/';
 const LOCAL_PREFIX = '/src/assets/images/';
@@ -115,7 +96,7 @@ function resolvePaths(src: string): { lightPath: string; darkPath: string } {
 
 	let lightPath: string = src;
 	for (const s of suffixes) {
-		if (assetModules[`${base}-${s}${ext}`]) {
+		if (assetExists(`${base}-${s}${ext}`)) {
 			lightPath = `${base}-${s}${ext}`;
 			break;
 		}
@@ -123,12 +104,12 @@ function resolvePaths(src: string): { lightPath: string; darkPath: string } {
 
 	let darkPath: string = lightPath;
 	for (const s of suffixes) {
-		if (assetModules[`${base}-${s}-dark${ext}`]) {
+		if (assetExists(`${base}-${s}-dark${ext}`)) {
 			darkPath = `${base}-${s}-dark${ext}`;
 			break;
 		}
 	}
-	if (darkPath === lightPath && assetModules[`${base}-dark${ext}`]) {
+	if (darkPath === lightPath && assetExists(`${base}-dark${ext}`)) {
 		darkPath = `${base}-dark${ext}`;
 	}
 
@@ -149,15 +130,50 @@ const filteredImages = product
 	? images.filter(({ products: p }) => !p || p.includes(product))
 	: images;
 
+// This gallery's leading thumb is the page's likely LCP element when it is
+// the first content image on the page — load it eagerly (a `hasDark` pair
+// eager-loads both variants; a display:none <img> is still fetched when
+// eager). Deliberately no fetchpriority boost — see DocImage for why.
+// Claimed before the first `await`: galleries start in page order but finish in any order.
+const isFirstContentImage = filteredImages.length > 0 && claimFirstContentImage(Astro.locals);
+
 // thumb = 800px WebP @ q80 (grid + single-mode src). full = original WebP @ q90 (lightbox).
 const processed = await Promise.all(
 	filteredImages.map(async ({ src, alt, caption }) => {
 		const { lightPath, darkPath } = resolvePaths(src);
 		const hasDark = darkPath !== lightPath;
 
-		const lightMod = assetModules[lightPath];
+		const lightSvgUrl = svgUrls[lightPath];
 
-		if (!lightMod) {
+		// SVGs skip raster processing. If they contain `<a>`, inline them so anchors stay clickable.
+		if (lightSvgUrl) {
+			const darkSrc = hasDark ? (svgUrls[darkPath] ?? lightSvgUrl) : lightSvgUrl;
+			const [lightSize, darkSize] = await Promise.all([
+				svgDimensions(lightPath),
+				hasDark ? svgDimensions(darkPath) : undefined,
+			]);
+
+			const interactiveSvg = prepareInteractiveSvg(await svgRawLoaders[lightPath]?.(), alt);
+
+			return {
+				alt,
+				caption: captionToHtml(caption ?? ''),
+				thumbSrc: lightSvgUrl,
+				fullSrc: lightSvgUrl,
+				darkThumbSrc: darkSrc,
+				darkFullSrc: darkSrc,
+				fullWidth: lightSize?.width,
+				fullHeight: lightSize?.height,
+				darkFullWidth: darkSize?.width ?? lightSize?.width,
+				darkFullHeight: darkSize?.height ?? lightSize?.height,
+				hasDark,
+				interactiveSvg,
+				isCdn: false,
+			};
+		}
+
+		const loadLight = rasterLoaders[lightPath];
+		if (!loadLight) {
 			const cdnSrc = resolveToCdn(lightPath);
 			const darkCdnSrc = hasDark ? resolveToCdn(darkPath) : cdnSrc;
 			return {
@@ -177,43 +193,16 @@ const processed = await Promise.all(
 			};
 		}
 
-		const isSvg = lightPath.endsWith('.svg');
 		const isGif = lightPath.endsWith('.gif');
-
-		// SVGs skip raster processing. If they contain `<a>`, inline them so anchors stay clickable.
-		if (isSvg) {
-			const lightSrc = lightMod.default.src;
-			const darkMod = hasDark ? assetModules[darkPath] : null;
-			const darkSrc = darkMod ? darkMod.default.src : lightSrc;
-
-			const rawSvg = await svgRawModules[lightPath]?.();
-			const interactiveSvg = rawSvg && /<a[\s>]/i.test(rawSvg)
-				? prepareInteractiveSvg(rawSvg, alt)
-				: undefined;
-
-			return {
-				alt,
-				caption: captionToHtml(caption ?? ''),
-				thumbSrc: lightSrc,
-				fullSrc: lightSrc,
-				darkThumbSrc: darkSrc,
-				darkFullSrc: darkSrc,
-				fullWidth: lightMod.default.width,
-				fullHeight: lightMod.default.height,
-				darkFullWidth: darkMod?.default.width ?? lightMod.default.width,
-				darkFullHeight: darkMod?.default.height ?? lightMod.default.height,
-				hasDark,
-				interactiveSvg,
-				isCdn: false,
-			};
-		}
+		const lightImage = await loadLight();
+		const loadDark = hasDark ? rasterLoaders[darkPath] : undefined;
 
 		// GIFs bypass Sharp: it reads all frames (`pages: -1`) and trips
 		// `limitInputPixels` on large multi-frame GIFs.
 		if (isGif) {
-			const lightSrc = lightMod.default.src;
-			const darkMod = hasDark ? assetModules[darkPath] : null;
-			const darkSrc = darkMod ? darkMod.default.src : lightSrc;
+			const lightSrc = lightImage.src;
+			const darkImage = loadDark ? await loadDark() : null;
+			const darkSrc = darkImage ? darkImage.src : lightSrc;
 
 			return {
 				alt,
@@ -222,10 +211,10 @@ const processed = await Promise.all(
 				fullSrc: lightSrc,
 				darkThumbSrc: darkSrc,
 				darkFullSrc: darkSrc,
-				fullWidth: lightMod.default.width,
-				fullHeight: lightMod.default.height,
-				darkFullWidth: darkMod?.default.width ?? lightMod.default.width,
-				darkFullHeight: darkMod?.default.height ?? lightMod.default.height,
+				fullWidth: lightImage.width,
+				fullHeight: lightImage.height,
+				darkFullWidth: darkImage?.width ?? lightImage.width,
+				darkFullHeight: darkImage?.height ?? lightImage.height,
 				hasDark,
 				interactiveSvg: undefined,
 				isCdn: false,
@@ -233,27 +222,27 @@ const processed = await Promise.all(
 		}
 
 		const thumb = await getImage({
-			src: lightMod.default,
+			src: lightImage,
 			width: 800,
 			format: 'webp',
 			quality: 80,
 		});
-		const full = await getImage({ src: lightMod.default, format: 'webp', quality: 90 });
+		const full = await getImage({ src: lightImage, format: 'webp', quality: 90 });
 
 		let darkThumbSrc = thumb.src;
 		let darkFullSrc = full.src;
 		let darkFullWidth = full.attributes.width as number | undefined;
 		let darkFullHeight = full.attributes.height as number | undefined;
 
-		if (hasDark) {
-			const darkMod = assetModules[darkPath]!;
+		if (loadDark) {
+			const darkImage = await loadDark();
 			const darkThumb = await getImage({
-				src: darkMod.default,
+				src: darkImage,
 				width: 800,
 				format: 'webp',
 				quality: 80,
 			});
-			const darkFull = await getImage({ src: darkMod.default, format: 'webp', quality: 90 });
+			const darkFull = await getImage({ src: darkImage, format: 'webp', quality: 90 });
 			darkThumbSrc = darkThumb.src;
 			darkFullSrc = darkFull.src;
 			darkFullWidth = darkFull.attributes.width as number | undefined;
@@ -280,11 +269,6 @@ const processed = await Promise.all(
 
 const isSingle = processed.length === 1;
 
-// This gallery's leading thumb is the page's likely LCP element when it is
-// the first content image on the page — load it eagerly (a `hasDark` pair
-// eager-loads both variants; a display:none <img> is still fetched when
-// eager). Deliberately no fetchpriority boost — see DocImage for why.
-const isFirstContentImage = processed.length > 0 && claimFirstContentImage(Astro.locals);
 const thumbLoading = (i: number) => (i === 0 && isFirstContentImage ? 'eager' : 'lazy');
 const useCardMode = cardMode && isSingle;
 ---
