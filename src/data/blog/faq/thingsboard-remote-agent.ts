@@ -17,7 +17,7 @@ export const remoteAgentFaq: FaqCategory[] = [
 				id: 'what-is-remote-agent',
 				question: 'What is ThingsBoard Remote Agent?',
 				defaultOpen: true,
-				answer: `<p>Remote Agent is a lightweight Docker container that runs on a remote host, connects outbound to ThingsBoard or ThingsBoard Cloud, and manages Docker Compose applications on that host. From the ThingsBoard UI you deploy, update, upgrade, restart, and delete those applications, watch host and container metrics, and stream live container logs, without SSH access to the machine. See the <a href="${DOCS}/">Remote Agent overview</a>.</p>`,
+				answer: `<p>Remote Agent is a lightweight Docker container that runs on a remote host, connects outbound to ThingsBoard or ThingsBoard Cloud, and manages Docker Compose applications on that host. From the ThingsBoard UI you deploy, update, upgrade, restart, and delete those applications, watch host and container metrics, and stream live container logs, without opening SSH sessions for routine work. See the <a href="${DOCS}/">Remote Agent overview</a>.</p>`,
 			},
 			{
 				id: 'what-can-it-run',
@@ -68,12 +68,7 @@ export const remoteAgentFaq: FaqCategory[] = [
 			{
 				id: 'without-compose-files',
 				question: 'Do my containers have to be started with Docker Compose for Remote Agent to manage them?',
-				answer: `<p>No. The agent doesn't read Compose files; it groups containers into applications by their Docker labels, so containers started any other way work as long as they carry these labels:</p>
-<ul>
-<li><strong>Containers:</strong> <code>com.docker.compose.project=&lt;app&gt;</code> and <code>com.docker.compose.service=&lt;service&gt;</code> are required. Without the project label the container belongs to no application and isn't picked up; without the service label it's ignored. Optionally, <code>com.docker.compose.depends_on=&lt;service&gt;[,&lt;service&gt;…]</code> sets the start order.</li>
-<li><strong>Volumes:</strong> nothing is required. Any volume mounted by the application's containers is picked up under its Docker name; with <code>com.docker.compose.project=&lt;app&gt;</code> and <code>com.docker.compose.volume=&lt;short name&gt;</code> it's shown under the short name. Volumes no container mounts are ignored.</li>
-<li><strong>Networks:</strong> nothing is required. Unlabeled networks are shown as external under their Docker name: the agent attaches containers to them but never creates or deletes them. With <code>com.docker.compose.project=&lt;app&gt;</code> and <code>com.docker.compose.network=&lt;short name&gt;</code> the network belongs to the application and is removed with it. <code>bridge</code>, <code>host</code>, and <code>none</code> are ignored.</li>
-</ul>`,
+				answer: `<p>No. The agent doesn't read Compose files. It groups containers into applications by their standard Docker Compose labels, so a container started any other way is managed once it carries the <code>com.docker.compose.project</code> and <code>com.docker.compose.service</code> labels. Volumes and networks need no labels. See <a href="${DOCS}/applications/#discover-existing-applications">Discover existing applications</a>.</p>`,
 			},
 			{
 				id: 'upgrade-agent',
