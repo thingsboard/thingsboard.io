@@ -14,7 +14,7 @@ export const data: UseCaseData = {
 			'This use case showcases how ThingsBoard empowers organizations to build robust, end-to-end smart metering solutions. By combining protocol versatility, intuitive dashboards, and powerful rule engines, ThingsBoard makes it easy to monitor energy and water usage across residential, commercial, and municipal environments—enhancing sustainability and operational control.',
 		],
 		demoUrl:
-			'https://demo.thingsboard.io/dashboard/3a1026e0-83f6-11e7-b56d-c7f326cba909?publicId=322a2330-7c36-11e7-835d-c7f326cba909',
+			'https://thingsboard.cloud/dashboard/4a4f5380-cc87-11f1-adf1-29dbfc808686?publicId=7aa99e80-8acd-11ef-a59e-a9c993dbec14',
 		demoButtonId: 'UseCases_SmartMetering_ViewLiveDemo',
 	},
 	overview: {
@@ -123,7 +123,7 @@ export const data: UseCaseData = {
 			},
 		],
 		demoUrl:
-			'https://demo.thingsboard.io/dashboard/3a1026e0-83f6-11e7-b56d-c7f326cba909?publicId=322a2330-7c36-11e7-835d-c7f326cba909',
+			'https://thingsboard.cloud/dashboard/4a4f5380-cc87-11f1-adf1-29dbfc808686?publicId=7aa99e80-8acd-11ef-a59e-a9c993dbec14',
 		demoButtonId: 'UseCases_SmartMetering_ViewLiveDemo',
 		contactUsId: 'UseCases_SmartMetering_ContactUs',
 	},

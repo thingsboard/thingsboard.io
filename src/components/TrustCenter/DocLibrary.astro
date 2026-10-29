@@ -1,0 +1,278 @@
+---
+import Button from '@components/ui/Button.astro';
+import DocItem from '@components/TrustCenter/DocItem.astro';
+import DocSearch from '@components/TrustCenter/DocSearch.astro';
+import { LIBRARY_DOCS, docActions, docHref } from '@data/trust-center/documents';
+import { requestHref } from '@data/trust-center/nav';
+
+/**
+ * The Documents page's filterable list. Added NDA documents gather in a sticky bar that links to the
+ * request form with one `?doc=` per document.
+ */
+
+const REQUEST = requestHref();
+---
+
+<div data-doc-filter>
+	<DocSearch live />
+	<div class="tc-results">
+		<p class="tc-results__count" aria-live="polite" data-doc-count>
+			{LIBRARY_DOCS.length} documents
+		</p>
+		<Button
+			variant="tertiary"
+			size="xs"
+			weight="regular"
+			icon="tabler:x"
+			class="tc-results__clear"
+			attrs={{ 'data-doc-reset': '', hidden: '' }}
+		>
+			Clear filters
+		</Button>
+		<p class="tc-results__hint">Add the documents you need, then request them together.</p>
+	</div>
+	<ul class="tc-doclist" data-doc-list>
+		{LIBRARY_DOCS.map((d) => (
+			<DocItem
+				name={d.name}
+				href={docHref(d)}
+				meta={d.category}
+				access={d.access}
+				actions={docActions(d)}
+				pick={d.slug}
+				attrs={{
+					'data-doc-row': '',
+					'data-access': d.access,
+					'data-category': d.category,
+					'data-text': `${d.name} ${d.category}`.toLowerCase(),
+				}}
+			/>
+		))}
+	</ul>
+	<p class="tc-empty" data-doc-empty hidden>
+		Nothing matches that filter.
+	</p>
+	<div class="tc-picked" data-doc-picked hidden>
+		<p class="tc-picked__what">
+			<span class="tc-picked__count" data-doc-picked-count></span>
+			<span class="tc-picked__note">Shared after a mutual NDA</span>
+		</p>
+		<Button variant="tertiary" size="sm" weight="regular" attrs={{ 'data-doc-picked-clear': '' }}>
+			Clear
+		</Button>
+		<Button href={REQUEST} size="md" class="tc-picked__request" attrs={{ 'data-doc-picked-request': '' }}>
+			Request documents
+		</Button>
+	</div>
+	<p class="ui-sr" aria-live="polite" data-doc-picked-status></p>
+</div>
+
+<script>
+	// Filters mirror into the URL (`?q=&category=&access=`), which is also how the hub's search arrives.
+	document.querySelectorAll<HTMLElement>('[data-doc-filter]').forEach((root) => {
+		const form = root.querySelector<HTMLFormElement>('[data-doc-search]');
+		const query = root.querySelector<HTMLInputElement>('[data-doc-query]');
+		const category = root.querySelector<HTMLSelectElement>('[data-doc-category]');
+		const access = root.querySelector<HTMLInputElement>('[data-access-input]');
+		const rows = [...root.querySelectorAll<HTMLElement>('[data-doc-row]')];
+		const empty = root.querySelector<HTMLElement>('[data-doc-empty]');
+		const count = root.querySelector<HTMLElement>('[data-doc-count]');
+		const reset = root.querySelector<HTMLButtonElement>('[data-doc-reset]');
+
+		const state = () => ({
+			q: (query?.value ?? '').trim(),
+			category: category?.value ?? '',
+			access: access && !access.disabled ? access.value : '',
+		});
+
+		const render = () => {
+			const { q, category: cat, access: acc } = state();
+			const needle = q.toLowerCase();
+			let shown = 0;
+			rows.forEach((row) => {
+				const show =
+					(acc === '' || row.dataset.access === acc) &&
+					(cat === '' || row.dataset.category === cat) &&
+					(needle === '' || (row.dataset.text ?? '').includes(needle));
+				row.hidden = !show;
+				if (show) shown += 1;
+			});
+			if (empty) empty.hidden = shown > 0;
+			const filtered = Boolean(q || cat || acc);
+			if (count) count.textContent = filtered ? `${shown} of ${rows.length} documents` : `${rows.length} documents`;
+			if (reset) reset.hidden = !filtered;
+		};
+
+		const remember = () => {
+			const next = new URLSearchParams();
+			Object.entries(state()).forEach(([key, value]) => value && next.set(key, value));
+			const search = next.toString();
+			window.history.replaceState(null, '', search ? `?${search}` : window.location.pathname);
+		};
+
+		form?.addEventListener('docsearch', () => {
+			render();
+			remember();
+		});
+		reset?.addEventListener('click', () => {
+			form?.dispatchEvent(new CustomEvent('docsearch:reset'));
+		});
+		form?.addEventListener('submit', (event) => {
+			event.preventDefault();
+			render();
+			remember();
+		});
+		render();
+
+		const picks = [...root.querySelectorAll<HTMLInputElement>('[data-doc-pick]')];
+		const bar = root.querySelector<HTMLElement>('[data-doc-picked]');
+		const barCount = root.querySelector<HTMLElement>('[data-doc-picked-count]');
+		const request = root.querySelector<HTMLAnchorElement>('[data-doc-picked-request]');
+		const status = root.querySelector<HTMLElement>('[data-doc-picked-status]');
+		const base = request?.getAttribute('href') ?? '';
+		const documents = (n: number) => `${n} document${n === 1 ? '' : 's'}`;
+		// The bar's height, for the site's chat button to clear it (`--tc-picked-h`, below).
+		const measureBar = () => {
+			if (bar?.offsetHeight) document.documentElement.style.setProperty('--tc-picked-h', `${bar.offsetHeight}px`);
+		};
+
+		const syncPicked = (announce = false) => {
+			const ticked = picks.filter((box) => box.checked);
+			const n = ticked.length;
+			if (bar) bar.hidden = n === 0;
+			measureBar();
+			if (barCount) barCount.textContent = `${documents(n)} selected`;
+			if (status && announce) status.textContent = n ? `${documents(n)} selected` : 'Selection cleared';
+			if (request) {
+				const url = new URL(base, window.location.href);
+				ticked.forEach((box) => url.searchParams.append('doc', box.value));
+				request.href = `${url.pathname}${url.search}`;
+				request.textContent = `Request ${documents(n)}`;
+			}
+		};
+		picks.forEach((box) => box.addEventListener('change', () => syncPicked(true)));
+		root.querySelector('[data-doc-picked-clear]')?.addEventListener('click', () => {
+			picks.forEach((box) => (box.checked = false));
+			syncPicked(true);
+			picks.find((box) => !box.closest<HTMLElement>('[data-doc-row]')?.hidden)?.focus();
+		});
+		// The bfcache may restore ticked boxes.
+		window.addEventListener('pageshow', () => syncPicked());
+		syncPicked();
+
+		if (bar && 'ResizeObserver' in window) new ResizeObserver(measureBar).observe(bar);
+	});
+</script>
+
+<style is:global lang="scss">
+	@use '../../styles/variables' as *;
+
+	.tc-empty {
+		@include type-body;
+
+		padding: $spacing-6 0;
+		color: var(--color-text-secondary);
+	}
+
+	.tc-results {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: $spacing-1 $spacing-3;
+		min-height: 32px;
+		margin: (-$spacing-2) 0 $spacing-2;
+	}
+
+	.ui-btn.tc-results__clear {
+		--btn-label: var(--accent-ink);
+		--btn-px: 10px;
+	}
+
+	.tc-results__count {
+		@include type-small;
+
+		color: var(--color-text-secondary);
+	}
+
+	.tc-results__hint {
+		@include type-small;
+
+		flex-basis: 100%;
+		color: var(--color-text-secondary);
+
+		@include media-up(md) {
+			flex-basis: auto;
+			margin-inline-start: auto;
+		}
+	}
+
+	.tc-picked {
+		position: sticky;
+		bottom: calc(#{$spacing-4} + env(safe-area-inset-bottom, 0px));
+		z-index: 5;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: $spacing-2 $spacing-3;
+		margin-top: $spacing-6;
+		padding: $spacing-3 $spacing-3 $spacing-3 $spacing-5;
+		border-radius: $radius-lg;
+		background: var(--color-bg-surface);
+		box-shadow:
+			0 0 0 1px var(--ui-line),
+			0 12px 32px rgba(16, 24, 40, 0.16);
+
+		&[hidden] {
+			display: none;
+		}
+
+		@include media-down(md) {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+		}
+	}
+
+	// Lifts the site's chat button over the bar, by `--tc-picked-h` from the script above.
+	body:has(.tc-picked:not([hidden])) .chat-launcher {
+		bottom: calc(var(--tc-picked-h, 68px) + #{$spacing-4} * 2 + env(safe-area-inset-bottom, 0px));
+	}
+
+	.tc-picked__what {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 2px $spacing-3;
+		margin-inline-end: auto;
+
+		@include media-down(md) {
+			flex-direction: column;
+			align-items: flex-start;
+		}
+	}
+
+	.tc-picked__count {
+		@include type-link;
+
+		color: var(--color-text);
+	}
+
+	.tc-picked__note {
+		@include type-small;
+
+		color: var(--color-text-secondary);
+	}
+
+	.ui-btn.tc-picked__request {
+		@include media-down(md) {
+			grid-column: 1 / -1;
+		}
+	}
+
+	@media print {
+		.ui-btn.tc-results__clear,
+		.tc-results__hint,
+		.tc-picked {
+			display: none;
+		}
+	}
+</style>

@@ -7,6 +7,7 @@ import {
 	getIotHubCardInputs,
 	getMarketingCardInputs,
 	getPartnerCardInputs,
+	getTrustCenterCardInputs,
 	getUseCaseCardInputs,
 } from '@root/pages/open-graph/_shared/page-data';
 
@@ -38,6 +39,7 @@ const routeIndex = new Map<string, string>([
 	...fromInputs(await getMarketingCardInputs(),  (s) => (s === 'index' ? '' : `/${s}`),          '/open-graph/pages'),
 	...fromInputs(await getPartnerCardInputs(),    (s) => `/partners/hardware/${s}`,               '/open-graph/partners'),
 	...fromInputs(await getCollectionIndexInputs(),(s) => COLLECTION_INDEX_URLS[s] ?? `/${s}`,     '/open-graph/pages'),
+	...fromInputs(await getTrustCenterCardInputs(), (s) => (s === 'index' ? '/trust-center' : `/trust-center/${s}`), '/open-graph/trust-center'),
 	...fromInputs(await getIotHubCardInputs(),     (s) => (s === 'index' ? '/iot-hub' : `/iot-hub/${s}`), '/open-graph/iot-hub'),
 ]);
 

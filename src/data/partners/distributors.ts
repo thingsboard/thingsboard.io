@@ -724,6 +724,13 @@ export const DISTRIBUTORS: Distributor[] = [
 		email: "info@greennet.ua",
 		website: "greennet.ua",
 	},
+	{
+		name: "Net dot Net",
+		regions: ["Middle East","Africa","Asia"],
+		countries: ["Egypt","United Arab Emirates","Saudi Arabia"],
+		email: "info@netdotnet.info",
+		website: "netdotnet.co",
+	},
 ];
 
 // Throws if this data and REGION_MEMBERSHIP disagree — see ./coverage.ts.

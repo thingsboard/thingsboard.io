@@ -1,0 +1,148 @@
+---
+title: Deploy to several environments
+description: Push the same solution to dev, staging, and production with profiles, and deploy it from CI.
+sidebar:
+  label: Environments and CI
+---
+import DocLink from '@components/DocLink.astro';
+import { Products } from '@models/site.models';
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+One solution can go to many ThingsBoard servers. You test it on a dev server, then on staging, then you push the same files to production. The CLI selects the server with a **profile**. In CI, environment variables replace the profile.
+
+## Add a profile for each environment
+
+<Steps>
+1. Create one profile for each server. Use the API key of a Tenant Administrator on that server:
+
+   ```bash
+   tb config add dev --url https://dev.example.com --api-key <dev-key>
+   tb config add staging --url https://staging.example.com --api-key <staging-key>
+   tb config add prod --url https://thingsboard.example.com --api-key <prod-key>
+   ```
+
+2. Show the profiles:
+
+   ```bash
+   tb config list
+   ```
+
+3. Select the default profile. Commands without `--profile` use it:
+
+   ```bash
+   tb config use dev
+   ```
+</Steps>
+
+Your shell history saves commands that contain an API key. To enter the key without the history, run `tb config` and answer the questions. For details, see <DocLink product={Products.CLI} path="reference/configuration">Configuration</DocLink>.
+
+## Push the same solution everywhere
+
+Add `--profile <name>` to send a solution to another server:
+
+```bash
+tb push office-climate --profile dev --run-tasks
+tb push office-climate --profile staging --run-tasks
+tb push office-climate --profile prod
+```
+
+Every push validates the files against the target server first.
+
+The agent always pushes to the default profile. To send its work to another server, push yourself with `--profile`.
+
+<Aside type="caution">
+`--run-tasks` writes demo telemetry for the emulated devices. Use it on dev and staging. Do not use it on production, where real devices send the data.
+</Aside>
+
+### Push again without duplicates
+
+The CLI matches entities on the server by the IDs in the files. The first push to a server creates the entities. The next pushes update them. Push never makes a second copy, so you can push the same solution as often as necessary.
+
+If a push fails, ThingsBoard changes nothing. Fix the cause and push again. A push that succeeds has no automatic rollback. To go back to an earlier version, check out that commit in git and push it.
+
+Push never deletes entities. If the older files do not contain an entity, the entity stays on the server. Delete it in the ThingsBoard UI.
+
+## Pull UI changes before you push
+
+Push overwrites changes that someone made in the ThingsBoard UI. To keep a UI change, bring it into your files first:
+
+<Steps>
+1. Commit or stash your local changes. `tb pull` refuses to overwrite files with uncommitted git changes.
+
+2. Pull from the server where the change was made:
+
+   ```bash
+   tb pull --solution office-climate --profile staging
+   ```
+
+3. Check the change with `git diff` and commit it.
+
+4. Push the solution to the other servers.
+</Steps>
+
+To see what a pull changes without writing files, add `--dry-run`.
+
+## Deploy from CI
+
+In CI, set two environment variables. They replace the URL and the credentials of the profile, so the CI runner needs no profile:
+
+| Variable | Value |
+|---|---|
+| `TB_URL` | The URL of the target server. |
+| `TB_API_KEY` | The API key of a Tenant Administrator on that server. |
+
+`TB_PROFILE` selects a saved profile, the same as `--profile`. On a CI runner, `TB_URL` and `TB_API_KEY` are usually enough.
+
+### GitHub Actions example
+
+This workflow is an example. Change it for your repository. It runs on every push to `main`. It installs the CLI with uv, validates the solution, and pushes it:
+
+```yaml title=".github/workflows/deploy-thingsboard.yml"
+name: Deploy to ThingsBoard
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      TB_URL: ${{ secrets.TB_URL }}
+      TB_API_KEY: ${{ secrets.TB_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.3.2
+
+      - name: Install ThingsBoard CLI
+        run: |
+          uv tool install thingsboard-cli
+          echo "$(uv tool dir --bin)" >> "$GITHUB_PATH"
+
+      - name: Validate
+        run: tb validate office-climate
+
+      - name: Push
+        run: tb push office-climate
+```
+
+Before the first run, add the secrets:
+
+<Steps>
+1. In your GitHub repository, go to **Settings > Secrets and variables > Actions**.
+
+2. Click **New repository secret**. Add `TB_URL` with the URL of the target server.
+
+3. Add `TB_API_KEY` with the API key.
+</Steps>
+
+To deploy to staging and production from the same workflow, add one job for each server. Give each job its own pair of secrets, or use GitHub environments.
+
+In CI, the CLI does not ask for feedback after a push.
+
+## Next steps
+
+- <DocLink product={Products.CLI} path="reference/configuration">Configuration</DocLink>: all profile commands and environment variables.
+- <DocLink product={Products.CLI} path="guides/import-existing-solution">Import a solution</DocLink>: bring entities that already run in ThingsBoard under the CLI.

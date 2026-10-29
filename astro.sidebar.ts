@@ -596,7 +596,7 @@ const apisAndSdksItems = (prefix: string) => [
 		items: [
 			// Using slug-based entries (not raw `link:`) so the per-version sidebar filter in
 			// routeData.ts keeps each entry inside its own sidebar only — avoids cross-sidebar duplication.
-			`${prefix}/user-guide/cli`,
+			{ label: 'ThingsBoard CLI', link: '/docs/cli/', attrs: { 'data-sidebar-owner': `/${prefix}/` } },
 			`${prefix}/reference/java-client`,
 			`${prefix}/reference/python-client`,
 		],
@@ -1798,14 +1798,9 @@ const mainSidebarItems = (
 	{
 		label: 'Build with AI',
 		items: [
-			{
-				label: 'ThingsBoard CLI',
-				collapsed: false,
-				items: [
-					`${prefix}/user-guide/cli`,
-					`${prefix}/user-guide/cli-solutions`,
-				],
-			},
+			// The CLI is its own product (/docs/cli/). `data-sidebar-owner` keeps this cross-product
+			// link in this product's sidebar (see sidebarEntryMatchesVersionAndLanguage in routeData.ts).
+			{ label: 'ThingsBoard CLI', link: '/docs/cli/', attrs: { 'data-sidebar-owner': `/${prefix}/` } },
 			`${prefix}/user-guide/ai-solution-creator`,
 			`${prefix}/user-guide/ai-assistant`,
 			{
@@ -2234,14 +2229,8 @@ export const paasSidebar: SidebarConfig = [
 	{
 		label: 'Build with AI',
 		items: [
-			{
-				label: 'ThingsBoard CLI',
-				collapsed: false,
-				items: [
-					'docs/paas/user-guide/cli',
-					'docs/paas/user-guide/cli-solutions',
-				],
-			},
+			// The CLI is its own product (/docs/cli/); `data-sidebar-owner` keeps the link in this sidebar.
+			{ label: 'ThingsBoard CLI', link: '/docs/cli/', attrs: { 'data-sidebar-owner': '/docs/paas/' } },
 			'docs/paas/user-guide/ai-solution-creator',
 			'docs/paas/user-guide/ai-assistant',
 			{
@@ -2655,14 +2644,8 @@ export const paasEuSidebar: SidebarConfig = [
 	{
 		label: 'Build with AI',
 		items: [
-			{
-				label: 'ThingsBoard CLI',
-				collapsed: false,
-				items: [
-					'docs/paas/eu/user-guide/cli',
-					'docs/paas/eu/user-guide/cli-solutions',
-				],
-			},
+			// The CLI is its own product (/docs/cli/); `data-sidebar-owner` keeps the link in this sidebar.
+			{ label: 'ThingsBoard CLI', link: '/docs/cli/', attrs: { 'data-sidebar-owner': '/docs/paas/eu/' } },
 			'docs/paas/eu/user-guide/ai-solution-creator',
 			'docs/paas/eu/user-guide/ai-assistant',
 			{
@@ -4012,6 +3995,33 @@ export const licenseSidebar: SidebarConfig = [
 	},
 ];
 
+/** ThingsBoard CLI sidebar (pages at /docs/cli/) */
+export const cliSidebar: SidebarConfig = [
+	{
+		label: 'Getting Started',
+		items: ['docs/cli/getting-started', 'docs/cli/how-it-works'],
+	},
+	{
+		label: 'Guides',
+		items: [
+			'docs/cli/guides/start-from-payload',
+			'docs/cli/guides/alarms',
+			'docs/cli/guides/deliver-to-customer',
+			'docs/cli/guides/import-existing-solution',
+			'docs/cli/guides/environments-and-ci',
+			'docs/cli/guides/example-smart-retail',
+		],
+	},
+	{
+		label: 'Reference',
+		items: [
+			'docs/cli/reference/commands',
+			'docs/cli/reference/configuration',
+			'docs/cli/reference/troubleshooting',
+		],
+	},
+];
+
 /** IoT Hub sidebar (pages at /docs/iot-hub/) */
 export const iotHubSidebar: SidebarConfig = [
 	{
@@ -4122,6 +4132,11 @@ export const licenseSidebarTabLinks: SidebarTabLinks = {
 	'License Management': '/docs/license-server/subscription/',
 	'Account & Billing': '/docs/license-server/billing-info/',
 };
+export const cliSidebarTabLinks: SidebarTabLinks = {
+	'Getting Started': '/docs/cli/',
+	Guides: '/docs/cli/guides/start-from-payload/',
+	Reference: '/docs/cli/reference/commands/',
+};
 export const iotHubSidebarTabLinks: SidebarTabLinks = {
 	'User Guides': '/docs/iot-hub/user-guides/',
 	'Contribution Guides': '/docs/iot-hub/contribution-guides/',
@@ -4143,6 +4158,7 @@ export const sidebarTabLinksByPrefix: ReadonlyArray<[string, SidebarTabLinks]> =
 	['/docs/iot-gateway/', gwSidebarTabLinks],
 	['/docs/license-server/', licenseSidebarTabLinks],
 	['/docs/iot-hub/', iotHubSidebarTabLinks],
+	['/docs/cli/', cliSidebarTabLinks],
 	['/docs/', opensourceSidebarTabLinks],
 ];
 
@@ -4164,4 +4180,5 @@ export const sidebar: SidebarConfig = [
 	...trendzSidebar,
 	...licenseSidebar,
 	...iotHubSidebar,
+	...cliSidebar,
 ];

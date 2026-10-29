@@ -22,8 +22,9 @@ export type Region = (typeof REGIONS)[number];
  * distributor means classifying it here too, or the build fails.
  *
  * Conventions:
- * - Middle East countries are also filed under Asia (Turkey under Europe
- *   instead), so a distributor naming one declares both regions.
+ * - Middle East countries are also filed under Asia (Turkey under Europe and
+ *   Egypt under Africa instead), so a distributor naming one declares both
+ *   regions.
  * - Transcontinental countries appear under every region they span, so Turkey
  *   counts as Europe and Middle East, and Georgia as Europe and Asia.
  * - Caribbean and Central American territories count as North America.
@@ -33,6 +34,7 @@ export type Region = (typeof REGIONS)[number];
  */
 export const REGION_MEMBERSHIP: Record<Region, string[]> = {
 	Africa: [
+		"Egypt",
 		"Libya",
 		"Mauritius",
 		"Morocco",
@@ -157,6 +159,7 @@ export const REGION_MEMBERSHIP: Record<Region, string[]> = {
 		"Vatican City",
 	],
 	"Middle East": [
+		"Egypt",
 		"Iraq",
 		"Israel",
 		"Saudi Arabia",

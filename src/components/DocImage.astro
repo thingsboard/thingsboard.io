@@ -1,6 +1,6 @@
 ---
 import { getImage } from 'astro:assets';
-import type { ImageMetadata } from 'astro';
+import { prepareInteractiveSvg, rasterLoaders, svgRawLoaders, svgUrls } from '@util/asset-modules';
 import { claimFirstContentImage } from '@util/first-content-image';
 import { getDocsPrefix, Products } from '~/models/site.models';
 
@@ -37,27 +37,11 @@ if (styleWidth && align === 'right') styles.push('margin-inline: auto 0');
 else if (styleWidth && align === 'center') styles.push('margin-inline: auto');
 const figureStyle = styles.length ? styles.join('; ') : undefined;
 
-const assetModules = import.meta.glob<{ default: ImageMetadata }>(
-	'/src/assets/**/*.{png,jpg,jpeg,webp,gif,svg}',
-	{ eager: true }
-);
-
-// Raw SVG sources, so diagrams with clickable <a> can be inlined.
-// <img src> disables SVG interactivity in every browser, so there is no
-// way to make the links work other than rendering the SVG inline.
-// Lazy so Vite only reads the SVG actually referenced by this DocImage —
-// eager would pull ~400 SVG source strings into the module graph even
-// though only a handful contain <a> tags.
-const svgRawModules = import.meta.glob<string>(
-	'/src/assets/**/*.svg',
-	{ query: '?raw', import: 'default' }
-);
-
-const mod = assetModules[src];
+const raster = await rasterLoaders[src]?.();
+const assetUrl = raster?.src ?? svgUrls[src];
 const isSvg = src.endsWith('.svg');
 const isGif = src.endsWith('.gif');
-const rawSvg = isSvg ? await svgRawModules[src]?.() : undefined;
-let interactiveSvg = rawSvg && /<a[\s>]/i.test(rawSvg) ? rawSvg : null;
+let interactiveSvg = isSvg ? prepareInteractiveSvg(await svgRawLoaders[src]?.(), alt) : undefined;
 
 // Rewrite hrefs for the current product so inline diagrams navigate within
 // the same product context (CE → PE/PaaS/etc). SVG source stays CE-based.
@@ -69,31 +53,12 @@ if (interactiveSvg && product && product !== Products.CE) {
 	);
 }
 
-// Expose `alt` as the SVG's own accessible name. No `role="img"`: that role
-// hides the subtree from AT, making the interactive <a> anchors unreachable
-// for screen-reader users — defeats the point of inlining them. SVG's
-// default graphics-document role keeps children exposed while still picking
-// up `aria-label` as the accessible name.
-if (interactiveSvg) {
-	const escapedAlt = alt.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-	interactiveSvg = interactiveSvg.replace(/<svg\b/, `<svg aria-label="${escapedAlt}"`);
-
-	// Open every in-SVG link in a new tab. Strip any pre-existing target=
-	// (the source SVG ships with target="_parent" which keeps navigation in
-	// the current tab) and force-set target="_blank" + rel="noopener".
-	interactiveSvg = interactiveSvg.replace(/<a\b([^>]*)>/g, (_m, attrs) => {
-		const stripped = attrs
-			.replace(/\s+target="[^"]*"/g, '')
-			.replace(/\s+rel="[^"]*"/g, '');
-		return `<a${stripped} target="_blank" rel="noopener noreferrer">`;
-	});
-}
 // GIFs bypass Sharp: it reads all frames (`pages: -1`) and trips
 // `limitInputPixels` on large multi-frame GIFs.
 const optimized =
-	mod && !isSvg && !isGif
+	raster && !isGif
 		? await getImage({
-				src: mod.default,
+				src: raster,
 				...(numericWidth ? { width: numericWidth } : {}),
 				format: 'webp',
 				quality: 85,
@@ -118,8 +83,8 @@ const optimized =
 				loading={loading}
 				decoding="async"
 			/>
-		) : mod ? (
-			<img src={mod.default.src} alt={alt} width={numericWidth} loading={loading} decoding="async" />
+		) : assetUrl ? (
+			<img src={assetUrl} alt={alt} width={numericWidth} loading={loading} decoding="async" />
 		) : (
 			<img src={src} alt={alt} width={numericWidth} loading={loading} decoding="async" />
 		)

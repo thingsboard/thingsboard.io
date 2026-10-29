@@ -7,7 +7,8 @@ import './scroll-lock.css';
 //
 // Idempotent + single-flag: repeated lock/unlock calls are no-ops. One overlay
 // is expected open at a time; if two ever overlap, the first close unlocks
-// (same limitation the inlined copies had).
+// (same limitation the inlined copies had). `@util/modal-dialog` handles
+// stacked dialogs itself.
 
 const HTML_LOCK_CLASS = 'tb-scroll-locked';
 // Full-width fixed bars padded from the inside to absorb the freed scrollbar
