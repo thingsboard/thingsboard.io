@@ -63,7 +63,7 @@ The uplink converter receives each MQTT message as a byte array plus its topic, 
 1. Go to **Integrations &#8702; Data converters** and click **+ Add data converter &#8702; Create new converter**.
 2. **Converter type** — keep **Uplink**.
 3. **Integration type** — select **MQTT**.
-4. **Name** — enter a name, for example `MQTT Uplink Converter`.
+4. **Name** — enter a name, for example `MQTT Uplink Converter`. To record converter events, click **Failures** next to the name, select **All messages**, and click **Apply**.
 5. **Main decoding configuration** — the editor is pre-filled with the default MQTT decoder template. Use it as a starting point and, if needed, adapt it to your device. The editor opens in TBEL; use the **TBEL / JS** toggle to switch to JavaScript.
    <Aside type="tip" title="TBEL">
      Use <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL</DocLink> for converter scripts — it runs much faster than JavaScript inside ThingsBoard.
@@ -452,9 +452,9 @@ To see how the template handles a topic in another format, change `topic` to `se
 5. **Connection:**
    - **Host** and **Port** — enter the broker address. For a quick test, use the TBMQ demo broker: `demo.tbmq.io`, port `1883`.
    - **Credentials type** — select the type your broker requires. For the demo broker, select **Basic** with `demo` / `demo`.
-   - **Topic filters** — replace the default `#` with `tb/devices/+/+/telemetry`. This filter matches the topic format of the default decoder for every device type and name. With `#`, the integration also receives every other message on the broker, including its own downlinks.
+   - **Topic filters** — replace the default `#` with `tb/devices/+/+/telemetry`. This filter matches the topic format of the default decoder for every device type and name. With `#`, the integration also receives every other message on the broker, including its own downlinks on `tb/devices/{deviceType}/{deviceName}/commands`.
    - Leave the other parameters at their defaults. See **[Connection Settings](#connection-settings)** for details.
-6. Click **Check connection** to confirm that the broker is reachable, then click **Add**.
+6. Click **Check connection**. When the broker is reachable, the wizard shows **Connected**. Click **Add**.
 </Steps>
 
 <Aside type="tip">
@@ -493,8 +493,8 @@ To see how the template handles a topic in another format, change `topic` to `se
 | Type | Fields |
 |------|--------|
 | **Anonymous** | None. For brokers that allow unauthenticated clients. |
-| **Basic** | **Username** and **Password**. |
-| **PEM** | Mutual TLS. **CA certificate file** — verifies the broker's certificate. **Certificate file** — the client certificate. **Private key file** — the key for that certificate. **Private key password** — only for an encrypted key. Upload each file (**Browse file**) or take it from **Secret storage**. |
+| **Basic** | **Username** and **Password**. Enter the password or take it from <DocLink product={props.product} path="user-guide/security/secrets-storage" target="_blank">Secrets storage</DocLink>. |
+| **PEM** | Mutual TLS. **CA certificate file** — verifies the broker's certificate. **Certificate file** — the client certificate. **Private key file** — the key for that certificate. **Private key password** — only for an encrypted key. Upload each file with **Browse file**, or click **Use Secret storage** to take it from <DocLink product={props.product} path="user-guide/security/secrets-storage" target="_blank">Secrets storage</DocLink>. |
 
 To create a client certificate and key signed by your CA:
 
@@ -528,7 +528,7 @@ The integration subscribes to all topic filters when it connects.
 Publish a message to the broker, then confirm that ThingsBoard decoded it and created the device.
 
 <Aside type="note">
-  Turn on **Debug** mode with **All messages** for the integration and the uplink converter before you publish the message. Without it, the **Events** tabs stay empty.
+  The **Events** tabs show debug events only while debug mode records them. A new integration records **All messages** for a limited time after it is created. The uplink converter records them if you selected **All messages** when you created it. If the integration's debug period has ended, click its debug button and select **All messages** again.
 </Aside>
 
 ### Send a Test Uplink
@@ -601,32 +601,66 @@ For RPC commands, `msg.method` and `msg.params` are available. `msg.params` is a
 2. In the **Downlink data converter** field, click **Create new**. The **Downlink** converter type and **MQTT** integration type are preselected.
 3. Enter a name, for example `MQTT Downlink Converter`.
 4. In **Main encoding configuration**, use the default encoder or write your own.
-5. To record downlink events, click the debug icon next to the name, select **All messages**, and click **Apply**.
-6. Click **Add**, then **Apply changes**.
+5. Click **Test encoder function** and check the result (see **[Test the Encoder](#test-the-encoder)**).
+6. To record downlink events, click **Disabled** next to the name, select **All messages**, and click **Apply**.
+7. Click **Add**, then **Apply changes**.
 </Steps>
 
-Default encoder:
+The default encoder publishes the message as JSON to `tb/devices/{deviceType}/{deviceName}/commands`. If `deviceName` or `deviceType` is missing or contains `/`, `+`, or `#`, it raises an error and the downlink is not sent.
 
 ```js
 /** Encoder **/
-// Publish the ThingsBoard message as JSON to the device command topic.
+
+// Publish the ThingsBoard message as JSON to the device commands topic:
+// tb/devices/{deviceType}/{deviceName}/commands
+// Requires deviceName and deviceType in the message metadata,
+// e.g. added by the "Originator fields" rule node (name -> deviceName, type -> deviceType).
 // metadata.topic is read by the integration when Downlink topic pattern is ${topic}.
+var deviceName = metadata['deviceName'];
+var deviceType = metadata['deviceType'];
+
+// Reject values that are missing or contain MQTT topic separators/wildcards ('/', '+', '#'):
+// such a topic would be invalid and the command would not be delivered.
+if (!isValidTopicLevel(deviceName) || !isValidTopicLevel(deviceType)) {
+  var errorMessage = "Invalid MQTT downlink topic: deviceName '" + deviceName + "' and deviceType '" + deviceType +
+      "' must be present and must not contain '/', '+' or '#'.";
+  raiseError(errorMessage);
+}
 
 var result = {
-  // Specify the downlink payload format: JSON, TEXT, or BINARY.
   contentType: "JSON",
-
-  // Serialize the incoming message and use it as the MQTT payload.
   data: JSON.stringify(msg),
-
-  // Build the MQTT topic from the device type and device name.
-  // The integration uses this value when the Downlink topic pattern is ${topic}.
   metadata: {
-    topic: metadata['deviceType'] + '/' + metadata['deviceName'] + '/upload'
+    topic: 'tb/devices/' + deviceType + '/' + deviceName + '/commands'
   }
 };
 
+function isValidTopicLevel(value) {
+  return value != null && value.toString().trim() != '' &&
+      value.indexOf('/') < 0 && value.indexOf('+') < 0 && value.indexOf('#') < 0;
+}
+
 return result;
+```
+
+<h4 id="test-the-encoder">Test the Encoder</h4>
+
+Click **Test encoder function** in the encoder toolbar. The dialog opens with **Message type** `ATTRIBUTES_UPDATED`, a sample message, and **Metadata** that includes `deviceName` and `deviceType`. To match this guide, set:
+
+- **Message** — `{"temperatureUploadFrequency": 60}`
+- `deviceName` — `Thermostat-01`
+- `deviceType` — `thermostat`
+
+Click **Test**. The **Output** panel shows:
+
+```json
+{
+  "contentType": "JSON",
+  "data": "{\"temperatureUploadFrequency\":60}",
+  "metadata": {
+    "topic": "tb/devices/thermostat/Thermostat-01/commands"
+  }
+}
 ```
 
 ### Configure the Root Rule Chain
@@ -641,7 +675,7 @@ The encoder builds the topic from `deviceName` and `deviceType`, so the rule cha
    - **Profile name &#8702; deviceType**
    - **Add mapped originator fields to &#8702; Metadata**
    - Click **Add**.
-4. Connect the **message type switch** node to the **originator fields** node with the **Attributes Updated** and **Post attributes** relations.
+4. Connect the **message type switch** node to the **originator fields** node with the **Attributes Updated** relation.
 5. From the **Action** section, drag an **integration downlink** node onto the canvas.
 6. Enter a **Name** (for example, `Downlink to MQTT integration`), select your MQTT integration, and click **Add**.
 7. Connect the **originator fields** node to the **integration downlink** node with the **Success** relation.
@@ -656,7 +690,7 @@ Subscribe to the downlink topic, then update a shared attribute to trigger a dow
 1. Subscribe to the downlink topic:
 
    ```shell
-   mosquitto_sub -h demo.tbmq.io -p 1883 -t "thermostat/Thermostat-01/upload" -u "demo" -P "demo"
+   mosquitto_sub -h demo.tbmq.io -p 1883 -t "tb/devices/thermostat/Thermostat-01/commands" -u "demo" -P "demo"
    ```
 
 2. Go to **Devices & assets &#8702; Devices**, select your device, and open the **Attributes** tab.
@@ -672,7 +706,7 @@ Subscribe to the downlink topic, then update a shared attribute to trigger a dow
   {"temperatureUploadFrequency":60}
   ```
 
-- **Converter events** — open the downlink converter's **Events** tab. **In** shows the Rule Engine message, **Out** shows the encoded payload, and **Metadata** shows the topic and integration name.
+- **Converter events** — open the downlink converter's **Events** tab. **In** shows the Rule Engine message with `deviceName` and `deviceType` in its metadata. **Out** shows the encoded payload and the topic `tb/devices/thermostat/Thermostat-01/commands` in `metadata.topic`. **Metadata** shows the integration name.
 
 ## Converter Examples by Payload Type
 
@@ -737,7 +771,7 @@ return result;
   "deviceType": "thermostat",
   "attributes": {
     "model": "SN-001",
-    "integrationName": "Test MQTT"
+    "integrationName": "MQTT integration"
   },
   "telemetry": {
     "temperature": 33
@@ -916,6 +950,9 @@ var excludeKeys = ['deviceName', 'deviceType', 'ts', 'meta', 'location'];
 // Flatten all remaining fields into telemetry (nested objects become dot-separated keys)
 var telemetry = {};
 telemetry.putAll(toFlatMap(data, excludeKeys, true));
+
+// Use the device timestamp (ms) if present, otherwise the current time
+var ts = data.ts != null ? data.ts : Date.now();
  
 var result = {
     deviceName: data.deviceName,
@@ -927,7 +964,7 @@ var result = {
         integrationName: metadata['integrationName']
     },
     telemetry: {
-        ts:     data.ts != null ? data.ts : Date.now(),
+        ts:     ts,
         values: telemetry
     }
 };
@@ -1083,6 +1120,7 @@ return result;
 | Duplicate messages after reconnect | QoS 1 or 2 with **Clean session** off. | Turn on **Clean session**. |
 | Connection keeps dropping | Another client uses the same **Client ID**. | Clear **Client ID** to get a generated one, or make it unique. |
 | Downlink not received | The rule chain does not reach the **integration downlink** node, or the topic differs from the subscription. | Check the Root Rule Chain wiring and the topic in the downlink converter's **Events**. |
+| Downlink not sent, the downlink converter event has an error | The message metadata has no `deviceName` or `deviceType`, or a value contains `/`, `+`, or `#`. The encoder fails with `Invalid MQTT downlink topic: deviceName '...' and deviceType '...' must be present and must not contain '/', '+' or '#'.` | Map **Name &#8702; deviceName** and **Profile name &#8702; deviceType** in the **originator fields** node of the Root Rule Chain, or rename the device or device profile. |
 
 To read debug events, open the integration or converter, click **Events**, and select an event: **In** is the received data, **Out** is the converter result, and **Error** holds the error text.
 
