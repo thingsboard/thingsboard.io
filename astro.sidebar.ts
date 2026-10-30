@@ -429,6 +429,15 @@ const installationItems = (prefix: string) => {
 						`${prefix}/installation/azure-microservices`,
 					],
 				},
+				...(isPE
+					? [
+							{
+								label: 'Oracle Cloud',
+								collapsed: true,
+								items: [`${prefix}/installation/oci-microservices`],
+							},
+						]
+					: []),
 				`${prefix}/installation/digital-ocean`,
 			],
 		},

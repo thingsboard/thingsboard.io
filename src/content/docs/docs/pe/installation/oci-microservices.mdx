@@ -1,0 +1,523 @@
+---
+title: "Oracle Cloud OKE Microservices Setup"
+sidebar:
+  label: "OKE (Microservices)"
+description: "Deploy ThingsBoard in microservices mode on Oracle Cloud OKE with Terraform, OCI Database with PostgreSQL, Strimzi Kafka, and Cassandra."
+---
+import DocLink from '@components/DocLink.astro';
+import { Aside, Code, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Products } from '@models/site.models';
+import { PE_FULL_VER, TRENDZ_VER } from '@data/versions';
+import { k8sCloneCmd } from '@util/install-commands';
+import CreateAdminAccountSteps from '@components/InstallationDocSteps/CreateAdminAccountSteps.astro';
+import NextStepsLinks from '@components/InstallationDocSteps/NextStepsLinks.astro';
+
+export const cloneCmd = k8sCloneCmd('pe', 'oci/microservices');
+
+export const pullImagesCmd = `docker pull thingsboard/tb-node:${PE_FULL_VER}
+docker pull thingsboard/tb-web-report:${PE_FULL_VER}
+docker pull thingsboard/tb-web-ui:${PE_FULL_VER}
+docker pull thingsboard/tb-js-executor:${PE_FULL_VER}
+docker pull thingsboard/tb-http-transport:${PE_FULL_VER}
+docker pull thingsboard/tb-mqtt-transport:${PE_FULL_VER}
+docker pull thingsboard/tb-coap-transport:${PE_FULL_VER}
+docker pull thingsboard/tb-lwm2m-transport:${PE_FULL_VER}
+docker pull thingsboard/tb-snmp-transport:${PE_FULL_VER}
+docker pull thingsboard/tb-integration-executor:${PE_FULL_VER}`;
+
+export const pullTrendzCmd = `docker pull thingsboard/trendz:${TRENDZ_VER}
+docker pull thingsboard/trendz-python-executor:${TRENDZ_VER}`;
+
+This guide walks you through deploying ThingsBoard in microservices mode on <a href="https://www.oracle.com/cloud/cloud-native/kubernetes-engine/" target="_blank">Oracle Container Engine for Kubernetes (OKE)</a>.
+Terraform provisions the network, the OKE cluster, OCI Database with PostgreSQL, and an OCI Vault for the credentials.
+Kafka runs in the cluster under the <a href="https://strimzi.io/" target="_blank">Strimzi</a> operator and Cassandra (optional) under <a href="https://k8ssandra.io/" target="_blank">K8ssandra</a>.
+<a href="https://external-secrets.io/" target="_blank">External Secrets Operator</a> copies the credentials from the Vault into Kubernetes, and all device and user traffic enters through <a href="https://docs.nginx.com/nginx-gateway-fabric/" target="_blank">NGINX Gateway Fabric</a> behind a single OCI network load balancer.
+
+## Prerequisites
+
+### Install and Configure Tools
+
+Install <a href="https://kubernetes.io/docs/tasks/tools/" target="_blank">kubectl</a>, <a href="https://helm.sh/docs/intro/install/" target="_blank">Helm</a>, <a href="https://developer.hashicorp.com/terraform/install" target="_blank">Terraform</a> 1.5 or later, and the <a href="https://docs.oracle.com/en-us/iaas/Content/API/SDKDocs/cliinstall.htm" target="_blank">OCI CLI</a>.
+
+Configure the OCI CLI with an API signing key for your user. The command creates the `DEFAULT` profile in `~/.oci/config`:
+
+```bash
+oci setup config
+```
+
+Alternatively, sign in through the browser with a session token. Then set `auth = "SecurityToken"` and `config_file_profile` in Step 2, and export the profile so that the OCI CLI and kubectl use it:
+
+```bash
+oci session authenticate --region YOUR_OCI_REGION --profile-name thingsboard
+export OCI_CLI_PROFILE=thingsboard
+export OCI_CLI_AUTH=security_token
+```
+
+Verify the access:
+
+```bash
+oci iam region list --output table
+```
+
+<Aside type="note">
+Terraform creates IAM policies, and with Cassandra backups also a user and a group, so your user needs permission to manage IAM, networking, OKE, Vault, OCI Database with PostgreSQL, and Object Storage in the tenancy, for example as a member of the **Administrators** group.
+</Aside>
+
+### Pull ThingsBoard Images
+
+Verify that you can pull the images from Docker Hub:
+
+<Code code={pullImagesCmd} lang="bash" />
+
+## Step 1. Clone ThingsBoard K8S Scripts Repository
+
+Clone the repository containing the Kubernetes deployment scripts:
+
+<Code code={cloneCmd} lang="bash" />
+
+## Step 2. Provision the Infrastructure with Terraform
+
+The `infrastructure` folder contains the Terraform configuration. Edit `infrastructure/terraform.tfvars`. Key fields:
+
+| Field | Default | Description |
+|---|---|---|
+| `region` | — | OCI region identifier, for example `eu-frankfurt-1` |
+| `tenancy_ocid` | — | OCID of your tenancy |
+| `compartment_ocid` | tenancy root | Compartment for all resources |
+| `config_file_profile`, `auth` | `DEFAULT`, `APIKey` | OCI CLI profile and authentication method |
+| `cluster_name` | `thingsboard` | Prefix for every resource name |
+| `kubernetes_version` | — | Exact OKE version, for example `v1.36.4` |
+| `api_allowed_cidrs` | `["0.0.0.0/0"]` | Addresses allowed to reach the Kubernetes API |
+| `tb_node_pool` | 3 × `VM.Standard.E5.Flex`, 2 OCPUs, 16 GB | Nodes for ThingsBoard, Kafka, ZooKeeper, and Valkey |
+| `cassandra_enabled` | `false` | Adds three Cassandra nodes, see [Step 7](#step-7-cassandra-optional) |
+| `cassandra_backups_enabled` | `true` | Adds an Object Storage bucket for Cassandra backups |
+| `service_user_email_domain` | — | Required for Cassandra backups: the email domain of the service user that writes them |
+| `trendz_enabled` | `false` | Adds a node for [Trendz Analytics](#optional-configure-trendz-analytics) |
+| `postgres_instance_count` | `2` | PostgreSQL nodes; a second node takes over on failure |
+
+List the Kubernetes versions OKE supports:
+
+```bash
+oci ce cluster-options get --cluster-option-id all --query 'data."kubernetes-versions"'
+```
+
+<Aside type="note">
+Node pools spread their nodes over the availability domains of the region, or over its three fault domains in regions with a single availability domain. One OCPU equals two vCPUs, so the default nodes have 4 vCPUs and 16 GB of RAM each.
+</Aside>
+
+Create the infrastructure. It takes about 30 minutes:
+
+```bash
+cd infrastructure
+terraform init
+terraform apply
+cd ..
+```
+
+Terraform creates:
+
+- A VCN with public subnets for the Kubernetes API and the load balancer, and private subnets for the worker nodes and the database.
+- An enhanced OKE cluster with Kubernetes secrets encrypted by a Vault key, and its node pools.
+- An OCI Database with PostgreSQL system. Its connection details are stored in the Vault as the `postgres` secret.
+- An OCI Vault and the IAM policy that lets External Secrets Operator read it through OKE Workload Identity.
+- A reserved public IP address for the gateway.
+- With Cassandra backups: an Object Storage bucket and a service user limited to it.
+
+<Aside type="caution">
+The Terraform state contains the PostgreSQL password and the backup credentials. Keep `terraform.tfstate` in a safe place, or store the state in an OCI Object Storage bucket with the <a href="https://developer.hashicorp.com/terraform/language/backend/oci" target="_blank">oci backend</a> (Terraform 1.12 or later).
+</Aside>
+
+## Step 3. Configure kubectl
+
+Add the cluster to your kubeconfig:
+
+```bash
+oci ce cluster create-kubeconfig \
+  --cluster-id $(terraform -chdir=infrastructure output -raw cluster_id) \
+  --region $(terraform -chdir=infrastructure output -raw region) \
+  --token-version 2.0.0 --kube-endpoint PUBLIC_ENDPOINT
+kubectl get nodes
+```
+
+## Step 4. Install the Operators
+
+Install cert-manager, External Secrets Operator, Strimzi, and NGINX Gateway Fabric with the Gateway API resources. Add `--with-cassandra` to also install the K8ssandra operator if you set `cassandra_enabled = true`:
+
+```bash
+./k8s-install-operators.sh
+```
+
+After this command finishes you should see:
+
+```text
+Operators installed successfully!
+```
+
+## Step 5. Connect External Secrets to OCI Vault
+
+Create the secret store for the Vault:
+
+```bash
+export VAULT_ID=$(terraform -chdir=infrastructure output -raw vault_id)
+export OCI_REGION=$(terraform -chdir=infrastructure output -raw region)
+sed -e "s|YOUR_VAULT_OCID|${VAULT_ID}|" -e "s|YOUR_OCI_REGION|${OCI_REGION}|" \
+  external-secrets/cluster-secret-store.yml | kubectl apply -f -
+kubectl get clustersecretstore oci-vault
+```
+
+The store should report `STATUS Valid` and `READY True`. Then sync the PostgreSQL connection into the `postgres` Kubernetes secret:
+
+```bash
+kubectl apply -f external-secrets/postgres.yml
+kubectl -n thingsboard get externalsecret postgres
+```
+
+The `STATUS` column should show `SecretSynced`.
+
+## Step 6. Obtain and Configure License Key
+
+We assume you have already chosen your subscription plan or decided to purchase a perpetual license. If not, navigate to the <a href="/pricing/?product=thingsboard-pe" target="_blank">pricing</a> page.
+
+Store the license key in the Vault and sync it into the `tb-license` Kubernetes secret:
+
+```bash
+export TB_LICENSE_KEY=PUT_YOUR_LICENSE_KEY_HERE
+oci vault secret create-base64 \
+  --compartment-id $(terraform -chdir=infrastructure output -raw compartment_id) \
+  --vault-id $(terraform -chdir=infrastructure output -raw vault_id) \
+  --key-id $(terraform -chdir=infrastructure output -raw vault_key_id) \
+  --secret-name tb-license \
+  --secret-content-content "$(printf '%s' "$TB_LICENSE_KEY" | base64 | tr -d '\n')"
+kubectl apply -f external-secrets/tb-license.yml
+```
+
+<Aside type="caution">
+Don't forget to replace **PUT_YOUR_LICENSE_KEY_HERE** with the value of your license key.
+</Aside>
+
+## Step 7. Cassandra (Optional)
+
+Using Cassandra is optional. We recommend it if you plan to insert more than 5K data points per second or want to optimize storage space.
+It requires `cassandra_enabled = true` in [Step 2](#step-2-provision-the-infrastructure-with-terraform) and the `--with-cassandra` option in [Step 4](#step-4-install-the-operators).
+
+Deploy a three-node Cassandra datacenter, one node per Cassandra node pool, with daily backups to the bucket created by Terraform:
+
+```bash
+kubectl apply -f external-secrets/cassandra-backups.yml
+sed -e "s|YOUR_BACKUP_BUCKET|$(terraform -chdir=infrastructure output -raw cassandra_backup_bucket)|" \
+    -e "s|YOUR_MEDUSA_HOST|$(terraform -chdir=infrastructure output -raw medusa_host)|" \
+    -e "s|YOUR_OCI_REGION|${OCI_REGION}|" \
+  cassandra/k8ssandra-cluster.yml | kubectl apply -f -
+kubectl apply -f cassandra/medusa-backup-schedule.yml
+```
+
+<Aside type="note">
+If you set `cassandra_backups_enabled = false`, remove the `medusa` section from `cassandra/k8ssandra-cluster.yml`, apply the file directly, and skip the other two files.
+</Aside>
+
+Wait until the datacenter is ready. The first start takes about 15 minutes:
+
+```bash
+kubectl -n thingsboard wait cassandradatacenter/dc1 --for=condition=Ready --timeout=30m
+```
+
+Create the ThingsBoard keyspace:
+
+```bash
+CASS_USERNAME=$(kubectl -n thingsboard get secret cassandra-superuser -o jsonpath='{.data.username}' | base64 --decode)
+CASS_PASSWORD=$(kubectl -n thingsboard get secret cassandra-superuser -o jsonpath='{.data.password}' | base64 --decode)
+kubectl -n thingsboard exec cassandra-dc1-r1-sts-0 -c cassandra -- cqlsh -u "$CASS_USERNAME" -p "$CASS_PASSWORD" -e \
+  "CREATE KEYSPACE IF NOT EXISTS thingsboard WITH replication = {'class': 'NetworkTopologyStrategy', 'dc1': 3};"
+```
+
+Edit `tb-node-db-configmap.yml` and set **DATABASE_TS_TYPE** to `cassandra`.
+
+## Step 8. CPU and Memory Resources Allocation
+
+The scripts have preconfigured values of resources for each service. You can change them in `.yml` files under the `resources` section.
+
+<Aside type="note">
+If you want to allocate more resources, increase `size`, `ocpus`, or `memory_gb` of `tb_node_pool` in `infrastructure/terraform.tfvars` and run `terraform apply` again.
+</Aside>
+
+Recommended CPU/memory resources allocation:
+
+| Service | CPU | Memory |
+|---|---|---|
+| TB Node | 1.5 | 6Gi |
+| TB HTTP Transport | 0.5 | 2Gi |
+| TB MQTT Transport | 0.5 | 2Gi |
+| TB CoAP Transport | 0.5 | 2Gi |
+| TB Web UI | 0.3 | 0.5Gi |
+| JS Executor | 0.1 | 0.3Gi |
+| Kafka (per broker) | 0.5 | 1.5Gi |
+| Zookeeper | 0.3 | 1Gi |
+| Trendz (optional) | 2 | 4Gi |
+| Trendz Python Executor (optional) | 1 | 4Gi |
+
+## Step 9. Installation
+
+Execute the following command to start ZooKeeper, Valkey, and a three-broker Kafka cluster, create the `thingsboard` database, and run the initial setup of the database:
+
+```bash
+./k8s-install-tb.sh
+```
+
+After this command finishes you should see:
+
+```text
+Installation finished successfully!
+```
+
+<Aside type="note">
+If the installation fails, check the `postgres` secret from [Step 5](#step-5-connect-external-secrets-to-oci-vault) and the logs of the `tb-create-db` job.
+</Aside>
+
+## Step 10. Starting
+
+Deploy ThingsBoard services:
+
+```bash
+./k8s-deploy-resources.sh
+```
+
+After a few minutes, call `kubectl get pods`. If everything went fine, you should see:
+
+- 5x `tb-js-executor`
+- 1x `tb-node` (scale to more nodes if you have additional license instances)
+- 2x `tb-web-ui`
+- 3x `tb-kafka`
+- 3x `zookeeper`
+
+Every pod should be in the `READY` state.
+
+### Deploy Transport Microservices
+
+Deploy the transport microservices you need. Omit protocols you don't use to save resources:
+
+```bash
+# HTTP Transport (optional)
+kubectl apply -f transports/tb-http-transport.yml
+
+# MQTT Transport (optional)
+kubectl apply -f transports/tb-mqtt-transport.yml
+
+# CoAP Transport (optional)
+kubectl apply -f transports/tb-coap-transport.yml
+
+# LwM2M Transport (optional)
+kubectl apply -f transports/tb-lwm2m-transport.yml
+
+# SNMP Transport (optional)
+kubectl apply -f transports/tb-snmp-transport.yml
+```
+
+## Step 11. Configure the Gateway
+
+A single gateway serves every protocol on the reserved IP address from Step 2. Create its load balancer settings first, because the reserved address is only read when the load balancer is created:
+
+```bash
+export INGRESS_IP=$(terraform -chdir=infrastructure output -raw ingress_ip_address)
+sed "s|YOUR_INGRESS_IP|${INGRESS_IP}|" gateway/nginx-proxy.yml | kubectl apply -f -
+kubectl apply -f gateway/gateway.yml
+kubectl -n thingsboard get gateway tb-gateway
+```
+
+After a few minutes the gateway reports `PROGRAMMED True` with the reserved IP address in the `ADDRESS` column.
+
+### 11.1 Configure HTTP(S) Access
+
+You have 2 options:
+
+- **HTTP** — recommended **for development**. Works with the IP address only.
+- **HTTPS** — recommended **for production**. Requires a domain name and uses a free <a href="https://letsencrypt.org/" target="_blank">Let's Encrypt</a> certificate.
+
+<Tabs>
+<TabItem label="HTTP">
+
+```bash
+kubectl apply -f gateway/routes/http.yml
+```
+
+Use `http://` followed by the reserved IP address to access the web UI, and connect devices via <DocLink product={Products.PE} path="reference/http-api/getting-connected">HTTP API</DocLink>.
+
+Administrator account creation on first access is covered next, in [Step 12. Create Your Administrator Account](#step-12-create-your-administrator-account).
+
+</TabItem>
+<TabItem label="HTTPS">
+
+Create a DNS `A` record that points your domain to the reserved IP address. Then request the certificate and enable HTTPS:
+
+```bash
+export TB_DOMAIN=PUT_YOUR_DOMAIN_HERE
+export ACME_EMAIL=PUT_YOUR_EMAIL_HERE
+sed -e "s|YOUR_DOMAIN|${TB_DOMAIN}|" -e "s|YOUR_EMAIL|${ACME_EMAIL}|" gateway/https.yml | kubectl apply -f -
+kubectl -n thingsboard get certificate tb-tls
+```
+
+The certificate is issued within a few minutes, when `READY` turns `True`. Plain HTTP then redirects to HTTPS, except for the device HTTP API.
+
+</TabItem>
+</Tabs>
+
+### 11.2 Configure MQTT Access (Optional)
+
+```bash
+kubectl apply -f gateway/routes/mqtt.yml
+```
+
+The gateway forwards TCP traffic on ports 1883 and 8883 to the MQTT transport.
+
+To enable MQTT over TLS on port 8883, complete the HTTPS option of [Step 11.1](#111-configure-https-access) first. Then uncomment the sections marked "Uncomment the following lines to enable MQTTS" in `transports/tb-mqtt-transport.yml` and apply it again:
+
+```bash
+kubectl apply -f transports/tb-mqtt-transport.yml
+```
+
+The MQTT transport then uses the certificate issued for your domain. See <DocLink product={Products.PE} path="reference/mqtt-api/getting-connected#mqtt-over-tls">MQTT over SSL</DocLink> for the client configuration.
+
+### 11.3 Configure CoAP and LwM2M Access (Optional)
+
+```bash
+kubectl apply -f gateway/routes/coap.yml
+kubectl apply -f gateway/routes/lwm2m.yml
+```
+
+The gateway forwards UDP traffic on these ports:
+
+| Port | Protocol |
+|---|---|
+| 5683 | CoAP non-secure |
+| 5684 | CoAP secure DTLS |
+| 5685 | LwM2M non-secure |
+| 5686 | LwM2M secure DTLS |
+| 5687 | LwM2M bootstrap non-secure |
+| 5688 | LwM2M bootstrap secure DTLS |
+
+For CoAP over DTLS, follow the <DocLink product={Products.PE} path="reference/coap-api/getting-connected">CoAP over DTLS</DocLink> guide. For LwM2M over DTLS, follow the <DocLink product={Products.PE} path="reference/lwm2m-api/getting-started#dtls-server-configuration">LwM2M over DTLS</DocLink> guide.
+
+### 11.4 Configure Edge Access (Optional)
+
+```bash
+kubectl apply -f gateway/routes/edge.yml
+```
+
+The gateway forwards TCP traffic on port 7070 to ThingsBoard. Use the reserved IP address as **CLOUD_RPC_HOST** in Edge connection parameters.
+
+### 11.5 Configure Remote Integrations Access (Optional)
+
+```bash
+kubectl apply -f gateway/routes/integrations.yml
+```
+
+The gateway forwards TCP traffic on port 9090 to ThingsBoard. Use the reserved IP address, or your domain, as **RPC_HOST** in the <DocLink product={Products.PE} path="user-guide/integrations/remote">remote integration</DocLink> configuration.
+
+## Step 12. Create Your Administrator Account
+
+<CreateAdminAccountSteps variant="cloud" />
+
+## Validate the Setup
+
+Check that the gateway and its routes are accepted:
+
+```bash
+kubectl -n thingsboard get gateway tb-gateway
+kubectl -n thingsboard get httproute,tcproute,udproute
+```
+
+Open the web interface at the reserved IP address, or at your domain if you configured HTTPS. Devices connect to the same address on the ports from Step 11.
+
+## [Optional] Configure Trendz Analytics
+
+Trendz runs on its own node, which requires `trendz_enabled = true` in [Step 2](#step-2-provision-the-infrastructure-with-terraform).
+
+### Pull Trendz Images
+
+Pull the Trendz images from Docker Hub:
+
+<Code code={pullTrendzCmd} lang="bash" />
+
+### Create a Trendz Database
+
+Sync the Trendz database credentials from the Vault and create the database in the existing PostgreSQL system:
+
+```bash
+kubectl apply -f external-secrets/trendz.yml
+kubectl apply -f trendz/trendz-create-db.yml
+```
+
+Check logs:
+
+```bash
+kubectl logs job/trendz-create-db -n thingsboard
+```
+
+### Deploy Trendz
+
+```bash
+./k8s-deploy-trendz.sh
+```
+
+Expose Trendz on the same listener as the web UI from [Step 11](#step-11-configure-the-gateway):
+
+<Tabs>
+<TabItem label="HTTP">
+
+```bash
+kubectl apply -f gateway/routes/trendz.yml
+```
+
+</TabItem>
+<TabItem label="HTTPS">
+
+```bash
+sed "s|sectionName: http$|sectionName: https|" gateway/routes/trendz.yml | kubectl apply -f -
+```
+
+</TabItem>
+</Tabs>
+
+## Troubleshooting
+
+To examine ThingsBoard node logs:
+
+```bash
+kubectl logs -f tb-node-0
+```
+
+Other useful commands:
+- `kubectl get pods` — see the state of all pods
+- `kubectl get externalsecret` — see whether the secrets are synced from the Vault
+- `kubectl get kafka tb` — see the state of the Kafka cluster
+- `kubectl describe gateway tb-gateway` — see the state of the gateway and its listeners
+
+See the <a href="https://kubernetes.io/docs/reference/kubectl/cheatsheet/" target="_blank">kubectl Cheat Sheet</a> for more details.
+
+## Cluster Deletion
+
+Delete all ThingsBoard pods:
+
+```bash
+./k8s-delete-resources.sh
+```
+
+Delete all ThingsBoard resources, including the data volumes and the load balancer:
+
+```bash
+./k8s-delete-all.sh
+```
+
+Delete the infrastructure:
+
+```bash
+cd infrastructure
+terraform destroy
+```
+
+<Aside type="caution">
+Run `./k8s-delete-all.sh` before `terraform destroy`: the load balancer and the block volumes are created by Kubernetes, not by Terraform, and the destroy fails while they exist. Deleting the database system deletes its data, so take a manual backup first if you need it. The Vault and its keys are scheduled for deletion rather than deleted immediately.
+</Aside>
+
+## Next Steps
+
+<NextStepsLinks />
