@@ -58,7 +58,7 @@ export const CE_BRANCH = 'release-4.3';
  * names and plain version tags (no `tb-pe-` prefix, no `PE` suffix). Historical
  * upgrade steps below 4.4 build the old names themselves.
  */
-export const PE_FULL_VER = '4.4.0.1';
+export const PE_FULL_VER = '4.4.0.2';
 
 /**
  * Package filename and GitHub release-tag version — {@link PE_FULL_VER} with the
