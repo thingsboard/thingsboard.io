@@ -1,10 +1,10 @@
 import type { ImageMetadata } from 'astro';
-import img1 from '~/assets/images/company-images/values-images/values-image1.webp';
-import img2 from '~/assets/images/company-images/values-images/values-image2.webp';
-import img3 from '~/assets/images/company-images/values-images/values-image3.webp';
-import img4 from '~/assets/images/company-images/values-images/values-image4.webp';
-import img5 from '~/assets/images/company-images/values-images/values-image5.webp';
-import img6 from '~/assets/images/company-images/values-images/values-image6.webp';
+import img1 from '@root/assets/images/company-images/values-images/values-image1.webp';
+import img2 from '@root/assets/images/company-images/values-images/values-image2.webp';
+import img3 from '@root/assets/images/company-images/values-images/values-image3.webp';
+import img4 from '@root/assets/images/company-images/values-images/values-image4.webp';
+import img5 from '@root/assets/images/company-images/values-images/values-image5.webp';
+import img6 from '@root/assets/images/company-images/values-images/values-image6.webp';
 
 /** One company value: its photo, its words, and its mark (a tabler icon in a kit accent). */
 export interface CompanyValue {
@@ -14,7 +14,7 @@ export interface CompanyValue {
 	mark: { icon: string; accent: string };
 }
 
-/** The "Our values" carousel; both `ValuesSection` (split) and `ValuesSectionOverlay` read it. */
+/** The "Our values" carousel's slides, in order. */
 export const companyValues: CompanyValue[] = [
 	{
 		image: img1,
@@ -32,7 +32,7 @@ export const companyValues: CompanyValue[] = [
 	},
 	{
 		image: img3,
-		title: 'Growth and Self-improvement',
+		title: 'Growth and self-improvement',
 		description: 'We embrace continuous learning and innovation to stay at the forefront of IoT technology.',
 		mark: { icon: 'tabler:plant-2', accent: 'var(--color-accent-onprem)' },
 	},
@@ -45,7 +45,7 @@ export const companyValues: CompanyValue[] = [
 	},
 	{
 		image: img5,
-		title: 'Team work',
+		title: 'Teamwork',
 		description:
 			'Collaboration drives our success, as we harness the strengths of our team to deliver IoT innovations.',
 		mark: { icon: 'tabler:users-group', accent: 'var(--color-accent-violet)' },
