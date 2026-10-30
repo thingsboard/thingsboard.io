@@ -1,0 +1,1736 @@
+---
+import { Icon } from 'astro-icon/components';
+import SiteMenuSheet from '@components/SiteMenu/SiteMenuSheet.astro';
+import { MENU_ENTRIES, MENU_SECTIONS, inSection, isHere } from '@components/SiteMenu/menu-model';
+
+/**
+ * The site's main menu, built from `data/navigation`. From 1200px (`$menu-row-from`) it is a row of
+ * items in the header, with a dropdown panel for the open section. Below 1200px the header's Menu
+ * button opens the menu sheet (`SiteMenuSheet`) instead. Each section's content (`SiteMenuBody`) is
+ * rendered once, in the sheet, and on wide screens the script moves it into the panel.
+ */
+const pathname = Astro.url.pathname;
+---
+
+<nav class="sm print:hidden" aria-label="Site menu">
+	<ul class="sm__row">
+		{MENU_ENTRIES.map(({ item, sub }) => (
+			<li class="sm__item" data-sm-item={sub?.id}>
+				{sub ? (
+					<button
+						type="button"
+						class="sm__top"
+						id={item.id}
+						aria-expanded="false"
+						aria-controls="sm-one"
+						data-sm-trigger={sub.id}
+						data-current={inSection(pathname, { item, sub }) || undefined}
+					>
+						{item.label}
+						<Icon name="tabler:chevron-down" class="sm__chev" aria-hidden="true" />
+					</button>
+				) : (
+					<a
+						class:list={['sm__top', item.linkClass]}
+						id={item.id}
+						data-analytics-id={item.id}
+						href={item.href}
+						aria-current={isHere(pathname, item.href) ? 'page' : undefined}
+					>
+						{item.label}
+					</a>
+				)}
+			</li>
+		))}
+	</ul>
+
+	<div class="sm__one" id="sm-one" data-sm-one hidden>
+		<div class="sm__one-in">
+			{/* The script fills each section from the menu sheet (`placeBody`) the first time it opens. */}
+			{MENU_SECTIONS.map((entry) => (
+				<section class="sm__one-sec" data-sm-panel={entry.sub.id} aria-label={entry.item.label} hidden />
+			))}
+		</div>
+	</div>
+
+	<SiteMenuSheet />
+</nav>
+
+<script>
+	import { lockScroll, unlockScroll } from '@util/scroll-lock';
+	import { dismissSidebar } from '@util/layers';
+	import { fullHeaderQuery, menuRowQuery, menuSplitQuery } from '@components/SiteMenu/menu-query';
+
+	const nav = document.querySelector<HTMLElement>('nav.sm');
+	const header = nav?.closest<HTMLElement>('header.header') ?? null;
+	const row = nav?.querySelector<HTMLElement>('.sm__row') ?? null;
+	const panel = nav?.querySelector<HTMLElement>('[data-sm-one]') ?? null;
+
+	if (nav && header && row && panel) {
+		// `wide`: the desktop menu row shows. `split`: the menu sheet has room for the list and a section
+		// side by side.
+		const wide = matchMedia(menuRowQuery());
+		const split = matchMedia(menuSplitQuery());
+
+		// --- Desktop menu panel ---
+
+		const OPEN_DELAY = 120; // ms the mouse must rest on an item before its section opens
+		const CLOSE_DELAY = 200; // ms after the mouse leaves before a hover-opened panel closes
+		const CLOSE_FADE_MS = 140; // length of the closing fade
+
+		// Values from the stylesheet. Read on first use, not on page load, because most pages never open
+		// the panel.
+		let cachedTokens: { glideMs: number; glideEase: string; inset: number; maxCols: number } | null = null;
+		const panelTokens = () => {
+			if (cachedTokens) return cachedTokens;
+			const styles = getComputedStyle(nav);
+			const token = (name: string) => styles.getPropertyValue(name).trim();
+			const glide = token('--sm-glide'); // a CSS time, in s or ms
+			cachedTokens = {
+				glideMs: parseFloat(glide) * (glide.endsWith('ms') ? 1 : 1000) || 0,
+				glideEase: token('--sm-glide-ease') || 'ease',
+				inset: parseFloat(token('--sm-link-inset')) || 0,
+				maxCols: parseInt(token('--sm-max-cols'), 10) || 1,
+			};
+			return cachedTokens;
+		};
+		const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+		const canAnimate = () => !reducedMotion.matches && typeof Element.prototype.animate === 'function';
+
+		const triggers = [...nav.querySelectorAll<HTMLButtonElement>('[data-sm-trigger]')];
+		const panelSections = [...nav.querySelectorAll<HTMLElement>('[data-sm-panel]')];
+		const itemOf = (id: string) => nav.querySelector<HTMLElement>(`.sm__item[data-sm-item="${id}"]`);
+		const triggerOf = (id: string) => triggers.find((t) => t.dataset.smTrigger === id);
+		const triggerIndex = (id: string) => triggers.findIndex((t) => t.dataset.smTrigger === id);
+		// Touch screens send emulated mouse events around a tap, so only a real mouse opens on hover.
+		const isMouse = (e: PointerEvent) => e.pointerType === 'mouse';
+
+		let openId: string | null = null;
+		/** The section a click pinned open. Null while the panel is only open on hover. */
+		let pinnedId: string | null = null;
+		let openTimer = 0;
+		let closeTimer = 0;
+		let fadeAnim: Animation | null = null;
+		let heightAnim: Animation | null = null;
+
+		const clearTimers = () => {
+			window.clearTimeout(openTimer);
+			window.clearTimeout(closeTimer);
+		};
+
+		// The panel goes into the open item's `<li>`, after its button, so Tab and screen readers go from the
+		// item into its section. It is `position: fixed`, so this does not move it on screen.
+		const movePanelTo = (id: string) => {
+			const li = itemOf(id);
+			if (!li || panel.parentElement === li) return;
+			if (!panel.hidden) nav.setAttribute('data-moving', '');
+			li.append(panel);
+			requestAnimationFrame(() => requestAnimationFrame(() => nav.removeAttribute('data-moving')));
+		};
+
+		// --- Switching between sections ---
+
+		// Cached until the window resizes, so moving along the menu row does not read the layout each time.
+		const underlineAt = new Map<string, { x: number; w: number }>();
+		const placeUnderline = (id: string, instant: boolean) => {
+			let at = underlineAt.get(id);
+			if (!at) {
+				const trigger = triggerOf(id);
+				const li = itemOf(id);
+				if (!trigger || !li) return;
+				const pad = parseFloat(getComputedStyle(trigger).paddingLeft) || 0;
+				at = { x: li.offsetLeft + trigger.offsetLeft + pad, w: trigger.offsetWidth - 2 * pad };
+				underlineAt.set(id, at);
+			}
+			if (instant) row.setAttribute('data-instant', '');
+			row.style.setProperty('--sm-ink-x', `${at.x}px`);
+			row.style.setProperty('--sm-ink-w', `${at.w}px`);
+			if (instant) {
+				// Force a reflow, so the new position applies before the slide is turned back on.
+				void row.offsetWidth;
+				row.removeAttribute('data-instant');
+			}
+			row.setAttribute('data-ink', '');
+		};
+
+		// Starts the panel's content under the first menu item's text, or further left where the widest
+		// section would not fit. All sections use the same start, so columns stay put when switching.
+		const alignPanel = () => {
+			const firstItem = row.querySelector<HTMLElement>('.sm__top');
+			const inner = panel.querySelector<HTMLElement>('.sm__one-in');
+			if (!firstItem || !inner) return;
+			const { inset, maxCols } = panelTokens();
+			const itemTextLeft =
+				firstItem.getBoundingClientRect().left + (parseFloat(getComputedStyle(firstItem).paddingLeft) || 0);
+			const styles = getComputedStyle(nav);
+			const colWidth = parseFloat(styles.getPropertyValue('--sm-col')) || 0;
+			const gutter = parseFloat(styles.getPropertyValue('--sm-gutter')) || 0;
+			const widestSection = maxCols * colWidth + (maxCols - 1) * gutter;
+			const rightPadding = parseFloat(getComputedStyle(inner).paddingRight) || 0;
+			const maxStart = document.documentElement.clientWidth - rightPadding - widestSection;
+			panel.style.setProperty('--sm-col-x', `${Math.round(Math.min(itemTextLeft - inset, maxStart))}px`);
+		};
+
+		/** Runs once `to` is shown. `heightBefore` is the panel's height while it still showed `from`. */
+		const animateSwitch = (from: string, to: string, heightBefore: number) => {
+			if (!canAnimate()) return;
+			const { glideMs, glideEase } = panelTokens();
+			const next = panelSections.find((p) => p.dataset.smPanel === to);
+			const dir = triggerIndex(to) > triggerIndex(from) ? 1 : -1;
+			next?.getAnimations().forEach((a) => a.cancel());
+			next?.animate(
+				[
+					{ opacity: 0, translate: `${dir * 16}px 0` },
+					{ opacity: 1, translate: '0 0' },
+				],
+				{
+					duration: glideMs,
+					easing: glideEase,
+				}
+			);
+			heightAnim?.cancel();
+			const heightAfter = panel.getBoundingClientRect().height;
+			if (Math.abs(heightAfter - heightBefore) < 1) return;
+			panel.setAttribute('data-morphing', '');
+			const anim = panel.animate([{ height: `${heightBefore}px` }, { height: `${heightAfter}px` }], {
+				duration: glideMs,
+				easing: glideEase,
+			});
+			heightAnim = anim;
+			const done = () => {
+				if (heightAnim !== anim) return;
+				heightAnim = null;
+				panel.removeAttribute('data-morphing');
+			};
+			anim.addEventListener('finish', done);
+			anim.addEventListener('cancel', done);
+		};
+
+		const cancelFade = () => {
+			if (!fadeAnim) return;
+			const anim = fadeAnim;
+			fadeAnim = null;
+			anim.cancel();
+			panel.removeAttribute('data-leaving');
+		};
+
+		const fadeOutPanel = (instant: boolean) => {
+			if (panel.hidden || fadeAnim) return;
+			if (instant || !canAnimate()) {
+				panel.hidden = true;
+				return;
+			}
+			panel.setAttribute('data-leaving', '');
+			const anim = panel.animate([{ opacity: 1 }, { opacity: 0 }], {
+				duration: CLOSE_FADE_MS,
+				easing: 'ease-in',
+				fill: 'forwards',
+			});
+			fadeAnim = anim;
+			const done = () => {
+				if (fadeAnim !== anim) return;
+				fadeAnim = null;
+				panel.hidden = true;
+				panel.removeAttribute('data-leaving');
+				// Otherwise `fill: 'forwards'` would keep the panel at opacity 0 the next time it opens.
+				anim.cancel();
+			};
+			anim.addEventListener('finish', done);
+			// A background tab may never finish the animation, so make sure the panel still closes.
+			window.setTimeout(done, CLOSE_FADE_MS + 80);
+		};
+
+		/**
+		 * Opens a section, or switches the open panel to it. `pin`: true pins the panel, false makes it a
+		 * hover panel, and leaving it out keeps the current state.
+		 */
+		const openSection = (id: string, pin?: boolean) => {
+			if (!wide.matches) return;
+			clearTimers();
+			if (pin !== undefined) pinnedId = pin ? id : null;
+			if (openId === id) return;
+			const from = openId;
+			const switching = from !== null && !panel.hidden && !fadeAnim;
+			const heightBefore = switching ? panel.getBoundingClientRect().height : 0;
+			cancelFade();
+			openId = id;
+			movePanelTo(id);
+			placeBody(id, true);
+			for (const t of triggers) t.setAttribute('aria-expanded', String(t.dataset.smTrigger === id));
+			for (const p of panelSections) p.hidden = p.dataset.smPanel !== id;
+			panel.hidden = false;
+			if (!switching) alignPanel();
+			header.setAttribute('data-sm-desktop-open', '');
+			placeUnderline(id, from === null);
+			if (switching && from !== null) animateSwitch(from, id, heightBefore);
+		};
+
+		const closePanel = (instant = false) => {
+			clearTimers();
+			pinnedId = null;
+			if (openId === null) return;
+			openId = null;
+			for (const t of triggers) t.setAttribute('aria-expanded', 'false');
+			row.removeAttribute('data-ink');
+			fadeOutPanel(instant);
+			header.removeAttribute('data-sm-desktop-open');
+		};
+
+		const closeLater = () => {
+			clearTimers();
+			if (openId !== null && pinnedId === null) closeTimer = window.setTimeout(closePanel, CLOSE_DELAY);
+		};
+
+		for (const li of nav.querySelectorAll<HTMLElement>('.sm__item')) {
+			const id = li.dataset.smItem;
+			li.addEventListener('pointerenter', (e) => {
+				if (!isMouse(e) || !wide.matches) return;
+				if (!id) return closeLater();
+				window.clearTimeout(closeTimer);
+				if (openId !== null) openSection(id);
+				else {
+					window.clearTimeout(openTimer);
+					openTimer = window.setTimeout(() => openSection(id, false), OPEN_DELAY);
+				}
+			});
+			li.addEventListener('pointerleave', (e) => {
+				if (isMouse(e)) closeLater();
+			});
+		}
+
+		for (const t of triggers) {
+			t.addEventListener('click', () => {
+				const id = t.dataset.smTrigger!;
+				if (openId !== id) openSection(id, true);
+				else if (pinnedId !== id) pinnedId = id;
+				else closePanel();
+			});
+		}
+
+		document.addEventListener('keydown', (e) => {
+			if (e.key !== 'Escape' || openId === null || e.defaultPrevented) return;
+			// The search dialog, open over the menu, handles its own Escape.
+			if (document.querySelector('#tb-search-modal.open')) return;
+			const returnTo = nav.contains(document.activeElement) ? triggerOf(openId) : undefined;
+			e.preventDefault();
+			closePanel();
+			returnTo?.focus();
+		});
+
+		// Focus leaving the open item closes the panel. Focus moving to nothing (a click on plain text, the
+		// window losing focus) does not: `pointerdown` below handles clicks outside.
+		nav.addEventListener('focusout', (e) => {
+			if (openId === null) return;
+			const next = e.relatedTarget as Node | null;
+			if (next && !itemOf(openId)?.contains(next)) closePanel();
+		});
+
+		document.addEventListener('pointerdown', (e) => {
+			if (openId !== null && !nav.contains(e.target as Node)) closePanel();
+		});
+
+		// `CloudRegionDialog` sends `sm-close` before it opens. If it was opened from the panel, focus goes
+		// to the panel's menu item, so the dialog has a visible control to return focus to.
+		nav.addEventListener('sm-close', (e) => {
+			if (openId === null) return;
+			const from = (e as CustomEvent<{ from?: Element }>).detail?.from;
+			const item = from && panel.contains(from) ? triggerOf(openId) : undefined;
+			closePanel(true);
+			item?.focus({ preventScroll: true });
+		});
+
+		let resizeFrame = 0;
+		window.addEventListener('resize', () => {
+			underlineAt.clear();
+			if (openId === null || resizeFrame) return;
+			resizeFrame = requestAnimationFrame(() => {
+				resizeFrame = 0;
+				if (openId === null) return;
+				placeUnderline(openId, true);
+				alignPanel();
+			});
+		});
+
+		// --- Mobile menu sheet ---
+
+		const sheet = nav.querySelector<HTMLElement>('[data-sm-sheet]');
+		const toggle = header.querySelector<HTMLButtonElement>('[data-sm-toggle]');
+		const views = sheet ? [...sheet.querySelectorAll<HTMLElement>('[data-sm-view]')] : [];
+		const listView = views.find((v) => v.dataset.smView === 'root') ?? null;
+		const listRows = sheet ? [...sheet.querySelectorAll<HTMLElement>('[data-sm-open-view]')] : [];
+		let openedFromRow: HTMLElement | null = null;
+		let hiddenSiblings: Element[] = [];
+
+		const sheetOpen = () => !!sheet && !sheet.hidden;
+
+		const setViewPos = (view: HTMLElement, pos: 'left' | 'center' | 'right') => {
+			view.dataset.pos = pos;
+			view.inert = pos !== 'center' && !(view === listView && split.matches);
+		};
+
+		// In the split layout, `aria-expanded` tells which row's section is shown beside the list. On a phone
+		// a section replaces the list, so the rows have no such state.
+		const updateListRows = () => {
+			for (const r of listRows) {
+				if (split.matches) r.setAttribute('aria-expanded', String(r.dataset.smOpenView === sheet?.dataset.view));
+				else r.removeAttribute('aria-expanded');
+			}
+		};
+
+		/** The section the split sheet opens with: the one with the current page, otherwise the first one. */
+		const startView = () =>
+			triggers.find((t) => t.hasAttribute('data-current'))?.dataset.smTrigger ?? listRows[0]?.dataset.smOpenView;
+
+		const resetViews = () => {
+			if (!sheet) return;
+			sheet.dataset.instant = '';
+			for (const v of views) setViewPos(v, v === listView ? 'center' : 'right');
+			sheet.dataset.view = 'root';
+			updateListRows();
+			requestAnimationFrame(() => requestAnimationFrame(() => delete sheet.dataset.instant));
+		};
+
+		const showView = (id: string) => {
+			if (!sheet || sheet.dataset.view === id) return;
+			const from = views.find((v) => v.dataset.smView === sheet.dataset.view);
+			const to = views.find((v) => v.dataset.smView === id);
+			if (!to) return;
+			if (to !== listView) to.scrollTop = 0;
+			setViewPos(to, 'center');
+			if (from) setViewPos(from, from === listView ? 'left' : 'right');
+			sheet.dataset.view = id;
+			updateListRows();
+		};
+
+		// The page behind the open sheet gets `aria-hidden`, not `inert`: setting `inert` restyles the whole
+		// page, just as the sheet starts to animate. Layers opened over the sheet stay accessible.
+		const KEEP_ACCESSIBLE = '#tb-search-modal, .gssb_c, script, style, template, link';
+		const hidePage = (on: boolean) => {
+			for (const el of hiddenSiblings) el.removeAttribute('aria-hidden');
+			hiddenSiblings = [];
+			if (!on) return;
+			// Skips elements that already have `aria-hidden`, so closing never removes one that something
+			// else set.
+			for (let node: Element = header; node.parentElement && node !== document.body; node = node.parentElement) {
+				for (const sibling of node.parentElement.children) {
+					if (sibling === node || sibling.matches(KEEP_ACCESSIBLE) || sibling.hasAttribute('aria-hidden')) continue;
+					sibling.setAttribute('aria-hidden', 'true');
+					hiddenSiblings.push(sibling);
+				}
+			}
+		};
+
+		// Focus can still reach the hidden page, for example with Tab from the address bar, which the Tab
+		// handler below never sees. Focus then goes back to the Menu button, and the page scrolls back.
+		let lockedScrollY = 0;
+		document.addEventListener('focusin', (e) => {
+			const target = e.target as Element;
+			if (!sheetOpen() || header.contains(target) || target.closest(`${KEEP_ACCESSIBLE}, dialog`)) return;
+			if (window.scrollY !== lockedScrollY) window.scrollTo({ top: lockedScrollY, behavior: 'instant' });
+			toggle?.focus({ preventScroll: true });
+		});
+
+		// Tab cycles through the header's visible controls. Not while the search dialog is open: it keeps
+		// Tab inside itself.
+		const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
+		document.addEventListener('keydown', (e) => {
+			if (e.key !== 'Tab' || !sheetOpen() || document.querySelector('#tb-search-modal.open')) return;
+			const items = [...header.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+				(el) => el.getClientRects().length > 0 && !el.closest('[inert]')
+			);
+			const first = items[0];
+			const last = items[items.length - 1];
+			if (!first || !last) return;
+			const active = document.activeElement;
+			if (!header.contains(active)) {
+				e.preventDefault();
+				(e.shiftKey ? last : first).focus();
+			} else if (e.shiftKey && active === first) {
+				e.preventDefault();
+				last.focus();
+			} else if (!e.shiftKey && active === last) {
+				e.preventDefault();
+				first.focus();
+			}
+		});
+
+		const openSheet = () => {
+			if (!sheet || sheetOpen()) return;
+			// Starlight's sidebar is a popover in the top layer, which would cover the menu sheet, so close it.
+			dismissSidebar();
+			resetViews();
+			const start = split.matches ? startView() : undefined;
+			if (start) showView(start);
+			sheet.hidden = false;
+			header.setAttribute('data-sm-open', '');
+			toggle?.setAttribute('aria-expanded', 'true');
+			lockScroll('menu');
+			lockedScrollY = window.scrollY;
+			hidePage(true);
+			const focusRow =
+				listRows.find((r) => r.dataset.smOpenView === start) ?? listView?.querySelector<HTMLElement>('.sm__sheet-row');
+			// Remembered for going back, in case the menu sheet stops being split while this section is shown.
+			openedFromRow = start ? (focusRow ?? null) : null;
+			focusRow?.focus({ preventScroll: true });
+		};
+
+		/** With `returnFocus: 'auto'`, focus moves to the Menu button only if it was inside the sheet. */
+		const closeSheet = (returnFocus: boolean | 'auto' = 'auto') => {
+			if (!sheet || !sheetOpen()) return;
+			const hadFocus = sheet.contains(document.activeElement);
+			sheet.hidden = true;
+			header.removeAttribute('data-sm-open');
+			toggle?.setAttribute('aria-expanded', 'false');
+			hidePage(false);
+			unlockScroll('menu');
+			if (returnFocus === true || (returnFocus === 'auto' && hadFocus)) toggle?.focus({ preventScroll: true });
+		};
+
+		/** Returns false if the list is already shown (always so when split). */
+		const backToList = () => {
+			if (!sheet || sheet.dataset.view === 'root' || split.matches) return false;
+			showView('root');
+			(openedFromRow ?? listView?.querySelector<HTMLElement>('.sm__sheet-row'))?.focus({ preventScroll: true });
+			return true;
+		};
+
+		toggle?.addEventListener('click', () => (sheetOpen() ? closeSheet() : openSheet()));
+
+		sheet?.addEventListener('click', (e) => {
+			const target = e.target as Element;
+			const listRow = target.closest<HTMLElement>('[data-sm-open-view]');
+			if (listRow) {
+				const id = listRow.dataset.smOpenView!;
+				openedFromRow = listRow;
+				showView(id);
+				sheet.querySelector<HTMLElement>(`[data-sm-view="${id}"] [data-sm-back]`)?.focus({ preventScroll: true });
+			} else if (target.closest('[data-sm-back]')) backToList();
+		});
+
+		// `sm-back` comes from a swipe on the header (`HeaderContent`), `sm-close` from a dialog about to open
+		// over the page (`CloudRegionDialog`).
+		sheet?.addEventListener('sm-back', () => {
+			if (!backToList()) closeSheet();
+		});
+		sheet?.addEventListener('sm-close', (e) => {
+			const from = (e as CustomEvent<{ from?: Element }>).detail?.from;
+			// Opened from the header's own buttons, focus stays there. But Safari does not focus a clicked
+			// link, so focus can still be in the sheet, and 'auto' then moves it to the Menu button.
+			closeSheet(!from || sheet.contains(from) ? true : 'auto');
+		});
+
+		document.addEventListener('keydown', (e) => {
+			if (e.key !== 'Escape' || !sheetOpen() || e.defaultPrevented || document.querySelector('#tb-search-modal.open'))
+				return;
+			e.preventDefault();
+			if (!backToList()) closeSheet(true);
+		});
+
+		// --- Shared by the desktop panel and the mobile menu sheet ---
+
+		// Each section's content is in the page once. The server renders it in the sheet (which also works
+		// without JavaScript), and it moves into the panel the first time it opens there.
+		const bodies = [...nav.querySelectorAll<HTMLElement>('[data-sm-body]')];
+		const placeBody = (id: string, inPanel: boolean) => {
+			const body = bodies.find((b) => b.dataset.smBody === id);
+			const target = inPanel
+				? panelSections.find((p) => p.dataset.smPanel === id)
+				: views.find((v) => v.dataset.smView === id);
+			if (body && target && body.parentElement !== target) target.append(body);
+		};
+
+		// --- Analytics ids ---
+
+		// GTM counts clicks by the ids `Menu_Pricing` and `Menu_TryItNow`. Each link has a header copy and a
+		// sheet copy, so the id moves to the copy that shows. Without JavaScript it stays on the header's.
+		const keepIdOnShownCopy = (id: string, headerCopyShows: MediaQueryList) => {
+			const copies = [...header.querySelectorAll<HTMLElement>(`[data-analytics-id="${id}"]`)];
+			const sheetCopy = copies.find((el) => sheet?.contains(el));
+			const headerCopy = copies.find((el) => el !== sheetCopy);
+			const placeId = () => {
+				const [shown, hidden] = headerCopyShows.matches ? [headerCopy, sheetCopy] : [sheetCopy, headerCopy];
+				hidden?.removeAttribute('id');
+				shown?.setAttribute('id', id);
+			};
+			placeId();
+			headerCopyShows.addEventListener('change', placeId);
+		};
+		keepIdOnShownCopy('Menu_Pricing', wide);
+		keepIdOnShownCopy('Menu_TryItNow', matchMedia(fullHeaderQuery()));
+
+		// When the window crosses a breakpoint, the focused control may get hidden, and focus drops to
+		// <body> without a blur event. So while focus is on <body>, `hadFocusIn` checks where it was last.
+		let lastFocus: Element | null = null;
+		document.addEventListener('focusin', (e) => (lastFocus = e.target as Element));
+		document.addEventListener('focusout', (e) => {
+			if (!e.relatedTarget) lastFocus = null;
+		});
+		const hadFocusIn = (...where: (Element | null | undefined)[]) => {
+			const active = document.activeElement;
+			const at = !active || active === document.body ? lastFocus : active;
+			return where.some((el) => !!el && !!at && el.contains(at));
+		};
+
+		// Crossing 1200px closes the open menu, and focus that was in it moves to the other menu. While the
+		// sheet is open the page cannot take focus, so focus on <body> was dropped from the sheet.
+		wide.addEventListener('change', (q) => {
+			if (q.matches) {
+				const view = sheet?.dataset.view;
+				const dropped = sheetOpen() && (!document.activeElement || document.activeElement === document.body);
+				const hadFocus = dropped || hadFocusIn(sheet, toggle);
+				closeSheet(false);
+				if (hadFocus) ((view && triggerOf(view)) || row.querySelector<HTMLElement>('.sm__top'))?.focus();
+			} else {
+				const hadFocus = hadFocusIn(row, panel);
+				closePanel(true);
+				for (const body of bodies) placeBody(body.dataset.smBody!, false);
+				if (hadFocus) toggle?.focus();
+			}
+		});
+
+		// Crossing the split width with the sheet open (a tablet rotated, a window resized).
+		split.addEventListener('change', () => {
+			if (!sheet) return;
+			const start = split.matches && sheetOpen() && sheet.dataset.view === 'root' ? startView() : undefined;
+			if (start) {
+				showView(start);
+				openedFromRow = listRows.find((r) => r.dataset.smOpenView === start) ?? null;
+			}
+			if (listView) setViewPos(listView, sheet.dataset.view === 'root' ? 'center' : 'left');
+			updateListRows();
+		});
+
+		// A page restored from the back/forward cache can come back with the menu still open, so reset it.
+		window.addEventListener('pageshow', (e) => {
+			if (!e.persisted) return;
+			closePanel(true);
+			closeSheet(false);
+			lastFocus = null;
+		});
+	}
+</script>
+
+<style is:global lang="scss">
+	@use '../../styles/variables' as *;
+
+	// --- Design tokens ---
+	// The rules for other backgrounds below only reassign these.
+	.sm {
+		--sm-ink: var(--color-text);
+		--sm-soft: var(--color-text-secondary);
+		--sm-accent: var(--color-primary);
+		--sm-rule: var(--color-border);
+		--sm-fill: color-mix(in srgb, var(--color-primary) 6%, transparent);
+		--sm-fill-strong: color-mix(in srgb, var(--color-primary) 10%, transparent);
+		--sm-surface: var(--color-bg-surface);
+		--sm-shadow: var(--elev-panel);
+		// The desktop menu row's text, and the underline under its open item.
+		--sm-bar-ink: var(--color-text);
+		--sm-bar-accent: var(--color-primary);
+		// Case study logos are drawn in one color (black, or white on dark) at this opacity.
+		--sm-logo-filter: brightness(0);
+		--sm-logo-ink: 0.62;
+		--sm-icon-col: 32px;
+		--sm-icon-gap: 12px;
+		--sm-row: 56px;
+		// The script reads `--sm-col`, `--sm-gutter`, `--sm-glide`, `--sm-glide-ease`, `--sm-link-inset`
+		// and `--sm-max-cols`.
+		--sm-col: 236px;
+		--sm-gutter: 24px;
+		--sm-glide: 0.26s;
+		--sm-glide-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+		--sm-link-inset: 10px;
+		--sm-max-cols: 4;
+
+		display: flex;
+		align-items: center;
+		height: 100%;
+	}
+
+	html[data-theme='dark'] .sm {
+		--sm-logo-filter: brightness(0) invert(1);
+		--sm-logo-ink: 0.78;
+	}
+
+	@mixin badges-on-dark {
+		.sm__badge--wash {
+			background-color: color-mix(in srgb, var(--badge-hue) 14%, transparent);
+			color: var(--badge-hue);
+		}
+	}
+
+	html[data-theme='dark'] .sm {
+		@include badges-on-dark;
+	}
+
+	header.header:has(> [data-header-look='docs']) > .sm {
+		--sm-surface: var(--sl-color-bg-sidebar);
+		--sm-rule: var(--sl-color-hairline-shade);
+	}
+
+	@include bar-over-dark-hero {
+		.sm {
+			--sm-bar-ink: #fff;
+			--sm-bar-accent: #b3c7ff;
+		}
+
+		.sm__one {
+			--sm-ink: #fff;
+			--sm-soft: rgba(255, 255, 255, 0.72);
+			--sm-accent: #b3c7ff;
+			--sm-rule: rgba(255, 255, 255, 0.12);
+			--sm-fill: rgba(255, 255, 255, 0.08);
+			--sm-fill-strong: rgba(255, 255, 255, 0.12);
+			--sm-surface: var(--tb-bar-dark);
+			--sm-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
+			--sm-logo-filter: brightness(0) invert(1);
+			--sm-logo-ink: 0.78;
+
+			@include badges-on-dark;
+		}
+	}
+
+	// While the panel is open over a hero at the top of the page, the header takes the panel's background.
+	header.header:not([data-header-scrolled]):not([data-sm-open])[data-sm-desktop-open] {
+		// At once, not faded: the panel is opaque from its first frame, and a fading header let the hero
+		// show through.
+		transition-duration: 0s;
+
+		&:has(> [data-header-hero='dark']) {
+			background-color: var(--tb-bar-dark);
+		}
+
+		&:has(> [data-header-hero='light']) {
+			background-color: var(--color-bg-surface);
+		}
+	}
+
+	// The same for the open sheet, which also appears at full size at once.
+	header.header[data-sm-open] {
+		transition-duration: 0s;
+	}
+
+	// An open menu puts its header above the chat widget (9998, `YourGptWidget`) and below the search
+	// dialog opened from it (10001, `site-search-dialog.scss`).
+	header.header:is([data-sm-open], [data-sm-desktop-open]) {
+		z-index: 10000;
+	}
+
+	// --- Desktop menu row ---
+	.sm__row {
+		position: relative;
+		display: flex;
+		align-items: center;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+
+		// One underline for the whole row. The script puts it under the open item (`--sm-ink-x`, `--sm-ink-w`).
+		&::after {
+			content: '';
+			position: absolute;
+			bottom: 5px;
+			left: 0;
+			width: var(--sm-ink-w, 0px);
+			height: 2px;
+			border-radius: 1px;
+			background: var(--sm-bar-accent);
+			opacity: 0;
+			pointer-events: none;
+			translate: var(--sm-ink-x, 0px) 0;
+			transition:
+				translate var(--sm-glide) var(--sm-glide-ease),
+				width var(--sm-glide) var(--sm-glide-ease),
+				opacity 0.15s ease,
+				background-color var(--tb-bar-swap) ease;
+		}
+
+		&[data-ink]::after {
+			opacity: 1;
+		}
+
+		&[data-instant]::after {
+			transition: opacity 0.15s ease;
+		}
+	}
+
+	.sm__item {
+		position: relative;
+	}
+
+	.sm__top {
+		position: relative;
+		display: inline-flex;
+		align-items: center;
+		gap: 2px;
+		height: 40px;
+		padding: 0 8px;
+		border: 0;
+		background: none;
+		color: var(--sm-bar-ink);
+		font: inherit;
+		@include type-nav;
+		white-space: nowrap;
+		text-decoration: none;
+		cursor: pointer;
+		// Changes color in one jump with the rest of the header's text, at `--tb-ink-at` (`HeaderContent`).
+		transition: color 0s linear var(--tb-ink-at);
+
+		&::after {
+			content: '';
+			position: absolute;
+			right: 8px;
+			bottom: 5px;
+			left: 8px;
+			height: 2px;
+			border-radius: 1px;
+			background: currentColor;
+			opacity: 0;
+			transition:
+				opacity 0.15s ease,
+				background-color 0.15s ease;
+		}
+
+		&:hover {
+			color: var(--sm-bar-ink);
+		}
+
+		&:focus-visible {
+			outline: 2px solid currentColor;
+			outline-offset: 2px;
+			border-radius: 2px;
+		}
+	}
+
+	// Underlined in the text color: a link on hover, the current page, and the section that contains it.
+	a.sm__top:hover::after,
+	a.sm__top[aria-current='page']::after,
+	button.sm__top[data-current]::after {
+		opacity: 1;
+	}
+
+	// The open section's accent underline. Once the script shows the row's sliding underline (`data-ink`),
+	// this one hides.
+	button.sm__top[aria-expanded='true']::after {
+		background: var(--sm-bar-accent);
+		opacity: 1;
+	}
+
+	.sm__row[data-ink] button.sm__top[aria-expanded='true']::after {
+		opacity: 0;
+	}
+
+	.sm__chev {
+		width: 14px;
+		height: 14px;
+		opacity: 0.55;
+		transition:
+			translate 0.2s ease,
+			opacity 0.15s ease;
+
+		.sm__top:hover > & {
+			opacity: 1;
+			translate: 0 1px;
+		}
+
+		[aria-expanded='true'] > & {
+			opacity: 1;
+		}
+	}
+
+	// --- Section content (desktop panel and mobile menu sheet) ---
+
+	.sm__groups {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: flex-start;
+		gap: 24px var(--sm-gutter);
+	}
+
+	.sm__group-name {
+		margin: 0 0 6px;
+		padding: 0 var(--sm-link-inset);
+		@include type-nav-label;
+		color: var(--sm-soft);
+	}
+
+	// A group named like its section ("Company" under Company): the sheet's heading already says it.
+	.sm__sheet .sm__group-name[data-sm-same] {
+		display: none;
+	}
+
+	// `--rows`, the items per column, is set by `SiteMenuSection`.
+	.sm__cols {
+		display: grid;
+		grid-auto-flow: column;
+		grid-template-rows: repeat(var(--rows, 1), auto);
+		grid-auto-columns: var(--sm-col);
+		gap: 0 var(--sm-gutter);
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.sm__link {
+		display: flex;
+		align-items: flex-start;
+		gap: var(--sm-icon-gap);
+		padding: 8px var(--sm-link-inset);
+		border-radius: $radius-lg;
+		color: var(--sm-ink);
+		text-decoration: none;
+		transition: background-color 0.15s ease;
+
+		&:hover,
+		&:focus-visible {
+			background: var(--sm-fill);
+		}
+
+		&:focus-visible {
+			outline: 2px solid currentColor;
+			outline-offset: -2px;
+		}
+
+		svg.nav-icon {
+			color: var(--sm-accent);
+		}
+
+		&:hover .sm__link-heading {
+			color: var(--sm-accent);
+		}
+	}
+
+	// A square box at the section's icon size (`--sm-mark`, set by `SiteMenuSection`), whatever the
+	// image's shape.
+	.sm__link-icon {
+		flex: none;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: var(--sm-icon-col);
+		height: var(--sm-mark, 24px);
+		padding-top: 1px;
+
+		svg.nav-icon {
+			max-height: 100%;
+		}
+	}
+
+	// A product badge: a tile in the product's color (`--badge-hue`, from `data/product-badges.ts`).
+	.sm__badge {
+		display: inline-grid;
+		flex: none;
+		place-items: center;
+		width: 32px;
+		height: 32px;
+		border-radius: 32%;
+	}
+
+	.sm__badge--solid {
+		background-color: var(--badge-hue);
+		background-image: linear-gradient(
+			155deg,
+			rgba(255, 255, 255, 0.22) 0%,
+			rgba(255, 255, 255, 0) 55%,
+			rgba(0, 0, 0, 0.06) 100%
+		);
+		color: #fff;
+	}
+
+	// The product colors are picked for dark backgrounds, so on a light one the glyph is darkened.
+	.sm__badge--wash {
+		background-color: color-mix(in srgb, var(--badge-hue) 12%, var(--sm-surface));
+		color: color-mix(in srgb, var(--badge-hue) 55%, #0b1410);
+	}
+
+	// The glyph takes the tile's color, not the link's accent color.
+	.sm__link .sm__badge svg.nav-icon {
+		width: var(--badge-glyph);
+		height: var(--badge-glyph);
+		max-height: none;
+		color: inherit;
+	}
+
+	// A customer's logo instead of a name (case studies). An item can set its height with `--sm-logo-h`.
+	.sm__link-logo {
+		display: flex;
+		align-items: center;
+		height: 24px;
+
+		img {
+			display: block;
+			width: auto;
+			height: var(--sm-logo-h, 20px);
+			max-width: 120px;
+			object-fit: contain;
+			object-position: left center;
+			filter: var(--sm-logo-filter);
+			opacity: var(--sm-logo-ink);
+			transition: opacity 0.15s ease;
+		}
+	}
+
+	// Hover shows on the logo only. Keyboard focus keeps the outline.
+	.sm__link:has(.sm__link-logo) {
+		&:hover,
+		&:focus-visible {
+			background: none;
+		}
+	}
+
+	.sm__link:is(:hover, :focus-visible) .sm__link-logo img {
+		opacity: 1;
+	}
+
+	.sm__link:not(:has(.sm__link-desc)) {
+		align-items: center;
+		min-height: 40px;
+
+		.sm__link-icon {
+			padding-top: 0;
+		}
+	}
+
+	.sm__link-text {
+		display: flex;
+		flex-direction: column;
+		gap: 1px;
+		min-width: 0;
+	}
+
+	.sm__link-heading {
+		@include type-nav-link;
+		transition: color 0.15s ease;
+	}
+
+	.sm__link-desc {
+		@include type-nav-note;
+		color: var(--sm-soft);
+	}
+
+	.sm__more {
+		display: inline-flex;
+		align-items: center;
+		gap: 2px;
+		margin-top: 4px;
+		padding: 8px var(--sm-link-inset);
+		border-radius: $radius-lg;
+		color: var(--sm-accent);
+		@include type-small-strong;
+		text-decoration: none;
+		transition: background-color 0.15s ease;
+
+		svg {
+			width: 18px;
+			height: 18px;
+			transition: translate 0.2s var(--sm-glide-ease);
+		}
+
+		&:hover {
+			background: var(--sm-fill);
+
+			svg {
+				translate: 2px 0;
+			}
+		}
+
+		&:focus-visible {
+			outline: 2px solid currentColor;
+			outline-offset: -2px;
+		}
+	}
+
+	// --- Desktop menu panel ---
+
+	// `--sl-nav-height` is the header's height, plus the promo banner while it shows (`_starlight-overrides.scss`).
+	.sm__one {
+		position: fixed;
+		top: var(--sl-nav-height);
+		left: 0;
+		right: 0;
+		z-index: 5;
+		max-height: calc(100dvh - var(--sl-nav-height));
+		overflow-y: auto;
+		border-bottom: 1px solid var(--sm-rule);
+		background: var(--sm-surface);
+		color: var(--sm-ink);
+		box-shadow: var(--sm-shadow);
+		// Opens by unrolling from under the header. The clip leaves 120px of room for the shadow.
+		clip-path: inset(0 -120px -120px);
+		transition: clip-path 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+
+		@starting-style {
+			clip-path: inset(0 -120px 100%);
+		}
+
+		&[hidden] {
+			display: none;
+		}
+
+		// Set by the script: `data-leaving` during the closing fade, `data-morphing` while the height animates.
+		&[data-leaving] {
+			pointer-events: none;
+		}
+
+		&[data-morphing] {
+			overflow: hidden;
+		}
+	}
+
+	// `--sm-col-x`, set by the script, lines the content up with the first menu item.
+	.sm__one-in {
+		padding: 20px var(--tb-bar-inset) 24px var(--sm-col-x, var(--tb-bar-inset));
+		transition:
+			opacity 0.22s ease 0.06s,
+			translate 0.3s var(--sm-glide-ease) 0.04s;
+
+		@starting-style {
+			opacity: 0;
+			translate: 0 -6px;
+		}
+	}
+
+	// The background is transparent on purpose: `landing.scss` gives every `<section>` the page's
+	// background color, which put white links on a white background over a dark hero banner.
+	.sm__one-sec {
+		width: fit-content;
+		max-width: min(100%, calc(var(--sm-max-cols) * var(--sm-col) + (var(--sm-max-cols) - 1) * var(--sm-gutter)));
+		background: none;
+	}
+
+	.sm__one-sec[hidden] {
+		display: none;
+	}
+
+	// --- Promo links at the bottom of a section ---
+
+	.sm__promos {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		margin-top: 18px;
+		padding-top: 16px;
+		border-top: 1px solid var(--sm-rule);
+	}
+
+	.sm__promo {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		height: 36px;
+		padding: 0 10px;
+		border: 0;
+		border-radius: 10px;
+		background: none;
+		color: var(--sm-ink);
+		@include type-small-strong;
+		text-decoration: none;
+		white-space: nowrap;
+		transition:
+			background-color 0.15s ease,
+			color 0.15s ease;
+
+		&:hover {
+			background: var(--sm-fill);
+			color: var(--sm-accent);
+		}
+
+		&:focus-visible {
+			outline: 2px solid currentColor;
+			outline-offset: 2px;
+		}
+	}
+
+	.sm__promo-icon {
+		flex: none;
+		width: 18px;
+		height: 18px;
+		color: var(--sm-accent);
+	}
+
+	.sm__promo-chev {
+		flex: none;
+		width: 16px;
+		height: 16px;
+		margin: 0 -4px 0 -2px;
+	}
+
+	.sm__promo--feat {
+		margin-left: auto;
+		background: var(--sm-fill);
+		color: var(--sm-accent);
+
+		&:only-child {
+			margin-left: 0;
+		}
+
+		&:hover {
+			background: var(--sm-fill-strong);
+		}
+	}
+
+	// --- Mobile menu sheet ---
+	.sm__sheet {
+		--sm-in: var(--tb-bar-inset);
+		--sm-step: 0.42s;
+		--sm-ease: cubic-bezier(0.32, 0.72, 0, 1);
+		position: fixed;
+		top: var(--sl-nav-height);
+		right: 0;
+		bottom: 0;
+		left: 0;
+		z-index: 2;
+		display: flex;
+		flex-direction: column;
+		background: var(--sm-surface);
+		color: var(--sm-ink);
+		transition:
+			opacity 0.2s ease,
+			translate 0.3s var(--sm-ease);
+
+		@starting-style {
+			opacity: 0;
+			translate: 0 -8px;
+		}
+
+		&[hidden] {
+			display: none;
+		}
+	}
+
+	.sm__views {
+		position: relative;
+		display: grid;
+		flex: 1;
+		min-height: 0;
+		overflow: hidden;
+	}
+
+	// All views share one grid cell. An off-screen view turns `visibility: hidden` only after its move
+	// ends (the visibility transition waits for it). The script makes it `inert` at once.
+	.sm__view {
+		grid-area: 1 / 1;
+		min-height: 0;
+		padding: 8px 0 28px;
+		overflow-y: auto;
+		overscroll-behavior: contain;
+		transition:
+			translate var(--sm-step) var(--sm-ease),
+			opacity var(--sm-step) var(--sm-ease),
+			visibility 0s linear var(--sm-step);
+
+		&[data-pos='center'] {
+			transition-delay: 0s;
+		}
+
+		&[data-pos='left'] {
+			translate: -25% 0;
+			opacity: 0;
+			visibility: hidden;
+		}
+
+		&[data-pos='right'] {
+			translate: 100% 0;
+			visibility: hidden;
+		}
+	}
+
+	// While scrolling is locked, `scroll-lock.ts` pads the header by the width of the hidden scrollbar.
+	// The views keep room for a scrollbar too, so their rows still end under the Close button.
+	.tb-scroll-compensated .sm__view {
+		scrollbar-gutter: stable;
+	}
+
+	// A section view is a `<section>`, which a page's own CSS may make transparent (pricing does). Two
+	// classes, to win over such a rule.
+	.sm__sheet .sm__view {
+		background: var(--sm-surface);
+	}
+
+	.sm__view--root {
+		z-index: 1;
+	}
+
+	.sm__view--sec {
+		z-index: 2;
+		box-shadow: -1px 0 0 var(--sm-rule);
+	}
+
+	// The script places the views without animation while `data-instant` is set.
+	.sm__sheet[data-instant] .sm__view {
+		transition: none;
+	}
+
+	.sm__list {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+
+		> li + li {
+			border-top: 1px solid var(--sm-rule);
+		}
+	}
+
+	.sm__sheet-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		width: 100%;
+		min-height: var(--sm-row);
+		padding: 0 var(--sm-in);
+		border: 0;
+		background: none;
+		color: var(--sm-ink);
+		font: inherit;
+		@include type-nav-index;
+		text-align: left;
+		text-decoration: none;
+		cursor: pointer;
+		transition:
+			color 0.15s ease,
+			background-color 0.15s ease;
+
+		&:hover {
+			background: var(--sm-fill);
+			color: var(--sm-accent);
+		}
+
+		&:active {
+			background: var(--sm-fill-strong);
+		}
+
+		&[aria-current='page'],
+		&[data-current] {
+			color: var(--sm-accent);
+		}
+
+		&:focus-visible {
+			outline: 2px solid currentColor;
+			outline-offset: -2px;
+		}
+	}
+
+	.sm__sheet-chev {
+		flex: none;
+		width: 20px;
+		height: 20px;
+		opacity: 0.5;
+		transition:
+			opacity 0.15s ease,
+			translate 0.22s var(--sm-ease);
+
+		.sm__sheet-row:hover > & {
+			opacity: 1;
+			translate: 2px 0;
+		}
+	}
+
+	.sm__back {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		width: 100%;
+		height: 44px;
+		margin: 0 0 4px;
+		padding: 0 var(--sm-in) 0 calc(var(--sm-in) - 6px);
+		border: 0;
+		background: none;
+		color: var(--sm-soft);
+		font: inherit;
+		@include type-nav-link;
+		text-align: left;
+		cursor: pointer;
+		transition: color 0.15s ease;
+
+		svg {
+			width: 20px;
+			height: 20px;
+			transition: translate 0.22s var(--sm-ease);
+		}
+
+		&:hover {
+			color: var(--sm-accent);
+
+			svg {
+				translate: -2px 0;
+			}
+		}
+
+		&:focus-visible {
+			outline: 2px solid currentColor;
+			outline-offset: -2px;
+		}
+	}
+
+	// A section in the sheet: the panel's content in one column, with rows running full width.
+	.sm__sheet {
+		.sm__head,
+		.sm__group-name {
+			padding-inline: var(--sm-in);
+		}
+
+		.sm__head {
+			margin: 0 0 8px;
+		}
+
+		// `color` beats the gray `:where(p)` text color of `landing.scss` pages.
+		.sm__title {
+			margin: 0;
+			color: inherit;
+			@include type-card;
+		}
+
+		// A grid, not a flex column: a flex column sized each group as if its list had one column.
+		.sm__groups {
+			display: grid;
+			gap: 16px;
+		}
+
+		.sm__cols {
+			grid-auto-flow: row;
+			grid-template-rows: none;
+			grid-template-columns: 1fr;
+			gap: 0;
+		}
+
+		// Case study logos as a grid, two per row. The lines between the cells are the divider color
+		// showing through a 1px gap.
+		.sm__cols:has(.sm__link-logo) {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 1px;
+			border-block: 1px solid var(--sm-rule);
+			background: var(--sm-rule);
+
+			li:last-child:nth-child(odd) {
+				grid-column: 1 / -1;
+			}
+
+			.sm__link {
+				justify-content: center;
+				min-height: 64px;
+				padding-inline: 12px;
+				background: var(--sm-surface);
+
+				// Repeats the sheet's pressed state, which the cell background above would otherwise beat.
+				&:active {
+					background: var(--sm-fill-strong);
+				}
+			}
+		}
+
+		.sm__more {
+			display: flex;
+			justify-content: space-between;
+			min-height: var(--sm-row);
+			margin: 0;
+			padding: 0 var(--sm-in);
+			border-radius: 0;
+			@include type-nav-link;
+
+			svg {
+				width: 20px;
+				height: 20px;
+			}
+
+			&:active {
+				background: var(--sm-fill-strong);
+			}
+		}
+
+		.sm__link {
+			padding: 12px var(--sm-in);
+			border-radius: 0;
+
+			&:active {
+				background: var(--sm-fill-strong);
+			}
+		}
+
+		.sm__link:not(:has(.sm__link-desc)) {
+			min-height: var(--sm-row);
+			padding-block: 0;
+		}
+
+		.sm__promos {
+			flex-direction: column;
+			align-items: stretch;
+			gap: 0;
+			margin-top: 16px;
+			padding-top: 0;
+		}
+
+		.sm__promo {
+			gap: var(--sm-icon-gap);
+			height: auto;
+			min-height: var(--sm-row);
+			padding: 0 var(--sm-in);
+			border-bottom: 1px solid var(--sm-rule);
+			border-radius: 0;
+			@include type-nav-link;
+
+			&:hover {
+				background: var(--sm-fill);
+			}
+
+			&:active {
+				background: var(--sm-fill-strong);
+			}
+		}
+
+		.sm__promo-icon {
+			box-sizing: content-box;
+			padding-inline: calc((var(--sm-icon-col) - 18px) / 2);
+		}
+
+		.sm__promo--feat {
+			margin-left: 0;
+			border-bottom-color: transparent;
+
+			.sm__promo-chev {
+				width: 20px;
+				height: 20px;
+				margin: 0 0 0 auto;
+			}
+		}
+	}
+
+	// --- Split menu sheet (tablets) ---
+	// The list stays on screen as a sidebar beside the open section, and sections cross-fade instead of
+	// sliding in.
+	@media (min-width: $menu-split-from) and (min-height: $menu-split-min-height) {
+		.sm__sheet {
+			--sm-rail: clamp(200px, 22vw, 248px);
+
+			.sm__views {
+				grid-template-columns: var(--sm-rail) minmax(0, 1fr);
+			}
+
+			.sm__view--root {
+				padding-top: 12px;
+				border-right: 1px solid var(--sm-rule);
+
+				// The sidebar is not at the window's right edge, so it needs no room for a scrollbar.
+				.tb-scroll-compensated & {
+					scrollbar-gutter: auto;
+				}
+
+				// Beats the phone's positions, the reduced-motion ones too: the list always stays.
+				&[data-pos] {
+					translate: none;
+					opacity: 1;
+					visibility: visible;
+					transition: none;
+				}
+			}
+
+			.sm__view--sec {
+				grid-area: 1 / 2;
+				padding-top: 20px;
+				box-shadow: none;
+				transition:
+					opacity 0.18s ease,
+					visibility 0s linear 0.18s;
+
+				&[data-pos] {
+					translate: none;
+				}
+
+				&:not([data-pos='center']) {
+					opacity: 0;
+					visibility: hidden;
+				}
+
+				&[data-pos='center'] {
+					transition-delay: 0s;
+				}
+			}
+
+			.sm__cols:not(:has(.sm__link-logo)) {
+				grid-template-columns: repeat(auto-fill, minmax(216px, 1fr));
+			}
+
+			// The sidebar already names the section.
+			.sm__back,
+			.sm__view--sec .sm__head {
+				display: none;
+			}
+
+			.sm__list > li + li {
+				border-top: 0;
+			}
+
+			// One divider between the section rows and the page rows (IoT Hub, Pricing).
+			.sm__list > li:has(> button) + li:has(> a) {
+				margin-top: 12px;
+				padding-top: 12px;
+				border-top: 1px solid var(--sm-rule);
+			}
+
+			.sm__sheet-row {
+				position: relative;
+				min-height: 48px;
+				padding-inline: var(--sm-in) 16px;
+				@include type-nav-index-sm;
+			}
+
+			.sm__sheet-row[aria-expanded='true'] {
+				background: var(--sm-fill);
+				color: var(--sm-accent);
+
+				&::before {
+					content: '';
+					position: absolute;
+					top: 8px;
+					bottom: 8px;
+					left: 0;
+					width: 3px;
+					border-radius: 0 2px 2px 0;
+					background: currentColor;
+				}
+			}
+
+			.sm__sheet-row[aria-expanded='false'] .sm__sheet-chev {
+				opacity: 0;
+			}
+		}
+	}
+
+	.sm__sheet-foot {
+		flex: none;
+		display: flex;
+		gap: 12px;
+		padding: 12px calc(var(--sm-in) + var(--tb-scrollbar-comp, 0px)) calc(16px + env(safe-area-inset-bottom, 0px))
+			var(--sm-in);
+		border-top: 1px solid var(--sm-rule);
+		background: var(--sm-surface);
+
+		> * {
+			flex: 1;
+		}
+	}
+
+	// The footer's Sign in and Try for free are styled with the header's buttons, in `HeaderContent`.
+
+	// While the sheet is open, the header takes its background and Menu becomes Close. A page's own CSS
+	// for the header over its hero must exclude `[data-sm-open]`, as the header's own rules do.
+	header.header[data-sm-open] {
+		// Beats the scrolled header's rules, which add a shadow and remove the bottom border.
+		&,
+		&[data-header-scrolled]:has(> [data-header-look]) {
+			box-shadow: none;
+		}
+
+		&:has(> [data-header-look='marketing']),
+		&[data-header-scrolled]:has(> [data-header-look='marketing']) {
+			background-color: var(--color-bg-surface);
+			border-bottom-color: var(--color-border);
+		}
+
+		.burger .icon-open {
+			display: none;
+		}
+		.burger .icon-close {
+			display: block;
+		}
+		// Both labels share one grid cell (`HeaderContent`), so the button keeps its width.
+		.burger .label-open {
+			visibility: hidden;
+		}
+		.burger .label-close {
+			visibility: visible;
+		}
+	}
+
+	// Must stay after the rules it overrides, which have the same specificity.
+	@media (prefers-reduced-motion: reduce) {
+		.sm__sheet,
+		.sm__chev,
+		.sm__sheet-chev,
+		.sm__back svg,
+		.sm__one,
+		.sm__one-in,
+		.sm__row::after {
+			transition: none;
+		}
+
+		// The views cross-fade in place instead of sliding.
+		.sm__view {
+			transition:
+				opacity 0.15s linear,
+				visibility 0s linear 0.15s;
+
+			&[data-pos='left'],
+			&[data-pos='right'] {
+				translate: none;
+				opacity: 0;
+			}
+		}
+	}
+
+	// `movePanelTo` sets `data-moving` while it moves a visible panel to another item.
+	.sm[data-moving] :is(.sm__one, .sm__one-in) {
+		transition: none;
+	}
+
+	// The no-JS Menu link (`HeaderContent`), which the `<noscript>` styles in `SiteMenuSheet` show.
+	.sm__nojs {
+		display: none !important;
+	}
+
+	// --- Which menu shows at which width ---
+	// Must stay at the end, after the rules these override.
+	@include width-below($menu-row-from) {
+		.sm__row,
+		.sm__one {
+			display: none !important;
+		}
+	}
+
+	@include width-from($menu-row-from) {
+		// Packed toward the logo, so the buttons after it in the HTML do not shift it while the page loads.
+		// The `auto` end margin pushes those buttons to the far side.
+		.sm {
+			margin-inline: 24px auto;
+			padding-inline-end: 16px;
+		}
+
+		.sm__sheet {
+			display: none !important;
+		}
+
+		// Up to 1440px the row and the header's buttons only just fit (the search field widens at 1300px,
+		// the star count comes back at 1360px), so each item gets 2px less padding on each side.
+		@include width-below(1440px) {
+			.sm__top {
+				padding-inline: 6px;
+
+				&::after {
+					right: 6px;
+					left: 6px;
+				}
+			}
+		}
+	}
+
+	@include width-from($bar-compact-below) {
+		.sm__sheet {
+			// `auto-fill`, not `auto-fit`: a short list keeps the column width of the longer ones.
+			.sm__cols {
+				grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+			}
+
+			.sm__cols:has(.sm__link-logo) {
+				grid-template-columns: repeat(5, minmax(0, 1fr));
+
+				li:last-child:nth-child(odd) {
+					grid-column: auto;
+				}
+			}
+		}
+
+		.sm__sheet-foot {
+			display: none;
+		}
+	}
+</style>

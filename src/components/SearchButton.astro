@@ -1,547 +1,69 @@
 ---
-import SearchConsentNotice from '@components/SearchConsentNotice.astro';
-import { Products, productDocsPrefix } from '@models/site.models.ts';
-import '@components/google-cse.scss';
+import { Icon } from 'astro-icon/components';
+import Kbd from '@components/ui/Kbd.astro';
 
-// TBMQ docs moved off-site, so no `/docs/mqtt-broker/**` pages — and no search page —
-// exist here any more. The prefixes stay in `productDocsPrefix` for the links that still
-// point at the broker, but they must not produce a search route to a page we don't build.
-const offSiteProducts: Products[] = [Products.TBMQ, Products.TBMQ_PE];
-
-// Search-page routes, derived rather than retyped: every docs product hosted here maps
-// mechanically to `/docs/<prefix>search/`. Sorting by prefix length descending yields the
-// specificity order the lookup needs — a prefix that extends another is always strictly
-// longer, so `paas/eu/` precedes `paas/`, and CE's empty prefix lands last as the
-// catch-all. Previously this was a hand-maintained pair list plus an unwritten ordering rule.
-//
-// Non-docs routes stay explicit; nothing derives them. `/iot-hub/` is inert today because
-// BaseLayout gives those pages the `common` header variant, which renders no search button.
-const searchRoutes: [string, string][] = [
-	['/iot-hub/', '/iot-hub/search/'],
-	...Object.entries(productDocsPrefix)
-		.filter(([product]) => !offSiteProducts.includes(product as Products))
-		.map(([, prefix]) => prefix)
-		.sort((a, b) => b.length - a.length)
-		.map((prefix): [string, string] => [`/docs/${prefix}`, `/docs/${prefix}search/`]),
-];
+/**
+ * The header's search button, which opens `SiteSearch`: a 40px icon square that widens into a 152px
+ * field-style button with the Ctrl K hint from `$search-field-from`. 1300px is where the wide button
+ * still fits next to the desktop menu; check it again if the menu gets longer.
+ */
 ---
 
-<search-button data-search-routes={JSON.stringify(searchRoutes)}>
-	<button type="button" class="search-toggle-btn" aria-label="Search">
-		<svg
-			width="20"
-			height="20"
-			viewBox="0 0 20 20"
-			fill="none"
-			stroke="currentColor"
-			stroke-linecap="round"
-			stroke-linejoin="round"
-			stroke-width="2"
-		>
-			<path
-				d="M14.386 14.386l4.0877 4.0877-4.0877-4.0877c-2.9418 2.9419-7.7115 2.9419-10.6533 0-2.9419-2.9418-2.9419-7.7115 0-10.6533 2.9418-2.9419 7.7115-2.9419 10.6533 0 2.9419 2.9418 2.9419 7.7115 0 10.6533z"
-			></path>
-		</svg>
+<search-button>
+	<button type="button" class="search-toggle-btn" aria-label="Search" aria-keyshortcuts="Control+K Meta+K /">
+		<Icon name="tabler:search" aria-hidden="true" />
+		<span class="search-toggle-btn__label" aria-hidden="true">
+			Search
+		</span>
+		{/* Rendered as "Ctrl K"; on Apple devices the `SiteSearch` script changes it to "⌘K". */}
+		<Kbd class="search-toggle-btn__kbd">Ctrl K</Kbd>
 	</button>
-	{/* Cloned into the modal while search waits for External media consent. */}
-	<template data-search-consent-template>
-		<SearchConsentNotice descId="tb-search-consent-text" />
-	</template>
 </search-button>
 
-<script>
-	import { onConsentChange } from '@util/consent';
-	import { lockScroll, unlockScroll } from '@util/scroll-lock';
-	import { hasSearchConsent, isCseLoaded, loadCse } from '@util/site-search';
-
-	// Guard: component renders twice (mobile + desktop header), script deduplicates — runs once.
-	// Use window flag to avoid re-init across navigations.
-	if (!(window as any).__tbSearch) {
-		(window as any).__tbSearch = true;
-
-		// Load Google CSE only when the visitor opens search, and only with
-		// External media consent; until then the modal shows a notice instead.
-		//
-		// Critical: cse.js scans the DOM for `.gcse-search` elements once at
-		// execute-time (default `parsetags=onload`). The modal containing that
-		// element MUST be in the DOM before cse.js executes — otherwise CSE
-		// finds nothing and the modal stays empty when the user opens it. So
-		// loadCse() is only ever called after buildModal(), via init().
-
-		// Once cse.js is on the page, search stays usable there even if consent is withdrawn.
-		const searchAllowed = () => hasSearchConsent() || isCseLoaded();
-
-		const init = () => {
-			const m = buildModal();
-			const allowed = searchAllowed();
-			m.querySelector<HTMLElement>('[data-search-consent]')!.hidden = allowed;
-			if (allowed) loadCse();
-		};
-
-		// Resolve search page URL based on current pathname
-		// Routes are derived in the frontmatter and handed over as JSON; see the note there.
-		const routesAttr = document.querySelector('search-button')?.getAttribute('data-search-routes');
-		const searchRoutes: [string, string][] = routesAttr ? JSON.parse(routesAttr) : [];
-
-		const getSearchPageUrl = (query: string) => {
-			const path = window.location.pathname;
-			const match = searchRoutes.find(([prefix]) => path.startsWith(prefix));
-			// Only reachable from a search-enabled page outside /docs/ — today /blog/ and
-			// /clients-feedback/; most marketing pages render no search button at all.
-			const searchPage = match ? match[1] : '/docs/pe/search/';
-			return query ? `${searchPage}?q=${encodeURIComponent(query)}` : searchPage;
-		};
-
-		let modal: HTMLElement | null = null;
-		let loaderBar: HTMLElement | null = null;
-		let status: HTMLElement | null = null;
-		let opener: HTMLElement | null = null;
-		// True while a press inside the modal moves focus; see the focusout rescue.
-		let pressing = false;
-
-		const close = () => {
-			if (!modal) return;
-			modal.classList.remove('open');
-			document.documentElement.classList.remove('tb-search-open');
-			unlockScroll();
-			stopFocusRetention();
-			// Back to the button that opened search, so keyboard users keep their place.
-			opener?.focus();
-			opener = null;
-		};
-
-		const buildModal = (): HTMLElement => {
-			if (modal) return modal;
-			modal = document.createElement('div');
-			modal.id = 'tb-search-modal';
-			modal.className = 'print:hidden';
-			modal.setAttribute('role', 'dialog');
-			modal.setAttribute('aria-modal', 'true');
-			modal.setAttribute('aria-label', 'Search');
-			modal.innerHTML = `
-				<div class="tb-search-overlay"></div>
-				<div class="tb-search-box">
-					<div class="tb-loader-bar"></div>
-					<p class="tb-search-status" role="status"></p>
-					<div class="gcse-search"></div>
-				</div>
-				<button type="button" class="tb-search-close" aria-label="Close search">
-					<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-						<path d="M5 5l10 10M15 5L5 15"></path>
-					</svg>
-				</button>
-			`;
-			const notice = document.querySelector<HTMLTemplateElement>('template[data-search-consent-template]')!;
-			modal.querySelector('.gcse-search')!.before(notice.content.cloneNode(true));
-			document.body.appendChild(modal);
-
-			loaderBar = modal.querySelector<HTMLElement>('.tb-loader-bar');
-			status = modal.querySelector<HTMLElement>('.tb-search-status');
-			const showLoader = () => loaderBar?.classList.add('active');
-			const hideLoader = () => loaderBar?.classList.remove('active');
-
-			modal.querySelector('.tb-search-overlay')!.addEventListener('click', close);
-			modal.querySelector('.tb-search-close')!.addEventListener('click', close);
-			// The browser moves focus right after mousedown, in the same task; the timeout clears the flag after that.
-			modal.addEventListener('mousedown', () => {
-				pressing = true;
-				setTimeout(() => (pressing = false));
-			}, true);
-
-			const injectMoreLink = () => {
-				const branding = modal!.querySelector('.gcsc-more-maybe-branding-root');
-				if (!branding || branding.querySelector('.tb-more-link')) return;
-				const query = modal!.querySelector<HTMLInputElement>('input.gsc-input')?.value || '';
-				const link = document.createElement('a');
-				link.className = 'tb-more-link';
-				link.href = getSearchPageUrl(query);
-				link.textContent = 'Search more results';
-				branding.prepend(link);
-			};
-
-			modal.addEventListener('submit', showLoader, true);
-			modal.addEventListener('click', (e) => {
-				if ((e.target as HTMLElement).closest('.gsc-search-button')) showLoader();
-			}, true);
-			modal.addEventListener('keydown', (e) => {
-				if ((e.target as HTMLElement).classList.contains('gsc-input') && e.key === 'Enter') showLoader();
-			}, true);
-			new MutationObserver((mutations) => {
-				for (const m of mutations) {
-					if ((m.target as Element).classList?.contains('gsc-results') ||
-						(m.target as Element).closest?.('.gsc-results')) {
-						hideLoader();
-						break;
-					}
-				}
-				injectMoreLink();
-			}).observe(modal, { childList: true, subtree: true });
-
-			return modal;
-		};
-
-		const focusInput = (m: HTMLElement, options?: FocusOptions) => {
-			const input = m.querySelector<HTMLInputElement>('input.gsc-input');
-			if (input && document.activeElement !== input) input.focus(options);
-		};
-
-		// Two complementary mechanisms keep the search input focused while
-		// the modal is open. Both stop the moment the modal closes — see
-		// `stopFocusRetention()`.
-		//
-		// 1. MutationObserver: Google CSE rebuilds its input element multiple
-		//    times during its async mount, so a single focus() right when the
-		//    first input appears gets blown away. Re-focus on every DOM
-		//    mutation inside the modal.
-		// 2. focusout rescue: covers the case where some unrelated late-
-		//    arriving script (page-load handler, layout-shift) steals focus
-		//    by moving it to <body>/null — i.e. NOT to a specific element
-		//    the user clicked. We only restore when relatedTarget is null/
-		//    body so a legitimate user click outside the modal still wins.
-		//
-		// Neither scrolls: refocusing the input scrolls the results box to
-		// its top, moving whatever the visitor is pressing out from under
-		// the pointer, so the click never fires.
-		let focusObs: MutationObserver | null = null;
-		let focusOutHandler: ((e: FocusEvent) => void) | null = null;
-
-		const startFocusRetention = (m: HTMLElement) => {
-			focusInput(m);
-
-			focusObs?.disconnect();
-			focusObs = new MutationObserver(() => focusInput(m, { preventScroll: true }));
-			focusObs.observe(m, { childList: true, subtree: true });
-
-			if (focusOutHandler) m.removeEventListener('focusout', focusOutHandler);
-			focusOutHandler = (e: FocusEvent) => {
-				if (!m.classList.contains('open')) return;
-				const input = m.querySelector<HTMLInputElement>('input.gsc-input');
-				if (!input || e.target !== input) return;
-				const next = e.relatedTarget as Node | null;
-				// Focus moving inside the modal — intentional, leave it.
-				if (next && m.contains(next)) return;
-				// Focus moving to a real element outside the modal — assume
-				// the user clicked there deliberately, don't fight them.
-				if (next && next !== document.body) return;
-				// A press inside the modal sends focus to body/null too: on a
-				// non-focusable spot, and in Safari on a link or button, which
-				// it doesn't focus on click. The visitor's own action — leave it.
-				if (pressing) return;
-				// Focus going to body/null — script-steal pattern. Restore on
-				// the next frame to avoid recursive blur/focus loops.
-				requestAnimationFrame(() => {
-					if (m.classList.contains('open')) input.focus({ preventScroll: true });
-				});
-			};
-			m.addEventListener('focusout', focusOutHandler);
-		};
-
-		const stopFocusRetention = () => {
-			focusObs?.disconnect();
-			focusObs = null;
-			if (focusOutHandler && modal) modal.removeEventListener('focusout', focusOutHandler);
-			focusOutHandler = null;
-		};
-
-		// Show the search, or the consent notice, in an open modal.
-		const showContent = (m: HTMLElement) => {
-			if (!searchAllowed()) {
-				m.querySelector<HTMLElement>('[data-search-consent] [data-cc]')?.focus();
-				return;
-			}
-			// Show loader until CSE finishes mounting its input — only matters on
-			// the first open, when cse.js is still being fetched/executed.
-			if (!m.querySelector('input.gsc-input')) {
-				loaderBar?.classList.add('active');
-				if (status) status.textContent = 'Loading search…';
-				const obs = new MutationObserver(() => {
-					if (m.querySelector('input.gsc-input')) {
-						loaderBar?.classList.remove('active');
-						if (status) status.textContent = '';
-						startFocusRetention(m);
-						obs.disconnect();
-					}
-				});
-				obs.observe(m, { childList: true, subtree: true });
-			} else {
-				// Subsequent opens — input already mounted; still need to
-				// guard against CSE re-renders that follow a fresh modal open.
-				requestAnimationFrame(() => startFocusRetention(m));
-			}
-		};
-
-		const open = () => {
-			init();
-			const m = modal!;
-			document.documentElement.classList.add('tb-search-open');
-			lockScroll();
-			m.classList.add('open');
-			showContent(m);
-		};
-
-		// External media allowed from the notice: swap it for the search in place.
-		onConsentChange(() => {
-			if (!modal || !hasSearchConsent()) return;
-			init();
-			if (modal.classList.contains('open')) showContent(modal);
-		});
-
-		const suggestionsOpen = () =>
-			[...document.querySelectorAll('.gssb_c')].some((el) => getComputedStyle(el).display !== 'none');
-
-		// Esc to close, in the capture phase: CSE's input stops it bubbling. Not an Esc
-		// that ends IME input, closes an open dialog or closes CSE's suggestions.
-		document.addEventListener(
-			'keydown',
-			(e) => {
-				if (e.key !== 'Escape' || e.isComposing || !modal?.classList.contains('open')) return;
-				if (document.querySelector('dialog[open]')) return;
-				if ((e.target as Element).matches?.('input.gsc-input') && suggestionsOpen()) return;
-				close();
-			},
-			true
-		);
-
-		// Attach to all search buttons via delegation
-		document.addEventListener('click', (e) => {
-			const trigger = (e.target as Element).closest('search-button');
-			if (!trigger) return;
-			opener = trigger.querySelector('button');
-			open();
-		});
-	}
-</script>
-
-<style lang="scss">
+<style lang="scss" is:global>
 	@use '../styles/variables' as *;
 
-	.search-toggle-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
+	$search-field-from: 1300px;
+
+	.head-buttons .search-toggle-btn {
+		--btn-px: 0px;
+
 		width: 40px;
-		height: 40px;
-		padding: 0;
-		border: none;
-		border-radius: $radius-sm;
-		background: transparent;
-		cursor: pointer;
-		color: var(--sl-color-white);
-		transition: opacity $transition-base;
+		font-weight: $font-weight-normal;
 
-		&:hover { opacity: 0.7; }
-		&:focus:not(:focus-visible) { outline: none; }
-
-		svg { width: 20px; height: 20px; }
-	}
-</style>
-
-<style is:global>
-	#tb-search-modal {
-		display: none;
-		position: fixed;
-		inset: 0;
-		z-index: 9999;
-		align-items: flex-start;
-		justify-content: center;
-		padding-top: 80px;
-	}
-	#tb-search-modal.open {
-		display: flex;
-	}
-	.tb-search-overlay {
-		position: absolute;
-		inset: 0;
-		background: rgba(0, 0, 0, 0.55);
-	}
-	.tb-search-box {
-		position: relative;
-		z-index: 1;
-		width: 620px;
-		max-width: calc(100vw - 2rem);
-		min-height: 110px;
-		max-height: calc(100vh - 120px);
-		overflow-y: auto;
-		background: #fff;
-		border-radius: 8px;
-		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
-		padding: 1.25rem 1.25rem 1rem;
-		scrollbar-width: thin;
-		scrollbar-color: transparent transparent;
-		&:hover { scrollbar-color: rgba(0,0,0,0.2) transparent; }
-	}
-	/* Over the overlay, outside the box: the box scrolls, and CSE's input row has its own clear ✕. */
-	.tb-search-close {
-		position: absolute;
-		top: 16px;
-		right: 16px;
-		z-index: 1;
-		display: grid;
-		place-items: center;
-		width: 40px;
-		height: 40px;
-		padding: 0;
-		color: #fff;
-		background: rgba(0, 0, 0, 0.6);
-		border: none;
-		border-radius: 50%;
-		cursor: pointer;
-		&:hover {
-			background: rgba(0, 0, 0, 0.8);
-		}
-		&:focus-visible {
-			outline: 2px solid #fff;
-			outline-offset: 2px;
+		svg {
+			width: 20px;
+			height: 20px;
+			flex: none;
 		}
 	}
-	[data-theme='dark'] .tb-search-box {
-		background: #1e1e2e;
-		&:hover { scrollbar-color: rgba(255,255,255,0.2) transparent; }
-	}
-	/* Google CSE autocomplete dropdown — rendered at body root, needs high z-index */
-	.gssb_c { z-index: 50000 !important; }
-	/* Inside modal only: pin to viewport so it sits above the overlay.
-	   On regular pages, leave Google's default `position: absolute` alone so
-	   the dropdown tracks the input when the page scrolls. */
-	html.tb-search-open .gssb_c { position: fixed !important; }
 
-	.tb-search-status {
-		margin: 0;
-		color: var(--sl-color-gray-3);
-		font-size: 0.875rem;
-	}
-	.tb-search-status:empty {
+	.search-toggle-btn__label,
+	.search-toggle-btn__kbd {
 		display: none;
 	}
 
-	/* Loader — progress bar */
-	.tb-loader-bar {
-		position: sticky;
-		top: -1.25rem;
-		left: -1.25rem;
-		right: -1.25rem;
-		margin: -1.25rem -1.25rem 1.25rem;
-		height: 3px;
-		border-radius: 8px 8px 0 0;
-		overflow: hidden;
-		z-index: 2;
-	}
-	.tb-loader-bar::after {
-		content: '';
-		display: block;
-		height: 100%;
-		background: var(--sl-color-text-accent);
-		transform: scaleX(0);
-		transform-origin: left;
-	}
-	.tb-loader-bar.active::after {
-		animation: tb-progress 1.4s ease-in-out infinite;
-	}
-	@keyframes tb-progress {
-		0%   { transform: scaleX(0); transform-origin: left; }
-		45%  { transform: scaleX(1); transform-origin: left; }
-		55%  { transform: scaleX(1); transform-origin: right; }
-		100% { transform: scaleX(0); transform-origin: right; }
-	}
+	@media screen and (min-width: $search-field-from) {
+		.head-buttons .search-toggle-btn {
+			width: 152px;
+			justify-content: flex-start;
+			padding: 0 8px 0 12px;
 
-	/* Google CSE overrides */
-	.tb-search-box .gsc-control-cse {
-		background: transparent !important;
-		border: none !important;
-		padding: 0 !important;
-	}
-	.tb-search-box .gsc-input-box { border-radius: 6px !important; }
-	.tb-search-box 	.gsc-webResult.gsc-result {
-		border-radius: 6px !important;
-		padding: 8px !important;
-		transition: background 0.15s ease !important;
-		cursor: pointer !important;
-	}
-	.tb-search-box .gsc-webResult.gsc-result:hover {
-		background: var(--sl-color-gray-6, #f5f5f5) !important;
-	}
-	[data-theme='dark'] .tb-search-box .gsc-webResult.gsc-result {
-		background: #1e1e2e !important;
-		color: rgba(255, 255, 255, 0.75) !important;
-		border: none !important;
-	}
-	[data-theme='dark'] .tb-search-box .gsc-webResult.gsc-result:hover {
-		background: rgba(255, 255, 255, 0.06) !important;
-	}
-	[data-theme='dark'] .tb-search-box .gsc-result .gs-snippet {
-		color: rgba(255, 255, 255, 0.65) !important;
-	}
-	.tb-search-box .gsc-webResult-divider {
-		display: block !important;
-		border: none !important;
-		border-top: 1px solid var(--sl-color-hairline-light) !important;
-		margin: 0 !important;
-	}
-	.tb-search-box .gsc-result .gs-title,
-	.tb-search-box .gsc-result a.gs-title,
-	.tb-search-box .gsc-result a.gs-title:link,
-	.tb-search-box .gsc-result a.gs-title:visited {
-		color: var(--sl-color-text-accent) !important;
-		display: block !important;
-		white-space: nowrap !important;
-		overflow: hidden !important;
-		text-overflow: ellipsis !important;
-		max-width: 100% !important;
-		text-decoration: none !important;
-	}
-	.tb-search-box .gsc-result a.gs-title:link b {
-		color: var(--sl-color-text-accent) !important;
-	}
-	[data-theme='dark'] .tb-search-box .gsc-result a.gs-title:visited,
-	[data-theme='dark'] .tb-search-box .gsc-result a.gs-title:visited b {
-		color: hsl(224, 70%, 75%) !important;
-	}
-	.tb-search-box .gsc-result .gs-title a:hover { text-decoration: none !important; }
-	.tb-search-box .gsc-table-result {
-		display: block !important;
-		width: 100% !important;
-		overflow: hidden !important;
-	}
-	.tb-search-box .gsc-table-cell-snippet-close {
-		display: block !important;
-		width: 100% !important;
-		overflow: hidden !important;
-	}
+			svg {
+				width: 16px;
+				height: 16px;
+				opacity: 0.8;
+			}
+		}
 
-	/* Show only title — hide snippet, URL, thumbnail, branding, labels */
-	.tb-search-box .gsc-thumbnail-inside,
-	.tb-search-box .gsc-url-top,
-	.tb-search-box .gsc-url-bottom,
-	.tb-search-box .gs-visibleUrl,
-	.tb-search-box .gs-visibleUrl-long,
-	.tb-search-box .gsc-table-cell-thumbnail,
-	.tb-search-box .gsc-cursor-box,
-	.tb-search-box .gsc-branding,
-	.tb-search-box .gsc-result-info,
-	.tb-search-box .gs-per-result-labels,
-	.tb-search-box .gs-fileformat,
-	.tb-search-box .gcsc-find-more-on-google-root {
-		display: none !important;
-	}
+		.search-toggle-btn__label {
+			display: inline;
+			opacity: 0.8;
+		}
 
-	.tb-search-box .gcsc-more-maybe-branding-root {
-		display: flex !important;
-		justify-content: center !important;
-		align-items: center !important;
-	}
-	.tb-search-box .gcsc-more-maybe-branding-root > :not(.tb-more-link) {
-		display: none !important;
-	}
-	.tb-search-box .tb-more-link {
-		font-size: 13px;
-		color: var(--sl-color-text-accent) !important;
-		text-decoration: none;
-	}
-	.tb-search-box .tb-more-link:hover { text-decoration: underline !important; }
-
-	@media print {
-		.gssb_c {
-			display: none;
+		.search-toggle-btn__kbd {
+			display: inline-flex;
+			margin-left: auto;
 		}
 	}
 </style>

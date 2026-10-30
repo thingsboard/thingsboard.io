@@ -1,11 +1,16 @@
 import { TBMQ_PE_DOCS_URL, TBMQ_SITE_URL } from '@models/tbmq';
 import { CAREERS_URL } from '@models/careers';
+import { caseStudyBySlug } from '@data/case-studies';
+import type { MenuBadgeKey } from '@data/product-badges';
 
 export interface NavItem {
 	label: string;
 	href?: string;
 	submenuId?: string;
-	/** DOM id on the rendered link — analytics hooks (`Menu_Pricing`) and in-page scripts (`use-cases-link`). */
+	/**
+	 * DOM id on the rendered link, for analytics hooks (`Menu_Pricing`). The link also shows in the menu
+	 * sheet; `SiteMenu` keeps the id on whichever copy shows.
+	 */
 	id?: string;
 	/** Extra class on the rendered link, e.g. `gtm_button` for GTM tracking. */
 	linkClass?: string;
@@ -15,61 +20,68 @@ export interface NavItem {
 export interface SubMenuItem {
 	href: string;
 	icon?: string;
+	/** A product badge (`data/product-badges`), shown instead of `icon`. Used in Products and Docs. */
+	badge?: MenuBadgeKey;
 	heading: string;
+	/** A second line under the heading, where it helps tell links apart: the products and their docs. */
 	description?: string;
 	linkClass?: string;
+	/** A customer logo shown instead of the heading, which becomes its alt text. */
+	logo?: string;
+	/** The logo's height in px. */
+	logoHeight?: number;
 }
 
 export interface SubMenuGroup {
 	/** Column heading, shown above the first column only. Omit for an unlabelled group. */
 	name?: string;
-	/**
-	 * Items per column. The renderer caps the result at three columns and folds any
-	 * overflow into the last one. Omit to put every item in a single column.
-	 */
+	/** Items per column (a list takes at most 3 columns). Omit for one column. */
 	perColumn?: number;
 	items: SubMenuItem[];
+	/** A link under the list, in the accent color, such as "All use cases". */
+	more?: { label: string; href: string };
 }
 
 export interface SubMenu {
 	id: string;
-	className: string;
+	/** Icon size in px: 32 where the icons are product badges (Products, Docs), otherwise 24 (the default). */
+	iconSize?: 24 | 32;
 	groups: SubMenuGroup[];
+	/** Other paths (and the pages below them) that mark this section as current; see `inSection`. */
+	owns?: string[];
 }
 
 // Main navigation items
 export const mainNavItems: NavItem[] = [
 	{ label: 'Products', submenuId: 'nav-products' },
+	{ label: 'Solutions', submenuId: 'nav-solutions' },
 	{ label: 'Services', submenuId: 'nav-services' },
-	{ label: 'Use Cases', href: '/use-cases/', submenuId: 'nav-cases', id: 'use-cases-link' },
-	{ label: 'Customers', submenuId: 'nav-customers' },
-	{ label: 'Company', submenuId: 'nav-company' },
-	{ label: 'Partners', submenuId: 'nav-partners' },
 	{ label: 'Docs', submenuId: 'nav-docs' },
+	{ label: 'Company', submenuId: 'nav-company' },
 	{ label: 'IoT Hub', href: '/iot-hub/' },
-	{ label: 'Blog', href: '/blog/' },
 	{ label: 'Pricing', href: '/pricing/', id: 'Menu_Pricing', linkClass: 'gtm_button' },
 ];
 
 // Products submenu
 export const productsSubmenu: SubMenu = {
 	id: 'nav-products',
-	className: 'products',
+	iconSize: 32,
+	owns: ['/products/', '/installations/'],
 	groups: [
 		{
 			name: 'IoT platforms',
-			perColumn: 1,
+			perColumn: 2,
 			items: [
 				{
 					href: '/products/thingsboard-pe/',
-					icon: '/src/assets/images/landings/nav/thingsboard-p-icon.svg',
+					badge: 'thingsboard',
 					heading: 'ThingsBoard',
 					description: 'On-premises IoT Platform',
 					linkClass: 'prof-lnk',
 				},
 				{
 					href: '/products/paas/',
-					icon: '/src/assets/images/landings/nav/thingsboard-c-icon.svg',
+					badge: 'cloud',
 					heading: 'ThingsBoard Cloud',
 					description: 'Platform-as-a-Service',
 					linkClass: 'cloud-lnk',
@@ -78,7 +90,7 @@ export const productsSubmenu: SubMenu = {
 		},
 		{
 			name: 'Product ecosystem',
-			perColumn: 2,
+			perColumn: 3,
 			items: [
 				{
 					href: '/docs/cli/',
@@ -89,35 +101,35 @@ export const productsSubmenu: SubMenu = {
 				},
 				{
 					href: '/products/thingsboard-edge/',
-					icon: '/src/assets/images/landings/nav/thingsboard-e-icon.svg',
+					badge: 'edge',
 					heading: 'Edge',
 					description: 'Edge computing',
 					linkClass: 'edge-lnk',
 				},
 				{
 					href: '/docs/iot-gateway/',
-					icon: '/src/assets/images/landings/nav/gateway-icon.svg',
+					badge: 'gateway',
 					heading: 'IoT Gateway',
 					description: 'Connect legacy protocols',
 					linkClass: 'gateway-lnk',
 				},
 				{
 					href: '/products/mobile/',
-					icon: '/src/assets/images/landings/nav/tb-mobile-icon.svg',
+					badge: 'mobile',
 					heading: 'Mobile Application',
 					description: 'IoT mobile product',
 					linkClass: 'mobile-lnk',
 				},
 				{
 					href: TBMQ_SITE_URL,
-					icon: '/src/assets/images/landings/nav/tbmq-icon.svg',
+					badge: 'tbmq',
 					heading: 'TBMQ',
 					description: 'Scalable MQTT broker',
 					linkClass: 'mqtt-broker-lnk',
 				},
 				{
 					href: '/products/trendz/',
-					icon: '/src/assets/images/landings/nav/trendz-icon.svg',
+					badge: 'trendz',
 					heading: 'Trendz Analytics',
 					description: 'Data analytics and Prediction',
 					linkClass: 'trendz-lnk',
@@ -130,7 +142,7 @@ export const productsSubmenu: SubMenu = {
 // Services submenu
 export const servicesSubmenu: SubMenu = {
 	id: 'nav-services',
-	className: 'services',
+	owns: ['/services/'],
 	groups: [
 		{
 			items: [
@@ -138,160 +150,130 @@ export const servicesSubmenu: SubMenu = {
 					href: '/services/development-services/',
 					icon: '/src/assets/images/landings/nav/development-services.svg',
 					heading: 'Development services',
-					description: 'IoT Solutions development',
 				},
 				{
 					href: '/services/',
 					icon: '/src/assets/images/landings/nav/support-icon.svg',
-					heading: 'Support',
-					description: 'Support packages and SLAs',
+					heading: 'Support plans',
 				},
 				{
 					href: '/services/trainings/',
 					icon: '/src/assets/images/landings/nav/train-icon.svg',
 					heading: 'Trainings',
-					description: 'ThingsBoard education courses',
 				},
 			],
+			more: { label: 'Talk to an expert', href: '/contact-us/' },
 		},
 	],
 };
 
-// Use Cases submenu
-export const useCasesSubmenu: SubMenu = {
-	id: 'nav-cases',
-	className: 'cases',
+/**
+ * Builds a case-study menu link: its page, the customer's name, and a logo. `logoFile` names a file in
+ * `customer-logo/` (single-color logos cropped to the artwork). Without it, the link uses the logo
+ * from the case study's page. Throws when the slug is not a known case study.
+ */
+const CUSTOMER_LOGO_DIR = '/src/assets/images/landings/customer-logo/';
+function caseStudy(slug: string, heading: string, logoHeight: number, logoFile?: string): SubMenuItem {
+	const study = caseStudyBySlug[slug];
+	if (!study) throw new Error(`[navigation] no case study "${slug}"`);
+	const logo = logoFile ? `${CUSTOMER_LOGO_DIR}${logoFile}` : study.hero.logo;
+	return { href: `/case-studies/${slug}/`, heading, logo, logoHeight };
+}
+
+// Solutions submenu. Smart irrigation, water metering and air quality are left out: each is a narrower
+// version of a listed use case (smart farming, smart metering, environment monitoring).
+export const solutionsSubmenu: SubMenu = {
+	id: 'nav-solutions',
+	owns: ['/use-cases/', '/case-studies/'],
 	groups: [
 		{
+			name: 'Use cases',
 			perColumn: 5,
 			items: [
 				{
 					href: '/use-cases/smart-energy/',
 					icon: '/src/assets/images/landings/nav/case-eng-icon.svg',
 					heading: 'Smart energy',
-					description: 'Energy monitoring and efficiency',
 				},
 				{
 					href: '/use-cases/environment-monitoring/',
 					icon: '/src/assets/images/landings/nav/case-env-icon.svg',
 					heading: 'Environment monitoring',
-					description: 'Indoor & outdoor environment analysis',
 				},
 				{
 					href: '/use-cases/smart-office/',
 					icon: '/src/assets/images/landings/nav/case-off-icon.svg',
 					heading: 'Smart office',
-					description: 'Boost productivity & optimize resources',
-				},
-				{
-					href: '/use-cases/water-metering/',
-					icon: '/src/assets/images/landings/nav/case-wat-icon.svg',
-					heading: 'Water metering',
-					description: 'Water use analysis & fraud detection',
 				},
 				{
 					href: '/use-cases/smart-retail/',
 					icon: '/src/assets/images/landings/nav/case-ret-icon.svg',
 					heading: 'Smart retail',
-					description: 'Food storage & safety monitoring',
 				},
 				{
 					href: '/use-cases/smart-farming/',
 					icon: '/src/assets/images/landings/nav/case-fam-icon.svg',
 					heading: 'Smart farming',
-					description: 'Remote soil & equipment monitoring',
 				},
 				{
 					href: '/use-cases/site-fleet-tracking/',
 					icon: '/src/assets/images/landings/nav/site-fleet-tracking-icon.svg',
 					heading: 'Site fleet tracking',
-					description: 'Fleet tracking & management',
 				},
 				{
 					href: '/use-cases/health-care/',
 					icon: '/src/assets/images/landings/nav/case-health-care-icon.svg',
 					heading: 'Health care',
-					description: 'Smart assisted living solution',
 				},
 				{
 					href: '/use-cases/smart-metering/',
 					icon: '/src/assets/images/landings/nav/case-met-icon.svg',
 					heading: 'Smart metering',
-					description: 'Meter data collection & analysis',
-				},
-				{
-					href: '/use-cases/air-quality-monitoring/',
-					icon: '/src/assets/images/landings/nav/case-aq-icon.svg',
-					heading: 'Air quality monitoring',
-					description: 'Monitor AQI using wide range of sensors',
-				},
-				{
-					href: '/use-cases/smart-irrigation/',
-					icon: '/src/assets/images/landings/nav/smart-irrigation.svg',
-					heading: 'Smart irrigation',
-					description: 'Soil moisture & irrigation control',
 				},
 				{
 					href: '/use-cases/waste-management/',
 					icon: '/src/assets/images/landings/nav/case-waste-icon.svg',
 					heading: 'Waste management',
-					description: 'Real-time waste management',
 				},
 				{
 					href: '/use-cases/tank-level-monitoring/',
 					icon: '/src/assets/images/landings/nav/case-level-icon.svg',
 					heading: 'Tank level monitoring',
-					description: 'Fuel tank location & level monitoring',
 				},
 			],
+			more: { label: 'All use cases', href: '/use-cases/' },
 		},
 		{
 			name: 'SCADA',
-			perColumn: 1,
 			items: [
 				{
 					href: '/use-cases/scada/',
 					icon: '/src/assets/images/landings/nav/case-scada-icon.svg',
 					heading: 'Swimming pool',
-					description: 'Control industrial processes in real time',
 				},
 				{
 					href: '/use-cases/scada-oil-and-gas-drilling-system/',
 					icon: '/src/assets/images/landings/nav/case-scada-drilling-system-icon.svg',
-					heading: 'Oil and gas drilling system',
-					description: 'Control drilling operations',
+					heading: 'Oil & gas drilling system',
 				},
 				{
 					href: '/use-cases/scada-energy-management/',
 					icon: '/src/assets/images/landings/nav/case-scada-energy-management.svg',
 					heading: 'Energy management',
-					description: 'Monitor & control energy systems',
 				},
 			],
 		},
-	],
-};
-
-// Customers submenu
-export const customersSubmenu: SubMenu = {
-	id: 'nav-customers',
-	className: 'customers',
-	groups: [
 		{
+			// Headings are customer names: a case study's own title is a full sentence.
+			name: 'Case studies',
 			items: [
-				{
-					href: '/case-studies/',
-					icon: '/src/assets/images/landings/nav/case-studies.svg',
-					heading: 'Case studies',
-					linkClass: 'small-link',
-				},
-				{
-					href: '/clients-feedback/',
-					icon: '/src/assets/images/landings/nav/feedback.svg',
-					heading: 'Clients feedback',
-					linkClass: 'small-link',
-				},
+				caseStudy('schwarz', 'Schwarz Group', 15, 'schwarz-gruppe.svg'),
+				caseStudy('t-mobile-cz', 'T-Mobile', 15, 't-mobile.svg'),
+				caseStudy('obb-infra', 'ÖBB-Infrastruktur', 18, 'obb.svg'),
+				caseStudy('super-bock', 'Super Bock', 24, 'super-bock.svg'),
+				caseStudy('circutor', 'Circutor', 16, 'circutor.svg'),
 			],
+			more: { label: 'All case studies', href: '/case-studies/' },
 		},
 	],
 };
@@ -299,14 +281,18 @@ export const customersSubmenu: SubMenu = {
 // Company submenu
 export const companySubmenu: SubMenu = {
 	id: 'nav-company',
-	className: 'about',
+	owns: ['/partners/'],
 	groups: [
 		{
+			// `small-link` has no styles. It stays on these links as an analytics hook, like the products'
+			// `-lnk` classes.
+			name: 'Company',
+			perColumn: 4,
 			items: [
 				{
 					href: '/company/',
 					icon: '/src/assets/images/landings/nav/about-s-icon.svg',
-					heading: 'Our company',
+					heading: 'About us',
 					linkClass: 'small-link',
 				},
 				{
@@ -316,9 +302,15 @@ export const companySubmenu: SubMenu = {
 					linkClass: 'small-link',
 				},
 				{
-					href: '/contact-us/',
-					icon: '/src/assets/images/landings/nav/contact-s-icon.svg',
-					heading: 'Contact us',
+					href: '/clients-feedback/',
+					icon: '/src/assets/images/landings/nav/feedback.svg',
+					heading: 'Clients feedback',
+					linkClass: 'small-link',
+				},
+				{
+					href: '/blog/',
+					icon: '/src/assets/images/landings/nav/blog-s-icon.svg',
+					heading: 'Blog',
 					linkClass: 'small-link',
 				},
 				{
@@ -333,22 +325,21 @@ export const companySubmenu: SubMenu = {
 					heading: 'Careers',
 					linkClass: 'small-link',
 				},
+				{
+					href: '/contact-us/',
+					icon: '/src/assets/images/landings/nav/contact-s-icon.svg',
+					heading: 'Contact us',
+					linkClass: 'small-link',
+				},
 			],
 		},
-	],
-};
-
-// Partners submenu
-export const partnersSubmenu: SubMenu = {
-	id: 'nav-partners',
-	className: 'about',
-	groups: [
 		{
+			name: 'Partners',
 			items: [
 				{
 					href: '/partners/affiliate/',
 					icon: '/src/assets/images/landings/nav/affiliate-s-icon.svg',
-					heading: 'Affiliate Program',
+					heading: 'Affiliate program',
 					linkClass: 'small-link',
 				},
 				{
@@ -368,23 +359,27 @@ export const partnersSubmenu: SubMenu = {
 	],
 };
 
-// Docs submenu
+// Docs submenu: the same products as Products, with the same badges (`product-badges`). The CLI is
+// first in Product ecosystem, as in Products.
 export const docsSubmenu: SubMenu = {
 	id: 'nav-docs',
-	className: 'products',
+	iconSize: 32,
+	owns: ['/docs/'],
 	groups: [
 		{
 			name: 'IoT platforms',
-			perColumn: 1,
+			perColumn: 2,
 			items: [
 				{
 					href: '/docs/pe/',
+					badge: 'thingsboard',
 					heading: 'ThingsBoard',
 					description: 'On-premises IoT Platform',
 					linkClass: 'prof-lnk',
 				},
 				{
 					href: '/docs/paas/',
+					badge: 'cloud',
 					heading: 'ThingsBoard Cloud',
 					description: 'Platform-as-a-Service',
 					linkClass: 'cloud-lnk',
@@ -393,40 +388,46 @@ export const docsSubmenu: SubMenu = {
 		},
 		{
 			name: 'Product ecosystem',
-			perColumn: 2,
+			perColumn: 3,
 			items: [
 				{
 					href: '/docs/cli/',
+					icon: '/src/assets/images/landings/nav/cli-icon.svg',
 					heading: 'ThingsBoard CLI',
 					description: 'Build IoT solutions with AI agents',
 					linkClass: 'cli-lnk',
 				},
 				{
 					href: '/docs/edge/pe/',
+					badge: 'edge',
 					heading: 'Edge',
 					description: 'Edge computing',
 					linkClass: 'edge-lnk',
 				},
 				{
 					href: '/docs/iot-gateway/',
+					badge: 'gateway',
 					heading: 'IoT Gateway',
 					description: 'Connect legacy protocols',
 					linkClass: 'gateway-lnk',
 				},
 				{
 					href: '/docs/mobile/pe/',
+					badge: 'mobile',
 					heading: 'Mobile Application',
 					description: 'IoT mobile product',
 					linkClass: 'mobile-pe-lnk',
 				},
 				{
 					href: TBMQ_PE_DOCS_URL,
+					badge: 'tbmq',
 					heading: 'TBMQ',
 					description: 'Scalable MQTT broker',
 					linkClass: 'mqtt-broker-lnk',
 				},
 				{
 					href: '/docs/trendz/',
+					badge: 'trendz',
 					heading: 'Trendz Analytics',
 					description: 'Data analytics and Prediction',
 					linkClass: 'trendz-lnk',
@@ -437,20 +438,12 @@ export const docsSubmenu: SubMenu = {
 };
 
 // All submenus
-export const allSubmenus: SubMenu[] = [
-	productsSubmenu,
-	servicesSubmenu,
-	useCasesSubmenu,
-	customersSubmenu,
-	companySubmenu,
-	partnersSubmenu,
-	docsSubmenu,
-];
+export const allSubmenus: SubMenu[] = [productsSubmenu, servicesSubmenu, solutionsSubmenu, companySubmenu, docsSubmenu];
 
 /**
- * The footer link row, shared by the marketing footer (Landing/Footer.astro) and the docs
- * footer (starlight/DocFooter.astro). The two components keep their own markup and scoped
- * styles; only the link list is shared, so a link change is one edit rather than two.
+ * The footer link row, shared by the marketing footer (Landing/Footer.astro) and the compact footer
+ * (Landing/CompactFooter.astro). The two components keep their own markup and scoped styles; only
+ * the link list is shared, so a link change is one edit rather than two.
  */
 export const footerNavItems: { href: string; label: string }[] = [
 	{ href: '/docs/pe/getting-started/', label: 'Get Started' },
