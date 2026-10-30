@@ -74,7 +74,24 @@ export function getUpgradeStepVersions(product: Products, family?: string): Upgr
  */
 export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 	{
+		version: '4.4.0.2',
+		displayVersion: '4.4.0.2',
+		family: '4.4',
+		baseVersion: '4.4.0',
+		releaseDate: 'Oct 30 2026',
+		upgradableFrom: '4.3.1.x',
+		prevVersionAnchor: 'v4-3-1-8',
+		lts: true,
+		patch: true,
+		x: true,
+		upgrade: true,
+		manualVersionUpgrade: false,
+		windowsZip: true,
+		anchor: 'v4-4-0-2',
+	},
+	{
 		version: '4.4.0.1',
+		vulnerable: true,
 		displayVersion: '4.4.0.1',
 		family: '4.4',
 		baseVersion: '4.4.0',
