@@ -6,7 +6,6 @@ import img4 from '@root/assets/images/company-images/values-images/values-image4
 import img5 from '@root/assets/images/company-images/values-images/values-image5.webp';
 import img6 from '@root/assets/images/company-images/values-images/values-image6.webp';
 
-/** One company value: its photo, its words, and its mark (a tabler icon in a kit accent). */
 export interface CompanyValue {
 	image: ImageMetadata;
 	title: string;
@@ -14,7 +13,6 @@ export interface CompanyValue {
 	mark: { icon: string; accent: string };
 }
 
-/** The "Our values" carousel's slides, in order. */
 export const companyValues: CompanyValue[] = [
 	{
 		image: img1,
