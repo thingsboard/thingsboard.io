@@ -1,802 +1,650 @@
 import DocLink from '@components/DocLink.astro';
-import ImageGallery from '~/components/ImageGallery.astro';
+import ImageGallery from '@components/ImageGallery.astro';
 import { Aside, Steps } from '@astrojs/starlight/components';
-import { Products } from '~/models/site.models';
+import { Products } from '@models/site.models';
 import Tabs from '@components/Tabs.astro';
 import TabItem from '@components/TabItem.astro';
 
-The **RabbitMQ** integration connects ThingsBoard to <a href="https://www.rabbitmq.com/" target="_blank" rel="noopener noreferrer">RabbitMQ</a> message brokers. Use it to consume messages that producers — devices, IoT platforms, connectivity providers, or your own applications — publish to RabbitMQ queues and bring them into ThingsBoard as telemetry and attributes for monitoring and rule-based automation. The integration can also publish messages from ThingsBoard back to RabbitMQ through a downlink data converter.
+RabbitMQ Integration connects ThingsBoard to a <a href="https://www.rabbitmq.com/" target="_blank" rel="noopener noreferrer"><strong>RabbitMQ</strong></a> broker over AMQP 0-9-1. It reads messages from one or more queues, and an **uplink data converter** transforms each message into device or asset data, including telemetry and attributes. ThingsBoard can also publish **downlink** messages to a RabbitMQ exchange.
+
+Use RabbitMQ Integration when:
+- Devices, gateways, or backend services already publish data to RabbitMQ.
+- One queue carries data for many devices: the converter sets the target device for each message.
+- An application must receive ThingsBoard data or commands from a RabbitMQ queue.
 
 ## Architecture
 
 <ImageGallery images={[
   {
     src: '/src/assets/images/user-guide/integrations/rabbitmq-integration-architecture.svg',
-    alt: 'RabbitMQ integration architecture diagram showing uplink and downlink message flow between external producers, RabbitMQ message broker, and ThingsBoard',
-    caption: 'RabbitMQ integration architecture. Uplink messages flow from a producer through a RabbitMQ exchange and queue to the RabbitMQ Integration and uplink data converter. Downlink messages flow from the Rule Engine through the Integration Downlink node and RabbitMQ Integration back to a RabbitMQ exchange and queue.',
+    alt: 'RabbitMQ integration architecture: a producer publishes to an exchange that routes messages to the uplink queue, the RabbitMQ Integration polls the queue with auto-acknowledgment and passes the message body with metadata to the data converters, and Processing & Storage runs the Rule Engine, stores the data, and feeds dashboards; downlinks are published to the exchange, which routes them to the downlink queue',
+    caption: 'RabbitMQ integration architecture. The integration polls the uplink queue and publishes downlinks to the exchange, which routes them to a separate downlink queue.',
   },
 ]} />
 
-For uplink, a producer publishes a message to a RabbitMQ exchange. RabbitMQ routes the message to a queue according to the exchange type, routing key, and queue bindings. The RabbitMQ Integration consumes messages from the configured queue, and the uplink converter transforms each message into the ThingsBoard data format. ThingsBoard then stores the telemetry and attributes and can automatically create the device on first contact.
+1. **Receive data.** A producer publishes a message to an exchange, which routes it to a queue. The integration polls the queue and acknowledges each message as soon as it reads it.
+2. **Decode the payload.** The uplink converter identifies the device or asset and extracts attributes and telemetry.
+3. **Process the message.** ThingsBoard processes the converted data through the Rule Engine. If **Allow create devices or assets** is enabled, ThingsBoard can create an entity that does not exist yet.
+4. **Send downlink data (optional).** The Rule Engine passes a message to the integration. The downlink converter encodes it, and the integration publishes it to an exchange with the **Downlink topic** as the routing key.
 
-For downlink, the Rule Engine sends a message to an **Integration Downlink** node associated with the RabbitMQ Integration. The downlink converter encodes the message, and the integration publishes it to a RabbitMQ exchange using the configured routing key. RabbitMQ then routes the message to the target queue, where an external application or service can consume it.
+<Aside type="caution">
+  Because the integration acknowledges a message before it decodes it, a message that fails conversion is lost. Test the converter before you connect a production queue.
+</Aside>
 
 ## Prerequisites
 
-Before creating the integration, ensure:
-
-- You have access to {props.product !== Products.PAAS && props.product !== Products.PAAS_EU && <><DocLink product={Products.PE} path="installation/" target="_blank">ThingsBoard</DocLink> or </>}<a href="/installations/?product=thingsboard-cloud" target="_blank" rel="noopener noreferrer"><strong>ThingsBoard Cloud</strong></a> with integration functionality enabled for your tenant.
-- You have permissions to create integrations and data converters.
-- You have a running <a href="https://www.rabbitmq.com/" target="_blank" rel="noopener noreferrer nofollow"><strong>RabbitMQ</strong></a> broker — either a <a href="https://www.rabbitmq.com/docs/download" target="_blank" rel="noopener noreferrer"><strong>local installation</strong></a> or a cloud-managed service such as <a href="https://www.cloudamqp.com/" target="_blank" rel="noopener noreferrer nofollow"><strong>CloudAMQP</strong></a>. If you do not have a broker yet, follow the **[Set Up RabbitMQ](#set-up-rabbitmq)** step below.
-- A queue to consume from. **The queue must exist on the broker before the integration is created.**
-- Credentials (username and password) with permission to read from the queue.
-
-<Aside type="note" title="Setup used in this guide">
-  This guide assumes a **managed RabbitMQ broker on CloudAMQP** and **ThingsBoard Cloud**. Because CloudAMQP is publicly reachable, the integration connects to it directly at the broker host on port `5672` (or `5671` for TLS). If your RabbitMQ runs on a **local or private network**, the broker will not be reachable from ThingsBoard Cloud — run the integration in **Execute remotely** mode next to the broker instead (see the note under [Required Connection Details](#required-connection-details)).
-</Aside>
+- Access to {props.product !== Products.PAAS && props.product !== Products.PAAS_EU && <><DocLink product={Products.PE} path="installation/" target="_blank">ThingsBoard</DocLink> or </>}<a href="/installations/?product=thingsboard-cloud" target="_blank"><strong>ThingsBoard Cloud</strong></a> with integrations enabled for your tenant.
+- Permission to create integrations and data converters, and to edit rule chains for downlink.
+- A RabbitMQ broker that ThingsBoard reaches on a plain AMQP port, `5672` by default. The integration does not support AMQP over TLS. ThingsBoard Cloud accepts only a public broker address.
+- A broker user with configure, read, and write permissions on the queue's virtual host.
 
 ## Set Up RabbitMQ
 
-The steps below stand up a **fully managed single-node broker on <a href="https://www.cloudamqp.com/" target="_blank" rel="noopener noreferrer nofollow">CloudAMQP</a>** with a free **Little Lemur** plan (100 queues, 1 million messages/month, 20 connections), which is enough to test the integration without installing anything locally. If you use a local installation or another managed provider (Amazon MQ, Aiven, or a self-hosted cluster), skip to **[Required Connection Details](#required-connection-details)** and obtain the values from your broker instead.
+This guide uses a free <a href="https://www.cloudamqp.com/" target="_blank" rel="noopener noreferrer nofollow"><strong>CloudAMQP</strong></a> instance. With your own broker, create the queue and collect the same values.
 
 ### Create a CloudAMQP Instance
 
-**Create the RabbitMQ instance:**
-
 <Steps>
-  1. <a href="https://customer.cloudamqp.com/login" target="_blank" rel="noopener noreferrer nofollow"><strong>Sign in to CloudAMQP</strong></a>
-  2. On the <strong>Instances</strong> page, click <strong>+ Create New Instance</strong>.
-  3. <strong>Step 1 of 4 — Plan:</strong> enter an instance name (e.g. `ThingsBoard`), keep the free <strong>Little Lemur</strong> plan selected, and click <strong>Select Region</strong>.
-  4. <strong>Step 2 of 4 — Region:</strong> choose a data center and a region close to your ThingsBoard deployment, then click <strong>Review</strong>. The wizard skips directly to the confirmation step — <strong>Configure</strong> applies only to paid, dedicated plans.
-  5. <strong>Step 4 of 4 — Confirm:</strong> review the summary and click <strong>Create instance</strong>.
+1. <a href="https://customer.cloudamqp.com/login" target="_blank" rel="noopener noreferrer nofollow"><strong>Sign in to CloudAMQP</strong></a>.
+2. On the **Instances** page, click **+ Create New Instance**.
+3. **Plan** — enter a name, for example `ThingsBoard`, keep the free **Little Lemur** plan, and click **Select Region**.
+4. **Region** — choose a data center and a region close to your ThingsBoard server, then click **Review**. The free plan skips the **Configure** step.
+5. **Confirm** — check the summary and click **Create instance**.
 </Steps>
-
-For development and evaluation, a shared instance can be sufficient. For production workloads, choose a plan that meets your availability, throughput, and isolation requirements.
 
 <ImageGallery images={[
   {
     src: '/src/assets/images/user-guide/integrations/rabbitmq/rabbitmq-cloudamqp-create-instance-1.png',
     alt: 'CloudAMQP Instances page with no instances yet and the Create New Instance button',
-    caption: 'CloudAMQP Instances page — click + Create New Instance to start.',
+    caption: 'On the Instances page, click + Create New Instance.',
   },
   {
     src: '/src/assets/images/user-guide/integrations/rabbitmq/rabbitmq-cloudamqp-create-instance-2.png',
-    alt: 'CloudAMQP create new instance wizard, Plan step, with Name set to ThingsBoard and the Little Lemur Free plan selected',
-    caption: 'Step 1 of 4 — Plan: name the instance and keep the free Little Lemur plan selected.',
+    alt: 'CloudAMQP create instance wizard, Plan step, with Name set to ThingsBoard and the Little Lemur free plan selected',
+    caption: 'Plan — name the instance and keep the free Little Lemur plan.',
   },
   {
     src: '/src/assets/images/user-guide/integrations/rabbitmq/rabbitmq-cloudamqp-create-instance-3.png',
-    alt: 'CloudAMQP create new instance wizard, Region step, with Amazon Web Services selected as data center and Region set to EU-North-1 Stockholm',
-    caption: 'Step 2 of 4 — Region: pick a data center and region close to your ThingsBoard deployment.',
+    alt: 'CloudAMQP create instance wizard, Region step, with Amazon Web Services as the data center and EU-North-1 (Stockholm) as the region',
+    caption: 'Region — pick a data center and a region close to your ThingsBoard server.',
   },
   {
     src: '/src/assets/images/user-guide/integrations/rabbitmq/rabbitmq-cloudamqp-create-instance-4.png',
-    alt: 'CloudAMQP create new instance wizard, Confirm step, showing the plan, name, platform, and region summary with a Create instance button',
-    caption: 'Step 4 of 4 — Confirm: review the summary and click Create instance.',
+    alt: 'CloudAMQP create instance wizard, Confirm step, with the plan, name, platform, and region summary and the Create instance button',
+    caption: 'Confirm — check the summary and click Create instance.',
   },
   {
     src: '/src/assets/images/user-guide/integrations/rabbitmq/rabbitmq-cloudamqp-create-instance-5.png',
-    alt: 'CloudAMQP Instances page with a success notification and the newly created ThingsBoard instance listed',
-    caption: 'The new instance appears in the Instances list once created.',
+    alt: 'CloudAMQP Instances page with a success notification and the new ThingsBoard instance in the list',
+    caption: 'The new instance appears in the Instances list.',
   },
 ]} />
 
-After the instance is provisioned, open the instance and go to its <strong>Overview</strong> page.
+Open the instance. Its **Overview** page shows the connection values:
 
-CloudAMQP displays the connection information required by ThingsBoard.
-Copy these values — you will need them in the integration's <strong>Connection</strong> step.
-
-- **Cluster** (under *General*) — the DNS load-balanced hostname of the instance (e.g. `hawk.rmq.cloudamqp.com`). Use this as the integration **Host** — not the individual node listed under **Hosts** (`hawk-01.rmq.cloudamqp.com`);
-- **User & Vhost** (under *AMQP details*) — default RabbitMQ username and virtual host — both are the same string;
-- **Password** (under *AMQP details*) — click the eye icon to reveal it;
-- **URL** (under *AMQP details*) — complete AMQP connection URI.
-
-The full AMQP URL is shown for reference in the following form:
-
-```text
-amqps://<username>:<password>@<host>/<vhost>
-```
+| Value | Example | Source on the Overview page |
+|-------|---------|-----------------------------|
+| **Host** | `hawk.rmq.cloudamqp.com` | **Cluster** under **General** |
+| **Port** | `5672` | **Ports** under **AMQP details** |
+| **Username** | `llbsoyas` | **User & Vhost** under **AMQP details** |
+| **Virtual host** | `llbsoyas` | The same **User & Vhost** value |
+| **Password** | — | **Password** under **AMQP details**; click the eye icon to show it |
 
 <ImageGallery images={[
   {
     src: '/src/assets/images/user-guide/integrations/rabbitmq/rabbitmq-cloudamqp-overview-1.png',
-    alt: 'CloudAMQP instance Overview page showing the General section with the Cluster hostname and the AMQP details section with User and Vhost, Password, Ports, and URL',
-    caption: 'Instance Overview — copy the Cluster hostname from General, and the User & Vhost, Password, and URL values from AMQP details.',
+    alt: 'CloudAMQP instance Overview page with the Cluster hostname under General and User & Vhost, Password, Ports, and URL under AMQP details',
+    caption: 'Copy the Cluster hostname from General, and User & Vhost and Password from AMQP details.',
   },
 ]} />
 
+<Aside type="tip" title="Use Cluster, not Hosts">
+  **Cluster** is a DNS name that follows the broker if CloudAMQP moves it to another node. **Hosts** lists a single node.
+</Aside>
+
 ### Create a Queue
 
-Create the queue from which ThingsBoard will consume messages.
-
 <Steps>
-  1. On the CloudAMQP instance **Overview** page, click **RabbitMQ Manager** to open the RabbitMQ Management UI.
-  2. Go to **Queues and Streams**. In the **Add a new queue** panel, enter `tb-uplink` as the **Name**, keep **Durability** set to **Durable**, and click **Add queue**.
-  3. The `tb-uplink` queue appears in the list in the **running** state, ready to receive messages.
+1. On the CloudAMQP instance **Overview** page, click **RabbitMQ Manager** in the upper-left corner. The RabbitMQ Management UI opens in a new tab.
+2. Go to **Queues and Streams**. Under **Add a new queue**, enter `tb-uplink` as the **Name**, keep **Durability** set to **Durable**, and click **Add queue**.
+3. Check that `tb-uplink` appears in the list in the **running** state.
 </Steps>
 
 <ImageGallery images={[
   {
     src: '/src/assets/images/user-guide/integrations/rabbitmq/rabbitmq-cloudamqp-create-queue-1.png',
     alt: 'CloudAMQP instance Overview page with the RabbitMQ Manager button',
-    caption: 'Instance Overview — click RabbitMQ Manager to open the Management UI.',
+    caption: 'Click RabbitMQ Manager to open the management UI.',
   },
   {
     src: '/src/assets/images/user-guide/integrations/rabbitmq/rabbitmq-cloudamqp-create-queue-2.png',
-    alt: 'RabbitMQ Management UI, Queues and Streams page, with the Add a new queue form open, Name set to tb-uplink and Durability set to Durable',
-    caption: 'Queues and Streams — add queue tb-uplink with Durability set to Durable.',
+    alt: 'RabbitMQ management UI, Queues and Streams page, Add a new queue form with Name set to tb-uplink and Durability set to Durable',
+    caption: 'Add the durable queue tb-uplink.',
   },
   {
     src: '/src/assets/images/user-guide/integrations/rabbitmq/rabbitmq-cloudamqp-create-queue-3.png',
-    alt: 'RabbitMQ Management UI, Queues and Streams page, showing the tb-uplink queue in the running state',
-    caption: 'Queue tb-uplink created and running — ready to receive messages.',
+    alt: 'RabbitMQ management UI, Queues and Streams page, with the tb-uplink queue in the running state',
+    caption: 'The tb-uplink queue is running.',
   },
 ]} />
 
-### Required Connection Details
+The integration also declares its queues when it starts, so it can create a missing queue itself. Create the queue in advance when producers publish before the integration connects: RabbitMQ drops messages routed to a queue that does not exist.
 
-Collect the values below before creating the ThingsBoard integration.
+## Set Up RabbitMQ Integration
 
-For the CloudAMQP setup used in this guide:
-
-| Field | Value for this setup | Description |
-|-------|----------------------|-------------|
-| **Host** | `hawk.rmq.cloudamqp.com` — the CloudAMQP **Cluster** value (General section) | RabbitMQ broker hostname (the DNS load-balanced cluster name, not an individual node) |
-| **Port** | `5672` (`5671` for AMQP over TLS) | AMQP broker port |
-| **Queue** | `tb-uplink` | queue ThingsBoard consumes |
-| **Username** | `llbsoyas` — the CloudAMQP **User & Vhost** value (AMQP details section) | RabbitMQ username |
-| **Password** | the CloudAMQP **Password** value — click the eye icon to reveal it | RabbitMQ user password |
-| **Virtual host** | `llbsoyas` — same value as **User & Vhost** | RabbitMQ virtual host |
-| **Connection timeout** | `60000` | connection timeout in milliseconds |
-| **Handshake timeout** | `10000` | AMQP handshake timeout in milliseconds |
-| **Poll interval** | `5000` | queue poll interval in milliseconds |
-
-For CloudAMQP, the **User & Vhost** field represents both the default username and its virtual host.
-
-<Aside type="note">
-  The connection values should be copied from the CloudAMQP instance rather than hard-coded from the examples in this guide. Hostnames, usernames, virtual hosts, and credentials are unique to each instance.
-</Aside>
-
-<Aside type="tip" title="Host: use Cluster, not Hosts">
-  The CloudAMQP Overview shows two hostnames under *General*: **Cluster** (`hawk.rmq.cloudamqp.com`, marked *DNS load balanced*) and **Hosts** (`hawk-01.rmq.cloudamqp.com`, an individual node in a specific availability zone). Use the **Cluster** value for the integration's **Host** — it is the single connection endpoint that CloudAMQP puts in the AMQP URL, and it fails over across nodes over DNS, so a node being replaced or restarted does not break the connection. On a single-node **Little Lemur** instance both names currently resolve to the same node, so either appears to work — but the **Hosts** name pins you to one node, loses failover on multi-node plans, and can break TLS hostname verification. Always use the **Cluster** value.
-</Aside>
-
-### Authentication and TLS
-
-RabbitMQ connections are scoped to a **virtual host**. The authenticated user must have permission to access the virtual host and the resources required by the integration.
-
-CloudAMQP provides dedicated credentials for the instance, so use the **User & Vhost** and **Password** values from its Overview page.
-
-For self-hosted RabbitMQ installations, do not use the default `guest` account for remote integration access. RabbitMQ restricts `guest` to loopback connections by default.
-
-For connections over an untrusted network, use AMQP over TLS.
-
-The conventional RabbitMQ ports are:
-
-| Port | Protocol |
-|------|----------|
-| `5672` | AMQP without TLS |
-| `5671` | AMQP over TLS |
-
-For the CloudAMQP setup in this guide, use the port specified by the provider for the AMQP endpoint.
-
-## Set Up the RabbitMQ Integration
-
-To set up the **RabbitMQ** integration, first create an uplink data converter to process incoming messages, then create and configure the integration.
+Create the uplink converter, assign it to a new RabbitMQ integration, and publish a test message.
 
 ### Create the Uplink Data Converter
 
-The uplink converter receives each consumed RabbitMQ message, decodes the message body, and returns a structured object that ThingsBoard uses to create or update a device and store its telemetry and attributes.
-For the full decoder function reference — all input parameters and output fields — see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">Uplink Data Converter</DocLink>.
-
-RabbitMQ uses a **generic** uplink converter. These converters decode a JSON message received from a RabbitMQ queue and transform it into the ThingsBoard integration data format.
+The uplink converter reads the message body and maps it to ThingsBoard entities and data. RabbitMQ Integration uses the **Generic** converter: the decoder is a TBEL or JavaScript script. For converter types and the full decoder reference, see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#converter-types" target="_blank">Uplink data converter</DocLink>.
 
 <Steps>
-  <ol start="1">
-    <li>Go to <strong>Integrations &#8702; Data converters</strong>.</li>
-    <li>Click <strong>+ Add data converter &#8702; Create new converter</strong>.</li>
-  </ol>
+1. Go to **Integrations &#8702; Data converters** and click **+ Add data converter &#8702; Create new converter**.
+2. **Converter type** — keep **Uplink**.
+3. **Integration type** — select **RabbitMQ**.
+4. **Name** — enter a name, for example `RabbitMQ Uplink Converter`.
+5. **Main decoding configuration** — the editor opens with the default decoder below. Keep it for JSON messages: it takes the device name and type from `deviceName` and `deviceType`, stores `serialNumber` as an attribute, and stores the other fields as telemetry. The timestamp comes from `ts` (Unix milliseconds) or `timestamp` (ISO 8601); without them, the decoder uses the server time. The editor opens in TBEL; use the **TBEL / JS** toggle to switch to JavaScript.
+   <Aside type="tip" title="TBEL">
+     Use <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL</DocLink> for converter scripts — it runs much faster than JavaScript inside ThingsBoard.
+   </Aside>
+   <Tabs>
+     <TabItem label="TBEL (Recommended)">
+       ```js maxLines=15 collapsible
+       // Decode an uplink message from a buffer
+       // payload - array of bytes
+       // metadata - key/value object
+
+       /** Decoder **/
+
+       // decode payload to JSON
+       var data = decodeToJson(payload);
+
+       // --- Device name and type ---
+       var deviceName = data.deviceName != null ? data.deviceName : 'Unknown Device';
+       var deviceType = data.deviceType != null ? data.deviceType : 'default';
+       // var customerName = 'Customer C';
+       // var groupName = 'thermostat devices';
+
+       // use assetName and assetType instead of deviceName and deviceType
+       // to automatically create assets instead of devices.
+       // var assetName = 'Asset A';
+       // var assetType = 'building';
+
+       // --- Timestamp parsing ---
+       var timestamp = -1;
+       if (data.ts != null) {
+           timestamp = data.ts;
+       } else if (data.timestamp != null) {
+           timestamp = new Date(data.timestamp).getTime();
+       }
+       if (timestamp == -1) {
+           timestamp = Date.now();
+       }
+
+       // --- Telemetry and attributes ---
+       var telemetry = {};
+
+       // Keys from the payload that should be stored as attributes instead of telemetry
+       var attributeKeyList = ["serialNumber"];
+
+       // Add the payload keys that match the attribute key list to attributes
+       var attributes = {};
+       for (var i = 0; i < attributeKeyList.size(); i++) {
+           var attributeKey = attributeKeyList[i];
+           if (data[attributeKey] != null) {
+               attributes[attributeKey] = data[attributeKey];
+           }
+       }
+
+       // Keys to exclude from telemetry (device info, attributes and non-telemetry fields)
+       var excludeFromTelemetryList = ["deviceName", "deviceType", "ts", "timestamp"];
+       excludeFromTelemetryList.addAll(attributeKeyList);
+
+       // Parse all remaining JSON fields as telemetry
+       telemetry.putAll(toFlatMap(data, excludeFromTelemetryList, true));
+
+       // Result object with device attributes/telemetry data
+       var result = {
+          deviceName: deviceName,
+          deviceType: deviceType,
+       // customerName: customerName,
+       // groupName: groupName,
+       // assetName: assetName,
+       // assetType: assetType,
+       };
+
+       // Add attributes to the result only if at least one matching key was found
+       if (attributes.size() > 0) {
+          result.put("attributes", attributes);
+       }
+
+       result.put("telemetry", {
+          ts: timestamp,
+          values: telemetry
+       });
+
+       /** Helper functions 'decodeToString', 'decodeToJson' and 'toFlatMap' are already built-in **/
+
+       return result;
+       ```
+     </TabItem>
+     <TabItem label="JavaScript">
+       ```js maxLines=15 collapsible
+       // Decode an uplink message from a buffer
+       // payload - array of bytes
+       // metadata - key/value object
+
+       /** Decoder **/
+
+       // decode payload to JSON
+       var data = decodeToJson(payload);
+
+       // --- Device name and type ---
+       var deviceName = data.deviceName != null ? data.deviceName : 'Unknown Device';
+       var deviceType = data.deviceType != null ? data.deviceType : 'default';
+       // var customerName = 'Customer C';
+       // var groupName = 'thermostat devices';
+
+       // use assetName and assetType instead of deviceName and deviceType
+       // to automatically create assets instead of devices.
+       // var assetName = 'Asset A';
+       // var assetType = 'building';
+
+       // --- Timestamp parsing ---
+       var timestamp = -1;
+       if (data.ts != null) {
+           timestamp = data.ts;
+       } else if (data.timestamp != null) {
+           timestamp = new Date(data.timestamp).getTime();
+       }
+       if (timestamp == -1) {
+           timestamp = Date.now();
+       }
+
+       // --- Telemetry and attributes ---
+       var telemetry = {};
+
+       // Keys from the payload that should be stored as attributes instead of telemetry
+       var attributeKeyList = ["serialNumber"];
+
+       // Add the payload keys that match the attribute key list to attributes
+       var attributes = {};
+       for (var i = 0; i < attributeKeyList.length; i++) {
+           var attributeKey = attributeKeyList[i];
+           if (data[attributeKey] != null) {
+               attributes[attributeKey] = data[attributeKey];
+           }
+       }
+
+       // Keys to exclude from telemetry (device info, attributes and non-telemetry fields)
+       var excludeFromTelemetryList = ["deviceName", "deviceType", "ts", "timestamp"].concat(attributeKeyList);
+
+       // Parse all remaining JSON fields as telemetry
+       toFlatMap(data, telemetry, excludeFromTelemetryList);
+
+       // Result object with device attributes/telemetry data
+       var result = {
+          deviceName: deviceName,
+          deviceType: deviceType,
+       // customerName: customerName,
+       // groupName: groupName,
+       // assetName: assetName,
+       // assetType: assetType,
+       };
+
+       // Add attributes to the result only if at least one matching key was found
+       if (Object.keys(attributes).length > 0) {
+          result.attributes = attributes;
+       }
+
+       result.telemetry = {
+          ts: timestamp,
+          values: telemetry
+       };
+
+       /** Helper functions **/
+
+       function decodeToString(payload) {
+          return String.fromCharCode.apply(String, payload);
+       }
+
+       function decodeToJson(payload) {
+          var str = decodeToString(payload);
+          return JSON.parse(str);
+       }
+
+       function toFlatMap(obj, result, excludeList, prefix) {
+           prefix = prefix || '';
+           for (var key in obj) {
+               if (excludeList.indexOf(key) !== -1) continue;
+               var value = obj[key];
+               var fullKey = prefix ? prefix + '.' + key : key;
+               if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                   toFlatMap(value, result, excludeList, fullKey);
+               } else {
+                   result[fullKey] = value;
+               }
+           }
+       }
+
+       return result;
+       ```
+     </TabItem>
+   </Tabs>
+
+   **To adapt:**
+   - **Device name in another field** — replace `data.deviceName`, for example with `data.id`.
+   - **Other attributes** — add keys to `attributeKeyList`, for example `"firmwareVersion"`.
+   - **Assets instead of devices** — uncomment `assetName` and `assetType`, and use them in the result instead of `deviceName` and `deviceType`.
+   - **Customer or group** — uncomment `customerName` or `groupName` and add it to the result.
+   - **Plain-text payload** — read it with `decodeToString(payload)` and parse the text instead of calling `decodeToJson`.
+6. Click **Test decoder function** and check the result (see **[Test the Decoder](#test-the-decoder)**).
+7. Click **Add**.
 </Steps>
 
-In the **Add data converter** dialog:
+<h4>Decoder Inputs</h4>
 
-<Steps>
-  <ol start="3">
-    <li><strong>Converter type</strong> — leave <strong>Uplink</strong> (selected by default).</li>
-    <li><strong>Integration type</strong> — in the search field, enter <code>RabbitMQ</code> and select <strong>RabbitMQ</strong> from the list.</li>
-    <li><strong>Name</strong> — enter a converter name, for example <code>RabbitMQ Uplink Converter</code>.</li>
-    <li><strong>Main decoding configuration</strong> — a code editor with the function signature <code>function decoder(payload, metadata) &#123;</code>. Paste the decoder function shown below. By default the editor opens in TBEL; use the <strong>TBEL / JS</strong> toggle (upper right) to switch languages.</li>
-    <li>Click <strong>Add</strong>.</li>
-  </ol>
-</Steps>
+The decoder signature is `function decoder(payload, metadata): object | object[]`.
 
-<Aside type="tip">
-  Use <DocLink product={props.product} path="user-guide/tbel">TBEL</DocLink> for converter scripts — it executes significantly faster than plain JavaScript inside ThingsBoard.
-</Aside>
+| Variable | Type | Content |
+|----------|------|---------|
+| `payload` | byte array | The message body. The integration reads it as UTF-8 text, so send JSON or text: binary data does not arrive intact. |
+| `metadata` | `{[key: string]: string}` | `integrationName` and the key–value pairs from the integration's **Metadata** field. Message headers, properties, and the routing key are not passed. |
 
-<Tabs>
-  <TabItem label="TBEL (Recommended)">
-    ```js maxLines=15 collapsible
-    // Decode an uplink message from a buffer
-    // payload - array of bytes
-    // metadata - key/value object
+Built-in helpers:
 
-    /** Decoder **/
+| Function | Result |
+|----------|--------|
+| `decodeToJson(payload)` | Parses the bytes as JSON and returns an object. |
+| `decodeToString(payload)` | Converts the bytes to a UTF-8 string. |
+| `toFlatMap(obj, excludeKeys, flatNested)` | TBEL only. Returns a flat key–value map of `obj`, skipping `excludeKeys`. With `flatNested` set to `true`, nested objects become dot-separated keys. The JavaScript template defines its own `toFlatMap(obj, result, excludeList)`, which writes into `result`. |
 
-    // decode payload to JSON
-    var data = decodeToJson(payload);
+For field renaming, nested values, and non-JSON payloads, see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#common-scripting-patterns" target="_blank">Common scripting patterns</DocLink>.
 
-    // --- Device name and type ---
-    var deviceName = data.deviceName != null ? data.deviceName : 'Unknown Device';
-    var deviceType = data.deviceType != null ? data.deviceType : 'default';
-    // var customerName = 'Customer C';
-    // var groupName = 'thermostat devices';
+<h4 id="test-the-decoder">Test the Decoder</h4>
 
-    // use assetName and assetType instead of deviceName and deviceType
-    // to automatically create assets instead of devices.
-    // var assetName = 'Asset A';
-    // var assetType = 'building';
-
-    // --- Timestamp parsing ---
-    var timestamp = -1;
-    if (data.ts != null) {
-      timestamp = data.ts;
-    } else if (data.timestamp != null) {
-      timestamp = new Date(data.timestamp).getTime();
-    }
-    if (timestamp == -1) {
-      timestamp = Date.now();
-    }
-
-    // --- Telemetry and attributes ---
-    var telemetry = {};
-    var attributes = {
-      model: 'Model A',
-      serialNumber: 'SN111',
-      integrationName: metadata['integrationName'],
-    };
-
-    // Keys to exclude from telemetry (already used or non-telemetry fields)
-    var excludeFromTelemetryList = ["deviceName", "deviceType", "ts", "timestamp"];
-
-    // Parse all remaining JSON fields as telemetry
-    telemetry.putAll(toFlatMap(data, excludeFromTelemetryList, true));
-
-    // Result object with device attributes/telemetry data
-    var result = {
-      deviceName: deviceName,
-      deviceType: deviceType,
-      // customerName: customerName,
-      // groupName: groupName,
-      // assetName: assetName,
-      // assetType: assetType,
-      attributes: attributes,
-      telemetry: {
-        ts: timestamp,
-        values: telemetry
-      }
-    };
-
-    /** Helper functions 'decodeToString', 'decodeToJson' and 'toFlatMap' are already built-in **/
-
-    return result;
-    ```
-  </TabItem>
-  <TabItem label="JavaScript">
-    ```js maxLines=15 collapsible
-    // Decode an uplink message from a buffer
-    // payload - array of bytes
-    // metadata - key/value object
-
-    /** Decoder **/
-
-    // decode payload to JSON
-    var data = decodeToJson(payload);
-
-    // --- Device name and type ---
-    var deviceName = data.deviceName != null ? data.deviceName : 'Unknown Device';
-    var deviceType = data.deviceType != null ? data.deviceType : 'default';
-    // var customerName = 'Customer C';
-    // var groupName = 'thermostat devices';
-
-    // use assetName and assetType instead of deviceName and deviceType
-    // to automatically create assets instead of devices.
-    // var assetName = 'Asset A';
-    // var assetType = 'building';
-
-    // --- Timestamp parsing ---
-    var timestamp = -1;
-    if (data.ts != null) {
-      timestamp = data.ts;
-    } else if (data.timestamp != null) {
-      timestamp = new Date(data.timestamp).getTime();
-    }
-    if (timestamp == -1) {
-      timestamp = Date.now();
-    }
-
-    // --- Telemetry and attributes ---
-    var telemetry = {};
-    var attributes = {
-      model: 'Model A',
-      serialNumber: 'SN111',
-      integrationName: metadata['integrationName'],
-    };
-
-    // Keys to exclude from telemetry (already used or non-telemetry fields)
-    var excludeFromTelemetryList = ["deviceName", "deviceType", "ts", "timestamp"];
-
-    // Parse all remaining JSON fields as telemetry
-    toFlatMap(data, telemetry, excludeFromTelemetryList);
-
-    // Result object with device attributes/telemetry data
-    var result = {
-      deviceName: deviceName,
-      deviceType: deviceType,
-      // customerName: customerName,
-      // groupName: groupName,
-      // assetName: assetName,
-      // assetType: assetType,
-      attributes: attributes,
-      telemetry: {
-        ts: timestamp,
-        values: telemetry
-      }
-    };
-
-    /** Helper functions **/
-
-    function decodeToString(payload) {
-      return String.fromCharCode.apply(String, payload);
-    }
-
-    function decodeToJson(payload) {
-      var str = decodeToString(payload);
-      return JSON.parse(str);
-    }
-
-    function toFlatMap(obj, result, excludeList, prefix) {
-      prefix = prefix || '';
-      for (var key in obj) {
-        if (excludeList.indexOf(key) !== -1) continue;
-        var value = obj[key];
-        var fullKey = prefix ? prefix + '.' + key : key;
-        if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-          toFlatMap(value, result, excludeList, fullKey);
-        } else {
-          result[fullKey] = value;
-        }
-      }
-    }
-
-    return result;
-    ```
-  </TabItem>
-</Tabs>
-
-<h4>Converter Input</h4>
-
-ThingsBoard passes two variables to the decoder function:
-
-| Variable | Type | Description |
-|----------|------|-------------|
-| `payload` | byte array | The raw bytes of the AMQP **message body**, encoded as UTF-8. |
-| `metadata` | object | Key-value map containing `integrationName` and any pairs configured in the integration's **Metadata** settings. Open the uplink converter's **Events** tab and inspect a real **Metadata** panel to confirm exactly which fields your setup receives. |
-
-<Aside type="note" title="JSON payloads">
-  If the message body is a JSON document, use the built-in `decodeToJson(payload)` helper to parse it into an object before mapping fields.
-</Aside>
-
-<h4>JSON Payload Example</h4>
-
-RabbitMQ does not impose an application-level schema on a message body. The body is stored as bytes and may contain JSON, plain text, binary data, or any other format selected by the producer. In this example, a device or intermediate service publishes a JSON telemetry message to a queue. Because field names, message structure, naming conventions, nesting, and serialization formats may vary between producers, update the decoder function to match the exact message format used by your system.
-
-In this example, the device `Sensor A1` publishes the following JSON message to the `tb-uplink` queue:
+Click **Test decoder function** below the editor. The dialog opens with **Payload content type** set to **JSON** and this sample payload:
 
 ```json
 {
-  "deviceName": "Sensor A1",
+  "deviceName": "Thermometer",
   "deviceType": "thermostat",
-  "temperature": 23.5,
-  "humidity": 60
+  "serialNumber": "SN-12345",
+  "temperature": 25.5
 }
 ```
 
-The converter returns:
+Click **Test**. The **Output** panel shows:
 
 ```json
 {
-  "deviceName": "Sensor A1",
+  "deviceName": "Thermometer",
   "deviceType": "thermostat",
+  "attributes": {
+    "serialNumber": "SN-12345"
+  },
   "telemetry": {
-    "ts": 1638876127000,
+    "ts": 1791807972006,
     "values": {
-      "temperature": 23.5,
-      "humidity": 60
+      "temperature": 25.5
     }
   }
 }
 ```
 
-In short:
+`ts` is the current time, because the payload has neither `ts` nor `timestamp`. Check that `deviceName` is set and `telemetry.values` holds the expected keys. If the output is empty or shows an error, fix the decoder and test again.
 
-* `deviceName`: the value of the `deviceName` field (falls back to `Unknown Device` if absent);
-* `deviceType`: the value of the `deviceType` field (falls back to `default`);
-* `attributes`: static device attributes plus the `integrationName` injected by the integration;
-* `telemetry`: every remaining field mapped as a timestamped telemetry value. The timestamp comes from a `ts` (Unix ms) or `timestamp` (ISO 8601) field if present, otherwise the server receive time is used.
-
-<Aside type="note">
-  All JSON fields not listed in `excludeFromTelemetryList` are mapped to telemetry automatically. Add field names to the exclude list to keep them out of telemetry.
-</Aside>
-
-### Create the RabbitMQ Integration
+### Create the Integration
 
 <Steps>
-  <ol start="1">
-    <li>Go to <strong>Integrations &#8702; Integrations</strong> and click <strong>+ Add integration</strong>.</li>
-    <li>
-      <span><strong>Basic settings:</strong></span>
-      <ul>
-        <li>Set <strong>Integration type</strong> to <strong>RabbitMQ</strong>.</li>
-        <li>Enter a <strong>Name</strong>, or keep the default <code>RabbitMQ integration</code>.</li>
-        <li>Leave <strong>Enable integration</strong> and <strong>Allow create devices or assets</strong> on so the device can be created automatically on the first valid message.</li>
-        <li>Click <strong>Next</strong>.</li>
-      </ul>
-    </li>
-    <li>
-      <span><strong>Uplink data converter:</strong></span>
-      <ul>
-        <li>Click <strong>Select existing</strong> and choose the <a href="#create-the-uplink-data-converter"><strong>RabbitMQ Uplink Converter</strong></a> created in the previous step.</li>
-        <li>Alternatively, click <strong>Create new</strong> to define the decoder inline.</li>
-        <li>Click <strong>Next</strong>.</li>
-      </ul>
-    </li>
-    <li>
-      <span><strong>Downlink data converter:</strong></span>
-      <ul>
-        <li>Click <strong>Skip</strong> for now. Downlink can be configured later in this guide.</li>
-      </ul>
-    </li>
-    <li>
-      <span><strong>Connection:</strong></span>
-      <ul>
-        <li><strong>Host</strong> — hostname of your RabbitMQ broker. On CloudAMQP use the <strong>Cluster</strong> value (e.g. <code>hawk.rmq.cloudamqp.com</code>), not an individual node from <strong>Hosts</strong>.</li>
-        <li><strong>Port</strong> — <code>5672</code> for plain AMQP, <code>5671</code> for AMQP over TLS.</li>
-        <li>
-          <span>In the <strong>Queues</strong> section, set:</span>
-          <ul>
-            <li><strong>Name</strong> — the queue to consume from (e.g. <code>tb-uplink</code>). The integration consumes from this single queue.</li>
-            <li><strong>Durable</strong> / <strong>Exclusive</strong> / <strong>Auto delete</strong> — match how the queue was declared. For the <code>tb-uplink</code> queue created above, set <strong>Durable</strong> on, <strong>Exclusive</strong> off, and <strong>Auto delete</strong> off.</li>
-          </ul>
-        </li>
-        <li>Expand <strong>Advanced settings</strong> and fill in <strong>Username</strong>, <strong>Password</strong>, and <strong>Virtual host</strong> — see <a href="#required-connection-details"><strong>Required Connection Details</strong></a> for the values to use.</li>
-      </ul>
-      <span>Read more about each parameter in <a href="#connection-settings"><strong>connection settings</strong></a>.</span>
-    </li>
-    <li><strong>Check connection (optional):</strong> click <strong>Check connection</strong> to move to the final wizard step and verify the broker is reachable — a green <strong>Connected</strong> status confirms success.</li>
-    <li>Click <strong>Add</strong>.</li>
-  </ol>
+1. Go to **Integrations &#8702; Integrations** and click **+ Add integration**.
+2. **Basic settings:**
+   - **Integration type** — select **RabbitMQ**.
+   - **Name** — keep the default `RabbitMQ integration` or enter your own.
+   - **Enable integration** and **Allow create devices or assets** — keep both on, so the device is created on its first uplink.
+   - Click **Next**.
+3. **Uplink data converter:**
+   - Click **Select existing** and choose `RabbitMQ Uplink Converter`.
+   - Alternatively, click **Create new** to write a decoder here.
+   - Click **Next**.
+4. **Downlink data converter:**
+   - Click **Skip**. Add a downlink converter later if you need to **[publish data to RabbitMQ](#configure-downlink)**.
+5. **Connection:**
+   - **Host** — enter the CloudAMQP **Cluster** hostname, for example `hawk.rmq.cloudamqp.com`.
+   - **Port** — keep `5672`.
+   - **Queue** — set **Name** to `tb-uplink`. Turn **Durable** on, and turn **Exclusive** and **Auto delete** off, to match the queue you created.
+   - **Advanced settings** — expand it and enter the **Username**, **Password**, and **Virtual host** from the instance **Overview** page (see **[Create a CloudAMQP Instance](#create-a-cloudamqp-instance)**).
+   - Leave the other parameters at their defaults. See **[Connection Settings](#connection-settings)** for details.
+6. Optionally, click **Check connection**. ThingsBoard connects to the broker and shows the result. The check covers the host, port, credentials, and virtual host, not the queue.
+7. Click **Add**.
 </Steps>
 
+<Aside type="caution" title="Queue flags">
+  The integration declares each queue with the **Durable**, **Exclusive**, and **Auto delete** flags when it starts. The defaults (**Durable** off, **Exclusive** and **Auto delete** on) create a temporary queue that RabbitMQ deletes when the integration disconnects. If the queue already exists with other flags, the integration does not start and reports `Failed to bind queue: [tb-uplink]`.
+</Aside>
 
 #### Connection Settings
 
-| Parameter | Description |
-|-----------|-------------|
-| **Host** | Hostname or IP address of the RabbitMQ broker, e.g. `hawk.rmq.cloudamqp.com`. On CloudAMQP, use the **Cluster** value (the DNS load-balanced hostname from the AMQP URL), not an individual node from **Hosts**. |
-| **Port** | AMQP port. Default: `5672`. Use `5671` for AMQP over TLS. |
-| **Queue &#8702; Name** | Name of the queue ThingsBoard consumes messages from (the **Name** field in the **Queue** section). The queue must already exist on the broker. The `Durable` / `Exclusive` / `Auto delete` flags below must match how it was declared — a mismatch causes a channel-level error and nothing is consumed. |
-| **Queue &#8702; Durable** | The queue survives a broker restart. Combine with persistent messages so data is not lost on restart. Set **on** for a persistent uplink queue such as `tb-uplink`. |
-| **Queue &#8702; Exclusive** | The queue is restricted to a single connection and is deleted when that connection closes. Set **off** for a shared, pre-declared queue — otherwise the declaration conflicts and consumption fails. |
-| **Queue &#8702; Auto delete** | The queue is deleted automatically once its last consumer disconnects. Set **off** for a persistent uplink queue that must retain messages while no consumer is attached. |
-| **Username** | RabbitMQ user for the AMQP connection. The default `guest`/`guest` works only from `localhost` — use a dedicated user for remote access. |
-| **Password** | Password for the above user. |
-| **Downlink topic** | Routing key used when publishing downlink messages to the exchange. Required when a downlink converter is configured. |
-| **Exchange name** | Exchange ThingsBoard publishes downlink messages to. Leave empty to use the RabbitMQ default exchange (`amq.default`), which routes to the queue whose name matches the routing key. |
-| **Virtual host** | RabbitMQ virtual host. Default: `/`. On CloudAMQP this equals the instance username. |
-| **Connection timeout, ms** | Maximum time to wait for an AMQP connection to be established. Default: `60000`. |
-| **Handshake timeout, ms** | Maximum time for the AMQP protocol handshake after the TCP connection. Default: `10000`. |
-| **Poll interval, ms** | How often the integration polls the queue for new messages. Default: `5000`. |
-| **Metadata** | Additional key-value pairs injected into every uplink message as `integrationMetadata` in the converter script. |
-| **Execute Remotely** | When enabled, ThingsBoard generates an **Integration key** and **Integration secret**, letting the integration run as a separate process outside the ThingsBoard cluster — useful when the broker is only reachable from a restricted network. See <DocLink product={props.product} path="user-guide/integrations/remote">Remote Integration</DocLink>. |
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| **Host** | — | Broker hostname or IP address. ThingsBoard Cloud accepts only a public address. |
+| **Port** | `5672` | Plain AMQP port. The integration does not use TLS. |
+| **Queue &#8702; Name** | `my-queue` | Queue to read from. To read several queues, separate their names with commas and no spaces, for example `tb-uplink,tb-status`. |
+| **Queue &#8702; Durable** | Off | The queue survives a broker restart. |
+| **Queue &#8702; Exclusive** | On | The queue belongs to the integration's connection, and RabbitMQ deletes it when the connection closes. |
+| **Queue &#8702; Auto delete** | On | RabbitMQ deletes the queue after its last consumer unsubscribes. |
+| **Execute remotely** | Off | Runs the integration as a separate process outside the ThingsBoard cluster, for example next to a broker in a private network. ThingsBoard generates an **Integration key** and **Integration secret** for it. See <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink>. |
+
+**Advanced settings**
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| **Username** | — | Broker user. If empty, the client uses `guest`, which RabbitMQ accepts only from `localhost`. |
+| **Password** | — | Password of the broker user. |
+| **Downlink topic** | — | Routing key of downlink messages. See **[Configure Downlink](#configure-downlink)**. |
+| **Exchange name** | — | Exchange that receives downlink messages. If empty, ThingsBoard uses the default exchange, which routes each message to the queue named by the routing key. |
+| **Virtual host** | — | Virtual host of the queue. If empty, the broker uses `/`. |
+| **Connection timeout, ms** | `60000` | Time to establish the TCP connection. |
+| **Handshake timeout, ms** | `10000` | Time to complete the AMQP handshake. |
+| **Poll interval, ms** | `5000` | Pause before the next poll after the integration finds its queues empty. While messages are available, it reads them without a pause. Values below `200` count as `200`. |
+| **Description** | — | Free-text description. |
+| **Metadata** | — | Key–value pairs added to the `metadata` of every message from this integration. |
+
+After a network failure, the integration reconnects to the broker automatically.
 
 ## Test Uplink
 
-Publish a test message to the queue the integration consumes from, then confirm it lands in ThingsBoard.
+Publish a test message to the queue, then confirm that ThingsBoard decoded it and created the device.
 
 <Aside type="note">
-  Enable **Debug mode** on the integration during setup to inspect all incoming messages and converter output. Disable it in production — debug events are stored in the database and can quickly consume disk space.
+  Turn on **Debug** mode with **All messages** for the integration and the uplink converter before you publish the message. Without it, the **Events** tabs stay empty.
 </Aside>
 
-### Produce a Test Record
-
-Publish the test message to the `tb-uplink` queue using any of the following methods.
+### Send a Test Uplink
 
 <Tabs>
 <TabItem label="Management UI">
+
 <Steps>
-  1. Open the **Management UI**, go to **Queues and Streams**, and click the **tb-uplink** queue.
-  2. In the queue's **Publish message** panel, paste the JSON payload into the **Payload** field. Leave **Delivery mode**, **Headers**, **Properties**, and **Payload encoding** at their defaults.
-  3. Click **Publish message**. A **Message published.** confirmation appears above the form.
+1. In the RabbitMQ management UI, go to **Queues and Streams** and click the `tb-uplink` queue.
+2. Expand **Publish message** and paste the payload into **Payload**. Leave the other fields at their defaults.
+
+   ```json
+   {
+     "deviceName": "Thermometer-01",
+     "deviceType": "thermostat",
+     "temperature": 23.5,
+     "humidity": 60
+   }
+   ```
+
+3. Click **Publish message**. The page shows **Message published.**
 </Steps>
 
-```json
-{
-  "deviceName": "Sensor A1",
-  "deviceType": "thermostat",
-  "temperature": 23.5,
-  "humidity": 60
-}
-```
-
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/rabbitmq/send-test-uplink-1.png', alt: 'RabbitMQ Management UI — Queues and Streams page with the tb-uplink queue highlighted', caption: 'Queues and Streams — click the tb-uplink queue.' },
-  { src: '/src/assets/images/user-guide/integrations/rabbitmq/send-test-uplink-2.png', alt: 'RabbitMQ Management UI — queue tb-uplink detail page with the Publish message panel expanded and the JSON payload entered', caption: 'Publish message — paste the JSON payload and click Publish message.' },
-  { src: '/src/assets/images/user-guide/integrations/rabbitmq/send-test-uplink-3.png', alt: 'RabbitMQ Management UI — queue tb-uplink page with a "Message published." success banner', caption: 'A "Message published." banner confirms the message was delivered to the queue.' },
-]} />  
-  
-</TabItem>
-<TabItem label="CloudAMQP HTTP API">
+  { src: '/src/assets/images/user-guide/integrations/rabbitmq/send-test-uplink-queues.png', alt: 'RabbitMQ management UI — Queues and Streams page with the tb-uplink queue highlighted', caption: 'Click the tb-uplink queue.' },
+  { src: '/src/assets/images/user-guide/integrations/rabbitmq/send-test-uplink-payload.png', alt: 'RabbitMQ management UI — tb-uplink queue page with the Publish message panel expanded and the Thermometer-01 JSON payload entered', caption: 'Paste the payload and click Publish message.' },
+  { src: '/src/assets/images/user-guide/integrations/rabbitmq/send-test-uplink-published.png', alt: 'RabbitMQ management UI — tb-uplink queue page with a "Message published." banner', caption: 'The broker confirms that the message was published.' },
+]} />
 
-Use the RabbitMQ Management HTTP API exposed by CloudAMQP on port 443. Replace `HOST`, `USER`, `PASSWORD`, and `VHOST` with the values from your instance's Overview page:
+</TabItem>
+<TabItem label="HTTP API">
+
+CloudAMQP exposes the RabbitMQ management HTTP API on port `443`. Replace `USER`, `PASSWORD`, `HOST`, and `VHOST` with the values from the instance **Overview** page:
 
 ```bash
 curl --user USER:PASSWORD \
   --json '{
     "properties": {"content_type": "application/json"},
     "routing_key": "tb-uplink",
-    "payload": "{\"deviceName\":\"Sensor A1\",\"deviceType\":\"thermostat\",\"temperature\":23.5,\"humidity\":60}",
+    "payload": "{\"deviceName\":\"Thermometer-01\",\"deviceType\":\"thermostat\",\"temperature\":23.5,\"humidity\":60}",
     "payload_encoding": "string"
   }' \
   "https://HOST/api/exchanges/VHOST/amq.default/publish"
 ```
-</TabItem>
-<TabItem label="CLI (rabbitmqadmin)">
-```bash
-rabbitmqadmin publish \
-  exchange=amq.direct \
-  routing_key=tb-uplink \
-  payload='{"deviceName":"Sensor A1","deviceType":"thermostat","temperature":23.5,"humidity":60}' \
-  properties='{"content_type":"application/json"}'
-```
+
+The response `{"routed":true}` confirms that the message reached the queue.
+
 </TabItem>
 </Tabs>
 
-### Verify Integration Events
+### Verify the Result
 
-Go to **Integrations &#8702; Integrations**, open the **RabbitMQ integration**, and check the **Events** tab. Click **…** in the **Message** column to inspect the raw payload consumed from the queue.
-
-
-### Verify Converter Events
-
-Go to **Integrations &#8702; Data converters**, click the **RabbitMQ Uplink Converter**, and open its **Events** tab. Click **…** in the respective column to inspect each field:
-- **In** — the raw payload passed to the converter.
-- **Out** — the decoded result: `deviceName`, `deviceType`, and `telemetry` (temperature, humidity). If the decoder script also sets `attributes` (e.g. model, serialNumber), they appear here too.
-- **Metadata** — `integrationName` injected by the integration.
-
-
-### Verify Device Provisioning
-
-Go to **Devices & assets &#8702; Devices**. The device **Sensor A1** is automatically provisioned on the first message. Open it and check the **Latest telemetry** tab — `temperature` and `humidity` should reflect the published values.
-
+- **Integration events** — go to **Integrations &#8702; Integrations**, open the integration, and click the **Events** tab. The uplink appears with status **OK**. Click <code>&#8901;&#8901;&#8901;</code> in the **Message** column to see the message body.
+- **Converter events** — open `RabbitMQ Uplink Converter` in **Integrations &#8702; Data converters** and click the **Events** tab. **In** shows the message body, **Out** shows the decoded result, and **Metadata** shows the integration name.
+- **Device** — go to **Devices & assets &#8702; Devices**. The integration has created **Thermometer-01** with the `thermostat` profile. Open it and check `temperature` and `humidity` on the **Latest telemetry** tab.
 
 ## Configure Downlink
 
-To publish messages from ThingsBoard back to RabbitMQ, the integration uses its **downlink converter** together with an <DocLink product={props.product} path="reference/rule-engine/nodes/action/integration-downlink" target="_blank">Integration Downlink</DocLink> node in the Rule Engine. The node forwards a message to the RabbitMQ Integration, the downlink converter encodes it, and the integration publishes it to the configured exchange with the **Downlink topic** as the routing key.
+ThingsBoard publishes a downlink when the Rule Engine routes a message to the integration — for example, after a shared attribute update. The integration publishes the encoder's `data` to the **Exchange name** exchange with the **Downlink topic** as the routing key. With an empty **Exchange name**, the default exchange delivers the message to the queue whose name equals the **Downlink topic**.
 
-The steps below test downlink on the CloudAMQP setup: create a separate downlink queue, point the integration at it, wire an Integration Downlink node into the Root Rule Chain, then trigger it by updating a **shared attribute** on device `Sensor A1` and confirm the message with the Management UI.
+The message carries no properties: no headers, no content type, and transient delivery. The integration ignores the encoder's `metadata`.
 
-<Aside type="caution" title="Avoid message loops">
-  Do not point downlink at the same queue the integration consumes from — each consumed message could trigger another publish to the same queue, causing runaway processing. Use a **separate downlink queue**.
+The downlink converter turns a <DocLink product={props.product} path="user-guide/rule-engine" target="_blank">Rule Engine</DocLink> message into the published payload. For the full encoder reference, see <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink data converter</DocLink>.
+
+<Aside type="caution">
+  Publish downlinks to a separate queue. If the **Downlink topic** routes to a queue that the integration reads, it consumes its own downlinks as uplinks.
 </Aside>
 
 ### Create the Downlink Queue
 
-In the CloudAMQP Management UI, create a dedicated queue for outgoing messages:
-
 <Steps>
-  1. Go to **Queues and Streams** and expand **Add a new queue**.
-  2. Keep **Type** as **Default for virtual host** and **Durability** as **Durable**.
-  3. Enter `tb-downlink` as the **Name** and click **Add queue**.
+1. On the CloudAMQP instance **Overview** page, click **RabbitMQ Manager** in the upper-left corner. The RabbitMQ Management UI opens in a new tab.
+2. Go to **Queues and Streams** and expand **Add a new queue**.
+3. Enter `tb-downlink` as the **Name**, keep **Durability** set to **Durable**, and click **Add queue**.
 </Steps>
-
-<Aside type="note">
-  When **Exchange name** is left empty in the integration, ThingsBoard uses the RabbitMQ default exchange (`amq.default`). The default exchange routes messages directly to the queue whose name matches the routing key — so the queue name must equal the **Downlink topic** value.
-</Aside>
 
 <ImageGallery images={[
   {
+    src: '/src/assets/images/user-guide/integrations/rabbitmq/rabbitmq-downlink-open-manager.png',
+    alt: 'CloudAMQP instance Overview page with the RabbitMQ Manager button in the upper-left corner',
+    caption: 'Click RabbitMQ Manager to open the RabbitMQ Management UI.',
+  },
+  {
     src: '/src/assets/images/user-guide/integrations/rabbitmq/rabbitmq-downlink-create-queue-1.png',
-    alt: 'RabbitMQ Management UI, Queues and Streams page, Add a new queue form with Virtual host llbsoyas, Name tb-downlink, Durability Durable',
-    caption: 'Add a new queue — enter tb-downlink as the Name, keep Durability set to Durable, and click Add queue.'
+    alt: 'RabbitMQ management UI, Add a new queue form with Name set to tb-downlink and Durability set to Durable',
+    caption: 'Add the durable queue tb-downlink.',
   },
   {
     src: '/src/assets/images/user-guide/integrations/rabbitmq/rabbitmq-downlink-create-queue-2.png',
-    alt: 'RabbitMQ Management UI, Queues and Streams page, both tb-downlink and tb-uplink queues listed in the running state',
-    caption: 'Both queues are now listed and running: tb-uplink for incoming messages and tb-downlink for outgoing commands.'
+    alt: 'RabbitMQ management UI, Queues and Streams page, with the tb-downlink and tb-uplink queues in the running state',
+    caption: 'tb-uplink receives uplinks, and tb-downlink receives downlinks.',
   },
 ]} />
 
-### Create the Downlink Data Converter
+### Create and Assign the Downlink Converter
 
-The downlink converter encodes Rule Engine messages into AMQP payloads. Skip this step if the integration doesn't need to publish downlink messages.
-
-The output object must include:
-- `contentType` — `TEXT`, `JSON`, or `BINARY`
-- `data` — the message body to publish
-- `metadata` — optional AMQP message headers as key-value pairs
+Add a downlink converter to the integration and set the **Downlink topic**, the queue that receives downlinks.
 
 <Steps>
-  1. Go to **Integrations &#8702; Data converters**.
-  2. Click **+ Add data converter &#8702; Create new converter**.
-  3. Set **Converter type** to **Downlink**.
-  4. Select **integration type** from the dropdown — **RabbitMQ**.
-  5. Enter a converter **name**: `RabbitMQ Downlink Converter`.
-  6. Paste the encoder function from the tab below.
-  7. Click **Add**.
+1. Open the integration in **Integrations &#8702; Integrations** and click **Toggle edit mode** (pencil icon).
+2. In the **Downlink data converter** field, click **Create new**. The **Downlink** converter type and **RabbitMQ** integration type are preselected.
+3. Enter a name, for example `RabbitMQ Downlink Converter`.
+4. In **Main encoding configuration**, replace the default encoder with the encoder below.
+5. To record downlink events, click the debug icon next to the name, select **All messages**, and click **Apply**.
+6. Click **Add**.
+7. **Advanced settings** — expand it and set the downlink queue:
+   - **Downlink topic** — enter `tb-downlink`. The field is empty by default, and with an empty value RabbitMQ drops every downlink without an error.
+   - **Exchange name** — leave empty.
+8. Click **Apply changes**.
 </Steps>
 
-<Tabs>
-  <TabItem label="TBEL (Recommended)">
-    ```js maxLines=10 collapsible
-    var result = {
-      contentType: 'JSON',
-      data: JSON.stringify(msg),
-      metadata: {
-        deviceName: metadata.deviceName
-      }
-    };
+Encoder used in this guide (TBEL and JavaScript):
 
-    return result;
-    ```
-  </TabItem>
-  <TabItem label="JavaScript">
-    ```js maxLines=10 collapsible
-    var result = {
-      contentType: 'JSON',
-      data: JSON.stringify(msg),
-      metadata: {
-        deviceName: metadata.deviceName
-      }
-    };
+```js
+/** Encoder **/
 
-    return result;
-    ```
-  </TabItem>
-</Tabs>
+// Publish the message data as is.
+var result = {
+    // Payload content type: JSON, TEXT, or BINARY (Base64).
+    contentType: "JSON",
+    data: JSON.stringify(msg),
+    // The integration does not use the downlink metadata.
+    metadata: {}
+};
 
-**To adapt this converter:**
+return result;
+```
 
-- **Specific fields only** — replace `JSON.stringify(msg)` with a selective object to send only the relevant command fields.
-- **Binary payload** — set `contentType` to `BINARY` and encode `data` accordingly.
-
-### Attach the Downlink Converter
-
-<Steps>
-  1. Open the **RabbitMQ integration** and click the edit icon (pencil). 
-  2. Attach **RabbitMQ Downlink Converter** as the downlink data converter.
-  3. Expand **Advanced settings** and set:
-      - **Downlink topic** — `tb-downlink` (used as the routing key when publishing downlink messages).
-      - **Exchange name** — leave empty to use the default exchange.
-  4. Click **Apply changes**.
-</Steps>
-
+**To adapt:**
+- **Selected fields** — build `data` from the fields you need, for example `JSON.stringify({ interval: msg.temperatureUploadFrequency })`.
+- **Binary payload** — set `contentType` to `BINARY` and return the bytes in `data` as a Base64 string.
+- **Other message types** — branch on `msgType`, for example `RPC_CALL_FROM_SERVER_TO_DEVICE`. See <DocLink product={props.product} path="reference/rule-engine/message-types" target="_blank">Rule Engine message types</DocLink>.
 
 ### Configure the Root Rule Chain
 
-Add and Configure the <DocLink product={props.product} path="reference/rule-engine/nodes/action/integration-downlink" target="_blank">Integration Downlink</DocLink> node:
-
 <Steps>
-  <ol>
-    <li>Go to <strong>Data processing &#8702; Rule chains</strong> and open the <strong>Root Rule Chain</strong> (the chain that processes your device's messages).</li>
-    <li>
-      In the node palette on the left, search for <strong>downlink</strong>, then drag the <strong>integration downlink</strong> node (under <strong>Action</strong>) onto the canvas. In the <strong>Add rule node</strong> dialog, set:
-      <table>
-        <thead>
-        <tr><th>Field</th><th>Value for this setup</th></tr>
-        </thead>
-        <tbody>
-        <tr><td><strong>Name</strong></td><td><code>To RabbitMQ Integration</code></td></tr>
-        <tr><td><strong>Integration</strong></td><td><code>RabbitMQ integration</code></td></tr>
-        </tbody>
-      </table>
-    </li>
-    <li>Click <strong>Add</strong>.</li>
-    <li>Connect the <strong>Message Type Switch</strong> node to the new node via the <strong>Attributes Updated</strong> relation.</li>
-    <li>Click <strong>Apply changes</strong>.</li>
-  </ol>
+1. Go to **Data processing &#8702; Rule chains** and open the **Root Rule Chain**.
+2. From the **Action** section, drag an **integration downlink** node onto the canvas.
+3. Enter a **Name** (for example, `Downlink to RabbitMQ`), select your RabbitMQ integration, and click **Add**.
+4. Connect the **message type switch** node to the **integration downlink** node with the **Attributes Updated** relation.
+5. Click **Apply changes**.
 </Steps>
 
-
-### Trigger a Downlink
-
-Trigger a downlink by adding a shared attribute to device **Sensor A1**:
+### Test Downlink
 
 <Steps>
-1. Go to **Devices & assets &#8702; Devices** and open **Sensor A1**.
-2. Navigate to the **Attributes** tab, switch to **Shared attributes**, and click **+**.
-3. Enter key `powerState` and value `on`, then click **Add**.
+1. Go to **Devices & assets &#8702; Devices**, select **Thermometer-01**, and open the **Attributes** tab.
+2. Select **Shared attributes** and click **+**.
+3. Set **Key** to `temperatureUploadFrequency`, **Type** to **Integer**, **Value** to `60`, and click **Add**. ThingsBoard publishes the downlink.
 </Steps>
 
+### Verify the Downlink
 
-Adding the attribute fires the rule chain, which forwards the message through the **Integration Downlink** node to the RabbitMQ integration. The downlink converter encodes the message and ThingsBoard publishes it to the `tb-downlink` queue via the default exchange.
-
-### Verify RabbitMQ Delivery
-
-In the Management UI at `https://hawk.rmq.cloudamqp.com/`, go to **Queues and Streams** and open the **tb-downlink** queue. Scroll to **Get messages**, set **Ack mode** to **Nack message requeue true** (peek without consuming), and click **Get Message(s)**.
-
-The result shows:
-- **Exchange** — `(AMQP default)`
-- **Routing Key** — `tb-downlink`
-- **Payload** — the downlink converter output, e.g. `{"powerState":"on"}`
+- **RabbitMQ** — in the management UI, open the `tb-downlink` queue and expand **Get messages**. Set **Ack Mode** to **Nack message requeue true**, so the message stays in the queue, and click **Get Message(s)**. The result shows **Exchange** `(AMQP default)`, **Routing Key** `tb-downlink`, and **Payload** `{"temperatureUploadFrequency":60}`.
+- **Converter events** — open the downlink converter's **Events** tab. **In** shows the Rule Engine message, and **Out** shows the encoded payload.
 
 <ImageGallery images={[
   {
-    src: '/src/assets/images/user-guide/integrations/rabbitmq/rabbitmq-downlink-result.png',
-    alt: 'RabbitMQ Management UI, queue tb-downlink, Get messages result — Exchange: (AMQP default), Routing Key: tb-downlink, Payload: {"powerState":"on"}',
-    caption: 'Queue tb-downlink — Get messages confirms the downlink arrived: routing key tb-downlink, payload {"powerState":"on"}.'
+    src: '/src/assets/images/user-guide/integrations/rabbitmq/rabbitmq-downlink-get-messages.png',
+    alt: 'RabbitMQ management UI, tb-downlink queue, Get messages result with Exchange (AMQP default), Routing Key tb-downlink, and Payload {"temperatureUploadFrequency":60}',
+    caption: 'Get messages shows the downlink in the tb-downlink queue.',
   },
 ]} />
 
 ## Troubleshooting
 
-This section covers the most common problems encountered when setting up and running the RabbitMQ integration. Each entry describes the symptom, the most likely cause, and the steps to resolve it.
-
-<h4>Integration Status Is Not Active</h4>
-
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| Integration does not become Active | Wrong **Host** or **Port** | Confirm the broker `host:port` is reachable from the ThingsBoard server (`5672`, or `5671` for TLS). |
-| Integration does not become Active | Wrong **Username** or **Password** | Verify the credentials in Advanced settings against your broker/provider. |
-| Integration does not become Active | Wrong **Virtual host** | Confirm the virtual host matches the broker (default `/`; on CloudAMQP it equals the username). |
-| Integration does not become Active | Queue does not exist | Create the queue on the broker before the integration tries to connect. |
+| Integration does not start; **Check connection** fails | Wrong **Host** or **Port**, or the broker is unreachable. | Check that ThingsBoard reaches `host:5672`. A TLS-only port such as `5671` does not work. |
+| Same, after the TCP connection | Wrong **Username**, **Password**, or **Virtual host**. | Copy them from the broker again. On CloudAMQP, the virtual host equals the username. |
+| `Host must be in the public network.` | The host is a private address, and ThingsBoard Cloud blocks it. | Use a public broker, or run the integration with **Execute remotely**. |
+| `Failed to bind queue: [...]` | The queue exists with other **Durable**, **Exclusive**, or **Auto delete** flags, or the user lacks the configure permission. | Match the flags to the queue in the management UI, or grant the permission. |
+| Queue disappears after a restart | **Exclusive** or **Auto delete** is on. | Turn both off and turn **Durable** on. |
+| No uplinks arrive | The producer routes messages to another queue, or a queue name contains a space. | Check the bindings in the management UI. Separate queue names with commas only. |
+| Converter error; the message is gone | The body is not valid JSON, or the decoder fails on it. The integration has already acknowledged the message. | Check **In** and **Error** in the converter events, fix the decoder, and publish again. |
+| Device not created | `deviceName` is empty, or **Allow create devices or assets** is off. | Check **Out** in the converter events and the integration settings. |
+| Downlink event is **OK**, but the queue is empty | **Downlink topic** is empty, or it does not match a queue name or binding. | With an empty **Exchange name**, set **Downlink topic** to the queue name. |
+| No downlink event | No downlink converter is assigned, or the rule chain does not reach the **integration downlink** node. | Check the integration settings and the **Attributes Updated** relation. |
 
-<h4>Messages Are Not Consumed</h4>
-
-| Symptom | Cause | Fix |
-|---------|-------|-----|
-| No messages consumed | Queue **flag mismatch** | Ensure **Durable / Exclusive / Auto delete** match the flags used when the queue was declared — a channel-level error is shown on the integration **Events** tab. |
-| No messages consumed | Producer routes to the wrong queue | Confirm the producer publishes to the queue configured in the integration (check bindings in the Management UI). |
-| No messages consumed | Integration is disabled | Open the integration and confirm **Enable integration** is on. |
-
-<h4>Message Consumed but Device Not Created</h4>
-
-| Symptom | Cause | Fix |
-|---------|-------|-----|
-| Message consumed, no device in ThingsBoard | **Allow create devices or assets** is disabled | Edit the integration and enable **Allow create devices or assets** in the Basic settings step. |
-| Message consumed, no device in ThingsBoard | Converter returns an empty device name | Open the uplink converter **Events** tab and inspect the **Out** panel — confirm `deviceName` is present and non-empty. |
-| Converter shows an error | TBEL or JavaScript exception in the decoder | Open the uplink converter **Events** tab, filter by **Error**, and inspect the stack trace. Common causes: malformed JSON or an undefined field. Check the raw **In** payload matches the format your decoder expects. |
-
-<h4>Downlink Not Published</h4>
-
-| Symptom | Cause | Fix |
-|---------|-------|-----|
-| Nothing appears on the downlink queue | Downlink converter not attached | Edit the integration and confirm a **Downlink data converter** is selected. |
-| Nothing appears on the downlink queue | Rule chain path never reaches the node | Confirm the **Integration Downlink** node is connected after the node that produces the outgoing message, via the correct relation. |
-| Message published to the wrong place | **Downlink topic** ≠ queue name (default exchange) | With an empty **Exchange name**, set **Downlink topic** to exactly the downlink queue name. |
-| Rule node shows processing errors | Encoder exception or bad connection | Open the node's **Events** tab and inspect the error, then verify the integration connection and downlink converter. |
-
-<h4>How to Read Debug Events</h4>
-
-<Steps>
-  1. Go to **Integrations &#8702; Integrations**, open **RabbitMQ integration**, and click the **Events** tab.
-  2. Click an event row to inspect:
-</Steps>
-- **In** — the raw payload received from RabbitMQ before processing.
-- **Out** — what the converter returned: device name, attributes, and telemetry values passed to ThingsBoard.
-- **Error** — error text and stack trace, if processing failed.
-Debug mode is active automatically for the first 15 minutes after an integration is created; afterwards only error events are retained. Re-enable it from the integration details page whenever you need to inspect raw input/output, and disable it once the issue is identified.
-
-<Aside type="note" title="Debug mode causes high disk usage">
-  Disable debug mode in production. When active, every processed message is written to the database. Switch back to **Failures** mode once setup is confirmed.
-</Aside>
+To read debug events, open the integration or converter, click **Events**, and select an event: **In** is the received data, **Out** is the converter result, and **Error** holds the error text.
 
 ## See Also
 
-- <DocLink product={props.product} path="user-guide/integrations" target="_blank">Integrations Overview</DocLink> — how ThingsBoard connects to external platforms and how uplink/downlink flow works
-- <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">Uplink Data Converter</DocLink> — full decoder function reference: input parameters, output fields, and scripting patterns
-- <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink Data Converter</DocLink> — encoder function reference for publishing messages back to RabbitMQ
-- <DocLink product={props.product} path="reference/rule-engine/nodes/external/rabbitmq" target="_blank">RabbitMQ Rule Node</DocLink> — publish messages from the Rule Engine directly to a RabbitMQ exchange
-- <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink> — run the integration outside the ThingsBoard server to reach a broker on a private network
-- <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL scripting reference</DocLink> — built-in functions and operators for writing converter scripts
-- <DocLink product={props.product} path="user-guide/rule-engine" target="_blank">Rule Engine</DocLink> — how the rule chain routes messages to the Integration Downlink node
+- <DocLink product={props.product} path="user-guide/integrations" target="_blank">Integrations overview</DocLink> — how integrations, converters, uplinks, and downlinks fit together.
+- <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">Uplink data converter</DocLink> — decoder inputs, output format, and scripting patterns.
+- <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink data converter</DocLink> — encoder reference.
+- <DocLink product={props.product} path="reference/rule-engine/nodes/external/rabbitmq" target="_blank">RabbitMQ node</DocLink> — publish messages from the Rule Engine without an integration.
+- <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink> — run the integration outside the ThingsBoard cluster.
+- <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL</DocLink> — built-in functions and syntax for converter scripts.
+- <a href="https://www.rabbitmq.com/docs/queues" target="_blank" rel="noopener noreferrer"><strong>RabbitMQ queues</strong></a> — queue properties, durability, and exclusivity.

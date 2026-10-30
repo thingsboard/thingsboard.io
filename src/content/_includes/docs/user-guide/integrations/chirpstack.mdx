@@ -1,683 +1,788 @@
 import DocLink from '@components/DocLink.astro';
-import ImageGallery from '~/components/ImageGallery.astro';
+import ImageGallery from '@components/ImageGallery.astro';
 import { Aside, Steps } from '@astrojs/starlight/components';
-import { Products } from '~/models/site.models';
+import { Products } from '@models/site.models';
 import Tabs from '@components/Tabs.astro';
 import TabItem from '@components/TabItem.astro';
 
-ChirpStack Integration connects ThingsBoard to a <a href="https://www.chirpstack.io/" target="_blank" rel="noopener noreferrer nofollow"><strong>ChirpStack</strong></a> open-source LoRaWAN Network Server. Use it to bring telemetry from LoRaWAN devices already registered in ChirpStack into ThingsBoard for monitoring and rule-based automation — including sending commands back to those devices.
+ChirpStack Integration receives device data from <a href="https://www.chirpstack.io/" target="_blank" rel="noopener noreferrer nofollow"><strong>ChirpStack</strong></a>, the open-source LoRaWAN Network Server, through an **HTTP** integration of a ChirpStack application. An **uplink data converter** extracts the device payload and the LoRaWAN details from each message and turns them into telemetry and attributes. For downlink, ThingsBoard adds commands to the device queue through the ChirpStack REST API.
+
+Use ChirpStack Integration when:
+- Your LoRaWAN devices are registered in ChirpStack, and you want their data in ThingsBoard without registering each device by hand.
+- You need to send commands from ThingsBoard to those devices, for example when a shared attribute changes.
 
 ## Architecture
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/chirpstack-integration-architecture.svg', alt: 'ChirpStack integration architecture diagram showing uplink data flowing from a LoRaWAN device through ChirpStack to the ThingsBoard uplink converter and Core Service, and downlink commands flowing back through the downlink converter and the ChirpStack API', caption: 'ChirpStack integration architecture — uplink and downlink data flow between ChirpStack and ThingsBoard.' },
+  {
+    src: '/src/assets/images/user-guide/integrations/chirpstack-integration-architecture.svg',
+    alt: 'ChirpStack integration architecture: a LoRaWAN device sends an uplink through a LoRaWAN gateway over UDP or LoRa Basics Station to the ChirpStack server; the HTTP integration of the ChirpStack application posts each device event as JSON to the HTTP endpoint of the ChirpStack Integration; the uplink converter turns it into device info, telemetry, and attributes, and Processing & Storage looks up or creates the device, runs the Rule Engine, and stores the data. For downlink, an attribute update or RPC command goes through the downlink converter, which returns the data with the DevEUI and fPort, and the integration enqueues it through the ChirpStack REST API with the application server URL and API token; ChirpStack sends it to the device in its next receive window',
+    caption: 'ChirpStack integration architecture. ChirpStack posts device events to the integration endpoint. Downlinks go right away to the ChirpStack device queue, and a Class A device gets them after its next uplink.',
+  },
 ]} />
 
-A LoRaWAN device sends an uplink to ChirpStack, which forwards it over an HTTP webhook to the integration's endpoint. The uplink converter decodes the payload into telemetry and attributes, and the ThingsBoard Core Service stores the data, creating the device automatically on first contact. For downlink, the Rule Engine hands a message to the integration; the downlink converter encodes it, and ThingsBoard delivers it to the device through the ChirpStack API.
+1. **Receive data.** The device sends an uplink through a LoRaWAN gateway to ChirpStack. The HTTP integration of the ChirpStack application sends the uplink event as an HTTP request with a JSON body to the integration endpoint.
+2. **Unwrap the event.** The uplink converter extracts the device payload from the event, and the device EUI, frame counter, port, radio details, and other fields as metadata.
+3. **Decode the payload.** The decoder turns the payload into telemetry and attributes. The converter adds the LoRaWAN details that you select, and builds the device name from the EUI. If **Allow create devices or assets** is on, ThingsBoard creates the device on its first message.
+4. **Send a command (optional).** The Rule Engine passes a message to the integration. The downlink converter encodes it, and ThingsBoard sends it right away to `POST {Application server URL}/api/devices/{DevEUI}/queue`. ChirpStack keeps it in the device queue and delivers it in the next receive window of the device: for a Class A device, after its next uplink.
 
 ## Prerequisites
 
-Before creating the integration, ensure:
+- Access to {props.product !== Products.PAAS && props.product !== Products.PAAS_EU && <><DocLink product={Products.PE} path="installation/" target="_blank">ThingsBoard</DocLink> or </>}<a href="/installations/?product=thingsboard-cloud" target="_blank"><strong>ThingsBoard Cloud</strong></a> with integrations enabled for your tenant. The ThingsBoard endpoint must be reachable from ChirpStack.
+- Permission to create integrations and data converters, and to edit rule chains for downlink.
+- A ChirpStack v4 server. To run one locally, see **[Start ChirpStack](#start-chirpstack)**.
+- A LoRaWAN gateway and a device registered in ChirpStack. See the <a href="https://www.chirpstack.io/docs/guides/connect-device.html" target="_blank" rel="noopener noreferrer nofollow"><strong>ChirpStack device connection guide</strong></a>. To test the uplink without hardware, you can **[send a test uplink with curl](#send-a-test-uplink)**.
+- For downlink: the ChirpStack REST API must be reachable from ThingsBoard. If ChirpStack runs in a private network and ThingsBoard cannot reach it, run the integration as a <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink>.
 
-- You have access to {props.product !== Products.PAAS && props.product !== Products.PAAS_EU && <><DocLink product={Products.PE} path="installation/" target="_blank">ThingsBoard</DocLink> or </>}<a href="/installations/?product=thingsboard-cloud" target="_blank"><strong>ThingsBoard Cloud</strong></a> with integration functionality enabled for your tenant.
-- You have permissions to create integrations and data converters.
-- A running ChirpStack Network Server — see the <a href="https://www.chirpstack.io/project/guides/docker-compose/" target="_blank" rel="noopener noreferrer nofollow"><strong>ChirpStack Docker Compose guide</strong></a>, or see **[Start the ChirpStack Network Server](#start-the-chirpstack-network-server)** below for a quick Docker Compose setup.
-- At least one device registered and connected in ChirpStack — see the <a href="https://www.chirpstack.io/project/guides/connect-device/" target="_blank" rel="noopener noreferrer nofollow"><strong>ChirpStack device connection guide</strong></a>.
+## Prepare ChirpStack
 
-## Set Up ChirpStack
+In ChirpStack, devices belong to an **application**, and the application's integrations forward the device events. Here you start ChirpStack if you do not have a server yet, and create the application. The HTTP integration comes later: it needs the integration endpoint, so you add it **[after creating the integration](#add-the-http-integration-in-chirpstack)**.
 
-### Start the ChirpStack Network Server
+### Start ChirpStack
 
-The quickest way to run ChirpStack locally is with Docker Compose. The official <a href="https://github.com/chirpstack/chirpstack-docker" target="_blank" rel="noopener noreferrer nofollow"><strong>chirpstack-docker</strong></a> repository provides a ready-to-use Compose configuration.
+Skip this step if you already have a ChirpStack server. The <a href="https://github.com/chirpstack/chirpstack-docker" target="_blank" rel="noopener noreferrer nofollow"><strong>chirpstack-docker</strong></a> repository runs ChirpStack with Docker Compose.
 
 <Steps>
-1. **Install Docker** — make sure Docker and Docker Compose are installed on your host. See the <a href="https://docs.docker.com/get-docker/" target="_blank" rel="noopener noreferrer nofollow"><strong>Docker installation guide</strong></a>.
-2. **Clone the repository:**
+1. Install Docker and Docker Compose. See the <a href="https://docs.docker.com/get-docker/" target="_blank" rel="noopener noreferrer nofollow"><strong>Docker installation guide</strong></a>.
+2. Clone the repository:
 
    ```bash
    git clone https://github.com/chirpstack/chirpstack-docker.git
    cd chirpstack-docker
    ```
 
-3. **Configure the region** — EU868 is configured by default. To use a different supported region, follow the instructions in the repository `README.md`.
-4. **Start ChirpStack:**
+3. Both gateway bridges in this setup use the EU868 region. To use another region, change the topic prefix as described in the `README.md` of the repository.
+   <Aside type="caution" title="ThingsBoard on the same host">
+     The setup publishes the ChirpStack UI on port `8080` and the MQTT broker on port `1883`. ThingsBoard uses the same ports by default. To run both on one host, in `docker-compose.yml` change the `chirpstack` port mapping to `"8081:8080"` and remove the `ports` of the `mosquitto` service. Then open the ChirpStack UI on port `8081`.
+   </Aside>
+
+4. Start ChirpStack:
 
    ```bash
    docker compose up
    ```
 
-   On the first run, some errors may appear in the logs while the database initializes — this is expected.
+   On the first run, the logs can show errors while the database initializes. This is expected.
 
-5. **Connect a gateway** — the Compose environment includes a ChirpStack Gateway Bridge instance pre-configured for EU868, accepting UDP packets on port `1700`.
-6. **Open the web interface** — navigate to `http://localhost:8080` and log in with username `admin` and password `admin`.  
-    If ChirpStack runs on a remote host, replace `localhost` with its address.
+5. Point your gateway to the host. The ChirpStack Gateway Bridge accepts Semtech UDP Packet Forwarder traffic on UDP port `1700`, and LoRa Basics Station connections on port `3001`.
+6. Open `http://localhost:8080` (or `http://localhost:8081` if you changed the port) and sign in with the username `admin` and the password `admin`. If ChirpStack runs on another host, replace `localhost` with its address. The REST API that ThingsBoard uses for downlink listens on port `8090`.
 </Steps>
 
-### Create a ChirpStack API Key
+### Create an Application
 
-The API key is used by ThingsBoard to authenticate requests to the ChirpStack API when sending downlink messages.
+Skip this step if your devices are already in an application.
 
 <Steps>
-  1. In the ChirpStack UI, go to **Tenant &#8702; API Keys** and click **Add API key**.
-  2. Enter a name for the key (e.g. `ThingsBoard`) and click **Submit**.
-  3. **Copy and save the token** — it is displayed only once.
+1. In the ChirpStack UI, go to **Tenant &#8702; Applications** and click **Add application**.
+2. Enter a **Name**, for example `ThingsBoard`, and click **Submit**.
+3. Open the application and add your devices on the **Devices** tab. See the <a href="https://www.chirpstack.io/docs/guides/connect-device.html" target="_blank" rel="noopener noreferrer nofollow"><strong>ChirpStack device connection guide</strong></a>.
 </Steps>
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/chirpstack/add-chirpstack-api-key-1.png', alt: 'ChirpStack UI — Tenant API Keys page with Add API key button', caption: 'Go to Tenant → API Keys and click Add API key' },
-  { src: '/src/assets/images/user-guide/integrations/chirpstack/add-chirpstack-api-key-2.png', alt: 'Add API key form with name field filled in as ThingsBoard', caption: 'Enter a name for the key (e.g. ThingsBoard) and click Submit' },
-  { src: '/src/assets/images/user-guide/integrations/chirpstack/add-chirpstack-api-key-3.png', alt: 'API key created — token displayed in a text box with a note that it can only be retrieved once', caption: 'Copy and save the token — it is displayed only once' },
+  { src: '/src/assets/images/user-guide/integrations/chirpstack/chirpstack-configure-integration-1.png', alt: 'ChirpStack UI, Tenant Applications page with the Add application button', caption: 'Go to Applications and click Add application.' },
+  { src: '/src/assets/images/user-guide/integrations/chirpstack/chirpstack-configure-integration-2.png', alt: 'ChirpStack UI, Add application form with the application name', caption: 'Enter the name and click Submit.' },
 ]} />
 
-## Set Up the Integration in ThingsBoard
+## Set Up ChirpStack Integration
 
-To set up the **ChirpStack** integration, first create an uplink data converter to process incoming messages, then create and configure the integration.
+Create the uplink converter and the integration, then point a ChirpStack HTTP integration at the integration endpoint.
 
 ### Create the Uplink Data Converter
 
-The uplink converter receives each ChirpStack uplink message as raw bytes, decodes the LoRaWAN payload, and returns a structured object that ThingsBoard uses to create or update a device and store its telemetry and attributes.
+ChirpStack Integration uses the **Typed** uplink converter. It unwraps the ChirpStack event before your decoder runs: the decoder gets only the device payload as a byte array, and the event fields arrive as `metadata`. The device name, profile, label, and the LoRaWAN details to store are set in the converter form. The script can override them. ThingsBoard selects this converter for the **ChirpStack** integration type, and you cannot change it later. See <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#typed-uplink-converter" target="_blank">Typed uplink converter</DocLink>.
 
-If your device is in the built-in catalog, use the **Library** tab instead of writing a decoder — see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#converters-library" target="_blank">Converters library</DocLink> for over 100 ready-made decoders.
-
-For the full decoder function reference — all input parameters and output fields — see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">Uplink data converter</DocLink>.
+If your device model is in the catalog, you can take a ready-made decoder instead. See **[Use a Library Converter](#use-a-library-converter)**.
 
 <Steps>
-  1. Go to <strong>Integrations &#8702; Data converters</strong>.
-  2. Click <strong>+ Add data converter &#8702; Create new converter</strong>.
+1. Go to **Integrations &#8702; Data converters** and click **+ Add data converter &#8702; Create new converter**.
+2. **Converter type** — keep **Uplink**.
+3. **Integration type** — select **ChirpStack**.
+4. Keep **Create new** selected and enter a **Name**, for example `ChirpStack Uplink Converter`.
+5. **Main decoding configuration:**
+   - **Entity type** — keep **Device**.
+   - **Device name** — keep `Device $eui`. `$eui` is replaced with the device EUI, so each device gets a unique name, for example `Device 24e124538b223213`. Any key from **[Decoder Inputs](#decoder-inputs)** works as `$key`.
+   - The editor shows the body of `function payloadDecoder(payload, metadata)` with the default ChirpStack decoder below. It reads an 8-byte example payload. Replace the byte layout with the one of your device, or keep it for this guide. Use the **TBEL / JS** toggle to switch to JavaScript.
+   <Aside type="tip" title="TBEL">
+     Use <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL</DocLink> for converter scripts — it runs much faster than JavaScript inside ThingsBoard.
+   </Aside>
+   <Tabs>
+     <TabItem label="TBEL (Recommended)">
+       ```js maxLines=15 collapsible
+       /**
+        * Decodes the incoming payload and returns a structured object containing telemetry data and attributes.
+        *
+        * @param {byte[]} input - The raw payload received as an array of bytes.
+        * @returns {Object} output - The structured output with decoded telemetry and attributes.
+        */
+
+       function decodePayload(input) {
+           // Initialize the output object with empty attributes and telemetry for clarity.
+           var result = { attributes: {}, telemetry: {}};
+
+           // Extract the timestamp from metadata (represented in milliseconds).
+           var timestamp = metadata.ts; // ts is the timestamp parsed from the incoming message's time, or returns the current time if it cannot be parsed.
+
+           if (metadata.payloadFormat == 'JSON') {
+               // payloadFormat is 'JSON' when ChirpStack sends a pre-decoded JSON payload
+               // (the uplink contains an "object" field produced by a codec/payload formatter).
+               // All fields from the decoded object are put directly into telemetry.
+               var decoded = decodeToJson(input);
+               result.telemetry = {
+                   ts: timestamp,
+                   values: decoded
+               };
+               return result;
+           }
+
+           // payloadFormat is 'BINARY' when raw base64 payload is received (data field).
+
+           // Decode serial number (SN) from the first 4 bytes of the payload.
+           // Press '?' icon in the top right corner to learn more about built in helper functions and capabilities.
+           result.attributes.sn = parseBytesToInt(input, 0, 4);
+
+           // Combine the timestamp with decoded values and add it to the telemetry.
+           result.telemetry = {
+               ts: timestamp,
+               values: {
+                   // Decode battery level from the 5th byte of the payload.
+                   battery: parseBytesToInt(input, 4, 1),
+                   // Decode temperature from the 6th and 7th bytes of the payload (divided by 100).
+                   temperature: parseBytesToInt(input, 5, 2) / 100.0,
+                   // Decode saturation from the 8th byte of the payload.
+                   saturation: parseBytesToInt(input, 7, 1)
+               }
+           };
+
+           // Return the fully constructed output object.
+           return result;
+           // Same logic, less code:
+           // return {
+           //     attributes: {
+           //         sn: parseBytesToInt(input, 0, 4)
+           //     },
+           //     telemetry: {
+           //         ts: convertDateToTimestamp(metadata.time),
+           //         values: {
+           //             battery: parseBytesToInt(input, 4, 1),
+           //             temperature: parseBytesToInt(input, 5, 2) / 100.0,
+           //             saturation: parseBytesToInt(input, 7, 1)
+           //         }
+           //     }
+           // };
+       }
+
+       var result = decodePayload(payload);
+       // Uncomment this code block to overwrite values set in the main configuration window. Useful if you extract device/asset/customer/group names from the payload;
+       // result.type = 'DEVICE'; // Entity type allows you to choose type of created entity. Can be 'DEVICE' or 'ASSET'.
+       // result.name = 'Temperature Sensor'; // Device or asset name (the value must be unique)
+       // result.profile = 'IndustrialSensorProfile'; // Device or asset profile name.
+       // result.customer = 'MyCustomer'; // If customer is not null - created entity will be assigned to customer with such name.
+       // result.group = 'SensorsGroup'; // If group is not null - created entity will be added to the entity group with such name.
+
+       // Return the final result object.
+       return result;
+       ```
+     </TabItem>
+     <TabItem label="JavaScript">
+       ```js maxLines=15 collapsible
+       /**
+        * Decodes the incoming payload and returns a structured object containing telemetry data and attributes.
+        *
+        * @param {number[]} input - The raw payload received as an array of bytes.
+        * @returns {Object} output - The structured output with decoded telemetry and attributes.
+        */
+
+       function decodePayload(input) {
+           // Initialize the output object with empty attributes and telemetry for clarity.
+           var result = { attributes: {}, telemetry: {}};
+
+           // Extract the timestamp from metadata (represented in milliseconds).
+           var timestamp = metadata.ts; // ts is the timestamp parsed from the incoming message's time, or returns the current time if it cannot be parsed.
+
+           if (metadata.payloadFormat == 'JSON') {
+               // payloadFormat is 'JSON' when ChirpStack sends a pre-decoded JSON payload
+               // (the uplink contains an "object" field produced by a codec/payload formatter).
+               // All fields from the decoded object are put directly into telemetry.
+               var decoded = decodeToJson(input);
+               result.telemetry = {
+                   ts: timestamp,
+                   values: decoded
+               };
+               return result;
+           }
+
+           // payloadFormat is 'BINARY' when raw base64 payload is received (data field).
+
+           // Decode serial number (SN) from the first 4 bytes of the payload.
+           // Press '?' icon in the top right corner to learn more about built in helper functions and capabilities.
+           result.attributes.sn = parseBytesToInt(input, 0, 4);
+
+           // Initialize an object to store decoded key/value telemetry data.
+           var values = {};
+
+           // Decode battery level from the 5th byte of the payload.
+           values.battery = parseBytesToInt(input, 4, 1);
+
+           // Decode temperature from the 6th and 7th bytes of the payload (divided by 100).
+           values.temperature = parseBytesToInt(input, 5, 2) / 100.0;
+
+           // Decode saturation from the 8th byte of the payload.
+           values.saturation = parseBytesToInt(input, 7, 1);
+
+           // Combine the timestamp with values and add it to the telemetry.
+           result.telemetry = {
+               ts: timestamp,
+               values: values
+           };
+
+           // Return the fully constructed output object.
+           return result;
+           // Same logic, less code:
+           // return {
+           //     attributes: {
+           //         sn: parseBytesToInt(input, 0, 4)
+           //     },
+           //     telemetry: {
+           //         ts: convertDateToTimestamp(metadata.time),
+           //         values: {
+           //             battery: parseBytesToInt(input, 4, 1),
+           //             temperature: parseBytesToInt(input, 5, 2) / 100.0,
+           //             saturation: parseBytesToInt(input, 7, 1)
+           //         }
+           //     }
+           // };
+       }
+
+       var result = decodePayload(payload);
+       // Uncomment this code block to overwrite values set in the main configuration window. Useful if you extract device/asset/customer/group names from the payload;
+       // result.type = 'DEVICE'; // Entity type allows you to choose type of created entity. Can be 'DEVICE' or 'ASSET'.
+       // result.name = 'Temperature Sensor'; // Device or asset name (the value must be unique)
+       // result.profile = 'IndustrialSensorProfile'; // Device or asset profile name.
+       // result.customer = 'MyCustomer'; // If customer is not null - created entity will be assigned to customer with such name.
+       // result.group = 'SensorsGroup'; // If group is not null - created entity will be added to the entity group with such name.
+
+       // Return the final result object.
+       return result;
+
+       /**
+        * Converts a byte array to a string and parses it as JSON.
+        *
+        * @param {number[]} payload - The array of bytes.
+        * @returns {Object} - The parsed JSON object.
+        */
+       function decodeToJson(payload) {
+           return JSON.parse(String.fromCharCode.apply(String, payload));
+       }
+
+       /**
+        * Converts a slice of bytes from an array into an integer (big-endian).
+        *
+        * @param {number[]} input - The array of bytes.
+        * @param {number} offset - The starting index.
+        * @param {number} length - The number of bytes to convert.
+        * @returns {number} - The resulting integer.
+        */
+       function parseBytesToInt(input, offset, length) {
+         var result = 0;
+         for (var i = offset; i < offset + length; i++) {
+           result = (result << 8) | (input[i] & 0xFF);
+         }
+         return result;
+       }
+       ```
+     </TabItem>
+   </Tabs>
+
+   The decoder has two paths, chosen by `metadata.payloadFormat`:
+
+   | `payloadFormat` | When | `payload` holds | The decoder |
+   |-----------------|------|-----------------|-------------|
+   | `BINARY` | No codec on the ChirpStack device profile | The bytes of the Base64 `data` field | Reads the example layout below |
+   | `JSON` | A codec on the ChirpStack device profile decoded the payload | The `object` field as JSON text | Stores every field of `object` as telemetry |
+
+   The example layout of the `BINARY` path:
+
+   | Bytes | Expression | Result |
+   |-------|------------|--------|
+   | 0–3 | `parseBytesToInt(input, 0, 4)` | Attribute `sn` |
+   | 4 | `parseBytesToInt(input, 4, 1)` | Telemetry `battery` |
+   | 5–6 | `parseBytesToInt(input, 5, 2) / 100.0` | Telemetry `temperature` |
+   | 7 | `parseBytesToInt(input, 7, 1)` | Telemetry `saturation` |
+
+   **To adapt:**
+   - **Payload layout** — change the offsets, lengths, and keys in `decodePayload` to match the payload format of your device. If a ChirpStack codec already decodes the payload, the `JSON` path needs no changes.
+   - **Device identity** — set `result.name`, `result.profile`, `result.customer`, or `result.group` in the script to override the form fields, as the commented lines show.
+6. **Advanced decoding parameters** — keep the defaults:
+   - **Device profile name** — `$deviceProfileName`, the ChirpStack device profile name. ThingsBoard assigns the device profile with this name and creates it if it does not exist.
+   - **Device label** — `$deviceName`, the device name in ChirpStack.
+   - **Customer name** and **Device group name** — empty. Set them to assign new devices to a customer or add them to a group.
+   - **Telemetry** — `fCnt`, `data`, `decoded`, `latitude`, `longitude`, `rssi`, `snr`, `channel`, `altitude`.
+   - **Attributes** — `eui`, `devAddr`, `fPort`, `tenantId`, `tenantName`, `applicationId`, `applicationName`, `adr`, `dr`, `frequency`, `bandwidth`, `spreadingFactor`, `codeRate`.
+   - **Update only keys list** — the same keys as **Attributes**. These keys are stored only when their value changes.
+
+   The **Telemetry** and **Attributes** lists do not filter the decoder output. They add the listed keys from the event metadata to the telemetry and attributes that the decoder returns. A key that the event does not carry is skipped. Downlink in this guide needs the `eui` and `fPort` attributes, so keep them in the list.
+7. Click **Test payload decoder** and check the result (see **[Test the Decoder](#test-the-decoder)**).
+8. Click **Add**.
 </Steps>
 
-In the **Add data converter** dialog:
+<h4 id="decoder-inputs">Decoder Inputs</h4>
 
-<Steps>
-  <ol start="3">
-    <li><strong>Converter type</strong> — leave <strong>Uplink</strong> (selected by default).</li>
-    <li><strong>Integration type</strong> — in the search field, enter <code>ChirpStack</code> and select <strong>ChirpStack</strong> from the list.</li>
-    <li><strong>Name</strong> — enter a converter name, for example <code>ChirpStack Uplink Converter</code>.</li>
-    <li>
-      <span>Configure <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#main-decoding-configuration" target="_blank">main decoding parameters</DocLink>:</span>
-      <ul>
-        <li>Specifies the device naming template and entity type. The default value <code>Device $eui</code> uses the device EUI as the unique name in ThingsBoard.</li>
-        <li>The default decoder is pre-filled. Leave it unchanged for this guide.<br/>By default the editor opens in TBEL; use the <strong>TBEL / JS</strong> toggle (upper right) to switch languages.</li>
+| Variable | Type | Content |
+|----------|------|---------|
+| `payload` | byte array | The device payload: the decoded Base64 `data` field, or the `object` field as JSON text when a ChirpStack codec decoded the payload. Empty if the event carries neither. |
+| `metadata` | `{[key: string]: any}` | The fields extracted from the ChirpStack event, listed below, plus `integrationName` and the key–value pairs from the integration's **Metadata** field. A **Metadata** key with the same name as an extracted field replaces it. |
 
-      <Aside type="tip" title="TBEL">
-        We recommend using <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
-      </Aside>
-
-      <Tabs>
-        <TabItem label="TBEL (Recommended)">
-          ```js maxLines=15 collapsible
-          /**
-          * Decodes the incoming payload and returns a structured object containing telemetry data and attributes.
-          *
-          * @param {byte[]} input - The raw payload received as an array of bytes.
-          * @returns {Object} output - The structured output with decoded telemetry and attributes.
-          */
-
-          function decodePayload(input) {
-            // Initialize the output object with empty attributes and telemetry for clarity.
-            var result = { attributes: {}, telemetry: {}};
-
-            // Extract the timestamp from metadata (represented in milliseconds).
-            var timestamp = metadata.ts; // ts is the timestamp parsed from the incoming message's time, or returns the current time if it cannot be parsed.
-
-            if (metadata.payloadFormat == 'JSON') {
-              // payloadFormat is 'JSON' when ChirpStack sends a pre-decoded JSON payload
-              // (the uplink contains an "object" field produced by a codec/payload formatter).
-              // All fields from the decoded object are put directly into telemetry.
-              var decoded = decodeToJson(input);
-              result.telemetry = {
-                ts: timestamp,
-                values: decoded
-              };
-              return result;
-            }
-
-            // payloadFormat is 'BINARY' when raw base64 payload is received (data field).
-  
-            // Decode serial number (SN) from the first 4 bytes of the payload.
-            // Press '?' icon in the top right corner to learn more about built in helper functions and capabilities.
-            result.attributes.sn = parseBytesToInt(input, 0, 4);
-  
-            // Combine the timestamp with decoded values and add it to the telemetry.
-            result.telemetry = {
-              ts: timestamp,
-              values: {
-                // Decode battery level from the 5th byte of the payload.
-                battery: parseBytesToInt(input, 4, 1),
-                // Decode temperature from the 6th and 7th bytes of the payload (divided by 100).
-                temperature: parseBytesToInt(input, 5, 2) / 100.0,
-                // Decode saturation from the 8th byte of the payload.
-                saturation: parseBytesToInt(input, 7, 1)
-              }
-            };
-
-            // Return the fully constructed output object.
-            return result;
-            // Same logic, less code:
-            // return {
-            //     attributes: {
-            //         sn: parseBytesToInt(input, 0, 4)
-            //     },
-            //     telemetry: {
-            //         ts: convertDateToTimestamp(metadata.time),
-            //         values: {
-            //             battery: parseBytesToInt(input, 4, 1),
-            //             temperature: parseBytesToInt(input, 5, 2) / 100.0,
-            //             saturation: parseBytesToInt(input, 7, 1)
-            //         }
-            //     }
-            // };
-          }
-
-          var result = decodePayload(payload);
-          // Uncomment this code block to overwrite values set in the main configuration window. Useful if you extract device/asset/customer/group names from the payload;
-          // result.type = 'DEVICE'; // Entity type allows you to choose type of created entity. Can be 'DEVICE' or 'ASSET'.
-          // result.name = 'Temperature Sensor'; // Device or asset name (the value must be unique)
-          // result.profile = 'IndustrialSensorProfile'; // Device or asset profile name.
-          // result.customer = 'MyCustomer'; // If customer is not null - created entity will be assigned to customer with such name.
-          // result.group = 'SensorsGroup'; // If group is not null - created entity will be added to the entity group with such name.
-
-          // Return the final result object.
-          return result;
-          ```
-        </TabItem>
-        <TabItem label="JavaScript">
-          ```js maxLines=15 collapsible
-          /**
-          * Decodes the incoming payload and returns a structured object containing telemetry data and attributes.
-          *
-          * @param {number[]} input - The raw payload received as an array of bytes.
-          * @returns {Object} output - The structured output with decoded telemetry and attributes.
-          */
-
-          function decodePayload(input) {
-            // Initialize the output object with empty attributes and telemetry for clarity.
-            var result = { attributes: {}, telemetry: {}};
-  
-            // Extract the timestamp from metadata (represented in milliseconds).
-            var timestamp = metadata.ts; // ts is the timestamp parsed from the incoming message's time, or returns the current time if it cannot be parsed.
-  
-            if (metadata.payloadFormat == 'JSON') {
-              // payloadFormat is 'JSON' when ChirpStack sends a pre-decoded JSON payload
-              // (the uplink contains an "object" field produced by a codec/payload formatter).
-              // All fields from the decoded object are put directly into telemetry.
-              var decoded = decodeToJson(input);
-              result.telemetry = {
-                ts: timestamp,
-                values: decoded
-              };
-              return result;
-            }
-
-            // payloadFormat is 'BINARY' when raw base64 payload is received (data field).
-  
-            // Decode serial number (SN) from the first 4 bytes of the payload.
-            // Press '?' icon in the top right corner to learn more about built in helper functions and capabilities.
-            result.attributes.sn = parseBytesToInt(input, 0, 4);
-  
-            // Initialize an object to store decoded key/value telemetry data.
-            var values = {};
-  
-            // Decode battery level from the 5th byte of the payload.
-            values.battery = parseBytesToInt(input, 4, 1);
-  
-            // Decode temperature from the 6th and 7th bytes of the payload (divided by 100).
-            values.temperature = parseBytesToInt(input, 5, 2) / 100.0;
-  
-            // Decode saturation from the 8th byte of the payload.
-            values.saturation = parseBytesToInt(input, 7, 1);
-  
-            // Combine the timestamp with values and add it to the telemetry.
-            result.telemetry = {
-              ts: timestamp,
-              values: values
-            };
-
-            // Return the fully constructed output object.
-            return result;
-            // Same logic, less code:
-            // return {
-            //     attributes: {
-            //         sn: parseBytesToInt(input, 0, 4)
-            //     },
-            //     telemetry: {
-            //         ts: convertDateToTimestamp(metadata.time),
-            //         values: {
-            //             battery: parseBytesToInt(input, 4, 1),
-            //             temperature: parseBytesToInt(input, 5, 2) / 100.0,
-            //             saturation: parseBytesToInt(input, 7, 1)
-            //         }
-            //     }
-            // };
-          }
-
-          var result = decodePayload(payload);
-          // Uncomment this code block to overwrite values set in the main configuration window. Useful if you extract device/asset/customer/group names from the payload;
-          // result.type = 'DEVICE'; // Entity type allows you to choose type of created entity. Can be 'DEVICE' or 'ASSET'.
-          // result.name = 'Temperature Sensor'; // Device or asset name (the value must be unique)
-          // result.profile = 'IndustrialSensorProfile'; // Device or asset profile name.
-          // result.customer = 'MyCustomer'; // If customer is not null - created entity will be assigned to customer with such name.
-          // result.group = 'SensorsGroup'; // If group is not null - created entity will be added to the entity group with such name.
-
-          // Return the final result object.
-          return result;
-
-          /**
-          * Converts a byte array to a string and parses it as JSON.
-          *
-          * @param {number[]} payload - The array of bytes.
-          * @returns {Object} - The parsed JSON object.
-          */
-          function decodeToJson(payload) {
-            return JSON.parse(String.fromCharCode.apply(String, payload));
-          }
-
-          /**
-          * Converts a slice of bytes from an array into an integer (big-endian).
-          *
-          * @param {number[]} input - The array of bytes.
-          * @param {number} offset - The starting index.
-          * @param {number} length - The number of bytes to convert.
-          * @returns {number} - The resulting integer.
-          */
-          function parseBytesToInt(input, offset, length) {
-            var result = 0;
-            for (var i = offset; i < offset + length; i++) {
-              result = (result << 8) | (input[i] & 0xFF);
-            }
-            return result;
-          }
-          ```
-        </TabItem>
-      </Tabs>
-    </ul>
-    </li>
-    <li>
-      Check <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#advanced-decoding-parameters" target="_blank">advanced decoding parameters</DocLink> — pre-populated for ChirpStack; leave defaults unless your setup differs. 
-    </li>
-    <li>Click <strong>Add</strong>.</li>
-  </ol>
-</Steps>
-
-<h4>Payload Formats</h4>
-
-ChirpStack sends the LoRaWAN payload in one of two formats, indicated by `metadata.payloadFormat`:
-
-| Format | Source | When it applies | How to decode |
-|--------|--------|-----------------|---------------|
-| `BINARY` | `data` field — base64, auto-decoded to bytes by ThingsBoard | No payload codec configured in ChirpStack | Use `parseBytesToInt`, `parseBytesToFloat`, and similar helpers |
-| `JSON` | `object` field — pre-decoded by a ChirpStack payload codec | A payload codec is active on the device profile | Use `decodeToJson(input)` — the decoded object is ready to map |
-
-<h4>Converter Input</h4>
-
-ThingsBoard passes two variables to the decoder:
-
-| Variable | Type | Description |
-|----------|------|-------------|
-| `payload` | byte array | The LoRaWAN payload bytes. For `BINARY` format, these are the decoded bytes from the `data` field. For `JSON` format, these are the bytes of the serialised `object` field. |
-| `metadata` | object | Key-value map with fields extracted from the ChirpStack webhook. |
-
-Key `metadata` fields pre-populated for ChirpStack:
-
-| Field | Description |
-|-------|-------------|
-| `metadata.payloadFormat` | `'BINARY'` or `'JSON'` — determines how to parse `payload` |
-| `metadata.ts` | Uplink timestamp in milliseconds; falls back to server time if the message `time` field cannot be parsed |
-
-<h4>Converter Output</h4>
-
-The decoder must return a plain object. The device name is resolved from the **Main decoding configuration** naming template unless overridden in the script:
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `name` | No\* | Overrides the device name from the Main decoding configuration template. Must be unique in ThingsBoard. |
-| `type` | No | Entity type: `'DEVICE'` (default) or `'ASSET'` |
-| `profile` | No | Device profile name. Defaults to `'default'`. |
-| `customer` | No | Assigns the device to the named customer. |
-| `group` | No | Adds the device to the named entity group. |
-| `attributes` | No | Flat key-value map stored as ThingsBoard device attributes. |
-| `telemetry` | No | `{ ts, values }` object, or an array of such objects. `ts` is in milliseconds; `values` is a flat key-value map. |
-
-\*When `name` is not set, ThingsBoard applies the **Main decoding configuration** template. The default template `Device $eui` substitutes `$eui` with the device EUI from the ChirpStack message (e.g. `Device 24e124538b223213`). On the first uplink ThingsBoard creates the device; on subsequent uplinks it updates the existing one.
-
-<h4>Understanding the Example Decoder</h4>
-
-The example BINARY decoder expects an 8-byte payload with this layout:
-
-| Bytes | Length | Expression | Output field | Example value |
-|-------|--------|------------|--------------|---------------|
-| 0–3 | 4 | `parseBytesToInt(input, 0, 4)` | `attributes.sn` | `12345678` |
-| 4 | 1 | `parseBytesToInt(input, 4, 1)` | `telemetry.battery` | `95` |
-| 5–6 | 2 | `parseBytesToInt(input, 5, 2) / 100.0` | `telemetry.temperature` | `23.46` |
-| 7 | 1 | `parseBytesToInt(input, 7, 1)` | `telemetry.saturation` | `80` |
-
-**BINARY — input → output.** For the test payload `"ALxhTl8JKVA="` used in [Send Test Uplink](#send-test-uplink):
+ChirpStack sends an uplink event like this:
 
 ```json
 {
-  "attributes": { "sn": 12345678 },
+  "deduplicationId": "7658d04d-7f1c-4eb6-900b-d948f3061a9d",
+  "time": "2026-10-20T14:42:52.653+00:00",
+  "deviceInfo": {
+    "tenantId": "6e073e9a-6b4f-4747-b22c-7507e0fdebfb",
+    "tenantName": "ChirpStack",
+    "applicationId": "c3f2c4aa-07c8-4d6c-8a86-7ea2d4a52dca",
+    "applicationName": "Sample Application",
+    "deviceProfileId": "d8ee6c09-414c-4b2e-888a-8e8f86e2197a",
+    "deviceProfileName": "chirpstack-sensor",
+    "deviceName": "chirpstack sensor 001",
+    "devEui": "24e124538b223213",
+    "deviceClassEnabled": "CLASS_A",
+    "tags": {}
+  },
+  "devAddr": "01a44d4c",
+  "adr": true,
+  "dr": 5,
+  "fCnt": 153,
+  "fPort": 84,
+  "confirmed": false,
+  "data": "ALxhTl8JKVA=",
+  "rxInfo": [{
+    "gatewayId": "24e124fffef64e9e",
+    "uplinkId": 25127,
+    "gwTime": "2026-10-20T14:42:52.653481+00:00",
+    "nsTime": "2026-10-20T14:42:52.670509207+00:00",
+    "rssi": -68,
+    "snr": 13.2,
+    "channel": 4,
+    "location": {},
+    "context": "Hw9+zQ==",
+    "crcStatus": "CRC_OK"
+  }],
+  "txInfo": {
+    "frequency": 867300000,
+    "modulation": {
+      "lora": { "bandwidth": 125000, "spreadingFactor": 7, "codeRate": "CR_4_5" }
+    }
+  },
+  "regionConfigId": "eu868"
+}
+```
+
+The converter extracts these metadata keys from it:
+
+| Key | Source in the event | Example |
+|-----|---------------------|---------|
+| `eui` | `deviceInfo.devEui` | `24e124538b223213` |
+| `deviceName`, `deviceProfileName`, `deviceProfileId` | `deviceInfo` | `chirpstack sensor 001`, `chirpstack-sensor` |
+| `tenantId`, `tenantName`, `applicationId`, `applicationName`, `tags` | `deviceInfo` | `ChirpStack`, `Sample Application` |
+| `deduplicationId`, `devAddr`, `adr`, `dr`, `fCnt`, `fPort`, `confirmed` | Top level | `01a44d4c`, `true`, `5`, `153`, `84`, `false` |
+| `data` | `data`, the Base64 payload | `ALxhTl8JKVA=` |
+| `decoded` | `object`, if a ChirpStack codec decoded the payload | — |
+| `rxInfo` | `rxInfo`, all gateways that received the uplink | — |
+| `rssi`, `snr` | `rxInfo` entry with the highest `rssi` | `-68`, `13.2` |
+| `frequency`, `bandwidth`, `spreadingFactor`, `codeRate` | `txInfo` | `867300000`, `125000`, `7`, `CR_4_5` |
+| `latitude`, `longitude`, `altitude` | `location` of a ChirpStack **location** event, which carries the device geolocation. Gateway locations in `rxInfo` of uplink events are not used. | — |
+| `time` | `time` | `2026-10-20T14:42:52.653+00:00` |
+| `ts`, `timeTs` | `time` in Unix milliseconds. If `time` is missing or cannot be parsed, `ts` is the current time. | `1792507372653` |
+| `payloadFormat` | `JSON` if the event has `object`, otherwise `BINARY` | `BINARY` |
+
+<h4 id="test-the-decoder">Test the Decoder</h4>
+
+Click **Test payload decoder** below the editor. The dialog shows the last message that the converter received, or a ChirpStack sample event, already split into **Payload** and **Metadata**. To test with the event from **[Decoder Inputs](#decoder-inputs)**:
+
+<Steps>
+1. Click **Updated RAW payload**.
+2. Replace **Payload** with the event. Keep **Metadata**: it holds the integration metadata, such as `integrationName`. Click **Apply**.
+3. **Payload** and **Metadata** now show the unwrapped event. Click **Test**.
+</Steps>
+
+The **Decoder output** tab shows what the decoder returned. For the payload `ALxhTl8JKVA=`, the bytes `00 BC 61 4E 5F 09 29 50` give:
+
+```json
+{
+  "attributes": {
+    "sn": 12345678
+  },
   "telemetry": {
-    "ts": 1742480572653,
-    "values": { "battery": 95, "temperature": 23.46, "saturation": 80 }
+    "ts": 1792507372653,
+    "values": {
+      "battery": 95,
+      "temperature": 23.45,
+      "saturation": 80
+    }
   }
 }
 ```
 
-**JSON — input → output.** When a ChirpStack payload codec is active, the `object` field arrives pre-decoded and the converter writes all its fields directly to telemetry. If ChirpStack decodes the payload to:
-
-```json
-{ "temperature": 23.5, "humidity": 60, "battery": 95 }
-```
-
-The converter produces:
+The **Converter output** tab shows the result after the form fields are applied. The name, profile, and label come from **Device name**, **Device profile name**, and **Device label**. The metadata keys from **Telemetry** and **Attributes** that the event carries are added to the decoder output:
 
 ```json
 {
+  "entityType": "DEVICE",
+  "name": "Device 24e124538b223213",
+  "profile": "chirpstack-sensor",
+  "label": "chirpstack sensor 001",
   "telemetry": {
-    "ts": 1742480572653,
-    "values": { "temperature": 23.5, "humidity": 60, "battery": 95 }
+    "ts": 1792507372653,
+    "values": {
+      "battery": 95,
+      "temperature": 23.45,
+      "saturation": 80,
+      "data": "ALxhTl8JKVA=",
+      "fCnt": 153,
+      "rssi": -68,
+      "snr": 13.2
+    }
+  },
+  "attributes": {
+    "sn": 12345678,
+    "devAddr": "01a44d4c",
+    "fPort": 84,
+    "dr": 5,
+    "frequency": 867300000,
+    "tenantName": "ChirpStack",
+    "applicationName": "Sample Application",
+    "bandwidth": 125000,
+    "adr": true,
+    "codeRate": "CR_4_5",
+    "spreadingFactor": 7,
+    "eui": "24e124538b223213",
+    "tenantId": "6e073e9a-6b4f-4747-b22c-7507e0fdebfb",
+    "applicationId": "c3f2c4aa-07c8-4d6c-8a86-7ea2d4a52dca"
   }
 }
 ```
 
-<h4>Adapt the Decoder to Your Device</h4>
+If the output is empty or shows an error, fix the decoder and test again.
 
-- **Match your payload structure** — update byte offsets, lengths, and field names in `decodePayload` to match your device's binary specification. Refer to your device's payload documentation for the byte layout.
-- **Add or remove fields** — add more `parseBytesToInt` calls (or `parseBytesToFloat`, string extraction, etc.) for additional sensors; remove entries your device does not transmit.
-- **Use a ChirpStack payload codec** — configure a codec in ChirpStack and `metadata.payloadFormat` becomes `'JSON'`. The decoder already handles this path — no binary parsing needed.
-- **Override device identity from the payload** — set `result.name`, `result.profile`, `result.group`, or `result.customer` to derive device identity from payload content rather than the Main decoding configuration template.
+<h4 id="use-a-library-converter">Use a Library Converter</h4>
 
-### Create the ChirpStack Integration
+The <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#converters-library" target="_blank">Converters library</DocLink> holds ready-made converters for devices from vendors such as Milesight, Elsys, Decentlab, and Bosch. They are maintained in the <a href="https://github.com/thingsboard/data-converters" target="_blank" rel="noopener noreferrer"><strong>data-converters</strong></a> repository.
 
 <Steps>
-  <ol start="1">
-    <li>Go to <strong>Integrations &#8702; Integrations</strong> and click <strong>+ Add integration</strong>.</li>
-    <li>
-      <span><strong>Basic settings:</strong></span>
-      <ul>
-        <li>Set <strong>integration type</strong> to <strong>ChirpStack</strong>.</li>
-        <li>Enter a <strong>Name</strong> for the integration, or keep the default <code>ChirpStack integration</code>.</li>
-        <li>Leave <strong>Enable integration</strong> and <strong>Allow create devices or assets</strong> on so the device is created automatically on first data.</li>
-        <li>Click <strong>Next</strong>.</li>
-      </ul>
-    </li>
-    <li>
-      <span><strong>Uplink data converter:</strong></span>
-      <ul>
-        <li>Click <strong>Select existing</strong> and choose the <a href="#create-the-uplink-data-converter"><strong>ChirpStack Uplink Converter</strong></a> created in the previous step.</li>
-        <li>Alternatively, click <strong>Create new</strong> to define the decoder inline, or use <strong>Library</strong> to load a vendor-provided preset.</li>
-        <li>Click <strong>Next</strong>.</li>
-      </ul>
-    </li>
-    <li>
-      <span><strong>Downlink data converter:</strong></span>
-      <ul>
-        <li>Click <strong>Create new</strong> to add a downlink converter inline, or</li>
-        <li>Click <strong>Skip</strong> — the downlink converter is only needed for sending commands to devices and can be added later.</li>
-      </ul>
-    </li>
-    <li>
-      <span><strong>Connection:</strong></span>
-      <ul>
-        <li>Enter the ThingsBoard server <strong>Base URL</strong>.</li>
-        <li>Copy the <strong>HTTP endpoint URL</strong> — you will need it when configuring ChirpStack.</li>
-        <li>Enter the <strong>Application server URL</strong> (the ChirpStack REST API address; with a standard Docker Compose installation, typically port <code>8080</code>).</li>
-        <li>Enter the <strong>Application server API Token</strong> — obtained in <a href="#create-a-chirpstack-api-key"><strong>Create a ChirpStack API Key</strong></a> above.</li>
-        <li><strong>Use API for ChirpStack 4+</strong> is enabled by default — disable only when connecting to ChirpStack 3.x.</li>
-      </ul>
-      <span>Read more about each parameter in <a href="#connection-settings"><strong>connection settings</strong></a>.</span>
-    </li>
-    <li>Click <strong>Add</strong> to complete the integration.</li>
-  </ol>
+1. In the **Add data converter** dialog, select **Uplink** and the **ChirpStack** integration type, then switch from **Create new** to **Library**.
+2. **Vendor** — select the manufacturer, for example **Milesight**.
+3. **Model** — select the device model, for example **AM102L: 2-in-1 Environment Sensor**.
+4. **Name** is filled in as `ChirpStack Uplink Converter for <Vendor> <Model>`, for example `ChirpStack Uplink Converter for Milesight AM102L`. Change it if needed.
+5. Review the decoder and the **Advanced decoding parameters**, and click **Add**. The **TBEL / JS** toggle is locked to the language of the entry.
+</Steps>
+
+A library converter can work differently from the converter above. Some entries, such as Milesight AM102L, are written as Generic converters: the function is `decoder(payload, metadata)`, `payload` is the whole ChirpStack event, and the decoder reads the device name and the payload from it, for example `var data = decodeToJson(payload);` and `data.deviceInfo.deviceName`. Such a converter shows only the **Update only keys list** under **Advanced decoding parameters**. Its test button is **Test decoder function**, and the test dialog takes the whole event as a **Json** payload. The AM102L entry names devices `AM102L <ChirpStack device name>` and adds `rssi`, `snr`, `channel`, `rfChain`, and `fCnt` to the telemetry only if the integration **Metadata** has `includeGatewayInfo` = `true`. Check the decoder of the entry you select before you rely on the device name or keys described in this guide.
+
+### Create the Integration
+
+<Steps>
+1. Go to **Integrations &#8702; Integrations** and click **+ Add integration**.
+2. **Basic settings:**
+   - **Integration type** — select **ChirpStack**.
+   - **Name** — keep the default `ChirpStack integration` or enter your own.
+   - **Enable integration** and **Allow create devices or assets** — keep both on, so the device is created on its first message.
+   - Click **Next**.
+3. **Uplink data converter:**
+   - Click **Select existing** and choose `ChirpStack Uplink Converter`.
+   - Alternatively, click **Create new** to configure the converter here, or **Library** to take one from the catalog.
+   - Click **Next**.
+4. **Downlink data converter:**
+   - Click **Skip**. Add a downlink converter later if you need to **[send commands](#configure-downlink)**.
+5. **Connection:**
+   - Copy the **HTTP endpoint URL**. You need it for the ChirpStack HTTP integration.
+   - Leave **Allow downlink** off for now, and the other parameters at their defaults. See **[Connection Settings](#connection-settings)** for details.
+6. Click **Add**.
 </Steps>
 
 #### Connection Settings
 
-<h4>Base URL</h4>
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| **Base URL** | Address you signed in to | Used to build the **HTTP endpoint URL**. Required. {[Products.PAAS, Products.PAAS_EU].includes(props.product) ? <>Must be a public address, for example <code>{props.product === Products.PAAS_EU ? 'https://eu.thingsboard.cloud' : 'https://thingsboard.cloud'}</code>. A private address shows the error "URL must be in the public network."</> : <>Use an address at which ChirpStack can reach ThingsBoard, for example <code>http://my.thingsboard:8080</code>.</>} |
+| **HTTP endpoint URL** | — | Read-only. **Base URL**, then `/api/v1/integrations/chirpstack/`, then the integration key, a UUID assigned at creation. Accepts JSON bodies only. |
+| **Allow downlink** | Off | Shows the **Application server URL** and **Application server API Token** fields. Turning it off clears both. See **[Configure Downlink](#configure-downlink)**. |
+| **Application server URL** | — | In **Allow downlink**. Address of the ChirpStack REST API, without a path, for example `http://my.chirpstack:8090`. ThingsBoard adds `/api/devices/{DevEUI}/queue`. Required when **Allow downlink** is on. |
+| **Application server API Token** | — | In **Allow downlink**. A ChirpStack API key, sent as a `Bearer` token. Click the key icon to take it from <DocLink product={props.product} path="user-guide/security/secrets-storage" target="_blank">Secrets storage</DocLink>. Required when **Allow downlink** is on. |
+| **Use API for ChirpStack 4+** | On | Sends downlinks in the ChirpStack v4 format, with the `queueItem` body. Turn it off only for ChirpStack v3, which expects `deviceQueueItem`. |
+| **Execute remotely** | Off | Runs the integration as a separate process outside the ThingsBoard cluster. ThingsBoard generates an **Integration key** and **Integration secret** for it. Use it when ChirpStack and ThingsBoard cannot reach each other directly, for example when ChirpStack runs in a private network. See <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink>. |
+| **Description** | — | In **Advanced settings**. Free-text description. |
+| **Metadata** | — | In **Advanced settings**. Key–value pairs added to the `metadata` of every message from this integration. |
 
-The base address of the ThingsBoard server, used to construct the HTTP endpoint URL.
+The integration answers `200 OK` when the message was processed, and an error status, such as `500 Internal Server Error`, when the converter or the processing fails. It has no request check: anyone who knows the endpoint URL can send data to it.
 
-<h4>HTTP Endpoint URL</h4>
-
-Auto-generated endpoint for this integration. Configure ChirpStack to forward uplink messages to this URL.
-
-<h4>Application Server URL</h4>
-
-The address of the ChirpStack REST API service. With a standard Docker Compose installation, this is typically port `8080`.
-
-<h4>Application Server API Token</h4>
-
-API token used to authenticate ThingsBoard requests to the ChirpStack API when sending downlink messages. See **[Create a ChirpStack API Key](#create-a-chirpstack-api-key)**.
-
-<h4>Use API for ChirpStack 4+</h4>
-
-Enables the ChirpStack v4 API. Enabled by default — disable only when connecting to ChirpStack 3.x.
-
-<h4>Execute Remotely</h4>
-
-When enabled, ThingsBoard generates an **Integration key** and **Integration secret** that allow the integration to run as a separate process outside the ThingsBoard cluster — useful when the integration must reach services not accessible from the ThingsBoard server.
-
-See <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink> for setup details.
-
-## Configure an HTTP Integration in ChirpStack
-
-To forward uplink messages from ChirpStack to ThingsBoard, add an HTTP integration to your ChirpStack application. If you already have a ChirpStack application with your devices registered, skip steps 1–2.
+### Add the HTTP Integration in ChirpStack
 
 <Steps>
-1. Open ChirpStack UI.
-2. Go to **Tenant &#8702; Applications** and click **Add application**.
-3. Name the application (e.g. `ThingsBoard`) and click **Submit**.
-4. Open the application and navigate to the **Integrations** tab.
-5. In the integration catalog, click **+** on the **HTTP** card.
-6. Paste the copied **HTTP endpoint URL** field from the ThingsBoard integration. Click **Submit**.
+1. In the ChirpStack UI, go to **Tenant &#8702; Applications** and open your application.
+2. Open the **Integrations** tab and click **+** on the **HTTP** card. Do not use the **ThingsBoard** card: it sends data straight to the device API with a separate access token per device, bypassing ChirpStack Integration and its converters.
+3. **Payload encoding** — keep **JSON**. ThingsBoard does not accept Protobuf.
+4. **Event endpoint URL(s)** — paste the **HTTP endpoint URL** of the integration. If ChirpStack reaches ThingsBoard at another address, for example when both run on one host and ChirpStack runs in Docker, replace the host part of the URL with that address.
+5. Click **Submit**.
 </Steps>
 
-Now every uplink from the device will be sent to ThingsBoard.
-
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/chirpstack/chirpstack-configure-integration-1.png', alt: 'ChirpStack Applications page', caption: 'Go to Applications and click Add application' },
-  { src: '/src/assets/images/user-guide/integrations/chirpstack/chirpstack-configure-integration-2.png', alt: 'Add application form', caption: 'Name the application and click Submit' },
-  { src: '/src/assets/images/user-guide/integrations/chirpstack/chirpstack-configure-integration-3.png', alt: 'Application created — Integrations tab', caption: 'Open the application and navigate to the Integrations tab' },
-  { src: '/src/assets/images/user-guide/integrations/chirpstack/chirpstack-configure-integration-4.png', alt: 'Integration catalog — HTTP card', caption: 'Click + on the HTTP card' },
-  { src: '/src/assets/images/user-guide/integrations/chirpstack/chirpstack-configure-integration-5.png', alt: 'Add HTTP integration form', caption: 'Paste the HTTP endpoint URL into Event endpoint URL(s) and click Submit' },
-  { src: '/src/assets/images/user-guide/integrations/chirpstack/chirpstack-configure-integration-6.png', alt: 'HTTP integration created', caption: 'HTTP integration added — uplink messages will now be forwarded to ThingsBoard' },
+  { src: '/src/assets/images/user-guide/integrations/chirpstack/chirpstack-configure-integration-3.png', alt: 'ChirpStack UI, application page with the Integrations tab', caption: 'Open the application and go to the Integrations tab.' },
+  { src: '/src/assets/images/user-guide/integrations/chirpstack/chirpstack-configure-integration-4.png', alt: 'ChirpStack UI, integration catalog with the HTTP card', caption: 'Click + on the HTTP card.' },
+  { src: '/src/assets/images/user-guide/integrations/chirpstack/chirpstack-configure-integration-5.png', alt: 'ChirpStack UI, Add HTTP integration form with Payload encoding JSON, the ThingsBoard HTTP endpoint URL in Event endpoint URL(s), and the Submit button', caption: 'Keep JSON, paste the HTTP endpoint URL into Event endpoint URL(s), and click Submit.' },
+  { src: '/src/assets/images/user-guide/integrations/chirpstack/chirpstack-configure-integration-6.png', alt: 'ChirpStack UI, Integrations tab with the HTTP integration added', caption: 'The application now sends device events to ThingsBoard.' },
 ]} />
+
+ChirpStack sends every device event of the application to this URL, not only uplinks. ThingsBoard processes each of them as an uplink.
 
 ## Test Uplink
 
-After the integration is created, send a test uplink and confirm that ThingsBoard received the message, decoded it correctly, and provisioned the device.
+Send an uplink, then confirm that ThingsBoard decoded it and created the device.
 
 <Aside type="note">
-  Before sending a test uplink, ensure that **Debug** mode with the **All messages** option is enabled for both the integration and the converter. This allows you to view received messages and conversion results on the corresponding **Events** tabs.
+  Turn on **Debug** mode with **All messages** for the integration and the uplink converter before you send the uplink. Without it, the **Events** tabs stay empty.
 </Aside>
 
-### Send Test Uplink
+### Send a Test Uplink
 
-When a device sends an uplink message via ChirpStack, ThingsBoard automatically creates the device on the first uplink (provided **Allow create devices or assets** is enabled in the integration settings) and stores its telemetry and attributes.
+Wait for the next uplink of your device. ChirpStack forwards it to the endpoint.
 
-If you do not have a physical device sending data, you can emulate a device message by sending an HTTP request directly to the ThingsBoard endpoint using curl — bypassing ChirpStack entirely.
-This is useful to verify that the integration and uplink converter are configured correctly before connecting real hardware.
-
-Use this command to send a test uplink message. Replace `$HTTP_ENDPOINT_URL` with the **HTTP endpoint URL** **[copied from the integration](#create-the-chirpstack-integration)**.
+To test without a device, send the event from **[Decoder Inputs](#decoder-inputs)** to the endpoint with curl. Replace `$HTTP_ENDPOINT_URL` with the **HTTP endpoint URL** and run:
 
 ```bash
-curl -v \
+curl -v -X POST "$HTTP_ENDPOINT_URL" \
   -H "Content-Type: application/json" \
-  -d '{"deduplicationId":"7658d04d-7f1c-4eb6-900b-d948f3061a9d","time":"2026-03-20T14:42:52.653+00:00","deviceInfo":{"tenantId":"6e073e9a-6b4f-4747-b22c-7507e0fdebfb","tenantName":"ChirpStack","applicationId":"c3f2c4aa-07c8-4d6c-8a86-7ea2d4a52dca","applicationName":"Sample Application","deviceProfileId":"d8ee6c09-414c-4b2e-888a-8e8f86e2197a","deviceProfileName":"chirpstack-sensor","deviceName":"chirpstack sensor 001","devEui":"24e124538b223213","deviceClassEnabled":"CLASS_A","tags":{}},"devAddr":"01a44d4c","adr":true,"dr":5,"fCnt":153,"fPort":84,"confirmed":false,"data":"ALxhTl8JKVA=","rxInfo":[{"gatewayId":"24e124fffef64e9e","uplinkId":25127,"gwTime":"2026-03-20T14:42:52.653481+00:00","nsTime":"2026-03-20T14:42:52.670509207+00:00","timeSinceGpsEpoch":"1458052990.653s","rssi":-68,"snr":13.2,"channel":4,"location":{},"context":"Hw9+zQ==","crcStatus":"CRC_OK"}],"txInfo":{"frequency":867300000,"modulation":{"lora":{"bandwidth":125000,"spreadingFactor":7,"codeRate":"CR_4_5"}}},"regionConfigId":"eu868"}' \
-  "$HTTP_ENDPOINT_URL"
+  -d '{"deduplicationId":"7658d04d-7f1c-4eb6-900b-d948f3061a9d","time":"2026-10-20T14:42:52.653+00:00","deviceInfo":{"tenantId":"6e073e9a-6b4f-4747-b22c-7507e0fdebfb","tenantName":"ChirpStack","applicationId":"c3f2c4aa-07c8-4d6c-8a86-7ea2d4a52dca","applicationName":"Sample Application","deviceProfileId":"d8ee6c09-414c-4b2e-888a-8e8f86e2197a","deviceProfileName":"chirpstack-sensor","deviceName":"chirpstack sensor 001","devEui":"24e124538b223213","deviceClassEnabled":"CLASS_A","tags":{}},"devAddr":"01a44d4c","adr":true,"dr":5,"fCnt":153,"fPort":84,"confirmed":false,"data":"ALxhTl8JKVA=","rxInfo":[{"gatewayId":"24e124fffef64e9e","uplinkId":25127,"gwTime":"2026-10-20T14:42:52.653481+00:00","nsTime":"2026-10-20T14:42:52.670509207+00:00","rssi":-68,"snr":13.2,"channel":4,"location":{},"context":"Hw9+zQ==","crcStatus":"CRC_OK"}],"txInfo":{"frequency":867300000,"modulation":{"lora":{"bandwidth":125000,"spreadingFactor":7,"codeRate":"CR_4_5"}}},"regionConfigId":"eu868"}'
 ```
 
-### Verify Integration Events
+The endpoint returns `200`. ThingsBoard stores the telemetry with the time in `time`. Change it to the current time to see the data as the latest values.
 
-Go to **Integrations &#8702; Integrations**, open **ChirpStack integration**, and click the **Events** tab.
-Each successfully processed uplink appears as a row with status **OK**.
+### Verify the Result
 
-### Verify Converter Events
+- **Integration events** — go to **Integrations &#8702; Integrations**, open the integration, and click the **Events** tab. The message appears as an event of type **Uplink** with status **OK**. Click <code>&#8901;&#8901;&#8901;</code> in the **Message** column to see the received event.
+- **Converter events** — open `ChirpStack Uplink Converter` in **Integrations &#8702; Data converters** and click the **Events** tab. **In** shows the whole ChirpStack event, before the converter unwraps it. **Out** shows what the decoder returned, without the keys added from **Telemetry** and **Attributes**. **Metadata** shows `integrationName` and the integration's **Metadata** pairs, not the extracted keys.
+- **Device** — go to **Devices & assets &#8702; Devices**. The integration has created the device `Device 24e124538b223213`. Its profile and label are the device profile name and device name from ChirpStack, for the example event `chirpstack-sensor` and `chirpstack sensor 001`. Open it and check:
+  - **Latest telemetry** — `battery`, `temperature`, and `saturation` from the decoder, and `fCnt`, `data`, `rssi`, and `snr` from the event.
+  - **Attributes** — **Client attributes** `sn` from the decoder, and `eui`, `devAddr`, `fPort`, `tenantId`, `tenantName`, `applicationId`, `applicationName`, `adr`, `dr`, `frequency`, `bandwidth`, `spreadingFactor`, and `codeRate` from the event.
 
-To inspect converter processing, go to **Integrations &#8702; Data converters**, click **ChirpStack Uplink Converter**, and open its **Events** tab:
-- **In** shows the raw ChirpStack message
-- **Out** shows the decoded result (`attributes`, `telemetry`)
-- **Metadata** contains the integration name and any key-value pairs configured on the integration
-
-### Verify Device Provisioning
-
-Go to **Devices & assets &#8702; Devices**. Once an uplink is received, a new device named **Device 24e124538b223213** (matching the `devEui` from the payload) appears.
+  Keys in **Update only keys list** are saved only when their value changes, so their update time can stay at the first uplink.
 
 ## Configure Downlink
 
-The downlink converter (encoder) transforms a Rule Engine message into the payload delivered to the device through the ChirpStack API. For the full encoder function reference, see <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink data converter</DocLink>.
+ThingsBoard sends each downlink right away as a ChirpStack REST API call. Nothing is queued in ThingsBoard: if the call fails, ThingsBoard records an error and drops the command. ChirpStack adds an accepted downlink to the device queue and sends it in the next receive window of the device: for a Class A device, after its next uplink.
+
+For each downlink, the integration sends `POST {Application server URL}/api/devices/{DevEUI}/queue` with the API key as a `Bearer` token and this body:
+
+```json
+{
+  "queueItem": {
+    "confirmed": false,
+    "data": "eyJ0ZW1wZXJhdHVyZVVwbG9hZEZyZXF1ZW5jeSI6NjB9",
+    "fPort": 84
+  }
+}
+```
+
+`DevEUI`, `fPort`, and `confirmed` come from the `metadata` of the encoder result, and `data` from its `data`. With **Use API for ChirpStack 4+** off, the body key is `deviceQueueItem`. For the full encoder reference, see <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink data converter</DocLink>.
+
+### Create a ChirpStack API Key
+
+The integration authenticates to the ChirpStack REST API with a tenant API key.
+
+<Steps>
+1. In the ChirpStack UI, go to **Tenant &#8702; API Keys** and click **Add API key**.
+2. Enter a **Name**, for example `ThingsBoard`. Keep **Read only** off: ThingsBoard adds downlinks to the device queue. Click **Submit**.
+3. Copy the token. ChirpStack shows it only once.
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/chirpstack/add-chirpstack-api-key-1.png', alt: 'ChirpStack UI, Tenant API Keys page with the Add API key button', caption: 'Go to Tenant → API Keys and click Add API key.' },
+  { src: '/src/assets/images/user-guide/integrations/chirpstack/add-chirpstack-api-key-2.png', alt: 'ChirpStack UI, Add API key form with the name ThingsBoard', caption: 'Enter the name and click Submit.' },
+  { src: '/src/assets/images/user-guide/integrations/chirpstack/add-chirpstack-api-key-3.png', alt: 'ChirpStack UI, the created API key token with a note that it can be retrieved only once', caption: 'Copy the token. It is shown only once.' },
+]} />
+
+<Aside type="caution">
+  Treat the token as a password. Anyone with it can manage the devices of your ChirpStack tenant. Delete the key when you no longer need it.
+</Aside>
 
 ### Create and Assign the Downlink Converter
 
+Add a downlink converter to the integration and turn on **Allow downlink** with the API key.
+
 <Steps>
-  1. Go to **Integrations &#8702; Integrations** and open the **ChirpStack integration**.
-  2. Click the **pencil** icon to enter edit mode.
-  3. In the **Downlink data converter** field, click **Create new**.
-  4. In the **Add data converter** dialog:
-      - Enter a name for the converter, for example, `ChirpStack Downlink Converter`.
-      - Use the default encoder script or replace it with your own implementation.
-      - Click **Add**.
-  5. Click **Apply changes** to save the integration.
+1. Open the integration in **Integrations &#8702; Integrations** and click **Toggle edit mode** (pencil icon).
+2. In the **Downlink data converter** field, click **Create new**. The **Downlink** converter type and **ChirpStack** integration type are preselected.
+3. Enter a name, for example `ChirpStack Downlink Converter`.
+4. **Main encoding configuration** opens in TBEL with a generic encoder. It builds a JSON object from `temperatureUploadFrequency` and `humidityUploadFrequency` and sets an MQTT `topic`, not the `DevEUI` and `fPort` that ChirpStack needs. Replace it with the encoder below. For JavaScript, use the **TBEL / JS** toggle and the **JavaScript** tab.
+5. To record downlink events, click the debug button next to the name, select **All messages**, and click **Apply**.
+6. Click **Add**.
+7. **Enable downlink:** turn on **Allow downlink**. Enter the **Application server URL** and paste the token into **Application server API Token**.
+8. Click **Apply changes**.
 </Steps>
 
-**The encoder function used in this tutorial:**
+Encoder used in this guide. It sends the message as compact JSON text, for example `{"temperatureUploadFrequency":60}`, encoded in Base64 as ChirpStack expects. It reads the device EUI and port from the `cs_eui` and `cs_fPort` metadata keys, which the rule chain adds from the device's client attributes.
 
-```js maxLines=15 collapsible
-// Encode downlink data from incoming Rule Engine message
-  
-// msg - JSON message payload downlink message json
-// msgType - type of message, for ex. 'ATTRIBUTES_UPDATED', 'POST_TELEMETRY_REQUEST', etc.
-// metadata - list of key-value pairs with additional data about the message
-// integrationMetadata - list of key-value pairs with additional data defined in Integration executing this converter
-  
+<Tabs>
+<TabItem label="TBEL (Recommended)">
+
+```js
 /** Encoder **/
 
-// Convert the incoming ThingsBoard message to a JSON string.
-var payload = JSON.stringify(msg);
-  
-// Encode the JSON payload to Base64 for ChirpStack.
-var result = {
-  
-  // downlink data content type: JSON, TEXT or BINARY (base64 format)
-  contentType: "TEXT",
+// Device EUI and LoRaWAN port. The rule chain adds the eui and fPort
+// client attributes to the metadata as cs_eui and cs_fPort.
+var devEui = metadata['cs_eui'];
+var fPort = metadata['cs_fPort'];
 
-  // Encode the JSON string to Base64.
-  // ChirpStack decodes this value before sending the payload to the device.
-  data: btoa(payload),
- 
-  // Provide the device identifier and LoRaWAN port required by ChirpStack.
-  metadata: {
-    DevEUI: metadata.cs_eui,
-    fPort: metadata.cs_fPort
-  }
+return {
+    // TEXT passes the Base64 string to ChirpStack unchanged.
+    contentType: "TEXT",
+    // ChirpStack expects the device payload as a Base64 string.
+    data: btoa(JSON.stringify(msg)),
+    metadata: {
+        // Required. The device to send the downlink to.
+        DevEUI: devEui,
+        // Required. An integer from 1 to 223 that your device listens on.
+        fPort: fPort,
+        // Optional. "true" asks the device to acknowledge the downlink.
+        confirmed: "false"
+    }
 };
-  
-return result;
 ```
 
-<Steps>
-  <ol start="5">
-    <li>Click <strong>Apply changes</strong>.</li>
-  </ol>
-</Steps>
+</TabItem>
+<TabItem label="JavaScript">
 
-The encoder base64-encodes the entire Rule Engine message as the LoRaWAN payload. `metadata.cs_eui` and `metadata.cs_fPort` are populated by the **get required fields** node in the downlink rule chain, which reads the `eui` and `fPort` client attributes from the device. Both attributes must be set on each device before downlinks can be delivered.
+```js
+/** Encoder **/
 
-### Configure Rule Chains
+// Device EUI and LoRaWAN port. The rule chain adds the eui and fPort
+// client attributes to the metadata as cs_eui and cs_fPort.
+var devEui = metadata['cs_eui'];
+var fPort = metadata['cs_fPort'];
 
-ChirpStack downlinks require two device-specific values — `eui` and `fPort` — that must be looked up from the device's client attributes before calling the ChirpStack API. A dedicated rule chain handles this lookup cleanly. In the Root Rule Chain, a `check relation presence` node filters messages so that only devices managed by this ChirpStack integration enter the downlink flow, preventing unrelated devices from accidentally triggering it.
+return {
+    // TEXT passes the Base64 string to ChirpStack unchanged.
+    contentType: "TEXT",
+    // ChirpStack expects the device payload as a Base64 string.
+    data: btoa(JSON.stringify(msg)),
+    metadata: {
+        // Required. The device to send the downlink to.
+        DevEUI: devEui,
+        // Required. An integer from 1 to 223 that your device listens on.
+        fPort: fPort,
+        // Optional. "true" asks the device to acknowledge the downlink.
+        confirmed: "false"
+    }
+};
+```
 
-#### Import the Downlink Rule Chain
+</TabItem>
+</Tabs>
 
-Download the rule chain file: <a href="/resources/docs/integrations/downlink_to_chirpstack.json" download="downlink_to_chirpstack.json"><strong>downlink_to_chirpstack.json</strong></a>
+To check the encoder, click **Test encoder function**. Replace the **Message** with `{"temperatureUploadFrequency":60}`, add `cs_eui` = `24e124538b223213` and `cs_fPort` = `84` to **Metadata**, and click **Test**. The **Output** panel shows:
 
-<Steps>
-1. Go to **Data processing &#8702; Rule chains** and click **+ Add rule chain &#8702; Import rule chain**.
-2. Drag `downlink_to_chirpstack.json` into the import window and click **Import**.
-3. The **Downlink to ChirpStack** rule chain opens - double-click the **integration downlink** node.
-4. Set **Integration** to your **ChirpStack integration** and click **Add**.
-5. Click **Apply changes** to save the rule chain.
-</Steps>
+```json
+{
+  "contentType": "TEXT",
+  "data": "eyJ0ZW1wZXJhdHVyZVVwbG9hZEZyZXF1ZW5jeSI6NjB9",
+  "metadata": {
+    "DevEUI": "24e124538b223213",
+    "fPort": "84",
+    "confirmed": "false"
+  }
+}
+```
 
-The rule chain contains two nodes connected in sequence:
+The integration reads these fields from the encoder result:
 
-- **get required fields** — reads the `fPort` and `eui` client attributes from the device and copies them into message metadata as `cs_fPort` and `cs_eui`. If either attribute is absent on the device, the message takes the **Failure** path and no downlink is sent. Make sure both attributes are set on every device before testing.
-- **Send downlink** — forwards the message to the ChirpStack integration, which runs the downlink converter and queues the encoded payload through the ChirpStack API.
+| Field | Required | Description |
+|-------|----------|-------------|
+| `data` | Yes | The device payload as a Base64 string. The integration sends it to ChirpStack as is. |
+| `contentType` | Yes | Use `TEXT` or `JSON`. |
+| `metadata.DevEUI` | Yes | Device EUI. Without it, the downlink fails with `DevEUI is missing in the downlink metadata!`. |
+| `metadata.fPort` | Yes | LoRaWAN port, as an integer or a numeric string. Without it, the downlink fails with `FPort is missing in the downlink metadata!`. |
+| `metadata.confirmed` | No | `true` or `false`. Any other value fails the downlink. |
 
-#### Configure the Root Rule Chain
+The encoder sends the whole message. A LoRaWAN downlink carries from about 50 to about 220 bytes, depending on the region and data rate. To send a compact binary command instead, build a byte array, encode it with `bytesToBase64()` in TBEL, and return it as `data`. To send several downlinks from one message, return an array of results.
+
+### Configure the Root Rule Chain
+
+The encoder needs the device EUI and port. Add them to the metadata with an **originator attributes** node, then pass the message to the integration. A **check relation presence** node in front lets through only devices that this integration created.
 
 <Steps>
 1. Go to **Data processing &#8702; Rule chains** and open the **Root Rule Chain**.
-2. Search for **check relation presence** in the node panel and drag it onto the canvas.
-3. Configure the **check relation presence** node:
-    - **Name**: `Check relation to ChirpStack integration`
-    - **Direction**: To originator
-    - **Relation type**: `ManagedByIntegration`
-    - Enable **Check relation to specific entity**
-    - Set **Type** to `Integration`, and select your **ChirpStack integration**
-    - Click **Add**
-4. Connect the **message type switch** node to the **check relation presence** node using the **Attributes Updated** link.
-5. Search for **rule chain** in the node panel and drag it onto the canvas.
-6. Configure the **rule chain** node: 
-    - **Name**: `Downlink to ChirpStack`
-    - **Rule chain**: **Downlink to ChirpStack**. 
-    - Click **Add**
-7. Connect the **check relation presence** node's **True** output to the **rule chain** node.
-8. Click **Apply changes** to save the Root Rule Chain.
+2. From the **Filter** section, drag a **check relation presence** node onto the canvas:
+   - **Name** — for example `Managed by ChirpStack`.
+   - **Direction** — **To originator**.
+   - **Relation type** — `ManagedByIntegration`.
+   - Turn on **Check relation to specific entity**, set **Type** to **Integration**, and select `ChirpStack integration`.
+   - Click **Add**.
+3. From the **Enrichment** section, drag an **originator attributes** node onto the canvas:
+   - **Name** — for example `Get EUI and port`.
+   - **Client attributes** — add `eui` and `fPort`.
+   - **Add originator attributes to** — select **Metadata**.
+   - Turn on **Tell failure if any of the attributes are missing**.
+   - Click **Add**.
+4. From the **Action** section, drag an **integration downlink** node onto the canvas:
+   - **Name** — for example `Downlink to ChirpStack`.
+   - **Integration** — select `ChirpStack integration`.
+   - Click **Add**.
+5. Connect the **message type switch** node to `Managed by ChirpStack` with the **Attributes Updated** relation.
+6. Connect `Managed by ChirpStack` to `Get EUI and port` with the **True** relation.
+7. Connect `Get EUI and port` to `Downlink to ChirpStack` with the **Success** relation.
+8. Click **Apply changes**.
 </Steps>
 
-### Trigger a Downlink
+### Test Downlink
 
-The encoder base64-encodes the entire Rule Engine message — adding or updating any shared attribute on the device triggers a downlink.
+ChirpStack accepts a downlink only for a device that exists in ChirpStack with the same DevEUI. If you created the ThingsBoard device with curl, register a device with the DevEUI `24e124538b223213` in ChirpStack first, or use a device that sent a real uplink.
 
 <Steps>
-1. Go to **Devices & assets &#8702; Devices**, select your device, open the **Attributes** tab.
-2. Switch to **Shared attributes**, click **+** to add a new attribute.
-3. Set the key (e.g. `powerState`) and a value (e.g. `on`).
-4. Click **Add**.
+1. Go to **Devices & assets &#8702; Devices** and open the device created in **[Test Uplink](#test-uplink)**.
+2. On the **Attributes** tab, select **Shared attributes** and click **+**.
+3. Enter **Key** `temperatureUploadFrequency`, select the **Integer** type, enter **Value** `60`, and click **Add**.
 </Steps>
 
-#### Verify Downlink Delivery
+### Verify the Downlink
 
-Check the downlink converter **Events** tab:
-- **In** shows the `ATTRIBUTES_UPDATED` message
-- **Out** shows the encoded payload with `DevEUI` and `fPort` in metadata
+- **Converter events** — open `ChirpStack Downlink Converter` in **Integrations &#8702; Data converters** and click the **Events** tab. **In** shows the message `{"temperatureUploadFrequency":60}` with `cs_eui` and `cs_fPort` in its metadata. **Out** shows the Base64 `data`, `DevEUI`, and `fPort`.
+- **Integration events** — open the integration's **Events** tab. Two events of status **OK** appear: **Downlink: ATTRIBUTES_UPDATED** for the message from the Rule Engine, and **Downlink** for the call to ChirpStack.
+- **ChirpStack** — open the device in the ChirpStack application and go to the **Queue** tab. The downlink is listed with **FPort** `84` until ChirpStack sends it after the next uplink of the device.
 
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| No uplinks received | Wrong HTTP endpoint URL configured in ChirpStack | Re-copy the **HTTP endpoint URL** from the integration (toggle edit mode → Connection step) and update the ChirpStack application's HTTP integration |
-| No uplinks received | ChirpStack HTTP integration missing or not saved | In the ChirpStack UI, open the application's **Integrations** tab and confirm the HTTP integration is listed; add it if missing |
-| Uplinks received but device not created | **Allow create devices or assets** is disabled | Open the integration, click **Toggle edit mode**, and enable **Allow create devices or assets** in Basic settings |
-| Uplinks received but device not created | Converter returns empty output or `deviceName` is missing | Go to **Integrations &#8702; Data converters**, open the uplink converter, and inspect **Events → Out**; ensure `deviceName` is resolved from the payload |
-| `Error in converter` | TBEL or JavaScript exception | Open **Events → Error** on the uplink converter and inspect the stack trace |
-| Downlink not delivered | Invalid or expired API token | Open the integration, click **Toggle edit mode**, and re-enter the **Application server API Token** (see [Create a ChirpStack API Key](#create-a-chirpstack-api-key)) |
-| Downlink not delivered | `DevEUI` or `fPort` missing from converter output | Open the downlink converter **Events → Out**; if either key is missing, add the `eui` and `fPort` client attributes to the device |
-| Downlink not delivered | Rule chain misconfigured | In the Root Rule Chain, confirm the **check relation presence** node is connected via the **Attributes Updated** link and its **True** output connects to the **Downlink to ChirpStack** rule chain node |
+| No events on the integration **Events** tab | The HTTP integration in ChirpStack is missing or has a wrong URL, ChirpStack cannot reach ThingsBoard, or the integration is disabled. Or debug mode is off: it records events for 15 minutes after you turn it on. | Check the **Integrations** tab of the ChirpStack application. Copy the **HTTP endpoint URL** again. Turn on **Enable integration**. Turn debug mode on again. |
+| No events on the integration **Events** tab, and the ChirpStack log shows `Posting event failed` | **Event endpoint URL(s)** points to an address at which ChirpStack does not reach ThingsBoard, for example `localhost` when ChirpStack runs in Docker. | Use an address that ChirpStack can reach, such as the host address of the Docker network. Check the log again after the next uplink. |
+| Downlink stays on the **Queue** tab after the next uplink | ChirpStack first sends pending MAC commands to the device, for example right after activation. | Wait for the next uplinks. The downlink is sent once the device has answered the MAC commands. |
+| No events on the integration **Events** tab, and the ChirpStack log shows `Posting event failed` with `415` | **Payload encoding** in ChirpStack is **Protobuf**. The integration accepts only JSON. | Set it to **JSON**. |
+| `URL must be in the public network.` under **Base URL** | On ThingsBoard Cloud, **Base URL** must be a public address. | Keep the default **Base URL**. To send data from a private network, use a <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink>. |
+| Uplink events with status **ERROR** | The decoder failed, for example because the payload is shorter than the byte layout expects. | Check the **Error** column in the converter events and fix the decoder. |
+| Device not created | **Allow create devices or assets** is off. | Turn it on in the integration's **Basic settings**. |
+| Telemetry key `decoded` with a JSON object | A ChirpStack codec decoded the payload. The decoder stores its fields as telemetry, and the default **Telemetry** list adds the whole object as `decoded`. | Remove `decoded` from **Telemetry** if you do not need it. |
+| No downlink events at all | The rule chain does not route attribute updates, or the device was not created by this integration, so **check relation presence** returns **False**. | Check the **Attributes Updated** and **True** relations in the Root Rule Chain. |
+| Message stops at `Get EUI and port` with **Failure** | The device has no `eui` or `fPort` client attribute. | Keep `eui` and `fPort` in the converter's **Attributes** list, and send an uplink to store them. |
+| `DevEUI is missing in the downlink metadata!` or `FPort is missing in the downlink metadata!` | The encoder does not set `metadata.DevEUI` or `metadata.fPort`. The generic default encoder sets neither. | Use the encoder from this guide. |
+| `ChirpStack rejected downlink (401 ...)` | The API key is wrong or was deleted, or no device with this DevEUI exists in the ChirpStack tenant of the key. | Check the key in **Application server API Token**, or create a new one. Register the device in ChirpStack. |
+| `ChirpStack rejected downlink (400 ...)`, for example `invalid value for bytes field data` | `data` is not a Base64 string, or the body format does not match the ChirpStack version. | Return `data` as a Base64 string, as the encoder in this guide does. Turn **Use API for ChirpStack 4+** on for ChirpStack v4 and off for v3. |
+| `I/O error on POST request for "..."`, for example `Connection refused` | ThingsBoard cannot reach the **Application server URL**. | Check the address and port. If ChirpStack is in a private network, use a <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink>. |
 
-<h4>Inspect Debug Events</h4>
-
-<Steps>
-  1. Go to **Integrations &#8702; Integrations**, open the ChirpStack integration, and click the **Events** tab. Filter by **Uplink**.
-  2. Click on an event to inspect:
-</Steps>
-
-- **In** — the raw ChirpStack webhook message received by the integration
-- **Out** — what the converter returned: decoded device name, attributes, and telemetry
-- **Error** — error text, if any
-
-Enable **Debug mode** on the integration to capture all raw input/output events. Starting from ThingsBoard 3.9, the full set of debug events is stored only during the first 1 hour; afterward, only error events are retained. Disable debug mode once the issue is identified.
-
-<Aside type="note" title="Debug mode causes high disk usage">
-  Disable debug mode in production. Active debug stores all events to the database. Switch back to **Failures** mode once setup is complete.
-</Aside>
+To read debug events, open the integration or converter, click **Events**, and select an event: **In** is the received data, **Out** is the converter result, and **Error** holds the error text.
 
 ## See Also
 
-- <DocLink product={props.product} path="user-guide/integrations" target="_blank">Integrations Overview</DocLink> — how ThingsBoard connects to external platforms and how uplink/downlink flow works
-- <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">Uplink Data Converter</DocLink> — full decoder function reference: input parameters, output fields, and scripting patterns
-- <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink Data Converter</DocLink> — full encoder function reference: input parameters, output fields, and scripting patterns
-- <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink> — run the integration outside the ThingsBoard server to reach ChirpStack from a private network
-- <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL scripting reference</DocLink> — built-in functions and operators for writing converter scripts
-- <DocLink product={props.product} path="user-guide/rule-engine" target="_blank">Rule Engine</DocLink> — how the Root Rule Chain routes shared attribute updates to the downlink converter
+- <DocLink product={props.product} path="user-guide/integrations" target="_blank">Integrations overview</DocLink> — how integrations, converters, uplinks, and downlinks fit together.
+- <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">Uplink data converter</DocLink> — typed and generic converters, the converters library, and the output format.
+- <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink data converter</DocLink> — encoder reference.
+- <DocLink product={props.product} path="reference/rule-engine/nodes/filter/message-type-switch" target="_blank">message type switch node</DocLink> — route messages by type, for example attribute updates.
+- <DocLink product={props.product} path="reference/rule-engine/nodes/filter/check-relation-presence" target="_blank">check relation presence node</DocLink> — route messages by a relation of the originator.
+- <DocLink product={props.product} path="reference/rule-engine/nodes/enrichment/originator-attributes" target="_blank">originator attributes node</DocLink> — add attributes of the message originator to the metadata.
+- <DocLink product={props.product} path="reference/rule-engine/nodes/action/integration-downlink" target="_blank">integration downlink node</DocLink> — route Rule Engine messages to an integration.
+- <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink> — run the integration outside the ThingsBoard cluster.
+- <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL</DocLink> — built-in functions and syntax for converter scripts.
+- <DocLink product={props.product} path="user-guide/security/secrets-storage" target="_blank">Secrets storage</DocLink> — store the ChirpStack API key as a secret.
+- <a href="https://www.chirpstack.io/docs/chirpstack/integrations/http.html" target="_blank" rel="noopener noreferrer nofollow"><strong>ChirpStack HTTP integration</strong></a> — event types and payload encoding.
+- <a href="https://www.chirpstack.io/docs/chirpstack/integrations/events.html" target="_blank" rel="noopener noreferrer nofollow"><strong>ChirpStack event types</strong></a> — the fields of uplink and other events.
+- <a href="https://github.com/chirpstack/chirpstack-rest-api" target="_blank" rel="noopener noreferrer nofollow"><strong>ChirpStack REST API</strong></a> — the REST interface that the integration calls for downlinks.

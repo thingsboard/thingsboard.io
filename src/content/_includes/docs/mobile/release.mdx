@@ -1,17 +1,23 @@
+import ConditionalHeading from '@components/ConditionalHeading.astro';
 import DocLink from '@components/DocLink.astro';
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Steps } from '@astrojs/starlight/components';
 import ImageGallery from '@components/ImageGallery.astro';
+import ShowFor from '@components/ShowFor.astro';
 import { Products } from '~/models/site.models';
 
-Build and release the {props.product === Products.MOBILE_PE ? 'ThingsBoard PE' : 'ThingsBoard'} mobile app version 1.7.x for iOS and Android.
+Build and release the {props.product === Products.MOBILE_PE ? 'ThingsBoard PE' : 'ThingsBoard'} mobile app version 1.7 or later for iOS and Android.
 
 <Aside type="note">
-  For versions earlier than 1.7.x, see the pre-1.7 release <DocLink product={props.product} path="release-before-v1.7">guide</DocLink>.
+  For versions earlier than 1.7, see the pre-1.7 release <DocLink product={props.product} path="release-before-v1.7">guide</DocLink>.
 </Aside>
 
 ## Before you start
 
-This guide assumes you have already created an app bundle in the Mobile Center and downloaded the generated `configs.json` file.
+This guide assumes you have already:
+
+- Cloned the app source code and created an app bundle in the Mobile Center, as described in the <DocLink product={props.product} path="getting-started" bold={false}>Getting started</DocLink> guide.
+- Placed the downloaded `configs.json` file in the project root.
+- Installed the Flutter version that matches your app version. It is listed in the <DocLink product={props.product} path="compatibility" bold={false}>compatibility matrix</DocLink> and in the `.fvmrc` file in the project root.
 
 If you need to change any settings, update them in the Mobile Center, re-download `configs.json`, and replace the file in your project.
 
@@ -31,9 +37,57 @@ If you need to change any settings, update them in the Mobile Center, re-downloa
   ]} />
 )}
 
+### App ID, name and version
+
+You don't need to rename the app in the source code. The build reads the app ID and name from `configs.json`:
+
+| Platform | App ID | App name |
+|----------|--------|----------|
+| Android | `androidApplicationId` (the application ID) | `androidApplicationName` |
+| iOS | `iosApplicationId` (the bundle ID) | `iosApplicationName` |
+
+These values come from the application you added to the bundle in the Mobile Center. Without `--dart-define-from-file configs.json`, the build falls back to the default ThingsBoard app ID, which you can't publish under your account.
+
+The version shown in the stores comes from the `version` field in `pubspec.yaml` (for example, `1.9.1+16` is version `1.9.1`, build `16`). App Store Connect and Google Play reject an upload whose build number was already used, so raise it for every upload, either in `pubspec.yaml` or with the `--build-name` and `--build-number` build options.
+
 ## iOS — build and release
 
 Follow the official <a href="https://docs.flutter.dev/deployment/ios" target="_blank" rel="noopener noreferrer">Build and release an iOS app</a> guide to prepare your app for the <a href="https://developer.apple.com/app-store/submitting/" target="_blank" rel="noopener noreferrer">App Store</a> and <a href="https://developer.apple.com/testflight/" target="_blank" rel="noopener noreferrer">TestFlight</a>.
+
+### Configure signing
+
+<ShowFor product={props.product} show={[Products.MOBILE]}>
+
+<Steps>
+1. Run any iOS build once, for example `flutter build ios --no-codesign --no-tree-shake-icons --dart-define-from-file configs.json`. It generates `ios/Flutter/AppConfig.xcconfig` with the bundle ID from `configs.json`, so Xcode shows your bundle ID instead of the default one.
+2. Open `ios/Runner.xcworkspace` in Xcode (not `Runner.xcodeproj`).
+3. Select the **Runner** target, open the **Signing & Capabilities** tab, and select your **Team**.
+</Steps>
+
+</ShowFor>
+
+<ShowFor product={props.product} show={[Products.MOBILE_PE]}>
+
+Starting with version 1.9.1, the iOS project has two targets that are signed and shipped together:
+
+- **Runner** — the app itself.
+- **NotificationServiceExtension** — a notification service extension that adds the icon configured in the notification template to push notifications. Its bundle ID is set automatically to `<iosApplicationId>.NotificationServiceExtension`. Don't change it: Apple requires an extension's bundle ID to start with the app's bundle ID.
+
+<Steps>
+1. Run any iOS build once, for example `flutter build ios --no-codesign --no-tree-shake-icons --dart-define-from-file configs.json`. It generates `ios/Flutter/AppConfig.xcconfig` with the bundle ID from `configs.json`, so Xcode shows your bundle ID instead of the default one.
+2. Open `ios/Runner.xcworkspace` in Xcode (not `Runner.xcodeproj`).
+3. Select the **Runner** target, open the **Signing & Capabilities** tab, and select your **Team**.
+4. Select the **NotificationServiceExtension** target and select the same **Team**. Both targets come with the ThingsBoard team selected, so the build fails until you change it in both.
+5. With **automatic signing**, Xcode registers both App IDs and creates their provisioning profiles. With **manual signing**, also create an App ID and an App Store provisioning profile for `<iosApplicationId>.NotificationServiceExtension`, and select that profile for the extension target.
+</Steps>
+
+<Aside type="tip">
+  The extension doesn't need its own Firebase configuration, push notification capability or App Group. `GoogleService-Info.plist` stays in the **Runner** target only.
+</Aside>
+
+</ShowFor>
+
+### Build the archive
 
 <Aside type="caution">
   When producing a build archive, you must include both <code>--no-tree-shake-icons</code> and <code>--dart-define-from-file</code> in your build command.
@@ -43,9 +97,15 @@ Follow the official <a href="https://docs.flutter.dev/deployment/ios" target="_b
 flutter build ipa --no-tree-shake-icons --dart-define-from-file configs.json
 ```
 
+The `.ipa` file is written to `build/ios/ipa/`. Upload it to App Store Connect with the <a href="https://apps.apple.com/app/transporter/id1450874784" target="_blank" rel="noopener noreferrer">Transporter</a> app, or open the archive from `build/ios/archive/` in Xcode and click **Distribute App**.
+
 ## Android — build and release
 
 Follow the official <a href="https://docs.flutter.dev/deployment/android" target="_blank" rel="noopener noreferrer">Build and release an Android app</a> guide to prepare your app for <a href="https://support.google.com/googleplay/android-developer/answer/9859152" target="_blank" rel="noopener noreferrer">Google Play</a>.
+
+<Aside type="caution">
+  Out of the box, the release build in `android/app/build.gradle` is signed with the debug key, so `flutter run --release` works without setup. Google Play rejects apps signed with a debug key. Before the first upload, create an upload keystore and add a release signing config, as described in the <a href="https://docs.flutter.dev/deployment/android#sign-the-app" target="_blank" rel="noopener noreferrer">Sign the app</a> section of the Flutter guide.
+</Aside>
 
 <Aside type="caution">
   When producing a build archive, you must include both <code>--no-tree-shake-icons</code> and <code>--dart-define-from-file</code> in your build command.
@@ -55,8 +115,26 @@ Follow the official <a href="https://docs.flutter.dev/deployment/android" target
 flutter build appbundle --no-tree-shake-icons --dart-define-from-file configs.json
 ```
 
+The app bundle is written to `build/app/outputs/bundle/release/app-release.aab`. Upload it to the Google Play Console.
+
+After the first upload, copy the **SHA-256 certificate fingerprint** of the app signing key from the Google Play Console (**Release → Setup → App Integrity → App Signing**) to the Android application in your Mobile Center bundle. App links and <DocLink product={props.product} path="qr-code-settings" bold={false}>QR code login</DocLink> need it.
+
 ## Build flags
 
-**`--no-tree-shake-icons`** — prevents Flutter from removing unused icons during the build. This ensures the app can display any icon configured in the notification center.
+**`--no-tree-shake-icons`** — prevents Flutter from removing icons that the code doesn't reference directly. The app picks some icons at runtime by name: the icons set in the Mobile Center layout and in notification templates.{props.product === Products.MOBILE_PE && ' The iOS notification service extension draws push notification icons from the same icon fonts.'} Without this flag, those icons are missing or shown as empty boxes.
 
-**`--dart-define-from-file configs.json`** — loads the mobile app configuration from the JSON file downloaded from the Mobile Center, so the app uses the correct settings for production.
+**`--dart-define-from-file configs.json`** — loads the mobile app configuration from the JSON file downloaded from the Mobile Center: the server address, app ID and name, app secrets and app links settings. Without it, the build uses the default ThingsBoard settings.
+
+<ShowFor product={props.product} show={[Products.MOBILE_PE]}>
+
+<ConditionalHeading level={2} id="troubleshooting" showFor="mobile-pe">Troubleshooting</ConditionalHeading>
+
+<ConditionalHeading level={3} id="signing-fails-for-notificationserviceextension" showFor="mobile-pe">Signing fails for NotificationServiceExtension</ConditionalHeading>
+
+An error such as `Signing for "NotificationServiceExtension" requires a development team` or `No profiles for '…NotificationServiceExtension' were found` means the extension target isn't signed with your team. Complete [Configure signing](#configure-signing) for both targets.
+
+<ConditionalHeading level={3} id="extension-bundle-id-not-prefixed" showFor="mobile-pe">Embedded binary's bundle identifier is not prefixed with the parent app's bundle identifier</ConditionalHeading>
+
+The extension's bundle ID was changed by hand. In the **NotificationServiceExtension** target, set **Bundle Identifier** back to `$(IOSAPPLICATIONID).NotificationServiceExtension` and build again with `--dart-define-from-file configs.json`.
+
+</ShowFor>
