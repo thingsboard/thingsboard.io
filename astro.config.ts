@@ -130,6 +130,7 @@ export default defineConfig({
 				MobileTableOfContents: './src/components/starlight/MobileTableOfContents.astro',
 				TableOfContents: './src/components/starlight/TableOfContents.astro',
 				PageSidebar: './src/components/starlight/PageSidebar.astro',
+				TwoColumnContent: './src/components/starlight/TwoColumnContent.astro',
 				Footer: './src/components/starlight/Footer.astro',
 				SiteTitle: './src/components/starlight/SiteTitle.astro',
 				Search: './src/components/starlight/Search.astro',
@@ -167,9 +168,8 @@ export default defineConfig({
 				// replaces same-property defaults with these.
 				{ tag: 'meta', attrs: { property: 'og:site_name', content: 'ThingsBoard' } },
 				{ tag: 'meta', attrs: { property: 'og:type', content: 'website' } },
-				// Starlight only emits twitter:site if a twitter/x.com entry is set in `social:`.
-				// We can't use `social:` here without also rendering a duplicate icon in the header
-				// (footer already has X via the custom <SocialNetworks /> component).
+				// Starlight emits twitter:site only for an x.com entry in its `social:` option. The site keeps
+				// its social links in `data/socialNetworks.ts` instead, so the tag is set here.
 				{ tag: 'meta', attrs: { name: 'twitter:site', content: '@thingsboard' } },
 			],
 			disable404Route: true,
