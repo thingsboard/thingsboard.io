@@ -162,16 +162,21 @@ except ImportError:
     import serial
 
 from thingsboard_gateway.connectors.connector import Connector
+from thingsboard_gateway.gateway.entities.rpc_request import RPCType
+from thingsboard_gateway.gateway.entities.rpc_response import RPCResponse
 from thingsboard_gateway.tb_utility.tb_loader import TBModuleLoader
 from thingsboard_gateway.tb_utility.tb_logger import init_logger
 
 if TYPE_CHECKING:
+    #  necessary for type checking to avoid circular import
     from thingsboard_gateway.gateway.tb_gateway_service import TBGatewayService
 
 
 class SerialDevice(Thread):
-    """Represents one device connected to a serial port."""
-
+    """
+    Serial device class is used to represent a device that is connected to the serial port.
+    It is used to read data from the device and send it to the platform.
+    """
     def __init__(self, device_config, uplink_converter, stop_event: Event, logger, uplink_queue):
         super().__init__()
         self.__log = logger
@@ -204,6 +209,10 @@ class SerialDevice(Thread):
         self.__serial = None
 
     def get_serial(self):
+        """
+        Method to get serial connection to the device.
+        If connection is not established, it tries to connect to the device.
+        """
         with self.__serial_lock:
             if self.__serial is None or not self.__serial.is_open:
                 try:
@@ -228,25 +237,34 @@ class SerialDevice(Thread):
         return self.__serial
 
     def run(self):
+        """
+        Main method to read data from the device and send it to the platform.
+        """
         self.__log.info("Device %s started", self.name)
         self.stopped = False
-        self.get_serial()
         while not self.__connector_stopped.is_set() and not self.stopped:
             try:
-                if not self.__rpc_in_progress.is_set():
-                    data_from_device = self.__read_data_from_serial()
-                    if data_from_device:
-                        try:
-                            converted_data = self.uplink_converter.convert(None, data_from_device)
-                            self.uplink_queue.put(converted_data)
-                        except Exception as e:
-                            self.__log.error("Failed to convert data from device %s: %s", self.name, e)
+                # Avoid excessive "Failed to connect to device" errors when __read_data_from_serial() calls get_serial()
+                if self.get_serial() is None or not self.__serial.is_open:
+                    sleep(3)
+                else:
+                    if not self.__rpc_in_progress.is_set():
+                        data_from_device = self.__read_data_from_serial()
+                        if data_from_device:
+                            try:
+                                converted_data = self.uplink_converter.convert(None, data_from_device)
+                                self.uplink_queue.put(converted_data)
+                            except Exception as e:
+                                self.__log.error("Failed to convert data from device %s: %s", self.name, e)
             except Exception as e:
                 self.__log.exception("Error in device %s: %s", self.name, e)
                 self.stop()
         self.__log.info("Device %s stopped", self.name)
 
     def handle_rpc_request(self, rpc_method, params):
+        """
+        Method to process RPC requests from the platform.
+        """
         result = {"success": True}
         processed = False
         for rpc_config in self.config.get("serverSideRpc", []):
@@ -282,7 +300,7 @@ class SerialDevice(Thread):
                     else:
                         result = {"error": "Downlink converter not defined", "success": False}
                 except Exception as e:
-                    self.__log.error("Failed to process RPC method: %r, params: %r, config: %r — Error: %s",
+                    self.__log.error("Failed to process RPC with method: %r, params: %r, config: %r - Error: %s",
                                      rpc_method, params, rpc_config, e)
                     result = {"error": str(e), "success": False}
                 finally:
@@ -292,6 +310,10 @@ class SerialDevice(Thread):
         return result
 
     def write(self, data, with_response=False, response_timeout=5):
+        """
+        Method to write data to the device.
+        If with_response is set to True, it waits for the response from the device.
+        """
         try:
             serial_conn = self.get_serial()
             if serial_conn:
@@ -305,24 +327,28 @@ class SerialDevice(Thread):
         return None
 
     def __read_data_from_serial(self, timeout=1):
+        """
+        Method to read data from the device.
+        It reads data until the delimiter is found.
+        """
         data_from_device = b''
-        serial_conn = None
         try:
             serial_conn = self.get_serial()
-            previous_timeout = serial_conn.timeout
-            if serial_conn:
-                while not data_from_device.endswith(self.delimiter.encode('utf-8')):
-                    serial_conn.timeout = timeout
-                    chunk = serial_conn.read(1)
-                    if chunk:
-                        data_from_device += chunk
-                    if self.__connector_stopped.is_set() or not chunk or self.stopped:
-                        break
+            if serial_conn and serial_conn.is_open:
+                # Ensure serial_conn is not None before accessing its timeout attribute
+                previous_timeout = serial_conn.timeout
+                try:
+                    while not data_from_device.endswith(self.delimiter.encode('utf-8')):
+                        serial_conn.timeout = timeout
+                        chunk = serial_conn.read(1)
+                        if chunk:
+                            data_from_device += chunk
+                        if self.__connector_stopped.is_set() or not chunk or self.stopped:
+                            break
+                finally:
+                    serial_conn.timeout = previous_timeout
         except Exception as e:
             self.__log.exception("Failed to read from device %s: %s", self.name, e)
-        finally:
-            if serial_conn:
-                serial_conn.timeout = previous_timeout
         return data_from_device
 
     def stop(self):
@@ -333,27 +359,34 @@ class SerialDevice(Thread):
                 self.__serial = None
 
     def is_connected_reconnect_if_needed(self):
-        if self.__serial is None or not self.__serial.isOpen():
+        """
+        Method to check if the device is connected.
+        If the device is not connected, it tries to reconnect.
+        """
+        if self.__serial is None or not self.__serial.is_open:
             if monotonic() - self.__previous_connect > 1:
                 self.__previous_connect = monotonic()
                 self.__log.info("Reconnecting to device %s", self.name)
                 self.get_serial()
-                return self.__serial is None or not self.__serial.isOpen()
+                # Only return True if the serial connection is successful
+                return self.__serial and self.__serial.is_open
         else:
             return True
 
 
 class SerialConnector(Thread, Connector):
-    """Manages serial port devices and routes their data to ThingsBoard."""
-
+    """
+    Serial connector class is used to represent a serial connector.
+    It is used to manage devices connected to the serial ports.
+    """
     def __init__(self, gateway: 'TBGatewayService', config, connector_type):
         super().__init__()
-        self._connector_type = connector_type
-        self.__config = config
-        self.__id = self.__config["id"]
-        self.__gateway = gateway
-        self.name = self.__config["name"]
-        self.__connected = False
+        self._connector_type = connector_type  # required to have for get connector type method
+        self.__config = config  # required to have for get config method
+        self.__id = self.__config["id"]  # required to have for get id method
+        self.__gateway = gateway  # required to have for send data to storage method or to use other gateway methods
+        self.name = self.__config["name"]  # required to have for get name method
+        self.__connected = False  # required to have for is connected method
         self.__uplink_queue = Queue(self.__config.get('uplinkQueueSize', 100000))
         self._log = init_logger(self.__gateway, self.name, level=self.__config.get('logLevel'),
                                 enable_remote_logging=self.__config.get('enableRemoteLogging', False),
@@ -368,45 +401,20 @@ class SerialConnector(Thread, Connector):
         self.__devices: List[SerialDevice] = []
         self._log.info('Connector %s initialization success.', self.get_name())
 
-    def __load_devices(self):
-        devices_config = self.__config.get('devices')
-        try:
-            if devices_config is not None:
-                for device_config in devices_config:
-                    device = None
-                    uplink_converter_class_name = device_config.get('converter', device_config.get('uplink_converter'))
-                    if uplink_converter_class_name is not None:
-                        converter_class = TBModuleLoader.import_module(self._connector_type,
-                                                                       uplink_converter_class_name)
-                        uplink_converter = converter_class(device_config, self._log)
-                        device = SerialDevice(device_config, uplink_converter, self.stopped,
-                                              self._log, self.__uplink_queue)
-                    else:
-                        self._log.error('Uplink converter not found for connector %s.', self.get_name())
-                    if device_config.get('downlink_converter') is not None:
-                        downlink_converter_class = TBModuleLoader.import_module(
-                            self._connector_type, device_config.get('downlink_converter'))
-                        if device is not None:
-                            device.downlink_converter = downlink_converter_class(device_config, self._converter_log)
-                    if device is not None:
-                        self.__devices.append(device)
-            else:
-                self._log.error('Section "devices" not found in config. Stopping connector %s.', self.get_name())
-                self.close()
-        except Exception as e:
-            self._log.error('Failed to load devices: %s', e)
-
     def __start_devices(self):
-        failed = len(self.__devices)
+        failed_to_connect_devices = len(self.__devices)
         for device in self.__devices:
             try:
                 device.start()
-                failed -= 1
+                failed_to_connect_devices -= 1
             except Exception as e:
-                self._log.exception("Failed to start device %s: %s", device.name, e)
-        self.__connected = failed == 0
+                self._log.exception("Failed to start device %s, error: %s", device.name, e)
+        self.__connected = failed_to_connect_devices == 0
 
     def open(self):
+        """
+        Service method to start the connector.
+        """
         self.stopped.clear()
         self.start()
 
@@ -428,35 +436,75 @@ class SerialConnector(Thread, Connector):
     def get_id(self):
         return self.__id
 
+    def __load_devices(self):
+        """
+        Method to create devices objects using configuration file and create converters for them.
+        """
+        devices_config = self.__config.get('devices')
+        try:
+            if devices_config is not None:
+                for device_config in devices_config:
+                    device = None
+                    uplink_converter_class_name = device_config.get('converter', device_config.get('uplink_converter'))
+                    if uplink_converter_class_name is not None:
+                        converter_class = TBModuleLoader.import_module(self._connector_type,
+                                                                       uplink_converter_class_name)
+                        uplink_converter = converter_class(device_config, self._log)
+                        device = SerialDevice(device_config, uplink_converter, self.stopped,
+                                              self._log, self.__uplink_queue)
+                    else:
+                        self._log.error('Converter configuration for the connector %s -- \
+                            not found, please check your configuration file.', self.get_name())
+                    if device_config.get('downlink_converter') is not None:
+                        downlink_converter_class = TBModuleLoader.import_module(self._connector_type,
+                                                                                device_config.get('downlink_converter'))
+                        if device is not None:
+                            device.downlink_converter = downlink_converter_class(device_config, self._converter_log)
+                    if device is not None:
+                        self.__devices.append(device)
+            else:
+                self._log.error('Section "devices" in the configuration not found. \
+                    A connector %s has being stopped.', self.get_name())
+                self.close()
+        except Exception as e:
+            self._log.error('Failed to load devices, error: %s', e)
+
     def run(self):
+        """
+        Main method to manage devices connected to the serial ports and process data from them.
+        """
         try:
             self.__load_devices()
             self.__start_devices()
-            self._log.info("Devices: %s", '\n'.join(d.name for d in self.__devices))
+            self._log.info("Devices in configuration file found: %s ",
+                           '\n'.join(device.name for device in self.__devices))
             while not self.stopped.is_set():
                 try:
-                    connected = len(self.__devices)
+                    connected_devices = len(self.__devices)
                     for device in self.__devices:
                         if not device.stopped and not device.is_connected_reconnect_if_needed():
-                            connected -= 1
-                            self._log.error("Device %s disconnected — reconnecting", device.name)
+                            connected_devices -= 1
+                            self._log.error("Device %s is not connected", device.name)
                             device.stop()
                             device.join()
                             device = SerialDevice(device.config, device.uplink_converter, self.stopped,
                                                   self._log, self.__uplink_queue)
                             device.start()
-                    self.__connected = connected == len(self.__devices)
+                    self.__connected = connected_devices == len(self.__devices)
                     if not self.__uplink_queue.empty():
                         data = self.__uplink_queue.get()
                         self.__gateway.send_to_storage(self.name, self.__id, data)
                     else:
                         sleep(0.05)
                 except Exception as e:
-                    self._log.error("Error processing data: %s", e)
+                    self._log.error("Failed to process data from device %s, error: %s", self.name, e)
         except Exception as e:
-            self._log.error("Connector error: %s", e)
+            self._log.error("Failed to process data from device %s, error: %s", self.name, e)
 
     def close(self):
+        """
+        Service method to stop the connector and all devices connected to it.
+        """
         self.stopped.set()
         for device in self.__devices:
             self.__gateway.del_device(device.name)
@@ -464,58 +512,70 @@ class SerialConnector(Thread, Connector):
         self._log.stop()
 
     def on_attributes_update(self, content):
-        self._log.debug("Attribute update: %s", content)
+        """
+        Callback method to process attribute updates from the platform.
+        """
+        self._log.debug("Received attribute update: %s", content)
         device_name = content.get("device")
-        if device_name is None:
-            self._log.error("Device name missing in attribute update: %s", content)
-            return
-        for device in self.__devices:
-            if device_name == device.name:
-                request_config = device.config.get("attributeUpdates")
-                if request_config is None:
-                    self._log.error("No attributeUpdates config for device %s", device_name)
-                    return
-                found = False
-                for attr_config in request_config:
-                    attribute = attr_config.get("attributeOnPlatform")
-                    if attribute and attribute in content["data"]:
-                        found = True
-                        try:
-                            value = content["data"][attribute]
-                            str_to_send = str(
-                                attr_config["stringToDevice"]
-                                .replace("${" + attribute + "}", str(value))
-                                .replace("${deviceName}", device_name)
-                                .replace("${deviceType}", device.type)
-                            ).encode("UTF-8")
-                            device.write(str_to_send)
-                        except Exception as e:
-                            self._log.error("Failed to send attribute update to %s: %s", device_name, e)
-                if not found:
-                    self._log.error("Attribute update config not found for key %s on device %s",
-                                    list(content['data'].keys())[0], device_name)
+        if device_name is not None:
+            for device in self.__devices:
+                if device_name == device.name:
+                    request_config = device.config.get("attributeUpdates")
+                    if request_config is not None:
+                        attribute_config_found = False
+                        for attribute_config in request_config:
+                            attribute = attribute_config.get("attributeOnPlatform")
+                            if attribute is not None and attribute in content["data"]:
+                                attribute_config_found = True
+                                try:
+                                    value = content["data"][attribute]
+                                    str_to_send = str(attribute_config["stringToDevice"]
+                                                      .replace("${" + attribute + "}", str(value))
+                                                      .replace("${deviceName}", device_name)
+                                                      .replace("${deviceType}", device.type)
+                                                      ).encode("UTF-8")
+                                    device.write(str_to_send)
+                                except Exception as e:
+                                    self._log.error("Failed to send attribute update to device %s: %s",
+                                                    device_name, e)
+                        if not attribute_config_found:
+                            self._log.error("Attribute update configuration for key %s for device %s not found",
+                                            list(content['data'].keys())[0], device_name)
+                    else:
+                        self._log.error("Attribute update configuration for device %s not found", device_name)
+        else:
+            self._log.error("Device name is not provided in the attribute update request: %s", content)
 
-    def server_side_rpc_handler(self, content):
-        self._log.debug("RPC request: %s", content)
-        device_name = content.get("device")
-        rpc_data = content.get("data", {})
-        rpc_method = rpc_data.get("method")
-        req_id = rpc_data.get("id")
-        params = rpc_data.get("params")
-        if device_name is None:
-            self._log.error("Device name missing in RPC request: %s", content)
-            return
-        for device in self.__devices:
-            if device_name == device.name:
-                result = device.handle_rpc_request(rpc_method, params)
-                if "error" in result:
-                    self._log.error("RPC error for device %s: %s", device_name, result["error"])
-                if result is not None:
-                    self.__gateway.send_rpc_reply(device=device_name,
-                                                  req_id=req_id,
-                                                  content=result,
-                                                  wait_for_publish=True,
-                                                  quality_of_service=1)
+    def server_side_rpc_handler(self, rpc_request) -> RPCResponse:
+        """
+        Callback method to process RPC requests from the platform.
+        Returns RPCResponse, the gateway sends it to the platform as the RPC reply.
+        """
+        self._log.debug("Received RPC request: %s", rpc_request)
+        response = RPCResponse(rpc_request.id, device=rpc_request.device_name)
+
+        if rpc_request.rpc_type == RPCType.CONNECTOR:
+            response.set_error_msg("RPC to connector is not supported by Serial connector")
+            return response
+
+        if rpc_request.rpc_type == RPCType.RESERVED:
+            response.set_error_msg("Reserved RPC methods (get/set) are not supported by Serial connector")
+            return response
+
+        device = next((device for device in self.__devices if device.name == rpc_request.device_name), None)
+        if device is None:
+            response.set_error_msg(f"Device {rpc_request.device_name} not found")
+            return response
+
+        result = device.handle_rpc_request(rpc_request.method_name, rpc_request.params)
+        if "error" in result:
+            self._log.error("Failed to process RPC request for device %s, error: %s",
+                            rpc_request.device_name, result["error"])
+            response.set_error_msg(result["error"])
+        else:
+            response.set_message(result.get("result", result))
+
+        return response
 ```
 
 ---
@@ -541,8 +601,11 @@ from thingsboard_gateway.tb_utility.tb_utility import TBUtility
 
 class SerialUplinkConverter(Converter):
     """
-    Converts incoming serial bytes to the ConvertedData format expected by ThingsBoard.
-    One converter instance is created per configured device.
+    Uplink converter is used to convert incoming data to the format that platform expects.
+    Such as we create uplink converter for each configured device,
+    this converter is used to convert incoming data from only one device.
+    Because config, that we passed to init method, is device specific.
+    If your connector can handle multiple devices, you can create one converter for all devices.
     """
 
     def __init__(self, config, logger):
@@ -554,97 +617,102 @@ class SerialUplinkConverter(Converter):
         try:
             self.__device_report_strategy = ReportStrategyConfig(self.__config.get(REPORT_STRATEGY_PARAMETER))
         except ValueError as e:
-            self._log.trace("No report strategy config for device %s: %s", self.__device_name, e)
+            self._log.trace("Report strategy config is not specified for device %s: %s", self.__device_name, e)
 
     def convert(self, config, data: bytes):
-        """
-        Converts device bytes to ConvertedData.
-        When config is not None (RPC response), returns a dict with the converted result.
-        """
+        """Converts incoming data to the format that platform expects. Config is specified only for RPC responses."""
         self._log.debug("Data to convert: %s", data)
         if config is not None:
-            return {"result": self.__convert_value_to_type(data, config)}
-
-        converted_data = ConvertedData(self.__device_name, self.__device_type)
-        for dp_config in self.__config.get(TIMESERIES_PARAMETER, self.__config.get(TELEMETRY_PARAMETER, [])):
-            try:
-                entry = self.__convert_telemetry_datapoint(data, dp_config)
-                if entry:
-                    converted_data.add_to_telemetry(entry)
-            except Exception as e:
-                self._log.error("Error converting telemetry: %s", e)
-        for dp_config in self.__config.get('attributes', []):
-            try:
-                attr = self.__convert_attributes_datapoint(data, dp_config)
-                if attr:
-                    converted_data.add_to_attributes(*attr)
-            except Exception as e:
-                self._log.error("Error converting attribute: %s", e)
-        self._log.debug("Converted data: %s", converted_data)
+            converted_data = {"result": self.__convert_value_to_type(data, config)}
+            return converted_data
+        else:
+            converted_data = ConvertedData(self.__device_name, self.__device_type)
+            for datapoint_config in self.__config.get(TIMESERIES_PARAMETER, self.__config.get(TELEMETRY_PARAMETER, [])):
+                try:
+                    telemetry_entry = self.__convert_telemetry_datapoint(data, datapoint_config)
+                    if telemetry_entry:
+                        converted_data.add_to_telemetry(telemetry_entry)
+                except Exception as e:
+                    self._log.error("Error converting telemetry datapoint: %s", e)
+            for datapoint_config in self.__config.get('attributes', []):
+                try:
+                    attribute_data = self.__convert_attributes_datapoint(data, datapoint_config)
+                    if attribute_data:
+                        converted_data.add_to_attributes(*attribute_data)
+                except Exception as e:
+                    self._log.error("Error converting attribute datapoint: %s", e)
+            self._log.debug("Converted data: %s", converted_data)
         return converted_data
 
     def __convert_telemetry_datapoint(self, data, dp_config) -> TelemetryEntry:
         key = dp_config.get('key')
-        datapoint_key = TBUtility.convert_key_to_datapoint_key(
-            key, self.__device_report_strategy, dp_config, self._log)
+        datapoint_key = self.__convert_datapoint_key(key, dp_config, self.__device_report_strategy, self._log)
         value = self.__convert_value_to_type(data, dp_config)
         if not datapoint_key or not value:
-            self._log.trace("Datapoint %s not found in: %s", key, data.hex())
+            self._log.trace("Datapoint %s - not found in incoming data: %s", key, data.hex())
             return None
         return TelemetryEntry({datapoint_key: value})
 
     def __convert_attributes_datapoint(self, data, dp_config) -> Tuple[DatapointKey, Any]:
         key = dp_config.get('key')
-        datapoint_key = TBUtility.convert_key_to_datapoint_key(
-            key, self.__device_report_strategy, dp_config, self._log)
+        datapoint_key = self.__convert_datapoint_key(key, dp_config, self.__device_report_strategy, self._log)
         value = self.__convert_value_to_type(data, dp_config)
         if not datapoint_key or not value:
-            self._log.trace("Datapoint %s not found in: %s", key, data.hex())
+            self._log.trace("Datapoint %s - not found in incoming data: %s", key, data.hex())
             return None
         return (datapoint_key, value)
 
     @staticmethod
     def __convert_value_to_type(data, dp_config):
         type_ = dp_config.get('type')
-        d = data
-
+        data_for_conversion = data
         if dp_config.get("untilDelimiter") or dp_config.get("fromDelimiter"):
-            from_delim = dp_config.get("fromDelimiter")
-            until_delim = dp_config.get("untilDelimiter")
-            from_pos = d.find(from_delim.encode('UTF-8')) if from_delim else 0
-            until_pos = d.find(until_delim.encode('UTF-8')) if until_delim else -1
-            if from_pos != -1 and until_pos != -1 and from_pos < until_pos:
-                d = d[from_pos:until_pos]
-            elif from_pos != -1 and from_pos < len(d):
-                d = d[from_pos:]
-            elif until_pos != -1 and until_pos < len(d):
-                d = d[:until_pos]
+            fromDelimiter = dp_config.get("fromDelimiter")
+            untilDelimiter = dp_config.get("untilDelimiter")
+            fromDelimiterPosition = data_for_conversion.find(
+                fromDelimiter.encode('UTF-8')) if fromDelimiter else 0
+            untilDelimiterPosition = data_for_conversion.find(
+                untilDelimiter.encode('UTF-8')) if untilDelimiter else -1
+            if fromDelimiterPosition != -1 \
+                    and untilDelimiterPosition != -1 \
+                    and fromDelimiterPosition < untilDelimiterPosition:
+                data_for_conversion = data_for_conversion[fromDelimiterPosition:untilDelimiterPosition]
+            elif fromDelimiterPosition != -1 and fromDelimiterPosition < len(data_for_conversion):
+                data_for_conversion = data_for_conversion[fromDelimiterPosition:]
+            elif untilDelimiterPosition != -1 and untilDelimiterPosition < len(data_for_conversion):
+                data_for_conversion = data_for_conversion[:untilDelimiterPosition]
         elif dp_config.get("fromByte") or dp_config.get("toByte"):
-            from_byte = dp_config.get("fromByte")
-            to_byte = dp_config.get("toByte")
-            if from_byte and to_byte and from_byte < to_byte and len(d) > to_byte:
-                d = d[to_byte:from_byte]
+            if dp_config.get("fromByte") and dp_config.get("toByte") \
+                    and dp_config["fromByte"] < dp_config["toByte"] \
+                    and len(data_for_conversion) > dp_config["toByte"]:
+                data_for_conversion = data_for_conversion[dp_config["toByte"]:dp_config["fromByte"]]
             else:
-                if from_byte and len(d) > from_byte:
-                    d = d[from_byte:]
-                if to_byte and (len(d) > to_byte or to_byte == -1):
-                    d = d[:to_byte]
+                if dp_config.get("fromByte") and len(data_for_conversion) > dp_config.get("fromByte", 0):
+                    data_for_conversion = data_for_conversion[dp_config["fromByte"]:]
+                if dp_config.get("toByte") and \
+                        (len(data_for_conversion) > dp_config.get("toByte", 0) or dp_config["toByte"] == -1):
+                    data_for_conversion = data_for_conversion[:dp_config["toByte"]]
 
         if type_ == 'string':
-            return d.decode('UTF-8').strip()
+            value = data_for_conversion.decode('UTF-8').strip()
         elif type_ == 'json':
-            return loads(d.decode('UTF-8'))
+            value = loads(data_for_conversion.decode('UTF-8'))
         elif type_ == 'int':
-            return int(d)
-        elif type_ in ('float', 'double'):
-            return float(d)
+            value = int(data_for_conversion)
+        elif type_ == 'float' or type_ == 'double':
+            value = float(data_for_conversion)
         elif type_ == 'bool':
             try:
-                return bool(int(d))
+                value = bool(int(data_for_conversion))
             except ValueError:
-                return d.decode('UTF-8').strip().lower() == 'true'
+                return data_for_conversion.decode('UTF-8').strip().lower() == 'true'
         else:
-            return d.hex()
+            value = data_for_conversion.hex()
+        return value
+
+    @staticmethod
+    def __convert_datapoint_key(key, dp_config, device_report_strategy, logger):
+        return TBUtility.convert_key_to_datapoint_key(key, device_report_strategy, dp_config, logger)
 ```
 
 After processing `48\r2430947595\n`, the converter produces:
@@ -672,8 +740,11 @@ from thingsboard_gateway.connectors.converter import Converter
 
 class SerialDownlinkConverter(Converter):
     """
-    Converts RPC or attribute update payloads into bytes for the serial port.
-    One converter instance is created per configured device.
+    Downlink converter is used to convert data that can be sent to device.
+    Such as we create downlink converter for each configured device,
+    this converter is used to convert data that can be sent to only one device.
+    Because config, that we passed to init method, is device specific.
+    If your connector can handle multiple devices, you can create one converter for all devices.
     """
 
     def __init__(self, config, logger):
@@ -681,24 +752,22 @@ class SerialDownlinkConverter(Converter):
         self.__config = config
 
     def convert(self, config, data) -> bytes:
-        """Returns bytes to write to the serial port."""
+        """Method to convert data that can be send to serial port."""
         self._log.debug("Data to convert: %s", data)
+        byteorder = self.__config.get('byteorder', 'big').lower()
         if data is None:
             return None
-        byteorder = self.__config.get('byteorder', 'big').lower()
         type_ = config.get("type")
-
         if type_ == "int":
             length = ceil(data.bit_length() / 8)
             return data.to_bytes(length, byteorder=byteorder)
-        elif type_ in ("float", "double"):
-            fmt_single = ('>' if byteorder == 'big' else '<') + 'f'
-            single_bytes = pack(fmt_single, data)
-            if unpack(fmt_single, single_bytes)[0] == data:
-                return single_bytes
-            fmt_double = ('>' if byteorder == 'big' else '<') + 'd'
-            return pack(fmt_double, data)
-
+        elif type_ == "float" or type_ == "double":
+            fmt_single_precision = ('>' if byteorder == 'big' else '<') + 'f'
+            single_precision_bytes = pack(fmt_single_precision, data)
+            if unpack(fmt_single_precision, single_precision_bytes)[0] == data:
+                return single_precision_bytes
+            fmt_double_precision = ('>' if byteorder == 'big' else '<') + 'd'
+            return pack(fmt_double_precision, data)
         return data.encode("UTF-8")
 ```
 
@@ -777,7 +846,7 @@ Key methods used in this example:
 | `run` | Main loop: loads devices, starts threads, drains the uplink queue, handles reconnects. |
 | `close` | Stops all device threads and the logger. |
 | `on_attributes_update` | Formats the attribute value as a UTF-8 string and writes it to the device's serial port. |
-| `server_side_rpc_handler` | Delegates RPC handling to `SerialDevice.handle_rpc_request` and sends the reply. |
+| `server_side_rpc_handler` | Delegates RPC handling to `SerialDevice.handle_rpc_request` and returns an `RPCResponse`, which the gateway sends to ThingsBoard. |
 
 ## Converter method reference
 

@@ -1302,8 +1302,8 @@ MQTT connector supports the following requests mapping:
 - **RPC methods** - allows sending RPC commands to devices.
   MQTT connector supports different types of RPC methods, such as:
 
-  - **Reserved GET/SET methods** - these methods are automatically created for each attribute and time series parameter.
-    You can use them to get or set values of the device. For every configured attribute or timeseries key, the connector exposes built-in RPCs:
+  - **Reserved GET/SET methods** - built-in methods that need no configuration. The topics and the value are passed
+    in the RPC parameters:
 
     - `get` - reads the current value (as the connector can provide/resolve it)
     - `set` - sets/updates the value (the connector applies or forwards it)
@@ -1568,6 +1568,8 @@ The following parameters are used to configure RPC methods:
 - **Response topic QoS** (only for `Two Way`) - quality of Service level for the response topic subscription.
 - **Response timeout** (only for `Two Way`) - timeout in milliseconds. If there is no response within this period after sending the request, gateway will unsubscribe from the response topic.
 
+The gateway replies to ThingsBoard with `{"result": "<response payload>"}` for two-way RPC, `{"result": "success"}` for one-way RPC, `"{\"success\": false}"` if the response timeout expires, or `{"error": "<message>"}` on failure.
+
 <Aside type="note">
   All configuration parameters list, and their detailed description can be found in the
   [Advanced configuration](#device-rpc-methods) section.
@@ -1647,8 +1649,7 @@ In order to add a new RPC method, follow these steps:
 </Steps>
 
 <Aside type="note">
-  Also, every telemetry and attribute parameter has built-in GET and SET RPC methods out of the box, so you don't need to configure
-  it manually. See <DocLink product={props.product} path="features/reserved-rpc/">the guide</DocLink>.
+  Also, you can send a request to any topic with the built-in `get` and `set` RPC methods, without configuring them. See <DocLink product={props.product} path="features/reserved-rpc/">the guide</DocLink>.
 </Aside>
 
 ### Usage examples
@@ -2458,15 +2459,24 @@ It also listens to the topic `data/set_light_level` to update the light level va
 In the RPC Debug Terminal widget, run the following command to send a two-way RPC request:
 
 ```bash
-get requestTopicExpression=data/get_light_level;responseTopicExpression=data/response;value=${params};
+get requestTopicExpression=data/get_light_level;responseTopicExpression=data/response;value=light_level;
 ```
 
 The gateway will:
 1. Receive this RPC request
 2. Process the built-in "get" method
-3. Send a message to the topic `data/get_light_level` with the specified parameters
-4. Subscribe to the topic `data/response` to wait for a response
+3. Subscribe to the topic `data/response` to wait for a response
+4. Send the value `light_level` to the topic `data/get_light_level`
 5. Return the response to ThingsBoard when received
+
+The response contains the payload of the received message as a string:
+
+```json
+{"result": "<payload>"}
+```
+
+The gateway always waits 5 seconds for the response; the timeout cannot be changed. If no message arrives on
+the response topic in time, the response is `"{\"success\": false}"`.
 
 <ImageGallery images={[
   {
@@ -2480,14 +2490,20 @@ The gateway will:
 In the RPC Debug Terminal widget, run the following command to send a one-way RPC request:
 
 ```bash
-get requestTopicExpression=data/get_light_level;value=${params};
+get requestTopicExpression=data/get_light_level;value=light_level;
 ```
 
 The gateway will:
 1. Receive this RPC request
 2. Process the built-in "get" method
-3. Send a message to the topic `data/get_light_level` with the specified parameters
+3. Send the value `light_level` to the topic `data/get_light_level`
 4. Not wait for any response since no response topic was specified
+
+Response:
+
+```json
+{"result": "success"}
+```
 
 <ImageGallery images={[
   {
@@ -2510,6 +2526,12 @@ The gateway will:
 3. Send a message to the topic `data/set_light_level` with the value "90"
 4. Not wait for any response since no response topic was specified
 
+Response:
+
+```json
+{"result": "success"}
+```
+
 <ImageGallery images={[
   {
     src: '/src/assets/images/gateway/mqtt-connector/examples/result-device-overview-reserved-rpc-3.png',
@@ -2522,7 +2544,7 @@ The gateway will:
 After setting the new light level, you can verify the updated value by running:
 
 ```bash
-get requestTopicExpression=data/get_light_level;responseTopicExpression=data/response;value=${params};
+get requestTopicExpression=data/get_light_level;responseTopicExpression=data/response;value=light_level;
 ```
 
 The gateway will process this request as in Example 1, and you should see the updated light level value in the response.
@@ -2697,9 +2719,17 @@ echo {"deviceName":"SN-001", "methodName":"echo"}
 The gateway will:
 1. Receive this RPC request
 2. Match it to the "echo" method configuration
-3. Send a message to the topic `sensor/SN-001/request/echo/12345` (where 12345 is a unique request ID)
-4. Subscribe to the topic `sensor/SN-001/response/echo/12345` to wait for a response
+3. Subscribe to the topic `sensor/SN-001/response/echo/12345` to wait for a response (where 12345 is a unique request ID)
+4. Send a message to the topic `sensor/SN-001/request/echo/12345`
 5. Return the response to ThingsBoard when received
+
+The response contains the payload of the device's reply as a string:
+
+```json
+{"result": "<payload>"}
+```
+
+If the device does not reply within the configured **Response timeout**, the response is `"{\"success\": false}"`.
 
 <ImageGallery images={[
   {
@@ -2721,6 +2751,12 @@ The gateway will:
 2. Match it to the "no-reply" method configuration
 3. Send a message to the topic `sensor/SN-001/request/no-reply/12345` (where 12345 is a unique request ID)
 4. Not wait for any response
+
+Response:
+
+```json
+{"result": "success"}
+```
 
 <ImageGallery images={[
   {
@@ -3144,11 +3180,11 @@ There are two types of RPC requests supported by the MQTT connector:
 |:--------------------------|--------------|
 | requestsMapping.serverSideRpc[].deviceNameFilter        | Regular expression device name filter, is used to determine which devices this RPC configuration applies to. See [expression](#expression-types)                                                           |
 | requestsMapping.serverSideRpc[].methodFilter            | Regular expression method name filter, is used to determine which RPC methods this configuration applies to. See [expression](#expression-types)                                                           |
-| requestsMapping.serverSideRpc[].requestTopicExpression  | JSON-path expression, is used for creating topic address to send RPC request. Supports variables like `${deviceName}` and `${attributeKey}` applies to. See [expression](#expression-types)                |
-| requestsMapping.serverSideRpc[].responseTopicExpression | JSON-path expression, is used for creating topic address to subscribe for response message.  Supports variables like `${deviceName}` and `${attributeKey}` applies to. See [expression](#expression-types) |
+| requestsMapping.serverSideRpc[].requestTopicExpression  | JSON-path expression, is used for creating topic address to send RPC request. Supports variables like `${deviceName}`, `${methodName}` and `${requestId}`. See [expression](#expression-types)                |
+| requestsMapping.serverSideRpc[].responseTopicExpression | JSON-path expression, is used for creating topic address to subscribe for response message.  Supports variables like `${deviceName}`, `${methodName}` and `${requestId}`. See [expression](#expression-types) |
 | requestsMapping.serverSideRpc[].responseTopicQoS        | Quality of Service level for the response topic subscription.                                                                                                                                              |
 | requestsMapping.serverSideRpc[].responseTimeout         | Value in milliseconds. If there is no response within this period after sending the request, gateway will unsubscribe from the response topic.                                                             |
-| requestsMapping.serverSideRpc[].valueExpression         | JSON-path expression, is used for creating data for sending to broker. Supports variables like `${deviceName}` and `${attributeKey}` applies to. See [expression](#expression-types)                       |
+| requestsMapping.serverSideRpc[].valueExpression         | JSON-path expression, is used for creating data for sending to broker. Supports variables like `${deviceName}` and `${params}`. See [expression](#expression-types)                       |
 
 The configuration for Device RPC methods is defined in the "serverSideRpc" section of the MQTT connector configuration:
 
@@ -3176,7 +3212,7 @@ The configuration for Device RPC methods is defined in the "serverSideRpc" secti
 }
 ```
 
-Additionally, every telemetry and attribute parameter has built-in GET and SET RPC methods available out of the box, so you don't need to configure them manually.
+Additionally, you can send a request to any topic with the built-in `get` and `set` RPC methods, without configuring them.
 
 For more information on using the built-in GET and SET RPC methods, see <DocLink product={props.product} path="features/reserved-rpc/">the guide</DocLink>.
 
