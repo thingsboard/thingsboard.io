@@ -118,13 +118,17 @@ export const EDGE_PE_PKG_VER = `${EDGE_PKG_VER}pe`;
 export const EDGE_PE_BRANCH = 'release-4.3.0';
 
 /**
- * Dart ThingsBoard API Client — pub.dev version of each edition's package
- * (`thingsboard_ce_client`, `thingsboard_pe_client`, `thingsboard_paas_client`).
- * Each package tracks the server version it is generated from, independently of
- * {@link CE_FULL_VER} and {@link PE_FULL_VER}.
+ * Dart ThingsBoard API Client — latest pub.dev version of `thingsboard_ce_client` and
+ * `thingsboard_pe_client`. Patch releases don't raise the minimum server version,
+ * see {@link DART_CLIENT_MIN_SERVER_VER}.
  */
 export const DART_CLIENT_VER = {
 	ce: '4.3.0',
+	pe: '4.4.1',
+} as const;
+
+/** Must match `tbMinServerVersion` in each Dart client package */
+export const DART_CLIENT_MIN_SERVER_VER = {
+	ce: '4.3.0',
 	pe: '4.4.0',
-	paas: '4.4.0',
 } as const;
