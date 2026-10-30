@@ -62,7 +62,7 @@ export const buslFaq: FaqCategory[] = [
 			{
 				id: 'other-products-coverage',
 				question: 'Does the new license cover Trendz, Edge, IoT Gateway, mobile apps, and TBMQ?',
-				answer: `<p><strong>Edge — yes.</strong> Starting with version ${SOURCE_AVAILABLE_FROM_VER}, ThingsBoard Edge is under the same license as the platform, the Business Source License.</p><p><strong>The other products — no.</strong> Trendz, IoT Gateway, the mobile apps, and TBMQ keep their own terms.</p>`,
+				answer: `<p><strong>Edge — yes.</strong> Starting with version ${SOURCE_AVAILABLE_FROM_VER}, ThingsBoard Edge is under the Business Source License, like the platform, with an Additional Use Grant of its own published as the <a href="/legal/busl-edge/">ThingsBoard Edge license</a>.</p><p><strong>The other products — no.</strong> Trendz, IoT Gateway, the mobile apps, and TBMQ keep their own terms.</p>`,
 			},
 			{
 				id: 'edge-licensing',
