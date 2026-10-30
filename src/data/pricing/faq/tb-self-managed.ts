@@ -190,7 +190,7 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'pe-pay-as-you-go-internet-requirement',
 				question: 'Do I need an internet connection to use the on-premises license?',
-				answer: '<p>Yes, an internet connection is required for periodic license verification. The system checks the license once per hour, and if the connection is not restored within 48 hours, the platform shuts down. This process ensures proper license management while allowing temporary connectivity issues. For more details, please refer to the license check <a target="_blank" href="/docs/license-server/what-is-license-server/" rel="noopener noreferrer">description</a>. Offline mode is also possible as an add-on to the Perpetual license. <a target="_blank" href="/contact-us/" rel="noopener noreferrer">Contact our sales team</a> to know more.</p>',
+				answer: '<p>Yes, an internet connection is required for periodic license verification. The system checks the license once per hour, and if the connection is not restored within 72 hours, the management interface locks until the next successful check. The platform itself keeps running: devices keep sending data, commands still reach them, and nothing is deleted. This process ensures proper license management while allowing temporary connectivity issues. For more details, please refer to the license check <a target="_blank" href="/docs/license-server/what-is-license-server/" rel="noopener noreferrer">description</a>. Offline mode is also possible as an add-on to the Perpetual license. <a target="_blank" href="/contact-us/" rel="noopener noreferrer">Contact our sales team</a> to know more.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-offline-access',
@@ -337,7 +337,7 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'edge-addon-payg-pricing-plans',
 				question: 'What pricing plans does Edge Computing add-on offer?',
-				answer: '<p>Edge Computing add-on pricing depends on your ThingsBoard model. Check the relevant pricing in the <a href="#" data-open-calc="payg">Plan Calculator</a>.</p>',
+				answer: '<p>Edge Computing add-on pricing depends on your ThingsBoard model. Check the relevant pricing in the <a href="#" data-open-calc="payg" aria-haspopup="dialog">Plan Calculator</a>.</p>',
 			},
 			{
 				id: 'edge-addon-payg-compatibility',
@@ -423,12 +423,12 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'trendz-payg-what-is',
 				question: 'What is Trendz?',
-				answer: '<p>Trendz is an add-on for advanced IoT Data Analytics. It allows you to analyze, detect anomalies, and predict outcomes — all in one unified analytics workspace that works seamlessly with ThingsBoard. You can check pricing in the <a href="#" data-open-calc="payg">Plan Calculator</a>.</p>',
+				answer: '<p>Trendz is an add-on for advanced IoT Data Analytics. It allows you to analyze, detect anomalies, and predict outcomes — all in one unified analytics workspace that works seamlessly with ThingsBoard. You can check pricing in the <a href="#" data-open-calc="payg" aria-haspopup="dialog">Plan Calculator</a>.</p>',
 			},
 			{
 				id: 'trendz-payg-pricing-plans',
 				question: 'What pricing plans does Trendz offer?',
-				answer: '<p>Trendz pricing depends on your ThingsBoard model. You can check the relevant pricing in the <a href="#" data-open-calc="payg">Plan Calculator</a> on this page.</p>',
+				answer: '<p>Trendz pricing depends on your ThingsBoard model. You can check the relevant pricing in the <a href="#" data-open-calc="payg" aria-haspopup="dialog">Plan Calculator</a> on this page.</p>',
 			},
 			{
 				id: 'trendz-payg-activate-cancel',

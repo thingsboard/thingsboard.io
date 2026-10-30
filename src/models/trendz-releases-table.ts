@@ -49,10 +49,13 @@ export const TRENDZ_RELEASE_FAMILIES: TrendzReleaseFamily[] = [
 		family: '1.16',
 		lts: true,
 		releaseDate: 'Sep 30 2026',
-		latestPatch: 'v1.16.0',
-		latestPatchDate: 'Sep 30 2026',
+		latestPatch: 'v1.16.0.1',
+		latestPatchDate: 'Oct 14 2026',
 		highlights: 'Prediction Intents, Vibration Analysis',
-		patches: [{ version: 'v1.16.0', date: 'Sep 30, 2026' }],
+		patches: [
+			{ version: 'v1.16.0.1', date: 'Oct 14, 2026' },
+			{ version: 'v1.16.0', date: 'Sep 30, 2026' },
+		],
 	},
 	{
 		family: '1.15',
@@ -64,7 +67,9 @@ export const TRENDZ_RELEASE_FAMILIES: TrendzReleaseFamily[] = [
 		patches: [
 			{ version: 'v1.15.2.1', date: 'Jun 24, 2026' },
 			{ version: 'v1.15.2', date: 'May 15, 2026' },
+			{ version: 'v1.15.1.1', date: 'Apr 28, 2026' },
 			{ version: 'v1.15.1', date: 'Apr 15, 2026' },
+			{ version: 'v1.15.0.6', date: 'Mar 25, 2026' },
 			{ version: 'v1.15.0.5', date: 'Feb 26, 2026' },
 			{ version: 'v1.15.0.4', date: 'Feb 9, 2026' },
 			{ version: 'v1.15.0', date: 'Jan 20, 2026' },

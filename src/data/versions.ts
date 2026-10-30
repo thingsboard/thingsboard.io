@@ -7,7 +7,7 @@
  */
 
 /** Community Edition */
-export const CE_FULL_VER = '4.3.1.6';
+export const CE_FULL_VER = '4.3.1.8';
 
 /**
  * First release line that ships under the source-available license, as stated in
@@ -58,7 +58,7 @@ export const CE_BRANCH = 'release-4.3';
  * names and plain version tags (no `tb-pe-` prefix, no `PE` suffix). Historical
  * upgrade steps below 4.4 build the old names themselves.
  */
-export const PE_FULL_VER = '4.4.0';
+export const PE_FULL_VER = '4.4.0.1';
 
 /**
  * Package filename and GitHub release-tag version — {@link PE_FULL_VER} with the
@@ -79,7 +79,7 @@ export const PE_RELEASE_URL = `https://github.com/thingsboard/thingsboard/releas
 export const PE_BRANCH = 'release-4.4';
 
 /** Trendz Analytics */
-export const TRENDZ_VER = '1.16.0';
+export const TRENDZ_VER = '1.16.0.1';
 
 /** Remote Agent — Docker image tag for `thingsboard/tb-remote-agent:${AGENT_VER}`. */
 export const AGENT_VER = '1.0.0';

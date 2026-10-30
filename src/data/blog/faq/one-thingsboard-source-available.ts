@@ -1,6 +1,7 @@
 import type { FaqCategory } from '@data/pricing/types';
 import { CONTACT } from '@data/community-grant/faq';
 import { announcementDateHtml, apacheConversionDateHtml } from '@data/community-grant/announcement-date';
+import { SOURCE_AVAILABLE_FROM_VER } from '@data/versions';
 
 // FAQ for the BUSL relicensing announcement post. Rendered inline in
 // `src/content/blog/one-thingsboard-source-available.mdx` by the shared
@@ -60,9 +61,13 @@ export const buslFaq: FaqCategory[] = [
 		items: [
 			{
 				id: 'other-products-coverage',
-				question: 'Does the new license cover Trendz, Edge, Gateway, mobile apps, and TBMQ?',
-				answer:
-					'<p>No — the license covers <strong>only</strong> the platform repository. Software products we publish in separate repositories are licensed under their own terms.</p>',
+				question: 'Does the new license cover Trendz, Edge, IoT Gateway, mobile apps, and TBMQ?',
+				answer: `<p><strong>Edge — yes.</strong> Starting with version ${SOURCE_AVAILABLE_FROM_VER}, ThingsBoard Edge is under the same license as the platform, the Business Source License.</p><p><strong>The other products — no.</strong> Trendz, IoT Gateway, the mobile apps, and TBMQ keep their own terms.</p>`,
+			},
+			{
+				id: 'edge-licensing',
+				question: 'How does licensing work for ThingsBoard Edge?',
+				answer: `<p>Edge always works with a ThingsBoard server and uses that server's license. The number of Edge instances you can connect is part of your license, and with a Commercial License you can add more as you need them.</p><p>Community Edition releases of Edge up to 4.3.x stay on Apache 2.0. If you register for the <a href="/community-grant-program/">Community Grant Program</a>, your grant covers the Edge instances you were running on ${announcementDateHtml}. If you didn't run Edge before, it includes one Edge instance.</p>`,
 			},
 			{
 				id: 'contributing-code',
@@ -188,7 +193,7 @@ export const buslFaq: FaqCategory[] = [
 				id: 'offline-air-gapped',
 				question: 'Can I run ThingsBoard fully offline / air-gapped?',
 				answer:
-					'<p>Yes. An offline key is available for a Perpetual License where your Order authorizes an Offline Deployment: it encodes your licensed scope in the key itself and needs no validation against our license server.</p><p>Get it from the License Portal on any machine with internet access, then activate your deployment with it. (An online key, by contrast, is validated periodically and tolerates interruptions of up to 48 hours. After that, the management interface locks until the next successful check. Connected devices keep sending data, and nothing is deleted.)</p>',
+					'<p>Yes. An offline key is available for a Perpetual License where your Order authorizes an Offline Deployment: it encodes your licensed scope in the key itself and needs no validation against our license server.</p><p>Get it from the License Portal on any machine with internet access, then activate your deployment with it. (An online key, by contrast, is validated periodically and tolerates interruptions of up to 72 hours. After that, the management interface locks until the next successful check. Connected devices keep sending data, commands still reach them, and nothing is deleted.)</p>',
 			},
 			{
 				id: 'what-data-is-sent',
