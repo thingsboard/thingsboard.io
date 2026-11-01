@@ -1,15 +1,11 @@
 import { Aside } from '@astrojs/starlight/components';
 import DocLink from '@components/DocLink.astro';
 import ImageGallery from '@components/ImageGallery.astro';
-import Banner from '~/components/Banner.astro';
-import { Products } from '~/models/site.models';
+import Banner from '@components/Banner.astro';
+import { Products } from '@models/site.models';
 import ShowFor from '@components/ShowFor.astro';
 
-<Banner variant="peFeature" product={props.product}>Extensions work only with <DocLink product={Products.PE} path="user-guide/cli-extensions" target="_blank">ThingsBoard Professional</DocLink> and <a href="/installations/?product=thingsboard-cloud" target="_blank" rel="noopener noreferrer" class="tb-banner-ext"><b>ThingsBoard Cloud</b></a> version **4.4.0** or later.</Banner>
-
-{props.product !== Products.CE && (
-  <Banner variant="cloud">Available from ThingsBoard PE/Cloud <strong>4.4.0</strong> and later.</Banner>
-)}
+<Banner variant="cloud">Available from ThingsBoard PE/Cloud <strong>4.4.0</strong> and later.</Banner>
 
 The <DocLink product={props.product} path='user-guide/cli'>ThingsBoard CLI</DocLink> is the easiest way to run an extension inside ThingsBoard Cloud or PE. This page is the reference for the `tb extension deploy` command and the `tb extension deployments` control commands. For the walkthrough that leads up to a deploy, see the <DocLink product={props.product} path='reference/extensions/development-workflow'>Development workflow</DocLink>.
 
@@ -38,11 +34,13 @@ A project can hold more than one extension:
 - one at the project root: `extension/`
 - one per solution: `solutions/<name>/extension/`
 
-Every `tb extension` command picks its target the same way:
+Every `tb extension` command that works on the project tree — `new`, `rename`, `status`, `build`, `test`, `run`, `restart`, `logs`, `stop`, `push`, `deploy`, `undeploy` — picks its target the same way:
 
 1. `--solution <name>` targets that solution's extension.
 2. Without the flag, a shell inside `solutions/<name>/` targets that solution. The command prints the scope it picked.
 3. Anywhere else, the project-root extension is used.
+
+The `tb extension deployments` subcommands and `tb extension sizes` have no `--solution` flag. They talk to the server only: `deployments` addresses one extension by `<ref>`, and `sizes` reads the instance catalog.
 
 Each extension keeps its own block in `thingsboard.json` (see [Deployment state in the project](#deployment-state-in-the-project)), so names, images, and deployment state never mix. For example, deploy a solution's extension with:
 
@@ -61,7 +59,7 @@ Prefer the flag over changing directory. It names the extension you mean, whatev
 
 Two limits apply once a project holds several extensions:
 
-- **Locally**, only one of them runs at a time, because they share the same port. Stop the other one first: `tb extension stop --solution <name>`.
+- **Locally**, only one of them runs at a time, because both use the same default port. Stop the other one first (`tb extension stop --solution <name>`), or give one extension its own port: set `EXTENSION_PORT` in your shell, or change the port in its config file (`pyproject.toml` for Python, `application.yml` for Java).
 - **Deployed**, each one takes a part of the tenant quota — extension count, CPU, and memory. The Extensions page shows what is left (see <DocLink product={props.product} path='reference/extensions/overview#what-it-looks-like'>What it looks like</DocLink>).
 
 ## Commands at a glance
@@ -78,7 +76,7 @@ Two limits apply once a project holds several extensions:
 | `tb extension deployments stop <ref>` | Scale to zero (keep the entity) |
 | `tb extension deployments start <ref>` | Resume to the desired replicas |
 
-`<ref>` is the extension **slug** or **UUID**. When a flag is omitted, the CLI reads its value (name, image, slug, size) from the project's `thingsboard.json`.
+`<ref>` is the extension **slug** or **UUID**. When a `deploy` flag is omitted, the CLI fills the value from the current deployment on the server, then from the project's `thingsboard.json` — see [Deployment state in the project](#deployment-state-in-the-project).
 
 ## `tb extension deploy`
 
@@ -89,30 +87,33 @@ tb extension deploy --image-name myorg/acme-billing --image-tag 1.0 --replicas 2
 ```
 
 ```text
-╭─ tb extension deploy ─────────────────────────────╮
+╭─ tb extension deploy ──────────────────────────────╮
 │ Deploy 'acme-billing'                              │
 │   image: myorg/acme-billing:1.0                    │
 │   replicas: 2   port: 8090                         │
 │   size: medium                                     │
-│   target: https://thingsboard.cloud               │
+│   target: https://thingsboard.cloud                │
 ╰────────────────────────────────────────────────────╯
 Proceed? [y/N]: y
-OK Deployed 'acme-billing' → acme-billing-9f3a   (2/2 replicas ready)
+OK Deployed 'acme-billing' → acme-billing-9f3a: ACTIVE   (2/2 replicas ready)
   URL:  https://thingsboard.cloud/api/extension/route/acme-billing-9f3a
+Next:
+  tb extension deployments logs acme-billing-9f3a -n 200
+  tb extension deployments status acme-billing-9f3a
 ```
 
 ### Flags
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--image-name` | saved image | Registry image repository, **without a tag** |
-| `--image-tag` | `latest` | Image tag |
+| `--image-name` | current deployment → saved image | Registry image repository, **without a tag** |
+| `--image-tag` | current deployment → saved tag → `latest` | Image tag. The tag is carried over only together with its repository — see [Deployment state in the project](#deployment-state-in-the-project) |
 | `--name` | saved extension name | Human-readable extension name (from `thingsboard.json`, set by `tb extension new` or `rename`) |
 | `--slug-base` | from name | Base for the generated slug |
 | `--replicas` | current deployment → saved value → `1` | Number of replicas (1–20) |
-| `--port` | current deployment → saved value → `8090` | Port the container listens on |
+| `--port` | current deployment → saved value → the port in the extension's own configuration → `8090` | Port the container listens on |
 | `--env KEY=VALUE` | — | Environment variable; repeat for more than one. Names starting with `TB_EXT_`, and the key `THINGSBOARD_URL`, are reserved |
-| `--size` | saved size → `small` | Resource size — run `tb extension sizes` to list the options |
+| `--size` | current deployment → saved size → `small` | Resource size — see [Resource sizes](#resource-sizes) |
 | `--registry` | from image | Private registry host. When omitted, ThingsBoard derives it from the image reference |
 | `--registry-user` | — | Username (or robot account) for a private registry — see [Private registry](#private-registry) |
 | `--registry-password-secret` | — | Name of a ThingsBoard Secret that holds the registry password — see [Private registry](#private-registry) |
@@ -139,7 +140,11 @@ On an update, when you do not pass `--env` or the registry flags, the CLI keeps 
 With `--no-wait`, the command returns immediately and the state updates in the background:
 
 ```text
-OK Provisioned 'acme-billing' → acme-billing-9f3a (state will converge; use deployments status)
+OK Provisioned 'acme-billing' → acme-billing-9f3a (configuration saved; the rollout is not confirmed — use deployments status)
+  URL:  https://thingsboard.cloud/api/extension/route/acme-billing-9f3a
+Next:
+  tb extension deployments logs acme-billing-9f3a -n 200
+  tb extension deployments status acme-billing-9f3a
 ```
 
 ### Wait outcomes
@@ -148,11 +153,14 @@ With `--wait` (the default), the command polls the extension state and reacts to
 
 | Final state | What the CLI does |
 |-------------|-------------------|
-| `ACTIVE` | Success: `Deployed '…' → <slug>  (n/n replicas ready)`. |
+| `ACTIVE` | Success: `Deployed 'acme-billing' → acme-billing-9f3a: ACTIVE   (2/2 replicas ready)`. |
 | `FAILED` | Stops at once and prints the `lastError` (for example, an image pull failure). |
-| `STOPPED`, `DELETING` | Stops at once — someone stopped or deleted the extension while the CLI was waiting (for example, from the UI). The message names the state instead of reporting a timeout. |
+| `STOPPED` | Stops at once — someone stopped the extension while the CLI was waiting, with the **Stop** button on the Extensions page or with `tb extension deployments stop`. The message names the state instead of reporting a timeout. |
+| `DELETING` | Stops at once and reports that the extension is being deleted. |
 | `DEGRADED` at the timeout | Keeps polling while `DEGRADED` — the extension may still recover. If `--timeout` runs out in this state, the CLI reports the ready/desired replicas and the `lastError`. |
-| `PROVISIONING` / `UPDATING` at the timeout | Reports that the extension did not become `ACTIVE` in time. It may still be converging — check `tb extension deployments status <slug>`. |
+| `PROVISIONING` / `UPDATING` at the timeout | Reports that the extension did not become `ACTIVE` in time. It may still be converging — check `tb extension deployments status <ref>`. |
+
+`DELETING` is a reserved state: no code path on the server sets it today, because a delete removes the extension at once. The CLI still handles it, so the wait ends with a clear message instead of a timeout if a future release starts to use it.
 
 ### Private registry
 
@@ -169,15 +177,33 @@ tb extension deploy --registry-user robot-acme --registry-password-secret acme-r
 
 You set the registry flags once. On later updates, the CLI keeps the credentials from the current deployment — you do not repeat the flags. Pass new values to replace them, or `--clear-registry-auth` to remove them.
 
+Credentials belong to one registry host. If a later `--image-name` moves the image to a different host, the CLI does not carry them over — it warns you instead, so the old password never reaches the new host. Pass `--registry-user` and `--registry-password-secret` again when the new host is private too.
+
 ## Resource sizes
 
-Run `tb extension sizes` to list the resource tiers and the CPU and memory each one maps to. There are six: `xsmall`, `small`, `medium`, `large`, `xlarge`, and `xxlarge`. Pass the chosen tier to `deploy` with `--size`. Start small and move up only if the extension needs more.
+A size is one knob instead of hand-written CPU and memory values. Pass the one you want to `deploy` with `--size`. There are six:
 
-Without `--size`, a new deployment gets `small`. Keep it there for a Java extension: `xsmall` gives the container 128 MB, which is not enough for a JVM, so the process is killed before Spring finishes starting.
+| Size | CPU request | CPU limit | Memory |
+|------|-------------|-----------|--------|
+| `xsmall` | 0.125 | 0.25 | 128Mi |
+| `small` (default) | 0.25 | 0.5 | 256Mi |
+| `medium` | 0.5 | 1 | 512Mi |
+| `large` | 1 | 2 | 1Gi |
+| `xlarge` | 2 | 4 | 2Gi |
+| `xxlarge` | 4 | 4 | 8Gi |
+
+The memory request and the memory limit are always the same value, so a container never gets more memory than its size. CPU may burst above the request, up to the limit. `tb extension sizes` prints the same table from your instance, so you can always check it there.
+
+Start small and move up only if the extension needs more. Without `--size`, a new deployment gets `small`. Keep it there for a Java extension: `xsmall` gives the container 128Mi, which is not enough for a JVM, so the process is killed before Spring finishes starting.
 
 <Aside type="note" title="Tenant quota">
-  The size you pick, multiplied by `--replicas`, must fit the CPU and memory your tenant may still use for extensions. The number of extensions is limited as well. Check the **Available resources** line under the table on the **Data processing → Extensions** page before you deploy: it shows the used and the total amount, and how many extensions of each size still fit.
+  The quota counts the **limit** values of the size, multiplied by `--replicas`. Two replicas of `medium` take 2 CPU and 1Gi, not the request values. This has to fit the CPU and memory your tenant may still use for extensions. The number of extensions is limited as well.
 
+  A `STOPPED` extension runs no container, so it frees its CPU and memory. It still counts toward the extension limit, because the entity is still there. Check the **Available resources** line under the table on the **Data processing → Extensions** page before you deploy: it shows the used and the total amount, and how many extensions of each size still fit.
+
+  <ShowFor product={props.product} show={[Products.PE]}>
+    Replicas multiply the usage only where the platform really starts them. In `docker-compose` <DocLink product={props.product} path='reference/extensions/architecture#where-extensions-run'>extensions mode</DocLink> an extension always runs one container and is charged for one, whatever `--replicas` says.
+  </ShowFor>
   <ShowFor product={props.product} show={[Products.PE]}>
     A system administrator sets these limits in the <DocLink product={props.product} path="user-guide/tenant-profiles#extension-limits">tenant profile</DocLink>. A tenant cannot change them.
   </ShowFor>
@@ -188,7 +214,7 @@ Without `--size`, a new deployment gets `small`. Keep it there for a Java extens
 
 ## `tb extension undeploy [ref]`
 
-Delete the deployment and its entity. With no `ref`, the CLI uses the saved deployment from `thingsboard.json`.
+Delete the deployment and its entity. With no `ref`, the CLI uses the saved deployment from `thingsboard.json`, so that form has to run inside the project. With a `ref` it runs from anywhere.
 
 ```bash
 tb extension undeploy acme-billing-9f3a
@@ -205,9 +231,9 @@ tb extension deployments stop acme-billing-9f3a     # scale to zero, keep the en
 tb extension deployments start acme-billing-9f3a    # resume to the desired replicas
 ```
 
-`list` prints one row per extension: name, slug, state, resource size, image, and the docs path. The docs path (Swagger UI for Java, `/docs` for Python) is filled only for extensions deployed from the current project — for those, the CLI knows the language from `thingsboard.json`. For extensions deployed elsewhere the cell stays empty instead of guessing a link that may not exist.
+`list` prints one row per extension: name, slug, state, resource size, image, and a **Docs** link. The link opens the extension's own page in the ThingsBoard UI — `<your instance>/extensions/<uuid>` — where the **API docs** button shows the API description. It is built from the extension id, so every row has it, whatever language the extension uses and wherever it was deployed from. The CLI never links the docs page inside the container: that page needs a credential, so the link would only return 401.
 
-`status` shows the live state, ready and desired replicas, and the public URL, plus a **Docs** row when the extension was deployed from the current project. It adds a **Last error** row only when the extension reports one.
+`status` shows the slug, the live state, ready and desired replicas, the public URL, and the same **Docs** link. It adds a **Last error** row only when the extension reports one.
 
 The same information is in the UI, under **Data processing → Extensions**. `logs` and the **Show logs** button read the same container log:
 
@@ -223,8 +249,10 @@ After a successful deploy, the CLI saves the deployment details in the project's
     "name": "acme-billing",
     "language": "java",
     "deployment": {
-      "id": "…", "slug": "acme-billing-9f3a",
-      "lastImage": "myorg/acme-billing", "lastTag": "1.0", "size": "medium"
+      "id": "…", "slug": "acme-billing-9f3a", "slugBase": "acme-billing",
+      "lastImage": "myorg/acme-billing", "lastTag": "1.0",
+      "size": "medium", "replicas": 2, "port": 8090,
+      "target": { "url": "https://thingsboard.cloud", "tenantId": "…" }
     }
   }
 }
@@ -232,7 +260,11 @@ After a successful deploy, the CLI saves the deployment details in the project's
 
 A solution's extension saves the same block under its own solution instead — `solutions.<name>.extension.deployment` — so the root extension and every solution extension track their deployments separately.
 
-Because of this, a later `tb extension deploy` with no flags **updates** the same extension using the saved image, slug, and size — you do not have to repeat them. The replica count, the port, the environment variables, and the private-registry credentials are kept too: the CLI reads them from the current deployment on the server, so a scale you made in the UI survives the next CLI deploy. Pass the matching flag to replace any of them, or `--clear-env` / `--clear-registry-auth` to remove them. Note that `--env` replaces the whole set — repeat every variable you want to keep. Only the image tag is **not** reused: `lastTag` is informational, and without `--image-tag` the CLI deploys `latest`. So pass `--image-tag` on every update.
+Because of this, a later `tb extension deploy` with no flags **updates** the same extension. You do not have to repeat the image, the tag, the slug, the size, the replica count, or the port. Every one of these values follows the same chain: the flag first, then the value of the current deployment on the server, then the value saved in `thingsboard.json`, then the CLI default. The server comes before the saved value, so a scale you set with an earlier `--replicas`, or through the REST API, survives the next CLI deploy.
+
+The environment variables and the private-registry credentials are never written to `thingsboard.json`, because `--env` may hold a secret. The CLI keeps them from the current deployment on the server instead. Pass the matching flag to replace a value, or `--clear-env` / `--clear-registry-auth` to remove it. Note that `--env` replaces the whole set — repeat every variable you want to keep.
+
+An image tag only makes sense for the repository it was pushed to, so the CLI carries a tag over only while the image repository stays the same. If `--image-name` moves the deployment to a different repository and you pass no `--image-tag`, the CLI uses `latest`: the old tag was most likely never pushed to the new repository. So pass `--image-tag` whenever you change the repository, or whenever you want a specific build.
 
 ## Deploy from CI
 
