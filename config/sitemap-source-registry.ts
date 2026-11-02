@@ -3,7 +3,8 @@
  * middleware (`src/routeData.ts`) that records docs sources, and the integration
  * (`config/integrations/sitemap.ts`) that derives `<lastmod>`. They live in
  * different Vite module graphs, so a module-level `Map` would be duplicated;
- * anchoring on `globalThis` via `Symbol.for` gives one instance per `astro build`.
+ * anchoring on `globalThis` via `Symbol.for` gives one instance per thread.
+ * Worker threads reach the main thread through a journal (see `journal()`).
  *
  * Stored paths are repo-relative (e.g. `src/content/docs/...mdx`), matching the
  * keys from `git log --name-only` so the sitemap can look them up directly.
@@ -14,9 +15,10 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { isMainThread, threadId } from 'node:worker_threads';
 
 /**
  * Env that makes git trust a checkout owned by another user (CI "dubious
@@ -62,6 +64,63 @@ const LASTMOD_REGISTRY_KEY = Symbol.for('thingsboard.sitemap.lastmod-registry');
 
 export function getSitemapLastmodRegistry(): Map<string, string> {
 	return globalMap<string, string>(LASTMOD_REGISTRY_KEY);
+}
+
+/**
+ * Parallel-prerender workers each have their own `globalThis`, so their records never
+ * reach the main thread that writes the sitemap. A worker also appends each record to a
+ * per-thread journal, which `mergeWorkerSitemapRecords()` folds into the main thread's maps.
+ */
+const JOURNAL_DIR = join(tmpdir(), 'tb-sitemap-journal', String(process.pid));
+
+type JournalRecord = ['sources', string, SitemapSources] | ['lastmod', string, string];
+
+let journalDirReady = false;
+function journal(record: JournalRecord): void {
+	if (isMainThread) return;
+	if (!journalDirReady) {
+		mkdirSync(JOURNAL_DIR, { recursive: true });
+		journalDirReady = true;
+	}
+	appendFileSync(join(JOURNAL_DIR, `${threadId}.jsonl`), JSON.stringify(record) + '\n');
+}
+
+/** Records the repo-relative source files a page is built from, keyed by `normalizeSitemapPath`. */
+export function setSitemapSources(key: string, sources: SitemapSources): void {
+	getSitemapSourceRegistry().set(key, sources);
+	journal(['sources', key, sources]);
+}
+
+/** Records an explicit `<lastmod>` ISO string for a page, keyed by `normalizeSitemapPath`. */
+export function setSitemapLastmod(key: string, iso: string): void {
+	getSitemapLastmodRegistry().set(key, iso);
+	journal(['lastmod', key, iso]);
+}
+
+/** Drops journals left by an earlier build in this process. Call before pages render. */
+export function resetWorkerSitemapRecords(): void {
+	rmSync(JOURNAL_DIR, { recursive: true, force: true });
+}
+
+/** Folds the worker threads' journals into this thread's maps. Call after all pages rendered. */
+export function mergeWorkerSitemapRecords(): void {
+	let files: string[];
+	try {
+		files = readdirSync(JOURNAL_DIR);
+	} catch {
+		return;
+	}
+	const sources = getSitemapSourceRegistry();
+	const lastmods = getSitemapLastmodRegistry();
+	for (const file of files) {
+		for (const line of readFileSync(join(JOURNAL_DIR, file), 'utf8').split('\n')) {
+			if (!line) continue;
+			const record = JSON.parse(line) as JournalRecord;
+			if (record[0] === 'sources') sources.set(record[1], record[2]);
+			else lastmods.set(record[1], record[2]);
+		}
+	}
+	resetWorkerSitemapRecords();
 }
 
 /**

@@ -52,10 +52,11 @@ export const RELEASE_FAMILIES: ReleaseFamily[] = [
 		family: '4.4',
 		lts: true,
 		releaseDate: 'Sep 29 2026',
-		latestPatch: 'v4.4.0.1',
-		latestPatchDate: 'Oct 22 2026',
+		latestPatch: 'v4.4.0.2',
+		latestPatchDate: 'Oct 30 2026',
 		highlightsCe: 'Java 25, UI Redesign & Remote Agents',
 		patches: [
+			{ version: 'v4.4.0.2', date: 'Oct 30, 2026' },
 			{ version: 'v4.4.0.1', date: 'Oct 22, 2026' },
 			{ version: 'v4.4.0', date: 'Sep 29, 2026' },
 		],

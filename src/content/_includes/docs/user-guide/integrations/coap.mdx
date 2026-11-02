@@ -1,7 +1,7 @@
 import DocLink from '@components/DocLink.astro';
-import ImageGallery from '~/components/ImageGallery.astro';
+import ImageGallery from '@components/ImageGallery.astro';
 import { Aside, Code, Steps } from '@astrojs/starlight/components';
-import { Products } from '~/models/site.models';
+import { Products } from '@models/site.models';
 import Tabs from '@components/Tabs.astro';
 import TabItem from '@components/TabItem.astro';
 
@@ -9,6 +9,8 @@ export const dtlsConfig = `# Enable/disable DTLS 1.2 support
 export COAP_DTLS_ENABLED=true
 # Default CoAP DTLS bind port
 export COAP_DTLS_BIND_PORT=5684
+# Server credentials type: KEYSTORE (Java key store) or PEM (the default)
+export COAP_DTLS_CREDENTIALS_TYPE=KEYSTORE
 # Path to the key store that holds the SSL certificate
 export COAP_DTLS_KEY_STORE=coapserver.jks
 # Password used to access the key store
@@ -20,42 +22,281 @@ export COAP_DTLS_KEY_ALIAS=serveralias
 # Skip certificate validity check for client certificates
 export TB_COAP_X509_DTLS_SKIP_VALIDITY_CHECK_FOR_CLIENT_CERT=false`;
 
-CoAP Integration connects ThingsBoard to constrained IoT devices that use the **[Constrained Application Protocol (CoAP)](https://tools.ietf.org/html/rfc7252)** — a lightweight request/response protocol designed for low-power, low-bandwidth environments such as sensors, actuators, and embedded systems. Use it to bring telemetry from CoAP devices into ThingsBoard for monitoring and rule-based automation.
+CoAP Integration lets devices that use the **[Constrained Application Protocol (CoAP)](https://tools.ietf.org/html/rfc7252)** send data to ThingsBoard through a dedicated CoAP endpoint. CoAP is a lightweight UDP-based request/response protocol for low-power, low-bandwidth hardware. An **uplink data converter** transforms each incoming request into device or asset data, including telemetry and attributes. The integration is uplink-only: it does not send downlink messages to devices.
 
-**When to use CoAP Integration:**
+Use CoAP Integration when:
+- Devices use CoAP (RFC 7252): constrained MCUs, NB-IoT modules, or similar hardware.
+- Firmware lacks the memory or power budget for HTTP or MQTT.
+- The network is lossy or UDP-only.
+- The device firmware sends a payload format you cannot change.
 
-- Devices use CoAP (RFC 7252) — typically constrained MCUs, NB-IoT modules, or LwM2M-adjacent hardware.
-- Firmware cannot support HTTP or MQTT due to memory or power constraints.
-- The network is UDP-based or lossy and CoAP's lightweight overhead is required.
-- You need to bridge an existing CoAP server with ThingsBoard without re-flashing devices.
+<Aside type="note">
+  To connect devices that send data in the ThingsBoard format, use the <DocLink product={props.product} path="reference/coap-api/getting-connected/" target="_blank">CoAP Device API</DocLink> instead — no integration needed.
+</Aside>
 
 ## Architecture
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/coap-integration-architecture.svg', alt: 'CoAP integration architecture diagram showing a device sending a CoAP message to the ThingsBoard CoAP endpoint, which the uplink converter decodes into telemetry and attributes stored by the ThingsBoard Core Service', caption: 'CoAP integration architecture — uplink data flow from CoAP devices to ThingsBoard.' },
+  {
+    src: '/src/assets/images/user-guide/integrations/coap-integration-architecture.svg',
+    alt: 'CoAP integration architecture: a device sends a CoAP POST or PUT to the CoAP Integration on UDP port 5683, or 5684 with DTLS, and receives 2.01 Created with no data; the uplink data converter decodes the payload, and Processing & Storage runs the Rule Engine, stores the data, and feeds dashboards',
+    caption: 'CoAP integration architecture. The integration is uplink-only: the device receives 2.01 Created or 4.00 Bad Request, with no data.',
+  },
 ]} />
 
-A device sends a CoAP message (POST or PUT) to the ThingsBoard CoAP endpoint. The uplink converter decodes the payload into telemetry and attributes, and the ThingsBoard Core Service stores the data, creating the device automatically on first contact when **Allow create devices or assets** is enabled. CoAP Integration does not currently support downlink.
-
-<Aside type="note">
-  CoAP uses UDP transport. Unlike HTTP or MQTT, there is no persistent connection — each message is sent as an independent UDP datagram. ThingsBoard's CoAP endpoint listens on the standard CoAP port **5683** (plain) or **5684** (DTLS). Confirmable (CON) messages are acknowledged; Non-confirmable (NON) messages are fire-and-forget.
-</Aside>
-
-<Aside type="caution">
-The CoAP endpoint is served by the **tb-core** service and must be reachable from the device network. For DTLS modes, additional key store configuration is required — see [Connection settings](#connection-settings).
-</Aside>
+1. **Receive data.** A device sends a CoAP `POST` or `PUT` request to the integration endpoint — port `5683` for plain CoAP, `5684` for DTLS. Confirmable (CON) and non-confirmable (NON) requests are both accepted.
+2. **Decode the payload.** The uplink converter identifies the device or asset and extracts attributes and telemetry.
+3. **Process the message.** ThingsBoard processes the converted data through the Rule Engine. If **Allow create devices or assets** is enabled, ThingsBoard can create an entity that does not exist yet.
+4. **Respond.** ThingsBoard answers `2.01 Created` on success or `4.00 Bad Request` if processing fails. The response carries no data: CoAP Integration does not support downlink.
 
 ## Prerequisites
 
-Before creating the integration, ensure:
+- Access to {props.product !== Products.PAAS && props.product !== Products.PAAS_EU && <><DocLink product={Products.PE} path="installation/" target="_blank">ThingsBoard</DocLink> or </>}<a href="/installations/?product=thingsboard-cloud" target="_blank"><strong>ThingsBoard Cloud</strong></a> with integrations enabled for your tenant.
+- <DocLink product={props.product} path="user-guide/roles/" target="_blank">Permission</DocLink> to create integrations and data converters.
+- Devices that can reach the ThingsBoard CoAP port over UDP.
+- A sample of the payload your device sends.
+- A CoAP client for testing, for example `coap-client` from <a href="https://github.com/obgm/libcoap" target="_blank"><strong>libcoap</strong></a>.
 
-- You have access to {props.product !== Products.PAAS && props.product !== Products.PAAS_EU && <><DocLink product={Products.PE} path="installation/" target="_blank">ThingsBoard</DocLink> or </>}<a href="/installations/?product=thingsboard-cloud" target="_blank"><strong>ThingsBoard Cloud</strong></a> with integration functionality enabled for your tenant.
-- You have <DocLink product={props.product} path="user-guide/roles/" target="_blank">permissions</DocLink> to create integrations and data converters.
-- You know the payload format your CoAP devices send.
+## Set Up CoAP Integration
 
-In this tutorial, device **SN-001** sends temperature and humidity readings to the CoAP Integration at <code>{props.product === Products.PAAS_EU ? 'coap://int.eu.thingsboard.cloud' : props.product === Products.PAAS ? 'coap://int.thingsboard.cloud' : 'coap://$YOUR_TB_HOST'}</code>.
+Create the uplink converter, assign it to a new CoAP integration, and send a test request.
 
-The integration accepts three payload types:
+### Create the Uplink Data Converter
+
+The uplink converter receives the CoAP request body as a byte array, resolves the target device, and returns its telemetry and attributes. CoAP Integration uses the **Generic** converter: you write the decoder in TBEL or JavaScript. For converter types and the full decoder reference, see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#converter-types" target="_blank">Uplink data converter</DocLink>.
+
+<Steps>
+1. Go to **Integrations &#8702; Data converters** and click **+ Add data converter &#8702; Create new converter**.
+2. **Converter type** — keep **Uplink**.
+3. **Integration type** — select **CoAP**.
+4. **Name** — enter a name, for example `CoAP Uplink Converter`.
+5. **Main decoding configuration** — the editor is pre-filled with the default decoder template for JSON payloads. Replace it with the template for your payload type below. Use it as a starting point and, if needed, adapt the field names to your device. The editor opens in TBEL; use the **TBEL / JS** toggle to switch to JavaScript.
+   <Aside type="tip" title="TBEL">
+     Use <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL</DocLink> for converter scripts — it runs much faster than JavaScript inside ThingsBoard.
+   </Aside>
+   <Tabs>
+   <TabItem label="Text payload">
+   <Tabs>
+   <TabItem label="TBEL (Recommended)">
+   ```js maxLines=15 collapsible
+   /** Decoder **/
+
+   // decode payload to string
+   var strArray = decodeToString(payload);
+   var payloadArray = strArray.replaceAll("\"", "").split(',');
+
+   var telemetryPayload = {};
+   for (var i = 2; i < payloadArray.length; i = i + 2) {
+       var telemetryKey = payloadArray[i];
+       var telemetryValue = parseFloat(payloadArray[i + 1]);
+       telemetryPayload[telemetryKey] = telemetryValue;
+   }
+
+   // Result object with device attributes/telemetry data
+   var result = {
+       deviceName: payloadArray[0],
+       deviceType: payloadArray[1],
+       telemetry: telemetryPayload,
+       attributes: {}
+   };
+
+   /** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
+
+   return result;
+   ```
+   </TabItem>
+   <TabItem label="JavaScript">
+   ```js maxLines=15 collapsible
+   /** Decoder **/
+
+   // decode payload to string
+   var strArray = decodeToString(payload);
+   var payloadArray = strArray.replace(/\"/g, "").replace(/\s/g, "").replace(/\\n/g, "").split(',');
+
+   var telemetryPayload = {};
+   for (var i = 2; i < payloadArray.length; i = i + 2) {
+       var telemetryKey = payloadArray[i];
+       var telemetryValue = parseFloat(payloadArray[i + 1]);
+       telemetryPayload[telemetryKey] = telemetryValue;
+   }
+
+   // Result object with device attributes/telemetry data
+   var result = {
+       deviceName: payloadArray[0],
+       deviceType: payloadArray[1],
+       telemetry: telemetryPayload,
+       attributes: {}
+   };
+
+   /** Helper functions **/
+
+   function decodeToString(payload) {
+       return String.fromCharCode.apply(String, payload);
+   }
+
+   return result;
+   ```
+   </TabItem>
+   </Tabs>
+   The payload is a comma-separated string: `deviceName,deviceType,key1,value1,key2,value2,...`.
+
+   **To adapt:**
+
+   - **Another delimiter** — replace `split(',')`, for example with `split(';')`.
+   - **Another field order** — change the `payloadArray[0]` and `payloadArray[1]` indexes.
+   - **Fixed telemetry keys** — replace the loop with explicit assignments, for example `telemetryPayload['temperature'] = parseFloat(payloadArray[2]);`.
+   - **Attributes instead of telemetry** — move the fields to the `attributes` map.
+
+   </TabItem>
+   <TabItem label="JSON payload">
+   <Tabs>
+   <TabItem label="TBEL (Recommended)">
+
+   ```js maxLines=15 collapsible
+   /** Decoder **/
+
+   // decode payload to JSON
+   var data = decodeToJson(payload);
+
+   // Result object with device attributes/telemetry data
+   var result = {
+       deviceName: data.deviceName,
+       deviceType: data.deviceType,
+       attributes: {},
+       telemetry: {
+           temperature: data.temperature,
+           humidity: data.humidity
+       }
+   };
+
+   /** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
+
+   return result;
+   ```
+   </TabItem>
+   <TabItem label="JavaScript">
+   ```js maxLines=15 collapsible
+   /** Decoder **/
+
+   // decode payload to JSON
+   var data = decodeToJson(payload);
+
+   // Result object with device attributes/telemetry data
+   var result = {
+       deviceName: data.deviceName,
+       deviceType: data.deviceType,
+       attributes: {},
+       telemetry: {
+           temperature: data.temperature,
+           humidity: data.humidity
+       }
+   };
+
+   /** Helper functions **/
+
+   function decodeToString(payload) {
+       return String.fromCharCode.apply(String, payload);
+   }
+
+   function decodeToJson(payload) {
+       var str = decodeToString(payload);
+       var data = JSON.parse(str);
+       return data;
+   }
+
+   return result;
+   ```
+   </TabItem>
+   </Tabs>
+   The decoder parses the payload as JSON and maps the fields directly.
+
+   **To adapt:**
+
+   - **Other identity fields** — replace `data.deviceName` and `data.deviceType`, for example with `data.id` and `data.model`.
+   - **Other telemetry** — add or remove fields, for example `pressure: data.pressure`.
+   - **Device properties** — move them to `attributes`, for example `firmware: data.fw`.
+   </TabItem>
+   <TabItem label="Binary payload">
+   <Tabs>
+   <TabItem label="TBEL (Recommended)">
+   ```js maxLines=15 collapsible
+   /** Decoder **/
+
+   // decode payload to string
+   var payloadStr = decodeToString(payload);
+
+   var deviceName = payloadStr.substring(0, 6);
+   var deviceType = payloadStr.substring(6, 13);
+
+   // Result object with device attributes/telemetry data
+   var result = {
+       deviceName: deviceName,
+       deviceType: deviceType,
+       attributes: {},
+       telemetry: {
+           temperature: parseFloat(payloadStr.substring(13, 17)),
+           humidity: parseFloat(payloadStr.substring(17, 19))
+       }
+   };
+
+   /** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
+
+   return result;
+   ```
+   </TabItem>
+   <TabItem label="JavaScript">
+   ```js maxLines=15 collapsible
+   /** Decoder **/
+
+   // decode payload to string
+   var payloadStr = decodeToString(payload);
+
+   var deviceName = payloadStr.substring(0, 6);
+   var deviceType = payloadStr.substring(6, 13);
+
+   // Result object with device attributes/telemetry data
+   var result = {
+       deviceName: deviceName,
+       deviceType: deviceType,
+       attributes: {},
+       telemetry: {
+           temperature: parseFloat(payloadStr.substring(13, 17)),
+           humidity: parseFloat(payloadStr.substring(17, 19))
+       }
+   };
+
+   /** Helper functions **/
+
+   function decodeToString(payload) {
+       return String.fromCharCode.apply(String, payload);
+   }
+
+   function decodeToJson(payload) {
+       var str = decodeToString(payload);
+       var data = JSON.parse(str);
+       return data;
+   }
+
+   return result;
+   ```
+   </TabItem>
+   </Tabs>
+   The decoder converts the bytes to a string and reads each value from a fixed offset — typical for compact binary protocols.
+
+   **To adapt:**
+
+   - **Another byte layout** — change the `substring(start, end)` offsets.
+   - **Raw integer fields** — use `parseBytesToInt(payload, offset, length, bigEndian)` instead of `parseFloat(payloadStr.substring(...))`, for example `temperature: parseBytesToInt(payload, 13, 2, true) / 100.0`.
+   - **Fixed name or type** — replace the `substring` calls with string literals.
+   </TabItem>
+   </Tabs>
+6. Click **Test decoder function** and check the result (see **[Test the Decoder](#test-the-decoder)**).
+7. Click **Add**.
+</Steps>
+
+<h4>Sample Payloads</h4>
+
+This guide uses device **SN-001**, which reports temperature and humidity in one of three formats:
 
 <Tabs>
 <TabItem label="Text">
@@ -90,384 +331,110 @@ Byte layout:
 </TabItem>
 </Tabs>
 
-## Set Up the CoAP Integration
+<h4>Decoder Inputs</h4>
 
-To set up the **CoAP** integration, first create an uplink data converter to process incoming messages, then create and configure the integration.
+The decoder signature is `function decoder(payload, metadata): object | object[]`.
 
-### Create the Uplink Data Converter
+| Variable | Type | Content |
+|----------|------|---------|
+| `payload` | byte array | The CoAP request body. |
+| `metadata` | `{[key: string]: string}` | `integrationName`, the key–value pairs from the integration's **Metadata** field, and the CoAP options below. |
 
-The decoder function receives the raw CoAP message body as a `payload` byte array. It must return an object with at least `deviceName` and `deviceType`. Optionally, it can include `telemetry` (time-series measurements) and `attributes` (device properties) as flat key-value maps.
+CoAP options added to `metadata` when present in the request:
 
-In addition to any integration-level metadata, the `metadata` object passed to the decoder contains CoAP option fields extracted from the request:
+| Key | Value |
+|-----|-------|
+| `Option:content-format` | Numeric Content-Format code, for example `50` for `application/json`, `0` for `text/plain`, `42` for `application/octet-stream`. |
+| `Option:uri` | Request URI path. |
+| `Option:location-path` | Location-Path option values, comma-separated. |
+| `Option:location-query` | Location-Query option values, comma-separated. |
 
-| Key | CoAP option |
-|-----|-------------|
-| `Option:content-format` | Content-Format option (e.g. `application/json`) |
-| `Option:uri` | Full request URI |
-| `Option:location-path` | Location-Path option, if present |
-| `Option:location-query` | Location-Query option, if present |
+The Content-Format also sets how debug events display the payload: JSON (codes `50`, `110`, `11543`), text (`0`, `41`, `46`, `11542`), or binary (any other code, or none).
 
-For the full decoder function reference — all input parameters and output fields — see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#generic-uplink-converter" target="_blank">Uplink data converter</DocLink>.
+Built-in helpers:
+
+| Function | Result |
+|----------|--------|
+| `decodeToJson(payload)` | Parses the bytes as JSON and returns an object. |
+| `decodeToString(payload)` | Converts the bytes to a string. |
+| `parseBytesToInt(payload, offset, length, bigEndian)` | TBEL only. Reads an integer from raw bytes. |
+
+For field renaming, nested values, and other patterns, see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#common-scripting-patterns" target="_blank">Common scripting patterns</DocLink>.
+
+<h4 id="test-the-decoder">Test the Decoder</h4>
+
+Click **Test decoder function** below the editor. The dialog opens with pre-filled **Metadata** rows, **Payload content type** set to **JSON**, and a sample payload. To test the JSON template, replace the sample payload with:
+
+```json
+{
+  "deviceName": "SN-001",
+  "deviceType": "default",
+  "temperature": 25.7,
+  "humidity": 69
+}
+```
+
+Click **Test**. The **Output** panel shows:
+
+```json
+{
+  "deviceName": "SN-001",
+  "deviceType": "default",
+  "attributes": {},
+  "telemetry": {
+    "temperature": 25.7,
+    "humidity": 69
+  }
+}
+```
+
+Check that `deviceName` is set and `telemetry` holds the expected keys. If the output is empty or shows an error, fix the decoder and test again.
+
+### Create the Integration
 
 <Steps>
-  1. Go to <strong>Integrations &#8702; Data converters</strong>.
-  2. Click <strong>+ Add data converter &#8702; Create new converter</strong>.
-</Steps>
-
-In the **Add data converter** dialog:
-
-<Steps>
-  <ol start="3">
-    <li><strong>Converter type</strong> — leave <strong>Uplink</strong> (selected by default).</li>
-    <li><strong>Integration type</strong> — in the search field, enter <code>CoAP</code> and select <strong>CoAP</strong> from the list.</li>
-    <li><strong>Name</strong> — enter a converter name, for example <code>CoAP Uplink Converter</code>.</li>
-    <li><strong>Main decoding configuration</strong> — paste the decoder function from the appropriate tab below, then continue with step 7.</li>
-  </ol>
-</Steps>
-
-<Aside type="tip" title="TBEL">
-  We recommend using <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
-</Aside>
-
-Select the tab matching your payload type:
-
-<Tabs>
-<TabItem label="Text payload">
-<Tabs>
-<TabItem label="TBEL (Recommended)">
-```js maxLines=15 collapsible
-/** Decoder **/
-
-// decode payload to string
-var strArray = decodeToString(payload);
-var payloadArray = strArray.replaceAll("\"", "").split(',');
-
-var telemetryPayload = {};
-for (var i = 2; i < payloadArray.length; i = i + 2) {
-    var telemetryKey = payloadArray[i];
-    var telemetryValue = parseFloat(payloadArray[i + 1]);
-    telemetryPayload[telemetryKey] = telemetryValue;
-}
-
-// Result object with device attributes/telemetry data
-var result = {
-    deviceName: payloadArray[0],
-    deviceType: payloadArray[1],
-    telemetry: telemetryPayload,
-    attributes: {}
-};
-
-/** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
-
-return result;
-```
-
-</TabItem>
-<TabItem label="JavaScript">
-
-```js maxLines=15 collapsible
-/** Decoder **/
-
-// decode payload to string
-var strArray = decodeToString(payload);
-var payloadArray = strArray.replace(/\"/g, "").replace(/\s/g, "").replace(/\\n/g, "").split(',');
-
-var telemetryPayload = {};
-for (var i = 2; i < payloadArray.length; i = i + 2) {
-    var telemetryKey = payloadArray[i];
-    var telemetryValue = parseFloat(payloadArray[i + 1]);
-    telemetryPayload[telemetryKey] = telemetryValue;
-}
-
-// Result object with device attributes/telemetry data
-var result = {
-    deviceName: payloadArray[0],
-    deviceType: payloadArray[1],
-    telemetry: telemetryPayload,
-    attributes: {}
-};
-
-/** Helper functions **/
-
-function decodeToString(payload) {
-    return String.fromCharCode.apply(String, payload);
-}
-
-return result;
-```
-
-</TabItem>
-</Tabs>
-
-The decoder expects a comma-separated string where position 0 is the device name, position 1 is the device type, and positions 2–N are alternating telemetry key/value pairs: `deviceName,deviceType,key1,value1,key2,value2,...`
-
-**To adapt this converter to your device:**
-- Change the separator by replacing `split(',')` with your delimiter (e.g. `split(';')` or `split('|')`).
-- If the device name or type is at a different position, adjust the `payloadArray[0]` / `payloadArray[1]` index.
-- If telemetry keys are fixed rather than embedded in the payload, replace the loop with explicit assignments: `telemetryPayload['temperature'] = parseFloat(payloadArray[2]);`.
-- To extract attributes instead of telemetry, move fields from the `telemetry` map to the `attributes` map.
-
-</TabItem>
-<TabItem label="JSON payload">
-<Tabs>
-<TabItem label="TBEL (Recommended)">
-
-```js maxLines=15 collapsible
-/** Decoder **/
-
-// decode payload to JSON
-var data = decodeToJson(payload);
-
-// Result object with device attributes/telemetry data
-var result = {
-    deviceName: data.deviceName,
-    deviceType: data.deviceType,
-    attributes: {},
-    telemetry: {
-        temperature: data.temperature,
-        humidity: data.humidity
-    }
-};
-
-/** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
-
-return result;
-```
-
-</TabItem>
-<TabItem label="JavaScript">
-
-```js maxLines=15 collapsible
-/** Decoder **/
-
-// decode payload to JSON
-var data = decodeToJson(payload);
-
-// Result object with device attributes/telemetry data
-var result = {
-    deviceName: data.deviceName,
-    deviceType: data.deviceType,
-    attributes: {},
-    telemetry: {
-        temperature: data.temperature,
-        humidity: data.humidity
-    }
-};
-
-/** Helper functions **/
-
-function decodeToString(payload) {
-    return String.fromCharCode.apply(String, payload);
-}
-
-function decodeToJson(payload) {
-    var str = decodeToString(payload);
-    var data = JSON.parse(str);
-    return data;
-}
-
-return result;
-```
-
-</TabItem>
-</Tabs>
-
-The decoder parses the payload as a JSON object and maps fields directly to `deviceName`, `deviceType`, and telemetry keys.
-
-**To adapt this converter to your device:**
-- Replace `data.deviceName` / `data.deviceType` with the actual field names your device sends (e.g. `data.id`, `data.model`).
-- Add or remove telemetry fields to match your sensor output: `pressure: data.pressure, co2: data.co2`.
-- Move fields to `attributes` if they represent device properties rather than time-series data (e.g. `firmware: data.fw`).
-
-</TabItem>
-<TabItem label="Binary payload">
-<Tabs>
-<TabItem label="TBEL (Recommended)">
-
-```js maxLines=15 collapsible
-/** Decoder **/
-
-// decode payload to string
-var payloadStr = decodeToString(payload);
-
-var deviceName = payloadStr.substring(0, 6);
-var deviceType = payloadStr.substring(6, 13);
-
-// Result object with device attributes/telemetry data
-var result = {
-    deviceName: deviceName,
-    deviceType: deviceType,
-    attributes: {},
-    telemetry: {
-        temperature: parseFloat(payloadStr.substring(13, 17)),
-        humidity: parseFloat(payloadStr.substring(17, 19))
-    }
-};
-
-/** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
-
-return result;
-```
-
-</TabItem>
-<TabItem label="JavaScript">
-
-```js maxLines=15 collapsible
-/** Decoder **/
-
-// decode payload to string
-var payloadStr = decodeToString(payload);
-
-var deviceName = payloadStr.substring(0, 6);
-var deviceType = payloadStr.substring(6, 13);
-
-// Result object with device attributes/telemetry data
-var result = {
-    deviceName: deviceName,
-    deviceType: deviceType,
-    attributes: {},
-    telemetry: {
-        temperature: parseFloat(payloadStr.substring(13, 17)),
-        humidity: parseFloat(payloadStr.substring(17, 19))
-    }
-};
-
-/** Helper functions **/
-
-function decodeToString(payload) {
-    return String.fromCharCode.apply(String, payload);
-}
-
-function decodeToJson(payload) {
-    var str = decodeToString(payload);
-    var data = JSON.parse(str);
-    return data;
-}
-
-return result;
-```
-
-</TabItem>
-</Tabs>
-
-The decoder converts the raw bytes to a string and reads device identity and sensor values from fixed byte offsets. This approach is typical for compact, bandwidth-constrained binary protocols.
-
-**To adapt this converter to your device:**
-- Adjust the `substring(start, end)` offsets to match your device's byte layout.
-- For integer fields stored as raw bytes (not ASCII digits), use `parseBytesToInt(payload, offset, length, bigEndian)` instead of `parseFloat(payloadStr.substring(...))`. For example: `temperature: parseBytesToInt(payload, 13, 2, true) / 100.0`.
-- If the device name or type is fixed rather than embedded in the payload, replace the `substring` calls with string literals.
-- Add more telemetry fields by reading additional byte ranges and adding them to the `telemetry` map.
-
-</TabItem>
-</Tabs>
-
-<Steps>
-7. Optionally, click <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#testing-the-decoder" target="_blank">**Test payload decoder**</DocLink> to validate.
-8. Click **Add**.
-</Steps>
-
-### Create the CoAP Integration
-
-<Steps>
-  <ol start="1">
-    <li>Go to <strong>Integrations &#8702; Integrations</strong> and click <strong>+ Add integration</strong>.</li>
-    <li>
-      <span><strong>Basic settings:</strong></span>
-      <ul>
-        <li>Set <strong>integration type</strong> to <strong>CoAP</strong>.</li>
-        <li>Enter a <strong>Name</strong> for the integration, or keep the default <code>CoAP integration</code>.</li>
-        <li>Leave <strong>Enable integration</strong> and <strong>Allow create devices or assets</strong> on so the device is created automatically on first data.</li>
-        <li>Click <strong>Next</strong>.</li>
-      </ul>
-    </li>
-    <li>
-      <span><strong>Uplink data converter:</strong></span>
-      <ul>
-        <li>Click <strong>Select existing</strong> and choose the <a href="#create-the-uplink-data-converter"><strong>CoAP Uplink Converter</strong></a> created in the previous step, or click <strong>Create new</strong> to define the decoder inline.</li>
-        <li>Click <strong>Next</strong>.</li>
-      </ul>
-    </li>
-    <li>
-      <span><strong>Connection:</strong></span>
-      <ul>
-        <li>Select a <strong>Security mode</strong> — defaults to <strong>NO SECURE</strong>.</li>
-        <li>The <strong>Base URL</strong> is pre-filled with your ThingsBoard host (e.g. <code>{props.product === Products.PAAS_EU ? 'coap://int.eu.thingsboard.cloud' : props.product === Products.PAAS ? 'coap://int.thingsboard.cloud' : 'coap://my.thingsboard'}</code>). Optionally, enter a <strong>Path</strong> to append to the base URL.</li>
-        <li>Copy the auto-generated <strong>CoAP endpoint URL</strong> — you will use it to send uplink messages.</li>
-      </ul>
-      <span>Read more about each parameter in <a href="#connection-settings"><strong>Connection Settings</strong></a>.</span>
-    </li>
-    <li>Click <strong>Add</strong>.</li>
-  </ol>
+1. Go to **Integrations &#8702; Integrations** and click **+ Add integration**.
+2. **Basic settings:**
+   - **Integration type** — select **CoAP**.
+   - **Name** — keep the default `CoAP integration` or enter your own.
+   - **Enable integration** and **Allow create devices or assets** — keep both on, so the device is created on its first uplink.
+   - Click **Next**.
+3. **Uplink data converter:**
+   - Click **Select existing** and choose `CoAP Uplink Converter`.
+   - Alternatively, click **Create new** to write a decoder here.
+   - Click **Next**.
+4. **Connection:**
+   - Keep **Security mode** set to **NO SECURE**. To encrypt traffic, see **[Enable DTLS](#enable-dtls)**.
+   - Copy the **CoAP endpoint URL**. You need it to send uplinks.
+   - Leave the other parameters at their defaults. See **[Connection Settings](#connection-settings)** for details.
+5. Click **Add**.
 </Steps>
 
 #### Connection Settings
 
-<h4>Security Mode</h4>
-
-Defines the transport security for the CoAP connection:
-
-| Mode | Description |
-|------|-------------|
-| **NO SECURE** (default) | Plain CoAP over UDP — no encryption |
-| **DTLS** | CoAP over DTLS 1.2 — encrypted |
-| **MIXED** | Both plain and DTLS endpoints active simultaneously |
-
-Both **CON** (Confirmable) and **NON** (Non-Confirmable) CoAP message types are supported in all modes. ThingsBoard acknowledges CON messages automatically.
-
-{props.product !== Products.PAAS && props.product !== Products.PAAS_EU && (
-  <>
-    <p>For <strong>DTLS</strong> and <strong>MIXED</strong> modes, enable DTLS support in <code>thingsboard.yml</code> or set the following environment variables:</p>
-
-    <Code code={dtlsConfig} lang="bash" />
-
-    <Aside type="note">
-      The values above are defaults. At minimum, update the key store path and credentials before enabling DTLS. See the <a href="/docs/reference/coap-api/getting-connected/#coap-over-dtls--server-configuration" target="_blank">CoAP over DTLS</a> guide for full configuration details.
-    </Aside>
-  </>
-)}
-
-<h4>Base URL / DTLS Base URL</h4>
-
-The base address of the ThingsBoard CoAP endpoint. Pre-filled with your deployment host.
-
-| Security mode | Field label | Example value |
-|---------------|-------------|---------------|
-| NO SECURE | Base URL | <code>{props.product === Products.PAAS_EU ? 'coap://int.eu.thingsboard.cloud' : props.product === Products.PAAS ? 'coap://int.thingsboard.cloud' : 'coap://my.thingsboard'}</code> |
-| DTLS | DTLS Base URL | <code>{props.product === Products.PAAS_EU ? 'coaps://int.eu.thingsboard.cloud' : props.product === Products.PAAS ? 'coaps://int.thingsboard.cloud' : 'coaps://my.thingsboard'}</code> |
-| MIXED | Base URL + DTLS Base URL | Both of the above |
-
-<h4>Path</h4>
-
-Optional. A URL path segment appended to the Base URL after the `/` separator. Leave empty to use the default routing. Each Base URL field has its own Path field.
-
-Example: <code>{props.product === Products.PAAS_EU ? 'coap://int.eu.thingsboard.cloud/my-path' : props.product === Products.PAAS ? 'coap://int.thingsboard.cloud/my-path' : 'coap://my.thingsboard/my-path'}</code>
-
-<h4>CoAP Endpoint URL</h4>
-
-Read-only, auto-generated from the Base URL, the optional Path, and the fixed routing segment `/i/$INTEGRATION_ROUTING_KEY`. The routing key (UUID) is assigned at creation time. Devices must POST or PUT to this URL. Click the copy icon next to the field to copy it to the clipboard.
-
-<h4>Execute Remotely</h4>
-
-When expanded, shows an **Integration key** and **Integration secret** — credentials that allow the integration to run as a separate process outside the ThingsBoard cluster (e.g., on a remote server or on-premises gateway). See <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink> for setup details.
-
-<h4>Advanced Settings</h4>
-
-| Field | Description |
-|-------|-------------|
-| **Description** | Optional free-text description of the integration. |
-| **Metadata** | Optional key–value pairs injected into every message and accessible in converter scripts via the `metadata` object. Click **Add** to add a row. |
+| Parameter | Description |
+|-----------|-------------|
+| **Security mode** | **NO SECURE** (default) — plain CoAP. **DTLS** — CoAP over DTLS 1.2 only. **MIXED** — both. DTLS and MIXED need DTLS enabled on the server; see **[Enable DTLS](#enable-dtls)**. |
+| **Base URL** | Plain CoAP address, used in NO SECURE and MIXED modes. Pre-filled with your host, for example <code>{props.product === Products.PAAS_EU ? 'coap://int.eu.thingsboard.cloud' : props.product === Products.PAAS ? 'coap://int.thingsboard.cloud' : 'coap://my.thingsboard'}</code>. You can append a path, for example `/sensors`; it becomes part of the endpoint URL. |
+| **DTLS Base URL** | DTLS address, used in DTLS and MIXED modes. Pre-filled with your host, for example <code>{props.product === Products.PAAS_EU ? 'coaps://int.eu.thingsboard.cloud' : props.product === Products.PAAS ? 'coaps://int.thingsboard.cloud' : 'coaps://my.thingsboard'}</code>. |
+| **CoAP endpoint URL** | Read-only. Format: `{Base URL}/i/{integrationKey}`, where `integrationKey` is a UUID assigned at creation. The DTLS endpoint uses the same format with the DTLS Base URL. Accepts `POST` and `PUT`. Extra path segments after the key are accepted and reach the converter in `Option:uri`. |
+| **Execute remotely** | Runs the integration as a separate process outside the ThingsBoard cluster, for example in a private network. ThingsBoard generates an **Integration key** and **Integration secret** for it. See <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink>. |
+| **Description** | Optional free-text description. |
+| **Metadata** | Key–value pairs added to the `metadata` of every message from this integration. |
 
 ## Test Uplink
 
-After the integration is created, send a test uplink and confirm that ThingsBoard received the message, decoded it correctly, and provisioned the device.
+Send a request to the endpoint, then confirm that ThingsBoard decoded it and created the device.
 
 <Aside type="note">
-  Before sending a test uplink, ensure that **Debug** mode with the **All messages** option is enabled for both the integration and the converter. This allows you to view received messages and conversion results on the corresponding **Events** tabs.
+  Turn on **Debug** mode with **All messages** for the integration and the uplink converter before you send the request. Without it, the **Events** tabs stay empty.
 </Aside>
 
-### Send Test Uplink
+### Send a Test Uplink
 
-Once the integration is created, the CoAP server registers the endpoint and waits for incoming data. Send a test message using `coap-client` (part of <a href="https://github.com/obgm/libcoap" target="_blank">libcoap</a>) or any CoAP client that supports `POST`, replacing `$YOUR_COAP_ENDPOINT_URL` with the URL copied during setup:
+Send the test message with `coap-client` (part of <a href="https://github.com/obgm/libcoap" target="_blank"><strong>libcoap</strong></a>) or any CoAP client that supports POST requests.
+
+Replace `$YOUR_COAP_ENDPOINT_URL` with the CoAP endpoint URL and run the command for your payload type:
 
 <Tabs>
 <TabItem label="Text payload">
@@ -505,57 +472,54 @@ echo -e -n '\x53\x4e\x2d\x30\x30\x31\x64\x65\x66\x61\x75\x6c\x74\x32\x35\x2e\x37
 </TabItem>
 </Tabs>
 
-<Aside type="note">
-  For **Confirmable (CON)** messages, `coap-client` prints an ACK response (e.g. `v:1 t:ACK c:Created(2.01) ...`). For **Non-confirmable (NON)** messages, no output is expected — delivery is fire-and-forget.
-</Aside>
+No output means success: the endpoint answered `2.01 Created` with an empty body.
 
-### Verify Integration Events
+### Verify the Result
 
-Go to **Integrations &#8702; Integrations**, open **CoAP integration**, and click the **Events** tab.
-Each successfully processed uplink appears as a row with status **OK**.
+- **Integration events** — go to **Integrations &#8702; Integrations**, open the integration, and click the **Events** tab. The uplink appears with status **OK**.
+- **Converter events** — open `CoAP Uplink Converter` in **Integrations &#8702; Data converters** and click the **Events** tab. **In** shows the received payload, **Out** shows the decoded result, and **Metadata** shows the CoAP options (`Option:content-format`, `Option:uri`) and the integration name.
+- **Device** — go to **Devices & assets &#8702; Devices**. The integration has created **SN-001**. Open it and confirm `temperature = 25.7` and `humidity = 69` on the **Latest telemetry** tab.
 
-### Verify Converter Events
+## Enable DTLS
 
-To inspect converter processing, go to **Integrations &#8702; Data converters**, click **CoAP Uplink Converter**, and open its **Events** tab:
-- **In** — what the integration received (payload body)
-- **Out** — what the converter returned
-- **Metadata** — CoAP option fields captured from the request (e.g. `Option:content-format`, `Option:uri`) and the integration name
-- **Error** — error text, if any
+DTLS encrypts CoAP traffic. To use the **DTLS** or **MIXED** security mode, the ThingsBoard CoAP server must have DTLS enabled. Otherwise, the integration fails to save with `CoAP server doesn't have DTLS Endpoint enabled!`.
 
-### Verify Device Provisioning
+{props.product !== Products.PAAS && props.product !== Products.PAAS_EU && (
+  <>
+    <p>Enable DTLS in <code>thingsboard.yml</code> or set these environment variables, then restart ThingsBoard:</p>
 
-Go to **Devices & assets &#8702; Devices**. Device **SN-001** is auto-created on the first uplink. Open the **Latest telemetry** tab to confirm `temperature = 25.7` and `humidity = 69`.
+    <Code code={dtlsConfig} lang="bash" />
 
-<h4>How to Read Debug Events</h4>
+    <Aside type="note">
+      These are the default key store values, except <code>COAP_DTLS_ENABLED</code> and <code>COAP_DTLS_CREDENTIALS_TYPE</code>. At minimum, set your own key store path and passwords. See <DocLink product={props.product} path="reference/coap-api/getting-connected/#coap-over-dtls--server-configuration" target="_blank"><strong>CoAP over DTLS</strong></DocLink> for the full server configuration.
+    </Aside>
+  </>
+)}
 
-<Steps>
-1. Go to **Integrations &#8702; Integrations**, open your integration, and click the **Events** tab. Filter by **Uplink**.
-2. Click on an event to inspect:
-</Steps>
-
-- **In** — what the integration received: the raw CoAP payload body
-- **Out** — what the converter returned: decoded device name, attributes, and telemetry
-- **Error** — error text, if any
+Then open the integration, click **Toggle edit mode** (pencil icon), set **Security mode** to **DTLS** or **MIXED**, check the **DTLS Base URL**, and click **Apply changes**. Devices send to the `coaps://` endpoint on port `5684`. In **MIXED** mode, the plain endpoint stays active on port `5683`.
 
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| No response / timeout | UDP packet lost or wrong endpoint URL | Verify the CoAP endpoint URL; check that UDP port 5683 (or 5684 for DTLS) is open; try a Confirmable (CON) request to distinguish from NON fire-and-forget |
-| `4.05 Method Not Allowed` | Device sent `GET` instead of `POST` or `PUT` | Ensure the device uses CoAP `POST` or `PUT` |
-| `4.04 Not Found` | Wrong integration ID in the URI | Copy the exact endpoint URL from the integration **Connection** settings |
-| `4.00 Bad Request` | Malformed or empty payload | Check payload encoding and format |
-| `4.00 Bad Request` — "No secure connection is not allowed" | Request arrived over a DTLS session but the integration endpoint is plain CoAP (no DTLS configured) | Enable DTLS on the integration, or send the request to the plain CoAP port (5683) without DTLS |
-| Device not created | `deviceName` is empty or `undefined` | Check **Debug Events → Out** on the converter; ensure `deviceName` is resolved from the payload |
-| Telemetry not saved | Converter returns `{}` or `[]` | Make sure `telemetry` contains at least one field |
-| `Error in converter` | JavaScript or TBEL exception | Open **Events → Error** on the converter and inspect the stack trace |
-| Data present but timestamp is wrong | Device sends `ts` in seconds | Convert before assigning: `ts: data.ts * 1000` |
-| DTLS handshake fails | Security mode mismatch or DTLS not enabled server-side | Ensure **Security mode** is set to **DTLS** or **MIXED** in Connection settings; confirm `COAP_DTLS_ENABLED=true` in your deployment |
+| No response or timeout | Wrong endpoint URL, or the UDP port is blocked. | Copy the **CoAP endpoint URL** again. Open UDP port `5683` (or `5684` for DTLS). |
+| `4.04 Not Found` | Wrong integration key in the URI, or the integration is disabled. | Copy the endpoint URL from the integration again. |
+| `4.05 Method Not Allowed` | The device sent `GET` or `DELETE`. | Use `POST` or `PUT`. |
+| `4.00 Bad Request` | The decoder threw an error or the payload is malformed. | Check the converter's **Events** tab for the error. |
+| `4.00 Bad Request` with `No secure connection is not allowed` | The request came over DTLS, but **Security mode** is **NO SECURE**. | Set **Security mode** to **DTLS** or **MIXED**, or send plain CoAP to port `5683`. |
+| Integration fails to save: `CoAP server doesn't have DTLS Endpoint enabled!` | DTLS or MIXED mode is selected, but the server has DTLS off. | **[Enable DTLS](#enable-dtls)** on the server, or use **NO SECURE**. |
+| DTLS handshake fails | Client and server certificates or cipher suites do not match. | Check the key store and client credentials against the <DocLink product={props.product} path="reference/coap-api/getting-connected/#coap-over-dtls--server-configuration" target="_blank"><strong>DTLS server configuration</strong></DocLink>. |
+| Device not created | `deviceName` is empty or undefined. | Check **Out** in the converter events. Make sure the field exists in the payload. |
+| Telemetry not saved | The decoder returns `{}`, `[]`, or empty `telemetry`. | Make sure `telemetry` holds at least one key. |
+| Wrong timestamp | The device sends `ts` in seconds. | Convert it: `ts: data.ts * 1000`. |
+
+To read debug events, open the integration or converter, click **Events**, and select an event: **In** is the received data, **Out** is the converter result, and **Error** holds the error text.
 
 ## See Also
 
-- <DocLink product={props.product} path="user-guide/integrations" target="_blank">Integrations Overview</DocLink> — how ThingsBoard connects to external platforms and how uplink/downlink flow works
-- <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">Uplink Data Converter</DocLink> — full decoder function reference: input parameters, output fields, and scripting patterns
-- <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink> — run the integration outside the ThingsBoard server to reach CoAP endpoints in a private network
-- <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL scripting reference</DocLink> — built-in functions and operators for writing converter scripts
-- <DocLink product={props.product} path="user-guide/rule-engine" target="_blank">Rule Engine</DocLink> — how uplink messages are processed after the converter
+- <DocLink product={props.product} path="user-guide/integrations" target="_blank">Integrations overview</DocLink> — how integrations, converters, uplinks, and downlinks fit together.
+- <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">Uplink data converter</DocLink> — decoder inputs, output format, and scripting patterns.
+- <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink> — run the integration outside the ThingsBoard cluster.
+- <DocLink product={props.product} path="reference/coap-api/getting-connected/" target="_blank"><strong>CoAP API</strong></DocLink> — connect devices directly to ThingsBoard over CoAP, without an integration.
+- <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL</DocLink> — built-in functions and syntax for converter scripts.
+- <DocLink product={props.product} path="user-guide/rule-engine" target="_blank">Rule Engine</DocLink> — how messages are processed after decoding.

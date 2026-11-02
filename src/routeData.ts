@@ -21,13 +21,14 @@ import { getCanonicalPathname, getProfessionalTwinPathname } from '~/util/canoni
 import { DOCS_SUFFIX, formatDocsTitle, TITLE_SEPARATOR } from '~/consts';
 import { getOgImageUrl } from '~/util/getOgImageUrl';
 import { getTutorialPages } from '~/util/getTutorialPages';
+import { hasCurrentEntry, type SidebarEntry } from '@util/sidebar';
 import { isAnnouncementExpired, type Announcement } from '@models/announcement';
 import { docsAnnouncements } from '@data/docsAnnouncements';
 // No alias covers `config/`; relative import is the only option here.
 import {
 	getRepoRoot,
-	getSitemapSourceRegistry,
 	normalizeSitemapPath,
+	setSitemapSources,
 	toRepoRelative,
 } from '../config/sitemap-source-registry';
 
@@ -56,9 +57,6 @@ const tutorialPagesByVersion: Map<Products, typeof pages> = (() => {
 	}
 	return result;
 })();
-
-/** Memoization cache for `linkMatchesVersion(href) && linkMatchesLanguage(href)`. */
-const sidebarLinkMatchCache = new Map<string, boolean>();
 
 const EDIT_BASE_URL = 'https://github.com/thingsboard/thingsboard.io/edit/main';
 const INCLUDES_IMPORT_REGEX = /^\s*import\s+\w+\s+from\s+['"]@includes\/([^'"]+)['"]/gm;
@@ -176,7 +174,7 @@ function recordSitemapSources(context: APIContext, starlightRoute: StarlightRout
 	const sources = [wrapperRel];
 	const includeRel = getStubIncludeRel(filePath);
 	if (includeRel) sources.push(`src/content/_includes/${includeRel}`);
-	getSitemapSourceRegistry().set(normalizeSitemapPath(context.url.pathname), sources);
+	setSitemapSources(normalizeSitemapPath(context.url.pathname), sources);
 }
 
 /** True when the computed head has no `noindex` and any canonical points at the page itself. */
@@ -200,41 +198,79 @@ function isIndexableSelfCanonical(context: APIContext, starlightRoute: Starlight
 }
 
 /**
+ * Which entries of one sidebar level survive the filter: their indexes, each with the
+ * mask of its group's children (`null` for a leaf). `length` is the level's entry count,
+ * checked before the mask is reused.
+ */
+interface SidebarMask {
+	length: number;
+	keep: Array<[index: number, children: SidebarMask | null]>;
+}
+
+/**
+ * Masks per `version|lang`. Every page gets a fresh copy of the same full sidebar (~4,000
+ * entries, every product's), so the walk runs once per product and language.
+ */
+const sidebarMaskCache = new Map<string, SidebarMask>();
+
+/**
  * Filter sidebar entries to only show items for the current product version and language.
  */
 function filterSidebarByVersionAndLanguage(starlightRoute: StarlightRouteData) {
 	const version = getVersionFromSlug(starlightRoute.id);
 	const lang = getLanguageFromSlug(starlightRoute.id);
+	const key = `${version}|${lang}`;
 
-	starlightRoute.sidebar = starlightRoute.sidebar.filter((entry) =>
-		sidebarEntryMatchesVersionAndLanguage(entry, version, lang)
-	);
+	const cached = sidebarMaskCache.get(key);
+	const filtered = cached && applySidebarMask(starlightRoute.sidebar, cached);
+	if (filtered) {
+		starlightRoute.sidebar = filtered;
+		return;
+	}
+	const mask = buildSidebarMask(starlightRoute.sidebar, version, lang);
+	sidebarMaskCache.set(key, mask);
+	starlightRoute.sidebar = applySidebarMask(starlightRoute.sidebar, mask)!;
 }
 
-function sidebarEntryMatchesVersionAndLanguage(
-	entry: StarlightRouteData['sidebar'][number],
-	version: Products,
-	lang: SupportedLanguage
-): boolean {
-	if (entry.type === 'link') {
-		// A cross-product link (like the platform sidebars' "ThingsBoard CLI" → /docs/cli/) names
-		// the sidebar it belongs to in `data-sidebar-owner`; match on the owner, not the target.
-		const owner = entry.attrs?.['data-sidebar-owner'];
-		const href = typeof owner === 'string' ? owner : entry.href;
-		const key = `${version}|${lang}|${href}`;
-		const cached = sidebarLinkMatchCache.get(key);
-		if (cached !== undefined) return cached;
-		const match = linkMatchesVersion(href, version) && linkMatchesLanguage(href, lang);
-		sidebarLinkMatchCache.set(key, match);
-		return match;
+function buildSidebarMask(entries: SidebarEntry[], version: Products, lang: SupportedLanguage): SidebarMask {
+	const keep: SidebarMask['keep'] = [];
+	entries.forEach((entry, index) => {
+		if (entry.type === 'link') {
+			// A cross-product link (like the platform sidebars' "ThingsBoard CLI" → /docs/cli/) names
+			// the sidebar it belongs to in `data-sidebar-owner`; match on the owner, not the target.
+			const owner = entry.attrs?.['data-sidebar-owner'];
+			const href = typeof owner === 'string' ? owner : entry.href;
+			if (linkMatchesVersion(href, version) && linkMatchesLanguage(href, lang)) keep.push([index, null]);
+		} else if (entry.type === 'group') {
+			const children = buildSidebarMask(entry.entries, version, lang);
+			if (children.keep.length > 0) keep.push([index, children]);
+		} else {
+			keep.push([index, null]);
+		}
+	});
+	return { length: entries.length, keep };
+}
+
+/**
+ * The kept entries, or `null` when the sidebar's shape no longer matches the mask. Groups
+ * are copied rather than edited, so a mismatch found deep down leaves `entries` intact for
+ * the caller to build a fresh mask from.
+ */
+function applySidebarMask(entries: SidebarEntry[], mask: SidebarMask): SidebarEntry[] | null {
+	if (entries.length !== mask.length) return null;
+	const kept: SidebarEntry[] = [];
+	for (const [index, children] of mask.keep) {
+		const entry = entries[index]!;
+		if (!children) {
+			kept.push(entry);
+			continue;
+		}
+		if (entry.type !== 'group') return null;
+		const filtered = applySidebarMask(entry.entries, children);
+		if (!filtered) return null;
+		kept.push({ ...entry, entries: filtered });
 	}
-	if (entry.type === 'group') {
-		entry.entries = entry.entries.filter((child) =>
-			sidebarEntryMatchesVersionAndLanguage(child, version, lang)
-		);
-		return entry.entries.length > 0;
-	}
-	return true;
+	return kept;
 }
 
 function linkMatchesVersion(href: string, version: Products): boolean {
@@ -273,42 +309,28 @@ function linkMatchesVersion(href: string, version: Products): boolean {
 	);
 }
 
+type SidebarLink = Extract<SidebarEntry, { type: 'link' }>;
+
 /**
  * When the current page is not a sidebar link (e.g. a dynamic sub-page like
  * /docs/pe/releases/releases-table/v4-3-x/), mark the closest ancestor
  * sidebar link as current so that collapsed groups containing it render open.
  */
 function markParentSidebarItemAsCurrent(starlightRoute: StarlightRouteData, pathname: string) {
-	// If any entry is already current, nothing to do
-	if (hasCurrent(starlightRoute.sidebar)) return;
-
-	// Find the sidebar link with the longest href that is a prefix of pathname
-	let bestEntry: { isCurrent: boolean } | null = null;
-	let bestLen = 0;
-
-	function walk(entries: StarlightRouteData['sidebar']) {
-		for (const entry of entries) {
-			if (entry.type === 'link') {
-				if (pathname.startsWith(entry.href) && entry.href.length > bestLen) {
-					bestLen = entry.href.length;
-					bestEntry = entry;
-				}
-			} else if (entry.type === 'group') {
-				walk(entry.entries);
-			}
-		}
-	}
-
-	walk(starlightRoute.sidebar);
-	if (bestEntry) (bestEntry as { isCurrent: boolean }).isCurrent = true;
+	if (hasCurrentEntry(starlightRoute.sidebar)) return;
+	const parent = findLongestPrefixLink(starlightRoute.sidebar, pathname);
+	if (parent) parent.isCurrent = true;
 }
 
-function hasCurrent(entries: StarlightRouteData['sidebar']): boolean {
+function findLongestPrefixLink(entries: SidebarEntry[], pathname: string): SidebarLink | undefined {
+	let best: SidebarLink | undefined;
 	for (const entry of entries) {
-		if (entry.type === 'link' && entry.isCurrent) return true;
-		if (entry.type === 'group' && hasCurrent(entry.entries)) return true;
+		const candidate = entry.type === 'group' ? findLongestPrefixLink(entry.entries, pathname) : entry;
+		if (candidate && pathname.startsWith(candidate.href) && candidate.href.length > (best?.href.length ?? 0)) {
+			best = candidate;
+		}
 	}
-	return false;
+	return best;
 }
 
 /**

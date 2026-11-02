@@ -4005,6 +4005,7 @@ export const cliSidebar: SidebarConfig = [
 		label: 'Guides',
 		items: [
 			'docs/cli/guides/start-from-payload',
+			'docs/cli/guides/connect-real-device',
 			'docs/cli/guides/alarms',
 			'docs/cli/guides/deliver-to-customer',
 			'docs/cli/guides/import-existing-solution',

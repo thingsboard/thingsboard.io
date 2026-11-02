@@ -58,7 +58,7 @@ export const CE_BRANCH = 'release-4.3';
  * names and plain version tags (no `tb-pe-` prefix, no `PE` suffix). Historical
  * upgrade steps below 4.4 build the old names themselves.
  */
-export const PE_FULL_VER = '4.4.0.1';
+export const PE_FULL_VER = '4.4.0.2';
 
 /**
  * Package filename and GitHub release-tag version — {@link PE_FULL_VER} with the
@@ -118,13 +118,17 @@ export const EDGE_PE_PKG_VER = `${EDGE_PKG_VER}pe`;
 export const EDGE_PE_BRANCH = 'release-4.3.0';
 
 /**
- * Dart ThingsBoard API Client — pub.dev version of each edition's package
- * (`thingsboard_ce_client`, `thingsboard_pe_client`, `thingsboard_paas_client`).
- * Each package tracks the server version it is generated from, independently of
- * {@link CE_FULL_VER} and {@link PE_FULL_VER}.
+ * Dart ThingsBoard API Client — latest pub.dev version of `thingsboard_ce_client` and
+ * `thingsboard_pe_client`. Patch releases don't raise the minimum server version,
+ * see {@link DART_CLIENT_MIN_SERVER_VER}.
  */
 export const DART_CLIENT_VER = {
 	ce: '4.3.0',
+	pe: '4.4.1',
+} as const;
+
+/** Must match `tbMinServerVersion` in each Dart client package */
+export const DART_CLIENT_MIN_SERVER_VER = {
+	ce: '4.3.0',
 	pe: '4.4.0',
-	paas: '4.4.0',
 } as const;
