@@ -2,7 +2,404 @@
 title: Azure Event Hub Integration
 description: Connect Azure Event Hub to ThingsBoard to stream and visualize IoT device data in real time.
 ---
-import PageComponent from '@includes/docs/user-guide/integrations/azure-event-hub.mdx'
-import { Products } from '~/models/site.models'
+import DocLink from '@components/DocLink.astro';
+import ImageGallery from '@components/ImageGallery.astro';
+import DocImage from '@components/DocImage.astro';
+import Banner from '@components/Banner.astro';
+import { Steps, Aside } from '@astrojs/starlight/components';
+import { Products } from '@models/site.models';
+import Tabs from '@components/Tabs.astro';
+import TabItem from '@components/TabItem.astro';
 
-<PageComponent product={Products.CE}/>
+<Banner variant="peFeature" product={Products.CE} path="user-guide/integrations/azure-event-hub" />
+
+Azure Event Hub Integration connects ThingsBoard to the built-in Event Hub-compatible endpoint of Azure IoT Hub. ThingsBoard subscribes as a consumer group, reads device-to-cloud messages, and converts them into devices and telemetry via an uplink converter. For downlink, ThingsBoard sends cloud-to-device messages back to Azure IoT Hub devices using the Azure IoT Hub API.
+
+<DocImage src="/src/assets/images/user-guide/integrations/azure-event-hub/azure-event-hub-integration.svg" alt="Azure Event Hub integration architecture diagram" />
+
+## Create IoT Hub in Azure
+
+### Create the IoT Hub resource
+
+<Steps>
+1. Sign in to the <a href="https://portal.azure.com" target="_blank" rel="noopener noreferrer">Azure portal</a> and click **Create a resource**.
+2. Search for **IoT Hub**, select it from the list, and click **Create**.
+3. On the **Basics** tab, click **Create new** to create a new resource group. Enter a resource group name and an IoT hub name.
+4. Click **Review + create**, review the configuration, then click **Create**.
+5. Wait for the deployment to complete, then click **Go to resource**.
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/azure-event-hub/create-a-resource.png', alt: 'Azure portal home page with Create a resource tile highlighted', caption: 'Click "Create a resource" on the Azure portal home page' },
+  { src: '/src/assets/images/user-guide/integrations/azure-event-hub/select-iot-hub.png', alt: 'Azure Marketplace New page — IoT Hub typed in the search box with IoT Hub result highlighted', caption: 'Type "IoT Hub" in the search box and select IoT Hub from the results' },
+  { src: '/src/assets/images/user-guide/integrations/azure-event-hub/create-iot-hub.png', alt: 'IoT Hub marketplace page with Create button highlighted', caption: 'Click Create on the IoT Hub marketplace page' },
+  { src: '/src/assets/images/user-guide/integrations/azure-event-hub/basics-iot-hub.png', alt: 'IoT Hub Basics form with resource group TB-322 and hub name thingsboard-integration filled in, Review + create button highlighted', caption: 'Set the resource group and IoT hub name, then click Review + create' },
+  { src: '/src/assets/images/user-guide/integrations/azure-event-hub/create-basics-iot-hub.png', alt: 'IoT Hub Review + create page summarizing Subscription, Resource group, Region, and IoT hub name, with Create button', caption: 'Review the configuration and click Create' },
+  { src: '/src/assets/images/user-guide/integrations/azure-event-hub/deployment-is-in-progress.png', alt: 'Azure deployment overview page showing Deployment is in progress with the IoT Hub resource listed', caption: 'Wait for the deployment to complete' },
+  { src: '/src/assets/images/user-guide/integrations/azure-event-hub/go-to-resource.png', alt: 'Azure deployment overview page showing Your deployment is complete with Go to resource button highlighted', caption: 'Click "Go to resource" when the deployment finishes' },
+]} />
+
+### Create a device in the IoT Hub
+
+<Steps>
+1. In your IoT Hub resource, open **IoT devices** from the left menu.
+2. Click **+ New**.
+3. Enter a **Device ID** (e.g. `TB-D-01`), leave **Auto-generate keys** checked, and click **Save**.
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/azure-event-hub/iot-devices.png', alt: 'IoT Hub resource overview with IoT devices selected in the left menu', caption: 'Open IoT devices from the left menu' },
+  { src: '/src/assets/images/user-guide/integrations/azure-event-hub/iot-devices-new.png', alt: 'IoT devices page with + New button highlighted and no devices in the list', caption: 'Click + New to register a device' },
+  { src: '/src/assets/images/user-guide/integrations/azure-event-hub/save-device-id.png', alt: 'Create a device form with Device ID set to TB-D-01, Auto-generate keys checked, and Save button highlighted', caption: 'Enter the Device ID (e.g. TB-D-01), leave Auto-generate keys checked, and click Save' },
+  { src: '/src/assets/images/user-guide/integrations/azure-event-hub/your-devices.png', alt: 'IoT devices list showing TB-D-01 with Enabled status and Cloud to Device Message Count of 0', caption: 'Device TB-D-01 appears in the list with Enabled status' },
+]} />
+
+## ThingsBoard integration setup
+
+### Create an uplink converter
+
+The uplink converter transforms incoming Azure Event Hub messages into the ThingsBoard format. Azure Event Hub uses a <DocLink product={Products.CE} path="user-guide/integrations/uplink-data-converter">generic uplink converter</DocLink>.
+
+**Sample payload sent from the device:**
+
+```json
+{
+  "devName": "TB-D-01",
+  "msg": {
+    "temp": 42,
+    "humidity": 77
+  }
+}
+```
+
+The decoder reads `devName` to set the device name and extracts `temp` and `humidity` from the nested `msg` object as telemetry.
+
+<Aside type="tip" title="TBEL">
+  We recommend using <DocLink product={Products.CE} path="user-guide/tbel">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
+</Aside>
+
+<Steps>
+  <ol start="1">
+    <li>Go to <strong>Integrations center &#8702; Data converters</strong>.</li>
+    <li>Click <strong>+ Add data converter &#8702; Create new converter</strong>.</li>
+    <li>Set <strong>Converter type</strong> to <strong>Uplink</strong> and enter a name.</li>
+    <li>Paste the decoder function below and click <strong>Add</strong>.</li>
+  </ol>
+</Steps>
+
+**The decoder function used in this tutorial:**
+
+<Tabs>
+<TabItem label="TBEL (Recommended)">
+```js maxLines=15 collapsible
+var data = decodeToJson(payload);
+var deviceName = data.devName;
+var deviceType = 'azure-event-hub-device';
+
+var result = {
+    deviceName: deviceName,
+    deviceType: deviceType,
+    telemetry: {
+        temp: data.msg.temp,
+        humidity: data.msg.humidity
+    }
+};
+
+return result;
+```
+</TabItem>
+<TabItem label="JavaScript">
+```js maxLines=20 collapsible
+var data = decodeToJson(payload);
+var deviceName = data.devName;
+var deviceType = 'azure-event-hub-device';
+
+var result = {
+    deviceName: deviceName,
+    deviceType: deviceType,
+    telemetry: {
+        temp: data.msg.temp,
+        humidity: data.msg.humidity
+    }
+};
+
+function decodeToString(payload) {
+    return String.fromCharCode.apply(String, payload);
+}
+
+function decodeToJson(payload) {
+    var str = decodeToString(payload);
+    var data = JSON.parse(str);
+    return data;
+}
+
+return result;
+```
+</TabItem>
+</Tabs>
+
+**To adapt this converter to your device:**
+
+- **Different device name field** — replace `data.devName` with whichever field carries the device identifier in your payload.
+- **Different telemetry fields** — replace `temp` and `humidity` with your actual sensor fields; add or remove entries as needed.
+- **Flat payload** — if your payload is not nested (no `msg` object), access fields directly: `data.temperature`, `data.battery`, etc.
+- **Additional attributes** — add an `attributes: {}` block next to `telemetry` to store non-time-series data such as firmware version or hardware revision.
+
+### Create the integration
+
+<Steps>
+  <ol start="1">
+    <li>Go to <strong>Integrations center &#8702; Integrations</strong> and click <strong>+ Add integration</strong>.</li>
+    <li>
+      <span><strong>Basic settings:</strong></span>
+      <ul>
+        <li>Set <strong>Integration type</strong> to <strong>Azure Event Hub</strong> and enter a name.</li>
+        <li>Click <strong>Next</strong>.</li>
+      </ul>
+    </li>
+    <li>
+      <span><strong>Uplink data converter:</strong></span>
+      <ul>
+        <li><strong>Select existing</strong> — choose the <a href="#create-an-uplink-converter">previously created</a> <code>Azure Event Hub Uplink Converter</code> from the list.</li>
+        <li>Click <strong>Next</strong>.</li>
+      </ul>
+    </li>
+    <li>
+      <span><strong>Downlink data converter:</strong></span>
+      <ul>
+        <li>Click <strong>Skip</strong> — the downlink converter can be added later.</li>
+      </ul>
+    </li>
+    <li>
+      <span><strong>Connection settings</strong> — fill in the following fields (see subsections below for where to find each value):</span>
+      <ul>
+        <li><strong>Connection string</strong> — the <a href="#find-the-event-hub-compatible-endpoint">Event Hub-compatible endpoint</a> from your IoT Hub.</li>
+        <li><strong>Storage connection string</strong> — the <a href="#find-the-storage-connection-string-and-container-name">connection string</a> from your Azure Storage account. Used for checkpointing.</li>
+        <li><strong>Container name</strong> — the name of the Azure Blob Storage <a href="#find-the-storage-connection-string-and-container-name">container</a> used to store checkpoints.</li>
+        <li>Optionally enable <strong>Persistent checkpoints</strong> to resume from the last processed event after a restart.</li>
+      </ul>
+    </li>
+    <li>Click <strong>Check connection</strong> to verify, then click <strong>Add</strong>.</li>
+  </ol>
+</Steps>
+
+#### Find the Event Hub-compatible endpoint
+
+<Steps>
+1. In your IoT Hub resource, go to **Built-in endpoints**.
+2. Under **Event Hub-compatible endpoint**, copy the full connection string and paste it into the **Connection String** field in ThingsBoard.
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/azure-event-hub/built-in-endpoints.png', alt: 'IoT Hub resource with Built-in endpoints highlighted in the left menu under Settings', caption: 'Open Built-in endpoints in your IoT Hub (Settings section of the left menu)' },
+  { src: '/src/assets/images/user-guide/integrations/azure-event-hub/event-hub-compatible-endpoint.png', alt: 'Built-in endpoints page showing the Event Hub-compatible endpoint connection string with copy button', caption: 'Copy the full Event Hub-compatible endpoint connection string' },
+]} />
+
+#### Find the storage connection string and container name
+
+ThingsBoard uses Azure Blob Storage to store consumer checkpoints — offsets that record which Event Hub messages have already been processed. This prevents duplicate processing when the integration restarts.
+
+<h5>Container name</h5>
+
+<Steps>
+1. In the Azure portal, navigate to **Storage accounts** and open your storage account.
+2. Go to **Data storage &#8702; Containers** and note the container name you want to use for checkpoints.
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/azure-event-hub/container-1.png', alt: 'Azure portal home page with Storage accounts highlighted in Azure services and the storage account iothubstorage12345 selected from the Recent resources list', caption: 'Navigate to Storage accounts from the Azure portal home page and open your storage account' },
+  { src: '/src/assets/images/user-guide/integrations/azure-event-hub/container-2.png', alt: 'Storage account Containers page with Data storage → Containers selected in the left menu and eventhubcontainer highlighted in the list', caption: 'Open Containers under Data storage and note the container name (e.g. eventhubcontainer)' },
+]} />
+
+<h5>Connection string</h5>
+
+Go to **Security + networking &#8702; Access keys** and copy the **Connection string** for key1.
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/azure-event-hub/storage-connection-string-1.png', alt: 'Storage account Access keys page with Access keys selected under Security + networking and the Connection string for key1 highlighted', caption: 'Go to Access keys under Security + networking and copy the Connection string for key1' },
+]} />
+
+## Test uplink
+
+Use the Rule Engine to send a test message to Azure IoT Hub. Azure routes it to the built-in Event Hub endpoint, and ThingsBoard reads it back through the integration.
+
+### Configure the rule chain
+
+<Steps>
+1. Open **Rule Chains** and open the **Root Rule Chain** in edit mode.
+2. Add a **Generator** node. Configure it with a name, set the **Originator** to **Single entity &#8702; Integration &#8702; Azure Event Hub integration**, and paste the generate function below.
+</Steps>
+
+```js title="Generator function"
+var msg = {
+    devName: "TB-D-01",
+    msg: {
+        temp: 42,
+        humidity: 77
+    }
+};
+var metadata = { data: 40 };
+var msgType = "POST_TELEMETRY_REQUEST";
+
+return { msg: msg, metadata: metadata, msgType: msgType };
+```
+
+<Steps>
+  <ol start="3">
+    <li>
+      Add an <strong>Azure IoT Hub</strong> action node with the following settings:
+      <ul>
+        <li><strong>Topic</strong> — <code>devices/TB-D-01/messages/events/</code></li>
+        <li><strong>Hostname</strong> — your IoT Hub hostname (e.g. <code>thingsboard-integration.azure-devices.net</code>)</li>
+        <li><strong>Device ID</strong> — <code>TB-D-01</code></li>
+        <li><strong>Credentials</strong> — <strong>Shared Access Signature</strong>; <strong>SAS Key</strong> — the <a href="#find-the-device-primary-key">Primary key</a></li>
+      </ul>
+    </li>
+    <li>Connect the <strong>Generator</strong> node to the <strong>Azure IoT Hub</strong> node using the <strong>Success</strong> relation.</li>
+    <li>Click <strong>Apply changes</strong> to save the rule chain.</li>
+  </ol>
+</Steps>
+
+#### Find the device Primary key
+
+<Steps>
+  1. In your IoT Hub resource, open **IoT devices** and click on device `TB-D-01`.
+  2. Copy the **Primary key** value — use it as the **SAS Key** in the next step.
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/azure-event-hub/your-devices.png', alt: 'Azure IoT Hub IoT devices page for thingsboard-integration showing device TB-D-01 with Enabled status', caption: 'Open IoT devices in your IoT Hub — click on device TB-D-01 to open its details' },
+  { src: '/src/assets/images/user-guide/integrations/azure-event-hub/primary-key.png', alt: 'Azure IoT Hub device TB-D-01 details page showing Primary Key and Secondary Key fields with copy buttons', caption: 'Copy the Primary key — use it as the SAS Key in the Azure IoT Hub rule node' },
+]} />
+
+### Verify uplink
+
+Go to **Integrations center &#8702; Integrations**, open the **Azure Event Hub integration**, and check the **Events** tab — **Uplink** events with status **OK** confirm that data is flowing from Azure to ThingsBoard.
+
+
+Go to **Entities &#8702; Devices** — a device named `TB-D-01` is automatically created by the integration. Open it and check the **Latest telemetry** tab — you should see `temp = 42` and `humidity = 77`.
+
+## Configure and test downlink
+
+To send commands from ThingsBoard to Azure IoT Hub devices, three things must be in place: a downlink converter attached to the integration with the Event Hub-compatible name configured, and a Rule Chain node that forwards attribute changes to the integration.
+
+### Create a downlink converter
+
+The downlink converter encodes ThingsBoard messages into the format required by the Azure IoT Hub cloud-to-device messaging API. For the full encoder reference, see <DocLink product={Products.CE} path="user-guide/integrations/downlink-data-converter">Downlink data converter</DocLink>.
+
+**Expected output structure:**
+```json
+{
+  "contentType": "JSON",
+  "data": "{\"down-att\": \"scm:55\"}",
+  "metadata": {
+    "deviceId": "TB-D-01"
+  }
+}
+```
+
+The result object must follow this format:
+- `contentType` — how data is encoded: `TEXT`, `JSON`, or `BINARY`
+- `data` — the serialized payload sent to the device
+- `metadata.deviceId` — the Azure IoT Hub Device ID of the target device
+
+**The encoder function used in this tutorial:**
+
+<Tabs>
+<TabItem label="TBEL (Recommended)">
+```js maxLines=15 collapsible
+var result = {
+    contentType: "JSON",
+    data: JSON.stringify(msg),
+    metadata: {
+        deviceId: metadata.deviceName
+    }
+};
+return result;
+```
+</TabItem>
+<TabItem label="JavaScript">
+```js maxLines=15 collapsible
+var result = {
+    contentType: "JSON",
+    data: JSON.stringify(msg),
+    metadata: {
+        deviceId: metadata.deviceName
+    }
+};
+return result;
+```
+</TabItem>
+</Tabs>
+
+The encoder serializes the full ThingsBoard message (`msg`) as JSON. `metadata.deviceName` is automatically populated from the device context when the downlink is triggered from the device's rule chain, and maps to the Azure IoT Hub Device ID.
+
+**To adapt this converter to your device:**
+
+- **Specific fields only** — replace `JSON.stringify(msg)` with a selective object to send only the relevant command fields.
+- **Fixed device target** — replace `metadata.deviceName` with a hardcoded Device ID if the downlink always targets the same device.
+- **Binary payload** — set `contentType` to `BINARY` and encode `data` accordingly.
+
+### Add the downlink converter to the integration
+
+<Steps>
+  <ol>
+    <li>Go to <strong>Integrations center &#8702; Integrations</strong> and open the <strong>Azure Event Hub integration</strong>.</li>
+    <li>Click <strong>Toggle edit mode</strong>.</li>
+    <li>In the <strong>Downlink data converter</strong> field, type a name and click <strong>Create new converter</strong>.</li>
+    <li>Paste the encoder function from the <a href="#create-a-downlink-converter">section above</a> in the editor and click <strong>Add</strong>.</li>
+    <li>Scroll down to <strong>Advanced settings</strong> and enter the <a href="#find-the-event-hub-compatible-name">Event Hub-compatible name</a> in the <strong>IoT Hub Name</strong> field.</li>
+    <li>Click <strong>Apply changes</strong> to update the integration.</li>
+  </ol>
+</Steps>
+
+
+### Find the Event Hub-compatible name
+
+<Steps>
+  1. Open the <a href="https://portal.azure.com/" target="_blank">Azure portal</a>. In your **IoT Hub** resource, go to **Built-in endpoints**.
+  2. Copy the **Event Hub-compatible name** — you will need it in the integration's Advanced settings.
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/azure-event-hub/event-hub-compatible-name.png', alt: 'IoT Hub Built-in endpoints page showing the Event Hub-compatible name field with value thingsboard-integration', caption: 'Copy the Event Hub-compatible name from IoT Hub Built-in endpoints — you will need it in the integration\'s Advanced settings' },
+]} />
+
+### Configure the rule chain for downlinks
+
+<Steps>
+1. Open **Rule Chains &#8702; Root Rule Chain** and click the edit icon.
+2. Drag the **Integration Downlink** action node onto the canvas. Enter a name, select the **Azure Event Hub integration**, and click **Add**.
+3. Connect the **Message Type Switch** node to the **Integration Downlink** node using the **Post attributes** and **Attributes Updated** relations. These relations fire whenever a shared attribute is created or changed, triggering the downlink.
+4. Click **Apply changes** to save the rule chain.
+</Steps>
+
+
+### Trigger a downlink via shared attribute
+
+<Steps>
+  1. Go to **Entities &#8702; Devices**, open device **TB-D-01**, and click the **Attributes** tab.
+  2. Switch to **Shared attributes** and click **+** to add a new attribute.
+  3. Enter the key (e.g. `powerState`) and value (e.g. `on`), then click **Add**.
+</Steps>
+
+
+Adding the attribute fires the **Attributes Updated** relation in the rule chain, which routes the message to the Integration Downlink node and sends a cloud-to-device message to Azure IoT Hub device `TB-D-01`.
+
+### Verify the downlink
+
+Go to **Integrations center &#8702; Integrations**, open the **Azure Event Hub integration**, and check the **Events** tab for **Downlink** events with status **OK**. The message payload contains `deviceId` and the attribute key-value pair sent to the device.
+
+To confirm delivery on the Azure side, open your IoT Hub in the Azure portal, navigate to **IoT devices**, select device `TB-D-01`, and verify that the **Cloud to Device Message Count** has increased to 1.
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/azure-event-hub/azure-cloud-to-device-message-count.png', alt: 'Azure IoT Hub IoT devices page showing TB-D-01 with Cloud to Device Message Count equal to 1', caption: 'Azure IoT Hub confirms delivery — TB-D-01 shows Cloud to Device Message Count = 1' },
+]} />
+
+## See also
+
+- <DocLink product={Products.CE} path="user-guide/integrations">Integration Overview</DocLink>
+- <DocLink product={Products.CE} path="user-guide/integrations/uplink-data-converter">Uplink Converters</DocLink>
+- <DocLink product={Products.CE} path="user-guide/integrations/downlink-data-converter">Downlink Converters</DocLink>
+- <DocLink product={Products.CE} path="user-guide/rule-engine">Rule Engine</DocLink>
+- <DocLink product={Products.CE} path="user-guide/tbel">ThingsBoard Expression Language (TBEL)</DocLink>

@@ -2,7 +2,195 @@
 title: Getting Started
 description: Set up LwM2M device profiles, configure credentials (NoSec, PSK, RPK, X.509), and connect devices to ThingsBoard.
 ---
-import PageComponent from '@includes/docs/reference/lwm2m-api/getting-started.mdx'
-import { Products } from '~/models/site.models'
 
-<PageComponent product={Products.CE}/>
+import DocLink from '@components/DocLink.astro';
+import HostCode from '@components/HostCode.astro';
+import { Aside, Steps } from '@astrojs/starlight/components';
+import { Products } from '@models/site.models';
+
+[LwM2M (Lightweight M2M)](https://en.wikipedia.org/wiki/OMA_LWM2M) is a device management protocol designed for constrained devices. Unlike HTTP or MQTT, LwM2M defines a rich [Object and Resource Registry](https://github.com/OpenMobileAlliance/lwm2m-registry) — a standardized library of data structures for telemetry, configuration, and OTA updates. ThingsBoard acts as a full LwM2M Server and Bootstrap Server over plain UDP and DTLS.
+
+## Connection Ports
+
+| Port | Transport | Purpose |
+|------|-----------|---------|
+| `5685` | UDP (plain) | LwM2M Server |
+| `5686` | DTLS | LwM2M Server (secure) |
+| `5687` | UDP (plain) | Bootstrap Server |
+| `5688` | DTLS | Bootstrap Server (secure) |
+
+## Object and Resource Model
+
+Every piece of data on an LwM2M device is identified by a path: `/{ObjectId}/{ObjectInstance}/{ResourceId}`.
+
+| Segment | Example | Description |
+|---------|---------|-------------|
+| `ObjectId` | `3` | Object type (e.g., Device object) |
+| `ObjectInstance` | `0` | Instance of that object |
+| `ResourceId` | `9` | Specific resource (e.g., Battery Level) |
+
+For example, `/3/0/9` always means **Device Object → Instance 0 → Battery Level**.
+
+Object versions are tracked separately. Use `/{ObjectId}_{version}/{instance}/{resource}` syntax when a specific version is required — e.g., `/3_1.2/0/9` targets Object 3 at version 1.2.
+
+<Aside type="note">
+  The version used in device profile configuration must match the version advertised by the LwM2M client at registration. If they differ, all initialization operations for that object are rejected.
+</Aside>
+
+## Getting Started
+
+### Step 1 — Update LwM2M Models (Optional)
+
+ThingsBoard ships with a built-in set of standard LwM2M object models, so most devices work out of the box. However, the [OMA LwM2M registry](https://github.com/OpenMobileAlliance/lwm2m-registry) is updated regularly with new objects and revised versions. If your device uses a recently added or updated object that is not yet included in ThingsBoard, upload the latest model XML files:
+
+<Steps>
+1. Download the required model XML files from the [official OMA registry on GitHub](https://github.com/OpenMobileAlliance/lwm2m-registry).
+2. Log in as a System or Tenant administrator.
+3. Go to **Resources → Resource library** and click **+**.
+4. Upload the XML files. Models whose Object IDs match existing entries will be updated; new Object IDs will be added.
+</Steps>
+
+### Step 2 — Create a Device Profile
+
+<Steps>
+1. Go to **Profiles → Device profiles** and click **+**.
+2. Enter a profile name and go to the **Transport configuration** tab.
+3. Select **LwM2M** as the transport type.
+4. Add the LwM2M objects your devices support (e.g., Device #3, Connectivity #4, Firmware Update #5, Location #6).
+5. For each object resource, check **Attribute** to store it as a ThingsBoard attribute, or **Telemetry** + **Observe** to stream it as time-series data.
+6. Save the profile.
+</Steps>
+
+For each resource marked as **Attribute** or **Telemetry**, you can customize the key name used in ThingsBoard. ThingsBoard reads attribute values at device registration and observes telemetry resources for ongoing updates.
+
+### Step 3 — Create a Device and Configure Credentials
+
+<Steps>
+1. Go to **Entities → Devices** and click **+**.
+2. Name the device and select the LwM2M profile created above.
+3. Go to the **Credentials** tab and choose a credential type (see below).
+4. Save.
+</Steps>
+
+#### Credential Types
+
+| Type | Security | Required fields |
+|------|----------|----------------|
+| **No Security** | None | Endpoint Client Name |
+| **Pre-Shared Key (PSK)** | DTLS symmetric | Endpoint Name, PSK Identity, PSK Key (hex, 32–128 chars) |
+| **Raw Public Key (RPK)** | DTLS asymmetric | Client Public Key (DER, base64-encoded) |
+| **X.509 Certificate** | DTLS mutual TLS | Client certificate (PEM) |
+
+**No Security** connects over plain UDP on port 5685 — suitable for development and trusted networks only.
+
+**PSK** is the most resource-efficient DTLS mode for constrained devices. Configure three values:
+
+```
+Endpoint Client Name:  MyClientPsk
+PSK Identity:          myIdentity
+PSK Key (hex):         01020304050607080A0B0C0D0F010203
+```
+
+**RPK** uses DTLS with raw asymmetric keys — lighter than X.509 because no certificate chain is involved. Generate an EC key pair and extract the public key in DER format:
+
+```bash
+openssl ecparam -out rpk_key.pem -name secp256r1 -genkey
+openssl ec -in rpk_key.pem -pubout -outform DER | base64 > rpk_pub.b64
+```
+
+Paste the base64-encoded contents of `rpk_pub.b64` into the **Client Public Key** field in **Manage credentials**.
+
+**X.509** uses mutual DTLS. Generate a self-signed EC certificate:
+
+```bash
+openssl ecparam -out key.pem -name secp256r1 -genkey
+openssl req -new -key key.pem -x509 -nodes -days 365 -out cert.pem
+```
+
+Paste the contents of `cert.pem` into the **Client certificate** field in **Manage credentials**.
+
+### Step 4 — Connect the Device
+
+Use the [ThingsBoard LwM2M Demo Client](https://github.com/thingsboard/thingsboard.lwm2m.demo.client) to test connectivity:
+
+**No Security (plain UDP):**
+
+<HostCode product={Products.CE} lang="bash" code={`java -jar thingsboard-lwm2m-demo-client-{version}.jar -u coap://{LWM2M_HOST}:5685 -n $ENDPOINT_NAME`} />
+
+**Docker:**
+
+<HostCode product={Products.CE} lang="bash" code={`docker run --rm -it thingsboard/tb-lwm2m-demo-client:latest -u coap://{LWM2M_HOST}:5685 -n $ENDPOINT_NAME`} />
+
+**PSK (DTLS port 5686):**
+
+<HostCode product={Products.CE} lang="bash" code={`java -jar thingsboard-lwm2m-demo-client-{version}.jar -u coaps://{LWM2M_HOST}:5686 -n MyClientPsk --psk-identity myIdentity --psk-key 01020304050607080A0B0C0D0F010203`} />
+
+Once connected, the device registers with ThingsBoard and begins sending telemetry. Communication logs appear under the `transportLog` key in **Latest telemetry**.
+
+## LwM2M over DTLS — Server Configuration
+
+To enable DTLS on the ThingsBoard server, set these environment variables:
+
+```bash
+LWM2M_SERVER_CREDENTIALS_ENABLED=true
+LWM2M_SERVER_CREDENTIALS_TYPE=PEM
+LWM2M_SERVER_PEM_CERT=server.pem
+LWM2M_SERVER_PEM_KEY=server_key.pem
+LWM2M_SERVER_PEM_KEY_PASSWORD=secret
+```
+
+| Variable | Description |
+|----------|-------------|
+| `LWM2M_SERVER_CREDENTIALS_ENABLED` | Enable or disable X.509/RPK credentials support |
+| `LWM2M_SERVER_CREDENTIALS_TYPE` | `PEM` (certificate file) or `KEYSTORE` (Java keystore) |
+| `LWM2M_SERVER_PEM_CERT` | Path to server certificate or certificate chain. May also include the private key. |
+| `LWM2M_SERVER_PEM_KEY` | Path to private key file. Required if the key is not in the certificate file. |
+| `LWM2M_SERVER_PEM_KEY_PASSWORD` | Private key password (optional) |
+
+To also enable the Bootstrap Server over DTLS:
+
+```bash
+LWM2M_ENABLED_BS=true
+LWM2M_BS_CREDENTIALS_ENABLED=true
+LWM2M_BS_CREDENTIALS_TYPE=PEM
+LWM2M_BS_PEM_CERT=server.pem
+LWM2M_BS_PEM_KEY=server_key.pem
+LWM2M_BS_PEM_KEY_PASSWORD=secret
+```
+
+Restart the ThingsBoard server after changing these variables.
+
+Additional tuning variables:
+
+- `LWM2M_SECURITY_BIND_ADDRESS` — bind address for the DTLS LwM2M server (default: `0.0.0.0`)
+- `LWM2M_SECURITY_BIND_PORT` — bind port for the DTLS LwM2M server (default: `5686`)
+- `LWM2M_BS_SECURITY_BIND_ADDRESS` — bind address for the DTLS Bootstrap server (default: `0.0.0.0`)
+- `LWM2M_BS_SECURITY_BIND_PORT` — bind port for the DTLS Bootstrap server (default: `5688`)
+- `TB_LWM2M_SERVER_SECURITY_SKIP_VALIDITY_CHECK_FOR_CLIENT_CERT` — skip validity check for client certificates (default: `false`)
+
+<Aside type="note" title="Generating self-signed certificates">
+  To generate self-signed certificates for local or testing setups, see <DocLink product={Products.CE} path="user-guide/security/self-signed-ecc" target="_blank">Generating self-signed certificates</DocLink>.
+</Aside>
+
+### Supported DTLS Cipher Suites
+
+**With server credentials enabled** (supports PSK, RPK and X.509 client security modes):
+
+- `TLS_PSK_WITH_AES_128_CCM_8`
+- `TLS_PSK_WITH_AES_128_CBC_SHA256`
+- `TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8`
+- `TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256`
+
+**Without server credentials** (PSK only):
+
+- `TLS_PSK_WITH_AES_128_CCM_8`
+- `TLS_PSK_WITH_AES_128_CBC_SHA256`
+
+The same set applies to the Bootstrap server. All certificate-based suites use ECDSA (not RSA) and AES-128 only. The DTLS role is `SERVER_ONLY` and DTLS 1.2 is used.
+
+Two server-side flags control the offered set:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LWM2M_RECOMMENDED_CIPHERS` | `false` | If `true`, restrict to Scandium's "recommended" suites (excludes the CBC variants) |
+| `LWM2M_RECOMMENDED_SUPPORTED_GROUPS` | `true` | Restrict supported curves to the recommended set: `secp256r1`, `secp384r1`, `X25519`, `X448` |

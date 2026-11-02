@@ -42,7 +42,7 @@ export const data: CaseStudyData = {
 		results: [
 			"Developed a robust MQTT-based protocol between X-TELIA's network and ThingsBoard",
 			'Designed and implemented a custom dashboard widget for controlling signage',
-			'Successfully deployed a ThingsBoard PE instance tailored for the use case',
+			'Successfully deployed a ThingsBoard instance tailored for the use case',
 			'Delivered the full solution on time, avoiding any contractual penalties',
 			'Gained confidence in the platform and team, paving the way for future projects',
 		],
@@ -64,10 +64,10 @@ export const data: CaseStudyData = {
 				imageAlt: 'Custom widget development',
 			},
 			{
-				title: 'Turnkey PE instance deployment',
-				text: 'ThingsBoard Professional Edition was deployed under tight deadlines with production-grade reliability. Its scalable architecture allowed rapid deployment without compromising stability or performance.',
+				title: 'Turnkey ThingsBoard instance deployment',
+				text: 'ThingsBoard was deployed under tight deadlines with production-grade reliability. Its scalable architecture allowed rapid deployment without compromising stability or performance.',
 				image: 'https://img.thingsboard.io/case-studies/x-telia-3.webp',
-				imageAlt: 'Turnkey PE instance deployment',
+				imageAlt: 'Turnkey ThingsBoard instance deployment',
 			},
 			{
 				title: 'Expert technical support',

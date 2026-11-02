@@ -1,74 +1,90 @@
+import type { CardShape } from './listing-card-hooks';
 import {
+	DEFAULT_TILE_COLOR,
 	formatInstallCount,
 	formatInstalls,
-	getCardVariant,
 	getCreatorHref,
 	getInstallVerb,
 	getPlaceholderIcon,
-	resolvePreviewImage,
 	type ListingView,
 } from '@models/iot-hub';
 import { bindIotHubIcon } from './iot-hub-icon-bind';
 
 // Pattern C binder for ListingCard. Mirrors the static-render branches in
-// ListingCard.astro 1:1 — both big and compact variants — so a card cloned
-// from <ListingCardTemplate variant="big|compact" /> can be bound to any
+// ListingCard.astro 1:1 — preview, tile and compact — so a card cloned from
+// <ListingCardTemplate variant="preview|tile|compact" /> can be bound to any
 // ListingView and end up byte-identical to a build-time card.
 //
-// Sync for everything except the compact thumb glyph, which delegates to
-// bindIotHubIcon (async for MDI). Callers don't await — the icon wrapper
-// stays in its reset state until the SVG arrives.
+// The caller passes the shape it cloned; the binder never re-derives it. That
+// matters because the three shapes do not map onto item type: on a mixed grid
+// an item is bound as `preview` or `tile` purely on whether it has a preview
+// image, regardless of whether its type would otherwise be compact. Inferring
+// the shape here would send such a card to a hook its clone does not carry,
+// leaving the thumb unfilled with no error.
+//
+// Sync for everything except the icon glyph, which delegates to bindIotHubIcon
+// (async for MDI). Callers don't await — the icon wrapper stays in its reset
+// state until the SVG arrives.
 //
 // Runtime caller: iot-hub-dynamic-search.ts buildCardNode() binds every cloned
-// result card on the search / category / creator listing pages. (The
-// commented-out line in ListingCardTemplate.astro is an illustrative example,
-// not the live call site.)
+// result card on the search / category / creator listing pages.
+
+interface BindOptions {
+	/** The shape the clone was taken from. Never inferred — see the note above. */
+	shape: CardShape;
+	/** When false, hide the creator row entirely. */
+	showCreator?: boolean;
+	/** Preview URL already resolved by the caller, so it is derived once. */
+	previewUrl?: string | null;
+}
 
 export function bindListingCard(
 	root: HTMLElement,
 	item: ListingView,
 	categorySlug: string,
-	showCreator = true
+	{ shape, showCreator = true, previewUrl = null }: BindOptions
 ): void {
-	const variant = getCardVariant(item.itemType);
-
 	// Root href. An empty categorySlug (item type with no public category, e.g.
 	// a type the site doesn't surface) would yield `/iot-hub//slug/` — guard it
 	// to '#' instead, matching getListingHref.
 	root.setAttribute('href', categorySlug ? `/iot-hub/${categorySlug}/${item.slug}/` : '#');
 
-	// DEVICE cards get a white preview background (vs the light gray default).
-	root.classList.toggle('iot-hub-card--device', item.itemType === 'DEVICE');
-
 	// Title.
 	const title = root.querySelector<HTMLElement>('[data-card-title]');
 	if (title) title.textContent = item.name;
 
-	// Install count.
+	// Install count — dropped for built-in content (it ships with ThingsBoard,
+	// so the counter says nothing useful), along with its leading separator.
 	const installs = root.querySelector<HTMLElement>('[data-card-installs]');
 	if (installs) installs.textContent = formatInstallCount(item.installCount);
 	const installsWrap = root.querySelector<HTMLElement>('[data-card-installs-wrap]');
-	if (installsWrap) installsWrap.title = formatInstalls(item.installCount);
+	if (installsWrap) {
+		installsWrap.title = formatInstalls(item.installCount);
+		installsWrap.hidden = item.builtIn;
+	}
+	const authorDot = root.querySelector<HTMLElement>('[data-card-author-dot]');
+	if (authorDot) authorDot.hidden = item.builtIn;
 
-	// Variant-specific thumb.
-	if (variant === 'big') {
-		bindBigThumb(root, item);
+	// Thumb, keyed on the shape that was cloned.
+	if (shape === 'tile') {
+		bindIconTile(root, item, '[data-card-tile]', 48);
+	} else if (shape === 'compact') {
+		bindIconTile(root, item, '[data-card-icon-tile]', 32);
 	} else {
-		bindCompactThumb(root, item);
+		bindPreview(root, item, previewUrl);
 	}
 
 	// Author row.
 	bindAuthor(root, item, showCreator);
 
-	// Install button.
+	// Install button — reads "Open" for content that ships with ThingsBoard.
 	bindInstallButton(root, item);
 }
 
-function bindBigThumb(root: HTMLElement, item: ListingView): void {
+function bindPreview(root: HTMLElement, item: ListingView, imageUrl: string | null): void {
 	const img = root.querySelector<HTMLImageElement>('[data-card-img]');
 	const fallback = root.querySelector<HTMLElement>('[data-card-img-fallback]');
 	if (!img || !fallback) return;
-	const imageUrl = resolvePreviewImage(item.image);
 	if (imageUrl) {
 		img.src = imageUrl;
 		img.alt = item.name;
@@ -81,13 +97,23 @@ function bindBigThumb(root: HTMLElement, item: ListingView): void {
 	}
 }
 
-function bindCompactThumb(root: HTMLElement, item: ListingView): void {
-	const tile = root.querySelector<HTMLElement>('[data-card-icon-tile]');
+/**
+ * Colour tile with a centred glyph. Serves both tile-bearing shapes: the
+ * compact card's 32px glyph and the tile card's 48px glyph — same markup,
+ * different host element and glyph size.
+ */
+function bindIconTile(
+	root: HTMLElement,
+	item: ListingView,
+	selector: string,
+	glyphSize: number
+): void {
+	const tile = root.querySelector<HTMLElement>(selector);
 	if (!tile) return;
-	tile.style.background = item.color ?? '#4caf50';
+	tile.style.background = item.color ?? DEFAULT_TILE_COLOR;
 	const iconRoot = tile.querySelector<HTMLElement>('[data-icon-root]');
 	if (iconRoot) {
-		void bindIotHubIcon(iconRoot, getPlaceholderIcon(item), 32);
+		void bindIotHubIcon(iconRoot, getPlaceholderIcon(item), glyphSize);
 	}
 }
 
@@ -137,7 +163,13 @@ function bindInstallButton(root: HTMLElement, item: ListingView): void {
 	} else {
 		delete btn.dataset.affiliateId;
 	}
-	const label = getInstallVerb(item.itemType, 'card');
+	// Read back by the install dialog to pick its "open" wording.
+	if (item.builtIn) {
+		btn.dataset.builtIn = 'true';
+	} else {
+		delete btn.dataset.builtIn;
+	}
+	const label = getInstallVerb(item.itemType, 'card', item.builtIn);
 	btn.setAttribute('aria-label', `${label} ${item.name}`);
 	const labelSpan = btn.querySelector('span');
 	if (labelSpan) labelSpan.textContent = label;

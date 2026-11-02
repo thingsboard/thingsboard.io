@@ -1,17 +1,17 @@
 import {
+	buildInstallUrl,
+	getInstallVerb,
 	INSTALL_INSTANCES,
 	INSTALL_LOCAL_DEFAULT,
 	INSTALL_LOCAL_STORAGE_KEY,
 	INSTALL_LOCAL_URL_PATTERN,
+	type InstallInstance,
 	IOT_HUB_STRINGS,
-	buildInstallUrl,
-	getInstallVerb,
 	stripScheme,
 	stripTrailingSlash,
-	type InstallInstance,
 } from '@models/iot-hub';
 import './install-dialog.scss';
-import { lockScroll, unlockScroll } from '@util/scroll-lock';
+import { bindModalDialog, type ModalDialog } from '@util/modal-dialog';
 
 const S = IOT_HUB_STRINGS.installDialog;
 
@@ -19,16 +19,18 @@ export interface OpenContext {
 	slug: string;
 	itemType: string;
 	affiliateId: string | null;
+	/** Built-in content: the dialog opens the item rather than installing it. */
+	builtIn: boolean;
 }
 
 let dialog: HTMLDialogElement | null = null;
+let modal: ModalDialog | null = null;
 // Reading storage at module scope is already lazy: the only consumer is the
 // boot module's dynamic import(), so evaluation happens on first trigger click.
 let localBase = readLocalBase();
 let current: OpenContext | null = null;
 let copyResetTimer: number | undefined;
 let flashedCopyBtn: HTMLElement | null = null;
-let unlockTimer: number | undefined;
 
 // Keep in sync with the dialog transition duration in install-dialog.scss.
 const CLOSE_FADE_MS = 200;
@@ -111,37 +113,20 @@ function rowMarkup(inst: InstallInstance): string {
 function buildDialog(): HTMLDialogElement {
 	const el = document.createElement('dialog');
 	el.className = 'iot-hub-install-dialog';
+	el.setAttribute('aria-labelledby', 'iot-hub-install-dialog-title');
 	// Only our own constants are interpolated here — safe to set as innerHTML.
 	el.innerHTML = `<div class="iot-hub-install-dialog__panel">
 			<header class="iot-hub-install-dialog__header">
-				<h2 class="iot-hub-install-dialog__title" data-title></h2>
+				<h2 class="iot-hub-install-dialog__title" id="iot-hub-install-dialog-title" data-title></h2>
 				<button type="button" class="iot-hub-install-dialog__close" data-close aria-label="${S.closeAriaLabel}">${icon('x', 24)}</button>
 			</header>
-			<p class="iot-hub-install-dialog__subtitle">${S.subtitle}</p>
+			<p class="iot-hub-install-dialog__subtitle" data-subtitle></p>
 			<ul class="iot-hub-install-dialog__rows" role="list">${INSTALL_INSTANCES.map(rowMarkup).join('')}</ul>
 		</div>`;
 
-	// Backdrop click (target is the dialog itself, not the panel) closes.
+	modal = bindModalDialog(el, { fadeMs: CLOSE_FADE_MS });
 	el.addEventListener('click', (e) => {
-		if (e.target === el) {
-			el.close();
-			return;
-		}
-		onDialogClick(e);
-	});
-
-	// showModal() traps focus but does not lock page scroll — restore it after
-	// close, once the exit fade ends (timeout fallback for browsers without
-	// transition support).
-	el.addEventListener('close', () => {
-		window.clearTimeout(unlockTimer);
-		unlockTimer = window.setTimeout(unlockScroll, CLOSE_FADE_MS);
-	});
-	el.addEventListener('transitionend', (e) => {
-		if (e.target === el && e.propertyName === 'opacity' && !el.open) {
-			window.clearTimeout(unlockTimer);
-			unlockScroll();
-		}
+		if (e.target !== el) onDialogClick(e);
 	});
 
 	// Native Esc fires the dialog `cancel` event (not a bubbling keydown). While
@@ -179,9 +164,19 @@ function refresh(): void {
 	if (!dialog || !current) return;
 	window.clearTimeout(copyResetTimer);
 	flashedCopyBtn = null;
-	const verb = getInstallVerb(current.itemType);
+	const verb = getInstallVerb(current.itemType, 'card', current.builtIn);
 	const title = dialog.querySelector('[data-title]');
-	if (title) title.textContent = verb === 'Connect' ? S.titleConnect : S.title;
+	if (title) {
+		title.textContent = current.builtIn
+			? S.titleOpen
+			: verb === 'Connect'
+				? S.titleConnect
+				: S.title;
+	}
+	// Set per-open rather than baked into the shell: one dialog instance serves
+	// every trigger on the page, built-in or not.
+	const subtitle = dialog.querySelector('[data-subtitle]');
+	if (subtitle) subtitle.textContent = current.builtIn ? S.subtitleOpen : S.subtitle;
 
 	for (const inst of INSTALL_INSTANCES) {
 		const row = dialog.querySelector<HTMLElement>(`[data-instance="${inst.key}"]`);
@@ -329,10 +324,8 @@ export function openFor(ctx: OpenContext): void {
 	// Two rapid clicks can race the dynamic import and both reach here —
 	// showModal() on an already-open dialog throws.
 	if (dialog.open) return;
-	window.clearTimeout(unlockTimer);
 	current = ctx;
 	cancelEdit();
 	refresh();
-	lockScroll();
-	dialog.showModal();
+	modal?.open();
 }

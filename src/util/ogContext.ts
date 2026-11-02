@@ -21,7 +21,7 @@ export function getSectionLabel(slug: string): string {
 	const versionPrefixes = [
 		'pe/', 'paas/eu/', 'paas/', 'edge/pe/', 'edge/',
 		'trendz/', 'iot-gateway/', 'mqtt-broker/pe/', 'mqtt-broker/',
-		'mobile/pe/', 'mobile/', 'license-server/', 'iot-hub/',
+		'mobile/pe/', 'mobile/', 'license-server/', 'iot-hub/', 'cli/',
 	];
 	for (const prefix of versionPrefixes) {
 		if (path.startsWith(prefix)) {
@@ -72,7 +72,7 @@ export const MARKETING_ALLOWLIST: ReadonlyArray<string> = [
 	'/industries/*',
 	'/partners/*',
 	'/services/*',
-	'/careers/*',
+	'/proof-of-concept/',
 	'/clients-feedback/',
 	'/mediakit/',
 	'/contact-us/',
@@ -84,7 +84,9 @@ export const MARKETING_ALLOWLIST: ReadonlyArray<string> = [
 	'/smart-farming-demo/',
 	'/google-iot-core-alternative/',
 	'/ce-vs-pe-diff/',
+	'/community-grant-program/',
 	'/cookie-policy/',
+	'/legal/*',
 	'/energy-management/',
 	'/company/*',
 ];

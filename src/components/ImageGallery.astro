@@ -1,9 +1,17 @@
 ---
 import { getImage } from 'astro:assets';
-import type { ImageMetadata } from 'astro';
+import {
+	assetExists,
+	prepareInteractiveSvg,
+	rasterLoaders,
+	svgDimensions,
+	svgRawLoaders,
+	svgUrls,
+} from '@util/asset-modules';
 import { claimFirstContentImage } from '@util/first-content-image';
 import { Products } from '~/models/site.models';
-import 'photoswipe/style.css';
+import PhotoSwipeStyles from '@components/PhotoSwipeStyles.astro';
+import { PSWP_PLACEHOLDER_HEIGHT, PSWP_PLACEHOLDER_WIDTH } from '@util/lightbox-images';
 
 interface ImageItem {
 	/** Project-relative path, e.g. `/src/assets/images/screenshot.png`. */
@@ -42,6 +50,7 @@ const productSuffix: Record<Products, string> = {
 	[Products.MOBILE_PE]: 'mobile-pe',
 	[Products.TBMQ]: 'tbmq',
 	[Products.TBMQ_PE]: 'tbmq-pe',
+	[Products.CLI]: 'cli',
 };
 
 // Fallback chain when a product-specific image is missing.
@@ -53,32 +62,6 @@ const productFallback: Partial<Record<Products, Products[]>> = {
 	[Products.MOBILE_PE]: [Products.MOBILE],
 	[Products.TBMQ_PE]: [Products.TBMQ],
 };
-
-const assetModules = import.meta.glob<{ default: ImageMetadata }>(
-	'/src/assets/**/*.{png,jpg,jpeg,webp,gif,svg}',
-	{ eager: true }
-);
-
-// Lazy raw SVG sources — used to inline SVGs with `<a>` so the anchors stay
-// clickable (browsers disable interactivity when SVG is loaded via `<img>`).
-const svgRawModules = import.meta.glob<string>(
-	'/src/assets/**/*.svg',
-	{ query: '?raw', import: 'default' }
-);
-
-// Add aria-label + force `target="_blank"` on every `<a>` inside an interactive SVG.
-function prepareInteractiveSvg(raw: string, alt: string): string {
-	let out = raw;
-	const escapedAlt = alt.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-	out = out.replace(/<svg\b/, `<svg aria-label="${escapedAlt}"`);
-	out = out.replace(/<a\b([^>]*)>/g, (_m, attrs) => {
-		const stripped = attrs
-			.replace(/\s+target="[^"]*"/g, '')
-			.replace(/\s+rel="[^"]*"/g, '');
-		return `<a${stripped} target="_blank" rel="noopener noreferrer">`;
-	});
-	return out;
-}
 
 // CDN fallback for images hosted outside the local assets pipeline.
 const CDN_BASE = 'https://img.thingsboard.io/';
@@ -113,7 +96,7 @@ function resolvePaths(src: string): { lightPath: string; darkPath: string } {
 
 	let lightPath: string = src;
 	for (const s of suffixes) {
-		if (assetModules[`${base}-${s}${ext}`]) {
+		if (assetExists(`${base}-${s}${ext}`)) {
 			lightPath = `${base}-${s}${ext}`;
 			break;
 		}
@@ -121,12 +104,12 @@ function resolvePaths(src: string): { lightPath: string; darkPath: string } {
 
 	let darkPath: string = lightPath;
 	for (const s of suffixes) {
-		if (assetModules[`${base}-${s}-dark${ext}`]) {
+		if (assetExists(`${base}-${s}-dark${ext}`)) {
 			darkPath = `${base}-${s}-dark${ext}`;
 			break;
 		}
 	}
-	if (darkPath === lightPath && assetModules[`${base}-dark${ext}`]) {
+	if (darkPath === lightPath && assetExists(`${base}-dark${ext}`)) {
 		darkPath = `${base}-dark${ext}`;
 	}
 
@@ -147,15 +130,50 @@ const filteredImages = product
 	? images.filter(({ products: p }) => !p || p.includes(product))
 	: images;
 
+// This gallery's leading thumb is the page's likely LCP element when it is
+// the first content image on the page — load it eagerly (a `hasDark` pair
+// eager-loads both variants; a display:none <img> is still fetched when
+// eager). Deliberately no fetchpriority boost — see DocImage for why.
+// Claimed before the first `await`: galleries start in page order but finish in any order.
+const isFirstContentImage = filteredImages.length > 0 && claimFirstContentImage(Astro.locals);
+
 // thumb = 800px WebP @ q80 (grid + single-mode src). full = original WebP @ q90 (lightbox).
 const processed = await Promise.all(
 	filteredImages.map(async ({ src, alt, caption }) => {
 		const { lightPath, darkPath } = resolvePaths(src);
 		const hasDark = darkPath !== lightPath;
 
-		const lightMod = assetModules[lightPath];
+		const lightSvgUrl = svgUrls[lightPath];
 
-		if (!lightMod) {
+		// SVGs skip raster processing. If they contain `<a>`, inline them so anchors stay clickable.
+		if (lightSvgUrl) {
+			const darkSrc = hasDark ? (svgUrls[darkPath] ?? lightSvgUrl) : lightSvgUrl;
+			const [lightSize, darkSize] = await Promise.all([
+				svgDimensions(lightPath),
+				hasDark ? svgDimensions(darkPath) : undefined,
+			]);
+
+			const interactiveSvg = prepareInteractiveSvg(await svgRawLoaders[lightPath]?.(), alt);
+
+			return {
+				alt,
+				caption: captionToHtml(caption ?? ''),
+				thumbSrc: lightSvgUrl,
+				fullSrc: lightSvgUrl,
+				darkThumbSrc: darkSrc,
+				darkFullSrc: darkSrc,
+				fullWidth: lightSize?.width,
+				fullHeight: lightSize?.height,
+				darkFullWidth: darkSize?.width ?? lightSize?.width,
+				darkFullHeight: darkSize?.height ?? lightSize?.height,
+				hasDark,
+				interactiveSvg,
+				isCdn: false,
+			};
+		}
+
+		const loadLight = rasterLoaders[lightPath];
+		if (!loadLight) {
 			const cdnSrc = resolveToCdn(lightPath);
 			const darkCdnSrc = hasDark ? resolveToCdn(darkPath) : cdnSrc;
 			return {
@@ -167,47 +185,24 @@ const processed = await Promise.all(
 				darkFullSrc: darkCdnSrc,
 				fullWidth: undefined,
 				fullHeight: undefined,
+				darkFullWidth: undefined,
+				darkFullHeight: undefined,
 				hasDark,
 				interactiveSvg: undefined as string | undefined,
 				isCdn: true,
 			};
 		}
 
-		const isSvg = lightPath.endsWith('.svg');
 		const isGif = lightPath.endsWith('.gif');
-
-		// SVGs skip raster processing. If they contain `<a>`, inline them so anchors stay clickable.
-		if (isSvg) {
-			const lightSrc = lightMod.default.src;
-			const darkMod = hasDark ? assetModules[darkPath] : null;
-			const darkSrc = darkMod ? darkMod.default.src : lightSrc;
-
-			const rawSvg = await svgRawModules[lightPath]?.();
-			const interactiveSvg = rawSvg && /<a[\s>]/i.test(rawSvg)
-				? prepareInteractiveSvg(rawSvg, alt)
-				: undefined;
-
-			return {
-				alt,
-				caption: captionToHtml(caption ?? ''),
-				thumbSrc: lightSrc,
-				fullSrc: lightSrc,
-				darkThumbSrc: darkSrc,
-				darkFullSrc: darkSrc,
-				fullWidth: lightMod.default.width,
-				fullHeight: lightMod.default.height,
-				hasDark,
-				interactiveSvg,
-				isCdn: false,
-			};
-		}
+		const lightImage = await loadLight();
+		const loadDark = hasDark ? rasterLoaders[darkPath] : undefined;
 
 		// GIFs bypass Sharp: it reads all frames (`pages: -1`) and trips
 		// `limitInputPixels` on large multi-frame GIFs.
 		if (isGif) {
-			const lightSrc = lightMod.default.src;
-			const darkMod = hasDark ? assetModules[darkPath] : null;
-			const darkSrc = darkMod ? darkMod.default.src : lightSrc;
+			const lightSrc = lightImage.src;
+			const darkImage = loadDark ? await loadDark() : null;
+			const darkSrc = darkImage ? darkImage.src : lightSrc;
 
 			return {
 				alt,
@@ -216,8 +211,10 @@ const processed = await Promise.all(
 				fullSrc: lightSrc,
 				darkThumbSrc: darkSrc,
 				darkFullSrc: darkSrc,
-				fullWidth: lightMod.default.width,
-				fullHeight: lightMod.default.height,
+				fullWidth: lightImage.width,
+				fullHeight: lightImage.height,
+				darkFullWidth: darkImage?.width ?? lightImage.width,
+				darkFullHeight: darkImage?.height ?? lightImage.height,
 				hasDark,
 				interactiveSvg: undefined,
 				isCdn: false,
@@ -225,27 +222,31 @@ const processed = await Promise.all(
 		}
 
 		const thumb = await getImage({
-			src: lightMod.default,
+			src: lightImage,
 			width: 800,
 			format: 'webp',
 			quality: 80,
 		});
-		const full = await getImage({ src: lightMod.default, format: 'webp', quality: 90 });
+		const full = await getImage({ src: lightImage, format: 'webp', quality: 90 });
 
 		let darkThumbSrc = thumb.src;
 		let darkFullSrc = full.src;
+		let darkFullWidth = full.attributes.width as number | undefined;
+		let darkFullHeight = full.attributes.height as number | undefined;
 
-		if (hasDark) {
-			const darkMod = assetModules[darkPath]!;
+		if (loadDark) {
+			const darkImage = await loadDark();
 			const darkThumb = await getImage({
-				src: darkMod.default,
+				src: darkImage,
 				width: 800,
 				format: 'webp',
 				quality: 80,
 			});
-			const darkFull = await getImage({ src: darkMod.default, format: 'webp', quality: 90 });
+			const darkFull = await getImage({ src: darkImage, format: 'webp', quality: 90 });
 			darkThumbSrc = darkThumb.src;
 			darkFullSrc = darkFull.src;
+			darkFullWidth = darkFull.attributes.width as number | undefined;
+			darkFullHeight = darkFull.attributes.height as number | undefined;
 		}
 
 		return {
@@ -257,6 +258,8 @@ const processed = await Promise.all(
 			darkFullSrc,
 			fullWidth: full.attributes.width as number | undefined,
 			fullHeight: full.attributes.height as number | undefined,
+			darkFullWidth,
+			darkFullHeight,
 			hasDark,
 			interactiveSvg: undefined as string | undefined,
 			isCdn: false,
@@ -266,16 +269,12 @@ const processed = await Promise.all(
 
 const isSingle = processed.length === 1;
 
-// This gallery's leading thumb is the page's likely LCP element when it is
-// the first content image on the page — load it eagerly (a `hasDark` pair
-// eager-loads both variants; a display:none <img> is still fetched when
-// eager). Deliberately no fetchpriority boost — see DocImage for why.
-const isFirstContentImage = processed.length > 0 && claimFirstContentImage(Astro.locals);
 const thumbLoading = (i: number) => (i === 0 && isFirstContentImage ? 'eager' : 'lazy');
 const useCardMode = cardMode && isSingle;
 ---
 
 <div class="image-gallery">
+	<PhotoSwipeStyles />
 	{
 		isSingle && !useCardMode ? (
 			/* Single image — inline DocImage-style. Interactive SVGs use a
@@ -287,8 +286,8 @@ const useCardMode = cardMode && isSingle;
 						role="button"
 						tabindex={0}
 						data-pswp-interactive-svg="true"
-						data-pswp-width={processed[0].fullWidth ?? 1600}
-						data-pswp-height={processed[0].fullHeight ?? 900}
+						data-pswp-width={processed[0].fullWidth ?? PSWP_PLACEHOLDER_WIDTH}
+						data-pswp-height={processed[0].fullHeight ?? PSWP_PLACEHOLDER_HEIGHT}
 						data-caption={processed[0].caption}
 						aria-label={`View: ${processed[0].alt}`}
 					>
@@ -300,9 +299,11 @@ const useCardMode = cardMode && isSingle;
 					<a
 						class="gallery-thumb single-thumb"
 						href={processed[0].fullSrc}
-						data-pswp-width={processed[0].fullWidth ?? 1600}
-						data-pswp-height={processed[0].fullHeight ?? 900}
+						data-pswp-width={processed[0].fullWidth ?? PSWP_PLACEHOLDER_WIDTH}
+						data-pswp-height={processed[0].fullHeight ?? PSWP_PLACEHOLDER_HEIGHT}
 						data-pswp-src-dark={processed[0].hasDark ? processed[0].darkFullSrc : undefined}
+						data-pswp-width-dark={processed[0].hasDark ? processed[0].darkFullWidth : undefined}
+						data-pswp-height-dark={processed[0].hasDark ? processed[0].darkFullHeight : undefined}
 						data-pswp-cdn={processed[0].isCdn ? 'true' : undefined}
 						data-caption={processed[0].caption}
 						aria-label={`View: ${processed[0].alt}`}
@@ -321,8 +322,8 @@ const useCardMode = cardMode && isSingle;
 								class="dark-only"
 								src={processed[0].darkThumbSrc}
 								alt={processed[0].alt}
-								width={processed[0].fullWidth}
-								height={processed[0].fullHeight}
+								width={processed[0].darkFullWidth}
+								height={processed[0].darkFullHeight}
 								loading={thumbLoading(0)}
 								decoding="async"
 							/>
@@ -336,9 +337,11 @@ const useCardMode = cardMode && isSingle;
 					<a
 						class="gallery-thumb"
 						href={img.fullSrc}
-						data-pswp-width={img.fullWidth ?? 1600}
-						data-pswp-height={img.fullHeight ?? 900}
+						data-pswp-width={img.fullWidth ?? PSWP_PLACEHOLDER_WIDTH}
+						data-pswp-height={img.fullHeight ?? PSWP_PLACEHOLDER_HEIGHT}
 						data-pswp-src-dark={img.hasDark ? img.darkFullSrc : undefined}
+						data-pswp-width-dark={img.hasDark ? img.darkFullWidth : undefined}
+						data-pswp-height-dark={img.hasDark ? img.darkFullHeight : undefined}
 						data-pswp-cdn={img.isCdn ? 'true' : undefined}
 						data-caption={img.caption}
 						aria-label={`View: ${img.alt}`}
@@ -532,165 +535,68 @@ const useCardMode = cardMode && isSingle;
 			transition: none;
 		}
 	}
-</style>
 
-<style is:global>
-	/* `.pswp` + `.pswp__bg` ship with `transform: translateZ(0)` + `will-change: opacity`.
-	   Together they create a compositing layer that prevents `backdrop-filter` from
-	   sampling the page behind PhotoSwipe (blur appears not to work). Drop both. */
-	.pswp {
-		--pswp-bg: rgba(10, 10, 20, 0.55);
-		/* Suppress the `#222` placeholder bg painted during zoom-from-thumbnail. */
-		--pswp-placeholder-bg: transparent;
-		/* PhotoSwipe icons have a 2px grey stroke designed for light buttons —
-		   make everything white for our dark blur-glass buttons. */
-		--pswp-icon-color: #fff;
-		--pswp-icon-color-secondary: #fff;
-		--pswp-icon-stroke-color: #fff;
-		--pswp-icon-stroke-width: 0;
-		--color-bg: transparent;
-		transform: none !important;
-		will-change: auto !important;
-	}
-	.pswp__bg {
-		backdrop-filter: blur(18px) !important;
-		-webkit-backdrop-filter: blur(18px) !important;
-		transform: none !important;
-		/* Pre-allocate the blur compositing layer so it appears in sync with
-		   the bg opacity fade-in. */
-		will-change: backdrop-filter !important;
-	}
+	@media print {
+		/* Three `1fr` columns give ~220px thumbnails, and the two-column fallback is
+		   `@media (max-width: …)`, dead in print. UI screenshots need legible
+		   labels, so paper gets one per row. */
+		.gallery-grid {
+			display: block;
+			width: auto;
+		}
 
-	.pswp__img {
-		border-radius: 4px;
-	}
-	/* Shadow on the always-present wrap → no flicker on placeholder→full swap.
-	   Excludes HTML slides (own shadow on `.pswp__content`) and SVG slides. */
-	.pswp__zoom-wrap:not(:has(.pswp__content)):not(:has(.pswp__img[src$='.svg'])) {
-		filter: drop-shadow(0 20px 30px rgba(0, 0, 0, 0.5));
-	}
+		.gallery-thumb {
+			display: block;
+			width: auto;
+			max-width: 100%;
+			margin: 0 0 0.75rem;
+			/* On the shot, never the gallery: a multi-shot gallery is taller than a
+			   sheet, so protecting the whole block would empty the preceding page. */
+			break-inside: avoid;
+		}
 
-	/* Interactive-SVG slide content — white panel + shadow for contrast. */
-	.pswp__zoom-wrap > .pswp__content {
-		width: 100%;
-		height: 100%;
-		background: #fff;
-		border-radius: 4px;
-		padding: 1.5rem;
-		box-sizing: border-box;
-		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-	.pswp__zoom-wrap > .pswp__content > svg {
-		max-width: 100%;
-		max-height: 100%;
-		width: 100%;
-		height: 100%;
-	}
+		.image-gallery {
+			max-width: 100%;
+		}
 
-	.pswp__button {
-		border-radius: 50%;
-		background: rgba(30, 30, 40, 0.6);
-		backdrop-filter: blur(8px);
-		-webkit-backdrop-filter: blur(8px);
-		border: 1px solid rgba(255, 255, 255, 0.2);
-		/* No `!important` — PhotoSwipe's `:disabled` and `.pswp--one-slide` hide
-		   rules must still win. */
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		padding: 0;
-		transition: background 0.18s ease;
-	}
-	/* PhotoSwipe's `:hover, :active, :focus` reset wipes `transition` and
-	   `background`. Cover all three states explicitly. */
-	.pswp__button:hover,
-	.pswp__button:active,
-	.pswp__button:focus-visible {
-		background: rgba(60, 60, 80, 0.85);
-		transition: background 0.18s ease;
-	}
+		/* Release the 115px crop window. */
+		.thumb-img {
+			height: auto;
+			overflow: visible;
+		}
 
-	/* PhotoSwipe positions the icon absolutely with `top/left` — drop that
-	   so the flex parent centers it. */
-	.pswp__button .pswp__icn {
-		position: static;
-		margin: 0;
-	}
+		.thumb-img img {
+			width: auto;
+			height: auto;
+		}
 
-	/* Lift the close button out of `.pswp__top-bar`'s flex flow so we can
-	   pin it at the viewport corner. */
-	.pswp__button--close {
-		position: absolute;
-		top: 1rem;
-		right: 1rem;
-		margin: 0;
-		width: 2.5rem;
-		height: 2.5rem;
-	}
-	.pswp__button--close .pswp__icn {
-		width: 1.5rem;
-		height: 1.5rem;
-	}
+		/* The caption is a hover tooltip on screen; paper has neither hover nor
+		   lightbox, so it prints below the shot instead of being lost. */
+		.thumb-tooltip {
+			/* A <span> that only `position: absolute` made a block — dropping the
+			   positioning without this leaves a stray line box under every shot. */
+			display: block;
+			position: static;
+			opacity: 1;
+			transform: none;
+			transition: none;
+			background: none;
+			color: #4a4d55;
+			padding: 0.3rem 0 0;
+			font-size: 0.8rem;
+			line-height: 1.4;
+			text-align: left;
+			/* Tooltip clamps to one line with an ellipsis; a caption must wrap. */
+			white-space: normal;
+			overflow: visible;
+			text-overflow: clip;
+		}
+		:global([data-theme='dark']) .light-only {
+			display: block !important;
+		}
 
-	.pswp__button--arrow {
-		width: 3rem;
-		height: 3rem;
-		/* PhotoSwipe ships `margin-top: -50px` for its 100px-tall arrows;
-		   we need half of our 3rem to keep vertical centering. */
-		margin-top: -1.5rem;
-		transition:
-			background 0.18s ease,
-			transform 0.18s ease;
-	}
-	.pswp__button--arrow .pswp__icn {
-		width: 1.8rem;
-		height: 1.8rem;
-	}
-	.pswp__button--arrow:hover,
-	.pswp__button--arrow:active,
-	.pswp__button--arrow:focus-visible {
-		transform: scale(1.08);
-		transition:
-			background 0.18s ease,
-			transform 0.18s ease;
-	}
-	/* PhotoSwipe defaults arrows to `left: 0` / `right: 0` — push them in. */
-	.pswp__button--arrow--prev {
-		left: 1rem;
-	}
-	.pswp__button--arrow--next {
-		right: 1rem;
-	}
-
-	.pswp-caption {
-		position: absolute;
-		bottom: 1.5rem;
-		left: 50%;
-		transform: translateX(-50%);
-		max-width: 80vw;
-		padding: 0.5rem 1.25rem;
-		background: rgba(0, 0, 0, 0.65);
-		backdrop-filter: blur(8px);
-		-webkit-backdrop-filter: blur(8px);
-		color: #fff;
-		font-size: 1.125rem;
-		line-height: 1.5;
-		border-radius: 8px;
-		text-align: center;
-		pointer-events: none;
-		z-index: 1500;
-	}
-
-	/* Suppress PhotoSwipe's `text-shadow` — its colour comes from
-	   `--pswp-icon-color-secondary` which we set to white (would render as
-	   white-on-white blur). */
-	.pswp__counter {
-		color: rgba(255, 255, 255, 0.6);
-		font-size: 0.8rem;
-		opacity: 1;
-		text-shadow: none;
+		:global([data-theme='dark']) .dark-only {
+			display: none !important;
+		}
 	}
 </style>

@@ -11,7 +11,7 @@ export const data: UseCaseData = {
 			'The smart office solution powered by ThingsBoard enables efficient monitoring of energy and water consumption, tracking of air quality and CO\u2082 levels, control of HVAC systems, real-time response to critical events, and overall improvement of energy efficiency and employee comfort.',
 		longText: [
 			'Smart office solutions are designed to optimize workplace environments by monitoring key operational parameters and automating building systems in real time. ThingsBoard, as a robust IoT platform, provides all the necessary tools for collecting, processing, and visualizing data from devices that use protocols like BLE or LoRaWAN gateways, enabling seamless integration and support for flexible solutions.',
-			'Thanks to ThingsBoard, an open-source IoT platform, it\'s easy to integrate and visualize data from various devices and sensors, enabling the creation of intelligent, data-driven solutions. This approach allows not only real-time monitoring of office conditions but also active management\u2014turning systems on or off, receiving alerts, and configuring automation scenarios. All of these capabilities are fully demonstrated in our <a href="/iot-hub/solution-templates/smart-office/">smart office solution</a>.',
+			'Thanks to the ThingsBoard IoT platform, it\'s easy to integrate and visualize data from various devices and sensors, enabling the creation of intelligent, data-driven solutions. This approach allows not only real-time monitoring of office conditions but also active management\u2014turning systems on or off, receiving alerts, and configuring automation scenarios. All of these capabilities are fully demonstrated in our <a href="/iot-hub/solution-templates/smart-office/">smart office solution</a>.',
 		],
 		demoUrl:
 			'https://thingsboard.cloud/dashboard/375ddea0-f5e5-11f0-bc85-bd57f974c663?publicId=4978baf0-8a92-11ec-98f9-ff45c37940c6',
@@ -143,7 +143,6 @@ export const data: UseCaseData = {
 				description:
 					'Energy consumption monitoring, climate automation in shopping areas, and lighting control.',
 				desktopImage: '/src/assets/images/usecases/smart-energy/malls-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-office/mall-2.svg',
 				imageAlt: 'Mall',
 				imageTitle: 'Smart retail',
 			},
@@ -151,7 +150,6 @@ export const data: UseCaseData = {
 				title: 'Manufacturing',
 				description: 'Energy audits, airflow monitoring, and smart overload notifications.',
 				desktopImage: '/src/assets/images/usecases/smart-office/manufacturing-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-office/manufacturing-2.svg',
 				imageAlt: 'Manufacturing',
 				imageTitle: 'Manufacturing',
 			},
@@ -160,7 +158,6 @@ export const data: UseCaseData = {
 				description:
 					'Microclimate control in patient rooms, occupancy monitoring, and tracking of CO\u2082 levels and temperature.',
 				desktopImage: '/src/assets/images/usecases/health-care/hospital-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-office/hospital-2.svg',
 				imageAlt: 'Hospital',
 				imageTitle: 'Healthcare',
 			},
@@ -169,7 +166,6 @@ export const data: UseCaseData = {
 				description:
 					'Room automation, personalized climate control, and monitoring of CO\u2082 levels and space occupancy.',
 				desktopImage: '/src/assets/images/usecases/smart-office/hospitality-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-office/hospitality-2.svg',
 				imageAlt: 'Hospitality',
 				imageTitle: 'Hospitality',
 			},
@@ -177,7 +173,6 @@ export const data: UseCaseData = {
 				title: 'Education',
 				description: 'Managing comfort and resource usage in educational facilities.',
 				desktopImage: '/src/assets/images/usecases/smart-energy/education-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-office/education-2.svg',
 				imageAlt: 'Education',
 				imageTitle: 'Education',
 			},

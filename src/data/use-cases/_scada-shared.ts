@@ -4,6 +4,13 @@
 
 import type { Benefit } from './types';
 
+export const SCADA_MODE_LABELS = {
+	'high-performance': 'High-performance',
+	traditional: 'Traditional',
+} as const;
+
+export type ScadaMode = keyof typeof SCADA_MODE_LABELS;
+
 export const SCADA_COMMON_BENEFITS: Benefit[] = [
 	{
 		title: 'PLCs and RTUs',

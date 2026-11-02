@@ -9,7 +9,7 @@ const { mode = 'page' } = Astro.props;
 <div class:list={['contact-form-wrap', `contact-form-wrap--${mode}`]}>
 	<form id="ContactUs" method="post" class="contact-form gtm_form" novalidate>
 		<h1 class="contact-us-title">Contact Us</h1>
-		<fieldset>
+		<fieldset class="print:hidden">
 			<div class="form-section">
 				<div class="form-element">
 					<label for="firstName">
@@ -86,6 +86,8 @@ const { mode = 'page' } = Astro.props;
 							<option value="Press or Analyst Inquiry">Press or Analyst Inquiry</option>
 							<option value="General Feedback">General Feedback</option>
 							<option value="TBMQ">TBMQ</option>
+							<option value="IoT Hub">IoT Hub</option>
+							<option value="Community Grant">Community Grant Program</option>
 							<option value="Other">Other</option>
 						</select>
 						<p>Subject</p>
@@ -125,7 +127,47 @@ const { mode = 'page' } = Astro.props;
 	</form>
 </div>
 
+<!-- Runs synchronously during parse so order links (?pcorder, ?subject=, ?message=)
+     never flash the default form before the deferred module script kicks in.
+     Presentation stays in the stylesheet: this only flips data-variant, so the
+     order heading keeps its responsive size. -->
+<script is:inline>
+	(() => {
+		const form = document.getElementById('ContactUs');
+		if (!form) return;
+		const params = new URLSearchParams(window.location.search);
+
+		if (params.has('pcorder')) {
+			form.dataset.variant = 'order';
+			const title = form.querySelector('.contact-us-title');
+			if (title) title.textContent = 'Get Your Private IoT Platform';
+		}
+
+		const subject = params.get('subject');
+		if (subject) {
+			const sel = form.querySelector('select[name="subject"]');
+			if (sel) sel.value = subject;
+		}
+
+		const message = params.get('message');
+		if (message) {
+			const ta = form.querySelector('textarea[name="message"]');
+			if (ta) ta.value = message;
+		}
+	})();
+</script>
+
 <script>
+	import { bindTrackingFields, clearFieldError, guardSubmit, stampRenderedAt } from '@util/form-guard';
+
+	const FIELDS = [
+		{ name: 'firstName', label: 'First Name', type: 'text' },
+		{ name: 'lastName', label: 'Last Name', type: 'text' },
+		{ name: 'email', label: 'Email Address', type: 'email' },
+		{ name: 'company', label: 'Company', type: 'text' },
+		{ name: 'message', label: 'Message', type: 'textarea' },
+	] as const;
+
 	// ── Floating label: mark empty selects ──────────────────────────────────
 	function updateSelectEmpty(select: HTMLSelectElement) {
 		if (select.value === '') {
@@ -133,170 +175,6 @@ const { mode = 'page' } = Astro.props;
 		} else {
 			select.classList.remove('input--empty');
 		}
-	}
-
-	// ── Validation helpers ───────────────────────────────────────────────────
-	function isValidEmail(email: string) {
-		return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/.test(email);
-	}
-
-	// Block obvious XSS payloads BEFORE submitting to Formspree.
-	// Without this, the form can post a script-tag payload and Cloudflare's
-	// WAF returns "Sorry, you have been blocked" — a confusing dead-end for
-	// the user. Catch the common patterns client-side and show an inline
-	// error so the user knows what to fix. The pattern stays conservative
-	// (script / iframe / object / embed tags + javascript: URIs + DOM event
-	// handler attrs) so legitimate angle brackets in code snippets in a
-	// message field don't trigger false positives. svg-borne payloads with
-	// inline event handlers are still caught via the on*= alternation.
-	const XSS_PATTERN = /<\s*\/?\s*(?:script|iframe|object|embed)\b|javascript\s*:|on(?:click|error|load|focus|blur|mouseover|mouseout|change|submit|input|toggle|animationend)\s*=/i;
-	function containsXss(value: string) {
-		return XSS_PATTERN.test(value);
-	}
-
-	function clearError(el: HTMLElement) {
-		el.classList.remove('invalid-input');
-		el.setAttribute('aria-invalid', 'false');
-		el.removeAttribute('aria-describedby');
-		const label = el.closest('label');
-		if (label) {
-			const hint = label.nextElementSibling;
-			if (hint?.classList.contains('error-message-hint')) hint.remove();
-		}
-	}
-
-	function setError(el: HTMLElement, message: string) {
-		clearError(el);
-		el.classList.add('invalid-input');
-		el.setAttribute('aria-invalid', 'true');
-		const id = `error-hint-${el.id || el.getAttribute('name') || 'field'}`;
-		el.setAttribute('aria-describedby', id);
-		const hint = document.createElement('p');
-		hint.className = 'error-message-hint';
-		hint.id = id;
-		hint.textContent = message;
-		hint.setAttribute('role', 'alert');
-		el.closest('label')?.insertAdjacentElement('afterend', hint);
-	}
-
-	function validateForm(form: HTMLFormElement) {
-		const fields = [
-			{ name: 'firstName', label: 'First Name', type: 'text' },
-			{ name: 'lastName', label: 'Last Name', type: 'text' },
-			{ name: 'email', label: 'Email Address', type: 'email' },
-			{ name: 'company', label: 'Company', type: 'text' },
-			{ name: 'message', label: 'Message', type: 'textarea' },
-		];
-		let valid = true;
-
-		fields.forEach((f) => {
-			const el = form.elements.namedItem(f.name) as HTMLInputElement | HTMLTextAreaElement | null;
-			if (el) clearError(el);
-		});
-
-		fields.forEach((f) => {
-			const el = form.elements.namedItem(f.name) as HTMLInputElement | HTMLTextAreaElement | null;
-			if (!el) return;
-			const val = el.value.trim();
-			if (val === '') {
-				setError(el, `${f.label} is required.`);
-				valid = false;
-			} else if (f.type === 'email' && !isValidEmail(val)) {
-				setError(el, `Please enter a valid ${f.label.toLowerCase()}.`);
-				valid = false;
-			} else if (containsXss(val)) {
-				setError(el, `Please remove HTML or script tags from ${f.label.toLowerCase()}.`);
-				valid = false;
-			}
-		});
-
-		if (!valid) {
-			(form.querySelector('.invalid-input') as HTMLElement)?.focus();
-		}
-		return valid;
-	}
-
-	// ── UTM / tracking helpers ───────────────────────────────────────────────
-	function getURLParam(name: string) {
-		const match = new RegExp('[?&]' + name + '=([^&#]*)').exec(window.location.href);
-		return match ? decodeURIComponent(match[1].replace(/\+/g, ' ')) : null;
-	}
-
-	function populateTracking(form: HTMLFormElement) {
-		const utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
-		const utmData: Record<string, string> = {};
-
-		utmKeys.forEach((key) => {
-			let value = getURLParam(key);
-			if (value) {
-				localStorage.setItem(key, value);
-			} else {
-				value = localStorage.getItem(key);
-			}
-			if (value) {
-				utmData[key] = value;
-				const el = form.querySelector<HTMLInputElement>(`input[name="${key}"]`);
-				if (el) el.value = value;
-			}
-		});
-
-		const pathEl = form.querySelector<HTMLInputElement>('input[name="path"]');
-		if (pathEl) pathEl.value = window.location.pathname;
-
-		const gaCookie = document.cookie.split('; ').find((r) => r.startsWith('_ga='));
-		if (gaCookie) {
-			const parts = gaCookie.split('.');
-			if (parts.length >= 4) {
-				const clientId = parts[2] + '.' + parts[3];
-				utmData['client_id'] = clientId;
-				const el = form.querySelector<HTMLInputElement>('input[name="client_id"]');
-				if (el) el.value = clientId;
-			}
-		}
-
-		const fpr = localStorage.getItem('fpr');
-		if (fpr) {
-			utmData['fpr'] = fpr;
-			const el = form.querySelector<HTMLInputElement>('input[name="fpr"]');
-			if (el) el.value = fpr;
-		}
-
-		window.dataLayer = window.dataLayer || [];
-		window.dataLayer.push({ event: 'contact-us', ...utmData });
-	}
-
-	// ── URL param prefill ────────────────────────────────────────────────────
-	function prefillFromURL(form: HTMLFormElement) {
-		const params = new URLSearchParams(window.location.search);
-
-		// Dynamic title based on order type
-		if (params.has('pcorder') || params.has('tbmqorder')) {
-			const title = form.querySelector<HTMLElement>('.contact-us-title');
-			if (title) {
-				title.textContent = params.has('pcorder')
-					? 'Get Your Private IoT Platform'
-					: 'Get Your Private MQTT Broker';
-				(title as HTMLElement).style.fontSize = '40px';
-			}
-			const subjectWrap = form.querySelector<HTMLElement>('.select-label')?.closest<HTMLElement>('.form-element');
-			if (subjectWrap) subjectWrap.style.display = 'none';
-		}
-
-		// Pre-fill subject & message from URL
-		const subject = params.get('subject');
-		const message = params.get('message');
-		if (subject) {
-			const sel = form.querySelector<HTMLSelectElement>('select[name="subject"]');
-			if (sel) {
-				sel.value = subject;
-				updateSelectEmpty(sel);
-			}
-		}
-		if (message) {
-			const ta = form.querySelector<HTMLTextAreaElement>('textarea[name="message"]');
-			if (ta) ta.value = message;
-		}
-
 	}
 
 	// ── Init ─────────────────────────────────────────────────────────────────
@@ -307,8 +185,7 @@ const { mode = 'page' } = Astro.props;
 		// Set Formspree action
 		form.action = 'https://formspree.io/f/xrbnqnna';
 
-		const renderedAt = form.querySelector<HTMLInputElement>('.form-rendered-at');
-		if (renderedAt) renderedAt.value = String(Math.floor(Date.now() / 1000));
+		stampRenderedAt(form);
 
 		// Init select empty state
 		const select = form.querySelector<HTMLSelectElement>('select[name="subject"]');
@@ -320,29 +197,18 @@ const { mode = 'page' } = Astro.props;
 		// Clear error on input
 		form.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('.form-control').forEach((el) => {
 			el.addEventListener('input', () => {
-				if (el.classList.contains('invalid-input')) clearError(el);
+				if (el.classList.contains('invalid-input')) clearFieldError(el);
 			});
 		});
 
 		// Submit handler
-		form.addEventListener('submit', (e) => {
-			if (!validateForm(form)) {
-				e.preventDefault();
-				return;
-			}
+		guardSubmit(form, FIELDS);
 
-			const renderedAt = form.querySelector<HTMLInputElement>('.form-rendered-at');
-			if (renderedAt && renderedAt.value) {
-				const tooFast = Math.floor(Date.now() / 1000) - parseInt(renderedAt.value, 10) < 3;
-				if (tooFast) {
-					e.preventDefault();
-					form.innerHTML = '<p>Thank you! Your message has been received.</p>';
-				}
-			}
-		});
+		const pathEl = form.querySelector<HTMLInputElement>('input[name="path"]');
+		if (pathEl) pathEl.value = window.location.pathname;
 
-		populateTracking(form);
-		prefillFromURL(form);
+		window.dataLayer = window.dataLayer || [];
+		window.dataLayer.push({ event: 'contact-us', ...bindTrackingFields(form) });
 	});
 </script>
 
@@ -391,6 +257,24 @@ const { mode = 'page' } = Astro.props;
 
 			@media (max-width: 599px) {
 				font-size: 36px;
+			}
+		}
+
+		// Order variant (?pcorder): smaller heading, no subject picker. Set by the
+		// inline script above via data-variant so the mobile size below still wins.
+		&[data-variant='order'] {
+			h1.contact-us-title {
+				font-size: 40px;
+
+				@media (max-width: 599px) {
+					font-size: 36px;
+				}
+			}
+
+			// Hide the whole grid cell, not just the label — .form-element carries
+			// width/margin, so hiding only the label would leave a gap.
+			.form-element:has(> .select-label) {
+				display: none;
 			}
 		}
 
@@ -585,6 +469,25 @@ const { mode = 'page' } = Astro.props;
 
 			&:hover {
 				background-color: var(--color-primary-hover);
+			}
+		}
+	}
+
+	@media print {
+		.contact-form-wrap {
+			padding: 0;
+		}
+
+		.contact-form {
+			max-width: none;
+			padding: 0;
+			border-radius: 0;
+			background: none;
+			box-shadow: none;
+
+			h1.contact-us-title {
+				font-size: 40px;
+				margin-bottom: 0;
 			}
 		}
 	}

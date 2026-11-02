@@ -13,7 +13,7 @@ export const data: CaseStudyData = {
 		category: 'SMART IOT SOLUTIONS',
 		heading: "From Concept to Launch: ASG Tech's Rapid IoT Innovation with ThingsBoard",
 		paragraphs: [
-			'ASG Tech is a forward-thinking company that specialises in developing smart IoT solutions. By using the ThingsBoard Professional Edition platform, ASG Tech aims to create modern, easy-to-use IoT applications that help businesses operate more efficiently and deliver a better experience for end users. Their innovative approach and commitment to excellence make them a leader in their field.',
+			'ASG Tech is a forward-thinking company that specialises in developing smart IoT solutions. By using the ThingsBoard IoT platform, ASG Tech aims to create modern, easy-to-use IoT applications that help businesses operate more efficiently and deliver a better experience for end users. Their innovative approach and commitment to excellence make them a leader in their field.',
 		],
 		logo: 'https://img.thingsboard.io/case-studies/asg-tech.svg',
 		logoAlt: 'ASG Tech logo',
@@ -23,14 +23,14 @@ export const data: CaseStudyData = {
 	},
 
 	quote: {
-		text: "We are delighted to share our exceptional experience working with ThingsBoard's development unit for custom widget development. As a company specializing in delivering innovative loT solutions, working with ThingsBoard Professional Edition platform, we sought their expertise to reduce our time to market. From the initial estimation to the final delivery, ThingsBoard's devel...",
+		text: "We are delighted to share our exceptional experience working with ThingsBoard's development unit for custom widget development. As a company specializing in delivering innovative loT solutions, working with ThingsBoard, we sought their expertise to reduce our time to market. From the initial estimation to the final delivery, ThingsBoard's devel...",
 		author: 'ASG Tech',
 	},
 
 	problem: {
 		challenges: [
 			'ASG Tech needed to speed up their time to market without compromising the quality and usability of their applications.',
-			'They required highly customised widgets that would integrate smoothly with the ThingsBoard Professional Edition platform.',
+			'They required highly customised widgets that would integrate smoothly with the ThingsBoard IoT platform.',
 			'It was essential to meet detailed design guidelines and enhance the user experience.',
 			'Developing such components internally would have stretched their resources and delayed product launches.',
 		],
@@ -66,7 +66,7 @@ export const data: CaseStudyData = {
 		blocks: [
 			{
 				title: 'Smarter IoT operations with scalable solutions',
-				text: 'ThingsBoard makes it much easier for smart energy companies to manage their operations. Instead of juggling different systems for different types of devices, companies can connect everything into one platform. ThingsBoard supports all the major communication protocols - like MQTT, CoAP, HTTP, LwM2M, SNMP, Modbus, and OPC-UA - which means it can easily work with a wide range of energy devices without any extra hassle.<br><br>Through its advanced features — including multi-tenant architecture, customizable dashboards, powerful rule engine, asset and device management, and edge computing support — ThingsBoard PE enables IoT solution providers to:',
+				text: 'ThingsBoard makes it much easier for smart energy companies to manage their operations. Instead of juggling different systems for different types of devices, companies can connect everything into one platform. ThingsBoard supports all the major communication protocols - like MQTT, CoAP, HTTP, LwM2M, SNMP, Modbus, and OPC-UA - which means it can easily work with a wide range of energy devices without any extra hassle.<br><br>Through its advanced features — including multi-tenant architecture, customizable dashboards, powerful rule engine, asset and device management, and edge computing support — ThingsBoard enables IoT solution providers to:',
 				listItems: [
 					'Rapidly develop and deploy end-to-end IoT solutions without extensive internal development efforts.',
 					'Seamlessly integrate custom widgets and components, ensuring user-friendly and high-performing applications.',
@@ -81,7 +81,7 @@ export const data: CaseStudyData = {
 			},
 			{
 				title: 'Faster growth with a future-ready IoT platform',
-				text: "By leveraging these capabilities, ASG Tech can focus on delivering tailored IoT applications for Industry 4.0, Smart Cities, Energy Management, and Environmental Monitoring \u2014 while relying on the stability, flexibility, and extensibility of the ThingsBoard Professional Edition platform. This partnership drives faster time-to-market, reduced operational costs, and enhanced customer satisfaction.",
+				text: "By leveraging these capabilities, ASG Tech can focus on delivering tailored IoT applications for Industry 4.0, Smart Cities, Energy Management, and Environmental Monitoring \u2014 while relying on the stability, flexibility, and extensibility of the ThingsBoard platform. This partnership drives faster time-to-market, reduced operational costs, and enhanced customer satisfaction.",
 				images: [
 					{ src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp', alt: 'Thingsboard maps widgets widget', title: 'Thingsboard maps widgets widget' },
 					{ src: 'https://img.thingsboard.io/case-studies/bar-chart.webp', alt: 'Thingsboard bar chart widget', title: 'Thingsboard bar chart widget' },

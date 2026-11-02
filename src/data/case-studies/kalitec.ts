@@ -29,7 +29,7 @@ export const data: CaseStudyData = {
 	],
 
 	quote: {
-		text: 'We are delighted to share our exceptional experience working with ThingsBoard\'s development unit for custom widget development. As a company specializing in delivering innovative IoT solutions, working with ThingsBoard Professional Edition platform, we sought their expertise to reduce our time to market. From the initial estimation to the final delivery, ThingsBoard\'s development team demonstrated remarkable professionalism.',
+		text: 'We are delighted to share our exceptional experience working with ThingsBoard\'s development unit for custom widget development. As a company specializing in delivering innovative IoT solutions, working with ThingsBoard, we sought their expertise to reduce our time to market. From the initial estimation to the final delivery, ThingsBoard\'s development team demonstrated remarkable professionalism.',
 		author: 'Kalitec',
 	},
 
@@ -98,7 +98,7 @@ export const data: CaseStudyData = {
 		blocks: [
 			{
 				title: 'Effortless multi-tenant management and automation',
-				text: 'ThingsBoard Professional Edition offers a powerful set of features that are ideal for smart signage applications. Its multi-tenant architecture allows to securely manage multiple customer projects from a single platform. The advanced rule engine enables real-time data processing and automation \u2014 a critical capability for managing dynamic traffic signs and alerts.',
+				text: 'ThingsBoard offers a powerful set of features that are ideal for smart signage applications. Its multi-tenant architecture allows to securely manage multiple customer projects from a single platform. The advanced rule engine enables real-time data processing and automation \u2014 a critical capability for managing dynamic traffic signs and alerts.',
 				images: [
 					{ src: 'https://img.thingsboard.io/case-studies/single-switch-widget.webp', alt: 'Thingsboard single switch widget', title: 'Thingsboard single switch widget' },
 					{ src: 'https://img.thingsboard.io/case-studies/entities-table.webp', alt: 'Thingsboard entities table widget', title: 'Thingsboard entities table widget' },

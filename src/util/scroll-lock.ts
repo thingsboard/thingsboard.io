@@ -7,19 +7,21 @@ import './scroll-lock.css';
 //
 // Idempotent + single-flag: repeated lock/unlock calls are no-ops. One overlay
 // is expected open at a time; if two ever overlap, the first close unlocks
-// (same limitation the inlined copies had).
+// (same limitation the inlined copies had). `@util/modal-dialog` handles
+// stacked dialogs itself.
 
 const HTML_LOCK_CLASS = 'tb-scroll-locked';
 // Full-width fixed bars padded from the inside to absorb the freed scrollbar
 // width. The promo banner sits above the site header; both compensate the same.
 const BAR_SELECTORS = ['#promo-banner', 'header.header'];
-const CHAT_SELECTOR = '.ygpt-chatbot';
+// Our launcher (`YourGptWidget.astro`) and, once loaded, the YourGPT window; both position by the same variable.
+const CHAT_SELECTOR = '.ygpt-chatbot, #chat-launcher';
 const CHAT_POSITION_VAR = '--yourgptChatbotPositionX';
 
 let locked = false;
 let htmlOriginalPadding = '';
-let chatOriginalX = '';
-let chatCompensated = false;
+// The chat elements compensated by the active lock + their pre-lock inline offset. Drained on unlock.
+const compensatedChats: { el: HTMLElement; original: string }[] = [];
 // Bars compensated by the active lock + their pre-lock inline padding, so
 // unlockScroll restores each exactly. Drained on unlock.
 const compensatedBars: { selector: string; original: string }[] = [];
@@ -37,7 +39,9 @@ function setPaddingInstant(el: HTMLElement, value: string): void {
 }
 
 // Full-width fixed bar: pad from the inside by the freed scrollbar width so its
-// centred/edge content stays put when the page scrollbar disappears. Returns the
+// centred/edge content stays put when the page scrollbar disappears. The width
+// also goes out as `--tb-scrollbar-comp`, which absolutely positioned children
+// need because their padding box never sees this padding. Returns the
 // compensation record to push onto `compensatedBars`, or null if the bar is
 // absent — so the caller never has to disambiguate null from an empty original.
 function compensateBar(selector: string, sw: number): { selector: string; original: string } | null {
@@ -46,12 +50,15 @@ function compensateBar(selector: string, sw: number): { selector: string; origin
 	const original = el.style.paddingRight;
 	const cur = parseFloat(getComputedStyle(el).paddingRight) || 0;
 	setPaddingInstant(el, `${cur + sw}px`);
+	el.style.setProperty('--tb-scrollbar-comp', `${sw}px`);
 	return { selector, original };
 }
 
 function restoreBar(selector: string, original: string): void {
 	const el = document.querySelector<HTMLElement>(selector);
-	if (el) setPaddingInstant(el, original);
+	if (!el) return;
+	el.style.removeProperty('--tb-scrollbar-comp');
+	setPaddingInstant(el, original);
 }
 
 export function lockScroll(): void {
@@ -61,6 +68,10 @@ export function lockScroll(): void {
 	const html = document.documentElement;
 	const sw = window.innerWidth - html.clientWidth;
 	htmlOriginalPadding = html.style.paddingRight;
+
+	// Padding and overflow change together, before the bars below read computed styles: a layout
+	// between the two lays the page out a scrollbar narrower and scroll anchoring shifts it.
+	html.classList.add(HTML_LOCK_CLASS);
 
 	if (sw > 0) {
 		html.style.paddingRight = `${sw}px`;
@@ -72,18 +83,14 @@ export function lockScroll(): void {
 			if (bar) compensatedBars.push(bar);
 		}
 
-		// Chat widget pins itself with a CSS-variable offset — shift it too.
-		const chat = document.querySelector<HTMLElement>(CHAT_SELECTOR);
-		if (chat) {
-			chatOriginalX = chat.style.getPropertyValue(CHAT_POSITION_VAR);
-			const cur =
-				parseFloat(getComputedStyle(chat).getPropertyValue(CHAT_POSITION_VAR)) || 0;
-			chat.style.setProperty(CHAT_POSITION_VAR, `${cur + sw}px`);
-			chatCompensated = true;
+		// The chat pins itself with a CSS-variable offset — shift it too.
+		for (const el of document.querySelectorAll<HTMLElement>(CHAT_SELECTOR)) {
+			const original = el.style.getPropertyValue(CHAT_POSITION_VAR);
+			const cur = parseFloat(getComputedStyle(el).getPropertyValue(CHAT_POSITION_VAR)) || 0;
+			el.style.setProperty(CHAT_POSITION_VAR, `${cur + sw}px`);
+			compensatedChats.push({ el, original });
 		}
 	}
-
-	html.classList.add(HTML_LOCK_CLASS);
 }
 
 export function unlockScroll(): void {
@@ -99,12 +106,8 @@ export function unlockScroll(): void {
 		restoreBar(selector, original);
 	}
 
-	if (chatCompensated) {
-		const chat = document.querySelector<HTMLElement>(CHAT_SELECTOR);
-		if (chat) {
-			if (chatOriginalX) chat.style.setProperty(CHAT_POSITION_VAR, chatOriginalX);
-			else chat.style.removeProperty(CHAT_POSITION_VAR);
-		}
-		chatCompensated = false;
+	for (const { el, original } of compensatedChats.splice(0)) {
+		if (original) el.style.setProperty(CHAT_POSITION_VAR, original);
+		else el.style.removeProperty(CHAT_POSITION_VAR);
 	}
 }

@@ -41,7 +41,7 @@ export const data: CaseStudyData = {
 		results: [
 			"By leveraging the country-wide private fiber network and ThingsBoard Edge, \u00D6BB-Infrastruktur AG has created a secure internal communications channel that keeps data within its IT network, minimizes security risks, and enables local systems to connect securely without bridging firewalls or using the public Internet.",
 			'Thingsboard played a key role in the Austrian Railways initiative to create a Digital Twin of the railway assets by providing real-time asset condition data and recording time-series data. By leveraging the Digital Twin concept with ThingsBoard, \u00D6BB-Infrastruktur AG could predict potential issues, simulate scenarios, and make informed decisions proactively.',
-			"The main UI provided by the ThingsBoard PE instance in the \u00D6BB Azure Cloud Tenant allowed all internal stakeholders to access customized dashboards and insights tailored to their use cases.",
+			"The main UI provided by the ThingsBoard instance in the \u00D6BB Azure Cloud Tenant allowed all internal stakeholders to access customized dashboards and insights tailored to their use cases.",
 		],
 	},
 
@@ -56,7 +56,7 @@ export const data: CaseStudyData = {
 			},
 			{
 				title: 'Secure and resilient data flow for \u00D6BB-Infrastruktur AG',
-				text: "ThingsBoard Edge instances, strategically deployed on-premises within \u00D6BB-Infrastruktur AG's infrastructure, ensure secure data flow entirely within the internal IT network, avoiding exposure to the public Internet and firewall bridging. By caching IoT data locally until a successful transmission to the ThingsBoard PE instance in the \u00D6BB Azure Cloud Tenant, this setup achieves:<ul><li>Network Decoupling: Efficiently separates on-premises and cloud environments, reducing dependencies and potential disruptions.</li><li>Resilience to Network Issues: Maintains data integrity and operational continuity during Internet slowdowns, VPN issues, or cloud connectivity problems.</li><li>Optimized Data Flow: Allows continuous data processing even when Site2Site VPN or ExpressRoute connections experience challenges.</li></ul><br/>This architecture not only enhances data security and availability but also supports real-time monitoring and predictive maintenance as part of \u00D6BB's Digital Twin initiative.",
+				text: "ThingsBoard Edge instances, strategically deployed on-premises within \u00D6BB-Infrastruktur AG's infrastructure, ensure secure data flow entirely within the internal IT network, avoiding exposure to the public Internet and firewall bridging. By caching IoT data locally until a successful transmission to the ThingsBoard instance in the \u00D6BB Azure Cloud Tenant, this setup achieves:<ul><li>Network Decoupling: Efficiently separates on-premises and cloud environments, reducing dependencies and potential disruptions.</li><li>Resilience to Network Issues: Maintains data integrity and operational continuity during Internet slowdowns, VPN issues, or cloud connectivity problems.</li><li>Optimized Data Flow: Allows continuous data processing even when Site2Site VPN or ExpressRoute connections experience challenges.</li></ul><br/>This architecture not only enhances data security and availability but also supports real-time monitoring and predictive maintenance as part of \u00D6BB's Digital Twin initiative.",
 				image: 'https://img.thingsboard.io/case-studies/secure-resilient.webp',
 				imageAlt: 'Server',
 			},
@@ -75,7 +75,7 @@ export const data: CaseStudyData = {
 		blocks: [
 			{
 				title: 'Smart railway infrastructure management',
-				text: "ThingsBoard Edge can play a crucial role in smart railway infrastructure management. Due to specifics of edge computing, the data remains within the network, enhancing security by eliminating the need to expose internal systems to the public internet. By caching IoT data locally until a successful connection with the ThingsBoard PE instance, ThingsBoard Edge ensures both data integrity and operational continuity.",
+				text: "ThingsBoard Edge can play a crucial role in smart railway infrastructure management. Due to specifics of edge computing, the data remains within the network, enhancing security by eliminating the need to expose internal systems to the public internet. By caching IoT data locally until a successful connection with the ThingsBoard instance, ThingsBoard Edge ensures both data integrity and operational continuity.",
 				images: [
 					{ src: 'https://img.thingsboard.io/case-studies/status-widget.webp', alt: 'Thingsboard status widget', title: 'Thingsboard status widget' },
 					{ src: 'https://img.thingsboard.io/case-studies/notification-widget.webp', alt: 'Thingsboard notification widget', title: 'Thingsboard notification widget' },
@@ -99,7 +99,7 @@ export const data: CaseStudyData = {
 			},
 			{
 				title: 'Centralized visualization and enhanced operational management',
-				text: 'The ThingsBoard PE instance provides a centralized user interface in the cloud, offering customizable dashboards that enable stakeholders to visualize IoT data relevant to their specific use cases. This unified visualization capability helps improve train scheduling, capacity management, and asset utilization, directly contributing to optimized railway operations.',
+				text: 'The ThingsBoard instance provides a centralized user interface in the cloud, offering customizable dashboards that enable stakeholders to visualize IoT data relevant to their specific use cases. This unified visualization capability helps improve train scheduling, capacity management, and asset utilization, directly contributing to optimized railway operations.',
 				images: [
 					{ src: 'https://img.thingsboard.io/case-studies/maps-widgets.webp', alt: 'Thingsboard maps widgets widget', title: 'Thingsboard maps widgets widget' },
 					{ src: 'https://img.thingsboard.io/case-studies/bar-chart.webp', alt: 'Thingsboard bar chart widget', title: 'Thingsboard bar chart widget' },

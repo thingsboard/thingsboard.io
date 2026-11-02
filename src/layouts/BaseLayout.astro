@@ -1,11 +1,10 @@
 ---
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
-import CookieBanner from '@components/CookieBanner.astro';
 import UtmTracker from '@components/UtmTracker.astro';
 import { formatMarketingTitle, SITE_NAME } from '@root/consts.ts';
 import { getOgImageUrl } from '@util/getOgImageUrl';
 import { getSectionFromPath } from '@util/path-utils';
-import { resolveHeaderConfig, type HeaderVariant, type HeaderCta } from '@util/header-config';
+import { resolveHeaderConfig, type HeaderVariant } from '@util/header-config';
 
 // BaseLayout — site-wide marketing layout backed by `<StarlightPage>`.
 // The body content is copied verbatim into the page's default slot
@@ -28,12 +27,19 @@ interface Props {
 	forceLightTheme?: boolean;
 	/** Marketing-header appearance. Defaults to the docs look. */
 	headerVariant?: HeaderVariant;
+	/**
+	 * Site chrome around the page. `minimal` — for campaign landings that take ad and social
+	 * traffic — renders the header as the logo and theme toggle, hides the promo banner and swaps
+	 * the landing footer for the compact docs footer, which keeps the legal links.
+	 */
+	chrome?: 'full' | 'minimal';
 	/** Pricing/Try button shape. Defaults per variant (solid-shadow → marketing). */
-	headerCta?: HeaderCta;
 	/** Override search-icon visibility (defaults to the variant default). */
 	showSearch?: boolean;
 	/** Override theme-toggle visibility (defaults to the variant default). */
 	showThemeToggle?: boolean;
+	/** The page's own region buttons carry the `TryItNow_Cloud_*` GTM ids, so the region dialog omits them. */
+	ownsCloudSignupIds?: boolean;
 	ogImage?: string;
 	ogType?: string;
 	ogImageAlt?: string;
@@ -42,12 +48,19 @@ interface Props {
 	noIndex?: boolean;
 	jsonLd?: Record<string, unknown>;
 	/**
-	 * Preload an above-the-fold LCP image with fetchpriority=high. Use ONLY for
-	 * the page's LCP candidate (typically a CSS background not visible to the
-	 * preload scanner — e.g. the hero on the home page). Misuse on decorative
-	 * images will compete with the real LCP target for bandwidth.
+	 * The page's actual LCP image, preloaded with fetchpriority=high. Only for a
+	 * candidate the preload scanner cannot find on its own, such as a CSS
+	 * background — an <img> in the markup needs no entry. Pointing it at a
+	 * decorative image makes that image compete with the real target.
 	 */
 	preloadLcpImage?: string;
+	/**
+	 * The page renders `.sl-markdown-content` itself (e.g. an IoT Hub readme through
+	 * `IotHubMarkdown`), so it needs Starlight's markdown.css. `starlight/Head.astro`
+	 * inlines that sheet only on such pages: elsewhere its list rule matches nothing
+	 * but makes every DOM insertion restyle the whole document.
+	 */
+	markdownCss?: boolean;
 }
 
 const {
@@ -58,9 +71,10 @@ const {
 	gitHubPlatform,
 	forceLightTheme = false,
 	headerVariant,
-	headerCta,
+	chrome = 'full',
 	showSearch,
 	showThemeToggle,
+	ownsCloudSignupIds = false,
 	ogImage: ogImageProp,
 	ogType = 'website',
 	ogImageAlt,
@@ -69,6 +83,7 @@ const {
 	noIndex = false,
 	jsonLd,
 	preloadLcpImage,
+	markdownCss = false,
 } = Astro.props;
 
 const canonicalUrl = new URL(Astro.url.pathname, Astro.site).href;
@@ -79,11 +94,7 @@ const ogImage = ogImageProp ?? getOgImageUrl(Astro.url.pathname);
 // Resolve the OG image against the request origin so dev hosts and the
 // production origin both produce correct absolute URLs (mirrors SeoMeta).
 const DEFAULT_OG_IMAGE = '/thingsboard-og.png';
-let ogImagePath = ogImage ?? DEFAULT_OG_IMAGE;
-if (import.meta.env.DEV && /\.png$/.test(ogImagePath) && ogImagePath !== DEFAULT_OG_IMAGE) {
-	ogImagePath = ogImagePath + '/';
-}
-const ogImageUrl = new URL(ogImagePath, Astro.url.origin).href;
+const ogImageUrl = new URL(ogImage ?? DEFAULT_OG_IMAGE, Astro.url.origin).href;
 
 // Bridges consumed by the Starlight overrides:
 //   * bsl — generic marker so Header / Footer / PageTitle / … can branch
@@ -96,21 +107,28 @@ const ogImageUrl = new URL(ogImagePath, Astro.url.origin).href;
 //   * bslGitHubPlatform — overrides the URL-based platform detection in
 //     `starlight/Header.astro` so the chrome's GitHub button targets the
 //     repo the page actually relates to.
+//   * bslMarkdownCss — the `markdownCss` prop; `starlight/Head.astro`
+//     inlines Starlight's markdown.css when it is set.
+//   * bslChrome — the `chrome` prop; `starlight/Header.astro` and
+//     `starlight/Footer.astro` render the compact chrome for `minimal`.
 const locals = Astro.locals as unknown as Record<string, unknown>;
 locals.bsl = true;
 locals.bslTitle = pageTitle;
 locals.bslNoCanonical = noCanonical;
 locals.bslForceLight = forceLightTheme;
 if (gitHubPlatform !== undefined) locals.bslGitHubPlatform = gitHubPlatform;
+locals.bslMarkdownCss = markdownCss;
+locals.bslChrome = chrome;
 
 // Resolve the header appearance and bridge it to the Starlight Header override.
 // Unconfigured pages default to the `common` variant (docs chrome, search hidden).
 const headerConfig = resolveHeaderConfig({
 	variant: headerVariant ?? 'common',
-	cta: headerCta,
 	forceLight: forceLightTheme,
 	showSearch,
 	showThemeToggle,
+	cloudSignupIds: !ownsCloudSignupIds,
+	minimal: chrome === 'minimal',
 });
 locals.bslHeaderConfig = headerConfig;
 
@@ -122,9 +140,6 @@ type HeadEntry = {
 
 const head: HeadEntry[] = [
 	{ tag: 'meta', attrs: { name: 'cf-2fa-verify', content: 'a08672380de15e9' } },
-	// Establish TLS to GTM origin early — tags loaded via GTM (FB, LinkedIn,
-	// etc.) stay lazy by design.
-	{ tag: 'link', attrs: { rel: 'preconnect', href: 'https://www.googletagmanager.com' } },
 	// Override Starlight's default favicon with the site SVG.
 	{ tag: 'link', attrs: { rel: 'shortcut icon', href: '/favicon.svg', type: 'image/svg+xml' } },
 	// SeoMeta-equivalent OG / Twitter tags. Starlight emits its own
@@ -191,9 +206,7 @@ if (jsonLd) {
 >
 	<!-- Header is rendered by Starlight's chrome (configured in the site's
 	     Starlight `components` map → `src/components/starlight/Header.astro`).
-	     `gitHubPlatform` is forwarded via `Astro.locals.bslGitHubPlatform`.
-	     The GTM <noscript> fallback is rendered by `starlight/SkipLink.astro`. -->
-	<CookieBanner />
+	     `gitHubPlatform` is forwarded via `Astro.locals.bslGitHubPlatform`. -->
 	<UtmTracker />
 
 	<slot />

@@ -12,7 +12,7 @@ export type IconKey =
 	| 'cm' | 'p' | 'c' | 'e'
 	| 'tbmq' | 'trendz'
 	| 'mobile' | 'pe-mobile'
-	| 'gateway' | 'license' | 'iot-hub';
+	| 'gateway' | 'license' | 'iot-hub' | 'cli';
 
 export interface DocsProductMeta {
 	slabClass: SlabClass;
@@ -40,6 +40,7 @@ const META_BY_PRODUCT: Record<Products, DocsProductMeta> = {
 	[Products.GW]:        { slabClass: 'gateway', iconKey: 'gateway',   primaryLabel: 'IoT Gateway', tight: true },
 	[Products.LICENSE]:   { slabClass: 'license', iconKey: 'license',   primaryLabel: 'License', secondaryLabel: 'Server' },
 	[Products.IOT_HUB]:   { slabClass: 'brand',   iconKey: 'iot-hub',   primaryLabel: 'IoT Hub' },
+	[Products.CLI]:       { slabClass: 'brand',   iconKey: 'cli',       primaryLabel: 'CLI' },
 };
 
 /** Resolve docs slug (e.g. 'docs/pe/getting-started/quickstart') to product meta. */

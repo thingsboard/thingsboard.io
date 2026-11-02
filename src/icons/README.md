@@ -1,0 +1,23 @@
+# Local SVG icons
+
+`astro-icon` looks here for project-local icons, referenced as `<Icon name="filename" />`
+(no collection prefix). Everything else on the site comes either from an Iconify collection
+(`tabler:*`, `simple-icons:*`) or from Starlight's 275 built-ins, which
+`src/components/starlight/Icon.astro` resolves before astro-icon sees them.
+
+`thingsboard-mark` is the platform's own mark, drawn in `currentColor` so a card can knock it
+out white and a drawing can ink it; the homepage visuals also import it raw for their badges.
+`citus` and `valkey` are here because Simple Icons publishes neither: both were supplied as
+brand SVGs and redrawn in `currentColor` so the database chips in the trust band's scale card
+(`TrustVisualStages`, data in `src/data/home-trust.ts`) are all one kind of mark.
+
+`question-bold` is Ubuntu Bold's question mark, the site's own face, traced into a 24 box for the
+chat launcher, so the launcher does not wait on the webfont.
+
+`development-services/` holds the development services page's icons and industry drawings,
+referenced as `<Icon name="development-services/<file>" />`. They are drawn in `currentColor`,
+pale tints as `currentColor` at reduced opacity, so the page colours them from the accent token
+in both themes. `trainings/` holds the trainings page's icons, drawn the same way.
+
+The directory must exist even when empty — astro-icon aborts its whole setup step without it,
+including the icon type definitions it generates, and warns on every dev server start.

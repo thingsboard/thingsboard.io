@@ -2,7 +2,371 @@
 title: Geofencing Calculated Field
 description: Detect GPS zone entry and exit events using geofencing calculated fields in ThingsBoard.
 ---
-import PageComponent from '@includes/docs/user-guide/calculated-fields/geofencing.mdx'
-import { Products } from '~/models/site.models'
+import DocLink from '@components/DocLink.astro';
+import { Steps, Aside } from '@astrojs/starlight/components';
+import { Products } from '@models/site.models';
+import ImageGallery from '@components/ImageGallery.astro';
 
-<PageComponent product={Products.CE}/>
+The Geofencing calculated field monitors entity movement in real time by evaluating incoming GPS
+coordinates against configured geofence zones. It generates two output keys per zone group:
+
+- `<groupName>Status` — `INSIDE` or `OUTSIDE`
+- `<groupName>Event` — `ENTERED` or `LEFT`
+
+For example, a truck tracker with a `warehouseArea` zone group produces `warehouseAreaStatus` and
+`warehouseAreaEvent` telemetry automatically as the truck moves.
+
+Use Geofencing when you need to:
+
+- Track presence in operational zones (is the truck inside the warehouse perimeter?)
+- Detect entry/exit transitions for alarms and notifications
+- Monitor multiple independent zones simultaneously (service area + restricted area)
+- Handle dynamic zone assignment — zones can be added or removed via relations without
+  per-device reconfiguration
+- Avoid false transitions when a logical area spans multiple adjacent polygons
+
+**Zone groups** — the key concept — bundle one or more physical polygons/circles into a single
+logical evaluation. An entity is `INSIDE` if it is inside **at least one** zone in the group.
+This prevents false `ENTERED/LEFT` events when an entity moves between adjacent zones within the
+same group.
+
+<ImageGallery images={[{ src: '/src/assets/schemas/geofencing-overview.svg', alt: 'Geofencing zone groups overview', caption: 'Without zone groups, moving between adjacent polygons fires unwanted ENTERED/LEFT events. With a zone group, all polygons are treated as one logical area — events fire only when the entity exits all zones.' }]} />
+
+## Configuration
+
+<Steps>
+  1. Open the **Calculated fields** page.
+  2. Click the **+ Add calculated field &#8702; Create new calculated field** in the top-right corner.
+  3. In **General**, enter a title, specify the entity the field applies to, and select the **Geofencing** type.
+  4. Map **Entity coordinates** (latitude/longitude telemetry keys).
+  5. Add one or more **Zone groups**.
+  6. Configure **Output**.
+  7. Click **Add** to save.
+</Steps>
+
+### Entity Coordinates
+
+Map the telemetry keys that carry the entity's GPS position:
+
+| Field | Example |
+|-------|---------|
+| **Latitude time series key** | `latitude` or `lat` |
+| **Longitude time series key** | `longitude` or `lng` |
+
+<Aside type="note" title="Requirements">
+  - Values must be numeric.  
+  - If either coordinate is missing or invalid, the execution is skipped.
+</Aside>
+
+### Geofencing Zone Groups
+
+Click **Add zone group** to configure a new group. Each group has independent state tracking.
+
+#### Name
+
+Used as the prefix for output telemetry keys. Use camelCase for consistent key names:
+
+<ImageGallery images={[{ src: '/src/assets/schemas/geofencing-name.svg', alt: 'Geofencing output key naming', caption: 'The zone group name is used as a prefix: restrictedArea produces restrictedAreaStatus and restrictedAreaEvent; safeZone produces safeZoneStatus and safeZoneEvent.' }]} />
+
+#### Entity Type (Zone Source)
+
+Specifies where the zone geometry (polygon or circle) is stored:
+
+| Entity type | When to use |
+|------------|-------------|
+| **Current entity** | Each tracked entity has its own unique zone (e.g., a dog's personal home zone) |
+| **Device / Asset** | Zone geometry is stored on a specific shared entity |
+| **Customer / Current tenant / Current owner** | Organization-level zone inherited by all entities |
+| **Related entities** | Zones discovered dynamically via relation traversal — best for scalable, dynamic zone management |
+
+<Aside type="tip" title="Choosing the right source">
+- **Self-geofencing** — each entity has its own zone (e.g., a per-pet safe area): use **Current entity**.
+- **Dynamic zones** — zones change over time or multiple zones are grouped logically: use **Related entities** and configure a [Path from entity to zones](#path-from-entity-to-zones).
+- **Organization zones** — a single zone applies to all devices under a tenant or customer: use **Current tenant** or **Current owner**.
+</Aside>
+
+#### Path from Entity to Zones
+
+*Only for Related entities entity type.*
+
+Defines the multi-step relation path from the source entity to the zone assets:
+
+| Field | Description |
+|-------|-------------|
+| **Level** | Sequence number (starting at 1) |
+| **Direction** | **Up** (to parent) or **Down** (to child) |
+| **Relation type** | The named relation to follow at this step |
+
+**Example** — vehicle in a fleet with separate zone types:
+
+| Level | Direction | Relation type |
+|-------|-----------|---------------|
+| 1 | Up | `Contains` (Vehicle → Fleet) |
+| 2 | Down | `FleetToRestrictedZone` (Fleet → Zone) |
+
+#### Perimeter Attribute Key
+
+The server-side attribute key on zone entities that stores the geometry.
+Supports polygons and circles <DocLink product={Products.CE} path="reference/widgets/maps/map/#overlays" bold={false} target="_blank">overlays</DocLink> as defined in the map widget format.
+
+#### Report Strategy
+
+Controls which telemetry keys are generated for the zone group:
+
+| Strategy | Generated keys | Use when |
+|----------|----------------|----------|
+| **Transition events only** | `<name>Event` (ENTERED / LEFT) | You only need boundary-crossing events |
+| **Presence status only** | `<name>Status` (INSIDE / OUTSIDE) | You only need current state |
+| **Presence status and transition events** | Both | Full monitoring — dashboards and alarms |
+
+<ImageGallery images={[{ src: '/src/assets/schemas/geofencing-report-strategy.svg', alt: 'Geofencing report strategy state machine', caption: 'An entity transitions from OUTSIDE to INSIDE when it enters any zone in the group (Event = ENTERED), and back to OUTSIDE when it leaves all zones (Event = LEFT). Status is updated on every GPS update.' }]} />
+
+#### Create Relations with Matched Zones
+
+*Only for Related entities entity type.*
+
+When enabled, ThingsBoard automatically creates and removes relations between the tracked entity
+and the zones it is currently inside:
+
+- **On enter:** relation is created
+- **On leave:** relation is removed
+
+Configure:
+- **Relation direction**: From zone to entity or From entity to zone
+- **Relation type**: The relation type name (e.g., `currentlyInside`)
+
+#### Zone Groups Refresh Interval
+
+*Available when at least one group uses Related entities.*
+
+Controls how often the cached list of discovered zones is refreshed:
+
+| Setting | Behavior |
+|---------|----------|
+| Disabled | Zones fetched once, never refreshed (use only for static infrastructure) |
+| Enabled (e.g., 60s) | Zones refreshed periodically — lower interval for frequently changing relations |
+
+### Output
+
+In the **Output** section, map each zone group's generated variables to output keys and select the storage type:
+
+| Variable | Values |
+|----------|--------|
+| `<groupName>Status` | `INSIDE` or `OUTSIDE` |
+| `<groupName>Event` | `ENTERED` or `LEFT` |
+
+<Aside type="tip">
+  Store output as **time series** — it provides the most flexibility for dashboards, analytics, and alarms.
+</Aside>
+
+For output strategy options, see
+<DocLink product={Products.CE} path="user-guide/calculated-fields/#output-strategy" bold={false} target="_blank">Calculated Fields — Output Strategy</DocLink>.
+
+---
+
+## Example 1: Pet Tracker (Self-Geofencing)
+
+Each dog collar tracker publishes `latitude`/`longitude` as telemetry and has its own `safeZone`
+circle stored as a server-side attribute (each dog has a unique home zone).
+
+Goal: detect when the dog enters/leaves its safe zone and generate `safeZoneStatus` and `safeZoneEvent`.
+
+### Preparation
+
+Import the two demo devices used in this example:
+
+<Steps>
+1. Download <a href="/resources/calculated-fields/geofencing/pets-tracking-device-data.csv" download="pets-tracking-device-data.csv">pets-tracking-device-data.csv</a>.
+2. Go to **Devices** and **import device**. 
+    - Upload the file with the delimiter set to **;**
+    - Set `latitude` and `longitude` as **time series** keys
+    - Set `safeZone` as **server-side attribute**.
+</Steps>
+
+The import creates **Buddy** and **Rex** under the **pet-tracking** profile. Each device has `latitude`/`longitude` telemetry keys and a `safeZone` server-side attribute containing the zone geometry.
+
+### Configuration
+
+<Steps>
+1. Apply the calculated field to the **pet-tracking** device profile.
+2. Entity coordinates: `latitude`, `longitude`.
+3. Add zone group **safeZone**:
+    - Name: `safeZone`
+    - Entity type: **Current entity**
+    - Perimeter attribute key: `safeZone`
+    - Report strategy: **Presence status and transition events**
+4. Output type: **Time series**. 
+5. Click **Add**.
+</Steps>
+
+**Result:** Each tracker independently evaluates its own `safeZone`. Moving the device outside
+the home zone sets `safeZoneStatus = OUTSIDE` and generates a `safeZoneEvent = LEFT`.
+
+<ImageGallery product={Products.CE} images={[
+  {
+    src: '/src/assets/images/user-guide/calculated-fields/geofencing/geofencing-cf-example-1-10-ce.png',
+    alt: 'Pet tracker dashboard — safeZoneStatus and safeZoneEvent updating as dogs move across zone boundary',
+    caption: 'Move <strong>Buddy</strong> outside the home zone. The <code>safeZoneStatus</code> changes to <strong>OUTSIDE</strong>, and <code>safeZoneEvent</code> is set to <strong>LEFT</strong>.',
+  },
+  {
+    src: '/src/assets/images/user-guide/calculated-fields/geofencing/geofencing-cf-example-1-11-ce.png',
+    alt: 'Pet tracker geofencing — Buddy outside zone',
+    caption: '<strong>Buddy</strong> is now outside the zone. The dashboard reflects <strong>OUTSIDE</strong> status and the <strong>LEFT</strong> transition event.',
+  },
+  {
+    src: '/src/assets/images/user-guide/calculated-fields/geofencing/geofencing-cf-example-1-12-ce.png',
+    alt: 'Pet tracker geofencing — Rex outside zone',
+    caption: 'Move <strong>Rex</strong> outside the zone. His status updates to <strong>OUTSIDE</strong>, and the <code>safeZoneEvent</code> becomes <strong>LEFT</strong>.',
+  },
+  {
+    src: '/src/assets/images/user-guide/calculated-fields/geofencing/geofencing-cf-example-1-13-ce.png',
+    alt: 'Pet tracker geofencing — Rex re-enters zone',
+    caption: 'Move <strong>Rex</strong> back into the zone. The <code>safeZoneStatus</code> changes to <strong>INSIDE</strong>, and <code>safeZoneEvent</code> is set to <strong>ENTERED</strong>.',
+  },
+]} />
+
+## Example 2: Warehouse Equipment (Direct Association)
+
+Two forklifts publish GPS telemetry. The **Warehouse A** asset stores a `perimeter` polygon attribute.
+Each forklift is linked to Warehouse A via a `Contains` relation.
+
+Goal: detect when a forklift leaves the warehouse perimeter.
+
+### Preparation
+
+Import the demo devices and asset, then connect them:
+
+<Steps>
+1. Download <a href="/resources/calculated-fields/geofencing/warehouse-equipment-device-data-example.csv" download="warehouse-equipment-device-data-example.csv">warehouse-equipment-device-data-example.csv</a> and <DocLink product={Products.CE} path="user-guide/provisioning/" bold={false} target="_blank">import</DocLink> it as **devices** with delimiter **;**. Creates **Forklift A** and **Forklift B** (profile: `forklift`) with `latitude`/`longitude` telemetry.
+2. Download <a href="/resources/calculated-fields/geofencing/warehouse-equipment-asset-data-example.csv" download="warehouse-equipment-asset-data-example.csv">warehouse-equipment-asset-data-example.csv</a> and <DocLink product={Products.CE} path="user-guide/provisioning/" bold={false} target="_blank">import</DocLink> it as **asset** with delimiter **;**. Creates **Warehouse A** (type: `warehouse`) with a `perimeter` server-side attribute.
+3. Open **Warehouse A**, go to the **Relations** tab, and add a **Contains** relation to both **Forklift A** and **Forklift B**.
+</Steps>
+
+### Configuration
+
+<Steps>
+1. Apply the calculated field to the **forklift** device profile.
+2. Entity coordinates: `latitude`, `longitude`.
+3. Add zone group **warehouseArea**:
+   - Entity type: **Related entities**
+   - Path: Level **1**, Direction **Up**, Relation type **Contains**
+   - Perimeter attribute key: `perimeter`
+   - Report strategy: **Presence status and transition events**
+4. Output type: **Time series**. 
+5. Click **Add**.
+</Steps>
+
+**Result:** Both forklifts share the same zone logic via their relation to Warehouse A.
+Moving a forklift outside the perimeter generates `warehouseAreaStatus = OUTSIDE` and
+`warehouseAreaEvent = LEFT`.
+
+<ImageGallery product={Products.CE} images={[
+  {
+    src: '/src/assets/images/user-guide/calculated-fields/geofencing/geofencing-cf-example-2-11-ce.png',
+    alt: 'Warehouse dashboard — Forklift A inside zone',
+    caption: 'Move <strong>Forklift A</strong> toward the boundary of the zone. Its current status is <strong>INSIDE</strong>.',
+  },
+  {
+    src: '/src/assets/images/user-guide/calculated-fields/geofencing/geofencing-cf-example-2-12-ce.png',
+    alt: 'Warehouse dashboard — Forklift A outside zone',
+    caption: '<strong>Forklift A</strong> leaves the zone. The <code>warehouseAreaStatus</code> changes to <strong>OUTSIDE</strong>, and <code>safeZoneEvent</code> is set to <strong>LEFT</strong>.',
+  },
+  {
+    src: '/src/assets/images/user-guide/calculated-fields/geofencing/geofencing-cf-example-2-13-ce.png',
+    alt: 'Warehouse dashboard — Forklift B outside zone',
+    caption: 'Move <strong>Forklift B</strong> toward the zone. It is currently <strong>OUTSIDE</strong>.',
+  },
+  {
+    src: '/src/assets/images/user-guide/calculated-fields/geofencing/geofencing-cf-example-2-14-ce.png',
+    alt: 'Warehouse dashboard — Forklift B enters zone',
+    caption: '<strong>Forklift B</strong> enters the zone. The <code>warehouseAreaStatus</code> changes to <strong>INSIDE</strong>, and <code>safeZoneEvent</code> is set to <strong>ENTERED</strong>.',
+  },
+]} />
+
+## Example 3: Fleet Management (Multiple Zone Types)
+
+A fleet of trucks must be monitored against two zone categories simultaneously:
+- **Service area** — allowed operational zone
+- **Restricted area** — no-go zone
+
+Two zone groups with different relation types separate the logic:
+
+| Zone group | Relation path | Relation to zone |
+|-----------|--------------|-----------------|
+| `serviceArea` | UP via Contains | DOWN via FleetToAllowedZone |
+| `restrictedArea` | UP via Contains | DOWN via FleetToRestrictedZone |
+
+### Preparation
+
+Import the demo devices and assets, then connect them:
+
+<Steps>
+1. Download <a href="/resources/calculated-fields/geofencing/complex-fleet-management-example-devices-data.csv" download="complex-fleet-management-example-devices-data.csv">complex-fleet-management-example-devices-data.csv</a> and <DocLink product={Products.CE} path="user-guide/provisioning/" target="_blank">import</DocLink> it as **devices** with delimiter **;**. Creates **Truck 101** and **Truck 102** (profile: `truck`) with `latitude`/`longitude` telemetry.
+2. Download <a href="/resources/calculated-fields/geofencing/complex-fleet-management-example-assets-data.csv" download="complex-fleet-management-example-assets-data.csv">complex-fleet-management-example-assets-data.csv</a> and <DocLink product={Products.CE} path="user-guide/provisioning/" target="_blank">import</DocLink> it as **asset** with delimiter **;**. Creates **No-Go Zone A** and **Service Zone A** (type: `zone`, with `perimeter` and `zoneType` attributes) and **North East Fleet** (type: `fleet`).
+3. Open **North East Fleet**, go to the **Relations** tab, and add:
+   - **North East Fleet** &#8702; **Truck 101** and **Truck 102**
+      - Relation direction: **From**
+      - Relation type: `Contains`
+   - **North East Fleet &#8702; Service Zone A**
+      - Relation direction: **From**
+      - Relation type: `FleetToAllowedZone`
+   - **North East Fleet &#8702; No-Go Zone A**
+      - Relation direction: **From**
+      - Relation type: `FleetToRestrictedZone`
+</Steps>
+
+### Configuration
+
+<Steps>
+1. Apply the calculated field to the **truck** device profile.
+2. Entity coordinates: `latitude`, `longitude`.
+3. Add zone group **serviceArea**:
+   - Entity type: **Related entities**
+   - Path: 
+      - Level **1** **UP** **Contains** 
+      - Level **2** **DOWN** **FleetToAllowedZone** 
+   - Perimeter attribute key: `perimeter`
+   - Report strategy: **Presence status and transition events**
+   - Enable **Create relations for source entity with matched zones**  
+4. Add zone group **restrictedArea**:
+   - Entity type: **Related entities**
+   - Path: 
+      - Level **1 UP Contains**
+      - Level **2 DOWN FleetToRestrictedZone**
+   - Perimeter attribute key: `perimeter`
+   - Report strategy: **Presence status and transition events**
+   - Enable **Create relations for source entity with matched zones**
+5. Output type: **Time series**. 
+6. Click **Add**.
+</Steps>
+
+**Result:** `serviceAreaStatus` tracks current presence; `restrictedAreaEvent` fires on boundary
+crossings — both tracked independently for the same truck with no state conflicts.
+
+<ImageGallery product={Products.CE} images={[
+  {
+    src: '/src/assets/images/user-guide/calculated-fields/geofencing/geofencing-cf-example-3-15-ce.png',
+    alt: 'Fleet dashboard — Truck 101 near restricted area',
+    caption: '<strong>Truck 101</strong> is located inside the <strong>Restricted Area</strong>. The <code>Restricted Area Status</code> is <strong>INSIDE</strong>.',
+  },
+  {
+    src: '/src/assets/images/user-guide/calculated-fields/geofencing/geofencing-cf-example-3-16-ce.png',
+    alt: 'Fleet dashboard — Truck 101 enters service area',
+    caption: '<strong>Truck 101</strong> moves into the <strong>Service Area</strong>. The <code>Service Area Event</code> is set to <strong>ENTERED</strong>, and the status becomes <strong>INSIDE</strong>.',
+  },
+  {
+    src: '/src/assets/images/user-guide/calculated-fields/geofencing/geofencing-cf-example-3-17-ce.png',
+    alt: 'Fleet dashboard — Truck 101 leaves all zones',
+    caption: '<strong>Truck 101</strong> leaves both zones. The <code>Restricted Area Event</code> and <code>Service Area Event</code> are set to <strong>LEFT</strong>, and both statuses become <strong>OUTSIDE</strong>.',
+  },
+  {
+    src: '/src/assets/images/user-guide/calculated-fields/geofencing/geofencing-cf-example-3-18-ce.png',
+    alt: 'Fleet dashboard — Truck 102 inside service area',
+    caption: '<strong>Truck 102</strong> is inside the <strong>Service Area</strong>. The <code>Service Area Status</code> is <strong>INSIDE</strong>.',
+  },
+  {
+    src: '/src/assets/images/user-guide/calculated-fields/geofencing/geofencing-cf-example-3-19-ce.png',
+    alt: 'Fleet dashboard — Truck 102 leaves service area',
+    caption: '<strong>Truck 102</strong> leaves the <strong>Service Area</strong>. The <code>Service Area Event</code> is set to <strong>LEFT</strong>, and the status changes to <strong>OUTSIDE</strong>.',
+  },
+]} />

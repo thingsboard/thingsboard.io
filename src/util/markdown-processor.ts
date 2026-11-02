@@ -1,4 +1,5 @@
 import { createMarkdownProcessor } from '@astrojs/markdown-remark';
+import { rehypeLightboxImages } from '@util/lightbox-images';
 import { rehypeNormalizeSiteHrefs } from '@util/site-links';
 
 // Module-scoped lazy promise: the unified/remark/rehype pipeline is created
@@ -11,7 +12,9 @@ export function getMarkdownProcessor(): ReturnType<typeof createMarkdownProcesso
 		processorPromise = createMarkdownProcessor({
 			// Externally-sourced markdown (IoT Hub readmes) links to thingsboard.io
 			// with absolute URLs; normalize them to site-relative form in-pipeline.
-			rehypePlugins: [rehypeNormalizeSiteHrefs],
+			// Readme images become lightbox thumbnails, so a screenshot in the prose
+			// opens full screen like the ones in the hero gallery do.
+			rehypePlugins: [rehypeNormalizeSiteHrefs, rehypeLightboxImages],
 		});
 	}
 	return processorPromise;

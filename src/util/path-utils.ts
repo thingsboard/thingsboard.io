@@ -10,16 +10,41 @@ export const supportedLanguages: Record<SupportedLanguage, { label: string; pref
 	uk: { label: 'Українська', prefix: 'uk/' },
 };
 
-/** Product version configuration (all products including variants).
- *  `label` is used in version-switcher UI; `titleName` is the SEO brand form used in <title> tags. */
-export const productVersions: Partial<Record<Products, { label: string; prefix: string; titleName: string }>> = {
-	[Products.CE]: { label: 'Community Edition', prefix: '', titleName: 'ThingsBoard' },
-	[Products.PE]: { label: 'Professional Edition', prefix: 'pe/', titleName: 'ThingsBoard PE' },
-	[Products.PAAS]: { label: 'Cloud', prefix: 'paas/', titleName: 'ThingsBoard Cloud' },
+interface ProductVersion {
+	/** Version-switcher UI label. */
+	label: string;
+	prefix: string;
+	/** SEO brand form of the product, used in the default docs <title> suffix. */
+	titleName: string;
+	/** Docs <title> brand that replaces the default "Docs | {titleName}" suffix. */
+	docsTitle?: string;
+}
+
+/** Product version configuration (all products including variants). */
+export const productVersions: Partial<Record<Products, ProductVersion>> = {
+	[Products.CE]: {
+		label: 'Community Edition',
+		prefix: '',
+		titleName: 'ThingsBoard',
+		docsTitle: 'ThingsBoard CE Docs',
+	},
+	[Products.PE]: {
+		label: 'Professional Edition',
+		prefix: 'pe/',
+		titleName: 'ThingsBoard PE',
+		docsTitle: 'ThingsBoard Docs',
+	},
+	[Products.PAAS]: {
+		label: 'Cloud',
+		prefix: 'paas/',
+		titleName: 'ThingsBoard Cloud',
+		docsTitle: 'ThingsBoard Cloud Docs',
+	},
 	[Products.PAAS_EU]: {
 		label: 'Cloud (EU)',
 		prefix: 'paas/eu/',
 		titleName: 'ThingsBoard Cloud (EU)',
+		docsTitle: 'ThingsBoard Cloud (EU) Docs',
 	},
 	[Products.EDGE]: { label: 'Edge', prefix: 'edge/', titleName: 'ThingsBoard Edge' },
 	[Products.EDGE_PE]: {
@@ -67,6 +92,11 @@ export const productVersions: Partial<Record<Products, { label: string; prefix: 
 		prefix: 'iot-hub/',
 		titleName: 'ThingsBoard IoT Hub',
 	},
+	[Products.CLI]: {
+		label: 'ThingsBoard CLI',
+		prefix: 'cli/',
+		titleName: 'ThingsBoard CLI',
+	},
 };
 
 /** Detect language from a URL pathname. */
@@ -84,6 +114,15 @@ export function getLanguageFromSlug(slug: string): SupportedLanguage {
 /** Get the URL prefix for a language. */
 export function getLanguagePrefix(lang: SupportedLanguage): string {
 	return supportedLanguages[lang].prefix;
+}
+
+/**
+ * Strip one leading and one trailing slash, matching Starlight's own
+ * `stripLeadingAndTrailingSlashes`. Kept here so sidebar comparisons do not have to reach
+ * into `@astrojs/starlight/dist/utils/path`, which is not a public export and moved in 0.42.
+ */
+export function stripLeadingAndTrailingSlashes(href: string): string {
+	return href.replace(/^\/|\/$/g, '');
 }
 
 /** Strip language prefix from path. */
@@ -118,6 +157,7 @@ export function getVersionFromURL(pathname: string): Products {
 	if (p.startsWith('mobile/')) return Products.MOBILE;
 	if (p.startsWith('license-server/')) return Products.LICENSE;
 	if (p.startsWith('iot-hub/')) return Products.IOT_HUB;
+	if (p.startsWith('cli/')) return Products.CLI;
 	return Products.CE;
 }
 
@@ -147,6 +187,7 @@ export function getVersionFromSlug(slug: string): Products {
 	if (p.startsWith('mobile/')) return Products.MOBILE;
 	if (p.startsWith('license-server/')) return Products.LICENSE;
 	if (p.startsWith('iot-hub/')) return Products.IOT_HUB;
+	if (p.startsWith('cli/')) return Products.CLI;
 	return Products.CE;
 }
 
@@ -158,6 +199,11 @@ export function getVersionPrefix(version: Products): string {
 /** Get the SEO brand form of a product name, used in <title> tags. */
 export function getProductTitleName(version: Products): string {
 	return productVersions[version]?.titleName ?? SITE_NAME;
+}
+
+/** Get the product's own docs <title> brand (e.g. "ThingsBoard CE Docs"), if it has one. */
+export function getProductDocsTitle(version: Products): string | undefined {
+	return productVersions[version]?.docsTitle;
 }
 
 /** Return the marketing section label for a URL pathname, or undefined if the path
@@ -205,6 +251,7 @@ export function getPageSlugFromURL(pathname: string): string {
 		'mobile/',
 		'license-server/',
 		'iot-hub/',
+		'cli/',
 	];
 	for (const prefix of prefixes) {
 		if (path.startsWith(prefix)) {
@@ -249,7 +296,7 @@ export function switchLanguage(pathname: string, targetLang: SupportedLanguage):
 export function switchVersionWithFallback(
 	pathname: string,
 	targetVersion: Products,
-	existingPageIds: Set<string>
+	existingPageIds: ReadonlySet<string>
 ): string {
 	const lang = getLanguageFromURL(pathname);
 	const pageSlug = getPageSlugFromURL(pathname);
@@ -277,7 +324,7 @@ export function switchVersionWithFallback(
 export function switchLanguageWithFallback(
 	pathname: string,
 	targetLang: SupportedLanguage,
-	existingPageIds: Set<string>
+	existingPageIds: ReadonlySet<string>
 ): { url: string; isFallback: boolean } {
 	const version = getVersionFromURL(pathname);
 	const pageSlug = getPageSlugFromURL(pathname);

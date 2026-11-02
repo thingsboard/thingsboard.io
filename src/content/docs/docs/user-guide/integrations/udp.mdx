@@ -2,7 +2,724 @@
 title: UDP Integration
 description: Connect UDP devices to ThingsBoard to stream and visualize IoT sensor data in real time.
 ---
-import PageComponent from '@includes/docs/user-guide/integrations/udp.mdx'
-import { Products } from '~/models/site.models'
+import DocLink from '@components/DocLink.astro';
+import ImageGallery from '@components/ImageGallery.astro';
+import Banner from '@components/Banner.astro';
+import { Aside, Steps } from '@astrojs/starlight/components';
+import { Products } from '@models/site.models';
+import Tabs from '@components/Tabs.astro';
+import TabItem from '@components/TabItem.astro';
+import ConfigureDownlinkRuleChain from '@includes/docs/user-guide/integrations/_configure-downlink-rule-chain.mdx';
 
-<PageComponent product={Products.CE}/>
+<Banner variant="peFeature" product={Products.CE} path="installation/" />
+
+UDP Integration connects ThingsBoard to devices that communicate over raw **User Datagram Protocol (UDP)** sockets. Use it to bridge an existing UDP-based device protocol into ThingsBoard for monitoring and rule-based automation — including sending response datagrams back to devices.
+
+**When to use UDP Integration:**
+
+- Devices use a custom binary or text protocol over a raw UDP socket.
+- Firmware transmits fire-and-forget datagrams to a fixed host and port.
+- Low-overhead, connectionless transport is preferred over TCP (e.g., battery-powered sensors, high-frequency telemetry streams).
+- You need to bridge an existing UDP-based device protocol with ThingsBoard without re-flashing firmware.
+
+## Architecture
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/udp-integration-architecture.svg', alt: 'UDP integration architecture diagram showing uplink data flowing from a device through a UDP datagram to the remote UDP Integration process on the configured port, then to the ThingsBoard Data Converter and Core Service, and downlink commands flowing back to the device\'s source address', caption: 'UDP integration architecture — uplink and downlink data flow between the device and ThingsBoard over UDP.' },
+]} />
+
+A device sends a UDP datagram to the UDP Integration process listening on the configured port (e.g. 11560). The uplink converter decodes the datagram into telemetry and attributes, and the ThingsBoard Core Service stores the data, creating the device automatically on first contact. For downlink, the Rule Engine hands a message to the integration; the downlink converter encodes it, and the integration sends the response datagram back to the device's source address.
+
+## Prerequisites
+
+Before creating the integration, ensure:
+
+- You have access to <DocLink product={Products.PE} path="installation/" target="_blank">ThingsBoard PE</DocLink> or <a href="/installations/?product=thingsboard-cloud" target="_blank"><strong>ThingsBoard Cloud</strong></a> with integration functionality enabled for your tenant.
+- You have <DocLink product={Products.CE} path="user-guide/roles/" target="_blank">permissions</DocLink> to create integrations and data converters.
+- You know the payload format your UDP devices use.
+- Port **11560** (or whichever port you configure) must be open for incoming UDP traffic on the machine running the UDP Integration process. The remote process also needs outbound access to ThingsBoard's gRPC port **9090**.
+- The `echo` command piped to `netcat` (`nc`) is available for sending test UDP datagrams.
+
+In this tutorial, device **SN-003** sends temperature and humidity readings to the UDP Integration server on port `11560`.
+
+The integration accepts four payload formats. Select the one that matches your device:
+
+<Tabs>
+<TabItem label="Text">
+```
+SN-003,default,temperature,25.7,humidity,69
+```
+</TabItem>
+<TabItem label="JSON">
+```json
+{
+  "deviceName": "SN-003",
+  "deviceType": "default",
+  "temperature": 25.7,
+  "humidity": 69
+}
+```
+</TabItem>
+<TabItem label="Binary">
+The binary payload is 19 bytes:
+```
+\x53\x4e\x2d\x30\x30\x33\x64\x65\x66\x61\x75\x6c\x74\x32\x35\x2e\x37\x36\x39
+```
+
+Byte layout:
+
+- **Bytes 0–5** (`\x53\x4e\x2d\x30\x30\x33`) — device name: `SN-003`.
+- **Bytes 6–12** (`\x64\x65\x66\x61\x75\x6c\x74`) — device type: `default`.
+- **Bytes 13–16** (`\x32\x35\x2e\x37`) — temperature: `25.7`.
+- **Bytes 17–18** (`\x36\x39`) — humidity: `69`.
+</TabItem>
+<TabItem label="Hex">
+A hex-encoded string representation of the binary payload above, converted to bytes using `xxd -r -p` before sending:
+```
+534e2d30303364656661756c7432352e373639
+```
+
+| Hex segment | Value |
+|-------------|-------|
+| `534e2d303033` | Device name: `SN-003` |
+| `64656661756c74` | Device type: `default` |
+| `32352e37` | Temperature: `25.7` |
+| `3639` | Humidity: `69` |
+</TabItem>
+</Tabs>
+
+## Set Up the UDP Integration
+
+To set up the **UDP** integration, first create an uplink data converter to process incoming messages, then create and configure the integration.
+
+### Create the Uplink Data Converter
+
+The decoder function receives the raw UDP datagram body as a `payload` byte array. It must return an object with at least `deviceName` and `deviceType`. Optionally, it can include `telemetry` (time-series measurements) and `attributes` (device properties) as flat key-value maps.
+
+For the full decoder function reference — all input parameters and output fields — see <DocLink product={Products.CE} path="user-guide/integrations/uplink-data-converter/#generic-uplink-converter" target="_blank">Uplink data converter</DocLink>.
+
+<Steps>
+  1. Go to **Integrations center &#8702; Data converters**.
+  2. Click **+ Add data converter &#8702; Create new converter**.
+</Steps>
+
+In the **Add data converter** dialog:
+
+<Steps>
+  <ol start="3">
+    <li><strong>Converter type</strong> — leave <strong>Uplink</strong> (selected by default).</li>
+    <li><strong>Integration type</strong> — in the search field, enter <code>UDP</code> and select <strong>UDP</strong> from the list.</li>
+    <li><strong>Name</strong> — enter a converter name, for example <code>UDP Uplink Converter</code>.</li>
+    <li><strong>Main decoding configuration</strong> — paste the decoder function from the appropriate tab below, then continue with step 7.</li>
+  </ol>
+</Steps>
+
+<Aside type="tip" title="TBEL">
+  We recommend using <DocLink product={Products.CE} path="user-guide/tbel" target="_blank">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
+</Aside>
+
+Select the tab matching your payload type:
+
+<Tabs>
+<TabItem label="Text">
+
+<Tabs>
+<TabItem label="TBEL (Recommended)">
+```js maxLines=20 collapsible
+/** Decoder **/
+
+// decode payload to string
+var strArray = decodeToString(payload);
+var payloadArray = strArray.replaceAll("\"", "").replaceAll("\\\\n", "").split(',');
+
+var telemetryPayload = {};
+for (var i = 2; i < payloadArray.length; i = i + 2) {
+  var telemetryKey = payloadArray[i];
+  var telemetryValue = parseFloat(payloadArray[i + 1]);
+  telemetryPayload[telemetryKey] = telemetryValue;
+}
+
+// Result object with device attributes/telemetry data
+var result = {
+  deviceName: payloadArray[0],
+  deviceType: payloadArray[1],
+  telemetry: telemetryPayload,
+  attributes: {}
+};
+
+/** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
+
+return result;
+```
+</TabItem>
+<TabItem label="JavaScript">
+```js maxLines=25 collapsible
+/** Decoder **/
+
+// decode payload to string
+var strArray = decodeToString(payload);
+var payloadArray = strArray.replace(/"/g, "").replace(/\s/g, "").replace(/\\n/g, "").split(',');
+
+var telemetryPayload = {};
+for (var i = 2; i < payloadArray.length; i = i + 2) {
+    var telemetryKey = payloadArray[i];
+    var telemetryValue = parseFloat(payloadArray[i + 1]);
+    telemetryPayload[telemetryKey] = telemetryValue;
+}
+
+// Result object with device attributes/telemetry data
+var result = {
+    deviceName: payloadArray[0],
+    deviceType: payloadArray[1],
+    telemetry: telemetryPayload,
+    attributes: {}
+};
+
+/** Helper functions **/
+
+function decodeToString(payload) {
+   return String.fromCharCode.apply(String, payload);
+}
+
+return result;
+```
+</TabItem>
+</Tabs>
+
+The decoder expects a comma-separated string where position 0 is the device name, position 1 is the device type, and positions 2–N are alternating telemetry key/value pairs: `deviceName,deviceType,key1,value1,key2,value2,...`
+
+**To adapt this converter to your device:**
+- Change the separator by replacing `split(',')` with your delimiter (e.g. `split(';')` or `split('|')`).
+- If the device name or type is at a different position, adjust the `payloadArray[0]` / `payloadArray[1]` index.
+- If telemetry keys are fixed rather than embedded in the payload, replace the loop with explicit assignments: `telemetryPayload['temperature'] = parseFloat(payloadArray[2]);`.
+- To report device properties instead of measurements, move fields from the `telemetry` map to the `attributes` map.
+
+</TabItem>
+<TabItem label="JSON">
+
+<Tabs>
+<TabItem label="TBEL (Recommended)">
+```js maxLines=20 collapsible
+/** Decoder **/
+
+// decode payload to JSON
+var data = decodeToJson(payload);
+
+var deviceName = data.deviceName;
+var deviceType = data.deviceType;
+var result = {
+    deviceName: deviceName,
+    deviceType: deviceType,
+    attributes: {},
+    telemetry: {
+        temperature: data.temperature,
+        humidity: data.humidity
+    }
+};
+
+/** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
+
+return result;
+```
+</TabItem>
+<TabItem label="JavaScript">
+```js maxLines=30 collapsible
+/** Decoder **/
+
+// decode payload to JSON
+var data = decodeToJson(payload);
+
+var deviceName = data.deviceName;
+var deviceType = data.deviceType;
+var result = {
+    deviceName: deviceName,
+    deviceType: deviceType,
+    attributes: {},
+    telemetry: {
+        temperature: data.temperature,
+        humidity: data.humidity
+    }
+};
+
+/** Helper functions **/
+
+function decodeToString(payload) {
+   return String.fromCharCode.apply(String, payload);
+}
+
+function decodeToJson(payload) {
+   var str = decodeToString(payload);
+   var data = JSON.parse(str);
+   return data;
+}
+
+return result;
+```
+</TabItem>
+</Tabs>
+
+The decoder parses the payload as a JSON object and maps fields directly to `deviceName`, `deviceType`, and telemetry keys.
+
+**To adapt this converter to your device:**
+- Replace `data.deviceName` / `data.deviceType` with the actual field names your device sends (e.g. `data.id`, `data.model`).
+- Add or remove telemetry fields to match your sensor output: `pressure: data.pressure, co2: data.co2`.
+- Move fields to `attributes` if they represent device properties rather than time-series data (e.g. `firmware: data.fw`).
+
+</TabItem>
+<TabItem label="Binary">
+
+<Tabs>
+<TabItem label="TBEL (Recommended)">
+```js maxLines=20 collapsible
+/** Decoder **/
+
+// decode payload to string
+var payloadStr = decodeToString(payload);
+
+var deviceName = payloadStr.substring(0, 6);
+var deviceType = payloadStr.substring(6, 13);
+
+// Result object with device/asset attributes/telemetry data
+var result = {
+   deviceName: deviceName,
+   deviceType: deviceType,
+   attributes: {},
+   telemetry: {
+       temperature: parseFloat(payloadStr.substring(13, 17)),
+       humidity: parseFloat(payloadStr.substring(17, 19))
+   }
+};
+
+/** Helper functions 'decodeToString' and 'decodeToJson' are already built-in **/
+
+return result;
+```
+</TabItem>
+<TabItem label="JavaScript">
+```js maxLines=30 collapsible
+/** Decoder **/
+
+// decode payload to string
+var payloadStr = decodeToString(payload);
+
+var deviceName = payloadStr.substring(0, 6);
+var deviceType = payloadStr.substring(6, 13);
+
+// Result object with device/asset attributes/telemetry data
+var result = {
+   deviceName: deviceName,
+   deviceType: deviceType,
+   attributes: {},
+   telemetry: {
+       temperature: parseFloat(payloadStr.substring(13, 17)),
+       humidity: parseFloat(payloadStr.substring(17, 19))
+   }
+};
+
+/** Helper functions **/
+
+function decodeToString(payload) {
+   return String.fromCharCode.apply(String, payload);
+}
+
+function decodeToJson(payload) {
+   var str = decodeToString(payload);
+   var data = JSON.parse(str);
+   return data;
+}
+
+return result;
+```
+</TabItem>
+</Tabs>
+
+The decoder converts the raw bytes to a string and reads device identity and sensor values from fixed byte offsets. This approach is typical for compact, bandwidth-constrained binary protocols.
+
+**To adapt this converter to your device:**
+- Adjust the `substring(start, end)` offsets to match your device's byte layout.
+- For integer fields stored as raw bytes (not ASCII digits), use `parseBytesToInt(payload, offset, length, bigEndian)` instead of `parseFloat(payloadStr.substring(...))`. For example: `temperature: parseBytesToInt(payload, 13, 2, true) / 100.0`.
+- If the device name or type is fixed rather than embedded in the payload, replace the `substring` calls with string literals.
+- Add more telemetry fields by reading additional byte ranges and adding them to the `telemetry` map.
+
+</TabItem>
+<TabItem label="Hex">
+
+<Tabs>
+<TabItem label="TBEL (Recommended)">
+```js maxLines=20 collapsible
+/** Decoder **/
+
+// decode payload to JSON
+var data = decodeToJson(payload).reports[0].value;
+
+// Result object with device telemetry data
+var result = {
+    deviceName: hexToString(data.substring(0, 12)),
+    deviceType: hexToString(data.substring(12, 26)),
+    telemetry: {
+        temperature: parseFloat(hexToString(data.substring(26, 34))),
+        humidity: parseFloat(hexToString(data.substring(34, 38)))
+    }
+};
+
+/** Helper functions **/
+
+// Hexadecimal string to string
+function hexToString(hex) {
+    return bytesToString(hexToBytes(hex));
+}
+
+return result;
+```
+</TabItem>
+<TabItem label="JavaScript">
+```js maxLines=35 collapsible
+/** Decoder **/
+
+// decode payload to JSON
+var data = decodeToJson(payload).reports[0].value;
+
+// Result object with device telemetry data
+var result = {
+    deviceName: hexToString(data.substring(0, 12)),
+    deviceType: hexToString(data.substring(12, 26)),
+    telemetry: {
+        temperature: parseFloat(hexToString(data.substring(26, 34))),
+        humidity: parseFloat(hexToString(data.substring(34, 38)))
+    }
+};
+
+/** Helper functions **/
+
+function decodeToString(payload) {
+    return String.fromCharCode.apply(String, payload);
+}
+
+// Hexadecimal string to string
+function hexToString(hex) {
+    var str = '';
+    for (var i = 0; i < hex.length; i += 2) {
+        var notNullValue = parseInt(hex.substr(i, 2), 16);
+        if (notNullValue) {
+            str += String.fromCharCode(notNullValue);
+        }
+    }
+    return str;
+}
+
+function decodeToJson(payload) {
+    var str = decodeToString(payload);
+    var data = JSON.parse(str);
+    return data;
+}
+
+return result;
+```
+</TabItem>
+</Tabs>
+
+The decoder interprets the payload as a JSON envelope, extracts a hex-encoded data string from `reports[0].value`, and converts each hex substring back to its ASCII representation to read device identity and sensor values.
+
+**To adapt this converter to your device:**
+- Adjust the `substring(start, end)` offsets to match your device's hex-encoded field layout (each ASCII character encodes to 2 hex digits, so a 6-character name occupies 12 hex characters).
+- For numeric fields not represented as ASCII digits, use `parseInt(hexToString(data.substring(start, end)), 16)` to decode a raw integer.
+- If your device sends a flat hex string rather than a JSON envelope, replace `decodeToJson(payload).reports[0].value` with `decodeToString(payload)` and adjust offsets accordingly.
+
+</TabItem>
+</Tabs>
+
+<Steps>
+  <ol start="7">
+    <li>Click <strong>Test payload decoder</strong> to verify your script. Paste a sample payload matching your format, then click <strong>Test</strong> and confirm the result contains the expected <code>deviceName</code>, <code>deviceType</code>, and <code>telemetry</code> fields.</li>
+    <li>Click <strong>Add</strong> to save the converter.</li>
+  </ol>
+</Steps>
+
+### Create the UDP Integration
+
+<Aside type="note">
+  UDP Integration always runs as a <DocLink product={Products.CE} path="user-guide/integrations/remote/" target="_blank">remote integration</DocLink> — a standalone process that binds the UDP port and forwards messages to ThingsBoard over gRPC. It can run on the same machine as the ThingsBoard server or on a separate host. The wizard will generate an **Integration key** and **Integration secret** in the Connection settings step — you will need them to start the remote process.
+</Aside>
+
+<Steps>
+  <ol start="1">
+    <li>Go to <strong>Integrations center &#8702; Integrations</strong> and click <strong>+ Add integration</strong>.</li>
+    <li>
+      <span><strong>Basic settings:</strong></span>
+      <ul>
+        <li>Set <strong>integration type</strong> to <strong>UDP</strong>.</li>
+        <li>Enter a name — for example, <code>UDP integration</code>.</li>
+        <li>Leave <strong>Enable integration</strong> and <strong>Allow create devices or assets</strong> on so the device is created automatically on first data.</li>
+        <li>Click <strong>Next</strong>.</li>
+      </ul>
+    </li>
+    <li>
+      <span><strong>Uplink data converter:</strong></span>
+      <ul>
+        <li>Click <strong>Select existing</strong> and choose the <a href="#create-the-uplink-data-converter"><strong>UDP Uplink Converter</strong></a> created in the previous step, or click <strong>Create new</strong> to define the decoder inline.</li>
+        <li>Click <strong>Next</strong>.</li>
+      </ul>
+    </li>
+    <li>
+      <strong>Downlink data converter:</strong>
+      <ul>
+        <li>Click <strong>Skip</strong> for now. You can add a downlink converter later.</li>
+      </ul>
+    </li>
+    <li>
+      <span><strong>Connection settings:</strong></span>
+      <ul>
+        <li>Set the <strong>Port</strong> — default is <code>11560</code>. This port must be open on the machine running the UDP Integration process.</li>
+        <li>The <strong>Execute remotely</strong> option is always enabled for UDP. Copy the <strong>Integration key</strong> and <strong>Integration secret</strong> — you will need them to <a href="#install-and-run-remote-udp-integration"><strong>start the remote integration process</strong></a>.</li>
+        <li>Configure the <strong>Handler Configuration</strong> — select the message framing strategy that matches your device protocol. See <a href="#handler-configuration"><strong>Handler Configuration</strong></a> below.</li>
+      </ul>
+      <span>Read more about each parameter in <a href="#connection-settings"><strong>Connection Settings</strong></a>.</span>
+    </li>
+    <li>Click <strong>Add</strong> to save the integration.</li>
+  </ol>
+</Steps>
+
+#### Connection Settings
+
+<h4>Port</h4>
+
+UDP port the integration listens on for incoming datagrams. Must be unique per integration on a given host. Default: **11560**.
+
+<h4>Size of the buffer for inbound socket (in KB)</h4>
+
+Size of the receive buffer for the inbound UDP socket in kilobytes. Increase this value if datagrams are being dropped under high load. Default: **64**.
+
+<h4>Enable Broadcast</h4>
+
+When enabled, the integration socket accepts broadcast UDP packets (destination `255.255.255.255` or a subnet broadcast address). Disable for unicast-only deployments. Enabled by default.
+
+<h4>Execute Remotely</h4>
+
+Execute remotely is always enabled for UDP Integration.
+Copy the automatically generated **Integration key** and **Integration secret** values — credentials required to launch the UDP Integration as a standalone remote process. See <DocLink product={Products.CE} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink> for full setup instructions.
+
+<h5>Downlink Cache</h5>
+
+| Parameter | Description |
+|-----------|-------------|
+| **Cache Size** | Maximum number of device source addresses remembered for downlink routing. When the limit is reached, the oldest entry is evicted. |
+| **Cache time to live in minutes** | How long a device's source address is retained. If a downlink is triggered after the entry expires, it cannot be delivered until the device sends another uplink. |
+
+<h4>Advanced Settings</h4>
+
+| Field | Description |
+|-------|-------------|
+| **Description** | Optional free-text description of the integration. |
+| **Metadata** | Optional key–value pairs injected into every message and accessible in converter scripts via the `metadata` object. Click **Add** to add a row. |
+
+#### Handler Configuration
+
+Defines how the integration interprets the raw datagram bytes before passing them to the converter. Select the type that matches your device protocol:
+
+<Tabs>
+  <TabItem label="Text">
+    Interprets the datagram as a text string encoded in the specified character set. Suitable for devices that send CSV lines or human-readable payloads.
+
+    | Parameter | Description |
+    |-----------|-------------|
+    | **Charset Name** | Character encoding used to decode the datagram bytes into a string. Default: `UTF-8`. |
+
+  </TabItem>
+  <TabItem label="JSON">
+    Passes the raw datagram bytes to the converter without modification. The converter is responsible for parsing the JSON content. No additional parameters. Suitable when devices send a single JSON object per datagram.
+    
+  </TabItem>
+  <TabItem label="Binary">
+    Passes the raw datagram bytes directly to the converter without any framing or length-field parsing. Suitable for custom binary protocols where each UDP datagram is a complete, self-contained message.
+
+  </TabItem>
+  <TabItem label="Hex">
+    Interprets the datagram as a hex-encoded string. The raw bytes are converted to their hexadecimal string representation before being passed to the converter.
+
+  </TabItem>
+</Tabs>
+
+## Install and Run Remote UDP Integration
+
+Refer to the <DocLink product={Products.CE} path="user-guide/integrations/remote/" target="_blank">remote integration guide</DocLink> to install and start the UDP Integration service.
+
+Use the **Integration key** and **Integration secret** from the integration's **Connection settings** when configuring the service.
+
+## Test Uplink
+
+After the integration is created, send a test uplink and confirm that ThingsBoard received the message, decoded it correctly, and provisioned the device.
+
+<Aside type="note">
+  Before sending a test uplink, ensure that **Debug** mode with the **All messages** option is enabled for both the integration and the converter. This allows you to view received messages and conversion results on the corresponding **Events** tabs.
+</Aside>
+
+### Send Test Uplink
+
+Once the UDP Integration process is running, the UDP socket is bound and ready to receive datagrams. Use `netcat` in UDP mode (`-u`) to simulate a device sending data.
+
+<Aside type="note">
+  Unlike TCP, UDP has no connection state. Each `nc -u` invocation sends a datagram and exits. To receive a downlink response in the same terminal session, use `nc -u -w1` (1-second timeout) or keep the socket open with `nc -u -l` in a second terminal.
+</Aside>
+
+Select your payload type:
+
+<Tabs>
+<TabItem label="Text">
+
+```bash
+echo -e 'SN-003,default,temperature,25.7,humidity,69' | nc -u -w5 localhost 11560
+```
+
+</TabItem>
+<TabItem label="JSON">
+
+```bash
+echo -e -n '{"deviceName": "SN-003", "deviceType": "default", "temperature": 25.7, "humidity": 69}' | nc -u -w5 localhost 11560
+```
+
+</TabItem>
+<TabItem label="Binary">
+
+```bash
+echo -e -n '\x53\x4e\x2d\x30\x30\x33\x64\x65\x66\x61\x75\x6c\x74\x32\x35\x2e\x37\x36\x39' | nc -u -w5 localhost 11560
+```
+
+</TabItem>
+<TabItem label="Hex">
+
+```bash
+echo -e -n '534e2d30303364656661756c7432352e373639' | xxd -r -p | nc -u -w5 localhost 11560
+```
+
+</TabItem>
+</Tabs>
+
+### Verify Integration Events
+
+Go to **Integrations center &#8702; Integrations**, open **UDP integration**, and click the **Events** tab.
+Each successfully processed uplink appears as a row with status **OK**.
+
+### Verify Converter Events
+
+To inspect converter processing, go to **Integrations center &#8702; Data converters**, click **UDP Uplink Converter**, and open its **Events** tab:
+
+- **In** — what the integration received (the raw datagram bytes)
+- **Out** — what the converter returned
+- **Error** — error text, if any
+
+### Verify Device Provisioning
+
+Go to **Entities &#8702; Devices**. Device **SN-003** is auto-created on the first uplink. Open it and confirm the **Latest Telemetry** tab shows `temperature = 25.7` and `humidity = 69`.
+
+## Configure Downlink
+
+Downlink allows ThingsBoard to send messages back to devices over UDP — for example, in response to an RPC call or a shared attribute update. The response datagram is sent to the **source IP address and port** of the most recent uplink datagram received from that device.
+
+<Aside type="note">
+  Because UDP is stateless, the device must send an uplink first so the integration can learn its address. Single-shot `echo ... | nc -u ...` sends from an ephemeral port that closes immediately — use a persistent socket or a proper device client to receive downlink responses.
+</Aside>
+
+The downlink converter transforms a <DocLink product={Products.CE} path="user-guide/rule-engine" target="_blank">Rule Engine</DocLink> message into the bytes sent back to the device.
+
+### Create and Assign the Downlink Converter
+
+<Steps>
+  1. Go to **Integrations center &#8702; Integrations** and open the **UDP integration**.
+  2. Click the **pencil** icon to enter edit mode.
+  3. In the **Downlink data converter** field, click **Create new**.
+  4. In the **Add data converter** dialog:
+      - Enter a name for the converter, for example, `UDP Downlink Converter`.
+      - Use the default encoder script or replace it with your own implementation.
+      - Click **Add**.
+  5. Click **Apply changes** to save the integration.
+</Steps>
+
+**The encoder function used in this tutorial:**
+
+```js
+/** Encoder **/
+
+// Encode downlink data from the incoming Rule Engine message.
+// msg: JSON message payload.
+// msgType: message type, e.g. 'ATTRIBUTES_UPDATED', 'POST_TELEMETRY_REQUEST', etc.
+// metadata: key-value pairs containing additional message data.
+// integrationMetadata: key-value pairs configured in the integration.
+
+var result = {
+    // Specify the response body format: JSON, TEXT, or BINARY.
+    contentType: "JSON",
+
+    // Serialize the incoming message and use it as the UDP payload.
+    data: JSON.stringify(msg),
+
+    // Add optional metadata when required by the integration.
+    metadata: {}
+};
+
+return result;
+```
+
+<Aside type="note">
+  The UDP integration uses a cache to remember each device's source address for downlink routing. **Cache Size** limits how many device addresses are remembered. **Cache time to live** controls how long an address stays valid — if it expires before a downlink fires, the downlink cannot be delivered until the device sends another uplink.
+</Aside>
+
+### Configure the Root Rule Chain
+
+<ConfigureDownlinkRuleChain integrationName="UDP" />
+
+### Test Downlink
+
+<Aside type="note">
+  UDP downlink is sent to the source address of the last uplink datagram. To receive a response, keep a UDP socket open on the same port the device sends from. Use <code>nc -u -l -p &#60;port&#62;</code> in a second terminal to listen, and send the uplink from a separate terminal bound to the same source port. Downlinks are delivered immediately while the device's source address is cached — all pending messages are sent in sequence. After each downlink payload, the integration sends a second datagram containing the platform line separator (`\n` on Linux/macOS, `\r\n` on Windows) — device-side parsers should expect and strip this trailing datagram.
+</Aside>
+
+Trigger a downlink by adding a shared attribute to the device:
+
+<Steps>
+  1. Go to **Entities &#8702; Devices**, open **SN-003**, and navigate to the **Attributes** tab.
+  2. Select **Shared attributes**, click **+** to add a new attribute.
+  3. Set the key (e.g. `powerState`) and value (e.g. `on`).
+  4. Click **Add**.
+</Steps>
+
+To receive the downlink response, keep the connection open with `-w10` and send an uplink:
+
+```bash
+echo -e 'SN-003,default,temperature,25.7,humidity,69' | nc -w10 -u localhost 11560
+```
+
+The Rule Engine routes the attribute creation message to the **Integration Downlink** node, which encodes it and sends it to the device. The terminal will print:
+
+```bash
+{"powerState":"on"}
+```
+
+<Aside type="note">
+  When using the **JSON** or **Hex** handler, the downlink datagram is sent
+  correctly but may not appear in the `nc` terminal session. To confirm
+  delivery, check the downlink converter's **Events** tab — the **Out** field
+  shows the encoded payload that was dispatched to the device address.
+</Aside>
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| No device created after sending data | `deviceName` is empty or `undefined` | Check **Debug Events → Out** on the uplink converter; verify the decoder correctly extracts `deviceName` from the payload |
+| `Error in converter` | TBEL or JavaScript exception | Open **Events → Error** on the uplink converter and inspect the stack trace; use **Test payload decoder** to test against a sample payload |
+| Datagram not received by integration | UDP port blocked or wrong target host/port | Verify the integration process is running; confirm the UDP port is open in the firewall; check that `nc -u` is targeting the correct host and port |
+| Messages decoded incorrectly | Handler type mismatch | Verify the **Handler Configuration** tab matches your device's actual payload format; use a packet capture (`tcpdump -i lo udp port 11560`) to inspect raw datagrams |
+| Integration process fails to connect to ThingsBoard | Wrong host, port, key, or secret | Verify `host`, `port`, `routingKey`, and `secret` in `tb-remote-integration.yml`; ensure ThingsBoard gRPC port `9090` is reachable |
+| Port already in use | Another process or integration is using the same UDP port | Choose a different port in the integration Connection settings and update the configuration file accordingly |
+| Device does not receive downlink | Ephemeral source port changes between sends | Device must send from a fixed source port; single-shot `nc -u` uses a random ephemeral port — bind to a fixed port with `-p` or use a proper device client |
+| Data present but timestamp is wrong | Device sends `ts` in seconds | Convert before assigning: `ts: data.ts * 1000` |
+| Telemetry not saved | Converter returns `{}` or `[]` | Ensure `telemetry` contains at least one field |
+
+## See Also
+
+- <DocLink product={Products.CE} path="user-guide/integrations" target="_blank">Integrations Overview</DocLink> — how ThingsBoard connects to external platforms and how uplink/downlink flow works
+- <DocLink product={Products.CE} path="user-guide/integrations/uplink-data-converter" target="_blank">Uplink Data Converter</DocLink> — full decoder function reference: input parameters, output fields, and scripting patterns
+- <DocLink product={Products.CE} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink Data Converter</DocLink> — full encoder function reference for sending commands to devices
+- <DocLink product={Products.CE} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink> — run the integration as a standalone process outside the ThingsBoard server
+- <DocLink product={Products.CE} path="user-guide/tbel" target="_blank">TBEL scripting reference</DocLink> — built-in functions and operators for writing converter scripts
+- <DocLink product={Products.CE} path="user-guide/rule-engine" target="_blank">Rule Engine</DocLink> — how uplink messages are processed after the converter

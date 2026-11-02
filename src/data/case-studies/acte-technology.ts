@@ -141,7 +141,7 @@ export const data: CaseStudyData = {
 			},
 			{
 				title: 'Role-Based Access Control (RBAC)',
-				text: 'To maintain high security, we utilized ThingsBoard Professional Edition, which allows us to customize role-based access to define what different team members can see and do. This ensures that while managers have full oversight, external contractors or junior staff only access the specific dashboards they need. It protects sensitive data center configurations from accidental or unauthorized changes.',
+				text: 'To maintain high security, we utilized ThingsBoard, which allows us to customize role-based access to define what different team members can see and do. This ensures that while managers have full oversight, external contractors or junior staff only access the specific dashboards they need. It protects sensitive data center configurations from accidental or unauthorized changes.',
 				images: [
 					{
 						src: 'https://img.thingsboard.io/case-studies/hierarchy-widget.webp',

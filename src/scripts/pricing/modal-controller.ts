@@ -1,30 +1,16 @@
-// Shared open/close controller for the pricing calculator modals.
-// Encapsulates the choreography the modals share:
-//   • portal the fixed overlay to <body> so it escapes Starlight's
-//     `.main-pane { isolation: isolate }` and paints above the site header;
-//   • lock page scroll (scrollbar-width compensated) while open;
-//   • defer hide + unlock by `fadeMs` to match the CSS fade-out, cancelling that
-//     timer if the modal is reopened within the window.
-// Calculator-specific work runs through the onOpen / onClose / onEscape hooks.
+// Open/close for the pricing calculator dialogs: `bindModalDialog` plus the close button and the hooks.
 
-import { lockScroll, unlockScroll } from '@util/scroll-lock';
+import { bindModalDialog } from '@util/modal-dialog';
 
-// Defined by the inline script in CalculatorModal.astro (toggles the fade class).
-declare function calcModalOpen(): void;
-declare function calcModalClose(): void;
+// FADE_MS must match the `.calc-modal--closing` fade in CalculatorModal.astro.
+const CLOSING_CLASS = 'calc-modal--closing';
+const FADE_MS = 300;
 
 interface ModalControllerOptions {
-	/** The `.calc-modal-overlay` element (e.g. #tb-pc-calc). Must be non-null. */
-	modal: HTMLElement;
-	/** Fade-out duration in ms; hide + unlock are deferred by this. Default 300. */
-	fadeMs?: number;
-	/** Per-calculator work after the modal is shown (e.g. recalc, init sliders). */
+	modal: HTMLDialogElement;
 	onOpen?: () => void;
-	/** Per-calculator work when closing (e.g. hide a nested sub-modal). */
+	/** Runs once the dialog has closed, after its fade. */
 	onClose?: () => void;
-	/** Handle Escape for a higher layer (e.g. a sub-modal) — return true if handled
-	 *  so the controller leaves the main modal open. */
-	onEscape?: () => boolean;
 }
 
 export interface ModalController {
@@ -32,52 +18,18 @@ export interface ModalController {
 	close: () => void;
 }
 
-// Re-parent a fixed overlay to <body> so it escapes Starlight's
-// `.main-pane { isolation: isolate }` and paints above the site header
-// (z-index alone can't beat the isolation). No-op once it already lives there.
-export function portalToBody(el: HTMLElement): void {
-	if (el.parentElement !== document.body) document.body.appendChild(el);
-}
+export function makeModalController({ modal, onOpen, onClose }: ModalControllerOptions): ModalController {
+	const dialog = bindModalDialog(modal, { fadeMs: FADE_MS, closingClass: CLOSING_CLASS });
+	modal.querySelector('[data-calc-close]')?.addEventListener('click', () => dialog.close());
+	if (onClose) modal.addEventListener('close', onClose);
 
-export function makeModalController(opts: ModalControllerOptions): ModalController {
-	const { modal, fadeMs = 300, onOpen, onClose, onEscape } = opts;
-	let closeTimer: ReturnType<typeof setTimeout> | null = null;
-
-	function open(): void {
-		// Cancel a pending close so a fast close→reopen isn't clobbered by the
-		// stale timer.
-		if (closeTimer) {
-			clearTimeout(closeTimer);
-			closeTimer = null;
-		}
-		portalToBody(modal);
-		modal.style.display = '';
-		lockScroll();
-		calcModalOpen();
-		onOpen?.();
-	}
-
-	function close(): void {
-		calcModalClose();
-		onClose?.();
-		if (closeTimer) clearTimeout(closeTimer);
-		// Defer hide + scroll-unlock until the fade finishes; cancelled by open().
-		closeTimer = setTimeout(() => {
-			modal.style.display = 'none';
-			unlockScroll();
-			closeTimer = null;
-		}, fadeMs);
-	}
-
-	modal.querySelector('[data-calc-close]')?.addEventListener('click', close);
-	modal.addEventListener('click', (e) => {
-		if (e.target === modal) close();
-	});
-	document.addEventListener('keydown', (e) => {
-		if (e.key !== 'Escape') return;
-		if (onEscape?.()) return; // a higher layer handled it
-		if (modal.style.display !== 'none') close();
-	});
-
-	return { open, close };
+	return {
+		open() {
+			// A second click while the chunk loads must not run onOpen twice.
+			const wasOpen = modal.open;
+			dialog.open();
+			if (!wasOpen) onOpen?.();
+		},
+		close: () => dialog.close(),
+	};
 }

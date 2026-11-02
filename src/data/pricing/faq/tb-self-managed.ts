@@ -7,13 +7,13 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 		items: [
 			{
 				id: 'pe-pay-as-you-go-self-managed-definition',
-				question: 'What is a self-managed subscription?',
-				answer: '<p>A self-managed subscription allows you to host and manage ThingsBoard on your own infrastructure, either on-premises or in the cloud. You are responsible for the installation, configuration, and ongoing management of the system, while ThingsBoard provides the software and necessary documentation to support the process.</p>',
+				question: 'What is an on-premises subscription?',
+				answer: '<p>An on-premises subscription allows you to host and manage ThingsBoard on infrastructure you control — your own data centre or your own cloud account. You are responsible for the installation, configuration, and ongoing management of the system, while ThingsBoard provides the software and necessary documentation to support the process.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-self-managed-purchase',
-				question: 'How can I buy a self-managed subscription?',
-				answer: '<p>To purchase a self-managed subscription, you can acquire a license through your <a target="_blank" href="https://license.thingsboard.io/" rel="noopener noreferrer">License Server</a> account. Each license comes with a unique activation key, which allows you to deploy and run the system by following our detailed installation guides.</p>',
+				question: 'How can I buy an on-premises subscription?',
+				answer: '<p>To purchase an on-premises subscription, you can acquire a license through your <a target="_blank" href="https://license.thingsboard.io/" rel="noopener noreferrer">License Server</a> account. Each license comes with a unique activation key, which allows you to deploy and run the system by following our detailed installation guides.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-self-managed-purchase-perpetual-license',
@@ -27,12 +27,17 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			},
 			{
 				id: 'pe-pay-as-you-go-self-managed-subscription-plans',
-				question: 'What self-managed subscription plans does ThingsBoard offer?',
-				answer: '<p>ThingsBoard offers flexible monthly subscription plans, with tiers based on the number of devices and assets. We support 5 predefined plans to cater to different needs. The beginner plan includes support for up to 10 devices. For more details, visit the ThingsBoard <a target="_blank" href="/pricing/?product=thingsboard-pe" rel="noopener noreferrer">pricing page</a>.</p>',
+				question: 'What on-premises subscription plans does ThingsBoard offer?',
+				answer: '<p>ThingsBoard offers flexible monthly subscription plans, with tiers based on the number of devices and assets. We support 4 predefined plans to cater to different needs. The Free plan includes support for up to 100 devices. For more details, visit the ThingsBoard <a target="_blank" href="/pricing/?product=thingsboard-pe" rel="noopener noreferrer">pricing page</a>.</p>',
+			},
+			{
+				id: 'pe-pay-as-you-go-try-license',
+				question: 'Can I try an on-premises license before subscribing?',
+				answer: '<p>Yes, the Free plan is the best way to explore the platform. It also includes trial licenses for Edge and Trendz products, so you can fully test the ThingsBoard ecosystem.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-self-managed-differences',
-				question: 'How do the self-managed subscription plans differ?',
+				question: 'How do the on-premises subscription plans differ?',
 				answer: '<p>Plans differ based on the number of devices, support level, and white-labeling availability.</p>',
 			},
 			{
@@ -57,18 +62,18 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			},
 			{
 				id: 'pe-pay-as-you-go-cloud-to-self-managed',
-				question: 'Can I migrate from a ThingsBoard Cloud subscription to a self-managed license?',
+				question: 'Can I migrate from a ThingsBoard Cloud subscription to an on-premises license?',
 				answer: '<p>Please, <a target="_blank" href="/contact-us/" rel="noopener noreferrer">contact us</a> in case migration assistance is needed.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-self-managed-features',
 				question: 'Are all ThingsBoard features included in every plan?',
-				answer: '<p>White labeling is offered starting from the Prototype plan and above.</p>',
+				answer: '<p>White labeling is offered starting from the Pilot plan and above.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-license-multi-location',
 				question: 'Can I use my license across multiple locations or instances?',
-				answer: '<p>A platform instance can be installed on a single server, which may be a virtual machine, a running Docker container, or a single OS process. If you need to run the platform across multiple locations or as part of a clustered deployment, you can purchase additional instances for any plan as required. <br><br></p>\n<p>By default, each license includes a predefined number of platform instances. The Maker, Prototype, and Pilot plans include one instance, the Startup plan includes two instances, and the Business plan includes three instances.</p>',
+				answer: '<p>A platform instance can be installed on a single server, which may be a virtual machine, a running Docker container, or a single OS process. If you need to run the platform across multiple locations or as part of a clustered deployment, you can purchase additional instances for any plan as required. <br><br></p>\n<p>By default, each license includes a predefined number of platform instances. The Free and Pilot plans include one instance, the Startup plan includes two instances, and the Business plan includes three instances.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-subscription-to-perpetual',
@@ -78,7 +83,7 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'pe-pay-as-you-go-license-migration',
 				question: 'Can I migrate from one server or Virtual machine to another using the same license?',
-				answer: '<p>Yes! You can migrate your license by activating or deactivating it on the License Server. To move to a new server, deactivate the current instance, install the software on the new server, and reuse your existing license key. Be sure to back up your data if you want to maintain the same environment. Note: The license system prevents running ThingsBoard Professional Edition on multiple servers at the same time unless you purchase additional instances.</p>',
+				answer: '<p>Yes! You can migrate your license by activating or deactivating it on the License Server. To move to a new server, deactivate the current instance, install the software on the new server, and reuse your existing license key. Be sure to back up your data if you want to maintain the same environment. Note: The license system prevents running ThingsBoard on multiple servers at the same time unless you purchase additional instances.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-what-is-included-in-the-white-labeled-mobile-app-add-on',
@@ -93,7 +98,7 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 		items: [
 			{
 				id: 'pe-pay-as-you-go-billing-process',
-				question: 'How does billing work for self-managed subscriptions?',
+				question: 'How does billing work for on-premises subscriptions?',
 				answer: '<p>Billing is handled via Stripe and is charged monthly based on your selected plan. You can also pay annually with card or wire transfer. Please <a target="_blank" href="/contact-us/" rel="noopener noreferrer">contact us</a> to receive a custom invoice.</p>',
 			},
 			{
@@ -160,7 +165,7 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'pe-pay-as-you-go-device-asset-limits',
 				question: 'What are the device and asset limits for each plan?',
-				answer: '<p>Maker: 10 devices<br>Prototype: 50 devices<br>Pilot: 100 devices<br>Startup: 500 devices<br>Business: 1000 devices, with the option to purchase additional devices at $0.10 per device per month</p>',
+				answer: '<p>Free: up to 100 devices<br>Pilot: 100 devices<br>Startup: 500 devices<br>Business: 1000 devices, with the option to purchase additional devices at $0.10 per device per month<br>Non-commercial: up to 1000 devices for non-commercial usage</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-production-instances',
@@ -175,7 +180,7 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'pe-pay-as-you-go-multiple-servers',
 				question: 'Can I use my license on multiple servers?',
-				answer: '<p>A platform instance can be installed on a single server, which may be a virtual machine, a running Docker container, or a single OS process. If you need to run the platform across multiple locations or as part of a clustered deployment, you can purchase additional instances for any plan as required. <br><br></p>\n<p>By default, each license includes a predefined number of platform instances. The Maker, Prototype, and Pilot plans include one instance, the Startup plan includes two instances, and the Business plan includes three instances.</p>',
+				answer: '<p>A platform instance can be installed on a single server, which may be a virtual machine, a running Docker container, or a single OS process. If you need to run the platform across multiple locations or as part of a clustered deployment, you can purchase additional instances for any plan as required. <br><br></p>\n<p>By default, each license includes a predefined number of platform instances. The Free and Pilot plans include one instance, the Startup plan includes two instances, and the Business plan includes three instances.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-api-storage-fees',
@@ -184,8 +189,8 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			},
 			{
 				id: 'pe-pay-as-you-go-internet-requirement',
-				question: 'Do I need an internet connection to use the self-managed license?',
-				answer: '<p>Yes, an internet connection is required for periodic license verification. The system checks the license once per hour, and if the connection is not restored within 24 hours, the platform may shut down. This process ensures proper license management while allowing temporary connectivity issues. For more details, please refer to the license check <a target="_blank" href="/docs/license-server/what-is-license-server/" rel="noopener noreferrer">description</a>. Offline mode is also possible as an add-on to the Perpetual license. <a target="_blank" href="/contact-us/" rel="noopener noreferrer">Contact our sales team</a> to know more.</p>',
+				question: 'Do I need an internet connection to use the on-premises license?',
+				answer: '<p>Yes, an internet connection is required for periodic license verification. The system checks the license once per hour, and if the connection is not restored within 72 hours, the management interface locks until the next successful check. The platform itself keeps running: devices keep sending data, commands still reach them, and nothing is deleted. This process ensures proper license management while allowing temporary connectivity issues. For more details, please refer to the license check <a target="_blank" href="/docs/license-server/what-is-license-server/" rel="noopener noreferrer">description</a>. Offline mode is also possible as an add-on to the Perpetual license. <a target="_blank" href="/contact-us/" rel="noopener noreferrer">Contact our sales team</a> to know more.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-offline-access',
@@ -195,12 +200,12 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'pe-pay-as-you-go-cloud-migration',
 				question: 'Can I move my deployment between cloud providers?',
-				answer: '<p>Yes, self-managed ThingsBoard is cloud-agnostic and can be migrated as needed.</p>',
+				answer: '<p>Yes, on-premises ThingsBoard is cloud-agnostic and can be migrated as needed.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-high-availability',
 				question: 'Does ThingsBoard support high-availability (HA) setups?',
-				answer: '<p>Yes, High Availability (HA) is supported and can be achieved through ThingsBoard services and database replication. Please note that each ThingsBoard replica will require a separate license.</p>',
+				answer: '<p>Yes, High Availability (HA) is supported and can be achieved through ThingsBoard services and database replication. Each ThingsBoard node counts as one production instance, so an HA cluster needs at least two production instances. You can add them to your existing license; a separate license is not required.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-backup',
@@ -209,8 +214,8 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			},
 			{
 				id: 'pe-pay-as-you-go-telemetry-storage',
-				question: 'How is telemetry data stored in self-managed ThingsBoard?',
-				answer: '<p>ThingsBoard supports PostgreSQL or PostgreSQL + Cassandra (Hybrid mode) for telemetry storage. For more details on database options, you can check the <a target="_blank" href="/docs/reference/architecture/database/" rel="noopener noreferrer">database approach reference</a>.</p>',
+				question: 'How is telemetry data stored in on-premises ThingsBoard?',
+				answer: '<p>ThingsBoard supports PostgreSQL or PostgreSQL + Cassandra (Hybrid mode) for telemetry storage. For more details on database options, you can check the <a target="_blank" href="/docs/pe/reference/architecture/database/" rel="noopener noreferrer">database approach reference</a>.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-multi-tenancy',
@@ -231,7 +236,7 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'pe-pay-as-you-go-security',
 				question: 'Is my ThingsBoard instance secure?',
-				answer: '<p>Security depends on your infrastructure setup, but ThingsBoard provides built-in authentication, role-based access control, and encryption.</p>',
+				answer: '<p>ThingsBoard has ISO 27001 and ISO 9001 certifications. Also, security depends on your infrastructure setup, but ThingsBoard provides built-in authentication, role-based access control, and encryption.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-data-storage',
@@ -251,7 +256,8 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'pe-pay-as-you-go-pentest',
 				question: 'Do you provide pentest results?',
-				answer: '<p>No, we do not do it for many reasons. Firstly, as a platform vendor, we cannot disclose detected vulnerabilities of certain versions of the platform as the disclosure affects the safety of our existing customers who use that particular version. Secondly, the self-declared pentest is less trustworthy as it is in the vendor\'s interest to come up with clean results and you never know whether to believe them or not. Lastly, the penetration test makes more sense to be conducted over a ready-to-use end client software/application to define weak spots (if any). It is the Licensee\'s responsibility to order independent testing. Having said that, the ThingsBoard platform gives one a tool to develop solutions. You may consider the platform a building that a banker rents to establish an office, vault, etc. Now you can see that testing a building itself does not make much sense. But things change when it hosts a bank (or whatever tenant).</p>',
+				answer:
+					'<p>The platform is penetration-tested every year by an independent third party, rather than by us — a vendor-run test is only as trustworthy as the vendor\'s interest in a clean result.</p><p>We do not publish the findings. Disclosing vulnerabilities tied to specific versions puts every customer still running those versions at risk, so fixes ship through the release channel instead of a public report.</p><p>That test covers the platform. Your own solution still needs its own: the platform is the building, and what an auditor cares about is the bank you put inside it. Commissioning an independent test of your finished application remains the licensee\'s responsibility.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-vulnerability-fixes',
@@ -262,13 +268,8 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 	},
 	{
 		id: 'trialsCancellationsAndRefunds',
-		label: 'Trials, Cancellations & Refunds',
+		label: 'Cancellations & Refunds',
 		items: [
-			{
-				id: 'pe-pay-as-you-go-try-license',
-				question: 'Can I try a self-managed license before subscribing?',
-				answer: '<p>Yes, the Maker plan ($10/month) is a low-cost way to explore the platform. It also includes trial license for Edge and Trendz products, so you can fully test the ThingsBoard ecosystem.</p>',
-			},
 			{
 				// Not 'pe-pay-as-you-go-cancel-subscription': that id belongs to the
 				// "Billing & Payments" item above, and item ids are DOM ids.
@@ -283,7 +284,7 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			},
 			{
 				id: 'pe-pay-as-you-go-refunds',
-				question: 'Are refunds available for self-managed subscriptions?',
+				question: 'Are refunds available for on-premises subscriptions?',
 				answer: '<p>No, all sales are final.</p>',
 			},
 		],
@@ -295,12 +296,12 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'pe-pay-as-you-go-support-included',
 				question: 'What support is included in my subscription?',
-				answer: '<ul><li><b>Maker and Prototype:</b> Community support.</li><li><b>Startup:</b> Support with 36-hour response time during regular working shifts via Support Portal. <em>Please note: Support for the Startup plan becomes available from the second month of usage.</em></li><li><b>Business:</b> Support with 12-hour response time during regular working shifts via Support Portal.</li></ul>',
+				answer: '<ul><li><b>Free:</b> Community support.</li><li><b>Pilot:</b> Help desk with 36-hour response time during regular working shifts via Support Portal.</li><li><b>Startup:</b> Priority help desk with 36-hour response time during regular working shifts via Support Portal. <em>Please note: support on the Startup plan becomes available from the second month of usage.</em></li><li><b>Business:</b> Priority help desk with a 12-hour response time during regular working shifts via Support Portal.</li></ul>',
 			},
 			{
 				id: 'pe-pay-as-you-go-24-7-support',
 				question: 'Do you offer 24/7 support?',
-				answer: '<p>Yes, we can provide 24/7 support as part of our managed services with an additional signed SLA. Please <a target="_blank" href="/contact-us/" rel="noopener noreferrer">contact us</a> for more details.</p>',
+				answer: '<p>Yes, we can provide 24/7 support as part of our managed services under a separate support agreement. Please <a target="_blank" href="/contact-us/" rel="noopener noreferrer">contact us</a> for more details.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-installation-help',
@@ -331,22 +332,22 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'edge-addon-payg-what-is',
 				question: 'What is Edge Computing add-on?',
-				answer: '<p>The Edge Computing add-on enables local data processing at remote sites through ThingsBoard Edge PE instances. Edge runs independently with offline capability and automatically syncs with your central ThingsBoard PE Server when connectivity returns.</p>\n<p>It is available for all ThingsBoard PE deployments: Cloud, Private Cloud, and self-managed.</p>',
+				answer: '<p>The Edge Computing add-on enables local data processing at remote sites through ThingsBoard Edge PE instances. Edge runs independently with offline capability and automatically syncs with your central ThingsBoard Server when connectivity returns.</p>\n<p>It is available for all ThingsBoard deployments: Cloud, Private Cloud, and on-premises.</p>',
 			},
 			{
 				id: 'edge-addon-payg-pricing-plans',
 				question: 'What pricing plans does Edge Computing add-on offer?',
-				answer: '<p>Edge Computing add-on pricing depends on your ThingsBoard model. Check the relevant pricing in the <a href="#" data-open-calc="payg">Plan Calculator</a>.</p>',
+				answer: '<p>Edge Computing add-on pricing depends on your ThingsBoard model. Check the relevant pricing in the <a href="#" data-open-calc="payg" aria-haspopup="dialog">Plan Calculator</a>.</p>',
 			},
 			{
 				id: 'edge-addon-payg-compatibility',
-				question: 'Does Edge work with both ThingsBoard PE and CE?',
-				answer: '<p>Edge edition must match your ThingsBoard Server edition:</p>\n<ul>\n<li><b>Edge PE</b> connects to ThingsBoard PE Server.</li>\n<li><b>Edge CE</b> connects to ThingsBoard CE Server.</li>\n</ul>\n<p>Note: Community Editions are free and open-source.</p>',
+				question: 'Which ThingsBoard deployments does Edge work with?',
+				answer: '<p>Edge connects to your ThingsBoard Server on any deployment model — Cloud, Private Cloud, or on-premises. Running Edge instances requires the Edge Computing add-on.</p>',
 			},
 			{
 				id: 'edge-addon-payg-standalone',
 				question: 'Can I use Edge without ThingsBoard?',
-				answer: '<p>No, Edge PE requires a ThingsBoard PE Server (Cloud, Private Cloud, or self-managed) to provision devices, sync configurations, and exchange data. However, it processes data locally and can operate offline when the connection drops.</p>',
+				answer: '<p>No, Edge PE requires a ThingsBoard Server (Cloud, Private Cloud, or on-premises) to provision devices, sync configurations, and exchange data. However, it processes data locally and can operate offline when the connection drops.</p>',
 			},
 			{
 				id: 'edge-addon-payg-free-trial',
@@ -366,7 +367,7 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'edge-addon-payg-inclusions',
 				question: "What's included in the Edge Computing add-on price?",
-				answer: '<p>The Edge add-on includes: software license, software updates (duration varies by license type), and support level based on your ThingsBoard PE plan. Hardware and infrastructure are not included — you provide your own edge hardware.</p>',
+				answer: '<p>The Edge add-on includes: software license, software updates (duration varies by license type), and support level based on your ThingsBoard plan. Hardware and infrastructure are not included — you provide your own edge hardware.</p>',
 			},
 			{
 				id: 'edge-addon-payg-activate-cancel',
@@ -409,14 +410,9 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 				answer: '<p>Your Edge instance will stop functioning when the license expires. You\'ll need to renew your Edge license to continue using the instance.</p>\n<p>For <b>perpetual licenses</b>, only updates and support expire — the Edge instance continues running.</p>',
 			},
 			{
-				id: 'edge-addon-payg-upgrade-ce-pe',
-				question: 'Can I upgrade from Edge CE to Edge PE?',
-				answer: '<p>Yes, but you\'ll need to upgrade your entire system: upgrade your ThingsBoard Server from CE to PE, purchase the Edge Computing add-on, and reinstall Edge using PE packages. Please <a target="_blank" href="/contact-us/" rel="noopener noreferrer">contact us</a> for migration assistance.</p>',
-			},
-			{
 				id: 'edge-addon-payg-separate-license',
 				question: 'Do I need a separate license to use Edge Computing add-on?',
-				answer: '<p>No. Once you have an active ThingsBoard PE license (Cloud, Private Cloud, or self-managed), you can purchase and activate the Edge Computing add-on directly. The add-on itself serves as the license for your Edge instances. No additional licensing is required.</p>',
+				answer: '<p>No. Once you have an active ThingsBoard license (Cloud, Private Cloud, or on-premises), you can purchase and activate the Edge Computing add-on directly. The add-on itself serves as the license for your Edge instances. No additional licensing is required.</p>',
 			},
 		],
 	},
@@ -427,12 +423,12 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'trendz-payg-what-is',
 				question: 'What is Trendz?',
-				answer: '<p>Trendz is an add-on for advanced IoT Data Analytics. It allows you to analyze, detect anomalies, and predict outcomes — all in one unified analytics workspace that works seamlessly with ThingsBoard. You can check pricing in the <a href="#" data-open-calc="payg">Plan Calculator</a>.</p>',
+				answer: '<p>Trendz is an add-on for advanced IoT Data Analytics. It allows you to analyze, detect anomalies, and predict outcomes — all in one unified analytics workspace that works seamlessly with ThingsBoard. You can check pricing in the <a href="#" data-open-calc="payg" aria-haspopup="dialog">Plan Calculator</a>.</p>',
 			},
 			{
 				id: 'trendz-payg-pricing-plans',
 				question: 'What pricing plans does Trendz offer?',
-				answer: '<p>Trendz pricing depends on your ThingsBoard model. You can check the relevant pricing in the <a href="#" data-open-calc="payg">Plan Calculator</a> on this page.</p>',
+				answer: '<p>Trendz pricing depends on your ThingsBoard model. You can check the relevant pricing in the <a href="#" data-open-calc="payg" aria-haspopup="dialog">Plan Calculator</a> on this page.</p>',
 			},
 			{
 				id: 'trendz-payg-activate-cancel',
@@ -443,11 +439,6 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 				id: 'trendz-payg-additional-fees',
 				question: 'Is there an additional payment for the software use besides the license fee?',
 				answer: '<p>No, we do not charge extra unless you want an additional service that we offer, such as:</p>\n<ul>\n<li>Professional support</li>\n<li>Custom development and consulting</li>\n<li>Training</li>\n<li>Managed services</li>\n</ul>',
-			},
-			{
-				id: 'trendz-payg-pe-vs-ce',
-				question: 'Does Trendz work with both ThingsBoard PE and CE?',
-				answer: '<p>No, Trendz can be integrated with ThingsBoard Professional Edition (PE), but it is not available in ThingsBoard Community Edition (CE).</p>',
 			},
 			{
 				id: 'trendz-payg-license-types',
@@ -467,12 +458,12 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'trendz-payg-free-trial',
 				question: 'Do you offer a free trial for Trendz?',
-				answer: '<p>ThingsBoard Maker includes Trendz for free. If you need a free trial for other subscriptions, <a target="_blank" href="/contact-us/" rel="noopener noreferrer">Contact us</a> for details.</p>',
+				answer: '<p>If you need a free trial for Trendz, <a target="_blank" href="/contact-us/" rel="noopener noreferrer">contact us</a> for details.</p>',
 			},
 			{
 				id: 'trendz-payg-support-types',
 				question: 'What support is included in my plan?',
-				answer: '<p>The <b>Maker</b> and <b>Prototype</b> subscriptions include Community-level support. Starting from the <b>Startup</b> subscription, customers gain access to the ThingsBoard Support Portal for direct communication with the support team.</p>\n<p><i>Community support is a free initiative provided by the Trendz team and other contributors as a voluntary effort. While our engineers often assist with community requests during their free time, this support comes with no formal obligation from the Trendz team. We highly encourage users to consult the documentation for guidance.</i></p>',
+				answer: '<p>The <b>Free</b> plan includes Community-level support. Starting from the <b>Startup</b> subscription, customers gain access to the ThingsBoard Support Portal for direct communication with the support team.</p>\n<p><i>Community support is a free initiative provided by the Trendz team and other contributors as a voluntary effort. While our engineers often assist with community requests during their free time, this support comes with no formal obligation from the Trendz team. We highly encourage users to consult the documentation for guidance.</i></p>',
 			},
 			{
 				id: 'trendz-payg-server-location',

@@ -14,7 +14,7 @@ export const data: UseCaseData = {
 			'The ThingsBoard platform provides a powerful technology stack for building such systems. It supports data collection from various types of devices and protocols (MQTT, CoAP, HTTP, etc.), dashboard visualizations, and advanced automation through its rule engine and alerting system. This enables real-time energy monitoring and rapid response to anomalies, reducing costs and improving operational efficiency.',
 		],
 		demoUrl:
-			'https://demo.thingsboard.io/dashboard/e8e409c0-f2b5-11e6-a6ee-bb0136cc33d0?publicId=963ab470-34c9-11e7-a7ce-bb0136cc33d0',
+			'https://thingsboard.cloud/dashboard/d6a89f80-cc6e-11f1-8752-fd5e7804cfb4?publicId=7aa99e80-8acd-11ef-a59e-a9c993dbec14',
 		demoButtonId: 'UseCases_SmartEnergy_ViewLiveDemo',
 	},
 	overview: {
@@ -135,7 +135,7 @@ export const data: UseCaseData = {
 			},
 		],
 		demoUrl:
-			'https://demo.thingsboard.io/dashboard/e8e409c0-f2b5-11e6-a6ee-bb0136cc33d0?publicId=963ab470-34c9-11e7-a7ce-bb0136cc33d0',
+			'https://thingsboard.cloud/dashboard/d6a89f80-cc6e-11f1-8752-fd5e7804cfb4?publicId=7aa99e80-8acd-11ef-a59e-a9c993dbec14',
 		demoButtonId: 'UseCases_SmartEnergy_ViewLiveDemo',
 		contactUsId: 'UseCases_SmartEnergy_ContactUs',
 	},
@@ -149,7 +149,6 @@ export const data: UseCaseData = {
 				description:
 					'Tracking energy usage of heavy machinery, identifying inefficiencies, and improving power distribution for safer and more cost-effective production processes.',
 				desktopImage: '/src/assets/images/usecases/smart-energy/factory-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-energy/factory-2.svg',
 				imageAlt: 'Factory',
 				imageTitle: 'Industrial facilities and factories',
 			},
@@ -158,7 +157,6 @@ export const data: UseCaseData = {
 				description:
 					'Optimizing HVAC, lighting, and equipment usage across floors and departments, with real-time monitoring to reduce energy waste and operational costs.',
 				desktopImage: '/src/assets/images/usecases/smart-energy/buildings-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-energy/buildings-2.svg',
 				imageAlt: 'Buildings',
 				imageTitle: 'Commercial buildings and offices',
 			},
@@ -167,7 +165,6 @@ export const data: UseCaseData = {
 				description:
 					'Controlling power consumption in classrooms, labs, and dormitories, scheduling energy use based on occupancy, and ensuring sustainability targets are met.',
 				desktopImage: '/src/assets/images/usecases/smart-energy/education-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-energy/education-2.svg',
 				imageAlt: 'School',
 				imageTitle: 'Educational institutions and campuses',
 			},
@@ -176,7 +173,6 @@ export const data: UseCaseData = {
 				description:
 					'Maintaining stable voltage, temperature, and load balancing to ensure uninterrupted operations while reducing electricity consumption and cooling costs.',
 				desktopImage: '/src/assets/images/usecases/smart-energy/data-centers-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-energy/data-centers-2.svg',
 				imageAlt: 'Data centers',
 				imageTitle: 'Data centers',
 			},
@@ -185,7 +181,6 @@ export const data: UseCaseData = {
 				description:
 					'Monitoring energy usage across multiple locations, managing peak hours, and controlling lighting and HVAC systems automatically for higher efficiency.',
 				desktopImage: '/src/assets/images/usecases/smart-energy/malls-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-energy/malls-2.svg',
 				imageAlt: 'Mall',
 				imageTitle: 'Shopping malls and retail chains',
 			},

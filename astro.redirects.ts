@@ -2,7 +2,7 @@ import type { AstroUserConfig } from 'astro';
 import { NON_DOCS_REDIRECTS } from './src/data/redirects.ts';
 import { BLOG_CATEGORIES } from './src/data/blog/categories.ts';
 import { feedbackCategories } from './src/data/clients-feedback/index.ts';
-import { UPGRADE_FAMILIES, getFamilySlug } from './src/models/upgrade-instructions.ts';
+import { getFamilySlug, UPGRADE_FAMILIES } from './src/models/upgrade-instructions.ts';
 import deviceLibraryRedirects from './scripts/device-library-redirects.json' with { type: 'json' };
 import docsRedirects from './public/redirects.json' with { type: 'json' };
 
@@ -21,7 +21,6 @@ export const devFallbackRedirects: Record<string, string> = {
 	'/docs/license/search/': '/docs/license-server/search/',
 	'/docs/pe/edge/search/': '/docs/edge/pe/search/',
 	'/docs/pe/mobile/search/': '/docs/mobile/pe/search/',
-	'/docs/pe/mqtt-broker/search/': '/docs/mqtt-broker/pe/search/',
 };
 const INDUSTRY_SLUGS = feedbackCategories.map((c) => c.key);
 for (const slug of INDUSTRY_SLUGS) {

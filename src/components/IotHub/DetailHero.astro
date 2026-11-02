@@ -1,6 +1,9 @@
 ---
 import {
+	DEFAULT_TILE_COLOR,
+	IOT_HUB_API_URL,
 	IOT_HUB_CATEGORIES,
+	IOT_HUB_STRINGS,
 	formatInstalls,
 	getCardVariant,
 	getPlaceholderIcon,
@@ -10,9 +13,12 @@ import {
 } from '@models/iot-hub';
 import InstallButton from './InstallButton.astro';
 import Breadcrumbs from '@components/Breadcrumbs.astro';
+import { ORIGIN_CRUMB_ID } from './iot-hub-list-origin';
 import IotHubIcon from './IotHubIcon.astro';
 import DetailGallery from './DetailGallery.astro';
 import IotHubMarkdown from '@components/IotHub/IotHubMarkdown.astro';
+import PhotoSwipeStyles from '@components/PhotoSwipeStyles.astro';
+import { PSWP_PLACEHOLDER_HEIGHT, PSWP_PLACEHOLDER_WIDTH } from '@util/lightbox-images';
 
 interface Props {
 	detail: ListingDetail;
@@ -29,18 +35,46 @@ const categoryLabel =
 	categorySlug;
 const isCompact = getCardVariant(detail.itemType) === 'small';
 
-// SOLUTION_TEMPLATE listings ship multiple screenshots — render the gallery
-// in the preview slot instead of a single image (DEVICE / WIDGET fall back
-// to `detail.image`).
-const showGallery =
-	!isCompact &&
-	detail.itemType === 'SOLUTION_TEMPLATE' &&
-	detail.screenshots.length > 0;
-const heroImg = !isCompact && !showGallery ? resolveImage(detail.image) : null;
+// Any listing may ship screenshots — render the gallery in the preview slot
+// instead of the single `detail.image`. Compact types are excluded because
+// their slot holds a colored icon tile, not an image; a big-card listing with
+// no screenshots still falls back to the still `detail.image` below.
+// The preview leads the gallery: it is the image the listing is recognised by
+// on cards and in search, so dropping it in favour of the screenshots alone
+// would hide the picture users arrived from. `detail.image` is a resource path
+// (`/api/resources/<id>?v=…`) while screenshots are bare ids, so match on the
+// id to avoid showing the same resource twice when a creator uses one of the
+// screenshots as the preview.
+const previewImg = isCompact ? null : resolveImage(detail.image);
+const previewResourceId = detail.image?.match(/\/api\/resources\/([^/?#]+)/)?.[1] ?? null;
+const galleryImages = isCompact
+	? []
+	: [
+			...(previewImg ? [{ src: previewImg, alt: `${detail.name} preview` }] : []),
+			// The index comes from the full list, so a creator who reused screenshot 2 as
+			// the preview still has the rest announced by the position they uploaded in.
+			...detail.screenshots.flatMap((s, i) =>
+				s.id === previewResourceId
+					? []
+					: [
+							{
+								src: `${IOT_HUB_API_URL}/api/resources/${s.id}`,
+								alt: `${detail.name} screenshot ${i + 1}`,
+							},
+						]
+			),
+		];
+// One image is not a carousel: it renders as the still preview below, which is
+// what a listing without screenshots has always looked like. Reading the still
+// image off the same list rather than off `detail.image` keeps the two in step
+// — a listing with no image and one screenshot shows that screenshot instead of
+// falling through to the colored placeholder.
+const showGallery = galleryImages.length > 1;
+const heroImg = showGallery ? null : (galleryImages[0]?.src ?? null);
 // Compact variants render a colored icon tile next to the title (same as
 // the compact ListingCard renderer, but at 80x80 to match the design).
 // IotHubIcon handles the `mdi:`-prefix branching internally.
-const tileColor = detail.color ?? '#4caf50';
+const tileColor = detail.color ?? DEFAULT_TILE_COLOR;
 const placeholderIcon = isCompact ? getPlaceholderIcon(detail) : null;
 
 // Sub-title meta row — name for the listing's item type (not the subtype;
@@ -111,7 +145,18 @@ const licenseLabel = 'MIT license';
 // Supported ThingsBoard version envelope (aggregated across variants in
 // MpListingDetail.findDetailById) — empty when min is unknown.
 const tbVersionLabel = getTbVersionLabel(detail.minTbVersion, detail.maxTbVersion);
+
+// Built-in content already ships inside ThingsBoard. The hero drops its
+// install count (the counter tracks nothing actionable) and marks the item on
+// the supported-version chip instead — `v4.2+ | Built-in`. The CTA stays, but
+// reads "Open": the item is already there, the dialog just points at it.
+const isBuiltIn = detail.builtIn;
+const tbVersionMetaLabel = [tbVersionLabel, isBuiltIn ? IOT_HUB_STRINGS.builtIn.label : null]
+	.filter(Boolean)
+	.join(' | ');
 ---
+
+<PhotoSwipeStyles />
 
 <header class="iot-hub-detail-hero">
 	<Breadcrumbs
@@ -119,7 +164,11 @@ const tbVersionLabel = getTbVersionLabel(detail.minTbVersion, detail.maxTbVersio
 		jsonLd
 		items={[
 			{ label: 'IoT Hub', href: '/iot-hub/' },
-			{ label: categoryLabel, href: `/iot-hub/${categorySlug}/` },
+			{
+				label: categoryLabel,
+				href: `/iot-hub/${categorySlug}/`,
+				dataId: ORIGIN_CRUMB_ID,
+			},
 			{ label: detail.name },
 		]}
 	/>
@@ -152,15 +201,19 @@ const tbVersionLabel = getTbVersionLabel(detail.minTbVersion, detail.maxTbVersio
 								/>
 								<span>{subTypeLabel}</span>
 							</li>
-							<li class="iot-hub-detail-hero__meta-dot" aria-hidden="true" />
-							<li class="iot-hub-detail-hero__meta-item">
-								<IotHubIcon
-									icon="download"
-									size={20}
-									class="iot-hub-detail-hero__meta-icon"
-								/>
-								<span>{formatInstalls(detail.installCount)}</span>
-							</li>
+							{!isBuiltIn && (
+								<>
+									<li class="iot-hub-detail-hero__meta-dot" aria-hidden="true" />
+									<li class="iot-hub-detail-hero__meta-item">
+										<IotHubIcon
+											icon="download"
+											size={20}
+											class="iot-hub-detail-hero__meta-icon"
+										/>
+										<span>{formatInstalls(detail.installCount)}</span>
+									</li>
+								</>
+							)}
 							{versionLabel && (
 								<>
 									<li class="iot-hub-detail-hero__meta-dot" aria-hidden="true" />
@@ -196,7 +249,7 @@ const tbVersionLabel = getTbVersionLabel(detail.minTbVersion, detail.maxTbVersio
 								/>
 								<span>{licenseLabel}</span>
 							</li>
-							{tbVersionLabel && (
+							{tbVersionMetaLabel && (
 								<>
 									<li class="iot-hub-detail-hero__meta-dot" aria-hidden="true" />
 									<li class="iot-hub-detail-hero__meta-item">
@@ -205,7 +258,7 @@ const tbVersionLabel = getTbVersionLabel(detail.minTbVersion, detail.maxTbVersio
 											size={20}
 											class="iot-hub-detail-hero__meta-icon"
 										/>
-										<span>{tbVersionLabel}</span>
+										<span>{tbVersionMetaLabel}</span>
 									</li>
 								</>
 							)}
@@ -216,7 +269,7 @@ const tbVersionLabel = getTbVersionLabel(detail.minTbVersion, detail.maxTbVersio
 							)}
 							{detail.peOnly && (
 								<li class="iot-hub-detail-hero__meta-badge iot-hub-detail-hero__meta-badge--pe">
-									PE
+									{IOT_HUB_STRINGS.peOnly.label}
 								</li>
 							)}
 						</ul>
@@ -233,6 +286,7 @@ const tbVersionLabel = getTbVersionLabel(detail.minTbVersion, detail.maxTbVersio
 					itemType={detail.itemType}
 					name={detail.name}
 					affiliateId={detail.creatorAffiliateId}
+					builtIn={isBuiltIn}
 				/>
 			</div>
 		) : (
@@ -248,15 +302,19 @@ const tbVersionLabel = getTbVersionLabel(detail.minTbVersion, detail.maxTbVersio
 							/>
 							<span>{subTypeLabel}</span>
 						</li>
-						<li class="iot-hub-detail-hero__meta-dot" aria-hidden="true" />
-						<li class="iot-hub-detail-hero__meta-item">
-							<IotHubIcon
-								icon="download"
-								size={20}
-								class="iot-hub-detail-hero__meta-icon"
-							/>
-							<span>{formatInstalls(detail.installCount)}</span>
-						</li>
+						{!isBuiltIn && (
+							<>
+								<li class="iot-hub-detail-hero__meta-dot" aria-hidden="true" />
+								<li class="iot-hub-detail-hero__meta-item">
+									<IotHubIcon
+										icon="download"
+										size={20}
+										class="iot-hub-detail-hero__meta-icon"
+									/>
+									<span>{formatInstalls(detail.installCount)}</span>
+								</li>
+							</>
+						)}
 						{versionLabel && (
 							<>
 								<li class="iot-hub-detail-hero__meta-dot" aria-hidden="true" />
@@ -292,7 +350,7 @@ const tbVersionLabel = getTbVersionLabel(detail.minTbVersion, detail.maxTbVersio
 							/>
 							<span>{licenseLabel}</span>
 						</li>
-						{tbVersionLabel && (
+						{tbVersionMetaLabel && (
 							<>
 								<li class="iot-hub-detail-hero__meta-dot" aria-hidden="true" />
 								<li class="iot-hub-detail-hero__meta-item">
@@ -301,7 +359,7 @@ const tbVersionLabel = getTbVersionLabel(detail.minTbVersion, detail.maxTbVersio
 										size={20}
 										class="iot-hub-detail-hero__meta-icon"
 									/>
-									<span>{tbVersionLabel}</span>
+									<span>{tbVersionMetaLabel}</span>
 								</li>
 							</>
 						)}
@@ -312,7 +370,7 @@ const tbVersionLabel = getTbVersionLabel(detail.minTbVersion, detail.maxTbVersio
 						)}
 						{detail.peOnly && (
 							<li class="iot-hub-detail-hero__meta-badge iot-hub-detail-hero__meta-badge--pe">
-								PE
+								{IOT_HUB_STRINGS.peOnly.label}
 							</li>
 						)}
 					</ul>
@@ -322,15 +380,27 @@ const tbVersionLabel = getTbVersionLabel(detail.minTbVersion, detail.maxTbVersio
 						class:list={[
 							'iot-hub-detail-hero__preview',
 							showGallery && 'iot-hub-detail-hero__preview--gallery',
+							// Lightbox host for the still-image branch only — DetailGallery
+							// carries its own `.image-gallery` root, and nesting the two
+							// would make PhotoSwipe register the slides twice.
+							heroImg && 'image-gallery',
 						]}
 					>
 						{showGallery ? (
-							<DetailGallery
-								screenshots={detail.screenshots}
-								listingName={detail.name}
-							/>
+							<DetailGallery images={galleryImages} listingName={detail.name} />
 						) : heroImg ? (
-							<img src={heroImg} alt={detail.name} loading="eager" decoding="async" />
+							/* `data-pswp-cdn` marks the declared size as a placeholder —
+							   see PSWP_PLACEHOLDER_WIDTH. */
+							<a
+								class="gallery-thumb"
+								href={heroImg}
+								data-pswp-width={PSWP_PLACEHOLDER_WIDTH}
+								data-pswp-height={PSWP_PLACEHOLDER_HEIGHT}
+								data-pswp-cdn="true"
+								aria-label={`View full size: ${detail.name}`}
+							>
+								<img src={heroImg} alt={detail.name} loading="eager" decoding="async" />
+							</a>
 						) : (
 							<div
 								class="iot-hub-detail-hero__preview-fallback"
@@ -351,6 +421,7 @@ const tbVersionLabel = getTbVersionLabel(detail.minTbVersion, detail.maxTbVersio
 							itemType={detail.itemType}
 							name={detail.name}
 							affiliateId={detail.creatorAffiliateId}
+							builtIn={isBuiltIn}
 						/>
 					</div>
 				</div>
@@ -359,8 +430,18 @@ const tbVersionLabel = getTbVersionLabel(detail.minTbVersion, detail.maxTbVersio
 	}
 </header>
 
+<script>
+	// Retarget the category crumb at the list the visitor actually came from,
+	// sort and filters intact. A no-op on a cold load — see
+	// iot-hub-list-origin.ts. The BreadcrumbList JSON-LD above is left alone
+	// on purpose: crawlers should keep reading the canonical hierarchy.
+	import { applyListOrigin } from './iot-hub-list-origin';
+	applyListOrigin();
+</script>
+
 <style lang="scss">
 	@use '../../styles/_variables.scss' as *;
+	@use '../../styles/_print-mixins.scss' as *;
 
 	.iot-hub-detail-hero {
 		display: flex;
@@ -432,11 +513,11 @@ const tbVersionLabel = getTbVersionLabel(detail.minTbVersion, detail.maxTbVersio
 		background: var(--sl-color-gray-5);
 	}
 
-	// Edition badges at the end of the meta row — shown when the listing's
-	// variants collapse to a single edition (ceOnly / peOnly). No icon, no
-	// preceding dot separator; they read as visual chips. Brand colours are
-	// fixed (theme-independent) so the badge reads consistently in both light
-	// and dark mode; white text gives ~7:1 contrast on either.
+	// Edition badges at the end of the meta row — shown for ceOnly / peOnly
+	// listings. No icon, no preceding dot separator; they read as visual
+	// chips. Brand colours are fixed (theme-independent) so the badge reads
+	// consistently in both light and dark mode; white text gives ~7:1
+	// contrast on either.
 	.iot-hub-detail-hero__meta-badge {
 		display: inline-flex;
 		align-items: center;
@@ -446,6 +527,7 @@ const tbVersionLabel = getTbVersionLabel(detail.minTbVersion, detail.maxTbVersio
 		font-weight: $font-weight-semibold;
 		line-height: 16px;
 		letter-spacing: 0.4px;
+		white-space: nowrap;
 		color: #fff;
 
 		&--ce {
@@ -489,6 +571,23 @@ const tbVersionLabel = getTbVersionLabel(detail.minTbVersion, detail.maxTbVersio
 			max-height: 257px;
 			object-fit: contain;
 			display: block;
+		}
+
+		// Lightbox trigger wrapping the still image — shrink-wraps the <img>
+		// (the sizing rule above still applies, it matches any descendant) so
+		// the anchor's focus ring hugs the picture rather than the column.
+		.gallery-thumb {
+			display: block;
+			max-width: 100%;
+			line-height: 0;
+			cursor: zoom-in;
+			border-radius: 4px;
+			-webkit-user-drag: none;
+
+			&:focus-visible {
+				outline: 2px solid var(--color-primary);
+				outline-offset: 4px;
+			}
 		}
 
 		// Gallery variant — DetailGallery brings its own framed thumbnails,
@@ -552,5 +651,16 @@ const tbVersionLabel = getTbVersionLabel(detail.minTbVersion, detail.maxTbVersio
 	// this class is just a hook for any future per-page overrides.
 	.iot-hub-detail-hero__icon-glyph {
 		line-height: 1;
+	}
+
+	@media print {
+		.iot-hub-detail-hero__icon,
+		.iot-hub-detail-hero__meta-badge {
+			@include print-exact;
+		}
+
+		.iot-hub-detail-hero__preview:has(> .iot-hub-detail-hero__preview-fallback) {
+			display: none;
+		}
 	}
 </style>

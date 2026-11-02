@@ -73,8 +73,8 @@ If both API key and JWT are provided, the JWT token takes priority.
 
 ThingsBoard provides language-specific client libraries that simplify REST API usage:
 
-- <DocLink product={props.product} path='reference/java-rest-client'>Java REST Client</DocLink> — manage entities from Java applications
-- <DocLink product={props.product} path='reference/python-rest-client'>Python REST Client</DocLink> — manage entities from Python scripts
+- <DocLink product={props.product} path='reference/java-client'>Java REST Client</DocLink> — manage entities from Java applications
+- <DocLink product={props.product} path='reference/python-client'>Python REST Client</DocLink> — manage entities from Python scripts
 
 ## Finding entity IDs
 
@@ -309,7 +309,7 @@ curl -X POST -H 'Content-Type: application/json' \
   '$TB_URL/api/rpc/oneway/{deviceId}'
 ```
 
-Returns HTTP 200 with empty body on success.
+Returns HTTP 200 with an empty body once ThingsBoard has sent the command to the device. If the command can't be sent (usually because the device has no active session), the request waits for the timeout and then returns HTTP 504.
 
 ### Two-way RPC
 
@@ -322,7 +322,7 @@ curl -X POST -H 'Content-Type: application/json' \
   '$TB_URL/api/rpc/twoway/{deviceId}'
 ```
 
-Returns the device response as JSON. If the device does not respond within the timeout, returns HTTP 504.
+Returns the device response as JSON. If no response arrives within the timeout, returns HTTP 504 — see [RPC response codes](#rpc-response-codes) below.
 
 **Request body:**
 
@@ -330,10 +330,30 @@ Returns the device response as JSON. If the device does not respond within the t
 |-------|:--------:|-------------|
 | `method` | Yes | RPC method name — the device must handle this method |
 | `params` | Yes | Parameters passed to the device (any JSON) |
-| `timeout` | No | Timeout in ms (default: 10000) |
+| `timeout` | No | Timeout in ms (default: 10000, minimum: 5000) |
+| `expirationTime` | No | Epoch time in ms (UTC). Overrides `timeout` if present |
 | `persistent` | No | `true` to store the RPC and deliver when the device connects |
 | `retries` | No | Number of retries for persistent RPC |
 | `additionalInfo` | No | Arbitrary metadata stored with persistent RPC |
+
+### RPC response codes
+
+| Code | One-way | Two-way |
+|------|---------|---------|
+| `200` | Command sent to the device (lightweight), or saved to the database (persistent — body contains `rpcId`) | Device response (lightweight), or saved to the database (persistent — body contains `rpcId`) |
+| `400` | Invalid request body | Invalid request body |
+| `401` | Missing or expired authentication token | Missing or expired authentication token |
+| `403` | User has no permission to send RPC to this device | User has no permission to send RPC to this device |
+| `404` | Device not found | Device not found |
+| `406` | — | Device replied with a payload that is not valid JSON |
+| `413` | Request payload is too large | Request payload is too large |
+| `504` | The command was not sent to the device (usually no active session) | The command was not sent to the device (usually no active session), **or** it was sent but no reply arrived in time |
+
+A `504` response has no body, so it does not tell you which of the two cases occurred. To narrow it down:
+
+- Compare the device's `lastConnectTime` and `lastDisconnectTime` (**Device details → Attributes → Server attributes**, or **Latest telemetry** if device state is stored as telemetry). If `lastDisconnectTime` is later, the device's last session is closed. The `active` attribute is only a hint: it turns `false` once the device's inactivity timeout expires, so `false` almost certainly means there is no session, but `true` does not rule it out.
+- Send the command as persistent RPC (`"persistent": true`) and check its status with `GET /api/rpc/persistent/{rpcId}`. `QUEUED` means the command has not been sent yet. `SENT` means ThingsBoard sent it, but the device has not acknowledged it. `DELIVERED` means the device acknowledged it; for two-way RPC, it has not replied yet.
+- For devices behind a gateway, also check that the gateway is connected and that the device is attached to it.
 
 ### Persistent RPC
 
@@ -478,38 +498,38 @@ The table below lists all REST API controller groups available in Swagger UI. Ea
 | <SwaggerLink product={props.product} controller="edge-controller" /> | Manage edge instances, assign entities to edges |
 | <SwaggerLink product={props.product} controller="edge-event-controller" /> | Query edge sync events |
 
-### Integrations & Converters (PE)
+### Integrations & Converters
 
-| Controller | Description | PE only |
-|------------|-------------|:-------:|
-| <SwaggerLink product={props.product} controller="integration-controller" /> | Manage platform integrations | Yes |
-| <SwaggerLink product={props.product} controller="converter-controller" /> | Manage uplink/downlink converters | Yes |
-| <SwaggerLink product={props.product} controller="converter-library-controller" /> | Browse converter library by vendor/model | Yes |
+| Controller | Description |
+|------------|-------------|
+| <SwaggerLink product={props.product} controller="integration-controller" /> | Manage platform integrations |
+| <SwaggerLink product={props.product} controller="converter-controller" /> | Manage uplink/downlink converters |
+| <SwaggerLink product={props.product} controller="converter-library-controller" /> | Browse converter library by vendor/model |
 
-### Groups & Permissions (PE)
+### Groups & Permissions
 
-| Controller | Description | PE only |
-|------------|-------------|:-------:|
-| <SwaggerLink product={props.product} controller="entity-group-controller" /> | Create and manage entity groups, share with users | Yes |
-| <SwaggerLink product={props.product} controller="group-permission-controller" /> | Manage group-level permissions | Yes |
-| <SwaggerLink product={props.product} controller="role-controller" /> | Manage roles (generic, group) | Yes |
+| Controller | Description |
+|------------|-------------|
+| <SwaggerLink product={props.product} controller="entity-group-controller" /> | Create and manage entity groups, share with users |
+| <SwaggerLink product={props.product} controller="group-permission-controller" /> | Manage group-level permissions |
+| <SwaggerLink product={props.product} controller="role-controller" /> | Manage roles (generic, group) |
 
-### Scheduling & Reporting (PE)
+### Scheduling & Reporting
 
-| Controller | Description | PE only |
-|------------|-------------|:-------:|
-| <SwaggerLink product={props.product} controller="scheduler-event-controller" /> | Create and manage scheduled events | Yes |
-| <SwaggerLink product={props.product} controller="report-controller" /> | Generate and download dashboard reports | Yes |
-| <SwaggerLink product={props.product} controller="report-template-controller" /> | Manage report templates | Yes |
-| <SwaggerLink product={props.product} controller="dashboard-report-controller" /> | Download dashboard reports (legacy) | Yes |
+| Controller | Description |
+|------------|-------------|
+| <SwaggerLink product={props.product} controller="scheduler-event-controller" /> | Create and manage scheduled events |
+| <SwaggerLink product={props.product} controller="report-controller" /> | Generate and download dashboard reports |
+| <SwaggerLink product={props.product} controller="report-template-controller" /> | Manage report templates |
+| <SwaggerLink product={props.product} controller="dashboard-report-controller" /> | Download dashboard reports (legacy) |
 
-### White Labeling & Custom UI (PE)
+### White Labeling & Custom UI
 
-| Controller | Description | PE only |
-|------------|-------------|:-------:|
-| <SwaggerLink product={props.product} controller="white-labeling-controller" /> | Customize branding (logo, colors, login page) | Yes |
-| <SwaggerLink product={props.product} controller="custom-menu-controller" /> | Manage custom menu items | Yes |
-| <SwaggerLink product={props.product} controller="custom-translation-controller" /> | Manage custom UI translations | Yes |
+| Controller | Description |
+|------------|-------------|
+| <SwaggerLink product={props.product} controller="white-labeling-controller" /> | Customize branding (logo, colors, login page) |
+| <SwaggerLink product={props.product} controller="custom-menu-controller" /> | Manage custom menu items |
+| <SwaggerLink product={props.product} controller="custom-translation-controller" /> | Manage custom UI translations |
 
 ### Calculated Fields
 
@@ -525,12 +545,12 @@ The table below lists all REST API controller groups available in Swagger UI. Ea
 | <SwaggerLink product={props.product} controller="mobile-app-bundle-controller" /> | Manage mobile app bundles |
 | <SwaggerLink product={props.product} controller="qr-code-settings-controller" /> | Manage QR code and mobile app settings |
 
-### AI (PE)
+### AI
 
-| Controller | Description | PE only |
-|------------|-------------|:-------:|
-| <SwaggerLink product={props.product} controller="ai-model-controller" /> | Manage AI model configurations | Yes |
-| <SwaggerLink product={props.product} controller="ai-chat-controller" /> | AI chat sessions | Yes |
+| Controller | Description |
+|------------|-------------|
+| <SwaggerLink product={props.product} controller="ai-model-controller" /> | Manage AI model configurations |
+| <SwaggerLink product={props.product} controller="ai-chat-controller" /> | AI chat sessions |
 
 ### Other
 

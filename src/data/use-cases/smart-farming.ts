@@ -14,13 +14,19 @@ export const data: UseCaseData = {
 			'By leveraging ThingsBoard, agribusinesses gain full control over assets and infrastructure — from temperature and humidity sensors to automated aeration systems. With real-time dashboards, rule-based alerts, and remote control features, the platform helps reduce waste, improve crop quality, and lower operational costs.',
 		],
 		demoUrl:
-			'https://demo.thingsboard.io/dashboard/1f9828d0-058e-11e7-87f7-bb0136cc33d0?publicId=963ab470-34c9-11e7-a7ce-bb0136cc33d0',
+			'https://thingsboard.cloud/dashboard/c77eed60-cc6a-11f1-adf1-29dbfc808686?publicId=7aa99e80-8acd-11ef-a59e-a9c993dbec14',
 		demoButtonId: 'UseCases_SmartFarming_ViewLiveDemo',
 	},
 	overview: {
 		type: 'comparison',
 		baseImage: '/src/assets/images/usecases/smart-farming/smart-farming-2.webp',
+		baseImageAlt: 'ThingsBoard dashboard in dark theme showing silo monitoring data',
+		baseImageTitle:
+			'Smart farming dashboard in dark mode: a map of three silos, their crop level, temperature, and moisture, and active alarms',
 		overlayImage: '/src/assets/images/usecases/smart-farming/smart-farming-1.webp',
+		overlayImageAlt: 'ThingsBoard dashboard in light theme showing silo monitoring data',
+		overlayImageTitle:
+			'Smart farming dashboard in light mode: the same map of three silos, their crop level, temperature, and moisture, and active alarms',
 	},
 	solutionStructure: {
 		title: 'Solution structure of smart farming',
@@ -82,7 +88,7 @@ export const data: UseCaseData = {
 			},
 		],
 		demoUrl:
-			'https://demo.thingsboard.io/dashboard/1f9828d0-058e-11e7-87f7-bb0136cc33d0?publicId=963ab470-34c9-11e7-a7ce-bb0136cc33d0',
+			'https://thingsboard.cloud/dashboard/c77eed60-cc6a-11f1-adf1-29dbfc808686?publicId=7aa99e80-8acd-11ef-a59e-a9c993dbec14',
 		demoButtonId: 'UseCases_SmartFarming_ViewLiveDemo',
 		contactUsId: 'UseCases_SmartFarming_ContactUs',
 	},
@@ -96,7 +102,6 @@ export const data: UseCaseData = {
 				description:
 					'Monitor temperature, humidity, and gas levels in storage facilities to prevent spoilage and automate ventilation.',
 				desktopImage: '/src/assets/images/usecases/smart-farming/grain-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-farming/grain-2.svg',
 				imageAlt: 'Grain silo',
 				imageTitle: 'Grain & oilseed storage',
 			},
@@ -105,7 +110,6 @@ export const data: UseCaseData = {
 				description:
 					'Track microclimate data across vineyards and orchards to optimize irrigation, frost protection, and harvest timing.',
 				desktopImage: '/src/assets/images/usecases/smart-farming/orchards-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-farming/orchards-2.svg',
 				imageAlt: 'Vineyard',
 				imageTitle: 'Viticulture & orchards',
 			},
@@ -114,7 +118,6 @@ export const data: UseCaseData = {
 				description:
 					'Automated climate control in greenhouses using real-time sensor data to regulate temperature, humidity, CO\u2082, and lighting for year-round optimal growing conditions.',
 				desktopImage: '/src/assets/images/usecases/environment-monitoring/agriculture-1.svg',
-				mobileImage: '/src/assets/images/usecases/environment-monitoring/agriculture-2.svg',
 				imageAlt: 'Greenhouse',
 				imageTitle: 'Greenhouse farming',
 			},
@@ -123,7 +126,6 @@ export const data: UseCaseData = {
 				description:
 					'Monitor agricultural products during transport and storage for temperature compliance and farm-to-market traceability.',
 				desktopImage: '/src/assets/images/usecases/smart-farming/logistics-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-farming/logistics-2.svg',
 				imageAlt: 'Logistics truck',
 				imageTitle: 'Agri-logistics & cold chain',
 			},
@@ -132,7 +134,6 @@ export const data: UseCaseData = {
 				description:
 					'Monitoring animal health, barn climate conditions, and feed levels in real time. Automated alerts for abnormal behavior or environmental changes help prevent losses and improve animal welfare.',
 				desktopImage: '/src/assets/images/usecases/smart-farming/sheep-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-farming/sheep-2.svg',
 				imageAlt: 'Livestock',
 				imageTitle: 'Livestock farming',
 			},

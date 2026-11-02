@@ -29,6 +29,7 @@ function onTriggerClick(e: MouseEvent): void {
 				slug: trigger.dataset.slug ?? '',
 				itemType: trigger.dataset.itemType ?? '',
 				affiliateId: trigger.dataset.affiliateId || null,
+				builtIn: trigger.dataset.builtIn === 'true',
 			})
 		)
 		.catch((err: unknown) => {

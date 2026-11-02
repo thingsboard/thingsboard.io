@@ -3,21 +3,18 @@ import { getCollection } from 'astro:content';
 import fs from 'node:fs';
 import path from 'node:path';
 import { allPages } from '@root/content';
-import {
-	formatBlogDate,
-	getSectionLabel,
-	isAllowlistedMarketingPath,
-	truncate,
-} from '@util/ogContext';
+import { formatBlogDate, getSectionLabel, isAllowlistedMarketingPath, truncate } from '@util/ogContext';
 import { getLanguageFromSlug } from '@util/path-utils';
 import type { CardProps } from '@root/pages/open-graph/_shared/Card';
 import { getDocsProductMeta } from '@root/pages/open-graph/_shared/product-meta';
 import { getMarketingOverride, getMarketingSection } from '@root/pages/open-graph/_shared/marketing-meta';
 import { BLOG_AUTHORS } from '@data/blog/authors';
+import { getAuthorsWithPosts } from '@data/blog/posts';
 import { CATEGORY_LABELS } from '@data/blog/categories';
 import { HARDWARE_PARTNERS } from '@data/partners/hardware-partners';
-import { jobs } from '@data/careers/jobs';
-import { IOT_HUB_CATEGORIES } from '@models/iot-hub';
+import { SITE_PAGES, pageAt } from '@data/trust-center/pages';
+import { tc } from '@data/trust-center/nav';
+import { IOT_HUB_CATEGORIES, IOT_HUB_STRINGS } from '@models/iot-hub';
 
 export interface CardInput {
 	/** URL-shaped slug used as the path parameter in the endpoint */
@@ -92,8 +89,8 @@ export async function getBlogCardInputs(): Promise<CardInput[]> {
 		},
 	});
 
-	// /blog/author/{author-slug}/
-	for (const author of BLOG_AUTHORS) {
+	// /blog/author/{author-slug}/ — only authors that still have posts get a route
+	for (const author of await getAuthorsWithPosts()) {
 		inputs.push({
 			slug: `author/${author.slug}`,
 			props: {
@@ -149,7 +146,13 @@ export async function getIotHubCardInputs(): Promise<CardInput[]> {
 	inputs.push(
 		{
 			slug: 'search',
-			props: { variant: 'logo' as const, sectionName: SECTION, title: 'Search results' },
+			// Same string the page's own crumb and <h1> use, so the social card
+			// can't drift back to calling the catalogue a search.
+			props: {
+				variant: 'logo' as const,
+				sectionName: SECTION,
+				title: IOT_HUB_STRINGS.searchPage.catalogueName,
+			},
 		},
 		{
 			slug: 'creator',
@@ -194,7 +197,7 @@ export async function getUseCaseCardInputs(): Promise<CardInput[]> {
 export async function getMarketingCardInputs(): Promise<CardInput[]> {
 	const root = path.resolve('src/pages');
 	const candidates: Array<{ slug: string; pathname: string }> = [];
-	walkAstroPages(root, '', candidates);
+	walkMarketingPages(root, '', candidates);
 	return candidates
 		.filter(({ pathname }) => isAllowlistedMarketingPath(pathname))
 		.map(({ slug, pathname }) => {
@@ -207,7 +210,7 @@ export async function getMarketingCardInputs(): Promise<CardInput[]> {
 					variant: 'logo' as const,
 					sectionName: section.sectionName ?? undefined,
 					sectionTight: section.tight,
-					eyebrow: override?.eyebrow ?? (isHome ? 'Open-source IoT platform' : pathnameToSubtitle(pathname)),
+					eyebrow: override?.eyebrow ?? (isHome ? 'All-in-one IoT platform' : pathnameToSubtitle(pathname)),
 					title: override?.title ?? pathnameToTitle(pathname),
 				},
 			};
@@ -227,17 +230,35 @@ export async function getPartnerCardInputs(): Promise<CardInput[]> {
 	}));
 }
 
-/** careers — `/careers/{slug}/` driven by `jobs` in src/data/careers/jobs.ts. */
-export async function getCareerCardInputs(): Promise<CardInput[]> {
-	return jobs.map((job) => ({
-		slug: job.slug,
+/**
+ * Trust Center — `/trust-center/**`, from its page registry (the walker skips its dynamic routes and
+ * would title them from the URL), plus the hub and the three form pages, which aren't in it. The slug
+ * is the path under `/trust-center/`; the hub's is `index`.
+ */
+export async function getTrustCenterCardInputs(): Promise<CardInput[]> {
+	const card = (slug: string, eyebrow: string, title: string): CardInput => ({
+		slug,
 		props: {
 			variant: 'logo' as const,
-			sectionName: 'Careers',
-			eyebrow: job.location || 'Open Position',
-			title: truncate(job.position, TITLE_MAX),
+			sectionName: 'Trust Center',
+			sectionTight: true,
+			eyebrow,
+			title: truncate(title, TITLE_MAX),
 		},
-	}));
+	});
+	return [
+		card('index', 'Security, compliance and privacy', 'ThingsBoard Trust Center'),
+		card('contact', 'Trust Center', 'Contact our security team'),
+		card('report-vulnerability', 'Trust Center', 'Report a vulnerability'),
+		card('documents/request', 'Trust Center', 'Request documents'),
+		...SITE_PAGES.map((page) =>
+			card(
+				page.href.slice(tc().length, -1),
+				page.section ?? (page.parent && pageAt(page.parent)?.title) ?? 'Trust Center',
+				page.title,
+			),
+		),
+	];
 }
 
 /** Collection-landing cards that have neither a marketing .astro nor a per-collection detail. */
@@ -306,8 +327,8 @@ function enumerateDataModules<T extends { title: string }>(
 	return out;
 }
 
-/** Walk src/pages/ for .astro files, skipping dynamic [...] routes and known non-content dirs. */
-function walkAstroPages(
+/** Walk src/pages/ for .astro and .mdx files, skipping dynamic [...] routes and known non-content dirs. */
+function walkMarketingPages(
 	root: string,
 	rel: string,
 	out: Array<{ slug: string; pathname: string }>
@@ -326,11 +347,11 @@ function walkAstroPages(
 		if (entry.name.startsWith('[')) continue; // dynamic routes
 		if (entry.isDirectory()) {
 			if (SKIP_DIRS.has(entry.name)) continue;
-			walkAstroPages(root, path.join(rel, entry.name), out);
+			walkMarketingPages(root, path.join(rel, entry.name), out);
 			continue;
 		}
-		if (!entry.name.endsWith('.astro')) continue;
-		const baseName = entry.name.replace(/\.astro$/, '');
+		if (!/\.(astro|mdx)$/.test(entry.name)) continue;
+		const baseName = entry.name.replace(/\.(astro|mdx)$/, '');
 		const slug = baseName === 'index'
 			? rel.replace(/\\/g, '/')
 			: path.join(rel, baseName).replace(/\\/g, '/');
@@ -341,7 +362,7 @@ function walkAstroPages(
 
 /** Fallback: derive a marketing-page title from the URL pathname. */
 function pathnameToTitle(pathname: string): string {
-	if (pathname === '/') return 'Open-source IoT platform for device data collection';
+	if (pathname === '/') return 'Build, deploy, and scale IoT solutions';
 	const segs = pathname.split('/').filter(Boolean);
 	const last = segs[segs.length - 1] ?? '';
 	return last

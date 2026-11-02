@@ -2,19 +2,6 @@
 // Pricing Page — TypeScript Interfaces
 // ============================================
 
-/** Which top-level product tab is active */
-export type PricingProduct = 'thingsboard' | 'tbmq';
-
-/** Sub-tab within a product */
-export type TbSubTab = 'ce' | 'cloud' | 'private-cloud' | 'self-managed';
-export type TbmqSubTab = 'ce' | 'self-managed' | 'private-cloud';
-
-/** Region for Public Cloud pricing */
-export type CloudRegion = 'na' | 'eu';
-
-/** Billing model for Self-managed */
-export type BillingModel = 'payg' | 'perpetual';
-
 // ─── Plan cards ─────────────────────────────
 
 export interface PlanFeature {
@@ -63,9 +50,9 @@ export interface PlanCard {
 	gtmId?: string;
 }
 
-// ─── Community Edition ──────────────────────
+// ─── Promo hero card ────────────────────────
 
-export interface CommunityEditionData {
+export interface PromoHeroData {
 	title: string;
 	/** Optional subtitle (rendered bolder, before main description) */
 	subtitle?: string;
@@ -73,19 +60,11 @@ export interface CommunityEditionData {
 	features: string[];
 	ctaText: string;
 	ctaHref: string;
-	/** Optional onclick for the main CTA (overrides href navigation) */
-	ctaOnclick?: string;
-	/** Optional secondary button */
-	secondaryCtaText?: string;
-	/** Navigation target for the secondary button (preferred — keeps middle-click / new-tab working) */
-	secondaryCtaHref?: string;
-	/** Onclick handler for the secondary button — only use for non-navigation actions (e.g. opening a modal) */
-	secondaryCtaOnclick?: string;
 	/** Optional price display (e.g., "Starting from $4,999") */
 	priceLabel?: string;
 }
 
-// ─── Public Cloud ───────────────────────────
+// ─── Cloud ───────────────────────────
 
 export interface CloudPlansData {
 	sectionTitle: string;
@@ -137,7 +116,7 @@ export interface AddOnItem {
 	id: string;
 	name: string;
 	icon?: string;
-	priceUsd: number | string;
+	priceUsd?: number | string;
 	priceEur?: number | string;
 	setupFee?: number;
 	setupFeeCurrency?: string;
@@ -145,6 +124,7 @@ export interface AddOnItem {
 	description?: string;
 	/** Show "Starting from" prefix before price */
 	startingFrom?: boolean;
+	priceNote?: string;
 	faqId?: string;
 	faqTooltip?: string;
 }
@@ -164,45 +144,6 @@ export interface TopUpGroup {
 	items: TopUpItem[];
 }
 
-// ─── Upsell card ────────────────────────────
-
-export interface UpsellCardData {
-	heading: string;
-	ctaText: string;
-	/** Product sub-tab to switch to */
-	targetSection: string;
-}
-
-// ─── Calculator ─────────────────────────────
-
-export interface CalculatorPlan {
-	name: string;
-	price: number;
-	includedDevices?: number;
-	includedSessions?: number;
-	includedThroughput?: number;
-	includedProdInstances?: number;
-	extraProdInstancePrice?: number;
-	devQaExtraInstancePrice?: number;
-	extraDevicePrice?: number;
-	extraSessionPrice?: number;
-	extraThroughputPrice?: number;
-	edgeMonthPrice?: number;
-	edgeInstancesIncluded?: number;
-	trendzMonthPrice?: number;
-	wl?: boolean;
-	wlMonthPrice?: number;
-	wlSetupFee?: number;
-	productId?: string;
-	planId?: string;
-}
-
-export interface CalculatorData {
-	plans: CalculatorPlan[];
-	mobileApp?: number;
-	mobileAppSetup?: number;
-}
-
 // ─── FAQ ────────────────────────────────────
 
 export interface FaqItem {
@@ -210,6 +151,8 @@ export interface FaqItem {
 	question: string;
 	/** Answer as HTML string */
 	answer: string;
+	/** Render already expanded. Use on a category's first item only. */
+	defaultOpen?: boolean;
 }
 
 export interface FaqCategory {

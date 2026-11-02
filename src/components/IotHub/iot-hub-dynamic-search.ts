@@ -1,18 +1,19 @@
 import {
-	IOT_HUB_API_URL,
-	IOT_HUB_CATEGORIES,
-	IOT_HUB_STRINGS,
-	SEARCH_PAGE_SIZE,
 	DEFAULT_IOT_HUB_SORT_ID,
 	getCardVariant,
 	getCategoryForItemType,
 	getIotHubSortOption,
-	type IotHubItemType,
+	IOT_HUB_STRINGS,
 	type ListingView,
-	type PageData,
+	resolvePreviewImage,
+	SEARCH_PAGE_SIZE,
+	VERIFIED_CREATORS_KEY,
+	VERIFIED_CREATORS_VALUE,
 } from '@models/iot-hub';
 import { bindListingCard } from './iot-hub-listing-card-bind';
-import { getKnownSlugs } from './iot-hub-known-slugs';
+import type { CardShape } from './listing-card-hooks';
+import { fetchPublishedPage } from './iot-hub-published-page';
+import { recordListOrigin } from './iot-hub-list-origin';
 import { updatePagination } from '@components/Pagination/pagination-client';
 import { setPerPageValue } from '@components/Pagination/per-page-client';
 
@@ -37,6 +38,10 @@ function updateResultsCount(countEl: HTMLElement, totalResults: number): void {
 //   * `data-page-size`   — initial page size; falls back to SEARCH_PAGE_SIZE.
 //   * `data-base-path`   — root path used by `history.replaceState` when
 //                          syncing URL state; falls back to `location.pathname`.
+//   * `data-back-label`  — what this list calls itself. Recorded with the
+//                          list URL when a card is opened, so the detail
+//                          page's parent crumb can name and link back to it
+//                          (see iot-hub-list-origin.ts).
 //
 // FilterPanel integration: when the page renders a FilterPanel, this
 // pipeline listens for `iot-hub-filter:change` and adds the selected
@@ -47,6 +52,10 @@ function updateResultsCount(countEl: HTMLElement, totalResults: number): void {
 //   connectivity      → connectivity
 //   category          → categories
 //   useCase           → useCases
+//   itemType          → type  (catalogue only — the page is not pinned to
+//                       one type, so the visitor picks them; the API takes a
+//                       comma-separated list)
+//   creatorVerified   → creatorVerified  (sent only when checked)
 //   type              → widgetTypes / cfTypes / ruleChainTypes
 //                       (resolved from `data-item-type`)
 //
@@ -63,6 +72,17 @@ function updateResultsCount(countEl: HTMLElement, totalResults: number): void {
 
 const DEBOUNCE_MS = 300;
 
+const NR = IOT_HUB_STRINGS.noResults;
+
+// Panel section key → the heading the visitor saw above those checkboxes, so
+// the empty state names the filter the same way the panel does. Indexed
+// straight off the panel's own strings, so a new facet is named here the
+// moment it has a heading there.
+const SECTION_LABELS = IOT_HUB_STRINGS.filterPanel.sections as Record<string, string>;
+
+// Stands in for the heading the verified control does not have.
+const VERIFIED_CREATORS_LABEL = IOT_HUB_STRINGS.filterPanel.verifiedCreators;
+
 // FilterPanel section keys are translated to API/URL params here.
 // `type` resolves to one of three names depending on the page's itemType
 // (widgets / calculated fields / rule chains each have their own param).
@@ -72,6 +92,9 @@ const FILTER_KEY_TO_PARAM: Record<string, string> = {
 	connectivity: 'connectivity',
 	category: 'categories',
 	useCase: 'useCases',
+	// Catalogue only. `type` is the same param a pinned page sets from
+	// `data-item-type`, which is why the two can never both be in play.
+	itemType: 'type',
 };
 
 function filterParamName(filterKey: string, itemType: string): string {
@@ -101,8 +124,22 @@ const PARAM_TO_FILTER_KEY: Record<string, string> = {
 	widgetTypes: 'type',
 	cfTypes: 'type',
 	ruleChainTypes: 'type',
+	type: 'itemType',
+	[VERIFIED_CREATORS_KEY]: VERIFIED_CREATORS_KEY,
 };
 const FILTER_PARAM_NAMES = Object.keys(PARAM_TO_FILTER_KEY);
+
+// Every param `syncUrl` below can write, and so everything that counts as this
+// list's own state. Handed to recordListOrigin, which stores these and drops
+// the rest — anything else in the address belongs to how the visitor arrived,
+// not to the list. Keep in step with `syncUrl`.
+const STATE_PARAM_NAMES: readonly string[] = [
+	'q',
+	'sort',
+	'page',
+	'pageSize',
+	...FILTER_PARAM_NAMES,
+];
 
 function filtersEqual(
 	a: Record<string, string[]>,
@@ -127,6 +164,11 @@ export function setupDynamicSearch(): void {
 	if (root.dataset.dynamicSearchInited) return;
 	root.dataset.dynamicSearchInited = 'true';
 
+	// Ahead of every other guard below: a page whose templates are missing
+	// still renders its static first page of cards, and its URL may still
+	// carry sort + filters worth carrying over.
+	recordListOrigin(root, STATE_PARAM_NAMES);
+
 	const creatorId = root.dataset.creatorId ?? '';
 	const itemType = root.dataset.itemType ?? '';
 	const initialPageSize =
@@ -146,22 +188,53 @@ export function setupDynamicSearch(): void {
 	const paginationBar = root.querySelector<HTMLElement>('[data-tb-pagination-bar]');
 	const countEl = root.querySelector<HTMLElement>('[data-search-count]');
 	const noResults = root.querySelector<HTMLElement>('[data-iot-hub-no-results]');
+	const noResultsReason = root.querySelector<HTMLElement>(
+		'[data-iot-hub-no-results-reason]'
+	);
 	const fetchError = root.querySelector<HTMLElement>('[data-iot-hub-fetch-error]');
 	const retryBtn = root.querySelector<HTMLButtonElement>(
 		'[data-iot-hub-fetch-error-retry]'
 	);
 	if (!input || !resultsContainer || !itemsWrap || !countEl || !noResults) return;
 
-	const bigTmpl = document.querySelector<HTMLTemplateElement>(
-		'[data-listing-card-tmpl][data-variant="big"]'
+	// Whether this page lets the visitor choose item types. Only the catalogue
+	// panel renders that facet: a category page's type is fixed by its route,
+	// and the creator page has no panel at all. It gates `type` as a *filter*
+	// — without it a stray `?type=WIDGET` on one of those URLs would silently
+	// narrow the list with no chip or checkbox to undo it.
+	const hasItemTypeFacet = !!document.querySelector(
+		'[data-iot-hub-filter-panel] .iot-hub-filter-option__input[name="itemType"]'
+	);
+
+	// Same rule for the verified control: the creator page runs this pipeline
+	// with no panel, where `?creatorVerified=true` would empty an unverified
+	// creator's own list with nothing on screen to switch off. Gating the
+	// restore loop is enough — the URL is the only way this key reaches
+	// `filters` without a rendered checkbox.
+	const hasVerifiedFacet = !!document.querySelector(
+		`[data-iot-hub-filter-panel] .iot-hub-filter-option__input[name="${VERIFIED_CREATORS_KEY}"]`
+	);
+
+	const previewTmpl = document.querySelector<HTMLTemplateElement>(
+		'[data-listing-card-tmpl][data-variant="preview"]'
 	);
 	const compactTmpl = document.querySelector<HTMLTemplateElement>(
 		'[data-listing-card-tmpl][data-variant="compact"]'
 	);
-	const sectionTmpl = document.querySelector<HTMLTemplateElement>(
-		'[data-category-section-tmpl]'
+	const tileTmpl = document.querySelector<HTMLTemplateElement>(
+		'[data-listing-card-tmpl][data-variant="tile"]'
 	);
-	if (!bigTmpl || !compactTmpl || !sectionTmpl) return;
+	// A mixed grid (search / creator) forces one layout on every card and picks
+	// the clone by image presence, so it needs `preview` + `tile`. A grid pinned
+	// to one item type clones per item, so it needs `preview` + `compact`.
+	// Require only what this page uses: the flag above is already set, so an
+	// over-strict guard here kills dynamic search with no way to retry.
+	const mixedGrid = !itemType;
+	const alt = mixedGrid ? tileTmpl : compactTmpl;
+	if (!previewTmpl || !alt) return;
+	// Bind the narrowed values so buildCardNode needs no assertions.
+	const previewTemplate = previewTmpl;
+	const altTemplate = alt;
 
 	let searchText = '';
 	let sortId: string = DEFAULT_IOT_HUB_SORT_ID;
@@ -171,8 +244,13 @@ export function setupDynamicSearch(): void {
 	let debounceTimer: number | undefined;
 	let retryTimer: number | undefined;
 	// FilterPanel selections keyed by section key (vendor, useCase, …).
-	// Values are the raw checkbox values; labels live with the chips.
+	// Values are the raw checkbox values — what the API wants.
 	let filters: Record<string, string[]> = {};
+	// The same selection as the panel labelled it, used to name the active
+	// filters in the empty state. Best-effort: a selection restored from the
+	// URL has no labels until the panel echoes it back, so the reason falls
+	// back to the raw values.
+	let filterLabels: Record<string, string[]> = {};
 	// Last refetch options, replayed when the user clicks "Try again"
 	// after a fetch error. resetPage=false keeps the page index the user
 	// was on when the failure happened.
@@ -211,9 +289,41 @@ export function setupDynamicSearch(): void {
 		itemsWrap!.classList.toggle('is-loading', loading);
 	}
 
+	// "Type: Devices and Category: Energy" — the clauses that narrowed the list,
+	// in the order the visitor meets them (search box first, then the panel's
+	// sections). Empty when nothing is narrowing it.
+	function activeNarrowingSummary(): string {
+		const clauses: string[] = [];
+		const trimmed = searchText.trim();
+		if (trimmed) clauses.push(`${NR.reasonSearch} \u201c${trimmed}\u201d`);
+		for (const [key, values] of Object.entries(filters)) {
+			if (values.length === 0) continue;
+			if (key === 'itemType' && !hasItemTypeFacet) continue;
+			// No section heading to name it, so its own text is the clause.
+			if (key === VERIFIED_CREATORS_KEY) {
+				clauses.push(VERIFIED_CREATORS_LABEL);
+				continue;
+			}
+			const sectionLabel = SECTION_LABELS[key] ?? key;
+			const labels = filterLabels[key] ?? values;
+			clauses.push(`${sectionLabel}: ${labels.join(', ')}`);
+		}
+		if (clauses.length === 0) return '';
+		if (clauses.length === 1) return clauses[0];
+		// "a, b and c" — the last pair joined by the conjunction.
+		return `${clauses.slice(0, -1).join(', ')} ${NR.reasonAnd} ${clauses[clauses.length - 1]}`;
+	}
+
 	function showNoResults(show: boolean): void {
 		noResults!.hidden = !show;
-		if (show) resultsContainer!.replaceChildren();
+		if (!show) return;
+		resultsContainer!.replaceChildren();
+		if (noResultsReason) {
+			const summary = activeNarrowingSummary();
+			noResultsReason.textContent = summary
+				? `${NR.reasonPrefix} ${summary}`
+				: NR.subtitle;
+		}
 	}
 
 	function showFetchError(show: boolean): void {
@@ -232,6 +342,20 @@ export function setupDynamicSearch(): void {
 
 	// --- URL state sync ---------------------------------------------------
 
+	// The active selection as `[param, value]` pairs, shared by the URL sync and
+	// the API query so the two can never drift. An `itemType` selection is kept
+	// only where the facet exists; elsewhere it would collide with the `type`
+	// a pinned page already sends from `data-item-type`.
+	function activeFilterParams(): Array<[string, string]> {
+		const pairs: Array<[string, string]> = [];
+		for (const [key, values] of Object.entries(filters)) {
+			if (values.length === 0) continue;
+			if (key === 'itemType' && !hasItemTypeFacet) continue;
+			pairs.push([filterParamName(key, itemType), values.join(',')]);
+		}
+		return pairs;
+	}
+
 	function syncUrl(): void {
 		const params = new URLSearchParams();
 		const trimmed = searchText.trim();
@@ -239,10 +363,7 @@ export function setupDynamicSearch(): void {
 		if (sortId !== DEFAULT_IOT_HUB_SORT_ID) params.set('sort', sortId);
 		if (currentPage > 1) params.set('page', String(currentPage));
 		if (pageSize !== initialPageSize) params.set('pageSize', String(pageSize));
-		for (const [key, values] of Object.entries(filters)) {
-			if (values.length === 0) continue;
-			params.set(filterParamName(key, itemType), values.join(','));
-		}
+		for (const [param, value] of activeFilterParams()) params.set(param, value);
 		const query = params.toString();
 		const next = basePath + (query ? `?${query}` : '') + location.hash;
 		if (next !== location.pathname + location.search + location.hash) {
@@ -276,57 +397,23 @@ export function setupDynamicSearch(): void {
 	// --- DOM builders ------------------------------------------------------
 
 	function buildCardNode(item: ListingView, categorySlug: string): HTMLElement {
-		const variant = getCardVariant(item.itemType);
-		const tmpl = variant === 'big' ? bigTmpl! : compactTmpl!;
+		// Resolve the preview once: it decides the shape here, and the binder
+		// reuses the URL rather than deriving it again. Shape is passed rather
+		// than inferred — on a mixed grid it turns on image presence, not on
+		// item type, so the binder could not work it out from the item alone.
+		const previewUrl = resolvePreviewImage(item.image);
+		const shape: CardShape = mixedGrid
+			? previewUrl
+				? 'preview'
+				: 'tile'
+			: getCardVariant(item.itemType) === 'big'
+				? 'preview'
+				: 'compact';
+
+		const tmpl = shape === 'preview' ? previewTemplate : altTemplate;
 		const card = tmpl.content.firstElementChild!.cloneNode(true) as HTMLElement;
-		bindListingCard(card, item, categorySlug, showCreator);
+		bindListingCard(card, item, categorySlug, { shape, showCreator, previewUrl });
 		return card;
-	}
-
-	function buildSectionNode(
-		slug: string,
-		label: string,
-		items: ListingView[]
-	): HTMLElement {
-		const section = sectionTmpl!.content.firstElementChild!.cloneNode(true) as HTMLElement;
-		const headingLink = section.querySelector<HTMLAnchorElement>(
-			'[data-category-section-heading]'
-		);
-		const exploreLink = section.querySelector<HTMLAnchorElement>(
-			'[data-category-section-explore]'
-		);
-		const labelEl = section.querySelector<HTMLElement>('[data-category-section-label]');
-		const exploreLabel = section.querySelector<HTMLElement>(
-			'[data-category-section-explore-label]'
-		);
-		const grid = section.querySelector<HTMLElement>('[data-category-section-grid]');
-		const href = `/iot-hub/${slug}/`;
-		if (headingLink) headingLink.href = href;
-		if (exploreLink) exploreLink.href = href;
-		if (labelEl) labelEl.textContent = label;
-		if (exploreLabel) exploreLabel.textContent = label.toLowerCase();
-		if (grid) {
-			const variant = getCardVariant(items[0]?.itemType ?? 'WIDGET');
-			grid.classList.add(`iot-hub-grid--${variant}`);
-			for (const item of items) grid.appendChild(buildCardNode(item, slug));
-		}
-		return section;
-	}
-
-	function groupResults(
-		items: ListingView[]
-	): Array<{ slug: string; label: string; items: ListingView[] }> {
-		const byType = new Map<IotHubItemType, ListingView[]>();
-		for (const it of items) {
-			const cat = getCategoryForItemType(it.itemType);
-			if (!cat) continue;
-			const list = byType.get(cat.itemType) ?? [];
-			list.push(it);
-			byType.set(cat.itemType, list);
-		}
-		return IOT_HUB_CATEGORIES
-			.filter((c) => byType.has(c.itemType))
-			.map((c) => ({ slug: c.slug, label: c.label, items: byType.get(c.itemType)! }));
 	}
 
 	function renderResults(items: ListingView[]): void {
@@ -336,24 +423,27 @@ export function setupDynamicSearch(): void {
 		}
 		showNoResults(false);
 		resultsContainer!.replaceChildren();
-		if (itemType) {
-			// Single-category context (category page) — emit a flat grid
-			// without a section header, matching the static SSR shape.
-			const cat = getCategoryForItemType(itemType);
-			// Unknown item type has no public category — skip rather than emit
-			// cards with a `/iot-hub//slug/` href (matches groupResults).
-			if (!cat) return;
-			const categorySlug = cat.slug;
-			const variant = getCardVariant(itemType);
-			const grid = document.createElement('div');
-			grid.className = `iot-hub-grid iot-hub-grid--${variant}`;
-			for (const item of items) grid.appendChild(buildCardNode(item, categorySlug));
-			resultsContainer!.appendChild(grid);
+
+		// Pinned page: one category slug for every card. Mixed page (search /
+		// creator): resolved per item below, skipping types with no public category
+		// rather than emitting a `/iot-hub//slug/` href.
+		const cat = itemType ? getCategoryForItemType(itemType) : null;
+
+		const gridVariant = itemType ? getCardVariant(itemType) : 'big';
+		const grid = document.createElement('div');
+		grid.className = `iot-hub-grid iot-hub-grid--${gridVariant}`;
+
+		for (const item of items) {
+			const slug = cat ? cat.slug : getCategoryForItemType(item.itemType)?.slug;
+			if (!slug) continue;
+			grid.appendChild(buildCardNode(item, slug));
+		}
+
+		if (!grid.childElementCount) {
+			showNoResults(true);
 			return;
 		}
-		for (const group of groupResults(items)) {
-			resultsContainer!.appendChild(buildSectionNode(group.slug, group.label, group.items));
-		}
+		resultsContainer!.appendChild(grid);
 	}
 
 	// --- Fetch -------------------------------------------------------------
@@ -369,42 +459,19 @@ export function setupDynamicSearch(): void {
 		// loading overlay still runs on top so the user sees that the
 		// request is in flight.
 		setLoading(true);
-		const sort = getIotHubSortOption(sortId);
-		const params = new URLSearchParams({
-			pageSize: String(pageSize),
-			page: String(currentPage - 1), // backend is 0-based
-			sortProperty: sort.sortProperty,
-			sortOrder: sort.sortOrder,
-		});
 		const trimmed = searchText.trim();
-		if (trimmed) params.set('textSearch', trimmed);
-		if (creatorId) params.set('creatorId', creatorId);
-		if (itemType) params.set('type', itemType);
-		for (const [key, values] of Object.entries(filters)) {
-			if (values.length === 0) continue;
-			params.set(filterParamName(key, itemType), values.join(','));
-		}
+		const params: [string, string][] = [];
+		if (creatorId) params.push(['creatorId', creatorId]);
+		if (itemType) params.push(['type', itemType]);
+		params.push(...activeFilterParams());
 
 		try {
-			const [res, knownSlugs] = await Promise.all([
-				fetch(
-					`${IOT_HUB_API_URL}/api/listings/published?${params.toString()}`,
-					{ signal: abort.signal }
-				),
-				getKnownSlugs(),
-			]);
-			if (!res.ok) {
-				// 4xx/5xx — treat the same as a network error so the user
-				// gets a recoverable "Try again" path instead of stale data.
-				showFetchError(true);
-				return;
-			}
-			const body = (await res.json()) as PageData<ListingView>;
-			// Drop listings published after the last deploy — no static
-			// detail page exists for them yet. Trade-off: a page may show
-			// < pageSize items until the next rebuild.
-			const items = (body.data ?? []).filter((item) => knownSlugs.has(item.slug));
-			const totalPages = Math.max(1, body.totalPages || 1);
+			// A non-2xx answer throws like a network error does, so the user gets the
+			// recoverable "Try again" path below instead of stale data.
+			const { items, matchedCount, totalPages } = await fetchPublishedPage(
+				{ text: searchText, page: currentPage - 1, pageSize, sortId, params },
+				abort.signal
+			);
 			// Only a successful response is allowed to take the error
 			// panel down — every other refetch trigger leaves it alone.
 			showFetchError(false);
@@ -416,8 +483,9 @@ export function setupDynamicSearch(): void {
 				// stays visible — letting the user lower the page size again.
 				updatePagination(paginationNav, { currentPage, totalPages, hideOnSinglePage: true });
 			}
-			updateResultsCount(countEl!, body.totalElements ?? 0);
-			trackQuery(trimmed, body.totalElements ?? 0);
+			// The count the hero popup's footer promises, so "See all N results" lands on N.
+			updateResultsCount(countEl!, matchedCount);
+			trackQuery(trimmed, matchedCount);
 		} catch (err) {
 			// Aborts happen on every superseding fetch — don't treat them
 			// as failures or the error panel would flash on every keystroke.
@@ -461,11 +529,19 @@ export function setupDynamicSearch(): void {
 	}
 
 	for (const paramName of FILTER_PARAM_NAMES) {
+		// Only the catalogue can show `type` back to the visitor as a filter.
+		if (paramName === 'type' && !hasItemTypeFacet) continue;
+		if (paramName === VERIFIED_CREATORS_KEY && !hasVerifiedFacet) continue;
 		const value = urlParams.get(paramName);
 		if (!value) continue;
 		const key = PARAM_TO_FILTER_KEY[paramName];
 		if (!key) continue;
-		const values = value.split(',').filter(Boolean);
+		let values = value.split(',').filter(Boolean);
+		// One value only: the API reads a forwarded `false` as "only
+		// *un*verified", with no checkbox ticked and no chip to undo it.
+		if (paramName === VERIFIED_CREATORS_KEY) {
+			values = values.filter((v) => v === VERIFIED_CREATORS_VALUE);
+		}
 		if (values.length === 0) continue;
 		// Merge so the three `type` aliases collapse into one section if
 		// they ever appear together in a URL.
@@ -557,9 +633,16 @@ export function setupDynamicSearch(): void {
 			Array<{ value: string; label: string }>
 		>;
 		const next: Record<string, string[]> = {};
+		const nextLabels: Record<string, string[]> = {};
 		for (const [key, entries] of Object.entries(incoming)) {
-			if (entries.length > 0) next[key] = entries.map((entry) => entry.value);
+			if (entries.length === 0) continue;
+			next[key] = entries.map((entry) => entry.value);
+			nextLabels[key] = entries.map((entry) => entry.label);
 		}
+		// Labels are display-only, so they are refreshed even when the values
+		// match what the URL restore already reconstructed — that synthetic
+		// emit is exactly where the missing labels arrive.
+		filterLabels = nextLabels;
 		if (filtersEqual(filters, next)) return;
 		filters = next;
 		void refetch({ resetPage: true });

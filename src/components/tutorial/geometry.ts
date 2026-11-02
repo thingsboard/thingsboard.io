@@ -47,7 +47,7 @@ export function SectorPath({ cx = 0, cy = 0, r, startAngle, endAngle, arc = fals
 
 	const arcString = getArcString(startAngle, { cx, cy, r, isLargeArc });
 	let endString = '';
-	let startString = '';
+	let startString: string;
 
 	if (arc) {
 		startString = `M${start.x},${start.y}`;

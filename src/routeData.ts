@@ -12,19 +12,23 @@ import {
 	getPageSlugFromURL,
 	getVersionPrefix,
 	getLanguagePrefix,
+	getProductDocsTitle,
 	getProductTitleName,
 	stripLanguagePrefix,
 	type SupportedLanguage,
 } from '~/util/path-utils';
-import { getCanonicalPathname } from '~/util/canonical';
+import { getCanonicalPathname, getProfessionalTwinPathname } from '~/util/canonical';
 import { DOCS_SUFFIX, formatDocsTitle, TITLE_SEPARATOR } from '~/consts';
 import { getOgImageUrl } from '~/util/getOgImageUrl';
 import { getTutorialPages } from '~/util/getTutorialPages';
+import { hasCurrentEntry, type SidebarEntry } from '@util/sidebar';
+import { isAnnouncementExpired, type Announcement } from '@models/announcement';
+import { docsAnnouncements } from '@data/docsAnnouncements';
 // No alias covers `config/`; relative import is the only option here.
 import {
 	getRepoRoot,
-	getSitemapSourceRegistry,
 	normalizeSitemapPath,
+	setSitemapSources,
 	toRepoRelative,
 } from '../config/sitemap-source-registry';
 
@@ -54,9 +58,6 @@ const tutorialPagesByVersion: Map<Products, typeof pages> = (() => {
 	return result;
 })();
 
-/** Memoization cache for `linkMatchesVersion(href) && linkMatchesLanguage(href)`. */
-const sidebarLinkMatchCache = new Map<string, boolean>();
-
 const EDIT_BASE_URL = 'https://github.com/thingsboard/thingsboard.io/edit/main';
 const INCLUDES_IMPORT_REGEX = /^\s*import\s+\w+\s+from\s+['"]@includes\/([^'"]+)['"]/gm;
 const JSX_COMPONENT_REGEX = /^\s*<[A-Z][A-Za-z0-9]*\b/gm;
@@ -73,7 +74,50 @@ export const onRequest = defineRouteMiddleware((context) => {
 	markParentSidebarItemAsCurrent(starlightRoute, context.url.pathname);
 	filterPaginationByVersion(starlightRoute);
 	if (isTutorial) updateTutorialPagination(starlightRoute);
+	injectAnnouncement(starlightRoute, context.url.pathname);
 });
+
+/**
+ * Build-time instant, pinned once so a long build cannot straddle an
+ * `expiresAt` and emit a page-level announcement on only some pages.
+ */
+const BUILD_NOW = Date.now();
+
+function injectAnnouncement(starlightRoute: StarlightRouteData, pathname: string) {
+	// Docs-only, for the reason spelled out in `updateHead`: marketing pages
+	// render through `StarlightPage` too, and their synthetic `entry.id` has no
+	// product prefix, so they would inherit the Community Edition announcement.
+	if (!docsPathRegex.test(pathname)) return;
+
+	const data = starlightRoute.entry.data as { announcement?: Announcement };
+
+	// A page-level `announcement:` wins over the per-product entry. Per-product
+	// entries are expiry-filtered once at module load; only this path can carry
+	// a date the build has not already resolved.
+	if (data.announcement) {
+		if (isAnnouncementExpired(data.announcement, BUILD_NOW)) delete data.announcement;
+		return;
+	}
+
+	const announcement = docsAnnouncements[getVersionFromSlug(starlightRoute.id)];
+	if (!announcement) return;
+
+	// Having a supported twin is a filter, not the link target — the notice
+	// carries one shared guide link for every page. It stays because it is the
+	// test that separates genuine community pages from the twin-less pages
+	// `getVersionFromSlug` lumps into CE by default: without it the notice would
+	// claim the paid `docs/private-cloud/**` tree and one-off utility pages are
+	// community editions. Pages with a real PE counterpart — including
+	// `docs/search` and most of `docs/reference/**` — carry it, by design.
+	// Dynamic StarlightPage routes have synthetic ids this lookup cannot resolve;
+	// they opt in via page-level `announcement` frontmatter instead (see
+	// releases-table). Deep-cloned, not spread: the per-page field most likely to
+	// arrive is a `cta.href`, which is exactly the nested object a shallow copy
+	// would still share with every other announced page.
+	if (!getProfessionalTwinPathname(starlightRoute.id)) return;
+
+	data.announcement = structuredClone(announcement);
+}
 
 /**
  * A thin stub is a wrapper page whose body is exactly 1 `@includes` import + 1
@@ -130,7 +174,7 @@ function recordSitemapSources(context: APIContext, starlightRoute: StarlightRout
 	const sources = [wrapperRel];
 	const includeRel = getStubIncludeRel(filePath);
 	if (includeRel) sources.push(`src/content/_includes/${includeRel}`);
-	getSitemapSourceRegistry().set(normalizeSitemapPath(context.url.pathname), sources);
+	setSitemapSources(normalizeSitemapPath(context.url.pathname), sources);
 }
 
 /** True when the computed head has no `noindex` and any canonical points at the page itself. */
@@ -154,37 +198,79 @@ function isIndexableSelfCanonical(context: APIContext, starlightRoute: Starlight
 }
 
 /**
+ * Which entries of one sidebar level survive the filter: their indexes, each with the
+ * mask of its group's children (`null` for a leaf). `length` is the level's entry count,
+ * checked before the mask is reused.
+ */
+interface SidebarMask {
+	length: number;
+	keep: Array<[index: number, children: SidebarMask | null]>;
+}
+
+/**
+ * Masks per `version|lang`. Every page gets a fresh copy of the same full sidebar (~4,000
+ * entries, every product's), so the walk runs once per product and language.
+ */
+const sidebarMaskCache = new Map<string, SidebarMask>();
+
+/**
  * Filter sidebar entries to only show items for the current product version and language.
  */
 function filterSidebarByVersionAndLanguage(starlightRoute: StarlightRouteData) {
 	const version = getVersionFromSlug(starlightRoute.id);
 	const lang = getLanguageFromSlug(starlightRoute.id);
+	const key = `${version}|${lang}`;
 
-	starlightRoute.sidebar = starlightRoute.sidebar.filter((entry) =>
-		sidebarEntryMatchesVersionAndLanguage(entry, version, lang)
-	);
+	const cached = sidebarMaskCache.get(key);
+	const filtered = cached && applySidebarMask(starlightRoute.sidebar, cached);
+	if (filtered) {
+		starlightRoute.sidebar = filtered;
+		return;
+	}
+	const mask = buildSidebarMask(starlightRoute.sidebar, version, lang);
+	sidebarMaskCache.set(key, mask);
+	starlightRoute.sidebar = applySidebarMask(starlightRoute.sidebar, mask)!;
 }
 
-function sidebarEntryMatchesVersionAndLanguage(
-	entry: StarlightRouteData['sidebar'][number],
-	version: Products,
-	lang: SupportedLanguage
-): boolean {
-	if (entry.type === 'link') {
-		const key = `${version}|${lang}|${entry.href}`;
-		const cached = sidebarLinkMatchCache.get(key);
-		if (cached !== undefined) return cached;
-		const match = linkMatchesVersion(entry.href, version) && linkMatchesLanguage(entry.href, lang);
-		sidebarLinkMatchCache.set(key, match);
-		return match;
+function buildSidebarMask(entries: SidebarEntry[], version: Products, lang: SupportedLanguage): SidebarMask {
+	const keep: SidebarMask['keep'] = [];
+	entries.forEach((entry, index) => {
+		if (entry.type === 'link') {
+			// A cross-product link (like the platform sidebars' "ThingsBoard CLI" → /docs/cli/) names
+			// the sidebar it belongs to in `data-sidebar-owner`; match on the owner, not the target.
+			const owner = entry.attrs?.['data-sidebar-owner'];
+			const href = typeof owner === 'string' ? owner : entry.href;
+			if (linkMatchesVersion(href, version) && linkMatchesLanguage(href, lang)) keep.push([index, null]);
+		} else if (entry.type === 'group') {
+			const children = buildSidebarMask(entry.entries, version, lang);
+			if (children.keep.length > 0) keep.push([index, children]);
+		} else {
+			keep.push([index, null]);
+		}
+	});
+	return { length: entries.length, keep };
+}
+
+/**
+ * The kept entries, or `null` when the sidebar's shape no longer matches the mask. Groups
+ * are copied rather than edited, so a mismatch found deep down leaves `entries` intact for
+ * the caller to build a fresh mask from.
+ */
+function applySidebarMask(entries: SidebarEntry[], mask: SidebarMask): SidebarEntry[] | null {
+	if (entries.length !== mask.length) return null;
+	const kept: SidebarEntry[] = [];
+	for (const [index, children] of mask.keep) {
+		const entry = entries[index]!;
+		if (!children) {
+			kept.push(entry);
+			continue;
+		}
+		if (entry.type !== 'group') return null;
+		const filtered = applySidebarMask(entry.entries, children);
+		if (!filtered) return null;
+		kept.push({ ...entry, entries: filtered });
 	}
-	if (entry.type === 'group') {
-		entry.entries = entry.entries.filter((child) =>
-			sidebarEntryMatchesVersionAndLanguage(child, version, lang)
-		);
-		return entry.entries.length > 0;
-	}
-	return true;
+	return kept;
 }
 
 function linkMatchesVersion(href: string, version: Products): boolean {
@@ -207,6 +293,7 @@ function linkMatchesVersion(href: string, version: Products): boolean {
 		return path.startsWith('mobile/') && !path.startsWith('mobile/pe/');
 	if (version === Products.LICENSE) return path.startsWith('license-server/');
 	if (version === Products.IOT_HUB) return path.startsWith('iot-hub/');
+	if (version === Products.CLI) return path.startsWith('cli/');
 	// CE: everything that doesn't belong to other products
 	return (
 		!path.startsWith('pe/') &&
@@ -217,9 +304,12 @@ function linkMatchesVersion(href: string, version: Products): boolean {
 		!path.startsWith('mqtt-broker/') &&
 		!path.startsWith('mobile/') &&
 		!path.startsWith('license-server/') &&
-		!path.startsWith('iot-hub/')
+		!path.startsWith('iot-hub/') &&
+		!path.startsWith('cli/')
 	);
 }
+
+type SidebarLink = Extract<SidebarEntry, { type: 'link' }>;
 
 /**
  * When the current page is not a sidebar link (e.g. a dynamic sub-page like
@@ -227,36 +317,20 @@ function linkMatchesVersion(href: string, version: Products): boolean {
  * sidebar link as current so that collapsed groups containing it render open.
  */
 function markParentSidebarItemAsCurrent(starlightRoute: StarlightRouteData, pathname: string) {
-	// If any entry is already current, nothing to do
-	if (hasCurrent(starlightRoute.sidebar)) return;
-
-	// Find the sidebar link with the longest href that is a prefix of pathname
-	let bestEntry: { isCurrent: boolean } | null = null;
-	let bestLen = 0;
-
-	function walk(entries: StarlightRouteData['sidebar']) {
-		for (const entry of entries) {
-			if (entry.type === 'link') {
-				if (pathname.startsWith(entry.href) && entry.href.length > bestLen) {
-					bestLen = entry.href.length;
-					bestEntry = entry;
-				}
-			} else if (entry.type === 'group') {
-				walk(entry.entries);
-			}
-		}
-	}
-
-	walk(starlightRoute.sidebar);
-	if (bestEntry) (bestEntry as { isCurrent: boolean }).isCurrent = true;
+	if (hasCurrentEntry(starlightRoute.sidebar)) return;
+	const parent = findLongestPrefixLink(starlightRoute.sidebar, pathname);
+	if (parent) parent.isCurrent = true;
 }
 
-function hasCurrent(entries: StarlightRouteData['sidebar']): boolean {
+function findLongestPrefixLink(entries: SidebarEntry[], pathname: string): SidebarLink | undefined {
+	let best: SidebarLink | undefined;
 	for (const entry of entries) {
-		if (entry.type === 'link' && entry.isCurrent) return true;
-		if (entry.type === 'group' && hasCurrent(entry.entries)) return true;
+		const candidate = entry.type === 'group' ? findLongestPrefixLink(entry.entries, pathname) : entry;
+		if (candidate && pathname.startsWith(candidate.href) && candidate.href.length > (best?.href.length ?? 0)) {
+			best = candidate;
+		}
 	}
-	return false;
+	return best;
 }
 
 /**
@@ -285,6 +359,14 @@ const docsPathRegex = /^\/(uk\/)?docs(\/|$)/;
 const escapedSep = TITLE_SEPARATOR.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
 const docsSuffixMatcher = new RegExp(` ${escapedSep} ${DOCS_SUFFIX}$`);
 const apiPathMatcher = /^reference\/([^/]+)\//;
+
+/** A real content page (not a synthetic StarlightPage entry) with no professional twin. */
+function isTwinlessContentPage(entry: StarlightRouteData['entry']): boolean {
+	if (getProfessionalTwinPathname(entry.id)) return false;
+	const filePath = (entry as { filePath?: string }).filePath;
+	const rel = filePath ? toRepoRelative(filePath) : null;
+	return !!rel && existsSync(join(getRepoRoot(), rel));
+}
 
 function updateHead(context: APIContext, isTutorial: boolean) {
 	const starlightRoute = context.locals.starlightRoute;
@@ -335,12 +417,17 @@ function updateHead(context: APIContext, isTutorial: boolean) {
 
 		// Per-page `customDocsTitle` frontmatter overrides the auto-formatted
 		// docs title entirely. Used by product index pages that want a
-		// non-default <title> (e.g. "Docs | ThingsBoard Professional Edition").
+		// non-default <title> (e.g. "Docs | ThingsBoard Edge Professional Edition").
 		const customDocsTitle = (entry.data as { customDocsTitle?: string }).customDocsTitle;
 		if (customDocsTitle) {
 			title.content = customDocsTitle;
 		} else {
 			const productTitleName = getProductTitleName(product);
+			// Root pages with no PE twin (Private Cloud, utility pages) are CE only by
+			// URL default, so they take the unlabelled brand rather than "CE Docs".
+			const productDocsTitle = getProductDocsTitle(
+				product === Products.CE && isTwinlessContentPage(entry) ? Products.PE : product
+			);
 			const versionBase = `/${getLanguagePrefix(lang)}docs/${getVersionPrefix(product)}`;
 			const isIndex = pathname === versionBase;
 			let pageTitle = title.content.replace(docsSuffixMatcher, '');
@@ -354,7 +441,7 @@ function updateHead(context: APIContext, isTutorial: boolean) {
 				if (apiName) pageTitle = `${pageTitle} - ${apiName}`;
 			}
 
-			title.content = formatDocsTitle(pageTitle, productTitleName, isIndex);
+			title.content = formatDocsTitle(pageTitle, productTitleName, isIndex, productDocsTitle);
 		}
 		if (ogTitle) ogTitle.attrs!['content'] = title.content;
 	}
@@ -363,13 +450,7 @@ function updateHead(context: APIContext, isTutorial: boolean) {
 	// when none is present, else BaseLayout pages get a duplicate `og:image`.
 	if (!ogImage) {
 		const ogImageUrl = getOgImageUrl(pathname);
-		let imageSrc = ogImageUrl ?? '/thingsboard-og.png';
-		// Astro dev with `trailingSlash: 'always'` requires dynamic-route URLs to end with '/'
-		// even when they have a file extension. Production (Cloudflare Pages serving static files)
-		// needs the clean .png URL with no trailing slash.
-		if (import.meta.env.DEV && /\.png$/.test(imageSrc) && imageSrc !== '/thingsboard-og.png') {
-			imageSrc = imageSrc + '/';
-		}
+		const imageSrc = ogImageUrl ?? '/thingsboard-og.png';
 		// Use request origin so dev shows localhost; in static build it equals context.site origin.
 		const canonicalImageSrc = new URL(imageSrc, context.url.origin).href;
 

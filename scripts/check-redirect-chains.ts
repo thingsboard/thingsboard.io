@@ -1,11 +1,17 @@
 /**
  * Detects redirect chains in src/data/redirects.ts.
  *
- * A "chain" is a SINGLE_REDIRECTS or NON_DOCS_REDIRECTS target that itself
- * matches a downstream CATCH_ALL or DYNAMIC pattern — meaning the browser
- * would have to follow two 301s to reach the final page. Cloudflare doesn't
- * follow internal redirects, so each hop is a fresh round-trip; chains hurt
- * Core Web Vitals and dilute PageRank.
+ * A chain means the browser follows two 301s to reach the final page.
+ * Cloudflare doesn't follow internal redirects, so each hop is a fresh
+ * round-trip; chains hurt Core Web Vitals and dilute PageRank.
+ *
+ * Two shapes, checked in opposite directions:
+ *
+ *   forwards — a SINGLE_REDIRECTS or NON_DOCS_REDIRECTS target that matches a
+ *              downstream CATCH_ALL or DYNAMIC pattern.
+ *   backwards — a prefix-rename splat that rewrites onto a SINGLE_REDIRECTS
+ *              source. That URL never appears literally in the data, so only
+ *              the forwards pass would miss it.
  *
  * Exits non-zero if any chain is found.
  *
@@ -93,9 +99,35 @@ for (const [source, target] of Object.entries(NON_DOCS_REDIRECTS)) {
 	}
 }
 
+const singleByOldPath = new Map(SINGLE_REDIRECTS.map((entry) => [entry.oldPath, entry.target]));
+
+for (const group of CATCH_ALL_REDIRECTS) {
+	// Only empty-entry groups emit a splat; groups with entries enumerate static
+	// rules, and the forwards pass already covers those targets.
+	if (group.entries.length > 0 || !group.newPrefix) continue;
+	const excluded = new Set(group.excludeSlugs ?? []);
+	for (const [oldPath, target] of singleByOldPath) {
+		if (!oldPath.startsWith(`${group.newPrefix}/`)) continue;
+		const slug = oldPath.slice(group.newPrefix.length + 1);
+		if (excluded.has(slug)) continue;
+		// An explicit rule for the old path renders ahead of the splat, so the
+		// splat never fires for this slug.
+		if (singleByOldPath.has(`${group.oldPrefix}/${slug}`)) continue;
+		chains.push({
+			from: `CATCH_ALL_REDIRECTS[${group.oldPrefix}]: /docs/${group.oldPrefix}/${slug}/`,
+			target: `/docs/${oldPath}/`,
+			matchedSource: `SINGLE_REDIRECTS: ${oldPath} → ${target}`,
+			matchedOrigin: `splat rewrites onto a path that redirects again`,
+		});
+	}
+}
+
 if (chains.length === 0) {
+	const prefixRenames = CATCH_ALL_REDIRECTS.filter(
+		(group) => group.entries.length === 0 && group.newPrefix,
+	).length;
 	console.log(
-		`✓ No redirect chains found across ${SINGLE_REDIRECTS.length} SINGLE + ${Object.keys(NON_DOCS_REDIRECTS).length} NON_DOCS targets.`,
+		`✓ No redirect chains found across ${SINGLE_REDIRECTS.length} SINGLE + ${Object.keys(NON_DOCS_REDIRECTS).length} NON_DOCS targets and ${prefixRenames} prefix renames.`,
 	);
 	process.exit(0);
 }

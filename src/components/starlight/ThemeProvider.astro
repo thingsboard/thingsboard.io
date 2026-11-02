@@ -1,12 +1,12 @@
 ---
-// Proxy for Starlight's ThemeProvider — renders only the inline theme script
-// in <head>, never a <template>. The `#theme-icons` template lives in <body>
-// (see starlight/SkipLink.astro) because a warmed `astro dev` traps the page's
-// hoisted <style> blocks inside any <head> <template>, leaving the page
-// unstyled (https://github.com/withastro/astro/issues/16994).
+// Proxy for Starlight's ThemeProvider — renders only inline scripts in <head>
+// (theme, print guard), never a <template>. The `#theme-icons` template lives
+// in <body> (see starlight/SkipLink.astro) because a warmed `astro dev` traps
+// the page's hoisted <style> blocks inside any <head> <template>, leaving the
+// page unstyled (https://github.com/withastro/astro/issues/16994).
 //
 // forceLightTheme locks light before paint and skips the switcher; every other
-// route gets Starlight's stock theme script (verbatim).
+// route gets Starlight's stock theme script plus print-time theme handlers.
 const locals = Astro.locals as unknown as Record<string, unknown>;
 const forceLight = locals.bsl === true && locals.bslForceLight === true;
 ---
@@ -27,6 +27,16 @@ const forceLight = locals.bsl === true && locals.bslForceLight === true;
 					storedTheme ||
 					(window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
 				document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark';
+				window.addEventListener('beforeprint', () => {
+					if (document.documentElement.dataset.theme !== 'dark') return;
+					document.documentElement.dataset.theme = 'light';
+					document.documentElement.dataset.printRestoreTheme = 'dark';
+				});
+				window.addEventListener('afterprint', () => {
+					if (!document.documentElement.dataset.printRestoreTheme) return;
+					document.documentElement.dataset.theme = 'dark';
+					delete document.documentElement.dataset.printRestoreTheme;
+				});
 				return {
 					updatePickers(theme = storedTheme || 'auto') {
 						document.querySelectorAll('starlight-theme-select').forEach((picker) => {
@@ -48,3 +58,36 @@ const forceLight = locals.bsl === true && locals.bslForceLight === true;
 		</script>
 	)
 }
+
+<script is:inline>
+	(function () {
+		if (!document.getAnimations || typeof CSSTransition === 'undefined') return;
+		let prePrint;
+		let preScroll;
+		window.addEventListener('beforeprint', () => {
+			prePrint = new Set(document.getAnimations());
+			preScroll = [window.scrollX, window.scrollY];
+		});
+		window.addEventListener('afterprint', () => {
+			const seen = prePrint;
+			const [x, y] = preScroll || [];
+			prePrint = undefined;
+			preScroll = undefined;
+			if (!seen) return;
+			const finishRestarted = () => {
+				if (window.scrollX !== x || window.scrollY !== y) {
+					window.scrollTo({ left: x, top: y, behavior: 'instant' });
+				}
+				for (const animation of document.getAnimations()) {
+					if (seen.has(animation) || animation.playState === 'paused') continue;
+					if (!(animation instanceof CSSAnimation || animation instanceof CSSTransition)) continue;
+					if (animation.timeline !== document.timeline) continue;
+					if (animation.effect?.getComputedTiming().iterations === Infinity) continue;
+					animation.finish();
+				}
+			};
+			finishRestarted();
+			requestAnimationFrame(finishRestarted);
+		});
+	})();
+</script>

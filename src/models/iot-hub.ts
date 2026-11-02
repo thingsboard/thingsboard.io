@@ -1,4 +1,5 @@
 import { z } from 'astro/zod';
+import { SOURCE_AVAILABLE_FROM_VER } from '@data/versions';
 
 // `IOT_HUB_API_URL` resolution differs by context:
 //
@@ -159,6 +160,23 @@ export type IotHubCategorySlug = (typeof IOT_HUB_CATEGORIES)[number]['slug'];
 export type IotHubItemType = (typeof IOT_HUB_CATEGORIES)[number]['itemType'];
 export type IotHubCardVariant = 'big' | 'small';
 
+/**
+ * A listing paired with the category collection it was loaded from. The slug
+ * is authoritative for the card's href — deriving one from itemType would work
+ * today (the mapping is bijective) but adds a step that can drift.
+ */
+export interface GridEntry {
+	item: ListingView;
+	categorySlug: string;
+}
+
+/**
+ * Fallback tile colour when a listing declares none. Server render
+ * (ListingCard) and client binder must agree byte-for-byte, or a dynamically
+ * rendered tile differs from its static twin.
+ */
+export const DEFAULT_TILE_COLOR = '#4caf50';
+
 export const getCardVariant = (itemType: string): IotHubCardVariant => {
 	const cat = IOT_HUB_CATEGORIES.find((c) => c.itemType === itemType);
 	return cat?.card ?? 'big';
@@ -166,9 +184,9 @@ export const getCardVariant = (itemType: string): IotHubCardVariant => {
 
 // Single source of truth for resolving a listing's itemType to its IoT Hub
 // category. Returns undefined when the type has no public category — a type the
-// site doesn't surface (e.g. DASHBOARD). Callers building a URL fall back to
+// site doesn't surface. Callers building a URL fall back to
 // '#'; callers rendering a grid/section skip the item. Map-backed so per-item
-// hot loops (grouping search results) stay O(1).
+// hot loops (binding search result rows) stay O(1).
 const CATEGORY_BY_ITEM_TYPE = new Map(
 	IOT_HUB_CATEGORIES.map((c) => [c.itemType, c] as const)
 );
@@ -211,6 +229,20 @@ export const getPlaceholderIcon = (item: IconableListing): string => {
 	}
 };
 
+// The subject must match an <option> in ContactForm.astro; the prefill no-ops on unknown values.
+export const IOT_HUB_CONTACT_US_URL = '/contact-us/?subject=IoT%20Hub';
+
+export const IOT_HUB_CONTACT_EMAIL = 'iothub@thingsboard.io';
+
+// The "Verified creators only" control's checkbox `name`, and the API/URL
+// param it maps to 1:1. The API *matches* the value rather than treating it
+// as a switch (unlike `peOnly`/`ceOnly`), so `creatorVerified=false` means
+// "only *un*verified" — an unchecked control must omit the param entirely.
+export const VERIFIED_CREATORS_KEY = 'creatorVerified';
+
+/** The only value the control can contribute. */
+export const VERIFIED_CREATORS_VALUE = 'true';
+
 // User-facing UI strings used by IoT Hub components. Centralized so they're
 // easy to find, audit, and swap for a `t(...)` call if marketing-side i18n
 // ever lands (the site's existing i18n machinery only covers Starlight docs).
@@ -223,7 +255,15 @@ export const IOT_HUB_STRINGS = {
 		searchAriaPrefix: 'Search',
 		mostPopular: 'Most popular',
 		all: 'All',
+		// Standalone checkbox above the sections, with no heading of its own,
+		// so this text is also the chip and the empty-state reason.
+		verifiedCreators: 'Verified creators only',
 		sections: {
+			// `type` is the per-item-type *subtype* facet (widget type, rule
+			// chain type, …); `itemType` is the catalogue-wide facet that picks
+			// Devices / Widgets / … Two keys, because a page can only ever show
+			// one of them and their API params differ.
+			itemType: 'Type',
 			type: 'Type',
 			category: 'Category',
 			vendor: 'Vendor',
@@ -240,6 +280,20 @@ export const IOT_HUB_STRINGS = {
 		resultPlural: 'results',
 	},
 	emptyState: 'No items available yet.',
+	noResults: {
+		heading: 'No items found',
+		// Shown when nothing is narrowing the list — there is no filter to name.
+		subtitle: 'Try adjusting your search or filters',
+		// Shown instead when filters are active: the reason is spelled out so the
+		// visitor knows which choice emptied the list. `${prefix} ${summary}` —
+		// e.g. "No items match Type: Devices and Category: Energy".
+		reasonPrefix: 'No items match',
+		// Joins the last two clauses of the summary; the rest use ", ".
+		reasonAnd: 'and',
+		// Prefixes the summary clause for the search box, e.g. `search "foo"`.
+		reasonSearch: 'search',
+		clearLabel: 'Clear all filters',
+	},
 	faqHeading: 'Frequently Asked Questions',
 	fetchError: {
 		heading: 'Network or server unavailable',
@@ -249,10 +303,15 @@ export const IOT_HUB_STRINGS = {
 	installDialog: {
 		title: 'Install item',
 		titleConnect: 'Connect item',
+		// Built-in content is already present in every ThingsBoard instance, so
+		// the dialog opens it rather than installing a duplicate.
+		titleOpen: 'Open item',
 		// `\n` is a hard line break, rendered via `white-space: pre-line` to match
 		// the two-line layout in the design.
 		subtitle:
 			'Choose a ThingsBoard instance to install this item into.\nCopy the install link or open it directly in a new tab.',
+		subtitleOpen:
+			'Choose a ThingsBoard instance to open this item in.\nCopy the link or open it directly in a new tab.',
 		closeAriaLabel: 'Close',
 		copy: 'Copy link',
 		copied: 'Copied',
@@ -277,8 +336,13 @@ export const IOT_HUB_STRINGS = {
 	},
 	searchPage: {
 		breadcrumbRoot: 'IoT Hub',
-		breadcrumbCurrent: 'Search results',
-		headingEmpty: 'Search results',
+		// What the page calls itself with no query: it is the whole catalogue,
+		// browsable by Type / Category / Use Case without leaving, so "Search
+		// results" would announce a search nobody performed. One constant, used
+		// by the crumb, the <h1>, the <title>, the OG card, and `data-back-label`
+		// — the name a detail page's parent crumb shows when the visitor came
+		// from here. Splitting it would let one drift away from the rest.
+		catalogueName: 'All items',
 		// `headingPrefix` + the user's query in typographic quotes ("…").
 		headingPrefix: 'Search results for',
 		searchPlaceholder: 'Search in IoT Hub...',
@@ -289,6 +353,14 @@ export const IOT_HUB_STRINGS = {
 	installs: {
 		singular: 'install',
 		plural: 'installs',
+	},
+	builtIn: {
+		/** Appended to the supported-version chip in the detail hero's meta row. */
+		label: 'Built-in',
+	},
+	peOnly: {
+		/** From 4.4 CE and PE merge into one edition, so `peOnly` items run on either. */
+		label: `PE or ${SOURCE_AVAILABLE_FROM_VER}+`,
 	},
 } as const;
 
@@ -337,8 +409,8 @@ export const ITEM_SUBTYPE_LABELS: Partial<Record<IotHubItemType, Record<string, 
 // params it maps to (`sortProperty` + `sortOrder`), so consumers can spread
 // them straight into the listings request without a second lookup.
 
-export type IotHubSortId = 'most-installed' | 'newest' | 'name-asc';
-export type IotHubSortProperty = 'installCount' | 'publishedTime' | 'name';
+export type IotHubSortId = 'most-relevant' | 'most-installed' | 'newest' | 'name-asc';
+export type IotHubSortProperty = 'relevance' | 'installCount' | 'publishedTime' | 'name';
 export type IotHubSortDirection = 'ASC' | 'DESC';
 
 export interface IotHubSortOption {
@@ -349,15 +421,33 @@ export interface IotHubSortOption {
 }
 
 export const IOT_HUB_SORT_OPTIONS: ReadonlyArray<IotHubSortOption> = [
+	{ id: 'most-relevant',  label: 'Most Relevant',  sortProperty: 'relevance',     sortOrder: 'DESC' },
 	{ id: 'most-installed', label: 'Most Installed', sortProperty: 'installCount',  sortOrder: 'DESC' },
 	{ id: 'newest',         label: 'Newest',         sortProperty: 'publishedTime', sortOrder: 'DESC' },
 	{ id: 'name-asc',       label: 'Name (A-Z)',     sortProperty: 'name',          sortOrder: 'ASC'  },
 ];
 
-export const DEFAULT_IOT_HUB_SORT_ID: IotHubSortId = 'most-installed';
+// Relevance is the default in BOTH states, which is why nothing here switches on
+// whether the search field has text. With text it ranks the answer; without it the
+// backend substitutes the install count — measured identical, row for row, across
+// all 665 listings — so a visitor who never touches the control sees the order they
+// always saw while browsing, and the best matches once they type.
+//
+// The alternative was to default to 'most-installed' and have the control flip to
+// 'most-relevant' by itself while the field had text. Rejected: the flip happens
+// without anyone asking for it. The cost accepted instead is that on a query-less
+// page the label says "Most Relevant" over an install-ordered list, and switching
+// to "Most Installed" there changes nothing visible.
+export const DEFAULT_IOT_HUB_SORT_ID: IotHubSortId = 'most-relevant';
+
+// Resolved by id, not by position, so the default survives a reordering of the
+// options array — the list is written best-first for the menu, which is a
+// presentation decision and not one this fallback should depend on.
+const DEFAULT_IOT_HUB_SORT_OPTION: IotHubSortOption =
+	IOT_HUB_SORT_OPTIONS.find((o) => o.id === DEFAULT_IOT_HUB_SORT_ID) ?? IOT_HUB_SORT_OPTIONS[0];
 
 export function getIotHubSortOption(id: string | null | undefined): IotHubSortOption {
-	return IOT_HUB_SORT_OPTIONS.find((o) => o.id === id) ?? IOT_HUB_SORT_OPTIONS[0];
+	return IOT_HUB_SORT_OPTIONS.find((o) => o.id === id) ?? DEFAULT_IOT_HUB_SORT_OPTION;
 }
 
 export const getSubtypeLabel = (itemType: IotHubItemType, key: string): string =>
@@ -382,11 +472,11 @@ export interface PageData<T> {
 }
 
 export const PAGE_SIZE = 12;
-// Creator profile page paginates each category's items at 16/page.
+// Creator profile page — a flat 16 items per page.
 export const CREATOR_PAGE_SIZE = 16;
-// Search results page — same default as the creator page; kept separate so
-// the eventual dynamic page-size control on the search bar can vary it
-// without disturbing the creator route.
+// Search results page — same default as the creator page, kept separate so the
+// two routes can diverge; the per-page control in PaginationBar overrides it
+// at runtime on both.
 export const SEARCH_PAGE_SIZE = 16;
 export const HOME_PER_CATEGORY = 4;
 // "Recently added" strip: 8 = two full rows of the 4-column desktop grid.
@@ -469,6 +559,13 @@ export const listingViewSchema = z.object({
 	connectivity: z.array(z.string()).default([]),
 	tags: z.array(z.string()).default([]),
 	installCount: z.number().default(0),
+	// Server-owned and read-only: true when the content already ships inside
+	// ThingsBoard itself (a bundled widget, a SCADA symbol) rather than being
+	// something the Hub installs. A listing is built-in exactly when its member
+	// items are. `.catch` (not `.default`) so an absent *or* null field lands on
+	// false — Astro applies this schema after the loader returns, outside the
+	// try/catch in content.config.ts that would otherwise contain the throw.
+	builtIn: z.boolean().catch(false),
 	createdTime: z.number().nullable().default(null),
 	updatedTime: z.number().nullable().default(null),
 	publishedTime: z.number().nullable(),
@@ -604,6 +701,75 @@ export type IotHubCategoryData = z.infer<typeof iotHubCategorySchema>;
 export type FilterParamInfo = z.infer<typeof filterParamInfoSchema>;
 export type ItemTypeFilterInfo = z.infer<typeof itemTypeFilterInfoSchema>;
 
+/**
+ * Union of several per-item-type facet sets into the one the catalogue page
+ * shows. `listingFilterInfo` is served per item type, so the same category or
+ * use case appears once per type that uses it; merging sums the counts so the
+ * "Most popular" grouping still ranks by real catalogue-wide weight.
+ *
+ * Only the facets the catalogue renders are merged. Vendor / hardware type /
+ * connectivity are device-only and stay out — the catalogue mixes types, where
+ * they would apply to a fraction of the results.
+ */
+export const mergeFilterInfo = (infos: ItemTypeFilterInfo[]): ItemTypeFilterInfo => {
+	const mergeFacet = (pick: (i: ItemTypeFilterInfo) => FilterParamInfo[]): FilterParamInfo[] => {
+		const byKey = new Map<string, FilterParamInfo>();
+		for (const info of infos) {
+			for (const entry of pick(info)) {
+				const seen = byKey.get(entry.key);
+				if (seen) {
+					seen.totalItems += entry.totalItems;
+					seen.totalInstallCount += entry.totalInstallCount;
+				} else {
+					byKey.set(entry.key, { ...entry });
+				}
+			}
+		}
+		// Alphabetical: the panel's own "Most popular" split re-ranks by
+		// install count, and a stable order keeps the static HTML diffable.
+		return [...byKey.values()].sort((a, b) => a.key.localeCompare(b.key));
+	};
+	return {
+		types: [],
+		categories: mergeFacet((i) => i.categories),
+		useCases: mergeFacet((i) => i.useCases),
+		vendors: [],
+		hardwareTypes: [],
+		connectivities: {},
+	};
+};
+
+/** What one item type contributes to the catalogue, as counted by the caller. */
+export interface ItemTypeTotals {
+	items: number;
+	installs: number;
+}
+
+/**
+ * The catalogue's Type facet: one option per public category, keyed by the
+ * `itemType` the API's `type` param expects. Types with no items are dropped
+ * so the panel never offers a checkbox that yields nothing.
+ *
+ * Both totals are real, so the facet carries the same `FilterParamInfo` shape
+ * the API serves for every other one. Nothing reads `totalInstallCount` here —
+ * this facet is always flat, with one option per public category.
+ */
+export const buildItemTypeFacet = (
+	totalsByItemType: ReadonlyMap<string, ItemTypeTotals>
+): FilterParamInfo[] =>
+	IOT_HUB_CATEGORIES.map((cat) => {
+		const totals = totalsByItemType.get(cat.itemType);
+		return {
+			key: cat.itemType,
+			totalItems: totals?.items ?? 0,
+			totalInstallCount: totals?.installs ?? 0,
+		};
+	}).filter((entry) => entry.totalItems > 0);
+
+/** Plural display label for an item type, e.g. `WIDGET` → "Widgets". */
+export const getItemTypeLabel = (itemType: string): string =>
+	getCategoryForItemType(itemType)?.label ?? itemType;
+
 // --- Install / Connect dialog -------------------------------------------
 // URL logic ported from the upstream Angular preview-links-dialog
 // (thingsboard/iot-hub @ acb157d). The Local instance base is editable and
@@ -677,5 +843,15 @@ export const buildInstallUrl = (
 
 // `itemType` is `string` (not `IotHubItemType`) because one caller passes a raw
 // value read from a DOM data-attribute.
-export const getInstallVerb = (itemType: string, variant = 'card'): string =>
-	itemType === 'DEVICE' ? (variant === 'hero' ? 'Connect device' : 'Connect') : 'Install';
+//
+// Built-in content already exists in every ThingsBoard instance, so the CTA
+// opens it there instead of installing a second copy — the dialog itself is
+// unchanged, only the wording.
+export const getInstallVerb = (itemType: string, variant = 'card', builtIn = false): string =>
+	builtIn
+		? 'Open'
+		: itemType === 'DEVICE'
+			? variant === 'hero'
+				? 'Connect device'
+				: 'Connect'
+			: 'Install';
