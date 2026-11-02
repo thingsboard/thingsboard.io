@@ -108,6 +108,8 @@ const pathname = Astro.url.pathname;
 		let openId: string | null = null;
 		/** The section a click pinned open. Null while the panel is only open on hover. */
 		let pinnedId: string | null = null;
+		/** The section the pointer has just switched the open panel to, until it leaves that item's button. */
+		let switchedTo: string | null = null;
 		let openTimer = 0;
 		let closeTimer = 0;
 		let fadeAnim: Animation | null = null;
@@ -211,7 +213,7 @@ const pathname = Astro.url.pathname;
 			const anim = fadeAnim;
 			fadeAnim = null;
 			anim.cancel();
-			panel.removeAttribute('data-leaving');
+			panel.inert = false;
 		};
 
 		const fadeOutPanel = (instant: boolean) => {
@@ -220,7 +222,8 @@ const pathname = Astro.url.pathname;
 				panel.hidden = true;
 				return;
 			}
-			panel.setAttribute('data-leaving', '');
+			// Inert at once: Tab or a click during the fade would land on a link about to hide.
+			panel.inert = true;
 			const anim = panel.animate([{ opacity: 1 }, { opacity: 0 }], {
 				duration: CLOSE_FADE_MS,
 				easing: 'ease-in',
@@ -231,7 +234,7 @@ const pathname = Astro.url.pathname;
 				if (fadeAnim !== anim) return;
 				fadeAnim = null;
 				panel.hidden = true;
-				panel.removeAttribute('data-leaving');
+				panel.inert = false;
 				// Otherwise `fill: 'forwards'` would keep the panel at opacity 0 the next time it opens.
 				anim.cancel();
 			};
@@ -268,6 +271,7 @@ const pathname = Astro.url.pathname;
 		const closePanel = (instant = false) => {
 			clearTimers();
 			pinnedId = null;
+			switchedTo = null;
 			if (openId === null) return;
 			openId = null;
 			for (const t of triggers) t.setAttribute('aria-expanded', 'false');
@@ -276,9 +280,16 @@ const pathname = Astro.url.pathname;
 			header.removeAttribute('data-sm-desktop-open');
 		};
 
+		// While the panel holds keyboard focus, the mouse neither closes it nor switches its section: hiding
+		// the focused link would drop focus to <body>.
+		const keyboardInPanel = () => !!panel.querySelector(':focus-visible');
+
 		const closeLater = () => {
 			clearTimers();
-			if (openId !== null && pinnedId === null) closeTimer = window.setTimeout(closePanel, CLOSE_DELAY);
+			if (openId === null || pinnedId !== null) return;
+			closeTimer = window.setTimeout(() => {
+				if (!keyboardInPanel()) closePanel();
+			}, CLOSE_DELAY);
 		};
 
 		for (const li of nav.querySelectorAll<HTMLElement>('.sm__item')) {
@@ -287,10 +298,12 @@ const pathname = Astro.url.pathname;
 				if (!isMouse(e) || !wide.matches) return;
 				if (!id) return closeLater();
 				window.clearTimeout(closeTimer);
-				if (openId !== null) openSection(id);
-				else {
+				if (openId === null) {
 					window.clearTimeout(openTimer);
 					openTimer = window.setTimeout(() => openSection(id, false), OPEN_DELAY);
+				} else if (!keyboardInPanel()) {
+					if (openId !== id) switchedTo = id;
+					openSection(id);
 				}
 			});
 			li.addEventListener('pointerleave', (e) => {
@@ -299,11 +312,15 @@ const pathname = Astro.url.pathname;
 		}
 
 		for (const t of triggers) {
-			t.addEventListener('click', () => {
+			// On the button: the panel sits inside the `<li>`, so moving into the panel never leaves the `<li>`.
+			t.addEventListener('pointerleave', () => (switchedTo = null));
+			// A click on the open item closes a pinned panel, but pins another item the pointer has just switched the
+			// panel to: clicking one item, then another, keeps the second open. Keys (`detail` 0) always close it.
+			t.addEventListener('click', (e) => {
 				const id = t.dataset.smTrigger!;
 				if (openId !== id) openSection(id, true);
-				else if (pinnedId !== id) pinnedId = id;
-				else closePanel();
+				else if (pinnedId === id || (pinnedId !== null && (e.detail === 0 || switchedTo !== id))) closePanel();
+				else pinnedId = id;
 			});
 		}
 
@@ -430,14 +447,17 @@ const pathname = Astro.url.pathname;
 			toggle?.focus({ preventScroll: true });
 		});
 
+		// Whether a control can take focus. The promo banner, once scrolled away, is `visibility: hidden` but
+		// still has a box.
+		const isShown = (el: Element) =>
+			el.getClientRects().length > 0 && !el.closest('[inert]') && getComputedStyle(el).visibility === 'visible';
+
 		// Tab cycles through the header's visible controls. Not while the search dialog is open: it keeps
 		// Tab inside itself.
 		const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
 		document.addEventListener('keydown', (e) => {
 			if (e.key !== 'Tab' || !sheetOpen() || document.querySelector('#tb-search-modal.open')) return;
-			const items = [...header.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
-				(el) => el.getClientRects().length > 0 && !el.closest('[inert]')
-			);
+			const items = [...header.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(isShown);
 			const first = items[0];
 			const last = items[items.length - 1];
 			if (!first || !last) return;
@@ -558,28 +578,35 @@ const pathname = Astro.url.pathname;
 		keepIdOnShownCopy('Menu_Pricing', wide);
 		keepIdOnShownCopy('Menu_TryItNow', matchMedia(fullHeaderQuery()));
 
-		// When the window crosses a breakpoint, the focused control may get hidden, and focus drops to
-		// <body> without a blur event. So while focus is on <body>, `hadFocusIn` checks where it was last.
+		// CSS can hide the focused control at a breakpoint, and focus drops to <body>. `lastFocus` then keeps
+		// it for `hadFocusIn`, unless the control is still shown or the menu hid it itself (`hidden`, `inert`).
 		let lastFocus: Element | null = null;
 		document.addEventListener('focusin', (e) => (lastFocus = e.target as Element));
 		document.addEventListener('focusout', (e) => {
-			if (!e.relatedTarget) lastFocus = null;
+			const control = e.target as Element;
+			if (!e.relatedTarget && (isShown(control) || control.closest('[hidden], [inert]'))) lastFocus = null;
 		});
-		const hadFocusIn = (...where: (Element | null | undefined)[]) => {
+		const focusAt = () => {
 			const active = document.activeElement;
-			const at = !active || active === document.body ? lastFocus : active;
+			return !active || active === document.body ? lastFocus : active;
+		};
+		const hadFocusIn = (...where: (Element | null | undefined)[]) => {
+			const at = focusAt();
 			return where.some((el) => !!el && !!at && el.contains(at));
 		};
 
-		// Crossing 1200px closes the open menu, and focus that was in it moves to the other menu. While the
-		// sheet is open the page cannot take focus, so focus on <body> was dropped from the sheet.
+		// Crossing 1200px closes the open menu, and focus that was in it moves to the other menu.
 		wide.addEventListener('change', (q) => {
 			if (q.matches) {
-				const view = sheet?.dataset.view;
-				const dropped = sheetOpen() && (!document.activeElement || document.activeElement === document.body);
-				const hadFocus = dropped || hadFocusIn(sheet, toggle);
+				const view = sheetOpen() ? sheet?.dataset.view : undefined;
+				const hadFocus = hadFocusIn(sheet, toggle);
+				// A list row goes to its own item: the list and the row hold the same entries in the same order.
+				const at = focusAt();
+				const listItems = listView ? [...listView.querySelectorAll('.sm__list > li > .sm__sheet-row')] : [];
+				const items = [...row.querySelectorAll<HTMLElement>('.sm__top')];
+				const sameItem = items[listItems.findIndex((r) => r === at)];
 				closeSheet(false);
-				if (hadFocus) ((view && triggerOf(view)) || row.querySelector<HTMLElement>('.sm__top'))?.focus();
+				if (hadFocus) (sameItem || (view && triggerOf(view)) || items[0])?.focus();
 			} else {
 				const hadFocus = hadFocusIn(row, panel);
 				closePanel(true);
@@ -587,6 +614,21 @@ const pathname = Astro.url.pathname;
 				if (hadFocus) toggle?.focus();
 			}
 		});
+
+		// A layout change can hide the focused control. Focus then goes to the same place in the new layout:
+		// the shown section's row or back button, or else Close.
+		const refocusSheet = () => {
+			if (!sheet || !sheetOpen() || document.querySelector('#tb-search-modal.open')) return;
+			const active = document.activeElement;
+			// Focus on <body> moves only if it dropped from the header, not after a click or tap on a blank part of
+			// the sheet.
+			if (active && active !== document.body ? isShown(active) : !hadFocusIn(header)) return;
+			const view = sheet.dataset.view;
+			const target = split.matches
+				? listRows.find((r) => r.dataset.smOpenView === view)
+				: sheet.querySelector<HTMLElement>(`[data-sm-view="${view}"] [data-sm-back]`);
+			(target && isShown(target) ? target : toggle)?.focus({ preventScroll: true });
+		};
 
 		// Crossing the split width with the sheet open (a tablet rotated, a window resized).
 		split.addEventListener('change', () => {
@@ -598,7 +640,11 @@ const pathname = Astro.url.pathname;
 			}
 			if (listView) setViewPos(listView, sheet.dataset.view === 'root' ? 'center' : 'left');
 			updateListRows();
+			refocusSheet();
 		});
+		// Other widths hide header controls too: the sheet's foot from 600px, the GitHub button below 720px.
+		// A frame later, so the split handler has placed the views first: 'resize' fires before it.
+		window.addEventListener('resize', () => requestAnimationFrame(refocusSheet));
 
 		// A page restored from the back/forward cache can come back with the menu still open, so reset it.
 		window.addEventListener('pageshow', (e) => {
@@ -1067,11 +1113,7 @@ const pathname = Astro.url.pathname;
 			display: none;
 		}
 
-		// Set by the script: `data-leaving` during the closing fade, `data-morphing` while the height animates.
-		&[data-leaving] {
-			pointer-events: none;
-		}
-
+		// Set by the script while the height animates.
 		&[data-morphing] {
 			overflow: hidden;
 		}
