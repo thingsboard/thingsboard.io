@@ -45,6 +45,13 @@ const docsProducts: [string, string][] = Object.values(productVersions)
 	// Added to <head> when the dialog is first built, so they stay out of every page's HTML.
 	import dialogStyles from '@components/site-search-dialog.scss?inline';
 
+	declare global {
+		interface Window {
+			// Options Google's search element reads when cse.js runs.
+			__gcse?: { searchCallbacks?: { web?: { starting?: () => void } } };
+		}
+	}
+
 	let modal: HTMLElement | null = null;
 	let box: HTMLElement | null = null;
 	let loaderBar: HTMLElement | null = null;
@@ -160,7 +167,11 @@ const docsProducts: [string, string][] = Object.values(productVersions)
 		box = modal.querySelector<HTMLElement>('.tb-search-box');
 		loaderBar = modal.querySelector<HTMLElement>('.tb-loader-bar');
 		status = modal.querySelector<HTMLElement>('.tb-search-status');
-		const showLoader = () => loaderBar?.classList.add('active');
+		// A new search starts at the top, where the loading bar is.
+		const showLoader = () => {
+			loaderBar?.classList.add('active');
+			if (box) box.scrollTop = 0;
+		};
 		const hideLoader = () => loaderBar?.classList.remove('active');
 
 		modal.addEventListener('click', (e) => {
@@ -319,27 +330,46 @@ const docsProducts: [string, string][] = Object.values(productVersions)
 			branding.prepend(link);
 		};
 
-		modal.addEventListener('submit', showLoader, true);
-		modal.addEventListener(
-			'click',
-			(e) => {
-				if ((e.target as HTMLElement).closest('.gsc-search-button')) showLoader();
+		// Google calls this as each search starts: on Enter, the Search button or a picked suggestion. On touch
+		// screens Google then blurs the field to hide the keyboard, so focus is no longer pulled back to it.
+		window.__gcse = {
+			searchCallbacks: {
+				web: {
+					starting: () => {
+						if (matchMedia('(hover: none)').matches) stopFocusRetention();
+						showLoader();
+					},
+				},
 			},
-			true
-		);
-		modal.addEventListener(
-			'keydown',
-			(e) => {
-				if ((e.target as HTMLElement).classList.contains('gsc-input') && e.key === 'Enter') showLoader();
-			},
-			true
-		);
+		};
 		new MutationObserver((mutations) => {
 			if (mutations.some((mutation) => (mutation.target as Element).closest?.('.gsc-results'))) hideLoader();
 			placeMeta();
 			enhanceResults();
 			injectMoreLink();
 		}).observe(modal, { childList: true, subtree: true });
+
+		// Google places its suggestions from the field's offsets, which leave out how far the results are
+		// scrolled. While the dialog is open, they go back under the field, 1px up as Google has them.
+		const placeSuggestions = new MutationObserver((mutations) => {
+			const field = modal!.querySelector('.gsc-input-box');
+			if (!field || !isOpen()) return;
+			const top = `${Math.round(field.getBoundingClientRect().bottom) - 1}px`;
+			for (const { target } of mutations) {
+				const list = target as HTMLElement;
+				if (list.style.top !== top) list.style.top = top;
+			}
+		});
+		// Google adds the list to <body> once its field is ready.
+		new MutationObserver((mutations) => {
+			for (const { addedNodes } of mutations) {
+				for (const node of addedNodes) {
+					if (node instanceof HTMLElement && node.classList.contains('gssb_c')) {
+						placeSuggestions.observe(node, { attributes: true, attributeFilter: ['style'] });
+					}
+				}
+			}
+		}).observe(document.body, { childList: true });
 
 		return modal;
 	};
@@ -377,7 +407,7 @@ const docsProducts: [string, string][] = Object.values(productVersions)
 			// link or button, which Safari doesn't focus on click. Leave that alone.
 			if (pressing) return;
 			requestAnimationFrame(() => {
-				if (isOpen()) input.focus({ preventScroll: true });
+				if (isOpen() && focusOutHandler) input.focus({ preventScroll: true });
 			});
 		};
 		m.addEventListener('focusout', focusOutHandler);
