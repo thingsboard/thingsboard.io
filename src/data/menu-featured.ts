@@ -21,7 +21,10 @@ export const MENU_SECTION_PROMOS: Record<string, MenuPromo[]> = {
 			icon: 'tabler:cloud',
 			title: 'Start for free on Cloud',
 			href: CLOUD_SIGNUP.href,
-			attrs: CLOUD_SIGNUP.attrs,
+			// Read on each render, so each link gets its own object (see `CLOUD_SIGNUP`).
+			get attrs() {
+				return CLOUD_SIGNUP.attrs;
+			},
 			featured: true,
 		},
 	],
