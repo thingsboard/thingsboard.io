@@ -26,7 +26,7 @@ export interface SubMenuItem {
 	/** A second line under the heading, where it helps tell links apart: the products and their docs. */
 	description?: string;
 	linkClass?: string;
-	/** A customer logo shown instead of the heading, which becomes its alt text. */
+	/** A customer logo's URL, shown instead of the heading, which becomes its alt text. */
 	logo?: string;
 	/** The logo's height in px. */
 	logoHeight?: number;
@@ -167,16 +167,24 @@ export const servicesSubmenu: SubMenu = {
 	],
 };
 
-/**
- * Builds a case-study menu link: its page, the customer's name, and a logo. `logoFile` names a file in
- * `customer-logo/` (single-color logos cropped to the artwork). Without it, the link uses the logo
- * from the case study's page. Throws when the slug is not a known case study.
- */
+// The customer logos as built URLs. `no-inline` keeps Vite from turning the small ones into `data:` URIs,
+// which every page would carry, since the menu is on every page.
 const CUSTOMER_LOGO_DIR = '/src/assets/images/landings/customer-logo/';
-function caseStudy(slug: string, heading: string, logoHeight: number, logoFile?: string): SubMenuItem {
-	const study = caseStudyBySlug[slug];
-	if (!study) throw new Error(`[navigation] no case study "${slug}"`);
-	const logo = logoFile ? `${CUSTOMER_LOGO_DIR}${logoFile}` : study.hero.logo;
+const customerLogos = import.meta.glob<string>('/src/assets/images/landings/customer-logo/*.svg', {
+	query: '?url&no-inline',
+	import: 'default',
+	eager: true,
+});
+
+/**
+ * Builds a case-study menu link: its page, the customer's name, and a logo from `customer-logo/`
+ * (single-color logos cropped to the artwork). Throws when the slug is not a known case study or the
+ * logo file is missing.
+ */
+function caseStudy(slug: string, heading: string, logoHeight: number, logoFile: string): SubMenuItem {
+	if (!caseStudyBySlug[slug]) throw new Error(`[navigation] no case study "${slug}"`);
+	const logo = customerLogos[`${CUSTOMER_LOGO_DIR}${logoFile}`];
+	if (!logo) throw new Error(`[navigation] no customer logo "${logoFile}"`);
 	return { href: `/case-studies/${slug}/`, heading, logo, logoHeight };
 }
 
