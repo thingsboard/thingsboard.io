@@ -91,6 +91,16 @@ import { Products } from '@models/site.models';
 
 Do not hand-edit `public/_redirects` or `public/redirects.json` directly — they are rewritten by the generator.
 
+### Update Edge releases and upgrade instructions
+
+The Edge upgrade instructions, the upgrade table and the Edge releases table are built from `src/data/edge-releases.ts`, which is generated — do not edit it by hand. After an Edge release, a ThingsBoard maintainer regenerates it from the repo root:
+
+```bash
+pnpm sync:edge-releases [--updates <path to edge-update-v2.json>] [--check]
+```
+
+This is a maintainer-only step: the script reads release dates from the GitHub releases of `thingsboard/thingsboard-edge` (via the `gh` CLI) and upgrade paths from the internal Edge update graph (`edge-update-v2.json`). The script's `RELEASE_DATES` overrides the GitHub date of a release that shipped before its GitHub release (Edge 4.4.0.x). The script warns about releases without a `## v<version> (<date>)` heading in the Edge release notes (`src/content/_includes/docs/edge/releases/` and `…/edge/pe/releases/`); add those entries. A new release family also needs releases-table highlights in `EDGE_FAMILY_HIGHLIGHTS` (`src/models/edge-upgrade-instructions.ts`) and its per-family upgrade pages (`…/upgrade-instructions/<platform>/v<X>-<Y>-x.mdx`).
+
 ### Regenerate configuration reference pages
 
 When ThingsBoard's upstream `*.yml` config files change, regenerate the configuration reference MDX pages with `scripts/generate_config_pages.py`. The script fetches the upstream config files directly from GitHub via the [`gh` CLI](https://cli.github.com/) — no local checkout needed. Run `gh auth login` once (required for the private PE / Edge-PE / TBMQ-PE repos), then from this repo's root:
