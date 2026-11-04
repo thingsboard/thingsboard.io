@@ -99,7 +99,7 @@ The Edge upgrade instructions, the upgrade table and the Edge releases table are
 node scripts/sync-edge-releases.ts [--updates <path to edge-update-v2.json>]
 ```
 
-The script reads release dates from the GitHub releases of `thingsboard/thingsboard-edge` (via the `gh` CLI) and upgrade paths from `edge-update-v2.json` in the `tb-updates` repo (default: a sibling checkout at `../tb-updates`). A release that is not on GitHub yet can be listed with a provisional date in the script's `STUBS`. The script warns about releases without a `## v<version> (<date>)` heading in the Edge release notes (`src/content/_includes/docs/edge/releases/` and `…/edge/pe/releases/`); add those entries. A new release family also needs releases-table highlights in `EDGE_FAMILY_HIGHLIGHTS` (`src/models/edge-upgrade-instructions.ts`) and its per-family upgrade pages (`…/upgrade-instructions/<platform>/v<X>-<Y>-x.mdx`).
+The script reads release dates from the GitHub releases of `thingsboard/thingsboard-edge` (via the `gh` CLI) and upgrade paths from `edge-update-v2.json` in the `tb-updates` repo (default: a sibling checkout at `../tb-updates`). The script's `RELEASE_DATES` overrides the GitHub date of a release that shipped before its GitHub release (Edge 4.4.0.x) and lists a release that is not on GitHub yet. The script warns about releases without a `## v<version> (<date>)` heading in the Edge release notes (`src/content/_includes/docs/edge/releases/` and `…/edge/pe/releases/`); add those entries. A new release family also needs releases-table highlights in `EDGE_FAMILY_HIGHLIGHTS` (`src/models/edge-upgrade-instructions.ts`) and its per-family upgrade pages (`…/upgrade-instructions/<platform>/v<X>-<Y>-x.mdx`).
 
 ### Regenerate configuration reference pages
 

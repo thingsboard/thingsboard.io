@@ -6,7 +6,8 @@
  *
  * Sources:
  * - Release dates: GitHub releases of `thingsboard/thingsboard-edge`, read with the `gh` CLI.
- *   A version without a GitHub release is listed only if it is in {@link STUBS}.
+ *   {@link RELEASE_DATES} overrides the date of a release that shipped before its GitHub
+ *   release, and lists a release that is not on GitHub yet.
  * - Upgrade paths: `edge-update-v2.json` from the `tb-updates` repo (default: a sibling
  *   checkout at `../tb-updates`). The same graph serves Community Edge and Edge PE.
  *
@@ -23,8 +24,17 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(ROOT, 'src/data/edge-releases.ts');
 const REPO = 'thingsboard/thingsboard-edge';
 
-/** Releases not published on GitHub yet, listed with a provisional date. Drop an entry once its release is out. */
-const STUBS: { version: string; tag: string; date: string }[] = [{ version: '4.4.0', tag: 'v4.4', date: '2026-10-10' }];
+/**
+ * Release dates that win over the GitHub publication date. Edge 4.4.0.x shipped as Edge PE builds
+ * (`thingsboard/tb-edge-pe` images, dist.thingsboard.io packages) before the source was published,
+ * so their GitHub releases are newer than the releases themselves. Also lists a release that is
+ * not on GitHub yet; keep the entries after it is.
+ */
+const RELEASE_DATES: Release[] = [
+	{ version: '4.4.0', tag: 'v4.4', date: '2026-10-05' },
+	{ version: '4.4.0.1', tag: 'v4.4.0.1', date: '2026-10-22' },
+	{ version: '4.4.0.2', tag: 'v4.4.0.2', date: '2026-10-30' },
+];
 
 interface Release {
 	version: string;
@@ -118,8 +128,10 @@ if (!existsSync(updatesPath)) {
 }
 
 const releases = readGithubReleases();
-for (const s of STUBS) {
-	if (!releases.some((r) => r.version === s.version)) releases.push(s);
+for (const d of RELEASE_DATES) {
+	const onGithub = releases.find((r) => r.version === d.version);
+	if (onGithub) onGithub.date = d.date;
+	else releases.push({ ...d });
 }
 releases.sort((a, b) => compare(b.version, a.version));
 const released = new Set(releases.map((r) => r.version));
