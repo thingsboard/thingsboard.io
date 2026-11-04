@@ -85,7 +85,7 @@ export const TRENDZ_VER = '1.16.1';
 export const AGENT_VER = '1.0.0';
 
 /** Edge */
-export const EDGE_VER = '4.3.1.6';
+export const EDGE_VER = '4.3.1.8';
 
 /**
  * Edge package filename / download-tag version — {@link EDGE_VER} with the GA
@@ -103,7 +103,7 @@ export const EDGE_BRANCH = 'release-4.3';
  * (`EDGE_PE_IMAGE`, `edgePePkgUrl()`, `EDGE_PE_COMPOSE_CLONE`, ...), since they depend on whether
  * the release predates {@link EDGE_NEUTRAL_NAMES_FROM_VER}.
  */
-export const EDGE_PE_FULL_VER = '4.4.0';
+export const EDGE_PE_FULL_VER = '4.4.0.2';
 
 /**
  * First Edge release published under CE-style names: `thingsboard/tb-edge` images tagged
