@@ -42,7 +42,7 @@ export const teamTabs: TeamTab[] = [
 				label: 'Platform',
 				members: [
 					{ src: `${base}/product-team/viacheslav-klimov.webp`, title: 'Viacheslav Klimov', description: 'Java Team Lead' },
-					{ src: `${base}/product-team/vlad-prykhodko.webp`, title: 'Vladyslav Prykhodko', description: 'Frontend Engineer' },
+					{ src: `${base}/product-team/vlad-prykhodko.webp`, title: 'Vladyslav Prykhodko', description: 'Frontend Team Lead' },
 					{ src: `${base}/product-team/maryna-shulzhenko.webp`, title: 'Maryna Shulzhenko', description: 'QA Team Lead' },
 					{ src: `${base}/product-team/dmytro-shvaika.webp`, title: 'Dmytro Shvaika', description: 'Java Engineer' },
 					{ src: `${base}/product-team/dmytro-skarzhynets.webp`, title: 'Dmytro Skarzhynets', description: 'Java Engineer' },
@@ -62,7 +62,7 @@ export const teamTabs: TeamTab[] = [
 			{
 				label: 'Gateway',
 				members: [
-					{ src: `${base}/gateway/vitalii-bidochka.webp`, title: 'Vitalii Bidochka', description: 'Python Engineer' },
+					{ src: `${base}/gateway/vitalii-bidochka.webp`, title: 'Vitalii Bidochka', description: 'Gateway Team Lead' },
 					{ src: `${base}/gateway/vadym-yakymuk.webp`, title: 'Vadym Yakymuk', description: 'QA Engineer' },
 					{ src: placeholder, title: 'Oleksandr Prus', description: 'Python Engineer' },
 				],
