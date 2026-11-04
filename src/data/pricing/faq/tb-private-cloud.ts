@@ -498,7 +498,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-private-cloud-edge-addon-cloud-what-is',
 				question: 'What is Edge Computing add-on?',
-				answer: `<p>The Edge Computing add-on enables local data processing at remote sites through ThingsBoard Edge PE instances. Edge runs independently with offline capability and automatically syncs with your central ThingsBoard Server when connectivity returns.</p>
+				answer: `<p>The Edge Computing add-on enables local data processing at remote sites through ThingsBoard Edge instances. Edge runs independently with offline capability and automatically syncs with your central ThingsBoard Server when connectivity returns.</p>
                             <p>It is available for all ThingsBoard deployments: Cloud, Private Cloud, and on-premises.</p>`,
 			},
 			{
