@@ -65,10 +65,9 @@ export const docsAnnouncements: Partial<Record<Products, Announcement>> = isAnno
 	: Object.fromEntries(ANNOUNCED.map((product) => [product, entry]));
 
 /**
- * Remote Agent on every Edge installation and upgrade page, both editions. Keyed by
- * path rather than product: it is about how Edge is installed, not about the edition.
- * The agent page itself is excluded, and Community Edge pages link to the
- * Professional Edition agent page because Community Edge has no agent install flow.
+ * Remote Agent on the Edge installation and upgrade pages (`edge/pe` only, see
+ * EDGE_INSTALL_PREFIXES). Keyed by path rather than product. The agent page itself
+ * is excluded.
  */
 const edgeRemoteAgent = announcementSchema.parse({
 	id: 'edge-remote-agent',
