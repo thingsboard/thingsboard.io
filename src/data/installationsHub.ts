@@ -193,7 +193,7 @@ export const installProducts: InstallProduct[] = [
 					{
 						label: 'Building from source',
 						logo: logo('sources.svg'),
-						href: '/docs/edge/installation/building-from-source/',
+						href: '/docs/edge/pe/installation/building-from-source/',
 					},
 				],
 			},

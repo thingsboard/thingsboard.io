@@ -375,9 +375,7 @@ const edgeInstallationItems = (prefix: string) => {
 			items: [`${prefix}/installation/docker-compose-setup`],
 		},
 		...(isPE ? [{ label: 'Remote Agent', slug: `${prefix}/installation/agent` }] : []),
-		...(isPE
-			? []
-			: [{ label: 'Building from Sources', slug: `${prefix}/installation/building-from-source` }]),
+		{ label: 'Building from Sources', slug: `${prefix}/installation/building-from-source` },
 		{ label: 'Upgrade Instructions', slug: `${prefix}/installation/upgrade-instructions` },
 	];
 };
