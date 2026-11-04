@@ -7,7 +7,7 @@
  */
 
 /** Community Edition */
-export const CE_FULL_VER = '4.3.1.6';
+export const CE_FULL_VER = '4.3.1.8';
 
 /**
  * First release line that ships under the source-available license, as stated in
@@ -15,6 +15,12 @@ export const CE_FULL_VER = '4.3.1.6';
  * A policy boundary, not a release pointer — it does not move with each release.
  */
 export const SOURCE_AVAILABLE_FROM_VER = '4.4';
+
+/**
+ * First Community Edition release that can register a deployment for the Community Grant Program.
+ * A policy boundary, not a release pointer — it does not move with each release.
+ */
+export const COMMUNITY_GRANT_FROM_VER = '4.3.1.6';
 
 /** Day the relicensing is announced — the date every Community Grant is measured against. */
 export const SOURCE_AVAILABLE_ANNOUNCEMENT_DATE = '2026-09-29';
@@ -52,7 +58,7 @@ export const CE_BRANCH = 'release-4.3';
  * names and plain version tags (no `tb-pe-` prefix, no `PE` suffix). Historical
  * upgrade steps below 4.4 build the old names themselves.
  */
-export const PE_FULL_VER = '4.4.0';
+export const PE_FULL_VER = '4.4.0.2';
 
 /**
  * Package filename and GitHub release-tag version — {@link PE_FULL_VER} with the
@@ -73,7 +79,7 @@ export const PE_RELEASE_URL = `https://github.com/thingsboard/thingsboard/releas
 export const PE_BRANCH = 'release-4.4';
 
 /** Trendz Analytics */
-export const TRENDZ_VER = '1.16.0';
+export const TRENDZ_VER = '1.16.1';
 
 /** Remote Agent — Docker image tag for `thingsboard/tb-remote-agent:${AGENT_VER}`. */
 export const AGENT_VER = '1.0.0';
@@ -117,13 +123,17 @@ export const EDGE_NEUTRAL_NAMES_FROM_VER = '4.4';
 export const EDGE_PE_BRANCH = 'release-4.4';
 
 /**
- * Dart ThingsBoard API Client — pub.dev version of each edition's package
- * (`thingsboard_ce_client`, `thingsboard_pe_client`, `thingsboard_paas_client`).
- * Each package tracks the server version it is generated from, independently of
- * {@link CE_FULL_VER} and {@link PE_FULL_VER}.
+ * Dart ThingsBoard API Client — latest pub.dev version of `thingsboard_ce_client` and
+ * `thingsboard_pe_client`. Patch releases don't raise the minimum server version,
+ * see {@link DART_CLIENT_MIN_SERVER_VER}.
  */
 export const DART_CLIENT_VER = {
 	ce: '4.3.0',
+	pe: '4.4.1',
+} as const;
+
+/** Must match `tbMinServerVersion` in each Dart client package */
+export const DART_CLIENT_MIN_SERVER_VER = {
+	ce: '4.3.0',
 	pe: '4.4.0',
-	paas: '4.4.0',
 } as const;

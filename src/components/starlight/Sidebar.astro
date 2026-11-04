@@ -1,36 +1,21 @@
 ---
-import Icon from '~/components/starlight/Icon.astro';
+import Icon from '@components/starlight/Icon.astro';
 import SidebarPersister from '@astrojs/starlight/components/SidebarPersister.astro';
 import SidebarSublist from '@astrojs/starlight/components/SidebarSublist.astro';
-import type { StarlightRouteData } from '@astrojs/starlight/route-data';
 import { stripLeadingAndTrailingSlashes } from '@util/path-utils';
-import { isSubPage } from '~/util/isSubPage';
-import VersionSwitcher from '~/components/VersionSwitcher.astro';
-import TabbedContent from '../tabs/TabbedContent.astro';
-import TabListItem from '../tabs/TabListItem.astro';
-import TabPanel from '../tabs/TabPanel.astro';
-import MobileMenuFooter from './MobileMenuFooter.astro';
+import { hasCurrentEntry, type SidebarEntry } from '@util/sidebar';
+import VersionSwitcher from '@components/VersionSwitcher.astro';
+import TabbedContent from '@components/tabs/TabbedContent.astro';
+import TabListItem from '@components/tabs/TabListItem.astro';
+import TabPanel from '@components/tabs/TabPanel.astro';
+import MobileMenuFooter from '@components/starlight/MobileMenuFooter.astro';
 import { sidebarTabLinksByPrefix, type SidebarTabLinks } from '../../../astro.sidebar';
 
-const { sidebar, id } = Astro.locals.starlightRoute;
+const { sidebar } = Astro.locals.starlightRoute;
 
 // Pick tab navigation links for the current product by matching the URL prefix.
 const { pathname } = Astro.url;
 const tabLinks: SidebarTabLinks = sidebarTabLinksByPrefix.find(([prefix]) => pathname.startsWith(prefix))?.[1] ?? {};
-
-// Recursively tweaks properties of sidebar entries.
-// - Adds a fallback class to entries in the sidebar that don’t exist in the current language.
-// - Marks pages as “current” if they parents of pages that don’t appear in the sidebar.
-type SidebarEntry = StarlightRouteData['sidebar'][number];
-function markEntries(i: SidebarEntry) {
-	if (i.type === 'group') {
-		i.entries.forEach(markEntries);
-	} else {
-		const itemSlug = stripLeadingAndTrailingSlashes(i.href);
-		i.isCurrent ||= isSubPage(id, itemSlug);
-	}
-}
-sidebar.forEach(markEntries);
 
 // Make sure all top-level items in the sidebar are groups.
 type Group = Extract<SidebarEntry, { type: 'group' }>;
@@ -58,9 +43,7 @@ const iconByLabel: Record<string, string> = {
 	'APIs & SDKs': 'tabler:code',
 	Reference: 'setting',
 	Roadmap: 'tabler:route',
-	Customize: 'tabler:palette',
 	Customization: 'tabler:puzzle',
-	'Build & deploy': 'tabler:upload',
 	Configuration: 'tabler:settings-code',
 	Connectors: 'tabler:plug-connected',
 	Features: 'tabler:bulb',
@@ -70,22 +53,22 @@ const iconByLabel: Record<string, string> = {
 const fallbackIcons = ['rocket', 'open-book', 'information', 'puzzle', 'setting'] as const;
 const getIcon = (label: string, index: number): string => iconByLabel[label] ?? fallbackIcons[index] ?? 'information';
 
-/** Determine if an array of sidebar items contains the current page.  */
-const isCurrent = (sidebar: SidebarEntry[]): boolean =>
-	sidebar
-		.map((entry) => (entry.type === 'link' ? entry.isCurrent : isCurrent(entry.entries)))
-		.some((entry) => entry === true);
-
-/** Check if a tab is active — either it contains the current page or its tab link matches. */
-const isTabActive = (label: string, entries: SidebarEntry[]): boolean => {
-	if (isCurrent(entries)) return true;
+// A tab is active when it contains the current page or its tab link is the current page.
+const currentPath = stripLeadingAndTrailingSlashes(pathname);
+const tabs = sidebar.map(({ label, entries }, index) => {
 	const link = tabLinks[label];
-	return !!link && stripLeadingAndTrailingSlashes(pathname) === stripLeadingAndTrailingSlashes(link);
-};
+	return {
+		id: makeId(label),
+		label,
+		entries,
+		link,
+		icon: getIcon(label, index),
+		active: hasCurrentEntry(entries) || (!!link && currentPath === stripLeadingAndTrailingSlashes(link)),
+	};
+});
 ---
 
 <div class="switchers-wrapper">
-	<!--<LanguageSwitcher />-->
 	<VersionSwitcher />
 </div>
 
@@ -93,16 +76,16 @@ const isTabActive = (label: string, entries: SidebarEntry[]): boolean => {
 	<TabbedContent class="tabbed-sidebar">
 		<Fragment slot="tab-list">
 			{
-				sidebar.map(({ label, entries }, index) => (
-					<TabListItem id={makeId(label)} initial={isTabActive(label, entries)} class="tab-item" link={tabLinks[label]}>
-						<Icon class="icon" name={getIcon(label, index)} /> {label}
+				tabs.map(({ id, label, link, icon, active }) => (
+					<TabListItem id={id} initial={active} class="tab-item" link={link}>
+						<Icon class="icon" name={icon} /> {label}
 					</TabListItem>
 				))
 			}
 		</Fragment>
 		{
-			sidebar.map(({ label, entries }) => (
-				<TabPanel id={makeId(label)} initial={isTabActive(label, entries)}>
+			tabs.map(({ id, entries, active }) => (
+				<TabPanel id={id} initial={active}>
 					<SidebarSublist sublist={entries} />
 				</TabPanel>
 			))
@@ -121,18 +104,8 @@ const isTabActive = (label: string, entries: SidebarEntry[]): boolean => {
 		padding-bottom: 0.5rem;
 	}
 
-	/** Reserve a stable scrollbar gutter on the right so the scrollbar slots
-	    into reserved space instead of pushing content sideways when it
-	    appears.
-
-	    `padding-right: 0.5rem` keeps a small breathing space between the
-	    content and the right edge — important for macOS Safari where the OS
-	    uses *overlay* scrollbars and `scrollbar-gutter: stable` reserves 0px
-	    (there's nothing to reserve when the scrollbar floats transparently
-	    over content). Without this, content sits flush against the pane edge
-	    on Mac. The original Starlight default was `1rem`; we keep the value
-	    smaller to stay closer to the original "scrollbar replaces padding"
-	    intent, while still giving Mac users a visible margin. */
+	/* The stable gutter stops the scrollbar from shifting content when it appears. macOS overlay
+	   scrollbars reserve no gutter, so `.sidebar-content` keeps its own right padding. */
 	:global(.sidebar-pane) {
 		overflow-y: auto;
 		scrollbar-gutter: stable;

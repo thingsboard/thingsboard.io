@@ -13,7 +13,7 @@
 - [ ] Component, layout, or styling change (`src/components/**`, `src/styles/**`)
 - [ ] Landing / use-case / case-study page (`src/pages/**`, `src/data/**`)
 - [ ] Redirects (`src/data/redirects.ts`)
-- [ ] Version bump / release (see `release` skill)
+- [ ] Version bump / release (`src/data/versions.ts`, `src/models/upgrade-instructions.ts`, `src/models/releases-table.ts`)
 - [ ] Build, CI, scripts, or tooling
 - [ ] Other (please describe)
 
@@ -27,9 +27,10 @@
 
 ## Checklist
 
+- [ ] Base branch and labels follow [Which branch and label](https://github.com/thingsboard/thingsboard.io/blob/main/CONTRIBUTING.md#which-branch-and-label)
 - [ ] `pnpm check` passes (Astro / TypeScript)
 - [ ] `pnpm lint:eslint` passes
-- [ ] `pnpm lint:slugcheck` passes (required if pages were added/renamed/moved across languages)
+- [ ] `pnpm lint:slugcheck` passes
 - [ ] `pnpm lint:linkcheck` passes locally — required to merge; run it before requesting review (use `pnpm lint:linkcheck:nobuild` if you already ran a build)
 - [ ] Renamed/removed pages have a redirect in `src/data/redirects.ts`, and `pnpm generate:redirects` was run
 - [ ] No hardcoded versions — values come from `src/data/versions.ts`

@@ -129,7 +129,6 @@ export const data: UseCaseData = {
 				description:
 					'Enables remote monitoring of fuel tanks with automated alarms and minimal maintenance requirements.',
 				desktopImage: '/src/assets/images/usecases/tank-level-monitoring/gas-1.svg',
-				mobileImage: '/src/assets/images/usecases/tank-level-monitoring/gas-2.svg',
 				imageAlt: 'Oil and gas',
 				imageTitle: 'Oil & gas',
 			},
@@ -138,7 +137,6 @@ export const data: UseCaseData = {
 				description:
 					'Tracks fuel levels in fleet tankers and depots, integrated with GPS and routing systems.',
 				desktopImage: '/src/assets/images/usecases/scada-drilling-system/logistics.svg',
-				mobileImage: '/src/assets/images/usecases/scada-drilling-system/logistics-2.svg',
 				imageAlt: 'Logistics and transportation',
 				imageTitle: 'Logistics & transportation',
 			},
@@ -147,7 +145,6 @@ export const data: UseCaseData = {
 				description:
 					'Tracks water or fertilizer tank levels on farms, with location-based analysis and consumption forecasting.',
 				desktopImage: '/src/assets/images/usecases/smart-irrigation/agriculture-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-irrigation/agriculture-2.svg',
 				imageAlt: 'Agriculture',
 				imageTitle: 'Agriculture',
 			},
@@ -156,7 +153,6 @@ export const data: UseCaseData = {
 				description:
 					'Monitors chemical storage tanks for compliance and safety in industrial environments.',
 				desktopImage: '/src/assets/images/usecases/tank-level-monitoring/manufacturing-1.svg',
-				mobileImage: '/src/assets/images/usecases/tank-level-monitoring/manufacturing-2.svg',
 				imageAlt: 'Manufacturing and processing',
 				imageTitle: 'Manufacturing & processing',
 			},
@@ -165,7 +161,6 @@ export const data: UseCaseData = {
 				description:
 					'Manages city tanks for drinking water or chemicals with centralized monitoring and regulatory reporting.',
 				desktopImage: '/src/assets/images/usecases/smart-metering/utilities-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-metering/utilities-2.svg',
 				imageAlt: 'Municipal services',
 				imageTitle: 'Municipal services',
 			},

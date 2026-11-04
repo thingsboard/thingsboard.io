@@ -296,6 +296,15 @@ export const CATCH_ALL_REDIRECTS: CatchAllRedirect[] = [
  * Add entries here for one-off page renames or removed pages.
  */
 export const SINGLE_REDIRECTS: SingleRedirect[] = [
+	// ThingsBoard CLI moved from the platform docs to its own product at /docs/cli/.
+	{ oldPath: 'user-guide/cli', target: '/docs/cli/' },
+	{ oldPath: 'user-guide/cli-solutions', target: '/docs/cli/guides/example-smart-retail/' },
+	{ oldPath: 'pe/user-guide/cli', target: '/docs/cli/' },
+	{ oldPath: 'pe/user-guide/cli-solutions', target: '/docs/cli/guides/example-smart-retail/' },
+	{ oldPath: 'paas/user-guide/cli', target: '/docs/cli/' },
+	{ oldPath: 'paas/user-guide/cli-solutions', target: '/docs/cli/guides/example-smart-retail/' },
+	{ oldPath: 'paas/eu/user-guide/cli', target: '/docs/cli/' },
+	{ oldPath: 'paas/eu/user-guide/cli-solutions', target: '/docs/cli/guides/example-smart-retail/' },
 	{ oldPath: 'iot-gateway/configuration', target: '/docs/iot-gateway/config/general/' },
 	{ oldPath: 'iot-gateway/how-device-removing-renaming-works', target: '/docs/iot-gateway/features/device-renaming/' },
 	{ oldPath: 'iot-gateway/guides/how-to-configure-gateway-using-configurator', target: '/docs/iot-gateway/config/general/' },
@@ -1411,6 +1420,22 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'pe/recipes', target: '/docs/pe/user-guide/' },
 	{ oldPath: 'paas/recipes', target: '/docs/paas/user-guide/' },
 	{ oldPath: 'paas/eu/recipes', target: '/docs/paas/eu/user-guide/' },
+	// Legacy pages still linked externally. Target the canonical page, not one that canonicalizes elsewhere.
+	{ oldPath: 'edge/getting-started/getting-started-ce', target: '/docs/edge/pe/getting-started/' },
+	{ oldPath: 'edge/provision-edge-on-server-ce', target: '/docs/edge/pe/installation/' },
+	{ oldPath: 'edge/provision-edge-on-server', target: '/docs/edge/pe/installation/' },
+	{ oldPath: 'edge/use-cases/manage-alarms-rpc-requests-ce', target: '/docs/edge/pe/recipes/manage-alarms-rpc-requests/' },
+	{ oldPath: 'pe/user-guide/reporting', target: '/docs/pe/user-guide/reporting/getting-started/' },
+	{ oldPath: 'trendz/batch-calculated-fields', target: '/docs/trendz/calculations/batch/' },
+	{ oldPath: 'user-guide/oauth/azure', target: '/docs/pe/user-guide/security/oauth-2-support/' },
+	{ oldPath: 'user-guide/rule-engine-2-0/pe/analytics-nodes', target: '/docs/pe/reference/rule-engine/nodes/analytics/' },
+	// IoT Hub docs landing removed.
+	{ oldPath: 'iot-hub', target: '/docs/iot-hub/user-guides/' },
+	// Misspelled paths cited by external sites.
+	{ oldPath: 'getting-startedguides/helloworld', target: '/docs/pe/getting-started/' },
+	{ oldPath: 'gettingstarted-guides/what-is-thingsboard', target: '/docs/pe/why-thingsboard/' },
+	{ oldPath: 'install', target: '/docs/pe/installation/' },
+	{ oldPath: 'iotgateway/what-is-iot-gateway', target: '/docs/iot-gateway/what-is-thingsboard-iot-gateway/' },
 ];
 
 /**
@@ -1491,6 +1516,12 @@ export const NON_DOCS_REDIRECTS: Record<string, string> = {
 	// Partner sample moved from the retired /docs/samples/ tree into the
 	// hardware-partners asset folder, where every other partner's files live.
 	'/docs/samples/sensiedge/connect_sensi_ble.pdf': '/partners/hardware/sensiedge/samples/connect_sensi_ble.pdf',
+
+	// Device Library dashboard still linked from the vendor's setup guide. The file was removed
+	// from /iot-hub/devices/resources/, where the devices-library/* splat sends it; the device's
+	// IoT Hub page installs the dashboard with the device package.
+	'/docs/devices-library/resources/dashboards/lrs10701/lrs10701_air_quality_monitor_dashboard.json':
+		'/iot-hub/devices/lrs10701/',
 
 	// Blog attachments rehosted from the WordPress uploads folder
 	'/blog/wp-content/uploads/2024/03/tb_dynamic_button_states.json': '/resources/blog/tb_dynamic_button_states.json',

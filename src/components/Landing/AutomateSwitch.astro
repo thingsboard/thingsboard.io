@@ -1,0 +1,178 @@
+---
+import SegmentedToggle from '@components/Landing/SegmentedToggle.astro';
+import NormalizeSeries from '@components/Landing/NormalizeSeries.astro';
+import FilterChart from '@components/Landing/FilterChart.astro';
+import NotifyFeed from '@components/Landing/NotifyFeed.astro';
+import { AUTOMATE_STAGES, AUTOMATE_SWITCH_LABEL } from '@data/automate-visual';
+import { HOME_ROWS } from '@data/home-rows';
+
+// The "Turn IoT data into action" row's visual: a switch over the Normalize, Alert and Deliver drawings.
+
+const panelId = (stage: string) => `automate-${stage}`;
+// The row's badge hue, which reads on the white thumb.
+const ROW_HUE = HOME_ROWS.find((r) => r.slug === 'normalize')?.badge.color ?? '#b44100';
+---
+
+<div class="auto" data-automate>
+	<SegmentedToggle
+		label={AUTOMATE_SWITCH_LABEL}
+		options={AUTOMATE_STAGES.map((s) => ({
+			label: s.label,
+			icon: s.icon,
+			panel: panelId(s.id),
+			color: ROW_HUE,
+		}))}
+	/>
+
+	{AUTOMATE_STAGES.map((s, i) => (
+		<div
+			class="auto__panel"
+			id={panelId(s.id)}
+			role="tabpanel"
+			aria-labelledby={`${panelId(s.id)}-tab`}
+			hidden={i !== 0}
+		>
+			{s.id === 'normalize' ? <NormalizeSeries /> : s.id === 'alert' ? <FilterChart /> : <NotifyFeed />}
+		</div>
+	))}
+</div>
+
+<script>
+	const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+	document.querySelectorAll<HTMLElement>('[data-automate]').forEach((root) => {
+		const list = root.querySelector<HTMLElement>('[data-segmented]');
+		const panels = Array.from(root.querySelectorAll<HTMLElement>('.auto__panel'));
+		if (!list || panels.length === 0) return;
+
+		const show = (active: HTMLElement) => {
+			panels.forEach((p) => {
+				const on = p === active;
+				p.classList.toggle('is-active', on);
+				p.inert = !on;
+				p.setAttribute('aria-hidden', String(!on));
+				// Pauses Filter's and Notify's pulses; NormalizeSeries deliberately ignores it, its readings run on that clock.
+				p.style.setProperty('--flow-play', on ? 'running' : 'paused');
+			});
+		};
+
+		// Only this script's animations: the drawings' CSS animations keep their clocks (Normalize syncs to them).
+		const scripted = (p: HTMLElement) =>
+			p.getAnimations({ subtree: true }).filter((a) => !(a instanceof CSSAnimation) && !(a instanceof CSSTransition));
+
+		// The node's mark holds still only when both drawings have one; otherwise it would sit on top of the
+		// arriving drawing until the leaving panel is cut.
+		const hasMark = (p: HTMLElement) => p.querySelector('[data-flow="node"]') !== null;
+		const layer = (p: HTMLElement, holdMark: boolean) =>
+			holdMark
+				? p.querySelectorAll<HTMLElement>(
+						'[data-flow="label"], [data-flow="in"], [data-flow="gut"], [data-flow="out"], [data-flow="node"] > :not(:first-child)'
+					)
+				: p.querySelectorAll<HTMLElement>(':scope > *');
+
+		// Keep in step with `.auto`'s --seg-duration / --seg-ease.
+		const DURATION = 300;
+		const EASE = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
+
+		const handoff = (previous: HTMLElement, next: HTMLElement, dir: number) => {
+			const holdMark = hasMark(previous) && hasMark(next);
+			if (reduced) {
+				layer(next, holdMark).forEach((el) =>
+					el.animate([{ opacity: 0, offset: 0 }], { duration: 150, easing: 'ease-out' })
+				);
+				return;
+			}
+			previous.classList.add('is-leaving');
+			const outs = [...layer(previous, holdMark)].map((el) =>
+				el.animate(
+					[
+						{ opacity: 1, transform: 'none' },
+						{ opacity: 0, transform: `translateX(${-dir * 24}px)` },
+					],
+					{
+						duration: DURATION * 0.47,
+						easing: 'cubic-bezier(0.4, 0, 1, 1)',
+						fill: 'forwards',
+					}
+				)
+			);
+			layer(next, holdMark).forEach((el) =>
+				el.animate([{ opacity: 0, transform: `translateX(${dir * 32}px)`, offset: 0 }], {
+					duration: DURATION,
+					delay: 40,
+					easing: EASE,
+					fill: 'backwards',
+				})
+			);
+			Promise.all(outs.map((a) => a.finished)).then(
+				() => {
+					previous.classList.remove('is-leaving');
+					outs.forEach((a) => a.cancel());
+				},
+				() => {}
+			);
+		};
+
+		// Stacked with visibility rather than `hidden`: display: none would restart NormalizeSeries' CSS
+		// animation clock, which its readings are synced to. Stacking also holds the row at the tallest panel.
+		const first = panels.find((p) => !p.hidden) ?? panels[0];
+		panels.forEach((p) => (p.hidden = false));
+		root.classList.add('is-stacked');
+		show(first);
+		let current = first;
+
+		list.addEventListener('segmented:change', (e) => {
+			const panel = (e as CustomEvent<{ panel: HTMLElement | null }>).detail.panel;
+			if (!panel || panel === current) return;
+			panels.forEach((p) => {
+				scripted(p).forEach((a) => a.cancel());
+				p.classList.remove('is-leaving');
+			});
+			const previous = current;
+			const dir = panels.indexOf(panel) > panels.indexOf(previous) ? 1 : -1;
+			current = panel;
+			show(panel);
+			handoff(previous, panel, dir);
+		});
+	});
+</script>
+
+<style lang="scss">
+	@use '../../styles/variables' as *;
+
+	// The switch on the first row, the panels on the second.
+	.auto {
+		// In step with the script's DURATION and EASE.
+		--seg-duration: 300ms;
+		--seg-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+		display: grid;
+		justify-items: center;
+		row-gap: $spacing-5;
+
+		> :global(.seg) {
+			max-width: 100%;
+		}
+	}
+
+	.auto__panel {
+		justify-self: stretch;
+		min-width: 0;
+	}
+
+	.auto.is-stacked .auto__panel {
+		grid-area: 2 / 1;
+		visibility: hidden;
+	}
+
+	.auto.is-stacked .auto__panel.is-active {
+		position: relative;
+		z-index: 1;
+		visibility: visible;
+	}
+
+	.auto.is-stacked .auto__panel.is-leaving {
+		visibility: visible;
+		pointer-events: none;
+	}
+</style>

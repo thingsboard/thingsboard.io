@@ -1,613 +1,657 @@
 import DocLink from '@components/DocLink.astro';
-import ImageGallery from '~/components/ImageGallery.astro';
+import ImageGallery from '@components/ImageGallery.astro';
 import { Aside, Steps } from '@astrojs/starlight/components';
-import { Products } from '~/models/site.models';
+import { Products } from '@models/site.models';
 import Tabs from '@components/Tabs.astro';
 import TabItem from '@components/TabItem.astro';
 
-The <a href="https://www.actility.com/" target="_blank" rel="noopener noreferrer"><strong>Actility ThingPark</strong></a> integration connects ThingsBoard to the ThingPark LoRaWAN network server. Use it to bring telemetry from LoRaWAN devices already registered in ThingPark into ThingsBoard for monitoring, and rule-based automation — including sending commands back to those devices.
+ThingPark Integration receives device data from <a href="https://www.actility.com/" target="_blank" rel="noopener noreferrer"><strong>Actility ThingPark</strong></a> Wireless, the LoRaWAN network server of Actility. ThingPark sends each uplink to ThingsBoard as an HTTP request with a `DevEUI_uplink` JSON body, and an **uplink data converter** transforms it into device data, including telemetry and attributes. For downlink, ThingsBoard sends commands to the device through the ThingPark downlink API.
+
+Use ThingPark Integration when:
+- Your LoRaWAN devices are registered in ThingPark Wireless, and ThingPark forwards their uplinks to an HTTP application server.
+- You need to send commands from ThingsBoard to those devices, for example when a shared attribute changes.
+
+For a ThingPark Enterprise deployment, use <DocLink product={props.product} path="user-guide/integrations/thingparkenterprise" target="_blank">ThingPark Enterprise Integration</DocLink> instead. It has its own endpoint, always checks the request, and sends downlinks through the ThingPark Enterprise API.
 
 ## Architecture
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/thingpark-integration-architecture.svg', alt: 'ThingPark integration architecture diagram showing uplink data flowing from a LoRaWAN device through ThingPark to the ThingsBoard uplink converter and Core Service, and downlink commands flowing back through the downlink converter and ThingPark', caption: 'ThingPark integration architecture — uplink and downlink data flow between ThingPark and ThingsBoard.' },
+  {
+    src: '/src/assets/images/user-guide/integrations/thingpark-integration-architecture.svg',
+    alt: 'ThingPark integration architecture: a LoRaWAN device sends an uplink through a LoRaWAN gateway to ThingPark Wireless, which sends an HTTP POST with the AS ID and token to the ThingPark Integration; the data converters decode it, and Processing & Storage runs the Rule Engine, stores the data, and feeds dashboards; downlinks go to the LRC REST downlink API with the DevEUI and FPort',
+    caption: 'ThingPark integration architecture. Uplinks arrive as HTTP POST requests with the AS ID and token. Downlinks are sent through the LRC REST downlink API.',
+  },
 ]} />
 
-A LoRaWAN device sends an uplink to ThingPark, which forwards it over HTTP to the integration's endpoint. The uplink converter decodes the payload into telemetry and attributes, and the ThingsBoard Core Service stores the data, creating the device automatically on first contact. For downlink, the Rule Engine hands a message to the integration; the downlink converter encodes it, and ThingPark delivers it to the device.
+1. **Receive data.** The device sends an uplink through a LoRaWAN gateway to ThingPark. ThingPark sends it as an HTTP `POST` with a `DevEUI_uplink` JSON body to the integration endpoint. With tunnel authentication, the request also carries the `AS_ID`, `Time`, and `Token` query parameters.
+2. **Check the request (optional).** If **Enable security** is on, the integration checks the AS ID, the request time, and the token. A request that fails the check gets `403 Forbidden`.
+3. **Decode the payload.** The uplink converter takes the device payload out of the ThingPark message, decodes it into telemetry and attributes, and adds network fields such as `rssi` and `fCnt`. If **Allow create devices or assets** is on, ThingsBoard creates the device on its first uplink.
+4. **Send a command (optional).** The Rule Engine passes a message to the integration. The downlink converter encodes it as a hex payload, and ThingsBoard sends it right away to the ThingPark downlink API with the `DevEUI` and `FPort`.
 
 ## Prerequisites
 
-Before creating the integration, ensure:
+- Access to {props.product !== Products.PAAS && props.product !== Products.PAAS_EU && <><DocLink product={Products.PE} path="installation/" target="_blank">ThingsBoard</DocLink> or </>}<a href="/installations/?product=thingsboard-cloud" target="_blank"><strong>ThingsBoard Cloud</strong></a> with integrations enabled for your tenant. The ThingsBoard endpoint must be reachable from the internet, because ThingPark calls it.
+- Permission to create integrations and data converters, and to edit rule chains for downlink.
+- An Actility ThingPark Wireless account with access to Device Manager, where you create application servers and routing profiles.
+- A LoRaWAN device registered in ThingPark, and its **DevEUI**. Without a device, you can test the integration with curl.
 
-- You have access to {props.product !== Products.PAAS && props.product !== Products.PAAS_EU && <><DocLink product={Products.PE} path="installation/" target="_blank">ThingsBoard</DocLink> or </>}<a href="/installations/?product=thingsboard-cloud" target="_blank" rel="noopener noreferrer"><strong>ThingsBoard Cloud</strong></a> with integration functionality enabled for your tenant.
-- You have permissions to create integrations and data converters.
-- You have an Actility ThingPark account with a <a href="https://thingparkenterprise.eu.actility.com/tpe/#/login" target="_blank" rel="noopener noreferrer"><strong>ThingPark Wireless OSS</strong></a> instance.
-- You have at least one LoRaWAN device registered in ThingPark, with its **DevEUI** and **AppEUI** on hand.
+## Prepare ThingPark
 
-## Set Up the Integration in ThingsBoard
+ThingPark forwards the uplinks of a device to the application servers in its **AS routing profile**. Here you check that the device is registered and look at the data ThingPark sends. The application server needs the integration endpoint, so you create it **[after creating the integration](#connect-thingpark-to-thingsboard)**.
 
-To set up the **ThingPark** integration, first create an uplink data converter to process incoming messages, then create and configure the integration.
+### Register the Device
 
-### Create the Uplink Data Converter
+Register the device in ThingPark Device Manager with its **DevEUI**, activation mode, and keys, as described in the <a href="https://www.actility.com/thingpark-documentation-portal/" target="_blank" rel="noopener noreferrer"><strong>ThingPark documentation</strong></a>. Menu names differ between ThingPark versions and plans.
 
-The uplink converter decodes the incoming ThingPark message (JSON containing `DevEUI_uplink`) and maps it to the ThingsBoard data model — it resolves the target device and extracts fields into telemetry and attributes. For the full decoder function reference, see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" bold={true} target="_blank">Uplink data converter</DocLink>. 
+ThingsBoard names the device after its DevEUI, for example `Device 20635F00C5000660`.
 
-If your device is in the built-in catalog, use the **Library** tab — see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#converters-library" bold={true} target="_blank">Converters library</DocLink> for ready-to-use decoder functions for over 100 devices.
+### Uplink Message Format
 
-**Sample payload:**
+ThingPark sends every uplink as a `DevEUI_uplink` JSON object. This guide uses the following uplink. Its `payload_hex` holds the payload of a sample device: a serial number, the battery level, the temperature, and the saturation.
 
 ```json
 {
   "DevEUI_uplink": {
-    "Time": "2024-01-15T10:30:00.000+00:00",
-    "DevEUI": "0018B20000000123",
-    "FPort": 1,
+    "Time": "2026-10-22T10:15:30.123+00:00",
+    "DevEUI": "20635F00C5000660",
+    "FPort": 2,
     "FCntUp": 42,
     "ADRbit": 1,
-    "MType": 4,
+    "MType": 2,
     "FCntDn": 5,
-    "payload_hex": "0364011a",
-    "mic_hex": "a1b2c3d4",
-    "Lrcid": "00000065",
+    "payload_hex": "00bc614e5f092950",
+    "mic_hex": "3a1f9c4e",
+    "Lrcid": "00000201",
     "LrrRSSI": -85.0,
     "LrrSNR": 7.25,
     "SpFact": 7,
-    "SubBand": "G0",
-    "Channel": "LC1",
-    "Lrrid": "FF0000C8",
+    "SubBand": "G1",
+    "Channel": "LC2",
+    "DevLrrCnt": 1,
+    "Lrrid": "FF0101B0",
     "Late": 0,
-    "LrrLAT": 48.8566,
-    "LrrLON": 2.3522
+    "LrrLAT": 48.856613,
+    "LrrLON": 2.352222,
+    "CustomerID": "100000507",
+    "DevAddr": "0405F519",
+    "Frequency": 868.3,
+    "DynamicClass": "A"
   }
 }
 ```
 
-`DevEUI` identifies the device. `payload_hex` contains the raw application payload. `LrrRSSI` and `LrrSNR` are radio quality metrics from the receiving gateway.
+- `DevEUI` — the device EUI. ThingsBoard uses it in the device name.
+- `Time` — when ThingPark received the uplink. The converter uses it as the telemetry timestamp.
+- `payload_hex` — the device payload as a hex string. If a ThingPark driver decodes the payload, the message also has a `payload` object with the decoded values.
+- `LrrRSSI`, `LrrSNR`, `SpFact`, `SubBand`, `Channel` — the radio data of the best gateway.
+- `CustomerID` — your ThingPark customer ID. ThingPark uses it in the token of a signed request.
+
+## Set Up ThingPark Integration
+
+Create the uplink converter and the integration, then create a ThingPark application server that sends uplinks to the integration endpoint.
+
+### Create the Uplink Data Converter
+
+ThingPark Integration uses the **Typed** uplink converter. ThingsBoard selects it for this integration type, and you can't change it later. The converter takes the device payload out of the `DevEUI_uplink` message before the decoder runs, and passes the network fields as metadata. For the full reference, see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#typed-uplink-converter" target="_blank">Typed uplink converter</DocLink>.
+
+You can write the decoder yourself, or take a ready-made one from the **[Converters Library](#use-the-converters-library)**.
 
 <Steps>
-  <ol>
-    <li>Go to <strong>Integrations &#8702; Data converters</strong>.</li>
-    <li>Click <strong>+ Add data converter &#8702; Create new converter</strong>.</li>
-    <li><strong>Converter type</strong> — leave <strong>Uplink</strong> (selected by default).</li>
-    <li><strong>Integration type</strong> — in the search field, enter <code>ThingPark</code> and select <strong>ThingPark</strong> from the list.</li>
-    <li><strong>Name</strong> — enter a converter name, for example <code>ThingPark Uplink Converter</code>.</li>
-    <li>
-      <span>In <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#main-decoding-configuration" target="_blank">Main decoding configuration</DocLink>:</span>
-      <ul>
-        <li>The default device name pattern <code>Device $eui</code> uses the DevEUI from the ThingPark message as the unique device name in ThingsBoard. Change it if you prefer a different naming scheme.</li>
-        <li>The default decoder is pre-filled. Leave it unchanged for this guide, or paste the decoder function below.</li>
-      </ul>
-    </li>
-    <li>Review <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#advanced-decoding-parameters" target="_blank">Advanced decoding parameters</DocLink> — pre-populated for ThingPark, auto-extracting telemetry keys <code>channel</code>, <code>data</code>, <code>fCnt</code>, <code>rssi</code>, and <code>snr</code>, plus attribute keys <code>bandwidth</code>, <code>eui</code>, <code>fPort</code>, and <code>spreadingFactor</code>. Adjust if needed.</li>
-    <li>Click <strong>Add</strong>.</li>
-  </ol>
+1. Go to **Integrations &#8702; Data converters** and click **+ Add data converter &#8702; Create new converter**.
+2. **Converter type** — keep **Uplink**.
+3. **Integration type** — select **ThingPark**.
+4. Keep **Create new** selected.
+5. **Name** — enter a name, for example `ThingPark Uplink Converter`.
+6. **Main decoding configuration:**
+   - **Entity type** — keep **Device**.
+   - **Device name** — keep `Device $eui`. The converter replaces `$eui` with the `DevEUI` of the uplink. You can use any key from **[Decoder Inputs](#decoder-inputs)** as a `$key` placeholder.
+   - The editor opens in TBEL with the ThingPark decoder below. Keep it for this guide. It decodes the sample payload from **[Uplink Message Format](#uplink-message-format)**. For JavaScript, use the **TBEL / JS** toggle: it opens the same decoder in JavaScript.
+   <Aside type="tip" title="TBEL">
+     Use <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL</DocLink> for converter scripts — it runs much faster than JavaScript inside ThingsBoard.
+   </Aside>
+   <Tabs>
+     <TabItem label="TBEL (Recommended)">
+       ```js maxLines=15 collapsible
+       /**
+        * Decodes the incoming payload and returns a structured object containing telemetry data and attributes.
+        *
+        * @param {byte[]} input - The raw payload received as an array of bytes.
+        * @returns {Object} output - The structured output with decoded telemetry and attributes.
+        */
+
+       function decodePayload(input) {
+           // Initialize the output object with empty attributes and telemetry for clarity.
+           var result = { attributes: {}, telemetry: {}};
+
+           // Extract the timestamp from metadata (represented in milliseconds).
+           var timestamp = metadata.ts; // ts is the timestamp parsed from the incoming message's time, or returns the current time if it cannot be parsed.
+
+           if (metadata.payloadFormat == 'JSON') {
+               // payloadFormat is 'JSON' when ThingPark sends a pre-decoded JSON payload
+               // (DevEUI_uplink contains a "payload" object).
+               // All fields from the decoded payload object are put directly into telemetry.
+               var decoded = decodeToJson(input);
+               result.telemetry = {
+                   ts: timestamp,
+                   values: decoded
+               };
+               return result;
+           }
+
+           // payloadFormat is 'BINARY' when raw hex payload is received (payload_hex field).
+
+           // Decode serial number (SN) from the first 4 bytes of the payload.
+           // Press '?' icon in the top right corner to learn more about built in helper functions and capabilities.
+           result.attributes.sn = parseBytesToInt(input, 0, 4);
+
+           // Combine the timestamp with decoded values and add it to the telemetry.
+           result.telemetry = {
+               ts: timestamp,
+               values: {
+                   // Decode battery level from the 5th byte of the payload.
+                   battery: parseBytesToInt(input, 4, 1),
+                   // Decode temperature from the 6th and 7th bytes of the payload (divided by 100).
+                   temperature: parseBytesToInt(input, 5, 2) / 100.0,
+                   // Decode saturation from the 8th byte of the payload.
+                   saturation: parseBytesToInt(input, 7, 1)
+               }
+           };
+
+           // Return the fully constructed output object.
+           return result;
+       }
+
+       var result = decodePayload(payload);
+       // Uncomment this code block to overwrite values set in the main configuration window. Useful if you extract device/asset/customer/group names from the payload;
+       // result.type = 'DEVICE'; // Entity type allows you to choose type of created entity. Can be 'DEVICE' or 'ASSET'.
+       // result.name = 'Temperature Sensor'; // Device or asset name (the value must be unique)
+       // result.profile = 'IndustrialSensorProfile'; // Device or asset profile name.
+       // result.customer = 'MyCustomer'; // If customer is not null - created entity will be assigned to customer with such name.
+       // result.group = 'SensorsGroup'; // If group is not null - created entity will be added to the entity group with such name.
+
+       // Return the final result object.
+       return result;
+       ```
+     </TabItem>
+     <TabItem label="JavaScript">
+       ```js maxLines=15 collapsible
+       /**
+        * Decodes the incoming payload and returns a structured object containing telemetry data and attributes.
+        *
+        * @param {number[]} input - The raw payload received as an array of bytes.
+        * @returns {Object} output - The structured output with decoded telemetry and attributes.
+        */
+
+       function decodePayload(input) {
+           // Initialize the output object with empty attributes and telemetry for clarity.
+           var result = { attributes: {}, telemetry: {}};
+
+           // Extract the timestamp from metadata (represented in milliseconds).
+           var timestamp = metadata.ts; // ts is the timestamp parsed from the incoming message's time, or returns the current time if it cannot be parsed.
+
+           if (metadata.payloadFormat == 'JSON') {
+               // payloadFormat is 'JSON' when ThingPark sends a pre-decoded JSON payload
+               // (DevEUI_uplink contains a "payload" object instead of raw "payload_hex").
+               // All fields from the decoded payload object are put directly into telemetry.
+               var decoded = decodeToJson(input);
+               result.telemetry = {
+                   ts: timestamp,
+                   values: decoded
+               };
+               return result;
+           }
+
+           // payloadFormat is 'BINARY' when raw hex payload is received (payload_hex field).
+
+           // Decode serial number (SN) from the first 4 bytes of the payload.
+           // Press '?' icon in the top right corner to learn more about built in helper functions and capabilities.
+           result.attributes.sn = parseBytesToInt(input, 0, 4);
+
+           // Initialize an object to store decoded key/value telemetry data.
+           var values = {};
+
+           // Decode battery level from the 5th byte of the payload.
+           values.battery = parseBytesToInt(input, 4, 1);
+
+           // Decode temperature from the 6th and 7th bytes of the payload (divided by 100).
+           values.temperature = parseBytesToInt(input, 5, 2) / 100.0;
+
+           // Decode saturation from the 8th byte of the payload.
+           values.saturation = parseBytesToInt(input, 7, 1);
+
+           // Combine the timestamp with values and add it to the telemetry.
+           result.telemetry = {
+               ts: timestamp,
+               values: values
+           };
+
+           // Return the fully constructed output object.
+           return result;
+       }
+
+       var result = decodePayload(payload);
+       // Uncomment this code block to overwrite values set in the main configuration window. Useful if you extract device/asset/customer/group names from the payload;
+       // result.type = 'DEVICE'; // Entity type allows you to choose type of created entity. Can be 'DEVICE' or 'ASSET'.
+       // result.name = 'Temperature Sensor'; // Device or asset name (the value must be unique)
+       // result.profile = 'IndustrialSensorProfile'; // Device or asset profile name.
+       // result.customer = 'MyCustomer'; // If customer is not null - created entity will be assigned to customer with such name.
+       // result.group = 'SensorsGroup'; // If group is not null - created entity will be added to the entity group with such name.
+
+       // Return the final result object.
+       return result;
+
+       /**
+        * Converts a byte array to a string and parses it as JSON.
+        *
+        * @param {number[]} payload - The array of bytes.
+        * @returns {Object} - The parsed JSON object.
+        */
+       function decodeToJson(payload) {
+           return JSON.parse(String.fromCharCode.apply(String, payload));
+       }
+
+       /**
+        * Parse a slice of bytes from an array into an integer (big-endian).
+        *
+        * @param {number[]} input - The array of bytes.
+        * @param {number} offset - The starting index.
+        * @param {number} length - The number of bytes to convert.
+        * @returns {number} - The resulting integer.
+        */
+       function parseBytesToInt(input, offset, length) {
+           var result = 0;
+           for (var i = offset; i < offset + length; i++) {
+               result = (result << 8) | (input[i] & 0xFF);
+           }
+           return result;
+       }
+       ```
+     </TabItem>
+   </Tabs>
+
+   **To adapt:**
+   - **Payload layout** — change the offsets and lengths in `decodePayload` to match the payload format of your device.
+   - **Decoded payload** — if a ThingPark driver decodes the payload, `metadata.payloadFormat` is `JSON`, and the decoder stores the decoded values as telemetry as they are.
+   - **Device identity** — set `result.name`, `result.profile`, `result.customer`, or `result.group` to override the fields of **Main decoding configuration** and **Advanced decoding parameters**.
+7. **Advanced decoding parameters** — review the pre-filled values:
+   - **Device profile name**, **Device label**, **Customer name**, **Device group name** — empty by default. Without a profile name, ThingsBoard uses the `default` profile. Each field accepts `$key` placeholders.
+   - **Telemetry** — `fCnt`, `data`, `rssi`, `snr`, `channel`, and `decoded`. The converter adds these metadata keys to the telemetry that the decoder returns. It skips a key that is missing from the uplink or that the decoder already returns.
+   - **Attributes** — `eui`, `fPort`, `adr`, `spreadingFactor`, `bandwidth`, `devAddr`, `frequency`, and `class`. The converter adds them to the attributes in the same way. Downlink needs `eui`, so keep it.
+   - **Update only keys list** — the same keys as **Attributes**. These keys are stored only when their value changes.
+8. Click **Test payload decoder** and check the result (see **[Test the Decoder](#test-the-decoder)**).
+9. Click **Add**.
 </Steps>
 
-The decoder below handles both message formats ThingPark can send: a pre-decoded JSON payload (`payloadFormat` is `JSON`) or a raw hex payload (`payloadFormat` is `BINARY`). Adapt the binary field offsets to match your device protocol.
+<h4 id="decoder-inputs">Decoder Inputs</h4>
 
-<Aside type="tip" title="TBEL">
-  We recommend <DocLink product={props.product} path="user-guide/tbel" bold={false} target="_blank">TBEL</DocLink> for converter scripts — it executes much more efficiently than JavaScript inside ThingsBoard.
-</Aside>
+| Variable | Type | Content |
+|----------|------|---------|
+| `payload` | byte array | The device payload: the bytes of `payload_hex`, or the decoded `payload` object as JSON bytes if ThingPark sends one. Empty if the uplink has neither. |
+| `metadata` | object | The fields that the converter takes from the `DevEUI_uplink` message, and the integration metadata. |
 
-<Tabs>
-  <TabItem label="TBEL (Recommended)">
-  ```js maxLines=15 collapsible
-  /**
-  * Decodes the incoming payload and returns a structured object containing telemetry data and attributes.
-  *
-  * @param {byte[]} input - The raw payload received as an array of bytes.
-  * @returns {Object} output - The structured output with decoded telemetry and attributes.
-  */
+For the uplink in **[Uplink Message Format](#uplink-message-format)**, `metadata` holds these keys:
 
-  function decodePayload(input) {
-    // Initialize the output object with empty attributes and telemetry for clarity.
-    var result = { attributes: {}, telemetry: {}};
+| Key | Source | Value in this guide |
+|-----|--------|---------------------|
+| `eui` | `DevEUI` | `20635F00C5000660` |
+| `fPort`, `fCnt`, `fCntDn` | `FPort`, `FCntUp`, `FCntDn` | `2`, `42`, `5` |
+| `data` | `payload_hex` | `00bc614e5f092950` |
+| `rssi`, `snr` | `LrrRSSI`, `LrrSNR` | `-85.0`, `7.25` |
+| `spreadingFactor`, `bandwidth`, `channel` | `SpFact`, `SubBand`, `Channel` | `7`, `G1`, `LC2` |
+| `adr`, `mType`, `devAddr`, `frequency` | `ADRbit`, `MType`, `DevAddr`, `Frequency` | `1`, `2`, `0405F519`, `868.3` |
+| `time`, `timeTs`, `ts` | `Time` | `2026-10-22T10:15:30.123+00:00`, `1792664130123`, `1792664130123` |
+| `payloadFormat` | — | `BINARY` for `payload_hex`, `JSON` for a decoded `payload` |
+| `integrationName` | integration | The name of the integration. |
+| `AS_ID`, `LrnDevEui`, `LrnFPort` | request query parameters | The values ThingPark sends, or `false` if the request has no such parameter. |
 
-    // Extract the timestamp from metadata (represented in milliseconds).
-    var timestamp = metadata.ts; // ts is the timestamp parsed from the incoming message's time, or returns the current time if it cannot be parsed.
-  
-    if (metadata.payloadFormat == 'JSON') {
-      // payloadFormat is 'JSON' when ThingPark sends a pre-decoded JSON payload
-      // (DevEUI_uplink contains a "payload" object).
-      // All fields from the decoded payload object are put directly into telemetry.
-      var decoded = decodeToJson(input);
-      result.telemetry = {
-        ts: timestamp,
-        values: decoded
-      };
-      return result;
+The converter also maps `micHex`, `lrcid`, `lrrId`, `late`, `latitude`, `longitude`, `lrr`, `devLrrCnt`, `customerId`, `customerData`, `dynamicClass`, `decoded`, and other `DevEUI_uplink` fields when the uplink has them. `ts` is the time of the uplink in milliseconds, or the current time if `Time` is missing or can't be parsed. A key from the integration's **Metadata** field overrides a ThingPark key with the same name.
+
+<h4 id="test-the-decoder">Test the Decoder</h4>
+
+Click **Test payload decoder** below the editor. To test with the uplink from **[Uplink Message Format](#uplink-message-format)**, click **Updated RAW payload**, paste the message, and click **Apply**. The dialog takes the device payload out of the message and fills **Payload** and **Metadata** with it. Click **Test**. The **Output** panel shows the decoder result:
+
+```json
+{
+  "attributes": {
+    "sn": 12345678
+  },
+  "telemetry": {
+    "ts": 1792664130123,
+    "values": {
+      "battery": 95,
+      "temperature": 23.45,
+      "saturation": 80
     }
-
-    // payloadFormat is 'BINARY' when raw hex payload is received (payload_hex field).
-
-    // Decode serial number (SN) from the first 4 bytes of the payload.
-    // Press '?' icon in the top right corner to learn more about built in helper functions and capabilities.
-    result.attributes.sn = parseBytesToInt(input, 0, 4);
-  
-    // Combine the timestamp with decoded values and add it to the telemetry.
-    result.telemetry = {
-      ts: timestamp,
-      values: {
-        // Decode battery level from the 5th byte of the payload.
-        battery: parseBytesToInt(input, 4, 1),
-        // Decode temperature from the 6th and 7th bytes of the payload (divided by 100).
-        temperature: parseBytesToInt(input, 5, 2) / 100.0,
-        // Decode saturation from the 8th byte of the payload.
-        saturation: parseBytesToInt(input, 7, 1)
-      }
-    };
-
-    // Return the fully constructed output object.
-    return result;
-    // Same logic, less code:
-    // return {
-    //     attributes: {
-    //         sn: parseBytesToInt(input, 0, 4)
-    //     },
-    //     telemetry: {
-    //         ts: convertDateToTimestamp(metadata.time),
-    //         values: {
-    //             battery: parseBytesToInt(input, 4, 1),
-    //             temperature: parseBytesToInt(input, 5, 2) / 100.0,
-    //             saturation: parseBytesToInt(input, 7, 1)
-    //         }
-    //     }
-    // };
   }
+}
+```
 
-  var result = decodePayload(payload);
-  // Uncomment this code block to overwrite values set in the main configuration window. Useful if you extract device/asset/customer/group names from the payload;
-  // result.type = 'DEVICE'; // Entity type allows you to choose type of created entity. Can be 'DEVICE' or 'ASSET'.
-  // result.name = 'Temperature Sensor'; // Device or asset name (the value must be unique)
-  // result.profile = 'IndustrialSensorProfile'; // Device or asset profile name.
-  // result.customer = 'MyCustomer'; // If customer is not null - created entity will be assigned to customer with such name.
-  // result.group = 'SensorsGroup'; // If group is not null - created entity will be added to the entity group with such name.
+The keys from **Telemetry** and **Attributes** in **Advanced decoding parameters** are added after the decoder runs. You see them on the device after the first uplink. If the output is empty or shows an error, fix the decoder and test again.
 
-  // Return the final result object.
-  return result;
-  ```
-  </TabItem>
-  <TabItem label="JavaScript">
-  ```js maxLines=15 collapsible
-  /**
-  * Decodes the incoming payload and returns a structured object containing telemetry data and attributes.
-  *
-  * @param {number[]} input - The raw payload received as an array of bytes.
-  * @returns {Object} output - The structured output with decoded telemetry and attributes.
-  */
+<h4 id="use-the-converters-library">Use the Converters Library</h4>
 
-  function decodePayload(input) {
-    // Initialize the output object with empty attributes and telemetry for clarity.
-    var result = { attributes: {}, telemetry: {}};
-
-    // Extract the timestamp from metadata (represented in milliseconds).
-    var timestamp = metadata.ts; // ts is the timestamp parsed from the incoming message's time, or returns the current time if it cannot be parsed.
-
-    if (metadata.payloadFormat == 'JSON') {
-      // payloadFormat is 'JSON' when ThingPark sends a pre-decoded JSON payload
-      // (DevEUI_uplink contains a "payload" object instead of raw "payload_hex").
-      // All fields from the decoded payload object are put directly into telemetry.
-      var decoded = decodeToJson(input);
-      result.telemetry = {
-        ts: timestamp,
-        values: decoded
-      };
-      return result;
-    }
-
-    // payloadFormat is 'BINARY' when raw hex payload is received (payload_hex field).
-
-    // Decode serial number (SN) from the first 4 bytes of the payload.
-    // Press '?' icon in the top right corner to learn more about built in helper functions and capabilities.
-    result.attributes.sn = parseBytesToInt(input, 0, 4);
-
-    // Initialize an object to store decoded key/value telemetry data.
-    var values = {};
-
-    // Decode battery level from the 5th byte of the payload.
-    values.battery = parseBytesToInt(input, 4, 1);
-
-    // Decode temperature from the 6th and 7th bytes of the payload (divided by 100).
-    values.temperature = parseBytesToInt(input, 5, 2) / 100.0;
-
-    // Decode saturation from the 8th byte of the payload.
-    values.saturation = parseBytesToInt(input, 7, 1);
-
-    // Combine the timestamp with values and add it to the telemetry.
-    result.telemetry = {
-      ts: timestamp,
-      values: values
-    };
-
-    // Return the fully constructed output object.
-    return result;
-    // Same logic, less code:
-    // return {
-    //     attributes: {
-    //         sn: parseBytesToInt(input, 0, 4)
-    //     },
-    //     telemetry: {
-    //         ts: convertDateToTimestamp(metadata.time),
-    //         values: {
-    //             battery: parseBytesToInt(input, 4, 1),
-    //             temperature: parseBytesToInt(input, 5, 2) / 100.0,
-    //             saturation: parseBytesToInt(input, 7, 1)
-    //         }
-    //     }
-    // };
-  }
-
-  var result = decodePayload(payload);
-  // Uncomment this code block to overwrite values set in the main configuration window. Useful if you extract device/asset/customer/group names from the payload;
-  // result.type = 'DEVICE'; // Entity type allows you to choose type of created entity. Can be 'DEVICE' or 'ASSET'.
-  // result.name = 'Temperature Sensor'; // Device or asset name (the value must be unique)
-  // result.profile = 'IndustrialSensorProfile'; // Device or asset profile name.
-  // result.customer = 'MyCustomer'; // If customer is not null - created entity will be assigned to customer with such name.
-  // result.group = 'SensorsGroup'; // If group is not null - created entity will be added to the entity group with such name.
-
-  // Return the final result object.
-  return result;
-
-  /**
-  * Converts a byte array to a string and parses it as JSON.
-  *
-  * @param {number[]} payload - The array of bytes.
-  * @returns {Object} - The parsed JSON object.
-  */
-  function decodeToJson(payload) {
-    return JSON.parse(String.fromCharCode.apply(String, payload));
-  }
-
-  /**
-  * Parse a slice of bytes from an array into an integer (big-endian).
-  *
-  * @param {number[]} input - The array of bytes.
-  * @param {number} offset - The starting index.
-  * @param {number} length - The number of bytes to convert.
-  * @returns {number} - The resulting integer.
-  */
-  function parseBytesToInt(input, offset, length) {
-    var result = 0;
-    for (var i = offset; i < offset + length; i++) {
-      result = (result << 8) | (input[i] & 0xFF);
-    }
-    return result;
-  }
-  ```
-  </TabItem>
-</Tabs>
-
-<h4>Converter Input</h4>
-
-ThingsBoard passes two variables to the decoder:
-
-| Variable | Type | Description |
-|----------|------|-------------|
-| `payload` | byte array | The application payload bytes. For `BINARY` format, these are the decoded bytes of the `payload_hex` field from the ThingPark `DevEUI_uplink` message. For `JSON` format, these are the bytes of the serialized pre-decoded `payload` object. |
-| `metadata` | object | Key-value map with fields extracted from the ThingPark message: `payloadFormat`, `ts`, `eui`, `fPort`, `fCnt`, `rssi`, `snr`, `channel`, `spreadingFactor`, and `bandwidth`. |
-
-This `metadata` object — available to the decoder script as `metadata.xxx` — is separate from the **Metadata** column shown on the integration and converter **Events** tabs (see **[Verify Converter Events](#verify-converter-events)**), which displays integration-level context rather than these per-message fields.
-
-<h4>Adapt the Decoder to Your Device</h4>
-
-- **Match your payload structure** — update byte offsets, lengths, and field names in `decodePayload` to match your device's binary specification.
-- **Add or remove fields** — add more `parseBytesToInt` calls (or `parseBytesToFloat`, string extraction, etc.) for additional sensors; remove entries your device does not transmit.
-- **Use a pre-decoded payload** — if your ThingPark application decodes the payload before forwarding it (`DevEUI_uplink` contains a `payload` object instead of `payload_hex`), `metadata.payloadFormat` is `'JSON'` and the decoder already handles this path with `decodeToJson(input)` — no binary parsing needed.
-- **Override device identity from the payload** — set `result.name`, `result.profile`, `result.group`, or `result.customer` to derive device identity from payload content rather than the Main decoding configuration template.
-
-### Create the ThingPark Integration
+The <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#converters-library" target="_blank">Converters Library</DocLink> holds ready-made decoders for many LoRaWAN devices, from the open-source <a href="https://github.com/thingsboard/data-converters" target="_blank" rel="noopener noreferrer"><strong>data-converters</strong></a> repository.
 
 <Steps>
-  <ol>
-    <li>Go to <strong>Integrations &#8702; Integrations</strong> and click <strong>+ Add integration</strong>.</li>
-    <li>
-      <span><strong>Basic settings:</strong></span>
-      <ul>
-        <li>Set <strong>Integration type</strong> to <strong>ThingPark</strong>.</li>
-        <li>Enter a <strong>Name</strong>, or keep the default <code>ThingPark integration</code>.</li>
-        <li>Leave <strong>Enable integration</strong> and <strong>Allow create devices or assets</strong> enabled so that devices are created automatically when data is received for the first time.</li>
-        <li>Click <strong>Next</strong>.</li>
-      </ul>
-    </li>
-    <li>
-      <span><strong>Uplink data converter:</strong></span>
-      <ul>
-        <li>Click <strong>Select existing</strong> and choose the <a href="#create-the-uplink-data-converter"><strong>ThingPark Uplink Converter</strong></a> created above, or click <strong>Create new</strong> to define the decoder inline.</li>
-        <li>Click <strong>Next</strong>.</li>
-      </ul>
-    </li>
-    <li>
-      <span><strong>Downlink data converter:</strong></span>
-      <ul>
-        <li>Click <strong>Skip</strong> — a downlink converter is only needed when ThingsBoard must send commands back to devices. See <a href="#configure-downlink"><strong>Configure and Test Downlink</strong></a> to add one later.</li>
-      </ul>
-    </li>
-    <li>
-      <span><strong>Connection:</strong></span>
-      <ul>
-        <li><strong>Base URL</strong> — pre-filled with your ThingsBoard instance URL (for example, <strong><code>https://thingsboard.cloud</code></strong>).</li>
-        <li>Copy the <strong>HTTP endpoint URL</strong> — paste this into your ThingPark application as the destination routing address so Actility forwards uplinks to ThingsBoard.</li>
-      </ul>
-    </li>
-    <li>Click <strong>Add</strong> to finish creating the integration.</li>
-  </ol>
+1. In **+ Add data converter &#8702; Create new converter**, keep **Uplink**, select **ThingPark**, and switch **Create new** to **Library**. The **Uplink data converter** step of the integration wizard offers the same **Library** option.
+2. Select the **Vendor** and the **Model** of your device.
+3. The **Name** is filled in, in the form `ThingPark Uplink Converter for <Vendor> <Model>`, and the decoder is loaded.
+4. Review the decoder and the **Advanced decoding parameters**, and click **Add**.
 </Steps>
 
+A library decoder can differ from the decoder in this guide. Some entries are written for the full ThingPark message: they decode the `DevEUI_uplink` object themselves, and the dialog then offers **Test decoder function** and only **Update only keys list** under **Advanced decoding parameters**. Test a library decoder with an uplink of your device before you use it.
+
+### Create the Integration
+
+<Steps>
+1. Go to **Integrations &#8702; Integrations** and click **+ Add integration**.
+2. **Basic settings:**
+   - **Integration type** — select **ThingPark**.
+   - **Name** — keep the default `ThingPark integration` or enter your own.
+   - **Enable integration** and **Allow create devices or assets** — keep both on, so the device is created on its first uplink.
+   - Click **Next**.
+3. **Uplink data converter:**
+   - Click **Select existing** and choose `ThingPark Uplink Converter`.
+   - Alternatively, click **Create new** or **Library** to create the converter here.
+   - Click **Next**.
+4. **Downlink data converter:**
+   - Click **Skip**. Add a downlink converter later if you need to **[send commands](#configure-downlink)**.
+5. **Connection:**
+   - Copy the **HTTP endpoint URL**. You need it for the ThingPark application server.
+   - Leave the other parameters at their defaults. See **[Connection Settings](#connection-settings)** for details.
+6. Click **Add**.
+</Steps>
 
 #### Connection Settings
 
-<h5>Base URL</h5>
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| **Base URL** | Address of the ThingsBoard server you are signed in to, for example `https://thingsboard.cloud` | Used to build the endpoint URL. Must be a public address. Required. |
+| **HTTP endpoint URL** | — | Read-only. Format: `{Base URL}/api/v1/integrations/thingpark/{integrationKey}`, where `integrationKey` is a UUID assigned at creation. Accepts JSON bodies only. |
+| **Enable security** | Off | Checks the `AS_ID`, `Time`, and `Token` query parameters of every uplink, and signs every downlink. See **[Secure the Endpoint](#secure-the-endpoint)**. |
+| **AS ID** | — | In **Enable security**. The application server ID set in ThingPark. Compared without regard to case. Required when **Enable security** is on. |
+| **AS Key** | — | In **Enable security**. The tunnel authentication key of the application server in ThingPark. Required when **Enable security** is on. |
+| **Maximum time difference (seconds)** | `60` | In **Enable security**. Maximum difference between the `Time` of a request and the clock of the ThingsBoard server. |
+| **Enable security for automatic token updates** | Off | In **Enable security**. Used by ThingPark Enterprise Integration only. Keep it off: ThingPark Integration ignores its fields, and the toggle hides the **AS ID** field that the integration reads. |
+| **Execute remotely** | Off | Runs the integration as a separate process outside the ThingsBoard cluster. ThingsBoard generates an **Integration key** and **Integration secret** for it. ThingPark needs a public endpoint, so the standard setup keeps this off. See <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink>. |
+| **Replace response status from 'No-Content' to 'OK'** | Off | In **Advanced settings**. Has no effect for ThingPark Integration: it always answers `200 OK` to an accepted uplink. |
+| **Downlink URL** | `https://api.thingpark.com/thingpark/lrc/rest/downlink` | In **Advanced settings**. The ThingPark downlink API. Used only when a downlink converter is assigned. Change it if your ThingPark installation uses another host. |
+| **Description** | — | In **Advanced settings**. Free-text description. |
+| **Metadata** | — | In **Advanced settings**. Key–value pairs added to the `metadata` of every message from this integration. |
 
-The base address of the ThingsBoard server used to construct the HTTP endpoint URL. For ThingsBoard Cloud, this is `https://thingsboard.cloud`.
+The integration answers `200 OK` when it accepted the uplink, `400 Bad Request` on a converter script error, `403 Forbidden` when the security check fails, and `500 Internal Server Error` on other errors, for example a body without `DevEUI_uplink`.
 
-<h5>HTTP Endpoint URL</h5>
+### Connect ThingPark to ThingsBoard
 
-The auto-generated webhook address for this integration, in the form:
+In ThingPark Device Manager, create an application server that sends uplinks to the integration endpoint, and route the device to it.
 
-```
-https://{base-url}/api/v1/integrations/thingpark/{integration-id}
-```
+<Steps>
+1. Create an **HTTP application server**. Set the content type to **JSON**, and add the **HTTP endpoint URL** of the integration as its destination.
+2. To sign the requests, turn on tunnel interface authentication for the application server, and note its **AS ID** and **AS key**. You enter them in ThingsBoard in **[Secure the Endpoint](#secure-the-endpoint)**.
+3. Create an **AS routing profile** with the application server as its destination.
+4. Assign the routing profile to the device.
+</Steps>
 
-Paste this URL into your ThingPark application server routing profile as the destination so Actility forwards device uplink messages to ThingsBoard.
+Menu and field names differ between ThingPark versions. For the exact steps, see the <a href="https://www.actility.com/thingpark-documentation-portal/" target="_blank" rel="noopener noreferrer"><strong>ThingPark documentation</strong></a>.
 
-<h5>Enable Security</h5>
+### Secure the Endpoint
 
-When enabled, ThingsBoard validates an HMAC-SHA256 signature on incoming requests. Configure:
+Anyone who knows the endpoint URL can send data to it. With **Enable security**, the integration accepts only uplinks signed with the AS key of your application server. It rejects every other request with `403 Forbidden`, before the converter runs.
 
-| Field | Description |
-|---|---|
-| **AS ID** | Hex string identifying this Application Server. Must match the value configured in ThingPark. |
-| **AS Key** | Hex string used to compute and verify the HMAC signature. Must match the value configured in ThingPark. |
-| **Maximum time difference (seconds)** | Allowed clock skew when validating message timestamps (default: `60`). |
+<Steps>
+1. In ThingsBoard, open the integration and click **Toggle edit mode** (pencil icon).
+2. Turn on **Enable security**. Keep **Enable security for automatic token updates** off.
+3. Enter the **AS ID** and the **AS Key** of the application server.
+4. Keep **Maximum time difference (seconds)** at `60`, or increase it if the clocks of ThingPark and ThingsBoard differ.
+5. Click **Apply changes**.
+</Steps>
 
-<h5>Enable Security for Automatic Token Updates</h5>
+For each uplink, the integration checks that:
 
-When enabled, ThingPark can refresh the authentication token automatically without manual intervention.
+1. The `AS_ID` query parameter matches the **AS ID**.
+2. The `Time` query parameter, for example `2026-10-22T10:15:30.123Z`, differs from the server time by no more than **Maximum time difference (seconds)**.
+3. The `Token` query parameter is the SHA-256 hash, in lowercase hex, of this string: the `CustomerID`, `DevEUI`, `FPort`, `FCntUp`, and `payload_hex` values of the body, then `LrnDevEui={…}&LrnFPort={…}&LrnInfos={…}&AS_ID={…}&Time={…}` with the query parameter values, then the **AS Key**.
 
-<h5>Execute Remotely</h5>
-
-When enabled, ThingsBoard generates an **Integration key** and **Integration secret** for running the integration outside the ThingsBoard cluster — useful when ThingsBoard is not publicly reachable from your ThingPark deployment. See <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink>.
-
-<h5>Advanced Settings</h5>
-
-- **Replace response status from 'No-Content' to 'OK'** — some ThingPark deployments expect an HTTP `200 OK` response instead of `204 No Content`. Enable this toggle if your ThingPark installation logs HTTP errors after a successful uplink delivery.
-- **Downlink URL** — pre-filled with ThingPark's downlink delivery endpoint (e.g. `https://api.thingpark.com/thingpark/lrc/rest/downlink`). Required only if you configure a downlink converter and rule chain — see <a href="#configure-downlink"><strong>Configure and Test Downlink</strong></a>.
-- **Description** — optional free-text description for this integration.
-- **Metadata** — key-value pairs injected into every uplink message as `integrationMetadata` in converter scripts; click **Add** to define entries.
-
-## Configure ThingPark
-
-Configure your ThingPark application to route uplink messages to the ThingsBoard **HTTP endpoint URL** copied in <a href="#create-the-thingpark-integration"><strong>Create the ThingPark Integration</strong></a>. 
-In <a href="https://thingparkenterprise.eu.actility.com/tpe/#/login" target="_blank" rel="noopener noreferrer"><strong>ThingPark Wireless OSS</strong></a>, this is set on the application's routing or destination profile — see the official <a href="https://www.actility.com/thingpark-documentation-portal/" target="_blank" rel="noopener noreferrer"><strong>ThingPark documentation</strong></a> for the exact navigation in your ThingPark deployment, since menu names can differ between ThingPark plans and versions.
-
-<Aside type="note">
-  If **Enable security** is configured on the ThingsBoard integration, enter the same **AS ID** and **AS Key** in the ThingPark application — requests with a missing or mismatched signature are rejected.
-</Aside>
+A signed request must have all of these fields. To send a signed test request, see **[Send a Signed Test Uplink](#send-a-signed-test-uplink)**.
 
 ## Test Uplink
 
-After the integration and converter are configured, and the device is transmitting through ThingPark, confirm that ThingsBoard receives, decodes, and stores the data correctly.
+Send an uplink to the endpoint, then confirm that ThingsBoard decoded it and created the device.
 
 <Aside type="note">
-  Before testing, ensure that **Debug** mode with the **All messages** option is enabled for both the integration and the converter. This lets you inspect received messages and conversion results on the corresponding **Events** tabs.
+  Turn on **Debug** mode with **All messages** for the integration and the uplink converter before you send the data. Without it, the **Events** tabs stay empty.
 </Aside>
 
-### Send Test Uplink
+### Send a Test Uplink
 
-Wait for your device to transmit an uplink through ThingPark, or emulate one by sending an HTTP request directly to the ThingsBoard endpoint with curl — bypassing ThingPark entirely. This is useful to verify the integration and converter before connecting real hardware.
+Wait for the device to send an uplink through ThingPark, or send the uplink from **[Uplink Message Format](#uplink-message-format)** with curl. The curl request bypasses ThingPark, so you can check the integration before you connect a device.
 
-Replace `$HTTP_ENDPOINT_URL` with the **HTTP endpoint URL** copied in **[Create the ThingPark Integration](#create-the-thingpark-integration)**:
+Replace `$HTTP_ENDPOINT_URL` with the **HTTP endpoint URL** of the integration. **Enable security** must be off.
 
 ```bash
-curl -v \
+curl -i -X POST "$HTTP_ENDPOINT_URL" \
   -H "Content-Type: application/json" \
-  -d '{"DevEUI_uplink":{"Time":"2026-03-20T14:42:52.653+00:00","DevEUI":"20635F00C5000660","FPort":1,"FCntUp":42,"payload_hex":"00BC614E5F092950","LrrRSSI":-85.0,"LrrSNR":7.25,"SpFact":7,"SubBand":"G0","Channel":"LC1"}}' \
-  "$HTTP_ENDPOINT_URL"
+  -d '{"DevEUI_uplink": {"Time": "2026-10-22T10:15:30.123+00:00", "DevEUI": "20635F00C5000660", "FPort": 2, "FCntUp": 42, "ADRbit": 1, "MType": 2, "FCntDn": 5, "payload_hex": "00bc614e5f092950", "mic_hex": "3a1f9c4e", "Lrcid": "00000201", "LrrRSSI": -85.0, "LrrSNR": 7.25, "SpFact": 7, "SubBand": "G1", "Channel": "LC2", "DevLrrCnt": 1, "Lrrid": "FF0101B0", "Late": 0, "LrrLAT": 48.856613, "LrrLON": 2.352222, "CustomerID": "100000507", "DevAddr": "0405F519", "Frequency": 868.3, "DynamicClass": "A"}}'
 ```
 
-The `payload_hex` value `00BC614E5F092950` matches the byte layout from the uplink converter: `sn = 12345678`, `battery = 95`, `temperature = 23.45`, `saturation = 80`.
+The response is `HTTP/1.1 200`. The telemetry is stored with the timestamp of `Time`, so it appears under 22 October 2026.
 
-### Verify Integration Events
+<h4 id="send-a-signed-test-uplink">Send a Signed Test Uplink</h4>
 
-Go to **Integrations &#8702; Integrations**, open the ThingPark integration, and click the **Events** tab. With **Event type** set to **Debug**, a row appears with **Type: Uplink** and **Status: OK**. Click **…** in the **Message** column to inspect the raw `DevEUI_uplink` payload received from ThingPark.
+With **Enable security** on, sign the request as ThingPark does. Set `AS_ID` and `AS_KEY` to the values in the integration. The script uses the current UTC time, so the request passes the time check.
 
-### Verify Converter Events
+```bash
+AS_ID="TWA_100000507.2378.AS"
+AS_KEY="0123456789abcdef0123456789abcdef"
+TIME=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)
+QUERY="LrnDevEui=20635F00C5000660&LrnFPort=2&LrnInfos=TWA_100000507.2378.AS&AS_ID=${AS_ID}&Time=${TIME}"
+# CustomerID, DevEUI, FPort, FCntUp, and payload_hex of the body below
+BODY_FIELDS="100000507""20635F00C5000660""2""42""00bc614e5f092950"
+TOKEN=$(printf '%s' "${BODY_FIELDS}${QUERY}${AS_KEY}" | sha256sum | cut -d' ' -f1)
 
-Go to **Integrations &#8702; Data converters**, open the uplink converter you configured for this integration, and click its **Events** tab. Click **…** in each column to inspect:
-- **In** — the raw `DevEUI_uplink` JSON payload received by the converter.
-- **Out** — the decoded result produced by the script: `attributes.sn` and `telemetry.values` (`battery`, `temperature`, `saturation`).
-- **Metadata** — integration-level context, including `integrationName` and internal flags such as `AS_ID`, `LrnDevEui`, and `LrnFPort`.
+curl -i -X POST "${HTTP_ENDPOINT_URL}?${QUERY}&Token=${TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"DevEUI_uplink": {"Time": "2026-10-22T10:15:30.123+00:00", "DevEUI": "20635F00C5000660", "FPort": 2, "FCntUp": 42, "payload_hex": "00bc614e5f092950", "LrrRSSI": -85.0, "LrrSNR": 7.25, "SpFact": 7, "SubBand": "G1", "Channel": "LC2", "CustomerID": "100000507", "DevAddr": "0405F519", "Frequency": 868.3}}'
+```
 
-### Verify Device Provisioning
+On macOS, replace `sha256sum` with `shasum -a 256`. A wrong AS key gives `403`. The integration event then has the status **FORBIDDEN**.
 
-Go to **Devices & assets &#8702; Devices**. ThingsBoard automatically provisions a new device named `Device <DevEUI>` (e.g. `Device 20635F00C5000660`) on the first uplink, provided **Allow create devices or assets** is enabled. Open the device and check:
-- **Latest telemetry** — `battery`, `temperature`, and `saturation` decoded by the script, alongside `channel`, `data`, `fCnt`, `rssi`, and `snr` extracted automatically from the ThingPark message by the Advanced decoding parameters.
-- **Client attributes** — `sn` set by the script, alongside `eui`, `fPort`, `spreadingFactor`, and `bandwidth` extracted automatically.
+### Verify the Result
 
-Expected result: the device appears in **Devices & assets &#8702; Devices** within seconds of the uplink, with telemetry and attributes matching the values above.
+- **Integration events** — go to **Integrations &#8702; Integrations**, open the integration, and click the **Events** tab. The message appears as an event of type **Uplink** with status **OK**. Click <code>&#8901;&#8901;&#8901;</code> in the **Message** column to see the body.
+- **Converter events** — open `ThingPark Uplink Converter` in **Integrations &#8702; Data converters** and click the **Events** tab. **In** shows the full `DevEUI_uplink` message, as ThingPark sent it. **Out** shows the decoder result. **Metadata** shows the integration metadata as it was before the converter read the message: `integrationName`, `AS_ID`, `LrnDevEui`, and `LrnFPort`.
+- **Device** — go to **Devices & assets &#8702; Devices**. The integration has created the device `Device 20635F00C5000660` with the `default` profile. Open it and check:
+  - **Latest telemetry** — `battery` `95`, `temperature` `23.45`, and `saturation` `80` from the decoder, and `fCnt`, `data`, `rssi`, `snr`, and `channel` from **Advanced decoding parameters**.
+  - **Attributes** &#8702; **Client attributes** — `sn` `12345678` from the decoder, and `eui`, `fPort`, `adr`, `spreadingFactor`, `bandwidth`, `devAddr`, and `frequency` from **Advanced decoding parameters**.
 
 ## Configure Downlink
 
-The downlink converter (encoder) transforms a Rule Engine message into the payload ThingsBoard sends back to the device. ThingsBoard posts the encoded payload to the **Downlink URL** — pre-filled under **Advanced settings** in the integration's Connection step to `https://api.thingpark.com/thingpark/lrc/rest/downlink`; adjust it only if your ThingPark installation uses a different host. For the full encoder function reference, see <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink data converter</DocLink>.
+ThingsBoard sends each downlink right away as a ThingPark API call. Nothing is queued in ThingsBoard: if the call fails, ThingsBoard records an error and drops the command. ThingPark then delivers the downlink to the device, for a class A device after its next uplink.
 
-The encoder output must include two fields in `metadata` required for delivery:
+For each downlink, the integration:
 
-| Field | Description |
-|-------|-------------|
-| `metadata.DevEUI` | The device EUI — read from `metadata.cs_eui`, injected by the **Originator attributes** node from the device client attribute `eui` (ThingsBoard prefixes client-scope attributes with `cs_`). |
-| `metadata.fPort` | The LoRaWAN port — read from `metadata.cs_fPort`, injected by the **Originator attributes** node from the device client attribute `fPort`. |
+1. Reads `DevEUI` and `FPort` from the `metadata` of the encoder result, and the hex payload from `data`.
+2. Sends `POST {Downlink URL}?DevEUI={DevEUI}&FPort={FPort}&Payload={data}` with an empty `text/plain` body. It adds `FCntDn`, `Confirmed`, and `FlushDownlinkQueue` when the encoder metadata has them.
+3. If **Enable security** is on, adds `AS_ID`, `Time`, and `Token` to the query. The token is the SHA-256 hash, in lowercase hex, of the query string followed by the **AS Key**.
+
+Without **Enable security**, the request is not signed. Turn it on if your ThingPark application server uses tunnel interface authentication.
+
+The downlink converter turns a Rule Engine message into the encoder result. For the full encoder reference, see <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink data converter</DocLink>.
 
 ### Create and Assign the Downlink Converter
 
 <Steps>
-  1. Go to **Integrations &#8702; Integrations** and open the **ThingPark integration**.
-  2. Click the **pencil** icon to enter edit mode.
-  3. In the **Downlink data converter** field, click **Create new**.
-  4. In the **Add data converter** dialog:
-      - Enter a name for the converter, for example, `ThingPark Downlink Converter`.
-      - Use the default encoder script or replace it with your own implementation.
-      - Click **Add**.
-  5. Click **Apply changes** to save the integration.
+1. Open the integration in **Integrations &#8702; Integrations** and click **Toggle edit mode** (pencil icon).
+2. In the **Downlink data converter** field, click **Create new**. The **Downlink** converter type and **ThingPark** integration type are preselected.
+3. Enter a name, for example `ThingPark Downlink Converter`.
+4. **Main encoding configuration** opens in TBEL with a generic encoder. It builds a JSON object from `temperatureUploadFrequency` and `humidityUploadFrequency` and sets an MQTT `topic`, not the hex payload, `DevEUI`, and `FPort` that ThingPark needs. Replace it with the encoder below. For JavaScript, use the **TBEL / JS** toggle and the **JavaScript** tab.
+5. To record downlink events, click the debug button next to the name, select **All messages**, and click **Apply**. Debug is off by default.
+6. Click **Add**.
+7. Click **Apply changes**.
 </Steps>
 
-**The encoder function used in this tutorial:**
+Encoder used in this guide. It sends the `uploadInterval` shared attribute, in seconds, as a 2-byte big-endian hex payload, for example `003C` for `60`. A message without `uploadInterval` produces no downlink. Change the payload format to the one your device expects.
 
 <Tabs>
-  <TabItem label="TBEL (Recommended)">
-    ```js maxLines=15 collapsible
-    // Encode downlink data from incoming Rule Engine message.
-    // msg - JSON message payload (e.g. { "state": "on" })
-    // msgType - message type, e.g. 'ATTRIBUTES_UPDATED'
-    // metadata - enriched by the Originator attributes node with device client attributes.
-    //            ThingsBoard prefixes client-scope attributes with "cs_":
-    //            metadata.cs_eui — Device EUI stored on first uplink (e.g. "20635F00C5000660")
-    //            metadata.cs_fPort — LoRaWAN frame port stored on first uplink (e.g. "1")
+<TabItem label="TBEL (Recommended)">
 
-    var eui = metadata.cs_eui;
-    if (eui == null) {
-      raiseError("DevEUI is missing (expected metadata.cs_eui).");
+```js
+/** Encoder **/
+
+// Device EUI. The rule chain adds the eui client attribute to the metadata as cs_eui.
+var devEui = metadata['cs_eui'];
+if (devEui == null) {
+    raiseError("DevEUI not found: the device has no eui client attribute.");
+}
+
+// Nothing to send.
+var interval = msg['uploadInterval'];
+if (interval == null) {
+    return [];
+}
+
+// Upload interval in seconds (0-65535) as 2 bytes, big-endian, in hex. 60 -> "003C".
+var payloadHex = padStart(intToHex(interval, true, false), 4, '0');
+
+return {
+    contentType: "TEXT",
+    data: payloadHex,
+    metadata: {
+        DevEUI: devEui,
+        // LoRaWAN port your device listens on for commands.
+        FPort: 2
     }
+};
+```
 
-    // Read port from the device client attribute "fPort" (set per-device).
-    // Falls back to 1 if the attribute is not set.
-    var port = (metadata.cs_fPort != null && metadata.cs_fPort != '') ? parseInt(metadata.cs_fPort) : 1;
+</TabItem>
+<TabItem label="JavaScript">
 
-    var result = {
-      // Downlink data content type: JSON, TEXT, or BINARY (base64 format).
-      contentType: "JSON",
-    
-      // Downlink data — serialise the full message payload as a JSON string.
-      data: JSON.stringify(msg),
+```js
+/** Encoder **/
 
-      // metadata must include DevEUI and fPort for ThingPark delivery.
-      metadata: {
-        "DevEUI": eui,
-        "fPort": port
-      }
-    };
-    
-    return result;
-    ```
-    </TabItem>
-    <TabItem label="JavaScript">
-    ```js maxLines=15 collapsible
-    // Encode downlink data from incoming Rule Engine message.
-    // msg - JSON message payload (e.g. { "state": "on" })
-    // msgType - message type, e.g. 'ATTRIBUTES_UPDATED'
-    // metadata - enriched by the Originator attributes node with device client attributes.
-    //            ThingsBoard prefixes client-scope attributes with "cs_":
-    //            metadata.cs_eui — Device EUI stored on first uplink (e.g. "20635F00C5000660")
-    //            metadata.cs_fPort — LoRaWAN frame port stored on first uplink (e.g. "1")
+// Device EUI. The rule chain adds the eui client attribute to the metadata as cs_eui.
+var devEui = metadata['cs_eui'];
+if (devEui == null) {
+    throw new Error("DevEUI not found: the device has no eui client attribute.");
+}
 
-    var eui = metadata.cs_eui;
+// Nothing to send.
+var interval = msg['uploadInterval'];
+if (interval == null) {
+    return [];
+}
 
-    // Read port from the device client attribute "fPort" (set per-device).
-    // Falls back to 1 if the attribute is not set.
-    var port = parseInt(metadata.cs_fPort) || 1;
+// Upload interval in seconds (0-65535) as 2 bytes, big-endian, in hex. 60 -> "003C".
+var payloadHex = ('000' + Number(interval).toString(16).toUpperCase()).slice(-4);
 
-    var result = {
-      // Downlink data content type: JSON, TEXT, or BINARY (base64 format).
-      contentType: "JSON",
+return {
+    contentType: "TEXT",
+    data: payloadHex,
+    metadata: {
+        DevEUI: devEui,
+        // LoRaWAN port your device listens on for commands.
+        FPort: 2
+    }
+};
+```
 
-      // Downlink data — serialise the full message payload as a JSON string.
-      data: JSON.stringify(msg),
-
-      // metadata must include DevEUI and fPort for ThingPark delivery.
-      metadata: {
-        "DevEUI": eui,
-        "fPort": port
-      }
-    };
-
-    return result;
-    ```
-  </TabItem>
+</TabItem>
 </Tabs>
 
-<Aside type="note">
-  The **Downlink URL** (e.g. `https://api.thingpark.com/thingpark/lrc/rest/downlink`) must be set in the **Advanced settings** of the integration connection for downlinks to be delivered to devices — see <a href="#connection-settings">Connection Settings</a>.
-</Aside>
+To check the encoder, click **Test encoder function**. Replace the **Message** with `{"uploadInterval": 60}`, add the key `cs_eui` with the value `20635F00C5000660` to **Metadata**, and click **Test**. The **Output** panel shows:
+
+```json
+{
+  "contentType": "TEXT",
+  "data": "003C",
+  "metadata": {
+    "DevEUI": "20635F00C5000660",
+    "FPort": 2
+  }
+}
+```
+
+The integration reads these fields from the encoder result:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `data` | Yes | The payload, sent as the `Payload` query parameter as is. Use a hex string. |
+| `contentType` | Yes | `TEXT` for a hex string. `JSON` works the same way. `BINARY` expects Base64 and sends the decoded bytes as text, so don't use it. |
+| `metadata.DevEUI` | Yes | The device EUI. Without it, the downlink fails with `DevEUI is missing in the downlink metadata!`. |
+| `metadata.FPort` | Yes | The LoRaWAN port. The name is case-sensitive: without `FPort`, the downlink fails with `FPort is missing in the downlink metadata!`. |
+| `metadata.FCntDn` | No | Downlink frame counter, sent as `FCntDn`. |
+| `metadata.Confirmed` | No | Sent as `Confirmed`, for a confirmed downlink. |
+| `metadata.FlushDownlinkQueue` | No | Sent as `FlushDownlinkQueue`, to clear the ThingPark downlink queue of the device first. |
+
+For the values ThingPark accepts in these parameters, see the ThingPark documentation. To send several downlinks from one message, return an array of results.
 
 ### Configure the Root Rule Chain
 
-To trigger a downlink when an attribute changes (for example, a shared attribute update), add two nodes to the Root Rule Chain: an **Originator attributes** node (Enrichment category) that reads the device `eui` and `fPort` client attributes into message metadata, and an **Integration Downlink** node (Action category) that forwards the encoded message to the ThingPark integration.
-
-<Aside type="note" title="Why these nodes are required">
-  The <strong>Originator attributes</strong> node injects <code>eui</code> and <code>fPort</code> client attributes into message metadata with the <code>cs_</code> prefix — the downlink converter reads <code>metadata.cs_eui</code> and <code>metadata.cs_fPort</code> to build the ThingPark delivery target. Without this node, both fields are absent and the converter cannot route the downlink.
-</Aside>
+The encoder needs the device EUI. Add the `eui` client attribute to the metadata with an **originator attributes** node, then pass the message to the integration.
 
 <Steps>
-  <ol>
-    <li>Open <strong>Data processing &#8702; Rule chains &#8702; Root Rule Chain</strong>.</li>
-    <li>In the node panel, search for <strong>originator attributes</strong>. The node appears under the <strong>Enrichment</strong> category. Drag it onto the canvas.</li>
-    <li>
-      <span><strong>Configure the node:</strong></span>
-      <ul>
-        <li><strong>Name</strong> — <code>Fetch eui and fPort</code>.</li>
-        <li>Under <strong>Client attributes</strong>, add the following keys: <code>eui</code> and <code>fPort</code>.</li>
-        <li>Set <strong>Add originator attributes to</strong> to <strong>Metadata</strong>.</li>
-        <li>Click <strong>Add</strong>.</li>
-      </ul>
-    </li>
-    <li>In the node panel, search for <strong>integration downlink</strong>. The node appears under the <strong>Action</strong> category. Drag it onto the canvas.</li>
-    <li>
-      <span><strong>Configure the node:</strong></span>
-      <ul>
-        <li><strong>Name</strong> — <code>Downlink to ThingPark</code>.</li>
-        <li><strong>Integration</strong> — select your <strong>ThingPark integration</strong>.</li>
-        <li>Click <strong>Add</strong>.</li>
-      </ul>
-    </li>
-    <li>Connect the <strong>Message Type Switch</strong> node to the <strong>Fetch eui and fPort</strong> node using the <strong>Post attributes</strong> and <strong>Attributes Updated</strong> relations.</li>
-    <li>Connect the <strong>Fetch eui and fPort</strong> node to the <strong>Downlink to ThingPark</strong> node using the <strong>Success</strong> relation.</li>
-    <li>Click <strong>Apply changes</strong>.</li>
-  </ol>
+1. Go to **Data processing &#8702; Rule chains** and open the **Root Rule Chain**.
+2. From the **Enrichment** section, drag an **originator attributes** node onto the canvas:
+   - **Name** — for example `Fetch eui`.
+   - **Client attributes** — add `eui`.
+   - **Add originator attributes to** — keep **Metadata**. The node adds the attribute as `cs_eui`.
+   - Click **Add**.
+3. From the **Action** section, drag an **integration downlink** node onto the canvas:
+   - **Name** — for example `Downlink to ThingPark`.
+   - **Integration** — select `ThingPark integration`.
+   - Click **Add**.
+4. Connect the **message type switch** node to `Fetch eui` with the **Attributes Updated** relation.
+5. Connect `Fetch eui` to `Downlink to ThingPark` with the **Success** relation.
+6. Click **Apply changes**.
 </Steps>
 
-### Trigger a Downlink
+Shared attribute updates of every device now reach the encoder. A device without the `eui` attribute produces an error event in the downlink converter. If your tenant has other devices, route only ThingPark devices to the node, for example by device profile.
 
-Adding or updating a shared attribute triggers the Rule Chain, which runs the downlink converter and posts the encoded command to ThingPark.
+### Test Downlink
 
 <Steps>
-  1. Go to **Devices & assets &#8702; Devices**, select your device (e.g. `Device 20635F00C5000660`), and open the **Attributes** tab.
-  2. Switch to **Shared attributes** and click **+**.
-  3. Enter a key (e.g. `powerState`) and a value (e.g. `on`), then click **Add**.
+1. Go to **Devices & assets &#8702; Devices** and open the device created in **[Test Uplink](#test-uplink)**.
+2. On the **Attributes** tab, select **Shared attributes** and click **+**.
+3. Enter **Key** `uploadInterval`, select the **Integer** type, enter **Value** `60`, and click **Add**.
 </Steps>
 
-### Verify Downlink Delivery
+### Verify the Downlink
 
-<h4>Check Downlink Converter Events</h4>
-
-Go to **Integrations &#8702; Data converters**, open **ThingPark Downlink Converter**, and click the **Events** tab — a **Downlink** event should appear in the list:
-- **In** — the `ATTRIBUTES_UPDATED` message containing `powerState`.
-- **Out** — the encoded JSON payload, with `DevEUI` and `fPort` set in `metadata`.
-
-<h4>Check Delivery on ThingPark</h4>
-
-Open the **ThingPark Wireless Logger** and confirm a downlink entry for the device — this indicates ThingsBoard successfully posted the payload to the **Downlink URL** for delivery to the device over LoRaWAN.
+- **Converter events** — open `ThingPark Downlink Converter` in **Integrations &#8702; Data converters** and click the **Events** tab. **In** shows the message `{"uploadInterval": 60}` with `cs_eui` in its metadata. **Out** shows the payload `003C`, the `DevEUI`, and the `FPort`.
+- **Integration events** — open the integration's **Events** tab. **Downlink: ATTRIBUTES_UPDATED** shows the message from the Rule Engine. A **Downlink** event with status **OK** shows that ThingPark accepted the call. A failed call appears with an error and the ThingPark response.
+- **ThingPark** — open the ThingPark **Wireless Logger** and check for a downlink entry for the device.
 
 ## Troubleshooting
 
-| Symptom | Likely Cause | Fix |
-|---|---|---|
-| No uplinks received | Incorrect or unrouted HTTP endpoint URL in ThingPark | Re-copy the **HTTP endpoint URL** from the integration (toggle edit mode → Connection) and confirm it is set as the destination in your ThingPark application routing profile. |
-| No uplinks received | Integration disabled | Open the ThingPark integration, click the edit icon, and confirm **Enable integration** is on. |
-| Uplinks received but device not created | **Allow create devices or assets** is disabled | Open the integration, click the edit icon, and enable **Allow create devices or assets** in Basic settings. |
-| Uplinks received but device not created | Converter returns empty output or the device name is not resolved | Go to **Data converters**, open the uplink converter, and inspect **Events → Out**. |
-| Uplink received but telemetry is empty | Payload format mismatch between the decoder and the actual message | Inspect **Events → In** on the converter and confirm whether `metadata.payloadFormat` is `JSON` or `BINARY`, then verify the decoder branch matches. |
-| `Error in converter` | TBEL or JavaScript exception | Open **Events → Error** on the uplink converter and inspect the stack trace. |
-| Requests rejected after enabling security | AS ID or AS Key mismatch | Confirm the **AS ID** and **AS Key** configured in **Enable security** are identical in ThingsBoard and in the ThingPark application. |
-| Downlink not delivered | Downlink converter not assigned, or Root Rule Chain not configured | Confirm the integration has a downlink converter assigned, and that the Root Rule Chain connects **message type switch → originator attributes (Success) → integration downlink**. |
-| Downlink not delivered | `DevEUI` or `fPort` missing from converter metadata | Open the downlink converter **Events → In** and confirm the **originator attributes** node populated `metadata.cs_eui` and `metadata.cs_fPort` — this requires the `eui` and `fPort` client attributes to already exist on the device (set automatically by the uplink converter on the first uplink; see **[Verify Device Provisioning](#verify-device-provisioning)**). |
-| Downlink accepted by ThingsBoard but not received by the device | **Downlink URL** points to the wrong host | Open the integration, expand **Advanced settings**, and confirm **Downlink URL** matches your ThingPark installation's downlink endpoint. |
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| No events on the integration **Events** tab | The device has no routing profile with the application server, the destination URL is wrong, or the integration is disabled. Or debug mode is off: it records events for 15 minutes after you turn it on. | Check the AS routing profile of the device and the destination of the application server. Copy the **HTTP endpoint URL** again. Turn on **Enable integration**. Turn debug mode on again. |
+| Uplink events with status **FORBIDDEN**, and no converter events | **Enable security** is on, and the AS ID, the time, or the token does not match. | Check that the **AS ID** and **AS Key** match the application server. Check the clocks, or increase **Maximum time difference (seconds)**. |
+| Same, after you turned on **Enable security for automatic token updates** | The toggle hides the **AS ID** field that ThingPark Integration reads. | Turn the toggle off, enter the **AS ID** again, and click **Apply changes**. |
+| Uplink events with status **ERROR** and `Unparseable date: "false"` | **Enable security** is on, but the request has no `Time` parameter: ThingPark does not sign it. | Turn on tunnel interface authentication for the application server in ThingPark, or turn off **Enable security**. |
+| Uplink events with status **ERROR** and a `NullPointerException` | The body has no `DevEUI_uplink` object. With **Enable security** on, the body also needs `CustomerID`, `DevEUI`, `FPort`, `FCntUp`, and `payload_hex`. | Send only uplink messages to the endpoint. Check **In** in the integration event. |
+| Converter events with an error | The decoder failed. | Check the **Error** column in the converter events and fix the decoder. |
+| Telemetry values are wrong or missing | The decoder does not match the payload format of the device. | Compare `payload_hex` in **In** with the device documentation, and fix the offsets in `decodePayload`. |
+| A `decoded` telemetry key with a JSON object | A ThingPark driver decodes the payload, and `decoded` is in the **Telemetry** list. | Remove `decoded` from **Telemetry** in **Advanced decoding parameters**. |
+| Device not created | **Allow create devices or assets** is off, or the device name is empty. | Turn the option on. Check **Device name** and **Out** in the converter events. |
+| `DevEUI is missing in the downlink metadata!` | The encoder did not set `metadata.DevEUI`. | Check that the device has the `eui` client attribute and that `Fetch eui` adds it to the metadata. |
+| `FPort is missing in the downlink metadata!` | The encoder does not set `metadata.FPort`, or uses another spelling, such as `fPort`. | Use the encoder from this guide. |
+| No downlink and no error | No downlink converter is assigned, the rule chain does not route attribute updates, or the encoder returned `[]` because the message had no `uploadInterval`. | Assign the converter and check the **Attributes Updated** relation. Check **Out** in the downlink converter events. |
+| Downlink event with an error and a ThingPark response | The **Downlink URL** is wrong, the request is not signed or is signed with a wrong AS ID or AS key, or the payload is not hex. | Check the **Downlink URL** in **Advanced settings**, **Enable security**, and **Out** in the downlink converter events. |
+
+To read debug events, open the integration or converter, click **Events**, and select an event: **In** is the received data, **Out** is the converter result, and **Error** holds the error text.
 
 ## See Also
 
-- <DocLink product={props.product} path="user-guide/integrations" target="_blank">Integrations Overview</DocLink> — how ThingsBoard connects to external platforms and how uplink/downlink flow works
-- <DocLink product={props.product} path="user-guide/integrations/thingparkenterprise" target="_blank">ThingPark Enterprise Integration</DocLink> — connect to a private, on-premise ThingPark Enterprise deployment instead of the hosted ThingPark network server
-- <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">Uplink Data Converter</DocLink> — full decoder function reference: input parameters, output fields, and scripting patterns
-- <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink Data Converter</DocLink> — full encoder function reference: input parameters, output fields, and scripting patterns
-- <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink> — run the integration outside the ThingsBoard server to reach ThingPark from a private network
-- <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL scripting reference</DocLink> — built-in functions and operators for writing converter scripts
-- <DocLink product={props.product} path="user-guide/rule-engine" target="_blank">Rule Engine</DocLink> — how the Root Rule Chain routes shared attribute updates to the downlink converter
-- <a href="/partners/hardware/actility/samples/abeeway-trackers-thingpark-integration/" target="_blank" rel="noopener noreferrer"><strong>Abeeway Trackers with Actility ThingPark</strong></a> — complete end-to-end example: registering Abeeway trackers in ThingPark, building uplink and downlink converters, and visualizing GPS, battery, and temperature telemetry on a dashboard
+- <DocLink product={props.product} path="user-guide/integrations" target="_blank">Integrations overview</DocLink> — how integrations, converters, uplinks, and downlinks fit together.
+- <DocLink product={props.product} path="user-guide/integrations/thingparkenterprise" target="_blank">ThingPark Enterprise Integration</DocLink> — connect a ThingPark Enterprise deployment.
+- <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">Uplink data converter</DocLink> — Typed converter, Converters Library, and decoder reference.
+- <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink data converter</DocLink> — encoder reference.
+- <DocLink product={props.product} path="reference/rule-engine/nodes/action/integration-downlink" target="_blank">integration downlink node</DocLink> — route Rule Engine messages to an integration.
+- <DocLink product={props.product} path="reference/rule-engine/nodes/enrichment/originator-attributes" target="_blank">originator attributes node</DocLink> — add attributes of the message originator to the metadata.
+- <DocLink product={props.product} path="reference/rule-engine/nodes/filter/message-type-switch" target="_blank">message type switch node</DocLink> — route messages by type, for example attribute updates.
+- <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink> — run the integration outside the ThingsBoard cluster.
+- <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL</DocLink> — built-in functions and syntax for converter scripts.
+- <a href="/partners/hardware/actility/samples/abeeway-trackers-thingpark-integration/" target="_blank" rel="noopener noreferrer"><strong>Abeeway Trackers with Actility ThingPark</strong></a> — end-to-end example with Abeeway trackers, converters, and a dashboard.
+- <a href="https://www.actility.com/thingpark-documentation-portal/" target="_blank" rel="noopener noreferrer"><strong>ThingPark documentation</strong></a> — application servers, routing profiles, tunnel interface authentication, and the downlink API.

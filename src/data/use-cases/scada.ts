@@ -275,7 +275,6 @@ export const data: UseCaseData = {
 				description:
 					'Ensuring continuous water supply and efficient wastewater treatment is made easier through precise control and management of systems.',
 				desktopImage: '/src/assets/images/usecases/scada/water-1.svg',
-				mobileImage: '/src/assets/images/usecases/scada/water-2.svg',
 				imageAlt: 'Water valve',
 			},
 			{
@@ -283,7 +282,6 @@ export const data: UseCaseData = {
 				description:
 					'From extraction to refining, SCADA symbols help manage complex processes, ensuring the safety and efficiency of operations.',
 				desktopImage: '/src/assets/images/usecases/scada/oil-1.svg',
-				mobileImage: '/src/assets/images/usecases/scada/oil-2.svg',
 				imageAlt: 'Oil pump',
 			},
 			{
@@ -291,7 +289,6 @@ export const data: UseCaseData = {
 				description:
 					'Product quality control is achieved through precise management of processes like mixing, heating, and cooling of liquids.',
 				desktopImage: '/src/assets/images/usecases/scada/food-1.svg',
-				mobileImage: '/src/assets/images/usecases/scada/food-2.svg',
 				imageAlt: 'Food conveyor',
 			},
 			{
@@ -299,7 +296,6 @@ export const data: UseCaseData = {
 				description:
 					'Filter symbols provide visualization and control over filtration processes, ensuring the cleanliness and safety of the liquids being used in the system.',
 				desktopImage: '/src/assets/images/usecases/scada/chemical-1.svg',
-				mobileImage: '/src/assets/images/usecases/scada/chemical-2.svg',
 				imageAlt: 'Chemical plant',
 			},
 			{
@@ -307,7 +303,6 @@ export const data: UseCaseData = {
 				description:
 					'Optimization of heating, ventilation, and air conditioning (HVAC) systems becomes more efficient with accurate control of flows and temperatures.',
 				desktopImage: '/src/assets/images/usecases/scada/energy-1.svg',
-				mobileImage: '/src/assets/images/usecases/scada/energy-2.svg',
 				imageAlt: 'Power plant',
 			},
 		],
