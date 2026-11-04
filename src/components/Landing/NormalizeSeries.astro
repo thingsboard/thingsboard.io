@@ -299,9 +299,17 @@ const plots = NORMALIZE_CASES.map((c, i) => {
 
 	if (all.length) {
 		const visible = new Set<HTMLElement>();
-		let running = false;
+		let raf = 0;
+		let sleeper = 0;
+
+		const schedule = () => {
+			cancelAnimationFrame(raf);
+			window.clearTimeout(sleeper);
+			if (visible.size) raf = requestAnimationFrame(frame);
+		};
 
 		const frame = (now: number) => {
+			raf = 0;
 			all.forEach((l) => {
 				if (!visible.has(l.root)) return;
 
@@ -342,30 +350,47 @@ const plots = NORMALIZE_CASES.map((c, i) => {
 				if (l.plots.every((p) => p.startAt === null)) l.started = 0;
 			});
 
-			if (visible.size) requestAnimationFrame(frame);
-			else running = false;
+			if (!visible.size) return;
+			// Sleeps until the next step.
+			if (all.some((l) => visible.has(l.root) && l.started)) {
+				raf = requestAnimationFrame(frame);
+				return;
+			}
+			const wait = Math.min(...all.filter((l) => visible.has(l.root)).map((l) => l.lastStep + l.step - now));
+			sleeper = window.setTimeout(schedule, Math.max(0, wait - 20));
+		};
+
+		// Paused off screen and on a hidden switch panel.
+		const onScreen = new Set<HTMLElement>();
+		const update = (l: Live) => {
+			const panel = l.root.closest<HTMLElement>('.auto__panel');
+			const play = onScreen.has(l.root) && (!panel || panel.classList.contains('is-active'));
+			if (play) visible.add(l.root);
+			else visible.delete(l.root);
+			l.root.style.setProperty('--norm-play', play ? 'running' : 'paused');
 		};
 
 		const io = new IntersectionObserver(
 			(entries) => {
 				entries.forEach((e) => {
 					const root = e.target as HTMLElement;
-					if (e.isIntersecting) visible.add(root);
-					else visible.delete(root);
-					root.style.setProperty('--norm-play', e.isIntersecting ? 'running' : 'paused');
+					if (e.isIntersecting) onScreen.add(root);
+					else onScreen.delete(root);
 				});
-
-				if (visible.size && !running) {
-					running = true;
-					requestAnimationFrame(frame);
-				}
+				all.forEach(update);
+				schedule();
 			},
 			{ rootMargin: '80px' }
 		);
-		all.forEach((l) => io.observe(l.root));
-
-		running = true;
-		requestAnimationFrame(frame);
+		all.forEach((l) => {
+			io.observe(l.root);
+			const panel = l.root.closest('.auto__panel');
+			if (panel)
+				new MutationObserver(() => {
+					update(l);
+					schedule();
+				}).observe(panel, { attributes: true, attributeFilter: ['class'] });
+		});
 	}
 </script>
 
