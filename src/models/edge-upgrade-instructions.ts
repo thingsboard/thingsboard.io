@@ -32,11 +32,6 @@ export interface EdgeUpgradeVersion {
 	 * X.Y.0 → "X.Y"  (e.g. 4.2.0 → "4.2"), all others → same as version.
 	 */
 	linuxPkgSuffix: string;
-	/**
-	 * Override for the CE GitHub release tag when it differs from linuxPkgSuffix
-	 * (e.g. if a release is published under a different tag than its package name).
-	 */
-	ceGhTagOverride?: string;
 	/** Anchor ID for version section on platform pages, e.g. "v4-3-0-1" */
 	anchor: string;
 	/** Release date, e.g. "Feb 3 2026" */
