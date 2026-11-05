@@ -112,18 +112,26 @@ export function isSvgIcon(icon: string): boolean {
 // concurrent requests for the same icon share the same in-flight fetch.
 const mdiCache = new Map<string, Promise<string | null>>();
 
+// MDI names are lowercase kebab-case; anything else (path separators, `?`,
+// `#`, `%`) could steer the fetch to another path on the IoT Hub host.
+const MDI_NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const SVG_PATH_D_RE = /<path\b[^>]*?\sd\s*=\s*"([^"]*)"/i;
+// Characters of SVG path data; keeps the value inert inside a quoted attribute.
+const PATH_DATA_RE = /^[MmLlHhVvCcSsQqTtAaZzEe0-9.,\s+-]+$/;
+
 /**
  * Fetch a Material Design Icons SVG by name from the IoT Hub asset endpoint
- * (`${IOT_HUB_API_URL}/assets/mdi/{name}.svg`) and return its markup as a
- * string, ready to be inlined via `set:html`. Returns null when the fetch
- * fails (network error, 404, etc.) so callers can render a graceful fallback.
+ * (`${IOT_HUB_API_URL}/assets/mdi/{name}.svg`) and return markup ready to be
+ * inlined via `set:html`. Returns null for a name that is not an MDI name or
+ * when the fetch fails, so callers can render a fallback.
  *
- * The returned markup is normalized so it inlines cleanly inside HTML:
- *  - any leading `<?xml…?>` / `<!DOCTYPE…>` declarations are stripped
- *  - `fill="currentColor"` is added to the root `<svg>` when no fill attribute
- *    exists, so CSS `color` on a parent controls the rendered icon color.
+ * The response is never inlined as is: only the first `<path d>` is kept and
+ * a fresh `<svg>` is built around it (every MDI icon is one path on a 24×24
+ * grid), so whatever else the response holds cannot reach the page. The IoT
+ * Hub OG-image renderer reads the same files the same way.
  */
 export function getMdiSvg(name: string): Promise<string | null> {
+	if (!MDI_NAME_RE.test(name)) return Promise.resolve(null);
 	let p = mdiCache.get(name);
 	if (!p) {
 		p = fetchMdiSvg(name);
@@ -141,8 +149,7 @@ async function fetchMdiSvg(name: string): Promise<string | null> {
 			}
 			return null;
 		}
-		const raw = await res.text();
-		return normalizeSvg(raw);
+		return mdiSvgFromPath(await res.text());
 	} catch (e) {
 		if (import.meta.env.DEV) {
 			const msg = e instanceof Error ? e.message : String(e);
@@ -152,19 +159,8 @@ async function fetchMdiSvg(name: string): Promise<string | null> {
 	}
 }
 
-function normalizeSvg(svg: string): string {
-	// Strip XML / DOCTYPE prologue — harmless when inlined but renders as
-	// stray text in some parsers / DevTools views.
-	let out = svg
-		.replace(/<\?xml[^?]*\?>\s*/g, '')
-		.replace(/<!DOCTYPE[^>]*>\s*/gi, '')
-		.trim();
-	// Inject `fill="currentColor"` on the root <svg> when no fill is set, so
-	// CSS color on a parent drives the icon hue (matches the Angular
-	// MatIconRegistry behaviour for namespaced SVG icons).
-	out = out.replace(/<svg\b([^>]*)>/i, (match, attrs: string) => {
-		if (/\sfill\s*=/.test(attrs)) return match;
-		return `<svg${attrs} fill="currentColor">`;
-	});
-	return out;
+function mdiSvgFromPath(svg: string): string | null {
+	const d = svg.match(SVG_PATH_D_RE)?.[1]?.trim();
+	if (!d || !PATH_DATA_RE.test(d)) return null;
+	return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="${d}"/></svg>`;
 }
