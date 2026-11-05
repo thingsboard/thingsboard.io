@@ -348,22 +348,32 @@ const parts = (text: string) => text.split(/\{(time|limit)\}/);
 		let picked = 0;
 		const states = curves.map((c) => JSON.parse(c.dataset.states ?? '[]') as string[]);
 
+		// All reads before any write: each read between writes forced a layout.
 		const freeze = () => {
-			rows.forEach((row) => {
+			const rowValues = rows.map((row) => {
 				const cs = getComputedStyle(row);
-				row.style.backgroundColor = cs.backgroundColor;
-				row.style.boxShadow = cs.boxShadow;
 				const inner = row.querySelector<HTMLElement>('.nf__inner');
-				if (inner) inner.style.height = `${inner.getBoundingClientRect().height}px`;
-				row.querySelectorAll<HTMLElement>('.nf__head, .nf__stub').forEach((el) => {
-					el.style.color = getComputedStyle(el).color;
-				});
+				const inks = [...row.querySelectorAll<HTMLElement>('.nf__head, .nf__stub')];
+				return {
+					background: cs.backgroundColor,
+					shadow: cs.boxShadow,
+					inner,
+					height: inner?.getBoundingClientRect().height,
+					inks: inks.map((el) => [el, getComputedStyle(el).color] as const),
+				};
 			});
-			[...curves, ...lits].forEach((c) => {
-				const m = new DOMMatrix(getComputedStyle(c).transform);
-				c.style.transform = `translate(${m.e}px, ${m.f}px) scale(${m.a}, ${m.d || 0.01})`;
+			const shapes = [...curves, ...lits].map((c) => [c, new DOMMatrix(getComputedStyle(c).transform)] as const);
+			const litOpacity = lits.map((l) => getComputedStyle(l).opacity);
+
+			rows.forEach((row, k) => {
+				const v = rowValues[k];
+				row.style.backgroundColor = v.background;
+				row.style.boxShadow = v.shadow;
+				if (v.inner) v.inner.style.height = `${v.height}px`;
+				v.inks.forEach(([el, color]) => (el.style.color = color));
 			});
-			lits.forEach((l) => (l.style.opacity = getComputedStyle(l).opacity));
+			shapes.forEach(([c, m]) => (c.style.transform = `translate(${m.e}px, ${m.f}px) scale(${m.a}, ${m.d || 0.01})`));
+			lits.forEach((l, k) => (l.style.opacity = litOpacity[k]));
 		};
 
 		const current = () => {
@@ -371,22 +381,22 @@ const parts = (text: string) => text.split(/\{(time|limit)\}/);
 			return hs.indexOf(Math.max(...hs));
 		};
 
-		const send = (i: number) => {
+		const send = (i: number, from: number) => {
 			const lengths = JSON.parse(signals[i].dataset.lengths ?? '[]') as number[];
-			signals[i].style.setProperty('--nf-len', String(lengths[current()] ?? 100));
+			signals[i].style.setProperty('--nf-len', String(lengths[from] ?? 100));
 			signals[i].style.transform = curves[i].style.transform;
-			[trunkSignal, signals[i]].forEach((el) => {
-				el?.classList.remove('is-sending');
-				void (el as unknown as HTMLElement | null)?.getBoundingClientRect();
-				el?.classList.add('is-sending');
-			});
+			// One style pass restarts both sends.
+			const sending = [trunkSignal, signals[i]];
+			sending.forEach((el) => el?.classList.remove('is-sending'));
+			void getComputedStyle(root).animationName;
+			sending.forEach((el) => el?.classList.add('is-sending'));
 		};
 
 		const pick = (i: number) => {
+			const from = current();
 			if (!root.classList.contains('is-manual')) {
 				freeze();
 				root.classList.add('is-manual');
-				void root.offsetWidth;
 			}
 			clearTimeout(opening);
 			clearTimeout(resuming);
@@ -395,7 +405,7 @@ const parts = (text: string) => text.split(/\{(time|limit)\}/);
 				open(i);
 				return;
 			}
-			send(i);
+			send(i, from);
 			opening = window.setTimeout(() => open(i), 320);
 			resuming = window.setTimeout(resume, RESUME_MS);
 		};
