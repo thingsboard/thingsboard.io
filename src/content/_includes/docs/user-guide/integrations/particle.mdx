@@ -1,67 +1,68 @@
 import DocLink from '@components/DocLink.astro';
-import ImageGallery from '~/components/ImageGallery.astro';
+import ImageGallery from '@components/ImageGallery.astro';
 import { Aside, Steps } from '@astrojs/starlight/components';
-import { Products } from '~/models/site.models';
+import { Products } from '@models/site.models';
 import Tabs from '@components/Tabs.astro';
 import TabItem from '@components/TabItem.astro';
 
-<a href="https://www.particle.io/" target="_blank" rel="noopener noreferrer"><strong>Particle</strong></a> is an IoT cloud platform for connected devices. After integrating Particle with ThingsBoard, device events flow from the Particle Cloud to ThingsBoard via a webhook — and ThingsBoard can send RPC commands back to devices through the Particle Cloud function API.
+Particle Integration receives events from <a href="https://www.particle.io/" target="_blank" rel="noopener noreferrer"><strong>Particle</strong></a> Device Cloud through a webhook. An **uplink data converter** transforms each event into device data, including telemetry and attributes. For downlink, ThingsBoard calls a cloud function on the device through the Particle Cloud API.
+
+Use Particle Integration when:
+- Your devices run Particle Device OS and publish events with `Particle.publish()`.
+- You need to call device functions (`Particle.function()`) from ThingsBoard, for example from a dashboard control.
 
 ## Architecture
 
 <ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/particle-integration-architecture.svg', alt: 'Particle integration architecture showing uplink and downlink message flow between Particle and ThingsBoard', caption: 'Particle integration architecture. Uplink messages are received from the Particle Cloud, converted by the uplink data converter, and forwarded to the ThingsBoard Core Service. Downlink messages are encoded by the downlink data converter and sent back to Particle through the Particle REST API.' },
+  {
+    src: '/src/assets/images/user-guide/integrations/particle-integration-architecture.svg',
+    alt: 'Particle integration architecture: a Particle device publishes an event, a Particle Cloud webhook sends it as a JSON POST to the Particle Integration, the data converters decode it, and Processing & Storage runs the Rule Engine, stores the data, and feeds dashboards; RPC requests go through the downlink converter to the Particle function API, which calls the cloud function on the device',
+    caption: 'Particle integration architecture. Events arrive through a Particle webhook. RPC requests call device functions through the Particle Cloud API.',
+  },
 ]} />
 
-A Particle device publishes an event with `Particle.publish()`, and Particle Device Cloud delivers it to a webhook configured to match the event name. The webhook forwards the event — event name, event data, publish timestamp, and Particle Device ID (`coreid`) — as an HTTP POST to the integration's endpoint. The uplink converter decodes the payload into telemetry and attributes, and the ThingsBoard Core Service stores the data, creating the device automatically on first contact using `coreid` as the device name. For downlink, the Rule Engine hands an RPC message to the integration; the downlink converter encodes it into a Particle Cloud function call, and ThingsBoard calls the Particle Cloud API to invoke the matching `Particle.function()` registered on the device.
-
-<Aside type="note">
-  Particle events and webhooks are delivered on a best-effort basis. Events can be duplicated or arrive out of order. If your application requires exactly-once processing or strict ordering, implement deduplication and application-level acknowledgements in your solution.
-</Aside>
+1. **Publish an event.** The device firmware calls `Particle.publish()`.
+2. **Forward the event.** A Particle webhook that matches the event name sends it as an HTTP `POST` to the integration endpoint. The body holds the event name, data, publish time, and Device ID (`coreid`).
+3. **Decode the payload.** The uplink converter maps `coreid` to the device name and the event data to telemetry and attributes. If **Allow create devices or assets** is on, ThingsBoard creates the device on its first event.
+4. **Call a device function (optional).** The Rule Engine passes an RPC request to the integration. The downlink converter encodes it, and ThingsBoard calls `POST https://api.particle.io/v1/devices/{deviceId}/{function}`, which runs the matching `Particle.function()` on the device.
 
 ## Prerequisites
 
-Before creating the integration, ensure:
+- Access to {props.product !== Products.PAAS && props.product !== Products.PAAS_EU && <><DocLink product={Products.PE} path="installation/" target="_blank">ThingsBoard</DocLink> or </>}<a href="/installations/?product=thingsboard-cloud" target="_blank"><strong>ThingsBoard Cloud</strong></a> with integrations enabled for your tenant. The ThingsBoard endpoint must be reachable from the internet, because Particle Device Cloud calls it.
+- Permission to create integrations and data converters, and to edit rule chains for downlink.
+- A <a href="https://console.particle.io/" target="_blank" rel="noopener noreferrer"><strong>Particle Console</strong></a> account with at least one device that connects to Particle Device Cloud.
+- For downlink: the <a href="https://docs.particle.io/getting-started/developer-tools/cli/" target="_blank" rel="noopener noreferrer"><strong>Particle CLI</strong></a> to create an access token.
 
-- You have access to {props.product !== Products.PAAS && props.product !== Products.PAAS_EU && <><DocLink product={Products.PE} path="installation/" target="_blank">ThingsBoard</DocLink> or </>}<a href="/installations/?product=thingsboard-cloud" target="_blank" rel="noopener noreferrer"><strong>ThingsBoard Cloud</strong></a> with integration functionality enabled for your tenant.
-- You have permissions to create integrations, data converters, and edit a Rule Chain if downlink is required.
-- You have a <a href="https://console.particle.io/" target="_blank" rel="noopener noreferrer"><strong>Particle Console</strong></a> account.
-- At least one Particle device is registered in your Particle account or product and is able to connect to Particle Device Cloud.
-- The device firmware can publish an event with `Particle.publish()`.
-- For downlink, the device firmware registers at least one `Particle.function()` and you have a Particle access token that is authorized to call device functions.
-- The <a href="https://docs.particle.io/getting-started/developer-tools/cli/" target="_blank" rel="noopener noreferrer"><strong>Particle CLI</strong></a> installed if you want to send downlink commands.
+## Prepare Particle
 
-## Prepare Particle for Integration
-
-Prepare the Particle device, publish a dedicated ThingsBoard event, and optionally create credentials for downlink.
+Register the device and flash firmware that publishes a ThingsBoard event.
 
 ### Set Up a Particle Device
 
-For an individual development device, use the current <a href="https://docs.particle.io/device-setup/" target="_blank" rel="noopener noreferrer"><strong>Particle Device Setup</strong></a> workflow. For a product fleet, use your existing Particle product provisioning and device-claiming process.
+For a single development device, use <a href="https://docs.particle.io/device-setup/" target="_blank" rel="noopener noreferrer"><strong>Particle Device Setup</strong></a>. For a product fleet, use your existing provisioning and claiming process.
 
 <Steps>
-  1. Connect the Particle device to power and complete network setup for its supported connectivity type — Wi-Fi devices can use <a href="https://setup.particle.io" target="_blank" rel="noopener noreferrer"><strong>setup.particle.io</strong></a>, or cellular.
-  2. Register or claim the device in the appropriate Particle sandbox or product.
-  3. Open the <a href="https://console.particle.io/devices" target="_blank" rel="noopener noreferrer"><strong>Particle Console</strong></a> &#8702; **Devices** and verify that the device appears in the device list.
-  4. Note the device **Device ID**. Particle webhooks expose this value as `coreid`; this guide uses it as the ThingsBoard device name.
-  5. Confirm that the device is online before testing telemetry or cloud functions.
+1. Power the device and complete network setup. Wi-Fi devices can use <a href="https://setup.particle.io" target="_blank" rel="noopener noreferrer"><strong>setup.particle.io</strong></a>.
+2. Register or claim the device in your sandbox or product.
+3. Open <a href="https://console.particle.io/devices" target="_blank" rel="noopener noreferrer"><strong>Particle Console</strong></a> &#8702; **Devices** and check that the device is listed and online.
+4. Copy the **Device ID**. Webhooks send it as `coreid`, and this guide uses it as the ThingsBoard device name.
 </Steps>
-
-<Aside type="tip">
-  Particle Device ID is the most reliable identifier for this integration because the ThingsBoard downlink path needs the Particle Device ID to address a specific device. You can store a human-readable Particle name or model as ThingsBoard attributes while keeping the ThingsBoard device name equal to `coreid`.
-</Aside>
 
 <ImageGallery images={[
   { src: '/src/assets/images/user-guide/integrations/particle/particle-console-device-list.png', alt: 'Particle Console Devices page — claimed product device row with coreid 3c003c000f51373331333230, Type Photon, Name Photon, and Status Online', caption: 'Particle Console Devices — the Photon is online; the coreid in the ID column will become the device name in ThingsBoard' },
 ]} />
 
-### Publish Telemetry from Device Firmware
+<Aside type="tip">
+  Keep the ThingsBoard device name equal to the Device ID. Downlink needs the Device ID to address the device. Store a human-readable name as an attribute instead.
+</Aside>
 
-This tutorial uses the event prefix `tb/` and the telemetry event name `tb/telemetry`. Particle webhook event filters are prefix-based, so a webhook configured for `tb/` can later receive additional events such as `tb/status` or `tb/location` without creating another webhook.
+### Publish Events from Firmware
 
-Particle event names should contain only letters, numbers, underscores, dashes, and slashes. Do not use names beginning with `particle` or `spark`; these prefixes are reserved by Particle Device Cloud.
+This guide publishes the event `tb/telemetry`. Webhooks match event names by prefix, so a webhook for `tb/` also receives later events such as `tb/status` or `tb/location`.
 
-The telemetry payload in this tutorial is JSON and contains example values. Replace them with real sensor or application data in your firmware.
+Event names may contain letters, numbers, underscores, dashes, and slashes. Names that start with `particle` or `spark` are reserved.
+
+The firmware below publishes example values every 30 seconds. Replace them with real sensor data.
 
 <Tabs>
   <TabItem label="Device OS 6.2+ structured data (Recommended)">
@@ -81,20 +82,20 @@ The telemetry payload in this tutorial is JSON and contains example values. Repl
         millis() - lastPublishMs >= publishPeriod.count()) {
 
         lastPublishMs = millis();
-    
+
         // Replace these values with data from your sensors/application.
         Variant data;
         data.set("deviceType", Variant("Particle device"));
         data.set("temperature", Variant(23.5));
         data.set("humidity", Variant(60));
         data.set("battery", Variant(87));
-    
+
         Particle.publish("tb/telemetry", data);
       }
     }
     ```
 
-    Particle Device OS 6.2 and later can encode structured `Variant` data as CBOR over the air. Particle Device Cloud converts it back to JSON for webhooks, reducing cellular/Wi-Fi payload size without changing the ThingsBoard webhook format.
+    Device OS 6.2 and later sends `Variant` data as CBOR, which is smaller over the air. Particle Device Cloud converts it back to JSON before it calls the webhook.
 
   </TabItem>
   <TabItem label="JSON string payload">
@@ -128,395 +129,262 @@ The telemetry payload in this tutorial is JSON and contains example values. Repl
   </TabItem>
 </Tabs>
 
-The Particle webhook will forward an event with fields similar to:
+The webhook sends ThingsBoard a body like this. The event data arrives as a JSON string in `data`:
 
 ```json
 {
   "event": "tb/telemetry",
-  "data": "{\"deviceType\":\"Particle device\",\"temperature\":23.5,\"humidity\":60,\"battery\":98}",
+  "data": "{\"deviceType\":\"Particle device\",\"temperature\":23.5,\"humidity\":60,\"battery\":87}",
   "coreid": "3c003c000f51373331333230",
   "published_at": "2026-08-10T12:04:33.940Z"
 }
 ```
 
-<Aside type="note">
-  The `data` field received by the ThingsBoard converter is the Particle event value. In this guide it contains JSON, so the converter parses it a second time and maps its fields to ThingsBoard telemetry.
-</Aside>
+## Set Up Particle Integration
 
-### Prepare Credentials for Downlink
-
-Skip this section if you only need Particle &#8702; ThingsBoard uplink.
-
-ThingsBoard downlink calls a Particle Cloud function through:
-
-```text
-POST /v1/devices/{DEVICE_ID}/{FUNCTION}
-```
-
-Particle requires an OAuth2 bearer access token for this API. The `Call a function` endpoint requires the `devices.function:call` scope.
-
-For production integrations, prefer a **Particle API user** with the minimum required API scope instead of a broad personal user token. Particle API users can provide non-expiring, fine-grained credentials for back-end services.
-
-For a quick sandbox test, you can create a user access token with the <a href="https://docs.particle.io/getting-started/developer-tools/cli/" target="_blank"><strong>Particle CLI</strong></a>.
-
-Install the CLI:
-
-```bash
-bash <( curl -sL https://particle.io/install-cli )
-```
-
-<ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/particle/cli-install.png', alt: 'Terminal — bash install script output: downloads the Particle CLI, installs it to ~/bin/particle, adds it to PATH, and warns to close and reopen the terminal before changes take effect', caption: 'The installer confirms success — close and reopen your terminal (or start a new shell) before the particle command is available on your PATH' },
-]} />
-
-Then, according to <a href="https://docs.particle.io/reference/developer-tools/cli/#particle-login" target="_blank"><strong>official documentation</strong></a>, you will need to log in to your Particle account:
-
-```bash
-particle login
-```
-
-<ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/particle/cli-login.png', alt: 'Terminal — particle login command: prompts for email and password, then prints Successfully completed login', caption: 'Particle CLI — particle login prompts for credentials and confirms successful authentication' },
-]} />
-
-<a href="https://docs.particle.io/reference/developer-tools/cli/#particle-token-create" target="_blank"><strong>Create an access token</strong></a>:
-
-```bash
-# Never-expiring token (recommended for integrations)
-particle token create --never-expires
-```
-
-<ImageGallery images={[
-  { src: '/src/assets/images/user-guide/integrations/particle/cli-token-created.png', alt: 'Terminal — particle token create --never-expires command prompts for the account password, then outputs New access token never expires followed by the token string', caption: 'Particle CLI — the generated access token is displayed once; copy it immediately for use in the integration' },
-]} />
-
-<Aside type="caution">
-  Treat the Particle token as a secret. A broad user token may grant access to multiple devices and Particle Cloud APIs. Prefer a scoped API user for production and rotate or revoke credentials when they are no longer required.
-</Aside>
-
-## Set Up the Integration in ThingsBoard
-
-To set up the **Particle** integration, first create an uplink data converter to process incoming messages, then create and configure the integration. If you need RPC downlink, also create the downlink converter and configure the Particle token when creating the integration.
+Create the uplink converter and the integration, then point a Particle webhook at the integration endpoint.
 
 ### Create the Uplink Data Converter
 
-Particle uses a <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter">generic uplink converter</DocLink>. Each Particle event contains a `coreid` field (the device ID, used as the ThingsBoard device name), a `data` field (the event payload), and metadata such as `published_at`.
+The uplink converter parses the webhook body, then parses the event data inside it. Particle Integration uses the **Generic** converter: you write the decoder in TBEL or JavaScript. For converter types and the full decoder reference, see <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter/#converter-types" target="_blank">Uplink data converter</DocLink>.
 
-This tutorial uses:
+The decoder in this guide maps:
 
-- Particle `coreid` &#8702; ThingsBoard `deviceName`.
-- `deviceType` from the event payload &#8702; ThingsBoard device type/profile identifier; defaults to `Particle`.
-- Particle `published_at` &#8702; telemetry timestamp.
-- All remaining event payload fields &#8702; telemetry.
-- Particle Device ID and integration name &#8702; attributes (`particleDeviceId`, `integrationName`).
+- `coreid` &#8702; device name.
+- `deviceType` from the event data &#8702; device profile. Default: `Particle`.
+- `published_at` &#8702; telemetry timestamp.
+- Other event data fields &#8702; telemetry.
+- `coreid` and the integration name &#8702; attributes `particleDeviceId` and `integrationName`.
 
 <Steps>
-  1. Go to **Integrations &#8702; Data converters**.
-  2. Click **+ Add data converter &#8702; Create new converter**.
-  3. **Converter type** — keep **Uplink**.
-  4. **Integration type** — select **Particle**.
-  5. **Name** — enter `Particle Uplink Converter`.
-  6. Paste the decoder shown below.
-  7. Click **Add**.
+1. Go to **Integrations &#8702; Data converters** and click **+ Add data converter &#8702; Create new converter**.
+2. **Converter type** — keep **Uplink**.
+3. **Integration type** — select **Particle**.
+4. **Name** — enter a name, for example `Particle Uplink Converter`.
+5. **Main decoding configuration** — the editor opens with the generic decoder template, which does not read the Particle webhook format. Replace it with the decoder below. The editor opens in TBEL; use the **TBEL / JS** toggle to switch to JavaScript.
+   <Aside type="tip" title="TBEL">
+     Use <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL</DocLink> for converter scripts — it runs much faster than JavaScript inside ThingsBoard.
+   </Aside>
+   <Tabs>
+     <TabItem label="TBEL (Recommended)">
+       ```js maxLines=15 collapsible
+       /** Decoder **/
+
+       // Particle webhook body
+       var data = decodeToJson(payload);
+
+       // Particle event data must contain valid JSON.
+       var eventData = decodeToJson(data.data);
+
+       var deviceName = data.coreid;
+       var deviceType = eventData.deviceType != null ? eventData.deviceType : "Particle";
+       var groupName = "Particle devices";
+
+       var timestamp = Date.now();
+       if (data.published_at != null) {
+         timestamp = new Date(data.published_at).getTime();
+       }
+
+       var attributes = {
+         integrationName: metadata["integrationName"],
+         particleDeviceId: data.coreid
+       };
+
+       // Move known non-telemetry fields into attributes when present.
+       if (eventData.firmwareVersion != null) {
+         attributes.firmwareVersion = eventData.firmwareVersion;
+       }
+       if (eventData.hardwareModel != null) {
+         attributes.hardwareModel = eventData.hardwareModel;
+       }
+
+       // Exclude fields already used for device metadata/attributes.
+       var excludeFromTelemetryList = [
+         "deviceType",
+         "deviceName",
+         "firmwareVersion",
+         "hardwareModel"
+       ];
+
+       var telemetry = toFlatMap(eventData, excludeFromTelemetryList, true);
+
+       return {
+         deviceName: deviceName,
+         deviceType: deviceType,
+         groupName: groupName,
+         attributes: attributes,
+         telemetry: {
+           ts: timestamp,
+           values: telemetry
+         }
+       };
+       ```
+     </TabItem>
+     <TabItem label="JavaScript">
+       ```js maxLines=15 collapsible
+       /** Decoder **/
+
+       function decodeToString(bytes) {
+         return String.fromCharCode.apply(String, bytes);
+       }
+
+       function flatten(obj, result, excludeList, prefix) {
+         prefix = prefix || "";
+         for (var key in obj) {
+           if (excludeList.indexOf(key) !== -1) continue;
+
+           var value = obj[key];
+           var fullKey = prefix ? prefix + "." + key : key;
+
+           if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+             flatten(value, result, excludeList, fullKey);
+           } else {
+             result[fullKey] = value;
+           }
+         }
+       }
+
+       var data = JSON.parse(decodeToString(payload));
+
+       var eventData = JSON.parse(data.data);
+
+       var deviceName = data.coreid;
+       var deviceType = eventData.deviceType != null ? eventData.deviceType : "Particle";
+       var groupName = "Particle devices";
+
+       var timestamp = Date.now();
+       if (data.published_at != null) {
+         timestamp = new Date(data.published_at).getTime();
+       }
+
+       var attributes = {
+         integrationName: metadata["integrationName"],
+         particleDeviceId: data.coreid
+       };
+
+       if (eventData.firmwareVersion != null) {
+         attributes.firmwareVersion = eventData.firmwareVersion;
+       }
+       if (eventData.hardwareModel != null) {
+         attributes.hardwareModel = eventData.hardwareModel;
+       }
+
+       var excludeFromTelemetryList = [
+         "deviceType",
+         "deviceName",
+         "firmwareVersion",
+         "hardwareModel"
+       ];
+
+       var telemetry = {};
+       flatten(eventData, telemetry, excludeFromTelemetryList);
+
+       return {
+         deviceName: deviceName,
+         deviceType: deviceType,
+         groupName: groupName,
+         attributes: attributes,
+         telemetry: {
+           ts: timestamp,
+           values: telemetry
+         }
+       };
+       ```
+     </TabItem>
+   </Tabs>
+
+   **To adapt:**
+   - **Other telemetry** — change the fields the firmware publishes. Every field not in `excludeFromTelemetryList` becomes telemetry; nested objects become dot-separated keys.
+   - **Device type** — publish `deviceType` from the firmware, for example `Photon 2` or `Tracker One`, or change the `Particle` default.
+   - **Attributes** — add fields such as a serial number to `attributes` and to `excludeFromTelemetryList`.
+   - **Plain-text event data** — skip the second parse and store the value directly, for example `telemetry: { rawData: data.data }`.
+   - **Several event types** — branch on `data.event`, for example `tb/telemetry` and `tb/status`.
+6. Click **Test decoder function** and check the result (see **[Test the Decoder](#test-the-decoder)**).
+7. Click **Add**.
 </Steps>
 
-<Aside type="tip">
-  Use <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL</DocLink> for converter scripts when possible. It is optimized for execution inside ThingsBoard.
-</Aside>
+<h4>Decoder Inputs</h4>
 
-**The decoder function used in this tutorial:**
+| Variable | Type | Content |
+|----------|------|---------|
+| `payload` | byte array | The webhook body: `event`, `data`, `coreid`, and `published_at`. |
+| `metadata` | `{[key: string]: string}` | `integrationName`, every request header as `Header:<name>`, and the key–value pairs from the integration's **Metadata** field. |
 
-<Tabs>
-  <TabItem label="TBEL (Recommended)">
-    ```js maxLines=15 collapsible
-    /** Decoder **/
+<h4 id="test-the-decoder">Test the Decoder</h4>
 
-    // Particle webhook body
-    var data = decodeToJson(payload);
+Click **Test decoder function** below the editor. Set **Payload content type** to **JSON**, replace the payload with the sample webhook body from **[Publish Events from Firmware](#publish-events-from-firmware)**, and click **Test**. With the default **Metadata** (`integrationName` = `Test PARTICLE`), the **Output** panel shows:
 
-    // Particle event data must contain valid JSON.
-    var eventData = decodeToJson(data.data);
-
-    var deviceName = data.coreid;
-    var deviceType = eventData.deviceType != null ? eventData.deviceType : "Particle";
-    var groupName = "Particle devices";
-
-    var timestamp = Date.now();
-    if (data.published_at != null) {
-      timestamp = new Date(data.published_at).getTime();
+```json
+{
+  "deviceName": "3c003c000f51373331333230",
+  "deviceType": "Particle device",
+  "groupName": "Particle devices",
+  "attributes": {
+    "integrationName": "Test PARTICLE",
+    "particleDeviceId": "3c003c000f51373331333230"
+  },
+  "telemetry": {
+    "ts": 1786363473940,
+    "values": {
+      "temperature": 23.5,
+      "humidity": 60,
+      "battery": 87
     }
+  }
+}
+```
 
-    var attributes = {
-      integrationName: metadata["integrationName"],
-      particleDeviceId: data.coreid
-    };
+Check that `deviceName` holds the Device ID and `telemetry.values` holds the expected keys. If the output is empty or shows an error, fix the decoder and test again.
 
-    // Move known non-telemetry fields into attributes when present.
-    if (eventData.firmwareVersion != null) {
-      attributes.firmwareVersion = eventData.firmwareVersion;
-    }
-    if (eventData.hardwareModel != null) {
-      attributes.hardwareModel = eventData.hardwareModel;
-    }
-
-    // Exclude fields already used for device metadata/attributes.
-    var excludeFromTelemetryList = [
-      "deviceType",
-      "deviceName",
-      "firmwareVersion",
-      "hardwareModel"
-    ];
-
-    var telemetry = toFlatMap(eventData, excludeFromTelemetryList, true);
-
-    return {
-      deviceName: deviceName,
-      deviceType: deviceType,
-      groupName: groupName,
-      attributes: attributes,
-      telemetry: {
-        ts: timestamp,
-        values: telemetry
-      }
-    };
-    ```
-  </TabItem>
-  <TabItem label="JavaScript">
-    ```js maxLines=15 collapsible
-    /** Decoder **/
-
-    function decodeToString(bytes) {
-      return String.fromCharCode.apply(String, bytes);
-    }
-
-    function flatten(obj, result, excludeList, prefix) {
-      prefix = prefix || "";
-      for (var key in obj) {
-        if (excludeList.indexOf(key) !== -1) continue;
-
-        var value = obj[key];
-        var fullKey = prefix ? prefix + "." + key : key;
-
-        if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-          flatten(value, result, excludeList, fullKey);
-        } else {
-          result[fullKey] = value;
-        }
-      }
-    }
-
-    var data = JSON.parse(decodeToString(payload));
-
-    var eventData = JSON.parse(data.data);
-
-    var deviceName = data.coreid;
-    var deviceType = eventData.deviceType != null ? eventData.deviceType : "Particle";
-    var groupName = "Particle devices";
-
-    var timestamp = Date.now();
-    if (data.published_at != null) {
-      timestamp = new Date(data.published_at).getTime();
-    }
-
-    var attributes = {
-      integrationName: metadata["integrationName"],
-      particleDeviceId: data.coreid
-    };
-
-    if (eventData.firmwareVersion != null) {
-      attributes.firmwareVersion = eventData.firmwareVersion;
-    }
-    if (eventData.hardwareModel != null) {
-      attributes.hardwareModel = eventData.hardwareModel;
-    }
-
-    var excludeFromTelemetryList = [
-      "deviceType",
-      "deviceName",
-      "firmwareVersion",
-      "hardwareModel"
-    ];
-
-    var telemetry = {};
-    flatten(eventData, telemetry, excludeFromTelemetryList);
-
-    return {
-      deviceName: deviceName,
-      deviceType: deviceType,
-      groupName: groupName,
-      attributes: attributes,
-      telemetry: {
-        ts: timestamp,
-        values: telemetry
-      }
-    };
-    ```
-  </TabItem>
-</Tabs>
-
-**To adapt this converter to your device:**
-
-- **Different telemetry schema** — change the payload fields published by the firmware. All fields except those in `excludeFromTelemetryList` are converted to telemetry.
-- **Nested JSON** — `toFlatMap`/`flatten` converts nested objects to flattened telemetry keys.
-- **Device type** — publish `deviceType` from firmware (for example, `Photon 2`, `Muon`, `Tracker One`, or your own product model), or replace the default `Particle` value in the converter.
-- **Human-readable name** — keep `deviceName = data.coreid` when you need the default downlink flow. Store a human-readable name as an attribute instead of replacing the ThingsBoard device name.
-- **Attributes** — add firmware version, hardware model, serial number, or application metadata to `attributes` and exclude those fields from telemetry.
-- **Non-JSON event data** — if your firmware publishes plain text instead of JSON, do not call `decodeToJson(data.data)`/`JSON.parse(data.data)`. Store the value directly, for example as `telemetry.rawData`.
-- **Event-specific conversion** — use `data.event` to apply different mappings for events such as `tb/telemetry`, `tb/status`, and `tb/location`.
-
-### Create the Downlink Data Converter
-
-Skip this section for an uplink-only integration.
-
-The downlink converter translates a ThingsBoard RPC message into the command format expected by the ThingsBoard Particle integration. The integration then calls the Particle Cloud function whose name matches `msg.method`.
+### Create the Integration
 
 <Steps>
-  1. Go to **Integrations &#8702; Data converters**.
-  2. Click **+ Add data converter &#8702; Create new converter**.
-  3. Change **Converter type** to **Downlink**.
-  4. Set **Integration type** to **Particle**.
-  5. Enter the name `Particle Downlink Converter`.
-  6. Paste the encoder below and click **Add**.
-</Steps>
-
-**The encoder used in this tutorial:**
-
-<Tabs>
-  <TabItem label="TBEL (Recommended)">
-    ```js maxLines=15 collapsible
-    /** Encoder **/
-    
-    var command = {};
-    command["method"] = msg.method;
-    if (msg.params == "false" || msg.params == "true") {
-        command["params"] = Boolean.valueOf(msg.params);
-    } else {
-        command["params"] = msg.params;
-    }
-    
-    var result = {
-        contentType: "JSON",
-        data: JSON.stringify(command),
-        metadata: {
-            deviceId: metadata.deviceName
-        }
-    };
-    
-    return result;
-    ```
-  </TabItem>
-  <TabItem label="JavaScript">
-    ```js maxLines=15 collapsible
-    /** Encoder **/
-    
-    var command = {};
-    command["method"] = msg.method;
-    if (msg.params == "false" || msg.params == "true") {
-        command["params"] = Boolean.valueOf(msg.params);
-    } else {
-        command["params"] = msg.params;
-    }
-    
-    var result = {
-        contentType: "JSON",
-        data: JSON.stringify(command),
-        metadata: {
-            deviceId: metadata.deviceName
-        }
-    };
-    
-    return result;
-    ```
-  </TabItem>
-</Tabs>
-
-The `metadata.deviceId` is set to the ThingsBoard device name (which equals the Particle `coreid`) and is used by the integration to identify the target device when calling the Particle Cloud API.
-
-The Particle device function accepts one string argument. Keep RPC parameters compact and encode complex parameters as a short string or JSON object only if your firmware and Device OS limits allow it.
-
-### Create the Particle Integration
-
-<Steps>
-  <ol start="1">
-    <li>Go to <strong>Integrations &#8702; Integrations</strong> and click <strong>+ Add integration</strong>.</li>
-    <li>
-      <span><strong>Basic settings:</strong></span>
-      <ul>
-        <li>Set <strong>integration type</strong> to <strong>Particle</strong>.</li>
-        <li>Enter a <strong>Name</strong> for the integration, or keep the default <code>Particle integration</code>.</li>
-        <li>Leave <strong>Enable integration</strong> and <strong>Allow create devices or assets</strong> on so the device is created automatically on first data.</li>
-        <li>Click <strong>Next</strong>.</li>
-      </ul>
-    </li>
-    <li>
-      <span><strong>Uplink data converter:</strong></span>
-      <ul>
-        <li>Click <strong>Select existing</strong> and choose the <a href="#create-the-uplink-data-converter"><strong>Particle Uplink Converter</strong></a> created in the previous step.</li>
-        <li>Alternatively, click <strong>Create new</strong> to define the decoder inline.</li>
-        <li>Click <strong>Next</strong>.</li>
-      </ul>
-    </li>
-    <li>
-      <span><strong>Downlink data converter:</strong></span>
-      <ul>
-        <li>Click <strong>Select existing</strong>, choose the <a href="#create-the-downlink-data-converter"><strong>Particle Downlink Converter</strong></a> created in the previous step — or click <strong>Skip</strong> if you only need Particle &#8702; ThingsBoard uplink.</li>
-        <li>Click <strong>Next</strong>.</li>
-      </ul>
-    </li>
-    <li>
-      <span><strong>Connection settings:</strong></span>
-      <ul>
-        <li>Note the <strong>HTTP endpoint URL</strong> displayed — you will paste it into the Particle Console webhook in the next section.</li>
-        <li>Enable <strong>Allow downlink</strong> and paste the <a href="#prepare-credentials-for-downlink"><strong>Particle access token</strong></a> you generated into the <strong>Token</strong> field.</li>
-      </ul>
-      <span>See <a href="#connection-settings"><strong>Connection Settings</strong></a> for a full description of each parameter.</span>
-    </li>
-    <li>Click <strong>Add</strong> to create the integration.</li>
-  </ol>
+1. Go to **Integrations &#8702; Integrations** and click **+ Add integration**.
+2. **Basic settings:**
+   - **Integration type** — select **Particle**.
+   - **Name** — keep the default `Particle integration` or enter your own.
+   - **Enable integration** and **Allow create devices or assets** — keep both on, so the device is created on its first event.
+   - Click **Next**.
+3. **Uplink data converter:**
+   - Click **Select existing** and choose `Particle Uplink Converter`.
+   - Alternatively, click **Create new** to write a decoder here.
+   - Click **Next**.
+4. **Downlink data converter:**
+   - Click **Skip**. Add a downlink converter later if you need to **[call device functions](#configure-downlink)**.
+5. **Connection:**
+   - Copy the **HTTP endpoint URL**. You need it for the Particle webhook.
+   - Leave the other parameters at their defaults. See **[Connection Settings](#connection-settings)** for details.
+6. Click **Add**.
 </Steps>
 
 #### Connection Settings
 
-<h5>HTTP Endpoint URL</h5>
+| Parameter | Description |
+|-----------|-------------|
+| **Base URL** | Address of your ThingsBoard server, used to build the endpoint URL. Example: `https://thingsboard.cloud`. |
+| **HTTP endpoint URL** | Read-only. Format: `{Base URL}/api/v1/integrations/particle/{integrationKey}`, where `integrationKey` is a UUID assigned at creation. Accepts JSON bodies only. |
+| **Allow downlink** | Lets the integration call Particle device functions. Off by default. When on, the **Token** field appears. See **[Configure Downlink](#configure-downlink)**. |
+| **Token** | Particle access token that ThingsBoard sends as `Authorization: Bearer <token>` to the Particle Cloud API. Required when **Allow downlink** is on. |
+| **Enable security** | Accepts only requests that carry the configured headers. See **[Secure the Endpoint with Header Filters](#secure-the-endpoint-with-header-filters)**. |
+| **Execute remotely** | Runs the integration as a separate process outside the ThingsBoard cluster. ThingsBoard generates an **Integration key** and **Integration secret** for it. Particle needs a public endpoint, so the standard setup keeps this off. See <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink>. |
+| **Metadata** | In **Advanced settings**. Key–value pairs added to the `metadata` of every message from this integration. |
 
-A unique ThingsBoard endpoint generated for this Particle integration. Configure the Particle webhook to send HTTPS `POST` requests to this URL.
+### Create the Particle Webhook
 
-Do not replace the endpoint with a generic ThingsBoard HTTP device API URL. The URL is specific to the Platform Integration and routes the webhook payload through the selected Particle uplink converter.
-
-<h5>Allow Downlink</h5>
-
-Enables the Particle integration to send converted ThingsBoard downlink messages to Particle Device Cloud.
-
-If disabled, the integration still accepts Particle webhook uplink events, but ThingsBoard RPC messages cannot be forwarded through the Particle integration.
-
-<h5>Token</h5>
-
-A Particle OAuth2 access token used by ThingsBoard when calling the Particle Cloud API.
-
-The token must be authorized to call a function on the target device. For API-user credentials, grant the minimum required `devices.function:call` scope. For sandbox testing, a user token created with the Particle CLI can be used.
-
-<h5>Execute Remotely</h5>
-
-If the Particle Integration wizard offers **Execute remotely**, enable it only when you intentionally run the integration as a separate Remote Integration process. For the normal cloud-to-cloud Particle workflow, the default server-side execution is sufficient because both ThingsBoard and Particle Device Cloud are reachable over the Internet.
-
-## Configure the Webhook in Particle Console
-
-The webhook is the uplink transport between Particle Device Cloud and the ThingsBoard Particle integration. Create a **Custom Webhook** integration in the Particle Console that forwards matching events to the ThingsBoard integration endpoint.
-
-Particle webhook **Event name** matching is prefix-based and case-sensitive. This guide uses `tb/`, which matches `tb/telemetry`, `tb/status`, `tb/location`, and any other event that begins with `tb/`.
+The webhook forwards matching events to the integration endpoint. Event name matching is a case-sensitive prefix: `tb/` matches `tb/telemetry`, `tb/status`, and any other event that starts with `tb/`.
 
 <Steps>
-  1. Open <a href="https://console.particle.io/" target="_blank" rel="noopener noreferrer"><strong>Particle Console</strong></a> and open the sandbox, organization, or product that contains your device.
-  2. In the left sidebar, open **Cloud services**, then click **Go to Integrations**.
-  3. In the integrations catalog, find and select **Custom Webhook**, then click **Start now**.
-  4. On the Custom Webhook page (**Webhook Builder** tab), configure:
-      - **Name** — e.g. `ThingsBoard`.
-      - **Event name** — the Particle event name prefix your device publishes (e.g. `tb/`). Only events matching this name trigger the webhook.
-      - **URL** — paste the HTTP endpoint generated by the ThingsBoard Particle integration.
-      - **Request type** — `POST`.
-      - **Request format** — `JSON`.
-      - Leave **Status** enabled.
-  5. Click **Enable integration**.
+1. Open <a href="https://console.particle.io/" target="_blank" rel="noopener noreferrer"><strong>Particle Console</strong></a> and select the sandbox, organization, or product that contains your device.
+2. In the left sidebar, open **Cloud services** and click **Go to Integrations**.
+3. Select **Custom Webhook** and click **Start now**.
+4. On the **Webhook Builder** tab, set:
+   - **Name** — for example `ThingsBoard`.
+   - **Event name** — `tb/`.
+   - **URL** — the **HTTP endpoint URL** of the integration.
+   - **Request type** — `POST`.
+   - **Request format** — `JSON`.
+   - Keep **Status** enabled.
+5. Click **Enable integration**.
 </Steps>
 
 <ImageGallery images={[
@@ -527,39 +395,27 @@ Particle webhook **Event name** matching is prefix-based and case-sensitive. Thi
   { src: '/src/assets/images/user-guide/integrations/particle/particle-console-integrations-5.png', alt: 'Particle Console — View integration page showing Custom Webhook Name ThingsBoard, Event tb/, Status Enabled, Target thingsboard.cloud, with Test, Edit, and Delete actions, and a success toast Your integration was created successfully', caption: 'Particle Console confirms the integration was created; use Test, Edit, or Delete from this page at any time' },
 ]} />
 
-With the default Particle webhook data included, ThingsBoard receives the event name, event data, publish timestamp, and `coreid` required by the converter.
-
 <Aside type="caution">
-  Do not enable `noDefaults` in a custom Particle webhook template unless you explicitly add equivalent fields yourself. The converter in this guide requires `coreid`, `data`, and `published_at`.
+  Keep the default webhook fields. If you enable `noDefaults` in a custom template, add `coreid`, `data`, and `published_at` yourself: the decoder needs all three.
 </Aside>
 
 ## Test Uplink
 
-For an end-to-end test, publish the event from a **physical Particle device**. This validates the device-to-cloud connection, webhook, ThingsBoard integration, converter, and automatic device provisioning in one flow.
+Publish an event, then confirm that ThingsBoard decoded it and created the device.
 
 <Aside type="note">
-  Particle Console and Cloud API can generate test events, but API-generated events may use `coreid = "api"` instead of the Device ID of a physical device. The converter in this guide intentionally ignores such events to avoid creating a fake ThingsBoard device named `api`.
+  Turn on **Debug** mode with **All messages** for the integration and the uplink converter before you send the event. Without it, the **Events** tabs stay empty.
 </Aside>
 
-### Send Test Uplink
+### Send a Test Uplink
 
-Flash the firmware example from <a href="#publish-telemetry-from-device-firmware"><strong>Publish Telemetry From Device Firmware</strong></a> to your Particle device and wait for it to connect to Particle Device Cloud. The example publishes `tb/telemetry` approximately every 30 seconds while cloud-connected.
-
-To trigger a test event without waiting, publish a Particle event from the CLI using the same event name you configured in the webhook:
-
-```bash
-particle publish tb/telemetry "{\"deviceType\":\"Particle device\",\"temperature\":23.5,\"humidity\":60,\"battery\":87}" --private
-```
-
-You can confirm the event reached Particle Device Cloud on the device's page in the Particle Console, under the **Events** tab.
+Flash the firmware from **[Publish Events from Firmware](#publish-events-from-firmware)** and wait for the device to connect. It publishes `tb/telemetry` every 30 seconds. The device's **Events** tab in Particle Console shows each published event.
 
 <ImageGallery images={[
   { src: '/src/assets/images/user-guide/integrations/particle/particle-console-device-events.png', alt: 'Particle Console — View device page, Events tab showing a tb/ event with its JSON payload and published timestamp', caption: "The device's Events tab in Particle Console confirms the tb/ event was published" },
 ]} />
 
-Alternatively, open the integration's <a href="#configure-the-webhook-in-particle-console"><strong>View integration page</strong></a> in the Particle Console and click **Test**. Enter the real **ID of your Particle device** and a valid JSON object in **Event data**, then click **Run test** to send the payload without needing a physical device online.
-
-Example of event data:
+To test without a running device, open the webhook's **View integration** page in Particle Console and click **Test**. Enter your **Device ID**, put a JSON object in **Event data**, and click **Run test**:
 
 ```json
 { "deviceType": "Particle device", "temperature": 23.5, "humidity": 60, "battery": 87 }
@@ -567,35 +423,76 @@ Example of event data:
 
 <ImageGallery images={[
   { src: '/src/assets/images/user-guide/integrations/particle/particle-console-view-integration-test.png', alt: 'Particle Console — View integration page with the Test button highlighted', caption: "Open the integration's View integration page and click Test" },
-  { src: '/src/assets/images/user-guide/integrations/particle/particle-console-test-integration.png', alt: 'Particle Console — Test integration dialog with optional Event data JSON containing deviceType, temperature, humidity, and battery, an real Device ID field, and a Run test button', caption: 'Provide valid JSON Event data and the real Device ID, then click Run test' },
+  { src: '/src/assets/images/user-guide/integrations/particle/particle-console-test-integration.png', alt: 'Particle Console — Test integration dialog with optional Event data JSON containing deviceType, temperature, humidity, and battery, a real Device ID field, and a Run test button', caption: 'Provide valid JSON Event data and the real Device ID, then click Run test' },
 ]} />
 
-Once Particle Device Cloud sends the event, verify delivery on the ThingsBoard side.
+<Aside type="caution">
+  Do not test with `particle publish` from the CLI. Events published through the Cloud API carry `coreid` = `api` instead of a Device ID, so ThingsBoard creates a device named `api`.
+</Aside>
 
-### Verify Integration Events
+### Verify the Result
 
-Go to **Integrations &#8702; Integrations**, open the Particle integration, and switch to the **Events** tab. An `Uplink` event with **Status: OK** confirms ThingsBoard received the webhook call; click the row to inspect the raw message.
+- **Integration events** — go to **Integrations &#8702; Integrations**, open the integration, and click the **Events** tab. The uplink appears with status **OK**.
+- **Converter events** — open `Particle Uplink Converter` in **Integrations &#8702; Data converters** and click the **Events** tab. **In** shows the webhook body, **Out** shows the decoded result, and **Metadata** shows the request headers and integration name.
+- **Device** — go to **Devices & assets &#8702; Devices**. The integration has created a device named after the Device ID, in the `Particle devices` group. Open it and check the values on the **Latest telemetry** tab and `particleDeviceId` on the **Attributes** tab.
 
+## Secure the Endpoint with Header Filters
 
-### Verify Converter Events
+Anyone who knows the endpoint URL can send data to it. A header filter rejects every request that does not carry the required headers with the exact values, and returns `403 Forbidden` before the converter runs. Particle logs the rejected call as a `hook-error` event.
 
-Go to **Integrations &#8702; Data converters**, open the `Particle Uplink Converter`, and switch to the **Events** tab. Click **In** to see the raw event the converter received, **Out** to see the decoded device name, attributes, and telemetry it produced, and **Metadata** to see the HTTP headers of the incoming webhook request.
+<Steps>
+1. In Particle Console, edit the webhook and add a custom HTTP header, for example `X-API-Key` with a secret value.
+2. In ThingsBoard, open the integration and click **Toggle edit mode** (pencil icon).
+3. Turn on **Enable security**.
+4. Under **Headers filter**, click **Add** and enter the same **Header** and **Value**. A request must carry every header in the list. The value match is exact and case-sensitive.
+5. Click **Apply changes**.
+</Steps>
 
+## Configure Downlink
 
-### Verify Device Provisioning
+ThingsBoard sends each downlink right away as a Particle Cloud API call. Nothing is queued: if the device is offline or the call fails, ThingsBoard logs an error and drops the command.
 
-Once the webhook forwards an event to ThingsBoard, go to **Devices & assets &#8702; Devices** — the device is automatically provisioned using the Particle `coreid` as the device name, assigned the device profile matching the decoded `deviceType`, and placed in the `Particle devices` group. Open the device and check the **Latest telemetry** tab to confirm the values arrived, and the **Attributes** tab to confirm the `integrationName` and `particleDeviceId` set by the converter.
+The downlink converter turns an RPC request from the <DocLink product={props.product} path="user-guide/rule-engine" target="_blank">Rule Engine</DocLink> into a function call. For the full encoder reference, see <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink data converter</DocLink>.
 
+### Create a Particle Access Token
 
-## Send RPC Commands to a Particle Device
+ThingsBoard authenticates to the Particle Cloud API with an access token. The **Call a function** endpoint requires the `devices.function:call` scope.
 
-Downlink uses ThingsBoard RPC &#8702; Rule Engine &#8702; Integration Downlink &#8702; Particle Cloud API &#8702; `Particle.function()`.
+For production, use a <a href="https://docs.particle.io/reference/cloud-apis/access-tokens/" target="_blank" rel="noopener noreferrer"><strong>Particle API user</strong></a> limited to that scope. For a quick test, create a user token with the Particle CLI:
 
-The following example uses an LED only as an easy way to verify that the command reached a development board. Replace the GPIO and command handler with the actual control logic for your hardware.
+<Steps>
+1. Install the CLI, then close and reopen the terminal:
 
-### Register a Particle Cloud Function
+   ```bash
+   bash <( curl -sL https://particle.io/install-cli )
+   ```
 
-Flash firmware that registers a function in `setup()`:
+2. Log in to your Particle account:
+
+   ```bash
+   particle login
+   ```
+
+3. Create a token that does not expire, and copy it. The CLI shows it only once.
+
+   ```bash
+   particle token create --never-expires
+   ```
+</Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/particle/cli-install.png', alt: 'Terminal — bash install script output: downloads the Particle CLI, installs it to ~/bin/particle, adds it to PATH, and warns to close and reopen the terminal before changes take effect', caption: 'The installer confirms success — close and reopen your terminal (or start a new shell) before the particle command is available on your PATH' },
+  { src: '/src/assets/images/user-guide/integrations/particle/cli-login.png', alt: 'Terminal — particle login command: prompts for email and password, then prints Successfully completed login', caption: 'Particle CLI — particle login prompts for credentials and confirms successful authentication' },
+  { src: '/src/assets/images/user-guide/integrations/particle/cli-token-created.png', alt: 'Terminal — particle token create --never-expires command prompts for the account password, then outputs New access token never expires followed by the token string', caption: 'Particle CLI — the generated access token is displayed once; copy it immediately for use in the integration' },
+]} />
+
+<Aside type="caution">
+  Treat the token as a secret. A user token can access every device and API in your account. Revoke it when you no longer need it.
+</Aside>
+
+### Register a Cloud Function in Firmware
+
+The firmware below registers the function `setOutput`, which turns the `D7` output on or off. Replace the pin and handler with your own control logic.
 
 ```cpp
 #include "Particle.h"
@@ -629,125 +526,131 @@ int setOutput(String command) {
 }
 ```
 
-<Aside type="note">
-  `D7` is used only as a reference output for compatible development hardware. If your Particle hardware does not expose an LED on `D7`, replace it with a valid output or your application-specific command handler. The ThingsBoard integration only requires that the firmware register a `Particle.function()` whose name matches the RPC method.
-</Aside>
+The function name must match the RPC method. A cloud function takes one string argument and should return quickly: start long operations and return a status code.
+
+### Create and Assign the Downlink Converter
+
+Add a downlink converter to the integration and turn on **Allow downlink** with the access token.
+
+<Steps>
+1. Open the integration in **Integrations &#8702; Integrations** and click **Toggle edit mode** (pencil icon).
+2. In the **Downlink data converter** field, click **Create new**. The **Downlink** converter type and **Particle** integration type are preselected.
+3. Enter a name, for example `Particle Downlink Converter`.
+4. **Main encoding configuration** opens with a generic encoder that does not set the Device ID. Replace it with the encoder below. The same code runs in TBEL and JavaScript.
+5. To record downlink events, click the debug icon next to the name, select **All messages**, and click **Apply**.
+6. Click **Add**.
+7. **Enable downlink:** turn on **Allow downlink** and paste the token from **[Create a Particle Access Token](#create-a-particle-access-token)** into **Token**.
+8. Click **Apply changes**.
+</Steps>
+
+Encoder used in this guide:
+
+```js
+/** Encoder **/
+
+// The integration calls the Particle function named by "method"
+// and passes "params" as its string argument.
+// msg.params is serialized JSON, for example "\"on\"": JSON.parse returns on.
+var result = {
+    contentType: "JSON",
+    data: JSON.stringify({
+        method: msg.method,
+        params: JSON.parse(msg.params)
+    }),
+    metadata: {
+        // Particle Device ID of the target device.
+        // This guide uses it as the ThingsBoard device name.
+        deviceId: metadata.deviceName
+    }
+};
+
+return result;
+```
+
+The integration reads these fields from the encoder result:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `metadata.deviceId` | Yes | Particle Device ID used in the API URL. Without it, the downlink fails with `Device id not found in metadata`. |
+| `method` or `function` in `data` | Yes | Name of the cloud function to call. |
+| `params`, `command`, or `arg` in `data` | No | Function argument, sent as `{"arg": "<value>"}`. Numbers and booleans are converted to strings. A JSON object becomes an empty argument: to send it, pass `msg.params` as is, without `JSON.parse`. |
 
 ### Configure the Root Rule Chain
 
-<Steps>
-  1. Go to **Data processing &#8702; Rule chains** and open the **Root Rule Chain** (or the rule chain used by the Particle device profile).
-  2. Search the node panel for `Downlink` and drag the **integration downlink** node (under **Action**) onto the canvas.
-  3. In the **Add rule node: integration downlink** dialog, enter a **Name** such as `To Particle integration`.
-  4. Set **Integration** to `Particle integration`.
-  5. Click **Add**.
-  6. Connect **Message Type Switch** to the **integration downlink** node using the **RPC Request to Device** relation.
-  7. Click **Apply changes**.
-</Steps>
-
-
-### Send an RPC Command from a Dashboard
-
-Create a control widget that sends `on` and `off` to the `setOutput` Particle cloud function.
+Route RPC requests to the integration. Other message types have no `method` field, so the converter cannot turn them into function calls.
 
 <Steps>
-  1. Open a dashboard, click **Edit mode**, then click **+ Add widget**.
-  2. In the **Control widgets** bundle, select **Switch Control**.
-  3. On the **Data** tab, set **Target device** to **Device** and select the provisioned Particle device.
-  4. Open the **Appearance** tab.
-  5. Set **Retrieve value using method** to **Don't retrieve**.
-  6. Set **RPC set value method** to `setOutput`.
-  7. Paste the following into the **Convert value function** field, then click **Add**:
-      ```js
-      return value ? "on" : "off";
-      ```
-  8. Save the dashboard and exit edit mode, then toggle the control.
+1. Go to **Data processing &#8702; Rule chains** and open the **Root Rule Chain**.
+2. From the **Action** section, drag an **integration downlink** node onto the canvas.
+3. Enter a **Name** (for example, `To Particle integration`), select your Particle integration, and click **Add**.
+4. Connect the **message type switch** node to the **integration downlink** node with the **RPC Request to Device** relation.
+5. Click **Apply changes**.
 </Steps>
 
+### Test Downlink
 
-The message path is:
+Add a dashboard switch that calls `setOutput` with `on` or `off`.
+
+<Steps>
+1. Open a dashboard, click **Edit mode**, then click **+ Add widget**.
+2. In the **Control widgets** bundle, select **Switch Control**.
+3. On the **Data** tab, set **Target device** to **Device** and select the Particle device.
+4. On the **Appearance** tab:
+   - **Retrieve value using method** — **Don't retrieve**.
+   - **RPC set value method** — `setOutput`.
+   - **Convert value function** — `return value ? "on" : "off";`
+5. Click **Add**, save the dashboard, and exit edit mode.
+6. Toggle the switch.
+</Steps>
+
+Each toggle produces this call:
 
 ```text
-RPC method: setOutput
-RPC params: "on"
+RPC method: setOutput, params: "on"
         │
         ▼
-Particle Downlink Converter
+POST https://api.particle.io/v1/devices/{deviceId}/setOutput
+Authorization: Bearer <token>
+{"arg": "on"}
         │
         ▼
-POST /v1/devices/{coreid}/setOutput
-Authorization: Bearer <Particle token>
-arg=on
-        │
-        ▼
-Particle.function("setOutput", ...)
+Particle.function("setOutput", ...) on the device
 ```
 
-If the Particle device is online and the token has permission to call its function, the device callback is invoked.
+### Verify the Downlink
 
-### Verify Downlink Delivery
-
-Use the following checks to trace the RPC command through the rule chain and downlink converter.
-
-<h4>Verify Rule Node Events</h4>
-
-<Steps>
-  1. Open the **Root Rule Chain**, click the **Integration Downlink** node, and open its **Details** tab.
-  2. Click the debug icon, enable **Failures only (24/7)** and **All messages (15 min)**, then click **Apply**.
-  3. Toggle the switch on the dashboard to send the RPC command.
-  4. Open the node's **Events** tab — an `IN`/`OUT` pair with **Relation Type: Success** confirms the RPC reached the node.
-  5. Click **Data** or **Metadata** on the event to inspect the `method`, `params`, and target `deviceName`.
-</Steps>
-
-
-<h4>Verify Converter Events</h4>
-
-Go to **Integrations &#8702; Data converters**, open the `Particle Downlink Converter`, and switch to the **Events** tab. Click **In** to see the raw RPC message passed into the encoder, and **Out** to see the JSON payload and target device ID sent to the Particle Cloud API.
-
-
-Additional checks:
-
-<Steps>
-  1. In Particle Console, open the device and verify that the registered `setOutput` function is available when the device is online.
-  2. If using the LED example, confirm the output state changes.
-  3. If the command fails with an authorization error, verify the token and its `devices.function:call` permission.
-</Steps>
-
-<Aside type="note">
-  Particle cloud functions are synchronous Cloud API calls and the device function should return quickly. Avoid long-running work directly inside the callback; trigger the operation and return a status code promptly.
-</Aside>
+- **Device** — the `D7` output (on many boards, the blue LED) turns on or off.
+- **Converter events** — open the downlink converter's **Events** tab. **In** shows the RPC request, and **Out** shows the encoded `data` and `metadata.deviceId`.
+- **Integration events** — open the integration's **Events** tab. A failed call appears with status **ERROR** and the Particle API response.
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| Particle webhook does not trigger | Webhook event prefix does not match the published event | Confirm the webhook Event name is `tb/` and the device publishes an event such as `tb/telemetry`. Matching is case-sensitive and prefix-based. |
-| Device publish fails | Event name uses a reserved prefix | Do not publish events beginning with `particle` or `spark`; use a custom prefix such as `tb/`. |
-| Webhook shows `hook-error` | Wrong/unreachable ThingsBoard endpoint | Copy the HTTP endpoint again from the Particle integration and verify the ThingsBoard instance is publicly reachable over HTTPS. |
-| Integration receives a message but no ThingsBoard device is created | `coreid` is `api` | Send the test event from physical device firmware. API/Console-generated events can identify the publisher as `api` and are ignored by this guide's converter. |
-| Integration receives a message but no ThingsBoard device is created | Automatic creation disabled | Enable **Allow create devices or assets** in the integration or create the matching ThingsBoard device manually. |
-| Converter fails with JSON parse error | Particle event `data` is plain text or malformed JSON | Publish valid JSON from firmware or modify the converter to map `data.data` directly to `rawData`. |
-| Telemetry is stored as one string instead of separate keys | Converter stores Particle `data` without parsing it | Parse `data.data` as JSON and map/flatten the decoded fields to telemetry. |
-| Downlink returns unauthorized/forbidden | Missing, expired, revoked, or over-restricted Particle token | Verify the token. For API-user credentials, ensure `devices.function:call` is granted and the token can access the target device. |
-| Downlink cannot find the Particle device | ThingsBoard device name is not the Particle Device ID | Keep the ThingsBoard device name equal to Particle `coreid`, or customize the downlink path to supply the real Particle Device ID in metadata. |
-| Downlink function not found | RPC method does not match firmware function name | Ensure the RPC method exactly matches the key registered by `Particle.function()`. |
-| Downlink reaches Particle but device does not react | Device offline or callback logic rejects the argument | Verify Particle Console reports the device online and check accepted function arguments in firmware. |
-| Intermittent duplicate telemetry | Particle event/webhook redelivery | Make ingestion idempotent when duplicates matter; use event identifiers or application-level deduplication where required. |
-| Events arrive out of order | Particle event delivery is best effort | Use `published_at` or an application sequence number to order data when strict ordering is required. |
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Webhook does not fire | The event name does not start with the webhook's **Event name**. | Publish `tb/telemetry` with a `tb/` webhook. Matching is case-sensitive. |
+| Firmware publish fails | The event name starts with the reserved `particle` or `spark`. | Use a custom prefix such as `tb/`. |
+| Particle shows `hook-error` | Wrong endpoint URL, unreachable ThingsBoard, or a failed header filter (`403`). | Copy the **HTTP endpoint URL** again. Check that ThingsBoard is reachable over HTTPS and that the webhook sends the filtered headers. |
+| Device named `api` appears | The event came from the CLI or Cloud API, not from a device. | Test from the device or from the webhook's **Test** dialog with a Device ID. |
+| Device not created | **Allow create devices or assets** is off, or `coreid` is missing. | Turn the option on. Keep the default webhook fields. |
+| Converter error on `data` | The event data is plain text or invalid JSON. | Publish valid JSON, or map `data.data` directly (see **To adapt**). |
+| Telemetry saved as one string | The decoder stores `data` without parsing it. | Parse `data.data` as JSON and flatten the fields. |
+| Downlink `401` or `403` | The token is missing, expired, revoked, or lacks `devices.function:call`. | Create a new token and paste it into **Token**. |
+| Downlink `404` | The device is offline, the function is not registered, or the device name is not the Device ID. | Check that the device is online, that the RPC method matches the `Particle.function()` name, and that `metadata.deviceId` holds the Device ID. |
+| No downlink and no error | **Allow downlink** is off, no downlink converter is assigned, or the rule chain does not route RPC requests. | Check the integration settings and the **RPC Request to Device** relation. |
+| `Device id not found in metadata` | The encoder does not set `metadata.deviceId`. | Use the encoder from this guide. |
+| Duplicate or out-of-order telemetry | Particle delivers webhooks on a best-effort basis. | Order data by `published_at`, and deduplicate where it matters. |
 
+To read debug events, open the integration or converter, click **Events**, and select an event: **In** is the received data, **Out** is the converter result, and **Error** holds the error text.
 
 ## See Also
 
-- <DocLink product={props.product} path="user-guide/integrations" target="_blank">Integrations Overview</DocLink> — ThingsBoard Platform Integrations concepts and data flow.
-- <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">Uplink Data Converter</DocLink> — decoder input/output reference and mapping patterns.
-- <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink Data Converter</DocLink> — encoder reference for Integration Downlink messages.
-- <DocLink product={props.product} path="reference/rule-engine/nodes/action/integration-downlink" target="_blank">Integration Downlink Rule Node</DocLink> — route ThingsBoard messages to a configured Platform Integration.
-- <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL</DocLink> — ThingsBoard Expression Language reference.
-- <a href="https://docs.particle.io/integrations/webhooks/" target="_blank" rel="noopener noreferrer"><strong>Particle Webhooks</strong></a> — Particle Device Cloud webhook concepts.
-- <a href="https://docs.particle.io/reference/cloud-apis/webhooks/" target="_blank" rel="noopener noreferrer"><strong>Particle Webhook Reference</strong></a> — event filters, default webhook fields, templates, and delivery behavior.
-- <a href="https://docs.particle.io/reference/device-os/api/publish/particle-publish-publish/" target="_blank" rel="noopener noreferrer"><strong>Particle.publish()</strong></a> — publish events from Device OS firmware.
-- <a href="https://docs.particle.io/reference/device-os/typed-publish/" target="_blank" rel="noopener noreferrer"><strong>Typed and Extended Publish</strong></a> — structured payloads and newer Device OS publish capabilities.
+- <DocLink product={props.product} path="user-guide/integrations" target="_blank">Integrations overview</DocLink> — how integrations, converters, uplinks, and downlinks fit together.
+- <DocLink product={props.product} path="user-guide/integrations/uplink-data-converter" target="_blank">Uplink data converter</DocLink> — decoder inputs, output format, and scripting patterns.
+- <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink data converter</DocLink> — encoder reference.
+- <DocLink product={props.product} path="reference/rule-engine/nodes/action/integration-downlink" target="_blank">Integration downlink node</DocLink> — route Rule Engine messages to an integration.
+- <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL</DocLink> — built-in functions and syntax for converter scripts.
+- <a href="https://docs.particle.io/reference/cloud-apis/webhooks/" target="_blank" rel="noopener noreferrer"><strong>Particle webhooks</strong></a> — event filters, default fields, templates, and delivery.
+- <a href="https://docs.particle.io/reference/device-os/api/publish/particle-publish-publish/" target="_blank" rel="noopener noreferrer"><strong>Particle.publish()</strong></a> and <a href="https://docs.particle.io/reference/device-os/typed-publish/" target="_blank" rel="noopener noreferrer"><strong>typed publish</strong></a> — publish events from Device OS.
 - <a href="https://docs.particle.io/reference/device-os/api/cloud-functions/particle-function/" target="_blank" rel="noopener noreferrer"><strong>Particle.function()</strong></a> — expose a device function through Particle Device Cloud.
-- <a href="https://docs.particle.io/reference/cloud-apis/api/" target="_blank" rel="noopener noreferrer"><strong>Particle Cloud API</strong></a> — device function endpoint and required API scope.
-- <a href="https://docs.particle.io/reference/cloud-apis/access-tokens/" target="_blank" rel="noopener noreferrer"><strong>Particle Access Tokens</strong></a> — user tokens, API users, and token security guidance.
-- <a href="https://docs.particle.io/getting-started/hardware/hardware-overview/" target="_blank" rel="noopener noreferrer"><strong>Particle Hardware Overview</strong></a> — current Particle hardware portfolio and lifecycle information.
+- <a href="https://docs.particle.io/reference/cloud-apis/api/" target="_blank" rel="noopener noreferrer"><strong>Particle Cloud API</strong></a> — the **Call a function** endpoint and its scope.
+- <a href="https://docs.particle.io/reference/cloud-apis/access-tokens/" target="_blank" rel="noopener noreferrer"><strong>Particle access tokens</strong></a> — user tokens, API users, and token security.

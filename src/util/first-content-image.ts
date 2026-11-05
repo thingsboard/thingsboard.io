@@ -6,15 +6,6 @@
 // the claimer renders it eager while everything after stays lazy. Deliberately
 // no fetchpriority boost — see the consumers (DocImage, ImageGallery) for why.
 
-declare global {
-	// eslint-disable-next-line @typescript-eslint/no-namespace
-	namespace App {
-		interface Locals {
-			firstContentImageClaimed?: boolean;
-		}
-	}
-}
-
 export function claimFirstContentImage(locals: App.Locals): boolean {
 	if (locals.firstContentImageClaimed) return false;
 	locals.firstContentImageClaimed = true;

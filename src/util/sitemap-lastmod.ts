@@ -1,8 +1,4 @@
-import {
-	getSitemapLastmodRegistry,
-	maxEpochToIso,
-	normalizeSitemapPath,
-} from '../../config/sitemap-source-registry';
+import { maxEpochToIso, normalizeSitemapPath, setSitemapLastmod } from '../../config/sitemap-source-registry';
 
 /**
  * Record an explicit sitemap `<lastmod>` from build-time data instead of git —
@@ -19,5 +15,5 @@ export function recordSitemapLastmod(
 	epochMs: number | null | undefined | ReadonlyArray<number | null | undefined>
 ): void {
 	const iso = maxEpochToIso(Array.isArray(epochMs) ? epochMs : [epochMs]);
-	if (iso) getSitemapLastmodRegistry().set(normalizeSitemapPath(pathname), iso);
+	if (iso) setSitemapLastmod(normalizeSitemapPath(pathname), iso);
 }

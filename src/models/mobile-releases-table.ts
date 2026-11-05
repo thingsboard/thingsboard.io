@@ -3,8 +3,8 @@ export interface MobileRelease {
 	version: string;
 	/** Release date, e.g. "Feb 5, 2026" */
 	date: string;
-	/** GitHub release tag for CE app */
-	ceTag: string;
+	/** GitHub release tag for CE app; omitted until the CE release ships, which hides the row from the CE table */
+	ceTag?: string;
 	/** GitHub release tag for PE app */
 	peTag: string;
 	/** CE release date (if different from shared date) */
@@ -17,9 +17,14 @@ export interface MobileRelease {
 
 export const MOBILE_RELEASES: MobileRelease[] = [
 	{
+		version: '1.9.1',
+		date: 'Oct 30, 2026',
+		peTag: 'v1.9.1',
+		highlights: 'Template icons in push notifications, login white-labeling, live white-labeling updates',
+	},
+	{
 		version: '1.9.0',
 		date: 'Sep 29, 2026',
-		ceTag: 'v.1.9.0',
 		peTag: 'v1.9.0',
 		highlights: 'Navigation, login, notification & dashboard image fixes',
 	},
