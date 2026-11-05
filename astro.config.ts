@@ -7,6 +7,7 @@ import { sidebar } from './astro.sidebar';
 import { devServerFileWatcher } from './config/integrations/dev-server-file-watcher';
 import { imageGalleryLightbox } from './config/integrations/image-gallery-lightbox';
 import { sitemap } from './config/integrations/sitemap';
+import { youtubePosters } from './config/integrations/youtube-posters';
 import { satteriBlogImages } from './config/plugins/satteri-blog-images';
 import { satteriMdxIncludeHeadings } from './config/plugins/satteri-mdx-include-headings';
 import { satteriTasklistEnhancer } from './config/plugins/satteri-tasklist-enhancer';
@@ -109,6 +110,7 @@ export default defineConfig({
 		assertIconOverrideApplied(),
 		icon(),
 		imageGalleryLightbox(),
+		youtubePosters(),
 		devServerFileWatcher(['./config/**', './astro.sidebar.ts']),
 		starlight({
 			title: 'Docs',

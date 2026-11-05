@@ -69,7 +69,7 @@ The **Total resources storage** limit caps the combined size of all files in the
 
 ## Storage retention
 
-Time-series and alarm data are automatically expired after the retention period defined by your plan. Retention is managed by your subscription and cannot be changed manually.
+Time-series and alarm data are automatically expired after the retention period. The **Default storage TTL** applies to time-series data unless you override it (see [Data point storage days](#data-point-storage-days)). The **Alarms TTL** and **RPC TTL** are fixed by your plan.
 
 | Limit | Free | Prototype | Pilot | Startup | Business |
 |-------|------|-----------|-------|---------|----------|
@@ -79,9 +79,36 @@ Time-series and alarm data are automatically expired after the retention period 
 
 ## Data point storage days
 
-The **Data point storage days** limit caps the volume of time-series data you can keep in storage during each subscription period. The platform multiplies the number of stored data points by the **Default storage TTL**, the number of days each point is retained.
+**Data point storage days** are calculated for all time-series data points stored in the database. The platform multiplies the number of data points by the number of days those data points are stored. The number of days is taken from the TTL applied to each data point.
 
-For example, storing 3 data points for 30 days consumes 90 data point storage days.
+The **Default storage TTL** of your plan is used when no other TTL is set. You can override it in the **Save Time Series** rule node or with the `TTL` metadata field of a message; both take the value in seconds (for example, `31536000` for 365 days). This lets you optimize storage consumption: for example, store raw data for 3 months and aggregated data for 3 years by using a <DocLink product={props.product} path="user-guide/calculated-fields/time-series-data-aggregation" target="_blank">specific calculated field</DocLink>. The max allowed TTL for ThingsBoard Cloud is 5 years. <a href="/docs/private-cloud/subscription/" target="_blank" rel="noopener noreferrer">ThingsBoard Private Cloud</a> can support a longer TTL.
+
+### How data point storage days are counted
+
+Data point storage days are counted at the moment data is written. Each stored data point adds its full TTL to the counter of the current subscription period:
+
+`data point storage days (DPSD) = data points × TTL (days)`
+
+- The DPSD is counted immediately, not day by day. Increasing the TTL from 30 to 365 days makes each new data point consume 12 times more of the limit in the same month.
+- A TTL shorter than one day counts as one day. Partial days are rounded down.
+- Only time-series data counts. Attributes do not.
+- A data point value is counted in chunks of 512 characters. If a string or JSON value exceeds this length, the initial data point turns into multiple points using the formula: total number of characters / 512, rounded up to the nearest whole number (examples: 300 characters → 1 data point; 512 characters → 1 data point; 513 characters → 2 data points). Numeric and boolean values always count as one data point.
+
+### Examples
+
+**Single message.** A device sends `{"temperature": 22, "humidity": 45, "battery": 87}` (3 data points) with a 30-day TTL: 3 × 30 = **90** data point storage days.
+
+**Fleet on the Pilot plan.** 100 devices send 10 keys every minute:
+
+- Data points per month: 100 × 10 × 43,200 messages = 43.2M
+- With the default 180-day TTL: 43.2M × 180 = **7.78B**, within the 10B limit
+- With TTL overridden to 365 days: 43.2M × 365 = **15.77B**, exceeds the limit
+
+**Raw and aggregated data.** Same fleet. Raw data is retained for 30 days. Aggregated data is kept for 365 days:
+
+- Raw: 43.2M × 30 = 1.30B
+- Hourly aggregates: 100 × 10 × 720 = 720K data points × 365 = 0.26B
+- Total: **1.56B**, about 10 times less than storing raw data for a year
 
 To use this limit efficiently, see <DocLink product={props.product} path="recipes/configure-telemetry-ttl" target="_blank">how to configure time-series data retention</DocLink>.
 

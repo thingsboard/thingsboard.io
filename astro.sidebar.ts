@@ -375,9 +375,7 @@ const edgeInstallationItems = (prefix: string) => {
 			items: [`${prefix}/installation/docker-compose-setup`],
 		},
 		...(isPE ? [{ label: 'Remote Agent', slug: `${prefix}/installation/agent` }] : []),
-		...(isPE
-			? []
-			: [{ label: 'Building from Sources', slug: `${prefix}/installation/building-from-source` }]),
+		{ label: 'Building from Sources', slug: `${prefix}/installation/building-from-source` },
 		{ label: 'Upgrade Instructions', slug: `${prefix}/installation/upgrade-instructions` },
 	];
 };
@@ -4005,6 +4003,7 @@ export const cliSidebar: SidebarConfig = [
 		label: 'Guides',
 		items: [
 			'docs/cli/guides/start-from-payload',
+			'docs/cli/guides/connect-real-device',
 			'docs/cli/guides/alarms',
 			'docs/cli/guides/deliver-to-customer',
 			'docs/cli/guides/import-existing-solution',

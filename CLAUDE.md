@@ -9,7 +9,8 @@ This is the **ThingsBoard documentation site**, built with **Astro + Starlight**
 ## Commands
 
 ```bash
-# Install dependencies (requires pnpm)
+# Install dependencies (requires pnpm). Supported Node.js versions are `devEngines.runtime` in package.json;
+# pnpm refuses to install or run anything on another one. GitHub Actions read the range from there too.
 pnpm install
 
 # Development
@@ -161,7 +162,7 @@ See the `edit-doc` skill for detailed _includes rules, conditional rendering pat
 
 `src/data/versions.ts` — centralized product version strings. **Never hardcode version strings** in Docker image tags, download URLs, or code blocks. Import from `@data/versions`.
 
-CE, EDGE and EDGE_PE each have a version/package/branch triple (`CE_FULL_VER`, `CE_PKG_VER`, `CE_BRANCH`; `EDGE_VER`, `EDGE_PKG_VER`, `EDGE_BRANCH`; `EDGE_PE_VER`, `EDGE_PE_PKG_VER`, `EDGE_PE_BRANCH`), PE has `PE_FULL_VER`, `PE_PKG_VER`, `PE_RELEASE_URL` and `PE_BRANCH` (`PE_RELEASE_URL` is the GitHub Releases base for 4.4+ PE packages, while 4.3.x and older stay on dist.thingsboard.io and the upgrade components build their URLs; `PE_BRANCH` is `release-4.4` while `CE_BRANCH` stays on 4.3), and `TRENDZ_VER`, `AGENT_VER`, `TB_VER`, `DART_CLIENT_VER`, `SOURCE_AVAILABLE_FROM_VER`, `COMMUNITY_GRANT_FROM_VER` and `SOURCE_AVAILABLE_ANNOUNCEMENT_DATE` stand alone. Read the file rather than guessing which one a context needs.
+CE and EDGE each have a version/package/branch triple (`CE_FULL_VER`, `CE_PKG_VER`, `CE_BRANCH`; `EDGE_VER`, `EDGE_PKG_VER`, `EDGE_BRANCH`), PE has `PE_FULL_VER`, `PE_PKG_VER`, `PE_RELEASE_URL` and `PE_BRANCH` (`PE_RELEASE_URL` is the GitHub Releases base for 4.4+ PE packages, while 4.3.x and older stay on dist.thingsboard.io and the upgrade components build their URLs; `PE_BRANCH` is `release-4.4` while `CE_BRANCH` stays on 4.3), EDGE_PE has `EDGE_PE_FULL_VER`, `EDGE_NEUTRAL_NAMES_FROM_VER` and `EDGE_PE_BRANCH`, and `TRENDZ_VER`, `AGENT_VER`, `TB_VER`, `SOURCE_AVAILABLE_FROM_VER`, `COMMUNITY_GRANT_FROM_VER`, `SOURCE_AVAILABLE_ANNOUNCEMENT_DATE` and `DART_CLIENT_VER` stand alone. Edge PE names change at `EDGE_NEUTRAL_NAMES_FROM_VER` (`tb-edge-pe` / `EDGEPE` / `*pe` packages before it, the Community Edge names from it on), so Edge PE image, tag, package and Docker Compose values are never written by hand: import them from `@models/edge-naming` (`EDGE_PE_IMAGE`, `edgePePkgUrl()`, `EDGE_PE_COMPOSE_CLONE`, ...), which derives them from `EDGE_PE_FULL_VER`. Read the file rather than guessing which one a context needs.
 
 ### Markdown pipeline
 
@@ -271,7 +272,7 @@ Use the `release` skill for the full checklist. Key files:
 - Prettier with `prettier-plugin-astro`, printWidth 120, single quotes, ES5 trailing commas (see `.prettierrc`)
 - ESLint flat config with TypeScript and Astro plugins
 - **No Figma references in comments.** Don't write "Figma", "Figma node 1234:5678", or any tool-specific node IDs in source comments — they're meaningless to anyone without access to the Figma file and rot fast. Refer to the visual spec as "the design" (or "per the design", "matches the design") and describe what's actually being implemented (sizes, colors, behaviors) so the comment stands on its own.
-- **`window` globals:** those set by `is:inline` or plain scripts and used site-wide (`dataLayer`, `gtag`, `tbConsent`, `tbCloudRegion`) are typed in `src/global.d.ts`. It stays ambient — no imports or exports; reference a module's type inline as `import('@util/…').Type`. A global only one component or module uses keeps a `declare global` next to its owner.
+- **`window` globals:** those set by `is:inline` or plain scripts and used site-wide (`dataLayer`, `gtag`, `tbConsent`, `tbCloudRegion`) are typed in `src/global.d.ts`. It stays ambient — no imports or exports; reference a module's type inline as `import('@util/…').Type`. A global only one component or module uses keeps a `declare global` next to its owner. Fields on `App.Locals` (per-render state on `Astro.locals`) are always declared in `src/global.d.ts`, whichever module owns them.
 - **Comments that would ship:** `<script is:inline>`, files inlined with `?raw` (e.g. `src/scripts/cloud-region.js`) and HTML `<!-- -->` comments reach the built HTML as written (`compressHTML: false`). Put the explanation in an Astro `{/* */}` comment or in the `.ts` that wraps the script; comments in bundled `<script>` and `.ts` are stripped.
 
 ## CI Checks

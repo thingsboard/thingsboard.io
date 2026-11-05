@@ -22,11 +22,10 @@ export const MARK_COLOR = {
 	graphite: 'var(--color-accent-graphite)',
 } as const;
 
-/** The Trust Center's maintainer; the name links to their profile. */
+/** The Trust Center's maintainer. */
 export const TC_OWNER = {
 	name: 'Oleh Reutskyi',
 	role: 'IMS Manager',
-	href: 'https://www.linkedin.com/in/oleg-reutskyi-67a39a1b3/',
 };
 
 export const SECURITY_EMAIL = 'security@thingsboard.io';
