@@ -83,9 +83,3 @@ export function buildFaqPageSchema(categories: FaqCategory[]) {
 		),
 	};
 }
-
-// `<` is escaped so hand-edited answer content can never terminate the
-// surrounding `<script type="application/ld+json">` element.
-export function serializeJsonLd(schema: unknown): string {
-	return JSON.stringify(schema).replace(/</g, '\\u003c');
-}
