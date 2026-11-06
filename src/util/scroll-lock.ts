@@ -5,12 +5,14 @@ import './scroll-lock.css';
 // scrollbar width on the document, the fixed promo banner, the fixed site
 // header, and the chat widget so none of them jump wider.
 //
-// Idempotent + single-flag: repeated lock/unlock calls are no-ops. One overlay
-// is expected open at a time; if two ever overlap, the first close unlocks
-// (same limitation the inlined copies had). `@util/modal-dialog` handles
-// stacked dialogs itself.
+// Locks are per owner; the page unlocks when the last owner releases.
+// `@util/modal-dialog` uses owner `dialog`.
 
 const HTML_LOCK_CLASS = 'tb-scroll-locked';
+// Also added to <html> when the hidden scrollbar took up space (a classic scrollbar, not an overlay
+// one) and the lock padded the page for it. The mobile menu sheet's views then reserve space for a
+// scrollbar (`SiteMenu`).
+const HTML_COMP_CLASS = 'tb-scroll-compensated';
 // Full-width fixed bars padded from the inside to absorb the freed scrollbar
 // width. The promo banner sits above the site header; both compensate the same.
 const BAR_SELECTORS = ['#promo-banner', 'header.header'];
@@ -18,7 +20,7 @@ const BAR_SELECTORS = ['#promo-banner', 'header.header'];
 const CHAT_SELECTOR = '.ygpt-chatbot, #chat-launcher';
 const CHAT_POSITION_VAR = '--yourgptChatbotPositionX';
 
-let locked = false;
+const owners = new Set<string>();
 let htmlOriginalPadding = '';
 // The chat elements compensated by the active lock + their pre-lock inline offset. Drained on unlock.
 const compensatedChats: { el: HTMLElement; original: string }[] = [];
@@ -40,10 +42,11 @@ function setPaddingInstant(el: HTMLElement, value: string): void {
 
 // Full-width fixed bar: pad from the inside by the freed scrollbar width so its
 // centred/edge content stays put when the page scrollbar disappears. The width
-// also goes out as `--tb-scrollbar-comp`, which absolutely positioned children
-// need because their padding box never sees this padding. Returns the
-// compensation record to push onto `compensatedBars`, or null if the bar is
-// absent — so the caller never has to disambiguate null from an empty original.
+// is also set as `--tb-scrollbar-comp`, for fixed elements inside the bar that
+// span the whole window and so don't get this padding (the bottom of the mobile
+// menu sheet, in `SiteMenu`). Returns the compensation record to push onto
+// `compensatedBars`, or null if the bar is absent, so the caller never has to
+// tell null apart from an empty original padding.
 function compensateBar(selector: string, sw: number): { selector: string; original: string } | null {
 	const el = document.querySelector<HTMLElement>(selector);
 	if (!el) return null;
@@ -61,9 +64,10 @@ function restoreBar(selector: string, original: string): void {
 	setPaddingInstant(el, original);
 }
 
-export function lockScroll(): void {
-	if (locked) return;
-	locked = true;
+export function lockScroll(owner = 'default'): void {
+	const alreadyLocked = owners.size > 0;
+	owners.add(owner);
+	if (alreadyLocked) return;
 
 	const html = document.documentElement;
 	const sw = window.innerWidth - html.clientWidth;
@@ -75,6 +79,7 @@ export function lockScroll(): void {
 
 	if (sw > 0) {
 		html.style.paddingRight = `${sw}px`;
+		html.classList.add(HTML_COMP_CLASS);
 
 		// Full-width fixed bars (promo banner + site header): pad each from the
 		// inside; remember the original padding to restore on unlock.
@@ -93,12 +98,18 @@ export function lockScroll(): void {
 	}
 }
 
-export function unlockScroll(): void {
-	if (!locked) return;
-	locked = false;
+/** Whether an owner not listed in `mine` holds the lock, meaning another layer already covers the page. */
+export function lockedByOther(...mine: string[]): boolean {
+	for (const owner of owners) if (!mine.includes(owner)) return true;
+	return false;
+}
+
+export function unlockScroll(owner = 'default'): void {
+	// Unlock only when this owner held the lock and was the last one.
+	if (!owners.delete(owner) || owners.size > 0) return;
 
 	const html = document.documentElement;
-	html.classList.remove(HTML_LOCK_CLASS);
+	html.classList.remove(HTML_LOCK_CLASS, HTML_COMP_CLASS);
 	html.style.paddingRight = htmlOriginalPadding;
 
 	// Restore every bar this lock compensated (drain the list).

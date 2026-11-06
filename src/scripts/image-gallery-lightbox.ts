@@ -258,7 +258,9 @@ function init() {
 	let pswp: PhotoSwipe | undefined;
 	let themeObserver: MutationObserver | null = null;
 
-	lb.on('beforeOpen', lockScroll);
+	// Wrapped in an arrow function: PhotoSwipe calls handlers with an event object, which would
+	// otherwise be passed to `lockScroll` as the owner name.
+	lb.on('beforeOpen', () => lockScroll('lightbox'));
 
 	lb.on('afterInit', () => {
 		pswp = lb.pswp;
@@ -313,7 +315,7 @@ function init() {
 	});
 
 	lb.on('destroy', () => {
-		unlockScroll();
+		unlockScroll('lightbox');
 		themeObserver?.disconnect();
 		themeObserver = null;
 		pswp = undefined;
