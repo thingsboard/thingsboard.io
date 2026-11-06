@@ -533,39 +533,84 @@ For RPC commands, `msg.method` and `msg.params` are available. `msg.params` is a
 1. Open the integration in **Integrations &#8702; Integrations** and click **Toggle edit mode** (pencil icon).
 2. In the **Downlink data converter** field, click **Create new**. The **Downlink** converter type and **AWS IoT** integration type are preselected.
 3. Enter a name, for example `AWS IoT Downlink Converter`.
-4. In **Main encoding configuration**, replace the default encoder with the one below, or write your own.
+4. **Main encoding configuration** — the editor opens with the default AWS IoT encoder, which is the encoder below. Keep it, or write your own. The editor opens in TBEL; use the **TBEL / JS** toggle to switch to JavaScript.
 5. To record downlink events, click the debug icon next to the name, select **All messages**, and click **Apply**.
 6. Click **Add**, then **Apply changes**.
 </Steps>
 
-Encoder used in this guide (TBEL and JavaScript):
+Encoder used in this guide:
+
+<Tabs>
+<TabItem label="TBEL (Recommended)">
 
 ```js
 /** Encoder **/
 // Publish the ThingsBoard message as JSON to the device command topic.
 // metadata.topic is read by the integration when Downlink topic pattern is ${topic}.
 
+// Get the device name without surrounding spaces and reject the message if it is missing or empty.
+// The rule chain adds deviceName to the metadata, for example with an originator fields node.
+var deviceName = metadata.deviceName != null ? metadata.deviceName.trim() : null;
+if (deviceName == null || deviceName.isEmpty()) {
+    raiseError("Message metadata has no deviceName");
+}
+
 var result = {
-  // Specify the downlink payload format: JSON, TEXT, or BINARY.
-  contentType: "JSON",
+    // Specify the downlink payload format: JSON, TEXT, or BINARY.
+    contentType: "JSON",
 
-  // Serialize the incoming message and use it as the MQTT payload.
-  data: JSON.stringify(msg),
+    // Serialize the incoming message and use it as the MQTT payload.
+    data: JSON.stringify(msg),
 
-  // Build a per-device command topic in the same namespace as the uplink.
-  metadata: {
-    topic: 'tb/aws/iot/commands/' + metadata['deviceName']
-  }
+    // Build a per-device command topic in the same namespace as the uplink.
+    metadata: {
+        topic: "tb/aws/iot/commands/" + deviceName
+    }
 };
 
 return result;
 ```
+
+</TabItem>
+<TabItem label="JavaScript">
+
+```js
+/** Encoder **/
+// Publish the ThingsBoard message as JSON to the device command topic.
+// metadata.topic is read by the integration when Downlink topic pattern is ${topic}.
+
+// Get the device name without surrounding spaces and reject the message if it is missing or empty.
+// The rule chain adds deviceName to the metadata, for example with an originator fields node.
+var deviceName = typeof metadata.deviceName === "string" ? metadata.deviceName.trim() : "";
+if (!deviceName) {
+    throw new Error("Message metadata has no deviceName");
+}
+
+var result = {
+    // Specify the downlink payload format: JSON, TEXT, or BINARY.
+    contentType: "JSON",
+
+    // Serialize the incoming message and use it as the MQTT payload.
+    data: JSON.stringify(msg),
+
+    // Build a per-device command topic in the same namespace as the uplink.
+    metadata: {
+        topic: "tb/aws/iot/commands/" + deviceName
+    }
+};
+
+return result;
+```
+
+</TabItem>
+</Tabs>
 
 **To adapt:**
 
 - **Other payload** — build the object the device expects instead of `msg`, for example `{ "interval": msg.temperatureUploadFrequency }`.
 - **Non-JSON payload** — set `contentType` to `TEXT` for a plain string, or `BINARY` with a Base64-encoded string.
 - **Other message types** — branch on `msgType` to handle other <DocLink product={props.product} path="reference/rule-engine/message-types" target="_blank">Rule Engine message types</DocLink>.
+- **Device name check** — the encoder stops with the error `Message metadata has no deviceName` if the message has no `deviceName` in its metadata, so a command is never published to `tb/aws/iot/commands/null`. The rule chain adds `deviceName` with an **originator fields** node; see **[Configure the Root Rule Chain](#configure-the-root-rule-chain)**.
 
 ### Configure the Root Rule Chain
 
@@ -628,7 +673,7 @@ Subscribe to the command topic, then update a shared attribute to trigger a down
 | Uplink event with status ERROR: message too large | The message exceeds **Max bytes in message** (default 32,368 bytes). | Raise **Max bytes in message** in **Advanced settings**, or send smaller messages.<ShowFor product={props.product} show={[Products.PE]}> For messages above about 80 KB, also raise `TBEL_MAX_TOTAL_ARGS_SIZE` or `JS_MAX_TOTAL_ARGS_SIZE` in `thingsboard.yml`.</ShowFor> |
 | Downlink not received | The rule chain does not reach the **integration downlink** node, or the topic differs from the subscription. | Check the Root Rule Chain wiring and the topic in the integration's **Events**. Check that the policy allows `iot:Publish` on that topic. |
 | Downlink event with status ERROR: unresolved placeholder | The downlink converter output `metadata` has no value for a placeholder of **Downlink topic pattern**, for example `topic`. | Return `metadata.topic` from the encoder, or change the pattern. |
-| Downlink topic ends in `null` or `undefined` | The message metadata has no `deviceName`. | Add the **originator fields** node before the **integration downlink** node. |
+| Downlink event with status ERROR: `Message metadata has no deviceName` | The message metadata has no `deviceName`, so the encoder does not publish the command. | Add the **originator fields** node before the **integration downlink** node. |
 
 To read debug events, open the integration or converter, click **Events**, and select an event: **In** is the received data, **Out** is the converter result, and **Error** holds the error text.
 
