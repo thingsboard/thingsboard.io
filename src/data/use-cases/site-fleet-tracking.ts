@@ -1,10 +1,10 @@
 import type { UseCaseData } from './types';
 
 export const data: UseCaseData = {
-	title: 'Site fleet tracking monitoring solution',
-	pageTitle: 'Geofencing-Based Excavator & Truck Tracking for Clay Mines',
+	title: 'IoT fleet tracking for mining and industrial sites',
+	pageTitle: 'IoT Fleet Tracking System',
 	description:
-		'Explore how ThingsBoard enables safe and efficient vehicle tracking on clay mine sites using calculated fields, geofencing zones, and zero rule chain logic.',
+		'Track excavators, haul trucks, and other machinery across mining and industrial sites in real time. Catch geofence violations with alarms in the live demo.',
 	pageSlug: 'site-fleet-tracking',
 	about: {
 		shortText:
