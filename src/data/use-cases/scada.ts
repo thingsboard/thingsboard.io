@@ -1,10 +1,10 @@
 import type { UseCaseData } from './types';
 
 export const data: UseCaseData = {
-	title: 'SCADA Swimming pool',
-	pageTitle: 'SCADA Swimming Pool Management System with ThingsBoard',
+	title: 'SCADA dashboards and HMI: swimming pool system',
+	pageTitle: 'SCADA Dashboard and HMI Demo',
 	description:
-		'Monitor and control swimming pool systems in real time with ThingsBoard SCADA — high-performance and traditional HMIs with dashboards, alarms, and Modbus.',
+		'Build SCADA dashboards and HMIs in ThingsBoard. Control a swimming pool system in the live demo in high-performance or traditional HMI mode.',
 	pageSlug: 'scada',
 	about: {
 		shortText:
