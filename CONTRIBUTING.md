@@ -27,6 +27,8 @@ Thanks for helping improve the ThingsBoard documentation. This repo holds the so
 
 ## Before you open a PR
 
+Bring your branch up to date with its base branch first: `git fetch origin` and merge the latest `origin/main` or `origin/develop` (see [Which branch and label](#which-branch-and-label)) into your branch. Do it again before every new push if the base has moved. A branch that is behind its base can still merge without conflicts, yet it breaks the CI build caches.
+
 CI runs four checks on every PR. All must pass for the PR to be merged. Run them locally first:
 
 - `pnpm check` — TypeScript and Astro type checking.
@@ -139,6 +141,7 @@ If the feature is not merged into the product repository yet, also add the label
 
 ## Opening the PR
 
+- Merge the latest base branch into yours right before opening the PR (see [Before you open a PR](#before-you-open-a-pr)).
 - Branch naming is loose; descriptive is enough (`fix/mqtt-quickstart-typo`, `add/edge-installation-page`).
 - Use imperative-mood commit messages. Keep the subject brief; add a body if the motivation isn't obvious from the diff.
 - The PR title should describe the change. The body should mention the affected pages and include screenshots if there's a visual change.
