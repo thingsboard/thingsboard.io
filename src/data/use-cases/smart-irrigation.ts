@@ -4,7 +4,7 @@ export const data: UseCaseData = {
 	title: 'Smart irrigation solution',
 	pageTitle: 'Smart Irrigation with ThingsBoard for Farms and Cities',
 	description:
-		"Optimize water usage across farms, greenhouses, and urban landscapes with ThingsBoard's smart irrigation IoT solution. Real-time soil monitoring, automated valve control, and data-driven scheduling to reduce waste and improve yields.",
+		'Track soil moisture across fields, control irrigation valves remotely, and plan watering schedules from one dashboard. Explore the live demo.',
 	pageSlug: 'smart-irrigation',
 	about: {
 		shortText:

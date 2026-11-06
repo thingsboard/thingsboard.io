@@ -1,10 +1,10 @@
 import type { UseCaseData } from './types';
 
 export const data: UseCaseData = {
-	title: 'Air quality monitoring solution',
-	pageTitle: 'Urban & Industrial Air Monitoring with IoT and Dashboards',
+	title: 'Air quality monitoring system',
+	pageTitle: 'Air Quality Monitoring System',
 	description:
-		'Monitor, analyze, and act on air quality in real time with ThingsBoard — the flexible IoT platform for cities, industries, and research.',
+		'Track AQI, PM2.5, PM10, and SO₂ across city and industrial sites with an IoT air quality monitoring system. Set threshold alerts and open the live demo.',
 	pageSlug: 'air-quality-monitoring',
 	about: {
 		shortText:
