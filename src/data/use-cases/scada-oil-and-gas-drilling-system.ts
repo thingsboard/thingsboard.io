@@ -2,10 +2,10 @@ import type { UseCaseData } from './types';
 import { SCADA_COMMON_BENEFITS } from './_scada-shared';
 
 export const data: UseCaseData = {
-	title: 'SCADA Oil & gas drilling system',
-	pageTitle: 'SCADA Oil & Gas Drilling Monitoring with ThingsBoard',
+	title: 'Oil and gas SCADA for drilling rigs',
+	pageTitle: 'Oil & Gas SCADA for Drilling Rigs',
 	description:
-		'Automate oil and gas drilling with ThingsBoard SCADA — real-time monitoring of drawworks, mud pumps, and blowout preventers through unified dashboards.',
+		'Monitor and control drawworks, mud pumps, and blowout preventers with oil and gas SCADA in ThingsBoard. Track rig parameters live in the demo.',
 	pageSlug: 'scada-oil-and-gas-drilling-system',
 	about: {
 		shortText:

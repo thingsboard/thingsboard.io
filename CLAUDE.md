@@ -286,3 +286,5 @@ GitHub Actions runs: `astro check`, `eslint`, `slugcheck`.
 `lint:landmarks` also needs a build and is not wired into a pipeline yet — run `pnpm lint:landmarks` by hand after a build when adding pages or layouts, or touching the marketing comparison tables. It asserts exactly one `<main>` per built page (Starlight emits one; a page-level `<main>` is always a nested duplicate) and that the marketing tables keep captions and carry every value as text. Both defects are silent: the page builds, typechecks and lints clean.
 
 **PR base branch and labels:** pick them by the table in [Which branch and label](CONTRIBUTING.md#which-branch-and-label).
+
+**Update the branch before a PR:** before opening a PR (and before pushing to an open one), `git fetch origin` and merge the latest base branch into the PR branch. A branch that is behind its base still merges cleanly, but it breaks the CI build caches.
