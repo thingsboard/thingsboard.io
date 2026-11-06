@@ -19,10 +19,9 @@ export function reobserveOnRestore(observer: IntersectionObserver, elements: Ite
 	});
 }
 
-/** After a restore, swaps the <object> for a copy so it loads its document again. */
-export function reloadObjectOnRestore(id: string): void {
+/** After a restore, swaps each matching <object> for a copy so it loads its document again. */
+export function reloadObjectsOnRestore(selector: string): void {
 	onPageRestore(() => {
-		const object = document.getElementById(id);
-		object?.replaceWith(object.cloneNode(true));
+		document.querySelectorAll(selector).forEach((object) => object.replaceWith(object.cloneNode(true)));
 	});
 }
