@@ -1,10 +1,10 @@
 import type { UseCaseData } from './types';
 
 export const data: UseCaseData = {
-	title: 'Smart energy',
-	pageTitle: 'IoT Energy Management & Monitoring with ThingsBoard',
+	title: 'IoT energy monitoring system',
+	pageTitle: 'IoT Energy Monitoring System',
 	description:
-		'Smart Energy solution on ThingsBoard for real-time energy monitoring and optimization — reduce costs, improve efficiency, and automate management.',
+		'Set up IoT energy monitoring across buildings and sites. Track consumption in real time, catch voltage anomalies with alarms, and open the live demo.',
 	pageSlug: 'smart-energy',
 	about: {
 		shortText:

@@ -4,7 +4,7 @@ export const data: UseCaseData = {
 	title: 'Waste management solution',
 	pageTitle: 'Smart Waste Management with ThingsBoard for Cities & Industry',
 	description:
-		"Optimize waste collection across cities, industries, and campuses with ThingsBoard's IoT platform — featuring real-time monitoring, smart alarms, and interactive dashboards for data-driven efficiency and sustainability.",
+		'Monitor bin fill levels in real time, optimize collection routes and schedules, and cut operating costs. Explore the live waste management demo.',
 	pageSlug: 'waste-management',
 	about: {
 		shortText:
