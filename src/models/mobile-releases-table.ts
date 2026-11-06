@@ -30,7 +30,7 @@ export const MOBILE_RELEASES: MobileRelease[] = [
 	},
 	{
 		version: '1.9.0',
-		date: 'Sep 29, 2026',
+		date: 'Sep 30, 2026',
 		peTag: 'v1.9.0',
 		highlights: 'Navigation, login, notification & dashboard image fixes',
 	},
