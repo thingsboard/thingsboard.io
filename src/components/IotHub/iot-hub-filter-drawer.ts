@@ -27,8 +27,8 @@ function setupFilterDrawer(): void {
 		// Scroll lock while the mobile drawer is open. The shared util also
 		// compensates the fixed site header so it doesn't jump wider.
 		const setScrollLock = (lock: boolean) => {
-			if (lock) lockScroll();
-			else unlockScroll();
+			if (lock) lockScroll('iot-hub-filter');
+			else unlockScroll('iot-hub-filter');
 		};
 
 		const setOpen = (open: boolean) => {
@@ -51,7 +51,8 @@ function setupFilterDrawer(): void {
 		wrap.addEventListener('iot-hub-filter-close', () => setOpen(false));
 		backdrop?.addEventListener('click', () => setOpen(false));
 		document.addEventListener('keydown', (e) => {
-			if (e.key === 'Escape' && panel.dataset.open === 'true') setOpen(false);
+			// Skip an Escape that a layer over the drawer (the header's search dialog or menu) already handled.
+			if (e.key === 'Escape' && !e.defaultPrevented && panel.dataset.open === 'true') setOpen(false);
 		});
 		// Drop the lock when the viewport grows past lg while open
 		// (e.g. rotated tablet) so desktop layout doesn't stay frozen.
