@@ -81,7 +81,7 @@ export const productVersions: Partial<Record<Products, ProductVersion>> = {
 	[Products.MOBILE_PE]: {
 		label: 'Mobile PE',
 		prefix: 'mobile/pe/',
-		titleName: 'ThingsBoard Mobile PE',
+		titleName: 'ThingsBoard App',
 	},
 	[Products.LICENSE]: {
 		label: 'License Server',

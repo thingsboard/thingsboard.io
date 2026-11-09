@@ -26,6 +26,12 @@ export const MOBILE_RELEASES: MobileRelease[] = [
 		highlights: 'One app for ThingsBoard on thingsboard_client 5.0, requires ThingsBoard 4.4.0+, smaller app, 1.9 regression fixes',
 	},
 	{
+		version: '1.9.2',
+		date: 'Nov 5, 2026',
+		peTag: 'v1.9.2',
+		highlights: 'Account deletion fix: deletes only the current user',
+	},
+	{
 		version: '1.9.1',
 		date: 'Oct 30, 2026',
 		peTag: 'v1.9.1',
@@ -33,7 +39,7 @@ export const MOBILE_RELEASES: MobileRelease[] = [
 	},
 	{
 		version: '1.9.0',
-		date: 'Sep 29, 2026',
+		date: 'Sep 30, 2026',
 		peTag: 'v1.9.0',
 		highlights: 'Navigation, login, notification & dashboard image fixes',
 	},
