@@ -37,7 +37,7 @@ export const remoteAgentFaq: FaqCategory[] = [
 			{
 				id: 'docker-compose-cli',
 				question: 'Does the remote host need Docker Compose installed?',
-				answer: `<p>No. The host needs only Docker Engine (Linux, amd64 or arm64). The agent talks to the Docker Engine API directly and applies the standard Docker Compose labels to every resource it creates, so managed applications still look like regular Compose projects to <code>docker compose</code> and other tools.</p>`,
+				answer: `<p>No. The host needs only Docker: the agent runs as a Linux container on amd64, arm64, and 32-bit ARM, including in Docker Desktop on macOS and Windows. The agent talks to the Docker Engine API directly and applies the standard Docker Compose labels to every resource it creates, so managed applications still look like regular Compose projects to <code>docker compose</code> and other tools.</p>`,
 			},
 		],
 	},
