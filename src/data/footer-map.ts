@@ -1,5 +1,5 @@
-// Words and links for the site footer and the docs footer. A page the menu also links to takes its name and
-// href from the menu, and the build fails when the menu no longer links to it.
+// Copy and links for both footers. A page the menu also links to takes its name from the menu, and the build
+// fails when the menu no longer links to it.
 import { CAREERS_URL } from '@models/careers';
 import { MENU_SECTION_PROMOS } from '@data/menu-featured';
 import { allSubmenus, mainNavItems, productsSubmenu } from '@data/navigation';
@@ -10,7 +10,6 @@ interface FooterLink {
 	href: string;
 }
 
-/** A titled list of links, with an optional link under it, such as "All use cases". */
 export interface FooterList {
 	title: string;
 	links: FooterLink[];
@@ -20,7 +19,6 @@ export interface FooterList {
 const MENU_GROUPS = allSubmenus.flatMap((submenu) => submenu.groups);
 const MENU_PROMOS = Object.values(MENU_SECTION_PROMOS).flat();
 
-/** The menu's link to `href`, with the menu's label. Throws when the menu has no link to `href`. */
 function menuLink(href: string): FooterLink {
 	const label =
 		mainNavItems.find((item) => item.href === href)?.label ??
@@ -31,20 +29,14 @@ function menuLink(href: string): FooterLink {
 	return { label, href };
 }
 
-/**
- * The page that the "All …" link under the menu group `name` opens, named after the group. Throws when
- * there is none.
- */
+/** The page the "All …" link under menu group `name` opens, labelled with the group's name. */
 function menuGroupPage(name: string): FooterLink {
 	const href = MENU_GROUPS.find((group) => group.name === name)?.more?.href;
 	if (!href) throw new Error(`[footer-map] the menu has no group "${name}" with a link under it`);
 	return { label: name, href };
 }
 
-/**
- * The menu group `name`'s link to `href`, named after the group and the link ("SCADA swimming pool").
- * Throws when there is none.
- */
+/** Menu group `name`'s link to `href`, labelled with both ("SCADA swimming pool"). */
 function menuGroupLink(name: string, href: string): FooterLink {
 	const item = MENU_GROUPS.find((group) => group.name === name)?.items.find((link) => link.href === href);
 	if (!item) throw new Error(`[footer-map] the menu group "${name}" has no link to ${href}`);
@@ -54,7 +46,6 @@ function menuGroupLink(name: string, href: string): FooterLink {
 export const FOOTER_TAGLINE =
 	'All-in-one IoT platform that gives you everything you need to build, deploy, and scale IoT solutions.';
 
-/** The newsletter form's words and the MailerLite form it posts to. */
 export const FOOTER_NEWSLETTER = {
 	label: 'Keep up with ThingsBoard',
 	hint: 'Product news and IoT know-how.',
@@ -63,14 +54,13 @@ export const FOOTER_NEWSLETTER = {
 	thanks: { title: 'Thank you for your interest in ThingsBoard!', text: 'Have a great day!' },
 };
 
-/** The Follow line, picked from `socialNetworks` by icon. Each link's class is its icon, an analytics hook. */
+/** Each Follow link's class is its icon, an analytics hook. */
 export const FOOTER_SOCIAL = ['simple-icons:youtube', 'simple-icons:linkedin', 'simple-icons:github'].map((icon) => {
 	const network = socialNetworks.find((entry) => entry.icon === icon);
 	if (!network) throw new Error(`[footer-map] no social network has the icon ${icon}`);
 	return network;
 });
 
-/** The Products panel: the menu's Products groups. Each needs a name, and each product a description. */
 export const FOOTER_PRODUCT_GROUPS = productsSubmenu.groups;
 for (const { name, items } of FOOTER_PRODUCT_GROUPS) {
 	if (!name) throw new Error('[footer-map] a Products group in the menu has no name');
@@ -84,10 +74,8 @@ const installations = menuLink('/installations/');
 const iotHub = menuLink('/iot-hub/');
 const licensePortal: FooterLink = { label: 'License Portal', href: 'https://license.thingsboard.io/' };
 
-/** The row under the Products panel. */
 export const FOOTER_PLATFORM_LINKS = [pricing, installations, iotHub];
 
-/** The License Portal link at the end of that row, and the caption before it. */
 export const FOOTER_LICENSE_PORTAL = { caption: 'Buying or renewing a license?', link: licensePortal };
 
 const gettingStarted = menuLink('/docs/pe/getting-started/');
@@ -100,7 +88,6 @@ const blog = menuLink('/blog/');
 const careers = menuLink(CAREERS_URL);
 const contactUs = menuLink('/contact-us/');
 
-/** The link columns. */
 export const FOOTER_COLUMNS: FooterList[][] = [
 	[
 		{
@@ -145,7 +132,6 @@ export const FOOTER_COLUMNS: FooterList[][] = [
 	],
 ];
 
-/** The docs footer's columns, made from the same links. */
 export const FOOTER_DOCS_COLUMNS: FooterList[] = [
 	{
 		title: 'Platform',
