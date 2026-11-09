@@ -433,17 +433,3 @@ export const docsSubmenu: SubMenu = {
 
 // All submenus
 export const allSubmenus: SubMenu[] = [productsSubmenu, servicesSubmenu, solutionsSubmenu, companySubmenu, docsSubmenu];
-
-/**
- * The footer link row, shared by the marketing footer (Landing/Footer.astro) and the compact footer
- * (Landing/CompactFooter.astro). The two components keep their own markup and scoped styles; only
- * the link list is shared, so a link change is one edit rather than two.
- */
-export const footerNavItems: { href: string; label: string }[] = [
-	{ href: '/docs/pe/getting-started/', label: 'Get Started' },
-	{ href: '/docs/pe/', label: 'Documentation' },
-	{ href: '/use-cases/', label: 'Use cases' },
-	{ href: '/blog/', label: 'Blog' },
-	{ href: '/services/', label: 'Services' },
-	{ href: '/contact-us/', label: 'Contact us' },
-];

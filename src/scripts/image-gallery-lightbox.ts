@@ -302,7 +302,7 @@ function init() {
 			});
 		});
 
-		// Re-render current slide on site theme toggle.
+		// Re-render the current slide when the site theme changes.
 		themeObserver = new MutationObserver(() => {
 			if (pswp && pswp.currSlide) {
 				pswp.refreshSlideContent(pswp.currIndex);
