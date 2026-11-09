@@ -38,19 +38,31 @@ cd /etc/thingsboard/conf/certs
 
    Provide your organization name, common name (domain name), and email address when prompted.
 
-   <Aside type="caution">
-   Set the common name to `localhost` if the ThingsBoard server is running locally, or to the server's domain name if hosted. SSL connections will fail if the certificate's common name does not match the server's hostname.
-   </Aside>
-
-3. Generate a self-signed certificate valid for 365 days:
+3. List the names and IP addresses that Edge uses to reach the server (the value of `CLOUD_RPC_HOST` on the Edge) as subject alternative names. Replace the examples with your values:
 
    ```bash
-   sudo openssl x509 -req -in certRequest.csr -signkey privateKey.pem -out certFile.crt -days 365
+   echo "subjectAltName=DNS:tb.example.com,IP:192.168.1.10" | sudo tee san.ext
+   ```
+
+   <Aside type="caution">
+   Edge checks the server's host name or IP address against the subject alternative names of the certificate, not against the common name. If the certificate has no matching entry, the connection fails with `No subject alternative names present` or a host name mismatch in the Edge log.
+   </Aside>
+
+4. Generate a self-signed certificate valid for 365 days:
+
+   ```bash
+   sudo openssl x509 -req -in certRequest.csr -signkey privateKey.pem -out certFile.crt -days 365 -extfile san.ext
    ```
 
    Adjust `-days` to change the validity period. An expired certificate breaks all Edge connections silently — plan for renewal before expiry.
 
-4. Enable SSL on the ThingsBoard server. For Ubuntu and CentOS/RHEL installations:
+   Give the ThingsBoard service access to the files:
+
+   ```bash
+   sudo chown thingsboard:thingsboard privateKey.pem certFile.crt
+   ```
+
+5. Enable SSL on the ThingsBoard server. For Ubuntu and CentOS/RHEL installations:
 
    ```bash
    sudo sh -c 'cat <<EOL >> /etc/thingsboard/conf/thingsboard.conf
@@ -60,19 +72,19 @@ cd /etc/thingsboard/conf/certs
    EOL'
    ```
 
-5. Restart the server to apply the changes:
+6. Restart the server to apply the changes:
 
    ```bash
    sudo systemctl restart thingsboard
    ```
 
-   Confirm SSL is active by checking the server logs:
+   Check that the server presents the certificate on the gRPC port:
 
    ```bash
-   sudo journalctl -u thingsboard -n 50 | grep -i ssl
+   openssl s_client -connect localhost:7070 </dev/null 2>/dev/null | grep subject=
    ```
 
-   Look for a line confirming that the gRPC server started with SSL enabled.
+   The output shows the subject of your certificate. The server log has no SSL-specific line: it reports only `Edge/Agent RPC server initialized!`.
 </Steps>
 
   </TabItem>
@@ -104,7 +116,9 @@ After configuring the server, enable SSL on the Edge side to match.
 2. If you are using self-signed certificates, transfer the server's public certificate to the Edge device:
 
    ```bash
-   scp username@server_ip:/etc/thingsboard/conf/certs/certFile.crt /etc/tb-edge/conf/certFile.crt
+   scp username@server_ip:/etc/thingsboard/conf/certs/certFile.crt /tmp/certFile.crt
+   sudo mv /tmp/certFile.crt /etc/tb-edge/conf/certFile.crt
+   sudo chmod 644 /etc/tb-edge/conf/certFile.crt
    ```
 
    Replace `username` and `server_ip` with your server credentials. Then add the certificate path to the Edge configuration:
@@ -121,13 +135,13 @@ After configuring the server, enable SSL on the Edge side to match.
    sudo systemctl restart tb-edge
    ```
 
-4. Verify the TLS connection was established:
+4. Verify that Edge connected. In the Edge UI, **Edge > Status** shows **Connected**, and the log has a new `Configuration received` line:
 
    ```bash
-   sudo journalctl -u tb-edge -n 100 | grep -i ssl
+   grep -E "Configuration received|SSLHandshakeException|subject alternative" /var/log/tb-edge/tb-edge.log | tail -5
    ```
 
-   Look for a line confirming that the gRPC channel connected with SSL. If you see SSL handshake errors, confirm the certificate's common name matches the server's hostname.
+   If you see SSL handshake errors, check that the certificate lists the value of `CLOUD_RPC_HOST` as a subject alternative name.
 </Steps>
 
   </TabItem>
@@ -158,19 +172,19 @@ After configuring the server, enable SSL on the Edge side to match.
          - /path/to/certs/certFile.crt:/etc/tb-edge/certs/certFile.crt
    ```
 
-3. Restart the Edge container:
+3. Recreate the Edge container to apply the changes (`docker compose restart` does not pick up changes to `docker-compose.yml`):
 
    ```bash
-   docker compose restart mytbedge
+   docker compose up -d
    ```
 
-4. Verify the TLS connection was established:
+4. Verify that Edge connected. In the Edge UI, **Edge > Status** shows **Connected**, and the log has a new `Configuration received` line:
 
    ```bash
-   docker logs mytbedge 2>&1 | grep -i ssl
+   docker compose logs mytbedge | grep -E "Configuration received|SSLHandshakeException|subject alternative" | tail -5
    ```
 
-   Look for a line confirming that the gRPC channel connected with SSL. If you see SSL handshake errors, confirm the certificate's common name matches the server's hostname.
+   If you see SSL handshake errors, check that the certificate lists the value of `CLOUD_RPC_HOST` as a subject alternative name.
 </Steps>
 
   </TabItem>

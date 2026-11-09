@@ -20,19 +20,20 @@ Intervals can be persisted to storage periodically to avoid data loss on restart
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| **Aggregation function** | Yes | `MIN`, `MAX`, `SUM`, `AVG`, `COUNT`, or `UNIQUE` |
-| **Interval** | Yes | The time window over which values are aggregated (e.g., 1 hour) |
-| **Queue name** | No | The rule engine queue to use for emitting result messages |
+| **Aggregation function** | Yes | `MIN`, `MAX`, `SUM`, `AVG` (default), `COUNT`, or `COUNT_UNIQUE` |
+| **Input value key** | Yes | The incoming telemetry key to aggregate. Default: `temperature` |
+| **Output value key** | Yes | The key of the aggregated value in the output message. Default: `avgHourlyTemperature` |
+| **Interval** | Yes | The time window over which values are aggregated: a calendar interval (hour, day, week, month, year) or a custom one. Default: 1 hour |
+| **Output message type** | Yes | The type of the output message. Default: `POST_TELEMETRY_REQUEST` |
 
 ### Persistence
 
 | Field | Description |
 |-------|-------------|
-| **Interval persistence policy** | Controls when in-progress intervals are written to storage: *After each message*, *Periodically*, or *On interval end* |
-| **Interval check value** | Interval in seconds between persistence writes (for the *Periodically* policy) |
-| **Interval TTL value** | How long completed intervals are cached in memory before eviction (seconds) |
-| **State persistence policy** | Controls how often the aggregation state is saved: *After each message* or *Periodically* |
-| **State persistence value** | Interval in seconds between state saves (for the *Periodically* policy) |
+| **Interval persistence policy** | When the node emits interval results: *On each check*, *On each check after interval end* (default), or *On each message* |
+| **Interval check value** | How often the node checks the intervals. Default: 1 minute |
+| **State persistence policy** | How often the aggregation state is saved: *On each change* (default) or *Periodically* |
+| **State persistence value** | Interval between state saves, for the *Periodically* policy. Default: 1 minute |
 
 ### Default values
 
@@ -45,16 +46,15 @@ Intervals can be persisted to storage periodically to avoid data loss on restart
 
 ## Output message
 
-At the end of each aggregation interval the node emits a `POST_TELEMETRY_REQUEST` message with the aggregated result:
+The node emits a message of the configured **Output message type** (`POST_TELEMETRY_REQUEST` by default). The body holds the aggregated value under the **Output value key**:
 
 ```json
 {
-  "ts": <interval end timestamp in ms>,
-  "values": {
-    "<telemetry key>": <aggregated value>
-  }
+  "<output value key>": <aggregated value>
 }
 ```
+
+The metadata holds `ts`, the timestamp of the interval, and `overwriteValue` = `true`.
 
 The originator of the output message is the same as the originator of the input messages.
 
@@ -64,14 +64,14 @@ The originator of the output message is the same as the originator of the input 
 
 | Connection | Condition |
 |------------|-----------|
-| `Success` | Aggregated result message emitted at interval end |
+| `Success` | Aggregated result message, emitted according to the interval persistence policy |
 | `Failure` | Unexpected error during processing |
 
 ---
 
 ## Example — Hourly average temperature
 
-**Configuration:** Function = `AVG`, Interval = `1 hour`, Interval persistence = *On interval end*.
+**Configuration:** Function = `AVG`, Input value key = `temperature`, Output value key = `avgHourlyTemperature`, Interval = `1 hour`, Interval persistence = *On each check after interval end*.
 
 **Incoming messages:** a stream of `POST_TELEMETRY_REQUEST` messages from a temperature sensor with key `temperature`.
 
@@ -79,9 +79,10 @@ The originator of the output message is the same as the originator of the input 
 
 ```json maxLines=15 collapsible
 {
-  "ts": 1700006400000,
-  "values": { "temperature": 22.3 }
+  "avgHourlyTemperature": 22.3
 }
 ```
+
+with metadata `ts` = `1700006400000`.
 
 This message can be piped directly into a **Save time series** node to persist the hourly average alongside raw readings.

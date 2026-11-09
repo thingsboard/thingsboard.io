@@ -107,8 +107,8 @@ export const EDGE_PE_FULL_VER = '4.4.0.2';
 
 /**
  * First Edge release published under CE-style names: `thingsboard/tb-edge` images tagged
- * `<ver>EDGE`, `tb-edge-<ver>.deb` / `.rpm` packages on the `thingsboard-edge` GitHub
- * releases, and the `thingsboard-edge` Docker Compose setup. Older Edge PE releases keep
+ * `<ver>EDGE` and `tb-edge-<ver>.deb` / `.rpm` packages on the `thingsboard-edge` GitHub
+ * releases. Older Edge PE releases keep
  * `thingsboard/tb-edge-pe`, `<ver>EDGEPE` and `*pe` packages on dist.thingsboard.io.
  * A policy boundary, not a release pointer — it does not move with each release. Edge 4.4.0 is also
  * published under the PE names for ThingsBoard 4.4.0 servers, which still use them; the docs show the
@@ -116,10 +116,7 @@ export const EDGE_PE_FULL_VER = '4.4.0.2';
  */
 export const EDGE_NEUTRAL_NAMES_FROM_VER = '4.4';
 
-/**
- * Edge PE Docker Compose branch: X.Y.Z of `thingsboard-edge-pe-docker-compose` before
- * {@link EDGE_NEUTRAL_NAMES_FROM_VER}, the `thingsboard-edge` release branch from it on.
- */
+/** Edge PE release branch of `thingsboard/thingsboard-edge` (X.Y format), for building from source. */
 export const EDGE_PE_BRANCH = 'release-4.4';
 
 /**
