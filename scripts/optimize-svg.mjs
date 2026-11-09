@@ -63,10 +63,10 @@ const SKIP = [
 	{ reason: 'animated', content: /<animate|<set\b|@keyframes|animation\s*:|<script/i },
 ];
 
-// A background grid exported one dot at a time: hundreds of tiny `<circle>`s that look
-// the same, or path subpaths drawn as arcs. SVGO cannot shrink it; a `<pattern>` with
-// one dot can. Files on the site today have at most a few dozen; a dot grid has hundreds.
-const ARC_DOT = /a(?:[0-2](?:\.\d+)?|\.\d+)[ ,](?:[0-2](?:\.\d+)?|\.\d+)[ ,]0[ ,]1[ ,]?[01]/g;
+// A background grid exported one dot at a time (small `<circle>`s or arc subpaths): SVGO
+// cannot shrink it, a `<pattern>` with one dot can.
+// SVGO packs radii under 1 without a separator: `a.5.5`.
+const ARC_DOT = /a(?:[0-2](?:\.\d+)?|\.\d+)(?:[ ,]|(?=\.))(?:[0-2](?:\.\d+)?|\.\d+)[ ,]0[ ,]1[ ,]?[01]/g;
 const GRID_DOT_LIMIT = 200;
 
 function gridDots(svg) {
@@ -105,23 +105,25 @@ for (const file of files) {
 	const rel = relative(ROOT, file);
 	const input = readFileSync(file, 'utf8');
 	const skip = SKIP.find((s) => s.path?.test(rel) || s.content?.test(input));
+	let output;
+	if (!skip) {
+		try {
+			output = optimize(input, { ...SVGO_CONFIG, floatPrecision: floatPrecision(input), path: file }).data;
+		} catch (err) {
+			failed.push(`${rel}: ${String(err.message).split('\n')[0]}`);
+		}
+	}
 	// Downloads and generated files are never edited by hand, so there is nothing to redraw.
+	// The SVGO output is checked when there is one: SVGO redraws curve-drawn dots as arcs.
 	if (!skip?.path) {
-		const dots = gridDots(input);
+		const dots = gridDots(output ?? input);
 		if (dots > GRID_DOT_LIMIT) dotGrids.push(`${rel} (${dots} dots)`);
 	}
 	if (skip) {
 		skipped.set(skip.reason, (skipped.get(skip.reason) ?? 0) + 1);
 		continue;
 	}
-	let output;
-	try {
-		output = optimize(input, { ...SVGO_CONFIG, floatPrecision: floatPrecision(input), path: file }).data;
-	} catch (err) {
-		failed.push(`${rel}: ${String(err.message).split('\n')[0]}`);
-		continue;
-	}
-	if (output.length >= input.length) continue;
+	if (output === undefined || output.length >= input.length) continue;
 	writeFileSync(file, output);
 	changed++;
 	before += input.length;
