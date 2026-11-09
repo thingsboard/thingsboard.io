@@ -63,6 +63,25 @@ const SKIP = [
 	{ reason: 'animated', content: /<animate|<set\b|@keyframes|animation\s*:|<script/i },
 ];
 
+// A background grid exported one dot at a time: hundreds of tiny `<circle>`s that look
+// the same, or path subpaths drawn as arcs. SVGO cannot shrink it; a `<pattern>` with
+// one dot can. Files on the site today have at most a few dozen; a dot grid has hundreds.
+const ARC_DOT = /a(?:[0-2](?:\.\d+)?|\.\d+)[ ,](?:[0-2](?:\.\d+)?|\.\d+)[ ,]0[ ,]1[ ,]?[01]/g;
+const GRID_DOT_LIMIT = 200;
+
+function gridDots(svg) {
+	// Circles are counted per radius and fill, so artwork full of small circles that
+	// each have their own gradient (SCADA bolts) does not add up to a grid.
+	const byLook = new Map();
+	for (const [, attrs] of svg.matchAll(/<circle\b([^>]*)>/g)) {
+		const r = Number(attrs.match(/\sr="([^"]*)"/)?.[1]);
+		if (!(r > 0 && r <= 2)) continue;
+		const look = `${r} ${attrs.match(/\sfill="([^"]*)"/)?.[1] ?? ''}`;
+		byLook.set(look, (byLook.get(look) ?? 0) + 1);
+	}
+	return Math.max(0, ...byLook.values()) + (svg.match(ARC_DOT)?.length ?? 0);
+}
+
 function collect(target, out) {
 	if (statSync(target).isDirectory()) {
 		for (const entry of readdirSync(target)) collect(join(target, entry), out);
@@ -80,11 +99,17 @@ let before = 0;
 let after = 0;
 const skipped = new Map();
 const failed = [];
+const dotGrids = [];
 
 for (const file of files) {
 	const rel = relative(ROOT, file);
 	const input = readFileSync(file, 'utf8');
 	const skip = SKIP.find((s) => s.path?.test(rel) || s.content?.test(input));
+	// Downloads and generated files are never edited by hand, so there is nothing to redraw.
+	if (!skip?.path) {
+		const dots = gridDots(input);
+		if (dots > GRID_DOT_LIMIT) dotGrids.push(`${rel} (${dots} dots)`);
+	}
 	if (skip) {
 		skipped.set(skip.reason, (skipped.get(skip.reason) ?? 0) + 1);
 		continue;
@@ -106,6 +131,11 @@ for (const file of files) {
 const kb = (n) => `${(n / 1024).toFixed(0)} KB`;
 console.log(`optimize-svg: ${files.length} files, ${changed} rewritten (${kb(before)} → ${kb(after)})`);
 for (const [reason, count] of skipped) console.log(`  skipped ${count} (${reason})`);
+if (dotGrids.length) {
+	console.warn(
+		`  background grid drawn dot by dot; redraw it as one <pattern>-filled rect:\n    ${dotGrids.join('\n    ')}`
+	);
+}
 if (failed.length) {
 	console.error(`  failed to parse:\n    ${failed.join('\n    ')}`);
 	process.exitCode = 1;
