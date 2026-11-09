@@ -6,12 +6,9 @@ import './scroll-lock.css';
 // header, and the chat widget so none of them jump wider.
 //
 // Locks are per owner; the page unlocks when the last owner releases.
-// `@util/modal-dialog` uses owner `dialog`.
 
 const HTML_LOCK_CLASS = 'tb-scroll-locked';
-// Also added to <html> when the hidden scrollbar took up space (a classic scrollbar, not an overlay
-// one) and the lock padded the page for it. The mobile menu sheet's views then reserve space for a
-// scrollbar (`SiteMenu`).
+// Set while the lock pads the page for a classic (non-overlay) scrollbar; `SiteMenu` reads it.
 const HTML_COMP_CLASS = 'tb-scroll-compensated';
 // Full-width fixed bars padded from the inside to absorb the freed scrollbar
 // width. The promo banner sits above the site header; both compensate the same.
@@ -42,11 +39,8 @@ function setPaddingInstant(el: HTMLElement, value: string): void {
 
 // Full-width fixed bar: pad from the inside by the freed scrollbar width so its
 // centred/edge content stays put when the page scrollbar disappears. The width
-// is also set as `--tb-scrollbar-comp`, for fixed elements inside the bar that
-// span the whole window and so don't get this padding (the bottom of the mobile
-// menu sheet, in `SiteMenu`). Returns the compensation record to push onto
-// `compensatedBars`, or null if the bar is absent, so the caller never has to
-// tell null apart from an empty original padding.
+// is also set as `--tb-scrollbar-comp`, for window-wide fixed children that
+// don't get this padding (`SiteMenu`). Returns null if the bar is absent.
 function compensateBar(selector: string, sw: number): { selector: string; original: string } | null {
 	const el = document.querySelector<HTMLElement>(selector);
 	if (!el) return null;
@@ -64,7 +58,7 @@ function restoreBar(selector: string, original: string): void {
 	setPaddingInstant(el, original);
 }
 
-export function lockScroll(owner = 'default'): void {
+export function lockScroll(owner: string): void {
 	const alreadyLocked = owners.size > 0;
 	owners.add(owner);
 	if (alreadyLocked) return;
@@ -104,8 +98,7 @@ export function lockedByOther(...mine: string[]): boolean {
 	return false;
 }
 
-export function unlockScroll(owner = 'default'): void {
-	// Unlock only when this owner held the lock and was the last one.
+export function unlockScroll(owner: string): void {
 	if (!owners.delete(owner) || owners.size > 0) return;
 
 	const html = document.documentElement;

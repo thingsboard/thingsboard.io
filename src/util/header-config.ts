@@ -28,7 +28,6 @@ export function resolveHeaderConfig(input: HeaderConfigInput = {}): HeaderConfig
 	return {
 		look,
 		hero: look === 'marketing' ? input.hero : undefined,
-		// A minimal header has no search, like it has no other buttons.
 		search: !minimal && (input.search ?? true),
 		cloudSignupIds: input.cloudSignupIds ?? true,
 		minimal,

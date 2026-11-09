@@ -7,10 +7,7 @@ export interface NavItem {
 	label: string;
 	href?: string;
 	submenuId?: string;
-	/**
-	 * DOM id on the rendered link, for analytics hooks (`Menu_Pricing`). The link also shows in the menu
-	 * sheet; `SiteMenu` keeps the id on whichever copy shows.
-	 */
+	/** DOM id for analytics (`Menu_Pricing`). `SiteMenu` keeps it on whichever copy of the link shows. */
 	id?: string;
 	/** Extra class on the rendered link, e.g. `gtm_button` for GTM tracking. */
 	linkClass?: string;
@@ -20,15 +17,13 @@ export interface NavItem {
 export interface SubMenuItem {
 	href: string;
 	icon?: string;
-	/** A product badge (`data/product-badges`), shown instead of `icon`. Used in Products and Docs. */
+	/** A product badge (`data/product-badges`), shown instead of `icon`. */
 	badge?: MenuBadgeKey;
 	heading: string;
-	/** A second line under the heading, where it helps tell links apart: the products and their docs. */
 	description?: string;
 	linkClass?: string;
 	/** A customer logo's URL, shown instead of the heading, which becomes its alt text. */
 	logo?: string;
-	/** The logo's height in px. */
 	logoHeight?: number;
 }
 
@@ -38,13 +33,13 @@ export interface SubMenuGroup {
 	/** Items per column (a list takes at most 3 columns). Omit for one column. */
 	perColumn?: number;
 	items: SubMenuItem[];
-	/** A link under the list, in the accent color, such as "All use cases". */
+	/** A link under the list, such as "All use cases". */
 	more?: { label: string; href: string };
 }
 
 export interface SubMenu {
 	id: string;
-	/** Icon size in px: 32 where the icons are product badges (Products, Docs), otherwise 24 (the default). */
+	/** Icon size in px; 24 when omitted. */
 	iconSize?: 24 | 32;
 	groups: SubMenuGroup[];
 	/** Other paths (and the pages below them) that mark this section as current; see `inSection`. */
@@ -167,8 +162,7 @@ export const servicesSubmenu: SubMenu = {
 	],
 };
 
-// The customer logos as built URLs. `no-inline` keeps Vite from turning the small ones into `data:` URIs,
-// which every page would carry, since the menu is on every page.
+// `no-inline` keeps Vite from inlining small logos as `data:` URIs into every page.
 const CUSTOMER_LOGO_DIR = '/src/assets/images/landings/customer-logo/';
 const customerLogos = import.meta.glob<string>('/src/assets/images/landings/customer-logo/*.svg', {
 	query: '?url&no-inline',
@@ -176,11 +170,7 @@ const customerLogos = import.meta.glob<string>('/src/assets/images/landings/cust
 	eager: true,
 });
 
-/**
- * Builds a case-study menu link: its page, the customer's name, and a logo from `customer-logo/`
- * (single-color logos cropped to the artwork). Throws when the slug is not a known case study or the
- * logo file is missing.
- */
+/** A case-study menu link, shown as the customer's logo from `customer-logo/`. */
 function caseStudy(slug: string, heading: string, logoHeight: number, logoFile: string): SubMenuItem {
 	if (!caseStudyBySlug[slug]) throw new Error(`[navigation] no case study "${slug}"`);
 	const logo = customerLogos[`${CUSTOMER_LOGO_DIR}${logoFile}`];
@@ -188,8 +178,7 @@ function caseStudy(slug: string, heading: string, logoHeight: number, logoFile: 
 	return { href: `/case-studies/${slug}/`, heading, logo, logoHeight };
 }
 
-// Solutions submenu. Smart irrigation, water metering and air quality are left out: each is a narrower
-// version of a listed use case (smart farming, smart metering, environment monitoring).
+// Solutions submenu
 export const solutionsSubmenu: SubMenu = {
 	id: 'nav-solutions',
 	owns: ['/use-cases/', '/case-studies/'],
@@ -272,7 +261,6 @@ export const solutionsSubmenu: SubMenu = {
 			],
 		},
 		{
-			// Headings are customer names: a case study's own title is a full sentence.
 			name: 'Case studies',
 			items: [
 				caseStudy('schwarz', 'Schwarz Group', 15, 'schwarz-gruppe.svg'),
@@ -292,8 +280,7 @@ export const companySubmenu: SubMenu = {
 	owns: ['/partners/'],
 	groups: [
 		{
-			// `small-link` has no styles. It stays on these links as an analytics hook, like the products'
-			// `-lnk` classes.
+			// `small-link` has no styles; it is an analytics hook, like the products' `-lnk` classes.
 			name: 'Company',
 			perColumn: 4,
 			items: [
@@ -367,8 +354,7 @@ export const companySubmenu: SubMenu = {
 	],
 };
 
-// Docs submenu: the same products as Products, with the same badges (`product-badges`). The CLI is
-// first in Product ecosystem, as in Products.
+// Docs submenu
 export const docsSubmenu: SubMenu = {
 	id: 'nav-docs',
 	iconSize: 32,
