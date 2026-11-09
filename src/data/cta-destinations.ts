@@ -2,9 +2,7 @@ import { CLOUD_REGIONS, cloudRegionHref } from '@util/cloud-regions';
 import { externalLinkAttrs } from '@util/external-links';
 
 /**
- * Cloud sign-up links ("Try for free", "Start for free"). They open the region dialog
- * (`data-cloud-auth`); the href is only the fallback without JavaScript. It goes to the region page,
- * not a sign-up form, so the visitor still picks a region.
+ * Cloud sign-up links. `data-cloud-auth` opens the region dialog; the href is the no-JS fallback.
  *
  * `attrs` returns a new object on every read: Astro writes a component's scoped class into the object
  * it spreads, so one shared object would gain another class on every page built.

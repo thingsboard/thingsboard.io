@@ -1,10 +1,7 @@
 import { CLOUD_SIGNUP } from '@data/cta-destinations';
 
-/**
- * Promo links at the bottom of a menu section; one can be `featured` (shown in the accent color).
- * A link that belongs under one list, such as "All use cases", goes in `SubMenuGroup.more` instead.
- */
-export interface MenuPromo {
+/** Promo links at the bottom of a menu section. A link under one list goes in `SubMenuGroup.more`. */
+interface MenuPromo {
 	icon: string;
 	title: string;
 	href: string;
@@ -21,7 +18,7 @@ export const MENU_SECTION_PROMOS: Record<string, MenuPromo[]> = {
 			icon: 'tabler:cloud',
 			title: 'Start for free on Cloud',
 			href: CLOUD_SIGNUP.href,
-			// Read on each render, so each link gets its own object (see `CLOUD_SIGNUP`).
+			// A getter, so each render gets a fresh object (see `CLOUD_SIGNUP`).
 			get attrs() {
 				return CLOUD_SIGNUP.attrs;
 			},

@@ -1,7 +1,7 @@
 import { allSubmenus, mainNavItems, type NavItem, type SubMenu } from '@data/navigation';
 
 /** A top-level menu item and its section, if it has one. Both menus render from `MENU_ENTRIES`. */
-export interface MenuEntry {
+interface MenuEntry {
 	item: NavItem;
 	sub?: SubMenu;
 }
@@ -27,13 +27,11 @@ const sectionOwnsPage = (pathname: string, sub: SubMenu) => (sub.owns ?? []).som
 
 /**
  * Whether the page belongs to this section. A section that owns the path (`SubMenu.owns`) wins, so
- * only one section is ever marked. Otherwise the page must be the item's page or one of the section's
- * internal links, or below one of them.
+ * only one section is ever marked. Otherwise the page must be at or below one of its internal links.
  */
-export const inSection = (pathname: string, { item, sub }: MenuSection) => {
+export const inSection = (pathname: string, sub: SubMenu) => {
 	const owningSection = MENU_SECTIONS.find((section) => sectionOwnsPage(pathname, section.sub));
 	if (owningSection) return owningSection.sub.id === sub.id;
-	if (isHere(pathname, item.href)) return true;
 	return sub.groups.some((group) =>
 		group.items.some((link) => link.href.startsWith('/') && isHere(pathname, link.href))
 	);

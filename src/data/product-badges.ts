@@ -1,8 +1,5 @@
-/**
- * Product badges for the Products and Docs menu sections, picked by `SubMenuItem.badge`. The tile is
- * drawn in CSS (`.sm__badge` in `SiteMenu`); the glyph comes from the nav sprite, drawn at `size` px.
- */
-export interface MenuBadge {
+/** Product badges for menu links (`SubMenuItem.badge`): a CSS tile with a nav-sprite glyph `size` px wide. */
+interface MenuBadge {
 	/** `solid`: a tile filled with `hue` and a white glyph. `wash`: a light tint of `hue`. */
 	fill: 'solid' | 'wash';
 	hue: string;

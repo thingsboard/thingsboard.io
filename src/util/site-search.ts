@@ -8,9 +8,8 @@ export const hasSearchConsent = () => window.tbConsent?.media === true;
 export const isCseLoaded = () => document.querySelector(`script[src="${CSE_SRC}"]`) !== null;
 
 // cse.js scans the DOM for `.gcse-search` once, when it executes: render those elements first.
-// `onError` runs if cse.js itself is blocked or fails to load. cse.js then loads a second Google
-// script on its own, and a failure there does not call `onError`. A caller that needs to know waits
-// for Google's input to appear, with a timeout (as `SiteSearch` does).
+// `onError` covers cse.js only: a failure of the second script cse.js loads goes unreported, so a
+// caller that needs to know waits for Google's input with a timeout (as `SiteSearch` does).
 export function loadCse(onError?: () => void): void {
 	if (isCseLoaded()) return;
 	const script = document.createElement('script');
