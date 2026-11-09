@@ -40,6 +40,7 @@ function getProductFromFilePath(filePath: string): string {
 	if (relative.startsWith('iot-gateway/')) return 'iot-gateway';
 	if (relative.startsWith('license-server/')) return 'license-server';
 	if (relative.startsWith('iot-hub/')) return 'iot-hub';
+	if (relative.startsWith('cli/')) return 'cli';
 
 	return 'ce';
 }

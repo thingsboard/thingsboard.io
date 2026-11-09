@@ -14,7 +14,7 @@ export const data: UseCaseData = {
 			'This use case showcases how ThingsBoard empowers organizations to build robust, end-to-end smart metering solutions. By combining protocol versatility, intuitive dashboards, and powerful rule engines, ThingsBoard makes it easy to monitor energy and water usage across residential, commercial, and municipal environments—enhancing sustainability and operational control.',
 		],
 		demoUrl:
-			'https://demo.thingsboard.io/dashboard/3a1026e0-83f6-11e7-b56d-c7f326cba909?publicId=322a2330-7c36-11e7-835d-c7f326cba909',
+			'https://thingsboard.cloud/dashboard/4a4f5380-cc87-11f1-adf1-29dbfc808686?publicId=7aa99e80-8acd-11ef-a59e-a9c993dbec14',
 		demoButtonId: 'UseCases_SmartMetering_ViewLiveDemo',
 	},
 	overview: {
@@ -123,7 +123,7 @@ export const data: UseCaseData = {
 			},
 		],
 		demoUrl:
-			'https://demo.thingsboard.io/dashboard/3a1026e0-83f6-11e7-b56d-c7f326cba909?publicId=322a2330-7c36-11e7-835d-c7f326cba909',
+			'https://thingsboard.cloud/dashboard/4a4f5380-cc87-11f1-adf1-29dbfc808686?publicId=7aa99e80-8acd-11ef-a59e-a9c993dbec14',
 		demoButtonId: 'UseCases_SmartMetering_ViewLiveDemo',
 		contactUsId: 'UseCases_SmartMetering_ContactUs',
 	},
@@ -137,7 +137,6 @@ export const data: UseCaseData = {
 				description:
 					'Optimize city-wide water and energy management to support sustainable urban development.',
 				desktopImage: '/src/assets/images/usecases/smart-metering/utilities-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-metering/utilities-2.svg',
 				imageAlt: 'Municipal utilities',
 				imageTitle: 'Municipal utilities',
 			},
@@ -146,7 +145,6 @@ export const data: UseCaseData = {
 				description:
 					'Enable landlords and tenants to monitor and reduce energy bills through transparent usage tracking.',
 				desktopImage: '/src/assets/images/usecases/smart-metering/complex-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-metering/complex-2.svg',
 				imageAlt: 'Residential complexes',
 				imageTitle: 'Residential complexes',
 			},
@@ -155,7 +153,6 @@ export const data: UseCaseData = {
 				description:
 					'Ensure operational efficiency and compliance with green building standards by tracking real-time resource use.',
 				desktopImage: '/src/assets/images/usecases/smart-metering/facilities-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-metering/facilities-2.svg',
 				imageAlt: 'Commercial facilities',
 				imageTitle: 'Commercial facilities',
 			},
@@ -164,7 +161,6 @@ export const data: UseCaseData = {
 				description:
 					'Gain insights into high-consumption areas, detect leaks or overuse early, and prevent costly downtime.',
 				desktopImage: '/src/assets/images/usecases/smart-metering/industrial-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-metering/industrial-2.svg',
 				imageAlt: 'Industrial plants',
 				imageTitle: 'Industrial plants',
 			},
@@ -173,7 +169,6 @@ export const data: UseCaseData = {
 				description:
 					'Empower facility managers to improve campus energy efficiency and promote eco-friendly behavior.',
 				desktopImage: '/src/assets/images/usecases/smart-metering/institutions-1.svg',
-				mobileImage: '/src/assets/images/usecases/smart-metering/institutions-2.svg',
 				imageAlt: 'Educational institutions',
 				imageTitle: 'Educational institutions',
 			},

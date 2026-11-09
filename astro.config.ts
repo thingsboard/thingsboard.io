@@ -7,13 +7,13 @@ import { sidebar } from './astro.sidebar';
 import { devServerFileWatcher } from './config/integrations/dev-server-file-watcher';
 import { imageGalleryLightbox } from './config/integrations/image-gallery-lightbox';
 import { sitemap } from './config/integrations/sitemap';
+import { youtubePosters } from './config/integrations/youtube-posters';
 import { satteriBlogImages } from './config/plugins/satteri-blog-images';
 import { satteriMdxIncludeHeadings } from './config/plugins/satteri-mdx-include-headings';
 import { satteriTasklistEnhancer } from './config/plugins/satteri-tasklist-enhancer';
 import { PROD_ORIGIN } from './src/consts';
 
 import icon from 'astro-icon';
-import svgo from 'vite-plugin-svgo';
 import { fileURLToPath } from 'node:url';
 
 /* Cloudflare Pages: https://developers.cloudflare.com/pages/configuration/build-configuration/#environment-variables */
@@ -104,27 +104,13 @@ export default defineConfig({
 					return fileURLToPath(new URL('./src/components/starlight/Icon.astro', import.meta.url));
 				},
 			},
-			svgo({
-				plugins: [
-					{
-						name: 'preset-default',
-						params: {
-							overrides: {
-								removeViewBox: false, // preserve aspect-ratio
-								cleanupIds: false, // preserve animation hooks
-							},
-						},
-					},
-					'removeXMLNS',
-					'prefixIds', // avoid ID collisions between SVGs
-				],
-			}),
 		],
 	},
 	integrations: [
 		assertIconOverrideApplied(),
 		icon(),
 		imageGalleryLightbox(),
+		youtubePosters(),
 		devServerFileWatcher(['./config/**', './astro.sidebar.ts']),
 		starlight({
 			title: 'Docs',
@@ -208,7 +194,7 @@ export default defineConfig({
 		}),
 	},
 	image: {
-		domains: ['avatars.githubusercontent.com'],
+		domains: ['avatars.githubusercontent.com', 'i.ytimg.com'],
 		service: process.env.SKIP_IMG ? passthroughImageService() : sharpImageService(),
 	},
 });

@@ -46,11 +46,12 @@ export const productVersions: Partial<Record<Products, ProductVersion>> = {
 		titleName: 'ThingsBoard Cloud (EU)',
 		docsTitle: 'ThingsBoard Cloud (EU) Docs',
 	},
-	[Products.EDGE]: { label: 'Edge', prefix: 'edge/', titleName: 'ThingsBoard Edge' },
+	[Products.EDGE]: { label: 'Edge', prefix: 'edge/', titleName: 'ThingsBoard Edge', docsTitle: 'ThingsBoard Edge CE Docs' },
 	[Products.EDGE_PE]: {
 		label: 'Edge Professional',
 		prefix: 'edge/pe/',
-		titleName: 'ThingsBoard Edge PE',
+		titleName: 'ThingsBoard Edge',
+		docsTitle: 'ThingsBoard Edge Docs',
 	},
 	[Products.TRENDZ]: {
 		label: 'Trendz Analytics',
@@ -91,6 +92,11 @@ export const productVersions: Partial<Record<Products, ProductVersion>> = {
 		label: 'IoT Hub',
 		prefix: 'iot-hub/',
 		titleName: 'ThingsBoard IoT Hub',
+	},
+	[Products.CLI]: {
+		label: 'ThingsBoard CLI',
+		prefix: 'cli/',
+		titleName: 'ThingsBoard CLI',
 	},
 };
 
@@ -152,6 +158,7 @@ export function getVersionFromURL(pathname: string): Products {
 	if (p.startsWith('mobile/')) return Products.MOBILE;
 	if (p.startsWith('license-server/')) return Products.LICENSE;
 	if (p.startsWith('iot-hub/')) return Products.IOT_HUB;
+	if (p.startsWith('cli/')) return Products.CLI;
 	return Products.CE;
 }
 
@@ -181,6 +188,7 @@ export function getVersionFromSlug(slug: string): Products {
 	if (p.startsWith('mobile/')) return Products.MOBILE;
 	if (p.startsWith('license-server/')) return Products.LICENSE;
 	if (p.startsWith('iot-hub/')) return Products.IOT_HUB;
+	if (p.startsWith('cli/')) return Products.CLI;
 	return Products.CE;
 }
 
@@ -244,6 +252,7 @@ export function getPageSlugFromURL(pathname: string): string {
 		'mobile/',
 		'license-server/',
 		'iot-hub/',
+		'cli/',
 	];
 	for (const prefix of prefixes) {
 		if (path.startsWith(prefix)) {

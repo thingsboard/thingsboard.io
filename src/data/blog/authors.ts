@@ -40,6 +40,11 @@ export const BLOG_AUTHORS: BlogAuthor[] = [
 		avatar: 'https://secure.gravatar.com/avatar/b79cef1565d16ade3779b0cf9495e7ec?s=96&d=mm&r=g',
 	},
 	{
+		slug: 'dmytro-artamonov',
+		name: 'Dmytro Artamonov',
+		avatar: '/images/blog/authors/dmytro-artamonov.webp',
+	},
+	{
 		slug: 'dmytro-shvaika',
 		name: 'Dmytro Shvaika',
 		avatar: 'https://secure.gravatar.com/avatar/3cf9c662bfe484e5d580ba302e42640d?s=96&d=mm&r=g',
@@ -78,6 +83,11 @@ export const BLOG_AUTHORS: BlogAuthor[] = [
 		slug: 'valeriia-koriavikova',
 		name: 'Valeriia Koriavikova',
 		avatar: 'https://secure.gravatar.com/avatar/04b9ee24b1df742aff5297aa3236cf20?s=96&d=mm&r=g',
+	},
+	{
+		slug: 'viacheslav-klimov',
+		name: 'Viacheslav Klimov',
+		avatar: '/images/blog/authors/viacheslav-klimov.webp',
 	},
 	{
 		slug: 'vitaliy-paromskiy',

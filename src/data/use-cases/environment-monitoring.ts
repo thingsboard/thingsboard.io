@@ -116,7 +116,6 @@ export const data: UseCaseData = {
 				description:
 					'Monitoring air quality, noise levels, temperature, and humidity across city zones to support environmental policy, alert residents, improve urban living conditions.',
 				desktopImage: '/src/assets/images/usecases/environment-monitoring/smart-cities-1.svg',
-				mobileImage: '/src/assets/images/usecases/environment-monitoring/smart-cities-2.svg',
 				imageAlt: 'Smart city',
 				imageTitle: 'Smart cities and urban infrastructure',
 			},
@@ -125,7 +124,6 @@ export const data: UseCaseData = {
 				description:
 					'Maintaining sterile conditions and proper ventilation by tracking air quality, CO\u2082 levels, and temperature in sensitive medical or laboratory zones.',
 				desktopImage: '/src/assets/images/usecases/environment-monitoring/laboratory-1.svg',
-				mobileImage: '/src/assets/images/usecases/environment-monitoring/laboratory-2.svg',
 				imageAlt: 'Laboratory',
 				imageTitle: 'Healthcare and laboratory environments',
 			},
@@ -134,7 +132,6 @@ export const data: UseCaseData = {
 				description:
 					'Controlling environmental conditions in greenhouses and agricultural zones, scheduling based on occupancy, and ensuring sustainability targets are met.',
 				desktopImage: '/src/assets/images/usecases/environment-monitoring/agriculture-1.svg',
-				mobileImage: '/src/assets/images/usecases/environment-monitoring/agriculture-2.svg',
 				imageAlt: 'Greenhouse',
 				imageTitle: 'Agricultural and greenhouse facilities',
 			},
@@ -143,7 +140,6 @@ export const data: UseCaseData = {
 				description:
 					'Collecting long-term environmental data for scientific research, campus sustainability programs, and educational use in environmental studies.',
 				desktopImage: '/src/assets/images/usecases/environment-monitoring/education-1.svg',
-				mobileImage: '/src/assets/images/usecases/environment-monitoring/education-2.svg',
 				imageAlt: 'School',
 				imageTitle: 'Educational and research institutions',
 			},
@@ -152,7 +148,6 @@ export const data: UseCaseData = {
 				description:
 					'Monitoring temperature, humidity, and air circulation to ensure proper storage conditions for perishable goods and pharmaceutical products.',
 				desktopImage: '/src/assets/images/usecases/environment-monitoring/warehouse-1.svg',
-				mobileImage: '/src/assets/images/usecases/environment-monitoring/warehouse-2.svg',
 				imageAlt: 'Warehouse',
 				imageTitle: 'Warehouses and cold storage facilities',
 			},

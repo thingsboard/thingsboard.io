@@ -1,6 +1,6 @@
 # Contributing to ThingsBoard Docs
 
-Thanks for helping improve the ThingsBoard documentation. This repo holds the source for [thingsboard.io/docs](https://thingsboard.io/docs/) — documentation content, the site code that renders it, redirects, and translations. Bugs and features in the ThingsBoard platform itself live in the [`thingsboard/thingsboard`](https://github.com/thingsboard/thingsboard) repo.
+Thanks for helping improve the ThingsBoard documentation. This repo holds the source for the [ThingsBoard Docs](https://thingsboard.io/docs/pe/) and the rest of the thingsboard.io website (home, pricing, blog, use cases, partners, IoT Hub), along with the site code that renders them and the redirects. Bugs and feature requests for ThingsBoard products belong in each product's own repository: [New issue](https://github.com/thingsboard/thingsboard.io/issues/new/choose) lists where to report each one.
 
 ## Prerequisites
 
@@ -21,29 +21,31 @@ Thanks for helping improve the ThingsBoard documentation. This repo holds the so
    pnpm install
    pnpm dev
    ```
-4. Open <http://localhost:4321/docs/> in your browser.
+4. Open <http://localhost:4321/> in your browser.
 
-`pnpm dev` rebuilds incrementally and is the normal authoring loop. Before opening a PR, run `pnpm build:fast` for a full production build. It skips OG image generation for speed; CI runs the full `pnpm build`.
+`pnpm dev` rebuilds incrementally and is the normal authoring loop. Before opening a PR, run `pnpm build:fast` for a full production build. It skips OG image generation for speed.
 
 ## Before you open a PR
 
-CI runs four checks. All must pass for the PR to be merged. Run them locally first:
+Bring your branch up to date with its base branch first: `git fetch origin` and merge the latest `origin/main` or `origin/develop` (see [Which branch and label](#which-branch-and-label)) into your branch. Do it again before every new push if the base has moved. A branch that is behind its base can still merge without conflicts, yet it breaks the CI build caches.
+
+CI runs four checks on every PR. All must pass for the PR to be merged. Run them locally first:
 
 - `pnpm check` — TypeScript and Astro type checking.
 - `pnpm lint:eslint` — ESLint.
 - `pnpm lint:slugcheck` — verifies slugs match across languages.
-- `pnpm build:fast` — production build (catches broken imports, missing assets, schema errors).
+- `pnpm lint:linkcheck` — full link validation (slow; builds the site first). If you already have a build, `pnpm lint:linkcheck:nobuild` re-checks the links only.
 
 Other commands worth knowing:
 
-- `pnpm lint:linkcheck` — full link validation (slow; runs a full build first).
+- `pnpm build:fast` — production build (catches broken imports, missing assets, schema errors).
 - `pnpm format` — Prettier formatting.
 
 ## Content authoring basics
 
 A 30-second orientation. For the full architecture (product system, schemas, redirects, OG cards), see [`CLAUDE.md`](./CLAUDE.md).
 
-**Where pages live.** Documentation pages are MDX files under `src/content/docs/{lang}/docs/...`. English (`en`) is canonical; other languages mirror the English structure and fall back to English automatically when untranslated.
+**Where pages live.** Documentation pages are MDX files under `src/content/docs/docs/...`. The site is English only.
 
 **The CE / PE three-tier pattern.** Pages that exist for both Community Edition (CE) and Professional Edition (PE) do not duplicate content. The actual content lives in a shared MDX file under `src/content/_includes/docs/{path}/{page}.mdx`. Two thin stub pages import it. The CE stub at `src/content/docs/docs/{path}/{page}.mdx` passes `Products.CE`; the PE stub at `src/content/docs/docs/pe/{path}/{page}.mdx` passes `Products.PE`:
 
@@ -51,15 +53,15 @@ A 30-second orientation. For the full architecture (product system, schemas, red
 ---
 title: My Page
 ---
-import Content from '~/content/_includes/docs/path/page.mdx';
-import { Products } from '~/models/site.models';
+import Content from '@includes/docs/path/page.mdx';
+import { Products } from '@models/site.models';
 
 <Content {...{ product: Products.CE }} />
 ```
 
-**Internal links.** Use the `<DocLink>` component, never bare Markdown links to other doc pages. Bare links break when language fallback kicks in or when product prefixes change.
+**Internal links.** Use the `<DocLink>` component, never bare Markdown links to other doc pages. Bare links break when product prefixes change.
 
-**Version strings.** Never hardcode ThingsBoard version numbers in Docker image tags, download URLs, or code samples. Import constants from `~/data/versions` (`CE_FULL_VER`, `PE_FULL_VER`, `TRENDZ_VER`, etc.).
+**Version strings.** Never hardcode ThingsBoard version numbers in Docker image tags, download URLs, or code samples. Import constants from `@data/versions` (`CE_FULL_VER`, `PE_FULL_VER`, `TRENDZ_VER`, etc.).
 
 **Sidebar.** When you add a new page, register it in `astro.sidebar.ts`. The shared helpers `guideItems(prefix)` and `installationItems(prefix)` cover both CE and PE — add the entry once and both products pick it up.
 
@@ -91,6 +93,16 @@ import { Products } from '~/models/site.models';
 
 Do not hand-edit `public/_redirects` or `public/redirects.json` directly — they are rewritten by the generator.
 
+### Update Edge releases and upgrade instructions
+
+The Edge upgrade instructions, the upgrade table and the Edge releases table are built from `src/data/edge-releases.ts`, which is generated — do not edit it by hand. After an Edge release, a ThingsBoard maintainer regenerates it from the repo root:
+
+```bash
+pnpm sync:edge-releases [--updates <path to edge-update-v2.json>] [--check]
+```
+
+This is a maintainer-only step: the script reads release dates from the GitHub releases of `thingsboard/thingsboard-edge` (via the `gh` CLI) and upgrade paths from the internal Edge update graph (`edge-update-v2.json`). The script's `RELEASE_DATES` overrides the GitHub date of a release that shipped before its GitHub release (Edge 4.4.0.x). The script warns about releases without a `## v<version> (<date>)` heading in the Edge release notes (`src/content/_includes/docs/edge/releases/` and `…/edge/pe/releases/`); add those entries. A new release family also needs releases-table highlights in `EDGE_FAMILY_HIGHLIGHTS` (`src/models/edge-upgrade-instructions.ts`) and its per-family upgrade pages (`…/upgrade-instructions/<platform>/v<X>-<Y>-x.mdx`).
+
 ### Regenerate configuration reference pages
 
 When ThingsBoard's upstream `*.yml` config files change, regenerate the configuration reference MDX pages with `scripts/generate_config_pages.py`. The script fetches the upstream config files directly from GitHub via the [`gh` CLI](https://cli.github.com/) — no local checkout needed. Run `gh auth login` once (required for the private PE / Edge-PE / TBMQ-PE repos), then from this repo's root:
@@ -111,21 +123,32 @@ Commit the regenerated files (under `src/content/docs/docs/.../reference/configu
 
 ### Translate a page
 
-1. Find the English source under `src/content/docs/en/docs/...`.
-2. Create the file at the same path under `src/content/docs/{lang}/docs/...`.
-3. Copy and translate the body; keep the frontmatter structure. Set `i18nReady: true` once the translation is ready to publish.
-4. Untranslated pages fall back to English automatically — do not stub-translate or leave English placeholders.
+The site is English only for now. Translations are not accepted until a second language is enabled.
+
+## Which branch and label
+
+Pick the base branch and the label of your PR by what the change is:
+
+| The change is | Branch | Label |
+|---|---|---|
+| docs for a released feature | `main` | none |
+| docs for the next ThingsBoard release, not an LTS release | `develop` | none |
+| docs for a sub-product or an LTS release, not released yet | `main` | `awaiting-release` |
+| a blog post | `develop` | none |
+| a change that another person must review on a running site, when it cannot be shown in a local network | `develop` | none |
+
+If the feature is not merged into the product repository yet, also add the label `awaiting-product-merge`.
 
 ## Opening the PR
 
+- Merge the latest base branch into yours right before opening the PR (see [Before you open a PR](#before-you-open-a-pr)).
 - Branch naming is loose; descriptive is enough (`fix/mqtt-quickstart-typo`, `add/edge-installation-page`).
 - Use imperative-mood commit messages. Keep the subject brief; add a body if the motivation isn't obvious from the diff.
 - The PR title should describe the change. The body should mention the affected pages and include screenshots if there's a visual change.
-- Every PR gets a preview deployment link in the PR conversation — use it to verify your change in a rendered context.
 - The four CI checks must pass before merge.
 
 ## Getting help
 
 - Found a documentation bug, broken link, or unclear page? [Open an issue](https://github.com/thingsboard/thingsboard.io/issues).
-- Read the live docs at [thingsboard.io/docs](https://thingsboard.io/docs/) to see what's already published.
+- Read the live docs at [thingsboard.io/docs/pe](https://thingsboard.io/docs/pe/) to see what's already published.
 - PRs are reviewed by the ThingsBoard docs team on a best-effort basis.

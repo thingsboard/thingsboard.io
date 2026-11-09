@@ -24,7 +24,7 @@ export const onPremCtas = {
 		variant: 'outline',
 		ariaLabel: 'Talk to an expert about ThingsBoard On-premises',
 	} satisfies Cta,
-	legal: { text: 'ThingsBoard license agreement', href: '/products/thingsboard-pe/eula/' },
+	legal: { text: 'ThingsBoard license agreement', href: '/legal/license-agreement/' },
 	cloud: {
 		lead: 'Want to look around first? Nothing to install on',
 		text: 'ThingsBoard Cloud',

@@ -36,9 +36,11 @@ const PRODUCT_OVERRIDES: Record<string, MarketingOverride> = {
 	'/products/iot-hub/terms-of-use/':         { eyebrow: 'ThingsBoard IoT Hub',       title: 'Terms of Use' },
 	'/products/demo/privacy-policy/':          { eyebrow: 'Live Demo',                 title: 'Privacy Policy' },
 	'/services/':                              { eyebrow: 'ThingsBoard',               title: 'Support and Services' },
+	'/proof-of-concept/':                      { eyebrow: 'Proof of Concept',          title: 'A working IoT application in 10 business days — for a fixed price' },
 	'/legal/license-agreement/':               { eyebrow: 'ThingsBoard',               title: 'License Agreement' },
 	'/legal/community-grant-license-agreement/':{ eyebrow: 'Community Grant Program',  title: 'Community Grant License Agreement' },
 	'/legal/busl/':                            { eyebrow: 'ThingsBoard',               title: 'Business Source License 1.1' },
+	'/legal/busl-edge/':                       { eyebrow: 'ThingsBoard Edge',          title: 'Business Source License 1.1' },
 	'/community-grant-program/':               { eyebrow: 'Community Edition',        title: 'Community Grant Program — keep your existing deployment free' },
 	'/legal/privacy-policy/':                  { eyebrow: 'License Portal',            title: 'Privacy Policy' },
 	'/legal/terms-of-use/':                    { eyebrow: 'License Portal',            title: 'Terms of Use' }

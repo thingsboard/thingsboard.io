@@ -31,6 +31,11 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 				answer: '<p>ThingsBoard offers flexible monthly subscription plans, with tiers based on the number of devices and assets. We support 4 predefined plans to cater to different needs. The Free plan includes support for up to 100 devices. For more details, visit the ThingsBoard <a target="_blank" href="/pricing/?product=thingsboard-pe" rel="noopener noreferrer">pricing page</a>.</p>',
 			},
 			{
+				id: 'pe-pay-as-you-go-try-license',
+				question: 'Can I try an on-premises license before subscribing?',
+				answer: '<p>Yes, the Free plan is the best way to explore the platform. It also includes trial licenses for Edge and Trendz products, so you can fully test the ThingsBoard ecosystem.</p>',
+			},
+			{
 				id: 'pe-pay-as-you-go-self-managed-differences',
 				question: 'How do the on-premises subscription plans differ?',
 				answer: '<p>Plans differ based on the number of devices, support level, and white-labeling availability.</p>',
@@ -185,7 +190,7 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'pe-pay-as-you-go-internet-requirement',
 				question: 'Do I need an internet connection to use the on-premises license?',
-				answer: '<p>Yes, an internet connection is required for periodic license verification. The system checks the license once per hour, and if the connection is not restored within 48 hours, the platform shuts down. This process ensures proper license management while allowing temporary connectivity issues. For more details, please refer to the license check <a target="_blank" href="/docs/license-server/what-is-license-server/" rel="noopener noreferrer">description</a>. Offline mode is also possible as an add-on to the Perpetual license. <a target="_blank" href="/contact-us/" rel="noopener noreferrer">Contact our sales team</a> to know more.</p>',
+				answer: '<p>Yes, an internet connection is required for periodic license verification. The system checks the license once per hour, and if the connection is not restored within 72 hours, the management interface locks until the next successful check. The platform itself keeps running: devices keep sending data, commands still reach them, and nothing is deleted. This process ensures proper license management while allowing temporary connectivity issues. For more details, please refer to the license check <a target="_blank" href="/docs/license-server/what-is-license-server/" rel="noopener noreferrer">description</a>. Offline mode is also possible as an add-on to the Perpetual license. <a target="_blank" href="/contact-us/" rel="noopener noreferrer">Contact our sales team</a> to know more.</p>',
 			},
 			{
 				id: 'pe-pay-as-you-go-offline-access',
@@ -263,13 +268,8 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 	},
 	{
 		id: 'trialsCancellationsAndRefunds',
-		label: 'Trials, Cancellations & Refunds',
+		label: 'Cancellations & Refunds',
 		items: [
-			{
-				id: 'pe-pay-as-you-go-try-license',
-				question: 'Can I try an on-premises license before subscribing?',
-				answer: '<p>Yes, the Free plan is the best way to explore the platform. It also includes trial license for Edge and Trendz products, so you can fully test the ThingsBoard ecosystem.</p>',
-			},
 			{
 				// Not 'pe-pay-as-you-go-cancel-subscription': that id belongs to the
 				// "Billing & Payments" item above, and item ids are DOM ids.
@@ -332,12 +332,12 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'edge-addon-payg-what-is',
 				question: 'What is Edge Computing add-on?',
-				answer: '<p>The Edge Computing add-on enables local data processing at remote sites through ThingsBoard Edge PE instances. Edge runs independently with offline capability and automatically syncs with your central ThingsBoard Server when connectivity returns.</p>\n<p>It is available for all ThingsBoard deployments: Cloud, Private Cloud, and on-premises.</p>',
+				answer: '<p>The Edge Computing add-on enables local data processing at remote sites through ThingsBoard Edge instances. Edge runs independently with offline capability and automatically syncs with your central ThingsBoard Server when connectivity returns.</p>\n<p>It is available for all ThingsBoard deployments: Cloud, Private Cloud, and on-premises.</p>',
 			},
 			{
 				id: 'edge-addon-payg-pricing-plans',
 				question: 'What pricing plans does Edge Computing add-on offer?',
-				answer: '<p>Edge Computing add-on pricing depends on your ThingsBoard model. Check the relevant pricing in the <a href="#" data-open-calc="payg">Plan Calculator</a>.</p>',
+				answer: '<p>Edge Computing add-on pricing depends on your ThingsBoard model. Check the relevant pricing in the <a href="#" data-open-calc="payg" aria-haspopup="dialog">Plan Calculator</a>.</p>',
 			},
 			{
 				id: 'edge-addon-payg-compatibility',
@@ -347,12 +347,12 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'edge-addon-payg-standalone',
 				question: 'Can I use Edge without ThingsBoard?',
-				answer: '<p>No, Edge PE requires a ThingsBoard Server (Cloud, Private Cloud, or on-premises) to provision devices, sync configurations, and exchange data. However, it processes data locally and can operate offline when the connection drops.</p>',
+				answer: '<p>No, ThingsBoard Edge requires a ThingsBoard Server (Cloud, Private Cloud, or on-premises) to provision devices, sync configurations, and exchange data. However, it processes data locally and can operate offline when the connection drops.</p>',
 			},
 			{
 				id: 'edge-addon-payg-free-trial',
 				question: 'Do you offer a free trial for Edge?',
-				answer: '<p>You can start with the <b>Free</b> plan (limited to 10 devices) with the Edge Computing add-on permanently enabled. This lets you explore Edge PE features at no cost.</p>\n<p>For larger deployments, you can upgrade to paid plans with higher device limits and additional features.</p>',
+				answer: '<p>You can start with the <b>Free</b> plan with the Edge Computing add-on permanently enabled. This lets you explore ThingsBoard Edge features at no cost.</p>\n<p>For larger deployments, you can upgrade to paid plans with higher device limits and additional features.</p>',
 			},
 			{
 				id: 'edge-addon-payg-capacity',
@@ -423,12 +423,12 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			{
 				id: 'trendz-payg-what-is',
 				question: 'What is Trendz?',
-				answer: '<p>Trendz is an add-on for advanced IoT Data Analytics. It allows you to analyze, detect anomalies, and predict outcomes — all in one unified analytics workspace that works seamlessly with ThingsBoard. You can check pricing in the <a href="#" data-open-calc="payg">Plan Calculator</a>.</p>',
+				answer: '<p>Trendz is an add-on for advanced IoT Data Analytics. It allows you to analyze, detect anomalies, and predict outcomes — all in one unified analytics workspace that works seamlessly with ThingsBoard. You can check pricing in the <a href="#" data-open-calc="payg" aria-haspopup="dialog">Plan Calculator</a>.</p>',
 			},
 			{
 				id: 'trendz-payg-pricing-plans',
 				question: 'What pricing plans does Trendz offer?',
-				answer: '<p>Trendz pricing depends on your ThingsBoard model. You can check the relevant pricing in the <a href="#" data-open-calc="payg">Plan Calculator</a> on this page.</p>',
+				answer: '<p>Trendz pricing depends on your ThingsBoard model. You can check the relevant pricing in the <a href="#" data-open-calc="payg" aria-haspopup="dialog">Plan Calculator</a> on this page.</p>',
 			},
 			{
 				id: 'trendz-payg-activate-cancel',

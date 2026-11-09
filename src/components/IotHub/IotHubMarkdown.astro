@@ -1,11 +1,11 @@
 ---
-import '@astrojs/starlight/style/markdown.css';
 import 'node_modules/@astrojs/starlight/dist/style/asides.css';
 import { Aside, Code, Icon, LinkButton } from '@astrojs/starlight/components';
 import ImageGallery from '@components/ImageGallery.astro';
 import IotHubListingLink from '@components/IotHub/IotHubListingLink.astro';
 import PhotoSwipeStyles from '@components/PhotoSwipeStyles.astro';
 import { resolveImage, type ListingDetail } from '@models/iot-hub';
+import { IOT_HUB_SLOT_PREFIX, isSafeUrl } from '@util/iot-hub-markdown-safety';
 import { getMarkdownProcessor } from '@util/markdown-processor';
 
 // Renders IoT Hub listing readme markdown. Plain prose flows through the
@@ -19,6 +19,9 @@ import { getMarkdownProcessor } from '@util/markdown-processor';
 //   2. Write a detector that scans the raw markdown, pushes a slot per
 //      match, and replaces the matched text with `slotComment(i)`.
 //   3. Add a case to the render switch in the template below.
+//
+// Starlight's markdown.css is not imported here, it would ship to every page;
+// pages that render this pass `markdownCss` to BaseLayout and `starlight/Head.astro` inlines it.
 
 interface Props {
 	markdown: string | null | undefined;
@@ -49,7 +52,8 @@ type Slot =
 
 // Sentinel: HTML comments survive markdown→HTML conversion unmodified, so
 // we can splice slots back into the rendered HTML by plain string matching.
-const SENTINEL_PREFIX = 'ih-slot-';
+// The processor's safety pass drops every other raw HTML node.
+const SENTINEL_PREFIX = IOT_HUB_SLOT_PREFIX;
 const slotComment = (i: number) => `<!--${SENTINEL_PREFIX}${i}-->`;
 const SLOT_RE = new RegExp(`<!--${SENTINEL_PREFIX}(\\d+)-->`, 'g');
 
@@ -95,6 +99,10 @@ function rewriteResourceUrls(src: string): string {
 	return src.replace(RESOURCE_PATH_RE, (_m, path: string) => resolveImage(path) ?? path);
 }
 
+function escapeHtml(s: string): string {
+	return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 // Image galleries: `${images.gallery({src:'…',alt:'…',caption:'…'}, {src:'…'}, …)}`.
 // The per-field regexes capture the opening quote so single- and
 // double-quoted values both work. Runs AFTER rewriteResourceUrls so any
@@ -110,13 +118,16 @@ function extractImageGalleries(src: string, slots: Slot[]): string {
 		const images: GalleryImage[] = [];
 		for (const obj of objects) {
 			const imgSrc = obj.match(GALLERY_SRC_RE)?.[2] ?? '';
-			if (!imgSrc) continue;
+			// The source also becomes the lightbox link's href.
+			if (!imgSrc || !isSafeUrl(imgSrc)) continue;
 			const item: GalleryImage = {
 				src: imgSrc,
 				alt: obj.match(GALLERY_ALT_RE)?.[2] ?? '',
 			};
 			const caption = obj.match(GALLERY_CAPTION_RE)?.[2];
-			if (caption) item.caption = caption;
+			// ImageGallery renders captions as HTML (the docs write tags in them);
+			// a creator's caption is text, plus the `*` / `` ` `` emphasis it adds.
+			if (caption) item.caption = escapeHtml(caption);
 			images.push(item);
 		}
 		// Drop the marker entirely if no valid images were found, rather than
@@ -168,6 +179,7 @@ function extractDocLinks(src: string, slots: Slot[], detail: ListingDetail | und
 	const dd = (detail?.dataDescriptor ?? null) as DataDescriptor | null;
 	const name = detail?.name ?? '';
 	const pushButton = (href: string, label: string, icon: IconName): string => {
+		if (!isSafeUrl(href)) return '';
 		const i = slots.push({ kind: 'docLink', props: { href, label, icon } }) - 1;
 		return `\n\n${slotComment(i)}\n\n`;
 	};

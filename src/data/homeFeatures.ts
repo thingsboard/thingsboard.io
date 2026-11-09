@@ -57,13 +57,6 @@ export const homeFeatures: FeatureItem[] = [
 			'Roles and permissions down to the individual entity. Bring your own identity provider with OAuth 2.0 SSO and two-factor authentication, so every tenant, customer and end user sees exactly what they should.',
 	},
 	{
-		tablerIcon: 'tabler:certificate',
-		title: 'Security & compliance',
-		href: '/docs/pe/user-guide/security/',
-		description:
-			'Every LTS release receives regular security patches — reviewed and applied by our engineers, not left to the community — plus an independent third-party penetration test. ISO 27001 and ISO 9001 certified.',
-	},
-	{
 		tablerIcon: 'tabler:shield-lock',
 		title: 'Data sovereignty & air-gapped',
 		href: '/docs/pe/installation/',
@@ -71,24 +64,10 @@ export const homeFeatures: FeatureItem[] = [
 			'Deploy in air-gapped environments with no internet connection. Your data stays where regulation, corporate policy, or operations require it — behind your firewall, in your data center, or in your cloud.',
 	},
 	{
-		tablerIcon: 'tabler:stack-2',
-		title: 'Horizontal scalability',
-		href: '/docs/pe/reference/architecture/',
-		description:
-			'Start <a href="/docs/pe/reference/architecture/monolithic/">monolithic</a> for quick launches, move to <a href="/docs/pe/reference/architecture/microservices/">microservices</a> as load grows. Add instances of any service — no single point of failure, and no rewrite along the way.',
-	},
-	{
 		tablerIcon: 'tabler:database',
 		title: 'SQL, NoSQL, or hybrid database',
 		href: '/docs/pe/reference/architecture/database/',
 		description:
 			'Choose SQL, NoSQL, or run both side-by-side. Store main entities and telemetry data wherever fits your operational and cost profile.',
-	},
-	{
-		tablerIcon: 'tabler:source-code',
-		title: 'Source-available & customization',
-		href: 'https://github.com/thingsboard/thingsboard',
-		description:
-			'Full access to the source code — customize every part of your solution. Extend via APIs; integrate with any external system. Adapt the platform to your use case, not the other way around.',
 	},
 ];

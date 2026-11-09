@@ -2,10 +2,10 @@ import type { UseCaseData } from './types';
 import { SCADA_COMMON_BENEFITS } from './_scada-shared';
 
 export const data: UseCaseData = {
-	title: 'SCADA Oil & gas drilling system',
-	pageTitle: 'SCADA Oil & Gas Drilling Monitoring with ThingsBoard',
+	title: 'Oil and gas SCADA for drilling rigs',
+	pageTitle: 'Oil & Gas SCADA for Drilling Rigs',
 	description:
-		'Automate oil and gas drilling with ThingsBoard SCADA — real-time monitoring of drawworks, mud pumps, and blowout preventers through unified dashboards.',
+		'Monitor and control drawworks, mud pumps, and blowout preventers with oil and gas SCADA in ThingsBoard. Track rig parameters live in the demo.',
 	pageSlug: 'scada-oil-and-gas-drilling-system',
 	about: {
 		shortText:
@@ -205,7 +205,6 @@ export const data: UseCaseData = {
 				description:
 					'Symbols like cranes, drilling rigs, and hoisting systems support underground and open-pit mining by managing heavy equipment movement, monitoring ore extraction, and ensuring operational efficiency.',
 				desktopImage: '/src/assets/images/usecases/scada-drilling-system/mining.svg',
-				mobileImage: '/src/assets/images/usecases/scada-drilling-system/mining-2.svg',
 				imageAlt: 'Mining and material extraction',
 				imageTitle: 'Mining and material extraction',
 			},
@@ -214,7 +213,6 @@ export const data: UseCaseData = {
 				description:
 					'SCADA elements including valve control, pump monitoring, and real-time scaling systems assist in managing municipal water distribution, wastewater treatment, and irrigation systems for optimal efficiency.',
 				desktopImage: '/src/assets/images/usecases/scada-drilling-system/water.svg',
-				mobileImage: '/src/assets/images/usecases/scada-drilling-system/water-2.svg',
 				imageAlt: 'Water and wastewater management',
 				imageTitle: 'Water and wastewater management',
 			},
@@ -223,7 +221,6 @@ export const data: UseCaseData = {
 				description:
 					'SCADA components such as drawworks, control panels, and dynamic monitoring scales help automate material handling, optimize assembly lines, and regulate heavy machinery operations in manufacturing plants.',
 				desktopImage: '/src/assets/images/usecases/scada-drilling-system/automation.svg',
-				mobileImage: '/src/assets/images/usecases/scada-drilling-system/automation-2.svg',
 				imageAlt: 'Industrial automation and manufacturing',
 				imageTitle: 'Industrial automation and manufacturing',
 			},
@@ -232,7 +229,6 @@ export const data: UseCaseData = {
 				description:
 					'Symbols like cranes and hoists can be used in ports, airports, and warehouses to monitor cargo handling, automate container movement, and improve operational workflow in logistics.',
 				desktopImage: '/src/assets/images/usecases/scada-drilling-system/logistics.svg',
-				mobileImage: '/src/assets/images/usecases/scada-drilling-system/logistics-2.svg',
 				imageAlt: 'Transportation and logistics',
 				imageTitle: 'Transportation and logistics',
 			},
@@ -241,7 +237,6 @@ export const data: UseCaseData = {
 				description:
 					'Equipment like cranes, drilling rigs, and hoisting lines are critical in large-scale construction projects, enabling real-time monitoring of material transport, foundation drilling, and structural stability.',
 				desktopImage: '/src/assets/images/usecases/scada-drilling-system/construction.svg',
-				mobileImage: '/src/assets/images/usecases/scada-drilling-system/construction-2.svg',
 				imageAlt: 'Construction and infrastructure development',
 				imageTitle: 'Construction and infrastructure development',
 			},
