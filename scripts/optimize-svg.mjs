@@ -10,6 +10,11 @@ import { optimize } from 'svgo';
 //
 // After touching src/assets/images/landings/nav/, run `pnpm generate:nav-sprite`
 // so the committed sprite matches its sources.
+//
+// It also warns about a background grid drawn one dot at a time. Redraw it as one tile
+// with one dot, repeated over a rect, as the schemas in src/assets/schemas/ do:
+//   <pattern id="dots-<file name>" width="14" height="14" patternUnits="userSpaceOnUse">…
+//   <path fill="url(#dots-<file name>)" d="…"/>
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_TARGETS = [join(ROOT, 'src/assets'), join(ROOT, 'public')];
@@ -41,15 +46,21 @@ const SVGO_CONFIG = {
 // Rounding step ≤ 1/50000 of the larger viewBox side: 2 decimals on schemas, 4 on small icons.
 const MAX_STEP_RATIO = 1 / 50000;
 
-function floatPrecision(svg) {
+// The larger side of the drawing, in its own units; NaN when the root has no size.
+function drawingSize(svg) {
 	const root = svg.match(/<svg\b[^>]*>/)?.[0] ?? '';
 	const viewBox = root
 		.match(/\bviewBox="([^"]+)"/)?.[1]
 		.trim()
 		.split(/[\s,]+/)
 		.map(Number);
-	const size =
-		viewBox?.length === 4 ? Math.max(viewBox[2], viewBox[3]) : Number.parseFloat(root.match(/\bwidth="([\d.]+)/)?.[1]);
+	return viewBox?.length === 4
+		? Math.max(viewBox[2], viewBox[3])
+		: Number.parseFloat(root.match(/\bwidth="([\d.]+)/)?.[1]);
+}
+
+function floatPrecision(svg) {
+	const size = drawingSize(svg);
 	if (!(size > 0)) return 3; // SVGO's default
 	return Math.max(2, Math.ceil(Math.log10(1 / (size * MAX_STEP_RATIO))));
 }
@@ -63,23 +74,41 @@ const SKIP = [
 	{ reason: 'animated', content: /<animate|<set\b|@keyframes|animation\s*:|<script/i },
 ];
 
-// A background grid exported one dot at a time (small `<circle>`s or arc subpaths): SVGO
+// A background grid exported one dot at a time (small `<circle>`s or round subpaths): SVGO
 // cannot shrink it, a `<pattern>` with one dot can.
-// SVGO packs radii under 1 without a separator: `a.5.5`.
-const ARC_DOT = /a(?:[0-2](?:\.\d+)?|\.\d+)(?:[ ,]|(?=\.))(?:[0-2](?:\.\d+)?|\.\d+)[ ,]0[ ,]1[ ,]?[01]/g;
 const GRID_DOT_LIMIT = 200;
+// A dot's radius is at most this share of the drawing's larger side, so the same grid
+// exported at any scale counts, and the round shapes of a 24-unit icon do not.
+const DOT_RADIUS_RATIO = 1 / 150;
+const FIRST_ARC_RADIUS = /[Aa]\s*([-+]?(?:\d+\.?\d*|\.\d+))/;
+// A round subpath: a moveto, then only arcs and curves, at least one arc. A line in it
+// (`v`, `h`, `l`) makes it something else, such as one dash of a dashed line.
+const ROUND_SUBPATH = /^[Mm][^a-df-zA-DF-Z]*(?:[AaCcSsQqTtZz][^a-df-zA-DF-Z]*)+$/;
 
 function gridDots(svg) {
-	// Circles are counted per radius and fill, so artwork full of small circles that
-	// each have their own gradient (SCADA bolts) does not add up to a grid.
-	const byLook = new Map();
+	const maxR = drawingSize(svg) * DOT_RADIUS_RATIO;
+	if (!(maxR > 0)) return 0;
+	const radii = [];
 	for (const [, attrs] of svg.matchAll(/<circle\b([^>]*)>/g)) {
-		const r = Number(attrs.match(/\sr="([^"]*)"/)?.[1]);
-		if (!(r > 0 && r <= 2)) continue;
-		const look = `${r} ${attrs.match(/\sfill="([^"]*)"/)?.[1] ?? ''}`;
-		byLook.set(look, (byLook.get(look) ?? 0) + 1);
+		// Gradient-filled circles are artwork (SCADA bolts), not grid dots.
+		if (/\sfill="url\(/.test(attrs)) continue;
+		radii.push(Number(attrs.match(/\sr="([^"]*)"/)?.[1]));
 	}
-	return Math.max(0, ...byLook.values()) + (svg.match(ARC_DOT)?.length ?? 0);
+	for (const [, d] of svg.matchAll(/<path\b[^>]*\sd="([^"]*)"/g)) {
+		for (const sub of d.match(/[Mm][^Mm]*/g) ?? []) {
+			if (ROUND_SUBPATH.test(sub)) radii.push(Number(sub.match(FIRST_ARC_RADIUS)?.[1]));
+		}
+	}
+	// The dots of one grid share a size, whatever their colour; round shapes of many
+	// sizes (map markers, chart points) are not a grid. Count the dots within 5% of the
+	// most common radius.
+	const counts = new Map();
+	for (const r of radii) {
+		if (r > 0 && r <= maxR) counts.set(r.toFixed(2), (counts.get(r.toFixed(2)) ?? 0) + 1);
+	}
+	if (!counts.size) return 0;
+	const common = Number([...counts].reduce((a, b) => (b[1] > a[1] ? b : a))[0]);
+	return radii.filter((r) => Math.abs(r - common) <= common * 0.05).length;
 }
 
 function collect(target, out) {
