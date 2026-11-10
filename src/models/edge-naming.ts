@@ -7,7 +7,7 @@
 
 // Relative imports on purpose: `edge-upgrade-instructions.ts` imports this module and
 // is pulled into the Astro config chain, which loads before tsconfig path aliases apply.
-import { EDGE_NEUTRAL_NAMES_FROM_VER, EDGE_PE_BRANCH, EDGE_PE_FULL_VER, EDGE_VER, artifactVersion } from '../data/versions.ts';
+import { EDGE_NEUTRAL_NAMES_FROM_VER, EDGE_PE_FULL_VER, EDGE_VER, artifactVersion } from '../data/versions.ts';
 import { versionAtLeast } from './upgrade-shared.ts';
 
 /**
@@ -108,7 +108,17 @@ export function edgePePkgFile(ext: 'deb' | 'rpm' | 'zip'): string {
 /** `TB_EDGE_NODE_DOCKER_NAME` in the Docker Compose `.env` of the current Edge PE release. */
 export const EDGE_PE_COMPOSE_NODE_NAME = isLegacyCurrent ? 'tb-edge-pe-node' : 'tb-edge-node';
 
-/** Commands that clone the Docker Compose setup of the current Edge PE release and enter it. */
-export const EDGE_PE_COMPOSE_CLONE = isLegacyCurrent
-	? `git clone -b ${EDGE_PE_BRANCH} https://github.com/thingsboard/thingsboard-edge-pe-docker-compose.git tb-edge-pe-docker-compose --depth 1\ncd tb-edge-pe-docker-compose`
-	: `git clone -b ${EDGE_PE_BRANCH} https://github.com/thingsboard/thingsboard-edge.git --depth 1\ncd thingsboard-edge/docker-edge`;
+/** `TB_EDGE_VERSION` in the Docker Compose `.env`: the image tag of the current Edge PE release. */
+export const EDGE_PE_COMPOSE_VERSION = EDGE_PE_VER;
+
+/** Cluster node image of the current Edge PE release, e.g. "thingsboard/tb-edge-node:4.4.0.2EDGE". */
+export const EDGE_PE_NODE_IMAGE = `thingsboard/${EDGE_PE_COMPOSE_NODE_NAME}:${EDGE_PE_VER}`;
+
+/**
+ * Commands that clone the Docker Compose cluster setup of the current Edge PE release and enter it.
+ * Edge 4.4 has no `docker-edge` folder in `thingsboard-edge` (its release branches come from the PE
+ * repository), so the cluster setup still lives in `thingsboard-edge-pe-docker-compose`, which has
+ * only a `master` branch. The `.env` there selects the image (`TB_EDGE_NODE_DOCKER_NAME`, `TB_EDGE_VERSION`).
+ */
+export const EDGE_PE_COMPOSE_CLONE =
+	'git clone --depth 1 https://github.com/thingsboard/thingsboard-edge-pe-docker-compose.git\ncd thingsboard-edge-pe-docker-compose';
