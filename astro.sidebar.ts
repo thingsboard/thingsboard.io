@@ -285,7 +285,11 @@ const guideItems = (prefix: string, { isPE = false } = {}) => {
 			{
 				label: 'Infrastructure',
 				collapsed: true,
-				items: [`${prefix}/security/domains`, `${prefix}/security/self-signed-ecc`],
+				items: [
+					`${prefix}/security/domains`,
+					`${prefix}/security/self-signed-ecc`,
+					`${prefix}/security/web-security-hardening`,
+				],
 			},
 			{
 				label: 'Administration',
