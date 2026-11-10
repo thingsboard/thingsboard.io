@@ -294,6 +294,8 @@ const guideItems = (prefix: string, { isPE = false } = {}) => {
 					{ label: 'Security Settings', slug: `${prefix}/security` },
 					`${prefix}/security/audit-log`,
 					`${prefix}/security/secrets-storage`,
+					// SBOMs are published from 4.4.1, which only the PE docs describe.
+					...(isPE ? [`${prefix}/security/sbom`] : []),
 				],
 			},
 			...(isPE ? [{
