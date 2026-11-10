@@ -228,7 +228,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => {
 		],
 	},
 	{
-		label: 'Mobile App Center',
+		label: isPE ? 'Mobile Apps' : 'Mobile App Center',
 		collapsed: true,
 		items: [
 			{ label: 'Overview', slug: `${prefix}/mobile-app-center` },
@@ -285,7 +285,11 @@ const guideItems = (prefix: string, { isPE = false } = {}) => {
 			{
 				label: 'Infrastructure',
 				collapsed: true,
-				items: [`${prefix}/security/domains`, `${prefix}/security/self-signed-ecc`],
+				items: [
+					`${prefix}/security/domains`,
+					`${prefix}/security/self-signed-ecc`,
+					`${prefix}/security/web-security-hardening`,
+				],
 			},
 			{
 				label: 'Administration',
@@ -2108,7 +2112,7 @@ export const paasSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'Mobile App Center',
+				label: 'Mobile Apps',
 				collapsed: true,
 				items: [
 					{ label: 'Overview', slug: 'docs/paas/user-guide/mobile-app-center' },
@@ -2520,7 +2524,7 @@ export const paasEuSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'Mobile App Center',
+				label: 'Mobile Apps',
 				collapsed: true,
 				items: [
 					{ label: 'Overview', slug: 'docs/paas/eu/user-guide/mobile-app-center' },

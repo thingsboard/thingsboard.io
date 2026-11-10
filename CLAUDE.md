@@ -41,7 +41,7 @@ pnpm optimize:svg         # Minify SVGs in place with SVGO (src/assets + public,
 
 **Build policy:** Before running any build, always ask the user: "Run `pnpm build:fast` to verify, or skip?"
 
-**SVG policy:** When a change adds or replaces `.svg` files under `src/assets/` or `public/`, offer to run `pnpm optimize:svg <those files>` before committing. Run it before `pnpm generate:nav-sprite` when the files are mega-menu icons (`src/assets/images/landings/nav/`). The script leaves downloads (`public/resources/`), `{{…}}` templates and animated SVGs untouched.
+**SVG policy:** When a change adds or replaces `.svg` files under `src/assets/` or `public/`, offer to run `pnpm optimize:svg <those files>` before committing. Run it before `pnpm generate:nav-sprite` when the files are mega-menu icons (`src/assets/images/landings/nav/`). The script leaves downloads (`public/resources/`), `{{…}}` templates and animated SVGs untouched. It also warns when a file draws a background grid one dot at a time; redraw that grid as a single-dot `<pattern>` filling one rect, as the schemas in `src/assets/schemas/` do.
 
 ## Architecture
 
