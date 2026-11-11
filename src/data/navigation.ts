@@ -90,7 +90,7 @@ export const productsSubmenu: SubMenu = {
 			items: [
 				{
 					href: '/docs/cli/',
-					icon: '/src/assets/images/landings/nav/cli-icon.svg',
+					badge: 'cli',
 					heading: 'ThingsBoard CLI',
 					description: 'Build IoT solutions with AI agents',
 					linkClass: 'cli-lnk',
@@ -397,7 +397,7 @@ export const docsSubmenu: SubMenu = {
 			items: [
 				{
 					href: '/docs/cli/',
-					icon: '/src/assets/images/landings/nav/cli-icon.svg',
+					badge: 'cli',
 					heading: 'ThingsBoard CLI',
 					description: 'Build IoT solutions with AI agents',
 					linkClass: 'cli-lnk',

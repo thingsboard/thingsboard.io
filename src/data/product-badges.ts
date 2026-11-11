@@ -12,6 +12,7 @@ const BADGE_FILE_PREFIX = '/src/assets/images/landings/nav/badge-';
 export const MENU_BADGES = {
 	thingsboard: { fill: 'solid', hue: '#178649', glyph: `${BADGE_FILE_PREFIX}thingsboard.svg`, size: 20 },
 	cloud: { fill: 'solid', hue: '#3d50f5', glyph: `${BADGE_FILE_PREFIX}thingsboard.svg`, size: 20 },
+	cli: { fill: 'solid', hue: '#7c5cf0', glyph: `${BADGE_FILE_PREFIX}cli.svg`, size: 20 },
 	edge: { fill: 'wash', hue: '#2dd4bf', glyph: `${BADGE_FILE_PREFIX}edge.svg`, size: 23 },
 	gateway: { fill: 'wash', hue: '#a78bfa', glyph: `${BADGE_FILE_PREFIX}gateway.svg`, size: 23 },
 	tbmq: { fill: 'wash', hue: '#4ade80', glyph: `${BADGE_FILE_PREFIX}tbmq.svg`, size: 26 },
