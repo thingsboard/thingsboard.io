@@ -1,0 +1,177 @@
+import DocLink from '@components/DocLink.astro';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+ThingsBoard ships with a permissive cross-origin resource sharing (CORS) policy and with the X-Frame-Options and Content-Security-Policy headers turned off. These defaults keep dashboards embedded in iframes, multi-domain deployments, and custom widgets working without extra configuration. If your security policy or an external audit requires stricter settings, use the environment variables on this page to restrict cross-origin access and enable browser security headers.
+
+<Aside type="caution">
+  Test every change on a staging instance first. A restrictive policy can block dashboards embedded on other sites, custom widgets, and browser applications that call the REST API from another domain.
+</Aside>
+
+## Restrict cross-origin requests
+
+The CORS policy applies to the REST API (`/api/**`). By default, ThingsBoard accepts cross-origin requests from any origin and responds with `Access-Control-Allow-Credentials: true`. Security scanners can report this configuration as "arbitrary origin trusted".
+
+| Variable | Default | Description |
+|---|---|---|
+| `TB_CORS_ALLOWED_ORIGIN_PATTERNS` | `*` | Comma-separated list of origins allowed to call the REST API. `*` allows any origin. |
+| `TB_CORS_ALLOWED_METHODS` | `*` | Comma-separated list of allowed HTTP methods. |
+| `TB_CORS_ALLOWED_HEADERS` | `*` | Comma-separated list of allowed request headers. |
+| `TB_CORS_MAX_AGE` | `1800` | How long, in seconds, browsers cache the response to a preflight request. |
+| `TB_CORS_ALLOW_CREDENTIALS` | `true` | Whether cross-origin requests can include credentials. |
+
+To restrict access, set `TB_CORS_ALLOWED_ORIGIN_PATTERNS` to the origins you trust. Include the public address of your ThingsBoard instance and every external site that calls the REST API from a browser:
+
+```bash
+TB_CORS_ALLOWED_ORIGIN_PATTERNS=https://iot.example.com,https://portal.example.com
+```
+
+Each origin consists of a scheme, a host, and an optional port, like `https://iot.example.com` or `http://192.168.1.10:8080`. ThingsBoard rejects browser requests from any other origin with `403 Forbidden`. Requests without an `Origin` header, like scripts that call the REST API from a server, are not affected.
+
+## Enable HTTP security headers
+
+ThingsBoard can add four security headers to its HTTP responses. Two of them are enabled by default. The other two are disabled because they can block iframe embedding and custom widget content.
+
+| Header | Enabled by default | Variables |
+|---|---|---|
+| `X-Content-Type-Options: nosniff` | Yes | `SECURITY_HEADERS_X_CONTENT_TYPE_OPTIONS_ENABLED` |
+| `Referrer-Policy` | Yes | `SECURITY_HEADERS_REFERRER_POLICY_ENABLED`, `SECURITY_HEADERS_REFERRER_POLICY_VALUE` (default `strict-origin-when-cross-origin`) |
+| `X-Frame-Options` | No | `SECURITY_HEADERS_X_FRAME_OPTIONS_ENABLED`, `SECURITY_HEADERS_X_FRAME_OPTIONS_VALUE` (default `SAMEORIGIN`) |
+| `Content-Security-Policy` | No | `SECURITY_HEADERS_CONTENT_SECURITY_POLICY_ENABLED`, `SECURITY_HEADERS_CONTENT_SECURITY_POLICY_VALUE`, `SECURITY_HEADERS_CONTENT_SECURITY_POLICY_REPORT_ONLY` |
+
+`X-Content-Type-Options` stops browsers from guessing the content type of a response. `Referrer-Policy` controls how much of the page URL the browser sends to other sites. The default `strict-origin-when-cross-origin` value matches the browser's built-in behavior, so keeping both headers enabled does not change how ThingsBoard works.
+
+### X-Frame-Options
+
+X-Frame-Options protects against clickjacking by controlling which pages can load ThingsBoard in an iframe. It accepts two values:
+
+- **SAMEORIGIN:** Allows iframes only on pages from the same origin (scheme, host, and port) as ThingsBoard.
+- **DENY:** Blocks all iframe embedding, including dashboards embedded on your own sites.
+
+ThingsBoard treats any other value as `SAMEORIGIN` and logs a warning.
+
+```bash
+SECURITY_HEADERS_X_FRAME_OPTIONS_ENABLED=true
+SECURITY_HEADERS_X_FRAME_OPTIONS_VALUE=SAMEORIGIN
+```
+
+<Aside type="caution">
+  If you embed ThingsBoard dashboards on a site with a different origin, keep X-Frame-Options disabled. Both values block that iframe.
+</Aside>
+
+### Content-Security-Policy
+
+Content-Security-Policy (CSP) restricts which scripts, styles, images, and other resources the browser loads. This mitigates cross-site scripting and data injection attacks. When you enable CSP without setting `SECURITY_HEADERS_CONTENT_SECURITY_POLICY_VALUE`, ThingsBoard uses a built-in policy that covers OpenStreetMap and ArcGIS maps, solution template previews, WebSocket telemetry, and chart Web Workers:
+
+```text wrap
+default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://img.thingsboard.io https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://*.arcgis.com; font-src 'self' data:; connect-src 'self' ws: wss: https://*.arcgis.com https://*.arcgisonline.com; worker-src 'self' blob:; frame-ancestors 'self'
+```
+
+Adjust the policy to match your dashboards:
+
+- **Google Maps:** Append `https://maps.googleapis.com https://maps.gstatic.com` to `script-src`. The built-in policy includes no Google domains in any directive, so the map can also need Google domains in `img-src` and `connect-src`. Use the report-only rollout below to find the full list.
+- **Embedding on other sites:** The `frame-ancestors 'self'` directive blocks dashboards embedded on a site with a different origin. Add the embedding sites to `frame-ancestors`.
+- **Custom widgets:** A stricter `script-src` like `'self'` alone breaks HTML Card widgets with inline JavaScript, custom widgets with inline scripts or styles, and widgets that load external images, fonts, or scripts.
+
+`SECURITY_HEADERS_CONTENT_SECURITY_POLICY_VALUE` replaces the whole built-in policy, so copy the built-in value and change only the directives you need.
+
+To roll out CSP without breaking dashboards, test it in report-only mode first:
+
+<Steps>
+1. Set `SECURITY_HEADERS_CONTENT_SECURITY_POLICY_ENABLED=true` and `SECURITY_HEADERS_CONTENT_SECURITY_POLICY_REPORT_ONLY=true`, then restart ThingsBoard. The browser reports policy violations without blocking anything.
+
+2. Open your dashboards and check the browser console for CSP violation messages.
+
+3. Add the blocked sources to `SECURITY_HEADERS_CONTENT_SECURITY_POLICY_VALUE` and restart ThingsBoard.
+
+4. Set `SECURITY_HEADERS_CONTENT_SECURITY_POLICY_REPORT_ONLY=false` and restart ThingsBoard. The browser now enforces the policy.
+</Steps>
+
+## Microservice deployments
+
+In a microservice deployment, set these variables on two services:
+
+- **tb-node:** Applies the CORS policy and adds the security headers to REST API responses. Set `TB_CORS_*` and `SECURITY_HEADERS_*` on this service.
+- **web-ui:** Serves the web interface and adds the security headers to its own responses. Set the same `SECURITY_HEADERS_*` variables on this service. The web-ui service has no CORS settings.
+
+The web-ui service handles two settings differently from tb-node:
+
+- **CSP needs an explicit value:** When you set `SECURITY_HEADERS_CONTENT_SECURITY_POLICY_ENABLED=true` on web-ui, also set `SECURITY_HEADERS_CONTENT_SECURITY_POLICY_VALUE` on web-ui. The web-ui service has no built-in policy, so without a value it sends no Content-Security-Policy header.
+- **X-Frame-Options value is not checked:** With `SECURITY_HEADERS_X_FRAME_OPTIONS_ENABLED=true`, web-ui sends `SECURITY_HEADERS_X_FRAME_OPTIONS_VALUE` (default `SAMEORIGIN`) unchanged. Unlike tb-node, it does not replace other values with `SAMEORIGIN`, so use `DENY` or `SAMEORIGIN` only.
+
+## Apply the configuration
+
+Set the variables the same way as any other ThingsBoard configuration parameter. See <DocLink product={props.product} path="reference/configuration/how-to-change-config">How to change configuration</DocLink> for all deployment types, including Windows and Kubernetes.
+
+<Tabs>
+  <TabItem label="Linux">
+    Add the variables to `/usr/share/thingsboard/conf/thingsboard.conf`:
+
+    ```bash
+    export TB_CORS_ALLOWED_ORIGIN_PATTERNS=https://iot.example.com,https://portal.example.com
+    export SECURITY_HEADERS_X_FRAME_OPTIONS_ENABLED=true
+    ```
+
+    Restart ThingsBoard:
+
+    ```bash
+    sudo systemctl restart thingsboard
+    ```
+  </TabItem>
+  <TabItem label="Docker Compose">
+    Add the variables to the `environment` section of the ThingsBoard service in `docker-compose.yml`:
+
+    ```yaml
+    environment:
+      TB_CORS_ALLOWED_ORIGIN_PATTERNS: "https://iot.example.com,https://portal.example.com"
+      SECURITY_HEADERS_X_FRAME_OPTIONS_ENABLED: "true"
+    ```
+
+    Apply the updated configuration:
+
+    ```bash
+    docker compose up -d
+    ```
+  </TabItem>
+</Tabs>
+
+## Verify the configuration
+
+Replace `https://iot.example.com` with the address of your ThingsBoard instance.
+
+<Steps>
+1. Send a request from an untrusted origin:
+
+   ```bash
+   curl -s -o /dev/null -D - -H "Origin: https://untrusted.example" https://iot.example.com/api/noauth/userPasswordPolicy
+   ```
+
+   The response status is `403` and the response has no `Access-Control-Allow-Origin` header.
+
+2. Send the same request from an external origin in `TB_CORS_ALLOWED_ORIGIN_PATTERNS`, like `https://portal.example.com`. Do not use the address of your ThingsBoard instance: ThingsBoard usually treats a request from its own address as same-origin and adds no CORS headers. If you allowed only the address of your ThingsBoard instance, skip this step.
+
+   ```bash
+   curl -s -o /dev/null -D - -H "Origin: https://portal.example.com" https://iot.example.com/api/noauth/userPasswordPolicy
+   ```
+
+   The response contains `Access-Control-Allow-Origin: https://portal.example.com`.
+
+3. Check the security headers on the login page:
+
+   ```bash
+   curl -s -o /dev/null -D - https://iot.example.com/
+   ```
+
+   The response contains every header you enabled.
+
+4. Log in to ThingsBoard and open your dashboards, including dashboards embedded on other sites. Confirm that they load without errors.
+</Steps>
+
+## Earlier versions
+
+The `TB_CORS_*` and `SECURITY_HEADERS_*` variables are available in ThingsBoard 4.2.2.1, 4.3.1.1, and later. In earlier versions, `thingsboard.yml` sets a CORS policy that allows any origin, with no environment variable to override it, and ThingsBoard does not send these security headers. To restrict CORS, upgrade ThingsBoard or edit the `spring.mvc.cors` section of `thingsboard.yml`. To add the security headers, upgrade ThingsBoard or set them on your reverse proxy.
+
+## See also
+
+- <DocLink product={props.product} path="reference/http-api/getting-connected/#https-tls">HTTPS (TLS) configuration</DocLink>
+- <DocLink product={props.product} path="user-guide/security/domains">Domains</DocLink>
+- <DocLink product={props.product} path="reference/configuration/core-rule-engine-config">Configuration reference</DocLink>
