@@ -2,24 +2,12 @@
 export interface MenuBadge {
 	/**
 	 * `solid`: a tile filled with `hue` and a white glyph. `wash`: a light tint of `hue`.
+	 * `waves` (the CLI): slow bands of the AI mark's colors behind a black or white glyph; `hue` is not used.
 	 * `glass` (TEMP, Mobile only): an app icon's pale, top-lit tile; `hue` is the glyph's color on a light
 	 * background, and the glyph is white on a dark one.
 	 */
-	fill: 'solid' | 'wash' | 'glass';
-	/** The product's color. A `wash` color is picked for dark backgrounds. */
+	fill: 'solid' | 'wash' | 'waves' | 'glass';
 	hue: string;
-	/** `wash` only: the color on a light background. Without it, `hue` is darkened there. */
-	hueLight?: string;
-	/**
-	 * `wash` only: the glyph is black on a light background and white on a dark one, and the hue colors
-	 * the tile alone.
-	 */
-	mono?: boolean;
-	/**
-	 * `wash` only: the tile runs the AI mark's colors while it is on screen (`badge-cycle` in
-	 * `styles/_badge.scss`). Under reduced motion it keeps `hue` and `hueLight`.
-	 */
-	cycle?: boolean;
 	glyph: string;
 	/** The glyph's width in px on a 32px tile. The menu and the footer scale it to their 40px tiles. */
 	size: number;
@@ -31,17 +19,8 @@ export const MENU_BADGES = {
 	// TEMP: the logomark at 22.4, 70% of its tile, on `thingsboard`, `cloud` and `mobile`. It was 20, 62.5%.
 	thingsboard: { fill: 'solid', hue: '#178649', glyph: `${BADGE_FILE_PREFIX}thingsboard.svg`, size: 22.4 },
 	cloud: { fill: 'solid', hue: '#3d50f5', glyph: `${BADGE_FILE_PREFIX}thingsboard.svg`, size: 22.4 },
-	// The CLI's own glyph, a terminal window cropped to its outline, in black or white: an AI product, its
-	// tile takes the AI mark's colors, which a colored glyph could not follow and stay readable.
-	cli: {
-		fill: 'wash',
-		hue: '#b9a6ff',
-		hueLight: '#7c5cf0',
-		mono: true,
-		cycle: true,
-		glyph: `${BADGE_FILE_PREFIX}cli.svg`,
-		size: 21,
-	},
+	// The CLI's own glyph, a terminal window cropped to its outline.
+	cli: { fill: 'waves', hue: '#7c5cf0', glyph: `${BADGE_FILE_PREFIX}cli.svg`, size: 21 },
 	edge: { fill: 'wash', hue: '#2dd4bf', glyph: `${BADGE_FILE_PREFIX}edge.svg`, size: 23 },
 	gateway: { fill: 'wash', hue: '#a78bfa', glyph: `${BADGE_FILE_PREFIX}gateway.svg`, size: 23 },
 	tbmq: { fill: 'wash', hue: '#4ade80', glyph: `${BADGE_FILE_PREFIX}tbmq.svg`, size: 26 },
