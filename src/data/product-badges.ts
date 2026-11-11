@@ -11,8 +11,9 @@ export interface MenuBadge {
 	/** `wash` only: the color on a light background. Without it, `hue` is darkened there. */
 	hueLight?: string;
 	/**
-	 * `wash` only, in the menu: the badge runs the AI mark's hue cycle while its panel is shown. Under
-	 * reduced motion, and in the footer, it keeps `hue` and `hueLight`.
+	 * `wash` only, in the menu: the badge drifts through a few neighbouring colors while its panel is
+	 * shown (`sm-badge-hues` in `SiteMenu`). Under reduced motion, and in the footer, it keeps `hue` and
+	 * `hueLight`.
 	 */
 	cycle?: boolean;
 	glyph: string;
@@ -26,14 +27,14 @@ export const MENU_BADGES = {
 	// TEMP: the logomark at 22.4, 70% of its tile, on `thingsboard`, `cloud` and `mobile`. It was 20, 62.5%.
 	thingsboard: { fill: 'solid', hue: '#178649', glyph: `${BADGE_FILE_PREFIX}thingsboard.svg`, size: 22.4 },
 	cloud: { fill: 'solid', hue: '#3d50f5', glyph: `${BADGE_FILE_PREFIX}thingsboard.svg`, size: 22.4 },
-	// The prompt is drawn inside a padded box, so the box is larger than a logo's to look the same size.
+	// The CLI's own glyph, a terminal window cropped to its outline, so it is sized like the logomark.
 	cli: {
 		fill: 'wash',
 		hue: '#b9a6ff',
 		hueLight: '#7c5cf0',
 		cycle: true,
 		glyph: `${BADGE_FILE_PREFIX}cli.svg`,
-		size: 24,
+		size: 21,
 	},
 	edge: { fill: 'wash', hue: '#2dd4bf', glyph: `${BADGE_FILE_PREFIX}edge.svg`, size: 23 },
 	gateway: { fill: 'wash', hue: '#a78bfa', glyph: `${BADGE_FILE_PREFIX}gateway.svg`, size: 23 },
