@@ -13,7 +13,7 @@ import { versionAtLeast } from './upgrade-shared.ts';
 /**
  * True for Edge PE releases published under PE names: `thingsboard/tb-edge-pe` images
  * tagged `<ver>EDGEPE`, `tb-edge-<ver>pe` packages on dist.thingsboard.io, the
- * `thingsboard-edge-pe-docker-compose` setup and the "Edge PE" product name. Accepts
+ * `thingsboard-edge-docker-compose` setup and the "Edge PE" product name. Accepts
  * family labels such as `4.3.1.x`.
  */
 function isLegacyEdgePe(isPE: boolean, version: string): boolean {
@@ -117,8 +117,8 @@ export const EDGE_PE_NODE_IMAGE = `thingsboard/${EDGE_PE_COMPOSE_NODE_NAME}:${ED
 /**
  * Commands that clone the Docker Compose cluster setup of the current Edge PE release and enter it.
  * Edge 4.4 has no `docker-edge` folder in `thingsboard-edge` (its release branches come from the PE
- * repository), so the cluster setup still lives in `thingsboard-edge-pe-docker-compose`, which has
+ * repository), so the cluster setup still lives in `thingsboard-edge-docker-compose`, which has
  * only a `master` branch. The `.env` there selects the image (`TB_EDGE_NODE_DOCKER_NAME`, `TB_EDGE_VERSION`).
  */
 export const EDGE_PE_COMPOSE_CLONE =
-	'git clone --depth 1 https://github.com/thingsboard/thingsboard-edge-pe-docker-compose.git\ncd thingsboard-edge-pe-docker-compose';
+	'git clone --depth 1 https://github.com/thingsboard/thingsboard-edge-docker-compose.git\ncd thingsboard-edge-docker-compose';
