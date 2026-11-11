@@ -9,6 +9,11 @@ export interface MenuBadge {
 	hue: string;
 	/** `wash` only: the color on a light background. Without it, `hue` is darkened there. */
 	hueLight?: string;
+	/**
+	 * `wash` only, in the menu: the badge runs the AI mark's hue cycle while its panel is shown. Under
+	 * reduced motion, and in the footer, it keeps `hue` and `hueLight`.
+	 */
+	cycle?: boolean;
 	glyph: string;
 	/** The glyph's width in px on a 32px tile; `badgeGlyphSize` scales it to other tiles. */
 	size: number;
@@ -34,7 +39,14 @@ export const MENU_BADGES = {
 		glyph: `${BADGE_FILE_PREFIX}thingsboard.svg`,
 		size: LOGOMARK_SIZE,
 	},
-	cli: { fill: 'wash', hue: '#b9a6ff', hueLight: '#7c5cf0', glyph: `${BADGE_FILE_PREFIX}cli.svg`, size: 20 },
+	cli: {
+		fill: 'wash',
+		hue: '#b9a6ff',
+		hueLight: '#7c5cf0',
+		cycle: true,
+		glyph: `${BADGE_FILE_PREFIX}cli.svg`,
+		size: 20,
+	},
 	edge: { fill: 'wash', hue: '#2dd4bf', glyph: `${BADGE_FILE_PREFIX}edge.svg`, size: 23 },
 	gateway: { fill: 'wash', hue: '#a78bfa', glyph: `${BADGE_FILE_PREFIX}gateway.svg`, size: 23 },
 	tbmq: { fill: 'wash', hue: '#4ade80', glyph: `${BADGE_FILE_PREFIX}tbmq.svg`, size: 26 },
