@@ -39,8 +39,8 @@ export interface SubMenuGroup {
 
 export interface SubMenu {
 	id: string;
-	/** Icon size in px; 24 when omitted. */
-	iconSize?: 24 | 32;
+	/** Icon size in px; 24 when omitted. 40 matches a link's name and description, two lines. */
+	iconSize?: 24 | 40;
 	groups: SubMenuGroup[];
 	/** Other paths (and the pages below them) that mark this section as current; see `inSection`. */
 	owns?: string[];
@@ -61,7 +61,7 @@ export const mainNavItems: NavItem[] = [
 // Products submenu
 export const productsSubmenu: SubMenu = {
 	id: 'nav-products',
-	iconSize: 32,
+	iconSize: 40,
 	owns: ['/products/', '/installations/'],
 	groups: [
 		{
@@ -368,7 +368,7 @@ export const companySubmenu: SubMenu = {
 // Docs submenu
 export const docsSubmenu: SubMenu = {
 	id: 'nav-docs',
-	iconSize: 32,
+	iconSize: 40,
 	owns: ['/docs/'],
 	groups: [
 		{
