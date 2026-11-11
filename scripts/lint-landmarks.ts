@@ -1,5 +1,5 @@
 /**
- * Checks two invariants that are invisible when broken — the page builds,
+ * Checks three invariants that are invisible when broken — the page builds,
  * typechecks, lints and visually renders fine — in the built output.
  *
  * One <main> per page: BaseLayout renders through <StarlightPage>, which emits
@@ -12,6 +12,12 @@
  * nothing where the eye sees an icon), and no cell is self-closed (the source
  * of the "Stray end tag" validator error). Scoped to marketing pages — docs
  * tables are Markdown-authored and out of scope.
+ *
+ * Attribution on sign-up links: every page with the site chrome that links to
+ * a Cloud or License Portal sign-up entry loads the script of UtmTracker.astro,
+ * which adds the visitor's campaign to those links. The tag sits in a slot shared by all
+ * pages (starlight/SkipLink.astro); docs pages once lost it when the component
+ * that held it was rewritten for something else, and nothing reported it.
  *
  * Usage:
  *   pnpm lint:landmarks          (after a build)
@@ -38,6 +44,18 @@ const TABLE_PAGES: { page: string; allowEmpty?: number }[] = [
 	// own duration, so a blank carries no value a reader loses.
 	{ page: 'services/development-services', allowEmpty: 49 },
 ];
+
+/** A link UtmTracker.astro patches: the root, /signup or /login of a Cloud region or
+ *  the License Portal. Keep in step with SIGN_UP_ORIGINS and SIGN_UP_PATHS there. */
+const SIGN_UP_LINK =
+	/href="https:\/\/(?:(?:eu\.)?thingsboard\.cloud|license\.thingsboard\.io)(?:\/(?:signup|login)?\/?)?(?:[?#][^"]*)?"/;
+
+/** How Astro names the bundled script of UtmTracker.astro in a built page. */
+const UTM_SCRIPT = 'UtmTracker.astro_astro_type_script';
+
+/** Starlight puts data-theme on <html>. Legal pages (LegalLayout) render without the
+ *  site chrome, cookie notice and tags on purpose, so their links are left alone. */
+const SITE_CHROME = /<html[^>]*\sdata-theme=/;
 
 function walkHtml(dir: string): string[] {
 	const files: string[] = [];
@@ -76,6 +94,8 @@ try {
 const pages = walkHtml(ROOT);
 let mainOk = 0;
 let stubs = 0;
+let signUpPages = 0;
+const noAttribution: string[] = [];
 for (const page of pages) {
 	const html = stripComments(readFileSync(page, 'utf-8'));
 	// Astro emits redirect entries as bare meta-refresh stubs with no layout —
@@ -87,6 +107,20 @@ for (const page of pages) {
 	const mains = html.match(/<main[\s>]/g)?.length ?? 0;
 	if (mains === 1) mainOk += 1;
 	else fail(`${relative(ROOT, page)}: ${mains} <main> landmarks (want exactly 1)`);
+
+	if (SITE_CHROME.test(html) && SIGN_UP_LINK.test(html)) {
+		signUpPages += 1;
+		if (!html.includes(UTM_SCRIPT)) noAttribution.push(relative(ROOT, page));
+	}
+}
+
+// ── attribution on sign-up links ────────────────────────────────────────────
+if (noAttribution.length > 0) {
+	fail(
+		`${noAttribution.length} of ${signUpPages} page(s) with a sign-up link do not load the UTM script, ` +
+			`e.g. ${noAttribution.slice(0, 5).join(', ')}` +
+			(noAttribution.length === signUpPages ? ' — none does, so the script may be built under a new name' : '')
+	);
 }
 
 // ── table integrity on the marketing pages ──────────────────────────────────
@@ -134,11 +168,14 @@ Error: the invariant(s) above no longer hold. A second <main> usually means a
 page template still declares its own landmark — Starlight already provides
 one, so the page element should be a <div>. An empty cell usually means an
 icon lost its visually hidden text — render values through DataTableValue, or
-add a <span class="visually-hidden"> beside the icon.`);
+add a <span class="visually-hidden"> beside the icon. A sign-up link without
+the UTM script usually means <UtmTracker /> left starlight/SkipLink.astro, or
+the page uses a layout that does not render Starlight's chrome.`);
 	process.exit(1);
 }
 
 console.log(
 	`✓ one <main> on ${mainOk}/${pages.length - stubs} pages (${stubs} redirect stubs exempt); ` +
-		`table contract holds on ${TABLE_PAGES.length} marketing pages.`
+		`table contract holds on ${TABLE_PAGES.length} marketing pages; ` +
+		`the UTM script is on all ${signUpPages} pages with a sign-up link.`
 );

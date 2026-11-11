@@ -140,9 +140,12 @@ export function guardSubmit(form: HTMLFormElement, fields: readonly GuardedField
 	});
 }
 
-// Fills the utm_*, client_id and fpr inputs now and again on every consent change; returns the first fill
-// for the dataLayer event.
+// Fills the utm_*, client_id and fpr inputs now, on every consent change and once more at submit: the GA cookie
+// behind client_id appears only after the tags load, later than the first two. Returns the first fill for the
+// dataLayer event.
 export function bindTrackingFields(form: HTMLFormElement): Record<string, string> {
-	onConsentChange(() => fillTrackingFields(form));
-	return fillTrackingFields(form);
+	const fill = () => fillTrackingFields(form);
+	onConsentChange(fill);
+	form.addEventListener('submit', fill);
+	return fill();
 }

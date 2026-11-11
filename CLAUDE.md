@@ -29,7 +29,7 @@ pnpm lint:slugcheck   # Validate slugs match across languages
 pnpm lint:steps       # Catch <Steps> lists inside JSX {…} blocks (Markdown not parsed there)
 pnpm lint:redirects   # Detect redirect chains in the redirect data
 pnpm lint:dualrender  # Validate IoT Hub server/client card render parity (needs a build)
-pnpm lint:landmarks   # One <main> per page + marketing table integrity (needs a build)
+pnpm lint:landmarks   # One <main> per page, marketing table integrity, UTM script on pages with sign-up links (needs a build)
 pnpm format           # Format with Prettier
 
 # Generators
@@ -283,7 +283,7 @@ GitHub Actions runs: `astro check`, `eslint`, `slugcheck`.
 
 `lint:dualrender` also needs a build and is **not wired into any pipeline yet** — run `pnpm lint:dualrender` by hand after a build when touching IoT Hub listing cards, their clone templates, or `iot-hub-listing-card-bind.ts`. It checks that the server render and the client-cloned render of a card still agree; breaking that is silent, since the page builds, typechecks and lints clean and only renders wrong once results come back from the API.
 
-`lint:landmarks` also needs a build and is not wired into a pipeline yet — run `pnpm lint:landmarks` by hand after a build when adding pages or layouts, or touching the marketing comparison tables. It asserts exactly one `<main>` per built page (Starlight emits one; a page-level `<main>` is always a nested duplicate) and that the marketing tables keep captions and carry every value as text. Both defects are silent: the page builds, typechecks and lints clean.
+`lint:landmarks` also needs a build and is not wired into a pipeline yet — run `pnpm lint:landmarks` by hand after a build when adding pages or layouts, touching the marketing comparison tables, or moving the site-wide tags in `starlight/SkipLink.astro`. It asserts exactly one `<main>` per built page (Starlight emits one; a page-level `<main>` is always a nested duplicate) that the marketing tables keep captions and carry every value as text, and that every page linking to a Cloud or License Portal sign-up entry loads the `UtmTracker.astro` script (rendered once for all pages in `starlight/SkipLink.astro`). All three defects are silent: the page builds, typechecks and lints clean.
 
 **PR base branch and labels:** pick them by the table in [Which branch and label](CONTRIBUTING.md#which-branch-and-label).
 
