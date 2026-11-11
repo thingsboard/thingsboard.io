@@ -25,6 +25,7 @@
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { isSignUpLink } from '../src/util/sign-up-links.ts';
 
 const ROOT = 'dist';
 
@@ -45,10 +46,16 @@ const TABLE_PAGES: { page: string; allowEmpty?: number }[] = [
 	{ page: 'services/development-services', allowEmpty: 49 },
 ];
 
-/** A link UtmTracker.astro patches: the root, /signup or /login of a Cloud region or
- *  the License Portal. Keep in step with SIGN_UP_ORIGINS and SIGN_UP_PATHS there. */
-const SIGN_UP_LINK =
-	/href="https:\/\/(?:(?:eu\.)?thingsboard\.cloud|license\.thingsboard\.io)(?:\/(?:signup|login)?\/?)?(?:[?#][^"]*)?"/;
+const HTTPS_HREF = /href="(https:\/\/[^"]+)"/g;
+
+/** True when the page has a link UtmTracker.astro patches. Both use the one rule in
+ *  sign-up-links.ts, so a new Cloud region reaches the script and this check together. */
+function hasSignUpLink(html: string): boolean {
+	for (const [, href] of html.matchAll(HTTPS_HREF)) {
+		if (URL.canParse(href) && isSignUpLink(new URL(href))) return true;
+	}
+	return false;
+}
 
 /** How Astro names the bundled script of UtmTracker.astro in a built page. */
 const UTM_SCRIPT = 'UtmTracker.astro_astro_type_script';
@@ -108,7 +115,7 @@ for (const page of pages) {
 	if (mains === 1) mainOk += 1;
 	else fail(`${relative(ROOT, page)}: ${mains} <main> landmarks (want exactly 1)`);
 
-	if (SITE_CHROME.test(html) && SIGN_UP_LINK.test(html)) {
+	if (SITE_CHROME.test(html) && hasSignUpLink(html)) {
 		signUpPages += 1;
 		if (!html.includes(UTM_SCRIPT)) noAttribution.push(relative(ROOT, page));
 	}

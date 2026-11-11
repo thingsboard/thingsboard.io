@@ -84,6 +84,8 @@ Example: `import { foo } from '@util/fetch-utils';` (not `~/util/fetch-utils` or
 
 `~/*` (maps to `./src/*`) still exists for legacy code, but always prefer an `@` alias. SCSS `@use`/`@import` use **relative paths** (e.g., `@use '../../styles/_variables.scss' as *;`); inside `src/styles/` use sibling imports like `@use 'variables' as *;`.
 
+**Exception:** a `src/` file that a Node script in `scripts/` loads (`src/data/redirects.ts`, `src/util/sign-up-links.ts` and what they import) uses relative imports with the extension, e.g. `'./cloud-regions.ts'`. Those scripts run in plain Node, which resolves no aliases. Such a file must also not read `window` while it loads.
+
 ### Starlight Customization
 
 Custom component overrides live in `src/components/starlight/` — these replace default Starlight components (Hero, Sidebar, Footer, Search, etc.).
