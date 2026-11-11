@@ -89,6 +89,8 @@ Run this inside a ThingsBoard project — `tb init` in an empty folder creates o
   </TabItem>
 </Tabs>
 
+`tb extension new` also picks the **edition**: ThingsBoard PE or ThingsBoard Cloud. It asks the server of your active CLI profile, so you normally do not set it. For Java the edition decides which client library the project uses. Pass `--edition PE` or `--edition PaaS` to set it yourself, and change it later with `tb extension set-edition`. When a Java extension is built for another edition than the server, `tb extension server deploy` warns you.
+
 Choose `--name` with care. It is more than the local image name. The same value becomes the **extension name** that `tb extension server deploy` sends to ThingsBoard. It is the name on the **Extensions** page, the default base of the <DocLink product={props.product} path='reference/extensions/architecture#the-slug'>slug</DocLink>, and the name a dashboard widget resolves with `GET /api/extension/slug?name=`. It must be unique in your tenant: a second extension with the same name is refused with `Extension with such name already exists!`.
 
 `tb extension rename` changes the name later, and the next deploy sends the new one. On a deployed extension that is a real change: a dashboard that finds the extension by the old name stops finding it, so `rename` warns you and asks first. The slug keeps its first base, though, so a throwaway name stays in your URLs.
@@ -113,6 +115,119 @@ A project can hold more than one extension: one at the project root (`extension/
 What you get is deliberately empty of business logic: `GET /api/health`, the authentication plumbing, the error contract, the Docker and deploy files, and a test suite that already passes. There is no sample feature to delete before you start.
 
 The starter's README lists the four **auth patterns** — which header each kind of caller sends, and how to write the endpoint for it. Pick one before you write anything; it decides whether your endpoint takes a client argument, and which role check guards it. The full rules the generated code must follow — the REST shape, the `PageData` list format, the shared error body — live in `.claude/extension-conventions.md`, which `tb init` puts in the project.
+
+## Your first endpoint: hello world
+
+Before you build a real feature, add the smallest one. It is two endpoints and about 20 lines of your own code, and it shows the two things every extension does: it answers an HTTP request, and it calls ThingsBoard as the user who sent the request.
+
+| Endpoint | What it does |
+|---|---|
+| `GET /hello` | Answers by itself. It does not call ThingsBoard. |
+| `GET /hello/me` | Asks ThingsBoard who the caller is, with the caller's own credential. |
+
+<Steps>
+
+1. **Add the code.**
+
+   <Tabs defaultTab="java" urlParam="lang">
+     <TabItem label="Java" id="java" icon="tabler:coffee">
+     Create `extension/extension/src/main/java/org/thingsboard/extension/hello/HelloController.java`. Spring finds the controller by itself, so there is nothing to register:
+
+     ```java
+     package org.thingsboard.extension.hello;
+
+     import org.springframework.web.bind.annotation.GetMapping;
+     import org.springframework.web.bind.annotation.RequestMapping;
+     import org.springframework.web.bind.annotation.RestController;
+     import org.thingsboard.client.ThingsboardClient;
+     import org.thingsboard.client.model.User;
+
+     import java.util.Map;
+
+     @RestController
+     @RequestMapping("/hello")
+     public class HelloController {
+
+         @GetMapping
+         public Map<String, String> hello() {
+             return Map.of("message", "Hello from a ThingsBoard extension");
+         }
+
+         // The ThingsboardClient argument carries the caller's credential.
+         @GetMapping("/me")
+         public Map<String, String> helloMe(ThingsboardClient tb) throws Exception {
+             User user = tb.getUser();
+             return Map.of("message", "Hello, " + user.getEmail(), "authority", String.valueOf(user.getAuthority()));
+         }
+     }
+     ```
+     </TabItem>
+     <TabItem label="Python" id="python" icon="tabler:brand-python">
+     Create `extension/app/extension/hello.py`:
+
+     ```python
+     from typing import Annotated
+
+     from fastapi import APIRouter, Depends
+     from tb_pe_client.client import ThingsboardClient
+
+     from app.security import tb_client_dep
+
+     router = APIRouter(prefix="/hello", tags=["hello"])
+
+
+     @router.get("")
+     def hello() -> dict[str, str]:
+         return {"message": "Hello from a ThingsBoard extension"}
+
+
+     @router.get("/me")
+     def hello_me(client: Annotated[ThingsboardClient, Depends(tb_client_dep)]) -> dict[str, str]:
+         # The client carries the caller's credential, so ThingsBoard answers for that user.
+         user = client.auth_controller.get_user()
+         return {"message": f"Hello, {user.email}", "authority": str(user.authority)}
+     ```
+
+     Then add two lines at the end of `extension/app/extension/__init__.py`:
+
+     ```python
+     from app.extension import hello
+
+     router.include_router(hello.router)
+     ```
+     </TabItem>
+   </Tabs>
+
+2. **Build and run it on your machine.**
+
+   ```bash
+   tb extension build
+   tb extension local run -d
+   ```
+
+3. **Call it.** Use an API key of your ThingsBoard user for the second call:
+
+   ```bash
+   curl http://localhost:8090/hello
+   curl -H "X-Authorization: ApiKey $KEY" http://localhost:8090/hello/me
+   ```
+
+   ```json
+   {"message": "Hello from a ThingsBoard extension"}
+   {"message": "Hello, you@example.com", "authority": "TENANT_ADMIN"}
+   ```
+
+   Without the header the second call answers `401`. With a wrong key ThingsBoard refuses the call, and the extension passes that answer on. The extension has no credential of its own.
+
+4. **Stop the container.**
+
+   ```bash
+   tb extension local stop
+   ```
+
+</Steps>
+
+The same code, with a test for each language, ships with the CLI as the `hello-world` example. When this works, you know the whole path from your editor to a running endpoint. The rest of this page builds a real feature the same way, and <DocLink product={props.product} path='reference/extensions/quickstart#complete-example-user-profiles'>Complete example: User Profiles</DocLink> shows a finished one.
 
 ## AI-assisted development (optional)
 
