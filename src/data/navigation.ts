@@ -269,6 +269,8 @@ export const clientsSubmenu: SubMenu = {
 	groups: [
 		{
 			name: 'Case studies',
+			// Two lines of logos, not one tall stack.
+			perColumn: 2,
 			items: [
 				caseStudy('schwarz', 'Schwarz Group', 15, 'schwarz-gruppe.svg'),
 				caseStudy('t-mobile-cz', 'T-Mobile', 15, 't-mobile.svg'),
