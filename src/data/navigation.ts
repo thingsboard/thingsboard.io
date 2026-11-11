@@ -49,7 +49,8 @@ export interface SubMenu {
 // Main navigation items
 export const mainNavItems: NavItem[] = [
 	{ label: 'Products', submenuId: 'nav-products' },
-	{ label: 'Solutions', submenuId: 'nav-solutions' },
+	{ label: 'Use cases', submenuId: 'nav-use-cases' },
+	{ label: 'Clients', submenuId: 'nav-clients' },
 	{ label: 'Services', submenuId: 'nav-services' },
 	{ label: 'Docs', submenuId: 'nav-docs' },
 	{ label: 'Company', submenuId: 'nav-company' },
@@ -177,13 +178,12 @@ function caseStudy(slug: string, heading: string, logoHeight: number, logoFile: 
 	return { href: `/case-studies/${slug}/`, heading, logo, logoHeight };
 }
 
-// Solutions submenu
-export const solutionsSubmenu: SubMenu = {
-	id: 'nav-solutions',
-	owns: ['/use-cases/', '/case-studies/'],
+// Use cases submenu. Its first group has no name: the section's name already says it.
+export const useCasesSubmenu: SubMenu = {
+	id: 'nav-use-cases',
+	owns: ['/use-cases/'],
 	groups: [
 		{
-			name: 'Use cases',
 			perColumn: 5,
 			items: [
 				{
@@ -259,6 +259,14 @@ export const solutionsSubmenu: SubMenu = {
 				},
 			],
 		},
+	],
+};
+
+// Clients submenu: the case studies, then what clients say.
+export const clientsSubmenu: SubMenu = {
+	id: 'nav-clients',
+	owns: ['/case-studies/', '/clients-feedback/'],
+	groups: [
 		{
 			name: 'Case studies',
 			items: [
@@ -269,6 +277,16 @@ export const solutionsSubmenu: SubMenu = {
 				caseStudy('circutor', 'Circutor', 16, 'circutor.svg'),
 			],
 			more: { label: 'All case studies', href: '/case-studies/' },
+		},
+		{
+			name: 'Feedback',
+			items: [
+				{
+					href: '/clients-feedback/',
+					icon: '/src/assets/images/landings/nav/feedback.svg',
+					heading: 'Clients feedback',
+				},
+			],
 		},
 	],
 };
@@ -281,7 +299,7 @@ export const companySubmenu: SubMenu = {
 		{
 			// `small-link` has no styles; it is an analytics hook, like the products' `-lnk` classes.
 			name: 'Company',
-			perColumn: 4,
+			perColumn: 3,
 			items: [
 				{
 					href: '/company/',
@@ -293,12 +311,6 @@ export const companySubmenu: SubMenu = {
 					href: '/trust-center/',
 					icon: '/src/assets/images/landings/nav/trust-s-icon.svg',
 					heading: 'Trust Center',
-					linkClass: 'small-link',
-				},
-				{
-					href: '/clients-feedback/',
-					icon: '/src/assets/images/landings/nav/feedback.svg',
-					heading: 'Clients feedback',
 					linkClass: 'small-link',
 				},
 				{
@@ -431,4 +443,11 @@ export const docsSubmenu: SubMenu = {
 };
 
 // All submenus
-export const allSubmenus: SubMenu[] = [productsSubmenu, servicesSubmenu, solutionsSubmenu, companySubmenu, docsSubmenu];
+export const allSubmenus: SubMenu[] = [
+	productsSubmenu,
+	useCasesSubmenu,
+	clientsSubmenu,
+	servicesSubmenu,
+	companySubmenu,
+	docsSubmenu,
+];
