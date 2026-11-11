@@ -70,7 +70,8 @@ for (const { name, items } of FOOTER_PRODUCT_GROUPS) {
 }
 
 const pricing = menuLink('/pricing/');
-const installations = menuLink('/installations/');
+// The menu's Products section does not link here: installing comes after choosing a product.
+const installations: FooterLink = { label: 'Installation options', href: '/installations/' };
 const iotHub = menuLink('/iot-hub/');
 const licensePortal: FooterLink = { label: 'License Portal', href: 'https://license.thingsboard.io/' };
 
