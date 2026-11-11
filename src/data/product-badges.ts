@@ -11,9 +11,13 @@ export interface MenuBadge {
 	/** `wash` only: the color on a light background. Without it, `hue` is darkened there. */
 	hueLight?: string;
 	/**
-	 * `wash` only, in the menu: the badge drifts through a few neighbouring colors while its panel is
-	 * shown (`sm-badge-hues` in `SiteMenu`). Under reduced motion, and in the footer, it keeps `hue` and
-	 * `hueLight`.
+	 * `wash` only: the glyph is black on a light background and white on a dark one, and the hue colors
+	 * the tile alone.
+	 */
+	mono?: boolean;
+	/**
+	 * `wash` only: the tile runs the AI mark's colors while it is on screen (`badge-cycle` in
+	 * `styles/_badge.scss`). Under reduced motion it keeps `hue` and `hueLight`.
 	 */
 	cycle?: boolean;
 	glyph: string;
@@ -27,11 +31,13 @@ export const MENU_BADGES = {
 	// TEMP: the logomark at 22.4, 70% of its tile, on `thingsboard`, `cloud` and `mobile`. It was 20, 62.5%.
 	thingsboard: { fill: 'solid', hue: '#178649', glyph: `${BADGE_FILE_PREFIX}thingsboard.svg`, size: 22.4 },
 	cloud: { fill: 'solid', hue: '#3d50f5', glyph: `${BADGE_FILE_PREFIX}thingsboard.svg`, size: 22.4 },
-	// The CLI's own glyph, a terminal window cropped to its outline, so it is sized like the logomark.
+	// The CLI's own glyph, a terminal window cropped to its outline, in black or white: an AI product, its
+	// tile takes the AI mark's colors, which a colored glyph could not follow and stay readable.
 	cli: {
 		fill: 'wash',
 		hue: '#b9a6ff',
 		hueLight: '#7c5cf0',
+		mono: true,
 		cycle: true,
 		glyph: `${BADGE_FILE_PREFIX}cli.svg`,
 		size: 21,
