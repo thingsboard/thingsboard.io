@@ -64,7 +64,7 @@ export const productsSubmenu: SubMenu = {
 	owns: ['/products/', '/installations/'],
 	groups: [
 		{
-			name: 'IoT platforms',
+			name: 'IoT platform',
 			perColumn: 2,
 			items: [
 				{
@@ -157,7 +157,6 @@ export const servicesSubmenu: SubMenu = {
 					heading: 'Trainings',
 				},
 			],
-			more: { label: 'Talk to an expert', href: '/contact-us/' },
 		},
 	],
 };
@@ -361,7 +360,7 @@ export const docsSubmenu: SubMenu = {
 	owns: ['/docs/'],
 	groups: [
 		{
-			name: 'IoT platforms',
+			name: 'IoT platform',
 			perColumn: 2,
 			items: [
 				{

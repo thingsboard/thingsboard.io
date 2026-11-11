@@ -25,5 +25,5 @@ export const MENU_SECTION_PROMOS: Record<string, MenuPromo[]> = {
 			featured: true,
 		},
 	],
-	'nav-docs': [{ icon: 'tabler:rocket', title: 'Getting started', href: '/docs/pe/getting-started/', featured: true }],
+	'nav-services': [{ icon: 'tabler:headset', title: 'Talk to an expert', href: '/contact-us/', featured: true }],
 };

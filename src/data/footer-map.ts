@@ -78,7 +78,8 @@ export const FOOTER_PLATFORM_LINKS = [pricing, installations, iotHub];
 
 export const FOOTER_LICENSE_PORTAL = { caption: 'Buying or renewing a license?', link: licensePortal };
 
-const gettingStarted = menuLink('/docs/pe/getting-started/');
+// The menu's Docs section does not link here: the page is the on-premises one.
+const gettingStarted: FooterLink = { label: 'Getting started', href: '/docs/pe/getting-started/' };
 // The menu names this page "ThingsBoard", which only reads right under its Docs heading.
 const documentation: FooterLink = { label: 'Documentation', href: '/docs/pe/' };
 const caseStudies = menuGroupPage('Case studies');
