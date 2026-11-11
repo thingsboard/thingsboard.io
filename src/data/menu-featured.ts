@@ -13,6 +13,8 @@ interface MenuPromo {
 export const MENU_SECTION_PROMOS: Record<string, MenuPromo[]> = {
 	'nav-products': [
 		{ icon: 'tabler:tag', title: 'Pricing', href: '/pricing/' },
+		// Keep: this is the main menu's only link to `/installations/`.
+		{ icon: 'tabler:download', title: 'Installation options', href: '/installations/' },
 		{
 			icon: 'tabler:cloud',
 			title: 'Start for free on Cloud',
