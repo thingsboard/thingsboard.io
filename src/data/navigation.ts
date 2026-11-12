@@ -40,7 +40,7 @@ export interface SubMenuGroup {
 export interface SubMenu {
 	id: string;
 	/** Icon size in px; 24 when omitted. 40 matches a link's name and description, two lines. */
-	iconSize?: 24 | 40;
+	iconSize?: 40;
 	groups: SubMenuGroup[];
 	/** Other paths (and the pages below them) that mark this section as current; see `inSection`. */
 	owns?: string[];
@@ -262,14 +262,13 @@ export const useCasesSubmenu: SubMenu = {
 	],
 };
 
-// Clients submenu: the case studies, then what clients say.
+// Clients submenu
 export const clientsSubmenu: SubMenu = {
 	id: 'nav-clients',
 	owns: ['/case-studies/', '/clients-feedback/'],
 	groups: [
 		{
 			name: 'Case studies',
-			// Two lines of logos, not one tall stack.
 			perColumn: 2,
 			items: [
 				caseStudy('schwarz', 'Schwarz Group', 15, 'schwarz-gruppe.svg'),

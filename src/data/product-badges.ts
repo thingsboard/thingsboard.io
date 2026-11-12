@@ -10,37 +10,29 @@ interface MenuBadge {
 	fill: 'solid' | 'wash' | 'waves' | 'glass';
 	hue?: string;
 	glyph: string;
-	/** The glyph's width in px on a 32px tile. The menu and the footer scale it to their 40px tiles. */
+	/** The glyph's width in px on the 40px tile the menu and the footer draw. */
 	size: number;
 }
 
 const BADGE_FILE_PREFIX = '/src/assets/images/landings/nav/badge-';
 
-/**
- * TEMP LOGO SET. Three things here stand in until the design team's new logo proposal (Maria) and go
- * when it lands; search for "TEMP LOGO SET" to find their styles:
- * - the logomark at 22.4, 70% of its tile, on `thingsboard`, `cloud` and `mobile`. It was 20, 62.5%;
- * - the CLI's glyph (`nav/badge-cli.svg`) and its `waves` tile. Before, the CLI had no badge: its menu
- *   entries used an outline terminal icon, `nav/cli-icon.svg`, since removed;
- * - Mobile's `glass` tile. Before: `{ fill: 'wash', hue: '#4ade80', …, size: 20 }`.
- */
+// TEMP LOGO SET: the 28px logomark, the CLI's `waves` tile and Mobile's `glass` tile stand in until the new
+// logo set; search the tag for their styles.
 export const MENU_BADGES = {
-	thingsboard: { fill: 'solid', hue: '#178649', glyph: `${BADGE_FILE_PREFIX}thingsboard.svg`, size: 22.4 },
-	cloud: { fill: 'solid', hue: '#3d50f5', glyph: `${BADGE_FILE_PREFIX}thingsboard.svg`, size: 22.4 },
-	// A terminal window cropped to its outline.
-	cli: { fill: 'waves', glyph: `${BADGE_FILE_PREFIX}cli.svg`, size: 21 },
-	edge: { fill: 'wash', hue: '#2dd4bf', glyph: `${BADGE_FILE_PREFIX}edge.svg`, size: 23 },
-	gateway: { fill: 'wash', hue: '#a78bfa', glyph: `${BADGE_FILE_PREFIX}gateway.svg`, size: 23 },
-	tbmq: { fill: 'wash', hue: '#4ade80', glyph: `${BADGE_FILE_PREFIX}tbmq.svg`, size: 24.9 },
-	trendz: { fill: 'wash', hue: '#60a5fa', glyph: `${BADGE_FILE_PREFIX}trendz.svg`, size: 23 },
-	mobile: { fill: 'glass', hue: '#4a5068', glyph: `${BADGE_FILE_PREFIX}thingsboard.svg`, size: 22.4 },
+	thingsboard: { fill: 'solid', hue: '#178649', glyph: `${BADGE_FILE_PREFIX}thingsboard.svg`, size: 28 },
+	cloud: { fill: 'solid', hue: '#3d50f5', glyph: `${BADGE_FILE_PREFIX}thingsboard.svg`, size: 28 },
+	cli: { fill: 'waves', glyph: `${BADGE_FILE_PREFIX}cli.svg`, size: 26.25 },
+	edge: { fill: 'wash', hue: '#2dd4bf', glyph: `${BADGE_FILE_PREFIX}edge.svg`, size: 28.75 },
+	gateway: { fill: 'wash', hue: '#a78bfa', glyph: `${BADGE_FILE_PREFIX}gateway.svg`, size: 28.75 },
+	tbmq: { fill: 'wash', hue: '#4ade80', glyph: `${BADGE_FILE_PREFIX}tbmq.svg`, size: 31.1 },
+	trendz: { fill: 'wash', hue: '#60a5fa', glyph: `${BADGE_FILE_PREFIX}trendz.svg`, size: 28.75 },
+	mobile: { fill: 'glass', hue: '#4a5068', glyph: `${BADGE_FILE_PREFIX}thingsboard.svg`, size: 28 },
 } as const satisfies Record<string, MenuBadge>;
 
 export type MenuBadgeKey = keyof typeof MENU_BADGES;
 
-/** What a tile `tile` px wide needs to draw a badge: its fill, its glyph and the glyph's width in px, and its inline custom properties. */
-export function badgeTile(badge: MenuBadgeKey, tile: number) {
+/** What a tile needs to draw a badge. */
+export function badgeTile(badge: MenuBadgeKey) {
 	const { fill, hue, glyph, size }: MenuBadge = MENU_BADGES[badge];
-	const glyphSize = (size * tile) / 32;
-	return { fill, glyph, size: glyphSize, style: `${hue ? `--badge-hue: ${hue}; ` : ''}--badge-glyph: ${glyphSize}px` };
+	return { fill, glyph, size, style: `${hue ? `--badge-hue: ${hue}; ` : ''}--badge-glyph: ${size}px` };
 }
