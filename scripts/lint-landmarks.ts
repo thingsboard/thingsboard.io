@@ -16,8 +16,7 @@
  * Attribution on sign-up links: every page with the site chrome that links to
  * a Cloud or License Portal sign-up entry loads the script of UtmTracker.astro,
  * which adds the visitor's campaign to those links. The tag sits in a slot shared by all
- * pages (starlight/SkipLink.astro); docs pages once lost it when the component
- * that held it was rewritten for something else, and nothing reported it.
+ * pages (starlight/SkipLink.astro).
  *
  * Usage:
  *   pnpm lint:landmarks          (after a build)

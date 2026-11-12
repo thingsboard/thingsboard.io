@@ -32,7 +32,7 @@ export interface ValidateOptions {
 
 const nowSeconds = () => Math.floor(Date.now() / 1000);
 
-export function clearFieldError(el: HTMLElement): void {
+function clearFieldError(el: HTMLElement): void {
 	el.classList.remove('invalid-input');
 	el.setAttribute('aria-invalid', 'false');
 	el.removeAttribute('aria-describedby');
@@ -89,10 +89,10 @@ function validateFields(
 
 const honeypots = new WeakMap<HTMLFormElement, HTMLInputElement>();
 
-// A random name each load, so bots can't learn the honeypot.
-export function armHoneypot(form: HTMLFormElement, containerSelector: string): void {
-	const input = form.querySelector<HTMLInputElement>(`${containerSelector} input`);
-	const label = form.querySelector<HTMLLabelElement>(`${containerSelector} label`);
+// Gives the honeypot of `FormGuardFields.astro` a random name each load, so bots can't learn it.
+export function armHoneypot(form: HTMLFormElement): void {
+	const input = form.querySelector<HTMLInputElement>('.form-hp input');
+	const label = form.querySelector<HTMLLabelElement>('.form-hp label');
 	if (!input || !label) return;
 	const name = 'hp_' + Math.random().toString(36).substring(2, 10);
 	input.name = name;
@@ -125,7 +125,15 @@ function showFakeThanks(form: HTMLFormElement): void {
 }
 
 // Validates on submit, then posts unless it looks like a bot, which gets the fake "Thank you" instead.
+// A field's hint goes away as soon as the visitor types in it again.
 export function guardSubmit(form: HTMLFormElement, fields: readonly GuardedField[], options?: ValidateOptions): void {
+	fields.forEach(({ name }) => {
+		const el = form.elements.namedItem(name) as FieldElement | null;
+		el?.addEventListener('input', () => {
+			if (el.classList.contains('invalid-input')) clearFieldError(el);
+		});
+	});
+
 	form.addEventListener('submit', (e) => {
 		if (!validateFields(form, fields, options)) {
 			e.preventDefault();

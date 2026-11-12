@@ -2,8 +2,7 @@
 // The last choice and the guess live in `scripts/cloud-region.js`, a plain script /pricing/ inlines (`?raw`) to
 // pick its region before first paint; inlined as is, so it carries no comments. It skips SSR, which imports this
 // module too. Its region ids must match `CLOUD_REGIONS`.
-// scripts/lint-landmarks.ts loads this module in plain Node (via sign-up-links.ts). So its imports are relative
-// paths, not aliases, and nothing here reads `window` while the module loads.
+// Loaded by scripts/lint-landmarks.ts in plain Node: see the alias exception in CLAUDE.md.
 import '../scripts/cloud-region.js';
 
 // The notes must match the Cloud FAQ, which names no country or datacentre.
