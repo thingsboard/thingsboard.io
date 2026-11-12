@@ -31,18 +31,16 @@ export const MENU_BADGES = {
 	cli: { fill: 'waves', glyph: `${BADGE_FILE_PREFIX}cli.svg`, size: 21 },
 	edge: { fill: 'wash', hue: '#2dd4bf', glyph: `${BADGE_FILE_PREFIX}edge.svg`, size: 23 },
 	gateway: { fill: 'wash', hue: '#a78bfa', glyph: `${BADGE_FILE_PREFIX}gateway.svg`, size: 23 },
-	tbmq: { fill: 'wash', hue: '#4ade80', glyph: `${BADGE_FILE_PREFIX}tbmq.svg`, size: 26 },
+	tbmq: { fill: 'wash', hue: '#4ade80', glyph: `${BADGE_FILE_PREFIX}tbmq.svg`, size: 24.9 },
 	trendz: { fill: 'wash', hue: '#60a5fa', glyph: `${BADGE_FILE_PREFIX}trendz.svg`, size: 23 },
 	mobile: { fill: 'glass', hue: '#4a5068', glyph: `${BADGE_FILE_PREFIX}thingsboard.svg`, size: 22.4 },
 } as const satisfies Record<string, MenuBadge>;
 
 export type MenuBadgeKey = keyof typeof MENU_BADGES;
 
-/** A badge's glyph width in px on a tile `tile` px wide. */
-export const badgeGlyphSize = (badge: MenuBadgeKey, tile: number) => (MENU_BADGES[badge].size * tile) / 32;
-
-/** A badge's inline custom properties on a tile `tile` px wide: its hue, if it has one, and its glyph width. */
-export function badgeStyle(badge: MenuBadgeKey, tile: number) {
-	const { hue }: MenuBadge = MENU_BADGES[badge];
-	return `${hue ? `--badge-hue: ${hue}; ` : ''}--badge-glyph: ${badgeGlyphSize(badge, tile)}px`;
+/** What a tile `tile` px wide needs to draw a badge: its fill, its glyph and the glyph's width in px, and its inline custom properties. */
+export function badgeTile(badge: MenuBadgeKey, tile: number) {
+	const { fill, hue, glyph, size }: MenuBadge = MENU_BADGES[badge];
+	const glyphSize = (size * tile) / 32;
+	return { fill, glyph, size: glyphSize, style: `${hue ? `--badge-hue: ${hue}; ` : ''}--badge-glyph: ${glyphSize}px` };
 }
