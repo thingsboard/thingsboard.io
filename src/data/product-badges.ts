@@ -37,3 +37,6 @@ export const MENU_BADGES = {
 } as const satisfies Record<string, MenuBadge>;
 
 export type MenuBadgeKey = keyof typeof MENU_BADGES;
+
+/** A badge's glyph width in px on a tile `tile` px wide. */
+export const badgeGlyphSize = (badge: MenuBadgeKey, tile: number) => (MENU_BADGES[badge].size * tile) / 32;

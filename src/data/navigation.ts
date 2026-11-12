@@ -287,6 +287,7 @@ export const clientsSubmenu: SubMenu = {
 					href: '/clients-feedback/',
 					icon: '/src/assets/images/landings/nav/feedback.svg',
 					heading: 'Clients feedback',
+					linkClass: 'small-link',
 				},
 			],
 		},
