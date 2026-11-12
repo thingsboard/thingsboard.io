@@ -78,9 +78,12 @@ export const FOOTER_PLATFORM_LINKS = [pricing, installations, iotHub];
 
 export const FOOTER_LICENSE_PORTAL = { caption: 'Buying or renewing a license?', link: licensePortal };
 
-const gettingStarted = menuLink('/docs/pe/getting-started/');
+// The menu's Docs section does not link here: the page is the on-premises one.
+const gettingStarted: FooterLink = { label: 'Getting started', href: '/docs/pe/getting-started/' };
 // The menu names this page "ThingsBoard", which only reads right under its Docs heading.
 const documentation: FooterLink = { label: 'Documentation', href: '/docs/pe/' };
+// The menu calls this link "All use cases", which only reads right under its list.
+const useCases: FooterLink = { label: 'Use cases', href: '/use-cases/' };
 const caseStudies = menuGroupPage('Case studies');
 const clientsFeedback = menuLink('/clients-feedback/');
 const supportPlans = menuLink('/services/');
@@ -110,7 +113,7 @@ export const FOOTER_COLUMNS: FooterList[][] = [
 			title: 'Services',
 			links: [menuLink('/services/development-services/'), supportPlans, menuLink('/services/trainings/')],
 		},
-		{ title: 'Customers', links: [caseStudies, clientsFeedback] },
+		{ title: 'Clients', links: [caseStudies, clientsFeedback] },
 	],
 	[
 		{
@@ -139,7 +142,7 @@ export const FOOTER_DOCS_COLUMNS: FooterList[] = [
 	},
 	{
 		title: 'Learn',
-		links: [gettingStarted, documentation, menuGroupPage('Use cases'), caseStudies, iotHub, blog],
+		links: [gettingStarted, documentation, useCases, caseStudies, iotHub, blog],
 	},
 	{ title: 'Get help', links: [supportPlans, clientsFeedback, contactUs, careers] },
 ];

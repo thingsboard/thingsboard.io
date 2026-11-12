@@ -13,6 +13,7 @@ interface MenuPromo {
 export const MENU_SECTION_PROMOS: Record<string, MenuPromo[]> = {
 	'nav-products': [
 		{ icon: 'tabler:tag', title: 'Pricing', href: '/pricing/' },
+		// Keep: this is the main menu's only link to `/installations/`.
 		{ icon: 'tabler:download', title: 'Installation options', href: '/installations/' },
 		{
 			icon: 'tabler:cloud',
@@ -25,5 +26,5 @@ export const MENU_SECTION_PROMOS: Record<string, MenuPromo[]> = {
 			featured: true,
 		},
 	],
-	'nav-docs': [{ icon: 'tabler:rocket', title: 'Getting started', href: '/docs/pe/getting-started/', featured: true }],
+	'nav-services': [{ icon: 'tabler:headset', title: 'Talk to an expert', href: '/contact-us/', featured: true }],
 };

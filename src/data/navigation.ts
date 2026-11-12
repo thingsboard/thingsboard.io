@@ -1,7 +1,7 @@
 import { TBMQ_PE_DOCS_URL, TBMQ_SITE_URL } from '@models/tbmq';
 import { CAREERS_URL } from '@models/careers';
 import { caseStudyBySlug } from '@data/case-studies';
-import type { MenuBadgeKey } from '@data/product-badges';
+import { BADGE_TILE, type MenuBadgeKey } from '@data/product-badges';
 
 export interface NavItem {
 	label: string;
@@ -39,17 +39,20 @@ export interface SubMenuGroup {
 
 export interface SubMenu {
 	id: string;
-	/** Icon size in px; 24 when omitted. */
-	iconSize?: 24 | 32;
 	groups: SubMenuGroup[];
 	/** Other paths (and the pages below them) that mark this section as current; see `inSection`. */
 	owns?: string[];
 }
 
+/** A section's icon size in px: the badge tile's where it has product badges, as tall as a link's two lines. */
+export const submenuIconSize = (submenu: SubMenu) =>
+	submenu.groups.some((group) => group.items.some((item) => item.badge)) ? BADGE_TILE : 24;
+
 // Main navigation items
 export const mainNavItems: NavItem[] = [
 	{ label: 'Products', submenuId: 'nav-products' },
-	{ label: 'Solutions', submenuId: 'nav-solutions' },
+	{ label: 'Use cases', submenuId: 'nav-use-cases' },
+	{ label: 'Clients', submenuId: 'nav-clients' },
 	{ label: 'Services', submenuId: 'nav-services' },
 	{ label: 'Docs', submenuId: 'nav-docs' },
 	{ label: 'Company', submenuId: 'nav-company' },
@@ -60,11 +63,10 @@ export const mainNavItems: NavItem[] = [
 // Products submenu
 export const productsSubmenu: SubMenu = {
 	id: 'nav-products',
-	iconSize: 32,
 	owns: ['/products/', '/installations/'],
 	groups: [
 		{
-			name: 'IoT platforms',
+			name: 'IoT platform',
 			perColumn: 2,
 			items: [
 				{
@@ -89,7 +91,7 @@ export const productsSubmenu: SubMenu = {
 			items: [
 				{
 					href: '/docs/cli/',
-					icon: '/src/assets/images/landings/nav/cli-icon.svg',
+					badge: 'cli',
 					heading: 'ThingsBoard CLI',
 					description: 'Build IoT solutions with AI agents',
 					linkClass: 'cli-lnk',
@@ -116,18 +118,18 @@ export const productsSubmenu: SubMenu = {
 					linkClass: 'mobile-lnk',
 				},
 				{
-					href: TBMQ_SITE_URL,
-					badge: 'tbmq',
-					heading: 'TBMQ',
-					description: 'Scalable MQTT broker',
-					linkClass: 'mqtt-broker-lnk',
-				},
-				{
 					href: '/products/trendz/',
 					badge: 'trendz',
 					heading: 'Trendz Analytics',
 					description: 'Data analytics and Prediction',
 					linkClass: 'trendz-lnk',
+				},
+				{
+					href: TBMQ_SITE_URL,
+					badge: 'tbmq',
+					heading: 'TBMQ',
+					description: 'Scalable MQTT broker',
+					linkClass: 'mqtt-broker-lnk',
 				},
 			],
 		},
@@ -157,7 +159,6 @@ export const servicesSubmenu: SubMenu = {
 					heading: 'Trainings',
 				},
 			],
-			more: { label: 'Talk to an expert', href: '/contact-us/' },
 		},
 	],
 };
@@ -178,13 +179,12 @@ function caseStudy(slug: string, heading: string, logoHeight: number, logoFile: 
 	return { href: `/case-studies/${slug}/`, heading, logo, logoHeight };
 }
 
-// Solutions submenu
-export const solutionsSubmenu: SubMenu = {
-	id: 'nav-solutions',
-	owns: ['/use-cases/', '/case-studies/'],
+// Use cases submenu. Its first group has no name: the section's name already says it.
+export const useCasesSubmenu: SubMenu = {
+	id: 'nav-use-cases',
+	owns: ['/use-cases/'],
 	groups: [
 		{
-			name: 'Use cases',
 			perColumn: 5,
 			items: [
 				{
@@ -260,8 +260,17 @@ export const solutionsSubmenu: SubMenu = {
 				},
 			],
 		},
+	],
+};
+
+// Clients submenu
+export const clientsSubmenu: SubMenu = {
+	id: 'nav-clients',
+	owns: ['/case-studies/', '/clients-feedback/'],
+	groups: [
 		{
 			name: 'Case studies',
+			perColumn: 2,
 			items: [
 				caseStudy('schwarz', 'Schwarz Group', 15, 'schwarz-gruppe.svg'),
 				caseStudy('t-mobile-cz', 'T-Mobile', 15, 't-mobile.svg'),
@@ -270,6 +279,17 @@ export const solutionsSubmenu: SubMenu = {
 				caseStudy('circutor', 'Circutor', 16, 'circutor.svg'),
 			],
 			more: { label: 'All case studies', href: '/case-studies/' },
+		},
+		{
+			name: 'Feedback',
+			items: [
+				{
+					href: '/clients-feedback/',
+					icon: '/src/assets/images/landings/nav/feedback.svg',
+					heading: 'Clients feedback',
+					linkClass: 'small-link',
+				},
+			],
 		},
 	],
 };
@@ -282,7 +302,7 @@ export const companySubmenu: SubMenu = {
 		{
 			// `small-link` has no styles; it is an analytics hook, like the products' `-lnk` classes.
 			name: 'Company',
-			perColumn: 4,
+			perColumn: 3,
 			items: [
 				{
 					href: '/company/',
@@ -294,12 +314,6 @@ export const companySubmenu: SubMenu = {
 					href: '/trust-center/',
 					icon: '/src/assets/images/landings/nav/trust-s-icon.svg',
 					heading: 'Trust Center',
-					linkClass: 'small-link',
-				},
-				{
-					href: '/clients-feedback/',
-					icon: '/src/assets/images/landings/nav/feedback.svg',
-					heading: 'Clients feedback',
 					linkClass: 'small-link',
 				},
 				{
@@ -357,11 +371,10 @@ export const companySubmenu: SubMenu = {
 // Docs submenu
 export const docsSubmenu: SubMenu = {
 	id: 'nav-docs',
-	iconSize: 32,
 	owns: ['/docs/'],
 	groups: [
 		{
-			name: 'IoT platforms',
+			name: 'IoT platform',
 			perColumn: 2,
 			items: [
 				{
@@ -386,7 +399,7 @@ export const docsSubmenu: SubMenu = {
 			items: [
 				{
 					href: '/docs/cli/',
-					icon: '/src/assets/images/landings/nav/cli-icon.svg',
+					badge: 'cli',
 					heading: 'ThingsBoard CLI',
 					description: 'Build IoT solutions with AI agents',
 					linkClass: 'cli-lnk',
@@ -413,18 +426,18 @@ export const docsSubmenu: SubMenu = {
 					linkClass: 'mobile-pe-lnk',
 				},
 				{
-					href: TBMQ_PE_DOCS_URL,
-					badge: 'tbmq',
-					heading: 'TBMQ',
-					description: 'Scalable MQTT broker',
-					linkClass: 'mqtt-broker-lnk',
-				},
-				{
 					href: '/docs/trendz/',
 					badge: 'trendz',
 					heading: 'Trendz Analytics',
 					description: 'Data analytics and Prediction',
 					linkClass: 'trendz-lnk',
+				},
+				{
+					href: TBMQ_PE_DOCS_URL,
+					badge: 'tbmq',
+					heading: 'TBMQ',
+					description: 'Scalable MQTT broker',
+					linkClass: 'mqtt-broker-lnk',
 				},
 			],
 		},
@@ -432,4 +445,11 @@ export const docsSubmenu: SubMenu = {
 };
 
 // All submenus
-export const allSubmenus: SubMenu[] = [productsSubmenu, servicesSubmenu, solutionsSubmenu, companySubmenu, docsSubmenu];
+export const allSubmenus: SubMenu[] = [
+	productsSubmenu,
+	useCasesSubmenu,
+	clientsSubmenu,
+	servicesSubmenu,
+	companySubmenu,
+	docsSubmenu,
+];
