@@ -9,7 +9,7 @@ Azure IoT Hub Integration connects ThingsBoard to <a href="https://azure.microso
 
 Use Azure IoT Hub Integration when:
 - A backend application sends data to ThingsBoard as cloud-to-device messages through Azure IoT Hub.
-- One hub connection must deliver data for many ThingsBoard devices: the converter sets the target device for each message.
+- Messages for several ThingsBoard devices arrive through one device identity: the converter sets the target device for each message.
 - An Azure-side consumer must receive ThingsBoard data from the hub's built-in events endpoint.
 
 <Aside type="note">
@@ -21,7 +21,7 @@ Use Azure IoT Hub Integration when:
 <ImageGallery images={[
   {
     src: '/src/assets/images/user-guide/integrations/azure-iot-hub-integration-architecture.svg',
-    alt: 'Azure IoT Hub integration architecture: an Azure application, the portal, or the CLI sends a cloud-to-device message to the device identity tb-bridge-01, the Azure IoT Hub Integration receives it over MQTT with TLS on port 8883, the data converters decode it, and Processing & Storage runs the Rule Engine, stores the data, and feeds dashboards; downlinks are published to the hub as device-to-cloud messages and reach the built-in endpoint',
+    alt: 'Azure IoT Hub integration architecture: an Azure application, the portal, or the CLI sends a cloud-to-device message to the device identity tb-bridge-01, the Azure IoT Hub Integration receives it over MQTT with TLS on port 8883, the data converters decode it, and Processing & Storage runs the Rule Engine and stores the data; the downlink converter returns the encoded payload and the topic, and downlinks are published to the hub as device-to-cloud messages and reach the built-in endpoint',
     caption: 'Azure IoT Hub integration architecture. The integration connects as the device identity tb-bridge-01: uplinks are cloud-to-device messages, and downlinks are device-to-cloud messages.',
   },
 ]} />
@@ -40,7 +40,7 @@ Use Azure IoT Hub Integration when:
 - Access to {props.product !== Products.PAAS && props.product !== Products.PAAS_EU && <><DocLink product={Products.PE} path="installation/" target="_blank">ThingsBoard</DocLink> or </>}<a href="/installations/?product=thingsboard-cloud" target="_blank"><strong>ThingsBoard Cloud</strong></a> with integrations enabled for your tenant.
 - Permission to create integrations and data converters.
 - An <a href="https://portal.azure.com" target="_blank" rel="noopener noreferrer"><strong>Azure</strong></a> account with an active subscription and permission to create an IoT hub and register devices.
-- Outbound TCP port `8883` open from the ThingsBoard server to `*.azure-devices.net`.
+- Outbound TCP port `8883` open from the ThingsBoard server (or the remote integration host) to `*.azure-devices.net`.
 
 ## Configure Azure IoT Hub
 
@@ -49,24 +49,38 @@ Create the hub and the device identity in the Azure portal.
 ### Create an IoT Hub
 
 <Steps>
-1. In the <a href="https://portal.azure.com" target="_blank" rel="noopener noreferrer"><strong>Azure portal</strong></a>, click **+ Create a resource**, search for **IoT Hub**, and click **Create**.
-2. On the **Basics** tab, select or create a **Resource group**, enter a globally unique **IoT hub name** (for example, `tb-iot-hub`), and choose a **Region**.
+1. In the <a href="https://portal.azure.com" target="_blank" rel="noopener noreferrer"><strong>Azure portal</strong></a>, search for **IoT Hub**, open the **IoT Hub** service, and click **+ Create**.
+2. On the **Basics** tab, select or create a **Resource group**, enter a globally unique **IoT hub name** (for example, `tb-iot-hub`), choose a **Region**, and select a **Tier**. The Basic tier does not support cloud-to-device messages, so choose the Free or Standard tier.
 3. Adjust the **Networking** and **Management** tabs if your environment requires it, then click **Review + create** and **Create**.
 4. When the deployment finishes, click **Go to resource**.
-5. On the **Overview** page, copy the **Hostname**, for example `tb-iot-hub.azure-devices.net`.
+5. Note the hub hostname `{hub-name}.azure-devices.net`, for example `tb-iot-hub.azure-devices.net`: the integration connects to it. The **Overview** page shows the **Device hostname** `{hub-name}.device.azure-devices.net` instead. Do not use it unless you upload DigiCert Global Root G3 (see **[Credentials](#credentials)**): its server certificate does not chain to the root certificate that ThingsBoard uses by default, and the connection fails.
 </Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/azure-iot-hub/azure-iot-hub-create-1.png', alt: 'Azure portal IoT Hub page with no hubs and the Create button', caption: 'Search for IoT Hub, open the service, and click Create' },
+  { src: '/src/assets/images/user-guide/integrations/azure-iot-hub/azure-iot-hub-create-2.png', alt: 'Create IoT hub Basics tab with subscription, resource group tb-integrations, IoT hub name tb-iot-hub, region West Europe, and tier Free', caption: 'Select the resource group, enter the hub name, and choose the region and tier' },
+  { src: '/src/assets/images/user-guide/integrations/azure-iot-hub/azure-iot-hub-create-3.png', alt: 'Create IoT hub Review + create tab with the pricing, basics, and networking summary and the Create button', caption: 'Check the summary and click Create' },
+  { src: '/src/assets/images/user-guide/integrations/azure-iot-hub/azure-iot-hub-create-4.png', alt: 'Deployment overview with the message Your deployment is complete and the Go to resource button', caption: 'When the deployment is complete, click Go to resource' },
+  { src: '/src/assets/images/user-guide/integrations/azure-iot-hub/azure-iot-hub-create-5.png', alt: 'IoT hub Overview page with the Service hostname and Device hostname fields', caption: 'The Overview page of the hub. The integration uses tb-iot-hub.azure-devices.net, not the Device hostname' },
+]} />
 
 For tiers and limits, see <a href="https://learn.microsoft.com/en-us/azure/iot-hub/create-hub?tabs=portal" target="_blank" rel="noopener noreferrer"><strong>Create an IoT hub</strong></a>.
 
 ### Register a Device
 
 <Steps>
-1. In the hub, go to **Device management &#8702; Devices** and click **+ Add device**.
+1. In the hub, go to **Device management &#8702; Devices** and click **+ Add Device**.
 2. Enter a **Device ID**, for example `tb-bridge-01`.
 3. Keep **Authentication type** set to **Symmetric key** and **Auto-generate keys** selected.
-4. Click **Save**.
-5. Open the device and copy its **Primary key**.
+4. Click **Save**. The device page opens.
+5. Copy the **Primary key**.
 </Steps>
+
+<ImageGallery images={[
+  { src: '/src/assets/images/user-guide/integrations/azure-iot-hub/azure-iot-hub-device-1.png', alt: 'IoT hub Devices page with no devices and the Add Device button', caption: 'Go to Device management &#8702; Devices and click Add Device' },
+  { src: '/src/assets/images/user-guide/integrations/azure-iot-hub/azure-iot-hub-device-2.png', alt: 'Create a device form with Device ID tb-bridge-01, Symmetric key authentication, and Auto-generate keys selected', caption: 'Enter the Device ID, keep Symmetric key and Auto-generate keys, and click Save' },
+  { src: '/src/assets/images/user-guide/integrations/azure-iot-hub/azure-iot-hub-device-3.png', alt: 'Device page of tb-bridge-01 with hidden primary and secondary keys and connection strings', caption: 'The device page opens. Copy the Primary key' },
+]} />
 
 <Aside type="caution">
   The primary key grants full access to this device identity. Store it in <DocLink product={props.product} path="user-guide/security/secrets-storage" target="_blank">Secret storage</DocLink> rather than in shared configuration.
@@ -78,7 +92,7 @@ You now have the values for the integration:
 
 | Value | Example | Source |
 |-------|---------|--------|
-| **Hostname** | `tb-iot-hub.azure-devices.net` | Hub **Overview** page |
+| **Hostname** | `tb-iot-hub.azure-devices.net` | The hub name followed by `.azure-devices.net` |
 | **Device ID** | `tb-bridge-01` | Device you registered |
 | **SAS Key** | Primary key | Device details page |
 
@@ -136,7 +150,7 @@ This guide uses the sample payload that ThingsBoard provides for Azure IoT Hub c
 2. **Converter type** — keep **Uplink**.
 3. **Integration type** — select **Azure IoT Hub**.
 4. **Name** — enter a name, for example `Azure IoT Hub Uplink Converter`.
-5. **Main decoding configuration** — the editor opens with the default Azure IoT Hub template. Replace it with the decoder below. The decoder maps measurements and state to telemetry and static device properties to attributes. It also reads `timestamp`, `location`, and `vibration` when the payload carries them. The editor opens in TBEL; use the **TBEL / JS** toggle to switch to JavaScript.
+5. **Main decoding configuration** — the editor opens with the default Azure IoT Hub template. Replace it with the decoder below. The decoder takes the device name from `deviceId` and the device profile from `deviceType`, and rejects a message without them, so no device is created with a wrong name or profile. It maps measurements and state to telemetry and static device properties to attributes. It also reads `timestamp`, `location`, and `vibration` when the payload carries them. The editor opens in TBEL. To use JavaScript, switch the **TBEL / JS** toggle: the editor then shows the generic JavaScript template, not an Azure IoT Hub one, so replace it with the JavaScript decoder below.
    <Aside type="tip" title="TBEL">
      Use <DocLink product={props.product} path="user-guide/tbel" target="_blank">TBEL</DocLink> for converter scripts — it runs much faster than JavaScript inside ThingsBoard.
    </Aside>
@@ -145,8 +159,15 @@ This guide uses the sample payload that ThingsBoard provides for Azure IoT Hub c
        ```js maxLines=15 collapsible
        var data = decodeToJson(payload);
 
-       var deviceName = data.deviceId != null ? data.deviceId : "Device A";
-       var deviceType = data.deviceType != null ? data.deviceType : "default";
+       // The device name and type come from the payload. Reject the message if one is missing or empty.
+       var deviceName = data.deviceId != null ? data.deviceId.toString().trim() : "";
+       if (deviceName.isEmpty()) {
+           raiseError("Payload has no deviceId");
+       }
+       var deviceType = data.deviceType != null ? data.deviceType.toString().trim() : "";
+       if (deviceType.isEmpty()) {
+           raiseError("Payload has no deviceType");
+       }
 
        // ISO 8601 timestamp; fall back to server time.
        var ts = data.timestamp != null ? new Date(data.timestamp).getTime() : Date.now();
@@ -195,8 +216,15 @@ This guide uses the sample payload that ThingsBoard provides for Azure IoT Hub c
        ```js maxLines=15 collapsible
        var data = decodeToJson(payload);
 
-       var deviceName = data.deviceId != null ? data.deviceId : "Device A";
-       var deviceType = data.deviceType != null ? data.deviceType : "default";
+       // The device name and type come from the payload. Reject the message if one is missing or empty.
+       var deviceName = data.deviceId != null ? String(data.deviceId).trim() : "";
+       if (!deviceName) {
+           throw new Error("Payload has no deviceId");
+       }
+       var deviceType = data.deviceType != null ? String(data.deviceType).trim() : "";
+       if (!deviceType) {
+           throw new Error("Payload has no deviceType");
+       }
 
        // ISO 8601 timestamp; fall back to server time.
        var ts = data.timestamp != null ? new Date(data.timestamp).getTime() : Date.now();
@@ -274,6 +302,14 @@ The decoder signature is `function decoder(payload, metadata): object | object[]
 | `payload` | byte array | The message body. |
 | `metadata` | `{[key: string]: string}` | `topic` — the topic the message arrived on: `devices/{deviceId}/messages/devicebound/` followed by the message's property bag. Also `integrationName` and the key–value pairs from the integration's **Metadata** field. |
 
+For example, a message sent with the Azure CLI command from **[Send a Test Uplink](#send-a-test-uplink)** arrives with this `topic`:
+
+```text
+devices/tb-bridge-01/messages/devicebound/%24.mid=7c1b13d0-7baa-4cfb-a3c4-1bba7bcbc0b7&%24.to=%2Fdevices%2Ftb-bridge-01%2Fmessages%2Fdevicebound&%24.ce=utf-8&iothub-ack=none
+```
+
+The part after `devicebound/` is the URL-encoded property bag: `$.mid` is the message ID, `$.to` the destination, `$.ce` the content encoding.
+
 Built-in helpers:
 
 | Function | Result |
@@ -350,7 +386,8 @@ Check that `deviceName` is set and `telemetry` holds the expected keys. If the o
    - **Hostname** — enter the hub hostname, for example `tb-iot-hub.azure-devices.net`.
    - **Device ID** — enter `tb-bridge-01`.
    - **Credentials** — keep **Shared Access Signature** and paste the device's primary key into **SAS Key**.
-   - **Topic filters** — replace the default `#` with `devices/tb-bridge-01/messages/devicebound/#`.
+   - **Topic filters** — replace the default `#` with `devices/tb-bridge-01/messages/devicebound/#` and set **QoS** to **1 - At least once**.
+   - **Advanced settings** — set **Max bytes in message** to `131072`. IoT Hub sends cloud-to-device messages up to 64 KB, and with the default `32368` a larger message (the limit includes the topic) is lost without an event.
    - Leave the other parameters at their defaults. See **[Connection Settings](#connection-settings)** for details.
 6. Click **Add**.
 </Steps>
@@ -359,10 +396,10 @@ Check that `deviceName` is set and `telemetry` holds the expected keys. If the o
 
 | Parameter | Description |
 |-----------|-------------|
-| **Hostname** | Hub hostname, `{hub-name}.azure-devices.net`. Find it on the hub's **Overview** page. |
+| **Hostname** | Hub hostname, `{hub-name}.azure-devices.net`. Do not use the **Device hostname** from the hub's **Overview** page, `{hub-name}.device.azure-devices.net`, unless you upload DigiCert Global Root G3; see **[Credentials](#credentials)**. |
 | **Device ID** | The device identity the integration connects as. It is also the MQTT client ID. |
 | **Credentials** | **Shared Access Signature** (default) or **PEM**. See **[Credentials](#credentials)**. |
-| **Topic filters** | Subscriptions, each with a **Topic** and **QoS** (`0` or `1`; IoT Hub does not support QoS 2). Default: `#` with QoS `0`. Use `devices/{deviceId}/messages/devicebound/#` — IoT Hub delivers cloud-to-device messages only on this topic. The `#` is required because the hub appends a property bag to the topic. |
+| **Topic filters** | Subscriptions, each with a **Topic** and **QoS** (`0` or `1`; IoT Hub does not support QoS 2). Default: `#` with QoS `0`. Use `devices/{deviceId}/messages/devicebound/#` — IoT Hub delivers cloud-to-device messages only on this topic. The `#` is required because the hub appends a property bag to the topic. Use QoS `1`: IoT Hub then waits for the integration to acknowledge each message, and reports a message that ThingsBoard did not receive (for example, because ThingsBoard stopped) as not delivered (`Purged`) instead of delivered. With QoS `0`, IoT Hub reports each message as delivered as soon as it sends it. |
 | **Execute remotely** | Runs the integration as a separate process outside the ThingsBoard cluster, for example in a network with access to Azure. ThingsBoard generates an **Integration key** and **Integration secret** for it. See <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink>. |
 
 **Advanced settings**
@@ -370,11 +407,11 @@ Check that `deviceName` is set and `telemetry` holds the expected keys. If the o
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | **Protocol version** | MQTT 3.1.1 | The only version available. |
-| **Max bytes in message** | `32368` | Maximum size of an incoming message, in bytes (1–256,000,000). |
+| **Max bytes in message** | `32368` | Maximum size of an incoming message, in bytes (1–256,000,000), including the topic. Set `131072`: IoT Hub sends cloud-to-device messages up to 64 KB, and a message over this limit is lost without an event. |
 | **Description** | — | Free-text description. |
-| **Metadata** | — | Key–value pairs added to the `metadata` of every message from this integration. |
+| **Metadata** | — | Key–value pairs added to the `metadata` of every message from this integration and to the encoder's `integrationMetadata`. The encoder in this guide reads `deviceId` from it; see **[Create and Assign the Downlink Converter](#create-and-assign-the-downlink-converter)**. |
 
-The integration always connects over TLS on port `8883` with a clean session. It does not offer **Check connection**: check the integration status after you add it.
+The integration always connects over TLS on port `8883` with a clean session. IoT Hub delivers only the messages sent after the integration connects: messages sent while it is disabled, restarting, or offline are not delivered. It does not offer **Check connection**: check the integration status after you add it.
 
 #### Credentials
 
@@ -383,14 +420,14 @@ The integration always connects over TLS on port `8883` with a clean session. It
 | **Shared Access Signature** | **SAS Key** — the device's primary or secondary key. ThingsBoard builds a SAS token from it on each connection, valid for one year. **CA certificate file** — optional; see below. |
 | **PEM** | X.509 authentication. **Certificate file** — the device certificate registered in the hub. **Private key file** — the key for that certificate. **Private key password** — only for an encrypted key. **CA certificate file** — optional; see below. |
 
-Without a **CA certificate file**, the integration verifies the hub with the DigiCert Global Root G2 certificate, which Azure IoT Hub uses. Upload your own CA bundle only if your environment requires it. For X.509 device registration, see <a href="https://learn.microsoft.com/en-us/azure/iot-hub/authenticate-authorize-x509" target="_blank" rel="noopener noreferrer"><strong>Authenticate identities with X.509 certificates</strong></a>.
+Without a **CA certificate file**, the integration verifies the hub with the DigiCert Global Root G2 certificate, which `{hub-name}.azure-devices.net` uses. A **CA certificate file** replaces it. With **Shared Access Signature**, the integration reads only the first certificate in the file, so upload a single root certificate: for example, DigiCert Global Root G3 to connect to the **Device hostname** `{hub-name}.device.azure-devices.net`. For X.509 device registration, see <a href="https://learn.microsoft.com/en-us/azure/iot-hub/authenticate-authorize-x509" target="_blank" rel="noopener noreferrer"><strong>Authenticate identities with X.509 certificates</strong></a>.
 
 ## Test Uplink
 
 Send a cloud-to-device message to the integration's device identity, then confirm that ThingsBoard decoded it and created the device.
 
 <Aside type="note">
-  Turn on **Debug** mode with **All messages** for the integration and the uplink converter before you send the message. Without it, the **Events** tabs stay empty.
+  The integration records all debug messages for a limited time after you create it; the debug button next to its name shows the time left. A converter created in **Data converters** records only failures. Before you send the message, click the debug button of the uplink converter (and of the integration, if its time has run out), select **All messages**, and click **Apply**. Otherwise the **Events** tabs show only errors.
 </Aside>
 
 ### Send a Test Uplink
@@ -470,7 +507,7 @@ az iot device c2d-message send \
 
 ThingsBoard publishes downlinks to the hub when the Rule Engine routes a message to the integration — for example, after a shared attribute update. Downlinks are published with QoS 1 as device-to-cloud messages from the integration's Device ID. They reach the hub's built-in events endpoint, where an Azure-side consumer reads them.
 
-The topic comes from the `topic` value in the downlink converter's output `metadata`. The integration has no fixed downlink topic, so the encoder must set `topic` to `devices/{deviceId}/messages/events/`, with the integration's Device ID. IoT Hub closes the connection when a device publishes to any other topic. To identify the ThingsBoard device, put its name in the payload.
+The topic comes from the `topic` value in the downlink converter's output `metadata`. The integration has no fixed downlink topic, so the encoder must set `topic` to `devices/{deviceId}/messages/events/`, with the integration's Device ID. IoT Hub closes the connection when a device publishes to any other topic. The encoder does not receive the **Device ID** field, so this guide adds the **Device ID** to the integration's **Metadata** as `deviceId`, and the encoder builds the topic from it. To identify the ThingsBoard device, put its name in the payload.
 
 The downlink converter turns a <DocLink product={props.product} path="user-guide/rule-engine" target="_blank">Rule Engine</DocLink> message into the published payload. For the full encoder reference, see <DocLink product={props.product} path="user-guide/integrations/downlink-data-converter" target="_blank">Downlink data converter</DocLink>.
 
@@ -482,64 +519,141 @@ The encoder returns:
 - `data` — the payload to publish.
 - `metadata` — `topic`, the topic to publish to.
 
-For RPC commands, `msg.method` and `msg.params` are available.
+The encoder reads:
+
+- `msg`, `msgType`, `metadata` — the Rule Engine message, its type, and its metadata. For RPC commands, `msg.method` and `msg.params` are available.
+- `integrationMetadata` — `integrationName` and the key–value pairs from the integration's **Metadata** field. The encoder in this guide reads `deviceId` from it.
 
 <Steps>
 1. Open the integration in **Integrations &#8702; Integrations** and click **Toggle edit mode** (pencil icon).
 2. In the **Downlink data converter** field, click **Create new**. The **Downlink** converter type and **Azure IoT Hub** integration type are preselected.
 3. Enter a name, for example `Azure IoT Hub Downlink Converter`.
-4. In **Main encoding configuration**, replace the default encoder with the one below. Replace `tb-bridge-01` with your Device ID.
+4. In **Main encoding configuration**, replace the default encoder with the one below. To use JavaScript, switch the **TBEL / JS** toggle and take the code from the **JavaScript** tab.
 5. To record downlink events, click the debug icon next to the name, select **All messages**, and click **Apply**.
-6. Click **Add**, then **Apply changes**.
+6. Click **Add**.
+7. In the integration, expand **Advanced settings**. In **Metadata**, click **Add**, enter `deviceId` as the key and the integration's **Device ID** as the value, for example `tb-bridge-01`.
+8. Click **Apply changes**.
 </Steps>
 
-Encoder used in this guide (TBEL and JavaScript):
+Encoder used in this guide:
 
-```js maxLines=15 collapsible
-/** Encoder **/
+<Tabs>
+  <TabItem label="TBEL (Recommended)">
+  ```js maxLines=15 collapsible
+  /** Encoder **/
 
-// Prepare the downlink payload.
-var data = {
-  deviceName: metadata.deviceName,
-  ts: Date.now()
-};
-
-// Map Rule Engine messages to commands.
-if (msgType == 'RPC_CALL_FROM_SERVER_TO_DEVICE') {
-  // RPC request.
-  data.method = msg.method;
-  data.params = msg.params;
-  data.requestId = metadata.requestId;
-} else if (msgType == 'ATTRIBUTES_UPDATED' || msgType == 'POST_ATTRIBUTES_REQUEST') {
-  // Shared attribute update.
-  data.method = 'setSharedAttributes';
-  data.params = msg;
-} else {
-  // Other message types.
-  data.method = 'data';
-  data.params = msg;
-}
-
-// Return the encoded downlink payload.
-var result = {
-  // Payload content type: JSON, TEXT, or BINARY (Base64).
-  contentType: 'JSON',
-  data: JSON.stringify(data),
-  metadata: {
-    // Azure IoT Hub device-to-cloud MQTT topic.
-    topic: 'devices/tb-bridge-01/messages/events/'
+  // The rule chain adds the ThingsBoard device name to the metadata.
+  // Reject the message if it is missing or empty.
+  var deviceName = metadata.deviceName != null ? metadata.deviceName.trim() : "";
+  if (deviceName == "") {
+    raiseError("Message metadata has no deviceName");
   }
-};
 
-return result;
-```
+  // The integration Metadata adds the Azure IoT Hub device ID.
+  // Reject the message if it is missing or empty.
+  var azureDeviceId = integrationMetadata.deviceId != null ? integrationMetadata.deviceId.trim() : "";
+  if (azureDeviceId == "") {
+    raiseError("Integration metadata has no deviceId");
+  }
 
-To check the encoder, click **Test encoder function**. **Message type** is already `ATTRIBUTES_UPDATED`. Set **Message** to `{"temperatureUploadFrequency":60}` and **deviceName** in **Metadata** to `8F4A2C6D`, if they differ, then click **Test**. The **Output** shows:
+  // Prepare the downlink payload.
+  var data = {
+    deviceName: deviceName,
+    ts: Date.now()
+  };
+
+  // Map Rule Engine messages to commands.
+  if (msgType == 'RPC_CALL_FROM_SERVER_TO_DEVICE') {
+    // RPC request.
+    data.method = msg.method;
+    data.params = msg.params;
+    data.requestId = metadata.requestId;
+  } else if (msgType == 'ATTRIBUTES_UPDATED' || msgType == 'POST_ATTRIBUTES_REQUEST') {
+    // Shared attribute update.
+    data.method = 'setSharedAttributes';
+    data.params = msg;
+  } else {
+    // Other message types.
+    data.method = 'data';
+    data.params = msg;
+  }
+
+  // Return the encoded downlink payload.
+  var result = {
+    // Payload content type: JSON, TEXT, or BINARY (Base64).
+    contentType: 'JSON',
+    data: JSON.stringify(data),
+    metadata: {
+      // Azure IoT Hub device-to-cloud MQTT topic for this device ID.
+      topic: 'devices/' + azureDeviceId + '/messages/events/'
+    }
+  };
+
+  return result;
+  ```
+  </TabItem>
+  <TabItem label="JavaScript">
+  ```js maxLines=15 collapsible
+  /** Encoder **/
+
+  // The rule chain adds the ThingsBoard device name to the metadata.
+  // Reject the message if it is missing or empty.
+  var deviceName = typeof metadata.deviceName === "string" ? metadata.deviceName.trim() : "";
+  if (!deviceName) {
+    throw new Error("Message metadata has no deviceName");
+  }
+
+  // The integration Metadata adds the Azure IoT Hub device ID.
+  // Reject the message if it is missing or empty.
+  var azureDeviceId = typeof integrationMetadata.deviceId === "string" ? integrationMetadata.deviceId.trim() : "";
+  if (!azureDeviceId) {
+    throw new Error("Integration metadata has no deviceId");
+  }
+
+  // Prepare the downlink payload.
+  var data = {
+    deviceName: deviceName,
+    ts: Date.now()
+  };
+
+  // Map Rule Engine messages to commands.
+  if (msgType == 'RPC_CALL_FROM_SERVER_TO_DEVICE') {
+    // RPC request.
+    data.method = msg.method;
+    data.params = msg.params;
+    data.requestId = metadata.requestId;
+  } else if (msgType == 'ATTRIBUTES_UPDATED' || msgType == 'POST_ATTRIBUTES_REQUEST') {
+    // Shared attribute update.
+    data.method = 'setSharedAttributes';
+    data.params = msg;
+  } else {
+    // Other message types.
+    data.method = 'data';
+    data.params = msg;
+  }
+
+  // Return the encoded downlink payload.
+  var result = {
+    // Payload content type: JSON, TEXT, or BINARY (Base64).
+    contentType: 'JSON',
+    data: JSON.stringify(data),
+    metadata: {
+      // Azure IoT Hub device-to-cloud MQTT topic for this device ID.
+      topic: 'devices/' + azureDeviceId + '/messages/events/'
+    }
+  };
+
+  return result;
+  ```
+  </TabItem>
+</Tabs>
+
+To check the encoder, click **Test encoder function**. **Message type** is already `ATTRIBUTES_UPDATED`. Set **Message** to `{"temperatureUploadFrequency":60}` and **deviceName** in **Metadata** to `8F4A2C6D`, if they differ. **Integration metadata** has only `integrationName` until the converter records a downlink event, so click **Add** and enter `deviceId` with your **Device ID**, for example `tb-bridge-01`. Click **Test**. The **Output** shows:
 
 ```json
 {
   "contentType": "JSON",
-  "data": "{\"deviceName\":\"8F4A2C6D\",\"ts\":1755422164000,\"method\":\"setSharedAttributes\",\"params\":{\"temperatureUploadFrequency\":60}}",
+  "data": "{\"deviceName\":\"8F4A2C6D\",\"ts\":1794478688069,\"method\":\"setSharedAttributes\",\"params\":{\"temperatureUploadFrequency\":60}}",
   "metadata": {
     "topic": "devices/tb-bridge-01/messages/events/"
   }
@@ -549,7 +663,7 @@ To check the encoder, click **Test encoder function**. **Message type** is alrea
 **To adapt:**
 - **Another envelope** — build `data` in the structure your Azure-side consumer expects.
 - **Payload as is** — use `data: JSON.stringify(msg)` and drop the branches.
-- **Message properties** — append a URL-encoded property bag to the topic, for example `devices/tb-bridge-01/messages/events/source=thingsboard`. IoT Hub routing queries can filter on these properties.
+- **Message properties** — append a URL-encoded property bag to the topic, for example `'devices/' + azureDeviceId + '/messages/events/source=thingsboard'`. IoT Hub routing queries can filter on these properties.
 - **Other message types** — add branches for other <DocLink product={props.product} path="reference/rule-engine/message-types" target="_blank">Rule Engine message types</DocLink>.
 
 ### Configure the Root Rule Chain
@@ -597,27 +711,31 @@ IoT Hub does not keep a viewable history of device-to-cloud messages, so start m
       "module": "",
       "interface": "",
       "component": "",
-      "payload": "{\"deviceName\":\"8F4A2C6D\",\"ts\":1755422164000,\"method\":\"setSharedAttributes\",\"params\":{\"temperatureUploadFrequency\":60}}"
+      "payload": "{\"deviceName\":\"8F4A2C6D\",\"ts\":1794478688069,\"method\":\"setSharedAttributes\",\"params\":{\"temperatureUploadFrequency\":60}}"
     }
   }
   ```
 
-- **Converter events** — open the downlink converter's **Events** tab. **In** shows the Rule Engine message, **Out** shows the encoded payload, and **Metadata** shows the topic.
+- **Converter events** — open the downlink converter's **Events** tab. **In** shows the Rule Engine message, **Out** shows the encoded payload and the topic, and **Metadata** shows the integration name and `deviceId`.
 
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| Integration is not connected | Wrong **Hostname**. | Copy it from the hub's **Overview** page: `{hub-name}.azure-devices.net`. |
-| Same, after authentication | Wrong **Device ID** or **SAS Key**. | Compare both with the device details in the Azure portal. Regenerate the key if unsure. |
-| Same, from a private network | Outbound port `8883` is blocked. | Open TCP `8883` to `*.azure-devices.net`, or use a <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink>. |
-| Connection keeps dropping | Another client uses the same Device ID. | Register a dedicated device identity for the integration. |
-| Connection drops after each downlink | The encoder's `topic` is not `devices/{deviceId}/messages/events/`. | Set `metadata.topic` in the encoder to that topic, with the integration's Device ID. |
+| Integration is not connected, error `Failed to connect to MQTT broker at <hostname>:8883.` | Wrong **Hostname**, or the **Device hostname** `{hub-name}.device.azure-devices.net` is used. | Enter `{hub-name}.azure-devices.net`, or upload DigiCert Global Root G3 to use the **Device hostname**. See **[Create an IoT Hub](#create-an-iot-hub)** and **[Credentials](#credentials)**. |
+| Integration is not connected, error `… Result code is: CONNECTION_REFUSED_NOT_AUTHORIZED` | Wrong **Device ID** or **SAS Key**. | Compare both with the device details in the Azure portal. Regenerate the key if unsure. |
+| Integration is not connected, error `Failed to connect to MQTT broker at <hostname>:8883.`, from a private network | Outbound port `8883` is blocked. | Open TCP `8883` to `*.azure-devices.net`, or use a <DocLink product={props.product} path="user-guide/integrations/remote" target="_blank">Remote Integration</DocLink>. |
+| Some messages never arrive, no event or error | Another client connected with the same Device ID. IoT Hub closes the integration's connection, and messages sent until it reconnects are lost. | Use a dedicated device identity for the integration. To confirm, check the device's connection state in the hub, or error `400027 ConnectionForcefullyClosedOnNewConnection` in the IoT Hub logs. |
+| Downlink event is OK, but nothing reaches the hub | The encoder's `topic` is not `devices/{deviceId}/messages/events/` with the integration's Device ID. With the encoder from this guide, `deviceId` in the integration's **Metadata** differs from **Device ID**. IoT Hub drops the message and closes the connection; the integration reconnects within seconds and records no error. | Set `deviceId` in **Metadata** to the integration's **Device ID**. |
 | No messages received | The topic filter does not match. | Use `devices/{deviceId}/messages/devicebound/#`, ending in `#`. |
+| Messages sent while the integration was disabled or offline never arrive | When the integration reconnects with a clean session, IoT Hub discards the messages queued while it was disconnected. | Send the messages again after the integration is connected. |
 | Device telemetry never arrives | Devices send device-to-cloud messages, which this integration does not receive. | Use the <DocLink product={props.product} path="user-guide/integrations/azure-event-hub" target="_blank">Azure Event Hub Integration</DocLink>. |
-| Device not created | `deviceName` is empty, or **Allow create devices or assets** is off. | Check **Out** in the converter events and the integration settings. |
-| Large messages dropped | The message exceeds **Max bytes in message**. | Raise the limit in **Advanced settings**. IoT Hub limits cloud-to-device messages to 64 KB. |
+| Device not created, the converter event has the error `Payload has no deviceId` or `Payload has no deviceType` | The message has no `deviceId` or `deviceType`, or the value is empty. | Add both fields to the message, or change the decoder to read them from other fields. |
+| Device not created, no converter error | **Allow create devices or assets** is off. | Turn it on in the integration settings. |
+| Large messages never arrive, no event | The message, with its topic, exceeds **Max bytes in message**. The integration closes the connection and reconnects, and IoT Hub drops the message (`Purged` in delivery feedback). | Set **Max bytes in message** to `131072` in **Advanced settings**. |
 | Downlink produces no event | The rule chain does not reach the **integration downlink** node. | Check the Root Rule Chain wiring and turn on debug mode for its nodes. |
+| Downlink not sent, the downlink converter event has the error `Message metadata has no deviceName` | The rule chain does not add the device name to the message metadata. | Add the **originator fields** node with **Name &#8702; deviceName** before the **integration downlink** node. See **[Configure the Root Rule Chain](#configure-the-root-rule-chain)**. |
+| Downlink not sent, the downlink converter event has the error `Integration metadata has no deviceId` | The integration's **Metadata** has no `deviceId`. | Add `deviceId` with the integration's **Device ID**. See **[Create and Assign the Downlink Converter](#create-and-assign-the-downlink-converter)**. |
 | Downlink sent, nothing in the monitor | The monitor started after the downlink. | Start `az iot hub monitor-events` first, then trigger the downlink. |
 
 To read debug events, open the integration or converter, click **Events**, and select an event: **In** is the received data, **Out** is the converter result, and **Error** holds the error text.
