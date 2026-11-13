@@ -1,0 +1,215 @@
+import { Aside } from '@astrojs/starlight/components';
+import DocLink from '@components/DocLink.astro';
+import ImageGallery from '@components/ImageGallery.astro';
+import Banner from '@components/Banner.astro';
+import { Products } from '@models/site.models';
+
+<Banner variant="cloud">Available from ThingsBoard PE/Cloud <strong>4.4.1</strong> and later.</Banner>
+
+This page explains how an extension works inside ThingsBoard: how a request reaches your code, how callers are checked, and where the container can run. Start with the <DocLink product={props.product} path='reference/extensions/overview'>Extensions overview</DocLink> if you have not read it yet.
+
+## How it works
+
+An extension is a normal web service. It listens on port **8090** (the default) and serves its endpoints at its own root — for example `/userProfile/...`.
+
+Most of this page describes a **managed** extension: you give ThingsBoard the image, and ThingsBoard creates the container, keeps it running, scales it, and routes traffic to it. You can also [run the container yourself](#run-it-yourself), without a managed deployment. [Where extensions run](#where-extensions-run) compares the options.
+
+<ImageGallery images={[{ src: '/src/assets/schemas/extension-request-flow.svg', alt: 'ThingsBoard extension request flow: a client calls the ThingsBoard router, the router checks authentication against the ThingsBoard REST API and forwards the request to the extension container', caption: 'A client calls ThingsBoard at /api/extension/route/{slug}/…. The router asks the ThingsBoard REST API whether the caller may pass, then strips the prefix and forwards the request to the extension container. The extension reads and writes platform data with the caller\'s own credential.' }]} />
+
+Three parts work together:
+
+1. **The extension entity.** Each extension is a tenant entity in ThingsBoard, like a device or an asset. It holds the container spec — the image, tag, number of replicas, port, environment variables, and resource size. When you deploy it — `tb extension server deploy`, or `POST /api/extension` — ThingsBoard pulls the image and starts the container. ThingsBoard watches the container and restarts it if it fails. You cannot create an extension or edit its spec in the ThingsBoard UI: the Extensions page has no **Add** button, and every field in the details panel is read-only. You can still **Start**, **Stop**, **Restart**, and **Delete extension** there, and open **Show logs** and **API docs**. The image, the replicas, the environment variables, and the resource size change only through the CLI or the REST API.
+2. **The router.** Clients never call the container directly. They call ThingsBoard itself, at `/api/extension/route/{slug}/...` on your ThingsBoard address. In front of the containers sits a reverse proxy — the **router**. It reads the slug from the URL, strips the `/api/extension/route/{slug}` prefix, and forwards the rest to that extension's container: a call to `.../route/{slug}/userProfile/name/Technician` arrives as `/userProfile/name/Technician`. It also passes the stripped prefix in an `X-Forwarded-Prefix` header, which is how the extension builds correct absolute URLs on its Swagger and OpenAPI pages.
+3. **The auth gateway.** Before it forwards anything, the router makes its own HTTP request to ThingsBoard — `GET /api/ext-auth` — and passes the slug in the `X-Ext-Slug` header together with the caller's `X-Authorization` header. ThingsBoard answers **200** only when the caller is a tenant administrator or a customer user of the tenant that owns that slug. A missing or invalid credential gets **401**; any other caller gets **403**. The router forwards the original request only after a 200, so a rejected call never reaches your code. The check is fail-closed: when ThingsBoard is unreachable or answers an error, the call is rejected too. This is why a managed extension does not have to check tokens itself.
+
+All three parts are tenant-scoped. The entity belongs to one tenant, the router only accepts callers of that tenant, and the container serves that tenant alone. You can see the entity in the ThingsBoard UI under **Data processing → Extensions**; the <DocLink product={props.product} path='reference/extensions/overview'>Extensions overview</DocLink> has a screenshot of that page.
+
+### The slug
+
+Every extension gets a **slug** — a short, unique name used in its URL. You choose a **slug base** (like `acme-billing`), and the installation decides what the final slug looks like:
+
+- **ThingsBoard Cloud** always appends a random four-character suffix — `acme-billing-9f3a`. Many tenants share one slug space there, so the suffix keeps a slug both unique and hard to guess.
+- **Your own PE installation** keeps your exact base by default — the slug is `acme-billing`. Because there is nothing to disambiguate a second extension with the same base, a base already in use is refused with a clear error. A system administrator can still turn the suffix on with `extensions.slug.enforce-suffix`, so do not treat "no suffix" as a rule you can build on.
+
+The slug never changes after the extension is created.
+
+Because the instance decides the slug, a dashboard or a script must not hard-code it. Ask for it by the extension **name**, which is the same everywhere:
+
+```http
+GET /api/extension/slug?name=user-profiles-demo
+```
+
+The answer holds the slug and nothing else:
+
+```json
+{"slug": "user-profiles-demo-9f3a"}
+```
+
+The endpoint is tenant-scoped and open to tenant administrators and customer users of the tenant, so a widget can resolve the name once when the dashboard loads and then build every URL from the answer. That is what makes an exported dashboard importable on another instance.
+
+<Aside type="caution">
+Public dashboards cannot use extensions. A public, unauthenticated dashboard session is rejected by this lookup and by every call through the router, so plan a widget that calls an extension for signed-in users only.
+</Aside>
+
+### Calling ThingsBoard back
+
+Your extension often needs to read or write ThingsBoard data. It does this with the **ThingsBoard REST client** for your language — <DocLink product={props.product} path='reference/python-client'>Python</DocLink> (`tb-pe-client`) or <DocLink product={props.product} path='reference/java-client'>Java</DocLink> (`thingsboard-pe-client`); each page shows the exact package for your edition. The client uses the **caller's own credential**, so every call respects that user's tenant and permissions. You do not store an admin password inside the extension.
+
+## Extension states
+
+A managed extension moves through a few states. `tb extension server status` prints the current one for the extension of your project. Add the name, the slug or the UUID of an extension to ask about another one. The CLI prints the value the API returns, in upper case; the ThingsBoard UI under **Data processing → Extensions** shows the same states as labels such as **Active**.
+
+<ImageGallery images={[{ src: '/src/assets/schemas/extension-lifecycle.svg', alt: 'ThingsBoard extension lifecycle states: Provisioning, Active, Updating, Degraded, Stopped, and Failed, with the transitions between them', caption: 'A new deployment starts in Provisioning and becomes Active when all replicas are ready. Deploying a new image moves an Active extension to Updating and back. If some replicas stop being ready, the extension shows Degraded until they recover. Stop scales it to zero; start provisions it again. An error moves the extension to Failed; a new deploy fixes it.' }]} />
+
+- `PROVISIONING` — ThingsBoard is pulling the image and starting the container.
+- `ACTIVE` — the container is running and ready to serve requests.
+- `UPDATING` — a new image or spec is rolling out; the replicas that are already ready keep serving.
+- `DEGRADED` — the extension runs, but some replicas are not ready.
+- `STOPPED` — you stopped it, and ThingsBoard scaled it to zero replicas; the entity stays, but nothing runs.
+- `FAILED` — the container could not start, or it crashed while running (for example, out of memory or a crash loop); the reason is shown as the last error.
+
+How a replica counts as ready depends on the mode. On Kubernetes — `private-cloud` and `public-cloud` — ThingsBoard probes the container itself. A replica is ready only when it answers `GET /api/health` with a 2xx status. An image that does not serve that path never becomes ready, so the extension never reaches `ACTIVE`. A system administrator can move the probe to another path with `extensions.k8s.health-path`. In `docker-compose` mode ThingsBoard does not call that path at all: the container counts as ready as soon as it runs. If the image declares its own Docker `HEALTHCHECK`, that check has to report healthy as well. Both starter projects serve `/api/health` already; keep that path if you write your own service.
+
+Click the extension row in the UI to see the state, the ready replicas, the time of the last status check, and the container configuration:
+
+<ImageGallery images={[{ src: '/src/assets/images/reference/extensions/extension-details.png', alt: 'The extension details panel in ThingsBoard with the Show logs, API docs and Delete extension buttons, the deployment status — name, state Active, ready replicas 1 of 1 — and the configuration: Docker image, port, replicas and resource size', caption: 'The extension details panel: deployment status on top, container configuration below. Show logs opens the container log, and API docs opens the OpenAPI description. The screenshot is from a PE installation with the slug suffix off, so the slug carries no random suffix.' }]} />
+
+The state comes from a background health check, so a change can take a short time to appear. A `FAILED` extension keeps its entity and its slug — fix the image or the spec and deploy again. These states belong to a managed extension only. If you [run the container yourself](#run-it-yourself), there is no extension entity, so nothing tracks the container for you.
+
+## Authentication
+
+Every request that comes through the router carries an `X-Authorization` header, and the gateway checks it before your code sees the request:
+
+| Who calls | Header | Typical use |
+|------|--------|-------------|
+| A dashboard widget | `X-Authorization: Bearer <jwt>` | a button that calls your endpoint with the user's session token |
+| A rule chain or an outside script | `X-Authorization: ApiKey <key>` | rule chain callbacks, a job that runs outside ThingsBoard |
+
+In both cases your code acts as the caller: you pass the same credential to the ThingsBoard REST client, so every read and write respects that user's permissions.
+
+A **scheduled job inside the extension** is the exception. It has no caller, so it needs a service credential of its own, set at startup as an environment variable: `TB_AUTH_API_KEY`, or `TB_AUTH_USERNAME` together with `TB_AUTH_PASSWORD`.
+
+<Aside type="note">
+Every path of an extension needs a credential, the framework documentation pages included — `/swagger-ui/...` and `/v3/api-docs/...` for Java, `/docs`, `/redoc`, and `/openapi.json` for Python. A plain browser link to one of them through the router answers **401**. To read the API description, open **API docs** on the Extensions page of the ThingsBoard UI: ThingsBoard fetches the OpenAPI document for you and sends your own credential with the request. A tenant administrator can also fetch the same document over REST, with `GET /api/extension/{extensionId}/api-docs`.
+</Aside>
+
+### What a caller can and cannot learn
+
+The gateway gives nothing away. It answers **403** both for a slug of another tenant and for a slug that was never created, so a caller cannot learn which extensions a tenant has. A call with no credential, or with an invalid one, gets **401**.
+
+On your own PE installation a slug is normally the plain base, such as `acme-billing`, so it is easy to guess. Guessing it does not help: the caller still needs a valid credential of the tenant that owns the slug.
+
+Users of the tenant, on the other hand, can read the OpenAPI description of your endpoints. Keep internal detail — host names, keys, sample secrets — out of your endpoint descriptions and examples.
+
+<Aside type="tip">
+See the <DocLink product={props.product} path='user-guide/security/api-keys' useTbDocs>API Keys</DocLink> guide for how to create and manage an API key.
+</Aside>
+
+## Where extensions run
+
+The same extension image can run in three environments. In the first two the extension is **managed**: ThingsBoard runs and scales the container for you. In the third you run the container yourself.
+
+<ImageGallery images={[{ src: '/src/assets/schemas/extension-deployment-options.svg', alt: 'Three ways to run a ThingsBoard extension: managed on ThingsBoard Cloud in a separate extensions cluster, managed on your own ThingsBoard PE installation in the same cluster but a separate namespace, or run by you with Docker Compose', caption: 'On ThingsBoard Cloud and on your own PE installation, ThingsBoard runs and scales the extension container, and you deploy with the CLI or the REST API. The difference is where the container lands: a separate cluster on ThingsBoard Cloud, a separate namespace of your own cluster on PE. If you run it yourself, you start the container with Docker Compose and route the traffic to it yourself.' }]} />
+
+| | Public cloud | Your own PE installation | Run it yourself |
+|---|---|---|---|
+| **Where** | [ThingsBoard Cloud](/installations/?product=thingsboard-cloud) | Your own ThingsBoard PE, in `private-cloud` or `docker-compose` mode | Any host you manage |
+| **Where the container lands** | A separate extensions cluster | The same Kubernetes cluster, in a separate namespace — or a single Docker host | Your host |
+| **Who runs the container** | ThingsBoard | ThingsBoard | You |
+| **How to deploy** | <DocLink product={Products.CLI} path='reference/extensions'>CLI</DocLink> or REST API | <DocLink product={Products.CLI} path='reference/extensions'>CLI</DocLink> or REST API | Docker Compose (`deploy/` folder) |
+| **Routing and auth** | Built in | ThingsBoard checks the caller; you configure the router | You configure the router; nothing checks the caller, so your code must |
+| **Scaling and restarts** | Automatic | Automatic | Manual |
+
+### Public cloud — ThingsBoard Cloud
+
+ThingsBoard Cloud runs the container on shared cloud infrastructure. This is the fastest way to get an extension online: you push the image and deploy — there is nothing to install or operate.
+
+**Two clusters.** ThingsBoard Cloud keeps the platform and the extensions apart. The platform — the UI, the REST API, and the router — runs in one cluster. Extension containers run in a second, separate cluster. Your code never runs next to the platform services, and the router is the only way in. The extensions cluster pulls your image from the registry itself.
+
+<ImageGallery images={[{ src: '/src/assets/schemas/extension-mode-public-cloud.svg', alt: 'ThingsBoard extension on the public cloud: a developer pushes the image to a container registry and deploys with the CLI or REST API; the ThingsBoard Cloud platform cluster then starts the container in a separate extensions cluster, which pulls the image over the internet', caption: 'You push the image to a registry and send a deploy request to the platform cluster. The container itself starts in a separate extensions cluster, which pulls the image over the internet. ThingsBoard runs, scales, and restarts it for you.' }]} />
+
+Points to know:
+
+- The slug always ends with a random suffix (for example `acme-billing-9f3a`), so it is unique across all tenants. Read it from the deploy output, or resolve it by name — never type it into a dashboard or a script.
+- The image registry must be reachable from the internet. For a private registry, add pull credentials — the registry flags of the <DocLink product={Products.CLI} path='reference/extensions#private-registry'>CLI</DocLink>, or `containerSpec.registryAuth` in a `POST /api/extension` request. The password there is a ThingsBoard Secret reference (`${secret:name;type:TEXT}`), never a plain password.
+- CPU and memory are limited by the **resource size** you pick (`tb extension server sizes` lists the options).
+
+### Managed on your own PE installation
+
+A ThingsBoard PE installation (version **4.4.1** or later) offers the same managed experience on your own infrastructure. The workflow does not change: the same CLI commands and the same REST API — only your CLI profile (`tb config`) points at your own instance instead of `thingsboard.cloud`. One small difference: the slug keeps your exact slug base, with no random suffix, unless a system administrator turns the suffix on.
+
+**Two modes.** ThingsBoard can run your containers on Kubernetes or on a single Docker host. The same image, the same CLI, the same router contract — only the place the container runs differs:
+
+| `extensions.mode` | Where the container runs | Replicas | Use it for |
+|---|---|---|---|
+| `private-cloud` | your Kubernetes cluster — the one ThingsBoard already runs in, in a separate namespace with its own resource limits | as many as you ask for | production |
+| `docker-compose` | one Docker host, one container per extension | always one, whatever number you ask for — a single Docker host has no load balancer behind a container name | a small installation, a demo, or a test environment |
+
+**One cluster, a separate namespace.** In `private-cloud` mode you do not need a second cluster. ThingsBoard PE and the extension containers share **one** cluster, and the extension containers get their own namespace inside it, with its own resource limits. The platform starts, scales, and restarts the containers in that namespace, and the router still checks every caller before a request reaches them. This is the mode in the picture below.
+
+<ImageGallery images={[{ src: '/src/assets/schemas/extension-mode-private-cloud.svg', alt: 'A managed ThingsBoard extension on your own PE installation: one cluster runs ThingsBoard PE and, in a separate extensions namespace, the extension container; the image comes from an internal registry and the extension reads internal APIs and databases', caption: 'One cluster runs both parts: ThingsBoard PE, and the extension container in a separate extensions namespace. Everything stays inside your network — the image can come from an internal registry, and the extension can reach internal APIs and databases that the public cloud cannot see.' }]} />
+
+Use this mode when your data must stay inside your network, or when the extension needs to reach internal systems that are not visible from the public cloud. The image registry only has to be reachable from your PE installation, so an internal registry works.
+
+#### What a system administrator sets up first
+
+Managed extensions are **off by default** on a PE installation, and the routing is not included. Three steps are needed.
+
+**1. Turn the feature on.** Pick one of the two modes above with the `TB_EXTENSIONS_MODE` environment variable (`extensions.mode` in `thingsboard.yml`). While the mode is `disabled`, the `/api/extension` endpoints do not exist, and the CLI says that extensions are not enabled on the instance. ThingsBoard Cloud runs in a third mode, `public-cloud`, and has the feature on already.
+
+**2. Prepare the place where the containers run.** ThingsBoard does not create it by default.
+
+- **`private-cloud` mode.** Create the namespace yourself. Its name is `tb-extensions` (`extensions.k8s.namespace.name`). ThingsBoard creates it only when `extensions.k8s.namespace.auto-create` is `true`, and that needs cluster-wide permissions. The default is `false`.
+- **`docker-compose` mode.** Create the Docker network yourself: `docker network create tb-extensions` (`extensions.docker.network.name`). ThingsBoard creates it only when `extensions.docker.network.auto-create` is `true`. The default is `false`, and then ThingsBoard only writes a warning to its log. Attach the router to the same network.
+- **`docker-compose` mode needs the Docker Engine.** ThingsBoard talks to it at `extensions.docker.host`. The default is `unix:///var/run/docker.sock`, so mount that socket into the ThingsBoard container, or point the setting at a remote daemon with TLS.
+- **Check the URL the extension uses to call ThingsBoard.** Every container gets it as `THINGSBOARD_URL`. It comes from `extensions.k8s.tb-internal-url` (default `http://tb-node:8080`) or `extensions.docker.tb-internal-url` (default `http://tb-core:8080`). If that host name does not resolve from the container, every call from the extension to ThingsBoard fails. Change the setting to a name that resolves on your installation.
+
+Without this step the deploy is accepted, but the extension never starts.
+
+**3. Set up the router.** ThingsBoard creates no routing object — the reverse proxy in front of the containers belongs to you, in both modes. Without it the `/api/extension` endpoints work, but every extension route leads nowhere. The router must:
+
+- match `/api/extension/route/{slug}/**` — the prefix comes from `extensions.routing.base-path`;
+- call `GET /api/ext-auth` for every request, with the slug in the `X-Ext-Slug` header and the caller's `X-Authorization` header, and forward only after a **200**;
+- strip the `/api/extension/route/{slug}` prefix before it forwards the request to the container port;
+- set `X-Forwarded-Prefix` to the stripped prefix, so the framework documentation pages build correct links;
+- send the request to the backend named by the slug. One static rule is enough: it reads the slug from the URL and resolves that backend per request. A route that sends every slug to one container would let a user of another tenant pass the check with their own slug and still reach yours.
+
+ThingsBoard names the backend after the slug, so the rule can be written once:
+
+- in `private-cloud` mode it is a Kubernetes Service named `tb-ext-{slug}` in the extensions namespace, on port `8090`;
+- in `docker-compose` mode it is a container named `tb-ext-{slug}` on the `tb-extensions` network, on the port the extension was deployed with (`8090` by default).
+
+In nginx, that is a `proxy_pass` to `http://tb-ext-$slug:8090` with a `resolver`, where `$slug` comes from the URL.
+
+The `deploy/` folder of the starter project holds an nginx snippet you can start from. It makes the `/api/ext-auth` call, but it is written for **one** extension: one `location` block serves one fixed slug and sends it to one fixed address. Do not use it as it is for a managed installation. Replace the fixed slug and address with the per-slug rule above. The HAProxy snippet beside it is for local development only: it does **no caller check at all**, so a fabricated `X-Authorization` header still reaches the extension and tenants can reach each other's extensions. Never use it as the router of a managed installation. The rest of the `extensions:` block in `thingsboard.yml` holds the other settings: the namespace (`extensions.k8s.namespace.name`), a trusted registry list (`extensions.image.allowed-registries`), the egress rules for the containers, the slug suffix (`extensions.slug.enforce-suffix`), and the internal router URL that the **API docs** page needs (`extensions.routing.router-internal-url`).
+
+<Aside type="caution">
+One Docker host can run **one** ThingsBoard in `docker-compose` extensions mode. A second instance takes over the extension containers of the first one, because both reconcile the same Docker daemon. Run only one such stack per host.
+</Aside>
+
+### Run it yourself
+
+You can also run the extension container yourself. This path is made for your own ThingsBoard PE installation. The starter project that `tb extension new` creates includes a `deploy/` folder with a ready Docker Compose file and two reverse-proxy snippets. Only the HAProxy snippet works on this path. Read the note about the caller check below first.
+
+<Aside type="note">
+A dashboard widget normally calls the extension on the address of ThingsBoard itself: `/api/extension/route/{slug}/...`. That needs your own reverse proxy in front of ThingsBoard, so it works only with your own installation. You cannot put a proxy in front of ThingsBoard Cloud. With ThingsBoard Cloud, a widget or a rule chain has to call your container by its own public address, and for widgets you must also set `CORS_ALLOWED_ORIGINS`. If you do not want to publish the container, use a managed extension.
+</Aside>
+
+<ImageGallery images={[{ src: '/src/assets/schemas/extension-mode-self-hosted.svg', alt: 'A ThingsBoard extension you run yourself with Docker Compose: a reverse proxy on your host routes /api/extension/route/* to the extension container, and the extension reads and writes platform data with the caller\'s credential', caption: 'Your host runs the container with Docker Compose. Your own reverse proxy routes the extension path to it. No caller check runs before the container — your own code is the only gate.' }]} />
+
+There is no extension entity in ThingsBoard here, so nothing is managed for you:
+
+- You start, update, and restart the container yourself.
+- You route `/api/extension/route/{slug}/...` to the container with your own reverse proxy.
+- **No caller check runs before your container, and you cannot add the managed one.** `GET /api/ext-auth` answers only for a slug that already exists as an extension record and belongs to the caller's tenant. A container you run yourself has no such record, so that call can only fail. The endpoint also exists only while `extensions.mode` is enabled on your instance. The nginx snippet in `deploy/` makes that call, so it is for a managed extension and will refuse every request here. The HAProxy snippet routes the traffic but checks nothing.
+- Because of that, your code is the only gate. Send the caller's credential to ThingsBoard on every request and reject the request when ThingsBoard rejects the credential. Keep the container port closed to everyone but your proxy, and do not publish the route on the public internet.
+
+Choose this option for local development, or when you want full control over how and where the container runs. If you need the caller check at the router, use the managed path instead. The README of the starter project and the comments inside the snippets walk through the setup.
+
+The other pages in this section — the <DocLink product={props.product} path='reference/extensions/quickstart'>Quickstart</DocLink> and the <DocLink product={Products.CLI} path='reference/extensions'>CLI reference</DocLink> — describe the **managed** path.
+
+## Next steps
+
+- <DocLink product={props.product} path='reference/extensions/quickstart'>Quickstart</DocLink> — deploy a working extension with one command and see these parts in action.
+- <DocLink product={props.product} path='reference/extensions/development-workflow'>Development workflow</DocLink> — the full development loop: plan, code, test, deploy, and ship updates.
+- <DocLink product={props.product} path='reference/extensions/quickstart#complete-example-user-profiles'>Complete example: User Profiles</DocLink> — the extension behind the Quickstart: what it does, how to build your own version of it, and where its code lives.

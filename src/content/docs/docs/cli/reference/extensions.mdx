@@ -1,0 +1,386 @@
+---
+title: Deploy extensions with ThingsBoard CLI
+description: "Reference for the tb extension server commands: deploy, resource sizes, private registry, status, logs, and the other controls."
+sidebar:
+  label: Extensions
+---
+import { Aside } from '@astrojs/starlight/components';
+import DocLink from '@components/DocLink.astro';
+import ImageGallery from '@components/ImageGallery.astro';
+import { Products } from '@models/site.models';
+
+Extensions need **ThingsBoard PE** or **ThingsBoard Cloud**, version **4.4.1** or later.
+
+The <DocLink product={Products.CLI} path='getting-started'>ThingsBoard CLI</DocLink> is the easiest way to run an extension inside ThingsBoard Cloud or PE. This page is the reference for the `tb extension server` commands. For the walkthrough that leads up to a deploy, see the <DocLink product={Products.PE} path='reference/extensions/development-workflow'>Development workflow</DocLink>.
+
+## Where a command acts
+
+The `tb extension` commands come in three groups. A command that runs the extension somewhere always names the place:
+
+| Group | Commands | Where it acts |
+|-------|----------|---------------|
+| Project | `tb extension new`, `rename`, `set-edition`, `build`, `test`, `push` | your project files and your local Docker images |
+| Local | `tb extension local run`, `status`, `logs`, `restart`, `stop` | a container on **your machine** |
+| Server | `tb extension server deploy`, `list`, `status`, `logs`, `restart`, `stop`, `start`, `sizes`, `undeploy` | the extension that **ThingsBoard** runs |
+
+So `tb extension local logs` shows the log of the container on your machine, and `tb extension server logs` shows the log of the deployed extension.
+
+<Aside type="note">
+Earlier CLI versions had the local commands without the group: `tb extension run`, `status`, `logs`, `restart`, `stop`. These forms still work for now. They print a warning and will be removed in a later release.
+</Aside>
+
+## Before you deploy
+
+`deploy` uses an image that is already in a registry. Push it first:
+
+```bash
+tb extension push --image-name myorg/acme-billing --image-tag 1.0
+```
+
+`push` saves the image and the tag in the project, so the next `deploy` uses them. You type the registry path once.
+
+When you push a version tag (`--image-tag 1.0`), the CLI also pushes the same build as `:latest`, and replaces the current `latest` in the registry. Pass `--no-latest` to skip that, for example for release candidates.
+
+Authentication uses your active profile. Override it per command with `--profile <name>`, or with `--url` and `--api-key`. The profile also decides **where** the extension runs: ThingsBoard Cloud or your own PE installation (see <DocLink product={Products.PE} path='reference/extensions/architecture#where-extensions-run'>Where extensions run</DocLink>).
+
+The registry must be reachable from the ThingsBoard instance that pulls the image: the public internet for ThingsBoard Cloud, or your own network for a private PE installation. For a private registry, ThingsBoard needs pull credentials. Pass them with the registry options of `deploy` (see [Private registry](#private-registry)).
+
+## Root and solution extensions
+
+A project can hold more than one extension:
+
+- one at the project root: `extension/`
+- one per solution: `solutions/<name>/extension/`
+
+Every project command and every local command picks its extension the same way:
+
+1. `--solution <name>` targets the extension of that solution.
+2. Without the option, a shell inside `solutions/<name>/` targets that solution. The command prints the scope it picked.
+3. Anywhere else, the project-root extension is used.
+
+The server commands follow the same rule, and they have one more way: you can name the extension itself. See [Which extension a server command acts on](#which-extension-a-server-command-acts-on).
+
+Each extension keeps its own block in `thingsboard.json` (see [Deployment state in the project](#deployment-state-in-the-project)), so names, images, and deployment state never mix. For example, deploy the extension of a solution with:
+
+```bash
+tb extension server deploy --solution smart-building
+```
+
+A solution directory has to exist before you can put an extension in it:
+
+```bash
+tb solution new smart-building
+tb extension new --solution smart-building --lang python
+```
+
+Prefer the option over changing directory. It names the extension you mean, whichever directory your shell is in. If the solution is not there, the CLI stops and asks you to run `tb solution new <name>` first.
+
+Two limits apply once a project holds several extensions:
+
+- **Locally**, they all use the same default port, so only one runs at a time unless you change it. Stop the other one first (`tb extension local stop --solution <name>`), or give one extension its own port: set `EXTENSION_PORT` in your shell, or change the port in its config file (`pyproject.toml` for Python, `application.yml` for Java).
+- **Deployed**, each one takes a part of the tenant quota: extension count, CPU, and memory. The Extensions page shows what is left (see <DocLink product={Products.PE} path='reference/extensions/overview#what-it-looks-like'>What it looks like</DocLink>).
+
+## Commands at a glance
+
+| Command | What it does |
+|---------|--------------|
+| `tb extension server deploy` | Deploy the extension, or update it, from an image in a registry |
+| `tb extension server list` | List the extensions deployed in this tenant |
+| `tb extension server status [extension]` | Show the state, the replicas, and the URL |
+| `tb extension server logs [extension]` | Show the last log lines |
+| `tb extension server restart [extension]` | Restart the extension |
+| `tb extension server stop [extension]` | Stop the extension. It keeps its settings and its URL |
+| `tb extension server start [extension]` | Start a stopped extension again |
+| `tb extension server sizes` | List the available resource sizes |
+| `tb extension server undeploy [extension]` | Remove the extension from ThingsBoard |
+
+## Which extension a server command acts on
+
+`status`, `logs`, `restart`, `stop`, `start` and `undeploy` act on one deployed extension. They all choose it by the same rule, in this order:
+
+1. **The extension you name.** Pass its **name**, its **slug** or its **UUID** as the argument. The name is the easiest to type, because a slug can end with a random suffix. This form works from any directory.
+2. **`--solution <name>`**: the extension of that solution.
+3. **The solution your shell is in.**
+4. **The project-root extension.**
+
+For 2 to 4 the CLI reads the deployment that `deploy` saved in `thingsboard.json`. So inside the project you need no argument at all:
+
+```bash
+tb extension server status
+```
+
+```text
+Extension: acme-billing (acme-billing-9f3a) on https://thingsboard.cloud
+```
+
+The CLI always prints which extension it picked: the name, the slug, and the server. This line goes to the error stream, so `tb extension server logs > app.log` saves only the log.
+
+When nothing names an extension, for example outside a project, the command does not guess. It stops, lists the extensions of the tenant, and shows a command that names one:
+
+```text
+No extension was named, and this directory is not inside a ThingsBoard project.
+Extensions deployed on https://thingsboard.cloud:
+  acme-billing  (slug acme-billing-9f3a)  ACTIVE
+  weather  (slug weather-1a2b)  STOPPED
+Name one, by its name or its slug: tb extension server status acme-billing-9f3a
+```
+
+## `tb extension server deploy`
+
+Deploy the extension, or update it. The CLI shows a confirmation panel, sends the request, and by default waits until the extension is `ACTIVE`.
+
+```bash
+tb extension server deploy --replicas 2 --size medium
+```
+
+```text
+╭─ tb extension server deploy ───────────────────────────╮
+│ Deploy 'acme-billing'                                  │
+│   image: myorg/acme-billing:1.0 (last push)            │
+│   replicas: 2   port: 8090                             │
+│   size: medium                                         │
+│   target: https://thingsboard.cloud                    │
+╰────────────────────────────────────────────────────────╯
+Proceed? [y/N]: y
+OK Deployed 'acme-billing' → acme-billing-9f3a: ACTIVE   (2/2 replicas ready)
+  URL:  https://thingsboard.cloud/api/extension/route/acme-billing-9f3a
+Next:
+  tb extension server logs acme-billing-9f3a -n 200
+  tb extension server status acme-billing-9f3a
+```
+
+### Where the image comes from
+
+When you do not pass `--image-name`, the CLI takes the image in this order:
+
+1. the image of the last `tb extension push`, if you have not deployed to this server since that push;
+2. the image the deployment runs now;
+3. the image saved in `thingsboard.json` by the last deploy.
+
+The panel says which one it used: `(last push)`, `(current deployment)` or `(saved in thingsboard.json)`. With `-y` there is no panel, so the CLI prints the same `image:` line before it saves. Read it: an old or unexpected image is visible there, before anything changes on the server.
+
+A push is used once per server: the first deploy after the push takes it. After that, a deploy keeps the image that the deployment runs. So a rollback you made with `--image-tag`, or an image you changed in the ThingsBoard UI, is not replaced by the old push. On another server, for example `--profile test` after `dev`, the same push is still new, and a plain `deploy` promotes it.
+
+### Options
+
+`tb extension server deploy --help` shows the common options first and the rest in panels below.
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--size` | current deployment → saved size → `small` | Resource size — see [Resource sizes](#resource-sizes) |
+| `--replicas` | current deployment → saved value → `1` | Number of replicas (1–20) |
+| `--env KEY=VALUE` | — | Add an environment variable, or change its value. Repeat for more than one. The other variables of the deployment are kept. Names that start with `TB_EXT_`, and the key `THINGSBOARD_URL`, are reserved |
+| `--unset-env KEY` | — | On an update, remove one environment variable. Repeat for more than one |
+| `--wait` / `--no-wait` | `--wait` | Wait until the new version runs or the deploy fails (see [Wait outcomes](#wait-outcomes)), or return at once |
+| `-y` / `--yes` | — | Skip the confirmation prompt |
+| `--solution` | auto | Target the extension of a solution instead of the project-root one — see [Root and solution extensions](#root-and-solution-extensions) |
+| **Image** | | |
+| `--image-name` | last push → current deployment → saved image | Image repository in the registry, **without a tag** |
+| `--image-tag` | last push → current deployment → saved tag → `latest` | Image tag. A tag is carried over only together with its repository — see [Deployment state in the project](#deployment-state-in-the-project) |
+| **Private registry** | | |
+| `--registry` | from image | Registry host. When omitted, ThingsBoard takes it from the image |
+| `--registry-user` | — | Username (or robot account) — see [Private registry](#private-registry) |
+| `--registry-password-secret` | — | Name of a ThingsBoard Secret that holds the registry password — see [Private registry](#private-registry) |
+| `--clear-registry-auth` | — | On an update, remove the saved registry login |
+| **Rarely needed** | | |
+| `--name` | the name in `thingsboard.json` | Extension name in ThingsBoard. Dashboards find the extension by this name — see [The extension name](#the-extension-name) |
+| `--slug-base` | the slug it had before → made from the name | First part of the slug, the name of the extension in its URL. Used on the first deploy only |
+| `--port` | current deployment → saved value → the port in the extension's own configuration → `8090` | Port the container listens on |
+| `--clear-env` | — | On an update, remove all environment variables. Variables given with `--env` in the same command are then the only ones |
+| `--timeout` | `180` | How long `--wait` waits, in seconds |
+
+<Aside type="caution">
+`--image-name` must not include a tag. Pass the tag with `--image-tag`. A registry host and port (`registry.example.com:5000/team/foo`) is fine — only a real `:tag` is rejected.
+</Aside>
+
+### Environment variables
+
+`--env` changes only the variables you name. Every other variable of the deployment stays. For example, the deployment has `TB_AUTH_API_KEY`, `LOG_LEVEL=info` and `OLD_FLAG`, and you run:
+
+```bash
+tb extension server deploy --env LOG_LEVEL=debug --unset-env OLD_FLAG
+```
+
+The panel shows what happens to each variable:
+
+```text
+│   env: LOG_LEVEL=debug                                 │
+│   env kept: TB_AUTH_API_KEY                            │
+│   env removed: OLD_FLAG                                │
+```
+
+Only a variable you typed in this command is shown with its value. A kept or removed variable is shown by name, because its value may be a secret.
+
+To start from an empty set, pass `--clear-env`. Together with `--env` it leaves exactly the variables of this command.
+
+On an update, when you do not pass the registry options, the CLI keeps the registry login too. The panel then shows `registry-auth: (kept from current deployment)`.
+
+### Without waiting
+
+With `--no-wait`, the command returns at once and the state updates in the background:
+
+```text
+OK Provisioned 'acme-billing' → acme-billing-9f3a (configuration saved; the rollout is not confirmed — check `tb extension server status acme-billing-9f3a`)
+  URL:  https://thingsboard.cloud/api/extension/route/acme-billing-9f3a
+Next:
+  tb extension server logs acme-billing-9f3a -n 200
+  tb extension server status acme-billing-9f3a
+```
+
+### Wait outcomes
+
+With `--wait` (the default), the command checks the extension state again and again, and reacts to each state differently. Only `ACTIVE` counts as success. Every other outcome exits with a non-zero code and a message that names the real state:
+
+| Final state | What the CLI does |
+|-------------|-------------------|
+| `ACTIVE` | Success: `Deployed 'acme-billing' → acme-billing-9f3a: ACTIVE   (2/2 replicas ready)`. |
+| `FAILED` | Stops at once and prints the `lastError` (for example, an image pull failure). |
+| `STOPPED` | Stops at once — someone stopped the extension while the CLI was waiting, with the **Stop** button on the Extensions page or with `tb extension server stop`. The message names the state instead of reporting a timeout. |
+| `DELETING` | Stops at once and reports that the extension is being deleted. |
+| `DEGRADED` at the timeout | Keeps waiting while `DEGRADED` — the extension may still recover. If `--timeout` runs out in this state, the CLI reports the ready and the desired replicas and the `lastError`. |
+| `PROVISIONING` / `UPDATING` at the timeout | Reports that the extension did not become `ACTIVE` in time. It may still be starting — check `tb extension server status`. |
+
+`DELETING` is a reserved state: no code path on the server sets it today, because a delete removes the extension at once. The CLI still handles it, so the wait ends with a clear message instead of a timeout if a future release starts to use it.
+
+### Private registry
+
+ThingsBoard pulls the image on the server side, so it needs its own pull credentials — your local `docker login` does not help here. The CLI never sends the password itself. Instead, it sends a reference to a ThingsBoard Secret:
+
+1. Create a Secret with the registry password under your tenant — use the **Secrets** page in the ThingsBoard UI, or `POST /api/secret`.
+2. Deploy with the username and the secret name:
+
+```bash
+tb extension server deploy --registry-user robot-acme --registry-password-secret acme-registry
+```
+
+`--registry-user` and `--registry-password-secret` are required together. `--registry` is optional: when omitted, ThingsBoard takes the registry host from the image. The CLI fills the `registryAuth` field of the deployment request and sends the password as a `${secret:acme-registry;type:TEXT}` reference. You can also pass a full `${secret:…}` reference as the value — the CLI keeps it as it is.
+
+You set the registry options once. On later updates, the CLI keeps the login from the current deployment — you do not repeat the options. Pass new values to replace them, or `--clear-registry-auth` to remove them.
+
+A login belongs to one registry host. If a later `--image-name` moves the image to a different host, the CLI does not carry the login over — it warns you instead, so the old password never reaches the new host. Pass `--registry-user` and `--registry-password-secret` again when the new host is private too.
+
+## The extension name
+
+The name of an extension is one value with two jobs:
+
+- it is the name of the **local Docker image** that `tb extension build` makes;
+- it is the **extension name in ThingsBoard** after a deploy.
+
+Dashboards and widgets find a deployed extension by this name (`GET /api/extension/slug?name=…`). So a new name is not a local detail. After `tb extension rename`, the next deploy renames the extension in ThingsBoard, and a dashboard that looks it up by the old name no longer finds it. The slug and the URL do not change.
+
+The CLI warns you both times. `tb extension rename` on a deployed extension asks before it changes the name (`--yes` skips the question). `tb extension server deploy` prints the same warning when it is about to rename the extension on the server, and its panel shows a `renames: 'old' → 'new'` line.
+
+## Resource sizes
+
+A size is one setting instead of hand-written CPU and memory values. Pass the one you want to `deploy` with `--size`. There are six:
+
+| Size | CPU request | CPU limit | Memory |
+|------|-------------|-----------|--------|
+| `xsmall` | 0.125 | 0.25 | 128Mi |
+| `small` (default) | 0.25 | 0.5 | 256Mi |
+| `medium` | 0.5 | 1 | 512Mi |
+| `large` | 1 | 2 | 1Gi |
+| `xlarge` | 2 | 4 | 2Gi |
+| `xxlarge` | 4 | 4 | 8Gi |
+
+The memory request and the memory limit are always the same value, so a container never gets more memory than its size. CPU may go above the request, up to the limit. `tb extension server sizes` prints the same table from your instance, so you can always check it there.
+
+Start small and move up only if the extension needs more. Without `--size`, a new deployment gets `small`. Keep it there for a Java extension: `xsmall` gives the container 128Mi, which is not enough for a JVM, so the process is killed before Spring finishes starting.
+
+<Aside type="note" title="Tenant quota">
+  The quota counts the **limit** values of the size, multiplied by `--replicas`. Two replicas of `medium` take 2 CPU and 1Gi, not the request values. This has to fit the CPU and memory your tenant may still use for extensions. The number of extensions is limited as well.
+
+  A `STOPPED` extension runs no container, so it frees its CPU and memory. It still counts toward the extension limit, because the entity is still there. Check the **Available resources** line under the table on the **Data processing → Extensions** page before you deploy: it shows the used and the total amount, and how many extensions of each size still fit.
+
+  Replicas multiply the usage only where the platform really starts them. In `docker-compose` <DocLink product={Products.PE} path='reference/extensions/architecture#where-extensions-run'>extensions mode</DocLink> an extension always runs one container and is charged for one, whatever `--replicas` says.
+
+  On your own PE installation a system administrator sets these limits in the <DocLink product={Products.PE} path="user-guide/tenant-profiles#extension-limits">tenant profile</DocLink>. On ThingsBoard Cloud they come from your plan. A tenant cannot change them in either case.
+</Aside>
+
+## `tb extension server undeploy`
+
+Remove the extension from ThingsBoard: its containers and its record. Inside the project it needs no argument. From another directory, name the extension:
+
+```bash
+tb extension server undeploy acme-billing
+```
+
+The CLI asks before it deletes, and the question names the extension: `Undeploy extension acme-billing (acme-billing-9f3a)?`. Pass `-y` to skip the question.
+
+## Inspecting and controlling a deployment
+
+```bash
+tb extension server list              # all extensions in the tenant
+tb extension server status            # state, replicas, URL
+tb extension server logs -n 200       # the last 200 log lines
+tb extension server restart           # restart the extension
+tb extension server stop              # stop it; it keeps its settings and its URL
+tb extension server start             # start it again
+```
+
+Without an argument these commands act on the extension of the project you are in. To act on another one, add its name, its slug or its UUID: `tb extension server logs acme-billing -n 200`. See [Which extension a server command acts on](#which-extension-a-server-command-acts-on).
+
+`list` prints one row per extension: name, slug, state, resource size, image, and a **Docs** link. The link opens the extension's own page in the ThingsBoard UI — `<your instance>/extensions/<uuid>` — where the **API docs** button shows the API description. It is built from the extension id, so every row has it, whatever language the extension uses and wherever it was deployed from. The CLI never links the docs page inside the container: that page needs a credential, so the link would only return 401.
+
+`status` shows the name, the slug, the state, the ready and the desired replicas, the public URL, and the same **Docs** link. It adds a **Last error** row only when the extension reports one.
+
+The same information is in the UI, under **Data processing → Extensions**. `logs` and the **Show logs** button read the same container log:
+
+<ImageGallery product={Products.CLI} images={[{ src: '/src/assets/images/reference/extensions/extension-logs.png', alt: 'The extension logs dialog in ThingsBoard showing the service starting and the requests that arrived through the router', caption: 'tb extension server logs and the Show logs button read the same container log. Auto refresh keeps the dialog live.' }]} />
+
+## Deployment state in the project
+
+The CLI keeps what it needs for the next deploy in the `thingsboard.json` of the project:
+
+```json
+{
+  "extension": {
+    "name": "acme-billing",
+    "language": "java",
+    "pushed": { "image": "myorg/acme-billing", "tag": "1.0" },
+    "deployment": {
+      "id": "…", "slug": "acme-billing-9f3a", "slugBase": "acme-billing",
+      "lastImage": "myorg/acme-billing", "lastTag": "1.0",
+      "size": "medium", "replicas": 2, "port": 8090,
+      "push": { "image": "myorg/acme-billing", "tag": "1.0" },
+      "target": { "url": "https://thingsboard.cloud", "tenantId": "…" }
+    }
+  }
+}
+```
+
+`tb extension push` writes the `pushed` block. `tb extension server deploy` writes the `deployment` block after a successful deploy. Its `push` value is the push that this deploy already took into account, so the same push is not applied to this server twice. The extension of a solution saves the same blocks under its own solution instead — `solutions.<name>.extension` — so the root extension and every solution extension keep their state apart.
+
+Because of this, a later `tb extension server deploy` with no options **updates** the same extension. You do not have to repeat the image, the tag, the slug, the size, the replica count, or the port. The size, the replicas and the port follow one chain: the option first, then the value of the current deployment on the server, then the value saved in `thingsboard.json`, then the CLI default. The server comes before the saved value, so a scale you set with an earlier `--replicas`, or through the REST API, survives the next CLI deploy. The image and the tag follow the same chain, with the last push in front — see [Where the image comes from](#where-the-image-comes-from).
+
+The environment variables and the private-registry login are never written to `thingsboard.json`, because `--env` may hold a secret. They live on the server only, and the CLI keeps them from the current deployment — see [Environment variables](#environment-variables).
+
+Better still, do not pass a secret value at all. An `--env` value may be a ThingsBoard Secret reference, the same form the registry password uses:
+
+```bash
+tb extension server deploy --env 'TB_AUTH_API_KEY=${secret:my-service-key;type:TEXT}'
+```
+
+The extension record then holds only the reference. ThingsBoard resolves it while it starts the container, so the value stays out of your shell history and out of the audit log. When you rotate the Secret, you do not need to deploy again: the platform restarts the container with the new value on its next check, within five minutes by default. A reference that matches no Secret fails the deploy rather than starting the extension with an empty value. Quote the whole argument, or the shell expands `${…}` before the CLI sees it.
+
+An image tag only makes sense for the repository it was pushed to, so the CLI carries a tag over only while the image repository stays the same. If `--image-name` moves the deployment to a different repository and you pass no `--image-tag`, the CLI uses `latest`: the old tag was most likely never pushed to the new repository. So pass `--image-tag` whenever you change the repository by hand, or whenever you want a specific build.
+
+## Deploy from CI
+
+Environment variables let you deploy without an interactive profile — useful in a pipeline:
+
+```bash
+export TB_URL=https://thingsboard.cloud
+export TB_API_KEY=tb_XXXX
+tb extension server deploy --image-name myorg/acme-billing --image-tag "$CI_COMMIT_TAG" -y --no-wait
+```
+
+`TB_URL` sets the instance, `TB_API_KEY` supplies the key, `-y` skips the prompt, and `--no-wait` returns at once. A pipeline usually starts from a clean checkout with no saved push, so name the image and the tag here.
+
+<Aside type="note">
+These two variables configure the **CLI**. They are not the same as `TB_AUTH_API_KEY`, which is a runtime credential **inside the extension container** — see <DocLink product={Products.PE} path='reference/extensions/architecture#authentication'>Authentication</DocLink>.
+</Aside>
+
+## Next steps
+
+- <DocLink product={Products.PE} path='reference/extensions/development-workflow'>Development workflow</DocLink> — the full build-and-deploy walkthrough for your own extension.
