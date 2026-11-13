@@ -1,10 +1,10 @@
 import type { UseCaseData } from './types';
 
 export const data: UseCaseData = {
-	title: 'Smart retail',
-	pageTitle: 'Turn your market into a Smart Retail powerhouse with ThingsBoard IoT',
+	title: 'Smart retail IoT solution',
+	pageTitle: 'Smart Retail IoT Solution',
 	description:
-		"Discover how ThingsBoard's Smart Retail Solutions enable real-time monitoring, automated alarms, and intelligent dashboards for supermarkets and retail chains.",
+		'Monitor chillers, freezers, and smart shelves across stores in real time. Get threshold alarms that protect food quality and see the live demo.',
 	pageSlug: 'smart-retail',
 	about: {
 		shortText:

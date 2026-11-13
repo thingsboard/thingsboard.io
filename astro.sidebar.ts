@@ -228,7 +228,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => {
 		],
 	},
 	{
-		label: 'Mobile App Center',
+		label: isPE ? 'Mobile Apps' : 'Mobile App Center',
 		collapsed: true,
 		items: [
 			{ label: 'Overview', slug: `${prefix}/mobile-app-center` },
@@ -285,7 +285,11 @@ const guideItems = (prefix: string, { isPE = false } = {}) => {
 			{
 				label: 'Infrastructure',
 				collapsed: true,
-				items: [`${prefix}/security/domains`, `${prefix}/security/self-signed-ecc`],
+				items: [
+					`${prefix}/security/domains`,
+					`${prefix}/security/self-signed-ecc`,
+					`${prefix}/security/web-security-hardening`,
+				],
 			},
 			{
 				label: 'Administration',
@@ -294,6 +298,9 @@ const guideItems = (prefix: string, { isPE = false } = {}) => {
 					{ label: 'Security Settings', slug: `${prefix}/security` },
 					`${prefix}/security/audit-log`,
 					`${prefix}/security/secrets-storage`,
+					// SBOMs are published from 4.4.1. The docs under pe/ describe 4.4, the unified product;
+					// the docs outside pe/ describe 4.3, which has no SBOMs.
+					...(isPE ? [`${prefix}/security/sbom`] : []),
 				],
 			},
 			...(isPE ? [{
@@ -375,9 +382,7 @@ const edgeInstallationItems = (prefix: string) => {
 			items: [`${prefix}/installation/docker-compose-setup`],
 		},
 		...(isPE ? [{ label: 'Remote Agent', slug: `${prefix}/installation/agent` }] : []),
-		...(isPE
-			? []
-			: [{ label: 'Building from Sources', slug: `${prefix}/installation/building-from-source` }]),
+		{ label: 'Building from Sources', slug: `${prefix}/installation/building-from-source` },
 		{ label: 'Upgrade Instructions', slug: `${prefix}/installation/upgrade-instructions` },
 	];
 };
@@ -2120,7 +2125,7 @@ export const paasSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'Mobile App Center',
+				label: 'Mobile Apps',
 				collapsed: true,
 				items: [
 					{ label: 'Overview', slug: 'docs/paas/user-guide/mobile-app-center' },
@@ -2533,7 +2538,7 @@ export const paasEuSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'Mobile App Center',
+				label: 'Mobile Apps',
 				collapsed: true,
 				items: [
 					{ label: 'Overview', slug: 'docs/paas/eu/user-guide/mobile-app-center' },

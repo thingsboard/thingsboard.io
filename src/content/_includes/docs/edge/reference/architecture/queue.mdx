@@ -10,11 +10,11 @@ Edge supports two queue implementations. Set the backend with the `TB_QUEUE_TYPE
 
 | Backend | `TB_QUEUE_TYPE` | Persistence | Use case |
 |---------|----------------|-------------|----------|
-| **In-Memory** | `in-memory` | None — messages lost on restart | Development, single-node demos |
+| **In-Memory** | `in-memory` | Rule engine messages in flight are lost on restart; cloud events are kept in PostgreSQL | Development, single-node demos |
 | **Apache Kafka** | `kafka` | Disk-based, survives restarts | Production, cluster deployments |
 
 <Aside type="tip">
-  Use Kafka in production. In-memory queue is convenient for local development but provides no durability — cloud events queued while the server is unreachable are lost on Edge restart.
+  Use Kafka in production. The in-memory queue is convenient for local development, but rule engine messages that are being processed are lost if Edge restarts. Cloud events queued while the server is unreachable are stored in PostgreSQL and survive a restart.
 </Aside>
 
 ## Cloud event queue
@@ -23,8 +23,8 @@ The cloud event queue is separate from the inter-service message queue. It store
 
 | Queue type | Storage location | Available since |
 |------------|-----------------|----------------|
-| **PostgreSQL** | `cloud_events` table | All versions |
-| **Kafka** | `ts_cloud_event` topic | Edge 3.9 |
+| **PostgreSQL** | `cloud_event` table (time series in `ts_kv_cloud_event`) | All versions |
+| **Kafka** | `tb_cloud_event` topic (time series in `tb_cloud_event_ts`) | Edge 3.9 |
 
 When `TB_QUEUE_TYPE=kafka`, the cloud event queue automatically uses the Kafka topic instead of the PostgreSQL table. This improves throughput and provides better durability for high-volume synchronization scenarios.
 
@@ -37,9 +37,9 @@ When `TB_QUEUE_TYPE=kafka`, the cloud event queue automatically uses the Kafka t
   │       ▼                                             │
   │  ┌──────────────────────────────────────────┐       │
   │  │  Cloud Event Queue                       │       │
-  │  │  PostgreSQL (cloud_events table)         │       │
+  │  │  PostgreSQL (cloud_event table)          │       │
   │  │  — OR —                                  │       │
-  │  │  Kafka (ts_cloud_event topic)  [3.9+]    │       │
+  │  │  Kafka (tb_cloud_event topic)  [3.9+]    │       │
   │  └─────────────────────┬────────────────────┘       │
   │                        │                            │
   └────────────────────────┼────────────────────────────┘
@@ -57,9 +57,9 @@ The Cloud Manager reads events from the queue and pushes them to the server in t
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `CLOUD_RPC_STORAGE_MAX_READ_RECORDS_COUNT` | `50` | Records per uplink batch |
-| `CLOUD_RPC_SLEEP_BETWEEN_BATCHES` | `1000` ms | Pause between consecutive batches |
+| `CLOUD_RPC_SLEEP_BETWEEN_BATCHES` | `1000` ms | Wait before retrying a batch that failed to deliver |
 | `CLOUD_RPC_NO_READ_RECORDS_SLEEP` | `1000` ms | Pause when the queue is empty |
-| `CLOUD_RPC_MISORDERING_COMPENSATION_MILLIS` | `60000` ms | Extra wait for out-of-order events before sending |
+| `CLOUD_RPC_MISORDERING_COMPENSATION_MILLIS` | `60000` ms | Look-back window when reading events, so that events with out-of-order timestamps are not skipped |
 
 ## Message queue vs Rule Engine queues
 
@@ -68,7 +68,7 @@ The message queue described on this page is the **infrastructure-level transport
 This is different from **Rule Engine Queues**, which are a higher-level abstraction configured in the ThingsBoard UI. Rule Engine Queues control submit strategy (burst, batch, sequential), retry policy, polling interval, and parallelism. They run on top of the message queue backend.
 
 <Aside type="note">
-  Changing `TB_QUEUE_TYPE` switches the transport layer for all inter-service communication, including the cloud event queue. Rule Engine Queue settings are configured separately in the ThingsBoard UI. See <DocLink product={props.product === Products.EDGE_PE ? Products.EDGE_PE : Products.EDGE} path="user-guide/queues" target="_blank">Rule Engine Queues</DocLink> for details.
+  Changing `TB_QUEUE_TYPE` switches the transport layer for all inter-service communication, including the cloud event queue. Rule Engine Queue settings are configured separately in the ThingsBoard UI. See <DocLink product={Products.EDGE_PE} path="user-guide/queues" target="_blank">Rule Engine Queues</DocLink> for details.
 </Aside>
 
 ## Kafka configuration
@@ -103,8 +103,8 @@ When running with `TB_QUEUE_TYPE=kafka`, the following environment variables con
 
 ## In-memory queue
 
-The in-memory queue stores all messages in JVM heap memory. No configuration is needed beyond `TB_QUEUE_TYPE=in-memory`. Messages are lost if the Edge process restarts — including cloud events that have not yet been pushed to the server.
+The in-memory queue stores rule engine and service messages in JVM heap memory. No configuration is needed beyond `TB_QUEUE_TYPE=in-memory`. Messages that are being processed are lost if the Edge process restarts. Cloud events that have not yet been pushed to the server are stored in PostgreSQL and are sent after the restart.
 
 <Aside type="caution">
-  Do not use the in-memory queue in deployments where Edge may restart or lose power while disconnected from the server. Cloud events accumulated during an outage will be lost on restart.
+  Do not use the in-memory queue in production deployments where Edge may restart or lose power under load: messages that are being processed by the rule engine are lost on restart.
 </Aside>

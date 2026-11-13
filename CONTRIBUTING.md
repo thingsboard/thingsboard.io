@@ -27,6 +27,8 @@ Thanks for helping improve the ThingsBoard documentation. This repo holds the so
 
 ## Before you open a PR
 
+Bring your branch up to date with its base branch first: `git fetch origin` and merge the latest `origin/main` or `origin/develop` (see [Which branch and label](#which-branch-and-label)) into your branch. Do it again before every new push if the base has moved. A branch that is behind its base can still merge without conflicts, yet it breaks the CI build caches.
+
 CI runs four checks on every PR. All must pass for the PR to be merged. Run them locally first:
 
 - `pnpm check` — TypeScript and Astro type checking.
@@ -91,6 +93,16 @@ import { Products } from '@models/site.models';
 
 Do not hand-edit `public/_redirects` or `public/redirects.json` directly — they are rewritten by the generator.
 
+### Update Edge releases and upgrade instructions
+
+The Edge upgrade instructions, the upgrade table and the Edge releases table are built from `src/data/edge-releases.ts`, which is generated — do not edit it by hand. After an Edge release, a ThingsBoard maintainer regenerates it from the repo root:
+
+```bash
+pnpm sync:edge-releases [--updates <path to edge-update-v2.json>] [--check]
+```
+
+This is a maintainer-only step: the script reads release dates from the GitHub releases of `thingsboard/thingsboard-edge` (via the `gh` CLI) and upgrade paths from the internal Edge update graph (`edge-update-v2.json`). The script's `RELEASE_DATES` overrides the GitHub date of a release that shipped before its GitHub release (Edge 4.4.0.x). The script warns about releases without a `## v<version> (<date>)` heading in the Edge release notes (`src/content/_includes/docs/edge/releases/` and `…/edge/pe/releases/`); add those entries. A new release family also needs releases-table highlights in `EDGE_FAMILY_HIGHLIGHTS` (`src/models/edge-upgrade-instructions.ts`) and its per-family upgrade pages (`…/upgrade-instructions/<platform>/v<X>-<Y>-x.mdx`).
+
 ### Regenerate configuration reference pages
 
 When ThingsBoard's upstream `*.yml` config files change, regenerate the configuration reference MDX pages with `scripts/generate_config_pages.py`. The script fetches the upstream config files directly from GitHub via the [`gh` CLI](https://cli.github.com/) — no local checkout needed. Run `gh auth login` once (required for the private PE / Edge-PE / TBMQ-PE repos), then from this repo's root:
@@ -129,6 +141,7 @@ If the feature is not merged into the product repository yet, also add the label
 
 ## Opening the PR
 
+- Merge the latest base branch into yours right before opening the PR (see [Before you open a PR](#before-you-open-a-pr)).
 - Branch naming is loose; descriptive is enough (`fix/mqtt-quickstart-typo`, `add/edge-installation-page`).
 - Use imperative-mood commit messages. Keep the subject brief; add a body if the motivation isn't obvious from the diff.
 - The PR title should describe the change. The body should mention the affected pages and include screenshots if there's a visual change.
