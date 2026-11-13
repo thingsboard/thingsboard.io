@@ -20,6 +20,10 @@ pnpm build:fast       # Fast build (skips OG image generation) — use this for 
 pnpm build:linkcheck  # Build used by linkcheck (also skips llms.txt and image optimization)
 pnpm preview          # Preview production build
 
+# Any build script: render pages on N worker threads (Astro's experimental.parallelPrerender).
+# Off unless set. Same output as a serial build; 2 workers save about a quarter of the time and add ~3 GB of memory.
+PRERENDER_WORKERS=2 pnpm build
+
 # Quality checks
 pnpm check            # TypeScript/Astro type checking
 pnpm lint:eslint      # ESLint
