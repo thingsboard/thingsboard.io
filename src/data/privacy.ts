@@ -3,17 +3,19 @@
 
 // The website's policy. The Cloud one is `PRIVACY_POLICY_HREF` in `trust-center/nav.ts`.
 export const WEBSITE_PRIVACY_HREF = '/legal/privacy-policy/';
+export const COOKIE_POLICY_HREF = '/cookie-policy/';
+const PRIVACY_POLICY_LABEL = 'Privacy Policy';
 
 // Form privacy line: `lead`, then the link, then a full stop.
 export const formPrivacyNote = (noun: string) => ({
 	lead: `We use these details only to answer your ${noun}. See our`,
-	linkLabel: 'Privacy Policy',
+	linkLabel: PRIVACY_POLICY_LABEL,
 });
 
 // Privacy Policy link required by GDPR Art. 13 and CalOPPA (Cal. Bus. & Prof. Code §22575), plus the Cookie Policy.
 export const footerLegalLinks: { href: string; label: string }[] = [
-	{ href: WEBSITE_PRIVACY_HREF, label: 'Privacy Policy' },
-	{ href: '/cookie-policy/', label: 'Cookie Policy' },
+	{ href: WEBSITE_PRIVACY_HREF, label: PRIVACY_POLICY_LABEL },
+	{ href: COOKIE_POLICY_HREF, label: 'Cookie Policy' },
 ];
 
 // Opens the cookie preferences dialog (CCPA regs §7015 opt-out link).
