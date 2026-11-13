@@ -2,7 +2,8 @@
 // The last choice and the guess live in `scripts/cloud-region.js`, a plain script /pricing/ inlines (`?raw`) to
 // pick its region before first paint; inlined as is, so it carries no comments. It skips SSR, which imports this
 // module too. Its region ids must match `CLOUD_REGIONS`.
-import '@root/scripts/cloud-region.js';
+// Loaded by scripts/lint-landmarks.ts in plain Node: see the alias exception in CLAUDE.md.
+import '../scripts/cloud-region.js';
 
 // The notes must match the Cloud FAQ, which names no country or datacentre.
 // `gtm` is part of the click ids the GTM funnel keys on.

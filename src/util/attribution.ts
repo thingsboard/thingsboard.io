@@ -1,7 +1,7 @@
 // Campaign (`utm_*`) and partner-referral (`fpr`) attribution and the GA client ID for sign-up links and
 // contact forms, each used only with its cookie-consent category.
 
-const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'] as const;
+import { TRACKING_FIELDS, UTM_KEYS } from '@util/tracking-fields';
 
 interface Attribution {
 	utm: Record<string, string>;
@@ -88,8 +88,6 @@ function getGaClientId(): string | null {
 		?.split('.');
 	return parts && parts.length >= 4 ? parts[2] + '.' + parts[3] : null;
 }
-
-const TRACKING_FIELDS = [...UTM_KEYS, 'client_id', 'fpr'];
 
 // Empties the fields that have no value; returns the filled ones for the dataLayer event.
 export function fillTrackingFields(form: HTMLFormElement): Record<string, string> {
