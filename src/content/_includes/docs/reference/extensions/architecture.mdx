@@ -87,6 +87,10 @@ Every request that comes through the router carries an `X-Authorization` header,
 
 In both cases your code acts as the caller: you pass the same credential to the ThingsBoard REST client, so every read and write respects that user's permissions.
 
+<Aside type="caution">
+The container receives the full credential of every caller. Code inside the image can use it to call any ThingsBoard API as that caller, for as long as the credential is valid. Deploy only images that you built yourself or that you trust, and pull them from a registry you control.
+</Aside>
+
 A **scheduled job inside the extension** is the exception. It has no caller, so it needs a service credential of its own, set at startup as an environment variable: `TB_AUTH_API_KEY`, or `TB_AUTH_USERNAME` together with `TB_AUTH_PASSWORD`.
 
 <Aside type="note">
@@ -171,6 +175,7 @@ Without this step the deploy is accepted, but the extension never starts.
 - match `/api/extension/route/{slug}/**` — the prefix comes from `extensions.routing.base-path`;
 - call `GET /api/ext-auth` for every request, with the slug in the `X-Ext-Slug` header and the caller's `X-Authorization` header, and forward only after a **200**;
 - strip the `/api/extension/route/{slug}` prefix before it forwards the request to the container port;
+- keep the encoding of the rest of the path and the query string. In nginx, do not build the address from a regex capture, as in `proxy_pass http://...:8090$rest`: a capture holds the decoded path, so `%20` reaches the container as a raw space and `%3F` turns a path segment into a query string. Strip the prefix with `rewrite ... break` and write `proxy_pass` without a path, and nginx encodes the path again;
 - set `X-Forwarded-Prefix` to the stripped prefix, so the framework documentation pages build correct links;
 - send the request to the backend named by the slug. One static rule is enough: it reads the slug from the URL and resolves that backend per request. A route that sends every slug to one container would let a user of another tenant pass the check with their own slug and still reach yours.
 
@@ -179,13 +184,59 @@ ThingsBoard names the backend after the slug, so the rule can be written once:
 - in `private-cloud` mode it is a Kubernetes Service named `tb-ext-{slug}` in the extensions namespace, on port `8090`;
 - in `docker-compose` mode it is a container named `tb-ext-{slug}` on the `tb-extensions` network, on the port the extension was deployed with (`8090` by default).
 
-In nginx, that is a `proxy_pass` to `http://tb-ext-$slug:8090` with a `resolver`, where `$slug` comes from the URL.
+In nginx, that is a `proxy_pass` to `http://tb-ext-$slug:8090` with a `resolver`, where `$slug` comes from the URL. Change `tb-core:8080` to the address of your ThingsBoard:
 
-The `deploy/` folder of the starter project holds an nginx snippet you can start from. It makes the `/api/ext-auth` call, but it is written for **one** extension: one `location` block serves one fixed slug and sends it to one fixed address. Do not use it as it is for a managed installation. Replace the fixed slug and address with the per-slug rule above. The HAProxy snippet beside it is for local development only: it does **no caller check at all**, so a fabricated `X-Authorization` header still reaches the extension and tenants can reach each other's extensions. Never use it as the router of a managed installation. The rest of the `extensions:` block in `thingsboard.yml` holds the other settings: the namespace (`extensions.k8s.namespace.name`), a trusted registry list (`extensions.image.allowed-registries`), the egress rules for the containers, the slug suffix (`extensions.slug.enforce-suffix`), and the internal router URL that the **API docs** page needs (`extensions.routing.router-internal-url`).
+```nginx
+location ~ "^/api/extension/route/(?<slug>[a-z0-9][a-z0-9-]*)(?:/.*)?$" {
+    set $ext_slug $slug;
+    auth_request /_ext_auth;             # forward only after a 200
+    rewrite "^/api/extension/route/[^/]+/?(.*)$" /$1 break;
+    proxy_pass http://tb-ext-$slug:8090; # no path here: nginx sends the encoded path and the query
+    proxy_set_header X-Forwarded-Prefix /api/extension/route/$slug;
+}
+
+location = /_ext_auth {
+    internal;
+    proxy_pass http://tb-core:8080/api/ext-auth;
+    proxy_method GET;
+    proxy_pass_request_body off;
+    proxy_set_header Content-Length  "";
+    proxy_set_header X-Ext-Slug      $ext_slug;
+    proxy_set_header X-Authorization $http_x_authorization;
+}
+```
+
+The `deploy/` folder of the starter project holds an nginx snippet you can start from. It makes the `/api/ext-auth` call, but it is written for **one** extension: one `location` block serves one fixed slug and sends it to one fixed address. Do not use it as it is for a managed installation. Replace the fixed slug and address with the per-slug rule above. The HAProxy snippet beside it is for local development only: it does **no caller check at all**, so a fabricated `X-Authorization` header still reaches the extension and tenants can reach each other's extensions. Never use it as the router of a managed installation. The rest of the `extensions:` block in `thingsboard.yml` holds the other settings: the namespace (`extensions.k8s.namespace.name`), a trusted registry list (`extensions.image.allowed-registries`), the egress rules for the containers, the slug suffix (`extensions.slug.enforce-suffix`), and the internal router URL that the **API docs** page needs (`extensions.routing.router-internal-url`). Some of these settings decide how well tenants are kept apart — see [Security settings to review](#security-settings-to-review) below.
 
 <Aside type="caution">
 One Docker host can run **one** ThingsBoard in `docker-compose` extensions mode. A second instance takes over the extension containers of the first one, because both reconcile the same Docker daemon. Run only one such stack per host.
 </Aside>
+
+#### Security settings to review
+
+An extension is code that a tenant wrote, and it runs on your infrastructure. The default settings make the first start easy. They are not made for an installation where tenants do not trust each other. Review the points below before you let tenants deploy.
+
+**Both modes**
+
+- **Limit the image registries.** `extensions.image.allowed-registries` is empty by default, so a tenant can run any image from any registry. Set it to a comma-separated list of the registries you trust. ThingsBoard then rejects every other image with a **400**.
+- **Keep `extensions.image.always-pull` on.** It is `true` by default. Every deploy then checks the pull credentials again. If you turn it off, a tenant can start an image that another tenant pulled with its own credentials, because the image is already cached on the shared host.
+- **Limit who can deploy.** Each tenant profile holds the number of extensions and the total CPU and memory a tenant may use. The default allows one small extension. The value `0` means **no limit**, not "off".
+
+**`private-cloud` mode**
+
+- **Check that your cluster enforces network policies.** ThingsBoard creates a `NetworkPolicy` for every extension. The policy lets only the router pod reach the container, and it limits where the container can connect. A policy does nothing if the network plugin of the cluster does not enforce it, and ThingsBoard cannot detect that. Some plugins need this to be turned on — the Amazon VPC CNI on EKS is one of them. Without enforcement any pod in the cluster can call an extension directly and skip the caller check. To test it, start a pod in another namespace and call `http://tb-ext-{slug}.tb-extensions:8090` from it. The connection must fail.
+- **Label the router pod.** The policy lets in only pods with the label `app.kubernetes.io/name=tb-ext-router` (`extensions.k8s.network-policy.from-pod-selector`). Give your router this label, or change the setting to the label your router has.
+- **Restrict outgoing traffic.** The default of `extensions.k8s.network-policy.egress-policy` is `baseline`. It blocks only the cloud metadata addresses. An extension can still connect to every other service of the cluster — the database, the queue, the cache — and to the internet. On a cluster that several tenants share, set the policy to `restricted` and list in `extensions.k8s.network-policy.allowed-egress-cidrs` only the addresses the extensions need, such as ThingsBoard itself. On Amazon EKS also set `extensions.k8s.network-policy.dns-service-cidrs`, or the containers cannot resolve names. ThingsBoard writes a warning to its log at startup while the policy is not `restricted`.
+- **Container hardening is automatic.** ThingsBoard requires every extension pod to run as a non-root user, and starts it with a read-only root file system, with no Linux capabilities, and with no Kubernetes API token. You do not set this up. It does mean that an image which must run as root does not start, and that a write outside `/tmp` fails.
+
+**`docker-compose` mode**
+
+This mode keeps tenants apart less strictly than Kubernetes does. Use it when you trust everyone who can deploy — one tenant, or your own team.
+
+- **The Docker socket gives full control of the host.** ThingsBoard needs the Docker Engine to start containers. Whoever takes over the ThingsBoard container can then start any container on that host, with any options.
+- **The image decides the user.** Docker has no rule like "must not run as root". The container still loses all Linux capabilities, gets a read-only root file system, and cannot gain new privileges.
+- **Extensions can reach each other.** All extension containers and the router share one Docker network. A container can call another one directly by its name, `tb-ext-{slug}`, and that call does not pass the caller check.
+- **Outgoing traffic is open.** A container can reach the Docker host, the internet, and the cloud metadata address. To close this, create the network as internal: `docker network create --internal tb-extensions`, or set `extensions.docker.network.internal` to `true` when ThingsBoard creates the network itself. An internal network has no way out at all, so ThingsBoard and the router must be attached to it, or the extensions cannot call ThingsBoard.
 
 ### Run it yourself
 
