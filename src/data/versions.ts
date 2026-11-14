@@ -126,17 +126,11 @@ export const EDGE_NEUTRAL_NAMES_FROM_VER = '4.4';
 export const EDGE_PE_BRANCH = 'release-4.4';
 
 /**
- * Dart ThingsBoard API Client — latest pub.dev version of `thingsboard_ce_client` and
- * `thingsboard_pe_client`. Patch releases don't raise the minimum server version,
+ * Dart ThingsBoard API Client — latest pub.dev version of `thingsboard_client`, the single client for
+ * ThingsBoard and ThingsBoard Cloud since 5.0.0. Patch releases don't raise the minimum server version,
  * see {@link DART_CLIENT_MIN_SERVER_VER}.
  */
-export const DART_CLIENT_VER = {
-	ce: '4.3.0',
-	pe: '4.4.1',
-} as const;
+export const DART_CLIENT_VER = '5.0.0';
 
-/** Must match `tbMinServerVersion` in each Dart client package */
-export const DART_CLIENT_MIN_SERVER_VER = {
-	ce: '4.3.0',
-	pe: '4.4.0',
-} as const;
+/** Must match `tbMinServerVersion` in the Dart client package */
+export const DART_CLIENT_MIN_SERVER_VER = '4.4.0';
