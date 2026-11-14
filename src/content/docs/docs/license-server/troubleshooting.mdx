@@ -1,0 +1,136 @@
+---
+title: Troubleshooting license check failures
+description: Common License Server client errors, what each code means, and how to recover.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+When the License Server client cannot validate a license, the ThingsBoard PE node logs a single banner on **ERROR** level and exits the JVM:
+
+```text
+ERROR ... BasicSubscriptionService : *** LICENSE CHECK FAILED ({CODE} - code {N}) - shutting down with exit code [{N}]. See https://thingsboard.io/docs/license-server/troubleshooting/ ***
+```
+
+To find every failure across collected logs, grep for the marker:
+
+```bash
+grep "LICENSE CHECK FAILED" tb.log
+```
+
+## Common error codes
+
+| Code | Name | What it means |
+|------|------|----------------|
+| 101 | INVALID_LICENSE_SECRET | The value of `TB_LICENSE_SECRET` does not match any active subscription on the License Server. |
+| 107 | INVALID_LICENSE_CHECK_SECRET | The per-check secret was rejected; the local instance data file is stale, corrupted, or shared between nodes that should each activate separately. |
+| 400 | CONNECTION_ERROR | The client cannot reach `license.thingsboard.io` over HTTPS. |
+| — | PKIX / SSL trust failure | TLS handshake to the License Server fails because the JVM truststore does not include the corporate proxy root CA. Usually surfaces inside a CONNECTION_ERROR (400) stack trace. |
+| — | GENERAL_ERROR | Empty `TB_LICENSE_SECRET`, or an unexpected error during activation or check. The root cause is in the stack trace above the banner. |
+
+## How to recover
+
+### INVALID_LICENSE_SECRET (101)
+
+**Cause.** The License Server received a license secret it does not recognize:
+- The value was copied incorrectly (stray quotes, trailing whitespace, partial selection, etc.).
+- The secret belongs to a different installation and was reused here.
+- The subscription was cancelled or expired.
+
+**Fix.**
+1. Open your [License Portal](https://license.thingsboard.io/) and copy the license secret exactly as shown.
+2. Set `TB_LICENSE_SECRET` in your environment (Docker, systemd, Kubernetes Secret, etc.).
+3. Restart the ThingsBoard PE node.
+
+### INVALID_LICENSE_CHECK_SECRET (107)
+
+**Cause.** Activation produced a per-instance file (`instance-license-{TB_SERVICE_ID}.data` by default in MSA setups, `instance-license.data` in standalone) that the License Server no longer accepts:
+- The file was deleted or replaced.
+- The same file was copied across nodes that should each activate independently.
+- The file was restored from a backup of a different installation.
+
+**Fix.**
+1. Stop the ThingsBoard PE node.
+2. Delete the stale instance data file. Keep the original `TB_LICENSE_SECRET` value.
+3. Restart the node. The client re-activates against the License Server and writes a new instance data file.
+
+<Aside type="caution">
+In clustered MSA deployments, each node activates independently and writes its own `instance-license-{TB_SERVICE_ID}.data` file. Do not share the data folder between nodes or copy this file when scaling out.
+</Aside>
+
+### CONNECTION_ERROR (400)
+
+**Cause.** The License Server client cannot reach `license.thingsboard.io`:
+- The host is blocked by a corporate firewall.
+- Outbound HTTPS (port 443) is restricted on the ThingsBoard node.
+- An HTTP proxy is required and is not configured for the JVM.
+
+**Fix.**
+1. From the ThingsBoard host, confirm reachability:
+   ```bash
+   curl -v https://license.thingsboard.io/
+   ```
+2. Allow outbound HTTPS to `license.thingsboard.io` in your firewall rules.
+3. If an HTTP proxy is required, set `HTTPS_PROXY` and `HTTP_PROXY` in the node environment, or pass the equivalent JVM properties:
+   ```bash
+   JAVA_OPTS="-Dhttps.proxyHost=proxy.example.com -Dhttps.proxyPort=8080"
+   ```
+
+### PKIX / SSL trust failure
+
+**Cause.** A corporate TLS-inspection proxy intercepts the HTTPS connection and presents a certificate that the JVM truststore does not include. The exception in the stack trace reads `PKIX path building failed` or similar.
+
+**Fix.**
+1. Obtain the root CA certificate of your corporate proxy from your IT team.
+2. Import it into a custom truststore:
+   ```bash
+   keytool -importcert -alias corp-proxy -file corp-proxy-root.cer \
+     -keystore /etc/ssl/tb-cacerts -storepass changeit
+   ```
+3. Point the JVM at the custom truststore via `JAVA_OPTS`:
+   ```bash
+   JAVA_OPTS="-Djavax.net.ssl.trustStore=/etc/ssl/tb-cacerts -Djavax.net.ssl.trustStorePassword=changeit"
+   ```
+4. Restart the ThingsBoard PE node.
+
+<Aside type="tip">
+Prefer a custom truststore over modifying the JVM default `cacerts`. The default file is overwritten on JDK upgrades and ties your trust chain to a specific JDK build.
+</Aside>
+
+### GENERAL_ERROR
+
+**Cause.** A failure that does not map to a specific License Server code:
+- `TB_LICENSE_SECRET` is empty or not set.
+- An unexpected exception during activation or check (DNS lookup, JVM cryptography misconfiguration, etc.).
+
+**Fix.**
+1. Confirm `TB_LICENSE_SECRET` is set and non-empty in the node environment.
+2. Read the stack trace above the `LICENSE CHECK FAILED` banner. The `Caused by:` chain identifies the underlying error.
+3. If the cause is not obvious, [contact us](/contact-us/) with the full stack trace and the value of `TB_SERVICE_ID`.
+
+## Container exit code and restart policy
+
+When the License Server client decides to shut down, the JVM exits with a non-zero code. Check it on the failed container:
+
+```bash
+docker inspect <tb-node-container> --format '{{.State.ExitCode}}'
+```
+
+The banner reports the JVM exit code (the value passed to `System.exit`). On POSIX the process exit status uses the low eight bits, so a JVM exit code of `-1` surfaces as `255` in `docker inspect` and shell output. Either way the code is non-zero.
+
+By default the ThingsBoard PE Docker Compose sets `restart: always`, which restarts the container regardless of exit code. With an unresolved license error this produces an infinite restart loop with no obvious crash.
+
+Switch the restart policy to `on-failure` with a retry cap so a permanent license failure stops the container instead of looping:
+
+```yaml
+services:
+  tb-monolith:
+    restart: on-failure:3
+```
+
+With this policy the container restarts up to three times, then stops. The failure stays visible in `docker ps -a` and triggers monitoring alerts on container state.
+
+## Where to go next
+
+- [What is License Server?](/docs/license-server/what-is-license-server/) — License Server architecture and activation flow.
+- [Subscription plans](/docs/license-server/subscription/) — pricing and limits per plan.
+- Still stuck? [Contact us](/contact-us/) with the full ERROR banner and stack trace.

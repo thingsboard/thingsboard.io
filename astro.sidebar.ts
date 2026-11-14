@@ -3998,6 +3998,11 @@ export const licenseSidebar: SidebarConfig = [
 		translations: { uk: 'Акаунт та оплата' },
 		items: ['docs/license-server/billing-info', 'docs/license-server/user'],
 	},
+	{
+		label: 'Troubleshooting',
+		translations: { uk: 'Усунення несправностей' },
+		items: ['docs/license-server/troubleshooting'],
+	},
 ];
 
 /** ThingsBoard CLI sidebar (pages at /docs/cli/) */
