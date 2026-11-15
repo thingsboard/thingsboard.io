@@ -9,18 +9,25 @@ type Check = (el: FieldControl) => Problem;
 
 const errorOf = (el: FieldControl) => document.getElementById(`${el.id}-error`);
 
+// `aria-describedby` lists the error only while it shows, after the field's hint if it has one.
+function describeError(el: FieldControl, errorId: string, shown: boolean): void {
+	const ids = (el.getAttribute('aria-describedby') ?? '').split(' ').filter((id) => id && id !== errorId);
+	if (shown) ids.push(errorId);
+	if (ids.length) el.setAttribute('aria-describedby', ids.join(' '));
+	else el.removeAttribute('aria-describedby');
+}
+
 function clearFieldError(el: FieldControl): void {
 	el.setAttribute('aria-invalid', 'false');
 	delete el.dataset.error;
-	el.removeAttribute('aria-describedby');
 	const message = errorOf(el);
 	if (message) {
 		message.hidden = true;
 		message.textContent = '';
+		describeError(el, message.id, false);
 	}
 }
 
-// `aria-describedby` points at the error only while it shows.
 function setFieldError(el: FieldControl, problem: NonNullable<Problem>): void {
 	el.setAttribute('aria-invalid', 'true');
 	el.dataset.error = problem.kind;
@@ -28,8 +35,8 @@ function setFieldError(el: FieldControl, problem: NonNullable<Problem>): void {
 	if (message) {
 		message.textContent = problem.message;
 		message.hidden = false;
-		el.setAttribute('aria-describedby', message.id);
-	} else el.removeAttribute('aria-describedby');
+		describeError(el, message.id, true);
+	}
 }
 
 function validateField(el: FieldControl, check: Check): boolean {

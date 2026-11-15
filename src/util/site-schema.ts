@@ -18,7 +18,7 @@ export function getSiteSchema(site: URL) {
 				legalName: 'ThingsBoard, Inc.',
 				url: home,
 				logo: { '@type': 'ImageObject', url: new URL('/images/thingsboard_logo_blue.svg', site).href },
-				sameAs: socialNetworks.filter(({ profile }) => profile).map(({ href }) => href),
+				sameAs: socialNetworks.map(({ href }) => href),
 			},
 			{
 				'@type': 'WebSite',
