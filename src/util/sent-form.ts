@@ -18,3 +18,12 @@ export function storeSent(key: string, sent: { at: number }): void {
 		// Private mode or storage off: the thank-you page keeps its generic words.
 	}
 }
+
+/** For a form that shares a thank-you page but hands nothing over: an earlier form's record must not show. */
+export function clearSent(key: string): void {
+	try {
+		sessionStorage.removeItem(key);
+	} catch {
+		// Storage off: there is nothing kept to clear.
+	}
+}
