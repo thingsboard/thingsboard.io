@@ -1,9 +1,21 @@
-// Privacy copy for the footers, the cookie banner and dialog, and the video notice, so legal can edit it in one place.
+// Privacy copy for the footers, the cookie banner and dialog, the video notice and the form privacy line, plus the
+// website Privacy Policy and Cookie Policy links, so legal can edit it in one place.
+
+// The website's policy. The Cloud one is `PRIVACY_POLICY_HREF` in `trust-center/nav.ts`.
+export const WEBSITE_PRIVACY_HREF = '/legal/privacy-policy/';
+
+export const COOKIE_POLICY_HREF = '/cookie-policy/';
+
+// Form privacy line: `lead`, then the link, then a full stop.
+export const formPrivacyNote = (noun: 'message' | 'request') => ({
+	lead: `We use these details only to answer your ${noun}. See our`,
+	linkLabel: 'Privacy Policy',
+});
 
 // Privacy Policy link required by GDPR Art. 13 and CalOPPA (Cal. Bus. & Prof. Code §22575), plus the Cookie Policy.
 export const footerLegalLinks: { href: string; label: string }[] = [
-	{ href: '/legal/privacy-policy/', label: 'Privacy Policy' },
-	{ href: '/cookie-policy/', label: 'Cookie Policy' },
+	{ href: WEBSITE_PRIVACY_HREF, label: 'Privacy Policy' },
+	{ href: COOKIE_POLICY_HREF, label: 'Cookie Policy' },
 ];
 
 // Opens the cookie preferences dialog (CCPA regs §7015 opt-out link).
