@@ -1,17 +1,24 @@
 import type { UseCaseData } from './types';
 
 export const data: UseCaseData = {
-	title: 'Environment monitoring',
-	pageTitle: 'IoT Environment Monitoring solutions with ThingsBoard',
+	title: 'IoT environmental monitoring',
+	pageTitle: 'IoT Environmental Monitoring',
 	description:
-		'Scalable IoT environment monitoring with ThingsBoard. Connect sensors, automate alerts, and gain insights for industrial, commercial, and smart buildings.',
+		'Monitor indoor and outdoor environments with sensors connected over LoRaWAN, NB-IoT, MQTT, and more. Set alerts and explore the live demo dashboard.',
 	pageSlug: 'environment-monitoring',
+	cta: {
+		title: 'Deploy environmental monitoring faster',
+		text:
+			'Start from ready-made environment monitoring templates, or ask our team to build a solution for your sensors and facilities.',
+		buttonLabel: 'Explore environment monitoring templates',
+		buttonHref: '/iot-hub/solution-templates/?useCases=Environment+Monitoring',
+	},
 	about: {
 		shortText:
-			'Environment monitoring plays a vital role in ensuring safety, comfort, and operational efficiency across all types of facilities — from office buildings to industrial sites. ThingsBoard is perfectly suited to address these challenges.',
+			'IoT environmental monitoring keeps temperature, humidity, CO₂, and other conditions in range across offices, labs, warehouses, and outdoor sites. ThingsBoard collects readings from low-power sensors, alerts your team when a value crosses a threshold, and keeps the full history for audits and reports.',
 		longText: [
-			'ThingsBoard provides a scalable, reliable, and secure platform for <a href="/iot-hub/solution-templates/temperature-sensors/">environment monitoring</a>. With built-in support for LoRaWAN, NB-IoT, and Sigfox, it enables efficient integration of numerous low-power sensors over long distances, minimizing infrastructure complexity. The platform supports standard IoT protocols like HTTP, MQTT, CoAP, and LwM2M, making it easy to connect a wide range of devices and scale with your project.',
-			'Automated features—from real-time alerts on critical changes to forwarding data into external analytics tools—ensure proactive monitoring. Intuitive dashboards, customizable logic, and seamless integrations turn raw environmental data into actionable insights, enabling smarter and faster decisions.',
+			'This page covers indoor and outdoor conditions. For outdoor pollution and AQI, see <a href="/use-cases/air-quality-monitoring/">air quality monitoring</a>.',
+			'At Medline Adana Hospital, <a href="/case-studies/ariot/">ARIOT</a> uses ThingsBoard and LoRaWAN sensors to keep medicine storage within safe limits.',
 		],
 		demoUrl:
 			'https://thingsboard.cloud/dashboard/dfaef940-8a91-11ec-83d0-83ba2015b874?publicId=4978baf0-8a92-11ec-98f9-ff45c37940c6',
@@ -47,11 +54,11 @@ export const data: UseCaseData = {
 		],
 	},
 	solutionStructure: {
-		title: 'Solution structure of environment monitoring',
+		title: 'How IoT environmental monitoring works',
 		shortText:
-			'Sensor data is transmitted to ThingsBoard using IoT protocols like HTTP, MQTT, CoAP, and LwM2M, or via integrations with LoRaWAN servers and other platforms.',
+			'Sensors send data to ThingsBoard directly over MQTT, HTTP, CoAP, or LwM2M, from LoRaWAN, NB-IoT, or Sigfox networks, or via a platform integration with another cloud.',
 		longText: [
-			'The built-in stream processing engine instantly analyzes incoming messages, triggers events, generates alarms, and routes data to monitoring dashboards. The collected data is visualized through intuitive dashboards, giving users clear insights into alarms, and performance metrics — all in real time, from a single interface.',
+			'The rule engine analyzes incoming messages as they arrive, raises alarms, and routes data to dashboards. Operators see alarms and performance metrics in real time from one interface.',
 		],
 		schemeSrc: '/src/assets/schemas/environment-monitoring.svg',
 		schemeAlt:
@@ -60,9 +67,9 @@ export const data: UseCaseData = {
 			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for processing, visualization, and automation',
 	},
 	dashboardStructure: {
-		title: 'Environment monitoring dashboard structure',
+		title: 'Environmental monitoring dashboard',
 		subtitle:
-			'The dashboard has several states. The main state displays the list of the sensors, their location on the map as well as the list of their alarms. You may drill down to the sensor details state by clicking on the table row. The sensor details state allows to browse temperature and humidity history, change sensor settings and location. The live dashboard is part of the solution template',
+			'The main view lists sensors with their location on a map and their alarms. Click a sensor to see its temperature and humidity history and change its settings.',
 		panels: [
 			{
 				title: 'Environment monitoring state',
@@ -107,9 +114,9 @@ export const data: UseCaseData = {
 		contactUsId: 'UseCases_EnvMon_ContactUs',
 	},
 	applications: {
-		title: 'Applications of environment monitoring solution',
+		title: 'Where environmental monitoring is used',
 		subtitle:
-			'An IoT-powered environmental monitoring system can be deployed across various sectors to ensure safety, compliance, and sustainability. Below are key areas where such solutions bring significant value.',
+			'Cities, labs, farms, schools, and warehouses use environmental monitoring for safety, compliance, and comfort.',
 		applications: [
 			{
 				title: 'Smart cities and urban infrastructure',
@@ -153,8 +160,88 @@ export const data: UseCaseData = {
 			},
 		],
 	},
+	advantages: {
+		title: 'Why ThingsBoard for environmental monitoring',
+		cards: [
+			{
+				icon: 'tabler:wifi',
+				color: 'red',
+				title: 'Low-power sensor networks',
+				description:
+					'Connect battery-powered sensors from LoRaWAN, NB-IoT, or Sigfox networks, or directly over MQTT, HTTP, CoAP, and LwM2M.',
+				href: '/docs/pe/user-guide/integrations/',
+				linkText: 'Learn more about integrations',
+			},
+			{
+				icon: 'tabler:circuit-bulb',
+				color: 'green',
+				title: 'Alerts for CO₂, temperature, and humidity',
+				description:
+					'Set alarm rules per sensor or per room type and notify the right team as soon as conditions go out of range.',
+				href: '/docs/pe/user-guide/rule-engine/',
+				linkText: 'Learn more about data processing',
+			},
+			{
+				icon: 'tabler:chart-bar',
+				color: 'red',
+				title: 'Indoor and outdoor dashboards',
+				description:
+					'Show conditions on maps and floor plans, compare rooms and sites, and keep the full history for audits.',
+				href: '/iot-hub/solution-templates/?useCases=Environment+Monitoring',
+				linkText: 'See environment monitoring templates',
+			},
+			{
+				icon: 'tabler:shield',
+				color: 'blue',
+				title: 'Data you can audit',
+				description:
+					'Role-based access control and audit logs show who viewed and changed data, which matters for labs and regulated facilities.',
+				href: '/trust-center/',
+				linkText: 'Visit the Trust Center',
+			},
+		],
+	},
+	faq: [
+		{
+			id: 'environment-monitoring-faq',
+			label: 'FAQ',
+			items: [
+				{
+					id: 'what-is-iot-environmental-monitoring',
+					question: 'What is IoT environmental monitoring?',
+					answer:
+						'<p>Sensors measure conditions such as temperature, humidity, CO₂, or noise and send readings to a platform automatically. The platform stores the data, shows it on dashboards, and alerts people when conditions go out of range. For outdoor pollution, see <a href="/use-cases/air-quality-monitoring/">air quality monitoring</a>.</p>',
+					defaultOpen: true,
+				},
+				{
+					id: 'can-i-set-an-alert-when',
+					question: 'Can I set an alert when CO₂, humidity, or temperature crosses a threshold?',
+					answer:
+						'<p>Yes. Alarm rules work per sensor or per sensor type, and notifications go out by email, SMS, Slack, Microsoft Teams, or the mobile app.</p>',
+				},
+				{
+					id: 'which-connectivity-options-work-for-battery',
+					question: 'Which connectivity options work for battery-powered sensors?',
+					answer:
+						'<p>Battery-powered sensors usually connect from a LoRaWAN, NB-IoT, or Sigfox network through a <a href="/docs/pe/user-guide/integrations/">platform integration</a> with servers such as TTN, ChirpStack, and Actility. Other sensors connect directly over MQTT, HTTP, CoAP, or LwM2M. Details are in the <a href="/docs/pe/user-guide/connectivity-guide/">connectivity guide</a>.</p>',
+				},
+				{
+					id: 'can-i-monitor-labs-and-clean',
+					question: 'Can I monitor labs and clean rooms?',
+					answer:
+						'<p>Yes. Sensors in labs, clean rooms, and storage rooms report temperature and humidity, alarm rules flag every excursion, and the full history stays available for audits. Role-based access and audit logs show who viewed or changed the data. See the <a href="/trust-center/">Trust Center</a> for how we protect it.</p>',
+				},
+				{
+					id: 'can-i-start-from-a-ready',
+					question: 'Can I start from a ready-made dashboard?',
+					answer:
+						'<p>Yes. Install the <a href="/iot-hub/solution-templates/temperature-sensors/">Temperature & Humidity sensors template</a> or browse other <a href="/iot-hub/solution-templates/?useCases=Environment+Monitoring">environment monitoring templates</a>. Each one arrives with dashboards, maps, and alarms that you adapt to your sensors.</p>',
+				},
+			],
+		},
+	],
 	summary: {
-		title: 'Summary of environment monitoring solution',
+		title: 'Environmental monitoring with ThingsBoard in short',
 		text: 'The following interactive dashboard represents an environment monitoring component that you may easily embed into your IoT solution. This particular dashboard allows users to monitor temperature and humidity sensors. You may quickly adapt it to air quality or other sensors and add remote control scenarios.',
 		icon: '/src/assets/images/usecases/health-care/summary.svg',
 		iconAlt: 'Text summary icon',

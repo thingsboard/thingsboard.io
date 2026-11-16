@@ -1,17 +1,24 @@
 import type { UseCaseData } from './types';
 
 export const data: UseCaseData = {
-	title: 'Tank level monitoring solution',
-	pageTitle: 'Tank Level Monitoring with ThingsBoard for Any Industry',
+	title: 'Tank level monitoring system',
+	pageTitle: 'IoT Tank Level Monitoring System',
 	description:
-		'IoT solution for tank level monitoring — real-time insights for fuel, water, and chemical storage with dashboards and alarms, powered by ThingsBoard.',
+		'Monitor fuel, water, and chemical tank levels remotely. Get alerts for low levels or overflow, plan refills, and explore the live demo dashboard.',
 	pageSlug: 'tank-level-monitoring',
+	cta: {
+		title: 'Set up tank level monitoring faster',
+		text:
+			'Start from a ready-made tank monitoring template in the IoT Hub, or ask our team to build a solution for your tanks, sensors, and sites.',
+		buttonLabel: 'Explore tank monitoring templates',
+		buttonHref: '/iot-hub/solution-templates/?useCases=Tank+Level+Monitoring',
+	},
 	about: {
 		shortText:
-			'Modern enterprises that manage liquid storage — from fuel to water — face the critical need for continuous tank level monitoring and infrastructure status control. Poor monitoring can lead to leaks, equipment downtime, and higher operational costs. In this context, IoT-powered solutions become essential for digital transformation. The ThingsBoard IoT platform addresses these challenges with ease.',
+			'Remote tank level monitoring tells you how much fuel, water, or chemicals are left in every tank without sending someone to check. ThingsBoard tracks volume, temperature, sensor battery, and connectivity for each tank, shows all tanks on a map, and alerts your team before a tank runs dry or overflows.',
 		longText: [
-			'The ThingsBoard platform offers a comprehensive approach to tank level monitoring, enabling real-time tracking of key metrics such as volume, temperature, sensor battery level, and connectivity status. Thanks to its flexibility, ThingsBoard can be easily tailored to meet industry-specific needs, whether for small-scale or enterprise-wide deployments.',
-			'ThingsBoard stands out due to its scalability, support for multiple protocols (MQTT, HTTP, CoAP, and others), customizable dashboards, and robust device management tools. It empowers users to deploy both local and cloud-based solutions that effectively monitor dispersed tank networks at any scale.',
+			'The live demo shows your tanks on an interactive map with their current status. Open any tank to see its level history, set its shape and dimensions, and configure alarm rules, for example a low-level alert that tells the team it’s time to refill.',
+			'The same setup works for fuel depots, water reservoirs, and chemical storage, from a single site to many.',
 		],
 		demoUrl:
 			'https://thingsboard.cloud/dashboard/e1ff5690-5e0c-11ee-aeee-d16039673934?publicId=7aa99e80-8acd-11ef-a59e-a9c993dbec14',
@@ -51,9 +58,9 @@ export const data: UseCaseData = {
 		],
 	},
 	solutionStructure: {
-		title: 'Solution structure of tank level monitoring',
+		title: 'How remote tank level monitoring works',
 		shortText:
-			'The <a href="/iot-hub/solution-templates/fuel-level-monitoring/">tank level monitoring</a> solution integrates IoT sensors — such as level, temperature, and battery — with the ThingsBoard platform. Data is transmitted via standard protocols: MQTT for real-time telemetry, HTTP for periodic updates, and CoAP for low-power environments. This ensures reliable, efficient communication across a wide range of devices and conditions.',
+			'The <a href="/iot-hub/solution-templates/fuel-level-monitoring/">tank level monitoring</a> solution connects level, temperature, and battery sensors to ThingsBoard. Sensors send data directly over MQTT, HTTP, or CoAP, through the IoT Gateway for Modbus and other industrial protocols, or from LoRaWAN and NB-IoT networks, so you can mix devices from different vendors in one solution.',
 		longText: [
 			'Once collected, the data is transmitted to ThingsBoard for processing, aggregation, and visualization. The platform offers historical data storage, advanced alarm rule configuration, and remote device management. Incoming data is presented through interactive dashboards that display all metrics in user-friendly formats: graphs, maps, tables, and status widgets.',
 		],
@@ -63,9 +70,9 @@ export const data: UseCaseData = {
 			'Tank level monitoring solution architecture: IoT devices connect via gateways to the cloud for processing, visualization, and automation',
 	},
 	dashboardStructure: {
-		title: 'Tank level monitoring dashboard structure',
+		title: 'Tank level monitoring dashboard',
 		subtitle:
-			'The dashboards in ThingsBoard are modular: each panel is a self-contained widget that retrieves data from a specific device or group. They support drill-down navigation, filtering, and grouping by fuel type or region. This makes the interface intuitive and easy to scale for large deployments.',
+			'Each panel shows data from one tank or a group of tanks. You can drill down from the map to a single tank and filter by fuel type or region.',
 		panels: [
 			{
 				title: 'Interactive map and tank status overview state',
@@ -122,7 +129,7 @@ export const data: UseCaseData = {
 		contactUsId: 'UseCases_FuelLevelMonitoring_ContactUs',
 	},
 	applications: {
-		title: 'Applications of tank level monitoring solution',
+		title: 'Where tank level monitoring is used',
 		applications: [
 			{
 				title: 'Oil & gas',
@@ -166,8 +173,88 @@ export const data: UseCaseData = {
 			},
 		],
 	},
+	advantages: {
+		title: 'Why ThingsBoard for tank level monitoring',
+		cards: [
+			{
+				icon: 'tabler:chart-bar',
+				color: 'red',
+				title: 'Tank levels on one map',
+				description:
+					'See volume, temperature, battery, and connectivity for every tank on an interactive map, from fuel depots to water reservoirs.',
+				href: '/iot-hub/solution-templates/?useCases=Tank+Level+Monitoring',
+				linkText: 'See tank monitoring templates',
+			},
+			{
+				icon: 'tabler:circuit-bulb',
+				color: 'green',
+				title: 'Low-level and overflow alarms',
+				description:
+					'Configure alarm rules for each tank and plan refills before a tank runs dry or overflows.',
+				href: '/docs/pe/user-guide/rule-engine/',
+				linkText: 'Learn more about data processing',
+			},
+			{
+				icon: 'tabler:plug-connected',
+				color: 'purple',
+				title: 'Connect any level sensor',
+				description:
+					'Connect level sensors directly, through the IoT Gateway, or from a LoRaWAN or NB-IoT network, and test the setup with emulators before the hardware arrives.',
+				href: '/docs/pe/user-guide/connectivity-guide/',
+				linkText: 'Learn more about connectivity',
+			},
+			{
+				icon: 'tabler:device-mobile',
+				color: 'purple',
+				title: 'Tank status on your phone',
+				description:
+					'Check tank levels and respond to alarms in a mobile app built with the ThingsBoard Mobile Application Builder.',
+				href: '/docs/mobile/pe/',
+				linkText: 'Learn more about the mobile application',
+			},
+		],
+	},
+	faq: [
+		{
+			id: 'tank-level-monitoring-faq',
+			label: 'FAQ',
+			items: [
+				{
+					id: 'how-does-remote-tank-level-monitoring',
+					question: 'How does remote tank level monitoring work?',
+					answer:
+						'<p>A level sensor on each tank measures the distance to the liquid surface or the pressure at the bottom and sends readings over a wireless network. ThingsBoard converts the readings into volume, stores the history, and raises alarms when the level crosses your thresholds.</p>',
+					defaultOpen: true,
+				},
+				{
+					id: 'can-i-monitor-fuel-tanks',
+					question: 'Can I monitor fuel tanks?',
+					answer:
+						'<p>Yes. The <a href="/iot-hub/solution-templates/fuel-level-monitoring/">Fuel level monitoring template</a> tracks fuel volume, consumption trends, and refueling events.</p>',
+				},
+				{
+					id: 'can-i-get-low-level-or',
+					question: 'Can I get low-level or overflow alerts?',
+					answer:
+						'<p>Yes. You configure <a href="/docs/pe/user-guide/rule-engine/">alarm rules</a> for each tank, and notifications go out by email, SMS, Slack, Microsoft Teams, or the ThingsBoard mobile app.</p>',
+				},
+				{
+					id: 'is-there-a-ready-made-widget',
+					question: 'Is there a ready-made widget that shows how full a tank is?',
+					answer:
+						'<p>Yes. ThingsBoard includes tank widgets that show the fill level as a percentage or volume, and the template dashboards use them out of the box.</p>',
+				},
+				{
+					id: 'which-level-sensors-can-i-connect',
+					question: 'Which level sensors can I connect?',
+					answer:
+						'<p>Sensors connect directly over MQTT, HTTP, or CoAP, through the ThingsBoard IoT Gateway for Modbus and other industrial protocols, or from a LoRaWAN or NB-IoT network. You can pick pre-integrated devices in the <a href="/iot-hub/">IoT Hub</a> and test the setup with emulators before the sensors arrive. Details are in the <a href="/docs/pe/user-guide/connectivity-guide/">connectivity guide</a>.</p>',
+				},
+			],
+		},
+	],
 	summary: {
-		title: 'Summary of tank level monitoring',
+		title: 'Tank level monitoring with ThingsBoard in short',
 		text: 'The ThingsBoard-based tank level monitoring solution automates fluid storage monitoring for any scale or complexity. With strong support for industrial protocols, real-time visualization, rule-based alarming, and device control, it is a perfect fit for B2B enterprises, public infrastructure, and industrial environments. Enhanced transparency and timely alarms lead to improved operational efficiency and reduced costs.',
 		icon: '/src/assets/images/usecases/health-care/summary.svg',
 		iconAlt: 'Text summary icon',

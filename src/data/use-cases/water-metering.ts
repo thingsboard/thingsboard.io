@@ -1,17 +1,24 @@
 import type { UseCaseData } from './types';
 
 export const data: UseCaseData = {
-	title: 'Water metering',
-	pageTitle: 'Smart Water Metering with ThingsBoard IoT Platform',
+	title: 'Smart water metering system',
+	pageTitle: 'Smart Water Metering System',
 	description:
-		'ThingsBoard enables real-time water monitoring, automated alerts, and consumption analytics with a scalable IoT water metering solution.',
+		'Collect water consumption data, detect fraud and anomalies, and alert operators by SMS or email. Explore the live smart water metering dashboard.',
 	pageSlug: 'water-metering',
+	cta: {
+		title: 'Launch smart water metering faster',
+		text:
+			'Install the Water metering template with leak detection and multi-customer support, or ask our team to build a solution for your water network.',
+		buttonLabel: 'Get the solution template',
+		buttonHref: '/iot-hub/solution-templates/water-metering/',
+	},
 	about: {
 		shortText:
-			'Water is one of our most critical resources, and managing its distribution and consumption is key for sustainable urban development, utility cost control, and infrastructure maintenance. For this purpose, the ThingsBoard platform is an ideal choice, offering powerful capabilities for real-time monitoring, alarms, visualization, and analytics.',
+			'Smart water metering replaces manual readings with live data on consumption, temperature, and meter battery levels. ThingsBoard collects readings over LoRaWAN, NB-IoT, or LTE, alerts operators to leaks and suspicious usage, and gives each customer a dashboard with their own consumption.',
 		longText: [
-			'Traditional water metering methods often fall short in providing real-time data, accurate billing, and predictive maintenance insights. By leveraging connected sensors and intelligent dashboards, organizations can unlock powerful insights into water usage, detect anomalies like leaks, and automate alarm systems. At the core of these solutions is ThingsBoard, a flexible IoT platform enabling the collection, processing, and visualization of telemetry data from water meters in real time.',
-			'This ThingsBoard-powered <a href="/iot-hub/solution-templates/water-metering/">water metering solution</a> provides complete real-time visibility into water usage, instant response to anomalies, and valuable analytics for long-term infrastructure planning. Scalable across municipalities, residential complexes, and commercial facilities, it offers a powerful tool for smart and efficient water resource management.',
+			'The live demo shows a complete operator workspace: total consumption, analytics, device and customer lists, alarms, and settings. Operators can open any meter, and each customer gets dashboards limited to their own meters.',
+			'For electricity and multi-utility metering, see <a href="/use-cases/smart-metering/">IoT smart metering</a>.',
 		],
 		demoUrl:
 			'https://thingsboard.cloud/dashboard/aff5f200-8b48-11ec-a344-c767c1ab1bb8?publicId=4978baf0-8a92-11ec-98f9-ff45c37940c6',
@@ -58,9 +65,9 @@ export const data: UseCaseData = {
 		],
 	},
 	solutionStructure: {
-		title: 'Solution structure of water metering use case',
+		title: 'How smart water metering works',
 		shortText:
-			'ThingsBoard seamlessly integrates with IoT-enabled water meters that collect real-time data on consumption, temperature, and battery level, sending it over wireless networks such as LoRaWAN, NB-IoT, and LTE for processing.',
+			'Water meters report consumption, temperature, and battery level over LoRaWAN, NB-IoT, or LTE. ThingsBoard receives the data from the network server or directly over MQTT, CoAP, or LwM2M.',
 		longText: [
 			'The platform stores this data, applies intelligent rules to trigger alerts, and visualizes everything through intuitive dashboards for immediate operational insights.',
 		],
@@ -71,9 +78,9 @@ export const data: UseCaseData = {
 			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for processing, visualization, and automation',
 	},
 	dashboardStructure: {
-		title: 'Dashboard structure of water metering solution',
+		title: 'Smart water metering dashboard',
 		subtitle:
-			'The ThingsBoard water metering dashboard is structured into dedicated states, each focusing on a key aspect of system monitoring, control, and analysis. Below is a breakdown of each state with its purpose and content:',
+			'The dashboard is split into states for monitoring, analytics, devices, customers, alarms, and settings. Each one covers one part of running a water network.',
 		panels: [
 			{
 				title: 'Total overview state',
@@ -166,8 +173,8 @@ export const data: UseCaseData = {
 		contactUsId: 'UseCases_WaterMeter_ContactUs',
 	},
 	applications: {
-		title: 'Applications of water metering solution',
-		subtitle: 'The water metering approach can be easily adapted to various other sectors',
+		title: 'Where smart water metering is used',
+		subtitle: 'The same approach works for utilities, industrial sites, buildings, hotels, and farms.',
 		applications: [
 			{
 				title: 'Municipal water services',
@@ -206,8 +213,88 @@ export const data: UseCaseData = {
 			},
 		],
 	},
+	advantages: {
+		title: 'Why ThingsBoard for smart water metering',
+		cards: [
+			{
+				icon: 'tabler:chart-bar',
+				color: 'red',
+				title: 'Operator and customer dashboards',
+				description:
+					'Give operators a full view of consumption, analytics, and alarms, and give each customer a dashboard limited to their own meters.',
+				href: '/iot-hub/solution-templates/water-metering/',
+				linkText: 'See the Water metering template',
+			},
+			{
+				icon: 'tabler:wifi',
+				color: 'red',
+				title: 'LoRaWAN, NB-IoT, and LTE water meters',
+				description:
+					'Connect LoRaWAN meters through network server integrations, and NB-IoT or LTE meters directly over MQTT, CoAP, or LwM2M.',
+				href: '/docs/pe/user-guide/integrations/',
+				linkText: 'Learn more about integrations',
+			},
+			{
+				icon: 'tabler:circuit-bulb',
+				color: 'green',
+				title: 'Leak and fraud detection',
+				description:
+					'Flag continuous flow and sudden changes in consumption with alarm rules, and notify operators by email or SMS.',
+				href: '/docs/pe/user-guide/rule-engine/',
+				linkText: 'Learn more about data processing',
+			},
+			{
+				icon: 'tabler:building-skyscraper',
+				color: 'blue',
+				title: 'Multi-customer water utilities',
+				description:
+					'Manage many customers, meters, and buildings in one tenant, with separate access for every customer.',
+				href: '/docs/pe/user-guide/digital-twins/entities/',
+				linkText: 'Learn more about multi-tenancy',
+			},
+		],
+	},
+	faq: [
+		{
+			id: 'water-metering-faq',
+			label: 'FAQ',
+			items: [
+				{
+					id: 'how-does-smart-water-metering-work',
+					question: 'How does smart water metering work?',
+					answer:
+						'<p>Meters with a radio module send consumption readings over LoRaWAN, NB-IoT, or LTE. ThingsBoard receives the data, stores it, checks it against alarm rules, and shows it on dashboards for operators and customers. Details are in the <a href="/docs/pe/user-guide/connectivity-guide/">connectivity guide</a>.</p>',
+					defaultOpen: true,
+				},
+				{
+					id: 'how-does-the-system-detect-leaks',
+					question: 'How does the system detect leaks and fraud?',
+					answer:
+						'<p>Alarm rules watch for readings that point to leaks or tampering, such as continuous flow or a sudden change in consumption, and notify operators.</p>',
+				},
+				{
+					id: 'can-operators-get-alerts-by-sms',
+					question: 'Can operators get alerts by SMS or email?',
+					answer:
+						'<p>Yes. ThingsBoard sends notifications by email and SMS, as well as to Slack, Microsoft Teams, and the ThingsBoard <a href="/docs/mobile/pe/">mobile app</a>.</p>',
+				},
+				{
+					id: 'can-i-try-it-before-installing',
+					question: 'Can I try it before installing meters?',
+					answer:
+						'<p>Yes. Install the <a href="/iot-hub/solution-templates/water-metering/">Water metering template</a> and it starts with simulated data, so you can test dashboards, alarms, and customer access first. When the meters are ready, you connect them in place of the emulators.</p>',
+				},
+				{
+					id: 'how-is-this-different-from-smart',
+					question: 'How is this different from smart metering?',
+					answer:
+						'<p>This page is about water networks: consumption, leaks, and fraud. For electricity and multi-utility metering, see <a href="/use-cases/smart-metering/">IoT smart metering</a>.</p>',
+				},
+			],
+		},
+	],
 	summary: {
-		title: 'Summary of water metering solution',
+		title: 'Smart water metering with ThingsBoard in short',
 		text: "With a low-code approach, intuitive dashboards, and comprehensive alerting mechanisms, ThingsBoard serves as a cornerstone for digital transformation in water resource management. Whether you're scaling for a city or optimizing a single facility, this solution adapts to your needs— one drop at a time.",
 		icon: '/src/assets/images/usecases/health-care/summary.svg',
 		iconAlt: 'Text summary icon',

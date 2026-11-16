@@ -1,5 +1,8 @@
 // Shared TypeScript interfaces for use case pages
 
+import type { AdvantageCard } from '@components/Landing/AdvantagesCarousel.astro';
+import type { FaqCategory } from '@data/pricing/types';
+
 export interface DashboardPanel {
 	title: string;
 	description: string;
@@ -90,11 +93,27 @@ export interface UseCaseSummary {
 	iconAlt: string;
 }
 
+/** The call-to-action banner under the overview. Its title is the page's first H2. */
+export interface UseCaseCta {
+	title: string;
+	text: string;
+	/** Main button: a solution template or a filtered template list in the IoT Hub. */
+	buttonLabel: string;
+	buttonHref: string;
+}
+
+export interface UseCaseAdvantages {
+	title: string;
+	cards: AdvantageCard[];
+}
+
 export interface UseCaseData {
 	title: string;
 	pageTitle: string;
 	description: string;
 	pageSlug: string;
+	/** Without it the page shows the default "Contact Us" banner. */
+	cta?: UseCaseCta;
 	about: UseCaseAbout;
 	overview?: {
 		type: 'comparison' | 'carousel';
@@ -112,6 +131,10 @@ export interface UseCaseData {
 	benefits?: UseCaseBenefits;
 	dashboardStructure?: UseCaseDashboardStructure;
 	applications?: UseCaseApplications;
+	/** Without it the page shows the shared ThingsBoard advantages block. */
+	advantages?: UseCaseAdvantages;
+	/** Answers are HTML. Shown after the advantages block. */
+	faq?: FaqCategory[];
 	summary?: UseCaseSummary;
 	// SCADA-specific
 	scadaOverview?: {
@@ -120,6 +143,8 @@ export interface UseCaseData {
 		comparisonRows: ComparisonRow[];
 	};
 	scadaKeyFunctions?: {
+		/** Section heading; defaults to "Key functions of SCADA systems". */
+		title?: string;
 		highPerformance: ScadaKeyFunction[];
 		traditional: ScadaKeyFunction[];
 	};

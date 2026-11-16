@@ -2,16 +2,23 @@ import type { UseCaseData } from './types';
 
 export const data: UseCaseData = {
 	title: 'Health care: smart assisted living solution',
-	pageTitle: 'IoT Healthcare Monitoring & Smart Assisted Living with ThingsBoard',
+	pageTitle: 'IoT Healthcare & Assisted Living',
 	description:
-		'Real-time healthcare and assisted living on ThingsBoard. Track patient vitals, environment, and equipment status through unified dashboards and alarms.',
+		'Track patient vitals, room conditions, and equipment status in real time. Alert caregivers about critical changes and explore the live demo.',
 	pageSlug: 'health-care',
+	cta: {
+		title: 'Launch your assisted living solution faster',
+		text:
+			'Install the Assisted living template with resident tracking and room monitoring, or ask our team to build a healthcare solution around your devices.',
+		buttonLabel: 'Get the solution template',
+		buttonHref: '/iot-hub/solution-templates/assisted-living/',
+	},
 	about: {
 		shortText:
-			'ThingsBoard is an IoT platform with all the tools needed to build a comprehensive healthcare monitoring and management solution with ease. ThingsBoard provides an extensive range of built-in features as well as flexible customization options.',
+			'IoT in healthcare helps caregivers notice problems sooner. In assisted living, ThingsBoard tracks residents’ health and location through BLE or LoRaWAN wristbands, monitors room conditions such as temperature, air quality, leaks, and smoke, and alerts staff when something needs attention.',
 		longText: [
-			'Healthcare monitoring systems are designed to track patient health metrics in real time and immediately notify medical professionals of critical changes. ThingsBoard, as a robust IoT platform, provides all the necessary tools for collecting, processing, and visualizing data from devices that use protocols like BLE or LoRaWAN gateways, enabling seamless integration and support for flexible solutions.',
-			"Our smart assisted living solution powered by ThingsBoard provides real-time monitoring and management of residents' health in assisted living facilities. Using ThingsBoard’s powerful IoT capabilities, this solution integrates connected devices, data analytics, and automated alerts to create a seamless experience for caregivers and administrators, ensuring timely responses and a higher quality of care.",
+			'Each resident has a profile with personal alarm thresholds, and staff see alarms on a floor plan with the resident’s last known location. Rooms, zones, and devices are managed from the same dashboard.',
+			'In hospitals, <a href="/case-studies/ariot/">ARIOT</a> digitized cold chain monitoring at Medline Adana Hospital, and <a href="/case-studies/onedata/">OneData</a> connected hundreds of hospital devices with ThingsBoard.',
 		],
 		demoUrl:
 			'https://thingsboard.cloud/dashboard/f8e77210-8fa8-11ef-90c1-0b39f28da380?publicId=7aa99e80-8acd-11ef-a59e-a9c993dbec14',
@@ -44,9 +51,9 @@ export const data: UseCaseData = {
 		],
 	},
 	solutionStructure: {
-		title: 'Solution structure',
+		title: 'How smart assisted living works',
 		shortText:
-			'The solution is designed to be used with BLE (Bluetooth Low Energy) or LoRaWAN gateways and devices. The rooms may be equipped with a number of sensors like room temperature, humidity, indoor air quality (IAQ), leak, smoke, and open/close detectors.',
+			'The solution works with BLE (Bluetooth Low Energy) or LoRaWAN wristbands, room sensors, and gateways. Rooms can have sensors for temperature, humidity, indoor air quality, leaks, smoke, and doors, and other devices can connect directly over MQTT, HTTP, or CoAP.',
 		longText: [
 			"The geopositioning of the resident is done via the beacon in the wristband and a set of nearby gateways. The platform deduplicates the incoming message from the beacon and enriches it with the attributes of the nearby gateways. The geopositioning algorithm is relatively simple and based on the payload's RSSI parameter. One may improve the algorithm based on the particular use case.",
 		],
@@ -56,9 +63,9 @@ export const data: UseCaseData = {
 			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for processing, visualization, and automation',
 	},
 	benefits: {
-		title: 'Smart assisted living benefits',
+		title: 'Benefits of smart assisted living',
 		subtitle:
-			'The smart assisted living solution offers a range of benefits for care providers, residents, and facility administrators, supporting safe and efficient management of assisted living facilities:',
+			'What care providers, residents, and administrators get from the solution.',
 		benefits: [
 			{
 				title: 'Efficient monitoring and response',
@@ -93,9 +100,9 @@ export const data: UseCaseData = {
 		],
 	},
 	dashboardStructure: {
-		title: 'Dashboard structure',
+		title: 'Assisted living dashboard',
 		subtitle:
-			'The smart assisted living dashboard enables caregivers and administrators to monitor residents’ health data and environmental conditions in real-time, with intuitive interfaces and easily configurable alarm systems.',
+			'Caregivers and administrators see residents’ health data and room conditions in real time and configure alarms for each resident and room.',
 		panels: [
 			{
 				title: 'Resident overview',
@@ -167,9 +174,9 @@ export const data: UseCaseData = {
 		contactUsId: 'UseCases_HealthCare_ContactUs',
 	},
 	applications: {
-		title: 'Applications of health care solution',
+		title: 'Where healthcare IoT is used',
 		subtitle:
-			'The smart assisted living solution can be adapted to a wide range of environments where health monitoring, safety, and environmental control are critical.',
+			'The solution fits any setting where health monitoring, safety, and room conditions matter, from hospitals to senior living.',
 		applications: [
 			{
 				title: 'Hospitals and healthcare facilities',
@@ -213,8 +220,88 @@ export const data: UseCaseData = {
 			},
 		],
 	},
+	advantages: {
+		title: 'Why ThingsBoard for healthcare IoT',
+		cards: [
+			{
+				icon: 'tabler:chart-bar',
+				color: 'red',
+				title: 'Resident and room monitoring',
+				description:
+					'Track residents’ health and location through BLE or LoRaWAN wristbands, and see room alarms on a floor plan.',
+				href: '/iot-hub/solution-templates/assisted-living/',
+				linkText: 'See the Assisted living template',
+			},
+			{
+				icon: 'tabler:circuit-bulb',
+				color: 'green',
+				title: 'Alerts that reach the right caregivers',
+				description:
+					'Route each alarm to the right staff by email, SMS, or the mobile app, with personal thresholds for every resident.',
+				href: '/docs/pe/user-guide/rule-engine/',
+				linkText: 'Learn more about data processing',
+			},
+			{
+				icon: 'tabler:wifi',
+				color: 'red',
+				title: 'BLE and LoRaWAN devices',
+				description:
+					'Connect wristbands, room sensors, and gateways over BLE or LoRaWAN, with LoRaWAN devices coming in through network server integrations.',
+				href: '/docs/pe/user-guide/integrations/',
+				linkText: 'Learn more about integrations',
+			},
+			{
+				icon: 'tabler:shield',
+				color: 'blue',
+				title: 'Healthcare data protection',
+				description:
+					'Encrypted connections, role-based access control, and audit logs protect resident data. ThingsBoard holds ISO 27001 certification.',
+				href: '/trust-center/',
+				linkText: 'Visit the Trust Center',
+			},
+		],
+	},
+	faq: [
+		{
+			id: 'health-care-faq',
+			label: 'FAQ',
+			items: [
+				{
+					id: 'how-is-iot-used-in-healthcare',
+					question: 'How is IoT used in healthcare?',
+					answer:
+						'<p>Common uses include monitoring residents in assisted living, tracking room conditions, keeping medicines and samples within temperature limits, and tracking equipment. In each case, ThingsBoard collects device data, raises alarms, and notifies the right staff. At Medline Adana Hospital, for example, <a href="/case-studies/ariot/">ARIOT</a> uses ThingsBoard for cold chain monitoring.</p>',
+					defaultOpen: true,
+				},
+				{
+					id: 'can-one-alert-reach-several-people',
+					question: 'Can one alert reach several people or departments?',
+					answer:
+						'<p>Yes. Notification rules send an alarm to several recipient groups at once and can escalate it if nobody responds.</p>',
+				},
+				{
+					id: 'can-i-get-an-alert-when',
+					question: 'Can I get an alert when a device goes offline?',
+					answer:
+						'<p>Yes. ThingsBoard tracks each device’s activity and can raise an alarm or send a notification when a device stops reporting.</p>',
+				},
+				{
+					id: 'which-devices-does-the-assisted-living',
+					question: 'Which devices does the assisted living solution use?',
+					answer:
+						'<p>Residents wear BLE or LoRaWAN wristbands with a beacon, and rooms have sensors for temperature, humidity, indoor air quality, leaks, smoke, and doors. Nearby gateways forward the data, and ThingsBoard uses it to estimate each resident’s location. You can try it with the <a href="/iot-hub/solution-templates/assisted-living/">Assisted living template</a>.</p>',
+				},
+				{
+					id: 'how-is-resident-data-protected',
+					question: 'How is resident data protected?',
+					answer:
+						'<p>Data travels over encrypted connections, role-based access control limits who sees what, and audit logs record every change. ThingsBoard holds ISO 27001 certification. Details are in the <a href="/trust-center/">Trust Center</a>.</p>',
+				},
+			],
+		},
+	],
 	summary: {
-		title: 'Summary of health care solution',
+		title: 'Healthcare IoT with ThingsBoard in short',
 		text: 'This smart assisted living solution on ThingsBoard provides a comprehensive approach to resident and facility management, with robust monitoring capabilities, intuitive zoning and device management, and customizable alerts for both health and environmental conditions. The solution empowers caregivers and administrators to respond quickly, keep environments safe, and provide the highest standard of care for residents.',
 		icon: '/src/assets/images/usecases/health-care/summary.svg',
 		iconAlt: 'Text summary icon',
