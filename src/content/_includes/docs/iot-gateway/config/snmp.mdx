@@ -131,7 +131,9 @@ An array of device configurations. Each entry represents one SNMP manager device
 | `deviceType` | `snmp` | Device type in ThingsBoard |
 | `ip` | | IP address or hostname of the SNMP manager |
 | `port` | `161` | SNMP port |
-| `pollPeriod` | `5000` | Polling interval in milliseconds |
+| `pollPeriod` | `10000` | Polling interval in milliseconds |
+| `timeout` | `6` | Timeout of one request attempt in seconds |
+| `retries` | `10` | Total number of attempts for each request, including the first one |
 | `version` | `v2c` | SNMP version: `v1`, `v2c`, or `v3` |
 | `community` | | Default SNMP community string (`public` or `private`); required for SNMPv1 and SNMPv2c |
 | `security` | | SNMPv3 security settings; required when `version` is `v3` — see [Subsection "security"](#subsection-security) |
@@ -140,6 +142,13 @@ An array of device configurations. Each entry represents one SNMP manager device
 | `telemetry` | | Array of telemetry mappings — see below |
 | `attributeUpdateRequests` | | *(Optional)* Array of attribute-write configurations |
 | `serverSideRpcRequests` | | *(Optional)* Array of RPC-triggered SNMP operation configurations |
+
+If the device does not respond within `timeout`, the gateway sends the request again, up to `retries` attempts in
+total, so one request can take up to `timeout` × `retries` seconds. Each entry can override both values — see [Supported methods](#supported-methods).
+
+<Aside type="note">
+  `retries` is available in ThingsBoard IoT Gateway v.3.8.7 and later.
+</Aside>
 
 The gateway skips an SNMPv1 or SNMPv2c device without `community`, and an SNMPv3 device whose `security`
 is missing or has an invalid format. If the credentials do not match the device, the gateway does not
@@ -241,9 +250,9 @@ attributes; `telemetry` entries are sent as time-series telemetry.
 | `key` | ThingsBoard attribute or telemetry key name |
 | `method` | SNMP operation to use — see [Supported methods](#supported-methods) |
 | `oid` | Manager object identifier (string or array, depending on the method) |
-| `community` | *(Optional)* Community string for this entry; overrides the device `community` (SNMPv1 and SNMPv2c only) |
+| `community` | *(Optional)* Community string for this entry; overrides the device `community` (SNMPv1 and SNMPv2c only; IoT Gateway v.3.8.7 and later) |
 
-Method-specific parameters (e.g. `timeout`, `scalarOid`, `valueOid`) are described in
+Method parameters, such as `timeout`, `retries`, `scalarOid`, and `valueOid`, are described in
 [Supported methods](#supported-methods).
 
 ### Section "attributeUpdateRequests"
@@ -260,6 +269,8 @@ The “attributeUpdateRequests” configuration allows configuring the format of
 | `oid` | Object identifier to write to (used with `set`) |
 | `mappings` | OID-to-value map (used with `multiset`); values may reference `${attribute}` |
 | `type` | SNMP data type for value encoding (see [Supported data types](#supported-data-types)) — **required only for `set` and `multiset` methods** |
+| `timeout` | *(Optional)* Timeout of one request attempt in seconds; if omitted, the device `timeout` is used |
+| `retries` | *(Optional)* Total number of request attempts; if omitted, the device `retries` is used |
 
 ```json
 "attributeUpdateRequests": [
@@ -267,7 +278,9 @@ The “attributeUpdateRequests” configuration allows configuring the format of
     "attributeFilter": "dataToSet",
     "method": "set",
     "oid": "1.3.6.1.2.1.1.1.0",
-    "type": "INTEGER"
+    "type": "INTEGER",
+    "timeout": 1,
+    "retries": 3
   },
   {
     "attributeFilter": "dataToMultiSet",
@@ -285,6 +298,8 @@ The “attributeUpdateRequests” configuration allows configuring the format of
   In `mappings` values, `${attribute}` is replaced at runtime with the incoming shared attribute value.
 </Aside>
 
+The gateway waits for the result for up to `timeout` × `retries` seconds, but no longer than 5 seconds.
+
 ### Section "serverSideRpcRequests"
 
 ThingsBoard allows sending RPC commands to the device connected to ThingsBoard directly or via Gateway.
@@ -296,8 +311,12 @@ Configuration, provided in this section is used for sending RPC requests from Th
 | `requestFilter` | RPC method name to bind |
 | `method` | SNMP operation to perform, except `trap` — see [Supported methods](#supported-methods) |
 | `oid` | Object identifier (string or array, depending on the method) |
+| `timeout` | *(Optional)* Timeout of one request attempt in seconds; if omitted, the device `timeout` is used |
+| `retries` | *(Optional)* Total number of request attempts; if omitted, the device `retries` is used |
 
 The gateway always replies to ThingsBoard: `{"result": <value>}` on success or `{"error": "<message>"}` on failure.
+
+The gateway waits for the result for up to `timeout` × `retries` seconds, but no longer than 5 seconds.
 
 The connector also has built-in `get` and `set` RPC methods that read or write any OID without configuration. See the
 <DocLink product={props.product} path="features/reserved-rpc/">Reserved RPC methods</DocLink> guide.
@@ -349,7 +368,9 @@ The connector also has built-in `get` and `set` RPC methods that read or write a
   {
     "requestFilter": "getData",
     "method": "get",
-    "oid": "1.3.6.1.2.1.1.1.0"
+    "oid": "1.3.6.1.2.1.1.1.0",
+    "timeout": 1,
+    "retries": 3
   },
   {
     "requestFilter": "runBulkWalk",
@@ -392,17 +413,21 @@ the default `address` and `port`.
 
 | Method | Operation | Accepts array OID | Extra parameters |
 |--------|-----------|:-----------------:|------------------|
-| `get` | Read a single object | No | `timeout` |
-| `multiget` | Read multiple objects in one request | Yes | `timeout` |
-| `getnext` | Read the next object after the given OID | No | `timeout` |
-| `walk` | Walk the subtree rooted at OID | No | — |
-| `multiwalk` | Walk multiple subtrees | Yes | — |
-| `bulkwalk` | Walk multiple subtrees using BULK requests | Yes | — |
-| `table` | Read an SNMP table | No | — |
-| `bulkget` | Read scalars and repeating objects in one BULK request | — | `scalarOid`, `repeatingOid`, `maxListSize` |
+| `get` | Read a single object | No | `timeout`, `retries` |
+| `multiget` | Read multiple objects in one request | Yes | `timeout`, `retries` |
+| `getnext` | Read the next object after the given OID | No | `timeout`, `retries` |
+| `walk` | Walk the subtree rooted at OID | No | `timeout`, `retries` |
+| `multiwalk` | Walk multiple subtrees | Yes | `timeout`, `retries` |
+| `bulkwalk` | Walk multiple subtrees using BULK requests | Yes | `timeout`, `retries` |
+| `table` | Read an SNMP table | No | `timeout`, `retries` |
+| `bulkget` | Read scalars and repeating objects in one BULK request | — | `scalarOid`, `repeatingOid`, `maxListSize`, `timeout`, `retries` |
 | `trap` | Receive a value from SNMP traps sent by the device | No | `valueOid` |
-| `set` | Write a value to a single object | No | `type` |
-| `multiset` | Write values to multiple objects | — | `mappings`, `type` |
+| `set` | Write a value to a single object | No | `type`, `timeout`, `retries` |
+| `multiset` | Write values to multiple objects | — | `mappings`, `type`, `timeout`, `retries` |
+
+<Aside type="note">
+  Method-level `timeout` and `retries` are available in ThingsBoard IoT Gateway v.3.8.7 and later.
+</Aside>
 
 ### get
 
@@ -411,14 +436,16 @@ Reads a single SNMP object.
 | Parameter | Description |
 |-----------|-------------|
 | `oid` | Object identifier to read |
-| `timeout` | Request timeout in seconds |
+| `timeout` | *(Optional)* Timeout of one request attempt in seconds; if omitted, the device `timeout` is used |
+| `retries` | *(Optional)* Total number of request attempts; if omitted, the device `retries` is used |
 
 ```json
 {
   "key": "ReceivedFromGet",
   "method": "get",
   "oid": "1.3.6.1.2.1.1.1.0",
-  "timeout": 6
+  "timeout": 6,
+  "retries": 3
 }
 ```
 
@@ -429,7 +456,8 @@ Reads multiple SNMP objects in a single request.
 | Parameter | Description |
 |-----------|-------------|
 | `oid` | Array of object identifiers to read |
-| `timeout` | Request timeout in seconds |
+| `timeout` | *(Optional)* Timeout of one request attempt in seconds; if omitted, the device `timeout` is used |
+| `retries` | *(Optional)* Total number of request attempts; if omitted, the device `retries` is used |
 
 ```json
 {
@@ -450,7 +478,8 @@ Reads the next object in the MIB tree after the given OID.
 | Parameter | Description |
 |-----------|-------------|
 | `oid` | Starting OID |
-| `timeout` | Request timeout in seconds |
+| `timeout` | *(Optional)* Timeout of one request attempt in seconds; if omitted, the device `timeout` is used |
+| `retries` | *(Optional)* Total number of request attempts; if omitted, the device `retries` is used |
 
 ```json
 {
@@ -463,11 +492,14 @@ Reads the next object in the MIB tree after the given OID.
 
 ### walk
 
-Traverses the subtree rooted at the given OID.
+Traverses the subtree rooted at the given OID. The method may send several requests; `timeout` and `retries` apply
+to each of them.
 
 | Parameter | Description |
 |-----------|-------------|
 | `oid` | Root OID for the walk |
+| `timeout` | *(Optional)* Timeout of one request attempt in seconds; if omitted, the device `timeout` is used |
+| `retries` | *(Optional)* Total number of request attempts; if omitted, the device `retries` is used |
 
 ```json
 {
@@ -479,11 +511,14 @@ Traverses the subtree rooted at the given OID.
 
 ### multiwalk
 
-Traverses multiple subtrees in a single operation.
+Traverses multiple subtrees in a single operation. The method may send several requests; `timeout` and `retries`
+apply to each of them.
 
 | Parameter | Description |
 |-----------|-------------|
 | `oid` | Array of root OIDs to walk |
+| `timeout` | *(Optional)* Timeout of one request attempt in seconds; if omitted, the device `timeout` is used |
+| `retries` | *(Optional)* Total number of request attempts; if omitted, the device `retries` is used |
 
 ```json
 {
@@ -498,11 +533,14 @@ Traverses multiple subtrees in a single operation.
 
 ### bulkwalk
 
-Walks multiple subtrees using SNMP BULK requests (more efficient than `multiwalk` for large trees).
+Walks multiple subtrees using SNMP BULK requests (more efficient than `multiwalk` for large trees). The method may
+send several requests; `timeout` and `retries` apply to each of them.
 
 | Parameter | Description |
 |-----------|-------------|
 | `oid` | Array of root OIDs to walk |
+| `timeout` | *(Optional)* Timeout of one request attempt in seconds; if omitted, the device `timeout` is used |
+| `retries` | *(Optional)* Total number of request attempts; if omitted, the device `retries` is used |
 
 ```json
 {
@@ -517,11 +555,13 @@ Walks multiple subtrees using SNMP BULK requests (more efficient than `multiwalk
 
 ### table
 
-Reads a full SNMP table.
+Reads a full SNMP table. The method may send several requests; `timeout` and `retries` apply to each of them.
 
 | Parameter | Description |
 |-----------|-------------|
 | `oid` | OID of the table root |
+| `timeout` | *(Optional)* Timeout of one request attempt in seconds; if omitted, the device `timeout` is used |
+| `retries` | *(Optional)* Total number of request attempts; if omitted, the device `retries` is used |
 
 ```json
 {
@@ -540,6 +580,8 @@ Reads scalar and repeating objects in a single SNMP BULK request.
 | `scalarOid` | Array of non-repeating (scalar) OIDs |
 | `repeatingOid` | Array of repeating OIDs |
 | `maxListSize` | Maximum number of repetitions to return |
+| `timeout` | *(Optional)* Timeout of one request attempt in seconds; if omitted, the device `timeout` is used |
+| `retries` | *(Optional)* Total number of request attempts; if omitted, the device `retries` is used |
 
 ```json
 {
@@ -595,8 +637,8 @@ SNMPv1 traps have no trap OID, so the gateway builds it from the trap fields. Se
 SNMP versions, for example, `1.3.6.1.6.3.1.1.5.3` for `linkDown`, and use
 `<enterprise OID>.0.<specific trap number>` for enterprise-specific traps.
 
-The trap must use the device credentials — `community` for SNMPv1 and SNMPv2c, or
-[`security`](#subsection-security) for SNMPv3 — otherwise it is ignored.
+The trap must use the device credentials — `community` for SNMPv1 and SNMPv2c (the entry's own `community`, if
+set), or [`security`](#subsection-security) for SNMPv3 — otherwise it is ignored.
 
 <Aside type="note">
   The `trap` method also receives SNMPv2c informs, and the gateway sends a response to the device.
@@ -611,6 +653,8 @@ Writes a value to a single SNMP object. Used in `attributeUpdateRequests` and `s
 |-----------|-------------|
 | `oid` | Object identifier to write to |
 | `type` | SNMP data type for value encoding, default `OCTETSTRING` — see [Supported data types](#supported-data-types) |
+| `timeout` | *(Optional)* Timeout of one request attempt in seconds; if omitted, the device `timeout` is used |
+| `retries` | *(Optional)* Total number of request attempts; if omitted, the device `retries` is used |
 
 ```json
 {
@@ -631,6 +675,8 @@ Writes values to multiple SNMP objects in a single operation. The shape of `mapp
 |-----------|-------------|
 | `mappings` | Object mapping OIDs to values; values may use `${attribute}` to reference the incoming attribute value |
 | `type` | SNMP data type for value encoding, default `OCTETSTRING` — see [Supported data types](#supported-data-types) |
+| `timeout` | *(Optional)* Timeout of one request attempt in seconds; if omitted, the device `timeout` is used |
+| `retries` | *(Optional)* Total number of request attempts; if omitted, the device `retries` is used |
 
 ```json
 {
@@ -653,6 +699,8 @@ Writes values to multiple SNMP objects in a single operation. The shape of `mapp
 | `mappings[].value` | Value to write to the OID; use a JSON-path expression to extract data packed in the RPC call's `params` object, or just a constant value |
 | `mappings[].type` | *(Optional)* Per-mapping SNMP data type override — see [Supported data types](#supported-data-types) |
 | `type` | Default SNMP data type applied to mappings that don't specify their own `type`, default `OCTETSTRING` — see [Supported data types](#supported-data-types) |
+| `timeout` | *(Optional)* Timeout of one request attempt in seconds; if omitted, the device `timeout` is used |
+| `retries` | *(Optional)* Total number of request attempts; if omitted, the device `retries` is used |
 
 ```json
 {
