@@ -182,6 +182,8 @@ export default defineConfig({
 		sitemap(),
 	],
 	trailingSlash: 'always',
+	// Starlight forced this until 0.43 and now leaves it to us. Our CSS counts on scoped selectors adding no
+	// specificity (`:where(.astro-…)`), so keep it set.
 	scopedStyleStrategy: 'where',
 	compressHTML: false,
 	markdown: {
