@@ -20,7 +20,7 @@ export const data: UseCaseData = {
 			'IoT in agriculture means fewer trips to the field and fewer surprises in storage. Sensors in silos, greenhouses, and fields report temperature, humidity, soil moisture, and crop levels to ThingsBoard, which turns them into live dashboards and alarms your team can act on.',
 		longText: [
 			'The live demo shows grain storage: three silos with temperature, humidity, and crop levels, plus a night mode for late shifts. Alarm rules warn your team before grain starts to spoil, and rules can switch on aeration automatically.',
-			'The same platform covers greenhouses, irrigation, livestock, and farm equipment, so you can add new sites and devices as the project grows.',
+			'The same smart farming IoT platform covers greenhouses, irrigation, livestock, and farm equipment, so you can add new sites and devices as the project grows.',
 		],
 		demoUrl:
 			'https://thingsboard.cloud/dashboard/c77eed60-cc6a-11f1-adf1-29dbfc808686?publicId=7aa99e80-8acd-11ef-a59e-a9c993dbec14',
