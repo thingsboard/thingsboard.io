@@ -1,3 +1,5 @@
+import { SBOM_FROM_VER } from '@data/versions';
+
 /** The four security topic pages' rows, and Commitments' (`Catalog` renders them). */
 
 /** A line of a row's list, opening on a label: a protocol, or a deployment (which takes its icon). */
@@ -202,6 +204,11 @@ const CAT_APPSEC: CatalogRow[] = [
 	{
 		title: 'Container scanning',
 		html: 'Docker Scout and Snyk Container scan our container images.',
+	},
+	{
+		title: 'Software bill of materials (SBOM)',
+		html: `From version ${SBOM_FROM_VER}, every release comes with a CycloneDX SBOM for each installation package, Docker image and jar.`,
+		docs: '/docs/pe/user-guide/security/sbom/',
 	},
 	{
 		title: 'Change management',
