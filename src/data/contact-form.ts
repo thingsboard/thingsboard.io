@@ -132,7 +132,7 @@ export const DEVICE_STEPS = [
 	'Over 1M',
 ];
 
-export const CONTACT_SENT_KEY = 'tb-contact-sent';
+export const CONTACT_US_SENT_KEY = 'tb-contact-sent';
 
 export const CONTACT_SENT_FIELDS = ['firstName', 'lastName', 'email', 'company', 'subject', 'message'] as const;
 
