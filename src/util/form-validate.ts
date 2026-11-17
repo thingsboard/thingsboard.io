@@ -26,6 +26,7 @@ function clearFieldError(el: FieldControl): void {
 		message.textContent = '';
 		describeError(el, message.id, false);
 	}
+	if (announcedField === el) announce(null);
 }
 
 function setFieldError(el: FieldControl, problem: NonNullable<Problem>): void {
@@ -37,6 +38,31 @@ function setFieldError(el: FieldControl, problem: NonNullable<Problem>): void {
 		message.hidden = false;
 		describeError(el, message.id, true);
 	}
+}
+
+// One polite live region for the page: an error that shows when the reader leaves a field is not read
+// out otherwise. After a failed submit, focus on the first failing field reads its error instead.
+let announcer: HTMLElement | null = null;
+let announceTimer: number | undefined;
+let announcedField: FieldControl | null = null;
+
+function announce(el: FieldControl | null, text = ''): void {
+	if (!announcer) {
+		announcer = document.createElement('div');
+		announcer.className = 'ui-sr';
+		announcer.setAttribute('aria-live', 'polite');
+		document.body.append(announcer);
+	}
+	const region = announcer;
+	window.clearTimeout(announceTimer);
+	region.textContent = '';
+	announcedField = el;
+	if (!el) return;
+	const label = el.labels?.[0]?.textContent?.replace(/\s+/g, ' ').trim();
+	// A moment later, so it doesn't talk over the field that takes focus next.
+	announceTimer = window.setTimeout(() => {
+		region.textContent = label ? `${label}: ${text}` : text;
+	}, 500);
 }
 
 function validateField(el: FieldControl, check: Check): boolean {
@@ -62,7 +88,11 @@ export function wireValidation(fields: FieldControl[], check: Check): () => void
 			if (!check(el) || (el.dataset.error === 'required' && el.value.trim() !== '')) clearFieldError(el);
 		});
 		el.addEventListener('blur', () => {
-			if (attempted || el.value.trim() !== '') validateField(el, check);
+			if (!attempted && el.value.trim() === '') return;
+			const before = errorOf(el)?.textContent ?? '';
+			if (validateField(el, check)) return;
+			const now = errorOf(el)?.textContent ?? '';
+			if (now && now !== before) announce(el, now);
 		});
 	});
 	return () => {

@@ -83,7 +83,7 @@ export interface SentForm extends Record<FormField, string> {
 }
 
 export const REQUEST_SENT_KEY = 'tc-request-sent';
-export const SENT_MAX_AGE_MS = 60 * 60 * 1000;
+export { SENT_MAX_AGE_MS } from '@util/sent-form';
 
 /** CLARIFY: how the NDA is signed and how documents arrive is the team's process; confirm before adding detail. */
 export const NDA_STEPS: { title: string; line?: string }[] = [

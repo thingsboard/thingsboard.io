@@ -6,10 +6,10 @@ import { onConsentChange } from '@util/consent';
 
 // Catches obvious XSS before Cloudflare's WAF answers the post with a dead-end "you have been blocked" page.
 // Conservative, so angle brackets in a code snippet pass; svg payloads with inline handlers hit on*=.
-const XSS_PATTERN =
+export const XSS_PATTERN =
 	/<\s*\/?\s*(?:script|iframe|object|embed)\b|javascript\s*:|on(?:click|error|load|focus|blur|mouseover|mouseout|change|submit|input|toggle|animationend)\s*=/i;
 
-const EMAIL_PATTERN = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/;
+export const EMAIL_PATTERN = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/;
 
 // Seconds between render (or modal open) and submit below which the post counts as a bot.
 const MIN_FILL_SECONDS = 3;
@@ -134,8 +134,13 @@ export function guardSubmit(form: HTMLFormElement, fields: readonly GuardedField
 		});
 	});
 
+	guardSubmitWith(form, () => validateFields(form, fields, options));
+}
+
+// The same guard for a form that validates its own fields.
+export function guardSubmitWith(form: HTMLFormElement, validate: () => boolean): void {
 	form.addEventListener('submit', (e) => {
-		if (!validateFields(form, fields, options)) {
+		if (!validate()) {
 			e.preventDefault();
 			return;
 		}
