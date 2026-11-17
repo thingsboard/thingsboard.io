@@ -11,6 +11,12 @@ export interface DashboardPanel {
 	imageTitle?: string;
 }
 
+/** A dashboard panel on a page with the SCADA mode toggle. */
+export interface ScadaDashboardPanel extends DashboardPanel {
+	/** `image` is the high-performance screenshot; this is the traditional one. */
+	traditionalImage: string;
+}
+
 export interface Benefit {
 	title: string;
 	description: string;
@@ -147,8 +153,6 @@ export interface UseCaseData {
 		highPerformance: ScadaKeyFunction[];
 		traditional: ScadaKeyFunction[];
 	};
-	scadaDashboardStructure?: {
-		highPerformance: UseCaseDashboardStructure;
-		traditional: UseCaseDashboardStructure;
-	};
+	/** One set of panels for both SCADA modes; only the screenshot differs per mode. */
+	scadaDashboardStructure?: Omit<UseCaseDashboardStructure, 'panels'> & { panels: ScadaDashboardPanel[] };
 }
