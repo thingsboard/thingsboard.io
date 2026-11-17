@@ -1,17 +1,26 @@
 import type { UseCaseData } from './types';
 
 export const data: UseCaseData = {
-	title: 'Smart office',
-	pageTitle: 'IoT smart office solutions with ThingsBoard',
+	title: 'Smart office IoT solution',
+	pageTitle: 'Smart Office IoT Solutions',
 	description:
-		'Smart Office IoT solution by ThingsBoard for real-time monitoring and automation. Control energy, climate, air quality, and devices through dashboards.',
+		'Monitor office climate, air quality, and energy use from one dashboard. Control devices remotely, push OTA updates, and explore the live demo.',
 	pageSlug: 'smart-office',
+	cta: {
+		title: 'Build your smart office solution faster',
+		text:
+			'Install the Smart office template with HVAC control and energy metering, or ask our team to build a solution for your buildings.',
+		button: {
+			label: 'Get the solution template',
+			href: '/iot-hub/solution-templates/smart-office/',
+		},
+	},
 	about: {
 		shortText:
-			'The smart office solution powered by ThingsBoard enables efficient monitoring of energy and water consumption, tracking of air quality and CO\u2082 levels, control of HVAC systems, real-time response to critical events, and overall improvement of energy efficiency and employee comfort.',
+			'A smart office solution shows facility managers what is happening in every room: temperature, air quality and CO₂, and energy and water use. With ThingsBoard, they adjust HVAC settings from a floor plan and get alerts when conditions go out of range.',
 		longText: [
-			'Smart office solutions are designed to optimize workplace environments by monitoring key operational parameters and automating building systems in real time. ThingsBoard, as a robust IoT platform, provides all the necessary tools for collecting, processing, and visualizing data from devices that use protocols like BLE or LoRaWAN gateways, enabling seamless integration and support for flexible solutions.',
-			'Thanks to the ThingsBoard IoT platform, it\'s easy to integrate and visualize data from various devices and sensors, enabling the creation of intelligent, data-driven solutions. This approach allows not only real-time monitoring of office conditions but also active management\u2014turning systems on or off, receiving alerts, and configuring automation scenarios. All of these capabilities are fully demonstrated in our <a href="/iot-hub/solution-templates/smart-office/">smart office solution</a>.',
+			'Dashboards are split by role: administrators see consumption reports for the whole building, and occupants get a simple view of their own space.',
+			'Building management companies such as <a href="/case-studies/e2cbms/">E2CBMS</a> use ThingsBoard to roll out smart building solutions for their customers.',
 		],
 		demoUrl:
 			'https://thingsboard.cloud/dashboard/375ddea0-f5e5-11f0-bc85-bd57f974c663?publicId=4978baf0-8a92-11ec-98f9-ff45c37940c6',
@@ -63,11 +72,11 @@ export const data: UseCaseData = {
 		],
 	},
 	solutionStructure: {
-		title: 'Solution structure of smart office use case',
+		title: 'How a smart office solution works',
 		shortText:
-			'The smart office solution connects devices like energy meters, HVAC, and sensors to ThingsBoard via MQTT, CoAP, or HTTP, or through a gateway with Modbus, BLE, and BACnet connectors.',
+			'Energy meters, HVAC units, and sensors connect to ThingsBoard directly over MQTT, HTTP, or CoAP, or through the IoT Gateway with BACnet, Modbus, and BLE connectors.',
 		longText: [
-			'This setup enables seamless data ingestion through IoT gateways or direct connections. The collected data is then visualized in real time on interactive dashboards and processed through a powerful rule engine that supports analytics and configurable alarms.',
+			'Data arrives through the gateway or direct connections, and the rule engine processes it for analytics and alarms. Dashboards show the result in real time.',
 		],
 		schemeSrc: '/src/assets/schemas/use-case.svg',
 		schemeAlt:
@@ -76,9 +85,9 @@ export const data: UseCaseData = {
 			'IoT solution architecture: devices connect via protocols and gateways to ThingsBoard for processing, visualization, and automation',
 	},
 	dashboardStructure: {
-		title: 'Dashboard structure of smart office solution',
+		title: 'Smart office dashboard',
 		subtitle:
-			'ThingsBoard provides a flexible dashboard system that allows for clear visualization of key metrics. In the context of the smart office, this includes parameters such as energy and water consumption, air quality, temperature and humidity, and the status of the HVAC system. Additionally, dashboards display alarms, enabling prompt response to any deviations from normal conditions.',
+			'Dashboards show energy and water use, air quality, temperature, humidity, and HVAC status, with alarms for anything out of range.',
 		panels: [
 			{
 				title: 'Smart office overview state',
@@ -135,8 +144,8 @@ export const data: UseCaseData = {
 		contactUsId: 'UseCases_SmartOffice_ContactUs',
 	},
 	applications: {
-		title: 'Applications of smart office solution',
-		subtitle: 'The smart office approach can be easily adapted to various other sectors',
+		title: 'Where smart office solutions are used',
+		subtitle: 'The same approach works in retail, manufacturing, healthcare, hospitality, and education.',
 		applications: [
 			{
 				title: 'Smart retail',
@@ -178,8 +187,88 @@ export const data: UseCaseData = {
 			},
 		],
 	},
+	advantages: {
+		title: 'Why ThingsBoard for smart offices',
+		cards: [
+			{
+				icon: 'tabler:chart-bar',
+				color: 'red',
+				title: 'Floor-plan dashboards',
+				description:
+					'See temperature, CO₂, and energy and water use room by room on interactive floor plans.',
+				href: '/iot-hub/solution-templates/smart-office/',
+				linkText: 'See the Smart office template',
+			},
+			{
+				icon: 'tabler:plug-connected',
+				color: 'purple',
+				title: 'HVAC, BACnet, and Modbus connectivity',
+				description:
+					'Connect sensors directly over MQTT, HTTP, or CoAP, and HVAC units and meters through the IoT Gateway with BACnet, Modbus, or BLE.',
+				href: '/docs/pe/user-guide/connectivity-guide/',
+				linkText: 'Learn more about connectivity',
+			},
+			{
+				icon: 'tabler:circuit-bulb',
+				color: 'green',
+				title: 'Remote HVAC control',
+				description:
+					'Change setpoints and modes from the dashboard, and let rules react to CO₂ or temperature automatically.',
+				href: '/docs/pe/user-guide/rule-engine/',
+				linkText: 'Learn more about data processing',
+			},
+			{
+				icon: 'tabler:shield',
+				color: 'blue',
+				title: 'Building data under your control',
+				description:
+					'Role-based access and audit logs decide who sees each building’s data. ThingsBoard holds ISO 27001 certification.',
+				href: '/trust-center/',
+				linkText: 'Visit the Trust Center',
+			},
+		],
+	},
+	faq: [
+		{
+			id: 'smart-office-faq',
+			label: 'FAQ',
+			items: [
+				{
+					id: 'what-can-a-smart-office-iot',
+					question: 'What can a smart office IoT solution monitor?',
+					answer:
+						'<p>Typically temperature, humidity, CO₂ and air quality, plus energy and water use. ThingsBoard shows these on floor-plan dashboards and alerts staff when a reading goes out of range.</p>',
+					defaultOpen: true,
+				},
+				{
+					id: 'can-i-control-hvac-remotely',
+					question: 'Can I control HVAC remotely?',
+					answer:
+						'<p>Yes. The <a href="/iot-hub/solution-templates/smart-office/">Smart office template</a> includes an HVAC device whose setpoint and mode you change directly from the dashboard.</p>',
+				},
+				{
+					id: 'how-do-hvac-units-and-building',
+					question: 'How do HVAC units and building systems connect?',
+					answer:
+						'<p>Building systems that use BACnet or Modbus, and BLE devices, connect through the ThingsBoard IoT Gateway. Sensors with their own connection send data directly over MQTT, HTTP, or CoAP, and LoRaWAN sensors come in from the network server. Details are in the <a href="/docs/pe/user-guide/connectivity-guide/">connectivity guide</a>.</p>',
+				},
+				{
+					id: 'who-can-access-my-building-data',
+					question: 'Who can access my building data?',
+					answer:
+						'<p>You decide. ThingsBoard separates data by customer, and roles define what each user can see and change. Learn how we protect data in our <a href="/trust-center/">Trust Center</a>.</p>',
+				},
+				{
+					id: 'can-your-team-build-a-smart',
+					question: 'Can your team build a smart building solution for us?',
+					answer:
+						'<p>Yes. Our team builds custom solutions on ThingsBoard, and building management companies such as <a href="/case-studies/e2cbms/">E2CBMS</a> use the platform for their own customers. Tell us about your buildings through the <a href="/contact-us/?subject=Custom+Development+Service">contact form</a>.</p>',
+				},
+			],
+		},
+	],
 	summary: {
-		title: 'Summary of smart office solution',
+		title: 'Smart office with ThingsBoard in short',
 		text: "The smart office project demonstrates how the integration of IoT and ThingsBoard can significantly enhance office building management. It's more than just a dashboard — it's a powerful tool for improving efficiency, safety, and comfort. The solution is easily scalable, integrable, and customizable to fit any business needs. With ThingsBoard, you don't just monitor your office — you take control of it.",
 		icon: '/src/assets/images/usecases/health-care/summary.svg',
 		iconAlt: 'Text summary icon',
