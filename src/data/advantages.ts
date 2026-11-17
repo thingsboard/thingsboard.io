@@ -7,7 +7,7 @@ export const advantagesCards: AdvantageCard[] = [
 		title: 'Security',
 		description:
 			'ThingsBoard has ISO 27001 and ISO 9001 certifications and protects your data with industry-standard encryption algorithms. Secure communication is ensured via TLS (TCP) and DTLS (UDP). Role-based access control and audit logs further enhance platform security.',
-		href: '/docs/pe/user-guide/security/overview/',
+		href: '/trust-center/',
 		linkText: 'Learn more about security',
 	},
 	{

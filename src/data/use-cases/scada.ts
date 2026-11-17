@@ -178,94 +178,53 @@ export const data: UseCaseData = {
 		],
 	},
 	scadaDashboardStructure: {
-		highPerformance: {
-			title: 'Dashboard structure',
-			panels: [
-				{
-					title: 'Swimming pool SCADA system state',
-					description:
-						"This interactive state allows operators to monitor the pool's water level, temperature, and equipment operation. In real time, users can heat the pool, drain it, or fill it with water. By interacting with the on-screen widgets for water level, temperature, the filter sensor, and the pH filter, operators can access and control readings directly from a single dashboard.",
-					image: '/src/assets/images/usecases/scada/hp-swiming-pool-system-state.webp',
-					imageAlt: 'Swimming pool SCADA system state dashboard',
-				},
-				{
-					title: 'Water pump state',
-					description:
-						"This feature enables real-time monitoring of critical parameters like flow rate, temperature, rotation speed, vibration, and power consumption. It also provides information on the pump's status and last maintenance. An alarm widget is integrated for rapid response to any issues, ensuring that any malfunctions can be quickly addressed and resolved.",
-					image: '/src/assets/images/usecases/scada/hp-water-pump-state.webp',
-					imageAlt: 'Water pump state dashboard',
-				},
-				{
-					title: 'Heat pump state',
-					description:
-						"This screen offers a comprehensive view of the heat pump's performance, including indicators like temperature, rotation speed, vibration, refrigerant pressure, and power consumption. Key data, such as inlet and outlet water temperatures, the desired pool water temperature, and the ambient air temperature, are displayed. Based on these inputs, the heat pump will automatically switch on or off. Operators can adjust the pool water temperature directly from the heat pump widget and also view information about the filter's status and the last maintenance date. An alarm widget ensures that any malfunctions are quickly addressed in real time.",
-					image: '/src/assets/images/usecases/scada/hp-heat-pump-state.webp',
-					imageAlt: 'Heat pump state dashboard',
-				},
-				{
-					title: 'Sand filter state',
-					description:
-						"The sand filter state provides detailed monitoring of flow rate, pressure, rotation speed, and vibration. It also displays the filter's current mode, last maintenance date, and next scheduled service. Operators can easily switch filter modes directly from the widget, for example, from filtration to water draining (waste mode) with a simple click on the mode display.",
-					image: '/src/assets/images/usecases/scada/hp-sand-filter-state.webp',
-					imageAlt: 'Sand filter state dashboard',
-				},
-				{
-					title: 'Gateway',
-					description:
-						'An essential component of this solution is the Gateway, which integrates all devices using an emulator. To simulate the entire swimming pool system, a Modbus emulator is employed, combining 14 individual devices. These devices operate as a unified system, communicating seamlessly via the Modbus protocol. For real-time monitoring of device data received from Modbus servers, the ThingsBoard IoT Gateway dashboard provides a clear view of the status and data from all connected devices, allowing operators to monitor and manage the system effortlessly.',
-					image: '/src/assets/images/usecases/scada/hp-gateway.webp',
-					imageAlt: 'Gateway dashboard',
-				},
-			],
-			demoUrl:
-				'https://thingsboard.cloud/dashboard/231a5800-ce96-11ef-852e-bd51c2b30fde?publicId=7aa99e80-8acd-11ef-a59e-a9c993dbec14',
-			demoButtonId: 'UseCases_SCADA_ViewLiveDemo',
-			contactUsId: 'UseCases_SCADA_ContactUs',
-		},
-		traditional: {
-			title: 'Dashboard structure',
-			panels: [
-				{
-					title: 'Swimming pool SCADA system state',
-					description:
-						"This interactive state allows operators to monitor the pool's water level, temperature, and equipment operation. In real time, users can heat the pool, drain it, or fill it with water. By interacting with the on-screen widgets for water level, temperature, the filter sensor, and the pH filter, operators can access and control readings directly from a single dashboard.",
-					image: '/src/assets/images/usecases/scada/swiming-pool-system-state.webp',
-					imageAlt: 'Swimming pool SCADA system state dashboard',
-				},
-				{
-					title: 'Water pump state',
-					description:
-						"This feature enables real-time monitoring of critical parameters like flow rate, temperature, rotation speed, vibration, and power consumption. It also provides information on the pump's status and last maintenance. An alarm widget is integrated for rapid response to any issues, ensuring that any malfunctions can be quickly addressed and resolved.",
-					image: '/src/assets/images/usecases/scada/water-pump-state.webp',
-					imageAlt: 'Water pump state dashboard',
-				},
-				{
-					title: 'Heat pump state',
-					description:
-						"This screen offers a comprehensive view of the heat pump's performance, including indicators like temperature, rotation speed, vibration, refrigerant pressure, and power consumption. Key data, such as inlet and outlet water temperatures, the desired pool water temperature, and the ambient air temperature, are displayed. Based on these inputs, the heat pump will automatically switch on or off. Operators can adjust the pool water temperature directly from the heat pump widget and also view information about the filter's status and the last maintenance date. An alarm widget ensures that any malfunctions are quickly addressed in real time.",
-					image: '/src/assets/images/usecases/scada/heat-pump-state.webp',
-					imageAlt: 'Heat pump state dashboard',
-				},
-				{
-					title: 'Sand filter state',
-					description:
-						"The sand filter state provides detailed monitoring of flow rate, pressure, rotation speed, and vibration. It also displays the filter's current mode, last maintenance date, and next scheduled service. Operators can easily switch filter modes directly from the widget, for example, from filtration to water draining (waste mode) with a simple click on the mode display.",
-					image: '/src/assets/images/usecases/scada/sand-filter-state.webp',
-					imageAlt: 'Sand filter state dashboard',
-				},
-				{
-					title: 'Gateway',
-					description:
-						'An essential component of this solution is the Gateway, which integrates all devices using an emulator. To simulate the entire swimming pool system, a Modbus emulator is employed, combining 14 individual devices. These devices operate as a unified system, communicating seamlessly via the Modbus protocol. For real-time monitoring of device data received from Modbus servers, the ThingsBoard IoT Gateway dashboard provides a clear view of the status and data from all connected devices, allowing operators to monitor and manage the system effortlessly.',
-					image: '/src/assets/images/usecases/scada/gateway.webp',
-					imageAlt: 'Gateway dashboard',
-				},
-			],
-			demoUrl:
-				'https://thingsboard.cloud/dashboard/231a5800-ce96-11ef-852e-bd51c2b30fde?publicId=7aa99e80-8acd-11ef-a59e-a9c993dbec14',
-			demoButtonId: 'UseCases_SCADA_ViewLiveDemo',
-			contactUsId: 'UseCases_SCADA_ContactUs',
-		},
+		title: 'Dashboard structure',
+		panels: [
+			{
+				title: 'Swimming pool SCADA system state',
+				description:
+					"This interactive state allows operators to monitor the pool's water level, temperature, and equipment operation. In real time, users can heat the pool, drain it, or fill it with water. By interacting with the on-screen widgets for water level, temperature, the filter sensor, and the pH filter, operators can access and control readings directly from a single dashboard.",
+				image: '/src/assets/images/usecases/scada/hp-swiming-pool-system-state.webp',
+				traditionalImage: '/src/assets/images/usecases/scada/swiming-pool-system-state.webp',
+				imageAlt: 'Swimming pool SCADA system state dashboard',
+			},
+			{
+				title: 'Water pump state',
+				description:
+					"This feature enables real-time monitoring of critical parameters like flow rate, temperature, rotation speed, vibration, and power consumption. It also provides information on the pump's status and last maintenance. An alarm widget is integrated for rapid response to any issues, ensuring that any malfunctions can be quickly addressed and resolved.",
+				image: '/src/assets/images/usecases/scada/hp-water-pump-state.webp',
+				traditionalImage: '/src/assets/images/usecases/scada/water-pump-state.webp',
+				imageAlt: 'Water pump state dashboard',
+			},
+			{
+				title: 'Heat pump state',
+				description:
+					"This screen offers a comprehensive view of the heat pump's performance, including indicators like temperature, rotation speed, vibration, refrigerant pressure, and power consumption. Key data, such as inlet and outlet water temperatures, the desired pool water temperature, and the ambient air temperature, are displayed. Based on these inputs, the heat pump will automatically switch on or off. Operators can adjust the pool water temperature directly from the heat pump widget and also view information about the filter's status and the last maintenance date. An alarm widget ensures that any malfunctions are quickly addressed in real time.",
+				image: '/src/assets/images/usecases/scada/hp-heat-pump-state.webp',
+				traditionalImage: '/src/assets/images/usecases/scada/heat-pump-state.webp',
+				imageAlt: 'Heat pump state dashboard',
+			},
+			{
+				title: 'Sand filter state',
+				description:
+					"The sand filter state provides detailed monitoring of flow rate, pressure, rotation speed, and vibration. It also displays the filter's current mode, last maintenance date, and next scheduled service. Operators can easily switch filter modes directly from the widget, for example, from filtration to water draining (waste mode) with a simple click on the mode display.",
+				image: '/src/assets/images/usecases/scada/hp-sand-filter-state.webp',
+				traditionalImage: '/src/assets/images/usecases/scada/sand-filter-state.webp',
+				imageAlt: 'Sand filter state dashboard',
+			},
+			{
+				title: 'Gateway',
+				description:
+					'An essential component of this solution is the Gateway, which integrates all devices using an emulator. To simulate the entire swimming pool system, a Modbus emulator is employed, combining 14 individual devices. These devices operate as a unified system, communicating seamlessly via the Modbus protocol. For real-time monitoring of device data received from Modbus servers, the ThingsBoard IoT Gateway dashboard provides a clear view of the status and data from all connected devices, allowing operators to monitor and manage the system effortlessly.',
+				image: '/src/assets/images/usecases/scada/hp-gateway.webp',
+				traditionalImage: '/src/assets/images/usecases/scada/gateway.webp',
+				imageAlt: 'Gateway dashboard',
+			},
+		],
+		demoUrl:
+			'https://thingsboard.cloud/dashboard/231a5800-ce96-11ef-852e-bd51c2b30fde?publicId=7aa99e80-8acd-11ef-a59e-a9c993dbec14',
+		demoButtonId: 'UseCases_SCADA_ViewLiveDemo',
+		contactUsId: 'UseCases_SCADA_ContactUs',
 	},
 	applications: {
 		title: 'Applications of SCADA systems',

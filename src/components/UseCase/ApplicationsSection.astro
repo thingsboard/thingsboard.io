@@ -14,11 +14,7 @@ interface Props {
 
 const { title, badge, subtitle, applications } = Astro.props;
 
-// Zigzag: odd-indexed items (0, 2, 4) text on top, even-indexed (1, 3) text on bottom
-const topApps = applications.filter((_, i) => i % 2 === 0);
-const bottomApps = applications.filter((_, i) => i % 2 !== 0);
-
-// Every icon needs a ring-geometry entry (the desktop height and the mobile crop read it).
+// Every icon needs a ring-geometry entry (the wide height and the narrow crop read it).
 // Name any that lack one, rather than failing on an undefined entry.
 const noGeometry = applications.filter((app) => !ICON_RING_GEOMETRY[app.desktopImage]);
 if (noGeometry.length > 0) {
@@ -30,28 +26,33 @@ if (noGeometry.length > 0) {
 // Each icon's `-dark.svg` twin (brand indigo → #b3c7ff, CE navy → #78b4f5). darkTwinOf
 // fails the build when it is missing, instead of pointing at a CDN URL that does not exist.
 
-// Desktop icons are taller than wide; the real height keeps a not-yet-loaded copy
+// The icons are taller than wide; the real height keeps a not-yet-loaded copy
 // (e.g. the other theme's, fetched on a switch) at its final size.
-const DESKTOP_W = 180;
-const desktopHeight = (src: string) => Math.round(DESKTOP_W * ICON_RING_GEOMETRY[src].aspect);
+const ICON_W = 180;
+const iconHeight = (src: string) => Math.round(ICON_W * ICON_RING_GEOMETRY[src].aspect);
 
-// Mobile "just circles": the desktop node SVG bakes in timeline connectors that
-// extend outside the ring. Instead of the (rotated) mobile variants, we reuse the
-// desktop icon and crop to the ring via a circular viewport — scaling so the ring
-// fills the viewport and translating so it centers (ring geometry differs per node
-// because of the zigzag). Returns the inline metrics.
-const MOBILE_D = 120; // circular viewport diameter (px)
-const MOBILE_FILL = 0.94; // ring fills 94% of the viewport, leaving a small margin
-const mobileCrop = (src: string) => {
+// Narrow "just circles": the node SVG bakes in timeline connectors that extend
+// outside the ring. The same icon is cropped to the ring via a circular viewport —
+// scaled so the ring fills the viewport and translated so it centres (ring geometry
+// differs per node because of the zigzag). The metrics travel as custom properties,
+// so they only apply where the narrow layout reads them.
+const CROP_D = 120; // circular viewport diameter (px)
+const CROP_FILL = 0.94; // ring fills 94% of the viewport, leaving a small margin
+const cropVars = (src: string) => {
 	const g = ICON_RING_GEOMETRY[src];
-	const imgW = (MOBILE_FILL * MOBILE_D) / (2 * g.r);
+	const imgW = (CROP_FILL * CROP_D) / (2 * g.r);
 	const imgH = imgW * g.aspect;
-	return {
-		width: Math.round(imgW),
-		height: Math.round(imgH),
-		style: `width:${imgW.toFixed(1)}px;height:${imgH.toFixed(1)}px;transform:translate(${(MOBILE_D / 2 - g.cx * imgW).toFixed(1)}px,${(MOBILE_D / 2 - g.cy * imgH).toFixed(1)}px)`,
-	};
+	const x = (CROP_D / 2 - g.cx * imgW).toFixed(1);
+	const y = (CROP_D / 2 - g.cy * imgH).toFixed(1);
+	return `--uc-crop-w:${imgW.toFixed(1)}px;--uc-crop-h:${imgH.toFixed(1)}px;--uc-crop-shift:${x}px ${y}px`;
 };
+
+// Wide zigzag: the texts of items 0, 2, 4… sit in a row above the icons and the texts
+// of items 1, 3… in a row below, so the markup keeps those three rows. Narrow screens
+// flatten the rows and put every icon back in front of its own text by `order`.
+const numbered = applications.map((app, index) => ({ app, index }));
+const topApps = numbered.filter(({ index }) => index % 2 === 0);
+const bottomApps = numbered.filter(({ index }) => index % 2 !== 0);
 ---
 
 <section class="uc-applications uc-section-padding">
@@ -65,12 +66,12 @@ const mobileCrop = (src: string) => {
 		{subtitle && <p>{subtitle}</p>}
 	</div>
 
-	{/* Desktop: zigzag layout */}
-	<div class="uc-applications-large">
+	{/* One markup for every width: a zigzag when wide, stacked icon + text blocks when narrow. */}
+	<div class="uc-app-list" style={`--uc-crop-d:${CROP_D}px`}>
 		<div class="uc-text-row uc-text-row-top">
 			{
-				topApps.map((app) => (
-					<div class="uc-text-block">
+				topApps.map(({ app, index }) => (
+					<div class="uc-text-block" style={`--uc-app-index:${index}`}>
 						<h3>{app.title}</h3>
 						<p>{app.description}</p>
 					</div>
@@ -80,25 +81,27 @@ const mobileCrop = (src: string) => {
 
 		<div class="uc-images-row">
 			{
-				applications.map((app) => {
+				numbered.map(({ app, index }) => {
 					const darkSrc = darkTwinOf(app.desktopImage);
-					const height = desktopHeight(app.desktopImage);
+					const height = iconHeight(app.desktopImage);
 					return (
-						<div class="uc-app-image">
-							<SmartImage
-								src={app.desktopImage}
-								alt={app.imageAlt}
-								width={DESKTOP_W}
-								height={height}
-								class="uc-ic uc-ic--light"
-							/>
-							<SmartImage
-								src={darkSrc}
-								alt={app.imageAlt}
-								width={DESKTOP_W}
-								height={height}
-								class="uc-ic uc-ic--dark"
-							/>
+						<div class="uc-app-image" style={`--uc-app-index:${index}`}>
+							<div class="uc-circle-crop" style={cropVars(app.desktopImage)}>
+								<SmartImage
+									src={app.desktopImage}
+									alt={app.imageAlt}
+									width={ICON_W}
+									height={height}
+									class="uc-ic uc-ic--light"
+								/>
+								<SmartImage
+									src={darkSrc}
+									alt={app.imageAlt}
+									width={ICON_W}
+									height={height}
+									class="uc-ic uc-ic--dark"
+								/>
+							</div>
 						</div>
 					);
 				})
@@ -107,53 +110,14 @@ const mobileCrop = (src: string) => {
 
 		<div class="uc-text-row uc-text-row-bottom">
 			{
-				bottomApps.map((app) => (
-					<div class="uc-text-block">
+				bottomApps.map(({ app, index }) => (
+					<div class="uc-text-block" style={`--uc-app-index:${index}`}>
 						<h3>{app.title}</h3>
 						<p>{app.description}</p>
 					</div>
 				))
 			}
 		</div>
-	</div>
-
-	{/* Mobile: alternating image-text blocks */}
-	<div class="uc-applications-small">
-		{
-			applications.map((app) => {
-				// Mobile reuses the DESKTOP icon, cropped to the ring (no rotated variant).
-				const crop = mobileCrop(app.desktopImage);
-				const darkSrc = darkTwinOf(app.desktopImage);
-				return (
-					<div class="uc-app-block">
-						<div class="uc-app-block-image">
-							<div class="uc-circle-crop">
-								<SmartImage
-									src={app.desktopImage}
-									alt={app.imageAlt}
-									width={crop.width}
-									height={crop.height}
-									style={crop.style}
-									class="uc-crop-img uc-ic uc-ic--light"
-								/>
-								<SmartImage
-									src={darkSrc}
-									alt={app.imageAlt}
-									width={crop.width}
-									height={crop.height}
-									style={crop.style}
-									class="uc-crop-img uc-ic uc-ic--dark"
-								/>
-							</div>
-						</div>
-						<div class="uc-app-block-text">
-							<h3>{app.title}</h3>
-							<p>{app.description}</p>
-						</div>
-					</div>
-				);
-			})
-		}
 	</div>
 </section>
 
@@ -168,53 +132,19 @@ const mobileCrop = (src: string) => {
 				margin-bottom: $spacing-8;
 			}
 		}
-
-		.uc-applications-large {
-			display: flex;
-			flex-direction: column;
-			gap: 35px;
-
-			@include media-down(xl) {
-				display: none;
-			}
-		}
-
-		.uc-applications-small {
-			display: none;
-
-			@include media-down(xl) {
-				display: flex;
-				flex-direction: column;
-				gap: $spacing-8;
-			}
-		}
 	}
 
-	// ── Desktop text rows ──────────────────────────
-	.uc-text-row {
+	.uc-app-list {
 		display: flex;
-		flex-direction: row;
-	}
-
-	.uc-text-row-top {
-		justify-content: space-between;
-	}
-
-	.uc-text-row-bottom {
-		justify-content: space-evenly;
+		flex-direction: column;
 	}
 
 	.uc-text-block {
-		display: flex;
-		flex-direction: column;
-		max-width: 373px;
 		text-align: center;
-		gap: $spacing-3;
 
 		h3 {
 			@include card-title;
 			color: var(--color-text);
-			margin: 0;
 		}
 
 		p {
@@ -223,13 +153,44 @@ const mobileCrop = (src: string) => {
 		}
 	}
 
-	// ── Desktop images row (zigzag stagger) ────────
-	.uc-images-row {
-		display: flex;
-		flex-direction: row;
-		justify-content: space-evenly;
-		align-self: center;
-		max-height: 420px;
+	// ── Wide: zigzag ───────────────────────────────
+	@include media-up(xl) {
+		.uc-app-list {
+			gap: 35px;
+		}
+
+		.uc-text-row {
+			display: flex;
+			flex-direction: row;
+		}
+
+		.uc-text-row-top {
+			justify-content: space-between;
+		}
+
+		.uc-text-row-bottom {
+			justify-content: space-evenly;
+		}
+
+		.uc-text-block {
+			display: flex;
+			flex-direction: column;
+			max-width: 373px;
+			gap: $spacing-3;
+
+			h3 {
+				margin: 0;
+			}
+		}
+
+		// Icons row, staggered for the zigzag.
+		.uc-images-row {
+			display: flex;
+			flex-direction: row;
+			justify-content: space-evenly;
+			align-self: center;
+			max-height: 420px;
+		}
 
 		.uc-app-image {
 			align-self: start;
@@ -240,54 +201,69 @@ const mobileCrop = (src: string) => {
 				height: auto;
 			}
 
-			// Even images pushed further down for zigzag stagger
+			// Even icons pushed further down for the stagger
 			&:nth-child(even) {
 				margin-top: 14%;
 			}
 		}
+
+		.uc-circle-crop {
+			display: contents;
+		}
 	}
 
-	// ── Mobile stacked blocks ──────────────────────
-	.uc-app-block {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		text-align: center;
-		gap: $spacing-3;
+	// ── Narrow: stacked icon + text blocks ─────────
+	// The three rows dissolve, and every icon and text becomes an item of one column:
+	// icon 0, text 0, icon 1, text 1…
+	@include media-down(xl) {
+		.uc-app-list {
+			align-items: center;
+		}
 
-		// Cropped "just circles": circular viewport over the desktop icon.
-		.uc-app-block-image {
-			width: 120px;
-			height: 120px;
+		.uc-text-row,
+		.uc-images-row {
+			display: contents;
+		}
 
-			.uc-circle-crop {
-				position: relative;
-				width: 120px;
-				height: 120px;
-				border-radius: 50%;
-				overflow: hidden;
-			}
+		.uc-app-image {
+			order: calc(var(--uc-app-index) * 2);
+			margin-top: $spacing-8;
 
-			.uc-crop-img {
-				position: absolute;
-				top: 0;
-				left: 0;
-				max-width: none; // width/transform come from the inline style
+			&:first-child {
+				margin-top: 0;
 			}
 		}
 
-		.uc-app-block-text {
+		.uc-text-block {
+			order: calc(var(--uc-app-index) * 2 + 1);
 			max-width: 500px;
+			margin-top: $spacing-3;
 
 			h3 {
-				@include card-title;
-				color: var(--color-text);
 				margin: 0 0 $spacing-2;
 			}
+		}
 
-			p {
-				@include text-card;
-				margin: 0;
+		// Cropped "just circles": circular viewport over the icon.
+		.uc-app-image,
+		.uc-circle-crop {
+			width: var(--uc-crop-d);
+			height: var(--uc-crop-d);
+		}
+
+		.uc-circle-crop {
+			position: relative;
+			border-radius: 50%;
+			overflow: hidden;
+
+			img {
+				position: absolute;
+				top: 0;
+				left: 0;
+				max-width: none;
+				width: var(--uc-crop-w);
+				height: var(--uc-crop-h);
+				translate: var(--uc-crop-shift);
 			}
 		}
 	}
@@ -313,8 +289,9 @@ const mobileCrop = (src: string) => {
 			break-after: avoid;
 		}
 
-		.uc-app-block {
+		.uc-text-block {
 			break-inside: avoid;
+			break-before: avoid;
 		}
 	}
 </style>
