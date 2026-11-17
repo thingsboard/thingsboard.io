@@ -139,7 +139,7 @@ export const data: UseCaseData = {
 	applications: {
 		title: 'Where smart metering is used',
 		subtitle:
-			'Utilities, property managers, and industrial sites use smart metering to track consumption and cut losses.',
+			'Utilities, property managers, and industrial sites use smart metering solutions to track consumption and cut losses.',
 		applications: [
 			{
 				title: 'Municipal utilities',

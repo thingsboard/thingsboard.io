@@ -314,7 +314,7 @@ export const data: UseCaseData = {
 					id: 'can-thingsboard-work-as-a-scada',
 					question: 'Can ThingsBoard work as a SCADA energy management system?',
 					answer:
-						'<p>Yes. ThingsBoard collects data from PLCs, RTUs, inverters, and meters, shows it on SCADA dashboards built from a library of energy symbols, and raises alarms when values go out of range. The <a href="/iot-hub/solution-templates/scada-energy-management/">SCADA Energy management template</a> shows a complete setup with solar panels, a wind turbine, batteries, and a transformer.</p>',
+						'<p>Yes. ThingsBoard SCADA collects data from PLCs, RTUs, inverters, and meters, shows it on SCADA dashboards built from a library of energy symbols, and raises alarms when values go out of range. The <a href="/iot-hub/solution-templates/scada-energy-management/">SCADA Energy management template</a> shows a complete setup with solar panels, a wind turbine, batteries, and a transformer.</p>',
 					defaultOpen: true,
 				},
 				{
