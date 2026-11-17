@@ -10,8 +10,10 @@ export const data: UseCaseData = {
 		title: 'Set up tank level monitoring faster',
 		text:
 			'Start from a ready-made tank monitoring template in the IoT Hub, or ask our team to build a solution for your tanks, sensors, and sites.',
-		buttonLabel: 'Explore tank monitoring templates',
-		buttonHref: '/iot-hub/solution-templates/?useCases=Tank+Level+Monitoring',
+		button: {
+			label: 'Explore tank monitoring templates',
+			href: '/iot-hub/solution-templates/?useCases=Tank+Level+Monitoring',
+		},
 	},
 	about: {
 		shortText:

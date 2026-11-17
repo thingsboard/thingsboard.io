@@ -10,8 +10,10 @@ export const data: UseCaseData = {
 		title: 'Deploy environmental monitoring faster',
 		text:
 			'Start from ready-made environment monitoring templates, or ask our team to build a solution for your sensors and facilities.',
-		buttonLabel: 'Explore environment monitoring templates',
-		buttonHref: '/iot-hub/solution-templates/?useCases=Environment+Monitoring',
+		button: {
+			label: 'Explore environment monitoring templates',
+			href: '/iot-hub/solution-templates/?useCases=Environment+Monitoring',
+		},
 	},
 	about: {
 		shortText:

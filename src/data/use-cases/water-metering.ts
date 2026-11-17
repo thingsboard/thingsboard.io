@@ -10,8 +10,10 @@ export const data: UseCaseData = {
 		title: 'Launch smart water metering faster',
 		text:
 			'Install the Water metering template with leak detection and multi-customer support, or ask our team to build a solution for your water network.',
-		buttonLabel: 'Get the solution template',
-		buttonHref: '/iot-hub/solution-templates/water-metering/',
+		button: {
+			label: 'Get the solution template',
+			href: '/iot-hub/solution-templates/water-metering/',
+		},
 	},
 	about: {
 		shortText:

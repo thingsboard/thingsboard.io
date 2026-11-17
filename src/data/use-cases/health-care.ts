@@ -10,8 +10,10 @@ export const data: UseCaseData = {
 		title: 'Launch your assisted living solution faster',
 		text:
 			'Install the Assisted living template with resident tracking and room monitoring, or ask our team to build a healthcare solution around your devices.',
-		buttonLabel: 'Get the solution template',
-		buttonHref: '/iot-hub/solution-templates/assisted-living/',
+		button: {
+			label: 'Get the solution template',
+			href: '/iot-hub/solution-templates/assisted-living/',
+		},
 	},
 	about: {
 		shortText:

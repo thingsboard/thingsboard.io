@@ -10,8 +10,10 @@ export const data: UseCaseData = {
 		title: 'Build your smart office solution faster',
 		text:
 			'Install the Smart office template with HVAC control and energy metering, or ask our team to build a solution for your buildings.',
-		buttonLabel: 'Get the solution template',
-		buttonHref: '/iot-hub/solution-templates/smart-office/',
+		button: {
+			label: 'Get the solution template',
+			href: '/iot-hub/solution-templates/smart-office/',
+		},
 	},
 	about: {
 		shortText:

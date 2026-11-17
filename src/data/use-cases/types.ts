@@ -98,8 +98,7 @@ export interface UseCaseCta {
 	title: string;
 	text: string;
 	/** Main button: a solution template or a filtered template list in the IoT Hub. */
-	buttonLabel: string;
-	buttonHref: string;
+	button: { label: string; href: string };
 }
 
 export interface UseCaseAdvantages {

@@ -10,8 +10,10 @@ export const data: UseCaseData = {
 		title: 'Roll out smart metering faster',
 		text:
 			'Start from ready-made smart metering templates in the IoT Hub, or ask our team to build a solution for your meters and billing systems.',
-		buttonLabel: 'Explore smart metering templates',
-		buttonHref: '/iot-hub/solution-templates/?useCases=Smart+Metering',
+		button: {
+			label: 'Explore smart metering templates',
+			href: '/iot-hub/solution-templates/?useCases=Smart+Metering',
+		},
 	},
 	about: {
 		shortText:

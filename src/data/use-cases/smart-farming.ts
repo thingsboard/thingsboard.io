@@ -10,8 +10,10 @@ export const data: UseCaseData = {
 		title: 'Launch your smart farming solution faster',
 		text:
 			'Start from a ready-made smart farming template in the IoT Hub, or tell our team about your silos, greenhouses, and fields, and we’ll build the solution for you.',
-		buttonLabel: 'Explore smart farming templates',
-		buttonHref: '/iot-hub/solution-templates/?useCases=Smart+Farming',
+		button: {
+			label: 'Explore smart farming templates',
+			href: '/iot-hub/solution-templates/?useCases=Smart+Farming',
+		},
 	},
 	about: {
 		shortText:

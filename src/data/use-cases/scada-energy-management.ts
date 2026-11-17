@@ -11,8 +11,10 @@ export const data: UseCaseData = {
 		title: 'Build your SCADA energy management system faster',
 		text:
 			'Install the SCADA Energy management template and adapt it to your site, or ask our team to develop a SCADA system around your generation and storage assets.',
-		buttonLabel: 'Get the solution template',
-		buttonHref: '/iot-hub/solution-templates/scada-energy-management/',
+		button: {
+			label: 'Get the solution template',
+			href: '/iot-hub/solution-templates/scada-energy-management/',
+		},
 	},
 	about: {
 		shortText:
