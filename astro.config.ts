@@ -6,6 +6,7 @@ import { redirects } from './astro.redirects';
 import { sidebar } from './astro.sidebar';
 import { devServerFileWatcher } from './config/integrations/dev-server-file-watcher';
 import { imageGalleryLightbox } from './config/integrations/image-gallery-lightbox';
+import { llmsTxt } from './config/integrations/llms-txt';
 import { sitemap } from './config/integrations/sitemap';
 import { youtubePosters } from './config/integrations/youtube-posters';
 import { satteriBlogImages } from './config/plugins/satteri-blog-images';
@@ -248,6 +249,7 @@ export default defineConfig({
 			disable404Route: true,
 		}),
 		sitemap(),
+		llmsTxt(),
 	],
 	trailingSlash: 'always',
 	// Our CSS counts on scoped selectors adding no specificity (`:where(.astro-…)`), so keep it set.

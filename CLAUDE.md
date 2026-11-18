@@ -179,8 +179,9 @@ The one exception is `src/util/markdown-processor.ts`, which still uses `@astroj
 ### Pages vs Content
 
 - `src/content/docs/` — documentation pages rendered by Starlight
-- `src/pages/` — everything outside the docs collection: the homepage, marketing and product landings (`products/`, `pricing/`, `partners/`, `iot-hub/`, …), `blog/`, `use-cases/`, `case-studies/`, 404, `llms.txt`, OG image generation
+- `src/pages/` — everything outside the docs collection: the homepage, marketing and product landings (`products/`, `pricing/`, `partners/`, `iot-hub/`, …), `blog/`, `use-cases/`, `case-studies/`, 404, OG image generation
 - `src/pages/docs/` — data-driven docs routes the collection can't express: `releases/releases-table/[familySlug]` and `installation/upgrade-instructions/[platform]/[familySlug]`, repeated under each product prefix that has them (`pe/`, `edge/`, `edge/pe/`, `trendz/`)
+- `config/integrations/llms-txt.ts` — writes `/llms.txt` and one `llms.txt` per product at its docs home (`/docs/pe/llms.txt`, `/docs/edge/pe/llms.txt`, …) after the build, from the same page set as the sitemap (indexable, self-canonical `/docs/` pages, plus the IoT Hub category pages). ThingsBoard's big sections get their own file (`/docs/pe/reference/llms.txt`, …). A page joins them by being built; a key page in `llms.txt` that stops qualifying fails the build, and a file over 100,000 characters warns. They are not served by `pnpm dev`
 
 ### Typography & Design System
 

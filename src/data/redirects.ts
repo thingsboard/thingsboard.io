@@ -1528,6 +1528,9 @@ export const NON_DOCS_REDIRECTS: Record<string, string> = {
 	'/blog/wp-content/uploads/2024/03/button_use_cases.json': '/resources/blog/button_use_cases.json',
 	'/blog/wp-content/uploads/2024/03/command_buttons.json': '/resources/blog/command_buttons.json',
 
+	// Replaced by one llms.txt per product, all linked from the root one.
+	'/llms-small.txt': '/llms.txt',
+
 	// Use Cases
 	'/use-cases/fleet-tracking/': '/use-cases/site-fleet-tracking/',
 	'/fleet-tracking/': '/use-cases/site-fleet-tracking/',
