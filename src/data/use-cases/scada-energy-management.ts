@@ -2,17 +2,26 @@ import type { UseCaseData } from './types';
 import { SCADA_COMMON_BENEFITS } from './_scada-shared';
 
 export const data: UseCaseData = {
-	title: 'SCADA Energy management',
-	pageTitle: 'SCADA Energy Management & Monitoring with ThingsBoard',
+	title: 'SCADA energy management system',
+	pageTitle: 'SCADA Energy Management System',
 	description:
-		'Optimize energy generation and consumption with ThingsBoard SCADA — unify data from solar, wind, batteries, and grid into real-time dashboards.',
+		'Manage solar, wind, battery, and grid assets from one SCADA energy management system. Track power flows in real time and try the live demo.',
 	pageSlug: 'scada-energy-management',
+	cta: {
+		title: 'Build your SCADA energy management system faster',
+		text:
+			'Install the SCADA Energy management template and adapt it to your site, or ask our team to develop a SCADA system around your generation and storage assets.',
+		button: {
+			label: 'Get the solution template',
+			href: '/iot-hub/solution-templates/scada-energy-management/',
+		},
+	},
 	about: {
 		shortText:
-			'SCADA (Supervisory Control and Data Acquisition) systems play a crucial role in energy monitoring and management, providing real-time insights into power generation, distribution, and consumption. With platforms like ThingsBoard, businesses can integrate advanced SCADA solutions to optimize energy efficiency, reduce costs, and enhance system reliability.',
+			'A SCADA energy management system shows how power moves through your site, from solar panels, wind turbines, and generators to batteries, transformers, and the grid. ThingsBoard puts it all on one live diagram, so operators see generation, storage, and consumption together and respond to faults as they happen.',
 		longText: [
-			'The ability to collect, analyze, and visualize data from multiple energy sources helps operators make informed decisions and respond swiftly to changing conditions. ThingsBoard provides comprehensive tools to collect, process, and visualize data from SCADA components, such as PLCs (Programmable Logic Controllers) and RTUs (Remote Terminal Units), enabling seamless integration with various industrial processes.',
-			'With ThingsBoard, you can monitor the performance of all energy sources and consumption points in real time, identify inefficiencies, forecast demand peaks, and respond to anomalies instantly. All of this is showcased in our <a href="/iot-hub/solution-templates/scada-energy-management/">SCADA Energy solution</a>, demonstrating how easily and effectively energy systems can be managed using ThingsBoard.',
+			'This use case covers generation, storage, and distribution. For consumption in buildings, see <a href="/use-cases/smart-energy/">IoT energy monitoring</a>.',
+			'ThingsBoard collects data from PLCs, RTUs, inverters, and power meters, and calculated fields turn raw readings into the values operators work with, such as total generation or battery status.',
 		],
 		demoUrl:
 			'https://thingsboard.cloud/dashboard/2430dc20-3172-11f0-858a-67efd1bc8a87?publicId=7aa99e80-8acd-11ef-a59e-a9c993dbec14',
@@ -45,7 +54,7 @@ export const data: UseCaseData = {
 		],
 	},
 	solutionStructure: {
-		title: 'Solution structure',
+		title: 'How a SCADA energy management system works',
 		shortText: '',
 		schemeSrc: '/src/assets/schemas/energy-management.svg',
 		schemeAlt: 'SCADA energy management solution structure',
@@ -55,6 +64,7 @@ export const data: UseCaseData = {
 		benefits: SCADA_COMMON_BENEFITS,
 	},
 	scadaKeyFunctions: {
+		title: 'SCADA symbols for energy systems',
 		highPerformance: [
 			{
 				title: 'Power generation and renewable energy sources',
@@ -116,7 +126,7 @@ export const data: UseCaseData = {
 		traditional: [],
 	},
 	dashboardStructure: {
-		title: 'Dashboard structure',
+		title: 'SCADA energy management dashboard',
 		panels: [
 			{
 				title: 'Main dashboard state',
@@ -215,7 +225,7 @@ export const data: UseCaseData = {
 		contactUsId: 'UseCases_ScadaEnergy_ContactUs',
 	},
 	applications: {
-		title: 'Applications of SCADA systems',
+		title: 'Where SCADA energy management is used',
 		applications: [
 			{
 				title: 'Industrial facilities',
@@ -254,4 +264,90 @@ export const data: UseCaseData = {
 			},
 		],
 	},
+	advantages: {
+		title: 'Why ThingsBoard for SCADA energy management',
+		cards: [
+			{
+				icon: 'tabler:chart-bar',
+				color: 'red',
+				title: 'One SCADA diagram for your energy system',
+				description:
+					'See solar panels, wind turbines, generators, batteries, transformers, and the grid on one live diagram built from energy symbols.',
+				href: '/iot-hub/solution-templates/scada-energy-management/',
+				linkText: 'See the SCADA Energy management template',
+			},
+			{
+				icon: 'tabler:plug-connected',
+				color: 'purple',
+				title: 'PLC, RTU, and inverter connectivity',
+				description:
+					'Connect Modbus and OPC UA devices through the IoT Gateway, or send data from your energy management system directly over MQTT or HTTP.',
+				href: '/docs/pe/user-guide/connectivity-guide/',
+				linkText: 'Learn more about connectivity',
+			},
+			{
+				icon: 'tabler:circuit-bulb',
+				color: 'green',
+				title: 'Alarms on grid and battery limits',
+				description:
+					'Raise alarms when battery temperature, voltage, or load goes out of range and notify the operator on duty.',
+				href: '/docs/pe/user-guide/rule-engine/',
+				linkText: 'Learn more about data processing',
+			},
+			{
+				icon: 'tabler:server',
+				color: 'orange',
+				title: 'From one plant to a portfolio',
+				description:
+					'Monitor many sites from one platform and scale horizontally with a microservices deployment as your portfolio grows.',
+				href: '/docs/pe/reference/architecture/microservices/',
+				linkText: 'Learn more about scalability',
+			},
+		],
+	},
+	faq: [
+		{
+			id: 'scada-energy-management-faq',
+			label: 'FAQ',
+			items: [
+				{
+					id: 'can-thingsboard-work-as-a-scada',
+					question: 'Can ThingsBoard work as a SCADA energy management system?',
+					answer:
+						'<p>Yes. ThingsBoard SCADA collects data from PLCs, RTUs, inverters, and meters, shows it on SCADA dashboards built from a library of energy symbols, and raises alarms when values go out of range. The <a href="/iot-hub/solution-templates/scada-energy-management/">SCADA Energy management template</a> shows a complete setup with solar panels, a wind turbine, batteries, and a transformer.</p>',
+					defaultOpen: true,
+				},
+				{
+					id: 'how-do-plcs-rtus-and-inverters',
+					question: 'How do PLCs, RTUs, and inverters connect?',
+					answer:
+						'<p>Equipment that uses Modbus TCP, UDP, or RTU, OPC UA, or another industrial protocol connects through the ThingsBoard IoT Gateway. Your own energy management system can send data directly over MQTT or HTTP. Details are in the <a href="/docs/pe/user-guide/connectivity-guide/">connectivity guide</a>.</p>',
+				},
+				{
+					id: 'can-i-monitor-battery-voltage-current',
+					question: 'Can I monitor battery voltage, current, temperature, and state of charge?',
+					answer:
+						'<p>Yes. Each reading arrives as telemetry, so you can chart it and set alarm thresholds, for example on battery temperature or a low state of charge. Battery status appears on the SCADA diagram next to generation and load.</p>',
+				},
+				{
+					id: 'does-it-scale-from-one-site',
+					question: 'Does it scale from one site to many?',
+					answer:
+						'<p>Yes. You model each site as an asset and give each team access only to the sites they manage. For large deployments, ThingsBoard runs as a <a href="/docs/pe/reference/architecture/microservices/">cluster of microservices</a> that scales horizontally.</p>',
+				},
+				{
+					id: 'how-is-this-different-from-iot',
+					question: 'How is this different from IoT energy monitoring?',
+					answer:
+						'<p>This use case covers generation, storage, and distribution: solar, wind, generators, batteries, and the grid on one SCADA diagram. If you mainly need to track consumption in buildings, see <a href="/use-cases/smart-energy/">IoT energy monitoring</a>.</p>',
+				},
+				{
+					id: 'can-your-team-build-a-scada',
+					question: 'Can your team build a SCADA system around our equipment?',
+					answer:
+						'<p>Yes. Our team develops SCADA dashboards and integrations for specific plants and portfolios. <a href="/case-studies/energenix/">Energenix</a>, for example, runs its solar SCADA and analytics on ThingsBoard. Tell us about your assets through the <a href="/contact-us/?subject=Custom+Development+Service">contact form</a>.</p>',
+				},
+			],
+		},
+	],
 };

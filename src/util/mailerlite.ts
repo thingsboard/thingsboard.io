@@ -11,11 +11,14 @@ interface MailerLiteResponse {
 
 /**
  * Sends `form` on submit and swaps it for `success` once MailerLite accepts it. A rejection is
- * shown in the `[data-ml-error]` element in or next to the form, and the form stays.
+ * shown in `error`, by default the `[data-ml-error]` element in or next to the form, and the form stays.
  */
-export function bindMailerLiteForm(form: HTMLFormElement, success: HTMLElement) {
+export function bindMailerLiteForm(
+	form: HTMLFormElement,
+	success: HTMLElement,
+	error = form.parentElement?.querySelector<HTMLElement>('[data-ml-error]')
+) {
 	const submitBtn = form.querySelector<HTMLButtonElement>('[type="submit"]');
-	const error = form.parentElement?.querySelector<HTMLElement>('[data-ml-error]');
 
 	const setBusy = (busy: boolean) => {
 		if (!submitBtn) return;
@@ -27,7 +30,11 @@ export function bindMailerLiteForm(form: HTMLFormElement, success: HTMLElement) 
 	form.addEventListener('submit', async (e) => {
 		e.preventDefault();
 		if (submitBtn?.disabled) return;
-		if (error) error.hidden = true;
+		// Emptied as well: a hidden line that a field's description points at is still read out.
+		if (error) {
+			error.hidden = true;
+			error.textContent = '';
+		}
 		setBusy(true);
 
 		const params = new URLSearchParams();

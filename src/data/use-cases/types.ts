@@ -1,11 +1,20 @@
 // Shared TypeScript interfaces for use case pages
 
+import type { AdvantageCard } from '@components/Landing/AdvantagesCarousel.astro';
+import type { FaqCategory } from '@data/pricing/types';
+
 export interface DashboardPanel {
 	title: string;
 	description: string;
 	image: string;
 	imageAlt: string;
 	imageTitle?: string;
+}
+
+/** A dashboard panel on a page with the SCADA mode toggle. */
+export interface ScadaDashboardPanel extends DashboardPanel {
+	/** `image` is the high-performance screenshot; this is the traditional one. */
+	traditionalImage: string;
 }
 
 export interface Benefit {
@@ -90,11 +99,26 @@ export interface UseCaseSummary {
 	iconAlt: string;
 }
 
+/** The call-to-action banner under the overview. Its title is the page's first H2. */
+export interface UseCaseCta {
+	title: string;
+	text: string;
+	/** Main button: a solution template or a filtered template list in the IoT Hub. */
+	button: { label: string; href: string };
+}
+
+export interface UseCaseAdvantages {
+	title: string;
+	cards: AdvantageCard[];
+}
+
 export interface UseCaseData {
 	title: string;
 	pageTitle: string;
 	description: string;
 	pageSlug: string;
+	/** Without it the page shows the default "Contact Us" banner. */
+	cta?: UseCaseCta;
 	about: UseCaseAbout;
 	overview?: {
 		type: 'comparison' | 'carousel';
@@ -112,6 +136,10 @@ export interface UseCaseData {
 	benefits?: UseCaseBenefits;
 	dashboardStructure?: UseCaseDashboardStructure;
 	applications?: UseCaseApplications;
+	/** Without it the page shows the shared ThingsBoard advantages block. */
+	advantages?: UseCaseAdvantages;
+	/** Answers are HTML. Shown after the advantages block. */
+	faq?: FaqCategory[];
 	summary?: UseCaseSummary;
 	// SCADA-specific
 	scadaOverview?: {
@@ -120,11 +148,11 @@ export interface UseCaseData {
 		comparisonRows: ComparisonRow[];
 	};
 	scadaKeyFunctions?: {
+		/** Section heading; defaults to "Key functions of SCADA systems". */
+		title?: string;
 		highPerformance: ScadaKeyFunction[];
 		traditional: ScadaKeyFunction[];
 	};
-	scadaDashboardStructure?: {
-		highPerformance: UseCaseDashboardStructure;
-		traditional: UseCaseDashboardStructure;
-	};
+	/** One set of panels for both SCADA modes; only the screenshot differs per mode. */
+	scadaDashboardStructure?: Omit<UseCaseDashboardStructure, 'panels'> & { panels: ScadaDashboardPanel[] };
 }
