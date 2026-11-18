@@ -4,6 +4,8 @@ import type { HtmlPage } from './page.ts';
 export interface SectionLinks {
 	from: string[];
 	to: string[];
+	/** Only these target pathnames, when the exception is about specific pages rather than a whole section. */
+	pages?: string[];
 }
 
 /**
@@ -33,8 +35,12 @@ export function sectionOf(pathname: string, policy: CanonicalLinkPolicy): string
 	return policy.sections.find((section) => pathname.startsWith(section)) ?? `/${pathname.split('/')[1]}/`;
 }
 
-function matches(list: SectionLinks[] | undefined, from: string, to: string) {
-	return Boolean(list?.some((links) => links.from.includes(from) && links.to.includes(to)));
+function matches(list: SectionLinks[] | undefined, from: string, to: string, target: string) {
+	return Boolean(
+		list?.some(
+			(links) => links.from.includes(from) && links.to.includes(to) && (!links.pages || links.pages.includes(target))
+		)
+	);
 }
 
 /**
@@ -42,7 +48,8 @@ function matches(list: SectionLinks[] | undefined, from: string, to: string) {
  *
  * Only links in the content of a canonical page are held to canonical URLs. A page whose
  * canonical points elsewhere, and the header, sidebar and footer of every page, may link to
- * any real page and keep the reader in the current product.
+ * any real page and keep the reader in the current product. A link that only text from
+ * outside this repo makes (e.g. an IoT Hub readme) gets a warning instead of an error.
  */
 export function canonicalLinkRule(
 	source: HtmlPage,
@@ -53,7 +60,7 @@ export function canonicalLinkRule(
 	if (!source.isCanonical || !source.contentLinkHrefs.has(linkHref) || target.isCanonical) return 'own';
 	const from = sectionOf(source.pathname, policy);
 	const to = sectionOf(target.pathname, policy);
-	if (from === to || matches(policy.allow, from, to)) return 'own';
-	if (matches(policy.warn, from, to)) return 'warn';
+	if (from === to || matches(policy.allow, from, to, target.pathname)) return 'own';
+	if (matches(policy.warn, from, to, target.pathname) || source.externalOnlyLinkHrefs.has(linkHref)) return 'warn';
 	return 'canonical';
 }

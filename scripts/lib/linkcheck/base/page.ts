@@ -32,6 +32,11 @@ export class HtmlPage {
 	 */
 	readonly contentLinkHrefs: Set<string>;
 	/**
+	 * Content link hrefs found only in text from outside this repo (`data-external-content`,
+	 * e.g. IoT Hub readmes). Canonical issues of these are reported as warnings.
+	 */
+	readonly externalOnlyLinkHrefs: Set<string>;
+	/**
 	 * A list of hashes that can be used as URL fragments to jump to specific parts of the page.
 	 */
 	readonly hashes: string[];
@@ -92,9 +97,11 @@ export class HtmlPage {
 			...new Set(this.anchors.map((el) => el.href && decodeURI(el.href)).filter((h): h is string => Boolean(h))),
 		];
 
-		this.contentLinkHrefs = new Set(
-			this.anchors.filter((el) => el.inMain && el.href).map((el) => decodeURI(el.href as string))
-		);
+		const contentAnchors = this.anchors.filter((el) => el.inMain && el.href);
+		const decodedHref = (el: (typeof contentAnchors)[number]) => decodeURI(el.href as string);
+		this.contentLinkHrefs = new Set(contentAnchors.map(decodedHref));
+		const ownLinkHrefs = new Set(contentAnchors.filter((el) => !el.inExternal).map(decodedHref));
+		this.externalOnlyLinkHrefs = new Set([...this.contentLinkHrefs].filter((href) => !ownLinkHrefs.has(href)));
 
 		// Build a list of hashes that can be used as URL fragments to jump to parts of the page
 		const anchorNames = this.anchors.map((el) => el.name).filter((name) => name !== undefined);

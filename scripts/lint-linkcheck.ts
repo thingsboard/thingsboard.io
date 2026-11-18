@@ -114,18 +114,17 @@ const linkChecker = new LinkChecker({
 			'/products/paas/',
 		],
 		allow: [
-			// The CLI works with ThingsBoard Cloud, so its guides link to the Cloud docs on purpose
-			{ from: ['/docs/cli/'], to: ['/docs/paas/', '/docs/paas/eu/'] },
-			// IoT Hub items point readers who run them on ThingsBoard Cloud to the Cloud docs
-			{ from: ['/iot-hub/', '/docs/iot-hub/'], to: ['/docs/paas/', '/docs/paas/eu/'] },
+			// The CLI works with ThingsBoard Cloud and with your own PE server. Where the steps differ
+			// (Cloud hosts and CA file, DTLS already on), its guides link both versions of the page.
+			{
+				from: ['/docs/cli/'],
+				to: ['/docs/paas/'],
+				pages: ['/docs/paas/reference/mqtt-api/getting-connected/', '/docs/paas/reference/lwm2m-api/getting-started/'],
+			},
 			// The Cloud pricing and product pages link to the Cloud docs
 			{ from: ['/pricing/', '/products/paas/'], to: ['/docs/paas/', '/docs/paas/eu/'] },
 			// Community Edition pages link to Community Edge pages (e.g. its releases table)
 			{ from: ['/docs/'], to: ['/docs/edge/'] },
-		],
-		warn: [
-			// IoT Hub items link to the CE docs; they should move to the canonical (PE) pages
-			{ from: ['/iot-hub/', '/docs/iot-hub/'], to: ['/docs/'] },
 		],
 	},
 	checks: [
