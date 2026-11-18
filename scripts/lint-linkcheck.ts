@@ -26,7 +26,7 @@ class LinkChecker {
 	 * Checks all pages referenced by the sitemap for link issues
 	 * and outputs the result to the console.
 	 */
-	run() {
+	async run() {
 		const options = this.options;
 		const state = this.state;
 
@@ -34,7 +34,7 @@ class LinkChecker {
 		const pagePathnames = getPagePathnamesFromBuildOutput(options);
 
 		// Parse all built pages and build an index of their contents
-		const allPages = parsePages(pagePathnames, options);
+		const allPages = await parsePages(pagePathnames, options);
 
 		// Find all link issues
 		const linkIssues = findLinkIssues(allPages, options, state);
@@ -53,7 +53,7 @@ class LinkChecker {
 		if (performedAutofix) {
 			// If we just performed an autofix, repeat our entire run
 			// to show the user what's left for them to fix manually
-			this.run();
+			await this.run();
 			return;
 		}
 
@@ -141,4 +141,4 @@ const linkChecker = new LinkChecker({
 	autofix: process.argv.includes('--autofix') || Boolean(process.env.npm_config_autofix),
 });
 
-linkChecker.run();
+await linkChecker.run();

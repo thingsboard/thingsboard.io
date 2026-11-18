@@ -12,11 +12,11 @@ import { youtubePosters } from './config/integrations/youtube-posters';
 import { satteriBlogImages } from './config/plugins/satteri-blog-images';
 import { satteriMdxIncludeHeadings } from './config/plugins/satteri-mdx-include-headings';
 import { satteriTasklistEnhancer } from './config/plugins/satteri-tasklist-enhancer';
+import { pickWorkerCount } from './config/worker-count';
 import { PROD_ORIGIN } from './src/consts';
 import { prepareOgCache } from './src/pages/open-graph/_shared/og-cache';
 
 import icon from 'astro-icon';
-import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 /* Cloudflare Pages: https://developers.cloudflare.com/pages/configuration/build-configuration/#environment-variables */
@@ -33,43 +33,12 @@ let iconOverrideApplied = false;
  */
 const BUILD_CONCURRENCY = process.env.BUILD_CONCURRENCY ? Number(process.env.BUILD_CONCURRENCY) : 8;
 
-interface PrerenderPlan {
-	workers: number;
-	/** What decided the count, for the build log. */
-	source: string;
-}
-
 /**
- * Worker threads for Astro's `experimental.parallelPrerender`: the smaller of CPU threads − 1 and
- * (memory GB − 10) / 3, where memory is the total or a lower container limit (total, not free, so the
- * count is the same on every run). Below 2, pages render on the main thread. Each worker renders
- * `BUILD_CONCURRENCY` pages at once. `PRERENDER_WORKERS=0` or `1` renders on the main thread, 2 or more
- * forces that count; a value that is not a whole number is ignored with a warning.
+ * Worker threads for Astro's `experimental.parallelPrerender`: 10 GB for the build plus 3 GB per
+ * worker (see `pickWorkerCount`). Each worker renders `BUILD_CONCURRENCY` pages at once.
+ * `PRERENDER_WORKERS=0` or `1` renders on the main thread, 2 or more forces that count.
  */
-function pickPrerenderWorkers(): PrerenderPlan {
-	const override = process.env.PRERENDER_WORKERS;
-	if (override !== undefined) {
-		if (/^\d+$/.test(override)) return { workers: Number(override), source: `set by PRERENDER_WORKERS=${override}` };
-		console.warn(`PRERENDER_WORKERS="${override}" is not a whole number; picking the worker count automatically.`);
-	}
-	const GB = 1024 ** 3;
-	const total = os.totalmem();
-	const containerLimit = process.constrainedMemory();
-	const memory = containerLimit > 0 ? Math.min(total, containerLimit) : total;
-	const cpus = os.availableParallelism();
-	const byCpu = cpus - 1;
-	const byMemory = Math.floor((memory / GB - 10) / 3);
-	const mem =
-		memory < total
-			? `${(memory / GB).toFixed(1)} GB container limit (machine ${(total / GB).toFixed(1)} GB)`
-			: `${(total / GB).toFixed(1)} GB memory`;
-	return {
-		workers: Math.max(0, Math.min(byCpu, byMemory)),
-		source: `auto: ${cpus} CPU threads, ${mem}, limited by ${byMemory < byCpu ? 'memory' : 'CPU'}`,
-	};
-}
-
-const PRERENDER = pickPrerenderWorkers();
+const PRERENDER = pickWorkerCount({ envVar: 'PRERENDER_WORKERS', baseGb: 10, perWorkerGb: 3 });
 
 /* Netlify (kept as fallback in case of platform switch): https://docs.netlify.com/configure-builds/environment-variables/#read-only-variables */
 const NETLIFY_PREVIEW_SITE = process.env.CONTEXT !== 'production' && process.env.DEPLOY_PRIME_URL;

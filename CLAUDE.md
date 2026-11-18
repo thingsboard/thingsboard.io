@@ -17,11 +17,12 @@ pnpm install
 pnpm dev              # Start dev server
 pnpm build            # Production build
 pnpm build:fast       # Fast build (skips OG image generation) — use this for verification
-pnpm build:linkcheck  # Build used by linkcheck (also skips llms.txt and image optimization)
+pnpm build:linkcheck  # Build used by linkcheck (also skips image optimization)
 pnpm preview          # Preview production build
 
 # Builds render pages on worker threads; the count is picked from the machine's CPU and RAM.
 # PRERENDER_WORKERS=0 (or 1) turns that off, 2 or more forces that many workers.
+# lint:linkcheck parses pages on worker threads the same way (config/worker-count.ts); LINKCHECK_WORKERS does the same.
 PRERENDER_WORKERS=0 pnpm build
 
 # Quality checks
