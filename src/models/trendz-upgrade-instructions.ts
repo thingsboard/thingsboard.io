@@ -44,6 +44,11 @@ export interface TrendzUpgradeVersion {
 	pythonExecutorWarning?: boolean;
 	/** Show a routing/HAProxy note for this version */
 	haproxyNote?: boolean;
+	/**
+	 * Docker: give existing Trendz volumes to the non-root user (uid 799) before upgrading.
+	 * Keep it on every later version: users upgrading from before `TRENDZ_NON_ROOT_FROM_VER` read only the target's steps.
+	 */
+	dockerNonRootNote?: boolean;
 }
 
 /** Converts a family string to a URL slug, e.g. "1.15" → "v1-15-x" */
@@ -67,6 +72,19 @@ export function getTrendzUpgradeStepVersions(family?: string): TrendzUpgradeVers
  * build on an out-of-order insert.
  */
 export const TRENDZ_UPGRADE_VERSIONS: TrendzUpgradeVersion[] = [
+	{
+		version: '1.16.1.1',
+		displayVersion: '1.16.1.1',
+		family: '1.16',
+		baseVersion: '1.16.1',
+		releaseDate: 'Nov 17 2026',
+		lts: true,
+		patch: true,
+		anchor: 'v1-16-1-1',
+		haproxyNote: false,
+		java25Warning: true,
+		dockerNonRootNote: true,
+	},
 	{
 		version: '1.16.1',
 		displayVersion: '1.16.1',
