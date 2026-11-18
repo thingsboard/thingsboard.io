@@ -115,16 +115,27 @@ const linkChecker = new LinkChecker({
 		],
 		allow: [
 			// The CLI works with ThingsBoard Cloud and with your own PE server. Where the steps differ
-			// (Cloud hosts and CA file, DTLS already on), its guides link both versions of the page.
+			// (Cloud hosts and CA file, DTLS already on, no SNMP transport to configure), its guides link
+			// both versions of the page.
 			{
 				from: ['/docs/cli/'],
 				to: ['/docs/paas/'],
-				pages: ['/docs/paas/reference/mqtt-api/getting-connected/', '/docs/paas/reference/lwm2m-api/getting-started/'],
+				pages: [
+					'/docs/paas/reference/mqtt-api/getting-connected/',
+					'/docs/paas/reference/lwm2m-api/getting-started/',
+					'/docs/paas/reference/snmp-api/getting-connected/',
+				],
 			},
 			// The Cloud pricing and product pages link to the Cloud docs
 			{ from: ['/pricing/', '/products/paas/'], to: ['/docs/paas/', '/docs/paas/eu/'] },
 			// Community Edition pages link to Community Edge pages (e.g. its releases table)
 			{ from: ['/docs/'], to: ['/docs/edge/'] },
+			// The push notifications post sends Community Edition users to the CE mobile guide on purpose,
+			// next to its link to the PE guide
+			{ from: ['/blog/'], to: ['/docs/mobile/'], pages: ['/docs/mobile/getting-started/'] },
+			// Temporary: the CE vs PE comparison predates 4.4 and links its CE column to the CE docs.
+			// Drop this once the page is rewritten for the source-available release.
+			{ from: ['/ce-vs-pe-diff/'], to: ['/docs/'], pages: ['/docs/', '/docs/installation/'] },
 		],
 	},
 	checks: [
