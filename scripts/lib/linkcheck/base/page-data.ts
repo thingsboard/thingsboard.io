@@ -7,7 +7,13 @@ import { Parser } from 'htmlparser2';
  */
 export interface PageData {
 	/** Every `<a>` element in document order. */
-	anchors: Array<{ label: string; name: string | undefined; href: string | undefined }>;
+	anchors: Array<{
+		label: string;
+		name: string | undefined;
+		href: string | undefined;
+		/** Inside a `<main>`: the page's own content, not the header, sidebar or footer. */
+		inMain: boolean;
+	}>;
 	/** Every truthy `id` attribute in document order. */
 	ids: string[];
 	/** `content` of the first `<meta http-equiv="refresh">`, if one exists. */
@@ -28,6 +34,7 @@ interface OpenElement {
 	anchorIndex: number;
 	/** `<script>` and `<style>` text is not part of `innerText`. */
 	isRawText: boolean;
+	isMain: boolean;
 }
 
 /**
@@ -52,6 +59,7 @@ export function extractPageData(html: string): PageData {
 	const ids: string[] = [];
 	const stack: OpenElement[] = [];
 	let openAnchors = 0;
+	let openMains = 0;
 	let metaRefresh: { content: string | undefined } | undefined;
 	let canonical: { href: string | undefined } | undefined;
 	let main: { lang: string | null } | undefined;
@@ -72,6 +80,7 @@ export function extractPageData(html: string): PageData {
 					label: '',
 					name: attribs.name && detach(attribs.name),
 					href: rawHref && detach(rawHref),
+					inMain: openMains > 0,
 				});
 				labels.push([]);
 				openAnchors++;
@@ -89,11 +98,13 @@ export function extractPageData(html: string): PageData {
 				if (!body) body = { lang };
 			}
 
-			stack.push({ lang, anchorIndex, isRawText: name === 'script' || name === 'style' });
+			if (name === 'main') openMains++;
+			stack.push({ lang, anchorIndex, isRawText: name === 'script' || name === 'style', isMain: name === 'main' });
 		},
 		onclosetag() {
 			const element = stack.pop();
 			if (element && element.anchorIndex !== -1) openAnchors--;
+			if (element?.isMain) openMains--;
 		},
 		ontext(text) {
 			if (openAnchors === 0) return;

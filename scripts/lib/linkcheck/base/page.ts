@@ -1,4 +1,4 @@
-import type { ConsolidationPattern } from './base.ts';
+import { canonicalLinkRule, type CanonicalLinkPolicy } from './canonical-links.ts';
 import type { PageData } from './page-data.ts';
 
 export interface AllPagesByPathname {
@@ -27,6 +27,11 @@ export class HtmlPage {
 	 */
 	readonly uniqueLinkHrefs: string[];
 	/**
+	 * Unique link hrefs inside `<main>`, the page's own content. Links in the header, sidebar
+	 * and footer are site navigation and stay within the current product.
+	 */
+	readonly contentLinkHrefs: Set<string>;
+	/**
 	 * A list of hashes that can be used as URL fragments to jump to specific parts of the page.
 	 */
 	readonly hashes: string[];
@@ -35,6 +40,11 @@ export class HtmlPage {
 	 * `<link rel="canonical" href="...">` element (if any).
 	 */
 	readonly canonicalUrl: URL | null;
+	/**
+	 * Whether the page is canonical: it has no canonical URL, or the canonical URL points at
+	 * the page itself. Links from a canonical page must use canonical URLs.
+	 */
+	readonly isCanonical: boolean;
 	/**
 	 * The target URL of a `<meta http-equiv="refresh" content="...">` element
 	 * contained on the page (if any).
@@ -82,6 +92,10 @@ export class HtmlPage {
 			...new Set(this.anchors.map((el) => el.href && decodeURI(el.href)).filter((h): h is string => Boolean(h))),
 		];
 
+		this.contentLinkHrefs = new Set(
+			this.anchors.filter((el) => el.inMain && el.href).map((el) => decodeURI(el.href as string))
+		);
+
 		// Build a list of hashes that can be used as URL fragments to jump to parts of the page
 		const anchorNames = this.anchors.map((el) => el.name).filter((name) => name !== undefined);
 		this.hashes = [...anchorNames, ...data.ids].map((name) => `#${name}`);
@@ -94,6 +108,7 @@ export class HtmlPage {
 		// Get the page's canonical URL (if any). A canonical element without a valid absolute
 		// href throws, which fails the run for this page.
 		this.canonicalUrl = data.hasCanonical ? new URL(data.canonicalHref as string) : null;
+		this.isCanonical = !this.canonicalUrl || this.canonicalUrl.pathname === this.pathname;
 
 		// Whether the page has a <main> or <body>, and the language of the first one found
 		this.hasContent = data.hasContent;
@@ -108,42 +123,14 @@ export class HtmlPage {
 	}
 
 	/**
-	 * Determines whether this page's canonical URL represents SEO consolidation —
-	 * i.e. the canonical points to a different physical page that serves related
-	 * but distinct content (e.g. CE → PE cross-product consolidation), as opposed
-	 * to URL-form canonicalization (trailing slash, language prefix, etc.).
-	 *
-	 * Returns `true` only if the transformation `pathname → canonical.pathname`
-	 * exactly matches one of the provided patterns (after stripping optional
-	 * language prefix). An empty patterns list always returns `false`.
+	 * Determines the URL pathname that the link `linkHref` on `source` to this page should use:
+	 * this page's canonical pathname when `policy` requires it (see `canonicalLinkRule`),
+	 * otherwise its own pathname.
 	 */
-	isConsolidationCanonical(patterns: ConsolidationPattern[]): boolean {
-		if (!this.canonicalUrl) return false;
-		if (this.canonicalUrl.pathname === this.pathname) return false;
-		const stripLang = (p: string) => p.replace(/^\/uk(?=\/|$)/, '');
-		const source = stripLang(this.pathname);
-		const canonical = stripLang(this.canonicalUrl.pathname);
-		return patterns.some(({ from, to }) => {
-			if (!source.startsWith(from) || !canonical.startsWith(to)) return false;
-			return to + source.slice(from.length) === canonical;
-		});
-	}
-
-	/**
-	 * Determines the URL pathname that should be used to link to this page
-	 * from a page with the given source language.
-	 *
-	 * When the page's canonical URL matches a known SEO consolidation pattern,
-	 * the actual pathname is used instead of the canonical — consolidation
-	 * canonicals are SEO signals, not navigation targets. Otherwise, the
-	 * canonical pathname is preferred (normal URL-form canonicalization).
-	 */
-	getExpectedLinkPathname(
-		sourceLang: string | null,
-		consolidationPatterns: ConsolidationPattern[] = []
-	) {
-		const useActual = this.isConsolidationCanonical(consolidationPatterns);
-		let pathname = useActual ? this.pathname : this.canonicalUrl?.pathname || this.pathname;
+	getExpectedLinkPathname(source: HtmlPage, linkHref: string, policy: CanonicalLinkPolicy) {
+		const canonicalOnly = canonicalLinkRule(source, linkHref, this, policy) === 'canonical';
+		let pathname = canonicalOnly ? this.canonicalUrl?.pathname || this.pathname : this.pathname;
+		const sourceLang = source.pathnameLang;
 		if (sourceLang && (this.isLanguageFallback || pathname.startsWith('/en/'))) {
 			pathname = pathname.replace(/^\/en\//, `/${sourceLang}/`);
 		}

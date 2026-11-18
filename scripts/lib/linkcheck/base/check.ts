@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import type { ConsolidationPattern } from './base.ts';
+import type { CanonicalLinkPolicy } from './canonical-links.ts';
 import type { LinkIssue } from './issue.ts';
 import type { AllPagesByPathname, HtmlPage } from './page.ts';
 import { existsSync } from 'node:fs';
@@ -11,7 +11,7 @@ export interface CheckHtmlPageContext {
 	additionalLocalHosts: string[];
 	checkSingleLinkHref?: string;
 	buildOutputDir: string;
-	consolidationPatterns: ConsolidationPattern[];
+	canonicalLinkPolicy: CanonicalLinkPolicy;
 	report: (issueData: Omit<LinkIssue, 'page' | 'check' | 'sourceFileAnnotations'>) => void;
 }
 

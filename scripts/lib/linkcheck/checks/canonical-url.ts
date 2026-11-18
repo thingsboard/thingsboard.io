@@ -1,5 +1,6 @@
 import kleur from 'kleur';
 import { dedentMd } from '../../output.mjs';
+import { canonicalLinkRule } from '../base/canonical-links.ts';
 import { CheckBase, type CheckHtmlPageContext } from '../base/check.ts';
 import { IssueType } from '../base/issue.ts';
 
@@ -24,6 +25,12 @@ export class CanonicalUrl extends CheckBase {
 		title: 'link(s) not using canonical url(s)',
 		prefix: kleur.gray(`[${kleur.blue().bold('can')}]`),
 		sortOrder: 501,
+	});
+	private static readonly LinkToNonCanonicalPage = new IssueType({
+		title: 'link(s) to non-canonical page(s), allowed for now',
+		prefix: kleur.gray(`[${kleur.yellow().bold('can')}]`),
+		sortOrder: 503,
+		severity: 'warning',
 	});
 	private static readonly MissingCanonicalUrl = new IssueType({
 		title: 'page(s) missing canonical url(s)',
@@ -60,10 +67,7 @@ export class CanonicalUrl extends CheckBase {
 					linkedPage.redirectTargetUrl.pathname
 				);
 				const targetPathname = redirectTargetPage
-					? redirectTargetPage.getExpectedLinkPathname(
-						context.page.pathnameLang,
-						context.consolidationPatterns
-					)
+					? redirectTargetPage.getExpectedLinkPathname(context.page, linkHref, context.canonicalLinkPolicy)
 					: null;
 				const autofixHref = targetPathname
 					? targetPathname + decodeURIComponent(url.hash)
@@ -102,19 +106,11 @@ export class CanonicalUrl extends CheckBase {
 			// Skip links that point to the wrong language (those are handled by SameLanguage)
 			if (linkedPage.pathnameLang !== context.page.pathnameLang) return;
 
-			// It's an error if the link URL pathname does not match the expected pathname
-			// of the linked page. `getExpectedLinkPathname` prefers the page's actual pathname
-			// when the canonical represents SEO consolidation (see `isConsolidationCanonical`),
-			// so this check:
-			//   - fires for URL-form mismatches (e.g. missing trailing slash, wrong case);
-			//   - fires for real non-consolidation canonical mismatches;
-			//   - does NOT fire when a link points to the actual URL of a consolidation source
-			//     (linking to CE pathname from within CE is intentional, even though the
-			//     canonical is rewritten to PE for SEO).
-			const expectedPathname = linkedPage.getExpectedLinkPathname(
-				context.page.pathnameLang,
-				context.consolidationPatterns
-			);
+			// It's an error if the link URL pathname does not match the expected pathname of the
+			// linked page: its canonical one where `canonicalLinkPolicy` requires it, otherwise its
+			// own. A link in another URL form (no trailing slash, wrong case) is an error anywhere.
+			const policy = context.canonicalLinkPolicy;
+			const expectedPathname = linkedPage.getExpectedLinkPathname(context.page, linkHref, policy);
 			if (url.pathname !== expectedPathname) {
 				const autofixHref = expectedPathname + decodeURIComponent(url.hash);
 				context.report({
@@ -123,6 +119,21 @@ export class CanonicalUrl extends CheckBase {
 					autofixHref,
 					annotationText: dedentMd`Please use the proper canonical URL of the target page.
 						This improves ranking in search engines and avoids unnecessary redirects.`,
+				});
+				return;
+			}
+
+			// Links the policy allows for now, though the target's canonical URL points elsewhere
+			if (
+				linkedPage.canonicalUrl &&
+				linkedPage.canonicalUrl.pathname !== url.pathname &&
+				canonicalLinkRule(context.page, linkHref, linkedPage, policy) === 'warn'
+			) {
+				context.report({
+					type: CanonicalUrl.LinkToNonCanonicalPage,
+					linkHref,
+					annotationText: dedentMd`The target page is canonical to
+						${linkedPage.canonicalUrl.pathname}. Link there instead where it fits.`,
 				});
 			}
 		});

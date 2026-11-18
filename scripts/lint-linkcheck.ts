@@ -39,8 +39,8 @@ class LinkChecker {
 		// Find all link issues
 		const linkIssues = findLinkIssues(allPages, options, state);
 
-		// If issues were found, let our caller know through the process exit code
-		process.exitCode = linkIssues.length > 0 ? 1 : 0;
+		// If errors were found, let our caller know through the process exit code (warnings don't fail)
+		process.exitCode = linkIssues.some((issue) => issue.type.severity === 'error') ? 1 : 0;
 
 		// Try to annotate all found issues with their Markdown source code locations
 		addSourceFileAnnotations(linkIssues, options);
@@ -91,31 +91,43 @@ const linkChecker = new LinkChecker({
 	additionalLocalHosts,
 	buildOutputDir: './dist',
 	pageSourceDir: './src/content/docs',
-	// SEO canonical consolidation: pages in "free" versions whose content is ~95% identical
-	// to the "professional" equivalent have their <link rel="canonical"> rewritten to the PE
-	// URL (see `src/routeData.ts`). The exceptions are narrower than a whole tree: the
-	// `selfCanonicalSegments` list in `canonical.ts` (currently just
-	// `installation/upgrade-instructions`, whose steps genuinely differ per edition) and
-	// pages carrying `selfCanonical: true` in frontmatter. Other `installation/*` pages do
-	// consolidate. These patterns tell the link checker which URL pairs count as consolidation —
-	// runtime still filters per page via `isConsolidationCanonical` (which returns false when
-	// canonical === pathname), so self-canonical pages fall through automatically. Effect:
-	// `[can]` does not fire for links to the actual pathname of a consolidation source, and
-	// `[ref]` / `[lng]` / `[abs]` autofixes preserve product context.
-	consolidationPatterns: [
-		{ from: '/docs/paas/eu/user-guide/billing-info/', to: '/docs/paas/user-guide/billing-info/' },
-		// Main product: CE / PaaS / PaaS EU → PE
-		{ from: '/docs/paas/eu/', to: '/docs/pe/' },
-		{ from: '/docs/paas/', to: '/docs/pe/' },
-		{ from: '/docs/', to: '/docs/pe/' },
-		// Sub-products: free → professional
-		{ from: '/docs/edge/', to: '/docs/edge/pe/' },
-		{ from: '/docs/mobile/', to: '/docs/mobile/pe/' },
-		{ from: '/docs/edge/pe/reference/', to: '/docs/pe/reference/' },
-		{ from: '/docs/edge/reference/', to: '/docs/pe/reference/' },
-		{ from: '/docs/edge/pe/user-guide/', to: '/docs/pe/user-guide/' },
-		{ from: '/docs/edge/user-guide/', to: '/docs/pe/user-guide/' },
-	],
+	canonicalLinkPolicy: {
+		// A canonical page must link to canonical URLs in its content. Within one of these sections
+		// the product's own pages are always fine; outside them, a page's section is its first path
+		// segment (`/blog/`, `/iot-hub/`, ...). Most specific first.
+		sections: [
+			'/docs/edge/pe/',
+			'/docs/edge/',
+			'/docs/paas/eu/',
+			'/docs/paas/',
+			'/docs/pe/',
+			'/docs/mobile/pe/',
+			'/docs/mobile/',
+			'/docs/mqtt-broker/pe/',
+			'/docs/mqtt-broker/',
+			'/docs/trendz/',
+			'/docs/iot-gateway/',
+			'/docs/license-server/',
+			'/docs/iot-hub/',
+			'/docs/cli/',
+			'/docs/',
+			'/products/paas/',
+		],
+		allow: [
+			// The CLI works with ThingsBoard Cloud, so its guides link to the Cloud docs on purpose
+			{ from: ['/docs/cli/'], to: ['/docs/paas/', '/docs/paas/eu/'] },
+			// IoT Hub items point readers who run them on ThingsBoard Cloud to the Cloud docs
+			{ from: ['/iot-hub/', '/docs/iot-hub/'], to: ['/docs/paas/', '/docs/paas/eu/'] },
+			// The Cloud pricing and product pages link to the Cloud docs
+			{ from: ['/pricing/', '/products/paas/'], to: ['/docs/paas/', '/docs/paas/eu/'] },
+			// Community Edition pages link to Community Edge pages (e.g. its releases table)
+			{ from: ['/docs/'], to: ['/docs/edge/'] },
+		],
+		warn: [
+			// IoT Hub items link to the CE docs; they should move to the canonical (PE) pages
+			{ from: ['/iot-hub/', '/docs/iot-hub/'], to: ['/docs/'] },
+		],
+	},
 	checks: [
 		new TargetExists({
 			// Replay Cloudflare's _redirects on each link before the on-disk lookup,
