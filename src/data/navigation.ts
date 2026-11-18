@@ -42,6 +42,11 @@ export interface SubMenu {
 	groups: SubMenuGroup[];
 	/** Other paths (and the pages below them) that mark this section as current; see `inSection`. */
 	owns?: string[];
+	/**
+	 * The section picks which product's docs to read, like the docs sidebar's switcher: its links lead
+	 * to each product's docs home, including homes whose canonical is another edition's.
+	 */
+	productSwitcher?: boolean;
 }
 
 /** A section's icon size in px: the badge tile's where it has product badges, as tall as a link's two lines. */
@@ -372,6 +377,7 @@ export const companySubmenu: SubMenu = {
 export const docsSubmenu: SubMenu = {
 	id: 'nav-docs',
 	owns: ['/docs/'],
+	productSwitcher: true,
 	groups: [
 		{
 			name: 'IoT platform',

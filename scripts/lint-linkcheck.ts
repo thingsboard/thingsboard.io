@@ -95,7 +95,8 @@ const linkChecker = new LinkChecker({
 	buildOutputDir: './dist',
 	pageSourceDir: './src/content/docs',
 	canonicalLinkPolicy: {
-		// A canonical page must link to canonical URLs in its content. Within one of these sections
+		// Every link on a canonical page (content, header, sidebar, footer) must use canonical URLs,
+		// apart from the edition switcher. Within one of these sections
 		// the product's own pages are always fine; outside them, a page's section is its first path
 		// segment (`/blog/`, `/iot-hub/`, ...). Most specific first.
 		sections: [

@@ -11,10 +11,10 @@ export interface PageData {
 		label: string;
 		name: string | undefined;
 		href: string | undefined;
-		/** Inside a `<main>`: the page's own content, not the header, sidebar or footer. */
-		inMain: boolean;
 		/** Inside an element marked `data-external-content`: text from outside this repo. */
 		inExternal: boolean;
+		/** Inside an element marked `data-product-switcher`: links to other editions or products. */
+		inSwitcher: boolean;
 	}>;
 	/** Every truthy `id` attribute in document order. */
 	ids: string[];
@@ -36,8 +36,8 @@ interface OpenElement {
 	anchorIndex: number;
 	/** `<script>` and `<style>` text is not part of `innerText`. */
 	isRawText: boolean;
-	isMain: boolean;
 	isExternal: boolean;
+	isSwitcher: boolean;
 }
 
 /**
@@ -62,8 +62,8 @@ export function extractPageData(html: string): PageData {
 	const ids: string[] = [];
 	const stack: OpenElement[] = [];
 	let openAnchors = 0;
-	let openMains = 0;
 	let openExternal = 0;
+	let openSwitchers = 0;
 	let metaRefresh: { content: string | undefined } | undefined;
 	let canonical: { href: string | undefined } | undefined;
 	let main: { lang: string | null } | undefined;
@@ -84,8 +84,8 @@ export function extractPageData(html: string): PageData {
 					label: '',
 					name: attribs.name && detach(attribs.name),
 					href: rawHref && detach(rawHref),
-					inMain: openMains > 0,
 					inExternal: openExternal > 0,
+					inSwitcher: openSwitchers > 0,
 				});
 				labels.push([]);
 				openAnchors++;
@@ -104,21 +104,22 @@ export function extractPageData(html: string): PageData {
 			}
 
 			const isExternal = attribs['data-external-content'] !== undefined;
-			if (name === 'main') openMains++;
 			if (isExternal) openExternal++;
+			const isSwitcher = attribs['data-product-switcher'] !== undefined;
+			if (isSwitcher) openSwitchers++;
 			stack.push({
 				lang,
 				anchorIndex,
 				isRawText: name === 'script' || name === 'style',
-				isMain: name === 'main',
 				isExternal,
+				isSwitcher,
 			});
 		},
 		onclosetag() {
 			const element = stack.pop();
 			if (element && element.anchorIndex !== -1) openAnchors--;
-			if (element?.isMain) openMains--;
 			if (element?.isExternal) openExternal--;
+			if (element?.isSwitcher) openSwitchers--;
 		},
 		ontext(text) {
 			if (openAnchors === 0) return;
