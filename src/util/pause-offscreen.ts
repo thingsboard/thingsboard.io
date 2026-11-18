@@ -1,6 +1,6 @@
 /**
  * Sets `data-offscreen` on matching elements while they are out of view, so CSS can pause their
- * animations. Pausing rather than restarting keeps negative-delay staggers intact.
+ * animations (keeps negative-delay staggers in phase) or stop them where a paused frame is unreadable.
  */
 export function pauseOffscreen(selector: string) {
 	if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
