@@ -6,14 +6,14 @@
 import { closeSync, existsSync, openSync, readSync } from 'node:fs';
 import { join } from 'node:path';
 
-export interface PageHead {
+interface PageHead {
 	noindex: boolean;
 	canonical: string | null;
 	title: string | null;
 	description: string | null;
 }
 
-// Both integrations read the same pages in one build; this way each `<head>` is read and parsed once.
+// Each `<head>` is parsed once per build for both integrations. Never cleared: one build per process.
 const heads = new Map<string, PageHead | null>();
 
 /** The page's parsed `<head>`, or `null` when the build wrote no `index.html` for it. */
