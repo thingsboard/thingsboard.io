@@ -6,19 +6,9 @@ import { PROD_ORIGIN } from '../../src/consts';
 import { getMetaDescription, getTitle, isIndexableCanonicalHead, readBuiltHead } from '../indexable-page';
 
 /**
- * Writes the llms.txt files (https://llmstxt.org) after the build:
- *
- * - `/llms.txt` — short entry point: what ThingsBoard is, curated key pages, and one link per product.
- * - `{product home}/llms.txt` (e.g. `/docs/edge/pe/llms.txt`) — every page of one product, grouped by section.
- *   Following llmstxt.org v2, each file sits at the path it covers, so an agent can find it from a page URL.
- * - `{product home}/{section}/llms.txt` — a section of a product too big for one file (see `SECTION_FILE_MIN`),
- *   which its product file then links instead of listing.
- *
- * The page set is the sitemap's: every built `/docs/` page whose HTML is indexable and
- * self-canonical (see `config/indexable-page.ts`), so the catalogs follow `noindex` and
- * cross-product canonicals without a list of their own. Titles and descriptions come
- * from the built `<head>`, which also covers data-driven routes outside the docs collection.
- *
+ * Writes `/llms.txt`, one `llms.txt` per product at its docs home, and one per large section of a
+ * `splitSections` product, after the build. The pages are the sitemap's (indexable, self-canonical,
+ * see `config/indexable-page.ts`); titles and descriptions come from the built `<head>`.
  * `SKIP_LLMS=true` (the linkcheck build) skips it.
  */
 export function llmsTxt(): AstroIntegration {
@@ -151,35 +141,23 @@ const SECTION_FILE_MIN = 8_000;
  */
 const FILE_SIZE_WARN = 100_000;
 
-/**
- * IoT Hub listing pages outside `/docs/` that join the IoT Hub catalog: the hub and its
- * category pages (`/iot-hub/devices/`, …). The item pages under them are left out — there
- * are a thousand of them, and the category pages lead to every one.
- */
+/** The IoT Hub and its category pages (`/iot-hub/devices/`, …) join the IoT Hub catalog; the item pages do not. */
 const IOT_HUB_LISTING = /^\/iot-hub\/([^/]+\/)?$/;
 
 /** Words a section heading spells differently from its URL segment. */
 const SECTION_WORDS: Record<string, string> = {
-	ai: 'AI',
-	and: 'and',
 	api: 'API',
-	apis: 'APIs',
 	coap: 'CoAP',
-	faq: 'FAQ',
 	http: 'HTTP',
-	iot: 'IoT',
 	lwm2m: 'LwM2M',
 	mqtt: 'MQTT',
-	rest: 'REST',
-	sdks: 'SDKs',
 	snmp: 'SNMP',
-	sql: 'SQL',
-	thingsboard: 'ThingsBoard',
-	with: 'with',
+	tbel: 'TBEL',
+	ui: 'UI',
 };
 
 /** Sections listed first, in this order; the rest follow alphabetically. */
-const SECTION_ORDER = ['', 'getting-started', 'why-thingsboard', 'concepts', 'user-guide', 'installation'];
+const SECTION_ORDER = ['', 'getting-started', 'concepts', 'user-guide', 'installation'];
 
 /**
  * Curated pages for `/llms.txt`. Each must be in the catalog, or the build fails —
@@ -404,10 +382,8 @@ function renderFiles(entries: Entry[]): Map<string, string> {
 }
 
 /**
- * Entries by section, in display order. The section is the next path segment after `depth`
- * segments of the product-relative path (0: the product's sections, 1: a section's subsections).
- * A section holding a single page is a standalone page rather than a folder, so it joins the
- * Overview instead of getting a heading. Optional pages follow, under their own heading.
+ * Entries by section (by subsection when not `topLevel`), in display order, Optional pages last.
+ * A section holding a single page is a standalone page, not a folder, so it joins the Overview.
  */
 function groupSections(entries: Entry[], topLevel = true): [string, Entry[]][] {
 	const keyOf = (e: Entry) => (topLevel ? e.section : (e.subsection ?? ''));
@@ -475,7 +451,7 @@ function renderIndex(entries: Entry[], productLinks: string[]): string {
 		productLinks.join('\n'),
 		'## Notes',
 		[
-			'- The catalogs are generated at build time from the same page list as https://thingsboard.io/sitemap-index.xml.',
+			`- The catalogs are generated at build time from the same page list as ${PROD_ORIGIN}/sitemap-index.xml.`,
 			'- Pages that repeat another page and point to it as canonical (Cloud, Community Edition, and Edge copies of platform pages) are left out; the page they point to is listed.',
 		].join('\n'),
 		'## Optional',
