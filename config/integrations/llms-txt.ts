@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PROD_ORIGIN } from '../../src/consts';
-import { getMetaDescription, getTitle, isIndexableCanonicalHead, readBuiltHead } from '../indexable-page';
+import { isIndexableCanonical, readPageHead } from '../indexable-page';
 
 /**
  * Writes `/llms.txt`, one `llms.txt` per product at its docs home, and one per large section of a
@@ -286,8 +286,8 @@ function collectEntries(outDir: string, site: URL, pages: { pathname: string }[]
 		const pathname = `/${raw}`.replace(/\/+/g, '/').replace(/\/?$/, '/');
 		const isListing = IOT_HUB_LISTING.test(pathname);
 		if (!isListing && !pathname.startsWith('/docs/')) continue;
-		const head = readBuiltHead(outDir, pathname);
-		if (head === null || !isIndexableCanonicalHead(head, new URL(pathname, site).href)) continue;
+		const head = readPageHead(outDir, pathname);
+		if (head === null || !isIndexableCanonical(head, new URL(pathname, site).href)) continue;
 
 		// A listing page is filed as if it were `/docs/iot-hub/categories/…`.
 		const rest = isListing ? 'iot-hub/categories/' : pathname.slice('/docs/'.length);
@@ -298,8 +298,8 @@ function collectEntries(outDir: string, site: URL, pages: { pathname: string }[]
 
 		entries.push({
 			pathname,
-			title: pageTitle(getTitle(head) ?? pathname),
-			description: getMetaDescription(head),
+			title: pageTitle(head.title ?? pathname),
+			description: head.description,
 			product,
 			section,
 			subsection,

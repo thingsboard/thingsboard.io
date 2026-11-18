@@ -1,49 +1,63 @@
 /**
- * Reads a built page's `<head>` to decide whether search engines and AI agents
- * should be pointed at it. Shared by the sitemap and the llms.txt integrations,
- * so both list exactly the same pages: the ones whose built HTML is indexable
- * (no `noindex`) and self-canonical.
+ * Reads a built page's `<head>`: whether it is indexable and self-canonical, its title and description.
+ * The sitemap and llms.txt integrations both use it, so they list the same pages.
  */
 
 import { closeSync, existsSync, openSync, readSync } from 'node:fs';
 import { join } from 'node:path';
 
-/** The page's `<head>`, or `null` when the build wrote no `index.html` for it. */
-export function readBuiltHead(outDir: string, pathname: string): string | null {
+export interface PageHead {
+	noindex: boolean;
+	canonical: string | null;
+	title: string | null;
+	description: string | null;
+}
+
+// Both integrations read the same pages in one build; this way each `<head>` is read and parsed once.
+const heads = new Map<string, PageHead | null>();
+
+/** The page's parsed `<head>`, or `null` when the build wrote no `index.html` for it. */
+export function readPageHead(outDir: string, pathname: string): PageHead | null {
 	const htmlPath = join(outDir, pathname, 'index.html');
-	if (!existsSync(htmlPath)) return null;
-	return readHead(htmlPath);
+	let head = heads.get(htmlPath);
+	if (head === undefined) {
+		head = existsSync(htmlPath) ? parseHead(readHead(htmlPath)) : null;
+		heads.set(htmlPath, head);
+	}
+	return head;
 }
 
 /** True when the page has no `noindex` and any canonical points at the page itself. */
-export function isIndexableCanonicalHead(head: string, pageUrl: string): boolean {
-	if (hasNoindex(head)) return false;
-
-	const canonicalHref = getCanonicalHref(head);
-	if (canonicalHref) {
-		try {
-			const canonical = new URL(canonicalHref, pageUrl);
-			if (canonical.href !== new URL(pageUrl).href) return false;
-		} catch {
-			return false;
-		}
+export function isIndexableCanonical(head: PageHead, pageUrl: string): boolean {
+	if (head.noindex) return false;
+	if (!head.canonical) return true;
+	try {
+		return new URL(head.canonical, pageUrl).href === new URL(pageUrl).href;
+	} catch {
+		return false;
 	}
-	return true;
 }
 
 export function isIndexableCanonicalPage(outDir: string, pageUrl: string): boolean {
-	const head = readBuiltHead(outDir, new URL(pageUrl).pathname);
-	return head !== null && isIndexableCanonicalHead(head, pageUrl);
+	const head = readPageHead(outDir, new URL(pageUrl).pathname);
+	return head !== null && isIndexableCanonical(head, pageUrl);
 }
 
-/** Text of the `<title>` element, entities decoded. */
-export function getTitle(head: string): string | null {
+function parseHead(html: string): PageHead {
+	return {
+		noindex: hasNoindex(html),
+		canonical: getCanonicalHref(html),
+		title: getTitle(html),
+		description: getMetaDescription(html),
+	};
+}
+
+function getTitle(head: string): string | null {
 	const match = head.match(/<title[^>]*>([^<]*)<\/title>/i);
 	return match?.[1] ? decodeEntities(match[1]).trim() : null;
 }
 
-/** Content of `<meta name="description">`, entities decoded. */
-export function getMetaDescription(head: string): string | null {
+function getMetaDescription(head: string): string | null {
 	for (const match of head.matchAll(/<meta\s[^>]*>/gi)) {
 		const tag = match[0];
 		if (!/name=["']description["']/i.test(tag)) continue;
