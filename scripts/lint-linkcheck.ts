@@ -1,5 +1,6 @@
 import { PROD_ORIGIN } from '../src/consts.ts';
 import { legacyInstallationsSection } from '../src/data/installations-legacy.ts';
+import { ADD_ONS_SUB_TAB_BY_HASH } from '../src/data/pricing/add-ons-links.ts';
 import { type LinkCheckerOptions, LinkCheckerState } from './lib/linkcheck/base/base.ts';
 import { CanonicalUrl } from './lib/linkcheck/checks/canonical-url.ts';
 import { GoodLabels } from './lib/linkcheck/checks/good-link-label.ts';
@@ -158,6 +159,9 @@ const linkChecker = new LinkChecker({
 			// automatically via a cached `dist/{pathname}/index.html` fallback
 			// in TargetExists itself — no manual prefix list needed.
 			redirectsFilePath: './public/_redirects',
+			scriptFragments: {
+				'/pricing/': [...ADD_ONS_SUB_TAB_BY_HASH.keys()],
+			},
 		}),
 		new SameLanguage({
 			ignoredLinkPathnames: ['/lighthouse/'],
