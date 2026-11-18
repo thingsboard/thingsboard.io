@@ -77,7 +77,7 @@ export const TRENDZ_UPGRADE_VERSIONS: TrendzUpgradeVersion[] = [
 		displayVersion: '1.16.1.1',
 		family: '1.16',
 		baseVersion: '1.16.1',
-		releaseDate: 'Nov 17 2026',
+		releaseDate: 'Nov 18 2026',
 		lts: true,
 		patch: true,
 		anchor: 'v1-16-1-1',
