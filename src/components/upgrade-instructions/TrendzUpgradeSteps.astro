@@ -1,7 +1,7 @@
 ---
 import { Code } from '@astrojs/starlight/components';
 import { getTrendzUpgradeStepVersions } from '~/models/trendz-upgrade-instructions';
-import { getUpgradeHeading } from '~/models/upgrade-shared';
+import { getUpgradeHeading, versionAtLeast } from '~/models/upgrade-shared';
 import ConfigFileNote from './ConfigFileNote.astro';
 import TrendzK8sJobSteps from '@components/upgrade-instructions/TrendzK8sJobSteps.astro';
 import { TRENDZ_NON_ROOT_FROM_VER } from '@data/versions';
@@ -93,7 +93,9 @@ const javaGuideLink =
 	const upgradeBatCmd = v.fromVersion
 		? `C:\\trendz> upgrade.bat --fromVersion=${v.fromVersion}`
 		: `C:\\trendz> upgrade.bat`;
-	const dockerCmds = `docker pull thingsboard/trendz:${v.version}\ndocker compose stop trendz\ndocker compose run --rm -e UPGRADE_TRENDZ=true trendz\ndocker compose up -d`;
+	const dockerCmds = `docker pull thingsboard/trendz:${v.version}\ndocker compose run --rm -e UPGRADE_TRENDZ=true trendz\ndocker compose up -d`;
+	const runsAsNonRoot = versionAtLeast(v.version, TRENDZ_NON_ROOT_FROM_VER);
+	const k8sApplyCmds = `kubectl apply -f trendz-db-app-secret.yml -f trendz-python-executor-secret.yml\nkubectl apply -f trendz-app-env-config.yml -f trendz-app-files-config.yml\nkubectl apply -f trendz-python-executor-env-config.yml -f trendz-python-executor-files-config.yml\nkubectl apply -f trendz-app-shared-pvc.yml\nkubectl apply -f trendz-cache-deployment.yml\nkubectl apply -f trendz-python-executor-network-policy.yml`;
 	const k8sFlagFileCmd = v.fromVersion
 		? `kubectl exec <POD_NAME> -- sh -c "echo '${v.fromVersion}' > /data/.upgradeversion"`
 		: '';
@@ -267,11 +269,15 @@ const javaGuideLink =
 						<li>
 							<p>Update the version of <code>thingsboard/trendz</code> and <code>thingsboard/trendz-python-executor</code> in your <code>docker-compose.yml</code> to <strong>{v.version}</strong>.</p>
 						</li>
-						{v.dockerNonRootNote && (
+						<li>
+							<p>Stop Trendz:</p>
+							<Code code="docker compose stop trendz" lang="bash" />
+						</li>
+						{runsAsNonRoot && (
 							<li>
 								<p>Starting from Trendz {TRENDZ_NON_ROOT_FROM_VER}, the Trendz container runs as user <code>799</code> instead of root. If you are upgrading from an earlier version, make user <code>799</code> the owner of the Trendz volumes once:</p>
 								<ul>
-									<li>Named volumes from the installation guide (<code>trendz-conf</code> and <code>trendz-data</code>):<Code code="docker compose run --rm --user root --entrypoint chown trendz -R 799:799 /data /trendz-config-files" lang="bash" /></li>
+									<li>Named volumes from the installation guide (<code>trendz-conf</code> and <code>trendz-data</code>):<Code code="docker compose run --rm --no-deps --user root --entrypoint chown trendz -R 799:799 /data /trendz-config-files" lang="bash" /></li>
 									<li>Host folders the <code>trendz</code> service mounts (a <code>volumes</code> entry that starts with <code>./</code>, <code>~/</code>, or <code>/</code>), for example:<Code code="sudo chown -R 799:799 ~/.mytrendz-logs" lang="bash" />If the Postgres data sits inside the Trendz data folder (<code>~/.mytrendz-data/db</code>), do not run this on that folder; <a href="/docs/trendz/installation/old-docker-migrate/">move to named volumes</a> first.</li>
 								</ul>
 							</li>
@@ -292,6 +298,16 @@ const javaGuideLink =
 							<p><a href="#prepare-for-upgrading-trendz-analytics"><strong>Prepare</strong></a> for upgrading Trendz Analytics before running the steps below.</p>
 						</div>
 					</aside>
+
+					{runsAsNonRoot && (
+						<>
+							<h3>Update the Kubernetes files</h3>
+							<p>In your <code>trendz-k8s</code> folder, pull the latest changes. If Git reports conflicts with your edits, keep your configuration values and take everything else from the new version.</p>
+							<Code code="git pull" lang="bash" />
+							<p>Apply the latest configuration. The Trendz and Python Executor deployments are applied in the steps below.</p>
+							<Code code={k8sApplyCmds} lang="bash" />
+						</>
+					)}
 
 					{v.fromVersion ? (
 						<>
