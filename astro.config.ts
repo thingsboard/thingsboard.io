@@ -32,33 +32,43 @@ let iconOverrideApplied = false;
  */
 const BUILD_CONCURRENCY = process.env.BUILD_CONCURRENCY ? Number(process.env.BUILD_CONCURRENCY) : 8;
 
+interface PrerenderPlan {
+	workers: number;
+	/** What decided the count, for the build log. */
+	source: string;
+}
+
 /**
- * How many worker threads render pages (Astro's `experimental.parallelPrerender`). The build picks
- * the number from this machine's CPU threads and memory; below 2 it renders on the main thread as
- * before. `PRERENDER_WORKERS` overrides the choice: `0` turns workers off, another whole number
- * forces that many. A value that is not a whole number is ignored with a warning.
- *
- * The memory part sets 10 GB aside for the build itself and counts 3 GB for each worker. Measured:
- * a full build with 2 workers and an empty OG card cache goes past 10 GB, so a 16 GB machine gets
- * no workers. Every worker also renders `BUILD_CONCURRENCY` pages at once. It reads
- * total memory, not free memory, so a machine picks the same number on every run, and it takes a
- * container's memory limit when that is lower.
+ * Worker threads for Astro's `experimental.parallelPrerender`: the smaller of CPU threads − 1 and
+ * (memory GB − 10) / 3, where memory is the total or a lower container limit (total, not free, so the
+ * count is the same on every run). Below 2, pages render on the main thread. Each worker renders
+ * `BUILD_CONCURRENCY` pages at once. `PRERENDER_WORKERS=0` or `1` renders on the main thread, 2 or more
+ * forces that count; a value that is not a whole number is ignored with a warning.
  */
-function pickPrerenderWorkers(): number {
+function pickPrerenderWorkers(): PrerenderPlan {
 	const override = process.env.PRERENDER_WORKERS;
 	if (override !== undefined) {
-		if (/^\d+$/.test(override)) return Number(override);
+		if (/^\d+$/.test(override)) return { workers: Number(override), source: `set by PRERENDER_WORKERS=${override}` };
 		console.warn(`PRERENDER_WORKERS="${override}" is not a whole number; picking the worker count automatically.`);
 	}
 	const GB = 1024 ** 3;
+	const total = os.totalmem();
 	const containerLimit = process.constrainedMemory();
-	const memory = containerLimit > 0 ? Math.min(os.totalmem(), containerLimit) : os.totalmem();
-	const byCpu = os.availableParallelism() - 1;
+	const memory = containerLimit > 0 ? Math.min(total, containerLimit) : total;
+	const cpus = os.availableParallelism();
+	const byCpu = cpus - 1;
 	const byMemory = Math.floor((memory / GB - 10) / 3);
-	return Math.max(0, Math.min(byCpu, byMemory));
+	const mem =
+		memory < total
+			? `${(memory / GB).toFixed(1)} GB container limit (machine ${(total / GB).toFixed(1)} GB)`
+			: `${(total / GB).toFixed(1)} GB memory`;
+	return {
+		workers: Math.max(0, Math.min(byCpu, byMemory)),
+		source: `auto: ${cpus} CPU threads, ${mem}, limited by ${byMemory < byCpu ? 'memory' : 'CPU'}`,
+	};
 }
 
-const PRERENDER_WORKERS = pickPrerenderWorkers();
+const PRERENDER = pickPrerenderWorkers();
 
 /* Netlify (kept as fallback in case of platform switch): https://docs.netlify.com/configure-builds/environment-variables/#read-only-variables */
 const NETLIFY_PREVIEW_SITE = process.env.CONTEXT !== 'production' && process.env.DEPLOY_PRIME_URL;
@@ -106,9 +116,9 @@ function reportPrerenderWorkers(): AstroIntegration {
 		hooks: {
 			'astro:build:start': ({ logger }) => {
 				logger.info(
-					PRERENDER_WORKERS >= 2
-						? `Rendering pages on ${PRERENDER_WORKERS} worker threads (PRERENDER_WORKERS=0 turns this off).`
-						: 'Rendering pages on the main thread, no worker threads.'
+					PRERENDER.workers >= 2
+						? `Rendering pages on ${PRERENDER.workers} worker threads, ${BUILD_CONCURRENCY} pages each (${PRERENDER.source}). PRERENDER_WORKERS=0 turns this off.`
+						: `Rendering pages on the main thread (${PRERENDER.source}).`
 				);
 			},
 		},
@@ -124,7 +134,7 @@ export default defineConfig({
 	},
 	redirects,
 	experimental: {
-		parallelPrerender: PRERENDER_WORKERS >= 2 ? { workers: PRERENDER_WORKERS } : false,
+		parallelPrerender: PRERENDER.workers >= 2 ? { workers: PRERENDER.workers } : false,
 	},
 	vite: {
 		resolve: {
@@ -240,8 +250,7 @@ export default defineConfig({
 		sitemap(),
 	],
 	trailingSlash: 'always',
-	// Starlight forced this until 0.43 and now leaves it to us. Our CSS counts on scoped selectors adding no
-	// specificity (`:where(.astro-…)`), so keep it set.
+	// Our CSS counts on scoped selectors adding no specificity (`:where(.astro-…)`), so keep it set.
 	scopedStyleStrategy: 'where',
 	compressHTML: false,
 	markdown: {

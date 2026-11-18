@@ -153,8 +153,6 @@ async function fetchMdiSvg(name: string): Promise<string | null> {
 		}
 		return mdiSvgFromPath(await res.text());
 	} catch (e) {
-		// Warn in builds too: a failed or timed-out request here is otherwise invisible, and it gets
-		// more likely the more pages render at once.
 		const msg = e instanceof Error ? e.message : String(e);
 		console.warn(`[iot-hub] MDI icon fetch error for "${name}": ${msg}`);
 		return null;

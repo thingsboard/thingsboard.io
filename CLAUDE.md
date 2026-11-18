@@ -21,7 +21,7 @@ pnpm build:linkcheck  # Build used by linkcheck (also skips llms.txt and image o
 pnpm preview          # Preview production build
 
 # Builds render pages on worker threads; the count is picked from the machine's CPU and RAM.
-# PRERENDER_WORKERS=0 turns that off, another number forces that many workers.
+# PRERENDER_WORKERS=0 (or 1) turns that off, 2 or more forces that many workers.
 PRERENDER_WORKERS=0 pnpm build
 
 # Quality checks

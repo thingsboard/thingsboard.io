@@ -13,13 +13,9 @@ const SENTINEL = path.join(CACHE_DIR, '.template-version');
 let cacheReady: Promise<void> | null = null;
 
 /**
- * Make sure the cache folder exists and belongs to this TEMPLATE_VERSION. A folder from another
- * version (or with no version file) is emptied, so cards from old templates do not pile up.
- *
- * The build calls this once on the main thread before pages render (`prepareOgCacheOnce` in
- * `astro.config.ts`). Render worker threads each call it again, find the version file in place and
- * leave the folder alone. Without that first call every worker would empty the folder itself, and
- * one could delete cards another had just written.
+ * Make sure the cache folder exists and holds this TEMPLATE_VERSION, emptying it otherwise. The build
+ * runs this once on the main thread (`prepareOgCacheOnce` in `astro.config.ts`), so render workers
+ * calling it again find the version in place and never empty a folder another worker is writing to.
  */
 export function prepareOgCache(): Promise<void> {
 	cacheReady ??= (async () => {
@@ -45,10 +41,7 @@ export async function readCache(key: string): Promise<Buffer | null> {
 	}
 }
 
-/**
- * Write the card under a temporary name and rename it into place. A rename is a single step, so
- * another thread reading the same card gets either no file or the whole file, never half of one.
- */
+/** Temp file + rename, so a reader on another thread gets the whole card or none. */
 export async function writeCache(key: string, buf: Buffer): Promise<void> {
 	await prepareOgCache();
 	const file = path.join(CACHE_DIR, `${key}.png`);
