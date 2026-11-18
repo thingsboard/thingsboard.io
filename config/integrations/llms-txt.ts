@@ -66,6 +66,12 @@ interface Product {
 const RULE_NODE_PAGE = /\/rule-engine\/nodes\/[^/]+\/[^/]+\/$/;
 
 /**
+ * One page per SCADA symbol: near-identical template pages. The `widget-library/*-scada-*` pages
+ * list every symbol of their library.
+ */
+const SCADA_SYMBOL_PAGE = /\/reference\/widgets\/scada\/.+\/$/;
+
+/**
  * Catalog files, in the order llms.txt lists them. The first product whose prefix matches
  * owns a page, so the catch-all ThingsBoard entry (`''`) stays last.
  */
@@ -122,6 +128,7 @@ const PRODUCTS: Product[] = [
 		home: '/docs/pe/',
 		prefixes: ['pe/', 'paas/eu/', 'paas/', ''],
 		splitSections: true,
+		exclude: [SCADA_SYMBOL_PAGE],
 	},
 ];
 
