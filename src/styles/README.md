@@ -160,10 +160,20 @@ $breakpoint-2xl: 1500px;
 
 ### Buttons
 
+Use the `ui/Button.astro` component (`@components/ui/Button.astro`): `variant` is `primary`, `secondary` or
+`tertiary`, `size` is `xs` (32px), `sm` (40px), `md` (44px) or `lg` (48px). Do not write button styles by hand.
+
+For a button whose markup the component cannot render (built in a script, or part of another control), use its
+mixins from `_button.scss`:
+
 ```scss
-@include button-base;     // Base button styles
-@include button-primary;  // Primary filled button
-@include button-outline;  // Outlined button
+@use '../styles/button' as *;
+
+.my-button {
+	@include ui-button-size(sm);
+	@include ui-button-base;
+	@include ui-button-primary; // or ui-button-secondary, ui-button-tertiary
+}
 ```
 
 ## CSS Custom Properties
