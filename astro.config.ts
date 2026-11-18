@@ -26,9 +26,9 @@ const CF_PAGES_BRANCH = process.env.CF_PAGES_BRANCH;
 let iconOverrideApplied = false;
 
 /**
- * Kept in step with `UV_THREADPOOL_SIZE` in the `build` script, which derives itself from this
- * same variable. OG cards rasterise with `renderAsync` on the libuv threadpool, so fewer workers
- * than concurrent page renders means the cards queue instead of overlapping.
+ * `scripts/uv-threadpool-size.mjs` keeps the libuv threadpool at least this large. OG cards rasterise
+ * with `renderAsync` on that pool, so fewer threads than concurrent page renders means the cards queue
+ * instead of overlapping.
  */
 const BUILD_CONCURRENCY = process.env.BUILD_CONCURRENCY ? Number(process.env.BUILD_CONCURRENCY) : 8;
 
