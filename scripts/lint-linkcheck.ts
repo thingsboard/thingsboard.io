@@ -1,7 +1,9 @@
 import { PROD_ORIGIN } from '../src/consts.ts';
+import { legacyInstallationsSection } from '../src/data/installations-legacy.ts';
 import { type LinkCheckerOptions, LinkCheckerState } from './lib/linkcheck/base/base.ts';
 import { CanonicalUrl } from './lib/linkcheck/checks/canonical-url.ts';
 import { GoodLabels } from './lib/linkcheck/checks/good-link-label.ts';
+import { LegacyUrl } from './lib/linkcheck/checks/legacy-url.ts';
 import { RelativeUrl } from './lib/linkcheck/checks/relative-url.ts';
 import { SameLanguage } from './lib/linkcheck/checks/same-language.ts';
 import { TargetExists } from './lib/linkcheck/checks/target-exists.ts';
@@ -164,6 +166,32 @@ const linkChecker = new LinkChecker({
 			ignoreMissingCanonicalUrl: ['/lighthouse/'],
 		}),
 		new RelativeUrl(),
+		new LegacyUrl({
+			rules: [
+				{
+					// The old tabbed page: `?product=thingsboard-cloud`, `#tab-thingsboard-pe`
+					pathname: '/installations/',
+					resolve: (url) => {
+						const section = legacyInstallationsSection(url.search, url.hash);
+						return section && `/installations/#${section}`;
+					},
+				},
+				{
+					// `?section=thingsboard-pe-options` opens the PE tab, and any `product=` overrides it
+					// (`__resolvePricingState` in src/pages/pricing/index.astro)
+					pathname: '/pricing/',
+					resolve: (url) => {
+						if (url.searchParams.get('section') !== 'thingsboard-pe-options') return undefined;
+						const params = url.search
+							.slice(1)
+							.split('&')
+							.filter((param) => param !== 'section=thingsboard-pe-options');
+						if (!url.searchParams.has('product')) params.unshift('product=thingsboard-pe');
+						return `/pricing/${params.length ? `?${params.join('&')}` : ''}${url.hash}`;
+					},
+				},
+			],
+		}),
 		new GoodLabels(),
 	],
 	autofix: process.argv.includes('--autofix') || Boolean(process.env.npm_config_autofix),
