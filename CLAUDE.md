@@ -20,6 +20,10 @@ pnpm build:fast       # Fast build (skips OG image generation) — use this for 
 pnpm build:linkcheck  # Build used by linkcheck (also skips llms.txt and image optimization)
 pnpm preview          # Preview production build
 
+# Builds render pages on worker threads; the count is picked from the machine's CPU and RAM.
+# PRERENDER_WORKERS=0 (or 1) turns that off, 2 or more forces that many workers.
+PRERENDER_WORKERS=0 pnpm build
+
 # Quality checks
 pnpm check            # TypeScript/Astro type checking
 pnpm lint:eslint      # ESLint
@@ -245,7 +249,8 @@ Per-page OG cards (1200×630 PNG) are generated at build time by Satori + Resvg.
 - `src/pages/open-graph/_shared/Card.tsx` — dispatches on `props.variant` to `DocsCard.tsx` or `LogoCard.tsx`
 - `src/pages/open-graph/_shared/Slab.tsx`, `Background.tsx`, `colors.ts`, `text-block.ts` — shared pieces: left brand panel, canvas decoration, per-slab gradients, title sizing
 - `src/pages/open-graph/_shared/product-meta.ts` / `marketing-meta.ts` — docs slug → slab/icon/edition; marketing URL prefix → section word
-- `src/pages/open-graph/_shared/render.ts` — Satori → Resvg pipeline + content-hash cache
+- `src/pages/open-graph/_shared/render.ts` — Satori → Resvg pipeline
+- `src/pages/open-graph/_shared/og-cache.ts` — content-hash card cache on disk, `TEMPLATE_VERSION`
 - `src/pages/open-graph/_shared/page-data.ts` — collection enumerators
 - `src/pages/open-graph/_shared/endpoint.ts` — `createOgEndpoint()` factory every endpoint uses
 - `src/pages/open-graph/_shared/jsx-runtime.ts` — minimal Satori-shaped JSX shim (no React)
@@ -254,7 +259,7 @@ Per-page OG cards (1200×630 PNG) are generated at build time by Satori + Resvg.
 - `src/util/getOgImageUrl.ts` — pathname → OG PNG URL aggregator
 
 **Key facts:**
-- Cache lives at `node_modules/.og-cache/` (gitignored). Bump `TEMPLATE_VERSION` in `render.ts` to invalidate.
+- Cache lives at `node_modules/.og-cache/` (gitignored). Bump `TEMPLATE_VERSION` in `og-cache.ts` to invalidate.
 - `SKIP_OG=true` (used by `pnpm build:fast`) makes `renderCard` return the global fallback instead of running Satori — endpoints still register paths.
 - Pages outside `MARKETING_ALLOWLIST` (or otherwise unmapped) fall back to `/thingsboard-og.png` via `SeoMeta.astro`.
 - Roboto 400/500/700 (7 subsets each: latin, latin-ext, cyrillic, cyrillic-ext, greek, greek-ext, vietnamese) + Noto Sans Symbols 400 for arrows. CJK / Arabic / Hebrew not covered — render as `.notdef`. Site CSS uses an unrelated system font stack; no `FONT_CREDENTIALS` env var.

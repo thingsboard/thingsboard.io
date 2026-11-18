@@ -144,17 +144,17 @@ async function fetchMdiSvg(name: string): Promise<string | null> {
 	try {
 		const res = await fetch(`${IOT_HUB_API_URL}/assets/mdi/${name}.svg`);
 		if (!res.ok) {
-			if (import.meta.env.DEV) {
+			// A 404 is an icon name the IoT Hub does not have: expected, so quiet in a build. Anything
+			// else is the server or the network failing, and the page would ship without its icon.
+			if (import.meta.env.DEV || res.status !== 404) {
 				console.warn(`[iot-hub] MDI icon fetch failed for "${name}": ${res.status}`);
 			}
 			return null;
 		}
 		return mdiSvgFromPath(await res.text());
 	} catch (e) {
-		if (import.meta.env.DEV) {
-			const msg = e instanceof Error ? e.message : String(e);
-			console.warn(`[iot-hub] MDI icon fetch error for "${name}": ${msg}`);
-		}
+		const msg = e instanceof Error ? e.message : String(e);
+		console.warn(`[iot-hub] MDI icon fetch error for "${name}": ${msg}`);
 		return null;
 	}
 }
