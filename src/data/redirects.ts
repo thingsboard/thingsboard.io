@@ -307,20 +307,44 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'paas/eu/user-guide/cli-solutions', target: '/docs/cli/guides/example-smart-retail/' },
 	{ oldPath: 'iot-gateway/configuration', target: '/docs/iot-gateway/config/general/' },
 	{ oldPath: 'iot-gateway/how-device-removing-renaming-works', target: '/docs/iot-gateway/features/device-renaming/' },
-	{ oldPath: 'iot-gateway/guides/how-to-configure-gateway-using-configurator', target: '/docs/iot-gateway/config/general/' },
+	{
+		oldPath: 'iot-gateway/guides/how-to-configure-gateway-using-configurator',
+		target: '/docs/iot-gateway/config/general/',
+	},
 	{ oldPath: 'iot-gateway/guides/how-to-connect-ble-sensor-using-gateway', target: '/docs/iot-gateway/config/ble/' },
 	{ oldPath: 'iot-gateway/guides/how-to-connect-modbus-device', target: '/docs/iot-gateway/getting-started/' },
-	{ oldPath: 'iot-gateway/guides/how-to-connect-opc-ua-device-to-thingsboard-ce', target: '/docs/iot-gateway/getting-started/' },
+	{
+		oldPath: 'iot-gateway/guides/how-to-connect-opc-ua-device-to-thingsboard-ce',
+		target: '/docs/iot-gateway/getting-started/',
+	},
 	{ oldPath: 'iot-gateway/guides/how-to-connect-opcua-server', target: '/docs/iot-gateway/getting-started/' },
-	{ oldPath: 'iot-gateway/guides/how-to-enable-remote-configuration', target: '/docs/iot-gateway/features/remote-configuration/' },
-	{ oldPath: 'iot-gateway/guides/how-to-enable-remote-logging', target: '/docs/iot-gateway/features/remote-configuration/#logs' },
+	{
+		oldPath: 'iot-gateway/guides/how-to-enable-remote-configuration',
+		target: '/docs/iot-gateway/features/remote-configuration/',
+	},
+	{
+		oldPath: 'iot-gateway/guides/how-to-enable-remote-logging',
+		target: '/docs/iot-gateway/features/remote-configuration/#logs',
+	},
 	{ oldPath: 'iot-gateway/guides/how-to-enable-remote-shell', target: '/docs/iot-gateway/features/remote-shell/' },
 	{ oldPath: 'iot-gateway/guides/how-to-use-gateway-shell', target: '/docs/iot-gateway/features/remote-shell/' },
-	{ oldPath: 'iot-gateway/guides/how-to-use-gateway-rpc-methods', target: '/docs/iot-gateway/features/service-rpc-methods/' },
+	{
+		oldPath: 'iot-gateway/guides/how-to-use-gateway-rpc-methods',
+		target: '/docs/iot-gateway/features/service-rpc-methods/',
+	},
 	{ oldPath: 'iot-gateway/guides/how-to-use-get-set-rpc-methods', target: '/docs/iot-gateway/features/reserved-rpc/' },
-	{ oldPath: 'iot-gateway/guides/how-to-use-remote-converter-update', target: '/docs/iot-gateway/features/remote-configuration/#connectors-configuration' },
-	{ oldPath: 'iot-gateway/guides/how-to-use-rpc-modbus-connector', target: '/docs/iot-gateway/config/modbus/#subsection-rpc-requests' },
-	{ oldPath: 'iot-gateway/integration-with-telegram-bot', target: '/docs/reference/notification-system/rule-triggers/' },
+	{
+		oldPath: 'iot-gateway/guides/how-to-use-remote-converter-update',
+		target: '/docs/iot-gateway/features/remote-configuration/#connectors-configuration',
+	},
+	{
+		oldPath: 'iot-gateway/guides/how-to-use-rpc-modbus-connector',
+		target: '/docs/iot-gateway/config/modbus/#subsection-rpc-requests',
+	},
+	{
+		oldPath: 'iot-gateway/integration-with-telegram-bot',
+		target: '/docs/reference/notification-system/rule-triggers/',
+	},
 	{ oldPath: 'iot-gateway/mqtt', target: '/docs/iot-gateway/config/mqtt/' },
 	{ oldPath: 'iot-gateway/install/rpi', target: '/docs/iot-gateway/installation/deb-installation/' },
 	{ oldPath: 'iot-gateway/install/windows', target: '/docs/iot-gateway/installation/docker-windows/' },
@@ -369,8 +393,14 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	// URL) and the legacy `pe/edge/` alias, so old links resolve in one hop instead
 	// of chaining through the pe/edge → edge/pe catch-all.
 	{ oldPath: 'edge/user-guide/provision-customer', target: '/docs/edge/user-guide/provision-customers-and-users/' },
-	{ oldPath: 'edge/pe/user-guide/provision-customer', target: '/docs/edge/pe/user-guide/provision-customers-and-users/' },
-	{ oldPath: 'pe/edge/user-guide/provision-customer', target: '/docs/edge/pe/user-guide/provision-customers-and-users/' },
+	{
+		oldPath: 'edge/pe/user-guide/provision-customer',
+		target: '/docs/edge/pe/user-guide/provision-customers-and-users/',
+	},
+	{
+		oldPath: 'pe/edge/user-guide/provision-customer',
+		target: '/docs/edge/pe/user-guide/provision-customers-and-users/',
+	},
 	{ oldPath: 'edge/user-guide/provision-user', target: '/docs/edge/user-guide/provision-customers-and-users/' },
 	{ oldPath: 'edge/pe/user-guide/provision-user', target: '/docs/edge/pe/user-guide/provision-customers-and-users/' },
 	{ oldPath: 'pe/edge/user-guide/provision-user', target: '/docs/edge/pe/user-guide/provision-customers-and-users/' },
@@ -386,9 +416,15 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'edge/faq', target: '/docs/edge/why-thingsboard-edge/' },
 	{ oldPath: 'pe/edge/faq', target: '/docs/edge/pe/why-thingsboard-edge/' },
 	{ oldPath: 'pe/edge/user-guide/integrations', target: '/docs/edge/pe/user-guide/integrations/overview/' },
-	{ oldPath: 'pe/edge/user-guide/integrations/chirpstack', target: '/docs/edge/pe/user-guide/integrations/chirpstack/' },
+	{
+		oldPath: 'pe/edge/user-guide/integrations/chirpstack',
+		target: '/docs/edge/pe/user-guide/integrations/chirpstack/',
+	},
 	{ oldPath: 'pe/edge/user-guide/integrations/coap', target: '/docs/edge/pe/user-guide/integrations/coap/' },
-	{ oldPath: 'pe/edge/user-guide/integrations/remote-integrations', target: '/docs/edge/pe/user-guide/integrations/remote-integrations/' },
+	{
+		oldPath: 'pe/edge/user-guide/integrations/remote-integrations',
+		target: '/docs/edge/pe/user-guide/integrations/remote-integrations/',
+	},
 	{ oldPath: 'pe/edge/user-guide/integrations/udp', target: '/docs/edge/pe/user-guide/integrations/udp/' },
 	{ oldPath: 'pe/edge/user-guide/integrations/mqtt', target: '/docs/edge/pe/user-guide/integrations/mqtt/' },
 	{ oldPath: 'pe/edge/user-guide/integrations/opc-ua', target: '/docs/edge/pe/user-guide/integrations/opc-ua/' },
@@ -396,7 +432,10 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'pe/edge/user-guide/integrations/http', target: '/docs/edge/pe/user-guide/integrations/http/' },
 	{ oldPath: 'pe/edge/user-guide/white-labeling', target: '/docs/edge/pe/user-guide/white-labeling/' },
 	{ oldPath: 'pe/edge/user-guide/scheduler', target: '/docs/edge/pe/user-guide/scheduler/' },
-	{ oldPath: 'pe/edge/user-guide/scheduler-vs-rule-chain', target: '/docs/edge/pe/user-guide/scheduler-vs-rule-chain/' },
+	{
+		oldPath: 'pe/edge/user-guide/scheduler-vs-rule-chain',
+		target: '/docs/edge/pe/user-guide/scheduler-vs-rule-chain/',
+	},
 	{ oldPath: 'edge/getting-started-guides/what-is-edge', target: '/docs/edge/why-thingsboard-edge/' },
 	{ oldPath: 'edge/releases', target: '/docs/edge/releases/releases-table/' },
 	{ oldPath: 'pe/edge/releases', target: '/docs/edge/pe/releases/releases-table/' },
@@ -427,10 +466,19 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'pe/edge/reference/protocols', target: '/docs/edge/pe/reference/apis-and-sdks/' },
 	{ oldPath: 'edge/use-cases/overview', target: '/docs/edge/why-thingsboard-edge/' },
 	{ oldPath: 'pe/edge/use-cases/overview', target: '/docs/edge/pe/why-thingsboard-edge/' },
-	{ oldPath: 'edge/use-cases/data-filtering-traffic-reduce', target: '/docs/edge/recipes/data-filtering-traffic-reduce/' },
-	{ oldPath: 'pe/edge/use-cases/data-filtering-traffic-reduce', target: '/docs/edge/pe/recipes/data-filtering-traffic-reduce/' },
+	{
+		oldPath: 'edge/use-cases/data-filtering-traffic-reduce',
+		target: '/docs/edge/recipes/data-filtering-traffic-reduce/',
+	},
+	{
+		oldPath: 'pe/edge/use-cases/data-filtering-traffic-reduce',
+		target: '/docs/edge/pe/recipes/data-filtering-traffic-reduce/',
+	},
 	{ oldPath: 'edge/use-cases/manage-alarms-rpc-requests', target: '/docs/edge/recipes/manage-alarms-rpc-requests/' },
-	{ oldPath: 'pe/edge/use-cases/manage-alarms-rpc-requests', target: '/docs/edge/pe/recipes/manage-alarms-rpc-requests/' },
+	{
+		oldPath: 'pe/edge/use-cases/manage-alarms-rpc-requests',
+		target: '/docs/edge/pe/recipes/manage-alarms-rpc-requests/',
+	},
 	{ oldPath: 'edge/user-guide/alarms', target: '/docs/edge/key-concepts/alarms/' },
 	{ oldPath: 'pe/edge/user-guide/alarms', target: '/docs/edge/pe/key-concepts/alarms/' },
 	{ oldPath: 'edge/user-guide/db-overview', target: '/docs/edge/user-guide/dashboards/' },
@@ -443,15 +491,24 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'pe/edge/user-guide/grpc-over-ssl', target: '/docs/edge/pe/user-guide/grpc-ssl/' },
 	{ oldPath: 'edge/user-guide/install/config', target: '/docs/edge/reference/configuration/server-config/' },
 	{ oldPath: 'pe/edge/user-guide/install/config', target: '/docs/edge/pe/reference/configuration/server-config/' },
-	{ oldPath: 'edge/user-guide/install/how-to-change-config', target: '/docs/edge/reference/configuration/how-to-change-config/' },
-	{ oldPath: 'pe/edge/user-guide/install/how-to-change-config', target: '/docs/edge/pe/reference/configuration/how-to-change-config/' },
+	{
+		oldPath: 'edge/user-guide/install/how-to-change-config',
+		target: '/docs/edge/reference/configuration/how-to-change-config/',
+	},
+	{
+		oldPath: 'pe/edge/user-guide/install/how-to-change-config',
+		target: '/docs/edge/pe/reference/configuration/how-to-change-config/',
+	},
 	{ oldPath: 'edge/user-guide/telemetry-sync', target: '/docs/edge/key-concepts/telemetry-synchronization/' },
 	{ oldPath: 'pe/edge/user-guide/telemetry-sync', target: '/docs/edge/pe/key-concepts/telemetry-synchronization/' },
 	{ oldPath: 'edge/user-guide/troubleshooting', target: '/docs/edge/user-guide/logs/' },
 	{ oldPath: 'pe/edge/user-guide/troubleshooting', target: '/docs/edge/pe/user-guide/logs/' },
 	{ oldPath: 'paas/edge/getting-started-guides/what-is-edge', target: '/docs/edge/pe/why-thingsboard-edge/' },
 	{ oldPath: 'edge/reference/mcp-server', target: '/docs/edge/reference/apis-and-sdks/mcp-server/getting-started/' },
-	{ oldPath: 'pe/edge/reference/mcp-server', target: '/docs/edge/pe/reference/apis-and-sdks/mcp-server/getting-started/' },
+	{
+		oldPath: 'pe/edge/reference/mcp-server',
+		target: '/docs/edge/pe/reference/apis-and-sdks/mcp-server/getting-started/',
+	},
 	{ oldPath: 'pe/edge/getting-started-guides/what-is-edge', target: '/docs/edge/pe/why-thingsboard-edge/' },
 	{ oldPath: 'edge/getting-started-guides/connectivity', target: '/docs/edge/reference/apis-and-sdks/overview/' },
 	{ oldPath: 'pe/edge/getting-started-guides/connectivity', target: '/docs/edge/pe/reference/apis-and-sdks/overview/' },
@@ -506,12 +563,30 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'pe/user-guide/audit-log', target: '/docs/pe/user-guide/security/audit-log/' },
 	{ oldPath: 'paas/user-guide/audit-log', target: '/docs/paas/user-guide/security/audit-log/' },
 	{ oldPath: 'paas/eu/user-guide/audit-log', target: '/docs/paas/eu/user-guide/security/audit-log/' },
-	{ oldPath: 'user-guide/calculated-fields/geofencing-calculated-field', target: '/docs/user-guide/calculated-fields/geofencing/' },
-	{ oldPath: 'user-guide/calculated-fields/propagation-calculated-field', target: '/docs/user-guide/calculated-fields/propagation/' },
-	{ oldPath: 'user-guide/calculated-fields/related-entities-aggregation-calculated-field', target: '/docs/user-guide/calculated-fields/related-entities-aggregation/' },
-	{ oldPath: 'user-guide/calculated-fields/script-calculated-field', target: '/docs/user-guide/calculated-fields/script/' },
-	{ oldPath: 'user-guide/calculated-fields/simple-calculated-field', target: '/docs/user-guide/calculated-fields/simple/' },
-	{ oldPath: 'user-guide/calculated-fields/time-series-data-aggregation-calculated-field', target: '/docs/user-guide/calculated-fields/time-series-data-aggregation/' },
+	{
+		oldPath: 'user-guide/calculated-fields/geofencing-calculated-field',
+		target: '/docs/user-guide/calculated-fields/geofencing/',
+	},
+	{
+		oldPath: 'user-guide/calculated-fields/propagation-calculated-field',
+		target: '/docs/user-guide/calculated-fields/propagation/',
+	},
+	{
+		oldPath: 'user-guide/calculated-fields/related-entities-aggregation-calculated-field',
+		target: '/docs/user-guide/calculated-fields/related-entities-aggregation/',
+	},
+	{
+		oldPath: 'user-guide/calculated-fields/script-calculated-field',
+		target: '/docs/user-guide/calculated-fields/script/',
+	},
+	{
+		oldPath: 'user-guide/calculated-fields/simple-calculated-field',
+		target: '/docs/user-guide/calculated-fields/simple/',
+	},
+	{
+		oldPath: 'user-guide/calculated-fields/time-series-data-aggregation-calculated-field',
+		target: '/docs/user-guide/calculated-fields/time-series-data-aggregation/',
+	},
 	{ oldPath: 'user-guide/entities-and-relations', target: '/docs/user-guide/digital-twins/entities/' },
 	{ oldPath: 'pe/user-guide/entities-and-relations', target: '/docs/pe/user-guide/digital-twins/entities/' },
 	{ oldPath: 'paas/user-guide/entities-and-relations', target: '/docs/paas/user-guide/digital-twins/entities/' },
@@ -534,7 +609,10 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'user-guide/install/rpi', target: '/docs/installation/rpi/' },
 	{ oldPath: 'user-guide/install/ubuntu', target: '/docs/installation/ubuntu/' },
 	{ oldPath: 'user-guide/install/pe/ubuntu', target: '/docs/pe/installation/ubuntu/' },
-	{ oldPath: 'reference/filters/message-type-filter', target: '/docs/reference/rule-engine/nodes/filter/message-type-filter/' },
+	{
+		oldPath: 'reference/filters/message-type-filter',
+		target: '/docs/reference/rule-engine/nodes/filter/message-type-filter/',
+	},
 	{ oldPath: 'reference/mcp-server', target: '/docs/user-guide/mcp-server/' },
 	{ oldPath: 'pe/reference/mcp-server', target: '/docs/pe/user-guide/mcp-server/' },
 	{ oldPath: 'paas/reference/mcp-server', target: '/docs/paas/user-guide/mcp-server/' },
@@ -548,9 +626,18 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'paas/samples/analytics/ai-models', target: '/docs/paas/user-guide/ai-models/' },
 	{ oldPath: 'paas/eu/samples/analytics/ai-models', target: '/docs/paas/eu/user-guide/ai-models/' },
 	{ oldPath: 'samples/analytics/ai-predictive-maintenance', target: '/docs/user-guide/ai-predictive-maintenance/' },
-	{ oldPath: 'pe/samples/analytics/ai-predictive-maintenance', target: '/docs/pe/user-guide/ai-predictive-maintenance/' },
-	{ oldPath: 'paas/samples/analytics/ai-predictive-maintenance', target: '/docs/paas/user-guide/ai-predictive-maintenance/' },
-	{ oldPath: 'paas/eu/samples/analytics/ai-predictive-maintenance', target: '/docs/paas/eu/user-guide/ai-predictive-maintenance/' },
+	{
+		oldPath: 'pe/samples/analytics/ai-predictive-maintenance',
+		target: '/docs/pe/user-guide/ai-predictive-maintenance/',
+	},
+	{
+		oldPath: 'paas/samples/analytics/ai-predictive-maintenance',
+		target: '/docs/paas/user-guide/ai-predictive-maintenance/',
+	},
+	{
+		oldPath: 'paas/eu/samples/analytics/ai-predictive-maintenance',
+		target: '/docs/paas/eu/user-guide/ai-predictive-maintenance/',
+	},
 	{ oldPath: 'samples/analytics/n8n-node', target: '/docs/user-guide/n8n-node/' },
 	{ oldPath: 'pe/samples/analytics/n8n-node', target: '/docs/pe/user-guide/n8n-node/' },
 	{ oldPath: 'paas/samples/analytics/n8n-node', target: '/docs/paas/user-guide/n8n-node/' },
@@ -560,25 +647,49 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'samples/sia-connect', target: '/docs/iot-gateway/config/opc-ua/' },
 	{ oldPath: 'paas/samples/sia-connect', target: '/docs/iot-gateway/config/opc-ua/' },
 	{ oldPath: 'paas/eu/samples/sia-connect', target: '/docs/iot-gateway/config/opc-ua/' },
-	{ oldPath: 'samples/abeeway/tracker', target: '/partners/hardware/actility/samples/abeeway-trackers-thingpark-integration/' },
-	{ oldPath: 'pe/samples/abeeway/tracker', target: '/partners/hardware/actility/samples/abeeway-trackers-thingpark-integration/' },
-	{ oldPath: 'paas/samples/abeeway/tracker', target: '/partners/hardware/actility/samples/abeeway-trackers-thingpark-integration/' },
-	{ oldPath: 'paas/eu/samples/abeeway/tracker', target: '/partners/hardware/actility/samples/abeeway-trackers-thingpark-integration/' },
+	{
+		oldPath: 'samples/abeeway/tracker',
+		target: '/partners/hardware/actility/samples/abeeway-trackers-thingpark-integration/',
+	},
+	{
+		oldPath: 'pe/samples/abeeway/tracker',
+		target: '/partners/hardware/actility/samples/abeeway-trackers-thingpark-integration/',
+	},
+	{
+		oldPath: 'paas/samples/abeeway/tracker',
+		target: '/partners/hardware/actility/samples/abeeway-trackers-thingpark-integration/',
+	},
+	{
+		oldPath: 'paas/eu/samples/abeeway/tracker',
+		target: '/partners/hardware/actility/samples/abeeway-trackers-thingpark-integration/',
+	},
 	{ oldPath: 'samples/kernel/kernel', target: '/partners/hardware/kernelgroup/samples/plc-kernel-thingsboard/' },
 	{ oldPath: 'samples/exxn/exxn', target: '/iot-hub/devices/iot-gateway-cell-1024/' },
 	{ oldPath: 'samples/monoz/LPWA_GPS_Tracker_with_monoZ', target: '/iot-hub/devices/monozero-bg96-v2/' },
 	{ oldPath: 'samples/nettrartu+', target: '/iot-hub/devices/rtu-x/' },
 	{ oldPath: 'samples/nettrartu-x/tutorial', target: '/iot-hub/devices/rtu-x/' },
 	{ oldPath: 'samples/nettrartu+/rtu_temp_sensor', target: '/iot-hub/devices/rtu-x/' },
-	{ oldPath: 'samples/moko-smart/moko-smart-guide', target: '/partners/hardware/mokosmart/samples/lorawan-device-and-thingsboard/' },
+	{
+		oldPath: 'samples/moko-smart/moko-smart-guide',
+		target: '/partners/hardware/mokosmart/samples/lorawan-device-and-thingsboard/',
+	},
 	{ oldPath: 'samples/dusun/DSGW-210_Edge_computing_gateway', target: '/iot-hub/devices/dsgw-210-iot-gateway-hub/' },
 	{ oldPath: 'samples/senquip', target: '/iot-hub/devices/orb-c1-g/' },
 	{ oldPath: 'samples/smartico', target: '/partners/hardware/smartico/' },
-	{ oldPath: 'samples/smartico/elec-meter-lorawan/Electricity_Meter_LoRaWAN', target: '/iot-hub/devices/smartico-e307/' },
+	{
+		oldPath: 'samples/smartico/elec-meter-lorawan/Electricity_Meter_LoRaWAN',
+		target: '/iot-hub/devices/smartico-e307/',
+	},
 	{ oldPath: 'samples/smartico/gas-meter-lorawan/Gas_Meter_LoRaWAN', target: '/iot-hub/devices/smartico-g-1-6/' },
 	{ oldPath: 'samples/smartico/gas-valve-lorawan/Gas_Valve_LoRaWAN', target: '/iot-hub/devices/smartico-v-lr/' },
-	{ oldPath: 'samples/smartico/leaks-detector-lorawan/Leaks_Detector_LoRaWAN', target: '/iot-hub/devices/smartico-l2-lr/' },
-	{ oldPath: 'samples/smartico/pulse-sensor-lorawan/Pulse_Sensor_LoRaWAN', target: '/iot-hub/devices/smartico-p22-lr/' },
+	{
+		oldPath: 'samples/smartico/leaks-detector-lorawan/Leaks_Detector_LoRaWAN',
+		target: '/iot-hub/devices/smartico-l2-lr/',
+	},
+	{
+		oldPath: 'samples/smartico/pulse-sensor-lorawan/Pulse_Sensor_LoRaWAN',
+		target: '/iot-hub/devices/smartico-p22-lr/',
+	},
 	{ oldPath: 'samples/smartico/wm-bus-lorawan/wMBus_Reader_LoRaWAN', target: '/iot-hub/devices/smartico-wm-lr/' },
 	{ oldPath: 'samples/sodaq/sodaq', target: '/partners/hardware/sodaq/samples/sodaq-universal-tracker/' },
 	{ oldPath: 'samples/sodaq/sodaq-udp', target: '/partners/hardware/sodaq/samples/sodaq-udp-integration/' },
@@ -588,58 +699,182 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'samples/syrus/syrus', target: '/iot-hub/devices/syrus-4g-iot-telematics-gateway/' },
 	{ oldPath: 'samples/tektelic', target: '/iot-hub/devices/comfort-v2-lorawan-leak-detection-sensor/' },
 	{ oldPath: 'samples/cricket-wifi/cricket-wifi', target: '/iot-hub/devices/iot-cricket-wifi-module/' },
-	{ oldPath: 'samples/netvox/netvox-guide', target: '/partners/hardware/netvox/samples/lorawan-devices-and-thingsboard/' },
+	{
+		oldPath: 'samples/netvox/netvox-guide',
+		target: '/partners/hardware/netvox/samples/lorawan-devices-and-thingsboard/',
+	},
 	{ oldPath: 'samples/raspberry/grove', target: '/partners/hardware/seeed/samples/raspberry-pi-with-grove-base-hat/' },
 	{ oldPath: 'samples/lansitec/solar-bluetooth-gateway', target: '/iot-hub/devices/solar-bluetooth-gateway/' },
 	{ oldPath: 'samples/kingpigeon/kingpigeon', target: '/partners/hardware/beilai/samples/4g-lte-industrial-router/' },
 	{ oldPath: 'samples/fusion-daq/fusion-daq', target: '/iot-hub/devices/fusiondaq-fdq-99900-mi-8/' },
-	{ oldPath: 'samples/digicom/energy-meter-monitoring-with-thingsboard-iot-pla%C6%9Eorm', target: '/iot-hub/devices/drn-500/' },
+	{
+		oldPath: 'samples/digicom/energy-meter-monitoring-with-thingsboard-iot-pla%C6%9Eorm',
+		target: '/iot-hub/devices/drn-500/',
+	},
 	{ oldPath: 'trendz/business-entities', target: '/docs/trendz/concepts/business-entities/' },
-	{ oldPath: 'trendz/install/trndz-upgrade-instructions-kubernetes', target: '/docs/trendz/installation/upgrade-instructions/' },
+	{
+		oldPath: 'trendz/install/trndz-upgrade-instructions-kubernetes',
+		target: '/docs/trendz/installation/upgrade-instructions/',
+	},
 	{ oldPath: 'trendz/install/trndz-upgrade-instructions', target: '/docs/trendz/installation/upgrade-instructions/' },
 	{ oldPath: 'trendz/install/installation-options', target: '/docs/trendz/installation/' },
 	{ oldPath: 'trendz/install/windows', target: '/docs/trendz/installation/docker-windows/' },
 	{ oldPath: 'trendz/guides', target: '/docs/trendz/user-guide/' },
 	{ oldPath: 'pe/user-guide/install/installation-options', target: '/docs/pe/installation/' },
-	{ oldPath: 'pe/user-guide/install/upgrade-instructions/old-upgrade-instructions', target: '/docs/pe/installation/upgrade-instructions/' },
-	{ oldPath: 'pe/user-guide/install/upgrade-instructions/upgrade-from-ce', target: '/docs/pe/installation/upgrade-from-ce/' },
-	{ oldPath: 'pe/user-guide/rule-engine-2-0/analytics-nodes', target: '/docs/pe/reference/rule-engine/nodes/analytics/' },
-	{ oldPath: 'paas/user-guide/rule-engine-2-0/analytics-nodes', target: '/docs/paas/reference/rule-engine/nodes/analytics/' },
-	{ oldPath: 'paas/eu/user-guide/rule-engine-2-0/analytics-nodes', target: '/docs/paas/eu/reference/rule-engine/nodes/analytics/' },
-	{ oldPath: 'user-guide/rule-engine-2-0/nodes/analytics/alarms-count-deprecated', target: '/docs/reference/rule-engine/nodes/analytics/' },
-	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/function-based-on-telemetry-from-two-devices', target: '/docs/recipes/telemetry-delta-two-devices/' },
-	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/device-online-offline', target: '/docs/user-guide/connectivity-status/' },
-	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/telemetry-delta-validation', target: '/docs/recipes/telemetry-delta-calculation/' },
-	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/check-relation-tutorial', target: '/docs/recipes/trigger-related-entities-via-relation/' },
-	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/create-clear-alarms-with-details', target: '/docs/recipes/enrich-alarms-with-details/' },
-	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/rpc-reply-tutorial', target: '/docs/recipes/rpc-reply-with-related-telemetry/' },
-	{ oldPath: 'pe/user-guide/rule-engine-2-0/tutorials/rpc-reply-tutorial', target: '/docs/pe/recipes/rpc-reply-with-related-telemetry/' },
-	{ oldPath: 'paas/user-guide/rule-engine-2-0/tutorials/rpc-reply-tutorial', target: '/docs/paas/recipes/rpc-reply-with-related-telemetry/' },
-	{ oldPath: 'paas/eu/user-guide/rule-engine-2-0/tutorials/rpc-reply-tutorial', target: '/docs/paas/eu/recipes/rpc-reply-with-related-telemetry/' },
-	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/rpc-request-tutorial', target: '/docs/recipes/send-rpc-to-related-device/' },
-	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/aggregate-incoming-data-stream', target: '/docs/recipes/aggregate-related-entities/' },
-	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/aggregate-latest-data', target: '/docs/recipes/average-temperature-related-devices/' },
-	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/add-devices-to-group', target: '/docs/pe/recipes/add-devices-to-group/' },
-	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/get-weather-using-rest-api-call', target: '/docs/recipes/fetch-weather-data/' },
-	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/create-inactivity-alarm', target: '/docs/recipes/device-inactivity-alarm/' },
-	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/send-email-to-customer', target: '/docs/recipes/send-alarm-email-to-customer/' },
-	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/integration-with-telegram-bot', target: '/docs/recipes/telegram-alarm-notification/' },
-	{ oldPath: 'pe/user-guide/rule-engine-2-0/tutorials/integration-with-telegram-bot', target: '/docs/pe/recipes/telegram-alarm-notification/' },
-	{ oldPath: 'paas/user-guide/rule-engine-2-0/tutorials/integration-with-telegram-bot', target: '/docs/paas/recipes/telegram-alarm-notification/' },
-	{ oldPath: 'paas/eu/user-guide/rule-engine-2-0/tutorials/integration-with-telegram-bot', target: '/docs/paas/eu/recipes/telegram-alarm-notification/' },
-	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/send-email-html', target: '/docs/reference/rule-engine/nodes/transformation/to-email/#example-2--html-body-with-dynamic-recipient-and-body-type-selection' },
-	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/transform-telemetry-using-previous-record', target: '/docs/recipes/water-consumption-hourly-delta/' },
-	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/transform-incoming-telemetry', target: '/docs/user-guide/calculated-fields/script/#example-1-fahrenheit-to-celsius' },
-	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/send-email', target: '/docs/reference/rule-engine/nodes/external/send-email/' },
+	{
+		oldPath: 'pe/user-guide/install/upgrade-instructions/old-upgrade-instructions',
+		target: '/docs/pe/installation/upgrade-instructions/',
+	},
+	{
+		oldPath: 'pe/user-guide/install/upgrade-instructions/upgrade-from-ce',
+		target: '/docs/pe/installation/upgrade-from-ce/',
+	},
+	{
+		oldPath: 'pe/user-guide/rule-engine-2-0/analytics-nodes',
+		target: '/docs/pe/reference/rule-engine/nodes/analytics/',
+	},
+	{
+		oldPath: 'paas/user-guide/rule-engine-2-0/analytics-nodes',
+		target: '/docs/paas/reference/rule-engine/nodes/analytics/',
+	},
+	{
+		oldPath: 'paas/eu/user-guide/rule-engine-2-0/analytics-nodes',
+		target: '/docs/paas/eu/reference/rule-engine/nodes/analytics/',
+	},
+	{
+		oldPath: 'user-guide/rule-engine-2-0/nodes/analytics/alarms-count-deprecated',
+		target: '/docs/reference/rule-engine/nodes/analytics/',
+	},
+	{
+		oldPath: 'user-guide/rule-engine-2-0/tutorials/function-based-on-telemetry-from-two-devices',
+		target: '/docs/recipes/telemetry-delta-two-devices/',
+	},
+	{
+		oldPath: 'user-guide/rule-engine-2-0/tutorials/device-online-offline',
+		target: '/docs/user-guide/connectivity-status/',
+	},
+	{
+		oldPath: 'user-guide/rule-engine-2-0/tutorials/telemetry-delta-validation',
+		target: '/docs/recipes/telemetry-delta-calculation/',
+	},
+	{
+		oldPath: 'user-guide/rule-engine-2-0/tutorials/check-relation-tutorial',
+		target: '/docs/recipes/trigger-related-entities-via-relation/',
+	},
+	{
+		oldPath: 'user-guide/rule-engine-2-0/tutorials/create-clear-alarms-with-details',
+		target: '/docs/recipes/enrich-alarms-with-details/',
+	},
+	{
+		oldPath: 'user-guide/rule-engine-2-0/tutorials/rpc-reply-tutorial',
+		target: '/docs/recipes/rpc-reply-with-related-telemetry/',
+	},
+	{
+		oldPath: 'pe/user-guide/rule-engine-2-0/tutorials/rpc-reply-tutorial',
+		target: '/docs/pe/recipes/rpc-reply-with-related-telemetry/',
+	},
+	{
+		oldPath: 'paas/user-guide/rule-engine-2-0/tutorials/rpc-reply-tutorial',
+		target: '/docs/paas/recipes/rpc-reply-with-related-telemetry/',
+	},
+	{
+		oldPath: 'paas/eu/user-guide/rule-engine-2-0/tutorials/rpc-reply-tutorial',
+		target: '/docs/paas/eu/recipes/rpc-reply-with-related-telemetry/',
+	},
+	{
+		oldPath: 'user-guide/rule-engine-2-0/tutorials/rpc-request-tutorial',
+		target: '/docs/recipes/send-rpc-to-related-device/',
+	},
+	{
+		oldPath: 'user-guide/rule-engine-2-0/tutorials/aggregate-incoming-data-stream',
+		target: '/docs/recipes/aggregate-related-entities/',
+	},
+	{
+		oldPath: 'user-guide/rule-engine-2-0/tutorials/aggregate-latest-data',
+		target: '/docs/recipes/average-temperature-related-devices/',
+	},
+	{
+		oldPath: 'user-guide/rule-engine-2-0/tutorials/add-devices-to-group',
+		target: '/docs/pe/recipes/add-devices-to-group/',
+	},
+	{
+		oldPath: 'user-guide/rule-engine-2-0/tutorials/get-weather-using-rest-api-call',
+		target: '/docs/recipes/fetch-weather-data/',
+	},
+	{
+		oldPath: 'user-guide/rule-engine-2-0/tutorials/create-inactivity-alarm',
+		target: '/docs/recipes/device-inactivity-alarm/',
+	},
+	{
+		oldPath: 'user-guide/rule-engine-2-0/tutorials/send-email-to-customer',
+		target: '/docs/recipes/send-alarm-email-to-customer/',
+	},
+	{
+		oldPath: 'user-guide/rule-engine-2-0/tutorials/integration-with-telegram-bot',
+		target: '/docs/recipes/telegram-alarm-notification/',
+	},
+	{
+		oldPath: 'pe/user-guide/rule-engine-2-0/tutorials/integration-with-telegram-bot',
+		target: '/docs/pe/recipes/telegram-alarm-notification/',
+	},
+	{
+		oldPath: 'paas/user-guide/rule-engine-2-0/tutorials/integration-with-telegram-bot',
+		target: '/docs/paas/recipes/telegram-alarm-notification/',
+	},
+	{
+		oldPath: 'paas/eu/user-guide/rule-engine-2-0/tutorials/integration-with-telegram-bot',
+		target: '/docs/paas/eu/recipes/telegram-alarm-notification/',
+	},
+	{
+		oldPath: 'user-guide/rule-engine-2-0/tutorials/send-email-html',
+		target:
+			'/docs/reference/rule-engine/nodes/transformation/to-email/#example-2--html-body-with-dynamic-recipient-and-body-type-selection',
+	},
+	{
+		oldPath: 'user-guide/rule-engine-2-0/tutorials/transform-telemetry-using-previous-record',
+		target: '/docs/recipes/water-consumption-hourly-delta/',
+	},
+	{
+		oldPath: 'user-guide/rule-engine-2-0/tutorials/transform-incoming-telemetry',
+		target: '/docs/user-guide/calculated-fields/script/#example-1-fahrenheit-to-celsius',
+	},
+	{
+		oldPath: 'user-guide/rule-engine-2-0/tutorials/send-email',
+		target: '/docs/reference/rule-engine/nodes/external/send-email/',
+	},
 	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/create-clear-alarms', target: '/docs/recipes/create-clear-alarms/' },
-	{ oldPath: 'user-guide/rule-engine-2-0/tutorials/validate-incoming-telemetry', target: '/docs/recipes/validate-incoming-telemetry/' },
-	{ oldPath: 'pe/user-guide/rule-engine-2-0/tutorials/transform-incoming-telemetry', target: '/docs/pe/user-guide/calculated-fields/script/#example-1-fahrenheit-to-celsius' },
-	{ oldPath: 'paas/user-guide/rule-engine-2-0/tutorials/transform-incoming-telemetry', target: '/docs/paas/user-guide/calculated-fields/script/#example-1-fahrenheit-to-celsius' },
-	{ oldPath: 'paas/eu/user-guide/rule-engine-2-0/tutorials/transform-incoming-telemetry', target: '/docs/paas/eu/user-guide/calculated-fields/script/#example-1-fahrenheit-to-celsius' },
-	{ oldPath: 'user-guide/ui/advanced-data-key-configuration', target: '/docs/user-guide/advanced-data-key-configuration/' },
-	{ oldPath: 'pe/user-guide/ui/advanced-data-key-configuration', target: '/docs/pe/user-guide/advanced-data-key-configuration/' },
-	{ oldPath: 'paas/user-guide/ui/advanced-data-key-configuration', target: '/docs/paas/user-guide/advanced-data-key-configuration/' },
-	{ oldPath: 'paas/eu/user-guide/ui/advanced-data-key-configuration', target: '/docs/paas/eu/user-guide/advanced-data-key-configuration/' },
+	{
+		oldPath: 'user-guide/rule-engine-2-0/tutorials/validate-incoming-telemetry',
+		target: '/docs/recipes/validate-incoming-telemetry/',
+	},
+	{
+		oldPath: 'pe/user-guide/rule-engine-2-0/tutorials/transform-incoming-telemetry',
+		target: '/docs/pe/user-guide/calculated-fields/script/#example-1-fahrenheit-to-celsius',
+	},
+	{
+		oldPath: 'paas/user-guide/rule-engine-2-0/tutorials/transform-incoming-telemetry',
+		target: '/docs/paas/user-guide/calculated-fields/script/#example-1-fahrenheit-to-celsius',
+	},
+	{
+		oldPath: 'paas/eu/user-guide/rule-engine-2-0/tutorials/transform-incoming-telemetry',
+		target: '/docs/paas/eu/user-guide/calculated-fields/script/#example-1-fahrenheit-to-celsius',
+	},
+	{
+		oldPath: 'user-guide/ui/advanced-data-key-configuration',
+		target: '/docs/user-guide/advanced-data-key-configuration/',
+	},
+	{
+		oldPath: 'pe/user-guide/ui/advanced-data-key-configuration',
+		target: '/docs/pe/user-guide/advanced-data-key-configuration/',
+	},
+	{
+		oldPath: 'paas/user-guide/ui/advanced-data-key-configuration',
+		target: '/docs/paas/user-guide/advanced-data-key-configuration/',
+	},
+	{
+		oldPath: 'paas/eu/user-guide/ui/advanced-data-key-configuration',
+		target: '/docs/paas/eu/user-guide/advanced-data-key-configuration/',
+	},
 	{ oldPath: 'user-guide/ui/trip-animation-widget', target: '/docs/reference/widgets/maps/map/' },
 	{ oldPath: 'pe/user-guide/ui/trip-animation-widget', target: '/docs/pe/reference/widgets/maps/map/' },
 	{ oldPath: 'paas/user-guide/ui/trip-animation-widget', target: '/docs/paas/reference/widgets/maps/map/' },
@@ -647,64 +882,187 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'user-guide/ui/widgets/trip-animation-widget', target: '/docs/reference/widgets/maps/map/' },
 	{ oldPath: 'pe/user-guide/ui/widgets/trip-animation-widget', target: '/docs/pe/reference/widgets/maps/map/' },
 	{ oldPath: 'paas/user-guide/ui/widgets/trip-animation-widget', target: '/docs/paas/reference/widgets/maps/map/' },
-	{ oldPath: 'paas/eu/user-guide/ui/widgets/trip-animation-widget', target: '/docs/paas/eu/reference/widgets/maps/map/' },
-	{ oldPath: 'user-guide/contribution/widgets-development-before-3.0', target: '/docs/user-guide/contribution/widgets-development/' },
-	{ oldPath: 'pe/user-guide/contribution/widgets-development-before-3.0', target: '/docs/pe/user-guide/contribution/widgets-development/' },
-	{ oldPath: 'pe/user-guide/contribution/how-to-contribute-your-device-integration-guide', target: '/docs/user-guide/contribution/how-to-contribute-your-device-integration-guide/' },
-	{ oldPath: 'user-guide/contribution/ui/advanced-development', target: '/docs/user-guide/contribution/widgets-development/advanced/' },
-	{ oldPath: 'pe/user-guide/contribution/ui/advanced-development', target: '/docs/pe/user-guide/contribution/widgets-development/advanced/' },
-	{ oldPath: 'paas/user-guide/contribution/ui/advanced-development', target: '/docs/paas/user-guide/contribution/widgets-development/advanced/' },
-	{ oldPath: 'paas/eu/user-guide/contribution/ui/advanced-development', target: '/docs/paas/eu/user-guide/contribution/widgets-development/advanced/' },
-	{ oldPath: 'user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-1', target: '/docs/pe/user-guide/advanced-guides-for-working-with-dashboard/1/' },
-	{ oldPath: 'user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-2', target: '/docs/pe/user-guide/advanced-guides-for-working-with-dashboard/2/' },
-	{ oldPath: 'user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-3', target: '/docs/pe/user-guide/advanced-guides-for-working-with-dashboard/3/' },
-	{ oldPath: 'user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-4', target: '/docs/pe/user-guide/advanced-guides-for-working-with-dashboard/4/' },
-	{ oldPath: 'user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-5', target: '/docs/pe/user-guide/advanced-guides-for-working-with-dashboard/5/' },
-	{ oldPath: 'pe/user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-1', target: '/docs/pe/user-guide/advanced-guides-for-working-with-dashboard/1/' },
-	{ oldPath: 'pe/user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-2', target: '/docs/pe/user-guide/advanced-guides-for-working-with-dashboard/2/' },
-	{ oldPath: 'pe/user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-3', target: '/docs/pe/user-guide/advanced-guides-for-working-with-dashboard/3/' },
-	{ oldPath: 'pe/user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-4', target: '/docs/pe/user-guide/advanced-guides-for-working-with-dashboard/4/' },
-	{ oldPath: 'pe/user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-5', target: '/docs/pe/user-guide/advanced-guides-for-working-with-dashboard/5/' },
-	{ oldPath: 'paas/user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-1', target: '/docs/paas/user-guide/advanced-guides-for-working-with-dashboard/1/' },
-	{ oldPath: 'paas/user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-2', target: '/docs/paas/user-guide/advanced-guides-for-working-with-dashboard/2/' },
-	{ oldPath: 'paas/user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-3', target: '/docs/paas/user-guide/advanced-guides-for-working-with-dashboard/3/' },
-	{ oldPath: 'paas/user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-4', target: '/docs/paas/user-guide/advanced-guides-for-working-with-dashboard/4/' },
-	{ oldPath: 'paas/user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-5', target: '/docs/paas/user-guide/advanced-guides-for-working-with-dashboard/5/' },
-	{ oldPath: 'paas/eu/user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-1', target: '/docs/paas/eu/user-guide/advanced-guides-for-working-with-dashboard/1/' },
-	{ oldPath: 'paas/eu/user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-2', target: '/docs/paas/eu/user-guide/advanced-guides-for-working-with-dashboard/2/' },
-	{ oldPath: 'paas/eu/user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-3', target: '/docs/paas/eu/user-guide/advanced-guides-for-working-with-dashboard/3/' },
-	{ oldPath: 'paas/eu/user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-4', target: '/docs/paas/eu/user-guide/advanced-guides-for-working-with-dashboard/4/' },
-	{ oldPath: 'paas/eu/user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-5', target: '/docs/paas/eu/user-guide/advanced-guides-for-working-with-dashboard/5/' },
+	{
+		oldPath: 'paas/eu/user-guide/ui/widgets/trip-animation-widget',
+		target: '/docs/paas/eu/reference/widgets/maps/map/',
+	},
+	{
+		oldPath: 'user-guide/contribution/widgets-development-before-3.0',
+		target: '/docs/user-guide/contribution/widgets-development/',
+	},
+	{
+		oldPath: 'pe/user-guide/contribution/widgets-development-before-3.0',
+		target: '/docs/pe/user-guide/contribution/widgets-development/',
+	},
+	{
+		oldPath: 'pe/user-guide/contribution/how-to-contribute-your-device-integration-guide',
+		target: '/docs/user-guide/contribution/how-to-contribute-your-device-integration-guide/',
+	},
+	{
+		oldPath: 'user-guide/contribution/ui/advanced-development',
+		target: '/docs/user-guide/contribution/widgets-development/advanced/',
+	},
+	{
+		oldPath: 'pe/user-guide/contribution/ui/advanced-development',
+		target: '/docs/pe/user-guide/contribution/widgets-development/advanced/',
+	},
+	{
+		oldPath: 'paas/user-guide/contribution/ui/advanced-development',
+		target: '/docs/paas/user-guide/contribution/widgets-development/advanced/',
+	},
+	{
+		oldPath: 'paas/eu/user-guide/contribution/ui/advanced-development',
+		target: '/docs/paas/eu/user-guide/contribution/widgets-development/advanced/',
+	},
+	{
+		oldPath: 'user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-1',
+		target: '/docs/pe/user-guide/advanced-guides-for-working-with-dashboard/1/',
+	},
+	{
+		oldPath: 'user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-2',
+		target: '/docs/pe/user-guide/advanced-guides-for-working-with-dashboard/2/',
+	},
+	{
+		oldPath: 'user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-3',
+		target: '/docs/pe/user-guide/advanced-guides-for-working-with-dashboard/3/',
+	},
+	{
+		oldPath: 'user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-4',
+		target: '/docs/pe/user-guide/advanced-guides-for-working-with-dashboard/4/',
+	},
+	{
+		oldPath: 'user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-5',
+		target: '/docs/pe/user-guide/advanced-guides-for-working-with-dashboard/5/',
+	},
+	{
+		oldPath: 'pe/user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-1',
+		target: '/docs/pe/user-guide/advanced-guides-for-working-with-dashboard/1/',
+	},
+	{
+		oldPath: 'pe/user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-2',
+		target: '/docs/pe/user-guide/advanced-guides-for-working-with-dashboard/2/',
+	},
+	{
+		oldPath: 'pe/user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-3',
+		target: '/docs/pe/user-guide/advanced-guides-for-working-with-dashboard/3/',
+	},
+	{
+		oldPath: 'pe/user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-4',
+		target: '/docs/pe/user-guide/advanced-guides-for-working-with-dashboard/4/',
+	},
+	{
+		oldPath: 'pe/user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-5',
+		target: '/docs/pe/user-guide/advanced-guides-for-working-with-dashboard/5/',
+	},
+	{
+		oldPath: 'paas/user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-1',
+		target: '/docs/paas/user-guide/advanced-guides-for-working-with-dashboard/1/',
+	},
+	{
+		oldPath: 'paas/user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-2',
+		target: '/docs/paas/user-guide/advanced-guides-for-working-with-dashboard/2/',
+	},
+	{
+		oldPath: 'paas/user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-3',
+		target: '/docs/paas/user-guide/advanced-guides-for-working-with-dashboard/3/',
+	},
+	{
+		oldPath: 'paas/user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-4',
+		target: '/docs/paas/user-guide/advanced-guides-for-working-with-dashboard/4/',
+	},
+	{
+		oldPath: 'paas/user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-5',
+		target: '/docs/paas/user-guide/advanced-guides-for-working-with-dashboard/5/',
+	},
+	{
+		oldPath: 'paas/eu/user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-1',
+		target: '/docs/paas/eu/user-guide/advanced-guides-for-working-with-dashboard/1/',
+	},
+	{
+		oldPath: 'paas/eu/user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-2',
+		target: '/docs/paas/eu/user-guide/advanced-guides-for-working-with-dashboard/2/',
+	},
+	{
+		oldPath: 'paas/eu/user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-3',
+		target: '/docs/paas/eu/user-guide/advanced-guides-for-working-with-dashboard/3/',
+	},
+	{
+		oldPath: 'paas/eu/user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-4',
+		target: '/docs/paas/eu/user-guide/advanced-guides-for-working-with-dashboard/4/',
+	},
+	{
+		oldPath: 'paas/eu/user-guide/advanced-guides-for-working-with-dashboard/advanced-dashboard-guide-lesson-5',
+		target: '/docs/paas/eu/user-guide/advanced-guides-for-working-with-dashboard/5/',
+	},
 	{ oldPath: 'tutorials/create-clear-alarms', target: '/docs/recipes/create-clear-alarms/' },
 	{ oldPath: 'pe/tutorials/create-clear-alarms', target: '/docs/pe/recipes/create-clear-alarms/' },
 	{ oldPath: 'paas/tutorials/create-clear-alarms', target: '/docs/paas/recipes/create-clear-alarms/' },
 	{ oldPath: 'paas/eu/tutorials/create-clear-alarms', target: '/docs/paas/eu/recipes/create-clear-alarms/' },
-	{ oldPath: 'tutorials/function-based-on-telemetry-from-two-devices', target: '/docs/recipes/telemetry-delta-two-devices/' },
-	{ oldPath: 'pe/tutorials/function-based-on-telemetry-from-two-devices', target: '/docs/pe/recipes/telemetry-delta-two-devices/' },
-	{ oldPath: 'paas/tutorials/function-based-on-telemetry-from-two-devices', target: '/docs/paas/recipes/telemetry-delta-two-devices/' },
-	{ oldPath: 'paas/eu/tutorials/function-based-on-telemetry-from-two-devices', target: '/docs/paas/eu/recipes/telemetry-delta-two-devices/' },
+	{
+		oldPath: 'tutorials/function-based-on-telemetry-from-two-devices',
+		target: '/docs/recipes/telemetry-delta-two-devices/',
+	},
+	{
+		oldPath: 'pe/tutorials/function-based-on-telemetry-from-two-devices',
+		target: '/docs/pe/recipes/telemetry-delta-two-devices/',
+	},
+	{
+		oldPath: 'paas/tutorials/function-based-on-telemetry-from-two-devices',
+		target: '/docs/paas/recipes/telemetry-delta-two-devices/',
+	},
+	{
+		oldPath: 'paas/eu/tutorials/function-based-on-telemetry-from-two-devices',
+		target: '/docs/paas/eu/recipes/telemetry-delta-two-devices/',
+	},
 	{ oldPath: 'tutorials/telemetry-delta-calculation', target: '/docs/recipes/telemetry-delta-calculation/' },
 	{ oldPath: 'pe/tutorials/telemetry-delta-calculation', target: '/docs/pe/recipes/telemetry-delta-calculation/' },
 	{ oldPath: 'paas/tutorials/telemetry-delta-calculation', target: '/docs/paas/recipes/telemetry-delta-calculation/' },
-	{ oldPath: 'paas/eu/tutorials/telemetry-delta-calculation', target: '/docs/paas/eu/recipes/telemetry-delta-calculation/' },
+	{
+		oldPath: 'paas/eu/tutorials/telemetry-delta-calculation',
+		target: '/docs/paas/eu/recipes/telemetry-delta-calculation/',
+	},
 	{ oldPath: 'tutorials/validate-incoming-telemetry', target: '/docs/recipes/validate-incoming-telemetry/' },
 	{ oldPath: 'pe/tutorials/validate-incoming-telemetry', target: '/docs/pe/recipes/validate-incoming-telemetry/' },
 	{ oldPath: 'paas/tutorials/validate-incoming-telemetry', target: '/docs/paas/recipes/validate-incoming-telemetry/' },
-	{ oldPath: 'paas/eu/tutorials/validate-incoming-telemetry', target: '/docs/paas/eu/recipes/validate-incoming-telemetry/' },
+	{
+		oldPath: 'paas/eu/tutorials/validate-incoming-telemetry',
+		target: '/docs/paas/eu/recipes/validate-incoming-telemetry/',
+	},
 	{ oldPath: 'tutorials/send-email', target: '/docs/reference/rule-engine/nodes/external/send-email/' },
 	{ oldPath: 'pe/tutorials/send-email', target: '/docs/pe/reference/rule-engine/nodes/external/send-email/' },
 	{ oldPath: 'paas/tutorials/send-email', target: '/docs/paas/reference/rule-engine/nodes/external/send-email/' },
 	{ oldPath: 'paas/eu/tutorials/send-email', target: '/docs/paas/eu/reference/rule-engine/nodes/external/send-email/' },
 	{ oldPath: 'user-guide/install/cluster/docker-compose-setup', target: '/docs/installation/docker-compose-setup/' },
-	{ oldPath: 'user-guide/install/cluster/minikube-cluster-setup', target: '/docs/installation/minikube-cluster-setup/' },
-	{ oldPath: 'user-guide/install/cluster/openshift-cluster-setup', target: '/docs/installation/openshift-cluster-setup/' },
-	{ oldPath: 'user-guide/install/coap-transport-config', target: '/docs/reference/configuration/coap-transport-config/' },
+	{
+		oldPath: 'user-guide/install/cluster/minikube-cluster-setup',
+		target: '/docs/installation/minikube-cluster-setup/',
+	},
+	{
+		oldPath: 'user-guide/install/cluster/openshift-cluster-setup',
+		target: '/docs/installation/openshift-cluster-setup/',
+	},
+	{
+		oldPath: 'user-guide/install/coap-transport-config',
+		target: '/docs/reference/configuration/coap-transport-config/',
+	},
 	{ oldPath: 'user-guide/install/digital-ocean', target: '/docs/installation/digital-ocean/' },
 	{ oldPath: 'user-guide/install/gcp', target: '/docs/installation/gcp/' },
-	{ oldPath: 'user-guide/install/http-transport-config', target: '/docs/reference/configuration/http-transport-config/' },
-	{ oldPath: 'user-guide/install/lwm2m-transport-config', target: '/docs/reference/configuration/lwm2m-transport-config/' },
-	{ oldPath: 'user-guide/install/mqtt-transport-config', target: '/docs/reference/configuration/mqtt-transport-config/' },
-	{ oldPath: 'user-guide/install/snmp-transport-config', target: '/docs/reference/configuration/snmp-transport-config/' },
+	{
+		oldPath: 'user-guide/install/http-transport-config',
+		target: '/docs/reference/configuration/http-transport-config/',
+	},
+	{
+		oldPath: 'user-guide/install/lwm2m-transport-config',
+		target: '/docs/reference/configuration/lwm2m-transport-config/',
+	},
+	{
+		oldPath: 'user-guide/install/mqtt-transport-config',
+		target: '/docs/reference/configuration/mqtt-transport-config/',
+	},
+	{
+		oldPath: 'user-guide/install/snmp-transport-config',
+		target: '/docs/reference/configuration/snmp-transport-config/',
+	},
 	{ oldPath: 'user-guide/install/upgrade-instructions', target: '/docs/installation/upgrade-instructions/' },
 	{ oldPath: 'user-guide/install/vc-executor-config', target: '/docs/reference/configuration/vc-executor-config/' },
 	{ oldPath: 'user-guide/oauth-2-support', target: '/docs/user-guide/security/oauth-2-support/' },
@@ -714,7 +1072,10 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'user-guide/psm', target: '/docs/reference/coap-api/getting-connected/#power-saving-mode' },
 	{ oldPath: 'pe/user-guide/psm', target: '/docs/pe/reference/coap-api/getting-connected/#power-saving-mode' },
 	{ oldPath: 'paas/user-guide/psm', target: '/docs/paas/reference/coap-api/getting-connected/#power-saving-mode' },
-	{ oldPath: 'paas/eu/user-guide/psm', target: '/docs/paas/eu/reference/coap-api/getting-connected/#power-saving-mode' },
+	{
+		oldPath: 'paas/eu/user-guide/psm',
+		target: '/docs/paas/eu/reference/coap-api/getting-connected/#power-saving-mode',
+	},
 	{ oldPath: 'user-guide/queue', target: '/docs/reference/architecture/queue/' },
 	{ oldPath: 'pe/user-guide/queue', target: '/docs/pe/reference/architecture/queue/' },
 	{ oldPath: 'user-guide/rule-engine-2-0/architecture', target: '/docs/reference/architecture/' },
@@ -722,20 +1083,47 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'user-guide/rule-engine-2-5/queues', target: '/docs/user-guide/rule-engine/queues/' },
 	{ oldPath: 'pe/user-guide/rule-engine-2-5/queues', target: '/docs/pe/user-guide/rule-engine/queues/' },
 	{ oldPath: 'paas/user-guide/rule-engine-2-5/queues', target: '/docs/paas/user-guide/rule-engine/queues/' },
-	{ oldPath: 'user-guide/rule-engine-2-5/tutorials/queues-for-message-reprocessing', target: '/docs/user-guide/rule-engine/queues/#polling-settings' },
-	{ oldPath: 'pe/user-guide/rule-engine-2-5/tutorials/queues-for-message-reprocessing', target: '/docs/pe/user-guide/rule-engine/queues/#polling-settings' },
-	{ oldPath: 'paas/user-guide/rule-engine-2-5/tutorials/queues-for-message-reprocessing', target: '/docs/paas/user-guide/rule-engine/queues/#polling-settings' },
-	{ oldPath: 'paas/eu/user-guide/rule-engine-2-5/tutorials/queues-for-message-reprocessing', target: '/docs/paas/eu/user-guide/rule-engine/queues/#polling-settings' },
-	{ oldPath: 'user-guide/rule-engine-2-5/tutorials/queues-for-synchronization', target: '/docs/user-guide/rule-engine/queues/#submit-strategies' },
-	{ oldPath: 'pe/user-guide/rule-engine-2-5/tutorials/queues-for-synchronization', target: '/docs/pe/user-guide/rule-engine/queues/#submit-strategies' },
-	{ oldPath: 'paas/user-guide/rule-engine-2-5/tutorials/queues-for-synchronization', target: '/docs/paas/user-guide/rule-engine/queues/#submit-strategies' },
-	{ oldPath: 'paas/eu/user-guide/rule-engine-2-5/tutorials/queues-for-synchronization', target: '/docs/paas/eu/user-guide/rule-engine/queues/#submit-strategies' },
+	{
+		oldPath: 'user-guide/rule-engine-2-5/tutorials/queues-for-message-reprocessing',
+		target: '/docs/user-guide/rule-engine/queues/#polling-settings',
+	},
+	{
+		oldPath: 'pe/user-guide/rule-engine-2-5/tutorials/queues-for-message-reprocessing',
+		target: '/docs/pe/user-guide/rule-engine/queues/#polling-settings',
+	},
+	{
+		oldPath: 'paas/user-guide/rule-engine-2-5/tutorials/queues-for-message-reprocessing',
+		target: '/docs/paas/user-guide/rule-engine/queues/#polling-settings',
+	},
+	{
+		oldPath: 'paas/eu/user-guide/rule-engine-2-5/tutorials/queues-for-message-reprocessing',
+		target: '/docs/paas/eu/user-guide/rule-engine/queues/#polling-settings',
+	},
+	{
+		oldPath: 'user-guide/rule-engine-2-5/tutorials/queues-for-synchronization',
+		target: '/docs/user-guide/rule-engine/queues/#submit-strategies',
+	},
+	{
+		oldPath: 'pe/user-guide/rule-engine-2-5/tutorials/queues-for-synchronization',
+		target: '/docs/pe/user-guide/rule-engine/queues/#submit-strategies',
+	},
+	{
+		oldPath: 'paas/user-guide/rule-engine-2-5/tutorials/queues-for-synchronization',
+		target: '/docs/paas/user-guide/rule-engine/queues/#submit-strategies',
+	},
+	{
+		oldPath: 'paas/eu/user-guide/rule-engine-2-5/tutorials/queues-for-synchronization',
+		target: '/docs/paas/eu/user-guide/rule-engine/queues/#submit-strategies',
+	},
 	{ oldPath: 'user-guide/self-registration', target: '/docs/user-guide/security/self-registration/' },
 	{ oldPath: 'pe/user-guide/self-registration', target: '/docs/pe/user-guide/security/self-registration/' },
 	{ oldPath: 'paas/user-guide/self-registration', target: '/docs/paas/user-guide/security/self-registration/' },
 	{ oldPath: 'paas/eu/user-guide/self-registration', target: '/docs/paas/eu/user-guide/security/self-registration/' },
 	{ oldPath: 'user-guide/ssl/http-over-ssl', target: '/docs/reference/http-api/getting-connected/#https-tls' },
-	{ oldPath: 'pe/user-guide/ssl/coap-over-ssl', target: '/docs/pe/reference/coap-api/getting-connected/#coap-over-dtls--server-configuration' },
+	{
+		oldPath: 'pe/user-guide/ssl/coap-over-ssl',
+		target: '/docs/pe/reference/coap-api/getting-connected/#coap-over-dtls--server-configuration',
+	},
 	{ oldPath: 'pe/user-guide/ssl/http-over-ssl', target: '/docs/pe/reference/http-api/getting-connected/#https-tls' },
 	{ oldPath: 'user-guide/templatization', target: '/docs/reference/rule-engine/templatization/' },
 	{ oldPath: 'pe/user-guide/templatization', target: '/docs/pe/reference/rule-engine/templatization/' },
@@ -744,9 +1132,18 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'user-guide/troubleshooting', target: '/docs/troubleshooting/' },
 	{ oldPath: 'pe/user-guide/troubleshooting', target: '/docs/pe/troubleshooting/' },
 	{ oldPath: 'user-guide/two-factor-authentication', target: '/docs/user-guide/security/two-factor-authentication/' },
-	{ oldPath: 'pe/user-guide/two-factor-authentication', target: '/docs/pe/user-guide/security/two-factor-authentication/' },
-	{ oldPath: 'paas/user-guide/two-factor-authentication', target: '/docs/paas/user-guide/security/two-factor-authentication/' },
-	{ oldPath: 'paas/eu/user-guide/two-factor-authentication', target: '/docs/paas/eu/user-guide/security/two-factor-authentication/' },
+	{
+		oldPath: 'pe/user-guide/two-factor-authentication',
+		target: '/docs/pe/user-guide/security/two-factor-authentication/',
+	},
+	{
+		oldPath: 'paas/user-guide/two-factor-authentication',
+		target: '/docs/paas/user-guide/security/two-factor-authentication/',
+	},
+	{
+		oldPath: 'paas/eu/user-guide/two-factor-authentication',
+		target: '/docs/paas/eu/user-guide/security/two-factor-authentication/',
+	},
 	{ oldPath: 'user-guide/ui/aliases', target: '/docs/user-guide/aliases/' },
 	{ oldPath: 'pe/user-guide/ui/aliases', target: '/docs/pe/user-guide/aliases/' },
 	{ oldPath: 'paas/user-guide/ui/aliases', target: '/docs/paas/user-guide/aliases/' },
@@ -769,8 +1166,14 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'paas/eu/user-guide/ui/chart-widget', target: '/docs/paas/eu/reference/widgets/widget-library/charts/' },
 	{ oldPath: 'reference/widgets/charts/chart-widgets', target: '/docs/reference/widgets/widget-library/charts/' },
 	{ oldPath: 'pe/reference/widgets/charts/chart-widgets', target: '/docs/pe/reference/widgets/widget-library/charts/' },
-	{ oldPath: 'paas/reference/widgets/charts/chart-widgets', target: '/docs/paas/reference/widgets/widget-library/charts/' },
-	{ oldPath: 'paas/eu/reference/widgets/charts/chart-widgets', target: '/docs/paas/eu/reference/widgets/widget-library/charts/' },
+	{
+		oldPath: 'paas/reference/widgets/charts/chart-widgets',
+		target: '/docs/paas/reference/widgets/widget-library/charts/',
+	},
+	{
+		oldPath: 'paas/eu/reference/widgets/charts/chart-widgets',
+		target: '/docs/paas/eu/reference/widgets/widget-library/charts/',
+	},
 	{ oldPath: 'user-guide/ui/customers', target: '/docs/user-guide/customers/' },
 	{ oldPath: 'pe/user-guide/ui/customers', target: '/docs/pe/user-guide/customers/' },
 	{ oldPath: 'paas/user-guide/ui/customers', target: '/docs/paas/user-guide/customers/' },
@@ -786,7 +1189,10 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'user-guide/ui/entity-table-widget', target: '/docs/reference/widgets/tables/entities-table/' },
 	{ oldPath: 'pe/user-guide/ui/entity-table-widget', target: '/docs/pe/reference/widgets/tables/entities-table/' },
 	{ oldPath: 'paas/user-guide/ui/entity-table-widget', target: '/docs/paas/reference/widgets/tables/entities-table/' },
-	{ oldPath: 'paas/eu/user-guide/ui/entity-table-widget', target: '/docs/paas/eu/reference/widgets/tables/entities-table/' },
+	{
+		oldPath: 'paas/eu/user-guide/ui/entity-table-widget',
+		target: '/docs/paas/eu/reference/widgets/tables/entities-table/',
+	},
 	{ oldPath: 'user-guide/ui/entity-views', target: '/docs/user-guide/entity-views/' },
 	{ oldPath: 'pe/user-guide/ui/entity-views', target: '/docs/pe/user-guide/entity-views/' },
 	{ oldPath: 'user-guide/ui/roles', target: '/docs/user-guide/roles/' },
@@ -805,10 +1211,22 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'pe/user-guide/ui/widget-library', target: '/docs/pe/reference/widgets/widget-library/' },
 	{ oldPath: 'paas/user-guide/ui/widget-library', target: '/docs/paas/reference/widgets/widget-library/' },
 	{ oldPath: 'paas/eu/user-guide/ui/widget-library', target: '/docs/paas/eu/reference/widgets/widget-library/' },
-	{ oldPath: 'user-guide/widgets/cards/markdown-html-card', target: '/docs/reference/widgets/cards/markdown-html-card/' },
-	{ oldPath: 'pe/user-guide/widgets/cards/markdown-html-card', target: '/docs/pe/reference/widgets/cards/markdown-html-card/' },
-	{ oldPath: 'paas/user-guide/widgets/cards/markdown-html-card', target: '/docs/paas/reference/widgets/cards/markdown-html-card/' },
-	{ oldPath: 'paas/eu/user-guide/widgets/cards/markdown-html-card', target: '/docs/paas/eu/reference/widgets/cards/markdown-html-card/' },
+	{
+		oldPath: 'user-guide/widgets/cards/markdown-html-card',
+		target: '/docs/reference/widgets/cards/markdown-html-card/',
+	},
+	{
+		oldPath: 'pe/user-guide/widgets/cards/markdown-html-card',
+		target: '/docs/pe/reference/widgets/cards/markdown-html-card/',
+	},
+	{
+		oldPath: 'paas/user-guide/widgets/cards/markdown-html-card',
+		target: '/docs/paas/reference/widgets/cards/markdown-html-card/',
+	},
+	{
+		oldPath: 'paas/eu/user-guide/widgets/cards/markdown-html-card',
+		target: '/docs/paas/eu/reference/widgets/cards/markdown-html-card/',
+	},
 	{ oldPath: 'user-guide/widgets/map-widgets', target: '/docs/reference/widgets/maps/map/' },
 	{ oldPath: 'pe/user-guide/widgets/map-widgets', target: '/docs/pe/reference/widgets/maps/map/' },
 	{ oldPath: 'paas/user-guide/widgets/map-widgets', target: '/docs/paas/reference/widgets/maps/map/' },
@@ -818,7 +1236,7 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'paas/guides', target: '/docs/paas/user-guide/' },
 	{ oldPath: 'paas/eu/guides', target: '/docs/paas/eu/user-guide/' },
 	{ oldPath: 'user-guide/integrations/decode', target: '/docs/user-guide/integrations/' },
-  { oldPath: 'user-guide/integrations/remote-integrations', target: '/docs/user-guide/integrations/' },
+	{ oldPath: 'user-guide/integrations/remote-integrations', target: '/docs/user-guide/integrations/' },
 	{ oldPath: 'paas/user-guide/integrations/remote-integrations', target: '/docs/paas/user-guide/integrations/' },
 	{ oldPath: 'paas/eu/user-guide/integrations/remote-integrations', target: '/docs/paas/eu/user-guide/integrations/' },
 	{ oldPath: 'user-guide/integrations/send-data-external-mqtt-brokers', target: '/docs/user-guide/integrations/' },
@@ -833,27 +1251,63 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'user-guide/rule-engine-2-0/action-nodes', target: '/docs/reference/rule-engine/nodes/action/' },
 	{ oldPath: 'pe/user-guide/rule-engine-2-0/action-nodes', target: '/docs/pe/reference/rule-engine/nodes/action/' },
 	{ oldPath: 'paas/user-guide/rule-engine-2-0/action-nodes', target: '/docs/paas/reference/rule-engine/nodes/action/' },
-	{ oldPath: 'paas/eu/user-guide/rule-engine-2-0/action-nodes', target: '/docs/paas/eu/reference/rule-engine/nodes/action/' },
+	{
+		oldPath: 'paas/eu/user-guide/rule-engine-2-0/action-nodes',
+		target: '/docs/paas/eu/reference/rule-engine/nodes/action/',
+	},
 	{ oldPath: 'user-guide/rule-engine-2-0/enrichment-nodes', target: '/docs/reference/rule-engine/nodes/enrichment/' },
-	{ oldPath: 'pe/user-guide/rule-engine-2-0/enrichment-nodes', target: '/docs/pe/reference/rule-engine/nodes/enrichment/' },
-	{ oldPath: 'paas/user-guide/rule-engine-2-0/enrichment-nodes', target: '/docs/paas/reference/rule-engine/nodes/enrichment/' },
-	{ oldPath: 'paas/eu/user-guide/rule-engine-2-0/enrichment-nodes', target: '/docs/paas/eu/reference/rule-engine/nodes/enrichment/' },
+	{
+		oldPath: 'pe/user-guide/rule-engine-2-0/enrichment-nodes',
+		target: '/docs/pe/reference/rule-engine/nodes/enrichment/',
+	},
+	{
+		oldPath: 'paas/user-guide/rule-engine-2-0/enrichment-nodes',
+		target: '/docs/paas/reference/rule-engine/nodes/enrichment/',
+	},
+	{
+		oldPath: 'paas/eu/user-guide/rule-engine-2-0/enrichment-nodes',
+		target: '/docs/paas/eu/reference/rule-engine/nodes/enrichment/',
+	},
 	{ oldPath: 'user-guide/rule-engine-2-0/external-nodes', target: '/docs/reference/rule-engine/nodes/external/' },
 	{ oldPath: 'pe/user-guide/rule-engine-2-0/external-nodes', target: '/docs/pe/reference/rule-engine/nodes/external/' },
-	{ oldPath: 'paas/user-guide/rule-engine-2-0/external-nodes', target: '/docs/paas/reference/rule-engine/nodes/external/' },
-	{ oldPath: 'paas/eu/user-guide/rule-engine-2-0/external-nodes', target: '/docs/paas/eu/reference/rule-engine/nodes/external/' },
+	{
+		oldPath: 'paas/user-guide/rule-engine-2-0/external-nodes',
+		target: '/docs/paas/reference/rule-engine/nodes/external/',
+	},
+	{
+		oldPath: 'paas/eu/user-guide/rule-engine-2-0/external-nodes',
+		target: '/docs/paas/eu/reference/rule-engine/nodes/external/',
+	},
 	{ oldPath: 'user-guide/rule-engine-2-0/filter-nodes', target: '/docs/reference/rule-engine/nodes/filter/' },
 	{ oldPath: 'pe/user-guide/rule-engine-2-0/filter-nodes', target: '/docs/pe/reference/rule-engine/nodes/filter/' },
 	{ oldPath: 'paas/user-guide/rule-engine-2-0/filter-nodes', target: '/docs/paas/reference/rule-engine/nodes/filter/' },
-	{ oldPath: 'paas/eu/user-guide/rule-engine-2-0/filter-nodes', target: '/docs/paas/eu/reference/rule-engine/nodes/filter/' },
+	{
+		oldPath: 'paas/eu/user-guide/rule-engine-2-0/filter-nodes',
+		target: '/docs/paas/eu/reference/rule-engine/nodes/filter/',
+	},
 	{ oldPath: 'user-guide/rule-engine-2-0/flow-nodes', target: '/docs/reference/rule-engine/nodes/flow/' },
 	{ oldPath: 'pe/user-guide/rule-engine-2-0/flow-nodes', target: '/docs/pe/reference/rule-engine/nodes/flow/' },
 	{ oldPath: 'paas/user-guide/rule-engine-2-0/flow-nodes', target: '/docs/paas/reference/rule-engine/nodes/flow/' },
-	{ oldPath: 'paas/eu/user-guide/rule-engine-2-0/flow-nodes', target: '/docs/paas/eu/reference/rule-engine/nodes/flow/' },
-	{ oldPath: 'user-guide/rule-engine-2-0/transformation-nodes', target: '/docs/reference/rule-engine/nodes/transformation/' },
-	{ oldPath: 'pe/user-guide/rule-engine-2-0/transformation-nodes', target: '/docs/pe/reference/rule-engine/nodes/transformation/' },
-	{ oldPath: 'paas/user-guide/rule-engine-2-0/transformation-nodes', target: '/docs/paas/reference/rule-engine/nodes/transformation/' },
-	{ oldPath: 'paas/eu/user-guide/rule-engine-2-0/transformation-nodes', target: '/docs/paas/eu/reference/rule-engine/nodes/transformation/' },
+	{
+		oldPath: 'paas/eu/user-guide/rule-engine-2-0/flow-nodes',
+		target: '/docs/paas/eu/reference/rule-engine/nodes/flow/',
+	},
+	{
+		oldPath: 'user-guide/rule-engine-2-0/transformation-nodes',
+		target: '/docs/reference/rule-engine/nodes/transformation/',
+	},
+	{
+		oldPath: 'pe/user-guide/rule-engine-2-0/transformation-nodes',
+		target: '/docs/pe/reference/rule-engine/nodes/transformation/',
+	},
+	{
+		oldPath: 'paas/user-guide/rule-engine-2-0/transformation-nodes',
+		target: '/docs/paas/reference/rule-engine/nodes/transformation/',
+	},
+	{
+		oldPath: 'paas/eu/user-guide/rule-engine-2-0/transformation-nodes',
+		target: '/docs/paas/eu/reference/rule-engine/nodes/transformation/',
+	},
 	{ oldPath: 'user-guide/rule-engine-2-0/nodes', target: '/docs/user-guide/rule-nodes/' },
 	{ oldPath: 'pe/user-guide/rule-engine-2-0/nodes', target: '/docs/pe/user-guide/rule-nodes/' },
 	{ oldPath: 'paas/user-guide/rule-engine-2-0/nodes', target: '/docs/paas/user-guide/rule-nodes/' },
@@ -921,7 +1375,10 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'pe/user-guide/device-provisioning', target: '/docs/pe/user-guide/provisioning/' },
 	{ oldPath: 'pe/user-guide/bulk-provisioning', target: '/docs/pe/user-guide/provisioning/#bulk-provisioning' },
 	{ oldPath: 'paas/user-guide/bulk-provisioning', target: '/docs/paas/user-guide/provisioning/#bulk-provisioning' },
-	{ oldPath: 'paas/eu/user-guide/bulk-provisioning', target: '/docs/paas/eu/user-guide/provisioning/#bulk-provisioning' },
+	{
+		oldPath: 'paas/eu/user-guide/bulk-provisioning',
+		target: '/docs/paas/eu/user-guide/provisioning/#bulk-provisioning',
+	},
 	{ oldPath: 'paas/user-guide/device-provisioning', target: '/docs/paas/user-guide/provisioning/' },
 	{ oldPath: 'paas/eu/user-guide/device-provisioning', target: '/docs/paas/eu/user-guide/provisioning/' },
 	{ oldPath: 'user-guide/rpc', target: '/docs/user-guide/command-and-control/' },
@@ -935,15 +1392,27 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'user-guide/basic-mqtt', target: '/docs/reference/mqtt-api/getting-connected/#mqtt-basic' },
 	{ oldPath: 'pe/user-guide/basic-mqtt', target: '/docs/pe/reference/mqtt-api/getting-connected/#mqtt-basic' },
 	{ oldPath: 'paas/user-guide/basic-mqtt', target: '/docs/paas/reference/mqtt-api/getting-connected/#mqtt-basic' },
-	{ oldPath: 'paas/eu/user-guide/basic-mqtt', target: '/docs/paas/eu/reference/mqtt-api/getting-connected/#mqtt-basic' },
+	{
+		oldPath: 'paas/eu/user-guide/basic-mqtt',
+		target: '/docs/paas/eu/reference/mqtt-api/getting-connected/#mqtt-basic',
+	},
 	{ oldPath: 'user-guide/access-token', target: '/docs/reference/mqtt-api/getting-connected/#access-token' },
 	{ oldPath: 'pe/user-guide/access-token', target: '/docs/pe/reference/mqtt-api/getting-connected/#access-token' },
 	{ oldPath: 'paas/user-guide/access-token', target: '/docs/paas/reference/mqtt-api/getting-connected/#access-token' },
-	{ oldPath: 'paas/eu/user-guide/access-token', target: '/docs/paas/eu/reference/mqtt-api/getting-connected/#access-token' },
+	{
+		oldPath: 'paas/eu/user-guide/access-token',
+		target: '/docs/paas/eu/reference/mqtt-api/getting-connected/#access-token',
+	},
 	{ oldPath: 'user-guide/certificates', target: '/docs/reference/mqtt-api/getting-connected/#x509-certificate' },
 	{ oldPath: 'pe/user-guide/certificates', target: '/docs/pe/reference/mqtt-api/getting-connected/#x509-certificate' },
-	{ oldPath: 'paas/user-guide/certificates', target: '/docs/paas/reference/mqtt-api/getting-connected/#x509-certificate' },
-	{ oldPath: 'paas/eu/user-guide/certificates', target: '/docs/paas/eu/reference/mqtt-api/getting-connected/#x509-certificate' },
+	{
+		oldPath: 'paas/user-guide/certificates',
+		target: '/docs/paas/reference/mqtt-api/getting-connected/#x509-certificate',
+	},
+	{
+		oldPath: 'paas/eu/user-guide/certificates',
+		target: '/docs/paas/eu/reference/mqtt-api/getting-connected/#x509-certificate',
+	},
 	{ oldPath: 'user-guide/claiming-devices', target: '/docs/user-guide/claiming/' },
 	{ oldPath: 'pe/user-guide/claiming-devices', target: '/docs/pe/user-guide/claiming/' },
 	{ oldPath: 'paas/user-guide/claiming-devices', target: '/docs/paas/user-guide/claiming/' },
@@ -957,28 +1426,61 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'reference/performance-tests', target: '/docs/reference/architecture/performance/' },
 	{ oldPath: 'reference/performance-tools', target: '/docs/reference/architecture/performance/' },
 	{ oldPath: 'reference/performance/tools/java-jmx-monitoring', target: '/docs/reference/architecture/performance/' },
-	{ oldPath: 'reference/performance/tools/postgres-pgadmin-monitoring', target: '/docs/reference/architecture/performance/' },
-	{ oldPath: 'reference/performance/tools/thingsboard-performance-charts', target: '/docs/reference/architecture/performance/' },
+	{
+		oldPath: 'reference/performance/tools/postgres-pgadmin-monitoring',
+		target: '/docs/reference/architecture/performance/',
+	},
+	{
+		oldPath: 'reference/performance/tools/thingsboard-performance-charts',
+		target: '/docs/reference/architecture/performance/',
+	},
 	{ oldPath: 'reference/actions/kafka-plugin-action', target: '/docs/reference/rule-engine/nodes/external/kafka/' },
-	{ oldPath: 'reference/actions/rabbitmq-plugin-action', target: '/docs/reference/rule-engine/nodes/external/rabbitmq/' },
-	{ oldPath: 'reference/actions/rest-api-call-plugin-action', target: '/docs/reference/rule-engine/nodes/external/rest-api-call/' },
-	{ oldPath: 'reference/actions/rpc-plugin-action', target: '/docs/reference/rule-engine/nodes/action/rpc-call-request/' },
+	{
+		oldPath: 'reference/actions/rabbitmq-plugin-action',
+		target: '/docs/reference/rule-engine/nodes/external/rabbitmq/',
+	},
+	{
+		oldPath: 'reference/actions/rest-api-call-plugin-action',
+		target: '/docs/reference/rule-engine/nodes/external/rest-api-call/',
+	},
+	{
+		oldPath: 'reference/actions/rpc-plugin-action',
+		target: '/docs/reference/rule-engine/nodes/action/rpc-call-request/',
+	},
 	{ oldPath: 'reference/actions/send-mail-action', target: '/docs/reference/rule-engine/nodes/external/send-email/' },
-	{ oldPath: 'reference/actions/telemetry-plugin-action', target: '/docs/reference/rule-engine/nodes/action/save-timeseries/' },
-	{ oldPath: 'reference/filters/device-attributes-filter', target: '/docs/reference/rule-engine/nodes/filter/check-fields-presence/' },
+	{
+		oldPath: 'reference/actions/telemetry-plugin-action',
+		target: '/docs/reference/rule-engine/nodes/action/save-timeseries/',
+	},
+	{
+		oldPath: 'reference/filters/device-attributes-filter',
+		target: '/docs/reference/rule-engine/nodes/filter/check-fields-presence/',
+	},
 	{ oldPath: 'reference/filters/device-telemetry-filter', target: '/docs/reference/rule-engine/nodes/filter/script/' },
-	{ oldPath: 'reference/filters/method-name-filter', target: '/docs/reference/rule-engine/nodes/filter/message-type-filter/' },
+	{
+		oldPath: 'reference/filters/method-name-filter',
+		target: '/docs/reference/rule-engine/nodes/filter/message-type-filter/',
+	},
 	{ oldPath: 'reference/gateway-mqtt-api', target: '/docs/reference/gateway-api/overview/' },
 	{ oldPath: 'pe/reference/gateway-mqtt-api', target: '/docs/pe/reference/gateway-api/overview/' },
 	{ oldPath: 'paas/reference/gateway-mqtt-api', target: '/docs/paas/reference/gateway-api/overview/' },
 	{ oldPath: 'paas/eu/reference/gateway-mqtt-api', target: '/docs/paas/eu/reference/gateway-api/overview/' },
-	{ oldPath: 'reference/iot-platform-deployment-scenarios', target: '/docs/reference/architecture/deployment-scenarios/' },
-	{ oldPath: 'pe/reference/iot-platform-deployment-scenarios', target: '/docs/pe/reference/architecture/deployment-scenarios/' },
+	{
+		oldPath: 'reference/iot-platform-deployment-scenarios',
+		target: '/docs/reference/architecture/deployment-scenarios/',
+	},
+	{
+		oldPath: 'pe/reference/iot-platform-deployment-scenarios',
+		target: '/docs/pe/reference/architecture/deployment-scenarios/',
+	},
 	{ oldPath: 'reference/mqtt-sparkplug-api', target: '/docs/reference/sparkplug-api/' },
 	{ oldPath: 'pe/reference/mqtt-sparkplug-api', target: '/docs/pe/reference/sparkplug-api/' },
 	{ oldPath: 'paas/reference/mqtt-sparkplug-api', target: '/docs/paas/reference/sparkplug-api/' },
 	{ oldPath: 'paas/eu/reference/mqtt-sparkplug-api', target: '/docs/paas/eu/reference/sparkplug-api/' },
-	{ oldPath: 'reference/processors/alarm-deduplication-processor', target: '/docs/reference/rule-engine/nodes/transformation/deduplication/' },
+	{
+		oldPath: 'reference/processors/alarm-deduplication-processor',
+		target: '/docs/reference/rule-engine/nodes/transformation/deduplication/',
+	},
 	{ oldPath: 'reference/protocols', target: '/docs/user-guide/connectivity-guide/' },
 	{ oldPath: 'pe/reference/protocols', target: '/docs/pe/user-guide/connectivity-guide/' },
 	{ oldPath: 'paas/reference/protocols', target: '/docs/paas/user-guide/connectivity-guide/' },
@@ -996,7 +1498,10 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'user-guide/install/cluster/aws-monolith-setup', target: '/docs/installation/aws-monolith/' },
 	{ oldPath: 'user-guide/install/cluster/aws-self-hosted-setup', target: '/docs/installation/aws-ec2/' },
 	{ oldPath: 'user-guide/install/cluster/azure-aks-setup', target: '/docs/installation/azure-microservices/' },
-	{ oldPath: 'user-guide/install/cluster/azure-microservices-setup', target: '/docs/installation/azure-microservices/' },
+	{
+		oldPath: 'user-guide/install/cluster/azure-microservices-setup',
+		target: '/docs/installation/azure-microservices/',
+	},
 	{ oldPath: 'user-guide/install/cluster/azure-monolith-setup', target: '/docs/installation/azure-monolith/' },
 	{ oldPath: 'user-guide/install/cluster/gcp-gke-setup', target: '/docs/installation/gcp-microservices/' },
 	{ oldPath: 'user-guide/install/cluster/gcp-microservices-setup', target: '/docs/installation/gcp-microservices/' },
@@ -1006,7 +1511,10 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'user-guide/install/kubernetes', target: '/docs/installation/' },
 	{ oldPath: 'user-guide/install/linux', target: '/docs/installation/' },
 	{ oldPath: 'user-guide/install/old-upgrade-instructions', target: '/docs/installation/upgrade-instructions/' },
-	{ oldPath: 'user-guide/install/upgrade-instructions/old-upgrade-instructions', target: '/docs/installation/upgrade-instructions/' },
+	{
+		oldPath: 'user-guide/install/upgrade-instructions/old-upgrade-instructions',
+		target: '/docs/installation/upgrade-instructions/',
+	},
 	{ oldPath: 'user-guide/install/windows', target: '/docs/installation/docker-windows/' },
 	{ oldPath: 'user-guide/install/pe/add-haproxy-rhel', target: '/docs/pe/installation/' },
 	{ oldPath: 'user-guide/install/pe/add-haproxy-ubuntu', target: '/docs/pe/installation/' },
@@ -1016,54 +1524,138 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'user-guide/install/pe/azure', target: '/docs/pe/installation/azure/' },
 	{ oldPath: 'user-guide/install/pe/cassandra-cloud-astra-db', target: '/docs/pe/installation/' },
 	{ oldPath: 'user-guide/install/pe/cluster/aws-eks-setup', target: '/docs/pe/installation/aws-microservices/' },
-	{ oldPath: 'user-guide/install/pe/cluster/aws-microservices-setup', target: '/docs/pe/installation/aws-microservices/' },
+	{
+		oldPath: 'user-guide/install/pe/cluster/aws-microservices-setup',
+		target: '/docs/pe/installation/aws-microservices/',
+	},
 	{ oldPath: 'user-guide/install/pe/cluster/aws-monolith-setup', target: '/docs/pe/installation/aws-monolith/' },
 	{ oldPath: 'user-guide/install/pe/cluster/azure-aks-setup', target: '/docs/pe/installation/azure-microservices/' },
-	{ oldPath: 'user-guide/install/pe/cluster/azure-from-markeplace', target: '/docs/pe/installation/azure-marketplace/' },
-	{ oldPath: 'user-guide/install/pe/cluster/azure-microservices-setup', target: '/docs/pe/installation/azure-microservices/' },
+	{
+		oldPath: 'user-guide/install/pe/cluster/azure-from-markeplace',
+		target: '/docs/pe/installation/azure-marketplace/',
+	},
+	{
+		oldPath: 'user-guide/install/pe/cluster/azure-microservices-setup',
+		target: '/docs/pe/installation/azure-microservices/',
+	},
 	{ oldPath: 'user-guide/install/pe/cluster/azure-monolith-setup', target: '/docs/pe/installation/azure-monolith/' },
-	{ oldPath: 'user-guide/install/pe/cluster/docker-compose-setup', target: '/docs/pe/installation/docker-compose-setup/' },
+	{
+		oldPath: 'user-guide/install/pe/cluster/docker-compose-setup',
+		target: '/docs/pe/installation/docker-compose-setup/',
+	},
 	{ oldPath: 'user-guide/install/pe/cluster/gcp-gke-setup', target: '/docs/pe/installation/gcp-microservices/' },
-	{ oldPath: 'user-guide/install/pe/cluster/gcp-microservices-setup', target: '/docs/pe/installation/gcp-microservices/' },
+	{
+		oldPath: 'user-guide/install/pe/cluster/gcp-microservices-setup',
+		target: '/docs/pe/installation/gcp-microservices/',
+	},
 	{ oldPath: 'user-guide/install/pe/cluster/gcp-monolith-setup', target: '/docs/pe/installation/gcp-monolith/' },
-	{ oldPath: 'user-guide/install/pe/cluster/minikube-cluster-setup', target: '/docs/pe/installation/minikube-cluster-setup/' },
-	{ oldPath: 'user-guide/install/pe/coap-transport-config', target: '/docs/pe/reference/configuration/coap-transport-config/' },
+	{
+		oldPath: 'user-guide/install/pe/cluster/minikube-cluster-setup',
+		target: '/docs/pe/installation/minikube-cluster-setup/',
+	},
+	{
+		oldPath: 'user-guide/install/pe/coap-transport-config',
+		target: '/docs/pe/reference/configuration/coap-transport-config/',
+	},
 	{ oldPath: 'user-guide/install/pe/digital-ocean', target: '/docs/pe/installation/digital-ocean/' },
 	{ oldPath: 'user-guide/install/pe/docker-cassandra', target: '/docs/pe/installation/docker/' },
 	{ oldPath: 'user-guide/install/pe/gcp-marketplace', target: '/docs/pe/installation/gcp-marketplace/' },
 	{ oldPath: 'user-guide/install/pe/gcp', target: '/docs/pe/installation/gcp/' },
 	{ oldPath: 'user-guide/install/pe/gcp2', target: '/docs/pe/installation/gcp-vm/' },
-	{ oldPath: 'user-guide/install/pe/how-to-change-config', target: '/docs/pe/reference/configuration/how-to-change-config/' },
-	{ oldPath: 'user-guide/install/pe/http-transport-config', target: '/docs/pe/reference/configuration/http-transport-config/' },
+	{
+		oldPath: 'user-guide/install/pe/how-to-change-config',
+		target: '/docs/pe/reference/configuration/how-to-change-config/',
+	},
+	{
+		oldPath: 'user-guide/install/pe/http-transport-config',
+		target: '/docs/pe/reference/configuration/http-transport-config/',
+	},
 	{ oldPath: 'user-guide/install/pe/ibm-cloud', target: '/docs/pe/installation/' },
-	{ oldPath: 'user-guide/install/pe/ie-executor-config', target: '/docs/pe/reference/configuration/ie-executor-config/' },
-	{ oldPath: 'user-guide/install/pe/lwm2m-transport-config', target: '/docs/pe/reference/configuration/lwm2m-transport-config/' },
-	{ oldPath: 'user-guide/install/pe/mqtt-transport-config', target: '/docs/pe/reference/configuration/mqtt-transport-config/' },
+	{
+		oldPath: 'user-guide/install/pe/ie-executor-config',
+		target: '/docs/pe/reference/configuration/ie-executor-config/',
+	},
+	{
+		oldPath: 'user-guide/install/pe/lwm2m-transport-config',
+		target: '/docs/pe/reference/configuration/lwm2m-transport-config/',
+	},
+	{
+		oldPath: 'user-guide/install/pe/mqtt-transport-config',
+		target: '/docs/pe/reference/configuration/mqtt-transport-config/',
+	},
 	{ oldPath: 'user-guide/install/pe/msa', target: '/docs/pe/installation/' },
-	{ oldPath: 'user-guide/install/pe/old-docker-migrate', target: '/docs/pe/installation/upgrade-instructions/docker-legacy-image-migration/' },
-	{ oldPath: 'user-guide/install/pe/old-docker-migrate-windows', target: '/docs/pe/installation/upgrade-instructions/docker-legacy-image-migration/' },
+	{
+		oldPath: 'user-guide/install/pe/old-docker-migrate',
+		target: '/docs/pe/installation/upgrade-instructions/docker-legacy-image-migration/',
+	},
+	{
+		oldPath: 'user-guide/install/pe/old-docker-migrate-windows',
+		target: '/docs/pe/installation/upgrade-instructions/docker-legacy-image-migration/',
+	},
 	{ oldPath: 'user-guide/install/pe/old-upgrade-instructions', target: '/docs/pe/installation/upgrade-instructions/' },
-	{ oldPath: 'user-guide/install/pe/report-service-config', target: '/docs/pe/reference/configuration/report-service-config/' },
-	{ oldPath: 'user-guide/install/pe/snmp-transport-config', target: '/docs/pe/reference/configuration/snmp-transport-config/' },
+	{
+		oldPath: 'user-guide/install/pe/report-service-config',
+		target: '/docs/pe/reference/configuration/report-service-config/',
+	},
+	{
+		oldPath: 'user-guide/install/pe/snmp-transport-config',
+		target: '/docs/pe/reference/configuration/snmp-transport-config/',
+	},
 	{ oldPath: 'user-guide/install/pe/upgrade-instructions', target: '/docs/pe/installation/upgrade-instructions/' },
-	{ oldPath: 'user-guide/install/pe/vc-executor-config', target: '/docs/pe/reference/configuration/vc-executor-config/' },
+	{
+		oldPath: 'user-guide/install/pe/vc-executor-config',
+		target: '/docs/pe/reference/configuration/vc-executor-config/',
+	},
 	{ oldPath: 'user-guide/install/pe/windows', target: '/docs/pe/installation/docker-windows/' },
 	{ oldPath: 'user-guide/ssl/coap-access-token', target: '/docs/reference/coap-api/getting-connected/#access-token' },
-	{ oldPath: 'pe/user-guide/ssl/coap-access-token', target: '/docs/pe/reference/coap-api/getting-connected/#access-token' },
+	{
+		oldPath: 'pe/user-guide/ssl/coap-access-token',
+		target: '/docs/pe/reference/coap-api/getting-connected/#access-token',
+	},
 	{ oldPath: 'paas/user-guide/ssl/coap-access-token', target: '/docs/paas/reference/coap-api/getting-connected/' },
-	{ oldPath: 'paas/eu/user-guide/ssl/coap-access-token', target: '/docs/paas/eu/reference/coap-api/getting-connected/' },
-	{ oldPath: 'user-guide/ssl/coap-x509-certificates', target: '/docs/reference/coap-api/getting-connected/#x509-certificate' },
-	{ oldPath: 'pe/user-guide/ssl/coap-x509-certificates', target: '/docs/pe/reference/coap-api/getting-connected/#x509-certificate' },
+	{
+		oldPath: 'paas/eu/user-guide/ssl/coap-access-token',
+		target: '/docs/paas/eu/reference/coap-api/getting-connected/',
+	},
+	{
+		oldPath: 'user-guide/ssl/coap-x509-certificates',
+		target: '/docs/reference/coap-api/getting-connected/#x509-certificate',
+	},
+	{
+		oldPath: 'pe/user-guide/ssl/coap-x509-certificates',
+		target: '/docs/pe/reference/coap-api/getting-connected/#x509-certificate',
+	},
 	{ oldPath: 'paas/user-guide/ssl/coap-x509-certificates', target: '/docs/paas/reference/coap-api/getting-connected/' },
-	{ oldPath: 'paas/eu/user-guide/ssl/coap-x509-certificates', target: '/docs/paas/eu/reference/coap-api/getting-connected/' },
+	{
+		oldPath: 'paas/eu/user-guide/ssl/coap-x509-certificates',
+		target: '/docs/paas/eu/reference/coap-api/getting-connected/',
+	},
 	{ oldPath: 'user-guide/ssl/http-access-token', target: '/docs/reference/http-api/getting-connected/#authentication' },
-	{ oldPath: 'pe/user-guide/ssl/http-access-token', target: '/docs/pe/reference/http-api/getting-connected/#authentication' },
+	{
+		oldPath: 'pe/user-guide/ssl/http-access-token',
+		target: '/docs/pe/reference/http-api/getting-connected/#authentication',
+	},
 	{ oldPath: 'paas/user-guide/ssl/http-access-token', target: '/docs/paas/reference/http-api/getting-connected/' },
-	{ oldPath: 'paas/eu/user-guide/ssl/http-access-token', target: '/docs/paas/eu/reference/http-api/getting-connected/' },
-	{ oldPath: 'user-guide/ssl/http-transport-over-ssl', target: '/docs/reference/http-api/getting-connected/#https-tls' },
-	{ oldPath: 'pe/user-guide/ssl/http-transport-over-ssl', target: '/docs/pe/reference/http-api/getting-connected/#https-tls' },
-	{ oldPath: 'user-guide/ssl/lwm2m-over-dtls', target: '/docs/reference/lwm2m-api/getting-started/#lwm2m-over-dtls--server-configuration' },
-	{ oldPath: 'pe/user-guide/ssl/lwm2m-over-dtls', target: '/docs/pe/reference/lwm2m-api/getting-started/#dtls-server-configuration' },
+	{
+		oldPath: 'paas/eu/user-guide/ssl/http-access-token',
+		target: '/docs/paas/eu/reference/http-api/getting-connected/',
+	},
+	{
+		oldPath: 'user-guide/ssl/http-transport-over-ssl',
+		target: '/docs/reference/http-api/getting-connected/#https-tls',
+	},
+	{
+		oldPath: 'pe/user-guide/ssl/http-transport-over-ssl',
+		target: '/docs/pe/reference/http-api/getting-connected/#https-tls',
+	},
+	{
+		oldPath: 'user-guide/ssl/lwm2m-over-dtls',
+		target: '/docs/reference/lwm2m-api/getting-started/#lwm2m-over-dtls--server-configuration',
+	},
+	{
+		oldPath: 'pe/user-guide/ssl/lwm2m-over-dtls',
+		target: '/docs/pe/reference/lwm2m-api/getting-started/#dtls-server-configuration',
+	},
 	{ oldPath: 'paas/user-guide/tenant-profiles', target: '/docs/paas/user-guide/multi-tenancy/' },
 	{ oldPath: 'paas/eu/user-guide/tenant-profiles', target: '/docs/paas/eu/user-guide/multi-tenancy/' },
 	{ oldPath: 'user-guide/ui/dashboards', target: '/docs/user-guide/dashboards/' },
@@ -1079,7 +1671,10 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'user-guide/ui/mobile-qr-code', target: '/docs/user-guide/mobile-app-center/qr-code-widget/' },
 	{ oldPath: 'pe/user-guide/ui/mobile-qr-code', target: '/docs/pe/user-guide/mobile-app-center/qr-code-widget/' },
 	{ oldPath: 'paas/user-guide/ui/mobile-qr-code', target: '/docs/paas/user-guide/mobile-app-center/qr-code-widget/' },
-	{ oldPath: 'paas/eu/user-guide/ui/mobile-qr-code', target: '/docs/paas/eu/user-guide/mobile-app-center/qr-code-widget/' },
+	{
+		oldPath: 'paas/eu/user-guide/ui/mobile-qr-code',
+		target: '/docs/paas/eu/user-guide/mobile-app-center/qr-code-widget/',
+	},
 	{ oldPath: 'user-guide/ui/rule-chains', target: '/docs/user-guide/rule-engine/' },
 	{ oldPath: 'pe/user-guide/ui/rule-chains', target: '/docs/pe/user-guide/rule-engine/' },
 	{ oldPath: 'paas/user-guide/ui/rule-chains', target: '/docs/paas/user-guide/rule-engine/' },
@@ -1131,27 +1726,66 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'pe/user-guide/rbac', target: '/docs/pe/user-guide/roles/' },
 	{ oldPath: 'paas/user-guide/rbac', target: '/docs/paas/user-guide/roles/' },
 	{ oldPath: 'paas/eu/user-guide/rbac', target: '/docs/paas/eu/user-guide/roles/' },
-	{ oldPath: 'pe/user-guide/reporting/reporting-getting-started', target: '/docs/pe/user-guide/reporting/getting-started/' },
-	{ oldPath: 'paas/user-guide/reporting/reporting-getting-started', target: '/docs/paas/user-guide/reporting/getting-started/' },
-	{ oldPath: 'paas/eu/user-guide/reporting/reporting-getting-started', target: '/docs/paas/eu/user-guide/reporting/getting-started/' },
-	{ oldPath: 'pe/user-guide/reporting/reporting-key-concepts', target: '/docs/pe/user-guide/reporting/report-templates/' },
-	{ oldPath: 'paas/user-guide/reporting/reporting-key-concepts', target: '/docs/paas/user-guide/reporting/report-templates/' },
-	{ oldPath: 'paas/eu/user-guide/reporting/reporting-key-concepts', target: '/docs/paas/eu/user-guide/reporting/report-templates/' },
+	{
+		oldPath: 'pe/user-guide/reporting/reporting-getting-started',
+		target: '/docs/pe/user-guide/reporting/getting-started/',
+	},
+	{
+		oldPath: 'paas/user-guide/reporting/reporting-getting-started',
+		target: '/docs/paas/user-guide/reporting/getting-started/',
+	},
+	{
+		oldPath: 'paas/eu/user-guide/reporting/reporting-getting-started',
+		target: '/docs/paas/eu/user-guide/reporting/getting-started/',
+	},
+	{
+		oldPath: 'pe/user-guide/reporting/reporting-key-concepts',
+		target: '/docs/pe/user-guide/reporting/report-templates/',
+	},
+	{
+		oldPath: 'paas/user-guide/reporting/reporting-key-concepts',
+		target: '/docs/paas/user-guide/reporting/report-templates/',
+	},
+	{
+		oldPath: 'paas/eu/user-guide/reporting/reporting-key-concepts',
+		target: '/docs/paas/eu/user-guide/reporting/report-templates/',
+	},
 	{ oldPath: 'pe/user-guide/reporting/embedding-charts', target: '/docs/pe/user-guide/reporting/charts/' },
 	{ oldPath: 'paas/user-guide/reporting/embedding-charts', target: '/docs/paas/user-guide/reporting/charts/' },
 	{ oldPath: 'paas/eu/user-guide/reporting/embedding-charts', target: '/docs/paas/eu/user-guide/reporting/charts/' },
-	{ oldPath: 'pe/user-guide/reporting/embedding-dashboards-widgets', target: '/docs/pe/user-guide/reporting/dashboards/' },
-	{ oldPath: 'paas/user-guide/reporting/embedding-dashboards-widgets', target: '/docs/paas/user-guide/reporting/dashboards/' },
-	{ oldPath: 'paas/eu/user-guide/reporting/embedding-dashboards-widgets', target: '/docs/paas/eu/user-guide/reporting/dashboards/' },
+	{
+		oldPath: 'pe/user-guide/reporting/embedding-dashboards-widgets',
+		target: '/docs/pe/user-guide/reporting/dashboards/',
+	},
+	{
+		oldPath: 'paas/user-guide/reporting/embedding-dashboards-widgets',
+		target: '/docs/paas/user-guide/reporting/dashboards/',
+	},
+	{
+		oldPath: 'paas/eu/user-guide/reporting/embedding-dashboards-widgets',
+		target: '/docs/paas/eu/user-guide/reporting/dashboards/',
+	},
 	{ oldPath: 'pe/user-guide/reporting/scheduling-reports', target: '/docs/pe/user-guide/reporting/scheduling/' },
 	{ oldPath: 'paas/user-guide/reporting/scheduling-reports', target: '/docs/paas/user-guide/reporting/scheduling/' },
-	{ oldPath: 'paas/eu/user-guide/reporting/scheduling-reports', target: '/docs/paas/eu/user-guide/reporting/scheduling/' },
+	{
+		oldPath: 'paas/eu/user-guide/reporting/scheduling-reports',
+		target: '/docs/paas/eu/user-guide/reporting/scheduling/',
+	},
 	{ oldPath: 'pe/user-guide/reporting/subreport', target: '/docs/pe/user-guide/reporting/subreports/' },
 	{ oldPath: 'paas/user-guide/reporting/subreport', target: '/docs/paas/user-guide/reporting/subreports/' },
 	{ oldPath: 'paas/eu/user-guide/reporting/subreport', target: '/docs/paas/eu/user-guide/reporting/subreports/' },
-	{ oldPath: 'pe/user-guide/reporting/attaching-report-to-notification', target: '/docs/pe/user-guide/reporting/notifications/' },
-	{ oldPath: 'paas/user-guide/reporting/attaching-report-to-notification', target: '/docs/paas/user-guide/reporting/notifications/' },
-	{ oldPath: 'paas/eu/user-guide/reporting/attaching-report-to-notification', target: '/docs/paas/eu/user-guide/reporting/notifications/' },
+	{
+		oldPath: 'pe/user-guide/reporting/attaching-report-to-notification',
+		target: '/docs/pe/user-guide/reporting/notifications/',
+	},
+	{
+		oldPath: 'paas/user-guide/reporting/attaching-report-to-notification',
+		target: '/docs/paas/user-guide/reporting/notifications/',
+	},
+	{
+		oldPath: 'paas/eu/user-guide/reporting/attaching-report-to-notification',
+		target: '/docs/paas/eu/user-guide/reporting/notifications/',
+	},
 	{ oldPath: 'pe/user-guide/install/upgrade-instructions', target: '/docs/pe/installation/upgrade-instructions/' },
 	{ oldPath: 'user-guide/scada/scada-symbols-dev-guide', target: '/docs/user-guide/scada-symbol-dev/' },
 	{ oldPath: 'pe/user-guide/scada/scada-symbols-dev-guide', target: '/docs/pe/user-guide/scada-symbol-dev/' },
@@ -1161,7 +1795,10 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'user-guide/reporting/embedding-dashboards-widgets', target: '/docs/user-guide/reporting/dashboards/' },
 	{ oldPath: 'user-guide/reporting/scheduling-reports', target: '/docs/user-guide/reporting/scheduling/' },
 	{ oldPath: 'user-guide/reporting/subreport', target: '/docs/user-guide/reporting/subreports/' },
-	{ oldPath: 'user-guide/reporting/attaching-report-to-notification', target: '/docs/user-guide/reporting/notifications/' },
+	{
+		oldPath: 'user-guide/reporting/attaching-report-to-notification',
+		target: '/docs/user-guide/reporting/notifications/',
+	},
 	{ oldPath: 'paas/user-guide/scada/scada-symbols-dev-guide', target: '/docs/paas/user-guide/scada-symbol-dev/' },
 	{ oldPath: 'paas/eu/user-guide/scada/scada-symbols-dev-guide', target: '/docs/paas/eu/user-guide/scada-symbol-dev/' },
 	{ oldPath: 'pe/user-guide/ui/trendz-settings', target: '/docs/pe/user-guide/trendz-analytics/' },
@@ -1181,14 +1818,29 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'pe/samples/analytics/kafka-streams', target: '/docs/pe/user-guide/ai-models/' },
 	{ oldPath: 'paas/samples/analytics/kafka-streams', target: '/docs/paas/user-guide/ai-models/' },
 	{ oldPath: 'paas/eu/samples/analytics/kafka-streams', target: '/docs/paas/eu/user-guide/ai-models/' },
-	{ oldPath: 'user-guide/contribution/ui/custom-subscriptions', target: '/docs/user-guide/contribution/widgets-development/custom-subscription/' },
-	{ oldPath: 'pe/user-guide/contribution/ui/custom-subscriptions', target: '/docs/pe/user-guide/contribution/widgets-development/custom-subscription/' },
-	{ oldPath: 'paas/user-guide/contribution/ui/custom-subscriptions', target: '/docs/paas/user-guide/contribution/widgets-development/custom-subscription/' },
-	{ oldPath: 'paas/eu/user-guide/contribution/ui/custom-subscriptions', target: '/docs/paas/eu/user-guide/contribution/widgets-development/custom-subscription/' },
+	{
+		oldPath: 'user-guide/contribution/ui/custom-subscriptions',
+		target: '/docs/user-guide/contribution/widgets-development/custom-subscription/',
+	},
+	{
+		oldPath: 'pe/user-guide/contribution/ui/custom-subscriptions',
+		target: '/docs/pe/user-guide/contribution/widgets-development/custom-subscription/',
+	},
+	{
+		oldPath: 'paas/user-guide/contribution/ui/custom-subscriptions',
+		target: '/docs/paas/user-guide/contribution/widgets-development/custom-subscription/',
+	},
+	{
+		oldPath: 'paas/eu/user-guide/contribution/ui/custom-subscriptions',
+		target: '/docs/paas/eu/user-guide/contribution/widgets-development/custom-subscription/',
+	},
 	{ oldPath: 'user-guide/contribution/ui/basic-widget-api', target: '/docs/reference/widgets/widget-api/' },
 	{ oldPath: 'pe/user-guide/contribution/ui/basic-widget-api', target: '/docs/pe/reference/widgets/widget-api/' },
 	{ oldPath: 'paas/user-guide/contribution/ui/basic-widget-api', target: '/docs/paas/reference/widgets/widget-api/' },
-	{ oldPath: 'paas/eu/user-guide/contribution/ui/basic-widget-api', target: '/docs/paas/eu/reference/widgets/widget-api/' },
+	{
+		oldPath: 'paas/eu/user-guide/contribution/ui/basic-widget-api',
+		target: '/docs/paas/eu/reference/widgets/widget-api/',
+	},
 	{ oldPath: 'samples/analytics/mcp-server-ai-insights', target: '/docs/user-guide/mcp-server/' },
 	{ oldPath: 'pe/samples/analytics/mcp-server-ai-insights', target: '/docs/pe/user-guide/mcp-server/' },
 	{ oldPath: 'paas/samples/analytics/mcp-server-ai-insights', target: '/docs/paas/user-guide/mcp-server/' },
@@ -1206,10 +1858,22 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'mqtt-broker/image-gallery', target: tbmqDocsUrl('pe/image-gallery/') },
 	{ oldPath: 'mqtt-broker/install/cluster/helm-cluster-setup-options', target: tbmqDocsUrl('installation/') },
 	{ oldPath: 'mqtt-broker/install/installation-options', target: tbmqDocsUrl('installation/') },
-	{ oldPath: 'mqtt-broker/install/cluster/helm-cluster-upgrading-options', target: tbmqDocsUrl('installation/upgrade-instructions/') },
-	{ oldPath: 'mqtt-broker/install/cluster/resources/upgrade-options/docker-compose-upgrade-tbmq-with-from-version', target: tbmqDocsUrl('installation/upgrade-instructions/') },
-	{ oldPath: 'mqtt-broker/install/cluster/resources/upgrade-options/docker-compose-upgrade-tbmq-without-from-version', target: tbmqDocsUrl('installation/upgrade-instructions/') },
-	{ oldPath: 'mqtt-broker/install/cluster/resources/upgrade-options/k8s-upgrade-tbmq-with-from-version', target: tbmqDocsUrl('installation/upgrade-instructions/') },
+	{
+		oldPath: 'mqtt-broker/install/cluster/helm-cluster-upgrading-options',
+		target: tbmqDocsUrl('installation/upgrade-instructions/'),
+	},
+	{
+		oldPath: 'mqtt-broker/install/cluster/resources/upgrade-options/docker-compose-upgrade-tbmq-with-from-version',
+		target: tbmqDocsUrl('installation/upgrade-instructions/'),
+	},
+	{
+		oldPath: 'mqtt-broker/install/cluster/resources/upgrade-options/docker-compose-upgrade-tbmq-without-from-version',
+		target: tbmqDocsUrl('installation/upgrade-instructions/'),
+	},
+	{
+		oldPath: 'mqtt-broker/install/cluster/resources/upgrade-options/k8s-upgrade-tbmq-with-from-version',
+		target: tbmqDocsUrl('installation/upgrade-instructions/'),
+	},
 	{ oldPath: 'mqtt-broker/subscription', target: tbmqDocsUrl('pe/subscription/') },
 	{ oldPath: 'mqtt-broker/troubleshooting', target: tbmqDocsUrl('help/') },
 	{ oldPath: 'mqtt-broker/user-guide/ui/mail-server', target: tbmqDocsUrl('user-guide/ui/settings/') },
@@ -1217,14 +1881,30 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	// TBMQ PE redirects
 	{ oldPath: 'pe/mqtt-broker/api', target: tbmqDocsUrl('pe/rest-api/') },
 	{ oldPath: 'pe/mqtt-broker/faq', target: tbmqDocsUrl('pe/why-tbmq/') },
-	{ oldPath: 'pe/mqtt-broker/getting-started-guides/what-is-thingsboard-mqtt-broker', target: tbmqDocsUrl('pe/why-tbmq/') },
+	{
+		oldPath: 'pe/mqtt-broker/getting-started-guides/what-is-thingsboard-mqtt-broker',
+		target: tbmqDocsUrl('pe/why-tbmq/'),
+	},
 	{ oldPath: 'pe/mqtt-broker/image-gallery', target: tbmqDocsUrl('pe/image-gallery/') },
 	{ oldPath: 'pe/mqtt-broker/install/cluster/helm-cluster-setup-options', target: tbmqDocsUrl('pe/installation/') },
 	{ oldPath: 'pe/mqtt-broker/install/installation-options', target: tbmqDocsUrl('pe/installation/') },
-	{ oldPath: 'pe/mqtt-broker/install/cluster/helm-cluster-upgrading-options', target: tbmqDocsUrl('pe/installation/upgrade-instructions/') },
-	{ oldPath: 'pe/mqtt-broker/install/cluster/resources/upgrade-options/docker-compose-upgrade-tbmq-with-from-version', target: tbmqDocsUrl('pe/installation/upgrade-instructions/') },
-	{ oldPath: 'pe/mqtt-broker/install/cluster/resources/upgrade-options/docker-compose-upgrade-tbmq-without-from-version', target: tbmqDocsUrl('pe/installation/upgrade-instructions/') },
-	{ oldPath: 'pe/mqtt-broker/install/cluster/resources/upgrade-options/k8s-upgrade-tbmq-with-from-version', target: tbmqDocsUrl('pe/installation/upgrade-instructions/') },
+	{
+		oldPath: 'pe/mqtt-broker/install/cluster/helm-cluster-upgrading-options',
+		target: tbmqDocsUrl('pe/installation/upgrade-instructions/'),
+	},
+	{
+		oldPath: 'pe/mqtt-broker/install/cluster/resources/upgrade-options/docker-compose-upgrade-tbmq-with-from-version',
+		target: tbmqDocsUrl('pe/installation/upgrade-instructions/'),
+	},
+	{
+		oldPath:
+			'pe/mqtt-broker/install/cluster/resources/upgrade-options/docker-compose-upgrade-tbmq-without-from-version',
+		target: tbmqDocsUrl('pe/installation/upgrade-instructions/'),
+	},
+	{
+		oldPath: 'pe/mqtt-broker/install/cluster/resources/upgrade-options/k8s-upgrade-tbmq-with-from-version',
+		target: tbmqDocsUrl('pe/installation/upgrade-instructions/'),
+	},
 	{ oldPath: 'pe/mqtt-broker/troubleshooting', target: tbmqDocsUrl('pe/help/') },
 	{ oldPath: 'pe/mqtt-broker/user-guide/ui/mail-server', target: tbmqDocsUrl('pe/user-guide/ui/settings/') },
 
@@ -1237,11 +1917,23 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'services/support', target: '/services/' },
 	{ oldPath: 'services/trainings', target: '/services/trainings/' },
 	{ oldPath: 'user-guide/integrations/ibm-watson-iot', target: '/docs/user-guide/integrations/integration-types/' },
-	{ oldPath: 'paas/user-guide/integrations/ibm-watson-iot', target: '/docs/paas/user-guide/integrations/integration-types/' },
-	{ oldPath: 'paas/eu/user-guide/integrations/ibm-watson-iot', target: '/docs/paas/eu/user-guide/integrations/integration-types/' },
+	{
+		oldPath: 'paas/user-guide/integrations/ibm-watson-iot',
+		target: '/docs/paas/user-guide/integrations/integration-types/',
+	},
+	{
+		oldPath: 'paas/eu/user-guide/integrations/ibm-watson-iot',
+		target: '/docs/paas/eu/user-guide/integrations/integration-types/',
+	},
 	{ oldPath: 'user-guide/integrations/ocean-connect', target: '/docs/user-guide/integrations/integration-types/' },
-	{ oldPath: 'paas/user-guide/integrations/ocean-connect', target: '/docs/paas/user-guide/integrations/integration-types/' },
-	{ oldPath: 'paas/eu/user-guide/integrations/ocean-connect', target: '/docs/paas/eu/user-guide/integrations/integration-types/' },
+	{
+		oldPath: 'paas/user-guide/integrations/ocean-connect',
+		target: '/docs/paas/user-guide/integrations/integration-types/',
+	},
+	{
+		oldPath: 'paas/eu/user-guide/integrations/ocean-connect',
+		target: '/docs/paas/eu/user-guide/integrations/integration-types/',
+	},
 	{ oldPath: 'sitemap', target: '/docs/' },
 
 	// Docs root — legacy paths that point off-docs
@@ -1254,7 +1946,10 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'paas/eu/getting-started-guides/what-is-thingsboard-cloud', target: '/docs/paas/eu/why-thingsboard/' },
 
 	// MQTT v5 error codes — moved to getting-connected anchor
-	{ oldPath: 'reference/mqtt-v5-errors-code', target: '/docs/reference/mqtt-api/getting-connected/#mqtt-v50-error-codes' },
+	{
+		oldPath: 'reference/mqtt-v5-errors-code',
+		target: '/docs/reference/mqtt-api/getting-connected/#mqtt-v50-error-codes',
+	},
 
 	// Releases/roadmap — moved from user-guide to releases tree
 
@@ -1298,14 +1993,35 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 		oldPath: 'devices-library/temco-controls-tstat-10',
 		target: '/iot-hub/devices/temco-controls-tstat-10-and-hum-w1/',
 	},
-	{ oldPath: 'devices-library/mixed-input-8-channel-analog-cellular-logger', target: '/iot-hub/devices/fusiondaq-fdq-99900-mi-8/' },
-	{ oldPath: 'pe/devices-library/mixed-input-8-channel-analog-cellular-logger', target: '/iot-hub/devices/fusiondaq-fdq-99900-mi-8/' },
-	{ oldPath: 'paas/devices-library/mixed-input-8-channel-analog-cellular-logger', target: '/iot-hub/devices/fusiondaq-fdq-99900-mi-8/' },
-	{ oldPath: 'paas/eu/devices-library/mixed-input-8-channel-analog-cellular-logger', target: '/iot-hub/devices/fusiondaq-fdq-99900-mi-8/' },
+	{
+		oldPath: 'devices-library/mixed-input-8-channel-analog-cellular-logger',
+		target: '/iot-hub/devices/fusiondaq-fdq-99900-mi-8/',
+	},
+	{
+		oldPath: 'pe/devices-library/mixed-input-8-channel-analog-cellular-logger',
+		target: '/iot-hub/devices/fusiondaq-fdq-99900-mi-8/',
+	},
+	{
+		oldPath: 'paas/devices-library/mixed-input-8-channel-analog-cellular-logger',
+		target: '/iot-hub/devices/fusiondaq-fdq-99900-mi-8/',
+	},
+	{
+		oldPath: 'paas/eu/devices-library/mixed-input-8-channel-analog-cellular-logger',
+		target: '/iot-hub/devices/fusiondaq-fdq-99900-mi-8/',
+	},
 	{ oldPath: 'devices-library/raspberry-pi-3-model-B-plus', target: '/iot-hub/devices/raspberry-pi-3-model-b-plus/' },
-	{ oldPath: 'pe/devices-library/raspberry-pi-3-model-B-plus', target: '/iot-hub/devices/raspberry-pi-3-model-b-plus/' },
-	{ oldPath: 'paas/devices-library/raspberry-pi-3-model-B-plus', target: '/iot-hub/devices/raspberry-pi-3-model-b-plus/' },
-	{ oldPath: 'paas/eu/devices-library/raspberry-pi-3-model-B-plus', target: '/iot-hub/devices/raspberry-pi-3-model-b-plus/' },
+	{
+		oldPath: 'pe/devices-library/raspberry-pi-3-model-B-plus',
+		target: '/iot-hub/devices/raspberry-pi-3-model-b-plus/',
+	},
+	{
+		oldPath: 'paas/devices-library/raspberry-pi-3-model-B-plus',
+		target: '/iot-hub/devices/raspberry-pi-3-model-b-plus/',
+	},
+	{
+		oldPath: 'paas/eu/devices-library/raspberry-pi-3-model-B-plus',
+		target: '/iot-hub/devices/raspberry-pi-3-model-b-plus/',
+	},
 
 	// Trendz — pages consolidated into monitoring / aggregation / tasks-service
 	{ oldPath: 'trendz/calculated-fields', target: '/docs/trendz/calculations/overview/' },
@@ -1342,29 +2058,74 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	},
 
 	// PE Solution Template recipe pages retired in favor of the IoT Hub catalog.
-	{ oldPath: 'pe/recipes/solution-templates/temperature-humidity-sensors', target: '/iot-hub/solution-templates/temperature-sensors/' },
+	{
+		oldPath: 'pe/recipes/solution-templates/temperature-humidity-sensors',
+		target: '/iot-hub/solution-templates/temperature-sensors/',
+	},
 	{ oldPath: 'pe/recipes/solution-templates/smart-office', target: '/iot-hub/solution-templates/smart-office/' },
-	{ oldPath: 'pe/recipes/solution-templates/site-fleet-tracking', target: '/iot-hub/solution-templates/fleet-tracking/' },
-	{ oldPath: 'pe/recipes/solution-templates/fuel-level-monitoring', target: '/iot-hub/solution-templates/fuel-level-monitoring/' },
-	{ oldPath: 'pe/recipes/solution-templates/swimming-pool-scada-system', target: '/iot-hub/solution-templates/swimming-pool-scada-system/' },
-	{ oldPath: 'pe/recipes/solution-templates/scada-drilling-system', target: '/iot-hub/solution-templates/scada-drilling-system/' },
-	{ oldPath: 'pe/recipes/solution-templates/scada-energy-management', target: '/iot-hub/solution-templates/scada-energy-management/' },
-	{ oldPath: 'pe/recipes/solution-templates/air-quality-monitoring', target: '/iot-hub/solution-templates/air-quality-index/' },
+	{
+		oldPath: 'pe/recipes/solution-templates/site-fleet-tracking',
+		target: '/iot-hub/solution-templates/fleet-tracking/',
+	},
+	{
+		oldPath: 'pe/recipes/solution-templates/fuel-level-monitoring',
+		target: '/iot-hub/solution-templates/fuel-level-monitoring/',
+	},
+	{
+		oldPath: 'pe/recipes/solution-templates/swimming-pool-scada-system',
+		target: '/iot-hub/solution-templates/swimming-pool-scada-system/',
+	},
+	{
+		oldPath: 'pe/recipes/solution-templates/scada-drilling-system',
+		target: '/iot-hub/solution-templates/scada-drilling-system/',
+	},
+	{
+		oldPath: 'pe/recipes/solution-templates/scada-energy-management',
+		target: '/iot-hub/solution-templates/scada-energy-management/',
+	},
+	{
+		oldPath: 'pe/recipes/solution-templates/air-quality-monitoring',
+		target: '/iot-hub/solution-templates/air-quality-index/',
+	},
 	{ oldPath: 'pe/recipes/solution-templates/water-metering', target: '/iot-hub/solution-templates/water-metering/' },
 	{ oldPath: 'pe/recipes/solution-templates/smart-retail', target: '/iot-hub/solution-templates/smart-retail/' },
-	{ oldPath: 'pe/recipes/solution-templates/smart-irrigation', target: '/iot-hub/solution-templates/smart-irrigation/' },
+	{
+		oldPath: 'pe/recipes/solution-templates/smart-irrigation',
+		target: '/iot-hub/solution-templates/smart-irrigation/',
+	},
 	{ oldPath: 'pe/recipes/solution-templates/assisted-living', target: '/iot-hub/solution-templates/assisted-living/' },
-	{ oldPath: 'pe/recipes/solution-templates/waste-management', target: '/iot-hub/solution-templates/waste-monitoring/' },
+	{
+		oldPath: 'pe/recipes/solution-templates/waste-management',
+		target: '/iot-hub/solution-templates/waste-monitoring/',
+	},
 
 	// CE Solution Template recipe pages retired in favor of the IoT Hub catalog.
-	{ oldPath: 'recipes/solution-templates/temperature-humidity-sensors', target: '/iot-hub/solution-templates/temperature-sensors/' },
+	{
+		oldPath: 'recipes/solution-templates/temperature-humidity-sensors',
+		target: '/iot-hub/solution-templates/temperature-sensors/',
+	},
 	{ oldPath: 'recipes/solution-templates/smart-office', target: '/iot-hub/solution-templates/smart-office/' },
 	{ oldPath: 'recipes/solution-templates/site-fleet-tracking', target: '/iot-hub/solution-templates/fleet-tracking/' },
-	{ oldPath: 'recipes/solution-templates/fuel-level-monitoring', target: '/iot-hub/solution-templates/fuel-level-monitoring/' },
-	{ oldPath: 'recipes/solution-templates/swimming-pool-scada-system', target: '/iot-hub/solution-templates/swimming-pool-scada-system/' },
-	{ oldPath: 'recipes/solution-templates/scada-drilling-system', target: '/iot-hub/solution-templates/scada-drilling-system/' },
-	{ oldPath: 'recipes/solution-templates/scada-energy-management', target: '/iot-hub/solution-templates/scada-energy-management/' },
-	{ oldPath: 'recipes/solution-templates/air-quality-monitoring', target: '/iot-hub/solution-templates/air-quality-index/' },
+	{
+		oldPath: 'recipes/solution-templates/fuel-level-monitoring',
+		target: '/iot-hub/solution-templates/fuel-level-monitoring/',
+	},
+	{
+		oldPath: 'recipes/solution-templates/swimming-pool-scada-system',
+		target: '/iot-hub/solution-templates/swimming-pool-scada-system/',
+	},
+	{
+		oldPath: 'recipes/solution-templates/scada-drilling-system',
+		target: '/iot-hub/solution-templates/scada-drilling-system/',
+	},
+	{
+		oldPath: 'recipes/solution-templates/scada-energy-management',
+		target: '/iot-hub/solution-templates/scada-energy-management/',
+	},
+	{
+		oldPath: 'recipes/solution-templates/air-quality-monitoring',
+		target: '/iot-hub/solution-templates/air-quality-index/',
+	},
 	{ oldPath: 'recipes/solution-templates/water-metering', target: '/iot-hub/solution-templates/water-metering/' },
 	{ oldPath: 'recipes/solution-templates/smart-retail', target: '/iot-hub/solution-templates/smart-retail/' },
 	{ oldPath: 'recipes/solution-templates/smart-irrigation', target: '/iot-hub/solution-templates/smart-irrigation/' },
@@ -1372,34 +2133,97 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'recipes/solution-templates/waste-management', target: '/iot-hub/solution-templates/waste-monitoring/' },
 
 	// PAAS Solution Template recipe pages retired in favor of the IoT Hub catalog.
-	{ oldPath: 'paas/recipes/solution-templates/temperature-humidity-sensors', target: '/iot-hub/solution-templates/temperature-sensors/' },
+	{
+		oldPath: 'paas/recipes/solution-templates/temperature-humidity-sensors',
+		target: '/iot-hub/solution-templates/temperature-sensors/',
+	},
 	{ oldPath: 'paas/recipes/solution-templates/smart-office', target: '/iot-hub/solution-templates/smart-office/' },
-	{ oldPath: 'paas/recipes/solution-templates/site-fleet-tracking', target: '/iot-hub/solution-templates/fleet-tracking/' },
-	{ oldPath: 'paas/recipes/solution-templates/fuel-level-monitoring', target: '/iot-hub/solution-templates/fuel-level-monitoring/' },
-	{ oldPath: 'paas/recipes/solution-templates/swimming-pool-scada-system', target: '/iot-hub/solution-templates/swimming-pool-scada-system/' },
-	{ oldPath: 'paas/recipes/solution-templates/scada-drilling-system', target: '/iot-hub/solution-templates/scada-drilling-system/' },
-	{ oldPath: 'paas/recipes/solution-templates/scada-energy-management', target: '/iot-hub/solution-templates/scada-energy-management/' },
-	{ oldPath: 'paas/recipes/solution-templates/air-quality-monitoring', target: '/iot-hub/solution-templates/air-quality-index/' },
+	{
+		oldPath: 'paas/recipes/solution-templates/site-fleet-tracking',
+		target: '/iot-hub/solution-templates/fleet-tracking/',
+	},
+	{
+		oldPath: 'paas/recipes/solution-templates/fuel-level-monitoring',
+		target: '/iot-hub/solution-templates/fuel-level-monitoring/',
+	},
+	{
+		oldPath: 'paas/recipes/solution-templates/swimming-pool-scada-system',
+		target: '/iot-hub/solution-templates/swimming-pool-scada-system/',
+	},
+	{
+		oldPath: 'paas/recipes/solution-templates/scada-drilling-system',
+		target: '/iot-hub/solution-templates/scada-drilling-system/',
+	},
+	{
+		oldPath: 'paas/recipes/solution-templates/scada-energy-management',
+		target: '/iot-hub/solution-templates/scada-energy-management/',
+	},
+	{
+		oldPath: 'paas/recipes/solution-templates/air-quality-monitoring',
+		target: '/iot-hub/solution-templates/air-quality-index/',
+	},
 	{ oldPath: 'paas/recipes/solution-templates/water-metering', target: '/iot-hub/solution-templates/water-metering/' },
 	{ oldPath: 'paas/recipes/solution-templates/smart-retail', target: '/iot-hub/solution-templates/smart-retail/' },
-	{ oldPath: 'paas/recipes/solution-templates/smart-irrigation', target: '/iot-hub/solution-templates/smart-irrigation/' },
-	{ oldPath: 'paas/recipes/solution-templates/assisted-living', target: '/iot-hub/solution-templates/assisted-living/' },
-	{ oldPath: 'paas/recipes/solution-templates/waste-management', target: '/iot-hub/solution-templates/waste-monitoring/' },
+	{
+		oldPath: 'paas/recipes/solution-templates/smart-irrigation',
+		target: '/iot-hub/solution-templates/smart-irrigation/',
+	},
+	{
+		oldPath: 'paas/recipes/solution-templates/assisted-living',
+		target: '/iot-hub/solution-templates/assisted-living/',
+	},
+	{
+		oldPath: 'paas/recipes/solution-templates/waste-management',
+		target: '/iot-hub/solution-templates/waste-monitoring/',
+	},
 
 	// PAAS EU Solution Template recipe pages retired in favor of the IoT Hub catalog.
-	{ oldPath: 'paas/eu/recipes/solution-templates/temperature-humidity-sensors', target: '/iot-hub/solution-templates/temperature-sensors/' },
+	{
+		oldPath: 'paas/eu/recipes/solution-templates/temperature-humidity-sensors',
+		target: '/iot-hub/solution-templates/temperature-sensors/',
+	},
 	{ oldPath: 'paas/eu/recipes/solution-templates/smart-office', target: '/iot-hub/solution-templates/smart-office/' },
-	{ oldPath: 'paas/eu/recipes/solution-templates/site-fleet-tracking', target: '/iot-hub/solution-templates/fleet-tracking/' },
-	{ oldPath: 'paas/eu/recipes/solution-templates/fuel-level-monitoring', target: '/iot-hub/solution-templates/fuel-level-monitoring/' },
-	{ oldPath: 'paas/eu/recipes/solution-templates/swimming-pool-scada-system', target: '/iot-hub/solution-templates/swimming-pool-scada-system/' },
-	{ oldPath: 'paas/eu/recipes/solution-templates/scada-drilling-system', target: '/iot-hub/solution-templates/scada-drilling-system/' },
-	{ oldPath: 'paas/eu/recipes/solution-templates/scada-energy-management', target: '/iot-hub/solution-templates/scada-energy-management/' },
-	{ oldPath: 'paas/eu/recipes/solution-templates/air-quality-monitoring', target: '/iot-hub/solution-templates/air-quality-index/' },
-	{ oldPath: 'paas/eu/recipes/solution-templates/water-metering', target: '/iot-hub/solution-templates/water-metering/' },
+	{
+		oldPath: 'paas/eu/recipes/solution-templates/site-fleet-tracking',
+		target: '/iot-hub/solution-templates/fleet-tracking/',
+	},
+	{
+		oldPath: 'paas/eu/recipes/solution-templates/fuel-level-monitoring',
+		target: '/iot-hub/solution-templates/fuel-level-monitoring/',
+	},
+	{
+		oldPath: 'paas/eu/recipes/solution-templates/swimming-pool-scada-system',
+		target: '/iot-hub/solution-templates/swimming-pool-scada-system/',
+	},
+	{
+		oldPath: 'paas/eu/recipes/solution-templates/scada-drilling-system',
+		target: '/iot-hub/solution-templates/scada-drilling-system/',
+	},
+	{
+		oldPath: 'paas/eu/recipes/solution-templates/scada-energy-management',
+		target: '/iot-hub/solution-templates/scada-energy-management/',
+	},
+	{
+		oldPath: 'paas/eu/recipes/solution-templates/air-quality-monitoring',
+		target: '/iot-hub/solution-templates/air-quality-index/',
+	},
+	{
+		oldPath: 'paas/eu/recipes/solution-templates/water-metering',
+		target: '/iot-hub/solution-templates/water-metering/',
+	},
 	{ oldPath: 'paas/eu/recipes/solution-templates/smart-retail', target: '/iot-hub/solution-templates/smart-retail/' },
-	{ oldPath: 'paas/eu/recipes/solution-templates/smart-irrigation', target: '/iot-hub/solution-templates/smart-irrigation/' },
-	{ oldPath: 'paas/eu/recipes/solution-templates/assisted-living', target: '/iot-hub/solution-templates/assisted-living/' },
-	{ oldPath: 'paas/eu/recipes/solution-templates/waste-management', target: '/iot-hub/solution-templates/waste-monitoring/' },
+	{
+		oldPath: 'paas/eu/recipes/solution-templates/smart-irrigation',
+		target: '/iot-hub/solution-templates/smart-irrigation/',
+	},
+	{
+		oldPath: 'paas/eu/recipes/solution-templates/assisted-living',
+		target: '/iot-hub/solution-templates/assisted-living/',
+	},
+	{
+		oldPath: 'paas/eu/recipes/solution-templates/waste-management',
+		target: '/iot-hub/solution-templates/waste-monitoring/',
+	},
 	{ oldPath: 'user-guide/dashboard', target: '/docs/user-guide/dashboards/' },
 	{ oldPath: 'iot-gateway/modbus', target: '/docs/iot-gateway/config/modbus/' },
 	{ oldPath: 'getting-started-guide/hello-world', target: '/docs/getting-started/' },
@@ -1424,11 +2248,17 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'edge/getting-started/getting-started-ce', target: '/docs/edge/pe/getting-started/' },
 	{ oldPath: 'edge/provision-edge-on-server-ce', target: '/docs/edge/pe/installation/' },
 	{ oldPath: 'edge/provision-edge-on-server', target: '/docs/edge/pe/installation/' },
-	{ oldPath: 'edge/use-cases/manage-alarms-rpc-requests-ce', target: '/docs/edge/pe/recipes/manage-alarms-rpc-requests/' },
+	{
+		oldPath: 'edge/use-cases/manage-alarms-rpc-requests-ce',
+		target: '/docs/edge/pe/recipes/manage-alarms-rpc-requests/',
+	},
 	{ oldPath: 'pe/user-guide/reporting', target: '/docs/pe/user-guide/reporting/getting-started/' },
 	{ oldPath: 'trendz/batch-calculated-fields', target: '/docs/trendz/calculations/batch/' },
 	{ oldPath: 'user-guide/oauth/azure', target: '/docs/pe/user-guide/security/oauth-2-support/' },
-	{ oldPath: 'user-guide/rule-engine-2-0/pe/analytics-nodes', target: '/docs/pe/reference/rule-engine/nodes/analytics/' },
+	{
+		oldPath: 'user-guide/rule-engine-2-0/pe/analytics-nodes',
+		target: '/docs/pe/reference/rule-engine/nodes/analytics/',
+	},
 	// IoT Hub docs landing removed.
 	{ oldPath: 'iot-hub', target: '/docs/iot-hub/user-guides/' },
 	// Misspelled paths cited by external sites.
@@ -1528,6 +2358,10 @@ export const NON_DOCS_REDIRECTS: Record<string, string> = {
 	'/blog/wp-content/uploads/2024/03/button_use_cases.json': '/resources/blog/button_use_cases.json',
 	'/blog/wp-content/uploads/2024/03/command_buttons.json': '/resources/blog/command_buttons.json',
 
+	// The single-file docs catalog outgrew what an agent reads in one fetch; the catalogs are now
+	// one llms.txt per product, all linked from the root one (config/integrations/llms-txt.ts).
+	'/llms-small.txt': '/llms.txt',
+
 	// Use Cases
 	'/use-cases/fleet-tracking/': '/use-cases/site-fleet-tracking/',
 	'/fleet-tracking/': '/use-cases/site-fleet-tracking/',
@@ -1578,7 +2412,7 @@ export const NON_DOCS_REDIRECTS: Record<string, string> = {
 	'/device-library/': '/iot-hub/devices/',
 	'/device-library/guidelines/': '/docs/iot-hub/contribution-guides/device/',
 
-	'/services/consulting/': '/services/development-services/'
+	'/services/consulting/': '/services/development-services/',
 };
 
 /**
@@ -1605,9 +2439,7 @@ export const DYNAMIC_REDIRECTS: DynamicRedirectGroup[] = [
 	},
 	{
 		comment: 'Industries — per-industry page → clients-feedback filtered by category',
-		entries: [
-			{ source: '/industries/:category/', target: '/clients-feedback/?category=:category' },
-		],
+		entries: [{ source: '/industries/:category/', target: '/clients-feedback/?category=:category' }],
 	},
 	{
 		comment: 'Blog — WordPress year archives → blog index',
@@ -1723,9 +2555,7 @@ export function getAllRedirectsFlat(): Record<string, string> {
 
 	for (const group of CATCH_ALL_REDIRECTS) {
 		for (const entry of group.entries) {
-			const oldPath = entry.slug
-				? `/docs/${group.oldPrefix}/${entry.slug}/`
-				: `/docs/${group.oldPrefix}/`;
+			const oldPath = entry.slug ? `/docs/${group.oldPrefix}/${entry.slug}/` : `/docs/${group.oldPrefix}/`;
 			map[oldPath] = entry.target;
 		}
 	}
