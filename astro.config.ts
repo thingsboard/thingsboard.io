@@ -12,8 +12,10 @@ import { satteriBlogImages } from './config/plugins/satteri-blog-images';
 import { satteriMdxIncludeHeadings } from './config/plugins/satteri-mdx-include-headings';
 import { satteriTasklistEnhancer } from './config/plugins/satteri-tasklist-enhancer';
 import { PROD_ORIGIN } from './src/consts';
+import { prepareOgCache } from './src/pages/open-graph/_shared/og-cache';
 
 import icon from 'astro-icon';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 /* Cloudflare Pages: https://developers.cloudflare.com/pages/configuration/build-configuration/#environment-variables */
@@ -29,6 +31,34 @@ let iconOverrideApplied = false;
  * than concurrent page renders means the cards queue instead of overlapping.
  */
 const BUILD_CONCURRENCY = process.env.BUILD_CONCURRENCY ? Number(process.env.BUILD_CONCURRENCY) : 8;
+
+/**
+ * How many worker threads render pages (Astro's `experimental.parallelPrerender`). The build picks
+ * the number from this machine's CPU threads and memory; below 2 it renders on the main thread as
+ * before. `PRERENDER_WORKERS` overrides the choice: `0` turns workers off, another whole number
+ * forces that many. A value that is not a whole number is ignored with a warning.
+ *
+ * The memory part sets 10 GB aside for the build itself and counts 3 GB for each worker. Measured:
+ * a full build with 2 workers and an empty OG card cache goes past 10 GB, so a 16 GB machine gets
+ * no workers. Every worker also renders `BUILD_CONCURRENCY` pages at once. It reads
+ * total memory, not free memory, so a machine picks the same number on every run, and it takes a
+ * container's memory limit when that is lower.
+ */
+function pickPrerenderWorkers(): number {
+	const override = process.env.PRERENDER_WORKERS;
+	if (override !== undefined) {
+		if (/^\d+$/.test(override)) return Number(override);
+		console.warn(`PRERENDER_WORKERS="${override}" is not a whole number; picking the worker count automatically.`);
+	}
+	const GB = 1024 ** 3;
+	const containerLimit = process.constrainedMemory();
+	const memory = containerLimit > 0 ? Math.min(os.totalmem(), containerLimit) : os.totalmem();
+	const byCpu = os.availableParallelism() - 1;
+	const byMemory = Math.floor((memory / GB - 10) / 3);
+	return Math.max(0, Math.min(byCpu, byMemory));
+}
+
+const PRERENDER_WORKERS = pickPrerenderWorkers();
 
 /* Netlify (kept as fallback in case of platform switch): https://docs.netlify.com/configure-builds/environment-variables/#read-only-variables */
 const NETLIFY_PREVIEW_SITE = process.env.CONTEXT !== 'production' && process.env.DEPLOY_PRIME_URL;
@@ -57,6 +87,34 @@ function assertIconOverrideApplied(): AstroIntegration {
 	};
 }
 
+/** Empties an out-of-date OG card cache once, on the main thread, before any worker thread renders a card. */
+function prepareOgCacheOnce(): AstroIntegration {
+	return {
+		name: 'prepare-og-cache-once',
+		hooks: {
+			'astro:build:start': async () => {
+				if (!process.env.SKIP_OG) await prepareOgCache();
+			},
+		},
+	};
+}
+
+/** Prints the worker count the build runs with; Astro itself does not say. */
+function reportPrerenderWorkers(): AstroIntegration {
+	return {
+		name: 'report-prerender-workers',
+		hooks: {
+			'astro:build:start': ({ logger }) => {
+				logger.info(
+					PRERENDER_WORKERS >= 2
+						? `Rendering pages on ${PRERENDER_WORKERS} worker threads (PRERENDER_WORKERS=0 turns this off).`
+						: 'Rendering pages on the main thread, no worker threads.'
+				);
+			},
+		},
+	};
+}
+
 export default defineConfig({
 	site,
 	base: '/',
@@ -66,9 +124,7 @@ export default defineConfig({
 	},
 	redirects,
 	experimental: {
-		// Off unless PRERENDER_WORKERS is set: pages then render on that many threads. Output is the
-		// same as a serial build; 2 workers cut the build by about a quarter and add ~3 GB of memory.
-		parallelPrerender: process.env.PRERENDER_WORKERS ? { workers: Number(process.env.PRERENDER_WORKERS) } : false,
+		parallelPrerender: PRERENDER_WORKERS >= 2 ? { workers: PRERENDER_WORKERS } : false,
 	},
 	vite: {
 		resolve: {
@@ -113,6 +169,8 @@ export default defineConfig({
 	},
 	integrations: [
 		assertIconOverrideApplied(),
+		prepareOgCacheOnce(),
+		reportPrerenderWorkers(),
 		icon(),
 		imageGalleryLightbox(),
 		youtubePosters(),

@@ -16,7 +16,10 @@ export function getListingBySlug(slug: string): Promise<ListingDetail | null> {
 					`${IOT_HUB_API_URL}/api/listings/public/by-slug/${slug}`
 				);
 				return (await res.json()) as ListingDetail;
-			} catch {
+			} catch (e) {
+				// The card renders empty without this listing, and nothing else reports it.
+				const msg = e instanceof Error ? e.message : String(e);
+				console.warn(`[iot-hub] listing fetch failed for "${slug}", its link card renders empty: ${msg}`);
 				return null;
 			}
 		})();
