@@ -126,10 +126,16 @@ const linkChecker = new LinkChecker({
 					'/docs/paas/reference/snmp-api/getting-connected/',
 				],
 			},
-			// The Cloud pricing and product pages link to the Cloud docs
-			{ from: ['/pricing/', '/products/paas/'], to: ['/docs/paas/', '/docs/paas/eu/'] },
-			// Community Edition pages link to Community Edge pages (e.g. its releases table)
-			{ from: ['/docs/'], to: ['/docs/edge/'] },
+			// The Cloud pricing and product pages link the Cloud docs home and the Cloud custom domain
+			// guide (CNAME to thingsboard.cloud, unlike the self-hosted one)
+			{
+				from: ['/pricing/', '/products/paas/'],
+				to: ['/docs/paas/'],
+				pages: ['/docs/paas/', '/docs/paas/user-guide/security/domains/'],
+			},
+			// CE upgrade instructions check compatibility against the Community Edge releases table,
+			// which has no 4.4 row
+			{ from: ['/docs/'], to: ['/docs/edge/'], pages: ['/docs/edge/releases/releases-table/'] },
 			// The push notifications post sends Community Edition users to the CE mobile guide on purpose,
 			// next to its link to the PE guide
 			{ from: ['/blog/'], to: ['/docs/mobile/'], pages: ['/docs/mobile/getting-started/'] },
