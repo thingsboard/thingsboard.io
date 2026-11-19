@@ -296,4 +296,4 @@ GitHub Actions runs: `astro check`, `eslint`, `slugcheck`.
 
 **PR base branch and labels:** pick them by the table in [Which branch and label](CONTRIBUTING.md#which-branch-and-label).
 
-**Update the branch before a PR:** before opening a PR (and before pushing to an open one), `git fetch origin` and merge the latest base branch into the PR branch. A branch that is behind its base still merges cleanly, but it breaks the CI build caches.
+**Update the branch before a PR:** before opening a PR and before every push to an open one, `git fetch origin` and check whether the base branch has moved (`git rev-list --count HEAD..origin/<base>` is not 0). Only then merge it into the PR branch; otherwise push as is. A branch that is behind its base still merges cleanly, but it breaks the CI build caches.
