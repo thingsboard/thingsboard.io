@@ -1,6 +1,5 @@
-import type { Document, Element } from 'domhandler';
-import { parseDocument, DomUtils } from 'htmlparser2';
-import type { ConsolidationPattern } from './base.ts';
+import { canonicalLinkRule, type CanonicalLinkPolicy } from './canonical-links.ts';
+import type { PageData } from './page-data.ts';
 
 export interface AllPagesByPathname {
 	[key: string]: HtmlPage;
@@ -22,15 +21,21 @@ export class HtmlPage {
 	/**
 	 * A list of all anchor elements on the page.
 	 */
-	readonly anchors: Array<{
-		label: string;
-		name: string;
-		href: string | undefined;
-	}>;
+	readonly anchors: PageData['anchors'];
 	/**
 	 * A list of unique link hrefs on the page.
 	 */
 	readonly uniqueLinkHrefs: string[];
+	/**
+	 * Link hrefs found only in text from outside this repo (`isExternalContent` in `page-data.ts`,
+	 * e.g. IoT Hub readmes). Canonical issues of these are reported as warnings.
+	 */
+	readonly externalOnlyLinkHrefs: Set<string>;
+	/**
+	 * Link hrefs found only in the edition and product switchers (`isProductSwitcher` in
+	 * `page-data.ts`), whose links lead to other editions on purpose.
+	 */
+	readonly switcherOnlyLinkHrefs: Set<string>;
 	/**
 	 * A list of hashes that can be used as URL fragments to jump to specific parts of the page.
 	 */
@@ -40,6 +45,11 @@ export class HtmlPage {
 	 * `<link rel="canonical" href="...">` element (if any).
 	 */
 	readonly canonicalUrl: URL | null;
+	/**
+	 * Whether the page is canonical: it has no canonical URL, or the canonical URL points at
+	 * the page itself. Links from a canonical page must use canonical URLs.
+	 */
+	readonly isCanonical: boolean;
 	/**
 	 * The target URL of a `<meta http-equiv="refresh" content="...">` element
 	 * contained on the page (if any).
@@ -73,72 +83,42 @@ export class HtmlPage {
 	 */
 	readonly isLanguageFallback: boolean;
 
-	constructor({ html, href, pathname }: { html: string; href: string; pathname: string }) {
-		// Attempt to read the HTML file and parse its DOM
-		const parser = new DocumentParser(parseDocument(html));
+	constructor({ data, href, pathname }: { data: PageData; href: string; pathname: string }) {
 		this.href = href;
 		this.pathname = pathname;
 
-		// Provide commonly used data as properties.
-		// Inline SVGs may use SVG 1.1 `xlink:href` instead of the modern `href` — fall back to it
-		// so anchors inside embedded SVG diagrams are validated. Anchors without any href form
-		// (e.g. `<a name="…">` bookmarks) keep href undefined and are filtered out below.
-		this.anchors = DomUtils.getElementsByTagName('a', parser.dom, true).map((el) => {
-			const rawHref = el.attribs.href ?? el.attribs['xlink:href'];
-			return {
-				// Pass the strings through Buffer to allow Node to reallocate them into independent memory
-				// instead of using slices of the original large string containing the full HTML document.
-				//
-				// This reduces memory usage significantly, at time of writing, 2.1Gib -> 300MiB.
-				label: Buffer.from(DomUtils.innerText(el)).toString(),
-				name: el.attribs.name && Buffer.from(el.attribs.name).toString(),
-				href: rawHref && Buffer.from(rawHref).toString(),
-			};
-		});
+		this.anchors = data.anchors;
 
-		// Build a list of unique link hrefs on the page
-		this.uniqueLinkHrefs = [
-			...new Set(this.anchors.map((el) => el.href && decodeURI(el.href)).filter((h): h is string => Boolean(h))),
-		];
+		const linkHrefs = new Set<string>();
+		const ownLinkHrefs = new Set<string>();
+		const nonSwitcherLinkHrefs = new Set<string>();
+		for (const { href, inExternal, inSwitcher } of this.anchors) {
+			if (!href) continue;
+			const decoded = decodeURI(href);
+			linkHrefs.add(decoded);
+			if (!inExternal) ownLinkHrefs.add(decoded);
+			if (!inSwitcher) nonSwitcherLinkHrefs.add(decoded);
+		}
+		this.uniqueLinkHrefs = [...linkHrefs];
+		this.externalOnlyLinkHrefs = new Set(this.uniqueLinkHrefs.filter((href) => !ownLinkHrefs.has(href)));
+		this.switcherOnlyLinkHrefs = new Set(this.uniqueLinkHrefs.filter((href) => !nonSwitcherLinkHrefs.has(href)));
 
 		// Build a list of hashes that can be used as URL fragments to jump to parts of the page
 		const anchorNames = this.anchors.map((el) => el.name).filter((name) => name !== undefined);
-		const ids = parser
-			.findAll((el) => Boolean(el.attribs.id))
-			// Same reason as above.
-			.map((el) => Buffer.from(el.attribs.id).toString());
-		this.hashes = [...anchorNames, ...ids].map((name) => `#${name}`);
+		this.hashes = [...anchorNames, ...data.ids].map((name) => `#${name}`);
 
 		// Check if the page redirects somewhere else using meta refresh
-		const metaRefreshElement = parser.findFirst(
-			(el) =>
-				el.tagName.toLowerCase() === 'meta' && el.attribs['http-equiv']?.toLowerCase() === 'refresh'
-		);
-		const metaRefreshContent = metaRefreshElement?.attribs['content'];
-		const metaRefreshMatches = metaRefreshContent?.match(/^([0-9]+)\s*;\s*url\s*=\s*(.+)$/i);
+		const metaRefreshMatches = data.metaRefreshContent?.match(/^([0-9]+)\s*;\s*url\s*=\s*(.+)$/i);
 		this.redirectTargetUrl = metaRefreshMatches ? new URL(metaRefreshMatches[2], this.href) : null;
 		this.isRedirect = Boolean(this.redirectTargetUrl);
 
-		// Get the page's canonical URL (if any)
-		const linkCanonicalElement = parser.findFirst(
-			(el) =>
-				el.tagName.toLowerCase() === 'link' && el.attribs['rel']?.toLowerCase() === 'canonical'
-		);
-		this.canonicalUrl =
-			(linkCanonicalElement && new URL(linkCanonicalElement.attribs['href'])) || null;
+		// Get the page's canonical URL (if any). A canonical element without a valid absolute
+		// href throws, which fails the run for this page.
+		this.canonicalUrl = data.hasCanonical ? new URL(data.canonicalHref as string) : null;
+		this.isCanonical = !this.canonicalUrl || this.canonicalUrl.pathname === this.pathname;
 
-		// Attempt to find the page's main content element
-		const mainContent =
-			parser.findFirst((el) => el.tagName.toLowerCase() === 'main') ||
-			parser.findFirst((el) => el.tagName.toLowerCase() === 'body');
-
-		this.hasContent = Boolean(mainContent);
-
-		// Attempt to determine the main content language by traversing the tree upwards
-		// until we find an element with a `lang` attribute
-		const mainContentParentWithLang =
-			mainContent && parser.findParent(mainContent, (el) => Boolean(el.attribs?.lang));
-		this.mainContentLang = mainContentParentWithLang?.attribs.lang || null;
+		this.hasContent = data.hasContent;
+		this.mainContentLang = data.mainContentLang;
 
 		// Attempt to determine the page's pathname-based language
 		this.pathnameLang = this.getLanguageCodeFromPathname(this.pathname) || null;
@@ -149,42 +129,14 @@ export class HtmlPage {
 	}
 
 	/**
-	 * Determines whether this page's canonical URL represents SEO consolidation —
-	 * i.e. the canonical points to a different physical page that serves related
-	 * but distinct content (e.g. CE → PE cross-product consolidation), as opposed
-	 * to URL-form canonicalization (trailing slash, language prefix, etc.).
-	 *
-	 * Returns `true` only if the transformation `pathname → canonical.pathname`
-	 * exactly matches one of the provided patterns (after stripping optional
-	 * language prefix). An empty patterns list always returns `false`.
+	 * Determines the URL pathname that the link `linkHref` on `source` to this page should use:
+	 * this page's canonical pathname when `policy` requires it (see `canonicalLinkRule`),
+	 * otherwise its own pathname.
 	 */
-	isConsolidationCanonical(patterns: ConsolidationPattern[]): boolean {
-		if (!this.canonicalUrl) return false;
-		if (this.canonicalUrl.pathname === this.pathname) return false;
-		const stripLang = (p: string) => p.replace(/^\/uk(?=\/|$)/, '');
-		const source = stripLang(this.pathname);
-		const canonical = stripLang(this.canonicalUrl.pathname);
-		return patterns.some(({ from, to }) => {
-			if (!source.startsWith(from) || !canonical.startsWith(to)) return false;
-			return to + source.slice(from.length) === canonical;
-		});
-	}
-
-	/**
-	 * Determines the URL pathname that should be used to link to this page
-	 * from a page with the given source language.
-	 *
-	 * When the page's canonical URL matches a known SEO consolidation pattern,
-	 * the actual pathname is used instead of the canonical — consolidation
-	 * canonicals are SEO signals, not navigation targets. Otherwise, the
-	 * canonical pathname is preferred (normal URL-form canonicalization).
-	 */
-	getExpectedLinkPathname(
-		sourceLang: string | null,
-		consolidationPatterns: ConsolidationPattern[] = []
-	) {
-		const useActual = this.isConsolidationCanonical(consolidationPatterns);
-		let pathname = useActual ? this.pathname : this.canonicalUrl?.pathname || this.pathname;
+	getExpectedLinkPathname(source: HtmlPage, linkHref: string, policy: CanonicalLinkPolicy) {
+		const canonicalOnly = canonicalLinkRule(source, linkHref, this, policy) === 'canonical';
+		let pathname = canonicalOnly ? this.canonicalUrl?.pathname || this.pathname : this.pathname;
+		const sourceLang = source.pathnameLang;
 		if (sourceLang && (this.isLanguageFallback || pathname.startsWith('/en/'))) {
 			pathname = pathname.replace(/^\/en\//, `/${sourceLang}/`);
 		}
@@ -198,26 +150,5 @@ export class HtmlPage {
 		// Only return parts that look like a two-letter language code
 		// with optional two-letter country code
 		if (firstPathPart.match(/^[a-z]{2}(-[a-zA-Z]{2})?$/)) return firstPathPart;
-	}
-}
-
-class DocumentParser {
-	constructor(public readonly dom: Document) {}
-
-	findFirst(test: (elem: Element) => boolean) {
-		return DomUtils.findOne(test, this.dom.children);
-	}
-
-	findAll(test: (elem: Element) => boolean) {
-		return DomUtils.findAll(test, this.dom.children);
-	}
-
-	findParent(start: Element, test: (elem: Element) => boolean) {
-		let el: Element | null = start;
-		while (el) {
-			if (test(el)) return el;
-			el = DomUtils.getParent(el) as Element;
-		}
-		return null;
 	}
 }

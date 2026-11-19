@@ -1,13 +1,10 @@
 // src/pages/open-graph/_shared/render.ts
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { Card, type CardProps } from './Card';
+import { prepareOgCache, readCache, TEMPLATE_VERSION, writeCache } from './og-cache';
 
-/** Bump when the template, fonts, or rendering pipeline changes — invalidates cache. */
-const TEMPLATE_VERSION = 3;
-
-const CACHE_DIR = path.resolve('node_modules/.og-cache');
 const FONT_DIR = path.resolve('src/pages/open-graph/_fonts');
 
 type RobotoWeight = 400 | 500 | 700;
@@ -55,44 +52,6 @@ function cacheKey(props: CardProps): string {
 	return createHash('sha1').update(payload).digest('hex');
 }
 
-async function readCache(key: string): Promise<Buffer | null> {
-	try {
-		return await readFile(path.join(CACHE_DIR, `${key}.png`));
-	} catch (e) {
-		if ((e as NodeJS.ErrnoException).code === 'ENOENT') return null;
-		throw e;
-	}
-}
-
-async function writeCache(key: string, buf: Buffer): Promise<void> {
-	await ensureCacheDir();
-	await writeFile(path.join(CACHE_DIR, `${key}.png`), buf);
-}
-
-let cacheDirReady: Promise<void> | null = null;
-
-/**
- * Ensure CACHE_DIR exists and matches TEMPLATE_VERSION. On a version mismatch
- * (or missing sentinel) we wipe the directory so stale PNGs from older
- * template revisions don't accumulate forever in `node_modules/.og-cache/`.
- */
-function ensureCacheDir(): Promise<void> {
-	if (cacheDirReady) return cacheDirReady;
-	cacheDirReady = (async () => {
-		const sentinel = path.join(CACHE_DIR, '.template-version');
-		try {
-			const v = (await readFile(sentinel, 'utf8')).trim();
-			if (v === String(TEMPLATE_VERSION)) return;
-		} catch {
-			// missing or unreadable — fall through to recreate
-		}
-		await rm(CACHE_DIR, { recursive: true, force: true });
-		await mkdir(CACHE_DIR, { recursive: true });
-		await writeFile(sentinel, String(TEMPLATE_VERSION));
-	})();
-	return cacheDirReady;
-}
-
 interface Renderers {
 	satori: typeof import('satori').default;
 	renderAsync: typeof import('@resvg/resvg-js').renderAsync;
@@ -122,7 +81,7 @@ export async function renderCard(props: CardProps): Promise<Buffer> {
 		return readFile(path.resolve('public/thingsboard-og.png'));
 	}
 
-	await ensureCacheDir();
+	await prepareOgCache();
 	const key = cacheKey(props);
 	const hit = await readCache(key);
 	if (hit) return hit;
