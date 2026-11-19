@@ -907,7 +907,7 @@ function assertLogosHaveSize(entries: FeedbackEntry[]): void {
 		const svgTag = readFileSync(join(process.cwd(), 'public', logo), 'utf-8').match(/<svg[^>]*>/)?.[0] ?? '';
 		if (!/\swidth=/.test(svgTag) || !/\sheight=/.test(svgTag)) {
 			throw new Error(
-				`[clients-feedback] ${logo} has no width and height on its <svg> tag. Pages show a logo at the file's own size, so this one would be invisible.`
+				`[clients-feedback] ${logo} needs both width and height on its <svg> tag. Pages show a logo at the file's own size, so without them it would be invisible.`
 			);
 		}
 	}
