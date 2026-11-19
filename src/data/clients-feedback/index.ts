@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { FeedbackCategory, FeedbackEntry } from './types';
 
 const CDN = 'https://img.thingsboard.io/customers/';
@@ -14,6 +16,23 @@ export const feedbackCategories: FeedbackCategory[] = [
 
 export const feedbackEntries: Record<string, FeedbackEntry[]> = {
 	'smart-energy': [
+		{
+			author: 'Nassim Talbi',
+			position: 'IoT Project Manager at Datanumia, an EDF Group company',
+			companyName: 'Datanumia, an EDF Group company',
+			id: 'datanumia',
+			source: {
+				url: 'https://www.linkedin.com/posts/datanumia_simplifier-la-gestion-des-donn%C3%A9es-iot-activity-7526984980451844098-Uj_7',
+				label: 'Read on LinkedIn',
+			},
+			authorImage: '/images/customers/datanumia-person.webp',
+			companyImage: '/images/customers/edf.svg',
+			companyImageWidth: 94,
+			companyImageHeight: 40,
+			text: [
+				'Moving to ThingsBoard lets us monitor our IoT devices in much finer detail. Our industrial and IoT protocols are supported, however diverse our end devices are, and dashboards and telemetry logs now give us clear, precise traceability of anomalies. More broadly, this company-wide project has been a real human adventure, where everyone played as a team, from the first device connection in QA all the way to production.',
+			],
+		},
 		{
 			author: 'Daniel Portero',
 			position: 'Cloud & App Development Manager',
@@ -881,3 +900,17 @@ export const devServicesFeedback: import('./types').FeedbackEntry[] = [
 		],
 	},
 ];
+
+function assertLogosHaveSize(entries: FeedbackEntry[]): void {
+	for (const { companyImage: logo } of entries) {
+		if (!logo.startsWith('/') || !logo.endsWith('.svg')) continue;
+		const svgTag = readFileSync(join(process.cwd(), 'public', logo), 'utf-8').match(/<svg[^>]*>/)?.[0] ?? '';
+		if (!/\swidth=/.test(svgTag) || !/\sheight=/.test(svgTag)) {
+			throw new Error(
+				`[clients-feedback] ${logo} needs both width and height on its <svg> tag. Pages show a logo at the file's own size, so without them it would be invisible.`
+			);
+		}
+	}
+}
+
+assertLogosHaveSize([...allFeedbackEntries, ...devServicesFeedback]);
