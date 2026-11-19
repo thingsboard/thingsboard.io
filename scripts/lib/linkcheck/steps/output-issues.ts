@@ -45,10 +45,17 @@ export function outputIssues(linkIssues: LinkIssue[], state: LinkCheckerState) {
 	console.log();
 
 	// Output a summary with issue counts by type
+	const totalWarnings = linkIssues
+		.filter((issue) => issue.type.severity === 'warning')
+		.reduce((sum, issue) => sum + (issue.sourceFileAnnotations.length || 1), 0);
+	const totalErrors = totalIssues - totalWarnings;
+	const warningsNote = totalWarnings
+		? ` and ${formatCount(totalWarnings, 'warning(s)')}, which do not fail the check`
+		: '';
 	const summary = [
 		!state.autofixedCount
-			? `*** Found ${formatCount(totalIssues, 'link issue(s)')}:`
-			: `*** Found ${formatCount(totalIssues, 'remaining link issue(s)')} after autofix:`,
+			? `*** Found ${formatCount(totalErrors, 'link issue(s)')}${warningsNote}:`
+			: `*** Found ${formatCount(totalErrors, 'remaining link issue(s)')}${warningsNote} after autofix:`,
 	];
 	const sortedIssues = [...linkIssues];
 	sortedIssues.sort((a, b) => a.type.sortOrder - b.type.sortOrder);
@@ -91,8 +98,9 @@ export function outputAnnotationsForGitHub(linkIssues: LinkIssue[]) {
 
 	// Now output all line annotations
 	linkIssues.forEach((linkIssue) => {
+		const annotate = linkIssue.type.severity === 'warning' ? core.warning : core.error;
 		linkIssue.sourceFileAnnotations.forEach((annotation) => {
-			core.error(annotation.message, annotation.location);
+			annotate(annotation.message, annotation.location);
 		});
 
 		// Also output an error if no annotations were found for a link issue
@@ -103,7 +111,7 @@ export function outputAnnotationsForGitHub(linkIssues: LinkIssue[]) {
 			if (linkIssue.autofixHref) {
 				message += ` Suggested fix: ${linkIssue.autofixHref}`;
 			}
-			core.error(message);
+			annotate(message);
 		}
 	});
 }
