@@ -15,6 +15,23 @@ export const feedbackCategories: FeedbackCategory[] = [
 export const feedbackEntries: Record<string, FeedbackEntry[]> = {
 	'smart-energy': [
 		{
+			author: 'Nassim Talbi',
+			position: 'IoT Project Manager at Datanumia, an EDF Group company',
+			companyName: 'Datanumia, an EDF Group company',
+			id: 'datanumia',
+			source: {
+				url: 'https://www.linkedin.com/posts/simplifier-la-gestion-des-donn%C3%A9es-iot-ugcPost-7521853286069485568-6Foe/',
+				label: 'Read on LinkedIn',
+			},
+			authorImage: '/images/customers/datanumia-person.webp',
+			companyImage: '/images/customers/edf.svg',
+			companyImageWidth: 94,
+			companyImageHeight: 40,
+			text: [
+				'Moving to ThingsBoard lets us monitor our IoT devices in much finer detail. Our industrial and IoT protocols are supported, however diverse our end devices are, and dashboards and telemetry logs now give us clear, precise traceability of anomalies. More broadly, this company-wide project has been a real human adventure, where everyone played as a team, from the first device connection in QA all the way to production.',
+			],
+		},
+		{
 			author: 'Daniel Portero',
 			position: 'Cloud & App Development Manager',
 			companyName: 'Circutor',
