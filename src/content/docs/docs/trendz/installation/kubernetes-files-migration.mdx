@@ -24,6 +24,13 @@ If the command prints the ConfigMap, follow this guide, even if your local folde
 prints `NotFound`, your installation already uses the new files: follow the
 <DocLink product={Products.TRENDZ} path="installation/upgrade-instructions">upgrade instructions</DocLink> instead.
 
+## Before you start
+
+Follow <DocLink product={Products.TRENDZ} path="installation/upgrade-instructions/kubernetes/v1-16-x#prepare-for-upgrading-trendz-analytics">Prepare for upgrading Trendz Analytics</DocLink>:
+connect to your cluster and back up the database.
+
+## What changes
+
 The new files differ in these ways:
 
 - Trendz and the Python Executor run as user `799`, not as root.
@@ -31,14 +38,12 @@ The new files differ in these ways:
 - Trendz and the Python Executor share a secret, kept in the Secret `trendz-python-executor-secret`.
 - Each service has two ConfigMaps: one for environment variables (`*-env-config`) and one for mounted files
   (`*-files-config`).
+- Trendz is the StatefulSet `trendz-app` (pods `trendz-app-0`, `trendz-app-1`, ...), not the Deployment
+  `trendz-app-deployment`. Each pod keeps its own license file, `/data/license-<pod name>.data`, and the stable pod
+  names keep it on that file across restarts.
 - `/data` of all Trendz pods is the ReadWriteMany volume `trendz-app-shared-pvc`, not the ReadWriteOnce `trendz-app-pvc`.
 - Valkey (`trendz-cache-deployment.yml`) holds the cache shared by Trendz replicas.
 - A network policy lets only Trendz call the Python Executor and blocks all outbound traffic from the executor.
-
-## Before you start
-
-Follow <DocLink product={Products.TRENDZ} path="installation/upgrade-instructions/kubernetes/v1-16-x#prepare-for-upgrading-trendz-analytics">Prepare for upgrading Trendz Analytics</DocLink>:
-connect to your cluster and back up the database.
 
 Your cluster needs a ReadWriteMany storage class (NFS, EFS, Azure Files, CephFS) for `trendz-app-shared-pvc`. All
 Trendz pods share this volume, so a ReadWriteOnce class does not work. If the cluster has no such class, install a
@@ -63,13 +68,13 @@ provisioner for one first, for example the NFS or EFS CSI driver.
    | Old file | Values | New file |
    |---|---|---|
    | `trendz-app-db-config.yml` | `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` | `trendz-db-app-secret.yml` |
-   | `trendz-app-deployment.yml` | `TB_API_URL`, `TRENDZ_LICENSE_SECRET`, `JWT_TOKEN_SIGNING_KEY` | `trendz-app-deployment.yml` |
+   | `trendz-app-deployment.yml` | `TB_API_URL`, `TRENDZ_LICENSE_SECRET`, `JWT_TOKEN_SIGNING_KEY` | `trendz-app-statefulset.yml` |
    | `trendz-app-config.yml` | your changes to `trendz.conf` and `logback.xml` | `trendz-app-files-config.yml` |
    | `trendz-ingress.yml` | your host, TLS and annotations | `trendz-ingress.yml` |
 
    Tuning values (heap, timeouts, CPU and memory) are in `trendz-app-env-config.yml`,
-   `trendz-python-executor-env-config.yml` and the two deployments. Carry over the ones you changed. The other keys of
-   the old ConfigMaps are no longer used.
+   `trendz-python-executor-env-config.yml`, `trendz-app-statefulset.yml` and `trendz-python-executor-deployment.yml`.
+   Carry over the ones you changed. The other keys of the old ConfigMaps are no longer used.
 
    Then set the values the old files did not have:
 
@@ -99,56 +104,24 @@ provisioner for one first, for example the NFS or EFS CSI driver.
    kubectl apply -f trendz-python-executor-network-policy.yml
    ```
 
-4. **Stop Trendz:**
+4. **Stop Trendz.** Delete the Deployment; the StatefulSet replaces it in step 6:
 
    ```bash
-   kubectl -n trendz scale deployment trendz-app-deployment --replicas=0
-   kubectl -n trendz wait --for=delete pod -l app=trendz-app-pod-label --timeout=120s
+   kubectl -n trendz delete deployment trendz-app-deployment
+   kubectl -n trendz wait --for=delete pod -l app=trendz-app-pod-label --timeout=180s
    ```
 
 5. **Move the license file to the new volume.** A temporary pod copies `license.data` from `trendz-app-pvc` to
-   `trendz-app-shared-pvc`, marks Trendz as installed there and gives the files to user `799`:
+   `trendz-app-shared-pvc` as `license-trendz-app-0.data`, gives it to user `799` and lists the new volume. It runs as
+   root because the old volume holds files owned by root:
 
    ```bash
-   cat <<'EOF' | kubectl apply -f -
-   apiVersion: v1
-   kind: Pod
-   metadata:
-     name: trendz-data-move
-     namespace: trendz
-   spec:
-     restartPolicy: Never
-     containers:
-       - name: move
-         image: busybox:1.36
-         command:
-           - sh
-           - -c
-           - |
-             if [ -f /old/license.data ]; then cp /old/license.data /new/; else echo "No license.data on the old volume"; fi
-             touch /new/.firstlaunch
-             chown -R 799:799 /new
-         volumeMounts:
-           - name: old
-             mountPath: /old
-           - name: new
-             mountPath: /new
-     volumes:
-       - name: old
-         persistentVolumeClaim:
-           claimName: trendz-app-pvc
-       - name: new
-         persistentVolumeClaim:
-           claimName: trendz-app-shared-pvc
-   EOF
-   kubectl -n trendz wait --for=jsonpath='{.status.phase}'=Succeeded pod/trendz-data-move --timeout=300s
-   kubectl -n trendz logs trendz-data-move
-   kubectl -n trendz delete pod trendz-data-move
+   kubectl -n trendz run trendz-license-move --rm -i --restart=Never --image=busybox:1.37 --overrides='{"spec":{"containers":[{"name":"move","image":"busybox:1.37","command":["sh","-c","if [ -f /old/license.data ] && [ ! -f /data/license-trendz-app-0.data ]; then cp /old/license.data /data/license-trendz-app-0.data && chown 799:799 /data/license-trendz-app-0.data; fi; ls -ln /data"],"volumeMounts":[{"name":"old","mountPath":"/old"},{"name":"data","mountPath":"/data"}]}],"volumes":[{"name":"old","persistentVolumeClaim":{"claimName":"trendz-app-pvc"}},{"name":"data","persistentVolumeClaim":{"claimName":"trendz-app-shared-pvc"}}]}}'
    ```
 
-   "No license.data on the old volume" means your installation uses `TRENDZ_LICENSE_SECRET` only. If the wait times
-   out, check `kubectl -n trendz describe pod trendz-data-move`: a Pending volume usually means a wrong
-   `storageClassName`.
+   Without `license.data` nothing is copied. The command never overwrites an existing `license-trendz-app-0.data`, so
+   you can run it again. If it does not finish, check `kubectl -n trendz describe pod trendz-license-move`: a Pending
+   volume usually means a wrong `storageClassName`.
 
 6. **Upgrade Trendz.** Open the
    <DocLink product={Products.TRENDZ} path="installation/upgrade-instructions/kubernetes/v1-16-x#v1-16-1-1">Kubernetes upgrade instructions for 1.16.1.1</DocLink>
