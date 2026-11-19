@@ -22,7 +22,7 @@ pnpm preview          # Preview production build
 
 # Builds render pages on worker threads; the count is picked from the machine's CPU and RAM.
 # PRERENDER_WORKERS=0 (or 1) turns that off, 2 or more forces that many workers.
-# lint:linkcheck parses pages on worker threads the same way (config/worker-count.ts); LINKCHECK_WORKERS does the same.
+# lint:linkcheck parses pages on worker threads too (config/worker-count.ts); LINKCHECK_WORKERS sets its count.
 PRERENDER_WORKERS=0 pnpm build
 
 # Quality checks

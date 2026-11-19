@@ -1,8 +1,6 @@
 /**
- * #hash deep links to the Add-ons section of a pricing sub-tab. No element has these ids: Public
- * Cloud has an NA and an EU Add-ons section, so the page script opens the sub-tab and scrolls to
- * whichever one is shown. linkcheck reads the same map to accept links to these fragments.
- *
+ * #hash deep links to the Add-ons section of a pricing sub-tab. No element has these ids (Public
+ * Cloud has an NA and an EU section), so the page script resolves them; linkcheck accepts them.
  * `scripts/lint-linkcheck.ts` imports this in plain Node, so it uses no path aliases and no `window`.
  */
 

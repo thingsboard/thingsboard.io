@@ -1,8 +1,6 @@
 /**
  * Addresses of the old tabbed installations page (`?product=thingsboard-cloud`, `#tab-thingsboard-pe`)
- * and the /installations/ section each one now opens. The page sends a visitor who arrives on an old
- * address to its section; linkcheck reports links on this site that still use one.
- *
+ * and the /installations/ section each one opens; used by the page and by linkcheck.
  * `scripts/lint-linkcheck.ts` imports this in plain Node, so it uses no path aliases and no `window`.
  */
 

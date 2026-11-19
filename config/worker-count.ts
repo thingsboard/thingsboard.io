@@ -8,7 +8,6 @@ export interface WorkerPlan {
 }
 
 interface WorkerBudget {
-	/** Environment variable that overrides the count. */
 	envVar: string;
 	/** Memory the job needs on the main thread, in GB. */
 	baseGb: number;

@@ -17,15 +17,12 @@ export interface SectionLinks {
 export interface CanonicalLinkPolicy {
 	/** Site sections, most specific first. A page belongs to the first one its pathname starts with. */
 	sections: string[];
-	/** Links that are fine. */
-	allow?: SectionLinks[];
-	/** Links that are reported as warnings: allowed for now, but they should move to the canonical URL. */
-	warn?: SectionLinks[];
+	allow: SectionLinks[];
 }
 
 /**
  * - `own`: the link may use the target's own URL.
- * - `warn`: it may, but gets a warning when the target's canonical URL points elsewhere.
+ * - `warn`: it may, but gets a warning (links only text from outside this repo makes).
  * - `canonical`: it must use the target's canonical URL.
  */
 export type CanonicalLinkRule = 'own' | 'warn' | 'canonical';
@@ -35,22 +32,16 @@ export function sectionOf(pathname: string, policy: CanonicalLinkPolicy): string
 	return policy.sections.find((section) => pathname.startsWith(section)) ?? `/${pathname.split('/')[1]}/`;
 }
 
-function matches(list: SectionLinks[] | undefined, from: string, to: string, target: string) {
-	return Boolean(
-		list?.some(
-			(links) => links.from.includes(from) && links.to.includes(to) && (!links.pages || links.pages.includes(target))
-		)
+function isAllowed(policy: CanonicalLinkPolicy, from: string, to: string, target: string) {
+	return policy.allow.some(
+		(links) => links.from.includes(from) && links.to.includes(to) && (!links.pages || links.pages.includes(target))
 	);
 }
 
 /**
- * Decides which URL the link `linkHref` on `source` to `target` has to use.
- *
- * Every link on a canonical page is held to canonical URLs: content, header, sidebar and
- * footer alike, except the edition and product switcher, whose links lead to other editions on
- * purpose. A page whose canonical points elsewhere may link to any real page. A link that
- * only text from outside this repo makes (e.g. an IoT Hub readme) gets a warning instead of an
- * error.
+ * Decides which URL the link `linkHref` on `source` to `target` has to use. Every link on a
+ * canonical page counts (content, header, sidebar, footer) except the product switchers'; a page
+ * whose canonical points elsewhere may link to any real page.
  */
 export function canonicalLinkRule(
 	source: HtmlPage,
@@ -61,7 +52,7 @@ export function canonicalLinkRule(
 	if (!source.isCanonical || target.isCanonical || source.switcherOnlyLinkHrefs.has(linkHref)) return 'own';
 	const from = sectionOf(source.pathname, policy);
 	const to = sectionOf(target.pathname, policy);
-	if (from === to || matches(policy.allow, from, to, target.pathname)) return 'own';
-	if (matches(policy.warn, from, to, target.pathname) || source.externalOnlyLinkHrefs.has(linkHref)) return 'warn';
+	if (from === to || isAllowed(policy, from, to, target.pathname)) return 'own';
+	if (source.externalOnlyLinkHrefs.has(linkHref)) return 'warn';
 	return 'canonical';
 }

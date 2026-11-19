@@ -27,13 +27,13 @@ export class HtmlPage {
 	 */
 	readonly uniqueLinkHrefs: string[];
 	/**
-	 * Link hrefs found only in text from outside this repo (`data-external-content`, e.g. IoT Hub
-	 * readmes). Canonical issues of these are reported as warnings.
+	 * Link hrefs found only in text from outside this repo (`isExternalContent` in `page-data.ts`,
+	 * e.g. IoT Hub readmes). Canonical issues of these are reported as warnings.
 	 */
 	readonly externalOnlyLinkHrefs: Set<string>;
 	/**
-	 * Link hrefs found only in the edition and product switcher (`data-product-switcher`), whose
-	 * links lead to other editions on purpose.
+	 * Link hrefs found only in the edition and product switchers (`isProductSwitcher` in
+	 * `page-data.ts`), whose links lead to other editions on purpose.
 	 */
 	readonly switcherOnlyLinkHrefs: Set<string>;
 	/**
@@ -87,9 +87,6 @@ export class HtmlPage {
 		this.href = href;
 		this.pathname = pathname;
 
-		// Inline SVGs may use SVG 1.1 `xlink:href` instead of the modern `href`; `extractPageData`
-		// falls back to it so anchors inside embedded SVG diagrams are validated. Anchors without
-		// any href form (e.g. `<a name="…">` bookmarks) keep href undefined and are filtered out below.
 		this.anchors = data.anchors;
 
 		// Build a list of unique link hrefs on the page
@@ -120,7 +117,6 @@ export class HtmlPage {
 		this.canonicalUrl = data.hasCanonical ? new URL(data.canonicalHref as string) : null;
 		this.isCanonical = !this.canonicalUrl || this.canonicalUrl.pathname === this.pathname;
 
-		// Whether the page has a <main> or <body>, and the language of the first one found
 		this.hasContent = data.hasContent;
 		this.mainContentLang = data.mainContentLang;
 

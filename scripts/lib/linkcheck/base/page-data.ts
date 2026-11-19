@@ -11,9 +11,9 @@ export interface PageData {
 		label: string;
 		name: string | undefined;
 		href: string | undefined;
-		/** Inside an element marked `data-external-content`: text from outside this repo. */
+		/** Inside text from outside this repo (`isExternalContent`). */
 		inExternal: boolean;
-		/** Inside an element marked `data-product-switcher`: links to other editions or products. */
+		/** Inside an edition or product switcher (`isProductSwitcher`): links to other editions or products. */
 		inSwitcher: boolean;
 	}>;
 	/** Every truthy `id` attribute in document order. */
@@ -41,20 +41,32 @@ interface OpenElement {
 }
 
 /**
- * Copies a string into its own memory instead of keeping a slice of the whole
- * HTML document alive, which kept every page's HTML in memory at once.
+ * Wrappers of IoT Hub listing text, which comes from the IoT Hub API: must match the classes in
+ * `src/pages/iot-hub/[category]/[slug].astro` and `src/components/IotHub/DetailHero.astro`.
  */
+const EXTERNAL_CONTENT_CLASS = /(?:^|\s)(?:iot-hub-detail__readme|iot-hub-detail-hero__desc)(?:\s|$)/;
+
+function isExternalContent(attribs: Record<string, string>) {
+	return attribs.class !== undefined && EXTERNAL_CONTENT_CLASS.test(attribs.class);
+}
+
+/**
+ * The docs sidebar's product switcher (`VersionSwitcher.astro`) and the header's Docs menu
+ * (`data-sm-body` is `docsSubmenu.id` in `src/data/navigation.ts`).
+ */
+function isProductSwitcher(name: string, attribs: Record<string, string>) {
+	return name === 'product-selector' || attribs['data-sm-body'] === 'nav-docs';
+}
+
+/** Copies a string out of the HTML, so a kept slice does not keep the whole page in memory. */
 function detach(value: string) {
 	return Buffer.from(value).toString();
 }
 
 /**
- * Reads the page data with htmlparser2's streaming callbacks instead of building
- * a DOM and querying it. The parser emits the same open and close events that
- * `parseDocument` builds its tree from, so the element stack below matches the
- * DOM's ancestry, implied and void tags included. Labels follow
- * `DomUtils.innerText`: text of descendant elements, but not of `<script>` or
- * `<style>`.
+ * Reads the page data with htmlparser2's streaming callbacks. The element stack matches the DOM's
+ * ancestry, implied and void tags included; labels follow `DomUtils.innerText` (no `<script>` or
+ * `<style>` text).
  */
 export function extractPageData(html: string): PageData {
 	const anchors: PageData['anchors'] = [];
@@ -78,6 +90,7 @@ export function extractPageData(html: string): PageData {
 			if (attribs.id) ids.push(detach(attribs.id));
 
 			if (name === 'a') {
+				// Inline SVG diagrams may still use SVG 1.1 `xlink:href`
 				const rawHref = attribs.href ?? attribs['xlink:href'];
 				anchorIndex = anchors.length;
 				anchors.push({
@@ -103,9 +116,9 @@ export function extractPageData(html: string): PageData {
 				if (!body) body = { lang };
 			}
 
-			const isExternal = attribs['data-external-content'] !== undefined;
+			const isExternal = isExternalContent(attribs);
 			if (isExternal) openExternal++;
-			const isSwitcher = attribs['data-product-switcher'] !== undefined;
+			const isSwitcher = isProductSwitcher(name, attribs);
 			if (isSwitcher) openSwitchers++;
 			stack.push({
 				lang,
@@ -157,10 +170,7 @@ export interface ParseRequest {
 
 export type ParseResult = { index: number; data: PageData } | { index: number; error: string };
 
-/**
- * Reads one built page and extracts its data. A failure comes back as a message, so that a
- * worker can send it to the main thread, which reports it with the file path.
- */
+/** Reads one built page; a failure comes back as a message the main thread reports with the file path. */
 export function readPageData(htmlFilePath: string, index: number): ParseResult {
 	try {
 		return { index, data: extractPageData(fs.readFileSync(htmlFilePath, 'utf8')) };

@@ -8,7 +8,6 @@ export interface LinkCheckerOptions {
 	checks: CheckBase[];
 	autofix?: boolean;
 	excludePagePatterns?: RegExp[];
-	/** Which links in the content of canonical pages may skip the target's canonical URL. */
 	canonicalLinkPolicy: CanonicalLinkPolicy;
 	/**
 	 * Origins that should be treated as "local" in addition to `baseUrl` — e.g.

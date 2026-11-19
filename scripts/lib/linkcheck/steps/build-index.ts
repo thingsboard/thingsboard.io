@@ -48,9 +48,7 @@ function pickParseWorkers(pageCount: number) {
 
 /**
  * Parses multiple HTML pages based on their pathnames and builds an index of their contents.
- *
- * Reading and parsing take most of a run, so they are spread over worker threads;
- * the index keeps the order of `pathnames` either way.
+ * Pages are read and parsed on worker threads; the index keeps the order of `pathnames`.
  */
 export async function parsePages(pathnames: string[], options: LinkCheckerOptions): Promise<AllPagesByPathname> {
 	const htmlFilePaths = pathnames.map((pathname) => pathnameToHtmlFilePath(pathname, options.buildOutputDir));

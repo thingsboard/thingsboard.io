@@ -23,9 +23,8 @@ interface LocalLink {
 }
 
 /**
- * Local links of each page, resolved once and shared by every check instead of
- * each check building the same URL objects again. Keyed by page only: `baseUrl`
- * and `additionalLocalHosts` are the same for the whole run.
+ * Local links of each page, resolved once and shared by every check. Keyed by page only:
+ * `baseUrl` and `additionalLocalHosts` are the same for the whole run.
  */
 const pageLocalLinks = new WeakMap<HtmlPage, LocalLink[]>();
 

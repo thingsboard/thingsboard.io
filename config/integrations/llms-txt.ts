@@ -9,8 +9,7 @@ import { isIndexableCanonical, readPageHead } from '../indexable-page';
  * Writes `/llms.txt`, one `llms.txt` per product at its docs home, and one per large section of a
  * `splitSections` product, after the build. The pages are the sitemap's (indexable, self-canonical,
  * see `config/indexable-page.ts`); titles and descriptions come from the built `<head>`.
- * The linkcheck build writes them too: pages link to `/llms.txt`, and the `<head>`s are already
- * read for the sitemap, so the files cost about a second.
+ * The linkcheck build writes them too, since pages link to `/llms.txt`.
  */
 export function llmsTxt(): AstroIntegration {
 	let site: URL;
