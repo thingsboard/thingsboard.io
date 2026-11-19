@@ -1,7 +1,10 @@
 import { PROD_ORIGIN } from '../src/consts.ts';
+import { legacyInstallationsSection } from '../src/data/installations-legacy.ts';
+import { ADD_ONS_SUB_TAB_BY_HASH } from '../src/data/pricing/add-ons-links.ts';
 import { type LinkCheckerOptions, LinkCheckerState } from './lib/linkcheck/base/base.ts';
 import { CanonicalUrl } from './lib/linkcheck/checks/canonical-url.ts';
 import { GoodLabels } from './lib/linkcheck/checks/good-link-label.ts';
+import { LegacyUrl } from './lib/linkcheck/checks/legacy-url.ts';
 import { RelativeUrl } from './lib/linkcheck/checks/relative-url.ts';
 import { SameLanguage } from './lib/linkcheck/checks/same-language.ts';
 import { TargetExists } from './lib/linkcheck/checks/target-exists.ts';
@@ -26,7 +29,7 @@ class LinkChecker {
 	 * Checks all pages referenced by the sitemap for link issues
 	 * and outputs the result to the console.
 	 */
-	run() {
+	async run() {
 		const options = this.options;
 		const state = this.state;
 
@@ -34,13 +37,13 @@ class LinkChecker {
 		const pagePathnames = getPagePathnamesFromBuildOutput(options);
 
 		// Parse all built pages and build an index of their contents
-		const allPages = parsePages(pagePathnames, options);
+		const allPages = await parsePages(pagePathnames, options);
 
 		// Find all link issues
 		const linkIssues = findLinkIssues(allPages, options, state);
 
-		// If issues were found, let our caller know through the process exit code
-		process.exitCode = linkIssues.length > 0 ? 1 : 0;
+		// If errors were found, let our caller know through the process exit code (warnings don't fail)
+		process.exitCode = linkIssues.some((issue) => issue.type.severity === 'error') ? 1 : 0;
 
 		// Try to annotate all found issues with their Markdown source code locations
 		addSourceFileAnnotations(linkIssues, options);
@@ -53,7 +56,7 @@ class LinkChecker {
 		if (performedAutofix) {
 			// If we just performed an autofix, repeat our entire run
 			// to show the user what's left for them to fix manually
-			this.run();
+			await this.run();
 			return;
 		}
 
@@ -91,31 +94,57 @@ const linkChecker = new LinkChecker({
 	additionalLocalHosts,
 	buildOutputDir: './dist',
 	pageSourceDir: './src/content/docs',
-	// SEO canonical consolidation: pages in "free" versions whose content is ~95% identical
-	// to the "professional" equivalent have their <link rel="canonical"> rewritten to the PE
-	// URL (see `src/routeData.ts`). The exceptions are narrower than a whole tree: the
-	// `selfCanonicalSegments` list in `canonical.ts` (currently just
-	// `installation/upgrade-instructions`, whose steps genuinely differ per edition) and
-	// pages carrying `selfCanonical: true` in frontmatter. Other `installation/*` pages do
-	// consolidate. These patterns tell the link checker which URL pairs count as consolidation —
-	// runtime still filters per page via `isConsolidationCanonical` (which returns false when
-	// canonical === pathname), so self-canonical pages fall through automatically. Effect:
-	// `[can]` does not fire for links to the actual pathname of a consolidation source, and
-	// `[ref]` / `[lng]` / `[abs]` autofixes preserve product context.
-	consolidationPatterns: [
-		{ from: '/docs/paas/eu/user-guide/billing-info/', to: '/docs/paas/user-guide/billing-info/' },
-		// Main product: CE / PaaS / PaaS EU → PE
-		{ from: '/docs/paas/eu/', to: '/docs/pe/' },
-		{ from: '/docs/paas/', to: '/docs/pe/' },
-		{ from: '/docs/', to: '/docs/pe/' },
-		// Sub-products: free → professional
-		{ from: '/docs/edge/', to: '/docs/edge/pe/' },
-		{ from: '/docs/mobile/', to: '/docs/mobile/pe/' },
-		{ from: '/docs/edge/pe/reference/', to: '/docs/pe/reference/' },
-		{ from: '/docs/edge/reference/', to: '/docs/pe/reference/' },
-		{ from: '/docs/edge/pe/user-guide/', to: '/docs/pe/user-guide/' },
-		{ from: '/docs/edge/user-guide/', to: '/docs/pe/user-guide/' },
-	],
+	canonicalLinkPolicy: {
+		// Most specific first; any other page's section is its first path segment (`/blog/`, `/iot-hub/`).
+		sections: [
+			'/docs/edge/pe/',
+			'/docs/edge/',
+			'/docs/paas/eu/',
+			'/docs/paas/',
+			'/docs/pe/',
+			'/docs/mobile/pe/',
+			'/docs/mobile/',
+			'/docs/mqtt-broker/pe/',
+			'/docs/mqtt-broker/',
+			'/docs/trendz/',
+			'/docs/iot-gateway/',
+			'/docs/license-server/',
+			'/docs/iot-hub/',
+			'/docs/cli/',
+			'/docs/',
+			'/products/paas/',
+		],
+		allow: [
+			// The CLI works with ThingsBoard Cloud and with your own PE server. Where the steps differ
+			// (Cloud hosts and CA file, DTLS already on, no SNMP transport to configure), its guides link
+			// both versions of the page.
+			{
+				from: ['/docs/cli/'],
+				to: ['/docs/paas/'],
+				pages: [
+					'/docs/paas/reference/mqtt-api/getting-connected/',
+					'/docs/paas/reference/lwm2m-api/getting-started/',
+					'/docs/paas/reference/snmp-api/getting-connected/',
+				],
+			},
+			// The Cloud pricing and product pages link the Cloud docs home and the Cloud custom domain
+			// guide (CNAME to thingsboard.cloud, unlike the self-hosted one)
+			{
+				from: ['/pricing/', '/products/paas/'],
+				to: ['/docs/paas/'],
+				pages: ['/docs/paas/', '/docs/paas/user-guide/security/domains/'],
+			},
+			// CE upgrade instructions check compatibility against the Community Edge releases table,
+			// which has no 4.4 row
+			{ from: ['/docs/'], to: ['/docs/edge/'], pages: ['/docs/edge/releases/releases-table/'] },
+			// The push notifications post sends Community Edition users to the CE mobile guide on purpose,
+			// next to its link to the PE guide
+			{ from: ['/blog/'], to: ['/docs/mobile/'], pages: ['/docs/mobile/getting-started/'] },
+			// Temporary: the CE vs PE comparison predates 4.4 and links its CE column to the CE docs.
+			// Drop this once the page is rewritten for the source-available release.
+			{ from: ['/ce-vs-pe-diff/'], to: ['/docs/'], pages: ['/docs/', '/docs/installation/'] },
+		],
+	},
 	checks: [
 		new TargetExists({
 			// Replay Cloudflare's _redirects on each link before the on-disk lookup,
@@ -128,6 +157,9 @@ const linkChecker = new LinkChecker({
 			// automatically via a cached `dist/{pathname}/index.html` fallback
 			// in TargetExists itself — no manual prefix list needed.
 			redirectsFilePath: './public/_redirects',
+			scriptFragments: {
+				'/pricing/': [...ADD_ONS_SUB_TAB_BY_HASH.keys()],
+			},
 		}),
 		new SameLanguage({
 			ignoredLinkPathnames: ['/lighthouse/'],
@@ -136,9 +168,34 @@ const linkChecker = new LinkChecker({
 			ignoreMissingCanonicalUrl: ['/lighthouse/'],
 		}),
 		new RelativeUrl(),
+		new LegacyUrl({
+			rules: [
+				{
+					// The old tabbed page: `?product=thingsboard-cloud`, `#tab-thingsboard-pe`
+					pathname: '/installations/',
+					resolve: (url) => {
+						const section = legacyInstallationsSection(url.search, url.hash);
+						return section && `/installations/#${section}`;
+					},
+				},
+				{
+					// `?section=thingsboard-pe-options` and `?active=thingsboard-edge` open the PE tab, and any
+					// `product=` overrides them (`__resolvePricingState` in src/pages/pricing/index.astro)
+					pathname: '/pricing/',
+					resolve: (url) => {
+						const legacy = ['section=thingsboard-pe-options', 'active=thingsboard-edge'];
+						const params = url.search.slice(1).split('&').filter(Boolean);
+						const current = params.filter((param) => !legacy.includes(param));
+						if (current.length === params.length) return undefined;
+						if (!url.searchParams.has('product')) current.unshift('product=thingsboard-pe');
+						return `/pricing/${current.length ? `?${current.join('&')}` : ''}${url.hash}`;
+					},
+				},
+			],
+		}),
 		new GoodLabels(),
 	],
 	autofix: process.argv.includes('--autofix') || Boolean(process.env.npm_config_autofix),
 });
 
-linkChecker.run();
+await linkChecker.run();
