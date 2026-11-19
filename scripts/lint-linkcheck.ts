@@ -95,10 +95,7 @@ const linkChecker = new LinkChecker({
 	buildOutputDir: './dist',
 	pageSourceDir: './src/content/docs',
 	canonicalLinkPolicy: {
-		// Every link on a canonical page (content, header, sidebar, footer) must use canonical URLs,
-		// apart from the edition switcher. Within one of these sections
-		// the product's own pages are always fine; outside them, a page's section is its first path
-		// segment (`/blog/`, `/iot-hub/`, ...). Most specific first.
+		// Most specific first; any other page's section is its first path segment (`/blog/`, `/iot-hub/`).
 		sections: [
 			'/docs/edge/pe/',
 			'/docs/edge/',
@@ -182,17 +179,16 @@ const linkChecker = new LinkChecker({
 					},
 				},
 				{
-					// `?section=thingsboard-pe-options` opens the PE tab, and any `product=` overrides it
-					// (`__resolvePricingState` in src/pages/pricing/index.astro)
+					// `?section=thingsboard-pe-options` and `?active=thingsboard-edge` open the PE tab, and any
+					// `product=` overrides them (`__resolvePricingState` in src/pages/pricing/index.astro)
 					pathname: '/pricing/',
 					resolve: (url) => {
-						if (url.searchParams.get('section') !== 'thingsboard-pe-options') return undefined;
-						const params = url.search
-							.slice(1)
-							.split('&')
-							.filter((param) => param !== 'section=thingsboard-pe-options');
-						if (!url.searchParams.has('product')) params.unshift('product=thingsboard-pe');
-						return `/pricing/${params.length ? `?${params.join('&')}` : ''}${url.hash}`;
+						const legacy = ['section=thingsboard-pe-options', 'active=thingsboard-edge'];
+						const params = url.search.slice(1).split('&').filter(Boolean);
+						const current = params.filter((param) => !legacy.includes(param));
+						if (current.length === params.length) return undefined;
+						if (!url.searchParams.has('product')) current.unshift('product=thingsboard-pe');
+						return `/pricing/${current.length ? `?${current.join('&')}` : ''}${url.hash}`;
 					},
 				},
 			],
