@@ -79,7 +79,13 @@ export const PE_RELEASE_URL = `https://github.com/thingsboard/thingsboard/releas
 export const PE_BRANCH = 'release-4.4';
 
 /** Trendz Analytics */
-export const TRENDZ_VER = '1.16.1';
+export const TRENDZ_VER = '1.16.1.1';
+
+/**
+ * First Trendz release whose Docker image runs as uid 799 instead of root.
+ * A policy boundary, not a release pointer — it does not move with each release.
+ */
+export const TRENDZ_NON_ROOT_FROM_VER = '1.16.1.1';
 
 /** Remote Agent — Docker image tag for `thingsboard/tb-remote-agent:${AGENT_VER}`. */
 export const AGENT_VER = '1.0.0';

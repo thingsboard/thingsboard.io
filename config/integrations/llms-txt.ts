@@ -9,7 +9,7 @@ import { isIndexableCanonical, readPageHead } from '../indexable-page';
  * Writes `/llms.txt`, one `llms.txt` per product at its docs home, and one per large section of a
  * `splitSections` product, after the build. The pages are the sitemap's (indexable, self-canonical,
  * see `config/indexable-page.ts`); titles and descriptions come from the built `<head>`.
- * `SKIP_LLMS=true` (the linkcheck build) skips it.
+ * The linkcheck build writes them too, since pages link to `/llms.txt`.
  */
 export function llmsTxt(): AstroIntegration {
 	let site: URL;
@@ -21,7 +21,6 @@ export function llmsTxt(): AstroIntegration {
 				site = new URL(config.site);
 			},
 			'astro:build:done': ({ dir, pages, logger }) => {
-				if (process.env.SKIP_LLMS) return;
 				const outDir = fileURLToPath(dir);
 				const entries = collectEntries(outDir, site, pages);
 				const files = renderFiles(entries);
