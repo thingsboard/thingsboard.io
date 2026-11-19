@@ -8,9 +8,10 @@ export interface FeedbackEntry {
 	companyImage: string;
 	companyImageWidth?: number;
 	companyImageHeight?: number;
-	tagline: string;
+	tagline?: string;
 	text: string[];
 	caseStudySlug?: string;
+	source?: { url: string; label: string };
 }
 
 export interface FeedbackCategory {
