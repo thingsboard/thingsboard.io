@@ -173,7 +173,7 @@ export const tbCloudData: CloudRegionData = {
 						plusIcon: true,
 						faqId: 'tb-cloud-exceed-plan-limits',
 						faqTooltip:
-							'Supports scaling up to 5,000 devices. For large-scale deployments exceeding this, a <a target="_blank" href="/pricing/?section=thingsboard-pe-options&product=thingsboard-private-cloud" rel="noopener noreferrer">Private Cloud</a> transition is recommended for enhanced cost-efficiency and dedicated resources.',
+							'Supports scaling up to 5,000 devices. For large-scale deployments exceeding this, a <a target="_blank" href="/pricing/?product=thingsboard-private-cloud" rel="noopener noreferrer">Private Cloud</a> transition is recommended for enhanced cost-efficiency and dedicated resources.',
 					},
 				],
 			},
@@ -348,7 +348,7 @@ export const tbCloudData: CloudRegionData = {
 						plusIcon: true,
 						faqId: 'tb-cloud-exceed-plan-limits',
 						faqTooltip:
-							'Supports scaling up to 5,000 devices. For large-scale deployments exceeding this, a <a target="_blank" href="/pricing/?section=thingsboard-pe-options&product=thingsboard-private-cloud" rel="noopener noreferrer">Private Cloud</a> transition is recommended for enhanced cost-efficiency and dedicated resources.',
+							'Supports scaling up to 5,000 devices. For large-scale deployments exceeding this, a <a target="_blank" href="/pricing/?product=thingsboard-private-cloud" rel="noopener noreferrer">Private Cloud</a> transition is recommended for enhanced cost-efficiency and dedicated resources.',
 					},
 				],
 			},
