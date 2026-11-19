@@ -6,12 +6,15 @@ import { redirects } from './astro.redirects';
 import { sidebar } from './astro.sidebar';
 import { devServerFileWatcher } from './config/integrations/dev-server-file-watcher';
 import { imageGalleryLightbox } from './config/integrations/image-gallery-lightbox';
+import { llmsTxt } from './config/integrations/llms-txt';
 import { sitemap } from './config/integrations/sitemap';
 import { youtubePosters } from './config/integrations/youtube-posters';
 import { satteriBlogImages } from './config/plugins/satteri-blog-images';
 import { satteriMdxIncludeHeadings } from './config/plugins/satteri-mdx-include-headings';
 import { satteriTasklistEnhancer } from './config/plugins/satteri-tasklist-enhancer';
+import { pickWorkerCount } from './config/worker-count';
 import { PROD_ORIGIN } from './src/consts';
+import { prepareOgCache } from './src/pages/open-graph/_shared/og-cache';
 
 import icon from 'astro-icon';
 import { fileURLToPath } from 'node:url';
@@ -24,11 +27,18 @@ const CF_PAGES_BRANCH = process.env.CF_PAGES_BRANCH;
 let iconOverrideApplied = false;
 
 /**
- * Kept in step with `UV_THREADPOOL_SIZE` in the `build` script, which derives itself from this
- * same variable. OG cards rasterise with `renderAsync` on the libuv threadpool, so fewer workers
- * than concurrent page renders means the cards queue instead of overlapping.
+ * `scripts/uv-threadpool-size.mjs` keeps the libuv threadpool at least this large. OG cards rasterise
+ * with `renderAsync` on that pool, so fewer threads than concurrent page renders means the cards queue
+ * instead of overlapping.
  */
 const BUILD_CONCURRENCY = process.env.BUILD_CONCURRENCY ? Number(process.env.BUILD_CONCURRENCY) : 8;
+
+/**
+ * Worker threads for Astro's `experimental.parallelPrerender`: 10 GB for the build plus 3 GB per
+ * worker (see `pickWorkerCount`). Each worker renders `BUILD_CONCURRENCY` pages at once.
+ * `PRERENDER_WORKERS=0` or `1` renders on the main thread, 2 or more forces that count.
+ */
+const PRERENDER = pickWorkerCount({ envVar: 'PRERENDER_WORKERS', baseGb: 10, perWorkerGb: 3 });
 
 /* Netlify (kept as fallback in case of platform switch): https://docs.netlify.com/configure-builds/environment-variables/#read-only-variables */
 const NETLIFY_PREVIEW_SITE = process.env.CONTEXT !== 'production' && process.env.DEPLOY_PRIME_URL;
@@ -57,6 +67,34 @@ function assertIconOverrideApplied(): AstroIntegration {
 	};
 }
 
+/** Empties an out-of-date OG card cache once, on the main thread, before any worker thread renders a card. */
+function prepareOgCacheOnce(): AstroIntegration {
+	return {
+		name: 'prepare-og-cache-once',
+		hooks: {
+			'astro:build:start': async () => {
+				if (!process.env.SKIP_OG) await prepareOgCache();
+			},
+		},
+	};
+}
+
+/** Prints the worker count the build runs with; Astro itself does not say. */
+function reportPrerenderWorkers(): AstroIntegration {
+	return {
+		name: 'report-prerender-workers',
+		hooks: {
+			'astro:build:start': ({ logger }) => {
+				logger.info(
+					PRERENDER.workers >= 2
+						? `Rendering pages on ${PRERENDER.workers} worker threads, ${BUILD_CONCURRENCY} pages each (${PRERENDER.source}). PRERENDER_WORKERS=0 turns this off.`
+						: `Rendering pages on the main thread (${PRERENDER.source}).`
+				);
+			},
+		},
+	};
+}
+
 export default defineConfig({
 	site,
 	base: '/',
@@ -65,6 +103,9 @@ export default defineConfig({
 		concurrency: BUILD_CONCURRENCY,
 	},
 	redirects,
+	experimental: {
+		parallelPrerender: PRERENDER.workers >= 2 ? { workers: PRERENDER.workers } : false,
+	},
 	vite: {
 		resolve: {
 			alias: {
@@ -108,6 +149,8 @@ export default defineConfig({
 	},
 	integrations: [
 		assertIconOverrideApplied(),
+		prepareOgCacheOnce(),
+		reportPrerenderWorkers(),
 		icon(),
 		imageGalleryLightbox(),
 		youtubePosters(),
@@ -175,8 +218,10 @@ export default defineConfig({
 			disable404Route: true,
 		}),
 		sitemap(),
+		llmsTxt(),
 	],
 	trailingSlash: 'always',
+	// Our CSS counts on scoped selectors adding no specificity (`:where(.astro-…)`), so keep it set.
 	scopedStyleStrategy: 'where',
 	compressHTML: false,
 	markdown: {

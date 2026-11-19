@@ -4,8 +4,8 @@ import type { Benefit } from '@models/benefit';
 import type { Cta } from '@models/cta';
 import type { ChoiceOption } from '@models/choice-band';
 
-const PRICING_SUBSCRIPTION = '/pricing/?section=thingsboard-pe-options&product=thingsboard-pe';
-const PRICING_PERPETUAL = '/pricing/?section=thingsboard-pe-options&product=thingsboard-pe&solution=pe-perpetual';
+const PRICING_SUBSCRIPTION = '/pricing/?product=thingsboard-pe';
+const PRICING_PERPETUAL = '/pricing/?product=thingsboard-pe&solution=pe-perpetual';
 
 export const onPremHeroCaption = ['No credit card', 'Docker, Kubernetes or any cloud'];
 
