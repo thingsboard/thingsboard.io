@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { FeedbackCategory, FeedbackEntry } from './types';
 
 const CDN = 'https://img.thingsboard.io/customers/';
@@ -20,7 +22,7 @@ export const feedbackEntries: Record<string, FeedbackEntry[]> = {
 			companyName: 'Datanumia, an EDF Group company',
 			id: 'datanumia',
 			source: {
-				url: 'https://www.linkedin.com/posts/simplifier-la-gestion-des-donn%C3%A9es-iot-ugcPost-7521853286069485568-6Foe/',
+				url: 'https://www.linkedin.com/posts/datanumia_simplifier-la-gestion-des-donn%C3%A9es-iot-activity-7526984980451844098-Uj_7',
 				label: 'Read on LinkedIn',
 			},
 			authorImage: '/images/customers/datanumia-person.webp',
@@ -898,3 +900,17 @@ export const devServicesFeedback: import('./types').FeedbackEntry[] = [
 		],
 	},
 ];
+
+function assertLogosHaveSize(entries: FeedbackEntry[]): void {
+	for (const { companyImage: logo } of entries) {
+		if (!logo.startsWith('/') || !logo.endsWith('.svg')) continue;
+		const svgTag = readFileSync(join(process.cwd(), 'public', logo), 'utf-8').match(/<svg[^>]*>/)?.[0] ?? '';
+		if (!/\swidth=/.test(svgTag) || !/\sheight=/.test(svgTag)) {
+			throw new Error(
+				`[clients-feedback] ${logo} has no width and height on its <svg> tag. Pages show a logo at the file's own size, so this one would be invisible.`
+			);
+		}
+	}
+}
+
+assertLogosHaveSize([...allFeedbackEntries, ...devServicesFeedback]);
