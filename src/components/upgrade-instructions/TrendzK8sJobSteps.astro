@@ -1,11 +1,24 @@
 ---
 import { Code } from '@astrojs/starlight/components';
+import { TRENDZ_NON_ROOT_FROM_VER } from '@data/versions';
+import { versionAtLeast } from '~/models/upgrade-shared';
 
 interface Props {
 	version: string;
 }
 
 const { version } = Astro.props;
+
+// From TRENDZ_NON_ROOT_FROM_VER, trendz-k8s keeps the database connection in a Secret and splits the ConfigMaps
+const newFiles = versionAtLeast(version, TRENDZ_NON_ROOT_FROM_VER);
+const envFrom = newFiles
+	? `            - configMapRef:
+                name: trendz-app-env-config
+            - secretRef:
+                name: trendz-db-app-secret`
+	: `            - configMapRef:
+                name: trendz-app-db-config`;
+const filesConfig = newFiles ? 'trendz-app-files-config' : 'trendz-app-config';
 
 // The image reads the current version from the database; the Deployment never runs the upgrade itself
 const k8sUpgradeJob = `apiVersion: batch/v1
@@ -25,15 +38,14 @@ spec:
             - name: UPGRADE_TRENDZ
               value: "true"
           envFrom:
-            - configMapRef:
-                name: trendz-app-db-config
+${envFrom}
           volumeMounts:
-            - name: trendz-app-config
+            - name: ${filesConfig}
               mountPath: /trendz-config-files
       volumes:
-        - name: trendz-app-config
+        - name: ${filesConfig}
           configMap:
-            name: trendz-app-config
+            name: ${filesConfig}
             items:
               - key: trendz.conf
                 path: trendz.conf
@@ -56,7 +68,11 @@ const k8sJobLogOutput =
 
 <h3>Create the upgrade job</h3>
 <Code code={k8sUpgradeJob} lang="yaml" title="trendz-upgrade.yml" meta="download='trendz-upgrade.yml'" />
-<p>The ConfigMap names, keys and namespace must match your <code>trendz-app-deployment.yml</code>. Installations created before 1.15 use the keys <code>conf</code> and <code>logback</code>.</p>
+{newFiles ? (
+	<p>The ConfigMap and Secret names and the namespace must match your <code>trendz-app-deployment.yml</code>.</p>
+) : (
+	<p>The ConfigMap names, keys and namespace must match your <code>trendz-app-deployment.yml</code>. Installations created before 1.15 use the keys <code>conf</code> and <code>logback</code>.</p>
+)}
 
 <h3>Run the upgrade job</h3>
 <Code code={`kubectl apply -f trendz-upgrade.yml\nkubectl wait --for=condition=complete job/trendz-upgrade --timeout=900s`} lang="bash" />
