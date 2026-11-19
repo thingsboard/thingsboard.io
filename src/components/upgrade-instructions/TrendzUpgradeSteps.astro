@@ -1,6 +1,6 @@
 ---
 import { Code } from '@astrojs/starlight/components';
-import { getTrendzUpgradeStepVersions } from '~/models/trendz-upgrade-instructions';
+import { TRENDZ_K8S_CONFIG_APPLY_CMDS, getTrendzUpgradeStepVersions } from '~/models/trendz-upgrade-instructions';
 import { getUpgradeHeading, versionAtLeast } from '~/models/upgrade-shared';
 import ConfigFileNote from './ConfigFileNote.astro';
 import TrendzK8sJobSteps from '@components/upgrade-instructions/TrendzK8sJobSteps.astro';
@@ -66,8 +66,10 @@ const javaGuideLink =
 	<section class="prepare-section">
 		<h2 id="prepare-for-upgrading-trendz-analytics">Prepare for upgrading Trendz Analytics</h2>
 		<h3>Obtain Trendz Kubernetes scripts</h3>
-		<p>Use the Kubernetes configuration files from your original installation. If you no longer have them, clone the repository and fill in your configuration values as described in the <a href="/docs/trendz/installation/kubernetes/">installation guide</a>. The <code>master</code> branch holds the files of the latest Trendz release:</p>
+		<p>Use the Kubernetes configuration files from your original installation. If you no longer have them, clone the repository and fill in your configuration values as described in the <a href="/docs/trendz/installation/kubernetes/">installation guide</a>. The <code>master</code> branch holds the files of the latest Trendz release, which work for Trendz {TRENDZ_NON_ROOT_FROM_VER} and later:</p>
 		<Code code="git clone https://github.com/thingsboard/trendz-k8s.git --depth 1" lang="bash" />
+		<p>To upgrade to an earlier version, clone the release branch of your target version instead. For example, <code>release-1.16.0</code> holds the files for 1.16.0.1:</p>
+		<Code code="git clone -b release-1.16.0 https://github.com/thingsboard/trendz-k8s.git --depth 1" lang="bash" />
 		<h3>Connect to your Kubernetes cluster</h3>
 		<p>Select the correct kube-config context before running any commands:</p>
 		<Code code="kubectl config get-contexts" lang="bash" />
@@ -95,7 +97,6 @@ const javaGuideLink =
 		: `C:\\trendz> upgrade.bat`;
 	const dockerCmds = `docker pull thingsboard/trendz:${v.version}\ndocker compose run --rm -e UPGRADE_TRENDZ=true trendz\ndocker compose up -d`;
 	const runsAsNonRoot = versionAtLeast(v.version, TRENDZ_NON_ROOT_FROM_VER);
-	const k8sApplyCmds = `kubectl apply -f trendz-db-app-secret.yml -f trendz-python-executor-secret.yml\nkubectl apply -f trendz-app-env-config.yml -f trendz-app-files-config.yml\nkubectl apply -f trendz-python-executor-env-config.yml -f trendz-python-executor-files-config.yml\nkubectl apply -f trendz-app-shared-pvc.yml\nkubectl apply -f trendz-cache-deployment.yml\nkubectl apply -f trendz-python-executor-network-policy.yml`;
 	const k8sAppFile = runsAsNonRoot ? 'trendz-app-statefulset.yml' : 'trendz-app-deployment.yml';
 	const k8sFlagFileCmd = v.fromVersion
 		? `kubectl exec <POD_NAME> -- sh -c "echo '${v.fromVersion}' > /data/.upgradeversion"`
@@ -264,12 +265,23 @@ const javaGuideLink =
 					<h3>Trendz Analytics service upgrade</h3>
 					<ol>
 						<li>
-							<p>Create a database backup:</p>
+							<p>Create a database backup. The PostgreSQL service is <code>trendz-postgres</code> in the compose file of the Trendz installation guide:</p>
+							<Code code={`docker compose exec trendz-postgres sh -c "pg_dump -U postgres trendz > /var/lib/postgresql/data/trendz_dump"`} lang="bash" />
+							<p>If Trendz runs in the compose file of ThingsBoard, the service is <code>postgres</code>:</p>
 							<Code code={`docker compose exec postgres sh -c "pg_dump -U postgres trendz > /var/lib/postgresql/data/trendz_dump"`} lang="bash" />
 						</li>
 						<li>
 							<p>Update the version of <code>thingsboard/trendz</code> and <code>thingsboard/trendz-python-executor</code> in your <code>docker-compose.yml</code> to <strong>{v.version}</strong>.</p>
 						</li>
+						{runsAsNonRoot && (
+							<li>
+								<p>If you are upgrading from a version earlier than {TRENDZ_NON_ROOT_FROM_VER}, harden the Python Executor in your <code>docker-compose.yml</code>. The next steps apply the changes:</p>
+								<ul>
+									<li>Publish the Python Executor and PostgreSQL ports on the local host only: change <code>"8181:8181"</code> to <code>"127.0.0.1:8181:8181"</code> and <code>"5432:5432"</code> to <code>"127.0.0.1:5432:5432"</code>. If nothing outside Docker uses a port, remove its entry.</li>
+									<li>Replace the default shared secret <code>placeholder</code>: set <code>PYTHON_EXECUTOR_SECRET</code> on both the <code>trendz</code> and <code>trendz-python-executor</code> services, as described in <a href="/docs/trendz/installation/python-executor-configuration/#replace-the-shared-secret-in-docker-and-kubernetes-installations">Replace the shared secret</a>.</li>
+								</ul>
+							</li>
+						)}
 						<li>
 							<p>Stop Trendz:</p>
 							<Code code="docker compose stop trendz" lang="bash" />
@@ -312,7 +324,7 @@ const javaGuideLink =
 							<p>If Git reports conflicts, open each file it names, keep your configuration values and take everything else from the new version. Then finish the merge:</p>
 							<Code code={`git add -u\ngit commit --no-edit`} lang="bash" />
 							<p>Apply the latest configuration. <code>trendz-app-statefulset.yml</code> and <code>trendz-python-executor-deployment.yml</code> are applied in the steps below.</p>
-							<Code code={k8sApplyCmds} lang="bash" />
+							<Code code={TRENDZ_K8S_CONFIG_APPLY_CMDS} lang="bash" />
 						</>
 					)}
 
