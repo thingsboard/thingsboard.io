@@ -17,11 +17,12 @@ pnpm install
 pnpm dev              # Start dev server
 pnpm build            # Production build
 pnpm build:fast       # Fast build (skips OG image generation) — use this for verification
-pnpm build:linkcheck  # Build used by linkcheck (also skips llms.txt and image optimization)
+pnpm build:linkcheck  # Build used by linkcheck (also skips image optimization)
 pnpm preview          # Preview production build
 
 # Builds render pages on worker threads; the count is picked from the machine's CPU and RAM.
 # PRERENDER_WORKERS=0 (or 1) turns that off, 2 or more forces that many workers.
+# lint:linkcheck parses pages on worker threads too (config/worker-count.ts); LINKCHECK_WORKERS sets its count.
 PRERENDER_WORKERS=0 pnpm build
 
 # Quality checks
@@ -179,8 +180,9 @@ The one exception is `src/util/markdown-processor.ts`, which still uses `@astroj
 ### Pages vs Content
 
 - `src/content/docs/` — documentation pages rendered by Starlight
-- `src/pages/` — everything outside the docs collection: the homepage, marketing and product landings (`products/`, `pricing/`, `partners/`, `iot-hub/`, …), `blog/`, `use-cases/`, `case-studies/`, 404, `llms.txt`, OG image generation
+- `src/pages/` — everything outside the docs collection: the homepage, marketing and product landings (`products/`, `pricing/`, `partners/`, `iot-hub/`, …), `blog/`, `use-cases/`, `case-studies/`, 404, OG image generation
 - `src/pages/docs/` — data-driven docs routes the collection can't express: `releases/releases-table/[familySlug]` and `installation/upgrade-instructions/[platform]/[familySlug]`, repeated under each product prefix that has them (`pe/`, `edge/`, `edge/pe/`, `trendz/`)
+- `config/integrations/llms-txt.ts` — writes `/llms.txt` and one `llms.txt` per product at its docs home (`/docs/pe/llms.txt`, `/docs/edge/pe/llms.txt`, …) after the build, from the same page set as the sitemap (indexable, self-canonical `/docs/` pages, plus the IoT Hub category pages). ThingsBoard's big sections get their own file (`/docs/pe/reference/llms.txt`, …). A page joins them by being built; a key page in `llms.txt` that stops qualifying fails the build, and a file over 100,000 characters warns. They are not served by `pnpm dev`
 
 ### Typography & Design System
 
@@ -294,4 +296,4 @@ GitHub Actions runs: `astro check`, `eslint`, `slugcheck`.
 
 **PR base branch and labels:** pick them by the table in [Which branch and label](CONTRIBUTING.md#which-branch-and-label).
 
-**Update the branch before a PR:** before opening a PR (and before pushing to an open one), `git fetch origin` and merge the latest base branch into the PR branch. A branch that is behind its base still merges cleanly, but it breaks the CI build caches.
+**Update the branch before a PR:** before opening a PR and before every push to an open one, `git fetch origin` and check whether the base branch has moved (`git rev-list --count HEAD..origin/<base>` is not 0). Only then merge it into the PR branch; otherwise push as is. A branch that is behind its base still merges cleanly, but it breaks the CI build caches.

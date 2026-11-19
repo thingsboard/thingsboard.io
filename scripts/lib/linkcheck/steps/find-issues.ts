@@ -40,7 +40,7 @@ function findLinkIssuesOnPage(
 			page,
 			checkSingleLinkHref,
 			buildOutputDir: options.buildOutputDir,
-			consolidationPatterns: options.consolidationPatterns || [],
+			canonicalLinkPolicy: options.canonicalLinkPolicy,
 			report: (issueData) => {
 				// Do not add the issue found in the HTML build output
 				// if it was just autofixed in the source file
@@ -61,8 +61,8 @@ function findLinkIssuesOnPage(
 						state,
 						issueData.autofixHref
 					);
-					// Remove the autofix suggestion if it would still cause issues
-					if (autofixLinkIssues.length > 0) {
+					// Remove the autofix suggestion if it would still cause errors
+					if (autofixLinkIssues.some((issue) => issue.type.severity === 'error')) {
 						issueData.autofixHref = undefined;
 					}
 				}
