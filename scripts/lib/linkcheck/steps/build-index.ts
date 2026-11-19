@@ -62,12 +62,11 @@ export async function parsePages(pathnames: string[], options: LinkCheckerOption
 }
 
 async function readAllPageData(htmlFilePaths: string[], workerCount: number): Promise<ParseResult[]> {
-	const results: ParseResult[] = new Array(htmlFilePaths.length);
-
 	if (workerCount <= 1) {
 		return htmlFilePaths.map((htmlFilePath, index) => readPageData(htmlFilePath, index));
 	}
 
+	const results: ParseResult[] = new Array(htmlFilePaths.length);
 	let next = 0;
 	const takeBatch = (): ParseRequest | null => {
 		if (next >= htmlFilePaths.length) return null;

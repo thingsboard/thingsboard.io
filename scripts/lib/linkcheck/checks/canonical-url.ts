@@ -124,11 +124,7 @@ export class CanonicalUrl extends CheckBase {
 			}
 
 			// Links the policy allows for now, though the target's canonical URL points elsewhere
-			if (
-				linkedPage.canonicalUrl &&
-				linkedPage.canonicalUrl.pathname !== url.pathname &&
-				canonicalLinkRule(context.page, linkHref, linkedPage, policy) === 'warn'
-			) {
+			if (linkedPage.canonicalUrl && canonicalLinkRule(context.page, linkHref, linkedPage, policy) === 'warn') {
 				context.report({
 					type: CanonicalUrl.LinkToNonCanonicalPage,
 					linkHref,

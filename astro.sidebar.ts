@@ -455,9 +455,8 @@ const installationItems = (prefix: string) => {
 						items: [
 							`${prefix}/installation/upgrade-instructions`,
 							// Before upgrade-from-ce: the grant key is what licenses 4.4, so registering
-							// comes first in the sequence, not after it. A PE copy of the CE guide (its
-							// canonical is the CE page) rather than a cross-product link: a link item would
-							// take PE readers into the CE section and drop the Previous/Next links around it.
+							// comes first in the sequence, not after it. A PE copy of the CE guide (canonical
+							// to it): a link item would leave the PE section and lose Previous/Next.
 							`${prefix}/installation/register-community-grant`,
 							`${prefix}/installation/upgrade-from-ce`,
 							`${prefix}/installation/upgrade-instructions/docker-legacy-image-migration`,

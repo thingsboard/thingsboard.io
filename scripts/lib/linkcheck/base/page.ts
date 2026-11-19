@@ -89,18 +89,18 @@ export class HtmlPage {
 
 		this.anchors = data.anchors;
 
-		// Build a list of unique link hrefs on the page
-		this.uniqueLinkHrefs = [
-			...new Set(this.anchors.map((el) => el.href && decodeURI(el.href)).filter((h): h is string => Boolean(h))),
-		];
-
-		const ownLinkHrefs = new Set(
-			this.anchors.filter((el) => el.href && !el.inExternal).map((el) => decodeURI(el.href as string))
-		);
+		const linkHrefs = new Set<string>();
+		const ownLinkHrefs = new Set<string>();
+		const nonSwitcherLinkHrefs = new Set<string>();
+		for (const { href, inExternal, inSwitcher } of this.anchors) {
+			if (!href) continue;
+			const decoded = decodeURI(href);
+			linkHrefs.add(decoded);
+			if (!inExternal) ownLinkHrefs.add(decoded);
+			if (!inSwitcher) nonSwitcherLinkHrefs.add(decoded);
+		}
+		this.uniqueLinkHrefs = [...linkHrefs];
 		this.externalOnlyLinkHrefs = new Set(this.uniqueLinkHrefs.filter((href) => !ownLinkHrefs.has(href)));
-		const nonSwitcherLinkHrefs = new Set(
-			this.anchors.filter((el) => el.href && !el.inSwitcher).map((el) => decodeURI(el.href as string))
-		);
 		this.switcherOnlyLinkHrefs = new Set(this.uniqueLinkHrefs.filter((href) => !nonSwitcherLinkHrefs.has(href)));
 
 		// Build a list of hashes that can be used as URL fragments to jump to parts of the page

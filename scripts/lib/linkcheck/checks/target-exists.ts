@@ -146,8 +146,11 @@ export class TargetExists extends CheckBase {
 
 			// Report links to missing page fragments (unknown URL hashes)
 			const decodedHash = url.hash && decodeURIComponent(url.hash);
-			const handledByScript = this.scriptFragments[linkedPage.pathname]?.includes(decodedHash.slice(1));
-			if (decodedHash && !linkedPage.hashes.includes(decodedHash) && !handledByScript) {
+			if (
+				decodedHash &&
+				!linkedPage.hashes.includes(decodedHash) &&
+				!this.scriptFragments[linkedPage.pathname]?.includes(decodedHash.slice(1))
+			) {
 				context.report({
 					type: TargetExists.BrokenFragmentLink,
 					linkHref,
