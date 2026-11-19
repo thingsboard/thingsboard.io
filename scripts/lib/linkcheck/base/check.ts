@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import type { ConsolidationPattern } from './base.ts';
+import type { CanonicalLinkPolicy } from './canonical-links.ts';
 import type { LinkIssue } from './issue.ts';
 import type { AllPagesByPathname, HtmlPage } from './page.ts';
 import { existsSync } from 'node:fs';
@@ -11,11 +11,47 @@ export interface CheckHtmlPageContext {
 	additionalLocalHosts: string[];
 	checkSingleLinkHref?: string;
 	buildOutputDir: string;
-	consolidationPatterns: ConsolidationPattern[];
+	canonicalLinkPolicy: CanonicalLinkPolicy;
 	report: (issueData: Omit<LinkIssue, 'page' | 'check' | 'sourceFileAnnotations'>) => void;
 }
 
 const fileExtensionRegex = /\.[^/]+$/i;
+
+interface LocalLink {
+	linkHref: string;
+	url: URL;
+}
+
+/**
+ * Local links of each page, resolved once and shared by every check. Keyed by page only:
+ * `baseUrl` and `additionalLocalHosts` are the same for the whole run.
+ */
+const pageLocalLinks = new WeakMap<HtmlPage, LocalLink[]>();
+
+function getPageLocalLinks(context: CheckHtmlPageContext) {
+	let links = pageLocalLinks.get(context.page);
+	if (!links) {
+		links = getLocalLinks(context, context.page.uniqueLinkHrefs);
+		pageLocalLinks.set(context.page, links);
+	}
+	return links;
+}
+
+function getLocalLinks(context: CheckHtmlPageContext, hrefs: string[]): LocalLink[] {
+	const localPrefixes = [context.baseUrl, ...context.additionalLocalHosts];
+	const links: LocalLink[] = [];
+	hrefs.forEach((linkHref) => {
+		const url = new URL(linkHref, context.page.href);
+
+		// Ignore external links — accept the build's own origin plus any
+		// `additionalLocalHosts` (e.g. the production origin on staging builds,
+		// so hardcoded thingsboard.io URLs in assets don't slip past as external).
+		if (!localPrefixes.some((prefix) => url.href.startsWith(prefix))) return;
+
+		links.push({ linkHref, url });
+	});
+	return links;
+}
 
 export abstract class CheckBase {
 	abstract checkHtmlPage(context: CheckHtmlPageContext): void;
@@ -27,23 +63,12 @@ export abstract class CheckBase {
 	) {
 		// If requested, only check a single link href (used to validate autofix suggestions),
 		// or perform the default behavior and check all unique link hrefs on the page
-		const hrefsToCheck = context.checkSingleLinkHref
-			? [context.checkSingleLinkHref]
-			: context.page.uniqueLinkHrefs;
+		const localLinks = context.checkSingleLinkHref
+			? getLocalLinks(context, [context.checkSingleLinkHref])
+			: getPageLocalLinks(context);
 
-		const localPrefixes = [context.baseUrl, ...context.additionalLocalHosts];
-
-		hrefsToCheck.forEach((linkHref) => {
-			const url = new URL(linkHref, context.page.href);
-
-			// Ignore external links — accept the build's own origin plus any
-			// `additionalLocalHosts` (e.g. the production origin on staging builds,
-			// so hardcoded thingsboard.io URLs in assets don't slip past as external).
-			if (!localPrefixes.some((prefix) => url.href.startsWith(prefix))) return;
-
-			// If we arrive here, call the given callback for the current link
-			fn(linkHref, url);
-		});
+		// The URL objects are shared by every check, so callbacks must not modify them
+		localLinks.forEach(({ linkHref, url }) => fn(linkHref, url));
 	}
 
 	protected findFileByPathname(

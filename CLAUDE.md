@@ -17,8 +17,13 @@ pnpm install
 pnpm dev              # Start dev server
 pnpm build            # Production build
 pnpm build:fast       # Fast build (skips OG image generation) — use this for verification
-pnpm build:linkcheck  # Build used by linkcheck (also skips llms.txt and image optimization)
+pnpm build:linkcheck  # Build used by linkcheck (also skips image optimization)
 pnpm preview          # Preview production build
+
+# Builds render pages on worker threads; the count is picked from the machine's CPU and RAM.
+# PRERENDER_WORKERS=0 (or 1) turns that off, 2 or more forces that many workers.
+# lint:linkcheck parses pages on worker threads too (config/worker-count.ts); LINKCHECK_WORKERS sets its count.
+PRERENDER_WORKERS=0 pnpm build
 
 # Quality checks
 pnpm check            # TypeScript/Astro type checking
@@ -175,8 +180,9 @@ The one exception is `src/util/markdown-processor.ts`, which still uses `@astroj
 ### Pages vs Content
 
 - `src/content/docs/` — documentation pages rendered by Starlight
-- `src/pages/` — everything outside the docs collection: the homepage, marketing and product landings (`products/`, `pricing/`, `partners/`, `iot-hub/`, …), `blog/`, `use-cases/`, `case-studies/`, 404, `llms.txt`, OG image generation
+- `src/pages/` — everything outside the docs collection: the homepage, marketing and product landings (`products/`, `pricing/`, `partners/`, `iot-hub/`, …), `blog/`, `use-cases/`, `case-studies/`, 404, OG image generation
 - `src/pages/docs/` — data-driven docs routes the collection can't express: `releases/releases-table/[familySlug]` and `installation/upgrade-instructions/[platform]/[familySlug]`, repeated under each product prefix that has them (`pe/`, `edge/`, `edge/pe/`, `trendz/`)
+- `config/integrations/llms-txt.ts` — writes `/llms.txt` and one `llms.txt` per product at its docs home (`/docs/pe/llms.txt`, `/docs/edge/pe/llms.txt`, …) after the build, from the same page set as the sitemap (indexable, self-canonical `/docs/` pages, plus the IoT Hub category pages). ThingsBoard's big sections get their own file (`/docs/pe/reference/llms.txt`, …). A page joins them by being built; a key page in `llms.txt` that stops qualifying fails the build, and a file over 100,000 characters warns. They are not served by `pnpm dev`
 
 ### Typography & Design System
 
@@ -245,7 +251,8 @@ Per-page OG cards (1200×630 PNG) are generated at build time by Satori + Resvg.
 - `src/pages/open-graph/_shared/Card.tsx` — dispatches on `props.variant` to `DocsCard.tsx` or `LogoCard.tsx`
 - `src/pages/open-graph/_shared/Slab.tsx`, `Background.tsx`, `colors.ts`, `text-block.ts` — shared pieces: left brand panel, canvas decoration, per-slab gradients, title sizing
 - `src/pages/open-graph/_shared/product-meta.ts` / `marketing-meta.ts` — docs slug → slab/icon/edition; marketing URL prefix → section word
-- `src/pages/open-graph/_shared/render.ts` — Satori → Resvg pipeline + content-hash cache
+- `src/pages/open-graph/_shared/render.ts` — Satori → Resvg pipeline
+- `src/pages/open-graph/_shared/og-cache.ts` — content-hash card cache on disk, `TEMPLATE_VERSION`
 - `src/pages/open-graph/_shared/page-data.ts` — collection enumerators
 - `src/pages/open-graph/_shared/endpoint.ts` — `createOgEndpoint()` factory every endpoint uses
 - `src/pages/open-graph/_shared/jsx-runtime.ts` — minimal Satori-shaped JSX shim (no React)
@@ -254,7 +261,7 @@ Per-page OG cards (1200×630 PNG) are generated at build time by Satori + Resvg.
 - `src/util/getOgImageUrl.ts` — pathname → OG PNG URL aggregator
 
 **Key facts:**
-- Cache lives at `node_modules/.og-cache/` (gitignored). Bump `TEMPLATE_VERSION` in `render.ts` to invalidate.
+- Cache lives at `node_modules/.og-cache/` (gitignored). Bump `TEMPLATE_VERSION` in `og-cache.ts` to invalidate.
 - `SKIP_OG=true` (used by `pnpm build:fast`) makes `renderCard` return the global fallback instead of running Satori — endpoints still register paths.
 - Pages outside `MARKETING_ALLOWLIST` (or otherwise unmapped) fall back to `/thingsboard-og.png` via `SeoMeta.astro`.
 - Roboto 400/500/700 (7 subsets each: latin, latin-ext, cyrillic, cyrillic-ext, greek, greek-ext, vietnamese) + Noto Sans Symbols 400 for arrows. CJK / Arabic / Hebrew not covered — render as `.notdef`. Site CSS uses an unrelated system font stack; no `FONT_CREDENTIALS` env var.
@@ -289,4 +296,4 @@ GitHub Actions runs: `astro check`, `eslint`, `slugcheck`.
 
 **PR base branch and labels:** pick them by the table in [Which branch and label](CONTRIBUTING.md#which-branch-and-label).
 
-**Update the branch before a PR:** before opening a PR (and before pushing to an open one), `git fetch origin` and merge the latest base branch into the PR branch. A branch that is behind its base still merges cleanly, but it breaks the CI build caches.
+**Update the branch before a PR:** before opening a PR and before every push to an open one, `git fetch origin` and check whether the base branch has moved (`git rev-list --count HEAD..origin/<base>` is not 0). Only then merge it into the PR branch; otherwise push as is. A branch that is behind its base still merges cleanly, but it breaks the CI build caches.

@@ -24,6 +24,12 @@ export interface TargetExistsOptions {
 	 * locally (the original file is on disk) but breaks on Cloudflare.
 	 */
 	redirectsFilePath?: string;
+	/**
+	 * Fragments a page's script handles although no element has that id, by page pathname
+	 * (e.g. `#add-ons-cloud` on /pricing/, which scrolls to one of two regional sections).
+	 * Links to them are valid; any other missing fragment is still reported.
+	 */
+	scriptFragments?: Record<string, string[]>;
 }
 
 export class TargetExists extends CheckBase {
@@ -44,11 +50,13 @@ export class TargetExists extends CheckBase {
 	});
 
 	private readonly redirectRules: RedirectRuleIndex | null;
+	private readonly scriptFragments: Record<string, string[]>;
 	private readonly diskPageCache = new Map<string, boolean>();
 
-	constructor({ redirectsFilePath }: TargetExistsOptions = {}) {
+	constructor({ redirectsFilePath, scriptFragments = {} }: TargetExistsOptions = {}) {
 		super();
 
+		this.scriptFragments = scriptFragments;
 		this.redirectRules = redirectsFilePath ? loadRedirectsFile(redirectsFilePath) : null;
 	}
 
@@ -138,7 +146,11 @@ export class TargetExists extends CheckBase {
 
 			// Report links to missing page fragments (unknown URL hashes)
 			const decodedHash = url.hash && decodeURIComponent(url.hash);
-			if (decodedHash && !linkedPage.hashes.includes(decodedHash)) {
+			if (
+				decodedHash &&
+				!linkedPage.hashes.includes(decodedHash) &&
+				!this.scriptFragments[linkedPage.pathname]?.includes(decodedHash.slice(1))
+			) {
 				context.report({
 					type: TargetExists.BrokenFragmentLink,
 					linkHref,
