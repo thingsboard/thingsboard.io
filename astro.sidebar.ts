@@ -3968,6 +3968,7 @@ export const trendzSidebar: SidebarConfig = [
 					'docs/trendz/post-installation-steps',
 					'docs/trendz/configuration-properties',
 					'docs/trendz/installation/old-docker-migrate',
+					'docs/trendz/installation/kubernetes-files-migration',
 				],
 			},
 			'docs/trendz/installation/upgrade-instructions',
