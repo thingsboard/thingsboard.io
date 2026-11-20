@@ -88,6 +88,18 @@ export function getTrendzUpgradeStepVersions(family?: string): TrendzUpgradeVers
  */
 export const TRENDZ_UPGRADE_VERSIONS: TrendzUpgradeVersion[] = [
 	{
+		version: '1.16.1.2',
+		displayVersion: '1.16.1.2',
+		family: '1.16',
+		baseVersion: '1.16.1',
+		releaseDate: 'Nov 19 2026',
+		lts: true,
+		patch: true,
+		anchor: 'v1-16-1-2',
+		haproxyNote: false,
+		java25Warning: true,
+	},
+	{
 		version: '1.16.1.1',
 		displayVersion: '1.16.1.1',
 		family: '1.16',
