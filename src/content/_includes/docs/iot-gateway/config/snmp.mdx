@@ -1,5 +1,7 @@
 import { Aside } from '@astrojs/starlight/components';
 import DocLink from '@components/DocLink.astro';
+import Tabs from '@components/Tabs.astro';
+import TabItem from '@components/TabItem.astro';
 
 The SNMP Connector reads data from SNMP manager objects and writes data back to them, forwarding the
 results to ThingsBoard as device attributes and telemetry.
@@ -9,8 +11,9 @@ To enable this connector, add it to the `connectors` list in `tb_gateway.json` �
 
 ## Connector configuration: snmp.json
 
-The connector reads its settings from a JSON file. Below is a full example with two device entries —
-the first using built-in converters, the second using a custom converter class:
+The connector reads its settings from a JSON file. Below is a full example with four device entries —
+the first using built-in converters, the second using a custom converter class, the third using SNMPv3
+for both polling and traps, and the fourth configured for traps only, without polling:
 
 ```json maxLines=30 collapsible
 {
@@ -67,8 +70,54 @@ the first using built-in converters, the second using a custom converter class:
       "telemetry": [
         { "key": "ReceivedFromTableWithCustomConverter", "method": "table", "oid": "1.3.6.1.2.1.1.1.0" }
       ]
+    },
+    {
+      "deviceName": "SNMPv3 router",
+      "deviceType": "snmp",
+      "ip": "127.0.0.1",
+      "port": 161,
+      "pollPeriod": 5000,
+      "version": "v3",
+      "security": {
+        "username": "YOUR_USERNAME",
+        "authProtocol": "SHA",
+        "authKey": "YOUR_AUTH_KEY",
+        "privProtocol": "AES",
+        "privKey": "YOUR_PRIV_KEY"
+      },
+      "attributes": [
+        { "key": "ReceivedFromGetV3", "method": "get", "oid": "1.3.6.1.2.1.1.1.0" }
+      ],
+      "telemetry": [
+        { "key": "ReceivedFromGetUptimeV3", "method": "get",  "oid": "1.3.6.1.2.1.1.3.0" },
+        { "key": "ReceivedFromTrapV3",      "method": "trap", "oid": "1.3.6.1.6.3.1.1.5.3" }
+      ],
+      "attributeUpdateRequests": [
+        { "attributeFilter": "dataToSet", "method": "set", "oid": "1.3.6.1.2.1.1.6.0" }
+      ],
+      "serverSideRpcRequests": [
+        { "requestFilter": "getData", "method": "get", "oid": "1.3.6.1.2.1.1.1.0" },
+        { "requestFilter": "setData", "method": "set", "oid": "1.3.6.1.2.1.1.4.0" }
+      ]
+    },
+    {
+      "deviceName": "SNMP trap sender",
+      "deviceType": "snmp",
+      "ip": "127.0.0.1",
+      "community": "public",
+      "version": "v2c",
+      "attributes": [
+        { "key": "ReceivedFromTrapWithValueOid", "method": "trap", "oid": "1.3.6.1.6.3.1.1.5.3", "valueOid": "1.3.6.1.2.1.2.2.1.1" }
+      ],
+      "telemetry": [
+        { "key": "ReceivedFromTrap", "method": "trap", "oid": "1.3.6.1.6.3.1.1.5.3" }
+      ]
     }
-  ]
+  ],
+  "trapListener": {
+    "address": "0.0.0.0",
+    "port": 162
+  }
 }
 ```
 
@@ -82,13 +131,114 @@ An array of device configurations. Each entry represents one SNMP manager device
 | `deviceType` | `snmp` | Device type in ThingsBoard |
 | `ip` | | IP address or hostname of the SNMP manager |
 | `port` | `161` | SNMP port |
-| `pollPeriod` | `5000` | Polling interval in milliseconds |
-| `community` | | Default SNMP community string (`public` or `private`) |
+| `pollPeriod` | `10000` | Polling interval in milliseconds |
+| `timeout` | `6` | Timeout of one request attempt in seconds |
+| `retries` | `10` | Total number of attempts for each request, including the first one |
+| `version` | `v2c` | SNMP version: `v1`, `v2c`, or `v3` |
+| `community` | | Default SNMP community string (`public` or `private`); required for SNMPv1 and SNMPv2c |
+| `security` | | SNMPv3 security settings; required when `version` is `v3` — see [Subsection "security"](#subsection-security) |
 | `converter` | | *(Optional)* Custom converter class name; omit to use the built-in converter |
 | `attributes` | | Array of attribute mappings — see below |
 | `telemetry` | | Array of telemetry mappings — see below |
 | `attributeUpdateRequests` | | *(Optional)* Array of attribute-write configurations |
 | `serverSideRpcRequests` | | *(Optional)* Array of RPC-triggered SNMP operation configurations |
+
+If the device does not respond within `timeout`, the gateway sends the request again, up to `retries` attempts in
+total, so one request can take up to `timeout` × `retries` seconds. Each entry can override both values — see [Supported methods](#supported-methods).
+
+<Aside type="note">
+  `retries` is available in ThingsBoard IoT Gateway v.3.8.7 and later.
+</Aside>
+
+The gateway skips an SNMPv1 or SNMPv2c device without `community`, and an SNMPv3 device whose `security`
+is missing or has an invalid format. If the credentials do not match the device, the gateway does not
+skip it but cannot read data from it.
+
+### Subsection "security"
+
+<Aside type="note">
+  SNMPv3 is available in ThingsBoard IoT Gateway v.3.8.7 and later.
+</Aside>
+
+Required for SNMPv3 devices. SNMPv3 uses the User-based Security Model (USM). The security level is
+defined by the parameters you set: only `username` for `noAuthNoPriv`, plus authentication for
+`authNoPriv`, plus privacy (encryption) for `authPriv`. The same settings are used for polling,
+attribute updates, RPC requests, and checking traps from the device.
+
+| Parameter | Description |
+|-----------|-------------|
+| `username` | USM user name |
+| `authProtocol` | *(Optional)* Authentication protocol: `MD5` or `SHA` (SHA-1) |
+| `authKey` | Authentication passphrase, at least 8 characters; required when `authProtocol` is set |
+| `privProtocol` | *(Optional)* Privacy protocol: `DES` or `AES` (AES-128); requires `authProtocol` |
+| `privKey` | Privacy passphrase, at least 8 characters; required when `privProtocol` is set |
+| `contextName` | *(Optional)* Name of the context to read from, if the device provides data in several contexts, for example, for several virtual instances |
+| `contextEngineId` | *(Optional)* Engine ID of that context as a hex string, for example, `80001f8880e1`; needed only if the context and device engine IDs are not the same, for example, behind an SNMP proxy |
+
+<Tabs>
+<TabItem label="noAuthNoPriv">
+
+Messages are neither authenticated nor encrypted.
+
+```json
+"security": {
+  "username": "noAuthUser"
+}
+```
+
+</TabItem>
+<TabItem label="authNoPriv">
+
+Messages are authenticated but not encrypted.
+
+```json
+"security": {
+  "username": "authUser",
+  "authProtocol": "SHA",
+  "authKey": "authPassphrase"
+}
+```
+
+</TabItem>
+<TabItem label="authPriv">
+
+Messages are authenticated and encrypted.
+
+```json
+"security": {
+  "username": "privUser",
+  "authProtocol": "SHA",
+  "authKey": "authPassphrase",
+  "privProtocol": "AES",
+  "privKey": "privPassphrase"
+}
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="note">
+  The gateway discovers the engine ID of the device automatically, so you do not need to configure it.
+</Aside>
+
+`username`, `authKey`, and `privKey` support placeholders in the `${VARIABLE_NAME}` format. This allows
+you to keep passphrases out of the configuration file and pass them as environment variables instead:
+
+```json
+"security": {
+  "username": "privUser",
+  "authProtocol": "SHA",
+  "authKey": "${SNMP_AUTH_KEY}",
+  "privProtocol": "AES",
+  "privKey": "${SNMP_PRIV_KEY}"
+}
+```
+
+<Aside type="note">
+  Placeholder names are case-sensitive and must exactly match the environment variable names. See
+  <DocLink product={props.product} path="config/general/#environment-variables">Environment Variables</DocLink>
+  for how to set them. If a variable is not set, the gateway logs an error and skips the device.
+</Aside>
 
 ### Sections "attributes" and "telemetry"
 
@@ -100,8 +250,9 @@ attributes; `telemetry` entries are sent as time-series telemetry.
 | `key` | ThingsBoard attribute or telemetry key name |
 | `method` | SNMP operation to use — see [Supported methods](#supported-methods) |
 | `oid` | Manager object identifier (string or array, depending on the method) |
+| `community` | *(Optional)* Community string for this entry; overrides the device `community` (SNMPv1 and SNMPv2c only; IoT Gateway v.3.8.7 and later) |
 
-Method-specific parameters (e.g. `timeout`, `community`, `scalarOid`) are described in
+Method parameters, such as `timeout`, `retries`, `scalarOid`, and `valueOid`, are described in
 [Supported methods](#supported-methods).
 
 ### Section "attributeUpdateRequests"
@@ -118,6 +269,8 @@ The “attributeUpdateRequests” configuration allows configuring the format of
 | `oid` | Object identifier to write to (used with `set`) |
 | `mappings` | OID-to-value map (used with `multiset`); values may reference `${attribute}` |
 | `type` | SNMP data type for value encoding (see [Supported data types](#supported-data-types)) — **required only for `set` and `multiset` methods** |
+| `timeout` | *(Optional)* Timeout of one request attempt in seconds; if omitted, the device `timeout` is used |
+| `retries` | *(Optional)* Total number of request attempts; if omitted, the device `retries` is used |
 
 ```json
 "attributeUpdateRequests": [
@@ -125,7 +278,9 @@ The “attributeUpdateRequests” configuration allows configuring the format of
     "attributeFilter": "dataToSet",
     "method": "set",
     "oid": "1.3.6.1.2.1.1.1.0",
-    "type": "INTEGER"
+    "type": "INTEGER",
+    "timeout": 1,
+    "retries": 3
   },
   {
     "attributeFilter": "dataToMultiSet",
@@ -143,6 +298,8 @@ The “attributeUpdateRequests” configuration allows configuring the format of
   In `mappings` values, `${attribute}` is replaced at runtime with the incoming shared attribute value.
 </Aside>
 
+The gateway waits for the result for up to `timeout` × `retries` seconds, but no longer than 5 seconds.
+
 ### Section "serverSideRpcRequests"
 
 ThingsBoard allows sending RPC commands to the device connected to ThingsBoard directly or via Gateway.
@@ -152,10 +309,14 @@ Configuration, provided in this section is used for sending RPC requests from Th
 | Parameter | Description |
 |-----------|-------------|
 | `requestFilter` | RPC method name to bind |
-| `method` | SNMP operation to perform — see [Supported methods](#supported-methods) |
+| `method` | SNMP operation to perform, except `trap` — see [Supported methods](#supported-methods) |
 | `oid` | Object identifier (string or array, depending on the method) |
+| `timeout` | *(Optional)* Timeout of one request attempt in seconds; if omitted, the device `timeout` is used |
+| `retries` | *(Optional)* Total number of request attempts; if omitted, the device `retries` is used |
 
 The gateway always replies to ThingsBoard: `{"result": <value>}` on success or `{"error": "<message>"}` on failure.
+
+The gateway waits for the result for up to `timeout` × `retries` seconds, but no longer than 5 seconds.
 
 The connector also has built-in `get` and `set` RPC methods that read or write any OID without configuration. See the
 <DocLink product={props.product} path="features/reserved-rpc/">Reserved RPC methods</DocLink> guide.
@@ -207,7 +368,9 @@ The connector also has built-in `get` and `set` RPC methods that read or write a
   {
     "requestFilter": "getData",
     "method": "get",
-    "oid": "1.3.6.1.2.1.1.1.0"
+    "oid": "1.3.6.1.2.1.1.1.0",
+    "timeout": 1,
+    "retries": 3
   },
   {
     "requestFilter": "runBulkWalk",
@@ -217,20 +380,54 @@ The connector also has built-in `get` and `set` RPC methods that read or write a
 ]
 ```
 
+## Section "trapListener"
+
+<Aside type="note">
+  Receiving SNMP traps is available in ThingsBoard IoT Gateway v.3.8.7 and later.
+</Aside>
+
+Optional. Configures the UDP listener that receives SNMP traps from devices. The listener starts only
+when at least one device has a [`trap`](#trap) entry. If this section is omitted, the listener starts with
+the default `address` and `port`.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `address` | `0.0.0.0` | Local IP address to listen on; `0.0.0.0` listens on all network interfaces |
+| `port` | `162` | Port to listen on |
+
+```json
+"trapListener": {
+  "address": "0.0.0.0",
+  "port": 162
+}
+```
+
+<Aside type="note">
+  On Linux, the default port `162` requires root privileges or the `CAP_NET_BIND_SERVICE` capability.
+  Otherwise, set another `port`, for example, `1162`, and configure your devices to send traps to it.
+
+  Also make sure each SNMP connector uses a different `port` — every connector opens its own listener.
+</Aside>
+
 ## Supported methods
 
 | Method | Operation | Accepts array OID | Extra parameters |
 |--------|-----------|:-----------------:|------------------|
-| `get` | Read a single object | No | `timeout` |
-| `multiget` | Read multiple objects in one request | Yes | `timeout` |
-| `getnext` | Read the next object after the given OID | No | `timeout` |
-| `walk` | Walk the subtree rooted at OID | No | `community` |
-| `multiwalk` | Walk multiple subtrees | Yes | — |
-| `bulkwalk` | Walk multiple subtrees using BULK requests | Yes | — |
-| `table` | Read an SNMP table | No | — |
-| `bulkget` | Read scalars and repeating objects in one BULK request | — | `scalarOid`, `repeatingOid`, `maxListSize` |
-| `set` | Write a value to a single object | No | `type` |
-| `multiset` | Write values to multiple objects | — | `mappings`, `type` |
+| `get` | Read a single object | No | `timeout`, `retries` |
+| `multiget` | Read multiple objects in one request | Yes | `timeout`, `retries` |
+| `getnext` | Read the next object after the given OID | No | `timeout`, `retries` |
+| `walk` | Walk the subtree rooted at OID | No | `timeout`, `retries` |
+| `multiwalk` | Walk multiple subtrees | Yes | `timeout`, `retries` |
+| `bulkwalk` | Walk multiple subtrees using BULK requests | Yes | `timeout`, `retries` |
+| `table` | Read an SNMP table | No | `timeout`, `retries` |
+| `bulkget` | Read scalars and repeating objects in one BULK request | — | `scalarOid`, `repeatingOid`, `maxListSize`, `timeout`, `retries` |
+| `trap` | Receive a value from SNMP traps sent by the device | No | `valueOid` |
+| `set` | Write a value to a single object | No | `type`, `timeout`, `retries` |
+| `multiset` | Write values to multiple objects | — | `mappings`, `type`, `timeout`, `retries` |
+
+<Aside type="note">
+  Method-level `timeout` and `retries` are available in ThingsBoard IoT Gateway v.3.8.7 and later.
+</Aside>
 
 ### get
 
@@ -239,14 +436,16 @@ Reads a single SNMP object.
 | Parameter | Description |
 |-----------|-------------|
 | `oid` | Object identifier to read |
-| `timeout` | Request timeout in seconds |
+| `timeout` | *(Optional)* Timeout of one request attempt in seconds; if omitted, the device `timeout` is used |
+| `retries` | *(Optional)* Total number of request attempts; if omitted, the device `retries` is used |
 
 ```json
 {
   "key": "ReceivedFromGet",
   "method": "get",
   "oid": "1.3.6.1.2.1.1.1.0",
-  "timeout": 6
+  "timeout": 6,
+  "retries": 3
 }
 ```
 
@@ -257,7 +456,8 @@ Reads multiple SNMP objects in a single request.
 | Parameter | Description |
 |-----------|-------------|
 | `oid` | Array of object identifiers to read |
-| `timeout` | Request timeout in seconds |
+| `timeout` | *(Optional)* Timeout of one request attempt in seconds; if omitted, the device `timeout` is used |
+| `retries` | *(Optional)* Total number of request attempts; if omitted, the device `retries` is used |
 
 ```json
 {
@@ -278,7 +478,8 @@ Reads the next object in the MIB tree after the given OID.
 | Parameter | Description |
 |-----------|-------------|
 | `oid` | Starting OID |
-| `timeout` | Request timeout in seconds |
+| `timeout` | *(Optional)* Timeout of one request attempt in seconds; if omitted, the device `timeout` is used |
+| `retries` | *(Optional)* Total number of request attempts; if omitted, the device `retries` is used |
 
 ```json
 {
@@ -291,17 +492,18 @@ Reads the next object in the MIB tree after the given OID.
 
 ### walk
 
-Traverses the subtree rooted at the given OID. Accepts an optional `community` override.
+Traverses the subtree rooted at the given OID. The method may send several requests; `timeout` and `retries` apply
+to each of them.
 
 | Parameter | Description |
 |-----------|-------------|
 | `oid` | Root OID for the walk |
-| `community` | *(Optional)* Community string override for this operation |
+| `timeout` | *(Optional)* Timeout of one request attempt in seconds; if omitted, the device `timeout` is used |
+| `retries` | *(Optional)* Total number of request attempts; if omitted, the device `retries` is used |
 
 ```json
 {
   "key": "ReceivedFromWalk",
-  "community": "private",
   "method": "walk",
   "oid": "1.3.6.1.2.1.1.1.0"
 }
@@ -309,11 +511,14 @@ Traverses the subtree rooted at the given OID. Accepts an optional `community` o
 
 ### multiwalk
 
-Traverses multiple subtrees in a single operation.
+Traverses multiple subtrees in a single operation. The method may send several requests; `timeout` and `retries`
+apply to each of them.
 
 | Parameter | Description |
 |-----------|-------------|
 | `oid` | Array of root OIDs to walk |
+| `timeout` | *(Optional)* Timeout of one request attempt in seconds; if omitted, the device `timeout` is used |
+| `retries` | *(Optional)* Total number of request attempts; if omitted, the device `retries` is used |
 
 ```json
 {
@@ -328,11 +533,14 @@ Traverses multiple subtrees in a single operation.
 
 ### bulkwalk
 
-Walks multiple subtrees using SNMP BULK requests (more efficient than `multiwalk` for large trees).
+Walks multiple subtrees using SNMP BULK requests (more efficient than `multiwalk` for large trees). The method may
+send several requests; `timeout` and `retries` apply to each of them.
 
 | Parameter | Description |
 |-----------|-------------|
 | `oid` | Array of root OIDs to walk |
+| `timeout` | *(Optional)* Timeout of one request attempt in seconds; if omitted, the device `timeout` is used |
+| `retries` | *(Optional)* Total number of request attempts; if omitted, the device `retries` is used |
 
 ```json
 {
@@ -347,11 +555,13 @@ Walks multiple subtrees using SNMP BULK requests (more efficient than `multiwalk
 
 ### table
 
-Reads a full SNMP table.
+Reads a full SNMP table. The method may send several requests; `timeout` and `retries` apply to each of them.
 
 | Parameter | Description |
 |-----------|-------------|
 | `oid` | OID of the table root |
+| `timeout` | *(Optional)* Timeout of one request attempt in seconds; if omitted, the device `timeout` is used |
+| `retries` | *(Optional)* Total number of request attempts; if omitted, the device `retries` is used |
 
 ```json
 {
@@ -370,6 +580,8 @@ Reads scalar and repeating objects in a single SNMP BULK request.
 | `scalarOid` | Array of non-repeating (scalar) OIDs |
 | `repeatingOid` | Array of repeating OIDs |
 | `maxListSize` | Maximum number of repetitions to return |
+| `timeout` | *(Optional)* Timeout of one request attempt in seconds; if omitted, the device `timeout` is used |
+| `retries` | *(Optional)* Total number of request attempts; if omitted, the device `retries` is used |
 
 ```json
 {
@@ -387,6 +599,52 @@ Reads scalar and repeating objects in a single SNMP BULK request.
 }
 ```
 
+### trap
+
+<Aside type="note">
+  Receiving SNMP traps is available in ThingsBoard IoT Gateway v.3.8.7 and later.
+</Aside>
+
+Receives a value from SNMP traps sent by the device instead of polling it. Used only in `attributes`
+and `telemetry`. Traps are received by the [trap listener](#section-traplistener) and processed as soon
+as they arrive. A device that only receives traps does not need `port` and `pollPeriod`.
+
+| Parameter | Description |
+|-----------|-------------|
+| `oid` | Trap OID (the value of `snmpTrapOID.0`) |
+| `valueOid` | *(Optional)* OID of the trap variable to use as the value; a variable matches when its OID equals `valueOid` or starts with it; if omitted, all trap variables are sent as a JSON object |
+
+```json
+[
+  {
+    "key": "ReceivedFromTrapWithValueOid",
+    "method": "trap",
+    "oid": "1.3.6.1.6.3.1.1.5.3",
+    "valueOid": "1.3.6.1.2.1.2.2.1.1"
+  },
+  {
+    "key": "ReceivedFromTrap",
+    "method": "trap",
+    "oid": "1.3.6.1.6.3.1.1.5.3"
+  }
+]
+```
+
+A trap is assigned to the entry when it is sent from the device `ip` and its OID matches the entry
+`oid`.
+
+SNMPv1 traps have no trap OID, so the gateway builds it from the trap fields. Set `oid` as for other
+SNMP versions, for example, `1.3.6.1.6.3.1.1.5.3` for `linkDown`, and use
+`<enterprise OID>.0.<specific trap number>` for enterprise-specific traps.
+
+The trap must use the device credentials — `community` for SNMPv1 and SNMPv2c (the entry's own `community`, if
+set), or [`security`](#subsection-security) for SNMPv3 — otherwise it is ignored.
+
+<Aside type="note">
+  The `trap` method also receives SNMPv2c informs, and the gateway sends a response to the device.
+  SNMPv3 informs are not supported.
+</Aside>
+
 ### set
 
 Writes a value to a single SNMP object. Used in `attributeUpdateRequests` and `serverSideRpcRequests`.
@@ -395,6 +653,8 @@ Writes a value to a single SNMP object. Used in `attributeUpdateRequests` and `s
 |-----------|-------------|
 | `oid` | Object identifier to write to |
 | `type` | SNMP data type for value encoding, default `OCTETSTRING` — see [Supported data types](#supported-data-types) |
+| `timeout` | *(Optional)* Timeout of one request attempt in seconds; if omitted, the device `timeout` is used |
+| `retries` | *(Optional)* Total number of request attempts; if omitted, the device `retries` is used |
 
 ```json
 {
@@ -415,6 +675,8 @@ Writes values to multiple SNMP objects in a single operation. The shape of `mapp
 |-----------|-------------|
 | `mappings` | Object mapping OIDs to values; values may use `${attribute}` to reference the incoming attribute value |
 | `type` | SNMP data type for value encoding, default `OCTETSTRING` — see [Supported data types](#supported-data-types) |
+| `timeout` | *(Optional)* Timeout of one request attempt in seconds; if omitted, the device `timeout` is used |
+| `retries` | *(Optional)* Total number of request attempts; if omitted, the device `retries` is used |
 
 ```json
 {
@@ -437,6 +699,8 @@ Writes values to multiple SNMP objects in a single operation. The shape of `mapp
 | `mappings[].value` | Value to write to the OID; use a JSON-path expression to extract data packed in the RPC call's `params` object, or just a constant value |
 | `mappings[].type` | *(Optional)* Per-mapping SNMP data type override — see [Supported data types](#supported-data-types) |
 | `type` | Default SNMP data type applied to mappings that don't specify their own `type`, default `OCTETSTRING` — see [Supported data types](#supported-data-types) |
+| `timeout` | *(Optional)* Timeout of one request attempt in seconds; if omitted, the device `timeout` is used |
+| `retries` | *(Optional)* Total number of request attempts; if omitted, the device `retries` is used |
 
 ```json
 {
