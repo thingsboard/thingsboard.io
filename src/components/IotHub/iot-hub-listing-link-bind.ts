@@ -2,7 +2,7 @@ import {
 	getCategoryForItemType,
 	getCardVariant,
 	getPlaceholderIcon,
-	resolveImage,
+	resolvePreviewImage,
 	type IotHubItemType,
 	type ListingView,
 } from '@models/iot-hub';
@@ -73,7 +73,7 @@ export function getListingHref(item: ListingView): string {
 // reset state until the SVG arrives.
 export function bindListingLink(root: HTMLElement, item: ListingView): void {
 	const isCompact = getCardVariant(item.itemType) === 'small';
-	const imageUrl = resolveImage(item.image);
+	const imageUrl = resolvePreviewImage(item.image);
 	const fallbackTypeIcon = TYPE_FALLBACK_ICON[item.itemType] ?? 'category';
 	const compactIcon = getPlaceholderIcon(item);
 
