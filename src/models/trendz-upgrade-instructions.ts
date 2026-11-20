@@ -21,7 +21,8 @@ export interface TrendzUpgradeVersion {
 	anchor: string;
 	/**
 	 * The --fromVersion argument for upgrade.sh / upgrade.bat.
-	 * Omit for new-style versions that don't need this flag (e.g. 1.15.x).
+	 * Omit for new-style versions whose upgrade.sh doesn't need this flag (e.g. 1.15.x);
+	 * upgrade.bat always takes it, with a placeholder when omitted.
 	 */
 	fromVersion?: string;
 	/**
