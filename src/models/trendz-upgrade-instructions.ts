@@ -120,7 +120,7 @@ export const TRENDZ_UPGRADE_VERSIONS: TrendzUpgradeVersion[] = [
 		lts: true,
 		patch: false,
 		anchor: 'v1-16-1',
-		// 1.16.x uses the new upgrade mechanism — no --fromVersion flag needed
+		// 1.16.x uses the new upgrade mechanism — upgrade.sh needs no --fromVersion flag
 		haproxyNote: false,
 		java25Warning: true,
 	},
@@ -133,7 +133,7 @@ export const TRENDZ_UPGRADE_VERSIONS: TrendzUpgradeVersion[] = [
 		lts: true,
 		patch: true,
 		anchor: 'v1-16-0-1',
-		// 1.16.x uses the new upgrade mechanism — no --fromVersion flag needed
+		// 1.16.x uses the new upgrade mechanism — upgrade.sh needs no --fromVersion flag
 		haproxyNote: false,
 		java25Warning: true,
 	},
@@ -145,7 +145,7 @@ export const TRENDZ_UPGRADE_VERSIONS: TrendzUpgradeVersion[] = [
 		lts: true,
 		patch: false,
 		anchor: 'v1-16-0',
-		// 1.16.x uses the new upgrade mechanism — no --fromVersion flag needed
+		// 1.16.x uses the new upgrade mechanism — upgrade.sh needs no --fromVersion flag
 		haproxyNote: false,
 		java25Warning: true,
 	},
@@ -158,7 +158,7 @@ export const TRENDZ_UPGRADE_VERSIONS: TrendzUpgradeVersion[] = [
 		lts: true,
 		patch: true,
 		anchor: 'v1-15-2-1',
-		// 1.15.x uses the new upgrade mechanism — no --fromVersion flag needed
+		// 1.15.x uses the new upgrade mechanism — upgrade.sh needs no --fromVersion flag
 		haproxyNote: false,
 	},
 	{
@@ -169,7 +169,7 @@ export const TRENDZ_UPGRADE_VERSIONS: TrendzUpgradeVersion[] = [
 		lts: true,
 		patch: false,
 		anchor: 'v1-15-2',
-		// 1.15.x uses the new upgrade mechanism — no --fromVersion flag needed
+		// 1.15.x uses the new upgrade mechanism — upgrade.sh needs no --fromVersion flag
 		haproxyNote: false,
 	},
 	{
@@ -181,7 +181,7 @@ export const TRENDZ_UPGRADE_VERSIONS: TrendzUpgradeVersion[] = [
 		lts: true,
 		patch: true,
 		anchor: 'v1-15-1-1',
-		// 1.15.x uses the new upgrade mechanism — no --fromVersion flag needed
+		// 1.15.x uses the new upgrade mechanism — upgrade.sh needs no --fromVersion flag
 		haproxyNote: false,
 	},
 	{
@@ -192,7 +192,7 @@ export const TRENDZ_UPGRADE_VERSIONS: TrendzUpgradeVersion[] = [
 		lts: true,
 		patch: false,
 		anchor: 'v1-15-1',
-		// 1.15.x uses the new upgrade mechanism — no --fromVersion flag needed
+		// 1.15.x uses the new upgrade mechanism — upgrade.sh needs no --fromVersion flag
 		haproxyNote: false,
 	},
 	{
@@ -204,7 +204,7 @@ export const TRENDZ_UPGRADE_VERSIONS: TrendzUpgradeVersion[] = [
 		lts: true,
 		patch: true,
 		anchor: 'v1-15-0-6',
-		// 1.15.x uses the new upgrade mechanism — no --fromVersion flag needed
+		// 1.15.x uses the new upgrade mechanism — upgrade.sh needs no --fromVersion flag
 		haproxyNote: true,
 	},
 	{
@@ -216,7 +216,7 @@ export const TRENDZ_UPGRADE_VERSIONS: TrendzUpgradeVersion[] = [
 		lts: true,
 		patch: true,
 		anchor: 'v1-15-0-5',
-		// 1.15.x uses the new upgrade mechanism — no --fromVersion flag needed
+		// 1.15.x uses the new upgrade mechanism — upgrade.sh needs no --fromVersion flag
 		haproxyNote: true,
 	},
 	{
