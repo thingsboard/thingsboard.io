@@ -157,7 +157,7 @@ Use this mode when your data must stay inside your network, or when the extensio
 
 #### What a system administrator sets up first
 
-Managed extensions are **off by default** on a PE installation, and the routing is not included. Three steps are needed.
+Managed extensions are **off by default** on a PE installation, and the routing is not included. Four steps are needed.
 
 **1. Turn the feature on.** Pick one of the two modes above with the `TB_EXTENSIONS_MODE` environment variable (`extensions.mode` in `thingsboard.yml`). While the mode is `disabled`, the `/api/extension` endpoints do not exist, and the CLI says that extensions are not enabled on the instance. ThingsBoard Cloud runs in a third mode, `public-cloud`, and has the feature on already.
 
@@ -184,9 +184,11 @@ ThingsBoard names the backend after the slug, so the rule can be written once:
 - in `private-cloud` mode it is a Kubernetes Service named `tb-ext-{slug}` in the extensions namespace, on port `8090`;
 - in `docker-compose` mode it is a container named `tb-ext-{slug}` on the `tb-extensions` network, on the port the extension was deployed with (`8090` by default).
 
-In nginx, that is a `proxy_pass` to `http://tb-ext-$slug:8090` with a `resolver`, where `$slug` comes from the URL. Change `tb-core:8080` to the address of your ThingsBoard:
+In nginx, that is a `proxy_pass` to `http://tb-ext-$slug:8090`, where `$slug` comes from the URL. The address holds a variable, so nginx looks the name up for each request and needs a `resolver` line. Without it every extension route answers `502`. The example is written for `docker-compose` mode. In `private-cloud` mode, use the IP address of the cluster DNS as the resolver and the full Service name, `tb-ext-$slug.tb-extensions.svc.cluster.local`. Change `tb-core:8080` to the address of your ThingsBoard:
 
 ```nginx
+resolver 127.0.0.11 valid=10s;          # the DNS of Docker; in Kubernetes, the IP of the cluster DNS
+
 location ~ "^/api/extension/route/(?<slug>[a-z0-9][a-z0-9-]*)(?:/.*)?$" {
     set $ext_slug $slug;
     auth_request /_ext_auth;             # forward only after a 200
@@ -206,7 +208,9 @@ location = /_ext_auth {
 }
 ```
 
-The `deploy/` folder of the starter project holds an nginx snippet you can start from. It makes the `/api/ext-auth` call, but it is written for **one** extension: one `location` block serves one fixed slug and sends it to one fixed address. Do not use it as it is for a managed installation. Replace the fixed slug and address with the per-slug rule above. The HAProxy snippet beside it is for local development only: it does **no caller check at all**, so a fabricated `X-Authorization` header still reaches the extension and tenants can reach each other's extensions. Never use it as the router of a managed installation. The rest of the `extensions:` block in `thingsboard.yml` holds the other settings: the namespace (`extensions.k8s.namespace.name`), a trusted registry list (`extensions.image.allowed-registries`), the egress rules for the containers, the slug suffix (`extensions.slug.enforce-suffix`), and the internal router URL that the **API docs** page needs (`extensions.routing.router-internal-url`). Some of these settings decide how well tenants are kept apart — see [Security settings to review](#security-settings-to-review) below.
+**4. Tell ThingsBoard where the router is.** The **API docs** button on the Extensions page reads the API description of an extension through the router. Set `TB_EXTENSIONS_ROUTING_ROUTER_INTERNAL_URL` (`extensions.routing.router-internal-url` in `thingsboard.yml`) to the address at which ThingsBoard reaches the router, for example `http://tb-ext-router:8080`. The setting is empty by default. Extensions run without it, but **API docs** cannot load the documentation.
+
+The `deploy/` folder of the starter project holds an nginx snippet you can start from. It makes the `/api/ext-auth` call, but it is written for **one** extension: one `location` block serves one fixed slug and sends it to one fixed address. Do not use it as it is for a managed installation. Replace the fixed slug and address with the per-slug rule above. The HAProxy snippet beside it is for local development only: it does **no caller check at all**, so a fabricated `X-Authorization` header still reaches the extension and tenants can reach each other's extensions. Never use it as the router of a managed installation. The rest of the `extensions:` block in `thingsboard.yml` holds the other settings: the namespace (`extensions.k8s.namespace.name`), a trusted registry list (`extensions.image.allowed-registries`), the egress rules for the containers, and the slug suffix (`extensions.slug.enforce-suffix`). Some of these settings decide how well tenants are kept apart — see [Security settings to review](#security-settings-to-review) below.
 
 <Aside type="caution">
 One Docker host can run **one** ThingsBoard in `docker-compose` extensions mode. A second instance takes over the extension containers of the first one, because both reconcile the same Docker daemon. Run only one such stack per host.
