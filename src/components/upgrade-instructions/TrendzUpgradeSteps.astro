@@ -1,9 +1,10 @@
 ---
-import { Code } from '@astrojs/starlight/components';
-import { getTrendzUpgradeStepVersions } from '~/models/trendz-upgrade-instructions';
-import { getUpgradeHeading } from '~/models/upgrade-shared';
+import { Code, TabItem, Tabs } from '@astrojs/starlight/components';
+import { TRENDZ_K8S_CONFIG_APPLY_CMDS, getTrendzUpgradeStepVersions } from '@models/trendz-upgrade-instructions';
+import { getUpgradeHeading, versionAtLeast } from '@models/upgrade-shared';
 import ConfigFileNote from './ConfigFileNote.astro';
 import TrendzK8sJobSteps from '@components/upgrade-instructions/TrendzK8sJobSteps.astro';
+import { TRENDZ_NON_ROOT_FROM_VER } from '@data/versions';
 
 interface Props {
 	platform: 'ubuntu' | 'centos' | 'windows' | 'docker' | 'kubernetes';
@@ -18,6 +19,18 @@ const usesSync = (family: string) => {
 	return major > 1 || (major === 1 && minor >= 15);
 };
 const versions = getTrendzUpgradeStepVersions(filterFamily);
+
+// The ThingsBoard Docker guide keeps Trendz in docker-compose-trendz.yml next to its own docker-compose.yml
+const dockerLayouts = [
+	{ label: 'Standalone', standalone: true, file: 'docker-compose.yml', compose: 'docker compose', db: 'trendz-postgres' },
+	{
+		label: 'Run alongside ThingsBoard',
+		standalone: false,
+		file: 'docker-compose-trendz.yml',
+		compose: 'docker compose -f docker-compose.yml -f docker-compose-trendz.yml',
+		db: 'postgres',
+	},
+];
 
 const pkgExt = platform === 'ubuntu' ? 'deb' : 'rpm';
 const installCmd = platform === 'ubuntu' ? 'dpkg -i' : 'rpm -Uvh';
@@ -65,8 +78,11 @@ const javaGuideLink =
 	<section class="prepare-section">
 		<h2 id="prepare-for-upgrading-trendz-analytics">Prepare for upgrading Trendz Analytics</h2>
 		<h3>Obtain Trendz Kubernetes scripts</h3>
-		<p>Use the Kubernetes configuration files from your original installation. If you no longer have them, re-clone the repository and fill in your configuration values as described in the <a href="/docs/trendz/installation/kubernetes/">installation guide</a>:</p>
+		<p>Use the Kubernetes configuration files from your original installation. If you no longer have them, clone the repository and fill in your configuration values as described in the <a href="/docs/trendz/installation/kubernetes/">installation guide</a>. Run only the command for your target version.</p>
+		<p>Trendz {TRENDZ_NON_ROOT_FROM_VER} and later: the <code>master</code> branch holds the files of the latest Trendz release.</p>
 		<Code code="git clone https://github.com/thingsboard/trendz-k8s.git --depth 1" lang="bash" />
+		<p>An earlier version: clone the release branch of your target version. A release branch holds the files of the latest patch of its release. For example, <code>release-1.16.0</code> holds the files for 1.16.0.1:</p>
+		<Code code="git clone -b release-1.16.0 https://github.com/thingsboard/trendz-k8s.git --depth 1" lang="bash" />
 		<h3>Connect to your Kubernetes cluster</h3>
 		<p>Select the correct kube-config context before running any commands:</p>
 		<Code code="kubectl config get-contexts" lang="bash" />
@@ -89,10 +105,9 @@ const javaGuideLink =
 	const upgradeScriptCmd = v.fromVersion
 		? `sudo /usr/share/trendz/bin/install/upgrade.sh --fromVersion=${v.fromVersion}`
 		: `sudo /usr/share/trendz/bin/install/upgrade.sh`;
-	const upgradeBatCmd = v.fromVersion
-		? `C:\\trendz> upgrade.bat --fromVersion=${v.fromVersion}`
-		: `C:\\trendz> upgrade.bat`;
-	const dockerCmds = `docker pull thingsboard/trendz:${v.version}\ndocker compose stop trendz\ndocker compose run --rm -e UPGRADE_TRENDZ=true trendz\ndocker compose up -d`;
+	const upgradeBatCmd = `C:\\trendz> upgrade.bat --fromVersion=${v.fromVersion ?? '<CURRENT_VERSION>'}`;
+	const runsAsNonRoot = versionAtLeast(v.version, TRENDZ_NON_ROOT_FROM_VER);
+	const k8sAppFile = runsAsNonRoot ? 'trendz-app-statefulset.yml' : 'trendz-app-deployment.yml';
 	const k8sFlagFileCmd = v.fromVersion
 		? `kubectl exec <POD_NAME> -- sh -c "echo '${v.fromVersion}' > /data/.upgradeversion"`
 		: '';
@@ -161,6 +176,15 @@ const javaGuideLink =
 				</aside>
 			)}
 
+			{runsAsNonRoot && (platform === 'ubuntu' || platform === 'centos' || platform === 'windows') && (
+				<aside class="starlight-aside starlight-aside--note">
+					<p class="starlight-aside__title" aria-hidden="true">Python Executor</p>
+					<div class="starlight-aside__content">
+						<p>If you are upgrading from a version earlier than {TRENDZ_NON_ROOT_FROM_VER} and the <code>docker-compose.yml</code> of your Python Executor publishes <code>"8181:8181"</code>, change it to <code>"127.0.0.1:8181:8181"</code>, replace the default secret as in <a href="/docs/trendz/installation/python-executor-configuration/#step-4-replace-the-default-shared-secret">Step 4 of the Python Executor guide</a>, and run <code>docker compose up -d</code> in that folder. Do not restart Trendz now: it reads the new secret when you start it at the end of this upgrade.</p>
+					</div>
+				</aside>
+			)}
+
 			{(platform === 'ubuntu' || platform === 'centos') && (
 				<>
 					<h3>Trendz Analytics package download</h3>
@@ -178,23 +202,12 @@ const javaGuideLink =
 						</aside>
 					) : (
 						<>
-							<p>Execute the upgrade script:</p>
-							<Code code={upgradeScriptCmd} lang="bash" />
 							{v.fromVersion ? (
-								<aside class="starlight-aside starlight-aside--note">
-									<p class="starlight-aside__title" aria-hidden="true">--fromVersion flag</p>
-									<div class="starlight-aside__content">
-										<p>Set <code>--fromVersion</code> to the version you are currently running. You can upgrade directly from <strong>any earlier version</strong> — there is no need to step through intermediate releases.</p>
-									</div>
-								</aside>
+								<p>Execute the upgrade script. Set <code>--fromVersion</code> to the version you are currently running; you can upgrade directly from any earlier version:</p>
 							) : (
-								<aside class="starlight-aside starlight-aside--note">
-									<p class="starlight-aside__title" aria-hidden="true">Upgrading from any version</p>
-									<div class="starlight-aside__content">
-										<p>No <code>--fromVersion</code> flag is required. You can upgrade directly from <strong>any earlier version</strong>.</p>
-									</div>
-								</aside>
+								<p>Execute the upgrade script; you can upgrade directly from any earlier version:</p>
 							)}
+							<Code code={upgradeScriptCmd} lang="bash" />
 						</>
 					)}
 					<h3>Start the service</h3>
@@ -227,27 +240,12 @@ const javaGuideLink =
 								<aside class="starlight-aside starlight-aside--note">
 									<p class="starlight-aside__title" aria-hidden="true">Note</p>
 									<div class="starlight-aside__content">
-										<p>If you are upgrading from version {v.family}.x, <strong>do not</strong> run the upgrade script; start the service directly.</p>
+										<p>If you are upgrading from version {v.baseVersion ?? v.family}.x, <strong>do not</strong> run the upgrade script; start the service directly.</p>
 									</div>
 								</aside>
 							)}
-							<p>Run <strong>upgrade.bat</strong> as Administrator:</p>
+							<p>Run <strong>upgrade.bat</strong> as Administrator. Set <code>--fromVersion</code> to the version you are currently running; you can upgrade directly from any earlier version:</p>
 							<Code code={upgradeBatCmd} lang="powershell" />
-							{v.fromVersion ? (
-								<aside class="starlight-aside starlight-aside--note">
-									<p class="starlight-aside__title" aria-hidden="true">--fromVersion flag</p>
-									<div class="starlight-aside__content">
-										<p>Set <code>--fromVersion</code> to the version you are currently running. You can upgrade directly from <strong>any earlier version</strong> — there is no need to step through intermediate releases.</p>
-									</div>
-								</aside>
-							) : (
-								<aside class="starlight-aside starlight-aside--note">
-									<p class="starlight-aside__title" aria-hidden="true">Upgrading from any version</p>
-									<div class="starlight-aside__content">
-										<p>No <code>--fromVersion</code> flag is required. You can upgrade directly from <strong>any earlier version</strong>.</p>
-									</div>
-								</aside>
-							)}
 						</>
 					)}
 					<h3>Start the service</h3>
@@ -258,19 +256,52 @@ const javaGuideLink =
 			{platform === 'docker' && (
 				<>
 					<h3>Trendz Analytics service upgrade</h3>
-					<ol>
-						<li>
-							<p>Create a database backup:</p>
-							<Code code={`docker compose exec postgres sh -c "pg_dump -U postgres trendz > /var/lib/postgresql/data/trendz_dump"`} lang="bash" />
-						</li>
-						<li>
-							<p>Update the version of <code>thingsboard/trendz</code> and <code>thingsboard/trendz-python-executor</code> in your <code>docker-compose.yml</code> to <strong>{v.version}</strong>.</p>
-						</li>
-						<li>
-							<p>Pull the image, run the upgrade, and restart:</p>
-							<Code code={dockerCmds} lang="bash" />
-						</li>
-					</ol>
+					<p>Pick the tab that matches how you installed Trendz.</p>
+					<Tabs syncKey="trendz-docker-layout">
+						{dockerLayouts.map((layout) => (
+							<TabItem label={layout.label}>
+								{layout.standalone && (
+									<p>If the Trendz service in your <code>docker-compose.yml</code> is still named <code>mytrendz</code>, or mounts host folders such as <code>~/.mytrendz-data:/data</code>, <a href="/docs/trendz/installation/old-docker-migrate/">move to named volumes</a> first.</p>
+								)}
+								<ol>
+									<li>
+										<p>Create a database backup:</p>
+										<Code code={`${layout.compose} exec ${layout.db} sh -c "pg_dump -U postgres trendz > /var/lib/postgresql/data/trendz_dump"`} lang="bash" />
+									</li>
+									<li>
+										<p>Update the version of <code>thingsboard/trendz</code> and <code>thingsboard/trendz-python-executor</code> in your <code>{layout.file}</code> to <strong>{v.version}</strong>.</p>
+									</li>
+									{runsAsNonRoot && (
+										<li>
+											<p>If you are upgrading from a version earlier than {TRENDZ_NON_ROOT_FROM_VER}, harden the Python Executor in your <code>{layout.file}</code>. The next steps apply the changes:</p>
+											<ul>
+												{layout.standalone ? (
+													<li>Publish the Python Executor and PostgreSQL ports on the local host only: change <code>"8181:8181"</code> to <code>"127.0.0.1:8181:8181"</code> and <code>"5432:5432"</code> to <code>"127.0.0.1:5432:5432"</code>. If nothing outside Docker uses a port, remove its entry.</li>
+												) : (
+													<li>Publish the Python Executor port on the local host only: change <code>"8181:8181"</code> to <code>"127.0.0.1:8181:8181"</code>. If nothing outside Docker uses the port, remove the entry.</li>
+												)}
+												<li>Replace the default shared secret <code>placeholder</code>: set <code>PYTHON_EXECUTOR_SECRET</code> on both the <code>trendz</code> and <code>trendz-python-executor</code> services, as described in <a href="/docs/trendz/installation/python-executor-configuration/#replace-the-shared-secret-in-docker-and-kubernetes-installations">Replace the shared secret</a>.</li>
+											</ul>
+										</li>
+									)}
+									<li>
+										<p>Stop Trendz:</p>
+										<Code code={`${layout.compose} stop trendz`} lang="bash" />
+									</li>
+									{runsAsNonRoot && (
+										<li>
+											<p>Only if you are upgrading from a version earlier than {TRENDZ_NON_ROOT_FROM_VER}: Trendz now runs as user <code>799</code> instead of root, so give that user its files once:</p>
+											<Code code={`${layout.compose} run --rm --no-deps --user root --entrypoint chown trendz -R 799:799 /data /trendz-config-files`} lang="bash" />
+										</li>
+									)}
+									<li>
+										<p>Pull the image, run the upgrade, and restart:</p>
+										<Code code={`docker pull thingsboard/trendz:${v.version}\n${layout.compose} run --rm -e UPGRADE_TRENDZ=true trendz\n${layout.compose} up -d`} lang="bash" />
+									</li>
+								</ol>
+							</TabItem>
+						))}
+					</Tabs>
 				</>
 			)}
 
@@ -282,6 +313,22 @@ const javaGuideLink =
 							<p><a href="#prepare-for-upgrading-trendz-analytics"><strong>Prepare</strong></a> for upgrading Trendz Analytics before running the steps below.</p>
 						</div>
 					</aside>
+
+					{runsAsNonRoot && (
+						<>
+							<h3>Update the Kubernetes files</h3>
+							<p>Check whether your cluster still runs on the files of Trendz 1.16.1 or earlier:</p>
+							<Code code="kubectl get configmap trendz-app-db-config" lang="bash" />
+							<p>If the command prints the ConfigMap, follow <a href="/docs/trendz/installation/kubernetes-files-migration/">Migrate Trendz Kubernetes files from 1.16.1 or earlier</a> instead of this step. If it prints <code>NotFound</code>, go on here.</p>
+							<p>In your <code>trendz-k8s</code> folder, commit your edits so that Git can merge them with the latest changes, then pull. The commit stays in this folder only, but it holds your passwords and license key: do not push it anywhere. If Git has no name and email for this folder yet, set them first with <code>git config user.name "Your Name"</code> and <code>git config user.email "you@example.com"</code>.</p>
+							<Code code={`git commit -am "My configuration"\ngit pull --no-rebase`} lang="bash" />
+							<p>If Git says there is nothing to commit, the pull still runs.</p>
+							<p>If Git reports conflicts, open each file it names, keep your configuration values and take everything else from the new version. Then finish the merge:</p>
+							<Code code={`git add -u\ngit commit --no-edit`} lang="bash" />
+							<p>Apply the latest configuration. If you created the Secrets with <code>kubectl create secret</code>, leave out the first line, which applies <code>trendz-db-app-secret.yml</code> and <code>trendz-python-executor-secret.yml</code>. <code>trendz-app-statefulset.yml</code> and <code>trendz-python-executor-deployment.yml</code> are applied in the steps below.</p>
+							<Code code={TRENDZ_K8S_CONFIG_APPLY_CMDS} lang="bash" />
+						</>
+					)}
 
 					{v.fromVersion ? (
 						<>
@@ -314,14 +361,18 @@ const javaGuideLink =
 								<aside class="starlight-aside starlight-aside--note">
 									<p class="starlight-aside__title" aria-hidden="true">Upgrading from {v.baseVersion}.x</p>
 									<div class="starlight-aside__content">
-										<p>No upgrade job is needed. Set the image versions to <strong>{v.version}</strong> in <code>trendz-app-deployment.yml</code> and <code>trendz-python-executor-deployment.yml</code>, then apply them:</p>
-										<Code code={`kubectl apply -f trendz-python-executor-deployment.yml\nkubectl apply -f trendz-app-deployment.yml`} lang="bash" />
+										<p>No upgrade job is needed. Check that the image versions are <strong>{v.version}</strong> in <code>{k8sAppFile}</code> and <code>trendz-python-executor-deployment.yml</code>, apply them, and skip the steps below:</p>
+										<Code code={`kubectl apply -f trendz-python-executor-deployment.yml\nkubectl apply -f ${k8sAppFile}`} lang="bash" />
+										{runsAsNonRoot && <p>The StatefulSet replaces the Trendz pods one at a time. With one pod, Trendz is unavailable until the new pod starts.</p>}
 										<p>From any other version, follow the steps below.</p>
 									</div>
 								</aside>
 							)}
 							<TrendzK8sJobSteps version={v.version} />
 						</>
+					)}
+					{runsAsNonRoot && (
+						<p>If you came here from <a href="/docs/trendz/installation/kubernetes-files-migration/">Migrate Trendz Kubernetes files from 1.16.1 or earlier</a>, go back to its last step once the new Trendz pod is running.</p>
 					)}
 				</>
 			)}

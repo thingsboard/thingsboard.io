@@ -21,7 +21,8 @@ export interface TrendzUpgradeVersion {
 	anchor: string;
 	/**
 	 * The --fromVersion argument for upgrade.sh / upgrade.bat.
-	 * Omit for new-style versions that don't need this flag (e.g. 1.15.x).
+	 * Omit for new-style versions whose upgrade.sh doesn't need this flag (e.g. 1.15.x);
+	 * upgrade.bat always takes it, with a placeholder when omitted.
 	 */
 	fromVersion?: string;
 	/**
@@ -46,6 +47,26 @@ export interface TrendzUpgradeVersion {
 	haproxyNote?: boolean;
 }
 
+/**
+ * Applies the trendz-k8s configuration (Secrets, ConfigMaps, volume, cache, network policy) of the current file layout,
+ * without the namespace and the two workloads. Install, upgrade and migration docs all render this one list, so it
+ * must follow the files of the trendz-k8s `master` branch.
+ */
+export const TRENDZ_K8S_CONFIG_APPLY_CMDS = [
+	'kubectl apply -f trendz-db-app-secret.yml -f trendz-python-executor-secret.yml',
+	'kubectl apply -f trendz-app-env-config.yml -f trendz-app-files-config.yml',
+	'kubectl apply -f trendz-python-executor-env-config.yml -f trendz-python-executor-files-config.yml',
+	'kubectl apply -f trendz-app-shared-pvc.yml',
+	'kubectl apply -f trendz-cache-deployment.yml',
+	'kubectl apply -f trendz-python-executor-network-policy.yml',
+].join('\n');
+
+export const TRENDZ_K8S_NAMESPACE_APPLY_CMD = 'kubectl apply -f trendz-namespace.yml';
+
+/** Starts the Python Executor and Trendz from the current trendz-k8s files */
+export const TRENDZ_K8S_WORKLOADS_APPLY_CMDS =
+	'kubectl apply -f trendz-python-executor-deployment.yml\nkubectl apply -f trendz-app-statefulset.yml';
+
 /** Converts a family string to a URL slug, e.g. "1.15" → "v1-15-x" */
 export function getTrendzFamilySlug(family: string): string {
 	return 'v' + family.replace(/\./g, '-') + '-x';
@@ -68,6 +89,30 @@ export function getTrendzUpgradeStepVersions(family?: string): TrendzUpgradeVers
  */
 export const TRENDZ_UPGRADE_VERSIONS: TrendzUpgradeVersion[] = [
 	{
+		version: '1.16.1.2',
+		displayVersion: '1.16.1.2',
+		family: '1.16',
+		baseVersion: '1.16.1',
+		releaseDate: 'Nov 19 2026',
+		lts: true,
+		patch: true,
+		anchor: 'v1-16-1-2',
+		haproxyNote: false,
+		java25Warning: true,
+	},
+	{
+		version: '1.16.1.1',
+		displayVersion: '1.16.1.1',
+		family: '1.16',
+		baseVersion: '1.16.1',
+		releaseDate: 'Nov 18 2026',
+		lts: true,
+		patch: true,
+		anchor: 'v1-16-1-1',
+		haproxyNote: false,
+		java25Warning: true,
+	},
+	{
 		version: '1.16.1',
 		displayVersion: '1.16.1',
 		family: '1.16',
@@ -75,7 +120,7 @@ export const TRENDZ_UPGRADE_VERSIONS: TrendzUpgradeVersion[] = [
 		lts: true,
 		patch: false,
 		anchor: 'v1-16-1',
-		// 1.16.x uses the new upgrade mechanism — no --fromVersion flag needed
+		// 1.16.x uses the new upgrade mechanism — upgrade.sh needs no --fromVersion flag
 		haproxyNote: false,
 		java25Warning: true,
 	},
@@ -88,7 +133,7 @@ export const TRENDZ_UPGRADE_VERSIONS: TrendzUpgradeVersion[] = [
 		lts: true,
 		patch: true,
 		anchor: 'v1-16-0-1',
-		// 1.16.x uses the new upgrade mechanism — no --fromVersion flag needed
+		// 1.16.x uses the new upgrade mechanism — upgrade.sh needs no --fromVersion flag
 		haproxyNote: false,
 		java25Warning: true,
 	},
@@ -100,7 +145,7 @@ export const TRENDZ_UPGRADE_VERSIONS: TrendzUpgradeVersion[] = [
 		lts: true,
 		patch: false,
 		anchor: 'v1-16-0',
-		// 1.16.x uses the new upgrade mechanism — no --fromVersion flag needed
+		// 1.16.x uses the new upgrade mechanism — upgrade.sh needs no --fromVersion flag
 		haproxyNote: false,
 		java25Warning: true,
 	},
@@ -113,7 +158,7 @@ export const TRENDZ_UPGRADE_VERSIONS: TrendzUpgradeVersion[] = [
 		lts: true,
 		patch: true,
 		anchor: 'v1-15-2-1',
-		// 1.15.x uses the new upgrade mechanism — no --fromVersion flag needed
+		// 1.15.x uses the new upgrade mechanism — upgrade.sh needs no --fromVersion flag
 		haproxyNote: false,
 	},
 	{
@@ -124,7 +169,7 @@ export const TRENDZ_UPGRADE_VERSIONS: TrendzUpgradeVersion[] = [
 		lts: true,
 		patch: false,
 		anchor: 'v1-15-2',
-		// 1.15.x uses the new upgrade mechanism — no --fromVersion flag needed
+		// 1.15.x uses the new upgrade mechanism — upgrade.sh needs no --fromVersion flag
 		haproxyNote: false,
 	},
 	{
@@ -136,7 +181,7 @@ export const TRENDZ_UPGRADE_VERSIONS: TrendzUpgradeVersion[] = [
 		lts: true,
 		patch: true,
 		anchor: 'v1-15-1-1',
-		// 1.15.x uses the new upgrade mechanism — no --fromVersion flag needed
+		// 1.15.x uses the new upgrade mechanism — upgrade.sh needs no --fromVersion flag
 		haproxyNote: false,
 	},
 	{
@@ -147,7 +192,7 @@ export const TRENDZ_UPGRADE_VERSIONS: TrendzUpgradeVersion[] = [
 		lts: true,
 		patch: false,
 		anchor: 'v1-15-1',
-		// 1.15.x uses the new upgrade mechanism — no --fromVersion flag needed
+		// 1.15.x uses the new upgrade mechanism — upgrade.sh needs no --fromVersion flag
 		haproxyNote: false,
 	},
 	{
@@ -159,7 +204,7 @@ export const TRENDZ_UPGRADE_VERSIONS: TrendzUpgradeVersion[] = [
 		lts: true,
 		patch: true,
 		anchor: 'v1-15-0-6',
-		// 1.15.x uses the new upgrade mechanism — no --fromVersion flag needed
+		// 1.15.x uses the new upgrade mechanism — upgrade.sh needs no --fromVersion flag
 		haproxyNote: true,
 	},
 	{
@@ -171,7 +216,7 @@ export const TRENDZ_UPGRADE_VERSIONS: TrendzUpgradeVersion[] = [
 		lts: true,
 		patch: true,
 		anchor: 'v1-15-0-5',
-		// 1.15.x uses the new upgrade mechanism — no --fromVersion flag needed
+		// 1.15.x uses the new upgrade mechanism — upgrade.sh needs no --fromVersion flag
 		haproxyNote: true,
 	},
 	{

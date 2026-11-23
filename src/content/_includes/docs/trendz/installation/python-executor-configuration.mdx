@@ -11,7 +11,7 @@ export const composeYaml = `services:
     restart: always
     image: "thingsboard/trendz-python-executor:${TRENDZ_VER}"
     ports:
-      - "8181:8181"
+      - "127.0.0.1:8181:8181"
     environment:
       EXECUTOR_MANAGER: 1
       EXECUTOR_SCRIPT_ENGINE: 6
@@ -44,6 +44,7 @@ If you installed Trendz using Docker (Linux/macOS), Docker (Windows), or Kuberne
 **Deployment recommendations:**
 
 - **Same host** — deploy the Python Executor on the same host as Trendz. Communication uses WebSockets; placing them on separate hosts requires opening the executor port in the firewall and increases latency.
+- **No public access** — never expose the Python Executor port to the internet. Only Trendz needs to reach it.
 - **Resources** — allocate at least **1 GB RAM** and **1 CPU core**. More CPU directly speeds up prediction model training and execution.
 
 ## Prerequisites
@@ -75,7 +76,7 @@ Create a new `docker-compose.yml` with the following content:
 
 | Parameter | Description |
 |---|---|
-| `8181:8181` | Maps host port 8181 to the Python Executor port |
+| `127.0.0.1:8181:8181` | Publishes the Python Executor port on the local host only. If Trendz runs on another host, publish it on an internal network address instead, never on a public one |
 | `restart: always` | Auto-restarts the container on failure or system reboot |
 | `EXECUTOR_MANAGER` | Number of executor manager threads |
 | `EXECUTOR_SCRIPT_ENGINE` | Number of script engine threads |
@@ -148,6 +149,53 @@ net start trendz
 </TabItem>
 </Tabs>
 
+### Step 4. Replace the default shared secret
+
+Trendz authenticates to the Python Executor with a shared secret. Trendz and the executor both default to the publicly known value `placeholder`, so replace it with your own: generate a random value, for example with `openssl rand -hex 32`, and set the same value on both sides.
+
+In the Python Executor `docker-compose.yml`, add it under `environment:`:
+
+```yml
+      PYTHON_EXECUTOR_SECRET: YOUR_SECRET
+```
+
+<Tabs>
+<TabItem label="Linux / macOS">
+
+Add to `/usr/share/trendz/conf/trendz.conf`:
+
+```bash
+export PYTHON_EXECUTOR_SECRET=YOUR_SECRET
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+In `C:\Program Files (x86)\trendz\conf\trendz.yml`, set the secret in the `script-engine` block:
+
+```yml
+  executor-secret: "${PYTHON_EXECUTOR_SECRET:YOUR_SECRET}"
+```
+
+</TabItem>
+</Tabs>
+
+Apply the change: in the Python Executor folder, run `docker compose up -d` (a plain restart keeps the old environment), then restart Trendz. If the values differ, Trendz cannot run Python scripts.
+
+## Replace the shared secret in Docker and Kubernetes installations
+
+The Python Executor that comes with a Docker or Kubernetes installation also uses the default secret `placeholder`. Generate a random value, for example with `openssl rand -hex 32`, and set it on both services:
+
+- **Docker:** add `PYTHON_EXECUTOR_SECRET: YOUR_SECRET` under `environment:` of both the `trendz` and `trendz-python-executor` services in `docker-compose.yml`, then run `docker compose up -d`. If Trendz runs alongside ThingsBoard, the services are in `docker-compose-trendz.yml`; apply with `docker compose -f docker-compose.yml -f docker-compose-trendz.yml up -d`.
+- **Kubernetes:** replace `placeholder` in `trendz-python-executor-secret.yml` and apply it. Trendz and the Python Executor read this Secret only at start, so restart them:
+
+  ```bash
+  kubectl apply -f trendz-python-executor-secret.yml
+  kubectl -n trendz rollout restart deployment/trendz-python-executor-deployment statefulset/trendz-app
+  ```
+
+  The StatefulSet restarts the Trendz pods one at a time. With one pod, Trendz is unavailable until it restarts.
+
 ## Add custom Python libraries
 
 You can extend the Python Executor with additional libraries to use in Calculation Fields or Custom Prediction Models.
@@ -162,44 +210,114 @@ The following libraries are bundled in the official Docker image and available o
 | `statsmodels` | 0.14.0 |
 | `matplotlib` | 3.7.0 |
 | `prophet` | 1.2.0 |
-| `xgboost` | 1.8.0 |
+| `xgboost-cpu` | 2.1.0 |
 | `requests` | 2.31.0 |
 
-To add a library not listed above, follow these steps. For example, to add the `emoji` library at version 2.2.0:
+The executor installs other libraries from the `requirements.txt` file in its configuration folder, at every start, when
+`INSTALL_PYTHON_DEPS_ON_STARTUP` is `true`. This is off by default. When it is on:
 
-### Step 1. Open a shell in the running container
+- The executor downloads pip and the libraries from PyPI (`files.pythonhosted.org`, `pypi.org`) at every start, so it
+  needs outbound internet access.
+- The image has no compiler: a library with compiled code must be available as a binary wheel for Python 3.13 on
+  Linux. Pure Python libraries install from source too.
+- If a library fails to install, the executor does not start. Check its log.
 
-```bash
-docker compose exec trendz-python-executor bash
-```
+For example, to add the `emoji` library at version 2.2.0:
 
-### Step 2. Add the library to `requirements.txt`
+<Tabs>
+<TabItem label="Docker">
 
-Append the library name and version to the `requirements.txt` file in the configuration directory:
+If Trendz runs alongside ThingsBoard, the `trendz-python-executor` service is in `docker-compose-trendz.yml`: edit that
+file and run the commands below as `docker compose -f docker-compose.yml -f docker-compose-trendz.yml ...`.
 
-```bash
-echo 'emoji==2.2.0' >> /python-executor-config-files/requirements.txt
-```
+1. Add the library to `requirements.txt` in the executor configuration folder. Run from the directory containing your
+   `docker-compose.yml`:
 
-Type `exit` to leave the container shell.
+   ```bash
+   docker compose exec trendz-python-executor sh -c "echo 'emoji==2.2.0' >> /python-executor-config-files/requirements.txt"
+   ```
 
-### Step 3. Restart the container
+2. In `docker-compose.yml`, add to the `environment:` of the `trendz-python-executor` service:
 
-```bash
-docker compose restart trendz-python-executor
-```
+   ```yml
+         INSTALL_PYTHON_DEPS_ON_STARTUP: "true"
+   ```
 
-### Step 4. Verify the installation
+3. Recreate the container so that it gets the new environment:
 
-```bash
-docker compose logs trendz-python-executor
-```
+   ```bash
+   docker compose up -d trendz-python-executor
+   ```
 
-Look for a line confirming successful installation:
+4. Check the executor log:
+
+   ```bash
+   docker compose logs trendz-python-executor
+   ```
+
+</TabItem>
+<TabItem label="Kubernetes">
+
+1. In `trendz-python-executor-files-config.yml`, list the libraries you add under `requirements.txt`. The bundled
+   libraries are already in the image, so replace the list that is there with yours only:
+
+   ```yml
+     requirements.txt: |
+       emoji==2.2.0
+   ```
+
+2. In `trendz-python-executor-env-config.yml`, add under `data:`:
+
+   ```yml
+     INSTALL_PYTHON_DEPS_ON_STARTUP: "true"
+   ```
+
+3. The network policy in `trendz-python-executor-network-policy.yml` blocks all outbound traffic from the executor.
+   Replace `egress: []` with rules that allow DNS and HTTPS:
+
+   ```yml
+     egress:
+       - to:
+           - namespaceSelector: {}
+             podSelector:
+               matchLabels:
+                 k8s-app: kube-dns
+         ports:
+           - protocol: UDP
+             port: 53
+           - protocol: TCP
+             port: 53
+       - ports:
+           - protocol: TCP
+             port: 443
+   ```
+
+   This also lets Python scripts reach any HTTPS address. To limit it, allow only the IP ranges of your PyPI mirror
+   with an `ipBlock`.
+
+4. Apply the files and restart the executor:
+
+   ```bash
+   kubectl apply -f trendz-python-executor-files-config.yml -f trendz-python-executor-env-config.yml
+   kubectl apply -f trendz-python-executor-network-policy.yml
+   kubectl -n trendz rollout restart deployment/trendz-python-executor-deployment
+   ```
+
+5. Check the executor log:
+
+   ```bash
+   kubectl -n trendz logs deployment/trendz-python-executor-deployment
+   ```
+
+</TabItem>
+</Tabs>
+
+The log shows the installation:
 
 ```text
-Installing custom Python requirements...
-Requirement already satisfied: emoji==2.2.0 in /usr/local/lib/python3.9/site-packages
+Installing Python dependencies from /home/python-executor/configs/requirements.txt (startup mode enabled)...
+...
+Successfully installed emoji-2.2.0
 ```
 
 The library is now available in your Trendz Calculation Fields and Custom Prediction Models.
@@ -214,6 +332,8 @@ All Python Executor settings are configured via environment variables. Pass them
 | `EXECUTOR_SCRIPT_ENGINE` | `6` | Number of script engine threads. Increase for higher parallel script execution throughput |
 | `THROTTLING_QUEUE_CAPACITY` | `10` | Maximum number of script execution requests that can wait in queue. Requests beyond this limit are rejected |
 | `NETWORK_BUFFER_SIZE` | `20971520` | WebSocket message buffer size in bytes (default 20 MB). Increase when scripts transfer large datasets |
+| `INSTALL_PYTHON_DEPS_ON_STARTUP` | `false` | Install the libraries listed in `requirements.txt` at every start; see [Add custom Python libraries](#add-custom-python-libraries) |
+| `PYTHON_EXECUTOR_SECRET` | `placeholder` | Shared secret Trendz uses to authenticate to the Python Executor. Replace the default and set the same value in Trendz |
 | `SCRIPT_ENGINE_RUNTIME_TIMEOUT` | `10000` | Python script execution timeout in milliseconds. Scripts that exceed this limit are terminated |
 
 ## Verify the connection
