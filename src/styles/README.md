@@ -160,11 +160,21 @@ $breakpoint-2xl: 1500px;
 
 ### Buttons
 
-Use the `ui/Button.astro` component (`@components/ui/Button.astro`): `variant` is `primary`, `secondary` or
-`tertiary`, `size` is `xs` (32px), `sm` (40px), `md` (44px) or `lg` (48px). Do not write button styles by hand.
+Use the `ui/Button.astro` component (`@components/ui/Button.astro`). Do not write button styles by hand.
+
+- `variant`: `primary`, `secondary` or `tertiary`.
+- `size`: `xs` (32px), `sm` (40px), `md` (44px), `lg` (48px) or `xl` (56px, 18px label). On a phone `xl` steps
+  down to `lg`.
+- `href` makes it a link; without it, it is a `<button>` and takes `type` and `disabled`.
+- `external` opens a link in a new tab, with the up-right arrow and a screen-reader note.
+- `icon` and `iconEnd` take a tabler icon name, before and after the label.
+- `fullWidth` fills the container. `wrap` lets a long label wrap, with the trailing icon held to the last word.
+
+A page that needs a designed width sets a custom property on the button or any ancestor: `--btn-px` (side
+padding) or `--btn-min-w` (minimum width, e.g. `min(376px, 100%)`). `--btn-label` recolours a tertiary button.
 
 For a button whose markup the component cannot render (built in a script, or part of another control), use its
-mixins from `_button.scss`:
+mixins from `_button.scss`, in this order:
 
 ```scss
 @use '../styles/button' as *;
@@ -173,6 +183,7 @@ mixins from `_button.scss`:
 	@include ui-button-size(sm);
 	@include ui-button-base;
 	@include ui-button-primary; // or ui-button-secondary, ui-button-tertiary
+	@include ui-button-forced-colors; // last: keeps the outline in high-contrast mode
 }
 ```
 
