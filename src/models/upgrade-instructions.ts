@@ -47,6 +47,14 @@ export function getFamilySlug(family: string): string {
 	return 'v' + family.replace(/\./g, '-') + '-x';
 }
 
+/** Rows of an edition's upgrade table: every version without a known vulnerability. */
+export function getUpgradeTableVersions(product: Products): UpgradeVersion[] {
+	return scopeToEdition(
+		UPGRADE_VERSIONS.filter((v) => !v.vulnerable),
+		product
+	);
+}
+
 /**
  * Versions to render on an upgrade-instruction page (optionally scoped to a
  * family). Only the newest patch of each `baseVersion` is kept — e.g. for 4.3

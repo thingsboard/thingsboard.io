@@ -36,17 +36,6 @@ export function familySlug(family: string): string {
 	return `v${family.replace(/\./g, '-')}-x`;
 }
 
-/**
- * Compute a GFM-compatible heading anchor slug from a heading text string.
- * e.g. "v4.3.0.1 (Feb 3, 2026)" → "v4301-feb-3-2026"
- */
-export function patchSlug(version: string, date: string): string {
-	return `${version} (${date})`
-		.toLowerCase()
-		.replace(/[^a-z0-9\s-]/g, '')
-		.replace(/\s+/g, '-');
-}
-
 export const RELEASE_FAMILIES: ReleaseFamily[] = [
 	{
 		family: '4.4',
