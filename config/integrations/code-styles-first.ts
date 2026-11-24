@@ -3,7 +3,24 @@ import { readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const BLOCK_OPEN = '<div class="expressive-code">';
+// A code block opens with `<div class="expressive-code">`, or with more classes after that one
+// (`expressive-code no-copy`).
+const BLOCK_OPEN = Buffer.from('<div class="expressive-code');
+const QUOTE = 0x22;
+const SPACE = 0x20;
+const TAG_END = 0x3e;
+
+/** The byte offset just past the first code block's opening tag, or -1 when the page has no code block. */
+function firstBlockContentAt(bytes: Buffer): number {
+	for (let at = bytes.indexOf(BLOCK_OPEN); at !== -1; at = bytes.indexOf(BLOCK_OPEN, at + 1)) {
+		// Skips other classes that merely start the same way.
+		const next = bytes[at + BLOCK_OPEN.length];
+		if (next !== QUOTE && next !== SPACE) continue;
+		const tagEnd = bytes.indexOf(TAG_END, at);
+		return tagEnd === -1 ? -1 : tagEnd + 1;
+	}
+	return -1;
+}
 // The stylesheet link Expressive Code puts inside one code block per page, with the module script
 // that follows it when there is one.
 const STYLES =
@@ -41,18 +58,17 @@ export function codeStylesFirst(): AstroIntegration {
 						// Not every built route is `<pathname>/index.html` (404.html, endpoints).
 						continue;
 					}
-					const firstBlockAt = bytes.indexOf(BLOCK_OPEN);
-					if (firstBlockAt === -1) continue;
-					const afterOpen = firstBlockAt + BLOCK_OPEN.length;
+					const afterOpen = firstBlockContentAt(bytes);
+					if (afterOpen === -1) continue;
 					// The usual case: the stylesheet link is the first thing inside the first block.
 					if (bytes.subarray(afterOpen, afterOpen + LINK_START.length).equals(LINK_START)) continue;
 
 					let html = bytes.toString('utf8');
-					const firstBlock = html.indexOf(BLOCK_OPEN);
+					// The same position in the decoded text, where a non-ASCII character is one unit, not several bytes.
+					const insertAt = bytes.subarray(0, afterOpen).toString('utf8').length;
 					const styles = STYLES.exec(html);
 					// Nothing to do when the stylesheet is missing, or already ahead of the first block.
-					if (!styles || styles.index <= firstBlock) continue;
-					const insertAt = firstBlock + BLOCK_OPEN.length;
+					if (!styles || styles.index < insertAt) continue;
 					html =
 						html.slice(0, insertAt) +
 						styles[0] +
