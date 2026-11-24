@@ -87,6 +87,19 @@ export function versionAtLeast(version: string, minVersion: string): boolean {
 	return compareVersions(version, minVersion) >= 0;
 }
 
+/** `4.3.1.6` → `4.3`. */
+export function familyOf(version: string): string {
+	return version.replace(/^v/, '').split('.').slice(0, 2).join('.');
+}
+
+/**
+ * `4.4.0.2` or `v4.4.0.2` → `v4-4-0-2`: a version's anchor on the upgrade pages and its
+ * heading id in the release notes (see `config/plugins/satteri-release-anchors.ts`).
+ */
+export function versionAnchor(version: string): string {
+	return `v${version.replace(/^v/, '').replaceAll('.', '-')}`;
+}
+
 /**
  * True for PE releases published under the legacy PE names: `thingsboard/tb-pe-*`
  * images tagged `<ver>PE`, `*pe` packages on dist.thingsboard.io, and the
