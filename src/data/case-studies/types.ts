@@ -121,6 +121,9 @@ export interface FeaturedCard {
 	description: string;
 	logo: string;
 	logoAlt: string;
+	/** The logo file's own size. With both set, the card reserves the logo's box before the file loads. */
+	logoWidth?: number;
+	logoHeight?: number;
 	backgroundImage: string;
 }
 
