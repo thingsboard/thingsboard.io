@@ -1,6 +1,7 @@
 import { TBMQ_PE_DOCS_URL, TBMQ_SITE_URL } from '@models/tbmq';
 import { CAREERS_URL } from '@models/careers';
 import { caseStudyBySlug } from '@data/case-studies';
+import { useCaseItems } from '@data/use-cases';
 import { BADGE_TILE, type MenuBadgeKey } from '@data/product-badges';
 
 export interface NavItem {
@@ -277,6 +278,12 @@ export const useCasesSubmenu: SubMenu = {
 		},
 	],
 };
+
+// The menu lists every use case by hand, so a card on `/use-cases/` the menu forgot fails the build.
+const useCaseMenuHrefs = new Set(useCasesSubmenu.groups.flatMap((group) => group.items.map((item) => item.href)));
+for (const { name, href } of useCaseItems) {
+	if (!useCaseMenuHrefs.has(href)) throw new Error(`[navigation] the menu has no use case "${name}" (${href})`);
+}
 
 // Clients submenu
 export const clientsSubmenu: SubMenu = {
