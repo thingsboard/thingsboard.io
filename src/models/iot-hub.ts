@@ -707,14 +707,8 @@ export interface DetailGalleryImage {
 }
 
 /**
- * The images a detail page shows in its hero, in order; the first one is the page's lead
- * picture. Empty for compact listings, whose slot holds a colored icon tile instead.
- *
- * The preview leads: it is the image the listing is recognised by on cards and in search,
- * so dropping it in favour of the screenshots alone would hide the picture users arrived
- * from. `detail.image` is a resource path (`/api/resources/<id>?v=…`) while screenshots are
- * bare ids, so match on the id to avoid showing the same resource twice when a creator uses
- * one of the screenshots as the preview.
+ * The hero images of a detail page, lead picture first: the preview, then the screenshots
+ * minus the one reused as the preview. Empty for compact listings (icon tile, no image).
  */
 export const getDetailGalleryImages = (
 	detail: Pick<ListingDetail, 'itemType' | 'name' | 'image' | 'screenshots'>
@@ -724,8 +718,7 @@ export const getDetailGalleryImages = (
 	const previewResourceId = detail.image?.match(/\/api\/resources\/([^/?#]+)/)?.[1] ?? null;
 	return [
 		...(previewImg ? [{ src: previewImg, alt: `${detail.name} preview` }] : []),
-		// The index comes from the full list, so a creator who reused screenshot 2 as
-		// the preview still has the rest announced by the position they uploaded in.
+		// Index from the full list, so the alt text keeps the upload position.
 		...detail.screenshots.flatMap((s, i) =>
 			s.id === previewResourceId
 				? []

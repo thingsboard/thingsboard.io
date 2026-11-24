@@ -1,5 +1,4 @@
-// Blog cover images resized for cards: `/blog-covers/<width>/<post>/cover.webp`.
-// See `src/util/blog-cover.ts` for why and for the list of widths.
+// Blog covers resized for cards: `/blog-covers/<width>/<post>/cover.webp`. See `@util/blog-cover`.
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -8,21 +7,17 @@ import sharp from 'sharp';
 import { getSortedBlogPosts } from '@data/blog/posts';
 import { blogCoverFile, blogCoverKey, blogCoverPathParam, blogCoversEnabled, blogCoverWidths } from '@util/blog-cover';
 
-// How a cover is resized and encoded. Part of every cache entry's name, so changing a value here
-// makes the next build encode the covers again instead of serving the old files.
+// Part of each cache entry's name, so a change here re-encodes the covers.
 const RESIZE = { withoutEnlargement: true } as const;
 const WEBP = { quality: 80 } as const;
 const SETTINGS = JSON.stringify([RESIZE, WEBP]);
 
-// Resized covers, kept between builds. Named by the source file's content and the settings above,
-// so an edited cover gets a new entry and an unchanged one is never encoded twice. Entries of
-// replaced covers stay behind (three small files each); deleting the folder is always safe.
+// Kept between builds. Entries are named by the source's content and the settings above.
 const CACHE_DIR = path.resolve('node_modules/.blog-cover-cache');
 
 export const getStaticPaths: GetStaticPaths = async () => {
 	if (!blogCoversEnabled()) return [];
 	const posts = await getSortedBlogPosts();
-	// A set, so two posts that share one image produce one set of files.
 	const keys = new Set<string>();
 	for (const post of posts) {
 		const key = blogCoverKey(post.data.featuredImage);
@@ -46,7 +41,6 @@ export const GET: APIRoute = async ({ params, props }) => {
 	const cached = path.join(CACHE_DIR, `${hash}-${width}.webp`);
 	let resized = await readFile(cached).catch(() => null);
 	if (!resized) {
-		// `blogCoverWidths` never lists a width above the source's, so this only ever shrinks.
 		resized = await sharp(source)
 			.resize({ width, ...RESIZE })
 			.webp(WEBP)
