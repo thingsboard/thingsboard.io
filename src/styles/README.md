@@ -173,17 +173,14 @@ Use the `ui/Button.astro` component (`@components/ui/Button.astro`). Do not writ
 A page that needs a designed width sets a custom property on the button or any ancestor: `--btn-px` (side
 padding) or `--btn-min-w` (minimum width, e.g. `min(376px, 100%)`). `--btn-label` recolours a tertiary button.
 
-For a button whose markup the component cannot render (built in a script, or part of another control), use its
-mixins from `_button.scss`, in this order:
+For a button whose markup the component cannot render (built in a script, or part of another control), use the
+`ui-button` mixin from `_button.scss`. It includes the size, the base, the variant and the high-contrast outline:
 
 ```scss
 @use '../styles/button' as *;
 
 .my-button {
-	@include ui-button-size(sm);
-	@include ui-button-base;
-	@include ui-button-primary; // or ui-button-secondary, ui-button-tertiary
-	@include ui-button-forced-colors; // last: keeps the outline in high-contrast mode
+	@include ui-button(primary, sm); // primary, secondary or tertiary; xs to xl
 }
 ```
 
