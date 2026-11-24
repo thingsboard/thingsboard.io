@@ -41,6 +41,7 @@ const API_SECTION_NAMES: Record<string, string> = {
 	'gateway-api': 'Gateway API',
 	'http-api': 'HTTP API',
 	'lwm2m-api': 'LwM2M API',
+	'modbus-api': 'Modbus API',
 	'mqtt-api': 'MQTT API',
 	'snmp-api': 'SNMP API',
 };

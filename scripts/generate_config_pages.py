@@ -411,6 +411,8 @@ PAGES = {
          'src/content/docs/docs/pe/reference/configuration/lwm2m-transport-config.mdx', 'LwM2M Transport'),
         ('yml', 'transport/snmp/src/main/resources/tb-snmp-transport.yml',
          'src/content/docs/docs/pe/reference/configuration/snmp-transport-config.mdx', 'SNMP Transport'),
+        ('yml', 'transport/modbus/src/main/resources/tb-modbus-transport.yml',
+         'src/content/docs/docs/pe/reference/configuration/modbus-transport-config.mdx', 'Modbus Transport'),
         ('yml', 'msa/vc-executor/src/main/resources/tb-vc-executor.yml',
          'src/content/docs/docs/pe/reference/configuration/vc-executor-config.mdx', 'VC Executor'),
         ('config', 'msa/js-executor/config',
