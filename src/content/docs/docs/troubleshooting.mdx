@@ -260,6 +260,42 @@ Different deployment types require different steps to apply the updated configur
   </TabItem>
 </Tabs>
 
+## Heap Dumps and Disk Space
+
+On a package install, every ThingsBoard Java service starts with `-XX:+HeapDumpOnOutOfMemoryError` and no `-XX:HeapDumpPath`. When a service runs out of memory, the JVM writes a heap dump before the error propagates. With no path set, the file is created in the process's working directory under the name `java_pid<PID>.hprof`. The service jar is a Spring Boot executable whose launch script changes into the jar's own folder before starting the JVM, so the dumps collect in `/usr/share/thingsboard/bin`, and every other Java service does the same under its own `/usr/share/<service>/bin` folder.
+
+The dump holds the heap as it was at that moment, so its size follows `-Xmx`: a node configured with `-Xmx8G` can leave an 8 GB file next to the jar. The name carries the process id, so a service restarted after an out-of-memory failure writes a new dump instead of replacing the previous one. A service that keeps failing this way fills the root partition.
+
+The Docker Compose cluster from the ThingsBoard repository's `docker` folder is configured differently: the `tb-node`, transport and `tb-vc-executor` configuration files it mounts set `-XX:HeapDumpPath`, so those dumps appear beside the logs as `<service id>-heapdump.bin` — `tb-core1-heapdump.bin`, for example. `tb-edqs` sets no path, and the single-container setup from the Docker installation guide mounts no configuration at all, so in both cases the dumps stay in `/usr/share/<service>/bin` inside the container and are lost when the container is recreated.
+
+### Find and Remove Existing Dumps
+
+```bash
+sudo find /usr/share -xdev -name 'java_pid*.hprof' -ls
+```
+
+Delete the ones you do not need. Keep one if you plan to investigate: a dump is the only record of what the heap held at the moment of failure, and tools such as Eclipse MAT or VisualVM read it.
+
+### Write Dumps Somewhere Else
+
+Set an explicit path in the service configuration file — `/etc/thingsboard/conf/thingsboard.conf` for the main service — and restart the service:
+
+```bash
+export JAVA_OPTS="$JAVA_OPTS -XX:HeapDumpPath=/var/log/thingsboard/java_pid%p.hprof"
+```
+
+`%p` expands to the process id, keeping one file per process the way the default does, but on the partition that already holds the logs.
+
+### Stop Writing Dumps
+
+Add this line to the same configuration file and restart the service:
+
+```bash
+export JAVA_OPTS="$JAVA_OPTS -XX:-HeapDumpOnOutOfMemoryError"
+```
+
+The service then fails without leaving a file behind. Only do this once you no longer need the dumps for diagnosis — running out of memory is itself a problem to chase, and the dump is what explains it.
+
 ## Metrics
 
 Enable Prometheus metrics by setting `METRICS_ENABLED` to `true` and `METRICS_ENDPOINTS_EXPOSE` to `prometheus` in the configuration file.
