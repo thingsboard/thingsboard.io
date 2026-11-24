@@ -27,7 +27,7 @@ export interface UpgradePatchInfo {
 export function getUpgradeHeading(v: UpgradePatchInfo, productLabel: string): string {
 	// A cross-baseline patch (4.4.1) can share its predecessor's baseVersion (4.4.0) so that one drops off the page.
 	return v.patch && v.baseVersion && v.displayVersion.startsWith(`${v.baseVersion}.`)
-		?`Upgrading ${productLabel} to ${v.displayVersion} (latest ${v.baseVersion} patch)`
+		? `Upgrading ${productLabel} to ${v.displayVersion} (latest ${v.baseVersion} patch)`
 		: `Upgrading ${productLabel} to ${v.displayVersion}`;
 }
 
