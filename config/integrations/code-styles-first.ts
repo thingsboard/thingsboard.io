@@ -3,16 +3,13 @@ import { readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// The opening tag may carry more classes: `expressive-code no-copy`.
 const BLOCK_OPEN = Buffer.from('<div class="expressive-code');
 const QUOTE = 0x22;
 const SPACE = 0x20;
 const TAG_END = 0x3e;
 
-/** Byte offset just past the first code block's opening tag, or -1. */
 function firstBlockContentAt(bytes: Buffer): number {
 	for (let at = bytes.indexOf(BLOCK_OPEN); at !== -1; at = bytes.indexOf(BLOCK_OPEN, at + 1)) {
-		// Not a longer class name that starts the same way.
 		const next = bytes[at + BLOCK_OPEN.length];
 		if (next !== QUOTE && next !== SPACE) continue;
 		const tagEnd = bytes.indexOf(TAG_END, at);
@@ -20,11 +17,10 @@ function firstBlockContentAt(bytes: Buffer): number {
 	}
 	return -1;
 }
-// Expressive Code's stylesheet link, plus its module script when there is one.
+
 const STYLES =
 	/<link rel="stylesheet" href="[^"]*\/ec\.[^"]+\.css">(?:<script type="module" src="[^"]*\/ec\.[^"]+\.js"><\/script>)?/;
 const LINK_START = Buffer.from('<link rel="stylesheet"');
-// Redirect stubs are smaller than this.
 const SMALLEST_REAL_PAGE = 4000;
 
 /**
@@ -41,22 +37,18 @@ export function codeStylesFirst(): AstroIntegration {
 				const moved: string[] = [];
 				for (const { pathname } of pages) {
 					const file = join(outDir, pathname, 'index.html');
-					// Searched as bytes: decoding every page to a string cost about 20 seconds per build.
 					let bytes: Buffer;
 					try {
 						if (statSync(file).size < SMALLEST_REAL_PAGE) continue;
 						bytes = readFileSync(file);
 					} catch {
-						// No `index.html` for this route.
 						continue;
 					}
 					const afterOpen = firstBlockContentAt(bytes);
 					if (afterOpen === -1) continue;
-					// Usual case: the stylesheet already leads the first block.
 					if (bytes.subarray(afterOpen, afterOpen + LINK_START.length).equals(LINK_START)) continue;
 
 					let html = bytes.toString('utf8');
-					// The same position in the decoded text.
 					const insertAt = bytes.subarray(0, afterOpen).toString('utf8').length;
 					const styles = STYLES.exec(html);
 					if (!styles || styles.index < insertAt) continue;
