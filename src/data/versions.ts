@@ -22,6 +22,12 @@ export const SOURCE_AVAILABLE_FROM_VER = '4.4';
  */
 export const COMMUNITY_GRANT_FROM_VER = '4.3.1.6';
 
+/**
+ * First release whose installation packages, Docker images and jars come with an SBOM.
+ * A policy boundary, not a release pointer — it does not move with each release.
+ */
+export const SBOM_FROM_VER = '4.4.1';
+
 /** Day the relicensing is announced — the date every Community Grant is measured against. */
 export const SOURCE_AVAILABLE_ANNOUNCEMENT_DATE = '2026-09-29';
 
