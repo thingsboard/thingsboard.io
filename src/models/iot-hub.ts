@@ -701,6 +701,39 @@ export type IotHubCategoryData = z.infer<typeof iotHubCategorySchema>;
 export type FilterParamInfo = z.infer<typeof filterParamInfoSchema>;
 export type ItemTypeFilterInfo = z.infer<typeof itemTypeFilterInfoSchema>;
 
+export interface DetailGalleryImage {
+	src: string;
+	alt: string;
+}
+
+/**
+ * The images a detail page shows in its hero, in order; the first one is the page's lead
+ * picture. Empty for compact listings, whose slot holds a colored icon tile instead.
+ *
+ * The preview leads: it is the image the listing is recognised by on cards and in search,
+ * so dropping it in favour of the screenshots alone would hide the picture users arrived
+ * from. `detail.image` is a resource path (`/api/resources/<id>?v=…`) while screenshots are
+ * bare ids, so match on the id to avoid showing the same resource twice when a creator uses
+ * one of the screenshots as the preview.
+ */
+export const getDetailGalleryImages = (
+	detail: Pick<ListingDetail, 'itemType' | 'name' | 'image' | 'screenshots'>
+): DetailGalleryImage[] => {
+	if (getCardVariant(detail.itemType) === 'small') return [];
+	const previewImg = resolveImage(detail.image);
+	const previewResourceId = detail.image?.match(/\/api\/resources\/([^/?#]+)/)?.[1] ?? null;
+	return [
+		...(previewImg ? [{ src: previewImg, alt: `${detail.name} preview` }] : []),
+		// The index comes from the full list, so a creator who reused screenshot 2 as
+		// the preview still has the rest announced by the position they uploaded in.
+		...detail.screenshots.flatMap((s, i) =>
+			s.id === previewResourceId
+				? []
+				: [{ src: `${IOT_HUB_API_URL}/api/resources/${s.id}`, alt: `${detail.name} screenshot ${i + 1}` }]
+		),
+	];
+};
+
 /**
  * Union of several per-item-type facet sets into the one the catalogue page
  * shows. `listingFilterInfo` is served per item type, so the same category or
