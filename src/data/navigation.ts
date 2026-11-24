@@ -151,7 +151,7 @@ export const servicesSubmenu: SubMenu = {
 				{
 					href: '/services/',
 					icon: '/src/assets/images/landings/nav/support-icon.svg',
-					heading: 'Support plans',
+					heading: 'Professional services',
 				},
 				{
 					href: '/services/trainings/',
