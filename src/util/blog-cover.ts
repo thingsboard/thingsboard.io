@@ -16,6 +16,13 @@ const TARGET_WIDTHS = [480, 800, 1200];
 /** For a card in the blog's two-column layout (one column below 750px, content up to 1080px wide). */
 export const BLOG_CARD_SIZES = '(min-width: 750px) min(50vw, 540px), 100vw';
 
+/**
+ * For a slide of the featured carousel on the blog index. From 750px up the slide crops the cover
+ * to the card's height (about 380px), so the cover is drawn 670–850px wide, depending on its
+ * proportions, whatever the screen width. Below that it fills the screen.
+ */
+export const BLOG_CAROUSEL_SIZES = '(min-width: 750px) 800px, 100vw';
+
 const PREFIX = '/images/blog/';
 const RASTER = /\.(webp|png|jpe?g)$/i;
 
@@ -57,7 +64,9 @@ export function blogCoverWidths(key: string): Promise<number[]> {
 			.then(({ width }) => {
 				if (!width) return [];
 				const fits = TARGET_WIDTHS.filter((target) => target <= width);
-				return fits.length < TARGET_WIDTHS.length ? [...fits, width] : fits;
+				// The source's own width goes on top unless it is already listed (a cover exactly 480 or
+				// 800px wide) or the source fills every target.
+				return fits.at(-1) === width || fits.length === TARGET_WIDTHS.length ? fits : [...fits, width];
 			})
 			// A cover that is missing or unreadable gets no resized copies; its card keeps the `src`.
 			.catch((error: unknown) => {
