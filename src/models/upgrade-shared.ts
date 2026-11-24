@@ -25,8 +25,9 @@ export interface UpgradePatchInfo {
  * the TOC text can never drift from the rendered <h2>.
  */
 export function getUpgradeHeading(v: UpgradePatchInfo, productLabel: string): string {
-	return v.patch && v.baseVersion && v.baseVersion !== v.displayVersion
-		? `Upgrading ${productLabel} to ${v.displayVersion} (latest ${v.baseVersion} patch)`
+	// A cross-baseline patch (4.4.1) can share its predecessor's baseVersion (4.4.0) so that one drops off the page.
+	return v.patch && v.baseVersion && v.displayVersion.startsWith(`${v.baseVersion}.`)
+		?`Upgrading ${productLabel} to ${v.displayVersion} (latest ${v.baseVersion} patch)`
 		: `Upgrading ${productLabel} to ${v.displayVersion}`;
 }
 
