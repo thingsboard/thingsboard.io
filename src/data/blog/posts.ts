@@ -3,6 +3,9 @@ import { BLOG_AUTHORS, type BlogAuthor } from '@data/blog/authors';
 
 export type BlogPost = CollectionEntry<'blog'>;
 
+/** Cover widths for cards: 480 and 800 for phones at 1x–2x, 1200 for a desktop card at 2x. */
+export const BLOG_COVER_WIDTHS = [480, 800, 1200];
+
 /**
  * Blog posts sorted newest-first. `getCollection` returns entries in load order,
  * so every consumer would otherwise repeat the same date sort — this is the one
