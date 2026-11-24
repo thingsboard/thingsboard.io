@@ -79,7 +79,7 @@ export const PE_RELEASE_URL = `https://github.com/thingsboard/thingsboard/releas
 export const PE_BRANCH = 'release-4.4';
 
 /** Trendz Analytics */
-export const TRENDZ_VER = '1.16.1.2';
+export const TRENDZ_VER = '1.16.1.3';
 
 /**
  * First Trendz release whose Docker image runs as uid 799 instead of root.

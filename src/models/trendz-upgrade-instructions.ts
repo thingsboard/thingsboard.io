@@ -89,6 +89,18 @@ export function getTrendzUpgradeStepVersions(family?: string): TrendzUpgradeVers
  */
 export const TRENDZ_UPGRADE_VERSIONS: TrendzUpgradeVersion[] = [
 	{
+		version: '1.16.1.3',
+		displayVersion: '1.16.1.3',
+		family: '1.16',
+		baseVersion: '1.16.1',
+		releaseDate: 'Nov 23 2026',
+		lts: true,
+		patch: true,
+		anchor: 'v1-16-1-3',
+		haproxyNote: false,
+		java25Warning: true,
+	},
+	{
 		version: '1.16.1.2',
 		displayVersion: '1.16.1.2',
 		family: '1.16',
@@ -121,6 +133,18 @@ export const TRENDZ_UPGRADE_VERSIONS: TrendzUpgradeVersion[] = [
 		patch: false,
 		anchor: 'v1-16-1',
 		// 1.16.x uses the new upgrade mechanism — upgrade.sh needs no --fromVersion flag
+		haproxyNote: false,
+		java25Warning: true,
+	},
+	{
+		version: '1.16.0.2',
+		displayVersion: '1.16.0.2',
+		family: '1.16',
+		baseVersion: '1.16.0',
+		releaseDate: 'Nov 23 2026',
+		lts: true,
+		patch: true,
+		anchor: 'v1-16-0-2',
 		haproxyNote: false,
 		java25Warning: true,
 	},
