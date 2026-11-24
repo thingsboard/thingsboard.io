@@ -12,6 +12,7 @@ import { sitemap } from './config/integrations/sitemap';
 import { youtubePosters } from './config/integrations/youtube-posters';
 import { satteriBlogImages } from './config/plugins/satteri-blog-images';
 import { satteriMdxIncludeHeadings } from './config/plugins/satteri-mdx-include-headings';
+import { satteriReleaseAnchors } from './config/plugins/satteri-release-anchors';
 import { satteriTasklistEnhancer } from './config/plugins/satteri-tasklist-enhancer';
 import { pickWorkerCount } from './config/worker-count';
 import { PROD_ORIGIN } from './src/consts';
@@ -237,7 +238,7 @@ export default defineConfig({
 				// `remark-smartypants` was configured to do.
 				smartPunctuation: { dashes: false },
 			},
-			hastPlugins: [satteriTasklistEnhancer, satteriBlogImages, satteriMdxIncludeHeadings],
+			hastPlugins: [satteriTasklistEnhancer, satteriBlogImages, satteriReleaseAnchors, satteriMdxIncludeHeadings],
 		}),
 	},
 	image: {

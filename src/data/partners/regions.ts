@@ -60,6 +60,7 @@ export const REGION_MEMBERSHIP: Record<Region, string[]> = {
 		"Kyrgyzstan",
 		"Laos",
 		"Malaysia",
+		"Myanmar",
 		"Pakistan",
 		"Philippines",
 		"Saudi Arabia",

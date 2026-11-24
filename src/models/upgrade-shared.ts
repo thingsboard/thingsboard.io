@@ -25,7 +25,8 @@ export interface UpgradePatchInfo {
  * the TOC text can never drift from the rendered <h2>.
  */
 export function getUpgradeHeading(v: UpgradePatchInfo, productLabel: string): string {
-	return v.patch && v.baseVersion && v.baseVersion !== v.displayVersion
+	// A cross-baseline patch (4.4.1) can share its predecessor's baseVersion (4.4.0) so that one drops off the page.
+	return v.patch && v.baseVersion && v.displayVersion.startsWith(`${v.baseVersion}.`)
 		? `Upgrading ${productLabel} to ${v.displayVersion} (latest ${v.baseVersion} patch)`
 		: `Upgrading ${productLabel} to ${v.displayVersion}`;
 }
@@ -85,6 +86,19 @@ export function assertNewestFirst(versions: readonly { version: string }[], list
  */
 export function versionAtLeast(version: string, minVersion: string): boolean {
 	return compareVersions(version, minVersion) >= 0;
+}
+
+/** `4.3.1.6` → `4.3`. */
+export function familyOf(version: string): string {
+	return version.replace(/^v/, '').split('.').slice(0, 2).join('.');
+}
+
+/**
+ * `4.4.0.2` or `v4.4.0.2` → `v4-4-0-2`: a version's anchor on the upgrade pages and its
+ * heading id in the release notes (see `config/plugins/satteri-release-anchors.ts`).
+ */
+export function versionAnchor(version: string): string {
+	return `v${version.replace(/^v/, '').replaceAll('.', '-')}`;
 }
 
 /**
