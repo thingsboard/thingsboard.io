@@ -88,7 +88,7 @@ export const TRENDZ_VER = '1.16.1.2';
 export const TRENDZ_NON_ROOT_FROM_VER = '1.16.1.1';
 
 /** Remote Agent — Docker image tag for `thingsboard/tb-remote-agent:${AGENT_VER}`. */
-export const AGENT_VER = '1.0.0';
+export const AGENT_VER = '1.0.4';
 
 /** Edge */
 export const EDGE_VER = '4.3.1.8';
