@@ -23,6 +23,8 @@ const STYLES =
 const LINK_START = Buffer.from('<link rel="stylesheet"');
 const SMALLEST_REAL_PAGE = 4000;
 
+// Expressive Code puts its stylesheet link in the first block of each source document, not of the page.
+// A page built from includes can get it far below its first block; this moves it up.
 export function codeStylesFirst(): AstroIntegration {
 	return {
 		name: 'code-styles-first',
@@ -30,6 +32,7 @@ export function codeStylesFirst(): AstroIntegration {
 			'astro:build:done': ({ dir, pages, logger }) => {
 				const outDir = fileURLToPath(dir);
 				const moved: string[] = [];
+				const noStyles: string[] = [];
 				for (const { pathname } of pages) {
 					const file = join(outDir, pathname, 'index.html');
 					let bytes: Buffer;
@@ -46,7 +49,11 @@ export function codeStylesFirst(): AstroIntegration {
 					let html = bytes.toString('utf8');
 					const insertAt = bytes.subarray(0, afterOpen).toString('utf8').length;
 					const styles = STYLES.exec(html);
-					if (!styles || styles.index < insertAt) continue;
+					if (!styles) {
+						noStyles.push(pathname);
+						continue;
+					}
+					if (styles.index < insertAt) continue;
 					html =
 						html.slice(0, insertAt) +
 						styles[0] +
@@ -54,6 +61,11 @@ export function codeStylesFirst(): AstroIntegration {
 						html.slice(styles.index + styles[0].length);
 					writeFileSync(file, html);
 					moved.push(pathname);
+				}
+				if (noStyles.length > 0) {
+					logger.warn(
+						`${noStyles.length} pages have a code block but no code stylesheet link this step recognises, e.g. ${noStyles.slice(0, 5).join(', ')}`
+					);
 				}
 				if (moved.length > 0) logger.info(`moved the code stylesheet up on ${moved.length} pages: ${moved.join(', ')}`);
 			},
