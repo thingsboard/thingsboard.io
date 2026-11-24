@@ -9,7 +9,7 @@ import { versionAnchor } from '../../src/models/upgrade-shared.ts';
  */
 
 const RELEASE_NOTES_INCLUDE_RE = /\/src\/content\/_includes\/docs\/(?:[a-z-]+\/)*releases\/v\d+-\d+-x\.mdx$/;
-const RELEASE_HEADING_RE = /^v(\d+(?:\.\d+)+(?:-hf\d+)?) \(/i;
+const RELEASE_HEADING_RE = /^v(\d+(?:\.\d+)+(?:-hf\d+)?)(?=\s|$)/i;
 
 function textOf(node: any): string {
 	if (node.type === 'text') return node.value ?? '';
