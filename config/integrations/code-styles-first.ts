@@ -23,11 +23,6 @@ const STYLES =
 const LINK_START = Buffer.from('<link rel="stylesheet"');
 const SMALLEST_REAL_PAGE = 4000;
 
-/**
- * Moves the code-block stylesheet into a page's first code block when it landed in a later one.
- * Expressive Code attaches it to the first `<Code>` that starts rendering, which is not always the
- * first on the page; the blocks above it are then painted unstyled and can widen a phone page.
- */
 export function codeStylesFirst(): AstroIntegration {
 	return {
 		name: 'code-styles-first',
