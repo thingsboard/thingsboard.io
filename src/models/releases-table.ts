@@ -36,26 +36,16 @@ export function familySlug(family: string): string {
 	return `v${family.replace(/\./g, '-')}-x`;
 }
 
-/**
- * Compute a GFM-compatible heading anchor slug from a heading text string.
- * e.g. "v4.3.0.1 (Feb 3, 2026)" → "v4301-feb-3-2026"
- */
-export function patchSlug(version: string, date: string): string {
-	return `${version} (${date})`
-		.toLowerCase()
-		.replace(/[^a-z0-9\s-]/g, '')
-		.replace(/\s+/g, '-');
-}
-
 export const RELEASE_FAMILIES: ReleaseFamily[] = [
 	{
 		family: '4.4',
 		lts: true,
 		releaseDate: 'Sep 29 2026',
-		latestPatch: 'v4.4.0.2',
-		latestPatchDate: 'Oct 30 2026',
+		latestPatch: 'v4.4.1',
+		latestPatchDate: 'Nov 24 2026',
 		highlightsCe: 'Java 25, UI Redesign & Remote Agents',
 		patches: [
+			{ version: 'v4.4.1', date: 'Nov 24, 2026' },
 			{ version: 'v4.4.0.2', date: 'Oct 30, 2026' },
 			{ version: 'v4.4.0.1', date: 'Oct 22, 2026' },
 			{ version: 'v4.4.0', date: 'Sep 29, 2026' },
@@ -65,10 +55,11 @@ export const RELEASE_FAMILIES: ReleaseFamily[] = [
 		family: '4.3',
 		lts: true,
 		releaseDate: 'Jan 20 2026',
-		latestPatch: 'v4.3.1.8',
-		latestPatchDate: 'Oct 27 2026',
+		latestPatch: 'v4.3.1.9',
+		latestPatchDate: 'Nov 24 2026',
 		highlightsCe: 'Alarm Rules 2.0 & new Calculated Fields',
 		patches: [
+			{ version: 'v4.3.1.9', date: 'Nov 24, 2026' },
 			{ version: 'v4.3.1.8', date: 'Oct 27, 2026' },
 			{ version: 'v4.3.1.7', date: 'Oct 22, 2026' },
 			{ version: 'v4.3.1.6', date: 'Sep 29, 2026' },
@@ -86,11 +77,12 @@ export const RELEASE_FAMILIES: ReleaseFamily[] = [
 		family: '4.2',
 		lts: true,
 		releaseDate: 'Aug 15 2025',
-		latestPatch: 'v4.2.2.8',
-		latestPatchDate: 'Oct 27 2026',
+		latestPatch: 'v4.2.2.9',
+		latestPatchDate: 'Nov 24 2026',
 		highlightsCe: 'AI Rule Node & Security Fixes',
 		highlightsPe: 'Reporting 2.0, Secrets Storage, AI Rule Node',
 		patches: [
+			{ version: 'v4.2.2.9', date: 'Nov 24, 2026' },
 			{ version: 'v4.2.2.8', date: 'Oct 27, 2026' },
 			{ version: 'v4.2.2.7', date: 'Oct 22, 2026' },
 			{ version: 'v4.2.2.6', date: 'Sep 29, 2026' },
