@@ -203,6 +203,11 @@ export const useCasesSubmenu: SubMenu = {
 					heading: 'Smart office',
 				},
 				{
+					href: '/use-cases/water-metering/',
+					icon: '/src/assets/images/landings/nav/case-wat-icon.svg',
+					heading: 'Water metering',
+				},
+				{
 					href: '/use-cases/smart-retail/',
 					icon: '/src/assets/images/landings/nav/case-ret-icon.svg',
 					heading: 'Smart retail',
@@ -226,6 +231,16 @@ export const useCasesSubmenu: SubMenu = {
 					href: '/use-cases/smart-metering/',
 					icon: '/src/assets/images/landings/nav/case-met-icon.svg',
 					heading: 'Smart metering',
+				},
+				{
+					href: '/use-cases/air-quality-monitoring/',
+					icon: '/src/assets/images/landings/nav/case-aq-icon.svg',
+					heading: 'Air quality monitoring',
+				},
+				{
+					href: '/use-cases/smart-irrigation/',
+					icon: '/src/assets/images/landings/nav/smart-irrigation.svg',
+					heading: 'Smart irrigation',
 				},
 				{
 					href: '/use-cases/waste-management/',
