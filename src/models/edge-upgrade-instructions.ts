@@ -4,7 +4,13 @@ import { EDGE_NEUTRAL_NAMES_FROM_VER } from '../data/versions.ts';
 import { isCommunityProduct, type Products } from './site.models.ts';
 import { EDGE_RELEASES, EDGE_UPGRADE_GRAPH } from '../data/edge-releases.ts';
 import type { ReleaseFamily } from './releases-table.ts';
-import { assertNewestFirst, latestPatchPerBaseline, versionAtLeast } from './upgrade-shared.ts';
+import {
+	assertNewestFirst,
+	familyOf,
+	latestPatchPerBaseline,
+	versionAnchor,
+	versionAtLeast,
+} from './upgrade-shared.ts';
 
 export interface EdgeUpgradeVersion {
 	/** Raw version string, e.g. "4.3.0.1", "4.2.0", "3.9.1" */
@@ -56,11 +62,14 @@ export function scopeEdgeToEdition<T extends { version: string }>(rows: readonly
 		: [...rows];
 }
 
+/** Community Edge has no release family from {@link EDGE_NEUTRAL_NAMES_FROM_VER} on. */
+export function hasCommunityEdgeRelease(family: string): boolean {
+	return !versionAtLeast(family, EDGE_NEUTRAL_NAMES_FROM_VER);
+}
+
 /** Releases-table families for an edition: Community Edge has none from {@link EDGE_NEUTRAL_NAMES_FROM_VER} on. */
 export function scopeEdgeFamiliesToEdition<T extends { family: string }>(families: readonly T[], product: Products): T[] {
-	return isCommunityProduct(product)
-		? families.filter((f) => !versionAtLeast(f.family, EDGE_NEUTRAL_NAMES_FROM_VER))
-		: [...families];
+	return isCommunityProduct(product) ? families.filter((f) => hasCommunityEdgeRelease(f.family)) : [...families];
 }
 
 /**
@@ -83,12 +92,10 @@ const EDGE_LTS_FROM_FAMILY = '4.2';
 const EDGE_DERIVED_FROM_VER = '4.2.0';
 
 const isLtsFamily = (family: string) => versionAtLeast(family, EDGE_LTS_FROM_FAMILY);
-const familyOf = (version: string) => version.split('.').slice(0, 2).join('.');
 /** "4.3.1.6" → "4.3.1" (patch releases are grouped under their base release); others → themselves. */
 const groupOf = (version: string) => (version.split('.').length > 3 ? version.split('.').slice(0, 3).join('.') : version);
 /** "4.2.0" → "4.2" — release labels and package versions drop the GA ".0". */
 const shortVersion = (version: string) => version.replace(/^(\d+\.\d+)\.0$/, '$1');
-const anchorOf = (version: string) => `v${version.replace(/\./g, '-')}`;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 /** "2026-10-01" → "Oct 1 2026" */
 const displayDate = (iso: string) => {
@@ -148,11 +155,11 @@ function deriveUpgradeVersions(): EdgeUpgradeVersion[] {
 			patch,
 			upgradableFrom: outside.length ? label(outside.map((s) => s.from)) : '',
 			...(earlierInFamily.length > 1 && earlierInFamily.every((v) => inFamilyNoDb.includes(v)) ? { patchableFrom: `${family}.x` } : {}),
-			...(newestOutside ? { prevVersionAnchor: anchorOf(newestOfGroup.get(groupOf(newestOutside)) ?? newestOutside) } : {}),
+			...(newestOutside ? { prevVersionAnchor: versionAnchor(newestOfGroup.get(groupOf(newestOutside)) ?? newestOutside) } : {}),
 			upgrade: outside.some((s) => s.db),
 			manualVersionUpgrade: false,
 			linuxPkgSuffix: shortVersion(version),
-			anchor: anchorOf(version),
+			anchor: versionAnchor(version),
 			releaseDate: releaseDateOf(version),
 			lts: isLtsFamily(family),
 		};

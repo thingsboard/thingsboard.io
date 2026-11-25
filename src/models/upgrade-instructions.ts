@@ -47,6 +47,14 @@ export function getFamilySlug(family: string): string {
 	return 'v' + family.replace(/\./g, '-') + '-x';
 }
 
+/** Rows of an edition's upgrade table: every version without a known vulnerability. */
+export function getUpgradeTableVersions(product: Products): UpgradeVersion[] {
+	return scopeToEdition(
+		UPGRADE_VERSIONS.filter((v) => !v.vulnerable),
+		product
+	);
+}
+
 /**
  * Versions to render on an upgrade-instruction page (optionally scoped to a
  * family). Only the newest patch of each `baseVersion` is kept — e.g. for 4.3
@@ -74,13 +82,31 @@ export function getUpgradeStepVersions(product: Products, family?: string): Upgr
  */
 export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 	{
+		version: '4.4.1',
+		displayVersion: '4.4.1',
+		family: '4.4',
+		baseVersion: '4.4.0',
+		releaseDate: 'Nov 24 2026',
+		upgradableFrom: '4.3.1.x',
+		patchableFrom: '4.4.x',
+		prevVersionAnchor: 'v4-3-1-9',
+		lts: true,
+		patch: true,
+		x: true,
+		upgrade: true,
+		manualVersionUpgrade: false,
+		windowsZip: true,
+		anchor: 'v4-4-1',
+	},
+	{
 		version: '4.4.0.2',
+		vulnerable: true,
 		displayVersion: '4.4.0.2',
 		family: '4.4',
 		baseVersion: '4.4.0',
 		releaseDate: 'Oct 30 2026',
 		upgradableFrom: '4.3.1.x',
-		prevVersionAnchor: 'v4-3-1-8',
+		prevVersionAnchor: 'v4-3-1-9',
 		lts: true,
 		patch: true,
 		x: true,
@@ -97,7 +123,7 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 		baseVersion: '4.4.0',
 		releaseDate: 'Oct 22 2026',
 		upgradableFrom: '4.3.1.x',
-		prevVersionAnchor: 'v4-3-1-8',
+		prevVersionAnchor: 'v4-3-1-9',
 		lts: true,
 		patch: true,
 		x: true,
@@ -113,7 +139,7 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 		baseVersion: '4.4.0',
 		releaseDate: 'Sep 29 2026',
 		upgradableFrom: '4.3.1.x',
-		prevVersionAnchor: 'v4-3-1-8',
+		prevVersionAnchor: 'v4-3-1-9',
 		lts: true,
 		patch: false,
 		x: true,
@@ -124,7 +150,25 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 		vulnerable: true,
 	},
 	{
+		version: '4.3.1.9',
+		displayVersion: '4.3.1.9',
+		family: '4.3',
+		baseVersion: '4.3.1',
+		releaseDate: 'Nov 24 2026',
+		upgradableFrom: '4.2.1.x',
+		patchableFrom: '4.3.x',
+		prevVersionAnchor: 'v4-3-0-1',
+		lts: true,
+		patch: true,
+		x: true,
+		upgrade: true,
+		manualVersionUpgrade: false,
+		windowsZip: true,
+		anchor: 'v4-3-1-9',
+	},
+	{
 		version: '4.3.1.8',
+		vulnerable: true,
 		displayVersion: '4.3.1.8',
 		family: '4.3',
 		baseVersion: '4.3.1',
@@ -302,7 +346,24 @@ export const UPGRADE_VERSIONS: UpgradeVersion[] = [
 		vulnerable: true,
 	},
 	{
+		version: '4.2.2.9',
+		displayVersion: '4.2.2.9',
+		family: '4.2',
+		baseVersion: '4.2.2',
+		releaseDate: 'Nov 24 2026',
+		upgradableFrom: '4.2.0',
+		prevVersionAnchor: 'v4-2-1-2',
+		lts: true,
+		patch: true,
+		x: true,
+		upgrade: true,
+		manualVersionUpgrade: false,
+		windowsZip: true,
+		anchor: 'v4-2-2-9',
+	},
+	{
 		version: '4.2.2.8',
+		vulnerable: true,
 		displayVersion: '4.2.2.8',
 		family: '4.2',
 		baseVersion: '4.2.2',

@@ -7,7 +7,7 @@
  */
 
 /** Community Edition */
-export const CE_FULL_VER = '4.3.1.8';
+export const CE_FULL_VER = '4.3.1.9';
 
 /**
  * First release line that ships under the source-available license, as stated in
@@ -21,6 +21,12 @@ export const SOURCE_AVAILABLE_FROM_VER = '4.4';
  * A policy boundary, not a release pointer — it does not move with each release.
  */
 export const COMMUNITY_GRANT_FROM_VER = '4.3.1.6';
+
+/**
+ * First release whose installation packages, Docker images and jars come with an SBOM.
+ * A policy boundary, not a release pointer — it does not move with each release.
+ */
+export const SBOM_FROM_VER = '4.4.1';
 
 /** Day the relicensing is announced — the date every Community Grant is measured against. */
 export const SOURCE_AVAILABLE_ANNOUNCEMENT_DATE = '2026-09-29';
@@ -58,7 +64,7 @@ export const CE_BRANCH = 'release-4.3';
  * names and plain version tags (no `tb-pe-` prefix, no `PE` suffix). Historical
  * upgrade steps below 4.4 build the old names themselves.
  */
-export const PE_FULL_VER = '4.4.0.2';
+export const PE_FULL_VER = '4.4.1';
 
 /**
  * Package filename and GitHub release-tag version — {@link PE_FULL_VER} with the
