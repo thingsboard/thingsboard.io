@@ -1,5 +1,5 @@
 import type { AstroIntegration } from 'astro';
-import { readFileSync, statSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -21,7 +21,6 @@ function firstBlockContentAt(bytes: Buffer): number {
 const STYLES =
 	/<link rel="stylesheet" href="[^"]*\/ec\.[^"]+\.css">(?:<script type="module" src="[^"]*\/ec\.[^"]+\.js"><\/script>)?/;
 const LINK_START = Buffer.from('<link rel="stylesheet"');
-const SMALLEST_REAL_PAGE = 4000;
 
 // Expressive Code puts its stylesheet link in the first block of each source document, not of the page.
 // A page built from includes can get it far below its first block; this moves it up.
@@ -33,17 +32,18 @@ export function codeStylesFirst(): AstroIntegration {
 				const outDir = fileURLToPath(dir);
 				const moved: string[] = [];
 				const noStyles: string[] = [];
+				let withBlock = 0;
 				for (const { pathname } of pages) {
 					const file = join(outDir, pathname, 'index.html');
 					let bytes: Buffer;
 					try {
-						if (statSync(file).size < SMALLEST_REAL_PAGE) continue;
 						bytes = readFileSync(file);
 					} catch {
 						continue;
 					}
 					const afterOpen = firstBlockContentAt(bytes);
 					if (afterOpen === -1) continue;
+					withBlock++;
 					if (bytes.subarray(afterOpen, afterOpen + LINK_START.length).equals(LINK_START)) continue;
 
 					let html = bytes.toString('utf8');
@@ -62,12 +62,15 @@ export function codeStylesFirst(): AstroIntegration {
 					writeFileSync(file, html);
 					moved.push(pathname);
 				}
+				if (withBlock === 0) logger.warn('no page has a code block this step recognises; check the block markup');
 				if (noStyles.length > 0) {
 					logger.warn(
 						`${noStyles.length} pages have a code block but no code stylesheet link this step recognises, e.g. ${noStyles.slice(0, 5).join(', ')}`
 					);
 				}
-				if (moved.length > 0) logger.info(`moved the code stylesheet up on ${moved.length} pages: ${moved.join(', ')}`);
+				if (moved.length > 0) {
+					logger.info(`moved the code stylesheet up on ${moved.length} pages, e.g. ${moved.slice(0, 5).join(', ')}`);
+				}
 			},
 		},
 	};
