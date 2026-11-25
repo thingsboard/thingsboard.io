@@ -151,7 +151,8 @@ export const collections = {
 				const res = await fetchWithRetry(url);
 				const body = await res.json();
 				const parsed = itemTypeFilterInfoSchema.parse(body);
-				const nonEmpty = (list: typeof parsed.types) => list.filter((entry) => entry.totalItems > 0);
+				const nonEmpty = (list: typeof parsed.types) =>
+					list.filter((entry) => entry.totalItems > 0);
 				return {
 					types: nonEmpty(parsed.types),
 					categories: nonEmpty(parsed.categories),
@@ -183,7 +184,9 @@ export const collections = {
 				if (!isProductionBuild) {
 					const command = process.argv[2] ?? 'unknown';
 					const msg = e instanceof Error ? e.message : String(e);
-					console.warn(`[iot-hub] loader failed in ${command} mode, using empty collection: ${msg}`);
+					console.warn(
+						`[iot-hub] loader failed in ${command} mode, using empty collection: ${msg}`
+					);
 					return [];
 				}
 				throw e;
