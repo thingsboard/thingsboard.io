@@ -143,9 +143,10 @@ function deriveUpgradeVersions(): EdgeUpgradeVersion[] {
 		const family = familyOf(version);
 		const all = sources(version);
 		const outside = all.filter((s) => groupOf(s.from) !== group);
+		const primary = outside.some((s) => s.db) ? outside.filter((s) => s.db) : outside;
 		const inFamilyNoDb = all.filter((s) => !s.db && familyOf(s.from) === family).map((s) => s.from);
 		const earlierInFamily = released.filter((v) => familyOf(v) === family && !versionAtLeast(v, version));
-		const newestOutside = outside.at(-1)?.from;
+		const newestOutside = primary.at(-1)?.from;
 		const patch = version.split('.').length > 3;
 		return {
 			version,
@@ -153,7 +154,7 @@ function deriveUpgradeVersions(): EdgeUpgradeVersion[] {
 			family,
 			...(patch ? { baseVersion: group } : {}),
 			patch,
-			upgradableFrom: outside.length ? label(outside.map((s) => s.from)) : '',
+			upgradableFrom: primary.length ? label(primary.map((s) => s.from)) : '',
 			...(earlierInFamily.length > 1 && earlierInFamily.every((v) => inFamilyNoDb.includes(v)) ? { patchableFrom: `${family}.x` } : {}),
 			...(newestOutside ? { prevVersionAnchor: versionAnchor(newestOfGroup.get(groupOf(newestOutside)) ?? newestOutside) } : {}),
 			upgrade: outside.some((s) => s.db),
