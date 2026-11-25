@@ -93,7 +93,7 @@ const EDGE_LTS_FROM_FAMILY = '4.2';
 const EDGE_DERIVED_FROM_VER = '4.2.0';
 
 const isLtsFamily = (family: string) => versionAtLeast(family, EDGE_LTS_FROM_FAMILY);
-/** "4.3.1.6" → "4.3.1" (patch releases are grouped under their base release); others → themselves. */
+/** The version's base release: the platform's baseVersion ("4.4.1" → "4.4.0"), else the first three parts ("4.3.1.6" → "4.3.1"). */
 const groupOf = (version: string) =>
 	UPGRADE_VERSIONS.find((u) => u.version === version)?.baseVersion ??
 	(version.split('.').length > 3 ? version.split('.').slice(0, 3).join('.') : version);

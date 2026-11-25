@@ -67,11 +67,12 @@ export function edgePkgUrl(
 		: `https://github.com/thingsboard/thingsboard-edge/releases/download/v${tag}/${file}`;
 }
 
-/** First Edge release that runs on Java 25; earlier releases run on Java 17. */
+/** Oldest Community Edge that the Edge `version` upgrades (`MIN_CE_VERSION_FOR_UPGRADE` in the Edge source). */
 export function communityEdgeMinVersion(version: string): string {
 	return versionAtLeast(version, '4.4.1') ? '4.3.1.6' : '4.3.1.4';
 }
 
+/** First Edge release that runs on Java 25; earlier releases run on Java 17. */
 export const EDGE_JAVA_25_FROM_VER = '4.4';
 
 /** Java version an Edge release runs on, e.g. 17 for "4.3.1.6", 25 for "4.4.0". */
