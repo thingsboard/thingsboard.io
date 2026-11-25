@@ -97,7 +97,7 @@ export const TRENDZ_NON_ROOT_FROM_VER = '1.16.1.1';
 export const AGENT_VER = '1.0.4';
 
 /** Edge */
-export const EDGE_VER = '4.3.1.8';
+export const EDGE_VER = '4.3.1.9';
 
 /**
  * Edge package filename / download-tag version — {@link EDGE_VER} with the GA
@@ -115,7 +115,7 @@ export const EDGE_BRANCH = 'release-4.3';
  * (`EDGE_PE_IMAGE`, `edgePePkgUrl()`, `EDGE_PE_COMPOSE_CLONE`, ...), since they depend on whether
  * the release predates {@link EDGE_NEUTRAL_NAMES_FROM_VER}.
  */
-export const EDGE_PE_FULL_VER = '4.4.0.2';
+export const EDGE_PE_FULL_VER = '4.4.1';
 
 /**
  * First Edge release published under CE-style names: `thingsboard/tb-edge` images tagged
@@ -132,17 +132,11 @@ export const EDGE_NEUTRAL_NAMES_FROM_VER = '4.4';
 export const EDGE_PE_BRANCH = 'release-4.4';
 
 /**
- * Dart ThingsBoard API Client — latest pub.dev version of `thingsboard_ce_client` and
- * `thingsboard_pe_client`. Patch releases don't raise the minimum server version,
+ * Dart ThingsBoard API Client — latest pub.dev version of `thingsboard_client`, the single client for
+ * ThingsBoard and ThingsBoard Cloud since 5.0.0. Patch releases don't raise the minimum server version,
  * see {@link DART_CLIENT_MIN_SERVER_VER}.
  */
-export const DART_CLIENT_VER = {
-	ce: '4.3.0',
-	pe: '4.4.1',
-} as const;
+export const DART_CLIENT_VER = '5.0.0';
 
-/** Must match `tbMinServerVersion` in each Dart client package */
-export const DART_CLIENT_MIN_SERVER_VER = {
-	ce: '4.3.0',
-	pe: '4.4.0',
-} as const;
+/** Must match `tbMinServerVersion` in the Dart client package */
+export const DART_CLIENT_MIN_SERVER_VER = '4.4.0';
