@@ -68,6 +68,10 @@ export function edgePkgUrl(
 }
 
 /** First Edge release that runs on Java 25; earlier releases run on Java 17. */
+export function communityEdgeMinVersion(version: string): string {
+	return versionAtLeast(version, '4.4.1') ? '4.3.1.6' : '4.3.1.4';
+}
+
 export const EDGE_JAVA_25_FROM_VER = '4.4';
 
 /** Java version an Edge release runs on, e.g. 17 for "4.3.1.6", 25 for "4.4.0". */

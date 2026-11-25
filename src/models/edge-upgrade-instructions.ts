@@ -4,6 +4,7 @@ import { EDGE_NEUTRAL_NAMES_FROM_VER } from '../data/versions.ts';
 import { isCommunityProduct, type Products } from './site.models.ts';
 import { EDGE_RELEASES, EDGE_UPGRADE_GRAPH } from '../data/edge-releases.ts';
 import type { ReleaseFamily } from './releases-table.ts';
+import { UPGRADE_VERSIONS } from './upgrade-instructions.ts';
 import {
 	assertNewestFirst,
 	familyOf,
@@ -93,7 +94,9 @@ const EDGE_DERIVED_FROM_VER = '4.2.0';
 
 const isLtsFamily = (family: string) => versionAtLeast(family, EDGE_LTS_FROM_FAMILY);
 /** "4.3.1.6" → "4.3.1" (patch releases are grouped under their base release); others → themselves. */
-const groupOf = (version: string) => (version.split('.').length > 3 ? version.split('.').slice(0, 3).join('.') : version);
+const groupOf = (version: string) =>
+	UPGRADE_VERSIONS.find((u) => u.version === version)?.baseVersion ??
+	(version.split('.').length > 3 ? version.split('.').slice(0, 3).join('.') : version);
 /** "4.2.0" → "4.2" — release labels and package versions drop the GA ".0". */
 const shortVersion = (version: string) => version.replace(/^(\d+\.\d+)\.0$/, '$1');
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -143,18 +146,17 @@ function deriveUpgradeVersions(): EdgeUpgradeVersion[] {
 		const family = familyOf(version);
 		const all = sources(version);
 		const outside = all.filter((s) => groupOf(s.from) !== group);
-		const primary = outside.some((s) => s.db) ? outside.filter((s) => s.db) : outside;
 		const inFamilyNoDb = all.filter((s) => !s.db && familyOf(s.from) === family).map((s) => s.from);
 		const earlierInFamily = released.filter((v) => familyOf(v) === family && !versionAtLeast(v, version));
-		const newestOutside = primary.at(-1)?.from;
-		const patch = version.split('.').length > 3;
+		const newestOutside = outside.at(-1)?.from;
+		const patch = group !== version;
 		return {
 			version,
 			displayVersion: shortVersion(version),
 			family,
 			...(patch ? { baseVersion: group } : {}),
 			patch,
-			upgradableFrom: primary.length ? label(primary.map((s) => s.from)) : '',
+			upgradableFrom: outside.length ? label(outside.map((s) => s.from)) : '',
 			...(earlierInFamily.length > 1 && earlierInFamily.every((v) => inFamilyNoDb.includes(v)) ? { patchableFrom: `${family}.x` } : {}),
 			...(newestOutside ? { prevVersionAnchor: versionAnchor(newestOfGroup.get(groupOf(newestOutside)) ?? newestOutside) } : {}),
 			upgrade: outside.some((s) => s.db),
