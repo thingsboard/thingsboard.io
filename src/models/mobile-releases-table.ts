@@ -20,7 +20,7 @@ export interface MobileRelease {
 export const MOBILE_RELEASES: MobileRelease[] = [
 	{
 		version: '2.0.0',
-		date: 'TBD',
+		date: 'Nov 25, 2026',
 		peTag: 'v2.0.0',
 		peRepo: 'https://github.com/thingsboard/flutter_thingsboard_app',
 		highlights: 'One app for ThingsBoard on thingsboard_client 5.0, requires ThingsBoard 4.4.0+, smaller app, 1.9 regression fixes',
