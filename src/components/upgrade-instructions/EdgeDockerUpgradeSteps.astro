@@ -7,6 +7,7 @@ import {
 } from '~/models/edge-upgrade-instructions';
 import { edgeDockerImage, edgeDockerTag, edgeJavaVersion, edgeProductName, edgeVersionLabel } from '~/models/edge-naming';
 import { getUpgradeHeading, patchScriptLabel } from '~/models/upgrade-shared';
+import { EDGE_NEUTRAL_NAMES_FROM_VER } from '~/data/versions';
 import type { Products } from '~/models/site.models';
 
 interface Props {
@@ -32,6 +33,11 @@ const isPE = product === 'EDGE_PE';
 	// reference is built from the previous version, not this one.
 	const prevImageRef = `${edgeDockerImage(isPE, prevVersion)}:${edgeDockerTag(isPE, prevVersion)}`;
 	const imageRenamed = edgeDockerImage(isPE, prevVersion) !== imageName;
+	// Match any tag of the old image, not only the latest previous release, so the command works for
+	// every version the section applies to. On the rename to the neutral name, Community Edge
+	// (`thingsboard/tb-edge:<ver>EDGE`) and Edge PE (`thingsboard/tb-edge-pe:<ver>EDGEPE`) both match.
+	const imagePattern = imageRenamed ? `${imageName}(-pe)?` : edgeDockerImage(isPE, prevVersion);
+	const sedCommand = `sed -i -E 's#${imagePattern}:[^" ]+#${imageName}:${newTag}#' docker-compose.yml`;
 	const prevVersionEntry = v.prevVersionAnchor
 		? EDGE_UPGRADE_VERSIONS.find((v2) => v2.anchor === v.prevVersionAnchor)
 		: undefined;
@@ -90,33 +96,38 @@ const isPE = product === 'EDGE_PE';
 
 			<p>Create a backup copy of the database volume:</p>
 			<Code code={`docker run --rm -v tb-edge-postgres-data:/source -v tb-edge-postgres-data-backup:/backup busybox sh -c "cp -a /source/. /backup"`} lang="bash" />
+			<p>If you installed Edge with Docker on Windows, the database volume is <code>mytb-edge-data-db</code>: use it in place of <code>tb-edge-postgres-data</code>.</p>
 
 			<h3>Update the image version</h3>
 
 			{imageRenamed ? (
 				<>
 					<aside class="starlight-aside starlight-aside--caution">
-						<p class="starlight-aside__title" aria-hidden="true">Docker image name changes in {v.displayVersion}</p>
+						<p class="starlight-aside__title" aria-hidden="true">Docker image name changes in {EDGE_NEUTRAL_NAMES_FROM_VER}</p>
 						<div class="starlight-aside__content">
-							<p>Starting with {v.displayVersion}, the Edge Docker image no longer carries <code>pe</code> in its name or tag: <code>{prevImageRef}</code> becomes <code>{imageName}:{newTag}</code>. Update both the image name and the tag in your <code>docker-compose.yml</code>, not only the version.</p>
+							<p>Starting with {EDGE_NEUTRAL_NAMES_FROM_VER}, the Edge Docker image no longer carries <code>pe</code> in its name or tag: <code>{prevImageRef}</code> becomes <code>{imageName}:{newTag}</code>. Update both the image name and the tag in your <code>docker-compose.yml</code>, not only the version.</p>
+							<p>These steps also upgrade Community Edge to Edge {EDGE_NEUTRAL_NAMES_FROM_VER}: it must be on 4.3.1.4 or later. Upgrade an older Community Edge to the latest 4.3.1.x first.</p>
 						</div>
 					</aside>
-					<p>Replace the <code>{edgeDockerImage(isPE, prevVersion)}</code> image in <code>docker-compose.yml</code> with <code>{imageName}</code>, tag <strong>{newTag}</strong>:</p>
+					<p>Replace the <code>{edgeDockerImage(isPE, prevVersion)}</code> image in <code>docker-compose.yml</code> with <code>{imageName}</code>, tag <strong>{newTag}</strong>. The command below also updates a Community Edge image (<code>{imageName}</code> with an older tag):</p>
 				</>
 			) : (
 				<p>Update the <code>{imageName}</code> image tag in <code>docker-compose.yml</code> to <strong>{newTag}</strong>:</p>
 			)}
-			<Code code={`sed -i 's|${prevImageRef}|${imageName}:${newTag}|' docker-compose.yml`} lang="bash" />
+			<Code code={sedCommand} lang="bash" />
+			<p>On Windows, PowerShell has no <code>sed</code>: open <code>docker-compose.yml</code> in a text editor and set the <code>image:</code> line of the <code>mytbedge</code> service to <code>{imageName}:{newTag}</code>.</p>
 
 			{v.upgrade && (
 				<>
+					<p>Start the database. If your <code>docker-compose.yml</code> also has <code>kafka</code> or <code>cassandra</code> services, add them to the command:</p>
+					<Code code="docker compose up -d postgres" lang="bash" />
 					<p>Run the upgrade script:</p>
-					<Code code="docker compose run mytbedge upgrade-tb-edge.sh" lang="bash" />
+					<Code code="docker compose run --rm mytbedge upgrade-tb-edge.sh" lang="bash" />
 				</>
 			)}
 
 			<h3>Start the container</h3>
-			<Code code="docker compose up -d && docker compose logs -f mytbedge" lang="bash" />
+			<Code code={'docker compose up -d\ndocker compose logs -f mytbedge'} lang="bash" />
 		</section>
 	);
 })}

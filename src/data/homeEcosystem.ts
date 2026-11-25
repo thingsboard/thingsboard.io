@@ -85,7 +85,7 @@ export const homeEcosystem: EcosystemItem[] = [
 			'Skip the multi-page integration guide: get IoT solution components running in one click, each reviewed by our team.',
 			'Or list your own components - showcase your work or route users to your hardware.',
 		],
-		icon: 'tabler:building-store',
+		icon: 'iot-hub',
 		href: '/iot-hub/',
 		action: 'Browse the Hub',
 		accent: '#e8590c',

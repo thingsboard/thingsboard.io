@@ -1,13 +1,12 @@
 import { Aside } from '@astrojs/starlight/components';
 
-Running ThingsBoard Edge behind a <a href="https://en.wikipedia.org/wiki/Proxy_server" target="_blank" rel="noopener noreferrer">proxy server</a> means all outbound communication — specifically the gRPC connection to the ThingsBoard server on port 17100 — is routed through the proxy instead of going directly to the internet.
+Running ThingsBoard Edge behind a <a href="https://en.wikipedia.org/wiki/Proxy_server" target="_blank" rel="noopener noreferrer">proxy server</a> means that its gRPC connection to the ThingsBoard server (port 7070 by default, set by `CLOUD_RPC_PORT`) is routed through the proxy instead of going directly to the internet. Edge opens this connection through the proxy with an HTTP `CONNECT` tunnel. Only this connection uses the proxy: devices, the Edge UI, and the local database are not affected, so there is no bypass list to configure.
 
 This setup is common in restricted network environments where direct internet access is deliberately blocked. Proxies also add a security layer by filtering and monitoring outbound traffic, and can cache resources to reduce bandwidth usage.
 
 ## Prerequisites
 
-- A proxy server (HTTP or HTTPS) with its host, port, and credentials if required.
-- A list of addresses that should bypass the proxy, including internal resources, the database host (`postgres`), and the ThingsBoard server IP or hostname.
+- An HTTP proxy server that allows `CONNECT` to the ThingsBoard server's gRPC port, with its host, port, and credentials if required.
 - ThingsBoard Edge must be installed and running via Docker Compose.
 - <a href="https://docs.docker.com/engine/install/" target="_blank" rel="noopener noreferrer">Docker</a> and <a href="https://docs.docker.com/compose/install/" target="_blank" rel="noopener noreferrer">Docker Compose</a> must be installed.
 
@@ -29,18 +28,21 @@ Open the file:
 sudo nano docker-compose.yml
 ```
 
-Add the following lines to the `environment` block:
+Add the following lines to the `environment` block of the `mytbedge` service:
 
 ```yaml
-      HTTP_PROXY: http://proxy_user:proxy_password@proxy_host:proxy_port
-      HTTPS_PROXY: http://proxy_user:proxy_password@proxy_host:proxy_port
-      NO_PROXY: localhost,127.0.0.1,postgres,YOUR_TB_SERVER_IP
+      CLOUD_RPC_PROXY_ENABLED: "true"
+      CLOUD_RPC_PROXY_HOST: "proxy_host"
+      CLOUD_RPC_PROXY_PORT: "proxy_port"
+      CLOUD_RPC_PROXY_USERNAME: "proxy_user"
+      CLOUD_RPC_PROXY_PASSWORD: "proxy_password"
 ```
 
-Replace `YOUR_TB_SERVER_IP` with the IP address or hostname of your ThingsBoard server. If your proxy does not require authentication, omit the `proxy_user:proxy_password@` part from the URL.
+Replace `proxy_host` and `proxy_port` with your proxy's hostname and port. If your proxy does not require authentication, omit the `CLOUD_RPC_PROXY_USERNAME` and `CLOUD_RPC_PROXY_PASSWORD` lines.
 
-- **`HTTP_PROXY` / `HTTPS_PROXY`:** The proxy URL for HTTP and HTTPS traffic, like `http://user:password@proxy.example.com:8080`.
-- **`NO_PROXY`:** A comma-separated list of addresses that bypass the proxy, like `localhost,127.0.0.1,postgres,thingsboard.example.com`.
+<Aside type="caution">
+  The standard `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` variables have no effect on the Edge connection to the server. Use the `CLOUD_RPC_PROXY_*` variables.
+</Aside>
 
 ## Step 3. Restart the containers
 
@@ -48,7 +50,7 @@ Replace `YOUR_TB_SERVER_IP` with the IP address or hostname of your ThingsBoard 
 docker compose up -d && docker compose logs -f mytbedge
 ```
 
-`mytbedge` is the default Edge container name. If you renamed your container, replace it in the command.
+`mytbedge` is the default Edge service name in `docker-compose.yml`. If you renamed the service, replace it in the command.
 
 Once started, open the Edge UI at <a href="http://localhost:8080" target="_blank" rel="noopener noreferrer">http://localhost:8080</a> and log in with your tenant credentials. Go to **Edge → Status** and confirm the **Status** field shows **Connected** — this confirms Edge is reaching the server through the proxy.
 
@@ -58,24 +60,10 @@ If the Edge HTTP port was changed to **18080** during installation, access Edge 
 
 ## Troubleshooting
 
-Verify proxy environment variables are set:
+Check that the proxy variables reached the Edge container:
 
 ```bash
-echo $HTTP_PROXY
-echo $HTTPS_PROXY
-echo $NO_PROXY
-```
-
-If not set, check inside the running container:
-
-```bash
-docker exec -it container_name printenv | grep -i proxy
-```
-
-Test internet access through the proxy from inside the container:
-
-```bash
-docker exec -it container_name curl -I https://google.com
+docker compose exec mytbedge printenv | grep CLOUD_RPC_PROXY
 ```
 
 Test connectivity to ThingsBoard Cloud through the proxy:
@@ -87,5 +75,5 @@ curl -x http://proxy_host:proxy_port https://your_tb_cloud_url
 Check container logs for proxy-related errors:
 
 ```bash
-docker logs container_name
+docker compose logs mytbedge | grep -iE "proxy|UNAVAILABLE"
 ```

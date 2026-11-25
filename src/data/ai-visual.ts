@@ -50,6 +50,8 @@ export const AI_CTA = {
 	cli: {
 		text: 'Set up the CLI',
 		href: '/docs/cli/',
+		// The switch's own CLI icon.
+		icon: 'tabler:terminal-2',
 		line: 'Install the CLI, open a project folder, and hand your agent the first change.',
 	},
 };

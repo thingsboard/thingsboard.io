@@ -32,8 +32,6 @@ export const SECURITY_EMAIL = 'security@thingsboard.io';
 export const IMS_EMAIL = 'ims@thingsboard.io';
 export const DPA_HREF = '/products/paas/dpa/';
 export const PRIVACY_POLICY_HREF = '/products/paas/privacy-policy/';
-/** The site's own policy, which covers what the website's forms collect. */
-export const WEBSITE_PRIVACY_HREF = '/legal/privacy-policy/';
 export const TERMS_OF_USE_HREF = '/products/paas/terms-of-use/';
 
 /** How soon NDA documents follow a signed NDA, and how soon a vulnerability report gets a reply. */

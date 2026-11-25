@@ -169,7 +169,7 @@ export const buslFaq: FaqCategory[] = [
 				id: 'cost-beyond-free',
 				question: 'How much does it cost to go beyond the Free License?',
 				answer:
-					'<p>Pricing for scale, white-labeling, and commercial support is published on the <a href="/pricing/?section=thingsboard-pe-options&amp;product=thingsboard-pe">Pricing Page</a>, and it is the same as it was for Professional Edition before relicensing — the price has not gone up. For existing Community users, the Community Grant covers your current scale for free; you pay only for growth beyond it, and optionally for a Professional Pack.</p>',
+					'<p>Pricing for scale, white-labeling, and commercial support is published on the <a href="/pricing/?product=thingsboard-pe">Pricing Page</a>, and it is the same as it was for Professional Edition before relicensing — the price has not gone up. For existing Community users, the Community Grant covers your current scale for free; you pay only for growth beyond it, and optionally for a Professional Pack.</p>',
 			},
 		],
 	},

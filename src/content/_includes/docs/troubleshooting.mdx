@@ -1,6 +1,8 @@
 import DocLink from '@components/DocLink.astro';
 import ConditionalHeading from '@components/ConditionalHeading.astro';
-import { Aside, Code, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside, Code } from '@astrojs/starlight/components';
+import Tabs from '@components/Tabs.astro';
+import TabItem from '@components/TabItem.astro';
 import { Products } from '~/models/site.models';
 
 ## Possible Performance Issues
@@ -256,6 +258,42 @@ Different deployment types require different steps to apply the updated configur
   </TabItem>
 </Tabs>
 
+## Heap Dumps and Disk Space
+
+On a package install, every ThingsBoard Java service starts with `-XX:+HeapDumpOnOutOfMemoryError` and no `-XX:HeapDumpPath`. When a service runs out of memory, the JVM writes a heap dump before the error propagates. With no path set, the file is created in the process's working directory under the name `java_pid<PID>.hprof`. The service jar is a Spring Boot executable whose launch script changes into the jar's own folder before starting the JVM, so the dumps collect in `/usr/share/thingsboard/bin`, and every other Java service does the same under its own `/usr/share/<service>/bin` folder. **tb-web-report** runs on Node.js, takes no JVM options, and never writes one.
+
+The dump holds the heap as it was at that moment, so its size follows `-Xmx`: a node configured with `-Xmx8G` can leave an 8 GB file next to the jar. The name carries the process id, so a service restarted after an out-of-memory failure writes a new dump instead of replacing the previous one. A service that keeps failing this way fills the root partition.
+
+Docker Compose cluster deployments are configured differently: the `tb-node`, transport, `tb-integration-executor`, `tb-report` and `tb-vc-executor` configuration files that the cluster's compose project mounts into the containers set `-XX:HeapDumpPath`, so those dumps land in the service log folder as `<service id>-heapdump.bin` — `tb-monolith-heapdump.bin` or `tb-core1-heapdump.bin`, for example — and the same folder is bind-mounted to the host. `tb-edqs` sets no path, and the compose file in the Docker installation guide mounts no configuration at all, so in both cases the dumps stay in `/usr/share/<service>/bin` inside the container and are lost when the container is recreated.
+
+### Find and Remove Existing Dumps
+
+```bash
+sudo find /usr/share -xdev -name 'java_pid*.hprof' -ls
+```
+
+Delete the ones you do not need. Keep one if you plan to investigate: a dump is the only record of what the heap held at the moment of failure, and tools such as Eclipse MAT or VisualVM read it.
+
+### Write Dumps Somewhere Else
+
+Set an explicit path in the service configuration file — `/etc/thingsboard/conf/thingsboard.conf` for the main service — and restart the service:
+
+```bash
+export JAVA_OPTS="$JAVA_OPTS -XX:HeapDumpPath=/var/log/thingsboard/java_pid%p.hprof"
+```
+
+`%p` expands to the process id, keeping one file per process the way the default does, but on the partition that already holds the logs.
+
+### Stop Writing Dumps
+
+Add this line to the same configuration file and restart the service:
+
+```bash
+export JAVA_OPTS="$JAVA_OPTS -XX:-HeapDumpOnOutOfMemoryError"
+```
+
+The service then fails without leaving a file behind. Only do this once you no longer need the dumps for diagnosis — running out of memory is itself a problem to chase, and the dump is what explains it.
+
 ## Metrics
 
 Enable Prometheus metrics by setting `METRICS_ENABLED` to `true` and `METRICS_ENDPOINTS_EXPOSE` to `prometheus` in the configuration file.
@@ -321,12 +359,12 @@ The following internal state metrics are exposed via Spring Actuator to Promethe
 ## Grafana Dashboards
 
 You can import preconfigured Grafana dashboards from{' '}
-<a href="https://github.com/thingsboard/thingsboard-pe-docker-compose/tree/master/basic/monitoring/grafana/provisioning/dashboards" target="_blank" rel="noopener noreferrer">this repository</a>.
+<a href="https://github.com/thingsboard/thingsboard-docker-compose/tree/master/basic/monitoring/grafana/provisioning/dashboards" target="_blank" rel="noopener noreferrer">this repository</a>.
 
 <Aside type="note">Depending on the cluster configuration, you may need to make changes to the dashboards.</Aside>
 
-Grafana dashboards are also available when deploying the ThingsBoard Docker Compose cluster. See the [Docker Compose cluster setup guide](/docs/installation/docker-compose-setup/) for details.
-Set `MONITORING_ENABLED` to `true` before deployment. Once running, Prometheus is available at [http://localhost:9090](http://localhost:9090) and Grafana at [http://localhost:3000](http://localhost:3000) (default credentials: `admin` / `foobar`).
+Grafana dashboards are also available when deploying the ThingsBoard Docker Compose cluster. See the <DocLink product={props.product} path="installation/docker-compose-setup" bold={false}>Docker Compose cluster setup guide</DocLink> for details.
+Set `MONITORING_ENABLED` to `true` before deployment. Once running, Grafana is available at [http://localhost:3000](http://localhost:3000) (default credentials: `admin` / `foobar`). Prometheus is not published on port 9090, because HAProxy already binds that port on the host for remote integrations; Compose gives Prometheus a random host port instead, which `docker ps` shows. Grafana reaches Prometheus inside the Docker network at `http://prometheus:9090`.
 
 ## OAuth2
 
@@ -351,6 +389,9 @@ There are cases when the “Forgot my password” email is not sent. This can ha
 - **Case sensitivity of email login:** By default, email login in ThingsBoard is case-sensitive for security reasons. To disable case sensitivity,
 update the <DocLink product={props.product} path="reference/configuration/core-rule-engine-config/#security-parameters" useTbDocs>SECURITY_USER_LOGIN_CASE_SENSITIVE</DocLink> 
 parameter to **false** in your <DocLink product={props.product} path="reference/configuration/how-to-change-config" useTbDocs>configuration</DocLink> file. After that, you must restart your ThingsBoard service to apply the changes.
+Switching the parameter to **false** does not change emails that are already stored: login and password reset then look up the lowercase address, so users whose stored email contains uppercase letters can no longer sign in.
+Signing in through an OAuth 2.0 client that allows user creation, or signing up through self-registration, creates a new, separate account for such a user instead.
+Before you switch, change those emails to lowercase. Email addresses must be unique, so accounts whose addresses differ only by letter case have to be resolved first.
 
 <ConditionalHeading level={2} id="dashboard-export-tb-web-report" showFor="pe">Dashboard Export (tb-web-report)</ConditionalHeading>
 

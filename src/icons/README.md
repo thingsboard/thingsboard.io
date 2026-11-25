@@ -11,6 +11,9 @@ out white and a drawing can ink it; the homepage visuals also import it raw for 
 brand SVGs and redrawn in `currentColor` so the database chips in the trust band's scale card
 (`TrustVisualStages`, data in `src/data/home-trust.ts`) are all one kind of mark.
 
+`iot-hub` is the IoT Hub's mark, a hub with five spokes, in `currentColor`: the homepage's ecosystem
+card draws it in the card's accent, and the docs product selector (`VersionSwitcher`) inlines it too.
+
 `question-bold` is Ubuntu Bold's question mark, the site's own face, traced into a 24 box for the
 chat launcher, so the launcher does not wait on the webfont.
 

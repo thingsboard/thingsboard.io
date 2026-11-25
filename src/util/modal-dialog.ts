@@ -23,7 +23,7 @@ const bound = new WeakMap<HTMLDialogElement, ModalDialog>();
 const holders = new Set<HTMLDialogElement>();
 
 function release(dialog: HTMLDialogElement): void {
-	if (holders.delete(dialog) && holders.size === 0) unlockScroll();
+	if (holders.delete(dialog) && holders.size === 0) unlockScroll('dialog');
 }
 
 // Binds once: a later call for the same dialog (e.g. from a component wrapping `Modal.astro`, whose
@@ -102,7 +102,7 @@ export function bindModalDialog(
 			covered = [...holders].filter((d) => d !== dialog && d.open && !d.inert);
 			for (const d of covered) d.inert = true;
 			holders.add(dialog);
-			lockScroll();
+			lockScroll('dialog');
 		},
 		close() {
 			if (!dialog.open) return;

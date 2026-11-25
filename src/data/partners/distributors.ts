@@ -731,6 +731,13 @@ export const DISTRIBUTORS: Distributor[] = [
 		email: "info@netdotnet.info",
 		website: "netdotnet.co",
 	},
+	{
+		name: "Compumatics Technology Ltd",
+		regions: ["Asia"],
+		countries: ["Myanmar"],
+		email: "iot@compumatics.net.mm",
+		website: "",
+	},
 ];
 
 // Throws if this data and REGION_MEMBERSHIP disagree — see ./coverage.ts.

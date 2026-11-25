@@ -7,7 +7,7 @@
  */
 
 /** Community Edition */
-export const CE_FULL_VER = '4.3.1.8';
+export const CE_FULL_VER = '4.3.1.9';
 
 /**
  * First release line that ships under the source-available license, as stated in
@@ -21,6 +21,12 @@ export const SOURCE_AVAILABLE_FROM_VER = '4.4';
  * A policy boundary, not a release pointer — it does not move with each release.
  */
 export const COMMUNITY_GRANT_FROM_VER = '4.3.1.6';
+
+/**
+ * First release whose installation packages, Docker images and jars come with an SBOM.
+ * A policy boundary, not a release pointer — it does not move with each release.
+ */
+export const SBOM_FROM_VER = '4.4.1';
 
 /** Day the relicensing is announced — the date every Community Grant is measured against. */
 export const SOURCE_AVAILABLE_ANNOUNCEMENT_DATE = '2026-09-29';
@@ -58,7 +64,7 @@ export const CE_BRANCH = 'release-4.3';
  * names and plain version tags (no `tb-pe-` prefix, no `PE` suffix). Historical
  * upgrade steps below 4.4 build the old names themselves.
  */
-export const PE_FULL_VER = '4.4.0.2';
+export const PE_FULL_VER = '4.4.1';
 
 /**
  * Package filename and GitHub release-tag version — {@link PE_FULL_VER} with the
@@ -79,10 +85,16 @@ export const PE_RELEASE_URL = `https://github.com/thingsboard/thingsboard/releas
 export const PE_BRANCH = 'release-4.4';
 
 /** Trendz Analytics */
-export const TRENDZ_VER = '1.16.1';
+export const TRENDZ_VER = '1.16.1.3';
+
+/**
+ * First Trendz release whose Docker image runs as uid 799 instead of root.
+ * A policy boundary, not a release pointer — it does not move with each release.
+ */
+export const TRENDZ_NON_ROOT_FROM_VER = '1.16.1.1';
 
 /** Remote Agent — Docker image tag for `thingsboard/tb-remote-agent:${AGENT_VER}`. */
-export const AGENT_VER = '1.0.0';
+export const AGENT_VER = '1.0.4';
 
 /** Edge */
 export const EDGE_VER = '4.3.1.8';
@@ -107,8 +119,8 @@ export const EDGE_PE_FULL_VER = '4.4.0.2';
 
 /**
  * First Edge release published under CE-style names: `thingsboard/tb-edge` images tagged
- * `<ver>EDGE`, `tb-edge-<ver>.deb` / `.rpm` packages on the `thingsboard-edge` GitHub
- * releases, and the `thingsboard-edge` Docker Compose setup. Older Edge PE releases keep
+ * `<ver>EDGE` and `tb-edge-<ver>.deb` / `.rpm` packages on the `thingsboard-edge` GitHub
+ * releases. Older Edge PE releases keep
  * `thingsboard/tb-edge-pe`, `<ver>EDGEPE` and `*pe` packages on dist.thingsboard.io.
  * A policy boundary, not a release pointer — it does not move with each release. Edge 4.4.0 is also
  * published under the PE names for ThingsBoard 4.4.0 servers, which still use them; the docs show the
@@ -116,10 +128,7 @@ export const EDGE_PE_FULL_VER = '4.4.0.2';
  */
 export const EDGE_NEUTRAL_NAMES_FROM_VER = '4.4';
 
-/**
- * Edge PE Docker Compose branch: X.Y.Z of `thingsboard-edge-pe-docker-compose` before
- * {@link EDGE_NEUTRAL_NAMES_FROM_VER}, the `thingsboard-edge` release branch from it on.
- */
+/** Edge PE release branch of `thingsboard/thingsboard-edge` (X.Y format), for building from source. */
 export const EDGE_PE_BRANCH = 'release-4.4';
 
 /**

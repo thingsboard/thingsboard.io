@@ -285,7 +285,11 @@ const guideItems = (prefix: string, { isPE = false } = {}) => {
 			{
 				label: 'Infrastructure',
 				collapsed: true,
-				items: [`${prefix}/security/domains`, `${prefix}/security/self-signed-ecc`],
+				items: [
+					`${prefix}/security/domains`,
+					`${prefix}/security/self-signed-ecc`,
+					`${prefix}/security/web-security-hardening`,
+				],
 			},
 			{
 				label: 'Administration',
@@ -294,6 +298,9 @@ const guideItems = (prefix: string, { isPE = false } = {}) => {
 					{ label: 'Security Settings', slug: `${prefix}/security` },
 					`${prefix}/security/audit-log`,
 					`${prefix}/security/secrets-storage`,
+					// SBOMs are published from 4.4.1. The docs under pe/ describe 4.4, the unified product;
+					// the docs outside pe/ describe 4.3, which has no SBOMs.
+					...(isPE ? [`${prefix}/security/sbom`] : []),
 				],
 			},
 			...(isPE ? [{
@@ -451,7 +458,8 @@ const installationItems = (prefix: string) => {
 						items: [
 							`${prefix}/installation/upgrade-instructions`,
 							// Before upgrade-from-ce: the grant key is what licenses 4.4, so registering
-							// comes first in the sequence, not after it.
+							// comes first in the sequence, not after it. A PE copy of the CE guide (canonical
+							// to it): a link item would leave the PE section and lose Previous/Next.
 							`${prefix}/installation/register-community-grant`,
 							`${prefix}/installation/upgrade-from-ce`,
 							`${prefix}/installation/upgrade-instructions/docker-legacy-image-migration`,
@@ -3963,6 +3971,7 @@ export const trendzSidebar: SidebarConfig = [
 					'docs/trendz/post-installation-steps',
 					'docs/trendz/configuration-properties',
 					'docs/trendz/installation/old-docker-migrate',
+					'docs/trendz/installation/kubernetes-files-migration',
 				],
 			},
 			'docs/trendz/installation/upgrade-instructions',
