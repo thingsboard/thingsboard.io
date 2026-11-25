@@ -98,7 +98,7 @@ function rowMarkup(inst: InstallInstance): string {
 		: '';
 	const actions = `<div class="iot-hub-install-dialog__row-actions">
 				<button type="button" class="iot-hub-install-dialog__icon-btn" data-copy aria-label="${S.copy}">${icon('copy', 24)}</button>
-				<a class="iot-hub-install-dialog__action" data-open target="_blank" rel="noopener"><span data-verb></span>${icon('external-link', 20)}</a>
+				<a class="iot-hub-install-dialog__action" data-open target="_blank" rel="noopener noreferrer"><span data-verb></span>${icon('external-link', 20)}</a>
 			</div>`;
 	return `<li class="iot-hub-install-dialog__row" data-instance="${inst.key}">
 			<span class="iot-hub-install-dialog__row-icon" aria-hidden="true">${icon(inst.icon, 32)}</span>
