@@ -4,6 +4,7 @@ import { EDGE_NEUTRAL_NAMES_FROM_VER } from '../data/versions.ts';
 import { isCommunityProduct, type Products } from './site.models.ts';
 import { EDGE_RELEASES, EDGE_UPGRADE_GRAPH } from '../data/edge-releases.ts';
 import type { ReleaseFamily } from './releases-table.ts';
+import { UPGRADE_VERSIONS } from './upgrade-instructions.ts';
 import {
 	assertNewestFirst,
 	familyOf,
@@ -92,8 +93,10 @@ const EDGE_LTS_FROM_FAMILY = '4.2';
 const EDGE_DERIVED_FROM_VER = '4.2.0';
 
 const isLtsFamily = (family: string) => versionAtLeast(family, EDGE_LTS_FROM_FAMILY);
-/** "4.3.1.6" → "4.3.1" (patch releases are grouped under their base release); others → themselves. */
-const groupOf = (version: string) => (version.split('.').length > 3 ? version.split('.').slice(0, 3).join('.') : version);
+/** The version's base release: the platform's baseVersion ("4.4.1" → "4.4.0"), else the first three parts ("4.3.1.6" → "4.3.1"). */
+const groupOf = (version: string) =>
+	UPGRADE_VERSIONS.find((u) => u.version === version)?.baseVersion ??
+	(version.split('.').length > 3 ? version.split('.').slice(0, 3).join('.') : version);
 /** "4.2.0" → "4.2" — release labels and package versions drop the GA ".0". */
 const shortVersion = (version: string) => version.replace(/^(\d+\.\d+)\.0$/, '$1');
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -146,7 +149,7 @@ function deriveUpgradeVersions(): EdgeUpgradeVersion[] {
 		const inFamilyNoDb = all.filter((s) => !s.db && familyOf(s.from) === family).map((s) => s.from);
 		const earlierInFamily = released.filter((v) => familyOf(v) === family && !versionAtLeast(v, version));
 		const newestOutside = outside.at(-1)?.from;
-		const patch = version.split('.').length > 3;
+		const patch = group !== version;
 		return {
 			version,
 			displayVersion: shortVersion(version),
