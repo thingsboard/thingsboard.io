@@ -153,8 +153,41 @@ const pathname = Astro.url.pathname;
 			row.setAttribute('data-ink', '');
 		};
 
+		// How wide each opened section is with all its groups on one line, in the fonts this visitor has. A
+		// column grows past `--sm-col` to keep a long link on one line, so the stylesheet cannot know this.
+		// A group keeps its width whether or not the groups wrap, so this only reads the layout the browser
+		// has just made. Sections are measured as they open: measuring all six up front made the first open
+		// about three times slower.
+		const bodyWidths = new Map<string, number>();
+		let widestBody = 0;
+		/** Measures the shown section once. True when it is the widest seen so far. */
+		const noteBodyWidth = (id: string) => {
+			if (bodyWidths.has(id)) return false;
+			const groups = panelSections.find((p) => p.dataset.smPanel === id)?.querySelector<HTMLElement>('.sm__groups');
+			if (!groups) return false;
+			const gap = parseFloat(getComputedStyle(groups).columnGap) || 0;
+			const width = [...groups.children].reduce(
+				(sum, group, i) => sum + (i ? gap : 0) + group.getBoundingClientRect().width,
+				0
+			);
+			bodyWidths.set(id, width);
+			if (width <= widestBody) return false;
+			widestBody = width;
+			return true;
+		};
+		// A web font that arrives later changes the widths.
+		document.fonts?.addEventListener('loadingdone', () => {
+			bodyWidths.clear();
+			widestBody = 0;
+			if (openId === null) return;
+			noteBodyWidth(openId);
+			alignPanel();
+		});
+
 		// Starts the panel's content under the first menu item's text, or further left where the widest
 		// section would not fit. All sections use the same start, so columns stay put when switching.
+		// The widest section is the `--sm-max-cols` columns the design allows. Where a font draws the links
+		// wider than that, it is the widest section opened so far, and the start moves when a wider one opens.
 		const alignPanel = () => {
 			const firstItem = row.querySelector<HTMLElement>('.sm__top');
 			const inner = panel.querySelector<HTMLElement>('.sm__one-in');
@@ -165,10 +198,14 @@ const pathname = Astro.url.pathname;
 			const styles = getComputedStyle(nav);
 			const colWidth = parseFloat(styles.getPropertyValue('--sm-col')) || 0;
 			const gutter = parseFloat(styles.getPropertyValue('--sm-gutter')) || 0;
-			const widestSection = maxCols * colWidth + (maxCols - 1) * gutter;
+			const widestSection = Math.max(maxCols * colWidth + (maxCols - 1) * gutter, widestBody);
 			const rightPadding = parseFloat(getComputedStyle(inner).paddingRight) || 0;
-			const maxStart = document.documentElement.clientWidth - rightPadding - widestSection;
-			panel.style.setProperty('--sm-col-x', `${Math.round(Math.min(itemTextLeft - inset, maxStart))}px`);
+			// The panel's own width, not `clientWidth`: that one is a whole number, and a zoomed page is a
+			// fraction wide. Rounded down: either fraction would take room from the widest section and wrap it.
+			const maxStart = Math.floor(inner.getBoundingClientRect().width - rightPadding - widestSection);
+			// Never closer to the left edge than the panel's own padding: past that, the groups wrap.
+			const start = Math.max(rightPadding, Math.min(Math.round(itemTextLeft - inset), maxStart));
+			panel.style.setProperty('--sm-col-x', `${start}px`);
 		};
 
 		/** Runs once `to` is shown. `heightBefore` is the panel's height while it still showed `from`. */
@@ -260,7 +297,8 @@ const pathname = Astro.url.pathname;
 			for (const t of triggers) t.setAttribute('aria-expanded', String(t.dataset.smTrigger === id));
 			for (const p of panelSections) p.hidden = p.dataset.smPanel !== id;
 			panel.hidden = false;
-			if (!switching) alignPanel();
+			const wider = noteBodyWidth(id);
+			if (!switching || wider) alignPanel();
 			header.setAttribute('data-sm-desktop-open', '');
 			placeUnderline(id, from === null);
 			if (switching && from !== null) animateSwitch(from, id, heightBefore);
@@ -696,10 +734,6 @@ const pathname = Astro.url.pathname;
 		// The script reads `--sm-col`, `--sm-gutter`, `--sm-glide`, `--sm-glide-ease`, `--sm-link-inset`
 		// and `--sm-max-cols`.
 		--sm-col: 236px;
-		// How far a section may run past the width reserved for it, into the panel's right padding. A
-		// column grows past `--sm-col` where the system font draws a link wider, and a section that fills
-		// all `--sm-max-cols` columns has no other room for that.
-		--sm-grow: 16px;
 		--sm-gutter: 24px;
 		--sm-glide: 0.26s;
 		--sm-glide-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
@@ -931,7 +965,7 @@ const pathname = Astro.url.pathname;
 	}
 
 	// Logos need less than `--sm-col`. The room this saves keeps a section with logos beside grown text
-	// columns inside the width `alignPanel()` and `.sm__one-sec` reserve (`--sm-max-cols` × `--sm-col`).
+	// columns inside the width `alignPanel()` reserves (`--sm-max-cols` × `--sm-col`).
 	// Folded into lines (`perColumn`), the logos sit on equal tracks, as wide as the widest of them.
 	.sm__cols:has(.sm__link-logo) {
 		grid-auto-columns: minmax(max-content, 1fr);
@@ -1172,12 +1206,10 @@ const pathname = Astro.url.pathname;
 	}
 
 	// `background: none` beats the page background `landing.scss` gives every `<section>`.
-	// `max-content`, not `fit-content`: that one stops at the room on offer, so `--sm-grow` would add nothing.
+	// No width limit beyond the room `alignPanel()` leaves: it measures each section and makes that room.
 	.sm__one-sec {
-		width: max-content;
-		max-width: calc(
-			min(100%, var(--sm-max-cols) * var(--sm-col) + (var(--sm-max-cols) - 1) * var(--sm-gutter)) + var(--sm-grow)
-		);
+		width: fit-content;
+		max-width: 100%;
 		background: none;
 	}
 
