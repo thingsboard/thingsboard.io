@@ -1,0 +1,80 @@
+import DocLink from '@components/DocLink.astro';
+import ShowFor from '@components/ShowFor.astro';
+import ConditionalHeading from '@components/ConditionalHeading.astro';
+import { Aside } from '@astrojs/starlight/components';
+import { Products } from '@models/site.models';
+
+ThingsBoard chooses a data type for every value while it parses a telemetry or attribute payload, and stores the value under that type. The type it chooses is not always the one the JSON carried: by default a string that looks like a number is stored as a number, so `"07432124"` reads back as `7432124`.
+
+The rules below apply to payloads sent over the <DocLink product={props.product} path="reference/mqtt-api/telemetry">MQTT</DocLink>, <DocLink product={props.product} path="reference/http-api/telemetry">HTTP</DocLink>, <DocLink product={props.product} path="reference/coap-api/telemetry">CoAP</DocLink> and <DocLink product={props.product} path="reference/gateway-api/telemetry">Gateway</DocLink> APIs, and to values written through the REST API, the web UI, the save time series and save attributes rule nodes, calculated fields and CSV/XLS import.
+
+## How a value is typed
+
+| What the payload carries | Stored as | Example |
+|---|---|---|
+| `true` or `false` | Boolean | `{"valve": true}` stays `true` |
+| A number with no fractional part, written without a decimal point, that fits a signed 64-bit integer | Long | `{"count": 11}` stays `11`; `{"count": 1E+1}` becomes `10` |
+| Any other number with at most 16 decimal places | Double | `{"temperature": 1.1}` stays `1.1`; `{"temperature": 42.0}` stays `42.0`; `{"temperature": 101E-1}` becomes `10.1` |
+| A number that fits neither — a whole number above the signed 64-bit range, or more than 16 decimal places | String | `{"reading": 9.9701010061400066E19}` becomes `"99701010061400066000"` |
+| An object or an array | JSON | `{"position": {"x": 1, "y": 2}}` is stored as written |
+| A string that parses as a plain decimal number | Long or Double — see below | `{"serialNumber": "07432124"}` becomes `7432124` |
+| Any other string | String | `{"devEui": "70B3D57ED0012345"}` stays unchanged |
+| `null` | Nothing. The key is dropped and no error is returned | `{"temperature": null}` stores no value |
+
+## Numeric strings become numbers
+
+By default a string whose text parses as a plain decimal number is stored as a number instead of a string. A string qualifies only when it is an optional leading `-` followed by digits and at most one decimal point. Exponent notation (`"1e5"`), hexadecimal (`"0x1A"`), a leading `+` and a trailing `.` do not qualify, so those values stay strings.
+
+The rule reads the text, not the number it denotes — `1E+1` sent as a number becomes `10`, while `"1E+1"` sent as a string stays `"1E+1"`.
+
+| Sent | Stored |
+|---|---|
+| `{"serialNumber": "07432124"}` | `7432124` |
+| `{"joinEui": "0000000000000000"}` | `0` |
+| `{"firmwareVersion": "1.10"}` | `1.1` |
+| `{"devEui": "70B3D57ED0012345"}` | `"70B3D57ED0012345"` — the letters make it non-numeric |
+
+<Aside type="caution" title="Identifiers made of digits lose their exact text">
+The cast is meant for devices that report measurements as strings, but it applies to every value that looks numeric — serial numbers, EUIs, ICCIDs, postal codes and dotted version numbers among them. Once such a value is stored as a number, the leading zeros of `"07432124"` and the trailing zero of `"1.10"` are gone for good: the key reads back as a number, not as the text the device sent.
+</Aside>
+
+<ShowFor product={props.product} show={[Products.PAAS, Products.PAAS_EU]}>
+
+On ThingsBoard Cloud the cast is always enabled and cannot be turned off. A value that has to keep its exact text must be sent in a form that does not parse as a plain decimal number — prefixed with its own letter code, for example.
+
+</ShowFor>
+
+<ShowFor product={props.product} show={[Products.CE, Products.PE]}>
+
+<ConditionalHeading level={2} id="turning-the-cast-off" showFor="ce,pe">Turning the cast off</ConditionalHeading>
+
+The cast is controlled by `transport.json.type_cast_enabled`, set by the `JSON_TYPE_CAST_ENABLED` environment variable. It is `true` in every service except the LwM2M transport, which ships with `false`.
+
+<Aside type="caution" title="Check what your devices send before you disable it">
+The setting does more than keep strings as strings. While it is on, a JSON **number** that fits neither a Long nor a Double — a whole number above the signed 64-bit range, or more than 16 decimal places — is stored as a string. Turn the setting off and the same value is rejected instead, failing the whole message with `Can't parse value: {"temperatureReturn":0.19999998807907104}`.
+
+`0.19999998807907104` has 17 decimal places: it is what the 32-bit float `0.2` prints at full precision, which gateways and uplink converters emit routinely. The error names neither the key nor the reason, so a payload that worked yesterday can start failing the moment one device reports a value at full precision.
+</Aside>
+
+Every service that parses device JSON reads its own copy of the setting:
+
+- the MQTT, HTTP, CoAP and SNMP transports;
+- `tb-node` — the REST API, the web UI, the save time series and save attributes rule nodes, calculated fields and CSV/XLS import.
+
+</ShowFor>
+
+<ShowFor product={props.product} show={[Products.PE]}>
+
+`tb-integration-executor` parses the JSON that uplink converters produce, and reads the setting as well.
+
+</ShowFor>
+
+<ShowFor product={props.product} show={[Products.CE, Products.PE]}>
+
+A monolithic installation runs all of them in one process, so a single setting covers everything. In a microservices deployment, set the variable on every service — otherwise the same payload is typed differently depending on how it reached the platform.
+
+The neighbouring `transport.json.max_string_value_length` (`JSON_MAX_STRING_VALUE_LENGTH`, `0` by default, meaning no limit) rejects string values longer than the given number of characters. Unlike the error above, its message names the key.
+
+See <DocLink product={props.product} path="reference/configuration/how-to-change-config">How to change configuration</DocLink> for where to put the variable in your deployment.
+
+</ShowFor>
