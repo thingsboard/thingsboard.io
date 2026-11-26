@@ -3192,7 +3192,7 @@ export const edgePeSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'White-labeling',
+				label: 'White labeling',
 				collapsed: true,
 				items: [{ label: 'Overview', slug: 'docs/edge/pe/user-guide/white-labeling' }],
 			},
