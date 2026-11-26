@@ -30,6 +30,11 @@ export const BLOG_AUTHORS: BlogAuthor[] = [
 		avatar: 'https://secure.gravatar.com/avatar/8c93ebf5d98723e594698da091a09cc7?s=96&d=mm&r=g',
 	},
 	{
+		slug: 'artem-babak',
+		name: 'Artem Babak',
+		avatar: 'https://secure.gravatar.com/avatar/55f71a50eddaa5533477f9df0e98be27?s=96&d=mm&r=g',
+	},
+	{
 		slug: 'daria-shevchenko',
 		name: 'Daria Shevchenko',
 		avatar: 'https://secure.gravatar.com/avatar/05aa5260c531cba2ef9fceb6c68f249a?s=96&d=mm&r=g',
