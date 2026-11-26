@@ -6,7 +6,7 @@ import { Products } from '@models/site.models';
 
 ThingsBoard chooses a data type for every value while it parses a telemetry or attribute payload, and stores the value under that type. The type it chooses is not always the one the JSON carried: by default a string that looks like a number is stored as a number, so `"07432124"` reads back as `7432124`.
 
-The rules below apply to payloads sent over the <DocLink product={props.product} path="reference/mqtt-api/telemetry">MQTT</DocLink>, <DocLink product={props.product} path="reference/http-api/telemetry">HTTP</DocLink>, <DocLink product={props.product} path="reference/coap-api/telemetry">CoAP</DocLink> and <DocLink product={props.product} path="reference/gateway-api/telemetry">Gateway</DocLink> APIs, and to values written through the REST API, the web UI, the save time series and save attributes rule nodes, calculated fields and CSV/XLS import.
+The rules below apply to payloads sent over the <DocLink product={props.product} path="reference/mqtt-api/telemetry">MQTT</DocLink>, <DocLink product={props.product} path="reference/http-api/telemetry">HTTP</DocLink>, <DocLink product={props.product} path="reference/coap-api/telemetry">CoAP</DocLink>, and <DocLink product={props.product} path="reference/gateway-api/telemetry">Gateway</DocLink> APIs, and to values written through the REST API, the web UI, the save time series and save attributes rule nodes, calculated fields, and CSV/XLS import.
 
 ## How a value is typed
 
@@ -19,11 +19,13 @@ The rules below apply to payloads sent over the <DocLink product={props.product}
 | An object or an array | JSON | `{"position": {"x": 1, "y": 2}}` is stored as written |
 | A string that parses as a plain decimal number | Long or Double — see below | `{"serialNumber": "07432124"}` becomes `7432124` |
 | Any other string | String | `{"devEui": "70B3D57ED0012345"}` stays unchanged |
-| `null` | Nothing. The key is dropped and no error is returned | `{"temperature": null}` stores no value |
+| `null` | Nothing over the device transports; an error on every other route — see below | `{"temperature": null}` stores no value over MQTT |
+
+A `null` value is skipped only on the MQTT, HTTP, CoAP, LwM2M and Gateway transports. Sent through the REST API, the web UI, the save time series or save attributes rule nodes, a calculated field or CSV/XLS import, the same payload is rejected instead: the REST call answers `400` with `Unable to parse time series payload. Invalid JSON body: Can't parse value: null`, and nothing in that request is saved.
 
 ## Numeric strings become numbers
 
-By default a string whose text parses as a plain decimal number is stored as a number instead of a string. A string qualifies only when it is an optional leading `-` followed by digits and at most one decimal point. Exponent notation (`"1e5"`), hexadecimal (`"0x1A"`), a leading `+` and a trailing `.` do not qualify, so those values stay strings.
+By default a string whose text parses as a plain decimal number is stored as a number instead of a string. A string qualifies only when it is an optional leading `-` followed by digits and at most one decimal point. Exponent notation (`"1e5"`), hexadecimal (`"0x1A"`), a leading `+`, and a trailing `.` do not qualify, so those values stay strings.
 
 The rule reads the text, not the number it denotes — `1E+1` sent as a number becomes `10`, while `"1E+1"` sent as a string stays `"1E+1"`.
 
@@ -35,7 +37,7 @@ The rule reads the text, not the number it denotes — `1E+1` sent as a number b
 | `{"devEui": "70B3D57ED0012345"}` | `"70B3D57ED0012345"` — the letters make it non-numeric |
 
 <Aside type="caution" title="Identifiers made of digits lose their exact text">
-The cast is meant for devices that report measurements as strings, but it applies to every value that looks numeric — serial numbers, EUIs, ICCIDs, postal codes and dotted version numbers among them. Once such a value is stored as a number, the leading zeros of `"07432124"` and the trailing zero of `"1.10"` are gone for good: the key reads back as a number, not as the text the device sent.
+The cast is meant for devices that report measurements as strings, but it applies to every value that looks numeric — serial numbers, EUIs, ICCIDs, postal codes, and dotted version numbers among them. Once such a value is stored as a number, the leading zeros of `"07432124"` and the trailing zero of `"1.10"` are gone for good: the key reads back as a number, not as the text the device sent.
 </Aside>
 
 <ShowFor product={props.product} show={[Products.PAAS, Products.PAAS_EU]}>
@@ -51,15 +53,15 @@ On ThingsBoard Cloud the cast is always enabled and cannot be turned off. A valu
 The cast is controlled by `transport.json.type_cast_enabled`, set by the `JSON_TYPE_CAST_ENABLED` environment variable. It is `true` in every service except the LwM2M transport, which ships with `false`.
 
 <Aside type="caution" title="Check what your devices send before you disable it">
-The setting does more than keep strings as strings. While it is on, a JSON **number** that fits neither a Long nor a Double — a whole number above the signed 64-bit range, or more than 16 decimal places — is stored as a string. Turn the setting off and the same value is rejected instead, failing the whole message with `Can't parse value: {"temperatureReturn":0.19999998807907104}`.
+The setting does more than keep strings as strings. While it is on, a JSON **number** that fits neither a Long nor a Double — a whole number above the signed 64-bit range, or more than 16 decimal places — is stored as a string. Turn the setting off and the same value is rejected instead, failing the whole message. A telemetry publish reports `Can't parse value: {"temperatureReturn":0.19999998807907104}`; an attributes publish reports `Big integer values are not supported!` — the wrong word for a decimal.
 
-`0.19999998807907104` has 17 decimal places: it is what the 32-bit float `0.2` prints at full precision, which gateways and uplink converters emit routinely. The error names neither the key nor the reason, so a payload that worked yesterday can start failing the moment one device reports a value at full precision.
+`0.19999998807907104` has 17 decimal places: it is a 32-bit float written out at full double precision, which is what gateways and uplink converters emit routinely — `0.2` held as a 32-bit float prints as `0.20000000298023224`, and any other float crosses the 16-place limit the same way. Neither message names the key or the reason, so a payload that worked yesterday can start failing the moment one device reports a value at full precision.
 </Aside>
 
 Every service that parses device JSON reads its own copy of the setting:
 
-- the MQTT, HTTP, CoAP and SNMP transports;
-- `tb-node` — the REST API, the web UI, the save time series and save attributes rule nodes, calculated fields and CSV/XLS import.
+- the MQTT, HTTP, CoAP, LwM2M, and SNMP transports;
+- `tb-node` — the REST API, the web UI, the save time series and save attributes rule nodes, calculated fields, and CSV/XLS import.
 
 </ShowFor>
 
@@ -73,7 +75,7 @@ Every service that parses device JSON reads its own copy of the setting:
 
 A monolithic installation runs all of them in one process, so a single setting covers everything. In a microservices deployment, set the variable on every service — otherwise the same payload is typed differently depending on how it reached the platform.
 
-The neighbouring `transport.json.max_string_value_length` (`JSON_MAX_STRING_VALUE_LENGTH`, `0` by default, meaning no limit) rejects string values longer than the given number of characters. Unlike the error above, its message names the key.
+The neighboring `transport.json.max_string_value_length` (`JSON_MAX_STRING_VALUE_LENGTH`, `0` by default, meaning no limit) rejects string values longer than the given number of characters. Unlike the error above, its message names the key.
 
 See <DocLink product={props.product} path="reference/configuration/how-to-change-config">How to change configuration</DocLink> for where to put the variable in your deployment.
 
