@@ -701,6 +701,32 @@ export type IotHubCategoryData = z.infer<typeof iotHubCategorySchema>;
 export type FilterParamInfo = z.infer<typeof filterParamInfoSchema>;
 export type ItemTypeFilterInfo = z.infer<typeof itemTypeFilterInfoSchema>;
 
+export interface DetailGalleryImage {
+	src: string;
+	alt: string;
+}
+
+/**
+ * The hero images of a detail page, lead picture first: the preview, then the screenshots
+ * minus the one reused as the preview. Empty for compact listings (icon tile, no image).
+ */
+export const getDetailGalleryImages = (
+	detail: Pick<ListingDetail, 'itemType' | 'name' | 'image' | 'screenshots'>
+): DetailGalleryImage[] => {
+	if (getCardVariant(detail.itemType) === 'small') return [];
+	const previewImg = resolveImage(detail.image);
+	const previewResourceId = detail.image?.match(/\/api\/resources\/([^/?#]+)/)?.[1] ?? null;
+	return [
+		...(previewImg ? [{ src: previewImg, alt: `${detail.name} preview` }] : []),
+		// Index from the full list, so the alt text keeps the upload position.
+		...detail.screenshots.flatMap((s, i) =>
+			s.id === previewResourceId
+				? []
+				: [{ src: `${IOT_HUB_API_URL}/api/resources/${s.id}`, alt: `${detail.name} screenshot ${i + 1}` }]
+		),
+	];
+};
+
 /**
  * Union of several per-item-type facet sets into the one the catalogue page
  * shows. `listingFilterInfo` is served per item type, so the same category or
