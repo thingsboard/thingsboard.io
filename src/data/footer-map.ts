@@ -86,7 +86,7 @@ const documentation: FooterLink = { label: 'Documentation', href: '/docs/pe/' };
 const useCases: FooterLink = { label: 'Use cases', href: '/use-cases/' };
 const caseStudies = menuGroupPage('Case studies');
 const clientsFeedback = menuLink('/clients-feedback/');
-const supportPlans = menuLink('/services/');
+const professionalServices = menuLink('/services/');
 const blog = menuLink('/blog/');
 const careers = menuLink(CAREERS_URL);
 const contactUs = menuLink('/contact-us/');
@@ -111,7 +111,7 @@ export const FOOTER_COLUMNS: FooterList[][] = [
 	[
 		{
 			title: 'Services',
-			links: [menuLink('/services/development-services/'), supportPlans, menuLink('/services/trainings/')],
+			links: [menuLink('/services/development-services/'), professionalServices, menuLink('/services/trainings/')],
 		},
 		{ title: 'Clients', links: [caseStudies, clientsFeedback] },
 	],
@@ -144,5 +144,5 @@ export const FOOTER_DOCS_COLUMNS: FooterList[] = [
 		title: 'Learn',
 		links: [gettingStarted, documentation, useCases, caseStudies, iotHub, blog],
 	},
-	{ title: 'Get help', links: [supportPlans, clientsFeedback, contactUs, careers] },
+	{ title: 'Get help', links: [professionalServices, clientsFeedback, contactUs, careers] },
 ];
