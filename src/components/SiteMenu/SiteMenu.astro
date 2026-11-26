@@ -99,6 +99,7 @@ const pathname = Astro.url.pathname;
 		const panelSections = [...nav.querySelectorAll<HTMLElement>('[data-sm-panel]')];
 		const itemOf = (id: string) => nav.querySelector<HTMLElement>(`.sm__item[data-sm-item="${id}"]`);
 		const triggerOf = (id: string) => triggers.find((t) => t.dataset.smTrigger === id);
+		const sectionOf = (id: string) => panelSections.find((p) => p.dataset.smPanel === id);
 		const triggerIndex = (id: string) => triggers.findIndex((t) => t.dataset.smTrigger === id);
 		// Touch screens send emulated mouse events around a tap, so only a real mouse opens on hover.
 		const isMouse = (e: PointerEvent) => e.pointerType === 'mouse';
@@ -153,8 +154,29 @@ const pathname = Astro.url.pathname;
 			row.setAttribute('data-ink', '');
 		};
 
+		// How wide each opened section is with all its groups on one line, in the fonts this visitor has. A
+		// column grows past `--sm-col` to keep a long link on one line, so the stylesheet cannot know this.
+		// A group keeps its width whether or not the groups wrap, so this only reads the layout the browser
+		// has just made. Each section is measured the first time it opens.
+		const bodyWidths = new Map<string, number>();
+		/** Measures the shown section once. True when it was not measured before. */
+		const noteBodyWidth = (id: string) => {
+			if (bodyWidths.has(id)) return false;
+			const groups = sectionOf(id)?.querySelector<HTMLElement>('.sm__groups');
+			if (!groups) return false;
+			const gap = parseFloat(getComputedStyle(groups).columnGap) || 0;
+			const width = [...groups.children].reduce(
+				(sum, group, i) => sum + (i ? gap : 0) + group.getBoundingClientRect().width,
+				0
+			);
+			bodyWidths.set(id, width);
+			return true;
+		};
+
 		// Starts the panel's content under the first menu item's text, or further left where the widest
 		// section would not fit. All sections use the same start, so columns stay put when switching.
+		// The widest section is the `--sm-max-cols` columns the design allows. Where a font draws the links
+		// wider than that, it is the widest section opened so far, and the start moves when a wider one opens.
 		const alignPanel = () => {
 			const firstItem = row.querySelector<HTMLElement>('.sm__top');
 			const inner = panel.querySelector<HTMLElement>('.sm__one-in');
@@ -165,17 +187,25 @@ const pathname = Astro.url.pathname;
 			const styles = getComputedStyle(nav);
 			const colWidth = parseFloat(styles.getPropertyValue('--sm-col')) || 0;
 			const gutter = parseFloat(styles.getPropertyValue('--sm-gutter')) || 0;
-			const widestSection = maxCols * colWidth + (maxCols - 1) * gutter;
+			const designWidth = maxCols * colWidth + (maxCols - 1) * gutter;
 			const rightPadding = parseFloat(getComputedStyle(inner).paddingRight) || 0;
-			const maxStart = document.documentElement.clientWidth - rightPadding - widestSection;
-			panel.style.setProperty('--sm-col-x', `${Math.round(Math.min(itemTextLeft - inset, maxStart))}px`);
+			// The panel's own width, not `clientWidth`: that one is a whole number, and a zoomed page is a
+			// fraction wide.
+			const room = inner.getBoundingClientRect().width - 2 * rightPadding;
+			// A section too wide for the panel wraps wherever it starts, so it does not move the others.
+			const widestSection = Math.max(designWidth, ...[...bodyWidths.values()].filter((width) => width <= room));
+			// Rounded down: a fraction would take room from the widest section and wrap it.
+			const maxStart = Math.floor(room + rightPadding - widestSection);
+			// Never closer to the left edge than the panel's own padding: past that, the groups wrap.
+			const start = Math.max(rightPadding, Math.min(Math.round(itemTextLeft - inset), maxStart));
+			panel.style.setProperty('--sm-col-x', `${start}px`);
 		};
 
 		/** Runs once `to` is shown. `heightBefore` is the panel's height while it still showed `from`. */
 		const animateSwitch = (from: string, to: string, heightBefore: number) => {
 			if (!canAnimate()) return;
 			const { glideMs, glideEase } = panelTokens();
-			const next = panelSections.find((p) => p.dataset.smPanel === to);
+			const next = sectionOf(to);
 			const dir = triggerIndex(to) > triggerIndex(from) ? 1 : -1;
 			next?.getAnimations().forEach((a) => a.cancel());
 			next?.animate(
@@ -260,7 +290,8 @@ const pathname = Astro.url.pathname;
 			for (const t of triggers) t.setAttribute('aria-expanded', String(t.dataset.smTrigger === id));
 			for (const p of panelSections) p.hidden = p.dataset.smPanel !== id;
 			panel.hidden = false;
-			if (!switching) alignPanel();
+			const measured = noteBodyWidth(id);
+			if (!switching || measured) alignPanel();
 			header.setAttribute('data-sm-desktop-open', '');
 			placeUnderline(id, from === null);
 			if (switching && from !== null) animateSwitch(from, id, heightBefore);
@@ -547,9 +578,7 @@ const pathname = Astro.url.pathname;
 		const bodies = [...nav.querySelectorAll<HTMLElement>('[data-sm-body]')];
 		const placeBody = (id: string, inPanel: boolean) => {
 			const body = bodies.find((b) => b.dataset.smBody === id);
-			const target = inPanel
-				? panelSections.find((p) => p.dataset.smPanel === id)
-				: views.find((v) => v.dataset.smView === id);
+			const target = inPanel ? sectionOf(id) : views.find((v) => v.dataset.smView === id);
 			if (body && target && body.parentElement !== target) target.append(body);
 		};
 
@@ -927,7 +956,7 @@ const pathname = Astro.url.pathname;
 	}
 
 	// Logos need less than `--sm-col`. The room this saves keeps a section with logos beside grown text
-	// columns inside the width `alignPanel()` and `.sm__one-sec` reserve (`--sm-max-cols` × `--sm-col`).
+	// columns inside the width `alignPanel()` reserves (`--sm-max-cols` × `--sm-col`).
 	// Folded into lines (`perColumn`), the logos sit on equal tracks, as wide as the widest of them.
 	.sm__cols:has(.sm__link-logo) {
 		grid-auto-columns: minmax(max-content, 1fr);
@@ -1075,7 +1104,6 @@ const pathname = Astro.url.pathname;
 	.sm__link-heading {
 		@include type-nav-link;
 		transition: color 0.15s ease;
-
 	}
 
 	// The new-tab arrow sits after an external link's name, as in the footer.
@@ -1171,7 +1199,7 @@ const pathname = Astro.url.pathname;
 	// `background: none` beats the page background `landing.scss` gives every `<section>`.
 	.sm__one-sec {
 		width: fit-content;
-		max-width: min(100%, calc(var(--sm-max-cols) * var(--sm-col) + (var(--sm-max-cols) - 1) * var(--sm-gutter)));
+		max-width: 100%;
 		background: none;
 	}
 
