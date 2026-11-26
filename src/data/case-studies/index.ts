@@ -179,5 +179,7 @@ export const featuredCard: FeaturedCard = {
 	description: FEATURED_DESCRIPTION,
 	logo: featuredData.hero.logo,
 	logoAlt: featuredData.hero.logoAlt,
+	logoWidth: featuredData.hero.logoWidth,
+	logoHeight: featuredData.hero.logoHeight,
 	backgroundImage: featuredData.hero.backgroundImage,
 };
