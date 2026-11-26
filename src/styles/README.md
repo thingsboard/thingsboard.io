@@ -173,6 +173,10 @@ Use the `ui/Button.astro` component (`@components/ui/Button.astro`). Do not writ
 A page that needs a designed width sets a custom property on the button or any ancestor: `--btn-px` (side
 padding) or `--btn-min-w` (minimum width, e.g. `min(376px, 100%)`). `--btn-label` recolours a tertiary button.
 
+A primary button with a white fill (`--accent-fill: #fff`) also sets `--accent-shade` to a light tint of its
+label colour (`color-mix(in oklab, var(--accent-on-fill), white 65%)`): hover and press then tint the fill
+with it instead of black, and the label keeps 4.5:1.
+
 The button's margin and minimum width have no specificity (`:where(.ui-btn)`), so one class of the caller's
 is enough to change them. Padding, border and display still need `--btn-px` or a two-class selector.
 
