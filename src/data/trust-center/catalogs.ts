@@ -121,7 +121,7 @@ const CAT_DATA: CatalogRow[] = [
 			{ label: 'ThingsBoard Cloud', text: 'we delete your tenant after cancellation.' },
 			{
 				label: 'Private Cloud',
-				text: '60 days after cancellation, we permanently delete all backups and cluster data. GDPR erasure requests are completed within 30 days.',
+				text: 'required data may survive subscription termination for auditing. Within 60 days, we permanently delete backups and cluster data.',
 			},
 			{ label: 'On-premises', text: 'you control deletion.' },
 		],

@@ -112,7 +112,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
 			{
 				id: 'tb-private-cloud-where-will-my-data-be-hosted',
 				question: 'Where will my data be hosted?',
-				answer: `<p>During onboarding you pick the region that best fits compliance or latency needs (EU, North America, or APAC). All sites reside in ISO 27001/PCI-DSS-certified data centres.</p>`,
+				answer: `<p>During onboarding you pick the region that best fits compliance or latency needs (EU, North America, or APAC). We use cloud infrastructure from ISO 27001-certified providers.</p>`,
 			},
 			{
 				id: 'tb-private-cloud-how-can-i-get-my-data-in-line-with-gdpr-requirements',
@@ -121,9 +121,10 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
                             <p>Because the export is a raw DB dump, you retain 100% data fidelity and can immediately restore it in another PostgreSQL instance or transform it into any machine-readable format you need. We normally fulfill export requests within 5 business days, and—in line with GDPR—can also execute verified deletion of all tenant data within 30 days of your erase request.</p>`,
 			},
 			{
-				id: 'tb-private-cloud-is-your-private-cloud-service-gdpr-compliant',
-				question: 'Is your Private Cloud service GDPR-compliant?',
-				answer: `<p>Yes. You remain the sole Data Controller; ThingsBoard acts as a Data Processor under a standard DPA. Data never leaves the region you select, and you have the right to access, port or delete it at will.</p>`,
+				id: 'tb-private-cloud-who-owns-the-data',
+				question: 'With Private Cloud, who is the owner of the data?',
+				answer: `<p>You remain the sole Data Controller of the personal data, telemetry (which may include PII) or any other end-user or end-client data. ThingsBoard acts as a Data Processor under a standard DPA. Data never leaves the region you select, and you have the right to access, port or delete it at will.</p>
+                            <p>ThingsBoard’s controller role is limited to the scope of personal data we collect and keep about you.</p>`,
 			},
 			{
 				id: 'tb-private-cloud-will-i-have-a-sysadmin-user',
