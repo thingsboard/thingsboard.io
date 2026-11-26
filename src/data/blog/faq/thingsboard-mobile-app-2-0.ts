@@ -28,7 +28,7 @@ export const mobileApp20Faq: FaqCategory[] = [
 			{
 				id: 'where-to-download',
 				question: 'Where can I download the ThingsBoard mobile app?',
-				answer: `<p>ThingsBoard Cloud users can install the ThingsBoard Cloud app, built on ThingsBoard App 2.0, from <a href="https://play.google.com/store/apps/details?id=org.thingsboard.cloud">Google Play</a> or the <a href="https://apps.apple.com/us/app/thingsboard-cloud/id6499209395">App Store</a>. For your own ThingsBoard server, build the app from the <a href="${REPO}">source code</a> with your branding and publish it under your name; see <a href="${DOCS}/getting-started/">Getting started</a>.</p>`,
+				answer: `<p>ThingsBoard Cloud users can install the ThingsBoard Cloud app, built on ThingsBoard App 2.0, from <a href="https://play.google.com/store/apps/details?id=org.thingsboard.cloud">Google Play</a> or the <a href="https://apps.apple.com/us/app/thingsboard-cloud/id6499209395">App Store</a>. Users of your own ThingsBoard server can install the same app and sign in by scanning the QR code on the ThingsBoard Home page. To ship the app under your own brand, build it from the <a href="${REPO}">source code</a> and publish it under your name; see <a href="${DOCS}/getting-started/">Getting started</a>.</p>`,
 			},
 			{
 				id: 'why-one-app',
@@ -54,7 +54,7 @@ export const mobileApp20Faq: FaqCategory[] = [
 			{
 				id: 'signed-out-after-update',
 				question: 'Why do users have to sign in again after updating to 2.0?',
-				answer: `<p>App 2.0 moved its data to the platform secure storage: Keychain on iOS and Keystore-encrypted storage on Android. After an update from 1.x, users sign in once and choose their region or server again. This happens only once.</p>`,
+				answer: `<p>App 2.0 moved its data to the device's secure storage: Keychain on iOS and Keystore-encrypted storage on Android. After an update from 1.x, users sign in once and choose their region or server again. This happens only once.</p>`,
 			},
 			{
 				id: 'where-are-1x-releases',
