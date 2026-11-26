@@ -4,7 +4,6 @@ import type { AstroIntegration } from 'astro';
 import { defineConfig, passthroughImageService, sharpImageService } from 'astro/config';
 import { redirects } from './astro.redirects';
 import { sidebar } from './astro.sidebar';
-import { codeStylesFirst } from './config/integrations/code-styles-first';
 import { devServerFileWatcher } from './config/integrations/dev-server-file-watcher';
 import { imageGalleryLightbox } from './config/integrations/image-gallery-lightbox';
 import { llmsTxt } from './config/integrations/llms-txt';
@@ -221,7 +220,6 @@ export default defineConfig({
 		}),
 		sitemap(),
 		llmsTxt(),
-		codeStylesFirst(),
 	],
 	trailingSlash: 'always',
 	// Our CSS counts on scoped selectors adding no specificity (`:where(.astro-…)`), so keep it set.
