@@ -10,55 +10,130 @@ import { Icon } from 'astro-icon/components';
 import { newTabAttrs, NEW_TAB_NOTE } from '@util/external-links';
 import '@styles/ui-kit.scss';
 
-interface Props {
+type Common = {
 	variant?: 'primary' | 'secondary' | 'tertiary';
-	size?: 'xs' | 'sm' | 'md' | 'lg';
+	/** `xl` steps down to `lg` on a phone. */
+	size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 	/** A tabler icon name, before the label. */
 	icon?: string;
-	href?: string;
-	/** Opens in a new tab, with the up-right arrow and a screen-reader note. */
-	external?: boolean;
-	type?: 'button' | 'submit';
+	/** A tabler icon name, after the label. */
+	iconEnd?: string;
 	weight?: 'bold' | 'regular';
+	/** Fills its container's width. */
+	fullWidth?: boolean;
+	/** Lets a long label wrap; the button grows taller and the trailing icon stays with the last word. */
+	wrap?: boolean;
 	/** Visually hidden text after the label. */
 	srSuffix?: string;
 	class?: string;
-	attrs?: Record<string, string | undefined>;
-}
+	attrs?: Record<string, string | boolean | undefined>;
+};
+
+type LinkProps = {
+	href: string;
+	/** Opens in a new tab, with the up-right arrow and a screen-reader note. */
+	external?: boolean;
+	type?: never;
+	disabled?: never;
+};
+
+type ButtonProps = {
+	href?: undefined;
+	external?: never;
+	type?: 'button' | 'submit';
+	disabled?: boolean;
+};
+
+type Props = Common & (LinkProps | ButtonProps);
 
 const {
 	variant = 'primary',
 	size = 'md',
 	icon,
+	iconEnd,
 	href,
 	external = false,
 	type = 'button',
+	disabled = false,
 	weight = 'bold',
+	fullWidth = false,
+	wrap = false,
 	srSuffix,
 	class: className,
 	attrs = {},
 } = Astro.props;
 
+// `target` and `rel` are written once: a native element would emit a spread duplicate twice.
+const { target, rel, 'aria-label': label, ...rest } = attrs;
+// Only `external` adds the arrow and the note. A bare `attrs.target` passes through, for a link a script
+// takes over: the Cloud sign-up buttons open a dialog.
+const newTab = href !== undefined && external;
+const opensTab = newTab || target === '_blank';
 const Tag = href === undefined ? 'button' : 'a';
-const element = Tag === 'button' ? { type } : { href, ...newTabAttrs(external) };
+const link = opensTab ? newTabAttrs(true) : { target, rel };
+// An `aria-label` replaces the content as the name, so the note goes into it.
+const element: Props['attrs'] = {
+	...(href === undefined ? { type, disabled } : { href, ...link }),
+	'aria-label': typeof label === 'string' && newTab ? label + NEW_TAB_NOTE : label,
+};
+
+// A wrapping label is rendered as text: its last word goes with the trailing icons. Markup is left whole.
+const text = wrap && Astro.slots.has('default') ? (await Astro.slots.render('default')).trim() : null;
+const split = text !== null && !text.includes('<') ? text.lastIndexOf(' ') + 1 : null;
+const head = text !== null && split !== null ? text.slice(0, split) : text;
+const lastWord = text !== null && split !== null ? text.slice(split) : '';
 ---
 
 <Tag
-	class:list={['ui-btn', `ui-btn--${variant}`, `ui-btn--${size}`, weight === 'regular' && 'ui-btn--regular', className]}
+	class:list={[
+		'ui-btn',
+		`ui-btn--${variant}`,
+		`ui-btn--${size}`,
+		weight === 'regular' && 'ui-btn--regular',
+		fullWidth && 'ui-btn--block',
+		wrap && 'ui-btn--wrap',
+		className,
+	]}
 	{...element}
-	{...attrs}
+	{...rest}
 >
-	{icon && <Icon name={icon} class="ui-btn__icon" aria-hidden="true" />}
-	<slot />
+	{
+		// One expression per branch, so no template whitespace falls between the words and the icons.
+		text === null ? (
+			[
+				icon && <Icon name={icon} class="ui-btn__icon" aria-hidden="true" />,
+				<slot />,
+				iconEnd && <Icon name={iconEnd} class="ui-btn__icon" aria-hidden="true" />,
+				newTab && <Icon name="tabler:arrow-up-right" class="ui-btn__icon" aria-hidden="true" />,
+			]
+		) : (
+			<span class="ui-btn__text">
+				{[
+					icon && <Icon name={icon} class="ui-btn__icon" aria-hidden="true" />,
+					<Fragment set:html={head} />,
+					<span class="ui-btn__tail">
+						{[
+							<Fragment set:html={lastWord} />,
+							iconEnd && <Icon name={iconEnd} class="ui-btn__icon" aria-hidden="true" />,
+							newTab && <Icon name="tabler:arrow-up-right" class="ui-btn__icon" aria-hidden="true" />,
+						]}
+					</span>,
+				]}
+			</span>
+		)
+	}
 	{srSuffix && <span class="ui-sr"> {srSuffix}</span>}
-	{external && <Icon name="tabler:arrow-up-right" class="ui-btn__icon" aria-hidden="true" />}
-	{external && <span class="ui-sr">{NEW_TAB_NOTE}</span>}
+	{newTab && <span class="ui-sr">{NEW_TAB_NOTE}</span>}
 </Tag>
 
 <style is:global lang="scss">
 	@use 'sass:map';
 	@use '../../styles/variables' as *;
 	@use '../../styles/button' as *;
+
+	:where(.ui-btn) {
+		@include ui-button-layout;
+	}
 
 	.ui-btn {
 		@include ui-button-base;
@@ -88,6 +163,40 @@ const element = Tag === 'button' ? { type } : { href, ...newTabAttrs(external) }
 
 	.ui-btn--regular {
 		font-weight: $font-weight-normal;
+	}
+
+	.ui-btn--block {
+		width: 100%;
+	}
+
+	// Text, not a flex row, so the icons sit inline next to the words.
+	.ui-btn--wrap {
+		padding-block: $spacing-2;
+		white-space: normal;
+		text-align: center;
+		// Evens out the lines of a two-line label.
+		text-wrap: balance;
+
+		.ui-btn__icon {
+			display: inline-block;
+			margin-inline-end: var(--_gap);
+			vertical-align: -0.25em;
+		}
+
+		.ui-btn__tail {
+			white-space: nowrap;
+
+			.ui-btn__icon {
+				margin-inline: var(--_gap) 0;
+			}
+		}
+	}
+
+	// On a phone `xl` takes the `lg` metrics.
+	@include media-down(sm) {
+		.ui-btn--xl {
+			@include ui-button-size(lg);
+		}
 	}
 
 	// After the variant rules, so this border color overrides theirs.
