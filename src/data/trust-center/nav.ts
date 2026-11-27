@@ -2,7 +2,7 @@
 
 const TC_ROOT = '/trust-center/';
 
-/** `tc('compliance/gdpr')` → `/trust-center/compliance/gdpr/`; `tc()` is the hub. */
+/** `tc('compliance/iso-27001')` → `/trust-center/compliance/iso-27001/`; `tc()` is the hub. */
 export const tc = (path = ''): string => (path ? `${TC_ROOT}${path.replace(/^\/|\/$/g, '')}/` : TC_ROOT);
 
 /** The contact page, prefilled with a topic. */
@@ -30,6 +30,7 @@ export const TC_OWNER = {
 
 export const SECURITY_EMAIL = 'security@thingsboard.io';
 export const IMS_EMAIL = 'ims@thingsboard.io';
+export const PRIVACY_EMAIL = 'privacy@thingsboard.io';
 export const DPA_HREF = '/products/paas/dpa/';
 export const PRIVACY_POLICY_HREF = '/products/paas/privacy-policy/';
 export const TERMS_OF_USE_HREF = '/products/paas/terms-of-use/';

@@ -16,7 +16,7 @@ const tile = (path: string, points: string[], title?: string) => {
 };
 
 export const TILES = [
-	tile('compliance', ['ISO/IEC 27001:2022 — certified', 'ISO 9001:2015 — certified', 'GDPR and CCPA, self-declared']),
+	tile('compliance', ['ISO/IEC 27001:2022 — certified', 'ISO 9001:2015 — certified', 'Annual surveillance audits']),
 	tile('data', [
 		'Tenant isolation by architecture',
 		'Encrypted in transit with TLS',

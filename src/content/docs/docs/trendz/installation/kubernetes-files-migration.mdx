@@ -1,0 +1,155 @@
+---
+title: "Migrate Trendz Kubernetes files from 1.16.1 or earlier"
+description: "Move a Trendz Kubernetes installation from the trendz-k8s files of 1.16.1 or earlier to the files of 1.16.1.1 and later."
+sidebar:
+  label: "Old Kubernetes files migration"
+---
+import DocLink from '@components/DocLink.astro';
+import { Aside, Code, Steps } from '@astrojs/starlight/components';
+import { Products } from '@models/site.models';
+import {
+  TRENDZ_K8S_CONFIG_APPLY_CMDS,
+  TRENDZ_K8S_NAMESPACE_APPLY_CMD,
+  TRENDZ_UPGRADE_VERSIONS,
+  getTrendzFamilySlug,
+} from '@models/trendz-upgrade-instructions';
+
+export const latest = TRENDZ_UPGRADE_VERSIONS[0];
+export const latestUpgradePath = `installation/upgrade-instructions/kubernetes/${getTrendzFamilySlug(latest.family)}`;
+
+This guide moves a Trendz Kubernetes installation to the files that the
+<a href="https://github.com/thingsboard/trendz-k8s" target="_blank">trendz-k8s</a> repository ships from Trendz 1.16.1.1.
+
+## Who needs this guide
+
+You need this guide if your cluster still has the ConfigMap `trendz-app-db-config`, that is, it runs on the files of
+Trendz 1.16.1 or earlier:
+
+```bash
+kubectl -n trendz get configmap trendz-app-db-config
+```
+
+If the command prints the ConfigMap, follow this guide, even if your local folder already holds the new files. If it
+prints `NotFound`, your installation already uses the new files: follow the
+<DocLink product={Products.TRENDZ} path="installation/upgrade-instructions">upgrade instructions</DocLink> instead.
+
+## Before you start
+
+Follow <DocLink product={Products.TRENDZ} path={`${latestUpgradePath}#prepare-for-upgrading-trendz-analytics`}>Prepare for upgrading Trendz Analytics</DocLink>:
+connect to your cluster and back up the database. Skip its "Obtain Trendz Kubernetes scripts": step 1 below clones the new files.
+
+## What changes
+
+The new files differ in these ways:
+
+- Trendz runs as user `799`, not as root. The Python Executor already ran as a non-root user.
+- The database connection is in the Secret `trendz-db-app-secret`, not in the ConfigMap `trendz-app-db-config`.
+- Trendz and the Python Executor share a secret, kept in the Secret `trendz-python-executor-secret`.
+- Each service has two ConfigMaps: one for environment variables (`*-env-config`) and one for mounted files
+  (`*-files-config`).
+- Trendz is the StatefulSet `trendz-app` (pods `trendz-app-0`, `trendz-app-1`, ...), not the Deployment
+  `trendz-app-deployment`. Each pod keeps its own license file, `/data/license-<pod name>.data`, and the stable pod
+  names keep it on that file across restarts.
+- `/data` of all Trendz pods is the ReadWriteMany volume `trendz-app-shared-pvc`, not the ReadWriteOnce `trendz-app-pvc`.
+- Valkey (`trendz-cache-deployment.yml`) holds the cache shared by Trendz replicas.
+- A network policy lets only Trendz call the Python Executor and blocks all outbound traffic from the executor.
+
+Your cluster needs a ReadWriteMany storage class (NFS, EFS, Azure Files, CephFS) for `trendz-app-shared-pvc`. All
+Trendz pods share this volume, so a ReadWriteOnce class does not work. If the cluster has no such class, install a
+provisioner for one first, for example the NFS or EFS CSI driver.
+
+## Migration steps
+
+<Steps>
+
+1. **Clone the new files next to your old folder.** From the folder that contains your old `trendz-k8s` folder:
+
+   ```bash
+   git clone https://github.com/thingsboard/trendz-k8s.git --depth 1 trendz-k8s-new
+   cd trendz-k8s-new
+   ```
+
+   The `master` branch holds the files of the latest Trendz release. Run all later commands, here and in the upgrade
+   instructions, in `trendz-k8s-new`: it is your `trendz-k8s` folder from now on.
+
+2. **Copy your values from the old files** in `../trendz-k8s`:
+
+   | Old file | Values | New file |
+   |---|---|---|
+   | `trendz-app-db-config.yml` | `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` | `trendz-db-app-secret.yml` |
+   | `trendz-app-deployment.yml` | `TB_API_URL`, `TRENDZ_LICENSE_SECRET`, `JWT_TOKEN_SIGNING_KEY` | `trendz-app-statefulset.yml` |
+   | `trendz-app-config.yml` | your changes to `trendz.conf` and `logback.xml` | `trendz-app-files-config.yml` |
+   | `trendz-python-executor-config.yml` | the Python libraries you added to `requirements.txt`, your changes to `python-executor.conf` and `logback.xml` | `trendz-python-executor-files-config.yml` |
+   | `trendz-ingress.yml` | your host, TLS and annotations | `trendz-ingress.yml` |
+
+   If you no longer have the old folder, read the values from the cluster. It keeps the old objects until step 7:
+
+   ```bash
+   kubectl -n trendz get configmap trendz-app-db-config trendz-app-config trendz-python-executor-config -o yaml
+   kubectl -n trendz get deployment trendz-app-deployment trendz-python-executor-deployment -o yaml
+   ```
+
+   Tuning values (heap, timeouts, CPU and memory) are in `trendz-app-env-config.yml`,
+   `trendz-python-executor-env-config.yml`, `trendz-app-statefulset.yml` and `trendz-python-executor-deployment.yml`.
+   Carry over the ones you changed. The other keys of the old ConfigMaps are no longer used.
+
+   Then set the values the old files did not have:
+
+   - `trendz-python-executor-secret.yml`: replace `placeholder` with a long random value, for example from
+     `openssl rand -hex 32`.
+   - `trendz-app-shared-pvc.yml`: set `storageClassName` to your ReadWriteMany storage class.
+
+   To keep passwords out of the files, you can create the two Secrets with `kubectl create secret` instead, as the
+   comment in `trendz-db-app-secret.yml` shows, and skip applying those files in the next step.
+
+   <Aside type="caution">
+   The network policy blocks all outbound traffic from the Python Executor. Python scripts that call external
+   services stop working. To allow them, add `egress` rules to `trendz-python-executor-network-policy.yml` before you
+   apply it.
+   </Aside>
+
+   If you added Python libraries, the executor installs them only with `INSTALL_PYTHON_DEPS_ON_STARTUP` set to
+   `true` and outbound access to PyPI. See
+   <DocLink product={Products.TRENDZ} path="installation/python-executor-configuration#add-custom-python-libraries">Add custom Python libraries</DocLink>.
+
+3. **Apply the new configuration.** Trendz keeps running; the network policy applies to the running Python Executor at
+   once. If you created the two Secrets from the command line, leave out the line that applies their files:
+
+   <Code code={`${TRENDZ_K8S_NAMESPACE_APPLY_CMD}\n${TRENDZ_K8S_CONFIG_APPLY_CMDS}`} lang="bash" />
+
+4. **Stop Trendz.** Delete the Deployment; the StatefulSet replaces it in step 6:
+
+   ```bash
+   kubectl -n trendz delete deployment trendz-app-deployment
+   kubectl -n trendz wait --for=delete pod -l app=trendz-app-pod-label --timeout=180s
+   ```
+
+5. **Move the license file to the new volume.** A temporary pod copies `license.data` from `trendz-app-pvc` to
+   `trendz-app-shared-pvc` as `license-trendz-app-0.data`, gives it to user `799` and lists both volumes. It runs as
+   root because the old volume holds files owned by root:
+
+   ```bash
+   kubectl -n trendz run trendz-license-move --rm -i --restart=Never --image=busybox:1.37 --overrides='{"spec":{"containers":[{"name":"move","image":"busybox:1.37","command":["sh","-c","if [ -f /old/license.data ] && [ ! -f /data/license-trendz-app-0.data ]; then cp /old/license.data /data/license-trendz-app-0.data && chown 799:799 /data/license-trendz-app-0.data; fi; ls -lnA /old /data"],"volumeMounts":[{"name":"old","mountPath":"/old"},{"name":"data","mountPath":"/data"}]}],"volumes":[{"name":"old","persistentVolumeClaim":{"claimName":"trendz-app-pvc"}},{"name":"data","persistentVolumeClaim":{"claimName":"trendz-app-shared-pvc"}}]}}'
+   ```
+
+   Trendz keeps its data in the database. On the old volume it keeps only the license file, the `.firstlaunch`
+   marker and heap dumps. Step 7 deletes that volume: if the list of `/old` shows anything else you want to keep,
+   copy it first.
+
+   Without `license.data` nothing is copied. The command never overwrites an existing `license-trendz-app-0.data`, so
+   you can run it again. If it does not finish, check `kubectl -n trendz describe pod trendz-license-move`: a Pending
+   volume usually means a wrong `storageClassName`.
+
+6. **Upgrade Trendz.** Open the
+   <DocLink product={Products.TRENDZ} path={`${latestUpgradePath}#${latest.anchor}`}>Kubernetes upgrade instructions for {latest.displayVersion}</DocLink>
+   and follow the steps for your current version. Skip "Update the Kubernetes files", and skip "Stop Trendz" if your
+   version has it: you did both here. Come back here when the new Trendz pod is running.
+
+7. **Remove the replaced objects:**
+
+   ```bash
+   kubectl -n trendz delete pvc trendz-app-pvc
+   kubectl -n trendz delete configmap trendz-app-config trendz-app-db-config trendz-python-executor-config
+   ```
+
+</Steps>

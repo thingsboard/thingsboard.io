@@ -9,7 +9,7 @@ import { isIndexableCanonical, readPageHead } from '../indexable-page';
  * Writes `/llms.txt`, one `llms.txt` per product at its docs home, and one per large section of a
  * `splitSections` product, after the build. The pages are the sitemap's (indexable, self-canonical,
  * see `config/indexable-page.ts`); titles and descriptions come from the built `<head>`.
- * `SKIP_LLMS=true` (the linkcheck build) skips it.
+ * The linkcheck build writes them too, since pages link to `/llms.txt`.
  */
 export function llmsTxt(): AstroIntegration {
 	let site: URL;
@@ -21,9 +21,9 @@ export function llmsTxt(): AstroIntegration {
 				site = new URL(config.site);
 			},
 			'astro:build:done': ({ dir, pages, logger }) => {
-				if (process.env.SKIP_LLMS) return;
 				const outDir = fileURLToPath(dir);
 				const entries = collectEntries(outDir, site, pages);
+				checkTrustCenterPages(outDir, site);
 				const files = renderFiles(entries);
 				for (const [path, body] of files) {
 					const target = join(outDir, path);
@@ -159,11 +159,17 @@ const SECTION_WORDS: Record<string, string> = {
 /** Sections listed first, in this order; the rest follow alphabetically. */
 const SECTION_ORDER = ['', 'getting-started', 'concepts', 'user-guide', 'installation'];
 
+interface CuratedPage {
+	path: string;
+	title: string;
+	description: string;
+}
+
 /**
  * Curated pages for `/llms.txt`. Each must be in the catalog, or the build fails —
  * that is what keeps a renamed or deleted page from being advertised.
  */
-const KEY_PAGES: { path: string; title: string; description: string }[] = [
+const KEY_PAGES: CuratedPage[] = [
 	{
 		path: '/docs/pe/',
 		title: 'ThingsBoard — Documentation home',
@@ -245,6 +251,66 @@ const KEY_PAGES: { path: string; title: string; description: string }[] = [
 		description: 'Protocol bridge for industrial devices (OPC-UA, Modbus, BACnet, BLE, and more).',
 	},
 ];
+
+/**
+ * Trust Center pages for `/llms.txt`. Not docs pages, so `KEY_PAGES` can't hold them; each must be
+ * built, indexable and self-canonical, or the build fails.
+ */
+const TRUST_CENTER_PAGES: CuratedPage[] = [
+	{
+		path: '/trust-center/',
+		title: 'Trust Center',
+		description: 'Security, compliance and privacy at ThingsBoard.',
+	},
+	{
+		path: '/trust-center/compliance/',
+		title: 'Compliance',
+		description: 'ISO/IEC 27001:2022 and ISO 9001:2015 certificates: scope, certification body and validity.',
+	},
+	{
+		path: '/trust-center/compliance/iso-27001/',
+		title: 'ISO/IEC 27001:2022',
+		description: 'The certificate, what it covers and how long it is valid.',
+	},
+	{
+		path: '/trust-center/compliance/iso-9001/',
+		title: 'ISO 9001:2015',
+		description: 'The quality management certificate and how long it is valid.',
+	},
+	{
+		path: '/trust-center/cloud/',
+		title: 'ThingsBoard Cloud and Private Cloud',
+		description: 'Hosting, data regions, isolation, backups and uptime.',
+	},
+	{
+		path: '/trust-center/subprocessors/',
+		title: 'Sub-processors',
+		description: 'Vendors that process customer data.',
+	},
+	{
+		path: '/trust-center/report-vulnerability/',
+		title: 'Report a vulnerability',
+		description: 'How to report a security issue privately.',
+	},
+];
+
+function checkTrustCenterPages(outDir: string, site: URL): void {
+	const missing = TRUST_CENTER_PAGES.filter(({ path }) => {
+		const head = readPageHead(outDir, path);
+		return head === null || !isIndexableCanonical(head, new URL(path, site).href);
+	});
+	if (missing.length > 0) throw notIndexable('Trust Center pages are not indexable pages', missing);
+}
+
+function notIndexable(what: string, pages: CuratedPage[]): Error {
+	return new Error(
+		`llms.txt ${what} (deleted, renamed, noindex, or canonical elsewhere): ${pages.map((p) => p.path).join(', ')}`
+	);
+}
+
+function renderCurated(pages: CuratedPage[]): string {
+	return pages.map((p) => `- [${p.title}](${PROD_ORIGIN}${p.path}): ${p.description}`).join('\n');
+}
 
 const OPTIONAL_LINKS = [
 	{
@@ -424,13 +490,7 @@ function renderSection(heading: string, entries: Entry[]): string {
 function renderIndex(entries: Entry[], productLinks: string[]): string {
 	const byPath = new Set(entries.map((e) => e.pathname));
 	const missing = KEY_PAGES.filter((p) => !byPath.has(p.path));
-	if (missing.length > 0) {
-		throw new Error(
-			`llms.txt key pages are not indexable docs pages (deleted, renamed, noindex, or canonical elsewhere): ${missing
-				.map((p) => p.path)
-				.join(', ')}`
-		);
-	}
+	if (missing.length > 0) throw notIndexable('key pages are not indexable docs pages', missing);
 
 	const parts = [
 		'# ThingsBoard',
@@ -445,7 +505,9 @@ function renderIndex(entries: Entry[], productLinks: string[]): string {
 			'- Additional products: IoT Gateway (protocol bridge for industrial devices), Trendz Analytics (AI-driven analytics), Mobile SDK, License Server. The TBMQ MQTT broker is documented separately at https://tbmq.io.',
 		].join('\n'),
 		'## Key pages',
-		KEY_PAGES.map((p) => `- [${p.title}](${PROD_ORIGIN}${p.path}): ${p.description}`).join('\n'),
+		renderCurated(KEY_PAGES),
+		'## Trust Center',
+		renderCurated(TRUST_CENTER_PAGES),
 		'## Documentation Sets',
 		'Each product has its own llms.txt listing every page of its documentation.',
 		productLinks.join('\n'),

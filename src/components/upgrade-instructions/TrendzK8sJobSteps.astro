@@ -1,5 +1,7 @@
 ---
 import { Code } from '@astrojs/starlight/components';
+import { TRENDZ_NON_ROOT_FROM_VER } from '@data/versions';
+import { versionAtLeast } from '@models/upgrade-shared';
 
 interface Props {
 	version: string;
@@ -7,7 +9,21 @@ interface Props {
 
 const { version } = Astro.props;
 
-// The image reads the current version from the database; the Deployment never runs the upgrade itself
+// From TRENDZ_NON_ROOT_FROM_VER, trendz-k8s keeps the database connection in a Secret and splits the ConfigMaps
+const newFiles = versionAtLeast(version, TRENDZ_NON_ROOT_FROM_VER);
+const envFrom = newFiles
+	? `            - configMapRef:
+                name: trendz-app-env-config
+            - secretRef:
+                name: trendz-db-app-secret`
+	: `            - configMapRef:
+                name: trendz-app-db-config`;
+const filesConfig = newFiles ? 'trendz-app-files-config' : 'trendz-app-config';
+// From TRENDZ_NON_ROOT_FROM_VER, Trendz is the StatefulSet trendz-app: each pod keeps its own license file
+const appFile = newFiles ? 'trendz-app-statefulset.yml' : 'trendz-app-deployment.yml';
+const appObject = newFiles ? 'statefulset trendz-app' : 'deployment trendz-app-deployment';
+
+// The image reads the current version from the database; the Trendz pods never run the upgrade themselves
 const k8sUpgradeJob = `apiVersion: batch/v1
 kind: Job
 metadata:
@@ -25,51 +41,57 @@ spec:
             - name: UPGRADE_TRENDZ
               value: "true"
           envFrom:
-            - configMapRef:
-                name: trendz-app-db-config
+${envFrom}
           volumeMounts:
-            - name: trendz-app-config
+            - name: ${filesConfig}
               mountPath: /trendz-config-files
       volumes:
-        - name: trendz-app-config
+        - name: ${filesConfig}
           configMap:
-            name: trendz-app-config
+            name: ${filesConfig}
             items:
               - key: trendz.conf
                 path: trendz.conf
               - key: logback.xml
                 path: logback.xml`;
-const k8sJobLogOutput =
-	'Start upgrading Trendz from version …\n…\nCurrent version is …, upgrade is not needed.';
+const k8sJobLogOutput = newFiles
+	? 'Starting Trendz installation ...\n…\nTrendz upgrade triggered\n…\nStart upgrading Trendz from version …\n…\nTrendz upgrade from ENV completed. Stopping as requested.'
+	: 'Start upgrading Trendz from version …\n…\nCurrent version is …, upgrade is not needed.';
 ---
 
 <h3>Update image versions</h3>
 <p>Set the image versions to <strong>{version}</strong>. Do not apply the files yet.</p>
 <ul>
-	<li><code>trendz-app-deployment.yml</code>: <code>thingsboard/trendz:{version}</code></li>
+	<li><code>{appFile}</code>: <code>thingsboard/trendz:{version}</code></li>
 	<li><code>trendz-python-executor-deployment.yml</code>: <code>thingsboard/trendz-python-executor:{version}</code></li>
 </ul>
 
 <h3>Stop Trendz</h3>
-<Code code={`kubectl scale deployment trendz-app-deployment --replicas=0\nkubectl wait --for=delete pod -l app=trendz-app-pod-label --timeout=120s`} lang="bash" />
+<Code code={`kubectl scale ${appObject} --replicas=0\nkubectl wait --for=delete pod -l app=trendz-app-pod-label --timeout=120s`} lang="bash" />
 <p>If the pods are already gone, <code>kubectl wait</code> may print <code>no matching resources found</code>. This is expected.</p>
 
 <h3>Create the upgrade job</h3>
 <Code code={k8sUpgradeJob} lang="yaml" title="trendz-upgrade.yml" meta="download='trendz-upgrade.yml'" />
-<p>The ConfigMap names, keys and namespace must match your <code>trendz-app-deployment.yml</code>. Installations created before 1.15 use the keys <code>conf</code> and <code>logback</code>.</p>
+{newFiles ? (
+	<p>The ConfigMap and Secret names and the namespace must match your <code>{appFile}</code>.</p>
+) : (
+	<p>The ConfigMap names, keys and namespace must match your <code>{appFile}</code>. Installations created before 1.15 use the keys <code>conf</code> and <code>logback</code>.</p>
+)}
 
 <h3>Run the upgrade job</h3>
 <Code code={`kubectl apply -f trendz-upgrade.yml\nkubectl wait --for=condition=complete job/trendz-upgrade --timeout=900s`} lang="bash" />
+<p>The job does not retry. If the wait does not return, check the job log for the error (see the next step).</p>
 
 <h3>Verify the upgrade</h3>
 <Code code="kubectl logs job/trendz-upgrade" lang="bash" />
 <p>Expected output:</p>
 <Code code={k8sJobLogOutput} lang="text" />
+{newFiles && <p>The job does not mount <code>/data</code>, so it first runs the installation check. It finds the existing database and installs nothing.</p>}
 
 <h3>Delete the job</h3>
 <Code code="kubectl delete job trendz-upgrade" lang="bash" />
 
 <h3>Start Trendz</h3>
-<Code code={`kubectl apply -f trendz-python-executor-deployment.yml\nkubectl apply -f trendz-app-deployment.yml`} lang="bash" />
+<Code code={`kubectl apply -f trendz-python-executor-deployment.yml\nkubectl apply -f ${appFile}`} lang="bash" />
 <p>If you run more than one pod, restore the replica count:</p>
-<Code code="kubectl scale deployment trendz-app-deployment --replicas=<pod-count>" lang="bash" />
+<Code code={`kubectl scale ${appObject} --replicas=<pod-count>`} lang="bash" />

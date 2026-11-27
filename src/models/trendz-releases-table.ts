@@ -32,28 +32,21 @@ export function familySlug(family: string): string {
 	return `v${family.replace(/\./g, '-')}-x`;
 }
 
-/**
- * Compute a GFM-compatible heading anchor slug from a heading text string.
- * e.g. "v1.15.0.4 (Feb 9, 2026)" → "v11504-feb-9-2026"
- */
-export function patchSlug(version: string, date: string): string {
-	return `${version} (${date})`
-		.toLowerCase()
-		.replace(/[^a-z0-9\s-]/g, '')
-		.replace(/\s+/g, '-');
-}
-
 /** Trendz release families, newest first */
 export const TRENDZ_RELEASE_FAMILIES: TrendzReleaseFamily[] = [
 	{
 		family: '1.16',
 		lts: true,
 		releaseDate: 'Sep 30 2026',
-		latestPatch: 'v1.16.1',
-		latestPatchDate: 'Nov 2 2026',
+		latestPatch: 'v1.16.1.3',
+		latestPatchDate: 'Nov 23 2026',
 		highlights: 'Prediction Intents, Vibration Analysis',
 		patches: [
+			{ version: 'v1.16.1.3', date: 'Nov 23, 2026' },
+			{ version: 'v1.16.1.2', date: 'Nov 19, 2026' },
+			{ version: 'v1.16.1.1', date: 'Nov 18, 2026' },
 			{ version: 'v1.16.1', date: 'Nov 2, 2026' },
+			{ version: 'v1.16.0.2', date: 'Nov 23, 2026' },
 			{ version: 'v1.16.0.1', date: 'Oct 14, 2026' },
 			{ version: 'v1.16.0', date: 'Sep 30, 2026' },
 		],

@@ -23,11 +23,24 @@ export class IssueType {
 	readonly title: string;
 	readonly prefix: string;
 	readonly sortOrder: number;
+	/** A warning is printed but does not fail the run. */
+	readonly severity: 'error' | 'warning';
 
-	constructor({ title, prefix, sortOrder }: { title: string; prefix: string; sortOrder: number }) {
+	constructor({
+		title,
+		prefix,
+		sortOrder,
+		severity = 'error',
+	}: {
+		title: string;
+		prefix: string;
+		sortOrder: number;
+		severity?: 'error' | 'warning';
+	}) {
 		this.title = title;
 		this.prefix = prefix;
 		this.sortOrder = sortOrder;
+		this.severity = severity;
 	}
 
 	/**

@@ -7,7 +7,7 @@
  */
 
 /** Community Edition */
-export const CE_FULL_VER = '4.3.1.8';
+export const CE_FULL_VER = '4.3.1.9';
 
 /**
  * First release line that ships under the source-available license, as stated in
@@ -21,6 +21,12 @@ export const SOURCE_AVAILABLE_FROM_VER = '4.4';
  * A policy boundary, not a release pointer — it does not move with each release.
  */
 export const COMMUNITY_GRANT_FROM_VER = '4.3.1.6';
+
+/**
+ * First release whose installation packages, Docker images and jars come with an SBOM.
+ * A policy boundary, not a release pointer — it does not move with each release.
+ */
+export const SBOM_FROM_VER = '4.4.1';
 
 /** Day the relicensing is announced — the date every Community Grant is measured against. */
 export const SOURCE_AVAILABLE_ANNOUNCEMENT_DATE = '2026-09-29';
@@ -58,7 +64,7 @@ export const CE_BRANCH = 'release-4.3';
  * names and plain version tags (no `tb-pe-` prefix, no `PE` suffix). Historical
  * upgrade steps below 4.4 build the old names themselves.
  */
-export const PE_FULL_VER = '4.4.0.2';
+export const PE_FULL_VER = '4.4.1';
 
 /**
  * Package filename and GitHub release-tag version — {@link PE_FULL_VER} with the
@@ -79,13 +85,19 @@ export const PE_RELEASE_URL = `https://github.com/thingsboard/thingsboard/releas
 export const PE_BRANCH = 'release-4.4';
 
 /** Trendz Analytics */
-export const TRENDZ_VER = '1.16.1';
+export const TRENDZ_VER = '1.16.1.3';
+
+/**
+ * First Trendz release whose Docker image runs as uid 799 instead of root.
+ * A policy boundary, not a release pointer — it does not move with each release.
+ */
+export const TRENDZ_NON_ROOT_FROM_VER = '1.16.1.1';
 
 /** Remote Agent — Docker image tag for `thingsboard/tb-remote-agent:${AGENT_VER}`. */
-export const AGENT_VER = '1.0.0';
+export const AGENT_VER = '1.0.4';
 
 /** Edge */
-export const EDGE_VER = '4.3.1.8';
+export const EDGE_VER = '4.3.1.9';
 
 /**
  * Edge package filename / download-tag version — {@link EDGE_VER} with the GA
@@ -103,7 +115,7 @@ export const EDGE_BRANCH = 'release-4.3';
  * (`EDGE_PE_IMAGE`, `edgePePkgUrl()`, `EDGE_PE_COMPOSE_CLONE`, ...), since they depend on whether
  * the release predates {@link EDGE_NEUTRAL_NAMES_FROM_VER}.
  */
-export const EDGE_PE_FULL_VER = '4.4.0.2';
+export const EDGE_PE_FULL_VER = '4.4.1';
 
 /**
  * First Edge release published under CE-style names: `thingsboard/tb-edge` images tagged
@@ -120,17 +132,11 @@ export const EDGE_NEUTRAL_NAMES_FROM_VER = '4.4';
 export const EDGE_PE_BRANCH = 'release-4.4';
 
 /**
- * Dart ThingsBoard API Client — latest pub.dev version of `thingsboard_ce_client` and
- * `thingsboard_pe_client`. Patch releases don't raise the minimum server version,
+ * Dart ThingsBoard API Client — latest pub.dev version of `thingsboard_client`, the single client for
+ * ThingsBoard and ThingsBoard Cloud since 5.0.0. Patch releases don't raise the minimum server version,
  * see {@link DART_CLIENT_MIN_SERVER_VER}.
  */
-export const DART_CLIENT_VER = {
-	ce: '4.3.0',
-	pe: '4.4.1',
-} as const;
+export const DART_CLIENT_VER = '5.0.0';
 
-/** Must match `tbMinServerVersion` in each Dart client package */
-export const DART_CLIENT_MIN_SERVER_VER = {
-	ce: '4.3.0',
-	pe: '4.4.0',
-} as const;
+/** Must match `tbMinServerVersion` in the Dart client package */
+export const DART_CLIENT_MIN_SERVER_VER = '4.4.0';

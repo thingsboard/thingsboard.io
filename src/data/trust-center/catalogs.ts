@@ -1,3 +1,5 @@
+import { SBOM_FROM_VER } from '@data/versions';
+
 /** The four security topic pages' rows, and Commitments' (`Catalog` renders them). */
 
 /** A line of a row's list, opening on a label: a protocol, or a deployment (which takes its icon). */
@@ -119,7 +121,7 @@ const CAT_DATA: CatalogRow[] = [
 			{ label: 'ThingsBoard Cloud', text: 'we delete your tenant after cancellation.' },
 			{
 				label: 'Private Cloud',
-				text: '60 days after cancellation, we permanently delete all backups and cluster data. GDPR erasure requests are completed within 30 days.',
+				text: 'required data may survive subscription termination for auditing. Within 60 days, we permanently delete backups and cluster data.',
 			},
 			{ label: 'On-premises', text: 'you control deletion.' },
 		],
@@ -202,6 +204,11 @@ const CAT_APPSEC: CatalogRow[] = [
 	{
 		title: 'Container scanning',
 		html: 'Docker Scout and Snyk Container scan our container images.',
+	},
+	{
+		title: 'Software bill of materials (SBOM)',
+		html: `From version ${SBOM_FROM_VER}, every release comes with a CycloneDX SBOM for each installation package, Docker image and jar.`,
+		docs: '/docs/pe/user-guide/security/sbom/',
 	},
 	{
 		title: 'Change management',

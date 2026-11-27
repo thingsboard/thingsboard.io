@@ -1,6 +1,7 @@
 import { TBMQ_PE_DOCS_URL, TBMQ_SITE_URL } from '@models/tbmq';
 import { CAREERS_URL } from '@models/careers';
 import { caseStudyBySlug } from '@data/case-studies';
+import { useCaseItems } from '@data/use-cases';
 import { BADGE_TILE, type MenuBadgeKey } from '@data/product-badges';
 
 export interface NavItem {
@@ -151,7 +152,7 @@ export const servicesSubmenu: SubMenu = {
 				{
 					href: '/services/',
 					icon: '/src/assets/images/landings/nav/support-icon.svg',
-					heading: 'Support plans',
+					heading: 'Professional services',
 				},
 				{
 					href: '/services/trainings/',
@@ -203,6 +204,11 @@ export const useCasesSubmenu: SubMenu = {
 					heading: 'Smart office',
 				},
 				{
+					href: '/use-cases/water-metering/',
+					icon: '/src/assets/images/landings/nav/case-wat-icon.svg',
+					heading: 'Water metering',
+				},
+				{
 					href: '/use-cases/smart-retail/',
 					icon: '/src/assets/images/landings/nav/case-ret-icon.svg',
 					heading: 'Smart retail',
@@ -226,6 +232,16 @@ export const useCasesSubmenu: SubMenu = {
 					href: '/use-cases/smart-metering/',
 					icon: '/src/assets/images/landings/nav/case-met-icon.svg',
 					heading: 'Smart metering',
+				},
+				{
+					href: '/use-cases/air-quality-monitoring/',
+					icon: '/src/assets/images/landings/nav/case-aq-icon.svg',
+					heading: 'Air quality monitoring',
+				},
+				{
+					href: '/use-cases/smart-irrigation/',
+					icon: '/src/assets/images/landings/nav/smart-irrigation.svg',
+					heading: 'Smart irrigation',
 				},
 				{
 					href: '/use-cases/waste-management/',
@@ -262,6 +278,12 @@ export const useCasesSubmenu: SubMenu = {
 		},
 	],
 };
+
+// The menu lists every use case by hand, so a card on `/use-cases/` the menu forgot fails the build.
+const useCaseMenuHrefs = new Set(useCasesSubmenu.groups.flatMap((group) => group.items.map((item) => item.href)));
+for (const { name, href } of useCaseItems) {
+	if (!useCaseMenuHrefs.has(href)) throw new Error(`[navigation] the menu has no use case "${name}" (${href})`);
+}
 
 // Clients submenu
 export const clientsSubmenu: SubMenu = {

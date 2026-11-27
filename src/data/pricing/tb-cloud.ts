@@ -173,7 +173,7 @@ export const tbCloudData: CloudRegionData = {
 						plusIcon: true,
 						faqId: 'tb-cloud-exceed-plan-limits',
 						faqTooltip:
-							'Supports scaling up to 5,000 devices. For large-scale deployments exceeding this, a <a target="_blank" href="/pricing/?section=thingsboard-pe-options&product=thingsboard-private-cloud" rel="noopener noreferrer">Private Cloud</a> transition is recommended for enhanced cost-efficiency and dedicated resources.',
+							'Supports scaling up to 5,000 devices. For large-scale deployments exceeding this, a <a target="_blank" href="/pricing/?product=thingsboard-private-cloud" rel="noopener noreferrer">Private Cloud</a> transition is recommended for enhanced cost-efficiency and dedicated resources.',
 					},
 				],
 			},
@@ -348,7 +348,7 @@ export const tbCloudData: CloudRegionData = {
 						plusIcon: true,
 						faqId: 'tb-cloud-exceed-plan-limits',
 						faqTooltip:
-							'Supports scaling up to 5,000 devices. For large-scale deployments exceeding this, a <a target="_blank" href="/pricing/?section=thingsboard-pe-options&product=thingsboard-private-cloud" rel="noopener noreferrer">Private Cloud</a> transition is recommended for enhanced cost-efficiency and dedicated resources.',
+							'Supports scaling up to 5,000 devices. For large-scale deployments exceeding this, a <a target="_blank" href="/pricing/?product=thingsboard-private-cloud" rel="noopener noreferrer">Private Cloud</a> transition is recommended for enhanced cost-efficiency and dedicated resources.',
 					},
 				],
 			},
@@ -396,6 +396,12 @@ export const tbCloudTopUps: { na: TopUpGroup[]; eu: TopUpGroup[] } = {
 						{ label: 'Max Calculated Fields per entity', value: '+1 Calculated Field' },
 					],
 				},
+				{
+					name: 'Extra Remote Agent',
+					priceUsd: '$3',
+					period: '/month',
+					details: [{ label: 'Agents', value: '+1 Agent' }],
+				},
 			],
 		},
 		{
@@ -406,8 +412,8 @@ export const tbCloudTopUps: { na: TopUpGroup[]; eu: TopUpGroup[] } = {
 					priceUsd: '$5',
 					period: '/month',
 					details: [
-						{ label: 'Transport messages', value: '+2.5M Transport messages' },
-						{ label: 'Transport data points', value: '+5M Transport data points' },
+						{ label: 'Transport messages', value: '+25M Transport messages' },
+						{ label: 'Transport data points', value: '+50M Transport data points' },
 					],
 				},
 				{
@@ -415,8 +421,8 @@ export const tbCloudTopUps: { na: TopUpGroup[]; eu: TopUpGroup[] } = {
 					priceUsd: '$25',
 					period: '/month',
 					details: [
-						{ label: 'Rule engine executions', value: '+5M Rule engine executions' },
-						{ label: 'JS function executions', value: '+1M JS function executions' },
+						{ label: 'Rule engine executions', value: '+100M Rule engine executions' },
+						{ label: 'JS function executions', value: '+5M JS function executions' },
 					],
 				},
 				{
@@ -493,6 +499,12 @@ export const tbCloudTopUps: { na: TopUpGroup[]; eu: TopUpGroup[] } = {
 						{ label: 'Max Calculated Fields per entity', value: '+1 Calculated Field' },
 					],
 				},
+				{
+					name: 'Extra Remote Agent',
+					priceUsd: '€3',
+					period: '/month',
+					details: [{ label: 'Agents', value: '+1 Agent' }],
+				},
 			],
 		},
 		{
@@ -503,8 +515,8 @@ export const tbCloudTopUps: { na: TopUpGroup[]; eu: TopUpGroup[] } = {
 					priceUsd: '€5',
 					period: '/month',
 					details: [
-						{ label: 'Transport messages', value: '+2.5M Transport messages' },
-						{ label: 'Transport data points', value: '+5M Transport data points' },
+						{ label: 'Transport messages', value: '+25M Transport messages' },
+						{ label: 'Transport data points', value: '+50M Transport data points' },
 					],
 				},
 				{
@@ -512,8 +524,8 @@ export const tbCloudTopUps: { na: TopUpGroup[]; eu: TopUpGroup[] } = {
 					priceUsd: '€25',
 					period: '/month',
 					details: [
-						{ label: 'Rule engine executions', value: '+5M Rule engine executions' },
-						{ label: 'JS function executions', value: '+1M JS function executions' },
+						{ label: 'Rule engine executions', value: '+100M Rule engine executions' },
+						{ label: 'JS function executions', value: '+5M JS function executions' },
 					],
 				},
 				{
