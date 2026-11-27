@@ -496,7 +496,7 @@ const recipeItems = (prefix: string, extraProcessingItems: string[] = []) => [
 	},
 ];
 
-const apisAndSdksItems = (prefix: string) => [
+const apisAndSdksItems = (prefix: string, { isPE = false } = {}) => [
 	{
 		label: 'Device APIs',
 		collapsed: true,
@@ -607,6 +607,16 @@ const apisAndSdksItems = (prefix: string) => [
 			`${prefix}/reference/python-client`,
 		],
 	},
+	...(isPE ? [{
+		label: 'Extensions',
+		collapsed: true,
+		items: [
+			`${prefix}/reference/extensions/overview`,
+			`${prefix}/reference/extensions/quickstart`,
+			`${prefix}/reference/extensions/architecture`,
+			`${prefix}/reference/extensions/development-workflow`,
+		],
+	}] : []),
 	{
 		label: 'Mobile',
 		collapsed: true,
@@ -1842,7 +1852,7 @@ const mainSidebarItems = (
 	{
 		label: 'APIs & SDKs',
 		collapsed: true,
-		items: apisAndSdksItems(prefix),
+		items: apisAndSdksItems(prefix, { isPE: prefix.includes('/pe') }),
 	},
 	{
 		label: 'Reference',
@@ -2261,7 +2271,8 @@ export const paasSidebar: SidebarConfig = [
 	{
 		label: 'APIs & SDKs',
 		collapsed: true,
-		items: apisAndSdksItems('docs/paas'),
+		// Cloud runs Professional Edition, so PE-only entries (Extensions) are shown here.
+		items: apisAndSdksItems('docs/paas', { isPE: true }),
 	},
 	{
 		label: 'Reference',
@@ -2676,7 +2687,8 @@ export const paasEuSidebar: SidebarConfig = [
 	{
 		label: 'APIs & SDKs',
 		collapsed: true,
-		items: apisAndSdksItems('docs/paas/eu'),
+		// Cloud runs Professional Edition, so PE-only entries (Extensions) are shown here.
+		items: apisAndSdksItems('docs/paas/eu', { isPE: true }),
 	},
 	{
 		label: 'Reference',
@@ -4025,6 +4037,7 @@ export const cliSidebar: SidebarConfig = [
 		items: [
 			'docs/cli/reference/commands',
 			'docs/cli/reference/configuration',
+			'docs/cli/reference/extensions',
 			'docs/cli/reference/troubleshooting',
 		],
 	},
