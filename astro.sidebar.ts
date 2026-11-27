@@ -208,7 +208,7 @@ const guideItems = (prefix: string, { isPE = false } = {}) => {
 		],
 	},
 	{
-		label: 'White-labeling',
+		label: isPE ? 'White labeling' : 'White-labeling',
 		collapsed: true,
 		items: [
 			{ label: 'General', slug: `${prefix}/white-labeling` },
@@ -2096,7 +2096,7 @@ export const paasSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'White-labeling',
+				label: 'White labeling',
 				collapsed: true,
 				items: [
 					{ label: 'General', slug: 'docs/paas/user-guide/white-labeling' },
@@ -2505,7 +2505,7 @@ export const paasEuSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'White-labeling',
+				label: 'White labeling',
 				collapsed: true,
 				items: [
 					{ label: 'General', slug: 'docs/paas/eu/user-guide/white-labeling' },
@@ -3192,7 +3192,7 @@ export const edgePeSidebar: SidebarConfig = [
 				],
 			},
 			{
-				label: 'White-labeling',
+				label: 'White labeling',
 				collapsed: true,
 				items: [{ label: 'Overview', slug: 'docs/edge/pe/user-guide/white-labeling' }],
 			},
