@@ -74,7 +74,7 @@ const state = {
 	addons: {
 		edge: { on: false, count: 10 },
 		trendz: { on: false },
-		mobile: { on: false },
+		mobile: { on: false, count: 1 },
 		devqa: { on: false, count: 1 },
 	},
 	currentPlan: null as any,
@@ -149,6 +149,10 @@ export function initTbPcCalc() {
 	const cards = { edge: $('#pc-edge-card'), trendz: $('#pc-trendz-card'), mobile: $('#pc-mobile-card'), devqa: $('#pc-devqa-card') };
 	const edgeCounter = $('#pc-edge-counter');
 	const devqaCounter = $('#pc-devqa-counter');
+	const mobileCounter = $('#pc-mobile-counter');
+	const mobileCountInput = $('#pc-mobile-count') as HTMLInputElement;
+	const mobileStepper = $('#pc-mobile-stepper');
+	const mobileDecBtn = mobileStepper.querySelector('[data-action="decrement"]') as HTMLButtonElement;
 	const edgeCountInput = $('#pc-edge-count') as HTMLInputElement;
 	const devCountInput = $('#pc-dev-count') as HTMLInputElement;
 	const edgeIncludedEl = $('#pc-edge-included');
@@ -435,6 +439,10 @@ export function initTbPcCalc() {
 			devqaCounter.classList.toggle('hidden', !on);
 			if (on) { state.addons.devqa.count = 1; devCountInput.value = '1'; }
 		}
+		if (key === 'mobile') {
+			mobileCounter.classList.toggle('hidden', !on);
+			if (on) { state.addons.mobile.count = 1; mobileCountInput.value = '1'; mobileDecBtn.disabled = true; }
+		}
 		scheduleCalculate();
 	}
 
@@ -469,6 +477,19 @@ export function initTbPcCalc() {
 	});
 	devCountInput.addEventListener('input', () => { const v = parseInt(devCountInput.value); if (!isNaN(v) && v >= 1) { state.addons.devqa.count = v; scheduleCalculate(); } });
 	devCountInput.addEventListener('blur', () => { const prev = state.addons.devqa.count; const v = Math.max(1, parseInt(devCountInput.value) || 1); state.addons.devqa.count = v; devCountInput.value = String(v); devDecBtn.disabled = v <= 1; commitCalculate(v !== prev); });
+
+	// Mobile app stepper: one white-labeled app per brand, each with its own monthly fee and setup fee.
+	mobileStepper.querySelectorAll('.calc-stepper-btn').forEach(btn => {
+		btn.addEventListener('click', () => {
+			if ((btn as HTMLButtonElement).disabled) return;
+			state.addons.mobile.count = (btn as HTMLElement).dataset.action === 'increment' ? state.addons.mobile.count + 1 : Math.max(1, state.addons.mobile.count - 1);
+			mobileCountInput.value = String(state.addons.mobile.count);
+			mobileDecBtn.disabled = state.addons.mobile.count <= 1;
+			scheduleCalculate();
+		});
+	});
+	mobileCountInput.addEventListener('input', () => { const v = parseInt(mobileCountInput.value); if (!isNaN(v) && v >= 1) { state.addons.mobile.count = v; mobileDecBtn.disabled = v <= 1; scheduleCalculate(); } });
+	mobileCountInput.addEventListener('blur', () => { const prev = state.addons.mobile.count; const v = Math.max(1, parseInt(mobileCountInput.value) || 1); state.addons.mobile.count = v; mobileCountInput.value = String(v); mobileDecBtn.disabled = v <= 1; commitCalculate(v !== prev); });
 
 	// ═══════════════════════════════════════════
 	// CALCULATION
@@ -545,8 +566,10 @@ export function initTbPcCalc() {
 				ab.trendz = { base: plan.trendzMonthPrice, includedDev: plan.includedDevices, extraDev, extraCost: trendzExtra, cost };
 			}
 			if (inp.addons.mobile.on) {
-				addonsCost += PLANS_DATA.mobileApp;
-				ab.mobile = { cost: PLANS_DATA.mobileApp, setup: PLANS_DATA.mobileAppSetup };
+				const apps = inp.addons.mobile.count;
+				const cost = apps * PLANS_DATA.mobileApp;
+				addonsCost += cost;
+				ab.mobile = { apps, cost, setup: apps * PLANS_DATA.mobileAppSetup };
 			}
 			if (inp.addons.devqa.on) {
 				const cost = inp.addons.devqa.count * plan.devQaExtraInstancePrice;
@@ -626,7 +649,11 @@ export function initTbPcCalc() {
 			const t = r.ab.trendz;
 			return row('Add-on Base Price', fmtN(t.base), 'Monthly base price for Trendz Analytics') + row('Included Devices', fmtN(t.includedDev), 'Devices included with this plan') + row('Extra Devices', fmtN(t.extraDev), 'Devices beyond plan’s included count') + row('Extra Devices Cost', fmtC(t.extraCost), `${fmtN(t.extraDev)} × ${fmtC(plan.trendzExtraDevicePrice)}`);
 		});
-		html += simpleAddonRow('White-labeled Mobile App', 'mobile', r.ab.mobile, PLANS_DATA.mobileApp, `Monthly: ${fmtC(PLANS_DATA.mobileApp)}<br>One-time setup: ${fmtC(PLANS_DATA.mobileAppSetup)}`);
+		html += addonSection('White-labeled Mobile App', 'mobile', r.ab.mobile, PLANS_DATA.mobileApp, 'White-labeled Mobile App total', () => {
+			if (!r.ab.mobile) return '';
+			const m = r.ab.mobile;
+			return row('Mobile Apps', fmtN(m.apps), 'One branded app per brand or client') + row('Monthly Cost', fmtC(m.cost), `${fmtN(m.apps)} × ${fmtC(PLANS_DATA.mobileApp)}`) + row('One-time Setup', fmtC(m.setup), `${fmtN(m.apps)} × ${fmtC(PLANS_DATA.mobileAppSetup)}, paid once and not included in the monthly total`);
+		});
 		html += addonSection('Dev & QA Instances', 'devqa', r.ab.devqa, plan.devQaExtraInstancePrice, 'Dev & QA Instances total', () => {
 			if (!r.ab.devqa) return '';
 			return row('Extra Instances', fmtN(r.ab.devqa.instances), 'Number of dev/QA instances') + row('Extra Instances Cost', fmtC(r.ab.devqa.cost), `${fmtN(r.ab.devqa.instances)} × ${fmtC(r.ab.devqa.perInstance)}`);
@@ -690,7 +717,7 @@ export function initTbPcCalc() {
 		let msg = `Enterprise Request\n- Devices: ${fmtN(inp.totalDevices)}\n- Data Points Rate: ${fmtN(Math.round(inp.totalDP))} points/min\n- Estimated Storage: ${fmtN(totalStorage, 2)} GB`;
 		if (state.addons.edge.on) msg += `\n- Edge Instances: ${fmtN(state.addons.edge.count)}`;
 		if (state.addons.trendz.on) msg += `\n- Trendz Analytics: Enabled`;
-		if (state.addons.mobile.on) msg += `\n- Mobile App: Enabled`;
+		if (state.addons.mobile.on) msg += `\n- Mobile Apps: ${fmtN(state.addons.mobile.count)}`;
 		if (state.addons.devqa.on) msg += `\n- Dev & QA Instances: ${fmtN(state.addons.devqa.count)}`;
 		inp.profiles.forEach((p: any, i: number) => {
 			msg += `\nProfile ${i + 1}: ${fmtN(p.devices)} devices, ${fmtN(p.messages)} msg/${p.messageUnit}, ${fmtN(p.dataPoints)} dp, ${fmtN(p.retention)} mo retention`;
@@ -715,14 +742,6 @@ export function initTbPcCalc() {
 			return `<div class="calc-addon-active"><div class="calc-addon-result"><span class="calc-addon-result-name">${name}</span><span class="calc-section-price">${fmtC(data.cost)}${tip(priceTip)}</span></div>${detailsFn()}</div>`;
 		}
 		return `<div class="calc-addon-result"><span class="calc-addon-result-name">${name}</span><button type="button" class="calc-addon-result-action" data-enable-addon="${key}">Add to plan (${fmtC(basePrice)})</button></div>`;
-	}
-
-	function simpleAddonRow(name: string, key: string, data: any, price: number, priceTip?: string) {
-		if (data) {
-			const t = priceTip ? tip(priceTip) : '';
-			return `<div class="calc-addon-result"><span class="calc-addon-result-name">${name}</span><span class="calc-section-price">${fmtC(data.cost)}${t}</span></div>`;
-		}
-		return `<div class="calc-addon-result"><span class="calc-addon-result-name">${name}</span><button type="button" class="calc-addon-result-action" data-enable-addon="${key}">Add to plan (${fmtC(price)})</button></div>`;
 	}
 
 	// Delegated handler for [data-enable-addon] buttons that the results
@@ -769,6 +788,7 @@ export function initTbPcCalc() {
 			}
 			if (ab.mobile) {
 				msg += `- White-labeled Mobile App: ${fmtC(ab.mobile.cost)} (monthly)\n`;
+				msg += `  - Apps: ${ab.mobile.apps}\n`;
 				msg += `  - One-time setup fee: ${fmtC(ab.mobile.setup)}\n`;
 			}
 			if (ab.devqa) {
@@ -852,11 +872,12 @@ export function initTbPcCalc() {
 		state.billingPeriod = 'monthly';
 		if (billingToggle) billingToggle.checked = false;
 		footer.querySelectorAll('.calc-billing-label').forEach(l => l.classList.toggle('active', (l as HTMLElement).dataset.billing === 'monthly'));
-		state.addons = { edge: { on: false, count: 10 }, trendz: { on: false }, mobile: { on: false }, devqa: { on: false, count: 1 } };
+		state.addons = { edge: { on: false, count: 10 }, trendz: { on: false }, mobile: { on: false, count: 1 }, devqa: { on: false, count: 1 } };
 		state.currentPlan = null;
 		toggles.edge.checked = false; toggles.trendz.checked = false; toggles.mobile.checked = false; toggles.devqa.checked = false;
 		cards.edge.classList.remove('active'); cards.trendz.classList.remove('active'); cards.mobile.classList.remove('active'); cards.devqa.classList.remove('active');
-		edgeCounter.classList.add('hidden'); devqaCounter.classList.add('hidden');
+		edgeCounter.classList.add('hidden'); devqaCounter.classList.add('hidden'); mobileCounter.classList.add('hidden');
+		mobileCountInput.value = '1'; mobileDecBtn.disabled = true;
 		edgeCountInput.value = '10'; devCountInput.value = '1';
 		edgeIncludedEl.textContent = '10';
 		edgeDecBtn.disabled = true;

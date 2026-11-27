@@ -1,3 +1,4 @@
+import { mobileAppServiceFaqCategory } from '@data/pricing/mobile-app-service';
 import type { FaqCategory } from '../types';
 
 export const tbCloudFaq: FaqCategory[] = [
@@ -89,11 +90,6 @@ export const tbCloudFaq: FaqCategory[] = [
 				id: 'tb-cloud-us-to-eu',
 				question: 'I need to move from US cloud to EU. How to achieve that?',
 				answer: '<p>Technically, you have to follow the same flow as for the migration from the Cloud to an on-premises platform instance. Please, <a target="_blank" href="/contact-us/" rel="noopener noreferrer">contact us</a> in case migration assistance is needed.</p>',
-			},
-			{
-				id: 'tb-cloud-what-is-included-in-the-white-labeled-mobile-app-add-on',
-				question: 'What is included in the White-Labeled Mobile App add-on?',
-				answer: '<p>The White-Labeled Mobile App add-on provides you with a branded version of the ThingsBoard Mobile application. This includes your company\'s name, logo, colors, and other branding elements. The cost is $99 per month, plus a one-time setup fee of $1,000 to cover branding and configuration.</p>',
 			},
 		],
 	},
@@ -489,4 +485,5 @@ export const tbCloudFaq: FaqCategory[] = [
 			},
 		],
 	},
+	mobileAppServiceFaqCategory('cloud'),
 ];

@@ -1,3 +1,4 @@
+import { mobileAppServiceFaqCategory } from '@data/pricing/mobile-app-service';
 import type { FaqCategory } from '../types';
 
 export const tbSelfManagedFaq: FaqCategory[] = [
@@ -84,11 +85,6 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 				id: 'pe-pay-as-you-go-license-migration',
 				question: 'Can I migrate from one server or Virtual machine to another using the same license?',
 				answer: '<p>Yes! You can migrate your license by activating or deactivating it on the License Server. To move to a new server, deactivate the current instance, install the software on the new server, and reuse your existing license key. Be sure to back up your data if you want to maintain the same environment. Note: The license system prevents running ThingsBoard on multiple servers at the same time unless you purchase additional instances.</p>',
-			},
-			{
-				id: 'pe-pay-as-you-go-what-is-included-in-the-white-labeled-mobile-app-add-on',
-				question: 'What is included in the White-Labeled Mobile App add-on?',
-				answer: '<p>The White-Labeled Mobile App add-on provides you with a branded version of the ThingsBoard Mobile application. This includes your company\'s name, logo, colors, and other branding elements. The cost is $99 per month, plus a one-time setup fee of $1,000 to cover branding and configuration.</p>',
 			},
 		],
 	},
@@ -487,4 +483,5 @@ export const tbSelfManagedFaq: FaqCategory[] = [
 			},
 		],
 	},
+	mobileAppServiceFaqCategory('self-managed'),
 ];
