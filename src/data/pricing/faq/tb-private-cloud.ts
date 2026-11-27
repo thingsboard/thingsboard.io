@@ -1,3 +1,4 @@
+import { mobileAppServiceFaqCategory } from '@data/pricing/mobile-app-service';
 import type { FaqCategory } from '../types';
 
 export const tbPrivateCloudFaq: FaqCategory[] = [
@@ -200,7 +201,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
                                 <li>Optional add-ons:
                                     <ul>
                                         <li>Dev/Test environment - $299/month</li>
-                                        <li>White-labeled Mobile App - $99/month + one-time $1 000 build fee</li>
+                                        <li>White-labeled Mobile App - $99/month + one-time $1,000 setup fee</li>
                                     </ul>
                                 </li>
                             </ul>
@@ -517,11 +518,7 @@ export const tbPrivateCloudFaq: FaqCategory[] = [
 				question: 'What pricing plans does Trendz offer?',
 				answer: `<p>Trendz pricing depends on your ThingsBoard model. You can check the relevant pricing in the <a href="#" data-open-calc="pc" aria-haspopup="dialog">Plan Calculator</a> on this page.</p>`,
 			},
-			{
-				id: 'tb-private-cloud-what-is-included-in-the-white-labeled-mobile-app-add-on',
-				question: 'What is included in the White-Labeled Mobile App add-on?',
-				answer: `<p>The White-Labeled Mobile App add-on provides you with a branded version of the ThingsBoard Mobile application. This includes your company’s name, logo, colors, and other branding elements. The cost is $99 per month, plus a one-time setup fee of $1,000 to cover branding and configuration.</p>`,
-			},
 		],
 	},
+	mobileAppServiceFaqCategory('private-cloud'),
 ];
