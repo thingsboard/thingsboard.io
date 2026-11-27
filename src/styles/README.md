@@ -160,11 +160,38 @@ $breakpoint-2xl: 1500px;
 
 ### Buttons
 
+Use the `ui/Button.astro` component (`@components/ui/Button.astro`). Do not write button styles by hand.
+
+- `variant`: `primary`, `secondary` or `tertiary`.
+- `size`: `xs` (32px), `sm` (40px), `md` (44px), `lg` (48px) or `xl` (56px, 18px label). On a phone `xl` steps
+  down to `lg`.
+- `href` makes it a link; without it, it is a `<button>` and takes `type` and `disabled`.
+- `external` opens a link in a new tab, with the up-right arrow and a screen-reader note.
+- `icon` and `iconEnd` take a tabler icon name, before and after the label.
+- `fullWidth` fills the container. `wrap` lets a long label wrap, with the trailing icon held to the last word.
+
+A page that needs a designed width sets a custom property on the button or any ancestor: `--btn-px` (side
+padding) or `--btn-min-w` (minimum width, e.g. `min(376px, 100%)`). `--btn-label` recolours a tertiary button.
+
+A primary button with a white fill (`--accent-fill: #fff`) also sets `--accent-shade` to a light tint of its
+label colour (`color-mix(in oklab, var(--accent-on-fill), white 65%)`): hover and press then tint the fill
+with it instead of black, and the label keeps 4.5:1.
+
+The button's margin and minimum width have no specificity (`:where(.ui-btn)`), so one class of the caller's
+is enough to change them. Padding, border and display still need `--btn-px` or a two-class selector.
+
+For a button whose markup the component cannot render (built in a script, or part of another control), use the
+`ui-button` mixin from `_button.scss`. It includes the size, the base, the variant and the high-contrast outline:
+
 ```scss
-@include button-base;     // Base button styles
-@include button-primary;  // Primary filled button
-@include button-outline;  // Outlined button
+@use '../styles/button' as *;
+
+.my-button {
+	@include ui-button(primary, sm); // primary, secondary or tertiary; xs to xl
+}
 ```
+
+A stack built by hand from `ui-button-base` (the header's) includes `ui-button-layout` before it.
 
 ## CSS Custom Properties
 
