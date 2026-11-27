@@ -48,8 +48,8 @@ export const CONTACT_TOPICS: ContactTopic[] = [
 ];
 
 /**
- * Topics only a link sets (`?subject=`), from the page they belong to. The reader never sees them in the
- * list: a topic that comes with the link hides the whole field.
+ * Topics that only a link can set (`?subject=`). They are not in the list, and the form hides the topic
+ * field when a link sets one.
  */
 export const LINKED_TOPICS: Omit<ContactTopic, 'label'>[] = [
 	{
@@ -79,6 +79,6 @@ export interface SentContact extends Record<(typeof CONTACT_SENT_FIELDS)[number]
 	at: number;
 	/** Sent from the Private Cloud order view (`?pcorder`). */
 	order: boolean;
-	/** The topic came with the link, so the reader never saw the field. */
+	/** A link set the topic, so the field was hidden. */
 	linked: boolean;
 }
