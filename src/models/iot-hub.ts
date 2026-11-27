@@ -229,7 +229,7 @@ export const getPlaceholderIcon = (item: IconableListing): string => {
 	}
 };
 
-// The subject must match an <option> in ContactForm.astro; the prefill no-ops on unknown values.
+// The subject must be a topic in `src/data/contact-form.ts`; the form ignores any other value.
 export const IOT_HUB_CONTACT_US_URL = '/contact-us/?subject=IoT%20Hub';
 
 export const IOT_HUB_CONTACT_EMAIL = 'iothub@thingsboard.io';
