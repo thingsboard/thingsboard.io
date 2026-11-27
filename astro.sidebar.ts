@@ -557,6 +557,21 @@ const apisAndSdksItems = (prefix: string) => [
 					`${prefix}/reference/snmp-api/rpc`,
 				],
 			},
+			// The Modbus transport ships from 4.4.2: no Community pages, and it is not offered on ThingsBoard Cloud.
+			...(prefix === 'docs/pe'
+				? [
+						{
+							label: 'Modbus API',
+							collapsed: true,
+							items: [
+								`${prefix}/reference/modbus-api/getting-connected`,
+								`${prefix}/reference/modbus-api/telemetry`,
+								`${prefix}/reference/modbus-api/attributes`,
+								`${prefix}/reference/modbus-api/rpc`,
+							],
+						},
+					]
+				: []),
 		],
 	},
 	{
@@ -1859,6 +1874,7 @@ export const peSidebar: SidebarConfig = mainSidebarItems(
 	'docs/pe',
 	[],
 	[
+		'docs/pe/reference/configuration/modbus-transport-config',
 		'docs/pe/reference/configuration/ie-executor-config',
 		'docs/pe/reference/configuration/report-service-config',
 	],
@@ -3282,6 +3298,7 @@ export const edgePeSidebar: SidebarConfig = [
 					'docs/edge/pe/reference/apis-and-sdks/http-api',
 					'docs/edge/pe/reference/apis-and-sdks/lwm2m-api',
 					'docs/edge/pe/reference/apis-and-sdks/snmp-api',
+					'docs/edge/pe/reference/apis-and-sdks/modbus-api',
 				],
 			},
 			{

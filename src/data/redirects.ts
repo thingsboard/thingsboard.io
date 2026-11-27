@@ -884,6 +884,7 @@ export const SINGLE_REDIRECTS: SingleRedirect[] = [
 	{ oldPath: 'pe/reference/snmp-api', target: '/docs/pe/reference/snmp-api/getting-connected/' },
 	{ oldPath: 'paas/reference/snmp-api', target: '/docs/paas/reference/snmp-api/getting-connected/' },
 	{ oldPath: 'paas/eu/reference/snmp-api', target: '/docs/paas/eu/reference/snmp-api/getting-connected/' },
+	{ oldPath: 'pe/reference/modbus-api', target: '/docs/pe/reference/modbus-api/getting-connected/' },
 	{ oldPath: 'reference/lwm2m-api', target: '/docs/reference/lwm2m-api/getting-started/' },
 	{ oldPath: 'pe/reference/lwm2m-api', target: '/docs/pe/reference/lwm2m-api/getting-started/' },
 	{ oldPath: 'paas/reference/lwm2m-api', target: '/docs/paas/reference/lwm2m-api/getting-started/' },
