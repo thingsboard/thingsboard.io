@@ -10,6 +10,7 @@ import {
 	stripScheme,
 	stripTrailingSlash,
 } from '@models/iot-hub';
+import { NEW_TAB_NOTE } from '@util/external-links';
 import './install-dialog.scss';
 import { bindModalDialog, type ModalDialog } from '@util/modal-dialog';
 
@@ -97,7 +98,7 @@ function rowMarkup(inst: InstallInstance): string {
 		: '';
 	const actions = `<div class="iot-hub-install-dialog__row-actions">
 				<button type="button" class="iot-hub-install-dialog__icon-btn" data-copy aria-label="${S.copy}">${icon('copy', 24)}</button>
-				<a class="iot-hub-install-dialog__action" data-open target="_blank" rel="noopener"><span data-verb></span>${icon('external-link', 20)}</a>
+				<a class="iot-hub-install-dialog__action" data-open target="_blank" rel="noopener noreferrer"><span data-verb></span>${icon('external-link', 20)}</a>
 			</div>`;
 	return `<li class="iot-hub-install-dialog__row" data-instance="${inst.key}">
 			<span class="iot-hub-install-dialog__row-icon" aria-hidden="true">${icon(inst.icon, 32)}</span>
@@ -191,9 +192,9 @@ function refresh(): void {
 		const open = row.querySelector<HTMLAnchorElement>('[data-open]');
 		if (open) {
 			open.href = url;
-			// Distinct accessible name per row — the visible verb alone repeats
-			// across rows with no context for screen readers.
-			open.setAttribute('aria-label', `${verb} — ${inst.label}`);
+			// A distinct name per row: the verb alone repeats across rows. It also says the link opens a
+			// new tab.
+			open.setAttribute('aria-label', `${verb} — ${inst.label}${NEW_TAB_NOTE}`);
 		}
 		const verbEl = row.querySelector('[data-verb]');
 		if (verbEl) verbEl.textContent = verb;
