@@ -4,6 +4,7 @@ import {
 	DPA_HREF,
 	IMS_EMAIL,
 	NDA_TURNAROUND,
+	PRIVACY_EMAIL,
 	REPORT_REPLY_TIME,
 	SECURITY_EMAIL,
 	TERMS_OF_USE_HREF,
@@ -11,6 +12,8 @@ import {
 } from '@data/trust-center/nav';
 
 /** The hub's FAQ, in Pricing's `FaqCategory` shape for `FaqSection`. */
+
+const mail = (email: string) => `<a href="mailto:${email}">${email}</a>`;
 
 export const TC_FAQ: FaqCategory[] = [
 	{
@@ -20,7 +23,7 @@ export const TC_FAQ: FaqCategory[] = [
 			{
 				id: 'contact',
 				question: 'How do I contact ThingsBoard about security?',
-				answer: `<p>Email ${SECURITY_EMAIL} for security, compliance and privacy questions and vulnerability reports, and ${IMS_EMAIL} for document requests.</p>`,
+				answer: `<ul><li><strong>Security</strong> — ${mail(SECURITY_EMAIL)}: vulnerability reports and security questions.</li><li><strong>Personal data</strong> — ${mail(PRIVACY_EMAIL)}: requests about your personal data.</li><li><strong>Compliance</strong> — ${mail(IMS_EMAIL)}: certifications and compliance documents.</li></ul>`,
 			},
 			{
 				id: 'nda-speed',
@@ -30,7 +33,7 @@ export const TC_FAQ: FaqCategory[] = [
 			{
 				id: 'report',
 				question: 'How do I report a security issue?',
-				answer: `<p>Email ${SECURITY_EMAIL}, using our <a href="${tc('report-vulnerability')}">vulnerability report template</a>. We reply within ${REPORT_REPLY_TIME} with an investigation plan. Please don't open a public issue: it puts other users at risk before a fix is available.</p>`,
+				answer: `<p>Email ${mail(SECURITY_EMAIL)}, using our <a href="${tc('report-vulnerability')}">vulnerability report template</a>. We reply within ${REPORT_REPLY_TIME} with an investigation plan. Please don't open a public issue: it puts other users at risk before a fix is available.</p>`,
 			},
 		],
 	},
@@ -56,15 +59,10 @@ export const TC_FAQ: FaqCategory[] = [
 					"<p>Yes. You can use our ISO certificates as supplier evidence in your own audit, for example for ISO/IEC 27001, and under NDA we share the Statement of Applicability and audit reports. The platform already covers many of the controls, such as access control, the audit log and the choice of data region, so you don't need to build them from scratch.</p>",
 			},
 			{
-				id: 'soc2',
-				question: 'Do you have a SOC 2 report?',
+				id: 'personal-data',
+				question: 'How do you handle personal data?',
 				answer:
-					'<p>ThingsBoard is certified to ISO/IEC 27001 and ISO 9001. The data centers behind ThingsBoard Cloud and Private Cloud hold SOC 2, ISO 27001 and PCI DSS attestations; AWS publishes them in AWS Artifact.</p>',
-			},
-			{
-				id: 'gdpr-ccpa',
-				question: 'Do you comply with GDPR and CCPA?',
-				answer: `<p>Yes. We meet both through our own privacy program and declare our compliance. When we process data on your behalf, the Data Processing Agreement applies. Send data subject requests to ${SECURITY_EMAIL}.</p>`,
+					'<p>In our operations and across all our public services and products, we consider personal data a priority. We deliver our offerings available to EU data subjects in accordance with GDPR requirements. We apply the same level of care to the products and services we provide worldwide.</p>',
 			},
 		],
 	},

@@ -139,7 +139,7 @@ export const caseStudyCards: CaseStudyCard[] = caseStudyOrder
 export const caseStudyContactBanner = {
 	buttons: [
 		{ label: 'Contact Us', href: '/contact-us/' },
-		{ label: 'Use cases', href: '/use-cases/', variant: 'outlined' as const },
+		{ label: 'Use cases', href: '/use-cases/', variant: 'secondary' as const },
 	],
 };
 
@@ -179,5 +179,7 @@ export const featuredCard: FeaturedCard = {
 	description: FEATURED_DESCRIPTION,
 	logo: featuredData.hero.logo,
 	logoAlt: featuredData.hero.logoAlt,
+	logoWidth: featuredData.hero.logoWidth,
+	logoHeight: featuredData.hero.logoHeight,
 	backgroundImage: featuredData.hero.backgroundImage,
 };

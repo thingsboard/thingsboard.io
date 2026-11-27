@@ -54,24 +54,6 @@ const TC_PAGES: TcPage[] = [
 		section: 'Compliance',
 		related: [tc('compliance/iso-27001'), tc('documents/change-management-procedure')],
 	},
-	{
-		href: tc('compliance/gdpr'),
-		title: 'GDPR',
-		parent: tc('compliance'),
-		line: 'How our privacy program meets the GDPR.',
-		icon: 'tabler:scale',
-		section: 'Compliance',
-		related: [DPA_HREF, PRIVACY_POLICY_HREF, tc('documents/data-protection-policy')],
-	},
-	{
-		href: tc('compliance/ccpa'),
-		title: 'CCPA',
-		parent: tc('compliance'),
-		line: 'The same privacy program, under the CCPA.',
-		icon: 'tabler:scale',
-		section: 'Compliance',
-		related: [tc('subprocessors'), PRIVACY_POLICY_HREF],
-	},
 
 	{
 		href: tc('data'),
@@ -144,7 +126,7 @@ const TC_PAGES: TcPage[] = [
 		title: 'Sub-processors',
 		line: 'The vendors that may access customer or personal data.',
 		icon: 'tabler:building',
-		related: [tc('compliance/gdpr'), tc('compliance/ccpa'), PRIVACY_POLICY_HREF],
+		related: [DPA_HREF, PRIVACY_POLICY_HREF],
 	},
 
 	// Off-site pages that `related` picks.

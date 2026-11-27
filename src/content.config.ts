@@ -1,6 +1,6 @@
 import { docsLoader, i18nLoader } from '@astrojs/starlight/loaders';
 import { docsSchema, i18nSchema } from '@astrojs/starlight/schema';
-import { defineCollection, type CollectionEntry } from 'astro:content';
+import { defineCollection, type CollectionEntry, type SchemaContext } from 'astro:content';
 import { z } from 'astro/zod';
 import { glob } from 'astro/loaders';
 import { Products } from '@models/site.models';
@@ -45,21 +45,22 @@ export const tutorialSchema = baseSchema.extend({
 	unitTitle: z.string().optional(),
 });
 
-export const blogSchema = z.object({
-	title: z.string(),
-	description: z.string(),
-	date: z.coerce.date(),
-	updatedDate: z.coerce.date().optional(),
-	author: z.string(),
-	categories: z
-		.array(z.string())
-		.or(z.string())
-		.transform((v) => (Array.isArray(v) ? v : [v])),
-	featuredImage: z.string(),
-	featuredImageAlt: z.string().default(''),
-	excludeFromCarousel: z.boolean().default(false),
-	pinned: z.boolean().default(false),
-});
+export const blogSchema = ({ image }: SchemaContext) =>
+	z.object({
+		title: z.string(),
+		description: z.string(),
+		date: z.coerce.date(),
+		updatedDate: z.coerce.date().optional(),
+		author: z.string(),
+		categories: z
+			.array(z.string())
+			.or(z.string())
+			.transform((v) => (Array.isArray(v) ? v : [v])),
+		featuredImage: image(),
+		featuredImageAlt: z.string().default(''),
+		excludeFromCarousel: z.boolean().default(false),
+		pinned: z.boolean().default(false),
+	});
 
 export const docsCollectionSchema = z.union([baseSchema, tutorialSchema]);
 
