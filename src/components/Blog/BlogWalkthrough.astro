@@ -1,0 +1,331 @@
+---
+/**
+ * BlogWalkthrough — an example shown one step at a time; pass one `steps` entry per
+ * `BlogWalkthroughStep` child, in order. Without JavaScript and in print every step is shown.
+ * The label's id comes from `label`; pass `id` when two walkthroughs in a post share a label.
+ */
+import { Image } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+
+interface Step {
+	title: string;
+	thumb: ImageMetadata;
+}
+
+interface Props {
+	label: string;
+	steps: Step[];
+	id?: string;
+}
+
+const { label, steps, id } = Astro.props;
+
+const slug = label
+	.toLowerCase()
+	.replace(/[^a-z0-9]+/g, '-')
+	.replace(/^-|-$/g, '');
+if (!id && !slug) {
+	throw new Error(`BlogWalkthrough "${label}": the label has no letters or digits to build an id from, pass \`id\``);
+}
+const labelId = id ?? `walkthrough-${slug}`;
+
+// A mismatch would leave the script with nothing to pair, and the reader with step 1 only
+const content = await Astro.slots.render('default');
+const views = content.match(/class="blog-walkthrough-step"/g)?.length ?? 0;
+if (views !== steps.length) {
+	throw new Error(
+		`BlogWalkthrough "${label}": ${steps.length} entries in \`steps\` for ${views} BlogWalkthroughStep children`
+	);
+}
+---
+
+<section class="blog-walkthrough" aria-labelledby={labelId}>
+	<div class="head">
+		<p class="label" id={labelId}>
+			{label}
+		</p>
+		{/* above the steps, which differ in height: below them the buttons would move on every click */}
+		<div class="nav print:hidden">
+			<button type="button" class="prev" disabled>
+				Back
+			</button>
+			<button type="button" class="next">
+				Next
+			</button>
+		</div>
+	</div>
+	<ol class="steps print:hidden">
+		{steps.map((step, i) => (
+			<li>
+				<button type="button" class="step" aria-current={i === 0 ? 'step' : undefined}>
+					<Image
+						src={step.thumb}
+						alt=""
+						widths={[280, 560]}
+						sizes="280px"
+						loading="lazy"
+						decoding="async"
+						data-no-lightbox
+					/>
+					<span class="step-title">{step.title}</span>
+				</button>
+			</li>
+		))}
+	</ol>
+	<Fragment set:html={content} />
+	<p class="status sr-only" aria-live="polite"></p>
+</section>
+
+<script>
+	for (const root of document.querySelectorAll<HTMLElement>('.blog-walkthrough')) {
+		const steps = Array.from(root.querySelectorAll<HTMLButtonElement>('.step'));
+		const views = Array.from(root.querySelectorAll<HTMLElement>('.blog-walkthrough-step'));
+		const prev = root.querySelector<HTMLButtonElement>('.prev');
+		const next = root.querySelector<HTMLButtonElement>('.next');
+		if (!prev || !next || !steps.length || steps.length !== views.length) continue;
+		let current = 0;
+
+		const status = root.querySelector<HTMLElement>('.status');
+
+		const show = (index: number, announce = true) => {
+			current = Math.max(0, Math.min(steps.length - 1, index));
+			steps.forEach((step, i) => {
+				if (i === current) step.setAttribute('aria-current', 'step');
+				else step.removeAttribute('aria-current');
+			});
+			views.forEach((view, i) => {
+				// "until-found" keeps the text findable; a browser without it treats it as plain hidden
+				if (i === current) view.removeAttribute('hidden');
+				else view.setAttribute('hidden', 'until-found');
+			});
+			prev.disabled = current === 0;
+			next.disabled = current === steps.length - 1;
+			if (announce && status) {
+				const title = steps[current].querySelector('.step-title')?.textContent?.trim() ?? '';
+				status.textContent = `Step ${current + 1} of ${steps.length}: ${title}`;
+			}
+		};
+
+		steps.forEach((step, i) => step.addEventListener('click', () => show(i)));
+		// find-in-page landed in a step that is not showing
+		views.forEach((view, i) => view.addEventListener('beforematch', () => show(i)));
+		// a button that disables itself would drop the keyboard focus, so hand it to the other one
+		prev.addEventListener('click', () => {
+			show(current - 1);
+			if (prev.disabled) next.focus();
+		});
+		next.addEventListener('click', () => {
+			show(current + 1);
+			if (next.disabled) prev.focus();
+		});
+		show(0, false);
+		root.dataset.ready = '';
+	}
+</script>
+
+<style lang="scss">
+	@use '../../styles/variables' as *;
+	@use './blog-kit' as kit;
+
+	.blog-walkthrough {
+		@include kit.card-shell;
+		margin: 0 0 var(--spacing-6);
+		padding: 20px;
+		background: var(--color-bg-surface);
+
+		@include media-down(md) {
+			padding: 14px;
+		}
+	}
+
+	.head {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 10px 16px;
+		margin-bottom: 16px;
+	}
+
+	:global(.blog-content) .label {
+		@include text-xs;
+		margin: 0;
+		color: var(--color-text-muted);
+		font-weight: $font-weight-bold;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+	}
+
+	/* The step buttons and Back / Next need the script. The longer selector outranks the display
+	   rules below. */
+	@media (scripting: none) {
+		:global(.blog-content) .blog-walkthrough .steps,
+		:global(.blog-content) .blog-walkthrough .nav {
+			display: none;
+		}
+	}
+
+	:global(.blog-content) .steps {
+		display: flex;
+		margin: 0 0 var(--spacing-6);
+		padding: 0;
+		list-style: none !important;
+		counter-reset: step;
+	}
+
+	:global(.blog-content) .steps li {
+		position: relative;
+		flex: 1 1 0;
+		min-width: 0;
+		margin: 0;
+		padding-right: 20px;
+	}
+
+	:global(.blog-content) .steps li:last-child {
+		padding-right: 0;
+	}
+
+	/* the number, then a line to the next step */
+	.steps li::before {
+		@include kit.step-number;
+		content: counter(step);
+		counter-increment: step;
+		margin-bottom: 10px;
+	}
+
+	.steps li::after {
+		content: '';
+		position: absolute;
+		top: 13px;
+		right: 8px;
+		left: 32px;
+		border-top: 1px solid var(--color-border);
+	}
+
+	.steps li:last-child::after {
+		display: none;
+	}
+
+	.step {
+		display: block;
+		width: 100%;
+		padding: 0;
+		border: 0;
+		background: none;
+		color: inherit;
+		font: inherit;
+		text-align: left;
+		cursor: pointer;
+	}
+
+	:global(.blog-content) .step :global(img) {
+		width: 100%;
+		aspect-ratio: 16 / 9;
+		margin: 0 0 8px;
+		border: 2px solid var(--color-border);
+		border-radius: var(--radius-md);
+		object-fit: cover;
+		object-position: left top;
+	}
+
+	:global(.blog-content) .step[aria-current='step'] :global(img) {
+		border-color: var(--color-primary);
+	}
+
+	.step-title {
+		@include kit.card-title;
+		position: relative;
+		display: inline-block;
+		color: var(--color-text);
+	}
+
+	/* the current step is marked by shape too, not colour alone: a filled number, an underlined title */
+	.steps li:not(:has(.step[aria-current='step']))::before {
+		box-sizing: border-box;
+		border: 1.5px solid var(--color-primary);
+		background: color-mix(in srgb, var(--color-primary) 10%, var(--color-bg-surface));
+		color: var(--color-primary);
+	}
+
+	.step[aria-current='step'] .step-title {
+		color: var(--color-primary);
+	}
+
+	.step[aria-current='step'] .step-title::after {
+		content: '';
+		position: absolute;
+		inset: auto 0 -3px;
+		border-block-end: 2px solid var(--color-primary);
+	}
+
+	.step:focus-visible,
+	.nav button:focus-visible {
+		outline: 2px solid var(--color-primary);
+		outline-offset: 2px;
+	}
+
+	.nav {
+		display: flex;
+		gap: 8px;
+		margin-left: auto;
+	}
+
+	.nav button {
+		@include text-s;
+		padding: 6px 18px;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		background: transparent;
+		color: var(--color-text);
+		font-weight: $font-weight-semibold;
+		cursor: pointer;
+	}
+
+	.nav button:disabled {
+		opacity: 0.4;
+		cursor: default;
+	}
+
+	/* on a phone the steps stack: number on the left, title beside it, no thumbnail */
+	@include media-down(md) {
+		:global(.blog-content) .steps {
+			flex-direction: column;
+			gap: 16px;
+		}
+
+		:global(.blog-content) .steps li {
+			padding: 0 0 0 40px;
+		}
+
+		.steps li::before {
+			position: absolute;
+			top: 0;
+			left: 0;
+			margin: 0;
+		}
+
+		.steps li::after {
+			top: 30px;
+			right: auto;
+			bottom: -14px;
+			left: 13px;
+			border-top: none;
+			border-left: 1px solid var(--color-border);
+		}
+
+		:global(.blog-content) .step :global(img) {
+			display: none;
+		}
+
+		.nav button {
+			min-height: 44px;
+		}
+
+		/* centred on the number beside it */
+		.step-title {
+			display: inline-flex;
+			align-items: center;
+			min-height: 26px;
+		}
+	}
+</style>
