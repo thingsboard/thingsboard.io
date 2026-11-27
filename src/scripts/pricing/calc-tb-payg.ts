@@ -41,12 +41,14 @@ export function initTbPaygCalc() {
 	const prodDesc = $('#sm-prod-desc');
 	const edgeDesc = $('#sm-edge-desc');
 	const edgeCounter = $('#sm-edge-counter');
+	const mobileCount = $('#sm-mobile-count') as HTMLInputElement;
+	const mobileCounter = $('#sm-mobile-counter');
 	const wlPrompt = $('#sm-wl-prompt');
 
 	const toggles = { edge: $('#sm-edge-toggle') as HTMLInputElement, trendz: $('#sm-trendz-toggle') as HTMLInputElement, mobile: $('#sm-mobile-toggle') as HTMLInputElement };
 	const cards = { edge: $('#sm-edge-card'), trendz: $('#sm-trendz-card'), mobile: $('#sm-mobile-card') };
 
-	let state = { devices: SM_THRESHOLDS[0], prodInstances: 1, addons: { edge: { on: false, count: 1 }, trendz: { on: false }, mobile: { on: false } } };
+	let state = { devices: SM_THRESHOLDS[0], prodInstances: 1, addons: { edge: { on: false, count: 1 }, trendz: { on: false }, mobile: { on: false, count: 1 } } };
 
 	// Last settled total + plan, updated wherever sendSmGTM runs, read by the
 	// footer CTA click handler so it reports the value live at click time.
@@ -130,6 +132,11 @@ export function initTbPaygCalc() {
 		cards.trendz.classList.toggle('active', state.addons.trendz.on);
 		cards.mobile.classList.remove('addon-disabled'); toggles.mobile.disabled = false; toggles.mobile.checked = state.addons.mobile.on;
 		cards.mobile.classList.toggle('active', state.addons.mobile.on);
+		mobileCounter.classList.toggle('hidden', !state.addons.mobile.on);
+		if (state.addons.mobile.on) {
+			mobileCount.value = String(state.addons.mobile.count);
+			($('#sm-mobile-stepper').querySelector('[data-action="decrement"]') as HTMLButtonElement).disabled = state.addons.mobile.count <= 1;
+		}
 	}
 
 	function calculate(opts?: { track?: boolean }) {
@@ -167,7 +174,7 @@ export function initTbPaygCalc() {
 		}
 
 		let mobileCost = 0;
-		if (state.addons.mobile.on) { mobileCost = SM_PLANS.mobileApp; total += mobileCost; }
+		if (state.addons.mobile.on) { mobileCost = state.addons.mobile.count * SM_PLANS.mobileApp; total += mobileCost; }
 
 		// Results
 
@@ -210,7 +217,12 @@ export function initTbPaygCalc() {
 
 		// Mobile
 		if (state.addons.mobile.on && mobileCost > 0) {
-			html += `<div class="calc-addon-result"><span class="calc-addon-result-name">White-labeled Mobile App</span><span class="calc-section-price">${fmt(mobileCost)}${tip(`Monthly: ${fmt(SM_PLANS.mobileApp)}<br>One-time setup: ${fmt(SM_PLANS.mobileAppSetup)}`)}</span></div>`;
+			const apps = state.addons.mobile.count;
+			html += `<div class="calc-addon-active"><div class="calc-addon-result"><span class="calc-addon-result-name">White-labeled Mobile App</span><span class="calc-section-price">${fmt(mobileCost)}${tip('White-labeled Mobile App total')}</span></div>`;
+			html += row('Mobile Apps', fmtN(apps), 'One branded app per brand or client');
+			html += row('Monthly Cost', fmt(mobileCost), `${fmtN(apps)} × ${fmt(SM_PLANS.mobileApp)}`);
+			html += row('One-time Setup', fmt(apps * SM_PLANS.mobileAppSetup), `${fmtN(apps)} × ${fmt(SM_PLANS.mobileAppSetup)}, paid once and not included in the monthly total`);
+			html += `</div>`;
 		} else {
 			html += `<div class="calc-addon-result"><span class="calc-addon-result-name">White-labeled Mobile App</span><button type="button" class="calc-addon-result-action" data-enable-addon="mobile">Add (${fmt(SM_PLANS.mobileApp)})</button></div>`;
 		}
@@ -237,7 +249,8 @@ export function initTbPaygCalc() {
 			if (extraEdges > 0) items.extraEdgeCount = extraEdges;
 		}
 		if (state.addons.trendz.on) items.trendzEnabled = true;
-		if (state.addons.mobile.on) items.whiteLabelingAddonEnabled = true;
+		// The license portal sells the white-labeled mobile app per app (MOBILE_APP add-on).
+		if (state.addons.mobile.on) items.mobileAppCount = state.addons.mobile.count;
 		let ctaUrl = `https://license.thingsboard.io/signup?createSubscription=true&productId=${plan.productId}&planId=${plan.planId}`;
 		const itemsStr = JSON.stringify(items);
 		if (itemsStr !== '{}') ctaUrl += '&items=' + encodeURIComponent(itemsStr);
@@ -279,14 +292,14 @@ export function initTbPaygCalc() {
 		html += row('Production Instances', fmtN(state.prodInstances));
 		if (state.addons.edge.on) html += row('Edge Instances', fmtN(state.addons.edge.count));
 		if (state.addons.trendz.on) html += row('Trendz Analytics', 'Enabled');
-		if (state.addons.mobile.on) html += row('White-labeled Mobile App', 'Enabled');
+		if (state.addons.mobile.on) html += row('Mobile Apps', fmtN(state.addons.mobile.count));
 		html += `<p class="calc-enterprise-msg">You have reached a tier where economies of scale apply. Let’s talk about aligning our pricing with your specific rollout schedule and volume requirements.</p>`;
 		results.innerHTML = html;
 
 		const msg = `Enterprise Request\n- Devices: ${fmtN(state.devices)}\n- Prod Instances: ${fmtN(state.prodInstances)}` +
 			(state.addons.edge.on ? `\n- Edge Instances: ${fmtN(state.addons.edge.count)}` : '') +
 			(state.addons.trendz.on ? `\n- Trendz Analytics: Enabled` : '') +
-			(state.addons.mobile.on ? `\n- Mobile App: Enabled` : '');
+			(state.addons.mobile.on ? `\n- Mobile Apps: ${fmtN(state.addons.mobile.count)}` : '');
 		footer.innerHTML = `<a class="calc-cta" href="/contact-us/?subject=${encodeURIComponent('ThingsBoard Products')}&message=${encodeURIComponent(msg)}" target="_blank" rel="noopener noreferrer">Get Enterprise Quote</a>`;
 	}
 
@@ -318,7 +331,7 @@ export function initTbPaygCalc() {
 	devicesInput.addEventListener('blur', () => { let d = Math.max(1, Math.min(SM_MAX, parseInt(devicesInput.value) || 1)); if (d <= SM_RAMP_START) d = SM_THRESHOLDS.find(t => d <= t) || SM_RAMP_START; const changed = d !== state.devices; state.devices = d; devicesInput.value = String(d); slider.value = String(devicesToSlider(d)); updateProgress(); commitCalculate(changed); });
 
 	// ─── Steppers ───
-	function bindStepper(containerId: string, key: 'prod' | 'edge') {
+	function bindStepper(containerId: string, key: 'prod' | 'edge' | 'mobile') {
 		const sInp = $(containerId).querySelector('input[type="number"]') as HTMLInputElement;
 		$(containerId).querySelectorAll('.calc-stepper-btn').forEach(btn => {
 			btn.addEventListener('click', () => {
@@ -327,6 +340,7 @@ export function initTbPaygCalc() {
 				const plan = getPlan(state.devices);
 				if (key === 'prod') { state.prodInstances = action === 'increment' ? state.prodInstances + 1 : Math.max(plan.includedProdInstances, state.prodInstances - 1); }
 				else if (key === 'edge') { const min = plan.edgeInstancesIncluded; state.addons.edge.count = action === 'increment' ? state.addons.edge.count + 1 : Math.max(min, state.addons.edge.count - 1); }
+				else if (key === 'mobile') { state.addons.mobile.count = action === 'increment' ? state.addons.mobile.count + 1 : Math.max(1, state.addons.mobile.count - 1); }
 				scheduleCalculate();
 			});
 		});
@@ -335,20 +349,23 @@ export function initTbPaygCalc() {
 			if (isNaN(v) || v < 0) return;
 			if (key === 'prod') state.prodInstances = v;
 			else if (key === 'edge') state.addons.edge.count = v;
+			else if (key === 'mobile' && v >= 1) state.addons.mobile.count = v;
 			scheduleCalculate();
 		});
 		sInp?.addEventListener('blur', () => {
 			const plan = getPlan(state.devices);
-			const prev = key === 'prod' ? state.prodInstances : state.addons.edge.count;
+			const prev = key === 'prod' ? state.prodInstances : key === 'edge' ? state.addons.edge.count : state.addons.mobile.count;
 			let v = parseInt(sInp.value) || 0;
 			if (key === 'prod') { v = Math.max(plan.includedProdInstances, v); state.prodInstances = v; }
 			else if (key === 'edge') { v = Math.max(plan.edgeInstancesIncluded, v); state.addons.edge.count = v; }
+			else { v = Math.max(1, v); state.addons.mobile.count = v; }
 			sInp.value = String(v);
 			commitCalculate(v !== prev);
 		});
 	}
 	bindStepper('#sm-prod-stepper', 'prod');
 	bindStepper('#sm-edge-stepper', 'edge');
+	bindStepper('#sm-mobile-stepper', 'mobile');
 
 	// ─── Addon toggles ───
 	(['edge', 'trendz', 'mobile'] as const).forEach(key => {
@@ -356,6 +373,7 @@ export function initTbPaygCalc() {
 			if (toggles[key].disabled) return;
 			(state.addons as any)[key].on = toggles[key].checked;
 			if (key === 'edge' && !toggles[key].checked) state.addons.edge.count = 1;
+			if (key === 'mobile' && !toggles[key].checked) state.addons.mobile.count = 1;
 			scheduleCalculate();
 		});
 	});
@@ -383,7 +401,7 @@ export function initTbPaygCalc() {
 			let msg = `Enterprise Request\n- Devices: ${fmtN(state.devices)}\n- Prod Instances: ${fmtN(state.prodInstances)}`;
 			if (state.addons.edge.on) msg += `\n- Edge Instances: ${fmtN(state.addons.edge.count)}`;
 			if (state.addons.trendz.on) msg += `\n- Trendz Analytics: Enabled`;
-			if (state.addons.mobile.on) msg += `\n- Mobile App: Enabled`;
+			if (state.addons.mobile.on) msg += `\n- Mobile Apps: ${fmtN(state.addons.mobile.count)}`;
 			return msg;
 		}
 		const plan = getPlan(state.devices);
@@ -405,7 +423,7 @@ export function initTbPaygCalc() {
 			const trendzExtra = (isBusiness && extraDev > 0 && plan.trendzExtraDevicePrice) ? extraDev * plan.trendzExtraDevicePrice : 0;
 			trendzCost = plan.trendzMonthPrice + trendzExtra;
 		}
-		const mobileCost = state.addons.mobile.on ? SM_PLANS.mobileApp : 0;
+		const mobileCost = state.addons.mobile.on ? state.addons.mobile.count * SM_PLANS.mobileApp : 0;
 		const total = plan.price + extraDevCost + extraProdCost + edgeCost + trendzCost + mobileCost;
 
 		let msg = `Subscription Plan: ${plan.name} (${fmt(plan.price)})\n`;
@@ -421,7 +439,7 @@ export function initTbPaygCalc() {
 			msg += `\nAdd-ons:\n`;
 			if (edgeCost > 0) msg += `- Edge Computing: ${fmt(edgeCost)} (${fmtN(state.addons.edge.count)} instances)\n`;
 			if (trendzCost > 0) msg += `- Trendz Analytics: ${fmt(trendzCost)}\n`;
-			if (mobileCost > 0) msg += `- White-labeled Mobile App: ${fmt(mobileCost)} (one-time setup: ${fmt(SM_PLANS.mobileAppSetup)})\n`;
+			if (mobileCost > 0) msg += `- White-labeled Mobile App: ${fmt(mobileCost)} (${fmtN(state.addons.mobile.count)} apps, one-time setup: ${fmt(state.addons.mobile.count * SM_PLANS.mobileAppSetup)})\n`;
 		}
 		msg += `\nTotal Monthly Cost: ${fmt(total)}`;
 		return msg;
@@ -436,12 +454,14 @@ export function initTbPaygCalc() {
 
 	// Reset
 	$('[data-calc-reset]').addEventListener('click', () => {
-		state = { devices: SM_THRESHOLDS[0], prodInstances: 1, addons: { edge: { on: false, count: 1 }, trendz: { on: false }, mobile: { on: false } } };
+		state = { devices: SM_THRESHOLDS[0], prodInstances: 1, addons: { edge: { on: false, count: 1 }, trendz: { on: false }, mobile: { on: false, count: 1 } } };
 		devicesInput.value = String(state.devices); slider.value = '0';
 		toggles.edge.checked = false; toggles.trendz.checked = false; toggles.mobile.checked = false;
 		cards.edge.classList.remove('active', 'addon-free'); cards.trendz.classList.remove('active', 'addon-free'); cards.mobile.classList.remove('active', 'addon-disabled');
 		edgeCounter.classList.add('hidden');
 		edgeCount.value = '1';
+		mobileCounter.classList.add('hidden');
+		mobileCount.value = '1';
 		($('#sm-edge-stepper').querySelector('[data-action="decrement"]') as HTMLButtonElement).disabled = true;
 		updateProgress(); calculate({ track: false });
 	});
