@@ -30,9 +30,8 @@ export const TBMQ_DOCS_URL = `${TBMQ_SITE_URL}docs/`;
 export const tbmqDocsUrl = (path: string): string => `${TBMQ_DOCS_URL}${path}`;
 
 /**
- * Contact page with the TBMQ subject pre-selected. The subject value must
- * match an <option> in ContactForm.astro — the prefill silently no-ops on
- * unknown values.
+ * Contact page with the TBMQ topic already set. The subject must be a topic in
+ * `src/data/contact-form.ts` (`CONTACT_TOPICS` or `LINKED_TOPICS`); the form ignores any other value.
  */
 export const TBMQ_CONTACT_US_URL = '/contact-us/?subject=TBMQ';
 
