@@ -501,6 +501,7 @@ const apisAndSdksItems = (prefix: string) => [
 		label: 'Device APIs',
 		collapsed: true,
 		items: [
+			`${prefix}/reference/payload-data-types`,
 			{
 				label: 'MQTT API',
 				collapsed: true,
