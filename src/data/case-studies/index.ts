@@ -139,7 +139,7 @@ export const caseStudyCards: CaseStudyCard[] = caseStudyOrder
 export const caseStudyContactBanner = {
 	buttons: [
 		{ label: 'Contact Us', href: '/contact-us/' },
-		{ label: 'Use cases', href: '/use-cases/', variant: 'outlined' as const },
+		{ label: 'Use cases', href: '/use-cases/', variant: 'secondary' as const },
 	],
 };
 
