@@ -120,7 +120,7 @@ export function mobileAppServiceFaqCategory(product: FaqProduct): FaqCategory {
 				id: id('mobile-app-build-yourself'),
 				question: 'Can I build and publish the app myself instead?',
 				answer:
-					'<p>Yes. The ThingsBoard mobile app is <a href="https://github.com/thingsboard/flutter_thingsboard_app" target="_blank" rel="noopener noreferrer">open source</a>, and the <a href="/docs/mobile/">mobile app docs</a> describe how to customize, build and publish it. The add-on is for teams that prefer us to do it and keep it up to date.</p>',
+					'<p>Yes. The ThingsBoard mobile app is <a href="https://github.com/thingsboard/flutter_thingsboard_app" target="_blank" rel="noopener noreferrer">open source</a>, and the <a href="/docs/mobile/pe/">mobile app docs</a> describe how to customize, build and publish it. The add-on is for teams that prefer us to do it and keep it up to date.</p>',
 			},
 		],
 	};
